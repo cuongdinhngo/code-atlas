@@ -10,6 +10,8 @@ as if one person wrote it. For the *why/how we build*, see [`ENGINEERING_RULES.m
 ```
 code-atlas/
 ├── pyproject.toml
+├── .harness.json                     # mango lifecycle config (committed team config; no secrets)
+├── .github/                          # workflows/ci.yml + pull_request_template.md
 ├── CLAUDE.md                         # agent guidance (points here + to ENGINEERING_RULES)
 ├── README.md
 ├── code_atlas/                       # THE CORE — language-agnostic, no per-language branches
@@ -90,9 +92,13 @@ code-atlas/
 
 ## 7. Git conventions
 
-- Branch per change; small, single-purpose commits.
+- **Branch naming:** `type/NNN-slug`, where `type ∈ {feat, fix, chore, docs}`, `NNN` is the task id, and
+  `slug` is the task's kebab-case slug (`feat/014-search-read-outline`, `fix/011-resolver`). Branch per
+  change; small, single-purpose commits. Never commit directly to `main`.
 - **Imperative** subject line (`Add PHP trait resolution`, not `Added…`); body explains *why* when not obvious.
 - **No `Co-Authored-By` / AI-attribution trailer.**
+- **Pull requests:** open against `main` using `.github/pull_request_template.md`; fill every section and
+  complete the pre-PR self-check before requesting review.
 
 ## 8. Docs & tracking
 

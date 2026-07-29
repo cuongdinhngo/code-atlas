@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: lint · type · test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f pyproject.toml ]; then
+            pip install -e ".[dev]"
+          else
+            pip install ruff mypy pytest
+          fi
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Type-check (mypy)
+        if: ${{ hashFiles('code_atlas/**/*.py') != '' }}
+        run: mypy code_atlas
+
+      - name: Tests (pytest — unit · contract · integration)
+        if: ${{ hashFiles('tests/**/*.py') != '' }}
+        run: pytest -q
+
+  guardrails:
+    name: rulebook grep-gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: R1.1 — no language branches in the core
+        run: |
+          if [ -d code_atlas ] && \
+             grep -rEn 'if[^\n]*\blanguage\b[^\n]*==|match[^\n]*\blanguage\b' code_atlas/; then
+            echo "::error::R1.1 — language branch found in core (fix the contract, not the core)"
+            exit 1
+          fi
+          echo "R1.1 ok"
+
+      - name: R2.2 — no repo/framework names in adapter source
+        run: |
+          # Denylist grows as frameworks are added; the authoritative gate lands with task 012.
+          if [ -d adapters ] && \
+             grep -rEin 'laravel|symfony|wordpress|drupal|magento' adapters/; then
+            echo "::error::R2.2 — repo/framework name found in adapter source"
+            exit 1
+          fi
+          echo "R2.2 ok"

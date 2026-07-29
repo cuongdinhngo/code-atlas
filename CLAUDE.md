@@ -31,11 +31,15 @@ MCP client ──stdio──▶ core (Python/FastMCP) ──JSONL contract──
 - **Deterministic core** — no LLM/network in the core (that's Phase-2 onboarding only); identical input → identical rows (R4).
 - **Do NOT use the Claude Code Memory feature** for this project — decisions live in the plan (§19) and the repo.
 - **Commits** — no `Co-Authored-By` / AI-attribution trailer.
+- **Comments** — keep every code comment to **≤ 3 lines**; if it needs more, the code or a doc should carry it instead.
+- **Docs before PR** — before opening a PR, update every doc the change affects (PLAN, BACKLOG + task frontmatter, CONVENTION, ENGINEERING_RULES, README) so the docs match the work. The PR self-check gates this.
+- **Pull requests** — when asked to open a PR, base it on `.github/pull_request_template.md` (fill every section, complete the pre-PR self-check). If the template is missing, propose one and create it first, then open the PR.
 
 ## Where things live
 - Core: `code_atlas/` (`main.py` FastMCP, `config.py`, `contract.py`, `adapter.py`, `store.py`, `indexer.py`, `resolver.py`, `tools/`).
 - Adapters: `adapters/<lang>/`, each self-contained and launched via `CA_<LANG>_CMD` (PHP first).
 - Tests: `tests/contract/` — the conformance suite every adapter must pass. Full layout + naming in CONVENTION.md.
+- Tooling: `.harness.json` (mango lifecycle config), `.github/workflows/ci.yml` (ruff · mypy · pytest + R1.1/R2.2 grep-gates), `.github/pull_request_template.md`.
 
 ## Ship discipline (plan §15)
 M0 spike → M1 full build → M2 resolver+contract tests → **M3 search/read/outline = first daily release (task 014)** → M4 scale → M5 incremental → M6 impact. Then adapters #2–#4, then onboarding.

@@ -1,0 +1,65 @@
+{
+  "rulebook_path": "docs/ENGINEERING_RULES.md",
+  "standards_path": "docs/CONVENTION.md",
+
+  "repos": [
+    { "name": "app", "root": "." }
+  ],
+
+  "test_command": "pytest",
+
+  "tickets_dir": "docs/tasks",
+  "work_dir": "docs/tasks",
+  "work_doc_mode": "separate",
+
+  "pr_checklist_path": null,
+  "stuck_threshold": 3,
+  "explore_fanout": true,
+
+  "track": "backend",
+  "breakpoints": null,
+  "design_doc_path": "DESIGN.md",
+  "cost_tier": "standard",
+
+  "token_optimizer": {
+    "rtk": "expect",
+    "headroom": { "enabled": false, "output_shaper": false },
+    "caveman": { "enabled": false, "scope": "non-critic-only" }
+  },
+
+  "update_check_url": null,
+  "branch_strategy": "feat|fix|chore|docs/<NNN>-<slug>",
+  "lessons_path": "docs/LESSONS.md",
+  "pr_host": "gh",
+
+  "docs_dir": "docs",
+  "code_map_cmd": null,
+  "db_kind": null,
+  "db_introspect_cmd": null,
+  "migrations_path": null,
+
+  "tracker": {
+    "base_url": "https://github.com/cuongdinhngo/code-atlas",
+    "project_key": "code-atlas",
+    "cli": "gh",
+    "read_mcp": null,
+    "fields": ["description", "type", "labels", "parent", "priority"]
+  },
+
+  "cause_taxonomy": [
+    "logic",
+    "data",
+    "config",
+    "integration",
+    "concurrency",
+    "validation",
+    "ui"
+  ],
+
+  "ticket_header_schema": {
+    "Goal": "G",
+    "Scope / Deliverables": "R",
+    "Acceptance criteria": "AC",
+    "Constraint": "C"
+  }
+}
