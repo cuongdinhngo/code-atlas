@@ -10,7 +10,7 @@
 
   "tickets_dir": "docs/tasks",
   "work_dir": "docs/tasks",
-  "work_doc_mode": "separate",
+  "work_doc_mode": "embed",
 
   "pr_checklist_path": null,
   "stuck_threshold": 3,

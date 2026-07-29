@@ -10,7 +10,7 @@ is [`PLAN.md`](PLAN.md).
 
 | # | Task | Milestone | Status | Depends on |
 |---|---|---|---|---|
-| 001 | [Project scaffold & tooling](tasks/001_project-scaffold.md) | Setup | todo | — |
+| 001 | [Project scaffold & tooling](tasks/001_project-scaffold.md) | Setup | in-progress | — |
 | 002 | [Contract — schema, version, validation](tasks/002_contract-schema.md) | Contract | todo | 001 |
 | 003 | [Config (CA_*) & ignore rules](tasks/003_config-and-ignore.md) | Setup | todo | 001 |
 | 004 | [SQLite store & schema](tasks/004_sqlite-store.md) | Core | todo | 001, 002 |
@@ -43,6 +43,16 @@ is [`PLAN.md`](PLAN.md).
 |---|---|---|---|---|
 | 022 | [Architecture overview + layers](tasks/022_architecture-overview.md) | M10 | todo | 014 |
 | 023 | [Guided tour + markdown docs](tasks/023_guided-tour-and-docs.md) | M11 | todo | 022 |
+
+## Token usage
+
+Token spend per task, recorded before its PR is opened (see the "Token usage on PR" rule in
+[`CLAUDE.md`](../CLAUDE.md)). The authoritative per-dispatch breakdown lives in each task's working-doc
+cost ledger (`tasks/NNN_slug.work.md`); this table is the roll-up.
+
+| # | Task | Tokens | PR |
+|---|---|---|---|
+| 001 | Project scaffold & tooling | 113.6k dispatch (reviewer 70.9k + challenger 42.7k); main-loop unmeasured (see `rtk gain`) | [#2](https://github.com/cuongdinhngo/code-atlas/pull/2) |
 
 ## Suggested order
 
