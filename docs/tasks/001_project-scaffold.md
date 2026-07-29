@@ -55,11 +55,11 @@ Plan §5 (architecture, repo layout).
 | R2 | Scope | "Package skeleton per §5: `code_atlas/{main,config,contract,adapter,store,indexer,resolver,gitutil,ignore}.py` (stubs) + `code_atlas/tools/`." | Create 9 named module stubs + `tools/` package (+ enabling `__init__.py`). **Per-item checklist, N=9** — see Inventory. | Layout matches CONVENTION §1 / PLAN §5 (PLAN.md:145-154) | 11/11 | 9 stubs + 2 `__init__` @ 27bc105 (inventory 9/9 ✅); mypy 11 files clean | ✅ |
 | R3 | Scope | "`adapters/` and `tests/{contract,fixtures,}` directories." | Create `adapters/`, `tests/contract/`, `tests/fixtures/`, `tests/`. | Absent (survey) | 3/3 | `.gitkeep` @ 27bc105 in adapters/, tests/contract/, tests/fixtures/ | ✅ |
 | R4 | Scope | "`ruff`/`mypy`/`pytest` configured and runnable; a trivial passing test." | Add tool config (ruff/mypy/pytest) to `pyproject.toml` + one trivial passing test under `tests/`. | ruff not installed locally (baseline) | 1/1 | `[tool.*]` in pyproject + `tests/test_smoke.py`; ruff/mypy/pytest all green | ✅ |
-| R5 | Scope | "CI … turns green: ruff · mypy · pytest + the R1.1/R2.2 grep-gates run on every PR." | The committed `ci.yml` must go green: `test` job (ruff/mypy/pytest) + `guardrails` job (R1.1/R2.2). CI file already exists. | ci.yml present w/ conditional mypy/pytest steps (ci.yml:33,37) | 1/1 | local repro of both CI jobs green; **live Actions run pending PR (finalise)** | ⚠→✅ pending CI |
+| R5 | Scope | "CI … turns green: ruff · mypy · pytest + the R1.1/R2.2 grep-gates run on every PR." | The committed `ci.yml` must go green: `test` job (ruff/mypy/pytest) + `guardrails` job (R1.1/R2.2). CI file already exists. | ci.yml present w/ conditional mypy/pytest steps (ci.yml:33,37) | 1/1 | PR #2 CI green: `lint·type·test` pass + `guardrails` pass (run 30444621501) | ✅ |
 | R6 | Scope (folded in Ph4) | "Token-ledger bootstrap: Token-usage-on-PR rule + BACKLOG token table." | Add the `Token usage on PR` rule to `CLAUDE.md` and the Token usage roll-up table to `docs/BACKLOG.md`. | Same-session user request; approved to fold in at Gate-4 | 1/1 | `CLAUDE.md:36` + `docs/BACKLOG.md:47-55` @ 5478c5a | ✅ |
 | AC1 | AC | "`pip install -e .` succeeds; `pytest` runs green; `ruff check` clean." | 3 command checks all exit 0; pytest green (≥1 passing test, 0 fail). | — | 1/1 | `pip install -e ".[dev]"` ok · `pytest` 1 passed · `ruff check .` clean (re-run by reviewer+challenger) | ✅ |
 | AC2 | AC | "Import `code_atlas` works; no per-language code anywhere in the package." | `python -c "import code_atlas"` exits 0; R1.1 grep over `code_atlas/` finds no language branch. | R1.1 gate defined (ci.yml:46-53) | 1/1 | `import code_atlas` ok + R1.1 grep over `code_atlas/` → 0 hits (re-run by both agents) | ✅ |
-| AC3 | AC | "CI passes on the PR: `test` job runs ruff/mypy/pytest (no longer skipped), `guardrails` job green." | On the PR: `test` job's mypy+pytest steps execute (not skipped) and pass; `guardrails` green. | Steps gated on `hashFiles('code_atlas/**/*.py')` / `hashFiles('tests/**/*.py')` (ci.yml:33,37) | 1/1 | `.py` now present under both paths → steps un-skip; **live Actions run pending PR** | ⚠→✅ pending CI |
+| AC3 | AC | "CI passes on the PR: `test` job runs ruff/mypy/pytest (no longer skipped), `guardrails` job green." | On the PR: `test` job's mypy+pytest steps execute (not skipped) and pass; `guardrails` green. | Steps gated on `hashFiles('code_atlas/**/*.py')` / `hashFiles('tests/**/*.py')` (ci.yml:33,37) | 1/1 | PR #2: mypy+pytest steps ran (not skipped) & passed; guardrails green | ✅ |
 
 Status legend: ✅ done/proven · ⚠ deferred · ❌ not met. (All ❌ pre-implementation — nothing built yet.)
 
@@ -272,8 +272,8 @@ the M baseline; no tier drift, no branch/PR-type drift (this is a `chore`/`feat`
 
 ## Session status
 
-- **Last updated:** Phase 4 (review) complete — **clean**
-- **Current phase:** 4 → 5 (ready for finalise)
+- **Last updated:** Phase 5 (finalise) complete — PR #2 open, CI green
+- **Current phase:** 5 — done pending merge
 - **Work-doc mode / path:** embed · this file (`docs/tasks/001_project-scaffold.md`, below the separator)
-- **Next action:** run `/mango:finalise 001` — push branch, open PR (dry-run first, per-action approval); AC3 (CI green) confirmed by the PR's Actions run
-- **Blocked on:** nothing; finalise gate needs per-action approval
+- **Next action:** merge PR #2 (your call) → then set status `done` in BACKLOG + frontmatter
+- **Blocked on:** human merge of PR #2

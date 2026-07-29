@@ -52,7 +52,7 @@ cost ledger (`tasks/NNN_slug.work.md`); this table is the roll-up.
 
 | # | Task | Tokens | PR |
 |---|---|---|---|
-| 001 | Project scaffold & tooling | 113.6k dispatch (reviewer 70.9k + challenger 42.7k); main-loop unmeasured (see `rtk gain`) | _pending push_ |
+| 001 | Project scaffold & tooling | 113.6k dispatch (reviewer 70.9k + challenger 42.7k); main-loop unmeasured (see `rtk gain`) | [#2](https://github.com/cuongdinhngo/code-atlas/pull/2) |
 
 ## Suggested order
 
