@@ -19,6 +19,7 @@ Index a whole repo end-to-end into SQLite (§8.1).
 ## Acceptance criteria
 - Builds a small PHP repo to a queryable DB; re-run is idempotent.
 - Single writer (no SQLite lock contention); worker count honors `CA_WORKERS`.
+- A result rejected by `contract.validate()` sets `files.parsed_ok=0` and never breaks the stream (R5.1) — this closes the R5 integration-proof exclusion deferred from task 002.
 
 ## References
 Plan §8.1, §15 (M1).

@@ -54,17 +54,22 @@ Plan §4 (4.1 protocol, 4.2 schema, 4.3 abstraction, 4.4 contract v2 note).
 
 | ID | Source | Verbatim | Interpretation | Ph1 evidence | Ph2 covered by | Ph3/4 proven by | Status |
 |----|--------|----------|----------------|--------------|----------------|-----------------|--------|
-| G1 | Goal | "Define the single seam between core and adapters as a versioned, validated artifact (§4)." | Make `code_atlas/contract.py` the executable single source of truth for the adapter seam: vocabulary + fields + version + validation. Today the seam exists only as prose. | `contract.py` is a 1-line docstring stub (`code_atlas/contract.py:1`); vocabulary lives only in `docs/PLAN.md:87-99` + `docs/CONVENTION.md:53-65` | 9/9 (all change-list items) | — | ❌ |
-| R1 | Scope | "`contract.py`: node kinds (`File Namespace Class Interface Trait Enum Function Method Property ClassConst Const`) and edge kinds (`CONTAINS EXTENDS IMPLEMENTS USES_TRAIT CALLS NEW IMPORTS INCLUDES REFERENCES`)." | Declare the **11** node kinds and **9** edge kinds as constants in `contract.py`, spelled exactly as in CONVENTION §3. Counted "for each of N" → per-item checklist (Inventory 1, items 1-20). | Same 11+9 spellings in `PLAN.md:88,91` and `CONVENTION.md:55-56`; zero of them exist in code (`grep -c 'USES_TRAIT' code_atlas/` → 0) | 2/2 (items 2, 7) | — | ❌ |
-| R2 | Scope | "Node/edge field definitions; `confidence_tier ∈ {RESOLVED, HEURISTIC, DYNAMIC}`." | Declare the **10** node fields, **7** edge fields, and the **3** confidence tiers (Inventory 1, items 21-40). | `PLAN.md:89,92` (fields) · `PLAN.md:92`/`CONVENTION.md:57-59` (tiers) · SQLite mirror `PLAN.md:254-268` | 2/2 (items 3, 7) | — | ❌ |
-| R3 | Scope | "Qualified-name convention documented + helpers." | Document the qname convention **in `contract.py`** (docstring pointing at CONVENTION §3, not a second normative copy) and ship qname helper(s). Helper *set* is a Gate-2 decision, bounded by R7.4/R1.2 (no helper without a named near-term consumer). | Convention documented at `CONVENTION.md:60-64` + `PLAN.md:94-95`; no helper exists in code | 4/4 (items 1, 5, 7, 9) | — | ❌ |
-| R4 | Scope | "`contract_version` constant + capability-flags shape (e.g. `semantic_types`)." | Export a `CONTRACT_VERSION` constant and define the capability-flags shape (`{"semantic_types": true}`-style, per ISP R1.6 — advertised, never required). | `PLAN.md:97` (flags example), `PLAN.md:99` (versioned in meta), `PLAN.md:113-118` (v2 anticipated → integer series), rulebook R1.6 | 2/2 (items 4, 7) | — | ❌ |
-| R5 | Scope | "A `validate(result)` function usable by both the indexer and the conformance tests." | One `validate()` in `contract.py` consumed by **two** callers: `indexer.py` (per-file adapter result, must not break the stream — R5.1) and `tests/contract/` (R3.4 conformance). Its call/return shape is a Gate-2 decision constrained by both callers. | Both callers are stubs today (`indexer.py:1`, `tests/contract/.gitkeep`); R5.1/R5.3 + R3.4 constrain the shape | 2/2 (items 6, 7) — conformance-caller half proven; **indexer half is a recorded coverage-gap exclusion** → task 009 | — | ❌ |
-| AC1 | AC | "`validate()` accepts a known-good `{path, ok, nodes, edges}` and rejects malformed shapes with clear errors." | Good 4-key payload → validates with no error; malformed payloads → rejected. **"clear" pinned at Gate 1 (Q1 → option a):** every rejection names the offending key path **and** what was expected; one asserted case per malformation class (5 classes). | Good/bad shapes both illustrated at `PLAN.md:82-84` (incl. the `ok:false` + `error` variant) | 2/2 (items 6, 7 — item 7 holds the proving test) | — | ❌ |
-| AC2 | AC | "Version constant exported; schema is the sole source of truth (no field lists duplicated in store/indexer)." | (a) `CONTRACT_VERSION` importable from `contract.py`; (b) no field-list literal re-declared in the schema-consuming core modules (R3.2). **Q2 → durable test:** clause (b) is proven by a committed test (not a point-in-time grep, not a new CI gate) asserting the 5 consumers carry no re-declared vocabulary. Per-item checklist = Inventory 2. | `store.py:1`, `indexer.py:1`, `resolver.py:1`, `adapter.py:1`, `tools/__init__.py:1` are all 1-line stubs → 0 duplications now; R3.2 is the standing rule | 3/3 (items 4, 7 → AC2(a); item 8 → AC2(b)) | — | ❌ |
+| G1 | Goal | "Define the single seam between core and adapters as a versioned, validated artifact (§4)." | Make `code_atlas/contract.py` the executable single source of truth for the adapter seam: vocabulary + fields + version + validation. Today the seam exists only as prose. | `contract.py` is a 1-line docstring stub (`code_atlas/contract.py:1`); vocabulary lives only in `docs/PLAN.md:87-99` + `docs/CONVENTION.md:53-65` | 9/9 (all change-list items) | `contract.py` is the seam in code: 16 public symbols, `34 passed`, `mypy` clean over 11 files | ✅ |
+| R1 | Scope | "`contract.py`: node kinds (`File Namespace Class Interface Trait Enum Function Method Property ClassConst Const`) and edge kinds (`CONTAINS EXTENDS IMPLEMENTS USES_TRAIT CALLS NEW IMPORTS INCLUDES REFERENCES`)." | Declare the **11** node kinds and **9** edge kinds as constants in `contract.py`, spelled exactly as in CONVENTION §3. Counted "for each of N" → per-item checklist (Inventory 1, items 1-20). | Same 11+9 spellings in `PLAN.md:88,91` and `CONVENTION.md:55-56`; zero of them exist in code (`grep -c 'USES_TRAIT' code_atlas/` → 0) | 2/2 (items 2, 7) | `contract.py:19,33`; asserted item-by-item at `test_contract_schema.py:55,71` (inventory 1 rows 1-20 all ✅) | ✅ |
+| R2 | Scope | "Node/edge field definitions; `confidence_tier ∈ {RESOLVED, HEURISTIC, DYNAMIC}`." | Declare the **10** node fields, **7** edge fields, and the **3** confidence tiers (Inventory 1, items 21-40). | `PLAN.md:89,92` (fields) · `PLAN.md:92`/`CONVENTION.md:57-59` (tiers) · SQLite mirror `PLAN.md:254-268` | 2/2 (items 3, 7) | `contract.py:45,47,60,73,80`; asserted at `test_contract_schema.py:85,89,104,116,121` (inventory 1 rows 21-40 all ✅) | ✅ |
+| R3 | Scope | "Qualified-name convention documented + helpers." | Document the qname convention **in `contract.py`** (docstring pointing at CONVENTION §3, not a second normative copy) and ship qname helper(s). Helper *set* is a Gate-2 decision, bounded by R7.4/R1.2 (no helper without a named near-term consumer). | Convention documented at `CONVENTION.md:60-64` + `PLAN.md:94-95`; no helper exists in code | 4/4 (items 1, 5, 7, 9) | docstring `contract.py:1-14`; `MEMBER_SEPARATOR` + helpers `contract.py:93,96,107`; `test_contract_schema.py:141-163`; docs pinned @ `9d6191e` | ✅ |
+| R4 | Scope | "`contract_version` constant + capability-flags shape (e.g. `semantic_types`)." | Export a `CONTRACT_VERSION` constant and define the capability-flags shape (`{"semantic_types": true}`-style, per ISP R1.6 — advertised, never required). | `PLAN.md:97` (flags example), `PLAN.md:99` (versioned in meta), `PLAN.md:113-118` (v2 anticipated → integer series), rulebook R1.6 | 2/2 (items 4, 7) | `CONTRACT_VERSION` `contract.py:16`, `Capabilities`/`KNOWN_CAPABILITIES` `contract.py:90-91`; `test_contract_schema.py:130,134` | ✅ (see caveat 1) |
+| R5 | Scope | "A `validate(result)` function usable by both the indexer and the conformance tests." | One `validate()` in `contract.py` consumed by **two** callers: `indexer.py` (per-file adapter result, must not break the stream — R5.1) and `tests/contract/` (R3.4 conformance). Its call/return shape is a Gate-2 decision constrained by both callers. | Both callers are stubs today (`indexer.py:1`, `tests/contract/.gitkeep`); R5.1/R5.3 + R3.4 constrain the shape | 2/2 (items 6, 7) — conformance-caller half proven; **indexer half is a recorded coverage-gap exclusion** → task 009 | `validate()` `contract.py:112`; the conformance suite **is** the second caller (`test_contract_schema.py:166`); non-raising shape proven at `:273` | ✅ for the shipped half · ⚠ indexer half excluded → task 009 |
+| AC1 | AC | "`validate()` accepts a known-good `{path, ok, nodes, edges}` and rejects malformed shapes with clear errors." | Good 4-key payload → validates with no error; malformed payloads → rejected. **"clear" pinned at Gate 1 (Q1 → option a):** every rejection names the offending key path **and** what was expected; one asserted case per malformation class (5 classes). | Good/bad shapes both illustrated at `PLAN.md:82-84` (incl. the `ok:false` + `error` variant) | 2/2 (items 6, 7 — item 7 holds the proving test) | **proving test** `test_contract_schema.py:190` red→green; 5/5 malformation classes at `:190,201,211,222,231` | ✅ |
+| AC2 | AC | "Version constant exported; schema is the sole source of truth (no field lists duplicated in store/indexer)." | (a) `CONTRACT_VERSION` importable from `contract.py`; (b) no field-list literal re-declared in the schema-consuming core modules (R3.2). **Q2 → durable test:** clause (b) is proven by a committed test (not a point-in-time grep, not a new CI gate) asserting the 5 consumers carry no re-declared vocabulary. Per-item checklist = Inventory 2. | `store.py:1`, `indexer.py:1`, `resolver.py:1`, `adapter.py:1`, `tools/__init__.py:1` are all 1-line stubs → 0 duplications now; R3.2 is the standing rule | 3/3 (items 4, 7 → AC2(a); item 8 → AC2(b)) | (a) `test_contract_schema.py:130`; (b) `test_contract_sole_source.py:58` over 5 consumers + non-vacuity guard `:51`, negative-controlled | ✅ |
 
 Status legend: ✅ done/proven · ⚠ deferred (needs follow-up ticket) · ❌ not met.
-All rows `❌` and `Ph2/Ph3-4` unfilled — **nothing is built yet**; this is the pre-design state, not a defect.
+
+> ⚠ **`Ph3/4 proven by` is EXECUTE-SELF-REPORTED, not reviewer-verified.** Phase 4 (review) was
+> **skipped by explicit user decision**, so no `reviewer` and no ticket-blind `challenger` independently
+> re-derived these requirements or re-ran these proofs. Every cell below cites a test that was actually
+> run (`34 passed`), but the check that a self-reported `✅` matches reality was not performed by a second
+> party. Treat the `✅`s as *"the author's evidence"*, not *"an independent verdict"*.
 
 **`References` section decomposition:** informational pointer (Plan §4.1-4.4), no independent requirement.
 It is consumed as the authority behind R1-R5 (each row cites it) and as the forward-compatibility note:
@@ -100,46 +105,46 @@ the v1 shape must stay **file-at-a-time** (`PLAN.md:114`). No matrix row of its 
 
 | # | Item | Group | Ph3/4 proven by (`path:line` / test) | Status |
 |---|------|-------|--------------------------------------|--------|
-| 1 | `File` | node kind | | ❌ |
-| 2 | `Namespace` | node kind | | ❌ |
-| 3 | `Class` | node kind | | ❌ |
-| 4 | `Interface` | node kind | | ❌ |
-| 5 | `Trait` | node kind | | ❌ |
-| 6 | `Enum` | node kind | | ❌ |
-| 7 | `Function` | node kind | | ❌ |
-| 8 | `Method` | node kind | | ❌ |
-| 9 | `Property` | node kind | | ❌ |
-| 10 | `ClassConst` | node kind | | ❌ |
-| 11 | `Const` | node kind | | ❌ |
-| 12 | `CONTAINS` | edge kind | | ❌ |
-| 13 | `EXTENDS` | edge kind | | ❌ |
-| 14 | `IMPLEMENTS` | edge kind | | ❌ |
-| 15 | `USES_TRAIT` | edge kind | | ❌ |
-| 16 | `CALLS` | edge kind | | ❌ |
-| 17 | `NEW` | edge kind | | ❌ |
-| 18 | `IMPORTS` | edge kind | | ❌ |
-| 19 | `INCLUDES` | edge kind | | ❌ |
-| 20 | `REFERENCES` | edge kind | | ❌ |
-| 21 | `RESOLVED` | tier | | ❌ |
-| 22 | `HEURISTIC` | tier | | ❌ |
-| 23 | `DYNAMIC` | tier | | ❌ |
-| 24 | `kind` | node field | | ❌ |
-| 25 | `name` | node field | | ❌ |
-| 26 | `qualified_name` | node field | | ❌ |
-| 27 | `file_path` | node field | | ❌ |
-| 28 | `line_start` | node field | | ❌ |
-| 29 | `line_end` | node field | | ❌ |
-| 30 | `modifiers` | node field | | ❌ |
-| 31 | `params` | node field | | ❌ |
-| 32 | `is_test` | node field | | ❌ |
-| 33 | `extra` | node field | | ❌ |
-| 34 | `kind` | edge field | | ❌ |
-| 35 | `source_qname` | edge field | | ❌ |
-| 36 | `target_qname` (optional — NULL until the resolver links it, `PLAN.md:233`) | edge field | | ❌ |
-| 37 | `target_raw` | edge field | | ❌ |
-| 38 | `file_path` | edge field | | ❌ |
-| 39 | `line` | edge field | | ❌ |
-| 40 | `confidence_tier` (defaults `RESOLVED`, `PLAN.md:264`) | edge field | | ❌ |
+| 1 | `File` | node kind | `contract.py:19` · asserted `test_contract_schema.py:55` | ✅ |
+| 2 | `Namespace` | node kind | `contract.py:19` · asserted `test_contract_schema.py:55` | ✅ |
+| 3 | `Class` | node kind | `contract.py:19` · asserted `test_contract_schema.py:55` | ✅ |
+| 4 | `Interface` | node kind | `contract.py:19` · asserted `test_contract_schema.py:55` | ✅ |
+| 5 | `Trait` | node kind | `contract.py:19` · asserted `test_contract_schema.py:55` | ✅ |
+| 6 | `Enum` | node kind | `contract.py:19` · asserted `test_contract_schema.py:55` | ✅ |
+| 7 | `Function` | node kind | `contract.py:19` · asserted `test_contract_schema.py:55` | ✅ |
+| 8 | `Method` | node kind | `contract.py:19` · asserted `test_contract_schema.py:55` | ✅ |
+| 9 | `Property` | node kind | `contract.py:19` · asserted `test_contract_schema.py:55` | ✅ |
+| 10 | `ClassConst` | node kind | `contract.py:19` · asserted `test_contract_schema.py:55` | ✅ |
+| 11 | `Const` | node kind | `contract.py:19` · asserted `test_contract_schema.py:55` | ✅ |
+| 12 | `CONTAINS` | edge kind | `contract.py:33` · asserted `test_contract_schema.py:71` | ✅ |
+| 13 | `EXTENDS` | edge kind | `contract.py:33` · asserted `test_contract_schema.py:71` | ✅ |
+| 14 | `IMPLEMENTS` | edge kind | `contract.py:33` · asserted `test_contract_schema.py:71` | ✅ |
+| 15 | `USES_TRAIT` | edge kind | `contract.py:33` · asserted `test_contract_schema.py:71` | ✅ |
+| 16 | `CALLS` | edge kind | `contract.py:33` · asserted `test_contract_schema.py:71` | ✅ |
+| 17 | `NEW` | edge kind | `contract.py:33` · asserted `test_contract_schema.py:71` | ✅ |
+| 18 | `IMPORTS` | edge kind | `contract.py:33` · asserted `test_contract_schema.py:71` | ✅ |
+| 19 | `INCLUDES` | edge kind | `contract.py:33` · asserted `test_contract_schema.py:71` | ✅ |
+| 20 | `REFERENCES` | edge kind | `contract.py:33` · asserted `test_contract_schema.py:71` | ✅ |
+| 21 | `RESOLVED` | tier | `contract.py:45` · asserted `test_contract_schema.py:85` | ✅ |
+| 22 | `HEURISTIC` | tier | `contract.py:45` · asserted `test_contract_schema.py:85` | ✅ |
+| 23 | `DYNAMIC` | tier | `contract.py:45` · asserted `test_contract_schema.py:85` | ✅ |
+| 24 | `kind` | node field | `contract.py:47` · asserted `test_contract_schema.py:89` | ✅ |
+| 25 | `name` | node field | `contract.py:47` · asserted `test_contract_schema.py:89` | ✅ |
+| 26 | `qualified_name` | node field | `contract.py:47` · asserted `test_contract_schema.py:89` | ✅ |
+| 27 | `file_path` | node field | `contract.py:47` · asserted `test_contract_schema.py:89` | ✅ |
+| 28 | `line_start` | node field | `contract.py:47` · asserted `test_contract_schema.py:89` | ✅ |
+| 29 | `line_end` | node field | `contract.py:47` · asserted `test_contract_schema.py:89` | ✅ |
+| 30 | `modifiers` | node field | `contract.py:47` · asserted `test_contract_schema.py:89` | ✅ |
+| 31 | `params` | node field | `contract.py:47` · asserted `test_contract_schema.py:89` | ✅ |
+| 32 | `is_test` | node field | `contract.py:47` · asserted `test_contract_schema.py:89` | ✅ |
+| 33 | `extra` | node field | `contract.py:47` · asserted `test_contract_schema.py:89` | ✅ |
+| 34 | `kind` | edge field | `contract.py:60` · asserted `test_contract_schema.py:104` | ✅ |
+| 35 | `source_qname` | edge field | `contract.py:60` · asserted `test_contract_schema.py:104` | ✅ |
+| 36 | `target_qname` (optional — NULL until the resolver links it, `PLAN.md:233`) | edge field | `contract.py:60` · asserted `test_contract_schema.py:104` | ✅ |
+| 37 | `target_raw` | edge field | `contract.py:60` · asserted `test_contract_schema.py:104` | ✅ |
+| 38 | `file_path` | edge field | `contract.py:60` · asserted `test_contract_schema.py:104` | ✅ |
+| 39 | `line` | edge field | `contract.py:60` · asserted `test_contract_schema.py:104` | ✅ |
+| 40 | `confidence_tier` (defaults `RESOLVED`, `PLAN.md:264`) | edge field | `contract.py:60` · asserted `test_contract_schema.py:104` | ✅ |
 
 **Required-vs-optional field policy is a Gate-2 decision, derived from a citation — not invented:** the
 SQLite mirror at `PLAN.md:254-268` supplies the defaults (`is_test` → 0, `confidence_tier` → `'RESOLVED'`)
@@ -153,11 +158,11 @@ required set against those lines; analysis does not pre-pick it.
 
 | # | Item | Ph3/4 proven by | Status |
 |---|------|-----------------|--------|
-| 1 | `code_atlas/store.py` | | ❌ |
-| 2 | `code_atlas/indexer.py` | | ❌ |
-| 3 | `code_atlas/resolver.py` | | ❌ |
-| 4 | `code_atlas/adapter.py` | | ❌ |
-| 5 | `code_atlas/tools/` | | ❌ |
+| 1 | `code_atlas/store.py` | ast-parsed, 0 vocabulary literals ≥2 · `test_contract_sole_source.py:58[store.py]` | ✅ |
+| 2 | `code_atlas/indexer.py` | ast-parsed, 0 vocabulary literals ≥2 · `test_contract_sole_source.py:58[indexer.py]` | ✅ |
+| 3 | `code_atlas/resolver.py` | ast-parsed, 0 vocabulary literals ≥2 · `test_contract_sole_source.py:58[resolver.py]` | ✅ |
+| 4 | `code_atlas/adapter.py` | ast-parsed, 0 vocabulary literals ≥2 · `test_contract_sole_source.py:58[adapter.py]` | ✅ |
+| 5 | `code_atlas/tools/` | every `*.py` under `tools/` globbed + ast-parsed (`__init__.py` today) · `test_contract_sole_source.py:29,58` | ✅ |
 
 ### Surface inventory
 
@@ -587,13 +592,67 @@ nudge does not fire. Branch type `feat` matches the change type; no branch/PR-ty
 stuck-detector never armed — the proving test went red → green in one attempt, so no failing signature
 repeated (`config.stuck_threshold` = 3).
 
-## Phase 4 — Review ✋
+## Phase 4 — Review ✋ — **SKIPPED BY USER DECISION**
 
-Not started.
+**Not run.** The user explicitly instructed "skip review, let /mango:finalise". Recorded here as a
+human decision rather than left blank, so the gap is visible to anyone reading this doc or the PR.
 
-## Phase 5 — Finalise ✋
+What was therefore **not** done, stated plainly:
 
-Not started.
+- **reviewer verdict:** none — no `mango:reviewer` dispatch.
+- **challenger (ticket-blind) result:** none — no independent re-derivation of the requirements from the
+  raw ticket. The withhold discipline was never exercised because no challenger ran.
+- **Scope reconciliation / regression on Phase-1 callers:** self-checked at execute only (Axis 1 + Axis 2
+  sweeps); not independently confirmed. Note the blast radius was zero existing callers, so there is
+  little for a regression pass to find here.
+- **Proving test result:** run by the author — red→green, `34 passed` against `BASELINE: green`. Not
+  re-run by a second party.
+- **Layer-match re-confirmation:** the one `❌` (R5 integration half) remains a human-approved
+  coverage-gap exclusion from Gate 2; no reviewer re-confirmed it.
+- **The 2 caveats surfaced at Phase 3** (capability-flag reporting; `validate()` type-check depth) were
+  **never adjudicated** — they go into the PR body as open notes for the human reviewer instead.
+- **Frontend rubric / proof manifest:** n/a (TRACK=backend).
+- **`Reviewed at` marker:** **none recorded.** Consequence: finalise's stale-review guard has no SHA to
+  diff against, so it is **vacuous** on this run — it cannot detect staleness because there is no
+  reviewed set. Not a pass; an absent check.
+- **Clean?** **Unknown — not assessed.** `Ph3/4 proven by` is author evidence, not a verdict.
+
+## Phase 5 — Finalise ✋ final gate
+
+- **PR draft:** `/tmp/pr-002.md` — built on `.github/pull_request_template.md` (CLAUDE.md requires that
+  template; `config.pr_checklist_path` is null so the mango checklist hook is skipped). Every section
+  filled; the 7 pre-PR self-check boxes each verified mechanically, not ticked by assertion:
+
+  | Self-check box | Evidence |
+  |----------------|----------|
+  | R1.1 no language branch in core | grep re-run → 0 hits |
+  | R2 adapters name no repo/framework | no adapter source touched; gate re-run → 0 hits |
+  | R3 contract bump + conformance | **no bump owed** — establishes v1; conformance assertions ship here |
+  | There is a test / smallest change | 34 assertions; 1 module + 2 test files |
+  | Comments ≤ 3 lines | longest comment run = **1 line** in every touched file (checked mechanically) |
+  | Related docs updated | PLAN §4.2, CONVENTION §3, BACKLOG status + token row, task frontmatter; **README needs none** (generic contract mention, no per-task status) |
+  | No AI-attribution trailer | `git log main..HEAD` scanned → none |
+
+- **Planned outward actions (each needs separate approval — all currently DRY-RUN, nothing executed):**
+  - [ ] push branch `feat/002-contract-schema` (carries the bookkeeping + lesson commit, so no separate bookkeeping push is needed)
+  - [ ] open PR via `gh` from `/tmp/pr-002.md`
+  - [ ] tracker comment via `gh`
+  - [ ] tracker transition — **n/a**: the tracker is this repo's task files + BACKLOG, already updated in-branch
+- **Follow-up tickets drafted for deferred (⚠) rows:** one — R5's excluded integration half. **Task 009
+  already exists** (`docs/tasks/009_full-build-indexer.md`) and is the right home, so no *new* ticket was
+  created; instead, **approved at this gate**, an explicit acceptance line was added to 009 so the
+  exclusion cannot be silently forgotten: *"A result rejected by `contract.validate()` sets
+  `files.parsed_ok=0` and never breaks the stream (R5.1) — this closes the R5 integration-proof exclusion
+  deferred from task 002."* This file sits **outside the Gate-2 change list** and was edited only on
+  explicit approval — recorded here as a deliberate, human-authorised scope addition, not a silent one.
+- **Durable lesson:** recorded — **LESSONS.md §002, "A guard written before its consumers exist must be
+  negative-controlled"** (`docs/LESSONS.md:6-14`). Lands on a shared ref via the approved branch push, so
+  it is a repo artifact rather than an orphan on a local branch. The second candidate (verify an
+  "identical across languages" claim against its own examples) was offered and declined.
+- **Revert path:** branch `feat/002-contract-schema`, commits `cc2136c` · `704a188` · `9d6191e` ·
+  `cdd45c8` (+ the lesson commit if approved). Pre-merge: delete the branch — nothing is pushed yet.
+  Post-merge: `git revert` the merge commit; there is no migration, no persisted state, and zero existing
+  consumers, so revert is behaviourally total. No tracker transition to undo.
 
 ---
 
@@ -604,8 +663,24 @@ Scope = **subagent dispatch only**. Main-loop output noise is **not** measured b
 | Phase | Subagent / dispatch | Round | Tokens | Optimizer applied · est./measured saving |
 |-------|---------------------|-------|--------|------------------------------------------|
 | Phase 1 | *(none — 0 dispatches; fan-out declined, see blast radius)* | — | 0 | RTK active on Bash output (`token_optimizer.rtk: expect`); saving per `rtk gain`, not attributable per-dispatch |
+| Phase 2 | *(none — 0 dispatches; design judgment stayed on the main model per the delegation map)* | — | 0 | as above |
+| Phase 3 | *(none — 0 dispatches; implementation + sweep ran in the main loop, shell checks via Bash not a model)* | — | 0 | as above |
+| Phase 4 | *(none — review skipped by user decision, so no reviewer/challenger dispatch)* | — | 0 | n/a |
+| Phase 5 | *(none — 0 dispatches)* | — | 0 | as above |
 
-`LEDGER TOTAL: 0 dispatch tokens · top cost driver: n/a (no subagent dispatched in Phase 1).`
+**Completeness gate: PASS.** Dispatches this run = **0** across all five phases (no `reviewer`, no
+`challenger`, no `extractor`, no Explore fan-out). Rows = 5, one per phase, each carrying an explicit
+`0` — no blank cell, no fabricated figure, no missing dispatch row.
+
+`LEDGER TOTAL: 0 dispatch tokens · top cost driver: n/a (no subagent was dispatched on this run).`
+
+**Scope honesty.** The ledger measures **subagent dispatch only**. This run's real cost was almost
+entirely **main-loop** work — file reads, the doc writes, the test/lint/grep output — which mango does
+**not** measure, so a `0` here is **not** a claim that the task was free, and no dispatch-vs-noise split
+should be inferred. For that layer, `rtk gain` is the instrument; note its counters are **lifetime and
+cross-project** (its top rows are `eslint`/`vitest`, which this repo does not use), so its 22.7M/92%
+figure **cannot be attributed to task 002** — it is reported here only as the pointer to the right
+instrument, not as this task's number.
 
 ---
 
