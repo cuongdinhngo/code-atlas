@@ -678,6 +678,37 @@ Scope = **subagent dispatch only**. Main-loop output noise is **not** measured b
 
 `LEDGER TOTAL: 0 dispatch tokens · top cost driver: n/a (no subagent was dispatched on this run).`
 
+### Main-loop spend — measured outside mango (the number the dispatch ledger cannot show)
+
+mango's ledger is dispatch-scoped, and this run dispatched **nothing**, so `0` above is accurate but
+tells you nothing about what the task actually cost. Since ~100% of task 002's cost was main-loop work,
+the figures below are read directly from this session's Claude Code transcript
+(`~/.claude/projects/-home-you-WORKSPACE-Projects-code-atlas/<session>.jsonl`, summing each
+assistant message's `usage` block) from the `/mango:analysis 002` turn onward — so the earlier
+version-check and harness-commit work is **excluded**, not folded in.
+
+| Phase | API calls | Output | Fresh input (cache-write) | Cache reads |
+|-------|-----------|--------|---------------------------|-------------|
+| Phase 1 — analysis | 54 | 58.5k | 226.8k | 5.17M |
+| Phase 2 — design | 35 | 53.2k | 64.1k | 5.64M |
+| Phase 3 — execute | 35 | 79.6k | 86.4k | 6.96M |
+| Phase 4 — review | 0 | — | — | — (skipped by user decision) |
+| Phase 5 — finalise | 40 | 48.5k | 71.7k | 9.35M |
+| **TASK 002 TOTAL** | **164** | **239.8k** | **449.0k** (+0.3k uncached) | **27.12M** |
+
+**`TASK 002 MAIN-LOOP TOTAL: 689.2k fresh tokens (239.8k output + 449.3k input) · 27.12M cache reads ·
+27.81M grand total · top output driver: Phase 3 execute (79.6k)`**
+
+Read the two figures separately and do not add them casually: **689.2k** is the genuinely new work;
+**27.12M** is context re-read from cache on each of 164 calls, which is what a long single-session
+lifecycle costs and is priced very differently. Cache reads climb monotonically per phase (5.17M → 9.35M)
+because the working doc itself grows and is re-read every turn — the largest single lever on this task's
+cost, and the reason `solve`'s "emit deltas, not full artifacts" discipline exists.
+
+**Comparison to task 001** is not apples-to-apples: 001's 113.6k is *dispatch* tokens (a reviewer +
+challenger), a category this run has none of. Against task 002's 689.2k of main-loop work, 001's real
+total was also never measured — so treat 001's row as a floor, not a total.
+
 **Scope honesty.** The ledger measures **subagent dispatch only**. This run's real cost was almost
 entirely **main-loop** work — file reads, the doc writes, the test/lint/grep output — which mango does
 **not** measure, so a `0` here is **not** a claim that the task was free, and no dispatch-vs-noise split

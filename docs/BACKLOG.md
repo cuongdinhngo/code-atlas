@@ -48,12 +48,14 @@ is [`PLAN.md`](PLAN.md).
 
 Token spend per task, recorded before its PR is opened (see the "Token usage on PR" rule in
 [`CLAUDE.md`](../CLAUDE.md)). The authoritative per-dispatch breakdown lives in each task's working-doc
-cost ledger (`tasks/NNN_slug.work.md`); this table is the roll-up.
+cost ledger (`tasks/NNN_slug.work.md`); this table is the roll-up. mango measures **subagent dispatch
+only** — when a task dispatches no subagent, its main-loop spend is read from the Claude Code session
+transcript and labelled as such, so a `0 dispatch` row is never left standing as if it were the total.
 
 | # | Task | Tokens | PR |
 |---|---|---|---|
 | 001 | Project scaffold & tooling | 113.6k dispatch (reviewer 70.9k + challenger 42.7k); main-loop unmeasured (see `rtk gain`) | [#2](https://github.com/cuongdinhngo/code-atlas/pull/2) |
-| 002 | Contract — schema, version, validation | **0 dispatch** (no subagent dispatched: no Explore fan-out, and review was skipped by user decision so no reviewer/challenger); main-loop unmeasured (see `rtk gain`) | [#4](https://github.com/cuongdinhngo/code-atlas/pull/4) |
+| 002 | Contract — schema, version, validation | **689.2k fresh** (239.8k output + 449.3k input) + **27.12M cache reads** over 164 calls; **0 dispatch** (no subagent ran — no fan-out, and review was skipped by user decision). Top output driver: Phase 3 execute (79.6k). Main-loop figures read from the session transcript, not mango's dispatch ledger | [#4](https://github.com/cuongdinhngo/code-atlas/pull/4) |
 
 ## Suggested order
 
