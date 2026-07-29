@@ -233,8 +233,20 @@ the M baseline; no tier drift, no branch/PR-type drift (this is a `chore`/`feat`
 - **Clean?** reviewer no Critical (the one Important finding resolved) AND challenger every item met AND no layer-match ❌ AND k=N AND proving test green → **YES** (with the standing note that AC3's final CI-green is confirmed only after the PR run in finalise).
 - **Reviewed at:** `b5880b8` + the three Phase-4 working-doc edits (folding R6 / item 8). Reviewed files: `pyproject.toml`, `code_atlas/**` (11 modules), `tests/test_smoke.py`, `adapters/.gitkeep`, `tests/{contract,fixtures}/.gitkeep`, `CLAUDE.md`, `docs/BACKLOG.md`. Working-doc path `docs/tasks/001_project-scaffold.md` (embedded) + `.harness.json` are staleness-exempt bookkeeping.
 
-## Phase 5 — Finalise ✋
-_(not started)_
+## Phase 5 — Finalise ✋ final gate
+
+- **PR draft:** `scratchpad/pr-001.md` (rendered from the repo `pull_request_template.md`).
+- **Stale-review guard:** passed — only the exempt embedded working doc changed since `b5880b8`.
+- **Planned outward actions (each approved individually):**
+  - [x] push branch `chore/001-project-scaffold` (carries all commits incl. lesson + token ledger) — **approved**
+  - [x] open PR via `gh` against `main` — **approved**
+  - [ ] tracker comment — **N/A** (GitHub repo, no separate issue; status tracked in BACKLOG + frontmatter)
+  - [ ] tracker transition — **N/A** (status synced to `in-progress` in BACKLOG + frontmatter)
+- **Follow-up tickets for deferred (⚠) rows:** none — no deferred rows.
+- **Durable lesson:** recorded → `docs/LESSONS.md` entry "001 — Fold a mid-task governance request into the ticket's scope"; lands on the shared ref via the branch push.
+- **Cost ledger:** `LEDGER TOTAL: 113,628 dispatch tokens · top cost driver: Phase 4 / reviewer` (dispatch-only; main-loop via `rtk gain`).
+- **Revert path:** pre-merge — `git push origin --delete chore/001-project-scaffold` + close PR. Post-merge — revert the squash/merge commit on `main`; no runtime/data/schema state was created, so revert is clean.
+- **AC3 (CI green):** confirmed by the PR's Actions run after push.
 
 ---
 
