@@ -616,12 +616,17 @@ AC1 **7/7** · AC2 **3/3** · R1 5/5 · R2 4/4 · G1 2/2 · C1–C5 proven by th
   template CLAUDE.md mandates), not mango's generic one.
 - **Project finalise checklist:** `config.pr_checklist_path` is null, so the hook is skipped; the
   template's own pre-PR self-check is filled in the draft instead.
-- **Planned outward actions (each needs its own approval):**
-  - [ ] push branch `feat/003-config-and-ignore` (carries the bookkeeping commit, so the durable
-        lesson reaches a shared ref before the PR — it is not orphaned on a local branch)
-  - [ ] open PR against `main` via `gh`
+- **Outward actions (approved individually, then executed):**
+  - [x] pushed branch `feat/003-config-and-ignore` → `origin` @ `2971f81`. Verified the durable lesson
+        landed on the shared ref (`git show origin/feat/003-config-and-ignore:docs/LESSONS.md`), so it is
+        not orphaned on a local branch.
+  - [x] opened **PR [#5](https://github.com/cuongdinhngo/code-atlas/pull/5)** against `main` via `gh`,
+        body from `/tmp/pr-003.md`.
   - [ ] tracker comment / transition — **n/a**, the tracker *is* this GitHub repo and the PR is the
-        record; `docs/BACKLOG.md` + the task frontmatter are already in the diff
+        record; `docs/BACKLOG.md` + the task frontmatter are already in the diff.
+  - [ ] **not approved, not done:** the optional one-line pointer in `docs/tasks/005_*.md` and
+        `docs/tasks/010_*.md` carrying the two coverage-gap exclusions forward. Until it is added, those
+        two obligations live only in this working doc.
 - **Follow-up tickets for deferred (⚠) rows:** none — there are no `⚠` rows. The two Gate-2
   coverage-gap exclusions are already owned by existing tasks (`CA_TOOLS` enforcement → **010**,
   `CA_<LANG>_CMD` fail-loud at launch → **005**); adding a one-line pointer to those two task files is
@@ -670,9 +675,10 @@ reads) is not separable from it — do not read the 7.6% as a dispatch-vs-noise 
 
 ## Session status
 
-- **Last updated:** 2026-07-29 · Phase 5 written, waiting at the final gate
-- **Current phase:** Phase 5 — Finalise, **waiting at the final gate** (dry-run; nothing pushed)
-- **Next action:** User approves each outward action separately — (1) push
-  `feat/003-config-and-ignore`, (2) open the PR via `gh`. After the PR exists, replace `_pending_`
-  in the BACKLOG Token-usage row with its link, and flip 003 to `done` on merge (both places).
-- **Blocked on:** per-action approval at the final gate
+- **Last updated:** 2026-07-29 · Phase 5 complete, PR [#5](https://github.com/cuongdinhngo/code-atlas/pull/5) open
+- **Current phase:** done pending merge — the lifecycle is finished; only the merge follow-up remains
+- **Next action:** On merge of PR #5, flip 003 `in-progress → done` in **both**
+  [`BACKLOG.md`](../BACKLOG.md) and this file's frontmatter. Optionally carry the two coverage-gap
+  exclusions into `docs/tasks/005_*.md` and `docs/tasks/010_*.md` (offered, not approved). Unrelated
+  one-liner still outstanding: task **002** reads `in-progress` in BACKLOG though PR #4 merged.
+- **Blocked on:** nothing — awaiting human review of PR #5
