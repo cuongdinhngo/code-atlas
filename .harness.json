@@ -27,7 +27,7 @@
     "caveman": { "enabled": false, "scope": "non-critic-only" }
   },
 
-  "update_check_url": null,
+  "update_check_url": "https://raw.githubusercontent.com/cuongdinhngo/mango-plugins/main/.claude-plugin/marketplace.json",
   "branch_strategy": "feat|fix|chore|docs/<NNN>-<slug>",
   "lessons_path": "docs/LESSONS.md",
   "pr_host": "gh",
