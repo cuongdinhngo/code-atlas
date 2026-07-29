@@ -3,6 +3,29 @@
 Durable lessons discovered while shipping tasks: constraints found, wrong assumptions, process gaps.
 One entry per lesson; newest first.
 
+## 004 — A schema object that exists is not a schema object that runs
+`tests/test_store.py` asserted every DDL object was registered in `sqlite_master`, and that assertion was
+read as if it also proved each object *works*. It does not. The ticket-blind challenger replaced the body
+of the `nodes_au` FTS trigger with a reference to a nonexistent column and **the whole suite still passed**
+— because `GraphStore.replace_file_rows` only ever DELETEs then INSERTs, so nothing in the codebase fires
+an UPDATE on `nodes`. A broken trigger would have shipped green. **Fix:** for any schema object no code
+path currently exercises (trigger, `DEFAULT`, `CHECK`, `ON DELETE`), write a test that *fires* it directly
+in SQL, and keep the object rather than deleting it as dead code when it closes an invariant — a mirror
+with a hole desyncs silently the first time a later task takes that path. Generalises: **existence tests
+and behaviour tests are different tests**, and mutation is the cheap way to tell which one you actually
+wrote — break the thing on a copy and see whether anything goes red. The same run also caught a related
+self-report: the task's own matrix claimed `busy_timeout` was asserted when nothing asserted it.
+
+## 004 — `git checkout -- <file>` restores the committed state, so it deletes uncommitted work
+While negative-controlling the R3.2 guard, a violating literal was appended to `code_atlas/store.py` and
+then reverted with `git checkout -- code_atlas/store.py`. The implementation was **not yet committed**, so
+the checkout restored the one-line stub from `main` and the whole module was gone; it had to be rewritten.
+The first negative control had worked only because the file it mutated (`config.py`) was unmodified in the
+working tree. **Fix:** commit the work **before** running any guard experiment that mutates tracked files,
+and restore from a `cp` copy (verify with `sha256sum`) rather than from git. Generalises: `git checkout --`
+is not an undo for *your* edit — it is a reset to the index/HEAD, and its blast radius is every uncommitted
+change in that file.
+
 ## 003 — The R1.1 grep-gate fires on ordinary English, not just on code
 The CI guardrail for "no language branches in the core" is
 `grep -rEn 'if[^\n]*\blanguage\b[^\n]*==|match[^\n]*\blanguage\b' code_atlas/`

@@ -714,14 +714,53 @@ defect found *by* the approved verification plan, fixed inside the approved appr
   recorded. No layer-match ❌ unresolved. k=N on every row, with one human-visible coverage-gap
   exclusion. Proving test green. **The honest caveat: no reviewer agent ran**, so "clean" here rests on
   the challenger plus the guards — it is not a two-critic verdict.
-- **Reviewed at:** commit `HEAD` of `feat/004-sqlite-store` after the finding-1 fix · reviewed files:
+- **Reviewed at:** `79765b6` on `feat/004-sqlite-store` (the finding-1 fix commit) · reviewed files:
   `code_atlas/store.py`, `tests/test_store.py`, `tests/test_sql_confinement.py`, `docs/PLAN.md`,
   `docs/CONVENTION.md`, `docs/BACKLOG.md`, `docs/tasks/004_sqlite-store.md`. `finalise` must re-review if
   `HEAD` or the diff moves beyond this set.
 
-## Phase 5 — Finalise ✋
+## Phase 5 — Finalise ✋ final gate
 
-*(not started)*
+- **Stale-review guard:** **not stale.** `git diff --name-only 79765b6..HEAD` ∪ worktree = **empty**;
+  `HEAD` is `79765b6`, the reviewed commit. No non-exempt file sits beyond the reviewed set.
+- **PR draft:** `/tmp/pr-004.md`, rendered from **`.github/pull_request_template.md`** (the project rule
+  in `CLAUDE.md` names that template, so it is used in place of mango's generic `templates/pr.md`).
+- **Project finalise-checklist:** `config.pr_checklist_path` is **null**, so the hook is formally
+  skipped — but `.github/pull_request_template.md` carries a *Pre-PR self-check* that is exactly the
+  checklist this step exists for. It was walked item by item anyway (results in the PR body).
+  **Recommendation:** set `pr_checklist_path` to that template so the hook stops depending on a human
+  remembering it.
+- **Planned outward actions (each needs separate approval; nothing taken yet):**
+  - [ ] push the branch `feat/004-sqlite-store` — carries all bookkeeping (LESSONS, BACKLOG token row,
+        this working doc), so **no separate "push bookkeeping" action is needed**: the durable lessons
+        reach a shared ref with this one push, before the PR is opened
+  - [ ] open a PR against `main` via `gh`
+  - [ ] tracker comment — **n/a**: `tracker.base_url` is the GitHub repo itself, so the PR *is* the
+        tracker artifact; there is no second system to notify
+  - [ ] tracker transition — **n/a** for the same reason; task status lives in `BACKLOG.md` +
+        frontmatter, already synced to `in-progress`, and moves to `done` only after the PR merges
+        (the pattern tasks 002/003 followed)
+- **Follow-ups drafted (no ⚠ matrix row, but three items must not evaporate).** Deliberately **not**
+  written into `docs/tasks/009*.md` / `014*.md` in this change: those files are outside the reviewed set,
+  so editing them now would trip the stale-review guard for no benefit. They ride the PR body instead,
+  and are offered as a separate follow-up change:
+  1. **task 009** — assert `busy_timeout` and prove the single-writer boundary under real contention
+     (the recorded coverage-gap exclusion); it becomes load-bearing when the worker fan-out lands.
+  2. **task 014** — camelCase FTS splitting. Changing `tokenize=` forces a full index rebuild ⇒ a
+     `schema_version` bump, which 014 can afford and 004 could not justify.
+  3. **`/mango:codify`** — the two uncodified standards: the rulebook has **no DB-conventions section**
+     though this was a schema change, and `ruff format` is applied by habit but is not CI-gated.
+- **Durable lesson:** **two**, written to `docs/LESSONS.md` (a repo artifact, and they ride the
+  branch-push above so they reach a shared ref rather than dying with the branch):
+  1. *A schema object that exists is not a schema object that runs* — the `nodes_au` mutation finding,
+     generalised to existence-vs-behaviour tests and to mutating on a copy to tell them apart.
+  2. *`git checkout -- <file>` restores the committed state, so it deletes uncommitted work* — the
+     negative-control incident, generalised to committing before guard experiments.
+- **Revert path:** the branch is unmerged and unpushed. Undo everything with
+  `git checkout main && git branch -D feat/004-sqlite-store`. After a merge: `git revert -m 1 <merge-sha>`
+  restores the three doc files and returns `store.py` to its stub; nothing else imports it, so no caller
+  breaks. `.code-atlas/graph.db` is a gitignored derived cache — deleting it is the whole data rollback,
+  and any DB this branch wrote is refused on open by the `schema_version` check.
 
 ---
 
@@ -759,9 +798,9 @@ as tasks 002 and 003 recorded it.
 ## Session status
 
 - **Last updated:** 2026-07-29
-- **Current phase:** Phase 4 — Review complete (challenger only, reviewer skipped by user); clean with
-  one recorded coverage-gap exclusion. Stopped before Phase 5.
-- **Next action:** run `/mango:finalise 004` — record the token spend in the ledger **and** the BACKLOG
-  Token usage table, draft the PR body from `.github/pull_request_template.md`, and ask per outward
-  action. Nothing has been pushed.
-- **Blocked on:** nothing
+- **Current phase:** Phase 5 — Finalise, stopped at the **final gate**. Review was clean (challenger
+  only) and **not stale**; PR body drafted; token spend recorded in both required places.
+- **Next action:** approve or decline each outward action individually — (1) push
+  `feat/004-sqlite-store` (carries LESSONS + BACKLOG + this doc to a shared ref), (2) open the PR from
+  `/tmp/pr-004.md` via `gh`. Tracker comment/transition are n/a: the GitHub repo *is* the tracker.
+- **Blocked on:** per-action approval. **Nothing outward has been done** — no push, no PR.
