@@ -4,7 +4,7 @@ slug: project-scaffold
 title: Project scaffold & tooling
 phase: 1
 milestone: Setup
-status: in-progress
+status: done
 depends_on: []
 ---
 
@@ -272,8 +272,8 @@ the M baseline; no tier drift, no branch/PR-type drift (this is a `chore`/`feat`
 
 ## Session status
 
-- **Last updated:** Phase 5 (finalise) complete — PR #2 open, CI green
-- **Current phase:** 5 — done pending merge
+- **Last updated:** merged (PR #2) — task complete
+- **Current phase:** done
 - **Work-doc mode / path:** embed · this file (`docs/tasks/001_project-scaffold.md`, below the separator)
-- **Next action:** merge PR #2 (your call) → then set status `done` in BACKLOG + frontmatter
-- **Blocked on:** human merge of PR #2
+- **Next action:** none — task 001 shipped and merged to `main`
+- **Blocked on:** nothing
