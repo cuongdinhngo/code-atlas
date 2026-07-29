@@ -3,6 +3,18 @@
 Durable lessons discovered while shipping tasks: constraints found, wrong assumptions, process gaps.
 One entry per lesson; newest first.
 
+## 003 — The R1.1 grep-gate fires on ordinary English, not just on code
+The CI guardrail for "no language branches in the core" is
+`grep -rEn 'if[^\n]*\blanguage\b[^\n]*==|match[^\n]*\blanguage\b' code_atlas/`
+(`.github/workflows/ci.yml:49`). Its second alternative has **no code anchor**: any line under
+`code_atlas/` where the token `match` appears *before* the word `language` fails the build — including
+a plain comment or docstring like `# match the language name to its env var`. The reverse order
+(`language … match`) is safe. **Fix:** when touching the core, phrase prose so `language` precedes
+`match` (or avoid one word), and run the gate's exact regex locally before opening the PR — a green
+`pytest`/`ruff`/`mypy` says nothing about it. Generalises: a guardrail expressed as a text grep over
+source will also match the *prose* in that source, so treat comments and docstrings as inputs to
+every grep-gate, not just the code.
+
 ## 002 — A guard written before its consumers exist must be negative-controlled
 Task 002's AC2(b) ("no field lists duplicated in store/indexer") was **vacuously true**: all five
 schema-consuming modules were one-line stubs, so any grep or guard passed while proving nothing about

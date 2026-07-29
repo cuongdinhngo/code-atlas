@@ -224,7 +224,7 @@ echo json_encode(['path'=>$path,'ok'=>true,'nodes'=>$v->nodes,'edges'=>$v->edges
 ### 8.1 Full build (`indexer.full_build`)
 1. Collect files: `git ls-files` per adapter's extensions, minus ignore rules (§11). Walk fallback.
 2. Reconcile: drop rows for vanished paths.
-3. Fan paths across **N adapter processes** (`min(cpu-2, 8)`); per result hash bytes, upsert `files`, replace that file's `nodes`+bare `edges`. Single SQLite writer.
+3. Fan paths across **N adapter processes** (`max(1, min(cpu-2, 8))` — the floor keeps a 1–2-core host at one worker); per result hash bytes, upsert `files`, replace that file's `nodes`+bare `edges`. Single SQLite writer.
 4. Store `meta.last_commit`, `contract_version`, `built_at`.
 5. Run **resolver** (§8.2); rebuild `nodes_fts`.
 
@@ -271,7 +271,11 @@ CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);  -- schema_version, contra
 ---
 
 ## 11. Config & ignore
-Env `CA_*` → project file → defaults. Ignore: built-ins (`vendor/ var/ uploads/ log/ node_modules/ .git/`) + `.gitignore` + optional `.codeatlasignore`. Knobs: `CA_DB_PATH` (default `<repo>/.code-atlas/graph.db`), `CA_WORKERS`, `CA_MAX_RESULTS`, `CA_IMPACT_DEPTH=2`, `CA_IMPACT_MAX_NODES=500`, per-adapter `CA_<LANG>_CMD`.
+Env `CA_*` → **project file `.code-atlas.toml`** (repo root, committed, stdlib `tomllib`) → defaults. The env name is derived from the file key: `workers` ⇄ `CA_WORKERS`, and `[adapter_cmd]` holds one entry per language. A malformed value or an unknown key **fails loud** (R5.3); it never falls back.
+
+Knobs: `CA_DB_PATH` (default `<repo>/.code-atlas/graph.db`), `CA_WORKERS` (default `max(1, min(cpu-2, 8))`), `CA_MAX_RESULTS=50`, `CA_IMPACT_DEPTH=2`, `CA_IMPACT_MAX_NODES=500`, per-adapter `CA_<LANG>_CMD` (resolved generically from the variable name — no language is named in the core), `CA_TOOLS` allow-list (unset or blank ⇒ every tool; §12).
+
+Ignore: built-ins (`vendor/ var/ uploads/ log/ node_modules/ .git/`) + `.gitignore` + optional `.codeatlasignore`, concatenated in that order with the **last matching rule winning**, so a later source can re-include. A path below an excluded **directory** stays excluded — that is what lets the walk prune a subtree. Supported gitignore subset: comments/blanks, `*` `?` `[seq]` inside a segment, `**` across segments, leading `/` anchoring, trailing `/` directory-only, `!` negation. Not supported: nested per-directory ignore files, `\` escapes. `git ls-files` already applies `.gitignore` on the primary path (§8.1), so this matcher chiefly serves the walk fallback.
 
 ---
 

@@ -46,8 +46,10 @@ code-atlas/
   `read_symbol`, `build_or_update_index`). One tool per file under `code_atlas/tools/`.
 - **Env vars:** prefix **`CA_`** (`CA_DB_PATH`, `CA_WORKERS`, `CA_MAX_RESULTS`, `CA_IMPACT_DEPTH`,
   `CA_IMPACT_MAX_NODES`, `CA_TOOLS`, per-adapter `CA_<LANG>_CMD` e.g. `CA_PHP_CMD`).
-- **On-disk artifacts:** DB at `<repo>/.code-atlas/graph.db`; ignore file `.codeatlasignore`;
-  onboarding output under `.code-atlas/onboarding/`.
+- **On-disk artifacts:** project config `.code-atlas.toml` (repo root, committed — keys are the env
+  names lower-cased without the `CA_` prefix, plus an `[adapter_cmd]` table); DB at
+  `<repo>/.code-atlas/graph.db`; ignore file `.codeatlasignore`; onboarding output under
+  `.code-atlas/onboarding/`.
 - **Task files:** `docs/tasks/NNN_slug.md`, zero-padded 3-digit id, `kebab-case` slug (`014_search-read-outline.md`).
 
 ## 3. The contract vocabulary (fixed spelling — do not vary)
