@@ -57,9 +57,10 @@ code-atlas/
 - **Confidence tiers:** `RESOLVED | HEURISTIC | DYNAMIC`.
 - **Node fields:** `kind, name, qualified_name, file_path, line_start, line_end, modifiers, params, is_test, extra`.
 - **Edge fields:** `kind, source_qname, target_qname?, target_raw, file_path, line, confidence_tier`.
-- **Qualified-name convention (identical across languages):**
+- **Qualified-name convention (identical across languages):** the **container** keeps its language-native
+  separator (`\`, `.`, `/`); the **member** boundary is always `::` (`contract.MEMBER_SEPARATOR`).
   - PHP/namespaced: `\Ns\Class`, `\Ns\Class::method`, `\Ns\Class::$prop`, `\Ns\Class::CONST`, `\ns\func`.
-  - C#: `Namespace.Type.Member` mapped onto the same shape. Python: `module.Class.method`.
+  - C#: `Namespace.Type::Member`. Python: `module.Class::method`.
   - JS/TS (no namespaces): module-path-anchored, e.g. `src/user.ts::User::save`, `src/util.ts::default`.
   - Files: **repo-relative** paths, always (even under Docker path mapping).
 - **Contract version:** `contract_version` in result meta; bump on any vocabulary/field/qname change.
