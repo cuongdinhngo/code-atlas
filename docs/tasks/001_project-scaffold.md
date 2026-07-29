@@ -25,3 +25,201 @@ Stand up the Python package and dev tooling so every later task has a home.
 
 ## References
 Plan §5 (architecture, repo layout).
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 001 — Project scaffold & tooling (working doc)
+
+- **Ticket:** 001 · docs/tasks/001_project-scaffold.md · repo https://github.com/cuongdinhngo/code-atlas
+- **Type:** enhancement (greenfield scaffold)
+- **Repo(s) / Porting:** `app` (`.`) — single repo, no porting
+- **SCOPE:** M
+- **STRUCTURE:** native (headers map to `ticket_header_schema`; `References` is an unmapped informational pointer)
+- **TRACK:** backend (`config.track=backend`; all touched files are Python core + tooling, zero UI)
+- **TIER:** full (SCOPE=M, multi-file, universal requirement with N>1 → not lite-eligible)
+- **BASELINE:** red (unsatisfiable on fresh checkout — expected for a scaffold task)
+  - `pytest` → **no tests collected** (nothing to collect yet); `mypy` → no files → no issues; `ruff` → **not installed locally** (provided by the `[dev]` extra this task adds).
+  - baseline exclusions (pre-existing failures outside this change): **none** — the repo has zero `.py` files; every result above is "nothing built yet", not a defect. DoD for later phases = **prove the delta is green** (pytest green after scaffold; ruff/mypy clean once installed).
+
+---
+
+## Requirements matrix
+
+`SECTIONS: 4 found (Goal, Scope / Deliverables, Acceptance criteria, References) | 4 decomposed | ROWS: C=0 R=5 G=1 AC=3`
+
+| ID | Source | Verbatim | Interpretation | Ph1 evidence | Ph2 covered by | Ph3/4 proven by | Status |
+|----|--------|----------|----------------|--------------|----------------|-----------------|--------|
+| G1 | Goal | "Stand up the Python package and dev tooling so every later task has a home." | Create the `code_atlas` package + dev toolchain so subsequent tasks have a working home. | No `pyproject.toml`, no `code_atlas/` (repo survey) | k/N | k/N | ❌ |
+| R1 | Scope | "`pyproject.toml` (package `code_atlas`, deps: `fastmcp`; dev: `pytest`, `ruff`, `mypy`)." | Author `pyproject.toml`: runtime dep `fastmcp`; `[dev]` optional-deps `pytest`/`ruff`/`mypy`; installable as `code_atlas`. | Absent (survey); CI installs `-e ".[dev]"` (ci.yml:24) | k/N | k/N | ❌ |
+| R2 | Scope | "Package skeleton per §5: `code_atlas/{main,config,contract,adapter,store,indexer,resolver,gitutil,ignore}.py` (stubs) + `code_atlas/tools/`." | Create 9 named module stubs + `tools/` package (+ enabling `__init__.py`). **Per-item checklist, N=9** — see Inventory. | Layout matches CONVENTION §1 / PLAN §5 (PLAN.md:145-154) | k/N | k/N | ❌ |
+| R3 | Scope | "`adapters/` and `tests/{contract,fixtures,}` directories." | Create `adapters/`, `tests/contract/`, `tests/fixtures/`, `tests/`. | Absent (survey) | k/N | k/N | ❌ |
+| R4 | Scope | "`ruff`/`mypy`/`pytest` configured and runnable; a trivial passing test." | Add tool config (ruff/mypy/pytest) to `pyproject.toml` + one trivial passing test under `tests/`. | ruff not installed locally (baseline) | k/N | k/N | ❌ |
+| R5 | Scope | "CI … turns green: ruff · mypy · pytest + the R1.1/R2.2 grep-gates run on every PR." | The committed `ci.yml` must go green: `test` job (ruff/mypy/pytest) + `guardrails` job (R1.1/R2.2). CI file already exists. | ci.yml present w/ conditional mypy/pytest steps (ci.yml:33,37) | k/N | k/N | ❌ |
+| AC1 | AC | "`pip install -e .` succeeds; `pytest` runs green; `ruff check` clean." | 3 command checks all exit 0; pytest green (≥1 passing test, 0 fail). | — | k/N | k/N | ❌ |
+| AC2 | AC | "Import `code_atlas` works; no per-language code anywhere in the package." | `python -c "import code_atlas"` exits 0; R1.1 grep over `code_atlas/` finds no language branch. | R1.1 gate defined (ci.yml:46-53) | k/N | k/N | ❌ |
+| AC3 | AC | "CI passes on the PR: `test` job runs ruff/mypy/pytest (no longer skipped), `guardrails` job green." | On the PR: `test` job's mypy+pytest steps execute (not skipped) and pass; `guardrails` green. | Steps gated on `hashFiles('code_atlas/**/*.py')` / `hashFiles('tests/**/*.py')` (ci.yml:33,37) | k/N | k/N | ❌ |
+
+Status legend: ✅ done/proven · ⚠ deferred · ❌ not met. (All ❌ pre-implementation — nothing built yet.)
+
+## AC validation
+
+| AC ID | Ticket states | Independently computed | Match? | Falsifiable? | If mismatch / not falsifiable → Gate-1 question |
+|-------|---------------|------------------------|--------|--------------|-------------------------------------------------|
+| AC1 | `pip install -e .` ok · `pytest` green · `ruff check` clean | 3 processes exit 0; pytest exit 0 with ≥1 passed, 0 failed | Y | ✅ greppable/measurable — exit codes + pytest summary | none |
+| AC2 | import works · no per-language code in package | `python -c "import code_atlas"` exit 0; `grep -rEn 'if.*\blanguage\b.*==|match.*\blanguage\b' code_atlas/` → 0 hits (R1.1) | Y | ✅ measurable — import exit code + the exact R1.1 grep (ci.yml:47-52) | none |
+| AC3 | CI passes; test job runs ruff/mypy/pytest (no longer skipped); guardrails green | CI run conclusion = success; mypy step runs iff a `.py` exists under `code_atlas/`, pytest step iff a `.py` exists under `tests/` (both satisfied by R2+R4) | Y | ✅ measurable — CI job conclusion + the `hashFiles(...)` step conditions (ci.yml:33,37) | none |
+
+No acceptance **values** (numbers/thresholds/formats) appear in this ticket, so there is nothing to re-derive for mismatch; all three ACs are falsifiable. No manual-check exclusions needed. No uncodified-standard gate items — the R1.1/R2.2 gates are already codified in `ci.yml` and ENGINEERING_RULES §1–2.
+
+## Inventory (universal "all/every/no" requirements)
+
+**R2 "Package skeleton per §5" is a counted "do X for each of N" requirement → per-item checklist.**
+
+- **Denominator / total N:** 9 (ticket-named module stubs)
+- Enabling files that ride with R2 (not counted in N, but required for AC2 "import works"): `code_atlas/__init__.py`, `code_atlas/tools/__init__.py`.
+
+| # | Item | Ph3/4 proven by (`path:line` / test) | Status |
+|---|------|--------------------------------------|--------|
+| 1 | `code_atlas/main.py` |  | ❌ |
+| 2 | `code_atlas/config.py` |  | ❌ |
+| 3 | `code_atlas/contract.py` |  | ❌ |
+| 4 | `code_atlas/adapter.py` |  | ❌ |
+| 5 | `code_atlas/store.py` |  | ❌ |
+| 6 | `code_atlas/indexer.py` |  | ❌ |
+| 7 | `code_atlas/resolver.py` |  | ❌ |
+| 8 | `code_atlas/gitutil.py` |  | ❌ |
+| 9 | `code_atlas/ignore.py` |  | ❌ |
+
+Review must confirm **every** row, not a `k/9` total. Directory deliverable R3 (adapters/, tests/contract/, tests/fixtures/, tests/) is a small fixed set proven the same way. AC2's "no per-language code" is a whole-package grep assertion (R1.1), effectively N=1 proof over `code_atlas/`.
+
+### Surface inventory
+
+n/a — TRACK=backend, no frontend surfaces.
+
+## Clarifications
+
+`CLARIFICATION: 4 raised | 4 self-resolved (cited) | 0 for human decision`
+
+- Self-resolved (cited):
+  1. **`requires-python` version?** → target `>=3.12`; CI's only tested interpreter is `python-version: "3.12"` (ci.yml:18) and CONVENTION §4 says "modern Python".
+  2. **What is the `[dev]` group called?** → the extra must be named `dev`; CI runs `pip install -e ".[dev]"` (ci.yml:24).
+  3. **`__init__.py` needed?** → yes; AC2 requires `import code_atlas` to work, so `code_atlas/__init__.py` (+ `tools/__init__.py`) are required even though the skeleton bullet doesn't list them.
+  4. **What un-skips the conditional CI steps (AC3)?** → mypy runs iff `hashFiles('code_atlas/**/*.py') != ''`; pytest iff `hashFiles('tests/**/*.py') != ''` (ci.yml:33,37). R2's stubs + R4's test satisfy both.
+- For human decision: **none** → j=0, Gate 0 not triggered.
+- Deferred to Phase 2 (design choices, not blockers): build backend (setuptools vs hatchling), mypy strictness level, ruff rule selection. Analysis does not pre-pick these.
+
+---
+
+## Phase 1 — Analysis ✋ Gate 1
+
+- **Gap analysis (enhancement, per goal G1):** current = repo has docs + `.harness.json` + CI + PR template only, **zero Python** (`find . -name '*.py'` → empty). Target = installable `code_atlas` package, dev toolchain, green CI. Gaps: (a) no `pyproject.toml` → R1; (b) no package/module stubs → R2; (c) no `adapters/`/`tests/` tree → R3; (d) no tool config or test → R4; (e) CI's mypy/pytest steps skipped for lack of `.py` files → R5/AC3. Root files: PLAN.md:139-165 (layout), ci.yml:23-38 (install/steps), CONVENTION.md:9-38.
+- **Handler / entry point + blast radius:** greenfield — no existing code depends on anything. Only pre-existing coupling is `ci.yml` (its conditional steps activate once `.py` files land) and `.harness.json`/docs (unchanged). Touched repo: `app` only. No callers/dependents.
+- **Self-audit:** every section decomposed (4/4) ✅ · AC table complete, all 3 ACs falsifiable, none carrying a bare `✅`, no manual-check exclusions needed ✅ · BASELINE captured (red/unsatisfiable, no exclusions) ✅ · j=0 (Gate 0 not triggered) ✅ · inventory N=9 set with per-item checklist ✅ · matrix Status filled ✅ · STRUCTURE=native, TRACK=backend, TIER=full declared ✅ · SURFACES n/a (backend) ✅.
+- **Gate 1 status:** **cleared** (user approved; proceeding to design)
+
+## Phase 2 — Design ✋ Gate 2
+
+**Approach.** Author a single `pyproject.toml` (PEP 621 `[project]` + `[build-system]` + `[tool.*]`)
+using the **setuptools** backend — bundled, zero extra build dep (R8.2). Runtime dep `fastmcp>=2`;
+`[project.optional-dependencies].dev = [pytest, ruff, mypy]` (name `dev` per ci.yml:24). Create the
+9 module stubs + `code_atlas/__init__.py` + `code_atlas/tools/__init__.py`, each **empty but for a
+one-line module docstring** (no imports, no code → no language branch, nothing for ruff/mypy to flag).
+Create `adapters/`, `tests/contract/`, `tests/fixtures/` (empty dirs tracked via `.gitkeep`). Add one
+smoke test `tests/test_smoke.py` that imports the package. ruff/mypy/pytest configured inline in
+`[tool.*]`. The committed `ci.yml` needs no edits — landing `.py` under `code_atlas/` and `tests/`
+auto-satisfies its `hashFiles(...)` step conditions (AC3).
+
+**Rejected alternatives.**
+- **hatchling / flit build backend** — rejected: adds a build-time dependency for zero benefit on a
+  plain pure-Python package; setuptools is bundled and standard (R8.2 minimal deps).
+- **Rich stubs (Protocol sketches, placeholder classes) now** — rejected: violates R1.2/R7.4 (no
+  abstraction before adapter #2) and R7.1 (smallest useful thing); stubs stay docstring-only until
+  their own tasks (002+) fill them.
+
+**Assumptions.**
+
+| Assumption | verified / novel-untested | Resolution |
+|------------|---------------------------|------------|
+| `fastmcp>=2` installs on py3.12 with no dep conflict | **verified (spike)** | `pip install fastmcp --dry-run` resolved fastmcp 3.4.5 + full tree cleanly on py3.12 (Phase-2 spike) |
+| CI's `test` job un-skips mypy/pytest once `.py` files exist under `code_atlas/` & `tests/` | verified | Step conditions `hashFiles('code_atlas/**/*.py')` / `hashFiles('tests/**/*.py')` (ci.yml:33,37) |
+| setuptools auto-discovers `code_atlas` + `code_atlas.tools` | verified | Standard flat-layout discovery; made explicit via `[tool.setuptools.packages.find]` include=`code_atlas*` |
+
+**Smallest change-list.** Every item traces to a matrix row.
+
+| # | Change | File / area | Ph2 covered by | k/N |
+|---|--------|-------------|----------------|-----|
+| 1 | `[project]` (name `code-atlas`, `requires-python>=3.12`, `dependencies=["fastmcp>=2"]`, `[dev]` extra) + `[build-system]` setuptools + `[tool.setuptools.packages.find]` | `pyproject.toml` | R1, AC1 | 1/1 |
+| 2 | `[tool.ruff]`, `[tool.mypy]`, `[tool.pytest.ini_options]` config | `pyproject.toml` | R4, R5, AC1, AC3 | 1/1 |
+| 3 | Package init (docstring; makes `import code_atlas` work) | `code_atlas/__init__.py` | R2, AC2 | 1/11 |
+| 4 | 9 module stubs (docstring-only) | `code_atlas/{main,config,contract,adapter,store,indexer,resolver,gitutil,ignore}.py` | R2 | 9/11 (inventory 1–9) |
+| 5 | Tools sub-package init | `code_atlas/tools/__init__.py` | R2 | 11/11 |
+| 6 | Empty-dir placeholders | `adapters/.gitkeep`, `tests/contract/.gitkeep`, `tests/fixtures/.gitkeep` | R3 | 1/1 |
+| 7 | Smoke test (the proving test) | `tests/test_smoke.py` | R4, AC1, AC2 | 1/1 |
+
+**Test blast-radius (mechanical).** Grep for existing tests/specs/snapshots referencing anything this
+change touches → **zero** (`find . -name '*.py'` is empty; no existing assertions to invalidate). No
+proof-collateral items.
+
+**Rule compliance.**
+- **R1.1 / R1.2 / R7.4** — stubs are docstring-only: no language branch, no registry/base-class/DI, no
+  dead abstraction. R1.1 grep over `code_atlas/` stays clean.
+- **R8.1 / R8.2** — core runtime dep = `fastmcp` only; setuptools is the bundled build backend; no
+  adapter deps leak in.
+- **R7.5** — every stub comment is a single-line docstring (≤3 lines).
+- **CONVENTION §2/§4** — package `code_atlas` (underscore), project `code-atlas` (hyphen); ruff+mypy
+  configured; no public functions yet so "type hints on all public functions" is vacuously met.
+
+**Verification plan** (one row per AC; proof at the layer where the AC can fail).
+
+| AC | risk layer | proof artifact | layer-match? |
+|----|-----------|----------------|--------------|
+| AC1 | integration/runtime (packaging + tool invocation) | CI + local run of `pip install -e .` → `pytest` → `ruff check .` (all exit 0; pytest ≥1 passed) | ✅ |
+| AC2 | integration (module import) + logic (static grep) | `tests/test_smoke.py::test_import_code_atlas` (real import) + R1.1 grep gate over `code_atlas/` | ✅ |
+| AC3 | e2e (the CI pipeline itself) | actual CI run on the PR: `test` job's mypy+pytest steps execute & pass, `guardrails` green | ✅ |
+
+No `❌` rows → no coverage-gap exclusions needed. `SURFACES` n/a (backend).
+
+**Coverage-gap exclusions:** none.
+
+**Proving test.** `tests/test_smoke.py::test_import_code_atlas` — asserts `import code_atlas` succeeds
+and `code_atlas.__name__ == "code_atlas"` (references the import so no ruff F401). **Fails pre-change**
+(no package → `ModuleNotFoundError`), **passes post-change**. Sits at AC2's import/integration risk
+layer. Invocation: `pytest tests/test_smoke.py::test_import_code_atlas` (or plain `pytest`).
+
+**Rollback + porting plan.** Rollback = delete the branch / revert the single scaffold commit; no
+runtime, data, or schema state is created, so revert is clean. Single repo (`app`); no shared code, no
+porting.
+
+**SCOPE confirmed:** **M** — unchanged from analysis. Change-list (7 items over ~15 new files) matches
+the M baseline; no tier drift, no branch/PR-type drift (this is a `chore`/`feat` scaffold).
+
+- **Gate 2 status:** **cleared** (user approved: "implement task-001")
+
+## Phase 3 — Execute
+_(not started)_
+
+## Phase 4 — Review ✋
+_(not started)_
+
+## Phase 5 — Finalise ✋
+_(not started)_
+
+---
+
+## Decision log
+
+| When | Decision | Why |
+|------|----------|-----|
+| Phase 1 | TIER=full | SCOPE=M, multi-file, universal req (R2) with N=9>1 → lite ineligible |
+| Phase 1 | BASELINE=red (no exclusions) | Fresh checkout has no `.py`; pytest collects nothing, ruff absent — expected pre-scaffold, not a defect |
+| Phase 2 | Build backend = setuptools | Bundled, zero extra build dep (R8.2); hatchling/flit add cost for no benefit on a pure-Python package |
+| Phase 2 | `fastmcp` assumption resolved via spike | `pip install fastmcp --dry-run` → fastmcp 3.4.5 + full tree resolves on py3.12; assumption now verified, not novel-untested |
+| Phase 2 | Stubs docstring-only | R1.2/R7.4 (no abstraction before adapter #2) + R7.1 (smallest thing); stubs fill in tasks 002+ |
+
+## Session status
+
+- **Last updated:** Phase 2 (design) complete
+- **Current phase:** 2 — Design, at Gate 2
+- **Work-doc mode / path:** embed · this file (`docs/tasks/001_project-scaffold.md`, below the separator)
+- **Next action:** user reviews Gate 2; on approval run `/mango:execute 001`
+- **Blocked on:** Gate 2 approval
