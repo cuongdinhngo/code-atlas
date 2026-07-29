@@ -295,6 +295,28 @@ def test_search_honours_its_limit(store: GraphStore) -> None:
     assert len(store.search_nodes("UserRepo", limit=1)) == 1
 
 
+def test_the_update_trigger_keeps_the_search_index_in_step(
+    store: GraphStore, db_path: Path
+) -> None:
+    """Fires `nodes_au` directly: no store method updates a node, so nothing else exercises it.
+
+    The trigger closes the mirror invariant for a write path the store does not currently take;
+    without this test a broken trigger body would ship green.
+    """
+    seeded(store)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "UPDATE nodes SET name = 'Renamed', qualified_name = '\\App\\Renamed' "
+            "WHERE name = 'UserRepo'"
+        )
+
+    assert [row["name"] for row in store.search_nodes("Renamed", limit=10)] == ["Renamed"]
+    # The method still carries the old token in its own qname, so only the class moved.
+    assert [row["name"] for row in store.search_nodes("UserRepo", limit=10)] == ["save"]
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("INSERT INTO nodes_fts(nodes_fts) VALUES ('integrity-check')")
+
+
 def test_rebuilding_the_search_index_keeps_the_same_hits(store: GraphStore) -> None:
     seeded(store)
     before = store.search_nodes("UserRepo", limit=10)

@@ -72,7 +72,7 @@ Constraint section); they are binding on the change and are listed so every hunk
 | AC2 | Acceptance criteria | "FTS search returns expected rows; identical input → identical rows (determinism test)." | Both halves now falsifiable by ratification: "expected rows" = **≥10 named cases, each asserted through `MATCH`** (Q9b, never `count(*)`); determinism = **row content ordered by a stable key with `nodes.id`/`edges.id` excluded and the clock injected**, so `files.updated_at`/`meta.built_at` are reproducible under a fixed clock (Q3). | Spike (below): §10's external-content FTS table returns **0 MATCH rows** as written; `SELECT count(*)` on it returns 1, so a count-based test passes while search is broken | **3/3** (items 4, 5, 8) | **3/3** — proving test + 14 MATCH cases + `test_identical_input_produces_identical_rows` | ⬜ |
 | C1 | rulebook scan | R3.2 — "`contract.py` is the single source of truth for the schema. Store, indexer, and tools import from it; they never re-declare field lists." | The `nodes`/`edges` DDL and every INSERT column list derive from `NODE_FIELDS`/`EDGE_FIELDS`. Verified 1:1 and **in the same order** as `PLAN.md:255-264`, so the derivation is exact, not approximate. | `ENGINEERING_RULES.md:52-53`; `contract.py:47-68` vs `PLAN.md:255-264` — identical names, identical order | **4/4** (items 3, 4, 7, 9) | **4/4** — columns == `('id',) + contract` fields; R3.2 guard negative-controlled | ⬜ |
 | C2 | rulebook scan | R4.2 — "Identical input → identical output. No wall-clock, randomness, or set-ordering leaking into stored data." | Rowid assignment follows insert order (worker-dependent, `PLAN.md:227`), and `updated_at`/`built_at` are wall-clock by definition. Both must be made injectable/excluded rather than asserted over. | `ENGINEERING_RULES.md:65-67`; `PLAN.md:254` (`updated_at`), ticket line 16 (`built_at`); spike: rowid restarted at 1 after a delete-all | **3/3** (items 1, 4, 5) | **3/3** — fixed clock reproducible; `test_ids_follow_insert_order_while_content_does_not` | ⬜ |
-| C3 | rulebook scan | R4.3 — "Single SQLite writer… WAL, indexed queries, bounded traversal in SQL — never load the whole graph into memory." | One `GraphStore` = one connection = one writer; WAL set at open; every read helper takes a `limit`; no `fetchall()` over an unbounded table. | `ENGINEERING_RULES.md:68`; spike: `PRAGMA journal_mode=WAL` → `'wal'` on a file DB (`'memory'` for `:memory:`) | **2/2** (items 1, 4) | **2/2** — WAL/FK/busy_timeout asserted; every helper requires `limit` | ⬜ |
+| C3 | rulebook scan | R4.3 — "Single SQLite writer… WAL, indexed queries, bounded traversal in SQL — never load the whole graph into memory." | One `GraphStore` = one connection = one writer; WAL set at open; every read helper takes a `limit`; no `fetchall()` over an unbounded table. | `ENGINEERING_RULES.md:68`; spike: `PRAGMA journal_mode=WAL` → `'wal'` on a file DB (`'memory'` for `:memory:`) | **2/2** (items 1, 4) | **2/2** — WAL asserted on a file DB; FK enforcement asserted; every helper requires `limit`. `busy_timeout` is **set but not asserted** → recorded coverage-gap exclusion | ⬜ |
 | C4 | rulebook scan | R1.4 / R1.2 / R7.4 — SRP per component; one seam only; no dead abstractions. | `store.py` persists and queries only; it imports `contract` (and nothing else from the core) and is imported by indexer/resolver/tools. **No** `StoreProtocol`, backend abstraction, or migration framework — one implementation. | `ENGINEERING_RULES.md:20-22`, `26-31`, `102` | **3/3** (items 1, 3, 4) | **3/3** — one class, one connection; no protocol or migration runner added | ⬜ |
 | C5 | rulebook scan | R5.1 / R5.3 — a failed parse sets `parsed_ok=0` and keeps going; config/programmer errors fail loud. | Store must accept a file row with `parsed_ok=0` and **zero** nodes/edges (that is the R5.1 path). A `schema_version` mismatch is a programmer error → raise, never silently reuse a foreign DB. | `ENGINEERING_RULES.md:72-78`; `PLAN.md:254` (`parsed_ok INT DEFAULT 1`) | **3/3** (items 1, 3, 5) | **3/3** — `parsed_ok=0` with zero rows; `SchemaVersionError` on a foreign version | ⬜ |
 | C6 | rulebook scan | R6.1 / R6.4 — "store change → an integration test asserting resolved rows"; guardrail tests are real tests. | Tests drive a real `GraphStore` over a temp DB file (not a mock), and the R4 guard is negative-controlled so it cannot pass vacuously. | `ENGINEERING_RULES.md:82-92`; `LESSONS.md:18-26` (task 002's vacuous guard) | **3/3** (items 5, 6, 7) | **3/3** — real temp-DB tests, no mocks; both guards negative-controlled | ⬜ |
@@ -557,9 +557,14 @@ Every item traces to a matrix row. **Proof collateral is listed up front, not di
 | R4 — only `store.py` touches SQLite | logic (static) | static, **negative-controlled** — assert `len(core_modules()) == 11` and exactly 1 contains SQL; inject a violation, confirm failure, remove it, confirm byte-identical | ✅ |
 | Q8 — tokenizer behaviour (documented limitation) | runtime/3p | integration — assert `_` splits and camelCase does **not**, so the limitation is pinned in code | ✅ |
 
-**No `❌` rows. Coverage-gap exclusions: none** — every requirement has a proof at its own risk layer.
-Deferred-with-record (not exclusions, because nothing in *this* ticket goes unproven): camelCase FTS
-splitting → task 014 (Q8); the two uncodified standards → `/mango:codify`.
+**No `❌` rows.** Deferred-with-record (not exclusions, because nothing in *this* ticket goes unproven):
+camelCase FTS splitting → task 014 (Q8); the two uncodified standards → `/mango:codify`.
+
+**Coverage-gap exclusions** *(one added at Phase 4 — the plan said "none" and that was wrong)*:
+
+| Item | Risk tier | Why deferred | Follow-up |
+|------|-----------|--------------|-----------|
+| `busy_timeout=5000` and the "single writer" property under real contention. The pragma is set (`store.py:27`) but **nothing asserts it**, and no test opens two writers against one file. `busy_timeout` is per-connection and the store deliberately exposes no connection accessor, so a truthful assertion would mean adding an accessor purely for the test. | **low** — one `GraphStore` is one connection by construction, so contention cannot arise until a second writer exists | Concurrency arrives with task 009's worker fan-out, which is where a contention test belongs and where the single-writer boundary is actually load-bearing. Raised by the challenger as "can't tell"; recorded rather than argued away. | task 009 |
 
 **Proving test.**
 
@@ -670,7 +675,49 @@ defect found *by* the approved verification plan, fixed inside the approved appr
 
 ## Phase 4 — Review ✋
 
-*(not started)*
+- **reviewer verdict:** **not run — skipped by user decision** (2026-07-29, "chỉ chạy challenger thôi"),
+  as in tasks 002–003. Recorded as a gap, not as an LGTM: no senior-reviewer pass exists for this diff.
+- **Re-review path:** n/a (round 1).
+- **challenger (ticket-blind) result:** **7 of 8 requirements met · 1 met-with-caveat · 0 not met · 1
+  sub-item can't-tell.** Isolation held — it was given only the raw ticket (extracted to a scratchpad
+  file, verified to contain no matrix/design text) plus `git diff main...feat/004-sqlite-store`, and it
+  confirmed it never opened this working doc. It worked in a throwaway clone and left the checkout
+  untouched.
+- **security agent:** n/a (no auth, network, or user input; SQL is fully parameterised).
+
+**Challenger findings and adjudication.**
+
+| # | Finding | Verdict | Action |
+|---|---------|---------|--------|
+| 1 | **`nodes_au` (AFTER UPDATE) was never exercised.** Verified by mutation, not inspection: it replaced the trigger body with a reference to a nonexistent column and the **full suite still passed 162/1**. `replace_file_rows` only ever DELETEs then INSERTs, so nothing fired the trigger; `test_schema_object_is_created` proved the trigger *object* was registered and was being read as if it proved the trigger *body*. | **Accepted — a real self-reported-green.** | **Fixed:** `tests/test_store.py::test_the_update_trigger_keeps_the_search_index_in_step` fires `nodes_au` with a real rename and asserts the index moved with it plus a clean `integrity-check`. Re-ran the challenger's exact mutation against a **copy** of `store.py`: the new test now **fails with `OperationalError`**, so the mutation is killed. The trigger is kept rather than deleted (R7.4) because it closes the mirror invariant for a write path a later task may take — an FTS mirror with a hole desyncs silently. |
+| 2 | **`busy_timeout` / two-writer contention is `can't tell`.** The pragma is set but nothing asserts it, and no test proves two writers serialise. | **Accepted.** | **Recorded as a coverage-gap exclusion** (risk tier low, follow-up task 009) — see the Phase-2 exclusions table. It also exposed an **overstated cell in my own bookkeeping**: matrix C3's `Ph3/4` claimed "WAL/FK/busy_timeout asserted" when `busy_timeout` was not asserted at all. Cell corrected. |
+| 3 | `docs/CONVENTION.md`'s new rule binds `indexer.py`/`resolver.py`/`tools/`, which do not exist yet — forward-looking policy the ticket did not ask for. | **Traceable, not creep.** | It is approved change-list **item 9**, tracing to C1 (R3.2) and C8; `store.py` is its first consumer and R7.2 requires the convention be written where conventions live. No change. |
+| 4 | `SchemaVersionError` goes beyond the literal ticket text. | **Traceable.** | Ratified at Gate 0 as **Q4** and traced to R2 (`schema_version` is a ticket-named meta key) + C5 (R5.3 fail-loud). No change. |
+| 5 | The diff **changes `PLAN.md` §10 and claims conformance to the changed §10 in the same commit set** — a reader checking only "code matches §10" gets a tautology. The challenger independently traced each edit and judged all three **legitimate spec corrections**, not a bar-move. | **Accepted as a fair characterisation.** | No change to the edits — they were ratified at Gate 0 (Q1/Q2/Q4) *before* any code was written, and §10's own text now states each reason. Recorded here so the tautology is named rather than relied on. |
+| 6 | The uniqueness relaxation has downstream consequences for the resolver (§8.2) that **task 004 does not own**, and a later reviewer should not assume they were re-litigated there. | **Accepted.** | Already stated in `PLAN.md` §10's amendment ("a qname lookup may return one *or more* candidates… a `HEURISTIC` multi-candidate"), which is the authoritative place task 011 will read. Flagged for the PR body so it is not discovered late. |
+
+- **Scope reconciliation:** 7 files, all inside the approved change-list; the Phase-4 fix adds one test to
+  `tests/test_store.py` (item 5), no new file. No reformatting of untouched lines. `SCOPE` stays **M** —
+  the *outgrew-its-ticket* nudge does not fire.
+- **Regression on Phase-1 callers:** none possible — `store.py` still has zero importers (indexer,
+  resolver, tools, gitutil remain stubs), which is why the challenger's mutation testing was the only
+  way to find finding 1.
+- **Proving test result + "would it fail without the change?"** `test_the_search_index_follows_a_per_file_replace`
+  green; it cannot pass pre-change (no `GraphStore`) nor on §10-as-written (0 `MATCH` rows). Judged
+  against `BASELINE: green`: **163 passed, 1 skipped** (baseline 86 passed), `ruff check` clean, `mypy`
+  clean, R1.1/R2.2 gates ok. **No new failure, no baseline exclusion needed.**
+- **Layer-match re-confirmation:** every AC's proof still sits at its risk layer; the one new exclusion
+  is recorded with an approver-visible reason and a follow-up, not left as a silent pass.
+- **Frontend rubric:** n/a (TRACK=backend). **Proof manifest / surfaces:** n/a.
+- `Ph3/4 proven by` filled `k/N` for all 15 rows — see matrix.
+- **Clean?** **Qualified yes.** Challenger: 0 "not met" after finding 1 was fixed and findings 2/6
+  recorded. No layer-match ❌ unresolved. k=N on every row, with one human-visible coverage-gap
+  exclusion. Proving test green. **The honest caveat: no reviewer agent ran**, so "clean" here rests on
+  the challenger plus the guards — it is not a two-critic verdict.
+- **Reviewed at:** commit `HEAD` of `feat/004-sqlite-store` after the finding-1 fix · reviewed files:
+  `code_atlas/store.py`, `tests/test_store.py`, `tests/test_sql_confinement.py`, `docs/PLAN.md`,
+  `docs/CONVENTION.md`, `docs/BACKLOG.md`, `docs/tasks/004_sqlite-store.md`. `finalise` must re-review if
+  `HEAD` or the diff moves beyond this set.
 
 ## Phase 5 — Finalise ✋
 
@@ -688,6 +735,7 @@ as tasks 002 and 003 recorded it.
 | Phase | Subagent / dispatch | Round | Tokens | Optimizer applied · est./measured saving |
 |-------|---------------------|-------|--------|------------------------------------------|
 | 1 — Analysis | none (0 dispatch) | — | n/a — no dispatch; main-loop read from transcript at PR time | RTK expected (`.harness.json:25`); `rtk gain` at PR time |
+| 4 — Review | `mango:challenger` (ticket-blind) | 1 | **78,095** (27 tool uses, 313 s) | RTK expected; `rtk gain` at PR time |
 | 2 — Design | none (0 dispatch) | — | n/a — no dispatch; main-loop read from transcript at PR time | RTK expected; `rtk gain` at PR time |
 
 ## Decision log
@@ -704,11 +752,16 @@ as tasks 002 and 003 recorded it.
 | 2026-07-29 | `get_node(qname)` dropped from the helper set | No ticket requirement needs it; `read_symbol` is task 014's, and under Q1's relaxed key it would return a list anyway (R7.1/R7.4). Recorded so the omission reads as deliberate |
 | 2026-07-29 | A second spike run **during design** (10 runtime assumptions) rather than deferring them to execute | Gate 2 may not pass with an unresolved novel-untested runtime assumption; three results changed the design — pragma ordering (`foreign_keys` is ignored inside a transaction), FK-enforced delete order, and empirical proof that `id` moves across an idempotent replace |
 | 2026-07-29 | `SCOPE` stays **M**; branch stays `feat/004-sqlite-store` | Change-list did not exceed the analysis baseline (items 8–10 were already anticipated under C8), so the *outgrew-its-ticket* nudge does not fire |
+| 2026-07-29 | Reviewer agent **skipped**, challenger only (user decision) | Recorded as a gap, not an LGTM: the clean verdict rests on one critic plus the guards, not two |
+| 2026-07-29 | Keep `nodes_au` and **test** it rather than delete it as dead code | Nothing currently UPDATEs `nodes`, so R7.4 would argue for deletion — but an FTS mirror with a hole desyncs *silently* the first time a later task updates a row. Closing the invariant beats removing it |
+| 2026-07-29 | `busy_timeout`/two-writer contention recorded as a **coverage-gap exclusion**, not asserted | A truthful assertion needs a connection accessor added purely for the test; contention cannot arise until task 009's fan-out exists |
 
 ## Session status
 
 - **Last updated:** 2026-07-29
-- **Current phase:** Phase 3 — Execute complete on `feat/004-sqlite-store`; flowing into Phase 4 review
-- **Next action:** review — dispatch the reviewer on the diff and the ticket-blind challenger, and
-  adjudicate the one recorded design-conformance deviation (bullet 1's write path, `store.py:172`)
+- **Current phase:** Phase 4 — Review complete (challenger only, reviewer skipped by user); clean with
+  one recorded coverage-gap exclusion. Stopped before Phase 5.
+- **Next action:** run `/mango:finalise 004` — record the token spend in the ledger **and** the BACKLOG
+  Token usage table, draft the PR body from `.github/pull_request_template.md`, and ask per outward
+  action. Nothing has been pushed.
 - **Blocked on:** nothing
