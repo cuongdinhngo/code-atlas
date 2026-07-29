@@ -56,17 +56,17 @@ Constraint section); they are binding on the change and are listed so every hunk
 
 | ID | Source | Verbatim | Interpretation | Ph1 evidence | Ph2 covered by | Ph3/4 proven by | Status |
 |----|--------|----------|----------------|--------------|----------------|-----------------|--------|
-| G1 | Goal | "Central config resolution and file-ignore logic (§11)." | One place resolves every `CA_*` knob; one place decides whether a path is ignored. No other module re-reads `os.environ` or re-lists ignore patterns. | `code_atlas/config.py:1`, `code_atlas/ignore.py:1` are one-line stubs; zero importers repo-wide (grep over `code_atlas/`, `tests/`) | **2/2** (items 1, 2) | k/N | ⬜ |
-| R1 | Scope / Deliverables | "`config.py`: env `CA_*` → project file → defaults. Knobs: `CA_DB_PATH` (default `<repo>/.code-atlas/graph.db`), `CA_WORKERS`, `CA_MAX_RESULTS`, `CA_IMPACT_DEPTH=2`, `CA_IMPACT_MAX_NODES=500`, per-adapter `CA_<LANG>_CMD`, `CA_TOOLS` allow-list." | A three-layer resolver over **7** knobs (inventory A). `CA_<LANG>_CMD` must be a generic lookup, never a language branch (R1.1). | `config.py:1` stub; knob list matches CONVENTION §2 (`CONVENTION.md:47-48`) and PLAN §11 (`PLAN.md:274`), which omits `CA_TOOLS` — it is specified at `PLAN.md:295` | **5/5** (items 1, 5, 6, 7, 8) | k/N | ⬜ |
-| R2 | Scope / Deliverables | "`ignore.py`: built-ins (`vendor/ var/ uploads/ log/ node_modules/ .git/`) + `.gitignore` + optional `.codeatlasignore`." | A matcher over **3** ordered sources (inventory B) with **6** built-in patterns; `.codeatlasignore` is optional (absent ⇒ no error). | `ignore.py:1` stub; pattern list verbatim from `PLAN.md:274`; `.codeatlasignore` name fixed by `CONVENTION.md:49` | **4/4** (items 2, 4, 5, 8) | k/N | ⬜ |
-| AC1 | Acceptance criteria | "Precedence (env > project file > default) covered by tests." | For **each** of the 7 knobs, tests assert all three layers and their ordering — a per-item checklist, not one aggregate test (inventory A). | No `tests/test_config*.py` exists | **7/7** (item 3 — 28 assertions over the 7 knobs) | k/7 | ⬜ |
-| AC2 | Acceptance criteria | "Ignore matcher unit-tested against built-ins, `.gitignore`, and `.codeatlasignore` cases." | Named unit cases per source, including near-miss **non**-matches (a matcher that ignores everything would pass a match-only suite). "cases" is not falsifiable as written → pinned in AC validation. | No `tests/test_ignore*.py` exists | **3/3** (item 4 — 16 named cases over the 3 sources) | k/3 | ⬜ |
-| C1 | rulebook scan | R1.1 — "No `if language == "php"` (or any per-language switch) anywhere under `code_atlas/`." | `CA_<LANG>_CMD` resolves via `f"CA_{language.upper()}_CMD"`; no hardcoded language name or language list in `config.py`. | `ENGINEERING_RULES.md:18-19`; CI gate `.github/workflows/ci.yml:46-53` | **1/1** (item 1 — regex env lookup, no language list) | k/N | ⬜ |
-| C2 | rulebook scan | R5.3 — "Fail loud on *config/programmer* errors (bad `CA_*`, missing adapter command)." | A malformed value (non-int workers, unknown project-file key) raises; it never silently falls back to the default. | `ENGINEERING_RULES.md:77-78` | **2/2** (items 1, 3) | k/N | ⬜ |
-| C3 | rulebook scan | R8.2 — "Keep core dependencies minimal (FastMCP + stdlib-first)." | Ignore matching and project-file parsing use stdlib only (`fnmatch`/`re`, `tomllib`). Adding `pathspec` needs an explicit human call → Q5. | `ENGINEERING_RULES.md:113-114`; `pyproject.toml:12` | **1/1** (item 2 — `re` + `pathlib`, `tomllib` for item 1) | k/N | ⬜ |
-| C4 | rulebook scan | R4.2 — "Identical input → identical output." | Pattern iteration order is deterministic; `os.cpu_count()` (the `CA_WORKERS` default) is machine-dependent, so it must be injectable and never leak into stored rows. | `ENGINEERING_RULES.md:65-67`; `PLAN.md:227` (`min(cpu-2, 8)`) | **3/3** (items 1, 2, 3) | k/N | ⬜ |
-| C5 | rulebook scan | R1.4 / R7.5 — SRP per module; comments ≤ 3 lines. | `config.py` resolves config only, `ignore.py` matches only; neither imports `store.py` or an adapter. Every comment ≤ 3 lines. | `ENGINEERING_RULES.md:26-31`, `104-105` | **2/2** (items 1, 2) | k/N | ⬜ |
-| C6 | rulebook + `CLAUDE.md` scan | R7.2 — "A design decision updates the plan; task status updates both `BACKLOG.md` and the task file's frontmatter" + CLAUDE.md's "Docs before PR" / "Token usage on PR" | The four ratified values that exist nowhere in the repo (`.code-atlas.toml`, `CA_MAX_RESULTS=50`, `CA_TOOLS` format, the worker floor) land in PLAN/CONVENTION/README in **this** diff, plus status + token-ledger sync. | `ENGINEERING_RULES.md:98-99`; `CLAUDE.md` "Docs before PR"; `LESSONS.md:16` (untraceable governance hunks read as scope creep) | **5/5** (items 5, 6, 7, 8, 9) | k/N | ⬜ |
+| G1 | Goal | "Central config resolution and file-ignore logic (§11)." | One place resolves every `CA_*` knob; one place decides whether a path is ignored. No other module re-reads `os.environ` or re-lists ignore patterns. | `code_atlas/config.py:1`, `code_atlas/ignore.py:1` are one-line stubs; zero importers repo-wide (grep over `code_atlas/`, `tests/`) | **2/2** (items 1, 2) | **2/2** — `config.py`, `ignore.py` written; 86 tests green | ✅ |
+| R1 | Scope / Deliverables | "`config.py`: env `CA_*` → project file → defaults. Knobs: `CA_DB_PATH` (default `<repo>/.code-atlas/graph.db`), `CA_WORKERS`, `CA_MAX_RESULTS`, `CA_IMPACT_DEPTH=2`, `CA_IMPACT_MAX_NODES=500`, per-adapter `CA_<LANG>_CMD`, `CA_TOOLS` allow-list." | A three-layer resolver over **7** knobs (inventory A). `CA_<LANG>_CMD` must be a generic lookup, never a language branch (R1.1). | `config.py:1` stub; knob list matches CONVENTION §2 (`CONVENTION.md:47-48`) and PLAN §11 (`PLAN.md:274`), which omits `CA_TOOLS` — it is specified at `PLAN.md:295` | **5/5** (items 1, 5, 6, 7, 8) | **5/5** — 7 knobs resolve, 3 layers each; docs match | ✅ |
+| R2 | Scope / Deliverables | "`ignore.py`: built-ins (`vendor/ var/ uploads/ log/ node_modules/ .git/`) + `.gitignore` + optional `.codeatlasignore`." | A matcher over **3** ordered sources (inventory B) with **6** built-in patterns; `.codeatlasignore` is optional (absent ⇒ no error). | `ignore.py:1` stub; pattern list verbatim from `PLAN.md:274`; `.codeatlasignore` name fixed by `CONVENTION.md:49` | **4/4** (items 2, 4, 5, 8) | **4/4** — 6 built-ins + 2 files; 23 ignore cases | ✅ |
+| AC1 | Acceptance criteria | "Precedence (env > project file > default) covered by tests." | For **each** of the 7 knobs, tests assert all three layers and their ordering — a per-item checklist, not one aggregate test (inventory A). | No `tests/test_config*.py` exists | **7/7** (item 3 — 28 assertions over the 7 knobs) | **7/7** — 28 assertions, 7 parametrized ids | ✅ |
+| AC2 | Acceptance criteria | "Ignore matcher unit-tested against built-ins, `.gitignore`, and `.codeatlasignore` cases." | Named unit cases per source, including near-miss **non**-matches (a matcher that ignores everything would pass a match-only suite). "cases" is not falsifiable as written → pinned in AC validation. | No `tests/test_ignore*.py` exists | **3/3** (item 4 — 16 named cases over the 3 sources) | **3/3** — 23 cases incl. 4 near-miss non-matches | ✅ |
+| C1 | rulebook scan | R1.1 — "No `if language == "php"` (or any per-language switch) anywhere under `code_atlas/`." | `CA_<LANG>_CMD` resolves via `f"CA_{language.upper()}_CMD"`; no hardcoded language name or language list in `config.py`. | `ENGINEERING_RULES.md:18-19`; CI gate `.github/workflows/ci.yml:46-53` | **1/1** (item 1 — regex env lookup, no language list) | **1/1** — R1.1 gate re-run clean; unknown-language test | ✅ |
+| C2 | rulebook scan | R5.3 — "Fail loud on *config/programmer* errors (bad `CA_*`, missing adapter command)." | A malformed value (non-int workers, unknown project-file key) raises; it never silently falls back to the default. | `ENGINEERING_RULES.md:77-78` | **2/2** (items 1, 3) | **2/2** — 8 fail-loud cases, all ConfigError | ✅ |
+| C3 | rulebook scan | R8.2 — "Keep core dependencies minimal (FastMCP + stdlib-first)." | Ignore matching and project-file parsing use stdlib only (`fnmatch`/`re`, `tomllib`). Adding `pathspec` needs an explicit human call → Q5. | `ENGINEERING_RULES.md:113-114`; `pyproject.toml:12` | **1/1** (item 2 — `re` + `pathlib`, `tomllib` for item 1) | **1/1** — stdlib only; `pyproject.toml` unchanged | ✅ |
+| C4 | rulebook scan | R4.2 — "Identical input → identical output." | Pattern iteration order is deterministic; `os.cpu_count()` (the `CA_WORKERS` default) is machine-dependent, so it must be injectable and never leak into stored rows. | `ENGINEERING_RULES.md:65-67`; `PLAN.md:227` (`min(cpu-2, 8)`) | **3/3** (items 1, 2, 3) | **3/3** — identical-input + 3 cpu_count cases | ✅ |
+| C5 | rulebook scan | R1.4 / R7.5 — SRP per module; comments ≤ 3 lines. | `config.py` resolves config only, `ignore.py` matches only; neither imports `store.py` or an adapter. Every comment ≤ 3 lines. | `ENGINEERING_RULES.md:26-31`, `104-105` | **2/2** (items 1, 2) | **2/2** — ruff/mypy clean; no cross-import | ✅ |
+| C6 | rulebook + `CLAUDE.md` scan | R7.2 — "A design decision updates the plan; task status updates both `BACKLOG.md` and the task file's frontmatter" + CLAUDE.md's "Docs before PR" / "Token usage on PR" | The four ratified values that exist nowhere in the repo (`.code-atlas.toml`, `CA_MAX_RESULTS=50`, `CA_TOOLS` format, the worker floor) land in PLAN/CONVENTION/README in **this** diff, plus status + token-ledger sync. | `ENGINEERING_RULES.md:98-99`; `CLAUDE.md` "Docs before PR"; `LESSONS.md:16` (untraceable governance hunks read as scope creep) | **5/5** (items 5, 6, 7, 8, 9) | **5/5** — PLAN, CONVENTION, README, BACKLOG, frontmatter | ✅ |
 
 Status legend: ✅ done/proven · ⚠ deferred (needs follow-up ticket) · ❌ not met · ⬜ not yet started (Phase 1).
 
@@ -85,7 +85,8 @@ Status legend: ✅ done/proven · ⚠ deferred (needs follow-up ticket) · ❌ n
 | AC1 | "project file" layer | **Unnamed and unformatted** anywhere in PLAN/CONVENTION/README — the middle precedence layer has no artifact to read | **N** → **resolved Q1** | measurable | **RATIFIED** — `.code-atlas.toml` at repo root, flat lowercase keys + `[adapter_cmd]` table, stdlib `tomllib` |
 | AC2 | "built-ins, `.gitignore`, and `.codeatlasignore` **cases**" | "cases" is a vague adjective — no count, no semantics. Computed pin: **≥14 named cases across 3 sources** (6 built-in matches at root + nested, 2 near-miss non-matches, 5 `.gitignore` syntax cases, 2 `.codeatlasignore` cases incl. additivity) | **N** → **resolved Q5** | **now falsifiable** — the ratified subset fixes the case list at ≥14 named cases | **RATIFIED** — stdlib subset, last-match-wins across the 3 sources, no re-include under an excluded directory |
 
-**No AC carries a `✅` in the matrix** — every row is `⬜` pending implementation. Every acceptance
+**No AC carries a `✅` in the matrix** *(as of Phase 1 — rows were filled `✅` at Phase 4, each with
+its proving test named)*. Every acceptance
 value is now falsifiable (no manual-check exclusion needed): each knob's default is a concrete value a
 test can assert, and AC2's "cases" is pinned to an enumerated list by the ratified Q5 subset.
 
@@ -113,13 +114,13 @@ file / default) + 1 ordering assertion ⇒ **28 assertions** over the 7 rows.
 
 | # | Knob | Project-file key | Ratified default | Ph3/4 proven by | Status |
 |---|------|------------------|------------------|-----------------|--------|
-| 1 | `CA_DB_PATH` | `db_path` | `<root>/.code-atlas/graph.db`, `root` supplied by the caller (`PLAN.md:274`; Q2) | | ⬜ |
-| 2 | `CA_WORKERS` | `workers` | `max(1, min((os.cpu_count() or 1) - 2, 8))` (`PLAN.md:227` + Q3a floor) | | ⬜ |
-| 3 | `CA_MAX_RESULTS` | `max_results` | `50` (Q3b — new value, no prior source) | | ⬜ |
-| 4 | `CA_IMPACT_DEPTH` | `impact_depth` | `2` (`PLAN.md:274`) | | ⬜ |
-| 5 | `CA_IMPACT_MAX_NODES` | `impact_max_nodes` | `500` (`PLAN.md:274`) | | ⬜ |
-| 6 | `CA_<LANG>_CMD` (generic) | `[adapter_cmd].<lang>` | `None` (absent ⇒ `None`; fail-loud at launch, task 005) | | ⬜ |
-| 7 | `CA_TOOLS` | `tools` | `None` = unrestricted; unset **or** blank ⇒ `None` (Q4) | | ⬜ |
+| 1 | `CA_DB_PATH` | `db_path` | `<root>/.code-atlas/graph.db`, `root` supplied by the caller (`PLAN.md:274`; Q2) | `test_env_beats_project_file_beats_default[CA_DB_PATH]` + `test_an_absolute_db_path_wins_over_the_root` | ✅ |
+| 2 | `CA_WORKERS` | `workers` | `max(1, min((os.cpu_count() or 1) - 2, 8))` (`PLAN.md:227` + Q3a floor) | `…[CA_WORKERS]` + `test_the_worker_default_is_floored_and_capped[1/3/64-cpus]` | ✅ |
+| 3 | `CA_MAX_RESULTS` | `max_results` | `50` (Q3b — new value, no prior source) | `…[CA_MAX_RESULTS]` — default asserted as 50 | ✅ |
+| 4 | `CA_IMPACT_DEPTH` | `impact_depth` | `2` (`PLAN.md:274`) | `…[CA_IMPACT_DEPTH]` — default asserted as 2 | ✅ |
+| 5 | `CA_IMPACT_MAX_NODES` | `impact_max_nodes` | `500` (`PLAN.md:274`) | `…[CA_IMPACT_MAX_NODES]` — default asserted as 500 | ✅ |
+| 6 | `CA_<LANG>_CMD` (generic) | `[adapter_cmd].<lang>` | `None` (absent ⇒ `None`; fail-loud at launch, task 005) | `…[CA_PHP_CMD]` + `test_any_language_resolves_without_a_core_change` | ✅ |
+| 7 | `CA_TOOLS` | `tools` | `None` = unrestricted; unset **or** blank ⇒ `None` (Q4) | `…[CA_TOOLS]` + `test_the_tool_allow_list_parses` ×4 | ✅ |
 
 **Out of scope, recorded so review does not read it as a miss:** `CA_HOST_ROOT` / `CA_CONTAINER_ROOT`
 (`PLAN.md:245`, Docker path mapping) are real `CA_*` knobs but belong to **task 008**; the ticket's knob
@@ -129,9 +130,9 @@ list omits them and N stays **7**.
 
 | # | Source | Cases to cover | Ph3/4 proven by | Status |
 |---|--------|----------------|-----------------|--------|
-| 1 | Built-ins: `vendor/`, `var/`, `uploads/`, `log/`, `node_modules/`, `.git/` | each of the 6 matched at repo root **and** nested; 2 near-miss non-matches (`vendored/`, `src/vendor.php`) | | ⬜ |
-| 2 | `.gitignore` | comment/blank skipped · `*.log` glob · anchored `/build` · dir-only `dist/` · `!` negation (subset per ratified **Q5**) | | ⬜ |
-| 3 | `.codeatlasignore` (optional) | absent ⇒ no error · patterns apply **additively** to sources 1–2 · a `!` here re-includes a built-in/`.gitignore` match, **unless** a parent directory is excluded | | ⬜ |
+| 1 | Built-ins: `vendor/`, `var/`, `uploads/`, `log/`, `node_modules/`, `.git/` | each of the 6 matched at repo root **and** nested; 2 near-miss non-matches (`vendored/`, `src/vendor.php`) | `test_a_builtin_directory_is_ignored_at_root_and_nested` ×6 + `test_a_near_miss_is_not_ignored` ×4 | ✅ |
+| 2 | `.gitignore` | comment/blank skipped · `*.log` glob · anchored `/build` · dir-only `dist/` · `!` negation (subset per ratified **Q5**) | comments · glob · anchor · dir-only · class/`?` · `**` · negation (7 tests) | ✅ |
+| 3 | `.codeatlasignore` (optional) | absent ⇒ no error · patterns apply **additively** to sources 1–2 · a `!` here re-includes a built-in/`.gitignore` match, **unless** a parent directory is excluded | last-match-wins · additive · no-re-include-under-excluded-dir · absent-file (4 tests) | ✅ |
 
 ### Surface inventory
 
@@ -546,7 +547,65 @@ AC1 **7/7** · AC2 **3/3** · R1 5/5 · R2 4/4 · G1 2/2 · C1–C5 proven by th
 
 ## Phase 4 — Review ✋
 
-*Not started.*
+- **reviewer verdict: NOT RUN — skipped by user decision.** Asked at the top of this phase with the
+  cost trade-off stated; the user chose **challenger-only (1 dispatch)**. Recorded as a **named review
+  coverage gap**, not a pass: no independent agent scored the diff against `ENGINEERING_RULES.md`.
+  The rule-compliance table below is a **main-loop self-review by the change's author** — weaker
+  evidence than an independent reviewer, and labelled as such.
+- **challenger (ticket-blind) result: every item met — 13 reconstructed requirements, 13 met, 0 not
+  met, 0 can't tell, 0 findings.** Payload was the raw ticket portion (above the separator) + the
+  branch diff only; it confirmed it never opened the working-doc portion. It independently re-derived
+  the requirements, ran the suite (52 new / 86 total), and checked R1.1, R5.3, R8.2, R7.5 itself.
+  - Its one flag was **not** a finding: the ticket says "project file" without naming it, so
+    `.code-atlas.toml` is an implementation decision it declined to count as scope creep — "flagging
+    only so a human reviewer who cares about bikeshedding the filename can weigh in". That decision
+    is the ratified Q1 (Gate 0), so it is already a human call.
+  - Independence is **procedural, not cryptographic**: it rests on the separator split and on
+    withholding the file. Its own note confirms it read only the frontmatter + the four raw sections.
+- **security agent:** none defined for this project.
+- **Scope reconciliation — file axis:** clean. 9 files changed = the 9 approved change-list items,
+  nothing outside. No untouched-line reformatting; the only deletions are the 2 stub docstrings and 4
+  doc lines rewritten in place. No formatter was run over any pre-existing file.
+- **Scope reconciliation — behaviour axis:** 6 of 7 Gate-2 Approach bullets `implemented-as-approved`;
+  **1 recorded deviation adjudicated below.** No bullet was found diverged that execute had missed,
+  and no feature is self-marked `✅` without a named test behind it.
+
+  **Deviation adjudication — `_resolve[T]` helper instead of a looped knob table: ACCEPTED.**
+  The properties Gate 2 approved are all present and independently asserted: each knob named once
+  (`config.py:24`), env name derived mechanically (`config.py:64`, asserted by
+  `test_env_name_is_derived_from_the_project_file_key`), one shared precedence implementation
+  (`config.py:88`), and AC1 parametrized from the same `KNOB_KEYS` with
+  `test_every_knob_has_a_precedence_case` failing on drift. The change buys full mypy checking of the
+  seven `Config` fields, which a heterogeneous table would have discarded behind `cast()`.
+  **Honesty note:** this adjudication was made in the main loop **by the author of the change**, and
+  the challenger could not corroborate it (it never saw the approved design). The user remains the
+  final adjudicator at Gate 5 and can overrule.
+- **Regression on Phase-1 callers:** none possible and none observed. The Phase-1 blast radius was
+  **zero importers**, and the diff touches no other module — `store.py`, `indexer.py`, `resolver.py`,
+  `adapter.py`, `main.py`, `tools/` are byte-identical (`git diff --name-only main...HEAD`). The R3.2
+  guard `tests/test_contract_sole_source.py` still passes (6 tests), so `consumers()` is intact.
+- **Proving test result + "would it fail without the change?"** `pytest
+  tests/test_config.py::test_env_beats_project_file_beats_default -q` → **7 passed**. Without the
+  change it does not merely fail, it cannot collect: with the stubs restored (`git stash`) the run
+  ended `ImportError: cannot import name 'ADAPTER_CMD_TABLE' from 'code_atlas.config'`. Judged against
+  `BASELINE: green`: **86 passed** (34 baseline + 52 new), `ruff` clean, `mypy` clean → no new
+  failure, no baseline exclusion in play.
+- **Layer-match re-confirmation:** no AC closed clean on a layer-mismatched proof. The 6 `✅` rows in
+  design's verification plan all keep proof at their risk layer (unit tests over a **real** TOML file
+  and **real** ignore files in `tmp_path`; nothing mocked). The 2 `❌` rows are exactly the two
+  human-approved coverage-gap exclusions (`CA_TOOLS` enforcement → task 010; `CA_<LANG>_CMD`
+  fail-loud at launch → task 005) — recorded before execute, so they do not block clean.
+- **`Ph3/4 proven by` filled:** all 11 matrix rows plus both inventory checklists item-by-item
+  (Inventory A 7/7 knobs, Inventory B 3/3 sources — per-item, not an aggregate).
+- **Frontend rubric / proof manifest / surfaces:** n/a — `TRACK: backend`.
+- **Clean?** **Yes, with one named limitation.** Challenger: every item met · no layer-match `❌`
+  unresolved · `k = N` on every row and inventory item · both exclusions human-approved and recorded ·
+  proving test green against a green baseline · scope clean on both axes. The limitation is the
+  **skipped independent reviewer** (user decision), recorded above rather than papered over.
+- **Reviewed at** `8677475d50e7bb5322eb29117e27c53620b63968` · reviewed files: `README.md`,
+  `code_atlas/config.py`, `code_atlas/ignore.py`, `docs/BACKLOG.md`, `docs/CONVENTION.md`,
+  `docs/PLAN.md`, `tests/test_config.py`, `tests/test_ignore.py`. Working doc (exempt from the
+  staleness comparison): `docs/tasks/003_config-and-ignore.md` — embedded per `work_doc_mode: embed`.
 
 ## Phase 5 — Finalise ✋ final gate
 
@@ -560,9 +619,13 @@ AC1 **7/7** · AC2 **3/3** · R1 5/5 · R2 4/4 · G1 2/2 · C1–C5 proven by th
 |-------|---------------------|-------|--------|------------------------------------------|
 | 1 Analysis | none — no fan-out dispatched (all evidence gathered in the main loop; 6 files read, 5 greps) | 1 | 0 dispatch | RTK live (`.harness.json:25`) · main-loop saving per `rtk gain`, not measured here |
 | 2 Design | none — no fan-out dispatched (blast-radius greps + 3 runtime verifications run inline via Bash) | 1 | 0 dispatch | as above |
+| 3 Execute | none — implementation, tests, sweep and commits all in the main loop | 1 | 0 dispatch | as above |
+| 4 Review | `challenger` (ticket-blind) — 17 tool uses, 126 s | 1 | **52,361** | as above |
+| 4 Review | `reviewer` — **not dispatched** (skipped by user decision; recorded as a review coverage gap) | 1 | 0 | — |
 
-`LEDGER TOTAL: 0 dispatch` — main-loop spend for this task is read from the session transcript before
-the PR, per the note in [`BACKLOG.md`](../BACKLOG.md) Token usage.
+`LEDGER TOTAL: 52.4k dispatch · top cost driver: Phase 4 challenger (the only dispatch)` — main-loop
+spend for this task is read from the session transcript before the PR, per the note in
+[`BACKLOG.md`](../BACKLOG.md) Token usage.
 
 ---
 
@@ -580,8 +643,9 @@ the PR, per the note in [`BACKLOG.md`](../BACKLOG.md) Token usage.
 
 ## Session status
 
-- **Last updated:** 2026-07-29 · Phase 3 complete, flowing into review
-- **Current phase:** Phase 4 — Review
-- **Next action:** Run the reviewer on the diff and the ticket-blind challenger; adjudicate the one
-  recorded design-conformance deviation (`_resolve` helper vs a looped knob table).
-- **Blocked on:** nothing
+- **Last updated:** 2026-07-29 · Phase 4 clean (challenger-only, by user decision)
+- **Current phase:** Phase 5 — Finalise
+- **Next action:** `/mango:finalise 003` — draft the PR body from the template, record the main-loop
+  token spend in this ledger **and** the BACKLOG Token-usage table, then ask per outward action
+  (push · PR · durable lesson).
+- **Blocked on:** nothing (every outward action still needs its own approval)
