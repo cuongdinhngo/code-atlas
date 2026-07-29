@@ -4,7 +4,7 @@ slug: config-and-ignore
 title: Config (CA_*) & ignore rules
 phase: 1
 milestone: Setup
-status: in-progress
+status: done
 depends_on: [001]
 ---
 
@@ -675,10 +675,13 @@ reads) is not separable from it — do not read the 7.6% as a dispatch-vs-noise 
 
 ## Session status
 
-- **Last updated:** 2026-07-29 · Phase 5 complete, PR [#5](https://github.com/cuongdinhngo/code-atlas/pull/5) open
-- **Current phase:** done pending merge — the lifecycle is finished; only the merge follow-up remains
-- **Next action:** On merge of PR #5, flip 003 `in-progress → done` in **both**
-  [`BACKLOG.md`](../BACKLOG.md) and this file's frontmatter. Optionally carry the two coverage-gap
-  exclusions into `docs/tasks/005_*.md` and `docs/tasks/010_*.md` (offered, not approved). Unrelated
-  one-liner still outstanding: task **002** reads `in-progress` in BACKLOG though PR #4 merged.
-- **Blocked on:** nothing — awaiting human review of PR #5
+- **Last updated:** 2026-07-29 · **done** — PR [#5](https://github.com/cuongdinhngo/code-atlas/pull/5)
+  merged `2026-07-29T14:43Z`
+- **Current phase:** complete. Status `done` in both [`BACKLOG.md`](../BACKLOG.md) and this
+  frontmatter; the same sync also corrected task **002**, whose PR #4 merged earlier while its status
+  still read `in-progress`.
+- **Next action:** none for 003. Next task on the critical path is **004** (SQLite store & schema) —
+  its `depends_on: [001, 002]` is now satisfied. Still open, and deliberately not done here: carrying
+  the two coverage-gap exclusions into `docs/tasks/005_*.md` and `docs/tasks/010_*.md` (offered at the
+  final gate, not approved), so they currently live only in this working doc.
+- **Blocked on:** nothing
