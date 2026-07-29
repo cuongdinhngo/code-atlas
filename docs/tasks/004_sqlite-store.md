@@ -723,7 +723,7 @@ defect found *by* the approved verification plan, fixed inside the approved appr
 
 - **Stale-review guard:** **not stale.** `git diff --name-only 79765b6..HEAD` ∪ worktree = **empty**;
   `HEAD` is `79765b6`, the reviewed commit. No non-exempt file sits beyond the reviewed set.
-- **PR draft:** `/tmp/pr-004.md`, rendered from **`.github/pull_request_template.md`** (the project rule
+- **PR:** [#7](https://github.com/cuongdinhngo/code-atlas/pull/7) — opened from `/tmp/pr-004.md`, rendered from **`.github/pull_request_template.md`** (the project rule
   in `CLAUDE.md` names that template, so it is used in place of mango's generic `templates/pr.md`).
 - **Project finalise-checklist:** `config.pr_checklist_path` is **null**, so the hook is formally
   skipped — but `.github/pull_request_template.md` carries a *Pre-PR self-check* that is exactly the
@@ -731,10 +731,11 @@ defect found *by* the approved verification plan, fixed inside the approved appr
   **Recommendation:** set `pr_checklist_path` to that template so the hook stops depending on a human
   remembering it.
 - **Planned outward actions (each needs separate approval; nothing taken yet):**
-  - [ ] push the branch `feat/004-sqlite-store` — carries all bookkeeping (LESSONS, BACKLOG token row,
-        this working doc), so **no separate "push bookkeeping" action is needed**: the durable lessons
-        reach a shared ref with this one push, before the PR is opened
-  - [ ] open a PR against `main` via `gh`
+  - [x] **DONE** — pushed `feat/004-sqlite-store` to `origin` (4 commits; `@{u}..HEAD` empty). This
+        carried LESSONS + BACKLOG + this working doc to a shared ref **before** the PR was opened, so the
+        durable lessons are not orphaned on a branch a merge would delete.
+  - [x] **DONE** — PR [#7](https://github.com/cuongdinhngo/code-atlas/pull/7) opened against `main`
+        via `gh`, body from `/tmp/pr-004.md`
   - [ ] tracker comment — **n/a**: `tracker.base_url` is the GitHub repo itself, so the PR *is* the
         tracker artifact; there is no second system to notify
   - [ ] tracker transition — **n/a** for the same reason; task status lives in `BACKLOG.md` +
@@ -798,9 +799,8 @@ as tasks 002 and 003 recorded it.
 ## Session status
 
 - **Last updated:** 2026-07-29
-- **Current phase:** Phase 5 — Finalise, stopped at the **final gate**. Review was clean (challenger
-  only) and **not stale**; PR body drafted; token spend recorded in both required places.
-- **Next action:** approve or decline each outward action individually — (1) push
-  `feat/004-sqlite-store` (carries LESSONS + BACKLOG + this doc to a shared ref), (2) open the PR from
-  `/tmp/pr-004.md` via `gh`. Tracker comment/transition are n/a: the GitHub repo *is* the tracker.
-- **Blocked on:** per-action approval. **Nothing outward has been done** — no push, no PR.
+- **Current phase:** Phase 5 — **complete.** Both approved outward actions taken; PR
+  [#7](https://github.com/cuongdinhngo/code-atlas/pull/7) is open.
+- **Next action:** after #7 merges, set `status: done` in this frontmatter **and** the `BACKLOG.md` row
+  (the pattern tasks 002/003 followed — a separate bookkeeping commit). Then task 005 or 009 unblocks.
+- **Blocked on:** review/merge of #7. Nothing else outstanding.
