@@ -249,13 +249,18 @@ Default A; ship both. (C# adapter will need the .NET SDK; Python adapter runs in
 ---
 
 ## 10. SQLite schema
+`store.py` is the only module that opens the database (§2 SRP). Connection state, set **before any
+transaction** (`foreign_keys` is silently ignored inside one): `journal_mode=WAL`, `foreign_keys=ON`,
+`busy_timeout=5000`.
+
 ```sql
 PRAGMA journal_mode = WAL;
 CREATE TABLE files (path TEXT PRIMARY KEY, hash TEXT, language TEXT, parsed_ok INT DEFAULT 1, updated_at TEXT);
 CREATE TABLE nodes (
-  id INTEGER PRIMARY KEY, kind TEXT, name TEXT, qualified_name TEXT UNIQUE,
+  id INTEGER PRIMARY KEY, kind TEXT, name TEXT, qualified_name TEXT,
   file_path TEXT REFERENCES files(path), line_start INT, line_end INT,
-  modifiers TEXT, params TEXT, is_test INT DEFAULT 0, extra TEXT);
+  modifiers TEXT, params TEXT, is_test INT DEFAULT 0, extra TEXT,
+  UNIQUE(qualified_name, file_path));            -- NOT globally unique: see below
 CREATE INDEX idx_nodes_name ON nodes(name);
 CREATE INDEX idx_nodes_kind ON nodes(kind);
 CREATE INDEX idx_nodes_file ON nodes(file_path);
@@ -265,8 +270,33 @@ CREATE TABLE edges (
 CREATE INDEX idx_edges_src ON edges(source_qname, kind);
 CREATE INDEX idx_edges_tgt ON edges(target_qname, kind);
 CREATE VIRTUAL TABLE nodes_fts USING fts5(name, qualified_name, file_path, params, content='nodes', content_rowid='id');
-CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);  -- schema_version, contract_version, last_commit
+-- An external-content fts5 table indexes nothing on its own, so three triggers mirror `nodes`
+-- into it. They are load-bearing, not an optimisation: without them every MATCH returns 0 rows
+-- while `SELECT count(*) FROM nodes_fts` still reports the content table's size.
+CREATE TRIGGER nodes_ai AFTER INSERT ON nodes BEGIN … END;   -- insert
+CREATE TRIGGER nodes_ad AFTER DELETE ON nodes BEGIN … END;   -- 'delete' with the OLD values
+CREATE TRIGGER nodes_au AFTER UPDATE ON nodes BEGIN … END;   -- 'delete' then insert
+CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);  -- schema_version, contract_version, last_commit, built_at
 ```
+
+**`qualified_name` is unique per file, not globally.** Two files in one PHP namespace each emit a
+`Namespace` node with the same qname, and `if (!function_exists(…))` polyfills or legacy
+re-declarations do the same for functions and classes — a global `UNIQUE` makes the second insert an
+`IntegrityError`. Consequence for the resolver (§8.2): a qname lookup may return **one or more**
+candidates, which is a `HEURISTIC` multi-candidate (§5 R5.2), not a lost row.
+
+**`schema_version` is `"1"` and enforced loud.** On open, a database carrying a different value raises
+and tells the user to delete the index and rebuild — the DB is a derived cache, so there is no
+migration runner (R7.4).
+
+**Determinism carve-out (R4.2).** `nodes.id`/`edges.id` follow insert order, which follows worker
+completion order (§8.1), and `files.updated_at` / `meta.built_at` are wall-clock. The store takes an
+injectable clock, and "identical input → identical rows" is asserted over row **content** ordered by a
+stable key with the two id columns excluded. Ids are not stable identifiers — never store one.
+
+**Column defaults apply when a field is absent.** Adapters may omit optional fields (§4.2), so the
+store inserts only the fields a row carries; `is_test` and `confidence_tier` then take their DDL
+defaults. A field present as `None` is stored as an explicit NULL.
 
 ---
 
