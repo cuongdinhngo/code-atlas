@@ -1,0 +1,30 @@
+# code-atlas index artifacts
+.code-atlas/
+*.db
+*.db-wal
+*.db-shm
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+
+# PHP adapter
+adapters/php/vendor/
+composer.lock
+
+# Node / TS adapter (later)
+node_modules/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
