@@ -609,7 +609,31 @@ AC1 **7/7** · AC2 **3/3** · R1 5/5 · R2 4/4 · G1 2/2 · C1–C5 proven by th
 
 ## Phase 5 — Finalise ✋ final gate
 
-*Not started.*
+- **Stale-review guard: PASS.** `git diff --name-only 8677475..HEAD` = `docs/tasks/003_config-and-ignore.md`
+  only — the marker-bearing working doc, exempt by `work_doc_mode: embed`. Non-exempt set beyond the
+  reviewed files is **empty**, so the clean review still covers the tree. Working tree clean.
+- **PR draft:** `/tmp/pr-003.md`, rendered from `.github/pull_request_template.md` (the project
+  template CLAUDE.md mandates), not mango's generic one.
+- **Project finalise checklist:** `config.pr_checklist_path` is null, so the hook is skipped; the
+  template's own pre-PR self-check is filled in the draft instead.
+- **Planned outward actions (each needs its own approval):**
+  - [ ] push branch `feat/003-config-and-ignore` (carries the bookkeeping commit, so the durable
+        lesson reaches a shared ref before the PR — it is not orphaned on a local branch)
+  - [ ] open PR against `main` via `gh`
+  - [ ] tracker comment / transition — **n/a**, the tracker *is* this GitHub repo and the PR is the
+        record; `docs/BACKLOG.md` + the task frontmatter are already in the diff
+- **Follow-up tickets for deferred (⚠) rows:** none — there are no `⚠` rows. The two Gate-2
+  coverage-gap exclusions are already owned by existing tasks (`CA_TOOLS` enforcement → **010**,
+  `CA_<LANG>_CMD` fail-loud at launch → **005**); adding a one-line pointer to those two task files is
+  offered as an optional action rather than done silently, since both files are outside the approved
+  change-list.
+- **Durable lesson:** yes — *"The R1.1 grep-gate fires on ordinary English, not just on code"*, written
+  to [`docs/LESSONS.md`](../LESSONS.md) and riding the branch-push above so it reaches a shared ref.
+- **Revert path:** the branch is 6 commits over `main` and nothing outside it changed. Before merge:
+  `git checkout main && git branch -D feat/003-config-and-ignore` (add `git push origin
+  --delete feat/003-config-and-ignore` if pushed). After merge: `git revert -m 1 <merge-sha>` — this
+  restores both modules to their one-line stubs and deletes the two test files; no schema, no
+  migration, and no on-disk artifact was written (`.code-atlas.toml` is only ever *read*).
 
 ---
 
@@ -622,10 +646,13 @@ AC1 **7/7** · AC2 **3/3** · R1 5/5 · R2 4/4 · G1 2/2 · C1–C5 proven by th
 | 3 Execute | none — implementation, tests, sweep and commits all in the main loop | 1 | 0 dispatch | as above |
 | 4 Review | `challenger` (ticket-blind) — 17 tool uses, 126 s | 1 | **52,361** | as above |
 | 4 Review | `reviewer` — **not dispatched** (skipped by user decision; recorded as a review coverage gap) | 1 | 0 | — |
+| 1–5 main loop | **not a dispatch — read from the session transcript**, so a `1 dispatch` row is never left standing as the total: 167 calls, **638.3k fresh** (223.3k output + 415.0k input incl. cache creation) + **24.4M cache reads**. Largest single response 10.1k output | — | 638,341 fresh | RTK live; its `rtk gain` counters are global/all-time, **not** session-scoped, so no per-task saving can be attributed here |
 
-`LEDGER TOTAL: 52.4k dispatch · top cost driver: Phase 4 challenger (the only dispatch)` — main-loop
-spend for this task is read from the session transcript before the PR, per the note in
-[`BACKLOG.md`](../BACKLOG.md) Token usage.
+`LEDGER TOTAL: 52.4k dispatch (1 dispatch) + 638.3k fresh main-loop · top cost driver: the main loop,
+not the dispatch — the challenger is 7.6% of fresh spend` — measured at finalise; the main-loop figure
+grows slightly as this phase writes. **Scope caveat:** mango measures dispatch only; the main-loop
+figure here comes from the session transcript, and main-loop *output noise* (test/lint dumps, file
+reads) is not separable from it — do not read the 7.6% as a dispatch-vs-noise split.
 
 ---
 
@@ -643,9 +670,9 @@ spend for this task is read from the session transcript before the PR, per the n
 
 ## Session status
 
-- **Last updated:** 2026-07-29 · Phase 4 clean (challenger-only, by user decision)
-- **Current phase:** Phase 5 — Finalise
-- **Next action:** `/mango:finalise 003` — draft the PR body from the template, record the main-loop
-  token spend in this ledger **and** the BACKLOG Token-usage table, then ask per outward action
-  (push · PR · durable lesson).
-- **Blocked on:** nothing (every outward action still needs its own approval)
+- **Last updated:** 2026-07-29 · Phase 5 written, waiting at the final gate
+- **Current phase:** Phase 5 — Finalise, **waiting at the final gate** (dry-run; nothing pushed)
+- **Next action:** User approves each outward action separately — (1) push
+  `feat/003-config-and-ignore`, (2) open the PR via `gh`. After the PR exists, replace `_pending_`
+  in the BACKLOG Token-usage row with its link, and flip 003 to `done` on merge (both places).
+- **Blocked on:** per-action approval at the final gate
