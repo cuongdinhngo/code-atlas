@@ -757,11 +757,12 @@ defect found *by* the approved verification plan, fixed inside the approved appr
      generalised to existence-vs-behaviour tests and to mutating on a copy to tell them apart.
   2. *`git checkout -- <file>` restores the committed state, so it deletes uncommitted work* — the
      negative-control incident, generalised to committing before guard experiments.
-- **Revert path (corrected after the merge):** GitHub **fast-forwarded** #7 — `main` had no divergent
-  commits — so there is **no merge commit** and `git revert -m 1 <merge-sha>` does not apply, unlike
-  PRs #5/#6. Undo the whole task with `git revert --no-commit 8e01259..13ecd22 && git commit`, or revert
-  a single commit from that range. That restores the doc files and returns `store.py` to its stub;
-  nothing imports it, so no caller breaks. `.code-atlas/graph.db` is a gitignored derived cache — deleting it is the whole data rollback,
+- **Revert path:** #7 merged as a **merge commit** `16775f4` (two parents, same as PRs #5/#6), and #8
+  as `1fabb17`. Undo the whole task with `git revert -m 1 16775f4` (then `-m 1 1fabb17` for the status
+  flip), or revert a single commit from `8e01259..13ecd22`. That restores the doc files and returns
+  `store.py` to its stub; nothing imports it, so no caller breaks. `.code-atlas/graph.db` is a
+  gitignored derived cache — deleting it is the whole data rollback, and any DB this task wrote is
+  refused on open by the `schema_version` check. `.code-atlas/graph.db` is a gitignored derived cache — deleting it is the whole data rollback,
   and any DB this branch wrote is refused on open by the `schema_version` check.
 
 ---
