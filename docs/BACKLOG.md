@@ -13,7 +13,7 @@ is [`PLAN.md`](PLAN.md).
 | 001 | [Project scaffold & tooling](tasks/001_project-scaffold.md) | Setup | done | — |
 | 002 | [Contract — schema, version, validation](tasks/002_contract-schema.md) | Contract | done | 001 |
 | 003 | [Config (CA_*) & ignore rules](tasks/003_config-and-ignore.md) | Setup | done | 001 |
-| 004 | [SQLite store & schema](tasks/004_sqlite-store.md) | Core | in-progress | 001, 002 |
+| 004 | [SQLite store & schema](tasks/004_sqlite-store.md) | Core | done | 001, 002 |
 | 005 | [Adapter protocol & subprocess driver](tasks/005_adapter-protocol.md) | Core | todo | 002 |
 | 006 | [PHP adapter spike](tasks/006_php-adapter-spike.md) | M0 | todo | 002 |
 | 007 | [PHP adapter — full coverage & server mode](tasks/007_php-adapter-visitor.md) | M0 | todo | 006, 005 |
