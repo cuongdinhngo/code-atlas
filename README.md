@@ -49,6 +49,37 @@ The core is language-agnostic (no per-language branches). Adapters parse files a
 | `impact` | bounded blast radius of a change |
 | `namespace_tree` | namespaces + members |
 
+## Configuration
+
+Every knob resolves **environment → project file → default**. The project file is
+`.code-atlas.toml` at the repo root (optional, meant to be committed); its keys are the environment
+names lower-cased without the `CA_` prefix. A malformed value or an unknown key is a loud error, never
+a silent fallback.
+
+| Environment | `.code-atlas.toml` | Default | Meaning |
+|---|---|---|---|
+| `CA_DB_PATH` | `db_path` | `.code-atlas/graph.db` | index location (relative to the repo root) |
+| `CA_WORKERS` | `workers` | `max(1, min(cpu-2, 8))` | adapter processes during a build |
+| `CA_MAX_RESULTS` | `max_results` | `50` | result cap for search/nav tools |
+| `CA_IMPACT_DEPTH` | `impact_depth` | `2` | hops the impact engine traverses |
+| `CA_IMPACT_MAX_NODES` | `impact_max_nodes` | `500` | node budget for one impact query |
+| `CA_TOOLS` | `tools` | all tools | comma-separated tool allow-list |
+| `CA_<LANG>_CMD` | `[adapter_cmd].<lang>` | — | how to launch one language adapter |
+
+```toml
+# .code-atlas.toml
+workers = 4
+max_results = 50
+tools = ["get_index_status", "search_symbol", "read_symbol"]
+
+[adapter_cmd]
+php = "docker compose exec -T php php"
+```
+
+Files are skipped using built-in patterns (`vendor/ var/ uploads/ log/ node_modules/ .git/`), then
+`.gitignore`, then an optional `.codeatlasignore` — later rules win, so `.codeatlasignore` can
+re-include what an earlier source excluded.
+
 ## Language support
 
 | Language | Parser | Status |
