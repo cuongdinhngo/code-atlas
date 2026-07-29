@@ -4,7 +4,7 @@ slug: contract-schema
 title: The contract — schema, version, validation
 phase: 1
 milestone: Contract
-status: in-progress
+status: done
 depends_on: [001]
 ---
 
