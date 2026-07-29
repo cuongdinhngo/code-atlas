@@ -33,6 +33,7 @@ MCP client ──stdio──▶ core (Python/FastMCP) ──JSONL contract──
 - **Commits** — no `Co-Authored-By` / AI-attribution trailer.
 - **Comments** — keep every code comment to **≤ 3 lines**; if it needs more, the code or a doc should carry it instead.
 - **Docs before PR** — before opening a PR, update every doc the change affects (PLAN, BACKLOG + task frontmatter, CONVENTION, ENGINEERING_RULES, README) so the docs match the work. The PR self-check gates this.
+- **Token usage on PR** — before opening a PR, record the task's token spend in its working-doc cost ledger (`docs/tasks/NNN_slug.work.md`) **and** add/update its row in the Token usage table in [`docs/BACKLOG.md`](docs/BACKLOG.md). No PR without the token spend recorded in both places.
 - **Pull requests** — when asked to open a PR, base it on `.github/pull_request_template.md` (fill every section, complete the pre-PR self-check). If the template is missing, propose one and create it first, then open the PR.
 
 ## Where things live

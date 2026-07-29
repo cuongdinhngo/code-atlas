@@ -44,6 +44,16 @@ is [`PLAN.md`](PLAN.md).
 | 022 | [Architecture overview + layers](tasks/022_architecture-overview.md) | M10 | todo | 014 |
 | 023 | [Guided tour + markdown docs](tasks/023_guided-tour-and-docs.md) | M11 | todo | 022 |
 
+## Token usage
+
+Token spend per task, recorded before its PR is opened (see the "Token usage on PR" rule in
+[`CLAUDE.md`](../CLAUDE.md)). The authoritative per-dispatch breakdown lives in each task's working-doc
+cost ledger (`tasks/NNN_slug.work.md`); this table is the roll-up.
+
+| # | Task | Tokens | PR |
+|---|---|---|---|
+| 001 | Project scaffold & tooling | _pending_ | — |
+
 ## Suggested order
 
 Critical path to first release: **001 → 002 → 004/005 → 006 → 007 → 009 → 010 → 011 → 013 → 014 (ship)**.
