@@ -11,7 +11,7 @@ is [`PLAN.md`](PLAN.md).
 | # | Task | Milestone | Status | Depends on |
 |---|---|---|---|---|
 | 001 | [Project scaffold & tooling](tasks/001_project-scaffold.md) | Setup | done | — |
-| 002 | [Contract — schema, version, validation](tasks/002_contract-schema.md) | Contract | todo | 001 |
+| 002 | [Contract — schema, version, validation](tasks/002_contract-schema.md) | Contract | in-progress | 001 |
 | 003 | [Config (CA_*) & ignore rules](tasks/003_config-and-ignore.md) | Setup | todo | 001 |
 | 004 | [SQLite store & schema](tasks/004_sqlite-store.md) | Core | todo | 001, 002 |
 | 005 | [Adapter protocol & subprocess driver](tasks/005_adapter-protocol.md) | Core | todo | 002 |
