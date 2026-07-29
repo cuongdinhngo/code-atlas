@@ -4,7 +4,7 @@ slug: sqlite-store
 title: SQLite store & schema
 phase: 1
 milestone: Core
-status: in-progress
+status: done
 depends_on: [001, 002]
 ---
 
@@ -757,10 +757,11 @@ defect found *by* the approved verification plan, fixed inside the approved appr
      generalised to existence-vs-behaviour tests and to mutating on a copy to tell them apart.
   2. *`git checkout -- <file>` restores the committed state, so it deletes uncommitted work* — the
      negative-control incident, generalised to committing before guard experiments.
-- **Revert path:** the branch is unmerged and unpushed. Undo everything with
-  `git checkout main && git branch -D feat/004-sqlite-store`. After a merge: `git revert -m 1 <merge-sha>`
-  restores the three doc files and returns `store.py` to its stub; nothing else imports it, so no caller
-  breaks. `.code-atlas/graph.db` is a gitignored derived cache — deleting it is the whole data rollback,
+- **Revert path (corrected after the merge):** GitHub **fast-forwarded** #7 — `main` had no divergent
+  commits — so there is **no merge commit** and `git revert -m 1 <merge-sha>` does not apply, unlike
+  PRs #5/#6. Undo the whole task with `git revert --no-commit 8e01259..13ecd22 && git commit`, or revert
+  a single commit from that range. That restores the doc files and returns `store.py` to its stub;
+  nothing imports it, so no caller breaks. `.code-atlas/graph.db` is a gitignored derived cache — deleting it is the whole data rollback,
   and any DB this branch wrote is refused on open by the `schema_version` check.
 
 ---
@@ -799,8 +800,9 @@ as tasks 002 and 003 recorded it.
 ## Session status
 
 - **Last updated:** 2026-07-29
-- **Current phase:** Phase 5 — **complete.** Both approved outward actions taken; PR
-  [#7](https://github.com/cuongdinhngo/code-atlas/pull/7) is open.
-- **Next action:** after #7 merges, set `status: done` in this frontmatter **and** the `BACKLOG.md` row
-  (the pattern tasks 002/003 followed — a separate bookkeeping commit). Then task 005 or 009 unblocks.
-- **Blocked on:** review/merge of #7. Nothing else outstanding.
+- **Current phase:** **CLOSED.** PR [#7](https://github.com/cuongdinhngo/code-atlas/pull/7) merged
+  2026-07-29; status set to `done` here and in `BACKLOG.md` via `chore/004-status-sync`.
+- **Next action:** task **005** (adapter protocol) or **009** (full-build indexer) — 009 now has its
+  store dependency satisfied. Carry forward the three recorded follow-ups: the `busy_timeout`/contention
+  proof into 009, camelCase FTS into 014, and `/mango:codify` for the two uncodified standards.
+- **Blocked on:** nothing.
