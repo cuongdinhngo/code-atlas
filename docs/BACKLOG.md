@@ -53,7 +53,7 @@ cost ledger (`tasks/NNN_slug.work.md`); this table is the roll-up.
 | # | Task | Tokens | PR |
 |---|---|---|---|
 | 001 | Project scaffold & tooling | 113.6k dispatch (reviewer 70.9k + challenger 42.7k); main-loop unmeasured (see `rtk gain`) | [#2](https://github.com/cuongdinhngo/code-atlas/pull/2) |
-| 002 | Contract — schema, version, validation | **0 dispatch** (no subagent dispatched: no Explore fan-out, and review was skipped by user decision so no reviewer/challenger); main-loop unmeasured (see `rtk gain`) | _pending_ |
+| 002 | Contract — schema, version, validation | **0 dispatch** (no subagent dispatched: no Explore fan-out, and review was skipped by user decision so no reviewer/challenger); main-loop unmeasured (see `rtk gain`) | [#4](https://github.com/cuongdinhngo/code-atlas/pull/4) |
 
 ## Suggested order
 

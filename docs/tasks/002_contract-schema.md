@@ -634,9 +634,13 @@ What was therefore **not** done, stated plainly:
   | No AI-attribution trailer | `git log main..HEAD` scanned → none |
 
 - **Planned outward actions (each needs separate approval — all currently DRY-RUN, nothing executed):**
-  - [ ] push branch `feat/002-contract-schema` (carries the bookkeeping + lesson commit, so no separate bookkeeping push is needed)
-  - [ ] open PR via `gh` from `/tmp/pr-002.md`
-  - [ ] tracker comment via `gh`
+  - [x] **push branch** `feat/002-contract-schema` — **APPROVED + DONE.** 5 commits pushed to
+        `origin/feat/002-contract-schema`; this is the shared ref that carries `docs/LESSONS.md` §002, so
+        the durable lesson is not orphaned on a local branch.
+  - [x] **open PR** — **APPROVED + DONE:** [#4](https://github.com/cuongdinhngo/code-atlas/pull/4), body
+        from `/tmp/pr-002.md` on `.github/pull_request_template.md`.
+  - [ ] tracker comment — **DECLINED by the user**; not run. The PR body already carries the proving-test
+        result and the deferred exclusion, so nothing is lost.
   - [ ] tracker transition — **n/a**: the tracker is this repo's task files + BACKLOG, already updated in-branch
 - **Follow-up tickets drafted for deferred (⚠) rows:** one — R5's excluded integration half. **Task 009
   already exists** (`docs/tasks/009_full-build-indexer.md`) and is the right home, so no *new* ticket was
@@ -709,7 +713,7 @@ instrument, not as this task's number.
 
 ## Session status
 
-- **Last updated:** 2026-07-29 — Phase 3 (execute) complete, sweep clean on both axes
-- **Current phase:** Phase 3 done → flowing into Phase 4 (review)
-- **Next action:** review — dispatch `mango:reviewer` on the diff and `mango:challenger` ticket-blind (raw ticket text above the separator only), then adjudicate the 2 caveats surfaced in Phase 3
-- **Blocked on:** nothing. Branch `feat/002-contract-schema` @ `9d6191e`, 3 commits, not pushed. No outward action taken.
+- **Last updated:** 2026-07-29 — Phase 5 (finalise) complete; PR #4 open
+- **Current phase:** Phase 5 done. Ticket is **awaiting human review on PR #4** — note Phase 4 was skipped, so PR #4 is the *first* time another party sees this diff
+- **Next action:** a human reviews [PR #4](https://github.com/cuongdinhngo/code-atlas/pull/4) and adjudicates the 2 disclosed caveats (capability-flag reporting → task 005; `validate()` type-check depth). On merge, set `status: done` in this frontmatter **and** `docs/BACKLOG.md:14` (R7.2)
+- **Blocked on:** human review of PR #4. Frontmatter still `in-progress` — deliberately not flipped to `done` before the PR merges.
