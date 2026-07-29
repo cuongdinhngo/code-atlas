@@ -4,7 +4,7 @@ slug: project-scaffold
 title: Project scaffold & tooling
 phase: 1
 milestone: Setup
-status: todo
+status: in-progress
 depends_on: []
 ---
 
@@ -237,6 +237,15 @@ the M baseline; no tier drift, no branch/PR-type drift (this is a `chore`/`feat`
 _(not started)_
 
 ---
+
+## Cost ledger (descriptive — dispatch-only)
+
+| Phase | Subagent / dispatch | Round | Tokens | Optimizer applied · est./measured saving |
+|-------|---------------------|-------|--------|------------------------------------------|
+| 4 — Review | `mango:reviewer` (Sonnet) | 1 | 70,944 | RTK live on main loop (see `rtk gain`); dispatch not shaped |
+| 4 — Review | `mango:challenger` (Sonnet) | 1 | 42,684 | RTK live on main loop (see `rtk gain`); dispatch not shaped |
+
+`LEDGER TOTAL: 113,628 dispatch tokens · top cost driver: Phase 4 / reviewer.` Scope = **subagent dispatch only** (2 dispatches this run: reviewer + challenger; no extractor/Explore fan-out). Main-loop output noise is **not** measured by mango — consult `rtk gain` for that layer.
 
 ## Decision log
 

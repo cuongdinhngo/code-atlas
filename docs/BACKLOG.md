@@ -10,7 +10,7 @@ is [`PLAN.md`](PLAN.md).
 
 | # | Task | Milestone | Status | Depends on |
 |---|---|---|---|---|
-| 001 | [Project scaffold & tooling](tasks/001_project-scaffold.md) | Setup | todo | — |
+| 001 | [Project scaffold & tooling](tasks/001_project-scaffold.md) | Setup | in-progress | — |
 | 002 | [Contract — schema, version, validation](tasks/002_contract-schema.md) | Contract | todo | 001 |
 | 003 | [Config (CA_*) & ignore rules](tasks/003_config-and-ignore.md) | Setup | todo | 001 |
 | 004 | [SQLite store & schema](tasks/004_sqlite-store.md) | Core | todo | 001, 002 |
@@ -52,7 +52,7 @@ cost ledger (`tasks/NNN_slug.work.md`); this table is the roll-up.
 
 | # | Task | Tokens | PR |
 |---|---|---|---|
-| 001 | Project scaffold & tooling | _pending_ | — |
+| 001 | Project scaffold & tooling | 113.6k dispatch (reviewer 70.9k + challenger 42.7k); main-loop unmeasured (see `rtk gain`) | _pending push_ |
 
 ## Suggested order
 
