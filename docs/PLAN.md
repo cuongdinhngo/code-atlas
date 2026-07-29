@@ -140,6 +140,8 @@ Claude Code / any MCP client
 ```
 code-atlas/
 ├── pyproject.toml
+├── .harness.json                  # mango lifecycle config
+├── .github/                       # workflows/ci.yml + pull_request_template.md
 ├── code_atlas/                    # THE CORE — language-agnostic, no per-language branches
 │   ├── main.py                    # FastMCP server + entry point
 │   ├── config.py                  # env/config (adapter cmd, paths, ignores, workers)

@@ -101,6 +101,8 @@ adapter contract. Everywhere else, prefer the simplest thing that works.
   change per commit.
 - **R7.4 — No dead abstractions.** If an interface has one implementer and no near-term second, delete it.
   Revisit when the second arrives.
+- **R7.5 — Comments stay ≤ 3 lines.** Every code comment is at most three lines; explain *what + why*, not
+  the obvious. If it needs more, the code should be clearer or the explanation belongs in a doc/docstring.
 
 ## 8. Dependencies
 
@@ -114,4 +116,6 @@ adapter contract. Everywhere else, prefer the simplest thing that works.
 
 **Quick self-check before opening a PR:** Does the core have any language branch? Does an adapter mention
 a repo or framework by name? Did the contract change without a version bump + conformance update? Is there
-a test? Is it the smallest change that ships value? If any answer is wrong, fix it before review.
+a test? Is it the smallest change that ships value? Are the related docs updated to match the work
+(PLAN / BACKLOG + task frontmatter / CONVENTION / this file / README)? If any answer is wrong, fix it
+before review.
