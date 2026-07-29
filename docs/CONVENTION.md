@@ -75,6 +75,10 @@ code-atlas/
 - Docstrings: one line saying *what* + *why* for non-obvious modules/functions; skip the obvious.
 - Imports: stdlib, third-party, local — grouped; no wildcard imports.
 - SQL lives in `store.py`; no raw SQL strings scattered across tools/indexer.
+- **Node/edge column lists are derived from `contract.py`**, never re-typed in a consumer: build them
+  with `", ".join(contract.NODE_FIELDS)` and rebuild result rows with
+  `dict(zip(("id", *contract.NODE_FIELDS), row, strict=True))`. Binding on `indexer.py`, `resolver.py`
+  and `tools/` too; `tests/test_contract_sole_source.py` fails a consumer that re-declares one (R3.2).
 
 ## 5. Adapter conventions
 
