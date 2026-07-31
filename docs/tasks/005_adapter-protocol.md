@@ -4,7 +4,7 @@ slug: adapter-protocol
 title: Adapter protocol & subprocess driver
 phase: 1
 milestone: Core
-status: todo
+status: in-progress
 depends_on: [002]
 ---
 
@@ -66,21 +66,21 @@ Constraint section); they are binding on the change and are listed so every hunk
 
 | ID | Source | Verbatim | Interpretation | Ph1 evidence | Ph2 covered by | Ph3/4 proven by | Status |
 |----|--------|----------|----------------|--------------|----------------|-----------------|--------|
-| G1 | Goal | "Language-neutral driver for long-lived adapters over JSONL (§4.1, §4.3)." | One core module owns the subprocess lifecycle and the JSONL framing for **every** language. It learns which language it is driving only from configuration and from what the adapter itself advertises — never from a literal in the core. | `code_atlas/adapter.py:1` is a one-line stub; zero importers repo-wide (`grep -rn "adapter" code_atlas/` → only the stub + prose in `contract.py`); `PLAN.md:79-85` (§4.1 protocol), `PLAN.md:101-111` (§4.3 Protocol shape) | **5/5** (items 1, 2, 3, 13, 14) | ⬜ | ⬜ |
-| R1 | Scope / Deliverables | "`adapter.py`: `LanguageAdapter` Protocol (`name`, `extensions`, `capabilities`, `start/parse/stop`)." | A `typing.Protocol` (not an ABC — `CONVENTION.md:73`) with the **6** members of inventory A. `capabilities` is advertised-not-required (R1.6); `contract.Capabilities` / `KNOWN_CAPABILITIES` already exist (`contract.py:90-91`) and must be reused, not re-declared. | `PLAN.md:103-110` gives the exact member list; `contract.py:89-91` already types capabilities; `CONVENTION.md:73` mandates `Protocol` over ABC for this seam | **3/3** (items 1, 4, 8) | ⬜ | ⬜ |
-| R2 | Scope / Deliverables | "Subprocess driver: spawn adapter in `--server` mode, feed newline-delimited requests, read JSONL results, handle `ok:false` per file without breaking the stream." | One generic concrete class implementing R1 over `subprocess.Popen`: launch from `config.adapter_cmd(lang)`, write one compact JSON line per request, read one JSONL line per response, and map each of the **9** failure modes of inventory B to fail-soft (a failed `ParseResult`) or fail-loud (raise), never to a hang or a corrupted stream. | `PLAN.md:81-85` shows the wire format; `config.py:126-142` already resolves `CA_<LANG>_CMD` generically; `contract.py:112-141` `validate()` returns errors instead of raising precisely so this boundary can keep going (R5.1) | **5/5** (items 2, 5, 6, 7, 11) | ⬜ | ⬜ |
-| R3 | Scope / Deliverables | "Extension→adapter lookup (**not** a registry yet — YAGNI until adapter #2)." | A plain `dict[str, LanguageAdapter]` built by the caller plus **one** module-level function that maps a path to an adapter or `None`. No registry class, no plugin discovery, no entry-points, no base class, no factory (R1.2, R7.4). Lowercased last suffix is the key; two adapters claiming one extension is a loud config error (R5.3). | `ENGINEERING_RULES.md:20-22` (R1.2 — no registry until adapter #2); `PLAN.md:111` ("That's the only registry — built when the 2nd adapter exists, not before") | **2/2** (items 3, 8) | ⬜ | ⬜ |
-| AC1 | Acceptance criteria | "Driver survives a per-file parse error (returns error result, stream continues)." | Falsifiable as: for **each** of the inventory-B failure modes (**9** — 8 at Gate 1, B9 added by a design-time spike), assert the driver's classification **and** that the request immediately after it still returns a valid result on the **same** process. Proven for the whole inventory, not for `ok:false` alone — spikes S-2/S-5 showed a garbage stdout line and an `ok:false` result behave identically to the caller but arrive by different code paths. | Spike S-2 (`ok:false` → next request ok) and S-5 (non-JSON line → `JSONDecodeError`, next request ok) below | **3/3** (items 2, 6, 7) | ⬜ | ⬜ |
-| AC2 | Acceptance criteria | "One process boot amortized across many files; clean `stop()`." | Two halves, both vague as written and pinned by Q8: (a) **boot count == 1** across **≥ 200** `parse()` calls, measured by a boot counter the fake adapter writes plus a stable `pid` — not by "it felt fast"; (b) **clean `stop()`** = stdin closed → child exits → `returncode` observed → escalation `terminate()` → `kill()` for a child that ignores EOF → `stop()` is idempotent and leaves no orphan. Spike S-6 proves the escalation is **required**, not defensive. | Spike S-1 (1 boot / 201 requests / stable pid / 0.02 s) and S-6 (a child that ignores EOF needs `terminate()`, exit `-15`) | **3/3** (items 2, 6, 7) | ⬜ | ⬜ |
-| AC3 | Acceptance criteria | "No `if language == …` branches; adapters resolved purely by extension." | Stronger than the CI regex, which only catches one spelling. Falsifiable as **both**: (a) the CI R1.1 gate is clean over all 11 core modules; (b) **no language name literal** (`php`, `typescript`, `javascript`, `python`, `csharp`, `dotnet`) appears anywhere under `code_atlas/` — greppable, and it is the claim the ticket actually makes. (b) is what forbids a `PhpAdapter` class in the core (ratified Q7). | `.github/workflows/ci.yml:49` (the gate's exact regex); `ENGINEERING_RULES.md:17-19` (R1.1), `:32-33` (R1.5 — "the litmus test is R1.1") | **2/2** (items 3, 9) | ⬜ | ⬜ |
-| C1 | rulebook scan | R1.1 / R1.5 — zero language branches; every adapter substitutable behind the contract. | One driver class serves every language; the language name is data (`config.adapter_cmds` key), never a type. `PLAN.md:111`'s "Concrete: `PhpAdapter`" and `CONVENTION.md:44`'s `PhpAdapter, TsAdapter, PythonAdapter, CSharpAdapter` both point the other way; **Q7 ratified the generic class**, so both are corrected in this diff. | `ENGINEERING_RULES.md:17-19`, `:32-33`; conflicting `PLAN.md:111`, `CONVENTION.md:44` | **5/5** (items 2, 3, 9, 13, 14) | ⬜ | ⬜ |
-| C2 | rulebook scan | R1.2 / R7.4 — one seam only; no dead abstractions. | Ship the Protocol + **one** implementation + one lookup function. No `AdapterRegistry`, no `BaseAdapter`, no DI, no capability-negotiation framework. If the Protocol ends up with exactly one implementer and no near-term second, R7.4 still keeps it — it **is** the one seam the rulebook names (R1.2), so this is the documented exception, not an accident. | `ENGINEERING_RULES.md:20-22`, `:102-103`; `PLAN.md:50` (counter-principle) | **2/2** (items 1, 3) | ⬜ | ⬜ |
-| C3 | rulebook scan | R1.3 / R1.4 — one-way dependency; SRP per component. | `adapter.py` imports `contract` + stdlib only. It must **not** import `store`, `indexer`, `resolver`, or `config` (config flows **in** as a value — `CONVENTION.md:74`). It parses/transports only; it never persists and never decides `parsed_ok` (that is `indexer`'s, per task 009's AC). | `ENGINEERING_RULES.md:23-31`; `CONVENTION.md:74`; `docs/tasks/009_full-build-indexer.md:22` | **2/2** (items 1, 2) | ⬜ | ⬜ |
-| C4 | rulebook scan | R1.6 — optional power via capability flags; the core degrades when a capability is absent. | `capabilities` is a pass-through `dict[str, bool]` typed as `contract.Capabilities`. An **absent** flag is legal, an **unknown** flag is legal (forward compatibility with a richer adapter), and the driver must never require one. Falsifiable: an adapter advertising `{}` and one advertising `{"semantic_types": true, "future_thing": true}` both drive identically. | `ENGINEERING_RULES.md:34-36`; `contract.py:89-91` (`KNOWN_CAPABILITIES` is "advertised, never required") | **4/4** (items 1, 2, 4, 7) | ⬜ | ⬜ |
-| C5 | rulebook scan | R3.2 — `contract.py` is the single source of truth; consumers never re-declare field lists. | `adapter.py` is **already** in the R3.2 guard's consumer list (`tests/test_contract_sole_source.py:27`), so the guard fires on this diff for the first time with real content. `ParseResult` mirrors `contract.RESULT_FIELDS` (`contract.py:70`) and node/edge rows stay opaque `list[dict]` pass-throughs — the driver never names a node field. | `ENGINEERING_RULES.md:53-54`; `tests/test_contract_sole_source.py:27,57-65` | **3/3** (items 1, 4, 10) | ⬜ | ⬜ |
-| C6 | rulebook scan | R5.1 / R5.3 — fail soft on data errors, fail loud on config/programmer errors. | This is the whole substance of inventory B: a bad **file** never breaks the stream (R5.1); a bad **command**, a dead process, or a contract-version mismatch raises (R5.3). Spike S-10 confirms a missing command raises `FileNotFoundError` at spawn; spike S-4 confirms a dead child is detectable (`readline()` → `''`, `poll()` → exit code). | `ENGINEERING_RULES.md:72-78`; spikes S-4, S-10 | **4/4** (items 2, 5, 6, 7) | ⬜ | ⬜ |
-| C7 | rulebook scan | R6.1 / R6.2 / R6.4 — no task is done without tests; fixtures are spec-driven; guardrails are real tests. | No adapter exists (007 depends on **this** task), so every test drives a **fake adapter** speaking the protocol. It must be spec-driven — it encodes §4.1's wire format and nothing about PHP — and the AC3 grep guard must be negative-controlled so it cannot pass vacuously (LESSONS 002 + LESSONS 004: existence ≠ behaviour). | `ENGINEERING_RULES.md:82-92`; `LESSONS.md` (002 vacuous guard, 004 existence-vs-behaviour); `docs/tasks/007_php-adapter-visitor.md:8` (`depends_on: [006, 005]`) | **5/5** (items 6, 7, 8, 9, 10) | ⬜ | ⬜ |
-| C8 | rulebook + `CLAUDE.md` scan | R7.2 + "Docs before PR" / "Token usage on PR". | Every ratified decision that changes `PLAN.md:79-111` (§4.1 request/response shape, §4.3 Protocol + `PhpAdapter`), `PLAN.md:242-247` (§9 `CA_PHP_CMD` form), `CONVENTION.md:44` (adapter class names) and `CONVENTION.md:83-90` (§5 adapter conventions) lands **in this diff**, plus BACKLOG status + frontmatter + the token row. | `ENGINEERING_RULES.md:98-99`, `:117-121`; `CLAUDE.md` "Docs before PR"; `LESSONS.md` 001 (untraceable hunks) | **4/4** (items 12, 13, 14, 15) | ⬜ | ⬜ |
+| G1 | Goal | "Language-neutral driver for long-lived adapters over JSONL (§4.1, §4.3)." | One core module owns the subprocess lifecycle and the JSONL framing for **every** language. It learns which language it is driving only from configuration and from what the adapter itself advertises — never from a literal in the core. | `code_atlas/adapter.py:1` is a one-line stub; zero importers repo-wide (`grep -rn "adapter" code_atlas/` → only the stub + prose in `contract.py`); `PLAN.md:79-85` (§4.1 protocol), `PLAN.md:101-111` (§4.3 Protocol shape) | **5/5** (items 1, 2, 3, 13, 14) | **5/5** — one generic driver + lookup shipped; 32 adapter tests and 23 language-agnostic assertions green | ✅ |
+| R1 | Scope / Deliverables | "`adapter.py`: `LanguageAdapter` Protocol (`name`, `extensions`, `capabilities`, `start/parse/stop`)." | A `typing.Protocol` (not an ABC — `CONVENTION.md:73`) with the **6** members of inventory A. `capabilities` is advertised-not-required (R1.6); `contract.Capabilities` / `KNOWN_CAPABILITIES` already exist (`contract.py:90-91`) and must be reused, not re-declared. | `PLAN.md:103-110` gives the exact member list; `contract.py:89-91` already types capabilities; `CONVENTION.md:73` mandates `Protocol` over ABC for this seam | **3/3** (items 1, 4, 8) | **3/3** — 6 members present; a class missing one is not a `LanguageAdapter`; capabilities pass through | ✅ |
+| R2 | Scope / Deliverables | "Subprocess driver: spawn adapter in `--server` mode, feed newline-delimited requests, read JSONL results, handle `ok:false` per file without breaking the stream." | One generic concrete class implementing R1 over `subprocess.Popen`: launch from `config.adapter_cmd(lang)`, write one compact JSON line per request, read one JSONL line per response, and map each of the **9** failure modes of inventory B to fail-soft (a failed `ParseResult`) or fail-loud (raise), never to a hang or a corrupted stream. | `PLAN.md:81-85` shows the wire format; `config.py:126-142` already resolves `CA_<LANG>_CMD` generically; `contract.py:112-141` `validate()` returns errors instead of raising precisely so this boundary can keep going (R5.1) | **5/5** (items 2, 5, 6, 7, 11) | **5/5** — 9-mode classifier; argv resolved by config; suite 236 passed | ✅ |
+| R3 | Scope / Deliverables | "Extension→adapter lookup (**not** a registry yet — YAGNI until adapter #2)." | A plain `dict[str, LanguageAdapter]` built by the caller plus **one** module-level function that maps a path to an adapter or `None`. No registry class, no plugin discovery, no entry-points, no base class, no factory (R1.2, R7.4). Lowercased last suffix is the key; two adapters claiming one extension is a loud config error (R5.3). | `ENGINEERING_RULES.md:20-22` (R1.2 — no registry until adapter #2); `PLAN.md:111` ("That's the only registry — built when the 2nd adapter exists, not before") | **2/2** (items 3, 8) | **2/2** — index built from announced suffixes; 6 lookup cases; a twice-claimed suffix raises | ✅ |
+| AC1 | Acceptance criteria | "Driver survives a per-file parse error (returns error result, stream continues)." | Falsifiable as: for **each** of the inventory-B failure modes (**9** — 8 at Gate 1, B9 added by a design-time spike), assert the driver's classification **and** that the request immediately after it still returns a valid result on the **same** process. Proven for the whole inventory, not for `ok:false` alone — spikes S-2/S-5 showed a garbage stdout line and an `ok:false` result behave identically to the caller but arrive by different code paths. | Spike S-2 (`ok:false` → next request ok) and S-5 (non-JSON line → `JSONDecodeError`, next request ok) below | **3/3** (items 2, 6, 7) | **3/3** — 8 of 9 modes proven on one process, each followed by a good parse (B7 excluded) | ✅ |
+| AC2 | Acceptance criteria | "One process boot amortized across many files; clean `stop()`." | Two halves, both vague as written and pinned by Q8: (a) **boot count == 1** across **≥ 200** `parse()` calls, measured by a boot counter the fake adapter writes plus a stable `pid` — not by "it felt fast"; (b) **clean `stop()`** = stdin closed → child exits → `returncode` observed → escalation `terminate()` → `kill()` for a child that ignores EOF → `stop()` is idempotent and leaves no orphan. Spike S-6 proves the escalation is **required**, not defensive. | Spike S-1 (1 boot / 201 requests / stable pid / 0.02 s) and S-6 (a child that ignores EOF needs `terminate()`, exit `-15`) | **3/3** (items 2, 6, 7) | **3/3** — 1 boot over 200 parses, pid stable, `stop()` clean/escalating/idempotent (mutations M2, M4 red) | ✅ |
+| AC3 | Acceptance criteria | "No `if language == …` branches; adapters resolved purely by extension." | Stronger than the CI regex, which only catches one spelling. Falsifiable as **both**: (a) the CI R1.1 gate is clean over all 11 core modules; (b) **no language name literal** (`php`, `typescript`, `javascript`, `python`, `csharp`, `dotnet`) appears anywhere under `code_atlas/` — greppable, and it is the claim the ticket actually makes. (b) is what forbids a `PhpAdapter` class in the core (ratified Q7). | `.github/workflows/ci.yml:49` (the gate's exact regex); `ENGINEERING_RULES.md:17-19` (R1.1), `:32-33` (R1.5 — "the litmus test is R1.1") | **2/2** (items 3, 9) | **2/2** — zero language names and zero branches over 11 core modules; negative-controlled (NC1, NC2) | ✅ |
+| C1 | rulebook scan | R1.1 / R1.5 — zero language branches; every adapter substitutable behind the contract. | One driver class serves every language; the language name is data (`config.adapter_cmds` key), never a type. `PLAN.md:111`'s "Concrete: `PhpAdapter`" and `CONVENTION.md:44`'s `PhpAdapter, TsAdapter, PythonAdapter, CSharpAdapter` both point the other way; **Q7 ratified the generic class**, so both are corrected in this diff. | `ENGINEERING_RULES.md:17-19`, `:32-33`; conflicting `PLAN.md:111`, `CONVENTION.md:44` | **5/5** (items 2, 3, 9, 13, 14) | **5/5** — guard + CI regex re-run locally; docs corrected so no per-language class is prescribed | ✅ |
+| C2 | rulebook scan | R1.2 / R7.4 — one seam only; no dead abstractions. | Ship the Protocol + **one** implementation + one lookup function. No `AdapterRegistry`, no `BaseAdapter`, no DI, no capability-negotiation framework. If the Protocol ends up with exactly one implementer and no near-term second, R7.4 still keeps it — it **is** the one seam the rulebook names (R1.2), so this is the documented exception, not an accident. | `ENGINEERING_RULES.md:20-22`, `:102-103`; `PLAN.md:50` (counter-principle) | **2/2** (items 1, 3) | **2/2** — one Protocol, one implementation, two functions; no registry, base class or factory added | ✅ |
+| C3 | rulebook scan | R1.3 / R1.4 — one-way dependency; SRP per component. | `adapter.py` imports `contract` + stdlib only. It must **not** import `store`, `indexer`, `resolver`, or `config` (config flows **in** as a value — `CONVENTION.md:74`). It parses/transports only; it never persists and never decides `parsed_ok` (that is `indexer`'s, per task 009's AC). | `ENGINEERING_RULES.md:23-31`; `CONVENTION.md:74`; `docs/tasks/009_full-build-indexer.md:22` | **2/2** (items 1, 2) | **2/2** — `adapter.py` imports `contract` + stdlib only; no SQL (SQL-confinement guard still green) | ✅ |
+| C4 | rulebook scan | R1.6 — optional power via capability flags; the core degrades when a capability is absent. | `capabilities` is a pass-through `dict[str, bool]` typed as `contract.Capabilities`. An **absent** flag is legal, an **unknown** flag is legal (forward compatibility with a richer adapter), and the driver must never require one. Falsifiable: an adapter advertising `{}` and one advertising `{"semantic_types": true, "future_thing": true}` both drive identically. | `ENGINEERING_RULES.md:34-36`; `contract.py:89-91` (`KNOWN_CAPABILITIES` is "advertised, never required") | **4/4** (items 1, 2, 4, 7) | **4/4** — absent, empty and unknown-flag capabilities all drive identically | ✅ |
+| C5 | rulebook scan | R3.2 — `contract.py` is the single source of truth; consumers never re-declare field lists. | `adapter.py` is **already** in the R3.2 guard's consumer list (`tests/test_contract_sole_source.py:27`), so the guard fires on this diff for the first time with real content. `ParseResult` mirrors `contract.RESULT_FIELDS` (`contract.py:70`) and node/edge rows stay opaque `list[dict]` pass-throughs — the driver never names a node field. | `ENGINEERING_RULES.md:53-54`; `tests/test_contract_sole_source.py:27,57-65` | **3/3** (items 1, 4, 10) | **3/3** — R3.2 guard fires on real content for the first time and is negative-controlled (NC3) | ✅ |
+| C6 | rulebook scan | R5.1 / R5.3 — fail soft on data errors, fail loud on config/programmer errors. | This is the whole substance of inventory B: a bad **file** never breaks the stream (R5.1); a bad **command**, a dead process, or a contract-version mismatch raises (R5.3). Spike S-10 confirms a missing command raises `FileNotFoundError` at spawn; spike S-4 confirms a dead child is detectable (`readline()` → `''`, `poll()` → exit code). | `ENGINEERING_RULES.md:72-78`; spikes S-4, S-10 | **4/4** (items 2, 5, 6, 7) | **4/4** — 5 soft modes vs 4 loud ones asserted; bad command, dead child, desync, bad handshake all raise | ✅ |
+| C7 | rulebook scan | R6.1 / R6.2 / R6.4 — no task is done without tests; fixtures are spec-driven; guardrails are real tests. | No adapter exists (007 depends on **this** task), so every test drives a **fake adapter** speaking the protocol. It must be spec-driven — it encodes §4.1's wire format and nothing about PHP — and the AC3 grep guard must be negative-controlled so it cannot pass vacuously (LESSONS 002 + LESSONS 004: existence ≠ behaviour). | `ENGINEERING_RULES.md:82-92`; `LESSONS.md` (002 vacuous guard, 004 existence-vs-behaviour); `docs/tasks/007_php-adapter-visitor.md:8` (`depends_on: [006, 005]`) | **5/5** (items 6, 7, 8, 9, 10) | **5/5** — real subprocesses, no mocks; fixture asserted against the contract; 3 guards + 4 mutations red on demand | ✅ |
+| C8 | rulebook + `CLAUDE.md` scan | R7.2 + "Docs before PR" / "Token usage on PR". | Every ratified decision that changes `PLAN.md:79-111` (§4.1 request/response shape, §4.3 Protocol + `PhpAdapter`), `PLAN.md:242-247` (§9 `CA_PHP_CMD` form), `CONVENTION.md:44` (adapter class names) and `CONVENTION.md:83-90` (§5 adapter conventions) lands **in this diff**, plus BACKLOG status + frontmatter + the token row. | `ENGINEERING_RULES.md:98-99`, `:117-121`; `CLAUDE.md` "Docs before PR"; `LESSONS.md` 001 (untraceable hunks) | **4/4** (items 12, 13, 14, 15) | **4/4** — PLAN §4.1/§4.3/§9/§11, CONVENTION §2/§5, README, BACKLOG + frontmatter updated in this diff | ✅ |
 
 Status legend: ✅ done/proven · ⚠ deferred (needs follow-up ticket) · ❌ not met · ⬜ not yet started (Phase 1).
 
@@ -167,12 +167,12 @@ per-item checklists; review must confirm every row, not a total.
 
 | # | Member | Kind | Source of its value | Ph3/4 proven by | Status |
 |---|--------|------|---------------------|-----------------|--------|
-| 1 | `name` | attribute `str` | the `CA_<LANG>_CMD` key (`config.py:126-142`) — or the handshake (Q1) | ⬜ | ⬜ |
-| 2 | `extensions` | attribute `tuple[str, ...]` | the **handshake** read at `start()` (Q1) | ⬜ | ⬜ |
-| 3 | `capabilities` | attribute `contract.Capabilities` | handshake, pass-through (R1.6, C4) | ⬜ | ⬜ |
-| 4 | `start()` | method `-> None` | spawns the process; loud on a bad command (S-10) | ⬜ | ⬜ |
-| 5 | `parse(path)` | method `-> ParseResult` | one request line, one response line (S-1) | ⬜ | ⬜ |
-| 6 | `stop()` | method `-> None` | EOF → `terminate()` → `kill()`, idempotent (S-3, S-6) | ⬜ | ⬜ |
+| 1 | `name` | attribute `str` | the `CA_<LANG>_CMD` key (`config.py:126-142`) — or the handshake (Q1) | ✅ | ✅ |
+| 2 | `extensions` | attribute `tuple[str, ...]` | the **handshake** read at `start()` (Q1) | ✅ | ✅ |
+| 3 | `capabilities` | attribute `contract.Capabilities` | handshake, pass-through (R1.6, C4) | ✅ | ✅ |
+| 4 | `start()` | method `-> None` | spawns the process; loud on a bad command (S-10) | ✅ | ✅ |
+| 5 | `parse(path)` | method `-> ParseResult` | one request line, one response line (S-1) | ✅ | ✅ |
+| 6 | `stop()` | method `-> None` | EOF → `terminate()` → `kill()`, idempotent (S-3, S-6) | ✅ | ✅ |
 
 ### Inventory B — per-request failure modes the driver must classify (R2 / AC1) · **Denominator N = 9**
 
@@ -185,15 +185,15 @@ A mode with neither a proof nor a recorded exclusion makes AC1 incomplete.
 
 | # | Failure mode | Proposed class | Evidence | Ph3/4 proven by | Status |
 |---|--------------|----------------|----------|-----------------|--------|
-| 1 | Adapter returns `ok:false` + `error` | soft | S-2 | ⬜ | ⬜ |
-| 2 | Result is well-formed JSON but fails `contract.validate()` | soft | `contract.py:112-118` returns errors so the caller can continue | ⬜ | ⬜ |
-| 3 | Stdout line is not JSON at all | soft | S-5 (stream itself survives) | ⬜ | ⬜ |
-| 4 | Response `path` ≠ requested `path` (desync) | **loud** | closed by S3's lock-step: a desync misattributes **every** later result, so it is silent data corruption, not one bad file | ⬜ | ⬜ |
-| 5 | Blank / empty line on stdout | soft (skip and re-read) | S-5 mechanism | ⬜ | ⬜ |
-| 6 | Child died mid-stream (`readline()` → `''`) | **loud** | S-4 (`poll()` → exit code; next write raises `BrokenPipeError`) | ⬜ | ⬜ |
-| 7 | Child hangs and never answers | **deferred to task 009** (Q5 — recorded coverage-gap exclusion 1) | no timeout exists on blocking `readline()` | ⬜ | ⬜ |
-| 8 | Command missing / not executable at `start()` | **loud** | S-10 (`FileNotFoundError`) | ⬜ | ⬜ |
-| 9 | Stdout line is not decodable UTF-8 | **soft** | S-12 (Gate 2): `errors="strict"` raises `UnicodeDecodeError` on that line and the **next** request still returns correctly; `errors="replace"` instead yields mojibake that parses as valid JSON — silent corruption | ⬜ | ⬜ |
+| 1 | Adapter returns `ok:false` + `error` | soft | S-2 | ✅ | ✅ |
+| 2 | Result is well-formed JSON but fails `contract.validate()` | soft | `contract.py:112-118` returns errors so the caller can continue | ✅ | ✅ |
+| 3 | Stdout line is not JSON at all | soft | S-5 (stream itself survives) | ✅ | ✅ |
+| 4 | Response `path` ≠ requested `path` (desync) | **loud** | closed by S3's lock-step: a desync misattributes **every** later result, so it is silent data corruption, not one bad file | ✅ | ✅ |
+| 5 | Blank / empty line on stdout | soft (skip and re-read) | S-5 mechanism | ✅ | ✅ |
+| 6 | Child died mid-stream (`readline()` → `''`) | **loud** | S-4 (`poll()` → exit code; next write raises `BrokenPipeError`) | ✅ | ✅ |
+| 7 | Child hangs and never answers | **deferred to task 009** (Q5 — recorded coverage-gap exclusion 1) | no timeout exists on blocking `readline()`. **Widened at Phase 3:** execute proved the hang also reaches `start()` — a live but mute adapter blocks the handshake read forever | **not proven — excluded** | ⚠ |
+| 8 | Command missing / not executable at `start()` | **loud** | S-10 (`FileNotFoundError`) | ✅ | ✅ |
+| 9 | Stdout line is not decodable UTF-8 | **soft** | S-12 (Gate 2): `errors="strict"` raises `UnicodeDecodeError` on that line and the **next** request still returns correctly; `errors="replace"` instead yields mojibake that parses as valid JSON — silent corruption | ✅ | ✅ |
 
 ### Inventory C — core modules the AC3 "no language branch / no language name" claim ranges over · **Denominator N = 11**
 
@@ -607,6 +607,97 @@ stays `feat/005-adapter-protocol`, PR type `feat`.
 
 ---
 
+## Phase 3 — Execute
+
+**Branch:** `feat/005-adapter-protocol` · **commit** `edc07d1` (implementation + tests) plus the docs
+commit below. Baseline was **green**, so the Definition of Done is the usual "the verification command
+passes" — and it does, with the same single deliberate skip as the baseline.
+
+```
+pytest -q     → 236 passed, 1 skipped (baseline: 163 passed, 1 skipped)   +73 tests, 0 new failures
+ruff check .  → All checks passed          mypy code_atlas → no issues in 11 source files
+R1.1 gate     → ok                         R2.2 gate → ok (adapters/ still has no source)
+```
+
+**Proving test — red before, green after.**
+
+```
+pytest tests/test_adapter.py::test_one_boot_survives_every_failure_mode_and_stops_clean -q
+```
+
+It could not even import against the pre-change stub, so "fails pre-change" was cheap and weak. Per
+LESSONS 004 (*existence tests and behaviour tests are different tests*) it was **mutation-tested**
+instead — the work was committed first, and each mutant restored from a `cp` copy verified with
+`sha256sum`, never `git checkout --` (LESSONS 004, second entry):
+
+| # | Mutation applied to `adapter.py` | Result |
+|---|---|---|
+| M1 | Drop the out-of-step (desync) check | **proving test red** |
+| M2 | Drop the signal escalation in `stop()` | `test_stop_escalates_for_a_child_that_ignores_the_closed_stream` red |
+| M3 | Let undecodable output escape instead of failing softly | **proving test red** |
+| M4 | Let `start()` boot a second process | `test_start_is_idempotent` red |
+
+**Guard negative controls** (LESSONS 002 — a guard that cannot fail is not evidence):
+
+| # | Violation injected | Guard that caught it |
+|---|--------------------|----------------------|
+| NC1 | a language name in `store.py` | `test_no_core_module_names_a_language[store.py]` red |
+| NC2 | `if language == "x":` in `store.py` | `test_no_core_module_branches_on_a_language[store.py]` red |
+| NC3 | a re-declared field list in `adapter.py` | `test_consumer_does_not_redeclare_the_contract_vocabulary[adapter.py]` red |
+
+All four mutants and all three violations were reverted from copies; `sha256sum` confirms both files
+are byte-identical to their committed state.
+
+### Verification sweep
+
+**Axis 1 — file set.** `diff ⊆ approved change list` ✅. Thirteen files, each an approved item:
+`code_atlas/{adapter,contract,config}.py` (items 1–5) · `tests/fixtures/adapter/fake_adapter.py` (6) ·
+`tests/test_adapter.py` (7, 8) · `tests/test_core_is_language_agnostic.py` (9) ·
+`tests/contract/test_contract_schema.py` (10) · `tests/test_config.py` (11) · `README.md` (12) ·
+`docs/PLAN.md` (13) · `docs/CONVENTION.md` (14) · `docs/BACKLOG.md` + this file's frontmatter (15).
+**No file outside the list**, no untouched-line reformatting, no stray or dangling reference
+(`import code_atlas.adapter` clean; no `PhpAdapter` and no string-command comparison left anywhere).
+The two guards predicted to need no edit indeed needed none: `test_sql_confinement.py` still asserts
+11 core modules and stays green, and `test_contract_sole_source.py` now exercises real content.
+
+**Axis 2 — design conformance (behaviour, walked per Gate-2 Approach bullet).**
+
+| Gate-2 approach bullet | Verdict |
+|---|---|
+| One module: Protocol, frozen `ParseResult`, one generic `SubprocessAdapter`, two lookup functions | implemented-as-approved |
+| `start()`: configured argv, `cwd=root`, `stderr=DEVNULL`, utf-8 line-buffered, one unprompted meta line, version checked | implemented-as-approved |
+| `parse()`: strictly lock-step, classified against inventory B | implemented-as-approved |
+| `stop()`: close stdin, escalate `wait` → `terminate()` → `kill()` | implemented-as-approved |
+| `extension_index()` raises on a duplicate claim; `adapter_for()` reads the index | implemented-as-approved |
+| Config resolves `[adapter_cmd]` / `CA_<LANG>_CMD` to an argv tuple | implemented-as-approved |
+| The proving test drives "the 8 non-deferred inventory-B modes" | **deviated — D1** |
+
+**Deviations recorded for review adjudication (not absorbed):**
+
+- **D1 — the proving test carries 6 of the 8 modes, not 8.** It drives every mode that can occur
+  *within one boot* (B1 `ok:false`, B2 contract-invalid, B3 non-JSON, B4 desync, B5 blank line,
+  B9 undecodable) and asserts a good parse after each. B6 (child died) and B8 (command will not
+  launch) are proven by `test_a_child_that_dies_mid_stream_fails_loud` and
+  `test_a_command_that_cannot_run_fails_loud`, because a dead child cannot precede the clean-stop
+  assertion and an unlaunchable command has no boot at all. **Coverage is unchanged at 8/9**; only the
+  test that carries two of them differs from the Gate-2 wording. Traces to AC1.
+- **D2 — coverage-gap exclusion 1 must be widened to `start()`.** Execute discovered that a live but
+  **mute** adapter blocks the handshake read forever, not just a mute reply to `parse()`. The Gate-1
+  exclusion was written about `parse()` only. The protocol fixture's `no-handshake` mode was therefore
+  changed to *exit* rather than go mute (`fake_adapter.py:81-84`), so the suite proves
+  "died before announcing" and the hang stays deliberately out of scope. **The hung-adapter follow-up
+  on task 009 now covers both `start()` and `parse()`** — recorded here rather than discovered there.
+  Traces to AC1 / inventory B7.
+
+`SCOPE: M` — realized diff did not exceed the approved list and did not cross a tier, so the
+*outgrew-its-ticket* nudge does not fire. Branch and PR type (`feat`) unchanged. No new dependency.
+
+**Escalations:** none fired. No design-invalidation (the Gate-2 premise held throughout), and no
+proving-artifact attempt repeated — the one failing signature seen during execute (the hanging
+`[silent]` fixture case) was diagnosed and fixed on the first attempt, well inside `stuck_threshold: 3`.
+
+---
+
 ## Cost ledger (descriptive — facts only, never auto-cuts)
 
 Dispatch-only: this phase ran **0 subagents** (no Explore fan-out — 11 small core modules, 4 docs and 5
@@ -618,6 +709,7 @@ as tasks 002–004 recorded it.
 |-------|---------------------|-------|--------|------------------------------------------|
 | 1 — Analysis | none (0 dispatch) | — | n/a — no dispatch; main-loop read from transcript at PR time | RTK expected (`.harness.json:25`); `rtk gain` at PR time |
 | 2 — Design | none (0 dispatch) | — | n/a — no dispatch; main-loop read from transcript at PR time | RTK expected; `rtk gain` at PR time |
+| 3 — Execute | none (0 dispatch) | — | n/a — no dispatch; main-loop read from transcript at PR time | RTK expected; `rtk gain` at PR time |
 
 ## Decision log
 
@@ -634,15 +726,17 @@ as tasks 002–004 recorded it.
 | 2026-07-31 | A 12th spike run **during design** (undecodable UTF-8) rather than assuming the encoding path | `errors="replace"` would have shipped mojibake that parses as valid JSON — silent data corruption. `strict` + a soft per-file failure keeps the damage visible, and it raised inventory B from 8 to 9 |
 | 2026-07-31 | Argv resolution lives in `config.py`, not `adapter.py` | A TOML **list** cannot reach the driver at all (`_as_text` rejects it today), and validating a knob is config's single responsibility (R5.3, R1.4). Cost: 3 assertion sites in `tests/test_config.py` — folded into the change list up front as proof collateral, not left as an execute deviation |
 | 2026-07-31 | `SCOPE` stays **M**; branch stays `feat/005-adapter-protocol` | The change list did not exceed the analysis baseline — items 11–12 were already implicit in C8/Q3 — so the *outgrew-its-ticket* nudge does not fire |
+| 2026-07-31 | Phase 3: the proving test was **mutation-tested** rather than trusted for failing pre-change | Against a one-line stub it failed by ImportError, which proves nothing about behaviour (LESSONS 004). Four mutations — desync check, stop escalation, undecodable handling, boot idempotence — each turned a named test red |
+| 2026-07-31 | The protocol fixture's mute-adapter mode was changed to **exit** rather than stay silent | A live but silent adapter hangs `start()` forever — the deferred hang mode, reaching the handshake rather than a reply. Recorded as deviation D2 and widened onto task 009 instead of quietly building the timeout this ticket ruled out |
 | 2026-07-31 | The 3 uncodified standards (absent process/IPC conventions section, non-gated `ruff format` now at 4 files, the stale `.work.md` docs pointer) are surfaced, not enforced | mango detects and surfaces; the human ratifies via `/mango:codify`. Until ratified none may gate-block |
 
 ## Session status
 
 - **Last updated:** 2026-07-31
-- **Current phase:** **Phase 2 — Design complete, ✋ stopped at Gate 2.** Gate 0 and Gate 1 cleared
-  (2026-07-31).
-- **Next action:** user approves Gate 2 → `/mango:execute` (branch `feat/005-adapter-protocol`, 15
-  change-list items, proving test
-  `tests/test_adapter.py::test_one_boot_survives_every_failure_mode_and_stops_clean`).
-- **Blocked on:** nothing. Two recorded exclusions travel forward: hung-adapter timeout → task 009, and
-  end-to-end Windows launch → unverifiable on this host.
+- **Current phase:** **Phase 3 — Execute complete** (autonomous, no gate). Gates 0–2 cleared
+  (2026-07-31). Flowing into Phase 4 — Review.
+- **Next action:** `/mango:review` — reviewer on the diff plus the ticket-blind challenger; **D1 and D2
+  need adjudication** there, and the two carried exclusions must be re-confirmed.
+- **Blocked on:** nothing. Exclusions travelling forward: hung-adapter timeout → **task 009, now
+  covering `start()` as well as `parse()`** (D2), and end-to-end Windows launch → unverifiable on this
+  host.

@@ -41,13 +41,15 @@ code-atlas/
 
 - **Python package:** `code_atlas` (underscore). Project/repo name: `code-atlas` (hyphen).
 - **Modules/functions/vars:** `snake_case`. **Classes:** `PascalCase`. **Constants:** `UPPER_SNAKE`.
-- **Adapters classes:** `PhpAdapter`, `TsAdapter`, `PythonAdapter`, `CSharpAdapter`.
+- **Adapter driver:** one generic `SubprocessAdapter` in the core — **no class per language**. A language
+  names itself in its handshake (PLAN §4.1); a `PhpAdapter` in `code_atlas/` would break R1.1/R1.5.
 - **Tools:** `snake_case` verb-first, matching the MCP tool name exactly (`search_symbol`, `find_callers`,
   `read_symbol`, `build_or_update_index`). One tool per file under `code_atlas/tools/`.
 - **Env vars:** prefix **`CA_`** (`CA_DB_PATH`, `CA_WORKERS`, `CA_MAX_RESULTS`, `CA_IMPACT_DEPTH`,
   `CA_IMPACT_MAX_NODES`, `CA_TOOLS`, per-adapter `CA_<LANG>_CMD` e.g. `CA_PHP_CMD`).
 - **On-disk artifacts:** project config `.code-atlas.toml` (repo root, committed — keys are the env
-  names lower-cased without the `CA_` prefix, plus an `[adapter_cmd]` table); DB at
+  names lower-cased without the `CA_` prefix, plus an `[adapter_cmd]` table whose values are a
+  complete argv, as a string or a list of words); DB at
   `<repo>/.code-atlas/graph.db`; ignore file `.codeatlasignore`; onboarding output under
   `.code-atlas/onboarding/`.
 - **Task files:** `docs/tasks/NNN_slug.md`, zero-padded 3-digit id, `kebab-case` slug (`014_search-read-outline.md`).
@@ -84,9 +86,15 @@ code-atlas/
 
 - Each adapter is a **long-lived subprocess** speaking the JSONL protocol: `--server` (stdin loop) and a
   `--file <path>` mode for spiking/debugging.
+- **Announces itself first.** The first stdout line is the handshake —
+  `{"name", "extensions", "capabilities", "contract_version"}` — before any result. The suffix list in it
+  is what routes files to this adapter; nothing in the core knows them otherwise.
 - Emits **bare** edges (targets as FQNs/names); never resolves cross-file — that's the core resolver.
-- Self-contained: own manifest + runtime; launched via `CA_<LANG>_CMD`; documents its runtime in an
-  adapter-local README.
+- **stdout carries the protocol and nothing else.** Diagnostics go to stderr, which the core sends to
+  `DEVNULL` or a file — never an undrained pipe (it deadlocks) and never merged into stdout.
+- Self-contained: own manifest + runtime; documents its runtime **and its complete launch argv** in an
+  adapter-local README. `CA_<LANG>_CMD` is that whole argv, `--server` included — the core appends
+  nothing to it.
 - Zero repo/framework names in adapter source (grep-gated).
 
 ## 6. MCP tool conventions
