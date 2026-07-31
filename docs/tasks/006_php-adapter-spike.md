@@ -567,3 +567,100 @@ nothing. Both states were observed, so the fix is evidenced rather than asserted
 - **Next action:** review — challenger only, by user instruction (the `reviewer` dispatch is skipped).
 - **Revert path:** `git checkout main && git branch -D feat/006-php-adapter-spike`. Nothing is pushed
   and no core module changed, so `main` at `866d67d` is untouched.
+
+---
+
+## Phase 4 — Review
+
+**Dispatch:** `mango:challenger` only — the `mango:reviewer` pass was **skipped by user instruction**.
+Recorded as a deliberate, human-made reduction in review depth, not an omission.
+
+### Challenger verdict (ticket-blind)
+
+**6/6 requirements met**, every one verified by execution rather than inference: it ran the adapter
+against both fixtures itself, wrote two extra probe files of its own, and ran the full suite (248
+passed at the time of review). **No information-barrier leak** — it confirmed it never read below the
+separator in `docs/tasks/`, having scoped `docs/tasks/` out of every search per LESSONS 005.
+
+Rule-book conformance it checked independently: R1.3/R1.4 (zero core files touched), R3.3 (bare edges),
+R4.2 (determinism), R5.1/R5.2/R5.3, R7.5, R8.1, and the R2.2 gate change — all met, with the
+guardrail-scoping edits judged "a justified, in-scope fix, not scope creep".
+
+### Findings, and what was done
+
+| # | Finding | Severity | Action |
+|---|---|---|---|
+| 1 | **Every scalar type hint reported `"type": null`.** `params()` tested `instanceof Node\Name`, but `string`/`int`/`bool` arrive as `Node\Identifier` — so a typed parameter was indistinguishable from an untyped one. Silent data loss, not a deferral | **real defect** | **Fixed** (`4f53155`). `typeName()` renders `Name`, `Identifier`, `NullableType`, and union/intersection types |
+| 2 | **`Trait_` and `Enum_` were wired into the dispatch map with no fixture reaching them** — untested code that Phase 2 had recorded as a known gap, and the challenger found blind | **real gap** | **Fixed** (`4f53155`). The namespaced fixture now declares a trait and an enum; a dropped map entry now turns the suite red |
+| 3 | **The R5.3 loud-failure branch had no test** — inferred safe from reading, never executed | **coverage gap** | **Fixed** (`4f53155`). A copy of the entry point with no `vendor/` beside it is asserted to exit 2 on stderr with empty stdout |
+| 4 | **`BACKLOG.md` and the frontmatter still read `todo`** while the work was complete | **process** | **Partly accepted.** Both now read `in-progress`; `done` still lands after the merge, because a status that reads `done` before the PR merges is false. Same pattern as tasks 004 and 005 |
+| 5 | **A class's `use <Trait>` emits no `USES_TRAIT` edge, silently** — the vocabulary has the kind but this adapter never populates it | **recorded, deferred** | Task 007's Scope names `TraitUse` explicitly, so it is owned. The adapter README now says so out loud rather than leaving it implicit |
+| 6 | **`enum`, attributes, closures, arrow functions, first-class callables, group-use untested** | **recorded, deferred** | Correct per the ticket's "at least" wording; task 007 + 012 own them. `enum` moved out of this list by finding 2 |
+
+### Re-verification after the fixes (verify-only, main-loop, no re-dispatch)
+
+The fixes touched only files already inside the approved change list — items 4, 6, 8 — plus the two
+bookkeeping status files, which are the exempt set. **No scope change, so no re-dispatch.**
+
+```
+251 passed, 0 skipped · ruff clean · mypy clean (11 source files)
+R1.1 gate ok · R2.2 gate ok (with vendor/ populated)
+```
+
+Each fix is negative-controlled — the mutation was applied to a `cp` backup, run, then restored and
+confirmed byte-identical with `cmp`:
+
+| # | Mutation | Result |
+|---|---|---|
+| M5 | `typeName()` regressed to the class-names-only test | **1 failed** |
+| M6 | `Enum_` removed from the dispatch map | **6 failed** — the parse itself now errors, so it cannot pass quietly |
+| M7 | the loud `exit(2)` softened into an `ok:false` result | **1 failed** |
+
+### Scope reconciliation
+
+- **File axis:** `diff ⊆ approved change list` ✅. Every path traces to a numbered item; the fixes added
+  no file. Zero files under `code_atlas/`.
+- **Behaviour axis:** every Gate-2 Approach bullet is `implemented-as-approved`. Deviations D1 and D2
+  from Phase 3 were surfaced by the author and stand adjudicated as in-scope corrections. Finding 1 is
+  the one thing the author self-marked correct that was not — recorded here rather than quietly fixed.
+
+### Layer-match re-confirmation
+
+No AC closed on a layer-mismatched proof. Every AC's risk layer is **integration**, and every proof
+spawns the real interpreter against the real parser. The three new tests sit at the same layer. No
+coverage-gap exclusion was needed, so none stands unresolved.
+
+### Verdict
+
+**Clean**, with the review depth reduced by explicit user instruction (challenger only). `k = N = 2` on
+the AC1 inventory, both items proven per-item; proving test green; baseline comparison is
+`237 passed / 1 skipped → 251 passed / 0 skipped`, the skip having been converted to a live assertion
+by design.
+
+```
+Reviewed at 4f53155
+Reviewed files: adapters/php/{composer.json,composer.lock,index.php,README.md,src/Visitor.php},
+  tests/fixtures/php/{namespaced,global_underscore}.php, tests/test_php_adapter_spike.py,
+  tests/test_sql_confinement.py, .github/workflows/ci.yml, .gitignore, docs/PLAN.md, README.md,
+  docs/BACKLOG.md
+Working doc (exempt from the staleness comparison): docs/tasks/006_php-adapter-spike.md
+```
+
+### Cost ledger
+
+| Phase | Dispatch | Tokens |
+|---|---|---|
+| Phase 1 — analysis | 0 subagents (5 read-only spikes on the main model) | 0 dispatch |
+| Phase 2 — design | 0 subagents | 0 dispatch |
+| Phase 3 — execute | 0 subagents | 0 dispatch |
+| Phase 4 — review | 1 subagent — `mango:challenger`, 34 tool uses / 228 s | **73.9k dispatch** |
+| Phase 4 — re-review | 0 subagents (verify-only in the main loop) | 0 dispatch |
+| **Total** | **1 dispatch** | **73.9k dispatch** · main-loop unmeasured (`rtk gain`) |
+
+### Session status
+
+- **Phase:** 4 (review) complete, verdict **clean** → finalise.
+- **Branch:** `feat/006-php-adapter-spike`, 6 commits, nothing pushed.
+- **Next action:** finalise — PR body, push, open the PR.
+- **Revert path:** `git checkout main && git branch -D feat/006-php-adapter-spike`; `main` at `866d67d`
+  is untouched and no core module changed.
