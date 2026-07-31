@@ -16,7 +16,7 @@ is [`PLAN.md`](PLAN.md).
 | 004 | [SQLite store & schema](tasks/004_sqlite-store.md) | Core | done | 001, 002 |
 | 005 | [Adapter protocol & subprocess driver](tasks/005_adapter-protocol.md) | Core | done | 002 |
 | 006 | [PHP adapter spike](tasks/006_php-adapter-spike.md) | M0 | done | 002 |
-| 007 | [PHP adapter — server mode & streaming](tasks/007_php-adapter-visitor.md) | M0 | in-progress | 006, 005 |
+| 007 | [PHP adapter — server mode & streaming](tasks/007_php-adapter-visitor.md) | M0 | done | 006, 005 |
 | 008 | [PHP runtime invocation (host / Docker)](tasks/008_php-runtime-modes.md) | M1 | todo | 005, 007 |
 | 009 | [Full build indexer + workers](tasks/009_full-build-indexer.md) | M1 | todo | 004, 005, 007 |
 | 010 | [MCP server + status/build tools](tasks/010_index-status-and-build-tools.md) | M1 | todo | 009 |
@@ -63,6 +63,8 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 005 | Adapter protocol & subprocess driver | **181.6k dispatch** — 2 subagents, both in review round 1: `mango:reviewer` 108.9k (38 tool uses / 426 s) + `mango:challenger` 72.7k (27 tool uses / 286 s). Phases 1–3 dispatched **nothing** (no Explore fan-out; 12 read-only spikes did the de-risking on the main model), and review round 2 was verify-only in the main loop, so it dispatched nothing either. **Main-loop spend is unmeasured for this task**, as for 004: mango measures dispatch only, and `rtk gain` reports a global all-time figure that cannot be attributed to one task — so no session-transcript number is invented here | [#10](https://github.com/cuongdinhngo/code-atlas/pull/10) |
 | 006 | PHP adapter spike | **73.9k dispatch** — 1 subagent (`mango:challenger`, 34 tool uses / 228 s). The `mango:reviewer` pass was skipped by user instruction, and phases 1–3 dispatched nothing: five read-only spikes on the main model did the de-risking, and the post-review round was verify-only in the main loop. **Main-loop spend is unmeasured**, as for 004 and 005 — mango measures dispatch only, and `rtk gain` reports a global all-time figure that cannot be attributed to one task, so none is invented here | [#13](https://github.com/cuongdinhngo/code-atlas/pull/13) |
 | 024 | CI hardening | **0 dispatch** — no subagent ran at any point: the work was an audit of `ci.yml` plus twelve task files, done entirely on the main model, and it did not go through the mango lifecycle, so no working-doc cost ledger exists for it. **Main-loop spend is unmeasured**, as for 004–006. That missing lifecycle is why this row itself was omitted at PR time and added in [#15](https://github.com/cuongdinhngo/code-atlas/pull/15), which also turns the rule into a test | [#14](https://github.com/cuongdinhngo/code-atlas/pull/14) |
+
+| 007 | PHP adapter — server mode & streaming | **111.4k dispatch** — 1 subagent (`mango:challenger`, 41 tool uses / 380 s). The `mango:reviewer` pass was skipped by user instruction. Phases 1–3 and 5 dispatched **nothing**: the analysis inventory, four runtime spikes against the real `SubprocessAdapter`, and five negative-control mutations all ran on the main model. **Main-loop spend is unmeasured**, as for 004–006 and 024 — mango measures dispatch only, and `rtk gain` reports a global all-time figure that cannot be attributed to one task, so none is invented here | [#16](https://github.com/cuongdinhngo/code-atlas/pull/16) |
 
 ## Suggested order
 

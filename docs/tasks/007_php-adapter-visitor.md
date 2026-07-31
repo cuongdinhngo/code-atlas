@@ -4,7 +4,7 @@ slug: php-adapter-visitor
 title: PHP adapter — server mode & streaming
 phase: 1
 milestone: M0
-status: in-progress
+status: done
 depends_on: [006, 005]
 ---
 
@@ -536,24 +536,74 @@ output-buffering defence, which the design had assumed rather than proven.
 
 ## Phase 4 — Review ✋ (stop only if not clean)
 
-- reviewer verdict: **not dispatched** — skipped by user instruction ("chạy challenger là đủ").
-- challenger (ticket-blind) result: _pending_
-- Scope reconciliation: Axis 1 clean (see Phase 3); Axis 2 carries deviations **D1** and **D2** for
-  adjudication.
-- Proving test result vs `BASELINE: green`: 316 passed, 0 failed, 0 skipped locally.
-- **Clean?** _pending challenger_
-- **Reviewed at:** _pending_
+- **reviewer verdict:** not dispatched — skipped by user instruction.
+- **challenger (ticket-blind) result: 7/7 requirements met, 0 not met, 0 can't-tell.** It confirmed
+  its own independence (read only to the separator line), re-ran the CI grep-gate by hand, and ran
+  the suite in place: 316 passed, **0 skipped** — so the PHP path genuinely executed.
+- **Split faithfulness (asked of the challenger explicitly):** it cross-referenced every construct in
+  the *original* card against what task 006 already shipped and what task 025 now carries.
+  **Nothing silently dropped.**
+
+**Challenger findings and disposition:**
+
+| # | Finding | Disposition |
+|---|---------|-------------|
+| 1 | *low-med* — §4.1's "undecodable bytes fail that file softly" was a claimed guarantee with **no assertion behind it** (`index.php:58` asserted it in a comment only) | **Fixed.** The path is reachable: an `INCLUDES` target is copied verbatim from a string literal, so invalid bytes there reach `json_encode`. Added `test_undecodable_bytes_fail_that_file_softly_and_are_never_repaired`, negative-controlled as **M5** (replacing the soft-fail with `JSON_INVALID_UTF8_SUBSTITUTE` — a mojibake "repair" — fails exactly that test). |
+| 2 | *low* — `test_each_reply_is_correlated_to_the_request_that_asked_for_it` cannot fail from a real desync, since `Parser::parse` always echoes the requested path | **Accepted, scope clarified rather than changed.** It does not prove desync *detection* (that lives in `adapter.py`, task 005). It does prove **one reply per request**: the sequence includes a failing file, so a loop that skipped or doubled a reply would shift every later one. Recorded here so the claim is not overstated. |
+| 3 | *cosmetic* — `docs/CONVENTION.md:28`'s layout tree still listed only `src/Visitor.php` | **Fixed** — now `src/{Parser,Visitor}.php`. CLAUDE.md's docs-before-PR rule names CONVENTION explicitly. |
+
+- **Deviations D1/D2 adjudication:** the challenger independently verified the D1 mechanism
+  (`fwrite` bypassing the output buffer) as *met* under adversarial `php.ini` flags, and raised no
+  objection to D2's coverage-gap exclusion. Both stand as recorded.
+- **Scope reconciliation:** Axis 1 clean — the challenger's own scope-creep check found none, listing
+  exactly the approved files. Axis 2 carries D1 and D2, both adjudicated above.
+- **Regression on Phase-1 callers:** the 12 `--file` spike tests pass unchanged, and
+  `test_both_modes_emit_the_same_result_for_the_same_file` proves byte-identical output across modes.
+- **Proving test vs `BASELINE: green`:** **317 passed, 0 failed, 0 skipped**; ruff, ruff-format and
+  mypy clean; `php -l` clean on all 3 authored adapter files; R2.2 and R7.3 gates clean.
+- **Inventory:** 18/18 rows proven (P13 partially — recorded exclusion, D2), plus two guarantees the
+  design had assumed rather than proven: output buffering (M4) and undecodable bytes (M5).
+- **Clean? yes.**
+- **Reviewed at** `22b5cd2057a1e240e181e2d66fee5d89b7bb305c` · reviewed files: `adapters/php/README.md`, `adapters/php/index.php`, `adapters/php/src/Parser.php`, `docs/BACKLOG.md`, `docs/CONVENTION.md`, `docs/tasks/007_php-adapter-visitor.md`, `docs/tasks/025_php-adapter-grammar.md`, `tests/fixtures/php/syntax_error.php`, `tests/test_php_adapter_server.py` ·
+  working doc (exempt from the staleness comparison): `docs/tasks/007_php-adapter-visitor.md`
 
 ## Phase 5 — Finalise ✋ final gate
 
-- PR draft: `/tmp/pr-007.md`
-- Planned outward actions (each needs separate approval): _pending_
+- PR draft: `/tmp/pr-007.md` (rendered from `.github/pull_request_template.md`, every section filled)
+- **Project checklist:** `config.pr_checklist_path` is null, but CLAUDE.md mandates the PR template.
+  Walked all 7 self-check items — **7 satisfied, 0 not-satisfied, 0 N/A**; evidence inline in the PR.
+- Planned outward actions (each needs separate approval):
+  - [ ] push branch `feat/007-php-server-mode` (carries the bookkeeping commit — lessons + BACKLOG —
+        so nothing is orphaned on a local branch)
+  - [ ] open PR via `gh`
+  - tracker comment / transition: **N/A** — the tracker is this repo's `docs/tasks/`, already updated
+        in-branch, so there is no separate tracker write.
+- **Follow-up tickets for deferred (⚠) rows:** matrix rows R1–R3 are `⚠ 025`; the follow-up ticket
+  `docs/tasks/025_php-adapter-grammar.md` is **already created and committed in this branch**, with
+  its BACKLOG row and 012's dependency repointed. Nothing is left to draft.
+- **Durable lesson:** two, written to `docs/LESSONS.md` and riding the branch push (so they reach a
+  shared ref, never orphaned):
+  - *A stream protocol inherits the host's `php.ini`, so "it works here" proves nothing* — the
+    `display_errors`/`output_buffering` pair, including the false "`fflush` is immune" premise and
+    the rule that a buffering fix must be proven by reading **while the child still runs**.
+  - *A language's natural empty value may not be the contract's* — PHP's `[]` vs the required `{}`.
+- **Status bookkeeping:** 007 is marked `done` in **both** the frontmatter and BACKLOG **in this
+  PR**, rather than in a follow-up sync PR as tasks 003/004/005/024 needed. Lesson 024 records that
+  the deferred sync is exactly what gets forgotten, and it cost three churn PRs.
+- **Revert path:** branch `feat/007-php-server-mode`, 7 commits on top of `fc85dc6`. Before merge:
+  delete the branch. After merge: `git revert -m 1 <merge sha>`. A revert must drop
+  `docs/tasks/025_php-adapter-grammar.md` **and** its BACKLOG row together, or
+  `tests/test_backlog_bookkeeping.py` fails on the file/row count mismatch.
 
 ## Cost ledger
 
 | Phase | Subagent / dispatch | Round | Tokens | Optimizer applied · est./measured saving |
 |-------|---------------------|-------|--------|------------------------------------------|
 | 1 — analysis | none dispatched (`explore_fanout` available but the session forbids subagents unless requested) | — | 0 dispatch | rtk active; per-task saving not attributable (`rtk gain` is global all-time) |
+| 2 — design | none dispatched — 4 runtime assumptions spiked on the main model against the real `SubprocessAdapter` | — | 0 dispatch | as above |
+| 3 — execute | none dispatched | — | 0 dispatch | as above |
+| 4 — review | `mango:challenger` (ticket-blind), 41 tool uses / 380 s | 1 | **111.4k** | as above |
+| 5 — finalise | none dispatched | — | 0 dispatch | as above |
 
 ## Decision log
 
@@ -573,9 +623,7 @@ output-buffering defence, which the design had assumed rather than proven.
 
 ## Session status
 
-- **Last updated:** Phase 3 complete, on branch `feat/007-php-server-mode`
-- **Current phase:** Phase 3 — Execute, complete; flowing into Phase 4 (review)
-- **Next action:** run the ticket-blind `challenger` on the raw ticket + the branch diff (the
-  `mango:reviewer` dispatch is skipped by user instruction), adjudicate deviations D1 and D2, then
-  finalise and open the PR.
-- **Blocked on:** nothing
+- **Last updated:** Phase 5, at the final gate, on branch `feat/007-php-server-mode`
+- **Current phase:** Phase 5 — Finalise, **waiting on per-action approval** (nothing pushed yet)
+- **Next action:** on approval, push `feat/007-php-server-mode` and open the PR with `gh pr create -F /tmp/pr-007.md`; then correct the BACKLOG token row if the PR number is not #16.
+- **Blocked on:** per-action approval for the branch push and PR open
