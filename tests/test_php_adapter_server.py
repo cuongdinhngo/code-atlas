@@ -145,6 +145,25 @@ def test_a_multi_megabyte_reply_survives_one_line(tmp_path: Path) -> None:
 
 
 @needs_php
+def test_undecodable_bytes_fail_that_file_softly_and_are_never_repaired(tmp_path: Path) -> None:
+    """§4.1: a result that will not encode as UTF-8 fails soft, never patched into mojibake.
+
+    An include target is copied verbatim from a string literal, so invalid bytes there reach
+    `json_encode` — mojibake would parse as valid JSON and store silently corrupt rows.
+    """
+    undecodable = tmp_path / "undecodable.php"
+    undecodable.write_bytes(b'<?php\nrequire "\xff\xfe_broken.php";\n')
+
+    with server() as adapter:
+        result = adapter.parse(str(undecodable))
+        assert result.ok is False
+        assert result.error and "UTF-8" in result.error
+        assert not result.nodes and not result.edges
+        # The reply was still well-formed protocol, so the stream is intact.
+        assert adapter.parse(GOOD).ok is True
+
+
+@needs_php
 def test_a_blank_or_malformed_request_line_does_not_desync_the_stream() -> None:
     """Blank and unusable lines are skipped, so the next real request still gets its reply."""
     process = subprocess.Popen(

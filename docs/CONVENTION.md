@@ -25,7 +25,7 @@ code-atlas/
 │   ├── gitutil.py  ignore.py
 │   └── tools/                        # one module per MCP tool
 ├── adapters/
-│   ├── php/                          # self-contained: composer.json, index.php, src/Visitor.php
+│   ├── php/                          # self-contained: composer.json, index.php, src/{Parser,Visitor}.php
 │   ├── typescript/ python/ csharp/   # added in order; each self-contained
 ├── tests/
 │   ├── contract/                     # schema-conformance every adapter must pass
