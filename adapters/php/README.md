@@ -56,6 +56,9 @@ An instance method call cannot reveal its receiver's type from one file, so it i
 
 ## Scope
 
-Task 006 is a spike. Full language coverage — traits, enums, anonymous classes, closures, arrow
-functions, first-class callables, attributes, group-use, promoted parameters, enum cases,
-`ErrorHandler\Collecting` — lands in task 007 together with `--server`.
+Task 006 is a spike: it proves the parser and the contract fit, on a namespaced file and a
+global/underscore one. Declarations of all four class-like kinds are emitted, but the constructs that
+hang off them are not — `use <Trait>` inside a class body, enum cases, backed enums, anonymous
+classes, closures, arrow functions, first-class callables, attributes, group-use, and promoted
+constructor parameters all land in task 007, together with `ErrorHandler\Collecting` and `--server`.
+A trait used by a class currently produces **no** `USES_TRAIT` edge, silently — task 007 closes that.

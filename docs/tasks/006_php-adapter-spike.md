@@ -4,7 +4,7 @@ slug: php-adapter-spike
 title: PHP adapter spike (M0)
 phase: 1
 milestone: M0
-status: todo
+status: in-progress
 depends_on: [002]
 ---
 

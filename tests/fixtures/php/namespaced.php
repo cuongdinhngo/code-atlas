@@ -11,6 +11,18 @@ interface Storable
     public function store(): bool;
 }
 
+trait Timestamps
+{
+    public function touch(): void
+    {
+    }
+}
+
+enum Status
+{
+    case Active;
+}
+
 class User extends Base implements J, Storable
 {
     public const ROLE = 'member';
@@ -25,6 +37,10 @@ class User extends Base implements J, Storable
     public function store(): bool
     {
         return true;
+    }
+
+    public function rename(string $to, ?int $version = null): void
+    {
     }
 }
 

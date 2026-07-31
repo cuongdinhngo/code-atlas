@@ -15,7 +15,7 @@ is [`PLAN.md`](PLAN.md).
 | 003 | [Config (CA_*) & ignore rules](tasks/003_config-and-ignore.md) | Setup | done | 001 |
 | 004 | [SQLite store & schema](tasks/004_sqlite-store.md) | Core | done | 001, 002 |
 | 005 | [Adapter protocol & subprocess driver](tasks/005_adapter-protocol.md) | Core | done | 002 |
-| 006 | [PHP adapter spike](tasks/006_php-adapter-spike.md) | M0 | todo | 002 |
+| 006 | [PHP adapter spike](tasks/006_php-adapter-spike.md) | M0 | in-progress | 002 |
 | 007 | [PHP adapter — full coverage & server mode](tasks/007_php-adapter-visitor.md) | M0 | todo | 006, 005 |
 | 008 | [PHP runtime invocation (host / Docker)](tasks/008_php-runtime-modes.md) | M1 | todo | 005, 007 |
 | 009 | [Full build indexer + workers](tasks/009_full-build-indexer.md) | M1 | todo | 004, 005, 007 |

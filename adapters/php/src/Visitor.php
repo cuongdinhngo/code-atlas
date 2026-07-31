@@ -231,7 +231,7 @@ final class Visitor extends NodeVisitorAbstract
                 'name' => $variable instanceof Node\Expr\Variable && is_string($variable->name)
                     ? '$' . $variable->name
                     : '$?',
-                'type' => $param->type instanceof Node\Name ? self::fqn($param->type) : null,
+                'type' => self::typeName($param->type),
             ];
         }
 
@@ -284,6 +284,27 @@ final class Visitor extends NodeVisitorAbstract
     private function flags(array $flags): array
     {
         return array_values(array_keys(array_filter($flags)));
+    }
+
+    /** Every declared type, not just class names: a scalar hint dropped to null reads as untyped. */
+    private static function typeName(?Node $type): ?string
+    {
+        if ($type instanceof Node\Name) {
+            return self::fqn($type);
+        }
+        if ($type instanceof Node\Identifier) {
+            return $type->toString();
+        }
+        if ($type instanceof Node\NullableType) {
+            return '?' . self::typeName($type->type);
+        }
+        if ($type instanceof Node\UnionType || $type instanceof Node\IntersectionType) {
+            $glue = $type instanceof Node\UnionType ? '|' : '&';
+
+            return implode($glue, array_map(self::typeName(...), $type->types));
+        }
+
+        return null;
     }
 
     /** The convention anchors every qualified name at the global namespace. */

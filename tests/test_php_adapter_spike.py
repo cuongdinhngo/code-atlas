@@ -106,6 +106,45 @@ def test_a_global_underscore_file_keeps_its_underscores_and_carries_no_namespace
 
 
 @needs_php
+def test_every_class_like_kind_the_visitor_maps_is_actually_emitted() -> None:
+    # A dispatch entry no fixture reaches is untested code, not coverage (LESSONS 002).
+    kinds = {node["kind"] for node in parse("namespaced")["nodes"]}
+    assert {"Class", "Interface", "Trait", "Enum"} <= kinds
+
+
+@needs_php
+def test_a_declared_type_survives_whatever_shape_it_was_written_in() -> None:
+    # A scalar hint reported as null is indistinguishable from no hint at all — silent data loss.
+    nodes = {node["qualified_name"]: node for node in parse("namespaced")["nodes"]}
+    assert [param["type"] for param in nodes["\\App\\Models\\User::rename"]["params"]] == [
+        "string",
+        "?int",
+    ]
+    assert [param["type"] for param in nodes["\\App\\Models\\User::save"]["params"]] == [
+        "\\App\\Models\\Repo"
+    ]
+
+
+@needs_php
+def test_a_missing_runtime_fails_loud_and_never_as_a_parse_result(tmp_path: Path) -> None:
+    # R5.3: copied away from its vendor/, the entry point must refuse rather than emit ok:false.
+    stray = tmp_path / "index.php"
+    stray.write_text(ENTRY.read_text(encoding="utf-8"), encoding="utf-8")
+
+    completed = subprocess.run(
+        [str(PHP), str(stray), "--file", str((FIXTURES / CASES["namespaced"]).relative_to(ROOT))],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=60,
+    )
+    assert completed.returncode == 2
+    assert completed.stdout == ""
+    assert "composer install" in completed.stderr
+
+
+@needs_php
 @pytest.mark.parametrize("case", CASES, ids=list(CASES))
 def test_every_edge_is_bare_and_no_guess_is_recorded_as_resolved(case: str) -> None:
     # R3.3 and R5.2: the adapter never links across files, and never dresses a guess as certain.
