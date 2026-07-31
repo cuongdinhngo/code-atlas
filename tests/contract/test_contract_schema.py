@@ -12,11 +12,13 @@ from code_atlas.contract import (
     EDGE_KINDS,
     KNOWN_CAPABILITIES,
     MEMBER_SEPARATOR,
+    META_FIELDS,
     NODE_FIELDS,
     NODE_KINDS,
     join_qname,
     split_qname,
     validate,
+    validate_meta,
 )
 
 
@@ -37,6 +39,15 @@ def good_edge() -> dict[str, object]:
         "target_raw": "\\App\\Models\\Model",
         "file_path": "src/Models/User.php",
         "line": 7,
+    }
+
+
+def good_meta() -> dict[str, object]:
+    return {
+        "name": "example",
+        "extensions": [".ex"],
+        "capabilities": {"semantic_types": True},
+        "contract_version": CONTRACT_VERSION,
     }
 
 
@@ -274,3 +285,79 @@ def test_validate_never_raises_on_malformed_input() -> None:
     # R5.1/R5.3: the indexer marks parsed_ok=0 and keeps going; validate() must not explode.
     for malformed in (None, 42, "a string", [], {}, {"path": 1, "ok": "yes"}):
         assert isinstance(validate(malformed), list)
+
+
+# --- validate_meta(): the handshake every adapter opens its stream with (§4.1) -------------------
+
+
+def test_meta_fields_are_the_four_handshake_fields() -> None:
+    assert META_FIELDS == ("name", "extensions", "capabilities", "contract_version")
+
+
+def test_validate_meta_accepts_a_known_good_handshake() -> None:
+    assert validate_meta(good_meta()) == []
+
+
+def test_validate_meta_accepts_an_adapter_that_offers_no_capabilities() -> None:
+    # R1.6: capabilities are advertised, never required — an adapter may simply not have any.
+    meta = good_meta()
+    del meta["capabilities"]
+    assert validate_meta(meta) == []
+
+
+def test_validate_meta_accepts_a_flag_the_core_has_never_heard_of() -> None:
+    meta = good_meta() | {"capabilities": {"semantic_types": True, "some_future_power": False}}
+    assert validate_meta(meta) == []
+
+
+def test_validate_meta_rejects_a_missing_required_field() -> None:
+    meta = good_meta()
+    del meta["extensions"]
+
+    errors = validate_meta(meta)
+
+    assert len(errors) == 1
+    assert errors[0].startswith("meta.extensions: missing (expected ")
+
+
+def test_validate_meta_rejects_an_adapter_that_claims_no_suffix() -> None:
+    # An adapter no file can reach is a configuration error, not a quiet no-op.
+    errors = validate_meta(good_meta() | {"extensions": []})
+
+    assert len(errors) == 1
+    assert errors[0].startswith("meta.extensions: ")
+
+
+def test_validate_meta_rejects_a_malformed_suffix() -> None:
+    errors = validate_meta(good_meta() | {"extensions": [".ex", "ex", 7]})
+
+    assert [error.split(":")[0] for error in errors] == [
+        "meta.extensions[1]",
+        "meta.extensions[2]",
+    ]
+
+
+def test_validate_meta_rejects_a_non_boolean_capability() -> None:
+    errors = validate_meta(good_meta() | {"capabilities": {"semantic_types": "yes"}})
+
+    assert errors == ["meta.capabilities.semantic_types: str (expected a boolean)"]
+
+
+def test_validate_meta_rejects_an_unknown_handshake_field() -> None:
+    errors = validate_meta(good_meta() | {"languages": ["ex"]})
+
+    assert len(errors) == 1
+    assert errors[0].startswith("meta.languages: 'languages' is not an allowed contract field")
+
+
+def test_validate_meta_rejects_a_non_integer_version() -> None:
+    for version in ("1", True, 1.0, None):
+        errors = validate_meta(good_meta() | {"contract_version": version})
+        assert errors == [
+            f"meta.contract_version: {type(version).__name__} (expected an integer)"
+        ]
+
+
+def test_validate_meta_never_raises_on_malformed_input() -> None:
+    for malformed in (None, 42, "a string", [], {}, {"name": 1, "extensions": "no"}):
+        assert isinstance(validate_meta(malformed), list)

@@ -96,11 +96,11 @@ KNOBS = (
     ),
     Knob(
         "CA_PHP_CMD",
-        f'[{ADAPTER_CMD_TABLE}]\nphp = "php-from-file"',
-        "php-from-env",
+        f'[{ADAPTER_CMD_TABLE}]\nphp = "runtime from-file --server"',
+        "runtime from-env --server",
         lambda config: config.adapter_cmd("php"),
-        lambda root: "php-from-env",
-        lambda root: "php-from-file",
+        lambda root: ("runtime", "from-env", "--server"),
+        lambda root: ("runtime", "from-file", "--server"),
         lambda root: None,
     ),
 )
@@ -162,10 +162,53 @@ def test_an_unconfigured_adapter_has_no_command(tmp_path: Path) -> None:
 
 def test_any_language_resolves_without_a_core_change(tmp_path: Path) -> None:
     # R1.1: a name the core has never heard of must work by naming alone, with no branch anywhere.
-    config = load_config(tmp_path, {"CA_TYPESCRIPT_CMD": "node adapter.js"})
-    assert config.adapter_cmd("typescript") == "node adapter.js"
-    assert config.adapter_cmd("TypeScript") == "node adapter.js"
+    config = load_config(tmp_path, {"CA_TYPESCRIPT_CMD": "node adapter.js --server"})
+    assert config.adapter_cmd("typescript") == ("node", "adapter.js", "--server")
+    assert config.adapter_cmd("TypeScript") == ("node", "adapter.js", "--server")
     assert config.adapter_cmd("php") is None
+
+
+def test_a_launch_command_resolves_to_the_whole_argv(tmp_path: Path) -> None:
+    # PLAN §9: the configured value launches the adapter on its own — the core appends nothing.
+    config = load_config(tmp_path, {"CA_EX_CMD": "docker compose exec -T svc run app --server"})
+    assert config.adapter_cmd("ex") == (
+        "docker",
+        "compose",
+        "exec",
+        "-T",
+        "svc",
+        "run",
+        "app",
+        "--server",
+    )
+
+
+def test_a_launch_command_may_be_given_word_by_word(tmp_path: Path) -> None:
+    # The list form needs no quoting rules at all, which is why it exists alongside the string.
+    (tmp_path / PROJECT_FILE).write_text(
+        f'[{ADAPTER_CMD_TABLE}]\nex = ["C:\\\\bin\\\\tool.exe", "app", "--server"]\n',
+        encoding="utf-8",
+    )
+    assert load_config(tmp_path, {}).adapter_cmd("ex") == (
+        "C:\\bin\\tool.exe",
+        "app",
+        "--server",
+    )
+
+
+@pytest.mark.parametrize(
+    ("platform", "expected"),
+    [("posix", ("C:bintool.exe", "app")), ("nt", ("C:\\bin\\tool.exe", "app"))],
+    ids=["posix-eats-the-backslashes", "windows-keeps-them"],
+)
+def test_a_command_string_is_split_for_the_host_platform(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, platform: str, expected: tuple[str, ...]
+) -> None:
+    # The posix case is the hazard, asserted rather than described: a Windows path loses its
+    # separators, which is exactly why the list form above is the recommended shape there.
+    monkeypatch.setattr(os, "name", platform)
+    config = load_config(tmp_path, {"CA_EX_CMD": "C:\\bin\\tool.exe app"})
+    assert config.adapter_cmd("ex") == expected
 
 
 @pytest.mark.parametrize(
@@ -192,6 +235,9 @@ def test_the_tool_allow_list_parses(tmp_path: Path, raw: str, expected: tuple[st
         ({}, "workers = ", "not valid TOML"),
         ({}, f"[{ADAPTER_CMD_TABLE}]\nphp = 3", f"{ADAPTER_CMD_TABLE}.php"),
         ({}, f'{ADAPTER_CMD_TABLE} = "php"', ADAPTER_CMD_TABLE),
+        ({}, f"[{ADAPTER_CMD_TABLE}]\nphp = []", f"{ADAPTER_CMD_TABLE}.php"),
+        ({}, f'[{ADAPTER_CMD_TABLE}]\nphp = ["", "x"]', f"{ADAPTER_CMD_TABLE}.php[0]"),
+        ({"CA_PHP_CMD": "   "}, "", "CA_PHP_CMD"),
         ({}, "tools = 4", "tools"),
     ],
     ids=[
@@ -202,6 +248,9 @@ def test_the_tool_allow_list_parses(tmp_path: Path, raw: str, expected: tuple[st
         "malformed-toml",
         "non-string-adapter-command",
         "adapter-cmd-not-a-table",
+        "empty-adapter-argv",
+        "empty-word-in-adapter-argv",
+        "blank-adapter-command",
         "tools-not-a-list",
     ],
 )

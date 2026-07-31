@@ -6,11 +6,13 @@ malformed value or an unknown project-file key raises :class:`ConfigError` rathe
 back (R5.3).
 
 Per-adapter launch commands are read generically: any ``CA_<LANG>_CMD`` variable becomes an entry
-keyed by the lower-cased name, so no language is ever hard-coded in the core (R1.1).
+keyed by the lower-cased name, so no language is ever hard-coded in the core (R1.1). Each resolves
+to a complete **argv** — the driver receives a ready command and never re-parses a string.
 """
 
 import os
 import re
+import shlex
 import tomllib
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -53,10 +55,10 @@ class Config:
     impact_depth: int
     impact_max_nodes: int
     tools: tuple[str, ...] | None
-    adapter_cmds: Mapping[str, str]
+    adapter_cmds: Mapping[str, tuple[str, ...]]
 
-    def adapter_cmd(self, lang: str) -> str | None:
-        """The launch command for one adapter, or None when none is configured for it."""
+    def adapter_cmd(self, lang: str) -> tuple[str, ...] | None:
+        """The launch argv for one adapter, or None when none is configured for it."""
         return self.adapter_cmds.get(lang.lower())
 
 
@@ -123,7 +125,9 @@ def _read_project_file(root: Path) -> Mapping[str, object]:
     return values
 
 
-def _adapter_cmds(env: Mapping[str, str], file_values: Mapping[str, object]) -> Mapping[str, str]:
+def _adapter_cmds(
+    env: Mapping[str, str], file_values: Mapping[str, object]
+) -> Mapping[str, tuple[str, ...]]:
     """Adapter launch commands from the project file, overridden by any ``CA_<LANG>_CMD``."""
     table = file_values.get(ADAPTER_CMD_TABLE, {})
     if not isinstance(table, dict):
@@ -131,15 +135,30 @@ def _adapter_cmds(env: Mapping[str, str], file_values: Mapping[str, object]) -> 
             f"{PROJECT_FILE}:{ADAPTER_CMD_TABLE}: expected a table of <lang> = <command>"
         )
 
-    cmds: dict[str, str] = {}
+    cmds: dict[str, tuple[str, ...]] = {}
     for key in sorted(table):
         label = f"{PROJECT_FILE}:{ADAPTER_CMD_TABLE}.{key}"
-        cmds[key.lower()] = _as_text(label, table[key])
+        cmds[key.lower()] = _as_command(label, table[key])
     for variable in sorted(env):
         found = ADAPTER_CMD_ENV.fullmatch(variable)
         if found:
-            cmds[found.group(1).lower()] = _as_text(variable, env[variable])
+            cmds[found.group(1).lower()] = _as_command(variable, env[variable])
     return MappingProxyType(cmds)
+
+
+def _as_command(label: str, raw: object) -> tuple[str, ...]:
+    """A complete launch argv. A list is taken verbatim; a string is split for the host platform.
+
+    POSIX splitting eats the backslashes of a Windows path (``C:\\bin\\tool.exe`` collapses into one
+    mangled word), so the split follows the platform and the list form always wins over quoting.
+    """
+    if isinstance(raw, list):
+        argv = tuple(_as_text(f"{label}[{index}]", word) for index, word in enumerate(raw))
+    else:
+        argv = tuple(shlex.split(_as_text(label, raw), posix=os.name != "nt"))
+    if not argv:
+        raise ConfigError(f"{label}: {raw!r} is not a command")
+    return argv
 
 
 def _as_path(label: str, raw: object) -> Path:

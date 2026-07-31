@@ -11,6 +11,9 @@ Qualified names follow CONVENTION §3. A container keeps its native separator (`
     \\ns\\func         src/user.ts::User::save   module.Class::method
 
 ``File`` nodes use the repo-relative path as their qualified name.
+
+An adapter opens the stream by announcing itself once — the **handshake** of §4.1, validated by
+:func:`validate_meta` — so the core never carries a table of who owns which file suffix.
 """
 
 CONTRACT_VERSION = 1
@@ -69,6 +72,9 @@ EDGE_FIELDS: tuple[str, ...] = (
 
 RESULT_FIELDS: tuple[str, ...] = ("path", "ok", "nodes", "edges", "error")
 
+# The handshake an adapter announces itself with, before any result (§4.1).
+META_FIELDS: tuple[str, ...] = ("name", "extensions", "capabilities", "contract_version")
+
 # The optional ones carry a default or stay NULL in the store (PLAN §10; target_qname per §8.2).
 REQUIRED_NODE_FIELDS: tuple[str, ...] = (
     "kind",
@@ -85,6 +91,8 @@ REQUIRED_EDGE_FIELDS: tuple[str, ...] = (
     "line",
 )
 REQUIRED_RESULT_FIELDS: tuple[str, ...] = ("path", "ok")
+# Capabilities are optional by definition (R1.6); the other three identify the adapter.
+REQUIRED_META_FIELDS: tuple[str, ...] = ("name", "extensions", "contract_version")
 
 # Advertised, never required: an absent flag is legal and the core degrades without it (R1.6).
 Capabilities = dict[str, bool]
@@ -139,6 +147,50 @@ def validate(result: object) -> list[str]:
         for index, row in enumerate(rows):
             errors += _check_row(f"{name}[{index}]", row, fields, required, kinds, label)
     return errors
+
+
+def validate_meta(meta: object) -> list[str]:
+    """Check one adapter handshake against the contract; return error messages, empty when valid.
+
+    The core reads everything it knows about an adapter from here — the name, the suffixes it owns,
+    the optionals it offers — so a malformed handshake is a loud startup failure, not a bad file.
+    """
+    if not isinstance(meta, dict):
+        return [_wrong_type("meta", meta, "an object")]
+
+    errors = _check_keys("meta", meta, META_FIELDS, REQUIRED_META_FIELDS)
+    if "name" in meta and (not isinstance(meta["name"], str) or not meta["name"].strip()):
+        errors.append(_wrong_type("meta.name", meta["name"], "a non-empty string"))
+    if "extensions" in meta:
+        errors += _check_extensions(meta["extensions"])
+    if "capabilities" in meta:
+        errors += _check_capabilities(meta["capabilities"])
+    version = meta.get("contract_version")
+    if "contract_version" in meta and (isinstance(version, bool) or not isinstance(version, int)):
+        errors.append(_wrong_type("meta.contract_version", version, "an integer"))
+    return errors
+
+
+def _check_extensions(extensions: object) -> list[str]:
+    """Suffixes are how a file reaches its adapter, so an empty or malformed list is fatal."""
+    if not isinstance(extensions, list) or not extensions:
+        return [_wrong_type("meta.extensions", extensions, "a non-empty list of file suffixes")]
+    return [
+        _wrong_type(f"meta.extensions[{index}]", suffix, "a suffix string starting with '.'")
+        for index, suffix in enumerate(extensions)
+        if not isinstance(suffix, str) or not suffix.startswith(".") or len(suffix) < 2
+    ]
+
+
+def _check_capabilities(capabilities: object) -> list[str]:
+    """Flags are booleans; an unknown flag is legal, so the core can meet a richer adapter."""
+    if not isinstance(capabilities, dict):
+        return [_wrong_type("meta.capabilities", capabilities, "an object of flag -> boolean")]
+    return [
+        _wrong_type(f"meta.capabilities.{flag}", value, "a boolean")
+        for flag, value in capabilities.items()
+        if not isinstance(value, bool)
+    ]
 
 
 def _check_failed_result(result: dict[str, object]) -> list[str]:
