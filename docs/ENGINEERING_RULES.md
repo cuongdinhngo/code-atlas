@@ -90,6 +90,11 @@ adapter contract. Everywhere else, prefer the simplest thing that works.
   and with sane counts. No single repo defines "correct".
 - **R6.4 — Guardrail tests are real tests.** The grep-gates (no language branches in core; no
   repo/framework names in adapters) run in CI and fail the build.
+- **R6.5 — A guardrail sweep covers *authored* source only, and is guarded against emptying itself.**
+  Every grep-gate or file sweep excludes vendored trees (`vendor/`, `node_modules/`) — a dependency's
+  own documentation is not this repo's source, and greps a framework name inside one. The exclusion
+  itself needs a test asserting the sweep is still non-empty; a filter that swallows the authored files
+  restores the 0/0 vacuity the guard existed to remove.
 
 ## 7. Change discipline
 
@@ -109,6 +114,10 @@ adapter contract. Everywhere else, prefer the simplest thing that works.
 - **R8.1** — Each adapter is self-contained with its own runtime/manifest (`composer.json`,
   `package.json`, `.csproj`) and documents how it's launched (`CA_<LANG>_CMD`). Adapter deps never leak
   into the Python core.
+- **R8.3 — An adapter's dependencies are pinned by a committed lock file** (`composer.lock`,
+  `package-lock.json`, `packages.lock.json`); only the resolved artifacts (`vendor/`, `node_modules/`)
+  are ignored. A floating version range lets two machines resolve different parser builds and emit
+  different rows from the same file, which R4.2 forbids.
 - **R8.2** — Keep core dependencies minimal (FastMCP + stdlib-first). Add a dependency only when it earns
   its place; prefer the standard library and SQLite features.
 

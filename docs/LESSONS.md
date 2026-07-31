@@ -3,6 +3,32 @@
 Durable lessons discovered while shipping tasks: constraints found, wrong assumptions, process gaps.
 One entry per lesson; newest first.
 
+## 006 — An `instanceof` narrow that falls through to null erases the difference between "absent" and "unhandled"
+The PHP visitor read a parameter's type as `$param->type instanceof Node\Name ? fqn(...) : null`. That
+looked right and passed both fixtures, because both typed parameters happened to use *class* types. But
+`string`, `int`, `bool` and every other scalar hint arrive as `Node\Identifier`, so they fell through to
+`null` — and in the emitted JSON, `"type": null` is exactly what an **untyped** parameter looks like. The
+adapter was not deferring the case; it was reporting the wrong answer, and nothing could tell. A
+ticket-blind challenger found it by writing its own probe file with a scalar hint. **Fix:** when mapping
+a foreign AST or schema into your own vocabulary, an `instanceof` chain whose fallback is `null` needs
+either exhaustive arms or a loud fallback — never a silent one that collides with a legitimate value.
+Generalises: a partial mapping is only safe when "I did not handle this" is **distinguishable in the
+output** from "this was not there". Ask of every `?:` default whether some real input already produces
+that same value; if so, the branch cannot be audited from the data.
+
+## 006 — The first vendored dependency turns a repo-wide grep-gate into a false positive
+`ci.yml`'s R2.2 gate greps `adapters/` for framework names. It was green for five tasks because
+`adapters/` was empty. The first `composer install` put 280 files there, and **Composer's own
+`vendor/composer/ClassLoader.php` documents itself with a `Symfony\Component` example** — so a
+guardrail about *our* source failed on a dependency nobody here wrote. The same run also had
+`tests/test_sql_confinement.py` sweeping all 280 dependency files looking for the string `code_atlas`.
+**Fix:** scope every guardrail grep to *authored* source (`--exclude-dir=vendor --exclude-dir=node_modules`)
+and then guard the scoping — a filter that quietly swallows the authored files too restores exactly the
+0/0 vacuity the guard existed to remove (LESSONS 002), so assert the sweep is non-empty. Do it in the
+change that introduces the first dependency, since that is the change that creates the collision.
+Generalises: a text-grep guardrail's blast radius is a **directory**, not a codebase, and directories
+grow third-party content the moment a package manager runs.
+
 ## 005 — A subprocess seam fails by silence and by chatter, not by errors
 Two failure modes of a long-lived adapter process are invisible in the happy path and neither raises.
 **Chatter:** with `stderr=PIPE` left undrained, a child that writes more than a pipe buffer (~64 KB)
