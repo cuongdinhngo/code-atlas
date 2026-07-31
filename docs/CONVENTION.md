@@ -101,9 +101,19 @@ code-atlas/
 
 - Return **qualified names + `file:line`**, not source bodies — unless it's a read tool (`read_symbol`,
   `file_outline`).
-- Every tool accepts `detail_level ∈ {minimal, standard}`.
-- `get_index_status` is the cheap entry point (~100 tok) and suggests next tools.
-- Tool availability gated by the `CA_TOOLS` allow-list.
+- Every tool accepts `detail_level ∈ {minimal, standard}`, typed as a `Literal` so the protocol
+  validates it and publishes the choice in the input schema. Default **`standard`**; `minimal` is a
+  strict subset — the tool's own payload with the provenance fields dropped.
+- One module per tool at `code_atlas/tools/<tool_name>.py`, named exactly as the MCP tool. Each
+  exposes `NAME` and a `create(...)` that returns the registered function: **the returned function's
+  signature is the MCP signature and its docstring is the tool description**, so configuration flows
+  in through the closure rather than through global state.
+- `get_index_status` is the cheap entry point (~100 tok) and suggests next tools — **only tools the
+  server actually registered**, never one a client could not call.
+- Tool availability gated by the `CA_TOOLS` allow-list; a name that is not a served tool is a loud
+  `ConfigError`, checked in `main.py` (the only place that knows the tool names).
+- A tool opens its own `GraphStore` **inside the call**. FastMCP runs tools on a worker thread, and a
+  sqlite3 connection belongs to the thread that created it, so a store held by the server raises.
 
 ## 7. Git conventions
 
