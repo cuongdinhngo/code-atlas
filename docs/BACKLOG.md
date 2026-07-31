@@ -15,7 +15,7 @@ is [`PLAN.md`](PLAN.md).
 | 003 | [Config (CA_*) & ignore rules](tasks/003_config-and-ignore.md) | Setup | done | 001 |
 | 004 | [SQLite store & schema](tasks/004_sqlite-store.md) | Core | done | 001, 002 |
 | 005 | [Adapter protocol & subprocess driver](tasks/005_adapter-protocol.md) | Core | done | 002 |
-| 006 | [PHP adapter spike](tasks/006_php-adapter-spike.md) | M0 | todo | 002 |
+| 006 | [PHP adapter spike](tasks/006_php-adapter-spike.md) | M0 | in-progress | 002 |
 | 007 | [PHP adapter — full coverage & server mode](tasks/007_php-adapter-visitor.md) | M0 | todo | 006, 005 |
 | 008 | [PHP runtime invocation (host / Docker)](tasks/008_php-runtime-modes.md) | M1 | todo | 005, 007 |
 | 009 | [Full build indexer + workers](tasks/009_full-build-indexer.md) | M1 | todo | 004, 005, 007 |
@@ -60,6 +60,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 004 | SQLite store & schema | **78.1k dispatch** — 1 subagent (ticket-blind challenger; reviewer skipped by user decision), 27 tool uses / 313 s. **Main-loop spend unmeasured for this task**: mango measures dispatch only, and `rtk gain` reports a global all-time figure (22.8M saved over 4,774 commands) that cannot be attributed to one task — so unlike 002/003 there is no session-transcript figure here, and none is invented | [#7](https://github.com/cuongdinhngo/code-atlas/pull/7) |
 
 | 005 | Adapter protocol & subprocess driver | **181.6k dispatch** — 2 subagents, both in review round 1: `mango:reviewer` 108.9k (38 tool uses / 426 s) + `mango:challenger` 72.7k (27 tool uses / 286 s). Phases 1–3 dispatched **nothing** (no Explore fan-out; 12 read-only spikes did the de-risking on the main model), and review round 2 was verify-only in the main loop, so it dispatched nothing either. **Main-loop spend is unmeasured for this task**, as for 004: mango measures dispatch only, and `rtk gain` reports a global all-time figure that cannot be attributed to one task — so no session-transcript number is invented here | [#10](https://github.com/cuongdinhngo/code-atlas/pull/10) |
+| 006 | PHP adapter spike | **73.9k dispatch** — 1 subagent (`mango:challenger`, 34 tool uses / 228 s). The `mango:reviewer` pass was skipped by user instruction, and phases 1–3 dispatched nothing: five read-only spikes on the main model did the de-risking, and the post-review round was verify-only in the main loop. **Main-loop spend is unmeasured**, as for 004 and 005 — mango measures dispatch only, and `rtk gain` reports a global all-time figure that cannot be attributed to one task, so none is invented here | [#13](https://github.com/cuongdinhngo/code-atlas/pull/13) |
 ## Suggested order
 
 Critical path to first release: **001 → 002 → 004/005 → 006 → 007 → 009 → 010 → 011 → 013 → 014 (ship)**.

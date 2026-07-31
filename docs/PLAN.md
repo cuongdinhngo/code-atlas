@@ -213,7 +213,7 @@ None of these appear as branches or constants in the adapter. Other repos (a Lar
 
 ## 7. PHP adapter (`adapters/php/`)
 
-- Parse with `ParserFactory::createForNewestSupportedVersion()` (8.5); add `NameResolver` so every `Name` carries a resolved FQN and declarations get `namespacedName`.
+- Parse with `ParserFactory::createForNewestSupportedVersion()` (8.5); add `NameResolver` so every `Name` carries a resolved FQN and declarations get `namespacedName`. **`NameResolver` writes those FQNs without a leading separator** (`App\Models\User`), while the qname convention (§4.2) is anchored at the global namespace (`\App\Models\User`) — the adapter prepends it. Note the parser is pure PHP: it parses 8.5 grammar on an 8.1+ runtime, so the host PHP version is a speed choice, not a grammar one.
 - Custom `Visitor` (extends `NodeVisitorAbstract`, overrides `enterNode`) emits contract nodes/edges from: `Namespace_, Class_, Interface_, Trait_, Enum_, Function_, ClassMethod, Property, ClassConst` and edges from `extends/implements`, `TraitUse`, `MethodCall/StaticCall/FuncCall`, `New_`, `Use_`, `Include_`.
 - Per-file `ErrorHandler\Collecting` → a bad file returns `ok:false`, never breaks the stream.
 - Emits **bare** edges (targets are FQNs/names); cross-file linking is the core's resolver (§8.2) — a single file can't know all targets.
@@ -223,7 +223,7 @@ Sketch:
 $parser = (new ParserFactory())->createForNewestSupportedVersion();
 $tr = new NodeTraverser();
 $tr->addVisitor(new NameResolver($errors));      // FQNs + namespacedName
-$tr->addVisitor($v = new \CodeGraph\Php\Visitor($path));
+$tr->addVisitor($v = new \CodeAtlas\Php\Visitor($path));
 $tr->traverse($ast);
 echo json_encode(['path'=>$path,'ok'=>true,'nodes'=>$v->nodes,'edges'=>$v->edges]), "\n";
 ```

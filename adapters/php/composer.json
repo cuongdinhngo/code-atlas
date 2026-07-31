@@ -1,0 +1,18 @@
+{
+    "name": "code-atlas/php-adapter",
+    "description": "Parses PHP into the code-atlas contract vocabulary and prints it as JSON.",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.1",
+        "nikic/php-parser": "^5"
+    },
+    "autoload": {
+        "psr-4": {
+            "CodeAtlas\\Php\\": "src/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

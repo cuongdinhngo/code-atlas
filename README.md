@@ -91,7 +91,7 @@ re-include what an earlier source excluded.
 
 | Language | Parser | Status |
 |---|---|---|
-| PHP (8.5) | nikic/php-parser | In progress (first) |
+| PHP (8.5 grammar, 8.1+ runtime) | nikic/php-parser | In progress (first) — see [`adapters/php/`](adapters/php/) |
 | TypeScript / JavaScript | TypeScript Compiler API | Planned |
 | Python | `ast` + jedi | Planned |
 | C# / .NET | Roslyn | Planned |
