@@ -15,7 +15,7 @@ is [`PLAN.md`](PLAN.md).
 | 003 | [Config (CA_*) & ignore rules](tasks/003_config-and-ignore.md) | Setup | done | 001 |
 | 004 | [SQLite store & schema](tasks/004_sqlite-store.md) | Core | done | 001, 002 |
 | 005 | [Adapter protocol & subprocess driver](tasks/005_adapter-protocol.md) | Core | done | 002 |
-| 006 | [PHP adapter spike](tasks/006_php-adapter-spike.md) | M0 | in-progress | 002 |
+| 006 | [PHP adapter spike](tasks/006_php-adapter-spike.md) | M0 | done | 002 |
 | 007 | [PHP adapter — full coverage & server mode](tasks/007_php-adapter-visitor.md) | M0 | todo | 006, 005 |
 | 008 | [PHP runtime invocation (host / Docker)](tasks/008_php-runtime-modes.md) | M1 | todo | 005, 007 |
 | 009 | [Full build indexer + workers](tasks/009_full-build-indexer.md) | M1 | todo | 004, 005, 007 |
@@ -28,6 +28,7 @@ is [`PLAN.md`](PLAN.md).
 | 016 | [Incremental update via git diff](tasks/016_incremental-git.md) | M5 | todo | 011, 009 |
 | 017 | [Impact engine + tool + prompts](tasks/017_impact-engine.md) | M6 | todo | 013, 016 |
 | 018 | [Cross-repo validation](tasks/018_cross-repo-validation.md) | M4 | todo | 015 |
+| 024 | [CI hardening](tasks/024_ci-hardening.md) | Setup | in-progress | 001 |
 
 ## Phase 2 — More languages
 
@@ -64,7 +65,8 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 ## Suggested order
 
 Critical path to first release: **001 → 002 → 004/005 → 006 → 007 → 009 → 010 → 011 → 013 → 014 (ship)**.
-003 (config) and 008 (runtime) slot in before 009. 012 (tests) runs alongside 007+. Then 015–018 harden
+003 (config) and 008 (runtime) slot in before 009. 012 (tests) runs alongside 007+; 024 (CI) is
+independent and can land any time. Then 015–018 harden
 PHP, 019–021 add languages, 022–023 add onboarding.
 
 ## Conventions

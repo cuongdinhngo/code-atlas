@@ -15,6 +15,7 @@ Fourth adapter — confirms the contract for a second namespaced + semantic-mode
 - `adapters/csharp/`: .NET sidecar over Roslyn; full semantic model → precise type/call/ref edges.
 - Map `Namespace.Type.Member` onto the shared qname shape; advertise `semantic_types` → pre-resolved edges.
 - Document .NET SDK runtime requirement.
+- **CI:** add `actions/setup-dotnet` and a restore/build step for `adapters/csharp/`, with the lockfile committed (R8.3). This is the heaviest runtime of the four — likely the point where the adapter jobs must split from the core job so a Python-only change does not pay for a .NET SDK install.
 
 ## Acceptance criteria
 - Passes `tests/contract/` with C# fixtures; core unchanged.

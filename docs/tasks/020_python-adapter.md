@@ -15,6 +15,7 @@ Third adapter — cheap once the contract is hardened (§3, §15).
 - `adapters/python/`: `ast` builtin for parse + `jedi` for import/name resolution.
 - Map qnames as `module.Class.method`; emit the standard node/edge vocabulary.
 - Runs in-process or a venv (document runtime).
+- **CI:** `jedi` becomes a test-time dependency. Keep it out of the core's runtime dependencies (R8.2) — it belongs to the adapter, not to `code_atlas`, even though both are Python.
 
 ## Acceptance criteria
 - Passes `tests/contract/` with Python fixtures; core unchanged.

@@ -16,6 +16,7 @@ The daily-usable core: find, outline, and read symbols cheaply (§12). **Ship po
 - `file_outline(path)` — symbols + line ranges, no body.
 - `read_symbol(qname)` — source of just that class/method + docblock.
 - Efficiency prompts: `explore_area`, `find_usages` (status → search/outline → read only what's needed).
+- **CI:** this is the first tagged release, so it needs a release path — at minimum a build/install check (`pip install .` from a clean checkout) proving the package installs outside the dev venv, and a tag-triggered workflow if artifacts are published.
 
 ## Acceptance criteria
 - Search returns ranked, relevant symbols on the fixture repo within `CA_MAX_RESULTS`.

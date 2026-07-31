@@ -15,6 +15,7 @@ Prove global-namespace/PSR-0 resolution and large-repo performance (§6, §8).
 - Global-namespace & PSR-0 (`Foo_Bar_Baz` ↔ `Foo/Bar/Baz.php`) resolution end-to-end.
 - `include_graph(path, direction)` tool over `include`/`require` edges.
 - Run the ~112k-file validation sample (a large PHP monorepo) end-to-end; capture full-build timing as the perf target.
+- **CI:** the 112k-file run cannot live in per-PR CI — wrong runtime, and the sample is not a public checkout. Put it in a separate opt-in / scheduled workflow (or a documented local procedure) and record the timing as an artifact, so "timing recorded" has a place to be recorded to.
 
 ## Acceptance criteria
 - Underscore/global symbols resolve correctly (not dropped).

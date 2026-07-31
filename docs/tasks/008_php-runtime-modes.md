@@ -15,6 +15,7 @@ Run the PHP adapter whether or not PHP is on the host PATH (§9).
 - `CA_PHP_CMD` wiring: (A) host PHP CLI (default), (B) `docker compose exec -T php php`.
 - Path mapping for Docker (`CA_HOST_ROOT`/`CA_CONTAINER_ROOT`); store repo-relative paths regardless.
 - Document the tokenizer-only requirement (no app extensions needed for indexing).
+- **CI:** the Docker mode has no runner path today — CI installs PHP on the host only. Either add a service/compose step so the "same fixture under both modes" criterion is actually executed, or record Docker mode as a named, human-approved coverage-gap exclusion. A criterion that only ever runs on one developer's laptop is not proven (LESSONS 002).
 
 ## Acceptance criteria
 - Same fixture parses identically under host mode and Docker mode (repo-relative paths match).
