@@ -16,9 +16,8 @@ venv/
 build/
 dist/
 
-# PHP adapter
+# PHP adapter — the lock file is committed on purpose, so every machine resolves one parser build
 adapters/php/vendor/
-composer.lock
 
 # Node / TS adapter (later)
 node_modules/
