@@ -9,21 +9,28 @@ depends_on: [006, 005]
 ---
 
 ## Goal
-Complete the PHP adapter to the language standard and add streaming `--server` mode (§6, §7).
+Make the PHP adapter drivable by the core: streaming `--server` mode over the subprocess protocol,
+with per-file failures that never break the stream (§7, §4.1).
+
+> **Re-scoped at Gate 0 (2026-07-31, user-ratified).** This card originally bundled full 8.5 grammar
+> coverage with the protocol. The protocol alone unblocks tasks 008 and 009 on the critical path to
+> the M3 ship, while grammar coverage is waited on only by task 012, so the two ship separately.
+> The 23 remaining constructs moved to [task 025](025_php-adapter-grammar.md) — nothing was dropped.
 
 ## Scope / Deliverables
-- Nodes: `Namespace_, Class_ (abstract/final/readonly), Interface_, Trait_, Enum_ (pure/backed), anon classes, ClassMethod, Property (incl. promoted/typed/readonly), ClassConst, enum cases, Function_, closures, arrow fns, first-class callables`.
-- Edges: `extends/implements`, `TraitUse`, `MethodCall/StaticCall/FuncCall`, `New_`, `Use_` (incl. group-use, function/const imports, aliases), `Include_`.
-- Attributes captured raw on declarations.
 - `ErrorHandler\Collecting` → bad file returns `ok:false`, stream continues.
 - `--server` stdin loop matching the subprocess protocol; emits **bare** edges (targets as FQNs/names).
+- `--file` preserved unchanged, sharing one parse implementation with `--server`.
 
 ## Acceptance criteria
-- Emits correct nodes/edges for each construct above (asserted in fixtures — task 012).
+- The core's `SubprocessAdapter` drives the real adapter end to end: handshake accepted, one reply
+  per request correlated by `path`, clean exit on EOF.
+- A file that cannot be read or parsed returns `ok:false` and the process serves the next request.
+- stdout carries the protocol and nothing else, whatever the host's `php.ini` says.
 - No repo/framework names in adapter source (grep-gate clean).
 
 ## References
-Plan §6, §7, §2 (standard over sample).
+Plan §7, §4.1, §2 (standard over sample). Grammar coverage: task 025.
 
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
 
