@@ -15,6 +15,7 @@ Prove the adapter follows the language standard, not one sample (§2, §16).
 - Run the PHP adapter against several varied repos: a Laravel app, a Symfony app, a small PSR-4 library, and a large PHP monorepo.
 - Assert: no crashes; sane node/edge counts; syntax errors isolated per file.
 - Document any construct gaps found (feed back into task 007).
+- **CI:** cloning several third-party repos is network-bound and slow, and one sample is not public. This belongs in a scheduled/opt-in workflow, never the per-PR gate; per-PR CI keeps only the spec-driven fixtures (R6.2).
 
 ## Acceptance criteria
 - All sample repos index without crashing; counts are plausible.

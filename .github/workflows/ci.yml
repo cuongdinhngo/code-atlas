@@ -6,54 +6,95 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
-    name: lint · type · test
+    name: lint · type · test (py${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The range pyproject.toml claims to support. Development happens on the newer one.
+        python-version: ["3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
 
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          if [ -f pyproject.toml ]; then
-            pip install -e ".[dev]"
-          else
-            pip install ruff mypy pytest
-          fi
+          pip install -e ".[dev]"
 
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.3"
 
+      - uses: actions/cache@v4
+        with:
+          path: adapters/php/vendor
+          key: composer-${{ hashFiles('adapters/php/composer.lock') }}
+
       - name: Install the PHP adapter's own runtime deps
         run: composer install --no-interaction --no-progress --working-dir=adapters/php
 
+      # No `if:` guards below. They existed while these directories were empty; today their only
+      # effect would be to skip the check and pass green when the directory goes missing.
       - name: Lint (ruff)
         run: ruff check .
 
       - name: Type-check (mypy)
-        if: ${{ hashFiles('code_atlas/**/*.py') != '' }}
         run: mypy code_atlas
 
       - name: Tests (pytest — unit · contract · integration)
-        if: ${{ hashFiles('tests/**/*.py') != '' }}
         run: pytest -q
+
+  adapters:
+    name: adapter manifests · syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+
+      - name: R8.3 — composer.json and the committed lock agree
+        run: composer validate --strict --no-check-publish --working-dir=adapters/php
+
+      - name: PHP syntax check, authored source only (R6.5)
+        run: |
+          count=$(find adapters -path '*/vendor' -prune -o -name '*.php' -print | wc -l)
+          if [ "$count" -eq 0 ]; then
+            echo "::error::no authored adapter source found — this check would pass vacuously"
+            exit 1
+          fi
+          find adapters -path '*/vendor' -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
+          echo "php -l ok on $count file(s)"
 
   guardrails:
     name: rulebook grep-gates
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # R7.3 compares the PR's commit range, which a shallow clone cannot see.
+          fetch-depth: 0
 
       - name: R1.1 — no language branches in the core
         run: |
-          if [ -d code_atlas ] && \
-             grep -rEn 'if[^\n]*\blanguage\b[^\n]*==|match[^\n]*\blanguage\b' code_atlas/; then
+          if [ ! -d code_atlas ]; then
+            echo "::error::R1.1 — code_atlas/ is missing; this gate cannot pass vacuously"
+            exit 1
+          fi
+          if grep -rEn 'if[^\n]*\blanguage\b[^\n]*==|match[^\n]*\blanguage\b' code_atlas/; then
             echo "::error::R1.1 — language branch found in core (fix the contract, not the core)"
             exit 1
           fi
@@ -64,10 +105,30 @@ jobs:
           # Authored source only: Composer's own autoloader documents itself with a Symfony
           # example, so an unscoped grep fails on a dependency nobody here wrote.
           # Denylist grows as frameworks are added; the authoritative gate lands with task 012.
-          if [ -d adapters ] && \
-             grep -rEin --exclude-dir=vendor --exclude-dir=node_modules \
+          if [ ! -d adapters ]; then
+            echo "::error::R2.2 — adapters/ is missing; this gate cannot pass vacuously"
+            exit 1
+          fi
+          if grep -rEin --exclude-dir=vendor --exclude-dir=node_modules \
                'laravel|symfony|wordpress|drupal|magento' adapters/; then
             echo "::error::R2.2 — repo/framework name found in adapter source"
             exit 1
           fi
           echo "R2.2 ok"
+
+      - name: R7.3 — no co-author or AI-attribution trailer
+        if: github.event_name == 'pull_request'
+        env:
+          RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+        run: |
+          count=$(git rev-list --count "$RANGE")
+          if [ "$count" -eq 0 ]; then
+            echo "::error::R7.3 — empty commit range; this gate would pass vacuously"
+            exit 1
+          fi
+          if git log --format='%B' "$RANGE" \
+               | grep -Ein 'co-authored-by:|generated with|🤖'; then
+            echo "::error::R7.3 — co-author / AI-attribution trailer found in a commit message"
+            exit 1
+          fi
+          echo "R7.3 ok over $count commit(s)"

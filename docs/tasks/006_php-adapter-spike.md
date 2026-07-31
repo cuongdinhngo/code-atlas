@@ -4,7 +4,7 @@ slug: php-adapter-spike
 title: PHP adapter spike (M0)
 phase: 1
 milestone: M0
-status: in-progress
+status: done
 depends_on: [002]
 ---
 
@@ -749,16 +749,19 @@ saving to claim.
 
 ### Session status
 
-- **Phase:** 5 (finalise) complete. Task 006 is **awaiting merge**.
-- **Branch:** `feat/006-php-adapter-spike`, 7 commits, pushed. PR
-  **[#13](https://github.com/cuongdinhngo/code-atlas/pull/13)**.
-- **Next action:** merge #13, then a small status-sync change setting `status: done` in **both** this
-  file's frontmatter and `docs/BACKLOG.md` — it cannot ride this PR, because the status only becomes
-  true once the PR merges. Same pattern as `chore/004-status-sync` (#8) and `chore/005-status-sync` (#11).
-  After that, **task 007** (PHP adapter full coverage & server mode) is unblocked and is the critical path.
-- **Revert path:** before merge — `git checkout main && git branch -D feat/006-php-adapter-spike` and
-  `git push origin --delete feat/006-php-adapter-spike`; `main` at `866d67d` is untouched and no core
-  module changed. After merge — `git revert -m 1 <merge sha>`; the only non-additive hunks are
-  `.gitignore:19`, `.github/workflows/ci.yml:29,55`, `tests/test_sql_confinement.py:44` and the
-  `docs/PLAN.md` §7 line, all of which revert cleanly. Deleting `adapters/php/` alone restores the
-  pre-006 state of every guard, since nothing in `code_atlas/` depends on it.
+- **Phase:** 5 (finalise) complete. Task 006 is **CLOSED** — PR
+  [#13](https://github.com/cuongdinhngo/code-atlas/pull/13) merged as `86b97f6`.
+- **CI proved assumption A4.** The one `novel-untested` assumption of the design — that a GitHub
+  runner can install PHP and the adapter's dependencies — resolved green on the merged run:
+  `setup-php@v2` installed PHP 8.3.33, `composer install` pulled nikic/php-parser v5.8.0 from the
+  committed lock, and pytest reported **251 passed, 0 skipped**. Zero skips is the load-bearing part:
+  five of those tests skip themselves when PHP or `vendor/` is missing, so a skipped run would have
+  meant the PHP path never executed. Both grep-gates reported ok.
+- **Status:** `done` in this frontmatter and in `docs/BACKLOG.md`.
+- **Next action:** task **007** (PHP adapter — full language coverage & server mode) is the critical
+  path and is now unblocked. Task **024** (CI hardening) was opened out of this task's close-out and is
+  independent.
+- **Revert path:** `git revert -m 1 86b97f6`. The only non-additive hunks are `.gitignore:19`,
+  `.github/workflows/ci.yml:29,55`, `tests/test_sql_confinement.py:44` and the `docs/PLAN.md` §7 line;
+  all revert cleanly. Deleting `adapters/php/` alone restores the pre-006 state of every guard, since
+  nothing in `code_atlas/` depends on it.
