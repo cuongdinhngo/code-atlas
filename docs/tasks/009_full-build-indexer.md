@@ -4,7 +4,7 @@ slug: full-build-indexer
 title: Full build indexer + workers (M1)
 phase: 1
 milestone: M1
-status: todo
+status: done
 depends_on: [004, 005, 007]
 ---
 
@@ -627,3 +627,168 @@ under contention) proven in `tests/test_store.py`, beside the pragma. **16/16.**
 **The three carried exclusions are closed:** task 002's `contract.validate()` integration half (AC3),
 task 005's hung adapter at **both** call sites (AC4), task 004's `busy_timeout` contention with a
 `busy_timeout=0` negative control (AC5).
+
+---
+
+## Phase 4 — Review ✋ (clean)
+
+**Reviewer dispatch: skipped by user instruction** (*"execute xong thì chạy challenger là đủ rồi"*,
+carried standing from task 007 and restated for this run). The ticket-blind `mango:challenger` ran;
+`mango:reviewer` did not.
+
+### Challenger — ticket-blind, round 1
+
+Payload was **only** the raw ticket text above the working-doc separator plus the branch diff; the
+working doc was withheld, and the agent confirmed in its own independence note that it did not open
+this file. It rebuilt **12 requirements** from the ticket prose and ran the suite itself.
+
+**Verdict: 12 met · 0 not met · 0 can't-tell.** It ran
+`pytest tests/test_indexer.py tests/test_store.py tests/test_config.py` in the live tree: 136
+passed, **0 skipped** — it verified for itself that the PHP-backed proving test was not skipped.
+
+Its own summary of the concurrency work: *"the hang tests use genuinely sleeping subprocesses rather
+than mocks, and the busy_timeout and single-writer claims each carry a negative control showing the
+proof can actually fail."*
+
+### Findings, and what was done
+
+| # | Severity | Finding | Disposition |
+|---|----------|---------|-------------|
+| 1 | low | **`R10` is a dangling citation.** `tests/test_indexer.py` cited "R10" for the pinned worker count; the rule book stops at **R8.3**. R10 is this working doc's *matrix row* id, which means nothing to a reader holding only the test file. | **Fixed** — both sites now cite **R4.2**, the rule actually in play. Valid finding: the citation was traceable to nothing. |
+| 2 | low | **The watchdog comment overstates its own guarantee.** It claimed that killing under the lock means "a call that just finished cannot be killed on its way out". It can: the poll thread may take the lock in the window between the guarded call returning and `guard()`'s `finally` popping the token. | **Fixed — the comment, not the code.** The race is inherent to any deadline (a call finishing *at* its deadline is indistinguishable from one that has not), and its whole cost is one adapter restart on the next path — never a lost result, never a hang, since the successful `ParseResult` is already captured before the kill. Pretending it away would have been the wrong fix; the comment now states the truth. |
+| 3 | informational | BACKLOG status, this file's frontmatter, and the Token-usage row are still `todo` / absent. | **Expected mid-lifecycle**, and deliberate: flipping one status site without the other fails `tests/test_backlog_bookkeeping.py`. All three land together at finalise, where the dispatch cost is known. The challenger independently confirmed no PR exists yet. |
+
+It also examined the **D1 deviation** without having seen the deviation record, and reached the same
+conclusion independently: *"a defensible, disclosed deviation rather than a silent drop"*, noting the
+in-code marker at `indexer.py` and the PLAN/LESSONS corrections. That is the adjudication D1 needed.
+
+### Re-review — verify-only, in the main loop
+
+Both fixes stayed **inside the two named findings** and touched only `code_atlas/indexer.py` and
+`tests/test_indexer.py`, which were already on the approved change list. No scope changed, so no
+subagent was re-dispatched and the requirement reconstruction was not repeated.
+
+- Both fixes verified present as described.
+- Affected proof re-run plus the full regression scan: **342 passed**, `ruff check .` clean,
+  `mypy code_atlas` clean.
+
+### Clean-verdict criteria
+
+| Criterion | Result |
+|-----------|--------|
+| Reviewer reports no Critical | reviewer skipped by user instruction; the challenger reported no Critical and no High |
+| Challenger finds every item met | **12/12 met**, 0 not met |
+| No layer-match `❌` standing | none — the Gate-2 verification plan had no `❌` |
+| `k = N` on every inventory | **A 16/16**, **B 6/6** — every row confirmed individually, not by total |
+| Surface coverage `N == M + X` | inert (`TRACK: backend`, `SURFACES: N/A`) |
+| Proving test green | `…builds_a_repo_into_a_queryable_index` passes against the real adapter |
+| Baseline comparison | `BASELINE: green` → 317 passed then, **342 passed** now, **0 skipped**, no new failure |
+
+**Verdict: clean.**
+
+### Stale-review guard
+
+`Reviewed at 104dc7ba39f38d64804d3ed8fd6fc511710ac346`
+
+Reviewed files (13): `code_atlas/adapter.py`, `code_atlas/config.py`, `code_atlas/gitutil.py`,
+`code_atlas/indexer.py`, `code_atlas/store.py`, `docs/CONVENTION.md`, `docs/LESSONS.md`,
+`docs/PLAN.md`, `tests/fixtures/adapter/fake_adapter.py`, `tests/test_config.py`,
+`tests/test_indexer.py`, `tests/test_store.py`, and this working doc.
+
+Working-doc path (exempt from the staleness comparison, per `work_doc_mode: embed`):
+`docs/tasks/009_full-build-indexer.md`. Also exempt: `docs/LESSONS.md` (mango bookkeeping) and
+`docs/BACKLOG.md` (the status/token sync finalise still owes).
+
+---
+
+## Phase 5 — Finalise ✋ final gate
+
+### Stale-review guard
+
+Marker: `Reviewed at 104dc7ba39f38d64804d3ed8fd6fc511710ac346`.
+
+- `git diff --name-only 104dc7b..HEAD` → **empty**.
+- Uncommitted: `docs/tasks/009_full-build-indexer.md` only — the marker-bearing working doc, which
+  `work_doc_mode: embed` makes an exempt path by construction.
+- Non-exempt files beyond the reviewed set: **none** → **not stale, proceed.**
+
+### Pre-PR self-check (`.github/pull_request_template.md`)
+
+| Item | Verdict | Evidence |
+|------|---------|----------|
+| No language branch in the core — R1.1 | ✅ | `tests/test_core_is_language_agnostic.py` sweeps `code_atlas/` for nine language tokens including comments; `indexer.py` takes the suffix set and `files.language` from handshakes only |
+| Adapters name no repo/framework — R2 | ✅ N/A | no adapter source changed; the CI gate over `adapters/` still passes |
+| Contract changes bump `contract_version` — R3 | ✅ N/A | `CONTRACT_VERSION` unchanged at 1; no vocabulary, field or qname change |
+| There is a test, and it is the smallest change that ships value | ✅ | +25 tests; `SCOPE: L` re-affirmed at Gate 2 and the realized diff is a strict subset of the approved list |
+| Comments ≤ 3 lines each — R7.5 | ✅ | every new comment checked; the longest is 3 lines (`indexer.py` watchdog and D1 notes) |
+| Related docs updated | ✅ | PLAN §4.1 + §8.1 (steps 3–5) + §11 · CONVENTION §2 · LESSONS ×2 · BACKLOG status + token row · this file's frontmatter. README needs no change — it documents no knob list |
+| No `Co-Authored-By` / AI-attribution trailer | ✅ | CI's R7.3 gate runs over the PR's commit range; checked locally over all 8 commits |
+
+### Cost ledger
+
+| Phase | Subagent / dispatch | Round | Tokens | Optimizer applied · est./measured saving |
+|-------|---------------------|-------|--------|------------------------------------------|
+| 1 — analysis | none dispatched (`explore_fanout` available; the session forbids subagents unless requested) | — | 0 dispatch | rtk active; per-task saving not attributable (`rtk gain` is global all-time) |
+| 2 — design | none dispatched — 5 runtime assumptions spiked on the main model against the real store, driver and git | — | 0 dispatch | as above |
+| 3 — execute | none dispatched — 5 negative-control mutations run on the main model | — | 0 dispatch | as above |
+| 4 — review | `mango:challenger` (ticket-blind), 30 tool uses / 378 s. `mango:reviewer` **skipped by user instruction** | 1 | **96.3k** | as above |
+| 4 — review | re-review after findings 1–2: **verify-only, main loop, no dispatch** | 2 | 0 dispatch | the cheap path taken by default, not by luck |
+| 5 — finalise | none dispatched | — | 0 dispatch | as above |
+
+`LEDGER TOTAL: 96.3k dispatch · top cost driver: phase 4 — mango:challenger`
+
+**Scope, stated honestly:** this ledger measures **subagent dispatch only**. Main-loop spend — the
+five spikes, the six mutation runs, every test and lint invocation, every file read — is **not
+measured by mango**, and no dispatch-vs-noise split is invented here. For the output-noise side, see
+`rtk gain`, which reports a global all-time figure that cannot be attributed to one task.
+
+### Durable lesson
+
+**Yes — two, both written to `docs/LESSONS.md` and carried by a commit the branch push already
+includes**, so neither is orphaned on a branch a merge will delete:
+
+1. *"The runtime may already enforce the rule you were about to prove by convention"* — `sqlite3`
+   binds a connection to its creating thread, so R4.3's single writer cannot be violated silently.
+   Found by a spike tagged `novel-untested` **before** Gate 2, which came back **false**.
+2. *"A negative control can indict the code instead of the test"* — of five mutations, two came back
+   green and meant opposite things: M3 exposed a weak fixture, M6 exposed an unreachable line.
+
+### Follow-up tickets
+
+**None needed.** The matrix carries **zero ⚠ (deferred) rows**: A 16/16 and B 6/6 are proven in this
+card, and the three exclusions it inherited are closed rather than re-deferred. The single
+coverage-gap exclusion (Windows behaviour of the watchdog) is **carried from task 005**, was
+human-approved there, and already has its follow-up recorded — a Windows CI matrix leg.
+
+## Cost ledger — see Phase 5
+
+## Decision log
+
+| When | Decision | Why |
+|------|----------|-----|
+| Phase 1 | The denominator is **A=16 / B=6**, not the ticket's five bullets | PLAN §8.1 and the three carried exclusions are the real obligation set; counting only what the prose named is how a tail ships unproven |
+| Phase 1 | Five acceptance values pinned to measurable forms before any code | "queryable", "idempotent", "no lock contention", the missing deadline number, and an unexercised pragma are each unfalsifiable as written |
+| Gate 0 | **`CA_ADAPTER_TIMEOUT`, default 30 s** — a knob, not a constant | CI must pin it (R4.2), and §11 already derives the env name from the key, so a knob costs one entry |
+| Gate 0 | A hung adapter is **loud at the probe, soft at a worker** | At the probe *no file is known*, so "record its files unparsed" is vacuous and R5.3 applies; at a worker the ticket's "rather than wedging the build" governs |
+| Gate 0 | `kill()` on `SubprocessAdapter`, **not** on the `LanguageAdapter` Protocol | A deadline is a driver concern, not a language capability; a Protocol method with one implementer is R7.4's dead abstraction |
+| Gate 0 | Parse timeout → **restart**; boot timeout → **retire** | Terminates either way, and does not hand a whole repo to `parsed_ok=0` when `CA_WORKERS=1` |
+| Phase 2 | **S6 came back false** and improved the design | The database driver's thread affinity makes single-writer a runtime property; the fan-out needs no lock, no write queue, and no reviewer vigilance |
+| Phase 2 | Kill the child rather than `select` on its stdout | `select` does not work on Windows pipes, so the timeout would silently not exist on a supported platform |
+| Phase 2 | Bounded result queue rather than buffering | R4.3 forbids loading the whole graph into memory in the same breath as single-writer |
+| Phase 3 | **D1 — the per-build FTS rebuild removed, not implemented** | Control M6 showed the call is unreachable by any test, and structurally so: §10's triggers already keep `nodes_fts` current. On 112k files it was a full re-index per build for no change in outcome (R7.1, R7.4) |
+| Phase 3 | M3 came back green → **fix the test**, M6 came back green → **fix the code** | A green negative control is a question, not a verdict: can a test see this, or is the line unreachable by construction? |
+| Phase 4 | Finding 2 fixed by correcting the **comment**, not the code | The race is inherent to any deadline and costs one restart, never a result; claiming it away would have been the dishonest fix |
+| Phase 5 | Status/token bookkeeping lands **in this PR**, not a follow-up | `tests/test_backlog_bookkeeping.py` exists precisely because task 024's deferred sync was forgotten |
+
+## Session status
+
+- **Last updated:** Phase 5, at the final gate, on branch `feat/009-full-build-indexer`
+- **Current phase:** Phase 5 — Finalise, **waiting on per-action approval** (nothing pushed yet)
+- **Next action:** on approval, push `feat/009-full-build-indexer` and open the PR with
+  `gh pr create -F /tmp/pr-009.md`; then correct the BACKLOG token row if the PR number is not #17.
+- **Blocked on:** per-action approval for the branch push and the PR open
+- **Revert path:** all work is on `feat/009-full-build-indexer` (8 commits, `ddd8e4d`..`104dc7b`
+  plus bookkeeping). Pre-merge: delete the branch. Post-merge: `git revert -m 1 <merge sha>`. There
+  is **no migration and no schema change** — the DDL is untouched and `.code-atlas/graph.db` is a
+  regenerable build artifact, not data. `CA_ADAPTER_TIMEOUT` is additive with a default, so
+  reverting it cannot orphan an existing `.code-atlas.toml`.

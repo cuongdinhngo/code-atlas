@@ -18,7 +18,7 @@ is [`PLAN.md`](PLAN.md).
 | 006 | [PHP adapter spike](tasks/006_php-adapter-spike.md) | M0 | done | 002 |
 | 007 | [PHP adapter — server mode & streaming](tasks/007_php-adapter-visitor.md) | M0 | done | 006, 005 |
 | 008 | [PHP runtime invocation (host / Docker)](tasks/008_php-runtime-modes.md) | M1 | todo | 005, 007 |
-| 009 | [Full build indexer + workers](tasks/009_full-build-indexer.md) | M1 | todo | 004, 005, 007 |
+| 009 | [Full build indexer + workers](tasks/009_full-build-indexer.md) | M1 | done | 004, 005, 007 |
 | 010 | [MCP server + status/build tools](tasks/010_index-status-and-build-tools.md) | M1 | todo | 009 |
 | 011 | [Cross-file edge resolver](tasks/011_resolver.md) | M2 | todo | 009 |
 | 012 | [Contract-conformance & PHP coverage tests](tasks/012_contract-conformance-tests.md) | M2 | todo | 025, 002 |
@@ -65,14 +65,16 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 024 | CI hardening | **0 dispatch** — no subagent ran at any point: the work was an audit of `ci.yml` plus twelve task files, done entirely on the main model, and it did not go through the mango lifecycle, so no working-doc cost ledger exists for it. **Main-loop spend is unmeasured**, as for 004–006. That missing lifecycle is why this row itself was omitted at PR time and added in [#15](https://github.com/cuongdinhngo/code-atlas/pull/15), which also turns the rule into a test | [#14](https://github.com/cuongdinhngo/code-atlas/pull/14) |
 
 | 007 | PHP adapter — server mode & streaming | **111.4k dispatch** — 1 subagent (`mango:challenger`, 41 tool uses / 380 s). The `mango:reviewer` pass was skipped by user instruction. Phases 1–3 and 5 dispatched **nothing**: the analysis inventory, four runtime spikes against the real `SubprocessAdapter`, and five negative-control mutations all ran on the main model. **Main-loop spend is unmeasured**, as for 004–006 and 024 — mango measures dispatch only, and `rtk gain` reports a global all-time figure that cannot be attributed to one task, so none is invented here | [#16](https://github.com/cuongdinhngo/code-atlas/pull/16) |
+| 009 | Full build indexer + workers | **96.3k dispatch** — 1 subagent (`mango:challenger`, 30 tool uses / 380 s). The `mango:reviewer` pass was skipped by user instruction, and review round 2 was verify-only in the main loop, so it dispatched nothing. Phases 1–3 and 5 dispatched **nothing**: five runtime spikes against the real store, driver and git, and six negative-control mutation runs, all on the main model. **Main-loop spend is unmeasured**, as for 004–007 and 024 — mango measures dispatch only, and `rtk gain` reports a global all-time figure that cannot be attributed to one task, so none is invented here | [#17](https://github.com/cuongdinhngo/code-atlas/pull/17) |
 
 ## Suggested order
 
 Critical path to first release: **001 → 002 → 004/005 → 006 → 007 → 009 → 010 → 011 → 013 → 014 (ship)**.
-003 (config) and 008 (runtime) slot in before 009. **025 (grammar coverage) is off the critical
-path** — it was split out of 007 so the protocol could unblock 008/009 first — and 012 (tests) waits
-on 025. 024 (CI) is independent and can land any time. Then 015–018 harden PHP, 019–021 add
-languages, 022–023 add onboarding.
+003 (config) landed before 009. **008 (runtime) did not, and did not need to** — 009 drives a host
+adapter through `CA_<LANG>_CMD`, so 008 is now only the Docker path-mapping mode and blocks nothing
+on the path to 014. **025 (grammar coverage) is off the critical path** — it was split out of 007 so
+the protocol could unblock 008/009 first — and 012 (tests) waits on 025. 024 (CI) is independent and
+can land any time. Then 015–018 harden PHP, 019–021 add languages, 022–023 add onboarding.
 
 ## Conventions
 - Keep task `status` in this table **and** in each task file's frontmatter in sync.
