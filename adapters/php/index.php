@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
-use CodeAtlas\Php\Visitor;
-use PhpParser\NodeTraverser;
-use PhpParser\NodeVisitor\NameResolver;
-use PhpParser\ParserFactory;
+use CodeAtlas\Php\Parser;
+
+// display_errors is host-set and defaults to stdout on many builds, which would put a PHP
+// diagnostic between two protocol lines. Move it before anything can be written (§4.1).
+ini_set('display_errors', 'stderr');
 
 $autoload = __DIR__ . '/vendor/autoload.php';
 if (!is_file($autoload)) {
@@ -15,40 +16,64 @@ if (!is_file($autoload)) {
 }
 require $autoload;
 
-$arguments = array_slice($argv, 1);
-if (count($arguments) !== 2 || $arguments[0] !== '--file') {
-    fwrite(STDERR, "usage: php index.php --file <path>\n");
-    exit(2);
+/**
+ * Announce the adapter, then answer one request per line until stdin closes (§4.1).
+ */
+function serve(Parser $parser): void
+{
+    // capabilities must reach the core as a JSON object; PHP's natural empty array encodes as `[]`.
+    emit([
+        'name' => 'php',
+        'extensions' => ['.php'],
+        'capabilities' => new stdClass(),
+        'contract_version' => 1,
+    ]);
+
+    while (($line = fgets(STDIN)) !== false) {
+        $request = json_decode(trim($line), true);
+        $path = is_array($request) && is_string($request['path'] ?? null) ? $request['path'] : null;
+        if ($path === null) {
+            // Never answer an uncorrelatable line: a made-up path would misattribute every reply.
+            if (trim($line) !== '') {
+                fwrite(STDERR, "code-atlas php adapter: skipped an unusable request line\n");
+            }
+            continue;
+        }
+        emit($parser->parse($path));
+    }
 }
 
-$path = $arguments[1];
-$source = @file_get_contents($path);
-if ($source === false) {
-    echo json_encode(['path' => $path, 'ok' => false, 'error' => 'cannot read the file']), "\n";
+/**
+ * One `\n`-framed JSON line, written straight to the stream so a lock-step reader never blocks.
+ *
+ * `echo` would go through PHP's output buffer, which a host-set `output_buffering` holds until
+ * exit — neither `fflush(STDOUT)` nor `flush()` releases it, and the driver deadlocks (§4.1).
+ *
+ * @param array<string, mixed> $result
+ */
+function emit(array $result): void
+{
+    $line = json_encode($result, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    if ($line === false) {
+        // Undecodable bytes are never repaired into mojibake — that would store silently wrong rows.
+        $line = json_encode([
+            'path' => $result['path'] ?? '',
+            'ok' => false,
+            'error' => 'result is not encodable as UTF-8',
+        ]);
+    }
+    fwrite(STDOUT, $line . "\n");
+}
+
+$arguments = array_slice($argv, 1);
+if ($arguments === ['--server']) {
+    serve(new Parser());
+    exit(0);
+}
+if (count($arguments) === 2 && $arguments[0] === '--file') {
+    emit((new Parser())->parse($arguments[1]));
     exit(0);
 }
 
-$parser = (new ParserFactory())->createForNewestSupportedVersion();
-try {
-    $statements = $parser->parse($source);
-    $traverser = new NodeTraverser();
-    $traverser->addVisitor(new NameResolver());
-    $traverser->addVisitor($visitor = new Visitor($path, substr_count($source, "\n") + 1));
-    $traverser->traverse($statements ?? []);
-    $result = [
-        'path' => $path,
-        'ok' => true,
-        'nodes' => $visitor->nodes,
-        'edges' => $visitor->edges,
-    ];
-} catch (Throwable $error) {
-    // A bad source file fails softly, one file at a time (R5.1). Collecting errors is task 007.
-    $result = ['path' => $path, 'ok' => false, 'error' => $error->getMessage()];
-}
-
-$line = json_encode($result, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-if ($line === false) {
-    // Undecodable bytes are never repaired into mojibake — that would store silently wrong rows.
-    $line = json_encode(['path' => $path, 'ok' => false, 'error' => 'result is not encodable as UTF-8']);
-}
-echo $line, "\n";
+fwrite(STDERR, "usage: php index.php --file <path> | --server\n");
+exit(2);
