@@ -3,6 +3,28 @@
 Durable lessons discovered while shipping tasks: constraints found, wrong assumptions, process gaps.
 One entry per lesson; newest first.
 
+## 007 — A stream protocol inherits the host's `php.ini`, so "it works here" proves nothing
+Two ini settings silently corrupt a JSONL protocol, and neither shows up on a developer machine.
+`display_errors` defaults to **stdout** on many builds, so a PHP notice lands *between two protocol
+lines* and the driver reads it as a reply; `output_buffering` holds `echo` output until the process
+exits, deadlocking a lock-step reader. Both are host state, so the same file yields different results
+on two machines — exactly what R4.2 forbids. **Fix:** force `display_errors` to `stderr` before
+anything is written, and write replies with `fwrite(STDOUT, …)`. Note the trap: the design approved
+`fflush(STDOUT)` as "immune to any host ini" and that was **false** — `echo` has already entered PHP's
+*output buffer*, which neither `fflush()` nor `flush()` releases. Only bypassing `echo` works. Prove a
+buffering fix by reading **while the child still runs**; at exit every buffer flushes, so a
+post-mortem read passes no matter what.
+
+## 007 — A language's natural empty value may not be the contract's
+`json_encode(['capabilities' => []])` yields `{"capabilities":[]}` — a JSON **array**. The contract
+requires an object, so the core rejected the handshake with a loud startup error naming
+`meta.capabilities`, pointing the reader at the core rather than at the one adapter line responsible.
+PHP has one array type for both shapes; `new stdClass()` is needed to get `{}`. **Fix:** spike the
+handshake against the real validator before writing the loop — the design phase caught this, and had
+it slipped to execute it would have read as a driver bug. Generalises to every adapter: an empty map,
+an empty list, and a null are three different wire values, and a language that conflates any two of
+them will encode the wrong one by default.
+
 ## 024 — A rule enforced only by a lifecycle gate is unenforced for work that skips the lifecycle
 `CLAUDE.md` says no PR opens without the task's token spend recorded in **both** the working-doc cost
 ledger and the BACKLOG table. Tasks 001–006 all complied — because mango's `finalise` phase has a

@@ -21,9 +21,21 @@ composer install --working-dir=adapters/php
 
 ## Usage
 
-`--file` parses one file and prints one JSON line — the contract result for that path. It is the
-debugging and spiking mode; the streaming `--server` mode that the core actually drives arrives with
-task 007, and `CA_PHP_CMD` will point at it then.
+`--server` is the mode the core drives: the adapter announces itself once, then answers one request
+per line until stdin closes. Point `CA_PHP_CMD` at the complete argv (§9) — the core appends nothing:
+
+```bash
+CA_PHP_CMD="php /abs/path/adapters/php/index.php --server"
+```
+
+```
+← {"name":"php","extensions":[".php"],"capabilities":{},"contract_version":1}
+→ {"path":"src/Models/User.php"}
+← {"path":"src/Models/User.php","ok":true,"nodes":[…],"edges":[…]}
+```
+
+`--file` parses one file and prints one JSON line. It is the debugging mode, and it shares its parse
+with `--server`, so both modes emit byte-identical results for the same file:
 
 ```bash
 php adapters/php/index.php --file src/Models/User.php
@@ -32,11 +44,20 @@ php adapters/php/index.php --file src/Models/User.php
 The path is echoed verbatim into the result, so pass it **repo-relative** — that is what the store
 records, under every runtime-invocation mode.
 
-- **stdout carries the protocol and nothing else.** Diagnostics go to stderr.
+- **stdout carries the protocol and nothing else.** Two host `php.ini` settings would otherwise
+  corrupt it, so the entry point defends against both:
+  - `display_errors` defaults to **stdout** on many builds, which would put a PHP warning between two
+    protocol lines. The adapter forces it to `stderr` before writing anything.
+  - `output_buffering` holds `echo` output until the process exits, deadlocking a lock-step reader.
+    Replies are written with `fwrite(STDOUT, …)`, which bypasses that buffer — `fflush()`/`flush()`
+    do **not**.
 - A file that cannot be read or parsed yields `{"path": …, "ok": false, "error": …}` and exit 0 — one
-  bad file never breaks a build (R5.1).
-- A missing `vendor/` is a configuration error: a message on stderr and exit 2, never a parse result
-  (R5.3).
+  bad file never breaks a build or the stream (R5.1). `ErrorHandler\Collecting` recovers from every
+  syntax error rather than throwing, so the process stays alive for the next request.
+- A missing `vendor/`, or an unrecognised argv, is a configuration error: a message on stderr and
+  exit 2, never a parse result (R5.3).
+- A request line that is blank or carries no usable `path` is skipped with a note on stderr. It is
+  never answered: a made-up path in a reply would misattribute every later result.
 
 ## What it emits
 
@@ -56,9 +77,12 @@ An instance method call cannot reveal its receiver's type from one file, so it i
 
 ## Scope
 
-Task 006 is a spike: it proves the parser and the contract fit, on a namespaced file and a
-global/underscore one. Declarations of all four class-like kinds are emitted, but the constructs that
-hang off them are not — `use <Trait>` inside a class body, enum cases, backed enums, anonymous
-classes, closures, arrow functions, first-class callables, attributes, group-use, and promoted
-constructor parameters all land in task 007, together with `ErrorHandler\Collecting` and `--server`.
-A trait used by a class currently produces **no** `USES_TRAIT` edge, silently — task 007 closes that.
+Task 007 delivered the protocol: `--server`, `ErrorHandler\Collecting`, and the two `php.ini`
+defences above. **Language coverage is still the task 006 spike's** — all four class-like kinds are
+emitted, but the constructs that hang off them are not: `use <Trait>` inside a class body, enum cases,
+backed enums, anonymous classes, closures, arrow functions, first-class callables, attributes,
+group-use, import aliases, nullsafe calls, property hooks, global `const`, and promoted constructor
+parameters. These land in [task 025](../../docs/tasks/025_php-adapter-grammar.md), which carries the
+full 42-construct inventory.
+
+A trait used by a class currently produces **no** `USES_TRAIT` edge, silently — task 025 closes that.
