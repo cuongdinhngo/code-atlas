@@ -26,6 +26,13 @@ jobs:
             pip install ruff mypy pytest
           fi
 
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+
+      - name: Install the PHP adapter's own runtime deps
+        run: composer install --no-interaction --no-progress --working-dir=adapters/php
+
       - name: Lint (ruff)
         run: ruff check .
 
@@ -54,9 +61,12 @@ jobs:
 
       - name: R2.2 — no repo/framework names in adapter source
         run: |
+          # Authored source only: Composer's own autoloader documents itself with a Symfony
+          # example, so an unscoped grep fails on a dependency nobody here wrote.
           # Denylist grows as frameworks are added; the authoritative gate lands with task 012.
           if [ -d adapters ] && \
-             grep -rEin 'laravel|symfony|wordpress|drupal|magento' adapters/; then
+             grep -rEin --exclude-dir=vendor --exclude-dir=node_modules \
+               'laravel|symfony|wordpress|drupal|magento' adapters/; then
             echo "::error::R2.2 — repo/framework name found in adapter source"
             exit 1
           fi
