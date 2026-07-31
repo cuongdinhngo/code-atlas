@@ -3,6 +3,30 @@
 Durable lessons discovered while shipping tasks: constraints found, wrong assumptions, process gaps.
 One entry per lesson; newest first.
 
+## 009 — The runtime may already enforce the rule you were about to prove by convention
+R4.3's "single SQLite writer" read like a discipline the indexer had to keep. It is not: `sqlite3`
+binds a connection to the thread that created it, so a worker thread that tried to write through the
+build's store raises `ProgrammingError` — loudly, before a single row is touched. The design was
+better for finding out: the fan-out needs no lock, no write queue, and no review vigilance, because
+the failure mode it was guarding against cannot compile past the first call.
+
+The general lesson is about **when** to check. This was a `novel-untested` assumption tagged at
+design and spiked *before* Gate 2, not discovered at execute. Two of the five spikes changed the
+design, and this one changed it by coming back **false** — which is the whole point of tagging an
+assumption instead of asserting it.
+
+## 009 — A negative control can indict the code instead of the test
+Five mutation controls ran against `full_build`; two came back green, and they meant opposite things.
+Deleting the `sorted()` from collection broke nothing because the fixture tree happened to be
+discovered in order — a **test** too weak to see its own subject, fixed by shaping a tree the walk
+provably reaches out of order. Deleting the per-build `rebuild_search_index()` also broke nothing,
+but no test could ever have caught it: the schema's triggers already keep `nodes_fts` current, so the
+call was a full re-index that changed nothing. That one indicted the **code**, and it was removed.
+
+So a green negative control is a question, not a verdict: *can* a test see this, or is the line
+unreachable by construction? The first answer costs a better fixture; the second costs a deletion —
+and on a 112k-file repo, that particular deletion is a whole FTS rebuild per build.
+
 ## 007 — A stream protocol inherits the host's `php.ini`, so "it works here" proves nothing
 Two ini settings silently corrupt a JSONL protocol, and neither shows up on a developer machine.
 `display_errors` defaults to **stdout** on many builds, so a PHP notice lands *between two protocol

@@ -45,7 +45,7 @@ code-atlas/
   names itself in its handshake (PLAN §4.1); a `PhpAdapter` in `code_atlas/` would break R1.1/R1.5.
 - **Tools:** `snake_case` verb-first, matching the MCP tool name exactly (`search_symbol`, `find_callers`,
   `read_symbol`, `build_or_update_index`). One tool per file under `code_atlas/tools/`.
-- **Env vars:** prefix **`CA_`** (`CA_DB_PATH`, `CA_WORKERS`, `CA_MAX_RESULTS`, `CA_IMPACT_DEPTH`,
+- **Env vars:** prefix **`CA_`** (`CA_DB_PATH`, `CA_WORKERS`, `CA_ADAPTER_TIMEOUT`, `CA_MAX_RESULTS`, `CA_IMPACT_DEPTH`,
   `CA_IMPACT_MAX_NODES`, `CA_TOOLS`, per-adapter `CA_<LANG>_CMD` e.g. `CA_PHP_CMD`).
 - **On-disk artifacts:** project config `.code-atlas.toml` (repo root, committed — keys are the env
   names lower-cased without the `CA_` prefix, plus an `[adapter_cmd]` table whose values are a
