@@ -28,7 +28,7 @@ is [`PLAN.md`](PLAN.md).
 | 016 | [Incremental update via git diff](tasks/016_incremental-git.md) | M5 | todo | 011, 009 |
 | 017 | [Impact engine + tool + prompts](tasks/017_impact-engine.md) | M6 | todo | 013, 016 |
 | 018 | [Cross-repo validation](tasks/018_cross-repo-validation.md) | M4 | todo | 015 |
-| 024 | [CI hardening](tasks/024_ci-hardening.md) | Setup | in-progress | 001 |
+| 024 | [CI hardening](tasks/024_ci-hardening.md) | Setup | done | 001 |
 
 ## Phase 2 — More languages
 
@@ -59,9 +59,10 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 002 | Contract — schema, version, validation | **689.2k fresh** (239.8k output + 449.3k input) + **27.12M cache reads** over 164 calls; **0 dispatch** (no subagent ran — no fan-out, and review was skipped by user decision). Top output driver: Phase 3 execute (79.6k). Main-loop figures read from the session transcript, not mango's dispatch ledger | [#4](https://github.com/cuongdinhngo/code-atlas/pull/4) |
 | 003 | Config (CA_*) & ignore rules | **638.3k fresh** (223.3k output + 415.0k input) + **24.4M cache reads** over 167 calls, from the session transcript; plus **52.4k dispatch** — 1 subagent (ticket-blind challenger; the reviewer was skipped by user decision). The dispatch is 7.6% of fresh spend, so the main loop is the cost driver | [#5](https://github.com/cuongdinhngo/code-atlas/pull/5) |
 | 004 | SQLite store & schema | **78.1k dispatch** — 1 subagent (ticket-blind challenger; reviewer skipped by user decision), 27 tool uses / 313 s. **Main-loop spend unmeasured for this task**: mango measures dispatch only, and `rtk gain` reports a global all-time figure (22.8M saved over 4,774 commands) that cannot be attributed to one task — so unlike 002/003 there is no session-transcript figure here, and none is invented | [#7](https://github.com/cuongdinhngo/code-atlas/pull/7) |
-
 | 005 | Adapter protocol & subprocess driver | **181.6k dispatch** — 2 subagents, both in review round 1: `mango:reviewer` 108.9k (38 tool uses / 426 s) + `mango:challenger` 72.7k (27 tool uses / 286 s). Phases 1–3 dispatched **nothing** (no Explore fan-out; 12 read-only spikes did the de-risking on the main model), and review round 2 was verify-only in the main loop, so it dispatched nothing either. **Main-loop spend is unmeasured for this task**, as for 004: mango measures dispatch only, and `rtk gain` reports a global all-time figure that cannot be attributed to one task — so no session-transcript number is invented here | [#10](https://github.com/cuongdinhngo/code-atlas/pull/10) |
 | 006 | PHP adapter spike | **73.9k dispatch** — 1 subagent (`mango:challenger`, 34 tool uses / 228 s). The `mango:reviewer` pass was skipped by user instruction, and phases 1–3 dispatched nothing: five read-only spikes on the main model did the de-risking, and the post-review round was verify-only in the main loop. **Main-loop spend is unmeasured**, as for 004 and 005 — mango measures dispatch only, and `rtk gain` reports a global all-time figure that cannot be attributed to one task, so none is invented here | [#13](https://github.com/cuongdinhngo/code-atlas/pull/13) |
+| 024 | CI hardening | **0 dispatch** — no subagent ran at any point: the work was an audit of `ci.yml` plus twelve task files, done entirely on the main model, and it did not go through the mango lifecycle, so no working-doc cost ledger exists for it. **Main-loop spend is unmeasured**, as for 004–006. That missing lifecycle is why this row itself was omitted at PR time and added in [#15](https://github.com/cuongdinhngo/code-atlas/pull/15), which also turns the rule into a test | [#14](https://github.com/cuongdinhngo/code-atlas/pull/14) |
+
 ## Suggested order
 
 Critical path to first release: **001 → 002 → 004/005 → 006 → 007 → 009 → 010 → 011 → 013 → 014 (ship)**.
