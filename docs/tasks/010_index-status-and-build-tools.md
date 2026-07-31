@@ -30,10 +30,40 @@ Plan §12, §15 (M1).
 
 ## Session status
 
-- **Phase:** 1 — analysis (Gate 1)
+- **Phase:** 5 — finalise, complete. All five phases done; gates were pre-approved for this task.
 - **Working doc mode:** `embed` (this file, below the separator) — same as tasks 002–009.
-- **Branch:** not yet created.
-- **Next action:** design (Gate 2).
+- **Branch:** `feat/010-index-status-and-build-tools` · **PR:** [#18](https://github.com/cuongdinhngo/code-atlas/pull/18)
+- **CI:** 4/4 green — `375 passed` on py3.12 **and** py3.13 with **no `skipped`**, `ruff` clean,
+  `php -l ok on 3 file(s)`, `R1.1 ok`, `R2.2 ok`, `R7.3 ok over 5 commit(s)`.
+- **Next action:** merge PR #18, then start **011 (cross-file edge resolver)** — the next step on the
+  critical path to the 014 ship. 008 (Docker runtime mode) stays off that path.
+- **Revert path:** the work is five commits on `feat/010-index-status-and-build-tools`
+  (`8acc2b4` store · `1099c10` server + tools · `109ad1b` tests · `868d513` docs · `0e786c6`
+  bookkeeping). Before merge: close PR #18 and delete the branch — `main` is untouched. After merge:
+  `git revert -m 1 <merge-sha>`. There is no schema change and no migration, so nothing has to be
+  undone in an existing index; a `.code-atlas/graph.db` built by this branch stays readable.
+
+### Cost ledger (final)
+
+| Phase | Dispatch | Tokens |
+|---|---|---|
+| 1 — analysis | none | 0 |
+| 2 — design | none (four FastMCP spikes on the main model) | 0 |
+| 3 — execute | none (six negative-control runs on the main model) | 0 |
+| 4 — review | `mango:challenger`, 31 tool uses / 284 s | **64,629** |
+| 5 — finalise | none | 0 |
+
+`LEDGER TOTAL: 64.6k · top cost driver: phase 4 / mango:challenger` — the only dispatch this run
+made, so it is 100% of measured spend. **Scope, stated honestly:** the ledger measures **subagent
+dispatch only**. Main-loop spend — every file read, the four spikes, six mutation runs and the full
+suite — is **not measured by mango**, and `rtk gain` reports a global all-time figure that cannot be
+attributed to one task, so no number is invented for it here.
+
+### Durable lesson
+
+Recorded in [`docs/LESSONS.md`](../LESSONS.md) as *"010 — The same thread rule that enforced a design
+in 009 dictated the design in 010"*, and pushed on this branch, so it reaches `main` with the merge
+rather than dying with the branch.
 
 ---
 
