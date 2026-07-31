@@ -16,12 +16,12 @@ is [`PLAN.md`](PLAN.md).
 | 004 | [SQLite store & schema](tasks/004_sqlite-store.md) | Core | done | 001, 002 |
 | 005 | [Adapter protocol & subprocess driver](tasks/005_adapter-protocol.md) | Core | done | 002 |
 | 006 | [PHP adapter spike](tasks/006_php-adapter-spike.md) | M0 | done | 002 |
-| 007 | [PHP adapter — full coverage & server mode](tasks/007_php-adapter-visitor.md) | M0 | todo | 006, 005 |
+| 007 | [PHP adapter — server mode & streaming](tasks/007_php-adapter-visitor.md) | M0 | in-progress | 006, 005 |
 | 008 | [PHP runtime invocation (host / Docker)](tasks/008_php-runtime-modes.md) | M1 | todo | 005, 007 |
 | 009 | [Full build indexer + workers](tasks/009_full-build-indexer.md) | M1 | todo | 004, 005, 007 |
 | 010 | [MCP server + status/build tools](tasks/010_index-status-and-build-tools.md) | M1 | todo | 009 |
 | 011 | [Cross-file edge resolver](tasks/011_resolver.md) | M2 | todo | 009 |
-| 012 | [Contract-conformance & PHP coverage tests](tasks/012_contract-conformance-tests.md) | M2 | todo | 007, 002 |
+| 012 | [Contract-conformance & PHP coverage tests](tasks/012_contract-conformance-tests.md) | M2 | todo | 025, 002 |
 | 013 | [Nav tools — callers / refs / impls](tasks/013_nav-tools.md) | M2 | todo | 011, 010 |
 | 014 | [Search / read / outline + FTS **(ship)**](tasks/014_search-read-outline.md) | M3 | todo | 010, 004 |
 | 015 | [Full PHP coverage + scale to 112k](tasks/015_php-full-coverage-and-scale.md) | M4 | todo | 013, 014, 008 |
@@ -29,6 +29,7 @@ is [`PLAN.md`](PLAN.md).
 | 017 | [Impact engine + tool + prompts](tasks/017_impact-engine.md) | M6 | todo | 013, 016 |
 | 018 | [Cross-repo validation](tasks/018_cross-repo-validation.md) | M4 | todo | 015 |
 | 024 | [CI hardening](tasks/024_ci-hardening.md) | Setup | done | 001 |
+| 025 | [PHP adapter — full 8.5 grammar coverage](tasks/025_php-adapter-grammar.md) | M0 | todo | 007 |
 
 ## Phase 2 — More languages
 
@@ -66,9 +67,10 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 ## Suggested order
 
 Critical path to first release: **001 → 002 → 004/005 → 006 → 007 → 009 → 010 → 011 → 013 → 014 (ship)**.
-003 (config) and 008 (runtime) slot in before 009. 012 (tests) runs alongside 007+; 024 (CI) is
-independent and can land any time. Then 015–018 harden
-PHP, 019–021 add languages, 022–023 add onboarding.
+003 (config) and 008 (runtime) slot in before 009. **025 (grammar coverage) is off the critical
+path** — it was split out of 007 so the protocol could unblock 008/009 first — and 012 (tests) waits
+on 025. 024 (CI) is independent and can land any time. Then 015–018 harden PHP, 019–021 add
+languages, 022–023 add onboarding.
 
 ## Conventions
 - Keep task `status` in this table **and** in each task file's frontmatter in sync.
