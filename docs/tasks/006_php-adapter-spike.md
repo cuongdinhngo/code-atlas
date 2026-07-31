@@ -664,3 +664,101 @@ Working doc (exempt from the staleness comparison): docs/tasks/006_php-adapter-s
 - **Next action:** finalise — PR body, push, open the PR.
 - **Revert path:** `git checkout main && git branch -D feat/006-php-adapter-spike`; `main` at `866d67d`
   is untouched and no core module changed.
+
+---
+
+## Phase 5 — Finalise
+
+**Stale-review guard:** `git diff --name-only 4f53155..HEAD` returned only
+`docs/tasks/006_php-adapter-spike.md` — the working doc, which is the exempt bookkeeping path. Nothing
+non-exempt changed beyond the reviewed set, so the review is **not stale**.
+
+**Project checklist:** `config.pr_checklist_path` is null, so the repo's own gate applies instead —
+`.github/pull_request_template.md`. Every section filled, all seven self-check boxes answered with
+evidence (two as N/A with a reason).
+
+### Outward actions taken
+
+Under the session's standing authorization ("do what is best for the project; stop asking per action"),
+these ran without a per-action gate:
+
+| # | Action | Result |
+|---|---|---|
+| 1 | Commit the durable lessons, the token row and the two new rules **before** the push, so nothing rides an orphaned branch | `03452f7` |
+| 2 | `git push -u origin feat/006-php-adapter-spike` | pushed, 7 commits |
+| 3 | `gh pr create --base main` from the repo template | **[#13](https://github.com/cuongdinhngo/code-atlas/pull/13)** |
+
+No tracker comment or transition: the tracker *is* this repo, and both status records already read
+`in-progress`.
+
+### Durable lessons (repo artifacts, on a shared ref)
+
+Both written to `docs/LESSONS.md` in `03452f7`, which is included in the pushed branch — not left on a
+local branch a merge would delete:
+
+1. **An `instanceof` narrow that falls through to `null` erases the difference between "absent" and
+   "unhandled."** The scalar-type defect the challenger found. Generalises to any mapping of a foreign
+   AST/schema into your own vocabulary.
+2. **The first vendored dependency turns a repo-wide grep-gate into a false positive.** Composer's own
+   autoloader documents itself with a Symfony example. Generalises: a text-grep guardrail's blast
+   radius is a *directory*, and directories grow third-party content the moment a package manager runs.
+
+### Uncodified standards → codified
+
+Both standards surfaced at Gate 0 / Gate 2 were ratified and written into the rulebook rather than left
+as precedent for adapter #2 to guess at:
+
+- **R6.5** — a guardrail sweep covers *authored* source only, and is guarded against emptying itself.
+- **R8.3** — an adapter's dependencies are pinned by a committed lock file; only the resolved artifacts
+  (`vendor/`, `node_modules/`) are ignored.
+
+### Follow-up tickets
+
+No deferred (⚠) matrix row exists — every row closed ✅, so no new ticket is needed. Four items were
+deferred by the ticket's own scope and are **already owned** by existing tickets, verified by reading
+them rather than assumed:
+
+| Deferred | Owner | Verified |
+|---|---|---|
+| `use <Trait>` inside a class emits no `USES_TRAIT` edge | task 007 | its Scope names `TraitUse` |
+| enum cases, anon classes, closures, arrow fns, first-class callables, attributes, group-use, promoted params | task 007 | all named in its Scope |
+| `ErrorHandler\Collecting`, `--server`, the handshake | task 007 | named in its Scope |
+| the full spec-driven fixture matrix + conformance harness | task 012 | named in its Scope |
+
+### Cost ledger — final
+
+| Phase | Dispatch | Tokens |
+|---|---|---|
+| Phase 1 — analysis | 0 subagents (5 read-only spikes on the main model) | 0 dispatch |
+| Phase 2 — design | 0 subagents | 0 dispatch |
+| Phase 3 — execute | 0 subagents | 0 dispatch |
+| Phase 4 — review | 1 subagent — `mango:challenger`, 34 tool uses / 228 s | **73.9k dispatch** |
+| Phase 4 — re-review | 0 subagents (verify-only, main loop) | 0 dispatch |
+| Phase 5 — finalise | 0 subagents | 0 dispatch |
+
+```
+LEDGER TOTAL: 73.9k dispatch · top cost driver: Phase 4 review (mango:challenger, the only dispatch)
+```
+
+**Scope of that number, stated honestly.** mango measures **subagent dispatch only**. Main-loop spend —
+five spikes, the PHP and Python authoring, seven mutation runs, four full sweeps — is **not measured
+here**, and `rtk gain` reports a global all-time figure that cannot be attributed to one task, so no
+session-transcript number is invented. Same treatment as tasks 004 and 005. The single dispatch is
+cheap because phases 1–3 fanned out to nothing; that is a property of this task's small surface, not a
+saving to claim.
+
+### Session status
+
+- **Phase:** 5 (finalise) complete. Task 006 is **awaiting merge**.
+- **Branch:** `feat/006-php-adapter-spike`, 7 commits, pushed. PR
+  **[#13](https://github.com/cuongdinhngo/code-atlas/pull/13)**.
+- **Next action:** merge #13, then a small status-sync change setting `status: done` in **both** this
+  file's frontmatter and `docs/BACKLOG.md` — it cannot ride this PR, because the status only becomes
+  true once the PR merges. Same pattern as `chore/004-status-sync` (#8) and `chore/005-status-sync` (#11).
+  After that, **task 007** (PHP adapter full coverage & server mode) is unblocked and is the critical path.
+- **Revert path:** before merge — `git checkout main && git branch -D feat/006-php-adapter-spike` and
+  `git push origin --delete feat/006-php-adapter-spike`; `main` at `866d67d` is untouched and no core
+  module changed. After merge — `git revert -m 1 <merge sha>`; the only non-additive hunks are
+  `.gitignore:19`, `.github/workflows/ci.yml:29,55`, `tests/test_sql_confinement.py:44` and the
+  `docs/PLAN.md` §7 line, all of which revert cleanly. Deleting `adapters/php/` alone restores the
+  pre-006 state of every guard, since nothing in `code_atlas/` depends on it.
