@@ -150,6 +150,17 @@ class SubprocessAdapter:
             return _failure(path, f"adapter emitted a line that is not JSON ({error})")
         return self._parse_result(path, reply)
 
+    def kill(self) -> None:
+        """Kill the child outright, leaving its pipes alone. Safe from another thread, and twice.
+
+        This is how a caller bounds a silent adapter: a read parked in :meth:`_read_line` returns
+        ``''`` once the child dies, so the hang collapses into the usual :class:`AdapterError`.
+        Closing the pipes instead would race the parked reader into a `ValueError`.
+        """
+        process = self._process
+        if process is not None:
+            process.kill()
+
     def stop(self) -> None:
         """Close the stream, then escalate wait -> terminate -> kill. Safe to call twice."""
         process, self._process, self._meta = self._process, None, None
