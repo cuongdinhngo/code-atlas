@@ -787,6 +787,12 @@ and if it instead waits silently, that is exactly the B7 hang this ticket deferr
 intended consequence of the ratified Q2/Q7 decisions (the core must not know a language's launch
 shape), and it reinforces D2 rather than contradicting it.
 
+**D2 ratified at the final gate (2026-07-31).** The user approved the **widened** hung-adapter
+exclusion — it covers `start()` as well as `parse()` — with **no code change**, on the reasoning that
+carried Q5 at Gate 0: a deadline still costs a reader thread (`select` does not work on Windows pipes),
+no hang has been observed, and task 009 owns the fan-out that can kill a worker outright. If anything
+the boot case is the safer half: a mute adapter fails on the very first run rather than lying dormant.
+
 **Reviewed at `4635ba43e4cbe36a08d0c9af58c719163ed73284`** — reviewed files:
 `code_atlas/adapter.py` · `code_atlas/contract.py` · `code_atlas/config.py` ·
 `tests/test_adapter.py` · `tests/fixtures/adapter/fake_adapter.py` ·
