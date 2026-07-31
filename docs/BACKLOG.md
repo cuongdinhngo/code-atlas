@@ -14,7 +14,7 @@ is [`PLAN.md`](PLAN.md).
 | 002 | [Contract — schema, version, validation](tasks/002_contract-schema.md) | Contract | done | 001 |
 | 003 | [Config (CA_*) & ignore rules](tasks/003_config-and-ignore.md) | Setup | done | 001 |
 | 004 | [SQLite store & schema](tasks/004_sqlite-store.md) | Core | done | 001, 002 |
-| 005 | [Adapter protocol & subprocess driver](tasks/005_adapter-protocol.md) | Core | todo | 002 |
+| 005 | [Adapter protocol & subprocess driver](tasks/005_adapter-protocol.md) | Core | in-progress | 002 |
 | 006 | [PHP adapter spike](tasks/006_php-adapter-spike.md) | M0 | todo | 002 |
 | 007 | [PHP adapter — full coverage & server mode](tasks/007_php-adapter-visitor.md) | M0 | todo | 006, 005 |
 | 008 | [PHP runtime invocation (host / Docker)](tasks/008_php-runtime-modes.md) | M1 | todo | 005, 007 |
@@ -59,6 +59,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 003 | Config (CA_*) & ignore rules | **638.3k fresh** (223.3k output + 415.0k input) + **24.4M cache reads** over 167 calls, from the session transcript; plus **52.4k dispatch** — 1 subagent (ticket-blind challenger; the reviewer was skipped by user decision). The dispatch is 7.6% of fresh spend, so the main loop is the cost driver | [#5](https://github.com/cuongdinhngo/code-atlas/pull/5) |
 | 004 | SQLite store & schema | **78.1k dispatch** — 1 subagent (ticket-blind challenger; reviewer skipped by user decision), 27 tool uses / 313 s. **Main-loop spend unmeasured for this task**: mango measures dispatch only, and `rtk gain` reports a global all-time figure (22.8M saved over 4,774 commands) that cannot be attributed to one task — so unlike 002/003 there is no session-transcript figure here, and none is invented | [#7](https://github.com/cuongdinhngo/code-atlas/pull/7) |
 
+| 005 | Adapter protocol & subprocess driver | **181.6k dispatch** — 2 subagents, both in review round 1: `mango:reviewer` 108.9k (38 tool uses / 426 s) + `mango:challenger` 72.7k (27 tool uses / 286 s). Phases 1–3 dispatched **nothing** (no Explore fan-out; 12 read-only spikes did the de-risking on the main model), and review round 2 was verify-only in the main loop, so it dispatched nothing either. **Main-loop spend is unmeasured for this task**, as for 004: mango measures dispatch only, and `rtk gain` reports a global all-time figure that cannot be attributed to one task — so no session-transcript number is invented here | [#10](https://github.com/cuongdinhngo/code-atlas/pull/10) |
 ## Suggested order
 
 Critical path to first release: **001 → 002 → 004/005 → 006 → 007 → 009 → 010 → 011 → 013 → 014 (ship)**.

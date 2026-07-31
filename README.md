@@ -64,7 +64,7 @@ a silent fallback.
 | `CA_IMPACT_DEPTH` | `impact_depth` | `2` | hops the impact engine traverses |
 | `CA_IMPACT_MAX_NODES` | `impact_max_nodes` | `500` | node budget for one impact query |
 | `CA_TOOLS` | `tools` | all tools | comma-separated tool allow-list |
-| `CA_<LANG>_CMD` | `[adapter_cmd].<lang>` | — | how to launch one language adapter |
+| `CA_<LANG>_CMD` | `[adapter_cmd].<lang>` | — | the **complete argv** that launches one adapter in server mode |
 
 ```toml
 # .code-atlas.toml
@@ -73,8 +73,15 @@ max_results = 50
 tools = ["get_index_status", "search_symbol", "read_symbol"]
 
 [adapter_cmd]
-php = "docker compose exec -T php php"
+php = "docker compose exec -T php php /app/adapters/php/index.php --server"
+# or, where quoting bites (Windows paths), one word per entry:
+# php = ["C:\\php\\php.exe", "adapters/php/index.php", "--server"]
 ```
+
+The adapter command is the **whole** command: the core appends nothing to it, not even `--server`, so
+it never has to know where a language's adapter lives. An adapter announces its own name, the file
+suffixes it owns, and its capabilities on the first line it writes — that handshake is what routes
+files to it.
 
 Files are skipped using built-in patterns (`vendor/ var/ uploads/ log/ node_modules/ .git/`), then
 `.gitignore`, then an optional `.codeatlasignore` — later rules win, so `.codeatlasignore` can

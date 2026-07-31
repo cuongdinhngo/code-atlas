@@ -3,6 +3,34 @@
 Durable lessons discovered while shipping tasks: constraints found, wrong assumptions, process gaps.
 One entry per lesson; newest first.
 
+## 005 — A subprocess seam fails by silence and by chatter, not by errors
+Two failure modes of a long-lived adapter process are invisible in the happy path and neither raises.
+**Chatter:** with `stderr=PIPE` left undrained, a child that writes more than a pipe buffer (~64 KB)
+blocks writing while the driver blocks reading stdout — a spike reproduced it with 200 KB and got no
+reply in 3 s. `stderr=STDOUT` is worse: it corrupts the protocol stream. Only `DEVNULL` or a real file
+is safe, and a PHP adapter emitting warnings makes this the *normal* case, not an exotic one.
+**Silence:** a child that stays alive and simply never answers hangs a blocking `readline()` forever —
+and it does so at `start()` (waiting for the handshake), not only at `parse()`. The analysis had
+recorded the hang as a `parse()`-only exclusion; execute found the wider truth when a fixture mode that
+went mute wedged the whole suite. **Fix:** never leave a subprocess pipe undrained; treat *silence* as
+a first-class failure mode with its own deadline, and when deferring it say which calls it can strike,
+not just the obvious one. Generalises: for any IPC seam, enumerate what happens when the peer says
+**too much** and when it says **nothing** — those are the two that hang rather than throw, and a test
+suite that only feeds well-formed errors will never meet either.
+
+## 005 — A ticket-blind agent can read the working doc without opening it
+The challenger is kept honest by *withholding* the working doc: it is handed the raw ticket text plus
+the diff and told not to read `docs/tasks/`. It obeyed — and still saw the design. A `git grep` for
+`--server` across the repo returned matching lines *from* the working doc, including a "RATIFIED (Q2)"
+rationale, so the author's reasoning landed in front of it before it had formed its own view on that
+requirement. It disclosed this itself; six of its seven other verdicts were unaffected. **Fix:** the
+blind-agent brief must exclude the tickets directory from **every search**, not just from direct reads
+(`git grep ... -- ':!docs/tasks/'`, `grep --exclude-dir`), and the agent should be told to report a
+leak rather than quietly continue. Generalises: an information barrier enforced as "don't open that
+file" leaks through every tool that reads files *without opening* them — grep, search indexes, IDE
+symbol lookup. Scope the barrier to the **content**, not to the act of opening; and since the guarantee
+is procedural, report it as procedural rather than as proof.
+
 ## 004 — A schema object that exists is not a schema object that runs
 `tests/test_store.py` asserted every DDL object was registered in `sqlite_master`, and that assertion was
 read as if it also proved each object *works*. It does not. The ticket-blind challenger replaced the body
