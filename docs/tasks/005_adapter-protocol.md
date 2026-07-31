@@ -835,11 +835,19 @@ as tasks 002–004 recorded it.
 ## Session status
 
 - **Last updated:** 2026-07-31
-- **Current phase:** **Phase 4 — Review clean**, ✋ waiting at the final gate. Gates 0–2 cleared and
-  Phase 3 executed (2026-07-31). Reviewed at `4635ba4`.
-- **Next action:** `/mango:finalise` — draft the PR from `.github/pull_request_template.md`, record the
-  token spend in this ledger **and** the BACKLOG table, then ask separately per outward action. Nothing
-  has been pushed and no PR exists.
+- **Current phase:** **Phase 5 — Finalise**, ✋ waiting at the final gate. Review clean and **not stale**
+  (only this exempt working doc changed since `4635ba4`). Lessons and token spend recorded.
+- **Next action:** the user approves each outward action separately — (1) push `feat/005-adapter-protocol`
+  (carries the two LESSONS entries and the BACKLOG token row, so neither is orphaned on a deleted
+  branch), (2) open the PR from `scratchpad/pr-005.md` via `gh`. **Nothing has been pushed and no PR
+  exists.** After merge: set status `done` here and in BACKLOG, and fold the widened hung-adapter
+  requirement into `docs/tasks/009_full-build-indexer.md` (deliberately *not* done pre-PR — 009 is
+  outside the reviewed file set and editing it would make this review stale).
+- **Revert path:** branch `feat/005-adapter-protocol`, 5 commits `edc07d1 · c6208bd · 4635ba4 · 8e03af7 ·
+  249f4ec` on top of `main @ c657a2d`. Pre-merge: delete the branch — nothing outward has happened.
+  Post-merge: `git revert -m 1 <merge-sha>`; `code_atlas/adapter.py` returns to its one-line stub and the
+  `contract.py` / `config.py` additions are additive with no non-test caller. No schema change, no data
+  migration, no tracker transition to undo.
 - **Needs the human's eye at that gate (not blockers, but not silently absorbed either):**
   **D2** — the hung-adapter exclusion ratified at Gate 0 was stated for `parse()`, and execute proved it
   also covers `start()`; the widened statement has not been separately approved. And the **challenger's
