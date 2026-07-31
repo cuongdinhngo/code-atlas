@@ -3,14 +3,22 @@
 Spec-driven, not language-driven (R6.2) — it encodes the wire protocol and nothing about any real
 language, parser, or repo. A start-up ``mode`` shapes the handshake; the requested path prefix
 shapes each reply, so one process can exercise every failure mode of one boot.
+
+Two modes stay alive and say nothing — ``silent-boot`` and ``silent-after-first-boot`` — and the
+``hang/`` path prefix answers nothing. They are how a driver's deadline is proven against a process
+that is genuinely hung rather than a mock of one.
 """
 
 import json
 import os
 import sys
+import time
 
 BOOT_LOG = "CA_FAKE_BOOTLOG"
 SUFFIXES = [".aa", ".bb"]
+
+# Longer than any deadline a test sets, so "silent" means silent for the whole run.
+FOREVER = 600
 
 HANDSHAKES = {
     "ok": {"name": "fake", "extensions": SUFFIXES, "capabilities": {}, "contract_version": 1},
@@ -58,12 +66,25 @@ def reply(path):
     return json.dumps({"path": path, "ok": True, "nodes": [node], "edges": []})
 
 
+def count_boot(boot_log):
+    """Append this boot to the log and return how many boots there have now been."""
+    with open(boot_log, "a", encoding="utf-8") as log:
+        log.write("boot\n")
+    with open(boot_log, encoding="utf-8") as log:
+        return len(log.readlines())
+
+
 def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else "ok"
     boot_log = os.environ.get(BOOT_LOG)
-    if boot_log:
-        with open(boot_log, "a", encoding="utf-8") as log:
-            log.write("boot\n")
+    boots = count_boot(boot_log) if boot_log else 0
+
+    if mode == "silent-boot" or (mode == "silent-after-first-boot" and boots > 1):
+        # Alive, holding the pipes open, announcing nothing: the hang a deadline has to bound.
+        time.sleep(FOREVER)
+        return
+    if mode == "silent-after-first-boot":
+        mode = "ok"
 
     if mode == "chatty-stderr":
         sys.stderr.write("W" * 200_000 + "\n")
@@ -71,8 +92,7 @@ def main():
     if mode == "not-json-handshake":
         write("hello, I am not a handshake")
     elif mode == "no-handshake":
-        # Exits instead of going mute: a process that stays alive and silent would hang the driver,
-        # which is the deferred hung-adapter mode (task 009), not something to prove here.
+        # Exits rather than going mute; staying alive and silent is the `silent-boot` mode above.
         return
     else:
         write(json.dumps(HANDSHAKES.get(mode, HANDSHAKES["ok"])))
@@ -81,6 +101,9 @@ def main():
         if not line.strip():
             continue
         path = json.loads(line)["path"]
+        if path.startswith("hang/"):
+            # Never answers, never exits: the silent *reply* a deadline has to bound.
+            time.sleep(FOREVER)
         if path.startswith("die/"):
             sys.exit(3)
         if path.startswith("undecodable/"):
@@ -93,9 +116,7 @@ def main():
 
     if mode == "ignore-eof":
         # Deliberately outlive the closed stdin so stop() has to escalate to a signal.
-        import time
-
-        time.sleep(600)
+        time.sleep(FOREVER)
 
 
 if __name__ == "__main__":

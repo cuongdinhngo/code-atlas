@@ -26,6 +26,7 @@ ADAPTER_CMD_ENV = re.compile(r"^CA_([A-Z0-9_]+)_CMD$")
 KNOB_KEYS: tuple[str, ...] = (
     "db_path",
     "workers",
+    "adapter_timeout",
     "max_results",
     "impact_depth",
     "impact_max_nodes",
@@ -33,6 +34,8 @@ KNOB_KEYS: tuple[str, ...] = (
 )
 
 DEFAULT_DB_PATH = Path(".code-atlas/graph.db")
+# Seconds one adapter may stay silent — booting or answering — before the build kills it (§8.1).
+DEFAULT_ADAPTER_TIMEOUT = 30
 DEFAULT_MAX_RESULTS = 50
 DEFAULT_IMPACT_DEPTH = 2
 DEFAULT_IMPACT_MAX_NODES = 500
@@ -51,6 +54,7 @@ class Config:
     root: Path
     db_path: Path
     workers: int
+    adapter_timeout: int
     max_results: int
     impact_depth: int
     impact_max_nodes: int
@@ -75,6 +79,9 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
         root=root,
         db_path=root / _resolve("db_path", _as_path, DEFAULT_DB_PATH, environ, file_values),
         workers=_resolve("workers", _as_int, _default_workers(), environ, file_values),
+        adapter_timeout=_resolve(
+            "adapter_timeout", _as_int, DEFAULT_ADAPTER_TIMEOUT, environ, file_values
+        ),
         max_results=_resolve("max_results", _as_int, DEFAULT_MAX_RESULTS, environ, file_values),
         impact_depth=_resolve("impact_depth", _as_int, DEFAULT_IMPACT_DEPTH, environ, file_values),
         impact_max_nodes=_resolve(

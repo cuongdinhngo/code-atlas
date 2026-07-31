@@ -91,7 +91,7 @@ Adapter runs as a long-lived process; core feeds newline-delimited requests, rea
 - **Lock-step.** One request, one reply, correlated by `path`. Concurrency is N *processes* (§8.1), never several requests in flight on one pipe. A reply for a path that was not asked is a **desync** — loud, because it would otherwise misattribute every later result.
 - **stdout is protocol-only; stderr must never be an undrained pipe.** An adapter that writes more than a pipe buffer of diagnostics deadlocks a driver that is blocked reading stdout, and merging stderr into stdout corrupts the stream. The driver sends stderr to `DEVNULL`, or to a file when diagnostics are wanted.
 - **UTF-8, `\n`-framed, one line per message**, however large (a 2 MB result line is normal). Undecodable bytes fail *that file* softly — never repaired into mojibake, which would parse as valid JSON and store silently corrupt rows.
-- **Failure split (R5.1/R5.3).** Soft, per file: `ok:false`, a result rejected by `validate()`, a non-JSON line, a blank line, undecodable bytes. Loud, per process: an unlaunchable command, a child that exited mid-stream, a desync, a bad handshake. *(A child that hangs is not yet covered — see task 009.)*
+- **Failure split (R5.1/R5.3).** Soft, per file: `ok:false`, a result rejected by `validate()`, a non-JSON line, a blank line, undecodable bytes. Loud, per process: an unlaunchable command, a child that exited mid-stream, a desync, a bad handshake. A child that **hangs** is bounded by the build's deadline (§8.1), not by the driver, which stays free of a per-request reader thread.
 
 ### 4.2 JSON schema (the vocabulary every adapter emits)
 **Node kinds** (language-neutral superset): `File, Namespace, Class, Interface, Trait, Enum, Function, Method, Property, ClassConst, Const`.
@@ -236,8 +236,10 @@ echo json_encode(['path'=>$path,'ok'=>true,'nodes'=>$v->nodes,'edges'=>$v->edges
 1. Collect files: `git ls-files` per adapter's extensions, minus ignore rules (§11). Walk fallback.
 2. Reconcile: drop rows for vanished paths.
 3. Fan paths across **N adapter processes** (`max(1, min(cpu-2, 8))` — the floor keeps a 1–2-core host at one worker); per result hash bytes, upsert `files`, replace that file's `nodes`+bare `edges`. Single SQLite writer.
-4. Store `meta.last_commit`, `contract_version`, `built_at`.
-5. Run **resolver** (§8.2); rebuild `nodes_fts`.
+
+**Bounding a silent adapter (deadline).** One watchdog thread per build arms a deadline of `CA_ADAPTER_TIMEOUT` seconds around every blocking adapter call — the handshake as well as a reply — and **kills the child** when it expires; the parked read then returns nothing and the driver raises. Disposition by call site: a **probe** boot that never announces is **loud** (no file is known yet, so there is nothing to record as unparsed — R5.3); a **worker** boot or a silent **reply** is **soft** — the worker retires or replaces its adapter, and the build returns. Every collected path leaves a `files` row, `parsed_ok=0` when nothing ever answered for it. Killing, rather than `select`, is deliberate: `select` does not work on Windows pipes.
+4. Store `meta.last_commit`, `contract_version`, `built_at`. `last_commit` is left **unset** when git cannot name one (no repo, no commit yet) rather than fabricated.
+5. Run **resolver** (§8.2). `nodes_fts` needs **no rebuild**: §10's triggers keep it current through every per-file replace, so a rebuild per build would cost a full re-index and change nothing. `GraphStore.rebuild_search_index` stays as the repair tool for a stale index.
 
 ### 8.2 Resolver (phase 2, generic — no language branches)
 Runs after all nodes exist:
@@ -316,7 +318,7 @@ defaults. A field present as `None` is stored as an explicit NULL.
 ## 11. Config & ignore
 Env `CA_*` → **project file `.code-atlas.toml`** (repo root, committed, stdlib `tomllib`) → defaults. The env name is derived from the file key: `workers` ⇄ `CA_WORKERS`, and `[adapter_cmd]` holds one entry per language — each a complete argv (§9), given either as a string or, preferably where quoting bites, as a list of words. A malformed value or an unknown key **fails loud** (R5.3); it never falls back.
 
-Knobs: `CA_DB_PATH` (default `<repo>/.code-atlas/graph.db`), `CA_WORKERS` (default `max(1, min(cpu-2, 8))`), `CA_MAX_RESULTS=50`, `CA_IMPACT_DEPTH=2`, `CA_IMPACT_MAX_NODES=500`, per-adapter `CA_<LANG>_CMD` (resolved generically from the variable name — no language is named in the core), `CA_TOOLS` allow-list (unset or blank ⇒ every tool; §12).
+Knobs: `CA_DB_PATH` (default `<repo>/.code-atlas/graph.db`), `CA_WORKERS` (default `max(1, min(cpu-2, 8))`), `CA_ADAPTER_TIMEOUT=30` (seconds one adapter may stay silent before the build kills it — §8.1), `CA_MAX_RESULTS=50`, `CA_IMPACT_DEPTH=2`, `CA_IMPACT_MAX_NODES=500`, per-adapter `CA_<LANG>_CMD` (resolved generically from the variable name — no language is named in the core), `CA_TOOLS` allow-list (unset or blank ⇒ every tool; §12).
 
 Ignore: built-ins (`vendor/ var/ uploads/ log/ node_modules/ .git/`) + `.gitignore` + optional `.codeatlasignore`, concatenated in that order with the **last matching rule winning**, so a later source can re-include. A path below an excluded **directory** stays excluded — that is what lets the walk prune a subtree. Supported gitignore subset: comments/blanks, `*` `?` `[seq]` inside a segment, `**` across segments, leading `/` anchoring, trailing `/` directory-only, `!` negation. Not supported: nested per-directory ignore files, `\` escapes. `git ls-files` already applies `.gitignore` on the primary path (§8.1), so this matcher chiefly serves the walk fallback.
 

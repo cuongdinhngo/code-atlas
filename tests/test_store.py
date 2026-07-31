@@ -6,6 +6,8 @@ they follow insert order, which follows worker completion order (PLAN §8.1).
 """
 
 import sqlite3
+import threading
+import time
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -476,3 +478,98 @@ def test_a_read_helper_orders_ties_deterministically(store: GraphStore) -> None:
         store.replace_file_rows(path, [a_node("Namespace", "App", "\\App", path)], [])
     ordered = [row["file_path"] for row in store.nodes_by_name("App", limit=10)]
     assert ordered == ["a.php", "b.php", "c.php"]
+
+
+# --- task 009: the two reads a build needs, and the busy_timeout proof deferred from task 004 -----
+
+
+def test_the_indexed_paths_come_back_sorted(store: GraphStore) -> None:
+    # What a build reconciles its collection against, so the order must not follow insert order.
+    assert store.file_paths() == ()
+    for path in ("c.php", "a.php", "b.php"):
+        store.upsert_file(path, "h", "php")
+    assert store.file_paths() == ("a.php", "b.php", "c.php")
+
+    store.remove_file("b.php")
+    assert store.file_paths() == ("a.php", "c.php")
+
+
+def test_the_store_exposes_the_clock_it_stamps_rows_with(db_path: Path) -> None:
+    """`meta.built_at` must share the one injection point, or two clocks disagree in one build."""
+    with GraphStore(db_path, now=lambda: FIXED_CLOCK) as opened:
+        assert opened.now() == FIXED_CLOCK
+        opened.upsert_file("a.php", "h", "php")
+        row = opened._conn.execute("SELECT updated_at FROM files").fetchone()
+    assert row[0] == FIXED_CLOCK
+
+
+def hold_a_write_lock(db_path: Path) -> sqlite3.Connection:
+    """A competing writer holding a real reserved lock — not a simulation of one."""
+    blocker = sqlite3.connect(db_path)
+    blocker.execute("BEGIN IMMEDIATE")
+    blocker.execute("INSERT INTO meta (key, value) VALUES ('blocker', '1')")
+    return blocker
+
+
+def test_a_second_writer_waits_out_a_held_lock_instead_of_failing(db_path: Path) -> None:
+    """R4.3's companion: one writer is the design, but a stray second one must not lose data.
+
+    Deferred from task 004, which had no fan-out to contend with. `busy_timeout` is per connection,
+    so the contending store is built inside that thread — sqlite3 objects are bound to their maker.
+    """
+    GraphStore(db_path).close()
+    blocker = hold_a_write_lock(db_path)
+    outcome: dict[str, object] = {}
+
+    def contend() -> None:
+        with GraphStore(db_path) as second:
+            started = time.monotonic()
+            try:
+                second.upsert_file("a.php", "h", "php")
+                outcome["result"] = "succeeded"
+            except sqlite3.OperationalError as error:
+                outcome["result"] = f"raised {error}"
+            outcome["waited"] = time.monotonic() - started
+
+    thread = threading.Thread(target=contend)
+    thread.start()
+    time.sleep(0.75)
+    blocker.commit()
+    blocker.close()
+    thread.join(timeout=30)
+
+    assert not thread.is_alive(), "the contending writer never returned"
+    assert outcome["result"] == "succeeded"
+    assert isinstance(outcome["waited"], float) and outcome["waited"] >= 0.5, (
+        "it returned too fast to have waited on the lock at all"
+    )
+    with GraphStore(db_path) as reopened:
+        assert reopened.file_paths() == ("a.php",)
+
+
+def test_without_busy_timeout_the_same_contention_fails_at_once(db_path: Path) -> None:
+    """The negative control: a pragma that is never exercised is not evidence (LESSONS 002)."""
+    GraphStore(db_path).close()
+    blocker = hold_a_write_lock(db_path)
+    outcome: dict[str, object] = {}
+
+    def contend_without_the_pragma() -> None:
+        conn = sqlite3.connect(db_path)
+        conn.execute("PRAGMA busy_timeout=0")
+        try:
+            conn.execute("INSERT INTO files (path) VALUES ('a.php')")
+            conn.commit()
+            outcome["result"] = "succeeded"
+        except sqlite3.OperationalError as error:
+            outcome["result"] = str(error)
+        conn.close()
+
+    thread = threading.Thread(target=contend_without_the_pragma)
+    thread.start()
+    thread.join(timeout=30)
+    blocker.commit()
+    blocker.close()
+
+    assert outcome["result"] == "database is locked", (
+        "the contention never happened, so the test above proved nothing"
+    )
