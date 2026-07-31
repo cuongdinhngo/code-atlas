@@ -59,6 +59,15 @@ KNOBS = (
         lambda root: FIXED_CPUS - 2,
     ),
     Knob(
+        "CA_ADAPTER_TIMEOUT",
+        "adapter_timeout = 45",
+        "12",
+        lambda config: config.adapter_timeout,
+        lambda root: 12,
+        lambda root: 45,
+        lambda root: 30,
+    ),
+    Knob(
         "CA_MAX_RESULTS",
         "max_results = 20",
         "99",
@@ -136,13 +145,14 @@ def test_every_knob_has_a_precedence_case() -> None:
     # Guards the guard: dropping a knob from KNOBS would otherwise shrink AC1's coverage silently.
     covered = {knob.variable for knob in KNOBS}
     assert {env_name(key) for key in KNOB_KEYS} | {"CA_PHP_CMD"} == covered
-    assert len(KNOB_KEYS) == 6
+    assert len(KNOB_KEYS) == 7
 
 
 def test_env_name_is_derived_from_the_project_file_key() -> None:
     assert [env_name(key) for key in KNOB_KEYS] == [
         "CA_DB_PATH",
         "CA_WORKERS",
+        "CA_ADAPTER_TIMEOUT",
         "CA_MAX_RESULTS",
         "CA_IMPACT_DEPTH",
         "CA_IMPACT_MAX_NODES",
