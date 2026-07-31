@@ -4,7 +4,7 @@ slug: ci-hardening
 title: CI hardening — close the skeleton's fail-open gaps
 phase: 1
 milestone: Setup
-status: in-progress
+status: done
 depends_on: [001]
 ---
 

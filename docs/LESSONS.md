@@ -3,6 +3,20 @@
 Durable lessons discovered while shipping tasks: constraints found, wrong assumptions, process gaps.
 One entry per lesson; newest first.
 
+## 024 — A rule enforced only by a lifecycle gate is unenforced for work that skips the lifecycle
+`CLAUDE.md` says no PR opens without the task's token spend recorded in **both** the working-doc cost
+ledger and the BACKLOG table. Tasks 001–006 all complied — because mango's `finalise` phase has a
+ledger-completeness gate that refuses to proceed without it. Task 024 was done directly, outside the
+five-phase lifecycle, so nothing checked, and PR #14 opened with no token row and a status left at
+`in-progress`. The rule was never *disagreed* with; it simply had no enforcement outside one tool's
+happy path. **Fix:** `tests/test_backlog_bookkeeping.py` asserts both bookkeeping rules from the repo
+itself — every task's status matches in the backlog table and its frontmatter, and every `done` task
+carries a token row naming a measured spend and a PR link. Negative-controlled three ways: deleting the
+row, desyncing a status, and writing a spend cell with no number each turn it red. Generalises: when a
+process rule lives in a document and its only enforcement is a step inside one workflow, it is
+**optional by construction** — the moment work arrives by another path, the rule is silently off. Put
+the check where the artifact lives, not where the process happens to run.
+
 ## 006 — An `instanceof` narrow that falls through to null erases the difference between "absent" and "unhandled"
 The PHP visitor read a parameter's type as `$param->type instanceof Node\Name ? fqn(...) : null`. That
 looked right and passed both fixtures, because both typed parameters happened to use *class* types. But
