@@ -783,10 +783,15 @@ human-approved there, and already has its follow-up recorded — a Windows CI ma
 ## Session status
 
 - **Last updated:** Phase 5, at the final gate, on branch `feat/009-full-build-indexer`
-- **Current phase:** Phase 5 — Finalise, **waiting on per-action approval** (nothing pushed yet)
-- **Next action:** on approval, push `feat/009-full-build-indexer` and open the PR with
-  `gh pr create -F /tmp/pr-009.md`; then correct the BACKLOG token row if the PR number is not #17.
-- **Blocked on:** per-action approval for the branch push and the PR open
+- **Current phase:** Phase 5 — **complete**. Branch pushed; **PR [#17]
+  (https://github.com/cuongdinhngo/code-atlas/pull/17)** open with **CI green, 4/4 checks**:
+  `342 passed` on py3.12 and py3.13 with **no `skipped`** (so the PHP-driven proving test really ran),
+  ruff clean, mypy clean, `php -l ok on 3 file(s)`, `R1.1 ok`, `R2.2 ok`, `R7.3 ok over 10 commit(s)`.
+  The BACKLOG token row already names #17, so no correction was needed.
+- **Next action:** merge PR #17, then pick the next card — **010** (MCP server + status/build tools,
+  deps `009`) is the critical path to the M3 ship; **008** (Docker runtime mode) and **025** (grammar
+  coverage) are both unblocked but off it.
+- **Blocked on:** nothing
 - **Revert path:** all work is on `feat/009-full-build-indexer` (8 commits, `ddd8e4d`..`104dc7b`
   plus bookkeeping). Pre-merge: delete the branch. Post-merge: `git revert -m 1 <merge sha>`. There
   is **no migration and no schema change** — the DDL is untouched and `.code-atlas/graph.db` is a
