@@ -116,8 +116,9 @@ class SubprocessAdapter:
         """Launch the adapter and read the handshake it opens the stream with. Idempotent."""
         if self._process is not None:
             return
-        self._stderr = self._open_stderr()
         try:
+            # Opening the diagnostics file is part of launching: a bad path is a config error too.
+            self._stderr = self._open_stderr()
             self._process = subprocess.Popen(
                 self._command,
                 cwd=self._root,
@@ -131,7 +132,7 @@ class SubprocessAdapter:
         except OSError as error:
             self._close_stderr()
             raise AdapterError(
-                f"adapter {self._key!r}: cannot run {self._command}: {error}"
+                f"adapter {self._key!r}: cannot run {self._command} ({error})"
             ) from error
         self._meta = self._read_handshake()
 

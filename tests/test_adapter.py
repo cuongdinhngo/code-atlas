@@ -132,6 +132,17 @@ def test_a_command_that_cannot_run_fails_loud(tmp_path: Path) -> None:
         unlaunchable.start()
 
 
+def test_a_diagnostics_path_that_cannot_be_opened_fails_loud(tmp_path: Path) -> None:
+    # A bad stderr_path is a config error like any other, so it must raise the one documented
+    # type rather than a bare OSError a caller written against the contract would not catch.
+    blocker = tmp_path / "blocker"
+    blocker.write_text("not a directory", encoding="utf-8")
+    unopenable = driver(tmp_path, stderr_path=blocker / "sub" / "adapter.stderr")
+
+    with pytest.raises(AdapterError, match="cannot run"):
+        unopenable.start()
+
+
 # --------------------------------------------------------------------------- the proving test
 
 
