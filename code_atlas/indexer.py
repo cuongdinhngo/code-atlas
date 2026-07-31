@@ -130,7 +130,8 @@ class _Watchdog:
     def _poll(self) -> None:
         while not self._done.wait(WATCHDOG_INTERVAL):
             now = time.monotonic()
-            # Killing under the lock, so a call that just finished cannot be killed on its way out.
+            # Under the lock, so a deadline is read and acted on atomically. A call that returns in
+            # the same instant may still be killed; it costs one restart, never a lost result.
             with self._lock:
                 for deadline, adapter in self._watched.values():
                     if deadline <= now:

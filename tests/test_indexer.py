@@ -58,8 +58,8 @@ def indexed_config(
 ) -> Config:
     """A build config with the worker count **pinned**.
 
-    ``workers`` has no default on purpose: R10 forbids a fan-out assertion that silently inherits a
-    hosted runner's core count, and a required argument enforces that better than a review note.
+    ``workers`` has no default on purpose: R4.2 forbids a fan-out assertion that silently inherits
+    a hosted runner's core count, and a required argument enforces that better than a review note.
     """
     return load_config(
         root,
@@ -165,7 +165,7 @@ def test_the_proof_has_something_to_run() -> None:
 
 
 def test_no_build_here_can_inherit_the_runner_core_count() -> None:
-    """R10: a hosted runner has fewer cores than a laptop, so an unpinned default is theirs."""
+    """R4.2: a hosted runner has fewer cores than a laptop, so an unpinned default is theirs."""
     tree_ = ast.parse(Path(__file__).read_text(encoding="utf-8"))
     calls = [
         node
