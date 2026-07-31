@@ -35,12 +35,39 @@ MCP client ──stdio──▶ core (Python / FastMCP) ──JSONL contract─�
 The core is language-agnostic (no per-language branches). Adapters parse files and emit a common
 `{nodes, edges}` vocabulary; the core stores them, resolves cross-file edges, and exposes MCP tools.
 
-## Tools (planned)
+## Run it
+
+The server speaks MCP over stdio. Point a client at the repo you want indexed — the working
+directory *is* the repo, and every `CA_*` knob below is read from that client's environment.
+
+```jsonc
+// .mcp.json
+{
+  "mcpServers": {
+    "code-atlas": {
+      "command": "code-atlas",           // or: "python", "args": ["-m", "code_atlas.main"]
+      "cwd": "/path/to/your/repo",
+      "env": { "CA_PHP_CMD": "php adapters/php/index.php --server" }
+    }
+  }
+}
+```
+
+Call `get_index_status` first: it is the cheap (~100-token) entry point and tells you whether the
+index exists, how stale it is, and what to call next. `build_or_update_index` builds it. Every tool
+takes `detail_level` — `minimal` for the payload alone, `standard` (the default) to add provenance.
+
+## Tools
 
 | Tool | Returns |
 |---|---|
-| `get_index_status` | index stats, staleness, next-step suggestions (call first) |
-| `build_or_update_index` | full or incremental build |
+| `get_index_status` | index stats, last indexed commit, staleness, next-step suggestions (call first) |
+| `build_or_update_index` | counts + timing for the build it ran (full builds only until incremental lands) |
+
+### Planned
+
+| Tool | Returns |
+|---|---|
 | `search_symbol` | ranked symbols (`qname`, kind, `file:line`) |
 | `file_outline` | symbols + line ranges, no bodies |
 | `read_symbol` | source of just one class/method + docblock |
@@ -60,6 +87,7 @@ a silent fallback.
 |---|---|---|---|
 | `CA_DB_PATH` | `db_path` | `.code-atlas/graph.db` | index location (relative to the repo root) |
 | `CA_WORKERS` | `workers` | `max(1, min(cpu-2, 8))` | adapter processes during a build |
+| `CA_ADAPTER_TIMEOUT` | `adapter_timeout` | `30` | seconds an adapter may stay silent before a build kills it |
 | `CA_MAX_RESULTS` | `max_results` | `50` | result cap for search/nav tools |
 | `CA_IMPACT_DEPTH` | `impact_depth` | `2` | hops the impact engine traverses |
 | `CA_IMPACT_MAX_NODES` | `impact_max_nodes` | `500` | node budget for one impact query |
@@ -70,7 +98,7 @@ a silent fallback.
 # .code-atlas.toml
 workers = 4
 max_results = 50
-tools = ["get_index_status", "search_symbol", "read_symbol"]
+tools = ["get_index_status", "build_or_update_index"]   # only names the server serves; a typo is a loud error
 
 [adapter_cmd]
 php = "docker compose exec -T php php /app/adapters/php/index.php --server"

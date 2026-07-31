@@ -224,6 +224,21 @@ class GraphStore:
         cursor = self._conn.execute("SELECT path FROM files ORDER BY path")
         return tuple(str(row[0]) for row in cursor)
 
+    def counts(self) -> dict[str, int]:
+        """Row totals for the status tool: counted in SQL, never by loading the graph (R4.3)."""
+        row = self._conn.execute(
+            "SELECT (SELECT COUNT(*) FROM files), (SELECT COUNT(*) FROM files WHERE parsed_ok = 1),"
+            " (SELECT COUNT(*) FROM nodes), (SELECT COUNT(*) FROM edges)"
+        ).fetchone()
+        files, parsed, nodes, edges = (int(value) for value in row)
+        return {
+            "files": files,
+            "parsed": parsed,
+            "failed": files - parsed,
+            "nodes": nodes,
+            "edges": edges,
+        }
+
     def nodes_by_name(self, name: str, *, kind: str | None = None, limit: int) -> list[Row]:
         return self._nodes("name = ?", name, kind, limit)
 

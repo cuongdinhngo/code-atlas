@@ -3,6 +3,25 @@
 Durable lessons discovered while shipping tasks: constraints found, wrong assumptions, process gaps.
 One entry per lesson; newest first.
 
+## 010 — The same thread rule that enforced a design in 009 dictated the design in 010
+Task 009 found that `sqlite3` binds a connection to its creating thread, and treated it as a free
+guarantee: R4.3's single writer could not be broken by accident. Task 010 met the same fact from the
+other side. FastMCP registers a synchronous tool with `run_in_thread=True` by default, so **every**
+tool call runs on a worker thread — a `GraphStore` opened when the server was built raises
+`ProgrammingError: SQLite objects created in a thread can only be used in that same thread` on its
+first use, in every call, forever. The obvious shape (build the server, hold the store, serve) does
+not work at all.
+
+So each tool opens its own store inside the call, and `get_index_status` opens none when there is no
+database file. The lesson is not "sqlite is thread-affine" — 009 already recorded that. It is that a
+constraint discovered as a *guarantee* in one task can be the thing that *rules out* the natural
+design in the next, and only a spike against the real library says which. This one was tagged
+`novel-untested` at design and spiked before Gate 2; it came back **false**, and the ten-line spike
+that killed it cost less than the rewrite would have.
+
+**Fix:** when a task hands work to a third-party runtime, spike *where that runtime runs your code*
+before designing what your code holds on to.
+
 ## 009 — The runtime may already enforce the rule you were about to prove by convention
 R4.3's "single SQLite writer" read like a discipline the indexer had to keep. It is not: `sqlite3`
 binds a connection to the thread that created it, so a worker thread that tried to write through the

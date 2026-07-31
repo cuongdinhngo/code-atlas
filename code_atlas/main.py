@@ -1,1 +1,56 @@
-"""FastMCP server and entry point. Stub — filled in task 010."""
+"""The MCP server: build an app for one repo, then serve it over stdio (§12).
+
+Two tools today, named in two branches rather than a registry — there is no second axis of change
+here, and one seam is the only abstraction this codebase buys (R1.2). ``CA_TOOLS`` gates which of
+them is registered; a name that is not one of them is a configuration error and fails loud (R5.3).
+"""
+
+import os
+from pathlib import Path
+
+from fastmcp import FastMCP
+
+from code_atlas.config import Config, ConfigError, load_config
+from code_atlas.tools import build_or_update_index, get_index_status
+
+SERVER_NAME = "code-atlas"
+
+# Every tool this server knows how to serve, in the order a client is offered them.
+TOOL_NAMES: tuple[str, ...] = (get_index_status.NAME, build_or_update_index.NAME)
+
+
+def build_server(config: Config) -> FastMCP:
+    """One repo's server: the allowed tools, each bound to ``config``, on a fresh app."""
+    names = allowed_tools(config.tools)
+    server: FastMCP = FastMCP(SERVER_NAME)
+    if get_index_status.NAME in names:
+        server.tool(get_index_status.create(config, names))
+    if build_or_update_index.NAME in names:
+        server.tool(build_or_update_index.create(config))
+    return server
+
+
+def allowed_tools(tools: tuple[str, ...] | None) -> tuple[str, ...]:
+    """Resolve the ``CA_TOOLS`` allow-list against what exists; unset or blank means every tool.
+
+    ``config.py`` validates the list's shape but cannot know tool names, so membership is checked
+    here — an allow-list of typos would otherwise serve nothing and look like a working server.
+    """
+    if tools is None:
+        return TOOL_NAMES
+    unknown = sorted(set(tools) - set(TOOL_NAMES))
+    if unknown:
+        raise ConfigError(
+            f"CA_TOOLS names unknown tool(s) {', '.join(unknown)} "
+            f"(this server serves {', '.join(TOOL_NAMES)})"
+        )
+    return tuple(name for name in TOOL_NAMES if name in tools)
+
+
+def main() -> None:
+    """Entry point: resolve this working directory's configuration and serve it over stdio."""
+    build_server(load_config(Path.cwd(), os.environ)).run()
+
+
+if __name__ == "__main__":
+    main()

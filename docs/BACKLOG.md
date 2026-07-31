@@ -19,7 +19,7 @@ is [`PLAN.md`](PLAN.md).
 | 007 | [PHP adapter — server mode & streaming](tasks/007_php-adapter-visitor.md) | M0 | done | 006, 005 |
 | 008 | [PHP runtime invocation (host / Docker)](tasks/008_php-runtime-modes.md) | M1 | todo | 005, 007 |
 | 009 | [Full build indexer + workers](tasks/009_full-build-indexer.md) | M1 | done | 004, 005, 007 |
-| 010 | [MCP server + status/build tools](tasks/010_index-status-and-build-tools.md) | M1 | todo | 009 |
+| 010 | [MCP server + status/build tools](tasks/010_index-status-and-build-tools.md) | M1 | done | 009 |
 | 011 | [Cross-file edge resolver](tasks/011_resolver.md) | M2 | todo | 009 |
 | 012 | [Contract-conformance & PHP coverage tests](tasks/012_contract-conformance-tests.md) | M2 | todo | 025, 002 |
 | 013 | [Nav tools — callers / refs / impls](tasks/013_nav-tools.md) | M2 | todo | 011, 010 |
@@ -67,9 +67,13 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 007 | PHP adapter — server mode & streaming | **111.4k dispatch** — 1 subagent (`mango:challenger`, 41 tool uses / 380 s). The `mango:reviewer` pass was skipped by user instruction. Phases 1–3 and 5 dispatched **nothing**: the analysis inventory, four runtime spikes against the real `SubprocessAdapter`, and five negative-control mutations all ran on the main model. **Main-loop spend is unmeasured**, as for 004–006 and 024 — mango measures dispatch only, and `rtk gain` reports a global all-time figure that cannot be attributed to one task, so none is invented here | [#16](https://github.com/cuongdinhngo/code-atlas/pull/16) |
 | 009 | Full build indexer + workers | **96.3k dispatch** — 1 subagent (`mango:challenger`, 30 tool uses / 380 s). The `mango:reviewer` pass was skipped by user instruction, and review round 2 was verify-only in the main loop, so it dispatched nothing. Phases 1–3 and 5 dispatched **nothing**: five runtime spikes against the real store, driver and git, and six negative-control mutation runs, all on the main model. **Main-loop spend is unmeasured**, as for 004–007 and 024 — mango measures dispatch only, and `rtk gain` reports a global all-time figure that cannot be attributed to one task, so none is invented here | [#17](https://github.com/cuongdinhngo/code-atlas/pull/17) |
 
+| 010 | MCP server + status/build tools | **64.6k dispatch** — 1 subagent (`mango:challenger`, 31 tool uses / 284 s), which returned 8/8 requirements met and no code finding. The `mango:reviewer` pass was skipped by user instruction. Phases 1–3 and 5 dispatched **nothing**: four spikes against the real FastMCP runtime (one of which came back false and reshaped the design) and six negative-control mutations all ran on the main model. **Main-loop spend is unmeasured**, as for 004–007, 009 and 024 — mango measures dispatch only, and `rtk gain` reports a global all-time figure that cannot be attributed to one task, so none is invented here | [#18](https://github.com/cuongdinhngo/code-atlas/pull/18) |
+
 ## Suggested order
 
 Critical path to first release: **001 → 002 → 004/005 → 006 → 007 → 009 → 010 → 011 → 013 → 014 (ship)**.
+010 landed the MCP server itself, so every later tool is a registration in `main.build_server` plus one
+module under `code_atlas/tools/` — 011 and 014 no longer carry any server work.
 003 (config) landed before 009. **008 (runtime) did not, and did not need to** — 009 drives a host
 adapter through `CA_<LANG>_CMD`, so 008 is now only the Docker path-mapping mode and blocks nothing
 on the path to 014. **025 (grammar coverage) is off the critical path** — it was split out of 007 so
