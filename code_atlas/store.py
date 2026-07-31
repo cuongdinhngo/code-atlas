@@ -19,7 +19,15 @@ from code_atlas import contract
 
 SCHEMA_VERSION = "1"
 SCHEMA_VERSION_KEY = "schema_version"
-META_KEYS: tuple[str, ...] = (SCHEMA_VERSION_KEY, "contract_version", "last_commit", "built_at")
+CONTRACT_VERSION_KEY = "contract_version"
+LAST_COMMIT_KEY = "last_commit"
+BUILT_AT_KEY = "built_at"
+META_KEYS: tuple[str, ...] = (
+    SCHEMA_VERSION_KEY,
+    CONTRACT_VERSION_KEY,
+    LAST_COMMIT_KEY,
+    BUILT_AT_KEY,
+)
 
 MEMORY_DB = ":memory:"
 
@@ -126,6 +134,10 @@ class GraphStore:
     def __exit__(self, *exc: object) -> None:
         self.close()
 
+    def now(self) -> str:
+        """The store's clock, exposed so a caller stamping ``meta`` shares its injection point."""
+        return self._now()
+
     def _create_schema(self) -> None:
         """Create the §10 objects, then refuse a database another schema version wrote (R5.3)."""
         self._conn.executescript(DDL)
@@ -206,6 +218,11 @@ class GraphStore:
             self._conn.execute("INSERT INTO nodes_fts(nodes_fts) VALUES ('rebuild')")
 
     # --- reads ----------------------------------------------------------------------------------
+
+    def file_paths(self) -> tuple[str, ...]:
+        """Every indexed path, sorted — what a build reconciles its collection against (§8.1)."""
+        cursor = self._conn.execute("SELECT path FROM files ORDER BY path")
+        return tuple(str(row[0]) for row in cursor)
 
     def nodes_by_name(self, name: str, *, kind: str | None = None, limit: int) -> list[Row]:
         return self._nodes("name = ?", name, kind, limit)
