@@ -360,6 +360,16 @@ def test_absolute_host_paths_are_rewritten_on_the_wire_and_caller_paths_are_pres
     assert stored.nodes[0]["qualified_name"] == f"{relative}::Thing"
 
 
+def test_a_path_outside_the_host_root_fails_loud_as_an_adapter_error(
+    tmp_path: Path,
+) -> None:
+    host = tmp_path / "host"
+    host.mkdir()
+    with driver(tmp_path, host_root=host, container_root=Path("/app")) as adapter:
+        with pytest.raises(AdapterError, match="not under"):
+            adapter.parse(str(tmp_path / "elsewhere" / "x.aa"))
+
+
 def test_an_unset_adapter_command_names_the_env_variable(tmp_path: Path) -> None:
     from code_atlas.config import load_config
     from code_atlas.indexer import _adapter

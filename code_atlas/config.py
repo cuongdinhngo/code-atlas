@@ -78,13 +78,15 @@ def env_name(key: str) -> str:
 def to_adapter_path(
     path: str, host_root: Path | None, container_root: Path | None
 ) -> str:
-    """Map an absolute host path into the container root; leave relative paths alone (§9)."""
+    """Map an absolute host path into the container root; leave relative paths alone (§9).
+
+    The indexer only sends repo-relative paths, so this is a no-op on the build path today. The pair
+    exists for callers that pass absolute host paths when both roots are configured.
+    """
     if host_root is None and container_root is None:
         return path
-    if host_root is None or container_root is None:
-        raise ConfigError(
-            f"{env_name('host_root')} and {env_name('container_root')} must be set together"
-        )
+    # Pair validation belongs to load_config; Config always hands both or neither.
+    assert host_root is not None and container_root is not None
     candidate = Path(path)
     if not candidate.is_absolute():
         return path

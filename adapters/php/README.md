@@ -23,20 +23,19 @@ Native paths, no mapping. Point the command at the complete argv — the core ap
 
 ### Docker exec
 
-When PHP is only inside a compose service, use a complete `docker compose exec` argv and, if the
-container's repo root differs from the host's, set **both** mapping roots:
+When PHP is only inside a compose service, use a complete `docker compose exec` argv and point the
+container service's **working directory** at the mounted repo. The build sends **repo-relative**
+paths; with that cwd they open correctly — that is the Docker happy path. No root mapping required.
 
 ```bash
 CA_PHP_CMD="docker compose exec -T php php /app/adapters/php/index.php --server"
-CA_HOST_ROOT="/home/you/project"
-CA_CONTAINER_ROOT="/app"
 ```
 
-Absolute paths under `CA_HOST_ROOT` are rewritten onto `CA_CONTAINER_ROOT` for the adapter wire;
-repo-relative paths pass through. The core rebases echoed paths so the store still records
-**repo-relative** paths. Point the container service's working directory at the mounted repo so
-relative paths open correctly. CI indexes with host PHP only; live Docker dual-mode is a documented
-coverage gap, not a CI job.
+Optional `CA_HOST_ROOT` / `CA_CONTAINER_ROOT` (both or neither) rewrite **absolute** host paths onto
+the container root for the adapter wire; relative paths still pass through. The indexer never passes
+absolutes today — the pair is defensive for callers that do. The core rebases echoed wire paths so
+the store keeps the caller's form. CI indexes with host PHP only; live Docker dual-mode is a
+documented coverage gap, not a CI job.
 
 ## Install
 

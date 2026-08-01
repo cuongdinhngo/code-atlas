@@ -17,7 +17,7 @@ from pathlib import Path, PurePosixPath
 from typing import IO, Protocol, runtime_checkable
 
 from code_atlas import contract
-from code_atlas.config import to_adapter_path
+from code_atlas.config import ConfigError, to_adapter_path
 
 # Escalation budget for stop(); module-level so a test can shorten the wait on a deliberate hang.
 STOP_TIMEOUT = 5.0
@@ -144,7 +144,11 @@ class SubprocessAdapter:
     def parse(self, path: str) -> ParseResult:
         """Parse one path. Wire may be remapped; the result always keeps the caller's path (§9)."""
         process = self._running()
-        wire = to_adapter_path(path, self._host_root, self._container_root)
+        try:
+            wire = to_adapter_path(path, self._host_root, self._container_root)
+        except ConfigError as error:
+            # Bad absolute path under set roots — loud at the process boundary (R5.3).
+            raise AdapterError(f"adapter {self._key!r}: {error}") from error
         self._request(process, wire)
         try:
             line = self._read_line(process)
@@ -266,12 +270,8 @@ class SubprocessAdapter:
         edges = reply.get("edges") or ()
         assert isinstance(nodes, list | tuple)
         assert isinstance(edges, list | tuple)
-        return ParseResult(
-            path=path,
-            ok=True,
-            nodes=tuple(dict(row) for row in nodes if isinstance(row, dict)),
-            edges=tuple(dict(row) for row in edges if isinstance(row, dict)),
-        )
+        # Relative build path: no copy. Rebase already copied when wire != path.
+        return ParseResult(path=path, ok=True, nodes=tuple(nodes), edges=tuple(edges))
 
 
 def extension_index(adapters: Iterable[LanguageAdapter]) -> dict[str, LanguageAdapter]:
@@ -328,7 +328,8 @@ def _rebase_row(row: object, wire: str, path: str) -> dict[str, object]:
 def _rebase_string(value: str, wire: str, path: str) -> str:
     if value == wire:
         return path
-    if value.startswith(f"{wire}::") or value.startswith(f"{wire}/"):
+    # Member qnames are `{path}::Name`; a nested `/` prefix is not a file-path shape we emit.
+    if value.startswith(f"{wire}::"):
         return path + value[len(wire) :]
     return value
 

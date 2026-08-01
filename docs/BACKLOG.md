@@ -38,6 +38,7 @@ is [`PLAN.md`](PLAN.md).
 | 019 | [TypeScript/JavaScript adapter + contract v2](tasks/019_typescript-adapter.md) | M7 | todo | 012, 011 |
 | 020 | [Python adapter](tasks/020_python-adapter.md) | M8 | todo | 019 |
 | 021 | [C#/.NET adapter](tasks/021_csharp-adapter.md) | M9 | todo | 019 |
+| 026 | [Inverse Docker path rebase (adapter #2)](tasks/026_docker-inverse-path-rebase.md) | M7 | todo | 008, 019 |
 
 ## Phase 3 — Onboarding
 

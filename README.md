@@ -92,8 +92,8 @@ a silent fallback.
 | `CA_IMPACT_DEPTH` | `impact_depth` | `2` | hops the impact engine traverses |
 | `CA_IMPACT_MAX_NODES` | `impact_max_nodes` | `500` | node budget for one impact query |
 | `CA_TOOLS` | `tools` | all tools | comma-separated tool allow-list |
-| `CA_HOST_ROOT` | `host_root` | unset | host side of Docker path mapping (pair with `CA_CONTAINER_ROOT`) |
-| `CA_CONTAINER_ROOT` | `container_root` | unset | container side of Docker path mapping |
+| `CA_HOST_ROOT` | `host_root` | unset | absolute-path rewrite only (pair with `CA_CONTAINER_ROOT`; unused by the relative-path build) |
+| `CA_CONTAINER_ROOT` | `container_root` | unset | absolute-path rewrite only (pair with `CA_HOST_ROOT`) |
 | `CA_<LANG>_CMD` | `[adapter_cmd].<lang>` | — | the **complete argv** that launches one adapter in server mode |
 
 ```toml
@@ -101,7 +101,7 @@ a silent fallback.
 workers = 4
 max_results = 50
 tools = ["get_index_status", "build_or_update_index"]   # only names the server serves; a typo is a loud error
-# Docker path mapping (both required, or omit both):
+# Optional: only needed if something passes absolute host paths to the adapter.
 # host_root = "/home/you/project"
 # container_root = "/app"
 
