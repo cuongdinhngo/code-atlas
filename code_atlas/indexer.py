@@ -26,6 +26,7 @@ from code_atlas import contract, gitutil
 from code_atlas.adapter import AdapterError, ParseResult, SubprocessAdapter, extension_index
 from code_atlas.config import Config
 from code_atlas.ignore import IgnoreMatcher, load_ignore
+from code_atlas.resolver import resolve_edges
 from code_atlas.store import BUILT_AT_KEY, CONTRACT_VERSION_KEY, LAST_COMMIT_KEY, GraphStore
 
 # How often the watchdog looks for an overrun call: small beside any sane timeout, cheap to poll.
@@ -49,10 +50,10 @@ class BuildReport:
 
 
 def full_build(config: Config, store: GraphStore) -> BuildReport:
-    """Index every collectable file under ``config.root`` into ``store`` (§8.1 steps 1-4 + FTS).
+    """Index every collectable file under ``config.root`` into ``store`` (§8.1 steps 1-5).
 
-    Cross-file edge linking is deliberately absent: adapters emit bare edges and the resolver is
-    task 011's. Every collected path leaves a ``files`` row, parsed or not.
+    Adapters emit bare edges; ``resolve_edges`` links them after every node exists. Every collected
+    path leaves a ``files`` row, parsed or not.
     """
     watchdog = _Watchdog(config.adapter_timeout)
     watchdog.start()
@@ -72,6 +73,7 @@ def full_build(config: Config, store: GraphStore) -> BuildReport:
     # No FTS rebuild here: §10's triggers keep `nodes_fts` current through every replace, so a
     # rebuild per build would cost a full re-index and change nothing (deviation D1).
     _record_meta(config, store)
+    resolve_edges(store, max_candidates=config.max_results)
     return BuildReport(files=len(paths), removed=removed, **counts)
 
 
