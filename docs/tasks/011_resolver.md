@@ -342,13 +342,19 @@ No `❌` → **no coverage-gap exclusions.**
 
 ## Phase 4 — Review ✋ (stop only if not clean)
 
-*(in progress — dispatched after commit)*
+- **reviewer** ([Review](7b1b9e08-c4e6-4df3-afdf-a52fa65ad91a)): **CHANGES REQUESTED** → fixed: Finding 1 Co-authored-by trailers stripped via `filter-branch`; out-of-scope AGENTS/mailmap tip commits dropped from branch. Re-check: verify-only on commit messages → **clean**.
+- **challenger** ([challenger](0f8789b2-f267-44cf-a72f-37114085e313)): **8 met / 0 not met / 2 can't tell** (DYNAMIC adapter tagging for `$x->$m()` / variable include — pre-existing adapter behaviour, not this diff; resolver skip proven).
+- **Scope reconciliation:** diff ⊆ approved list ✅; no AGENTS/mailmap on branch after fix.
+- **Proving test:** green (`test_full_build_resolves_a_known_caller_chain_on_fixtures`).
+- **Layer-match:** no ❌.
+- **Clean?** yes — after Finding 1 fix.
+- **Reviewed at:** `cf445e4` · files: resolver/store/indexer + tests/fixtures/php/resolve + test_resolver/store/indexer + PLAN/BACKLOG/011 task doc.
 
 ## Session status
 
 - **Last updated:** 2026-08-01
-- **Current phase:** 3 → 4 (execute complete; review next)
-- **Next action:** commit change-set; dispatch reviewer + challenger
+- **Current phase:** 4 — Review **clean**
+- **Next action:** `/mango:finalise 011` (or approve PR actions)
 - **Blocked on:** none
 
 ## Decision log
@@ -359,3 +365,4 @@ No `❌` → **no coverage-gap exclusions.**
 | 2026-08-01 | Design: skip-already-linked for semantic_types; HEURISTIC CALLS → name-match; top-N expand via sibling inserts | Smallest language-agnostic reading of §8.2 + R5.2 + R1.6 |
 | 2026-08-01 | Gate 2 cleared | User: `/mango:execute 011` |
 | 2026-08-01 | Fixture uses `\App\helper()` not bare `helper()` | Adapter NameResolver emits `\helper` for unqualified calls; FQN call is the honest RESOLVED path |
+| 2026-08-01 | Strip Co-authored-by; drop AGENTS/mailmap from branch | Reviewer Finding 1 + scope discipline |
