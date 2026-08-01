@@ -52,6 +52,9 @@ final class Visitor extends NodeVisitorAbstract
      */
     private array $anonymousOccurrences = [];
 
+    /** @var list<array{fqn: string, alias: ?string, type: string}> */
+    private array $imports = [];
+
     public function __construct(
         private readonly string $path,
         int $lineCount,
@@ -75,8 +78,8 @@ final class Visitor extends NodeVisitorAbstract
                 $this->open($node, 'Namespace', $node->name->toString(), self::fqn($node->name));
             }
         } elseif ($node instanceof Node\Stmt\ClassLike) {
-            if ($node->namespacedName !== null) {
-                $this->enterClassLike($node);
+            if ($node->namespacedName !== null && $node->name !== null) {
+                $this->enterClassLike($node, self::fqn($node->namespacedName), $node->name->toString());
             } elseif ($node instanceof Node\Stmt\Class_ && $node->name === null) {
                 $this->enterAnonymousClass($node);
             }
@@ -84,7 +87,7 @@ final class Visitor extends NodeVisitorAbstract
             if ($node->namespacedName !== null) {
                 $this->open($node, 'Function', $node->name->toString(), self::fqn($node->namespacedName), [
                     'params' => $this->params($node->params),
-                ] + $this->extraFields($this->rawAttributes($node->attrGroups)));
+                ] + $this->extraFields($this->attributeExtra($node->attrGroups)));
             }
         } elseif ($node instanceof Node\Stmt\ClassMethod) {
             if ($node->name->toString() === '__construct') {
@@ -93,7 +96,7 @@ final class Visitor extends NodeVisitorAbstract
             $this->open($node, 'Method', $node->name->toString(), $this->member($node->name->toString()), [
                 'modifiers' => $this->methodModifiers($node),
                 'params' => $this->params($node->params),
-            ] + $this->extraFields($this->rawAttributes($node->attrGroups)));
+            ] + $this->extraFields($this->attributeExtra($node->attrGroups)));
         } elseif ($node instanceof Node\Expr\Closure) {
             $this->enterClosureLike($node, 'closure', '{closure}', $node->params, $node->static, $node->attrGroups);
         } elseif ($node instanceof Node\Expr\ArrowFunction) {
@@ -117,21 +120,33 @@ final class Visitor extends NodeVisitorAbstract
     /** Declarations that contain no members of their own, plus every reference edge. */
     private function enterMemberOrReference(Node $node): void
     {
+        if (!$this->enterMemberDeclaration($node)) {
+            $this->enterReference($node);
+        }
+    }
+
+    /** Members that open no scope of their own. False means the node declared nothing. */
+    private function enterMemberDeclaration(Node $node): bool
+    {
         if ($node instanceof Node\Stmt\Property) {
             $this->enterProperty($node);
         } elseif ($node instanceof Node\Stmt\ClassConst) {
             $this->enterClassConst($node);
         } elseif ($node instanceof Node\Stmt\EnumCase) {
-            $this->declare($node, 'ClassConst', $node->name->toString(), $this->member($node->name->toString()), [
-                'extra' => ['enum_case' => true] + (
-                    ($attrs = $this->rawAttributes($node->attrGroups)) !== []
-                        ? ['attributes' => $attrs]
-                        : []
-                ),
-            ]);
+            $this->enterEnumCase($node);
         } elseif ($node instanceof Node\Stmt\Const_) {
             $this->enterGlobalConst($node);
-        } elseif ($node instanceof Node\Stmt\TraitUse) {
+        } else {
+            return false;
+        }
+
+        return true;
+    }
+
+    /** Every edge pointing at something declared elsewhere; emits no node of its own. */
+    private function enterReference(Node $node): void
+    {
+        if ($node instanceof Node\Stmt\TraitUse) {
             $this->enterTraitUse($node);
         } elseif ($node instanceof Node\Stmt\Use_) {
             $this->enterUse($node->type, $node->uses, null);
@@ -139,9 +154,9 @@ final class Visitor extends NodeVisitorAbstract
             $this->enterGroupUse($node);
         } elseif ($node instanceof Node\Expr\New_) {
             $this->enterNew($node);
-        } elseif ($node instanceof Node\Expr\NullsafeMethodCall && $node->name instanceof Node\Identifier) {
-            $this->enterInstanceCall($node, $node->name->toString());
-        } elseif ($node instanceof Node\Expr\MethodCall && $node->name instanceof Node\Identifier) {
+        } elseif (($node instanceof Node\Expr\MethodCall || $node instanceof Node\Expr\NullsafeMethodCall)
+            && $node->name instanceof Node\Identifier
+        ) {
             $this->enterInstanceCall($node, $node->name->toString());
         } elseif ($node instanceof Node\Expr\StaticCall
             && $node->class instanceof Node\Name
@@ -155,17 +170,14 @@ final class Visitor extends NodeVisitorAbstract
         }
     }
 
-    private function enterClassLike(Node\Stmt\ClassLike $node): void
+    /** $qname and $name are resolved by the caller, which is where their non-nullness is known. */
+    private function enterClassLike(Node\Stmt\ClassLike $node, string $qname, string $name): void
     {
-        $qname = self::fqn($node->namespacedName);
-        $extra = [];
-        if (($attrs = $this->rawAttributes($node->attrGroups)) !== []) {
-            $extra['attributes'] = $attrs;
-        }
+        $extra = $this->attributeExtra($node->attrGroups);
         if ($node instanceof Node\Stmt\Enum_ && $node->scalarType !== null) {
             $extra['scalar_type'] = self::typeName($node->scalarType);
         }
-        $this->open($node, self::CLASS_LIKE_KINDS[$node::class], $node->name->toString(), $qname, [
+        $this->open($node, self::CLASS_LIKE_KINDS[$node::class], $name, $qname, [
             'modifiers' => $this->classModifiers($node),
         ] + $this->extraFields($extra));
 
@@ -182,7 +194,7 @@ final class Visitor extends NodeVisitorAbstract
         $qname = $this->anonymousQname($node, 'class');
         $this->open($node, 'Class', '{class}', $qname, [
             'modifiers' => $this->classModifiers($node),
-        ] + $this->extraFields($this->rawAttributes($node->attrGroups)));
+        ] + $this->extraFields($this->attributeExtra($node->attrGroups)));
 
         foreach ($this->parentsOf($node) as $parent) {
             $this->edge('EXTENDS', $qname, self::fqn($parent), $parent->getStartLine());
@@ -208,7 +220,7 @@ final class Visitor extends NodeVisitorAbstract
         if ($static) {
             $fields['modifiers'] = ['static'];
         }
-        $fields += $this->extraFields($this->rawAttributes($attrGroups));
+        $fields += $this->extraFields($this->attributeExtra($attrGroups));
         $this->open($node, 'Function', $name, $this->anonymousQname($node, $anchor), $fields);
     }
 
@@ -224,9 +236,7 @@ final class Visitor extends NodeVisitorAbstract
                 $node->hooks,
             );
         }
-        if (($attrs = $this->rawAttributes($node->attrGroups)) !== []) {
-            $extra['attributes'] = $attrs;
-        }
+        $extra += $this->attributeExtra($node->attrGroups);
         foreach ($node->props as $property) {
             $name = '$' . $property->name->toString();
             $this->declare($property, 'Property', $name, $this->member($name), [
@@ -241,15 +251,20 @@ final class Visitor extends NodeVisitorAbstract
         if (($type = self::typeName($node->type)) !== null) {
             $extra['type'] = $type;
         }
-        if (($attrs = $this->rawAttributes($node->attrGroups)) !== []) {
-            $extra['attributes'] = $attrs;
-        }
+        $extra += $this->attributeExtra($node->attrGroups);
         foreach ($node->consts as $const) {
             $name = $const->name->toString();
             $this->declare($const, 'ClassConst', $name, $this->member($name), [
                 'modifiers' => $this->classConstModifiers($node),
             ] + $this->extraFields($extra));
         }
+    }
+
+    private function enterEnumCase(Node\Stmt\EnumCase $node): void
+    {
+        $extra = ['enum_case' => true] + $this->attributeExtra($node->attrGroups);
+        $name = $node->name->toString();
+        $this->declare($node, 'ClassConst', $name, $this->member($name), $this->extraFields($extra));
     }
 
     private function enterGlobalConst(Node\Stmt\Const_ $node): void
@@ -281,7 +296,7 @@ final class Visitor extends NodeVisitorAbstract
             } elseif ($adaptation instanceof Node\Stmt\TraitUseAdaptation\Precedence) {
                 $adaptations[] = [
                     'kind' => 'insteadof',
-                    'trait' => self::fqn($adaptation->trait),
+                    'trait' => $adaptation->trait !== null ? self::fqn($adaptation->trait) : null,
                     'method' => $adaptation->method->toString(),
                     'insteadof' => array_map(self::fqn(...), $adaptation->insteadof),
                 ];
@@ -296,10 +311,9 @@ final class Visitor extends NodeVisitorAbstract
     private function enterUse(int $type, array $uses, ?Node\Name $prefix): void
     {
         foreach ($uses as $use) {
-            $name = $prefix === null
+            $fqn = self::fqn($prefix === null
                 ? $use->name
-                : Node\Name::concat($prefix, $use->name);
-            $fqn = self::fqn($name);
+                : $prefix->toString() . '\\' . $use->name->toString());
             $importType = self::IMPORT_TYPES[$use->type !== Node\Stmt\Use_::TYPE_UNKNOWN ? $use->type : $type]
                 ?? 'class';
             $this->edge('IMPORTS', $this->path, $fqn, $use->getStartLine());
@@ -357,9 +371,7 @@ final class Visitor extends NodeVisitorAbstract
             if (($type = self::typeName($param->type)) !== null) {
                 $extra['type'] = $type;
             }
-            if (($attrs = $this->rawAttributes($param->attrGroups)) !== []) {
-                $extra['attributes'] = $attrs;
-            }
+            $extra += $this->attributeExtra($param->attrGroups);
             $this->declare($param, 'Property', $name, $this->member($name), [
                 'modifiers' => $this->promotedModifiers($param->flags),
             ] + $this->extraFields($extra));
@@ -396,13 +408,18 @@ final class Visitor extends NodeVisitorAbstract
         );
     }
 
-    /** Record a declaration and make it the container for everything nested inside it. */
+    /**
+     * Record a declaration and make it the container for everything nested inside it.
+     *
+     * @param array<string, mixed> $fields
+     */
     private function open(Node $node, string $kind, string $name, string $qname, array $fields = []): void
     {
         $this->declare($node, $kind, $name, $qname, $fields);
         $this->scope[] = [$node, $qname];
     }
 
+    /** @param array<string, mixed> $fields */
     private function declare(Node $node, string $kind, string $name, string $qname, array $fields = []): void
     {
         $this->edge('CONTAINS', $this->container(), $qname, $node->getStartLine());
@@ -556,7 +573,22 @@ final class Visitor extends NodeVisitorAbstract
      */
     private function flags(array $flags): array
     {
-        return array_values(array_keys(array_filter($flags)));
+        return array_keys(array_filter($flags));
+    }
+
+    /**
+     * Attributes as an `extra` fragment. Never hand rawAttributes() to extraFields() directly:
+     * a bare list lands the attributes *as* `extra` instead of under `extra.attributes`.
+     *
+     * @param Node\AttributeGroup[] $attrGroups
+     *
+     * @return array<string, mixed>
+     */
+    private function attributeExtra(array $attrGroups): array
+    {
+        $attributes = $this->rawAttributes($attrGroups);
+
+        return $attributes === [] ? [] : ['attributes' => $attributes];
     }
 
     /**
@@ -595,7 +627,11 @@ final class Visitor extends NodeVisitorAbstract
         return null;
     }
 
-    /** @param array<string, mixed> $extra */
+    /**
+     * @param array<string, mixed> $extra
+     *
+     * @return array{extra?: array<string, mixed>}
+     */
     private function extraFields(array $extra): array
     {
         return $extra === [] ? [] : ['extra' => $extra];
@@ -603,9 +639,9 @@ final class Visitor extends NodeVisitorAbstract
 
     private function appendFileImport(string $fqn, ?string $alias, string $type): void
     {
-        $extra = $this->nodes[0]['extra'] ?? [];
-        $extra['imports'][] = ['fqn' => $fqn, 'alias' => $alias, 'type' => $type];
-        $this->nodes[0]['extra'] = $extra;
+        // Imports are the only `extra` the File node ever carries, so this rewrites rather than merges.
+        $this->imports[] = ['fqn' => $fqn, 'alias' => $alias, 'type' => $type];
+        $this->nodes[0]['extra'] = ['imports' => $this->imports];
     }
 
     /** @param list<array<string, mixed>> $items */
@@ -615,8 +651,10 @@ final class Visitor extends NodeVisitorAbstract
             if (($node['qualified_name'] ?? null) !== $qname) {
                 continue;
             }
-            $extra = $node['extra'] ?? [];
-            $extra[$key] = array_merge($extra[$key] ?? [], $items);
+            $current = $node['extra'] ?? [];
+            $extra = is_array($current) ? $current : [];
+            $existing = $extra[$key] ?? [];
+            $extra[$key] = array_merge(is_array($existing) ? $existing : [], $items);
             $this->nodes[$index]['extra'] = $extra;
 
             return;
