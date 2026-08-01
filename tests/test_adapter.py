@@ -333,7 +333,7 @@ def test_the_fixture_speaks_the_contract(tmp_path: Path) -> None:
 def test_absolute_host_paths_are_rewritten_on_the_wire_and_caller_paths_are_preserved(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """AC1 proving test: wire uses the container root; results keep the caller's path (Approach §3)."""
+    """AC1: container wire path; ParseResult keeps the caller's path (§9)."""
     host = tmp_path / "host"
     host.mkdir()
     container = Path("/app")
