@@ -10,6 +10,7 @@ from code_atlas.contract import (
     CONTRACT_VERSION,
     EDGE_FIELDS,
     EDGE_KINDS,
+    FQN_EDGE_KINDS,
     KNOWN_CAPABILITIES,
     MEMBER_SEPARATOR,
     META_FIELDS,
@@ -90,6 +91,13 @@ def test_edge_kinds_are_the_nine_contract_kinds() -> None:
         "IMPORTS",
         "INCLUDES",
         "REFERENCES",
+    )
+
+
+def test_fqn_edge_kinds_opt_in_from_edge_kinds() -> None:
+    assert FQN_EDGE_KINDS <= frozenset(EDGE_KINDS)
+    assert FQN_EDGE_KINDS == frozenset(
+        {"EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS", "NEW"}
     )
 
 

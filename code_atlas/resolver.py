@@ -5,9 +5,6 @@ from pathlib import PurePosixPath
 from code_atlas import contract
 from code_atlas.store import GraphStore
 
-# Explicit inclusion: a new contract edge kind must opt in, not silently join the FQN path.
-_FQN_KINDS = frozenset({"EXTENDS", "IMPLEMENTS", "USES_TRAIT", "NEW", "CALLS"})
-
 # RESOLVED is strongest; DYNAMIC is weakest — never promote a weaker incoming claim (R5.2).
 _TIER_STRENGTH = {tier: index for index, tier in enumerate(contract.CONFIDENCE_TIERS)}
 
@@ -20,7 +17,7 @@ def resolve_edges(store: GraphStore, *, max_candidates: int) -> None:
         kind = str(edge["kind"])
         if kind == "INCLUDES":
             _resolve_include(store, edge)
-        elif kind in _FQN_KINDS:
+        elif kind in contract.FQN_EDGE_KINDS:
             _resolve_symbol(store, edge, max_candidates)
 
 
