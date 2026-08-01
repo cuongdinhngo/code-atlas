@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CodeAtlas\Php;
 
+use PhpParser\Modifiers;
 use PhpParser\Node;
 use PhpParser\NodeVisitorAbstract;
 
@@ -29,17 +30,36 @@ final class Visitor extends NodeVisitorAbstract
         Node\Stmt\Enum_::class => 'Enum',
     ];
 
+    private const IMPORT_TYPES = [
+        Node\Stmt\Use_::TYPE_NORMAL => 'class',
+        Node\Stmt\Use_::TYPE_FUNCTION => 'function',
+        Node\Stmt\Use_::TYPE_CONSTANT => 'const',
+    ];
+
     /**
      * Enclosing containers, innermost last, each as [opening node or null, qualified name].
-     * The node is what leaveNode() matches on, so a declaration this visitor skipped — an
-     * anonymous class, a braced global namespace — never pops a scope it did not push.
+     * The node is what leaveNode() matches on, so a declaration this visitor skipped — a
+     * braced global namespace — never pops a scope it did not push.
      *
      * @var list<array{0: ?Node, 1: string}>
      */
     private array $scope;
 
-    public function __construct(private readonly string $path, int $lineCount)
-    {
+    /**
+     * Counts anonymous base qnames already emitted so a same-line collision gets a `:col` suffix (C1).
+     *
+     * @var array<string, int>
+     */
+    private array $anonymousOccurrences = [];
+
+    /** @var list<array{fqn: string, alias: ?string, type: string}> */
+    private array $imports = [];
+
+    public function __construct(
+        private readonly string $path,
+        int $lineCount,
+        private readonly string $source = '',
+    ) {
         $this->scope = [[null, $path]];
         $this->nodes[] = [
             'kind' => 'File',
@@ -58,20 +78,29 @@ final class Visitor extends NodeVisitorAbstract
                 $this->open($node, 'Namespace', $node->name->toString(), self::fqn($node->name));
             }
         } elseif ($node instanceof Node\Stmt\ClassLike) {
-            if ($node->namespacedName !== null) {
-                $this->enterClassLike($node);
+            if ($node->namespacedName !== null && $node->name !== null) {
+                $this->enterClassLike($node, self::fqn($node->namespacedName), $node->name->toString());
+            } elseif ($node instanceof Node\Stmt\Class_ && $node->name === null) {
+                $this->enterAnonymousClass($node);
             }
         } elseif ($node instanceof Node\Stmt\Function_) {
             if ($node->namespacedName !== null) {
                 $this->open($node, 'Function', $node->name->toString(), self::fqn($node->namespacedName), [
                     'params' => $this->params($node->params),
-                ]);
+                ] + $this->extraFields($this->attributeExtra($node->attrGroups)));
             }
         } elseif ($node instanceof Node\Stmt\ClassMethod) {
+            if ($node->name->toString() === '__construct') {
+                $this->declarePromotedProperties($node);
+            }
             $this->open($node, 'Method', $node->name->toString(), $this->member($node->name->toString()), [
                 'modifiers' => $this->methodModifiers($node),
                 'params' => $this->params($node->params),
-            ]);
+            ] + $this->extraFields($this->attributeExtra($node->attrGroups)));
+        } elseif ($node instanceof Node\Expr\Closure) {
+            $this->enterClosureLike($node, 'closure', '{closure}', $node->params, $node->static, $node->attrGroups);
+        } elseif ($node instanceof Node\Expr\ArrowFunction) {
+            $this->enterClosureLike($node, 'fn', '{fn}', $node->params, $node->static, $node->attrGroups);
         } else {
             $this->enterMemberOrReference($node);
         }
@@ -91,53 +120,261 @@ final class Visitor extends NodeVisitorAbstract
     /** Declarations that contain no members of their own, plus every reference edge. */
     private function enterMemberOrReference(Node $node): void
     {
+        if (!$this->enterMemberDeclaration($node)) {
+            $this->enterReference($node);
+        }
+    }
+
+    /** Members that open no scope of their own. False means the node declared nothing. */
+    private function enterMemberDeclaration(Node $node): bool
+    {
         if ($node instanceof Node\Stmt\Property) {
-            foreach ($node->props as $property) {
-                $name = '$' . $property->name->toString();
-                $this->declare($property, 'Property', $name, $this->member($name), [
-                    'modifiers' => $this->propertyModifiers($node),
-                ]);
-            }
+            $this->enterProperty($node);
         } elseif ($node instanceof Node\Stmt\ClassConst) {
-            foreach ($node->consts as $const) {
-                $name = $const->name->toString();
-                $this->declare($const, 'ClassConst', $name, $this->member($name));
-            }
+            $this->enterClassConst($node);
+        } elseif ($node instanceof Node\Stmt\EnumCase) {
+            $this->enterEnumCase($node);
+        } elseif ($node instanceof Node\Stmt\Const_) {
+            $this->enterGlobalConst($node);
+        } else {
+            return false;
+        }
+
+        return true;
+    }
+
+    /** Every edge pointing at something declared elsewhere; emits no node of its own. */
+    private function enterReference(Node $node): void
+    {
+        if ($node instanceof Node\Stmt\TraitUse) {
+            $this->enterTraitUse($node);
         } elseif ($node instanceof Node\Stmt\Use_) {
-            foreach ($node->uses as $use) {
-                $this->edge('IMPORTS', $this->path, self::fqn($use->name), $use->getStartLine());
-            }
-        } elseif ($node instanceof Node\Expr\New_ && $node->class instanceof Node\Name) {
-            $this->edge('NEW', $this->container(), self::fqn($node->class), $node->getStartLine());
-        } elseif ($node instanceof Node\Expr\MethodCall && $node->name instanceof Node\Identifier) {
-            // One file cannot know the receiver's type, so never claim RESOLVED here (R5.2).
-            $target = $node->name->toString();
-            $this->edge('CALLS', $this->container(), $target, $node->getStartLine(), 'HEURISTIC');
+            $this->enterUse($node->type, $node->uses, null);
+        } elseif ($node instanceof Node\Stmt\GroupUse) {
+            $this->enterGroupUse($node);
+        } elseif ($node instanceof Node\Expr\New_) {
+            $this->enterNew($node);
+        } elseif (($node instanceof Node\Expr\MethodCall || $node instanceof Node\Expr\NullsafeMethodCall)
+            && $node->name instanceof Node\Identifier
+        ) {
+            $this->enterInstanceCall($node, $node->name->toString());
         } elseif ($node instanceof Node\Expr\StaticCall
             && $node->class instanceof Node\Name
             && $node->name instanceof Node\Identifier
         ) {
-            $target = self::fqn($node->class) . '::' . $node->name->toString();
-            $this->edge('CALLS', $this->container(), $target, $node->getStartLine());
+            $this->enterNamedCall($node, self::fqn($node->class) . '::' . $node->name->toString());
         } elseif ($node instanceof Node\Expr\FuncCall && $node->name instanceof Node\Name) {
-            $this->edge('CALLS', $this->container(), self::fqn($node->name), $node->getStartLine());
+            $this->enterNamedCall($node, self::fqn($node->name));
         } elseif ($node instanceof Node\Expr\Include_) {
             $this->enterInclude($node);
         }
     }
 
-    private function enterClassLike(Node\Stmt\ClassLike $node): void
+    /** $qname and $name are resolved by the caller, which is where their non-nullness is known. */
+    private function enterClassLike(Node\Stmt\ClassLike $node, string $qname, string $name): void
     {
-        $qname = self::fqn($node->namespacedName);
-        $this->open($node, self::CLASS_LIKE_KINDS[$node::class], $node->name->toString(), $qname, [
+        $extra = $this->attributeExtra($node->attrGroups);
+        if ($node instanceof Node\Stmt\Enum_ && $node->scalarType !== null) {
+            $extra['scalar_type'] = self::typeName($node->scalarType);
+        }
+        $this->open($node, self::CLASS_LIKE_KINDS[$node::class], $name, $qname, [
             'modifiers' => $this->classModifiers($node),
-        ]);
+        ] + $this->extraFields($extra));
 
         foreach ($this->parentsOf($node) as $parent) {
             $this->edge('EXTENDS', $qname, self::fqn($parent), $parent->getStartLine());
         }
         foreach ($this->interfacesOf($node) as $interface) {
             $this->edge('IMPLEMENTS', $qname, self::fqn($interface), $interface->getStartLine());
+        }
+    }
+
+    private function enterAnonymousClass(Node\Stmt\Class_ $node): void
+    {
+        $qname = $this->anonymousQname($node, 'class');
+        $this->open($node, 'Class', '{class}', $qname, [
+            'modifiers' => $this->classModifiers($node),
+        ] + $this->extraFields($this->attributeExtra($node->attrGroups)));
+
+        foreach ($this->parentsOf($node) as $parent) {
+            $this->edge('EXTENDS', $qname, self::fqn($parent), $parent->getStartLine());
+        }
+        foreach ($this->interfacesOf($node) as $interface) {
+            $this->edge('IMPLEMENTS', $qname, self::fqn($interface), $interface->getStartLine());
+        }
+    }
+
+    /**
+     * @param Node\Param[]              $params
+     * @param Node\AttributeGroup[]     $attrGroups
+     */
+    private function enterClosureLike(
+        Node $node,
+        string $anchor,
+        string $name,
+        array $params,
+        bool $static,
+        array $attrGroups,
+    ): void {
+        $fields = ['params' => $this->params($params)];
+        if ($static) {
+            $fields['modifiers'] = ['static'];
+        }
+        $fields += $this->extraFields($this->attributeExtra($attrGroups));
+        $this->open($node, 'Function', $name, $this->anonymousQname($node, $anchor), $fields);
+    }
+
+    private function enterProperty(Node\Stmt\Property $node): void
+    {
+        $extra = [];
+        if (($type = self::typeName($node->type)) !== null) {
+            $extra['type'] = $type;
+        }
+        if ($node->hooks !== []) {
+            $extra['hooks'] = array_map(
+                static fn (Node\PropertyHook $hook): string => $hook->name->toString(),
+                $node->hooks,
+            );
+        }
+        $extra += $this->attributeExtra($node->attrGroups);
+        foreach ($node->props as $property) {
+            $name = '$' . $property->name->toString();
+            $this->declare($property, 'Property', $name, $this->member($name), [
+                'modifiers' => $this->propertyModifiers($node),
+            ] + $this->extraFields($extra));
+        }
+    }
+
+    private function enterClassConst(Node\Stmt\ClassConst $node): void
+    {
+        $extra = [];
+        if (($type = self::typeName($node->type)) !== null) {
+            $extra['type'] = $type;
+        }
+        $extra += $this->attributeExtra($node->attrGroups);
+        foreach ($node->consts as $const) {
+            $name = $const->name->toString();
+            $this->declare($const, 'ClassConst', $name, $this->member($name), [
+                'modifiers' => $this->classConstModifiers($node),
+            ] + $this->extraFields($extra));
+        }
+    }
+
+    private function enterEnumCase(Node\Stmt\EnumCase $node): void
+    {
+        $extra = ['enum_case' => true] + $this->attributeExtra($node->attrGroups);
+        $name = $node->name->toString();
+        $this->declare($node, 'ClassConst', $name, $this->member($name), $this->extraFields($extra));
+    }
+
+    private function enterGlobalConst(Node\Stmt\Const_ $node): void
+    {
+        foreach ($node->consts as $const) {
+            $qname = $const->namespacedName !== null
+                ? self::fqn($const->namespacedName)
+                : self::fqn($const->name->toString());
+            $this->declare($const, 'Const', $const->name->toString(), $qname);
+        }
+    }
+
+    private function enterTraitUse(Node\Stmt\TraitUse $node): void
+    {
+        $owner = $this->container();
+        foreach ($node->traits as $trait) {
+            $this->edge('USES_TRAIT', $owner, self::fqn($trait), $trait->getStartLine());
+        }
+
+        $adaptations = [];
+        foreach ($node->adaptations as $adaptation) {
+            if ($adaptation instanceof Node\Stmt\TraitUseAdaptation\Alias) {
+                $adaptations[] = [
+                    'kind' => 'alias',
+                    'trait' => $adaptation->trait !== null ? self::fqn($adaptation->trait) : null,
+                    'method' => $adaptation->method->toString(),
+                    'new_name' => $adaptation->newName?->toString(),
+                ];
+            } elseif ($adaptation instanceof Node\Stmt\TraitUseAdaptation\Precedence) {
+                $adaptations[] = [
+                    'kind' => 'insteadof',
+                    'trait' => $adaptation->trait !== null ? self::fqn($adaptation->trait) : null,
+                    'method' => $adaptation->method->toString(),
+                    'insteadof' => array_map(self::fqn(...), $adaptation->insteadof),
+                ];
+            }
+        }
+        if ($adaptations !== []) {
+            $this->appendExtraList($owner, 'trait_adaptations', $adaptations);
+        }
+    }
+
+    /** @param Node\UseItem[] $uses */
+    private function enterUse(int $type, array $uses, ?Node\Name $prefix): void
+    {
+        foreach ($uses as $use) {
+            $fqn = self::fqn($prefix === null
+                ? $use->name
+                : $prefix->toString() . '\\' . $use->name->toString());
+            $importType = self::IMPORT_TYPES[$use->type !== Node\Stmt\Use_::TYPE_UNKNOWN ? $use->type : $type]
+                ?? 'class';
+            $this->edge('IMPORTS', $this->path, $fqn, $use->getStartLine());
+            $this->appendFileImport($fqn, $use->alias?->toString(), $importType);
+        }
+    }
+
+    private function enterGroupUse(Node\Stmt\GroupUse $node): void
+    {
+        $this->enterUse($node->type, $node->uses, $node->prefix);
+    }
+
+    private function enterNew(Node\Expr\New_ $node): void
+    {
+        if ($node->class instanceof Node\Name) {
+            $this->edge('NEW', $this->container(), self::fqn($node->class), $node->getStartLine());
+        } elseif ($node->class instanceof Node\Stmt\Class_) {
+            // Peek only — enterAnonymousClass registers the qname when the Class_ node is visited.
+            $target = $this->anonymousQname($node->class, 'class', register: false);
+            $this->edge('NEW', $this->container(), $target, $node->getStartLine());
+        } else {
+            $this->edge('NEW', $this->container(), '(dynamic)', $node->getStartLine(), 'DYNAMIC');
+        }
+    }
+
+    private function enterInstanceCall(Node\Expr\CallLike $node, string $method): void
+    {
+        if ($node->isFirstClassCallable()) {
+            return;
+        }
+        // One file cannot know the receiver's type, so never claim RESOLVED here (R5.2).
+        $this->edge('CALLS', $this->container(), $method, $node->getStartLine(), 'HEURISTIC');
+    }
+
+    private function enterNamedCall(Node\Expr\CallLike $node, string $target): void
+    {
+        if ($node->isFirstClassCallable()) {
+            return;
+        }
+        $this->edge('CALLS', $this->container(), $target, $node->getStartLine());
+    }
+
+    private function declarePromotedProperties(Node\Stmt\ClassMethod $node): void
+    {
+        foreach ($node->params as $param) {
+            if ($param->flags === 0) {
+                continue;
+            }
+            $variable = $param->var;
+            if (!$variable instanceof Node\Expr\Variable || !is_string($variable->name)) {
+                continue;
+            }
+            $name = '$' . $variable->name;
+            $extra = [];
+            if (($type = self::typeName($param->type)) !== null) {
+                $extra['type'] = $type;
+            }
+            $extra += $this->attributeExtra($param->attrGroups);
+            $this->declare($param, 'Property', $name, $this->member($name), [
+                'modifiers' => $this->promotedModifiers($param->flags),
+            ] + $this->extraFields($extra));
         }
     }
 
@@ -171,14 +408,19 @@ final class Visitor extends NodeVisitorAbstract
         );
     }
 
-    /** Record a declaration and make it the container for everything nested inside it. */
-    private function open(Node $node, string $kind, string $name, string $qname, array $extra = []): void
+    /**
+     * Record a declaration and make it the container for everything nested inside it.
+     *
+     * @param array<string, mixed> $fields
+     */
+    private function open(Node $node, string $kind, string $name, string $qname, array $fields = []): void
     {
-        $this->declare($node, $kind, $name, $qname, $extra);
+        $this->declare($node, $kind, $name, $qname, $fields);
         $this->scope[] = [$node, $qname];
     }
 
-    private function declare(Node $node, string $kind, string $name, string $qname, array $extra = []): void
+    /** @param array<string, mixed> $fields */
+    private function declare(Node $node, string $kind, string $name, string $qname, array $fields = []): void
     {
         $this->edge('CONTAINS', $this->container(), $qname, $node->getStartLine());
         $this->nodes[] = [
@@ -188,7 +430,7 @@ final class Visitor extends NodeVisitorAbstract
             'file_path' => $this->path,
             'line_start' => $node->getStartLine(),
             'line_end' => $node->getEndLine(),
-        ] + $extra;
+        ] + $fields;
     }
 
     private function edge(string $kind, string $source, string $target, int $line, ?string $tier = null): void
@@ -215,6 +457,33 @@ final class Visitor extends NodeVisitorAbstract
     private function member(string $name): string
     {
         return $this->container() . '::' . $name;
+    }
+
+    private function anonymousQname(Node $node, string $kind, bool $register = true): string
+    {
+        $base = $this->container() . '::{' . $kind . '@' . $node->getStartLine() . '}';
+        $seen = $this->anonymousOccurrences[$base] ?? 0;
+        if ($register) {
+            $this->anonymousOccurrences[$base] = $seen + 1;
+        }
+        // First on the line keeps the H1 base form; later ones append :col (ticket C1).
+        if ($seen === 0) {
+            return $base;
+        }
+
+        return $base . ':' . $this->columnOf($node);
+    }
+
+    /** 1-based column of the node's start within its source line. */
+    private function columnOf(Node $node): int
+    {
+        $pos = $node->getStartFilePos();
+        if ($pos < 0 || $this->source === '') {
+            return 1;
+        }
+        $newline = strrpos(substr($this->source, 0, $pos), "\n");
+
+        return $newline === false ? $pos + 1 : $pos - $newline;
     }
 
     /**
@@ -271,6 +540,27 @@ final class Visitor extends NodeVisitorAbstract
         ]));
     }
 
+    /** @return list<string> */
+    private function classConstModifiers(Node\Stmt\ClassConst $node): array
+    {
+        return array_merge([$this->visibilityOf($node->isPrivate(), $node->isProtected())], $this->flags([
+            'final' => $node->isFinal(),
+        ]));
+    }
+
+    /** @return list<string> */
+    private function promotedModifiers(int $flags): array
+    {
+        return array_merge([
+            $this->visibilityOf(
+                ($flags & Modifiers::PRIVATE) !== 0,
+                ($flags & Modifiers::PROTECTED) !== 0,
+            ),
+        ], $this->flags([
+            'readonly' => ($flags & Modifiers::READONLY) !== 0,
+        ]));
+    }
+
     private function visibilityOf(bool $private, bool $protected): string
     {
         return $private ? 'private' : ($protected ? 'protected' : 'public');
@@ -283,7 +573,92 @@ final class Visitor extends NodeVisitorAbstract
      */
     private function flags(array $flags): array
     {
-        return array_values(array_keys(array_filter($flags)));
+        return array_keys(array_filter($flags));
+    }
+
+    /**
+     * Attributes as an `extra` fragment. Never hand rawAttributes() to extraFields() directly:
+     * a bare list lands the attributes *as* `extra` instead of under `extra.attributes`.
+     *
+     * @param Node\AttributeGroup[] $attrGroups
+     *
+     * @return array<string, mixed>
+     */
+    private function attributeExtra(array $attrGroups): array
+    {
+        $attributes = $this->rawAttributes($attrGroups);
+
+        return $attributes === [] ? [] : ['attributes' => $attributes];
+    }
+
+    /**
+     * @param Node\AttributeGroup[] $attrGroups
+     *
+     * @return list<array{name: string, args: list<mixed>}>
+     */
+    private function rawAttributes(array $attrGroups): array
+    {
+        $attributes = [];
+        foreach ($attrGroups as $group) {
+            foreach ($group->attrs as $attr) {
+                $attributes[] = [
+                    'name' => self::fqn($attr->name),
+                    'args' => array_map($this->rawAttrArg(...), $attr->args),
+                ];
+            }
+        }
+
+        return $attributes;
+    }
+
+    private function rawAttrArg(Node\Arg $arg): mixed
+    {
+        $value = $arg->value;
+        if ($value instanceof Node\Scalar\String_
+            || $value instanceof Node\Scalar\Int_
+            || $value instanceof Node\Scalar\Float_
+        ) {
+            return $value->value;
+        }
+        if ($value instanceof Node\Expr\ConstFetch) {
+            return $value->name->toString();
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<string, mixed> $extra
+     *
+     * @return array{extra?: array<string, mixed>}
+     */
+    private function extraFields(array $extra): array
+    {
+        return $extra === [] ? [] : ['extra' => $extra];
+    }
+
+    private function appendFileImport(string $fqn, ?string $alias, string $type): void
+    {
+        // Imports are the only `extra` the File node ever carries, so this rewrites rather than merges.
+        $this->imports[] = ['fqn' => $fqn, 'alias' => $alias, 'type' => $type];
+        $this->nodes[0]['extra'] = ['imports' => $this->imports];
+    }
+
+    /** @param list<array<string, mixed>> $items */
+    private function appendExtraList(string $qname, string $key, array $items): void
+    {
+        foreach ($this->nodes as $index => $node) {
+            if (($node['qualified_name'] ?? null) !== $qname) {
+                continue;
+            }
+            $current = $node['extra'] ?? [];
+            $extra = is_array($current) ? $current : [];
+            $existing = $extra[$key] ?? [];
+            $extra[$key] = array_merge(is_array($existing) ? $existing : [], $items);
+            $this->nodes[$index]['extra'] = $extra;
+
+            return;
+        }
     }
 
     /** Every declared type, not just class names: a scalar hint dropped to null reads as untyped. */

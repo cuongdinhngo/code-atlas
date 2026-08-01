@@ -43,7 +43,7 @@ jobs:
           key: composer-${{ hashFiles('adapters/php/composer.lock') }}
 
       - name: Install the PHP adapter's own runtime deps
-        run: composer install --no-interaction --no-progress --working-dir=adapters/php
+        run: composer install --no-dev --no-interaction --no-progress --working-dir=adapters/php
 
       # No `if:` guards below. They existed while these directories were empty; today their only
       # effect would be to skip the check and pass green when the directory goes missing.
@@ -57,7 +57,7 @@ jobs:
         run: pytest -q
 
   adapters:
-    name: adapter manifests · syntax
+    name: adapter manifests · syntax · static analysis
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -78,6 +78,18 @@ jobs:
           fi
           find adapters -path '*/vendor' -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
           echo "php -l ok on $count file(s)"
+
+      # Its own cache key: this job needs the dev tools, the test job installs runtime deps only.
+      - uses: actions/cache@v4
+        with:
+          path: adapters/php/vendor
+          key: composer-dev-${{ hashFiles('adapters/php/composer.lock') }}
+
+      - name: Install the PHP adapter's deps, dev tools included
+        run: composer install --no-interaction --no-progress --working-dir=adapters/php
+
+      - name: Static analysis (phpstan, level max) — the adapter's mypy (R6.6)
+        run: adapters/php/vendor/bin/phpstan analyse --no-progress --configuration=adapters/php/phpstan.neon
 
   guardrails:
     name: rulebook grep-gates

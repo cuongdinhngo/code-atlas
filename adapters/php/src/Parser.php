@@ -37,7 +37,7 @@ final class Parser
 
         // One handler for both passes: a name that cannot be resolved is collected, never thrown.
         $errors = new ErrorHandler\Collecting();
-        $visitor = new Visitor($path, substr_count($source, "\n") + 1);
+        $visitor = new Visitor($path, substr_count($source, "\n") + 1, $source);
         try {
             $statements = $this->parser->parse($source, $errors);
             if (!$errors->hasErrors()) {

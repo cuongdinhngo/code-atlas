@@ -43,6 +43,17 @@ documented coverage gap, not a CI job.
 composer install --working-dir=adapters/php
 ```
 
+## Static analysis
+
+PHPStan at **`level: max`**, configured in `phpstan.neon` over `index.php` and `src/`. It is this
+adapter's counterpart to the core's `mypy` and runs in CI (R6.6). No baseline file and no
+`@phpstan-ignore`: a finding is closed by fixing the code, never by suppressing the rule.
+
+```bash
+composer install --working-dir=adapters/php   # phpstan is a dev dependency
+adapters/php/vendor/bin/phpstan analyse --configuration=adapters/php/phpstan.neon
+```
+
 ## Usage
 
 `--server` is the mode the core drives: the adapter announces itself once, then answers one request
