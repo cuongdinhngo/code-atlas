@@ -49,7 +49,7 @@ is [`PLAN.md`](PLAN.md).
 ## Token usage
 
 Token spend per task, recorded before its PR is opened (see the "Token usage on PR" rule in
-[`CLAUDE.md`](../CLAUDE.md)). The authoritative per-dispatch breakdown lives in each task's working-doc
+[`AGENTS.md`](../AGENTS.md)). The authoritative per-dispatch breakdown lives in each task's working-doc
 cost ledger (`tasks/NNN_slug.work.md`); this table is the roll-up. mango measures **subagent dispatch
 only** — when a task dispatches no subagent, its main-loop spend is read from the Claude Code session
 transcript and labelled as such, so a `0 dispatch` row is never left standing as if it were the total.

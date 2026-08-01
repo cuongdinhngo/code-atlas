@@ -69,7 +69,7 @@ an empty list, and a null are three different wire values, and a language that c
 them will encode the wrong one by default.
 
 ## 024 — A rule enforced only by a lifecycle gate is unenforced for work that skips the lifecycle
-`CLAUDE.md` says no PR opens without the task's token spend recorded in **both** the working-doc cost
+`AGENTS.md` says no PR opens without the task's token spend recorded in **both** the working-doc cost
 ledger and the BACKLOG table. Tasks 001–006 all complied — because mango's `finalise` phase has a
 ledger-completeness gate that refuses to proceed without it. Task 024 was done directly, outside the
 five-phase lifecycle, so nothing checked, and PR #14 opened with no token row and a status left at
@@ -183,7 +183,7 @@ exist yet, say so out loud and either negative-control the guard or record the v
 
 ## 001 — Fold a mid-task governance request into the ticket's scope, don't ride it on the branch
 When a user asks for a repo-wide rule change mid-task (here: the "Token usage on PR" rule in
-`CLAUDE.md` + `docs/BACKLOG.md`), the ticket-blind challenger and the reviewer both read it as
+`AGENTS.md` + `docs/BACKLOG.md`), the ticket-blind challenger and the reviewer both read it as
 untraceable scope creep — it maps to no ticket requirement. **Fix:** add it to the task's
 Scope/Deliverables + a matrix row (task 001 → R6 + change-list item 8) with a one-line rationale, so
 every hunk still traces to a requirement. Splitting it into its own docs ticket is the alternative;
