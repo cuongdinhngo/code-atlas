@@ -62,14 +62,17 @@ def test_grammar_fixture_is_a_valid_non_empty_contract_result() -> None:
     assert result["edges"]
 
 
-# --- one assertion per inventory row I1–I19 --------------------------------------------------------
+# --- one assertion per inventory row I1-I19 --------------------------------------------
 
 
 @needs_php
 def test_i1_backed_enum_captures_scalar_type() -> None:
-    node = by_qname(parse_grammar())["\\App\\Grammar\\Suit"]
+    nodes = by_qname(parse_grammar())
+    node = nodes["\\App\\Grammar\\Suit"]
     assert node["kind"] == "Enum"
     assert node["extra"]["scalar_type"] == "string"
+    # Pure enums omit scalar_type so they stay distinguishable from backed ones.
+    assert "scalar_type" not in nodes["\\App\\Grammar\\Pure"].get("extra", {})
 
 
 @needs_php
@@ -115,6 +118,36 @@ def test_i7_enum_case_is_a_class_const_with_enum_flag() -> None:
     node = by_qname(parse_grammar())["\\App\\Grammar\\Suit::Hearts"]
     assert node["kind"] == "ClassConst"
     assert node["extra"]["enum_case"] is True
+
+
+@needs_php
+def test_i2_same_line_anonymous_declarations_get_a_collision_suffix(
+    tmp_path: Path,
+) -> None:
+    # C1: two closures opening on one line must not share a qualified_name.
+    fixture = tmp_path / "collide.php"
+    fixture.write_text(
+        "<?php\nnamespace N;\nclass C{public function m(){$a=function(){};$b=function(){};}}\n",
+        encoding="utf-8",
+    )
+    completed = subprocess.run(
+        [str(PHP), str(ENTRY), "--file", str(fixture)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=60,
+    )
+    assert completed.returncode == 0, completed.stderr
+    result = json.loads(completed.stdout)
+    assert contract.validate(result) == []
+    closures = sorted(
+        n["qualified_name"] for n in result["nodes"] if n["name"] == "{closure}"
+    )
+    assert len(closures) == 2
+    assert closures[0] != closures[1]
+    assert closures[0].endswith("}")
+    assert ":" in closures[1].rsplit("@", 1)[-1]
 
 
 @needs_php

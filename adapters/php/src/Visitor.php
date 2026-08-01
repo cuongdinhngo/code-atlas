@@ -45,6 +45,13 @@ final class Visitor extends NodeVisitorAbstract
      */
     private array $scope;
 
+    /**
+     * Counts anonymous qnames already emitted so a same-line collision gets a `:n` suffix (C1).
+     *
+     * @var array<string, int>
+     */
+    private array $anonymousOccurrences = [];
+
     public function __construct(private readonly string $path, int $lineCount)
     {
         $this->scope = [[null, $path]];
@@ -124,7 +131,7 @@ final class Visitor extends NodeVisitorAbstract
         } elseif ($node instanceof Node\Stmt\TraitUse) {
             $this->enterTraitUse($node);
         } elseif ($node instanceof Node\Stmt\Use_) {
-            $this->enterUse($node->type, $node->uses, null, $node->getStartLine());
+            $this->enterUse($node->type, $node->uses, null);
         } elseif ($node instanceof Node\Stmt\GroupUse) {
             $this->enterGroupUse($node);
         } elseif ($node instanceof Node\Expr\New_) {
@@ -283,7 +290,7 @@ final class Visitor extends NodeVisitorAbstract
     }
 
     /** @param Node\UseItem[] $uses */
-    private function enterUse(int $type, array $uses, ?Node\Name $prefix, int $line): void
+    private function enterUse(int $type, array $uses, ?Node\Name $prefix): void
     {
         foreach ($uses as $use) {
             $name = $prefix === null
@@ -292,14 +299,14 @@ final class Visitor extends NodeVisitorAbstract
             $fqn = self::fqn($name);
             $importType = self::IMPORT_TYPES[$use->type !== Node\Stmt\Use_::TYPE_UNKNOWN ? $use->type : $type]
                 ?? 'class';
-            $this->edge('IMPORTS', $this->path, $fqn, $line);
+            $this->edge('IMPORTS', $this->path, $fqn, $use->getStartLine());
             $this->appendFileImport($fqn, $use->alias?->toString(), $importType);
         }
     }
 
     private function enterGroupUse(Node\Stmt\GroupUse $node): void
     {
-        $this->enterUse($node->type, $node->uses, $node->prefix, $node->getStartLine());
+        $this->enterUse($node->type, $node->uses, $node->prefix);
     }
 
     private function enterNew(Node\Expr\New_ $node): void
@@ -307,7 +314,8 @@ final class Visitor extends NodeVisitorAbstract
         if ($node->class instanceof Node\Name) {
             $this->edge('NEW', $this->container(), self::fqn($node->class), $node->getStartLine());
         } elseif ($node->class instanceof Node\Stmt\Class_) {
-            $target = $this->anonymousQname('class', $node->class->getStartLine());
+            // Peek only — enterAnonymousClass registers the qname when the Class_ node is visited.
+            $target = $this->anonymousQname('class', $node->class->getStartLine(), register: false);
             $this->edge('NEW', $this->container(), $target, $node->getStartLine());
         } else {
             $this->edge('NEW', $this->container(), '(dynamic)', $node->getStartLine(), 'DYNAMIC');
@@ -431,9 +439,19 @@ final class Visitor extends NodeVisitorAbstract
         return $this->container() . '::' . $name;
     }
 
-    private function anonymousQname(string $kind, int $line): string
+    private function anonymousQname(string $kind, int $line, bool $register = true): string
     {
-        return $this->container() . '::{' . $kind . '@' . $line . '}';
+        $base = $this->container() . '::{' . $kind . '@' . $line . '}';
+        if (!$register) {
+            $seen = $this->anonymousOccurrences[$base] ?? 0;
+
+            return $seen === 0 ? $base : $base . ':' . $seen;
+        }
+        $seen = $this->anonymousOccurrences[$base] ?? 0;
+        $this->anonymousOccurrences[$base] = $seen + 1;
+
+        // First on the line keeps the H1 base form; later ones append :n (C1 collision rule).
+        return $seen === 0 ? $base : $base . ':' . $seen;
     }
 
     /**

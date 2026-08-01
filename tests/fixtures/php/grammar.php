@@ -51,4 +51,9 @@ enum Suit: string
     case Hearts = 'H';
 }
 
+enum Pure
+{
+    case Only;
+}
+
 const GLOBAL_FLAG = 1;
