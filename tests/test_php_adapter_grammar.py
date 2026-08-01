@@ -1,0 +1,240 @@
+"""Task 025: each remaining PHP grammar construct emits the expected contract tuple.
+
+Assertions drive the real adapter against a spec-driven fixture (R6.1, R6.2). Task 012 owns the
+cross-adapter conformance matrix; this file owns construct correctness for the PHP adapter.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+import shutil
+import subprocess
+from pathlib import Path
+
+import pytest
+
+from code_atlas import contract
+from code_atlas.contract import CONTRACT_VERSION, EDGE_FIELDS, EDGE_KINDS, NODE_FIELDS, NODE_KINDS
+
+ROOT = Path(__file__).resolve().parent.parent
+ADAPTER = ROOT / "adapters" / "php"
+ENTRY = ADAPTER / "index.php"
+AUTOLOAD = ADAPTER / "vendor" / "autoload.php"
+FIXTURE = "tests/fixtures/php/grammar.php"
+SRC = ADAPTER / "src"
+
+PHP = shutil.which("php")
+needs_php = pytest.mark.skipif(
+    PHP is None or not AUTOLOAD.is_file(),
+    reason=f"needs the PHP CLI and `composer install` in {ADAPTER}",
+)
+
+
+def parse_grammar() -> dict[str, object]:
+    completed = subprocess.run(
+        [str(PHP), str(ENTRY), "--file", FIXTURE],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=60,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.count("\n") == 1
+    return json.loads(completed.stdout)
+
+
+def by_qname(result: dict[str, object]) -> dict[str, dict[str, object]]:
+    return {node["qualified_name"]: node for node in result["nodes"]}  # type: ignore[index]
+
+
+def edges_of(result: dict[str, object], kind: str) -> list[dict[str, object]]:
+    return [edge for edge in result["edges"] if edge["kind"] == kind]  # type: ignore[index]
+
+
+@needs_php
+def test_grammar_fixture_is_a_valid_non_empty_contract_result() -> None:
+    result = parse_grammar()
+    assert contract.validate(result) == []
+    assert result["ok"] is True
+    assert result["nodes"]
+    assert result["edges"]
+
+
+# --- one assertion per inventory row I1–I19 --------------------------------------------------------
+
+
+@needs_php
+def test_i1_backed_enum_captures_scalar_type() -> None:
+    node = by_qname(parse_grammar())["\\App\\Grammar\\Suit"]
+    assert node["kind"] == "Enum"
+    assert node["extra"]["scalar_type"] == "string"
+
+
+@needs_php
+def test_i2_anonymous_class_uses_line_anchored_qname() -> None:
+    nodes = by_qname(parse_grammar())
+    anon = [q for q, n in nodes.items() if n["kind"] == "Class" and n["name"] == "{class}"]
+    assert len(anon) == 1
+    assert re.fullmatch(r"\\App\\Grammar\\Sample::run::\{class@\d+\}", anon[0])
+
+
+@needs_php
+def test_i3_property_declared_type_is_captured() -> None:
+    node = by_qname(parse_grammar())["\\App\\Grammar\\Sample::$typed"]
+    assert node["kind"] == "Property"
+    assert node["extra"]["type"] == "string"
+
+
+@needs_php
+def test_i4_promoted_constructor_property_is_emitted() -> None:
+    node = by_qname(parse_grammar())["\\App\\Grammar\\Sample::$id"]
+    assert node["kind"] == "Property"
+    assert node["modifiers"] == ["private"]
+    assert node["extra"]["type"] == "int"
+
+
+@needs_php
+def test_i5_property_hooks_are_listed_in_extra() -> None:
+    node = by_qname(parse_grammar())["\\App\\Grammar\\Sample::$hooked"]
+    assert node["extra"]["hooks"] == ["get"]
+    assert node["extra"]["type"] == "string"
+
+
+@needs_php
+def test_i6_class_const_modifiers_and_type_are_captured() -> None:
+    node = by_qname(parse_grammar())["\\App\\Grammar\\Sample::FLAG"]
+    assert node["kind"] == "ClassConst"
+    assert node["modifiers"] == ["public", "final"]
+    assert node["extra"]["type"] == "string"
+
+
+@needs_php
+def test_i7_enum_case_is_a_class_const_with_enum_flag() -> None:
+    node = by_qname(parse_grammar())["\\App\\Grammar\\Suit::Hearts"]
+    assert node["kind"] == "ClassConst"
+    assert node["extra"]["enum_case"] is True
+
+
+@needs_php
+def test_i8_closure_is_a_function_with_line_anchored_qname() -> None:
+    nodes = by_qname(parse_grammar())
+    closures = [q for q, n in nodes.items() if n["name"] == "{closure}"]
+    assert len(closures) == 1
+    assert re.fullmatch(r"\\App\\Grammar\\Sample::run::\{closure@\d+\}", closures[0])
+    assert nodes[closures[0]]["kind"] == "Function"
+    assert nodes[closures[0]]["params"] == [{"name": "$n", "type": "int"}]
+
+
+@needs_php
+def test_i9_arrow_function_is_a_function_with_line_anchored_qname() -> None:
+    nodes = by_qname(parse_grammar())
+    arrows = [q for q, n in nodes.items() if n["name"] == "{fn}"]
+    assert len(arrows) == 1
+    assert re.fullmatch(r"\\App\\Grammar\\Sample::run::\{fn@\d+\}", arrows[0])
+    assert nodes[arrows[0]]["kind"] == "Function"
+
+
+@needs_php
+def test_i10_file_level_const_uses_the_const_node_kind() -> None:
+    node = by_qname(parse_grammar())["\\App\\Grammar\\GLOBAL_FLAG"]
+    assert node["kind"] == "Const"
+
+
+@needs_php
+def test_i11_trait_use_emits_uses_trait_edges() -> None:
+    targets = {edge["target_raw"] for edge in edges_of(parse_grammar(), "USES_TRAIT")}
+    assert targets == {"\\App\\Grammar\\Alpha", "\\App\\Grammar\\Beta"}
+
+
+@needs_php
+def test_i12_trait_adaptations_are_on_the_owning_class() -> None:
+    adaptations = by_qname(parse_grammar())["\\App\\Grammar\\Sample"]["extra"]["trait_adaptations"]
+    assert {"kind": "insteadof", "trait": "\\App\\Grammar\\Alpha", "method": "shared",
+            "insteadof": ["\\App\\Grammar\\Beta"]} in adaptations
+    assert {"kind": "alias", "trait": "\\App\\Grammar\\Beta", "method": "shared",
+            "new_name": "betaShared"} in adaptations
+
+
+@needs_php
+def test_i13_nullsafe_method_call_is_a_heuristic_call() -> None:
+    calls = [
+        edge for edge in edges_of(parse_grammar(), "CALLS")
+        if edge["target_raw"] == "ping"
+    ]
+    assert len(calls) == 1
+    assert calls[0]["confidence_tier"] == "HEURISTIC"
+
+
+@needs_php
+def test_i14_first_class_callable_emits_no_calls_edge() -> None:
+    targets = {edge["target_raw"] for edge in edges_of(parse_grammar(), "CALLS")}
+    assert "\\strlen" not in targets
+    assert not any("strlen" in str(t) for t in targets)
+
+
+@needs_php
+def test_i15_new_anonymous_and_dynamic_variable() -> None:
+    news = edges_of(parse_grammar(), "NEW")
+    targets = {edge["target_raw"]: edge for edge in news}
+    assert "(dynamic)" in targets
+    assert targets["(dynamic)"]["confidence_tier"] == "DYNAMIC"
+    anon = [t for t in targets if re.fullmatch(r"\\App\\Grammar\\Sample::run::\{class@\d+\}", t)]
+    assert len(anon) == 1
+
+
+@needs_php
+def test_i16_import_alias_is_recorded_on_the_file_node() -> None:
+    imports = by_qname(parse_grammar())[FIXTURE]["extra"]["imports"]
+    assert {"fqn": "\\App\\Other\\Helper", "alias": "Help", "type": "class"} in imports
+
+
+@needs_php
+def test_i17_function_and_const_import_types_are_distinguished() -> None:
+    imports = by_qname(parse_grammar())[FIXTURE]["extra"]["imports"]
+    assert {"fqn": "\\strlen", "alias": "str_len", "type": "function"} in imports
+    assert {"fqn": "\\PHP_EOL", "alias": "EOL", "type": "const"} in imports
+
+
+@needs_php
+def test_i18_group_use_including_mixed_types_is_expanded() -> None:
+    imports = by_qname(parse_grammar())[FIXTURE]["extra"]["imports"]
+    assert {"fqn": "\\App\\Mix\\Thing", "alias": None, "type": "class"} in imports
+    assert {"fqn": "\\App\\Mix\\mix_fn", "alias": None, "type": "function"} in imports
+    assert {"fqn": "\\App\\Mix\\MIX_CONST", "alias": None, "type": "const"} in imports
+    targets = {edge["target_raw"] for edge in edges_of(parse_grammar(), "IMPORTS")}
+    assert {"\\App\\Mix\\Thing", "\\App\\Mix\\mix_fn", "\\App\\Mix\\MIX_CONST"} <= targets
+
+
+@needs_php
+def test_i19_attributes_are_raw_on_the_declaration() -> None:
+    node = by_qname(parse_grammar())["\\App\\Grammar\\Sample"]
+    assert node["extra"]["attributes"] == [{"name": "\\App\\Grammar\\Attr", "args": [1]}]
+
+
+# --- AC3 / AC4 ------------------------------------------------------------------------------------
+
+
+def test_ac3_authored_adapter_source_has_no_framework_names() -> None:
+    pattern = re.compile(r"laravel|symfony|wordpress|drupal|magento", re.I)
+    hits: list[str] = []
+    for path in SRC.rglob("*.php"):
+        text = path.read_text(encoding="utf-8")
+        if pattern.search(text):
+            hits.append(str(path.relative_to(ROOT)))
+    assert hits == [], f"R2.2 denylist hit in {hits}"
+
+
+def test_ac4_contract_version_and_vocabulary_are_unchanged() -> None:
+    assert CONTRACT_VERSION == 1
+    assert NODE_KINDS == (
+        "File", "Namespace", "Class", "Interface", "Trait", "Enum",
+        "Function", "Method", "Property", "ClassConst", "Const",
+    )
+    assert EDGE_KINDS == (
+        "CONTAINS", "EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS",
+        "NEW", "IMPORTS", "INCLUDES", "REFERENCES",
+    )
+    assert "extra" in NODE_FIELDS
+    assert "extra" not in EDGE_FIELDS
