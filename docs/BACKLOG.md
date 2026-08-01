@@ -17,7 +17,7 @@ is [`PLAN.md`](PLAN.md).
 | 005 | [Adapter protocol & subprocess driver](tasks/005_adapter-protocol.md) | Core | done | 002 |
 | 006 | [PHP adapter spike](tasks/006_php-adapter-spike.md) | M0 | done | 002 |
 | 007 | [PHP adapter — server mode & streaming](tasks/007_php-adapter-visitor.md) | M0 | done | 006, 005 |
-| 008 | [PHP runtime invocation (host / Docker)](tasks/008_php-runtime-modes.md) | M1 | in-progress | 005, 007 |
+| 008 | [PHP runtime invocation (host / Docker)](tasks/008_php-runtime-modes.md) | M1 | done | 005, 007 |
 | 009 | [Full build indexer + workers](tasks/009_full-build-indexer.md) | M1 | done | 004, 005, 007 |
 | 010 | [MCP server + status/build tools](tasks/010_index-status-and-build-tools.md) | M1 | done | 009 |
 | 011 | [Cross-file edge resolver](tasks/011_resolver.md) | M2 | done | 009 |
@@ -69,6 +69,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 
 | 010 | MCP server + status/build tools | **64.6k dispatch** — 1 subagent (`mango:challenger`, 31 tool uses / 284 s), which returned 8/8 requirements met and no code finding. The `mango:reviewer` pass was skipped by user instruction. Phases 1–3 and 5 dispatched **nothing**: four spikes against the real FastMCP runtime (one of which came back false and reshaped the design) and six negative-control mutations all ran on the main model. **Main-loop spend is unmeasured**, as for 004–007, 009 and 024 — mango measures dispatch only, and `rtk gain` reports a global all-time figure that cannot be attributed to one task, so none is invented here | [#18](https://github.com/cuongdinhngo/code-atlas/pull/18) |
 | 011 | Cross-file edge resolver | **2 dispatch** — `mango:reviewer` + `mango:challenger` in review round 1; both token cells **`unmeasured (blocking retrieval)`** (Cursor Task returns did not surface a usage block). Round 2 was verify-only in the main loop (Co-authored-by strip). Phases 1–3 and 5 dispatched **nothing**. **Main-loop spend is unmeasured**, as for 004–007, 009 and 010 | [#19](https://github.com/cuongdinhngo/code-atlas/pull/19) |
+| 008 | PHP runtime invocation (host / Docker) | **4 dispatch** — refine exposure-checker + analysis extractor + review `mango:reviewer` + `mango:challenger`; all token cells **`unmeasured (blocking retrieval)`**. Review round 2 verify-only in the main loop (proving-test rename). Phases 2–3 and 5 dispatched **nothing**. **Main-loop spend is unmeasured**, as for 004–007 and 009–011 | (PR pending) |
 
 ## Suggested order
 

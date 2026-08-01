@@ -4,7 +4,7 @@ slug: php-runtime-modes
 title: PHP runtime invocation (host CLI / Docker)
 phase: 1
 milestone: M1
-status: in-progress
+status: done
 depends_on: [005, 007]
 ---
 
@@ -228,11 +228,11 @@ No unresolved novel-untested **third-party/runtime** assumption blocking Gate 2.
 
 ### Proving test
 
-**Name:** `test_absolute_host_paths_are_rewritten_on_the_wire_and_results_stay_repo_relative`
+**Name:** `test_absolute_host_paths_are_rewritten_on_the_wire_and_caller_paths_are_preserved`
 
-**Invocation:** `.venv/bin/pytest -q tests/test_adapter.py::test_absolute_host_paths_are_rewritten_on_the_wire_and_results_stay_repo_relative`
+**Invocation:** `.venv/bin/pytest -q tests/test_adapter.py::test_absolute_host_paths_are_rewritten_on_the_wire_and_caller_paths_are_preserved`
 
-**Shape:** Fake adapter records the JSON `path` it received and echoes it into `result.path` + a File node `file_path`/`qualified_name`. Driver configured with synthetic `host_root`/`container_root`. Call `parse("src/A.php")` after mapping an absolute host path through the same helper (or `parse` with an absolute-under-host input). Assert: (1) wire path seen by fake is under `container_root`; (2) `ParseResult.path` and node `file_path` equal the **repo-relative** caller path. **Fails pre-change** (no roots / no rewrite / no rebase). **Passes post-change.**
+**Shape:** Fake adapter records the JSON `path` it received and echoes it into `result.path` + a Class node `file_path`/`qualified_name`. Driver configured with synthetic `host_root`/`container_root`. Absolute-under-host `parse`: (1) wire under `container_root`; (2) `ParseResult` keeps the **caller** path (Approach §3). Relative `parse`: wire and store-facing paths stay repo-relative. **Fails pre-change** (no roots / no rewrite / no rebase). **Passes post-change.**
 
 Companion asserts (same PR): unset `CA_PHP_CMD` → message matches `CA_PHP_CMD`; `to_adapter_path` relative pass-through; half-set roots → `ConfigError`.
 
@@ -273,7 +273,7 @@ Companion asserts (same PR): unset `CA_PHP_CMD` → message matches `CA_PHP_CMD`
 
 - **Branch:** `feat/008-php-runtime-modes`
 - **Commits (logical units; no AI co-author trailer):** pending at write-time — core / tests / docs
-- **Proving test added:** `tests/test_adapter.py::test_absolute_host_paths_are_rewritten_on_the_wire_and_results_stay_repo_relative` (+ unset-CMD + `to_adapter_path` units)
+- **Proving test added:** `tests/test_adapter.py::test_absolute_host_paths_are_rewritten_on_the_wire_and_caller_paths_are_preserved` (+ unset-CMD + `to_adapter_path` units)
 - **Verification sweep — BOTH axes.**
   - *File axis:* zero stray references ✅ · diff ⊆ approved list ✅ · each hunk maps to a row ✅
   - *Behaviour axis:* Approach bullets 1–6 → `implemented-as-approved` (knobs+pair, `to_adapter_path`, wire+rebase, unset CMD names env, docs, proofs+AC4 exclusion; no CI compose)
@@ -285,13 +285,33 @@ Companion asserts (same PR): unset `CA_PHP_CMD` → message matches `CA_PHP_CMD`
 
 ---
 
-## Phase 4 — Review ✋
+## Phase 4 — Review ✋ (stop only if not clean)
 
-*(in progress — flowing from execute)*
+- **reviewer verdict:** round 1 **CHANGES REQUESTED** (Important: proving-test name/shape overclaimed repo-relative on absolute half) → fix landed in `590ee7d` → **verify-only** (main-loop): finding 1 addressed; suite **395 passed**; no re-dispatch.
+- **challenger (ticket-blind):** MET 7 · NOT MET 0 · CAN'T TELL 1 (literal live Docker dual-mode = AC4 exclusion)
+- **security agent:** n/a
+- **Scope reconciliation:** diff ⊆ approved list; no CI compose; no reformatting creep
+- **Regression:** green vs BASELINE 388 (delta +7)
+- **Proving test:** renamed; wire + caller-path + relative store path asserted; would fail without rewrite/rebase
+- **Layer-match:** AC1 exclusion for live Docker recorded; no unresolved ❌
+- **Ph3/4 proven by:** filled for AC1–AC4, R3, inv A/B (k=N with AC4 excluded)
+- **Clean?** yes (after verify-only)
+- **Reviewed at:** `590ee7d5fe991e9ae9b88932ae067a77002e0d48` · reviewed files: `code_atlas/config.py`, `code_atlas/adapter.py`, `code_atlas/indexer.py`, `tests/test_config.py`, `tests/test_adapter.py`, `tests/fixtures/adapter/fake_adapter.py`, `README.md`, `adapters/php/README.md`, `docs/PLAN.md`, `docs/CONVENTION.md`, `docs/BACKLOG.md`, `docs/tasks/008_php-runtime-modes.md`
 
-## Phase 5 — Finalise ✋
+## Phase 5 — Finalise ✋ final gate
 
-*(empty)*
+- **PR draft:** `/tmp/pr-008.md`
+- **Planned outward actions:** A commit bookkeeping · B push · C open PR · D mark done — user **"ok"** (2026-08-01)
+- **Follow-up tickets:** none (AC4 exclusion stands; no deferred matrix row needing a new card)
+- **Durable lesson:** yes — proving-test names must not overclaim path shape → `docs/LESSONS.md` (008)
+- **Revert path:** revert the feature branch / PR; knobs default unset → host behaviour unchanged
+
+## Session status
+
+- **Last updated:** 2026-08-01
+- **Current phase:** Phase 5 — Finalise (executing approved outward actions)
+- **Next action:** push + open PR
+- **Blocked on:** none
 
 ---
 
@@ -301,8 +321,10 @@ Companion asserts (same PR): unset `CA_PHP_CMD` → message matches `CA_PHP_CMD`
 |-------|---------------------|-------|--------|------------------------------------------|
 | refine | challenger (exposure-checker) | 1 | unmeasured (blocking retrieval) | none |
 | analysis | extractor (path-mapping facts) | 1 | unmeasured (blocking retrieval) | none |
+| review | reviewer | 1 | unmeasured (blocking retrieval) | none |
+| review | challenger | 1 | unmeasured (blocking retrieval) | none |
 
-`LEDGER TOTAL:` (deferred to finalise)
+`LEDGER TOTAL:` unmeasured (blocking retrieval) ×4 · top cost driver: review (2 dispatches)
 
 ---
 
@@ -315,10 +337,11 @@ Companion asserts (same PR): unset `CA_PHP_CMD` → message matches `CA_PHP_CMD`
 | 2026-08-01 | work_doc_mode→embed; merge into task file; delete `.work.md` | User: honour harness embed — update existing tasks, no separate work doc |
 | 2026-08-01 Gate 1 | AC1/AC2 pins + AC4 exclusion + SCOPE M / TIER full **cleared** | User: "approve" |
 | 2026-08-01 Gate 2 | Approach + change-list 1–9 + proving test **cleared** | User: "approve" |
+| 2026-08-01 review | Rename proving test; verify-only clean | Reviewer finding 1 |
 
 ## Session status
 
 - **Last updated:** 2026-08-01
-- **Current phase:** Phase 3 complete → Phase 4 Review
-- **Next action:** Commit change-set; dispatch reviewer + challenger
-- **Blocked on:** none (execute autonomous)
+- **Current phase:** Phase 4 clean → Phase 5 Finalise · **final gate waiting**
+- **Next action:** User approves each outward action (push / PR / status); commit working-doc bookkeeping first if needed
+- **Blocked on:** final-gate per-action approvals

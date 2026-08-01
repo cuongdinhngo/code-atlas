@@ -3,6 +3,12 @@
 Durable lessons discovered while shipping tasks: constraints found, wrong assumptions, process gaps.
 One entry per lesson; newest first.
 
+## 008 — Proving-test names must not overclaim the path shape they assert
+Review caught that `…_results_stay_repo_relative` asserted host-**absolute** `ParseResult.path` after
+wire rebase (Approach §3 keeps the **caller** path). The relative half was the real repo-relative
+proof; the name lied about the absolute half. Rename (or split asserts) so the test title matches
+what each half actually checks — R6.1 proofs and CONVENTION “repo-relative” claims stay honest.
+
 ## 011 — Never promote HEURISTIC to RESOLVED just because a name is unique
 PR review caught that `_resolve_symbol` set the tier from hit count alone. An adapter-emitted
 `HEURISTIC` edge whose `target_raw` matched one qname became `RESOLVED`. A unique name does not make
