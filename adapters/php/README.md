@@ -5,13 +5,37 @@ here and never reach the Python core (R8.1).
 
 ## Runtime
 
-- **PHP CLI ≥ 8.1** (the `tokenizer` extension only — no application extensions needed).
+- **PHP CLI ≥ 8.1** (the `tokenizer` extension only — no application extensions needed for indexing).
 - **[nikic/php-parser](https://github.com/nikic/PHP-Parser) ^5**, pinned by the committed
   `composer.lock` so every machine resolves the same parser build.
 
 The parser is pure PHP and targets `ParserFactory::createForNewestSupportedVersion()` — **PHP 8.5
 grammar** — regardless of which PHP runs it. An 8.3 CLI parses 8.4 and 8.5 syntax correctly; the
 runtime version affects speed, not what can be parsed.
+
+### Host PHP (default)
+
+```bash
+CA_PHP_CMD="php /abs/path/adapters/php/index.php --server"
+```
+
+Native paths, no mapping. Point the command at the complete argv — the core appends nothing.
+
+### Docker exec
+
+When PHP is only inside a compose service, use a complete `docker compose exec` argv and point the
+container service's **working directory** at the mounted repo. The build sends **repo-relative**
+paths; with that cwd they open correctly — that is the Docker happy path. No root mapping required.
+
+```bash
+CA_PHP_CMD="docker compose exec -T php php /app/adapters/php/index.php --server"
+```
+
+Optional `CA_HOST_ROOT` / `CA_CONTAINER_ROOT` (both or neither) rewrite **absolute** host paths onto
+the container root for the adapter wire; relative paths still pass through. The indexer never passes
+absolutes today — the pair is defensive for callers that do. The core rebases echoed wire paths so
+the store keeps the caller's form. CI indexes with host PHP only; live Docker dual-mode is a
+documented coverage gap, not a CI job.
 
 ## Install
 
@@ -22,11 +46,8 @@ composer install --working-dir=adapters/php
 ## Usage
 
 `--server` is the mode the core drives: the adapter announces itself once, then answers one request
-per line until stdin closes. Point `CA_PHP_CMD` at the complete argv (§9) — the core appends nothing:
-
-```bash
-CA_PHP_CMD="php /abs/path/adapters/php/index.php --server"
-```
+per line until stdin closes. Point `CA_PHP_CMD` at the complete argv (§9) — the core appends nothing.
+See **Runtime** above for host vs Docker forms.
 
 ```
 ← {"name":"php","extensions":[".php"],"capabilities":{},"contract_version":1}

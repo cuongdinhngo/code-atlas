@@ -7,7 +7,7 @@ default.
 
 import os
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
@@ -20,6 +20,7 @@ from code_atlas.config import (
     ConfigError,
     env_name,
     load_config,
+    to_adapter_path,
 )
 
 FIXED_CPUS = 10
@@ -37,6 +38,7 @@ class Knob:
     from_env: Callable[[Path], object]
     from_file: Callable[[Path], object]
     from_default: Callable[[Path], object]
+    companion_env: dict[str, str] = field(default_factory=dict)
 
 
 KNOBS = (
@@ -112,6 +114,26 @@ KNOBS = (
         lambda root: ("runtime", "from-file", "--server"),
         lambda root: None,
     ),
+    Knob(
+        "CA_HOST_ROOT",
+        'host_root = "/from-file/host"\ncontainer_root = "/from-file/container"',
+        "/from-env/host",
+        lambda config: config.host_root,
+        lambda root: Path("/from-env/host"),
+        lambda root: Path("/from-file/host"),
+        lambda root: None,
+        companion_env={"CA_CONTAINER_ROOT": "/from-env/container"},
+    ),
+    Knob(
+        "CA_CONTAINER_ROOT",
+        'host_root = "/from-file/host"\ncontainer_root = "/from-file/container"',
+        "/from-env/container",
+        lambda config: config.container_root,
+        lambda root: Path("/from-env/container"),
+        lambda root: Path("/from-file/container"),
+        lambda root: None,
+        companion_env={"CA_HOST_ROOT": "/from-env/host"},
+    ),
 )
 
 
@@ -126,15 +148,12 @@ def test_env_beats_project_file_beats_default(
     knob: Knob, tmp_path: Path, fixed_cpus: None
 ) -> None:
     project_file = tmp_path / PROJECT_FILE
+    env_only = {knob.variable: knob.env_value, **knob.companion_env}
 
-    assert knob.read(load_config(tmp_path, {knob.variable: knob.env_value})) == knob.from_env(
-        tmp_path
-    )
+    assert knob.read(load_config(tmp_path, env_only)) == knob.from_env(tmp_path)
 
     project_file.write_text(knob.file_body, encoding="utf-8")
-    assert knob.read(load_config(tmp_path, {knob.variable: knob.env_value})) == knob.from_env(
-        tmp_path
-    )
+    assert knob.read(load_config(tmp_path, env_only)) == knob.from_env(tmp_path)
     assert knob.read(load_config(tmp_path, {})) == knob.from_file(tmp_path)
 
     project_file.unlink()
@@ -145,7 +164,7 @@ def test_every_knob_has_a_precedence_case() -> None:
     # Guards the guard: dropping a knob from KNOBS would otherwise shrink AC1's coverage silently.
     covered = {knob.variable for knob in KNOBS}
     assert {env_name(key) for key in KNOB_KEYS} | {"CA_PHP_CMD"} == covered
-    assert len(KNOB_KEYS) == 7
+    assert len(KNOB_KEYS) == 9
 
 
 def test_env_name_is_derived_from_the_project_file_key() -> None:
@@ -157,6 +176,8 @@ def test_env_name_is_derived_from_the_project_file_key() -> None:
         "CA_IMPACT_DEPTH",
         "CA_IMPACT_MAX_NODES",
         "CA_TOOLS",
+        "CA_HOST_ROOT",
+        "CA_CONTAINER_ROOT",
     ]
 
 
@@ -249,6 +270,8 @@ def test_the_tool_allow_list_parses(tmp_path: Path, raw: str, expected: tuple[st
         ({}, f'[{ADAPTER_CMD_TABLE}]\nphp = ["", "x"]', f"{ADAPTER_CMD_TABLE}.php[0]"),
         ({"CA_PHP_CMD": "   "}, "", "CA_PHP_CMD"),
         ({}, "tools = 4", "tools"),
+        ({"CA_HOST_ROOT": "/only/host"}, "", "must be set together"),
+        ({"CA_CONTAINER_ROOT": "/only/container"}, "", "must be set together"),
     ],
     ids=[
         "non-numeric-workers",
@@ -262,6 +285,8 @@ def test_the_tool_allow_list_parses(tmp_path: Path, raw: str, expected: tuple[st
         "empty-word-in-adapter-argv",
         "blank-adapter-command",
         "tools-not-a-list",
+        "host-root-alone",
+        "container-root-alone",
     ],
 )
 def test_a_bad_value_fails_loud_instead_of_falling_back(
@@ -273,6 +298,17 @@ def test_a_bad_value_fails_loud_instead_of_falling_back(
     with pytest.raises(ConfigError) as error:
         load_config(tmp_path, env)
     assert expected_in_message in str(error.value)
+
+
+def test_to_adapter_path_rewrites_absolute_host_paths(tmp_path: Path) -> None:
+    host = tmp_path / "host"
+    container = Path("/app")
+    relative = "src/A.php"
+    assert to_adapter_path(relative, host, container) == relative
+    assert to_adapter_path(str(host / relative), host, container) == "/app/src/A.php"
+    assert to_adapter_path(relative, None, None) == relative
+    with pytest.raises(ConfigError, match="not under"):
+        to_adapter_path(str(tmp_path / "elsewhere" / relative), host, container)
 
 
 @pytest.mark.parametrize(("cpus", "expected"), CPU_CASES, ids=[f"{n}-cpus" for n, _ in CPU_CASES])

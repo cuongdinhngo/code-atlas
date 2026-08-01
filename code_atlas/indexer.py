@@ -163,8 +163,16 @@ def _announce(config: Config, watchdog: _Watchdog) -> dict[str, SubprocessAdapte
 def _adapter(config: Config, key: str) -> SubprocessAdapter:
     command = config.adapter_cmd(key)
     if command is None:
-        raise AdapterError(f"adapter {key!r} has no configured command")
-    return SubprocessAdapter(key, command, config.root)
+        raise AdapterError(
+            f"adapter {key!r} has no configured command — set CA_{key.upper()}_CMD"
+        )
+    return SubprocessAdapter(
+        key,
+        command,
+        config.root,
+        host_root=config.host_root,
+        container_root=config.container_root,
+    )
 
 
 def _owners(announced: Mapping[str, SubprocessAdapter]) -> dict[str, str]:

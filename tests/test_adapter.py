@@ -325,3 +325,54 @@ def test_the_fixture_speaks_the_contract(tmp_path: Path) -> None:
     meta, result = (json.loads(line) for line in process.stdout.splitlines())
     assert contract.validate_meta(meta) == []
     assert contract.validate(result) == []
+
+
+# --------------------------------------------------------------------------- path mapping (§9)
+
+
+def test_absolute_host_paths_are_rewritten_on_the_wire_and_caller_paths_are_preserved(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """AC1: container wire path; ParseResult keeps the caller's path (§9)."""
+    host = tmp_path / "host"
+    host.mkdir()
+    container = Path("/app")
+    relative = "src/Thing.aa"
+    absolute = str(host / relative)
+    path_log = tmp_path / "wire.log"
+    monkeypatch.setenv("CA_FAKE_PATHLOG", str(path_log))
+
+    with driver(tmp_path, host_root=host, container_root=container) as adapter:
+        mapped = adapter.parse(absolute)
+
+    assert path_log.read_text(encoding="utf-8").strip() == "/app/src/Thing.aa"
+    assert mapped.path == absolute
+    assert mapped.ok
+    assert mapped.nodes[0]["file_path"] == absolute
+    assert mapped.nodes[0]["qualified_name"] == f"{absolute}::Thing"
+
+    path_log.write_text("", encoding="utf-8")
+    with driver(tmp_path, host_root=host, container_root=container) as adapter:
+        stored = adapter.parse(relative)
+    assert path_log.read_text(encoding="utf-8").strip() == relative
+    assert stored.path == relative
+    assert stored.nodes[0]["file_path"] == relative
+    assert stored.nodes[0]["qualified_name"] == f"{relative}::Thing"
+
+
+def test_a_path_outside_the_host_root_fails_loud_as_an_adapter_error(
+    tmp_path: Path,
+) -> None:
+    host = tmp_path / "host"
+    host.mkdir()
+    with driver(tmp_path, host_root=host, container_root=Path("/app")) as adapter:
+        with pytest.raises(AdapterError, match="not under"):
+            adapter.parse(str(tmp_path / "elsewhere" / "x.aa"))
+
+
+def test_an_unset_adapter_command_names_the_env_variable(tmp_path: Path) -> None:
+    from code_atlas.config import load_config
+    from code_atlas.indexer import _adapter
+
+    with pytest.raises(AdapterError, match="CA_PHP_CMD"):
+        _adapter(load_config(tmp_path, {}), "php")
