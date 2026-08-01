@@ -95,6 +95,12 @@ adapter contract. Everywhere else, prefer the simplest thing that works.
   own documentation is not this repo's source, and greps a framework name inside one. The exclusion
   itself needs a test asserting the sweep is still non-empty; a filter that swallows the authored files
   restores the 0/0 vacuity the guard existed to remove.
+- **R6.6 — Every language gets a static analyser in CI, at its strictest clean setting.** The core has
+  `mypy`; the PHP adapter has **PHPStan at `level: max`** (`adapters/php/phpstan.neon`), and each later
+  adapter brings the equivalent for its language. Suppression is not how a finding is closed: no
+  baseline file, no `@phpstan-ignore`, no inline `@var` override, no widened signature or cast added
+  only to silence a rule. Either fix the code or argue the level down in the rule book — where the
+  argument is reviewable. `php -l` does **not** satisfy this; it catches syntax, not types.
 
 ## 7. Change discipline
 

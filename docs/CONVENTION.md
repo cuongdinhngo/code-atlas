@@ -87,6 +87,9 @@ code-atlas/
 
 - Each adapter is a **long-lived subprocess** speaking the JSONL protocol: `--server` (stdin loop) and a
   `--file <path>` mode for spiking/debugging.
+- **Each adapter ships a static analyser and CI runs it at its strictest clean setting** (R6.6) — the
+  language's answer to the core's `mypy`. PHP: PHPStan `level: max` via `adapters/php/phpstan.neon`.
+  Suppression (baseline, `@phpstan-ignore`, inline `@var`) is not how a finding is closed.
 - **Announces itself first.** The first stdout line is the handshake —
   `{"name", "extensions", "capabilities", "contract_version"}` — before any result. The suffix list in it
   is what routes files to this adapter; nothing in the core knows them otherwise.
