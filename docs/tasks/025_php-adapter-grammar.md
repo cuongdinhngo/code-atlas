@@ -4,7 +4,7 @@ slug: php-adapter-grammar
 title: PHP adapter — full 8.5 grammar coverage
 phase: 1
 milestone: M0
-status: in-progress
+status: done
 depends_on: [007]
 ---
 
@@ -380,7 +380,7 @@ Matrix Ph3/4: G1/R1–R4/AC1–AC4 → `tests/test_php_adapter_grammar.py` ✅ (
 
 ## Session status
 
-- **Phase:** 4 review **clean** → finalise
-- **Branch:** `feat/025-php-adapter-grammar` @ `f627152`
-- **Gate 1/2/4:** cleared
-- **work_doc_mode:** embed · path: `docs/tasks/025_php-adapter-grammar.md`
+- **Phase:** 5 finalise — outward actions in progress (A/B/C approved)
+- **Branch:** `feat/025-php-adapter-grammar`
+- **Reviewed at:** `f627152` (working-doc bump after marker is exempt)
+- **Status:** done (frontmatter + BACKLOG)

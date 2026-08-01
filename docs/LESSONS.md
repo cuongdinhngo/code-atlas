@@ -3,6 +3,12 @@
 Durable lessons discovered while shipping tasks: constraints found, wrong assumptions, process gaps.
 One entry per lesson; newest first.
 
+## 025 — NEW must peek anonymous qnames without registering them
+`enterNew` and `enterAnonymousClass` both need the same H1 qname. If both call a registering
+`anonymousQname()`, the Class_ node gets a spurious `:1` collision suffix even when it is the only
+anonymous class on that line. Peek (`register: false`) on the NEW edge; register only when declaring
+the Class_ node. Same-line *true* collisions still append `:n` on the second declaration.
+
 ## 008 — Proving-test names must not overclaim the path shape they assert
 Review caught that `…_results_stay_repo_relative` asserted host-**absolute** `ParseResult.path` after
 wire rebase (Approach §3 keeps the **caller** path). The relative half was the real repo-relative
