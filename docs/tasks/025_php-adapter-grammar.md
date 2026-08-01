@@ -293,7 +293,7 @@ Union of Ph2 column covers G1,R1–R4,C1–C2,AC1–AC4. Inventory I1–I19 each
 ## Phase 3 — Execute
 
 - **Branch:** `feat/025-php-adapter-grammar`
-- **Commits:** (filled after commit)
+- **Commits:** `8602a65` — Cover the remaining PHP 8.5 grammar constructs in the adapter.
 - **Proving test added:** `tests/test_php_adapter_grammar.py` — 19 per-row tests + AC3/AC4 + non-empty validate
 - **Verification sweep — BOTH axes.**
   - *File axis:* diff ⊆ approved list ✅ (Visitor.php, grammar.php, test_php_adapter_grammar.py, BACKLOG + task frontmatter). Zero stray refs ✅. Spike/server untouched (no collateral needed) ✅.
