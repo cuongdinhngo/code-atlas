@@ -20,7 +20,7 @@ is [`PLAN.md`](PLAN.md).
 | 008 | [PHP runtime invocation (host / Docker)](tasks/008_php-runtime-modes.md) | M1 | todo | 005, 007 |
 | 009 | [Full build indexer + workers](tasks/009_full-build-indexer.md) | M1 | done | 004, 005, 007 |
 | 010 | [MCP server + status/build tools](tasks/010_index-status-and-build-tools.md) | M1 | done | 009 |
-| 011 | [Cross-file edge resolver](tasks/011_resolver.md) | M2 | todo | 009 |
+| 011 | [Cross-file edge resolver](tasks/011_resolver.md) | M2 | in-progress | 009 |
 | 012 | [Contract-conformance & PHP coverage tests](tasks/012_contract-conformance-tests.md) | M2 | todo | 025, 002 |
 | 013 | [Nav tools — callers / refs / impls](tasks/013_nav-tools.md) | M2 | todo | 011, 010 |
 | 014 | [Search / read / outline + FTS **(ship)**](tasks/014_search-read-outline.md) | M3 | todo | 010, 004 |

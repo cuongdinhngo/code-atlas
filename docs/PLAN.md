@@ -243,9 +243,10 @@ echo json_encode(['path'=>$path,'ok'=>true,'nodes'=>$v->nodes,'edges'=>$v->edges
 
 ### 8.2 Resolver (phase 2, generic — no language branches)
 Runs after all nodes exist:
-- `EXTENDS/IMPLEMENTS/USES_TRAIT/NEW/FuncCall`: `target_raw` is an FQN from the adapter → look up `nodes.qualified_name`, set `target_qname`, tier `RESOLVED`; leave NULL if external/vendor.
+- `EXTENDS/IMPLEMENTS/USES_TRAIT/NEW/FuncCall`: `target_raw` is an FQN from the adapter → look up `nodes.qualified_name`, set `target_qname`, tier `RESOLVED`; leave NULL if external/vendor. A qname that appears in multiple files (§10) is linked as top-N `HEURISTIC`, never pick-one `RESOLVED`.
 - Instance `CALLS` with unknown receiver type: match by **method name** across the index → one candidate = `HEURISTIC`; many = record top-N `HEURISTIC`; dynamic (`$x->$m()`) = `DYNAMIC`, unlinked. *(Adapters with `semantic_types` capability — Roslyn — pre-resolve these to `RESOLVED`; the resolver just honors what's provided. This is how the same generic code serves both.)*
 - `INCLUDES`: literal paths resolved relative to includer; variable = `DYNAMIC`.
+- **top-N** is `CA_MAX_RESULTS` / `config.max_results` (default 50) — the same cap the search/nav tools use; no separate resolver knob.
 
 ### 8.3 Incremental (`indexer.incremental_update`)
 `git diff <last_commit>..HEAD` → changed files; add single-hop **dependents** (files whose nodes are edge targets into changed symbols); reparse `changed ∪ dependents` (hash-skip unchanged); re-run resolver scoped to affected qnames; bump `meta.last_commit`.
