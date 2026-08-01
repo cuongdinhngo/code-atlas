@@ -243,7 +243,7 @@ def test_the_core_builds_a_repo_into_a_queryable_index(tmp_path: Path, store: Gr
 
     extends = store.edges_by_source("\\App\\Models\\User", kind="EXTENDS", limit=10)
     assert [row["target_raw"] for row in extends] == ["\\App\\Models\\Base"]
-    assert extends[0]["target_qname"] is None, "linking targets is the resolver's job (R3.3)"
+    assert extends[0]["target_qname"] is None, "external Base is absent — stays unlinked"
 
     assert store.get_meta(CONTRACT_VERSION_KEY) == str(contract.CONTRACT_VERSION)
     assert store.get_meta(BUILT_AT_KEY)

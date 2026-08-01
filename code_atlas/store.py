@@ -242,6 +242,11 @@ class GraphStore:
     def nodes_by_name(self, name: str, *, kind: str | None = None, limit: int) -> list[Row]:
         return self._nodes("name = ?", name, kind, limit)
 
+    def nodes_by_qualified_name(
+        self, qname: str, *, kind: str | None = None, limit: int
+    ) -> list[Row]:
+        return self._nodes("qualified_name = ?", qname, kind, limit)
+
     def nodes_by_kind(self, kind: str, *, limit: int) -> list[Row]:
         return self._nodes("kind = ?", kind, None, limit)
 
@@ -253,6 +258,27 @@ class GraphStore:
 
     def edges_by_target(self, qname: str, *, kind: str | None = None, limit: int) -> list[Row]:
         return self._edges("target_qname = ?", qname, kind, limit)
+
+    def unresolved_edges(self) -> list[Row]:
+        """Every edge the resolver may still link — ``target_qname`` is still NULL (§8.2)."""
+        sql = (
+            f"SELECT id, {_EDGE_COLUMNS} FROM edges WHERE target_qname IS NULL "
+            f"ORDER BY {_EDGE_ORDER}"
+        )
+        return self._rows(EDGE_ROW_KEYS, sql, ())
+
+    def link_edge(self, edge_id: int, target_qname: str, confidence_tier: str) -> None:
+        """Set one edge's resolved target and tier (resolver only — R1.4)."""
+        with self._conn:
+            self._conn.execute(
+                "UPDATE edges SET target_qname = ?, confidence_tier = ? WHERE id = ?",
+                (target_qname, confidence_tier, edge_id),
+            )
+
+    def insert_edge(self, edge: Mapping[str, object]) -> None:
+        """Insert one edge row — used when a multi-candidate resolve expands into siblings."""
+        with self._conn:
+            self._insert(EDGES, _grouped(contract.EDGE_FIELDS, [edge]))
 
     def search_nodes(self, query: str, *, kind: str | None = None, limit: int) -> list[Row]:
         """Search the FTS index by one literal prefix term; punctuation is quoted, never raised."""

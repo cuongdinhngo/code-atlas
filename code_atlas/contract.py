@@ -45,6 +45,11 @@ EDGE_KINDS: tuple[str, ...] = (
     "REFERENCES",
 )
 
+# Resolver (§8.2) looks these up by FQN; new EDGE_KINDS must opt in here (not silently join).
+FQN_EDGE_KINDS: frozenset[str] = frozenset(
+    {"EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS", "NEW"}
+)
+
 CONFIDENCE_TIERS: tuple[str, ...] = ("RESOLVED", "HEURISTIC", "DYNAMIC")
 
 NODE_FIELDS: tuple[str, ...] = (

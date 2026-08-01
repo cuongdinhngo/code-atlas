@@ -3,6 +3,23 @@
 Durable lessons discovered while shipping tasks: constraints found, wrong assumptions, process gaps.
 One entry per lesson; newest first.
 
+## 011 — Never promote HEURISTIC to RESOLVED just because a name is unique
+PR review caught that `_resolve_symbol` set the tier from hit count alone. An adapter-emitted
+`HEURISTIC` edge whose `target_raw` matched one qname became `RESOLVED`. A unique name does not make
+a guess certain — M6 impact will trust these tiers. Fix: take the weaker of (incoming, computed).
+
+**Also deferred to M4 (task 015):** per-edge SQLite commits + materializing all unresolved edges, and
+top-N name-match fan-out on common method names (`get`/`save`) exploding edge counts.
+
+## 011 — A clean `Reviewed at` does not survive tip commits landed after it
+Task 011's review was clean at `cf445e4` (resolver change-list only). Teammate commits for
+`AGENTS.md` / `.mailmap` then landed on the same branch. Finalise's stale-review guard correctly
+refused: the marker is a **file-set** claim, not a "we reviewed this ticket once" claim. Keeping the
+tip without a new `Reviewed at` covering HEAD is a **human override**, not a cleared gate.
+
+**Fix:** either (a) re-review the full tip and rewrite the marker, or (b) land teammate docs/chore
+work on a separate branch/PR so the feature marker stays valid.
+
 ## 010 — The same thread rule that enforced a design in 009 dictated the design in 010
 Task 009 found that `sqlite3` binds a connection to its creating thread, and treated it as a free
 guarantee: R4.3's single writer could not be broken by accident. Task 010 met the same fact from the
@@ -69,7 +86,7 @@ an empty list, and a null are three different wire values, and a language that c
 them will encode the wrong one by default.
 
 ## 024 — A rule enforced only by a lifecycle gate is unenforced for work that skips the lifecycle
-`CLAUDE.md` says no PR opens without the task's token spend recorded in **both** the working-doc cost
+`AGENTS.md` says no PR opens without the task's token spend recorded in **both** the working-doc cost
 ledger and the BACKLOG table. Tasks 001–006 all complied — because mango's `finalise` phase has a
 ledger-completeness gate that refuses to proceed without it. Task 024 was done directly, outside the
 five-phase lifecycle, so nothing checked, and PR #14 opened with no token row and a status left at
@@ -183,7 +200,7 @@ exist yet, say so out loud and either negative-control the guard or record the v
 
 ## 001 — Fold a mid-task governance request into the ticket's scope, don't ride it on the branch
 When a user asks for a repo-wide rule change mid-task (here: the "Token usage on PR" rule in
-`CLAUDE.md` + `docs/BACKLOG.md`), the ticket-blind challenger and the reviewer both read it as
+`AGENTS.md` + `docs/BACKLOG.md`), the ticket-blind challenger and the reviewer both read it as
 untraceable scope creep — it maps to no ticket requirement. **Fix:** add it to the task's
 Scope/Deliverables + a matrix row (task 001 → R6 + change-list item 8) with a one-line rationale, so
 every hunk still traces to a requirement. Splitting it into its own docs ticket is the alternative;

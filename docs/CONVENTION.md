@@ -12,7 +12,8 @@ code-atlas/
 ├── pyproject.toml
 ├── .harness.json                     # mango lifecycle config (committed team config; no secrets)
 ├── .github/                          # workflows/ci.yml + pull_request_template.md
-├── CLAUDE.md                         # agent guidance (points here + to ENGINEERING_RULES)
+├── AGENTS.md                         # agent guidance (points here + to ENGINEERING_RULES)
+├── CLAUDE.md                         # one line: `@AGENTS.md` — Claude Code's entry point, not a second copy
 ├── README.md
 ├── code_atlas/                       # THE CORE — language-agnostic, no per-language branches
 │   ├── main.py                       # FastMCP server + entry point

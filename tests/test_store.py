@@ -480,6 +480,40 @@ def test_a_read_helper_orders_ties_deterministically(store: GraphStore) -> None:
     assert ordered == ["a.php", "b.php", "c.php"]
 
 
+def test_nodes_by_qualified_name(store: GraphStore) -> None:
+    seeded(store)
+    found = store.nodes_by_qualified_name("\\App\\UserRepo::save", limit=10)
+    assert [row["name"] for row in found] == ["save"]
+
+
+def test_unresolved_edges_skips_already_linked_rows(store: GraphStore) -> None:
+    seeded(store)
+    assert len(store.unresolved_edges()) == 1
+    store.link_edge(store.unresolved_edges()[0]["id"], "\\App\\Db::write", "RESOLVED")
+    assert store.unresolved_edges() == []
+
+
+def test_link_edge_and_insert_edge(store: GraphStore) -> None:
+    seeded(store)
+    edge_id = store.unresolved_edges()[0]["id"]
+    store.link_edge(int(edge_id), "\\App\\Db::write", "HEURISTIC")
+    store.insert_edge(
+        an_edge(
+            "CALLS",
+            "\\App\\UserRepo::save",
+            "\\App\\Db::write",
+            "a.php",
+            target_qname="\\App\\Other::write",
+            confidence_tier="HEURISTIC",
+        )
+    )
+    targets = [
+        row["target_qname"]
+        for row in store.edges_by_source("\\App\\UserRepo::save", kind="CALLS", limit=10)
+    ]
+    assert targets == ["\\App\\Db::write", "\\App\\Other::write"]
+
+
 # --- task 009: the two reads a build needs, and the busy_timeout proof deferred from task 004 -----
 
 

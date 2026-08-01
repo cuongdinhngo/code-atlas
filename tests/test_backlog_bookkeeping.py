@@ -1,4 +1,4 @@
-"""The bookkeeping rules in CLAUDE.md, enforced instead of asked for.
+"""The bookkeeping rules in AGENTS.md, enforced instead of asked for.
 
 Two rules govern every task and neither had a guard: status is kept in sync in **both** the backlog
 table and the task's frontmatter, and a task's token spend is recorded before its PR. They were held
@@ -62,7 +62,7 @@ def test_the_guard_has_something_to_check() -> None:
 
 @pytest.mark.parametrize("task_id", sorted(task_files()))
 def test_status_matches_in_both_places(task_id: str) -> None:
-    # CLAUDE.md: status is kept in sync in the backlog table *and* the task's frontmatter.
+    # AGENTS.md: status is kept in sync in the backlog table *and* the task's frontmatter.
     in_file = frontmatter_status(task_files()[task_id])
     assert in_file in STATUSES, f"task {task_id}: {in_file!r} is not a known status"
     assert backlog_statuses().get(task_id) == in_file, (
@@ -73,14 +73,14 @@ def test_status_matches_in_both_places(task_id: str) -> None:
 
 @pytest.mark.parametrize("task_id", sorted(task_files()))
 def test_a_finished_task_records_what_it_cost(task_id: str) -> None:
-    """CLAUDE.md: no PR without the token spend recorded — so no `done` task without a row."""
+    """AGENTS.md: no PR without the token spend recorded — so no `done` task without a row."""
     if frontmatter_status(task_files()[task_id]) != "done":
         return
 
     row = token_rows().get(task_id)
     assert row is not None, (
         f"task {task_id} is done but has no row in BACKLOG's Token usage table "
-        "(CLAUDE.md, 'Token usage on PR')"
+        "(AGENTS.md, 'Token usage on PR')"
     )
     spend, pull_request = row
     assert "dispatch" in spend or "fresh" in spend, (
