@@ -17,6 +17,7 @@ from pathlib import Path, PurePosixPath
 from typing import IO, Protocol, runtime_checkable
 
 from code_atlas import contract
+from code_atlas.config import to_adapter_path
 
 # Escalation budget for stop(); module-level so a test can shorten the wait on a deliberate hang.
 STOP_TIMEOUT = 5.0
@@ -85,6 +86,8 @@ class SubprocessAdapter:
         command: Iterable[str],
         root: Path,
         *,
+        host_root: Path | None = None,
+        container_root: Path | None = None,
         stderr_path: Path | None = None,
     ) -> None:
         # `key` is only the configuration key and error label; the adapter's real name arrives in
@@ -92,6 +95,8 @@ class SubprocessAdapter:
         self._key = key
         self._command = tuple(command)
         self._root = root
+        self._host_root = host_root
+        self._container_root = container_root
         self._stderr_path = stderr_path
         self._process: subprocess.Popen[str] | None = None
         self._stderr: IO[str] | None = None
@@ -137,9 +142,10 @@ class SubprocessAdapter:
         self._meta = self._read_handshake()
 
     def parse(self, path: str) -> ParseResult:
-        """Parse one repo-relative path. A bad file fails softly; a bad process raises."""
+        """Parse one path. Wire may be remapped; the result always keeps the caller's path (§9)."""
         process = self._running()
-        self._request(process, path)
+        wire = to_adapter_path(path, self._host_root, self._container_root)
+        self._request(process, wire)
         try:
             line = self._read_line(process)
         except UnicodeDecodeError as error:
@@ -148,7 +154,7 @@ class SubprocessAdapter:
             reply = json.loads(line)
         except json.JSONDecodeError as error:
             return _failure(path, f"adapter emitted a line that is not JSON ({error})")
-        return self._parse_result(path, reply)
+        return self._parse_result(path, reply, wire=wire)
 
     def kill(self) -> None:
         """Kill the child outright, leaving its pipes alone. Safe from another thread, and twice.
@@ -241,24 +247,30 @@ class SubprocessAdapter:
             if line.strip():
                 return line
 
-    def _parse_result(self, path: str, reply: object) -> ParseResult:
+    def _parse_result(self, path: str, reply: object, *, wire: str) -> ParseResult:
         """Classify one reply. An out-of-step reply is loud; anything about the file is soft."""
         errors = contract.validate(reply)
         if errors:
             return _failure(path, f"adapter result rejected by the contract ({errors[0]})")
         assert isinstance(reply, dict)
-        if reply["path"] != path:
+        if reply["path"] != wire:
             raise AdapterError(
-                f"adapter {self._key!r} answered for {reply['path']!r} when {path!r} was asked — "
+                f"adapter {self._key!r} answered for {reply['path']!r} when {wire!r} was asked — "
                 "the stream is out of step"
             )
+        if wire != path:
+            reply = _rebase_reply(reply, wire, path)
         if not reply["ok"]:
             return _failure(path, str(reply.get("error")))
+        nodes = reply.get("nodes") or ()
+        edges = reply.get("edges") or ()
+        assert isinstance(nodes, list | tuple)
+        assert isinstance(edges, list | tuple)
         return ParseResult(
             path=path,
             ok=True,
-            nodes=tuple(reply.get("nodes") or ()),
-            edges=tuple(reply.get("edges") or ()),
+            nodes=tuple(dict(row) for row in nodes if isinstance(row, dict)),
+            edges=tuple(dict(row) for row in edges if isinstance(row, dict)),
         )
 
 
@@ -288,6 +300,37 @@ def adapter_for(path: str, index: Mapping[str, LanguageAdapter]) -> LanguageAdap
 def _failure(path: str, error: str) -> ParseResult:
     """One file the adapter could not deliver; the build records it and keeps going (R5.1)."""
     return ParseResult(path=path, ok=False, error=error)
+
+
+def _rebase_reply(reply: dict[str, object], wire: str, path: str) -> dict[str, object]:
+    """Rewrite wire paths the adapter echoed back into the caller's store-facing path (§9)."""
+    rebased = dict(reply)
+    rebased["path"] = path
+    nodes = reply.get("nodes") or []
+    edges = reply.get("edges") or []
+    assert isinstance(nodes, list) and isinstance(edges, list)
+    rebased["nodes"] = [_rebase_row(row, wire, path) for row in nodes]
+    rebased["edges"] = [_rebase_row(row, wire, path) for row in edges]
+    return rebased
+
+
+def _rebase_row(row: object, wire: str, path: str) -> dict[str, object]:
+    assert isinstance(row, dict)
+    out: dict[str, object] = {}
+    for key, value in row.items():
+        if isinstance(value, str):
+            out[str(key)] = _rebase_string(value, wire, path)
+        else:
+            out[str(key)] = value
+    return out
+
+
+def _rebase_string(value: str, wire: str, path: str) -> str:
+    if value == wire:
+        return path
+    if value.startswith(f"{wire}::") or value.startswith(f"{wire}/"):
+        return path + value[len(wire) :]
+    return value
 
 
 def _shut_down(process: subprocess.Popen[str]) -> None:

@@ -31,6 +31,8 @@ KNOB_KEYS: tuple[str, ...] = (
     "impact_depth",
     "impact_max_nodes",
     "tools",
+    "host_root",
+    "container_root",
 )
 
 DEFAULT_DB_PATH = Path(".code-atlas/graph.db")
@@ -59,6 +61,8 @@ class Config:
     impact_depth: int
     impact_max_nodes: int
     tools: tuple[str, ...] | None
+    host_root: Path | None
+    container_root: Path | None
     adapter_cmds: Mapping[str, tuple[str, ...]]
 
     def adapter_cmd(self, lang: str) -> tuple[str, ...] | None:
@@ -71,10 +75,35 @@ def env_name(key: str) -> str:
     return f"CA_{key.upper()}"
 
 
+def to_adapter_path(
+    path: str, host_root: Path | None, container_root: Path | None
+) -> str:
+    """Map an absolute host path into the container root; leave relative paths alone (§9)."""
+    if host_root is None and container_root is None:
+        return path
+    if host_root is None or container_root is None:
+        raise ConfigError(
+            f"{env_name('host_root')} and {env_name('container_root')} must be set together"
+        )
+    candidate = Path(path)
+    if not candidate.is_absolute():
+        return path
+    try:
+        relative = candidate.relative_to(host_root)
+    except ValueError as error:
+        raise ConfigError(
+            f"path {path!r} is not under {env_name('host_root')} ({host_root})"
+        ) from error
+    return (container_root / relative).as_posix()
+
+
 def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
     """Resolve every knob for ``root``: environment, then the project file, then the default."""
     environ = os.environ if env is None else env
     file_values = _read_project_file(root)
+    host_root = _resolve_optional_path("host_root", environ, file_values)
+    container_root = _resolve_optional_path("container_root", environ, file_values)
+    _validate_root_pair(host_root, container_root)
     return Config(
         root=root,
         db_path=root / _resolve("db_path", _as_path, DEFAULT_DB_PATH, environ, file_values),
@@ -88,6 +117,8 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
             "impact_max_nodes", _as_int, DEFAULT_IMPACT_MAX_NODES, environ, file_values
         ),
         tools=_resolve("tools", _as_tools, None, environ, file_values),
+        host_root=host_root,
+        container_root=container_root,
         adapter_cmds=_adapter_cmds(environ, file_values),
     )
 
@@ -106,6 +137,27 @@ def _resolve[T](
     if key in file_values:
         return parse(f"{PROJECT_FILE}:{key}", file_values[key])
     return default
+
+
+def _resolve_optional_path(
+    key: str, env: Mapping[str, str], file_values: Mapping[str, object]
+) -> Path | None:
+    """A root path that is absent until configured — Docker mapping is off by default (§9)."""
+    variable = env_name(key)
+    if variable in env:
+        return _as_path(variable, env[variable])
+    if key in file_values:
+        return _as_path(f"{PROJECT_FILE}:{key}", file_values[key])
+    return None
+
+
+def _validate_root_pair(host_root: Path | None, container_root: Path | None) -> None:
+    """Both mapping roots or neither — a half-set pair is a config error (R5.3)."""
+    if (host_root is None) == (container_root is None):
+        return
+    raise ConfigError(
+        f"{env_name('host_root')} and {env_name('container_root')} must be set together"
+    )
 
 
 def _default_workers() -> int:
