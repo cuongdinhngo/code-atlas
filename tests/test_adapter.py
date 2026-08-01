@@ -330,10 +330,10 @@ def test_the_fixture_speaks_the_contract(tmp_path: Path) -> None:
 # --------------------------------------------------------------------------- path mapping (§9)
 
 
-def test_absolute_host_paths_are_rewritten_on_the_wire_and_results_stay_repo_relative(
+def test_absolute_host_paths_are_rewritten_on_the_wire_and_caller_paths_are_preserved(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """AC1 proving test: wire uses the container root; ParseResult keeps the caller's path."""
+    """AC1 proving test: wire uses the container root; results keep the caller's path (Approach §3)."""
     host = tmp_path / "host"
     host.mkdir()
     container = Path("/app")
@@ -343,18 +343,21 @@ def test_absolute_host_paths_are_rewritten_on_the_wire_and_results_stay_repo_rel
     monkeypatch.setenv("CA_FAKE_PATHLOG", str(path_log))
 
     with driver(tmp_path, host_root=host, container_root=container) as adapter:
-        result = adapter.parse(absolute)
+        mapped = adapter.parse(absolute)
 
     assert path_log.read_text(encoding="utf-8").strip() == "/app/src/Thing.aa"
-    assert result.path == absolute
-    assert result.ok
-    assert result.nodes[0]["file_path"] == absolute
-    assert result.nodes[0]["qualified_name"] == f"{absolute}::Thing"
+    assert mapped.path == absolute
+    assert mapped.ok
+    assert mapped.nodes[0]["file_path"] == absolute
+    assert mapped.nodes[0]["qualified_name"] == f"{absolute}::Thing"
 
+    path_log.write_text("", encoding="utf-8")
     with driver(tmp_path, host_root=host, container_root=container) as adapter:
-        relative_result = adapter.parse(relative)
-    assert relative_result.path == relative
-    assert relative_result.nodes[0]["file_path"] == relative
+        stored = adapter.parse(relative)
+    assert path_log.read_text(encoding="utf-8").strip() == relative
+    assert stored.path == relative
+    assert stored.nodes[0]["file_path"] == relative
+    assert stored.nodes[0]["qualified_name"] == f"{relative}::Thing"
 
 
 def test_an_unset_adapter_command_names_the_env_variable(tmp_path: Path) -> None:
