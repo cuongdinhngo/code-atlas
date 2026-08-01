@@ -3,6 +3,14 @@
 Durable lessons discovered while shipping tasks: constraints found, wrong assumptions, process gaps.
 One entry per lesson; newest first.
 
+## 011 — Never promote HEURISTIC to RESOLVED just because a name is unique
+PR review caught that `_resolve_symbol` set the tier from hit count alone. An adapter-emitted
+`HEURISTIC` edge whose `target_raw` matched one qname became `RESOLVED`. A unique name does not make
+a guess certain — M6 impact will trust these tiers. Fix: take the weaker of (incoming, computed).
+
+**Also deferred to M4 (task 015):** per-edge SQLite commits + materializing all unresolved edges, and
+top-N name-match fan-out on common method names (`get`/`save`) exploding edge counts.
+
 ## 011 — A clean `Reviewed at` does not survive tip commits landed after it
 Task 011's review was clean at `cf445e4` (resolver change-list only). Teammate commits for
 `AGENTS.md` / `.mailmap` then landed on the same branch. Finalise's stale-review guard correctly

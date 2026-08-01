@@ -88,6 +88,25 @@ def test_one_fqn_candidate_links_as_resolved(store: GraphStore) -> None:
     assert linked[0]["confidence_tier"] == "RESOLVED"
 
 
+def test_heuristic_fqn_match_is_not_promoted_to_resolved(store: GraphStore) -> None:
+    """R5.2: a unique qname hit does not upgrade an adapter's HEURISTIC claim (PR review item 1)."""
+    seed_file(
+        store,
+        "a.x",
+        [
+            node("Method", "save", "\\Ns\\Repo::save", "a.x"),
+            node("Method", "put", "\\Ns\\Repo::put", "a.x"),
+        ],
+        [edge("CALLS", "\\Ns\\Repo::save", "\\Ns\\Repo::put", "a.x", tier="HEURISTIC")],
+    )
+
+    resolve_edges(store, max_candidates=50)
+
+    linked = store.edges_by_source("\\Ns\\Repo::save", kind="CALLS", limit=10)
+    assert linked[0]["target_qname"] == "\\Ns\\Repo::put"
+    assert linked[0]["confidence_tier"] == "HEURISTIC"
+
+
 def test_many_fqn_candidates_expand_as_heuristic_top_n(store: GraphStore) -> None:
     store.upsert_file("a.x", "h", "lang")
     store.upsert_file("b.x", "h", "lang")

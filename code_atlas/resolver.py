@@ -5,15 +5,11 @@ from pathlib import PurePosixPath
 from code_atlas import contract
 from code_atlas.store import GraphStore
 
-# Structural edges whose target_raw is an FQN; path/name strategies handle the rest (§8.2).
-_FQN_KINDS = frozenset(
-    kind
-    for kind in contract.EDGE_KINDS
-    if kind != "CONTAINS"
-    and kind != "IMPORTS"
-    and kind != "INCLUDES"
-    and kind != "REFERENCES"
-)
+# Explicit inclusion: a new contract edge kind must opt in, not silently join the FQN path.
+_FQN_KINDS = frozenset({"EXTENDS", "IMPLEMENTS", "USES_TRAIT", "NEW", "CALLS"})
+
+# RESOLVED is strongest; DYNAMIC is weakest — never promote a weaker incoming claim (R5.2).
+_TIER_STRENGTH = {tier: index for index, tier in enumerate(contract.CONFIDENCE_TIERS)}
 
 
 def resolve_edges(store: GraphStore, *, max_candidates: int) -> None:
@@ -30,21 +26,30 @@ def resolve_edges(store: GraphStore, *, max_candidates: int) -> None:
 
 def _resolve_include(store: GraphStore, edge: dict[str, object]) -> None:
     path = _relative_to(str(edge["file_path"]), str(edge["target_raw"]))
-    hits = store.nodes_by_qualified_name(path, kind="File", limit=1)
-    if len(hits) == 1:
-        store.link_edge(int(str(edge["id"])), str(hits[0]["qualified_name"]), "RESOLVED")
+    hits = store.nodes_by_qualified_name(path, kind="File", limit=2)
+    if len(hits) != 1:
+        return
+    tier = _weaker_tier(str(edge["confidence_tier"]), "RESOLVED")
+    store.link_edge(int(str(edge["id"])), str(hits[0]["qualified_name"]), tier)
 
 
 def _resolve_symbol(store: GraphStore, edge: dict[str, object], max_candidates: int) -> None:
     raw = str(edge["target_raw"])
+    incoming = str(edge["confidence_tier"])
     hits = store.nodes_by_qualified_name(raw, limit=max_candidates)
     if hits:
-        _link_candidates(store, edge, hits, "RESOLVED" if len(hits) == 1 else "HEURISTIC")
+        computed = "RESOLVED" if len(hits) == 1 else "HEURISTIC"
+        _link_candidates(store, edge, hits, _weaker_tier(incoming, computed))
         return
-    if edge["kind"] == "CALLS" and edge["confidence_tier"] == "HEURISTIC":
+    if edge["kind"] == "CALLS" and incoming == "HEURISTIC":
         methods = store.nodes_by_name(raw, kind="Method", limit=max_candidates)
         if methods:
             _link_candidates(store, edge, methods, "HEURISTIC")
+
+
+def _weaker_tier(left: str, right: str) -> str:
+    """Return the less-certain of two tiers so a guess is never promoted to RESOLVED (R5.2)."""
+    return left if _TIER_STRENGTH[left] >= _TIER_STRENGTH[right] else right
 
 
 def _link_candidates(

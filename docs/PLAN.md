@@ -247,6 +247,8 @@ Runs after all nodes exist:
 - Instance `CALLS` with unknown receiver type: match by **method name** across the index → one candidate = `HEURISTIC`; many = record top-N `HEURISTIC`; dynamic (`$x->$m()`) = `DYNAMIC`, unlinked. *(Adapters with `semantic_types` capability — Roslyn — pre-resolve these to `RESOLVED`; the resolver just honors what's provided. This is how the same generic code serves both.)*
 - `INCLUDES`: literal paths resolved relative to includer; variable = `DYNAMIC`.
 - **top-N** is `CA_MAX_RESULTS` / `config.max_results` (default 50) — the same cap the search/nav tools use; no separate resolver knob.
+- Linked tier is the **weaker** of the adapter's incoming `confidence_tier` and the lookup outcome (1 hit → would-be `RESOLVED`, many → `HEURISTIC`): a unique name never upgrades a guess (R5.2).
+- **M4 scale (deferred):** per-edge `link_edge`/`insert_edge` commits and loading all unresolved edges into Python; name-match fan-out up to top-N per call site. Batch writes + streaming unresolved edges belong with task 015, not M2.
 
 ### 8.3 Incremental (`indexer.incremental_update`)
 `git diff <last_commit>..HEAD` → changed files; add single-hop **dependents** (files whose nodes are edge targets into changed symbols); reparse `changed ∪ dependents` (hash-skip unchanged); re-run resolver scoped to affected qnames; bump `meta.last_commit`.
