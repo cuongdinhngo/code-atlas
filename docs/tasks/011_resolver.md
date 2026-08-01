@@ -398,8 +398,8 @@ No `❌` → **no coverage-gap exclusions.**
 - **PR draft:** `/tmp/pr-011.md` (project template).
 - **Outward actions (approved by "let open PR"):**
   - [x] bookkeeping commit (status `done`, token row, Phase 4 detail, lesson 011, Phase 5 close)
-  - [ ] push branch (incl. bookkeeping)
-  - [ ] open PR via `gh`
+  - [x] push branch (incl. bookkeeping)
+  - [x] open PR via `gh` → https://github.com/cuongdinhngo/code-atlas/pull/19
 - **Follow-up tickets:** none for deferred ⚠ rows. Challenger can't-tells (#5/#7 DYNAMIC adapter
   tagging) stay adapter-owned; no new ticket unless a later card needs end-to-end DYNAMIC fixtures.
 - **Durable lesson:** written to `docs/LESSONS.md` — clean `Reviewed at` does not survive tip commits
@@ -418,8 +418,8 @@ main-loop unmeasured; mango measures dispatch only.
 
 - **Last updated:** 2026-08-01
 - **Current phase:** 5 — Finalise (opening PR by user request)
-- **Next action:** push + `gh pr create`; fill BACKLOG token-row PR link after open
-- **Blocked on:** none (stale-review waived by user for this PR)
+- **Next action:** await review/merge on [#19](https://github.com/cuongdinhngo/code-atlas/pull/19)
+- **Blocked on:** none
 - **Revert path:** close/revert PR; delete branch `feat/011-resolver`; delete `.code-atlas/graph.db` and rebuild
 
 ## Decision log
