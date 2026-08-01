@@ -354,12 +354,33 @@ Matrix Ph3/4: G1/R1–R4/AC1–AC4 → `tests/test_php_adapter_grammar.py` ✅ (
 | Phase | Dispatch | Round | Tokens |
 |-------|----------|-------|--------|
 | 1 — analysis | extractor (`3480a9ab`) — 007 inventory + Visitor + contract extract | 1 | unmeasured (blocking retrieval) |
+| 4 — review | `mango:reviewer` (`529061cb`) | 1 | unmeasured (blocking retrieval) |
+| 4 — review | `mango:challenger` (`cd853272`) | 1 | unmeasured (blocking retrieval) |
+
+---
+
+## Phase 4 — Review
+
+- **Round 1 — reviewer:** CHANGES REQUESTED (conditional LGTM once findings 1–3 land)
+  1. C1 same-line anon qname collision — fixed (`anonymousOccurrences` + `:n` suffix; NEW peeks without register)
+  2. IMPORTS edge line per-statement regression — fixed (`$use->getStartLine()`)
+  3. ruff E501 on separator comment — fixed
+- **Round 1 — challenger (ticket-blind):** 22/23 met · 1 can't-tell (pure vs backed enum distinguishability unasserted) · ACs met. Pure-enum assertion added in verify-only.
+- **Round 2 — verify-only (main-loop, no re-dispatch):** findings 1–3 present as described; `tests/test_php_adapter_grammar.py` + spike **35 passed**; full suite **421 passed**; ruff clean on new test file; multi-line group-use IMPORTS lines = 3,4,5.
+- **Scope reconciliation:** file ⊆ list ✅ · behaviour: H1 collision completed (ordinal `:n` on clash, not source column — same uniqueness intent as C1) ✅
+- **Proving test:** green vs BASELINE 398 → 421 (delta-green)
+- **Inventory:** I1–I19 all ✅ (19/19)
+- **Clean:** yes
+
+**Reviewed at** `f627152`  
+**Reviewed files:** `adapters/php/src/Visitor.php`, `tests/fixtures/php/grammar.php`, `tests/test_php_adapter_grammar.py`, `docs/BACKLOG.md`, `docs/tasks/025_php-adapter-grammar.md`  
+**Working-doc path (exempt):** `docs/tasks/025_php-adapter-grammar.md`
 
 ---
 
 ## Session status
 
-- **Phase:** 3 execute complete → flowing to review
-- **Branch:** `feat/025-php-adapter-grammar`
-- **Gate 1/2:** cleared
+- **Phase:** 4 review **clean** → finalise
+- **Branch:** `feat/025-php-adapter-grammar` @ `f627152`
+- **Gate 1/2/4:** cleared
 - **work_doc_mode:** embed · path: `docs/tasks/025_php-adapter-grammar.md`
