@@ -4,7 +4,7 @@ slug: resolver
 title: Cross-file edge resolver (M2)
 phase: 1
 milestone: M2
-status: in-progress
+status: done
 depends_on: [009]
 ---
 
@@ -342,20 +342,85 @@ No `❌` → **no coverage-gap exclusions.**
 
 ## Phase 4 — Review ✋ (stop only if not clean)
 
-- **reviewer** ([Review](7b1b9e08-c4e6-4df3-afdf-a52fa65ad91a)): **CHANGES REQUESTED** → fixed: Finding 1 Co-authored-by trailers stripped via `filter-branch`; out-of-scope AGENTS/mailmap tip commits dropped from branch. Re-check: verify-only on commit messages → **clean**.
-- **challenger** ([challenger](0f8789b2-f267-44cf-a72f-37114085e313)): **8 met / 0 not met / 2 can't tell** (DYNAMIC adapter tagging for `$x->$m()` / variable include — pre-existing adapter behaviour, not this diff; resolver skip proven).
-- **Scope reconciliation:** diff ⊆ approved list ✅; no AGENTS/mailmap on branch after fix.
-- **Proving test:** green (`test_full_build_resolves_a_known_caller_chain_on_fixtures`).
+### Round 1 — reviewer ([Review](7b1b9e08-c4e6-4df3-afdf-a52fa65ad91a))
+
+- **Verdict:** **CHANGES REQUESTED** (conditional LGTM once Finding 1 lands) → Finding 1 fixed → verify-only re-check on commit messages → **clean** at `cf445e4`.
+- **Diff ⊆ approved list:** YES — 13 files mapped 1:1 onto Gate-2 items 1–9; working tree clean at review time; ranged diff was the complete change-set.
+- **Finding 1 (Important) — AI-attribution trailer on every commit.** All three resolver commits carried `Co-authored-by: Cursor <cursoragent@cursor.com>`, violating `AGENTS.md`/`CLAUDE.md` Commits rule and `docs/CONVENTION.md:124`. **Fix:** stripped via `filter-branch`; also dropped out-of-scope AGENTS/mailmap tip from the branch *at that moment*. No code change required. Re-check: verify-only on `git log` → no trailers.
+- **Rule-book conformance (checked clean after Finding 1):**
+  - **R1.1 / R1.5** — `resolver.py` has zero language branches; `test_core_is_language_agnostic` + SQL confinement green.
+  - **R1.4** — no raw SQL in `resolver.py`; all reads/writes via store helpers (`nodes_by_qualified_name`, `unresolved_edges`, `link_edge`, `insert_edge`).
+  - **R3.2 / R3.3** — field access through `contract.EDGE_FIELDS` / row keys; no re-declared column lists.
+  - **R4.2** — `unresolved_edges` uses `_EDGE_ORDER`; multi-candidate order stable; proven by top-N / max-candidates tests.
+  - **R5.2** — multi-hit and name-match stay `HEURISTIC`; `DYNAMIC` skipped; never upgrade a guess to `RESOLVED`.
+  - **R1.6** — pre-linked rows excluded by `WHERE target_qname IS NULL` (no capability-flag branch).
+  - **R7.5** — comments/docstrings ≤ 3 lines.
+  - **Wiring** — `resolve_edges(..., max_candidates=config.max_results)` immediately after `_record_meta` in `full_build`.
+  - **Docs** — PLAN §8.2 pins top-N; BACKLOG + frontmatter `in-progress`.
+- **Tests at review:** proving test green; targeted + guardrail slices green. Full-suite hang on pre-existing watchdog-kill tests was classified **ENV-FAULT** (sandbox `PermissionError` on `os.kill`), not a regression from this diff.
+
+### Round 1 — challenger ([challenger](0f8789b2-f267-44cf-a72f-37114085e313)) — ticket-blind
+
+- **Input:** raw ticket above the mango separator only + `main..feat/011-resolver` diff. Working doc / design / matrix withheld.
+- **Summary:** **8 met · 0 not met · 2 can't tell**. No unrequested product functionality beyond ticket scope (indexer wire + store APIs + PLAN/BACKLOG sync treated as necessary plumbing).
+
+| # | Reconstructed requirement | Verdict | Evidence |
+|---|---------------------------|---------|----------|
+| 1 | FQN resolve `EXTENDS/IMPLEMENTS/USES_TRAIT/NEW/CALLS(FuncCall)` → `target_qname` + `RESOLVED` | **Met** | `resolver.py` `_FQN_KINDS` + `_resolve_symbol`; proving test EXTENDS `\App\User` → `\App\Base` |
+| 2 | Leave NULL if external/vendor | **Met** | no hit → no `link_edge`; `test_external_fqn_stays_unlinked` |
+| 3 | Instance `CALLS` 1 name-match → `HEURISTIC` | **Met** | HEURISTIC+no-FQN → `nodes_by_name(..., Method)`; proving test `put` → `\App\Repo::put` |
+| 4 | Many candidates → top-N `HEURISTIC` | **Met** | `_link_candidates` + sibling `insert_edge`; `test_many_*` / `max_candidates=2` |
+| 5 | `$x->$m()` → `DYNAMIC`, unlinked | **Met*** | resolver skips `DYNAMIC` (`resolver.py` early continue); *adapter tagging of `$x->$m()` not in this diff* |
+| 6 | `INCLUDES` literal relative to includer | **Met** | `_resolve_include` + `_relative_to`; `test_literal_include_resolves_relative_to_includer` |
+| 7 | `INCLUDES` variable → `DYNAMIC` | **Can't tell** | same as #5: skip proven for pre-tagged `DYNAMIC`; no PHP fixture in this diff proves adapter emits it for `include $path` |
+| 8 | Honor `semantic_types` (pre-resolved kept `RESOLVED`) | **Met** | generic skip-if-already-linked via `unresolved_edges`; `test_prelinked_edges_are_left_alone` |
+| 9 | AC1 — zero `if language == …` | **Met** | no matches under `code_atlas/`; language-agnostic suite green |
+| 10 | AC2 — known symbol → resolved caller chain on fixtures | **Met** | proving test: EXTENDS RESOLVED, FQN CALLS RESOLVED, instance CALLS HEURISTIC, `edges_by_target` one-hop |
+
+\*Challenger marked #5 **met** for the resolver's unlinked half; #7 **can't tell** for end-to-end adapter classification — both are evidentiary gaps on adapter emission, not resolver bugs.
+
+### Reconciliation (at `cf445e4`)
+
+- **File axis:** diff ⊆ Gate-2 list ✅ (AGENTS/mailmap were *not* on the branch at this marker).
+- **Behaviour axis:** Approach bullets 1–5 implemented-as-approved ✅.
+- **Proving test:** green; would fail without the change (stub left `target_qname` NULL).
 - **Layer-match:** no ❌.
-- **Clean?** yes — after Finding 1 fix.
-- **Reviewed at:** `cf445e4` · files: resolver/store/indexer + tests/fixtures/php/resolve + test_resolver/store/indexer + PLAN/BACKLOG/011 task doc.
+- **Clean?** **yes** — after Finding 1 fix.
+- **Reviewed at:** `cf445e4` · working-doc path: `docs/tasks/011_resolver.md` · files: `code_atlas/{resolver,store,indexer}.py`, `tests/fixtures/php/resolve/*`, `tests/test_{resolver,store,indexer}.py`, `docs/PLAN.md`, `docs/BACKLOG.md`, `docs/tasks/011_resolver.md`.
+
+**Note for finalise:** this marker covers `cf445e4` only. Later tip commits (`c4103b6`, `bfb98ff` — AGENTS/mailmap) are **outside** this reviewed set; see Phase 5 stale-review guard. User chose to **keep** that tip; a new `Reviewed at` covering HEAD is still required before PR, unless those commits are dropped.
+
+## Phase 5 — Finalise ✋ final gate
+
+- **Stale-review guard:** first pass **refused** (AGENTS/mailmap tip outside `Reviewed at cf445e4`).
+  User kept the tip and asked to **open the PR** (2026-08-01) — human override of the re-review
+  requirement; AGENTS pack rides this PR by explicit keep-decision.
+- **PR draft:** `/tmp/pr-011.md` (project template).
+- **Outward actions (approved by "let open PR"):**
+  - [x] bookkeeping commit (status `done`, token row, Phase 4 detail, lesson 011, Phase 5 close)
+  - [ ] push branch (incl. bookkeeping)
+  - [ ] open PR via `gh`
+- **Follow-up tickets:** none for deferred ⚠ rows. Challenger can't-tells (#5/#7 DYNAMIC adapter
+  tagging) stay adapter-owned; no new ticket unless a later card needs end-to-end DYNAMIC fixtures.
+- **Durable lesson:** written to `docs/LESSONS.md` — clean `Reviewed at` does not survive tip commits
+  landed after it (re-review or split the PR).
+- **Cost ledger** (dispatch-only):
+
+| Phase | Subagent / dispatch | Round | Tokens | Optimizer applied · est./measured saving |
+|-------|---------------------|-------|--------|------------------------------------------|
+| 4 | mango:reviewer | 1 | unmeasured (blocking retrieval) | none |
+| 4 | mango:challenger | 1 | unmeasured (blocking retrieval) | none |
+
+`LEDGER TOTAL: unmeasured (2 dispatches) · top cost driver: Phase 4 review (both subagents)` —
+main-loop unmeasured; mango measures dispatch only.
 
 ## Session status
 
 - **Last updated:** 2026-08-01
-- **Current phase:** 4 — Review **clean**
-- **Next action:** `/mango:finalise 011` (or approve PR actions)
-- **Blocked on:** none
+- **Current phase:** 5 — Finalise (opening PR by user request)
+- **Next action:** push + `gh pr create`; fill BACKLOG token-row PR link after open
+- **Blocked on:** none (stale-review waived by user for this PR)
+- **Revert path:** close/revert PR; delete branch `feat/011-resolver`; delete `.code-atlas/graph.db` and rebuild
 
 ## Decision log
 
@@ -366,3 +431,5 @@ No `❌` → **no coverage-gap exclusions.**
 | 2026-08-01 | Gate 2 cleared | User: `/mango:execute 011` |
 | 2026-08-01 | Fixture uses `\App\helper()` not bare `helper()` | Adapter NameResolver emits `\helper` for unqualified calls; FQN call is the honest RESOLVED path |
 | 2026-08-01 | Strip Co-authored-by; drop AGENTS/mailmap from branch | Reviewer Finding 1 + scope discipline |
+| 2026-08-01 | Finalise refused — stale review | AGENTS/mailmap tip commits reappeared on branch after `Reviewed at cf445e4` |
+| 2026-08-01 | Keep tip; open PR without re-review | User: keep mate commits; "let open PR" |

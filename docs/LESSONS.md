@@ -3,6 +3,15 @@
 Durable lessons discovered while shipping tasks: constraints found, wrong assumptions, process gaps.
 One entry per lesson; newest first.
 
+## 011 — A clean `Reviewed at` does not survive tip commits landed after it
+Task 011's review was clean at `cf445e4` (resolver change-list only). Teammate commits for
+`AGENTS.md` / `.mailmap` then landed on the same branch. Finalise's stale-review guard correctly
+refused: the marker is a **file-set** claim, not a "we reviewed this ticket once" claim. Keeping the
+tip without a new `Reviewed at` covering HEAD is a **human override**, not a cleared gate.
+
+**Fix:** either (a) re-review the full tip and rewrite the marker, or (b) land teammate docs/chore
+work on a separate branch/PR so the feature marker stays valid.
+
 ## 010 — The same thread rule that enforced a design in 009 dictated the design in 010
 Task 009 found that `sqlite3` binds a connection to its creating thread, and treated it as a free
 guarantee: R4.3's single writer could not be broken by accident. Task 010 met the same fact from the
