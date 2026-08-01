@@ -15,6 +15,7 @@ import sys
 import time
 
 BOOT_LOG = "CA_FAKE_BOOTLOG"
+PATH_LOG = "CA_FAKE_PATHLOG"
 SUFFIXES = [".aa", ".bb"]
 
 # Longer than any deadline a test sets, so "silent" means silent for the whole run.
@@ -101,6 +102,10 @@ def main():
         if not line.strip():
             continue
         path = json.loads(line)["path"]
+        path_log = os.environ.get(PATH_LOG)
+        if path_log:
+            with open(path_log, "a", encoding="utf-8") as log:
+                log.write(path + "\n")
         if path.startswith("hang/"):
             # Never answers, never exits: the silent *reply* a deadline has to bound.
             time.sleep(FOREVER)
