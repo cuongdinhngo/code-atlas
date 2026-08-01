@@ -46,14 +46,17 @@ final class Visitor extends NodeVisitorAbstract
     private array $scope;
 
     /**
-     * Counts anonymous qnames already emitted so a same-line collision gets a `:n` suffix (C1).
+     * Counts anonymous base qnames already emitted so a same-line collision gets a `:col` suffix (C1).
      *
      * @var array<string, int>
      */
     private array $anonymousOccurrences = [];
 
-    public function __construct(private readonly string $path, int $lineCount)
-    {
+    public function __construct(
+        private readonly string $path,
+        int $lineCount,
+        private readonly string $source = '',
+    ) {
         $this->scope = [[null, $path]];
         $this->nodes[] = [
             'kind' => 'File',
@@ -176,7 +179,7 @@ final class Visitor extends NodeVisitorAbstract
 
     private function enterAnonymousClass(Node\Stmt\Class_ $node): void
     {
-        $qname = $this->anonymousQname('class', $node->getStartLine());
+        $qname = $this->anonymousQname($node, 'class');
         $this->open($node, 'Class', '{class}', $qname, [
             'modifiers' => $this->classModifiers($node),
         ] + $this->extraFields($this->rawAttributes($node->attrGroups)));
@@ -206,7 +209,7 @@ final class Visitor extends NodeVisitorAbstract
             $fields['modifiers'] = ['static'];
         }
         $fields += $this->extraFields($this->rawAttributes($attrGroups));
-        $this->open($node, 'Function', $name, $this->anonymousQname($anchor, $node->getStartLine()), $fields);
+        $this->open($node, 'Function', $name, $this->anonymousQname($node, $anchor), $fields);
     }
 
     private function enterProperty(Node\Stmt\Property $node): void
@@ -315,7 +318,7 @@ final class Visitor extends NodeVisitorAbstract
             $this->edge('NEW', $this->container(), self::fqn($node->class), $node->getStartLine());
         } elseif ($node->class instanceof Node\Stmt\Class_) {
             // Peek only — enterAnonymousClass registers the qname when the Class_ node is visited.
-            $target = $this->anonymousQname('class', $node->class->getStartLine(), register: false);
+            $target = $this->anonymousQname($node->class, 'class', register: false);
             $this->edge('NEW', $this->container(), $target, $node->getStartLine());
         } else {
             $this->edge('NEW', $this->container(), '(dynamic)', $node->getStartLine(), 'DYNAMIC');
@@ -439,19 +442,31 @@ final class Visitor extends NodeVisitorAbstract
         return $this->container() . '::' . $name;
     }
 
-    private function anonymousQname(string $kind, int $line, bool $register = true): string
+    private function anonymousQname(Node $node, string $kind, bool $register = true): string
     {
-        $base = $this->container() . '::{' . $kind . '@' . $line . '}';
-        if (!$register) {
-            $seen = $this->anonymousOccurrences[$base] ?? 0;
-
-            return $seen === 0 ? $base : $base . ':' . $seen;
-        }
+        $base = $this->container() . '::{' . $kind . '@' . $node->getStartLine() . '}';
         $seen = $this->anonymousOccurrences[$base] ?? 0;
-        $this->anonymousOccurrences[$base] = $seen + 1;
+        if ($register) {
+            $this->anonymousOccurrences[$base] = $seen + 1;
+        }
+        // First on the line keeps the H1 base form; later ones append :col (ticket C1).
+        if ($seen === 0) {
+            return $base;
+        }
 
-        // First on the line keeps the H1 base form; later ones append :n (C1 collision rule).
-        return $seen === 0 ? $base : $base . ':' . $seen;
+        return $base . ':' . $this->columnOf($node);
+    }
+
+    /** 1-based column of the node's start within its source line. */
+    private function columnOf(Node $node): int
+    {
+        $pos = $node->getStartFilePos();
+        if ($pos < 0 || $this->source === '') {
+            return 1;
+        }
+        $newline = strrpos(substr($this->source, 0, $pos), "\n");
+
+        return $newline === false ? $pos + 1 : $pos - $newline;
     }
 
     /**

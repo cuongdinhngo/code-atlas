@@ -121,15 +121,13 @@ def test_i7_enum_case_is_a_class_const_with_enum_flag() -> None:
 
 
 @needs_php
-def test_i2_same_line_anonymous_declarations_get_a_collision_suffix(
+def test_i2_same_line_anonymous_declarations_get_a_column_suffix(
     tmp_path: Path,
 ) -> None:
-    # C1: two closures opening on one line must not share a qualified_name.
+    # C1: second same-line closure keeps its source column — inserting earlier must not rename it.
+    line = "class C{public function m(){$a=function(){};$b=function(){};}}"
     fixture = tmp_path / "collide.php"
-    fixture.write_text(
-        "<?php\nnamespace N;\nclass C{public function m(){$a=function(){};$b=function(){};}}\n",
-        encoding="utf-8",
-    )
+    fixture.write_text(f"<?php\nnamespace N;\n{line}\n", encoding="utf-8")
     completed = subprocess.run(
         [str(PHP), str(ENTRY), "--file", str(fixture)],
         cwd=ROOT,
@@ -144,10 +142,35 @@ def test_i2_same_line_anonymous_declarations_get_a_collision_suffix(
     closures = sorted(
         n["qualified_name"] for n in result["nodes"] if n["name"] == "{closure}"
     )
-    assert len(closures) == 2
-    assert closures[0] != closures[1]
-    assert closures[0].endswith("}")
-    assert ":" in closures[1].rsplit("@", 1)[-1]
+    # Columns from getStartFilePos: first function @32, second @48 on this line.
+    assert closures == [
+        "\\N\\C::m::{closure@3}",
+        "\\N\\C::m::{closure@3}:48",
+    ]
+
+    padded = tmp_path / "collide_pad.php"
+    padded.write_text(
+        f"<?php\nnamespace N;\n{' ' * 4}{line}\n",
+        encoding="utf-8",
+    )
+    padded_result = json.loads(
+        subprocess.run(
+            [str(PHP), str(ENTRY), "--file", str(padded)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=60,
+        ).stdout
+    )
+    padded_closures = sorted(
+        n["qualified_name"] for n in padded_result["nodes"] if n["name"] == "{closure}"
+    )
+    # Padding shifts both columns by 4; the second still encodes its own column, not an ordinal.
+    assert padded_closures == [
+        "\\N\\C::m::{closure@3}",
+        "\\N\\C::m::{closure@3}:52",
+    ]
 
 
 @needs_php

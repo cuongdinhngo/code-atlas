@@ -5,9 +5,10 @@ One entry per lesson; newest first.
 
 ## 025 — NEW must peek anonymous qnames without registering them
 `enterNew` and `enterAnonymousClass` both need the same H1 qname. If both call a registering
-`anonymousQname()`, the Class_ node gets a spurious `:1` collision suffix even when it is the only
+`anonymousQname()`, the Class_ node gets a spurious collision suffix even when it is the only
 anonymous class on that line. Peek (`register: false`) on the NEW edge; register only when declaring
-the Class_ node. Same-line *true* collisions still append `:n` on the second declaration.
+the Class_ node. Same-line *true* collisions append `:col` from `getStartFilePos()` (ticket C1) —
+not an ordinal, which would rename later same-line declarations when one is inserted earlier.
 
 ## 008 — Proving-test names must not overclaim the path shape they assert
 Review caught that `…_results_stay_repo_relative` asserted host-**absolute** `ParseResult.path` after
