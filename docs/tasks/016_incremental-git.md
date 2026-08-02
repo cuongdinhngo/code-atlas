@@ -283,6 +283,10 @@ Independence: raw ticket only (text above the mango separator). Embedded working
 
 **PR:** https://github.com/cuongdinhngo/code-atlas/pull/26
 
+**PR review fixes (post-finalise):** rename/gone qnames folded into affected; dependents always
+reparsed (removed `unlink_targets` collapse); dirty worktree ∪ into `changed_paths` + status
+`behind`; `report.files = len(to_parse)`; PLAN/LESSONS corrected. Suite **528 passed**.
+
 ---
 
 ## Follow-ups

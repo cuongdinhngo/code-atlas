@@ -3,13 +3,16 @@
 Durable lessons discovered while shipping tasks: constraints found, wrong assumptions, process gaps.
 One entry per lesson; newest first.
 
-## 016 — Unlink for incremental must collapse HEURISTIC top-N siblings
-When incremental clears resolved edges so `resolve_edges` can re-link affected qnames, **nulling
-`target_qname` alone is not enough**. Resolver top-N fan-out inserts sibling rows that already have
-targets set; leaving them in place after a hash-skipped dependent's unlink causes duplicate or
-multiplying edges vs a full rebuild (R4.2). Collapse each natural-key group
-`(source_qname, kind, target_raw, file_path, line)` that touched the affected qnames to **one bare
-edge**, then re-resolve. Prove it with a multi-match HEURISTIC fixture, not only unique-target CALLS.
+## 016 — Dependents must be reparsed, not reconstructed
+Hash-skipping dependents made `file_paths_targeting` dead work: a dependent is unchanged by
+construction, so its hash always matches and it never reached the adapter. Reconstructing its edges
+via `unlink_targets` (and collapsing HEURISTIC siblings) then lost adapter confidence tiers and
+legitimately duplicated keys — diverging from a full rebuild (R4.2). **Always reparse dependents**;
+hash-skip only unchanged *changed* paths. `replace_file_rows` restores adapter output verbatim.
+
+Also: fold paths leaving `collect` (rename sources, newly ignored) into affected qnames *before*
+reconcile — `git diff --name-only` names only the rename destination — and union the working tree
+vs `HEAD` into the incremental path set so uncommitted edits are not a silent no-op.
 
 ## 014 — `code-atlas --help` is not an install smoke test
 FastMCP's entry point always calls `.run()` (stdio). Passing `--help` still starts the MCP transport

@@ -73,8 +73,18 @@ def reply(path):
             "file_path": path,
             "line_start": 1,
         }
+    elif path.startswith("dup/"):
+        # Same FQN in two files — EXTENDS multi-match then disambiguation.
+        node = {
+            "kind": "Class",
+            "name": "Dup",
+            "qualified_name": "\\Dup",
+            "file_path": path,
+            "line_start": 1,
+        }
     # Paths under dep/ call into lib/core.aa so incremental can prove single-hop dependents (§8.3).
     # dep/name_* calls the short name ``run`` so multi-match HEURISTIC siblings are in play.
+    # dep/extends_* EXTENDS \\Dup (adapter default RESOLVED) so disambiguation can recover RESOLVED.
     edges = []
     if path.startswith("dep/name_"):
         edges = [
@@ -85,6 +95,16 @@ def reply(path):
                 "file_path": path,
                 "line": 2,
                 "confidence_tier": "HEURISTIC",
+            }
+        ]
+    elif path.startswith("dep/extends_"):
+        edges = [
+            {
+                "kind": "EXTENDS",
+                "source_qname": f"{path}::Thing",
+                "target_raw": "\\Dup",
+                "file_path": path,
+                "line": 2,
             }
         ]
     elif path.startswith("dep/"):

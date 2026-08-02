@@ -11,6 +11,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from code_atlas import contract, gitutil
 from code_atlas.config import load_config
 from code_atlas.indexer import full_build, incremental_update
@@ -101,8 +103,21 @@ def test_changed_paths_lists_edits_and_none_on_bad_since(tmp_path: Path) -> None
     assert gitutil.changed_paths(tmp_path, "0" * 40) is None
 
 
-def test_one_file_edit_matches_full_rebuild_and_leaves_unrelated_ids(tmp_path: Path) -> None:
+def test_changed_paths_includes_uncommitted_edits(tmp_path: Path) -> None:
+    committed(tmp_path, {"a.aa": "one\n"})
+    head = git(tmp_path, "rev-parse", "HEAD")
+    write(tmp_path, "a.aa", "dirty\n")
+
+    assert gitutil.changed_paths(tmp_path, head) == ("a.aa",)
+    assert gitutil.working_tree_dirty(tmp_path) is True
+
+
+def test_one_file_edit_matches_full_rebuild_and_leaves_unrelated_ids(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """AC1: incremental content equals a fresh full build; unrelated row ids stay put."""
+    path_log = tmp_path.parent / f"{tmp_path.name}-parsed.log"
+    monkeypatch.setenv("CA_FAKE_PATHLOG", str(path_log))
     committed(
         tmp_path,
         {
@@ -120,20 +135,29 @@ def test_one_file_edit_matches_full_rebuild_and_leaves_unrelated_ids(tmp_path: P
         last = store.get_meta(LAST_COMMIT_KEY)
         assert last is not None
 
+    path_log.write_text("", encoding="utf-8")
     committed(tmp_path, {"lib/core.aa": "core v2\n"}, message="edit core")
     changed = gitutil.changed_paths(tmp_path, last)
     assert changed == ("lib/core.aa",)
 
     with GraphStore(config.db_path) as store:
         report = incremental_update(config, store, changed)
-        assert report.files >= 1
+        assert report.files == 2  # changed + dependent, both reparsed
         assert node_id(store, "other/stay.aa") == stay_id
-        # Dependent was hash-skipped but re-linked after unlink.
         dep_after = store.edges_by_source("dep/user.aa::Thing", kinds=("CALLS",), limit=5)
         assert [row["target_qname"] for row in dep_after] == ["lib/core.aa::Thing"]
         digest = hashlib.sha256(b"core v2\n").hexdigest()
         assert store.file_hash("lib/core.aa") == digest
         incremental = snapshot(store)
+
+    parsed = {
+        line.strip()
+        for line in path_log.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    }
+    assert "lib/core.aa" in parsed
+    assert "dep/user.aa" in parsed
+    assert "other/stay.aa" not in parsed
 
     fresh = config_for(tmp_path, "fresh.db")
     with GraphStore(fresh.db_path) as store:
@@ -174,7 +198,7 @@ def test_bad_last_commit_falls_back_to_full(tmp_path: Path) -> None:
 
 
 def test_heuristic_siblings_still_match_a_full_rebuild(tmp_path: Path) -> None:
-    """R4.2: unlink must collapse top-N siblings or hash-skipped dependents diverge."""
+    """R4.2: dependents are reparsed so HEURISTIC top-N siblings match a full rebuild."""
     committed(
         tmp_path,
         {
@@ -205,6 +229,98 @@ def test_heuristic_siblings_still_match_a_full_rebuild(tmp_path: Path) -> None:
     with GraphStore(fresh.db_path) as store:
         full_build(fresh, store)
         assert snapshot(store) == incremental
+
+
+def test_disambiguation_restores_resolved_tier(tmp_path: Path) -> None:
+    """Deleting a duplicate FQN must recover RESOLVED — not leave a ratcheted HEURISTIC."""
+    committed(
+        tmp_path,
+        {
+            "dup/a.aa": "dup a\n",
+            "dup/b.aa": "dup b\n",
+            "dep/extends_child.aa": "extends Dup\n",
+        },
+    )
+    config = config_for(tmp_path)
+    with GraphStore(config.db_path) as store:
+        full_build(config, store)
+        linked = store.edges_by_source("dep/extends_child.aa::Thing", kinds=("EXTENDS",), limit=10)
+        assert len(linked) == 2
+        assert {row["confidence_tier"] for row in linked} == {"HEURISTIC"}
+        last = store.get_meta(LAST_COMMIT_KEY)
+        assert last is not None
+
+    (tmp_path / "dup/b.aa").unlink()
+    git(tmp_path, "add", "-A")
+    git(tmp_path, "commit", "-qm", "drop duplicate")
+    changed = gitutil.changed_paths(tmp_path, last)
+
+    with GraphStore(config.db_path) as store:
+        incremental_update(config, store, changed)
+        linked = store.edges_by_source("dep/extends_child.aa::Thing", kinds=("EXTENDS",), limit=10)
+        assert len(linked) == 1
+        assert linked[0]["target_qname"] == "\\Dup"
+        assert linked[0]["confidence_tier"] == "RESOLVED"
+        incremental = snapshot(store)
+
+    fresh = config_for(tmp_path, "fresh.db")
+    with GraphStore(fresh.db_path) as store:
+        full_build(fresh, store)
+        assert snapshot(store) == incremental
+
+
+def test_rename_unlinks_inbound_edges_like_a_full_rebuild(tmp_path: Path) -> None:
+    """Rename destination-only diffs must still clear edges into the departed qnames."""
+    committed(
+        tmp_path,
+        {
+            "lib/core.aa": "core\n",
+            "dep/user.aa": "calls core\n",
+        },
+    )
+    config = config_for(tmp_path)
+    with GraphStore(config.db_path) as store:
+        full_build(config, store)
+        last = store.get_meta(LAST_COMMIT_KEY)
+        assert last is not None
+
+    git(tmp_path, "mv", "lib/core.aa", "lib/renamed.aa")
+    git(tmp_path, "commit", "-qm", "rename")
+    changed = gitutil.changed_paths(tmp_path, last)
+    assert changed == ("lib/renamed.aa",)
+
+    with GraphStore(config.db_path) as store:
+        incremental_update(config, store, changed)
+        assert "lib/core.aa" not in store.file_paths()
+        linked = store.edges_by_source("dep/user.aa::Thing", kinds=("CALLS",), limit=5)
+        # Adapter still emits target_raw lib/core.aa::Thing — unresolved after rename.
+        assert [row["target_qname"] for row in linked] == [None]
+        incremental = snapshot(store)
+
+    fresh = config_for(tmp_path, "fresh.db")
+    with GraphStore(fresh.db_path) as store:
+        full_build(fresh, store)
+        assert snapshot(store) == incremental
+
+
+def test_uncommitted_edit_is_indexed_and_marks_status_behind(tmp_path: Path) -> None:
+    committed(tmp_path, {"src/a.aa": "one\n"})
+    config = config_for(tmp_path)
+    server = build_server(config)
+    call(server, BUILD, {"full": True})
+    assert call(server, STATUS, {})["staleness"] == "current"
+
+    write(tmp_path, "src/a.aa", "dirty\n")
+    assert call(server, STATUS, {})["staleness"] == "behind"
+
+    result = call(server, BUILD, {"full": False})
+    assert result["mode"] == "incremental"
+    assert result["parsed"] >= 1
+    digest = hashlib.sha256(b"dirty\n").hexdigest()
+    with GraphStore(config.db_path) as store:
+        assert store.file_hash("src/a.aa") == digest
+    # Still dirty vs HEAD, so status stays behind until the edit is committed.
+    assert call(server, STATUS, {})["staleness"] == "behind"
 
 
 def test_delete_is_reconciled_like_a_full_rebuild(tmp_path: Path) -> None:

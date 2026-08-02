@@ -385,63 +385,6 @@ class GraphStore:
             found.update(str(row[0]) for row in rows)
         return tuple(sorted(found))
 
-    def unlink_targets(self, qnames: Sequence[str]) -> int:
-        """Bare edges into ``qnames``, collapsing HEURISTIC top-N siblings for a clean re-resolve.
-
-        Nulling alone leaves sibling rows that still point at other candidates; resolve would then
-        fan out again and diverge from a full rebuild (R4.2). Each natural-key group that touched
-        ``qnames`` is reduced to one bare edge before ``resolve_edges`` runs.
-        """
-        if not qnames:
-            return 0
-        collapsed = 0
-        with self._conn:
-            for chunk in _chunks(qnames, _IN_CHUNK):
-                placeholders = ", ".join("?" * len(chunk))
-                keys = self._conn.execute(
-                    f"SELECT DISTINCT source_qname, kind, target_raw, file_path, line "
-                    f"FROM edges WHERE target_qname IN ({placeholders})",
-                    tuple(chunk),
-                ).fetchall()
-                for source, kind, raw, path, line in keys:
-                    rows = self._edges_sharing_key(source, kind, raw, path, line)
-                    if not rows:
-                        continue
-                    tier = rows[0][1]
-                    ids = [row[0] for row in rows]
-                    self._conn.execute(
-                        f"DELETE FROM edges WHERE id IN ({', '.join('?' * len(ids))})",
-                        ids,
-                    )
-                    self._conn.execute(
-                        "INSERT INTO edges (kind, source_qname, target_qname, target_raw, "
-                        "file_path, line, confidence_tier) VALUES (?, ?, NULL, ?, ?, ?, ?)",
-                        (kind, source, raw, path, line, tier),
-                    )
-                    collapsed += 1
-        return collapsed
-
-    def _edges_sharing_key(
-        self,
-        source: object,
-        kind: object,
-        raw: object,
-        path: object,
-        line: object,
-    ) -> list[tuple[object, ...]]:
-        """Every edge id (+ tier) sharing one adapter-emitted natural key, oldest first."""
-        if line is None:
-            return self._conn.execute(
-                "SELECT id, confidence_tier FROM edges WHERE source_qname = ? AND kind = ? "
-                "AND target_raw = ? AND file_path = ? AND line IS NULL ORDER BY id",
-                (source, kind, raw, path),
-            ).fetchall()
-        return self._conn.execute(
-            "SELECT id, confidence_tier FROM edges WHERE source_qname = ? AND kind = ? "
-            "AND target_raw = ? AND file_path = ? AND line = ? ORDER BY id",
-            (source, kind, raw, path, line),
-        ).fetchall()
-
     def search_nodes(
         self,
         query: str,

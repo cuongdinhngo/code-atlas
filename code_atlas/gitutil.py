@@ -31,14 +31,33 @@ def head_commit(root: Path) -> str | None:
 
 
 def changed_paths(root: Path, since: str) -> tuple[str, ...] | None:
-    """Paths differing between ``since`` and ``HEAD``, or None when git cannot answer (§8.3).
+    """Paths that differ from ``since`` on disk, or None when git cannot answer (§8.3).
 
-    Renames contribute the new path; the old path drops out of ``collect`` and is reconciled away.
+    Unions ``since..HEAD`` with the working tree vs ``HEAD`` (staged and unstaged), so an
+    uncommitted edit is visible to ``full=false`` the same way a full build would see it. Renames
+    contribute the new path; the old path drops out of ``collect`` and must be folded into
+    affected qnames by the indexer before reconcile.
     """
-    found = _run(root, "diff", "--name-only", "-z", f"{since}..HEAD")
+    committed = _run(root, "diff", "--name-only", "-z", f"{since}..HEAD")
+    if committed is None:
+        return None
+    paths = {path for path in committed.split("\0") if path}
+    dirty = _run(root, "diff", "--name-only", "-z", "HEAD")
+    if dirty is not None:
+        paths.update(path for path in dirty.split("\0") if path)
+    return tuple(sorted(paths))
+
+
+def working_tree_dirty(root: Path) -> bool | None:
+    """True when tracked files differ from HEAD; None when git cannot answer.
+
+    Untracked paths (including ``.code-atlas/graph.db``) are ignored: ``collect`` only indexes
+    tracked files in a git repo, so they cannot stale the index.
+    """
+    found = _run(root, "status", "--porcelain", "-z", "-uno")
     if found is None:
         return None
-    return tuple(sorted(path for path in found.split("\0") if path))
+    return any(part for part in found.split("\0") if part)
 
 
 def _run(root: Path, *arguments: str) -> str | None:

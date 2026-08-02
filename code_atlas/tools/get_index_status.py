@@ -9,7 +9,7 @@ from collections.abc import Callable, Sequence
 from typing import Literal
 
 from code_atlas.config import Config
-from code_atlas.gitutil import head_commit
+from code_atlas.gitutil import head_commit, working_tree_dirty
 from code_atlas.store import (
     BUILT_AT_KEY,
     CONTRACT_VERSION_KEY,
@@ -67,7 +67,8 @@ def _status(
     counts = store.counts()
     last_commit = store.get_meta(LAST_COMMIT_KEY)
     head = head_commit(config.root)
-    staleness = _staleness(last_commit, head)
+    dirty = working_tree_dirty(config.root)
+    staleness = _staleness(last_commit, head, dirty=dirty)
     indexed = counts["files"] > 0
 
     status: dict[str, object] = {
@@ -88,11 +89,15 @@ def _status(
     }
 
 
-def _staleness(last_commit: str | None, head: str | None) -> str:
-    """``unknown`` unless both commits are known — an unbuilt index and a repo-less tree both."""
+def _staleness(last_commit: str | None, head: str | None, *, dirty: bool | None) -> str:
+    """``unknown`` unless both commits known; ``behind`` if HEAD moved or the tree is dirty."""
     if last_commit is None or head is None:
         return UNKNOWN
-    return CURRENT if last_commit == head else BEHIND
+    if last_commit != head:
+        return BEHIND
+    if dirty:
+        return BEHIND
+    return CURRENT
 
 
 def _suggestions(servable: Sequence[str], staleness: str, *, indexed: bool) -> list[str]:

@@ -82,8 +82,9 @@ def incremental_update(
 ) -> BuildReport:
     """Re-index ``changed ∪ dependents`` and re-link into affected qnames (§8.3).
 
-    ``changed`` is the ``git diff`` path set; the caller falls back to :func:`full_build` when git
-    cannot name one. Deletes and rename sources drop out of ``collect`` and are reconciled away.
+    ``changed`` is the git path set (commit range ∪ dirty tree); the caller falls back to
+    :func:`full_build` when git cannot name one. Deletes and rename sources drop out of ``collect``
+    and are reconciled away after their qnames are folded into ``affected``.
     """
     watchdog = _Watchdog(config.adapter_timeout)
     watchdog.start()
@@ -94,18 +95,28 @@ def incremental_update(
             paths = collect(config.root, tuple(owners))
             wanted = set(paths)
             changed_set = set(changed)
+            indexed = set(store.file_paths())
 
-            prior = sorted(changed_set & set(store.file_paths()))
+            prior = sorted(changed_set & indexed)
             affected = set(store.qnames_in_files(prior))
-            # File nodes use the path as qname; include deleted paths so include-edges re-link.
+            # File nodes use the path as qname; include deleted/renamed-away paths so inbound edges
+            # re-link (git diff names only the rename destination).
             affected.update(changed_set)
+            gone = sorted(indexed - wanted)
+            affected.update(store.qnames_in_files(gone))
+            affected.update(gone)
 
             dependents = set(store.file_paths_targeting(sorted(affected))) & wanted
             removed = _reconcile(store, paths)
-            store.unlink_targets(sorted(affected))
 
             candidates = sorted((changed_set | dependents) & wanted)
-            to_parse = [path for path in candidates if not _hash_matches(store, config.root, path)]
+            # Dependents are unchanged by construction, so hash-skip must not apply to them —
+            # replace_file_rows restores adapter tiers and duplicate keys that unlink cannot.
+            to_parse = [
+                path
+                for path in candidates
+                if path in dependents or not _hash_matches(store, config.root, path)
+            ]
             counts = (
                 _parse_all(config, store, watchdog, announced, owners, to_parse)
                 if to_parse
@@ -119,7 +130,7 @@ def incremental_update(
 
     _record_meta(config, store)
     resolve_edges(store, max_candidates=config.max_results)
-    return BuildReport(files=len(candidates), removed=removed, **counts)
+    return BuildReport(files=len(to_parse), removed=removed, **counts)
 
 
 def _hash_matches(store: GraphStore, root: Path, path: str) -> bool:
