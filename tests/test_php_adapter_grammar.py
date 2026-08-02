@@ -8,41 +8,18 @@ from __future__ import annotations
 
 import json
 import re
-import shutil
 import subprocess
 from pathlib import Path
 
-import pytest
-
 from code_atlas import contract
 from code_atlas.contract import CONTRACT_VERSION, EDGE_FIELDS, EDGE_KINDS, NODE_FIELDS, NODE_KINDS
+from tests.php_adapter_cli import ENTRY, PHP, ROOT, needs_php, parse_file
 
-ROOT = Path(__file__).resolve().parent.parent
-ADAPTER = ROOT / "adapters" / "php"
-ENTRY = ADAPTER / "index.php"
-AUTOLOAD = ADAPTER / "vendor" / "autoload.php"
 FIXTURE = "tests/fixtures/php/grammar.php"
-SRC = ADAPTER / "src"
-
-PHP = shutil.which("php")
-needs_php = pytest.mark.skipif(
-    PHP is None or not AUTOLOAD.is_file(),
-    reason=f"needs the PHP CLI and `composer install` in {ADAPTER}",
-)
 
 
 def parse_grammar() -> dict[str, object]:
-    completed = subprocess.run(
-        [str(PHP), str(ENTRY), "--file", FIXTURE],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        timeout=60,
-    )
-    assert completed.returncode == 0, completed.stderr
-    assert completed.stdout.count("\n") == 1
-    return json.loads(completed.stdout)
+    return parse_file(FIXTURE)
 
 
 def by_qname(result: dict[str, object]) -> dict[str, dict[str, object]]:
@@ -271,15 +248,8 @@ def test_i19_attributes_are_raw_on_the_declaration() -> None:
 
 # --- AC3 / AC4 ------------------------------------------------------------------------------------
 
-
-def test_ac3_authored_adapter_source_has_no_framework_names() -> None:
-    pattern = re.compile(r"laravel|symfony|wordpress|drupal|magento", re.I)
-    hits: list[str] = []
-    for path in SRC.rglob("*.php"):
-        text = path.read_text(encoding="utf-8")
-        if pattern.search(text):
-            hits.append(str(path.relative_to(ROOT)))
-    assert hits == [], f"R2.2 denylist hit in {hits}"
+# AC3 (R2.2 framework-name ban) moved to tests/contract/test_guardrail_gates.py in task 012 —
+# that gate sweeps all authored adapter files with vendor exclusion + a non-empty guard.
 
 
 def test_ac4_contract_version_and_vocabulary_are_unchanged() -> None:

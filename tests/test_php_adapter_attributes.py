@@ -8,25 +8,10 @@ while it worked on classes and properties. PHPStan at level max is what surfaced
 
 from __future__ import annotations
 
-import json
-import shutil
-import subprocess
-from pathlib import Path
+from tests.php_adapter_cli import needs_php, parse_file
 
-import pytest
-
-ROOT = Path(__file__).resolve().parent.parent
-ADAPTER = ROOT / "adapters" / "php"
-ENTRY = ADAPTER / "index.php"
-AUTOLOAD = ADAPTER / "vendor" / "autoload.php"
 FIXTURE = "tests/fixtures/php/attributes.php"
 MARKER = "\\App\\Attributes\\Marker"
-
-PHP = shutil.which("php")
-needs_php = pytest.mark.skipif(
-    PHP is None or not AUTOLOAD.is_file(),
-    reason=f"needs the PHP CLI and `composer install` in {ADAPTER}",
-)
 
 # Every declaration kind PHP lets an attribute sit on, mapped to the argument the fixture tags it
 # with. Anonymous qnames are line-anchored, so they are matched by suffix rather than spelled out.
@@ -43,16 +28,7 @@ EXPECTED_ANONYMOUS = {"{closure@": "closure", "{fn@": "arrow", "{class@": "anon"
 
 
 def parse_fixture() -> dict[str, object]:
-    completed = subprocess.run(
-        [str(PHP), str(ENTRY), "--file", FIXTURE],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        timeout=60,
-    )
-    assert completed.returncode == 0, completed.stderr
-    return json.loads(completed.stdout)
+    return parse_file(FIXTURE)
 
 
 @needs_php

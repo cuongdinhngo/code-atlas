@@ -321,6 +321,65 @@ Named anchor: `tests/contract/test_adapter_conformance.py` — PHP adapter confo
 
 **Matrix Status:** G1, R1–R4, AC1–AC2, AC-A1a/b, AC-A2, F1–F11, G-R1.1, G-R2.2 → ✅
 
+### Reviewer report ([reviewer](f57501ff-e0ee-48b8-8d1b-f44f807a2270))
+
+**Verdict: LGTM** — committed range `main...HEAD` @ `fafd31a` (working tree clean at review). No Critical or Important findings.
+
+**Proving test**
+
+| Check | Result |
+|-------|--------|
+| Presence | `tests/contract/test_adapter_conformance.py` + `tests/contract/test_guardrail_gates.py` in commit |
+| Command | `.venv/bin/pytest -q tests/contract/test_adapter_conformance.py tests/contract/test_guardrail_gates.py` |
+| Run (in place) | **17 passed** in 0.36s, exit 0 |
+
+Frozen counts in `CASES` matched a live `--file` golden spot-check (namespaced 15/20 … static_vs_instance 5/10; syntax_error `ok=False`, no `nodes`/`edges` keys).
+
+**Diff ⊆ approved Gate-2 list**
+
+| # | Approved item | Evidence |
+|---|---------------|----------|
+| 1 | Missing named R6.2 fixtures | +8 under `tests/fixtures/php/`; reuses `namespaced` / `attributes` / `syntax_error`; `grammar.php` excluded from `CASES` (`test_adapter_conformance.py:62-63`) |
+| 2 | Live harness + frozen counts | `tests/contract/test_adapter_conformance.py` — 11 cases, `contract.validate` + len asserts; syntax-error special-case `ok is False` |
+| 3 | Guardrail pytest R2.2 + negatives | `tests/contract/test_guardrail_gates.py` — vendor/node_modules exclusion, non-empty sweep, planted R1.1/R2.2 controls; regexes match `.github/workflows/ci.yml` |
+| 4 | Optional helper | Not added (inline helpers) — within “0–1 / not needed” |
+| 5 | Bookkeeping | `docs/BACKLOG.md` 012 → `in-progress` (later `done`); ticket frontmatter `depends_on: [025, 002]`, status synced |
+| 6 | Don’t break spike / `global_underscore` / grammar AC3 | No edits to `test_php_adapter_{spike,server,grammar}.py`, `global_underscore.php`, or `grammar.php` |
+
+**File set:** only `docs/BACKLOG.md`, `docs/tasks/012_*.md`, `tests/contract/test_*.py` (new), `tests/fixtures/php/*` (new). No `code_atlas/` or `adapters/` runtime changes → no R1.1/R1.4/R3.1 surface.
+
+**Rule-book / standards**
+
+| Rule | Verdict | Note |
+|------|---------|------|
+| R3.4 | ✅ | Live schema+count harness under `tests/contract/` |
+| R6.1 / R6.2 | ✅ | Spec-named fixtures + conformance asserts |
+| R6.4 / R6.5 | ✅ | Pytest gates; vendor exclusion + non-empty + planted negatives |
+| R2.2 | ✅ | Authored adapter sweep; shell gate left as second layer |
+| R7.2 | ✅ | BACKLOG + frontmatter synced |
+| R7.3 | ✅ | Imperative commit message, no AI trailer |
+| CONVENTION §1 | ✅ | `tests/contract/` + `tests/fixtures/php/` |
+
+### Challenger report ([challenger](5641e0b8-e549-4c85-9685-84d277a2bd83))
+
+**Independence:** raw ticket text + `main...HEAD` only — no working-doc / design rationale. Change-set committed (`fafd31a`).
+
+**Rebuilt requirements → verdicts**
+
+| # | Requirement (from ticket) | Verdict | Evidence |
+|---|---------------------------|---------|----------|
+| 1 | `tests/contract/` schema-conformance harness: assert emitted JSON + known node/edge counts | **met** | `tests/contract/test_adapter_conformance.py:25-37` inventory with frozen counts; `:80-86` `contract.validate` + `len(nodes/edges)`; syntax-error path `:74-78` |
+| 2 | `tests/fixtures/php/` covers namespaced, global, underscore(PSR-0), trait+conflict, enum, attributes, closures/arrow, first-class-callable, include, static-vs-instance, syntax-error | **met** | Inventory maps all 11 categories at `test_adapter_conformance.py:26-36`; new fixtures on branch; pre-existing `namespaced` / `attributes` / `syntax_error` still asserted present |
+| 3 | CI grep-gate: zero language branches in `code_atlas/` | **met** | Shell: `.github/workflows/ci.yml:103-113`; pytest: `test_guardrail_gates.py:51-54` |
+| 4 | CI grep-gate: ban repo/framework names in adapter source | **met** | Shell R2.2: `ci.yml:115-129`; pytest: `test_guardrail_gates.py:46-48` |
+| 5 | Move R2.2 into a pytest assertion in the `test` job (where `composer install` has run) | **met** | `test_guardrail_gates.py:37-43` requires `adapters/php/vendor`; `ci.yml:45-57` runs `composer install` then `pytest -q` |
+| 6 | Keep the shell R2.2 gate as a second layer | **met** | `ci.yml:115-129` still in `guardrails`; `git diff main...HEAD -- .github/` empty |
+| 7 | Negative-control both (R6.4, R6.5) | **met** | Plants: `test_guardrail_gates.py:57-60` (`if language ==`), `:63-66` (`laravel`); R6.5 non-vacuous exclusion: `:37-43` |
+| 8 | AC: PHP adapter passes the conformance harness on all fixtures | **met** | Parametrized `test_php_adapter_conforms` `:68-86` over all 11 cases; **17 passed** |
+| 9 | AC: Grep-gate fails the build on a planted `if language ==` or framework name | **met** | Detector catches plants at `test_guardrail_gates.py:57-66`; real-tree sweeps at `:51-54` / `:46-48` |
+
+**Challenger summary:** **9 met · 0 not met · 0 can't tell.** Noted (not blocking): large working-doc rewrite of `docs/tasks/012_…` and BACKLOG status flip are bookkeeping, not Scope/Deliverables.
+
 ---
 
 ## Cost ledger (subagent dispatch only)

@@ -6,44 +6,21 @@ consistent with itself. CI installs both, so CI is where this file is authoritat
 """
 
 import json
-import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
 
 from code_atlas import contract
-
-ROOT = Path(__file__).resolve().parent.parent
-ADAPTER = ROOT / "adapters" / "php"
-ENTRY = ADAPTER / "index.php"
-AUTOLOAD = ADAPTER / "vendor" / "autoload.php"
-FIXTURES = ROOT / "tests" / "fixtures" / "php"
+from tests.php_adapter_cli import ENTRY, FIXTURES, PHP, ROOT, needs_php, parse_file
 
 # AC1 says "each" of these two file shapes — the denominator every assertion below counts against.
 CASES = {"namespaced": "namespaced.php", "global-underscore": "global_underscore.php"}
 
-PHP = shutil.which("php")
-needs_php = pytest.mark.skipif(
-    PHP is None or not AUTOLOAD.is_file(),
-    reason=f"needs the PHP CLI and `composer install` in {ADAPTER}",
-)
-
 
 def parse(case: str) -> dict[str, object]:
     """Run the adapter exactly as the acceptance criterion spells it, from the repo root."""
-    fixture = (FIXTURES / CASES[case]).relative_to(ROOT)
-    completed = subprocess.run(
-        [str(PHP), str(ENTRY), "--file", str(fixture)],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        timeout=60,
-    )
-    assert completed.returncode == 0, completed.stderr
-    assert completed.stdout.count("\n") == 1, "--file emits one line and nothing else"
-    return json.loads(completed.stdout)
+    return parse_file((FIXTURES / CASES[case]).relative_to(ROOT))
 
 
 def test_the_proof_has_something_to_run() -> None:
