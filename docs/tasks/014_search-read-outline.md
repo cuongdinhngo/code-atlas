@@ -337,9 +337,16 @@ ruff + mypy → clean
 
 ## Session status
 
-- **Phase:** 5 finalise — outward actions in flight
-- **PR:** (opening)
-- **Reviewed at:** `43753657c829c1efeb2f91a8c36ed73e3fac5573`
-- **Gate:** final — approved push + PR + bookkeeping; tag deferred post-merge
+- **Phase:** 5 finalise complete
+- **PR:** https://github.com/cuongdinhngo/code-atlas/pull/24
+- **Reviewed at:** `43753657c829c1efeb2f91a8c36ed73e3fac5573` (bookkeeping tip after; stale-review exempt)
+- **Gate:** closed
 - **Blocked by:** none
 - **Revert path:** close/delete PR branch `feat/014-search-read-outline`; `git revert` merge on main if needed
+
+---
+
+## Durable lesson
+
+1. FastMCP/`code-atlas --help` starts stdio — never use `--help` as an install smoke test.
+2. `LIKE ESCAPE '\\'` breaks PHP qnames; use a rare escape char (`!`) when namespaces contain `\`.
