@@ -28,6 +28,7 @@ is [`PLAN.md`](PLAN.md).
 | 016 | [Incremental update via git diff](tasks/016_incremental-git.md) | M5 | done | 011, 009 |
 | 017 | [Impact engine + tool + prompts](tasks/017_impact-engine.md) | M6 | done | 013, 016 |
 | 018 | [Cross-repo validation](tasks/018_cross-repo-validation.md) | M4 | todo | 015 |
+| 027 | [Batch resolver candidate lookups](tasks/027_resolver-batched-lookups.md) | M4 | todo | 011, 015 |
 | 024 | [CI hardening](tasks/024_ci-hardening.md) | Setup | done | 001 |
 | 025 | [PHP adapter — full 8.5 grammar coverage](tasks/025_php-adapter-grammar.md) | M0 | done | 007 |
 
@@ -84,9 +85,8 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 - **015 AC2 operator run:** land a real `CODE_ATLAS_SCALE_SAMPLE` timing artifact (elapsed +
   `peak_rss_*`) against the ~112k checkout — deferred from [PR #25](https://github.com/cuongdinhngo/code-atlas/pull/25)
   (D1). Natural home: task [018](tasks/018_cross-repo-validation.md) or a thin follow-up before it.
-- **015 resolver N+1 reads:** batch `nodes_by_qualified_name` lookups per unresolved-edge batch
-  (`WHERE qualified_name IN (...)`) before the D1/018 scale baseline — write path is batched; read
-  path is still one SELECT per edge ([PR #25](https://github.com/cuongdinhngo/code-atlas/pull/25)).
+- ~~**015 resolver N+1 reads**~~ — ticketed as [027](tasks/027_resolver-batched-lookups.md). Land it
+  **before** the D1/018 scale baseline above, or that baseline measures the read path 027 removes.
 
 ## Suggested order
 
@@ -98,6 +98,8 @@ adapter through `CA_<LANG>_CMD`, so 008 is now only the Docker path-mapping mode
 on the path to 014. **025 (grammar coverage) is off the critical path** — it was split out of 007 so
 the protocol could unblock 008/009 first — and 012 (tests) waits on 025. 024 (CI) is independent and
 can land any time. Then 015–018 harden PHP, 019–021 add languages, 022–023 add onboarding.
+**027 sits between 015 and 018**: it changes the resolver read path the 018 scale baseline would
+otherwise measure, so it lands first.
 
 ## Conventions
 - Keep task `status` in this table **and** in each task file's frontmatter in sync.
