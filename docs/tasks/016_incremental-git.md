@@ -41,9 +41,10 @@ Plan §8.3, §15 (M5).
 ## Session status
 
 ```
-phase: finalise
-gates: Gate 0–4 clean; Reviewed at f7cfbf2; outward actions approved (push/PR/BACKLOG/lesson)
-branch: feat/016-incremental-git
+phase: 5 finalise complete
+PR: https://github.com/cuongdinhngo/code-atlas/pull/26
+Reviewed at: f7cfbf2 (bookkeeping tips after; stale-review exempt)
+Gate: closed
 ```
 
 ---
@@ -279,6 +280,8 @@ Independence: raw ticket only (text above the mango separator). Embedded working
 | review | reviewer | 1 | unmeasured (host does not surface usage) | [f852bbd7](f852bbd7-ef10-450e-83b7-121efa17a716); CHANGES REQUESTED |
 | review | challenger | 1 | unmeasured (host does not surface usage) | [de2207ce](de2207ce-d48a-4871-9652-9c9ab1eacd68); 10 met / 0 not met / 1 can't tell |
 | review | reviewer | 2 | unmeasured (host does not surface usage) | [bdc74828](bdc74828-249b-4656-8ba9-389a28d7fcda); LGTM |
+
+**PR:** https://github.com/cuongdinhngo/code-atlas/pull/26
 
 ---
 
