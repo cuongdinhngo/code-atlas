@@ -20,7 +20,8 @@ token-efficient tools over MCP.
   understands it (PHP → nikic/php-parser, TS/JS → TypeScript Compiler API, Python → `ast`+jedi, C# →
   Roslyn), all speaking one versioned JSON contract.
 - **Local-first & deterministic** — everything runs offline against a local SQLite index; no LLM or
-  network in the core. Incremental updates via `git diff`.
+  network in the core. Incremental updates via `git diff`. Requires **SQLite ≥ 3.25** (window
+  functions for batched resolver lookups; Python's bundled `sqlite3` on supported platforms qualifies).
 - **Complements Serena** — code-atlas is the indexed search/impact layer; Serena stays for LSP nav/edit.
 
 ## How it works

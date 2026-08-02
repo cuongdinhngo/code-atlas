@@ -189,6 +189,54 @@ def test_literal_include_resolves_relative_to_includer(store: GraphStore) -> Non
     assert linked[0]["confidence_tier"] == "RESOLVED"
 
 
+def test_batched_includes_dedupe_shared_path_and_skip_ambiguous(store: GraphStore) -> None:
+    """Batch INCLUDES: duplicate resolved paths still link; ambiguous File qname is skipped."""
+    for path in ("pkg/a.x", "other/b.x", "x.x", "shared.x", "t1.x", "t2.x"):
+        store.upsert_file(path, "h", "lang")
+    store.replace_file_rows(
+        "shared.x",
+        [node("File", "shared.x", "shared.x", "shared.x")],
+        [],
+    )
+    # Same File qname, two file_paths → len(hits) == 2 → skip.
+    store.replace_file_rows(
+        "t1.x",
+        [node("File", "dup.x", "dup.x", "t1.x")],
+        [],
+    )
+    store.replace_file_rows(
+        "t2.x",
+        [node("File", "dup.x", "dup.x", "t2.x")],
+        [],
+    )
+    store.replace_file_rows(
+        "pkg/a.x",
+        [node("File", "pkg/a.x", "pkg/a.x", "pkg/a.x")],
+        [edge("INCLUDES", "pkg/a.x", "../shared.x", "pkg/a.x")],
+    )
+    store.replace_file_rows(
+        "other/b.x",
+        [node("File", "other/b.x", "other/b.x", "other/b.x")],
+        [edge("INCLUDES", "other/b.x", "../shared.x", "other/b.x")],
+    )
+    store.replace_file_rows(
+        "x.x",
+        [node("File", "x.x", "x.x", "x.x")],
+        [edge("INCLUDES", "x.x", "dup.x", "x.x")],
+    )
+
+    resolve_edges(store, max_candidates=50)
+
+    for source in ("pkg/a.x", "other/b.x"):
+        linked = store.edges_by_source(source, kinds=("INCLUDES",), limit=10)
+        assert len(linked) == 1
+        assert linked[0]["target_qname"] == "shared.x"
+        assert linked[0]["confidence_tier"] == "RESOLVED"
+    ambiguous = store.edges_by_source("x.x", kinds=("INCLUDES",), limit=10)
+    assert len(ambiguous) == 1
+    assert ambiguous[0]["target_qname"] is None
+
+
 def test_prelinked_edges_are_left_alone(store: GraphStore) -> None:
     seed_file(
         store,
@@ -273,3 +321,104 @@ def test_full_build_resolves_a_known_caller_chain_on_fixtures(
 
     callers = store.edges_by_target("\\App\\Repo::put", kinds=("CALLS",), limit=10)
     assert [row["source_qname"] for row in callers] == ["\\App\\User::save"]
+
+
+def test_batched_resolve_matches_golden_and_is_o1_selects(
+    store: GraphStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Task 027 proving: multi-candidate CALLS order + O(1) ``_rows`` SELECTs per batch."""
+    nodes = [
+        node("Class", "Child", "\\Ns\\Child", "c.x"),
+        node("Class", "Parent", "\\Ns\\Parent", "p1.x"),
+        node("Class", "Parent", "\\Ns\\Parent", "p2.x"),
+        node("Method", "save", "\\A::save", "a.x"),
+        node("Method", "put", "\\A::put", "a.x"),
+        node("Method", "put", "\\B::put", "b.x"),
+        node("Method", "put", "\\C::put", "c.x"),
+    ]
+    edges = [
+        edge("EXTENDS", "\\Ns\\Child", "\\Ns\\Parent", "c.x"),
+        *[
+            edge("CALLS", "\\A::save", "put", f"call{i}.x", tier="HEURISTIC")
+            for i in range(10)
+        ],
+    ]
+    files = sorted({str(n["file_path"]) for n in nodes} | {str(e["file_path"]) for e in edges})
+    for path in files:
+        store.upsert_file(path, "h", "lang")
+    # One replace_file_rows per file would wipe siblings; insert via the first path after upserts.
+    store.replace_file_rows(files[0], nodes, edges)
+
+    calls = {"n": 0}
+    original = GraphStore._rows
+
+    def counting(
+        self: GraphStore, keys: tuple[str, ...], sql: str, params: object
+    ) -> list[dict[str, object]]:
+        calls["n"] += 1
+        return original(self, keys, sql, params)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(GraphStore, "_rows", counting)
+    resolve_edges(store, max_candidates=2)
+
+    # Budget: iter_unresolved_edges (batch + empty end) + FQN pass + Method pass.
+    # Both node lookups fit one `_IN_CHUNK` here; large batches use ≤3 SELECTs each.
+    assert calls["n"] <= 4
+
+    extends = store.edges_by_source("\\Ns\\Child", kinds=("EXTENDS",), limit=10)
+    # Same qname on both candidates — cannot distinguish primary vs sibling by target alone.
+    assert len(extends) == 2
+    assert all(
+        row["target_qname"] == "\\Ns\\Parent" and row["confidence_tier"] == "HEURISTIC"
+        for row in extends
+    )
+
+    puts = store.edges_by_source("\\A::save", kinds=("CALLS",), limit=50)
+    # 10 CALLS × 2 candidates each (primary + sibling) with identical target set order.
+    assert len(puts) == 20
+    by_file = {}
+    for row in puts:
+        by_file.setdefault(row["file_path"], []).append(
+            (row["target_qname"], row["confidence_tier"])
+        )
+    expected = [("\\A::put", "HEURISTIC"), ("\\B::put", "HEURISTIC")]
+    for i in range(10):
+        assert by_file[f"call{i}.x"] == expected
+
+
+def test_batch_lookup_caps_per_key_not_globally(store: GraphStore) -> None:
+    """AC3: two qnames each with 3 hits → max_candidates=2 keeps 2 per key (not 2 total)."""
+    nodes = [
+        node("Class", "A", "\\Ns\\A", "a1.x"),
+        node("Class", "A", "\\Ns\\A", "a2.x"),
+        node("Class", "A", "\\Ns\\A", "a3.x"),
+        node("Class", "B", "\\Ns\\B", "b1.x"),
+        node("Class", "B", "\\Ns\\B", "b2.x"),
+        node("Class", "B", "\\Ns\\B", "b3.x"),
+    ]
+    for path in sorted({str(n["file_path"]) for n in nodes}):
+        store.upsert_file(path, "h", "lang")
+    store.replace_file_rows("a1.x", nodes, [])
+    found = store.nodes_by_qualified_names(["\\Ns\\A", "\\Ns\\B"], limit=2)
+    assert len(found["\\Ns\\A"]) == 2
+    assert len(found["\\Ns\\B"]) == 2
+    assert [row["file_path"] for row in found["\\Ns\\A"]] == ["a1.x", "a2.x"]
+    assert [row["file_path"] for row in found["\\Ns\\B"]] == ["b1.x", "b2.x"]
+
+
+def test_nodes_by_names_top_n_follows_qualified_name_not_file_path(
+    store: GraphStore,
+) -> None:
+    """Regression: same name, file_path order ≠ qualified_name order (review BLOCK)."""
+    nodes = [
+        node("Method", "put", "\\Z::put", "a.x"),
+        node("Method", "put", "\\A::put", "z.x"),
+    ]
+    for path in ("a.x", "z.x"):
+        store.upsert_file(path, "h", "lang")
+    store.replace_file_rows("a.x", nodes, [])
+
+    singular = store.nodes_by_name("put", kind="Method", limit=1)
+    batched = store.nodes_by_names(["put"], kind="Method", limit=1)["put"]
+    assert [row["qualified_name"] for row in singular] == ["\\A::put"]
+    assert [row["qualified_name"] for row in batched] == ["\\A::put"]

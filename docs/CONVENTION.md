@@ -78,6 +78,8 @@ code-atlas/
 - Docstrings: one line saying *what* + *why* for non-obvious modules/functions; skip the obvious.
 - Imports: stdlib, third-party, local — grouped; no wildcard imports.
 - SQL lives in `store.py`; no raw SQL strings scattered across tools/indexer.
+  Host SQLite must be **≥ 3.25** (window functions). Large `IN (...)` lists are chunked at
+  `_IN_CHUNK` so hosts below 3.32's higher `SQLITE_MAX_VARIABLE_NUMBER` still work.
 - **Node/edge column lists are derived from `contract.py`**, never re-typed in a consumer: build them
   with `", ".join(contract.NODE_FIELDS)` and rebuild result rows with
   `dict(zip(("id", *contract.NODE_FIELDS), row, strict=True))`. Binding on `indexer.py`, `resolver.py`

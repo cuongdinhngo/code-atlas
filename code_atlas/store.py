@@ -3,6 +3,8 @@
 One instance owns one connection, so the graph has a single writer while parsing fans out (R4.3).
 Column lists are derived from :mod:`code_atlas.contract`, never re-typed here (R3.2); the DDL below
 carries the §10 text and ``tests/test_store.py`` cross-checks the two representations.
+Requires SQLite ≥ 3.25 (``ROW_NUMBER`` window functions); ``IN (...)`` lists are chunked at
+``_IN_CHUNK`` so hosts below 3.32's higher max-vars still work.
 
 Three stored columns are deliberately **not** reproducible: ``nodes.id``/``edges.id`` follow insert
 order, and ``files.updated_at`` is wall-clock. The clock is injectable so a caller can pin it, and
@@ -273,12 +275,28 @@ class GraphStore:
         }
 
     def nodes_by_name(self, name: str, *, kind: str | None = None, limit: int) -> list[Row]:
-        return self._nodes("name = ?", name, kind, limit)
+        """Single-key lookup via the batch path; prefer ``nodes_by_names`` in a loop."""
+        return self.nodes_by_names([name], kind=kind, limit=limit).get(name, [])
 
     def nodes_by_qualified_name(
         self, qname: str, *, kind: str | None = None, limit: int
     ) -> list[Row]:
-        return self._nodes("qualified_name = ?", qname, kind, limit)
+        """Single-key lookup via the batch path; prefer ``nodes_by_qualified_names`` in a loop."""
+        return self.nodes_by_qualified_names([qname], kind=kind, limit=limit).get(qname, [])
+
+    def nodes_by_names(
+        self, names: Sequence[str], *, kind: str | None = None, limit: int
+    ) -> dict[str, list[Row]]:
+        """Per-name top-``limit`` nodes (``_NODE_ORDER`` within each name)."""
+        return self._nodes_batched(key_column="name", keys=names, kind=kind, limit=limit)
+
+    def nodes_by_qualified_names(
+        self, qnames: Sequence[str], *, kind: str | None = None, limit: int
+    ) -> dict[str, list[Row]]:
+        """Per-qname top-``limit`` nodes (``_NODE_ORDER`` within each qname)."""
+        return self._nodes_batched(
+            key_column="qualified_name", keys=qnames, kind=kind, limit=limit
+        )
 
     def nodes_by_kind(self, kind: str, *, limit: int) -> list[Row]:
         return self._nodes("kind = ?", kind, None, limit)
@@ -650,6 +668,48 @@ class GraphStore:
         clause, params = _narrow(where, value, kind, "kind = ?")
         sql = f"SELECT id, {_NODE_COLUMNS} FROM nodes WHERE {clause} ORDER BY {_NODE_ORDER} LIMIT ?"
         return self._rows(NODE_ROW_KEYS, sql, (*params, limit))
+
+    def _nodes_batched(
+        self,
+        *,
+        key_column: str,
+        keys: Sequence[str],
+        kind: str | None,
+        limit: int,
+    ) -> dict[str, list[Row]]:
+        """Per-key top-N via ``ROW_NUMBER``; keys chunked under ``_IN_CHUNK`` (host max-vars)."""
+        if limit < 1:
+            raise ValueError(f"limit must be >= 1, got {limit}")
+        # Keep checks as separate comparisons — a 2-string Literal/tuple trips R3.2.
+        if key_column != "name" and key_column != "qualified_name":
+            raise ValueError(f"unsupported batch column: {key_column}")
+        # Dedupe while preserving first-seen order so empty IN () never runs.
+        ordered_keys: list[str] = list(dict.fromkeys(keys))
+        if not ordered_keys:
+            return {}
+        kind_sql = " AND kind = ?" if kind is not None else ""
+        grouped: dict[str, list[Row]] = {key: [] for key in ordered_keys}
+        # Full `_NODE_ORDER` inside the partition — required for `name` keys where
+        # `qualified_name` still varies within the partition (R4.2 / AC1).
+        for chunk in _chunks(ordered_keys, _IN_CHUNK):
+            placeholders = ", ".join("?" for _ in chunk)
+            sql = (
+                f"SELECT id, {_NODE_COLUMNS} FROM ("
+                f"  SELECT id, {_NODE_COLUMNS}, "
+                f"    ROW_NUMBER() OVER ("
+                f"      PARTITION BY {key_column} ORDER BY {_NODE_ORDER}"
+                f"    ) AS rn "
+                f"  FROM nodes WHERE {key_column} IN ({placeholders}){kind_sql}"
+                f") WHERE rn <= ? "
+                f"ORDER BY {_NODE_ORDER}"
+            )
+            params: list[object] = [*chunk]
+            if kind is not None:
+                params.append(kind)
+            params.append(limit)
+            for row in self._rows(NODE_ROW_KEYS, sql, params):
+                grouped[str(row[key_column])].append(row)
+        return grouped
 
     def _edges(self, where: str, value: str, kinds: Sequence[str] | None, limit: int) -> list[Row]:
         if kinds is None:
