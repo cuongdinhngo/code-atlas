@@ -123,9 +123,14 @@ def test_file_outline_lists_symbols_without_bodies(tmp_path: Path, store: GraphS
     path = "src/namespaced.php"
     result = file_outline.create(config)(path, detail_level="minimal")
     assert result["indexed"] is True
+    assert result["found"] is True
     assert result["results"]
     assert all("qname" in hit and "line_start" in hit for hit in result["results"])
     assert all("source" not in hit and "body" not in hit for hit in result["results"])
+    dotted = file_outline.create(config)("./src/namespaced.php", detail_level="minimal")
+    assert dotted["found"] is True and dotted["path"] == path
+    missing = file_outline.create(config)("nope.php", detail_level="minimal")
+    assert missing["found"] is False and missing["results"] == []
 
 
 @needs_php
@@ -155,12 +160,46 @@ def test_read_symbol_returns_only_target_plus_docblock(tmp_path: Path, store: Gr
     bound = replace(db_config(tmp_path), root=tmp_path)
     result = read_symbol.create(bound)("\\App\\Doc::save", detail_level="minimal")
     assert result["found"] is True
+    assert result["stale"] is False
     source = str(result["source"])
     assert "Saves the doc" in source
     assert "function save" in source
     assert "function other" not in source
     whole = php.read_text(encoding="utf-8")
     assert len(source) < len(whole)
+
+
+@needs_php
+def test_read_symbol_refuses_stale_file_bytes(tmp_path: Path, store: GraphStore) -> None:
+    """Line numbers from a stale index must not silently slice the wrong source."""
+    src = tmp_path / "src"
+    src.mkdir()
+    php = src / "Doc.php"
+    php.write_text(
+        "<?php\nnamespace App;\nclass Doc {\n"
+        "    /** Saves. */\n    public function save(): void {}\n}\n",
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
+    config = load_config(
+        tmp_path,
+        {
+            "CA_WORKERS": "1",
+            "CA_PHP_CMD": shlex.join([str(PHP), str(PHP_ENTRY), "--server"]),
+        },
+    )
+    assert full_build(config, store).parsed == 1
+    php.write_text(
+        "<?php\nnamespace App;\n\n\n\n\nclass Doc {\n"
+        "    /** Saves. */\n    public function save(): void {}\n}\n",
+        encoding="utf-8",
+    )
+    bound = replace(db_config(tmp_path), root=tmp_path)
+    result = read_symbol.create(bound)("\\App\\Doc::save", detail_level="minimal")
+    assert result["found"] is True
+    assert result["stale"] is True
+    assert result["source"] == ""
 
 
 def test_trigram_fts_matches_camel_case(store: GraphStore) -> None:
@@ -182,6 +221,63 @@ def test_trigram_fts_matches_camel_case(store: GraphStore) -> None:
     assert [row["name"] for row in hits] == ["findByEmail"]
 
 
+def test_short_queries_use_name_prefix_not_empty_trigram(store: GraphStore) -> None:
+    store.upsert_file("c.php", "h", "php")
+    store.replace_file_rows(
+        "c.php",
+        [
+            {
+                "kind": "Class",
+                "name": "DB",
+                "qualified_name": "\\App\\DB",
+                "file_path": "c.php",
+                "line_start": 1,
+            },
+            {
+                "kind": "Class",
+                "name": "User",
+                "qualified_name": "\\App\\User",
+                "file_path": "c.php",
+                "line_start": 2,
+            },
+        ],
+        [],
+    )
+    assert [row["name"] for row in store.search_nodes("DB", limit=10)] == ["DB"]
+    assert [row["name"] for row in store.search_nodes("Us", limit=10)] == ["User"]
+
+
+def test_namespace_filter_is_case_insensitive(store: GraphStore) -> None:
+    store.upsert_file("a.php", "h", "php")
+    store.replace_file_rows(
+        "a.php",
+        [
+            {
+                "kind": "Class",
+                "name": "Models",
+                "qualified_name": "\\App\\Models",
+                "file_path": "a.php",
+                "line_start": 1,
+            },
+            {
+                "kind": "Class",
+                "name": "User",
+                "qualified_name": "\\App\\Models\\User",
+                "file_path": "a.php",
+                "line_start": 2,
+            },
+        ],
+        [],
+    )
+    lower = store.search_nodes("Models", namespace="\\app\\models", limit=10)
+    upper = store.search_nodes("Models", namespace="\\App\\Models", limit=10)
+    assert {row["qualified_name"] for row in lower} == {
+        "\\App\\Models",
+        "\\App\\Models\\User",
+    }
+    assert {row["qualified_name"] for row in lower} == {row["qualified_name"] for row in upper}
+
+
 def test_prompts_are_registered(tmp_path: Path) -> None:
     server = build_server(db_config(tmp_path))
 
@@ -191,3 +287,21 @@ def test_prompts_are_registered(tmp_path: Path) -> None:
 
     assert set(PROMPT_NAMES) <= asyncio.run(names())
     assert prompts.EXPLORE_AREA in PROMPT_NAMES
+
+
+def test_build_recovers_from_foreign_schema_version(tmp_path: Path) -> None:
+    """An MCP client must not need a shell to escape a schema_version bump."""
+    from code_atlas.store import SCHEMA_VERSION_KEY, SchemaVersionError
+    from code_atlas.tools import build_or_update_index
+
+    db = tmp_path / "graph.db"
+    with GraphStore(db) as created:
+        created.set_meta(SCHEMA_VERSION_KEY, "1")
+    with pytest.raises(SchemaVersionError):
+        GraphStore(db)
+    config = replace(load_config(tmp_path, {"CA_WORKERS": "1"}), db_path=db)
+    # No adapter files — empty build is enough to prove open+recover.
+    result = build_or_update_index.create(config)(detail_level="minimal")
+    assert result["schema_rebuilt"] is True
+    with GraphStore(db) as reopened:
+        assert reopened.get_meta(SCHEMA_VERSION_KEY) == "2"

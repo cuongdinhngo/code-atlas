@@ -53,6 +53,10 @@ directory *is* the repo, and every `CA_*` knob below is read from that client's 
 }
 ```
 
+**Adapters are not in the PyPI/wheel install.** `pip install code-atlas` gives you the MCP server
+only; indexing still needs a repo checkout that contains `adapters/<lang>/` and a `CA_<LANG>_CMD`
+pointing at it (as in the example above). The wheel alone cannot index source.
+
 Call `get_index_status` first: it is the cheap (~100-token) entry point and tells you whether the
 index exists, how stale it is, and what to call next. `build_or_update_index` builds it. Every tool
 takes `detail_level` — `minimal` for the payload alone, `standard` (the default) to add provenance.

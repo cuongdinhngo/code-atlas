@@ -294,7 +294,9 @@ CREATE VIRTUAL TABLE nodes_fts USING fts5(
 -- into it. They are load-bearing, not an optimisation: without them every MATCH returns 0 rows
 -- while `SELECT count(*) FROM nodes_fts` still reports the content table's size.
 -- ``tokenize='trigram'`` (schema_version **2**) makes camelCase substrings match
--- (e.g. ``email`` ⊂ ``findByEmail``); unicode61 did not.
+-- (e.g. ``email`` ⊂ ``findByEmail``); unicode61 did not. Trigram cannot match terms
+-- shorter than three characters — ``search_nodes`` falls back to a name/qname prefix
+-- ``LIKE`` for those queries so ``DB`` / ``Us`` / ``Go`` stay findable.
 CREATE TRIGGER nodes_ai AFTER INSERT ON nodes BEGIN … END;   -- insert
 CREATE TRIGGER nodes_ad AFTER DELETE ON nodes BEGIN … END;   -- 'delete' with the OLD values
 CREATE TRIGGER nodes_au AFTER UPDATE ON nodes BEGIN … END;   -- 'delete' then insert

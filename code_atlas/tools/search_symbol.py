@@ -23,15 +23,16 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         limit: int | None = None,
         detail_level: DetailLevel = "standard",
     ) -> dict[str, object]:
-        """Ranked symbols matching ``query`` (FTS, trigram) with optional kind/namespace filters.
+        """Ranked symbols matching ``query`` (FTS trigram, or name-prefix for queries < 3 chars).
 
         Returns ``{qname, kind, file, line}`` rows, capped by ``limit`` or ``CA_MAX_RESULTS``.
+        Trigram cannot match terms under three characters; those use a name/qname prefix scan.
         """
+        if not config.db_path.is_file():
+            return _empty(detail_level=detail_level, db_path=str(config.db_path))
         cap = config.max_results if limit is None else min(limit, config.max_results)
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
-        if not config.db_path.is_file():
-            return _empty(detail_level=detail_level, db_path=str(config.db_path))
         with GraphStore(config.db_path) as store:
             rows = store.search_nodes(query, kind=kind, namespace=namespace, limit=cap + 1)
         truncated = len(rows) > cap

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 from collections.abc import Callable, Sequence
 from pathlib import Path
@@ -14,8 +15,11 @@ NAME = "read_symbol"
 
 DetailLevel = Literal["minimal", "standard"]
 
-# A line that can sit in a docblock / line-comment run immediately above a declaration.
+# Heuristic only: adapters should eventually emit a doc range on the node (contract follow-up).
+# Union of common comment leaders — not a language branch, but still language knowledge in core.
 _COMMENT = re.compile(r"^\s*(#|//|/\*|\*|\*/)")
+
+_READ_CHUNK = 1024 * 64
 
 
 def create(config: Config) -> Callable[..., dict[str, object]]:
@@ -24,41 +28,69 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     def read_symbol(qname: str, detail_level: DetailLevel = "standard") -> dict[str, object]:
         """Source for ``qname``: ``line_start…line_end`` plus contiguous comments above.
 
-        Never returns the whole file. Missing index or unknown qname → empty ``source``.
+        Never returns the whole file. If the on-disk file hash no longer matches the index,
+        returns ``stale: true`` and an empty ``source`` (call ``build_or_update_index``).
         """
         if not config.db_path.is_file():
             return _empty(qname, detail_level=detail_level, db_path=str(config.db_path))
         with GraphStore(config.db_path) as store:
             rows = store.nodes_by_qualified_name(qname, limit=1)
-        if not rows:
+            if not rows:
+                return _result(
+                    qname,
+                    "",
+                    detail_level=detail_level,
+                    db_path=str(config.db_path),
+                    found=False,
+                )
+            node = rows[0]
+            rel = str(node["file_path"])
+            indexed_hash = store.file_hash(rel)
+        path = config.root / rel
+        if indexed_hash is None or _digest(path) != indexed_hash:
             return _result(
                 qname,
                 "",
                 detail_level=detail_level,
                 db_path=str(config.db_path),
-                found=False,
+                found=True,
+                stale=True,
+                file=rel,
+                line_start=None,
+                line_end=None,
             )
-        node = rows[0]
-        rel = str(node["file_path"])
         start_raw = node["line_start"]
         if not isinstance(start_raw, int):
             raise TypeError(f"line_start must be int, got {type(start_raw).__name__}")
         start = start_raw
         end_raw = node["line_end"]
         end = end_raw if isinstance(end_raw, int) else start
-        source = _slice(config.root / rel, start, end)
+        source = _slice(path, start, end)
         return _result(
             qname,
             source,
             detail_level=detail_level,
             db_path=str(config.db_path),
             found=True,
+            stale=False,
             file=rel,
             line_start=start,
             line_end=end,
         )
 
     return read_symbol
+
+
+def _digest(path: Path) -> str:
+    """SHA-256 of file bytes, or empty when unreadable — same idea as ``indexer._digest``."""
+    hasher = hashlib.sha256()
+    try:
+        with path.open("rb") as handle:
+            while chunk := handle.read(_READ_CHUNK):
+                hasher.update(chunk)
+    except OSError:
+        return ""
+    return hasher.hexdigest()
 
 
 def _slice(path: Path, line_start: int, line_end: int) -> str:
@@ -93,6 +125,7 @@ def _empty(qname: str, *, detail_level: str, db_path: str) -> dict[str, object]:
         "indexed": False,
         "qname": qname,
         "found": False,
+        "stale": False,
         "source": "",
     }
     if detail_level == "standard":
@@ -107,6 +140,7 @@ def _result(
     detail_level: str,
     db_path: str,
     found: bool,
+    stale: bool = False,
     file: str | None = None,
     line_start: int | None = None,
     line_end: int | None = None,
@@ -115,12 +149,14 @@ def _result(
         "indexed": True,
         "qname": qname,
         "found": found,
+        "stale": stale,
         "source": source,
     }
     if found:
         payload["file"] = file
-        payload["line_start"] = line_start
-        payload["line_end"] = line_end
+        if not stale:
+            payload["line_start"] = line_start
+            payload["line_end"] = line_end
     if detail_level == "standard":
         payload["db_path"] = db_path
     return payload
