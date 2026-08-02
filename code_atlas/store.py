@@ -481,6 +481,7 @@ class GraphStore:
             "WHERE e.confidence_tier = 'RESOLVED' AND e.target_qname IS NOT NULL "
             "AND f.score * w.weight * ? >= ?"
         )
+        # Depth must come from a max-score row — never MIN(depth) across all paths (R4.2).
         merge_sql = (
             "INSERT INTO temp.impact_best (qname, score, depth, file, line) "
             "SELECT n.qname, n.score, n.depth, "
@@ -493,8 +494,12 @@ class GraphStore:
             "  ORDER BY nodes.file_path, nodes.line_start, nodes.id LIMIT 1"
             "), 0) "
             "FROM ("
-            "  SELECT qname, MAX(score) AS score, MIN(depth) AS depth "
-            "  FROM temp.impact_next GROUP BY qname"
+            "  SELECT nxt.qname AS qname, nxt.score AS score, MIN(nxt.depth) AS depth "
+            "  FROM temp.impact_next AS nxt "
+            "  JOIN ("
+            "    SELECT qname, MAX(score) AS score FROM temp.impact_next GROUP BY qname"
+            "  ) AS top ON top.qname = nxt.qname AND top.score = nxt.score "
+            "  GROUP BY nxt.qname"
             ") AS n "
             "WHERE n.score >= ? "
             "ON CONFLICT(qname) DO UPDATE SET "
