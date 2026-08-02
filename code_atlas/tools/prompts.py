@@ -6,8 +6,9 @@ from fastmcp import FastMCP
 
 EXPLORE_AREA = "explore_area"
 FIND_USAGES = "find_usages"
+IMPACT_OF_CHANGE = "impact_of_change"
 
-PROMPT_NAMES: tuple[str, ...] = (EXPLORE_AREA, FIND_USAGES)
+PROMPT_NAMES: tuple[str, ...] = (EXPLORE_AREA, FIND_USAGES, IMPACT_OF_CHANGE)
 
 
 def register(server: FastMCP) -> None:
@@ -37,5 +38,17 @@ def register(server: FastMCP) -> None:
             "read_symbol only to confirm a hit — do not open entire files."
         )
 
+    def impact_of_change(change: str = "") -> str:
+        """Compute blast radius of a change without reading the whole repo."""
+        focus = f" Change: {change}." if change.strip() else ""
+        return (
+            "Assess the blast radius of a change cheaply."
+            + focus
+            + " Call get_index_status first (build_or_update_index if needed). Then call "
+            "impact with the changed paths and/or qnames. Use read_symbol only for the "
+            "highest-score hits you must inspect — do not open entire files."
+        )
+
     server.prompt(name=EXPLORE_AREA)(explore_area)
     server.prompt(name=FIND_USAGES)(find_usages)
+    server.prompt(name=IMPACT_OF_CHANGE)(impact_of_change)

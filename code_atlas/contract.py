@@ -54,6 +54,16 @@ FQN_EDGE_KINDS: frozenset[str] = frozenset(
 CALLER_KINDS: tuple[str, ...] = ("CALLS", "NEW")
 IMPL_KINDS: tuple[str, ...] = ("EXTENDS", "IMPLEMENTS")
 
+# Impact engine (§12 / M6) — incoming-edge walk weights (callers / subtypes / includers).
+IMPACT_KIND_WEIGHTS: dict[str, float] = {
+    "CALLS": 1.0,
+    "NEW": 1.0,
+    "EXTENDS": 0.9,
+    "IMPLEMENTS": 0.9,
+    "INCLUDES": 0.8,
+}
+IMPACT_KINDS: tuple[str, ...] = tuple(IMPACT_KIND_WEIGHTS)
+
 CONFIDENCE_TIERS: tuple[str, ...] = ("RESOLVED", "HEURISTIC", "DYNAMIC")
 
 NODE_FIELDS: tuple[str, ...] = (
