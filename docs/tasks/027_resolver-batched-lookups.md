@@ -66,11 +66,13 @@ that baseline measures the read path this task removes.
 ## Session status
 
 ```
-phase: 3 execute — verification sweep done; flowing to review
-Gate: Gate 1 + Gate 2 cleared (standing approve)
+phase: 5 finalise — dry-run; waiting per-action approval (push, open PR)
+Gate: Gate 4 clean; final gate open
 work_doc_mode: embed
 working_doc: docs/tasks/027_resolver-batched-lookups.md (below separator)
 branch: feat/027-resolver-batched-lookups
+Reviewed at: 2c10bac7d88997355903d76df6015dab0414fff2
+Reviewed files: code_atlas/store.py, code_atlas/resolver.py, tests/test_resolver.py, docs/BACKLOG.md, docs/tasks/027_resolver-batched-lookups.md
 ```
 
 - **SCOPE:** M
@@ -245,8 +247,48 @@ Add `GraphStore.nodes_by_qualified_names` / `nodes_by_names` using `ROW_NUMBER()
 
 ---
 
+## Phase 4 — Review
+
+**Reviewed at** `2c10bac7d88997355903d76df6015dab0414fff2` (after partition-order fix).
+
+| Dispatch | Verdict |
+|----------|---------|
+| mango:reviewer round 1 ([Reviewer](3e4ad06e-0b78-427f-9432-fabe4883fb59)) | **BLOCK** — `nodes_by_names` top-N ordered by `file_path` not full `_NODE_ORDER` |
+| mango:challenger ([Challenger](70f0e660-c06d-4042-9699-477df9b8edd6)) | **NOT CLEAN** — same defect (7 met / not met on byte-identity for name-keyed path) |
+| mango:reviewer round 2 verify ([Reviewer](c04e91c4-c4a4-4b0d-9478-c96570a57b35)) | **LGTM** — prior Critical verified fixed; regression test present |
+
+### Reviewer detail round 1 ([Reviewer](3e4ad06e-0b78-427f-9432-fabe4883fb59))
+
+- **Verdict:** BLOCK
+- **Critical:** `_nodes_batched` partition `ORDER BY file_path, line_start, id` breaks Method-name fallback when `file_path` order ≠ `qualified_name` order (R4.2 / AC1)
+- **Fix:** `ORDER BY {_NODE_ORDER}` inside partition + `test_nodes_by_names_top_n_follows_qualified_name_not_file_path`
+
+### Challenger detail ([Challenger](70f0e660-c06d-4042-9699-477df9b8edd6)) — ticket-blind
+
+`REQUIREMENTS: 9` · agreed with reviewer on name-keyed top-N defect; O(1) SELECT / store SQL / suite otherwise met.
+
+### Reviewer detail round 2 ([Reviewer](c04e91c4-c4a4-4b0d-9478-c96570a57b35))
+
+- **Verdict:** LGTM — Critical fixed; no remaining Critical/Important
+
+**Gate 4:** clean.
+
+---
+
+## Phase 5 — Finalise (dry-run)
+
+### Outward actions (need separate yes)
+
+1. **Push** `feat/027-resolver-batched-lookups`
+2. **Open PR** via `gh pr create`
+
+---
+
 ## Cost ledger
 
-| Phase | Dispatch | Round | Tokens |
-|-------|----------|-------|--------|
-| 0 refine | exposure-checker challenger | 1 | unmeasured (host does not surface usage) |
+| Phase | Dispatch | Round | Tokens | Notes |
+|-------|----------|-------|--------|-------|
+| 0 refine | challenger (exposure-checker) | 1 | unmeasured (host does not surface usage) | [d0b1d784](d0b1d784-c72d-4f33-bbdc-f674674c3fb1); EXPOSURE: 0 |
+| 4 review | reviewer | 1 | unmeasured (host does not surface usage) | [3e4ad06e](3e4ad06e-0b78-427f-9432-fabe4883fb59); BLOCK |
+| 4 review | challenger | 1 | unmeasured (host does not surface usage) | [70f0e660](70f0e660-c06d-4042-9699-477df9b8edd6); not clean |
+| 4 review | reviewer | 2 verify | unmeasured (host does not surface usage) | [c04e91c4](c04e91c4-c4a4-4b0d-9478-c96570a57b35); LGTM |
