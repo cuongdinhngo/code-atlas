@@ -4,7 +4,7 @@ slug: php-full-coverage-and-scale
 title: Full PHP coverage + scale to 112k files (M4)
 phase: 1
 milestone: M4
-status: in-progress
+status: done
 depends_on: [013, 014, 008]
 ---
 
@@ -202,9 +202,16 @@ Ship M4 coverage+scale: (1) stream/batch resolver unresolved edges; (2) `include
 
 ## Session status
 
-- **Phase:** 5 finalise — ✋ final gate (per-action outward approvals)
-- **PR:** —
-- **Reviewed at:** `c5d0b6d`
-- **Gate:** waiting — approve push / PR separately
-- **Blocked by:** final-gate outward approvals
-- **Revert path:** delete branch `feat/015-php-full-coverage-and-scale`
+- **Phase:** 5 finalise complete
+- **PR:** https://github.com/cuongdinhngo/code-atlas/pull/25
+- **Reviewed at:** `c5d0b6d` (bookkeeping tips after; stale-review exempt)
+- **Gate:** closed
+- **Blocked by:** none
+- **Revert path:** close/delete PR branch `feat/015-php-full-coverage-and-scale`; `git revert` merge on main if needed
+
+---
+
+## Durable lesson
+
+1. Large private samples stay out of per-PR CI — opt-in script + runbook is the deliverable when the checkout is not in-tree (ASSUMED A3/A7).
+2. Ticket-blind challenger will correctly flag “sample not run” against raw AC text; record it as D1 when Gate 1 ratified procedure-over-in-session-run.
