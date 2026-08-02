@@ -212,34 +212,54 @@ Committed as `f7cfbf2`.
 ### Reviewer detail round 1 ([Reviewer](f852bbd7-ef10-450e-83b7-121efa17a716))
 
 - **Verdict:** CHANGES REQUESTED
-- **Scope:** `main...HEAD` @ `9489acc` maps 1:1 onto change-list items 1–8
-- **Finding (Important, R4.2):** `unlink_targets` only nulled `target_qname`; HEURISTIC top-N siblings left in place → hash-skipped dependents could diverge from full rebuild after `resolve_edges`
-- **Required fix:** collapse natural-key groups to one bare edge + proving test for multi-match CALLS
-- **Verification then:** proving test PASS; `tests/test_incremental.py` 5 passed; MCP suite green
+- **Scope:** `main...HEAD` @ `9489acc` maps 1:1 onto change-list items 1–8; no files outside the list
+- **Verification then:** proving test PASS; `tests/test_incremental.py` → **5 passed**; `tests/test_incremental.py` + `tests/test_mcp_server.py` → **53 passed**
+- **Finding 1 (Important — R4.2 / R6.1):**
+  - **Where:** `code_atlas/store.py` (`unlink_targets`), exercised by `code_atlas/indexer.py` then `resolve_edges`
+  - **Problem:** `unlink_targets` only nulled `target_qname` for edges pointing into affected qnames. Resolver top-N fan-out (`resolver._queue_candidates`) inserts **sibling** rows that already have `target_qname` set. When a hash-skipped dependent has a multi-match `HEURISTIC` group: (1) unlinked parent → re-resolve inserts **new** siblings while old siblings that still point at non-affected candidates remain → **duplicate** edges vs full rebuild; (2) unlinked sibling (affected qname was not the first candidate) → parent stays linked; orphan `target_qname IS NULL` sibling is re-resolved on every later `resolve_edges` → **edge multiplication**. Full rebuild avoids this because `replace_file_rows` deletes all edges for reparsed files.
+  - **Rules:** ENGINEERING_RULES **R4.2** (identical input → identical output; incremental must equal full rebuild); **R6.1** (indexer/store change needs an integration assertion on this path).
+  - **Required fix:** collapse each bare-edge natural-key group that touches affected qnames to one bare row, then clear; add proving coverage with two same-name method targets + a `dep/` caller.
+- **What looked solid (no finding then):** SQL confined to `store.py` (R1.4); parameterized `IN` chunks; soft fallback + honest `mode`; deletes via `_reconcile`; unique-target re-link path covered; docs updated; no language branches (R1.1); no contract vocabulary change (R3).
 
 ### Challenger detail ([Challenger](de2207ce-d48a-4871-9652-9c9ab1eacd68)) — ticket-blind
 
+Independence: raw ticket only (text above the mango separator). Embedded working-doc portion was **not** used. PLAN §8.3 skimmed only to interpret the ticket’s § reference.
+
 | # | Reconstructed requirement | Verdict | Evidence |
 |---|---------------------------|---------|----------|
-| 1 | gitutil diff → changed files | **Met** | `gitutil.py:33-41`; `test_changed_paths…` |
-| 2 | single-hop dependents | **Met** | `indexer.py` + `file_paths_targeting`; dep fixture |
-| 3 | reparse changed ∪ dependents, hash-skip | **Met** | `indexer.py:107-112`, `_hash_matches` |
-| 4 | resolver scoped to affected qnames | **Met** (nuance: unlink + unresolved resolve, not a filtered API) | `unlink_targets` + `resolve_edges` |
-| 5 | bump `meta.last_commit` | **Met** | `_record_meta` |
-| 6 | staleness in `get_index_status` | **Met** | existing tool + incremental bump |
-| 7 | hermetic throwaway repos; keep CI shallow | **Met** | `test_incremental.py`; no pytest fetch-depth change |
-| 8 | AC: only affected rows | **Met** | unrelated node id stable |
-| 9 | AC: equals full rebuild | **Met** | snapshot parity |
-| 10 | AC: staleness accurate | **Met** | behind → current (equality, not N-count) |
-| 11 | Goal: keep fresh cheaply | **Can't tell** | no perf measurement (acceptable for M5 AC) |
+| 1 | `gitutil` maps `git diff <last_commit>..HEAD` → changed files | **Met** | `code_atlas/gitutil.py:33-41` — `changed_paths` runs `diff --name-only -z {since}..HEAD`. Proven: `tests/test_incremental.py:95-101`. |
+| 2 | `indexer.incremental_update` adds single-hop dependents | **Met** | `code_atlas/indexer.py:98-103` + `code_atlas/store.py:374-386` — dependents = distinct `edges.file_path` where `target_qname` ∈ affected qnames. Fixture: `tests/fixtures/adapter/fake_adapter.py` (`dep/` → `lib/core.aa::Thing`); re-link asserted at `tests/test_incremental.py:131-133`. |
+| 3 | Reparse `changed ∪ dependents`, hash-skip unchanged | **Met** | `code_atlas/indexer.py:107-112`, `_hash_matches` at `125-128`. Candidates = `(changed ∪ dependents) ∩ collect`; parse only hash mismatches. |
+| 4 | Re-run resolver scoped to affected qnames | **Met** (nuance) | Invalidation scoped: `store.unlink_targets` at `indexer.py:105`. Then `resolve_edges` at `indexer.py:121`, which only walks `target_qname IS NULL`. Not a separate qname-filtered resolver API — scoping is unlink → unresolved → resolve. AC parity still holds (`tests/test_incremental.py:136-141`). |
+| 5 | Bump `meta.last_commit` after incremental | **Met** | `indexer.py:120` → `_record_meta` → `set_meta(LAST_COMMIT_KEY, …)`. Status after incremental: `tests/test_incremental.py:160-162`. |
+| 6 | Staleness reported in `get_index_status` | **Met** | Pre-existing tool: `get_index_status.py:68-77`, `_staleness` at `91-95` (`current` / `behind` / `unknown`). Incremental keeps it honest by bumping `last_commit`. |
+| 7 | CI: prefer hermetic throwaway repos; keep shallow checkout | **Met** | `tests/test_incremental.py:1-3`, `54-63` (`git init` + commits under `tmp_path`). No CI workflow change for pytest depth; `fetch-depth: 0` remains only on the R1.1 job (pre-existing). |
+| 8 | AC: editing one file updates only affected rows | **Met** | One-file diff `("lib/core.aa",)` at `tests/test_incremental.py:123-125`; unrelated `other/stay.aa` node id stable at `117,130`. |
+| 9 | AC: incremental result equals a full rebuild for that state | **Met** | Ordered file/node/edge content snapshot equality vs fresh full build: `tests/test_incremental.py:136-141` (and delete case). |
+| 10 | AC: status shows staleness (commits behind) accurately | **Met** | `current` → after commit `behind` → after incremental `current` + `last_commit == HEAD`: `tests/test_incremental.py:144-162`. Mechanism is commit **equality**, not a numeric `commits_behind` count. |
+| 11 | Goal: keep the index fresh cheaply | **Can't tell** | Incremental path exists and avoids full reparse, but no cost/perf evidence in the diff. |
 
 **Orchestrator note:** #11 can't-tell is expected — ticket AC is correctness/parity, not a perf bar.
+
+**Scope creep (challenger):** `build_or_update_index` mode selection / honest `mode` echo (needed to expose incremental); soft full-build fallback on bad/`None` diff; delete reconciliation coverage; store `_IN_CHUNK` / `_chunks`; docs README / PLAN §8.3 / BACKLOG / working doc; fake-adapter `CALLS` under `dep/` — test-only. None of substance beyond supporting the ticket.
 
 ### Reviewer detail round 2 ([Reviewer](bdc74828-249b-4656-8ba9-389a28d7fcda))
 
 - **Verdict:** LGTM
-- **Fix verified:** `store.py:388-442` collapse + `test_heuristic_siblings_still_match_a_full_rebuild`
+- **Prior finding — verified fixed:**
+  - Collapse natural-key groups to one bare edge — `code_atlas/store.py:388–422` (SELECT DISTINCT natural keys → DELETE siblings sharing key → INSERT one bare edge with `target_qname=NULL`)
+  - Proving test `test_heuristic_siblings_still_match_a_full_rebuild` — `tests/test_incremental.py:176–207`
+  - Fixture support — `tests/fixtures/adapter/fake_adapter.py:68–88` (`twin/*.aa` emit `run`; `dep/name_*` emits bare `target_raw: "run"`)
+  - In approved change-list items 2 / 5 / 6
+- **Rule spot-checks (all clean):**
+  - R1.4 — SQL only in `store.py`; parameterized placeholders in `unlink_targets` / `_edges_sharing_key`
+  - R4.2 — proving test asserts `snapshot(store) == incremental` after full rebuild (including HEURISTIC multiplicity)
+  - R4.3 — single writer on caller thread (same as full_build)
+  - R1.1 — no language branches in core
+  - R7.2 — PLAN §8.3 / BACKLOG / README / task frontmatter updated
+  - R7.5 — docstring carries the longer why for sibling collapse
 - **Verification:** `tests/test_incremental.py` → **6 passed**; full suite → **524 passed**
+- **Findings:** none
 
 **Scope reconcile:** file axis ✅ · behaviour axis ✅ (sibling fix in-list) · inventory ✅
 
