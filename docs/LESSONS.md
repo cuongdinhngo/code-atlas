@@ -3,6 +3,11 @@
 Durable lessons discovered while shipping tasks: constraints found, wrong assumptions, process gaps.
 One entry per lesson; newest first.
 
+## 012 — Planted tmp_path negative controls must not use relative_to(ROOT)
+AC2 plants live under pytest `tmp_path`, which is outside the repo. Calling
+`path.relative_to(ROOT)` on those plants raises `ValueError` and breaks the proof that the
+grep-gate fails on a planted hit. Assert on `Path` identity (or root the plant under the repo).
+
 ## 025 — NEW must peek anonymous qnames without registering them
 `enterNew` and `enterAnonymousClass` both need the same H1 qname. If both call a registering
 `anonymousQname()`, the Class_ node gets a spurious collision suffix even when it is the only

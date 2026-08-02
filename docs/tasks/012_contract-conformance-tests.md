@@ -4,7 +4,7 @@ slug: contract-conformance-tests
 title: Contract-conformance & PHP coverage tests (M2)
 phase: 1
 milestone: M2
-status: in-progress
+status: done
 depends_on: [025, 002]
 ---
 
@@ -304,19 +304,48 @@ Named anchor: `tests/contract/test_adapter_conformance.py` — PHP adapter confo
 
 ---
 
+## Phase 4 — Review
+
+**Reviewed at** `fafd31a18e32f6760b9d6ef444524d9653ab9a35`
+
+**Reviewed files:** `docs/BACKLOG.md`, `docs/tasks/012_contract-conformance-tests.md`, `tests/contract/test_adapter_conformance.py`, `tests/contract/test_guardrail_gates.py`, `tests/fixtures/php/{closures_arrow,enum,first_class_callable,global,include_require,static_vs_instance,trait_conflict,underscore_psr0}.php`
+
+| Critic | Result |
+|--------|--------|
+| mango:reviewer ([reviewer](f57501ff-e0ee-48b8-8d1b-f44f807a2270)) | **LGTM** — 0 Critical / 0 Important; proving 17 passed; diff ⊆ Gate-2 list |
+| mango:challenger ([challenger](5641e0b8-e549-4c85-9685-84d277a2bd83)) | **9 met · 0 not met · 0 can't tell** (ticket-blind) |
+
+**Scope reconcile:** file axis ✅ · behaviour axis ✅ · no outgrew-its-ticket.
+
+**Verdict:** clean — Gate 4 does not stop.
+
+**Matrix Status:** G1, R1–R4, AC1–AC2, AC-A1a/b, AC-A2, F1–F11, G-R1.1, G-R2.2 → ✅
+
+---
+
 ## Cost ledger (subagent dispatch only)
 
 | Phase | Dispatch | Round | Tokens |
 |-------|----------|-------|--------|
 | 0 refine | mango:challenger (exposure-checker) | 1 | unmeasured (blocking retrieval) |
 | 1 analysis | mango:extractor | 1 | unmeasured (blocking retrieval) |
+| 4 review | mango:reviewer | 1 | unmeasured (blocking retrieval) |
+| 4 review | mango:challenger | 1 | unmeasured (blocking retrieval) |
+
+**Roll-up:** **4 dispatch**, all `unmeasured (blocking retrieval)`. Main-loop unmeasured.
+
+---
+
+## Durable lesson
+
+Planted negative-control files under pytest `tmp_path` live **outside** the repo root. Asserting `path.relative_to(ROOT)` on those plants raises `ValueError` and breaks the AC2 proof — assert on `Path` identity (or a planted tree rooted under the repo) instead.
 
 ---
 
 ## Session status
 
-- **Phase:** 3 execute complete → flowing to 4 review
-- **Next:** review (reviewer + challenger)
-- **Gate:** none (execute autonomous)
+- **Phase:** 4 review clean → 5 finalise
+- **Next:** final gate — outward actions
+- **Gate:** final gate
+- **Reviewed at:** `fafd31a`
 - **Blocked by:** none
-- **Gate 1/2:** cleared via user pre-approval

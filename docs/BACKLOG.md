@@ -21,7 +21,7 @@ is [`PLAN.md`](PLAN.md).
 | 009 | [Full build indexer + workers](tasks/009_full-build-indexer.md) | M1 | done | 004, 005, 007 |
 | 010 | [MCP server + status/build tools](tasks/010_index-status-and-build-tools.md) | M1 | done | 009 |
 | 011 | [Cross-file edge resolver](tasks/011_resolver.md) | M2 | done | 009 |
-| 012 | [Contract-conformance & PHP coverage tests](tasks/012_contract-conformance-tests.md) | M2 | in-progress | 025, 002 |
+| 012 | [Contract-conformance & PHP coverage tests](tasks/012_contract-conformance-tests.md) | M2 | done | 025, 002 |
 | 013 | [Nav tools — callers / refs / impls](tasks/013_nav-tools.md) | M2 | todo | 011, 010 |
 | 014 | [Search / read / outline + FTS **(ship)**](tasks/014_search-read-outline.md) | M3 | todo | 010, 004 |
 | 015 | [Full PHP coverage + scale to 112k](tasks/015_php-full-coverage-and-scale.md) | M4 | todo | 013, 014, 008 |
@@ -70,6 +70,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 011 | Cross-file edge resolver | **2 dispatch** — `mango:reviewer` + `mango:challenger` in review round 1; both token cells **`unmeasured (blocking retrieval)`** (Cursor Task returns did not surface a usage block). Round 2 was verify-only in the main loop (Co-authored-by strip). Phases 1–3 and 5 dispatched **nothing**. **Main-loop spend is unmeasured**, as for 004–007, 009 and 010 | [#19](https://github.com/cuongdinhngo/code-atlas/pull/19) |
 | 008 | PHP runtime invocation (host / Docker) | **4 dispatch** — refine exposure-checker + analysis extractor + review `mango:reviewer` + `mango:challenger`; all token cells **`unmeasured (blocking retrieval)`**. Review round 2 verify-only in the main loop (proving-test rename). Phases 2–3 and 5 dispatched **nothing**. **Main-loop spend is unmeasured**, as for 004–007 and 009–011 | [#20](https://github.com/cuongdinhngo/code-atlas/pull/20) |
 | 025 | PHP adapter — full 8.5 grammar coverage | **4 dispatch** — analysis extractor + review `mango:reviewer` + `mango:challenger` in round 1, all **`unmeasured (blocking retrieval)`**; plus a round-3 ticket-blind `mango:challenger` re-review of the open PR at **112.6k** (32 tool uses / 489 s), the only measured cell in this row. That re-review found the `:col` drift, and the PHPStan follow-up it triggered (attribute `extra` bug, R6.6, CI) ran **entirely on the main model with 0 dispatch**. Review rounds 2 and 4 were verify-only in the main loop. Phases 0/2/3/5 dispatched **nothing**. **Main-loop spend is unmeasured**, as for 004–011 and 008 | [#21](https://github.com/cuongdinhngo/code-atlas/pull/21) |
+| 012 | Contract-conformance & PHP coverage tests | **4 dispatch** — refine exposure-checker + analysis extractor + review `mango:reviewer` + `mango:challenger`; all token cells **`unmeasured (blocking retrieval)`**. Phases 2–3 and 5 dispatched **nothing**. **Main-loop spend is unmeasured**, as for 004–011 and 008 | (this PR) |
 
 ## Suggested order
 
