@@ -249,29 +249,59 @@ Add `GraphStore.nodes_by_qualified_names` / `nodes_by_names` using `ROW_NUMBER()
 
 ## Phase 4 — Review
 
-**Reviewed at** `2c10bac7d88997355903d76df6015dab0414fff2` (after partition-order fix).
+**Reviewed at** `2c10bac7d88997355903d76df6015dab0414fff2` (after partition-order fix). Bookkeeping tip after (`5b07128`) is stale-review exempt (working doc only).
 
 | Dispatch | Verdict |
 |----------|---------|
 | mango:reviewer round 1 ([Reviewer](3e4ad06e-0b78-427f-9432-fabe4883fb59)) | **BLOCK** — `nodes_by_names` top-N ordered by `file_path` not full `_NODE_ORDER` |
-| mango:challenger ([Challenger](70f0e660-c06d-4042-9699-477df9b8edd6)) | **NOT CLEAN** — same defect (7 met / not met on byte-identity for name-keyed path) |
+| mango:challenger ([Challenger](70f0e660-c06d-4042-9699-477df9b8edd6)) | ticket-blind — **7 met · not met on #2/#4/#6** (name-keyed byte-identity) |
 | mango:reviewer round 2 verify ([Reviewer](c04e91c4-c4a4-4b0d-9478-c96570a57b35)) | **LGTM** — prior Critical verified fixed; regression test present |
 
 ### Reviewer detail round 1 ([Reviewer](3e4ad06e-0b78-427f-9432-fabe4883fb59))
 
 - **Verdict:** BLOCK
-- **Critical:** `_nodes_batched` partition `ORDER BY file_path, line_start, id` breaks Method-name fallback when `file_path` order ≠ `qualified_name` order (R4.2 / AC1)
-- **Fix:** `ORDER BY {_NODE_ORDER}` inside partition + `test_nodes_by_names_top_n_follows_qualified_name_not_file_path`
+- **Tip then:** `1f0681c` (pre-fix)
+- **Critical — `code_atlas/store.py` `_nodes_batched`:** partition used `ORDER BY file_path, line_start, id`. Correct when `PARTITION BY qualified_name` (key constant in partition). **Wrong** when `PARTITION BY name` (`nodes_by_names` / Method fallback): same-name rows can differ on `qualified_name`, so top-N by `file_path` can pick a **different candidate set** than singular `_nodes` (`ORDER BY _NODE_ORDER = qualified_name, file_path, line_start, id`). Violates R4.2 / AC1 / C2.
+- **Repro:** `\A\put`@`b.x` vs `\Z\put`@`a.x`, `limit=1` → old semantics `\A\put`; new path `\Z\put`.
+- **Why proving missed it:** golden fixture `a.x`/`b.x`/`c.x` sorted the same as `\A::put`/`\B::put`/`\C::put`.
+- **Non-blocking:** sibling append order across pass-1 vs pass-2 not observable under `_EDGE_ORDER`.
+
+**Fixed in:** `2c10bac` — `ORDER BY {_NODE_ORDER}` inside partition + `test_nodes_by_names_top_n_follows_qualified_name_not_file_path`.
 
 ### Challenger detail ([Challenger](70f0e660-c06d-4042-9699-477df9b8edd6)) — ticket-blind
 
-`REQUIREMENTS: 9` · agreed with reviewer on name-keyed top-N defect; O(1) SELECT / store SQL / suite otherwise met.
+`REQUIREMENTS: 9` · independence: raw ticket only (working doc excluded from judgment).
 
-### Reviewer detail round 2 ([Reviewer](c04e91c4-c4a4-4b0d-9478-c96570a57b35))
+| # | Reconstructed requirement | Verdict | Evidence |
+|---|---------------------------|---------|----------|
+| 1 | Add `nodes_by_qualified_names` / `nodes_by_names` with per-key cap | met | `store.py:283-297`; resolver calls with `limit=max_candidates` |
+| 2 | Two-pass rewrite; **no behavior change** | **not met** (pre-fix) | name-keyed top-N diverged — see #4 |
+| 3 | Per-key top-N via `ROW_NUMBER` PARTITION, not global LIMIT | met | `store.py` `ROW_NUMBER() … WHERE rn <= ?` |
+| 4 | Candidate order byte-identical to `_NODE_ORDER` | **not met** (name) / met (qname) | partition ordered by `file_path…` for `name` keys |
+| 5 | Store owns SQL; no language branches | met | SQL only in `store.py`; no `if language ==` in core |
+| 6 | AC: byte-identical edges golden | **not met** (as proof) | golden fixture couldn't catch #4; live counter-example existed |
+| 7 | AC: O(1) node SELECTs per batch | met | ≤3 `_rows` SELECTs per batch; proving asserts `calls["n"] <= 4` |
+| 8 | AC: `max_candidates` per key when several exceed | met | `test_batch_lookup_caps_per_key_not_globally` |
+| 9 | AC: existing tests pass | met | **560 passed** at challenger time |
 
-- **Verdict:** LGTM — Critical fixed; no remaining Critical/Important
+**Summary from challenger:** batching + O(1) + store SQL sound; **behavior change** on Method-name fallback truncation until partition order fixed.
 
-**Gate 4:** clean.
+### Reviewer detail round 2 verify ([Reviewer](c04e91c4-c4a4-4b0d-9478-c96570a57b35))
+
+- **Verdict:** LGTM
+- **Prior Critical verified fixed:**
+  1. Partition `ORDER BY {_NODE_ORDER}` (`store.py:695-701`)
+  2. Regression `test_nodes_by_names_top_n_follows_qualified_name_not_file_path` — `\Z::put`@`a.x` vs `\A::put`@`z.x`, `limit=1` → both singular and batched pick `\A::put`
+- **Verification:** `tests/test_resolver.py` + `test_store.py` → **95 passed**; ruff/mypy clean; full-suite sandbox adapter hangs treated as env fault (untouched files)
+- **Rules:** R1.1 / R1.4 / R3.2 / R4.2 / R7.2 — ok; no Critical/Important remain
+
+### Scope reconcile
+
+File set ⊆ change-list; approach bullets **implemented-as-approved** (after round-1 fix). **Gate 4: clean.**
+
+### Matrix Ph3/4
+
+G1 / R2–R4 / C* / AC* → ✅ proven by proving + cap + name-order regression + full suite (**561 passed** post-fix).
 
 ---
 
@@ -290,5 +320,5 @@ Add `GraphStore.nodes_by_qualified_names` / `nodes_by_names` using `ROW_NUMBER()
 |-------|----------|-------|--------|-------|
 | 0 refine | challenger (exposure-checker) | 1 | unmeasured (host does not surface usage) | [d0b1d784](d0b1d784-c72d-4f33-bbdc-f674674c3fb1); EXPOSURE: 0 |
 | 4 review | reviewer | 1 | unmeasured (host does not surface usage) | [3e4ad06e](3e4ad06e-0b78-427f-9432-fabe4883fb59); BLOCK |
-| 4 review | challenger | 1 | unmeasured (host does not surface usage) | [70f0e660](70f0e660-c06d-4042-9699-477df9b8edd6); not clean |
+| 4 review | challenger | 1 | unmeasured (host does not surface usage) | [70f0e660](70f0e660-c06d-4042-9699-477df9b8edd6); 7 met / not met on byte-identity |
 | 4 review | reviewer | 2 verify | unmeasured (host does not surface usage) | [c04e91c4](c04e91c4-c4a4-4b0d-9478-c96570a57b35); LGTM |
