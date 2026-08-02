@@ -9,7 +9,7 @@ from typing import Literal, NamedTuple
 from code_atlas.config import Config
 from code_atlas.contract import CALLER_KINDS, CONFIDENCE_TIERS
 from code_atlas.store import GraphStore
-from code_atlas.tools.nav_result import edge_hit, empty_nav, nav_result
+from code_atlas.tools.nav_result import edge_hit, edge_id, empty_nav, nav_result
 
 NAME = "find_callers"
 
@@ -69,13 +69,10 @@ def _callers(store: GraphStore, qname: str, *, hops: int, limit: int) -> _Caller
         if hop >= hops:
             continue
         for edge in store.edges_by_target(target, kinds=CALLER_KINDS, limit=limit):
-            raw_id = edge["id"]
-            if not isinstance(raw_id, int):
-                raise TypeError(f"edge id must be int, got {type(raw_id).__name__}")
-            edge_id = raw_id
-            if edge_id in seen_edge_ids:
+            eid = edge_id(edge)
+            if eid in seen_edge_ids:
                 continue
-            seen_edge_ids.add(edge_id)
+            seen_edge_ids.add(eid)
             results.append(edge_hit(edge, depth=hop + 1))
             if len(results) >= limit:
                 break

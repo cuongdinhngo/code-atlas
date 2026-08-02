@@ -24,7 +24,7 @@ is [`PLAN.md`](PLAN.md).
 | 012 | [Contract-conformance & PHP coverage tests](tasks/012_contract-conformance-tests.md) | M2 | done | 025, 002 |
 | 013 | [Nav tools — callers / refs / impls](tasks/013_nav-tools.md) | M2 | done | 011, 010 |
 | 014 | [Search / read / outline + FTS **(ship)**](tasks/014_search-read-outline.md) | M3 | done | 010, 004 |
-| 015 | [Full PHP coverage + scale to 112k](tasks/015_php-full-coverage-and-scale.md) | M4 | todo | 013, 014, 008 |
+| 015 | [Full PHP coverage + scale to 112k](tasks/015_php-full-coverage-and-scale.md) | M4 | done | 013, 014, 008 |
 | 016 | [Incremental update via git diff](tasks/016_incremental-git.md) | M5 | todo | 011, 009 |
 | 017 | [Impact engine + tool + prompts](tasks/017_impact-engine.md) | M6 | todo | 013, 016 |
 | 018 | [Cross-repo validation](tasks/018_cross-repo-validation.md) | M4 | todo | 015 |
@@ -73,11 +73,18 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 012 | Contract-conformance & PHP coverage tests | **4 dispatch** — refine exposure-checker + analysis extractor + review `mango:reviewer` + `mango:challenger`; all token cells **`unmeasured (blocking retrieval)`**. Phases 2–3 and 5 dispatched **nothing**. **Main-loop spend is unmeasured**, as for 004–011 and 008 | [#22](https://github.com/cuongdinhngo/code-atlas/pull/22) |
 | 013 | Nav tools — callers / refs / impls | **3 dispatch** — refine exposure-checker + review `mango:reviewer` + `mango:challenger`; all token cells **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 dispatched **nothing**. **Main-loop spend is unmeasured**, as for 004–012 and 008 | [#23](https://github.com/cuongdinhngo/code-atlas/pull/23) |
 | 014 | Search / read / outline + FTS **(ship)** | **3 dispatch** — refine exposure-checker + review `mango:reviewer` + `mango:challenger`; all token cells **`unmeasured (blocking retrieval)`**. Phases 1–3 dispatched **nothing** on the main model (design/execute). **Main-loop spend is unmeasured**, as for 004–013 | [#24](https://github.com/cuongdinhngo/code-atlas/pull/24) |
+| 015 | Full PHP coverage + scale to 112k | **3 dispatch** — refine exposure-checker + review `mango:reviewer` + `mango:challenger`; all token cells **`unmeasured (host does not surface usage)`**. Phases 1–3 dispatched **nothing** on the main model. **Main-loop spend is unmeasured**, as for 004–014 | [#25](https://github.com/cuongdinhngo/code-atlas/pull/25) |
 
 ## Follow-ups (not yet ticketed)
 
 - Resolver: link `IMPORTS` (`target_raw` is already an FQN) so `find_references` sees `use`
   statements — filed from [PR #23](https://github.com/cuongdinhngo/code-atlas/pull/23) review.
+- **015 AC2 operator run:** land a real `CODE_ATLAS_SCALE_SAMPLE` timing artifact (elapsed +
+  `peak_rss_*`) against the ~112k checkout — deferred from [PR #25](https://github.com/cuongdinhngo/code-atlas/pull/25)
+  (D1). Natural home: task [018](tasks/018_cross-repo-validation.md) or a thin follow-up before it.
+- **015 resolver N+1 reads:** batch `nodes_by_qualified_name` lookups per unresolved-edge batch
+  (`WHERE qualified_name IN (...)`) before the D1/018 scale baseline — write path is batched; read
+  path is still one SELECT per edge ([PR #25](https://github.com/cuongdinhngo/code-atlas/pull/25)).
 
 ## Suggested order
 

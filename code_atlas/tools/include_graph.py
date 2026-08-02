@@ -1,0 +1,157 @@
+"""``include_graph`` — ``include``/``require`` neighbors for one path (§12)."""
+
+from __future__ import annotations
+
+from collections import deque
+from collections.abc import Callable
+from pathlib import Path, PurePosixPath
+from typing import Literal, NamedTuple
+
+from code_atlas.config import Config
+from code_atlas.store import GraphStore
+from code_atlas.tools.nav_result import edge_hit, edge_id, empty_nav, nav_result
+
+NAME = "include_graph"
+
+DetailLevel = Literal["minimal", "standard"]
+Direction = Literal["imports", "imported_by", "both"]
+
+_INCLUDE = ("INCLUDES",)
+
+
+class _GraphOutcome(NamedTuple):
+    results: list[dict[str, object]]
+    truncated: bool
+    unresolved_includes: int
+
+
+def create(config: Config) -> Callable[..., dict[str, object]]:
+    """Bind the tool to one repo's configuration."""
+
+    def include_graph(
+        path: str,
+        direction: Direction = "both",
+        depth: int = 1,
+        detail_level: DetailLevel = "standard",
+    ) -> dict[str, object]:
+        """``include``/``require`` neighbors of ``path``.
+
+        ``direction`` is ``imports`` (what this file includes), ``imported_by`` (who includes it),
+        or ``both``. ``depth`` defaults to 1 (direct); deeper values BFS over linked ``INCLUDES``
+        only, capped by ``CA_MAX_RESULTS``. Linked edges only appear in ``results``;
+        ``unresolved_includes`` counts bare/dynamic includes on the seed path's ``imports`` side.
+        """
+        if depth < 1:
+            raise ValueError(f"depth must be >= 1, got {depth}")
+        if direction not in ("imports", "imported_by", "both"):
+            raise ValueError(f"direction must be imports|imported_by|both, got {direction!r}")
+        rel = _repo_relative(config.root, path)
+        if not config.db_path.is_file():
+            return empty_nav(
+                rel, detail_level=detail_level, db_path=str(config.db_path), subject_key="path"
+            )
+        limit = config.max_results
+        with GraphStore(config.db_path) as store:
+            outcome = _graph(store, rel, direction=direction, hops=depth, limit=limit)
+        return nav_result(
+            rel,
+            outcome.results,
+            detail_level=detail_level,
+            db_path=str(config.db_path),
+            truncated=outcome.truncated,
+            subject_key="path",
+            direction=direction,
+            depth=depth,
+            unresolved_includes=outcome.unresolved_includes,
+        )
+
+    return include_graph
+
+
+def _graph(
+    store: GraphStore,
+    path: str,
+    *,
+    direction: Direction,
+    hops: int,
+    limit: int,
+) -> _GraphOutcome:
+    results: list[dict[str, object]] = []
+    seen_edge_ids: set[int] = set()
+    visited: set[str] = {path}
+    queue: deque[tuple[str, int]] = deque([(path, 0)])
+    truncated = False
+    unresolved = _count_unresolved_imports(store, path) if direction in ("imports", "both") else 0
+
+    while queue and len(results) < limit:
+        current, hop = queue.popleft()
+        if hop >= hops:
+            continue
+        neighbors = _neighbors(store, current, direction=direction, limit=limit)
+        for index, (eid, neighbor, hit) in enumerate(neighbors):
+            if eid in seen_edge_ids:
+                continue
+            seen_edge_ids.add(eid)
+            hit = {**hit, "depth": hop + 1}
+            results.append(hit)
+            if len(results) >= limit:
+                # Exact fill with no further neighbors and no deeper queue ⇒ not truncated.
+                truncated = index + 1 < len(neighbors) or bool(queue)
+                break
+            if hop + 1 >= hops or neighbor in visited:
+                continue
+            visited.add(neighbor)
+            queue.append((neighbor, hop + 1))
+
+    return _GraphOutcome(
+        results=results, truncated=truncated, unresolved_includes=unresolved
+    )
+
+
+def _count_unresolved_imports(store: GraphStore, path: str) -> int:
+    """Bare/dynamic INCLUDES from ``path`` — linked-only results hide these otherwise."""
+    count = 0
+    for edge in store.edges_by_source(path, kinds=_INCLUDE, limit=10_000):
+        target = edge.get("target_qname")
+        if not isinstance(target, str) or not target:
+            count += 1
+    return count
+
+
+def _neighbors(
+    store: GraphStore, path: str, *, direction: Direction, limit: int
+) -> list[tuple[int, str, dict[str, object]]]:
+    out: list[tuple[int, str, dict[str, object]]] = []
+    if direction in ("imports", "both"):
+        for edge in store.edges_by_source(path, kinds=_INCLUDE, limit=limit):
+            target = edge.get("target_qname")
+            if not isinstance(target, str) or not target:
+                continue
+            out.append(
+                (
+                    edge_id(edge),
+                    target,
+                    edge_hit(edge, subject=target, subject_key="path"),
+                )
+            )
+    if direction in ("imported_by", "both"):
+        for edge in store.edges_by_target(path, kinds=_INCLUDE, limit=limit):
+            source = str(edge["source_qname"])
+            out.append(
+                (
+                    edge_id(edge),
+                    source,
+                    edge_hit(edge, subject=source, subject_key="path"),
+                )
+            )
+    return out
+
+
+def _repo_relative(root: Path, path: str) -> str:
+    candidate = Path(path)
+    if candidate.is_absolute():
+        try:
+            return candidate.resolve().relative_to(root.resolve()).as_posix()
+        except ValueError:
+            return PurePosixPath(path).as_posix()
+    return PurePosixPath(path).as_posix()

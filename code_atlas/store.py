@@ -11,7 +11,7 @@ determinism (R4.2) is asserted over row content ordered by a stable key, with th
 
 import json
 import sqlite3
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -275,25 +275,73 @@ class GraphStore:
         return self._edges("target_qname = ?", qname, kinds, limit)
 
     def unresolved_edges(self) -> list[Row]:
-        """Every edge the resolver may still link — ``target_qname`` is still NULL (§8.2)."""
+        """Every unresolved edge (``target_qname`` NULL), in ``id`` order (§8.2).
+
+        Materializes via ``iter_unresolved_edges`` (was a single ``_EDGE_ORDER`` query).
+        """
+        return [row for batch in self.iter_unresolved_edges() for row in batch]
+
+    def iter_unresolved_edges(
+        self, *, batch_size: int = 1000, skip_dynamic: bool = False
+    ) -> Iterator[list[Row]]:
+        """Stream unresolved edges in ``id`` order so a large graph need not load at once (§8.2 M4).
+
+        ``batch_size`` is validated immediately (not deferred to first ``next()``).
+        ``skip_dynamic`` omits ``DYNAMIC`` rows so resolve batches stay full of linkable work.
+        """
+        if batch_size < 1:
+            raise ValueError(f"batch_size must be >= 1, got {batch_size}")
+        return self._iter_unresolved_edges(batch_size, skip_dynamic=skip_dynamic)
+
+    def _iter_unresolved_edges(
+        self, batch_size: int, *, skip_dynamic: bool
+    ) -> Iterator[list[Row]]:
+        last_id = 0
+        dynamic_clause = " AND confidence_tier != 'DYNAMIC'" if skip_dynamic else ""
         sql = (
-            f"SELECT id, {_EDGE_COLUMNS} FROM edges WHERE target_qname IS NULL "
-            f"ORDER BY {_EDGE_ORDER}"
+            f"SELECT id, {_EDGE_COLUMNS} FROM edges "
+            f"WHERE target_qname IS NULL{dynamic_clause} AND id > ? "
+            f"ORDER BY id LIMIT ?"
         )
-        return self._rows(EDGE_ROW_KEYS, sql, ())
+        while True:
+            batch = self._rows(EDGE_ROW_KEYS, sql, (last_id, batch_size))
+            if not batch:
+                return
+            last_id = int(str(batch[-1]["id"]))
+            yield batch
 
     def link_edge(self, edge_id: int, target_qname: str, confidence_tier: str) -> None:
         """Set one edge's resolved target and tier (resolver only — R1.4)."""
-        with self._conn:
-            self._conn.execute(
-                "UPDATE edges SET target_qname = ?, confidence_tier = ? WHERE id = ?",
-                (target_qname, confidence_tier, edge_id),
-            )
+        self.link_edges([(edge_id, target_qname, confidence_tier)])
+
+    def link_edges(self, links: Sequence[tuple[int, str, str]]) -> None:
+        """Batch-set resolved targets — one transaction for the whole list (§8.2 M4)."""
+        self.apply_resolution(links, ())
 
     def insert_edge(self, edge: Mapping[str, object]) -> None:
         """Insert one edge row — used when a multi-candidate resolve expands into siblings."""
+        self.insert_edges([edge])
+
+    def insert_edges(self, edges: Sequence[Mapping[str, object]]) -> None:
+        """Insert many edge rows in one transaction (multi-candidate expand / M4)."""
+        self.apply_resolution((), edges)
+
+    def apply_resolution(
+        self,
+        links: Sequence[tuple[int, str, str]],
+        siblings: Sequence[Mapping[str, object]],
+    ) -> None:
+        """Link parents and insert HEURISTIC siblings in one transaction (crash-safe)."""
+        if not links and not siblings:
+            return
         with self._conn:
-            self._insert(EDGES, _grouped(contract.EDGE_FIELDS, [edge]))
+            if links:
+                self._conn.executemany(
+                    "UPDATE edges SET target_qname = ?, confidence_tier = ? WHERE id = ?",
+                    [(qname, tier, edge_id) for edge_id, qname, tier in links],
+                )
+            if siblings:
+                self._insert(EDGES, _grouped(contract.EDGE_FIELDS, siblings))
 
     def file_hash(self, path: str) -> str | None:
         """Content hash stored for ``path``, or ``None`` when the file is not indexed."""
@@ -339,18 +387,13 @@ class GraphStore:
     ) -> list[Row]:
         """Prefix match on ``name`` / ``qualified_name`` when trigram FTS cannot help."""
         pattern = f"{_like_literal(query.lower())}%"
-        where = (
-            "(LOWER(name) LIKE ? ESCAPE '!' OR LOWER(qualified_name) LIKE ? ESCAPE '!')"
-        )
+        where = "(LOWER(name) LIKE ? ESCAPE '!' OR LOWER(qualified_name) LIKE ? ESCAPE '!')"
         params: tuple[object, ...] = (pattern, pattern)
         if kind is not None:
             where = f"{where} AND kind = ?"
             params = (*params, kind)
         where, params = _with_namespace(where, params, namespace, qname_column="qualified_name")
-        sql = (
-            f"SELECT id, {_NODE_COLUMNS} FROM nodes WHERE {where} "
-            f"ORDER BY {_NODE_ORDER} LIMIT ?"
-        )
+        sql = f"SELECT id, {_NODE_COLUMNS} FROM nodes WHERE {where} ORDER BY {_NODE_ORDER} LIMIT ?"
         return self._rows(NODE_ROW_KEYS, sql, (*params, limit))
 
     def _nodes(self, where: str, value: str, kind: str | None, limit: int) -> list[Row]:
@@ -358,9 +401,7 @@ class GraphStore:
         sql = f"SELECT id, {_NODE_COLUMNS} FROM nodes WHERE {clause} ORDER BY {_NODE_ORDER} LIMIT ?"
         return self._rows(NODE_ROW_KEYS, sql, (*params, limit))
 
-    def _edges(
-        self, where: str, value: str, kinds: Sequence[str] | None, limit: int
-    ) -> list[Row]:
+    def _edges(self, where: str, value: str, kinds: Sequence[str] | None, limit: int) -> list[Row]:
         if kinds is None:
             sql = (
                 f"SELECT id, {_EDGE_COLUMNS} FROM edges WHERE {where} "
