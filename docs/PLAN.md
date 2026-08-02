@@ -253,7 +253,15 @@ Runs after all nodes exist:
   one transaction per batch. Name-match fan-out remains capped by `CA_MAX_RESULTS`.
 
 ### 8.3 Incremental (`indexer.incremental_update`)
-`git diff <last_commit>..HEAD` → changed files; add single-hop **dependents** (files whose nodes are edge targets into changed symbols); reparse `changed ∪ dependents` (hash-skip unchanged); re-run resolver scoped to affected qnames; bump `meta.last_commit`.
+**Shipped (task 016).** Diff = `last_commit..HEAD` **∪** working-tree changes vs `HEAD` (so
+uncommitted edits are visible to `full=false`). Add single-hop **dependents** (files with edges
+into changed or departing symbols — including rename sources that git only reports as the new
+path); reparse `changed ∪ dependents` (hash-skip only unchanged *changed* paths — dependents are
+always reparsed so adapter tiers and duplicate keys stay intact); `resolve_edges`; bump
+`meta.last_commit`. `build_or_update_index(full=false)` runs this when `last_commit` and the diff
+are usable; otherwise it falls back to a full build and reports the mode that actually ran.
+Staleness stays `current | behind | unknown` (commit equality, or `behind` when the worktree is
+dirty). Tests use hermetic throwaway repos so CI can keep a shallow checkout.
 
 ---
 

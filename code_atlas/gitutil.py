@@ -1,4 +1,4 @@
-"""Read-only git helpers for the build (§8.1). Diff-driven incremental support lands in task 016.
+"""Read-only git helpers for the build (§8.1 / §8.3).
 
 Every helper returns ``None`` rather than raising when git cannot answer — a directory that is not a
 repo, or a repo with no commit yet, is a normal state the build degrades through (the walk fallback,
@@ -28,6 +28,36 @@ def head_commit(root: Path) -> str | None:
     """The commit the working tree is at, or None when there is no repo or no commit yet."""
     found = _run(root, "rev-parse", "HEAD")
     return None if found is None else (found.strip() or None)
+
+
+def changed_paths(root: Path, since: str) -> tuple[str, ...] | None:
+    """Paths that differ from ``since`` on disk, or None when git cannot answer (§8.3).
+
+    Unions ``since..HEAD`` with the working tree vs ``HEAD`` (staged and unstaged), so an
+    uncommitted edit is visible to ``full=false`` the same way a full build would see it. Renames
+    contribute the new path; the old path drops out of ``collect`` and must be folded into
+    affected qnames by the indexer before reconcile.
+    """
+    committed = _run(root, "diff", "--name-only", "-z", f"{since}..HEAD")
+    if committed is None:
+        return None
+    paths = {path for path in committed.split("\0") if path}
+    dirty = _run(root, "diff", "--name-only", "-z", "HEAD")
+    if dirty is not None:
+        paths.update(path for path in dirty.split("\0") if path)
+    return tuple(sorted(paths))
+
+
+def working_tree_dirty(root: Path) -> bool | None:
+    """True when tracked files differ from HEAD; None when git cannot answer.
+
+    Untracked paths (including ``.code-atlas/graph.db``) are ignored: ``collect`` only indexes
+    tracked files in a git repo, so they cannot stale the index.
+    """
+    found = _run(root, "status", "--porcelain", "-z", "-uno")
+    if found is None:
+        return None
+    return any(part for part in found.split("\0") if part)
 
 
 def _run(root: Path, *arguments: str) -> str | None:

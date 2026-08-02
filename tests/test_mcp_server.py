@@ -256,11 +256,24 @@ def test_the_build_tool_produces_the_same_index_a_direct_build_does(repo: Path) 
 def test_the_requested_mode_is_echoed_and_the_mode_that_ran_is_named(
     repo: Path, full: bool
 ) -> None:
-    """Only full builds exist until task 016, so the response never claims an incremental ran."""
+    """On a fresh index there is no last_commit yet, so both requests run a full build."""
     result = call(build_server(served_config(repo)), BUILD, {"full": full})
 
     assert result["mode"] == "full"
     assert result["requested_full"] is full
+
+
+def test_full_false_after_a_commit_runs_incremental(repo: Path) -> None:
+    config = served_config(repo)
+    call(build_server(config), BUILD, {"full": True})
+    tree(repo, "src/a.aa")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "edit")
+
+    result = call(build_server(config), BUILD, {"full": False})
+
+    assert result["mode"] == "incremental"
+    assert result["requested_full"] is False
 
 
 # --- R2 · the CA_TOOLS allow-list (per-item, N=2) ------------------------------------------------

@@ -1,4 +1,4 @@
-"""``full_build`` — one repo into one index (§8.1). ``incremental_update`` lands in task 016.
+"""``full_build`` and ``incremental_update`` — one repo into one index (§8.1 / §8.3).
 
 Parsing fans out across N adapter processes; **writing does not**. The caller's thread owns the
 store and performs every mutation, which the database driver itself enforces — a connection may only
@@ -75,6 +75,68 @@ def full_build(config: Config, store: GraphStore) -> BuildReport:
     _record_meta(config, store)
     resolve_edges(store, max_candidates=config.max_results)
     return BuildReport(files=len(paths), removed=removed, **counts)
+
+
+def incremental_update(
+    config: Config, store: GraphStore, changed: Sequence[str]
+) -> BuildReport:
+    """Re-index ``changed ∪ dependents`` and re-link into affected qnames (§8.3).
+
+    ``changed`` is the git path set (commit range ∪ dirty tree); the caller falls back to
+    :func:`full_build` when git cannot name one. Deletes and rename sources drop out of ``collect``
+    and are reconciled away after their qnames are folded into ``affected``.
+    """
+    watchdog = _Watchdog(config.adapter_timeout)
+    watchdog.start()
+    try:
+        announced = _announce(config, watchdog)
+        try:
+            owners = _owners(announced)
+            paths = collect(config.root, tuple(owners))
+            wanted = set(paths)
+            changed_set = set(changed)
+            indexed = set(store.file_paths())
+
+            prior = sorted(changed_set & indexed)
+            affected = set(store.qnames_in_files(prior))
+            # File nodes use the path as qname; include deleted/renamed-away paths so inbound edges
+            # re-link (git diff names only the rename destination).
+            affected.update(changed_set)
+            gone = sorted(indexed - wanted)
+            affected.update(store.qnames_in_files(gone))
+            affected.update(gone)
+
+            dependents = set(store.file_paths_targeting(sorted(affected))) & wanted
+            removed = _reconcile(store, paths)
+
+            candidates = sorted((changed_set | dependents) & wanted)
+            # Dependents are unchanged by construction, so hash-skip must not apply to them —
+            # replace_file_rows restores adapter tiers and duplicate keys that unlink cannot.
+            to_parse = [
+                path
+                for path in candidates
+                if path in dependents or not _hash_matches(store, config.root, path)
+            ]
+            counts = (
+                _parse_all(config, store, watchdog, announced, owners, to_parse)
+                if to_parse
+                else {"parsed": 0, "failed": 0, "nodes": 0, "edges": 0}
+            )
+        finally:
+            for adapter in announced.values():
+                adapter.stop()
+    finally:
+        watchdog.stop()
+
+    _record_meta(config, store)
+    resolve_edges(store, max_candidates=config.max_results)
+    return BuildReport(files=len(to_parse), removed=removed, **counts)
+
+
+def _hash_matches(store: GraphStore, root: Path, path: str) -> bool:
+    """True when the indexed hash equals the file's current bytes — skip a no-op reparse (§8.3)."""
+    digest = _digest(root / path)
+    return bool(digest) and store.file_hash(path) == digest
 
 
 def collect(root: Path, suffixes: Sequence[str]) -> tuple[str, ...]:

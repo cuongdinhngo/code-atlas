@@ -64,7 +64,61 @@ def reply(path):
         "file_path": path,
         "line_start": 1,
     }
-    return json.dumps({"path": path, "ok": True, "nodes": [node], "edges": []})
+    if path.startswith("twin/"):
+        # Same method name in two files — exercises HEURISTIC top-N siblings under incremental.
+        node = {
+            "kind": "Method",
+            "name": "run",
+            "qualified_name": f"{path}::run",
+            "file_path": path,
+            "line_start": 1,
+        }
+    elif path.startswith("dup/"):
+        # Same FQN in two files — EXTENDS multi-match then disambiguation.
+        node = {
+            "kind": "Class",
+            "name": "Dup",
+            "qualified_name": "\\Dup",
+            "file_path": path,
+            "line_start": 1,
+        }
+    # Paths under dep/ call into lib/core.aa so incremental can prove single-hop dependents (§8.3).
+    # dep/name_* calls the short name ``run`` so multi-match HEURISTIC siblings are in play.
+    # dep/extends_* EXTENDS \\Dup (adapter default RESOLVED) so disambiguation can recover RESOLVED.
+    edges = []
+    if path.startswith("dep/name_"):
+        edges = [
+            {
+                "kind": "CALLS",
+                "source_qname": f"{path}::Thing",
+                "target_raw": "run",
+                "file_path": path,
+                "line": 2,
+                "confidence_tier": "HEURISTIC",
+            }
+        ]
+    elif path.startswith("dep/extends_"):
+        edges = [
+            {
+                "kind": "EXTENDS",
+                "source_qname": f"{path}::Thing",
+                "target_raw": "\\Dup",
+                "file_path": path,
+                "line": 2,
+            }
+        ]
+    elif path.startswith("dep/"):
+        edges = [
+            {
+                "kind": "CALLS",
+                "source_qname": f"{path}::Thing",
+                "target_raw": "lib/core.aa::Thing",
+                "file_path": path,
+                "line": 2,
+                "confidence_tier": "HEURISTIC",
+            }
+        ]
+    return json.dumps({"path": path, "ok": True, "nodes": [node], "edges": edges})
 
 
 def count_boot(boot_log):

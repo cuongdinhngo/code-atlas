@@ -66,7 +66,7 @@ takes `detail_level` — `minimal` for the payload alone, `standard` (the defaul
 | Tool | Returns |
 |---|---|
 | `get_index_status` | index stats, last indexed commit, staleness, next-step suggestions (call first) |
-| `build_or_update_index` | counts + timing for the build it ran (full builds only until incremental lands) |
+| `build_or_update_index` | counts + timing; `full=false` incremental when possible, else full |
 | `search_symbol` | ranked symbols (`qname`, kind, `file:line`) |
 | `file_outline` | symbols + line ranges, no bodies |
 | `read_symbol` | source of just one class/method + docblock |
