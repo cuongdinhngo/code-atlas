@@ -4,7 +4,7 @@ slug: resolver-batched-lookups
 title: Batch resolver candidate lookups (N+1 read path)
 phase: 1
 milestone: M4
-status: in-progress
+status: done
 depends_on: [011, 015]
 ---
 
@@ -66,11 +66,12 @@ that baseline measures the read path this task removes.
 ## Session status
 
 ```
-phase: 5 finalise — dry-run; waiting per-action approval (push, open PR)
-Gate: Gate 4 clean; final gate open
+phase: 5 finalise — complete
+Gate: closed (push + PR #30 approved)
 work_doc_mode: embed
 working_doc: docs/tasks/027_resolver-batched-lookups.md (below separator)
 branch: feat/027-resolver-batched-lookups
+PR: https://github.com/cuongdinhngo/code-atlas/pull/30
 Reviewed at: 2c10bac7d88997355903d76df6015dab0414fff2
 Reviewed files: code_atlas/store.py, code_atlas/resolver.py, tests/test_resolver.py, docs/BACKLOG.md, docs/tasks/027_resolver-batched-lookups.md
 ```
@@ -305,12 +306,12 @@ G1 / R2–R4 / C* / AC* → ✅ proven by proving + cap + name-order regression 
 
 ---
 
-## Phase 5 — Finalise (dry-run)
+## Phase 5 — Finalise
 
-### Outward actions (need separate yes)
+### Outward actions
 
-1. **Push** `feat/027-resolver-batched-lookups`
-2. **Open PR** via `gh pr create`
+1. **Push** — approved → `feat/027-resolver-batched-lookups`
+2. **Open PR** — approved → [#30](https://github.com/cuongdinhngo/code-atlas/pull/30)
 
 ---
 
