@@ -1,0 +1,97 @@
+name: Cross-repo validation
+
+# Opt-in / scheduled only (task 018, R6.2, R6.3). Never a per-PR gate — see ci.yml.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekly Monday 06:00 UTC
+    - cron: "0 6 * * 1"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  public-samples:
+    name: public PHP samples (pinned SHAs)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: none
+
+      - name: Composer (PHP adapter)
+        run: composer install --no-interaction --no-progress --working-dir=adapters/php
+
+      - name: Install code-atlas
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+
+      - name: Cross-repo validate (public only)
+        env:
+          # Absolute path: adapter subprocess cwd is the sample root, not this repo.
+          CA_PHP_CMD: php ${{ github.workspace }}/adapters/php/index.php --server
+        run: python scripts/cross_repo_validate.py --public-only
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-repo-report
+          path: artifacts/cross-repo-report.json
+          if-no-files-found: warn
+
+      - name: Open or comment failure issue
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'Cross-repo validation failed';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              `Scheduled/opt-in cross-repo validation failed on \`${context.ref}\`.`,
+              '',
+              `- Workflow run: ${runUrl}`,
+              '- Download the `cross-repo-report` artifact for per-sample `ok` / `error` rows.',
+              '- See `docs/runbooks/cross-repo-validation.md`.',
+            ].join('\n');
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'cross-repo-validation',
+              per_page: 10,
+            });
+            const existing = issues.find((i) => i.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['cross-repo-validation'],
+              });
+            }

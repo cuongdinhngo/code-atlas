@@ -1,0 +1,134 @@
+"""Task 018: cross-repo harness assert bar + parse isolation (Plan §16 / R6.3)."""
+
+from __future__ import annotations
+
+import importlib.util
+import json
+import re
+import shlex
+import shutil
+from pathlib import Path
+
+import pytest
+
+from code_atlas.config import load_config
+from code_atlas.indexer import BuildReport, full_build
+from code_atlas.store import GraphStore
+
+REPO = Path(__file__).resolve().parent.parent
+PHP_ENTRY = REPO / "adapters" / "php" / "index.php"
+PHP_AUTOLOAD = REPO / "adapters" / "php" / "vendor" / "autoload.php"
+MANIFEST = REPO / "scripts" / "cross_repo_samples.json"
+HARNESS = REPO / "scripts" / "cross_repo_validate.py"
+SYNTAX_ERROR = REPO / "tests" / "fixtures" / "php" / "syntax_error.php"
+NAMESPACED = REPO / "tests" / "fixtures" / "php" / "namespaced.php"
+ADAPTERS = REPO / "adapters"
+
+
+def _load_harness():
+    spec = importlib.util.spec_from_file_location("cross_repo_validate", HARNESS)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_harness = _load_harness()
+PlausibleCountsError = _harness.PlausibleCountsError
+assert_parse_isolation = _harness.assert_parse_isolation
+assert_plausible_counts = _harness.assert_plausible_counts
+load_manifest = _harness.load_manifest
+
+PHP = shutil.which("php")
+needs_php = pytest.mark.skipif(
+    PHP is None or not PHP_AUTOLOAD.is_file(),
+    reason="needs the PHP CLI and `composer install` in adapters/php",
+)
+
+
+def test_manifest_lists_three_public_kinds_with_floors() -> None:
+    samples = load_manifest(MANIFEST)
+    assert len(samples) == 3
+    kinds = {s["kind"] for s in samples}
+    assert kinds == {"laravel_app", "symfony_app", "psr4_library"}
+    assert not str(MANIFEST.resolve()).startswith(str(ADAPTERS.resolve()))
+    for sample in samples:
+        assert sample["sha"]
+        assert sample["url"].startswith("https://")
+        assert int(sample["min_files"]) >= 1
+        assert int(sample["min_nodes"]) >= 1
+        assert int(sample["min_edges"]) >= 1
+
+
+def test_manifest_sample_names_absent_from_adapter_source() -> None:
+    """R2.2: same denylist spirit as ci.yml — framework pins must not leak into adapters/."""
+    # Match the CI gate's framework tokens; add brick (this ticket's library pin).
+    pattern = re.compile(r"laravel|symfony|wordpress|drupal|magento|brick", re.I)
+    hits: list[str] = []
+    for path in ADAPTERS.rglob("*"):
+        if not path.is_file():
+            continue
+        if "vendor" in path.parts or "node_modules" in path.parts:
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        if pattern.search(text):
+            hits.append(str(path.relative_to(REPO)))
+    assert hits == [], f"framework/sample names leaked into adapters/: {hits}"
+
+
+def test_assert_plausible_counts_rejects_empty() -> None:
+    empty = BuildReport(files=0, parsed=0, failed=0, removed=0, nodes=0, edges=0)
+    with pytest.raises(PlausibleCountsError, match="files"):
+        assert_plausible_counts(empty, label="empty")
+
+
+def test_assert_plausible_counts_rejects_zero_edges() -> None:
+    nodes_only = BuildReport(files=2, parsed=2, failed=0, removed=0, nodes=3, edges=0)
+    with pytest.raises(PlausibleCountsError, match="edges"):
+        assert_plausible_counts(nodes_only, label="no-edges")
+
+
+def test_assert_plausible_counts_respects_sample_floors() -> None:
+    weak = BuildReport(files=10, parsed=10, failed=0, removed=0, nodes=50, edges=100)
+    with pytest.raises(PlausibleCountsError, match="nodes"):
+        assert_plausible_counts(weak, label="weak", min_files=5, min_nodes=60, min_edges=1)
+
+
+def test_assert_parse_isolation_failure_ratio() -> None:
+    mostly_ok = BuildReport(files=100, parsed=99, failed=1, removed=0, nodes=10, edges=10)
+    assert_parse_isolation(mostly_ok, label="ok", max_failure_ratio=0.02)
+    bad = BuildReport(files=100, parsed=90, failed=10, removed=0, nodes=10, edges=10)
+    with pytest.raises(PlausibleCountsError, match="failure ratio"):
+        assert_parse_isolation(bad, label="bad", max_failure_ratio=0.02)
+
+
+def test_assert_plausible_counts_accepts_positive() -> None:
+    ok = BuildReport(files=2, parsed=1, failed=1, removed=0, nodes=3, edges=1)
+    assert_plausible_counts(ok, label="ok")
+    assert_parse_isolation(ok, label="ok", expect_failures=True)
+
+
+@needs_php
+def test_harness_plausible_counts_and_parse_isolation(tmp_path: Path) -> None:
+    """Proving test: mini-repo with one good + one broken file (A2 + A5)."""
+    (tmp_path / "src").mkdir()
+    shutil.copy(NAMESPACED, tmp_path / "src" / "Good.php")
+    shutil.copy(SYNTAX_ERROR, tmp_path / "src" / "Broken.php")
+
+    php_cmd = shlex.join([PHP or "php", str(PHP_ENTRY), "--server"])
+    config = load_config(
+        tmp_path,
+        {"CA_PHP_CMD": php_cmd, "CA_DB_PATH": str(tmp_path / "graph.db")},
+    )
+    with GraphStore(config.db_path) as store:
+        report = full_build(config, store)
+
+    assert_plausible_counts(report, label="mini")
+    assert_parse_isolation(report, label="mini", expect_failures=True)
+    assert report.parsed >= 1
+    assert report.failed >= 1
+
+
+def test_manifest_is_valid_json_on_disk() -> None:
+    data = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    assert "samples" in data
