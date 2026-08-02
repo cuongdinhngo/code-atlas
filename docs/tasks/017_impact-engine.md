@@ -4,7 +4,7 @@ slug: impact-engine
 title: Impact engine + tool + prompts (M6)
 phase: 1
 milestone: M6
-status: in-progress
+status: done
 depends_on: [013, 016]
 ---
 
@@ -39,12 +39,10 @@ Plan §12 (impact engine), §15 (M6).
 ## Session status
 
 ```
-phase: 4 review
-Gate: 1+2 cleared under standing “best option / pass all gates”
+phase: 5 finalise
+Gate: 4 clean; Reviewed at: 2b40f18
 work_doc_mode: embed
 working_doc: docs/tasks/017_impact-engine.md (below separator)
-Reviewed at: (pending)
-execute_sha: 3693287
 ```
 
 ---
@@ -239,21 +237,34 @@ Revert the change-list commit(s). Repos: `app` only.
 
 ## Phase 3 — Execute
 
-**Branch:** `feat/017-impact-engine` @ `3693287`
+**Branch:** `feat/017-impact-engine` @ `ca0e50f` (3693287 → 65b8142 SQL waves → ca0e50f score/depth pair)
 
 **Verification sweep**
 
 | Check | Result |
 |-------|--------|
 | Proving test | `test_impact_matches_hand_traced_planted_graph` PASS |
-| Impact suite | `tests/test_impact.py` + MCP/prompt collateral — **70 passed** (with `test_mcp_server` + `test_search_read_outline`) |
-| Diff ⊆ change-list | `store.py`, `tools/impact.py`, `tools/prompts.py`, `main.py`, `tests/test_impact.py`, `tests/test_mcp_server.py`, `tests/test_search_read_outline.py`, task/docs — matches items 1–7 |
-| Approach bullets | iterative SQL waves + RESOLVED-only + A1 weights + tool/prompt/register — **implemented-as-approved** |
-| Deviations | none |
-
-**Design-conformance:** all Gate-2 Approach bullets `implemented-as-approved`.
+| Impact suite | `tests/test_impact.py` — **8 passed**; with MCP/store collateral **110 passed** focused |
+| Diff ⊆ change-list | store/impact/prompts/main/tests/docs/contract weights — items 1–7 |
+| Approach bullets | SQL temp-table waves + RESOLVED-only + A1 weights + tool/prompt — **implemented-as-approved** |
+| Deviations | none (post-execute hardening stayed inside item 1 + 5) |
 
 Flows to review.
+
+---
+
+## Phase 4 — Review
+
+Round 1: CHANGES REQUESTED (SQL merge, path seeds, proving kinds, mypy) → fixed in 65b8142/ca0e50f.
+Round 2: CHANGES REQUESTED (unknown qname, truncated exact-fill, max_nodes prune) → fixed in 2b40f18.
+Round 3 verify: **LGTM** ([reviewer](d6f51888-ed89-4a94-a7ab-bb23c975a8a8)).
+
+`Reviewed at: 2b40f18` (impact suite 9 passed).
+
+### Matrix Ph3/4
+All G/R/AC rows ✅.
+
+**Gate 4:** clean.
 
 ---
 
@@ -262,5 +273,8 @@ Flows to review.
 | Phase | Dispatch | Round | Tokens |
 |-------|----------|-------|--------|
 | 0 | mango:challenger (exposure-checker) | 1 | unmeasured (host does not surface usage) |
-| 4 | mango:reviewer | 1 | pending |
-| 4 | mango:challenger | 1 | pending |
+| 4 | mango:reviewer | 1 | unmeasured (host does not surface usage) |
+| 4 | mango:challenger | 1 | unmeasured (host does not surface usage) |
+| 4 | mango:reviewer | 2 | unmeasured (host does not surface usage) |
+| 4 | mango:challenger | 2 | unmeasured (host does not surface usage) |
+| 4 | mango:reviewer | 3 verify | unmeasured (host does not surface usage) |
