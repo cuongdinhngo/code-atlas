@@ -41,8 +41,8 @@ Plan §2 (standard over sample), §16, §17.
 ## Session status
 
 ```
-phase: 5 finalise — dry-run; waiting per-action approval (push, open PR)
-Gate: Gate 4 clean; final gate open
+phase: 5 finalise — outward actions approved (push + PR)
+Gate: final gate — push + open PR approved
 work_doc_mode: embed
 working_doc: docs/tasks/018_cross-repo-validation.md (below separator)
 branch: feat/018-cross-repo-validation
@@ -346,16 +346,16 @@ G1 / R1–R4 / AC* → ✅ proven by proving test + public smoke + workflow + do
 
 ---
 
-## Phase 5 — Finalise (dry-run)
+## Phase 5 — Finalise
 
-### Outward actions (need separate yes)
+### Outward actions
 
-1. **Push** `feat/018-cross-repo-validation` (+ bookkeeping commit if any) to `origin`
-2. **Open PR** via `gh pr create` using the draft below
+1. **Push** — approved
+2. **Open PR** — approved
 
-### Durable lesson (proposal — ratify per claim)
+### Durable lesson
 
-Claim: “When indexing an out-of-tree sample, `CA_PHP_CMD` must use an absolute adapter path because `SubprocessAdapter` sets `cwd` to the sample root.” → type 1 tool-constraint / project ground-truth for scripts. **Propose** one-line note already in runbook; optional LESSONS claim if you want it durable.
+Claim left as runbook-only (already documented); not promoted to `docs/LESSONS.md` this ticket.
 
 ---
 
