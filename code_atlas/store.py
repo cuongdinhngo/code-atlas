@@ -253,26 +253,19 @@ class GraphStore:
     def nodes_by_file(self, path: str, *, limit: int) -> list[Row]:
         return self._nodes("file_path = ?", path, None, limit)
 
-    def edges_by_source(self, qname: str, *, kind: str | None = None, limit: int) -> list[Row]:
-        return self._edges("source_qname = ?", qname, kind, limit)
+    def edges_by_source(
+        self, qname: str, *, kinds: Sequence[str] | None = None, limit: int
+    ) -> list[Row]:
+        return self._edges("source_qname = ?", qname, kinds, limit)
 
     def edges_by_target(
-        self,
-        qname: str,
-        *,
-        kind: str | None = None,
-        kinds: Sequence[str] | None = None,
-        limit: int,
+        self, qname: str, *, kinds: Sequence[str] | None = None, limit: int
     ) -> list[Row]:
         """Edges whose resolved ``target_qname`` is ``qname``.
 
-        Pass ``kind`` for one kind, or ``kinds`` for several (e.g. CALLS+NEW). Not both.
+        Optional ``kinds`` narrows the set (e.g. CALLER_KINDS).
         """
-        if kind is not None and kinds is not None:
-            raise ValueError("pass kind or kinds, not both")
-        if kinds is not None:
-            return self._edges_in_kinds("target_qname = ?", qname, kinds, limit)
-        return self._edges("target_qname = ?", qname, kind, limit)
+        return self._edges("target_qname = ?", qname, kinds, limit)
 
     def unresolved_edges(self) -> list[Row]:
         """Every edge the resolver may still link — ``target_qname`` is still NULL (§8.2)."""
@@ -310,14 +303,15 @@ class GraphStore:
         sql = f"SELECT id, {_NODE_COLUMNS} FROM nodes WHERE {clause} ORDER BY {_NODE_ORDER} LIMIT ?"
         return self._rows(NODE_ROW_KEYS, sql, (*params, limit))
 
-    def _edges(self, where: str, value: str, kind: str | None, limit: int) -> list[Row]:
-        clause, params = _narrow(where, value, kind, "kind = ?")
-        sql = f"SELECT id, {_EDGE_COLUMNS} FROM edges WHERE {clause} ORDER BY {_EDGE_ORDER} LIMIT ?"
-        return self._rows(EDGE_ROW_KEYS, sql, (*params, limit))
-
-    def _edges_in_kinds(
-        self, where: str, value: str, kinds: Sequence[str], limit: int
+    def _edges(
+        self, where: str, value: str, kinds: Sequence[str] | None, limit: int
     ) -> list[Row]:
+        if kinds is None:
+            sql = (
+                f"SELECT id, {_EDGE_COLUMNS} FROM edges WHERE {where} "
+                f"ORDER BY {_EDGE_ORDER} LIMIT ?"
+            )
+            return self._rows(EDGE_ROW_KEYS, sql, (value, limit))
         if not kinds:
             raise ValueError("kinds must be non-empty")
         placeholders = ", ".join("?" for _ in kinds)

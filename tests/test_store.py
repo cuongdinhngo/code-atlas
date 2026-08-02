@@ -443,7 +443,7 @@ def test_edges_by_source(store: GraphStore) -> None:
 
 def test_edges_by_source_narrows_by_kind(store: GraphStore) -> None:
     seeded(store)
-    assert store.edges_by_source("\\App\\UserRepo::save", kind="NEW", limit=10) == []
+    assert store.edges_by_source("\\App\\UserRepo::save", kinds=("NEW",), limit=10) == []
 
 
 def test_edges_by_target(store: GraphStore) -> None:
@@ -509,7 +509,7 @@ def test_link_edge_and_insert_edge(store: GraphStore) -> None:
     )
     targets = [
         row["target_qname"]
-        for row in store.edges_by_source("\\App\\UserRepo::save", kind="CALLS", limit=10)
+        for row in store.edges_by_source("\\App\\UserRepo::save", kinds=("CALLS",), limit=10)
     ]
     assert targets == ["\\App\\Db::write", "\\App\\Other::write"]
 

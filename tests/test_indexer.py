@@ -241,7 +241,7 @@ def test_the_core_builds_a_repo_into_a_queryable_index(tmp_path: Path, store: Gr
     searched = store.search_nodes("User", kind="Class", limit=10)
     assert [row["qualified_name"] for row in searched] == ["\\App\\Models\\User"]
 
-    extends = store.edges_by_source("\\App\\Models\\User", kind="EXTENDS", limit=10)
+    extends = store.edges_by_source("\\App\\Models\\User", kinds=("EXTENDS",), limit=10)
     assert [row["target_raw"] for row in extends] == ["\\App\\Models\\Base"]
     assert extends[0]["target_qname"] is None, "external Base is absent — stays unlinked"
 

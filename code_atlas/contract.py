@@ -50,6 +50,10 @@ FQN_EDGE_KINDS: frozenset[str] = frozenset(
     {"EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS", "NEW"}
 )
 
+# Named semantic subsets for nav tools (§12) — consumers import these; do not re-list kinds.
+CALLER_KINDS: tuple[str, ...] = ("CALLS", "NEW")
+IMPL_KINDS: tuple[str, ...] = ("EXTENDS", "IMPLEMENTS")
+
 CONFIDENCE_TIERS: tuple[str, ...] = ("RESOLVED", "HEURISTIC", "DYNAMIC")
 
 NODE_FIELDS: tuple[str, ...] = (

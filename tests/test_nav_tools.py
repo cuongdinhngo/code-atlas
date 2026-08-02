@@ -116,6 +116,15 @@ def test_find_callers_matches_resolve_fixture_baseline(tmp_path: Path, store: Gr
     assert hits[0]["file"]
     assert hits[0]["line"]
     assert hits[0]["depth"] == 1
+    assert result["truncated"] is False
+    assert result["frontier_skipped_non_resolved"] == 0
+
+    deep = find_callers.create(db_config(tmp_path))(
+        "\\App\\Repo::put", depth=3, detail_level="minimal"
+    )
+    assert len(deep["results"]) == 1
+    assert deep["depth"] == 3
+    assert deep["frontier_skipped_non_resolved"] >= 1
 
 
 def test_dynamic_edges_are_flagged_and_not_traversed(store: GraphStore) -> None:
@@ -136,10 +145,12 @@ def test_dynamic_edges_are_flagged_and_not_traversed(store: GraphStore) -> None:
     )
 
     direct = _callers(store, "\\leaf", hops=1, limit=50)
-    assert [(h["qname"], h["confidence_tier"]) for h in direct] == [("\\mid", "DYNAMIC")]
+    assert [(h["qname"], h["confidence_tier"]) for h in direct.results] == [("\\mid", "DYNAMIC")]
+    assert direct.frontier_skipped_non_resolved == 0
 
     deep = _callers(store, "\\leaf", hops=2, limit=50)
-    assert [h["qname"] for h in deep] == ["\\mid"]
+    assert [h["qname"] for h in deep.results] == ["\\mid"]
+    assert deep.frontier_skipped_non_resolved == 1
 
 
 def test_heuristic_edges_are_not_traversed_at_depth(store: GraphStore) -> None:
@@ -157,8 +168,10 @@ def test_heuristic_edges_are_not_traversed_at_depth(store: GraphStore) -> None:
         ],
     )
     # HEURISTIC b→c is returned; RESOLVED a→b is not reached because b is not enqueued.
-    assert [h["qname"] for h in _callers(store, "\\c", hops=2, limit=50)] == ["\\b"]
-    assert _callers(store, "\\c", hops=2, limit=50)[0]["confidence_tier"] == "HEURISTIC"
+    outcome = _callers(store, "\\c", hops=2, limit=50)
+    assert [h["qname"] for h in outcome.results] == ["\\b"]
+    assert outcome.results[0]["confidence_tier"] == "HEURISTIC"
+    assert outcome.frontier_skipped_non_resolved == 1
 
 
 def test_find_implementations_are_direct_only(tmp_path: Path, store: GraphStore) -> None:
@@ -180,7 +193,8 @@ def test_find_implementations_are_direct_only(tmp_path: Path, store: GraphStore)
     assert result["results"][0]["kind"] == "EXTENDS"
 
 
-def test_find_references_returns_all_kinds(tmp_path: Path, store: GraphStore) -> None:
+def test_find_references_returns_seeded_linked_kinds(tmp_path: Path, store: GraphStore) -> None:
+    """Seeded filter check: any linked kind targeting the qname is returned (SQL path)."""
     seed_file(
         store,
         "a.x",
@@ -198,13 +212,28 @@ def test_find_references_returns_all_kinds(tmp_path: Path, store: GraphStore) ->
     result = find_references.create(db_config(tmp_path))("\\T", detail_level="minimal")
     assert sorted(h["kind"] for h in result["results"]) == ["CALLS", "EXTENDS", "NEW"]
     assert {h["confidence_tier"] for h in result["results"]} >= {"RESOLVED", "HEURISTIC"}
+    assert result["truncated"] is False
+
+
+@needs_php
+def test_find_references_matches_resolve_fixture_extends(tmp_path: Path, store: GraphStore) -> None:
+    """End-to-end: adapter + resolver link EXTENDS for ``\\App\\User`` → ``\\App\\Base``."""
+    resolve_repo(tmp_path, store)
+    result = find_references.create(db_config(tmp_path))("\\App\\Base", detail_level="minimal")
+    assert result["indexed"] is True
+    assert any(
+        h["qname"] == "\\App\\User"
+        and h["kind"] == "EXTENDS"
+        and h["confidence_tier"] == "RESOLVED"
+        for h in result["results"]
+    )
 
 
 def test_missing_database_does_not_create_one(tmp_path: Path) -> None:
     config = load_config(tmp_path, {})
     assert not config.db_path.is_file()
     result = find_callers.create(config)("\\X", detail_level="minimal")
-    assert result == {"indexed": False, "qname": "\\X", "results": []}
+    assert result == {"indexed": False, "qname": "\\X", "results": [], "truncated": False}
     assert not config.db_path.is_file()
 
 
@@ -222,5 +251,23 @@ def test_exact_qname_does_not_expand_to_members(store: GraphStore) -> None:
             edge("NEW", "\\f", "\\T", "a.x", target_qname="\\T"),
         ],
     )
-    assert [h["kind"] for h in _callers(store, "\\T", hops=1, limit=50)] == ["NEW"]
-    assert [h["qname"] for h in _callers(store, "\\T::m", hops=1, limit=50)] == ["\\f"]
+    assert [h["kind"] for h in _callers(store, "\\T", hops=1, limit=50).results] == ["NEW"]
+    assert [h["qname"] for h in _callers(store, "\\T::m", hops=1, limit=50).results] == ["\\f"]
+
+
+def test_nav_results_flag_truncation(tmp_path: Path, store: GraphStore) -> None:
+    nodes = [node("Function", f"f{i}", f"\\f{i}", "a.x") for i in range(5)]
+    nodes.append(node("Function", "t", "\\t", "a.x"))
+    edges = [
+        edge("CALLS", f"\\f{i}", "\\t", "a.x", target_qname="\\t") for i in range(5)
+    ]
+    seed_file(store, "a.x", nodes, edges)
+    config = replace(db_config(tmp_path), max_results=2)
+    result = find_callers.create(config)("\\t", detail_level="minimal")
+    assert len(result["results"]) == 2
+    assert result["truncated"] is True
+
+
+def test_depth_below_one_fails_loud(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="depth must be >= 1"):
+        find_callers.create(db_config(tmp_path))("\\X", depth=0)

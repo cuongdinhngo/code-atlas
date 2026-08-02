@@ -73,6 +73,11 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 012 | Contract-conformance & PHP coverage tests | **4 dispatch** — refine exposure-checker + analysis extractor + review `mango:reviewer` + `mango:challenger`; all token cells **`unmeasured (blocking retrieval)`**. Phases 2–3 and 5 dispatched **nothing**. **Main-loop spend is unmeasured**, as for 004–011 and 008 | [#22](https://github.com/cuongdinhngo/code-atlas/pull/22) |
 | 013 | Nav tools — callers / refs / impls | **3 dispatch** — refine exposure-checker + review `mango:reviewer` + `mango:challenger`; all token cells **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 dispatched **nothing**. **Main-loop spend is unmeasured**, as for 004–012 and 008 | [#23](https://github.com/cuongdinhngo/code-atlas/pull/23) |
 
+## Follow-ups (not yet ticketed)
+
+- Resolver: link `IMPORTS` (`target_raw` is already an FQN) so `find_references` sees `use`
+  statements — filed from [PR #23](https://github.com/cuongdinhngo/code-atlas/pull/23) review.
+
 ## Suggested order
 
 Critical path to first release: **001 → 002 → 004/005 → 006 → 007 → 009 → 010 → 011 → 013 → 014 (ship)**.

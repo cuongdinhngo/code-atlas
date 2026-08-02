@@ -320,7 +320,7 @@ def test_status_on_an_unbuilt_repo_answers_without_creating_a_database(repo: Pat
 
 def test_the_suggestions_only_name_tools_this_server_serves(repo: Path) -> None:
     unbuilt = call(build_server(served_config(repo)), STATUS, {})
-    assert unbuilt["next_tool_suggestions"] == [BUILD, CALLERS, REFS, IMPLS]
+    assert unbuilt["next_tool_suggestions"] == [BUILD]
 
     # With the build tool withheld, suggesting it would send the client at a tool it cannot call.
     alone = build_server(served_config(repo, CA_TOOLS=STATUS))
