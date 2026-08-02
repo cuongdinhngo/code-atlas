@@ -82,7 +82,7 @@ def test_one_fqn_candidate_links_as_resolved(store: GraphStore) -> None:
 
     resolve_edges(store, max_candidates=50)
 
-    linked = store.edges_by_source("\\Ns\\Child", kind="EXTENDS", limit=10)
+    linked = store.edges_by_source("\\Ns\\Child", kinds=("EXTENDS",), limit=10)
     assert len(linked) == 1
     assert linked[0]["target_qname"] == "\\Ns\\Parent"
     assert linked[0]["confidence_tier"] == "RESOLVED"
@@ -102,7 +102,7 @@ def test_heuristic_fqn_match_is_not_promoted_to_resolved(store: GraphStore) -> N
 
     resolve_edges(store, max_candidates=50)
 
-    linked = store.edges_by_source("\\Ns\\Repo::save", kind="CALLS", limit=10)
+    linked = store.edges_by_source("\\Ns\\Repo::save", kinds=("CALLS",), limit=10)
     assert linked[0]["target_qname"] == "\\Ns\\Repo::put"
     assert linked[0]["confidence_tier"] == "HEURISTIC"
 
@@ -123,7 +123,7 @@ def test_many_fqn_candidates_expand_as_heuristic_top_n(store: GraphStore) -> Non
 
     resolve_edges(store, max_candidates=50)
 
-    linked = store.edges_by_source("\\Ns\\Child", kind="EXTENDS", limit=10)
+    linked = store.edges_by_source("\\Ns\\Child", kinds=("EXTENDS",), limit=10)
     assert len(linked) == 2
     assert {row["target_qname"] for row in linked} == {"\\Ns\\Dup"}
     assert {row["file_path"] for row in store.nodes_by_qualified_name("\\Ns\\Dup", limit=10)} == {
@@ -148,7 +148,7 @@ def test_many_method_name_matches_respect_max_candidates(store: GraphStore) -> N
 
     resolve_edges(store, max_candidates=2)
 
-    linked = store.edges_by_source("\\A::save", kind="CALLS", limit=10)
+    linked = store.edges_by_source("\\A::save", kinds=("CALLS",), limit=10)
     assert len(linked) == 2
     assert [row["target_qname"] for row in linked] == ["\\A::put", "\\B::put"]
     assert all(row["confidence_tier"] == "HEURISTIC" for row in linked)
@@ -184,7 +184,7 @@ def test_literal_include_resolves_relative_to_includer(store: GraphStore) -> Non
 
     resolve_edges(store, max_candidates=50)
 
-    linked = store.edges_by_source("src/app.x", kind="INCLUDES", limit=10)
+    linked = store.edges_by_source("src/app.x", kinds=("INCLUDES",), limit=10)
     assert linked[0]["target_qname"] == "src/lib.x"
     assert linked[0]["confidence_tier"] == "RESOLVED"
 
@@ -208,7 +208,7 @@ def test_prelinked_edges_are_left_alone(store: GraphStore) -> None:
 
     resolve_edges(store, max_candidates=50)
 
-    linked = store.edges_by_source("\\Ns\\Child", kind="EXTENDS", limit=10)
+    linked = store.edges_by_source("\\Ns\\Child", kinds=("EXTENDS",), limit=10)
     assert linked[0]["target_qname"] == "\\Vendor\\Base"
     assert linked[0]["confidence_tier"] == "RESOLVED"
 
@@ -223,7 +223,8 @@ def test_external_fqn_stays_unlinked(store: GraphStore) -> None:
 
     resolve_edges(store, max_candidates=50)
 
-    assert store.edges_by_source("\\Ns\\Child", kind="EXTENDS", limit=10)[0]["target_qname"] is None
+    linked = store.edges_by_source("\\Ns\\Child", kinds=("EXTENDS",), limit=10)
+    assert linked[0]["target_qname"] is None
 
 
 @needs_php
@@ -248,13 +249,13 @@ def test_full_build_resolves_a_known_caller_chain_on_fixtures(
     report = full_build(config, store)
     assert report.parsed == 4 and report.failed == 0
 
-    extends = store.edges_by_source("\\App\\User", kind="EXTENDS", limit=10)
+    extends = store.edges_by_source("\\App\\User", kinds=("EXTENDS",), limit=10)
     assert extends[0]["target_qname"] == "\\App\\Base"
     assert extends[0]["confidence_tier"] == "RESOLVED"
 
     helper_calls = [
         row
-        for row in store.edges_by_source("\\App\\User::save", kind="CALLS", limit=20)
+        for row in store.edges_by_source("\\App\\User::save", kinds=("CALLS",), limit=20)
         if row["target_raw"] == "\\App\\helper"
     ]
     assert len(helper_calls) == 1
@@ -263,12 +264,12 @@ def test_full_build_resolves_a_known_caller_chain_on_fixtures(
 
     put_calls = [
         row
-        for row in store.edges_by_source("\\App\\User::save", kind="CALLS", limit=20)
+        for row in store.edges_by_source("\\App\\User::save", kinds=("CALLS",), limit=20)
         if row["target_raw"] == "put"
     ]
     assert len(put_calls) == 1
     assert put_calls[0]["target_qname"] == "\\App\\Repo::put"
     assert put_calls[0]["confidence_tier"] == "HEURISTIC"
 
-    callers = store.edges_by_target("\\App\\Repo::put", kind="CALLS", limit=10)
+    callers = store.edges_by_target("\\App\\Repo::put", kinds=("CALLS",), limit=10)
     assert [row["source_qname"] for row in callers] == ["\\App\\User::save"]

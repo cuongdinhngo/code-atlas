@@ -101,6 +101,15 @@ def test_fqn_edge_kinds_opt_in_from_edge_kinds() -> None:
     )
 
 
+def test_caller_and_impl_kinds_are_named_fqn_subsets() -> None:
+    from code_atlas.contract import CALLER_KINDS, IMPL_KINDS
+
+    assert frozenset(CALLER_KINDS) <= FQN_EDGE_KINDS
+    assert frozenset(IMPL_KINDS) <= FQN_EDGE_KINDS
+    assert CALLER_KINDS == ("CALLS", "NEW")
+    assert IMPL_KINDS == ("EXTENDS", "IMPLEMENTS")
+
+
 def test_confidence_tiers_are_the_three_contract_tiers() -> None:
     assert CONFIDENCE_TIERS == ("RESOLVED", "HEURISTIC", "DYNAMIC")
 

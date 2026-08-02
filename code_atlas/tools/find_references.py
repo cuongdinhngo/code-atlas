@@ -1,0 +1,42 @@
+"""``find_references`` — resolved edges targeting a qname (§12)."""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import Literal
+
+from code_atlas.config import Config
+from code_atlas.store import GraphStore
+from code_atlas.tools.nav_result import edge_hit, empty_nav, nav_result
+
+NAME = "find_references"
+
+DetailLevel = Literal["minimal", "standard"]
+
+
+def create(config: Config) -> Callable[..., dict[str, object]]:
+    """Bind the tool to one repo's configuration."""
+
+    def find_references(qname: str, detail_level: DetailLevel = "standard") -> dict[str, object]:
+        """Edges whose resolved ``target_qname`` is ``qname``, with confidence tiers.
+
+        Only kinds the resolver links are visible (FQN edge kinds + ``INCLUDES``). Bare
+        ``IMPORTS`` / ``CONTAINS`` / ``REFERENCES`` stay unlinkable until the resolver grows —
+        they never appear here even though the SQL has no kind filter.
+        """
+        if not config.db_path.is_file():
+            return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path))
+        limit = config.max_results
+        with GraphStore(config.db_path) as store:
+            edges = store.edges_by_target(qname, limit=limit + 1)
+            truncated = len(edges) > limit
+            results = [edge_hit(edge) for edge in edges[:limit]]
+        return nav_result(
+            qname,
+            results,
+            detail_level=detail_level,
+            db_path=str(config.db_path),
+            truncated=truncated,
+        )
+
+    return find_references

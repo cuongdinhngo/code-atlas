@@ -54,7 +54,7 @@ def _unbuilt(
         "edges": 0,
         "last_commit": None,
         "staleness": UNKNOWN,
-        "next_tool_suggestions": _suggestions(servable, UNKNOWN),
+        "next_tool_suggestions": _suggestions(servable, UNKNOWN, indexed=False),
     }
     if detail_level == "standard":
         status["db_path"] = str(config.db_path)
@@ -68,13 +68,14 @@ def _status(
     last_commit = store.get_meta(LAST_COMMIT_KEY)
     head = head_commit(config.root)
     staleness = _staleness(last_commit, head)
+    indexed = counts["files"] > 0
 
     status: dict[str, object] = {
-        "indexed": counts["files"] > 0,
+        "indexed": indexed,
         **counts,
         "last_commit": last_commit,
         "staleness": staleness,
-        "next_tool_suggestions": _suggestions(servable, staleness),
+        "next_tool_suggestions": _suggestions(servable, staleness, indexed=indexed),
     }
     if detail_level == "minimal":
         return status
@@ -94,8 +95,11 @@ def _staleness(last_commit: str | None, head: str | None) -> str:
     return CURRENT if last_commit == head else BEHIND
 
 
-def _suggestions(servable: Sequence[str], staleness: str) -> list[str]:
-    """Only tools this server serves, so a suggestion is never one the client cannot call."""
-    wanted = [BUILD_TOOL] if staleness != CURRENT else []
-    wanted += [name for name in servable if name not in {NAME, BUILD_TOOL}]
+def _suggestions(servable: Sequence[str], staleness: str, *, indexed: bool) -> list[str]:
+    """Only tools this server serves; nav tools only once there is an index to navigate."""
+    if not indexed:
+        wanted = [BUILD_TOOL]
+    else:
+        wanted = [BUILD_TOOL] if staleness != CURRENT else []
+        wanted += [name for name in servable if name not in {NAME, BUILD_TOOL}]
     return [name for name in wanted if name in servable]

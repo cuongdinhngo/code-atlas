@@ -1,8 +1,8 @@
 """The MCP server: build an app for one repo, then serve it over stdio (§12).
 
-Two tools today, named in two branches rather than a registry — there is no second axis of change
-here, and one seam is the only abstraction this codebase buys (R1.2). ``CA_TOOLS`` gates which of
-them is registered; a name that is not one of them is a configuration error and fails loud (R5.3).
+Tools are named in branches rather than a registry — there is no second axis of change here, and
+one seam is the only abstraction this codebase buys (R1.2). ``CA_TOOLS`` gates which of them is
+registered; a name that is not one of them is a configuration error and fails loud (R5.3).
 """
 
 import os
@@ -11,12 +11,24 @@ from pathlib import Path
 from fastmcp import FastMCP
 
 from code_atlas.config import Config, ConfigError, load_config
-from code_atlas.tools import build_or_update_index, get_index_status
+from code_atlas.tools import (
+    build_or_update_index,
+    find_callers,
+    find_implementations,
+    find_references,
+    get_index_status,
+)
 
 SERVER_NAME = "code-atlas"
 
 # Every tool this server knows how to serve, in the order a client is offered them.
-TOOL_NAMES: tuple[str, ...] = (get_index_status.NAME, build_or_update_index.NAME)
+TOOL_NAMES: tuple[str, ...] = (
+    get_index_status.NAME,
+    build_or_update_index.NAME,
+    find_callers.NAME,
+    find_references.NAME,
+    find_implementations.NAME,
+)
 
 
 def build_server(config: Config) -> FastMCP:
@@ -27,6 +39,12 @@ def build_server(config: Config) -> FastMCP:
         server.tool(get_index_status.create(config, names))
     if build_or_update_index.NAME in names:
         server.tool(build_or_update_index.create(config))
+    if find_callers.NAME in names:
+        server.tool(find_callers.create(config))
+    if find_references.NAME in names:
+        server.tool(find_references.create(config))
+    if find_implementations.NAME in names:
+        server.tool(find_implementations.create(config))
     return server
 
 

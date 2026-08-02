@@ -30,6 +30,9 @@ from code_atlas.indexer import full_build
 from code_atlas.main import TOOL_NAMES, build_server
 from code_atlas.store import GraphStore
 from code_atlas.tools.build_or_update_index import NAME as BUILD
+from code_atlas.tools.find_callers import NAME as CALLERS
+from code_atlas.tools.find_implementations import NAME as IMPLS
+from code_atlas.tools.find_references import NAME as REFS
 from code_atlas.tools.get_index_status import NAME as STATUS
 
 REPO = Path(__file__).resolve().parent.parent
@@ -151,7 +154,7 @@ def test_the_proof_has_something_to_run() -> None:
     # A server module still holding its stub would make every assertion below vacuous.
     assert FAKE.is_file()
     assert len(MAIN.read_text(encoding="utf-8").splitlines()) > 20
-    assert TOOL_NAMES == (STATUS, BUILD)
+    assert TOOL_NAMES == (STATUS, BUILD, CALLERS, REFS, IMPLS)
 
 
 # --- AC1 · the proving test: a real client, a real subprocess, a real build ----------------------
@@ -328,13 +331,23 @@ def test_a_current_index_is_not_told_to_rebuild(repo: Path) -> None:
     config = served_config(repo)
     call(build_server(config), BUILD, {})
 
-    assert call(build_server(config), STATUS, {})["next_tool_suggestions"] == []
+    assert call(build_server(config), STATUS, {})["next_tool_suggestions"] == [
+        CALLERS,
+        REFS,
+        IMPLS,
+    ]
 
 
-# --- R5 · detail_level on every tool (per-item, N=2) ---------------------------------------------
+# --- R5 · detail_level on every tool -------------------------------------------------------------
 
 
-CALLS: tuple[tuple[str, dict[str, object]], ...] = ((STATUS, {}), (BUILD, {}))
+CALLS: tuple[tuple[str, dict[str, object]], ...] = (
+    (STATUS, {}),
+    (BUILD, {}),
+    (CALLERS, {"qname": "\\Missing"}),
+    (REFS, {"qname": "\\Missing"}),
+    (IMPLS, {"qname": "\\Missing"}),
+)
 
 
 @pytest.mark.parametrize(("name", "arguments"), CALLS, ids=[name for name, _ in CALLS])
