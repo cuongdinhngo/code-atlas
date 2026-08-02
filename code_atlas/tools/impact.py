@@ -37,10 +37,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             return empty_nav(subject, detail_level=detail_level, db_path=str(config.db_path))
         with GraphStore(config.db_path) as store:
             seeds = _seeds(store, paths=paths or [], qnames=qnames or [])
-            results = store.impact_radius(
-                seeds, depth=hops, max_nodes=config.impact_max_nodes
+            fetched = store.impact_radius(
+                seeds, depth=hops, max_nodes=config.impact_max_nodes + 1
             )
-        truncated = len(results) >= config.impact_max_nodes
+        truncated = len(fetched) > config.impact_max_nodes
+        results = fetched[: config.impact_max_nodes]
         return nav_result(
             subject,
             results,
@@ -69,7 +70,11 @@ def _seeds(
     found: list[str] = []
     seen: set[str] = set()
     for qname in qnames:
-        if qname and qname not in seen:
+        if (
+            qname
+            and qname not in seen
+            and store.nodes_by_qualified_name(qname, limit=1)
+        ):
             seen.add(qname)
             found.append(qname)
     for path in paths:

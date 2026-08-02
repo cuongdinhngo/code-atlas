@@ -471,6 +471,20 @@ class GraphStore:
             "INSERT INTO temp.impact_frontier (qname, score, depth) VALUES (?, ?, ?)",
             [(q, 1.0, 0) for q in ordered_seeds],
         )
+        if len(ordered_seeds) > max_nodes:
+            conn.execute(
+                "DELETE FROM temp.impact_best WHERE qname NOT IN ("
+                "  SELECT qname FROM ("
+                "    SELECT qname FROM temp.impact_best "
+                "    ORDER BY score DESC, qname ASC LIMIT ?"
+                "  )"
+                ")",
+                (max_nodes,),
+            )
+            conn.execute(
+                "DELETE FROM temp.impact_frontier WHERE qname NOT IN "
+                "(SELECT qname FROM temp.impact_best)"
+            )
 
         expand_sql = (
             "INSERT INTO temp.impact_next (qname, score, depth) "
@@ -526,8 +540,23 @@ class GraphStore:
             )
             conn.execute(expand_sql, (IMPACT_DECAY, IMPACT_DECAY, IMPACT_FLOOR))
             conn.execute(merge_sql, (IMPACT_FLOOR,))
+            # Bound working set to max_nodes so traversal cannot grow without limit.
+            conn.execute(
+                "DELETE FROM temp.impact_best WHERE qname NOT IN ("
+                "  SELECT qname FROM ("
+                "    SELECT qname FROM temp.impact_best "
+                "    ORDER BY score DESC, qname ASC LIMIT ?"
+                "  )"
+                ")",
+                (max_nodes,),
+            )
             conn.execute("DELETE FROM temp.impact_frontier")
             conn.execute(refill_frontier_sql)
+            # Drop frontier nodes pruned out of the capped best set.
+            conn.execute(
+                "DELETE FROM temp.impact_frontier WHERE qname NOT IN "
+                "(SELECT qname FROM temp.impact_best)"
+            )
 
         keys = ("qname", "score", "depth", "file", "line")
         rows = self._rows(

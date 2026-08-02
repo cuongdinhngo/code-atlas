@@ -198,12 +198,22 @@ def test_unknown_seed_is_empty_success(tmp_path: Path) -> None:
     assert payload["results"] == []
 
 
-def test_missing_qname_with_db_returns_seed_only_row(store: GraphStore, tmp_path: Path) -> None:
+def test_missing_qname_with_db_is_empty_success(store: GraphStore, tmp_path: Path) -> None:
     plant_graph(store)
     config = replace(load_config(tmp_path, {}), db_path=tmp_path / "graph.db")
-    # Unknown qname still seeds at 1.0 with empty file (HOW-9 soft) when DB exists.
     payload = impact_tool.create(config)(qnames=["\\Missing"], depth=0)
     assert payload["indexed"] is True
-    assert payload["results"] == [
-        {"qname": "\\Missing", "score": 1.0, "depth": 0, "file": "", "line": 0}
-    ]
+    assert payload["results"] == []
+
+
+def test_exact_max_nodes_fill_is_not_truncated(store: GraphStore, tmp_path: Path) -> None:
+    plant_graph(store)
+    # depth=0 → only seeds from one qname → exactly 1 row; must not claim truncation.
+    config = replace(
+        load_config(tmp_path, {}),
+        db_path=tmp_path / "graph.db",
+        impact_max_nodes=1,
+    )
+    payload = impact_tool.create(config)(qnames=[SEED], depth=0)
+    assert len(payload["results"]) == 1
+    assert payload["truncated"] is False
