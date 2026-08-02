@@ -28,7 +28,12 @@ python scripts/scale_full_build.py
 - Timing is a **baseline capture** (`elapsed_seconds`), not an SLA this ticket must clear.
 - Keep the JSON under `artifacts/` (gitignored) or attach it where your team stores perf notes.
 
+## Related
+
+Cross-repo public samples + optional fold-in of this timing step: see
+[`cross-repo-validation.md`](cross-repo-validation.md) (task 018).
+`scripts/cross_repo_validate.py` calls this script when `CODE_ATLAS_SCALE_SAMPLE` is set.
+
 ## What this does *not* do
 
-- No scheduled GitHub Actions workflow in this ticket (defer if you want CI-hosted timing later).
 - No adapter branches for the sample’s directory names (R2 / Standard over sample).

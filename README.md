@@ -153,7 +153,8 @@ re-include what an earlier source excluded.
 SOLID **at the boundaries** (the axis of change is *languages*, expressed through one versioned
 contract) + **YAGNI** (one seam only until a second adapter exists) + **standard over sample** (adapters
 encode the language spec/standards, never a specific repo's conventions). Details in the
-[build plan](docs/PLAN.md).
+[build plan](docs/PLAN.md). Cross-repo validation (opt-in / scheduled, not per-PR) lives in
+[`docs/runbooks/cross-repo-validation.md`](docs/runbooks/cross-repo-validation.md).
 
 ## License
 
