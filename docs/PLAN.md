@@ -450,7 +450,9 @@ New surface (separate from indexing): `generate_onboarding`, `architecture_overv
 ## 18. Open questions for review
 1. **PHP runtime**: OK to install a host PHP 8.5 CLI (tokenizer only) for indexing, or Docker-only?
 2. **Language order — DECIDED**: PHP → TypeScript/JavaScript → Python → C#/.NET (§3). (Was "C# second"; changed to TS/JS for reach + best contract-hardening.)
-3. **Validation repos**: besides the large PHP monorepo, which repos should be in the cross-repo test set (a Laravel app? a Symfony app? a small library; for TS/JS a Node BE + a React FE)? — to prove "works on any repo".
+3. **Validation repos** — **DECIDED for PHP (task 018):** public pins in
+   `scripts/cross_repo_samples.json` (`laravel/laravel`, `symfony/demo`, `brick/math`) + operator-local
+   large monorepo via `CODE_ATLAS_SCALE_SAMPLE`. TS/JS samples still open at M7.
 4. **Serena coexistence**: keep its PHP search tools on, or trim to nav/edit?
 5. **Ship point**: M3 (search/read/outline) as first daily-usable release — agreed?
 6. **Onboarding presentation**: markdown-in-repo (version-controlled) vs a dashboard viewer?

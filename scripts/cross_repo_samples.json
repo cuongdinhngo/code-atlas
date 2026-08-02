@@ -1,0 +1,29 @@
+{
+  "contract_note": "Pinned public PHP samples for R6.3 / task 018. Not under adapters/ (R2.2).",
+  "samples": [
+    {
+      "id": "laravel_app",
+      "kind": "laravel_app",
+      "owner": "laravel",
+      "repo": "laravel",
+      "sha": "ff031dbf57d477d2864bf53a200afe574d3c2853",
+      "url": "https://github.com/laravel/laravel.git"
+    },
+    {
+      "id": "symfony_demo",
+      "kind": "symfony_app",
+      "owner": "symfony",
+      "repo": "demo",
+      "sha": "03fe25671b720b15103a2ff26934e94c87bd4d82",
+      "url": "https://github.com/symfony/demo.git"
+    },
+    {
+      "id": "brick_math",
+      "kind": "psr4_library",
+      "owner": "brick",
+      "repo": "math",
+      "sha": "b61d8e66c3ea05fa8784888575b719f48f76f515",
+      "url": "https://github.com/brick/math.git"
+    }
+  ]
+}

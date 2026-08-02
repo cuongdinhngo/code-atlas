@@ -27,7 +27,7 @@ is [`PLAN.md`](PLAN.md).
 | 015 | [Full PHP coverage + scale to 112k](tasks/015_php-full-coverage-and-scale.md) | M4 | done | 013, 014, 008 |
 | 016 | [Incremental update via git diff](tasks/016_incremental-git.md) | M5 | done | 011, 009 |
 | 017 | [Impact engine + tool + prompts](tasks/017_impact-engine.md) | M6 | done | 013, 016 |
-| 018 | [Cross-repo validation](tasks/018_cross-repo-validation.md) | M4 | todo | 015 |
+| 018 | [Cross-repo validation](tasks/018_cross-repo-validation.md) | M4 | in-progress | 015 |
 | 024 | [CI hardening](tasks/024_ci-hardening.md) | Setup | done | 001 |
 | 025 | [PHP adapter — full 8.5 grammar coverage](tasks/025_php-adapter-grammar.md) | M0 | done | 007 |
 
@@ -83,7 +83,10 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
   statements — filed from [PR #23](https://github.com/cuongdinhngo/code-atlas/pull/23) review.
 - **015 AC2 operator run:** land a real `CODE_ATLAS_SCALE_SAMPLE` timing artifact (elapsed +
   `peak_rss_*`) against the ~112k checkout — deferred from [PR #25](https://github.com/cuongdinhngo/code-atlas/pull/25)
-  (D1). Natural home: task [018](tasks/018_cross-repo-validation.md) or a thin follow-up before it.
+  (D1). Folded into [018](tasks/018_cross-repo-validation.md) as optional A4 (`CODE_ATLAS_SCALE_SAMPLE`
+  set → `scale_full_build`; unset → skip). Still needs an operator machine with the private checkout.
+- **018 construct gaps:** any cross-repo misses → fill the gap log in
+  [`runbooks/cross-repo-validation.md`](runbooks/cross-repo-validation.md) and feed task 007 / 025.
 - **015 resolver N+1 reads:** batch `nodes_by_qualified_name` lookups per unresolved-edge batch
   (`WHERE qualified_name IN (...)`) before the D1/018 scale baseline — write path is batched; read
   path is still one SELECT per edge ([PR #25](https://github.com/cuongdinhngo/code-atlas/pull/25)).
