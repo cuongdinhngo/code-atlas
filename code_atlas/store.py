@@ -256,7 +256,22 @@ class GraphStore:
     def edges_by_source(self, qname: str, *, kind: str | None = None, limit: int) -> list[Row]:
         return self._edges("source_qname = ?", qname, kind, limit)
 
-    def edges_by_target(self, qname: str, *, kind: str | None = None, limit: int) -> list[Row]:
+    def edges_by_target(
+        self,
+        qname: str,
+        *,
+        kind: str | None = None,
+        kinds: Sequence[str] | None = None,
+        limit: int,
+    ) -> list[Row]:
+        """Edges whose resolved ``target_qname`` is ``qname``.
+
+        Pass ``kind`` for one kind, or ``kinds`` for several (e.g. CALLS+NEW). Not both.
+        """
+        if kind is not None and kinds is not None:
+            raise ValueError("pass kind or kinds, not both")
+        if kinds is not None:
+            return self._edges_in_kinds("target_qname = ?", qname, kinds, limit)
         return self._edges("target_qname = ?", qname, kind, limit)
 
     def unresolved_edges(self) -> list[Row]:
@@ -299,6 +314,19 @@ class GraphStore:
         clause, params = _narrow(where, value, kind, "kind = ?")
         sql = f"SELECT id, {_EDGE_COLUMNS} FROM edges WHERE {clause} ORDER BY {_EDGE_ORDER} LIMIT ?"
         return self._rows(EDGE_ROW_KEYS, sql, (*params, limit))
+
+    def _edges_in_kinds(
+        self, where: str, value: str, kinds: Sequence[str], limit: int
+    ) -> list[Row]:
+        if not kinds:
+            raise ValueError("kinds must be non-empty")
+        placeholders = ", ".join("?" for _ in kinds)
+        sql = (
+            f"SELECT id, {_EDGE_COLUMNS} FROM edges "
+            f"WHERE {where} AND kind IN ({placeholders}) "
+            f"ORDER BY {_EDGE_ORDER} LIMIT ?"
+        )
+        return self._rows(EDGE_ROW_KEYS, sql, (value, *kinds, limit))
 
     def _rows(self, keys: tuple[str, ...], sql: str, params: Sequence[object]) -> list[Row]:
         cursor = self._conn.execute(sql, params)
