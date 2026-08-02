@@ -64,7 +64,20 @@ def reply(path):
         "file_path": path,
         "line_start": 1,
     }
-    return json.dumps({"path": path, "ok": True, "nodes": [node], "edges": []})
+    # Paths under dep/ call into lib/core.aa so incremental can prove single-hop dependents (§8.3).
+    edges = []
+    if path.startswith("dep/"):
+        edges = [
+            {
+                "kind": "CALLS",
+                "source_qname": f"{path}::Thing",
+                "target_raw": "lib/core.aa::Thing",
+                "file_path": path,
+                "line": 2,
+                "confidence_tier": "HEURISTIC",
+            }
+        ]
+    return json.dumps({"path": path, "ok": True, "nodes": [node], "edges": edges})
 
 
 def count_boot(boot_log):

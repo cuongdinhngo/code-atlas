@@ -29,6 +29,9 @@ META_KEYS: tuple[str, ...] = (
     BUILT_AT_KEY,
 )
 
+# Bound SQLite variable lists so a large incremental unlink cannot trip the host's max-vars.
+_IN_CHUNK = 400
+
 MEMORY_DB = ":memory:"
 
 # Set outside any transaction: foreign_keys is silently ignored inside one.
@@ -110,6 +113,12 @@ def fts_term(query: str) -> str:
 def _like_literal(value: str) -> str:
     """Escape ``!``, ``%``, and ``_`` for a ``LIKE … ESCAPE '!'`` pattern (``\\`` stays literal)."""
     return value.replace("!", "!!").replace("%", "!%").replace("_", "!_")
+
+
+def _chunks(values: Sequence[str], size: int) -> Iterator[Sequence[str]]:
+    """Yield successive slices of ``values`` so ``IN (...)`` lists stay under the host max."""
+    for start in range(0, len(values), size):
+        yield values[start : start + size]
 
 
 def stored(value: object) -> object:
@@ -347,6 +356,49 @@ class GraphStore:
         """Content hash stored for ``path``, or ``None`` when the file is not indexed."""
         row = self._conn.execute("SELECT hash FROM files WHERE path = ?", (path,)).fetchone()
         return None if row is None else str(row[0])
+
+    def qnames_in_files(self, paths: Sequence[str]) -> tuple[str, ...]:
+        """Every ``qualified_name`` living under ``paths``, sorted and de-duplicated (§8.3)."""
+        if not paths:
+            return ()
+        found: set[str] = set()
+        for chunk in _chunks(paths, _IN_CHUNK):
+            placeholders = ", ".join("?" * len(chunk))
+            rows = self._conn.execute(
+                f"SELECT DISTINCT qualified_name FROM nodes WHERE file_path IN ({placeholders})",
+                tuple(chunk),
+            )
+            found.update(str(row[0]) for row in rows)
+        return tuple(sorted(found))
+
+    def file_paths_targeting(self, qnames: Sequence[str]) -> tuple[str, ...]:
+        """Distinct edge ``file_path`` values whose resolved target is in ``qnames`` (§8.3)."""
+        if not qnames:
+            return ()
+        found: set[str] = set()
+        for chunk in _chunks(qnames, _IN_CHUNK):
+            placeholders = ", ".join("?" * len(chunk))
+            rows = self._conn.execute(
+                f"SELECT DISTINCT file_path FROM edges WHERE target_qname IN ({placeholders})",
+                tuple(chunk),
+            )
+            found.update(str(row[0]) for row in rows)
+        return tuple(sorted(found))
+
+    def unlink_targets(self, qnames: Sequence[str]) -> int:
+        """Clear ``target_qname`` on edges that pointed into ``qnames`` so resolve can re-link."""
+        if not qnames:
+            return 0
+        updated = 0
+        with self._conn:
+            for chunk in _chunks(qnames, _IN_CHUNK):
+                placeholders = ", ".join("?" * len(chunk))
+                cursor = self._conn.execute(
+                    f"UPDATE edges SET target_qname = NULL WHERE target_qname IN ({placeholders})",
+                    tuple(chunk),
+                )
+                updated += cursor.rowcount
+        return updated
 
     def search_nodes(
         self,
