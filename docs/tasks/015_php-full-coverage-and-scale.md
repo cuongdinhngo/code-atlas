@@ -120,7 +120,10 @@ Ship M4 coverage+scale: (1) stream/batch resolver unresolved edges; (2) `include
 
 **Branch:** `feat/015-php-full-coverage-and-scale`
 
-**Implemented:** change-list 1–8 as approved. **Deviations:** none. Large-sample wall-clock not run in-session (sample not in tree) — procedure + script proven on tiny fixture.
+**Implemented:** change-list 1–8 as approved.
+
+**Deviations:**
+- **D1 — No in-session 112k wall-clock.** Sample is out-of-tree (A3/A7). Delivered opt-in script + runbook; timing JSON shape proven on a tiny fixture. Operator run records the real artifact under `artifacts/`.
 
 **Verification (paste):**
 ```
@@ -134,19 +137,36 @@ Ship M4 coverage+scale: (1) stream/batch resolver unresolved edges; (2) `include
 
 ---
 
+## Phase 4 — Review
+
+**Reviewed at** `c5d0b6d`
+
+| Critic | Result |
+|--------|--------|
+| mango:reviewer ([Reviewer](10f69ec2-68c0-4158-b673-562c9ef4608a)) | **LGTM** — change-list 1–8; 514 passed; R1.4/R3.2/R4/R5.2/R6.2 clean |
+| mango:challenger ([Challenger](0405b19e-67bb-4d4f-9279-93089542fcc3)) | **4 met · 2 not met** — “not met” = no in-repo 112k timing run (sample out-of-tree). **Expected under ASSUMED A3/A7** (documented opt-in procedure + script; operator provisions `CODE_ATLAS_SCALE_SAMPLE`). Deviation **D1** recorded. |
+
+**Scope reconcile:** file axis ✅ · behaviour axis ✅ (D1 documented) · inventory include_graph + batching + fixtures ✅
+
+**Verdict:** clean for Gate 4 under ratified A3/A7 — challenger gap is the deferred operator run, not a code defect.
+
+---
+
 ## Cost ledger
 
 | Phase | Dispatch | Round | Tokens | Notes |
 |-------|----------|-------|--------|-------|
 | refine | challenger (exposure-checker) | 1 | unmeasured (host does not surface usage) | [1e75450c](1e75450c-c709-4e93-864a-a90cb2bf6c52); UNEXPOSED: 5 |
+| review | reviewer | 1 | unmeasured (host does not surface usage) | [10f69ec2](10f69ec2-68c0-4158-b673-562c9ef4608a); LGTM |
+| review | challenger | 1 | unmeasured (host does not surface usage) | [0405b19e](0405b19e-67bb-4d4f-9279-93089542fcc3); 4 met / 2 not met (D1) |
 
 ---
 
 ## Session status
 
-- **Phase:** 3 execute → review
+- **Phase:** 5 finalise — ✋ final gate (per-action outward approvals)
 - **PR:** —
-- **Reviewed at:** —
-- **Gate:** proceeding under standing approve
-- **Blocked by:** none
+- **Reviewed at:** `c5d0b6d`
+- **Gate:** waiting — approve push / PR separately
+- **Blocked by:** final-gate outward approvals
 - **Revert path:** delete branch `feat/015-php-full-coverage-and-scale`
