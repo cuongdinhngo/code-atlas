@@ -4,6 +4,9 @@
 *.db-wal
 *.db-shm
 
+# Opt-in scale timing outputs (task 015)
+artifacts/
+
 # Python
 __pycache__/
 *.py[cod]

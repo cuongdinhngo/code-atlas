@@ -18,6 +18,7 @@ from code_atlas.tools import (
     find_implementations,
     find_references,
     get_index_status,
+    include_graph,
     prompts,
     read_symbol,
     search_symbol,
@@ -35,6 +36,7 @@ TOOL_NAMES: tuple[str, ...] = (
     find_callers.NAME,
     find_references.NAME,
     find_implementations.NAME,
+    include_graph.NAME,
 )
 
 
@@ -58,6 +60,8 @@ def build_server(config: Config) -> FastMCP:
         server.tool(find_references.create(config))
     if find_implementations.NAME in names:
         server.tool(find_implementations.create(config))
+    if include_graph.NAME in names:
+        server.tool(include_graph.create(config))
     prompts.register(server)
     return server
 

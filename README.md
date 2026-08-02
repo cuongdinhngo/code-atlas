@@ -71,6 +71,7 @@ takes `detail_level` — `minimal` for the payload alone, `standard` (the defaul
 | `file_outline` | symbols + line ranges, no bodies |
 | `read_symbol` | source of just one class/method + docblock |
 | `find_callers` / `find_references` / `find_implementations` | resolved relationships + confidence tier |
+| `include_graph` | `include`/`require` neighbors (`imports` / `imported_by` / `both`) |
 
 ## Prompts
 
@@ -83,7 +84,6 @@ takes `detail_level` — `minimal` for the payload alone, `standard` (the defaul
 
 | Tool | Returns |
 |---|---|
-| `include_graph` | `include`/`require` graph |
 | `impact` | bounded blast radius of a change |
 | `namespace_tree` | namespaces + members |
 
