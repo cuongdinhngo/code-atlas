@@ -173,6 +173,40 @@ def test_bad_last_commit_falls_back_to_full(tmp_path: Path) -> None:
     assert result["mode"] == "full"
 
 
+def test_heuristic_siblings_still_match_a_full_rebuild(tmp_path: Path) -> None:
+    """R4.2: unlink must collapse top-N siblings or hash-skipped dependents diverge."""
+    committed(
+        tmp_path,
+        {
+            "twin/a.aa": "run a v1\n",
+            "twin/b.aa": "run b\n",
+            "dep/name_caller.aa": "calls run\n",
+        },
+    )
+    config = config_for(tmp_path)
+    with GraphStore(config.db_path) as store:
+        full_build(config, store)
+        linked = store.edges_by_source("dep/name_caller.aa::Thing", kinds=("CALLS",), limit=10)
+        assert len(linked) == 2
+        last = store.get_meta(LAST_COMMIT_KEY)
+        assert last is not None
+
+    committed(tmp_path, {"twin/a.aa": "run a v2\n"}, message="edit twin a")
+    changed = gitutil.changed_paths(tmp_path, last)
+    assert changed == ("twin/a.aa",)
+
+    with GraphStore(config.db_path) as store:
+        incremental_update(config, store, changed)
+        incremental = snapshot(store)
+        linked = store.edges_by_source("dep/name_caller.aa::Thing", kinds=("CALLS",), limit=10)
+        assert len(linked) == 2
+
+    fresh = config_for(tmp_path, "fresh.db")
+    with GraphStore(fresh.db_path) as store:
+        full_build(fresh, store)
+        assert snapshot(store) == incremental
+
+
 def test_delete_is_reconciled_like_a_full_rebuild(tmp_path: Path) -> None:
     committed(tmp_path, {"keep.aa": "k\n", "gone.aa": "g\n"})
     config = config_for(tmp_path)
