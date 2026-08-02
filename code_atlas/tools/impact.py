@@ -27,7 +27,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         Seeds are the union of every indexed node on ``paths`` and the explicit ``qnames``.
         ``depth`` defaults to ``CA_IMPACT_DEPTH``; the node budget is ``CA_IMPACT_MAX_NODES``.
-        Missing seeds and a missing database yield an empty successful result.
+        HEURISTIC/DYNAMIC neighbors are returned with their tier but do not expand the
+        frontier. Missing seeds and a missing database yield an empty successful result.
         """
         hops = config.impact_depth if depth is None else depth
         if hops < 0:
@@ -37,11 +38,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             return empty_nav(subject, detail_level=detail_level, db_path=str(config.db_path))
         with GraphStore(config.db_path) as store:
             seeds = _seeds(store, paths=paths or [], qnames=qnames or [])
-            fetched = store.impact_radius(
+            outcome = store.impact_radius(
                 seeds, depth=hops, max_nodes=config.impact_max_nodes + 1
             )
-        truncated = len(fetched) > config.impact_max_nodes
-        results = fetched[: config.impact_max_nodes]
+        truncated = len(outcome.rows) > config.impact_max_nodes
+        results = outcome.rows[: config.impact_max_nodes]
         return nav_result(
             subject,
             results,
@@ -49,6 +50,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             db_path=str(config.db_path),
             truncated=truncated,
             depth=hops,
+            frontier_skipped_non_resolved=outcome.frontier_skipped_non_resolved,
+            seeds_dropped=outcome.seeds_dropped,
         )
 
     return impact

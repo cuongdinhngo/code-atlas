@@ -64,7 +64,7 @@ working_doc: docs/tasks/017_impact-engine.md (below separator)
 | # | Assumed choice | Why ASSUMED | Explicit confirm | Reverses prior? |
 |---|----------------|-------------|------------------|-----------------|
 | A1 | Seed `1.0`; weights CALLS/NEW `1.0`, EXTENDS/IMPLEMENTS `0.9`, INCLUDES `0.8`; decay `×0.7`/hop; floor `0.05`; best score/node | W1 best (per-kind weights) | Gate 1 standing | no |
-| A2 | Only `RESOLVED` expands; HEURISTIC/DYNAMIC never expand | W2; 013 HOW-5 | Gate 1 standing | no |
+| A2 | Only `RESOLVED` expands the frontier; HEURISTIC/DYNAMIC **are returned** with tier (nav/013) but never expand | W2; 013 HOW-5; PR #27 review #1 | Gate 1 standing | no |
 | A3 | Proving test = planted SQLite graph; hand-traced set+scores | W3 | Gate 1 standing | no |
 | A4 | `paths` → every node with that `file_path` | W4 | Gate 1 standing | no |
 | A5 | Rows `{qname,score,file,line,depth}`; order score DESC, qname ASC; seeds at 1.0 | Exposure #2 | Gate 1 standing | no |
