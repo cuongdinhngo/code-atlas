@@ -302,19 +302,44 @@ ruff + mypy → clean
 
 ---
 
+## Phase 4 — Review
+
+**Reviewed at** `43753657c829c1efeb2f91a8c36ed73e3fac5573`
+
+**Working-doc path:** `docs/tasks/014_search-read-outline.md`
+
+**Reviewed files:** `code_atlas/main.py`, `code_atlas/store.py`, `code_atlas/tools/{search_symbol,file_outline,read_symbol,prompts}.py`, `tests/test_search_read_outline.py`, `tests/test_mcp_server.py`, `tests/test_store.py`, `tests/test_core_is_language_agnostic.py`, `tests/test_sql_confinement.py`, `.github/workflows/ci.yml`, `pyproject.toml`, `docs/PLAN.md`, `docs/BACKLOG.md`, `README.md`, `docs/tasks/014_search-read-outline.md`
+
+| Critic | Result |
+|--------|--------|
+| mango:reviewer ([Reviewer](924a83ea-6a4c-42df-8b33-87b169ade718)) | Round 1 **CHANGES REQUESTED** — README Planned table; BACKLOG token row; optional LIKE `_` escape. Round 2 verify-only: all three landed; **499 passed** |
+| mango:challenger ([Challenger](9893455f-6a10-4886-92b9-95e0157254bf)) | **6 met · 1 not met · 1 can't tell** — “not met” = no git tag yet (deferred to finalise/release per A1); 5b tag workflow N/A (no publish) |
+
+**Scope reconcile:** file axis ✅ · behaviour axis ✅ (D1 documented) · inventory T1–T3 + P1–P2 ✅
+
+**Layer-match:** AC1/AC2 integration over fixtures ✅
+
+**Proving (re-check):** `test_search_symbol_returns_ranked_fixture_hits` PASS. Baseline 471 → 499.
+
+**Verdict:** clean after round-2 doc/LIKE fixes — Gate 4 does not stop.
+
+---
+
 ## Cost ledger
 
 | Phase | Dispatch | Round | Tokens | Notes |
 |-------|----------|-------|--------|-------|
-| refine | challenger (exposure-checker) | 1 | unmeasured (blocking retrieval) | [91fa727d](91fa727d-f259-4e91-b28c-8709423e2a31); UNEXPOSED: 2 |
+| refine | challenger (exposure-checker) | 1 | unmeasured (blocking retrieval) | [91fa727d](91fa727d-f259-4e91-b28c-8709423e2a31) |
+| review | reviewer | 1 | unmeasured (blocking retrieval) | [924a83ea](924a83ea-6a4c-42df-8b33-87b169ade718) |
+| review | challenger | 1 | unmeasured (blocking retrieval) | [9893455f](9893455f-6a10-4886-92b9-95e0157254bf) |
 
 ---
 
 ## Session status
 
-- **Phase:** 3 execute complete → review next
+- **Phase:** 4 review clean → finalise
 - **PR:** —
-- **Reviewed at:** —
-- **Gate:** Gate 1+2 cleared; execute done
-- **Blocked by:** none
+- **Reviewed at:** `43753657c829c1efeb2f91a8c36ed73e3fac5573`
+- **Gate:** final gate — outward actions need per-action approval
+- **Blocked by:** none (code clean)
 - **Revert path:** delete branch `feat/014-search-read-outline`; discard DB caches
