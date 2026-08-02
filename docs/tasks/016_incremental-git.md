@@ -41,8 +41,8 @@ Plan §8.3, §15 (M5).
 ## Session status
 
 ```
-phase: review
-gates: Gate 0–2 cleared under standing “best option / pass all gates”; Phase 3 complete
+phase: finalise
+gates: Gate 0–4 clean; Reviewed at f7cfbf2; awaiting per-action push/PR approval
 branch: feat/016-incremental-git
 ```
 
@@ -84,13 +84,13 @@ branch: feat/016-incremental-git
 
 | ID | Source | Verbatim (short) | Interpretation | Ph1 evidence | Status |
 |----|--------|------------------|----------------|--------------|--------|
-| R1 | Scope | gitutil diff → changed files | `changed_paths(root, since)` | gitutil + tests | ⬜ |
-| R2 | Scope | incremental_update + dependents + hash-skip + scoped resolve + meta | indexer path | indexer + store | ⬜ |
-| R3 | Scope | Staleness in get_index_status | Keep A1; already shipped; prove behind→current after incremental | existing + tests | ⬜ |
-| R4 | Scope | CI hermetic throwaway repos | Prefer tests; leave shallow checkout | tests only | ⬜ |
-| G1 | Goal | Keep index fresh cheaply | R1–R4 | — | ⬜ |
-| AC1 | AC | One-file edit → affected only; equals full rebuild | A2/A3 | proving test | ⬜ |
-| AC2 | AC | Staleness accurate | A1; behind then current after incremental | tests | ⬜ |
+| R1 | Scope | gitutil diff → changed files | `changed_paths(root, since)` | gitutil + tests | ✅ |
+| R2 | Scope | incremental_update + dependents + hash-skip + scoped resolve + meta | indexer path | indexer + store | ✅ |
+| R3 | Scope | Staleness in get_index_status | Keep A1; already shipped; prove behind→current after incremental | existing + tests | ✅ |
+| R4 | Scope | CI hermetic throwaway repos | Prefer tests; leave shallow checkout | tests only | ✅ |
+| G1 | Goal | Keep index fresh cheaply | R1–R4 | — | ✅ |
+| AC1 | AC | One-file edit → affected only; equals full rebuild | A2/A3 | proving test | ✅ |
+| AC2 | AC | Staleness accurate | A1; behind then current after incremental | tests | ✅ |
 
 `CLARIFICATION: 0 open | ASSUMED A1–A8 ratified at Gate 1`
 
@@ -189,11 +189,65 @@ branch: feat/016-incremental-git
 **Axis 1:** diff ⊆ change-list ✅
 **Axis 2:** approach bullets implemented-as-approved ✅
 
+**Review fix (post Phase-3):** `unlink_targets` collapses HEURISTIC top-N sibling groups before
+re-resolve (R4.2); proving coverage in `test_heuristic_siblings_still_match_a_full_rebuild`.
+Committed as `f7cfbf2`.
+
 ---
 
 ## Phase 4 — Review
 
-*(pending)*
+**Reviewed at** `f7cfbf2`
+
+**Working-doc path:** `docs/tasks/016_incremental-git.md`
+
+**Reviewed files:** `code_atlas/gitutil.py`, `code_atlas/store.py`, `code_atlas/indexer.py`, `code_atlas/tools/build_or_update_index.py`, `tests/fixtures/adapter/fake_adapter.py`, `tests/test_incremental.py`, `tests/test_mcp_server.py`, `README.md`, `docs/PLAN.md`, `docs/BACKLOG.md`, `docs/tasks/016_incremental-git.md`
+
+| Critic | Result |
+|--------|--------|
+| mango:reviewer round 1 ([Reviewer](f852bbd7-ef10-450e-83b7-121efa17a716)) | **CHANGES REQUESTED** — HEURISTIC sibling unlink (R4.2) |
+| mango:challenger ([Challenger](de2207ce-d48a-4871-9652-9c9ab1eacd68)) | **10 met · 0 not met · 1 can't tell** (goal “cheap” unmeasured) |
+| mango:reviewer round 2 ([Reviewer](bdc74828-249b-4656-8ba9-389a28d7fcda)) | **LGTM** — sibling collapse + proving test verified |
+
+### Reviewer detail round 1 ([Reviewer](f852bbd7-ef10-450e-83b7-121efa17a716))
+
+- **Verdict:** CHANGES REQUESTED
+- **Scope:** `main...HEAD` @ `9489acc` maps 1:1 onto change-list items 1–8
+- **Finding (Important, R4.2):** `unlink_targets` only nulled `target_qname`; HEURISTIC top-N siblings left in place → hash-skipped dependents could diverge from full rebuild after `resolve_edges`
+- **Required fix:** collapse natural-key groups to one bare edge + proving test for multi-match CALLS
+- **Verification then:** proving test PASS; `tests/test_incremental.py` 5 passed; MCP suite green
+
+### Challenger detail ([Challenger](de2207ce-d48a-4871-9652-9c9ab1eacd68)) — ticket-blind
+
+| # | Reconstructed requirement | Verdict | Evidence |
+|---|---------------------------|---------|----------|
+| 1 | gitutil diff → changed files | **Met** | `gitutil.py:33-41`; `test_changed_paths…` |
+| 2 | single-hop dependents | **Met** | `indexer.py` + `file_paths_targeting`; dep fixture |
+| 3 | reparse changed ∪ dependents, hash-skip | **Met** | `indexer.py:107-112`, `_hash_matches` |
+| 4 | resolver scoped to affected qnames | **Met** (nuance: unlink + unresolved resolve, not a filtered API) | `unlink_targets` + `resolve_edges` |
+| 5 | bump `meta.last_commit` | **Met** | `_record_meta` |
+| 6 | staleness in `get_index_status` | **Met** | existing tool + incremental bump |
+| 7 | hermetic throwaway repos; keep CI shallow | **Met** | `test_incremental.py`; no pytest fetch-depth change |
+| 8 | AC: only affected rows | **Met** | unrelated node id stable |
+| 9 | AC: equals full rebuild | **Met** | snapshot parity |
+| 10 | AC: staleness accurate | **Met** | behind → current (equality, not N-count) |
+| 11 | Goal: keep fresh cheaply | **Can't tell** | no perf measurement (acceptable for M5 AC) |
+
+**Orchestrator note:** #11 can't-tell is expected — ticket AC is correctness/parity, not a perf bar.
+
+### Reviewer detail round 2 ([Reviewer](bdc74828-249b-4656-8ba9-389a28d7fcda))
+
+- **Verdict:** LGTM
+- **Fix verified:** `store.py:388-442` collapse + `test_heuristic_siblings_still_match_a_full_rebuild`
+- **Verification:** `tests/test_incremental.py` → **6 passed**; full suite → **524 passed**
+
+**Scope reconcile:** file axis ✅ · behaviour axis ✅ (sibling fix in-list) · inventory ✅
+
+**Layer-match:** AC1/AC2 integration over hermetic git ✅
+
+**Proving (re-check):** `test_one_file_edit_matches_full_rebuild_and_leaves_unrelated_ids` PASS; sibling parity PASS. Baseline 517 → 524.
+
+**Verdict:** clean for Gate 4.
 
 ---
 
@@ -202,9 +256,16 @@ branch: feat/016-incremental-git
 | Phase | Dispatch | Round | Tokens | Notes |
 |-------|----------|-------|--------|-------|
 | refine | challenger (exposure-checker) | 1 | unmeasured (host does not surface usage) | [c00f48c5](c00f48c5-3e90-4ce6-a4cf-954f4134fa5e); UNEXPOSED: 6 |
+| review | reviewer | 1 | unmeasured (host does not surface usage) | [f852bbd7](f852bbd7-ef10-450e-83b7-121efa17a716); CHANGES REQUESTED |
+| review | challenger | 1 | unmeasured (host does not surface usage) | [de2207ce](de2207ce-d48a-4871-9652-9c9ab1eacd68); 10 met / 0 not met / 1 can't tell |
+| review | reviewer | 2 | unmeasured (host does not surface usage) | [bdc74828](bdc74828-249b-4656-8ba9-389a28d7fcda); LGTM |
 
 ---
 
 ## Follow-ups
 
-- None yet.
+- None.
+
+## Durable lesson (candidate — needs ratification at final gate)
+
+When incremental unlinks resolved edges for re-resolve, **collapse HEURISTIC top-N sibling rows** in the same natural-key group to one bare edge. Nulling `target_qname` alone leaves siblings that re-fan-out and break R4.2 parity with a full rebuild.
