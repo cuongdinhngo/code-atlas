@@ -427,8 +427,9 @@ class GraphStore:
         """Bounded best-score blast radius via iterative SQL waves (§12).
 
         Walks **incoming** ``RESOLVED`` edges of ``IMPACT_KINDS`` (callers / subtypes /
-        includers). Keeps one best score per qname; drops below ``IMPACT_FLOOR``; caps by
-        ``depth`` hops and ``max_nodes`` results. Never loads the whole edge table.
+        includers). Best scores, frontier, and merges live in temp tables — each wave
+        JOINs only edges touching the frontier. Final result is ordered and ``LIMIT``ed
+        to ``max_nodes``.
         """
         if depth < 0:
             raise ValueError(f"depth must be >= 0, got {depth}")
@@ -438,80 +439,127 @@ class GraphStore:
         if not ordered_seeds:
             return []
 
-        best: dict[str, tuple[float, int, str, int]] = {}
-        for qname in ordered_seeds:
-            file_path, line = self._impact_node_loc(qname)
-            best[qname] = (1.0, 0, file_path, line)
-        frontier = list(ordered_seeds)
-        kind_placeholders = ", ".join("?" for _ in IMPACT_KINDS)
+        conn = self._conn
+        conn.execute("DROP TABLE IF EXISTS temp.impact_best")
+        conn.execute("DROP TABLE IF EXISTS temp.impact_frontier")
+        conn.execute("DROP TABLE IF EXISTS temp.impact_weights")
+        conn.execute("DROP TABLE IF EXISTS temp.impact_next")
+        conn.execute(
+            "CREATE TEMP TABLE impact_best ("
+            "qname TEXT PRIMARY KEY, score REAL NOT NULL, depth INT NOT NULL, "
+            "file TEXT NOT NULL, line INT NOT NULL)"
+        )
+        conn.execute(
+            "CREATE TEMP TABLE impact_frontier ("
+            "qname TEXT PRIMARY KEY, score REAL NOT NULL, depth INT NOT NULL)"
+        )
+        conn.execute(
+            "CREATE TEMP TABLE impact_weights (kind TEXT PRIMARY KEY, weight REAL NOT NULL)"
+        )
+        conn.executemany(
+            "INSERT INTO temp.impact_weights (kind, weight) VALUES (?, ?)",
+            list(IMPACT_WEIGHTS.items()),
+        )
+
+        seed_rows = [(q, 1.0, 0, *self._impact_node_loc(q)) for q in ordered_seeds]
+        conn.executemany(
+            "INSERT INTO temp.impact_best (qname, score, depth, file, line) "
+            "VALUES (?, ?, ?, ?, ?)",
+            seed_rows,
+        )
+        conn.executemany(
+            "INSERT INTO temp.impact_frontier (qname, score, depth) VALUES (?, ?, ?)",
+            [(q, 1.0, 0) for q in ordered_seeds],
+        )
+
         expand_sql = (
-            f"SELECT e.source_qname, e.kind, f.score, f.depth "
-            f"FROM edges e "
-            f"JOIN temp.impact_frontier f ON e.target_qname = f.qname "
-            f"WHERE e.confidence_tier = 'RESOLVED' "
-            f"AND e.kind IN ({kind_placeholders}) "
-            f"AND e.target_qname IS NOT NULL"
+            "INSERT INTO temp.impact_next (qname, score, depth) "
+            "SELECT e.source_qname, f.score * w.weight * ?, f.depth + 1 "
+            "FROM temp.impact_frontier f "
+            "JOIN edges e ON e.target_qname = f.qname "
+            "JOIN temp.impact_weights w ON w.kind = e.kind "
+            "WHERE e.confidence_tier = 'RESOLVED' AND e.target_qname IS NOT NULL "
+            "AND f.score * w.weight * ? >= ?"
+        )
+        merge_sql = (
+            "INSERT INTO temp.impact_best (qname, score, depth, file, line) "
+            "SELECT n.qname, n.score, n.depth, "
+            "COALESCE(("
+            "  SELECT nodes.file_path FROM nodes WHERE nodes.qualified_name = n.qname "
+            "  ORDER BY nodes.file_path, nodes.line_start, nodes.id LIMIT 1"
+            "), ''), "
+            "COALESCE(("
+            "  SELECT nodes.line_start FROM nodes WHERE nodes.qualified_name = n.qname "
+            "  ORDER BY nodes.file_path, nodes.line_start, nodes.id LIMIT 1"
+            "), 0) "
+            "FROM ("
+            "  SELECT qname, MAX(score) AS score, MIN(depth) AS depth "
+            "  FROM temp.impact_next GROUP BY qname"
+            ") AS n "
+            "WHERE n.score >= ? "
+            "ON CONFLICT(qname) DO UPDATE SET "
+            "score = excluded.score, depth = excluded.depth, "
+            "file = excluded.file, line = excluded.line "
+            "WHERE excluded.score > impact_best.score"
+        )
+        refill_frontier_sql = (
+            "INSERT INTO temp.impact_frontier (qname, score, depth) "
+            "SELECT b.qname, b.score, b.depth FROM temp.impact_best b "
+            "JOIN ("
+            "  SELECT qname, MAX(score) AS score FROM temp.impact_next GROUP BY qname"
+            ") AS n ON n.qname = b.qname AND n.score = b.score"
         )
 
         for _hop in range(depth):
-            if not frontier:
+            empty = conn.execute("SELECT 1 FROM temp.impact_frontier LIMIT 1").fetchone()
+            if empty is None:
                 break
-            self._conn.execute("DROP TABLE IF EXISTS temp.impact_frontier")
-            self._conn.execute(
-                "CREATE TEMP TABLE impact_frontier ("
-                "qname TEXT PRIMARY KEY, score REAL NOT NULL, depth INT NOT NULL)"
+            conn.execute("DROP TABLE IF EXISTS temp.impact_next")
+            conn.execute(
+                "CREATE TEMP TABLE impact_next ("
+                "qname TEXT NOT NULL, score REAL NOT NULL, depth INT NOT NULL)"
             )
-            self._conn.executemany(
-                "INSERT INTO temp.impact_frontier (qname, score, depth) VALUES (?, ?, ?)",
-                [(q, best[q][0], best[q][1]) for q in frontier],
-            )
-            next_frontier: list[str] = []
-            for source, kind, parent_score, parent_depth in self._conn.execute(
-                expand_sql, IMPACT_KINDS
-            ):
-                weight = IMPACT_WEIGHTS.get(str(kind))
-                if weight is None:
-                    continue
-                new_score = float(parent_score) * weight * IMPACT_DECAY
-                if new_score < IMPACT_FLOOR:
-                    continue
-                neighbor = str(source)
-                new_depth = int(parent_depth) + 1
-                prev = best.get(neighbor)
-                if prev is not None and new_score <= prev[0]:
-                    continue
-                file_path, line = self._impact_node_loc(neighbor)
-                best[neighbor] = (new_score, new_depth, file_path, line)
-                next_frontier.append(neighbor)
-            frontier = list(dict.fromkeys(next_frontier))
+            conn.execute(expand_sql, (IMPACT_DECAY, IMPACT_DECAY, IMPACT_FLOOR))
+            conn.execute(merge_sql, (IMPACT_FLOOR,))
+            conn.execute("DELETE FROM temp.impact_frontier")
+            conn.execute(refill_frontier_sql)
 
-        self._conn.execute("DROP TABLE IF EXISTS temp.impact_frontier")
-        ranked = sorted(best.items(), key=lambda item: (-item[1][0], item[0]))[:max_nodes]
-        return [
-            {
-                "qname": qname,
-                "score": score,
-                "depth": hop_depth,
-                "file": file_path,
-                "line": line,
-            }
-            for qname, (score, hop_depth, file_path, line) in ranked
-        ]
+        keys = ("qname", "score", "depth", "file", "line")
+        rows = self._rows(
+            keys,
+            "SELECT qname, score, depth, file, line FROM temp.impact_best "
+            "ORDER BY score DESC, qname ASC LIMIT ?",
+            (max_nodes,),
+        )
+        conn.execute("DROP TABLE IF EXISTS temp.impact_best")
+        conn.execute("DROP TABLE IF EXISTS temp.impact_frontier")
+        conn.execute("DROP TABLE IF EXISTS temp.impact_weights")
+        conn.execute("DROP TABLE IF EXISTS temp.impact_next")
+        return rows
+
+    def nodes_by_file_all(self, path: str) -> list[Row]:
+        """Every node on ``path`` (impact path seeds — no silent row cap)."""
+        sql = (
+            f"SELECT id, {_NODE_COLUMNS} FROM nodes WHERE file_path = ? "
+            f"ORDER BY {_NODE_ORDER}"
+        )
+        return self._rows(NODE_ROW_KEYS, sql, (path,))
 
     def _impact_node_loc(self, qname: str) -> tuple[str, int]:
         """Pick one node's file/line for ``qname`` (stable: lowest ``file_path``)."""
-        rows = sorted(
-            self.nodes_by_qualified_name(qname, limit=32),
-            key=lambda row: (
-                str(row["file_path"]),
-                int(row["line_start"] or 0),
-                int(str(row["id"])),
-            ),
-        )
+
+        def sort_key(row: Row) -> tuple[str, int, int]:
+            raw_line = row["line_start"]
+            line_start = raw_line if isinstance(raw_line, int) else 0
+            raw_id = row["id"]
+            row_id = raw_id if isinstance(raw_id, int) else int(str(raw_id))
+            return (str(row["file_path"]), line_start, row_id)
+
+        rows = sorted(self.nodes_by_qualified_name(qname, limit=32), key=sort_key)
         if not rows:
             return ("", 0)
         line = rows[0]["line_start"]
-        return (str(rows[0]["file_path"]), int(line) if isinstance(line, int) else 0)
+        return (str(rows[0]["file_path"]), line if isinstance(line, int) else 0)
 
     def _search_short(
         self,

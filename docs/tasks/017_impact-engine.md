@@ -39,11 +39,12 @@ Plan §12 (impact engine), §15 (M6).
 ## Session status
 
 ```
-phase: 3 execute
+phase: 4 review
 Gate: 1+2 cleared under standing “best option / pass all gates”
 work_doc_mode: embed
 working_doc: docs/tasks/017_impact-engine.md (below separator)
-Reviewed at: (pending review)
+Reviewed at: (pending)
+execute_sha: 3693287
 ```
 
 ---
@@ -236,8 +237,30 @@ Revert the change-list commit(s). Repos: `app` only.
 
 ---
 
+## Phase 3 — Execute
+
+**Branch:** `feat/017-impact-engine` @ `3693287`
+
+**Verification sweep**
+
+| Check | Result |
+|-------|--------|
+| Proving test | `test_impact_matches_hand_traced_planted_graph` PASS |
+| Impact suite | `tests/test_impact.py` + MCP/prompt collateral — **70 passed** (with `test_mcp_server` + `test_search_read_outline`) |
+| Diff ⊆ change-list | `store.py`, `tools/impact.py`, `tools/prompts.py`, `main.py`, `tests/test_impact.py`, `tests/test_mcp_server.py`, `tests/test_search_read_outline.py`, task/docs — matches items 1–7 |
+| Approach bullets | iterative SQL waves + RESOLVED-only + A1 weights + tool/prompt/register — **implemented-as-approved** |
+| Deviations | none |
+
+**Design-conformance:** all Gate-2 Approach bullets `implemented-as-approved`.
+
+Flows to review.
+
+---
+
 ## Cost ledger
 
 | Phase | Dispatch | Round | Tokens |
 |-------|----------|-------|--------|
 | 0 | mango:challenger (exposure-checker) | 1 | unmeasured (host does not surface usage) |
+| 4 | mango:reviewer | 1 | pending |
+| 4 | mango:challenger | 1 | pending |

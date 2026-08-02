@@ -15,14 +15,20 @@ from code_atlas.tools import impact as impact_tool
 # Hand-traced scores (A1): seed 1.0; CALLS weight 1.0; EXTENDS 0.9; decay ×0.7.
 SEED = "\\Changed"
 CALLER = "\\Caller"
+NEW_CALLER = "\\NewCaller"
 CHILD = "\\Child"
+IMPL = "\\Impl"
+INCLUDER = "\\Includer"
 GRAND = "\\GrandCaller"
 HEURISTIC = "\\HeuristicCaller"
 DYNAMIC = "\\DynamicCaller"
 CONTAINER = "\\FileContainer"
 
 SCORE_CALLER = 1.0 * IMPACT_WEIGHTS["CALLS"] * IMPACT_DECAY  # 0.7
+SCORE_NEW = 1.0 * IMPACT_WEIGHTS["NEW"] * IMPACT_DECAY  # 0.7
 SCORE_CHILD = 1.0 * IMPACT_WEIGHTS["EXTENDS"] * IMPACT_DECAY  # 0.63
+SCORE_IMPL = 1.0 * IMPACT_WEIGHTS["IMPLEMENTS"] * IMPACT_DECAY  # 0.63
+SCORE_INCLUDER = 1.0 * IMPACT_WEIGHTS["INCLUDES"] * IMPACT_DECAY  # 0.56
 SCORE_GRAND = SCORE_CALLER * IMPACT_WEIGHTS["CALLS"] * IMPACT_DECAY  # 0.49
 
 
@@ -76,7 +82,10 @@ def plant_graph(store: GraphStore) -> None:
         [
             node("Class", "Changed", SEED, path, line=10),
             node("Class", "Caller", CALLER, path, line=20),
+            node("Class", "NewCaller", NEW_CALLER, path, line=25),
             node("Class", "Child", CHILD, path, line=30),
+            node("Class", "Impl", IMPL, path, line=35),
+            node("File", "Includer", INCLUDER, path, line=36),
             node("Class", "GrandCaller", GRAND, path, line=40),
             node("Class", "HeuristicCaller", HEURISTIC, path, line=50),
             node("Class", "DynamicCaller", DYNAMIC, path, line=60),
@@ -84,7 +93,10 @@ def plant_graph(store: GraphStore) -> None:
         ],
         [
             edge("CALLS", CALLER, SEED, path, line=21),
+            edge("NEW", NEW_CALLER, SEED, path, line=26),
             edge("EXTENDS", CHILD, SEED, path, line=31),
+            edge("IMPLEMENTS", IMPL, SEED, path, line=35),
+            edge("INCLUDES", INCLUDER, SEED, path, line=36),
             edge("CALLS", GRAND, CALLER, path, line=41),
             edge("CALLS", HEURISTIC, SEED, path, tier="HEURISTIC", line=51),
             edge("CALLS", DYNAMIC, SEED, path, tier="DYNAMIC", line=61),
@@ -99,25 +111,33 @@ def test_impact_matches_hand_traced_planted_graph(store: GraphStore) -> None:
     rows = store.impact_radius([SEED], depth=2, max_nodes=50)
     by_qname = {str(r["qname"]): r for r in rows}
 
-    assert set(by_qname) == {SEED, CALLER, CHILD, GRAND}
+    assert set(by_qname) == {SEED, CALLER, NEW_CALLER, CHILD, IMPL, INCLUDER, GRAND}
     assert by_qname[SEED]["score"] == pytest.approx(1.0)
     assert by_qname[SEED]["depth"] == 0
     assert by_qname[CALLER]["score"] == pytest.approx(SCORE_CALLER)
-    assert by_qname[CALLER]["depth"] == 1
+    assert by_qname[NEW_CALLER]["score"] == pytest.approx(SCORE_NEW)
     assert by_qname[CHILD]["score"] == pytest.approx(SCORE_CHILD)
-    assert by_qname[CHILD]["depth"] == 1
+    assert by_qname[IMPL]["score"] == pytest.approx(SCORE_IMPL)
+    assert by_qname[INCLUDER]["score"] == pytest.approx(SCORE_INCLUDER)
     assert by_qname[GRAND]["score"] == pytest.approx(SCORE_GRAND)
     assert by_qname[GRAND]["depth"] == 2
     assert HEURISTIC not in by_qname and DYNAMIC not in by_qname and CONTAINER not in by_qname
 
     ordered = [str(r["qname"]) for r in rows]
-    assert ordered == [SEED, CALLER, CHILD, GRAND]
+    assert ordered == [SEED, CALLER, NEW_CALLER, CHILD, IMPL, INCLUDER, GRAND]
 
 
 def test_depth_cap_excludes_second_hop(store: GraphStore) -> None:
     plant_graph(store)
     rows = store.impact_radius([SEED], depth=1, max_nodes=50)
-    assert {str(r["qname"]) for r in rows} == {SEED, CALLER, CHILD}
+    assert {str(r["qname"]) for r in rows} == {
+        SEED,
+        CALLER,
+        NEW_CALLER,
+        CHILD,
+        IMPL,
+        INCLUDER,
+    }
 
 
 def test_max_nodes_keeps_highest_scores(store: GraphStore) -> None:

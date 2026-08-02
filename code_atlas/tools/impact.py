@@ -75,7 +75,7 @@ def _seeds(
     for path in paths:
         if not path:
             continue
-        for row in store.nodes_by_file(path, limit=10_000):
+        for row in store.nodes_by_file_all(path):
             qname = str(row["qualified_name"])
             if qname not in seen:
                 seen.add(qname)
