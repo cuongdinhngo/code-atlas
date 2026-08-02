@@ -488,6 +488,36 @@ def test_nodes_by_qualified_name(store: GraphStore) -> None:
     assert [row["name"] for row in found] == ["save"]
 
 
+def test_nodes_by_qualified_names_chunks_large_key_lists(
+    store: GraphStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Batch IN lists stay under host max-vars via ``_IN_CHUNK`` (PR #30 review)."""
+    import code_atlas.store as store_mod
+
+    monkeypatch.setattr(store_mod, "_IN_CHUNK", 2)
+    nodes = [
+        a_node("Class", f"C{i}", f"\\Ns\\C{i}", f"f{i}.x") for i in range(5)
+    ]
+    for path in sorted({str(n["file_path"]) for n in nodes}):
+        store.upsert_file(path, "h", "lang")
+    store.replace_file_rows("f0.x", nodes, [])
+
+    calls = {"n": 0}
+    original = GraphStore._rows
+
+    def counting(
+        self: GraphStore, keys: tuple[str, ...], sql: str, params: object
+    ) -> list[dict[str, object]]:
+        calls["n"] += 1
+        return original(self, keys, sql, params)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(GraphStore, "_rows", counting)
+    qnames = [f"\\Ns\\C{i}" for i in range(5)]
+    found = store.nodes_by_qualified_names(qnames, limit=1)
+    assert calls["n"] == 3  # ceil(5 / 2)
+    assert [found[q][0]["qualified_name"] for q in qnames] == qnames
+
+
 def test_unresolved_edges_skips_already_linked_rows(store: GraphStore) -> None:
     seeded(store)
     assert len(store.unresolved_edges()) == 1

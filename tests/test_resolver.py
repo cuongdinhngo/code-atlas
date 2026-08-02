@@ -189,6 +189,54 @@ def test_literal_include_resolves_relative_to_includer(store: GraphStore) -> Non
     assert linked[0]["confidence_tier"] == "RESOLVED"
 
 
+def test_batched_includes_dedupe_shared_path_and_skip_ambiguous(store: GraphStore) -> None:
+    """Batch INCLUDES: duplicate resolved paths still link; ambiguous File qname is skipped."""
+    for path in ("pkg/a.x", "other/b.x", "x.x", "shared.x", "t1.x", "t2.x"):
+        store.upsert_file(path, "h", "lang")
+    store.replace_file_rows(
+        "shared.x",
+        [node("File", "shared.x", "shared.x", "shared.x")],
+        [],
+    )
+    # Same File qname, two file_paths → len(hits) == 2 → skip.
+    store.replace_file_rows(
+        "t1.x",
+        [node("File", "dup.x", "dup.x", "t1.x")],
+        [],
+    )
+    store.replace_file_rows(
+        "t2.x",
+        [node("File", "dup.x", "dup.x", "t2.x")],
+        [],
+    )
+    store.replace_file_rows(
+        "pkg/a.x",
+        [node("File", "pkg/a.x", "pkg/a.x", "pkg/a.x")],
+        [edge("INCLUDES", "pkg/a.x", "../shared.x", "pkg/a.x")],
+    )
+    store.replace_file_rows(
+        "other/b.x",
+        [node("File", "other/b.x", "other/b.x", "other/b.x")],
+        [edge("INCLUDES", "other/b.x", "../shared.x", "other/b.x")],
+    )
+    store.replace_file_rows(
+        "x.x",
+        [node("File", "x.x", "x.x", "x.x")],
+        [edge("INCLUDES", "x.x", "dup.x", "x.x")],
+    )
+
+    resolve_edges(store, max_candidates=50)
+
+    for source in ("pkg/a.x", "other/b.x"):
+        linked = store.edges_by_source(source, kinds=("INCLUDES",), limit=10)
+        assert len(linked) == 1
+        assert linked[0]["target_qname"] == "shared.x"
+        assert linked[0]["confidence_tier"] == "RESOLVED"
+    ambiguous = store.edges_by_source("x.x", kinds=("INCLUDES",), limit=10)
+    assert len(ambiguous) == 1
+    assert ambiguous[0]["target_qname"] is None
+
+
 def test_prelinked_edges_are_left_alone(store: GraphStore) -> None:
     seed_file(
         store,
@@ -278,7 +326,7 @@ def test_full_build_resolves_a_known_caller_chain_on_fixtures(
 def test_batched_resolve_matches_golden_and_is_o1_selects(
     store: GraphStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Task 027 proving: golden multi-candidate edges + O(1) ``_rows`` SELECTs per batch."""
+    """Task 027 proving: multi-candidate CALLS order + O(1) ``_rows`` SELECTs per batch."""
     nodes = [
         node("Class", "Child", "\\Ns\\Child", "c.x"),
         node("Class", "Parent", "\\Ns\\Parent", "p1.x"),
@@ -313,17 +361,17 @@ def test_batched_resolve_matches_golden_and_is_o1_selects(
     monkeypatch.setattr(GraphStore, "_rows", counting)
     resolve_edges(store, max_candidates=2)
 
-    # Pass 1 FQN batch + pass 2 Method batch (no INCLUDES) → 2 SELECTs, not O(N).
+    # Budget: iter_unresolved_edges (batch + empty end) + FQN pass + Method pass.
+    # Both node lookups fit one `_IN_CHUNK` here; large batches use ≤3 SELECTs each.
     assert calls["n"] <= 4
-    assert calls["n"] < 10
 
     extends = store.edges_by_source("\\Ns\\Child", kinds=("EXTENDS",), limit=10)
-    assert sorted(
-        (row["target_qname"], row["confidence_tier"]) for row in extends
-    ) == [
-        ("\\Ns\\Parent", "HEURISTIC"),
-        ("\\Ns\\Parent", "HEURISTIC"),
-    ]
+    # Same qname on both candidates — cannot distinguish primary vs sibling by target alone.
+    assert len(extends) == 2
+    assert all(
+        row["target_qname"] == "\\Ns\\Parent" and row["confidence_tier"] == "HEURISTIC"
+        for row in extends
+    )
 
     puts = store.edges_by_source("\\A::save", kinds=("CALLS",), limit=50)
     # 10 CALLS × 2 candidates each (primary + sibling) with identical target set order.

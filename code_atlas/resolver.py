@@ -11,16 +11,23 @@ _TIER_STRENGTH = {tier: index for index, tier in enumerate(contract.CONFIDENCE_T
 # How many unresolved edges to pull into Python at once (M4 — avoid loading the whole table).
 _RESOLVE_BATCH = 1000
 
+# Path-shaped kinds must not also be FQN-resolved (would double-link the same edge id).
+assert "INCLUDES" not in contract.FQN_EDGE_KINDS
+
 
 def resolve_edges(store: GraphStore, *, max_candidates: int) -> None:
     """Link bare edges after every node exists; ``max_candidates`` caps multi-match HEURISTIC."""
     for batch in store.iter_unresolved_edges(batch_size=_RESOLVE_BATCH, skip_dynamic=True):
         links: list[tuple[int, str, str]] = []
         siblings: list[dict[str, object]] = []
-        includes = [edge for edge in batch if str(edge["kind"]) == "INCLUDES"]
-        symbols = [
-            edge for edge in batch if str(edge["kind"]) in contract.FQN_EDGE_KINDS
-        ]
+        includes: list[dict[str, object]] = []
+        symbols: list[dict[str, object]] = []
+        for edge in batch:
+            kind = str(edge["kind"])
+            if kind == "INCLUDES":
+                includes.append(edge)
+            elif kind in contract.FQN_EDGE_KINDS:
+                symbols.append(edge)
 
         include_paths = [
             _relative_to(str(edge["file_path"]), str(edge["target_raw"]))
