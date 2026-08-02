@@ -89,6 +89,32 @@ def test_search_respects_namespace_prefix(tmp_path: Path, store: GraphStore) -> 
     assert outside["results"] == []
 
 
+def test_namespace_filter_treats_underscore_literally(store: GraphStore) -> None:
+    store.upsert_file("a.php", "h", "php")
+    store.replace_file_rows(
+        "a.php",
+        [
+            {
+                "kind": "Class",
+                "name": "Thing",
+                "qualified_name": "\\My_App\\Thing",
+                "file_path": "a.php",
+                "line_start": 1,
+            },
+            {
+                "kind": "Class",
+                "name": "Thing",
+                "qualified_name": "\\MyXApp\\Thing",
+                "file_path": "a.php",
+                "line_start": 2,
+            },
+        ],
+        [],
+    )
+    hits = store.search_nodes("Thing", namespace="\\My_App", limit=10)
+    assert [row["qualified_name"] for row in hits] == ["\\My_App\\Thing"]
+
+
 @needs_php
 def test_file_outline_lists_symbols_without_bodies(tmp_path: Path, store: GraphStore) -> None:
     index_namespaced(tmp_path, store)

@@ -107,6 +107,11 @@ def fts_term(query: str) -> str:
     return '"' + query.replace('"', '""') + '"*'
 
 
+def _like_literal(value: str) -> str:
+    """Escape ``!``, ``%``, and ``_`` for a ``LIKE … ESCAPE '!'`` pattern (``\\`` stays literal)."""
+    return value.replace("!", "!!").replace("%", "!%").replace("_", "!_")
+
+
 def stored(value: object) -> object:
     """Structured values become canonical JSON, so identical input stores identical bytes (R4.2)."""
     if value is None or isinstance(value, str | int | float):
@@ -304,11 +309,20 @@ class GraphStore:
         """
         where, params = _narrow("nodes_fts MATCH ?", fts_term(query), kind, "nodes.kind = ?")
         if namespace is not None:
+            escaped = _like_literal(namespace)
             where = (
-                f"({where}) AND (nodes.qualified_name = ? OR nodes.qualified_name LIKE ? "
-                f"OR nodes.qualified_name LIKE ? OR nodes.qualified_name LIKE ?)"
+                f"({where}) AND (nodes.qualified_name = ? OR "
+                f"nodes.qualified_name LIKE ? ESCAPE '!' OR "
+                f"nodes.qualified_name LIKE ? ESCAPE '!' OR "
+                f"nodes.qualified_name LIKE ? ESCAPE '!')"
             )
-            params = (*params, namespace, f"{namespace}\\%", f"{namespace}.%", f"{namespace}::%")
+            params = (
+                *params,
+                namespace,
+                f"{escaped}\\%",
+                f"{escaped}.%",
+                f"{escaped}::%",
+            )
         sql = (
             f"SELECT nodes.id, {_NODE_COLUMNS_JOINED} FROM nodes "
             f"JOIN nodes_fts ON nodes_fts.rowid = nodes.id "
