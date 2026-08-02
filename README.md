@@ -100,8 +100,8 @@ a silent fallback.
 | `CA_WORKERS` | `workers` | `max(1, min(cpu-2, 8))` | adapter processes during a build |
 | `CA_ADAPTER_TIMEOUT` | `adapter_timeout` | `30` | seconds an adapter may stay silent before a build kills it |
 | `CA_MAX_RESULTS` | `max_results` | `50` | result cap for search/nav tools |
-| `CA_IMPACT_DEPTH` | `impact_depth` | `2` | hops the impact engine traverses |
-| `CA_IMPACT_MAX_NODES` | `impact_max_nodes` | `500` | node budget for one impact query |
+| `CA_IMPACT_DEPTH` | `impact_depth` | `2` | hops the impact engine traverses (with default decay/floor, depths above ~8 are a no-op) |
+| `CA_IMPACT_MAX_NODES` | `impact_max_nodes` | `500` | node budget for one impact query (seeds kept preferentially when over budget) |
 | `CA_TOOLS` | `tools` | all tools | comma-separated tool allow-list |
 | `CA_HOST_ROOT` | `host_root` | unset | absolute-path rewrite only (pair with `CA_CONTAINER_ROOT`; unused by the relative-path build) |
 | `CA_CONTAINER_ROOT` | `container_root` | unset | absolute-path rewrite only (pair with `CA_HOST_ROOT`) |

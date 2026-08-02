@@ -1,0 +1,341 @@
+"""Task 017: impact engine — SQL best-score blast radius (§12 / M6)."""
+
+from __future__ import annotations
+
+from collections.abc import Iterator
+from dataclasses import replace
+from pathlib import Path
+
+import pytest
+
+from code_atlas.config import load_config
+from code_atlas.store import IMPACT_DECAY, IMPACT_FLOOR, IMPACT_WEIGHTS, GraphStore
+from code_atlas.tools import impact as impact_tool
+
+# Hand-traced scores (A1): seed 1.0; CALLS weight 1.0; EXTENDS 0.9; decay ×0.7.
+SEED = "\\Changed"
+CALLER = "\\Caller"
+NEW_CALLER = "\\NewCaller"
+CHILD = "\\Child"
+IMPL = "\\Impl"
+INCLUDER = "\\Includer"
+GRAND = "\\GrandCaller"
+HEURISTIC = "\\HeuristicCaller"
+DYNAMIC = "\\DynamicCaller"
+CONTAINER = "\\FileContainer"
+
+SCORE_CALLER = 1.0 * IMPACT_WEIGHTS["CALLS"] * IMPACT_DECAY  # 0.7
+SCORE_NEW = 1.0 * IMPACT_WEIGHTS["NEW"] * IMPACT_DECAY  # 0.7
+SCORE_CHILD = 1.0 * IMPACT_WEIGHTS["EXTENDS"] * IMPACT_DECAY  # 0.63
+SCORE_IMPL = 1.0 * IMPACT_WEIGHTS["IMPLEMENTS"] * IMPACT_DECAY  # 0.63
+SCORE_INCLUDER = 1.0 * IMPACT_WEIGHTS["INCLUDES"] * IMPACT_DECAY  # 0.56
+SCORE_GRAND = SCORE_CALLER * IMPACT_WEIGHTS["CALLS"] * IMPACT_DECAY  # 0.49
+
+
+@pytest.fixture
+def store(tmp_path: Path) -> Iterator[GraphStore]:
+    with GraphStore(tmp_path / "graph.db") as opened:
+        yield opened
+
+
+def seed_file(store: GraphStore, path: str, nodes: list[dict], edges: list[dict]) -> None:
+    store.upsert_file(path, "h", "lang")
+    store.replace_file_rows(path, nodes, edges)
+
+
+def node(kind: str, name: str, qname: str, path: str, *, line: int = 1) -> dict[str, object]:
+    return {
+        "kind": kind,
+        "name": name,
+        "qualified_name": qname,
+        "file_path": path,
+        "line_start": line,
+    }
+
+
+def edge(
+    kind: str,
+    source: str,
+    target: str,
+    path: str,
+    *,
+    tier: str = "RESOLVED",
+    line: int = 1,
+) -> dict[str, object]:
+    return {
+        "kind": kind,
+        "source_qname": source,
+        "target_raw": target,
+        "target_qname": target,
+        "file_path": path,
+        "line": line,
+        "confidence_tier": tier,
+    }
+
+
+def plant_graph(store: GraphStore) -> None:
+    """Tiny graph whose blast radius is hand-traced in the proving test."""
+    path = "a.php"
+    seed_file(
+        store,
+        path,
+        [
+            node("Class", "Changed", SEED, path, line=10),
+            node("Class", "Caller", CALLER, path, line=20),
+            node("Class", "NewCaller", NEW_CALLER, path, line=25),
+            node("Class", "Child", CHILD, path, line=30),
+            node("Class", "Impl", IMPL, path, line=35),
+            node("File", "Includer", INCLUDER, path, line=36),
+            node("Class", "GrandCaller", GRAND, path, line=40),
+            node("Class", "HeuristicCaller", HEURISTIC, path, line=50),
+            node("Class", "DynamicCaller", DYNAMIC, path, line=60),
+            node("File", "a.php", CONTAINER, path, line=1),
+        ],
+        [
+            edge("CALLS", CALLER, SEED, path, line=21),
+            edge("NEW", NEW_CALLER, SEED, path, line=26),
+            edge("EXTENDS", CHILD, SEED, path, line=31),
+            edge("IMPLEMENTS", IMPL, SEED, path, line=35),
+            edge("INCLUDES", INCLUDER, SEED, path, line=36),
+            edge("CALLS", GRAND, CALLER, path, line=41),
+            edge("CALLS", HEURISTIC, SEED, path, tier="HEURISTIC", line=51),
+            edge("CALLS", DYNAMIC, SEED, path, tier="DYNAMIC", line=61),
+            edge("CONTAINS", CONTAINER, SEED, path, line=1),
+        ],
+    )
+
+
+def test_impact_matches_hand_traced_planted_graph(store: GraphStore) -> None:
+    """AC2 / proving test: planted set+scores match the A1 hand trace."""
+    plant_graph(store)
+    outcome = store.impact_radius([SEED], depth=2, max_nodes=50)
+    rows = outcome.rows
+    by_qname = {str(r["qname"]): r for r in rows}
+
+    assert set(by_qname) == {
+        SEED,
+        CALLER,
+        NEW_CALLER,
+        CHILD,
+        IMPL,
+        INCLUDER,
+        GRAND,
+        HEURISTIC,
+        DYNAMIC,
+    }
+    assert by_qname[SEED]["score"] == pytest.approx(1.0)
+    assert by_qname[SEED]["depth"] == 0
+    assert by_qname[SEED]["confidence_tier"] == "RESOLVED"
+    assert by_qname[CALLER]["score"] == pytest.approx(SCORE_CALLER)
+    assert by_qname[NEW_CALLER]["score"] == pytest.approx(SCORE_NEW)
+    assert by_qname[CHILD]["score"] == pytest.approx(SCORE_CHILD)
+    assert by_qname[IMPL]["score"] == pytest.approx(SCORE_IMPL)
+    assert by_qname[INCLUDER]["score"] == pytest.approx(SCORE_INCLUDER)
+    assert by_qname[GRAND]["score"] == pytest.approx(SCORE_GRAND)
+    assert by_qname[GRAND]["depth"] == 2
+    assert by_qname[HEURISTIC]["confidence_tier"] == "HEURISTIC"
+    assert by_qname[DYNAMIC]["confidence_tier"] == "DYNAMIC"
+    assert CONTAINER not in by_qname
+    assert outcome.frontier_skipped_non_resolved == 2
+
+    ordered = [str(r["qname"]) for r in rows]
+    assert ordered == [
+        SEED,
+        CALLER,
+        DYNAMIC,
+        HEURISTIC,
+        NEW_CALLER,
+        CHILD,
+        IMPL,
+        INCLUDER,
+        GRAND,
+    ]
+
+
+def test_depth_cap_excludes_second_hop(store: GraphStore) -> None:
+    plant_graph(store)
+    rows = store.impact_radius([SEED], depth=1, max_nodes=50).rows
+    assert {str(r["qname"]) for r in rows} == {
+        SEED,
+        CALLER,
+        NEW_CALLER,
+        CHILD,
+        IMPL,
+        INCLUDER,
+        HEURISTIC,
+        DYNAMIC,
+    }
+
+
+def test_max_nodes_keeps_highest_scores(store: GraphStore) -> None:
+    plant_graph(store)
+    rows = store.impact_radius([SEED], depth=2, max_nodes=2).rows
+    assert [str(r["qname"]) for r in rows] == [SEED, CALLER]
+
+
+def test_heuristic_is_returned_but_does_not_expand_frontier(store: GraphStore) -> None:
+    path = "h.php"
+    mid = "\\Mid"
+    leaf = "\\Leaf"
+    seed_file(
+        store,
+        path,
+        [
+            node("Class", "Changed", SEED, path),
+            node("Class", "Mid", mid, path),
+            node("Class", "Leaf", leaf, path),
+        ],
+        [
+            edge("CALLS", mid, SEED, path, tier="HEURISTIC"),
+            edge("CALLS", leaf, mid, path),
+        ],
+    )
+    outcome = store.impact_radius([SEED], depth=2, max_nodes=50)
+    by_qname = {str(r["qname"]): r for r in outcome.rows}
+    assert set(by_qname) == {SEED, mid}
+    assert by_qname[mid]["confidence_tier"] == "HEURISTIC"
+    assert leaf not in by_qname
+    assert outcome.frontier_skipped_non_resolved == 1
+
+
+def test_floor_drops_weak_hops(store: GraphStore) -> None:
+    assert IMPACT_FLOOR == 0.05
+    path = "f.php"
+    # 0.7**8 ≈ 0.0576 (kept); 0.7**9 ≈ 0.0403 (below floor).
+    names = [f"\\N{i}" for i in range(10)]
+    nodes = [node("Class", f"N{i}", names[i], path) for i in range(10)]
+    edges = [edge("CALLS", names[i + 1], names[i], path) for i in range(9)]
+    seed_file(store, path, nodes, edges)
+    rows = store.impact_radius([names[0]], depth=20, max_nodes=50).rows
+    qnames = {str(r["qname"]) for r in rows}
+    assert names[8] in qnames
+    assert names[9] not in qnames
+    assert all(float(r["score"]) >= IMPACT_FLOOR for r in rows)
+
+
+def test_path_seeds_union_all_file_nodes(tmp_path: Path, store: GraphStore) -> None:
+    plant_graph(store)
+    config = replace(load_config(tmp_path, {}), db_path=tmp_path / "graph.db")
+    payload = impact_tool.create(config)(paths=["a.php"], depth=0)
+    qnames = {str(r["qname"]) for r in payload["results"]}
+    assert SEED in qnames and CALLER in qnames
+    assert payload["indexed"] is True
+
+
+def test_paths_and_qnames_union(tmp_path: Path, store: GraphStore) -> None:
+    path_a = "a.php"
+    path_b = "b.php"
+    extra = "\\Extra"
+    seed_file(
+        store,
+        path_a,
+        [node("Class", "Changed", SEED, path_a)],
+        [],
+    )
+    seed_file(
+        store,
+        path_b,
+        [node("Class", "Extra", extra, path_b)],
+        [],
+    )
+    config = replace(load_config(tmp_path, {}), db_path=tmp_path / "graph.db")
+    payload = impact_tool.create(config)(paths=[path_a], qnames=[extra], depth=0)
+    assert {str(r["qname"]) for r in payload["results"]} == {SEED, extra}
+
+
+def test_unknown_seed_is_empty_success(tmp_path: Path) -> None:
+    config = replace(load_config(tmp_path, {}), db_path=tmp_path / "missing.db")
+    payload = impact_tool.create(config)(qnames=["\\Nope"])
+    assert payload["indexed"] is False
+    assert payload["results"] == []
+
+
+def test_missing_qname_with_db_is_empty_success(store: GraphStore, tmp_path: Path) -> None:
+    plant_graph(store)
+    config = replace(load_config(tmp_path, {}), db_path=tmp_path / "graph.db")
+    payload = impact_tool.create(config)(qnames=["\\Missing"], depth=0)
+    assert payload["indexed"] is True
+    assert payload["results"] == []
+
+
+def test_exact_max_nodes_fill_is_not_truncated(store: GraphStore, tmp_path: Path) -> None:
+    plant_graph(store)
+    config = replace(
+        load_config(tmp_path, {}),
+        db_path=tmp_path / "graph.db",
+        impact_max_nodes=1,
+    )
+    payload = impact_tool.create(config)(qnames=[SEED], depth=0)
+    assert len(payload["results"]) == 1
+    assert payload["truncated"] is False
+
+
+def test_seed_overflow_keeps_seeds_over_discovered(store: GraphStore) -> None:
+    path = "s.php"
+    seeds = ["\\S", "\\A", "\\B"]
+    disc = "\\Disc"
+    seed_file(
+        store,
+        path,
+        [
+            node("Class", "S", seeds[0], path),
+            node("Class", "A", seeds[1], path),
+            node("Class", "B", seeds[2], path),
+            node("Class", "Disc", disc, path),
+        ],
+        [edge("CALLS", disc, seeds[0], path)],
+    )
+    outcome = store.impact_radius(seeds, depth=1, max_nodes=2)
+    qnames = [str(r["qname"]) for r in outcome.rows]
+    # Seeds outrank discovered; among seeds, qname ASC keeps \\A and \\B, drops \\S.
+    assert qnames == ["\\A", "\\B"]
+    assert disc not in qnames
+    assert outcome.seeds_dropped == 1
+
+
+def test_cycles_converge_to_best_score(store: GraphStore) -> None:
+    path = "c.php"
+    a, b = "\\A", "\\B"
+    seed_file(
+        store,
+        path,
+        [node("Class", "A", a, path), node("Class", "B", b, path)],
+        [
+            edge("CALLS", b, a, path),
+            edge("CALLS", a, b, path),
+        ],
+    )
+    outcome = store.impact_radius([a], depth=5, max_nodes=50)
+    by_qname = {str(r["qname"]): r for r in outcome.rows}
+    assert set(by_qname) == {a, b}
+    assert by_qname[a]["score"] == pytest.approx(1.0)
+    assert by_qname[b]["score"] == pytest.approx(SCORE_CALLER)
+    assert by_qname[b]["depth"] == 1
+
+
+def test_best_score_wins_across_multiple_paths(store: GraphStore) -> None:
+    """A shorter strong path must beat a longer weak path to the same node."""
+    path = "m.php"
+    seed, mid, target = "\\Seed", "\\Mid", "\\Target"
+    seed_file(
+        store,
+        path,
+        [
+            node("Class", "Seed", seed, path),
+            node("Class", "Mid", mid, path),
+            node("Class", "Target", target, path),
+        ],
+        [
+            # Direct CALLS: score 0.7 at depth 1
+            edge("CALLS", target, seed, path),
+            # Longer path Seed ← Mid ← Target via INCLUDES then CALLS would be weaker,
+            # but Target→Seed direct already wins. Plant Mid→Seed and Target→Mid so a
+            # depth-2 path also reaches Target; best must stay the direct 0.7 / depth 1.
+            edge("CALLS", mid, seed, path),
+            edge("CALLS", target, mid, path),
+        ],
+    )
+    outcome = store.impact_radius([seed], depth=3, max_nodes=50)
+    by_qname = {str(r["qname"]): r for r in outcome.rows}
+    assert by_qname[target]["score"] == pytest.approx(SCORE_CALLER)
+    assert by_qname[target]["depth"] == 1

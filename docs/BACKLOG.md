@@ -26,7 +26,7 @@ is [`PLAN.md`](PLAN.md).
 | 014 | [Search / read / outline + FTS **(ship)**](tasks/014_search-read-outline.md) | M3 | done | 010, 004 |
 | 015 | [Full PHP coverage + scale to 112k](tasks/015_php-full-coverage-and-scale.md) | M4 | done | 013, 014, 008 |
 | 016 | [Incremental update via git diff](tasks/016_incremental-git.md) | M5 | done | 011, 009 |
-| 017 | [Impact engine + tool + prompts](tasks/017_impact-engine.md) | M6 | todo | 013, 016 |
+| 017 | [Impact engine + tool + prompts](tasks/017_impact-engine.md) | M6 | done | 013, 016 |
 | 018 | [Cross-repo validation](tasks/018_cross-repo-validation.md) | M4 | todo | 015 |
 | 024 | [CI hardening](tasks/024_ci-hardening.md) | Setup | done | 001 |
 | 025 | [PHP adapter — full 8.5 grammar coverage](tasks/025_php-adapter-grammar.md) | M0 | done | 007 |
@@ -75,6 +75,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 014 | Search / read / outline + FTS **(ship)** | **3 dispatch** — refine exposure-checker + review `mango:reviewer` + `mango:challenger`; all token cells **`unmeasured (blocking retrieval)`**. Phases 1–3 dispatched **nothing** on the main model (design/execute). **Main-loop spend is unmeasured**, as for 004–013 | [#24](https://github.com/cuongdinhngo/code-atlas/pull/24) |
 | 015 | Full PHP coverage + scale to 112k | **3 dispatch** — refine exposure-checker + review `mango:reviewer` + `mango:challenger`; all token cells **`unmeasured (host does not surface usage)`**. Phases 1–3 dispatched **nothing** on the main model. **Main-loop spend is unmeasured**, as for 004–014 | [#25](https://github.com/cuongdinhngo/code-atlas/pull/25) |
 | 016 | Incremental update via git diff | **4 dispatch** — refine exposure-checker + review `mango:reviewer` (×2) + `mango:challenger`; all token cells **`unmeasured (host does not surface usage)`**. Phases 1–3 dispatched **nothing** on the main model. **Main-loop spend is unmeasured**, as for 004–015 | [#26](https://github.com/cuongdinhngo/code-atlas/pull/26) |
+| 017 | Impact engine + tool + prompts | **6 dispatch** — refine exposure-checker + review reviewer (×3) + challenger (×2); all token cells **`unmeasured (host does not surface usage)`**. Phases 1–3 dispatched **nothing** on the main model. **Main-loop spend is unmeasured**, as for 004–016 | [#27](https://github.com/cuongdinhngo/code-atlas/pull/27) |
 
 ## Follow-ups (not yet ticketed)
 

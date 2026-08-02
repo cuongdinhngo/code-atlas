@@ -35,6 +35,7 @@ from code_atlas.tools.find_callers import NAME as CALLERS
 from code_atlas.tools.find_implementations import NAME as IMPLS
 from code_atlas.tools.find_references import NAME as REFS
 from code_atlas.tools.get_index_status import NAME as STATUS
+from code_atlas.tools.impact import NAME as IMPACT
 from code_atlas.tools.include_graph import NAME as INCLUDE
 from code_atlas.tools.read_symbol import NAME as READ
 from code_atlas.tools.search_symbol import NAME as SEARCH
@@ -158,7 +159,18 @@ def test_the_proof_has_something_to_run() -> None:
     # A server module still holding its stub would make every assertion below vacuous.
     assert FAKE.is_file()
     assert len(MAIN.read_text(encoding="utf-8").splitlines()) > 20
-    assert TOOL_NAMES == (STATUS, BUILD, SEARCH, OUTLINE, READ, CALLERS, REFS, IMPLS, INCLUDE)
+    assert TOOL_NAMES == (
+        STATUS,
+        BUILD,
+        SEARCH,
+        OUTLINE,
+        READ,
+        CALLERS,
+        REFS,
+        IMPLS,
+        INCLUDE,
+        IMPACT,
+    )
 
 
 # --- AC1 · the proving test: a real client, a real subprocess, a real build ----------------------
@@ -356,6 +368,7 @@ def test_a_current_index_is_not_told_to_rebuild(repo: Path) -> None:
         REFS,
         IMPLS,
         INCLUDE,
+        IMPACT,
     ]
 
 
@@ -372,6 +385,7 @@ CALLS: tuple[tuple[str, dict[str, object]], ...] = (
     (REFS, {"qname": "\\Missing"}),
     (IMPLS, {"qname": "\\Missing"}),
     (INCLUDE, {"path": "missing.php"}),
+    (IMPACT, {"qnames": ["\\Missing"]}),
 )
 
 
