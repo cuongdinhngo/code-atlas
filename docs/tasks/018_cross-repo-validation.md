@@ -285,17 +285,64 @@ Revert the change-list commit(s). Repos: `app` only.
 
 ## Phase 4 — Review
 
-**Reviewed at:** `e886ce62922f1a939980ba988ffabf28b594cca5`
+**Reviewed at** `e886ce62922f1a939980ba988ffabf28b594cca5` (implementation tip). Bookkeeping tip after (`22555cb`) is stale-review exempt (working doc + BACKLOG only).
 
-**Reviewer** [reviewer](6f57c4a0-57c9-4494-b5d1-f1a0a0d0f276): **LGTM** — `ci.yml` untouched; R2.2/R6.3/R5.1 ok; no Critical/Important findings.
+| Dispatch | Verdict |
+|----------|---------|
+| mango:reviewer ([Reviewer](6f57c4a0-57c9-4494-b5d1-f1a0a0d0f276)) | **LGTM** — no Critical/Important findings; `ci.yml` untouched |
+| mango:challenger ([Challenger](0052e9f1-a8d9-47bb-a536-a0bf0f8b460d)) | ticket-blind — **6 met · 3 not met · 4 can't-tell/partial** (literal “all four samples” vs A4 optional private) |
 
-**Challenger** [challenger](0052e9f1-a8d9-47bb-a536-a0bf0f8b460d) (ticket-blind): flagged large-monorepo **not actually indexed** and therefore literal AC1 “all samples” / gap-doc as not met / can’t tell.
+### Reviewer detail ([Reviewer](6f57c4a0-57c9-4494-b5d1-f1a0a0d0f276))
 
-**Adjudication (A4 / Gate-1 ratification):** private monorepo is **operator-provisioned and optional** when `CODE_ATLAS_SCALE_SAMPLE` unset (ASSUMED A4; ticket Scope: “one sample is not public”). Public trio + harness path + documented skip satisfy the shippable half; real ~112k timing remains the existing BACKLOG follow-up (needs private checkout). Gap log empty after public runs = no gaps found on those samples — not a defect. **Coverage-gap exclusion:** operator scale run — manual when env available.
+- **Verdict:** LGTM
+- **Tip:** `e886ce6` (byte-identical to `e886ce62922f1a939980ba988ffabf28b594cca5`)
+- **Diff:** `main...feat/018-cross-repo-validation` — 10 files, +837/−6; non-empty (no empty-diff fallback)
+- **`ci.yml`:** confirmed untouched (`git diff … -- .github/workflows/ci.yml` empty); only new `.github/workflows/cross-repo.yml` (`workflow_dispatch` + weekly `schedule`, no `pull_request`)
+- **Verification then:** `tests/test_cross_repo_validation.py -q` → **5 passed**; ruff + mypy clean on new files; full-suite hang in sandbox treated as env artifact (orphan PHP pipe) — working doc already records **552 passed** + **3/3** public smoke
+- **Rules checked:**
+  - **R2.2 / R2.3** — sample names only in `scripts/cross_repo_samples.json` + docs, never under `adapters/`
+  - **R1.1 / R1.2 / R1.3** — no core changes; harness is tooling only
+  - **R5.1 / R6.3** — proving mini-repo asserts `failed >= 1` with completed build
+  - **R7.2** — BACKLOG / PLAN §18 Q3 / task frontmatter / README updated
+  - **R7.5** — comments ≤3 lines; module docstring matches `scale_full_build.py` precedent
+- **Non-blocking note:** Token usage table row for 018 is a pre-PR/finalise gate, not a pre-review blocker (addressed in bookkeeping commit)
+- **Findings:** none Critical or Important
 
-**Scope reconcile:** file set ⊆ change-list; approach bullets implemented-as-approved. **Verdict: clean.**
+### Challenger detail ([Challenger](0052e9f1-a8d9-47bb-a536-a0bf0f8b460d)) — ticket-blind
 
-Matrix Ph3/4: G1/R1–R4/AC* proven by proving test + public smoke + workflow + docs (S4 operator-excluded per A4).
+`REQUIREMENTS: 13` · independence note: saw embedded working doc below separator in branch diff; verdicts keyed only to raw ticket + implementation evidence.
+
+| # | Reconstructed requirement | Verdict | Evidence |
+|---|---------------------------|---------|----------|
+| 1 | Run adapter against a Laravel app | met | `scripts/cross_repo_samples.json` pins `laravel/laravel`; report `laravel_app` files=27 nodes=75 edges=445 failed=0 |
+| 2 | Run adapter against a Symfony app | met | pins `symfony/demo`; report `symfony_demo` files=51 nodes=437 edges=1480 |
+| 3 | Run adapter against a small PSR-4 library | met | pins `brick/math`; report `brick_math` files=32 nodes=887 edges=3481 |
+| 4 | Run adapter against a large PHP monorepo | **not met** | `run_scale_sample_if_configured` only if `CODE_ATLAS_SCALE_SAMPLE` set; CI uses `--public-only`; report `scale_sample.skipped` |
+| 5 | Assert no crashes (samples run) | met | unguarded `full_build`; public trio completed |
+| 6 | Assert sane node/edge counts (public) | met | `assert_plausible_counts` (`files>0, nodes>0, edges>=0`) |
+| 7 | Assert sane counts for large monorepo | **not met** | never exercised — see #4 |
+| 8 | Syntax errors isolated per file | met (synthetic stand-in) | public samples call `expect_failures=False`; isolation proven in `tests/test_cross_repo_validation.py` mini-repo |
+| 9 | Document construct gaps → 007 | can't tell | gap-log table exists (`_(none yet)_`); monorepo never run so emptiness unproven |
+| 10 | CI opt-in/scheduled; per-PR stays fixtures | met | `cross-repo.yml` dispatch+schedule only; `ci.yml` untouched |
+| 11 | No adapter sample-tuning (R2.2) | met | no `adapters/` / `code_atlas/` diff; manifest outside adapters |
+| 12 | AC1 “all sample repos” crash-free + plausible | **not met** (literal “all”) | 3/4 public ok; 4th (large) never indexed |
+| 13 | AC2 large monorepo one-among-several, no repo-specific behaviour | partial | structural half met (shared `index_root` path); empirical half can't tell (#4) |
+
+**Summary from challenger:** solid engineering on public trio + CI separation + zero adapter tuning; does **not** satisfy literal ticket “four samples / all repos” without an actual large-monorepo run.
+
+### Adjudication (A4 / Gate-1 ratification)
+
+Private monorepo is **operator-provisioned and optional** when `CODE_ATLAS_SCALE_SAMPLE` unset (ASSUMED A4; ticket Scope: “one sample is not public”). Public trio + shared harness + documented skip satisfy the shippable half; real ~112k timing remains the BACKLOG follow-up (needs private checkout). Gap log empty after public runs = no gaps found on those samples — not a defect.
+
+**Coverage-gap exclusion:** operator scale / large-monorepo run — manual when env available (challenger #4/#7/#12/#13 empirical half).
+
+### Scope reconcile
+
+File set ⊆ change-list; approach bullets **implemented-as-approved**. **Gate 4: clean.**
+
+### Matrix Ph3/4
+
+G1 / R1–R4 / AC* → ✅ proven by proving test + public smoke + workflow + docs (S4 operator-excluded per A4).
 
 ---
 
@@ -314,8 +361,8 @@ Claim: “When indexing an out-of-tree sample, `CA_PHP_CMD` must use an absolute
 
 ## Cost ledger
 
-| Phase | Dispatch | Round | Tokens |
-|-------|----------|-------|--------|
-| 0 refine | exposure-checker challenger | 1 | unmeasured (host does not surface usage) |
-| 4 review | reviewer | 1 | unmeasured (host does not surface usage) |
-| 4 review | challenger | 1 | unmeasured (host does not surface usage) |
+| Phase | Dispatch | Round | Tokens | Notes |
+|-------|----------|-------|--------|-------|
+| 0 refine | challenger (exposure-checker) | 1 | unmeasured (host does not surface usage) | [003ebc65](003ebc65-d9af-4974-8e06-4eb5111d41e0); EXPOSURE: 2 |
+| 4 review | reviewer | 1 | unmeasured (host does not surface usage) | [6f57c4a0](6f57c4a0-57c9-4494-b5d1-f1a0a0d0f276); LGTM |
+| 4 review | challenger | 1 | unmeasured (host does not surface usage) | [0052e9f1](0052e9f1-a8d9-47bb-a536-a0bf0f8b460d); 6 met / 3 not met / 4 can't-tell |
