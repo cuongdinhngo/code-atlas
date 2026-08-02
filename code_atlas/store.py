@@ -17,7 +17,7 @@ from pathlib import Path
 
 from code_atlas import contract
 
-SCHEMA_VERSION = "1"
+SCHEMA_VERSION = "2"
 SCHEMA_VERSION_KEY = "schema_version"
 CONTRACT_VERSION_KEY = "contract_version"
 LAST_COMMIT_KEY = "last_commit"
@@ -54,7 +54,8 @@ CREATE INDEX IF NOT EXISTS idx_edges_src ON edges(source_qname, kind);
 CREATE INDEX IF NOT EXISTS idx_edges_tgt ON edges(target_qname, kind);
 
 CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(
-  name, qualified_name, file_path, params, content='nodes', content_rowid='id');
+  name, qualified_name, file_path, params,
+  content='nodes', content_rowid='id', tokenize='trigram');
 
 CREATE TRIGGER IF NOT EXISTS nodes_ai AFTER INSERT ON nodes BEGIN
   INSERT INTO nodes_fts(rowid, name, qualified_name, file_path, params)
@@ -288,9 +289,26 @@ class GraphStore:
         with self._conn:
             self._insert(EDGES, _grouped(contract.EDGE_FIELDS, [edge]))
 
-    def search_nodes(self, query: str, *, kind: str | None = None, limit: int) -> list[Row]:
-        """Search the FTS index by one literal prefix term; punctuation is quoted, never raised."""
+    def search_nodes(
+        self,
+        query: str,
+        *,
+        kind: str | None = None,
+        namespace: str | None = None,
+        limit: int,
+    ) -> list[Row]:
+        """Search the FTS index by one literal prefix term; punctuation is quoted, never raised.
+
+        Optional ``namespace`` keeps rows whose ``qualified_name`` equals the prefix or continues
+        with ``\\``, ``.``, or ``::`` (segment boundary — not a bare string prefix).
+        """
         where, params = _narrow("nodes_fts MATCH ?", fts_term(query), kind, "nodes.kind = ?")
+        if namespace is not None:
+            where = (
+                f"({where}) AND (nodes.qualified_name = ? OR nodes.qualified_name LIKE ? "
+                f"OR nodes.qualified_name LIKE ? OR nodes.qualified_name LIKE ?)"
+            )
+            params = (*params, namespace, f"{namespace}\\%", f"{namespace}.%", f"{namespace}::%")
         sql = (
             f"SELECT nodes.id, {_NODE_COLUMNS_JOINED} FROM nodes "
             f"JOIN nodes_fts ON nodes_fts.rowid = nodes.id "

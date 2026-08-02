@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "code-atlas"
-version = "0.0.1"
+version = "0.1.0"
 description = "Local-first MCP server that indexes a codebase into SQLite and exposes token-efficient search/read/navigation/impact tools."
 readme = "README.md"
 requires-python = ">=3.12"

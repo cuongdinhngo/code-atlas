@@ -326,8 +326,8 @@ def test_rebuilding_the_search_index_keeps_the_same_hits(store: GraphStore) -> N
     assert store.search_nodes("UserRepo", limit=10) == before
 
 
-def test_the_tokenizer_splits_underscores_but_not_camel_case(store: GraphStore) -> None:
-    # Documents unicode61's actual behaviour; camelCase splitting is deferred to task 014.
+def test_the_tokenizer_matches_camel_case_substrings(store: GraphStore) -> None:
+    # schema_version 2: trigram FTS — ``email`` hits ``findByEmail`` (004 Q8 / task 014).
     store.upsert_file("c.php", "h", "php")
     store.replace_file_rows(
         "c.php",
@@ -337,8 +337,10 @@ def test_the_tokenizer_splits_underscores_but_not_camel_case(store: GraphStore) 
         ],
         [],
     )
-    assert [row["name"] for row in store.search_nodes("email", limit=10)] == ["find_by_email"]
-
+    assert {row["name"] for row in store.search_nodes("email", limit=10)} == {
+        "find_by_email",
+        "findByEmail",
+    }
 
 @pytest.mark.parametrize(
     ("query", "expected"), [("plain", '"plain"*'), ('a"b', '"a""b"*'), ("", '""*')]
@@ -402,7 +404,7 @@ def test_an_absent_meta_key_is_none(store: GraphStore) -> None:
 
 def test_a_foreign_schema_version_fails_loud(db_path: Path) -> None:
     with GraphStore(db_path, now=lambda: FIXED_CLOCK) as created:
-        created.set_meta(SCHEMA_VERSION_KEY, "2")
+        created.set_meta(SCHEMA_VERSION_KEY, "1")
     with pytest.raises(SchemaVersionError):
         GraphStore(db_path)
 

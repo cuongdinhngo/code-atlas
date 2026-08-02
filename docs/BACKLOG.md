@@ -23,7 +23,7 @@ is [`PLAN.md`](PLAN.md).
 | 011 | [Cross-file edge resolver](tasks/011_resolver.md) | M2 | done | 009 |
 | 012 | [Contract-conformance & PHP coverage tests](tasks/012_contract-conformance-tests.md) | M2 | done | 025, 002 |
 | 013 | [Nav tools — callers / refs / impls](tasks/013_nav-tools.md) | M2 | done | 011, 010 |
-| 014 | [Search / read / outline + FTS **(ship)**](tasks/014_search-read-outline.md) | M3 | todo | 010, 004 |
+| 014 | [Search / read / outline + FTS **(ship)**](tasks/014_search-read-outline.md) | M3 | in-progress | 010, 004 |
 | 015 | [Full PHP coverage + scale to 112k](tasks/015_php-full-coverage-and-scale.md) | M4 | todo | 013, 014, 008 |
 | 016 | [Incremental update via git diff](tasks/016_incremental-git.md) | M5 | todo | 011, 009 |
 | 017 | [Impact engine + tool + prompts](tasks/017_impact-engine.md) | M6 | todo | 013, 016 |

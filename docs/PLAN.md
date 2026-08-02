@@ -287,10 +287,14 @@ CREATE TABLE edges (
   file_path TEXT, line INT, confidence_tier TEXT DEFAULT 'RESOLVED');
 CREATE INDEX idx_edges_src ON edges(source_qname, kind);
 CREATE INDEX idx_edges_tgt ON edges(target_qname, kind);
-CREATE VIRTUAL TABLE nodes_fts USING fts5(name, qualified_name, file_path, params, content='nodes', content_rowid='id');
+CREATE VIRTUAL TABLE nodes_fts USING fts5(
+  name, qualified_name, file_path, params,
+  content='nodes', content_rowid='id', tokenize='trigram');
 -- An external-content fts5 table indexes nothing on its own, so three triggers mirror `nodes`
 -- into it. They are load-bearing, not an optimisation: without them every MATCH returns 0 rows
 -- while `SELECT count(*) FROM nodes_fts` still reports the content table's size.
+-- ``tokenize='trigram'`` (schema_version **2**) makes camelCase substrings match
+-- (e.g. ``email`` ⊂ ``findByEmail``); unicode61 did not.
 CREATE TRIGGER nodes_ai AFTER INSERT ON nodes BEGIN … END;   -- insert
 CREATE TRIGGER nodes_ad AFTER DELETE ON nodes BEGIN … END;   -- 'delete' with the OLD values
 CREATE TRIGGER nodes_au AFTER UPDATE ON nodes BEGIN … END;   -- 'delete' then insert
@@ -303,9 +307,10 @@ re-declarations do the same for functions and classes — a global `UNIQUE` make
 `IntegrityError`. Consequence for the resolver (§8.2): a qname lookup may return **one or more**
 candidates, which is a `HEURISTIC` multi-candidate (§5 R5.2), not a lost row.
 
-**`schema_version` is `"1"` and enforced loud.** On open, a database carrying a different value raises
+**`schema_version` is `"2"` and enforced loud.** On open, a database carrying a different value raises
 and tells the user to delete the index and rebuild — the DB is a derived cache, so there is no
-migration runner (R7.4).
+migration runner (R7.4). Version **2** adds `tokenize='trigram'` on `nodes_fts` (camelCase substring
+search); older indexes must be deleted and rebuilt.
 
 **Determinism carve-out (R4.2).** `nodes.id`/`edges.id` follow insert order, which follows worker
 completion order (§8.1), and `files.updated_at` / `meta.built_at` are wall-clock. The store takes an
