@@ -332,10 +332,15 @@ Revert the change-list commit(s). Repos: `app` only.
 
 ### Adjudication (A4 / Gate-1 ratification)
 
-Private monorepo is **operator-provisioned and optional** when `CODE_ATLAS_SCALE_SAMPLE` unset (ASSUMED A4; ticket Scope: “one sample is not public”). Public trio + shared harness + documented skip satisfy the shippable half; real ~112k timing remains the BACKLOG follow-up (needs private checkout). Gap log empty after public runs = no gaps found on those samples — not a defect.
+Private monorepo is **operator-provisioned and optional** when `CODE_ATLAS_SCALE_SAMPLE` unset
+(**A4 ratified** for shipping the public half; ticket Scope: “one sample is not public”). Public
+trio + shared harness + documented skip satisfy the shippable half; real ~112k timing remains the
+BACKLOG follow-up (needs private checkout). Gap log empty after public runs = no gaps found on those
+samples — not a defect.
 
-**Coverage-gap exclusion:** operator scale / large-monorepo run — manual when env available (challenger #4/#7/#12/#13 empirical half).
-
+**Coverage-gap exclusion:** operator scale / large-monorepo run — manual when env available
+(challenger #4/#7/#12/#13 empirical half). Status stays `done` for the public R6.3 harness; the
+operator timing artifact is tracked separately in BACKLOG Follow-ups.
 ### Scope reconcile
 
 File set ⊆ change-list; approach bullets **implemented-as-approved**. **Gate 4: clean.**

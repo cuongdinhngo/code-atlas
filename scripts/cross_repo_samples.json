@@ -1,5 +1,5 @@
 {
-  "contract_note": "Pinned public PHP samples for R6.3 / task 018. Not under adapters/ (R2.2).",
+  "contract_note": "Pinned public PHP samples for R6.3 / task 018. Not under adapters/ (R2.2). Floors ≈80% of a known-good smoke at this SHA — bump floors when bumping sha.",
   "samples": [
     {
       "id": "laravel_app",
@@ -7,7 +7,10 @@
       "owner": "laravel",
       "repo": "laravel",
       "sha": "ff031dbf57d477d2864bf53a200afe574d3c2853",
-      "url": "https://github.com/laravel/laravel.git"
+      "url": "https://github.com/laravel/laravel.git",
+      "min_files": 21,
+      "min_nodes": 60,
+      "min_edges": 350
     },
     {
       "id": "symfony_demo",
@@ -15,7 +18,10 @@
       "owner": "symfony",
       "repo": "demo",
       "sha": "03fe25671b720b15103a2ff26934e94c87bd4d82",
-      "url": "https://github.com/symfony/demo.git"
+      "url": "https://github.com/symfony/demo.git",
+      "min_files": 40,
+      "min_nodes": 350,
+      "min_edges": 1180
     },
     {
       "id": "brick_math",
@@ -23,7 +29,10 @@
       "owner": "brick",
       "repo": "math",
       "sha": "b61d8e66c3ea05fa8784888575b719f48f76f515",
-      "url": "https://github.com/brick/math.git"
+      "url": "https://github.com/brick/math.git",
+      "min_files": 25,
+      "min_nodes": 700,
+      "min_edges": 2780
     }
   ]
 }

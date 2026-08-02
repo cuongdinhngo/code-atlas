@@ -34,13 +34,16 @@ The harness also rewrites a repo-relative `adapters/php/…` in `CA_PHP_CMD` to 
 path under the code-atlas checkout, so a relative env value still works when you launch from
 this repo.
 
-### Pass bar (ASSUMED A2 / A5)
+### Pass bar (A2 / A5)
 
 - Build **completes without crash** for each public sample.
-- `files > 0`, `nodes > 0`, `edges >= 0`.
-- Parse failures (if any) are **per-file** — they must not abort the build. Third-party samples are
-  **not** required to contain syntax errors; isolation is proven in per-PR fixtures and the
-  harness unit test mini-repo.
+- Per-sample floors in the manifest (`min_files` / `min_nodes` / `min_edges`, ≈80% of a
+  known-good smoke at that SHA). Bump floors when bumping a pin.
+- Parse failure ratio `failed/files <= 0.02` on public samples (catches mass-parse regressions
+  without requiring `failed == 0`). Isolation “one bad file does not abort the build” is proven in
+  per-PR fixtures and the harness mini-repo test.
+- The JSON report is written **even when a sample fails** (`ok: false` + `error`); exit code 1 if
+  any public row failed.
 
 ## Large / private monorepo (optional)
 
@@ -52,7 +55,7 @@ python3 scripts/cross_repo_validate.py   # runs public trio, then scale_full_bui
 ```
 
 If `CODE_ATLAS_SCALE_SAMPLE` is unset, the scale step is **skipped** (not a failure) — correct for
-public GHA and for laptops without the private checkout (A4).
+public GHA and for laptops without the private checkout (A4, ratified for shipping public half).
 
 ## CI
 
@@ -61,7 +64,11 @@ public GHA and for laptops without the private checkout (A4).
 - `workflow_dispatch` (manual)
 - weekly `schedule` (Monday 06:00 UTC)
 - public samples only (`--public-only`)
+- on failure: opens/comments a `cross-repo-validation` GitHub issue (Actions tab is otherwise easy
+  to miss for scheduled jobs)
 
+**Note:** GitHub disables `schedule` triggers after **60 days of repository inactivity**. A quiet
+repo silently stops validating — re-run via `workflow_dispatch` or push to re-enable.
 ## Construct gaps → task 007
 
 When a sample surfaces a language construct the adapter mishandles or skips, record it here and
