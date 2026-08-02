@@ -3,6 +3,16 @@
 Durable lessons discovered while shipping tasks: constraints found, wrong assumptions, process gaps.
 One entry per lesson; newest first.
 
+## 014 — `code-atlas --help` is not an install smoke test
+FastMCP's entry point always calls `.run()` (stdio). Passing `--help` still starts the MCP transport
+and will hang CI waiting on stdin. Prove a non-editable install with `importlib.metadata` (version +
+console_scripts entry) and an import of `TOOL_NAMES`, never by invoking the server binary.
+
+## 014 — `LIKE ESCAPE '\\'` breaks PHP qnames
+Namespace filters that use SQL `LIKE` with backslash as the escape character mis-parse every `\` in
+a PHP FQN (`\App\Models\…`). Use a rare escape character that does not appear in qnames (e.g. `!`)
+and escape only `!`, `%`, and `_`.
+
 ## 012 — Planted tmp_path negative controls must not use relative_to(ROOT)
 AC2 plants live under pytest `tmp_path`, which is outside the repo. Calling
 `path.relative_to(ROOT)` on those plants raises `ValueError` and breaks the proof that the

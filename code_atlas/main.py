@@ -13,18 +13,25 @@ from fastmcp import FastMCP
 from code_atlas.config import Config, ConfigError, load_config
 from code_atlas.tools import (
     build_or_update_index,
+    file_outline,
     find_callers,
     find_implementations,
     find_references,
     get_index_status,
+    prompts,
+    read_symbol,
+    search_symbol,
 )
 
 SERVER_NAME = "code-atlas"
 
-# Every tool this server knows how to serve, in the order a client is offered them.
+# Every tool this server knows how to serve, in the order a client is offered them (§12).
 TOOL_NAMES: tuple[str, ...] = (
     get_index_status.NAME,
     build_or_update_index.NAME,
+    search_symbol.NAME,
+    file_outline.NAME,
+    read_symbol.NAME,
     find_callers.NAME,
     find_references.NAME,
     find_implementations.NAME,
@@ -39,12 +46,19 @@ def build_server(config: Config) -> FastMCP:
         server.tool(get_index_status.create(config, names))
     if build_or_update_index.NAME in names:
         server.tool(build_or_update_index.create(config))
+    if search_symbol.NAME in names:
+        server.tool(search_symbol.create(config))
+    if file_outline.NAME in names:
+        server.tool(file_outline.create(config))
+    if read_symbol.NAME in names:
+        server.tool(read_symbol.create(config))
     if find_callers.NAME in names:
         server.tool(find_callers.create(config))
     if find_references.NAME in names:
         server.tool(find_references.create(config))
     if find_implementations.NAME in names:
         server.tool(find_implementations.create(config))
+    prompts.register(server)
     return server
 
 

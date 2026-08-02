@@ -53,6 +53,10 @@ directory *is* the repo, and every `CA_*` knob below is read from that client's 
 }
 ```
 
+**Adapters are not in the PyPI/wheel install.** `pip install code-atlas` gives you the MCP server
+only; indexing still needs a repo checkout that contains `adapters/<lang>/` and a `CA_<LANG>_CMD`
+pointing at it (as in the example above). The wheel alone cannot index source.
+
 Call `get_index_status` first: it is the cheap (~100-token) entry point and tells you whether the
 index exists, how stale it is, and what to call next. `build_or_update_index` builds it. Every tool
 takes `detail_level` — `minimal` for the payload alone, `standard` (the default) to add provenance.
@@ -63,15 +67,22 @@ takes `detail_level` — `minimal` for the payload alone, `standard` (the defaul
 |---|---|
 | `get_index_status` | index stats, last indexed commit, staleness, next-step suggestions (call first) |
 | `build_or_update_index` | counts + timing for the build it ran (full builds only until incremental lands) |
+| `search_symbol` | ranked symbols (`qname`, kind, `file:line`) |
+| `file_outline` | symbols + line ranges, no bodies |
+| `read_symbol` | source of just one class/method + docblock |
+| `find_callers` / `find_references` / `find_implementations` | resolved relationships + confidence tier |
+
+## Prompts
+
+| Prompt | Recipe |
+|---|---|
+| `explore_area` | status → search/outline → read only what's needed |
+| `find_usages` | status → find_references / find_callers / find_implementations → read to confirm |
 
 ### Planned
 
 | Tool | Returns |
 |---|---|
-| `search_symbol` | ranked symbols (`qname`, kind, `file:line`) |
-| `file_outline` | symbols + line ranges, no bodies |
-| `read_symbol` | source of just one class/method + docblock |
-| `find_callers` / `find_references` / `find_implementations` | resolved relationships + confidence tier |
 | `include_graph` | `include`/`require` graph |
 | `impact` | bounded blast radius of a change |
 | `namespace_tree` | namespaces + members |

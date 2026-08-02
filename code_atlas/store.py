@@ -17,7 +17,7 @@ from pathlib import Path
 
 from code_atlas import contract
 
-SCHEMA_VERSION = "1"
+SCHEMA_VERSION = "2"
 SCHEMA_VERSION_KEY = "schema_version"
 CONTRACT_VERSION_KEY = "contract_version"
 LAST_COMMIT_KEY = "last_commit"
@@ -54,7 +54,8 @@ CREATE INDEX IF NOT EXISTS idx_edges_src ON edges(source_qname, kind);
 CREATE INDEX IF NOT EXISTS idx_edges_tgt ON edges(target_qname, kind);
 
 CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(
-  name, qualified_name, file_path, params, content='nodes', content_rowid='id');
+  name, qualified_name, file_path, params,
+  content='nodes', content_rowid='id', tokenize='trigram');
 
 CREATE TRIGGER IF NOT EXISTS nodes_ai AFTER INSERT ON nodes BEGIN
   INSERT INTO nodes_fts(rowid, name, qualified_name, file_path, params)
@@ -106,6 +107,11 @@ def fts_term(query: str) -> str:
     return '"' + query.replace('"', '""') + '"*'
 
 
+def _like_literal(value: str) -> str:
+    """Escape ``!``, ``%``, and ``_`` for a ``LIKE … ESCAPE '!'`` pattern (``\\`` stays literal)."""
+    return value.replace("!", "!!").replace("%", "!%").replace("_", "!_")
+
+
 def stored(value: object) -> object:
     """Structured values become canonical JSON, so identical input stores identical bytes (R4.2)."""
     if value is None or isinstance(value, str | int | float):
@@ -118,6 +124,7 @@ class GraphStore:
 
     def __init__(self, db_path: Path, *, now: Callable[[], str] | None = None) -> None:
         self._now = utc_now if now is None else now
+        self._db_path = db_path
         if str(db_path) != MEMORY_DB:
             db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(db_path)
@@ -149,7 +156,7 @@ class GraphStore:
             self._conn.close()
             raise SchemaVersionError(
                 f"database schema version {found!r} is not {SCHEMA_VERSION!r} — "
-                "delete the index file and rebuild"
+                f"delete {self._db_path} and rebuild (or call build_or_update_index)"
             )
 
     # --- writes ---------------------------------------------------------------------------------
@@ -288,13 +295,61 @@ class GraphStore:
         with self._conn:
             self._insert(EDGES, _grouped(contract.EDGE_FIELDS, [edge]))
 
-    def search_nodes(self, query: str, *, kind: str | None = None, limit: int) -> list[Row]:
-        """Search the FTS index by one literal prefix term; punctuation is quoted, never raised."""
+    def file_hash(self, path: str) -> str | None:
+        """Content hash stored for ``path``, or ``None`` when the file is not indexed."""
+        row = self._conn.execute("SELECT hash FROM files WHERE path = ?", (path,)).fetchone()
+        return None if row is None else str(row[0])
+
+    def search_nodes(
+        self,
+        query: str,
+        *,
+        kind: str | None = None,
+        namespace: str | None = None,
+        limit: int,
+    ) -> list[Row]:
+        """Search symbols by FTS (trigram) or, for queries shorter than 3 chars, name prefix.
+
+        Trigram FTS cannot match terms under three characters, so short queries use a
+        ``name``/``qualified_name`` prefix ``LIKE`` instead (restores ``DB`` / ``Us`` / ``Go``).
+
+        Optional ``namespace`` is matched case-insensitively: exact or continues
+        with ``\\``, ``.``, or ``::``.
+        """
+        if len(query) < 3:
+            return self._search_short(query, kind=kind, namespace=namespace, limit=limit)
         where, params = _narrow("nodes_fts MATCH ?", fts_term(query), kind, "nodes.kind = ?")
+        where, params = _with_namespace(
+            where, params, namespace, qname_column="nodes.qualified_name"
+        )
         sql = (
             f"SELECT nodes.id, {_NODE_COLUMNS_JOINED} FROM nodes "
             f"JOIN nodes_fts ON nodes_fts.rowid = nodes.id "
             f"WHERE {where} ORDER BY {_SEARCH_ORDER} LIMIT ?"
+        )
+        return self._rows(NODE_ROW_KEYS, sql, (*params, limit))
+
+    def _search_short(
+        self,
+        query: str,
+        *,
+        kind: str | None,
+        namespace: str | None,
+        limit: int,
+    ) -> list[Row]:
+        """Prefix match on ``name`` / ``qualified_name`` when trigram FTS cannot help."""
+        pattern = f"{_like_literal(query.lower())}%"
+        where = (
+            "(LOWER(name) LIKE ? ESCAPE '!' OR LOWER(qualified_name) LIKE ? ESCAPE '!')"
+        )
+        params: tuple[object, ...] = (pattern, pattern)
+        if kind is not None:
+            where = f"{where} AND kind = ?"
+            params = (*params, kind)
+        where, params = _with_namespace(where, params, namespace, qname_column="qualified_name")
+        sql = (
+            f"SELECT id, {_NODE_COLUMNS} FROM nodes WHERE {where} "
+            f"ORDER BY {_NODE_ORDER} LIMIT ?"
         )
         return self._rows(NODE_ROW_KEYS, sql, (*params, limit))
 
@@ -349,3 +404,30 @@ def _narrow(
     if kind is None:
         return where, (value,)
     return f"{where} AND {kind_clause}", (value, kind)
+
+
+def _with_namespace(
+    where: str,
+    params: tuple[object, ...],
+    namespace: str | None,
+    *,
+    qname_column: str,
+) -> tuple[str, tuple[object, ...]]:
+    """Case-insensitive namespace prefix (exact or segment boundary via ``\\`` / ``.`` / ``::``)."""
+    if namespace is None:
+        return where, params
+    lowered = namespace.lower()
+    escaped = _like_literal(lowered)
+    clause = (
+        f"(LOWER({qname_column}) = ? OR "
+        f"LOWER({qname_column}) LIKE ? ESCAPE '!' OR "
+        f"LOWER({qname_column}) LIKE ? ESCAPE '!' OR "
+        f"LOWER({qname_column}) LIKE ? ESCAPE '!')"
+    )
+    return f"({where}) AND {clause}", (
+        *params,
+        lowered,
+        f"{escaped}\\%",
+        f"{escaped}.%",
+        f"{escaped}::%",
+    )
