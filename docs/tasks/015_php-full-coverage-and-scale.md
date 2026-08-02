@@ -141,12 +141,50 @@ Ship M4 coverage+scale: (1) stream/batch resolver unresolved edges; (2) `include
 
 **Reviewed at** `c5d0b6d`
 
+**Working-doc path:** `docs/tasks/015_php-full-coverage-and-scale.md`
+
+**Reviewed files:** `code_atlas/main.py`, `code_atlas/store.py`, `code_atlas/resolver.py`, `code_atlas/tools/include_graph.py`, `scripts/scale_full_build.py`, `tests/test_scale_and_include_graph.py`, `tests/test_mcp_server.py`, `tests/test_core_is_language_agnostic.py`, `tests/test_sql_confinement.py`, `tests/fixtures/php/psr0_resolve/**`, `tests/fixtures/php/include_graph/**`, `docs/runbooks/scale-sample.md`, `docs/PLAN.md`, `docs/BACKLOG.md`, `README.md`, `.gitignore`, `docs/tasks/015_php-full-coverage-and-scale.md`
+
 | Critic | Result |
 |--------|--------|
-| mango:reviewer ([Reviewer](10f69ec2-68c0-4158-b673-562c9ef4608a)) | **LGTM** — change-list 1–8; 514 passed; R1.4/R3.2/R4/R5.2/R6.2 clean |
-| mango:challenger ([Challenger](0405b19e-67bb-4d4f-9279-93089542fcc3)) | **4 met · 2 not met** — “not met” = no in-repo 112k timing run (sample out-of-tree). **Expected under ASSUMED A3/A7** (documented opt-in procedure + script; operator provisions `CODE_ATLAS_SCALE_SAMPLE`). Deviation **D1** recorded. |
+| mango:reviewer ([Reviewer](10f69ec2-68c0-4158-b673-562c9ef4608a)) | **LGTM** |
+| mango:challenger ([Challenger](0405b19e-67bb-4d4f-9279-93089542fcc3)) | **4 met · 2 not met · 0 can't tell** |
+
+### Reviewer detail ([Reviewer](10f69ec2-68c0-4158-b673-562c9ef4608a))
+
+- **Verdict:** LGTM
+- **Scope:** `main...HEAD` maps 1:1 onto change-list items 1–8; no files outside the list
+- **Verification:** `pytest -q` → **514 passed**; ruff clean; mypy clean; guard counts at 22
+- **Rule spot-checks (all clean):**
+  - R1.4 — SQL only in `store.py` (`iter_unresolved_edges` / `link_edges` / `insert_edges`); tool presents only
+  - R3.2 — no re-declared field lists
+  - R4.2/R4.3 — batch writer; stable `ORDER BY id` pagination
+  - R5.2 — DYNAMIC INCLUDES still skipped before resolve
+  - R6.2 — fixtures spec-driven (PSR-0 / require_once), not repo-named
+  - R2.2 — sample path only via `CODE_ATLAS_SCALE_SAMPLE`
+  - Docs before PR — PLAN §8.2, BACKLOG, README, task frontmatter updated
+- **Non-blocking note:** `_repo_relative` duplicated vs `file_outline` (existing pattern; CONVENTION one-module-per-tool)
+
+### Challenger detail ([Challenger](0405b19e-67bb-4d4f-9279-93089542fcc3)) — ticket-blind
+
+| # | Reconstructed requirement | Verdict | Evidence |
+|---|---------------------------|---------|----------|
+| 1 | Global/PSR-0 (`Foo_Bar_Baz` ↔ `Foo/Bar/Baz.php`) resolution e2e | **Met** | `test_underscore_global_symbols_resolve_on_psr0_layout` (`tests/test_scale_and_include_graph.py:86-105`); fixtures `psr0_resolve/Foo/Bar/Baz.php`, `Legacy/Table.php`; EXTENDS/NEW → `\Legacy_Table` RESOLVED. Live pytest: 5 passed |
+| 2 | `include_graph(path, direction)` over include/require | **Met** | `code_atlas/tools/include_graph.py`; registered `main.py`; `test_include_graph_imports_and_imported_by`; MCP `TOOL_NAMES` / suggestions / CALLS updated |
+| 3 | Run ~112k sample e2e; capture full-build timing | **Not met** | Script + runbook only; no timing artifact in repo (`artifacts/` gitignored); script test uses 1-file synthetic sample |
+| 4 | Keep 112k out of per-PR CI; opt-in/scheduled **or** documented local procedure + artifact place | **Met** | `ci.yml` untouched; `docs/runbooks/scale-sample.md` + `scripts/scale_full_build.py` |
+| 5 | AC: underscore/global symbols resolve (not dropped) | **Met** | Same as #1 |
+| 6 | AC: large-sample build completes within memory caps; timing recorded | **Not met** | No RSS/maxrss capture; no demonstrated 112k run. Batching in resolver/store is real mitigation + tested, but does not prove the AC run |
+
+**Orchestrator note:** #3/#6 “not met” = **expected under ASSUMED A3/A7** (documented opt-in procedure; operator provisions sample). Recorded as deviation **D1** — not a Gate-4 code defect.
+
+**Scope creep (challenger):** none of substance (gitignore, guard 21→22, README table move are mechanical).
 
 **Scope reconcile:** file axis ✅ · behaviour axis ✅ (D1 documented) · inventory include_graph + batching + fixtures ✅
+
+**Layer-match:** AC1 integration over PSR-0 fixtures ✅; AC2 operator/manual under A3 ✅
+
+**Proving (re-check):** `test_underscore_global_symbols_resolve_on_psr0_layout` PASS. Baseline 503 → 514.
 
 **Verdict:** clean for Gate 4 under ratified A3/A7 — challenger gap is the deferred operator run, not a code defect.
 
