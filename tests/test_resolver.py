@@ -356,3 +356,21 @@ def test_batch_lookup_caps_per_key_not_globally(store: GraphStore) -> None:
     assert len(found["\\Ns\\B"]) == 2
     assert [row["file_path"] for row in found["\\Ns\\A"]] == ["a1.x", "a2.x"]
     assert [row["file_path"] for row in found["\\Ns\\B"]] == ["b1.x", "b2.x"]
+
+
+def test_nodes_by_names_top_n_follows_qualified_name_not_file_path(
+    store: GraphStore,
+) -> None:
+    """Regression: same name, file_path order ≠ qualified_name order (review BLOCK)."""
+    nodes = [
+        node("Method", "put", "\\Z::put", "a.x"),
+        node("Method", "put", "\\A::put", "z.x"),
+    ]
+    for path in ("a.x", "z.x"):
+        store.upsert_file(path, "h", "lang")
+    store.replace_file_rows("a.x", nodes, [])
+
+    singular = store.nodes_by_name("put", kind="Method", limit=1)
+    batched = store.nodes_by_names(["put"], kind="Method", limit=1)["put"]
+    assert [row["qualified_name"] for row in singular] == ["\\A::put"]
+    assert [row["qualified_name"] for row in batched] == ["\\A::put"]

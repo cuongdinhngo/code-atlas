@@ -690,13 +690,13 @@ class GraphStore:
             return {}
         placeholders = ", ".join("?" for _ in ordered_keys)
         kind_sql = " AND kind = ?" if kind is not None else ""
-        # Within each partition, match singular `_nodes` order after the key column.
-        partition_order = "file_path, line_start, id"
+        # Full `_NODE_ORDER` inside the partition — required for `name` keys where
+        # `qualified_name` still varies within the partition (R4.2 / AC1).
         sql = (
             f"SELECT id, {_NODE_COLUMNS} FROM ("
             f"  SELECT id, {_NODE_COLUMNS}, "
             f"    ROW_NUMBER() OVER ("
-            f"      PARTITION BY {key_column} ORDER BY {partition_order}"
+            f"      PARTITION BY {key_column} ORDER BY {_NODE_ORDER}"
             f"    ) AS rn "
             f"  FROM nodes WHERE {key_column} IN ({placeholders}){kind_sql}"
             f") WHERE rn <= ? "
