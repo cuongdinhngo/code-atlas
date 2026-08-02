@@ -255,14 +255,78 @@ Flows to review.
 
 ## Phase 4 — Review
 
-Round 1: CHANGES REQUESTED (SQL merge, path seeds, proving kinds, mypy) → fixed in 65b8142/ca0e50f.
-Round 2: CHANGES REQUESTED (unknown qname, truncated exact-fill, max_nodes prune) → fixed in 2b40f18.
-Round 3 verify: **LGTM** ([reviewer](d6f51888-ed89-4a94-a7ab-bb23c975a8a8)).
+**Reviewed at** `2b40f18` (impact suite 9 passed; tip after round-2 fixes). Bookkeeping tips after (`740cfb9`, `f4a4db7`) are stale-review exempt.
 
-`Reviewed at: 2b40f18` (impact suite 9 passed).
+| Dispatch | Verdict |
+|----------|---------|
+| mango:reviewer round 1 ([Reviewer](b3717f52-4275-4a12-afd1-cf42eb7986a8)) | **CHANGES REQUESTED** — Python best-score / path 10k cap / proving kinds / mypy |
+| mango:challenger round 1 ([Challenger](b4802a05-62b6-4d46-8d7e-59f1c1dafdc7)) | **NOT CLEAN** — 3 met · 1 not met · 1 can't tell (relaxation held in Python) |
+| mango:reviewer round 2 ([Reviewer](86de1d76-5c4d-4763-90ff-68a45e18b551)) | **CHANGES REQUESTED** — unknown-qname synthetic hit; exact-fill `truncated` |
+| mango:challenger round 2 ([Challenger](31ddc96d-3a17-4c81-ac8c-8fc767c4aff8)) | **NOT CLEAN** — 4 met · 1 not met · 0 can't tell (`max_nodes` result-only) |
+| mango:reviewer round 3 verify ([Reviewer](d6f51888-ed89-4a94-a7ab-bb23c975a8a8)) | **LGTM** — prior findings verified fixed; `tests/test_impact.py` → **9 passed** |
+
+### Reviewer detail round 1 ([Reviewer](b3717f52-4275-4a12-afd1-cf42eb7986a8))
+
+- **Verdict:** CHANGES REQUESTED
+- **Tip then:** `3693287`
+- **Verification then:** targeted impact/MCP/SQL-guard **110 passed**; ruff clean; mypy failed (finding 4)
+- **Finding 1 (Important — AC1 / R4.3):** `code_atlas/store.py` applied `max_nodes` only after materializing all reachable nodes into a Python `best` dict — unbounded fan-out risk
+- **Finding 2 (Important — A4):** `code_atlas/tools/impact.py` path seeds silently stopped at `limit=10_000`
+- **Finding 3 (Important — R6.1 / AC2):** proving graph omitted `NEW`, `IMPLEMENTS`, `INCLUDES`
+- **Finding 4 (R6.6):** sort key `int(row["line_start"] or 0)` failed strict mypy
+
+**Fixed in:** `65b8142` (SQL temp-table waves + `nodes_by_file_all` + full-kind proving + mypy) · `ca0e50f` (pair depth with MAX(score) path)
+
+### Challenger detail round 1 ([Challenger](b4802a05-62b6-4d46-8d7e-59f1c1dafdc7)) — ticket-blind
+
+`REQUIREMENTS: 5`
+
+| # | Reconstructed requirement | Verdict | Evidence |
+|---|---------------------------|---------|----------|
+| 1 | Edge direction / weights / decay / floor; exclude DYNAMIC | met | `contract.py` IMPACT weights; store RESOLVED join |
+| 2 | Bounded best-score relaxation entirely in SQLite; depth + max-node caps; no whole-graph load | **not met** | best/frontier/relaxation in Python; `max_nodes` post-sort only |
+| 3 | `impact(paths\|qnames, depth?)` with config caps | met | `tools/impact.py`; `main.py` register |
+| 4 | `impact_of_change` prompt | met | `prompts.py` |
+| 5 | Hand-traced known blast radius | can't tell | planted test present; challenger env could not run pytest |
+
+**Blocker:** core traversal/relaxation not SQL-side → addressed by round-1 fixes.
+
+### Reviewer detail round 2 ([Reviewer](86de1d76-5c4d-4763-90ff-68a45e18b551))
+
+- **Verdict:** CHANGES REQUESTED (prior 1–4 verified fixed; impact suite **8 passed**; mypy clean)
+- **Finding 1 (HOW-9 / R5.3):** unknown qnames became synthetic score-1.0 hits when a DB existed — `tools/impact.py` + `tests/test_impact.py` codified the wrong behaviour
+- **Finding 2 (R4.2 / CONVENTION §6):** `truncated = len(results) >= max_nodes` flagged exact fills as truncated (nav tools use fetch `max+1`)
+
+**Fixed in:** `2b40f18` (drop unknown qname seeds; fetch `max_nodes+1` for honest `truncated`; SQL prune of best/frontier each wave)
+
+### Challenger detail round 2 ([Challenger](31ddc96d-3a17-4c81-ac8c-8fc767c4aff8)) — ticket-blind
+
+`REQUIREMENTS: 5` · proving test **1 passed**
+
+| # | Reconstructed requirement | Verdict | Evidence |
+|---|---------------------------|---------|----------|
+| 1 | Traverse callers/subtypes/includers in SQLite; no CONTAINS; exclude DYNAMIC | met | store expand JOIN + IMPACT weights |
+| 2 | Best-score + decay + floor | met | SQL score calc + upsert |
+| 3 | Bound by depth and `CA_IMPACT_MAX_NODES` | **not met** | depth loop OK; `max_nodes` only on final SELECT — frontier/best still unbounded |
+| 4 | `impact` tool + `impact_of_change` prompt | met | tool + prompts + main |
+| 5 | Hand-traced blast radius | met | `test_impact_matches_hand_traced_planted_graph` |
+
+**Blocker:** `max_nodes` must bound traversal working set → `2b40f18` prunes `impact_best` / frontier each wave (and after oversized seed insert).
+
+**Note:** challenger saw the embedded working doc in the branch diff (independence compromised warning); verdict still keyed to raw ticket + implementation evidence.
+
+### Reviewer detail round 3 verify ([Reviewer](d6f51888-ed89-4a94-a7ab-bb23c975a8a8))
+
+- **Verdict:** LGTM
+- **Prior findings verified fixed:**
+  1. Unknown qname → empty results (not synthetic seed)
+  2. `truncated` only when `len > max_nodes` (fetch max+1)
+  3. `max_nodes` prunes SQL best/frontier each wave
+- **Verification:** `.venv/bin/pytest tests/test_impact.py -q` → **9 passed**
 
 ### Matrix Ph3/4
-All G/R/AC rows ✅.
+
+All G/R/AC rows → ✅ proven by impact tests + MCP registration + review rounds.
 
 **Gate 4:** clean.
 
@@ -270,11 +334,14 @@ All G/R/AC rows ✅.
 
 ## Cost ledger
 
-| Phase | Dispatch | Round | Tokens |
-|-------|----------|-------|--------|
-| 0 | mango:challenger (exposure-checker) | 1 | unmeasured (host does not surface usage) |
-| 4 | mango:reviewer | 1 | unmeasured (host does not surface usage) |
-| 4 | mango:challenger | 1 | unmeasured (host does not surface usage) |
-| 4 | mango:reviewer | 2 | unmeasured (host does not surface usage) |
-| 4 | mango:challenger | 2 | unmeasured (host does not surface usage) |
-| 4 | mango:reviewer | 3 verify | unmeasured (host does not surface usage) |
+| Phase | Dispatch | Round | Tokens | Notes |
+|-------|----------|-------|--------|-------|
+| refine | challenger (exposure-checker) | 1 | unmeasured (host does not surface usage) | [c603802d](c603802d-67ba-4d42-9d99-ab80f2061b7d); UNEXPOSED: 5 |
+| review | reviewer | 1 | unmeasured (host does not surface usage) | [b3717f52](b3717f52-4275-4a12-afd1-cf42eb7986a8); CHANGES REQUESTED |
+| review | challenger | 1 | unmeasured (host does not surface usage) | [b4802a05](b4802a05-62b6-4d46-8d7e-59f1c1dafdc7); 3 met / 1 not met / 1 can't tell |
+| review | reviewer | 2 | unmeasured (host does not surface usage) | [86de1d76](86de1d76-5c4d-4763-90ff-68a45e18b551); CHANGES REQUESTED |
+| review | challenger | 2 | unmeasured (host does not surface usage) | [31ddc96d](31ddc96d-3a17-4c81-ac8c-8fc767c4aff8); 4 met / 1 not met |
+| review | reviewer | 3 verify | unmeasured (host does not surface usage) | [d6f51888](d6f51888-ed89-4a94-a7ab-bb23c975a8a8); LGTM |
+
+**PR:** https://github.com/cuongdinhngo/code-atlas/pull/27
+
