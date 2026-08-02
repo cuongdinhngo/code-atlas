@@ -4,7 +4,7 @@ slug: cross-repo-validation
 title: Cross-repo validation ("works on any repo")
 phase: 1
 milestone: M4
-status: in-progress
+status: done
 depends_on: [015]
 ---
 
@@ -41,11 +41,13 @@ Plan §2 (standard over sample), §16, §17.
 ## Session status
 
 ```
-phase: 3 execute — verification sweep done; flowing to review
-Gate: Gate 1 + Gate 2 cleared (standing approve)
+phase: 5 finalise — dry-run; waiting per-action approval (push, open PR)
+Gate: Gate 4 clean; final gate open
 work_doc_mode: embed
 working_doc: docs/tasks/018_cross-repo-validation.md (below separator)
 branch: feat/018-cross-repo-validation
+Reviewed at: e886ce62922f1a939980ba988ffabf28b594cca5
+Reviewed files: .github/workflows/cross-repo.yml, README.md, docs/BACKLOG.md, docs/PLAN.md, docs/runbooks/cross-repo-validation.md, docs/runbooks/scale-sample.md, docs/tasks/018_cross-repo-validation.md, scripts/cross_repo_samples.json, scripts/cross_repo_validate.py, tests/test_cross_repo_validation.py
 ```
 
 - **SCOPE:** M
@@ -281,8 +283,39 @@ Revert the change-list commit(s). Repos: `app` only.
 
 ---
 
+## Phase 4 — Review
+
+**Reviewed at:** `e886ce62922f1a939980ba988ffabf28b594cca5`
+
+**Reviewer** [reviewer](6f57c4a0-57c9-4494-b5d1-f1a0a0d0f276): **LGTM** — `ci.yml` untouched; R2.2/R6.3/R5.1 ok; no Critical/Important findings.
+
+**Challenger** [challenger](0052e9f1-a8d9-47bb-a536-a0bf0f8b460d) (ticket-blind): flagged large-monorepo **not actually indexed** and therefore literal AC1 “all samples” / gap-doc as not met / can’t tell.
+
+**Adjudication (A4 / Gate-1 ratification):** private monorepo is **operator-provisioned and optional** when `CODE_ATLAS_SCALE_SAMPLE` unset (ASSUMED A4; ticket Scope: “one sample is not public”). Public trio + harness path + documented skip satisfy the shippable half; real ~112k timing remains the existing BACKLOG follow-up (needs private checkout). Gap log empty after public runs = no gaps found on those samples — not a defect. **Coverage-gap exclusion:** operator scale run — manual when env available.
+
+**Scope reconcile:** file set ⊆ change-list; approach bullets implemented-as-approved. **Verdict: clean.**
+
+Matrix Ph3/4: G1/R1–R4/AC* proven by proving test + public smoke + workflow + docs (S4 operator-excluded per A4).
+
+---
+
+## Phase 5 — Finalise (dry-run)
+
+### Outward actions (need separate yes)
+
+1. **Push** `feat/018-cross-repo-validation` (+ bookkeeping commit if any) to `origin`
+2. **Open PR** via `gh pr create` using the draft below
+
+### Durable lesson (proposal — ratify per claim)
+
+Claim: “When indexing an out-of-tree sample, `CA_PHP_CMD` must use an absolute adapter path because `SubprocessAdapter` sets `cwd` to the sample root.” → type 1 tool-constraint / project ground-truth for scripts. **Propose** one-line note already in runbook; optional LESSONS claim if you want it durable.
+
+---
+
 ## Cost ledger
 
 | Phase | Dispatch | Round | Tokens |
 |-------|----------|-------|--------|
 | 0 refine | exposure-checker challenger | 1 | unmeasured (host does not surface usage) |
+| 4 review | reviewer | 1 | unmeasured (host does not surface usage) |
+| 4 review | challenger | 1 | unmeasured (host does not surface usage) |
