@@ -344,8 +344,8 @@ Planted negative-control files under pytest `tmp_path` live **outside** the repo
 
 ## Session status
 
-- **Phase:** 4 review clean → 5 finalise
-- **Next:** final gate — outward actions
-- **Gate:** final gate
-- **Reviewed at:** `fafd31a`
+- **Phase:** 5 finalise complete
+- **PR:** https://github.com/cuongdinhngo/code-atlas/pull/22
+- **Reviewed at:** `fafd31a` (bookkeeping tip after; stale-review exempt)
+- **Gate:** closed
 - **Blocked by:** none
