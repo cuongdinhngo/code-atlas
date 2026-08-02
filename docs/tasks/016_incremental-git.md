@@ -4,7 +4,7 @@ slug: incremental-git
 title: Incremental update via git diff (M5)
 phase: 1
 milestone: M5
-status: in-progress
+status: done
 depends_on: [011, 009]
 ---
 
@@ -42,7 +42,7 @@ Plan §8.3, §15 (M5).
 
 ```
 phase: finalise
-gates: Gate 0–4 clean; Reviewed at f7cfbf2; awaiting per-action push/PR approval
+gates: Gate 0–4 clean; Reviewed at f7cfbf2; outward actions approved (push/PR/BACKLOG/lesson)
 branch: feat/016-incremental-git
 ```
 
@@ -286,6 +286,6 @@ Independence: raw ticket only (text above the mango separator). Embedded working
 
 - None.
 
-## Durable lesson (candidate — needs ratification at final gate)
+## Durable lesson (ratified at final gate)
 
-When incremental unlinks resolved edges for re-resolve, **collapse HEURISTIC top-N sibling rows** in the same natural-key group to one bare edge. Nulling `target_qname` alone leaves siblings that re-fan-out and break R4.2 parity with a full rebuild.
+When incremental unlinks resolved edges for re-resolve, **collapse HEURISTIC top-N sibling rows** in the same natural-key group to one bare edge. Nulling `target_qname` alone leaves siblings that re-fan-out and break R4.2 parity with a full rebuild. Recorded in [`docs/LESSONS.md`](../LESSONS.md).

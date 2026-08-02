@@ -3,6 +3,14 @@
 Durable lessons discovered while shipping tasks: constraints found, wrong assumptions, process gaps.
 One entry per lesson; newest first.
 
+## 016 — Unlink for incremental must collapse HEURISTIC top-N siblings
+When incremental clears resolved edges so `resolve_edges` can re-link affected qnames, **nulling
+`target_qname` alone is not enough**. Resolver top-N fan-out inserts sibling rows that already have
+targets set; leaving them in place after a hash-skipped dependent's unlink causes duplicate or
+multiplying edges vs a full rebuild (R4.2). Collapse each natural-key group
+`(source_qname, kind, target_raw, file_path, line)` that touched the affected qnames to **one bare
+edge**, then re-resolve. Prove it with a multi-match HEURISTIC fixture, not only unique-target CALLS.
+
 ## 014 — `code-atlas --help` is not an install smoke test
 FastMCP's entry point always calls `.run()` (stdio). Passing `--help` still starts the MCP transport
 and will hang CI waiting on stdin. Prove a non-editable install with `importlib.metadata` (version +
