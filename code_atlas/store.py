@@ -273,12 +273,28 @@ class GraphStore:
         }
 
     def nodes_by_name(self, name: str, *, kind: str | None = None, limit: int) -> list[Row]:
-        return self._nodes("name = ?", name, kind, limit)
+        return self.nodes_by_names([name], kind=kind, limit=limit).get(name, [])
 
     def nodes_by_qualified_name(
         self, qname: str, *, kind: str | None = None, limit: int
     ) -> list[Row]:
-        return self._nodes("qualified_name = ?", qname, kind, limit)
+        return self.nodes_by_qualified_names([qname], kind=kind, limit=limit).get(qname, [])
+
+    def nodes_by_names(
+        self, names: Sequence[str], *, kind: str | None = None, limit: int
+    ) -> dict[str, list[Row]]:
+        """Per-name top-``limit`` nodes (``_NODE_ORDER`` within each name)."""
+        return self._nodes_batched(
+            column="name", keys=names, kind=kind, limit=limit
+        )
+
+    def nodes_by_qualified_names(
+        self, qnames: Sequence[str], *, kind: str | None = None, limit: int
+    ) -> dict[str, list[Row]]:
+        """Per-qname top-``limit`` nodes (``_NODE_ORDER`` within each qname)."""
+        return self._nodes_batched(
+            column="qualified_name", keys=qnames, kind=kind, limit=limit
+        )
 
     def nodes_by_kind(self, kind: str, *, limit: int) -> list[Row]:
         return self._nodes("kind = ?", kind, None, limit)
@@ -650,6 +666,51 @@ class GraphStore:
         clause, params = _narrow(where, value, kind, "kind = ?")
         sql = f"SELECT id, {_NODE_COLUMNS} FROM nodes WHERE {clause} ORDER BY {_NODE_ORDER} LIMIT ?"
         return self._rows(NODE_ROW_KEYS, sql, (*params, limit))
+
+    def _nodes_batched(
+        self,
+        *,
+        column: str,
+        keys: Sequence[str],
+        kind: str | None,
+        limit: int,
+    ) -> dict[str, list[Row]]:
+        """One SELECT: per-key top-N via ``ROW_NUMBER`` (never a global LIMIT across keys)."""
+        if limit < 1:
+            raise ValueError(f"limit must be >= 1, got {limit}")
+        if column == "name":
+            key_column = "name"
+        elif column == "qualified_name":
+            key_column = "qualified_name"
+        else:
+            raise ValueError(f"unsupported batch column: {column}")
+        # Dedupe while preserving first-seen order so empty IN () never runs.
+        ordered_keys: list[str] = list(dict.fromkeys(keys))
+        if not ordered_keys:
+            return {}
+        placeholders = ", ".join("?" for _ in ordered_keys)
+        kind_sql = " AND kind = ?" if kind is not None else ""
+        # Within each partition, match singular `_nodes` order after the key column.
+        partition_order = "file_path, line_start, id"
+        sql = (
+            f"SELECT id, {_NODE_COLUMNS} FROM ("
+            f"  SELECT id, {_NODE_COLUMNS}, "
+            f"    ROW_NUMBER() OVER ("
+            f"      PARTITION BY {key_column} ORDER BY {partition_order}"
+            f"    ) AS rn "
+            f"  FROM nodes WHERE {key_column} IN ({placeholders}){kind_sql}"
+            f") WHERE rn <= ? "
+            f"ORDER BY {_NODE_ORDER}"
+        )
+        params: list[object] = [*ordered_keys]
+        if kind is not None:
+            params.append(kind)
+        params.append(limit)
+        grouped: dict[str, list[Row]] = {key: [] for key in ordered_keys}
+        for row in self._rows(NODE_ROW_KEYS, sql, params):
+            key = str(row[key_column])
+            grouped.setdefault(key, []).append(row)
+        return grouped
 
     def _edges(self, where: str, value: str, kinds: Sequence[str] | None, limit: int) -> list[Row]:
         if kinds is None:

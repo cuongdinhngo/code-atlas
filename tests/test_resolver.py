@@ -273,3 +273,86 @@ def test_full_build_resolves_a_known_caller_chain_on_fixtures(
 
     callers = store.edges_by_target("\\App\\Repo::put", kinds=("CALLS",), limit=10)
     assert [row["source_qname"] for row in callers] == ["\\App\\User::save"]
+
+
+def test_batched_resolve_matches_golden_and_is_o1_selects(
+    store: GraphStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Task 027 proving: golden multi-candidate edges + O(1) ``_rows`` SELECTs per batch."""
+    nodes = [
+        node("Class", "Child", "\\Ns\\Child", "c.x"),
+        node("Class", "Parent", "\\Ns\\Parent", "p1.x"),
+        node("Class", "Parent", "\\Ns\\Parent", "p2.x"),
+        node("Method", "save", "\\A::save", "a.x"),
+        node("Method", "put", "\\A::put", "a.x"),
+        node("Method", "put", "\\B::put", "b.x"),
+        node("Method", "put", "\\C::put", "c.x"),
+    ]
+    edges = [
+        edge("EXTENDS", "\\Ns\\Child", "\\Ns\\Parent", "c.x"),
+        *[
+            edge("CALLS", "\\A::save", "put", f"call{i}.x", tier="HEURISTIC")
+            for i in range(10)
+        ],
+    ]
+    files = sorted({str(n["file_path"]) for n in nodes} | {str(e["file_path"]) for e in edges})
+    for path in files:
+        store.upsert_file(path, "h", "lang")
+    # One replace_file_rows per file would wipe siblings; insert via the first path after upserts.
+    store.replace_file_rows(files[0], nodes, edges)
+
+    calls = {"n": 0}
+    original = GraphStore._rows
+
+    def counting(
+        self: GraphStore, keys: tuple[str, ...], sql: str, params: object
+    ) -> list[dict[str, object]]:
+        calls["n"] += 1
+        return original(self, keys, sql, params)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(GraphStore, "_rows", counting)
+    resolve_edges(store, max_candidates=2)
+
+    # Pass 1 FQN batch + pass 2 Method batch (no INCLUDES) → 2 SELECTs, not O(N).
+    assert calls["n"] <= 4
+    assert calls["n"] < 10
+
+    extends = store.edges_by_source("\\Ns\\Child", kinds=("EXTENDS",), limit=10)
+    assert sorted(
+        (row["target_qname"], row["confidence_tier"]) for row in extends
+    ) == [
+        ("\\Ns\\Parent", "HEURISTIC"),
+        ("\\Ns\\Parent", "HEURISTIC"),
+    ]
+
+    puts = store.edges_by_source("\\A::save", kinds=("CALLS",), limit=50)
+    # 10 CALLS × 2 candidates each (primary + sibling) with identical target set order.
+    assert len(puts) == 20
+    by_file = {}
+    for row in puts:
+        by_file.setdefault(row["file_path"], []).append(
+            (row["target_qname"], row["confidence_tier"])
+        )
+    expected = [("\\A::put", "HEURISTIC"), ("\\B::put", "HEURISTIC")]
+    for i in range(10):
+        assert by_file[f"call{i}.x"] == expected
+
+
+def test_batch_lookup_caps_per_key_not_globally(store: GraphStore) -> None:
+    """AC3: two qnames each with 3 hits → max_candidates=2 keeps 2 per key (not 2 total)."""
+    nodes = [
+        node("Class", "A", "\\Ns\\A", "a1.x"),
+        node("Class", "A", "\\Ns\\A", "a2.x"),
+        node("Class", "A", "\\Ns\\A", "a3.x"),
+        node("Class", "B", "\\Ns\\B", "b1.x"),
+        node("Class", "B", "\\Ns\\B", "b2.x"),
+        node("Class", "B", "\\Ns\\B", "b3.x"),
+    ]
+    for path in sorted({str(n["file_path"]) for n in nodes}):
+        store.upsert_file(path, "h", "lang")
+    store.replace_file_rows("a1.x", nodes, [])
+    found = store.nodes_by_qualified_names(["\\Ns\\A", "\\Ns\\B"], limit=2)
+    assert len(found["\\Ns\\A"]) == 2
+    assert len(found["\\Ns\\B"]) == 2
+    assert [row["file_path"] for row in found["\\Ns\\A"]] == ["a1.x", "a2.x"]
+    assert [row["file_path"] for row in found["\\Ns\\B"]] == ["b1.x", "b2.x"]

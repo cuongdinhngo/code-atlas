@@ -17,45 +17,53 @@ def resolve_edges(store: GraphStore, *, max_candidates: int) -> None:
     for batch in store.iter_unresolved_edges(batch_size=_RESOLVE_BATCH, skip_dynamic=True):
         links: list[tuple[int, str, str]] = []
         siblings: list[dict[str, object]] = []
-        for edge in batch:
-            kind = str(edge["kind"])
-            if kind == "INCLUDES":
-                _resolve_include(store, edge, links)
-            elif kind in contract.FQN_EDGE_KINDS:
-                _resolve_symbol(store, edge, max_candidates, links, siblings)
+        includes = [edge for edge in batch if str(edge["kind"]) == "INCLUDES"]
+        symbols = [
+            edge for edge in batch if str(edge["kind"]) in contract.FQN_EDGE_KINDS
+        ]
+
+        include_paths = [
+            _relative_to(str(edge["file_path"]), str(edge["target_raw"]))
+            for edge in includes
+        ]
+        file_hits = store.nodes_by_qualified_names(
+            include_paths, kind="File", limit=2
+        )
+        for edge, path in zip(includes, include_paths, strict=True):
+            hits = file_hits.get(path, [])
+            if len(hits) != 1:
+                continue
+            tier = _weaker_tier(str(edge["confidence_tier"]), "RESOLVED")
+            links.append((int(str(edge["id"])), str(hits[0]["qualified_name"]), tier))
+
+        raws = [str(edge["target_raw"]) for edge in symbols]
+        qname_hits = store.nodes_by_qualified_names(raws, limit=max_candidates)
+        unmatched_calls: list[dict[str, object]] = []
+        for edge in symbols:
+            raw = str(edge["target_raw"])
+            incoming = str(edge["confidence_tier"])
+            hits = qname_hits.get(raw, [])
+            if hits:
+                computed = "RESOLVED" if len(hits) == 1 else "HEURISTIC"
+                _queue_candidates(
+                    edge, hits, _weaker_tier(incoming, computed), links, siblings
+                )
+                continue
+            if edge["kind"] == "CALLS" and incoming == "HEURISTIC":
+                unmatched_calls.append(edge)
+
+        if unmatched_calls:
+            call_raws = [str(edge["target_raw"]) for edge in unmatched_calls]
+            method_hits = store.nodes_by_names(
+                call_raws, kind="Method", limit=max_candidates
+            )
+            for edge in unmatched_calls:
+                methods = method_hits.get(str(edge["target_raw"]), [])
+                if methods:
+                    _queue_candidates(edge, methods, "HEURISTIC", links, siblings)
+
         # One txn: kill between link and sibling insert must not leave under-linked parents.
         store.apply_resolution(links, siblings)
-
-
-def _resolve_include(
-    store: GraphStore, edge: dict[str, object], links: list[tuple[int, str, str]]
-) -> None:
-    path = _relative_to(str(edge["file_path"]), str(edge["target_raw"]))
-    hits = store.nodes_by_qualified_name(path, kind="File", limit=2)
-    if len(hits) != 1:
-        return
-    tier = _weaker_tier(str(edge["confidence_tier"]), "RESOLVED")
-    links.append((int(str(edge["id"])), str(hits[0]["qualified_name"]), tier))
-
-
-def _resolve_symbol(
-    store: GraphStore,
-    edge: dict[str, object],
-    max_candidates: int,
-    links: list[tuple[int, str, str]],
-    siblings: list[dict[str, object]],
-) -> None:
-    raw = str(edge["target_raw"])
-    incoming = str(edge["confidence_tier"])
-    hits = store.nodes_by_qualified_name(raw, limit=max_candidates)
-    if hits:
-        computed = "RESOLVED" if len(hits) == 1 else "HEURISTIC"
-        _queue_candidates(edge, hits, _weaker_tier(incoming, computed), links, siblings)
-        return
-    if edge["kind"] == "CALLS" and incoming == "HEURISTIC":
-        methods = store.nodes_by_name(raw, kind="Method", limit=max_candidates)
-        if methods:
-            _queue_candidates(edge, methods, "HEURISTIC", links, siblings)
 
 
 def _weaker_tier(left: str, right: str) -> str:

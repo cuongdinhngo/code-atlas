@@ -28,7 +28,7 @@ is [`PLAN.md`](PLAN.md).
 | 016 | [Incremental update via git diff](tasks/016_incremental-git.md) | M5 | done | 011, 009 |
 | 017 | [Impact engine + tool + prompts](tasks/017_impact-engine.md) | M6 | done | 013, 016 |
 | 018 | [Cross-repo validation](tasks/018_cross-repo-validation.md) | M4 | done | 015 |
-| 027 | [Batch resolver candidate lookups](tasks/027_resolver-batched-lookups.md) | M4 | todo | 011, 015 |
+| 027 | [Batch resolver candidate lookups](tasks/027_resolver-batched-lookups.md) | M4 | in-progress | 011, 015 |
 | 024 | [CI hardening](tasks/024_ci-hardening.md) | Setup | done | 001 |
 | 025 | [PHP adapter — full 8.5 grammar coverage](tasks/025_php-adapter-grammar.md) | M0 | done | 007 |
 
