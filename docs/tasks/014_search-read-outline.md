@@ -4,7 +4,7 @@ slug: search-read-outline
 title: Search / read / outline + FTS (M3 — first daily release)
 phase: 1
 milestone: M3
-status: in-progress
+status: done
 depends_on: [010, 004]
 ---
 
@@ -337,9 +337,9 @@ ruff + mypy → clean
 
 ## Session status
 
-- **Phase:** 4 review clean → finalise
-- **PR:** —
+- **Phase:** 5 finalise — outward actions in flight
+- **PR:** (opening)
 - **Reviewed at:** `43753657c829c1efeb2f91a8c36ed73e3fac5573`
-- **Gate:** final gate — outward actions need per-action approval
-- **Blocked by:** none (code clean)
-- **Revert path:** delete branch `feat/014-search-read-outline`; discard DB caches
+- **Gate:** final — approved push + PR + bookkeeping; tag deferred post-merge
+- **Blocked by:** none
+- **Revert path:** close/delete PR branch `feat/014-search-read-outline`; `git revert` merge on main if needed
