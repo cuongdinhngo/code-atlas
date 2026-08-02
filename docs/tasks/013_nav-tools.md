@@ -310,9 +310,9 @@ none
 
 ## Session status
 
-- **Phase:** 5 finalise — executing approved A/B/C
-- **Next:** push + open PR; then record PR URL
-- **Reviewed at:** `81b90a9` (working-doc / BACKLOG bookkeeping exempt from staleness)
-- **Gate:** 4 cleared; outward A/B/C approved (`approveapprove`)
+- **Phase:** 5 finalise complete
+- **PR:** https://github.com/cuongdinhngo/code-atlas/pull/23
+- **Reviewed at:** `81b90a9` (bookkeeping tip after; stale-review exempt)
+- **Gate:** closed
 - **Blocked by:** none
-- **Revert path:** delete branch `feat/013-nav-tools`; `git revert 81b90a9` on main if merged
+- **Revert path:** close/delete PR branch `feat/013-nav-tools`; `git revert` merge on main if needed
