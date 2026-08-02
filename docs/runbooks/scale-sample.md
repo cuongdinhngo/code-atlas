@@ -23,7 +23,8 @@ python scripts/scale_full_build.py
 
 ## Pass bar (ASSUMED A2 / A3)
 
-- Build **completes without OOM** on the host you document in the JSON `host` block.
+- Build **completes without OOM** on the host you document in the JSON `host` block
+  (`peak_rss_self_kb` / `peak_rss_children_kb` / `total_ram_kb`).
 - Timing is a **baseline capture** (`elapsed_seconds`), not an SLA this ticket must clear.
 - Keep the JSON under `artifacts/` (gitignored) or attach it where your team stores perf notes.
 

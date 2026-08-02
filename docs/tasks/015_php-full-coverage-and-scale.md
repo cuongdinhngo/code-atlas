@@ -73,7 +73,7 @@ Plan §6, §6.1, §8, §12, §15 (M4), §17 (scale risk).
 | R4 | Scope | CI not per-PR | Documented local procedure | runbook | ✅ |
 | G1 | Goal | Prove resolution + scale | R1–R4 | — | ✅ |
 | AC1 | AC | Underscore/global resolve | A1/A8 | proving test | ✅ |
-| AC2 | AC | Sample completes + memory + timing | A2/A3/A6/A7 | script + runbook | ✅ |
+| AC2 | AC | Sample completes + memory + timing | A2/A3/A6/A7 — **procedure delivered; operator run deferred** (Follow-ups → 018 or thin ticket) | script + runbook + peak_rss fields | deferred |
 
 `CLARIFICATION: 0 open | ASSUMED A1–A8 ratified at Gate 1`
 

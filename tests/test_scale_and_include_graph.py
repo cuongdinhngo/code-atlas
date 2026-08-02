@@ -65,6 +65,7 @@ def edge(
     path: str,
     *,
     tier: str | None = None,
+    target_qname: str | None = None,
 ) -> dict[str, object]:
     row: dict[str, object] = {
         "kind": kind,
@@ -75,20 +76,22 @@ def edge(
     }
     if tier is not None:
         row["confidence_tier"] = tier
+    if target_qname is not None:
+        row["target_qname"] = target_qname
     return row
 
 
-def php_cmd(root: Path) -> str:
+def php_cmd() -> str:
     return shlex.join([PHP or "php", str(PHP_ENTRY), "--server"])
 
 
 @needs_php
-def test_underscore_global_symbols_resolve_on_psr0_layout(tmp_path: Path) -> None:
-    """AC: Foo_Bar_Baz ↔ Foo/Bar/Baz.php layout links EXTENDS/NEW to \\Legacy_Table."""
+def test_underscore_global_symbols_resolve_by_fqn(tmp_path: Path) -> None:
+    """AC1: underscore/global FQNs link (layout is realistic set-dressing, not load-bearing)."""
     root = tmp_path / "repo"
     shutil.copytree(PSR0_FIXTURES, root)
     cfg = replace(
-        load_config(root, {"CA_PHP_CMD": php_cmd(root)}),
+        load_config(root, {"CA_PHP_CMD": php_cmd()}),
         db_path=tmp_path / "graph.db",
         root=root,
     )
@@ -115,7 +118,7 @@ def test_include_graph_imports_and_imported_by(tmp_path: Path) -> None:
     root = tmp_path / "repo"
     shutil.copytree(INCLUDE_FIXTURES, root)
     cfg = replace(
-        load_config(root, {"CA_PHP_CMD": php_cmd(root)}),
+        load_config(root, {"CA_PHP_CMD": php_cmd()}),
         db_path=tmp_path / "graph.db",
         root=root,
     )
@@ -127,6 +130,37 @@ def test_include_graph_imports_and_imported_by(tmp_path: Path) -> None:
     assert imports["indexed"] is True
     assert {hit["path"] for hit in imports["results"]} == {"Legacy/Registry.php"}
     assert {hit["path"] for hit in imported_by["results"]} == {"app.php"}
+    assert imports["unresolved_includes"] == 0
+
+
+def test_include_graph_exact_fill_at_depth_one_is_not_truncated(tmp_path: Path) -> None:
+    """Regression: depth=1 with exactly max_results neighbors must not set truncated."""
+    db = tmp_path / "graph.db"
+    with GraphStore(db) as store:
+        for i in range(3):
+            path = f"f{i}.php"
+            seed_file(store, path, [node("File", path, path, path)], [])
+        seed_file(
+            store,
+            "app.php",
+            [node("File", "app.php", "app.php", "app.php")],
+            [
+                edge(
+                    "INCLUDES",
+                    "app.php",
+                    f"f{i}.php",
+                    "app.php",
+                    target_qname=f"f{i}.php",
+                )
+                for i in range(3)
+            ],
+        )
+    tool = include_graph.create(
+        replace(load_config(tmp_path, {}), db_path=db, max_results=3, root=tmp_path)
+    )
+    payload = tool("app.php", direction="imports", depth=1)
+    assert len(payload["results"]) == 3
+    assert payload["truncated"] is False
 
 
 def test_resolver_batches_unresolved_edges(store: GraphStore) -> None:
@@ -164,6 +198,31 @@ def test_iter_unresolved_edges_respects_batch_size(store: GraphStore) -> None:
     assert [len(batch) for batch in batches] == [2, 2, 1]
 
 
+def test_iter_unresolved_edges_rejects_bad_batch_size_immediately(store: GraphStore) -> None:
+    with pytest.raises(ValueError, match="batch_size"):
+        store.iter_unresolved_edges(batch_size=0)
+
+
+def test_iter_unresolved_edges_can_skip_dynamic(store: GraphStore) -> None:
+    seed_file(
+        store,
+        "a.x",
+        [node("Class", "A", "\\A", "a.x")],
+        [
+            edge("INCLUDES", "a.x", "(dynamic)", "a.x", tier="DYNAMIC"),
+            edge("EXTENDS", "\\A", "\\Missing", "a.x"),
+        ],
+    )
+    plain = [row for batch in store.iter_unresolved_edges(batch_size=10) for row in batch]
+    skipped = [
+        row
+        for batch in store.iter_unresolved_edges(batch_size=10, skip_dynamic=True)
+        for row in batch
+    ]
+    assert any(row["confidence_tier"] == "DYNAMIC" for row in plain)
+    assert all(row["confidence_tier"] != "DYNAMIC" for row in skipped)
+
+
 def test_scale_script_emits_timing_shape(tmp_path: Path) -> None:
     """Documented procedure: script writes a timing JSON artifact (sample path required)."""
     script = REPO / "scripts" / "scale_full_build.py"
@@ -178,7 +237,7 @@ def test_scale_script_emits_timing_shape(tmp_path: Path) -> None:
         **os.environ,
         "CODE_ATLAS_SCALE_SAMPLE": str(sample),
         "CODE_ATLAS_SCALE_TIMING_OUT": str(out),
-        "CA_PHP_CMD": php_cmd(sample),
+        "CA_PHP_CMD": php_cmd(),
     }
     proc = subprocess.run(
         [sys.executable, str(script)],
@@ -193,3 +252,5 @@ def test_scale_script_emits_timing_shape(tmp_path: Path) -> None:
     assert "elapsed_seconds" in payload
     assert "files" in payload
     assert payload["sample_root"] == str(sample.resolve())
+    assert "peak_rss_self_kb" in payload["host"]
+    assert "peak_rss_children_kb" in payload["host"]

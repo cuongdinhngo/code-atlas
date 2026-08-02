@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 import platform
+import resource
 import sys
 import time
 from dataclasses import replace
@@ -27,6 +28,14 @@ if str(_REPO) not in sys.path:
 from code_atlas.config import load_config  # noqa: E402
 from code_atlas.indexer import full_build  # noqa: E402
 from code_atlas.store import GraphStore  # noqa: E402
+
+
+def _rss_kb(who: int) -> int:
+    """Peak RSS for ``who`` — KiB on Linux, bytes on macOS (normalize to KiB)."""
+    raw = resource.getrusage(who).ru_maxrss
+    if platform.system() == "Darwin":
+        return max(1, raw // 1024)
+    return raw
 
 
 def main() -> int:
@@ -47,9 +56,12 @@ def main() -> int:
     ).expanduser()
     if not out.is_absolute():
         out = (_REPO / out).resolve()
+    else:
+        out = out.resolve()
     out.parent.mkdir(parents=True, exist_ok=True)
 
-    db = Path(os.environ.get("CODE_ATLAS_SCALE_DB", str(root / ".code-atlas" / "graph.db")))
+    db_raw = os.environ.get("CODE_ATLAS_SCALE_DB", str(root / ".code-atlas" / "graph.db"))
+    db = Path(db_raw).expanduser().resolve()
     env = {k: v for k, v in os.environ.items() if k.startswith("CA_")}
     config = replace(load_config(root, env), db_path=db, root=root)
 
@@ -58,6 +70,9 @@ def main() -> int:
         report = full_build(config, store)
     elapsed = time.perf_counter() - started
 
+    total_ram = None
+    if hasattr(os, "sysconf"):
+        total_ram = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
     payload = {
         "sample_root": str(root),
         "db_path": str(config.db_path),
@@ -73,10 +88,13 @@ def main() -> int:
             "machine": platform.machine(),
             "python": platform.python_version(),
             "cpu_count": os.cpu_count(),
+            "peak_rss_self_kb": _rss_kb(resource.RUSAGE_SELF),
+            "peak_rss_children_kb": _rss_kb(resource.RUSAGE_CHILDREN),
+            "total_ram_kb": (total_ram // 1024) if total_ram else None,
         },
         "note": (
             "Baseline capture (015 A2/A3). Pass = completed without OOM on this host; "
-            "no numeric SLA this ticket."
+            "no numeric SLA this ticket. peak_rss_* evidence the memory bar."
         ),
     }
     out.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")

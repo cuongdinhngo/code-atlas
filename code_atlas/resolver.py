@@ -14,19 +14,17 @@ _RESOLVE_BATCH = 1000
 
 def resolve_edges(store: GraphStore, *, max_candidates: int) -> None:
     """Link bare edges after every node exists; ``max_candidates`` caps multi-match HEURISTIC."""
-    for batch in store.iter_unresolved_edges(batch_size=_RESOLVE_BATCH):
+    for batch in store.iter_unresolved_edges(batch_size=_RESOLVE_BATCH, skip_dynamic=True):
         links: list[tuple[int, str, str]] = []
         siblings: list[dict[str, object]] = []
         for edge in batch:
-            if edge["confidence_tier"] == "DYNAMIC":
-                continue
             kind = str(edge["kind"])
             if kind == "INCLUDES":
                 _resolve_include(store, edge, links)
             elif kind in contract.FQN_EDGE_KINDS:
                 _resolve_symbol(store, edge, max_candidates, links, siblings)
-        store.link_edges(links)
-        store.insert_edges(siblings)
+        # One txn: kill between link and sibling insert must not leave under-linked parents.
+        store.apply_resolution(links, siblings)
 
 
 def _resolve_include(

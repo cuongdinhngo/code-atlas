@@ -79,6 +79,12 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 
 - Resolver: link `IMPORTS` (`target_raw` is already an FQN) so `find_references` sees `use`
   statements — filed from [PR #23](https://github.com/cuongdinhngo/code-atlas/pull/23) review.
+- **015 AC2 operator run:** land a real `CODE_ATLAS_SCALE_SAMPLE` timing artifact (elapsed +
+  `peak_rss_*`) against the ~112k checkout — deferred from [PR #25](https://github.com/cuongdinhngo/code-atlas/pull/25)
+  (D1). Natural home: task [018](tasks/018_cross-repo-validation.md) or a thin follow-up before it.
+- **015 resolver N+1 reads:** batch `nodes_by_qualified_name` lookups per unresolved-edge batch
+  (`WHERE qualified_name IN (...)`) before the D1/018 scale baseline — write path is batched; read
+  path is still one SELECT per edge ([PR #25](https://github.com/cuongdinhngo/code-atlas/pull/25)).
 
 ## Suggested order
 
