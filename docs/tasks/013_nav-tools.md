@@ -4,7 +4,7 @@ slug: nav-tools
 title: Navigation tools — callers / references / implementations (M2)
 phase: 1
 milestone: M2
-status: in-progress
+status: done
 depends_on: [011, 010]
 ---
 
@@ -83,18 +83,18 @@ Plan §12, §15 (M2).
 
 | ID | Source | Verbatim | Interpretation | Ph1 evidence | Ph2 covered by | Ph3/4 proven by | Status |
 |----|--------|----------|----------------|--------------|----------------|-----------------|--------|
-| G1 | Goal | Answer relationship queries from the resolved graph (§12). | Three nav tools query linked edges in SQLite; return qname+file:line+tier | Plan §12; store edges | | | ❌ |
-| R1 | Scope | `find_callers(qname, depth?)` — who CALLS/NEW it (+ confidence tier). | Tool + store query; depth per A2/A3/A4/HOW-5 | gap: no tool | | | ❌ |
-| R2 | Scope | `find_references(qname)` — all edges targeting it. | Any kind targeting qname (linked `target_qname`) | gap | | | ❌ |
-| R3 | Scope | `find_implementations(qname)` — EXTENDS/IMPLEMENTS subtypes. | Direct children only (A5) | gap | | | ❌ |
-| R4 | Scope | Return qnames + `file:line`, not bodies. | Response rows: source/target qname, path, line, tier | Plan §12 | | | ❌ |
-| AC1 | AC | On a known class, `find_callers` matches a manual baseline (accounting for dynamic calls). | Baseline A1: after build of resolve fixtures, `find_callers("\\App\\Repo::put")` includes `\\App\\User::save` | `test_resolver.py:273-274` | | | ❌ |
-| AC2 | AC | Confidence tiers surfaced; dynamic edges flagged, not silently linked. | Every hit exposes `confidence_tier`; DYNAMIC never omitted from the flag / never traversed (A3) | | | | ❌ |
-| AC-A1 | refine | Baseline = resolve fixtures | AC1 pinned to that graph | A1 | | | ❌ |
-| AC-A2 | refine | depth default 1 / transitive BFS / MAX_RESULTS | measurable defaults + hop behaviour | A2 | | | ❌ |
-| AC-A3 | refine | DYNAMIC include+flag; no traverse | result field + BFS rule | A3 | | | ❌ |
-| AC-A4 | refine | exact qname only | no member expansion | A4 | | | ❌ |
-| AC-A5 | refine | implementations direct only | no transitive subtypes | A5 | | | ❌ |
+| G1 | Goal | Answer relationship queries from the resolved graph (§12). | Three nav tools query linked edges in SQLite; return qname+file:line+tier | Plan §12; store edges | Approach + change-list | tools + `edges_by_target` on `target_qname`; challenger #7 | ✅ |
+| R1 | Scope | `find_callers(qname, depth?)` — who CALLS/NEW it (+ confidence tier). | Tool + store query; depth per A2/A3/A4/HOW-5 | gap: no tool | change-list (2) | `find_callers.py` + proving + challenger #1 | ✅ |
+| R2 | Scope | `find_references(qname)` — all edges targeting it. | Any kind targeting qname (linked `target_qname`) | gap | change-list (3) | `find_references.py` + `test_nav_tools` refs; challenger #2 | ✅ |
+| R3 | Scope | `find_implementations(qname)` — EXTENDS/IMPLEMENTS subtypes. | Direct children only (A5) | gap | change-list (4) | `find_implementations.py` + direct-only test; challenger #3 | ✅ |
+| R4 | Scope | Return qnames + `file:line`, not bodies. | Response rows: source/target qname, path, line, tier | Plan §12 | Approach | `nav_result.edge_hit`; challenger #4 | ✅ |
+| AC1 | AC | On a known class, `find_callers` matches a manual baseline (accounting for dynamic calls). | Baseline A1: after build of resolve fixtures, `find_callers("\\App\\Repo::put")` includes `\\App\\User::save` | `test_resolver.py:273-274` | proving test | `test_find_callers_matches_resolve_fixture_baseline` PASS; challenger #5 | ✅ |
+| AC2 | AC | Confidence tiers surfaced; dynamic edges flagged, not silently linked. | Every hit exposes `confidence_tier`; DYNAMIC never omitted from the flag / never traversed (A3) | | Approach + A3 | tier on hits + DYNAMIC non-traverse test; challenger #6 | ✅ |
+| AC-A1 | refine | Baseline = resolve fixtures | AC1 pinned to that graph | A1 | A1 | proving indexes resolve fixtures | ✅ |
+| AC-A2 | refine | depth default 1 / transitive BFS / MAX_RESULTS | measurable defaults + hop behaviour | A2 | A2 | `depth=1` default + BFS in `find_callers` | ✅ |
+| AC-A3 | refine | DYNAMIC include+flag; no traverse | result field + BFS rule | A3 | A3 | DYNAMIC returned; only RESOLVED enqueued | ✅ |
+| AC-A4 | refine | exact qname only | no member expansion | A4 | A4 | `test_exact_qname_does_not_expand_to_members` | ✅ |
+| AC-A5 | refine | implementations direct only | no transitive subtypes | A5 | A5 | `test_find_implementations_are_direct_only` | ✅ |
 
 `PREMISE:` carried from refine (6 / 0 / 1).
 
@@ -112,9 +112,9 @@ Plan §12, §15 (M2).
 
 | # | Item | Ph3/4 proven by | Status |
 |---|------|-----------------|--------|
-| T1 | `find_callers` | | ❌ |
-| T2 | `find_references` | | ❌ |
-| T3 | `find_implementations` | | ❌ |
+| T1 | `find_callers` | `main.py` register + proving + MCP TOOL_NAMES | ✅ |
+| T2 | `find_references` | `main.py` register + refs test + MCP | ✅ |
+| T3 | `find_implementations` | `main.py` register + impls test + MCP | ✅ |
 
 `SURFACES:` N/A — `TRACK: backend`.
 
@@ -257,18 +257,62 @@ Full proving module: `tests/test_nav_tools.py` (callers baseline + DYNAMIC surfa
 
 ---
 
+## Phase 4 — Review
+
+**Reviewed at** `81b90a99fe4ed92daf524ada68c2ce35295d274a`
+
+**Working-doc path:** `docs/tasks/013_nav-tools.md`
+
+**Reviewed files:** `code_atlas/main.py`, `code_atlas/store.py`, `code_atlas/tools/find_callers.py`, `code_atlas/tools/find_implementations.py`, `code_atlas/tools/find_references.py`, `code_atlas/tools/nav_result.py`, `docs/BACKLOG.md`, `docs/tasks/013_nav-tools.md`, `tests/test_core_is_language_agnostic.py`, `tests/test_mcp_server.py`, `tests/test_nav_tools.py`, `tests/test_sql_confinement.py`
+
+| Critic | Result |
+|--------|--------|
+| mango:reviewer ([Reviewer](a5f06a99-1eeb-4270-819e-f02d322e331e)) | **LGTM** — 0 Critical / 0 Important; proving 1 passed; diff ⊆ Gate-2 list (+ documented `nav_result` + guardrail count bumps) |
+| mango:challenger ([Challenger](91501184-8c47-4508-a726-263bf6be5bca)) | **7 met · 0 not met · 0 can't tell** (ticket-blind) |
+
+**Scope reconcile:** file axis ✅ · behaviour axis ✅ · inventory T1–T3 = 3/3 ✅
+
+**Layer-match:** AC1/AC2 at integration over resolve fixtures ✅ — no unresolved ❌
+
+**Proving (re-check at review):** `.venv/bin/pytest -q tests/test_nav_tools.py::test_find_callers_matches_resolve_fixture_baseline` → **1 passed** (would fail without the tools). Baseline 439 → post 467; no new failures in blast radius (reviewer 93 passed batch).
+
+**Verdict:** clean — Gate 4 does not stop.
+
+**Matrix Status:** G1, R1–R4, AC1–AC2, AC-A1–A5, T1–T3 → ✅
+
+### Reviewer report ([Reviewer](a5f06a99-1eeb-4270-819e-f02d322e331e))
+
+**Verdict: LGTM** @ `81b90a9`. No Critical/Important. Proving PASS. Diff maps to Gate-2 items 1–8; `nav_result.py` + module-count 13→17 are documented/necessary collateral. Rule-book: R1.1/R1.2/R1.4/R3.2/R4.3/R5.2/R5.3/R6.1/R7.5 + CONVENTION §6 pass. SQL `kinds` parameterized.
+
+### Challenger report ([Challenger](91501184-8c47-4508-a726-263bf6be5bca))
+
+**Independence:** raw ticket + `main...HEAD` only. **7 met · 0 not met · 0 can't tell.** Non-blockers noted: `detail_level`, HEURISTIC non-traversal beyond ticket wording, docs churn.
+
+---
+
 ## Cost ledger (subagent dispatch only)
 
 | Phase | Dispatch | Round | Tokens |
 |-------|----------|-------|--------|
 | 0 refine | mango:challenger (exposure-checker) | 1 | unmeasured (blocking retrieval) |
+| 4 review | mango:reviewer | 1 | unmeasured (blocking retrieval) |
+| 4 review | mango:challenger | 1 | unmeasured (blocking retrieval) |
+
+**Roll-up:** **3 dispatch**, all `unmeasured (blocking retrieval)`. Main-loop unmeasured.
+
+---
+
+## Durable lesson
+
+none
 
 ---
 
 ## Session status
 
-- **Phase:** 3 execute complete → flowing to 4 review
-- **Next:** review (reviewer + challenger)
-- **Gate:** none (execute autonomous)
-- **Gate 1/2:** cleared
+- **Phase:** 5 finalise — executing approved A/B/C
+- **Next:** push + open PR; then record PR URL
+- **Reviewed at:** `81b90a9` (working-doc / BACKLOG bookkeeping exempt from staleness)
+- **Gate:** 4 cleared; outward A/B/C approved (`approveapprove`)
 - **Blocked by:** none
+- **Revert path:** delete branch `feat/013-nav-tools`; `git revert 81b90a9` on main if merged
