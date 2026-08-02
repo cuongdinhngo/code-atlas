@@ -16,7 +16,7 @@ import sqlite3
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal, NamedTuple
+from typing import NamedTuple
 
 from code_atlas import contract
 from code_atlas.contract import CONFIDENCE_TIERS
@@ -672,7 +672,7 @@ class GraphStore:
     def _nodes_batched(
         self,
         *,
-        key_column: Literal["name", "qualified_name"],
+        key_column: str,
         keys: Sequence[str],
         kind: str | None,
         limit: int,
@@ -680,6 +680,9 @@ class GraphStore:
         """Per-key top-N via ``ROW_NUMBER``; keys chunked under ``_IN_CHUNK`` (host max-vars)."""
         if limit < 1:
             raise ValueError(f"limit must be >= 1, got {limit}")
+        # Keep checks as separate comparisons — a 2-string Literal/tuple trips R3.2.
+        if key_column != "name" and key_column != "qualified_name":
+            raise ValueError(f"unsupported batch column: {key_column}")
         # Dedupe while preserving first-seen order so empty IN () never runs.
         ordered_keys: list[str] = list(dict.fromkeys(keys))
         if not ordered_keys:
