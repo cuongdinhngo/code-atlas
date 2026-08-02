@@ -366,3 +366,5 @@ Claim left as runbook-only (already documented); not promoted to `docs/LESSONS.m
 | 0 refine | challenger (exposure-checker) | 1 | unmeasured (host does not surface usage) | [003ebc65](003ebc65-d9af-4974-8e06-4eb5111d41e0); EXPOSURE: 2 |
 | 4 review | reviewer | 1 | unmeasured (host does not surface usage) | [6f57c4a0](6f57c4a0-57c9-4494-b5d1-f1a0a0d0f276); LGTM |
 | 4 review | challenger | 1 | unmeasured (host does not surface usage) | [0052e9f1](0052e9f1-a8d9-47bb-a536-a0bf0f8b460d); 6 met / 3 not met / 4 can't-tell |
+
+**PR:** https://github.com/cuongdinhngo/code-atlas/pull/28
