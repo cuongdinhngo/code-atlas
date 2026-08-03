@@ -116,6 +116,23 @@ class ImpactResult(NamedTuple):
     seeds_dropped: int
 
 
+class ReachabilityResult(NamedTuple):
+    """Forward reachable set plus unproven (HEURISTIC/DYNAMIC-only) neighbors (task 031)."""
+
+    reachable: list[Row]
+    unproven: list[Row]
+    frontier_skipped_non_resolved: int
+    truncated: bool
+
+
+class OrphanResult(NamedTuple):
+    """Complement of reachability: orphans with why, plus unproven (task 031)."""
+
+    orphans: list[Row]
+    unproven: list[Row]
+    truncated: bool
+
+
 class SchemaVersionError(Exception):
     """Written by another schema version — a programmer error, so it raises loud (R5.3)."""
 
@@ -639,6 +656,254 @@ class GraphStore:
             return ImpactResult(rows, skipped, seeds_dropped)
         finally:
             self._impact_drop_temps()
+
+    def reachable_from(
+        self, seeds: Sequence[str], *, depth: int, max_nodes: int
+    ) -> ReachabilityResult:
+        """Bounded forward reachability over outgoing IMPACT_KINDS (task 031).
+
+        Only ``RESOLVED`` edges expand the frontier. HEURISTIC/DYNAMIC neighbors are
+        recorded as unproven and never expand. Seeds are depth 0 and always included.
+        """
+        if depth < 0:
+            raise ValueError(f"depth must be >= 0, got {depth}")
+        if max_nodes < 1:
+            raise ValueError(f"max_nodes must be >= 1, got {max_nodes}")
+        ordered_seeds = list(dict.fromkeys(q for q in seeds if q))
+        if not ordered_seeds:
+            return ReachabilityResult([], [], 0, False)
+
+        conn = self._conn
+        skipped = 0
+        self._reach_drop_temps()
+        try:
+            conn.execute(
+                "CREATE TEMP TABLE reach_seen ("
+                "qname TEXT PRIMARY KEY, depth INT NOT NULL, is_seed INT NOT NULL)"
+            )
+            conn.execute(
+                "CREATE TEMP TABLE reach_frontier (qname TEXT PRIMARY KEY, depth INT NOT NULL)"
+            )
+            conn.execute("CREATE TEMP TABLE reach_kinds (kind TEXT PRIMARY KEY)")
+            conn.execute(
+                "CREATE TEMP TABLE reach_unproven ("
+                "qname TEXT PRIMARY KEY, confidence_tier TEXT NOT NULL)"
+            )
+            conn.executemany(
+                "INSERT INTO temp.reach_kinds (kind) VALUES (?)",
+                [(kind,) for kind in contract.IMPACT_KINDS],
+            )
+            conn.executemany(
+                "INSERT INTO temp.reach_seen (qname, depth, is_seed) VALUES (?, 0, 1)",
+                [(q,) for q in ordered_seeds],
+            )
+            conn.executemany(
+                "INSERT INTO temp.reach_frontier (qname, depth) VALUES (?, 0)",
+                [(q,) for q in ordered_seeds],
+            )
+            if len(ordered_seeds) > max_nodes:
+                self._reach_prune_seen(max_nodes)
+                conn.execute(
+                    "DELETE FROM temp.reach_frontier WHERE qname NOT IN "
+                    "(SELECT qname FROM temp.reach_seen)"
+                )
+
+            expand_sql = (
+                "INSERT INTO temp.reach_next (qname, depth, confidence_tier) "
+                "SELECT e.target_qname, f.depth + 1, COALESCE(e.confidence_tier, ?) "
+                "FROM temp.reach_frontier f "
+                "JOIN edges e ON e.source_qname = f.qname "
+                "JOIN temp.reach_kinds k ON k.kind = e.kind "
+                "WHERE e.target_qname IS NOT NULL"
+            )
+
+            for _hop in range(depth):
+                empty = conn.execute(
+                    "SELECT 1 FROM temp.reach_frontier LIMIT 1"
+                ).fetchone()
+                if empty is None:
+                    break
+                conn.execute("DROP TABLE IF EXISTS temp.reach_next")
+                conn.execute(
+                    "CREATE TEMP TABLE reach_next ("
+                    "qname TEXT NOT NULL, depth INT NOT NULL, confidence_tier TEXT NOT NULL)"
+                )
+                conn.execute(expand_sql, (_RESOLVED,))
+                skipped += int(
+                    conn.execute(
+                        "SELECT COUNT(*) FROM ("
+                        "  SELECT DISTINCT qname FROM temp.reach_next "
+                        "  WHERE confidence_tier != ?"
+                        ")",
+                        (_RESOLVED,),
+                    ).fetchone()[0]
+                )
+                conn.execute(
+                    "INSERT OR IGNORE INTO temp.reach_unproven (qname, confidence_tier) "
+                    "SELECT n.qname, n.confidence_tier FROM temp.reach_next n "
+                    "WHERE n.confidence_tier != ? "
+                    "AND n.qname NOT IN (SELECT qname FROM temp.reach_seen)",
+                    (_RESOLVED,),
+                )
+                conn.execute(
+                    "INSERT OR IGNORE INTO temp.reach_seen (qname, depth, is_seed) "
+                    "SELECT n.qname, MIN(n.depth), 0 FROM temp.reach_next n "
+                    "WHERE n.confidence_tier = ? "
+                    "GROUP BY n.qname",
+                    (_RESOLVED,),
+                )
+                self._reach_prune_seen(max_nodes)
+                conn.execute("DELETE FROM temp.reach_frontier")
+                conn.execute(
+                    "INSERT INTO temp.reach_frontier (qname, depth) "
+                    "SELECT s.qname, s.depth FROM temp.reach_seen s "
+                    "JOIN ("
+                    "  SELECT DISTINCT qname FROM temp.reach_next WHERE confidence_tier = ?"
+                    ") AS n ON n.qname = s.qname "
+                    "WHERE s.is_seed = 0",
+                    (_RESOLVED,),
+                )
+                conn.execute(
+                    "DELETE FROM temp.reach_frontier WHERE qname NOT IN "
+                    "(SELECT qname FROM temp.reach_seen)"
+                )
+                conn.execute(
+                    "DELETE FROM temp.reach_unproven WHERE qname IN "
+                    "(SELECT qname FROM temp.reach_seen)"
+                )
+
+            truncated = (
+                int(conn.execute("SELECT COUNT(*) FROM temp.reach_seen").fetchone()[0])
+                >= max_nodes
+            )
+            reachable = self._rows(
+                ("qname", "depth", "file")
+                + (contract.NODE_FIELDS[0], contract.EDGE_FIELDS[5]),
+                "SELECT s.qname, s.depth, "
+                "COALESCE(("
+                "  SELECT nodes.file_path FROM nodes WHERE nodes.qualified_name = s.qname "
+                "  ORDER BY nodes.file_path, nodes.line_start, nodes.id LIMIT 1"
+                "), ''), "
+                "COALESCE(("
+                "  SELECT nodes.kind FROM nodes WHERE nodes.qualified_name = s.qname "
+                "  ORDER BY nodes.file_path, nodes.line_start, nodes.id LIMIT 1"
+                "), ''), "
+                "COALESCE(("
+                "  SELECT nodes.line_start FROM nodes WHERE nodes.qualified_name = s.qname "
+                "  ORDER BY nodes.file_path, nodes.line_start, nodes.id LIMIT 1"
+                "), 0) "
+                "FROM temp.reach_seen s "
+                "ORDER BY s.is_seed DESC, s.depth ASC, s.qname ASC LIMIT ?",
+                (max_nodes,),
+            )
+            unproven = self._rows(
+                ("qname", "confidence_tier", "file")
+                + (contract.NODE_FIELDS[0], contract.EDGE_FIELDS[5]),
+                "SELECT u.qname, u.confidence_tier, "
+                "COALESCE(("
+                "  SELECT nodes.file_path FROM nodes WHERE nodes.qualified_name = u.qname "
+                "  ORDER BY nodes.file_path, nodes.line_start, nodes.id LIMIT 1"
+                "), ''), "
+                "COALESCE(("
+                "  SELECT nodes.kind FROM nodes WHERE nodes.qualified_name = u.qname "
+                "  ORDER BY nodes.file_path, nodes.line_start, nodes.id LIMIT 1"
+                "), ''), "
+                "COALESCE(("
+                "  SELECT nodes.line_start FROM nodes WHERE nodes.qualified_name = u.qname "
+                "  ORDER BY nodes.file_path, nodes.line_start, nodes.id LIMIT 1"
+                "), 0) "
+                "FROM temp.reach_unproven u "
+                "ORDER BY u.qname ASC LIMIT ?",
+                (max_nodes,),
+            )
+            unproven_total = int(
+                conn.execute("SELECT COUNT(*) FROM temp.reach_unproven").fetchone()[0]
+            )
+            truncated = truncated or unproven_total > max_nodes
+            return ReachabilityResult(reachable, unproven, skipped, truncated)
+        finally:
+            self._reach_drop_temps()
+
+    def find_orphans(
+        self, seeds: Sequence[str], *, depth: int, max_nodes: int
+    ) -> OrphanResult:
+        """Orphans = indexed nodes outside reachable∪unproven∪seeds, with why (task 031)."""
+        reach = self.reachable_from(seeds, depth=depth, max_nodes=max_nodes)
+        seed_set = set(dict.fromkeys(q for q in seeds if q))
+        excluded = seed_set | {str(r["qname"]) for r in reach.reachable} | {
+            str(r["qname"]) for r in reach.unproven
+        }
+
+        conn = self._conn
+        conn.execute("DROP TABLE IF EXISTS temp.reach_excluded")
+        try:
+            conn.execute("CREATE TEMP TABLE reach_excluded (qname TEXT PRIMARY KEY)")
+            if excluded:
+                conn.executemany(
+                    "INSERT INTO temp.reach_excluded (qname) VALUES (?)",
+                    [(q,) for q in sorted(excluded)],
+                )
+            kind_placeholders = ", ".join("?" for _ in contract.IMPACT_KINDS)
+            sql = (
+                "SELECT n.qualified_name AS qname, n.kind, n.file_path AS file, "
+                "n.line_start, "
+                "CASE WHEN NOT EXISTS ("
+                "  SELECT 1 FROM edges e "
+                f"  WHERE e.target_qname = n.qualified_name AND e.kind IN ({kind_placeholders}) "
+                "  AND e.target_qname IS NOT NULL"
+                ") THEN 'no_inbound' ELSE 'unreachable_from_roots' END AS why "
+                "FROM nodes n "
+                "WHERE n.qualified_name NOT IN (SELECT qname FROM temp.reach_excluded) "
+                "ORDER BY n.qualified_name ASC, n.file_path ASC, n.line_start ASC, n.id ASC "
+                "LIMIT ?"
+            )
+            rows = self._rows(
+                ("qname", contract.NODE_FIELDS[0], "file", "line_start", "why"),
+                sql,
+                (*contract.IMPACT_KINDS, max_nodes),
+            )
+            orphan_total = int(
+                conn.execute(
+                    "SELECT COUNT(*) FROM nodes n "
+                    "WHERE n.qualified_name NOT IN (SELECT qname FROM temp.reach_excluded)"
+                ).fetchone()[0]
+            )
+            orphans: list[Row] = []
+            for row in rows:
+                item: Row = {
+                    "qname": row["qname"],
+                    "file": row["file"],
+                    "why": row["why"],
+                }
+                item[contract.NODE_FIELDS[0]] = row[contract.NODE_FIELDS[0]]
+                item[contract.EDGE_FIELDS[5]] = row["line_start"]
+                orphans.append(item)
+            truncated = reach.truncated or orphan_total > max_nodes
+            return OrphanResult(orphans, reach.unproven, truncated)
+        finally:
+            conn.execute("DROP TABLE IF EXISTS temp.reach_excluded")
+
+    def _reach_drop_temps(self) -> None:
+        for name in (
+            "reach_seen",
+            "reach_frontier",
+            "reach_kinds",
+            "reach_unproven",
+            "reach_next",
+        ):
+            self._conn.execute(f"DROP TABLE IF EXISTS temp.{name}")
+
+    def _reach_prune_seen(self, max_nodes: int) -> None:
+        """Keep seeds preferentially, then shallowest depth (tie: qname ASC)."""
+        self._conn.execute(
+            "DELETE FROM temp.reach_seen WHERE qname NOT IN ("
+            "  SELECT qname FROM ("
+            "    SELECT qname FROM temp.reach_seen "
+            "    ORDER BY is_seed DESC, depth ASC, qname ASC LIMIT ?"
+            "  )"
+            ")",
+            (max_nodes,),
+        )
 
     def _impact_drop_temps(self) -> None:
         for name in (

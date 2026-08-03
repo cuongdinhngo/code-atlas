@@ -97,6 +97,15 @@ KNOBS = (
         lambda root: 500,
     ),
     Knob(
+        "CA_ENTRY_POINTS",
+        'entry_points = ["public/index.php"]',
+        "bin/console,src/Kernel.php",
+        lambda config: config.entry_points,
+        lambda root: ("bin/console", "src/Kernel.php"),
+        lambda root: ("public/index.php",),
+        lambda root: None,
+    ),
+    Knob(
         "CA_TOOLS",
         'tools = ["search_symbol"]',
         "read_symbol,file_outline",
@@ -164,7 +173,7 @@ def test_every_knob_has_a_precedence_case() -> None:
     # Guards the guard: dropping a knob from KNOBS would otherwise shrink AC1's coverage silently.
     covered = {knob.variable for knob in KNOBS}
     assert {env_name(key) for key in KNOB_KEYS} | {"CA_PHP_CMD"} == covered
-    assert len(KNOB_KEYS) == 9
+    assert len(KNOB_KEYS) == 10
 
 
 def test_env_name_is_derived_from_the_project_file_key() -> None:
@@ -175,6 +184,7 @@ def test_env_name_is_derived_from_the_project_file_key() -> None:
         "CA_MAX_RESULTS",
         "CA_IMPACT_DEPTH",
         "CA_IMPACT_MAX_NODES",
+        "CA_ENTRY_POINTS",
         "CA_TOOLS",
         "CA_HOST_ROOT",
         "CA_CONTAINER_ROOT",
