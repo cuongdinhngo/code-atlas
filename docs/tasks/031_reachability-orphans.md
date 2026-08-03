@@ -244,21 +244,95 @@ Invocation: `.venv/bin/python -m pytest tests/test_reachability.py -q`
 | 4 review | mango:reviewer | 1 | unmeasured (host does not surface usage) |
 | 4 review | mango:challenger | 1 | unmeasured (host does not surface usage) |
 
-### Reviewer ([Reviewer](bb186f05-e242-456f-8c09-15597add9c22))
+| Dispatch | Verdict |
+|----------|---------|
+| mango:reviewer round 1 ([Reviewer](bb186f05-e242-456f-8c09-15597add9c22)) | **CHANGES REQUESTED** — R4.3 orphan/unproven unbounded |
+| mango:challenger round 1 ([Challenger](32674923-74f2-416d-96ae-db135baf16a0)) | ticket-blind — **11 met · 2 not met · 0 can't tell** |
 
-**Verdict:** CHANGES REQUESTED → fixed in execute follow-up.
+**Fixed after round 1** (landed in `2e57f08`): orphan SQL `LIMIT max_nodes` via `reach_excluded` temp; unproven `LIMIT`; exact planted-set asserts + NEW/INCLUDES/IMPLEMENTS plant. Suite `608 passed`.
 
-| # | Sev | Finding | Resolution |
-|---|-----|---------|------------|
-| 1 | Important R4.3 | `find_orphans` loaded all nodes | SQL `NOT IN` excluded temp + `LIMIT max_nodes` |
-| 2 | Important R4.3 | unproven unbounded | `LIMIT max_nodes` + truncated flag |
-| nit | — | membership vs exact sets | exact `==` asserts + richer plant |
+### Reviewer detail round 1 ([Reviewer](bb186f05-e242-456f-8c09-15597add9c22))
 
-### Challenger ([Challenger](32674923-74f2-416d-96ae-db135baf16a0))
+**Verdict: CHANGES REQUESTED** *(conditional LGTM once findings 1–2 land)*
 
-**11 met · 2 not met** (#9 orphan bound, #11 exact sets) → both addressed in follow-up.
+**Scope reviewed:** staged/uncommitted diff on `feat/031-reachability-orphans` (at review time `main...HEAD` empty — change-set not yet committed). Focus: R1.1, R1.2, R1.4, R3.2, R4.3, R5.2.
 
-**Reviewed at:** `2e57f08` (feat/031-reachability-orphans; R4.3 orphan/unproven bounds included)
+#### Rule checklist
+
+| Rule | Verdict | Evidence |
+|------|---------|----------|
+| **R1.1** | Pass | No language branches under `code_atlas/`; kinds from `contract.IMPACT_KINDS`; guard count bumped to 25 modules |
+| **R1.2** | Pass | No new registry/DI; tools wired via existing `TOOL_NAMES` + `if NAME in names` pattern in `main.py` |
+| **R1.4** | Pass | SQL in `store.py`; tools only present (`entry_seeds` / payload shaping mirror `impact.py`) |
+| **R3.2** | Pass | Store uses `contract.IMPACT_KINDS`, `NODE_FIELDS[0]`, `EDGE_FIELDS[5]` — no re-declared kind/field lists |
+| **R4.3** | **Fail** | `find_orphans` loads all nodes into Python; `unproven` has no budget (findings below) |
+| **R5.2** | Pass | Only `RESOLVED` expands frontier; HEURISTIC/DYNAMIC → `unproven`, never orphan / never expand |
+
+#### Finding 1 — Important — R4.3
+
+**`code_atlas/store.py:834-862`** — `find_orphans` `SELECT`s the entire `nodes` table into Python, filters with an in-memory `excluded` set, and never applies `max_nodes`. That loads the vertex set of the graph into memory and returns an unbounded orphan list, contradicting R4.3 (“bounded traversal in SQL — never load the whole graph into memory”) and the ticket’s reuse of `CA_IMPACT_MAX_NODES`.
+
+**Fix hint:** Keep exclusion in SQL (temp table of seed∪reachable∪unproven qnames), `WHERE` out excluded rows, `ORDER BY` + `LIMIT ?` with `max_nodes`, and set `truncated` when more orphans exist (or when reachability truncated).
+
+**Resolved in:** `2e57f08` — `temp.reach_excluded` + `LIMIT max_nodes` + `orphan_total > max_nodes` → `truncated`.
+
+#### Finding 2 — Important — R4.3
+
+**`code_atlas/store.py:741-747` + `799-818`** — `reach_unproven` is never pruned; the final unproven query has no `LIMIT`. Unlike `impact_radius` (non-RESOLVED neighbors compete inside the `max_nodes` best-set), HEURISTIC/DYNAMIC fan-out here is unbounded while still satisfying “bounded traversal.”
+
+**Fix hint:** Cap unproven with the same `max_nodes` budget: `LIMIT` when selecting; reflect overflow in `truncated`.
+
+**Resolved in:** `2e57f08` — unproven `ORDER BY … LIMIT ?` + `unproven_total > max_nodes` → `truncated`.
+
+#### Non-blocking notes (not verdict-driving)
+
+- **AC1 exactness:** `tests/test_reachability.py` used membership asserts, not exact hand-traced set equality. **Resolved:** exact `==` sets + richer plant (NEW/INCLUDES/IMPLEMENTS).
+- **Cross-tool private import:** `find_orphans.py` imports `_no_roots` from `reachable_from` — fine for YAGNI.
+- **Truncation semantics:** When reachability hits `max_nodes`, orphan complement is incomplete — `truncated` kept honest after finding 1.
+
+#### What looks solid
+
+- Config `CA_ENTRY_POINTS` / blank → `None`; tools return `status=no_roots_configured` (AC3).
+- Forward walk joins frontier→edges (no full edge-table materialization) — good dual of `impact_radius`.
+- HEURISTIC-only path → `unproven`, not orphan (AC2 / R5.2).
+- Registration in `TOOL_NAMES` + `build_server`; PLAN/CONVENTION/BACKLOG updated.
+- Approved change-list match: config, store methods, two tools, tests, docs — no scope creep observed.
+
+### Challenger detail round 1 ([Challenger](32674923-74f2-416d-96ae-db135baf16a0)) — ticket-blind
+
+**Independence:** Raw ticket text + branch inspection only. No working doc / design matrix read.  
+**Change-set:** At review time `main..HEAD` empty; judged **uncommitted** working tree.
+
+#### Rebuilt requirements → verdicts
+
+| # | Requirement (from ticket) | Verdict | Evidence |
+|---|---------------------------|---------|----------|
+| 1 | **`entry_points` config** for declared roots | **met** | `config.py` `KNOB_KEYS` / field / `_as_entry_points`; `tests/test_config.py` `CA_ENTRY_POINTS` |
+| 2 | **`reachable_from`**: forward walk over CALLS/NEW/INCLUDES (+ EXTENDS/IMPLEMENTS) | **met** | `store.reachable_from` uses `contract.IMPACT_KINDS`; expand `e.source_qname = f.qname` → `e.target_qname` (outgoing) |
+| 3 | **`find_orphans`**: complement with `why` | **met** | `no_inbound` / `unreachable_from_roots`; tool surfaces `why` |
+| 4 | **Store owns SQL** | **met** | SQL in `store.py`; tools call store methods; `test_sql_confinement` sole SQL module |
+| 5 | **Register tools** | **met** | `main.py` `TOOL_NAMES` + `build_server`; MCP CALLS list |
+| 6 | **RESOLVED-only expand** | **met** | Only RESOLVED into `reach_seen` / frontier; else `reach_unproven` |
+| 7 | **HEURISTIC-only = unproven, not orphan** | **met** | Unproven excluded from orphan set; tools expose `unproven`; proving test |
+| 8 | **Unset `entry_points` → no roots configured** | **met** | `status=NO_ROOTS` + message; shared by both tools |
+| 9 | **Bounded SQL** | **not met** (orphans) / **met** (reach) | Reach pruned; orphans had unbounded `SELECT … FROM nodes` with no LIMIT — **fixed in `2e57f08`** |
+| 10 | **No language branches** | **met** | Guard count 25 modules |
+| 11 | **AC: planted exact sets** | **not met** | Membership-only asserts; plant lacked NEW/INCLUDES/IMPLEMENTS — **fixed in `2e57f08`** |
+| 12 | **AC: unproven ≠ orphan** | **met** | Same as #7 |
+| 13 | **AC: no-roots message** | **met** | Same as #8 |
+| 14 | **AC: tools registered** | **met** | Same as #5 |
+| 15 | **AC: no whole-edge `SELECT`** | **met** | Expand joins projected columns; orphan inbound is `SELECT 1 FROM edges` |
+
+#### Scope notes (ticket did not ask)
+
+- Doc/status sync: PLAN / BACKLOG / CONVENTION / task file.
+- UX extras: `authoritative=False`, `edge_health` on standard (adjacent to 028).
+
+#### Summary (at review time)
+
+**11 met · 2 not met (#9 orphans bound; #11 exact planted sets) · 0 can't tell.** Both gaps closed in the same commit that opened the PR.
+
+**Reviewed at:** `2e57f08` (feat/031-reachability-orphans; R4.3 orphan/unproven bounds + exact AC1 plant included)
 
 **Gate 4:** clean after fixes (standing approval).
 
