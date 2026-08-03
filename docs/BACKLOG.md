@@ -31,6 +31,10 @@ is [`PLAN.md`](PLAN.md).
 | 027 | [Batch resolver candidate lookups](tasks/027_resolver-batched-lookups.md) | M4 | done | 011, 015 |
 | 024 | [CI hardening](tasks/024_ci-hardening.md) | Setup | done | 001 |
 | 025 | [PHP adapter — full 8.5 grammar coverage](tasks/025_php-adapter-grammar.md) | M0 | done | 007 |
+| 028 | [Index-health metrics in get_index_status](tasks/028_index-health-metrics.md) | M4 | todo | 010, 011 |
+| 029 | [PHP adapter — $this/self/static/parent receiver resolution](tasks/029_php-receiver-resolution.md) | M2 | todo | 011, 025 |
+| 030 | [Alias & literal-indirection edges](tasks/030_alias-indirection-edges.md) | M2 | todo | 002, 011, 025 |
+| 031 | [Reachability / orphan detection](tasks/031_reachability-orphans.md) | M6 | todo | 003, 011, 013 |
 
 ## Phase 2 — More languages
 
@@ -84,6 +88,14 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 
 - Resolver: link `IMPORTS` (`target_raw` is already an FQN) so `find_references` sees `use`
   statements — filed from [PR #23](https://github.com/cuongdinhngo/code-atlas/pull/23) review.
+- **External-review batch (PHP-general, anchor-repo is only the stress test):** the Top-3 and one
+  second-tier item are now ticketed — [028](tasks/028_index-health-metrics.md) (health signal),
+  [029](tasks/029_php-receiver-resolution.md) (receiver resolution),
+  [030](tasks/030_alias-indirection-edges.md) (alias/indirection, contract bump),
+  [031](tasks/031_reachability-orphans.md) (reachability/orphans). Suggested order **028 → 029 → 030
+  → 031**: 028 measures whether 029/030 help; 031 needs 029's resolved graph or it reports false
+  orphans. Still un-ticketed from that review: duplicate-name disambiguation across PSR-0 roots, and
+  PSR-4/autoload-aware include resolution.
 - **015 AC2 operator run:** land a real `CODE_ATLAS_SCALE_SAMPLE` timing artifact (elapsed +
   `peak_rss_*`) against the ~112k checkout — deferred from [PR #25](https://github.com/cuongdinhngo/code-atlas/pull/25)
   (D1). Folded into [018](tasks/018_cross-repo-validation.md) as optional A4 (`CODE_ATLAS_SCALE_SAMPLE`
