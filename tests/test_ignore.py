@@ -92,6 +92,7 @@ def test_a_double_star_crosses_directories(tmp_path: Path) -> None:
     write(tmp_path, GITIGNORE_FILE, "docs/**/draft.md")
     matcher = load_ignore(tmp_path)
 
+    assert matcher.is_ignored("docs/draft.md")  # /**/ matches zero dirs
     assert matcher.is_ignored("docs/a/b/draft.md")
     assert not matcher.is_ignored("other/a/draft.md")
 

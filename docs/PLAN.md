@@ -340,7 +340,7 @@ defaults. A field present as `None` is stored as an explicit NULL.
 ## 11. Config & ignore
 Env `CA_*` → **project file `.code-atlas.toml`** (repo root, committed, stdlib `tomllib`) → defaults. The env name is derived from the file key: `workers` ⇄ `CA_WORKERS`, and `[adapter_cmd]` holds one entry per language — each a complete argv (§9), given either as a string or, preferably where quoting bites, as a list of words. A malformed value or an unknown key **fails loud** (R5.3); it never falls back.
 
-Knobs: `CA_DB_PATH` (default `<repo>/.code-atlas/graph.db`), `CA_WORKERS` (default `max(1, min(cpu-2, 8))`), `CA_ADAPTER_TIMEOUT=30` (seconds one adapter may stay silent before the build kills it — §8.1), `CA_MAX_RESULTS=50`, `CA_IMPACT_DEPTH=2`, `CA_IMPACT_MAX_NODES=500`, `CA_HOST_ROOT` / `CA_CONTAINER_ROOT` (optional pair — rewrite absolute host paths only; both set or both unset; unused on the relative-path build path — §9), per-adapter `CA_<LANG>_CMD` (resolved generically from the variable name — no language is named in the core), `CA_TOOLS` allow-list (unset or blank ⇒ every tool; §12).
+Knobs: `CA_DB_PATH` (default `<repo>/.code-atlas/graph.db`), `CA_WORKERS` (default `max(1, min(cpu-2, 8))`), `CA_ADAPTER_TIMEOUT=30` (seconds one adapter may stay silent before the build kills it — §8.1), `CA_MAX_RESULTS=50`, `CA_IMPACT_DEPTH=2`, `CA_IMPACT_MAX_NODES=500`, `CA_ENTRY_POINTS` (optional list of file/globs — reachability roots for `reachable_from` / `find_orphans`; unset ⇒ tools report no roots rather than guessing — task 031), `CA_HOST_ROOT` / `CA_CONTAINER_ROOT` (optional pair — rewrite absolute host paths only; both set or both unset; unused on the relative-path build path — §9), per-adapter `CA_<LANG>_CMD` (resolved generically from the variable name — no language is named in the core), `CA_TOOLS` allow-list (unset or blank ⇒ every tool; §12).
 
 Ignore: built-ins (`vendor/ var/ uploads/ log/ node_modules/ .git/`) + `.gitignore` + optional `.codeatlasignore`, concatenated in that order with the **last matching rule winning**, so a later source can re-include. A path below an excluded **directory** stays excluded — that is what lets the walk prune a subtree. Supported gitignore subset: comments/blanks, `*` `?` `[seq]` inside a segment, `**` across segments, leading `/` anchoring, trailing `/` directory-only, `!` negation. Not supported: nested per-directory ignore files, `\` escapes. `git ls-files` already applies `.gitignore` on the primary path (§8.1), so this matcher chiefly serves the walk fallback.
 
@@ -361,6 +361,8 @@ Token-efficient: return qualified names + `file:line`, not bodies, unless a read
 | `find_implementations` | `qname` | EXTENDS/IMPLEMENTS subtypes |
 | `include_graph` | `path, direction` | `include`/`require` graph (any include-based code) |
 | `impact` | `paths|qnames, depth?` | blast radius, bounded best-score |
+| `reachable_from` | `depth?` | nodes reachable from `CA_ENTRY_POINTS` (RESOLVED IMPACT kinds, forward); `unproven` for HEURISTIC/DYNAMIC-only |
+| `find_orphans` | `depth?` | complement: zero-inbound / unreachable-from-roots with `why`; never empty-success without roots |
 | `namespace_tree` | `prefix?` | namespaces + members |
 
 Prompts: `explore_area`, `impact_of_change`, `find_usages` — each hardcodes the efficient recipe (status → search/outline → read only what's needed). Tool allow-list via `CA_TOOLS`.
@@ -371,6 +373,9 @@ Prompts: `explore_area`, `impact_of_change`, `find_usages` — each hardcodes th
 
 ### Impact engine
 code-review-graph's **bounded best-score relaxation in SQLite**: seed = changed qnames; per-edge-kind weight/direction policy (`CALLS/NEW`→callers, `EXTENDS/IMPLEMENTS`→subtypes, `INCLUDES` follows requires, `CONTAINS` not traversed); one best score/node, decay per hop, floor, bounded by depth & max_nodes; `DYNAMIC` edges excluded by default.
+
+### Reachability / orphans (task 031)
+Inverse of impact: `CA_ENTRY_POINTS` names file/glob roots (every indexed node on matched files is a seed). Globs use the **same segment-aware language as ignore** (`*` stays in one path segment; `**` crosses). `reachable_from` walks **outgoing** `IMPACT_KINDS` with the same RESOLVED-only frontier rule; default `depth` is **unset** (closure until frontier empties or `CA_IMPACT_MAX_NODES`); an explicit `depth` sets `depth_exhausted`/`truncated` when hops remain. A reached member keeps its container qnames alive (`split_qname`) so classes are not orphaned when only methods are called. HEURISTIC/DYNAMIC neighbors are `unproven`, not reachable. `find_orphans` returns the complement with `why` (`no_inbound` | `unreachable_from_roots`); unset roots → `no_roots_configured`. Caps reuse `CA_IMPACT_MAX_NODES` (not `CA_IMPACT_DEPTH`). Results carry `authoritative: false` and `edge_health` on `standard`.
 
 ---
 

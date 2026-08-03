@@ -16,11 +16,13 @@ from code_atlas.tools import (
     file_outline,
     find_callers,
     find_implementations,
+    find_orphans,
     find_references,
     get_index_status,
     impact,
     include_graph,
     prompts,
+    reachable_from,
     read_symbol,
     search_symbol,
 )
@@ -39,6 +41,8 @@ TOOL_NAMES: tuple[str, ...] = (
     find_implementations.NAME,
     include_graph.NAME,
     impact.NAME,
+    reachable_from.NAME,
+    find_orphans.NAME,
 )
 
 
@@ -66,6 +70,10 @@ def build_server(config: Config) -> FastMCP:
         server.tool(include_graph.create(config))
     if impact.NAME in names:
         server.tool(impact.create(config))
+    if reachable_from.NAME in names:
+        server.tool(reachable_from.create(config))
+    if find_orphans.NAME in names:
+        server.tool(find_orphans.create(config))
     prompts.register(server)
     return server
 
