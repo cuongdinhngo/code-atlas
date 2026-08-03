@@ -401,8 +401,9 @@ final class Visitor extends NodeVisitorAbstract
     {
         for ($i = count($this->scope) - 1; $i >= 0; $i--) {
             $node = $this->scope[$i][0];
-            if ($node instanceof Node\Stmt\Class_ && $node->extends !== null) {
-                return self::fqn($node->extends);
+            if ($node instanceof Node\Stmt\Class_) {
+                // Innermost class only; no extends → leave \parent::… as today.
+                return $node->extends !== null ? self::fqn($node->extends) : null;
             }
         }
 

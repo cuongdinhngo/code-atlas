@@ -45,10 +45,11 @@ def test_receiver_fixture_shapes_and_trait_does_not_fabricate_host() -> None:
         (str(e.get("target_raw")), e.get("confidence_tier")) for e in calls
     )
     assert ("\\App\\Recv\\Base::fromBase", None) in shapes  # parent::
-    assert ("\\App\\Recv\\Child::go", None) in shapes  # $this / self / static (≥1)
-    assert shapes.count(("\\App\\Recv\\Child::go", None)) == 3
+    assert shapes.count(("\\App\\Recv\\Child::go", None)) == 4  # $this / self / static / $this?
     assert ("\\App\\Recv\\HasHook::hook", None) in shapes  # trait $this → trait FQN
     assert ("go", "HEURISTIC") in shapes  # $x->go
+    # Nested anonymous with no extends: parent:: left as today (\parent::…).
+    assert ("\\parent::fromBase", None) in shapes
     # $x->$m has no Identifier name → still no CALLS edge (unchanged).
     assert all(e.get("target_raw") != "$m" for e in calls)
 
@@ -57,9 +58,10 @@ def test_receiver_fixture_shapes_and_trait_does_not_fabricate_host() -> None:
 def test_lexical_receivers_resolve_to_enclosing_class_fqn(
     tmp_path: Path,
 ) -> None:
-    """Proving test: after full_build, parent:: and $this link RESOLVED to the right methods."""
+    """Proving test: cross-file parent:: and $this link RESOLVED to the right methods."""
     src = tmp_path / "src"
     src.mkdir()
+    shutil.copy(FIXTURES / "receiver_base.php", src / "receiver_base.php")
     shutil.copy(FIXTURES / "receiver_resolution.php", src / "receiver_resolution.php")
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True, capture_output=True)
     subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
@@ -76,6 +78,7 @@ def test_lexical_receivers_resolve_to_enclosing_class_fqn(
     with GraphStore(db_path) as store:
         report = full_build(config, store)
         assert report.failed == 0
+        assert report.parsed == 2
 
         parent_calls = [
             row

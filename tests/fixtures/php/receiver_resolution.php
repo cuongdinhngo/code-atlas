@@ -12,13 +12,6 @@ trait HasHook
     }
 }
 
-class Base
-{
-    public function fromBase(): void
-    {
-    }
-}
-
 final class Child extends Base
 {
     use HasHook;
@@ -29,7 +22,22 @@ final class Child extends Base
         $this->go($x, $m);
         self::go($x, $m);
         static::go($x, $m);
+        $this?->go($x, $m);
         $x->go($x, $m);
         $x->$m($x, $m);
+    }
+}
+
+final class NestedOuter extends Base
+{
+    public function nest(): void
+    {
+        // Anonymous class with no extends — parent:: must NOT inherit NestedOuter's Base.
+        $inner = new class {
+            public function g(): void
+            {
+                parent::fromBase();
+            }
+        };
     }
 }
