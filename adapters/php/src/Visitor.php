@@ -162,7 +162,7 @@ final class Visitor extends NodeVisitorAbstract
             && $node->class instanceof Node\Name
             && $node->name instanceof Node\Identifier
         ) {
-            $this->enterNamedCall($node, self::fqn($node->class) . '::' . $node->name->toString());
+            $this->enterStaticCall($node, $node->class, $node->name->toString());
         } elseif ($node instanceof Node\Expr\FuncCall && $node->name instanceof Node\Name) {
             $this->enterNamedCall($node, self::fqn($node->name));
         } elseif ($node instanceof Node\Expr\Include_) {
@@ -339,13 +339,44 @@ final class Visitor extends NodeVisitorAbstract
         }
     }
 
-    private function enterInstanceCall(Node\Expr\CallLike $node, string $method): void
+    private function enterInstanceCall(
+        Node\Expr\MethodCall|Node\Expr\NullsafeMethodCall $node,
+        string $method,
+    ): void {
+        if ($node->isFirstClassCallable()) {
+            return;
+        }
+        // $this / $this?-> → enclosing FQN only when that class-like declares $method here.
+        // Inherited / trait-mixin methods stay bare HEURISTIC so the name-match path still links.
+        if ($node->var instanceof Node\Expr\Variable
+            && $node->var->name === 'this'
+            && ($owner = $this->enclosingDeclaringQname($method)) !== null
+        ) {
+            $this->edge('CALLS', $this->container(), $owner . '::' . $method, $node->getStartLine());
+            return;
+        }
+        $this->edge('CALLS', $this->container(), $method, $node->getStartLine(), 'HEURISTIC');
+    }
+
+    private function enterStaticCall(Node\Expr\StaticCall $node, Node\Name $class, string $method): void
     {
         if ($node->isFirstClassCallable()) {
             return;
         }
-        // One file cannot know the receiver's type, so never claim RESOLVED here (R5.2).
-        $this->edge('CALLS', $this->container(), $method, $node->getStartLine(), 'HEURISTIC');
+        $special = strtolower($class->toString());
+        if (($special === 'self' || $special === 'static')
+            && ($owner = $this->enclosingDeclaringQname($method)) !== null
+        ) {
+            // static:: is late binding — keep HEURISTIC so we do not over-claim RESOLVED (C2).
+            $tier = $special === 'static' ? 'HEURISTIC' : null;
+            $this->edge('CALLS', $this->container(), $owner . '::' . $method, $node->getStartLine(), $tier);
+            return;
+        }
+        if ($special === 'parent' && ($parent = $this->enclosingParentQname()) !== null) {
+            $this->edge('CALLS', $this->container(), $parent . '::' . $method, $node->getStartLine());
+            return;
+        }
+        $this->enterNamedCall($node, self::fqn($class) . '::' . $method);
     }
 
     private function enterNamedCall(Node\Expr\CallLike $node, string $target): void
@@ -354,6 +385,47 @@ final class Visitor extends NodeVisitorAbstract
             return;
         }
         $this->edge('CALLS', $this->container(), $target, $node->getStartLine());
+    }
+
+    /**
+     * @param class-string<Node\Stmt\ClassLike> $type
+     * @return array{0: Node, 1: string}|null
+     */
+    private function innermostScope(string $type): ?array
+    {
+        for ($i = count($this->scope) - 1; $i >= 0; $i--) {
+            if ($this->scope[$i][0] instanceof $type) {
+                return $this->scope[$i];
+            }
+        }
+
+        return null;
+    }
+
+    /** Enclosing class-like qname only when it declares $method in this file (else name-match). */
+    private function enclosingDeclaringQname(string $method): ?string
+    {
+        $frame = $this->innermostScope(Node\Stmt\ClassLike::class);
+        if ($frame === null) {
+            return null;
+        }
+        $node = $frame[0];
+        assert($node instanceof Node\Stmt\ClassLike);
+
+        return $node->getMethod($method) !== null ? $frame[1] : null;
+    }
+
+    /** FQN of the enclosing class's `extends` clause, when present in this file. */
+    private function enclosingParentQname(): ?string
+    {
+        $frame = $this->innermostScope(Node\Stmt\Class_::class);
+        if ($frame === null) {
+            return null;
+        }
+        $node = $frame[0];
+        assert($node instanceof Node\Stmt\Class_);
+        // Innermost class only; no extends → leave \parent::… as today.
+        return $node->extends !== null ? self::fqn($node->extends) : null;
     }
 
     private function declarePromotedProperties(Node\Stmt\ClassMethod $node): void
