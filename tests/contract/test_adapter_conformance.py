@@ -117,7 +117,7 @@ INCLUDE_EDGE_SHAPES = [
 STATIC_VS_INSTANCE_EDGE_SHAPES = [
     ("CALLS", "\\App\\Calls\\Service::make", None),
     ("CALLS", "\\App\\Calls\\Service::make", None),
-    ("CALLS", "\\App\\Calls\\Service::make", None),
+    ("CALLS", "\\App\\Calls\\Service::make", "HEURISTIC"),  # static:: late binding
     ("CALLS", "\\App\\Calls\\Service::run", None),
     ("CALLS", "run", "HEURISTIC"),
     ("CONTAINS", "\\App\\Calls", None),
@@ -134,7 +134,11 @@ def kind_histogram(rows: list[dict[str, Any]], field: str = "kind") -> dict[str,
 
 
 def edge_shapes(edges: list[dict[str, Any]]) -> list[tuple[str, Any, Any]]:
-    return sorted((e["kind"], e.get("target_raw"), e.get("confidence_tier")) for e in edges)
+    # None tiers sort before named ones when kind+raw collide (e.g. self:: vs static::).
+    return sorted(
+        ((e["kind"], e.get("target_raw"), e.get("confidence_tier")) for e in edges),
+        key=lambda t: (t[0], str(t[1]), t[2] is not None, str(t[2] or "")),
+    )
 
 
 def test_the_conformance_inventory_is_the_named_r62_set() -> None:
