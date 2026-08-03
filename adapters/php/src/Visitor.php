@@ -55,6 +55,13 @@ final class Visitor extends NodeVisitorAbstract
     /** @var list<array{fqn: string, alias: ?string, type: string}> */
     private array $imports = [];
 
+    /**
+     * Same-function string locals for `new $v` after `$v = 'FQN'` (task 030). Cleared per method/function.
+     *
+     * @var array<string, string>
+     */
+    private array $stringLocals = [];
+
     public function __construct(
         private readonly string $path,
         int $lineCount,
@@ -85,11 +92,13 @@ final class Visitor extends NodeVisitorAbstract
             }
         } elseif ($node instanceof Node\Stmt\Function_) {
             if ($node->namespacedName !== null) {
+                $this->stringLocals = [];
                 $this->open($node, 'Function', $node->name->toString(), self::fqn($node->namespacedName), [
                     'params' => $this->params($node->params),
                 ] + $this->extraFields($this->attributeExtra($node->attrGroups)));
             }
         } elseif ($node instanceof Node\Stmt\ClassMethod) {
+            $this->stringLocals = [];
             if ($node->name->toString() === '__construct') {
                 $this->declarePromotedProperties($node);
             }
@@ -98,9 +107,13 @@ final class Visitor extends NodeVisitorAbstract
                 'params' => $this->params($node->params),
             ] + $this->extraFields($this->attributeExtra($node->attrGroups)));
         } elseif ($node instanceof Node\Expr\Closure) {
+            $this->stringLocals = [];
             $this->enterClosureLike($node, 'closure', '{closure}', $node->params, $node->static, $node->attrGroups);
         } elseif ($node instanceof Node\Expr\ArrowFunction) {
+            $this->stringLocals = [];
             $this->enterClosureLike($node, 'fn', '{fn}', $node->params, $node->static, $node->attrGroups);
+        } elseif ($node instanceof Node\Expr\Assign) {
+            $this->enterAssign($node);
         } else {
             $this->enterMemberOrReference($node);
         }
@@ -154,17 +167,29 @@ final class Visitor extends NodeVisitorAbstract
             $this->enterGroupUse($node);
         } elseif ($node instanceof Node\Expr\New_) {
             $this->enterNew($node);
-        } elseif (($node instanceof Node\Expr\MethodCall || $node instanceof Node\Expr\NullsafeMethodCall)
-            && $node->name instanceof Node\Identifier
-        ) {
-            $this->enterInstanceCall($node, $node->name->toString());
+        } elseif ($node instanceof Node\Expr\MethodCall || $node instanceof Node\Expr\NullsafeMethodCall) {
+            if ($node->name instanceof Node\Identifier) {
+                $this->enterInstanceCall($node, $node->name->toString());
+            } else {
+                // `$this->$method()` — genuinely dynamic method name (task 030 AC3).
+                $this->edge('CALLS', $this->container(), '(dynamic)', $node->getStartLine(), 'DYNAMIC');
+            }
         } elseif ($node instanceof Node\Expr\StaticCall
             && $node->class instanceof Node\Name
             && $node->name instanceof Node\Identifier
         ) {
             $this->enterStaticCall($node, $node->class, $node->name->toString());
+        } elseif ($node instanceof Node\Expr\StaticCall
+            && $node->class instanceof Node\Name
+            && $node->name instanceof Node\Scalar\String_
+        ) {
+            // `A::{'b'}()` — string method name is a literal guess (HEURISTIC).
+            if (!$node->isFirstClassCallable()) {
+                $target = self::fqn($node->class) . '::' . $node->name->value;
+                $this->edge('CALLS', $this->container(), $target, $node->getStartLine(), 'HEURISTIC');
+            }
         } elseif ($node instanceof Node\Expr\FuncCall && $node->name instanceof Node\Name) {
-            $this->enterNamedCall($node, self::fqn($node->name));
+            $this->enterFuncCall($node, $node->name);
         } elseif ($node instanceof Node\Expr\Include_) {
             $this->enterInclude($node);
         }
@@ -334,9 +359,105 @@ final class Visitor extends NodeVisitorAbstract
             // Peek only — enterAnonymousClass registers the qname when the Class_ node is visited.
             $target = $this->anonymousQname($node->class, 'class', register: false);
             $this->edge('NEW', $this->container(), $target, $node->getStartLine());
+        } elseif (
+            $node->class instanceof Node\Expr\Variable
+            && is_string($node->class->name)
+            && isset($this->stringLocals[$node->class->name])
+        ) {
+            // `$v = 'FQN'; new $v` — same-function string local (task 030).
+            $this->edge(
+                'NEW',
+                $this->container(),
+                $this->stringLocals[$node->class->name],
+                $node->getStartLine(),
+                'HEURISTIC',
+            );
         } else {
             $this->edge('NEW', $this->container(), '(dynamic)', $node->getStartLine(), 'DYNAMIC');
         }
+    }
+
+    /** Record `$v = 'string'` for same-function `new $v` HEURISTIC (task 030). */
+    private function enterAssign(Node\Expr\Assign $node): void
+    {
+        if (
+            $node->var instanceof Node\Expr\Variable
+            && is_string($node->var->name)
+            && $node->expr instanceof Node\Scalar\String_
+        ) {
+            $this->stringLocals[$node->var->name] = self::fqn($node->expr->value);
+        } elseif (
+            $node->var instanceof Node\Expr\Variable
+            && is_string($node->var->name)
+        ) {
+            unset($this->stringLocals[$node->var->name]);
+        }
+    }
+
+    private function enterFuncCall(Node\Expr\FuncCall $node, Node\Name $name): void
+    {
+        if ($node->isFirstClassCallable()) {
+            return;
+        }
+        $fn = strtolower(ltrim(self::fqn($name), '\\'));
+        if ($fn === 'class_alias') {
+            $this->enterClassAlias($node);
+        } elseif ($fn === 'call_user_func') {
+            $this->enterCallUserFunc($node);
+        }
+        $this->enterNamedCall($node, self::fqn($name));
+    }
+
+    private function enterClassAlias(Node\Expr\FuncCall $node): void
+    {
+        $args = $node->getArgs();
+        if (count($args) < 2) {
+            return;
+        }
+        $real = $args[0]->value;
+        $alias = $args[1]->value;
+        if (!($real instanceof Node\Scalar\String_) || !($alias instanceof Node\Scalar\String_)) {
+            return;
+        }
+        // ALIASES from alias name → real class (ticket 030).
+        $this->edge('ALIASES', self::fqn($alias->value), self::fqn($real->value), $node->getStartLine());
+    }
+
+    private function enterCallUserFunc(Node\Expr\FuncCall $node): void
+    {
+        $args = $node->getArgs();
+        if ($args === []) {
+            return;
+        }
+        $first = $args[0]->value;
+        $target = null;
+        if ($first instanceof Node\Scalar\String_) {
+            $target = self::callableStringTarget($first->value);
+        } elseif ($first instanceof Node\Expr\Array_ && count($first->items) >= 2) {
+            $classItem = $first->items[0];
+            $methodItem = $first->items[1];
+            if (
+                $classItem->value instanceof Node\Scalar\String_
+                && $methodItem->value instanceof Node\Scalar\String_
+            ) {
+                $target = self::fqn($classItem->value->value) . '::' . $methodItem->value->value;
+            }
+        }
+        if ($target !== null) {
+            $this->edge('CALLS', $this->container(), $target, $node->getStartLine(), 'HEURISTIC');
+        }
+    }
+
+    /** `'A::b'` / `'\\A\\b'` → FQN CALLS target; bare function name → FQN function. */
+    private static function callableStringTarget(string $value): string
+    {
+        if (str_contains($value, '::')) {
+            [$class, $method] = explode('::', $value, 2);
+
+            return self::fqn($class) . '::' . $method;
+        }
+
+        return self::fqn($value);
     }
 
     private function enterInstanceCall(

@@ -80,7 +80,7 @@ def test_node_kinds_are_the_eleven_contract_kinds() -> None:
     )
 
 
-def test_edge_kinds_are_the_nine_contract_kinds() -> None:
+def test_edge_kinds_are_the_ten_contract_kinds() -> None:
     assert EDGE_KINDS == (
         "CONTAINS",
         "EXTENDS",
@@ -91,13 +91,14 @@ def test_edge_kinds_are_the_nine_contract_kinds() -> None:
         "IMPORTS",
         "INCLUDES",
         "REFERENCES",
+        "ALIASES",
     )
 
 
 def test_fqn_edge_kinds_opt_in_from_edge_kinds() -> None:
     assert FQN_EDGE_KINDS <= frozenset(EDGE_KINDS)
     assert FQN_EDGE_KINDS == frozenset(
-        {"EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS", "NEW"}
+        {"EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS", "NEW", "ALIASES"}
     )
 
 
@@ -156,7 +157,7 @@ def test_target_qname_is_not_required_so_adapters_can_emit_bare_edges() -> None:
 
 
 def test_contract_version_is_exported() -> None:
-    assert CONTRACT_VERSION == 1
+    assert CONTRACT_VERSION == 2
 
 
 def test_known_capabilities_advertises_semantic_types() -> None:

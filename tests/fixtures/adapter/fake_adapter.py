@@ -22,21 +22,21 @@ SUFFIXES = [".aa", ".bb"]
 FOREVER = 600
 
 HANDSHAKES = {
-    "ok": {"name": "fake", "extensions": SUFFIXES, "capabilities": {}, "contract_version": 1},
+    "ok": {"name": "fake", "extensions": SUFFIXES, "capabilities": {}, "contract_version": 2},
     "rich-capabilities": {
         "name": "fake",
         "extensions": SUFFIXES,
         "capabilities": {"semantic_types": True, "not_a_known_flag": True},
-        "contract_version": 1,
+        "contract_version": 2,
     },
-    "no-capabilities": {"name": "fake", "extensions": SUFFIXES, "contract_version": 1},
+    "no-capabilities": {"name": "fake", "extensions": SUFFIXES, "contract_version": 2},
     "bad-version": {
         "name": "fake",
         "extensions": SUFFIXES,
         "capabilities": {},
         "contract_version": 99,
     },
-    "invalid-handshake": {"name": "fake", "capabilities": {}, "contract_version": 1},
+    "invalid-handshake": {"name": "fake", "capabilities": {}, "contract_version": 2},
     "not-json-handshake": None,
     "no-handshake": None,
 }

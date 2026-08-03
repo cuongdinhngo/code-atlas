@@ -343,6 +343,13 @@ class GraphStore:
         """
         return self._edges("target_qname = ?", qname, kinds, limit)
 
+    def alias_targets(self) -> dict[str, str]:
+        """Map alias FQN → real FQN from ``ALIASES`` edges (``source_qname`` → ``target_raw``)."""
+        rows = self._conn.execute(
+            "SELECT source_qname, target_raw FROM edges WHERE kind = 'ALIASES'"
+        ).fetchall()
+        return {str(source): str(target) for source, target in rows}
+
     def unresolved_edges(self) -> list[Row]:
         """Every unresolved edge (``target_qname`` NULL), in ``id`` order (§8.2).
 
