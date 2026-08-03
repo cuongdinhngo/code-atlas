@@ -36,6 +36,12 @@ HANDSHAKES = {
         "capabilities": {},
         "contract_version": 99,
     },
+    "stale-version": {
+        "name": "fake",
+        "extensions": SUFFIXES,
+        "capabilities": {},
+        "contract_version": 1,
+    },
     "invalid-handshake": {"name": "fake", "capabilities": {}, "contract_version": 2},
     "not-json-handshake": None,
     "no-handshake": None,

@@ -201,6 +201,15 @@ def test_validate_accepts_a_failed_parse_result() -> None:
     assert validate({"path": "legacy/foo.php", "ok": False, "error": "syntax error @12"}) == []
 
 
+def test_validate_accepts_an_aliases_edge() -> None:
+    edge = good_edge() | {
+        "kind": "ALIASES",
+        "source_qname": "\\App\\Alias",
+        "target_raw": "\\App\\Real",
+    }
+    assert validate(good_result() | {"edges": [edge]}) == []
+
+
 def test_validate_accepts_optional_fields_when_present() -> None:
     node = good_node() | {"line_end": 40, "modifiers": ["final"], "is_test": 0, "extra": {}}
     edge = good_edge() | {"target_qname": "\\App\\Models\\Model", "confidence_tier": "HEURISTIC"}

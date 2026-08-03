@@ -65,6 +65,59 @@ def test_literal_dispatch_shapes() -> None:
 
 
 @needs_php
+def test_literal_dispatch_resolves_heuristic_and_leaves_dynamic(tmp_path: Path) -> None:
+    """AC3 on resolved rows: HEURISTIC links; DYNAMIC stays unlinked."""
+    src = tmp_path / "src"
+    src.mkdir()
+    shutil.copy(FIXTURES / "literal_dispatch.php", src / "literal_dispatch.php")
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
+
+    db_path = tmp_path / ".code-atlas" / "graph.db"
+    config = load_config(
+        tmp_path,
+        {
+            "CA_WORKERS": "1",
+            "CA_DB_PATH": str(db_path),
+            "CA_PHP_CMD": shlex.join([str(PHP), str(PHP_ENTRY), "--server"]),
+        },
+    )
+    with GraphStore(db_path) as store:
+        assert full_build(config, store).failed == 0
+        rows = store.edges_by_source(
+            "\\App\\Dyn\\literals", kinds=("CALLS", "NEW"), limit=50
+        )
+        by_key = [
+            (
+                str(r["kind"]),
+                str(r["target_raw"]),
+                str(r["confidence_tier"]),
+                r["target_qname"],
+            )
+            for r in rows
+        ]
+        assert (
+            "CALLS",
+            "\\App\\Dyn\\Foo::bar",
+            "HEURISTIC",
+            "\\App\\Dyn\\Foo::bar",
+        ) in by_key
+        assert ("NEW", "\\App\\Dyn\\Foo", "HEURISTIC", "\\App\\Dyn\\Foo") in by_key
+        assert ("NEW", "(dynamic)", "DYNAMIC", None) in by_key
+        assert ("CALLS", "(dynamic)", "DYNAMIC", None) in by_key
+        assert (
+            sum(
+                1
+                for s in by_key
+                if s[0] == "CALLS"
+                and s[1] == "\\App\\Dyn\\Foo::bar"
+                and s[2] == "HEURISTIC"
+            )
+            == 3
+        )
+
+
+@needs_php
 def test_alias_remap_surfaces_alias_caller_under_real(tmp_path: Path) -> None:
     """Proving: Alias NEW/CALLS remap onto Real so nav tools see them under Real."""
     src = tmp_path / "src"
