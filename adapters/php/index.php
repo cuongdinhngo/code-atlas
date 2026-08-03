@@ -26,7 +26,7 @@ function serve(Parser $parser): void
         'name' => 'php',
         'extensions' => ['.php'],
         'capabilities' => new stdClass(),
-        'contract_version' => 1,
+        'contract_version' => 2,
     ]);
 
     while (($line = fgets(STDIN)) !== false) {

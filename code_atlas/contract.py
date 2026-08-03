@@ -16,7 +16,7 @@ An adapter opens the stream by announcing itself once — the **handshake** of �
 :func:`validate_meta` — so the core never carries a table of who owns which file suffix.
 """
 
-CONTRACT_VERSION = 1
+CONTRACT_VERSION = 2
 
 # Ordered, not a set: error messages embed these values, and R4.2 requires identical output.
 NODE_KINDS: tuple[str, ...] = (
@@ -43,11 +43,12 @@ EDGE_KINDS: tuple[str, ...] = (
     "IMPORTS",
     "INCLUDES",
     "REFERENCES",
+    "ALIASES",
 )
 
 # Resolver (§8.2) looks these up by FQN; new EDGE_KINDS must opt in here (not silently join).
 FQN_EDGE_KINDS: frozenset[str] = frozenset(
-    {"EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS", "NEW"}
+    {"EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS", "NEW", "ALIASES"}
 )
 
 # Named semantic subsets for nav tools (§12) — consumers import these; do not re-list kinds.

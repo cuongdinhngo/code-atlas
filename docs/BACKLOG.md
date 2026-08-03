@@ -33,7 +33,7 @@ is [`PLAN.md`](PLAN.md).
 | 025 | [PHP adapter — full 8.5 grammar coverage](tasks/025_php-adapter-grammar.md) | M0 | done | 007 |
 | 028 | [Index-health metrics in get_index_status](tasks/028_index-health-metrics.md) | M4 | done | 010, 011 |
 | 029 | [PHP adapter — $this/self/static/parent receiver resolution](tasks/029_php-receiver-resolution.md) | M2 | done | 011, 025 |
-| 030 | [Alias & literal-indirection edges](tasks/030_alias-indirection-edges.md) | M2 | todo | 002, 011, 025 |
+| 030 | [Alias & literal-indirection edges](tasks/030_alias-indirection-edges.md) | M2 | done | 002, 011, 025 |
 | 031 | [Reachability / orphan detection](tasks/031_reachability-orphans.md) | M6 | todo | 003, 011, 013 |
 
 ## Phase 2 — More languages
@@ -85,6 +85,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 027 | Batch resolver candidate lookups | **4 dispatch** — refine exposure-checker + review `mango:reviewer` (×2) + `mango:challenger`; all token cells **`unmeasured (host does not surface usage)`**. Phases 1–3 dispatched **nothing** on the main model. **Main-loop spend is unmeasured**, as for 004–018 | [#30](https://github.com/cuongdinhngo/code-atlas/pull/30) |
 | 028 | Index-health metrics in get_index_status | **2 dispatch** — review `mango:reviewer` + `mango:challenger`; both token cells **`unmeasured (host does not surface usage)`**. Refine skipped (0 unresolved); phases 1–3 dispatched **nothing** on the main model. **Main-loop spend is unmeasured**, as for 004–027 | [#31](https://github.com/cuongdinhngo/code-atlas/pull/31) |
 | 029 | PHP adapter — $this/self/static/parent receiver resolution | **5 dispatch** — refine exposure-checker + review `mango:reviewer` (×2) + `mango:challenger` (×2); all token cells **`unmeasured (host does not surface usage)`**. Phases 1–3 dispatched **nothing** on the main model. **Main-loop spend is unmeasured**, as for 004–028 | [#32](https://github.com/cuongdinhngo/code-atlas/pull/32) |
+| 030 | Alias & literal-indirection edges (contract v2) | **5 dispatch** — refine exposure-checker + review `mango:reviewer` (×2) + `mango:challenger` (×2); all token cells **`unmeasured (host does not surface usage)`**. Phases 1–3 dispatched **nothing** on the main model. **Main-loop spend is unmeasured**, as for 004–029 | [#33](https://github.com/cuongdinhngo/code-atlas/pull/33) |
 
 ## Follow-ups (not yet ticketed)
 

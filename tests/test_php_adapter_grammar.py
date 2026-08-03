@@ -252,15 +252,16 @@ def test_i19_attributes_are_raw_on_the_declaration() -> None:
 # that gate sweeps all authored adapter files with vendor exclusion + a non-empty guard.
 
 
-def test_ac4_contract_version_and_vocabulary_are_unchanged() -> None:
-    assert CONTRACT_VERSION == 1
+def test_ac4_contract_vocabulary_pins_current_kinds() -> None:
+    """025 pinned no-bump; 030 bumped to v2 and added ALIASES — keep the pin current."""
+    assert CONTRACT_VERSION == 2
     assert NODE_KINDS == (
         "File", "Namespace", "Class", "Interface", "Trait", "Enum",
         "Function", "Method", "Property", "ClassConst", "Const",
     )
     assert EDGE_KINDS == (
         "CONTAINS", "EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS",
-        "NEW", "IMPORTS", "INCLUDES", "REFERENCES",
+        "NEW", "IMPORTS", "INCLUDES", "REFERENCES", "ALIASES",
     )
     assert "extra" in NODE_FIELDS
     assert "extra" not in EDGE_FIELDS

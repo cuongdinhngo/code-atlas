@@ -5,6 +5,18 @@ single source of truth for it — Cursor and friends read `AGENTS.md` directly, 
 through a one-line `CLAUDE.md` that imports this file. Edit here, never there. The docs below hold the
 authoritative detail. **If anything here conflicts with them, they win — fix this file.**
 
+<!-- mango:standing-context (regenerate with /mango:init — do not hand-edit) -->
+**Harness:** `.harness.json` at the repo root governs mango. Session basics before acting:
+`test_command` = `pytest`; `rulebook_path` = `docs/ENGINEERING_RULES.md` (every rule judgment
+reads that file — do not copy rules here); `tickets_dir` / `work_dir` = `docs/tasks`;
+`work_doc_mode` = `embed`; `branch_strategy` = `feat|fix|chore|docs/<NNN>-<slug>`;
+`tracker.cli` = `gh`.
+**Standing constraints (every phase):** the human holds every ✋ gate (silence ≠ approval); no
+outward action without a separate explicit approval per action; tracker writes go through
+`tracker.cli`, never MCP; stay inside the approved change list; every claim is a counted artifact.
+Validate with `/mango:doctor`. Run a ticket with `/mango:solve <KEY>`.
+<!-- /mango:standing-context -->
+
 **Read these before non-trivial work** (they govern every session):
 - [`docs/PLAN.md`](docs/PLAN.md) — authoritative design (§-refs below point here).
 - [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) — binding *how we build* rules (R1.1…). The pre-PR self-check at the bottom is your gate.

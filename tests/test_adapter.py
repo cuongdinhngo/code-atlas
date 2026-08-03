@@ -115,11 +115,12 @@ def test_capabilities_pass_through_without_being_required(
     ("mode", "expected_message"),
     [
         ("bad-version", "speaks contract v99"),
+        ("stale-version", "speaks contract v1"),
         ("invalid-handshake", "invalid handshake"),
         ("not-json-handshake", "did not announce itself"),
         ("no-handshake", "did not announce itself"),
     ],
-    ids=["wrong-version", "missing-field", "not-json", "died-before-announcing"],
+    ids=["wrong-version", "stale-v1", "missing-field", "not-json", "died-before-announcing"],
 )
 def test_a_bad_handshake_fails_loud(tmp_path: Path, mode: str, expected_message: str) -> None:
     with pytest.raises(AdapterError, match=expected_message):

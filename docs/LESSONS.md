@@ -3,6 +3,20 @@
 Durable lessons discovered while shipping tasks: constraints found, wrong assumptions, process gaps.
 One entry per lesson; newest first.
 
+## 030 — Alias remap must rewrite `Class::method`, not only class FQNs
+`alias_targets` maps alias class → real class. CALLS/NEW often carry `\Alias::method`. Remapping
+only exact class keys leaves method edges dangling; rewrite the class portion before `::` so
+`find_callers`/`find_references` under Real see Alias users.
+
+### 030-C1 — Alias remap rewrites the class portion of member qnames
+- type: 5 project-ground-truth
+- status: confirmed
+- evidence: resolver `_lookup_raw` rpartition; proving test Aka::ping → Real::ping
+- area: resolver / aliases
+- sub-shape: normative
+- destination: stays in lessons_path
+- seen: 030
+
 ## 029 — Innermost class owns `parent::`, not an outer ancestor
 `enclosingParentQname` must stop at the first `Class_` in the scope stack. Walking past a
 null-`extends` class (e.g. anonymous nested inside `Outer extends Base`) falsely attributes

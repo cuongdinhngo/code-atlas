@@ -1,6 +1,7 @@
 {
   "rulebook_path": "docs/ENGINEERING_RULES.md",
   "standards_path": "docs/CONVENTION.md",
+  "context_file": "AGENTS.md",
 
   "repos": [
     { "name": "app", "root": "." }

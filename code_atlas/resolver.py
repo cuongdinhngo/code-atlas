@@ -17,6 +17,9 @@ assert "INCLUDES" not in contract.FQN_EDGE_KINDS
 
 def resolve_edges(store: GraphStore, *, max_candidates: int) -> None:
     """Link bare edges after every node exists; ``max_candidates`` caps multi-match HEURISTIC."""
+    # Alias FQN → real FQN from ALIASES edges (source → target_raw); remaps CALLS/NEW (task 030).
+    # Built once: every ALIASES row is in the store before resolve runs (full parse first).
+    alias_map = store.alias_targets()
     for batch in store.iter_unresolved_edges(batch_size=_RESOLVE_BATCH, skip_dynamic=True):
         links: list[tuple[int, str, str]] = []
         siblings: list[dict[str, object]] = []
@@ -43,13 +46,15 @@ def resolve_edges(store: GraphStore, *, max_candidates: int) -> None:
             tier = _weaker_tier(str(edge["confidence_tier"]), "RESOLVED")
             links.append((int(str(edge["id"])), str(hits[0]["qualified_name"]), tier))
 
-        raws = [str(edge["target_raw"]) for edge in symbols]
-        qname_hits = store.nodes_by_qualified_names(raws, limit=max_candidates)
+        lookup_raws = [
+            _lookup_raw(str(edge["target_raw"]), edge["kind"], alias_map)
+            for edge in symbols
+        ]
+        qname_hits = store.nodes_by_qualified_names(lookup_raws, limit=max_candidates)
         unmatched_calls: list[dict[str, object]] = []
-        for edge in symbols:
-            raw = str(edge["target_raw"])
+        for edge, lookup in zip(symbols, lookup_raws, strict=True):
             incoming = str(edge["confidence_tier"])
-            hits = qname_hits.get(raw, [])
+            hits = qname_hits.get(lookup, [])
             if hits:
                 computed = "RESOLVED" if len(hits) == 1 else "HEURISTIC"
                 _queue_candidates(
@@ -71,6 +76,31 @@ def resolve_edges(store: GraphStore, *, max_candidates: int) -> None:
 
         # One txn: kill between link and sibling insert must not leave under-linked parents.
         store.apply_resolution(links, siblings)
+
+
+def _follow_aliases(raw: str, alias_map: dict[str, str]) -> str:
+    """Follow ALIASES transitively; cycle-safe (Aka2→Aka→Real)."""
+    seen = {raw}
+    target = raw
+    while target in alias_map and alias_map[target] not in seen:
+        target = alias_map[target]
+        seen.add(target)
+    return target
+
+
+def _lookup_raw(raw: str, kind: object, alias_map: dict[str, str]) -> str:
+    """ALIASES targets the real class; other FQN kinds may name an alias (task 030)."""
+    if str(kind) == "ALIASES":
+        return raw
+    followed = _follow_aliases(raw, alias_map)
+    if followed != raw:
+        return followed
+    container, member = contract.split_qname(raw)
+    if container is not None:
+        mapped = _follow_aliases(container, alias_map)
+        if mapped != container:
+            return contract.join_qname(mapped, member)
+    return raw
 
 
 def _weaker_tier(left: str, right: str) -> str:

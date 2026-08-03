@@ -55,9 +55,10 @@ def test_receiver_fixture_shapes_and_trait_does_not_fabricate_host() -> None:
     assert ("fromBase", "HEURISTIC") in shapes
     assert ("hook", "HEURISTIC") in shapes
     assert ("go", "HEURISTIC") in shapes  # $x->go
+    assert ("(dynamic)", "DYNAMIC") in shapes  # $x->$m (task 030)
     # Nested anonymous with no extends: parent:: left as today (\parent::…).
     assert ("\\parent::fromBase", None) in shapes
-    # $x->$m has no Identifier name → still no CALLS edge (unchanged).
+    # Variable method name is DYNAMIC, not a bare "$m" target.
     assert all(e.get("target_raw") != "$m" for e in calls)
 
 
@@ -92,9 +93,10 @@ def test_lexical_receivers_resolve_to_enclosing_class_fqn(
                 "\\App\\Recv\\Child::go", kinds=("CALLS",), limit=20
             )
         )
-        # Recall invariant: no CALLS from Child::go left unlinked (finding 1/3).
-        assert child_calls
-        assert all(row["target_qname"] is not None for row in child_calls)
+        # Recall invariant: linkable CALLS from Child::go are never left unlinked (finding 1/3).
+        linkable = [row for row in child_calls if row["confidence_tier"] != "DYNAMIC"]
+        assert linkable
+        assert all(row["target_qname"] is not None for row in linkable)
 
         parent_calls = [
             row

@@ -58,7 +58,7 @@ code-atlas/
 ## 3. The contract vocabulary (fixed spelling — do not vary)
 
 - **Node kinds:** `File Namespace Class Interface Trait Enum Function Method Property ClassConst Const`.
-- **Edge kinds:** `CONTAINS EXTENDS IMPLEMENTS USES_TRAIT CALLS NEW IMPORTS INCLUDES REFERENCES`.
+- **Edge kinds:** `CONTAINS EXTENDS IMPLEMENTS USES_TRAIT CALLS NEW IMPORTS INCLUDES REFERENCES ALIASES`.
 - **Confidence tiers:** `RESOLVED | HEURISTIC | DYNAMIC`.
 - **Node fields:** `kind, name, qualified_name, file_path, line_start, line_end, modifiers, params, is_test, extra`.
 - **Edge fields:** `kind, source_qname, target_qname?, target_raw, file_path, line, confidence_tier`.

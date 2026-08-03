@@ -41,3 +41,356 @@ Plan §12 (`get_index_status`, tools table), §8.2 (confidence tiers). `contract
 `code_atlas/tools/get_index_status.py`; `code_atlas/store.py` (`counts`); `code_atlas/indexer.py`.
 Feedback origin: external review — "index-health in get_index_status" (second-tier). This measures
 whether tasks 029/030 move the needle on a real repo, so land it first.
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 028 — Index-health metrics in get_index_status (working doc)
+
+- **Ticket:** 028 · local `docs/tasks/028_index-health-metrics.md`
+- **Type:** enhancement
+- **Repo(s) / Porting:** app (`.`)
+- **SCOPE:** M
+- **STRUCTURE:** native
+- **TRACK:** backend
+- **TIER:** full
+- **BASELINE:** green — `571 passed in 23.32s` (`.venv/bin/pytest -q --tb=line`, unsandboxed; sandbox alone false-reds `test_stop_escalates_for_a_child_that_ignores_the_closed_stream` via PermissionError on kill)
+  <!-- baseline exclusions (pre-existing failures outside this change): none -->
+
+---
+
+## Phase 0 — Refine (the FIRST phase; skip when the ticket is already clear)
+
+`PREMISE: 9 reference(s) checked | 0 missing | 1 ambiguous (surfaced, not blocking)`
+`RECALL: 0 claim(s) surfaced | 0 by symbol | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`REFINE: 0 unresolved surfaced | 0 want-decision asked | 0 how-decision resolved+cited | 0 ASSUMED | skip: yes`
+
+**refine skipped: 0 unresolved product-decisions**
+
+**Premise detail (after counting lines).** Referenced-as-existing that resolved:
+`code_atlas/tools/get_index_status.py`, `code_atlas/store.py` (`counts`), `code_atlas/indexer.py`
+(`full_build` / `incremental_update`), `contract.CONFIDENCE_TIERS`, `_unbuilt`, Plan §12 / §8.2,
+`confidence_tier` / `target_qname` columns. To-be-created (not missing): `edge_health`, optional
+`meta` parse-failure counter. Ambiguous (surfaced, not blocking): prose noun "index-health" as a
+product surface name (not a resolvable identifier).
+
+**Recalled claims (ADVISORY — surfaced only).** `docs/LESSONS.md` has no claim-record shaped entries
+(`type:` / `handle:` / `area:`); informal narrative lessons exist (notably 010 on
+`get_index_status` not opening a missing DB) but are **not** typed claim records → recall count 0.
+
+| # | Claim (id) | Type | Matched by (symbol / area / finding) | Relevant here? (a human/phase call, not recall's) |
+|---|------------|------|--------------------------------------|---------------------------------------------------|
+| — | none | — | — | — |
+
+**INPUT KIND:** ticket (single deliverable — extend `get_index_status` standard payload).
+
+**Settled wants / Resolved how / ASSUMED:** none (skip path).
+
+**Constraints surfaced from the scan:**
+- `store.counts()` already exposes `failed = files - parsed` from `files.parsed_ok` (`store.py:262-275`);
+  status already spreads `**counts` into both detail levels (`get_index_status.py:74-82`). Ticket's
+  `parse_failures` is therefore a **presentation** concern on already-persisted rows — not a new
+  `meta` counter unless analysis chooses a rename/alias shape that preserves minimal byte-identity.
+- Lesson-adjacent (advisory, not a claim record): do not open/create DB when absent (010 / PLAN §12).
+
+**Exposure-checker:** skipped with refine skip.
+
+---
+
+## Epic breakdown (EPIC PATH ONLY — after design(epic), before any ticket executes)
+
+n/a — INPUT KIND: ticket.
+
+---
+
+## Requirements matrix
+
+`SECTIONS: 5 found (Goal, Scope / Deliverables, Constraints, Acceptance criteria, References) | 5 decomposed | ROWS: C=3 R=5 G=1 AC=4` (+ References as informational N/A rows folded into Constraints/Goal citations)
+
+| ID | Source | Verbatim | Interpretation | Ph1 evidence | Ph2 covered by | Ph3/4 proven by | Status |
+|----|--------|----------|----------------|--------------|----------------|-----------------|--------|
+| G1 | Goal | "Give an agent a cheap, honest trust signal for how much of the graph is resolved fact vs guess, so it can decide how far to lean on nav/impact output (§12 `get_index_status`, §8.2 tiers)." | `standard` status exposes edge-tier + link-resolution health so clients can read trust without a second tool. | PLAN §12 / §8.2; tool exists at `get_index_status.py:36-41` without health block today | CL 2,5 | `test_get_index_status_health.py` | ✅ |
+| R1 | Scope / Deliverables | "Extend `get_index_status` (`standard` detail only — keep `minimal` at the four §12 parts) with an `edge_health` block derived from data already in the DB: counts per `confidence_tier` (RESOLVED / HEURISTIC / DYNAMIC) via one `GROUP BY` on `edges`." | New `edge_health` object on **standard** only; always report all three `CONFIDENCE_TIERS` counts from one store query. | `CONFIDENCE_TIERS` at `contract.py:67`; no GROUP BY yet in store | CL 1–2 | store + health tests | ✅ |
+| R2 | Scope / Deliverables | "resolved vs unresolved split (`target_qname` NOT NULL vs NULL) — an edge can be a known kind yet link to nothing (external/vendor), which is distinct from DYNAMIC." | Same block (or sibling fields) reports `resolved` / `unresolved` counts; DYNAMIC is a tier, not synonymous with unresolved. | resolver leaves external NULL (`PLAN.md:246`); `unresolved_edges` exists `store.py:322` | CL 1–2 | plant asserts unresolved=2 with DYNAMIC=1 | ✅ |
+| R3 | Scope / Deliverables | "Report `parse_failures`: files the adapter could not parse. If the build does not already persist this, add a `meta` counter written by `indexer.full_build` / `incremental_update`; do not infer it." | Prefer existing persistence: `files.parsed_ok` → `counts()["failed"]`. Only add `meta` if that path is judged insufficient. Field name in AC is `parse_failures`. | already persisted: `store.py:265-274`; indexer records unparsed (`indexer.py` / R5.1) | CL 2 | parse_failures asserts | ✅ |
+| R4 | Scope / Deliverables | "Keep the store as the only SQL owner (R1.4); the tool presents, it does not query the raw table." | New aggregates live as `GraphStore` methods; `get_index_status` only calls them. | R1.4; pattern `counts()` already | CL 1–2 | grep: no SQL in tool | ✅ |
+| R5 | Scope / Deliverables | "No language branches (R1.1) — tiers and edge kinds are contract vocabulary, not PHP-specific." | No `if language == …` under `code_atlas/`; use `CONFIDENCE_TIERS` / SQL only. | R1.1 CI grep-gate | CL 1 | CONFIDENCE_TIERS only | ✅ |
+| C1 | Constraints | "Must not open or create a DB when none exists — `_unbuilt` stays cheap (existing behaviour)." | `_unbuilt` path unchanged: no `GraphStore` open; no `edge_health` that requires a DB. | `get_index_status.py:38-39,46-61`; lesson 010 narrative | CL 2 | `test_unbuilt_standard_still_opens_no_database` | ✅ |
+| C2 | Constraints | "Counts come from indexed rows, never re-parse or re-resolve on read (R4 determinism)." | Status read = SQL aggregates only. | R4.2; existing `counts()` | CL 1 | `edge_health` SQL only | ✅ |
+| C3 | Constraints | "`minimal` response shape is unchanged (it is the ~100-token first call §12 advertises)." | Minimal key set + values for the same repo state match today's payload (byte-identical AC). | `get_index_status.py:81-82`; `test_mcp_server.py:430-448` | CL 2,4 | minimal frozen keys | ✅ |
+| AC1 | Acceptance criteria | "On a planted graph with a known tier mix, `standard` returns exact RESOLVED/HEURISTIC/DYNAMIC counts and the resolved/unresolved split, asserted against hand-counted fixtures." | Planted edges with known tiers + NULL/non-NULL targets; assert exact ints. | no such test yet | CL 3–4 | proving test | ✅ |
+| AC2 | Acceptance criteria | "`parse_failures` reflects a fixture with at least one unparseable file (count > 0), and is 0 on a clean build — proven, not assumed." | Assert `parse_failures` (standard) == 0 clean / >0 dirty fixture. | soft-error fixture already used `test_mcp_server.py:239-247` for `failed` | CL 4 | dirty+clean tests | ✅ |
+| AC3 | Acceptance criteria | "`minimal` output is byte-identical to today's." | Golden/equality of minimal payload before vs after (same fixture). | falsifiable via dict/JSON compare | CL 4 | `_MINIMAL_KEYS` freeze | ✅ |
+| AC4 | Acceptance criteria | "Existing `get_index_status` / MCP tests pass unchanged." | No edits that break current assertions on `failed`/`files`/staleness/`db_path`. | `tests/test_mcp_server.py` status section | CL 4 | full suite 576 | ✅ |
+
+**References** section: pointers only (PLAN, contract, modules, feedback origin) — decomposed as citations on G1/R* above; no extra normative rows.
+
+Status legend: ✅ done/proven · ⚠ deferred · ❌ not met.
+
+## AC validation
+
+| AC ID | Ticket states | Independently computed | Match? | Falsifiable? | If mismatch / not falsifiable → Gate-1 question |
+|-------|---------------|------------------------|--------|--------------|-------------------------------------------------|
+| AC1 | exact RESOLVED/HEURISTIC/DYNAMIC + resolved/unresolved on planted graph | Hand-count = plant N_r / N_h / N_d tiers and N_linked / N_null targets; assert equality | Y (once plant defined in design) | measurable (exact ints) | — |
+| AC2 | `parse_failures` >0 on unparseable fixture; 0 on clean | Existing soft-error path yields `failed==1`; clean build `failed==0`. Ticket names field `parse_failures` — must appear on **standard** (see Q1). | Y for counts; **name** is product surface | measurable | Q1 if human wants rename vs alias |
+| AC3 | minimal byte-identical to today's | Compare `detail_level=minimal` dict (or `json.dumps(..., sort_keys=True)`) pre/post on same built fixture; keys today include `indexed, files, parsed, failed, nodes, edges, last_commit, staleness, next_tool_suggestions` | Y | measurable | Pin: equality of serialized JSON with sorted keys (stable) — proposed |
+| AC4 | existing status/MCP tests pass | Regression suite green vs BASELINE | Y | measurable | — |
+
+## Inventory (universal "all/every/no" requirements)
+
+- **Denominator / total N:** 3 (confidence tiers that must appear in `edge_health` counts)
+- Numbered list:
+  1. RESOLVED
+  2. HEURISTIC
+  3. DYNAMIC
+
+| # | Item | Ph3/4 proven by (`path:line` / test) | Status ✅/⚠/❌ |
+|---|------|--------------------------------------|----------------|
+| 1 | RESOLVED count present + exact | `test_edge_health_counts_tiers…` + proving test | ✅ |
+| 2 | HEURISTIC count present + exact | same | ✅ |
+| 3 | DYNAMIC count present + exact | same | ✅ |
+
+Also (non-inventory universals, N=1 each): no language branches (R5); store-only SQL (R4); minimal unchanged (C3/AC3).
+
+### Surface inventory (universal / app-wide FRONTEND requirements only)
+
+n/a — `TRACK: backend`.
+
+## Clarifications
+
+`CLARIFICATION: 2 raised | 2 self-resolved (cited) | 0 for human decision`
+
+- Self-resolved (with citation):
+  1. **Parse persistence already exists** — do not add a `meta` counter unless design finds `parsed_ok` insufficient. Cite: ticket R3 "If the build does not already persist this"; `store.counts` `failed` at `store.py:262-275`; indexer marks `parsed_ok=0` (R5.1).
+  2. **`parse_failures` vs existing `failed`** — keep `failed` (minimal + existing tests); expose `parse_failures` on **standard** as the AC-named field with the same integer (alias of `counts()["failed"]`). Cite: AC2 field name; C3/AC3 minimal unchanged; `test_mcp_server.py:202-247` asserts `failed`.
+- For human decision: none (j=0).
+
+---
+
+## Phase 1 — Analysis ✋ Gate 1
+
+- **Gap analysis (enhancement):**
+  - Target: `standard` status carries `edge_health` `{by_tier: {RESOLVED,HEURISTIC,DYNAMIC}, resolved, unresolved}` (exact key spelling left to design) + `parse_failures` int; SQL owned by store; minimal untouched; `_unbuilt` cheap.
+  - Current: `_status` spreads `counts()` only (`get_index_status.py:67-89`); no tier GROUP BY; `failed` already present but not named `parse_failures`.
+- **Handler / entry point + blast radius:**
+  - Entry: `get_index_status.create` → `_status` / `_unbuilt`.
+  - Blast: `GraphStore` new read method(s); tests in `tests/test_mcp_server.py` / `tests/test_store.py`; possibly PLAN §12 one-liner; no adapter/indexer change if `parsed_ok` reused; MCP schema unchanged (no new tool args).
+  - Callers: prompts that say "call get_index_status first" (`tools/prompts.py`) — read-only consumers of extra keys; no break if additive.
+- **Rule-compliance section coverage:**
+
+  `RULE SECTIONS: §1 Arch (R1.1, R1.4) ✅ · §3 Contract (CONFIDENCE_TIERS vocabulary) ✅ · §4 Determinism (R4.2 read-only aggregates) ✅ · §5 Error/degradation (R5.1 parse_failures source) ✅ · §6 Testing (R6.1 tool+store proofs) ✅ · §2 Standard-over-sample N/A (no adapter) · §7 Change discipline ✅ (docs at PR) · §8 Dependencies N/A (no new deps)`
+
+- **Self-audit:** PREMISE+RECALL carried; sections 5=5; AC table complete & falsifiable; j=0; inventory N=3; STRUCTURE native; TRACK backend; TIER full (SCOPE=M + universal N=3); RULE SECTIONS emitted; `BASELINE: green`.
+- **Gate 1 status:** cleared — human standing approval 2026-08-03 ("suggest and do the best option, and pass all gates")
+
+---
+
+## Phase 2 — Design ✋ Gate 2
+
+- **Approach:**
+  1. Add `GraphStore.edge_health() -> dict` that (a) `GROUP BY confidence_tier` and fills zeros for every
+     `contract.CONFIDENCE_TIERS` entry, (b) counts `target_qname IS NOT NULL` / `IS NULL` in the same
+     method (second aggregate SELECT — still SQL-only, no Python walk). Return shape:
+     `{"by_tier": {RESOLVED, HEURISTIC, DYNAMIC}, "resolved": int, "unresolved": int}`.
+  2. In `_status`, when `detail_level == "standard"`, add `edge_health=store.edge_health()` and
+     `parse_failures=counts["failed"]` (alias of existing `parsed_ok` persistence — no meta counter,
+     no indexer change). Minimal returns before that merge; `_unbuilt` unchanged (still no DB open).
+  3. Update the tool module docstring to name the new standard-only fields (MCP description honesty).
+  4. Prove with planted-store + tool tests; document the `standard` health fields in PLAN §12.
+
+- **Rejected alternatives:**
+  - *Add a `meta.parse_failures` counter written by the indexer* — rejected: `files.parsed_ok` already
+    persists the fact (ticket R3 conditional); a second counter can drift (R4).
+  - *Put `parse_failures` inside `edge_health`* — rejected: parse health is file-level, not edge-level;
+    ticket lists it as a sibling deliverable to the edge block.
+  - *Rename `failed` → `parse_failures` everywhere* — rejected: breaks minimal byte-identity and
+    existing MCP asserts (`test_mcp_server.py`).
+
+**Assumptions**
+
+| Assumption | verified / novel-untested | If novel-untested 3p/runtime → spike / proving test |
+|------------|---------------------------|-----------------------------------------------------|
+| `GROUP BY confidence_tier` + COUNT on `edges` returns exact planted ints | verified (SQLite; same pattern as `counts()`) | — |
+| Absent optional `confidence_tier` on insert uses DDL DEFAULT `'RESOLVED'` | verified (`store.py` DDL + `_grouped` absent-field DEFAULT) | — |
+| FastMCP / threading unchanged by additive status keys | verified (010 design; no new store lifetime) | — |
+
+**Smallest change-list**
+
+| Change | File/area | Blast radius (side-effect surface) | Ph2 covered by | k/N |
+|--------|-----------|------------------------------------|----------------|-----|
+| 1. `GraphStore.edge_health()` | `code_atlas/store.py` | callers of store reads; status tool; store unit tests | R1, R2, R4, R5, C2, AC1 | 6/6 |
+| 2. Wire `edge_health` + `parse_failures` into standard `_status`; docstring | `code_atlas/tools/get_index_status.py` | MCP clients reading status; `test_mcp_server` minimal⊂standard; prompts (additive) | G1, R1–R3, C1, C3, AC1–AC3 | 9/9 |
+| 3. Store unit: planted tier mix + resolved split | `tests/test_store.py` | none beyond new asserts | R1, R2, R4, AC1 | 4/4 |
+| 4. Tool proving tests: edge_health exact, parse_failures, minimal frozen shape | `tests/test_get_index_status_health.py` (new) | MCP suite still covers regression | AC1–AC4, C3, inventory 1–3 | 7/7 |
+| 5. PLAN §12 note: standard adds `edge_health` + `parse_failures` | `docs/PLAN.md` | readers of tool table | G1, R7.2 | 2/2 |
+
+- **Rule compliance:** R1.1 (contract tiers only) · R1.4 (SQL in store) · R4.2 (SQL aggregates) · R5.1
+  (`parsed_ok` source) · R6.1 (tool + store tests) · R7.2 (PLAN) · CONVENTION §6 (`detail_level`
+  subset; docstring = tool description).
+
+- **Proving test:** `tests/test_get_index_status_health.py::test_standard_reports_exact_edge_health_and_parse_failures`
+  — plants a GraphStore with hand-counted tier/link mix + one `parsed_ok=False` file; calls
+  `get_index_status.create(...)(detail_level="standard")`; asserts exact `edge_health` and
+  `parse_failures==1`. Companion asserts prove minimal JSON (sorted keys) matches the frozen
+  pre-028 key set and omits the new fields. Invocation: `.venv/bin/pytest tests/test_get_index_status_health.py -q`
+
+**Verification plan**
+
+| AC | risk layer | proof artifact | layer-match? |
+|----|------------|----------------|--------------|
+| AC1 | integration (real SQLite + tool) | integration test planted graph | ✅ |
+| AC2 | integration (build/plant + status) | integration: clean 0 / dirty >0 | ✅ |
+| AC3 | logic + integration | frozen minimal key/value compare | ✅ |
+| AC4 | integration | existing `test_mcp_server` status tests | ✅ |
+| C1 | integration | unbuilt path still no DB file | ✅ (existing + no new open in `_unbuilt`) |
+
+**Coverage-gap exclusions:** none.
+
+**Proof manifest:** n/a (backend).
+
+- **Rollback:** revert the branch / drop the five change-list files.
+- **Porting:** single repo `app` only.
+- **SCOPE confirmed:** M (unchanged).
+- **Gate 2 status:** cleared — human standing approval 2026-08-03 (best option / pass all gates)
+
+## Phase 3 — Execute
+
+- **Branch:** `feat/028-index-health-metrics`
+- **Commits (logical units; no AI co-author trailer):** `57135ad` — Add index-health metrics to get_index_status standard detail.
+- **Proving test added:** `tests/test_get_index_status_health.py::test_standard_reports_exact_edge_health_and_parse_failures`
+- **Verification sweep — BOTH axes.**
+  - *File axis:* diff ⊆ approved list ✅ · each hunk → matrix row ✅ · zero stray refs ✅
+  - *Behaviour axis:* Approach bullets 1–4 `implemented-as-approved` ✅
+- **Design-conformance deviations:** none
+- **Empirical output:**
+
+  ```
+  $ .venv/bin/pytest tests/test_get_index_status_health.py tests/test_store.py::test_edge_health_counts_tiers_and_link_resolution -q
+  .....                                                                    [100%]
+  5 passed in 0.25s
+
+  $ .venv/bin/pytest -q --tb=line
+  576 passed in 22.32s
+
+  $ .venv/bin/ruff check code_atlas/store.py code_atlas/tools/get_index_status.py tests/test_get_index_status_health.py tests/test_store.py
+  All checks passed!
+
+  $ .venv/bin/mypy code_atlas/store.py code_atlas/tools/get_index_status.py
+  Success: no issues found in 2 source files
+  ```
+
+- **Golden/snapshot change:** none (frozen `_MINIMAL_KEYS` is a new assert, not a re-recorded golden)
+- **Design-invalidation / re-gate:** n/a
+
+## Phase 4 — Review ✋ (stop only if not clean)
+
+**Reviewed at** `d7d3a3124f3d8638a2509f2fc28abf668c202534` (code review at `57135ad`; bookkeeping tip after verify-only — docs only, proving tests still 5 passed). Working-doc path: `docs/tasks/028_index-health-metrics.md` (exempt from stale-review).
+
+| Dispatch | Verdict |
+|----------|---------|
+| mango:reviewer ([Reviewer](c18ea621-d64c-4046-9e8e-e0270f1ef111)) | **LGTM** — no Critical/Important; diff ⊆ Gate-2 list |
+| mango:challenger ([Challenger](35055376-55c1-40e5-a1af-417a3616a9b8)) | ticket-blind — **12 met · 0 not met · 0 can't tell** |
+
+### Reviewer detail ([Reviewer](c18ea621-d64c-4046-9e8e-e0270f1ef111))
+
+- **Verdict:** LGTM
+- **Tip:** `57135ad` (*Add index-health metrics…*); no AI trailer
+- **Scope:** 5 files only — `store.py`, `get_index_status.py`, `test_store.py`, `test_get_index_status_health.py`, `PLAN.md` — all on the approved change list
+- **Behaviour vs approach:**
+  1. `edge_health` — `GROUP BY confidence_tier` + zero-fill from `CONFIDENCE_TIERS`; resolved/unresolved from `target_qname` NULL split (`store.py:277–298`)
+  2. Standard-only keys; minimal early-return and `_unbuilt` unchanged (`get_index_status.py:82–93`, `:48–63`); `parse_failures=counts["failed"]`
+  3. Module + MCP docstrings name the new standard fields
+  4. Planted tests + PLAN §12 updated
+- **Rules:** R1.1 / R1.4 / R3.2 / R4.2 / R5.1 / R6.1 / R7.2 / R7.5 / CONVENTION §4·§6 — ok
+- **Proof run (in-place):** proving + store health → **5 passed**; targeted MCP+health+counts → **57 passed**; caller full suite **576 passed** (baseline 571 + 5)
+- **Findings (Critical/Important):** none
+- **Non-blocking note:** `tests/test_get_index_status_health.py:129–132` — `json.dumps(minimal) == json.dumps({…sorted…})` is tautological; real AC3 protection is `_MINIMAL_KEYS` + absence of health keys + shared-key equality with standard. No change required for LGTM.
+
+### Challenger detail ([Challenger](35055376-55c1-40e5-a1af-417a3616a9b8)) — ticket-blind
+
+`REQUIREMENTS: 12` · independence: raw ticket only (`028.work.md` excluded). Inputs: raw ticket + `git diff main...feat/028-index-health-metrics` @ `57135ad`.
+
+| # | Reconstructed requirement | Verdict | Evidence |
+|---|---------------------------|---------|----------|
+| 1 | Extend `get_index_status` **standard only** with `edge_health`; keep **minimal** at existing §12 parts | **met** | `get_index_status.py:82-91`; test `:116-118` |
+| 2 | Counts per `confidence_tier` (RESOLVED / HEURISTIC / DYNAMIC) via one `GROUP BY` on `edges` | **met** | `store.py:283-288` |
+| 3 | Resolved vs unresolved (`target_qname` NOT NULL vs NULL), distinct from DYNAMIC | **met** | `store.py:289-296`; plant asserts `resolved:2, unresolved:2` with DYNAMIC present |
+| 4 | Report `parse_failures`; meta counter only if not already persisted; do not infer | **met** | `parsed_ok` → `counts()["failed"]` → `parse_failures`; no new meta; no indexer change |
+| 5 | Store is the only SQL owner (R1.4); tool presents | **met** | SQL in `edge_health`/`counts` only; tool calls store |
+| 6 | No language branches (R1.1); contract vocabulary | **met** | `CONFIDENCE_TIERS`; no `if language ==` in diff |
+| 7 | Must not open/create DB when none exists — `_unbuilt` stays cheap | **met** | `get_index_status.py:39-40,47-62`; `test_unbuilt_standard_still_opens_no_database` |
+| 8 | Counts from indexed rows only — never re-parse/re-resolve on read (R4) | **met** | SQL aggregates only in `edge_health` |
+| 9 | `minimal` response shape unchanged / byte-identical to today’s | **met** | minimal branch unchanged vs main; `_MINIMAL_KEYS` freeze (json.dumps companion tautological — identity proven by diff + key set) |
+| 10 | AC: planted tier mix → exact RESOLVED/HEURISTIC/DYNAMIC + resolved/unresolved | **met** | `test_get_index_status_health.py:75-88`; `test_store.py:657-702` |
+| 11 | AC: `parse_failures` >0 on unparseable fixture, 0 on clean — proven | **met** | dirty `:34-35,89`; clean `:93-102` |
+| 12 | AC: existing `get_index_status` / MCP tests pass | **met** | health+store+MCP → **140 passed**; `-k 'index_status or get_index'` → **10 passed** |
+
+**Summary from challenger:** store-owned `edge_health` + `parse_failures` on standard only; minimal path unchanged; health/store/MCP tests pass. No material scope creep beyond a §12 PLAN note. **12 met, 0 not met, 0 can't tell.**
+
+### Scope reconcile
+
+File set ⊆ change-list; Approach bullets 1–4 **implemented-as-approved**. Layer-match ✅. **Gate 4: clean.**
+
+### Matrix Ph3/4
+
+G1 / R1–R5 / C1–C3 / AC1–AC4 → ✅ · inventory tiers 1–3 → ✅ · full suite **576 passed**.
+
+- **Clean?** yes
+- **Reviewed at:** `d7d3a3124f3d8638a2509f2fc28abf668c202534` · reviewed files: `code_atlas/store.py`, `code_atlas/tools/get_index_status.py`, `tests/test_store.py`, `tests/test_get_index_status_health.py`, `docs/PLAN.md`, plus bookkeeping `docs/BACKLOG.md`, `docs/LESSONS.md`, `docs/tasks/028_index-health-metrics.md`, `docs/tasks/028_index-health-metrics.md` · working-doc path: `docs/tasks/028_index-health-metrics.md`
+- **Verify-only after bookkeeping:** code diff vs `57135ad` empty; proving tests 5 passed; Gate 4 remains clean
+
+## Phase 5 — Finalise ✋ final gate
+
+- **PR draft:** `/tmp/pr-028.md`
+- **Stale-review guard:** `git diff --name-only 57135ad..HEAD` empty; uncommitted only `docs/tasks/028_index-health-metrics.md` (exempt) → **not stale**
+- **Outward actions** (approved 2026-08-03 — finish + review + commit + push + open PR):
+  1. [x] bookkeeping commit: BACKLOG→done, task frontmatter, token row, lesson/claim, working doc
+  2. [x] verify-only after bookkeeping (docs-only; no code delta) + refresh `Reviewed at`
+  3. [x] `git push -u origin HEAD`
+  4. [x] `gh pr create` from `/tmp/pr-028.md`
+  5. [x] tracker N/A (local-file ticket)
+- **Follow-up tickets:** none (no ⚠ rows)
+- **Durable lesson:** written to `docs/LESSONS.md` (028 — Prefer `parsed_ok` over a parallel meta parse-failure counter)
+- **Learning loop (ratified):**
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=1 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded | 1 promotion candidate(s)`
+`FALSIFY: 1 candidate(s) checked | 1 still-true (proceed) | 0 falsified | 0 not cheaply checkable`
+`PROMOTION: 1 proposed | 1 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+
+| # | Claim (id) | Type | Evidence | area | Falsified? | Destination | Human ratified? |
+|---|------------|------|----------|------|------------|-------------|-----------------|
+| 1 | 028-C1 | 5 | store counts / parsed_ok | index-status / parse-health | still-true | docs/LESSONS.md | yes (finish) |
+
+- **LEDGER TOTAL:** unmeasured (2 dispatch rows, host does not surface usage) · top cost driver: review (reviewer + challenger)
+- **Gate 5 status:** complete — PR [#31](https://github.com/cuongdinhngo/code-atlas/pull/31)
+
+
+---
+
+## Cost ledger (dispatch-scoped; descriptive)
+
+| phase | dispatch | round | tokens | notes |
+|-------|----------|-------|--------|-------|
+| review | reviewer | 1 | unmeasured (host does not surface usage) | [c18ea621](c18ea621-d64c-4046-9e8e-e0270f1ef111); LGTM |
+| review | challenger | 1 | unmeasured (host does not surface usage) | [35055376](35055376-55c1-40e5-a1af-417a3616a9b8); 12 met / 0 not met / 0 can't tell |
+
+## Decision log
+
+| When | Decision | Why |
+|------|----------|-----|
+| Phase 0 | skip refine | 0 unresolved product-decisions; ticket already specifies edge_health, tiers, parse_failures, constraints |
+| Phase 0 | work_doc_mode=embed (merged) | committed tracked stub `028_index-health-metrics.md` → `docs/tasks/028_index-health-metrics.md` (solve committed-stub guidance) |
+| Phase 1 | TIER=full | SCOPE=M + universal tier inventory N=3 |
+| Phase 1 | parse_failures = alias of counts.failed on standard | AC2 name + AC3/AC4 keep `failed` |
+| Gate 1 | cleared | human standing approval to proceed / best options |
+| Gate 2 | cleared | same standing approval; approach = store.edge_health + standard alias |
+| Gate 2 | edge_health shape `by_tier` + resolved/unresolved | clearest agent-readable trust signal |
+
+## Session status
+
+- **Ticket:** 028
+- **Current phase:** finalise — complete (PR #31)
+- **Blocked on:** none
+- **Next action:** none (await merge)
+- **Reviewed at:** `196fccb48cdd8234faa245652ba6c93a7d42690e` (tip after marker refresh; code LGTM at `57135ad`)
+- **PR:** https://github.com/cuongdinhngo/code-atlas/pull/31

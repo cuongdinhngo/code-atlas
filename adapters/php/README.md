@@ -61,7 +61,7 @@ per line until stdin closes. Point `CA_PHP_CMD` at the complete argv (§9) — t
 See **Runtime** above for host vs Docker forms.
 
 ```
-← {"name":"php","extensions":[".php"],"capabilities":{},"contract_version":1}
+← {"name":"php","extensions":[".php"],"capabilities":{},"contract_version":2}
 → {"path":"src/Models/User.php"}
 ← {"path":"src/Models/User.php","ok":true,"nodes":[…],"edges":[…]}
 ```
