@@ -57,10 +57,14 @@ final class Visitor extends NodeVisitorAbstract
 
     /**
      * Same-function string locals for `new $v` after `$v = 'FQN'` (task 030). Cleared per method/function.
+     * Nested closures push/pop so an outer binding survives past a nested fn.
      *
      * @var array<string, string>
      */
     private array $stringLocals = [];
+
+    /** @var list<array<string, string>> */
+    private array $stringLocalsStack = [];
 
     public function __construct(
         private readonly string $path,
@@ -107,9 +111,11 @@ final class Visitor extends NodeVisitorAbstract
                 'params' => $this->params($node->params),
             ] + $this->extraFields($this->attributeExtra($node->attrGroups)));
         } elseif ($node instanceof Node\Expr\Closure) {
+            $this->stringLocalsStack[] = $this->stringLocals;
             $this->stringLocals = [];
             $this->enterClosureLike($node, 'closure', '{closure}', $node->params, $node->static, $node->attrGroups);
         } elseif ($node instanceof Node\Expr\ArrowFunction) {
+            $this->stringLocalsStack[] = $this->stringLocals;
             $this->stringLocals = [];
             $this->enterClosureLike($node, 'fn', '{fn}', $node->params, $node->static, $node->attrGroups);
         } elseif ($node instanceof Node\Expr\Assign) {
@@ -123,6 +129,11 @@ final class Visitor extends NodeVisitorAbstract
 
     public function leaveNode(Node $node)
     {
+        if ($node instanceof Node\Expr\Closure || $node instanceof Node\Expr\ArrowFunction) {
+            if ($this->stringLocalsStack !== []) {
+                $this->stringLocals = array_pop($this->stringLocalsStack);
+            }
+        }
         if ($this->scope[count($this->scope) - 1][0] === $node) {
             array_pop($this->scope);
         }
@@ -183,11 +194,8 @@ final class Visitor extends NodeVisitorAbstract
             && $node->class instanceof Node\Name
             && $node->name instanceof Node\Scalar\String_
         ) {
-            // `A::{'b'}()` — string method name is a literal guess (HEURISTIC).
-            if (!$node->isFirstClassCallable()) {
-                $target = self::fqn($node->class) . '::' . $node->name->value;
-                $this->edge('CALLS', $this->container(), $target, $node->getStartLine(), 'HEURISTIC');
-            }
+            // String method name is always HEURISTIC; still rewrite self/static/parent (Bugbot).
+            $this->enterStaticCall($node, $node->class, $node->name->value, stringMethod: true);
         } elseif ($node instanceof Node\Expr\FuncCall && $node->name instanceof Node\Name) {
             $this->enterFuncCall($node, $node->name);
         } elseif ($node instanceof Node\Expr\Include_) {
@@ -479,8 +487,12 @@ final class Visitor extends NodeVisitorAbstract
         $this->edge('CALLS', $this->container(), $method, $node->getStartLine(), 'HEURISTIC');
     }
 
-    private function enterStaticCall(Node\Expr\StaticCall $node, Node\Name $class, string $method): void
-    {
+    private function enterStaticCall(
+        Node\Expr\StaticCall $node,
+        Node\Name $class,
+        string $method,
+        bool $stringMethod = false,
+    ): void {
         if ($node->isFirstClassCallable()) {
             return;
         }
@@ -488,13 +500,24 @@ final class Visitor extends NodeVisitorAbstract
         if (($special === 'self' || $special === 'static')
             && ($owner = $this->enclosingDeclaringQname($method)) !== null
         ) {
-            // static:: is late binding — keep HEURISTIC so we do not over-claim RESOLVED (C2).
-            $tier = $special === 'static' ? 'HEURISTIC' : null;
+            // static:: late binding, or string method name → HEURISTIC (C2 / task 030).
+            $tier = ($special === 'static' || $stringMethod) ? 'HEURISTIC' : null;
             $this->edge('CALLS', $this->container(), $owner . '::' . $method, $node->getStartLine(), $tier);
             return;
         }
         if ($special === 'parent' && ($parent = $this->enclosingParentQname()) !== null) {
-            $this->edge('CALLS', $this->container(), $parent . '::' . $method, $node->getStartLine());
+            $tier = $stringMethod ? 'HEURISTIC' : null;
+            $this->edge('CALLS', $this->container(), $parent . '::' . $method, $node->getStartLine(), $tier);
+            return;
+        }
+        if ($stringMethod) {
+            $this->edge(
+                'CALLS',
+                $this->container(),
+                self::fqn($class) . '::' . $method,
+                $node->getStartLine(),
+                'HEURISTIC',
+            );
             return;
         }
         $this->enterNamedCall($node, self::fqn($class) . '::' . $method);

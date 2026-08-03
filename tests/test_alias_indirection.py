@@ -65,6 +65,19 @@ def test_literal_dispatch_shapes() -> None:
 
 
 @needs_php
+def test_string_static_call_rewrites_self() -> None:
+    result = parse_file(FIXTURES.relative_to(ROOT) / "literal_dispatch.php")
+    shapes = {
+        (str(e.get("target_raw")), e.get("confidence_tier"))
+        for e in _interesting(result)
+        if e.get("kind") == "CALLS"
+    }
+    assert ("\\App\\Dyn\\SelfString::bar", "HEURISTIC") in shapes
+    assert ("\\self::bar", "HEURISTIC") not in shapes
+    assert ("\\self::bar", None) not in shapes
+
+
+@needs_php
 def test_literal_dispatch_resolves_heuristic_and_leaves_dynamic(tmp_path: Path) -> None:
     """AC3 on resolved rows: HEURISTIC links; DYNAMIC stays unlinked."""
     src = tmp_path / "src"
