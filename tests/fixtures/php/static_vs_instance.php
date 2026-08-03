@@ -13,6 +13,7 @@ final class Service
     public function run(): void
     {
         self::make();
+        static::make();
         Service::make();
         $this->run();
         $other = new Service();

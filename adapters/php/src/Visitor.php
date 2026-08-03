@@ -162,7 +162,7 @@ final class Visitor extends NodeVisitorAbstract
             && $node->class instanceof Node\Name
             && $node->name instanceof Node\Identifier
         ) {
-            $this->enterNamedCall($node, self::fqn($node->class) . '::' . $node->name->toString());
+            $this->enterStaticCall($node, $node->class, $node->name->toString());
         } elseif ($node instanceof Node\Expr\FuncCall && $node->name instanceof Node\Name) {
             $this->enterNamedCall($node, self::fqn($node->name));
         } elseif ($node instanceof Node\Expr\Include_) {
@@ -339,13 +339,41 @@ final class Visitor extends NodeVisitorAbstract
         }
     }
 
-    private function enterInstanceCall(Node\Expr\CallLike $node, string $method): void
+    private function enterInstanceCall(
+        Node\Expr\MethodCall|Node\Expr\NullsafeMethodCall $node,
+        string $method,
+    ): void {
+        if ($node->isFirstClassCallable()) {
+            return;
+        }
+        // $this / $this?-> is lexically the enclosing class/trait (ticket 029); other receivers stay HEURISTIC.
+        if ($node->var instanceof Node\Expr\Variable
+            && $node->var->name === 'this'
+            && ($owner = $this->enclosingClassLikeQname()) !== null
+        ) {
+            $this->edge('CALLS', $this->container(), $owner . '::' . $method, $node->getStartLine());
+            return;
+        }
+        $this->edge('CALLS', $this->container(), $method, $node->getStartLine(), 'HEURISTIC');
+    }
+
+    private function enterStaticCall(Node\Expr\StaticCall $node, Node\Name $class, string $method): void
     {
         if ($node->isFirstClassCallable()) {
             return;
         }
-        // One file cannot know the receiver's type, so never claim RESOLVED here (R5.2).
-        $this->edge('CALLS', $this->container(), $method, $node->getStartLine(), 'HEURISTIC');
+        $special = strtolower($class->toString());
+        if (($special === 'self' || $special === 'static')
+            && ($owner = $this->enclosingClassLikeQname()) !== null
+        ) {
+            $this->edge('CALLS', $this->container(), $owner . '::' . $method, $node->getStartLine());
+            return;
+        }
+        if ($special === 'parent' && ($parent = $this->enclosingParentQname()) !== null) {
+            $this->edge('CALLS', $this->container(), $parent . '::' . $method, $node->getStartLine());
+            return;
+        }
+        $this->enterNamedCall($node, self::fqn($class) . '::' . $method);
     }
 
     private function enterNamedCall(Node\Expr\CallLike $node, string $target): void
@@ -354,6 +382,31 @@ final class Visitor extends NodeVisitorAbstract
             return;
         }
         $this->edge('CALLS', $this->container(), $target, $node->getStartLine());
+    }
+
+    /** Innermost Class/Trait/Interface/Enum qname, or null outside a class-like scope. */
+    private function enclosingClassLikeQname(): ?string
+    {
+        for ($i = count($this->scope) - 1; $i >= 0; $i--) {
+            if ($this->scope[$i][0] instanceof Node\Stmt\ClassLike) {
+                return $this->scope[$i][1];
+            }
+        }
+
+        return null;
+    }
+
+    /** FQN of the enclosing class's `extends` clause, when present in this file. */
+    private function enclosingParentQname(): ?string
+    {
+        for ($i = count($this->scope) - 1; $i >= 0; $i--) {
+            $node = $this->scope[$i][0];
+            if ($node instanceof Node\Stmt\Class_ && $node->extends !== null) {
+                return self::fqn($node->extends);
+            }
+        }
+
+        return null;
     }
 
     private function declarePromotedProperties(Node\Stmt\ClassMethod $node): void

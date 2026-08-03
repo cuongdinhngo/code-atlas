@@ -104,7 +104,7 @@ CASES: dict[str, CaseSpec] = {
     "static-vs-instance": (
         "static_vs_instance.php",
         {"File": 1, "Namespace": 1, "Class": 1, "Method": 2},
-        {"CONTAINS": 4, "CALLS": 4, "NEW": 2},
+        {"CONTAINS": 4, "CALLS": 5, "NEW": 2},
     ),
     "syntax-error": ("syntax_error.php", None, None),
 }
@@ -116,8 +116,9 @@ INCLUDE_EDGE_SHAPES = [
 ]
 STATIC_VS_INSTANCE_EDGE_SHAPES = [
     ("CALLS", "\\App\\Calls\\Service::make", None),
-    ("CALLS", "\\self::make", None),
-    ("CALLS", "run", "HEURISTIC"),
+    ("CALLS", "\\App\\Calls\\Service::make", None),
+    ("CALLS", "\\App\\Calls\\Service::make", None),
+    ("CALLS", "\\App\\Calls\\Service::run", None),
     ("CALLS", "run", "HEURISTIC"),
     ("CONTAINS", "\\App\\Calls", None),
     ("CONTAINS", "\\App\\Calls\\Service", None),
