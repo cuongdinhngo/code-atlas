@@ -7,8 +7,8 @@ Run with the plain system Python from anywhere:
 
 Given a PROJECT_DIR it installs the core, sets up the PHP adapter, and writes a ready-to-use
 ``.mcp.json`` into that project (the repo you want indexed). With no PROJECT_DIR it does the setup
-and prints the snippet to paste into your client. It computes the three things the manual guide made
-you get right by hand: the interpreter to launch, the absolute adapter path, and the project ``cwd``.
+and prints the snippet to paste into your client. It computes the three things the manual guide
+made you get right by hand: the interpreter to launch, the adapter path, and the project ``cwd``.
 """
 
 from __future__ import annotations
@@ -50,7 +50,9 @@ def main() -> int:
         "project", nargs="?", help="repo to index; its .mcp.json is written for you"
     )
     ap.add_argument(
-        "--no-adapter", action="store_true", help="skip the PHP adapter (nothing to index until set up)"
+        "--no-adapter",
+        action="store_true",
+        help="skip the PHP adapter (nothing to index until set up)",
     )
     args = ap.parse_args()
 
