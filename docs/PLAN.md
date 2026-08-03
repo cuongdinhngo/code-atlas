@@ -297,6 +297,7 @@ CREATE TABLE edges (
   file_path TEXT, line INT, confidence_tier TEXT DEFAULT 'RESOLVED');
 CREATE INDEX idx_edges_src ON edges(source_qname, kind);
 CREATE INDEX idx_edges_tgt ON edges(target_qname, kind);
+CREATE INDEX idx_edges_tier ON edges(confidence_tier);
 CREATE VIRTUAL TABLE nodes_fts USING fts5(
   name, qualified_name, file_path, params,
   content='nodes', content_rowid='id', tokenize='trigram');
@@ -349,7 +350,7 @@ Token-efficient: return qualified names + `file:line`, not bodies, unless a read
 
 | Tool | Key args | Returns |
 |---|---|---|
-| `get_index_status` | — | stats, last_commit, staleness, `next_tool_suggestions`. **Call first (~100 tok).** |
+| `get_index_status` | — | stats, last_commit, staleness, `next_tool_suggestions`; `standard` also `edge_health` (per-tier + resolved/unresolved) and `parse_failures`. **Call first (~100 tok).** |
 | `build_or_update_index` | `full=false` | counts, timing |
 | `search_symbol` | `query, kind?, namespace?, limit?` | ranked `{qname, kind, file:line}` (FTS + name) |
 | `file_outline` | `path` | symbols + line ranges, no body |
@@ -363,7 +364,7 @@ Token-efficient: return qualified names + `file:line`, not bodies, unless a read
 
 Prompts: `explore_area`, `impact_of_change`, `find_usages` — each hardcodes the efficient recipe (status → search/outline → read only what's needed). Tool allow-list via `CA_TOOLS`.
 
-**Shipped (task 010).** `main.build_server(config)` registers the allowed tools on one FastMCP app and `main()` serves it over stdio; an entry point `code-atlas` (or `python -m code_atlas.main`) is what an `.mcp.json` names. `CA_TOOLS` gates registration and an **unknown name fails loud** — `config.py` validates the list's shape, but only the server knows the tool names. `detail_level` is a `Literal`, so the protocol itself rejects anything else and publishes the choice in the input schema; `minimal` returns exactly the parts named above, `standard` adds provenance (`built_at`, `head_commit`, `contract_version`, `schema_version`, `db_path`). Staleness is `current | behind | unknown`, and it is **`unknown` whenever either commit is unknown** — an unbuilt index and a tree git cannot name a commit for both qualify (§8.1 step 4 leaves `last_commit` unset rather than fabricating one). `next_tool_suggestions` is filtered to the tools this server actually registered, so it can never name one the client cannot call. `full=false` is accepted and echoed but **only a full build exists until §8.3 lands (task 016)** — the response reports the mode that ran, never the one requested.
+**Shipped (task 010).** `main.build_server(config)` registers the allowed tools on one FastMCP app and `main()` serves it over stdio; an entry point `code-atlas` (or `python -m code_atlas.main`) is what an `.mcp.json` names. `CA_TOOLS` gates registration and an **unknown name fails loud** — `config.py` validates the list's shape, but only the server knows the tool names. `detail_level` is a `Literal`, so the protocol itself rejects anything else and publishes the choice in the input schema; `minimal` returns exactly the parts named above, `standard` adds provenance (`built_at`, `head_commit`, `contract_version`, `schema_version`, `db_path`) plus index-health (`edge_health`, `parse_failures` — task 028; counts from indexed rows only). Staleness is `current | behind | unknown`, and it is **`unknown` whenever either commit is unknown** — an unbuilt index and a tree git cannot name a commit for both qualify (§8.1 step 4 leaves `last_commit` unset rather than fabricating one). `next_tool_suggestions` is filtered to the tools this server actually registered, so it can never name one the client cannot call. `full=false` is accepted and echoed but **only a full build exists until §8.3 lands (task 016)** — the response reports the mode that ran, never the one requested.
 
 **Each tool call opens its own `GraphStore`.** FastMCP runs a tool on a worker thread, and a sqlite3 connection may only be used from the thread that created it — so a store held by the server raises on first use. The per-call connection is also what keeps R4.3 true here: one writer, on the thread that owns it. A read tool opens nothing when the database file is absent; it reports `indexed: false` rather than creating an empty index as a side effect.
 

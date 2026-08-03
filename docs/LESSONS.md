@@ -3,6 +3,21 @@
 Durable lessons discovered while shipping tasks: constraints found, wrong assumptions, process gaps.
 One entry per lesson; newest first.
 
+## 028 — Prefer `parsed_ok` over a parallel meta parse-failure counter
+When a ticket asks for `parse_failures` "if the build does not already persist this", check existing
+aggregates first. `files.parsed_ok` already feeds `GraphStore.counts()["failed"]`; a second `meta`
+counter can drift from the file rows (R4). Alias the status field (`parse_failures`) to that count
+on `standard` and keep the existing `failed` key for minimal byte-identity.
+
+### 028-C1 — Parse-failure status reads `files.parsed_ok` via `counts()["failed"]`, not a parallel meta counter
+- type: 5 project-ground-truth
+- status: confirmed
+- evidence: ticket 028 R3 conditional; `code_atlas/store.py` counts(); indexer marks `parsed_ok=0`
+- area: index-status / parse-health
+- sub-shape: normative
+- destination: stays in lessons_path
+- seen: 028
+
 ## 016 — Dependents must be reparsed, not reconstructed
 Hash-skipping dependents made `file_paths_targeting` dead work: a dependent is unchanged by
 construction, so its hash always matches and it never reached the adapter. Reconstructing its edges
