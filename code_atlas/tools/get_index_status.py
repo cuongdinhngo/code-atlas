@@ -1,8 +1,9 @@
 """``get_index_status`` — the cheap entry point a client calls first (§12).
 
 ``minimal`` returns exactly the four parts §12 names: stats, ``last_commit``, staleness and
-``next_tool_suggestions``. ``standard`` adds the provenance a reader may want next. Nothing here
-opens the database when there is none: a read tool must not create an index as a side effect.
+``next_tool_suggestions``. ``standard`` adds provenance plus index-health (``edge_health``,
+``parse_failures``). Nothing here opens the database when there is none: a read tool must not
+create an index as a side effect.
 """
 
 from collections.abc import Callable, Sequence
@@ -34,7 +35,7 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
     servable = tuple(registered)
 
     def get_index_status(detail_level: DetailLevel = "standard") -> dict[str, object]:
-        """Index stats, last indexed commit, staleness and what to call next. Call this first."""
+        """Index stats, health, last commit, staleness and what to call next. Call this first."""
         if not config.db_path.is_file():
             return _unbuilt(servable, detail_level, config)
         with GraphStore(config.db_path) as store:
@@ -86,6 +87,8 @@ def _status(
         "contract_version": store.get_meta(CONTRACT_VERSION_KEY),
         "schema_version": store.get_meta(SCHEMA_VERSION_KEY),
         "db_path": str(config.db_path),
+        "edge_health": store.edge_health(),
+        "parse_failures": counts["failed"],
     }
 
 

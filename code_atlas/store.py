@@ -274,6 +274,28 @@ class GraphStore:
             "edges": edges,
         }
 
+    def edge_health(self) -> dict[str, object]:
+        """Tier mix and link-resolution split for ``get_index_status`` (R4; SQL only).
+
+        ``by_tier`` always includes every ``CONFIDENCE_TIERS`` key (missing tiers are 0).
+        ``resolved`` / ``unresolved`` count ``target_qname`` presence — distinct from DYNAMIC.
+        """
+        by_tier = {tier: 0 for tier in CONFIDENCE_TIERS}
+        for tier, count in self._conn.execute(
+            "SELECT confidence_tier, COUNT(*) FROM edges GROUP BY confidence_tier"
+        ):
+            if tier in by_tier:
+                by_tier[str(tier)] = int(count)
+        linked, dangling = self._conn.execute(
+            "SELECT (SELECT COUNT(*) FROM edges WHERE target_qname IS NOT NULL),"
+            " (SELECT COUNT(*) FROM edges WHERE target_qname IS NULL)"
+        ).fetchone()
+        return {
+            "by_tier": by_tier,
+            "resolved": int(linked),
+            "unresolved": int(dangling),
+        }
+
     def nodes_by_name(self, name: str, *, kind: str | None = None, limit: int) -> list[Row]:
         """Single-key lookup via the batch path; prefer ``nodes_by_names`` in a loop."""
         return self.nodes_by_names([name], kind=kind, limit=limit).get(name, [])

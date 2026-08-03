@@ -652,3 +652,52 @@ def test_the_counts_come_from_the_rows_not_from_the_file_total(store: GraphStore
     store.upsert_file("b.php", "h", "php", parsed_ok=False)
 
     assert store.counts() == {"files": 2, "parsed": 1, "failed": 1, "nodes": 2, "edges": 1}
+
+
+def test_edge_health_counts_tiers_and_link_resolution(store: GraphStore) -> None:
+    """Hand-counted plant: every CONFIDENCE_TIERS key present; unresolved ≠ DYNAMIC."""
+    path = "a.php"
+    store.upsert_file(path, "h", "php")
+    store.replace_file_rows(
+        path,
+        nodes_for(path),
+        [
+            an_edge(
+                "CALLS",
+                "\\App\\UserRepo::save",
+                "\\App\\Db::write",
+                path,
+                target_qname="\\App\\Db::write",
+                confidence_tier="RESOLVED",
+            ),
+            an_edge(
+                "CALLS",
+                "\\App\\UserRepo::save",
+                "save",
+                path,
+                target_qname="\\App\\Other::save",
+                confidence_tier="HEURISTIC",
+            ),
+            an_edge(
+                "CALLS",
+                "\\App\\UserRepo::save",
+                "$m",
+                path,
+                confidence_tier="DYNAMIC",
+            ),
+            an_edge(
+                "EXTENDS",
+                "\\App\\UserRepo",
+                "\\Vendor\\Base",
+                path,
+                confidence_tier="RESOLVED",
+            ),
+        ],
+    )
+
+    assert store.edge_health() == {
+        "by_tier": {"RESOLVED": 2, "HEURISTIC": 1, "DYNAMIC": 1},
+        "resolved": 2,
+        "unresolved": 2,
+    }
+
