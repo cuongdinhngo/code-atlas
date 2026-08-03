@@ -36,31 +36,53 @@ MCP client ──stdio──▶ core (Python / FastMCP) ──JSONL contract─�
 The core is language-agnostic (no per-language branches). Adapters parse files and emit a common
 `{nodes, edges}` vocabulary; the core stores them, resolves cross-file edges, and exposes MCP tools.
 
-## Run it
+## Install
 
-The server speaks MCP over stdio. Point a client at the repo you want indexed — the working
-directory *is* the repo, and every `CA_*` knob below is read from that client's environment.
+You need **Python ≥ 3.12**, and — to index PHP (the only adapter so far) — a **PHP CLI ≥ 8.1** and
+**[Composer](https://getcomposer.org/)** on your PATH.
 
-```jsonc
-// .mcp.json
-{
-  "mcpServers": {
-    "code-atlas": {
-      "command": "code-atlas",           // or: "python", "args": ["-m", "code_atlas.main"]
-      "cwd": "/path/to/your/repo",
-      "env": { "CA_PHP_CMD": "php adapters/php/index.php --server" }
-    }
-  }
-}
+One command sets everything up and writes a ready-to-use `.mcp.json` into your project:
+
+```bash
+git clone https://github.com/cuongdinhngo/code-atlas.git
+cd code-atlas
+python scripts/setup.py /abs/path/to/your-project
 ```
 
-**Adapters are not in the PyPI/wheel install.** `pip install code-atlas` gives you the MCP server
-only; indexing still needs a repo checkout that contains `adapters/<lang>/` and a `CA_<LANG>_CMD`
-pointing at it (as in the example above). The wheel alone cannot index source.
+That installs the core, builds the PHP adapter, and writes `<your-project>/.mcp.json` with the correct
+interpreter, adapter path, and working directory filled in — the three things that are easy to get
+wrong by hand. Run it with no path to print the snippet instead of writing it, or `--no-adapter` to
+skip PHP. If PHP or Composer is missing it tells you and continues; rerun once they're installed.
 
-Call `get_index_status` first: it is the cheap (~100-token) entry point and tells you whether the
-index exists, how stale it is, and what to call next. `build_or_update_index` builds it. Every tool
-takes `detail_level` — `minimal` for the payload alone, `standard` (the default) to add provenance.
+Then **reload your MCP client** (in Claude Code: restart, or re-approve the project's `.mcp.json`) and
+the `code-atlas` tools appear.
+
+<details>
+<summary>Prefer to wire it up by hand?</summary>
+
+`pip install -e .`, then `composer install --working-dir=adapters/php`, then point an `.mcp.json` at
+your repo — `command` = `code-atlas` (or `python -m code_atlas.main`), `cwd` = the repo to index,
+`env.CA_PHP_CMD` = `php /abs/path/to/code-atlas/adapters/php/index.php --server`. The adapter lives in
+this checkout, so `CA_PHP_CMD` must be an **absolute** path. Docker instead of host PHP:
+`docker compose exec -T php php /app/adapters/php/index.php --server`. Details in
+[`adapters/php/README.md`](adapters/php/README.md).
+</details>
+
+## Usage
+
+Drive everything through the MCP tools:
+
+1. **`get_index_status`** — call first. The cheap (~100-token) entry point: is there an index, how
+   stale is it, what to call next. A fresh project reports `indexed: false`.
+2. **`build_or_update_index`** — builds the SQLite graph under `.code-atlas/graph.db`. Later,
+   `full=false` does an incremental `git diff` update when it can, else a full rebuild.
+3. **Query** — `search_symbol`, `file_outline`, `read_symbol`, `find_callers`, `find_references`,
+   `find_implementations`, `include_graph`, `impact` (see [Tools](#tools)).
+
+Every tool takes `detail_level` — `minimal` for the payload alone, `standard` (default) adds provenance.
+
+> **Language scope today:** only the **PHP** adapter exists. A TypeScript, Python, or C# project won't
+> index yet — those are planned (see [Roadmap](#roadmap)).
 
 ## Tools
 
