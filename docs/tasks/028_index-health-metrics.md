@@ -4,7 +4,7 @@ slug: index-health-metrics
 title: Index-health metrics in get_index_status
 phase: 1
 milestone: M4
-status: todo
+status: done
 depends_on: [010, 011]
 ---
 
