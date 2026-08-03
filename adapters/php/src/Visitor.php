@@ -115,11 +115,24 @@ final class Visitor extends NodeVisitorAbstract
             $this->stringLocals = [];
             $this->enterClosureLike($node, 'closure', '{closure}', $node->params, $node->static, $node->attrGroups);
         } elseif ($node instanceof Node\Expr\ArrowFunction) {
+            // fn() auto-captures by value — keep outer bindings; stack still restores on leave.
             $this->stringLocalsStack[] = $this->stringLocals;
-            $this->stringLocals = [];
             $this->enterClosureLike($node, 'fn', '{fn}', $node->params, $node->static, $node->attrGroups);
         } elseif ($node instanceof Node\Expr\Assign) {
             $this->enterAssign($node);
+        } elseif ($node instanceof Node\Expr\AssignOp || $node instanceof Node\Expr\AssignRef) {
+            $this->forgetStringLocal($node->var);
+        } elseif ($node instanceof Node\Stmt\Foreach_) {
+            $this->forgetStringLocal($node->valueVar);
+            if ($node->keyVar !== null) {
+                $this->forgetStringLocal($node->keyVar);
+            }
+        } elseif ($node instanceof Node\Stmt\Catch_ && $node->var !== null) {
+            $this->forgetStringLocal($node->var);
+        } elseif ($node instanceof Node\Stmt\Unset_) {
+            foreach ($node->vars as $var) {
+                $this->forgetStringLocal($var);
+            }
         } else {
             $this->enterMemberOrReference($node);
         }
@@ -133,6 +146,9 @@ final class Visitor extends NodeVisitorAbstract
             if ($this->stringLocalsStack !== []) {
                 $this->stringLocals = array_pop($this->stringLocalsStack);
             }
+        }
+        if ($node instanceof Node\Stmt\Function_ || $node instanceof Node\Stmt\ClassMethod) {
+            $this->stringLocals = [];
         }
         if ($this->scope[count($this->scope) - 1][0] === $node) {
             array_pop($this->scope);
@@ -394,11 +410,24 @@ final class Visitor extends NodeVisitorAbstract
             && $node->expr instanceof Node\Scalar\String_
         ) {
             $this->stringLocals[$node->var->name] = self::fqn($node->expr->value);
-        } elseif (
-            $node->var instanceof Node\Expr\Variable
-            && is_string($node->var->name)
-        ) {
-            unset($this->stringLocals[$node->var->name]);
+            return;
+        }
+        // Any other write we do not understand forgets the binding (AssignOp / list / …).
+        $this->forgetStringLocal($node->var);
+        if ($node->var instanceof Node\Expr\Array_ || $node->var instanceof Node\Expr\List_) {
+            foreach ($node->var->items as $item) {
+                if ($item !== null) {
+                    $this->forgetStringLocal($item->value);
+                }
+            }
+        }
+    }
+
+    /** Drop a tracked string local when the LHS is a plain variable we can name. */
+    private function forgetStringLocal(Node $node): void
+    {
+        if ($node instanceof Node\Expr\Variable && is_string($node->name)) {
+            unset($this->stringLocals[$node->name]);
         }
     }
 
@@ -453,6 +482,8 @@ final class Visitor extends NodeVisitorAbstract
         }
         if ($target !== null) {
             $this->edge('CALLS', $this->container(), $target, $node->getStartLine(), 'HEURISTIC');
+        } else {
+            $this->edge('CALLS', $this->container(), '(dynamic)', $node->getStartLine(), 'DYNAMIC');
         }
     }
 

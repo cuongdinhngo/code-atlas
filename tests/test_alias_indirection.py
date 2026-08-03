@@ -37,9 +37,12 @@ def test_contract_version_is_two() -> None:
 def test_class_alias_emits_aliases_edge() -> None:
     result = parse_file(FIXTURES.relative_to(ROOT) / "alias_indirection.php")
     aliases = [e for e in _interesting(result) if e.get("kind") == "ALIASES"]
-    assert len(aliases) == 1
-    assert aliases[0]["source_qname"] == "\\App\\Alias\\Aka"
-    assert aliases[0]["target_raw"] == "\\App\\Alias\\Real"
+    assert {
+        (e["source_qname"], e["target_raw"]) for e in aliases
+    } == {
+        ("\\App\\Alias\\Aka", "\\App\\Alias\\Real"),
+        ("\\App\\Alias\\Aka2", "\\App\\Alias\\Aka"),
+    }
 
 
 @needs_php
@@ -62,6 +65,44 @@ def test_literal_dispatch_shapes() -> None:
         and e.get("confidence_tier") == "HEURISTIC"
     ]
     assert len(heuristic_bars) == 3
+    # Non-literal call_user_func → DYNAMIC (finding 6).
+    cuf_dynamic = [
+        e
+        for e in _interesting(result)
+        if e.get("kind") == "CALLS"
+        and e.get("target_raw") == "(dynamic)"
+        and e.get("confidence_tier") == "DYNAMIC"
+        and e.get("source_qname") == "\\App\\Dyn\\literals"
+    ]
+    assert len(cuf_dynamic) >= 2  # call_user_func($cb) + $obj->$method()
+    # AssignOp / foreach invalidate → DYNAMIC new (finding 3).
+    stale = [
+        e
+        for e in _interesting(result)
+        if e.get("kind") == "NEW"
+        and e.get("source_qname") == "\\App\\Dyn\\staleBinding"
+    ]
+    assert all(e.get("target_raw") == "(dynamic)" for e in stale)
+    assert len(stale) == 2
+    # Leave clears — afterStale must not reuse prior binding (finding 2).
+    after = [
+        e
+        for e in _interesting(result)
+        if e.get("kind") == "NEW"
+        and e.get("source_qname") == "\\App\\Dyn\\afterStale"
+    ]
+    assert len(after) == 1
+    assert after[0]["target_raw"] == "(dynamic)"
+    # Arrow inherits outer $literal (finding 9).
+    arrow_news = [
+        e
+        for e in _interesting(result)
+        if e.get("kind") == "NEW"
+        and str(e.get("source_qname", "")).startswith("\\App\\Dyn\\literals::{fn")
+        and e.get("target_raw") == "\\App\\Dyn\\Foo"
+        and e.get("confidence_tier") == "HEURISTIC"
+    ]
+    assert len(arrow_news) == 1
 
 
 @needs_php
@@ -160,6 +201,13 @@ def test_alias_remap_surfaces_alias_caller_under_real(tmp_path: Path) -> None:
         assert alias_edges[0]["target_qname"] == "\\App\\Alias\\Real"
         assert alias_edges[0]["confidence_tier"] == "RESOLVED"
 
+        chain = store.edges_by_source(
+            "\\App\\Alias\\Aka2", kinds=("ALIASES",), limit=10
+        )
+        assert len(chain) == 1
+        assert chain[0]["target_raw"] == "\\App\\Alias\\Aka"
+        # Aka is not a Class node — ALIASES may stay unlinked; CALLS/NEW follow the chain.
+
         news = [
             row
             for row in store.edges_by_source(
@@ -171,6 +219,13 @@ def test_alias_remap_surfaces_alias_caller_under_real(tmp_path: Path) -> None:
         assert news[0]["target_qname"] == "\\App\\Alias\\Real"
         assert news[0]["confidence_tier"] == "RESOLVED"
 
+        chained = store.edges_by_source(
+            "\\App\\Alias\\callerAgainstChain", kinds=("NEW",), limit=20
+        )
+        assert len(chained) == 1
+        assert chained[0]["target_raw"] == "\\App\\Alias\\Aka2"
+        assert chained[0]["target_qname"] == "\\App\\Alias\\Real"
+
         pings = [
             row
             for row in store.edges_by_source(
@@ -180,6 +235,16 @@ def test_alias_remap_surfaces_alias_caller_under_real(tmp_path: Path) -> None:
         ]
         assert len(pings) == 1
         assert pings[0]["target_qname"] == "\\App\\Alias\\Real::ping"
+
+        chain_pings = [
+            row
+            for row in store.edges_by_source(
+                "\\App\\Alias\\callerAgainstChain", kinds=("CALLS",), limit=20
+            )
+            if row["target_raw"] == "\\App\\Alias\\Aka2::ping"
+        ]
+        assert len(chain_pings) == 1
+        assert chain_pings[0]["target_qname"] == "\\App\\Alias\\Real::ping"
 
     find_refs = create_find_references(config)
     refs = find_refs("\\App\\Alias\\Real")
@@ -191,3 +256,33 @@ def test_alias_remap_surfaces_alias_caller_under_real(tmp_path: Path) -> None:
     callers = find_callers("\\App\\Alias\\Real")
     caller_sources = {hit["qname"] for hit in callers["results"]}  # type: ignore[index]
     assert "\\App\\Alias\\callerAgainstAlias" in caller_sources
+    assert "\\App\\Alias\\callerAgainstChain" in caller_sources
+
+
+@needs_php
+def test_stale_contract_version_forces_full_rebuild(tmp_path: Path) -> None:
+    """AC1: meta.contract_version lag → incremental_update rebuilds fully (finding 5)."""
+    from code_atlas.indexer import incremental_update
+    from code_atlas.store import CONTRACT_VERSION_KEY
+
+    src = tmp_path / "src"
+    src.mkdir()
+    shutil.copy(FIXTURES / "alias_indirection.php", src / "alias_indirection.php")
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
+
+    db_path = tmp_path / ".code-atlas" / "graph.db"
+    config = load_config(
+        tmp_path,
+        {
+            "CA_WORKERS": "1",
+            "CA_DB_PATH": str(db_path),
+            "CA_PHP_CMD": shlex.join([str(PHP), str(PHP_ENTRY), "--server"]),
+        },
+    )
+    with GraphStore(db_path) as store:
+        assert full_build(config, store).failed == 0
+        store.set_meta(CONTRACT_VERSION_KEY, "1")
+        report = incremental_update(config, store, ["src/alias_indirection.php"])
+        assert report.failed == 0
+        assert store.get_meta(CONTRACT_VERSION_KEY) == str(CONTRACT_VERSION)

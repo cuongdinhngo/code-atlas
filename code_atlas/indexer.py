@@ -86,6 +86,11 @@ def incremental_update(
     :func:`full_build` when git cannot name one. Deletes and rename sources drop out of ``collect``
     and are reconciled away after their qnames are folded into ``affected``.
     """
+    stored = store.get_meta(CONTRACT_VERSION_KEY)
+    if stored is not None and stored != str(contract.CONTRACT_VERSION):
+        # Vocabulary changed — incremental would mix eras; force a full rebuild (task 030 AC1).
+        return full_build(config, store)
+
     watchdog = _Watchdog(config.adapter_timeout)
     watchdog.start()
     try:
