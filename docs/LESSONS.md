@@ -3,6 +3,21 @@
 Durable lessons discovered while shipping tasks: constraints found, wrong assumptions, process gaps.
 One entry per lesson; newest first.
 
+## 029 — Innermost class owns `parent::`, not an outer ancestor
+`enclosingParentQname` must stop at the first `Class_` in the scope stack. Walking past a
+null-`extends` class (e.g. anonymous nested inside `Outer extends Base`) falsely attributes
+`Outer`'s parent to the inner class — a RESOLVED-eligible lie (R5.2). Return null when the
+innermost class has no extends and leave `\parent::…` as today.
+
+### 029-C1 — parent:: resolution must not walk past an innermost Class_ with null extends
+- type: 5 project-ground-truth
+- status: confirmed
+- evidence: review finding on feat/029; NestedOuter fixture; Visitor.php enclosingParentQname
+- area: php-adapter / receiver-resolution
+- sub-shape: normative
+- destination: stays in lessons_path
+- seen: 029
+
 ## 028 — Prefer `parsed_ok` over a parallel meta parse-failure counter
 When a ticket asks for `parse_failures` "if the build does not already persist this", check existing
 aggregates first. `files.parsed_ok` already feeds `GraphStore.counts()["failed"]`; a second `meta`

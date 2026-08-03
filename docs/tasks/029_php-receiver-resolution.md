@@ -4,7 +4,7 @@ slug: php-receiver-resolution
 title: PHP adapter — resolve $this / self / static / parent call receivers
 phase: 1
 milestone: M2
-status: todo
+status: done
 depends_on: [011, 025]
 ---
 
