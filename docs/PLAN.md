@@ -97,7 +97,7 @@ Adapter runs as a long-lived process; core feeds newline-delimited requests, rea
 **Node kinds** (language-neutral superset): `File, Namespace, Class, Interface, Trait, Enum, Function, Method, Property, ClassConst, Const`.
 Node fields: `kind, name, qualified_name, file_path, line_start, line_end, modifiers, params, is_test, extra(JSON)`.
 
-**Edge kinds**: `CONTAINS, EXTENDS, IMPLEMENTS, USES_TRAIT, CALLS, NEW, IMPORTS, INCLUDES, REFERENCES`.
+**Edge kinds**: `CONTAINS, EXTENDS, IMPLEMENTS, USES_TRAIT, CALLS, NEW, IMPORTS, INCLUDES, REFERENCES, ALIASES`.
 Edge fields: `kind, source_qname, target_qname?, target_raw, file_path, line, confidence_tier(RESOLVED|HEURISTIC|DYNAMIC)`.
 
 **Qualified-name convention** (identical across languages, adapter's job to honor):

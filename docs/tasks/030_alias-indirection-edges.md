@@ -4,7 +4,7 @@ slug: alias-indirection-edges
 title: Alias and literal-indirection edges (class_alias, string dispatch)
 phase: 1
 milestone: M2
-status: todo
+status: done
 depends_on: [002, 011, 025]
 ---
 
