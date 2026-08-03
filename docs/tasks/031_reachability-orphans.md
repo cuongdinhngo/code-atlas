@@ -258,7 +258,7 @@ Invocation: `.venv/bin/python -m pytest tests/test_reachability.py -q`
 
 **11 met · 2 not met** (#9 orphan bound, #11 exact sets) → both addressed in follow-up.
 
-**Reviewed at:** pending commit SHA after Phase-4 fix land.
+**Reviewed at:** `2e57f08` (feat/031-reachability-orphans; R4.3 orphan/unproven bounds included)
 
 **Gate 4:** clean after fixes (standing approval).
 
@@ -266,4 +266,4 @@ Invocation: `.venv/bin/python -m pytest tests/test_reachability.py -q`
 
 ## Phase 5 — Finalise
 
-*(PR pending standing outward approval)*
+**PR:** https://github.com/cuongdinhngo/code-atlas/pull/34 — opened under standing outward approval.
