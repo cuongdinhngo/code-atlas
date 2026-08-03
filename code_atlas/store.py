@@ -123,6 +123,7 @@ class ReachabilityResult(NamedTuple):
     unproven: list[Row]
     frontier_skipped_non_resolved: int
     truncated: bool
+    depth_exhausted: bool
 
 
 class OrphanResult(NamedTuple):
@@ -131,6 +132,7 @@ class OrphanResult(NamedTuple):
     orphans: list[Row]
     unproven: list[Row]
     truncated: bool
+    depth_exhausted: bool
 
 
 class SchemaVersionError(Exception):
@@ -658,23 +660,29 @@ class GraphStore:
             self._impact_drop_temps()
 
     def reachable_from(
-        self, seeds: Sequence[str], *, depth: int, max_nodes: int
+        self,
+        seeds: Sequence[str],
+        *,
+        depth: int | None,
+        max_nodes: int,
+        retain_temps: bool = False,
     ) -> ReachabilityResult:
         """Bounded forward reachability over outgoing IMPACT_KINDS (task 031).
 
+        ``depth=None`` walks until the frontier empties or ``max_nodes`` binds (closure).
         Only ``RESOLVED`` edges expand the frontier. HEURISTIC/DYNAMIC neighbors are
-        recorded as unproven and never expand. Seeds are depth 0 and always included.
+        recorded as unproven and never expand. A reached member keeps its container
+        qnames alive via :func:`contract.split_qname` (no CONTAINS expand).
         """
-        if depth < 0:
+        if depth is not None and depth < 0:
             raise ValueError(f"depth must be >= 0, got {depth}")
         if max_nodes < 1:
             raise ValueError(f"max_nodes must be >= 1, got {max_nodes}")
         ordered_seeds = list(dict.fromkeys(q for q in seeds if q))
         if not ordered_seeds:
-            return ReachabilityResult([], [], 0, False)
+            return ReachabilityResult([], [], 0, False, False)
 
         conn = self._conn
-        skipped = 0
         self._reach_drop_temps()
         try:
             conn.execute(
@@ -717,7 +725,10 @@ class GraphStore:
                 "WHERE e.target_qname IS NOT NULL"
             )
 
-            for _hop in range(depth):
+            hop = 0
+            while True:
+                if depth is not None and hop >= depth:
+                    break
                 empty = conn.execute(
                     "SELECT 1 FROM temp.reach_frontier LIMIT 1"
                 ).fetchone()
@@ -729,21 +740,17 @@ class GraphStore:
                     "qname TEXT NOT NULL, depth INT NOT NULL, confidence_tier TEXT NOT NULL)"
                 )
                 conn.execute(expand_sql, (_RESOLVED,))
-                skipped += int(
-                    conn.execute(
-                        "SELECT COUNT(*) FROM ("
-                        "  SELECT DISTINCT qname FROM temp.reach_next "
-                        "  WHERE confidence_tier != ?"
-                        ")",
-                        (_RESOLVED,),
-                    ).fetchone()[0]
-                )
                 conn.execute(
                     "INSERT OR IGNORE INTO temp.reach_unproven (qname, confidence_tier) "
                     "SELECT n.qname, n.confidence_tier FROM temp.reach_next n "
                     "WHERE n.confidence_tier != ? "
                     "AND n.qname NOT IN (SELECT qname FROM temp.reach_seen)",
                     (_RESOLVED,),
+                )
+                # Only newly admitted nodes expand next hop (cycles must not re-queue forever).
+                conn.execute("DROP TABLE IF EXISTS temp.reach_before")
+                conn.execute(
+                    "CREATE TEMP TABLE reach_before AS SELECT qname FROM temp.reach_seen"
                 )
                 conn.execute(
                     "INSERT OR IGNORE INTO temp.reach_seen (qname, depth, is_seed) "
@@ -757,11 +764,7 @@ class GraphStore:
                 conn.execute(
                     "INSERT INTO temp.reach_frontier (qname, depth) "
                     "SELECT s.qname, s.depth FROM temp.reach_seen s "
-                    "JOIN ("
-                    "  SELECT DISTINCT qname FROM temp.reach_next WHERE confidence_tier = ?"
-                    ") AS n ON n.qname = s.qname "
-                    "WHERE s.is_seed = 0",
-                    (_RESOLVED,),
+                    "WHERE s.qname NOT IN (SELECT qname FROM temp.reach_before)"
                 )
                 conn.execute(
                     "DELETE FROM temp.reach_frontier WHERE qname NOT IN "
@@ -771,14 +774,43 @@ class GraphStore:
                     "DELETE FROM temp.reach_unproven WHERE qname IN "
                     "(SELECT qname FROM temp.reach_seen)"
                 )
+                hop += 1
 
-            truncated = (
-                int(conn.execute("SELECT COUNT(*) FROM temp.reach_seen").fetchone()[0])
-                >= max_nodes
+            # Live member → keep its containers (class/interface) out of the orphan set.
+            for qname, member_depth in conn.execute(
+                "SELECT qname, depth FROM temp.reach_seen"
+            ).fetchall():
+                container, _ = contract.split_qname(str(qname))
+                while container is not None:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO temp.reach_seen "
+                        "(qname, depth, is_seed) VALUES (?, ?, 0)",
+                        (container, member_depth),
+                    )
+                    container, _ = contract.split_qname(container)
+
+            depth_exhausted = (
+                depth is not None
+                and conn.execute(
+                    "SELECT 1 FROM temp.reach_frontier LIMIT 1"
+                ).fetchone()
+                is not None
             )
+            seen_count = int(
+                conn.execute("SELECT COUNT(*) FROM temp.reach_seen").fetchone()[0]
+            )
+            unproven_total = int(
+                conn.execute("SELECT COUNT(*) FROM temp.reach_unproven").fetchone()[0]
+            )
+            truncated = (
+                depth_exhausted or seen_count >= max_nodes or unproven_total > max_nodes
+            )
+            # Distinct non-RESOLVED nodes (matches reach_unproven), not per-hop encounters.
+            skipped = unproven_total
+
+            # Key tuples keep ≤1 contract vocab string per literal (R3.2 sole-source gate).
             reachable = self._rows(
-                ("qname", "depth", "file")
-                + (contract.NODE_FIELDS[0], contract.EDGE_FIELDS[5]),
+                ("qname", "depth", "file") + ("kind",) + ("line",),
                 "SELECT s.qname, s.depth, "
                 "COALESCE(("
                 "  SELECT nodes.file_path FROM nodes WHERE nodes.qualified_name = s.qname "
@@ -797,8 +829,7 @@ class GraphStore:
                 (max_nodes,),
             )
             unproven = self._rows(
-                ("qname", "confidence_tier", "file")
-                + (contract.NODE_FIELDS[0], contract.EDGE_FIELDS[5]),
+                ("qname",) + ("confidence_tier",) + ("file",) + ("kind",) + ("line",),
                 "SELECT u.qname, u.confidence_tier, "
                 "COALESCE(("
                 "  SELECT nodes.file_path FROM nodes WHERE nodes.qualified_name = u.qname "
@@ -816,33 +847,39 @@ class GraphStore:
                 "ORDER BY u.qname ASC LIMIT ?",
                 (max_nodes,),
             )
-            unproven_total = int(
-                conn.execute("SELECT COUNT(*) FROM temp.reach_unproven").fetchone()[0]
+            return ReachabilityResult(
+                reachable, unproven, skipped, truncated, depth_exhausted
             )
-            truncated = truncated or unproven_total > max_nodes
-            return ReachabilityResult(reachable, unproven, skipped, truncated)
         finally:
-            self._reach_drop_temps()
+            if not retain_temps:
+                self._reach_drop_temps()
 
     def find_orphans(
-        self, seeds: Sequence[str], *, depth: int, max_nodes: int
+        self, seeds: Sequence[str], *, depth: int | None, max_nodes: int
     ) -> OrphanResult:
         """Orphans = indexed nodes outside reachable∪unproven∪seeds, with why (task 031)."""
-        reach = self.reachable_from(seeds, depth=depth, max_nodes=max_nodes)
-        seed_set = set(dict.fromkeys(q for q in seeds if q))
-        excluded = seed_set | {str(r["qname"]) for r in reach.reachable} | {
-            str(r["qname"]) for r in reach.unproven
-        }
-
+        reach = self.reachable_from(
+            seeds, depth=depth, max_nodes=max_nodes, retain_temps=True
+        )
         conn = self._conn
         conn.execute("DROP TABLE IF EXISTS temp.reach_excluded")
         try:
             conn.execute("CREATE TEMP TABLE reach_excluded (qname TEXT PRIMARY KEY)")
-            if excluded:
-                conn.executemany(
-                    "INSERT INTO temp.reach_excluded (qname) VALUES (?)",
-                    [(q,) for q in sorted(excluded)],
-                )
+            # Full temp sets — not the LIMITed row lists — so overflow unproven stay excluded.
+            conn.execute(
+                "INSERT OR IGNORE INTO temp.reach_excluded (qname) "
+                "SELECT qname FROM temp.reach_seen"
+            )
+            conn.execute(
+                "INSERT OR IGNORE INTO temp.reach_excluded (qname) "
+                "SELECT qname FROM temp.reach_unproven"
+            )
+            for qname in seeds:
+                if qname:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO temp.reach_excluded (qname) VALUES (?)",
+                        (qname,),
+                    )
             kind_placeholders = ", ".join("?" for _ in contract.IMPACT_KINDS)
             sql = (
                 "SELECT n.qualified_name AS qname, n.kind, n.file_path AS file, "
@@ -858,7 +895,7 @@ class GraphStore:
                 "LIMIT ?"
             )
             rows = self._rows(
-                ("qname", contract.NODE_FIELDS[0], "file", "line_start", "why"),
+                ("qname", "kind") + ("file", "line_start", "why"),
                 sql,
                 (*contract.IMPACT_KINDS, max_nodes),
             )
@@ -875,13 +912,16 @@ class GraphStore:
                     "file": row["file"],
                     "why": row["why"],
                 }
-                item[contract.NODE_FIELDS[0]] = row[contract.NODE_FIELDS[0]]
-                item[contract.EDGE_FIELDS[5]] = row["line_start"]
+                item["kind"] = row["kind"]
+                item["line"] = row["line_start"]
                 orphans.append(item)
             truncated = reach.truncated or orphan_total > max_nodes
-            return OrphanResult(orphans, reach.unproven, truncated)
+            return OrphanResult(
+                orphans, reach.unproven, truncated, reach.depth_exhausted
+            )
         finally:
             conn.execute("DROP TABLE IF EXISTS temp.reach_excluded")
+            self._reach_drop_temps()
 
     def _reach_drop_temps(self) -> None:
         for name in (
@@ -890,6 +930,7 @@ class GraphStore:
             "reach_kinds",
             "reach_unproven",
             "reach_next",
+            "reach_before",
         ):
             self._conn.execute(f"DROP TABLE IF EXISTS temp.{name}")
 

@@ -95,14 +95,24 @@ def _compile(line: str) -> _Rule | None:
     return _Rule(re.compile(prefix + _translate(pattern)), negated, dir_only)
 
 
-def _translate(pattern: str) -> str:
-    """Glob to regex: ``**`` crosses directories, ``*``/``?``/``[seq]`` stay inside one segment."""
+def translate_path_pattern(pattern: str) -> str:
+    """Glob→regex: ``*``/``?`` stay in-segment; ``/**/`` is zero-or-more dirs (gitignore)."""
     out: list[str] = []
     index = 0
     while (found := _MAGIC.search(pattern, index)) is not None:
         out.append(re.escape(pattern[index : found.start()]))
         token = found.group()
         if token == "**":
+            after = found.end()
+            before_slash = found.start() > 0 and pattern[found.start() - 1] == "/"
+            after_slash = after < len(pattern) and pattern[after] == "/"
+            if before_slash and after_slash:
+                # Drop the slash already escaped into out; consume the slash after **.
+                if out and out[-1].endswith("/"):
+                    out[-1] = out[-1][:-1]
+                out.append("(?:/|/.*/)")
+                index = after + 1
+                continue
             out.append(".*")
         elif token == "*":
             out.append("[^/]*")
@@ -114,6 +124,11 @@ def _translate(pattern: str) -> str:
         index = found.end()
     out.append(re.escape(pattern[index:]))
     return "".join(out)
+
+
+def _translate(pattern: str) -> str:
+    """Backward-compatible alias for :func:`translate_path_pattern`."""
+    return translate_path_pattern(pattern)
 
 
 def _append_class(out: list[str], pattern: str, start: int) -> int:

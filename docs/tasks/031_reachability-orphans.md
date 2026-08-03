@@ -336,6 +336,22 @@ Invocation: `.venv/bin/python -m pytest tests/test_reachability.py -q`
 
 **Gate 4:** clean after fixes (standing approval).
 
+### PR #34 human review (follow-up)
+
+**Verdict at review:** CHANGES REQUESTED (cuongdinhngo) — seven findings on `1dda064`.
+
+| # | Sev | Issue | Fix |
+|---|-----|--------|-----|
+| 1 | high | Default `depth=CA_IMPACT_DEPTH` falsely orphans deep code | Default `depth=None` (closure); `depth_exhausted`/`truncated` when hop cap leaves frontier |
+| 2 | high | CALLS→method leaves declaring class orphan | Post-walk keep containers via `contract.split_qname` |
+| 3 | med | `fnmatch` `*` crosses `/` | `ignore.translate_path_pattern`; `/**/` = zero-or-more dirs |
+| 4 | med-low | `frontier_skipped_non_resolved` double-counts | Distinct count = `reach_unproven` size |
+| 5 | med-low | `NODE_FIELDS[0]` / `EDGE_FIELDS[5]` fragile | Split key tuples (≤1 vocab string per literal, R3.2) |
+| 6 | low | Exclusion from LIMITed unproven → overflow orphans | `retain_temps` + exclude full `reach_seen`/`reach_unproven` |
+| 7 | nit | Private `_no_roots` + duplicated payloads | `tools/reach_shared.py` |
+
+**Also:** frontier only queues *newly admitted* nodes so EXTENDS↔CALLS cycles cannot spin under `depth=None`.
+
 ---
 
 ## Phase 5 — Finalise
