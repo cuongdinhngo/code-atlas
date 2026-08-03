@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from code_atlas.config import load_config
@@ -114,14 +113,21 @@ def test_minimal_payload_stays_byte_identical_to_the_pre_health_shape(tmp_path: 
     standard = tool(detail_level="standard")
 
     assert set(minimal) == _MINIMAL_KEYS
+    assert minimal == {
+        "indexed": True,
+        "files": 2,
+        "parsed": 1,
+        "failed": 1,
+        "nodes": 2,
+        "edges": 4,
+        "last_commit": None,
+        "staleness": "unknown",
+        "next_tool_suggestions": [],
+    }
     assert "edge_health" not in minimal and "parse_failures" not in minimal
     assert "edge_health" in standard and "parse_failures" in standard
     for key, value in minimal.items():
         assert standard[key] == value
-    # Stable serialization: no new keys sneak into the cheap payload.
-    assert json.dumps(minimal, sort_keys=True) == json.dumps(
-        {key: minimal[key] for key in sorted(minimal)}, sort_keys=True
-    )
 
 
 def test_unbuilt_standard_still_opens_no_database(tmp_path: Path) -> None:

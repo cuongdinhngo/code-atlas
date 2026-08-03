@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS edges (
   file_path TEXT, line INT, confidence_tier TEXT DEFAULT 'RESOLVED');
 CREATE INDEX IF NOT EXISTS idx_edges_src ON edges(source_qname, kind);
 CREATE INDEX IF NOT EXISTS idx_edges_tgt ON edges(target_qname, kind);
+CREATE INDEX IF NOT EXISTS idx_edges_tier ON edges(confidence_tier);
 
 CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(
   name, qualified_name, file_path, params,
@@ -278,22 +279,24 @@ class GraphStore:
         """Tier mix and link-resolution split for ``get_index_status`` (R4; SQL only).
 
         ``by_tier`` always includes every ``CONFIDENCE_TIERS`` key (missing tiers are 0).
-        ``resolved`` / ``unresolved`` count ``target_qname`` presence — distinct from DYNAMIC.
+        NULL or unknown tiers fold into RESOLVED (same as other §8.2 readers), so
+        ``sum(by_tier.values()) == counts()["edges"]``. ``resolved`` / ``unresolved`` count
+        ``target_qname`` presence — distinct from DYNAMIC.
         """
-        by_tier = {tier: 0 for tier in CONFIDENCE_TIERS}
+        by_tier = dict.fromkeys(CONFIDENCE_TIERS, 0)
         for tier, count in self._conn.execute(
             "SELECT confidence_tier, COUNT(*) FROM edges GROUP BY confidence_tier"
         ):
-            if tier in by_tier:
-                by_tier[str(tier)] = int(count)
-        linked, dangling = self._conn.execute(
-            "SELECT (SELECT COUNT(*) FROM edges WHERE target_qname IS NOT NULL),"
-            " (SELECT COUNT(*) FROM edges WHERE target_qname IS NULL)"
+            # NULL / unknown reads as RESOLVED, as §8.2 readers already do; keeps the sum == edges.
+            by_tier[str(tier) if tier in by_tier else _RESOLVED] += int(count)
+        (linked,) = self._conn.execute(
+            "SELECT COUNT(*) FROM edges WHERE target_qname IS NOT NULL"
         ).fetchone()
+        total = sum(by_tier.values())
         return {
             "by_tier": by_tier,
             "resolved": int(linked),
-            "unresolved": int(dangling),
+            "unresolved": total - int(linked),
         }
 
     def nodes_by_name(self, name: str, *, kind: str | None = None, limit: int) -> list[Row]:

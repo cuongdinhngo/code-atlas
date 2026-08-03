@@ -297,6 +297,7 @@ CREATE TABLE edges (
   file_path TEXT, line INT, confidence_tier TEXT DEFAULT 'RESOLVED');
 CREATE INDEX idx_edges_src ON edges(source_qname, kind);
 CREATE INDEX idx_edges_tgt ON edges(target_qname, kind);
+CREATE INDEX idx_edges_tier ON edges(confidence_tier);
 CREATE VIRTUAL TABLE nodes_fts USING fts5(
   name, qualified_name, file_path, params,
   content='nodes', content_rowid='id', tokenize='trigram');

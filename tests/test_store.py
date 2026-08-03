@@ -33,6 +33,7 @@ INDEXES = (
     "idx_nodes_file",
     "idx_edges_src",
     "idx_edges_tgt",
+    "idx_edges_tier",
 )
 TRIGGERS = ("nodes_ai", "nodes_ad", "nodes_au")
 SCHEMA_OBJECTS = TABLES + INDEXES + TRIGGERS
@@ -127,9 +128,10 @@ def content(db_path: Path) -> tuple[list[tuple[object, ...]], ...]:
 # --- AC1a: the schema is the one PLAN §10 specifies -----------------------------------------------
 
 
-def test_plan_10_specifies_fourteen_schema_objects() -> None:
+def test_plan_10_specifies_fifteen_schema_objects() -> None:
     # Guards the denominator: a shrunken list would pass every per-object check while covering less.
-    assert len(SCHEMA_OBJECTS) + 1 == 14
+    # +1 is the WAL pragma; idx_edges_tier (task 028) brought the count from 14 to 15.
+    assert len(SCHEMA_OBJECTS) + 1 == 15
 
 
 @pytest.mark.parametrize("name", SCHEMA_OBJECTS)
@@ -700,4 +702,46 @@ def test_edge_health_counts_tiers_and_link_resolution(store: GraphStore) -> None
         "resolved": 2,
         "unresolved": 2,
     }
+    assert sum(store.edge_health()["by_tier"].values()) == store.counts()["edges"]  # type: ignore[arg-type]
 
+
+def test_edge_health_folds_null_and_unknown_tiers_into_resolved(store: GraphStore) -> None:
+    """NULL / unknown tiers must not vanish — sum(by_tier) stays equal to edges."""
+    path = "a.php"
+    store.upsert_file(path, "h", "php")
+    store.replace_file_rows(
+        path,
+        nodes_for(path),
+        [
+            an_edge(
+                "CALLS",
+                "\\App\\UserRepo::save",
+                "\\App\\Db::write",
+                path,
+                target_qname="\\App\\Db::write",
+                confidence_tier="RESOLVED",
+            ),
+            an_edge(
+                "CALLS",
+                "\\App\\UserRepo::save",
+                "gone",
+                path,
+                confidence_tier=None,
+            ),
+            an_edge(
+                "CALLS",
+                "\\App\\UserRepo::save",
+                "weird",
+                path,
+                confidence_tier="FUTURE_TIER",
+            ),
+        ],
+    )
+
+    health = store.edge_health()
+    assert health == {
+        "by_tier": {"RESOLVED": 3, "HEURISTIC": 0, "DYNAMIC": 0},
+        "resolved": 1,
+        "unresolved": 2,
+    }
+    assert sum(health["by_tier"].values()) == store.counts()["edges"]  # type: ignore[arg-type]

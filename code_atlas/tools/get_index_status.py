@@ -2,8 +2,9 @@
 
 ``minimal`` returns exactly the four parts §12 names: stats, ``last_commit``, staleness and
 ``next_tool_suggestions``. ``standard`` adds provenance plus index-health (``edge_health``,
-``parse_failures``). Nothing here opens the database when there is none: a read tool must not
-create an index as a side effect.
+``parse_failures``). ``parse_failures`` mirrors ``failed`` (files with ``parsed_ok = 0``) under
+the §12 name — same count, not a subset. Nothing here opens the database when there is none: a
+read tool must not create an index as a side effect.
 """
 
 from collections.abc import Callable, Sequence
