@@ -745,3 +745,56 @@ def test_edge_health_folds_null_and_unknown_tiers_into_resolved(store: GraphStor
         "unresolved": 2,
     }
     assert sum(health["by_tier"].values()) == store.counts()["edges"]  # type: ignore[arg-type]
+
+
+def test_count_edges_by_target_matches_listed_rows(store: GraphStore) -> None:
+    path = "a.php"
+    store.upsert_file(path, "h", "php")
+    store.replace_file_rows(
+        path,
+        nodes_for(path),
+        [
+            an_edge(
+                "CALLS",
+                "\\App\\UserRepo::save",
+                "\\App\\Db::write",
+                path,
+                target_qname="\\App\\Db::write",
+            ),
+            an_edge(
+                "CALLS",
+                "\\App\\UserRepo::find",
+                "\\App\\Db::write",
+                path,
+                target_qname="\\App\\Db::write",
+            ),
+            an_edge(
+                "EXTENDS",
+                "\\App\\UserRepo",
+                "\\Base",
+                path,
+                target_qname="\\Base",
+            ),
+        ],
+    )
+    assert store.count_edges_by_target("\\App\\Db::write") == 2
+    assert store.count_edges_by_target("\\App\\Db::write", kinds=("CALLS",)) == 2
+    assert store.count_edges_by_target("\\Base", kinds=("EXTENDS",)) == 1
+    assert store.count_edges_by_target("\\missing") == 0
+
+
+def test_count_search_nodes_matches_search_hits(store: GraphStore) -> None:
+    path = "a.php"
+    store.upsert_file(path, "h", "php")
+    store.replace_file_rows(
+        path,
+        [
+            a_node("Function", "Alpha0", "\\Alpha0", path),
+            a_node("Function", "Alpha1", "\\Alpha1", path),
+            a_node("Function", "Other", "\\Other", path),
+        ],
+        [],
+    )
+    assert store.count_search_nodes("Alpha") == len(store.search_nodes("Alpha", limit=50))
+    assert store.count_search_nodes("Alpha") == 2
+    assert store.count_search_nodes("ZzNope") == 0

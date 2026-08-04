@@ -3,12 +3,34 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Literal
 
 from code_atlas.contract import CONFIDENCE_TIERS
 from code_atlas.store import Row
 
 _RESOLVED = CONFIDENCE_TIERS[0]
+
+REASON_OK = "ok"
+REASON_NO_MATCHES = "no_matches"
+REASON_NO_SUCH_SYMBOL = "no_such_symbol"
+REASON_NOT_INDEXED = "not_indexed"
+REASON_INDEX_STALE = "index_stale"  # vocabulary for 035; not emitted by 033
+
+NAV_REASONS = (
+    REASON_OK,
+    REASON_NO_MATCHES,
+    REASON_NO_SUCH_SYMBOL,
+    REASON_NOT_INDEXED,
+    REASON_INDEX_STALE,
+)
+
+NavReason = Literal[
+    "ok",
+    "no_matches",
+    "no_such_symbol",
+    "not_indexed",
+    "index_stale",
+]
 
 
 def edge_id(edge: Mapping[str, Any] | Row) -> int:
@@ -43,7 +65,13 @@ def edge_hit(
 
 
 def empty_nav(
-    subject: str, *, detail_level: str, db_path: str, subject_key: str = "qname"
+    subject: str,
+    *,
+    detail_level: str,
+    db_path: str,
+    subject_key: str = "qname",
+    reason: str = REASON_NOT_INDEXED,
+    total_count: int = 0,
 ) -> dict[str, object]:
     """No database yet — read tools must not create one."""
     result: dict[str, object] = {
@@ -51,6 +79,8 @@ def empty_nav(
         subject_key: subject,
         "results": [],
         "truncated": False,
+        "reason": reason,
+        "total_count": total_count,
     }
     if detail_level == "standard":
         result["db_path"] = db_path
@@ -64,6 +94,8 @@ def nav_result(
     detail_level: str,
     db_path: str,
     truncated: bool,
+    reason: str = REASON_OK,
+    total_count: int | None = None,
     subject_key: str = "qname",
     **extra: object,
 ) -> dict[str, object]:
@@ -72,8 +104,42 @@ def nav_result(
         subject_key: subject,
         "results": results,
         "truncated": truncated,
+        "reason": reason,
+        "total_count": len(results) if total_count is None else total_count,
         **extra,
     }
     if detail_level == "standard":
         payload["db_path"] = db_path
     return payload
+
+
+def list_result(
+    results: list[dict[str, object]],
+    *,
+    detail_level: str,
+    db_path: str,
+    truncated: bool,
+    reason: str,
+    total_count: int,
+    indexed: bool = True,
+) -> dict[str, object]:
+    """Search-style payload — same reason/total_count fields, no subject key."""
+    payload: dict[str, object] = {
+        "indexed": indexed,
+        "results": results,
+        "truncated": truncated,
+        "reason": reason,
+        "total_count": total_count,
+    }
+    if detail_level == "standard":
+        payload["db_path"] = db_path
+    return payload
+
+
+def relation_reason(*, symbol_exists: bool, hit_count: int) -> str:
+    """Classify find_* emptiness: missing symbol vs present-but-empty vs hits."""
+    if not symbol_exists:
+        return REASON_NO_SUCH_SYMBOL
+    if hit_count == 0:
+        return REASON_NO_MATCHES
+    return REASON_OK

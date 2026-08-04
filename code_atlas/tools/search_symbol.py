@@ -7,6 +7,12 @@ from typing import Literal
 
 from code_atlas.config import Config
 from code_atlas.store import GraphStore, Row
+from code_atlas.tools.nav_result import (
+    REASON_NO_MATCHES,
+    REASON_NOT_INDEXED,
+    REASON_OK,
+    list_result,
+)
 
 NAME = "search_symbol"
 
@@ -28,20 +34,38 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         Returns ``{qname, kind, file, line}`` rows, capped by ``limit`` or ``CA_MAX_RESULTS``.
         Trigram cannot match terms under three characters; those use a name/qname prefix scan.
         """
+        db_path = str(config.db_path)
         if not config.db_path.is_file():
-            return _empty(detail_level=detail_level, db_path=str(config.db_path))
+            return list_result(
+                [],
+                detail_level=detail_level,
+                db_path=db_path,
+                truncated=False,
+                reason=REASON_NOT_INDEXED,
+                total_count=0,
+                indexed=False,
+            )
         cap = config.max_results if limit is None else min(limit, config.max_results)
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
         with GraphStore(config.db_path) as store:
             rows = store.search_nodes(query, kind=kind, namespace=namespace, limit=cap + 1)
-        truncated = len(rows) > cap
-        results = [_hit(row) for row in rows[:cap]]
-        return _result(
+            truncated = len(rows) > cap
+            results = [_hit(row) for row in rows[:cap]]
+            if truncated:
+                total_count = store.count_search_nodes(
+                    query, kind=kind, namespace=namespace
+                )
+            else:
+                total_count = len(results)
+        reason = REASON_OK if results else REASON_NO_MATCHES
+        return list_result(
             results,
             detail_level=detail_level,
-            db_path=str(config.db_path),
+            db_path=db_path,
             truncated=truncated,
+            reason=reason,
+            total_count=total_count,
         )
 
     return search_symbol
@@ -54,27 +78,3 @@ def _hit(row: Mapping[str, object] | Row) -> dict[str, object]:
     hit["file"] = row["file_path"]
     hit["line"] = row["line_start"]
     return hit
-
-
-def _empty(*, detail_level: str, db_path: str) -> dict[str, object]:
-    payload: dict[str, object] = {"indexed": False, "results": [], "truncated": False}
-    if detail_level == "standard":
-        payload["db_path"] = db_path
-    return payload
-
-
-def _result(
-    results: list[dict[str, object]],
-    *,
-    detail_level: str,
-    db_path: str,
-    truncated: bool,
-) -> dict[str, object]:
-    payload: dict[str, object] = {
-        "indexed": True,
-        "results": results,
-        "truncated": truncated,
-    }
-    if detail_level == "standard":
-        payload["db_path"] = db_path
-    return payload

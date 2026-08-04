@@ -233,7 +233,14 @@ def test_missing_database_does_not_create_one(tmp_path: Path) -> None:
     config = load_config(tmp_path, {})
     assert not config.db_path.is_file()
     result = find_callers.create(config)("\\X", detail_level="minimal")
-    assert result == {"indexed": False, "qname": "\\X", "results": [], "truncated": False}
+    assert result == {
+        "indexed": False,
+        "qname": "\\X",
+        "results": [],
+        "truncated": False,
+        "reason": "not_indexed",
+        "total_count": 0,
+    }
     assert not config.db_path.is_file()
 
 
@@ -266,6 +273,8 @@ def test_nav_results_flag_truncation(tmp_path: Path, store: GraphStore) -> None:
     result = find_callers.create(config)("\\t", detail_level="minimal")
     assert len(result["results"]) == 2
     assert result["truncated"] is True
+    assert result["total_count"] == 5
+    assert result["reason"] == "ok"
 
 
 def test_depth_below_one_fails_loud(tmp_path: Path) -> None:

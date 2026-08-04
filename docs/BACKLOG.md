@@ -45,7 +45,7 @@ up). Source: [`FEEDBACK.md`](FEEDBACK.md).
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
 | 032 | Resolve license (`LICENSE` + README) | Adoption | done | — |
-| 033 | Reason codes + `total_count` on `find_*`/`search` (empty ≠ unknown) | Agent-trust | todo | 013, 014 |
+| 033 | Reason codes + `total_count` on `find_*`/`search` (empty ≠ unknown) | Agent-trust | in-progress | 013, 014 |
 | 034 | Tokens-to-answer benchmark harness (vs grep+`Read`) | Measure | done | 014, 018 |
 | 035 | Read-through freshness — inline reparse on hash drift | Freshness | todo | 009, 011 |
 | 036 | Claude Code Edit/Write index-poke hook | Distribution | todo | 016, 035 |
