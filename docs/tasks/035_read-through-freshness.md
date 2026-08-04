@@ -292,13 +292,14 @@ Planted-store paths without on-disk bytes must not trigger adapter spawn; tool-s
 
 ## Phase 5 — Finalise
 - Status → done; BACKLOG + token row; lesson in LESSONS.md
-- Outward: push branch + open PR (user-approved 2026-08-04)
+- Outward: push branch + open PR (user-approved 2026-08-04) → [#41](https://github.com/cuongdinhngo/code-atlas/pull/41)
 
 ## Session status
 
 - **Ticket:** 035
 - **work_doc_mode:** embed
 - **working-doc path:** `docs/tasks/035_read-through-freshness.md`
-- **Current phase:** finalise — outward push + PR
+- **Current phase:** finalise complete
 - **Blocked on:** —
-- **Next action:** push + `gh pr create`
+- **Next action:** —
+- **PR:** [#41](https://github.com/cuongdinhngo/code-atlas/pull/41)
