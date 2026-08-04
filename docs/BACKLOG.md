@@ -44,7 +44,7 @@ up). Source: [`FEEDBACK.md`](FEEDBACK.md).
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
-| 032 | Resolve license (`LICENSE` + README) | Adoption | todo | — |
+| 032 | Resolve license (`LICENSE` + README) | Adoption | done | — |
 | 033 | Reason codes + `total_count` on `find_*`/`search` (empty ≠ unknown) | Agent-trust | todo | 013, 014 |
 | 034 | Tokens-to-answer benchmark harness (vs grep+`Read`) | Measure | todo | 014, 018 |
 | 035 | Read-through freshness — inline reparse on hash drift | Freshness | todo | 009, 011 |
@@ -115,6 +115,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 029 | PHP adapter — $this/self/static/parent receiver resolution | **5 dispatch** — refine exposure-checker + review `mango:reviewer` (×2) + `mango:challenger` (×2); all token cells **`unmeasured (host does not surface usage)`**. Phases 1–3 dispatched **nothing** on the main model. **Main-loop spend is unmeasured**, as for 004–028 | [#32](https://github.com/cuongdinhngo/code-atlas/pull/32) |
 | 030 | Alias & literal-indirection edges (contract v2) | **5 dispatch** — refine exposure-checker + review `mango:reviewer` (×2) + `mango:challenger` (×2); all token cells **`unmeasured (host does not surface usage)`**. Phases 1–3 dispatched **nothing** on the main model. **Main-loop spend is unmeasured**, as for 004–029 | [#33](https://github.com/cuongdinhngo/code-atlas/pull/33) |
 | 031 | Reachability / orphan detection | **3 dispatch** — refine exposure-checker + review `mango:reviewer` + `mango:challenger`; all token cells **`unmeasured (host does not surface usage)`**. Phases 1–3 dispatched **nothing** on the main model. **Main-loop spend is unmeasured**, as for 004–030 | [#34](https://github.com/cuongdinhngo/code-atlas/pull/34) |
+| 032 | Resolve license (`LICENSE` + README) | **0 dispatch** — no subagent ran; direct license/metadata change on the main model. Main-loop spend unmeasured (host does not surface per-task usage), as for 024 | [#36](https://github.com/cuongdinhngo/code-atlas/pull/36) |
 
 ## Follow-ups (not yet ticketed)
 
