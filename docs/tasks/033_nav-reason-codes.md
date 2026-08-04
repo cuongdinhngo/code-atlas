@@ -337,5 +337,5 @@ Ticket Scope enum members that 035 will emit must be listed in 033 without AC pr
 - **working-doc path:** `docs/tasks/033_nav-reason-codes.md`
 - **Current phase:** finalise — push + PR
 - **Blocked on:** none
-- **Reviewed at:** *(set after bookkeeping commit)*
+- **Reviewed at:** `ff55feff067b8b09b58841b73b6733ff2879b20c` · reviewed files: nav_result, store, find_callers, find_references, find_implementations, search_symbol, test_nav_reason_codes, test_nav_tools, test_store, PLAN, BACKLOG, LESSONS, task doc
 - **Next action:** push + `gh pr create`
