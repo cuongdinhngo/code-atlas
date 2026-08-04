@@ -4,7 +4,7 @@ slug: typescript-adapter
 title: TypeScript/JavaScript adapter + contract v2 (M7)
 phase: 2
 milestone: M7
-status: todo
+status: deferred
 depends_on: [012, 011]
 ---
 

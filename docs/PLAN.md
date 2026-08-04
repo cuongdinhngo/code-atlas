@@ -22,14 +22,15 @@ These are in tension if mishandled — see the design principles (§2). The rule
 
 ### Goals
 - Replace "grep + read whole file" with **symbol-level, name-resolved** queries.
+- **Primary consumer is an AI coding agent in a terminal**, not a human in an IDE — so optimize for *tokens-to-correct-answer against a grep+`Read` baseline*, and for **machine-trustable responses**: calibrated confidence tiers, honest empties/truncation, enforced freshness (§19 agent-first pivot, 2026-08-04).
 - **Work on ANY repo of a supported language.** Adapters implement the **language standard** (full grammar + the language's standards/PSRs), never a specific repo's conventions. Specific repos are *validation samples*, not design inputs (see §2 "Standard over sample" and §6).
 - **One core, many languages**: each language uses its *best* parser (PHP→nikic, TS/JS→TypeScript Compiler API, Python→`ast`+jedi, C#→Roslyn), all speaking one JSON contract. Roll-out order: **PHP → TypeScript/JavaScript → Python → C#/.NET** (§3).
 - Complement Serena, not duplicate it (§13).
 - Deterministic, offline, token-efficient. LLM used only in the onboarding layer (§14), never in the core.
 
 ### Non-goals (core, v1)
-- No rename/refactor/edit (Serena's LSP does this better).
-- No type inference in the core (adapters may supply it where free, e.g. Roslyn).
+- No rename/refactor/edit — **permanently ceded to the agent's native `Edit`/`Write`** (the consumer is an agent, not an IDE; §19). code-atlas returns exact symbol line ranges those edits act on; it never mutates code.
+- No type inference **in the core** (adapters may supply it where free — e.g. Roslyn's semantic model, and a planned PHP local type table / opt-in PHPStan `semantic_types`; §19).
 - **Framework-magic resolution** (facades, DI containers, ORM/Eloquent dynamics, magic `__call`) is a **planned optional enrichment layer** — an OCP extension point on top of the standard-language graph, **out of core v1**. It is decoupled from any specific repo, not omitted because one sample lacks it.
 - No cloud LLM calls in the core.
 
@@ -456,7 +457,7 @@ New surface (separate from indexing): `generate_onboarding`, `architecture_overv
 
 ## 18. Open questions for review
 1. **PHP runtime**: OK to install a host PHP 8.5 CLI (tokenizer only) for indexing, or Docker-only?
-2. **Language order — DECIDED**: PHP → TypeScript/JavaScript → Python → C#/.NET (§3). (Was "C# second"; changed to TS/JS for reach + best contract-hardening.)
+2. **Language order — DECIDED**: PHP → TypeScript/JavaScript → Python → C#/.NET (§3). (Was "C# second"; changed to TS/JS for reach + best contract-hardening.) **Timing revised 2026-08-04 (§19 pivot):** the *order* stands, but TS/JS (019) and Python/C# (020/021) are **deferred** until the PHP agent-loop is complete — depth before breadth.
 3. **Validation repos** — **DECIDED for PHP (task 018):** public pins in
    `scripts/cross_repo_samples.json` (`laravel/laravel`, `symfony/demo`, `brick/math`) + operator-local
    large monorepo via `CODE_ATLAS_SCALE_SAMPLE`. TS/JS samples still open at M7.
@@ -473,14 +474,24 @@ New surface (separate from indexing): `generate_onboarding`, `architecture_overv
 
 **Decisions locked so far:**
 - **Architecture** — language-agnostic core + per-language adapters, each using the language's best parser, joined by one frozen/versioned JSON contract (§4). Engine lineage: code-review-graph.
-- **Language order** (§3) — **PHP → TypeScript/JavaScript → Python → C#/.NET.** PHP first (large stress sample). TS/JS second: most popular (BE+FE) *and* the best contract-hardener (module-scoped, project-context, no FQNs → §4.4). Python cheap third. C# last (Roslyn semantic model; confirms the contract).
+- **Language order** (§3) — **PHP → TypeScript/JavaScript → Python → C#/.NET.** PHP first (large stress sample). TS/JS second: most popular (BE+FE) *and* the best contract-hardener (module-scoped, project-context, no FQNs → §4.4). Python cheap third. C# last (Roslyn semantic model; confirms the contract). **Revised 2026-08-04:** order retained, but **deferred** behind PHP agent-depth — see the pivot below.
 - **SOLID at the boundaries + YAGNI** (§2) — one seam (the contract); PHP built end-to-end first; language #2 (TS/JS) hardens the abstraction. No registry/base-classes until adapter #2.
 - **Standard over sample** (§2) — adapters implement the language spec/PSRs only; sample repos drive test coverage & perf targets, never adapter semantics. CI grep-gate bans repo/framework names in adapter source.
 - **Priorities** (§0): make it work (PHP) → extend without touching core → onboarding feature.
 - **Onboarding** (§14) is Phase 2, a graph *consumer* that adds an LLM layer; the core stays deterministic.
 - **Serena coexistence** (§13) — code-atlas is the indexed search/impact layer; Serena stays for LSP nav/edit.
 
+**Decision — Agent-first PHP-depth pivot (adopted 2026-08-04; source: [`FEEDBACK.md`](FEEDBACK.md)).**
+The consumer is an **AI coding agent in a terminal**, so the incumbent to beat is `grep + Read + context window`, not an IDE. This reframes goals and roadmap:
+- **Metric.** Success is measured as **tokens-to-correct-answer vs a grep+`Read` baseline** on a fixed question set — not precision-vs-LSP. Build this harness before proving any accuracy change (task 034).
+- **Machine-trustable responses first.** Empty ≠ unknown: `find_*`/`search` must carry reason codes and `total_count`, generalizing the `get_index_status.next_tool_suggestions` instinct (033). Freshness is **enforced, not surfaced** — inline reparse on hash drift, plus a Claude Code Edit/Write hook (035, 036).
+- **Depth over breadth.** TS/JS (019) and Python/C# (020/021) are **deferred, not cancelled** — finish the PHP agent-loop first. Breadth before depth would leave us mediocre at both. **Human-ratified 2026-08-04:** PHP is the focus because the private **anchor-repo** monorepo is the anchor for **testing *and* evaluation** — the tokens-to-answer harness (034) and the accuracy work lean on it — so depth on PHP is measurable in a way breadth would not be.
+- **Editing permanently ceded** to the agent's native `Edit`/`Write` (§1). code-atlas serves exact line ranges; it never mutates code.
+- **Framework magic stays an enrichment layer** (§1 non-goal) — vendor stubs + indirection-as-data (039, 040), sequenced *below* the response-shape work: an agent can verify a shallow edge by reading one file, but cannot recover from an empty array it misread as proof.
+- **Open risk (recorded, not resolved).** At the limit this resembles a language server, and a better PHP backend for Serena/phpactor might reach further. We still go depth-first — the founding complaint is that live LSP indexing of tens of thousands of files is too slow, and no backend fixes an architecture — but the objection is acknowledged, and the tokens-to-answer harness (034) is what keeps us honest about it.
+- **Cheap unblocker:** resolve the license (`README.md` "TBD" → a real `LICENSE`, task 032) — an unlicensed MCP server doesn't get installed.
+
 **Reference material** (same folder): `understand-anything-how-it-works.md`, `serena-how-it-works.md`, `code-review-graph-how-it-works.md`.
 
-**Primary validation sample:** a large plain-PHP 8.5 monorepo — PSR-4 `src/` + ~18k non-namespaced legacy + a ZF1 area, ~112k files, run via Docker (PHP not on host PATH). Used for scale/coverage testing only; no repo-specific behavior lives in the adapter.
+**Primary validation sample:** the private **anchor-repo** monorepo — a large plain-PHP 8.5 codebase, PSR-4 `src/` + ~18k non-namespaced legacy + a ZF1 area, ~112k files, run via Docker (PHP not on host PATH). Used for scale/coverage testing **and (from 2026-08-04) as the agent-first evaluation anchor** (task 034) — always test/metrics only; no repo-specific behavior lives in the adapter (R2, §2 "standard over sample").
 ```
