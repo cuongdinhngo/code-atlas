@@ -6,6 +6,7 @@ a missing linker, a wrong kind filter, or a silent DYNAMIC drop would fail.
 
 from __future__ import annotations
 
+import hashlib
 import shlex
 import shutil
 import subprocess
@@ -43,8 +44,16 @@ def db_config(tmp_path: Path) -> Config:
     return replace(load_config(tmp_path, {}), db_path=tmp_path / "graph.db")
 
 
-def seed_file(store: GraphStore, path: str, nodes: list[dict], edges: list[dict]) -> None:
-    store.upsert_file(path, "h", "lang")
+def seed_file(
+    store: GraphStore, path: str, nodes: list[dict], edges: list[dict], *, root: Path
+) -> None:
+    """Plant rows and matching on-disk bytes so FreshnessGuard does not treat the path as stale."""
+    target = root / path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    body = b"# planted\n"
+    target.write_bytes(body)
+    digest = hashlib.sha256(body).hexdigest()
+    store.upsert_file(path, digest, "lang")
     store.replace_file_rows(path, nodes, edges)
 
 
@@ -127,7 +136,7 @@ def test_find_callers_matches_resolve_fixture_baseline(tmp_path: Path, store: Gr
     assert deep["frontier_skipped_non_resolved"] >= 1
 
 
-def test_dynamic_edges_are_flagged_and_not_traversed(store: GraphStore) -> None:
+def test_dynamic_edges_are_flagged_and_not_traversed(tmp_path: Path, store: GraphStore) -> None:
     """AC2 / A3: DYNAMIC appears in results; the BFS does not walk through it."""
     seed_file(
         store,
@@ -142,6 +151,7 @@ def test_dynamic_edges_are_flagged_and_not_traversed(store: GraphStore) -> None:
             edge("CALLS", "\\entry", "mid", "a.x", target_qname="\\mid", tier="RESOLVED", line=2),
             edge("CALLS", "\\mid", "leaf", "a.x", target_qname="\\leaf", tier="DYNAMIC", line=3),
         ],
+        root=tmp_path,
     )
 
     direct = _callers(store, "\\leaf", hops=1, limit=50)
@@ -153,7 +163,7 @@ def test_dynamic_edges_are_flagged_and_not_traversed(store: GraphStore) -> None:
     assert deep.frontier_skipped_non_resolved == 1
 
 
-def test_heuristic_edges_are_not_traversed_at_depth(store: GraphStore) -> None:
+def test_heuristic_edges_are_not_traversed_at_depth(tmp_path: Path, store: GraphStore) -> None:
     seed_file(
         store,
         "a.x",
@@ -166,6 +176,7 @@ def test_heuristic_edges_are_not_traversed_at_depth(store: GraphStore) -> None:
             edge("CALLS", "\\a", "b", "a.x", target_qname="\\b", tier="RESOLVED"),
             edge("CALLS", "\\b", "c", "a.x", target_qname="\\c", tier="HEURISTIC"),
         ],
+        root=tmp_path,
     )
     # HEURISTIC b→c is returned; RESOLVED a→b is not reached because b is not enqueued.
     outcome = _callers(store, "\\c", hops=2, limit=50)
@@ -187,6 +198,7 @@ def test_find_implementations_are_direct_only(tmp_path: Path, store: GraphStore)
             edge("EXTENDS", "\\Child", "\\Base", "a.x", target_qname="\\Base"),
             edge("EXTENDS", "\\Grand", "\\Child", "a.x", target_qname="\\Child"),
         ],
+        root=tmp_path,
     )
     result = find_implementations.create(db_config(tmp_path))("\\Base", detail_level="minimal")
     assert [h["qname"] for h in result["results"]] == ["\\Child"]
@@ -208,6 +220,7 @@ def test_find_references_returns_seeded_linked_kinds(tmp_path: Path, store: Grap
             edge("CALLS", "\\f", "\\T", "a.x", target_qname="\\T", tier="HEURISTIC"),
             edge("NEW", "\\f", "\\T", "a.x", target_qname="\\T"),
         ],
+        root=tmp_path,
     )
     result = find_references.create(db_config(tmp_path))("\\T", detail_level="minimal")
     assert sorted(h["kind"] for h in result["results"]) == ["CALLS", "EXTENDS", "NEW"]
@@ -244,7 +257,7 @@ def test_missing_database_does_not_create_one(tmp_path: Path) -> None:
     assert not config.db_path.is_file()
 
 
-def test_exact_qname_does_not_expand_to_members(store: GraphStore) -> None:
+def test_exact_qname_does_not_expand_to_members(tmp_path: Path, store: GraphStore) -> None:
     seed_file(
         store,
         "a.x",
@@ -257,6 +270,7 @@ def test_exact_qname_does_not_expand_to_members(store: GraphStore) -> None:
             edge("CALLS", "\\f", "\\T::m", "a.x", target_qname="\\T::m"),
             edge("NEW", "\\f", "\\T", "a.x", target_qname="\\T"),
         ],
+        root=tmp_path,
     )
     assert [h["kind"] for h in _callers(store, "\\T", hops=1, limit=50).results] == ["NEW"]
     assert [h["qname"] for h in _callers(store, "\\T::m", hops=1, limit=50).results] == ["\\f"]
@@ -268,7 +282,7 @@ def test_nav_results_flag_truncation(tmp_path: Path, store: GraphStore) -> None:
     edges = [
         edge("CALLS", f"\\f{i}", "\\t", "a.x", target_qname="\\t") for i in range(5)
     ]
-    seed_file(store, "a.x", nodes, edges)
+    seed_file(store, "a.x", nodes, edges, root=tmp_path)
     config = replace(db_config(tmp_path), max_results=2)
     result = find_callers.create(config)("\\t", detail_level="minimal")
     assert len(result["results"]) == 2

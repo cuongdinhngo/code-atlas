@@ -152,8 +152,8 @@ def test_cap_overflow_yields_index_stale(tmp_path: Path) -> None:
     write(tmp_path, "src/b.aa", "class B { /* drift3 */ }\n")
     result = search_symbol.create(config)("Thing", detail_level="minimal")
     assert result["reason"] == REASON_INDEX_STALE
-    assert result["results"] == []
-    assert result["total_count"] == 0
+    assert result["total_count"] >= 1
+    assert result["results"]  # keep useful hits; do not empty on cap overflow
 
 
 def test_find_callers_repairs_subject_file(tmp_path: Path) -> None:
@@ -166,3 +166,23 @@ def test_find_callers_repairs_subject_file(tmp_path: Path) -> None:
     find_callers.create(config)("src/a.aa::Thing", detail_level="minimal")
     with GraphStore(config.db_path) as store:
         assert store.file_hash("src/a.aa") != old_hash
+
+
+def test_broken_adapter_degrades_to_index_stale(tmp_path: Path) -> None:
+    write(tmp_path, "src/a.aa", "class Thing {}\n")
+    config = config_for(tmp_path)
+    with GraphStore(config.db_path) as store:
+        full_build(config, store)
+    write(tmp_path, "src/a.aa", "class Thing { /* drift */ }\n")
+    # Boot fails: announce never arrives.
+    broken = load_config(
+        tmp_path,
+        {
+            **fake_env(),
+            "CA_DB_PATH": str(config.db_path),
+            "CA_FAKE_CMD": shlex.join([sys.executable, "-c", "raise SystemExit(2)"]),
+        },
+    )
+    result = read_symbol.create(broken)("src/a.aa::Thing", detail_level="minimal")
+    assert result["stale"] is True
+    assert result["reason"] == REASON_INDEX_STALE

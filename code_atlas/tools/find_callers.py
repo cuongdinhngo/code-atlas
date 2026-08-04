@@ -68,6 +68,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     total_count=0,
                     depth=depth,
                     frontier_skipped_non_resolved=0,
+                    subject_refreshed_only=True,
                 )
             outcome = _callers(store, qname, hops=depth, limit=limit)
             indexed = bool(store.nodes_by_qualified_name(qname, limit=1))
@@ -82,6 +83,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             total_count=outcome.total_count,
             depth=depth,
             frontier_skipped_non_resolved=outcome.frontier_skipped_non_resolved,
+            subject_refreshed_only=True,
         )
 
     return find_callers

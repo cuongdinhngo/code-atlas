@@ -24,13 +24,18 @@ class FreshnessGuard:
     cap: int = READ_THROUGH_CAP
     _used: int = field(default=0, init=False)
 
+    @property
+    def used(self) -> int:
+        """How many reparses this guard has spent (for gating post-repair re-queries)."""
+        return self._used
+
     def ensure(self, path: str) -> EnsureResult:
         """Return ``ok`` if current, ``repaired`` after a successful reparse, else ``stale``."""
         if not path:
             return "ok"
-        # Planted-store tests and missing paths have nothing to hash — trust the index.
+        # Missing on disk: cannot vouch for indexed rows (planted fixtures must write real bytes).
         if not (self.config.root / path).is_file():
-            return "ok"
+            return "stale"
         if file_is_current(self.store, self.config.root, path):
             return "ok"
         if self._used >= self.cap:

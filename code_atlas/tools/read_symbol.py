@@ -10,7 +10,7 @@ from typing import Literal
 from code_atlas.config import Config
 from code_atlas.store import GraphStore
 from code_atlas.tools.freshness import FreshnessGuard
-from code_atlas.tools.nav_result import REASON_INDEX_STALE
+from code_atlas.tools.nav_result import REASON_INDEX_STALE, REASON_OK
 
 NAME = "read_symbol"
 
@@ -27,8 +27,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     def read_symbol(qname: str, detail_level: DetailLevel = "standard") -> dict[str, object]:
         """Source for ``qname``: ``line_start…line_end`` plus contiguous comments above.
 
-        Never returns the whole file. On hash drift, reparses that one file inline (035); if the
-        per-call reparse budget is exhausted, returns ``stale: true`` and ``reason=index_stale``.
+        Never returns the whole file. On hash drift, reparses that one file inline (035). Returns
+        ``stale: true`` and ``reason=index_stale`` when the file is missing, no adapter owns it, or
+        repair fails (adapter/DB error).
         """
         if not config.db_path.is_file():
             return _empty(qname, detail_level=detail_level, db_path=str(config.db_path))
@@ -41,6 +42,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     detail_level=detail_level,
                     db_path=str(config.db_path),
                     found=False,
+                    reason=REASON_OK,
                 )
             guard = FreshnessGuard(config, store)
             rel = str(rows[0]["file_path"])
@@ -67,25 +69,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         detail_level=detail_level,
                         db_path=str(config.db_path),
                         found=False,
+                        reason=REASON_OK,
                     )
                 rel = str(rows[0]["file_path"])
             node = rows[0]
             path = config.root / rel
-            # Missing bytes: trust index for planted nav stores (FreshnessGuard), but never
-            # claim a live read_symbol answer when the source file is gone.
-            if not path.is_file():
-                return _result(
-                    qname,
-                    "",
-                    detail_level=detail_level,
-                    db_path=str(config.db_path),
-                    found=True,
-                    stale=True,
-                    reason=REASON_INDEX_STALE,
-                    file=rel,
-                    line_start=None,
-                    line_end=None,
-                )
             start_raw = node["line_start"]
             if not isinstance(start_raw, int):
                 raise TypeError(f"line_start must be int, got {type(start_raw).__name__}")
@@ -100,6 +88,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 db_path=str(config.db_path),
                 found=True,
                 stale=False,
+                reason=REASON_OK,
                 file=rel,
                 line_start=start,
                 line_end=end,

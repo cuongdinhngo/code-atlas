@@ -35,6 +35,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         Returns ``{qname, kind, file, line}`` rows, capped by ``limit`` or ``CA_MAX_RESULTS``.
         Trigram cannot match terms under three characters; those use a name/qname prefix scan.
+        On hash drift beyond the per-call reparse cap, returns hits with ``reason=index_stale``
+        and an honest ``total_count`` (never an empty proof of absence).
         """
         db_path = str(config.db_path)
         if not config.db_path.is_file():
@@ -54,17 +56,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             guard = FreshnessGuard(config, store)
             rows = store.search_nodes(query, kind=kind, namespace=namespace, limit=cap + 1)
             hit_paths = [str(row["file_path"]) for row in rows[:cap]]
-            if guard.ensure_paths(hit_paths) == "stale":
-                return list_result(
-                    [],
-                    detail_level=detail_level,
-                    db_path=db_path,
-                    truncated=False,
-                    reason=REASON_INDEX_STALE,
-                    total_count=0,
+            status = guard.ensure_paths(hit_paths)
+            # Re-query only when a repair may have changed FTS/rows.
+            if status == "repaired" or (status == "stale" and guard.used > 0):
+                rows = store.search_nodes(
+                    query, kind=kind, namespace=namespace, limit=cap + 1
                 )
-            # Re-query after any repair so FTS/rows reflect the new content.
-            rows = store.search_nodes(query, kind=kind, namespace=namespace, limit=cap + 1)
             truncated = len(rows) > cap
             results = [_hit(row) for row in rows[:cap]]
             if truncated:
@@ -73,7 +70,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 )
             else:
                 total_count = len(results)
-        reason = REASON_OK if results else REASON_NO_MATCHES
+        if status == "stale":
+            reason = REASON_INDEX_STALE
+        else:
+            reason = REASON_OK if results else REASON_NO_MATCHES
         return list_result(
             results,
             detail_level=detail_level,

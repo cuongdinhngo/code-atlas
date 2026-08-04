@@ -36,6 +36,7 @@ def test_find_callers_distinguishes_no_such_symbol_from_no_matches(
         "a.x",
         [node("Function", "lonely", "\\lonely", "a.x")],
         [],
+        root=tmp_path,
     )
     tool = find_callers.create(db_config(tmp_path))
     missing = tool("\\missing", detail_level="minimal")
@@ -74,7 +75,7 @@ def test_truncation_sets_total_count_above_limit(tmp_path: Path, store: GraphSto
     nodes = [node("Function", f"f{i}", f"\\f{i}", "a.x") for i in range(5)]
     nodes.append(node("Function", "t", "\\t", "a.x"))
     edges = [edge("CALLS", f"\\f{i}", "\\t", "a.x", target_qname="\\t") for i in range(5)]
-    seed_file(store, "a.x", nodes, edges)
+    seed_file(store, "a.x", nodes, edges, root=tmp_path)
     config = replace(db_config(tmp_path), max_results=2)
     result = find_callers.create(config)("\\t", detail_level="minimal")
     assert result["reason"] == REASON_OK
@@ -95,6 +96,7 @@ def test_full_result_total_count_equals_returned_length(
             node("Function", "t", "\\t", "a.x"),
         ],
         [edge("CALLS", "\\a", "\\t", "a.x", target_qname="\\t")],
+        root=tmp_path,
     )
     result = find_callers.create(db_config(tmp_path))("\\t", detail_level="minimal")
     assert result["reason"] == REASON_OK
@@ -110,6 +112,7 @@ def test_refs_and_impls_use_same_reason_vocabulary(
         "a.x",
         [node("Class", "Base", "\\Base", "a.x")],
         [],
+        root=tmp_path,
     )
     config = db_config(tmp_path)
     for factory in (find_references.create, find_implementations.create):
@@ -124,7 +127,7 @@ def test_search_symbol_reasons_and_total_count(tmp_path: Path, store: GraphStore
     nodes = [
         node("Function", f"Alpha{i}", f"\\Alpha{i}", "a.x") for i in range(4)
     ]
-    seed_file(store, "a.x", nodes, [])
+    seed_file(store, "a.x", nodes, [], root=tmp_path)
     config = replace(db_config(tmp_path), max_results=2)
     tool = search_symbol.create(config)
     hits = tool("Alpha", detail_level="minimal")
@@ -175,6 +178,7 @@ def test_edges_to_unindexed_target_are_not_swallowed_as_no_such_symbol(
                 target_qname="\\Vendor\\Log::info",
             ),
         ],
+        root=tmp_path,
     )
     config = db_config(tmp_path)
     refs = find_references.create(config)("\\Vendor\\BaseController", detail_level="minimal")

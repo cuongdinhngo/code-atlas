@@ -46,6 +46,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     truncated=False,
                     reason=REASON_INDEX_STALE,
                     total_count=0,
+                    subject_refreshed_only=True,
                 )
             total_count = store.count_edges_by_target(qname)
             indexed = bool(store.nodes_by_qualified_name(qname, limit=1))
@@ -58,6 +59,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     truncated=False,
                     reason=REASON_NO_SUCH_SYMBOL,
                     total_count=0,
+                    subject_refreshed_only=True,
                 )
             edges = store.edges_by_target(qname, limit=limit)
             results = [edge_hit(edge) for edge in edges]
@@ -70,6 +72,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             truncated=truncated,
             reason=relation_reason(hit_total=total_count, symbol_indexed=indexed),
             total_count=total_count,
+            subject_refreshed_only=True,
         )
 
     return find_references
