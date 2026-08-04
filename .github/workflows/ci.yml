@@ -14,6 +14,10 @@ jobs:
   test:
     name: lint · type · test (py${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    # Least privilege: read the code, plus write the one sticky tokens-to-answer PR comment.
+    permissions:
+      contents: read
+      pull-requests: write
     strategy:
       fail-fast: false
       matrix:
@@ -71,18 +75,37 @@ jobs:
         env:
           CA_PHP_CMD: php ${{ github.workspace }}/adapters/php/index.php --server
         run: |
-          set -o pipefail
           status=0
-          python scripts/tokens_to_answer.py --min-ratio 0.24 2>&1 \
-            | tee "${RUNNER_TEMP}/tokens-to-answer.txt" || status=$?
-          {
-            echo '### Tokens-to-answer (vs grep+`Read`)'
-            echo ''
-            echo '```json'
-            cat "${RUNNER_TEMP}/tokens-to-answer.txt"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          python scripts/tokens_to_answer.py --min-ratio 0.24 \
+            --markdown "${RUNNER_TEMP}/tokens-to-answer.md" --notice || status=$?
+          if [ -f "${RUNNER_TEMP}/tokens-to-answer.md" ]; then
+            cat "${RUNNER_TEMP}/tokens-to-answer.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
           exit $status
+
+      # Sticky: find this workflow's own comment by its marker and edit it, so a 20-push PR keeps
+      # one comment. A fork PR gets a read-only token, hence continue-on-error.
+      - name: Comment the ratio on the pull request
+        if: always() && matrix.python-version == '3.13' && github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BODY: ${{ runner.temp }}/tokens-to-answer.md
+          PR: ${{ github.event.number }}
+        run: |
+          [ -f "$BODY" ] || { echo "no report to comment"; exit 0; }
+          marker=$(python -c "import sys; sys.path.insert(0, 'scripts'); \
+            import tokens_to_answer as t; print(t.COMMENT_MARKER)")
+          jq -Rs '{body: .}' < "$BODY" > "${RUNNER_TEMP}/comment.json"
+          id=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate \
+            --jq "[.[] | select(.body | contains(\"${marker}\")) | .id] | first // empty")
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${id}" \
+              --input "${RUNNER_TEMP}/comment.json" --jq .html_url
+          else
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" \
+              --input "${RUNNER_TEMP}/comment.json" --jq .html_url
+          fi
 
       - name: Upload the tokens-to-answer report
         if: always() && matrix.python-version == '3.13'
