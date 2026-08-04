@@ -4,7 +4,7 @@ slug: read-through-freshness
 title: Read-through freshness — inline reparse on hash drift
 phase: 1.5
 milestone: Freshness
-status: in-progress
+status: done
 depends_on: [009, 011]
 ---
 
@@ -235,23 +235,46 @@ All rows → ✅ (evidence above).
 
 ## Phase 4 — Review
 
-**Reviewed at** `d321d68` (files: indexer, freshness, six tools, proving tests, module-count guards, BACKLOG/PLAN/task).
+**Reviewed at** `d321d68` (files: indexer, freshness, six tools, proving tests, module-count guards, BACKLOG/PLAN/task). Bookkeeping commit after marker is exempt from stale-review.
 
-### Reviewer
-- Round 1 (`7c489dd`): **CHANGES REQUESTED** — Important: deleted indexed file → `stale=False` under D2 ([reviewer](bcb7d9be-e438-422b-bb30-37af5c2050bf)).
-- Fix commit `d321d68`: `read_symbol` missing-file → `stale=True` + `index_stale` + proving test.
-- Round 2 verify-only: **LGTM** ([reviewer](efa8a034-19fc-4b5b-b3a6-de4e574fc892)).
+### Reviewer (`mango:reviewer` · round 1 · [bcb7d9be](bcb7d9be-e438-422b-bb30-37af5c2050bf))
+- **Verdict:** **CHANGES REQUESTED** (conditional LGTM once finding 1 lands)
+- **Scope:** diff ⊆ Gate-2 list; R1.1 / R1.4 / R4 / R6 / R7.2 OK
+- **Deviation adjudication:** D1 (`reparse_file` → bool) **accept**; D2 (missing on-disk → `"ok"`) **accept with compensating fix**
+- **Findings:**
+  | Sev | Finding | Path | Resolution |
+  |-----|---------|------|------------|
+  | Important | Indexed-but-deleted file reported `stale=False` with empty source | `freshness.py:32-33` + `read_symbol.py` | Fixed in `d321d68`: missing file → `stale=True` + `REASON_INDEX_STALE`; proving test `test_read_symbol_deleted_file_is_stale` |
+- **Nits (non-blocking):** soft assert on `"edited" in source` — tightened; find_refs/impls share ensure wiring without dedicated cases — accepted
 
-### Challenger (ticket-blind)
-- **8 met / 2 not met** on raw Goal “rows touching file X” for find_* edge files ([challenger](155c9442-6832-4857-97de-4cc1eadb13c7)).
-- **Adjudication:** Gate-2 Approach #4 ratified **subject-only** for find_*; edge-file refresh deferred (cap=1 would thrash). Not a BLOCK.
+### Reviewer (`mango:reviewer` · verify-only · [efa8a034](efa8a034-19fc-4b5b-b3a6-de4e574fc892))
+- **Verdict:** **LGTM** at tip `d321d68`
+- **Proof:** freshness suite 6/6; related read_symbol/nav slice green; no new Critical/Important
+- **Closed:** finding 1 fixed; D1/D2 and find_* subject-only left closed
+
+### Challenger (ticket-blind · [155c9442](155c9442-6832-4857-97de-4cc1eadb13c7))
+
+| # | Rebuilt requirement | Verdict | Adjudication |
+|---|---------------------|---------|--------------|
+| 1 | Shared query-time hash check + single-file reparse before shaping | **met** | — |
+| 2 | Mechanism shared across read/nav tools | **met** (six tools) | impact/reach/include out of W2 inventory |
+| 3 | Goal: refresh every file that returned rows touch | **not met** for find_* edge files | **Gate-2 Approach #4** — subject-only for find_*; edge refresh deferred under cap=1 |
+| 4 | Promote `read_symbol` report-stale → repair inline | **met** | — |
+| 5 | Per-call cap + stale reason (033) | **met** | — |
+| 6 | Determinism: reparse rows == full_build; proving test | **met** | — |
+| 7 | R1.1 / R1.4 | **met** | — |
+| 8 | Single-file only (no full rebuild) | **met** | `resolve_edges` after one write = incremental pattern |
+| 9 | AC edit→new content without rebuild | **met** (subject/hit tools); edge half tied to #3 | same adjudication as #3 |
+| 10 | AC untouched → no adapter call | **met** | — |
+| 11 | AC cap overflow → stale reason | **met** | — |
 
 ### Scope reconciliation
-- File axis: ⊆ list ✅
-- Behaviour axis: as-approved ✅ (D1/D2 accepted; deleted-file compensating fix landed)
+- File axis: ✅ approved list only (+ deleted-file fix inside `read_symbol` / proving tests)
+- Behaviour axis: ✅ Approach bullets as approved; D1/D2 accepted; challenger #3/#9 adjudicated against Gate-2 #4
+- Inventory N=6 tools: each calls `FreshnessGuard` ✅
 
-### Gate 4
-**cleared** — LGTM at `d321d68`.
+### Gate 4 status
+**clean** — reviewer LGTM at `d321d68`; challenger gaps adjudicated against ratified Approach #4.
 
 ## Cost ledger
 
@@ -262,14 +285,20 @@ All rows → ✅ (evidence above).
 | Phase 4 | mango:challenger | 1 | unmeasured (blocking retrieval) |
 | Phase 4 | mango:reviewer (verify) | 2 | unmeasured (blocking retrieval) |
 
+`LEDGER: 4 dispatch rows | all cells valued or marked unmeasured | complete`
+
 ### Durable lesson
 Planted-store paths without on-disk bytes must not trigger adapter spawn; tool-specific honesty (`read_symbol` stale on delete) compensates a shared guard short-circuit. See `docs/LESSONS.md` §035.
+
+## Phase 5 — Finalise
+- Status → done; BACKLOG + token row; lesson in LESSONS.md
+- Outward: push branch + open PR (user-approved 2026-08-04)
 
 ## Session status
 
 - **Ticket:** 035
 - **work_doc_mode:** embed
 - **working-doc path:** `docs/tasks/035_read-through-freshness.md`
-- **Current phase:** review clean → finalise
-- **Blocked on:** outward-action approvals (push / PR)
-- **Next action:** finalise dry-run
+- **Current phase:** finalise — outward push + PR
+- **Blocked on:** —
+- **Next action:** push + `gh pr create`
