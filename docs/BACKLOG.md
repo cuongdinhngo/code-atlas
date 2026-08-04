@@ -62,8 +62,9 @@ up). Source: [`FEEDBACK.md`](FEEDBACK.md).
 
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
 
-**Deferred, not cancelled.** Breadth waits until the PHP agent-loop (Phase 1.5) is complete — depth
-before breadth. The language *order* is unchanged (§18.2).
+**Deferred, not cancelled** (human-ratified 2026-08-04). Breadth waits until the PHP agent-loop
+(Phase 1.5) is complete — depth before breadth. PHP is the focus because the private **anchor-repo**
+monorepo is the anchor for testing and evaluation (§19). The language *order* is unchanged (§18.2).
 
 | # | Task | Milestone | Status | Depends on |
 |---|---|---|---|---|

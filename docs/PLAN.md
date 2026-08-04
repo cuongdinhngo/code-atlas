@@ -485,7 +485,7 @@ New surface (separate from indexing): `generate_onboarding`, `architecture_overv
 The consumer is an **AI coding agent in a terminal**, so the incumbent to beat is `grep + Read + context window`, not an IDE. This reframes goals and roadmap:
 - **Metric.** Success is measured as **tokens-to-correct-answer vs a grep+`Read` baseline** on a fixed question set — not precision-vs-LSP. Build this harness before proving any accuracy change (task 034).
 - **Machine-trustable responses first.** Empty ≠ unknown: `find_*`/`search` must carry reason codes and `total_count`, generalizing the `get_index_status.next_tool_suggestions` instinct (033). Freshness is **enforced, not surfaced** — inline reparse on hash drift, plus a Claude Code Edit/Write hook (035, 036).
-- **Depth over breadth.** TS/JS (019) and Python/C# (020/021) are **deferred, not cancelled** — finish the PHP agent-loop first. Breadth before depth would leave us mediocre at both.
+- **Depth over breadth.** TS/JS (019) and Python/C# (020/021) are **deferred, not cancelled** — finish the PHP agent-loop first. Breadth before depth would leave us mediocre at both. **Human-ratified 2026-08-04:** PHP is the focus because the private **anchor-repo** monorepo is the anchor for **testing *and* evaluation** — the tokens-to-answer harness (034) and the accuracy work lean on it — so depth on PHP is measurable in a way breadth would not be.
 - **Editing permanently ceded** to the agent's native `Edit`/`Write` (§1). code-atlas serves exact line ranges; it never mutates code.
 - **Framework magic stays an enrichment layer** (§1 non-goal) — vendor stubs + indirection-as-data (039, 040), sequenced *below* the response-shape work: an agent can verify a shallow edge by reading one file, but cannot recover from an empty array it misread as proof.
 - **Open risk (recorded, not resolved).** At the limit this resembles a language server, and a better PHP backend for Serena/phpactor might reach further. We still go depth-first — the founding complaint is that live LSP indexing of tens of thousands of files is too slow, and no backend fixes an architecture — but the objection is acknowledged, and the tokens-to-answer harness (034) is what keeps us honest about it.
@@ -493,5 +493,5 @@ The consumer is an **AI coding agent in a terminal**, so the incumbent to beat i
 
 **Reference material** (same folder): `understand-anything-how-it-works.md`, `serena-how-it-works.md`, `code-review-graph-how-it-works.md`.
 
-**Primary validation sample:** a large plain-PHP 8.5 monorepo — PSR-4 `src/` + ~18k non-namespaced legacy + a ZF1 area, ~112k files, run via Docker (PHP not on host PATH). Used for scale/coverage testing only; no repo-specific behavior lives in the adapter.
+**Primary validation sample:** the private **anchor-repo** monorepo — a large plain-PHP 8.5 codebase, PSR-4 `src/` + ~18k non-namespaced legacy + a ZF1 area, ~112k files, run via Docker (PHP not on host PATH). Used for scale/coverage testing **and (from 2026-08-04) as the agent-first evaluation anchor** (task 034) — always test/metrics only; no repo-specific behavior lives in the adapter (R2, §2 "standard over sample").
 ```
