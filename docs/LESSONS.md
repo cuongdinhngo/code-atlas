@@ -263,6 +263,12 @@ and behaviour tests are different tests**, and mutation is the cheap way to tell
 wrote — break the thing on a copy and see whether anything goes red. The same run also caught a related
 self-report: the task's own matrix claimed `busy_timeout` was asserted when nothing asserted it.
 
+## 036 — Distribution hooks that promise exit 0 must wrap config load too
+A Claude Code PostToolUse script documented as "always exits 0" still raised when
+`load_config` saw an unpaired `CA_HOST_ROOT`. Soft-fail only around `reparse_file` is not
+enough — wrap imports + config + reparse. Relative path containment must `resolve()` under
+the project root (``../`` escapes are not no-ops).
+
 ## 035 — Missing on-disk paths are stale; planted fixtures must write matching bytes
 `FreshnessGuard.ensure` returns `"stale"` when `(root/path).is_file()` is false so production
 never asserts `reason=ok` for a deleted indexed file. Planted-store nav tests therefore write real

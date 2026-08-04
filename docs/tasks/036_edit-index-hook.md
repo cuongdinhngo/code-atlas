@@ -4,7 +4,7 @@ slug: edit-index-hook
 title: Claude Code Edit/Write index-poke hook
 phase: 1.5
 milestone: Distribution
-status: in-progress
+status: done
 depends_on: [016, 035]
 ---
 
@@ -170,17 +170,47 @@ All Approach bullets implemented-as-approved.
 | C1 | no files under `code_atlas/` in diff |
 | Full suite | `670 passed in 27.13s` |
 
+## Phase 4 — Review
+
+**Reviewed at** `1525687`.
+
+### Reviewer (`mango:reviewer` · round 1 · [dc1ece47](dc1ece47-9ef7-4bb3-aec9-63a167576082))
+- **Verdict:** **CHANGES REQUESTED**
+- Finding 1: `_repo_relative` relative escape — fixed in `1525687`
+- Finding 2: `load_config` outside soft-fail — fixed in `1525687`
+
+### Reviewer (verify · [10a4989c](10a4989c-89e2-4df1-9297-040fe1eb0b06))
+- **Verdict:** **LGTM**
+
+### Challenger (ticket-blind · [bd56f6bd](bd56f6bd-307e-4de7-aff6-35754b6dbc09))
+- **8 met / 0 not met / 1 can't tell** (live Claude Code session) — accepted manual exclusion for AC7 e2e client wiring.
+
+### Gate 4
+**clean** — LGTM at `1525687`.
+
 ## Cost ledger
 
 | Phase | Dispatch | Round | Tokens |
 |-------|----------|-------|--------|
 | Phase 0 | exposure-checker | 1 | unmeasured (blocking retrieval) |
+| Phase 4 | mango:reviewer | 1 | unmeasured (blocking retrieval) |
+| Phase 4 | mango:challenger | 1 | unmeasured (blocking retrieval) |
+| Phase 4 | mango:reviewer (verify) | 2 | unmeasured (blocking retrieval) |
+
+`LEDGER: 4 dispatch rows | all cells valued or marked unmeasured | complete`
+
+### Durable lesson
+See `docs/LESSONS.md` §036.
+
+## Phase 5 — Finalise
+- Status → done; BACKLOG + token row; lesson in LESSONS.md
+- Outward: push + PR (await per-action approval)
 
 ## Session status
 
 - **Ticket:** 036
 - **work_doc_mode:** embed
 - **working-doc path:** `docs/tasks/036_edit-index-hook.md`
-- **Current phase:** execute complete → review
-- **Blocked on:** —
-- **Next action:** review
+- **Current phase:** finalise — outward approvals
+- **Blocked on:** push / PR approval
+- **Next action:** list outward actions
