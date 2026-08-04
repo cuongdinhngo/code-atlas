@@ -3,7 +3,7 @@
 Task tracker. One file per task in [`docs/tasks/`](tasks/) (`NNN_slug.md`). Source of truth for scope
 is [`PLAN.md`](PLAN.md).
 
-**Status legend:** `todo` · `in-progress` · `blocked` · `done`
+**Status legend:** `todo` · `in-progress` · `blocked` · `deferred` · `done`
 **Ship point:** task 014 (search/read/outline) = first daily-usable release.
 
 ## Phase 1 — Core + PHP (make it work)
@@ -36,14 +36,41 @@ is [`PLAN.md`](PLAN.md).
 | 030 | [Alias & literal-indirection edges](tasks/030_alias-indirection-edges.md) | M2 | done | 002, 011, 025 |
 | 031 | [Reachability / orphan detection](tasks/031_reachability-orphans.md) | M6 | done | 003, 011, 013 |
 
-## Phase 2 — More languages
+## Phase 1.5 — Agent-first PHP depth (active — §19 pivot, 2026-08-04)
+
+The current priority. Consumer = an AI agent in a terminal; baseline = grep+`Read`. Planned, **not
+yet ticketed** (no `tasks/NNN` files yet — each is scaffolded via the mango lifecycle when picked
+up). Source: [`FEEDBACK.md`](FEEDBACK.md).
+
+| # | Task | Theme | Status | Depends on |
+|---|---|---|---|---|
+| 032 | Resolve license (`LICENSE` + README) | Adoption | todo | — |
+| 033 | Reason codes + `total_count` on `find_*`/`search` (empty ≠ unknown) | Agent-trust | todo | 013, 014 |
+| 034 | Tokens-to-answer benchmark harness (vs grep+`Read`) | Measure | todo | 014, 018 |
+| 035 | Read-through freshness — inline reparse on hash drift | Freshness | todo | 009, 011 |
+| 036 | Claude Code Edit/Write index-poke hook | Distribution | todo | 016, 035 |
+| 037 | Compound nav responses (call-site line) + consolidation A/B | Agent-fit | todo | 013, 034 |
+| 038 | `explain_path(from, to)` control-flow path tool | Task-level | todo | 017, 031 |
+| 039 | Vendor stub index (declarations-only) | Framework | todo | 009, 011 |
+| 040 | Framework indirection as data (rules file outside `adapters/`) | Framework | todo | 039, 030 |
+| 041 | Legacy/framework hardening — encoding, `.blade.php` ignore, extra extensions | Robustness | todo | 009 |
+
+**Order:** 032 → 033 → 034 → (035, 036) → 037 → 038 → 039 → 040; 041 any time. **034 gates
+037/039/040** — it decides whether they earned their cost. **Editing tools are permanently out**
+(ceded to native `Edit`, §1/§19). Tool *consolidation* (`find_relations`) is held as an A/B behind
+034, not assumed.
+
+## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
+
+**Deferred, not cancelled.** Breadth waits until the PHP agent-loop (Phase 1.5) is complete — depth
+before breadth. The language *order* is unchanged (§18.2).
 
 | # | Task | Milestone | Status | Depends on |
 |---|---|---|---|---|
-| 019 | [TypeScript/JavaScript adapter + contract v2](tasks/019_typescript-adapter.md) | M7 | todo | 012, 011 |
-| 020 | [Python adapter](tasks/020_python-adapter.md) | M8 | todo | 019 |
-| 021 | [C#/.NET adapter](tasks/021_csharp-adapter.md) | M9 | todo | 019 |
-| 026 | [Inverse Docker path rebase (adapter #2)](tasks/026_docker-inverse-path-rebase.md) | M7 | todo | 008, 019 |
+| 019 | [TypeScript/JavaScript adapter + contract v2](tasks/019_typescript-adapter.md) | M7 | deferred | 012, 011 |
+| 020 | [Python adapter](tasks/020_python-adapter.md) | M8 | deferred | 019 |
+| 021 | [C#/.NET adapter](tasks/021_csharp-adapter.md) | M9 | deferred | 019 |
+| 026 | [Inverse Docker path rebase (adapter #2)](tasks/026_docker-inverse-path-rebase.md) | M7 | deferred | 008, 019 |
 
 ## Phase 3 — Onboarding
 
@@ -117,7 +144,8 @@ module under `code_atlas/tools/` — 011 and 014 no longer carry any server work
 adapter through `CA_<LANG>_CMD`, so 008 is now only the Docker path-mapping mode and blocks nothing
 on the path to 014. **025 (grammar coverage) is off the critical path** — it was split out of 007 so
 the protocol could unblock 008/009 first — and 012 (tests) waits on 025. 024 (CI) is independent and
-can land any time. Then 015–018 harden PHP, 019–021 add languages, 022–023 add onboarding.
+can land any time. Then 015–018 harden PHP. **The active track is now Phase 1.5 (032–041, agent-first
+PHP depth, §19); 019–021 language breadth and 022–023 onboarding are deferred behind it.**
 **027 sits between 015 and 018**: it changes the resolver read path the 018 scale baseline would
 otherwise measure, so it lands first.
 
