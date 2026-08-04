@@ -263,6 +263,14 @@ and behaviour tests are different tests**, and mutation is the cheap way to tell
 wrote — break the thing on a copy and see whether anything goes red. The same run also caught a related
 self-report: the task's own matrix claimed `busy_timeout` was asserted when nothing asserted it.
 
+## 035 — Shared freshness short-circuit for missing paths needs a per-tool honesty layer
+`FreshnessGuard.ensure` returns `"ok"` when `(root/path).is_file()` is false so planted-store nav
+fixtures (indexed rows, no bytes on disk) do not spawn adapters and hang the suite. That same
+short-circuit made `read_symbol` claim `stale=False` with empty source for a deleted indexed file.
+**Fix:** keep the shared skip for planted stores; have `read_symbol` alone refuse a live answer when
+the file is gone (`stale=True` + `index_stale`). Generalises: a guard optimised for fixture hermetics
+must not redefine product honesty for tools that slice real source.
+
 ## 004 — `git checkout -- <file>` restores the committed state, so it deletes uncommitted work
 While negative-controlling the R3.2 guard, a violating literal was appended to `code_atlas/store.py` and
 then reverted with `git checkout -- code_atlas/store.py`. The implementation was **not yet committed**, so

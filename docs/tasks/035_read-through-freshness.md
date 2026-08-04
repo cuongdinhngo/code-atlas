@@ -201,7 +201,7 @@ Invoke: `.venv/bin/pytest tests/test_read_through_freshness.py -q`
 
 **Branch:** `feat/035-read-through-freshness` (from main @ `6c8f4ff`)
 
-**Implemented:** change-list #1–11. Suite: `665 passed` (baseline 657 + 5 proving + module-count still green).
+**Implemented:** change-list #1–11 + review fix (deleted-file honesty). Suite tip: `666 passed`.
 
 ### Axis 1 — file set
 `diff ⊆ approved list ✅` (plus #11 companion for new `freshness.py` module).
@@ -224,24 +224,52 @@ Invoke: `.venv/bin/pytest tests/test_read_through_freshness.py -q`
 ### Ph3/4 proven by
 | Row | Evidence |
 |-----|----------|
-| AC1–4, C1, W1–2 | `tests/test_read_through_freshness.py` (5 tests) green |
+| AC1–4, C1, W1–2 | `tests/test_read_through_freshness.py` (6 tests) green |
 | R1–3, G1, C2–3 | wired tools + indexer path; suite green |
-| Full suite | `665 passed in 25.52s` |
+| Full suite | `666 passed in 32.35s` |
 
 ### Matrix (Ph3)
 All rows → ✅ (evidence above).
+
+---
+
+## Phase 4 — Review
+
+**Reviewed at** `d321d68` (files: indexer, freshness, six tools, proving tests, module-count guards, BACKLOG/PLAN/task).
+
+### Reviewer
+- Round 1 (`7c489dd`): **CHANGES REQUESTED** — Important: deleted indexed file → `stale=False` under D2 ([reviewer](bcb7d9be-e438-422b-bb30-37af5c2050bf)).
+- Fix commit `d321d68`: `read_symbol` missing-file → `stale=True` + `index_stale` + proving test.
+- Round 2 verify-only: **LGTM** ([reviewer](efa8a034-19fc-4b5b-b3a6-de4e574fc892)).
+
+### Challenger (ticket-blind)
+- **8 met / 2 not met** on raw Goal “rows touching file X” for find_* edge files ([challenger](155c9442-6832-4857-97de-4cc1eadb13c7)).
+- **Adjudication:** Gate-2 Approach #4 ratified **subject-only** for find_*; edge-file refresh deferred (cap=1 would thrash). Not a BLOCK.
+
+### Scope reconciliation
+- File axis: ⊆ list ✅
+- Behaviour axis: as-approved ✅ (D1/D2 accepted; deleted-file compensating fix landed)
+
+### Gate 4
+**cleared** — LGTM at `d321d68`.
 
 ## Cost ledger
 
 | Phase | Dispatch | Round | Tokens |
 |-------|----------|-------|--------|
 | Phase 0 | exposure-checker | 1 | unmeasured (blocking retrieval) |
+| Phase 4 | mango:reviewer | 1 | unmeasured (blocking retrieval) |
+| Phase 4 | mango:challenger | 1 | unmeasured (blocking retrieval) |
+| Phase 4 | mango:reviewer (verify) | 2 | unmeasured (blocking retrieval) |
+
+### Durable lesson
+Planted-store paths without on-disk bytes must not trigger adapter spawn; tool-specific honesty (`read_symbol` stale on delete) compensates a shared guard short-circuit. See `docs/LESSONS.md` §035.
 
 ## Session status
 
 - **Ticket:** 035
 - **work_doc_mode:** embed
 - **working-doc path:** `docs/tasks/035_read-through-freshness.md`
-- **Current phase:** execute complete → review
-- **Blocked on:** —
-- **Next action:** review (reviewer + challenger)
+- **Current phase:** review clean → finalise
+- **Blocked on:** outward-action approvals (push / PR)
+- **Next action:** finalise dry-run
