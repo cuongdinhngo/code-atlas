@@ -4,7 +4,7 @@ slug: tokens-to-answer-benchmark
 title: Tokens-to-answer benchmark harness (vs grep+Read)
 phase: 1.5
 milestone: Measure
-status: in-progress
+status: done
 depends_on: [014, 018]
 ---
 
@@ -41,3 +41,8 @@ whether every later change (033/037/039/040) actually earned its cost (§19 agen
 smoke tests this replaces as the accuracy story); `scripts/cross_repo_samples.json` (sample matrix);
 PLAN §15 (ship discipline), §19. Feedback origin: [`FEEDBACK.md`](../FEEDBACK.md) rounds 1 & 3 — the
 metric to build the project around; "a guard that cannot fail is not evidence".
+
+## Cost ledger (embed mode)
+**0 dispatch** — no subagent ran; the harness, fixture questions, gate tests and runbook were
+authored on the main model. Main-loop spend is unmeasured (the host does not surface per-task
+usage), as for 024/032. Roll-up row: [`BACKLOG.md`](../BACKLOG.md) Token usage → 034 → [#37].

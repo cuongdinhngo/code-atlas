@@ -46,7 +46,7 @@ up). Source: [`FEEDBACK.md`](FEEDBACK.md).
 |---|---|---|---|---|
 | 032 | Resolve license (`LICENSE` + README) | Adoption | done | — |
 | 033 | Reason codes + `total_count` on `find_*`/`search` (empty ≠ unknown) | Agent-trust | todo | 013, 014 |
-| 034 | Tokens-to-answer benchmark harness (vs grep+`Read`) | Measure | in-progress | 014, 018 |
+| 034 | Tokens-to-answer benchmark harness (vs grep+`Read`) | Measure | done | 014, 018 |
 | 035 | Read-through freshness — inline reparse on hash drift | Freshness | todo | 009, 011 |
 | 036 | Claude Code Edit/Write index-poke hook | Distribution | todo | 016, 035 |
 | 037 | Compound nav responses (call-site line) + consolidation A/B | Agent-fit | todo | 013, 034 |
@@ -116,6 +116,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 030 | Alias & literal-indirection edges (contract v2) | **5 dispatch** — refine exposure-checker + review `mango:reviewer` (×2) + `mango:challenger` (×2); all token cells **`unmeasured (host does not surface usage)`**. Phases 1–3 dispatched **nothing** on the main model. **Main-loop spend is unmeasured**, as for 004–029 | [#33](https://github.com/cuongdinhngo/code-atlas/pull/33) |
 | 031 | Reachability / orphan detection | **3 dispatch** — refine exposure-checker + review `mango:reviewer` + `mango:challenger`; all token cells **`unmeasured (host does not surface usage)`**. Phases 1–3 dispatched **nothing** on the main model. **Main-loop spend is unmeasured**, as for 004–030 | [#34](https://github.com/cuongdinhngo/code-atlas/pull/34) |
 | 032 | Resolve license (`LICENSE` + README) | **0 dispatch** — no subagent ran; direct license/metadata change on the main model. Main-loop spend unmeasured (host does not surface per-task usage), as for 024 | [#36](https://github.com/cuongdinhngo/code-atlas/pull/36) |
+| 034 | Tokens-to-answer benchmark harness (vs grep+`Read`) | **0 dispatch** — no subagent ran; harness + fixture questions + gate tests authored on the main model. Main-loop spend unmeasured (host does not surface per-task usage), as for 024/032 | [#37](https://github.com/cuongdinhngo/code-atlas/pull/37) |
 
 ## Follow-ups (not yet ticketed)
 
