@@ -4,7 +4,7 @@ slug: resolve-license
 title: Resolve license (LICENSE file + README)
 phase: 1.5
 milestone: Adoption
-status: todo
+status: in-progress
 depends_on: []
 ---
 
@@ -34,3 +34,12 @@ adoption (§19 agent-first pivot).
 `README.md` (License section, "TBD"); `pyproject.toml` (license metadata). Feedback origin:
 [`FEEDBACK.md`](../FEEDBACK.md) rounds 2 & 3 ("fix the license line — an unlicensed MCP server
 doesn't get installed"). §19 agent-first pivot (cheap unblocker).
+
+## Decision (human, 2026-08-04)
+- **License: MIT** — permissive, the MCP/dev-tool ecosystem default, lowest friction for dependency
+  review; the repo's own deps (nikic/php-parser BSD-3, PHPStan MIT, FastMCP) are permissive and force
+  nothing stronger. Copyleft (GPL/AGPL) was rejected: it would block the commercial/agent audience
+  the pivot targets.
+- **Copyright holder: Cuong Ngo (personal)** — the GitHub repo is under the personal account.
+- Delivered: `LICENSE` (MIT) at root; README License section names MIT + points to `LICENSE`;
+  `pyproject.toml` carries `license = { text = "MIT" }` + the OSI MIT classifier.

@@ -181,4 +181,4 @@ encode the language spec/standards, never a specific repo's conventions). Detail
 
 ## License
 
-TBD.
+MIT — see [`LICENSE`](LICENSE). © 2026 Cuong Ngo.

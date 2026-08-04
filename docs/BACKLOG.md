@@ -44,7 +44,7 @@ up). Source: [`FEEDBACK.md`](FEEDBACK.md).
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
-| 032 | Resolve license (`LICENSE` + README) | Adoption | todo | — |
+| 032 | Resolve license (`LICENSE` + README) | Adoption | in-progress | — |
 | 033 | Reason codes + `total_count` on `find_*`/`search` (empty ≠ unknown) | Agent-trust | todo | 013, 014 |
 | 034 | Tokens-to-answer benchmark harness (vs grep+`Read`) | Measure | todo | 014, 018 |
 | 035 | Read-through freshness — inline reparse on hash drift | Freshness | todo | 009, 011 |
