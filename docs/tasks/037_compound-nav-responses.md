@@ -4,7 +4,7 @@ slug: compound-nav-responses
 title: Compound nav responses (call-site line) + consolidation A/B
 phase: 1.5
 milestone: Agent-fit
-status: todo
+status: done
 depends_on: [013, 034]
 ---
 
@@ -520,3 +520,21 @@ and every fix ran on the main model. An earlier draft of the BACKLOG row said "3
 exposure-checker" and marked every cell `unmeasured (blocking retrieval)`; both were copied from
 033/035/036 rather than observed. No exposure-checker ran, and both dispatches returned real `<usage>`
 blocks. **Main-loop spend remains unmeasured** (the host surfaces per-subagent usage, not main-loop).
+
+## Phase 5 — Finalise
+
+- Status → `done`; BACKLOG task row + Token usage row (real measured cells); lesson in
+  [`LESSONS.md`](../LESSONS.md) §037 (+ claims 037-C1, 037-C2).
+- **Outward actions, each separately approved:** push branch ✅ · open PR ✅ → [#43](https://github.com/cuongdinhngo/code-atlas/pull/43)
+- Stale-review guard: no source file changed after the `Reviewed at 9eab3d4` marker; the commits
+  after it are working-doc / BACKLOG / LESSONS bookkeeping only.
+
+## Session status
+
+- **Ticket:** 037
+- **work_doc_mode:** embed
+- **working-doc path:** `docs/tasks/037_compound-nav-responses.md`
+- **Current phase:** finalise complete
+- **Blocked on:** —
+- **Next action:** —
+- **PR:** [#43](https://github.com/cuongdinhngo/code-atlas/pull/43)
