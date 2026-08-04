@@ -63,14 +63,34 @@ jobs:
       - name: Tests (pytest — unit · contract · integration)
         run: pytest -q
 
-      # Tokens-to-answer regression gate (task 034): builds the fixtures and measures the
-      # tokens-to-correct-answer ratio vs grep+Read, failing on a regression AND on any wrong
-      # answer. Floor = 0.8x the observed fixture ratio (0.302) — a behavior-lock, not the value
-      # claim (tiny fixtures favour grep; the real win shows on the sample tier — see runbook).
+      # Tokens-to-answer gate (task 034): fails on a wrong answer or a ratio regression. The floor
+      # is a behavior-lock, not the value claim, and one interpreter is enough — a token count does
+      # not vary by Python version. Current figures and recalibration live in the runbook.
       - name: Tokens-to-answer benchmark (ratio regression gate)
+        if: matrix.python-version == '3.13'
         env:
           CA_PHP_CMD: php ${{ github.workspace }}/adapters/php/index.php --server
-        run: python scripts/tokens_to_answer.py --min-ratio 0.24
+        run: |
+          set -o pipefail
+          status=0
+          python scripts/tokens_to_answer.py --min-ratio 0.24 2>&1 \
+            | tee "${RUNNER_TEMP}/tokens-to-answer.txt" || status=$?
+          {
+            echo '### Tokens-to-answer (vs grep+`Read`)'
+            echo ''
+            echo '```json'
+            cat "${RUNNER_TEMP}/tokens-to-answer.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $status
+
+      - name: Upload the tokens-to-answer report
+        if: always() && matrix.python-version == '3.13'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tokens-to-answer-report
+          path: artifacts/tokens-to-answer-report.json
+          if-no-files-found: warn
 
   adapters:
     name: adapter manifests · syntax · static analysis
