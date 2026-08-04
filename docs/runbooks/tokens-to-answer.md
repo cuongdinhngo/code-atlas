@@ -49,9 +49,29 @@ read-only token.
 
 **The floor is a behavior-lock, not the value claim.** The committed fixtures are 4-file toy repos
 where `get_index_status` overhead makes code-atlas *cost more* than reading one tiny file (observed
-ratio ≈ **0.286**: 1484 vs 425 tokens over 9 questions, all answered correctly). The token win
+ratio ≈ **0.288**: 1666 vs 479 tokens over 10 questions, all answered correctly). The token win
 (ratio ≫ 1) appears only on realistic repos, where grep matches many files an agent must read whole
 — that is the **sample tier**, measured on schedule, not per PR.
+
+## Surface A/B (task 037)
+
+`scripts/relation_surface_ab.py` answers a question this ratio cannot: **three relation tools or one
+`find_relations`?** The gate above counts only `args + response`, so it is blind to the tool *schema*
+an agent carries all session — which is the only thing consolidation trades. The script measures both
+terms (schema tokens once + per-call tokens, surface B dispatching to the real tools) and prints a
+sweep, because a single data point hides the crossover:
+
+```bash
+export CA_PHP_CMD="php $(pwd)/adapters/php/index.php --server"
+python scripts/relation_surface_ab.py --json artifacts/relation-surface-ab.json
+```
+
+Measured: three tools cost **464** schema tokens, one costs **223**; one tool then pays ~**7 tokens
+per call** for its extra `relation` argument. Break-even ≈ **9 relation calls per session**, so the
+three tools win for any real navigation session. Verdict and full tables:
+[`docs/tasks/037_compound-nav-responses.md`](../tasks/037_compound-nav-responses.md). Re-run it
+whenever a relation tool's docstring changes materially — the schema term is prose-sensitive (editing
+one docstring during 037 moved the break-even from 11.4 to 8.9).
 
 Recalibrate the floor to `0.8 × observed` whenever the fixtures or recipes change. Response-shape
 work also moves it: the ratio has drifted **0.302 → 0.293 → 0.286** (1409 → 1452 → 1484 atlas
