@@ -9,7 +9,9 @@ from typing import Literal, NamedTuple
 from code_atlas.config import Config
 from code_atlas.contract import CALLER_KINDS, CONFIDENCE_TIERS
 from code_atlas.store import GraphStore
+from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
+    REASON_INDEX_STALE,
     edge_hit,
     edge_id,
     empty_nav,
@@ -54,6 +56,20 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path))
         limit = config.max_results
         with GraphStore(config.db_path) as store:
+            guard = FreshnessGuard(config, store)
+            if guard.ensure_qname(qname) == "stale":
+                return nav_result(
+                    qname,
+                    [],
+                    detail_level=detail_level,
+                    db_path=str(config.db_path),
+                    truncated=False,
+                    reason=REASON_INDEX_STALE,
+                    total_count=0,
+                    depth=depth,
+                    frontier_skipped_non_resolved=0,
+                    subject_refreshed_only=True,
+                )
             outcome = _callers(store, qname, hops=depth, limit=limit)
             indexed = bool(store.nodes_by_qualified_name(qname, limit=1))
         reason = relation_reason(hit_total=outcome.total_count, symbol_indexed=indexed)
@@ -67,6 +83,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             total_count=outcome.total_count,
             depth=depth,
             frontier_skipped_non_resolved=outcome.frontier_skipped_non_resolved,
+            subject_refreshed_only=True,
         )
 
     return find_callers

@@ -383,29 +383,42 @@ class GraphStore:
         return [row for batch in self.iter_unresolved_edges() for row in batch]
 
     def iter_unresolved_edges(
-        self, *, batch_size: int = 1000, skip_dynamic: bool = False
+        self,
+        *,
+        batch_size: int = 1000,
+        skip_dynamic: bool = False,
+        file_path: str | None = None,
     ) -> Iterator[list[Row]]:
         """Stream unresolved edges in ``id`` order so a large graph need not load at once (§8.2 M4).
 
         ``batch_size`` is validated immediately (not deferred to first ``next()``).
         ``skip_dynamic`` omits ``DYNAMIC`` rows so resolve batches stay full of linkable work.
+        ``file_path`` scopes to edges emitted by one file (read-through reparse).
         """
         if batch_size < 1:
             raise ValueError(f"batch_size must be >= 1, got {batch_size}")
-        return self._iter_unresolved_edges(batch_size, skip_dynamic=skip_dynamic)
+        return self._iter_unresolved_edges(
+            batch_size, skip_dynamic=skip_dynamic, file_path=file_path
+        )
 
     def _iter_unresolved_edges(
-        self, batch_size: int, *, skip_dynamic: bool
+        self, batch_size: int, *, skip_dynamic: bool, file_path: str | None = None
     ) -> Iterator[list[Row]]:
         last_id = 0
         dynamic_clause = " AND confidence_tier != 'DYNAMIC'" if skip_dynamic else ""
+        path_clause = " AND file_path = ?" if file_path is not None else ""
         sql = (
             f"SELECT id, {_EDGE_COLUMNS} FROM edges "
-            f"WHERE target_qname IS NULL{dynamic_clause} AND id > ? "
+            f"WHERE target_qname IS NULL{dynamic_clause}{path_clause} AND id > ? "
             f"ORDER BY id LIMIT ?"
         )
         while True:
-            batch = self._rows(EDGE_ROW_KEYS, sql, (last_id, batch_size))
+            params: tuple[object, ...] = (
+                (file_path, last_id, batch_size)
+                if file_path is not None
+                else (last_id, batch_size)
+            )
+            batch = self._rows(EDGE_ROW_KEYS, sql, params)
             if not batch:
                 return
             last_id = int(str(batch[-1]["id"]))

@@ -15,12 +15,20 @@ _RESOLVE_BATCH = 1000
 assert "INCLUDES" not in contract.FQN_EDGE_KINDS
 
 
-def resolve_edges(store: GraphStore, *, max_candidates: int) -> None:
-    """Link bare edges after every node exists; ``max_candidates`` caps multi-match HEURISTIC."""
+def resolve_edges(
+    store: GraphStore, *, max_candidates: int, file_path: str | None = None
+) -> None:
+    """Link bare edges after every node exists; ``max_candidates`` caps multi-match HEURISTIC.
+
+    When ``file_path`` is set, only unresolved edges from that file are considered (read-through
+    reparse). Full builds omit it so the whole unresolved set is linked.
+    """
     # Alias FQN → real FQN from ALIASES edges (source → target_raw); remaps CALLS/NEW (task 030).
     # Built once: every ALIASES row is in the store before resolve runs (full parse first).
     alias_map = store.alias_targets()
-    for batch in store.iter_unresolved_edges(batch_size=_RESOLVE_BATCH, skip_dynamic=True):
+    for batch in store.iter_unresolved_edges(
+        batch_size=_RESOLVE_BATCH, skip_dynamic=True, file_path=file_path
+    ):
         links: list[tuple[int, str, str]] = []
         siblings: list[dict[str, object]] = []
         includes: list[dict[str, object]] = []

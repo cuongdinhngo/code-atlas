@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import re
 from collections.abc import Callable, Sequence
 from pathlib import Path
@@ -10,6 +9,8 @@ from typing import Literal
 
 from code_atlas.config import Config
 from code_atlas.store import GraphStore
+from code_atlas.tools.freshness import FreshnessGuard
+from code_atlas.tools.nav_result import REASON_INDEX_STALE, REASON_OK
 
 NAME = "read_symbol"
 
@@ -19,8 +20,6 @@ DetailLevel = Literal["minimal", "standard"]
 # Union of common comment leaders — not a language branch, but still language knowledge in core.
 _COMMENT = re.compile(r"^\s*(#|//|/\*|\*|\*/)")
 
-_READ_CHUNK = 1024 * 64
-
 
 def create(config: Config) -> Callable[..., dict[str, object]]:
     """Bind the tool to one repo's configuration."""
@@ -28,8 +27,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     def read_symbol(qname: str, detail_level: DetailLevel = "standard") -> dict[str, object]:
         """Source for ``qname``: ``line_start…line_end`` plus contiguous comments above.
 
-        Never returns the whole file. If the on-disk file hash no longer matches the index,
-        returns ``stale: true`` and an empty ``source`` (call ``build_or_update_index``).
+        Never returns the whole file. On hash drift, reparses that one file inline (035). Returns
+        ``stale: true`` and ``reason=index_stale`` when the file is missing, no adapter owns it, or
+        repair fails (adapter/DB error).
         """
         if not config.db_path.is_file():
             return _empty(qname, detail_level=detail_level, db_path=str(config.db_path))
@@ -42,55 +42,59 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     detail_level=detail_level,
                     db_path=str(config.db_path),
                     found=False,
+                    reason=REASON_OK,
                 )
+            guard = FreshnessGuard(config, store)
+            rel = str(rows[0]["file_path"])
+            status = guard.ensure(rel)
+            if status == "stale":
+                return _result(
+                    qname,
+                    "",
+                    detail_level=detail_level,
+                    db_path=str(config.db_path),
+                    found=True,
+                    stale=True,
+                    reason=REASON_INDEX_STALE,
+                    file=rel,
+                    line_start=None,
+                    line_end=None,
+                )
+            if status == "repaired":
+                rows = store.nodes_by_qualified_name(qname, limit=1)
+                if not rows:
+                    return _result(
+                        qname,
+                        "",
+                        detail_level=detail_level,
+                        db_path=str(config.db_path),
+                        found=False,
+                        reason=REASON_OK,
+                    )
+                rel = str(rows[0]["file_path"])
             node = rows[0]
-            rel = str(node["file_path"])
-            indexed_hash = store.file_hash(rel)
-        path = config.root / rel
-        if indexed_hash is None or _digest(path) != indexed_hash:
+            path = config.root / rel
+            start_raw = node["line_start"]
+            if not isinstance(start_raw, int):
+                raise TypeError(f"line_start must be int, got {type(start_raw).__name__}")
+            start = start_raw
+            end_raw = node["line_end"]
+            end = end_raw if isinstance(end_raw, int) else start
+            source = _slice(path, start, end)
             return _result(
                 qname,
-                "",
+                source,
                 detail_level=detail_level,
                 db_path=str(config.db_path),
                 found=True,
-                stale=True,
+                stale=False,
+                reason=REASON_OK,
                 file=rel,
-                line_start=None,
-                line_end=None,
+                line_start=start,
+                line_end=end,
             )
-        start_raw = node["line_start"]
-        if not isinstance(start_raw, int):
-            raise TypeError(f"line_start must be int, got {type(start_raw).__name__}")
-        start = start_raw
-        end_raw = node["line_end"]
-        end = end_raw if isinstance(end_raw, int) else start
-        source = _slice(path, start, end)
-        return _result(
-            qname,
-            source,
-            detail_level=detail_level,
-            db_path=str(config.db_path),
-            found=True,
-            stale=False,
-            file=rel,
-            line_start=start,
-            line_end=end,
-        )
 
     return read_symbol
-
-
-def _digest(path: Path) -> str:
-    """SHA-256 of file bytes, or empty when unreadable — same idea as ``indexer._digest``."""
-    hasher = hashlib.sha256()
-    try:
-        with path.open("rb") as handle:
-            while chunk := handle.read(_READ_CHUNK):
-                hasher.update(chunk)
-    except OSError:
-        return ""
-    return hasher.hexdigest()
 
 
 def _slice(path: Path, line_start: int, line_end: int) -> str:
@@ -141,6 +145,7 @@ def _result(
     db_path: str,
     found: bool,
     stale: bool = False,
+    reason: str | None = None,
     file: str | None = None,
     line_start: int | None = None,
     line_end: int | None = None,
@@ -152,6 +157,8 @@ def _result(
         "stale": stale,
         "source": source,
     }
+    if reason is not None:
+        payload["reason"] = reason
     if found:
         payload["file"] = file
         if not stale:

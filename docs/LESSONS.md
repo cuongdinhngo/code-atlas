@@ -263,6 +263,13 @@ and behaviour tests are different tests**, and mutation is the cheap way to tell
 wrote — break the thing on a copy and see whether anything goes red. The same run also caught a related
 self-report: the task's own matrix claimed `busy_timeout` was asserted when nothing asserted it.
 
+## 035 — Missing on-disk paths are stale; planted fixtures must write matching bytes
+`FreshnessGuard.ensure` returns `"stale"` when `(root/path).is_file()` is false so production
+never asserts `reason=ok` for a deleted indexed file. Planted-store nav tests therefore write real
+bytes (and the matching content hash) in `seed_file(..., root=)` — a shared short-circuit that
+trusted the index for missing paths caused the trust bug 033 closed. Adapter/DB failures during
+`reparse_file` also degrade to `"stale"` instead of crashing the read tool.
+
 ## 004 — `git checkout -- <file>` restores the committed state, so it deletes uncommitted work
 While negative-controlling the R3.2 guard, a violating literal was appended to `code_atlas/store.py` and
 then reverted with `git checkout -- code_atlas/store.py`. The implementation was **not yet committed**, so
