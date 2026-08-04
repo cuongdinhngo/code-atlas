@@ -172,21 +172,42 @@ All Approach bullets implemented-as-approved.
 
 ## Phase 4 — Review
 
-**Reviewed at** `1525687`.
+**Reviewed at** `1525687` (files: scripts/claude_code_poke_index.py, contrib/claude-code/*, README, proving tests, docs). Bookkeeping after marker is exempt from stale-review.
 
 ### Reviewer (`mango:reviewer` · round 1 · [dc1ece47](dc1ece47-9ef7-4bb3-aec9-63a167576082))
-- **Verdict:** **CHANGES REQUESTED**
-- Finding 1: `_repo_relative` relative escape — fixed in `1525687`
-- Finding 2: `load_config` outside soft-fail — fixed in `1525687`
+- **Verdict:** **CHANGES REQUESTED** (conditional LGTM once findings 1–2 land)
+- **Scope:** diff ⊆ Gate-2 list; **zero** `code_atlas/` edits; proving suite 3→5 after fixes; `"async": true` present
+- **Findings:**
+  | Sev | Finding | Path | Resolution |
+  |-----|---------|------|------------|
+  | Important | Relative `../` paths skipped containment; absolute-only check | `scripts/claude_code_poke_index.py:33-42` | Fixed in `1525687`: resolve under root + `relative_to`; proving `test_repo_relative_rejects_parent_escape` |
+  | Important | `load_config`/imports outside soft-fail → exit 1 on ConfigError | `scripts/claude_code_poke_index.py:45-63` | Fixed in `1525687`: full `try` wrap; proving `test_poke_exits_zero_on_bad_config_env` |
 
-### Reviewer (verify · [10a4989c](10a4989c-89e2-4df1-9297-040fe1eb0b06))
-- **Verdict:** **LGTM**
+### Reviewer (`mango:reviewer` · verify-only · [10a4989c](10a4989c-89e2-4df1-9297-040fe1eb0b06))
+- **Verdict:** **LGTM** at tip `1525687`
+- **Proof:** freshness poke suite **5 passed**; both Important findings closed; no new Critical/Important
 
 ### Challenger (ticket-blind · [bd56f6bd](bd56f6bd-307e-4de7-aff6-35754b6dbc09))
-- **8 met / 0 not met / 1 can't tell** (live Claude Code session) — accepted manual exclusion for AC7 e2e client wiring.
 
-### Gate 4
-**clean** — LGTM at `1525687`.
+| # | Rebuilt requirement | Verdict | Adjudication |
+|---|---------------------|---------|--------------|
+| 1 | Hook script pokes via incremental/reparse path | **met** | `reparse_file` (035 write path); not full `incremental_update` — ticket AC allows poke |
+| 2 | Documented settings.json PostToolUse Edit/Write | **met** | `contrib/claude-code/settings.snippet.json` |
+| 3 | README/docs install + behaviour | **met** | contrib README + root README pointer |
+| 4 | Outside core; no lang branches | **met** | no `code_atlas/` / `adapters/` in diff |
+| 5 | No index → no-op; never build | **met** | exit 0 if db missing; proving test |
+| 6 | Cheap / non-blocking | **met** | `"async": true`; script always exits 0 |
+| 7 | AC edit → next query reflects (035 or poke) | **can't tell** (live Claude Code) | **manual exclusion** — simulated stdin/CLI proved; live PostToolUse left to install check |
+| 8 | AC no index → clean exit | **met** | — |
+| 9 | AC install docs reproducible | **met** | — |
+
+### Scope reconciliation
+- File axis: ✅ approved list only (+ review fix inside poke script/tests)
+- Behaviour axis: ✅ Approach as approved; review findings fixed
+- Challenger #7: accepted manual-check exclusion (not a Gate-4 miss)
+
+### Gate 4 status
+**clean** — reviewer LGTM at `1525687`; challenger gaps adjudicated.
 
 ## Cost ledger
 
@@ -204,13 +225,13 @@ See `docs/LESSONS.md` §036.
 
 ## Phase 5 — Finalise
 - Status → done; BACKLOG + token row; lesson in LESSONS.md
-- Outward: push + PR (await per-action approval)
+- Outward: push branch + open PR (user-approved 2026-08-04)
 
 ## Session status
 
 - **Ticket:** 036
 - **work_doc_mode:** embed
 - **working-doc path:** `docs/tasks/036_edit-index-hook.md`
-- **Current phase:** finalise — outward approvals
-- **Blocked on:** push / PR approval
-- **Next action:** list outward actions
+- **Current phase:** finalise — outward push + PR
+- **Blocked on:** —
+- **Next action:** push + `gh pr create`
