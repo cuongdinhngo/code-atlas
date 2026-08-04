@@ -91,3 +91,35 @@ def test_poke_accepts_cli_path_arg(tmp_path: Path) -> None:
     assert run_poke(tmp_path, path_arg=str(tmp_path / "src" / "a.aa")) == 0
     with GraphStore(config.db_path) as store:
         assert store.file_hash("src/a.aa") != old_hash
+
+
+def test_repo_relative_rejects_parent_escape(tmp_path: Path) -> None:
+    sys.path.insert(0, str(REPO / "scripts"))
+    import claude_code_poke_index as poke_mod  # noqa: E402
+
+    assert poke_mod._repo_relative(tmp_path, "../outside.php") is None
+    assert poke_mod._repo_relative(tmp_path, "src/a.aa") == "src/a.aa"
+
+
+def test_poke_exits_zero_on_bad_config_env(tmp_path: Path) -> None:
+    write(tmp_path, "src/a.aa", "class Thing {}\n")
+    db = tmp_path / ".code-atlas" / "graph.db"
+    config = load_config(tmp_path, {**fake_env(), "CA_DB_PATH": str(db)})
+    with GraphStore(config.db_path) as store:
+        full_build(config, store)
+    env = {
+        **os.environ,
+        "CLAUDE_PROJECT_DIR": str(tmp_path),
+        **fake_env(),
+        "CA_HOST_ROOT": "/tmp/host",
+        # unpaired container root → ConfigError inside load_config
+    }
+    env.pop("CA_CONTAINER_ROOT", None)
+    completed = subprocess.run(
+        [sys.executable, str(POKE), str(tmp_path / "src" / "a.aa")],
+        env=env,
+        cwd=tmp_path,
+        capture_output=True,
+        check=False,
+    )
+    assert completed.returncode == 0
