@@ -71,6 +71,21 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 rel = str(rows[0]["file_path"])
             node = rows[0]
             path = config.root / rel
+            # Missing bytes: trust index for planted nav stores (FreshnessGuard), but never
+            # claim a live read_symbol answer when the source file is gone.
+            if not path.is_file():
+                return _result(
+                    qname,
+                    "",
+                    detail_level=detail_level,
+                    db_path=str(config.db_path),
+                    found=True,
+                    stale=True,
+                    reason=REASON_INDEX_STALE,
+                    file=rel,
+                    line_start=None,
+                    line_end=None,
+                )
             start_raw = node["line_start"]
             if not isinstance(start_raw, int):
                 raise TypeError(f"line_start must be int, got {type(start_raw).__name__}")

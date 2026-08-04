@@ -71,10 +71,23 @@ def test_read_symbol_repairs_drifted_file_inline(tmp_path: Path) -> None:
     result = read_symbol.create(config)(qname, detail_level="minimal")
     assert result["found"] is True
     assert result["stale"] is False
-    assert "edited" in result["source"] or result["source"]  # adapter line_start=1 → full slice
+    assert "edited" in result["source"]
     assert result.get("reason") != REASON_INDEX_STALE
     with GraphStore(config.db_path) as store:
         assert store.file_hash("src/a.aa") is not None
+
+
+def test_read_symbol_deleted_file_is_stale(tmp_path: Path) -> None:
+    write(tmp_path, "src/a.aa", "class Thing {}\n")
+    config = config_for(tmp_path)
+    with GraphStore(config.db_path) as store:
+        full_build(config, store)
+    (tmp_path / "src" / "a.aa").unlink()
+    result = read_symbol.create(config)("src/a.aa::Thing", detail_level="minimal")
+    assert result["found"] is True
+    assert result["stale"] is True
+    assert result["reason"] == REASON_INDEX_STALE
+    assert result["source"] == ""
 
 
 def test_untouched_file_does_not_call_adapter(tmp_path: Path) -> None:
