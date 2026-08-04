@@ -792,9 +792,19 @@ def test_count_search_nodes_matches_search_hits(store: GraphStore) -> None:
             a_node("Function", "Alpha0", "\\Alpha0", path),
             a_node("Function", "Alpha1", "\\Alpha1", path),
             a_node("Function", "Other", "\\Other", path),
+            a_node("Class", "Db", "\\App\\Db", path),
         ],
         [],
     )
     assert store.count_search_nodes("Alpha") == len(store.search_nodes("Alpha", limit=50))
     assert store.count_search_nodes("Alpha") == 2
     assert store.count_search_nodes("ZzNope") == 0
+    assert store.count_search_nodes("Db") == len(store.search_nodes("Db", limit=50))
+    assert store.count_search_nodes("Alpha", kind="Function") == 2
+    assert store.count_search_nodes("Alpha", kind="Class") == 0
+    assert store.count_search_nodes("Db", namespace="\\App") == 1
+
+
+def test_count_edges_by_target_rejects_empty_kinds(store: GraphStore) -> None:
+    with pytest.raises(ValueError, match="kinds must be non-empty"):
+        store.count_edges_by_target("\\x", kinds=())

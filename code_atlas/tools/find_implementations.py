@@ -9,12 +9,11 @@ from code_atlas.config import Config
 from code_atlas.contract import IMPL_KINDS
 from code_atlas.store import GraphStore
 from code_atlas.tools.nav_result import (
-    REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
-    REASON_OK,
     edge_hit,
     empty_nav,
     nav_result,
+    relation_reason,
 )
 
 NAME = "find_implementations"
@@ -33,7 +32,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path))
         limit = config.max_results
         with GraphStore(config.db_path) as store:
-            if not store.nodes_by_qualified_name(qname, limit=1):
+            total_count = store.count_edges_by_target(qname, kinds=IMPL_KINDS)
+            indexed = bool(store.nodes_by_qualified_name(qname, limit=1))
+            if total_count == 0 and not indexed:
                 return nav_result(
                     qname,
                     [],
@@ -43,18 +44,16 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     reason=REASON_NO_SUCH_SYMBOL,
                     total_count=0,
                 )
-            total_count = store.count_edges_by_target(qname, kinds=IMPL_KINDS)
             edges = store.edges_by_target(qname, kinds=IMPL_KINDS, limit=limit)
             results = [edge_hit(edge) for edge in edges]
         truncated = total_count > len(results)
-        reason = REASON_OK if results else REASON_NO_MATCHES
         return nav_result(
             qname,
             results,
             detail_level=detail_level,
             db_path=str(config.db_path),
             truncated=truncated,
-            reason=reason,
+            reason=relation_reason(hit_total=total_count, symbol_indexed=indexed),
             total_count=total_count,
         )
 

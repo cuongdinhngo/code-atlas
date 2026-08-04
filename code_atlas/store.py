@@ -495,10 +495,7 @@ class GraphStore:
         """
         if len(query) < 3:
             return self._search_short(query, kind=kind, namespace=namespace, limit=limit)
-        where, params = _narrow("nodes_fts MATCH ?", fts_term(query), kind, "nodes.kind = ?")
-        where, params = _with_namespace(
-            where, params, namespace, qname_column="nodes.qualified_name"
-        )
+        where, params = self._fts_search_clause(query, kind=kind, namespace=namespace)
         sql = (
             f"SELECT nodes.id, {_NODE_COLUMNS_JOINED} FROM nodes "
             f"JOIN nodes_fts ON nodes_fts.rowid = nodes.id "
@@ -516,16 +513,23 @@ class GraphStore:
         """Exact hit count for ``search_nodes`` filters (no LIMIT)."""
         if len(query) < 3:
             return self._count_search_short(query, kind=kind, namespace=namespace)
-        where, params = _narrow("nodes_fts MATCH ?", fts_term(query), kind, "nodes.kind = ?")
-        where, params = _with_namespace(
-            where, params, namespace, qname_column="nodes.qualified_name"
-        )
+        where, params = self._fts_search_clause(query, kind=kind, namespace=namespace)
         sql = (
             f"SELECT COUNT(*) FROM nodes "
             f"JOIN nodes_fts ON nodes_fts.rowid = nodes.id "
             f"WHERE {where}"
         )
         return int(self._conn.execute(sql, params).fetchone()[0])
+
+    def _fts_search_clause(
+        self,
+        query: str,
+        *,
+        kind: str | None,
+        namespace: str | None,
+    ) -> tuple[str, tuple[object, ...]]:
+        where, params = _narrow("nodes_fts MATCH ?", fts_term(query), kind, "nodes.kind = ?")
+        return _with_namespace(where, params, namespace, qname_column="nodes.qualified_name")
 
     def impact_radius(
         self, seeds: Sequence[str], *, depth: int, max_nodes: int

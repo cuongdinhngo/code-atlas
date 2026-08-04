@@ -149,3 +149,46 @@ def test_reason_vocabulary_includes_index_stale_unused() -> None:
         REASON_NOT_INDEXED,
         REASON_INDEX_STALE,
     )
+
+
+def test_edges_to_unindexed_target_are_not_swallowed_as_no_such_symbol(
+    tmp_path: Path, store: GraphStore
+) -> None:
+    """Vendor/framework targets often have edges but no node row (default ignore / 039)."""
+    seed_file(
+        store,
+        "a.php",
+        [node("Class", "MyController", "\\App\\MyController", "a.php")],
+        [
+            edge(
+                "EXTENDS",
+                "\\App\\MyController",
+                "\\Vendor\\BaseController",
+                "a.php",
+                target_qname="\\Vendor\\BaseController",
+            ),
+            edge(
+                "CALLS",
+                "\\App\\MyController",
+                "\\Vendor\\Log::info",
+                "a.php",
+                target_qname="\\Vendor\\Log::info",
+            ),
+        ],
+    )
+    config = db_config(tmp_path)
+    refs = find_references.create(config)("\\Vendor\\BaseController", detail_level="minimal")
+    assert refs["reason"] == REASON_OK
+    assert refs["total_count"] == 1
+    assert refs["results"][0]["qname"] == "\\App\\MyController"
+
+    impls = find_implementations.create(config)(
+        "\\Vendor\\BaseController", detail_level="minimal"
+    )
+    assert impls["reason"] == REASON_OK
+    assert impls["total_count"] == 1
+
+    callers = find_callers.create(config)("\\Vendor\\Log::info", detail_level="minimal")
+    assert callers["reason"] == REASON_OK
+    assert callers["total_count"] == 1
+    assert callers["results"][0]["qname"] == "\\App\\MyController"
