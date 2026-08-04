@@ -362,6 +362,12 @@ class GraphStore:
         """
         return self._edges("target_qname = ?", qname, kinds, limit)
 
+    def count_edges_by_target(
+        self, qname: str, *, kinds: Sequence[str] | None = None
+    ) -> int:
+        """How many edges target ``qname`` (same filters as ``edges_by_target``)."""
+        return self._count_edges("target_qname = ?", qname, kinds)
+
     def alias_targets(self) -> dict[str, str]:
         """Map alias FQN → real FQN from ``ALIASES`` edges (``source_qname`` → ``target_raw``)."""
         rows = self._conn.execute(
@@ -489,16 +495,41 @@ class GraphStore:
         """
         if len(query) < 3:
             return self._search_short(query, kind=kind, namespace=namespace, limit=limit)
-        where, params = _narrow("nodes_fts MATCH ?", fts_term(query), kind, "nodes.kind = ?")
-        where, params = _with_namespace(
-            where, params, namespace, qname_column="nodes.qualified_name"
-        )
+        where, params = self._fts_search_clause(query, kind=kind, namespace=namespace)
         sql = (
             f"SELECT nodes.id, {_NODE_COLUMNS_JOINED} FROM nodes "
             f"JOIN nodes_fts ON nodes_fts.rowid = nodes.id "
             f"WHERE {where} ORDER BY {_SEARCH_ORDER} LIMIT ?"
         )
         return self._rows(NODE_ROW_KEYS, sql, (*params, limit))
+
+    def count_search_nodes(
+        self,
+        query: str,
+        *,
+        kind: str | None = None,
+        namespace: str | None = None,
+    ) -> int:
+        """Exact hit count for ``search_nodes`` filters (no LIMIT)."""
+        if len(query) < 3:
+            return self._count_search_short(query, kind=kind, namespace=namespace)
+        where, params = self._fts_search_clause(query, kind=kind, namespace=namespace)
+        sql = (
+            f"SELECT COUNT(*) FROM nodes "
+            f"JOIN nodes_fts ON nodes_fts.rowid = nodes.id "
+            f"WHERE {where}"
+        )
+        return int(self._conn.execute(sql, params).fetchone()[0])
+
+    def _fts_search_clause(
+        self,
+        query: str,
+        *,
+        kind: str | None,
+        namespace: str | None,
+    ) -> tuple[str, tuple[object, ...]]:
+        where, params = _narrow("nodes_fts MATCH ?", fts_term(query), kind, "nodes.kind = ?")
+        return _with_namespace(where, params, namespace, qname_column="nodes.qualified_name")
 
     def impact_radius(
         self, seeds: Sequence[str], *, depth: int, max_nodes: int
@@ -1065,6 +1096,33 @@ class GraphStore:
             f"ORDER BY {_EDGE_ORDER} LIMIT ?"
         )
         return self._rows(EDGE_ROW_KEYS, sql, (value, *kinds, limit))
+
+    def _count_edges(self, where: str, value: str, kinds: Sequence[str] | None) -> int:
+        if kinds is None:
+            sql = f"SELECT COUNT(*) FROM edges WHERE {where}"
+            return int(self._conn.execute(sql, (value,)).fetchone()[0])
+        if not kinds:
+            raise ValueError("kinds must be non-empty")
+        placeholders = ", ".join("?" for _ in kinds)
+        sql = f"SELECT COUNT(*) FROM edges WHERE {where} AND kind IN ({placeholders})"
+        return int(self._conn.execute(sql, (value, *kinds)).fetchone()[0])
+
+    def _count_search_short(
+        self,
+        query: str,
+        *,
+        kind: str | None,
+        namespace: str | None,
+    ) -> int:
+        pattern = f"{_like_literal(query.lower())}%"
+        where = "(LOWER(name) LIKE ? ESCAPE '!' OR LOWER(qualified_name) LIKE ? ESCAPE '!')"
+        params: tuple[object, ...] = (pattern, pattern)
+        if kind is not None:
+            where = f"{where} AND kind = ?"
+            params = (*params, kind)
+        where, params = _with_namespace(where, params, namespace, qname_column="qualified_name")
+        sql = f"SELECT COUNT(*) FROM nodes WHERE {where}"
+        return int(self._conn.execute(sql, params).fetchone()[0])
 
     def _rows(self, keys: tuple[str, ...], sql: str, params: Sequence[object]) -> list[Row]:
         cursor = self._conn.execute(sql, params)

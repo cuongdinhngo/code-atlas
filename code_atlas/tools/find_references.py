@@ -7,7 +7,13 @@ from typing import Literal
 
 from code_atlas.config import Config
 from code_atlas.store import GraphStore
-from code_atlas.tools.nav_result import edge_hit, empty_nav, nav_result
+from code_atlas.tools.nav_result import (
+    REASON_NO_SUCH_SYMBOL,
+    edge_hit,
+    empty_nav,
+    nav_result,
+    relation_reason,
+)
 
 NAME = "find_references"
 
@@ -28,15 +34,29 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path))
         limit = config.max_results
         with GraphStore(config.db_path) as store:
-            edges = store.edges_by_target(qname, limit=limit + 1)
-            truncated = len(edges) > limit
-            results = [edge_hit(edge) for edge in edges[:limit]]
+            total_count = store.count_edges_by_target(qname)
+            indexed = bool(store.nodes_by_qualified_name(qname, limit=1))
+            if total_count == 0 and not indexed:
+                return nav_result(
+                    qname,
+                    [],
+                    detail_level=detail_level,
+                    db_path=str(config.db_path),
+                    truncated=False,
+                    reason=REASON_NO_SUCH_SYMBOL,
+                    total_count=0,
+                )
+            edges = store.edges_by_target(qname, limit=limit)
+            results = [edge_hit(edge) for edge in edges]
+        truncated = total_count > len(results)
         return nav_result(
             qname,
             results,
             detail_level=detail_level,
             db_path=str(config.db_path),
             truncated=truncated,
+            reason=relation_reason(hit_total=total_count, symbol_indexed=indexed),
+            total_count=total_count,
         )
 
     return find_references

@@ -354,12 +354,12 @@ Token-efficient: return qualified names + `file:line`, not bodies, unless a read
 |---|---|---|
 | `get_index_status` | — | stats, last_commit, staleness, `next_tool_suggestions`; `standard` also `edge_health` (per-tier + resolved/unresolved) and `parse_failures`. **Call first (~100 tok).** |
 | `build_or_update_index` | `full=false` | counts, timing |
-| `search_symbol` | `query, kind?, namespace?, limit?` | ranked `{qname, kind, file:line}` (FTS + name) |
+| `search_symbol` | `query, kind?, namespace?, limit?` | ranked `{qname, kind, file:line}` (FTS + name); `reason` + `total_count` (033) |
 | `file_outline` | `path` | symbols + line ranges, no body |
 | `read_symbol` | `qname` | source of just that class/method + docblock |
-| `find_callers` | `qname, depth?` | who CALLS/NEW it (namespaced or global) + confidence |
-| `find_references` | `qname` | all edges targeting it |
-| `find_implementations` | `qname` | EXTENDS/IMPLEMENTS subtypes |
+| `find_callers` | `qname, depth?` | who CALLS/NEW it + confidence; `reason` + `total_count` (033) |
+| `find_references` | `qname` | all edges targeting it; `reason` + `total_count` (033) |
+| `find_implementations` | `qname` | EXTENDS/IMPLEMENTS subtypes; `reason` + `total_count` (033) |
 | `include_graph` | `path, direction` | `include`/`require` graph (any include-based code) |
 | `impact` | `paths|qnames, depth?` | blast radius, bounded best-score |
 | `reachable_from` | `depth?` | nodes reachable from `CA_ENTRY_POINTS` (RESOLVED IMPACT kinds, forward); `unproven` for HEURISTIC/DYNAMIC-only |
