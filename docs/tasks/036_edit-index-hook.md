@@ -225,13 +225,14 @@ See `docs/LESSONS.md` §036.
 
 ## Phase 5 — Finalise
 - Status → done; BACKLOG + token row; lesson in LESSONS.md
-- Outward: push branch + open PR (user-approved 2026-08-04)
+- Outward: push branch + open PR (user-approved 2026-08-04) → [#42](https://github.com/cuongdinhngo/code-atlas/pull/42)
 
 ## Session status
 
 - **Ticket:** 036
 - **work_doc_mode:** embed
 - **working-doc path:** `docs/tasks/036_edit-index-hook.md`
-- **Current phase:** finalise — outward push + PR
+- **Current phase:** finalise complete
 - **Blocked on:** —
-- **Next action:** push + `gh pr create`
+- **Next action:** —
+- **PR:** [#42](https://github.com/cuongdinhngo/code-atlas/pull/42)
