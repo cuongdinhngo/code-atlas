@@ -30,13 +30,34 @@ The report lands under `artifacts/` (gitignored). The pure-Python gate tests
 ## Automatic gate (every PR)
 
 The `test` job in [`ci.yml`](../../.github/workflows/ci.yml) runs
-`python scripts/tokens_to_answer.py --min-ratio 0.24` on every PR — it fails on a wrong answer or
-if the ratio regresses. **The floor is a behavior-lock, not the value claim.** The committed
-fixtures are 4-file toy repos where `get_index_status` overhead makes code-atlas *cost more* than
-reading one tiny file (observed ratio ≈ **0.302**: 1409 vs 425 tokens over 9 questions, all
-answered correctly). The token win (ratio ≫ 1) appears only on realistic repos, where grep matches
-many files an agent must read whole — that is the **sample tier**, measured on schedule, not per PR.
-Recalibrate the floor to `0.8 × observed` whenever the fixtures or recipes change.
+`python scripts/tokens_to_answer.py --min-ratio 0.24 --markdown … --notice` on every PR — it fails on
+a wrong answer or if the ratio regresses. It runs on **3.13 only** (a token count does not vary by
+interpreter) and reports in four places, so nobody has to open a log:
+
+| Where | What |
+|---|---|
+| **PR conversation** | One sticky comment, found by `COMMENT_MARKER` and **edited** on each push |
+| **PR → Checks tab** | A `::notice::` annotation with the headline numbers |
+| **Run → job summary** | The same markdown table |
+| **Run → Artifacts** | `tokens-to-answer-report.json` (per-question rows) |
+
+All four are emitted **whether the gate passes or fails** — a breach is exactly when the numbers need
+to be visible, so `--markdown` / `--notice` are written before the exit code is returned
+(`test_markdown_and_notice_are_emitted_even_when_the_gate_fails` pins this). The comment step needs
+`permissions: pull-requests: write` on the job and is `continue-on-error` because a fork PR gets a
+read-only token.
+
+**The floor is a behavior-lock, not the value claim.** The committed fixtures are 4-file toy repos
+where `get_index_status` overhead makes code-atlas *cost more* than reading one tiny file (observed
+ratio ≈ **0.286**: 1484 vs 425 tokens over 9 questions, all answered correctly). The token win
+(ratio ≫ 1) appears only on realistic repos, where grep matches many files an agent must read whole
+— that is the **sample tier**, measured on schedule, not per PR.
+
+Recalibrate the floor to `0.8 × observed` whenever the fixtures or recipes change. Response-shape
+work also moves it: the ratio has drifted **0.302 → 0.293 → 0.286** (1409 → 1452 → 1484 atlas
+tokens) as tasks 033 and 035 added `reason` / `total_count` to every payload, so the `0.24` floor now
+carries 16% headroom rather than the intended 20%. Re-read the floor before assuming a failure is a
+regression in retrieval rather than a wider response.
 
 ## Adding a question
 

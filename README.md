@@ -57,6 +57,13 @@ skip PHP. If PHP or Composer is missing it tells you and continues; rerun once t
 Then **reload your MCP client** (in Claude Code: restart, or re-approve the project's `.mcp.json`) and
 the `code-atlas` tools appear.
 
+### Keep the index fresh while Claude edits (opt-in)
+
+Task 035 already reparses drifted files at query time. For eager updates after Claude Code
+`Edit`/`Write` on PHP files, install the PostToolUse hook under
+[`contrib/claude-code/`](contrib/claude-code/) (`code-atlas-poke` console script + `"async": true`).
+Safe no-op when `.code-atlas/graph.db` is missing; does not stall the tool round-trip.
+
 <details>
 <summary>Prefer to wire it up by hand?</summary>
 

@@ -46,6 +46,8 @@ from code_atlas.tools import (  # noqa: E402
 
 _QUESTIONS = _REPO / "scripts" / "tokens_to_answer_questions.json"
 _DEFAULT_REPORT = _REPO / "artifacts" / "tokens-to-answer-report.json"
+# CI finds its own PR comment by this marker and edits it, instead of posting a new one per push.
+COMMENT_MARKER = "<!-- tokens-to-answer-report -->"
 _DEFAULT_PHP = shlex.join(["php", str(_REPO / "adapters" / "php" / "index.php"), "--server"])
 
 # The tools a recipe may call, bound per repo. get_index_status needs the servable names.
@@ -219,6 +221,51 @@ def assert_benchmark(
     return agg
 
 
+def verdict_markdown(
+    agg: dict[str, Any],
+    *,
+    min_ratio: float | None,
+    failure: str | None,
+    samples_skipped: int,
+) -> str:
+    """Markdown block for a CI step summary or a sticky PR comment (task 034 gate)."""
+    if min_ratio is None:
+        verdict = "report only (no floor)"
+    elif failure is None:
+        verdict = f"**PASS** (floor {min_ratio})"
+    else:
+        verdict = f"**FAIL** (floor {min_ratio})"
+    lines = [
+        COMMENT_MARKER,
+        "### Tokens-to-answer (vs grep+`Read`)",
+        "",
+        "| ratio | atlas tokens | grep tokens | correct | verdict |",
+        "|---|---|---|---|---|",
+        f"| {agg['ratio']} | {agg['atlas_tokens']} | {agg['grep_tokens']} "
+        f"| {agg['atlas_correct']}/{agg['questions']} | {verdict} |",
+        "",
+    ]
+    if failure:
+        lines += ["```", failure, "```", ""]
+    lines.append(
+        "`ratio > 1` means code-atlas is cheaper. The committed fixtures are toy repos where grep "
+        "wins on volume, so this floor is a behaviour-lock rather than the value claim — see "
+        "[the runbook](docs/runbooks/tokens-to-answer.md). "
+        f"Sample-tier questions skipped: {samples_skipped}."
+    )
+    return "\n".join(lines) + "\n"
+
+
+def notice_line(agg: dict[str, Any], *, min_ratio: float | None, failure: str | None) -> str:
+    """One-line GitHub Actions annotation — shows on the PR's Checks tab without opening a log."""
+    tail = f" — FAILED floor {min_ratio}" if failure else ""
+    return (
+        f"::notice title=Tokens-to-answer::ratio={agg['ratio']} "
+        f"atlas={agg['atlas_tokens']} grep={agg['grep_tokens']} "
+        f"correct={agg['atlas_correct']}/{agg['questions']}{tail}"
+    )
+
+
 def load_questions(path: Path = _QUESTIONS) -> list[dict[str, Any]]:
     data = json.loads(path.read_text(encoding="utf-8"))
     questions = data.get("questions")
@@ -288,6 +335,17 @@ def main(argv: list[str] | None = None) -> int:
         help="Fail if the aggregate ratio falls below this (omit to only report).",
     )
     parser.add_argument("--php-cmd", type=str, default=None)
+    parser.add_argument(
+        "--markdown",
+        type=Path,
+        default=None,
+        help="Also write the verdict as markdown here (CI step summary / PR comment body).",
+    )
+    parser.add_argument(
+        "--notice",
+        action="store_true",
+        help="Also print a GitHub Actions ::notice:: annotation with the headline numbers.",
+    )
     args = parser.parse_args(argv)
 
     questions = load_questions(args.questions)
@@ -314,13 +372,25 @@ def main(argv: list[str] | None = None) -> int:
     out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps({"wrote": str(out), **agg, "samples_skipped": len(sample_ids)}))
 
+    failure: str | None = None
     if args.min_ratio is not None:
         try:
             assert_benchmark(rows, min_ratio=args.min_ratio)
         except BenchmarkRegressionError as exc:
+            failure = str(exc)
             print(f"GATE FAILED: {exc}", file=sys.stderr)
-            return 1
-    return 0
+
+    # Report before returning: a failed gate is exactly when the numbers need to be visible.
+    if args.markdown is not None:
+        markdown = verdict_markdown(
+            agg, min_ratio=args.min_ratio, failure=failure, samples_skipped=len(sample_ids)
+        )
+        target = args.markdown.expanduser().resolve()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(markdown, encoding="utf-8")
+    if args.notice:
+        print(notice_line(agg, min_ratio=args.min_ratio, failure=failure))
+    return 1 if failure else 0
 
 
 if __name__ == "__main__":

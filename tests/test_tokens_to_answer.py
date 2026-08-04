@@ -89,6 +89,59 @@ def test_gate_fails_when_atlas_answer_is_wrong() -> None:
         _h.assert_benchmark(rows, min_ratio=1.0)
 
 
+def test_verdict_markdown_reports_the_numbers_and_the_pass_verdict() -> None:
+    agg = _h.aggregate([_row("a", atlas=100, grep=400)])
+    body = _h.verdict_markdown(agg, min_ratio=1.0, failure=None, samples_skipped=2)
+    assert _h.COMMENT_MARKER in body  # CI edits its own comment by this marker
+    assert "| 4.0 | 100 | 400 | 1/1 | **PASS** (floor 1.0) |" in body
+    assert "Sample-tier questions skipped: 2." in body
+
+
+def test_verdict_markdown_shows_the_failure_reason_when_the_gate_trips() -> None:
+    """A failed gate is exactly when the numbers must still render — not just an exit code."""
+    rows = [_row("a", atlas=400, grep=100)]
+    with pytest.raises(_h.BenchmarkRegressionError) as caught:
+        _h.assert_benchmark(rows, min_ratio=1.0)
+    body = _h.verdict_markdown(
+        _h.aggregate(rows), min_ratio=1.0, failure=str(caught.value), samples_skipped=0
+    )
+    assert "**FAIL** (floor 1.0)" in body
+    assert "below the floor" in body
+
+
+def test_notice_line_is_a_single_actions_annotation() -> None:
+    agg = _h.aggregate([_row("a", atlas=100, grep=400)])
+    line = _h.notice_line(agg, min_ratio=1.0, failure=None)
+    assert line.startswith("::notice title=Tokens-to-answer::")
+    assert "\n" not in line
+    assert "ratio=4.0" in line and "correct=1/1" in line
+    assert "FAILED" in _h.notice_line(agg, min_ratio=9.0, failure="too low")
+
+
+def test_markdown_and_notice_are_emitted_even_when_the_gate_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The CLI contract CI depends on: exit 1 on a breach, and the report still lands."""
+    degraded = [_row("a", atlas=400, grep=100)]
+    monkeypatch.setattr(_h, "run_fixture_questions", lambda *a, **k: degraded)
+    questions = tmp_path / "q.json"
+    questions.write_text(json.dumps({"questions": [{"id": "a"}]}), encoding="utf-8")
+    markdown = tmp_path / "verdict.md"
+    code = _h.main(
+        [
+            "--questions", str(questions),
+            "--report-out", str(tmp_path / "report.json"),
+            "--workdir", str(tmp_path / "work"),
+            "--min-ratio", "1.0",
+            "--markdown", str(markdown),
+            "--notice",
+        ]
+    )
+    assert code == 1
+    assert "**FAIL** (floor 1.0)" in markdown.read_text(encoding="utf-8")
+    assert "::notice title=Tokens-to-answer::" in capsys.readouterr().out
+
+
 def test_run_grep_path_counts_matches_and_reads_matched_files(tmp_path: Path) -> None:
     (tmp_path / "a.php").write_text("<?php\nclass Repo {}\n", encoding="utf-8")
     (tmp_path / "b.php").write_text("<?php\n// nothing here\n", encoding="utf-8")
