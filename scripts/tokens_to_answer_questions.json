@@ -1,0 +1,122 @@
+{
+  "doc": "Ground truth for the tokens-to-answer benchmark (task 034). Each entry is one agent question with a KNOWN correct answer, plus the fixed recipe for both paths. To add a question: pick a fixture with a symbol whose answer you can state exactly; write `atlas_path` (the code-atlas tool calls a competent agent would make), `grep` (the baseline's search pattern), `expected` (substrings that MUST appear in the code-atlas responses for the answer to be right), and optional `grep_evidence` (substrings that must appear in what grep+Read surfaces; defaults to `expected`). `source: fixture` runs against a committed dir (needs the PHP adapter). `source: sample` runs against a pinned public repo from cross_repo_samples.json via cross_repo_validate — those need a clone+PHP environment and are not populated here.",
+  "questions": [
+    {
+      "id": "callers_of_repo_put",
+      "source": "fixture",
+      "root": "tests/fixtures/php/resolve",
+      "question": "Which methods call App\\Repo::put()?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "find_callers", "args": {"qname": "\\App\\Repo::put", "detail_level": "minimal"}}
+      ],
+      "grep": {"pattern": "->put\\("},
+      "expected": ["\\App\\User::save"],
+      "grep_evidence": ["->put(", "function save"]
+    },
+    {
+      "id": "references_to_base",
+      "source": "fixture",
+      "root": "tests/fixtures/php/resolve",
+      "question": "What references App\\Base?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "find_references", "args": {"qname": "\\App\\Base", "detail_level": "minimal"}}
+      ],
+      "grep": {"pattern": "extends Base"},
+      "expected": ["\\App\\User"],
+      "grep_evidence": ["extends Base", "class User"]
+    },
+    {
+      "id": "implementations_of_base",
+      "source": "fixture",
+      "root": "tests/fixtures/php/resolve",
+      "question": "Which classes extend App\\Base?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "find_implementations", "args": {"qname": "\\App\\Base", "detail_level": "minimal"}}
+      ],
+      "grep": {"pattern": "extends Base"},
+      "expected": ["\\App\\User"],
+      "grep_evidence": ["extends Base", "class User"]
+    },
+    {
+      "id": "search_user",
+      "source": "fixture",
+      "root": "tests/fixtures/php/resolve",
+      "question": "Where is the User class defined?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "search_symbol", "args": {"query": "User", "detail_level": "minimal"}}
+      ],
+      "grep": {"pattern": "class User"},
+      "expected": ["\\App\\User"],
+      "grep_evidence": ["class User"]
+    },
+    {
+      "id": "search_repo",
+      "source": "fixture",
+      "root": "tests/fixtures/php/resolve",
+      "question": "Where is the Repo class defined?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "search_symbol", "args": {"query": "Repo", "detail_level": "minimal"}}
+      ],
+      "grep": {"pattern": "class Repo"},
+      "expected": ["\\App\\Repo"],
+      "grep_evidence": ["class Repo"]
+    },
+    {
+      "id": "read_repo_put",
+      "source": "fixture",
+      "root": "tests/fixtures/php/resolve",
+      "question": "Show the body of App\\Repo::put().",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "read_symbol", "args": {"qname": "\\App\\Repo::put", "detail_level": "minimal"}}
+      ],
+      "grep": {"pattern": "function put"},
+      "expected": ["function put"],
+      "grep_evidence": ["function put"]
+    },
+    {
+      "id": "read_user_save",
+      "source": "fixture",
+      "root": "tests/fixtures/php/resolve",
+      "question": "Show the body of App\\User::save().",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "read_symbol", "args": {"qname": "\\App\\User::save", "detail_level": "minimal"}}
+      ],
+      "grep": {"pattern": "function save"},
+      "expected": ["function save"],
+      "grep_evidence": ["function save", "->put("]
+    },
+    {
+      "id": "imports_of_app",
+      "source": "fixture",
+      "root": "tests/fixtures/php/include_graph",
+      "question": "What does app.php include?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "include_graph", "args": {"path": "app.php", "direction": "imports"}}
+      ],
+      "grep": {"pattern": "require"},
+      "expected": ["Legacy/Registry.php"],
+      "grep_evidence": ["Registry.php"]
+    },
+    {
+      "id": "imported_by_registry",
+      "source": "fixture",
+      "root": "tests/fixtures/php/include_graph",
+      "question": "Who includes Legacy/Registry.php?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "include_graph", "args": {"path": "Legacy/Registry.php", "direction": "imported_by"}}
+      ],
+      "grep": {"pattern": "Registry"},
+      "expected": ["app.php"],
+      "grep_evidence": ["Registry.php"]
+    }
+  ]
+}

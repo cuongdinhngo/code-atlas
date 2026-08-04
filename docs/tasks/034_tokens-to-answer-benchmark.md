@@ -4,7 +4,7 @@ slug: tokens-to-answer-benchmark
 title: Tokens-to-answer benchmark harness (vs grep+Read)
 phase: 1.5
 milestone: Measure
-status: todo
+status: in-progress
 depends_on: [014, 018]
 ---
 
