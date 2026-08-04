@@ -27,6 +27,17 @@ The report lands under `artifacts/` (gitignored). The pure-Python gate tests
 (`estimate_tokens`, `aggregate`, `assert_benchmark`, grep path) run in CI with no PHP; the
 `@needs_php` test builds the fixtures and runs every committed question end to end.
 
+## Automatic gate (every PR)
+
+The `test` job in [`ci.yml`](../../.github/workflows/ci.yml) runs
+`python scripts/tokens_to_answer.py --min-ratio 0.24` on every PR — it fails on a wrong answer or
+if the ratio regresses. **The floor is a behavior-lock, not the value claim.** The committed
+fixtures are 4-file toy repos where `get_index_status` overhead makes code-atlas *cost more* than
+reading one tiny file (observed ratio ≈ **0.302**: 1409 vs 425 tokens over 9 questions, all
+answered correctly). The token win (ratio ≫ 1) appears only on realistic repos, where grep matches
+many files an agent must read whole — that is the **sample tier**, measured on schedule, not per PR.
+Recalibrate the floor to `0.8 × observed` whenever the fixtures or recipes change.
+
 ## Adding a question
 
 Each entry is one agent question with a **known** correct answer plus the recipe for both paths:

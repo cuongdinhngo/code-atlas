@@ -64,12 +64,13 @@ jobs:
         run: pytest -q
 
       # Tokens-to-answer regression gate (task 034): builds the fixtures and measures the
-      # tokens-to-correct-answer ratio vs grep+Read. Report-only until the floor is calibrated
-      # from an observed CI run, then `--min-ratio` fails the build on a regression.
+      # tokens-to-correct-answer ratio vs grep+Read, failing on a regression AND on any wrong
+      # answer. Floor = 0.8x the observed fixture ratio (0.302) — a behavior-lock, not the value
+      # claim (tiny fixtures favour grep; the real win shows on the sample tier — see runbook).
       - name: Tokens-to-answer benchmark (ratio regression gate)
         env:
           CA_PHP_CMD: php ${{ github.workspace }}/adapters/php/index.php --server
-        run: python scripts/tokens_to_answer.py
+        run: python scripts/tokens_to_answer.py --min-ratio 0.24
 
   adapters:
     name: adapter manifests · syntax · static analysis
