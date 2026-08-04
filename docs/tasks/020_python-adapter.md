@@ -4,7 +4,7 @@ slug: python-adapter
 title: Python adapter (M8)
 phase: 2
 milestone: M8
-status: todo
+status: deferred
 depends_on: [019]
 ---
 

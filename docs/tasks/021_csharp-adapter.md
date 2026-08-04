@@ -4,7 +4,7 @@ slug: csharp-adapter
 title: C#/.NET adapter (M9)
 phase: 2
 milestone: M9
-status: todo
+status: deferred
 depends_on: [019]
 ---
 

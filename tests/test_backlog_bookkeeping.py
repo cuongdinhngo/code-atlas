@@ -15,7 +15,7 @@ DOCS = Path(__file__).resolve().parent.parent / "docs"
 BACKLOG = DOCS / "BACKLOG.md"
 TASKS = DOCS / "tasks"
 
-STATUSES = ("todo", "in-progress", "blocked", "done")
+STATUSES = ("todo", "in-progress", "blocked", "deferred", "done")
 FRONTMATTER_STATUS = re.compile(r"^status:\s*(\S+)\s*$", re.MULTILINE)
 # `| 006 | [PHP adapter spike](…) | M0 | done | 002 |` — id, title, milestone, status, deps.
 TASK_ROW = re.compile(r"^\|\s*(\d{3})\s*\|[^|]*\|[^|]*\|\s*([a-z-]+)\s*\|", re.MULTILINE)

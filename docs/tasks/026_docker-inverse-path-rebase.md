@@ -4,7 +4,7 @@ slug: docker-inverse-path-rebase
 title: Inverse Docker path rebase for path-shaped qnames (adapter #2)
 phase: 2
 milestone: M7
-status: todo
+status: deferred
 depends_on: [008, 019]
 ---
 
