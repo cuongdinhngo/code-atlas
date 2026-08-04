@@ -90,18 +90,44 @@ def bind_tools(config: Config) -> dict[str, Callable[..., dict[str, object]]]:
 
 def run_atlas_path(
     tools: dict[str, Callable[..., dict[str, object]]], steps: list[dict[str, Any]]
-) -> tuple[int, str]:
-    """Execute the recipe's tool calls; return (tokens spent, all responses concatenated)."""
+) -> tuple[int, list[dict[str, object]]]:
+    """Execute the recipe's tool calls; return (tokens spent, the raw responses).
+
+    Tokens are counted on the JSON payload (what the agent actually receives), but the
+    responses are returned raw so correctness can match the *un-escaped* strings — a qname
+    like ``\\App\\User`` is doubled by ``json.dumps`` and would never substring-match.
+    """
     total = 0
-    seen: list[str] = []
+    responses: list[dict[str, object]] = []
     for step in steps:
         fn = tools[str(step["tool"])]
         args = dict(step.get("args", {}))
         response = fn(**args)
         blob = json.dumps(response, ensure_ascii=False, sort_keys=True)
         total += estimate_tokens(json.dumps(args, ensure_ascii=False)) + estimate_tokens(blob)
-        seen.append(blob)
-    return total, "\n".join(seen)
+        responses.append(response)
+    return total, responses
+
+
+def _iter_strings(obj: object) -> list[str]:
+    """Every string value/key reachable in a response, so correctness matches raw text."""
+    found: list[str] = []
+    if isinstance(obj, str):
+        found.append(obj)
+    elif isinstance(obj, dict):
+        for key, value in obj.items():
+            found.extend(_iter_strings(key))
+            found.extend(_iter_strings(value))
+    elif isinstance(obj, (list, tuple)):
+        for item in obj:
+            found.extend(_iter_strings(item))
+    return found
+
+
+def answer_contains(responses: list[dict[str, object]], expected: list[str]) -> bool:
+    """True when every expected substring appears in some string of the responses."""
+    strings = _iter_strings(responses)
+    return all(any(exp in text for text in strings) for exp in expected)
 
 
 def run_grep_path(root: Path, spec: dict[str, Any]) -> tuple[int, str]:
@@ -141,11 +167,11 @@ def run_grep_path(root: Path, spec: dict[str, Any]) -> tuple[int, str]:
 def evaluate_question(config: Config, question: dict[str, Any]) -> dict[str, Any]:
     """Run both paths for one question against an already-built index; return a report row."""
     tools = bind_tools(config)
-    atlas_tokens, atlas_seen = run_atlas_path(tools, list(question["atlas_path"]))
+    atlas_tokens, atlas_responses = run_atlas_path(tools, list(question["atlas_path"]))
     grep_tokens, grep_seen = run_grep_path(config.root, dict(question["grep"]))
     expected = [str(s) for s in question["expected"]]
     grep_evidence = [str(s) for s in question.get("grep_evidence", expected)]
-    atlas_correct = all(s in atlas_seen for s in expected)
+    atlas_correct = answer_contains(atlas_responses, expected)
     grep_correct = all(s in grep_seen for s in grep_evidence)
     ratio = round(grep_tokens / atlas_tokens, 3) if atlas_tokens else 0.0
     return {

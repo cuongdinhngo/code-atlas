@@ -99,6 +99,13 @@ def test_run_grep_path_counts_matches_and_reads_matched_files(tmp_path: Path) ->
     assert "nothing here" not in seen
 
 
+def test_answer_contains_matches_unescaped_backslash_qnames() -> None:
+    """Regression: json-escaping doubled ``\\App`` and broke the substring match (CI #37)."""
+    responses = [{"indexed": True, "results": [{"qname": "\\App\\User::save"}]}]
+    assert _h.answer_contains(responses, ["\\App\\User::save"])
+    assert not _h.answer_contains(responses, ["\\App\\Missing"])
+
+
 def test_questions_file_is_well_formed() -> None:
     questions = _h.load_questions(QUESTIONS)
     assert len(questions) >= 8
