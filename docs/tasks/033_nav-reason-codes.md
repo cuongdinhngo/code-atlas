@@ -4,7 +4,7 @@ slug: nav-reason-codes
 title: Reason codes + total_count on find_* / search (empty ≠ unknown)
 phase: 1.5
 milestone: Agent-trust
-status: in-progress
+status: done
 depends_on: [013, 014]
 ---
 
@@ -272,11 +272,70 @@ cleared — standing approval 2026-08-04 (best option / pass all gates); approac
 ### Ph3/4 proven by (matrix delta)
 AC1–AC4, W1–W2, G1, R1–R3, C1–C3 → proving + inventory tests / suite ✅
 
+---
+
+## Phase 4 — Review
+
+### Reviewer (`mango:reviewer` · 8668a1b1)
+- **Verdict:** **LGTM**
+- **Scope:** diff ⊆ Gate-2 list (12 files); R1.1 / R1.4 / R4 / R6 / R7.2 OK; `index_stale` vocabulary-only
+- **Proof:** blast-radius pytest 106 passed; suite claim 655 vs baseline 646
+- **Findings:** none Critical/Important
+- **Nit (R7.4):** unused `NavReason` + `relation_reason` in `nav_result.py` — **fixed post-LGTM** (deleted; constants/`NAV_REASONS` retained)
+
+### Challenger (ticket-blind · 7cf518c3)
+
+| # | Rebuilt requirement | Verdict | Adjudication |
+|---|---------------------|---------|--------------|
+| 1a | reason vocab includes ok/no_matches/no_such_symbol/not_indexed/index_stale | **met** | — |
+| 1b | emit `index_stale` on drift | **not met** (as written) | **ratified W2 / ASSUMED Option 1** — emission deferred to 035; not a Gate-4 miss |
+| 2 | total_count alongside truncated | **met** | — |
+| 3 | reuse get_index_status/reach_shared status strings | **not met** (challenger) | **adjudicated met** — ticket specifies `reason` values; "generalise the *instinct*" ≠ share `behind`/`current` commit-staleness strings; reach keeps `status` for no_roots |
+| 4 | distinguish absent vs empty | **met** | — |
+| 5 | R1.1/R1.4/R4; one shaper | **met** | — |
+| 6a–6d | ACs no_such_symbol / no_matches / total_count / not_indexed | **met** | — |
+| 6e | full suite | **can't tell** (challenger) | **resolved** — execute recorded `655 passed` |
+
+### Scope reconciliation
+- File axis: ✅ approved list only (+ post-LGTM deletion inside `nav_result.py` item 1)
+- Behaviour axis: ✅ Approach bullets as approved; W2 holds
+- Inventory N=4 tools: each has reason+total_count ✅
+
+### Gate 4 status
+**clean** — reviewer LGTM; challenger gaps adjudicated against ratified Option 1 / ticket field name.
+
+### Cost ledger (dispatch)
+
+| Phase | Dispatch | Round | Tokens |
+|-------|----------|-------|--------|
+| Phase 0 | exposure-checker (challenger) | 1 | unmeasured (blocking retrieval) |
+| Phase 4 | reviewer | 1 | unmeasured (blocking retrieval) |
+| Phase 4 | challenger | 1 | unmeasured (blocking retrieval) |
+
+`LEDGER: 3 dispatch rows | all cells valued or marked unmeasured | complete`
+
+### Durable lesson
+Ticket Scope enum members that 035 will emit must be listed in 033 without AC proof — record as W1/W2 (vocab vs emit) at refine so ticket-blind challenger "not met" on emission is expected, not a surprise rework.
+
+## Phase 5 — Finalise
+- Status → done; BACKLOG + token row; lesson in LESSONS.md
+- Outward: push branch + open PR (user-approved 2026-08-04)
+
+## Decision log
+
+| Phase | Decision | Note |
+|-------|----------|------|
+| Phase 0 | Option 1 index_stale vocabulary-only | standing approval / recommended |
+| Gate 1/2 | cleared | standing approval pass-all-gates |
+| Gate 4 | challenger emit-stale + parallel-vocab | adjudicated via W2 + ticket `reason` field |
+| Gate 5 | push + PR | explicit user request |
+
 ## Session status
 
 - **Ticket:** 033
 - **work_doc_mode:** embed
 - **working-doc path:** `docs/tasks/033_nav-reason-codes.md`
-- **Current phase:** execute complete → review
+- **Current phase:** finalise — push + PR
 - **Blocked on:** none
-- **Next action:** review (reviewer + challenger)
+- **Reviewed at:** *(set after bookkeeping commit)*
+- **Next action:** push + `gh pr create`

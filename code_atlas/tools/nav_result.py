@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, Literal
+from typing import Any
 
 from code_atlas.contract import CONFIDENCE_TIERS
 from code_atlas.store import Row
@@ -23,14 +23,6 @@ NAV_REASONS = (
     REASON_NOT_INDEXED,
     REASON_INDEX_STALE,
 )
-
-NavReason = Literal[
-    "ok",
-    "no_matches",
-    "no_such_symbol",
-    "not_indexed",
-    "index_stale",
-]
 
 
 def edge_id(edge: Mapping[str, Any] | Row) -> int:
@@ -134,12 +126,3 @@ def list_result(
     if detail_level == "standard":
         payload["db_path"] = db_path
     return payload
-
-
-def relation_reason(*, symbol_exists: bool, hit_count: int) -> str:
-    """Classify find_* emptiness: missing symbol vs present-but-empty vs hits."""
-    if not symbol_exists:
-        return REASON_NO_SUCH_SYMBOL
-    if hit_count == 0:
-        return REASON_NO_MATCHES
-    return REASON_OK

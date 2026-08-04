@@ -1,5 +1,19 @@
 # Lessons — code-atlas
 
+## 033 — Split vocab-vs-emit when a later ticket owns emission
+When Scope lists an enum member (e.g. `index_stale`) that a dependent ticket (035) will emit, refine
+must record **W1 vocab present** and **W2 no emit-proof this card**. Otherwise a ticket-blind
+challenger scores emission as **not met** against the raw ticket and looks like a Gate-4 miss.
+
+### 033-C1 — Enum members deferred to a paired ticket need W1/W2 at refine
+- type: 5 project-ground-truth
+- status: confirmed
+- evidence: challenger 7cf518c3 row 1b; ASSUMED Option 1; task 035 pairs with 033
+- area: mango / refine / reason-codes
+- sub-shape: normative
+- destination: stays in lessons_path
+- seen: 033
+
 Durable lessons discovered while shipping tasks: constraints found, wrong assumptions, process gaps.
 One entry per lesson; newest first.
 
