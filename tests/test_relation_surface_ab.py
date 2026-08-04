@@ -60,17 +60,41 @@ def test_schema_term_separates_the_two_surfaces(tmp_path: Path, store: GraphStor
 
 def test_verdict_flips_across_the_break_even() -> None:
     """A verdict that cannot come out both ways would be a constant dressed as a finding."""
-    result = {"schema_delta": -240, "call_delta": 21}
-    assert _ab.verdict(result, sessions=1)["winner"] == "surface_b"
-    assert _ab.verdict(result, sessions=100)["winner"] == "surface_a"
-    break_even = _ab.verdict(result, sessions=1)["break_even_calls"]
-    assert break_even == pytest.approx(240 / 21)
+    result = {"schema_delta": -240, "call_delta": 24, "call_delta_per_call": 6.0}
+    assert _ab.verdict(result, calls=1)["winner"] == "surface_b"
+    assert _ab.verdict(result, calls=100)["winner"] == "surface_a"
+    assert _ab.verdict(result, calls=1)["break_even_calls"] == pytest.approx(40.0)
+
+
+def test_break_even_is_in_calls_not_in_measured_batches() -> None:
+    """Regression guard for a real bug: the aggregate delta was used as a per-call rate.
+
+    ``call_delta`` is summed over every measured question, so dividing the schema saving by it
+    yields a break-even in *batches of len(questions)* and understates the true call count by that
+    factor. The two must never be confused — a wrong unit here rewrites the whole decision.
+    """
+    result = {"schema_delta": -240, "call_delta": 24, "call_delta_per_call": 24 / 4}
+    break_even = _ab.verdict(result, calls=1)["break_even_calls"]
+    assert break_even == pytest.approx(240 / (24 / 4))  # 40 calls
+    assert break_even != pytest.approx(240 / 24)  # NOT 10 "batches"
+    # At the break-even the surfaces tie; one call either side decides it.
+    assert _ab.verdict(result, calls=40)["winner"] == "tie"
+    assert _ab.verdict(result, calls=39)["winner"] == "surface_b"
+    assert _ab.verdict(result, calls=41)["winner"] == "surface_a"
+
+
+def test_measure_publishes_the_per_call_rate_alongside_the_aggregate() -> None:
+    """The normalization must live in ``measure``, so no caller can re-derive it wrongly."""
+    source = (REPO / "scripts" / "relation_surface_ab.py").read_text(encoding="utf-8")
+    assert '"call_delta_per_call": call_delta / len(questions)' in source
+    assert 'per_call = float(result["call_delta_per_call"])' in source
 
 
 def test_verdict_reports_a_tie_and_no_break_even_when_calls_cost_the_same() -> None:
-    assert _ab.verdict({"schema_delta": 0, "call_delta": 0}, sessions=7)["winner"] == "tie"
-    flat = _ab.verdict({"schema_delta": -5, "call_delta": 0}, sessions=7)
-    assert flat["break_even_calls"] is None
+    flat = {"schema_delta": 0, "call_delta": 0, "call_delta_per_call": 0.0}
+    assert _ab.verdict(flat, calls=7)["winner"] == "tie"
+    free = {"schema_delta": -5, "call_delta": 0, "call_delta_per_call": 0.0}
+    assert _ab.verdict(free, calls=7)["break_even_calls"] is None
 
 
 def test_recipe_rewrite_targets_only_the_relation_call() -> None:

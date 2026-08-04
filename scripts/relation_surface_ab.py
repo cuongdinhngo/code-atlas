@@ -149,24 +149,28 @@ def measure(config: Config, questions: list[dict[str, Any]]) -> dict[str, Any]:
 
     a_schema = sum(schema_tokens(name, tools[name]) for name in SURFACE_A)
     b_schema = sum(schema_tokens(name, tools[name]) for name in SURFACE_B)
+    call_delta = b_calls - a_calls
     return {
         "questions": len(questions),
         "surface_a": {"tools": list(SURFACE_A), "schema_tokens": a_schema, "call_tokens": a_calls},
         "surface_b": {"tools": list(SURFACE_B), "schema_tokens": b_schema, "call_tokens": b_calls},
         "schema_delta": b_schema - a_schema,
-        "call_delta": b_calls - a_calls,
+        # Aggregate over every measured question, plus the per-call rate. Keep them distinct:
+        # multiplying the aggregate by a call count inflates the break-even by len(questions).
+        "call_delta": call_delta,
+        "call_delta_per_call": call_delta / len(questions),
     }
 
 
-def verdict(result: dict[str, Any], *, sessions: int = 1) -> dict[str, Any]:
-    """Decide, given how many relation questions one session asks.
+def verdict(result: dict[str, Any], *, calls: int = 1) -> dict[str, Any]:
+    """Decide, given how many **individual** relation calls one session makes.
 
-    Schema cost is paid **once** per session; per-call cost is paid per question. So the break-even
-    is where a schema saving stops covering the extra per-call argument bytes.
+    Schema cost is paid **once** per session; the argument overhead is paid **per call**. So the
+    break-even is where a one-off schema saving stops covering the extra per-call argument bytes.
     """
     schema_delta = int(result["schema_delta"])
-    call_delta = int(result["call_delta"])
-    total_delta = schema_delta + call_delta * sessions
+    per_call = float(result["call_delta_per_call"])
+    total_delta = schema_delta + per_call * calls
     if total_delta < 0:
         winner = "surface_b"
     elif total_delta > 0:
@@ -174,10 +178,10 @@ def verdict(result: dict[str, Any], *, sessions: int = 1) -> dict[str, Any]:
     else:
         winner = "tie"
     return {
-        "sessions": sessions,
-        "total_delta": total_delta,
+        "calls": calls,
+        "total_delta": round(total_delta, 1),
         "winner": winner,
-        "break_even_calls": None if call_delta <= 0 else -schema_delta / call_delta,
+        "break_even_calls": None if per_call <= 0 else -schema_delta / per_call,
     }
 
 
@@ -204,9 +208,9 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     result = measure(config, picked)
-    result["verdict"] = verdict(result, sessions=len(picked))
+    result["verdict"] = verdict(result, calls=len(picked))
     # One data point hides the crossover; the sweep is what the decision is actually read off.
-    result["sweep"] = [verdict(result, sessions=n) for n in (1, 5, 10, 20, 50, 100)]
+    result["sweep"] = [verdict(result, calls=n) for n in (1, 10, 20, 36, 50, 100)]
     print(json.dumps(result, sort_keys=True))
     if args.json is not None:
         out = args.json.expanduser().resolve()

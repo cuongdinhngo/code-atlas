@@ -165,7 +165,7 @@ multiplies the added cost ~5× for the same answer.
 |----|-------------|----------|-------|--------------|
 | AC1 | call-site line available; default frugal, asserted | flag on ⇒ `source` per hit; flag off ⇒ payload equal to today's | Y | measurable — byte-equality assertion, and a degraded case (drifted file) must actually omit |
 | AC2 | benchmark comparing the two surfaces, decision + numbers | extended metric emits both surfaces' totals; verdict recorded in this doc | Y | measurable — two numbers, recorded |
-| AC3 | full suite; docs if merged | `pytest -q` green; PLAN/CONVENTION/runbook synced | Y | measurable |
+| AC3 | full suite; docs if merged | `pytest -q` green; PLAN/CONVENTION/runbook synced | Y | measurable — **was falsely Y at review round 1: `CONVENTION.md` was listed in scope but never touched, and its §6 "no source bodies from nav tools" rule contradicted `include_source`. Synced in round 2.** |
 
 **AC2 honesty note.** AC2 as written is satisfiable *vacuously* against today's harness (run it, get
 0 difference, "record" that). That would be a false green — see F2. The AC is therefore read as
@@ -324,13 +324,25 @@ two-term extension of the 034 metric, with the consolidation verdict following t
 **G1 — does the compound response remove a round-trip?** Same question, same correct answer
 (`tests/fixtures/php/resolve`):
 
-| Path | Calls | Tokens |
-|------|-------|--------|
-| `find_callers(include_source=true)` | **1** | **107** |
-| `find_callers` → `read_symbol` | 2 | 176 |
+| Path | Relation calls | Relation tokens | + `get_index_status` preamble (73) |
+|------|----------------|-----------------|------------------------------------|
+| `find_callers(include_source=true)` | **1** | **107** | **180** |
+| `find_callers` → `read_symbol` | 2 | 176 | 249 |
 
-**39% fewer tokens for the identical answer**, one round-trip removed. Both paths were checked for
-correctness, not just cost.
+**−39% on the relation calls, −28% end-to-end**, for the identical answer, one round-trip removed.
+Both paths were checked for correctness, not just cost.
+
+Reproduce (the pair excludes the shared `get_index_status` preamble, which both paths pay
+identically; `180` is what `scripts/tokens_to_answer.py` reports for the whole question):
+
+```python
+import sys; sys.path.insert(0, "scripts")
+import tokens_to_answer as h  # CA_PHP_CMD must point at the adapter
+root = h.prepare_fixture_root(Path("tests/fixtures/php/resolve"), Path("artifacts/roundtrip-ab"))
+tools = h.bind_tools(h.build_index(root, Path("artifacts/roundtrip-ab/graph.db"), h._php_cmd_from_env()))
+h.run_atlas_path(tools, [{"tool": "find_callers", "args": {
+    "qname": "\\App\\Repo::put", "detail_level": "minimal", "include_source": True}}])[0]   # 107
+```
 
 **Gate impact.** The compound question joins the 034 gate: **10 questions, 10/10 correct, ratio
 0.288** (was 0.286 over 9) — `--min-ratio 0.24` still passes, and the question would **fail** without
@@ -343,39 +355,53 @@ correctness, not just cost.
 | **A** — `find_callers` + `find_references` + `find_implementations` | 464 | 643 |
 | **B** — one `find_relations(qname, relation)` | 223 | 670 |
 
-`schema_delta −241` (B's one description is cheaper than three) · `call_delta +27` (B pays ~7 tokens
-per call for the extra `relation` argument) · **break-even ≈ 8.9 relation calls per session.**
+`schema_delta −241` (B's one description is cheaper than three) · `call_delta +27` over 4 calls =
+**6.75 tokens per call** (B's extra `relation` argument) · **break-even ≈ 35.7 relation calls per
+session.**
 
 | Relation calls in a session | Net delta | Cheaper surface |
 |---|---|---|
-| 1 | −214 | B |
-| 5 | −106 | B |
-| **10** | **+29** | **A** |
-| 20 | +299 | A |
-| 50 | +1109 | A |
-| 100 | +2459 | A |
+| 1 | −234 | B |
+| 10 | −174 | B |
+| 20 | −106 | B |
+| **36** | **+2** | **A** |
+| 50 | +97 | A |
+| 100 | +434 | A |
+
+> **Corrected in review (round 1, Important).** The first version of this table read break-even
+> **≈8.9 calls** — wrong by ~4×. `verdict()` multiplied the *aggregate* `call_delta` (27 tokens over
+> **4** questions) by a call count, so its units were 4-call batches, not calls. My own prose gave it
+> away in one sentence — "~7 tokens per call" and "break-even 8.9" cannot both hold, since 241/7 ≈ 34.
+> Fixed at the source (`measure()` now publishes `call_delta_per_call`), with
+> `test_break_even_is_in_calls_not_in_measured_batches` as the regression guard: the previous test
+> only checked `verdict()`'s algebra against itself and **could not** catch a unit error in its input.
 
 ### Decision — keep the three tools; ship only the compound response
 
-The ticket's rule is "merge only if 034 shows a net win". It does not, for the workload this tool
-exists to serve:
+**The token evidence is equivocal, not supportive** — that is the honest reading of the corrected
+numbers, and it is a change from what this doc first claimed:
 
-1. **The crossover is ~9 relation calls.** B is cheaper only for a session that asks fewer than nine
-   relation questions. An agent navigating a real codebase passes that inside one task, and past it
-   A's lead grows linearly (+2459 tokens at 100 calls). The token argument **favours A**.
-2. **B's schema saving comes partly from documenting less** — exactly the "muddier per-tool
-   description" cost the ticket names (C L29-31). Three focused descriptions are the thing an agent
-   picks a tool from; the metric cannot price that, and it is a real cost on the *other* side of the
-   ledger from the 241 tokens.
-3. **R1.2** — merging collides with one-module-per-tool, and one data point is not the two
+1. **The crossover is ~36 relation calls, not ~9.** Below it a merged tool is genuinely cheaper, and
+   plenty of real sessions sit below 36 relation calls. The original argument — "an agent passes the
+   crossover inside one task" — **does not survive the correction** and is withdrawn.
+2. **The whole effect is small in both directions.** Across 1–100 relation calls the spread is −234 to
+   +434 tokens: well under 0.5% of a working context either way. Tokens therefore do not justify
+   restructuring the tool surface — which is the actual question C3 asks.
+3. **B's schema saving comes partly from documenting less** — exactly the "muddier per-tool
+   description" cost the ticket names (C L29-31). Three focused descriptions are what an agent picks a
+   tool *from*; the metric cannot price that, and it sits on the opposite side of the ledger from the
+   241 tokens.
+4. **R1.2** — merging collides with one-module-per-tool, and one data point is not the two
    implementations that reveal an abstraction.
 
-**Honest limits of this measurement.** The schema term is a `~4 chars/token` proxy (same estimator
-034 declares) over docstrings **I authored on both sides** — editing one docstring during this task
-moved `schema_delta` from −240 to −241 and the break-even from 11.4 to 8.9. So the exact magnitude is
-soft; what is robust is (a) the **sign flips** at a low call count, and (b) that count sits **inside**
-a normal session. `find_relations` is therefore **not shipped**: it exists only inside the A/B script,
-so no surface has to be removed later.
+So the ticket's rule ("merge **only if** 034 shows a net win") is not met: there is no net win, only a
+small trade whose sign depends on session shape. Default applies — **keep the three tools**.
+
+**Honest limits of this measurement.** The schema term is a `~4 chars/token` proxy (the estimator 034
+declares) over docstrings **I authored on both sides**; editing one docstring mid-task moved
+`schema_delta` from −240 to −241. So treat the crossover as an order of magnitude (tens of calls), not
+a precise 35.7. `find_relations` is **not shipped** — it exists only inside the A/B script, so no
+surface has to be removed later, and re-running the script is the way to revisit this.
 
 ### Ph3/4 proven by
 
@@ -391,3 +417,81 @@ so no surface has to be removed later.
 ### Matrix (Ph3)
 
 All 14 rows → ✅ (evidence above).
+
+---
+
+## Phase 4 — Review
+
+**Reviewed at** `8418654` (files: `call_site.py`, `find_callers.py`, `find_references.py`,
+`relation_surface_ab.py`, questions file, both new test files, module-count guards, PLAN / runbook /
+BACKLOG / this doc). Bookkeeping commits after this marker are exempt from the stale-review guard.
+
+### Challenger (ticket-blind, raw ticket lines 1–44 only)
+
+**10 met · 0 not met · 0 can't-tell** on its own reconstruction of the requirements. It independently
+re-ran the suite (702 passed), the grep-gates, and `relation_surface_ab.py`, reproducing
+`schema_delta −241` / `break_even 8.93` — so the recorded A/B numbers are reproducible, not asserted.
+It also confirmed `find_relations` is **not** registered in `main.py` and `contract.py` is untouched,
+i.e. the "keep three tools" verdict is what actually shipped.
+
+| # | Rebuilt requirement | Verdict |
+|---|---------------------|---------|
+| 1–2 | `find_callers` / `find_references` optionally return the call-site line | met |
+| 3 | A/B run on the 034 harness; result + decision recorded | met |
+| 4 | Token-frugal by default (opt-in **and** capped) | met |
+| 5 | No language branches (R1.1) | met |
+| 6 | SQL stays in `store.py` (R1.4) | met |
+| 7 | Consolidation held behind the benchmark; three tools kept | met |
+| 8–10 | AC1 / AC2 / AC3 | met |
+
+**Finding accepted and fixed — a documentation figure that could not be reproduced.** The challenger
+could not derive PLAN's "107 vs 176" from the shipped harness, which reports **180** for the whole
+question. It was right that the claim was unreproducible: 107/176 counted only the relation calls,
+while 180 includes the 73-token `get_index_status` preamble both paths pay (107 + 73 = 180 ✓). The
+numbers were correct but the framing was not checkable. Fixed in the Measured-results table above
+(both forms + a reproduction snippet) and in `docs/PLAN.md`.
+
+**Finding accepted — cost-ledger cells.** It flagged the BACKLOG row's blanket
+`unmeasured (blocking retrieval)`. Correct: that text was carried over from 033/035/036, but this run
+took its dispatch results as **task-notifications, which do carry a `<usage>` block**, so real numbers
+exist and the honest marker does not apply. Corrected in the ledger below and in BACKLOG.
+
+### Reviewer (`mango:reviewer` · round 1, at `8418654`)
+
+- **Verdict:** **CHANGES REQUESTED** — 2 Important, 0 Critical. Explicitly *not* a conditional LGTM,
+  because finding 1's fix rewrites a headline number rather than patching a constant.
+- **Verified clean:** scope (diff = exactly the 13 approved files), R1.1 / R1.2 / R1.4 / R4, R7.5
+  comment length, `call_site.py` correctness, suite 702, ruff, mypy. It **re-ran the C4 mutation
+  itself** and confirmed the test goes red without `file_is_current`.
+
+| Sev | Finding | Path | Resolution |
+|-----|---------|------|------------|
+| Important | **Break-even wrong by ~4×.** `verdict()` multiplied the *aggregate* `call_delta` (27 tokens over **4** questions) by a call count, so "8.9" was in units of 4-call batches, not calls. True value **35.7 calls** | `scripts/relation_surface_ab.py:161-181` + 3 docs | Fixed: `measure()` now publishes `call_delta_per_call`; `verdict(calls=…)` uses it; numbers and the sweep recomputed; **Decision §1 withdrawn and rewritten** |
+| Important | **`CONVENTION.md` §6 contradicted and never synced** — it says nav tools return no source bodies, and the working doc's AC3 row claimed CONVENTION was synced when `git diff` showed it untouched | `docs/CONVENTION.md:108-109`; AC3 row | Fixed: §6 now carries the `include_source` exception (opt-in, one capped line, never from a drifted file); AC3 row corrected to record the false Y |
+
+**Why finding 1 is the serious one.** It is the exact trap the AC2 honesty note was written to guard
+against — a number that "looks like evidence and is an artifact" — in a shape I had not anticipated: a
+unit error rather than the zero-difference tautology of F2. My own sentence contained the
+contradiction ("~7 tokens per call" beside "break-even 8.9"; 241/7 ≈ 34) and I did not notice it. The
+guard test I *had* written could not catch it, because it checked `verdict()`'s algebra against itself
+rather than the units of its input — `test_break_even_is_in_calls_not_in_measured_batches` now does.
+
+**Consequence for the decision.** The corrected crossover (~36 calls) does **not** support the
+original "an agent passes that inside one task" argument, which is withdrawn. The decision still lands
+on "keep three tools", but now rests on there being **no net win at all** (a −234…+434 token spread),
+plus C3's unpriced description cost and R1.2 — not on the crossover. See the rewritten Decision.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens | Tool uses | Duration |
+|-------|----------|-------|--------|-----------|----------|
+| Phase 4 | `mango:challenger` | 1 | **61,961** | 32 | 336 s |
+| Phase 4 | `mango:reviewer` | 1 | **106,501** | 42 | 595 s |
+
+`LEDGER: 2 dispatch rows | all cells carry real measured values | complete`
+
+**Ledger correction.** Phases 0–3 dispatched **nothing** — the premise check, both A/B measurements
+and every fix ran on the main model. An earlier draft of the BACKLOG row said "3 dispatch … refine
+exposure-checker" and marked every cell `unmeasured (blocking retrieval)`; both were copied from
+033/035/036 rather than observed. No exposure-checker ran, and both dispatches returned real `<usage>`
+blocks. **Main-loop spend remains unmeasured** (the host surfaces per-subagent usage, not main-loop).
