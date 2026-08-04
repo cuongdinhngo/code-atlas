@@ -481,14 +481,39 @@ original "an agent passes that inside one task" argument, which is withdrawn. Th
 on "keep three tools", but now rests on there being **no net win at all** (a −234…+434 token spread),
 plus C3's unpriced description cost and R1.2 — not on the crossover. See the rewritten Decision.
 
+### Reviewer (`mango:reviewer` · round 2, at `9eab3d4`)
+
+- **Verdict:** **LGTM.** No new Critical or Important findings.
+- **Independently re-ran** the A/B script and reproduced every recorded figure — `schema_delta −241`,
+  `6.75`/call, break-even `35.70`, sweep `−234…+434` — and separately re-derived `107 / 176 / 180 /
+  249` and the gate's `ratio 0.288, 10/10`. Cross-doc consistency confirmed across the working doc,
+  PLAN and the runbook.
+- **Re-mutated the fix:** reinstating the round-1 defect made
+  `test_break_even_is_in_calls_not_in_measured_batches` fail with `Obtained: 10.0, Expected: 40.0` —
+  the ~4× inflation, caught. The guard is real.
+- CONVENTION §6 verified accurate line-by-line against shipped behaviour. Scope unchanged (the fix
+  commit touched only already-approved files). Suite 704, ruff clean, mypy clean over 36 files.
+- **On the decision it was asked to challenge:** it judged the rewrite honest and said the evidence
+  does **not** point to shipping `find_relations` — if anything the doc *undersells* its case, since
+  above the crossover A wins and widens, while B's best case tops out at 234 tokens. Recorded as-is;
+  the conservative framing stands rather than being re-strengthened after the fact.
+
+### Gate 4 status
+
+**clean** — reviewer LGTM at `9eab3d4`; challenger 10/10 met; both round-1 Important findings fixed
+with the numbers re-verified by a third party rather than by their author.
+
 ## Cost ledger
 
 | Phase | Dispatch | Round | Tokens | Tool uses | Duration |
 |-------|----------|-------|--------|-----------|----------|
 | Phase 4 | `mango:challenger` | 1 | **61,961** | 32 | 336 s |
 | Phase 4 | `mango:reviewer` | 1 | **106,501** | 42 | 595 s |
+| Phase 4 | `mango:reviewer` | 2 | **74,192** | 39 | 433 s |
 
-`LEDGER: 2 dispatch rows | all cells carry real measured values | complete`
+`LEDGER: 3 dispatch rows | all cells carry real measured values | complete`
+**Total dispatch: 242,654 tokens.** Top driver: `mango:reviewer` round 1 (106.5k) — the pass that
+found the break-even bug.
 
 **Ledger correction.** Phases 0–3 dispatched **nothing** — the premise check, both A/B measurements
 and every fix ran on the main model. An earlier draft of the BACKLOG row said "3 dispatch … refine
