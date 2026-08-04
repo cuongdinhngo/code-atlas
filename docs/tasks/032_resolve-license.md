@@ -4,7 +4,7 @@ slug: resolve-license
 title: Resolve license (LICENSE file + README)
 phase: 1.5
 milestone: Adoption
-status: in-progress
+status: done
 depends_on: []
 ---
 
