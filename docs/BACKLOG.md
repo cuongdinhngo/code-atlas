@@ -54,9 +54,11 @@ up). Source: [`FEEDBACK.md`](FEEDBACK.md).
 | 039 | Vendor stub index (declarations-only) | Framework | todo | 009, 011 |
 | 040 | Framework indirection as data (rules file outside `adapters/`) | Framework | todo | 039, 030 |
 | 041 | Legacy/framework hardening — encoding, `.blade.php` ignore, extra extensions | Robustness | todo | 009 |
+| 042 | Tokens-to-answer sample tier — populate pinned public repos (ratio ≫ 1) | Measure | todo | 034, 018 |
 
-**Order:** 032 → 033 → 034 → (035, 036) → 037 → 038 → 039 → 040; 041 any time. **034 gates
-037/039/040** — it decides whether they earned their cost. **Editing tools are permanently out**
+**Order:** 032 → 033 → 034 → (035, 036) → 037 → 038 → 039 → 040; 041 any time; **042 after 034**
+(needs a PHP+clone env — proves the value claim the fixtures can't). **034 gates 037/039/040** — it
+decides whether they earned their cost. **Editing tools are permanently out**
 (ceded to native `Edit`, §1/§19). Tool *consolidation* (`find_relations`) is held as an A/B behind
 034, not assumed.
 
