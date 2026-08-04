@@ -8,6 +8,8 @@ from typing import Literal
 
 from code_atlas.config import Config
 from code_atlas.store import GraphStore, Row
+from code_atlas.tools.freshness import FreshnessGuard
+from code_atlas.tools.nav_result import REASON_INDEX_STALE
 
 NAME = "file_outline"
 
@@ -36,6 +38,17 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     db_path=str(config.db_path),
                     truncated=False,
                     found=False,
+                )
+            guard = FreshnessGuard(config, store)
+            if guard.ensure(rel) == "stale":
+                return _result(
+                    rel,
+                    [],
+                    detail_level=detail_level,
+                    db_path=str(config.db_path),
+                    truncated=False,
+                    found=True,
+                    reason=REASON_INDEX_STALE,
                 )
             rows = store.nodes_by_file(rel, limit=limit + 1)
         truncated = len(rows) > limit
@@ -94,6 +107,7 @@ def _result(
     db_path: str,
     truncated: bool,
     found: bool,
+    reason: str | None = None,
 ) -> dict[str, object]:
     payload: dict[str, object] = {
         "indexed": True,
@@ -102,6 +116,8 @@ def _result(
         "results": results,
         "truncated": truncated,
     }
+    if reason is not None:
+        payload["reason"] = reason
     if detail_level == "standard":
         payload["db_path"] = db_path
     return payload

@@ -138,6 +138,45 @@ def incremental_update(
     return BuildReport(files=len(to_parse), removed=removed, **counts)
 
 
+def reparse_file(config: Config, store: GraphStore, path: str) -> bool:
+    """Parse one relative path into ``store`` and re-link (read-through freshness, task 035).
+
+    Returns ``False`` when no announced adapter owns the suffix (caller should treat as stale).
+    Uses the same ``_write`` path as a full/incremental build so rows stay deterministic (R4).
+    """
+    watchdog = _Watchdog(config.adapter_timeout)
+    watchdog.start()
+    try:
+        announced = _announce(config, watchdog)
+        try:
+            owners = _owners(announced)
+            suffix = _suffix(path)
+            if suffix not in owners:
+                return False
+            key = owners[suffix]
+            adapter = announced[key]
+            language = adapter.name
+            try:
+                with watchdog.guard(adapter):
+                    result = adapter.parse(path)
+            except AdapterError as error:
+                result = ParseResult(path=path, ok=False, error=str(error))
+            tally = {"parsed": 0, "failed": 0, "nodes": 0, "edges": 0}
+            _write(store, path, _digest(config.root / path), language, result, tally)
+        finally:
+            for adapter in announced.values():
+                adapter.stop()
+    finally:
+        watchdog.stop()
+    resolve_edges(store, max_candidates=config.max_results)
+    return True
+
+
+def file_is_current(store: GraphStore, root: Path, path: str) -> bool:
+    """True when the indexed hash equals on-disk bytes (no reparse needed)."""
+    return _hash_matches(store, root, path)
+
+
 def _hash_matches(store: GraphStore, root: Path, path: str) -> bool:
     """True when the indexed hash equals the file's current bytes — skip a no-op reparse (§8.3)."""
     digest = _digest(root / path)

@@ -7,7 +7,9 @@ from typing import Literal
 
 from code_atlas.config import Config
 from code_atlas.store import GraphStore, Row
+from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
+    REASON_INDEX_STALE,
     REASON_NO_MATCHES,
     REASON_NOT_INDEXED,
     REASON_OK,
@@ -49,6 +51,19 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
         with GraphStore(config.db_path) as store:
+            guard = FreshnessGuard(config, store)
+            rows = store.search_nodes(query, kind=kind, namespace=namespace, limit=cap + 1)
+            hit_paths = [str(row["file_path"]) for row in rows[:cap]]
+            if guard.ensure_paths(hit_paths) == "stale":
+                return list_result(
+                    [],
+                    detail_level=detail_level,
+                    db_path=db_path,
+                    truncated=False,
+                    reason=REASON_INDEX_STALE,
+                    total_count=0,
+                )
+            # Re-query after any repair so FTS/rows reflect the new content.
             rows = store.search_nodes(query, kind=kind, namespace=namespace, limit=cap + 1)
             truncated = len(rows) > cap
             results = [_hit(row) for row in rows[:cap]]
