@@ -17,6 +17,7 @@ dev = ["pytest", "ruff", "mypy"]
 
 [project.scripts]
 code-atlas = "code_atlas.main:main"
+code-atlas-poke = "code_atlas.hooks.poke:main"
 
 [tool.setuptools.packages.find]
 include = ["code_atlas*"]
