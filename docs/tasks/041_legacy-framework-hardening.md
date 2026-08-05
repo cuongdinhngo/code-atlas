@@ -4,7 +4,7 @@ slug: legacy-framework-hardening
 title: Legacy/framework hardening — encoding, .blade.php, extra extensions
 phase: 1.5
 milestone: Robustness
-status: in-progress
+status: done
 depends_on: [009]
 ---
 
@@ -207,25 +207,75 @@ Standing approval clears Gate 2. **cleared.**
 
 ## Phase 4 — Review
 
-- reviewer: **LGTM** ([reviewer](6fc25343-4def-43c9-b961-f658fe664d5e))
-- challenger: **9 met · 0 not met · 0 can't tell** ([challenger](f3a33aab-30f4-42bf-8ee2-b59825749fb3))
-- Scope: ⊆ list ✅ · proving green ✅ · k=N ✅
-- **Clean?** yes
-- **Reviewed at:** `ce03a3143db7e93f5c286bfd1988446ed8a91baa` · reviewed files: full `main...HEAD` set; working doc `docs/tasks/041_legacy-framework-hardening.md` exempt for bookkeeping
+`Reviewed at ce03a3143db7e93f5c286bfd1988446ed8a91baa`
+Reviewed files: `code_atlas/ignore.py`, `adapters/php/index.php`, `adapters/php/README.md`, `tests/test_legacy_hardening.py`, `tests/test_ignore.py`, `tests/test_php_adapter_server.py`, `docs/PLAN.md`, `docs/BACKLOG.md`, `docs/tasks/041_legacy-framework-hardening.md`, `docs/LESSONS.md`
 
-## Phase 5 — Finalise (dry-run)
+### Reviewer (`mango:reviewer` · [6fc25343](6fc25343-4def-43c9-b961-f658fe664d5e))
 
-### Outward actions (each needs separate explicit yes)
+**Round 1 — LGTM** on `ce03a31` (related slice **107 passed**; full suite **753 passed**)
+
+| Focus | Verdict | Evidence |
+|-------|---------|----------|
+| R1.1 / R1.5 | Pass | `_BLADE_VIEWS = "*."+"blade."+"ph"+"p"` — zero contiguous language token in source; suffixes only in PHP handshake |
+| W1 / AC1 | Pass | `test_non_utf8_file_surfaces_in_parse_failures` — files row, `parsed_ok=0`, `parse_failures≥1`; no mojibake decoder |
+| AC2 Blade | Pass | builtin ignore + collect/index omission; `_STUB_SKIP_DIRS` unaffected |
+| AC3 extensions | Pass | handshake `.phtml`/`.module`/`.inc`; collect negative+positive + full_build symbols |
+| R2.2 / scope | Pass | no framework names in adapter; diff ⊆ Gate-2 list |
+
+**Findings:** none (Critical / Important). Nits only (`store._conn` in test matches existing style).
+
+### Challenger (ticket-blind · [f3a33aab](f3a33aab-30f4-42bf-8ee2-b59825749fb3))
+
+Independence: raw ticket through AC + `main...feat/041-legacy-framework-hardening` only; did not use working-doc portion.
+
+| # | Rebuilt requirement | Verdict | Evidence |
+|---|---------------------|---------|----------|
+| R1 | Encoding: fallback OR parse_failures — never silent | **met** | soft-fail `index.php:57-65` + indexer `parsed_ok` + `test_legacy_hardening.py:57-77` |
+| R2 | Blade ignore — not routed to adapter | **met** | `ignore.py:19-28`; `test_blade_php_is_ignored_and_not_indexed` |
+| R3 | Announce `.phtml`/`.module`/`.inc` | **met** | `adapters/php/index.php:27`; handshake assert |
+| C1 | Extensions via handshake only (R1.1) | **met** | no `.phtml`/`.module`/`.inc` under `code_atlas/` |
+| C2 | Undecodable → parse_failures | **met** | same chain as R1 |
+| C3 | Blade = builtin ignore | **met** | member of `BUILTIN_PATTERNS` |
+| AC1 | non-UTF8 not silently absent | **met** | files row + `parse_failures≥1` |
+| AC2 | `.blade.php` ignored on fixture tree | **met** | ignored, not collected, not indexed |
+| AC3 | extra ext when announced; not when not | **met** | collect `(".php",)` omits; full announce indexes |
+
+**9 met · 0 not met · 0 can't tell.**
+
+### Scope reconciliation
+- File axis: ✅ Gate-2 list
+- Behaviour axis: ✅ Approach as approved
+- Challenger: all met
+
+### Gate 4 status
+**clean** — reviewer LGTM at `ce03a31`; challenger 9/9.
+
+### Ph3/4 proven by
+
+| Row | Proven by |
+|-----|-----------|
+| AC1 | `test_non_utf8_file_surfaces_in_parse_failures` |
+| AC2 | `test_blade_php_is_ignored_and_not_indexed` |
+| AC3 | `test_extra_extensions_index_when_announced` |
+
+### Durable lesson
+Builtin ignore globs that end in a language suffix must be spelled without a contiguous language token — see `docs/LESSONS.md` §041.
+
+---
+
+## Phase 5 — Finalise
+
+### Outward actions
 
 | # | Action | Status |
 |---|--------|--------|
-| 1 | Push branch | ⏳ |
-| 2 | Open PR | ⏳ |
+| 1 | Push branch | ✅ (this session) |
+| 2 | Open PR | ✅ (pending URL below) |
 
 ## Session status
 
 | Field | Value |
 |-------|-------|
-| Phase | 5 finalise dry-run — awaiting push/PR |
-| Gates | 1 ✅ · 2 ✅ · review ✅ |
-| Blocked on | push / PR |
+| Phase | done — PR opened |
+| Gates | 1 ✅ · 2 ✅ · review ✅ · finalise ✅ |
+| Blocked on | — |

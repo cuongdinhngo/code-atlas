@@ -53,7 +53,7 @@ up). Source: [`FEEDBACK.md`](FEEDBACK.md).
 | 038 | `explain_path(from, to)` control-flow path tool | Task-level | done | 017, 031 |
 | 039 | Vendor stub index (declarations-only) | Framework | done | 009, 011 |
 | 040 | Framework indirection as data (rules file outside `adapters/`) | Framework | done | 039, 030 |
-| 041 | Legacy/framework hardening — encoding, `.blade.php` ignore, extra extensions | Robustness | in-progress | 009 |
+| 041 | Legacy/framework hardening — encoding, `.blade.php` ignore, extra extensions | Robustness | done | 009 |
 | 042 | Tokens-to-answer sample tier — populate pinned public repos (ratio ≫ 1) | Measure | todo | 034, 018 |
 
 **Order:** 032 → 033 → 034 → (035, 036) → 037 → 038 → 039 → 040; 041 any time; **042 after 034**
