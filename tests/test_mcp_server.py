@@ -30,6 +30,7 @@ from code_atlas.indexer import full_build
 from code_atlas.main import TOOL_NAMES, build_server
 from code_atlas.store import GraphStore
 from code_atlas.tools.build_or_update_index import NAME as BUILD
+from code_atlas.tools.explain_path import NAME as EXPLAIN
 from code_atlas.tools.file_outline import NAME as OUTLINE
 from code_atlas.tools.find_callers import NAME as CALLERS
 from code_atlas.tools.find_implementations import NAME as IMPLS
@@ -174,6 +175,7 @@ def test_the_proof_has_something_to_run() -> None:
         IMPACT,
         REACHABLE,
         ORPHANS,
+        EXPLAIN,
     )
 
 
@@ -375,6 +377,7 @@ def test_a_current_index_is_not_told_to_rebuild(repo: Path) -> None:
         IMPACT,
         REACHABLE,
         ORPHANS,
+        EXPLAIN,
     ]
 
 
@@ -394,6 +397,7 @@ CALLS: tuple[tuple[str, dict[str, object]], ...] = (
     (IMPACT, {"qnames": ["\\Missing"]}),
     (REACHABLE, {}),
     (ORPHANS, {}),
+    (EXPLAIN, {"from_qname": "\\A", "to_qname": "\\B"}),
 )
 
 

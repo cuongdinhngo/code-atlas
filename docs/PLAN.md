@@ -364,6 +364,7 @@ Token-efficient: return qualified names + `file:line`, not bodies, unless a read
 | `impact` | `paths|qnames, depth?` | blast radius, bounded best-score |
 | `reachable_from` | `depth?` | nodes reachable from `CA_ENTRY_POINTS` (RESOLVED IMPACT kinds, forward); `unproven` for HEURISTIC/DYNAMIC-only |
 | `find_orphans` | `depth?` | complement: zero-inbound / unreachable-from-roots with `why`; never empty-success without roots |
+| `explain_path` | `from_qname, to_qname, depth?` | shortest A→B path over outgoing IMPACT kinds; `status` = `path` / `unproven` / `no_path` / `unknown` / `incomplete` |
 | `namespace_tree` | `prefix?` | namespaces + members |
 
 Prompts: `explore_area`, `impact_of_change`, `find_usages` — each hardcodes the efficient recipe (status → search/outline → read only what's needed). Tool allow-list via `CA_TOOLS`.
@@ -377,6 +378,9 @@ code-review-graph's **bounded best-score relaxation in SQLite**: seed = changed 
 
 ### Reachability / orphans (task 031)
 Inverse of impact: `CA_ENTRY_POINTS` names file/glob roots (every indexed node on matched files is a seed). Globs use the **same segment-aware language as ignore** (`*` stays in one path segment; `**` crosses). `reachable_from` walks **outgoing** `IMPACT_KINDS` with the same RESOLVED-only frontier rule; default `depth` is **unset** (closure until frontier empties or `CA_IMPACT_MAX_NODES`); an explicit `depth` sets `depth_exhausted`/`truncated` when hops remain. A reached member keeps its container qnames alive (`split_qname`) so classes are not orphaned when only methods are called. HEURISTIC/DYNAMIC neighbors are `unproven`, not reachable. `find_orphans` returns the complement with `why` (`no_inbound` | `unreachable_from_roots`); unset roots → `no_roots_configured`. Caps reuse `CA_IMPACT_MAX_NODES` (not `CA_IMPACT_DEPTH`). Results carry `authoritative: false` and `edge_health` on `standard`.
+
+### explain_path (task 038)
+Shortest path from `from_qname` to `to_qname` over **outgoing** `IMPACT_KINDS` (same relation set as impact/reachability). Iterative SQL BFS with parent pointers — never a whole-table edge load (R4.3). Caps reuse `CA_IMPACT_MAX_NODES`; default `depth` unset (closure). **RESOLVED-first:** a proven path is preferred; a path that exists only via HEURISTIC/DYNAMIC hops is `status=unproven`. Missing endpoints → `unknown`; bound exhaustion before `to` → `incomplete` (never conflated with `no_path`); both present with no route → `no_path`. Same-qname → empty proven path.
 
 ---
 
