@@ -270,12 +270,12 @@ Builtin ignore globs that end in a language suffix must be spelled without a con
 | # | Action | Status |
 |---|--------|--------|
 | 1 | Push branch | ✅ (this session) |
-| 2 | Open PR | ✅ (pending URL below) |
+| 2 | Open PR | ✅ [#47](https://github.com/cuongdinhngo/code-atlas/pull/47) |
 
 ## Session status
 
 | Field | Value |
 |-------|-------|
-| Phase | done — PR opened |
+| Phase | done — [#47](https://github.com/cuongdinhngo/code-atlas/pull/47) |
 | Gates | 1 ✅ · 2 ✅ · review ✅ · finalise ✅ |
 | Blocked on | — |
