@@ -300,4 +300,10 @@ Stub roots must bypass ignore *and* hash-gate on incremental — see `docs/LESSO
 | Gates | 1 ✅ · 2 ✅ · 4 ✅ |
 | Suite | 734 passed |
 | Reviewed at | `ddcfe77` |
-| Blocked on | push + open PR (per-action approval) |
+| Blocked on | — |
+| PR | [#45](https://github.com/cuongdinhngo/code-atlas/pull/45) |
+
+## Phase 5 — Finalise
+
+- Outward: push branch + open PR (user-approved 2026-08-05) → [#45](https://github.com/cuongdinhngo/code-atlas/pull/45)
+- Status remains `in-progress` until merge; token row linked.
