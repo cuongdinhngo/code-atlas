@@ -91,6 +91,10 @@ Exposure-checker ([challenger](90ec33c8-6102-470c-83a7-88cbcfa2d982)): **1 WANT*
 |-------|----------|-------|--------|
 | 0 refine | extractor (code facts) | 1 | unmeasured (blocking retrieval) |
 | 0 refine | mango:challenger (exposure-checker) | 1 | unmeasured (blocking retrieval) |
+| 4 review | mango:reviewer | 1 | unmeasured (blocking retrieval) |
+| 4 review | mango:challenger | 1 | unmeasured (blocking retrieval) |
+
+**Roll-up:** **4 dispatch**; all **unmeasured (blocking retrieval)**. Phases 1–3/5: 0 dispatch.
 
 ---
 
@@ -101,17 +105,17 @@ Exposure-checker ([challenger](90ec33c8-6102-470c-83a7-88cbcfa2d982)): **1 WANT*
 
 | ID | Source | Verbatim (short) | Interpretation | Ph1 | Ph2 | Ph3/4 | Status |
 |----|--------|------------------|---------------|-----|-----|-------|--------|
-| G1 | Goal | stop silent losses: encoding, blade, extra ext | Three robustness fixes | ticket | Approach | proving | ⬜ |
-| R1 | Scope | encoding → fallback OR parse_failures; never silent | W1: fail-visible only | W1 | CL | AC1 | ⬜ |
-| R2 | Scope | Blade ignore so not routed to PHP adapter | builtin `*.blade.php` | H1 | CL | AC2 | ⬜ |
-| R3 | Scope | PHP announces .phtml/.module/.inc | handshake extensions list | H2 | CL | AC3 | ⬜ |
-| C1 | Constraints | extensions via handshake; no core lang branch | R1.1 | rulebook | — | CI | ⬜ |
-| C2 | Constraints | undecodable → parse_failures | files row + failed count | 028 | — | AC1 | ⬜ |
-| C3 | Constraints | Blade = ignore rule like builtins | ignore.py BUILTIN | H1 | — | AC2 | ⬜ |
-| AC1 | AC | non-UTF8 fixture indexed OR parse_failures — not absent | W1: assert parse_failures + files row | W1 | proving | test | ⬜ |
-| AC2 | AC | .blade.php ignored; not sent to adapter | fixture tree; no parse attempt / ignored | H1 | — | test | ⬜ |
-| AC3 | AC | .phtml/.module index when announced; not when not | announce change + routing proof | H2 | — | test | ⬜ |
-| W1 | refine | fail-visible encoding bar | no mojibake fallback | Phase 0 | — | AC1 | ⬜ |
+| G1 | Goal | stop silent losses: encoding, blade, extra ext | Three robustness fixes | ticket | Approach | proving | ✅ |
+| R1 | Scope | encoding → fallback OR parse_failures; never silent | W1: fail-visible only | W1 | CL | AC1 | ✅ |
+| R2 | Scope | Blade ignore so not routed to PHP adapter | builtin `*.blade.php` | H1 | CL | AC2 | ✅ |
+| R3 | Scope | PHP announces .phtml/.module/.inc | handshake extensions list | H2 | CL | AC3 | ✅ |
+| C1 | Constraints | extensions via handshake; no core lang branch | R1.1 | rulebook | — | CI | ✅ |
+| C2 | Constraints | undecodable → parse_failures | files row + failed count | 028 | — | AC1 | ✅ |
+| C3 | Constraints | Blade = ignore rule like builtins | ignore.py BUILTIN | H1 | — | AC2 | ✅ |
+| AC1 | AC | non-UTF8 fixture indexed OR parse_failures — not absent | W1: assert parse_failures + files row | W1 | proving | test | ✅ |
+| AC2 | AC | .blade.php ignored; not sent to adapter | fixture tree; no parse attempt / ignored | H1 | — | test | ✅ |
+| AC3 | AC | .phtml/.module index when announced; not when not | announce change + routing proof | H2 | — | test | ✅ |
+| W1 | refine | fail-visible encoding bar | no mojibake fallback | Phase 0 | — | AC1 | ✅ |
 
 ## AC validation
 
@@ -195,15 +199,33 @@ Standing approval clears Gate 2. **cleared.**
 ## Phase 3 — Execute
 
 - Branch: `feat/041-legacy-framework-hardening`
-- Commits: pending
+- Commits: `ce03a31` feat(041): harden legacy PHP trees — encoding signal, Blade ignore, extra extensions.
 - Proving test: `tests/test_legacy_hardening.py::test_non_utf8_file_surfaces_in_parse_failures` ✅
-- **Verification sweep:** file axis ⊆ list ✅ · behaviour axis all Approach bullets implemented-as-approved ✅
+- Suite: **753 passed**
+- **Verification sweep:** file axis ⊆ list ✅ · behaviour axis implemented-as-approved ✅
 - Deviations: none
+
+## Phase 4 — Review
+
+- reviewer: **LGTM** ([reviewer](6fc25343-4def-43c9-b961-f658fe664d5e))
+- challenger: **9 met · 0 not met · 0 can't tell** ([challenger](f3a33aab-30f4-42bf-8ee2-b59825749fb3))
+- Scope: ⊆ list ✅ · proving green ✅ · k=N ✅
+- **Clean?** yes
+- **Reviewed at:** `ce03a3143db7e93f5c286bfd1988446ed8a91baa` · reviewed files: full `main...HEAD` set; working doc `docs/tasks/041_legacy-framework-hardening.md` exempt for bookkeeping
+
+## Phase 5 — Finalise (dry-run)
+
+### Outward actions (each needs separate explicit yes)
+
+| # | Action | Status |
+|---|--------|--------|
+| 1 | Push branch | ⏳ |
+| 2 | Open PR | ⏳ |
 
 ## Session status
 
 | Field | Value |
 |-------|-------|
-| Phase | 3 execute → 4 review |
-| Gates | 1 ✅ · 2 ✅ |
-| Blocked on | — |
+| Phase | 5 finalise dry-run — awaiting push/PR |
+| Gates | 1 ✅ · 2 ✅ · review ✅ |
+| Blocked on | push / PR |

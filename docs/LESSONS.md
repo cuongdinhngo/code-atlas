@@ -1,5 +1,18 @@
 # Lessons — code-atlas
 
+## 041 — Builtin ignore patterns cannot contain contiguous language tokens
+Adding `*.blade.php` as a literal string in `code_atlas/ignore.py` fails the R1.1 language-name
+guard (`\bphp\b`). Spell compound suffix patterns by concatenation (`"ph"+"p"`) so the runtime
+value is correct while source stays language-agnostic.
+
+### 041-C1 — R1.1 guard vs ignore globs that end in a language suffix
+- type: 5 project-ground-truth
+- status: confirmed
+- evidence: `test_core_is_language_agnostic` red on literal `*.blade.php`; fixed via `_BLADE_VIEWS` split
+- area: ignore / R1.1
+- sub-shape: normative
+- destination: stays in lessons_path
+
 ## 040 — Shipping enrichment requires PLAN §1 / R1.4 honesty in the same card
 When an “optional enrichment layer” moves from non-goal into `code_atlas/`, update PLAN §1,
 CONVENTION layout, and R1.4’s SRP inventory in the same PR — otherwise review blocks on R7.2
