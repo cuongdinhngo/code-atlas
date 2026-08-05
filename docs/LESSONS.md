@@ -1,15 +1,15 @@
 # Lessons — code-atlas
 
-## 041 — Builtin ignore patterns cannot contain contiguous language tokens
-Adding `*.blade.php` as a literal string in `code_atlas/ignore.py` fails the R1.1 language-name
-guard (`\bphp\b`). Spell compound suffix patterns by concatenation (`"ph"+"p"`) so the runtime
-value is correct while source stays language-agnostic.
+## 041 — Prefer language-free ignore globs over splitting a guarded token
+Builtin Blade exclusion is `*.blade.*` (compound template suffix, any trailing extension) — not a
+concatenated `*.blade.php` that defeats the R1.1 language-name guard. File-level builtins also apply
+inside `collect_stubs` so `CA_STUB_ROOTS=vendor` cannot re-route ignored templates.
 
-### 041-C1 — R1.1 guard vs ignore globs that end in a language suffix
+### 041-C1 — R1.1-honest Blade ignore + stub-walk coverage
 - type: 5 project-ground-truth
 - status: confirmed
-- evidence: `test_core_is_language_agnostic` red on literal `*.blade.php`; fixed via `_BLADE_VIEWS` split
-- area: ignore / R1.1
+- evidence: PR #47 review — split-token dodge rejected; `*.blade.*` + `_STUB_FILE_IGNORE`
+- area: ignore / indexer / R1.1
 - sub-shape: normative
 - destination: stays in lessons_path
 

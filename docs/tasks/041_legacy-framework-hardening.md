@@ -250,6 +250,16 @@ Independence: raw ticket through AC + `main...feat/041-legacy-framework-hardenin
 ### Gate 4 status
 **clean** — reviewer LGTM at `ce03a31`; challenger 9/9.
 
+### Review round 2 (PR #47 comments) — applied
+
+| # | Finding | Fix |
+|---|---------|-----|
+| 1 | R1.1 guard defeated by split `*.blade.php` | Builtin is now plain `*.blade.*` (no language token) |
+| 2 | Blade ignore missed `collect_stubs` | `_STUB_FILE_IGNORE` applies file-level builtins under stub walks |
+| 3 | `.inc`/`.module` index junk HTML File nodes | Dropped from handshake; keep `.phtml` only; README rationale |
+| 4 | PLAN attributed encoding work to 041 | PLAN says 041 **pins** existing §4.1 fail-visible behaviour |
+| 5 | test name still said "six patterns" | Renamed to `test_the_builtin_list_matches_the_plan_inventory` |
+
 ### Ph3/4 proven by
 
 | Row | Proven by |

@@ -61,10 +61,16 @@ per line until stdin closes. Point `CA_PHP_CMD` at the complete argv (§9) — t
 See **Runtime** above for host vs Docker forms.
 
 ```
-← {"name":"php","extensions":[".php",".phtml",".module",".inc"],"capabilities":{},"contract_version":2}
+← {"name":"php","extensions":[".php",".phtml"],"capabilities":{},"contract_version":2}
 → {"path":"src/Models/User.php"}
 ← {"path":"src/Models/User.php","ok":true,"nodes":[…],"edges":[…]}
 ```
+
+**Extensions.** `.php` is the language default. `.phtml` is announced too — it is a widely used PHP
+template suffix and still PHP source. Shared suffixes such as `.module` / `.inc` (also used by
+asm/C/SQL and some CMS layouts) are **not** announced: PHP would treat non-`<?php` bytes as inline
+HTML and index junk File nodes with no `parse_failures` signal (R2.3). Repos that need those
+suffixes can follow up with an opt-in extension pack; until then exclude noise with `.codeatlasignore`.
 
 `--file` parses one file and prints one JSON line. It is the debugging mode, and it shares its parse
 with `--server`, so both modes emit byte-identical results for the same file:

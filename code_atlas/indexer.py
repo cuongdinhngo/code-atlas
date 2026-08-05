@@ -32,7 +32,7 @@ from code_atlas.enrichment import (
     apply_indirection_rules,
     load_indirection_rules,
 )
-from code_atlas.ignore import BUILTIN_PATTERNS, IgnoreMatcher, load_ignore
+from code_atlas.ignore import BUILTIN_PATTERNS, IgnoreMatcher, load_ignore, compile_pattern
 from code_atlas.resolver import resolve_edges
 from code_atlas.store import BUILT_AT_KEY, CONTRACT_VERSION_KEY, LAST_COMMIT_KEY, GraphStore
 
@@ -45,6 +45,17 @@ _READ_CHUNK = 1 << 20
 # at the walk root (os.walk starts *inside* the stub root).
 _STUB_SKIP_DIRS = frozenset(
     pattern.strip("/") for pattern in BUILTIN_PATTERNS if pattern.endswith("/")
+)
+
+# File-level builtins still apply under stub walks (vendor/ dirs are skipped above; Blade templates
+# must not be routed even inside CA_STUB_ROOTS — task 041).
+_STUB_FILE_IGNORE = IgnoreMatcher(
+    tuple(
+        rule
+        for pattern in BUILTIN_PATTERNS
+        if not pattern.endswith("/")
+        if (rule := compile_pattern(pattern)) is not None
+    )
 )
 
 _Outcome = tuple[str, str, ParseResult]
@@ -277,6 +288,8 @@ def collect_stubs(
                 if full.suffix.lower() not in wanted:
                     continue
                 rel = full.relative_to(root).as_posix()
+                if _STUB_FILE_IGNORE.is_ignored(rel):
+                    continue
                 found.append(rel)
     return tuple(sorted(dict.fromkeys(found)))
 

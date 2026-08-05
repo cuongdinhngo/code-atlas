@@ -24,7 +24,7 @@ function serve(Parser $parser): void
     // capabilities must reach the core as a JSON object; PHP's natural empty array encodes as `[]`.
     emit([
         'name' => 'php',
-        'extensions' => ['.php', '.phtml', '.module', '.inc'],
+        'extensions' => ['.php', '.phtml'],
         'capabilities' => new stdClass(),
         'contract_version' => 2,
     ]);

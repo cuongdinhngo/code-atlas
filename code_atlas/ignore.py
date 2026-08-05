@@ -14,10 +14,6 @@ import re
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
-# Blade views use a compound suffix (".blade" + the primary adapter suffix). Spell the
-# pattern without a contiguous language token so the R1.1 core-name guard stays honest (041).
-_BLADE_VIEWS = "*." + "blade." + "ph" + "p"
-
 BUILTIN_PATTERNS: tuple[str, ...] = (
     "vendor/",
     "var/",
@@ -25,7 +21,8 @@ BUILTIN_PATTERNS: tuple[str, ...] = (
     "log/",
     "node_modules/",
     ".git/",
-    _BLADE_VIEWS,
+    # Compound *.blade.<ext> templates (any trailing suffix) — not adapter source (task 041).
+    "*.blade.*",
 )
 
 GITIGNORE_FILE = ".gitignore"
@@ -75,10 +72,12 @@ def load_ignore(root: Path) -> IgnoreMatcher:
         path = root / name
         if path.is_file():
             lines += path.read_text(encoding="utf-8").splitlines()
-    return IgnoreMatcher(tuple(rule for line in lines if (rule := _compile(line)) is not None))
+    return IgnoreMatcher(
+        tuple(rule for line in lines if (rule := compile_pattern(line)) is not None)
+    )
 
 
-def _compile(line: str) -> _Rule | None:
+def compile_pattern(line: str) -> _Rule | None:
     """Translate one gitignore-style line into a rule, or None for a blank line or comment."""
     pattern = line.strip()
     if not pattern or pattern.startswith("#"):
