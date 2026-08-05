@@ -231,9 +231,33 @@ Standing approval clears Gate 2. **cleared.**
 
 ---
 
+## Phase 4 — Review
+
+`Reviewed at 12b0c2f3ea1564b999574fc1b8f378e5608fb03a`
+Reviewed files: `code_atlas/store.py`, `code_atlas/tools/explain_path.py`, `code_atlas/main.py`, `tests/test_explain_path.py`, `tests/test_mcp_server.py`, `tests/test_sql_confinement.py`, `tests/test_core_is_language_agnostic.py`, `docs/PLAN.md`, `docs/BACKLOG.md`, `docs/tasks/038_explain-path.md`
+
+| Dispatch | Verdict | Tokens |
+|----------|---------|--------|
+| [reviewer](6ed2b502-2cc4-4c33-bfa2-69c06b090c67) | **LGTM** | unmeasured (blocking retrieval) |
+| [challenger](3b467586-b10f-441c-baef-f030a801078e) | **11/11 met** | unmeasured (blocking retrieval) |
+
+Scope ⊆ change list ✅ · behaviour axis ✅ · proving test green ✅ · baseline green → suite 696 ✅
+
+Non-blocking: test name `prefers_resolved_over_shorter_heuristic` overclaims “shorter” (both routes 2 hops).
+
+### Cost ledger (review)
+
+| Phase | Dispatch | Round | Tokens |
+|-------|----------|-------|--------|
+| 4 review | mango:reviewer | 1 | unmeasured (blocking retrieval) |
+| 4 review | mango:challenger | 1 | unmeasured (blocking retrieval) |
+
+---
+
 ## Session status
 
-- **Phase:** 3 execute complete → flowing to review
+- **Phase:** 4 review clean → finalise (awaiting per-action approval)
 - **work_doc_mode:** embed · path `docs/tasks/038_explain-path.md`
 - **Branch:** `feat/038-explain-path`
-- **Gates:** Gate 1+2 cleared by standing approval 2026-08-05
+- **Reviewed at:** `12b0c2f3ea1564b999574fc1b8f378e5608fb03a`
+- **Gates:** Gate 1+2+4 cleared (standing approval + clean review)
