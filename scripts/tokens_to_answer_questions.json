@@ -117,6 +117,19 @@
       "grep": {"pattern": "Registry"},
       "expected": ["app.php"],
       "grep_evidence": ["Registry.php"]
+    },
+    {
+      "id": "call_sites_of_repo_put",
+      "source": "fixture",
+      "root": "tests/fixtures/php/resolve",
+      "question": "Show me where App\\Repo::put() is actually called — the call sites, not just the callers.",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "find_callers", "args": {"qname": "\\App\\Repo::put", "detail_level": "minimal", "include_source": true}}
+      ],
+      "grep": {"pattern": "->put\\("},
+      "expected": ["\\App\\User::save", "$repo->put();"],
+      "grep_evidence": ["->put(", "function save"]
     }
   ]
 }

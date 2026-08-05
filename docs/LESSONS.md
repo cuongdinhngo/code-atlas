@@ -1,5 +1,38 @@
 # Lessons — code-atlas
 
+## 037 — A guard that checks a formula against itself cannot catch a unit error in its input
+037's A/B summed `call_delta` over **4** measured questions, then `verdict()` multiplied that
+aggregate by a call count — so the published break-even was in *4-call batches*, wrong by ~4× (8.9 vs
+35.7). The existing guard test fed `verdict()` hand-picked deltas and asserted its algebra, which was
+self-consistent and stayed green. **Normalize where the number is produced** (`measure()` publishes
+`call_delta_per_call`), and write the guard against the **unit**, not the arithmetic.
+
+The tell was in the prose, not the code: the same sentence read "~7 tokens per call" and "break-even
+8.9", and 241/7 ≈ 34. When a derived figure and its own stated rate disagree, the figure is wrong —
+divide it out by hand before publishing it.
+
+### 037-C1 — Aggregate-vs-per-unit must be normalized at the producer, not the consumer
+- type: 5 project-ground-truth
+- status: confirmed
+- evidence: reviewer round 1 finding 1; `call_delta 27` over 4 questions; corrected 8.9 → 35.7 calls;
+  regression guard `test_break_even_is_in_calls_not_in_measured_batches` fails `10.0 vs 40.0` when the
+  defect is reinstated (re-mutated by the round-2 reviewer)
+- area: benchmark / tokens-to-answer / A-B measurement
+- sub-shape: normative
+- destination: stays in lessons_path
+- seen: 037
+
+### 037-C2 — A decision's argument must be withdrawn when its number moves, not re-fitted
+- type: 5 project-ground-truth
+- status: confirmed
+- evidence: Decision §1 ("crossover ~9, an agent passes it inside one task") no longer held at ~36
+  calls and was struck rather than re-argued; the verdict was re-grounded on "no net win at all"
+  (−234…+434 tokens) plus C3 and R1.2, and the round-2 reviewer judged the result honest
+- area: mango / review / recorded decisions
+- sub-shape: normative
+- destination: stays in lessons_path
+- seen: 037
+
 ## 033 — Split vocab-vs-emit when a later ticket owns emission
 When Scope lists an enum member (e.g. `index_stale`) that a dependent ticket (035) will emit, refine
 must record **W1 vocab present** and **W2 no emit-proof this card**. Otherwise a ticket-blind

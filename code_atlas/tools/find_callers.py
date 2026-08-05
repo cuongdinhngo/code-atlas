@@ -9,6 +9,7 @@ from typing import Literal, NamedTuple
 from code_atlas.config import Config
 from code_atlas.contract import CALLER_KINDS, CONFIDENCE_TIERS
 from code_atlas.store import GraphStore
+from code_atlas.tools import call_site
 from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
     REASON_INDEX_STALE,
@@ -39,7 +40,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     """Bind the tool to one repo's configuration."""
 
     def find_callers(
-        qname: str, depth: int = 1, detail_level: DetailLevel = "standard"
+        qname: str,
+        depth: int = 1,
+        detail_level: DetailLevel = "standard",
+        include_source: bool = False,
     ) -> dict[str, object]:
         """Who CALLS or NEWs ``qname``.
 
@@ -49,6 +53,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         ``total_count`` is the size of the BFS hit set within ``depth`` (exact at depth 1;
         a lower bound when a deeper walk hits the count budget).
+
+        ``include_source`` (default off, so the common case stays token-frugal) adds each call
+        site's own source line as ``source``, capped in length — answering "show me" without a
+        second call. A site whose file drifted since indexing is never quoted: those hits carry
+        ``source_stale`` instead.
         """
         if depth < 1:
             raise ValueError(f"depth must be >= 1, got {depth}")
@@ -72,6 +81,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 )
             outcome = _callers(store, qname, hops=depth, limit=limit)
             indexed = bool(store.nodes_by_qualified_name(qname, limit=1))
+            if include_source:
+                call_site.annotate(config.root, store, outcome.results)
         reason = relation_reason(hit_total=outcome.total_count, symbol_indexed=indexed)
         return nav_result(
             qname,
