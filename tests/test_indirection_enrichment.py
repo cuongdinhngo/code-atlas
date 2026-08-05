@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import shlex
 import shutil
 import subprocess
@@ -12,9 +13,10 @@ import pytest
 
 from code_atlas import contract
 from code_atlas.config import ConfigError, load_config
-from code_atlas.enrichment import INDIRECTION_FILE, apply_indirection_rules
-from code_atlas.indexer import full_build
+from code_atlas.enrichment import INDIRECTION_FILE, load_indirection_rules
+from code_atlas.indexer import full_build, incremental_update
 from code_atlas.store import GraphStore
+from code_atlas.tools import find_callers
 
 REPO = Path(__file__).resolve().parent.parent
 PHP_ENTRY = REPO / "adapters" / "php" / "index.php"
@@ -94,10 +96,27 @@ def test_facade_rule_resolves_call_to_concrete_method(
 def test_rules_synthesize_string_and_array_callable_calls(
     tmp_path: Path, store: GraphStore
 ) -> None:
-    """AC1: rules `calls` entries yield HEURISTIC CALLS (string + array-callable shapes)."""
+    """AC1: planted string/array callable syntax + rules CALLS → linked HEURISTIC edges.
+
+    The fixture plants `$string_cb` / `$array_cb` shapes the PHP adapter cannot emit as CALLS;
+    the rules file supplies the missing edges (exact qnames — v1 hand-enumeration).
+    """
     _plant(tmp_path)
+    body = (tmp_path / "src" / "app.php").read_text(encoding="utf-8")
+    assert "on_save" in body
+    assert "Controller::class" in body
+
     config = load_config(tmp_path, _php_env(tmp_path, rules=True))
     assert full_build(config, store).failed == 0
+
+    adapter_calls = [
+        row
+        for row in store.edges_by_source(
+            "\\App\\Hooks::register", kinds=("CALLS",), limit=20
+        )
+        if row["file_path"] != INDIRECTION_FILE
+    ]
+    assert not adapter_calls, "adapter must not resolve string/array callables alone"
 
     string_hits = store.edges_by_source(
         "\\App\\Hooks::register", kinds=("CALLS",), limit=20
@@ -142,10 +161,60 @@ def test_rule_edges_are_heuristic_not_resolved(
     assert all(tier == "HEURISTIC" for _kind, tier in rule_edges)
 
 
-def test_missing_rules_file_fails_loud(tmp_path: Path, store: GraphStore) -> None:
+@needs_php
+def test_rules_on_second_build_does_not_inflate_removed(
+    tmp_path: Path, store: GraphStore
+) -> None:
+    """Synthetic bookmark is not reconcile-removed each rebuild (PR review #2)."""
+    _plant(tmp_path)
+    config = load_config(tmp_path, _php_env(tmp_path, rules=True))
+    first = full_build(config, store)
+    assert first.failed == 0
+    second = full_build(config, store)
+    assert second.failed == 0
+    assert second.removed == 0
+    third = incremental_update(config, store, ())
+    assert third.removed == 0
+
+
+@needs_php
+def test_malformed_rules_fail_before_parse(tmp_path: Path, store: GraphStore) -> None:
+    """Bad rules raise before adapters run — no unresolved half-build (PR review #1)."""
+    _plant(tmp_path)
+    bad = {"aliases": [{"from": "\\Lib\\Facades\\Cache"}]}  # missing "to"
+    (tmp_path / "rules" / "rules.json").write_text(json.dumps(bad), encoding="utf-8")
+    config = load_config(tmp_path, _php_env(tmp_path, rules=True))
+    with pytest.raises(ConfigError, match="aliases.to"):
+        full_build(config, store)
+    assert store.file_paths() == ()
+    assert store.get_meta("built_at") is None
+
+
+@needs_php
+def test_rule_callers_carry_rule_flag_not_source_stale(
+    tmp_path: Path, store: GraphStore
+) -> None:
+    """Nav hits from rules omit fake file:line and never claim source_stale (PR review #3)."""
+    _plant(tmp_path)
+    config = load_config(tmp_path, _php_env(tmp_path, rules=True))
+    assert full_build(config, store).failed == 0
+    payload = find_callers.create(config)(
+        "\\App\\on_save", detail_level="minimal", include_source=True
+    )
+    hits = payload["results"]
+    assert hits
+    for hit in hits:
+        assert hit.get(contract.RULE_FLAG) is True
+        assert "file" not in hit
+        assert "line" not in hit
+        assert "source_stale" not in hit
+        assert "source" not in hit
+
+
+def test_missing_rules_file_fails_loud(tmp_path: Path) -> None:
     config = load_config(
         tmp_path,
         {"CA_INDIRECTION_RULES": "missing/rules.json", "CA_WORKERS": "1"},
     )
     with pytest.raises(ConfigError, match="not a file"):
-        apply_indirection_rules(config, store)
+        load_indirection_rules(config)

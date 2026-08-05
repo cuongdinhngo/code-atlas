@@ -27,7 +27,11 @@ from pathlib import Path, PurePosixPath
 from code_atlas import contract, gitutil
 from code_atlas.adapter import AdapterError, ParseResult, SubprocessAdapter, extension_index
 from code_atlas.config import Config, ConfigError
-from code_atlas.enrichment import apply_indirection_rules
+from code_atlas.enrichment import (
+    INDIRECTION_FILE,
+    apply_indirection_rules,
+    load_indirection_rules,
+)
 from code_atlas.ignore import BUILTIN_PATTERNS, IgnoreMatcher, load_ignore
 from code_atlas.resolver import resolve_edges
 from code_atlas.store import BUILT_AT_KEY, CONTRACT_VERSION_KEY, LAST_COMMIT_KEY, GraphStore
@@ -66,6 +70,8 @@ def full_build(config: Config, store: GraphStore) -> BuildReport:
     path leaves a ``files`` row, parsed or not. When ``stub_roots`` is set, dependency trees are
     walked outside the normal ignore matcher and parsed declarations-only (task 039).
     """
+    # Validate rules before any parse so a bad file fails loud without a half-built index (R5.3).
+    rules = load_indirection_rules(config)
     watchdog = _Watchdog(config.adapter_timeout)
     watchdog.start()
     try:
@@ -91,7 +97,7 @@ def full_build(config: Config, store: GraphStore) -> BuildReport:
     # No FTS rebuild here: §10's triggers keep `nodes_fts` current through every replace, so a
     # rebuild per build would cost a full re-index and change nothing (deviation D1).
     _record_meta(config, store)
-    apply_indirection_rules(config, store)
+    apply_indirection_rules(config, store, payload=rules)
     resolve_edges(store, max_candidates=config.max_results)
     return BuildReport(files=len(kept), stubs=len(stubs), removed=removed, **counts)
 
@@ -110,6 +116,7 @@ def incremental_update(
         # Vocabulary changed — incremental would mix eras; force a full rebuild (task 030 AC1).
         return full_build(config, store)
 
+    rules = load_indirection_rules(config)
     watchdog = _Watchdog(config.adapter_timeout)
     watchdog.start()
     try:
@@ -134,7 +141,7 @@ def incremental_update(
             # File nodes use the path as qname; include deleted/renamed-away paths so inbound edges
             # re-link (git diff names only the rename destination).
             affected.update(changed_set)
-            gone = sorted(indexed - set(kept))
+            gone = sorted((indexed - set(kept)) - {INDIRECTION_FILE})
             affected.update(store.qnames_in_files(gone))
             affected.update(gone)
 
@@ -168,7 +175,7 @@ def incremental_update(
         watchdog.stop()
 
     _record_meta(config, store)
-    apply_indirection_rules(config, store)
+    apply_indirection_rules(config, store, payload=rules)
     resolve_edges(store, max_candidates=config.max_results)
     return BuildReport(
         files=len(to_parse), stubs=len(stub_set & set(to_parse)), removed=removed, **counts
@@ -433,8 +440,12 @@ def _walk(root: Path, matcher: IgnoreMatcher, wanted: set[str]) -> list[str]:
 
 
 def _reconcile(store: GraphStore, paths: Sequence[str]) -> int:
-    """Drop every indexed path the collection no longer yields, with its nodes and edges (§8.1)."""
-    gone = sorted(set(store.file_paths()) - set(paths))
+    """Drop every indexed path the collection no longer yields, with its nodes and edges (§8.1).
+
+    The synthetic indirection bookmark is owned by :func:`apply_indirection_rules`, not collect —
+    skipping it here keeps ``BuildReport.removed`` honest when rules stay on across builds.
+    """
+    gone = sorted(set(store.file_paths()) - set(paths) - {INDIRECTION_FILE})
     for path in gone:
         store.remove_file(path)
     return len(gone)

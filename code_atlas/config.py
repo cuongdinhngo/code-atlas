@@ -277,39 +277,28 @@ def _as_entry_points(label: str, raw: object) -> tuple[str, ...] | None:
 
 def _as_stub_roots(label: str, raw: object) -> tuple[str, ...] | None:
     """Dependency roots for declarations-only stub indexing. Blank/unset = off (task 039)."""
-    if isinstance(raw, str):
-        names = raw.split(",")
-    elif isinstance(raw, list):
-        names = [_as_text(label, item) for item in raw]
-    else:
-        raise ConfigError(f"{label}: {raw!r} is not a comma-separated list of stub roots")
-    kept: list[str] = []
-    for name in names:
-        cleaned = name.strip().replace("\\", "/").strip("/")
-        if not cleaned:
-            continue
-        parts = cleaned.split("/")
-        if name.strip().startswith(("/", "\\")) or any(
-            part in ("", ".", "..") for part in parts
-        ):
-            raise ConfigError(
-                f"{label}: {name!r} must be a repo-relative directory "
-                f"(no absolute path, '.', or '..')"
-            )
-        kept.append(cleaned)
-    return tuple(dict.fromkeys(kept)) or None
+    return _as_repo_relative_list(
+        label, raw, item="directory", collection="stub roots"
+    )
 
 
 def _as_indirection_rules(label: str, raw: object) -> tuple[str, ...] | None:
     """Repo-relative JSON rule paths for framework indirection (task 040). Blank = off."""
+    return _as_repo_relative_list(
+        label, raw, item="file path", collection="rule file paths"
+    )
+
+
+def _as_repo_relative_list(
+    label: str, raw: object, *, item: str, collection: str
+) -> tuple[str, ...] | None:
+    """Comma/list of repo-relative paths — no absolute, ``.``, or ``..`` segments."""
     if isinstance(raw, str):
         names = raw.split(",")
     elif isinstance(raw, list):
-        names = [_as_text(label, item) for item in raw]
+        names = [_as_text(label, item_raw) for item_raw in raw]
     else:
-        raise ConfigError(
-            f"{label}: {raw!r} is not a comma-separated list of rule file paths"
-        )
+        raise ConfigError(f"{label}: {raw!r} is not a comma-separated list of {collection}")
     kept: list[str] = []
     for name in names:
         cleaned = name.strip().replace("\\", "/").strip("/")
@@ -320,7 +309,7 @@ def _as_indirection_rules(label: str, raw: object) -> tuple[str, ...] | None:
             part in ("", ".", "..") for part in parts
         ):
             raise ConfigError(
-                f"{label}: {name!r} must be a repo-relative file path "
+                f"{label}: {name!r} must be a repo-relative {item} "
                 f"(no absolute path, '.', or '..')"
             )
         kept.append(cleaned)

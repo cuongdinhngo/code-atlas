@@ -15,6 +15,9 @@ class Hooks
 {
     public static function register(): void
     {
+        // Framework-shaped indirections the PHP adapter cannot emit as CALLS.
+        $string_cb = 'App\\on_save';
+        $array_cb = [Controller::class, 'store'];
     }
 }
 

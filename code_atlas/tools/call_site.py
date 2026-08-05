@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from code_atlas import contract
 from code_atlas.indexer import file_is_current
 from code_atlas.store import GraphStore
 
@@ -43,6 +44,9 @@ def _by_file(
 ) -> dict[str, list[tuple[dict[str, object], int | None]]]:
     grouped: dict[str, list[tuple[dict[str, object], int | None]]] = {}
     for hit in hits:
+        if hit.get(contract.RULE_FLAG) is True:
+            # Rule-derived: no on-disk site — leave without ``source`` / ``source_stale``.
+            continue
         rel = hit.get("file")
         if not isinstance(rel, str) or not rel:
             hit["source_stale"] = True
