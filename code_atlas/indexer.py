@@ -27,6 +27,7 @@ from pathlib import Path, PurePosixPath
 from code_atlas import contract, gitutil
 from code_atlas.adapter import AdapterError, ParseResult, SubprocessAdapter, extension_index
 from code_atlas.config import Config, ConfigError
+from code_atlas.enrichment import apply_indirection_rules
 from code_atlas.ignore import BUILTIN_PATTERNS, IgnoreMatcher, load_ignore
 from code_atlas.resolver import resolve_edges
 from code_atlas.store import BUILT_AT_KEY, CONTRACT_VERSION_KEY, LAST_COMMIT_KEY, GraphStore
@@ -90,6 +91,7 @@ def full_build(config: Config, store: GraphStore) -> BuildReport:
     # No FTS rebuild here: §10's triggers keep `nodes_fts` current through every replace, so a
     # rebuild per build would cost a full re-index and change nothing (deviation D1).
     _record_meta(config, store)
+    apply_indirection_rules(config, store)
     resolve_edges(store, max_candidates=config.max_results)
     return BuildReport(files=len(kept), stubs=len(stubs), removed=removed, **counts)
 
@@ -166,6 +168,7 @@ def incremental_update(
         watchdog.stop()
 
     _record_meta(config, store)
+    apply_indirection_rules(config, store)
     resolve_edges(store, max_candidates=config.max_results)
     return BuildReport(
         files=len(to_parse), stubs=len(stub_set & set(to_parse)), removed=removed, **counts

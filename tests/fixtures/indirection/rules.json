@@ -1,0 +1,9 @@
+{
+  "aliases": [
+    {"from": "\\Lib\\Facades\\Cache", "to": "\\Lib\\Cache\\Repository"}
+  ],
+  "calls": [
+    {"source": "\\App\\Hooks::register", "target": "\\App\\on_save", "line": 3},
+    {"source": "\\App\\Hooks::register", "target": "\\App\\Controller::store", "line": 4}
+  ]
+}
