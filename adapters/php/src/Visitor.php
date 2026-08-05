@@ -6,6 +6,7 @@ namespace CodeAtlas\Php;
 
 use PhpParser\Modifiers;
 use PhpParser\Node;
+use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitorAbstract;
 
 /**
@@ -70,6 +71,7 @@ final class Visitor extends NodeVisitorAbstract
         private readonly string $path,
         int $lineCount,
         private readonly string $source = '',
+        private readonly bool $declarationsOnly = false,
     ) {
         $this->scope = [[null, $path]];
         $this->nodes[] = [
@@ -82,8 +84,19 @@ final class Visitor extends NodeVisitorAbstract
         ];
     }
 
+    /**
+     * @return int|null  ``DONT_TRAVERSE_CHILDREN`` to skip bodies when declarations-only
+     */
     public function enterNode(Node $node)
     {
+        // Nested closures/arrows carry no declarations we keep; skip before stack push/pop.
+        if (
+            $this->declarationsOnly
+            && ($node instanceof Node\Expr\Closure || $node instanceof Node\Expr\ArrowFunction)
+        ) {
+            return NodeTraverser::DONT_TRAVERSE_CHILDREN;
+        }
+
         if ($node instanceof Node\Stmt\Namespace_) {
             if ($node->name !== null) {
                 $this->open($node, 'Namespace', $node->name->toString(), self::fqn($node->name));
@@ -101,6 +114,9 @@ final class Visitor extends NodeVisitorAbstract
                     'params' => $this->params($node->params),
                 ] + $this->extraFields($this->attributeExtra($node->attrGroups)));
             }
+            if ($this->declarationsOnly) {
+                return NodeTraverser::DONT_TRAVERSE_CHILDREN;
+            }
         } elseif ($node instanceof Node\Stmt\ClassMethod) {
             $this->stringLocals = [];
             if ($node->name->toString() === '__construct') {
@@ -110,6 +126,9 @@ final class Visitor extends NodeVisitorAbstract
                 'modifiers' => $this->methodModifiers($node),
                 'params' => $this->params($node->params),
             ] + $this->extraFields($this->attributeExtra($node->attrGroups)));
+            if ($this->declarationsOnly) {
+                return NodeTraverser::DONT_TRAVERSE_CHILDREN;
+            }
         } elseif ($node instanceof Node\Expr\Closure) {
             $this->stringLocalsStack[] = $this->stringLocals;
             $this->stringLocals = [];

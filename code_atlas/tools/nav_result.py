@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from typing import Any, Literal
 
+from code_atlas import contract
 from code_atlas.contract import CONFIDENCE_TIERS
 from code_atlas.store import Row
 
@@ -146,3 +148,14 @@ def relation_reason(*, hit_total: int, symbol_indexed: bool) -> NavReason:
     if not symbol_indexed:
         return REASON_NO_SUCH_SYMBOL
     return REASON_NO_MATCHES
+
+
+def is_stub(raw: object) -> bool:
+    """True when a node's ``extra`` JSON carries the stub marker (task 039)."""
+    if not isinstance(raw, str) or not raw.strip():
+        return False
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return False
+    return isinstance(data, dict) and data.get(contract.STUB_FLAG) is True

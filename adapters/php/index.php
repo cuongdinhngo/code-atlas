@@ -39,7 +39,8 @@ function serve(Parser $parser): void
             }
             continue;
         }
-        emit($parser->parse($path));
+        $declarationsOnly = ($request['declarations_only'] ?? false) === true;
+        emit($parser->parse($path, $declarationsOnly));
     }
 }
 

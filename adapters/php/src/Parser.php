@@ -27,7 +27,7 @@ final class Parser
     /**
      * @return array<string, mixed> `ok:true` with rows, or `ok:false` with an error (R5.1)
      */
-    public function parse(string $path): array
+    public function parse(string $path, bool $declarationsOnly = false): array
     {
         // Unsuppressed on purpose: the entry point sends diagnostics to stderr, where they belong.
         $source = file_get_contents($path);
@@ -37,7 +37,7 @@ final class Parser
 
         // One handler for both passes: a name that cannot be resolved is collected, never thrown.
         $errors = new ErrorHandler\Collecting();
-        $visitor = new Visitor($path, substr_count($source, "\n") + 1, $source);
+        $visitor = new Visitor($path, substr_count($source, "\n") + 1, $source, $declarationsOnly);
         try {
             $statements = $this->parser->parse($source, $errors);
             if (!$errors->hasErrors()) {

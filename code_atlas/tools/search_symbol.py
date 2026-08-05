@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from typing import Literal
 
+from code_atlas import contract
 from code_atlas.config import Config
 from code_atlas.store import GraphStore, Row
 from code_atlas.tools.freshness import FreshnessGuard
@@ -13,6 +14,7 @@ from code_atlas.tools.nav_result import (
     REASON_NO_MATCHES,
     REASON_NOT_INDEXED,
     REASON_OK,
+    is_stub,
     list_result,
 )
 
@@ -37,6 +39,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         Trigram cannot match terms under three characters; those use a name/qname prefix scan.
         On hash drift beyond the per-call reparse cap, returns hits with ``reason=index_stale``
         and an honest ``total_count`` (never an empty proof of absence).
+        Stub-indexed nodes (task 039) also carry ``stub: true``.
         """
         db_path = str(config.db_path)
         if not config.db_path.is_file():
@@ -92,4 +95,6 @@ def _hit(row: Mapping[str, object] | Row) -> dict[str, object]:
     hit["kind"] = row["kind"]
     hit["file"] = row["file_path"]
     hit["line"] = row["line_start"]
+    if is_stub(row.get("extra")):
+        hit[contract.STUB_FLAG] = True
     return hit

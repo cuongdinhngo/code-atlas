@@ -18,6 +18,7 @@ _MINIMAL_KEYS = frozenset(
         "failed",
         "nodes",
         "edges",
+        "stubs",
         "last_commit",
         "staleness",
         "next_tool_suggestions",
@@ -102,7 +103,7 @@ def test_parse_failures_is_zero_on_a_clean_graph(tmp_path: Path) -> None:
 
 
 def test_minimal_payload_stays_byte_identical_to_the_pre_health_shape(tmp_path: Path) -> None:
-    """AC3: minimal keys/values unchanged; new health fields are standard-only."""
+    """AC3: health fields stay standard-only; stubs (039) is on both levels."""
     db_path = tmp_path / ".code-atlas" / "graph.db"
     db_path.parent.mkdir(parents=True)
     _plant_health_graph(db_path)
@@ -120,6 +121,7 @@ def test_minimal_payload_stays_byte_identical_to_the_pre_health_shape(tmp_path: 
         "failed": 1,
         "nodes": 2,
         "edges": 4,
+        "stubs": 0,
         "last_commit": None,
         "staleness": "unknown",
         "next_tool_suggestions": [],

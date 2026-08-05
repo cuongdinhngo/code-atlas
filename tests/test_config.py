@@ -106,6 +106,15 @@ KNOBS = (
         lambda root: None,
     ),
     Knob(
+        "CA_STUB_ROOTS",
+        'stub_roots = ["vendor"]',
+        "vendor,libs",
+        lambda config: config.stub_roots,
+        lambda root: ("vendor", "libs"),
+        lambda root: ("vendor",),
+        lambda root: None,
+    ),
+    Knob(
         "CA_TOOLS",
         'tools = ["search_symbol"]',
         "read_symbol,file_outline",
@@ -173,7 +182,7 @@ def test_every_knob_has_a_precedence_case() -> None:
     # Guards the guard: dropping a knob from KNOBS would otherwise shrink AC1's coverage silently.
     covered = {knob.variable for knob in KNOBS}
     assert {env_name(key) for key in KNOB_KEYS} | {"CA_PHP_CMD"} == covered
-    assert len(KNOB_KEYS) == 10
+    assert len(KNOB_KEYS) == 11
 
 
 def test_env_name_is_derived_from_the_project_file_key() -> None:
@@ -185,6 +194,7 @@ def test_env_name_is_derived_from_the_project_file_key() -> None:
         "CA_IMPACT_DEPTH",
         "CA_IMPACT_MAX_NODES",
         "CA_ENTRY_POINTS",
+        "CA_STUB_ROOTS",
         "CA_TOOLS",
         "CA_HOST_ROOT",
         "CA_CONTAINER_ROOT",
@@ -319,6 +329,15 @@ def test_to_adapter_path_rewrites_absolute_host_paths(tmp_path: Path) -> None:
     assert to_adapter_path(relative, None, None) == relative
     with pytest.raises(ConfigError, match="not under"):
         to_adapter_path(str(tmp_path / "elsewhere" / relative), host, container)
+
+
+@pytest.mark.parametrize(
+    "raw",
+    ["/etc", "../outside", "vendor/../secret", "./vendor", "a//b"],
+)
+def test_stub_roots_reject_non_repo_relative_paths(tmp_path: Path, raw: str) -> None:
+    with pytest.raises(ConfigError, match="repo-relative"):
+        load_config(tmp_path, {"CA_STUB_ROOTS": raw})
 
 
 @pytest.mark.parametrize(("cpus", "expected"), CPU_CASES, ids=[f"{n}-cpus" for n, _ in CPU_CASES])

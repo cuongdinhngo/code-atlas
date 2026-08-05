@@ -66,8 +66,15 @@ class LanguageAdapter(Protocol):
     def start(self) -> None:
         """Launch the adapter and read its handshake."""
 
-    def parse(self, path: str) -> ParseResult:
-        """Parse one repo-relative path."""
+    def parse(self, path: str, *, declarations_only: bool = False) -> ParseResult:
+        """Parse one repo-relative path.
+
+        ``declarations_only`` asks the adapter to skip call/NEW edges from bodies (task 039
+        stub indexing). Adapters that do not honour the flag may still emit those edges; the
+        indexer strips ``CALLER_KINDS`` (CALLS/NEW) for stub roots as a language-agnostic
+        backstop. Other body-level kinds (REFERENCES, IMPORTS) are *not* stripped — honouring
+        the flag is the adapter's responsibility.
+        """
 
     def stop(self) -> None:
         """Shut the adapter down and release its pipes."""
@@ -141,7 +148,7 @@ class SubprocessAdapter:
             ) from error
         self._meta = self._read_handshake()
 
-    def parse(self, path: str) -> ParseResult:
+    def parse(self, path: str, *, declarations_only: bool = False) -> ParseResult:
         """Parse one path. Wire may be remapped; the result always keeps the caller's path (§9)."""
         process = self._running()
         try:
@@ -149,7 +156,7 @@ class SubprocessAdapter:
         except ConfigError as error:
             # Bad absolute path under set roots — loud at the process boundary (R5.3).
             raise AdapterError(f"adapter {self._key!r}: {error}") from error
-        self._request(process, wire)
+        self._request(process, wire, declarations_only=declarations_only)
         try:
             line = self._read_line(process)
         except UnicodeDecodeError as error:
@@ -229,10 +236,15 @@ class SubprocessAdapter:
             )
         return meta
 
-    def _request(self, process: subprocess.Popen[str], path: str) -> None:
+    def _request(
+        self, process: subprocess.Popen[str], path: str, *, declarations_only: bool = False
+    ) -> None:
         assert process.stdin is not None
+        payload: dict[str, object] = {"path": path}
+        if declarations_only:
+            payload["declarations_only"] = True
         try:
-            process.stdin.write(json.dumps({"path": path}, separators=(",", ":")) + "\n")
+            process.stdin.write(json.dumps(payload, separators=(",", ":")) + "\n")
             process.stdin.flush()
         except (BrokenPipeError, OSError, ValueError) as error:
             raise AdapterError(

@@ -51,7 +51,7 @@ up). Source: [`FEEDBACK.md`](FEEDBACK.md).
 | 036 | Claude Code Edit/Write index-poke hook | Distribution | done | 016, 035 |
 | 037 | Compound nav responses (call-site line) + consolidation A/B | Agent-fit | done | 013, 034 |
 | 038 | `explain_path(from, to)` control-flow path tool | Task-level | done | 017, 031 |
-| 039 | Vendor stub index (declarations-only) | Framework | todo | 009, 011 |
+| 039 | Vendor stub index (declarations-only) | Framework | in-progress | 009, 011 |
 | 040 | Framework indirection as data (rules file outside `adapters/`) | Framework | todo | 039, 030 |
 | 041 | Legacy/framework hardening — encoding, `.blade.php` ignore, extra extensions | Robustness | todo | 009 |
 | 042 | Tokens-to-answer sample tier — populate pinned public repos (ratio ≫ 1) | Measure | todo | 034, 018 |
@@ -124,6 +124,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 036 | Claude Code Edit/Write index-poke hook | **4 dispatch** — refine exposure-checker + review `mango:reviewer` (×2) + `mango:challenger`; all token cells **`unmeasured (blocking retrieval)`**. Phases 1–3 dispatched **nothing** on the main model. **Main-loop spend is unmeasured**, as for 004–035 | [#42](https://github.com/cuongdinhngo/code-atlas/pull/42) |
 | 037 | Compound nav responses (call-site line) + consolidation A/B | **3 dispatch, all measured — 242.7k total** — review `mango:challenger` **61.9k** (32 tool uses / 336 s) + `mango:reviewer` **106.5k** (42 / 595 s) + `mango:reviewer` round 2 **74.2k** (39 / 433 s), read from their returned `<usage>` blocks. Phases 0–3 dispatched **nothing** (premise check and both A/B measurements ran on the main model). **Main-loop spend is unmeasured**, as for 004–036 | [#43](https://github.com/cuongdinhngo/code-atlas/pull/43) |
 | 038 | `explain_path(from, to)` control-flow path tool | **4 dispatch** — refine exposure-checker + analysis extractor + review `mango:reviewer` + `mango:challenger`; all token cells **`unmeasured (blocking retrieval)`**. Phases 2–3 and 5 dispatched **nothing** on the main model. **Main-loop spend is unmeasured**, as for 004–036 | [#44](https://github.com/cuongdinhngo/code-atlas/pull/44) |
+| 039 | Vendor stub index (declarations-only) | **5 dispatch** — refine exposure-checker + analysis extractor + review `mango:reviewer` (×2, incl. verify-only resume) + `mango:challenger`; all token cells **`unmeasured (blocking retrieval)`**. Phases 2–3 and 5 dispatched **nothing** on the main model. **Main-loop spend is unmeasured**, as for 004–038 | [#45](https://github.com/cuongdinhngo/code-atlas/pull/45) |
 
 ## Follow-ups (not yet ticketed)
 

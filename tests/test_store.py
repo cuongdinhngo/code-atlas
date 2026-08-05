@@ -648,12 +648,26 @@ def test_without_busy_timeout_the_same_contention_fails_at_once(db_path: Path) -
 
 def test_the_counts_come_from_the_rows_not_from_the_file_total(store: GraphStore) -> None:
     """`parsed` follows `parsed_ok`: reporting the file total would hide every failed parse."""
-    assert store.counts() == {"files": 0, "parsed": 0, "failed": 0, "nodes": 0, "edges": 0}
+    assert store.counts() == {
+        "files": 0,
+        "parsed": 0,
+        "failed": 0,
+        "nodes": 0,
+        "edges": 0,
+        "stubs": 0,
+    }
 
     seeded(store)
     store.upsert_file("b.php", "h", "php", parsed_ok=False)
 
-    assert store.counts() == {"files": 2, "parsed": 1, "failed": 1, "nodes": 2, "edges": 1}
+    assert store.counts() == {
+        "files": 2,
+        "parsed": 1,
+        "failed": 1,
+        "nodes": 2,
+        "edges": 1,
+        "stubs": 0,
+    }
 
 
 def test_edge_health_counts_tiers_and_link_resolution(store: GraphStore) -> None:

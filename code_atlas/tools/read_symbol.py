@@ -7,10 +7,11 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Literal
 
+from code_atlas import contract
 from code_atlas.config import Config
 from code_atlas.store import GraphStore
 from code_atlas.tools.freshness import FreshnessGuard
-from code_atlas.tools.nav_result import REASON_INDEX_STALE, REASON_OK
+from code_atlas.tools.nav_result import REASON_INDEX_STALE, REASON_OK, is_stub
 
 NAME = "read_symbol"
 
@@ -29,7 +30,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         Never returns the whole file. On hash drift, reparses that one file inline (035). Returns
         ``stale: true`` and ``reason=index_stale`` when the file is missing, no adapter owns it, or
-        repair fails (adapter/DB error).
+        repair fails (adapter/DB error). Stub-indexed nodes (task 039) also carry ``stub: true``.
         """
         if not config.db_path.is_file():
             return _empty(qname, detail_level=detail_level, db_path=str(config.db_path))
@@ -92,6 +93,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 file=rel,
                 line_start=start,
                 line_end=end,
+                stub=is_stub(node.get("extra")),
             )
 
     return read_symbol
@@ -149,6 +151,7 @@ def _result(
     file: str | None = None,
     line_start: int | None = None,
     line_end: int | None = None,
+    stub: bool = False,
 ) -> dict[str, object]:
     payload: dict[str, object] = {
         "indexed": True,
@@ -164,6 +167,8 @@ def _result(
         if not stale:
             payload["line_start"] = line_start
             payload["line_end"] = line_end
+        if stub:
+            payload[contract.STUB_FLAG] = True
     if detail_level == "standard":
         payload["db_path"] = db_path
     return payload

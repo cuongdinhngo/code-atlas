@@ -31,6 +31,7 @@ KNOB_KEYS: tuple[str, ...] = (
     "impact_depth",
     "impact_max_nodes",
     "entry_points",
+    "stub_roots",
     "tools",
     "host_root",
     "container_root",
@@ -62,6 +63,7 @@ class Config:
     impact_depth: int
     impact_max_nodes: int
     entry_points: tuple[str, ...] | None
+    stub_roots: tuple[str, ...] | None
     tools: tuple[str, ...] | None
     host_root: Path | None
     container_root: Path | None
@@ -121,6 +123,7 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
             "impact_max_nodes", _as_int, DEFAULT_IMPACT_MAX_NODES, environ, file_values
         ),
         entry_points=_resolve("entry_points", _as_entry_points, None, environ, file_values),
+        stub_roots=_resolve("stub_roots", _as_stub_roots, None, environ, file_values),
         tools=_resolve("tools", _as_tools, None, environ, file_values),
         host_root=host_root,
         container_root=container_root,
@@ -264,6 +267,31 @@ def _as_entry_points(label: str, raw: object) -> tuple[str, ...] | None:
     else:
         raise ConfigError(f"{label}: {raw!r} is not a comma-separated list of entry paths")
     kept = [name.strip() for name in names if name.strip()]
+    return tuple(dict.fromkeys(kept)) or None
+
+
+def _as_stub_roots(label: str, raw: object) -> tuple[str, ...] | None:
+    """Dependency roots for declarations-only stub indexing. Blank/unset = off (task 039)."""
+    if isinstance(raw, str):
+        names = raw.split(",")
+    elif isinstance(raw, list):
+        names = [_as_text(label, item) for item in raw]
+    else:
+        raise ConfigError(f"{label}: {raw!r} is not a comma-separated list of stub roots")
+    kept: list[str] = []
+    for name in names:
+        cleaned = name.strip().replace("\\", "/").strip("/")
+        if not cleaned:
+            continue
+        parts = cleaned.split("/")
+        if name.strip().startswith(("/", "\\")) or any(
+            part in ("", ".", "..") for part in parts
+        ):
+            raise ConfigError(
+                f"{label}: {name!r} must be a repo-relative directory "
+                f"(no absolute path, '.', or '..')"
+            )
+        kept.append(cleaned)
     return tuple(dict.fromkeys(kept)) or None
 
 

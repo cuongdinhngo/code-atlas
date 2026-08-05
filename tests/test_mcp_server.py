@@ -205,7 +205,7 @@ def test_a_real_client_over_stdio_lists_the_tools_then_builds_and_reports_the_in
     assert names == sorted(TOOL_NAMES)
     assert built["files"] == 2 and built["parsed"] == 2, built
     assert built["nodes"] == 2 and built["seconds"] >= 0
-    for field in ("files", "parsed", "failed", "nodes", "edges"):
+    for field in ("files", "parsed", "failed", "nodes", "edges", "stubs"):
         assert status[field] == built[field], f"{field}: status disagrees with its own build"
 
 
@@ -496,4 +496,11 @@ def test_the_counts_read_agrees_with_a_real_build(repo: Path) -> None:
         full_build(config, store)
         counts = store.counts()
 
-    assert counts == {"files": 2, "parsed": 2, "failed": 0, "nodes": 2, "edges": 0}
+    assert counts == {
+        "files": 2,
+        "parsed": 2,
+        "failed": 0,
+        "nodes": 2,
+        "edges": 0,
+        "stubs": 0,
+    }

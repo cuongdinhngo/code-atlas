@@ -54,6 +54,7 @@ def _unbuilt(
         "files": 0,
         "nodes": 0,
         "edges": 0,
+        "stubs": 0,
         "last_commit": None,
         "staleness": UNKNOWN,
         "next_tool_suggestions": _suggestions(servable, UNKNOWN, indexed=False),
