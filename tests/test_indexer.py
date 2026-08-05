@@ -270,7 +270,7 @@ def test_a_re_run_over_an_unchanged_tree_is_idempotent(tmp_path: Path, store: Gr
 
     assert snapshot(store) == before
     assert first == second == BuildReport(
-        files=len(paths), parsed=3, failed=0, removed=0, nodes=3, edges=0
+        files=len(paths), parsed=3, failed=0, removed=0, nodes=3, edges=0, stubs=0
     )
 
 
@@ -495,5 +495,5 @@ def test_a_build_with_no_configured_adapter_indexes_nothing(
 
     report = full_build(load_config(tmp_path, {"CA_WORKERS": "1"}), store)
 
-    assert report == BuildReport(files=0, parsed=0, failed=0, removed=0, nodes=0, edges=0)
+    assert report == BuildReport(files=0, parsed=0, failed=0, removed=0, nodes=0, edges=0, stubs=0)
     assert store.get_meta(BUILT_AT_KEY), "an empty build still stamps the index"

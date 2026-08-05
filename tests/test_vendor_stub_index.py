@@ -161,8 +161,58 @@ def test_as_stub_result_stamps_extra_and_drops_caller_kinds() -> None:
     assert len(stamped.edges) == 1
     assert stamped.edges[0]["kind"] == "EXTENDS"
     extra = json.loads(str(stamped.nodes[0]["extra"]))
-    assert extra["stub"] is True
+    assert extra[contract.STUB_FLAG] is True
     assert extra["attributes"] == []
+
+
+def test_stamp_preserves_malformed_extra() -> None:
+    bad = ParseResult(
+        path="v.php",
+        ok=True,
+        nodes=(
+            {
+                "kind": "Class",
+                "name": "X",
+                "qualified_name": "\\X",
+                "file_path": "v.php",
+                "line_start": 1,
+                "extra": "not-json",
+            },
+        ),
+        edges=(),
+    )
+    stamped = as_stub_result(bad)
+    extra = json.loads(str(stamped.nodes[0]["extra"]))
+    assert extra[contract.STUB_FLAG] is True
+    assert extra["raw_extra"] == "not-json"
+
+
+def test_missing_stub_root_directory_fails_loud(tmp_path: Path) -> None:
+    from code_atlas.config import ConfigError
+
+    with pytest.raises(ConfigError, match="not a directory"):
+        collect_stubs(tmp_path, ("vendors",), (".php",))
+
+
+def test_stub_root_overlapping_source_fails_loud(tmp_path: Path, store: GraphStore) -> None:
+    """R5.3: CA_STUB_ROOTS must not silently degrade tracked source to declarations-only."""
+    import sys
+
+    from code_atlas.config import ConfigError
+
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.aa").write_text("app\n", encoding="utf-8")
+    _git_init(tmp_path)
+    config = load_config(
+        tmp_path,
+        {
+            "CA_WORKERS": "1",
+            "CA_FAKE_CMD": shlex.join([sys.executable, str(FAKE), "ok"]),
+            "CA_STUB_ROOTS": "src",
+        },
+    )
+    with pytest.raises(ConfigError, match="overlap collected source"):
+        full_build(config, store)
 
 
 @needs_php
@@ -200,6 +250,7 @@ def test_stub_indexing_resolves_extends_and_marks_stubs(
     config = load_config(tmp_path, _php_env(tmp_path, stubs=True))
     report = full_build(config, store)
     assert report.failed == 0
+    assert report.stubs >= 1
     assert "vendor/lib/src/Model.php" in store.file_paths()
 
     extends = store.edges_by_source("\\App\\User", kinds=("EXTENDS",), limit=10)
@@ -266,9 +317,35 @@ def test_fake_adapter_stub_root_stamps_nodes(tmp_path: Path, store: GraphStore) 
     )
     report = full_build(config, store)
     assert report.failed == 0
+    assert report.stubs == 1
     assert "vendor/pkg/lib.aa" in store.file_paths()
     node = store.nodes_by_qualified_name("vendor/pkg/lib.aa::Thing", limit=1)[0]
-    assert json.loads(str(node["extra"]))["stub"] is True
+    assert json.loads(str(node["extra"]))[contract.STUB_FLAG] is True
+    assert store.stub_file_count() == 1
+
+
+def test_stubs_on_build_is_deterministic(tmp_path: Path, store: GraphStore) -> None:
+    """Two stubs-on builds over the same tree produce identical row content (R4.2)."""
+    import sys
+
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.aa").write_text("app\n", encoding="utf-8")
+    (tmp_path / "vendor" / "pkg").mkdir(parents=True)
+    (tmp_path / "vendor" / "pkg" / "a.aa").write_text("a\n", encoding="utf-8")
+    (tmp_path / "vendor" / "pkg" / "b.aa").write_text("b\n", encoding="utf-8")
+    _git_init(tmp_path)
+    env = {
+        "CA_WORKERS": "2",
+        "CA_FAKE_CMD": shlex.join([sys.executable, str(FAKE), "ok"]),
+        "CA_STUB_ROOTS": "vendor",
+    }
+    config = load_config(tmp_path, env)
+    first = full_build(config, store)
+    snap = _graph_rows(store)
+    with GraphStore(tmp_path / "second.db") as other:
+        second = full_build(load_config(tmp_path, env), other)
+        assert second == first
+        assert _graph_rows(other) == snap
 
 
 def test_incremental_hash_gates_stub_edits(tmp_path: Path, store: GraphStore) -> None:

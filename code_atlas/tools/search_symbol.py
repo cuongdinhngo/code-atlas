@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import json
 from collections.abc import Callable, Mapping
 from typing import Literal
 
+from code_atlas import contract
 from code_atlas.config import Config
 from code_atlas.store import GraphStore, Row
 from code_atlas.tools.freshness import FreshnessGuard
@@ -14,6 +14,7 @@ from code_atlas.tools.nav_result import (
     REASON_NO_MATCHES,
     REASON_NOT_INDEXED,
     REASON_OK,
+    is_stub,
     list_result,
 )
 
@@ -94,16 +95,6 @@ def _hit(row: Mapping[str, object] | Row) -> dict[str, object]:
     hit["kind"] = row["kind"]
     hit["file"] = row["file_path"]
     hit["line"] = row["line_start"]
-    if _is_stub(row.get("extra")):
-        hit["stub"] = True
+    if is_stub(row.get("extra")):
+        hit[contract.STUB_FLAG] = True
     return hit
-
-
-def _is_stub(raw: object) -> bool:
-    if not isinstance(raw, str) or not raw.strip():
-        return False
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        return False
-    return isinstance(data, dict) and data.get("stub") is True

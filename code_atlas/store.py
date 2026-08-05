@@ -309,7 +309,16 @@ class GraphStore:
             "failed": files - parsed,
             "nodes": nodes,
             "edges": edges,
+            "stubs": self.stub_file_count(),
         }
+
+    def stub_file_count(self) -> int:
+        """Distinct files whose nodes carry ``extra.stub`` (task 039)."""
+        (count,) = self._conn.execute(
+            "SELECT COUNT(DISTINCT file_path) FROM nodes "
+            f"WHERE json_extract(extra, '$.{contract.STUB_FLAG}') = 1"
+        ).fetchone()
+        return int(count)
 
     def edge_health(self) -> dict[str, object]:
         """Tier mix and link-resolution split for ``get_index_status`` (R4; SQL only).

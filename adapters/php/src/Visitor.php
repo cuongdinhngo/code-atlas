@@ -84,8 +84,19 @@ final class Visitor extends NodeVisitorAbstract
         ];
     }
 
+    /**
+     * @return int|null  ``DONT_TRAVERSE_CHILDREN`` to skip bodies when declarations-only
+     */
     public function enterNode(Node $node)
     {
+        // Nested closures/arrows carry no declarations we keep; skip before stack push/pop.
+        if (
+            $this->declarationsOnly
+            && ($node instanceof Node\Expr\Closure || $node instanceof Node\Expr\ArrowFunction)
+        ) {
+            return NodeTraverser::DONT_TRAVERSE_CHILDREN;
+        }
+
         if ($node instanceof Node\Stmt\Namespace_) {
             if ($node->name !== null) {
                 $this->open($node, 'Namespace', $node->name->toString(), self::fqn($node->name));
@@ -119,16 +130,10 @@ final class Visitor extends NodeVisitorAbstract
                 return NodeTraverser::DONT_TRAVERSE_CHILDREN;
             }
         } elseif ($node instanceof Node\Expr\Closure) {
-            if ($this->declarationsOnly) {
-                return NodeTraverser::DONT_TRAVERSE_CHILDREN;
-            }
             $this->stringLocalsStack[] = $this->stringLocals;
             $this->stringLocals = [];
             $this->enterClosureLike($node, 'closure', '{closure}', $node->params, $node->static, $node->attrGroups);
         } elseif ($node instanceof Node\Expr\ArrowFunction) {
-            if ($this->declarationsOnly) {
-                return NodeTraverser::DONT_TRAVERSE_CHILDREN;
-            }
             // fn() auto-captures by value — keep outer bindings; stack still restores on leave.
             $this->stringLocalsStack[] = $this->stringLocals;
             $this->enterClosureLike($node, 'fn', '{fn}', $node->params, $node->static, $node->attrGroups);

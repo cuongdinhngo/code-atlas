@@ -26,8 +26,8 @@ from pathlib import Path, PurePosixPath
 
 from code_atlas import contract, gitutil
 from code_atlas.adapter import AdapterError, ParseResult, SubprocessAdapter, extension_index
-from code_atlas.config import Config
-from code_atlas.ignore import IgnoreMatcher, load_ignore
+from code_atlas.config import Config, ConfigError
+from code_atlas.ignore import BUILTIN_PATTERNS, IgnoreMatcher, load_ignore
 from code_atlas.resolver import resolve_edges
 from code_atlas.store import BUILT_AT_KEY, CONTRACT_VERSION_KEY, LAST_COMMIT_KEY, GraphStore
 
@@ -36,8 +36,11 @@ WATCHDOG_INTERVAL = 0.25
 
 _READ_CHUNK = 1 << 20
 
-# Stub walks skip these directory names even though they bypass the normal ignore matcher.
-_STUB_SKIP_DIRS = frozenset({".git", "node_modules"})
+# Directory names skipped under a stub walk — same built-in dirs as ignore (§11), minus nothing
+# at the walk root (os.walk starts *inside* the stub root).
+_STUB_SKIP_DIRS = frozenset(
+    pattern.strip("/") for pattern in BUILTIN_PATTERNS if pattern.endswith("/")
+)
 
 _Outcome = tuple[str, str, ParseResult]
 
@@ -52,6 +55,7 @@ class BuildReport:
     removed: int
     nodes: int
     edges: int
+    stubs: int = 0
 
 
 def full_build(config: Config, store: GraphStore) -> BuildReport:
@@ -73,6 +77,7 @@ def full_build(config: Config, store: GraphStore) -> BuildReport:
                 if config.stub_roots
                 else ()
             )
+            _reject_stub_source_overlap(paths, stubs)
             kept = tuple(sorted(dict.fromkeys([*paths, *stubs])))
             removed = _reconcile(store, kept)
             counts = _parse_all(config, store, watchdog, announced, owners, kept)
@@ -86,7 +91,7 @@ def full_build(config: Config, store: GraphStore) -> BuildReport:
     # rebuild per build would cost a full re-index and change nothing (deviation D1).
     _record_meta(config, store)
     resolve_edges(store, max_candidates=config.max_results)
-    return BuildReport(files=len(kept), removed=removed, **counts)
+    return BuildReport(files=len(kept), stubs=len(stubs), removed=removed, **counts)
 
 
 def incremental_update(
@@ -115,6 +120,7 @@ def incremental_update(
                 if config.stub_roots
                 else ()
             )
+            _reject_stub_source_overlap(paths, stubs)
             stub_set = set(stubs)
             wanted = set(paths)
             kept = tuple(sorted(wanted | stub_set))
@@ -161,7 +167,9 @@ def incremental_update(
 
     _record_meta(config, store)
     resolve_edges(store, max_candidates=config.max_results)
-    return BuildReport(files=len(to_parse), removed=removed, **counts)
+    return BuildReport(
+        files=len(to_parse), stubs=len(stub_set & set(to_parse)), removed=removed, **counts
+    )
 
 
 def reparse_file(config: Config, store: GraphStore, path: str) -> bool:
@@ -243,14 +251,15 @@ def collect_stubs(
     """Filesystem walk of configured dependency roots — bypasses ignore/git (task 039).
 
     ``vendor/`` is a built-in ignore and usually gitignored, so neither ``collect`` nor
-    ``git ls-files`` can see it. Stub indexing walks these trees directly.
+    ``git ls-files`` can see it. Stub indexing walks these trees directly. A configured root
+    that is missing or not a directory fails loud (R5.3) — a typo must not look like stubs-off.
     """
     wanted = {suffix.lower() for suffix in suffixes}
     found: list[str] = []
     for stub in stub_roots:
         base = root / stub
         if not base.is_dir():
-            continue
+            raise ConfigError(f"stub_roots: {stub!r} is not a directory under {root}")
         for dirpath, dirnames, filenames in os.walk(base):
             dirnames[:] = sorted(d for d in dirnames if d not in _STUB_SKIP_DIRS)
             for name in filenames:
@@ -270,7 +279,12 @@ def is_stub_path(path: str, stub_roots: Sequence[str] | None) -> bool:
 
 
 def as_stub_result(result: ParseResult) -> ParseResult:
-    """Stamp stub marker on nodes; drop CALLS/NEW edges (declarations-only backstop)."""
+    """Stamp stub marker on nodes; drop CALLS/NEW edges (declarations-only backstop).
+
+    The backstop is only ``CALLER_KINDS`` (CALLS/NEW). Body-level REFERENCES/IMPORTS from an
+    adapter that ignores ``declarations_only`` can still land; honouring the flag is the adapter's
+    job. Core never invents a language-specific body filter (R1.1).
+    """
     if not result.ok:
         return result
     drop = frozenset(contract.CALLER_KINDS)
@@ -283,8 +297,19 @@ def as_stub_result(result: ParseResult) -> ParseResult:
     )
 
 
+def _reject_stub_source_overlap(paths: Sequence[str], stubs: Sequence[str]) -> None:
+    """Fail loud when a stub root overlaps git-collected source (R5.3)."""
+    clash = sorted(set(paths) & set(stubs))
+    if clash:
+        preview = ", ".join(clash[:3])
+        raise ConfigError(
+            f"stub_roots overlap collected source: {preview} "
+            f"({len(clash)} files) — a stub root must hold dependencies only"
+        )
+
+
 def _stamp_stub_node(node: dict[str, object]) -> dict[str, object]:
-    """Merge ``{"stub": true}`` into ``extra`` JSON (distinguishable, no contract bump)."""
+    """Merge the stub flag into ``extra`` JSON without dropping a prior payload."""
     data: dict[str, object] = {}
     raw = node.get("extra")
     if isinstance(raw, str) and raw.strip():
@@ -292,11 +317,13 @@ def _stamp_stub_node(node: dict[str, object]) -> dict[str, object]:
             parsed = json.loads(raw)
             if isinstance(parsed, dict):
                 data = parsed
+            else:
+                data = {"extra_value": parsed}
         except json.JSONDecodeError:
-            data = {}
+            data = {"raw_extra": raw}
     elif isinstance(raw, dict):
         data = dict(raw)
-    data["stub"] = True
+    data[contract.STUB_FLAG] = True
     node["extra"] = json.dumps(data, separators=(",", ":"), sort_keys=True)
     return node
 

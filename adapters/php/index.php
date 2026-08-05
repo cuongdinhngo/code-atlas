@@ -39,7 +39,7 @@ function serve(Parser $parser): void
             }
             continue;
         }
-        $declarationsOnly = is_array($request) && ($request['declarations_only'] ?? false) === true;
+        $declarationsOnly = ($request['declarations_only'] ?? false) === true;
         emit($parser->parse($path, $declarationsOnly));
     }
 }

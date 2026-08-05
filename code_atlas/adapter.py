@@ -71,7 +71,9 @@ class LanguageAdapter(Protocol):
 
         ``declarations_only`` asks the adapter to skip call/NEW edges from bodies (task 039
         stub indexing). Adapters that do not honour the flag may still emit those edges; the
-        indexer strips them for stub roots as a language-agnostic backstop.
+        indexer strips ``CALLER_KINDS`` (CALLS/NEW) for stub roots as a language-agnostic
+        backstop. Other body-level kinds (REFERENCES, IMPORTS) are *not* stripped — honouring
+        the flag is the adapter's responsibility.
         """
 
     def stop(self) -> None:
