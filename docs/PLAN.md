@@ -357,8 +357,8 @@ Token-efficient: return qualified names + `file:line`, not bodies, unless a read
 | `search_symbol` | `query, kind?, namespace?, limit?` | ranked `{qname, kind, file:line}` (FTS + name); `reason` + `total_count` (033) |
 | `file_outline` | `path` | symbols + line ranges, no body |
 | `read_symbol` | `qname` | source of just that class/method + docblock |
-| `find_callers` | `qname, depth?` | who CALLS/NEW it + confidence; `reason` + `total_count` (033) |
-| `find_references` | `qname` | all edges targeting it; `reason` + `total_count` (033) |
+| `find_callers` | `qname, depth?, include_source?` | who CALLS/NEW it + confidence; `reason` + `total_count` (033); opt-in capped call-site `source` (037) |
+| `find_references` | `qname, include_source?` | all edges targeting it; `reason` + `total_count` (033); opt-in capped call-site `source` (037) |
 | `find_implementations` | `qname` | EXTENDS/IMPLEMENTS subtypes; `reason` + `total_count` (033) |
 | `include_graph` | `path, direction` | `include`/`require` graph (any include-based code) |
 | `impact` | `paths|qnames, depth?` | blast radius, bounded best-score |
@@ -489,6 +489,16 @@ New surface (separate from indexing): `generate_onboarding`, `architecture_overv
 The consumer is an **AI coding agent in a terminal**, so the incumbent to beat is `grep + Read + context window`, not an IDE. This reframes goals and roadmap:
 - **Metric.** Success is measured as **tokens-to-correct-answer vs a grep+`Read` baseline** on a fixed question set — not precision-vs-LSP. Build this harness before proving any accuracy change (task 034).
 - **Machine-trustable responses first.** Empty ≠ unknown: `find_*`/`search` must carry reason codes and `total_count`, generalizing the `get_index_status.next_tool_suggestions` instinct (033). Freshness is **enforced, not surfaced** — inline reparse on hash drift for read/nav tools with per-call cap + `index_stale` overflow (035); opt-in Claude Code `PostToolUse` Edit/Write poke via `code-atlas-poke` (`code_atlas.hooks.poke`) + `async` settings snippet (036).
+- **Fewer round-trips beats fewer rows.** `find_callers`/`find_references` take an opt-in
+`include_source` that rides each site's own source line along with the hit — measured at **180 vs 249
+tokens (−28%) end-to-end for the identical answer**, one round-trip removed (037); counting only the
+relation calls and excluding the `get_index_status` preamble both paths pay, **107 vs 176 (−39%)**. A drifted site file is never
+quoted (`source_stale`), since 035 refreshes only the subject file. **Consolidation was measured and
+rejected — but on smallness, not on a win:** one `find_relations(qname, relation)` saves 241 schema
+tokens once and costs 6.75 per call, so it is cheaper below **≈36 relation calls per session** and
+dearer above, a spread of only −234…+434 tokens over 1–100 calls. No net win ⇒ the ticket's default
+holds, reinforced by the unpriced cost of one muddier description (C3) and R1.2. The A/B lives in
+`scripts/relation_surface_ab.py`; `find_relations` was never shipped (037).
 - **Depth over breadth.** TS/JS (019) and Python/C# (020/021) are **deferred, not cancelled** — finish the PHP agent-loop first. Breadth before depth would leave us mediocre at both. **Human-ratified 2026-08-04:** PHP is the focus because the private **anchor-repo** monorepo is the anchor for **testing *and* evaluation** — the tokens-to-answer harness (034) and the accuracy work lean on it — so depth on PHP is measurable in a way breadth would not be.
 - **Editing permanently ceded** to the agent's native `Edit`/`Write` (§1). code-atlas serves exact line ranges; it never mutates code.
 - **Framework magic stays an enrichment layer** (§1 non-goal) — vendor stubs + indirection-as-data (039, 040), sequenced *below* the response-shape work: an agent can verify a shallow edge by reading one file, but cannot recover from an empty array it misread as proof.

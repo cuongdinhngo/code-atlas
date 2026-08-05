@@ -7,7 +7,7 @@ from typing import Literal
 
 from code_atlas.config import Config
 from code_atlas.store import PATH_STATUS_INCOMPLETE, GraphStore, Row
-from code_atlas.tools.nav_result import empty_nav
+from code_atlas.tools.nav_result import REASON_NOT_INDEXED
 
 NAME = "explain_path"
 
@@ -34,9 +34,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         """
         if depth is not None and depth < 0:
             raise ValueError(f"depth must be >= 0, got {depth}")
-        subject = f"{from_qname}->{to_qname}"
         if not config.db_path.is_file():
-            return empty_nav(subject, detail_level=detail_level, db_path=str(config.db_path))
+            return _not_indexed(from_qname, to_qname, depth, detail_level, config)
         with GraphStore(config.db_path) as store:
             outcome = store.explain_path(
                 from_qname,
@@ -60,6 +59,29 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         return payload
 
     return explain_path
+
+
+def _not_indexed(
+    from_qname: str,
+    to_qname: str,
+    depth: int | None,
+    detail_level: DetailLevel,
+    config: Config,
+) -> dict[str, object]:
+    """Same keys as an indexed answer — clients must not KeyError on a missing DB."""
+    payload: dict[str, object] = {
+        "indexed": False,
+        "from_qname": from_qname,
+        "to_qname": to_qname,
+        "status": REASON_NOT_INDEXED,
+        "path": [],
+        "truncated": False,
+        "depth": depth,
+        "depth_exhausted": False,
+    }
+    if detail_level == "standard":
+        payload["db_path"] = str(config.db_path)
+    return payload
 
 
 def _shape_hop(hop: Row) -> dict[str, object]:

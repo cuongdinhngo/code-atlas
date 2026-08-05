@@ -162,6 +162,30 @@ def test_depth_budget_incomplete_not_no_path(planted: tuple) -> None:
     assert payload["depth_exhausted"] is True
 
 
+def test_depth_exhausted_proven_still_tries_heuristic_within_budget(
+    store: GraphStore,
+) -> None:
+    """A→B RESOLVED dead-end; A→C HEURISTIC at depth=1 — unproven, not incomplete."""
+    path = "mix.php"
+    seed_file(
+        store,
+        path,
+        [
+            node("Class", "A", A, path),
+            node("Class", "B", B, path, line=2),
+            node("Class", "C", C, path, line=3),
+        ],
+        [
+            edge("CALLS", A, B, path),
+            edge("CALLS", A, C, path, tier="HEURISTIC", line=2),
+        ],
+    )
+    outcome = store.explain_path(A, C, depth=1, max_nodes=50)
+    assert outcome.status == PATH_STATUS_UNPROVEN
+    assert [(h["source_qname"], h["target_qname"]) for h in outcome.hops] == [(A, C)]
+    assert outcome.hops[0]["confidence_tier"] == "HEURISTIC"
+
+
 def test_same_qname_is_empty_proven_path(planted: tuple) -> None:
     _store, cfg = planted
     payload = explain_path_tool.create(cfg)(A, A)
@@ -169,10 +193,47 @@ def test_same_qname_is_empty_proven_path(planted: tuple) -> None:
     assert payload["path"] == []
 
 
-def test_store_explain_path_prefers_resolved_over_shorter_heuristic(
-    store: GraphStore,
-) -> None:
+def test_not_indexed_payload_has_status_and_path(tmp_path: Path) -> None:
+    cfg = replace(load_config(tmp_path, {}), db_path=tmp_path / "missing.db")
+    payload = explain_path_tool.create(cfg)(A, C)
+    assert payload["indexed"] is False
+    assert payload["status"] == "not_indexed"
+    assert payload["path"] == []
+    assert payload["from_qname"] == A
+    assert payload["to_qname"] == C
+
+
+def test_resolved_route_wins_when_lengths_tie(store: GraphStore) -> None:
     plant_chain(store)
     outcome = store.explain_path(A, C, depth=None, max_nodes=50)
     assert outcome.status == PATH_STATUS_PATH
     assert [h["target_qname"] for h in outcome.hops] == [B, C]
+
+
+def test_prefers_longer_resolved_over_shorter_heuristic(store: GraphStore) -> None:
+    """RESOLVED-first preference: 3-hop proven beats 2-hop HEURISTIC."""
+    path = "prefer.php"
+    b1, b2 = "\\App\\B1", "\\App\\B2"
+    x = "\\App\\X"
+    seed_file(
+        store,
+        path,
+        [
+            node("Class", "A", A, path),
+            node("Class", "B1", b1, path, line=2),
+            node("Class", "B2", b2, path, line=3),
+            node("Class", "C", C, path, line=4),
+            node("Class", "X", x, path, line=5),
+        ],
+        [
+            edge("CALLS", A, b1, path, line=10),
+            edge("CALLS", b1, b2, path, line=11),
+            edge("CALLS", b2, C, path, line=12),
+            edge("CALLS", A, x, path, tier="HEURISTIC", line=20),
+            edge("CALLS", x, C, path, tier="HEURISTIC", line=21),
+        ],
+    )
+    outcome = store.explain_path(A, C, depth=None, max_nodes=50)
+    assert outcome.status == PATH_STATUS_PATH
+    assert [h["target_qname"] for h in outcome.hops] == [b1, b2, C]
+    assert all(h["confidence_tier"] == "RESOLVED" for h in outcome.hops)

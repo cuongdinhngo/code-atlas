@@ -1018,7 +1018,9 @@ class GraphStore:
         )
         if proven.status == PATH_STATUS_PATH:
             return proven
-        if proven.status == PATH_STATUS_INCOMPLETE:
+        # Node-budget overflow generalises (proven ⊆ mixed); depth exhaustion does not —
+        # a HEURISTIC hop may still reach ``to`` inside the same depth.
+        if proven.status == PATH_STATUS_INCOMPLETE and not proven.depth_exhausted:
             return proven
         unproven = self._explain_path_search(
             from_qname, to_qname, depth=depth, max_nodes=max_nodes, resolved_only=False
@@ -1030,6 +1032,9 @@ class GraphStore:
                 unproven.truncated,
                 unproven.depth_exhausted,
             )
+        # Prefer honest incomplete over a false no_path when the proven pass was budget-bound.
+        if unproven.status == PATH_STATUS_NO_PATH and proven.status == PATH_STATUS_INCOMPLETE:
+            return proven
         return unproven
 
     def _explain_path_search(

@@ -106,7 +106,9 @@ code-atlas/
 ## 6. MCP tool conventions
 
 - Return **qualified names + `file:line`**, not source bodies — unless it's a read tool (`read_symbol`,
-  `file_outline`).
+  `file_outline`), or an explicitly opt-in `include_source` on `find_callers` / `find_references`
+  (037): default **off**, at most **one capped line** per hit (never a body), and never quoted from a
+  file whose indexed hash has drifted — such hits carry `source_stale` instead.
 - Every tool accepts `detail_level ∈ {minimal, standard}`, typed as a `Literal` so the protocol
   validates it and publishes the choice in the input schema. Default **`standard`**; `minimal` is a
   strict subset — the tool's own payload with the provenance fields dropped.
