@@ -99,6 +99,11 @@ Exposure-checker ([challenger](51238823-b4e1-40c5-90a9-d68240a6479a)) reported 0
 |-------|----------|-------|--------|
 | 0 refine | extractor (030/039 facts) | 1 | unmeasured (blocking retrieval) |
 | 0 refine | mango:challenger (exposure-checker) | 1 | unmeasured (blocking retrieval) |
+| 4 review | mango:reviewer | 1 | unmeasured (blocking retrieval) |
+| 4 review | mango:challenger | 1 | unmeasured (blocking retrieval) |
+| 4 review | verify-only (main-loop) | 2 | 0 dispatch |
+
+**Roll-up:** **4 dispatch** (refine ×2 + review reviewer + challenger); all token cells **unmeasured (blocking retrieval)**. Phases 1–3 and 5: 0 dispatch on main model. Main-loop spend unmeasured.
 
 ---
 
@@ -209,7 +214,8 @@ Standing approval clears Gate 2. **cleared.**
 - Branch: `feat/040-framework-indirection-data`
 - Commits (logical units; no AI co-author trailer):
   - `5926e2d` feat(040): apply framework indirection rules as core enrichment data.
-  -  docs(040): honesty fixes from review — PLAN §1, CONVENTION layout, R1.4.
+  - `794b55d` docs(040): align PLAN, CONVENTION, and R1.4 with enrichment module.
+  - `198e362` docs(040): record Phase 4 clean review marker.
 - Proving test added: `tests/test_indirection_enrichment.py::test_facade_rule_resolves_call_to_concrete_method` ✅
 - **Verification sweep — BOTH axes.** *File axis:* zero stray references ✅ · diff ⊆ approved list ✅ (row 7 = companion module-count guards for new `enrichment.py`) · each hunk maps to a row ✅. *Behaviour axis:* all Gate-2 Approach bullets `implemented-as-approved`.
 - **Design-conformance deviations:** none
@@ -242,10 +248,25 @@ Standing approval clears Gate 2. **cleared.**
 - **Clean?** yes
 - **Reviewed at:** 794b55da9f99263a123c2e41a1edf0386fe34f28 · reviewed files: full `main...HEAD` set including `docs/PLAN.md`, `docs/CONVENTION.md`, `docs/ENGINEERING_RULES.md`, `docs/tasks/040_framework-indirection-data.md` (working-doc path exempt for further bookkeeping)
 
+## Phase 5 — Finalise (dry-run)
+
+### PR draft (not opened — awaiting explicit approval)
+
+**Title:** feat(040): framework indirection rules as core enrichment data
+
+**Body:** (see conversation dry-run; template-filled)
+
+### Outward actions (each needs separate explicit yes)
+
+| # | Action | Command | Status |
+|---|--------|---------|--------|
+| 1 | Push branch | `git push -u origin HEAD` | ⏳ awaiting approval |
+| 2 | Open PR | `gh pr create …` | ⏳ awaiting approval |
+
 ## Session status
 
 | Field | Value |
 |-------|-------|
-| Phase | 4 review clean → 5 finalise |
-| Gates | 1 ✅ · 2 ✅ · review ✅ (standing) |
-| Blocked on | push / PR (need separate explicit yes) |
+| Phase | 5 finalise dry-run — awaiting push/PR approval |
+| Gates | 1 ✅ · 2 ✅ · review ✅ |
+| Blocked on | push / PR (separate explicit yes each) |
