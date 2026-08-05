@@ -135,6 +135,23 @@ class OrphanResult(NamedTuple):
     depth_exhausted: bool
 
 
+# explain_path statuses (task 038) — distinct outcomes, never empty-as-proof.
+PATH_STATUS_PATH = "path"
+PATH_STATUS_UNPROVEN = "unproven"
+PATH_STATUS_NO_PATH = "no_path"
+PATH_STATUS_UNKNOWN = "unknown"
+PATH_STATUS_INCOMPLETE = "incomplete"
+
+
+class ExplainPathResult(NamedTuple):
+    """Shortest A→B path over IMPACT_KINDS, or a distinct non-path status (task 038)."""
+
+    status: str
+    hops: list[Row]
+    truncated: bool
+    depth_exhausted: bool
+
+
 class SchemaVersionError(Exception):
     """Written by another schema version — a programmer error, so it raises loud (R5.3)."""
 
@@ -966,6 +983,250 @@ class GraphStore:
         finally:
             conn.execute("DROP TABLE IF EXISTS temp.reach_excluded")
             self._reach_drop_temps()
+
+    def explain_path(
+        self,
+        from_qname: str,
+        to_qname: str,
+        *,
+        depth: int | None,
+        max_nodes: int,
+    ) -> ExplainPathResult:
+        """Bounded shortest path A→B over outgoing IMPACT_KINDS (task 038).
+
+        RESOLVED-first: a proven path is preferred. If none exists within the bound but
+        a HEURISTIC/DYNAMIC path does, status is ``unproven``. Bound exhaustion before
+        finding ``to`` is ``incomplete``, never ``no_path``. Missing endpoints →
+        ``unknown``. Traversal is iterative SQL waves joined from the frontier — never
+        a whole-table edge load (R4.3).
+        """
+        if depth is not None and depth < 0:
+            raise ValueError(f"depth must be >= 0, got {depth}")
+        if max_nodes < 1:
+            raise ValueError(f"max_nodes must be >= 1, got {max_nodes}")
+        if not from_qname or not to_qname:
+            return ExplainPathResult(PATH_STATUS_UNKNOWN, [], False, False)
+        if not self.nodes_by_qualified_name(from_qname, limit=1):
+            return ExplainPathResult(PATH_STATUS_UNKNOWN, [], False, False)
+        if not self.nodes_by_qualified_name(to_qname, limit=1):
+            return ExplainPathResult(PATH_STATUS_UNKNOWN, [], False, False)
+        if from_qname == to_qname:
+            return ExplainPathResult(PATH_STATUS_PATH, [], False, False)
+
+        proven = self._explain_path_search(
+            from_qname, to_qname, depth=depth, max_nodes=max_nodes, resolved_only=True
+        )
+        if proven.status == PATH_STATUS_PATH:
+            return proven
+        # Node-budget overflow generalises (proven ⊆ mixed); depth exhaustion does not —
+        # a HEURISTIC hop may still reach ``to`` inside the same depth.
+        if proven.status == PATH_STATUS_INCOMPLETE and not proven.depth_exhausted:
+            return proven
+        unproven = self._explain_path_search(
+            from_qname, to_qname, depth=depth, max_nodes=max_nodes, resolved_only=False
+        )
+        if unproven.status == PATH_STATUS_PATH:
+            return ExplainPathResult(
+                PATH_STATUS_UNPROVEN,
+                unproven.hops,
+                unproven.truncated,
+                unproven.depth_exhausted,
+            )
+        # Prefer honest incomplete over a false no_path when the proven pass was budget-bound.
+        if unproven.status == PATH_STATUS_NO_PATH and proven.status == PATH_STATUS_INCOMPLETE:
+            return proven
+        return unproven
+
+    def _explain_path_search(
+        self,
+        from_qname: str,
+        to_qname: str,
+        *,
+        depth: int | None,
+        max_nodes: int,
+        resolved_only: bool,
+    ) -> ExplainPathResult:
+        """One BFS pass; ``resolved_only`` gates which tiers expand the frontier."""
+        conn = self._conn
+        self._path_drop_temps()
+        try:
+            conn.execute(
+                "CREATE TEMP TABLE path_seen ("
+                "qname TEXT PRIMARY KEY, depth INT NOT NULL, "
+                "prev_qname TEXT, edge_kind TEXT, edge_tier TEXT, "
+                "edge_file TEXT, edge_line INT)"
+            )
+            conn.execute(
+                "CREATE TEMP TABLE path_frontier (qname TEXT PRIMARY KEY, depth INT NOT NULL)"
+            )
+            conn.execute("CREATE TEMP TABLE path_kinds (kind TEXT PRIMARY KEY)")
+            conn.executemany(
+                "INSERT INTO temp.path_kinds (kind) VALUES (?)",
+                [(kind,) for kind in contract.IMPACT_KINDS],
+            )
+            conn.execute(
+                "INSERT INTO temp.path_seen "
+                "(qname, depth, prev_qname, edge_kind, edge_tier, edge_file, edge_line) "
+                "VALUES (?, 0, NULL, NULL, NULL, NULL, NULL)",
+                (from_qname,),
+            )
+            conn.execute(
+                "INSERT INTO temp.path_frontier (qname, depth) VALUES (?, 0)",
+                (from_qname,),
+            )
+
+            expand_sql = (
+                "INSERT OR IGNORE INTO temp.path_seen "
+                "(qname, depth, prev_qname, edge_kind, edge_tier, edge_file, edge_line) "
+                "SELECT qname, depth, prev_qname, edge_kind, edge_tier, edge_file, edge_line "
+                "FROM ("
+                "  SELECT e.target_qname AS qname, f.depth + 1 AS depth, "
+                "  f.qname AS prev_qname, e.kind AS edge_kind, "
+                "  COALESCE(e.confidence_tier, ?) AS edge_tier, "
+                "  e.file_path AS edge_file, e.line AS edge_line, "
+                "  ROW_NUMBER() OVER ("
+                "    PARTITION BY e.target_qname "
+                "    ORDER BY e.kind ASC, e.source_qname ASC, e.file_path ASC, "
+                "    e.line ASC, e.id ASC"
+                "  ) AS rn "
+                "  FROM temp.path_frontier f "
+                "  JOIN edges e ON e.source_qname = f.qname "
+                "  JOIN temp.path_kinds k ON k.kind = e.kind "
+                "  WHERE e.target_qname IS NOT NULL"
+                f"{' AND COALESCE(e.confidence_tier, ?) = ?' if resolved_only else ''}"
+                ") WHERE rn = 1"
+            )
+
+            hop = 0
+            depth_exhausted = False
+            truncated = False
+            while True:
+                if depth is not None and hop >= depth:
+                    depth_exhausted = (
+                        conn.execute(
+                            "SELECT 1 FROM temp.path_frontier LIMIT 1"
+                        ).fetchone()
+                        is not None
+                    )
+                    break
+                empty = conn.execute(
+                    "SELECT 1 FROM temp.path_frontier LIMIT 1"
+                ).fetchone()
+                if empty is None:
+                    break
+                if (
+                    conn.execute(
+                        "SELECT 1 FROM temp.path_seen WHERE qname = ? LIMIT 1",
+                        (to_qname,),
+                    ).fetchone()
+                    is not None
+                ):
+                    break
+
+                conn.execute("DROP TABLE IF EXISTS temp.path_before")
+                conn.execute(
+                    "CREATE TEMP TABLE path_before AS SELECT qname FROM temp.path_seen"
+                )
+                params: tuple[object, ...] = (_RESOLVED,)
+                if resolved_only:
+                    params = (_RESOLVED, _RESOLVED, _RESOLVED)
+                conn.execute(expand_sql, params)
+
+                seen_count = int(
+                    conn.execute("SELECT COUNT(*) FROM temp.path_seen").fetchone()[0]
+                )
+                if seen_count > max_nodes:
+                    self._path_prune_seen(max_nodes)
+                    if (
+                        conn.execute(
+                            "SELECT 1 FROM temp.path_seen WHERE qname = ? LIMIT 1",
+                            (to_qname,),
+                        ).fetchone()
+                        is None
+                    ):
+                        truncated = True
+                        break
+
+                conn.execute("DELETE FROM temp.path_frontier")
+                conn.execute(
+                    "INSERT INTO temp.path_frontier (qname, depth) "
+                    "SELECT s.qname, s.depth FROM temp.path_seen s "
+                    "WHERE s.qname NOT IN (SELECT qname FROM temp.path_before)"
+                )
+                hop += 1
+
+            if truncated or (
+                depth_exhausted
+                and conn.execute(
+                    "SELECT 1 FROM temp.path_seen WHERE qname = ? LIMIT 1",
+                    (to_qname,),
+                ).fetchone()
+                is None
+            ):
+                return ExplainPathResult(
+                    PATH_STATUS_INCOMPLETE, [], truncated or depth_exhausted, depth_exhausted
+                )
+
+            if (
+                conn.execute(
+                    "SELECT 1 FROM temp.path_seen WHERE qname = ? LIMIT 1",
+                    (to_qname,),
+                ).fetchone()
+                is None
+            ):
+                return ExplainPathResult(PATH_STATUS_NO_PATH, [], False, False)
+
+            hops = self._path_reconstruct(from_qname, to_qname)
+            return ExplainPathResult(PATH_STATUS_PATH, hops, False, False)
+        finally:
+            self._path_drop_temps()
+
+    def _path_reconstruct(self, from_qname: str, to_qname: str) -> list[Row]:
+        """Walk ``prev_qname`` from ``to`` back to ``from``; reverse into forward hops."""
+        hops_rev: list[Row] = []
+        current = to_qname
+        while current != from_qname:
+            row = self._conn.execute(
+                "SELECT prev_qname, edge_kind, edge_tier, edge_file, edge_line "
+                "FROM temp.path_seen WHERE qname = ?",
+                (current,),
+            ).fetchone()
+            if row is None or row[0] is None:
+                break
+            prev, kind, tier, file_path, line = row
+            # One EDGE_FIELDS key per statement — R3.2 sole-source gate.
+            hop: Row = {}
+            hop["source_qname"] = prev
+            hop["target_qname"] = current
+            hop["kind"] = kind
+            hop["confidence_tier"] = tier or _RESOLVED
+            hop["file"] = file_path or ""
+            hop["line"] = line or 0
+            hops_rev.append(hop)
+            current = str(prev)
+        hops_rev.reverse()
+        return hops_rev
+
+    def _path_drop_temps(self) -> None:
+        for name in (
+            "path_seen",
+            "path_frontier",
+            "path_kinds",
+            "path_before",
+        ):
+            self._conn.execute(f"DROP TABLE IF EXISTS temp.{name}")
+
+    def _path_prune_seen(self, max_nodes: int) -> None:
+        """Keep shallowest nodes (tie: qname ASC) when the visit budget binds."""
+        self._conn.execute(
+            "DELETE FROM temp.path_seen WHERE qname NOT IN ("
+            "  SELECT qname FROM ("
+            "    SELECT qname FROM temp.path_seen "
+            "    ORDER BY depth ASC, qname ASC LIMIT ?"
+            "  )"
+            ")",
+            (max_nodes,),
+        )
 
     def _reach_drop_temps(self) -> None:
         for name in (

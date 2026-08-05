@@ -1,5 +1,19 @@
 # Lessons — code-atlas
 
+## 038 — Edge-shaped hop dicts trip R3.2 unless keys are assigned one-by-one
+Building a hop `{source_qname, target_qname, kind, confidence_tier, line}` as one dict literal
+fails `test_contract_sole_source` (≤1 EDGE_FIELDS string per collection). Assign each key in its
+own statement (or concatenate single-field key tuples), matching the impact/reachability pattern.
+
+### 038-C1 — Path hop shaping must not multi-key EDGE_FIELDS in one literal
+- type: 5 project-ground-truth
+- status: confirmed
+- evidence: sole-source fail on store.py / explain_path.py; fixed via per-statement hop keys
+- area: store / tools / R3.2
+- sub-shape: normative
+- destination: stays in lessons_path
+- seen: 038
+
 ## 037 — A guard that checks a formula against itself cannot catch a unit error in its input
 037's A/B summed `call_delta` over **4** measured questions, then `verdict()` multiplied that
 aggregate by a call count — so the published break-even was in *4-call batches*, wrong by ~4× (8.9 vs
