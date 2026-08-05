@@ -280,9 +280,18 @@ def _as_stub_roots(label: str, raw: object) -> tuple[str, ...] | None:
         raise ConfigError(f"{label}: {raw!r} is not a comma-separated list of stub roots")
     kept: list[str] = []
     for name in names:
-        cleaned = name.strip().strip("/").replace("\\", "/")
-        if cleaned:
-            kept.append(cleaned)
+        cleaned = name.strip().replace("\\", "/").strip("/")
+        if not cleaned:
+            continue
+        parts = cleaned.split("/")
+        if name.strip().startswith(("/", "\\")) or any(
+            part in ("", ".", "..") for part in parts
+        ):
+            raise ConfigError(
+                f"{label}: {name!r} must be a repo-relative directory "
+                f"(no absolute path, '.', or '..')"
+            )
+        kept.append(cleaned)
     return tuple(dict.fromkeys(kept)) or None
 
 

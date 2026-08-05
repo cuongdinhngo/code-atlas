@@ -141,8 +141,12 @@ def incremental_update(
                 for path in candidates
                 if path in dependents or not file_is_current(store, config.root, path)
             ]
-            # Stub roots are outside git collect; reparse only when git/named change hits them.
-            to_parse.extend(sorted(changed_set & stub_set))
+            # Stub roots bypass git collect; hash-gate them like normal files (R4.2).
+            to_parse.extend(
+                path
+                for path in sorted(stub_set)
+                if path not in indexed or not file_is_current(store, config.root, path)
+            )
             to_parse = list(dict.fromkeys(to_parse))
             counts = (
                 _parse_all(config, store, watchdog, announced, owners, to_parse)

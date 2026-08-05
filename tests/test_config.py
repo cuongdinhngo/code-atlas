@@ -331,6 +331,15 @@ def test_to_adapter_path_rewrites_absolute_host_paths(tmp_path: Path) -> None:
         to_adapter_path(str(tmp_path / "elsewhere" / relative), host, container)
 
 
+@pytest.mark.parametrize(
+    "raw",
+    ["/etc", "../outside", "vendor/../secret", "./vendor", "a//b"],
+)
+def test_stub_roots_reject_non_repo_relative_paths(tmp_path: Path, raw: str) -> None:
+    with pytest.raises(ConfigError, match="repo-relative"):
+        load_config(tmp_path, {"CA_STUB_ROOTS": raw})
+
+
 @pytest.mark.parametrize(("cpus", "expected"), CPU_CASES, ids=[f"{n}-cpus" for n, _ in CPU_CASES])
 def test_the_worker_default_is_floored_and_capped(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cpus: int, expected: int

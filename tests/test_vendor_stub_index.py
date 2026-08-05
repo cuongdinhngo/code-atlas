@@ -269,3 +269,33 @@ def test_fake_adapter_stub_root_stamps_nodes(tmp_path: Path, store: GraphStore) 
     assert "vendor/pkg/lib.aa" in store.file_paths()
     node = store.nodes_by_qualified_name("vendor/pkg/lib.aa::Thing", limit=1)[0]
     assert json.loads(str(node["extra"]))["stub"] is True
+
+
+def test_incremental_hash_gates_stub_edits(tmp_path: Path, store: GraphStore) -> None:
+    """R4.2: stub disk edits refresh on incremental even when git does not name them."""
+    import sys
+
+    from code_atlas.indexer import incremental_update
+
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.aa").write_text("app\n", encoding="utf-8")
+    (tmp_path / "vendor" / "pkg").mkdir(parents=True)
+    stub = tmp_path / "vendor" / "pkg" / "lib.aa"
+    stub.write_text("lib-v1\n", encoding="utf-8")
+    _git_init(tmp_path)
+
+    env = {
+        "CA_WORKERS": "1",
+        "CA_FAKE_CMD": shlex.join([sys.executable, str(FAKE), "ok"]),
+        "CA_STUB_ROOTS": "vendor",
+    }
+    config = load_config(tmp_path, env)
+    assert full_build(config, store).failed == 0
+    before = store.file_hash("vendor/pkg/lib.aa")
+    stub.write_text("lib-v2-changed\n", encoding="utf-8")
+    report = incremental_update(config, store, changed=[])
+    assert report.failed == 0
+    assert report.parsed >= 1
+    after = store.file_hash("vendor/pkg/lib.aa")
+    assert after != before
+    assert after == __import__("hashlib").sha256(b"lib-v2-changed\n").hexdigest()
