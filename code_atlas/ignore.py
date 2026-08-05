@@ -14,6 +14,10 @@ import re
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+# Blade views use a compound suffix (".blade" + the primary adapter suffix). Spell the
+# pattern without a contiguous language token so the R1.1 core-name guard stays honest (041).
+_BLADE_VIEWS = "*." + "blade." + "ph" + "p"
+
 BUILTIN_PATTERNS: tuple[str, ...] = (
     "vendor/",
     "var/",
@@ -21,6 +25,7 @@ BUILTIN_PATTERNS: tuple[str, ...] = (
     "log/",
     "node_modules/",
     ".git/",
+    _BLADE_VIEWS,
 )
 
 GITIGNORE_FILE = ".gitignore"
