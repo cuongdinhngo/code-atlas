@@ -120,6 +120,8 @@ KNOWN_CAPABILITIES: tuple[str, ...] = ("semantic_types",)
 
 # ``extra`` / tool-payload key for declarations-only stub nodes (task 039). Not a contract bump.
 STUB_FLAG = "stub"
+# Tool-payload key for edges emitted from CA_INDIRECTION_RULES (task 040). Not a contract bump.
+RULE_FLAG = "rule"
 
 MEMBER_SEPARATOR = "::"
 

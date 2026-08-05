@@ -22,6 +22,7 @@ code-atlas/
 │   ├── adapter.py                    # LanguageAdapter Protocol + extension→adapter lookup
 │   ├── store.py                      # SQLite schema + GraphStore (only file that touches SQLite)
 │   ├── indexer.py                    # full_build / incremental_update
+│   ├── enrichment.py                 # optional CA_INDIRECTION_RULES → HEURISTIC edges (task 040)
 │   ├── resolver.py                   # phase-2 edge linking (generic, no language branches)
 │   ├── gitutil.py  ignore.py
 │   └── tools/                        # one module per MCP tool
@@ -47,7 +48,7 @@ code-atlas/
 - **Tools:** `snake_case` verb-first, matching the MCP tool name exactly (`search_symbol`, `find_callers`,
   `read_symbol`, `build_or_update_index`). One tool per file under `code_atlas/tools/`.
 - **Env vars:** prefix **`CA_`** (`CA_DB_PATH`, `CA_WORKERS`, `CA_ADAPTER_TIMEOUT`, `CA_MAX_RESULTS`, `CA_IMPACT_DEPTH`,
-  `CA_IMPACT_MAX_NODES`, `CA_ENTRY_POINTS`, `CA_STUB_ROOTS`, `CA_TOOLS`, `CA_HOST_ROOT`, `CA_CONTAINER_ROOT`, per-adapter `CA_<LANG>_CMD` e.g. `CA_PHP_CMD`).
+  `CA_IMPACT_MAX_NODES`, `CA_ENTRY_POINTS`, `CA_STUB_ROOTS`, `CA_INDIRECTION_RULES`, `CA_TOOLS`, `CA_HOST_ROOT`, `CA_CONTAINER_ROOT`, per-adapter `CA_<LANG>_CMD` e.g. `CA_PHP_CMD`).
 - **On-disk artifacts:** project config `.code-atlas.toml` (repo root, committed — keys are the env
   names lower-cased without the `CA_` prefix, plus an `[adapter_cmd]` table whose values are a
   complete argv, as a string or a list of words); DB at

@@ -1,5 +1,18 @@
 # Lessons — code-atlas
 
+## 040 — Shipping enrichment requires PLAN §1 / R1.4 honesty in the same card
+When an “optional enrichment layer” moves from non-goal into `code_atlas/`, update PLAN §1,
+CONVENTION layout, and R1.4’s SRP inventory in the same PR — otherwise review blocks on R7.2
+even when the runtime is correct.
+
+### 040-C1 — Doc inventory lags new core module
+- type: 5 project-ground-truth
+- status: confirmed
+- evidence: reviewer findings 1–3 on `5926e2d`; fixed in `794b55d`
+- area: docs / R7.2 / R1.4
+- sub-shape: normative
+- destination: stays in lessons_path
+
 ## 039 — Stub roots must bypass ignore *and* hash-gate on incremental
 `vendor/` is a built-in directory exclusion, so `.codeatlasignore` negation cannot re-include it —
 stub indexing needs a separate filesystem walk (`collect_stubs`). Those paths are also outside

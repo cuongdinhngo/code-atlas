@@ -8,6 +8,7 @@ from typing import Any, Literal
 
 from code_atlas import contract
 from code_atlas.contract import CONFIDENCE_TIERS
+from code_atlas.enrichment import is_rule_edge_path
 from code_atlas.store import Row
 
 _RESOLVED = CONFIDENCE_TIERS[0]
@@ -57,6 +58,14 @@ def edge_hit(
     """
     hit: dict[str, object] = {}
     hit[subject_key] = edge["source_qname"] if subject is None else subject
+    if is_rule_edge_path(edge.get("file_path")):
+        # Synthetic bookmark — not an on-disk path. Advertise ``rule``; omit file:line (task 040).
+        hit[contract.RULE_FLAG] = True
+        hit["kind"] = edge["kind"]
+        hit["confidence_tier"] = edge.get("confidence_tier") or _RESOLVED
+        if depth is not None:
+            hit["depth"] = depth
+        return hit
     hit["file"] = edge["file_path"]
     hit["line"] = edge["line"]
     hit["kind"] = edge["kind"]
