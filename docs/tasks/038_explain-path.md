@@ -287,14 +287,15 @@ Edge-shaped hop dicts must assign `EDGE_FIELDS` keys one statement at a time or 
 
 ## Phase 5 — Finalise
 - Status → done; BACKLOG + token row; lesson in LESSONS.md
-- Outward: push branch + open PR (user-approved 2026-08-05)
+- Outward: push branch + open PR (user-approved 2026-08-05) → [#44](https://github.com/cuongdinhngo/code-atlas/pull/44)
 
 ## Session status
 
 - **Ticket:** 038
 - **work_doc_mode:** embed
 - **working-doc path:** `docs/tasks/038_explain-path.md`
-- **Current phase:** finalise (push + PR)
+- **Current phase:** finalise complete
 - **Reviewed at:** `12b0c2f3ea1564b999574fc1b8f378e5608fb03a`
 - **Blocked on:** —
-- **Next action:** push + `gh pr create`
+- **Next action:** —
+- **PR:** [#44](https://github.com/cuongdinhngo/code-atlas/pull/44)
