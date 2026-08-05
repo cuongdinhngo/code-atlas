@@ -208,13 +208,47 @@ Standing approval clears Gate 2. **cleared.**
 
 - Axis 1 file set ⊆ change list: ✅
 - Axis 2 behaviour: ✅ no deviations
-- Suite: **728 passed** (post-change)
+- Suite: **728 passed** (feat commit); **734 passed** after review fixes
 
 ### Cost ledger (continued)
 
 | Phase | Dispatch | Round | Tokens |
 |-------|----------|-------|--------|
 | 3 execute | (none) | — | — |
+| 4 review | mango:reviewer | 1 | unmeasured (blocking retrieval) |
+| 4 review | mango:challenger | 1 | unmeasured (blocking retrieval) |
+| 4 review | mango:reviewer (verify resume) | 2 | unmeasured (blocking retrieval) |
+
+---
+
+## Phase 4 — Review
+
+`Reviewed at ddcfe77`
+Reviewed files: `code_atlas/config.py`, `code_atlas/adapter.py`, `code_atlas/indexer.py`, `adapters/php/index.php`, `adapters/php/src/Parser.php`, `adapters/php/src/Visitor.php`, `code_atlas/tools/search_symbol.py`, `code_atlas/tools/read_symbol.py`, `tests/test_vendor_stub_index.py`, `tests/test_config.py`, `tests/test_adapter.py`, `docs/PLAN.md`, `docs/BACKLOG.md`, `docs/tasks/039_vendor-stub-index.md`, `docs/CONVENTION.md`
+
+### Reviewer (`mango:reviewer` · [6360cf47](6360cf47-32b6-4ad9-b04f-65e8afa7261e))
+- **Round 1 verdict:** **CHANGES REQUESTED** — (1) incremental stub hash-gate R4.2; (2) stub_roots path validation R5.3; (3) CONVENTION `CA_STUB_ROOTS` R7.2
+- **Round 2 (verify-only) verdict:** **LGTM** on tip `ddcfe77`
+- **Scope:** ⊆ Gate-2 list (+ CONVENTION required by finding 3)
+- **Proof:** related slice green; full suite **734 passed**
+
+### Challenger (ticket-blind · [81cad2e5](81cad2e5-0514-42f9-a551-61e3a354daf4))
+
+| # | Rebuilt requirement | Verdict | Adjudication |
+|---|---------------------|---------|--------------|
+| 1–4,6–14 | Opt-in stubs, decls-only, marker, R*, AC1–3 | **met** | — |
+| 5 | type references → RESOLVED | **can't tell** as distinct claim | W2 scoped this card to planted EXTENDS; IMPLEMENTS shares wiring |
+
+**12 met · 0 not met · 1 can't tell** (type-ref limb) — clean for ticket scope.
+
+### Ph3/4 proven by
+
+| Row | Proven by |
+|-----|-----------|
+| AC1 | `test_stub_indexing_resolves_extends_and_marks_stubs` |
+| AC2 | vendor CALLER_KINDS empty + declarations_only adapter test |
+| AC3 | `test_stubs_off_by_default_matches_build_without_vendor_rows` |
+| R4.2 fix | `test_incremental_hash_gates_stub_edits` |
 
 ---
 
@@ -222,6 +256,7 @@ Standing approval clears Gate 2. **cleared.**
 
 | Field | Value |
 |-------|-------|
-| Phase | 3 execute complete → 4 review next |
-| Branch | `feat/039-vendor-stub-index` |
-| Gates | 1 ✅ · 2 ✅ (standing approval) |
+| Phase | 4 review clean → 5 finalise (dry-run; outward actions need per-action yes) |
+| Branch | `feat/039-vendor-stub-index` @ `ddcfe77` |
+| Gates | 1 ✅ · 2 ✅ · 4 ✅ |
+| Suite | 734 passed |

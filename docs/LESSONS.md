@@ -1,5 +1,20 @@
 # Lessons — code-atlas
 
+## 039 — Stub roots must bypass ignore *and* hash-gate on incremental
+`vendor/` is a built-in directory exclusion, so `.codeatlasignore` negation cannot re-include it —
+stub indexing needs a separate filesystem walk (`collect_stubs`). Those paths are also outside
+`git ls-files`, so incremental must hash-gate the whole stub set (not only `changed ∩ stubs`), or
+disk edits never refresh and enabling stubs mid-life never indexes new files (R4.2).
+
+### 039-C1 — Incremental stub refresh is hash-gated, not git-named
+- type: 5 project-ground-truth
+- status: confirmed
+- evidence: reviewer finding on `changed_set & stub_set`; fixed in `ddcfe77` + `test_incremental_hash_gates_stub_edits`
+- area: indexer / R4.2
+- sub-shape: normative
+- destination: stays in lessons_path
+- seen: 039
+
 ## 038 — Edge-shaped hop dicts trip R3.2 unless keys are assigned one-by-one
 Building a hop `{source_qname, target_qname, kind, confidence_tier, line}` as one dict literal
 fails `test_contract_sole_source` (≤1 EDGE_FIELDS string per collection). Assign each key in its
