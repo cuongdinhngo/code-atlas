@@ -4,7 +4,7 @@ slug: vendor-stub-index
 title: Vendor stub index (declarations only)
 phase: 1.5
 milestone: Framework
-status: in-progress
+status: done
 depends_on: [009, 011]
 ---
 
@@ -295,15 +295,15 @@ Stub roots must bypass ignore *and* hash-gate on incremental — see `docs/LESSO
 
 | Field | Value |
 |-------|-------|
-| Phase | 4 review clean → 5 finalise (dry-run; outward actions need per-action yes) |
-| Branch | `feat/039-vendor-stub-index` @ `ddcfe77` (bookkeeping tip `0c932cb`) |
-| Gates | 1 ✅ · 2 ✅ · 4 ✅ |
-| Suite | 734 passed |
+| Phase | 5 finalise complete |
+| Branch | merged to `main` via [#45](https://github.com/cuongdinhngo/code-atlas/pull/45) |
+| Gates | 1 ✅ · 2 ✅ · 4 ✅ · 5 ✅ |
+| Suite | 738 passed (post review-fix) |
 | Reviewed at | `ddcfe77` |
 | Blocked on | — |
 | PR | [#45](https://github.com/cuongdinhngo/code-atlas/pull/45) |
 
 ## Phase 5 — Finalise
 
-- Outward: push branch + open PR (user-approved 2026-08-05) → [#45](https://github.com/cuongdinhngo/code-atlas/pull/45)
-- Status remains `in-progress` until merge; token row linked.
+- Outward: push branch + open PR (user-approved 2026-08-05) → [#45](https://github.com/cuongdinhngo/code-atlas/pull/45) — **merged**
+- Status → `done` in BACKLOG + task frontmatter.

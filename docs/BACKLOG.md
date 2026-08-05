@@ -51,7 +51,7 @@ up). Source: [`FEEDBACK.md`](FEEDBACK.md).
 | 036 | Claude Code Edit/Write index-poke hook | Distribution | done | 016, 035 |
 | 037 | Compound nav responses (call-site line) + consolidation A/B | Agent-fit | done | 013, 034 |
 | 038 | `explain_path(from, to)` control-flow path tool | Task-level | done | 017, 031 |
-| 039 | Vendor stub index (declarations-only) | Framework | in-progress | 009, 011 |
+| 039 | Vendor stub index (declarations-only) | Framework | done | 009, 011 |
 | 040 | Framework indirection as data (rules file outside `adapters/`) | Framework | todo | 039, 030 |
 | 041 | Legacy/framework hardening — encoding, `.blade.php` ignore, extra extensions | Robustness | todo | 009 |
 | 042 | Tokens-to-answer sample tier — populate pinned public repos (ratio ≫ 1) | Measure | todo | 034, 018 |
