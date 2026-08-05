@@ -4,7 +4,7 @@ slug: framework-indirection-data
 title: Framework indirection as data (rules file outside adapters/)
 phase: 1.5
 milestone: Framework
-status: in-progress
+status: done
 depends_on: [039, 030]
 ---
 
@@ -261,6 +261,6 @@ Standing approval clears Gate 2. **cleared.**
 
 | Field | Value |
 |-------|-------|
-| Phase | 5 finalise complete — PR open |
+| Phase | done — merged [#46](https://github.com/cuongdinhngo/code-atlas/pull/46) |
 | Gates | 1 ✅ · 2 ✅ · review ✅ · finalise ✅ |
 | Blocked on | — |
