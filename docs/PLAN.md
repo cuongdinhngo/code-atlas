@@ -31,7 +31,9 @@ These are in tension if mishandled — see the design principles (§2). The rule
 ### Non-goals (core, v1)
 - No rename/refactor/edit — **permanently ceded to the agent's native `Edit`/`Write`** (the consumer is an agent, not an IDE; §19). code-atlas returns exact symbol line ranges those edits act on; it never mutates code.
 - No type inference **in the core** (adapters may supply it where free — e.g. Roslyn's semantic model, and a planned PHP local type table / opt-in PHPStan `semantic_types`; §19).
-- **Framework-magic resolution** (facades, DI containers, ORM/Eloquent dynamics, magic `__call`) is a **planned optional enrichment layer** — an OCP extension point on top of the standard-language graph, **out of core v1**. It is decoupled from any specific repo, not omitted because one sample lacks it.
+- **Framework-magic as adapter code** (hard-coded facades/DI/`__call` in adapters) stays forbidden (R2.2).
+  Opt-in **indirection rules as data** (`CA_INDIRECTION_RULES`, task 040) are an in-core enrichment
+  pass on the standard-language graph — off by default. ORM/`__call` heuristics remain future/out-of-band.
 - No cloud LLM calls in the core.
 
 ---
@@ -40,7 +42,7 @@ These are in tension if mishandled — see the design principles (§2). The rule
 
 SOLID applied where a **real axis of change** exists — languages. Not speculative interfaces inside single-purpose components.
 
-- **SRP** — one reason to change per component: *sidecar/adapter* parses only (never touches SQLite); *store* persists/queries; *resolver* links edges; *tools* present. Enforced rule: parsing code and storage code never import each other.
+- **SRP** — one reason to change per component: *sidecar/adapter* parses only (never touches SQLite); *store* persists/queries; *enrichment* applies optional rule-file edges only (never parses source; never owns SQL); *resolver* links edges; *tools* present. Enforced rule: parsing code and storage code never import each other.
 - **OCP** — **adding a language must not modify the core.** New language = new adapter satisfying the contract (§4). The core is closed for modification, open for extension.
 - **LSP (Liskov)** — every adapter is substitutable behind the contract: same node/edge vocabulary, same guarantees. **Litmus test: the core contains zero `if language == "…"`.** Any such branch = leaked abstraction → fix the contract instead.
 - **ISP** — the adapter interface is tiny (≈ "given files → emit `{nodes, edges}`"). Optional power (e.g. Roslyn's semantic types) is exposed via **capability flags**, never as methods all adapters must implement.

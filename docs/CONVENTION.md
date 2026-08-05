@@ -22,6 +22,7 @@ code-atlas/
 │   ├── adapter.py                    # LanguageAdapter Protocol + extension→adapter lookup
 │   ├── store.py                      # SQLite schema + GraphStore (only file that touches SQLite)
 │   ├── indexer.py                    # full_build / incremental_update
+│   ├── enrichment.py                 # optional CA_INDIRECTION_RULES → HEURISTIC edges (task 040)
 │   ├── resolver.py                   # phase-2 edge linking (generic, no language branches)
 │   ├── gitutil.py  ignore.py
 │   └── tools/                        # one module per MCP tool

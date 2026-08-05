@@ -109,18 +109,18 @@ Exposure-checker ([challenger](51238823-b4e1-40c5-90a9-d68240a6479a)) reported 0
 
 | ID | Source | Verbatim (short) | Interpretation | Ph1 | Ph2 | Ph3/4 | Status |
 |----|--------|------------------|---------------|-----|-----|-------|--------|
-| G1 | Goal | indirections as data + core enrichment | Rules file + core apply pass | ticket | Approach | proving | ⬜ |
-| R1 | Scope | rules outside adapters/ for facade/callback/array/container | Generic schema; fixture rules | R2.2 | CL | tests | ⬜ |
-| R2 | Scope | enrichment adds edges; provenance+tier; reuse 030 | HEURISTIC edges; ALIASES/CALLS | W1 | CL | AC3 | ⬜ |
-| C1 | Constraints | data not code; no framework branches | rules outside adapters/; core generic | R1.1/R2.2 | — | gates | ⬜ |
-| C2 | Constraints | distinguishable; never silent RESOLVED | W1 HEURISTIC | W1 | — | AC3 | ⬜ |
-| C3 | Constraints | deterministic; off by default | config None; identity test | H2/H7 | — | AC2 | ⬜ |
-| AC1 | AC | facade + string-callback + array callable planted | assert CALLS targets | plant | proving | tests | ⬜ |
-| AC2 | AC | no rules → graph unchanged | two builds / off snapshot | C3 | — | test | ⬜ |
-| AC3 | AC | rule edges distinguishable tier/provenance | HEURISTIC on rule edges | W1 | — | test | ⬜ |
+| G1 | Goal | indirections as data + core enrichment | Rules file + core apply pass | ticket | Approach | `enrichment.py` + proving | ✅ |
+| R1 | Scope | rules outside adapters/ for facade/callback/array/container | Generic schema; fixture rules | R2.2 | CL | `fixtures/indirection/` | ✅ |
+| R2 | Scope | enrichment adds edges; provenance+tier; reuse 030 | HEURISTIC edges; ALIASES/CALLS | W1 | CL | AC3 test | ✅ |
+| C1 | Constraints | data not code; no framework branches | rules outside adapters/; core generic | R1.1/R2.2 | — | R1.1 gate | ✅ |
+| C2 | Constraints | distinguishable; never silent RESOLVED | W1 HEURISTIC | W1 | — | AC3 test | ✅ |
+| C3 | Constraints | deterministic; off by default | config None; identity test | H2/H7 | — | AC2 test | ✅ |
+| AC1 | AC | facade + string-callback + array callable planted | assert CALLS targets | plant | proving | `test_indirection_enrichment` | ✅ |
+| AC2 | AC | no rules → graph unchanged | two builds / off snapshot | C3 | — | `test_rules_off_*` | ✅ |
+| AC3 | AC | rule edges distinguishable tier/provenance | HEURISTIC on rule edges | W1 | — | `test_rule_edges_*` | ✅ |
 | Seq1 | Sequence | depends 039 + 030 | 039 done; reuse ALIASES/literal | BACKLOG | — | — | ✅ |
-| W1 | refine | provenance encoding | HEURISTIC / no bump | Phase 0 | — | AC3 | ⬜ |
-| W2 | refine | no shipped packs | fixture + CA_INDIRECTION_RULES | Phase 0 | — | C3 | ⬜ |
+| W1 | refine | provenance encoding | HEURISTIC / no bump | Phase 0 | — | AC3 | ✅ |
+| W2 | refine | no shipped packs | fixture + CA_INDIRECTION_RULES | Phase 0 | — | C3 | ✅ |
 
 ## AC validation
 
@@ -207,7 +207,9 @@ Standing approval clears Gate 2. **cleared.**
 ## Phase 3 — Execute
 
 - Branch: `feat/040-framework-indirection-data`
-- Commits (logical units; no AI co-author trailer): pending below
+- Commits (logical units; no AI co-author trailer):
+  - `5926e2d` feat(040): apply framework indirection rules as core enrichment data.
+  - (pending) docs(040): honesty fixes from review — PLAN §1, CONVENTION layout, R1.4.
 - Proving test added: `tests/test_indirection_enrichment.py::test_facade_rule_resolves_call_to_concrete_method` ✅
 - **Verification sweep — BOTH axes.** *File axis:* zero stray references ✅ · diff ⊆ approved list ✅ (row 7 = companion module-count guards for new `enrichment.py`) · each hunk maps to a row ✅. *Behaviour axis:* all Gate-2 Approach bullets `implemented-as-approved`.
 - **Design-conformance deviations:** none
@@ -224,10 +226,26 @@ Standing approval clears Gate 2. **cleared.**
 
 - Suite: `.venv/bin/pytest -q` → **746 passed** (baseline 738 + new tests)
 
+## Phase 4 — Review
+
+- reviewer verdict: **CHANGES REQUESTED** → conditional LGTM (findings 1–3 docs) → **verify-only clean** ([reviewer](f8e3290e-868d-4c23-97b1-341273ffcf27))
+- Re-review path: **verify-only** (main-loop) — findings 1–3 landed; proving+guards 124 passed; no scope change
+- challenger (ticket-blind): **13 met · 0 not met · 0 can't tell** ([challenger](b19a2b27-043b-466d-b500-05bf2aa137ea))
+- security agent: n/a
+- Scope reconciliation: file axis ⊆ list ✅; behaviour axis all implemented-as-approved ✅; review doc honesty fixes within docs surface
+- Regression: proving + config + language-agnostic + sql-confinement green
+- Proving test: green; would fail without enrichment wire / rules (facade remap absent)
+- Layer-match: AC1–3 integration/logic ✅
+- Frontend rubric: n/a
+- Proof-manifest: n/a
+- `Ph3/4 proven by` filled: k=N (12/12 matrix rows ✅)
+- **Clean?** yes
+- **Reviewed at:** pending commit SHA after docs fix · reviewed files: full `main...HEAD` set including `docs/PLAN.md`, `docs/CONVENTION.md`, `docs/ENGINEERING_RULES.md`, `docs/tasks/040_framework-indirection-data.md` (working-doc path exempt for further bookkeeping)
+
 ## Session status
 
 | Field | Value |
 |-------|-------|
-| Phase | 3 execute complete → 4 review |
-| Gates | 1 ✅ · 2 ✅ (standing approval) |
-| Blocked on | — |
+| Phase | 4 review clean → 5 finalise |
+| Gates | 1 ✅ · 2 ✅ · review ✅ (standing) |
+| Blocked on | push / PR (need separate explicit yes) |
