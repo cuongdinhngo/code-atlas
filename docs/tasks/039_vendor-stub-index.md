@@ -227,19 +227,54 @@ Standing approval clears Gate 2. **cleared.**
 Reviewed files: `code_atlas/config.py`, `code_atlas/adapter.py`, `code_atlas/indexer.py`, `adapters/php/index.php`, `adapters/php/src/Parser.php`, `adapters/php/src/Visitor.php`, `code_atlas/tools/search_symbol.py`, `code_atlas/tools/read_symbol.py`, `tests/test_vendor_stub_index.py`, `tests/test_config.py`, `tests/test_adapter.py`, `docs/PLAN.md`, `docs/BACKLOG.md`, `docs/tasks/039_vendor-stub-index.md`, `docs/CONVENTION.md`
 
 ### Reviewer (`mango:reviewer` · [6360cf47](6360cf47-32b6-4ad9-b04f-65e8afa7261e))
-- **Round 1 verdict:** **CHANGES REQUESTED** — (1) incremental stub hash-gate R4.2; (2) stub_roots path validation R5.3; (3) CONVENTION `CA_STUB_ROOTS` R7.2
-- **Round 2 (verify-only) verdict:** **LGTM** on tip `ddcfe77`
-- **Scope:** ⊆ Gate-2 list (+ CONVENTION required by finding 3)
-- **Proof:** related slice green; full suite **734 passed**
+
+**Round 1 — CHANGES REQUESTED** (on `d0689f1`; related slice 87 passed; sandbox PermissionError on adapter stop = ENV-FAULT)
+
+| # | Severity | Rule | Finding | Fix |
+|---|----------|------|---------|-----|
+| 1 | Important | R4.2 | Incremental only queued `changed_set & stub_set`; gitignored vendor edits / newly enabled stubs never reparsed → incremental ≠ full | Hash-gate every stub path (`not in indexed` or `not file_is_current`) |
+| 2 | Important | R5.3 | `_as_stub_roots` accepted absolute / `..` / `.` — could walk outside the repo | `ConfigError` for non-repo-relative roots |
+| 3 | Important | R7.2 | `CONVENTION.md` env inventory omitted `CA_STUB_ROOTS` | Add to env-var list |
+
+Approach bullets 1–6 implemented-as-approved; R1.1 / R2.2 clean; scope ≡ Gate-2 list. No Critical findings.
+
+**Round 2 (verify-only) — LGTM** on tip `ddcfe77`
+- Finding 1: `indexer.py:144-149` hash-gates stubs; `test_incremental_hash_gates_stub_edits` ✅
+- Finding 2: `config.py:287-293` + `test_stub_roots_reject_non_repo_relative_paths` (5 cases) ✅
+- Finding 3: `docs/CONVENTION.md:50` lists `CA_STUB_ROOTS` ✅
+- Related slice **93 passed**; full suite **734 passed**
+- **Findings remaining:** none
 
 ### Challenger (ticket-blind · [81cad2e5](81cad2e5-0514-42f9-a551-61e3a354daf4))
 
-| # | Rebuilt requirement | Verdict | Adjudication |
-|---|---------------------|---------|--------------|
-| 1–4,6–14 | Opt-in stubs, decls-only, marker, R*, AC1–3 | **met** | — |
-| 5 | type references → RESOLVED | **can't tell** as distinct claim | W2 scoped this card to planted EXTENDS; IMPLEMENTS shares wiring |
+Independence: raw ticket through References + `main..feat/039-vendor-stub-index` only; did not open working doc.
 
-**12 met · 0 not met · 1 can't tell** (type-ref limb) — clean for ticket scope.
+| # | Rebuilt requirement | Verdict | Evidence / adjudication |
+|---|---------------------|---------|-------------------------|
+| 1 | Opt-in pass for `vendor/` or configured dep root | **met** | `config.py` `stub_roots` / `CA_STUB_ROOTS`; `indexer.collect_stubs`; blank ⇒ off |
+| 2 | Signatures + EXTENDS/IMPLEMENTS (class/iface/trait/enum/method/prop/const) | **met** | PHP Visitor opens decls then `DONT_TRAVERSE_CHILDREN`; ClassLike still walks members |
+| 3 | No bodies; no CALL/NEW from stubs | **met** | Visitor skip + `as_stub_result` drops `CALLER_KINDS`; AC2 tests |
+| 4 | Stub marker distinguishable from first-class nodes | **met** | `extra.stub=true`; search/read `stub: true` |
+| 5 | EXTENDS/IMPLEMENTS/**type references** into stubs RESOLVED | **met** (EXTENDS/IMPLEMENTS); **can't tell** (type-ref as distinct) | Planted EXTENDS → RESOLVED; no TYPE edge / type-ref test. **Adjudication:** W2 scoped this card to planted EXTENDS; IMPLEMENTS shares wiring |
+| 6 | R2 — no framework names in adapter | **met** | PHP diff is `declarations_only` only; no Illuminate/Laravel |
+| 7 | R1.1 — no language branches in core | **met** | generic `declarations_only` + `is_stub_path` |
+| 8 | R1.4 — adapter parses; store persists | **met** | indexer stamps then `_write`; store API unchanged |
+| 9 | R4 — deterministic | **met** | sorted stub paths; `sort_keys` on extra JSON |
+| 10 | Off by default | **met** | `stub_roots=None`; AC3 test |
+| 11 | Document cost when enabled; bodies never indexed | **met** | PLAN §11 stub-roots paragraph; #3 |
+| 12 | AC1 planted EXTENDS → RESOLVED | **met** | `test_stub_indexing_resolves_extends_and_marks_stubs` |
+| 13 | AC2 no call/NEW from vendor bodies | **met** | vendor edge scan + adapter decls_only test |
+| 14 | AC3 stubs off ⇒ byte-identical to today’s build | **met** (soft gap) | off-vs-off + vendor absent; not a golden pre-039 dump. **Adjudication:** mechanism identity proven; AC wording satisfied for practical bar |
+
+**12 met · 0 not met · 1 can't tell** (type-ref limb of #5) — clean for ticket scope (W2).
+
+### Scope reconciliation
+- File axis: ✅ Gate-2 list + CONVENTION (finding 3)
+- Behaviour axis: ✅ Approach as approved; review fixes are R4.2/R5.3/R7.2 only
+- Challenger: type-ref can't-tell adjudicated via W2; AC3 soft gap accepted
+
+### Gate 4 status
+**clean** — reviewer LGTM at `ddcfe77`; challenger clean for ticket scope after adjudication.
 
 ### Ph3/4 proven by
 
@@ -249,6 +284,10 @@ Reviewed files: `code_atlas/config.py`, `code_atlas/adapter.py`, `code_atlas/ind
 | AC2 | vendor CALLER_KINDS empty + declarations_only adapter test |
 | AC3 | `test_stubs_off_by_default_matches_build_without_vendor_rows` |
 | R4.2 fix | `test_incremental_hash_gates_stub_edits` |
+| R5.3 fix | `test_stub_roots_reject_non_repo_relative_paths` |
+
+### Durable lesson
+Stub roots must bypass ignore *and* hash-gate on incremental — see `docs/LESSONS.md` §039.
 
 ---
 
@@ -257,6 +296,8 @@ Reviewed files: `code_atlas/config.py`, `code_atlas/adapter.py`, `code_atlas/ind
 | Field | Value |
 |-------|-------|
 | Phase | 4 review clean → 5 finalise (dry-run; outward actions need per-action yes) |
-| Branch | `feat/039-vendor-stub-index` @ `ddcfe77` |
+| Branch | `feat/039-vendor-stub-index` @ `ddcfe77` (bookkeeping tip `0c932cb`) |
 | Gates | 1 ✅ · 2 ✅ · 4 ✅ |
 | Suite | 734 passed |
+| Reviewed at | `ddcfe77` |
+| Blocked on | push + open PR (per-action approval) |
