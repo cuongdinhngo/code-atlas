@@ -248,25 +248,19 @@ Standing approval clears Gate 2. **cleared.**
 - **Clean?** yes
 - **Reviewed at:** `8ba95c60b46476add0eeab385e78db594c8781c4` · reviewed files: full feature set through `794b55d` plus finalise docs `docs/BACKLOG.md` (token row), `docs/LESSONS.md` (040 lesson), `docs/tasks/040_framework-indirection-data.md` (working doc; further bookkeeping exempt)
 
-## Phase 5 — Finalise (dry-run)
+## Phase 5 — Finalise
 
-### PR draft (not opened — awaiting explicit approval)
+### Outward actions
 
-**Title:** feat(040): framework indirection rules as core enrichment data
-
-**Body:** (see conversation dry-run; template-filled)
-
-### Outward actions (each needs separate explicit yes)
-
-| # | Action | Command | Status |
-|---|--------|---------|--------|
-| 1 | Push branch | `git push -u origin HEAD` | ⏳ awaiting approval |
-| 2 | Open PR | `gh pr create …` | ⏳ awaiting approval |
+| # | Action | Status |
+|---|--------|--------|
+| 1 | Push branch | ✅ |
+| 2 | Open PR | ✅ [#46](https://github.com/cuongdinhngo/code-atlas/pull/46) |
 
 ## Session status
 
 | Field | Value |
 |-------|-------|
-| Phase | 5 finalise dry-run — awaiting push/PR approval |
-| Gates | 1 ✅ · 2 ✅ · review ✅ |
-| Blocked on | push / PR (separate explicit yes each) |
+| Phase | 5 finalise complete — PR open |
+| Gates | 1 ✅ · 2 ✅ · review ✅ · finalise ✅ |
+| Blocked on | — |
