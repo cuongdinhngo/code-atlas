@@ -246,7 +246,7 @@ Standing approval clears Gate 2. **cleared.**
 - Proof-manifest: n/a
 - `Ph3/4 proven by` filled: k=N (12/12 matrix rows ✅)
 - **Clean?** yes
-- **Reviewed at:** 794b55da9f99263a123c2e41a1edf0386fe34f28 · reviewed files: full `main...HEAD` set including `docs/PLAN.md`, `docs/CONVENTION.md`, `docs/ENGINEERING_RULES.md`, `docs/tasks/040_framework-indirection-data.md` (working-doc path exempt for further bookkeeping)
+- **Reviewed at:** `8ba95c60b46476add0eeab385e78db594c8781c4` · reviewed files: full feature set through `794b55d` plus finalise docs `docs/BACKLOG.md` (token row), `docs/LESSONS.md` (040 lesson), `docs/tasks/040_framework-indirection-data.md` (working doc; further bookkeeping exempt)
 
 ## Phase 5 — Finalise (dry-run)
 
