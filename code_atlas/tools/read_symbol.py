@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Callable, Sequence
 from pathlib import Path
@@ -29,7 +30,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         Never returns the whole file. On hash drift, reparses that one file inline (035). Returns
         ``stale: true`` and ``reason=index_stale`` when the file is missing, no adapter owns it, or
-        repair fails (adapter/DB error).
+        repair fails (adapter/DB error). Stub-indexed nodes (task 039) also carry ``stub: true``.
         """
         if not config.db_path.is_file():
             return _empty(qname, detail_level=detail_level, db_path=str(config.db_path))
@@ -92,9 +93,20 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 file=rel,
                 line_start=start,
                 line_end=end,
+                stub=_is_stub(node.get("extra")),
             )
 
     return read_symbol
+
+
+def _is_stub(raw: object) -> bool:
+    if not isinstance(raw, str) or not raw.strip():
+        return False
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return False
+    return isinstance(data, dict) and data.get("stub") is True
 
 
 def _slice(path: Path, line_start: int, line_end: int) -> str:
@@ -149,6 +161,7 @@ def _result(
     file: str | None = None,
     line_start: int | None = None,
     line_end: int | None = None,
+    stub: bool = False,
 ) -> dict[str, object]:
     payload: dict[str, object] = {
         "indexed": True,
@@ -164,6 +177,8 @@ def _result(
         if not stale:
             payload["line_start"] = line_start
             payload["line_end"] = line_end
+        if stub:
+            payload["stub"] = True
     if detail_level == "standard":
         payload["db_path"] = db_path
     return payload

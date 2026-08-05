@@ -6,6 +6,7 @@ namespace CodeAtlas\Php;
 
 use PhpParser\Modifiers;
 use PhpParser\Node;
+use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitorAbstract;
 
 /**
@@ -70,6 +71,7 @@ final class Visitor extends NodeVisitorAbstract
         private readonly string $path,
         int $lineCount,
         private readonly string $source = '',
+        private readonly bool $declarationsOnly = false,
     ) {
         $this->scope = [[null, $path]];
         $this->nodes[] = [
@@ -101,6 +103,9 @@ final class Visitor extends NodeVisitorAbstract
                     'params' => $this->params($node->params),
                 ] + $this->extraFields($this->attributeExtra($node->attrGroups)));
             }
+            if ($this->declarationsOnly) {
+                return NodeTraverser::DONT_TRAVERSE_CHILDREN;
+            }
         } elseif ($node instanceof Node\Stmt\ClassMethod) {
             $this->stringLocals = [];
             if ($node->name->toString() === '__construct') {
@@ -110,11 +115,20 @@ final class Visitor extends NodeVisitorAbstract
                 'modifiers' => $this->methodModifiers($node),
                 'params' => $this->params($node->params),
             ] + $this->extraFields($this->attributeExtra($node->attrGroups)));
+            if ($this->declarationsOnly) {
+                return NodeTraverser::DONT_TRAVERSE_CHILDREN;
+            }
         } elseif ($node instanceof Node\Expr\Closure) {
+            if ($this->declarationsOnly) {
+                return NodeTraverser::DONT_TRAVERSE_CHILDREN;
+            }
             $this->stringLocalsStack[] = $this->stringLocals;
             $this->stringLocals = [];
             $this->enterClosureLike($node, 'closure', '{closure}', $node->params, $node->static, $node->attrGroups);
         } elseif ($node instanceof Node\Expr\ArrowFunction) {
+            if ($this->declarationsOnly) {
+                return NodeTraverser::DONT_TRAVERSE_CHILDREN;
+            }
             // fn() auto-captures by value — keep outer bindings; stack still restores on leave.
             $this->stringLocalsStack[] = $this->stringLocals;
             $this->enterClosureLike($node, 'fn', '{fn}', $node->params, $node->static, $node->attrGroups);

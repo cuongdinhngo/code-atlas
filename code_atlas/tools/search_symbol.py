@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Mapping
 from typing import Literal
 
@@ -37,6 +38,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         Trigram cannot match terms under three characters; those use a name/qname prefix scan.
         On hash drift beyond the per-call reparse cap, returns hits with ``reason=index_stale``
         and an honest ``total_count`` (never an empty proof of absence).
+        Stub-indexed nodes (task 039) also carry ``stub: true``.
         """
         db_path = str(config.db_path)
         if not config.db_path.is_file():
@@ -92,4 +94,16 @@ def _hit(row: Mapping[str, object] | Row) -> dict[str, object]:
     hit["kind"] = row["kind"]
     hit["file"] = row["file_path"]
     hit["line"] = row["line_start"]
+    if _is_stub(row.get("extra")):
+        hit["stub"] = True
     return hit
+
+
+def _is_stub(raw: object) -> bool:
+    if not isinstance(raw, str) or not raw.strip():
+        return False
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return False
+    return isinstance(data, dict) and data.get("stub") is True

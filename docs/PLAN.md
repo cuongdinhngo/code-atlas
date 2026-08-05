@@ -341,9 +341,11 @@ defaults. A field present as `None` is stored as an explicit NULL.
 ## 11. Config & ignore
 Env `CA_*` → **project file `.code-atlas.toml`** (repo root, committed, stdlib `tomllib`) → defaults. The env name is derived from the file key: `workers` ⇄ `CA_WORKERS`, and `[adapter_cmd]` holds one entry per language — each a complete argv (§9), given either as a string or, preferably where quoting bites, as a list of words. A malformed value or an unknown key **fails loud** (R5.3); it never falls back.
 
-Knobs: `CA_DB_PATH` (default `<repo>/.code-atlas/graph.db`), `CA_WORKERS` (default `max(1, min(cpu-2, 8))`), `CA_ADAPTER_TIMEOUT=30` (seconds one adapter may stay silent before the build kills it — §8.1), `CA_MAX_RESULTS=50`, `CA_IMPACT_DEPTH=2`, `CA_IMPACT_MAX_NODES=500`, `CA_ENTRY_POINTS` (optional list of file/globs — reachability roots for `reachable_from` / `find_orphans`; unset ⇒ tools report no roots rather than guessing — task 031), `CA_HOST_ROOT` / `CA_CONTAINER_ROOT` (optional pair — rewrite absolute host paths only; both set or both unset; unused on the relative-path build path — §9), per-adapter `CA_<LANG>_CMD` (resolved generically from the variable name — no language is named in the core), `CA_TOOLS` allow-list (unset or blank ⇒ every tool; §12).
+Knobs: `CA_DB_PATH` (default `<repo>/.code-atlas/graph.db`), `CA_WORKERS` (default `max(1, min(cpu-2, 8))`), `CA_ADAPTER_TIMEOUT=30` (seconds one adapter may stay silent before the build kills it — §8.1), `CA_MAX_RESULTS=50`, `CA_IMPACT_DEPTH=2`, `CA_IMPACT_MAX_NODES=500`, `CA_ENTRY_POINTS` (optional list of file/globs — reachability roots for `reachable_from` / `find_orphans`; unset ⇒ tools report no roots rather than guessing — task 031), `CA_STUB_ROOTS` (optional list of dependency roots such as `vendor` — declarations-only stub indexing; unset/blank ⇒ off — task 039), `CA_HOST_ROOT` / `CA_CONTAINER_ROOT` (optional pair — rewrite absolute host paths only; both set or both unset; unused on the relative-path build path — §9), per-adapter `CA_<LANG>_CMD` (resolved generically from the variable name — no language is named in the core), `CA_TOOLS` allow-list (unset or blank ⇒ every tool; §12).
 
 Ignore: built-ins (`vendor/ var/ uploads/ log/ node_modules/ .git/`) + `.gitignore` + optional `.codeatlasignore`, concatenated in that order with the **last matching rule winning**, so a later source can re-include. A path below an excluded **directory** stays excluded — that is what lets the walk prune a subtree. Supported gitignore subset: comments/blanks, `*` `?` `[seq]` inside a segment, `**` across segments, leading `/` anchoring, trailing `/` directory-only, `!` negation. Not supported: nested per-directory ignore files, `\` escapes. `git ls-files` already applies `.gitignore` on the primary path (§8.1), so this matcher chiefly serves the walk fallback.
+
+**Stub roots (task 039).** `CA_STUB_ROOTS` walks named dependency trees **outside** the ignore/git collect path (so `vendor/` can be indexed without weakening directory exclusion). Files under those roots are parsed with `declarations_only` (signatures + EXTENDS/IMPLEMENTS/…; no CALLS/NEW from bodies); nodes carry `extra.stub=true` and surface as `stub: true` on `search_symbol` / `read_symbol`. Off by default — enabling it costs one declarations pass over the dependency tree.
 
 ---
 
@@ -354,9 +356,9 @@ Token-efficient: return qualified names + `file:line`, not bodies, unless a read
 |---|---|---|
 | `get_index_status` | — | stats, last_commit, staleness, `next_tool_suggestions`; `standard` also `edge_health` (per-tier + resolved/unresolved) and `parse_failures`. **Call first (~100 tok).** |
 | `build_or_update_index` | `full=false` | counts, timing |
-| `search_symbol` | `query, kind?, namespace?, limit?` | ranked `{qname, kind, file:line}` (FTS + name); `reason` + `total_count` (033) |
+| `search_symbol` | `query, kind?, namespace?, limit?` | ranked `{qname, kind, file:line}` (FTS + name); stub hits add `stub: true` (039); `reason` + `total_count` (033) |
 | `file_outline` | `path` | symbols + line ranges, no body |
-| `read_symbol` | `qname` | source of just that class/method + docblock |
+| `read_symbol` | `qname` | source of just that class/method + docblock; stub symbols add `stub: true` (039) |
 | `find_callers` | `qname, depth?, include_source?` | who CALLS/NEW it + confidence; `reason` + `total_count` (033); opt-in capped call-site `source` (037) |
 | `find_references` | `qname, include_source?` | all edges targeting it; `reason` + `total_count` (033); opt-in capped call-site `source` (037) |
 | `find_implementations` | `qname` | EXTENDS/IMPLEMENTS subtypes; `reason` + `total_count` (033) |

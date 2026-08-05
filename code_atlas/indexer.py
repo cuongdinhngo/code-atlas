@@ -14,6 +14,8 @@ becomes the failure the driver already models rather than a wedged build (§4.1)
 """
 
 import hashlib
+import json
+import os
 import queue
 import threading
 import time
@@ -34,6 +36,9 @@ WATCHDOG_INTERVAL = 0.25
 
 _READ_CHUNK = 1 << 20
 
+# Stub walks skip these directory names even though they bypass the normal ignore matcher.
+_STUB_SKIP_DIRS = frozenset({".git", "node_modules"})
+
 _Outcome = tuple[str, str, ParseResult]
 
 
@@ -53,7 +58,8 @@ def full_build(config: Config, store: GraphStore) -> BuildReport:
     """Index every collectable file under ``config.root`` into ``store`` (§8.1 steps 1-5).
 
     Adapters emit bare edges; ``resolve_edges`` links them after every node exists. Every collected
-    path leaves a ``files`` row, parsed or not.
+    path leaves a ``files`` row, parsed or not. When ``stub_roots`` is set, dependency trees are
+    walked outside the normal ignore matcher and parsed declarations-only (task 039).
     """
     watchdog = _Watchdog(config.adapter_timeout)
     watchdog.start()
@@ -62,8 +68,14 @@ def full_build(config: Config, store: GraphStore) -> BuildReport:
         try:
             owners = _owners(announced)
             paths = collect(config.root, tuple(owners))
-            removed = _reconcile(store, paths)
-            counts = _parse_all(config, store, watchdog, announced, owners, paths)
+            stubs = (
+                collect_stubs(config.root, config.stub_roots, tuple(owners))
+                if config.stub_roots
+                else ()
+            )
+            kept = tuple(sorted(dict.fromkeys([*paths, *stubs])))
+            removed = _reconcile(store, kept)
+            counts = _parse_all(config, store, watchdog, announced, owners, kept)
         finally:
             for adapter in announced.values():
                 adapter.stop()
@@ -74,7 +86,7 @@ def full_build(config: Config, store: GraphStore) -> BuildReport:
     # rebuild per build would cost a full re-index and change nothing (deviation D1).
     _record_meta(config, store)
     resolve_edges(store, max_candidates=config.max_results)
-    return BuildReport(files=len(paths), removed=removed, **counts)
+    return BuildReport(files=len(kept), removed=removed, **counts)
 
 
 def incremental_update(
@@ -98,7 +110,14 @@ def incremental_update(
         try:
             owners = _owners(announced)
             paths = collect(config.root, tuple(owners))
+            stubs = (
+                collect_stubs(config.root, config.stub_roots, tuple(owners))
+                if config.stub_roots
+                else ()
+            )
+            stub_set = set(stubs)
             wanted = set(paths)
+            kept = tuple(sorted(wanted | stub_set))
             changed_set = set(changed)
             indexed = set(store.file_paths())
 
@@ -107,12 +126,12 @@ def incremental_update(
             # File nodes use the path as qname; include deleted/renamed-away paths so inbound edges
             # re-link (git diff names only the rename destination).
             affected.update(changed_set)
-            gone = sorted(indexed - wanted)
+            gone = sorted(indexed - set(kept))
             affected.update(store.qnames_in_files(gone))
             affected.update(gone)
 
             dependents = set(store.file_paths_targeting(sorted(affected))) & wanted
-            removed = _reconcile(store, paths)
+            removed = _reconcile(store, kept)
 
             candidates = sorted((changed_set | dependents) & wanted)
             # Dependents are unchanged by construction, so hash-skip must not apply to them —
@@ -122,6 +141,9 @@ def incremental_update(
                 for path in candidates
                 if path in dependents or not file_is_current(store, config.root, path)
             ]
+            # Stub roots are outside git collect; reparse only when git/named change hits them.
+            to_parse.extend(sorted(changed_set & stub_set))
+            to_parse = list(dict.fromkeys(to_parse))
             counts = (
                 _parse_all(config, store, watchdog, announced, owners, to_parse)
                 if to_parse
@@ -163,9 +185,13 @@ def reparse_file(config: Config, store: GraphStore, path: str) -> bool:
             language = adapter.name
             try:
                 with watchdog.guard(adapter):
-                    result = adapter.parse(path)
+                    result = adapter.parse(
+                        path, declarations_only=is_stub_path(path, config.stub_roots)
+                    )
             except AdapterError as error:
                 result = ParseResult(path=path, ok=False, error=str(error))
+            if is_stub_path(path, config.stub_roots) and result.ok:
+                result = as_stub_result(result)
             tally = {"parsed": 0, "failed": 0, "nodes": 0, "edges": 0}
             try:
                 _write(store, path, _digest(config.root / path), language, result, tally)
@@ -205,6 +231,70 @@ def collect(root: Path, suffixes: Sequence[str]) -> tuple[str, ...]:
             if PurePosixPath(path).suffix.lower() in wanted and not matcher.is_ignored(path)
         )
     )
+
+
+def collect_stubs(
+    root: Path, stub_roots: Sequence[str], suffixes: Sequence[str]
+) -> tuple[str, ...]:
+    """Filesystem walk of configured dependency roots — bypasses ignore/git (task 039).
+
+    ``vendor/`` is a built-in ignore and usually gitignored, so neither ``collect`` nor
+    ``git ls-files`` can see it. Stub indexing walks these trees directly.
+    """
+    wanted = {suffix.lower() for suffix in suffixes}
+    found: list[str] = []
+    for stub in stub_roots:
+        base = root / stub
+        if not base.is_dir():
+            continue
+        for dirpath, dirnames, filenames in os.walk(base):
+            dirnames[:] = sorted(d for d in dirnames if d not in _STUB_SKIP_DIRS)
+            for name in filenames:
+                full = Path(dirpath) / name
+                if full.suffix.lower() not in wanted:
+                    continue
+                rel = full.relative_to(root).as_posix()
+                found.append(rel)
+    return tuple(sorted(dict.fromkeys(found)))
+
+
+def is_stub_path(path: str, stub_roots: Sequence[str] | None) -> bool:
+    """True when ``path`` sits under a configured stub root."""
+    if not stub_roots:
+        return False
+    return any(path == root or path.startswith(f"{root}/") for root in stub_roots)
+
+
+def as_stub_result(result: ParseResult) -> ParseResult:
+    """Stamp stub marker on nodes; drop CALLS/NEW edges (declarations-only backstop)."""
+    if not result.ok:
+        return result
+    drop = frozenset(contract.CALLER_KINDS)
+    nodes = tuple(_stamp_stub_node(dict(node)) for node in result.nodes)
+    edges = tuple(
+        edge for edge in result.edges if str(edge.get("kind") or "") not in drop
+    )
+    return ParseResult(
+        path=result.path, ok=True, nodes=nodes, edges=edges, error=result.error
+    )
+
+
+def _stamp_stub_node(node: dict[str, object]) -> dict[str, object]:
+    """Merge ``{"stub": true}`` into ``extra`` JSON (distinguishable, no contract bump)."""
+    data: dict[str, object] = {}
+    raw = node.get("extra")
+    if isinstance(raw, str) and raw.strip():
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict):
+                data = parsed
+        except json.JSONDecodeError:
+            data = {}
+    elif isinstance(raw, dict):
+        data = dict(raw)
+    data["stub"] = True
+    node["extra"] = json.dumps(data, separators=(",", ":"), sort_keys=True)
+    return node
 
 
 class _Watchdog:
@@ -416,11 +506,15 @@ def _work(
                     return
             try:
                 with watchdog.guard(adapter):
-                    result = adapter.parse(path)
+                    result = adapter.parse(
+                        path, declarations_only=is_stub_path(path, config.stub_roots)
+                    )
             except AdapterError as error:
                 result = ParseResult(path=path, ok=False, error=str(error))
                 adapter.stop()
                 adapter = None
+            if is_stub_path(path, config.stub_roots) and result.ok:
+                result = as_stub_result(result)
             results.put((path, _digest(config.root / path), result))
     finally:
         if adapter is not None and adapter is not started:
