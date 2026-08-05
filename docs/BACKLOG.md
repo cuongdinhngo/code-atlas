@@ -50,7 +50,7 @@ up). Source: [`FEEDBACK.md`](FEEDBACK.md).
 | 035 | Read-through freshness — inline reparse on hash drift | Freshness | done | 009, 011 |
 | 036 | Claude Code Edit/Write index-poke hook | Distribution | done | 016, 035 |
 | 037 | Compound nav responses (call-site line) + consolidation A/B | Agent-fit | todo | 013, 034 |
-| 038 | `explain_path(from, to)` control-flow path tool | Task-level | in-progress | 017, 031 |
+| 038 | `explain_path(from, to)` control-flow path tool | Task-level | done | 017, 031 |
 | 039 | Vendor stub index (declarations-only) | Framework | todo | 009, 011 |
 | 040 | Framework indirection as data (rules file outside `adapters/`) | Framework | todo | 039, 030 |
 | 041 | Legacy/framework hardening — encoding, `.blade.php` ignore, extra extensions | Robustness | todo | 009 |
@@ -122,6 +122,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 034 | Tokens-to-answer benchmark harness (vs grep+`Read`) | **0 dispatch** — no subagent ran; harness + fixture questions + gate tests authored on the main model. Main-loop spend unmeasured (host does not surface per-task usage), as for 024/032 | [#37](https://github.com/cuongdinhngo/code-atlas/pull/37) |
 | 035 | Read-through freshness — inline reparse on hash drift | **4 dispatch** — refine exposure-checker + review `mango:reviewer` (×2) + `mango:challenger`; all token cells **`unmeasured (blocking retrieval)`**. Phases 1–3 dispatched **nothing** on the main model. **Main-loop spend is unmeasured**, as for 004–034 | [#41](https://github.com/cuongdinhngo/code-atlas/pull/41) |
 | 036 | Claude Code Edit/Write index-poke hook | **4 dispatch** — refine exposure-checker + review `mango:reviewer` (×2) + `mango:challenger`; all token cells **`unmeasured (blocking retrieval)`**. Phases 1–3 dispatched **nothing** on the main model. **Main-loop spend is unmeasured**, as for 004–035 | [#42](https://github.com/cuongdinhngo/code-atlas/pull/42) |
+| 038 | `explain_path(from, to)` control-flow path tool | **4 dispatch** — refine exposure-checker + analysis extractor + review `mango:reviewer` + `mango:challenger`; all token cells **`unmeasured (blocking retrieval)`**. Phases 2–3 and 5 dispatched **nothing** on the main model. **Main-loop spend is unmeasured**, as for 004–036 | _pending PR_ |
 
 ## Follow-ups (not yet ticketed)
 
