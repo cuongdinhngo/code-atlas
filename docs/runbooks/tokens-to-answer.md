@@ -110,9 +110,26 @@ legacy files are where the index earns its cost; `read_symbol` — where grep's 
 narrow — wins by less than an order of magnitude. Read the aggregate as "dominated by the widest
 question", and pick questions that match the work you actually do.
 
-Note also that this repo carries the same class names in two regional trees, so every nav row came
-back twice (see the nav-dedup follow-up in [`BACKLOG.md`](../BACKLOG.md)) — the code-atlas column above
-is roughly twice what it needs to be, which makes 178.3 a **conservative** figure here.
+### What this metric cannot see
+
+That first run also exposed that every nav row came back twice on this repo, and the obvious inference
+— "so the real ratio is about twice as good" — is **wrong**. Task 046 removed the duplication and the
+run was repeated against the rebuilt index:
+
+| | before 046 | after 046 |
+|---|---|---|
+| code-atlas tokens | 4,705 | **4,704** |
+| aggregate ratio | 178.318 | **178.356** |
+| distinct answers in a 10-row response | 5 | **10** |
+
+The ratio moved by 0.02 %. `max_results` fills the response budget either way, so removing the
+duplicates did not make the answer cheaper — it **doubled the information at the same price**, and
+tokens-to-answer is blind to that by construction: it counts what a payload costs, never what it
+carries. A tool returning ten duplicates and a tool returning ten distinct answers score identically.
+
+Treat the ratio as a **cost** measure, not a quality measure. Correctness is carried by `expected`, and
+anything about the *usefulness* of a response — duplicate rows, an honest `total_count`, a right answer
+buried at rank 40 — needs its own check. See the metric follow-up in [`BACKLOG.md`](../BACKLOG.md).
 
 ## Surface A/B (task 037)
 
