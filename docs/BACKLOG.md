@@ -71,6 +71,7 @@ gap that fixtures never hit.
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
 | 043 | [Duplicate-declaration resilience — repeated `qualified_name` must not abort the build](tasks/043_duplicate-decl-resilience.md) | Robustness | done | 004, 009 |
+| 044 | [Onboarding runbook — installing code-atlas on a large legacy repo](tasks/044_onboarding-runbook.md) | Adoption | in-progress | 014, 039, 043 |
 
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
 
@@ -187,10 +188,28 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
   `function_exists`-guarded double definition + `interface X`/`class X`, asserting the adapter emits
   two same-qname nodes (the shape 043's store dedupe collapses). Optional; the adapter already emits
   per-declaration (that is how the duplicates were found on the monorepo).
-- **Indexing-hygiene doc note (not a code bug):** the walk descends into nested worktree checkouts
-  (`.claude/worktrees/…`) when `.gitignore` doesn't exclude them, ~doubling the index; and committed
-  vendored libs under non-`vendor/` paths index by design. Both are `.codeatlasignore` guidance, not a
-  code change — capture in a usage/runbook note.
+- **Indexing-hygiene doc note (not a code bug) — captured.** The walk descends into nested worktree
+  checkouts (`.claude/worktrees/…`) when `.gitignore` doesn't exclude them, ~doubling the index; and
+  committed vendored libs under non-`vendor/` paths index by design. Both are `.codeatlasignore`
+  guidance, not a code change — now written up in
+  [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §5, together with a third variant
+  found on a real repo: a host `.gitignore` **negation** (`!some/lib/vendor/`) cancels the *built-in*
+  `vendor/` rule as well, so a committed dependency indexes as full source (2,580 files, 12 % of that
+  index). Last-rule-wins is working as designed (`ignore.py:57-65`); the fix is a `.codeatlasignore`
+  line, so this stays a doc item.
+- **`max_results` does two unrelated jobs (design smell, measured).** It caps both the rows a tool
+  returns *and* the resolver's per-call-site candidate fan-out
+  (`indexer.py:118` → `resolve_edges(max_candidates=config.max_results)`), so a query-ergonomics knob
+  silently sets index size. Measured on a large legacy monorepo: 491,741 heuristic call sites, 33,300
+  of them saturating a cap of 50; heuristic edges 4.76M at cap 50 vs 2.60M at cap 10 (−46 %), and the
+  database 2,115 MB vs 1,133 MB. Splitting out a `CA_RESOLVE_MAX_CANDIDATES` would let an operator
+  keep 50-row search results without paying a gigabyte for candidate noise. Origin:
+  [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
+- **Reachability payload size at `detail_level="standard"`:** `reachable_from` / `find_orphans` are
+  bounded by `impact_max_nodes` (default 500) rather than `max_results`, and a 500-row answer is
+  ~160 KB of JSON — tens of thousands of tokens, against a §19 metric that is measured *in tokens*.
+  Worth either a lower default for these two tools or a `minimal`-by-default shape. Documented as a
+  workaround in [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
 - **018 construct gaps:** any cross-repo misses → fill the gap log in
   [`runbooks/cross-repo-validation.md`](runbooks/cross-repo-validation.md) and feed task 007 / 025.
   (Gap log is still empty — no scheduled run has recorded a miss.)
