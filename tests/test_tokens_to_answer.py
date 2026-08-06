@@ -18,6 +18,7 @@ import pytest
 REPO = Path(__file__).resolve().parent.parent
 HARNESS = REPO / "scripts" / "tokens_to_answer.py"
 QUESTIONS = REPO / "scripts" / "tokens_to_answer_questions.json"
+SAMPLE_PINS = REPO / "scripts" / "cross_repo_samples.json"
 PHP_ENTRY = REPO / "adapters" / "php" / "index.php"
 PHP_AUTOLOAD = REPO / "adapters" / "php" / "vendor" / "autoload.php"
 
@@ -162,13 +163,58 @@ def test_answer_contains_matches_unescaped_backslash_qnames() -> None:
 def test_questions_file_is_well_formed() -> None:
     questions = _h.load_questions(QUESTIONS)
     assert len(questions) >= 8
+    pins = {str(s["id"]) for s in json.loads(SAMPLE_PINS.read_text(encoding="utf-8"))["samples"]}
     seen_ids: set[str] = set()
     for q in questions:
         assert q["id"] not in seen_ids, f"duplicate id {q['id']}"
         seen_ids.add(q["id"])
         assert q["atlas_path"] and q["expected"]
-        if q.get("source", "fixture") == "fixture":
+        source = q.get("source", "fixture")
+        if source == "fixture":
             assert (REPO / q["root"]).is_dir(), f"missing fixture root for {q['id']}"
+        elif source == "sample":
+            # A sample row names a pin in cross_repo_samples.json and states a grep evidence hit.
+            assert q["sample"] in pins, f"{q['id']} names unknown pin {q.get('sample')!r}"
+            assert q["grep_evidence"], f"sample {q['id']} needs grep_evidence"
+
+
+def test_run_sample_questions_selects_and_routes_by_pin(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Proving test (task 042): only source:sample rows run, grouped by pin, each built once."""
+    questions = [
+        {"id": "fix", "source": "fixture", "root": "x"},
+        {"id": "a1", "source": "sample", "sample": "brick_math"},
+        {"id": "a2", "source": "sample", "sample": "brick_math"},
+        {"id": "b1", "source": "sample", "sample": "symfony_demo"},
+    ]
+    built: list[str] = []
+    monkeypatch.setattr(
+        _h.cross_repo_validate,
+        "load_manifest",
+        lambda *a, **k: [{"id": "brick_math"}, {"id": "symfony_demo"}],
+    )
+    monkeypatch.setattr(
+        _h.cross_repo_validate,
+        "checkout_pinned",
+        lambda sample, cache_root: cache_root / str(sample["id"]),
+    )
+
+    def fake_build(root: Path, db_path: Path, php_cmd: str) -> object:
+        built.append(root.name)
+        return object()  # sentinel config; evaluate_question is faked too
+
+    monkeypatch.setattr(_h, "build_index", fake_build)
+    monkeypatch.setattr(
+        _h, "evaluate_question", lambda cfg, q: {"id": q["id"], "atlas_correct": True}
+    )
+
+    rows = _h.run_sample_questions(
+        questions, cache_root=tmp_path, php_cmd="php", skip_clone=False
+    )
+
+    assert [r["id"] for r in rows] == ["a1", "a2", "b1"]  # fixture row excluded
+    assert sorted(built) == ["brick_math", "symfony_demo"]  # each pin built exactly once
 
 
 def test_questions_file_is_valid_json_on_disk() -> None:

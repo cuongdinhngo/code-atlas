@@ -1,5 +1,22 @@
 # Lessons — code-atlas
 
+## 042 — A ticket's "References" can be stale; verify claimed wiring before scoping
+Task 042's References said the `source: sample` path was "already wired via `cross_repo_validate`". It
+was **not** — `tokens_to_answer.py` skipped every non-fixture row and only listed sample IDs as
+skipped. Taking the claim at face value would have under-scoped the task to a JSON edit; it actually
+needed a new clone→build→evaluate code path plus a scheduled workflow (SCOPE S→L at Gate 0). **Fix:**
+at analysis, grep for the symbol/path a ticket claims exists and confirm it before sizing; a stale
+"References" line is a requirement to rebuild, not a freebie. Generalises: treat a ticket's factual
+claims about the current codebase as hypotheses to verify, not givens.
+
+### 042 — Env prerequisites are satisfiable locally, don't defer on their absence
+The sample tier needs PHP+clone, absent on the Windows dev box (`php: not found`, no
+`adapters/php/vendor`). Rather than defer the value claim to an operator run, a **portable PHP 8.3.33 +
+Composer** env was stood up in scratchpad and the adapter ran end to end (fixtures 10/10, then samples
+5/5, ratio 98.2). **Fix:** when a task is gated on a missing runtime, try provisioning a throwaway one
+before falling back to a deferral — the fuller deliverable often beats the split. The earlier
+`WinError 2` in tests was the *fake* test adapter's subprocess quoting, not the real adapter.
+
 ## 041 — Prefer language-free ignore globs over splitting a guarded token
 Builtin Blade exclusion is `*.blade.*` (compound template suffix, any trailing extension) — not a
 concatenated `*.blade.php` that defeats the R1.1 language-name guard. File-level builtins also apply

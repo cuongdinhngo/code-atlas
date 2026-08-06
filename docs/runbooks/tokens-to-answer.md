@@ -98,8 +98,50 @@ Each entry is one agent question with a **known** correct answer plus the recipe
 State an answer you can verify exactly — `expected` is the falsifiable check, not "looks
 plausible". Prefer symbols already asserted by other tests so the ground truth stays grounded.
 
-## Sample tier (pinned public repos)
+## Sample tier (pinned public repos) — the real value claim (task 042)
 
-`source: sample` questions run against [`cross_repo_samples.json`](../../scripts/cross_repo_samples.json)
-and need a clone+PHP environment, so they are **not** populated here yet — the harness lists any it
-skips under `sample_questions_skipped` in the report rather than silently covering nothing.
+The fixture floor above is a behaviour-lock, not the win. The **sample tier** runs the same recipes
+against the pinned public repos in
+[`cross_repo_samples.json`](../../scripts/cross_repo_samples.json) — real trees where a grep pattern
+matches many files an agent must read whole while code-atlas returns the one resolved answer.
+
+**Observed aggregate ratio: `98.2`** (grep `435,338` / code-atlas `4,433` tokens over 5 questions,
+5/5 answered correctly) — i.e. code-atlas is ~**98×** cheaper here. Per-question ratios range from
+`19.3` (symfony/demo `Post::getId` callers) to `147.4` (brick/math `BigInteger` references). This is
+the number the fixtures cannot show (there, grep wins on volume at ~0.29).
+
+### Reproduce
+
+```bash
+export CA_PHP_CMD="php $(pwd)/adapters/php/index.php --server"   # absolute adapter path
+python scripts/tokens_to_answer.py --samples --min-ratio 78     # clones the pins, builds, gates
+# reuse a warm clone cache and skip the network:
+python scripts/tokens_to_answer.py --samples --skip-clone --cache-dir artifacts/tokens-to-answer-samples
+```
+
+`--samples` switches the harness to the sample tier: it groups `source: sample` questions by their
+`sample` pin id, clones/checks out each pinned SHA (reusing `cross_repo_validate`'s machinery), builds
+the index once per repo, then evaluates. Default (no `--samples`) behaviour is unchanged — fixtures
+only — so the per-PR gate is untouched.
+
+### Scheduled run
+
+[`.github/workflows/tokens-to-answer-sample.yml`](../../.github/workflows/tokens-to-answer-sample.yml)
+runs it on `workflow_dispatch` and weekly (Monday 06:30 UTC) with floor `78` (≈ `0.8 × observed`,
+recalibrate from the first Linux run as with the fixture floor). Not per-PR: it needs a clone + PHP
+and is slower. On failure it opens/comments a `tokens-to-answer-sample` issue (scheduled logs are easy
+to miss).
+
+### Coverage notes (falsifiable both ways)
+
+- **Query kinds covered:** `find_implementations` (BigNumber subclasses), `find_references`
+  (BigInteger, Tag), `find_callers` (BigNumber::isZero, Post::getId) — the kinds where grep over-reads.
+- **`include_graph` ("who includes X") is intentionally not sampled here.** All three pinned repos are
+  PSR-4 / Composer-autoloaded, so their `INCLUDES` edges are dynamic bootstrap `require`s with no
+  resolved target — there is no verifiable "who includes X" answer to assert. The fixture tier already
+  covers `include_graph` end to end.
+- **laravel/laravel carries no sample question.** At the pinned SHA it is the application *skeleton*
+  (~60 nodes, no cross-class callers, one `extends`), so it has no resolvable nav target rich enough
+  for a grep-over-read question. It stays a cross-repo *build* sample (see
+  [cross-repo validation](cross-repo-validation.md)); the nav questions live on brick/math and
+  symfony/demo, which have real resolved graphs.

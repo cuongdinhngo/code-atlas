@@ -28,8 +28,12 @@ from pathlib import Path
 from typing import Any
 
 _REPO = Path(__file__).resolve().parents[1]
-if str(_REPO) not in sys.path:
-    sys.path.insert(0, str(_REPO))
+_SCRIPTS = Path(__file__).resolve().parent
+for _p in (str(_REPO), str(_SCRIPTS)):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+import cross_repo_validate  # noqa: E402 — reuse the clone-at-SHA + php-cmd machinery (dev tooling)
 
 from code_atlas.config import Config, load_config  # noqa: E402
 from code_atlas.indexer import full_build  # noqa: E402
@@ -227,6 +231,7 @@ def verdict_markdown(
     min_ratio: float | None,
     failure: str | None,
     samples_skipped: int,
+    mode: str = "fixture",
 ) -> str:
     """Markdown block for a CI step summary or a sticky PR comment (task 034 gate)."""
     if min_ratio is None:
@@ -247,12 +252,20 @@ def verdict_markdown(
     ]
     if failure:
         lines += ["```", failure, "```", ""]
-    lines.append(
-        "`ratio > 1` means code-atlas is cheaper. The committed fixtures are toy repos where grep "
-        "wins on volume, so this floor is a behaviour-lock rather than the value claim — see "
-        "[the runbook](docs/runbooks/tokens-to-answer.md). "
-        f"Sample-tier questions skipped: {samples_skipped}."
-    )
+    if mode == "sample":
+        # Sample tier = pinned public repos, so this ratio IS the value claim (task 042).
+        lines.append(
+            "`ratio > 1` means code-atlas is cheaper. This is the **sample tier** — pinned public "
+            "repos, not toy fixtures — so this ratio is the value-claim evidence, not a "
+            "behaviour-lock. See [the runbook](docs/runbooks/tokens-to-answer.md)."
+        )
+    else:
+        lines.append(
+            "`ratio > 1` means code-atlas is cheaper. The committed fixtures are toy repos "
+            "where grep wins on volume, so this floor is a behaviour-lock rather than the "
+            "value claim — see [the runbook](docs/runbooks/tokens-to-answer.md). "
+            f"Sample-tier questions skipped: {samples_skipped}."
+        )
     return "\n".join(lines) + "\n"
 
 
@@ -319,6 +332,47 @@ def run_fixture_questions(
     return rows
 
 
+def _sample_pin(question: dict[str, Any]) -> str:
+    """The manifest pin id (cross_repo_samples.json) a sample question runs against."""
+    return str(question["sample"])
+
+
+def run_sample_questions(
+    questions: list[dict[str, Any]],
+    *,
+    cache_root: Path,
+    php_cmd: str,
+    skip_clone: bool = False,
+) -> list[dict[str, Any]]:
+    """Clone each pinned repo a sample question targets, build it once, then evaluate.
+
+    Reuses ``cross_repo_validate``'s checkout machinery so the SHA-pin logic lives in one
+    place. Groups by pin so each (large) clone is indexed a single time.
+    """
+    pins = {str(s["id"]): s for s in cross_repo_validate.load_manifest()}
+    by_pin: dict[str, list[dict[str, Any]]] = {}
+    for question in questions:
+        if question.get("source") != "sample":
+            continue
+        by_pin.setdefault(_sample_pin(question), []).append(question)
+    rows: list[dict[str, Any]] = []
+    for index, (pin_id, group) in enumerate(sorted(by_pin.items())):
+        if pin_id not in pins:
+            raise KeyError(
+                f"sample question names unknown pin {pin_id!r} (see cross_repo_samples.json)"
+            )
+        if skip_clone:
+            root = cache_root / pin_id
+            if not root.is_dir():
+                raise FileNotFoundError(f"--skip-clone set but cache missing for {pin_id}: {root}")
+        else:
+            root = cross_repo_validate.checkout_pinned(pins[pin_id], cache_root)
+        config = build_index(root, cache_root / f"graph-{index}.db", php_cmd)
+        for question in group:
+            rows.append(evaluate_question(config, question))
+    return rows
+
+
 def _php_cmd_from_env() -> str:
     return os.environ.get("CA_PHP_CMD", "").strip() or _DEFAULT_PHP
 
@@ -336,6 +390,22 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--php-cmd", type=str, default=None)
     parser.add_argument(
+        "--samples",
+        action="store_true",
+        help="Run the sample tier (clone pinned repos) instead of fixtures; needs PHP+clone.",
+    )
+    parser.add_argument(
+        "--cache-dir",
+        type=Path,
+        default=_REPO / "artifacts" / "tokens-to-answer-samples",
+        help="Clone cache for --samples (default under artifacts/, gitignored).",
+    )
+    parser.add_argument(
+        "--skip-clone",
+        action="store_true",
+        help="With --samples, reuse existing cache checkouts only (no network).",
+    )
+    parser.add_argument(
         "--markdown",
         type=Path,
         default=None,
@@ -349,12 +419,20 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     questions = load_questions(args.questions)
-    sample_ids = [str(q["id"]) for q in questions if q.get("source") == "sample"]
-    workdir = args.workdir.expanduser().resolve()
-    workdir.mkdir(parents=True, exist_ok=True)
-    php_cmd = args.php_cmd or _php_cmd_from_env()
-
-    rows = run_fixture_questions(questions, workdir=workdir, php_cmd=php_cmd)
+    if args.samples:
+        php_cmd = args.php_cmd or cross_repo_validate.resolve_php_cmd()
+        cache_root = args.cache_dir.expanduser().resolve()
+        cache_root.mkdir(parents=True, exist_ok=True)
+        rows = run_sample_questions(
+            questions, cache_root=cache_root, php_cmd=php_cmd, skip_clone=args.skip_clone
+        )
+        sample_ids: list[str] = []  # the sample tier ran them; nothing skipped here
+    else:
+        php_cmd = args.php_cmd or _php_cmd_from_env()
+        workdir = args.workdir.expanduser().resolve()
+        workdir.mkdir(parents=True, exist_ok=True)
+        rows = run_fixture_questions(questions, workdir=workdir, php_cmd=php_cmd)
+        sample_ids = [str(q["id"]) for q in questions if q.get("source") == "sample"]
     agg = aggregate(rows)
     report = {
         "rows": rows,
@@ -363,8 +441,13 @@ def main(argv: list[str] | None = None) -> int:
         "token_estimator": "~4 chars/token proxy (see estimate_tokens)",
         "note": (
             "ratio = grep+Read tokens / code-atlas tokens over atlas-correct questions; "
-            ">1 means code-atlas is cheaper. Sample-tier questions (pinned public repos) "
-            "need a PHP+clone environment and are listed under sample_questions_skipped."
+            ">1 means code-atlas is cheaper. "
+            + (
+                "Sample tier: run against the pinned public repos in cross_repo_samples.json."
+                if args.samples
+                else "Sample-tier questions (pinned public repos) need a PHP+clone environment "
+                "and are listed under sample_questions_skipped."
+            )
         ),
     }
     out = args.report_out.expanduser().resolve()
@@ -383,7 +466,11 @@ def main(argv: list[str] | None = None) -> int:
     # Report before returning: a failed gate is exactly when the numbers need to be visible.
     if args.markdown is not None:
         markdown = verdict_markdown(
-            agg, min_ratio=args.min_ratio, failure=failure, samples_skipped=len(sample_ids)
+            agg,
+            min_ratio=args.min_ratio,
+            failure=failure,
+            samples_skipped=len(sample_ids),
+            mode="sample" if args.samples else "fixture",
         )
         target = args.markdown.expanduser().resolve()
         target.parent.mkdir(parents=True, exist_ok=True)

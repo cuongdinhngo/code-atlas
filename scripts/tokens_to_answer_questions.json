@@ -1,5 +1,5 @@
 {
-  "doc": "Ground truth for the tokens-to-answer benchmark (task 034). Each entry is one agent question with a KNOWN correct answer, plus the fixed recipe for both paths. To add a question: pick a fixture with a symbol whose answer you can state exactly; write `atlas_path` (the code-atlas tool calls a competent agent would make), `grep` (the baseline's search pattern), `expected` (substrings that MUST appear in the code-atlas responses for the answer to be right), and optional `grep_evidence` (substrings that must appear in what grep+Read surfaces; defaults to `expected`). `source: fixture` runs against a committed dir (needs the PHP adapter). `source: sample` runs against a pinned public repo from cross_repo_samples.json via cross_repo_validate — those need a clone+PHP environment and are not populated here.",
+  "doc": "Ground truth for the tokens-to-answer benchmark (task 034). Each entry is one agent question with a KNOWN correct answer, plus the fixed recipe for both paths. To add a question: pick a fixture with a symbol whose answer you can state exactly; write `atlas_path` (the code-atlas tool calls a competent agent would make), `grep` (the baseline's search pattern), `expected` (substrings that MUST appear in the code-atlas responses for the answer to be right), and optional `grep_evidence` (substrings that must appear in what grep+Read surfaces; defaults to `expected`). `source: fixture` runs against a committed dir (needs the PHP adapter). `source: sample` runs against a pinned public repo named by `sample` (the id in cross_repo_samples.json) — those need a clone+PHP environment and run via `tokens_to_answer.py --samples` on schedule, not per PR.",
   "questions": [
     {
       "id": "callers_of_repo_put",
@@ -130,6 +130,71 @@
       "grep": {"pattern": "->put\\("},
       "expected": ["\\App\\User::save", "$repo->put();"],
       "grep_evidence": ["->put(", "function save"]
+    },
+    {
+      "id": "sample_impls_bignumber",
+      "source": "sample",
+      "sample": "brick_math",
+      "question": "Which classes extend Brick\\Math\\BigNumber?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "find_implementations", "args": {"qname": "\\Brick\\Math\\BigNumber", "detail_level": "minimal"}}
+      ],
+      "grep": {"pattern": "extends BigNumber"},
+      "expected": ["\\Brick\\Math\\BigInteger", "\\Brick\\Math\\BigDecimal", "\\Brick\\Math\\BigRational"],
+      "grep_evidence": ["extends BigNumber"]
+    },
+    {
+      "id": "sample_refs_biginteger",
+      "source": "sample",
+      "sample": "brick_math",
+      "question": "What references Brick\\Math\\BigInteger?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "find_references", "args": {"qname": "\\Brick\\Math\\BigInteger", "detail_level": "minimal"}}
+      ],
+      "grep": {"pattern": "BigInteger"},
+      "expected": ["\\Brick\\Math\\BigInteger::gcd"],
+      "grep_evidence": ["class BigInteger"]
+    },
+    {
+      "id": "sample_callers_bignumber_iszero",
+      "source": "sample",
+      "sample": "brick_math",
+      "question": "Which methods call Brick\\Math\\BigNumber::isZero()?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "find_callers", "args": {"qname": "\\Brick\\Math\\BigNumber::isZero", "detail_level": "minimal"}}
+      ],
+      "grep": {"pattern": "->isZero\\("},
+      "expected": ["\\Brick\\Math\\BigDecimal::dividedBy"],
+      "grep_evidence": ["->isZero("]
+    },
+    {
+      "id": "sample_refs_tag_entity",
+      "source": "sample",
+      "sample": "symfony_demo",
+      "question": "What references App\\Entity\\Tag?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "find_references", "args": {"qname": "\\App\\Entity\\Tag", "detail_level": "minimal"}}
+      ],
+      "grep": {"pattern": "Tag"},
+      "expected": ["\\App\\Form\\DataTransformer\\TagArrayToStringTransformer::reverseTransform"],
+      "grep_evidence": ["class Tag"]
+    },
+    {
+      "id": "sample_callers_post_getid",
+      "source": "sample",
+      "sample": "symfony_demo",
+      "question": "Which methods call App\\Entity\\Post::getId()?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "find_callers", "args": {"qname": "\\App\\Entity\\Post::getId", "detail_level": "minimal"}}
+      ],
+      "grep": {"pattern": "->getId\\("},
+      "expected": ["\\App\\Controller\\Admin\\BlogController::edit"],
+      "grep_evidence": ["->getId("]
     }
   ]
 }
