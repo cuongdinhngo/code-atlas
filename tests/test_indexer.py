@@ -105,9 +105,9 @@ class RecordingStore(GraphStore):
         self.writers.add(threading.get_ident())
         super().upsert_file(*args, **kwargs)
 
-    def replace_file_rows(self, *args: object, **kwargs: object) -> None:
+    def replace_file_rows(self, *args: object, **kwargs: object) -> int:
         self.writers.add(threading.get_ident())
-        super().replace_file_rows(*args, **kwargs)
+        return super().replace_file_rows(*args, **kwargs)
 
     def remove_file(self, *args: object, **kwargs: object) -> None:
         self.writers.add(threading.get_ident())

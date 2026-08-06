@@ -262,5 +262,7 @@ Ledger completeness: 2 dispatches this run → 2 rows, both carrying a measured 
 
 **Revert path:** branch `fix/043-duplicate-decl-resilience`. Source commits `651b3f1` (fix) + `aadc569` (docs) — `git revert` both (no schema change, no `contract_version` bump, no migration; old indexes keep working). Bookkeeping is a separate commit. If a PR merges and must be undone: revert the merge commit on `main`.
 
-**Session status:** review clean at `aadc569`; token spend recorded in both places; 043 → `in-progress` (both places). Next: per-action approval for push + PR; on merge, flip 043 → `done` and fill the token-table PR link.
+**Session status:** review clean at `aadc569`; token spend recorded in both places; 043 → `in-progress` (both places). PR #49 opened.
+
+**Post-PR CI fix (Linux-only regression):** `test_every_write_happens_on_the_single_writer_thread` failed in CI — the `RecordingStore` test double's `replace_file_rows` override swallowed `super()`'s return, so `_write`'s `len(result.nodes) - deduped` hit `deduped=None` → `TypeError`. Masked locally because that test fails-at-launch on this Windows host (fake-adapter subprocess), so the baseline failure-set diff scored it "not new." Fixed by propagating the return (`tests/test_indexer.py:108`); verified by driving `RecordingStore.replace_file_rows` directly (returns 0 / drop-count). Lesson recorded in `docs/LESSONS.md` (043). Next: on merge, flip 043 → `done`.
 

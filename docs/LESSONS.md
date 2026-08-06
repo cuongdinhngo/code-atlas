@@ -14,6 +14,16 @@ build:
   boundary owns the exception vocabulary.
 Both were caught only by the **existing** regression suite, not the new tests — the delta-green
 baseline diff (byte-comparing failure sets) is what exposed them; a bare pass/fail count would not have.
+- **Baseline-set diffing has a blind spot: a test that fails-at-launch locally hides a regression in
+  the code it would run post-launch.** A widened `replace_file_rows` return (`None`→`int`) broke the
+  `RecordingStore` test double (it dropped the `super()` return), but `test_every_write_...` fails on
+  the Windows dev host at fake-adapter subprocess launch, so it sat in **both** baseline and after
+  failure-sets → the name-diff scored it "not new." CI (Linux) launched the adapter and hit the real
+  `TypeError`. **Fix:** when a change alters a signature/return that a subprocess-only test path
+  consumes, exercise that consumer **without** the subprocess (drive the store subclass / `_write`
+  directly) rather than trusting the failure-set diff. Also: a store subclass override must propagate
+  the base return value, and `tests/` is not mypy-checked so an incompatible override annotation there
+  won't be caught by the `type` job.
 
 ### 043-C1 — Full-UNIQUE-key dedupe + store-owned WRITE_ERRORS
 - type: 5 project-ground-truth
