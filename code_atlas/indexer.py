@@ -32,7 +32,7 @@ from code_atlas.enrichment import (
     apply_indirection_rules,
     load_indirection_rules,
 )
-from code_atlas.ignore import BUILTIN_PATTERNS, IgnoreMatcher, load_ignore, compile_pattern
+from code_atlas.ignore import BUILTIN_PATTERNS, IgnoreMatcher, compile_pattern, load_ignore
 from code_atlas.resolver import resolve_edges
 from code_atlas.store import BUILT_AT_KEY, CONTRACT_VERSION_KEY, LAST_COMMIT_KEY, GraphStore
 
