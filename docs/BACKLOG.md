@@ -62,6 +62,16 @@ decides whether they earned their cost. **Editing tools are permanently out**
 (ceded to native `Edit`, §1/§19). Tool *consolidation* (`find_relations`) is held as an A/B behind
 034, not assumed.
 
+## Phase 1.5b — Large-monorepo validation hardening
+
+Surfaced by a full-build validation against a **large private PHP monorepo** (~40k PHP files, PHP 8.5,
+Docker adapter). The wiring worked (39.9k/40.1k parsed); the run exposed one build-aborting robustness
+gap that fixtures never hit.
+
+| # | Task | Theme | Status | Depends on |
+|---|---|---|---|---|
+| 043 | [Duplicate-declaration resilience — repeated `qualified_name` must not abort the build](tasks/043_duplicate-decl-resilience.md) | Robustness | in-progress | 004, 009 |
+
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
 
 **Deferred, not cancelled** (human-ratified 2026-08-04). Breadth waits until the PHP agent-loop
@@ -128,6 +138,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 040 | Framework indirection as data (rules file outside `adapters/`) | **4 dispatch** — refine exposure-checker + analysis extractor + review `mango:reviewer` + `mango:challenger`; all token cells **`unmeasured (blocking retrieval)`**. Review round 2 verify-only in the main loop. Phases 1–3 and 5 dispatched **nothing** on the main model. **Main-loop spend is unmeasured**, as for 004–039 | [#46](https://github.com/cuongdinhngo/code-atlas/pull/46) |
 | 041 | Legacy/framework hardening — encoding, Blade ignore, extra extensions | **4 dispatch** — refine exposure-checker + analysis extractor + review `mango:reviewer` + `mango:challenger`; all token cells **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 dispatched **nothing**. **Main-loop spend is unmeasured**, as for 004–040 | [#47](https://github.com/cuongdinhngo/code-atlas/pull/47) |
 | 042 | Tokens-to-answer sample tier — pinned public repos (ratio ≫ 1) | **2 dispatch, both measured — 134.4k total** — review `mango:reviewer` **85.6k** (22 tool uses / 266 s) + ticket-blind `mango:challenger` **48.8k** (25 / 234 s), read from their returned `<usage>` blocks (both landed as task-notifications). Phases 1–3 dispatched **nothing** — analysis/design/execute (incl. the PHP-env spike, index exploration, and the harness-verified sample run) all ran on the main model. Review round 2 was verify-only in the main loop (no re-dispatch). **Main-loop spend is unmeasured**, as for 004–041 | [#48](https://github.com/cuongdinhngo/code-atlas/pull/48) |
+| 043 | Duplicate-declaration resilience — repeated `qualified_name` must not abort the build | **2 dispatch, both measured — 150.7k total** — review round 1 `mango:reviewer` **86.4k** (28 tool uses / 326 s) + ticket-blind `mango:challenger` **64.3k** (28 / 285 s), read from their returned `<usage>` blocks (both dispatched `run_in_background:false`). Phases 1–3 dispatched **nothing** — analysis (incl. the two `IntegrityError`/NULL spikes against the real store), design, and execute all ran on the main model; no verify-only re-review round (Gate 4 was clean on round 1 with a human-approved AC1 coverage-gap exclusion). **Main-loop spend is unmeasured**, as for 004–042 | [#49](https://github.com/cuongdinhngo/code-atlas/pull/49) |
 
 ## Follow-ups (not yet ticketed)
 
@@ -153,6 +164,33 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
   `peak_rss_*`) against the ~112k checkout — deferred from [PR #25](https://github.com/cuongdinhngo/code-atlas/pull/25)
   (D1). Folded into [018](tasks/018_cross-repo-validation.md) as optional A4 (`CODE_ATLAS_SCALE_SAMPLE`
   set → `scale_full_build`; unset → skip). Still needs an operator machine with the private checkout.
+- **Parser-OOM size cap (optional):** multi-MB generated files (e.g. TCPDF/PHPExcel CID font tables
+  ~1.5 MB, MPDF ~1.2 MB) exhaust the PHP parser's memory and kill the adapter process. This is
+  **already handled** — `indexer._work` (`code_atlas/indexer.py:565-573`) soft-fails the file and
+  restarts the adapter, so the build is unaffected — but a pre-skip by byte cap (`CA_MAX_FILE_BYTES`)
+  would avoid ~30 crash-and-restart cycles on the large-monorepo validation. Optional `feat`; log what
+  is skipped (no silent truncation). Origin: same large-monorepo full-build validation as 043.
+- **043 AC1 end-to-end `full_build` dup test (CI-gated):** add a fake-adapter path prefix that emits
+  two same-qname nodes for one file plus an `interface`/`class` same-name pair, and a `full_build`
+  test asserting the build completes with the file `parsed_ok=1` and each qname resolving to one node.
+  Deferred from [043](tasks/043_duplicate-decl-resilience.md) Gate 4 (human-approved coverage-gap
+  exclusion): it cannot run on the Windows dev host, which cannot launch any adapter subprocess
+  (`shlex(posix=False)`/`CreateProcess` — the same harness bug behind the 56 baseline failures). Needs
+  either that harness bug fixed or the adapter-subprocess tests explicitly CI-gated. The fix's actual
+  surface is already fully proven at the `_write`+real-store layer.
+- **Adapter-subprocess test harness on Windows (separate bug):** `fake_command()`/`php_config()` build
+  `CA_*_CMD` with `shlex.join` (POSIX quoting), but `load_config` splits with `shlex.split(posix=False)`
+  on Windows, so quoted `sys.executable`/script paths reach `CreateProcess` verbatim → `WinError 2`.
+  This fails all ~56 adapter-launching tests on the Windows dev host (green in CI/Linux). Surfaced by
+  the [043](tasks/043_duplicate-decl-resilience.md) baseline capture; a `fix` ticket in its own right.
+- **PHP-adapter duplicate-declaration fixture (optional):** a spec-shaped PHP fixture with a
+  `function_exists`-guarded double definition + `interface X`/`class X`, asserting the adapter emits
+  two same-qname nodes (the shape 043's store dedupe collapses). Optional; the adapter already emits
+  per-declaration (that is how the duplicates were found on the monorepo).
+- **Indexing-hygiene doc note (not a code bug):** the walk descends into nested worktree checkouts
+  (`.claude/worktrees/…`) when `.gitignore` doesn't exclude them, ~doubling the index; and committed
+  vendored libs under non-`vendor/` paths index by design. Both are `.codeatlasignore` guidance, not a
+  code change — capture in a usage/runbook note.
 - **018 construct gaps:** any cross-repo misses → fill the gap log in
   [`runbooks/cross-repo-validation.md`](runbooks/cross-repo-validation.md) and feed task 007 / 025.
   (Gap log is still empty — no scheduled run has recorded a miss.)

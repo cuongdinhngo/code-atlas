@@ -14,6 +14,7 @@ import ast
 import hashlib
 import shlex
 import shutil
+import sqlite3
 import subprocess
 import sys
 import threading
@@ -24,9 +25,9 @@ from pathlib import Path
 import pytest
 
 from code_atlas import contract
-from code_atlas.adapter import AdapterError
+from code_atlas.adapter import AdapterError, ParseResult
 from code_atlas.config import Config, load_config
-from code_atlas.indexer import BuildReport, collect, full_build
+from code_atlas.indexer import BuildReport, _write, collect, full_build
 from code_atlas.store import BUILT_AT_KEY, CONTRACT_VERSION_KEY, LAST_COMMIT_KEY, GraphStore
 
 REPO = Path(__file__).resolve().parent.parent
@@ -104,9 +105,9 @@ class RecordingStore(GraphStore):
         self.writers.add(threading.get_ident())
         super().upsert_file(*args, **kwargs)
 
-    def replace_file_rows(self, *args: object, **kwargs: object) -> None:
+    def replace_file_rows(self, *args: object, **kwargs: object) -> int:
         self.writers.add(threading.get_ident())
-        super().replace_file_rows(*args, **kwargs)
+        return super().replace_file_rows(*args, **kwargs)
 
     def remove_file(self, *args: object, **kwargs: object) -> None:
         self.writers.add(threading.get_ident())
@@ -497,3 +498,72 @@ def test_a_build_with_no_configured_adapter_indexes_nothing(
 
     assert report == BuildReport(files=0, parsed=0, failed=0, removed=0, nodes=0, edges=0, stubs=0)
     assert store.get_meta(BUILT_AT_KEY), "an empty build still stamps the index"
+
+
+# --- task 043: the per-file write soft-fails a bad file; it never aborts the build (R5.1) ---------
+
+
+def _node(kind: str, name: str, qname: str, path: str, line: int) -> dict[str, object]:
+    return {
+        "kind": kind,
+        "name": name,
+        "qualified_name": qname,
+        "file_path": path,
+        "line_start": line,
+    }
+
+
+def test_write_survives_duplicate_declarations(store: GraphStore) -> None:
+    """A file emitting two same-qname nodes soft-succeeds; each dup name resolves to one node (AC1).
+
+    Pre-fix this raised sqlite3.IntegrityError out of `_write`, which aborted the whole build.
+    """
+    result = ParseResult(
+        path="dup.php",
+        ok=True,
+        nodes=(
+            _node("Function", "f", "\\f", "dup.php", 1),
+            _node("Function", "f", "\\f", "dup.php", 9),
+            _node("Interface", "X", "\\X", "dup.php", 20),
+            _node("Class", "X", "\\X", "dup.php", 30),
+        ),
+        edges=(),
+    )
+    tally = {"parsed": 0, "failed": 0, "nodes": 0, "edges": 0}
+
+    _write(store, "dup.php", "digest", "php", result, tally)
+
+    assert tally == {"parsed": 1, "failed": 0, "nodes": 2, "edges": 0}
+    assert store.counts()["parsed"] == 1
+    # INVENTORY N=2: each duplicated name resolves to exactly one node.
+    assert len(store.nodes_by_qualified_name("\\f", limit=10)) == 1
+    assert len(store.nodes_by_qualified_name("\\X", limit=10)) == 1
+
+
+def test_write_soft_fails_a_per_file_store_error(
+    store: GraphStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A per-file store error marks that file parsed_ok=0 and the build carries on (AC4)."""
+
+    def boom(*_args: object, **_kwargs: object) -> int:
+        raise sqlite3.IntegrityError("simulated per-file store error")
+
+    monkeypatch.setattr(store, "replace_file_rows", boom)
+    tally = {"parsed": 0, "failed": 0, "nodes": 0, "edges": 0}
+    bad = ParseResult(
+        path="bad.php", ok=True, nodes=(_node("Class", "B", "\\B", "bad.php", 1),), edges=()
+    )
+
+    _write(store, "bad.php", "digest", "php", bad, tally)  # must not raise
+
+    assert tally["failed"] == 1
+    assert store.counts()["parsed"] == 0
+
+    # The build carries on: the next file writes normally.
+    monkeypatch.undo()
+    good = ParseResult(
+        path="ok.php", ok=True, nodes=(_node("Class", "G", "\\G", "ok.php", 1),), edges=()
+    )
+    _write(store, "ok.php", "digest", "php", good, tally)
+    assert tally["parsed"] == 1
+    assert store.counts()["parsed"] == 1

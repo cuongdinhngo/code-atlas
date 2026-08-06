@@ -34,7 +34,13 @@ from code_atlas.enrichment import (
 )
 from code_atlas.ignore import BUILTIN_PATTERNS, IgnoreMatcher, compile_pattern, load_ignore
 from code_atlas.resolver import resolve_edges
-from code_atlas.store import BUILT_AT_KEY, CONTRACT_VERSION_KEY, LAST_COMMIT_KEY, GraphStore
+from code_atlas.store import (
+    BUILT_AT_KEY,
+    CONTRACT_VERSION_KEY,
+    LAST_COMMIT_KEY,
+    WRITE_ERRORS,
+    GraphStore,
+)
 
 # How often the watchdog looks for an overrun call: small beside any sane timeout, cheap to poll.
 WATCHDOG_INTERVAL = 0.25
@@ -597,10 +603,16 @@ def _write(
 ) -> None:
     """Persist one file's outcome. Edges go in exactly as the adapter emitted them — bare (R3.3)."""
     store.upsert_file(path, digest, language, parsed_ok=result.ok)
-    store.replace_file_rows(path, result.nodes, result.edges)
+    try:
+        deduped = store.replace_file_rows(path, result.nodes, result.edges)
+    except WRITE_ERRORS:
+        # A per-file store error is a bad *file*, not a bad build: soft-fail and continue (R5.1).
+        store.upsert_file(path, digest, language, parsed_ok=False)
+        tally["failed"] += 1
+        return
     if result.ok:
         tally["parsed"] += 1
-        tally["nodes"] += len(result.nodes)
+        tally["nodes"] += len(result.nodes) - deduped
         tally["edges"] += len(result.edges)
     else:
         tally["failed"] += 1

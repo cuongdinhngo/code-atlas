@@ -1,5 +1,37 @@
 # Lessons — code-atlas
 
+## 043 — A per-file dedupe keys on the full UNIQUE key, and a core guard never names `sqlite3`
+Two constraints surfaced while making a duplicate-declaration file soft-fail instead of aborting the
+build:
+- **Dedupe by `(qualified_name, file_path)`, not `qualified_name` alone.** `replace_file_rows` is
+  legitimately called with same-qname nodes for **different** files in one call (multi-candidate
+  resolver siblings — `tests/test_resolver.py`). A qname-only key silently collapsed them; the design's
+  own C1 already said the key is the full UNIQUE key. Match the constraint you are de-duping against.
+- **A writer guard must catch a store-owned type, never `sqlite3` directly.** Adding `except
+  sqlite3.Error` to `indexer.py` tripped `test_sql_confinement.py` (R1.4/R4.3 — only `store.py` may
+  reference SQLite). Export a `WRITE_ERRORS = (sqlite3.Error,)` tuple from the store and catch that, so
+  SQLite stays confined. Generalises: when the core must react to a boundary module's failure, the
+  boundary owns the exception vocabulary.
+Both were caught only by the **existing** regression suite, not the new tests — the delta-green
+baseline diff (byte-comparing failure sets) is what exposed them; a bare pass/fail count would not have.
+- **Baseline-set diffing has a blind spot: a test that fails-at-launch locally hides a regression in
+  the code it would run post-launch.** A widened `replace_file_rows` return (`None`→`int`) broke the
+  `RecordingStore` test double (it dropped the `super()` return), but `test_every_write_...` fails on
+  the Windows dev host at fake-adapter subprocess launch, so it sat in **both** baseline and after
+  failure-sets → the name-diff scored it "not new." CI (Linux) launched the adapter and hit the real
+  `TypeError`. **Fix:** when a change alters a signature/return that a subprocess-only test path
+  consumes, exercise that consumer **without** the subprocess (drive the store subclass / `_write`
+  directly) rather than trusting the failure-set diff. Also: a store subclass override must propagate
+  the base return value, and `tests/` is not mypy-checked so an incompatible override annotation there
+  won't be caught by the `type` job.
+
+### 043-C1 — Full-UNIQUE-key dedupe + store-owned WRITE_ERRORS
+- type: 5 project-ground-truth
+- status: confirmed
+- evidence: `test_resolver.py` multi-file siblings; `test_sql_confinement.py`; Gate-4 clean
+- area: store / indexer / R1.4 / R5.1
+- destination: stays in lessons_path
+
 ## 042 — A ticket's "References" can be stale; verify claimed wiring before scoping
 Task 042's References said the `source: sample` path was "already wired via `cross_repo_validate`". It
 was **not** — `tokens_to_answer.py` skipped every non-fixture row and only listed sample IDs as

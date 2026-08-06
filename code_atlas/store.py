@@ -45,6 +45,10 @@ _RESOLVED = CONFIDENCE_TIERS[0]
 
 MEMORY_DB = ":memory:"
 
+# The errors a per-file store write may raise. Callers (the indexer) catch this rather than name
+# sqlite3, so SQLite stays confined to this module (R1.4 / tests/test_sql_confinement.py).
+WRITE_ERRORS: tuple[type[Exception], ...] = (sqlite3.Error,)
+
 # Set outside any transaction: foreign_keys is silently ignored inside one.
 PRAGMAS: tuple[str, ...] = ("journal_mode=WAL", "foreign_keys=ON", "busy_timeout=5000")
 
@@ -244,14 +248,21 @@ class GraphStore:
         path: str,
         nodes: Iterable[Mapping[str, object]],
         edges: Iterable[Mapping[str, object]],
-    ) -> None:
-        """Delete this path's rows then insert the given ones, so re-indexing is idempotent."""
-        node_groups = _grouped(contract.NODE_FIELDS, nodes)
+    ) -> int:
+        """Delete this path's rows then insert the given ones, so re-indexing is idempotent.
+
+        A file may legally declare one qname twice (conditional/guarded definitions); keep-first
+        dedupe drops the repeats so the file soft-succeeds instead of tripping UNIQUE (R5.1).
+        Returns the number of duplicate nodes dropped.
+        """
+        kept_nodes, deduped = _dedupe_nodes(nodes)
+        node_groups = _grouped(contract.NODE_FIELDS, kept_nodes)
         edge_groups = _grouped(contract.EDGE_FIELDS, edges)
         with self._conn:
             self._delete_rows(path)
             self._insert(NODES, node_groups)
             self._insert(EDGES, edge_groups)
+        return deduped
 
     def _insert(self, table: str, groups: dict[tuple[str, ...], list[tuple[object, ...]]]) -> None:
         """One statement per distinct field set, so a column §10 gives a DEFAULT keeps it."""
@@ -1410,6 +1421,30 @@ class GraphStore:
     def _rows(self, keys: tuple[str, ...], sql: str, params: Sequence[object]) -> list[Row]:
         cursor = self._conn.execute(sql, params)
         return [dict(zip(keys, row, strict=True)) for row in cursor]
+
+
+def _dedupe_nodes(
+    nodes: Iterable[Mapping[str, object]],
+) -> tuple[list[Mapping[str, object]], int]:
+    """Keep the first node per UNIQUE key ``(qualified_name, file_path)``; return survivors + drops.
+
+    A caller may pass same-qname nodes for different files in one call (multi-candidate siblings),
+    so the key must be the full UNIQUE key, not ``qualified_name`` alone. NULL/anonymous qnames are
+    never collapsed — SQLite treats NULLs as distinct. Emit order is preserved (R4.2).
+    """
+    seen: set[tuple[object, object]] = set()
+    kept: list[Mapping[str, object]] = []
+    dropped = 0
+    for node in nodes:
+        qname = node.get("qualified_name")
+        if qname is not None:
+            key = (qname, node.get("file_path"))
+            if key in seen:
+                dropped += 1
+                continue
+            seen.add(key)
+        kept.append(node)
+    return kept, dropped
 
 
 def _grouped(

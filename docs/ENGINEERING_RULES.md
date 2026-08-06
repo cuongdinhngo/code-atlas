@@ -71,7 +71,10 @@ adapter contract. Everywhere else, prefer the simplest thing that works.
 ## 5. Error handling & degradation
 
 - **R5.1** — A syntax error in one file returns `ok:false` for that file and never breaks the stream or
-  the build. Set `parsed_ok=0`; keep going.
+  the build. Set `parsed_ok=0`; keep going. This holds for a bad *store write* too, not just a bad
+  parse: a per-file `IntegrityError` (e.g. a legal duplicate declaration — a `function_exists` guard,
+  an `interface X`/`class X` pair) is de-duped keep-first by the store and, failing that, soft-fails
+  the one file — it never aborts the build (task 043).
 - **R5.2** — Unresolvable-but-static references are `HEURISTIC`; dynamic constructs (`$obj->$m()`, variable
   includes) are `DYNAMIC` and excluded from traversal by default. Never silently link a guess as
   `RESOLVED`.
