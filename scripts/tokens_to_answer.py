@@ -231,6 +231,7 @@ def verdict_markdown(
     min_ratio: float | None,
     failure: str | None,
     samples_skipped: int,
+    mode: str = "fixture",
 ) -> str:
     """Markdown block for a CI step summary or a sticky PR comment (task 034 gate)."""
     if min_ratio is None:
@@ -251,12 +252,20 @@ def verdict_markdown(
     ]
     if failure:
         lines += ["```", failure, "```", ""]
-    lines.append(
-        "`ratio > 1` means code-atlas is cheaper. The committed fixtures are toy repos where grep "
-        "wins on volume, so this floor is a behaviour-lock rather than the value claim — see "
-        "[the runbook](docs/runbooks/tokens-to-answer.md). "
-        f"Sample-tier questions skipped: {samples_skipped}."
-    )
+    if mode == "sample":
+        # Sample tier = pinned public repos, so this ratio IS the value claim (task 042).
+        lines.append(
+            "`ratio > 1` means code-atlas is cheaper. This is the **sample tier** — pinned public "
+            "repos, not toy fixtures — so this ratio is the value-claim evidence, not a "
+            "behaviour-lock. See [the runbook](docs/runbooks/tokens-to-answer.md)."
+        )
+    else:
+        lines.append(
+            "`ratio > 1` means code-atlas is cheaper. The committed fixtures are toy repos "
+            "where grep wins on volume, so this floor is a behaviour-lock rather than the "
+            "value claim — see [the runbook](docs/runbooks/tokens-to-answer.md). "
+            f"Sample-tier questions skipped: {samples_skipped}."
+        )
     return "\n".join(lines) + "\n"
 
 
@@ -357,7 +366,7 @@ def run_sample_questions(
             if not root.is_dir():
                 raise FileNotFoundError(f"--skip-clone set but cache missing for {pin_id}: {root}")
         else:
-            root = cross_repo_validate._ensure_checkout(pins[pin_id], cache_root)
+            root = cross_repo_validate.checkout_pinned(pins[pin_id], cache_root)
         config = build_index(root, cache_root / f"graph-{index}.db", php_cmd)
         for question in group:
             rows.append(evaluate_question(config, question))
@@ -411,7 +420,7 @@ def main(argv: list[str] | None = None) -> int:
 
     questions = load_questions(args.questions)
     if args.samples:
-        php_cmd = args.php_cmd or cross_repo_validate._php_cmd()
+        php_cmd = args.php_cmd or cross_repo_validate.resolve_php_cmd()
         cache_root = args.cache_dir.expanduser().resolve()
         cache_root.mkdir(parents=True, exist_ok=True)
         rows = run_sample_questions(
@@ -432,8 +441,13 @@ def main(argv: list[str] | None = None) -> int:
         "token_estimator": "~4 chars/token proxy (see estimate_tokens)",
         "note": (
             "ratio = grep+Read tokens / code-atlas tokens over atlas-correct questions; "
-            ">1 means code-atlas is cheaper. Sample-tier questions (pinned public repos) "
-            "need a PHP+clone environment and are listed under sample_questions_skipped."
+            ">1 means code-atlas is cheaper. "
+            + (
+                "Sample tier: run against the pinned public repos in cross_repo_samples.json."
+                if args.samples
+                else "Sample-tier questions (pinned public repos) need a PHP+clone environment "
+                "and are listed under sample_questions_skipped."
+            )
         ),
     }
     out = args.report_out.expanduser().resolve()
@@ -452,7 +466,11 @@ def main(argv: list[str] | None = None) -> int:
     # Report before returning: a failed gate is exactly when the numbers need to be visible.
     if args.markdown is not None:
         markdown = verdict_markdown(
-            agg, min_ratio=args.min_ratio, failure=failure, samples_skipped=len(sample_ids)
+            agg,
+            min_ratio=args.min_ratio,
+            failure=failure,
+            samples_skipped=len(sample_ids),
+            mode="sample" if args.samples else "fixture",
         )
         target = args.markdown.expanduser().resolve()
         target.parent.mkdir(parents=True, exist_ok=True)

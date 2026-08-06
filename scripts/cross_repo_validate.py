@@ -101,7 +101,7 @@ def load_manifest(path: Path = _MANIFEST) -> list[dict[str, Any]]:
     return samples
 
 
-def _php_cmd() -> str:
+def resolve_php_cmd() -> str:
     """Return ``CA_PHP_CMD`` with repo-relative adapter paths made absolute.
 
     ``LanguageAdapter`` runs with ``cwd=sample_root``, so a relative
@@ -123,7 +123,7 @@ def _php_cmd() -> str:
     return shlex.join(fixed)
 
 
-def _ensure_checkout(sample: dict[str, Any], cache_root: Path) -> Path:
+def checkout_pinned(sample: dict[str, Any], cache_root: Path) -> Path:
     """Fetch a pinned SHA into ``cache_root/<id>`` (shallow when possible)."""
     dest = cache_root / str(sample["id"])
     url = str(sample["url"])
@@ -163,7 +163,7 @@ def index_root(root: Path, *, db_path: Path | None = None) -> BuildReport:
     db = db_path or (root / ".code-atlas" / "graph.db")
     env = {k: v for k, v in os.environ.items() if k.startswith("CA_")}
     # Always rewrite: sample cwd would break a relative adapters/php path.
-    env["CA_PHP_CMD"] = _php_cmd()
+    env["CA_PHP_CMD"] = resolve_php_cmd()
     config = replace(load_config(root, env), db_path=db, root=root)
     with GraphStore(config.db_path) as store:
         return full_build(config, store)
@@ -229,7 +229,7 @@ def run_public_samples(
                         f"--skip-clone set but cache missing for {sid}: {root}"
                     )
             else:
-                root = _ensure_checkout(sample, cache_root)
+                root = checkout_pinned(sample, cache_root)
             report = index_root(root)
             elapsed = time.perf_counter() - started
             assert_plausible_counts(

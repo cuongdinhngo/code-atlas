@@ -196,7 +196,7 @@ def test_run_sample_questions_selects_and_routes_by_pin(
     )
     monkeypatch.setattr(
         _h.cross_repo_validate,
-        "_ensure_checkout",
+        "checkout_pinned",
         lambda sample, cache_root: cache_root / str(sample["id"]),
     )
 
