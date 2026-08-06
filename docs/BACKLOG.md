@@ -53,7 +53,7 @@ up). Source: [`FEEDBACK.md`](FEEDBACK.md).
 | 038 | `explain_path(from, to)` control-flow path tool | Task-level | done | 017, 031 |
 | 039 | Vendor stub index (declarations-only) | Framework | done | 009, 011 |
 | 040 | Framework indirection as data (rules file outside `adapters/`) | Framework | done | 039, 030 |
-| 041 | Legacy/framework hardening — encoding, `.blade.php` ignore, extra extensions | Robustness | todo | 009 |
+| 041 | Legacy/framework hardening — encoding, `.blade.php` ignore, extra extensions | Robustness | done | 009 |
 | 042 | Tokens-to-answer sample tier — populate pinned public repos (ratio ≫ 1) | Measure | todo | 034, 018 |
 
 **Order:** 032 → 033 → 034 → (035, 036) → 037 → 038 → 039 → 040; 041 any time; **042 after 034**
@@ -126,6 +126,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 038 | `explain_path(from, to)` control-flow path tool | **4 dispatch** — refine exposure-checker + analysis extractor + review `mango:reviewer` + `mango:challenger`; all token cells **`unmeasured (blocking retrieval)`**. Phases 2–3 and 5 dispatched **nothing** on the main model. **Main-loop spend is unmeasured**, as for 004–036 | [#44](https://github.com/cuongdinhngo/code-atlas/pull/44) |
 | 039 | Vendor stub index (declarations-only) | **5 dispatch** — refine exposure-checker + analysis extractor + review `mango:reviewer` (×2, incl. verify-only resume) + `mango:challenger`; all token cells **`unmeasured (blocking retrieval)`**. Phases 2–3 and 5 dispatched **nothing** on the main model. **Main-loop spend is unmeasured**, as for 004–038 | [#45](https://github.com/cuongdinhngo/code-atlas/pull/45) |
 | 040 | Framework indirection as data (rules file outside `adapters/`) | **4 dispatch** — refine exposure-checker + analysis extractor + review `mango:reviewer` + `mango:challenger`; all token cells **`unmeasured (blocking retrieval)`**. Review round 2 verify-only in the main loop. Phases 1–3 and 5 dispatched **nothing** on the main model. **Main-loop spend is unmeasured**, as for 004–039 | [#46](https://github.com/cuongdinhngo/code-atlas/pull/46) |
+| 041 | Legacy/framework hardening — encoding, Blade ignore, extra extensions | **4 dispatch** — refine exposure-checker + analysis extractor + review `mango:reviewer` + `mango:challenger`; all token cells **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 dispatched **nothing**. **Main-loop spend is unmeasured**, as for 004–040 | [#47](https://github.com/cuongdinhngo/code-atlas/pull/47) |
 
 ## Follow-ups (not yet ticketed)
 

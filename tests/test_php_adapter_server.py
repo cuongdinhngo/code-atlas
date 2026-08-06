@@ -59,7 +59,7 @@ def test_the_core_drives_the_real_php_adapter_end_to_end() -> None:
     """The proving test: pre-change `--server` is rejected with exit 2, so start() raises."""
     with server() as adapter:
         assert adapter.name == "php"
-        assert adapter.extensions == (".php",)
+        assert adapter.extensions == (".php", ".phtml")
 
         result = adapter.parse(GOOD)
         assert result.ok is True

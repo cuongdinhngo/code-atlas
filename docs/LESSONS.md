@@ -1,5 +1,18 @@
 # Lessons — code-atlas
 
+## 041 — Prefer language-free ignore globs over splitting a guarded token
+Builtin Blade exclusion is `*.blade.*` (compound template suffix, any trailing extension) — not a
+concatenated `*.blade.php` that defeats the R1.1 language-name guard. File-level builtins also apply
+inside `collect_stubs` so `CA_STUB_ROOTS=vendor` cannot re-route ignored templates.
+
+### 041-C1 — R1.1-honest Blade ignore + stub-walk coverage
+- type: 5 project-ground-truth
+- status: confirmed
+- evidence: PR #47 review — split-token dodge rejected; `*.blade.*` + `_STUB_FILE_IGNORE`
+- area: ignore / indexer / R1.1
+- sub-shape: normative
+- destination: stays in lessons_path
+
 ## 040 — Shipping enrichment requires PLAN §1 / R1.4 honesty in the same card
 When an “optional enrichment layer” moves from non-goal into `code_atlas/`, update PLAN §1,
 CONVENTION layout, and R1.4’s SRP inventory in the same PR — otherwise review blocks on R7.2

@@ -21,6 +21,8 @@ BUILTIN_PATTERNS: tuple[str, ...] = (
     "log/",
     "node_modules/",
     ".git/",
+    # Compound *.blade.<ext> templates (any trailing suffix) — not adapter source (task 041).
+    "*.blade.*",
 )
 
 GITIGNORE_FILE = ".gitignore"
@@ -70,10 +72,12 @@ def load_ignore(root: Path) -> IgnoreMatcher:
         path = root / name
         if path.is_file():
             lines += path.read_text(encoding="utf-8").splitlines()
-    return IgnoreMatcher(tuple(rule for line in lines if (rule := _compile(line)) is not None))
+    return IgnoreMatcher(
+        tuple(rule for line in lines if (rule := compile_pattern(line)) is not None)
+    )
 
 
-def _compile(line: str) -> _Rule | None:
+def compile_pattern(line: str) -> _Rule | None:
     """Translate one gitignore-style line into a rule, or None for a blank line or comment."""
     pattern = line.strip()
     if not pattern or pattern.startswith("#"):

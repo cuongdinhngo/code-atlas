@@ -20,9 +20,17 @@ def write(root: Path, name: str, *lines: str) -> None:
     (root / name).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def test_the_builtin_list_is_the_six_patterns_the_plan_names() -> None:
+def test_the_builtin_list_matches_the_plan_inventory() -> None:
     # Guards the guard: an empty or trimmed list would make the cases below pass vacuously.
-    assert BUILTIN_PATTERNS == ("vendor/", "var/", "uploads/", "log/", "node_modules/", ".git/")
+    assert BUILTIN_PATTERNS == (
+        "vendor/",
+        "var/",
+        "uploads/",
+        "log/",
+        "node_modules/",
+        ".git/",
+        "*.blade.*",
+    )
 
 
 @pytest.mark.parametrize("pattern", BUILTIN_PATTERNS, ids=lambda pattern: pattern.rstrip("/"))
