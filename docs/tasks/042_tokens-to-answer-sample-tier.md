@@ -56,7 +56,10 @@ observed fixture ratio 0.302 — fixtures favour grep; the win is only visible o
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
 
 ## Session status
-- **Phase:** 5 (finalise) — review clean at `c67ef3f`. Gate 0/1/2/4 cleared.
+- **Phase:** DONE — PR [#48](https://github.com/cuongdinhngo/code-atlas/pull/48) opened at `c67ef3f`.
+  **Next action:** wait for CI on PR #48, then merge. **Revert:** close PR #48 and delete branch
+  `feat/042-tokens-to-answer-sample-tier` (no merge yet); all work is on that branch, `main` untouched.
+- **Durable lesson:** recorded in `docs/LESSONS.md` (042 — stale ticket References; local env provisioning).
 - **work_doc_mode:** embed (this file, below separator).
 - **Branch:** `feat/042-tokens-to-answer-sample-tier`.
 - **TIER:** full · **TRACK:** backend · **SCOPE:** L (re-scoped — accepted).
