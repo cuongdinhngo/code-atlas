@@ -36,11 +36,11 @@ is [`PLAN.md`](PLAN.md).
 | 030 | [Alias & literal-indirection edges](tasks/030_alias-indirection-edges.md) | M2 | done | 002, 011, 025 |
 | 031 | [Reachability / orphan detection](tasks/031_reachability-orphans.md) | M6 | done | 003, 011, 013 |
 
-## Phase 1.5 — Agent-first PHP depth (active — §19 pivot, 2026-08-04)
+## Phase 1.5 — Agent-first PHP depth (complete — §19 pivot, 2026-08-04)
 
-The current priority. Consumer = an AI agent in a terminal; baseline = grep+`Read`. Planned, **not
-yet ticketed** (no `tasks/NNN` files yet — each is scaffolded via the mango lifecycle when picked
-up). Source: [`FEEDBACK.md`](FEEDBACK.md).
+Consumer = an AI agent in a terminal; baseline = grep+`Read`. **All tasks 032–042 have landed** (each
+was scaffolded via the mango lifecycle when picked up; source: [`FEEDBACK.md`](FEEDBACK.md)). Open
+threads from this track that stayed un-ticketed are in [Follow-ups](#follow-ups-not-yet-ticketed).
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
@@ -131,24 +131,31 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 
 ## Follow-ups (not yet ticketed)
 
-- Resolver: link `IMPORTS` (`target_raw` is already an FQN) so `find_references` sees `use`
-  statements — filed from [PR #23](https://github.com/cuongdinhngo/code-atlas/pull/23) review.
-- **External-review batch (PHP-general, anchor-repo is only the stress test):** the Top-3 and one
-  second-tier item are now ticketed — [028](tasks/028_index-health-metrics.md) (health signal),
-  [029](tasks/029_php-receiver-resolution.md) (receiver resolution),
-  [030](tasks/030_alias-indirection-edges.md) (alias/indirection, contract bump),
-  [031](tasks/031_reachability-orphans.md) (reachability/orphans). Suggested order **028 → 029 → 030
-  → 031**: 028 measures whether 029/030 help; 031 needs 029's resolved graph or it reports false
-  orphans. Still un-ticketed from that review: duplicate-name disambiguation across PSR-0 roots, and
-  PSR-4/autoload-aware include resolution.
+- **Resolver: link `IMPORTS`** (`target_raw` is already an FQN) so `find_references` sees `use`
+  statements — filed from [PR #23](https://github.com/cuongdinhngo/code-atlas/pull/23) review. **Still
+  open:** `IMPORTS ∉ contract.FQN_EDGE_KINDS`, so the resolver never links it and `use` sites never
+  surface in `find_references` (see the docstring note in `code_atlas/tools/find_references.py`).
+- **PSR-4 / autoload-aware include resolution** — `include_graph` is effectively empty on real
+  Composer-autoloaded repos: their only `INCLUDES` edges are dynamic bootstrap `require`s with no
+  resolved target. Found concretely in [042](tasks/042_tokens-to-answer-sample-tier.md) — it is why
+  the tokens-to-answer sample tier cannot sample "who includes X" on laravel/symfony/brick. Teaching
+  the resolver the PSR-4 autoload map would make `include_graph` useful beyond `require`-based legacy
+  code. Also still un-ticketed from the external review: duplicate-name disambiguation across PSR-0
+  roots.
+- **External-review batch (PHP-general, anchor-repo is only the stress test) — landed.** The Top-3 and
+  one second-tier item all merged: [028](tasks/028_index-health-metrics.md) (health signal, PR #31),
+  [029](tasks/029_php-receiver-resolution.md) (receiver resolution, PR #32),
+  [030](tasks/030_alias-indirection-edges.md) (alias/indirection + contract bump, PR #33),
+  [031](tasks/031_reachability-orphans.md) (reachability/orphans, PR #34), in that order (028 measured
+  whether 029/030 helped; 031 needed 029's resolved graph). Remaining un-ticketed items are the two
+  above (IMPORTS linking, PSR-4/PSR-0 include & name resolution).
 - **015 AC2 operator run:** land a real `CODE_ATLAS_SCALE_SAMPLE` timing artifact (elapsed +
   `peak_rss_*`) against the ~112k checkout — deferred from [PR #25](https://github.com/cuongdinhngo/code-atlas/pull/25)
   (D1). Folded into [018](tasks/018_cross-repo-validation.md) as optional A4 (`CODE_ATLAS_SCALE_SAMPLE`
   set → `scale_full_build`; unset → skip). Still needs an operator machine with the private checkout.
 - **018 construct gaps:** any cross-repo misses → fill the gap log in
   [`runbooks/cross-repo-validation.md`](runbooks/cross-repo-validation.md) and feed task 007 / 025.
-- ~~**015 resolver N+1 reads**~~ — ticketed as [027](tasks/027_resolver-batched-lookups.md). Land it
-  **before** the D1/018 scale baseline above, or that baseline measures the read path 027 removes.
+  (Gap log is still empty — no scheduled run has recorded a miss.)
 ## Suggested order
 
 Critical path to first release: **001 → 002 → 004/005 → 006 → 007 → 009 → 010 → 011 → 013 → 014 (ship)**.
@@ -158,8 +165,9 @@ module under `code_atlas/tools/` — 011 and 014 no longer carry any server work
 adapter through `CA_<LANG>_CMD`, so 008 is now only the Docker path-mapping mode and blocks nothing
 on the path to 014. **025 (grammar coverage) is off the critical path** — it was split out of 007 so
 the protocol could unblock 008/009 first — and 012 (tests) waits on 025. 024 (CI) is independent and
-can land any time. Then 015–018 harden PHP. **The active track is now Phase 1.5 (032–041, agent-first
-PHP depth, §19); 019–021 language breadth and 022–023 onboarding are deferred behind it.**
+can land any time. Then 015–018 harden PHP. **Phase 1.5 (032–042, agent-first PHP depth, §19) is now
+complete — all merged.** Next is either 019–021 language breadth or 022–023 onboarding (both still
+`todo`/deferred behind Phase 1.5 per §19); no Phase 1.5 task remains open.
 **027 sits between 015 and 018**: it changes the resolver read path the 018 scale baseline would
 otherwise measure, so it lands first.
 

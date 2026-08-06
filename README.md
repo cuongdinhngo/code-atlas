@@ -4,7 +4,9 @@
 search, navigation, and impact analysis.** Language-agnostic core with per-language adapters — PHP
 first, then TypeScript/JavaScript, Python, C#/.NET.
 
-> Status: **early development.** See [`docs/PLAN.md`](docs/PLAN.md)
+> Status: **the PHP path is feature-complete and daily-usable** — index → search / read / outline →
+> callers / refs / impls → impact → incremental (`git diff`) → reachability / orphans, plus a
+> read-through freshness reparse. Other languages are still planned. See [`docs/PLAN.md`](docs/PLAN.md)
 > for the full design and milestones.
 
 ## Why
@@ -23,6 +25,10 @@ token-efficient tools over MCP.
   network in the core. Incremental updates via `git diff`. Requires **SQLite ≥ 3.25** (window
   functions for batched resolver lookups; Python's bundled `sqlite3` on supported platforms qualifies).
 - **Complements Serena** — code-atlas is the indexed search/impact layer; Serena stays for LSP nav/edit.
+
+The token saving is measured, not asserted: a deterministic tokens-to-answer benchmark shows
+code-atlas reaching the resolved answer **~98× cheaper** than grep-and-read on pinned public PHP repos
+(laravel / symfony / brick) — see [`docs/runbooks/tokens-to-answer.md`](docs/runbooks/tokens-to-answer.md).
 
 ## How it works
 
@@ -84,7 +90,8 @@ Drive everything through the MCP tools:
 2. **`build_or_update_index`** — builds the SQLite graph under `.code-atlas/graph.db`. Later,
    `full=false` does an incremental `git diff` update when it can, else a full rebuild.
 3. **Query** — `search_symbol`, `file_outline`, `read_symbol`, `find_callers`, `find_references`,
-   `find_implementations`, `include_graph`, `impact` (see [Tools](#tools)).
+   `find_implementations`, `include_graph`, `impact`, `reachable_from`, `find_orphans`, `explain_path`
+   (see [Tools](#tools)).
 
 Every tool takes `detail_level` — `minimal` for the payload alone, `standard` (default) adds provenance.
 
@@ -102,6 +109,10 @@ Every tool takes `detail_level` — `minimal` for the payload alone, `standard` 
 | `read_symbol` | source of just one class/method + docblock |
 | `find_callers` / `find_references` / `find_implementations` | resolved relationships + confidence tier |
 | `include_graph` | `include`/`require` neighbors (`imports` / `imported_by` / `both`) |
+| `impact` | bounded blast radius of a change (paths/qnames), depth-limited with decay |
+| `reachable_from` | forward reachability from configured entry points |
+| `find_orphans` | unreachable / zero-inbound symbols (dead-code candidates) |
+| `explain_path` | shortest control-flow path between two symbols |
 
 ## Prompts
 
@@ -109,12 +120,12 @@ Every tool takes `detail_level` — `minimal` for the payload alone, `standard` 
 |---|---|
 | `explore_area` | status → search/outline → read only what's needed |
 | `find_usages` | status → find_references / find_callers / find_implementations → read to confirm |
+| `impact_of_change` | status → impact on the changed paths/qnames → read only the blast-radius surface |
 
 ### Planned
 
 | Tool | Returns |
 |---|---|
-| `impact` | bounded blast radius of a change |
 | `namespace_tree` | namespaces + members |
 
 ## Configuration
@@ -165,7 +176,7 @@ re-include what an earlier source excluded.
 
 | Language | Parser | Status |
 |---|---|---|
-| PHP (8.5 grammar, 8.1+ runtime) | nikic/php-parser | In progress (first) — see [`adapters/php/`](adapters/php/) |
+| PHP (8.5 grammar, 8.1+ runtime) | nikic/php-parser | Available (first) — see [`adapters/php/`](adapters/php/) |
 | TypeScript / JavaScript | TypeScript Compiler API | Planned |
 | Python | `ast` + jedi | Planned |
 | C# / .NET | Roslyn | Planned |
