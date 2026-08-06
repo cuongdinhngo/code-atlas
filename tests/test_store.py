@@ -193,6 +193,61 @@ def test_re_indexing_drops_a_symbol_that_disappeared(store: GraphStore) -> None:
     assert store.edges_by_source("\\App\\UserRepo::save", limit=10) == []
 
 
+# --- task 043: a file may legally declare one qname twice — keep-first, never abort ---------------
+
+
+def test_replace_file_rows_keeps_first_of_a_duplicate_qname(store: GraphStore) -> None:
+    """Two same-qname nodes for one file persist exactly one — the first emitted (R5.1, AC2)."""
+    store.upsert_file("dup.php", "hash", "php")
+    dropped = store.replace_file_rows(
+        "dup.php",
+        [
+            a_node("Function", "f", "\\f", "dup.php", line_start=1),
+            a_node("Function", "f", "\\f", "dup.php", line_start=9),
+            a_node("Interface", "X", "\\X", "dup.php", line_start=20),
+            a_node("Class", "X", "\\X", "dup.php", line_start=30),
+        ],
+        [],
+    )
+    assert dropped == 2
+    survivors = store.nodes_by_file("dup.php", limit=10)
+    assert sorted(row["qualified_name"] for row in survivors) == ["\\X", "\\f"]
+    by_qname = {row["qualified_name"]: row for row in survivors}
+    # Keep-first: the first emit of each qname is the survivor (its line_start, its kind).
+    assert by_qname["\\f"]["line_start"] == 1
+    assert by_qname["\\X"]["kind"] == "Interface"
+
+
+def test_replace_file_rows_leaves_null_qnames_distinct(store: GraphStore) -> None:
+    """NULL/anonymous qnames never collide, so keep-first must not collapse them (AC2)."""
+    store.upsert_file("anon.php", "hash", "php")
+    dropped = store.replace_file_rows(
+        "anon.php",
+        [
+            a_node("Function", "{closure}", None, "anon.php", line_start=1),
+            a_node("Function", "{closure}", None, "anon.php", line_start=2),
+        ],
+        [],
+    )
+    assert dropped == 0
+    assert len(store.nodes_by_file("anon.php", limit=10)) == 2
+
+
+def test_deduping_a_duplicate_declaration_is_deterministic(
+    store: GraphStore, db_path: Path
+) -> None:
+    """Re-indexing the same duplicate-declaration file yields identical rows (R4.2, AC3)."""
+    nodes = [
+        a_node("Function", "f", "\\f", "dup.php", line_start=1),
+        a_node("Function", "f", "\\f", "dup.php", line_start=9),
+    ]
+    store.upsert_file("dup.php", "hash", "php")
+    store.replace_file_rows("dup.php", nodes, [])
+    before = content(db_path)
+    store.replace_file_rows("dup.php", nodes, [])
+    assert content(db_path) == before
+
+
 def test_ids_follow_insert_order_while_content_does_not(tmp_path: Path) -> None:
     """Why the determinism assertions exclude ids: the same graph built in either file order.
 
