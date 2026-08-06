@@ -70,7 +70,7 @@ gap that fixtures never hit.
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
-| 043 | [Duplicate-declaration resilience — repeated `qualified_name` must not abort the build](tasks/043_duplicate-decl-resilience.md) | Robustness | in-progress | 004, 009 |
+| 043 | [Duplicate-declaration resilience — repeated `qualified_name` must not abort the build](tasks/043_duplicate-decl-resilience.md) | Robustness | done | 004, 009 |
 
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
 

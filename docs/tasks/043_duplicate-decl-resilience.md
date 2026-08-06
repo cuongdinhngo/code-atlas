@@ -4,7 +4,7 @@ slug: duplicate-decl-resilience
 title: Duplicate-declaration resilience — a repeated qualified_name must not abort the build
 phase: 1.5
 milestone: Robustness
-status: in-progress
+status: done
 depends_on: [004, 009]
 ---
 
