@@ -63,6 +63,10 @@ skip PHP. If PHP or Composer is missing it tells you and continues; rerun once t
 Then **reload your MCP client** (in Claude Code: restart, or re-approve the project's `.mcp.json`) and
 the `code-atlas` tools appear.
 
+Onboarding a **large legacy repo** — where the first build takes minutes, `.gitignore` negations can
+smuggle vendored trees into the index, and one knob decides whether the database is 1 GB or 2 GB — is
+covered step by step in [`docs/runbooks/onboarding-a-repo.md`](docs/runbooks/onboarding-a-repo.md).
+
 ### Keep the index fresh while Claude edits (opt-in)
 
 Task 035 already reparses drifted files at query time. For eager updates after Claude Code

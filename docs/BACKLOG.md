@@ -71,6 +71,8 @@ gap that fixtures never hit.
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
 | 043 | [Duplicate-declaration resilience — repeated `qualified_name` must not abort the build](tasks/043_duplicate-decl-resilience.md) | Robustness | done | 004, 009 |
+| 044 | [Onboarding runbook — installing code-atlas on a large legacy repo](tasks/044_onboarding-runbook.md) | Adoption | in-progress | 014, 039, 043 |
+| 045 | [Tokens-to-answer — measure against a local repo with a pre-built index](tasks/045_tokens-to-answer-local-repo.md) | Measure | todo | 034, 042 |
 
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
 
@@ -139,6 +141,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 041 | Legacy/framework hardening — encoding, Blade ignore, extra extensions | **4 dispatch** — refine exposure-checker + analysis extractor + review `mango:reviewer` + `mango:challenger`; all token cells **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 dispatched **nothing**. **Main-loop spend is unmeasured**, as for 004–040 | [#47](https://github.com/cuongdinhngo/code-atlas/pull/47) |
 | 042 | Tokens-to-answer sample tier — pinned public repos (ratio ≫ 1) | **2 dispatch, both measured — 134.4k total** — review `mango:reviewer` **85.6k** (22 tool uses / 266 s) + ticket-blind `mango:challenger` **48.8k** (25 / 234 s), read from their returned `<usage>` blocks (both landed as task-notifications). Phases 1–3 dispatched **nothing** — analysis/design/execute (incl. the PHP-env spike, index exploration, and the harness-verified sample run) all ran on the main model. Review round 2 was verify-only in the main loop (no re-dispatch). **Main-loop spend is unmeasured**, as for 004–041 | [#48](https://github.com/cuongdinhngo/code-atlas/pull/48) |
 | 043 | Duplicate-declaration resilience — repeated `qualified_name` must not abort the build | **2 dispatch, both measured — 150.7k total** — review round 1 `mango:reviewer` **86.4k** (28 tool uses / 326 s) + ticket-blind `mango:challenger` **64.3k** (28 / 285 s), read from their returned `<usage>` blocks (both dispatched `run_in_background:false`). Phases 1–3 dispatched **nothing** — analysis (incl. the two `IntegrityError`/NULL spikes against the real store), design, and execute all ran on the main model; no verify-only re-review round (Gate 4 was clean on round 1 with a human-approved AC1 coverage-gap exclusion). **Main-loop spend is unmeasured**, as for 004–042 | [#49](https://github.com/cuongdinhngo/code-atlas/pull/49) |
+| 044 | Onboarding runbook — installing code-atlas on a large legacy repo | **0 dispatch** — no subagent ran at any point: the work was a real onboarding trial (two full builds, a tool-by-tool verification sweep, an incremental run) plus the write-up, all on the main model, and it did not go through the mango lifecycle, so no working-doc cost ledger exists for it — as for 024, 032 and 034. **Main-loop spend is unmeasured**: mango measures dispatch only, and `rtk gain` reports a global all-time figure that cannot be attributed to one task, so none is invented here | [#50](https://github.com/cuongdinhngo/code-atlas/pull/50) |
 
 ## Follow-ups (not yet ticketed)
 
@@ -187,10 +190,28 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
   `function_exists`-guarded double definition + `interface X`/`class X`, asserting the adapter emits
   two same-qname nodes (the shape 043's store dedupe collapses). Optional; the adapter already emits
   per-declaration (that is how the duplicates were found on the monorepo).
-- **Indexing-hygiene doc note (not a code bug):** the walk descends into nested worktree checkouts
-  (`.claude/worktrees/…`) when `.gitignore` doesn't exclude them, ~doubling the index; and committed
-  vendored libs under non-`vendor/` paths index by design. Both are `.codeatlasignore` guidance, not a
-  code change — capture in a usage/runbook note.
+- **Indexing-hygiene doc note (not a code bug) — captured.** The walk descends into nested worktree
+  checkouts (`.claude/worktrees/…`) when `.gitignore` doesn't exclude them, ~doubling the index; and
+  committed vendored libs under non-`vendor/` paths index by design. Both are `.codeatlasignore`
+  guidance, not a code change — now written up in
+  [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §5, together with a third variant
+  found on a real repo: a host `.gitignore` **negation** (`!some/lib/vendor/`) cancels the *built-in*
+  `vendor/` rule as well, so a committed dependency indexes as full source (2,580 files, 12 % of that
+  index). Last-rule-wins is working as designed (`ignore.py:57-65`); the fix is a `.codeatlasignore`
+  line, so this stays a doc item.
+- **`max_results` does two unrelated jobs (design smell, measured).** It caps both the rows a tool
+  returns *and* the resolver's per-call-site candidate fan-out
+  (`indexer.py:118` → `resolve_edges(max_candidates=config.max_results)`), so a query-ergonomics knob
+  silently sets index size. Measured on a large legacy monorepo: 491,741 heuristic call sites, 33,300
+  of them saturating a cap of 50; heuristic edges 4.76M at cap 50 vs 2.60M at cap 10 (−46 %), and the
+  database 2,115 MB vs 1,133 MB. Splitting out a `CA_RESOLVE_MAX_CANDIDATES` would let an operator
+  keep 50-row search results without paying a gigabyte for candidate noise. Origin:
+  [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
+- **Reachability payload size at `detail_level="standard"`:** `reachable_from` / `find_orphans` are
+  bounded by `impact_max_nodes` (default 500) rather than `max_results`, and a 500-row answer is
+  ~160 KB of JSON — tens of thousands of tokens, against a §19 metric that is measured *in tokens*.
+  Worth either a lower default for these two tools or a `minimal`-by-default shape. Documented as a
+  workaround in [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
 - **018 construct gaps:** any cross-repo misses → fill the gap log in
   [`runbooks/cross-repo-validation.md`](runbooks/cross-repo-validation.md) and feed task 007 / 025.
   (Gap log is still empty — no scheduled run has recorded a miss.)
