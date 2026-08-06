@@ -4,7 +4,7 @@ slug: tokens-to-answer-local-repo
 title: Tokens-to-answer — measure against a local repo with a pre-built index
 phase: 1.5
 milestone: Measure
-status: todo
+status: in-progress
 depends_on: [034, 042]
 ---
 

@@ -72,7 +72,7 @@ gap that fixtures never hit.
 |---|---|---|---|---|
 | 043 | [Duplicate-declaration resilience — repeated `qualified_name` must not abort the build](tasks/043_duplicate-decl-resilience.md) | Robustness | done | 004, 009 |
 | 044 | [Onboarding runbook — installing code-atlas on a large legacy repo](tasks/044_onboarding-runbook.md) | Adoption | in-progress | 014, 039, 043 |
-| 045 | [Tokens-to-answer — measure against a local repo with a pre-built index](tasks/045_tokens-to-answer-local-repo.md) | Measure | todo | 034, 042 |
+| 045 | [Tokens-to-answer — measure against a local repo with a pre-built index](tasks/045_tokens-to-answer-local-repo.md) | Measure | in-progress | 034, 042 |
 
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
 
@@ -199,6 +199,16 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
   `vendor/` rule as well, so a committed dependency indexes as full source (2,580 files, 12 % of that
   index). Last-rule-wins is working as designed (`ignore.py:57-65`); the fix is a `.codeatlasignore`
   line, so this stays a doc item.
+- **Nav rows are not deduplicated, and a repo with duplicate qnames halves the result budget.**
+  Measured on a large private monorepo that carries two regional copies of the same legacy tree: the
+  same class name is declared in two files, so `UNIQUE(qualified_name, file_path)` (`store.py:59`)
+  legitimately keeps two nodes per qname, and a nav tool joining on `target_qname` matches both — so
+  every hit is returned **twice** with an identical `(qname, file, line)`. `find_implementations` on an
+  interface returned 10 rows carrying 5 distinct answers; `find_references` the same. That is half the
+  `max_results` budget and half the response tokens spent on nothing, and it reads to an agent as a
+  wrong answer rather than a duplicate. A dedupe on `(qname, file, line)` while shaping rows
+  (`tools/nav_result.py`) looks like the fix, but it forces a decision on what `total_count` then means
+  — distinct answers, or edges — so it needs a ticket rather than a patch.
 - **`max_results` does two unrelated jobs (design smell, measured).** It caps both the rows a tool
   returns *and* the resolver's per-call-site candidate fan-out
   (`indexer.py:118` → `resolve_edges(max_candidates=config.max_results)`), so a query-ergonomics knob
