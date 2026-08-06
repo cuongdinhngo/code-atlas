@@ -56,7 +56,7 @@ observed fixture ratio 0.302 — fixtures favour grep; the win is only visible o
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
 
 ## Session status
-- **Phase:** 4 (review) — execute complete, flowing into review. Gate 0/1/2 cleared.
+- **Phase:** 5 (finalise) — review clean at `c67ef3f`. Gate 0/1/2/4 cleared.
 - **work_doc_mode:** embed (this file, below separator).
 - **Branch:** `feat/042-tokens-to-answer-sample-tier`.
 - **TIER:** full · **TRACK:** backend · **SCOPE:** L (re-scoped — accepted).
@@ -232,3 +232,52 @@ Ran `tokens_to_answer.py --samples --skip-clone` against the warm clone cache wi
 ### Ph3/4 proven by
 - Proving test `test_run_sample_questions_selects_and_routes_by_pin` (logic routing).
 - Local sample-tier run (AC1/AC2 runtime) + scheduled workflow (AC2 e2e).
+
+## Phase 4 — Review
+
+### Dispatches
+- **`mango:reviewer`** (Sonnet): **CHANGES REQUESTED → conditional LGTM**, no Critical. Two Important
+  findings, both fixed in commit `c67ef3f`:
+  1. `verdict_markdown` + report `note` reused the fixture boilerplate ("toy repos / behaviour-lock,
+     not the value claim") — false and self-undercutting on a `--samples` run. → both made mode-aware.
+  2. Reaching into `cross_repo_validate`'s underscore-private `_ensure_checkout`/`_php_cmd`. →
+     promoted to public `checkout_pinned`/`resolve_php_cmd` (internal callers + test updated).
+  **Reviewer-directed scope addition:** `scripts/cross_repo_validate.py` joins the approved change
+  list (rename refactor only, no behaviour change). Re-review was **verify-only** (main loop, no
+  re-dispatch), per the conditional-LGTM path.
+- **`mango:challenger`** (ticket-blind): **10 met / 2 not-met / 2 can't-tell** of 14 rebuilt reqs.
+  - The 2 "not met" = the **recorded coverage-gap exclusions**: laravel/laravel has no sample
+    (skeleton — index confirms 0 resolved CALLS, 0 inbound `App\` refs) and `include_graph` (autoloaded
+    repos have no resolved INCLUDES). Both documented in the runbook. **Surfaced to the human at the
+    finalise gate for ratification** (below).
+  - The 2 "can't-tell" = execution-verification (challenger had no PHP), but it **independently
+    corroborated all 5 answers against the real pinned SHAs** and noted the ratio 98.2 is an exact
+    quotient of the raw token counts — strong evidence of a real run, not guessing.
+
+### Verify-only re-review result (post-fix, commit c67ef3f)
+Both findings landed as described. `pytest tests/test_tokens_to_answer.py` → 14 passed / 1 skipped;
+sample-tier e2e re-run → 5/5, ratio 98.2, gate floor 78 pass; cross-repo tests 8 passed (regression
+scan clean — no dangling old symbol names). Lint + mypy clean. **Verdict: clean.**
+
+### Ph3/4 proven-by (k/N)
+| Row | Proven by | k/N |
+|-----|-----------|-----|
+| G1, AC2, AC3 (ratio ≫1 reported) | sample run 98.2 + runbook + workflow | 1/1 |
+| R1 (sample questions, query-kind spread) | 5 questions, 3 of 4 kinds; `include_graph` excluded (recorded) | 3/4 covered + 1/1 excluded = 4/4 |
+| R2/C1/AC1 (verified by execution) | harness run 5/5 correct; challenger corroborated vs pinned SHAs | 1/1 |
+| R3 (scheduled, separate from per-PR) | new workflow; `ci.yml` untouched; `--samples` opt-in | 1/1 |
+| R4 (runbook real ratio) | runbook §Sample tier | 1/1 |
+| C2/C3 (dev tooling, gate unaffected) | diff under `scripts/`+`.github/`+`docs/`; `ci.yml` untouched | 1/1 |
+| Repo spread (laravel) | excluded — skeleton, no nav target (recorded) | exclusion |
+
+### Coverage-gap exclusions (for human ratification at finalise)
+1. **`include_graph` ("who includes X")** — not sampled: pinned repos are PSR-4/autoloaded, so
+   `INCLUDES` edges are dynamic with no resolved target. Fixture tier already covers it.
+2. **laravel/laravel** — no sample question: at the pinned SHA it is the app skeleton with no
+   resolvable nav graph (0 resolved CALLS, 0 inbound `App\` refs). Stays a cross-repo *build* sample.
+
+### Reviewed at c67ef3fc99d62d8ae7b6d27b3495c1ce5051d84c
+Reviewed files: `scripts/tokens_to_answer.py`, `scripts/cross_repo_validate.py`,
+`scripts/tokens_to_answer_questions.json`, `.github/workflows/tokens-to-answer-sample.yml`,
+`docs/runbooks/tokens-to-answer.md`, `tests/test_tokens_to_answer.py`.
+Working doc (exempt from staleness): `docs/tasks/042_tokens-to-answer-sample-tier.md`.
