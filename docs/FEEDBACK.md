@@ -10,6 +10,79 @@ corrections where the feedback was stale or wrong (cited `file:line`).
 
 ---
 
+## Round 4 — 2026-08-05 — Field report: Serena OOM under parallel agents (does code-atlas share the failure?)
+
+**Source:** a real incident on **anchor-repo** (~55k-file PHP monorepo, the §19 anchor). Running
+`/parallel-tasks` — one `claude --bg` agent per Jira ticket, each in its own git worktree — the
+machine hit **out-of-memory** during the fan-out.
+
+**The field report (verbatim mechanism):** `claude --bg` **inherits the launching session's MCP
+config**, so every background agent starts **its own Serena**, and each Serena forks **its own
+Intelephense** (Node PHP LSP) that indexes the whole tree into RAM. Cost ≈ **5.6 GB per agent**
+(Serena Python 4.25 GB + Intelephense 1.4 GB), scaling **linearly** — a 5-agent batch ≈ 15–16 GB for
+Serena alone, an OOM on a 16 GB box. Two aggravating facts: (i) every agent's Serena was launched
+with `--project <mainrepo>` **hardcoded**, so a worktree agent querying symbols got **`main`'s
+symbols, not its own edits** — wasteful *and wrong*; (ii) servers **lingered** after the run and
+memory wasn't reclaimed. Fix: dispatch bg agents with an **empty MCP config file + `--strict-mcp-config`**
+(zero MCP servers), keeping Serena only on the main interactive session.
+
+**The question this raises for code-atlas:** it is the same consumer (an AI agent in a terminal, §19 /
+round 3) on the same repo. **Does code-atlas cause the same OOM cascade under a parallel fan-out?**
+
+**Assessment (repo-verified):** The catastrophic RAM cascade — **NO**. The wrong-tree correctness
+bug — **NO, the opposite**. The MCP-config-inheritance behaviour — **YES, structurally identical but
+benign**. There is one honest, non-fatal caveat (a transient build-time process burst). In detail:
+
+- **No resident language server holding the index in RAM.** Serena's 5.6 GB was a *resident*
+  Intelephense (whole 55k-file index expanded in memory) plus Serena's Python, alive for the whole
+  session. code-atlas keeps **nothing** resident: every query tool opens the SQLite index, reads, and
+  closes **per call** (`code_atlas/tools/find_callers.py:67` — `with GraphStore(config.db_path) as
+  store:`); the graph is an **on-disk** file the OS pages in, never a whole-tree in-RAM structure. The
+  MCP server process holds only config + FastMCP registrations (`code_atlas/main.py:51-82,104`), no
+  graph. A query against an un-built repo returns a cheap empty result and spawns nothing
+  (`find_callers.py:64`).
+- **The parser is transient, per-build, and parses one file at a time.** The PHP adapter is started
+  only for a build/reparse and `stop()`ped in a `finally` (`code_atlas/indexer.py:102-104,182-184,
+  234-236`); it serves **one file per request** (`code_atlas/adapter.py:83-88`), so a worker holds one
+  file's AST — tens of MB — not the whole tree. This is the exact inverse of Intelephense, whose cost
+  *is* the whole-tree resident index.
+- **The build itself is bounded-memory.** The result queue is explicitly bounded with back-pressure
+  (`indexer.py:511`, comment: "a slow writer back-pressures the workers instead of buffering the whole
+  graph"), and edge resolution streams in 1000-row batches to "avoid loading the whole table"
+  (`code_atlas/resolver.py:11-12,29`). Even a 112k-file build never assembles a multi-GB in-RAM graph.
+- **Worktree correctness — fixed, not inherited.** `db_path` resolves relative to `Path.cwd()`
+  (`code_atlas/config.py:117` + `main.py:104`), so a worktree agent reads the `.code-atlas/graph.db`
+  in **its own** worktree — its own edits — and read-through freshness reparses a drifted file inline
+  before answering (`code_atlas/tools/freshness.py`, capped at **1** reparse/call, `READ_THROUGH_CAP`).
+  Where Serena's hardcoded `--project <mainrepo>` made worktree agents both wasteful and *wrong*,
+  code-atlas is cheap *and* correct there.
+- **MCP-config inheritance — the same behaviour, a different order of magnitude.** `claude --bg`
+  inherits the parent MCP config regardless of the server, so if code-atlas is a configured MCP
+  server, each background agent **does** start its own code-atlas core — the same inheritance the field
+  report describes. The difference is entirely per-instance cost: a code-atlas core is a lightweight
+  Python process (~tens of MB, no LSP), so `N` agents cost `N × tens-of-MB`, not `N × 5.6 GB`. The
+  report's hygiene (`--mcp-config <file> --strict-mcp-config`, minding the variadic-flag order) is
+  still correct practice for fan-outs — it just prevents megabytes here, not an OOM.
+- **The one honest caveat — a transient build-time burst, not a resident leak.** If `N` background
+  agents each trigger `build_or_update_index` **concurrently**, each build fans out up to `workers`
+  PHP processes (`config.py:176-178`, default `max(1, min(cpu-2, 8))`) → `N × workers` short-lived PHP
+  processes and CPU oversubscription. This is real but bounded and transient: adapters are reaped when
+  the build ends (`adapter.py:349-367` escalates wait→terminate→kill), `workers` is configurable down,
+  and worktree agents each build their **own** DB so they don't contend on one writer. Agents sharing
+  **one** DB path would serialise writes (WAL single-writer, `busy_timeout=5000`, `store.py:49`) — a
+  5 s wait, not an OOM. Nothing lingers: there is no resident server to leak, and the poke hook
+  (task 036) is a short-lived process that exits.
+
+**Net:** code-atlas converts the field report's "`N` × multi-GB resident language servers" into
+"`N` × lightweight query processes over a shared on-disk index," and *fixes* the worktree wrong-tree
+bug instead of inheriting it — so the specific OOM cascade does not reproduce. This is a strong
+real-world confirmation of the §19 SQLite-index thesis. **Cheap follow-up (worth a runbook line, not
+an architecture change):** for a parallel fan-out, cap `CA_WORKERS` and prefer a per-worktree index
+(or one pre-built shared index queried read-only) over many concurrent builds; and apply the same
+`--strict-mcp-config` hygiene the report recommends, for tidiness rather than survival.
+
+---
+
 ## Round 3 — 2026-08-04 — "The consumer is an AI agent in a terminal, not an IDE"
 
 **Prompt:** "I build code-atlas because AI will use it in their work instead of manual scan or
