@@ -72,6 +72,7 @@ gap that fixtures never hit.
 |---|---|---|---|---|
 | 043 | [Duplicate-declaration resilience — repeated `qualified_name` must not abort the build](tasks/043_duplicate-decl-resilience.md) | Robustness | done | 004, 009 |
 | 044 | [Onboarding runbook — installing code-atlas on a large legacy repo](tasks/044_onboarding-runbook.md) | Adoption | in-progress | 014, 039, 043 |
+| 045 | [Tokens-to-answer — measure against a local repo with a pre-built index](tasks/045_tokens-to-answer-local-repo.md) | Measure | todo | 034, 042 |
 
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
 
