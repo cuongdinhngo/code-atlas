@@ -72,8 +72,8 @@ gap that fixtures never hit.
 |---|---|---|---|---|
 | 043 | [Duplicate-declaration resilience — repeated `qualified_name` must not abort the build](tasks/043_duplicate-decl-resilience.md) | Robustness | done | 004, 009 |
 | 044 | [Onboarding runbook — installing code-atlas on a large legacy repo](tasks/044_onboarding-runbook.md) | Adoption | done | 014, 039, 043 |
-| 045 | [Tokens-to-answer — measure against a local repo with a pre-built index](tasks/045_tokens-to-answer-local-repo.md) | Measure | in-progress | 034, 042 |
-| 046 | [Resolver — dedupe candidates by `qualified_name` (kill duplicate edges, stop the false downgrade)](tasks/046_resolver-qname-candidate-dedupe.md) | Robustness | in-progress | 011, 027, 043 |
+| 045 | [Tokens-to-answer — measure against a local repo with a pre-built index](tasks/045_tokens-to-answer-local-repo.md) | Measure | done | 034, 042 |
+| 046 | [Resolver — dedupe candidates by `qualified_name` (kill duplicate edges, stop the false downgrade)](tasks/046_resolver-qname-candidate-dedupe.md) | Robustness | done | 011, 027, 043 |
 
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
 
@@ -212,6 +212,13 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
   wrong answer rather than a duplicate. **Ticketed and fixed as [046](tasks/046_resolver-qname-candidate-dedupe.md)**,
   at the cause rather than in the row shaping: the duplicate *edges* no longer exist, so
   `total_count` never had to choose between counting answers and counting edges.
+- **Tokens-to-answer measures cost, not information — proven blind by 046.** Removing 1.06M duplicate
+  edges doubled the distinct answers in a 10-row nav response (5 → 10) and moved the aggregate ratio by
+  **0.02 %** (178.318 → 178.356, 4,705 → 4,704 tokens), because `max_results` fills the budget either
+  way. So the §19 metric cannot see a response getting twice as useful at the same price, and a tool
+  returning ten duplicates scores exactly like one returning ten distinct answers. Correctness is
+  covered by `expected`; nothing covers *usefulness*. Worth a second axis alongside the ratio — distinct
+  answers per response, or rank-of-first-correct — before the ratio is used to judge a retrieval change.
 - **`max_results` does two unrelated jobs (design smell, measured).** It caps both the rows a tool
   returns *and* the resolver's per-call-site candidate fan-out
   (`indexer.py:118` → `resolve_edges(max_candidates=config.max_results)`), so a query-ergonomics knob

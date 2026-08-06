@@ -4,7 +4,7 @@ slug: resolver-qname-candidate-dedupe
 title: Resolver — dedupe candidates by qualified_name (kill duplicate edges, stop the false downgrade)
 phase: 1.5b
 milestone: Robustness
-status: in-progress
+status: done
 depends_on: [011, 027, 043]
 ---
 
@@ -69,9 +69,42 @@ answer, not as a duplicate.
   `max_candidates` (the existing method-name tests keep passing unchanged).
 - Re-running `resolve_edges` over an already-resolved store adds no rows (idempotence, asserted).
 - No exact-duplicate edge rows survive a full build of a tree that declares one qname in two files
-  (asserted at the store level: group by every column but `id`, expect no group > 1).
+  (asserted at the store level: group by every column but `id`, expect no group > 1). **Scoped
+  deliberately to that shape** — a real repo keeps a residue from an unrelated cause, see Outcome.
 - `pytest`, `ruff`, `mypy` green; the tokens-to-answer fixture gate still passes, with its floor
   recalibrated if the ratio moves.
+
+## Outcome (measured on the anchor repo, same tree, full rebuild)
+
+| | before | after |
+|---|---|---|
+| Edges | 2,836,428 | **1,774,891** (−37.4 %) |
+| Index size | 1,133.2 MB | **823.3 MB** (−27.3 %) |
+| RESOLVED edges | 484,983 (17.1 %) | **642,370 (36.2 %)** |
+| Duplicate edge rows | 1,099,385 | **37,851** (−96.6 %) |
+| `EXTENDS` / `IMPLEMENTS` / `NEW` | 16,740 / 745 / 72,510 | 8,625 / 391 / 40,998 |
+| Distinct answers in a 10-row nav response | 5 | **10** |
+| `total_count` for one interface's implementors | 44 | **22** (the honest count) |
+
+`files`, `nodes` and `parsed_ok` are byte-identical across the two builds (18,867 / 185,821 / 99.85 %)
+and build time was unchanged (1,008 s → 991 s), so nothing outside the edge table moved.
+
+Three corrections to what was predicted when this ticket was written:
+
+- **RESOLVED reached 36.2 %, not the ~75 % estimated.** The estimate treated all 1,655,664
+  multi-file-target HEURISTIC edges as promotable; in fact R5.2 correctly held most of them at the
+  adapter's own HEURISTIC claim (dynamic receivers, `static::`). Absolute RESOLVED rose 32 %
+  (+157,387); the share doubled partly because the denominator shrank.
+- **The tokens-to-answer ratio did not improve** — 178.318 → 178.356 on the same five questions.
+  `max_results` fills the response budget either way, so the fix doubled the *information* at an
+  identical price rather than making the answer cheaper. Recorded as a metric-validity follow-up: this
+  benchmark measures cost, never what a payload carries.
+- **37,851 duplicate rows remain, from an unrelated and defensible cause.** They are generated MPDF
+  font tables with up to **121 calls to `chr()` on a single line**: each is a real call, and the contract
+  records `(kind, source, target_raw, file, line)` with no column granular enough to separate two calls
+  on one line. Their `target_qname` is NULL (`\chr` is a builtin, absent from the index), so no nav tool
+  ever returns them. Not this ticket's defect; noted so the next reader does not mistake the residue for
+  an incomplete fix.
 
 ## References
 `code_atlas/resolver.py:57-83` (the FQN lookup and the fallback), `:67` (the tier computation),
