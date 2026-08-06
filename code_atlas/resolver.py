@@ -64,9 +64,10 @@ def resolve_edges(
             incoming = str(edge["confidence_tier"])
             hits = qname_hits.get(lookup, [])
             if hits:
-                computed = "RESOLVED" if len(hits) == 1 else "HEURISTIC"
+                # The lookup key IS the qname, so a hit means the name resolved; N hits only means
+                # N files declare it, which an edge storing a qname cannot record anyway (046).
                 _queue_candidates(
-                    edge, hits, _weaker_tier(incoming, computed), links, siblings
+                    edge, hits, _weaker_tier(incoming, "RESOLVED"), links, siblings
                 )
                 continue
             if edge["kind"] == "CALLS" and incoming == "HEURISTIC":
@@ -116,6 +117,15 @@ def _weaker_tier(left: str, right: str) -> str:
     return left if _TIER_STRENGTH[left] >= _TIER_STRENGTH[right] else right
 
 
+def _distinct_qnames(candidates: list[dict[str, object]]) -> list[str]:
+    """The candidates' qualified names, deduped in source order (``dict.fromkeys``, so R4 holds).
+
+    An FQN lookup is keyed by qname, so its candidates differ only by file — and an edge cannot
+    record a file. A sibling per node would be an exact duplicate row (046).
+    """
+    return list(dict.fromkeys(str(candidate["qualified_name"]) for candidate in candidates))
+
+
 def _queue_candidates(
     edge: dict[str, object],
     candidates: list[dict[str, object]],
@@ -124,11 +134,11 @@ def _queue_candidates(
     siblings: list[dict[str, object]],
 ) -> None:
     """Update the original edge to the first candidate; queue siblings for the rest (top-N)."""
-    first = str(candidates[0]["qualified_name"])
-    links.append((int(str(edge["id"])), first, tier))
-    for candidate in candidates[1:]:
+    qnames = _distinct_qnames(candidates)
+    links.append((int(str(edge["id"])), qnames[0], tier))
+    for qname in qnames[1:]:
         sibling = {field: edge[field] for field in contract.EDGE_FIELDS if field in edge}
-        sibling["target_qname"] = candidate["qualified_name"]
+        sibling["target_qname"] = qname
         sibling["confidence_tier"] = tier
         siblings.append(sibling)
 

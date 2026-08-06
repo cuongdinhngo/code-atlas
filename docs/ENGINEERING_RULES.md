@@ -77,7 +77,9 @@ adapter contract. Everywhere else, prefer the simplest thing that works.
   the one file — it never aborts the build (task 043).
 - **R5.2** — Unresolvable-but-static references are `HEURISTIC`; dynamic constructs (`$obj->$m()`, variable
   includes) are `DYNAMIC` and excluded from traversal by default. Never silently link a guess as
-  `RESOLVED`.
+  `RESOLVED`. A name that resolves to **one qname declared in several files** is not a guess — an edge
+  records a `target_qname`, so the name did resolve; link it once at `RESOLVED` and let the `nodes`
+  rows carry the per-file detail (task 046). Multiplicity is not ambiguity.
 - **R5.3** — Fail loud on *config/programmer* errors (bad `CA_*`, missing adapter command); fail soft on
   *data* errors (one weird source file). Don't confuse the two.
 

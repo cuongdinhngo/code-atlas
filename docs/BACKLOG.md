@@ -73,6 +73,7 @@ gap that fixtures never hit.
 | 043 | [Duplicate-declaration resilience — repeated `qualified_name` must not abort the build](tasks/043_duplicate-decl-resilience.md) | Robustness | done | 004, 009 |
 | 044 | [Onboarding runbook — installing code-atlas on a large legacy repo](tasks/044_onboarding-runbook.md) | Adoption | done | 014, 039, 043 |
 | 045 | [Tokens-to-answer — measure against a local repo with a pre-built index](tasks/045_tokens-to-answer-local-repo.md) | Measure | in-progress | 034, 042 |
+| 046 | [Resolver — dedupe candidates by `qualified_name` (kill duplicate edges, stop the false downgrade)](tasks/046_resolver-qname-candidate-dedupe.md) | Robustness | in-progress | 011, 027, 043 |
 
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
 
@@ -207,9 +208,9 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
   every hit is returned **twice** with an identical `(qname, file, line)`. `find_implementations` on an
   interface returned 10 rows carrying 5 distinct answers; `find_references` the same. That is half the
   `max_results` budget and half the response tokens spent on nothing, and it reads to an agent as a
-  wrong answer rather than a duplicate. A dedupe on `(qname, file, line)` while shaping rows
-  (`tools/nav_result.py`) looks like the fix, but it forces a decision on what `total_count` then means
-  — distinct answers, or edges — so it needs a ticket rather than a patch.
+  wrong answer rather than a duplicate. **Ticketed and fixed as [046](tasks/046_resolver-qname-candidate-dedupe.md)**,
+  at the cause rather than in the row shaping: the duplicate *edges* no longer exist, so
+  `total_count` never had to choose between counting answers and counting edges.
 - **`max_results` does two unrelated jobs (design smell, measured).** It caps both the rows a tool
   returns *and* the resolver's per-call-site candidate fan-out
   (`indexer.py:118` → `resolve_edges(max_candidates=config.max_results)`), so a query-ergonomics knob
