@@ -324,6 +324,12 @@ re-declarations do the same for functions and classes — a global `UNIQUE` make
 `IntegrityError`. Consequence for the resolver (§8.2): a qname lookup may return **one or more**
 candidates, which is a `HEURISTIC` multi-candidate (§5 R5.2), not a lost row.
 
+The *same-file* case is different: one file may legally declare a qname twice (a `function_exists`
+guard's two branches, an `interface X` + `class X` fixture), which **would** trip the per-file
+`UNIQUE`. `replace_file_rows` de-dupes by that exact key **keep-first** (source order, so it is
+deterministic — R4.2) before insert, so a duplicate-declaration file soft-succeeds with one node per
+qname rather than aborting the build (R5.1, task 043). NULL/anonymous qnames are never collapsed.
+
 **`schema_version` is `"2"` and enforced loud.** On open, a database carrying a different value raises
 and tells the user to delete the index and rebuild — the DB is a derived cache, so there is no
 migration runner (R7.4). Version **2** adds `tokenize='trigram'` on `nodes_fts` (camelCase substring
