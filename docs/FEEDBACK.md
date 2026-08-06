@@ -10,21 +10,22 @@ corrections where the feedback was stale or wrong (cited `file:line`).
 
 ---
 
-## Round 4 — 2026-08-05 — Field report: Serena OOM under parallel agents (does code-atlas share the failure?)
+## Round 4 — 2026-08-05 — Field report: resident-LSP MCP server OOM under parallel agents (does code-atlas share the failure?)
 
-**Source:** a real incident on **anchor-repo** (~55k-file PHP monorepo, the §19 anchor). Running
-`/parallel-tasks` — one `claude --bg` agent per Jira ticket, each in its own git worktree — the
-machine hit **out-of-memory** during the fan-out.
+**Source:** a real incident on a large private PHP monorepo (~55k files, the §19 anchor). Running a
+parallel-task fan-out — one `claude --bg` agent per ticket, each in its own git worktree — the
+machine hit **out-of-memory**.
 
 **The field report (verbatim mechanism):** `claude --bg` **inherits the launching session's MCP
-config**, so every background agent starts **its own Serena**, and each Serena forks **its own
-Intelephense** (Node PHP LSP) that indexes the whole tree into RAM. Cost ≈ **5.6 GB per agent**
-(Serena Python 4.25 GB + Intelephense 1.4 GB), scaling **linearly** — a 5-agent batch ≈ 15–16 GB for
-Serena alone, an OOM on a 16 GB box. Two aggravating facts: (i) every agent's Serena was launched
-with `--project <mainrepo>` **hardcoded**, so a worktree agent querying symbols got **`main`'s
-symbols, not its own edits** — wasteful *and wrong*; (ii) servers **lingered** after the run and
-memory wasn't reclaimed. Fix: dispatch bg agents with an **empty MCP config file + `--strict-mcp-config`**
-(zero MCP servers), keeping Serena only on the main interactive session.
+config**, so every background agent starts **its own resident-LSP MCP server**, and each such server
+forks **its own PHP language server** that indexes the whole tree into RAM. Cost ≈ **5.6 GB per
+agent** (the MCP server's runtime 4.25 GB + the language server 1.4 GB), scaling **linearly** — a
+5-agent batch ≈ 15–16 GB for that stack alone, an OOM on a 16 GB box. Two aggravating facts: (i) every
+agent's server was launched with `--project <mainrepo>` **hardcoded**, so a worktree agent querying
+symbols got **`main`'s symbols, not its own edits** — wasteful *and wrong*; (ii) servers **lingered**
+after the run and memory wasn't reclaimed. Fix: dispatch bg agents with an **empty MCP config file +
+`--strict-mcp-config`** (zero MCP servers), keeping the heavy server only on the main interactive
+session.
 
 **The question this raises for code-atlas:** it is the same consumer (an AI agent in a terminal, §19 /
 round 3) on the same repo. **Does code-atlas cause the same OOM cascade under a parallel fan-out?**
@@ -33,9 +34,9 @@ round 3) on the same repo. **Does code-atlas cause the same OOM cascade under a 
 bug — **NO, the opposite**. The MCP-config-inheritance behaviour — **YES, structurally identical but
 benign**. There is one honest, non-fatal caveat (a transient build-time process burst). In detail:
 
-- **No resident language server holding the index in RAM.** Serena's 5.6 GB was a *resident*
-  Intelephense (whole 55k-file index expanded in memory) plus Serena's Python, alive for the whole
-  session. code-atlas keeps **nothing** resident: every query tool opens the SQLite index, reads, and
+- **No resident language server holding the index in RAM.** The field report's 5.6 GB was a
+  *resident* language server (whole 55k-file index expanded in memory) plus the MCP server's runtime,
+  alive for the whole session. code-atlas keeps **nothing** resident: every query tool opens the SQLite index, reads, and
   closes **per call** (`code_atlas/tools/find_callers.py:67` — `with GraphStore(config.db_path) as
   store:`); the graph is an **on-disk** file the OS pages in, never a whole-tree in-RAM structure. The
   MCP server process holds only config + FastMCP registrations (`code_atlas/main.py:51-82,104`), no
@@ -44,8 +45,8 @@ benign**. There is one honest, non-fatal caveat (a transient build-time process 
 - **The parser is transient, per-build, and parses one file at a time.** The PHP adapter is started
   only for a build/reparse and `stop()`ped in a `finally` (`code_atlas/indexer.py:102-104,182-184,
   234-236`); it serves **one file per request** (`code_atlas/adapter.py:83-88`), so a worker holds one
-  file's AST — tens of MB — not the whole tree. This is the exact inverse of Intelephense, whose cost
-  *is* the whole-tree resident index.
+  file's AST — tens of MB — not the whole tree. This is the exact inverse of a resident language
+  server, whose cost *is* the whole-tree in-RAM index.
 - **The build itself is bounded-memory.** The result queue is explicitly bounded with back-pressure
   (`indexer.py:511`, comment: "a slow writer back-pressures the workers instead of buffering the whole
   graph"), and edge resolution streams in 1000-row batches to "avoid loading the whole table"
@@ -54,8 +55,8 @@ benign**. There is one honest, non-fatal caveat (a transient build-time process 
   (`code_atlas/config.py:117` + `main.py:104`), so a worktree agent reads the `.code-atlas/graph.db`
   in **its own** worktree — its own edits — and read-through freshness reparses a drifted file inline
   before answering (`code_atlas/tools/freshness.py`, capped at **1** reparse/call, `READ_THROUGH_CAP`).
-  Where Serena's hardcoded `--project <mainrepo>` made worktree agents both wasteful and *wrong*,
-  code-atlas is cheap *and* correct there.
+  Where the field report's hardcoded `--project <mainrepo>` made worktree agents both wasteful and
+  *wrong*, code-atlas is cheap *and* correct there.
 - **MCP-config inheritance — the same behaviour, a different order of magnitude.** `claude --bg`
   inherits the parent MCP config regardless of the server, so if code-atlas is a configured MCP
   server, each background agent **does** start its own code-atlas core — the same inheritance the field
@@ -185,15 +186,15 @@ Reviewer's points:
 
 ---
 
-## Round 1 — 2026-08-04 — "As creator, what to improve to replace Serena for every PHP project?"
+## Round 1 — 2026-08-04 — "As creator, what to improve to replace an LSP-based tool for every PHP project?"
 
-**Prompt:** "If you're the code-atlas creator, what to improve? Purpose: replace Serena, run on
-every PHP project."
+**Prompt:** "If you're the code-atlas creator, what to improve? Purpose: replace an LSP-based
+code-intelligence tool, run on every PHP project."
 
 Reviewer's points:
-- **Strategic call:** depth-in-PHP is the credible goal; "replace Serena for 67 languages" is not.
+- **Strategic call:** depth-in-PHP is the credible goal; "replace an LSP-based tool for 67 languages" is not.
   Defer TS/JS (019) and 020/021; spend the budget on PHP. Own the pivot in §19 and rewrite the §1
-  sentences ("complements Serena," "no type inference in the core") that were written for the old goal.
+  sentences ("complements LSP-based tools," "no type inference in the core") that were written for the old goal.
 - **Two decisive changes:** (1) **read-through freshness** — on a tool touching file X, compare X's
   hash to `files.hash` and reparse just X inline before answering (one adapter call, no daemon, no
   determinism violation); (2) **local type inference in the PHP adapter** — recover most HEURISTIC
@@ -203,15 +204,15 @@ Reviewer's points:
   editing wrappers (refuse rename until type inference lands) → framework indirection as data →
   configurable extensions + encoding hardening.
 - **Measurement gap:** no precision/recall harness — build a hand-labelled ground-truth set and
-  differential testing vs Serena/phpactor.
+  differential testing vs an LSP-based tool.
 - **Sample matrix gap:** all modern namespaced PHP; add WordPress/Drupal/ZF1/CodeIgniter + a real
   windows-latest CI job.
 - **Honest counterargument:** adding editing + type inference makes this a language server; a better
-  PHP backend for Serena might get further. Answer it in §19, don't ignore it.
+  PHP language-server backend might get further. Answer it in §19, don't ignore it.
 
 **Assessment (repo-verified):**
 - Core thesis (freshness + type inference are the real gaps) is right. §1 wording confirmed as the
-  blocker: "Complement Serena, not duplicate it" (`PLAN.md:27`), "No rename/refactor/edit"
+  blocker: "Complement LSP-based tools, not duplicate them" (`PLAN.md:27`), "No rename/refactor/edit"
   (`PLAN.md:31`), "No type inference in the core" (`PLAN.md:32`).
 - `semantic_types` flag exists (`contract.py:119`), PHP adapter emits empty capabilities
   (`adapters/php/index.php:28`), PHPStan already a dev-dep (`adapters/php/composer.json:18`) — the

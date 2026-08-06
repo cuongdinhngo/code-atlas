@@ -2,7 +2,7 @@
 
 Guidance for dispatching many background agents at once — e.g. one `claude --bg` per ticket, each in
 its own git worktree — with code-atlas as an MCP server. Background for **why** this matters:
-[`FEEDBACK.md`](../FEEDBACK.md) Round 4 (a Serena + Intelephense fan-out that OOM'd anchor-repo).
+[`FEEDBACK.md`](../FEEDBACK.md) Round 4 (a resident-LSP MCP-server fan-out that OOM'd a large private monorepo).
 
 ## The short version
 

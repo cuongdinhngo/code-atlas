@@ -65,7 +65,7 @@ decides whether they earned their cost. **Editing tools are permanently out**
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
 
 **Deferred, not cancelled** (human-ratified 2026-08-04). Breadth waits until the PHP agent-loop
-(Phase 1.5) is complete — depth before breadth. PHP is the focus because the private **anchor-repo**
+(Phase 1.5) is complete — depth before breadth. PHP is the focus because a large private PHP
 monorepo is the anchor for testing and evaluation (§19). The language *order* is unchanged (§18.2).
 
 | # | Task | Milestone | Status | Depends on |
@@ -142,7 +142,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
   the resolver the PSR-4 autoload map would make `include_graph` useful beyond `require`-based legacy
   code. Also still un-ticketed from the external review: duplicate-name disambiguation across PSR-0
   roots.
-- **External-review batch (PHP-general, anchor-repo is only the stress test) — landed.** The Top-3 and
+- **External-review batch (PHP-general, the private monorepo is only the stress test) — landed.** The Top-3 and
   one second-tier item all merged: [028](tasks/028_index-health-metrics.md) (health signal, PR #31),
   [029](tasks/029_php-receiver-resolution.md) (receiver resolution, PR #32),
   [030](tasks/030_alias-indirection-edges.md) (alias/indirection + contract bump, PR #33),

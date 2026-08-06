@@ -25,7 +25,7 @@ These are in tension if mishandled — see the design principles (§2). The rule
 - **Primary consumer is an AI coding agent in a terminal**, not a human in an IDE — so optimize for *tokens-to-correct-answer against a grep+`Read` baseline*, and for **machine-trustable responses**: calibrated confidence tiers, honest empties/truncation, enforced freshness (§19 agent-first pivot, 2026-08-04).
 - **Work on ANY repo of a supported language.** Adapters implement the **language standard** (full grammar + the language's standards/PSRs), never a specific repo's conventions. Specific repos are *validation samples*, not design inputs (see §2 "Standard over sample" and §6).
 - **One core, many languages**: each language uses its *best* parser (PHP→nikic, TS/JS→TypeScript Compiler API, Python→`ast`+jedi, C#→Roslyn), all speaking one JSON contract. Roll-out order: **PHP → TypeScript/JavaScript → Python → C#/.NET** (§3).
-- Complement Serena, not duplicate it (§13).
+- Complement LSP-based tools, not duplicate them (§13).
 - Deterministic, offline, token-efficient. LLM used only in the onboarding layer (§14), never in the core.
 
 ### Non-goals (core, v1)
@@ -52,7 +52,7 @@ SOLID applied where a **real axis of change** exists — languages. Not speculat
 
 **Counter-principle (YAGNI, to keep #1 achievable):** abstract nothing that doesn't yet have two implementations. Define exactly **one** seam now — the adapter contract — and let PHP be a concrete implementation. Do **not** build a plugin registry, base classes, or a DI container for one language. **Language #2 (TypeScript/JavaScript) reveals the correct abstraction** — deliberately chosen because its model is the *most different* from PHP (no FQNs — module-scoped `import`/`export`; ESM+CommonJS; `tsconfig` path aliases; project-context resolution). It stresses the two things most likely to be PHP-shaped after building only PHP: the `qualified_name` convention and file-at-a-time resolution. Expect a **contract v2** here (see §4.4). C# and Python confirm/extend rather than reshape.
 
-Precedent to copy: Serena's `SolidLanguageServer` (one abstraction) + 67 concrete servers + `Language.get_ls_class()` factory is OCP/DIP at scale; its `Tool`/`ToolRegistry` + marker mixins are ISP in practice.
+Precedent to copy: a mature multi-language LSP framework (one abstraction + N concrete language servers + a `get_ls_class()`-style factory) is OCP/DIP at scale; a `Tool`/`ToolRegistry` + marker-mixin design is ISP in practice.
 
 ---
 
@@ -69,7 +69,7 @@ Per-language, pick the best parser; do **not** force one parser across all langu
 
 Rejected globally:
 - **tree-sitter everywhere** — grammar lags releases (misparses PHP 8.5); forces hand-written resolution (the hard part) per language.
-- **Wrapping LSPs as the core** — Serena already does that; an LSP indexing 100k+ files *live* is the sluggishness we're avoiding. (An adapter *may* wrap an LSP internally if that's a language's best option, but the core stays index-based.)
+- **Wrapping LSPs as the core** — existing LSP-based tools already do that; an LSP indexing 100k+ files *live* is the sluggishness we're avoiding. (An adapter *may* wrap an LSP internally if that's a language's best option, but the core stays index-based.)
 
 Engine lineage: **code-review-graph** (parse → SQLite, incremental, token-budgeted tools), generalized behind an adapter contract.
 
@@ -390,15 +390,15 @@ Shortest path from `from_qname` to `to_qname` over **outgoing** `IMPACT_KINDS` (
 
 ---
 
-## 13. Relationship to Serena
+## 13. Relationship to LSP-based tools
 | Need | Use |
 |---|---|
-| Go-to-def, precise find-refs, rename, types | **Serena** (LSP) |
+| Go-to-def, precise find-refs, rename, types | **an LSP-based tool** |
 | Fast symbol search across 100k+ files | **code-atlas** |
 | Read one method w/o whole file; impact/blast radius; include graph; global-namespace symbols | **code-atlas** |
-| Editing | Native Edit + Serena symbolic edit |
+| Editing | Native Edit + LSP symbolic edit |
 
-Coexist in `.mcp.json`. If tool overlap annoys, trim Serena's search tools via its context/mode, keep it for nav/edit.
+Coexist in `.mcp.json`. If tool overlap annoys, trim the LSP tool's search tools via its context/mode, keep it for nav/edit.
 
 ---
 
@@ -457,11 +457,11 @@ New surface (separate from indexing): `generate_onboarding`, `architecture_overv
 | TS/JS project-context resolution doesn't fit file-at-a-time protocol | Anticipated (§4.4): adapter loads the tsconfig program once and resolves against it, or a two-pass resolve; PHP/Python unaffected. |
 | PHP process startup × 112k | Long-lived streaming adapter + N workers. |
 | Dynamic PHP (`$obj->$m()`, magic, variable include) | `DYNAMIC` tier, excluded from traversal; name-based `HEURISTIC` fallback. |
-| No type inference for PHP instance calls | Name-match HEURISTIC; defer precise cases to Serena/LSP. C# gets it free via Roslyn capability. |
+| No type inference for PHP instance calls | Name-match HEURISTIC; defer precise cases to an LSP. C# gets it free via Roslyn capability. |
 | PHP 8.5 edge cases | nikic ^5 latest; collecting handler flags `parsed_ok=0`. |
 | Host PHP absent | Docker-exec mode (§9-B) or tokenizer-only PHP CLI. |
 | 100k-file DB/memory | SQLite WAL, serial writer, indexed queries, caps; traverse in SQL, never load whole graph. |
-| Overlap with Serena | Clear division (§13); optionally trim Serena search tools. |
+| Overlap with LSP-based tools | Clear division (§13); optionally trim the LSP tool's search tools. |
 
 ---
 
@@ -471,7 +471,7 @@ New surface (separate from indexing): `generate_onboarding`, `architecture_overv
 3. **Validation repos** — **DECIDED for PHP (task 018):** public pins in
    `scripts/cross_repo_samples.json` (`laravel/laravel`, `symfony/demo`, `brick/math`) + operator-local
    large monorepo via `CODE_ATLAS_SCALE_SAMPLE`. TS/JS samples still open at M7.
-4. **Serena coexistence**: keep its PHP search tools on, or trim to nav/edit?
+4. **LSP-tool coexistence**: keep its PHP search tools on, or trim to nav/edit?
 5. **Ship point**: M3 (search/read/outline) as first daily-usable release — agreed?
 6. **Onboarding presentation**: markdown-in-repo (version-controlled) vs a dashboard viewer?
 
@@ -489,7 +489,7 @@ New surface (separate from indexing): `generate_onboarding`, `architecture_overv
 - **Standard over sample** (§2) — adapters implement the language spec/PSRs only; sample repos drive test coverage & perf targets, never adapter semantics. CI grep-gate bans repo/framework names in adapter source.
 - **Priorities** (§0): make it work (PHP) → extend without touching core → onboarding feature.
 - **Onboarding** (§14) is Phase 2, a graph *consumer* that adds an LLM layer; the core stays deterministic.
-- **Serena coexistence** (§13) — code-atlas is the indexed search/impact layer; Serena stays for LSP nav/edit.
+- **LSP-tool coexistence** (§13) — code-atlas is the indexed search/impact layer; a language server stays for LSP nav/edit.
 
 **Decision — Agent-first PHP-depth pivot (adopted 2026-08-04; source: [`FEEDBACK.md`](FEEDBACK.md)).**
 The consumer is an **AI coding agent in a terminal**, so the incumbent to beat is `grep + Read + context window`, not an IDE. This reframes goals and roadmap:
@@ -505,14 +505,14 @@ tokens once and costs 6.75 per call, so it is cheaper below **≈36 relation cal
 dearer above, a spread of only −234…+434 tokens over 1–100 calls. No net win ⇒ the ticket's default
 holds, reinforced by the unpriced cost of one muddier description (C3) and R1.2. The A/B lives in
 `scripts/relation_surface_ab.py`; `find_relations` was never shipped (037).
-- **Depth over breadth.** TS/JS (019) and Python/C# (020/021) are **deferred, not cancelled** — finish the PHP agent-loop first. Breadth before depth would leave us mediocre at both. **Human-ratified 2026-08-04:** PHP is the focus because the private **anchor-repo** monorepo is the anchor for **testing *and* evaluation** — the tokens-to-answer harness (034) and the accuracy work lean on it — so depth on PHP is measurable in a way breadth would not be.
+- **Depth over breadth.** TS/JS (019) and Python/C# (020/021) are **deferred, not cancelled** — finish the PHP agent-loop first. Breadth before depth would leave us mediocre at both. **Human-ratified 2026-08-04:** PHP is the focus because a large private PHP monorepo is the anchor for **testing *and* evaluation** — the tokens-to-answer harness (034) and the accuracy work lean on it — so depth on PHP is measurable in a way breadth would not be.
 - **Editing permanently ceded** to the agent's native `Edit`/`Write` (§1). code-atlas serves exact line ranges; it never mutates code.
 - **Framework magic stays an enrichment layer** (§1 non-goal) — vendor stubs + indirection-as-data (039, 040), sequenced *below* the response-shape work: an agent can verify a shallow edge by reading one file, but cannot recover from an empty array it misread as proof.
-- **Open risk (recorded, not resolved).** At the limit this resembles a language server, and a better PHP backend for Serena/phpactor might reach further. We still go depth-first — the founding complaint is that live LSP indexing of tens of thousands of files is too slow, and no backend fixes an architecture — but the objection is acknowledged, and the tokens-to-answer harness (034) is what keeps us honest about it.
+- **Open risk (recorded, not resolved).** At the limit this resembles a language server, and a better PHP language-server backend might reach further. We still go depth-first — the founding complaint is that live LSP indexing of tens of thousands of files is too slow, and no backend fixes an architecture — but the objection is acknowledged, and the tokens-to-answer harness (034) is what keeps us honest about it.
 - **Cheap unblocker:** resolve the license (`README.md` "TBD" → a real `LICENSE`, task 032) — an unlicensed MCP server doesn't get installed.
-- **Field-report validation (2026-08-05; [`FEEDBACK.md`](FEEDBACK.md) Round 4).** A parallel `claude --bg` fan-out over anchor-repo worktrees OOM'd because each agent inherited and re-spawned Serena + a resident Intelephense (~5.6 GB/agent, and pointed at `main` not the worktree — wasteful *and* wrong). Repo-verified: code-atlas does **not** reproduce this — no resident language server (query tools open/close SQLite per call, `find_callers.py:67`; adapters are transient and parse one file at a time, `adapter.py:83-88` / `indexer.py:102-104`), and `db_path` is `cwd`-relative so a worktree agent reads its own index, not `main` (`config.py:117`). Concrete confirmation of the SQLite-index thesis. Residual caveat is a transient build-time process burst under many concurrent builds — see [`runbooks/parallel-agents.md`](runbooks/parallel-agents.md).
+- **Field-report validation (2026-08-05; [`FEEDBACK.md`](FEEDBACK.md) Round 4).** A parallel `claude --bg` fan-out over worktrees of a large private PHP monorepo OOM'd because each agent inherited and re-spawned a resident-LSP code-intelligence MCP server (~5.6 GB/agent, and pointed at `main` not the worktree — wasteful *and* wrong). Repo-verified: code-atlas does **not** reproduce this — no resident language server (query tools open/close SQLite per call, `find_callers.py:67`; adapters are transient and parse one file at a time, `adapter.py:83-88` / `indexer.py:102-104`), and `db_path` is `cwd`-relative so a worktree agent reads its own index, not `main` (`config.py:117`). Concrete confirmation of the SQLite-index thesis. Residual caveat is a transient build-time process burst under many concurrent builds — see [`runbooks/parallel-agents.md`](runbooks/parallel-agents.md).
 
-**Reference material** (same folder): `understand-anything-how-it-works.md`, `serena-how-it-works.md`, `code-review-graph-how-it-works.md`.
+**Reference material** (private, same folder): `understand-anything-how-it-works.md`, `code-review-graph-how-it-works.md`.
 
-**Primary validation sample:** the private **anchor-repo** monorepo — a large plain-PHP 8.5 codebase, PSR-4 `src/` + ~18k non-namespaced legacy + a ZF1 area, ~112k files, run via Docker (PHP not on host PATH). Used for scale/coverage testing **and (from 2026-08-04) as the agent-first evaluation anchor** (task 034) — always test/metrics only; no repo-specific behavior lives in the adapter (R2, §2 "standard over sample").
+**Primary validation sample:** a large private PHP 8.5 monorepo — PSR-4 `src/` + ~18k non-namespaced legacy + a ZF1 area, ~112k files, run via Docker (PHP not on host PATH). Used for scale/coverage testing **and (from 2026-08-04) as the agent-first evaluation anchor** (task 034) — always test/metrics only; no repo-specific behavior lives in the adapter (R2, §2 "standard over sample").
 ```

@@ -55,7 +55,7 @@ Plan §12, §15 (M2).
 | A1 | Manual baseline = resolve fixtures (`\\App\\User` / `\\App\\Repo::put` / `\\App\\helper`) | Recommended; user “ok” | Gate 1 | no |
 | A2 | `depth` default **1** (direct); depth=N = transitive BFS of CALLS/NEW; cap `CA_MAX_RESULTS` | Recommended; user “ok” | Gate 1 | no |
 | A3 | DYNAMIC **included** in results with tier surfaced; **not traversed** when depth>1 | Recommended; user “ok” | Gate 1 | no |
-| A4 | `find_callers` matches the **exact qname** only (no auto-expand to `Type::method` members) | Exposure-checker WANT; recommended (Serena owns expand; separate qname for members) | Gate 1 | no |
+| A4 | `find_callers` matches the **exact qname** only (no auto-expand to `Type::method` members) | Exposure-checker WANT; recommended (an LSP owns expand; separate qname for members) | Gate 1 | no |
 | A5 | `find_implementations` = **direct** EXTENDS/IMPLEMENTS children only (no depth; transitive → impact/017) | Exposure-checker WANT; recommended | Gate 1 | no |
 
 **Resolved HOW (+ citation):**
@@ -169,7 +169,7 @@ Add three MCP tools (`find_callers`, `find_references`, `find_implementations`) 
 
 | Alternative | Why rejected |
 |-------------|--------------|
-| Auto-expand class qname to all `Type::*` members | Violates A4; Serena owns precise expand |
+| Auto-expand class qname to all `Type::*` members | Violates A4; an LSP owns precise expand |
 | Transitive `find_implementations` | No depth in §12; belongs to impact (017) — A5 |
 | Traverse HEURISTIC/DYNAMIC at depth>1 | Violates A3 / HOW-5; would silently promote guesses |
 | New abstraction/registry for tools | R1.2 — keep the explicit `main.py` branches until a second axis appears |

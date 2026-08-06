@@ -24,7 +24,7 @@ token-efficient tools over MCP.
 - **Local-first & deterministic** — everything runs offline against a local SQLite index; no LLM or
   network in the core. Incremental updates via `git diff`. Requires **SQLite ≥ 3.25** (window
   functions for batched resolver lookups; Python's bundled `sqlite3` on supported platforms qualifies).
-- **Complements Serena** — code-atlas is the indexed search/impact layer; Serena stays for LSP nav/edit.
+- **Complements your LSP tooling** — code-atlas is the indexed search/impact layer; a language server stays for precise nav/edit.
 
 The token saving is measured, not asserted: a deterministic tokens-to-answer benchmark shows
 code-atlas reaching the resolved answer **~98× cheaper** than grep-and-read on pinned public PHP repos

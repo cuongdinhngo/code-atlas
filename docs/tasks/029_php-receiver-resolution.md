@@ -12,7 +12,7 @@ depends_on: [011, 025]
 Move the large, knowable class of instance/scope calls out of `HEURISTIC` into `RESOLVED` by naming
 the receiver's type when one file already determines it — `$this->`, `self::`, `static::`, `parent::`
 — so `find_callers` on those edges reports fact, not a name-match guess (§8.2). This is a PHP-standard
-language fact (the enclosing class is lexically known), not a anchor-repo-specific rule (R2).
+language fact (the enclosing class is lexically known), not a repo-specific rule (R2).
 
 ## Scope / Deliverables
 - In the PHP adapter's visitor, when a method/static call's receiver is lexically bound to the
