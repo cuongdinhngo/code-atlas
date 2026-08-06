@@ -4,7 +4,7 @@ slug: tokens-to-answer-sample-tier
 title: Tokens-to-answer sample tier — populate pinned public repos (ratio ≫ 1)
 phase: 1.5
 milestone: Measure
-status: in-progress
+status: done
 depends_on: [034, 018]
 ---
 
@@ -275,6 +275,16 @@ scan clean — no dangling old symbol names). Lint + mypy clean. **Verdict: clea
    `INCLUDES` edges are dynamic with no resolved target. Fixture tier already covers it.
 2. **laravel/laravel** — no sample question: at the pinned SHA it is the app skeleton with no
    resolvable nav graph (0 resolved CALLS, 0 inbound `App\` refs). Stays a cross-repo *build* sample.
+
+### Cost ledger (subagent dispatch only)
+| Phase | Dispatch | Round | Tokens |
+|-------|----------|-------|--------|
+| Review | `mango:reviewer` (Sonnet) | 1 | 85,579 (22 tool uses / 266 s) |
+| Review | `mango:challenger` (ticket-blind) | 1 | 48,792 (25 tool uses / 234 s) |
+| **Total** | 2 dispatches | | **134,371** |
+Top driver: reviewer round 1. Both retrieved via task-notification (usage blocks present). Phases 1–3
+and the verify-only re-review dispatched nothing (all main-loop). Main-loop spend is unmeasured (host
+does not surface per-task usage), as for prior tasks.
 
 ### Reviewed at c67ef3fc99d62d8ae7b6d27b3495c1ce5051d84c
 Reviewed files: `scripts/tokens_to_answer.py`, `scripts/cross_repo_validate.py`,
