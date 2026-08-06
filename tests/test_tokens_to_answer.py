@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import shlex
 import shutil
 from pathlib import Path
@@ -176,6 +177,9 @@ def test_questions_file_is_well_formed() -> None:
             # A sample row names a pin in cross_repo_samples.json and states a grep evidence hit.
             assert q["sample"] in pins, f"{q['id']} names unknown pin {q.get('sample')!r}"
             assert q["grep_evidence"], f"sample {q['id']} needs grep_evidence"
+        else:
+            # Task 045: a `local` row names somebody's machine, so it never lands in this repo.
+            raise AssertionError(f"{q['id']}: unexpected source {source!r} in the committed set")
 
 
 def test_run_sample_questions_selects_and_routes_by_pin(
@@ -238,3 +242,161 @@ def test_harness_answers_fixture_questions_and_reports_ratio(tmp_path: Path) -> 
     agg = _h.aggregate(rows)
     assert agg["atlas_correct"] == fixture_count
     assert agg["ratio"] > 0.0
+
+
+# --- Task 045: the local tier (a repo already on disk, its index reused) --------------------
+
+
+def test_grep_scan_holds_at_most_max_read_files_bodies(tmp_path: Path) -> None:
+    """The bound is applied while collecting: a broad pattern must not buffer the whole tree."""
+    for n in range(12):
+        (tmp_path / f"f{n:02d}.php").write_text(f"<?php\nclass Hit{n} {{}}\n", encoding="utf-8")
+    matches, bodies = _h.grep_scan(tmp_path, re.compile("class Hit"), ["*.php"], 3)
+
+    assert len(bodies) == 3, f"kept {len(bodies)} bodies for a cap of 3"
+    assert len(matches) == 12, "every match line is still reported; only bodies are capped"
+    assert list(bodies) == ["f00.php", "f01.php", "f02.php"]  # first matches win, deterministically
+
+
+def test_grep_scan_keeps_nothing_when_nothing_matches(tmp_path: Path) -> None:
+    (tmp_path / "a.php").write_text("<?php\n// quiet\n", encoding="utf-8")
+    matches, bodies = _h.grep_scan(tmp_path, re.compile("class Repo"), ["*.php"], 20)
+    assert matches == [] and bodies == {}
+
+
+def test_bind_existing_index_fails_loud_and_names_the_missing_path(tmp_path: Path) -> None:
+    """A missing index must never read as a zero-token answer (R5.3)."""
+    with pytest.raises(FileNotFoundError) as err:
+        _h.bind_existing_index(tmp_path)
+    assert str(tmp_path) in str(err.value)
+
+
+def test_bind_existing_index_honours_an_explicit_db_path(tmp_path: Path) -> None:
+    db = tmp_path / "elsewhere" / "graph.db"
+    db.parent.mkdir(parents=True)
+    db.write_bytes(b"")  # presence is what is checked here; the store is not opened
+    config = _h.bind_existing_index(tmp_path, db)
+    assert config.db_path == db and config.root == tmp_path
+
+
+def test_run_local_questions_uses_the_tree_in_place(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """No copy, no clone, no rebuild — the whole point of the local tier."""
+    repo = tmp_path / "on-disk-repo"
+    repo.mkdir()
+    questions = [
+        {"id": "skip-me", "source": "fixture", "root": "tests/fixtures/whatever"},
+        {"id": "local-1", "source": "local", "root": str(repo)},
+        {"id": "local-2", "source": "local", "root": str(repo)},
+    ]
+    bound: list[Path] = []
+
+    def fake_bind(root: Path, db_path: Path | None = None) -> object:
+        bound.append(root)
+        return object()  # sentinel config; evaluate_question is faked too
+
+    monkeypatch.setattr(_h, "bind_existing_index", fake_bind)
+    monkeypatch.setattr(
+        _h, "build_index", lambda *a, **k: pytest.fail("local tier must not build by default")
+    )
+    monkeypatch.setattr(
+        _h, "prepare_fixture_root", lambda *a, **k: pytest.fail("local tier must not copy the tree")
+    )
+    monkeypatch.setattr(
+        _h, "evaluate_question", lambda cfg, q: {"id": q["id"], "atlas_correct": True}
+    )
+
+    rows = _h.run_local_questions(questions, php_cmd="php")
+
+    assert [r["id"] for r in rows] == ["local-1", "local-2"]  # the fixture row is not ours
+    assert bound == [repo.resolve()], "one bind per distinct root, and the root is used as given"
+    assert not (repo / ".git").exists(), "the local tier must not git-init somebody's repo"
+    # Nothing was copied next to it, so the tree really was read where it lies.
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["on-disk-repo"]
+
+
+def test_run_local_questions_builds_only_when_asked(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    built: list[Path] = []
+    monkeypatch.setattr(
+        _h, "build_index", lambda root, db, cmd: built.append(root) or object()
+    )
+    monkeypatch.setattr(
+        _h, "evaluate_question", lambda cfg, q: {"id": q["id"], "atlas_correct": True}
+    )
+    questions = [{"id": "l", "source": "local", "root": str(repo)}]
+
+    _h.run_local_questions(questions, php_cmd="php", build=True, workdir=tmp_path / "wd")
+
+    assert built == [repo.resolve()]
+
+
+def test_run_local_questions_rejects_a_root_that_is_not_a_directory(tmp_path: Path) -> None:
+    missing = tmp_path / "nope"
+    questions = [{"id": "l", "source": "local", "root": str(missing)}]
+    with pytest.raises(NotADirectoryError) as err:
+        _h.run_local_questions(questions, php_cmd="php")
+    assert str(missing) in str(err.value)
+
+
+def test_local_and_samples_cannot_both_be_selected(tmp_path: Path) -> None:
+    with pytest.raises(SystemExit) as err:
+        _h.main(["--local", "--samples", "--report-out", str(tmp_path / "r.json")])
+    assert err.value.code == 2  # argparse usage error, not a silent precedence rule
+
+
+def test_tier_note_states_which_tier_produced_the_numbers() -> None:
+    assert "Local tier" in _h._tier_note(local=True, samples=False)
+    assert "outside this repository" in _h._tier_note(local=True, samples=False)
+    assert "Sample tier" in _h._tier_note(local=False, samples=True)
+    assert "sample_questions_skipped" in _h._tier_note(local=False, samples=False)
+
+
+def test_local_verdict_markdown_marks_the_numbers_as_not_ours() -> None:
+    agg = _h.aggregate([_row("a", atlas=10, grep=100)])
+    markdown = _h.verdict_markdown(
+        agg, min_ratio=None, failure=None, samples_skipped=0, mode="local"
+    )
+    assert "local tier" in markdown
+    assert "not to this one" in markdown
+
+
+def test_local_run_does_not_write_the_report_ci_uploads() -> None:
+    """CI uploads artifacts/tokens-to-answer-report.json; a local run may name a private repo."""
+    assert _h._DEFAULT_LOCAL_REPORT != _h._DEFAULT_REPORT
+
+
+@needs_php
+def test_local_tier_reuses_a_prebuilt_index_and_is_deterministic(tmp_path: Path) -> None:
+    """Proving path: build an index once, then measure against it twice with identical results."""
+    php_cmd = shlex.join([PHP or "php", str(PHP_ENTRY), "--server"])
+    repo = tmp_path / "standin"
+    (repo / "src").mkdir(parents=True)
+    (repo / "src" / "Billing.php").write_text(
+        "<?php\nclass Billing {\n    public function charge() { return 1; }\n}\n", encoding="utf-8"
+    )
+    (repo / "src" / "Caller.php").write_text(
+        "<?php\nclass Caller {\n    public function go(Billing $b) { return $b->charge(); }\n}\n",
+        encoding="utf-8",
+    )
+    _h.build_index(repo, repo / ".code-atlas" / "graph.db", php_cmd)
+
+    question = {
+        "id": "local-billing",
+        "source": "local",
+        "root": str(repo),
+        "atlas_path": [{"tool": "search_symbol", "args": {"query": "Billing"}}],
+        "expected": ["Billing"],
+        "grep": {"pattern": "class Billing", "globs": ["*.php"]},
+    }
+    first = _h.run_local_questions([question], php_cmd=php_cmd)
+    second = _h.run_local_questions([question], php_cmd=php_cmd)
+
+    assert len(first) == 1 and first[0]["atlas_correct"]
+    assert first[0]["atlas_tokens"] > 0 and first[0]["grep_tokens"] > 0
+    assert first == second, "same index + same question must give the same token counts (R4)"
+    assert not (repo / ".git").exists()

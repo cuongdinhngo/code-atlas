@@ -4,7 +4,7 @@ slug: onboarding-runbook
 title: Onboarding runbook — installing code-atlas on a large legacy repo
 phase: 1.5b
 milestone: Adoption
-status: in-progress
+status: done
 depends_on: [014, 039, 043]
 ---
 

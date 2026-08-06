@@ -50,6 +50,8 @@ from code_atlas.tools import (  # noqa: E402
 
 _QUESTIONS = _REPO / "scripts" / "tokens_to_answer_questions.json"
 _DEFAULT_REPORT = _REPO / "artifacts" / "tokens-to-answer-report.json"
+# Deliberately not the file ci.yml uploads: a local run may name a private repo (task 045).
+_DEFAULT_LOCAL_REPORT = _REPO / "artifacts" / "tokens-to-answer-local-report.json"
 # CI finds its own PR comment by this marker and edits it, instead of posting a new one per push.
 COMMENT_MARKER = "<!-- tokens-to-answer-report -->"
 _DEFAULT_PHP = shlex.join(["php", str(_REPO / "adapters" / "php" / "index.php"), "--server"])
@@ -136,17 +138,16 @@ def answer_contains(responses: list[dict[str, object]], expected: list[str]) -> 
     return all(any(exp in text for text in strings) for exp in expected)
 
 
-def run_grep_path(root: Path, spec: dict[str, Any]) -> tuple[int, str]:
-    """Model grep+``Read``: scan for a pattern, then read every matched file whole.
+def grep_scan(
+    root: Path, pattern: re.Pattern[str], globs: list[str], max_read_files: int
+) -> tuple[list[str], dict[str, str]]:
+    """Match lines across the tree, holding at most ``max_read_files`` file bodies.
 
-    Returns (tokens spent, the text the agent would have seen) — the match lines plus the
-    full contents of each file that matched, which is where the baseline burns its tokens.
+    The cap is applied while collecting, not after: a broad pattern over a repo-sized tree
+    would otherwise hold every matched file in memory only to discard most of them.
     """
-    pattern = re.compile(str(spec["pattern"]))
-    globs = [str(g) for g in spec.get("globs", ["*.php"])]
-    max_files = int(spec.get("max_read_files", 20))
     matches: list[str] = []
-    read_files: dict[str, str] = {}
+    bodies: dict[str, str] = {}
     for glob in globs:
         for path in sorted(root.rglob(glob)):
             if not path.is_file():
@@ -158,9 +159,24 @@ def run_grep_path(root: Path, spec: dict[str, Any]) -> tuple[int, str]:
                 if pattern.search(line):
                     matches.append(f"{rel}:{lineno}:{line.strip()}")
                     hit = True
-            if hit:
-                read_files[rel] = text
-    read_blob = "\n".join(list(read_files.values())[:max_files])
+            if hit and (rel in bodies or len(bodies) < max_read_files):
+                bodies[rel] = text
+    return matches, bodies
+
+
+def run_grep_path(root: Path, spec: dict[str, Any]) -> tuple[int, str]:
+    """Model grep+``Read``: scan for a pattern, then read every matched file whole.
+
+    Returns (tokens spent, the text the agent would have seen) — the match lines plus the
+    full contents of each file that matched, which is where the baseline burns its tokens.
+    """
+    matches, bodies = grep_scan(
+        root,
+        re.compile(str(spec["pattern"])),
+        [str(g) for g in spec.get("globs", ["*.php"])],
+        int(spec.get("max_read_files", 20)),
+    )
+    read_blob = "\n".join(bodies.values())
     grep_output = "\n".join(matches)
     tokens = (
         estimate_tokens(str(spec["pattern"]))
@@ -252,7 +268,14 @@ def verdict_markdown(
     ]
     if failure:
         lines += ["```", failure, "```", ""]
-    if mode == "sample":
+    if mode == "local":
+        # Local tier = the operator's own repo, so nothing here belongs in a public artifact.
+        lines.append(
+            "`ratio > 1` means code-atlas is cheaper. This is the **local tier** — a repo on this "
+            "machine, measured against its existing index — so treat these numbers, and the "
+            "question file behind them, as belonging to that repo and not to this one."
+        )
+    elif mode == "sample":
         # Sample tier = pinned public repos, so this ratio IS the value claim (task 042).
         lines.append(
             "`ratio > 1` means code-atlas is cheaper. This is the **sample tier** — pinned public "
@@ -305,6 +328,25 @@ def build_index(root: Path, db_path: Path, php_cmd: str) -> Config:
     config = replace(load_config(root, env), db_path=db_path, root=root)
     with GraphStore(config.db_path) as store:
         full_build(config, store)
+    return config
+
+
+def bind_existing_index(root: Path, db_path: Path | None = None) -> Config:
+    """Bind the tools to an index that already exists, without building anything.
+
+    A real repo costs minutes to index, so the local tier reuses what is on disk. ``db_path``
+    defaults to whatever the repo's own configuration resolves (``.code-atlas.toml``).
+    """
+    env = {k: v for k, v in os.environ.items() if k.startswith("CA_")}
+    config = replace(load_config(root, env), root=root)
+    if db_path is not None:
+        config = replace(config, db_path=db_path)
+    if not config.db_path.is_file():
+        # A missing index must never read as a zero-token answer — fail loud (R5.3).
+        raise FileNotFoundError(
+            f"no index at {config.db_path} — build it first (build_or_update_index), "
+            "or pass --local-build to build it here"
+        )
     return config
 
 
@@ -373,6 +415,58 @@ def run_sample_questions(
     return rows
 
 
+def _tier_note(*, local: bool, samples: bool) -> str:
+    """The one sentence in the report that says which tier produced these numbers."""
+    if local:
+        return (
+            "Local tier: run against repos already on disk, reusing each one's index. "
+            "Keep this report and its question file outside this repository."
+        )
+    if samples:
+        return "Sample tier: run against the pinned public repos in cross_repo_samples.json."
+    return (
+        "Sample-tier questions (pinned public repos) need a PHP+clone environment "
+        "and are listed under sample_questions_skipped."
+    )
+
+
+def _local_root(question: dict[str, Any]) -> str:
+    """The on-disk repo a local question runs against (an operator path, outside this checkout)."""
+    return str(question["root"])
+
+
+def run_local_questions(
+    questions: list[dict[str, Any]],
+    *,
+    php_cmd: str,
+    build: bool = False,
+    workdir: Path | None = None,
+) -> list[dict[str, Any]]:
+    """Evaluate against repos already on disk, used **in place** — no copy, no clone.
+
+    A private repo can neither be committed as a fixture nor cloned from a pin, so it is read
+    where it lies and its existing index is reused unless ``build`` is set.
+    """
+    by_root: dict[str, list[dict[str, Any]]] = {}
+    for question in questions:
+        if question.get("source") != "local":
+            continue
+        by_root.setdefault(_local_root(question), []).append(question)
+    rows: list[dict[str, Any]] = []
+    for index, (raw_root, group) in enumerate(sorted(by_root.items())):
+        root = Path(raw_root).expanduser().resolve()
+        if not root.is_dir():
+            raise NotADirectoryError(f"local question root is not a directory: {root}")
+        if build:
+            target = (workdir or root / ".code-atlas") / f"graph-{index}.db"
+            config = build_index(root, target, php_cmd)
+        else:
+            config = bind_existing_index(root)
+        for question in group:
+            rows.append(evaluate_question(config, question))
+    return rows
+
+
 def _php_cmd_from_env() -> str:
     return os.environ.get("CA_PHP_CMD", "").strip() or _DEFAULT_PHP
 
@@ -406,6 +500,17 @@ def main(argv: list[str] | None = None) -> int:
         help="With --samples, reuse existing cache checkouts only (no network).",
     )
     parser.add_argument(
+        "--local",
+        action="store_true",
+        help="Run the local tier: questions whose `source` is `local`, against repos already "
+        "on disk, reusing each one's existing index. Never used by CI.",
+    )
+    parser.add_argument(
+        "--local-build",
+        action="store_true",
+        help="With --local, build each repo's index instead of reusing it (slow on a real repo).",
+    )
+    parser.add_argument(
         "--markdown",
         type=Path,
         default=None,
@@ -418,15 +523,29 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    if args.samples and args.local:
+        parser.error("--samples and --local select different tiers; pass one")
     questions = load_questions(args.questions)
-    if args.samples:
+    if args.local:
+        php_cmd = args.php_cmd or _php_cmd_from_env()
+        rows = run_local_questions(
+            questions,
+            php_cmd=php_cmd,
+            build=args.local_build,
+            workdir=args.workdir.expanduser().resolve() if args.local_build else None,
+        )
+        sample_ids: list[str] = []
+        if args.report_out == _DEFAULT_REPORT:
+            # Never the file CI uploads: a local run may name a private repo (task 045).
+            args.report_out = _DEFAULT_LOCAL_REPORT
+    elif args.samples:
         php_cmd = args.php_cmd or cross_repo_validate.resolve_php_cmd()
         cache_root = args.cache_dir.expanduser().resolve()
         cache_root.mkdir(parents=True, exist_ok=True)
         rows = run_sample_questions(
             questions, cache_root=cache_root, php_cmd=php_cmd, skip_clone=args.skip_clone
         )
-        sample_ids: list[str] = []  # the sample tier ran them; nothing skipped here
+        sample_ids = []  # the sample tier ran them; nothing skipped here
     else:
         php_cmd = args.php_cmd or _php_cmd_from_env()
         workdir = args.workdir.expanduser().resolve()
@@ -442,12 +561,7 @@ def main(argv: list[str] | None = None) -> int:
         "note": (
             "ratio = grep+Read tokens / code-atlas tokens over atlas-correct questions; "
             ">1 means code-atlas is cheaper. "
-            + (
-                "Sample tier: run against the pinned public repos in cross_repo_samples.json."
-                if args.samples
-                else "Sample-tier questions (pinned public repos) need a PHP+clone environment "
-                "and are listed under sample_questions_skipped."
-            )
+            + _tier_note(local=args.local, samples=args.samples)
         ),
     }
     out = args.report_out.expanduser().resolve()
@@ -470,7 +584,7 @@ def main(argv: list[str] | None = None) -> int:
             min_ratio=args.min_ratio,
             failure=failure,
             samples_skipped=len(sample_ids),
-            mode="sample" if args.samples else "fixture",
+            mode="local" if args.local else "sample" if args.samples else "fixture",
         )
         target = args.markdown.expanduser().resolve()
         target.parent.mkdir(parents=True, exist_ok=True)

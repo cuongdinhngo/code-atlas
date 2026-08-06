@@ -53,6 +53,67 @@ ratio ≈ **0.288**: 1666 vs 479 tokens over 10 questions, all answered correctl
 (ratio ≫ 1) appears only on realistic repos, where grep matches many files an agent must read whole
 — that is the **sample tier**, measured on schedule, not per PR.
 
+## Local tier (a repo already on disk) — task 045
+
+The fixture tier needs the tree committed here; the sample tier needs it clonable from a public pin.
+Neither fits the repo the §19 pivot actually names as the evaluation anchor: a **large private
+monorepo already on this machine**. The local tier is for that case.
+
+```bash
+export CA_PHP_CMD="php $(pwd)/adapters/php/index.php --server"
+python scripts/tokens_to_answer.py --local --questions /abs/path/outside/this/repo/questions.json
+```
+
+A local question sets `"source": "local"` and an absolute `root`. The tree is used **in place** — no
+copy, no `git init`, no rebuild — and the index is whatever `root`'s own `.code-atlas.toml` resolves,
+because a real repo costs minutes to build and re-paying that per run makes the harness unusable. A
+missing index is a loud `FileNotFoundError` naming the path, never a zero-token "answer". Pass
+`--local-build` to build one anyway.
+
+```json
+{"questions": [{
+  "id": "who-calls-charge", "source": "local", "root": "/abs/path/to/your-repo",
+  "atlas_path": [{"tool": "find_callers", "args": {"qname": "\\Billing::charge"}}],
+  "expected": ["Invoice::finalise"],
+  "grep": {"pattern": "->charge\\(", "globs": ["*.php"], "max_read_files": 20}
+}]}
+```
+
+**Keep the question file and the report outside this repository.** Both name someone's tree. The
+report therefore defaults to `artifacts/tokens-to-answer-local-report.json` — deliberately *not* the
+`artifacts/tokens-to-answer-report.json` that [`ci.yml`](../../.github/workflows/ci.yml) uploads — and
+the markdown verdict says in words that the numbers belong to that repo and not to this one. `--local`
+is opt-in, mutually exclusive with `--samples`, and never used by CI; the committed question set is
+guarded against a `local` row by `test_questions_file_is_well_formed`.
+
+One caveat before trusting a local ratio: `run_grep_path` models grep as "scan the tree, then read
+every matched file whole", and it walks the **whole** tree per question — ignore rules do not apply,
+because a real agent's grep sees those files too. It is bounded in memory (at most `max_read_files`
+bodies at a time) but still O(repo) in time, so expect seconds per question on a repo-sized tree.
+
+### First local-tier measurement
+
+Run against one large private PHP monorepo (~19k indexed files, PSR-4 + non-namespaced legacy),
+5 questions, **5/5 answered correctly on both paths** — grep found the evidence too, it just paid for
+it. **Aggregate ratio 178.3** (grep 838,988 / code-atlas 4,705 tokens):
+
+| Question kind | code-atlas | grep+`Read` | ratio |
+|---|---|---|---|
+| `find_references` on a legacy base class | 517 | 324,243 | 627.2 |
+| `find_callers` on a region predicate | 774 | 256,303 | 331.1 |
+| `find_callers` on a DB builder | 648 | 212,184 | 327.4 |
+| `find_implementations` on an interface | 611 | 27,750 | 45.4 |
+| `read_symbol` on one class | 2,155 | 18,508 | 8.6 |
+
+The spread is the finding, not the aggregate. Relation queries on names that appear across a thousand
+legacy files are where the index earns its cost; `read_symbol` — where grep's own answer is already
+narrow — wins by less than an order of magnitude. Read the aggregate as "dominated by the widest
+question", and pick questions that match the work you actually do.
+
+Note also that this repo carries the same class names in two regional trees, so every nav row came
+back twice (see the nav-dedup follow-up in [`BACKLOG.md`](../BACKLOG.md)) — the code-atlas column above
+is roughly twice what it needs to be, which makes 178.3 a **conservative** figure here.
+
 ## Surface A/B (task 037)
 
 `scripts/relation_surface_ab.py` answers a question this ratio cannot: **three relation tools or one
@@ -76,9 +137,13 @@ whenever a relation tool's docstring changes materially — the schema term is p
 one docstring during 037 moved the break-even from 11.4 to 8.9).
 
 Recalibrate the floor to `0.8 × observed` whenever the fixtures or recipes change. Response-shape
-work also moves it: the ratio has drifted **0.302 → 0.293 → 0.286** (1409 → 1452 → 1484 atlas
-tokens) as tasks 033 and 035 added `reason` / `total_count` to every payload, so the `0.24` floor now
-carries 16% headroom rather than the intended 20%. Re-read the floor before assuming a failure is a
+work also moves it: the ratio has drifted **0.302 → 0.293 → 0.286 → 0.282** (1409 → 1452 → 1484 →
+1696 atlas tokens) as tasks 033 and 035 added `reason` / `total_count` to every payload, so the `0.24`
+floor now carries 15% headroom rather than the intended 20%. The last step (1484 → 1696) was
+**observed** during task 045 and is not attributed here — 045 changed no payload, and a
+stash-and-compare run proved the fixture report byte-identical across its diff. Whatever widened those
+responses did so without updating this line, which is the argument for re-reading the floor before
+calling a breach a retrieval regression. Re-read the floor before assuming a failure is a
 regression in retrieval rather than a wider response.
 
 ## Adding a question

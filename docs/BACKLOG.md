@@ -71,8 +71,8 @@ gap that fixtures never hit.
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
 | 043 | [Duplicate-declaration resilience — repeated `qualified_name` must not abort the build](tasks/043_duplicate-decl-resilience.md) | Robustness | done | 004, 009 |
-| 044 | [Onboarding runbook — installing code-atlas on a large legacy repo](tasks/044_onboarding-runbook.md) | Adoption | in-progress | 014, 039, 043 |
-| 045 | [Tokens-to-answer — measure against a local repo with a pre-built index](tasks/045_tokens-to-answer-local-repo.md) | Measure | todo | 034, 042 |
+| 044 | [Onboarding runbook — installing code-atlas on a large legacy repo](tasks/044_onboarding-runbook.md) | Adoption | done | 014, 039, 043 |
+| 045 | [Tokens-to-answer — measure against a local repo with a pre-built index](tasks/045_tokens-to-answer-local-repo.md) | Measure | in-progress | 034, 042 |
 
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
 
@@ -142,6 +142,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 042 | Tokens-to-answer sample tier — pinned public repos (ratio ≫ 1) | **2 dispatch, both measured — 134.4k total** — review `mango:reviewer` **85.6k** (22 tool uses / 266 s) + ticket-blind `mango:challenger` **48.8k** (25 / 234 s), read from their returned `<usage>` blocks (both landed as task-notifications). Phases 1–3 dispatched **nothing** — analysis/design/execute (incl. the PHP-env spike, index exploration, and the harness-verified sample run) all ran on the main model. Review round 2 was verify-only in the main loop (no re-dispatch). **Main-loop spend is unmeasured**, as for 004–041 | [#48](https://github.com/cuongdinhngo/code-atlas/pull/48) |
 | 043 | Duplicate-declaration resilience — repeated `qualified_name` must not abort the build | **2 dispatch, both measured — 150.7k total** — review round 1 `mango:reviewer` **86.4k** (28 tool uses / 326 s) + ticket-blind `mango:challenger` **64.3k** (28 / 285 s), read from their returned `<usage>` blocks (both dispatched `run_in_background:false`). Phases 1–3 dispatched **nothing** — analysis (incl. the two `IntegrityError`/NULL spikes against the real store), design, and execute all ran on the main model; no verify-only re-review round (Gate 4 was clean on round 1 with a human-approved AC1 coverage-gap exclusion). **Main-loop spend is unmeasured**, as for 004–042 | [#49](https://github.com/cuongdinhngo/code-atlas/pull/49) |
 | 044 | Onboarding runbook — installing code-atlas on a large legacy repo | **0 dispatch** — no subagent ran at any point: the work was a real onboarding trial (two full builds, a tool-by-tool verification sweep, an incremental run) plus the write-up, all on the main model, and it did not go through the mango lifecycle, so no working-doc cost ledger exists for it — as for 024, 032 and 034. **Main-loop spend is unmeasured**: mango measures dispatch only, and `rtk gain` reports a global all-time figure that cannot be attributed to one task, so none is invented here | [#50](https://github.com/cuongdinhngo/code-atlas/pull/50) |
+| 045 | Tokens-to-answer — local tier against a repo on disk | **0 dispatch** — no subagent ran: the harness read, the `source: local` implementation, the `run_grep_path` memory bound, 13 tests, the stash-and-compare equivalence proof, and the first anchor-repo measurement (ratio 178.3) all ran on the main model, outside the mango lifecycle, so no working-doc cost ledger exists — as for 024, 032, 034 and 044. **Main-loop spend is unmeasured**: mango measures dispatch only, and `rtk gain` is a global all-time figure that cannot be attributed to one task, so none is invented here | [#51](https://github.com/cuongdinhngo/code-atlas/pull/51) |
 
 ## Follow-ups (not yet ticketed)
 
@@ -199,6 +200,16 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
   `vendor/` rule as well, so a committed dependency indexes as full source (2,580 files, 12 % of that
   index). Last-rule-wins is working as designed (`ignore.py:57-65`); the fix is a `.codeatlasignore`
   line, so this stays a doc item.
+- **Nav rows are not deduplicated, and a repo with duplicate qnames halves the result budget.**
+  Measured on a large private monorepo that carries two regional copies of the same legacy tree: the
+  same class name is declared in two files, so `UNIQUE(qualified_name, file_path)` (`store.py:59`)
+  legitimately keeps two nodes per qname, and a nav tool joining on `target_qname` matches both — so
+  every hit is returned **twice** with an identical `(qname, file, line)`. `find_implementations` on an
+  interface returned 10 rows carrying 5 distinct answers; `find_references` the same. That is half the
+  `max_results` budget and half the response tokens spent on nothing, and it reads to an agent as a
+  wrong answer rather than a duplicate. A dedupe on `(qname, file, line)` while shaping rows
+  (`tools/nav_result.py`) looks like the fix, but it forces a decision on what `total_count` then means
+  — distinct answers, or edges — so it needs a ticket rather than a patch.
 - **`max_results` does two unrelated jobs (design smell, measured).** It caps both the rows a tool
   returns *and* the resolver's per-call-site candidate fan-out
   (`indexer.py:118` → `resolve_edges(max_candidates=config.max_results)`), so a query-ergonomics knob
