@@ -73,6 +73,7 @@ gap that fixtures never hit.
 | 043 | [Duplicate-declaration resilience — repeated `qualified_name` must not abort the build](tasks/043_duplicate-decl-resilience.md) | Robustness | done | 004, 009 |
 | 044 | [Onboarding runbook — installing code-atlas on a large legacy repo](tasks/044_onboarding-runbook.md) | Adoption | done | 014, 039, 043 |
 | 045 | [Tokens-to-answer — measure against a local repo with a pre-built index](tasks/045_tokens-to-answer-local-repo.md) | Measure | in-progress | 034, 042 |
+| 046 | [Resolver — dedupe candidates by `qualified_name` (kill duplicate edges, stop the false downgrade)](tasks/046_resolver-qname-candidate-dedupe.md) | Robustness | in-progress | 011, 027, 043 |
 
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
 
@@ -143,6 +144,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 043 | Duplicate-declaration resilience — repeated `qualified_name` must not abort the build | **2 dispatch, both measured — 150.7k total** — review round 1 `mango:reviewer` **86.4k** (28 tool uses / 326 s) + ticket-blind `mango:challenger` **64.3k** (28 / 285 s), read from their returned `<usage>` blocks (both dispatched `run_in_background:false`). Phases 1–3 dispatched **nothing** — analysis (incl. the two `IntegrityError`/NULL spikes against the real store), design, and execute all ran on the main model; no verify-only re-review round (Gate 4 was clean on round 1 with a human-approved AC1 coverage-gap exclusion). **Main-loop spend is unmeasured**, as for 004–042 | [#49](https://github.com/cuongdinhngo/code-atlas/pull/49) |
 | 044 | Onboarding runbook — installing code-atlas on a large legacy repo | **0 dispatch** — no subagent ran at any point: the work was a real onboarding trial (two full builds, a tool-by-tool verification sweep, an incremental run) plus the write-up, all on the main model, and it did not go through the mango lifecycle, so no working-doc cost ledger exists for it — as for 024, 032 and 034. **Main-loop spend is unmeasured**: mango measures dispatch only, and `rtk gain` reports a global all-time figure that cannot be attributed to one task, so none is invented here | [#50](https://github.com/cuongdinhngo/code-atlas/pull/50) |
 | 045 | Tokens-to-answer — local tier against a repo on disk | **0 dispatch** — no subagent ran: the harness read, the `source: local` implementation, the `run_grep_path` memory bound, 13 tests, the stash-and-compare equivalence proof, and the first anchor-repo measurement (ratio 178.3) all ran on the main model, outside the mango lifecycle, so no working-doc cost ledger exists — as for 024, 032, 034 and 044. **Main-loop spend is unmeasured**: mango measures dispatch only, and `rtk gain` is a global all-time figure that cannot be attributed to one task, so none is invented here | [#51](https://github.com/cuongdinhngo/code-atlas/pull/51) |
+| 046 | Resolver — dedupe candidates by `qualified_name` | **0 dispatch** — no subagent ran: the root-cause investigation (index queries proving the duplicate rows identical in every column but `id`, and `store.py`'s partition guarantee), the fix, the three pinned tests corrected, four new tests, and the rebuild measurement all ran on the main model, outside the mango lifecycle, so no working-doc cost ledger exists — as for 024, 032, 034, 044 and 045. **Main-loop spend is unmeasured**, for the same reason | [#52](https://github.com/cuongdinhngo/code-atlas/pull/52) |
 
 ## Follow-ups (not yet ticketed)
 
@@ -207,9 +209,9 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
   every hit is returned **twice** with an identical `(qname, file, line)`. `find_implementations` on an
   interface returned 10 rows carrying 5 distinct answers; `find_references` the same. That is half the
   `max_results` budget and half the response tokens spent on nothing, and it reads to an agent as a
-  wrong answer rather than a duplicate. A dedupe on `(qname, file, line)` while shaping rows
-  (`tools/nav_result.py`) looks like the fix, but it forces a decision on what `total_count` then means
-  — distinct answers, or edges — so it needs a ticket rather than a patch.
+  wrong answer rather than a duplicate. **Ticketed and fixed as [046](tasks/046_resolver-qname-candidate-dedupe.md)**,
+  at the cause rather than in the row shaping: the duplicate *edges* no longer exist, so
+  `total_count` never had to choose between counting answers and counting edges.
 - **`max_results` does two unrelated jobs (design smell, measured).** It caps both the rows a tool
   returns *and* the resolver's per-call-site candidate fan-out
   (`indexer.py:118` → `resolve_edges(max_candidates=config.max_results)`), so a query-ergonomics knob

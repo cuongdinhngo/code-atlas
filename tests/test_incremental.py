@@ -231,8 +231,13 @@ def test_heuristic_siblings_still_match_a_full_rebuild(tmp_path: Path) -> None:
         assert snapshot(store) == incremental
 
 
-def test_disambiguation_restores_resolved_tier(tmp_path: Path) -> None:
-    """Deleting a duplicate FQN must recover RESOLVED — not leave a ratcheted HEURISTIC."""
+def test_dropping_a_duplicate_declaration_converges_with_a_full_build(tmp_path: Path) -> None:
+    """Deleting one of two files declaring a qname must leave exactly what a full build produces.
+
+    Task 046 removed the premise this test was written for: a qname in two files no longer
+    downgrades the edge, so there is no ratcheted HEURISTIC left to recover. What still needs
+    proving is that incremental re-resolution converges when a declaring file disappears.
+    """
     committed(
         tmp_path,
         {
@@ -245,8 +250,9 @@ def test_disambiguation_restores_resolved_tier(tmp_path: Path) -> None:
     with GraphStore(config.db_path) as store:
         full_build(config, store)
         linked = store.edges_by_source("dep/extends_child.aa::Thing", kinds=("EXTENDS",), limit=10)
-        assert len(linked) == 2
-        assert {row["confidence_tier"] for row in linked} == {"HEURISTIC"}
+        # Two declaring files, one resolved name: one edge, and it is not downgraded for it.
+        assert len(linked) == 1
+        assert linked[0]["confidence_tier"] == "RESOLVED"
         last = store.get_meta(LAST_COMMIT_KEY)
         assert last is not None
 

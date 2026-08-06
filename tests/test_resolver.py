@@ -107,7 +107,12 @@ def test_heuristic_fqn_match_is_not_promoted_to_resolved(store: GraphStore) -> N
     assert linked[0]["confidence_tier"] == "HEURISTIC"
 
 
-def test_many_fqn_candidates_expand_as_heuristic_top_n(store: GraphStore) -> None:
+def test_one_qname_in_many_files_links_once_and_stays_resolved(store: GraphStore) -> None:
+    """Task 046: multiplicity across files is not ambiguity — an edge records a qname, not a file.
+
+    Before, each extra node became a sibling that differed from the original in nothing, and the
+    node count downgraded the edge to HEURISTIC.
+    """
     store.upsert_file("a.x", "h", "lang")
     store.upsert_file("b.x", "h", "lang")
     store.replace_file_rows(
@@ -124,13 +129,77 @@ def test_many_fqn_candidates_expand_as_heuristic_top_n(store: GraphStore) -> Non
     resolve_edges(store, max_candidates=50)
 
     linked = store.edges_by_source("\\Ns\\Child", kinds=("EXTENDS",), limit=10)
-    assert len(linked) == 2
-    assert {row["target_qname"] for row in linked} == {"\\Ns\\Dup"}
+    assert len(linked) == 1, "one qname resolved, so one edge — not one per declaring file"
+    assert linked[0]["target_qname"] == "\\Ns\\Dup"
+    assert linked[0]["confidence_tier"] == "RESOLVED"
+    # Nothing is lost: both declarations are still nodes, so search/outline still show both files.
     assert {row["file_path"] for row in store.nodes_by_qualified_name("\\Ns\\Dup", limit=10)} == {
         "a.x",
         "b.x",
     }
-    assert all(row["confidence_tier"] == "HEURISTIC" for row in linked)
+
+
+def test_multi_file_qname_never_promotes_an_adapter_heuristic_claim(store: GraphStore) -> None:
+    """R5.2 still governs: computing RESOLVED must not upgrade a weaker incoming tier."""
+    store.upsert_file("a.x", "h", "lang")
+    store.upsert_file("b.x", "h", "lang")
+    store.replace_file_rows(
+        "a.x",
+        [node("Class", "Child", "\\Ns\\Child", "a.x"), node("Class", "Dup", "\\Ns\\Dup", "a.x")],
+        [edge("CALLS", "\\Ns\\Child", "\\Ns\\Dup", "a.x", tier="HEURISTIC")],
+    )
+    store.replace_file_rows("b.x", [node("Class", "Dup", "\\Ns\\Dup", "b.x")], [])
+
+    resolve_edges(store, max_candidates=50)
+
+    linked = store.edges_by_source("\\Ns\\Child", kinds=("CALLS",), limit=10)
+    assert len(linked) == 1
+    assert linked[0]["confidence_tier"] == "HEURISTIC"
+
+
+def test_resolve_is_idempotent_on_an_already_resolved_store(store: GraphStore) -> None:
+    """A second pass must add nothing — otherwise duplicates return by another route."""
+    store.upsert_file("a.x", "h", "lang")
+    store.upsert_file("b.x", "h", "lang")
+    store.replace_file_rows(
+        "a.x",
+        [node("Class", "Child", "\\Ns\\Child", "a.x"), node("Class", "Dup", "\\Ns\\Dup", "a.x")],
+        [edge("EXTENDS", "\\Ns\\Child", "\\Ns\\Dup", "a.x")],
+    )
+    store.replace_file_rows("b.x", [node("Class", "Dup", "\\Ns\\Dup", "b.x")], [])
+
+    resolve_edges(store, max_candidates=50)
+    first = store.edges_by_source("\\Ns\\Child", kinds=("EXTENDS",), limit=50)
+    resolve_edges(store, max_candidates=50)
+    second = store.edges_by_source("\\Ns\\Child", kinds=("EXTENDS",), limit=50)
+
+    assert first == second
+
+
+def test_no_exact_duplicate_edge_rows_survive_a_resolve(store: GraphStore) -> None:
+    """The store-level statement of the defect: no group of rows equal in every column but id."""
+    store.upsert_file("a.x", "h", "lang")
+    for path in ("b.x", "c.x", "d.x"):
+        store.upsert_file(path, "h", "lang")
+    store.replace_file_rows(
+        "a.x",
+        [
+            node("Class", "Child", "\\Ns\\Child", "a.x"),
+            node("Class", "Dup", "\\Ns\\Dup", "a.x"),
+            node("Class", "Dup", "\\Ns\\Dup", "b.x"),
+            node("Class", "Dup", "\\Ns\\Dup", "c.x"),
+            node("Class", "Dup", "\\Ns\\Dup", "d.x"),
+        ],
+        [edge("EXTENDS", "\\Ns\\Child", "\\Ns\\Dup", "a.x")],
+    )
+
+    resolve_edges(store, max_candidates=50)
+
+    groups = store._conn.execute(
+        "SELECT count(*) FROM (SELECT kind, source_qname, target_qname, target_raw, file_path, "
+        "line, confidence_tier, count(*) n FROM edges GROUP BY 1,2,3,4,5,6,7 HAVING n > 1)"
+    ).fetchone()[0]
+    assert groups == 0
 
 
 def test_many_method_name_matches_respect_max_candidates(store: GraphStore) -> None:
@@ -366,12 +435,10 @@ def test_batched_resolve_matches_golden_and_is_o1_selects(
     assert calls["n"] <= 4
 
     extends = store.edges_by_source("\\Ns\\Child", kinds=("EXTENDS",), limit=10)
-    # Same qname on both candidates — cannot distinguish primary vs sibling by target alone.
-    assert len(extends) == 2
-    assert all(
-        row["target_qname"] == "\\Ns\\Parent" and row["confidence_tier"] == "HEURISTIC"
-        for row in extends
-    )
+    # Both candidates carry the same qname, so they collapse to one RESOLVED edge (task 046).
+    assert len(extends) == 1
+    assert extends[0]["target_qname"] == "\\Ns\\Parent"
+    assert extends[0]["confidence_tier"] == "RESOLVED"
 
     puts = store.edges_by_source("\\A::save", kinds=("CALLS",), limit=50)
     # 10 CALLS × 2 candidates each (primary + sibling) with identical target set order.
