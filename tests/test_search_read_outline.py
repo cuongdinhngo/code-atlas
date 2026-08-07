@@ -291,7 +291,7 @@ def test_prompts_are_registered(tmp_path: Path) -> None:
 
 def test_build_recovers_from_foreign_schema_version(tmp_path: Path) -> None:
     """An MCP client must not need a shell to escape a schema_version bump."""
-    from code_atlas.store import SCHEMA_VERSION_KEY, SchemaVersionError
+    from code_atlas.store import SCHEMA_VERSION, SCHEMA_VERSION_KEY, SchemaVersionError
     from code_atlas.tools import build_or_update_index
 
     db = tmp_path / "graph.db"
@@ -304,4 +304,4 @@ def test_build_recovers_from_foreign_schema_version(tmp_path: Path) -> None:
     result = build_or_update_index.create(config)(detail_level="minimal")
     assert result["schema_rebuilt"] is True
     with GraphStore(db) as reopened:
-        assert reopened.get_meta(SCHEMA_VERSION_KEY) == "2"
+        assert reopened.get_meta(SCHEMA_VERSION_KEY) == SCHEMA_VERSION

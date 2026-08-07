@@ -16,7 +16,7 @@ An adapter opens the stream by announcing itself once — the **handshake** of �
 :func:`validate_meta` — so the core never carries a table of who owns which file suffix.
 """
 
-CONTRACT_VERSION = 2
+CONTRACT_VERSION = 3
 
 # Ordered, not a set: error messages embed these values, and R4.2 requires identical output.
 NODE_KINDS: tuple[str, ...] = (
@@ -88,7 +88,18 @@ EDGE_FIELDS: tuple[str, ...] = (
     "file_path",
     "line",
     "confidence_tier",
+    "args",
 )
+
+# One entry per argument at a CALLS/NEW site, in source order (contract v3, task 049).
+# JSON ``null`` means "not a literal" — a variable, a call, any expression the parser saw but did
+# not evaluate. A string is one of ARG_LITERALS: the *category*, never the value.
+ARG_LITERALS: tuple[str, ...] = ("null", "true", "false", "number", "string", "array")
+# Reserved ``args`` selectors that are not literals: fewer arguments than asked for, and "present
+# but not a literal". Kept apart from ARG_LITERALS so neither list can shadow the other.
+ARG_ABSENT = "absent"
+ARG_DYNAMIC = "dynamic"
+ARG_SELECTORS: tuple[str, ...] = (*ARG_LITERALS, ARG_ABSENT, ARG_DYNAMIC)
 
 RESULT_FIELDS: tuple[str, ...] = ("path", "ok", "nodes", "edges", "error")
 
@@ -256,7 +267,22 @@ def _check_row(
                 CONFIDENCE_TIERS,
             )
         )
+    if "args" in row:
+        errors += _check_args(path, row["args"])
     return errors
+
+
+def _check_args(path: str, args: object) -> list[str]:
+    """``args`` is a list; each entry is null or one of ARG_LITERALS (never a literal's value)."""
+    if args is None:
+        return []
+    if not isinstance(args, list):
+        return [_wrong_type(f"{path}.args", args, "a list of argument literals or nulls")]
+    return [
+        _not_allowed(f"{path}.args[{index}]", entry, "argument literal", ARG_LITERALS)
+        for index, entry in enumerate(args)
+        if entry is not None and entry not in ARG_LITERALS
+    ]
 
 
 def _check_keys(

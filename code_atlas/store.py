@@ -21,7 +21,7 @@ from typing import NamedTuple
 from code_atlas import contract
 from code_atlas.contract import CONFIDENCE_TIERS
 
-SCHEMA_VERSION = "2"
+SCHEMA_VERSION = "3"
 SCHEMA_VERSION_KEY = "schema_version"
 CONTRACT_VERSION_KEY = "contract_version"
 LAST_COMMIT_KEY = "last_commit"
@@ -67,7 +67,7 @@ CREATE INDEX IF NOT EXISTS idx_nodes_file ON nodes(file_path);
 
 CREATE TABLE IF NOT EXISTS edges (
   id INTEGER PRIMARY KEY, kind TEXT, source_qname TEXT, target_qname TEXT, target_raw TEXT,
-  file_path TEXT, line INT, confidence_tier TEXT DEFAULT 'RESOLVED');
+  file_path TEXT, line INT, confidence_tier TEXT DEFAULT 'RESOLVED', args TEXT);
 CREATE INDEX IF NOT EXISTS idx_edges_src ON edges(source_qname, kind);
 CREATE INDEX IF NOT EXISTS idx_edges_tgt ON edges(target_qname, kind);
 CREATE INDEX IF NOT EXISTS idx_edges_tier ON edges(confidence_tier);
@@ -179,6 +179,34 @@ def _chunks(values: Sequence[str], size: int) -> Iterator[Sequence[str]]:
     """Yield successive slices of ``values`` so ``IN (...)`` lists stay under the host max."""
     for start in range(0, len(values), size):
         yield values[start : start + size]
+
+
+# A ready-made SQL fragment plus its parameters, appended to an edge WHERE clause.
+_Predicate = tuple[str, tuple[object, ...]] | None
+
+
+def _args_predicate(args_at: tuple[int, str] | None) -> _Predicate:
+    """Turn ``(1-based position, selector)`` into SQL over the JSON ``args`` column (task 049).
+
+    An edge with no recorded ``args`` never matches: unknown is not absent, and a filter that
+    quietly counted it as such would be the untrustworthy measurement this replaces.
+    """
+    if args_at is None:
+        return None
+    position, selector = args_at
+    if position < 1:
+        raise ValueError(f"argument position is 1-based, got {position}")
+    if selector not in contract.ARG_SELECTORS:
+        raise ValueError(f"unknown argument selector {selector!r}: {contract.ARG_SELECTORS}")
+    if selector == contract.ARG_ABSENT:
+        return "args IS NOT NULL AND json_array_length(args) < ?", (position,)
+    at = f"$[{position - 1}]"
+    if selector == contract.ARG_DYNAMIC:
+        return (
+            "args IS NOT NULL AND json_array_length(args) >= ? AND json_extract(args, ?) IS NULL",
+            (position, at),
+        )
+    return "args IS NOT NULL AND json_extract(args, ?) = ?", (at, selector)
 
 
 def stored(value: object) -> object:
@@ -391,19 +419,43 @@ class GraphStore:
         return self._edges("source_qname = ?", qname, kinds, limit)
 
     def edges_by_target(
-        self, qname: str, *, kinds: Sequence[str] | None = None, limit: int
+        self,
+        qname: str,
+        *,
+        kinds: Sequence[str] | None = None,
+        limit: int,
+        args_at: tuple[int, str] | None = None,
     ) -> list[Row]:
         """Edges whose resolved ``target_qname`` is ``qname``.
 
-        Optional ``kinds`` narrows the set (e.g. CALLER_KINDS).
+        Optional ``kinds`` narrows the set (e.g. CALLER_KINDS); ``args_at`` narrows to call sites
+        whose argument at a 1-based position has a given shape (task 049).
         """
-        return self._edges("target_qname = ?", qname, kinds, limit)
+        return self._edges(
+            "target_qname = ?", qname, kinds, limit, extra=_args_predicate(args_at)
+        )
 
     def count_edges_by_target(
-        self, qname: str, *, kinds: Sequence[str] | None = None
+        self,
+        qname: str,
+        *,
+        kinds: Sequence[str] | None = None,
+        args_at: tuple[int, str] | None = None,
     ) -> int:
         """How many edges target ``qname`` (same filters as ``edges_by_target``)."""
-        return self._count_edges("target_qname = ?", qname, kinds)
+        return self._count_edges(
+            "target_qname = ?", qname, kinds, extra=_args_predicate(args_at)
+        )
+
+    def count_edges_without_args(
+        self, qname: str, *, kinds: Sequence[str] | None = None
+    ) -> int:
+        """Edges targeting ``qname`` whose arguments were never recorded — the filter's blind spot.
+
+        Unknown is not absent: an ``args_at`` filter can say nothing about these, so a caller that
+        reports a filtered count must report this one beside it (§19: no silent narrowing).
+        """
+        return self._count_edges("target_qname = ?", qname, kinds, extra=("args IS NULL", ()))
 
     def alias_targets(self) -> dict[str, str]:
         """Map alias FQN → real FQN from ``ALIASES`` edges (``source_qname`` → ``target_raw``)."""
@@ -1374,32 +1426,50 @@ class GraphStore:
                 grouped[str(row[key_column])].append(row)
         return grouped
 
-    def _edges(self, where: str, value: str, kinds: Sequence[str] | None, limit: int) -> list[Row]:
-        if kinds is None:
-            sql = (
-                f"SELECT id, {_EDGE_COLUMNS} FROM edges WHERE {where} "
-                f"ORDER BY {_EDGE_ORDER} LIMIT ?"
-            )
-            return self._rows(EDGE_ROW_KEYS, sql, (value, limit))
-        if not kinds:
-            raise ValueError("kinds must be non-empty")
-        placeholders = ", ".join("?" for _ in kinds)
+    def _edges(
+        self,
+        where: str,
+        value: str,
+        kinds: Sequence[str] | None,
+        limit: int,
+        *,
+        extra: _Predicate = None,
+    ) -> list[Row]:
+        clause, params = self._edge_where(where, kinds, extra)
         sql = (
-            f"SELECT id, {_EDGE_COLUMNS} FROM edges "
-            f"WHERE {where} AND kind IN ({placeholders}) "
+            f"SELECT id, {_EDGE_COLUMNS} FROM edges WHERE {clause} "
             f"ORDER BY {_EDGE_ORDER} LIMIT ?"
         )
-        return self._rows(EDGE_ROW_KEYS, sql, (value, *kinds, limit))
+        return self._rows(EDGE_ROW_KEYS, sql, (value, *params, limit))
 
-    def _count_edges(self, where: str, value: str, kinds: Sequence[str] | None) -> int:
-        if kinds is None:
-            sql = f"SELECT COUNT(*) FROM edges WHERE {where}"
-            return int(self._conn.execute(sql, (value,)).fetchone()[0])
-        if not kinds:
-            raise ValueError("kinds must be non-empty")
-        placeholders = ", ".join("?" for _ in kinds)
-        sql = f"SELECT COUNT(*) FROM edges WHERE {where} AND kind IN ({placeholders})"
-        return int(self._conn.execute(sql, (value, *kinds)).fetchone()[0])
+    def _count_edges(
+        self,
+        where: str,
+        value: str,
+        kinds: Sequence[str] | None,
+        *,
+        extra: _Predicate = None,
+    ) -> int:
+        clause, params = self._edge_where(where, kinds, extra)
+        sql = f"SELECT COUNT(*) FROM edges WHERE {clause}"
+        return int(self._conn.execute(sql, (value, *params)).fetchone()[0])
+
+    @staticmethod
+    def _edge_where(
+        where: str, kinds: Sequence[str] | None, extra: _Predicate
+    ) -> tuple[str, tuple[object, ...]]:
+        """One WHERE builder for both the row read and its count, so they cannot diverge."""
+        clauses: list[str] = [where]
+        params: list[object] = []
+        if kinds is not None:
+            if not kinds:
+                raise ValueError("kinds must be non-empty")
+            clauses.append(f"kind IN ({', '.join('?' for _ in kinds)})")
+            params.extend(kinds)
+        if extra is not None:
+            clauses.append(extra[0])
+            params.extend(extra[1])
+        return " AND ".join(clauses), tuple(params)
 
     def _count_search_short(
         self,

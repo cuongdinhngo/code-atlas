@@ -82,7 +82,7 @@ The single seam between core and every language. Two parts:
 ### 4.1 Subprocess protocol (streaming, language-neutral)
 Adapter runs as a long-lived process; core feeds newline-delimited requests, reads JSONL results. One process boot amortized across all files.
 ```
-← {"name":"php","extensions":[".php"],"capabilities":{},"contract_version":2}   # handshake, first line
+← {"name":"php","extensions":[".php"],"capabilities":{},"contract_version":3}   # handshake, first line
 → {"path":"src/Models/User.php"}                              # stdin, one JSON/line
 ← {"path":"src/Models/User.php","ok":true,"nodes":[…],"edges":[…]}   # stdout JSONL
 ← {"path":"legacy/foo.php","ok":false,"error":"syntax error @12"}
@@ -101,7 +101,8 @@ Adapter runs as a long-lived process; core feeds newline-delimited requests, rea
 Node fields: `kind, name, qualified_name, file_path, line_start, line_end, modifiers, params, is_test, extra(JSON)`.
 
 **Edge kinds**: `CONTAINS, EXTENDS, IMPLEMENTS, USES_TRAIT, CALLS, NEW, IMPORTS, INCLUDES, REFERENCES, ALIASES`.
-Edge fields: `kind, source_qname, target_qname?, target_raw, file_path, line, confidence_tier(RESOLVED|HEURISTIC|DYNAMIC)`.
+Edge fields: `kind, source_qname, target_qname?, target_raw, file_path, line, confidence_tier(RESOLVED|HEURISTIC|DYNAMIC), args?(JSON)`.
+`args` (contract v3, task 049) is one entry per argument at a `CALLS`/`NEW` site, in source order: `null` when the argument is any non-literal expression, otherwise its literal **category** from `contract.ARG_LITERALS` (`null, true, false, number, string, array`) — never the value. The whole field is omitted when positions cannot be trusted (a spread, a named argument) or when the adapter does not record arguments; omitted means *unknown*, never *no arguments*.
 
 **Qualified-name convention** (identical across languages, adapter's job to honor):
 `\Ns\Class`, `\Ns\Class::method`, `\Ns\Class::$prop`, `\Ns\Class::CONST`, `\ns\func`, files as repo-relative paths. The **container** keeps its language-native separator (`\`, `.`, `/`); the **member** boundary is always `::` (`contract.MEMBER_SEPARATOR`), so C# maps to `Namespace.Type::Member` and Python to `module.Class::method`. **JS/TS has no namespaces** — symbols are module-scoped, so the qname is module-path–anchored, e.g. `src/user.ts::User::save`, `src/util.ts::default`, `src/util.ts::helper` (see §4.4 — this is the case that pressure-tests the convention).
@@ -298,7 +299,7 @@ CREATE INDEX idx_nodes_kind ON nodes(kind);
 CREATE INDEX idx_nodes_file ON nodes(file_path);
 CREATE TABLE edges (
   id INTEGER PRIMARY KEY, kind TEXT, source_qname TEXT, target_qname TEXT, target_raw TEXT,
-  file_path TEXT, line INT, confidence_tier TEXT DEFAULT 'RESOLVED');
+  file_path TEXT, line INT, confidence_tier TEXT DEFAULT 'RESOLVED', args TEXT);
 CREATE INDEX idx_edges_src ON edges(source_qname, kind);
 CREATE INDEX idx_edges_tgt ON edges(target_qname, kind);
 CREATE INDEX idx_edges_tier ON edges(confidence_tier);
@@ -330,10 +331,11 @@ guard's two branches, an `interface X` + `class X` fixture), which **would** tri
 deterministic — R4.2) before insert, so a duplicate-declaration file soft-succeeds with one node per
 qname rather than aborting the build (R5.1, task 043). NULL/anonymous qnames are never collapsed.
 
-**`schema_version` is `"2"` and enforced loud.** On open, a database carrying a different value raises
+**`schema_version` is `"3"` and enforced loud.** On open, a database carrying a different value raises
 and tells the user to delete the index and rebuild — the DB is a derived cache, so there is no
-migration runner (R7.4). Version **2** adds `tokenize='trigram'` on `nodes_fts` (camelCase substring
-search); older indexes must be deleted and rebuilt.
+migration runner (R7.4). Version **2** added `tokenize='trigram'` on `nodes_fts` (camelCase substring
+search); version **3** adds the `edges.args` column that carries contract v3's per-call-site argument
+shapes (task 049). Older indexes must be deleted and rebuilt.
 
 **Determinism carve-out (R4.2).** `nodes.id`/`edges.id` follow insert order, which follows worker
 completion order (§8.1), and `files.updated_at` / `meta.built_at` are wall-clock. The store takes an
@@ -369,7 +371,7 @@ Token-efficient: return qualified names + `file:line`, not bodies, unless a read
 | `search_symbol` | `query, kind?, namespace?, limit?` | ranked `{qname, kind, file:line}` (FTS + name); stub hits add `stub: true` (039); `reason` + `total_count` (033) |
 | `file_outline` | `path` | symbols + line ranges, no body |
 | `read_symbol` | `qname` | source of just that class/method + docblock; stub symbols add `stub: true` (039) |
-| `find_callers` | `qname, depth?, include_source?` | who CALLS/NEW it + confidence; `reason` + `total_count` (033); opt-in capped call-site `source` (037) |
+| `find_callers` | `qname, depth?, include_source?, arg_position?, arg_is?` | who CALLS/NEW it + confidence; `reason` + `total_count` (033); opt-in capped call-site `source` (037); opt-in argument filter at a 1-based position — a literal category, `absent` or `dynamic` — with `total_count` counting matches and `args_unrecorded` counting the sites it could not judge (049, depth 1 only) |
 | `find_references` | `qname, include_source?` | all edges targeting it; `reason` + `total_count` (033); opt-in capped call-site `source` (037) |
 | `find_implementations` | `qname` | EXTENDS/IMPLEMENTS subtypes; `reason` + `total_count` (033) |
 | `include_graph` | `path, direction` | `include`/`require` graph (any include-based code) |

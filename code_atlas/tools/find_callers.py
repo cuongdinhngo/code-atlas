@@ -7,7 +7,7 @@ from collections.abc import Callable
 from typing import Literal, NamedTuple
 
 from code_atlas.config import Config
-from code_atlas.contract import CALLER_KINDS, CONFIDENCE_TIERS
+from code_atlas.contract import ARG_SELECTORS, CALLER_KINDS, CONFIDENCE_TIERS
 from code_atlas.store import GraphStore
 from code_atlas.tools import call_site
 from code_atlas.tools.freshness import FreshnessGuard
@@ -44,6 +44,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         depth: int = 1,
         detail_level: DetailLevel = "standard",
         include_source: bool = False,
+        arg_position: int | None = None,
+        arg_is: str | None = None,
     ) -> dict[str, object]:
         """Who CALLS or NEWs ``qname``.
 
@@ -58,9 +60,17 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         site's own source line as ``source``, capped in length — answering "show me" without a
         second call. A site whose file drifted since indexing is never quoted: those hits carry
         ``source_stale`` instead.
+
+        ``arg_position`` (1-based) with ``arg_is`` keeps only call sites whose argument there has
+        that shape: a literal category (``null``, ``true``, ``false``, ``number``, ``string``,
+        ``array``), ``absent`` (the call passes fewer arguments), or ``dynamic`` (present, but not
+        a literal). ``total_count`` then counts matches, and ``args_unrecorded`` says how many
+        call sites the filter could not judge — sites whose arguments were never recorded, which
+        are never counted as matches. Depth 1 only.
         """
         if depth < 1:
             raise ValueError(f"depth must be >= 1, got {depth}")
+        args_at = _args_at(arg_position, arg_is, depth=depth)
         if not config.db_path.is_file():
             return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path))
         limit = config.max_results
@@ -79,12 +89,17 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     frontier_skipped_non_resolved=0,
                     subject_refreshed_only=True,
                 )
-            outcome = _callers(store, qname, hops=depth, limit=limit)
+            outcome = _callers(store, qname, hops=depth, limit=limit, args_at=args_at)
             indexed = bool(store.nodes_by_qualified_name(qname, limit=1))
+            unrecorded = (
+                store.count_edges_without_args(qname, kinds=CALLER_KINDS)
+                if args_at is not None
+                else None
+            )
             if include_source:
                 call_site.annotate(config.root, store, outcome.results)
         reason = relation_reason(hit_total=outcome.total_count, symbol_indexed=indexed)
-        return nav_result(
+        result = nav_result(
             qname,
             outcome.results,
             detail_level=detail_level,
@@ -96,15 +111,44 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             frontier_skipped_non_resolved=outcome.frontier_skipped_non_resolved,
             subject_refreshed_only=True,
         )
+        if unrecorded is not None:
+            result["args_unrecorded"] = unrecorded
+        return result
 
     return find_callers
 
 
-def _callers(store: GraphStore, qname: str, *, hops: int, limit: int) -> _CallersOutcome:
+def _args_at(
+    arg_position: int | None, arg_is: str | None, *, depth: int
+) -> tuple[int, str] | None:
+    """Validate the argument filter loud and early — a typo must not read as "no matches" (R5.3)."""
+    if arg_position is None and arg_is is None:
+        return None
+    if arg_position is None or arg_is is None:
+        raise ValueError("arg_position and arg_is are set together or not at all")
+    if arg_position < 1:
+        raise ValueError(f"arg_position is 1-based, got {arg_position}")
+    if arg_is not in ARG_SELECTORS:
+        raise ValueError(f"unknown arg_is {arg_is!r}: one of {', '.join(ARG_SELECTORS)}")
+    if depth != 1:
+        raise ValueError("an argument filter describes a direct call, so it needs depth=1")
+    return arg_position, arg_is
+
+
+def _callers(
+    store: GraphStore,
+    qname: str,
+    *,
+    hops: int,
+    limit: int,
+    args_at: tuple[int, str] | None = None,
+) -> _CallersOutcome:
     """BFS over CALLS/NEW into ``qname``; only RESOLVED edges expand the frontier (A3 / HOW-5)."""
     if hops == 1:
-        total = store.count_edges_by_target(qname, kinds=CALLER_KINDS)
-        edges = store.edges_by_target(qname, kinds=CALLER_KINDS, limit=limit)
+        total = store.count_edges_by_target(qname, kinds=CALLER_KINDS, args_at=args_at)
+        edges = store.edges_by_target(
+            qname, kinds=CALLER_KINDS, limit=limit, args_at=args_at
+        )
         hits = [edge_hit(edge, depth=1) for edge in edges]
         return _CallersOutcome(
             results=hits,
