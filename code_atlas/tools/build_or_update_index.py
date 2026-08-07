@@ -15,7 +15,14 @@ from typing import Literal
 from code_atlas import gitutil
 from code_atlas.config import Config
 from code_atlas.indexer import BuildReport, full_build, incremental_update
-from code_atlas.store import BUILT_AT_KEY, LAST_COMMIT_KEY, GraphStore, SchemaVersionError
+from code_atlas.store import (
+    BUILT_AT_KEY,
+    LAST_COMMIT_KEY,
+    SCHEMA_OLDER,
+    GraphStore,
+    SchemaVersionError,
+)
+from code_atlas.tools import schema_guard
 
 NAME = "build_or_update_index"
 
@@ -23,6 +30,7 @@ DetailLevel = Literal["minimal", "standard"]
 
 FULL = "full"
 INCREMENTAL = "incremental"
+REFUSED = "refused"
 
 
 def create(config: Config) -> Callable[..., dict[str, object]]:
@@ -33,14 +41,17 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     ) -> dict[str, object]:
         """Index this repo and return the counts and elapsed time.
 
-        An index written under an older ``schema_version`` is deleted and rebuilt in-band so an MCP
-        client can recover without a shell.
+        An index written under an *older* ``schema_version`` is deleted and rebuilt in-band so an
+        MCP client can recover without a shell. A *newer* one is refused untouched: that index is
+        current and this server process is the stale one (task 050).
         """
         started = time.monotonic()
         rebuilt_schema = False
         try:
             store = GraphStore(config.db_path)
-        except SchemaVersionError:
+        except SchemaVersionError as mismatch:
+            if mismatch.direction != SCHEMA_OLDER:
+                return _refused(config, mismatch, full)
             _unlink_index(config.db_path)
             rebuilt_schema = True
             store = GraphStore(config.db_path)
@@ -74,6 +85,20 @@ def _unlink_index(path: Path) -> None:
     """Remove a foreign-schema DB (and WAL siblings) so the next open creates schema current."""
     for sibling in (path, Path(str(path) + "-wal"), Path(str(path) + "-shm")):
         sibling.unlink(missing_ok=True)
+
+
+def _refused(config: Config, mismatch: SchemaVersionError, full: bool) -> dict[str, object]:
+    """Only an index this server has outgrown may be deleted; the rest is someone else's data.
+
+    Returned rather than raised so the caller reads the action, but it reports no counts — nothing
+    was built, and a build payload full of zeroes would say the repo is empty.
+    """
+    return schema_guard.payload(mismatch) | {
+        "mode": REFUSED,
+        "requested_full": full,
+        "schema_rebuilt": False,
+        "db_path": str(config.db_path),
+    }
 
 
 def _result(

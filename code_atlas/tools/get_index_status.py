@@ -21,9 +21,12 @@ from code_atlas.store import (
     CONTRACT_VERSION_KEY,
     INDEXED_SUFFIXES_KEY,
     LAST_COMMIT_KEY,
+    SCHEMA_OLDER,
     SCHEMA_VERSION_KEY,
     GraphStore,
+    SchemaVersionError,
 )
+from code_atlas.tools import schema_guard
 
 NAME = "get_index_status"
 
@@ -44,8 +47,11 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
         """Index stats, health, last commit, staleness and what to call next. Call this first."""
         if not config.db_path.is_file():
             return _unbuilt(servable, detail_level, config)
-        with GraphStore(config.db_path) as store:
-            return _status(store, config, servable, detail_level)
+        try:
+            with GraphStore(config.db_path) as store:
+                return _status(store, config, servable, detail_level)
+        except SchemaVersionError as mismatch:
+            return _mismatched(mismatch, servable, detail_level, config)
 
     return get_index_status
 
@@ -66,6 +72,23 @@ def _unbuilt(
     }
     if detail_level == "standard":
         status["db_path"] = str(config.db_path)
+    return status
+
+
+def _mismatched(
+    mismatch: SchemaVersionError,
+    servable: Sequence[str],
+    detail_level: DetailLevel,
+    config: Config,
+) -> dict[str, object]:
+    """A database this server cannot read — answer in the ``_unbuilt`` family, never raise (050).
+
+    ``indexed: false`` means *no index this server can use*, which the ``error`` and the two version
+    fields spell out; a build is suggested only when rebuilding is the fix.
+    """
+    status = _unbuilt(servable, detail_level, config) | schema_guard.payload(mismatch)
+    if mismatch.direction != SCHEMA_OLDER:
+        status["next_tool_suggestions"] = []
     return status
 
 
