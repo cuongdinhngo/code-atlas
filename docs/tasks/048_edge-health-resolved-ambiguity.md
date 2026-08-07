@@ -4,7 +4,7 @@ slug: edge-health-resolved-ambiguity
 title: `edge_health` returns two different fields both meaning "resolved" — rename them
 phase: 1.5b
 milestone: Agent-trust
-status: in-progress
+status: done
 depends_on: [028]
 ---
 

@@ -4,7 +4,7 @@ slug: call-site-argument-selectivity
 title: Select call sites by argument shape — "which of the 5,261 callers pass `null` here?"
 phase: 1.5b
 milestone: Agent-fit
-status: in-progress
+status: done
 depends_on: [013, 037, 002]
 ---
 

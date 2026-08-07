@@ -4,7 +4,7 @@ slug: staleness-scoped-to-indexed-files
 title: Staleness must reflect the index, not the working tree — a docs-only edit is not "behind"
 phase: 1.5b
 milestone: Freshness
-status: in-progress
+status: done
 depends_on: [028, 035, 016]
 ---
 
