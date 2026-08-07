@@ -1,0 +1,120 @@
+---
+id: 054
+slug: bare-name-callers-silent-drop
+title: '`find_callers` reports `total_count: 0` for a method that has callers, because bare-name resolution silently keeps only the first N declarations'
+phase: 1.5b
+milestone: Agent-trust
+status: todo
+depends_on: [011, 013, 046]
+---
+
+## Goal
+A field session asked `find_callers` for a model's `save` method and got
+`{"results": [], "total_count": 0, "reason": "no_matches", "truncated": false}`. Six call sites exist.
+The session only discovered this because it grepped out of habit; had it believed the payload — which
+is what the repo's own mandatory-use policy tells an agent to do — it would have concluded the method
+was dead code, in a session whose entire subject was that method being called wrongly.
+
+**The cause is not missing type inference.** That was the field session's diagnosis and it is wrong.
+The adapter *does* emit the edge: for `$var->save()` where `$var` is not `$this`,
+`Visitor.php:551-553` emits `CALLS` with `target_raw = "save"` — the bare method name — at tier
+`HEURISTIC`. The row is in the table.
+
+The loss happens in the resolver. Bare-name `CALLS` that no FQN lookup matched fall through to
+`resolver.py:82-84`:
+
+```python
+method_hits = store.nodes_by_names(call_raws, kind="Method", limit=max_candidates)
+```
+
+`max_candidates` is `config.max_results` (`indexer.py:216`), and `nodes_by_names` returns the
+**per-name top-`limit`** rows ordered by `_NODE_ORDER = "qualified_name, file_path, line_start, id"`
+(`store.py:112`). So for a method name declared by more than `max_results` classes, only the
+**alphabetically first `max_results` declarations** ever receive an inbound edge. Every other class is
+invisible to `find_callers` for every bare-name call site, permanently.
+
+On the anchor repo `max_results` is 10. `save`, `get`, `handle`, `run` are declared by far more than
+ten classes. This is not an edge case on that repo — it is the default outcome, and which classes win
+is decided by their qname's position in the alphabet.
+
+**Two properties make it worse than a coverage gap.** It is *silent* — `relation_reason`
+(`nav_result.py:153-159`) correctly reports `no_matches` because the subject is indexed and genuinely
+has no inbound edges *recorded*, so the payload is internally honest and externally false. And it is
+*systematic* — the same subject fails the same way on every run, so an agent cannot learn to distrust
+it from variance.
+
+It also explains why `find_implementations` was correct in the same session: `EXTENDS`/`IMPLEMENTS`
+resolve through `nodes_by_qualified_names`, never through the bare-name path.
+
+## Scope — split deliberately, and the second half is gated
+
+This ticket has two halves with very different risk. **They ship separately.**
+
+### Part B — say what was dropped (do this first, unconditionally)
+- **Count the candidates the cap discarded** and carry that count to the caller. A subject whose
+  inbound call-shaped edges were dropped, or whose bare-name lookup was truncated, must never return a
+  bare `total_count: 0`.
+- **Surface it on `find_callers`** alongside the existing `frontier_skipped_non_resolved`, so an empty
+  result can say *"0 resolved callers, N call sites recorded but unlinked"* — which turns a false
+  negative into a correct hand-off to grep.
+- **Decide where the number lives.** The candidate drop happens at index time and the query happens
+  later, so either the resolver records it (a column or a meta counter) or the query counts unlinked
+  call-shaped edges whose `target_raw` matches the subject's bare name. Prefer whichever keeps SQL in
+  the store (R1.4) and costs nothing on the hot path.
+- **Correct regardless of anything else.** This half does not depend on the benchmark below and must
+  not wait for it.
+
+### Part A — stop dropping them (gated on the three-way benchmark)
+- Separate the **resolution budget** from the **response budget**. `max_results` is a payload cap;
+  reusing it to decide how much of the graph gets built is a category error, and it is why a
+  presentation default silently governs recall.
+- **Gated, and the gate is real.** [046](046_resolver-qname-candidate-dedupe.md) cut the anchor repo
+  from 2,836,428 edges to 1,774,891 *by limiting candidates*. Raising the cap re-inflates that: a bare
+  name declared by 200 classes would emit up to 200 sibling rows per call site, across hundreds of
+  thousands of call sites. Any change here must be measured on the anchor repo before it is believed,
+  at ~17 minutes per rebuild.
+- **The benchmark may make this unnecessary.** If a language-server-backed tool is decisively better
+  at semantic resolution, the right answer is to concede depth and let Part B hand the question off
+  honestly, rather than to chase recall by inflating the graph. Do not start Part A before that result
+  is in.
+
+## Constraints
+- **No adapter change.** The edge is already emitted correctly; this is core-side (R1.1 — and the fix
+  must not teach the core anything about PHP).
+- **SQL stays in the store (R1.4).**
+- **Never promote a weaker tier (R5.2).** A bare-name match is `HEURISTIC` and stays so.
+- **Determinism (R4.2)** — whatever is counted must be identical across two runs on one tree.
+- **`get_index_status` stays cheap** — no new aggregate on the status path.
+- **Part B adds no measurable cost to the query path.** A field that costs a second query per nav call
+  is not worth the honesty.
+
+## Acceptance criteria
+- On a fixture where a method name is declared by more than `max_results` classes and a call site
+  targets one of the ones outside the cap: `find_callers` returns a payload that **states the subject
+  has unlinked call-shaped edges**, and a test asserts the payload is not a bare
+  `total_count: 0` / `no_matches`.
+- The fixture asserts the drop is real (a declaration outside the cap exists), so the guard cannot pass
+  vacuously — same discipline as `test_the_fixture_really_produces_siblings` in
+  [051](051_build-report-edge-undercount.md).
+- Two runs over one tree report identical counts (R4.2).
+- Part A is **not** implemented in this ticket unless the benchmark result is recorded here first,
+  with the measured edge-count impact on the anchor repo.
+- `pytest`, `ruff`, `mypy` green.
+
+## References
+`adapters/php/src/Visitor.php:533-554` (`enterInstanceCall` — `$this` resolves to an FQN, everything
+else emits the bare method name at `HEURISTIC`).
+`code_atlas/resolver.py:77-88` (the bare-name fallback), `:18-35` (`resolve_edges` signature and the
+`max_candidates` parameter).
+`code_atlas/store.py:112` (`_NODE_ORDER`, the alphabetical tie-break that decides who wins),
+`nodes_by_names` (per-name top-`limit`).
+`code_atlas/indexer.py:216` (`max_candidates=config.max_results` — where a display cap becomes a
+resolution cap); `code_atlas/config.py:44` (`DEFAULT_MAX_RESULTS = 50`; the anchor repo sets 10).
+`code_atlas/tools/nav_result.py:153-159` (`relation_reason` — why the empty answer is internally
+honest); `code_atlas/tools/find_callers.py` (`frontier_skipped_non_resolved`, the existing precedent
+for a counter that explains an incomplete answer).
+Scale precedent and the gate on Part A: [046](046_resolver-qname-candidate-dedupe.md) outcome table.
+Payload-honesty precedent: [048](048_edge-health-resolved-ambiguity.md),
+[050](050_schema-version-mismatch-recovery.md) (no empty `results` beside an error).
+Origin: field retro round 2 §4 — reported there as a missing-type-inference limitation; the resolver
+cap is the actual mechanism, found by reading the path afterwards.
