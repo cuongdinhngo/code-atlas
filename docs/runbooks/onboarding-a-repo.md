@@ -230,7 +230,11 @@ HEURISTIC, 2,933 DYNAMIC**, with 490,922 edges `unlinked`.
 - **`authoritative: false` on reachability means what it says.** With half a million unresolved edges,
   `find_orphans` output is a candidate list to verify, never a delete list.
 - **`staleness: "behind"`** right after a build usually means commits landed during it. Expected on an
-  active repo; `build_or_update_index(full=false)` catches up incrementally.
+  active repo; `build_or_update_index(full=false)` catches up incrementally. Only files the index
+  covers move this signal (task 047) — editing docs leaves it `current`, and `dirty_indexed_files` on
+  `standard` says how many indexed files are actually dirty. An index built before 047 has no suffix
+  stamp: it falls back to the whole tracked tree and reports `dirty_indexed_files: null`, so rebuild
+  once to get the scoped signal.
 
 `include_graph` is worth a specific check. On a Composer/PSR-4 codebase it is close to empty, because
 autoloaded classes produce no `INCLUDES` edges (see the PSR-4 follow-up in

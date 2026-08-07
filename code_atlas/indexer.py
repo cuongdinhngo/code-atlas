@@ -19,7 +19,7 @@ import os
 import queue
 import threading
 import time
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -37,6 +37,7 @@ from code_atlas.resolver import resolve_edges
 from code_atlas.store import (
     BUILT_AT_KEY,
     CONTRACT_VERSION_KEY,
+    INDEXED_SUFFIXES_KEY,
     LAST_COMMIT_KEY,
     WRITE_ERRORS,
     GraphStore,
@@ -113,7 +114,7 @@ def full_build(config: Config, store: GraphStore) -> BuildReport:
 
     # No FTS rebuild here: §10's triggers keep `nodes_fts` current through every replace, so a
     # rebuild per build would cost a full re-index and change nothing (deviation D1).
-    _record_meta(config, store)
+    _record_meta(config, store, tuple(owners))
     apply_indirection_rules(config, store, payload=rules)
     resolve_edges(store, max_candidates=config.max_results)
     return BuildReport(files=len(kept), stubs=len(stubs), removed=removed, **counts)
@@ -191,7 +192,7 @@ def incremental_update(
     finally:
         watchdog.stop()
 
-    _record_meta(config, store)
+    _record_meta(config, store, tuple(owners))
     apply_indirection_rules(config, store, payload=rules)
     resolve_edges(store, max_candidates=config.max_results)
     return BuildReport(
@@ -263,12 +264,19 @@ def collect(root: Path, suffixes: Sequence[str]) -> tuple[str, ...]:
     wanted = {suffix.lower() for suffix in suffixes}
     tracked = gitutil.ls_files(root)
     found = _walk(root, matcher, wanted) if tracked is None else tracked
+    return tuple(sorted(indexable(found, root, suffixes)))
+
+
+def indexable(paths: Iterable[str], root: Path, suffixes: Sequence[str]) -> tuple[str, ...]:
+    """The subset of ``paths`` this index covers: claimed suffix, not ignored (§8.1, §11).
+
+    The one definition of "indexable", so a caller asking *would this file be in the graph* can
+    never drift from what :func:`collect` actually walks (047). Order follows ``paths``.
+    """
+    matcher = load_ignore(root)
+    wanted = {suffix.lower() for suffix in suffixes}
     return tuple(
-        sorted(
-            path
-            for path in found
-            if PurePosixPath(path).suffix.lower() in wanted and not matcher.is_ignored(path)
-        )
+        path for path in paths if _suffix(path) in wanted and not matcher.is_ignored(path)
     )
 
 
@@ -618,10 +626,11 @@ def _write(
         tally["failed"] += 1
 
 
-def _record_meta(config: Config, store: GraphStore) -> None:
+def _record_meta(config: Config, store: GraphStore, suffixes: Sequence[str]) -> None:
     """Stamp the build (§8.1 step 4). ``last_commit`` stays unset when git cannot name one."""
     store.set_meta(CONTRACT_VERSION_KEY, str(contract.CONTRACT_VERSION))
     store.set_meta(BUILT_AT_KEY, store.now())
+    store.set_meta(INDEXED_SUFFIXES_KEY, ",".join(sorted({s.lower() for s in suffixes})))
     commit = gitutil.head_commit(config.root)
     if commit is not None:
         store.set_meta(LAST_COMMIT_KEY, commit)
