@@ -93,6 +93,8 @@ Drive everything through the MCP tools:
    stale is it, what to call next. A fresh project reports `indexed: false`.
 2. **`build_or_update_index`** — builds the SQLite graph under `.code-atlas/graph.db`. Later,
    `full=false` does an incremental `git diff` update when it can, else a full rebuild.
+   The index is a derived cache with no migration runner: after upgrading code-atlas across a
+   `schema_version` change, the old index is refused on open and rebuilt from scratch.
 3. **Query** — `search_symbol`, `file_outline`, `read_symbol`, `find_callers`, `find_references`,
    `find_implementations`, `include_graph`, `impact`, `reachable_from`, `find_orphans`, `explain_path`
    (see [Tools](#tools)).
@@ -111,7 +113,7 @@ Every tool takes `detail_level` — `minimal` for the payload alone, `standard` 
 | `search_symbol` | ranked symbols (`qname`, kind, `file:line`) |
 | `file_outline` | symbols + line ranges, no bodies |
 | `read_symbol` | source of just one class/method + docblock |
-| `find_callers` / `find_references` / `find_implementations` | resolved relationships + confidence tier |
+| `find_callers` / `find_references` / `find_implementations` | resolved relationships + confidence tier; `find_callers` can also filter call sites by argument shape (`arg_position` + `arg_is`) |
 | `include_graph` | `include`/`require` neighbors (`imports` / `imported_by` / `both`) |
 | `impact` | bounded blast radius of a change (paths/qnames), depth-limited with decay |
 | `reachable_from` | forward reachability from configured entry points |

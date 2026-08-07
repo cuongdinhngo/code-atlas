@@ -4,7 +4,7 @@ slug: call-site-argument-selectivity
 title: Select call sites by argument shape — "which of the 5,261 callers pass `null` here?"
 phase: 1.5b
 milestone: Agent-fit
-status: todo
+status: in-progress
 depends_on: [013, 037, 002]
 ---
 
@@ -82,6 +82,63 @@ shapes below, not an implementation of both.
 - Unfiltered `find_callers` behaviour and payload are byte-identical to today (asserted) — the filter is
   opt-in.
 - `pytest`, `ruff`, `mypy` green; tokens-to-answer fixture gate still passes.
+
+## Analysis — measured, then decided
+
+Both options were measured on the anchor repo (1,774,891 edges, 768.0 MB after `VACUUM`) against one
+shared DB helper with **8,650 distinct call sites across 1,764 files**.
+
+| | Option A — record at index time | Option B — resolve at query time |
+|---|---|---|
+| Storage | **+2.9 MB (+0.4 %)** arity only · **+22.5 MB (+2.9 %)** arity + per-argument payload | 0 |
+| Query | one indexed `WHERE` over the target's edges | 0.01 s SQL + **0.08 s** reading 1,764 files (35 MB) |
+| Call sites it can answer | **100 %** | **85.0 %** |
+| Where the logic lives | the adapter, which has the AST | the core, which does not |
+
+Two measurements overturned the assumptions in the scope above.
+
+- **Option A is not expensive.** The fear came from [046](046_resolver-qname-candidate-dedupe.md), but
+  046's lesson is about **row count**, not column width: 1.06 M redundant *rows* cost 310 MB, while a
+  payload on every existing row costs 2.9 %.
+- **Option B is not cheap where it counts.** It is fast (0.09 s), but **1,299 of 8,650 call sites
+  (15.0 %) have an argument list that continues past the indexed line**, so a line-level view cannot see
+  argument 2 at all — and that blind spot is *biased toward long argument lists*, which is exactly the
+  population the motivating question is about. Worse, the scanner that produced these numbers is ~20
+  lines of paren- and quote-aware PHP-specific parsing. In `code_atlas/` that is a language's syntax in
+  the language-agnostic core (R1.1) and parsing outside an adapter (R1.4). It also cannot see PHP 8
+  named arguments, which move a value away from its position entirely.
+
+**Decision: Option A**, full literal capture rather than arity alone — the two questions the field
+session actually had ("passes `null`" vs "omits it") are only separable with both, and the measured
+population confirms they are different sets, not one shape seen twice (of the single-line calls: 1,316
+omit argument 2, 9 pass a literal `null`).
+
+## Outcome
+Contract **v2 → v3**, schema **2 → 3**, one new optional edge field.
+
+- **`args`** (`contract.py`): one entry per argument at a `CALLS`/`NEW` site, in source order. JSON
+  `null` = "not a literal"; a string = the literal's **category** from `ARG_LITERALS`
+  (`null true false number string array`). The *value* is never recorded — nobody asked to match a
+  particular string, values would carry repo content into the index, and categories keep the field
+  language-neutral for adapters #2–#4.
+- **Omitted means unknown.** The PHP adapter drops `args` entirely for a spread (`...$rest`, the count
+  is unknowable) and for named arguments (PHP 8.0, a value's position is free). Neither can be honestly
+  positional, and a half-truth here would be worse than silence.
+- **`find_callers(arg_position, arg_is)`**, depth 1 only — an argument filter describes a direct call,
+  so allowing it on a BFS frontier would answer a question nobody asked. `arg_is` takes a literal
+  category, `absent` (fewer arguments than the position) or `dynamic` (present, not a literal). A bad
+  selector, a 0 position, one half of the pair, or `depth > 1` all raise (R5.3) rather than returning an
+  empty result that reads like an answer.
+- **`args_unrecorded`** rides along with every filtered response: how many of the target's call sites
+  the filter could not judge. Without it the feature would reproduce the defect it exists to fix — a
+  confident-looking count whose denominator hides what it could not see.
+
+**Every existing index must be rebuilt.** `schema_version` is enforced loud on open, so an index built
+before this change raises rather than answering from a table without the column. `build_or_update_index`
+recovers by rebuilding; on a repo the size of the anchor that is ~17 minutes.
+
+Deliberately left out: matching a literal's *value*, filtering on more than one position at once, and
+argument shapes on `find_references`. Each is a separate question, and none of them was asked.
 
 ## References
 `code_atlas/tools/find_callers.py:39-60` (signature, `include_source`, and the `total_count` contract),

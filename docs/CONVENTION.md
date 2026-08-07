@@ -62,7 +62,10 @@ code-atlas/
 - **Edge kinds:** `CONTAINS EXTENDS IMPLEMENTS USES_TRAIT CALLS NEW IMPORTS INCLUDES REFERENCES ALIASES`.
 - **Confidence tiers:** `RESOLVED | HEURISTIC | DYNAMIC`.
 - **Node fields:** `kind, name, qualified_name, file_path, line_start, line_end, modifiers, params, is_test, extra`.
-- **Edge fields:** `kind, source_qname, target_qname?, target_raw, file_path, line, confidence_tier`.
+- **Edge fields:** `kind, source_qname, target_qname?, target_raw, file_path, line, confidence_tier, args?`.
+- **Argument literals (`args` entries):** `null true false number string array` — the literal's
+  *category*, never its value; a JSON `null` entry means "not a literal". Omitting `args` means the
+  arguments are unknown, which is never the same as "no arguments".
 - **Qualified-name convention (identical across languages):** the **container** keeps its language-native
   separator (`\`, `.`, `/`); the **member** boundary is always `::` (`contract.MEMBER_SEPARATOR`).
   - PHP/namespaced: `\Ns\Class`, `\Ns\Class::method`, `\Ns\Class::$prop`, `\Ns\Class::CONST`, `\ns\func`.

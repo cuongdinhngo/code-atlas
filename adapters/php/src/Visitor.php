@@ -218,7 +218,14 @@ final class Visitor extends NodeVisitorAbstract
                 $this->enterInstanceCall($node, $node->name->toString());
             } else {
                 // `$this->$method()` — genuinely dynamic method name (task 030 AC3).
-                $this->edge('CALLS', $this->container(), '(dynamic)', $node->getStartLine(), 'DYNAMIC');
+                $this->edge(
+                    'CALLS',
+                    $this->container(),
+                    '(dynamic)',
+                    $node->getStartLine(),
+                    'DYNAMIC',
+                    $node,
+                );
             }
         } elseif ($node instanceof Node\Expr\StaticCall
             && $node->class instanceof Node\Name
@@ -397,11 +404,13 @@ final class Visitor extends NodeVisitorAbstract
     private function enterNew(Node\Expr\New_ $node): void
     {
         if ($node->class instanceof Node\Name) {
-            $this->edge('NEW', $this->container(), self::fqn($node->class), $node->getStartLine());
+            $this->edge(
+                'NEW', $this->container(), self::fqn($node->class), $node->getStartLine(), null, $node,
+            );
         } elseif ($node->class instanceof Node\Stmt\Class_) {
             // Peek only — enterAnonymousClass registers the qname when the Class_ node is visited.
             $target = $this->anonymousQname($node->class, 'class', register: false);
-            $this->edge('NEW', $this->container(), $target, $node->getStartLine());
+            $this->edge('NEW', $this->container(), $target, $node->getStartLine(), null, $node);
         } elseif (
             $node->class instanceof Node\Expr\Variable
             && is_string($node->class->name)
@@ -414,9 +423,12 @@ final class Visitor extends NodeVisitorAbstract
                 $this->stringLocals[$node->class->name],
                 $node->getStartLine(),
                 'HEURISTIC',
+                $node,
             );
         } else {
-            $this->edge('NEW', $this->container(), '(dynamic)', $node->getStartLine(), 'DYNAMIC');
+            $this->edge(
+                'NEW', $this->container(), '(dynamic)', $node->getStartLine(), 'DYNAMIC', $node,
+            );
         }
     }
 
@@ -531,10 +543,14 @@ final class Visitor extends NodeVisitorAbstract
             && $node->var->name === 'this'
             && ($owner = $this->enclosingDeclaringQname($method)) !== null
         ) {
-            $this->edge('CALLS', $this->container(), $owner . '::' . $method, $node->getStartLine());
+            $this->edge(
+                'CALLS', $this->container(), $owner . '::' . $method, $node->getStartLine(), null, $node,
+            );
             return;
         }
-        $this->edge('CALLS', $this->container(), $method, $node->getStartLine(), 'HEURISTIC');
+        $this->edge(
+            'CALLS', $this->container(), $method, $node->getStartLine(), 'HEURISTIC', $node,
+        );
     }
 
     private function enterStaticCall(
@@ -552,12 +568,16 @@ final class Visitor extends NodeVisitorAbstract
         ) {
             // static:: late binding, or string method name → HEURISTIC (C2 / task 030).
             $tier = ($special === 'static' || $stringMethod) ? 'HEURISTIC' : null;
-            $this->edge('CALLS', $this->container(), $owner . '::' . $method, $node->getStartLine(), $tier);
+            $this->edge(
+                'CALLS', $this->container(), $owner . '::' . $method, $node->getStartLine(), $tier, $node,
+            );
             return;
         }
         if ($special === 'parent' && ($parent = $this->enclosingParentQname()) !== null) {
             $tier = $stringMethod ? 'HEURISTIC' : null;
-            $this->edge('CALLS', $this->container(), $parent . '::' . $method, $node->getStartLine(), $tier);
+            $this->edge(
+                'CALLS', $this->container(), $parent . '::' . $method, $node->getStartLine(), $tier, $node,
+            );
             return;
         }
         if ($stringMethod) {
@@ -567,6 +587,7 @@ final class Visitor extends NodeVisitorAbstract
                 self::fqn($class) . '::' . $method,
                 $node->getStartLine(),
                 'HEURISTIC',
+                $node,
             );
             return;
         }
@@ -578,7 +599,7 @@ final class Visitor extends NodeVisitorAbstract
         if ($node->isFirstClassCallable()) {
             return;
         }
-        $this->edge('CALLS', $this->container(), $target, $node->getStartLine());
+        $this->edge('CALLS', $this->container(), $target, $node->getStartLine(), null, $node);
     }
 
     /**
@@ -699,8 +720,14 @@ final class Visitor extends NodeVisitorAbstract
         ] + $fields;
     }
 
-    private function edge(string $kind, string $source, string $target, int $line, ?string $tier = null): void
-    {
+    private function edge(
+        string $kind,
+        string $source,
+        string $target,
+        int $line,
+        ?string $tier = null,
+        ?Node\Expr\CallLike $call = null,
+    ): void {
         // An omitted tier takes the store's RESOLVED default, so only a weaker claim is written.
         $edge = [
             'kind' => $kind,
@@ -712,7 +739,54 @@ final class Visitor extends NodeVisitorAbstract
         if ($tier !== null) {
             $edge['confidence_tier'] = $tier;
         }
+        if ($call !== null && ($args = self::argLiterals($call)) !== null) {
+            $edge['args'] = $args;
+        }
         $this->edges[] = $edge;
+    }
+
+    /**
+     * One contract entry per argument: its literal *category*, or null when it is any other
+     * expression. Values are never recorded — the question is "what shape", not "what value".
+     *
+     * @return list<string|null>|null
+     */
+    private static function argLiterals(Node\Expr\CallLike $call): ?array
+    {
+        if ($call->isFirstClassCallable()) {
+            return null;
+        }
+        $out = [];
+        foreach ($call->getArgs() as $arg) {
+            // A spread forwards an unknown count and a named argument leaves its own position
+            // open, so in both cases no position in this list can be trusted (PHP 8.0).
+            if ($arg->unpack || $arg->name !== null) {
+                return null;
+            }
+            $out[] = self::literalKind($arg->value);
+        }
+
+        return $out;
+    }
+
+    private static function literalKind(Node\Expr $value): ?string
+    {
+        if ($value instanceof Node\Scalar\String_ || $value instanceof Node\Scalar\InterpolatedString) {
+            return 'string';
+        }
+        if ($value instanceof Node\Scalar\Int_ || $value instanceof Node\Scalar\Float_) {
+            return 'number';
+        }
+        if ($value instanceof Node\Expr\Array_) {
+            return 'array';
+        }
+        if ($value instanceof Node\Expr\ConstFetch) {
+            $name = strtolower($value->name->toString());
+
+            return in_array($name, ['null', 'true', 'false'], true) ? $name : null;
+        }
+
+        return null;
     }
 
     private function container(): string
