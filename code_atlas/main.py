@@ -27,6 +27,7 @@ from code_atlas.tools import (
     read_symbol,
     search_symbol,
 )
+from code_atlas.tools.schema_guard import guard
 
 SERVER_NAME = "code-atlas"
 
@@ -49,7 +50,11 @@ TOOL_NAMES: tuple[str, ...] = (
 
 
 def build_server(config: Config) -> FastMCP:
-    """One repo's server: the allowed tools, each bound to ``config``, on a fresh app."""
+    """One repo's server: the allowed tools, each bound to ``config``, on a fresh app.
+
+    Query tools are wrapped by ``guard`` so a schema-version mismatch arrives as an answer with a
+    next action rather than a stack trace (050); the two index-lifecycle tools answer it themselves.
+    """
     names = allowed_tools(config.tools)
     server: FastMCP = FastMCP(SERVER_NAME)
     if get_index_status.NAME in names:
@@ -57,27 +62,27 @@ def build_server(config: Config) -> FastMCP:
     if build_or_update_index.NAME in names:
         server.tool(build_or_update_index.create(config))
     if search_symbol.NAME in names:
-        server.tool(search_symbol.create(config))
+        server.tool(guard(search_symbol.create(config)))
     if file_outline.NAME in names:
-        server.tool(file_outline.create(config))
+        server.tool(guard(file_outline.create(config)))
     if read_symbol.NAME in names:
-        server.tool(read_symbol.create(config))
+        server.tool(guard(read_symbol.create(config)))
     if find_callers.NAME in names:
-        server.tool(find_callers.create(config))
+        server.tool(guard(find_callers.create(config)))
     if find_references.NAME in names:
-        server.tool(find_references.create(config))
+        server.tool(guard(find_references.create(config)))
     if find_implementations.NAME in names:
-        server.tool(find_implementations.create(config))
+        server.tool(guard(find_implementations.create(config)))
     if include_graph.NAME in names:
-        server.tool(include_graph.create(config))
+        server.tool(guard(include_graph.create(config)))
     if impact.NAME in names:
-        server.tool(impact.create(config))
+        server.tool(guard(impact.create(config)))
     if reachable_from.NAME in names:
-        server.tool(reachable_from.create(config))
+        server.tool(guard(reachable_from.create(config)))
     if find_orphans.NAME in names:
-        server.tool(find_orphans.create(config))
+        server.tool(guard(find_orphans.create(config)))
     if explain_path.NAME in names:
-        server.tool(explain_path.create(config))
+        server.tool(guard(explain_path.create(config)))
     prompts.register(server)
     return server
 

@@ -332,10 +332,22 @@ deterministic — R4.2) before insert, so a duplicate-declaration file soft-succ
 qname rather than aborting the build (R5.1, task 043). NULL/anonymous qnames are never collapsed.
 
 **`schema_version` is `"3"` and enforced loud.** On open, a database carrying a different value raises
-and tells the user to delete the index and rebuild — the DB is a derived cache, so there is no
-migration runner (R7.4). Version **2** added `tokenize='trigram'` on `nodes_fts` (camelCase substring
-search); version **3** adds the `edges.args` column that carries contract v3's per-call-site argument
-shapes (task 049). Older indexes must be deleted and rebuilt.
+— the DB is a derived cache, so there is no migration runner (this section's decision; R7.4 is about
+dead abstractions and was cited here in error). Version **2** added
+`tokenize='trigram'` on `nodes_fts` (camelCase substring search); version **3** adds the `edges.args`
+column that carries contract v3's per-call-site argument shapes (task 049).
+
+**The mismatch has a direction, and the two directions need opposite actions (task 050).** The stamp
+is read *before* the DDL runs, so a database this build cannot read is never written to, and
+`SchemaVersionError` carries `direction` plus the action that fixes it. An index **older** than the
+server is a stale cache: `build_or_update_index` deletes and rebuilds it in-band. An index **newer**
+than the server means the *server process* is stale — the index is current, and deleting it would
+destroy a good graph to write an older one, so the build refuses and leaves the file untouched; the
+fix is restarting the client. A stamp that will not parse is never treated as older. Every tool
+answers a mismatch with `{error, index_schema_version, server_schema_version, direction, action}`
+instead of raising — `get_index_status` in the `_unbuilt` family, the query tools through one
+wrapper applied at registration (`main.build_server`). **No query tool rebuilds**: a `search_symbol`
+that silently costs a full build is worse than the error it replaced.
 
 **Determinism carve-out (R4.2).** `nodes.id`/`edges.id` follow insert order, which follows worker
 completion order (§8.1), and `files.updated_at` / `meta.built_at` are wall-clock. The store takes an

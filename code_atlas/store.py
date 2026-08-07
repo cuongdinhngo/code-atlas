@@ -160,8 +160,51 @@ class ExplainPathResult(NamedTuple):
     depth_exhausted: bool
 
 
+# Which way a schema mismatch points. Only OLDER is safe to fix by deleting the index; the other two
+# would destroy a database this server cannot read but also did not write (050).
+SCHEMA_OLDER = "index_older_than_server"
+SCHEMA_NEWER = "index_newer_than_server"
+SCHEMA_UNRECOGNISED = "index_version_unrecognised"
+
+SCHEMA_RELATIONS: dict[str, str] = {
+    SCHEMA_OLDER: "predates",
+    SCHEMA_NEWER: "is newer than",
+    SCHEMA_UNRECOGNISED: "is not comparable with",
+}
+SCHEMA_ACTIONS: dict[str, str] = {
+    SCHEMA_OLDER: "rebuild the index — build_or_update_index rebuilds it in-band",
+    SCHEMA_NEWER: (
+        "restart or upgrade this server: the index is current and this process is stale — "
+        "do not delete the index"
+    ),
+    SCHEMA_UNRECOGNISED: "inspect the database by hand; delete it only if it is disposable",
+}
+
+
+def schema_direction(found: str, expected: str) -> str:
+    """Which side is behind. A version that will not parse is never reported as older (050)."""
+    try:
+        return SCHEMA_OLDER if int(found) < int(expected) else SCHEMA_NEWER
+    except ValueError:
+        return SCHEMA_UNRECOGNISED
+
+
 class SchemaVersionError(Exception):
-    """Written by another schema version — a programmer error, so it raises loud (R5.3)."""
+    """Written by another schema version, so it raises loud (R5.3).
+
+    Carries the direction because the two directions need opposite fixes: an older index is
+    rebuilt, a newer one means *this process* is stale and the index must be left alone (050).
+    """
+
+    def __init__(self, found: str, expected: str, db_path: Path) -> None:
+        self.found = found
+        self.expected = expected
+        self.direction = schema_direction(found, expected)
+        self.action = SCHEMA_ACTIONS[self.direction]
+        super().__init__(
+            f"database schema version {found!r} {SCHEMA_RELATIONS[self.direction]} "
+            f"this server's {expected!r} ({db_path}) — {self.action}"
+        )
 
 
 def utc_now() -> str:
@@ -247,18 +290,26 @@ class GraphStore:
         return self._now()
 
     def _create_schema(self) -> None:
-        """Create the §10 objects, then refuse a database another schema version wrote (R5.3)."""
+        """Refuse a database another schema version wrote (R5.3), then create the §10 objects."""
+        found = self._schema_version_on_disk()
+        if found is not None and found != SCHEMA_VERSION:
+            self._conn.close()
+            raise SchemaVersionError(found, SCHEMA_VERSION, self._db_path)
         self._conn.executescript(DDL)
         self._conn.commit()
-        found = self.get_meta(SCHEMA_VERSION_KEY)
         if found is None:
             self.set_meta(SCHEMA_VERSION_KEY, SCHEMA_VERSION)
-        elif found != SCHEMA_VERSION:
-            self._conn.close()
-            raise SchemaVersionError(
-                f"database schema version {found!r} is not {SCHEMA_VERSION!r} — "
-                f"delete {self._db_path} and rebuild (or call build_or_update_index)"
-            )
+
+    def _schema_version_on_disk(self) -> str | None:
+        """Read the stamp before the DDL runs, so a foreign-schema database is never written to.
+
+        ``meta(key, value)`` is the one shape that must survive every bump — it is how a version
+        this build has never heard of still manages to say what it is.
+        """
+        present = self._conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'meta'"
+        ).fetchone()
+        return self.get_meta(SCHEMA_VERSION_KEY) if present else None
 
     # --- writes ---------------------------------------------------------------------------------
 

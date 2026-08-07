@@ -94,7 +94,9 @@ Drive everything through the MCP tools:
 2. **`build_or_update_index`** — builds the SQLite graph under `.code-atlas/graph.db`. Later,
    `full=false` does an incremental `git diff` update when it can, else a full rebuild.
    The index is a derived cache with no migration runner: after upgrading code-atlas across a
-   `schema_version` change, the old index is refused on open and rebuilt from scratch.
+   `schema_version` change, an index **older** than the server is deleted and rebuilt in-band. An
+   index **newer** than the server is refused untouched — that means the running server predates the
+   upgrade, so restart the MCP client rather than rebuild (see `direction` in the payload).
 3. **Query** — `search_symbol`, `file_outline`, `read_symbol`, `find_callers`, `find_references`,
    `find_implementations`, `include_graph`, `impact`, `reachable_from`, `find_orphans`, `explain_path`
    (see [Tools](#tools)).
