@@ -78,6 +78,7 @@ gap that fixtures never hit.
 | 048 | [`edge_health` returns two different fields both meaning "resolved"](tasks/048_edge-health-resolved-ambiguity.md) | Agent-trust | done | 028 |
 | 049 | [Select call sites by argument shape (design-first)](tasks/049_call-site-argument-selectivity.md) | Agent-fit | done | 013, 037, 002 |
 | 050 | [A schema-version mismatch is direction-blind — one message for two opposite situations](tasks/050_schema-version-mismatch-recovery.md) | Robustness | done | 010, 016 |
+| 051 | [`BuildReport.edges` counts what the adapters emitted, not what the build wrote](tasks/051_build-report-edge-undercount.md) | Agent-trust | todo | 009, 011, 028 |
 
 **047–049 come from the first external field session** — an agent in the anchor repo used the server for
 real work and filled in a retro (`v0.1.0`, commit `e117b47`, round 1). Its headline finding was **zero
@@ -92,6 +93,12 @@ measurement before it needs code).
 `database schema version '3' is not '2'` — its server process predated the v3 merge — read it as a
 corrupt index, and spent the rest of the session on narrow `grep`. The index was fine. The error text
 told it to rebuild, which in that direction would have destroyed a newer index to write an older one.
+**051 came out of verifying the same rebuild.** With the anchor repo freshly indexed under v3, the
+build reported 949,808 edges and the table held 1,775,812 — the resolver's sibling rows are inserted
+after the tally is taken, so the number an agent reads right after a build sits 46% below the graph it
+just made. Not found by a session using the tool, but by checking a number against the thing it claims
+to describe.
+
 The first round found the graph had no opportunity to pay for itself; this one found the graph
 unreachable for a reason that was never about the graph.
 
@@ -169,6 +176,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 048 | `edge_health` — rename the ambiguous `resolved` pair | **0 dispatch** — no subagent ran. Main-loop **93.1k fresh** (27.0k output) + 7.7M cache reads over 52 calls, time-sliced from the session transcript | [#55](https://github.com/cuongdinhngo/code-atlas/pull/55) |
 | 049 | Select call sites by argument shape (contract v3) | **0 dispatch** — no subagent ran. Main-loop **299.6k fresh** (70.5k output) + 6.6M cache reads over 54 calls for the implementation and the three-branch integration trial. **The Option A/B measurement that decided the design is not in this figure** — it ran before the ticket commits and therefore falls in the unattributed pre-ticket segment, so 049's true cost is higher than the number shown | [#57](https://github.com/cuongdinhngo/code-atlas/pull/57) |
 | 050 | Schema-version mismatch — direction and recovery | **0 dispatch** — no subagent ran. Main-loop **426.6k fresh** (108.1k output) + 9.5M cache reads over 122 calls, split into two segments read from the session transcript: **341.1k fresh** (75.1k output, 78 calls) for the fix, its 39 tests and the doc sweep, and **85.5k fresh** (33.0k output, 44 calls) for the diagnosis and the ticket. That second segment also contains the anchor-repo rebuild under v3 and its verification, which belongs to no ticket — so this row overstates 050 by that much | [#58](https://github.com/cuongdinhngo/code-atlas/pull/58) |
+| — | Ticket-writing for 051 | **39.5k fresh** (13.5k output) + 3.3M cache reads over 23 calls, read from the session transcript: re-verifying the counts against the anchor repo's index, tracing the ordering in `indexer.py`/`resolver.py`/`enrichment.py`, and the ticket file. Listed here rather than as a 051 row because 051 is not implemented — the row for the fix lands with its own PR | [#59](https://github.com/cuongdinhngo/code-atlas/pull/59) |
 | — | Ticket-writing + the field retro that produced 047–049 | **45.6k fresh** over 28 calls for the three ticket files; a further **1.84M fresh** (503.0k output) + 122.2M cache reads over 576 calls covers the retro form, reading the filled-in retro, the 049 design measurement, and everything else before the first commit. Not attributable to one task, so it is listed here rather than split | — |
 
 **How 047–049 were measured.** They ran back-to-back in one autonomous session, so no per-task
