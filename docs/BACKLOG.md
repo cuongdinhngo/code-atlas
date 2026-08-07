@@ -77,6 +77,7 @@ gap that fixtures never hit.
 | 047 | [Staleness must reflect the index, not the working tree](tasks/047_staleness-scoped-to-indexed-files.md) | Freshness | done | 028, 035, 016 |
 | 048 | [`edge_health` returns two different fields both meaning "resolved"](tasks/048_edge-health-resolved-ambiguity.md) | Agent-trust | done | 028 |
 | 049 | [Select call sites by argument shape (design-first)](tasks/049_call-site-argument-selectivity.md) | Agent-fit | done | 013, 037, 002 |
+| 050 | [A schema-version mismatch is direction-blind — one message for two opposite situations](tasks/050_schema-version-mismatch-recovery.md) | Robustness | todo | 010, 016 |
 
 **047–049 come from the first external field session** — an agent in the anchor repo used the server for
 real work and filled in a retro (`v0.1.0`, commit `e117b47`, round 1). Its headline finding was **zero
@@ -86,6 +87,13 @@ itself. Read 047–049 as what that session *could* observe, not as a verdict on
 labels itself "no evidence, not a clean bill of health". Order: **048 → 047 → 049** (048 is a rename with
 a fixed blast radius; 047 is small and removes a false signal agents are being told to act on; 049 needs
 measurement before it needs code).
+
+**050 came out of round 2, the same day 049 merged.** A field session hit
+`database schema version '3' is not '2'` — its server process predated the v3 merge — read it as a
+corrupt index, and spent the rest of the session on narrow `grep`. The index was fine. The error text
+told it to rebuild, which in that direction would have destroyed a newer index to write an older one.
+The first round found the graph had no opportunity to pay for itself; this one found the graph
+unreachable for a reason that was never about the graph.
 
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
 
