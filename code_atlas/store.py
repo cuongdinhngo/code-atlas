@@ -26,11 +26,15 @@ SCHEMA_VERSION_KEY = "schema_version"
 CONTRACT_VERSION_KEY = "contract_version"
 LAST_COMMIT_KEY = "last_commit"
 BUILT_AT_KEY = "built_at"
+# Which suffixes the build claimed. Only the adapter handshake knows them, and a status read must
+# not start an adapter to find out — so the build leaves them here (047).
+INDEXED_SUFFIXES_KEY = "indexed_suffixes"
 META_KEYS: tuple[str, ...] = (
     SCHEMA_VERSION_KEY,
     CONTRACT_VERSION_KEY,
     LAST_COMMIT_KEY,
     BUILT_AT_KEY,
+    INDEXED_SUFFIXES_KEY,
 )
 
 # Bound SQLite variable lists so a large incremental unlink cannot trip the host's max-vars.

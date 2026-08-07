@@ -4,7 +4,7 @@ slug: staleness-scoped-to-indexed-files
 title: Staleness must reflect the index, not the working tree — a docs-only edit is not "behind"
 phase: 1.5b
 milestone: Freshness
-status: todo
+status: in-progress
 depends_on: [028, 035, 016]
 ---
 
@@ -67,6 +67,35 @@ freshness signal cannot survive (R5.3 is about failing loud; this is failing lou
   incidental.
 - `get_index_status` at `minimal` returns the same keys as today (asserted; no payload growth).
 - `pytest`, `ruff`, `mypy` green.
+
+## Outcome
+`staleness` is now computed from the dirty files the **index covers**. A docs-only edit reports
+`current`, and `next_tool_suggestions` stops asking for a rebuild that would reindex nothing.
+
+The design problem was not the filter but *where the filter's inputs come from*. The set of indexable
+suffixes is only knowable from the adapter handshake (`_announce`, `indexer.py:409-413`) — and starting
+a PHP subprocess to answer "is my index stale" would have broken the one thing the field retro said must
+not break. Resolved by having the build **stamp what it claimed**: `_record_meta` writes
+`indexed_suffixes` into `meta`, and the status read gets the answer for the price of one meta row.
+
+- **One definition of "indexable", not two.** `collect` was split so its predicate is now
+  `indexer.indexable(paths, root, suffixes)` and `collect` calls it. A future change to what gets
+  indexed cannot drift from what staleness measures, because there is only one rule.
+- **`working_tree_dirty` → `gitutil.dirty_paths`**, which names the files rather than returning a flag;
+  `working_tree_dirty` survives as a thin wrapper over it, so there is still one git query behind both.
+  It moved from `status --porcelain -uno` to `diff --name-only HEAD` — same staged+unstaged-vs-HEAD
+  meaning, no status codes to parse, and identical to what `changed_paths` already uses (`gitutil.py:44`).
+- **`dirty_indexed_files`** on `standard` only: an integer, so "rebuild, maybe" becomes "rebuild, these
+  N". `minimal` is unchanged and asserted so.
+- **An index built before this change falls back to the old whole-tree behaviour** and reports
+  `dirty_indexed_files: null`. Over-reporting is the safe direction — a false `current` on the nav path
+  is uncovered by read-through freshness (035), so it is the one outcome worth paying a false `behind`
+  to avoid.
+
+Cost is one `git diff --name-only` plus an ignore-matcher load, both already in the build's hot path;
+no tree walk and no adapter. The 62-second no-op rebuild this ticket set out to stop is *avoided*, not
+made cheaper — what a real incremental build costs when nothing changed is recorded as a separate
+follow-up in [`BACKLOG.md`](../BACKLOG.md).
 
 ## References
 `code_atlas/tools/get_index_status.py:97-105` (`_staleness`), `:108-113` (`_suggestions` — why a false

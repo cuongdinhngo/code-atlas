@@ -48,16 +48,23 @@ def changed_paths(root: Path, since: str) -> tuple[str, ...] | None:
     return tuple(sorted(paths))
 
 
-def working_tree_dirty(root: Path) -> bool | None:
-    """True when tracked files differ from HEAD; None when git cannot answer.
+def dirty_paths(root: Path) -> tuple[str, ...] | None:
+    """Tracked paths that differ from HEAD (staged or not), or None when git cannot answer.
 
-    Untracked paths (including ``.code-atlas/graph.db``) are ignored: ``collect`` only indexes
-    tracked files in a git repo, so they cannot stale the index.
+    Untracked paths (including ``.code-atlas/graph.db``) never appear: ``collect`` only indexes
+    tracked files in a git repo, so they cannot stale the index. The caller decides which of
+    these paths the *index* covers — a dirty README is not a stale graph (047).
     """
-    found = _run(root, "status", "--porcelain", "-z", "-uno")
+    found = _run(root, "diff", "--name-only", "-z", "HEAD")
     if found is None:
         return None
-    return any(part for part in found.split("\0") if part)
+    return tuple(sorted(path for path in found.split("\0") if path))
+
+
+def working_tree_dirty(root: Path) -> bool | None:
+    """True when any tracked file differs from HEAD; None when git cannot answer."""
+    found = dirty_paths(root)
+    return None if found is None else bool(found)
 
 
 def _run(root: Path, *arguments: str) -> str | None:

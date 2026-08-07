@@ -2,19 +2,24 @@
 
 ``minimal`` returns exactly the four parts §12 names: stats, ``last_commit``, staleness and
 ``next_tool_suggestions``. ``standard`` adds provenance plus index-health (``edge_health``,
-``parse_failures``). ``parse_failures`` mirrors ``failed`` (files with ``parsed_ok = 0``) under
-the §12 name — same count, not a subset. Nothing here opens the database when there is none: a
-read tool must not create an index as a side effect.
+``parse_failures``, ``dirty_indexed_files``). ``parse_failures`` mirrors ``failed`` (files with
+``parsed_ok = 0``) under the §12 name — same count, not a subset. Nothing here opens the database
+when there is none: a read tool must not create an index as a side effect.
+
+Staleness counts only files the index covers (047): editing a README leaves the graph correct, and
+a signal that says otherwise costs its reader a rebuild that reindexes nothing.
 """
 
 from collections.abc import Callable, Sequence
 from typing import Literal
 
 from code_atlas.config import Config
-from code_atlas.gitutil import head_commit, working_tree_dirty
+from code_atlas.gitutil import dirty_paths, head_commit
+from code_atlas.indexer import indexable
 from code_atlas.store import (
     BUILT_AT_KEY,
     CONTRACT_VERSION_KEY,
+    INDEXED_SUFFIXES_KEY,
     LAST_COMMIT_KEY,
     SCHEMA_VERSION_KEY,
     GraphStore,
@@ -70,7 +75,7 @@ def _status(
     counts = store.counts()
     last_commit = store.get_meta(LAST_COMMIT_KEY)
     head = head_commit(config.root)
-    dirty = working_tree_dirty(config.root)
+    dirty, dirty_count = _dirty_indexed(store, config)
     staleness = _staleness(last_commit, head, dirty=dirty)
     indexed = counts["files"] > 0
 
@@ -91,11 +96,28 @@ def _status(
         "db_path": str(config.db_path),
         "edge_health": store.edge_health(),
         "parse_failures": counts["failed"],
+        "dirty_indexed_files": dirty_count,
     }
 
 
+def _dirty_indexed(store: GraphStore, config: Config) -> tuple[bool | None, int | None]:
+    """Are any *indexed* files dirty, and how many — a dirty README is not a stale graph (047).
+
+    Falls back to the whole tracked tree when the index predates this key, which over-reports
+    rather than promising freshness it cannot check (R5.2's spirit: never claim the stronger tier).
+    """
+    paths = dirty_paths(config.root)
+    if paths is None:
+        return None, None
+    suffixes = store.get_meta(INDEXED_SUFFIXES_KEY)
+    if not suffixes:
+        return bool(paths), None
+    hits = indexable(paths, config.root, suffixes.split(","))
+    return bool(hits), len(hits)
+
+
 def _staleness(last_commit: str | None, head: str | None, *, dirty: bool | None) -> str:
-    """``unknown`` unless both commits known; ``behind`` if HEAD moved or the tree is dirty."""
+    """``unknown`` unless both commits known; ``behind`` if HEAD moved or ``dirty`` (047)."""
     if last_commit is None or head is None:
         return UNKNOWN
     if last_commit != head:
