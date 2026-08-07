@@ -10,7 +10,7 @@
       "url": "https://github.com/laravel/laravel.git",
       "min_files": 21,
       "min_nodes": 60,
-      "min_edges": 350
+      "min_edges": 356
     },
     {
       "id": "symfony_demo",
@@ -21,7 +21,7 @@
       "url": "https://github.com/symfony/demo.git",
       "min_files": 40,
       "min_nodes": 350,
-      "min_edges": 1180
+      "min_edges": 1204
     },
     {
       "id": "brick_math",
@@ -32,7 +32,7 @@
       "url": "https://github.com/brick/math.git",
       "min_files": 25,
       "min_nodes": 700,
-      "min_edges": 2780
+      "min_edges": 3498
     }
   ]
 }

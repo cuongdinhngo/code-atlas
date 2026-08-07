@@ -10,7 +10,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from code_atlas import contract
 from code_atlas.config import Config, ConfigError
@@ -73,18 +73,28 @@ def load_indirection_rules(config: Config) -> RulesPayload | None:
     )
 
 
+class Enriched(NamedTuple):
+    """Rows this run wrote from the rules, counted where they are built — no re-query (task 051)."""
+
+    nodes: int
+    edges: int
+
+
+NOTHING = Enriched(nodes=0, edges=0)
+
+
 def apply_indirection_rules(
     config: Config, store: GraphStore, *, payload: RulesPayload | None = None
-) -> None:
+) -> Enriched:
     """Replace synthetic ALIASES/CALLS rows from a (pre-)loaded payload, or clear when off."""
     if not config.indirection_rules:
         if INDIRECTION_FILE in store.file_paths():
             store.remove_file(INDIRECTION_FILE)
-        return
+        return NOTHING
 
     loaded = payload if payload is not None else load_indirection_rules(config)
     if loaded is None:
-        return
+        return NOTHING
 
     nodes: list[dict[str, object]] = [
         {
@@ -122,6 +132,7 @@ def apply_indirection_rules(
 
     store.upsert_file(INDIRECTION_FILE, loaded.digest, _RULES_LANGUAGE, parsed_ok=True)
     store.replace_file_rows(INDIRECTION_FILE, nodes, edges)
+    return Enriched(nodes=len(nodes), edges=len(edges))
 
 
 def is_rule_edge_path(path: object) -> bool:

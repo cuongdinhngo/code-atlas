@@ -17,12 +17,16 @@ assert "INCLUDES" not in contract.FQN_EDGE_KINDS
 
 def resolve_edges(
     store: GraphStore, *, max_candidates: int, file_path: str | None = None
-) -> None:
+) -> int:
     """Link bare edges after every node exists; ``max_candidates`` caps multi-match HEURISTIC.
 
     When ``file_path`` is set, only unresolved edges from that file are considered (read-through
     reparse). Full builds omit it so the whole unresolved set is linked.
+
+    Returns the number of **sibling rows inserted**. They are rows this run wrote, and the build
+    report has to count them or it reports a graph smaller than the one it just made (task 051).
     """
+    inserted = 0
     # Alias FQN → real FQN from ALIASES edges (source → target_raw); remaps CALLS/NEW (task 030).
     # Built once: every ALIASES row is in the store before resolve runs (full parse first).
     alias_map = store.alias_targets()
@@ -85,6 +89,8 @@ def resolve_edges(
 
         # One txn: kill between link and sibling insert must not leave under-linked parents.
         store.apply_resolution(links, siblings)
+        inserted += len(siblings)
+    return inserted
 
 
 def _follow_aliases(raw: str, alias_map: dict[str, str]) -> str:
