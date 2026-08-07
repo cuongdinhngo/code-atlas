@@ -366,7 +366,7 @@ Token-efficient: return qualified names + `file:line`, not bodies, unless a read
 
 | Tool | Key args | Returns |
 |---|---|---|
-| `get_index_status` | — | stats, last_commit, staleness, `next_tool_suggestions`; `standard` also `edge_health` (per-tier + resolved/unresolved) and `parse_failures`. **Call first (~100 tok).** |
+| `get_index_status` | — | stats, last_commit, staleness, `next_tool_suggestions`; `standard` also `edge_health` (`by_tier` = trust tiers; `linked`/`unlinked` = whether an edge found any target at all) and `parse_failures`. **Call first (~100 tok).** |
 | `build_or_update_index` | `full=false` | counts, timing |
 | `search_symbol` | `query, kind?, namespace?, limit?` | ranked `{qname, kind, file:line}` (FTS + name); stub hits add `stub: true` (039); `reason` + `total_count` (033) |
 | `file_outline` | `path` | symbols + line ranges, no body |
