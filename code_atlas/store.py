@@ -336,8 +336,9 @@ class GraphStore:
 
         ``by_tier`` always includes every ``CONFIDENCE_TIERS`` key (missing tiers are 0).
         NULL or unknown tiers fold into RESOLVED (same as other §8.2 readers), so
-        ``sum(by_tier.values()) == counts()["edges"]``. ``resolved`` / ``unresolved`` count
-        ``target_qname`` presence — distinct from DYNAMIC.
+        ``sum(by_tier.values()) == counts()["edges"]``. ``linked`` / ``unlinked`` count
+        ``target_qname`` presence: an edge that found *a* name, at any tier. Only
+        ``by_tier.RESOLVED`` says the name is trusted — the two differ by ~2x on a real repo (048).
         """
         by_tier = dict.fromkeys(CONFIDENCE_TIERS, 0)
         for tier, count in self._conn.execute(
@@ -351,8 +352,8 @@ class GraphStore:
         total = sum(by_tier.values())
         return {
             "by_tier": by_tier,
-            "resolved": int(linked),
-            "unresolved": total - int(linked),
+            "linked": int(linked),
+            "unlinked": total - int(linked),
         }
 
     def nodes_by_name(self, name: str, *, kind: str | None = None, limit: int) -> list[Row]:
