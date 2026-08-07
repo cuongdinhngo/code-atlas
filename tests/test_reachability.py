@@ -189,7 +189,7 @@ def test_reachable_from_matches_hand_traced_planted_graph(
         SERVICE,
     }
     assert {str(r["qname"]) for r in payload["unproven"]} == {HEURISTIC}
-    assert "edge_health" in payload
+    assert set(payload["edge_health"]) == {"by_tier", "linked", "unlinked"}  # 048
 
 
 def test_find_orphans_hand_traced(store: GraphStore, tmp_path: Path) -> None:
@@ -202,6 +202,7 @@ def test_find_orphans_hand_traced(store: GraphStore, tmp_path: Path) -> None:
     assert by_qname[DEAD]["why"] == "no_inbound"
     assert SERVICE not in by_qname  # container of live method
     assert {str(r["qname"]) for r in payload["unproven"]} == {HEURISTIC}
+    assert set(payload["edge_health"]) == {"by_tier", "linked", "unlinked"}  # 048
 
 
 def test_unset_entry_points_is_no_roots(tmp_path: Path) -> None:

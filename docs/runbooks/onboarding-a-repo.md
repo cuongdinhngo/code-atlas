@@ -219,8 +219,12 @@ Two calling conventions to get right in a smoke test, or you will report a false
 ## 8. Read the health numbers honestly
 
 `get_index_status` returns `edge_health.by_tier`. On the sample repo: **484,983 RESOLVED, 2,348,512
-HEURISTIC, 2,933 DYNAMIC**, with 490,922 edges still unresolved.
+HEURISTIC, 2,933 DYNAMIC**, with 490,922 edges `unlinked`.
 
+- **Read `by_tier`, not `linked`.** The same payload carries `linked`/`unlinked`, which count only
+  whether an edge found *a* target name — on that repo `linked` is roughly twice `by_tier.RESOLVED`,
+  because a HEURISTIC edge with a matched name is still a guess. The number that says how much of the
+  graph you can trust is `by_tier.RESOLVED` (048).
 - **RESOLVED is the graph you can trust.** A `find_callers` hit at `confidence_tier: "RESOLVED"` with
   a call-site line is as good as reading the file.
 - **`authoritative: false` on reachability means what it says.** With half a million unresolved edges,

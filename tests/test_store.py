@@ -768,10 +768,12 @@ def test_edge_health_counts_tiers_and_link_resolution(store: GraphStore) -> None
 
     assert store.edge_health() == {
         "by_tier": {"RESOLVED": 2, "HEURISTIC": 1, "DYNAMIC": 1},
-        "resolved": 2,
-        "unresolved": 2,
+        "linked": 2,
+        "unlinked": 2,
     }
-    assert sum(store.edge_health()["by_tier"].values()) == store.counts()["edges"]  # type: ignore[arg-type]
+    health = store.edge_health()
+    assert sum(health["by_tier"].values()) == store.counts()["edges"]  # type: ignore[arg-type]
+    assert int(str(health["linked"])) + int(str(health["unlinked"])) == store.counts()["edges"]
 
 
 def test_edge_health_folds_null_and_unknown_tiers_into_resolved(store: GraphStore) -> None:
@@ -810,10 +812,23 @@ def test_edge_health_folds_null_and_unknown_tiers_into_resolved(store: GraphStor
     health = store.edge_health()
     assert health == {
         "by_tier": {"RESOLVED": 3, "HEURISTIC": 0, "DYNAMIC": 0},
-        "resolved": 1,
-        "unresolved": 2,
+        "linked": 1,
+        "unlinked": 2,
     }
     assert sum(health["by_tier"].values()) == store.counts()["edges"]  # type: ignore[arg-type]
+
+
+def test_edge_health_says_resolved_in_exactly_one_place(store: GraphStore) -> None:
+    """048: a second key meaning "resolved" cost a real decision. Keep the word to the tier."""
+    path = "a.php"
+    store.upsert_file(path, "h", "php")
+    store.replace_file_rows(path, nodes_for(path), [])
+
+    health = store.edge_health()
+
+    assert set(health) == {"by_tier", "linked", "unlinked"}
+    reused = [key for key in set(health) - {"by_tier"} if "resolv" in key.lower()]
+    assert not reused, f"{reused} reuse the tier's word for a different measure"
 
 
 def test_count_edges_by_target_matches_listed_rows(store: GraphStore) -> None:

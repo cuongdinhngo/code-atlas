@@ -191,6 +191,8 @@ n/a — `TRACK: backend`.
      `contract.CONFIDENCE_TIERS` entry, (b) counts `target_qname IS NOT NULL` / `IS NULL` in the same
      method (second aggregate SELECT — still SQL-only, no Python walk). Return shape:
      `{"by_tier": {RESOLVED, HEURISTIC, DYNAMIC}, "resolved": int, "unresolved": int}`.
+     *(Superseded: `resolved`/`unresolved` were renamed `linked`/`unlinked` by
+     [048](048_edge-health-resolved-ambiguity.md) — this log records what 028 shipped, not today's keys.)*
   2. In `_status`, when `detail_level == "standard"`, add `edge_health=store.edge_health()` and
      `parse_failures=counts["failed"]` (alias of existing `parsed_ok` persistence — no meta counter,
      no indexer change). Minimal returns before that merge; `_unbuilt` unchanged (still no DB open).
