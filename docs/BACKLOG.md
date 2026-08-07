@@ -82,6 +82,13 @@ gap that fixtures never hit.
 | 052 | [Where does a no-op incremental build spend 62 seconds?](tasks/052_incremental-noop-cost.md) | Freshness | todo | 016, 047 |
 | 053 | [Nothing refreshes the index when the repo changes outside the agent's editor](tasks/053_refresh-on-checkout-hook.md) | Freshness | todo | 052, 036, 016 |
 | 054 | [`find_callers` reports `total_count: 0` for a method that has callers](tasks/054_bare-name-callers-silent-drop.md) | Agent-trust | todo | 011, 013, 046 |
+| 055 | [Nothing measures what the tools fail to find — a recall gate above the cost metric](tasks/055_recall-benchmark.md) | Measure | todo | 034, 045 |
+| 056 | [An unknown filter value returns an empty result instead of an error](tasks/056_filter-values-fail-loud.md) | Agent-trust | todo | 014, 033 |
+| 057 | [A large answer cannot be enumerated, so `total_count` cannot be audited](tasks/057_answer-pagination.md) | Agent-trust | todo | 013, 014, 033 |
+| 058 | [`parse_failures: 29` — nobody can find out which 29 files the index cannot see](tasks/058_list-parse-failures.md) | Agent-trust | todo | 009, 028 |
+| 059 | [The handler → template data-bag edge is unmodelled](tasks/059_view-databag-edge.md) | Coverage | todo | 030, 040 |
+| 060 | [An incremental run reports deltas under the field names a full build uses for totals](tasks/060_build-report-scale-naming.md) | Agent-trust | todo | 051 |
+| 061 | [Every response carries fields that earn nothing](tasks/061_payload-weight.md) | Cost | todo | 010, 014, 033 |
 
 **047–049 come from the first external field session** — an agent in the anchor repo used the server for
 real work and filled in a retro (`v0.1.0`, commit `e117b47`, round 1). Its headline finding was **zero
@@ -104,6 +111,28 @@ to describe.
 
 The first round found the graph had no opportunity to pay for itself; this one found the graph
 unreachable for a reason that was never about the graph.
+
+**054–061 come from field retro round 2**, the first session that actually exercised the graph — seven
+of thirteen tools, ~23 hand-checked results. Its headline was three ways to receive an empty result that
+reads as proof of absence, one of which reported no callers for a method with six live call sites.
+**Read them in tiers, and the tiers are the point** (priority set 2026-08-07: *correctness is a gate,
+cost is the win*):
+
+- **Tier 1 — find the right thing.** 055 first, because it is the acceptance criterion for everything
+  under it: nothing today measures what a tool *missed*, so no fix below can be proven. Then **054**
+  (the false negative, and its Part B ships regardless of anything else), **056**, **057**, **058**,
+  **059**.
+- **Tier 2 — do not lie about the answer.** **060**; and 053's motivation rises here, since a stale
+  index is a wrong answer, though it stays gated on 052 for the practical reason that a 62-second hook
+  will be deleted by whoever waits for it.
+- **Tier 3 — token weight.** **061**, last and deliberately so: the same retro measured code-atlas's
+  direct cost at under 1% of a 250–300k-token session. Payload size is not where the leverage is.
+
+Two corrections to the retro's own reading, both found by reading the code afterwards and recorded in
+the tickets: 054's cause is **not** missing type inference — the adapter emits the edge and the resolver
+drops it at a cap — and 060's "not fixed" full-build disagreement reproduces 051's pre-fix figures
+exactly, on a session whose server process predated the fix. The second is re-measured, not assumed, in
+060.
 
 **052–053 come from a freshness review, not a field session.** Enumerating what actually keeps an
 index current gives four layers — read-through freshness repairs one file per tool call (035), the
