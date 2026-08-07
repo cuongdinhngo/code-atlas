@@ -79,6 +79,8 @@ gap that fixtures never hit.
 | 049 | [Select call sites by argument shape (design-first)](tasks/049_call-site-argument-selectivity.md) | Agent-fit | done | 013, 037, 002 |
 | 050 | [A schema-version mismatch is direction-blind — one message for two opposite situations](tasks/050_schema-version-mismatch-recovery.md) | Robustness | done | 010, 016 |
 | 051 | [`BuildReport.edges` counts what the adapters emitted, not what the build wrote](tasks/051_build-report-edge-undercount.md) | Agent-trust | done | 009, 011, 028 |
+| 052 | [Where does a no-op incremental build spend 62 seconds?](tasks/052_incremental-noop-cost.md) | Freshness | todo | 016, 047 |
+| 053 | [Nothing refreshes the index when the repo changes outside the agent's editor](tasks/053_refresh-on-checkout-hook.md) | Freshness | todo | 052, 036, 016 |
 
 **047–049 come from the first external field session** — an agent in the anchor repo used the server for
 real work and filled in a retro (`v0.1.0`, commit `e117b47`, round 1). Its headline finding was **zero
@@ -101,6 +103,17 @@ to describe.
 
 The first round found the graph had no opportunity to pay for itself; this one found the graph
 unreachable for a reason that was never about the graph.
+
+**052–053 come from a freshness review, not a field session.** Enumerating what actually keeps an
+index current gives four layers — read-through freshness repairs one file per tool call (035), the
+poke hook covers files the agent itself edits (036), `build_or_update_index(full=false)` covers
+everything git can name, and a full rebuild covers a contract or schema bump. Only the third has no
+trigger: `git pull`, a branch switch, a rebase or an edit from another terminal never reach
+`Edit`/`Write`, so nothing fires and read-through gives up after one file. Detection is not the gap —
+047 made `staleness` reliable — the gap is that acting on it depends on an agent choosing to call
+`get_index_status` first, which is exactly the kind of discipline round 1 showed does not hold.
+**052 gates 053 deliberately**: a `post-merge` hook that costs the field-measured 62 s is worse than a
+stale index, so the number comes before the automation.
 
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
 
@@ -274,13 +287,9 @@ because they are billed differently and dwarf everything else.
   ~160 KB of JSON — tens of thousands of tokens, against a §19 metric that is measured *in tokens*.
   Worth either a lower default for these two tools or a `minimal`-by-default shape. Documented as a
   workaround in [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
-- **A no-op incremental build costs ~62 s on a large repo.** Field-measured:
-  `build_or_update_index(full=false)` returned `files: 0, parsed: 0, removed: 0, nodes: 0, edges: 0,
-  seconds: 62.296` on an 18.9k-file index where nothing had changed. [047](tasks/047_staleness-scoped-to-indexed-files.md)
-  makes that call fire far less often but does not make it cheaper, and an agent that follows
-  `next_tool_suggestions` will still pay it whenever a real source file is dirty. Worth knowing where the
-  minute goes (git diff vs per-file hashing vs adapter start-up) before deciding whether it is a defect at
-  all — 62 s to scan 18.9k files may simply be the price. Origin: field retro round 1 §5.
+- **A no-op incremental build costs ~62 s on a large repo.** Now ticketed as
+  [052](tasks/052_incremental-noop-cost.md) — the observation stayed open here long enough to start
+  blocking [053](tasks/053_refresh-on-checkout-hook.md), which is what turned it into work.
 - **The index does not model the controller→template data-bag edge.** A producer writes values into a
   view scope under **string keys**; the template consumes them as bare variables in mixed markup. Neither
   end is a symbol and the link is a string, so no nav tool sees it. This was the *entire* defect the first
