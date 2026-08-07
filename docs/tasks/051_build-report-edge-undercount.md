@@ -4,7 +4,7 @@ slug: build-report-edge-undercount
 title: '`BuildReport.edges` counts what the adapters emitted, not what the build wrote'
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [009, 011, 028]
 ---
 
@@ -79,6 +79,49 @@ the graph it just created — nothing in the payload hints that a later step wro
 - `scripts/cross_repo_samples.json` thresholds re-derived against the corrected count.
 - The chosen definition and its rationale are recorded in the working doc and reflected in PLAN §8.
 - `pytest`, `ruff`, `mypy` green.
+
+## Outcome
+**`BuildReport` means "what this run wrote".** That reading was already true of `parsed`, `failed`
+and `removed`, and it is the only one that survives `incremental_update` — the alternative would have
+a three-file incremental reporting 1.78M edges. The fields were not wrong about their scale; they
+were incomplete about their writers. `resolve_edges` now returns the sibling rows it inserted
+(`resolver.py:18-30,92-93`), `apply_indirection_rules` returns an `Enriched(nodes, edges)`
+(`enrichment.py:76-83,135`), and `_count_late_writes` (`indexer.py:207-218`) folds both into the
+tally before the report is built, on the full and incremental paths alike.
+
+**Cost: no new query.** The ticket budgeted one `COUNT(*)`. Neither writer needs one — each already
+holds the list it is inserting, so both counts are `len()` of something in hand. The build got the
+correct number for free.
+
+**Measured, on public repos as well as the anchor repo.** Re-running `scripts/cross_repo_validate.py`
+against the pinned samples, before and after:
+
+| sample | before | after | |
+|---|---|---|---|
+| `laravel_app` | 445 | 445 | no multi-match call site — nothing to miss |
+| `symfony_demo` | 1,480 | 1,506 | +1.8% |
+| `brick_math` | 3,481 | 4,373 | +25.6% |
+
+`laravel_app` is the useful row: the undercount is not a constant factor, it tracks how much name
+ambiguity a repo has. That is exactly the property that made it invisible on small fixtures and 46%
+on a monorepo carrying two regional copies of one tree.
+
+The `min_edges` floors were re-derived at the manifest's stated ~80% of a known-good smoke —
+350→356, 1,180→1,204, 2,780→3,498 — and the suite re-run green (3 ok, 0 failed). They were floors, so
+a larger count could only have passed more easily; leaving them would have been passing by luck.
+
+**One disagreement deliberately left standing, and pinned.** With `indirection_rules` on, enrichment
+upserts a `files` row for the synthetic rules path, so `store.counts()` reports one more `files` and
+one more `parsed` than the report does. Counting it in `parsed` would claim an adapter parsed a file
+that does not exist; excluding it from `store.counts()` reaches into `get_index_status`, `find_orphans`
+and the health payloads for a difference of one row. It is now asserted
+(`test_the_rules_bookmark_is_the_one_known_disagreement`) so it cannot drift unnoticed, and it is
+named in PLAN §8.1.
+
+**Found in passing:** the cross-repo runner opens a cached sample index directly and has no recovery
+for a schema mismatch — it reported the sample as failed. Harmless in CI, which clones fresh, and it
+reports rather than deletes, which is [050](050_schema-version-mismatch-recovery.md)'s rule holding.
+Not changed here.
 
 ## References
 `code_atlas/indexer.py:492` (the tally), `:118-120` (enrichment → resolve → report, in that order),
