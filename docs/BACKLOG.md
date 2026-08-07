@@ -75,7 +75,7 @@ gap that fixtures never hit.
 | 045 | [Tokens-to-answer — measure against a local repo with a pre-built index](tasks/045_tokens-to-answer-local-repo.md) | Measure | done | 034, 042 |
 | 046 | [Resolver — dedupe candidates by `qualified_name` (kill duplicate edges, stop the false downgrade)](tasks/046_resolver-qname-candidate-dedupe.md) | Robustness | done | 011, 027, 043 |
 | 047 | [Staleness must reflect the index, not the working tree](tasks/047_staleness-scoped-to-indexed-files.md) | Freshness | todo | 028, 035, 016 |
-| 048 | [`edge_health` returns two different fields both meaning "resolved"](tasks/048_edge-health-resolved-ambiguity.md) | Agent-trust | todo | 028 |
+| 048 | [`edge_health` returns two different fields both meaning "resolved"](tasks/048_edge-health-resolved-ambiguity.md) | Agent-trust | in-progress | 028 |
 | 049 | [Select call sites by argument shape (design-first)](tasks/049_call-site-argument-selectivity.md) | Agent-fit | todo | 013, 037, 002 |
 
 **047–049 come from the first external field session** — an agent in the anchor repo used the server for

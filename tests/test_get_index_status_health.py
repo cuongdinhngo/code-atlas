@@ -83,8 +83,8 @@ def test_standard_reports_exact_edge_health_and_parse_failures(tmp_path: Path) -
 
     assert standard["edge_health"] == {
         "by_tier": {"RESOLVED": 2, "HEURISTIC": 1, "DYNAMIC": 1},
-        "resolved": 2,
-        "unresolved": 2,
+        "linked": 2,
+        "unlinked": 2,
     }
     assert standard["parse_failures"] == 1
     assert standard["failed"] == 1

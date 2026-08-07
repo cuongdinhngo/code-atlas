@@ -4,7 +4,7 @@ slug: edge-health-resolved-ambiguity
 title: `edge_health` returns two different fields both meaning "resolved" — rename them
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: in-progress
 depends_on: [028]
 ---
 
@@ -69,6 +69,26 @@ with no way to check.
   present, equal, and marked deprecated with a removal ticket referenced).
 - No doc in the repo quotes a removed key; the 36 % figure is attributed to the tier field explicitly.
 - `pytest`, `ruff`, `mypy` green.
+
+## Outcome
+`resolved`/`unresolved` → **`linked`/`unlinked`** (`store.py:352-355`). The word "resolved" now appears
+in exactly one place in the payload, and a test asserts that rather than trusting review to notice
+(`test_edge_health_says_resolved_in_exactly_one_place`).
+
+Two decisions worth recording, both taken against a literal reading of the scope above:
+
+- **Renamed outright; no deprecation window.** Pre-1.0, and the only known consumer is the field session
+  that reported the ambiguity. A transitional alias would have kept both spellings alive for a release —
+  i.e. would have preserved the exact confusion being removed, in the payload, on purpose.
+- **No legend line.** The scope allowed one "if it is cheap". It is not free: it would cost tokens on
+  every `standard` status call, and the field retro's answer to "what must not break" was
+  `get_index_status` staying cheap. Self-describing key names carry the meaning at zero recurring cost;
+  the runbook carries the caveat for a reader who wants it.
+
+Blast radius was smaller than the ticket assumed: `find_orphans`, `reachable_from` and `reach_shared`
+pass `edge_health` through as an opaque object, so only `store.py` produces the keys and only tests and
+docs name them. `docs/tasks/028_…` keeps the old spelling in its design log, marked superseded — that log
+records what 028 shipped and rewriting it would falsify the history the repo keeps deliberately.
 
 ## References
 `code_atlas/store.py:334-356` (`edge_health`; `:348-350` the `target_qname IS NOT NULL` count that is
