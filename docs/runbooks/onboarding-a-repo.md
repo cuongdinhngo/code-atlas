@@ -186,6 +186,23 @@ Keep the trial out of the host repo's history with `.git/info/exclude` (local, u
 .codeatlasignore
 ```
 
+### After you upgrade code-atlas, restart the client
+
+A running MCP server is a long-lived process holding the code it started with. Pull a `schema_version`
+bump and the client keeps serving the old build, so the next call reports a mismatch — and the index
+it is complaining about may be the *newer* one, freshly built by the upgraded code on the command
+line. Read the direction before acting:
+
+| What the tool reports | What it means | What to do |
+|---|---|---|
+| `direction: index_older_than_server` | The index predates the upgrade. | `build_or_update_index` — it deletes and rebuilds in-band. |
+| `direction: index_newer_than_server` | The **server process** predates the upgrade. The index is current. | Restart the MCP client. Do not rebuild — you would spend a full build replacing a good index with an older one. |
+| `direction: index_version_unrecognised` | The stamp is not a version this build can compare. | Inspect by hand; delete only if the index is disposable. |
+
+`build_or_update_index` refuses the second and third cases and leaves the file untouched (task 050),
+so following the message is safe — but a session that reads "mismatch" as "corrupt" and falls back to
+`grep` pays the whole trial for a client restart.
+
 ### Optional: eager freshness
 
 Read-through freshness (task 035) already reparses a drifted file at query time, so the poke hook is

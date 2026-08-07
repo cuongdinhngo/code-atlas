@@ -4,7 +4,7 @@ slug: schema-version-mismatch-recovery
 title: A schema-version mismatch is direction-blind — one message for two opposite situations
 phase: 1.5b
 milestone: Robustness
-status: todo
+status: done
 depends_on: [010, 016]
 ---
 
@@ -64,7 +64,7 @@ schema check should be as considered as the contract check.
 
 ## Constraints
 - **No contract change, no schema bump (R3).** This is recovery behaviour around the existing check.
-- **No migration runner (R7.4).** The index stays a derived cache; the fix is better diagnosis and a
+- **No migration runner (PLAN §10).** The index stays a derived cache; the fix is better diagnosis and a
   refusal to destroy, never an in-place upgrade path.
 - **Fail loud stays (R5.3).** This ticket narrows *which* states are unrecoverable — it does not soften
   the rule. A genuinely unusable index must still fail rather than degrade quietly.
@@ -82,6 +82,41 @@ schema check should be as considered as the contract check.
 - No doc tells a reader to rebuild in the newer-index direction.
 - `pytest`, `ruff`, `mypy` green.
 
+## Outcome
+`SchemaVersionError` now carries `direction` — `index_older_than_server`, `index_newer_than_server`,
+`index_version_unrecognised` — and the `action` that actually fixes each (`store.py:163-206`).
+`build_or_update_index` deletes only in the first case; the other two return a `mode: refused` payload
+and the file is left byte-identical. `get_index_status` answers in all three. The eleven query tools
+are wrapped once at registration (`main.build_server`) by `tools/schema_guard.py`, so a mismatch
+reaches a client as a payload with a next action rather than a stack trace.
+
+Five decisions worth recording:
+
+- **The version is read before the DDL runs.** The old order was `executescript(DDL)` → compare, so a
+  foreign-schema database got this build's `CREATE TABLE IF NOT EXISTS` statements applied to it
+  before being refused. Reading `meta` first (via `sqlite_master`) makes "refuses to touch it" literal,
+  and it is what lets the acceptance test assert on bytes instead of on a message.
+- **Unrecognised is its own direction, and it refuses.** Only a version that parses as an integer
+  strictly below ours is provably outgrown. Anything else — a hand-edited stamp, a future format —
+  falls in with the newer case. The rule is: never delete a database this build cannot prove it has
+  outgrown.
+- **One exception carrying a direction, not three exception classes.** The ticket allowed either. A
+  caller that has to enumerate subclasses to decide whether to delete is one `except` clause away
+  from the destructive default; a single `if direction != SCHEMA_OLDER` is the whole policy, in one
+  line, in both call sites.
+- **No auto-rebuild in query tools, as recommended.** They return the mismatch payload and nothing
+  else — in particular **no empty `results` list**, which would read as proof of absence when the
+  index was simply never opened. A test asserts that absence for every served tool.
+- **A refused build reports no counts.** Padding the payload with `nodes: 0, edges: 0` to keep one
+  shape would say "this repo is empty", which is a different and false answer.
+
+The `_unbuilt` reuse in `get_index_status` means a newer index reports `indexed: false`. That is
+"no index *this server* can use" — the `error` and the two version fields say which, and the build
+suggestion is dropped in the directions where a build is not the fix.
+
+Field note: this landed the same day the anchor repo was rebuilt under v3. The rebuild itself was
+never the problem — the client that reported the error had simply not been restarted.
+
 ## References
 `code_atlas/store.py:163-165` (`SchemaVersionError`), `:249-261` (the direction-blind check and its
 message), `:24` (`SCHEMA_VERSION`); `code_atlas/tools/build_or_update_index.py:41-46` (the
@@ -89,4 +124,6 @@ unconditional catch), `:73-76` (`_unlink_index`); `code_atlas/tools/get_index_st
 unguarded open), `:53-70` (`_unbuilt`, the shape to follow); `code_atlas/indexer.py:133-137` (the
 contract-version check that degrades instead of raising — prior art).
 Origin: field session round 2, 2026-08-07, immediately after the contract v3 / schema v3 merge
-([049](049_call-site-argument-selectivity.md), PR #57). Tier rule: R5.2. No-migrations rule: R7.4.
+([049](049_call-site-argument-selectivity.md), PR #57). Tier rule: R5.2. No-migrations decision:
+PLAN §10 — cited as R7.4 in the original ticket text, which is the dead-abstractions rule; corrected
+here and in PLAN.
