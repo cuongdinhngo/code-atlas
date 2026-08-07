@@ -74,6 +74,18 @@ gap that fixtures never hit.
 | 044 | [Onboarding runbook — installing code-atlas on a large legacy repo](tasks/044_onboarding-runbook.md) | Adoption | done | 014, 039, 043 |
 | 045 | [Tokens-to-answer — measure against a local repo with a pre-built index](tasks/045_tokens-to-answer-local-repo.md) | Measure | done | 034, 042 |
 | 046 | [Resolver — dedupe candidates by `qualified_name` (kill duplicate edges, stop the false downgrade)](tasks/046_resolver-qname-candidate-dedupe.md) | Robustness | done | 011, 027, 043 |
+| 047 | [Staleness must reflect the index, not the working tree](tasks/047_staleness-scoped-to-indexed-files.md) | Freshness | todo | 028, 035, 016 |
+| 048 | [`edge_health` returns two different fields both meaning "resolved"](tasks/048_edge-health-resolved-ambiguity.md) | Agent-trust | todo | 028 |
+| 049 | [Select call sites by argument shape (design-first)](tasks/049_call-site-argument-selectivity.md) | Agent-fit | todo | 013, 037, 002 |
+
+**047–049 come from the first external field session** — an agent in the anchor repo used the server for
+real work and filled in a retro (`v0.1.0`, commit `e117b47`, round 1). Its headline finding was **zero
+graph queries in a multi-hour session**: the defect it was fixing lived in string-keyed data flow between
+controllers and templates, which the index does not model, so the tool had no opportunity to pay for
+itself. Read 047–049 as what that session *could* observe, not as a verdict on the graph — §4 of the retro
+labels itself "no evidence, not a clean bill of health". Order: **048 → 047 → 049** (048 is a rename with
+a fixed blast radius; 047 is small and removes a false signal agents are being told to act on; 049 needs
+measurement before it needs code).
 
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
 
@@ -145,6 +157,18 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 044 | Onboarding runbook — installing code-atlas on a large legacy repo | **0 dispatch** — no subagent ran at any point: the work was a real onboarding trial (two full builds, a tool-by-tool verification sweep, an incremental run) plus the write-up, all on the main model, and it did not go through the mango lifecycle, so no working-doc cost ledger exists for it — as for 024, 032 and 034. **Main-loop spend is unmeasured**: mango measures dispatch only, and `rtk gain` reports a global all-time figure that cannot be attributed to one task, so none is invented here | [#50](https://github.com/cuongdinhngo/code-atlas/pull/50) |
 | 045 | Tokens-to-answer — local tier against a repo on disk | **0 dispatch** — no subagent ran: the harness read, the `source: local` implementation, the `run_grep_path` memory bound, 13 tests, the stash-and-compare equivalence proof, and the first anchor-repo measurement (ratio 178.3) all ran on the main model, outside the mango lifecycle, so no working-doc cost ledger exists — as for 024, 032, 034 and 044. **Main-loop spend is unmeasured**: mango measures dispatch only, and `rtk gain` is a global all-time figure that cannot be attributed to one task, so none is invented here | [#51](https://github.com/cuongdinhngo/code-atlas/pull/51) |
 | 046 | Resolver — dedupe candidates by `qualified_name` | **0 dispatch** — no subagent ran: the root-cause investigation (index queries proving the duplicate rows identical in every column but `id`, and `store.py`'s partition guarantee), the fix, the three pinned tests corrected, four new tests, and the rebuild measurement all ran on the main model, outside the mango lifecycle, so no working-doc cost ledger exists — as for 024, 032, 034, 044 and 045. **Main-loop spend is unmeasured**, for the same reason | [#52](https://github.com/cuongdinhngo/code-atlas/pull/52) |
+| 047 | Staleness scoped to the files the index covers | **0 dispatch** — no subagent ran. Main-loop **217.7k fresh** (73.4k output) + 24.8M cache reads over 114 calls, time-sliced from the session transcript (see the note below the table) | [#56](https://github.com/cuongdinhngo/code-atlas/pull/56) |
+| 048 | `edge_health` — rename the ambiguous `resolved` pair | **0 dispatch** — no subagent ran. Main-loop **93.1k fresh** (27.0k output) + 7.7M cache reads over 52 calls, time-sliced from the session transcript | [#55](https://github.com/cuongdinhngo/code-atlas/pull/55) |
+| 049 | Select call sites by argument shape (contract v3) | **0 dispatch** — no subagent ran. Main-loop **299.6k fresh** (70.5k output) + 6.6M cache reads over 54 calls for the implementation and the three-branch integration trial. **The Option A/B measurement that decided the design is not in this figure** — it ran before the ticket commits and therefore falls in the unattributed pre-ticket segment, so 049's true cost is higher than the number shown | [#57](https://github.com/cuongdinhngo/code-atlas/pull/57) |
+| — | Ticket-writing + the field retro that produced 047–049 | **45.6k fresh** over 28 calls for the three ticket files; a further **1.84M fresh** (503.0k output) + 122.2M cache reads over 576 calls covers the retro form, reading the filled-in retro, the 049 design measurement, and everything else before the first commit. Not attributable to one task, so it is listed here rather than split | — |
+
+**How 047–049 were measured.** They ran back-to-back in one autonomous session, so no per-task
+transcript exists. Each row is that session's assistant API calls bucketed by commit timestamp — the
+calls between the previous commit and a task's own commit are attributed to it. That is an
+approximation in one direction only: work interleaved across tasks lands in whichever segment it
+finished in, so a row can understate a task whose thinking happened earlier (049 is the known case,
+flagged in its row). "Fresh" is input + output + cache-creation; cache reads are listed separately
+because they are billed differently and dwarf everything else.
 
 ## Follow-ups (not yet ticketed)
 
@@ -232,6 +256,29 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
   ~160 KB of JSON — tens of thousands of tokens, against a §19 metric that is measured *in tokens*.
   Worth either a lower default for these two tools or a `minimal`-by-default shape. Documented as a
   workaround in [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
+- **A no-op incremental build costs ~62 s on a large repo.** Field-measured:
+  `build_or_update_index(full=false)` returned `files: 0, parsed: 0, removed: 0, nodes: 0, edges: 0,
+  seconds: 62.296` on an 18.9k-file index where nothing had changed. [047](tasks/047_staleness-scoped-to-indexed-files.md)
+  makes that call fire far less often but does not make it cheaper, and an agent that follows
+  `next_tool_suggestions` will still pay it whenever a real source file is dirty. Worth knowing where the
+  minute goes (git diff vs per-file hashing vs adapter start-up) before deciding whether it is a defect at
+  all — 62 s to scan 18.9k files may simply be the price. Origin: field retro round 1 §5.
+- **The index does not model the controller→template data-bag edge.** A producer writes values into a
+  view scope under **string keys**; the template consumes them as bare variables in mixed markup. Neither
+  end is a symbol and the link is a string, so no nav tool sees it. This was the *entire* defect the first
+  external session was fixing — five producer/consumer key mismatches that rendered empty tables — and it
+  is why that session made zero graph queries. The retro's guess, marked `UNVERIFIED`, is that this
+  generalises to any MVC-ish codebase with a data-bag view layer, i.e. a large fraction of legacy PHP.
+  Not ticketed: it needs a decision about whether framework-shaped edges belong in the graph at all
+  (compare [040](tasks/040_framework-indirection-data.md), which put framework indirection in a rules file
+  *outside* the adapters, and R2 — adapters encode the language standard, never a framework). If the
+  answer is yes, this is a substantial piece of work and the biggest known blind spot. Origin: field retro
+  round 1 §6a.1, §2d.
+- **`max_results` semantics are documented locally, not by the server.** That the cap governs both
+  returned rows *and* the resolver's candidate fan-out (the design smell recorded above) was learned by
+  the field session only from a comment in the repo's own config file. Whatever comes of splitting the
+  knob, the server should state which meaning is in force where an agent can read it — `total_count` is
+  only interpretable if you know. Origin: field retro round 1 §3b, §3e, §6d.
 - **018 construct gaps:** any cross-repo misses → fill the gap log in
   [`runbooks/cross-repo-validation.md`](runbooks/cross-repo-validation.md) and feed task 007 / 025.
   (Gap log is still empty — no scheduled run has recorded a miss.)
