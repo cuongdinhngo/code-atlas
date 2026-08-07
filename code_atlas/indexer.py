@@ -29,6 +29,7 @@ from code_atlas.adapter import AdapterError, ParseResult, SubprocessAdapter, ext
 from code_atlas.config import Config, ConfigError
 from code_atlas.enrichment import (
     INDIRECTION_FILE,
+    RulesPayload,
     apply_indirection_rules,
     load_indirection_rules,
 )
@@ -70,7 +71,12 @@ _Outcome = tuple[str, str, ParseResult]
 
 @dataclass(frozen=True, slots=True)
 class BuildReport:
-    """What one build did. Counts only — the rows themselves live in the store."""
+    """What one build did. Counts only — the rows themselves live in the store.
+
+    Every field is **what this run wrote**, not what the graph holds: ``nodes``/``edges`` include
+    the rows enrichment and the resolver insert after the parse tally, so a full build agrees with
+    ``store.counts()`` while an incremental run still reports its own delta (task 051).
+    """
 
     files: int
     parsed: int
@@ -115,8 +121,7 @@ def full_build(config: Config, store: GraphStore) -> BuildReport:
     # No FTS rebuild here: §10's triggers keep `nodes_fts` current through every replace, so a
     # rebuild per build would cost a full re-index and change nothing (deviation D1).
     _record_meta(config, store, tuple(owners))
-    apply_indirection_rules(config, store, payload=rules)
-    resolve_edges(store, max_candidates=config.max_results)
+    _count_late_writes(counts, config, store, rules)
     return BuildReport(files=len(kept), stubs=len(stubs), removed=removed, **counts)
 
 
@@ -193,11 +198,24 @@ def incremental_update(
         watchdog.stop()
 
     _record_meta(config, store, tuple(owners))
-    apply_indirection_rules(config, store, payload=rules)
-    resolve_edges(store, max_candidates=config.max_results)
+    _count_late_writes(counts, config, store, rules)
     return BuildReport(
         files=len(to_parse), stubs=len(stub_set & set(to_parse)), removed=removed, **counts
     )
+
+
+def _count_late_writes(
+    counts: dict[str, int], config: Config, store: GraphStore, rules: RulesPayload | None
+) -> None:
+    """Run the two writers that come after the parse tally, and fold what they wrote into it (051).
+
+    Enrichment inserts its synthetic rows and the resolver inserts a sibling per extra candidate.
+    A report built from the parse tally alone describes a smaller graph than the build just made.
+    """
+    enriched = apply_indirection_rules(config, store, payload=rules)
+    siblings = resolve_edges(store, max_candidates=config.max_results)
+    counts["nodes"] += enriched.nodes
+    counts["edges"] += enriched.edges + siblings
 
 
 def reparse_file(config: Config, store: GraphStore, path: str) -> bool:
