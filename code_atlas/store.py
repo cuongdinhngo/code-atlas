@@ -471,9 +471,14 @@ class GraphStore:
         return self._nodes("file_path = ?", path, None, limit)
 
     def edges_by_source(
-        self, qname: str, *, kinds: Sequence[str] | None = None, limit: int
+        self,
+        qname: str,
+        *,
+        kinds: Sequence[str] | None = None,
+        limit: int,
+        offset: int = 0,
     ) -> list[Row]:
-        return self._edges("source_qname = ?", qname, kinds, limit)
+        return self._edges("source_qname = ?", qname, kinds, limit, offset=offset)
 
     def edges_by_target(
         self,
@@ -481,15 +486,22 @@ class GraphStore:
         *,
         kinds: Sequence[str] | None = None,
         limit: int,
+        offset: int = 0,
         args_at: tuple[int, str] | None = None,
     ) -> list[Row]:
         """Edges whose resolved ``target_qname`` is ``qname``.
 
         Optional ``kinds`` narrows the set (e.g. CALLER_KINDS); ``args_at`` narrows to call sites
         whose argument at a 1-based position has a given shape (task 049).
+        ``offset`` skips leading rows in ``_EDGE_ORDER`` (task 057).
         """
         return self._edges(
-            "target_qname = ?", qname, kinds, limit, extra=_args_predicate(args_at)
+            "target_qname = ?",
+            qname,
+            kinds,
+            limit,
+            offset=offset,
+            extra=_args_predicate(args_at),
         )
 
     def count_edges_by_target(
@@ -675,6 +687,7 @@ class GraphStore:
         kind: str | None = None,
         namespace: str | None = None,
         limit: int,
+        offset: int = 0,
     ) -> list[Row]:
         """Search symbols by FTS (trigram) or, for queries shorter than 3 chars, name prefix.
 
@@ -682,17 +695,23 @@ class GraphStore:
         ``name``/``qualified_name`` prefix ``LIKE`` instead (restores ``DB`` / ``Us`` / ``Go``).
 
         Optional ``namespace`` is matched case-insensitively: exact or continues
-        with ``\\``, ``.``, or ``::``.
+        with ``\\``, ``.``, or ``::``. ``offset`` pages in search order (task 057).
         """
         if len(query) < 3:
-            return self._search_short(query, kind=kind, namespace=namespace, limit=limit)
+            return self._search_short(
+                query, kind=kind, namespace=namespace, limit=limit, offset=offset
+            )
+        if offset < 0:
+            raise ValueError(f"offset must be >= 0, got {offset}")
+        if limit < 1:
+            raise ValueError(f"limit must be >= 1, got {limit}")
         where, params = self._fts_search_clause(query, kind=kind, namespace=namespace)
         sql = (
             f"SELECT nodes.id, {_NODE_COLUMNS_JOINED} FROM nodes "
             f"JOIN nodes_fts ON nodes_fts.rowid = nodes.id "
-            f"WHERE {where} ORDER BY {_SEARCH_ORDER} LIMIT ?"
+            f"WHERE {where} ORDER BY {_SEARCH_ORDER} LIMIT ? OFFSET ?"
         )
-        return self._rows(NODE_ROW_KEYS, sql, (*params, limit))
+        return self._rows(NODE_ROW_KEYS, sql, (*params, limit, offset))
 
     def count_search_nodes(
         self,
@@ -1456,8 +1475,13 @@ class GraphStore:
         kind: str | None,
         namespace: str | None,
         limit: int,
+        offset: int = 0,
     ) -> list[Row]:
         """Prefix match on ``name`` / ``qualified_name`` when trigram FTS cannot help."""
+        if offset < 0:
+            raise ValueError(f"offset must be >= 0, got {offset}")
+        if limit < 1:
+            raise ValueError(f"limit must be >= 1, got {limit}")
         pattern = f"{_like_literal(query.lower())}%"
         where = "(LOWER(name) LIKE ? ESCAPE '!' OR LOWER(qualified_name) LIKE ? ESCAPE '!')"
         params: tuple[object, ...] = (pattern, pattern)
@@ -1465,8 +1489,11 @@ class GraphStore:
             where = f"{where} AND kind = ?"
             params = (*params, kind)
         where, params = _with_namespace(where, params, namespace, qname_column="qualified_name")
-        sql = f"SELECT id, {_NODE_COLUMNS} FROM nodes WHERE {where} ORDER BY {_NODE_ORDER} LIMIT ?"
-        return self._rows(NODE_ROW_KEYS, sql, (*params, limit))
+        sql = (
+            f"SELECT id, {_NODE_COLUMNS} FROM nodes WHERE {where} "
+            f"ORDER BY {_NODE_ORDER} LIMIT ? OFFSET ?"
+        )
+        return self._rows(NODE_ROW_KEYS, sql, (*params, limit, offset))
 
     def _nodes(self, where: str, value: str, kind: str | None, limit: int) -> list[Row]:
         clause, params = _narrow(where, value, kind, "kind = ?")
@@ -1522,14 +1549,19 @@ class GraphStore:
         kinds: Sequence[str] | None,
         limit: int,
         *,
+        offset: int = 0,
         extra: _Predicate = None,
     ) -> list[Row]:
+        if offset < 0:
+            raise ValueError(f"offset must be >= 0, got {offset}")
+        if limit < 1:
+            raise ValueError(f"limit must be >= 1, got {limit}")
         clause, params = self._edge_where(where, kinds, extra)
         sql = (
             f"SELECT id, {_EDGE_COLUMNS} FROM edges WHERE {clause} "
-            f"ORDER BY {_EDGE_ORDER} LIMIT ?"
+            f"ORDER BY {_EDGE_ORDER} LIMIT ? OFFSET ?"
         )
-        return self._rows(EDGE_ROW_KEYS, sql, (value, *params, limit))
+        return self._rows(EDGE_ROW_KEYS, sql, (value, *params, limit, offset))
 
     def _count_edges(
         self,

@@ -27,12 +27,22 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     """Bind the tool to one repo's configuration."""
 
     def find_implementations(
-        qname: str, detail_level: DetailLevel = "standard"
+        qname: str,
+        detail_level: DetailLevel = "standard",
+        limit: int | None = None,
+        offset: int = 0,
     ) -> dict[str, object]:
-        """Direct subtypes that EXTEND or IMPLEMENT ``qname`` (not transitive — see impact/017)."""
+        """Direct subtypes that EXTEND or IMPLEMENT ``qname`` (not transitive — see impact/017).
+
+        ``limit`` defaults to ``CA_MAX_RESULTS``; ``offset`` pages in store edge order (057).
+        """
         if not config.db_path.is_file():
             return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path))
-        limit = config.max_results
+        if offset < 0:
+            raise ValueError(f"offset must be >= 0, got {offset}")
+        cap = config.max_results if limit is None else min(limit, config.max_results)
+        if cap < 1:
+            raise ValueError(f"limit must be >= 1, got {cap}")
         with GraphStore(config.db_path) as store:
             guard = FreshnessGuard(config, store)
             if guard.ensure_qname(qname) == "stale":
@@ -59,9 +69,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     total_count=0,
                     subject_refreshed_only=True,
                 )
-            edges = store.edges_by_target(qname, kinds=IMPL_KINDS, limit=limit)
+            edges = store.edges_by_target(
+                qname, kinds=IMPL_KINDS, limit=cap, offset=offset
+            )
             results = [edge_hit(edge) for edge in edges]
-        truncated = total_count > len(results)
+        truncated = offset + len(results) < total_count
         return nav_result(
             qname,
             results,
