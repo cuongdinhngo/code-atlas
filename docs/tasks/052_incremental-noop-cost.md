@@ -129,7 +129,7 @@ Gates [053](053_refresh-on-checkout-hook.md).
   plus unscoped `resolve_edges` on every incremental keep the hypothesis alive for a large index.
   **053 stays gated** until an operator profile shows resolve dominance (→ fix ticket) or a spread
   cost (→ hooks out of band).
-- **Suite tip:** pending commit after Outcome/mypy — full suite **937 passed**.
+- **Suite tip:** `32d7461011bff2c355061500416d15c6ba66f3aa` — **937 passed**.
 
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
 
