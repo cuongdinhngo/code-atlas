@@ -148,31 +148,64 @@ def answer_contains(responses: list[dict[str, object]], expected: list[str]) -> 
     return all(any(exp in text for text in strings) for exp in expected)
 
 
+def _mcp_responses(responses: list[dict[str, object]]) -> list[dict[str, object]]:
+    """Session recipes mix native steps; recall / CW score MCP payloads only."""
+    return [
+        r
+        for r in responses
+        if isinstance(r, dict) and str(r.get("tool", "")) not in _NATIVE_TOOLS
+    ]
+
+
 def found_expected_members(
     responses: list[dict[str, object]], expected_set: list[str]
 ) -> list[str]:
-    """Members of ``expected_set`` that appear as a substring somewhere in the responses."""
-    strings = _iter_strings(responses)
-    return [member for member in expected_set if any(member in text for text in strings)]
+    """Members of ``expected_set`` found in MCP answers (not native grep/read text).
+
+    Identity fields (``qname`` / ``path`` / …) match exactly so a child like
+    ``\\Dead\\Unused`` cannot satisfy a parent ``\\Dead``. Free-text fields
+    (``source`` / snippets) still allow substring matches for body evidence.
+    """
+    identities: set[str] = set()
+    free_text: list[str] = []
+
+    def absorb(obj: dict[str, object]) -> None:
+        for key in ("qname", "path", "qualified_name", "file"):
+            val = obj.get(key)
+            if isinstance(val, str) and val:
+                identities.add(val)
+        for key in ("source", "snippet", "body"):
+            val = obj.get(key)
+            if isinstance(val, str) and val:
+                free_text.append(val)
+
+    for response in _mcp_responses(responses):
+        absorb(response)
+        raw = response.get("results")
+        items = raw if isinstance(raw, list) else []
+        for item in items:
+            if isinstance(item, dict):
+                absorb(item)  # type: ignore[arg-type]
+            elif isinstance(item, str):
+                free_text.append(item)
+    return [
+        member
+        for member in expected_set
+        if member in identities or any(member in text for text in free_text)
+    ]
 
 
 def result_bearing_responses_empty(responses: list[dict[str, object]]) -> bool:
-    """True when every MCP response that carries a ``results`` list has it empty.
+    """True when the last MCP response that carries ``results`` has it empty.
 
-    Native session tools (``grep`` / ``read_file``) are ignored so a grepped hit cannot mask
-    an empty nav answer. ``get_index_status`` and similar have no ``results`` key and are
-    ignored. If no MCP response bears ``results``, this returns False.
+    Emptiness is about the answering step, not the whole path: an earlier
+    ``search_symbol`` hit must not hide an empty ``find_callers`` (the round-2
+    defect this metric exists to name). Native session tools are ignored.
     """
-    bearing = [
-        r
-        for r in responses
-        if isinstance(r, dict)
-        and "results" in r
-        and str(r.get("tool", "")) not in _NATIVE_TOOLS
-    ]
+    bearing = [r for r in _mcp_responses(responses) if "results" in r]
     if not bearing:
         return False
-    return all(not r.get("results") for r in bearing)
+    return not bearing[-1].get("results")
 
 
 def score_recall(
@@ -262,7 +295,8 @@ def run_session_path(
         mcp_calls += 1
         fn = tools[tool]
         args = dict(step.get("args", {}))
-        response = fn(**args)
+        response = dict(fn(**args))
+        response["tool"] = tool
         blob = json.dumps(response, ensure_ascii=False, sort_keys=True)
         total += estimate_tokens(json.dumps(args, ensure_ascii=False)) + estimate_tokens(blob)
         responses.append(response)
@@ -291,17 +325,18 @@ def evaluate_question(config: Config, question: dict[str, Any]) -> dict[str, Any
         grep_tokens, grep_seen = run_grep_path(config.root, dict(grep_spec))
         expected = [str(s) for s in question["expected"]]
         grep_evidence = [str(s) for s in question.get("grep_evidence", expected)]
-        grep_correct = all(s in grep_seen for s in grep_evidence)
+        grep_correct: bool | None = all(s in grep_seen for s in grep_evidence)
     else:
-        grep_tokens, grep_correct = 0, False
+        grep_tokens, grep_correct = 0, None
     expected = [str(s) for s in question["expected"]]
     atlas_correct = answer_contains(atlas_responses, expected)
     ratio_eligible = bool(question.get("ratio_eligible", True)) and grep_spec is not None
-    ratio = (
-        round(grep_tokens / atlas_tokens, 3)
-        if atlas_tokens and ratio_eligible
-        else 0.0
-    )
+    if ratio_eligible:
+        ratio: float | None = (
+            round(grep_tokens / atlas_tokens, 3) if atlas_tokens else 0.0
+        )
+    else:
+        ratio = None
     row: dict[str, Any] = {
         "id": str(question["id"]),
         "question": str(question.get("question", "")),

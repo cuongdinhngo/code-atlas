@@ -135,11 +135,37 @@ def test_score_recall_separates_confidently_wrong_from_partial_miss() -> None:
     # Native grep hits must not mask empty MCP nav answers on a session recipe.
     session_shaped = [
         {"tool": "grep", "results": ["User.php:12:$repo->put();"], "text": "hit"},
-        {"results": []},  # MCP find_callers with no tool key
+        {"tool": "find_callers", "results": []},
     ]
     session_score = _h.score_recall(session_shaped, ["\\App\\User::save"])
     assert session_score["confidently_wrong"] is True
     assert session_score["recall"] == 0.0
+    # An earlier MCP hit must not hide an empty answering step (round-2 defect).
+    masked = [
+        {"tool": "grep", "results": ["a.php:1: ->put("], "text": "…"},
+        {"tool": "search_symbol", "results": [{"qname": "\\App\\Repo::put"}]},
+        {"tool": "find_callers", "results": []},
+    ]
+    masked_score = _h.score_recall(masked, ["\\App\\User::save"])
+    assert masked_score["confidently_wrong"] is True
+    assert masked_score["recall"] == 0.0
+    # Grep text must not earn recall; parent qnames must not match via a child identity.
+    leak = _h.score_recall(
+        [
+            {"tool": "grep", "results": ["x"], "text": "Legacy/Registry.php"},
+            {"tool": "find_callers", "results": []},
+        ],
+        ["Legacy/Registry.php"],
+    )
+    assert leak["recall"] == 0.0 and leak["confidently_wrong"] is True
+    nested = _h.score_recall(
+        [{"tool": "find_orphans", "results": [{"qname": "\\Dead\\Unused"}]}],
+        ["\\Dead", "\\Dead\\Unused"],
+    )
+    assert nested["found"] == ["\\Dead\\Unused"]
+    assert nested["missing"] == ["\\Dead"]
+    assert nested["recall"] == 0.5
+    assert nested["confidently_wrong"] is False
 
 
 def test_recall_gate_fails_when_nav_returns_empty_for_known_set() -> None:
@@ -203,7 +229,7 @@ def test_aggregate_excludes_ratio_ineligible_from_cost_but_counts_correctness() 
             **_row("b", atlas=50, grep=0),
             "ratio_eligible": False,
             "grep_tokens": 0,
-            "ratio": 0.0,
+            "ratio": None,
         },
     ]
     agg = _h.aggregate(rows)
