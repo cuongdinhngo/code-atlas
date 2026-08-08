@@ -159,7 +159,7 @@ Origin: field retro round 2 §A.5.
 ## Session status
 
 - **Phase:** finalise (Gate 4 clean after Outcome; awaiting outward-action approvals)
-- **Reviewed at:** 
+- **Reviewed at:** `69bbd7a6aa5d61a08a6261bd24dafcd68e1931f3`
 - **Reviewed files:** `code_atlas/tools/build_or_update_index.py`, `tests/test_build_report_scale_naming.py`, `tests/test_build_report_counts.py`, `tests/test_mcp_server.py`, `tests/test_incremental.py`, `tests/test_schema_version_recovery.py`, `docs/PLAN.md`, `docs/tasks/060_…` (Outcome)
 
 ## Cost ledger (delta)
