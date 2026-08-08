@@ -580,7 +580,10 @@ opt-in rules data outside `adapters/` applied by `enrichment.py` (the 040 channe
 code (R2). Implementation is follow-up [062](tasks/062_view-databag-producer.md); this entry is the
 design note.
 
-**Occurrence count** (operator-local §19 anchor; shape only — no private paths or identifiers):
+**Occurrence count** (operator-local §19 anchor; shape only — no private paths or identifiers).
+Raw `->with(` is ~3k sites on the anchor but is dominated by ORM eager-load, not view publish — the
+clean producer tally below **excludes** it; including it would inflate the case for a contract bump
+with the wrong evidence.
 
 | Signal | Count |
 |--------|------:|

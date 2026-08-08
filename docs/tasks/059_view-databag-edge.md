@@ -131,7 +131,7 @@ Origin: field retro round 1 §6a.1 and round 2 §A.6 — the same missing edge, 
 
 | ID | Source | Verbatim | Interpretation | Ph1 evidence | Ph2 covered by | Ph3/4 proven by | Status |
 |----|--------|----------|----------------|--------------|----------------|-----------------|--------|
-| G1 | Goal | missing edge kind; string-key producer/consumer; graph blind | Deliver a scope decision that either models this shape or permanently excludes it | ticket Goal; BACKLOG open obs; PLAN §13 | PLAN §19 Option 1 | `test_databag_decision_059` | ✅ |
+| G1 | Goal | missing edge kind; string-key producer/consumer; graph blind | Deliver a scope decision that either models this shape or permanently excludes it | ticket Goal; BACKLOG open obs; PLAN §13 | PLAN §19 Option 1 | `test_view_databag_decision` | ✅ |
 | G2 | Decision | Do framework-shaped edges belong in the graph? Options 1 / 2 / 3 | Written choice among producer-only / both sides / neither, with reasoning | ticket Decision § | PLAN Option 1 | AC1 | ✅ |
 | R1 | Scope | design note before any code; impl is follow-up | This card ships docs/decision only — no `EDGE_KINDS` change here | ticket Scope L57–58 | PLAN + 062 stub | file presence | ✅ |
 | R2 | Scope | If 1 or 2: contract impact, rules-file shape, nav answer | Follow-up ticket spells `contract_version` bump + rules schema + tool surface | ticket Scope; R3.1; `contract.py:37-47` | 062 | AC2 | ✅ |
@@ -268,7 +268,7 @@ Caveat: raw `->with(` is huge (~3k sites) but mostly ORM eager-load; it was excl
 | 2 | Follow-up ticket with contract bump / rules shape / nav answer | `docs/tasks/062_view-databag-producer.md` | R2,C2,AC2 | 3/3 |
 | 3 | BACKLOG: 059 in-progress, add 062, clear open observation | `docs/BACKLOG.md` | R1,R7.2 | 2/2 |
 | 4 | 059 frontmatter `status: done` (+ token row at PR) | `docs/tasks/059_view-databag-edge.md` (raw) | R7.2 | 1/1 |
-| 5 | Proving test for PLAN + 062 markers | `tests/test_databag_decision_059.py` | AC1,AC2,AC4 | 3/3 |
+| 5 | Proving test for PLAN + 062 markers | `tests/test_view_databag_decision.py` | AC1,AC2,AC4 | 3/3 |
 
 AC3 → **N/A** (option ≠ 3). No runbook decline note. No code/adapter touch. Blast-radius: docs + one new test; no shared type/factory fan-out.
 
@@ -278,13 +278,16 @@ R1.1/R2 — decision forbids adapter framework knowledge; points at 040. R3 — 
 
 ### Proving test
 
-`pytest tests/test_databag_decision_059.py -q` — asserts PLAN contains Option 1 decision + occurrence-count markers + LSP non-solution claim, and `docs/tasks/062_view-databag-producer.md` exists with `contract_version` / edge-kind / enrichment language. Fails on untouched `main`; passes post-change.
+`pytest tests/test_view_databag_decision.py -q` — asserts PLAN Option 1, **discriminating** count
+phrases (`**100** sites in **35** handler files`, `**296** / **84**` — bare `100`/`35`/`84` already
+occur on `main`), ORM-`with` exclusion, LSP non-solution claim, and 062 contract/enrichment language.
+Fails on untouched `main`; passes post-change.
 
 ### Verification plan
 
 | AC | risk layer | proof artifact | layer-match? |
 |----|------------|----------------|--------------|
-| AC1 | logic (doc presence) | unit (`test_databag_decision_059`) | ✅ |
+| AC1 | logic (doc presence) | unit (`test_view_databag_decision`) | ✅ |
 | AC2 | logic (follow-up file) | unit (same) | ✅ |
 | AC3 | — | N/A — option 1 | ✅ (N/A) |
 | AC4 | logic (LSP sentence) | unit (same) | ✅ |
@@ -307,7 +310,7 @@ R1.1/R2 — decision forbids adapter framework knowledge; points at 040. R3 — 
 
 - Branch: `docs/059-view-databag-edge`
 - Commits: `9cc8204` — docs(059): decide Option 1 — producer-side view data-bag edges
-- Proving test added: `tests/test_databag_decision_059.py` — **2 passed**
+- Proving test added: `tests/test_view_databag_decision.py` — **2 passed**
 - **Verification sweep — BOTH axes.**
   - *File axis:* diff ⊆ approved list ✅ · each hunk → matrix row ✅
   - *Behaviour axis:* Approach bullets 1–5 `implemented-as-approved` ✅ · no deviations
@@ -321,7 +324,7 @@ R1.1/R2 — decision forbids adapter framework knowledge; points at 040. R3 — 
 - Proving test: 2 passed vs BASELINE green
 - Layer-match: all AC proofs at logic/doc layer ✅; count accuracy = recorded exclusion
 - **Clean?** yes
-- **Reviewed at:** `9cc8204` · reviewed files: `docs/PLAN.md`, `docs/BACKLOG.md`, `docs/tasks/059_view-databag-edge.md`, `docs/tasks/062_view-databag-producer.md`, `tests/test_databag_decision_059.py`
+- **Reviewed at:** `9cc8204` · reviewed files: `docs/PLAN.md`, `docs/BACKLOG.md`, `docs/tasks/059_view-databag-edge.md`, `docs/tasks/062_view-databag-producer.md`, `tests/test_view_databag_decision.py`
 
 ### Reviewer detail ([Reviewer](82017d29-4df6-4790-9ad2-12b96a3a073a))
 
@@ -333,7 +336,7 @@ R1.1/R2 — decision forbids adapter framework knowledge; points at 040. R3 — 
 | 2 | `docs/tasks/062_view-databag-producer.md` | yes |
 | 3 | `docs/BACKLOG.md` | yes |
 | 4 | `docs/tasks/059_view-databag-edge.md` | yes |
-| 5 | `tests/test_databag_decision_059.py` | yes |
+| 5 | `tests/test_view_databag_decision.py` | yes |
 
 **Nits (non-blocking; fixed in working-doc bookkeeping before finalise):**
 1. Change-list still said BACKLOG/frontmatter `done` while shipped state was `in-progress` — aligned.

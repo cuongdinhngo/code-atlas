@@ -119,11 +119,13 @@ reads as proof of absence, one of which reported no callers for a method with si
 **Read them in tiers, and the tiers are the point** (priority set 2026-08-07: *correctness is a gate,
 cost is the win*):
 
-- **Tier 1 — find the right thing.** **059 decided Option 1** (producer-side only; [PLAN §19](PLAN.md#19-project-context--decision-log));
-  implementation is **062**. Then **055**, still the acceptance criterion for the fixes under it, since
-  nothing *in this repo* measures what a tool missed (the benchmark was external, hand-graded and n=1 —
-  evidence, not a gate). Then **054** (the false negative, and its Part B ships regardless of anything
-  else), **056**, **057**, **058**.
+- **Tier 1 — find the right thing.** **059 decided Option 1** (producer-side only;
+  [PLAN §19](PLAN.md#19-project-context--decision-log)); **062 inherits its tier-1 head slot** — the
+  founding-premise reorder's reasons (relation not location, two field sessions, unanswered by grep or
+  LSP) apply to the implementation, not the decision. Then **055**, still the acceptance criterion for
+  the fixes under it, since nothing *in this repo* measures what a tool missed (the benchmark was
+  external, hand-graded and n=1 — evidence, not a gate). Then **054** (the false negative, and its Part
+  B ships regardless of anything else), **056**, **057**, **058**.
 - **Tier 2 — do not lie about the answer.** **060**; and 053's motivation rises here, since a stale
   index is a wrong answer, though it stays gated on 052 for the practical reason that a 62-second hook
   will be deleted by whoever waits for it.
@@ -331,7 +333,7 @@ because they are billed differently and dwarf everything else.
   blocking [053](tasks/053_refresh-on-checkout-hook.md), which is what turned it into work.
 - **Controller→template data-bag edge — decided (059), not yet implemented.** Option 1 (producer side
   only) is recorded in [PLAN §19](PLAN.md#19-project-context--decision-log); shipping the edges is
-  [062](tasks/062_view-databag-producer.md). Origin: field retro round 1 §6a.1 / round 2 §A.6.
+  [062](tasks/062_view-databag-producer.md). Origin: field retro round 1 §6a.1, §2d / round 2 §A.6.
 - **`max_results` semantics are documented locally, not by the server.** That the cap governs both
   returned rows *and* the resolver's candidate fan-out (the design smell recorded above) was learned by
   the field session only from a comment in the repo's own config file. Whatever comes of splitting the
