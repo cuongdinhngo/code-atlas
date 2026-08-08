@@ -81,6 +81,7 @@ gap that fixtures never hit.
 | 051 | [`BuildReport.edges` counts what the adapters emitted, not what the build wrote](tasks/051_build-report-edge-undercount.md) | Agent-trust | done | 009, 011, 028 |
 | 052 | [Where does a no-op incremental build spend 62 seconds?](tasks/052_incremental-noop-cost.md) | Freshness | todo | 016, 047 |
 | 053 | [Nothing refreshes the index when the repo changes outside the agent's editor](tasks/053_refresh-on-checkout-hook.md) | Freshness | todo | 052, 036, 016 |
+| 054 | [`find_callers` reports `total_count: 0` for a method that has callers](tasks/054_bare-name-callers-silent-drop.md) | Agent-trust | todo | 011, 013, 046 |
 
 **047–049 come from the first external field session** — an agent in the anchor repo used the server for
 real work and filled in a retro (`v0.1.0`, commit `e117b47`, round 1). Its headline finding was **zero
@@ -192,6 +193,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 051 | `BuildReport` — count the rows the run actually wrote | **0 dispatch** — no subagent ran. Main-loop **109.1k fresh** (42.5k output) + 13.3M cache reads over 72 calls for the fix, 7 tests, the before/after cross-repo measurement (six sample builds) and the doc sweep. The ticket's own cost is the separate row below | [#60](https://github.com/cuongdinhngo/code-atlas/pull/60) |
 | — | Ticket-writing for 051 | **39.5k fresh** (13.5k output) + 3.3M cache reads over 23 calls, read from the session transcript: re-verifying the counts against the anchor repo's index, tracing the ordering in `indexer.py`/`resolver.py`/`enrichment.py`, and the ticket file. Listed here rather than as a 051 row because 051 is not implemented — the row for the fix lands with its own PR | [#59](https://github.com/cuongdinhngo/code-atlas/pull/59) |
 | — | Ticket-writing + the field retro that produced 047–049 | **45.6k fresh** over 28 calls for the three ticket files; a further **1.84M fresh** (503.0k output) + 122.2M cache reads over 576 calls covers the retro form, reading the filled-in retro, the 049 design measurement, and everything else before the first commit. Not attributable to one task, so it is listed here rather than split | — |
+| — | Ticket-writing for 054 | **356.0k fresh** (139.5k output) + 17.2M cache reads over 104 calls, time-sliced from the session transcript between the 052/053 and 054 commits: reading the round-2 retro, walking `Visitor.php` → `resolver.py` → `store.py` to establish that the adapter emits the edge and the resolver drops it at `max_candidates`, and the ticket file. **This segment also produced the 055–061 tickets** committed one minute later; the split between them is not recoverable, so the 055–061 row does not double-count it | [#61](https://github.com/cuongdinhngo/code-atlas/pull/61) |
 
 **How 047–049 were measured.** They ran back-to-back in one autonomous session, so no per-task
 transcript exists. Each row is that session's assistant API calls bucketed by commit timestamp — the
