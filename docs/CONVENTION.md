@@ -116,6 +116,8 @@ code-atlas/
 - Every tool accepts `detail_level ∈ {minimal, standard}`, typed as a `Literal` so the protocol
   validates it and publishes the choice in the input schema. Default **`standard`**; `minimal` is a
   strict subset — the tool's own payload with the provenance fields dropped.
+  `get_index_status` also accepts `verbose` (task 058): `standard` plus a capped
+  `parse_failure_paths` list — never on the cheap path; other tools stay `{minimal, standard}`.
 - One module per tool at `code_atlas/tools/<tool_name>.py`, named exactly as the MCP tool. Each
   exposes `NAME` and a `create(...)` that returns the registered function: **the returned function's
   signature is the MCP signature and its docstring is the tool description**, so configuration flows
