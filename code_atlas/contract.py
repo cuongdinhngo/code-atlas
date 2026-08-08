@@ -16,10 +16,12 @@ An adapter opens the stream by announcing itself once — the **handshake** of �
 :func:`validate_meta` — so the core never carries a table of who owns which file suffix.
 """
 
+from typing import Literal, get_args
+
 CONTRACT_VERSION = 3
 
-# Ordered, not a set: error messages embed these values, and R4.2 requires identical output.
-NODE_KINDS: tuple[str, ...] = (
+# Ordered Literal is the typing SSoT; NODE_KINDS is derived so schemas cannot drift (R3.2 / 056).
+NodeKind = Literal[
     "File",
     "Namespace",
     "Class",
@@ -31,7 +33,8 @@ NODE_KINDS: tuple[str, ...] = (
     "Property",
     "ClassConst",
     "Const",
-)
+]
+NODE_KINDS: tuple[str, ...] = get_args(NodeKind)
 
 EDGE_KINDS: tuple[str, ...] = (
     "CONTAINS",

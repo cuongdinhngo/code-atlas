@@ -71,9 +71,10 @@ Origin: field retro round 2 §3d, mode 3.
 
 ## Outcome
 
-**Shipped:** `search_symbol` rejects unknown `kind` with `ValueError` naming `NODE_KINDS` (exact
-match; no case-fold). Published MCP `kind` enum is `list(NODE_KINDS)` via
-`Annotated`/`Field(json_schema_extra=…)`. Proving tests in `tests/test_filter_values_fail_loud.py`.
+**Shipped:** `search_symbol` rejects unknown `kind` with a loud error naming `NODE_KINDS` (exact
+match; no case-fold). `NodeKind = Literal[…]` in `contract.py`; `NODE_KINDS = get_args(NodeKind)`;
+tool param is `NodeKind | None` so MCP schema is coherent (`anyOf` string-enum | null). Direct
+calls still use `_require_kind` (`ValueError`). Proving tests in `tests/test_filter_values_fail_loud.py`.
 
 ### Filter survey (R3)
 
@@ -337,7 +338,8 @@ Invoke: `pytest tests/test_filter_values_fail_loud.py -q`
 
 ## Durable lesson
 
-`Literal[*NODE_KINDS]` fails mypy (`valid-type`) even when the tuple is inferred literals; publishing a contract-derived enum without a contract restructure needs `Annotated` + `Field(json_schema_extra={"enum": list(NODE_KINDS)})` (schema-only) plus an explicit `ValueError` for the R5.3 message.
+Spell `NodeKind` as `Literal[…]` and derive `NODE_KINDS = get_args(NodeKind)` — do not use
+`json_schema_extra` enum as a sibling of `anyOf` (null default becomes invalid). See `docs/LESSONS.md`.
 
 ## Session status
 
