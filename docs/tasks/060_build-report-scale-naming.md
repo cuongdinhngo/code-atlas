@@ -198,9 +198,42 @@ Done on `fix/060-build-report-scale-naming` @ `833b8be` (+ Outcome docs follow-u
 
 ## Phase 4 — Review
 
-- **Reviewer:** [Reviewer](9a7097eb-a616-4aef-8b87-9ec5246010a9) — **CHANGES REQUESTED** → Outcome AC4 missing → added above separator.
-- **Challenger:** [Challenger](649909d2-26dc-430f-8827-1332685d5b72) — **10 met · 1 not met** (AC4 Outcome) → same fix.
-- Proving test green. Gate 4: **clean** after Outcome (standing).
+- **Reviewed at** `69bbd7a6aa5d61a08a6261bd24dafcd68e1931f3`
+- **Reviewed files:** `code_atlas/tools/build_or_update_index.py`, `tests/test_build_report_scale_naming.py`, `tests/test_build_report_counts.py`, `tests/test_mcp_server.py`, `tests/test_incremental.py`, `tests/test_schema_version_recovery.py`, `docs/PLAN.md`, `docs/tasks/060_…` (Outcome)
+- **Reviewer round 1:** [Reviewer](9a7097eb-a616-4aef-8b87-9ec5246010a9) — **CHANGES REQUESTED** (conditional LGTM once finding 1 lands)
+- **Challenger:** [Challenger](649909d2-26dc-430f-8827-1332685d5b72) — **10 met · 1 not met · 0 can't tell**
+- **Gate 4:** clean after Outcome @ `69bbd7a` · **PR:** [#69](https://github.com/cuongdinhngo/code-atlas/pull/69)
+
+### Reviewer detail — round 1 ([Reviewer](9a7097eb-a616-4aef-8b87-9ec5246010a9)) @ `833b8be`
+
+**Verdict: CHANGES REQUESTED** (conditional LGTM after finding 1). Critical: none. Diff ⊆ approved list.
+
+| # | Finding | Severity | Resolution |
+|---|---------|----------|------------|
+| 1 | No Outcome re-measure with commit SHA (AC4 / change-list #5); matrix R3/AC4 still `⏳` | Important | Fixed in `69bbd7a` — `## Outcome` above separator names fixture re-measure @ `833b8be` and `CODE_ATLAS_SCALE_SAMPLE` unset |
+
+**Proving test:** present and green — `tests/test_build_report_scale_naming.py::test_incremental_tool_payload_cannot_be_read_as_graph_size` (no bare report keys; incremental `wrote.edges < graph.edges`; scales labelled without needing `mode`).
+
+**Verified (no finding):** `_result` nests `wrote=asdict(report)` + `graph` from `store.counts()`; 051 BuildReport↔store tests untouched in logic; PLAN §8.1/§12; R1.4 / R3 / R4.2.
+
+### Challenger detail ([Challenger](649909d2-26dc-430f-8827-1332685d5b72)) — ticket-blind @ `833b8be`
+
+**10 met · 1 not met · 0 can't tell.** Independence: raw ticket + `git diff main...HEAD` only (working-doc below separator not used for intent).
+
+| # | Requirement | Verdict |
+|---|-------------|---------|
+| 1 | Scale unreadable-as-wrong (nested wrote / labelled totals) | **met** — `build_or_update_index.py:121-128` |
+| 2 | 051 meaning stands (presentation only) | **met** — no indexer/store/contract arithmetic change |
+| 3 | Test that fails on old flat shape | **met** — `_REPORT_KEYS.isdisjoint` + wrote/graph present |
+| 4 | Incremental cannot be read as graph size (AC) | **met** — proving test `wrote.edges < graph.edges` |
+| 5 | Full vs incremental distinguishable without `mode` | **met** — wrote≡graph vs wrote≠graph labelled nests |
+| 6 | 051 agreement tests still pass | **met** (note: tool agree navigates wrote/graph; store↔report tests unchanged) |
+| 7 | Re-measure recorded in Outcome with server commit | **not met** at review → **met** after `69bbd7a` Outcome |
+| 8 | No schema/contract change (R3) | **met** |
+| 9 | Determinism — counts unchanged; presentation only | **met** |
+| 10 | Totals from `store.counts()` (flat cost) | **met** |
+| 11 | Slightly larger build payload OK | **met** |
+| 12 | pytest / ruff / mypy green | **met** — 933 passed |
 
 ## Phase 5 — Finalise
 
