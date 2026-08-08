@@ -266,8 +266,8 @@ Caveat: raw `->with(` is huge (~3k sites) but mostly ORM eager-load; it was excl
 |---|--------|-----------|----------------|-----|
 | 1 | PLAN §19 decision note (option 1 + counts + LSP contrast + reject 2/3) | `docs/PLAN.md` | G1,G2,R1,R4,C1–C5,AC1,AC4 | 9/9 |
 | 2 | Follow-up ticket with contract bump / rules shape / nav answer | `docs/tasks/062_view-databag-producer.md` | R2,C2,AC2 | 3/3 |
-| 3 | BACKLOG: 059 done, add 062, clear open observation | `docs/BACKLOG.md` | R1,R7.2 | 2/2 |
-| 4 | 059 frontmatter `status: done` | `docs/tasks/059_view-databag-edge.md` (raw) | R7.2 | 1/1 |
+| 3 | BACKLOG: 059 in-progress, add 062, clear open observation | `docs/BACKLOG.md` | R1,R7.2 | 2/2 |
+| 4 | 059 frontmatter `status: in-progress` (→ done at PR) | `docs/tasks/059_view-databag-edge.md` (raw) | R7.2 | 1/1 |
 | 5 | Proving test for PLAN + 062 markers | `tests/test_databag_decision_059.py` | AC1,AC2,AC4 | 3/3 |
 
 AC3 → **N/A** (option ≠ 3). No runbook decline note. No code/adapter touch. Blast-radius: docs + one new test; no shared type/factory fan-out.
@@ -306,29 +306,76 @@ R1.1/R2 — decision forbids adapter framework knowledge; points at 040. R3 — 
 ## Phase 3 — Execute
 
 - Branch: `docs/059-view-databag-edge`
-- Commits: (pending before review dispatch)
+- Commits: `9cc8204` — docs(059): decide Option 1 — producer-side view data-bag edges
 - Proving test added: `tests/test_databag_decision_059.py` — **2 passed**
 - **Verification sweep — BOTH axes.**
-  - *File axis:* diff ⊆ approved list ✅ (PLAN, BACKLOG, 059, 062, proving test, working-doc bookkeeping) · each hunk → matrix row ✅
+  - *File axis:* diff ⊆ approved list ✅ · each hunk → matrix row ✅
   - *Behaviour axis:* Approach bullets 1–5 `implemented-as-approved` ✅ · no deviations
 - **Design-conformance deviations:** none
 
-## Session status
+## Phase 4 — Review ✋
 
-- **Last updated:** 2026-08-08
-- **Current phase:** Phase 3 Execute → flowing to review
-- **Next action:** Commit change-set; dispatch reviewer + challenger
-- **Blocked on:** nothing
+- reviewer verdict: **LGTM** ([Reviewer](82017d29-4df6-4790-9ad2-12b96a3a073a)) @ `9cc8204`
+- challenger (ticket-blind): **8 met · 0 not met · 1 can’t-tell** ([Challenger](aecdae61-1a00-4e64-b98b-47dcf8aaa3e7)) @ `9cc8204`
+- Scope reconciliation: diff ⊆ approved list ✅ (5 files; no `code_atlas/` / `adapters/`)
+- Proving test: 2 passed vs BASELINE green
+- Layer-match: all AC proofs at logic/doc layer ✅; count accuracy = recorded exclusion
+- **Clean?** yes
+- **Reviewed at:** `9cc8204` · reviewed files: `docs/PLAN.md`, `docs/BACKLOG.md`, `docs/tasks/059_view-databag-edge.md`, `docs/tasks/062_view-databag-producer.md`, `tests/test_databag_decision_059.py`
 
----
+### Reviewer detail ([Reviewer](82017d29-4df6-4790-9ad2-12b96a3a073a))
+
+**Verdict: LGTM.** Critical: none · Important: none.
+
+| Approved # | Path | In `main...docs/059-view-databag-edge` |
+|---|---|---|
+| 1 | `docs/PLAN.md` | yes |
+| 2 | `docs/tasks/062_view-databag-producer.md` | yes |
+| 3 | `docs/BACKLOG.md` | yes |
+| 4 | `docs/tasks/059_view-databag-edge.md` | yes |
+| 5 | `tests/test_databag_decision_059.py` | yes |
+
+**Nits (non-blocking; fixed in working-doc bookkeeping before finalise):**
+1. Change-list still said BACKLOG/frontmatter `done` while shipped state was `in-progress` — aligned.
+2. Session status still said “Commits: pending” after `9cc8204` — updated.
+
+**Rule check (summary):** R2/R1.1 channel via enrichment ✅ · R3 deferred to 062 text ✅ · R4/R6.1/R7.2 ✅ · private-repo aggregates only ✅ · AC1–AC4 covered (AC3 N/A).
+
+### Challenger detail ([Challenger](aecdae61-1a00-4e64-b98b-47dcf8aaa3e7)) — ticket-blind
+
+Rebuilt from raw ticket + `main...docs/059-view-databag-edge` only (working doc withheld).
+
+| # | Requirement | Verdict | Evidence |
+|---|-------------|---------|----------|
+| 1 | Design note choosing among 1/2/3; impl deferred | **met** | `docs/PLAN.md:576–602` Option 1; no production code |
+| 2 | If 1/2: contract impact, rules shape, nav answer | **met** | `062:18–31`; PLAN nav answer |
+| 3 | If 3: PLAN §1 + runbook | **met (N/A)** | Option 1; no decline-path edits |
+| 4 | Measure first — occurrence counts; no private ids | **met** (artifact) | PLAN count table `583–592` |
+| 5 | AC1 decision + count | **met** | PLAN + proving test |
+| 6 | AC2 follow-up with contract impact | **met** | `062` + BACKLOG row |
+| 7 | AC3 decline path | **met (N/A)** | Option 1 |
+| 8 | AC4 LSP does not solve string-key data-bag | **met** | PLAN `604–607` |
+| 9 | Constraints R2/R3/R4/file-set/private-ids | **met** | PLAN + 062 |
+| 10 | Counts were actually measured (not invented) | **can’t-tell** | Private anchor; Ph1 coverage-gap exclusion |
+
+**Summary: 8 met · 0 not met · 1 can’t-tell**
+
+## Phase 5 — Finalise ✋
+
+- PR draft: `/tmp/pr-059.md`
+- Outward actions (approved 2026-08-08): push branch · open PR · then status→done + token row
+- Follow-up for deferred: **062** (already drafted); R3/AC3 N/A
+- Durable lesson: none written this run (operator did not request `docs/LESSONS.md`)
+- Revert path: revert `9cc8204` (+ bookkeeping); close PR; drop 062 if abandoned
 
 ## Cost ledger
 
 | Phase | Subagent / dispatch | Round | Tokens | Optimizer applied · est./measured saving |
 |-------|---------------------|-------|--------|------------------------------------------|
-| — | (none — refine skipped; no fan-out; design/execute on main loop) | — | — | — |
+| 4 review | mango:reviewer ([Reviewer](82017d29-4df6-4790-9ad2-12b96a3a073a)) | 1 | unmeasured (blocking retrieval) | — |
+| 4 review | mango:challenger ([Challenger](aecdae61-1a00-4e64-b98b-47dcf8aaa3e7)) | 1 | unmeasured (blocking retrieval) | — |
 
-`LEDGER TOTAL: 0 dispatch rows so far`
+`LEDGER TOTAL: 2 dispatch rows · both unmeasured (blocking retrieval) · top cost driver: review`
 
 ## Decision log
 
@@ -339,10 +386,12 @@ R1.1/R2 — decision forbids adapter framework knowledge; points at 040. R3 — 
 | 2026-08-08 | Gate 1 cleared | standing approval (“suggest and do the best option, and pass all gates”) |
 | 2026-08-08 | **Option 1** (producer-only) | counts + field sessions reject 3; YAGNI/041 cost reject 2-now; 040 channel fits |
 | 2026-08-08 | Gate 2 cleared | same standing approval |
+| 2026-08-08 | Gate 4 clean | reviewer LGTM + challenger 8/0/1 (can’t-tell = recorded exclusion) |
+| 2026-08-08 | Finalise A+B+C approved | user: commit review detail, push, open PR |
 
-## Session status (canonical)
+## Session status
 
 - **Last updated:** 2026-08-08
-- **Current phase:** Phase 3 → review
-- **Next action:** Commit; review
-- **Blocked on:** nothing
+- **Current phase:** Phase 5 — Finalise (executing approved outward actions)
+- **Next action:** Commit review detail → push → `gh pr create` → bookkeeping done+token row
+- **Blocked on:** nothing (actions approved)
