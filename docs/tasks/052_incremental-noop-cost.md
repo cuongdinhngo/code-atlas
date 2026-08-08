@@ -126,7 +126,7 @@ Gates [053](053_refresh-on-checkout-hook.md).
   would violate measure-before-decide; closing as “confirmed defect” without repo-sized
   `resolve_seconds` would invent evidence. **053 stays gated** until an operator profile shows
   either resolve dominance (→ follow-up fix ticket) or a spread cost (→ hooks out of band).
-- **Suite tip:** record SHA at finalise.
+- **Suite tip:** `34e122471f2a15359cddf6e63ac6517e839cc7de` — **937 passed**.
 
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
 

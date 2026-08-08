@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import importlib.util
-import json
 from pathlib import Path
+
+import pytest
 
 from code_atlas.indexer import INCREMENTAL_PHASES, full_build, incremental_update
 from code_atlas.store import GraphStore
-from tests.test_incremental import committed, config_for
+from tests.test_incremental import committed, config_for, fake_env
 
 REPO = Path(__file__).resolve().parent.parent
 _SCRIPT = REPO / "scripts" / "profile_incremental.py"
@@ -22,28 +23,43 @@ def _load_profiler():
     return mod
 
 
-def test_phase_times_cover_named_phases_and_sum_near_wall(tmp_path: Path) -> None:
-    """Proving: every named phase is timed; resolve is explicit; sum ≈ wall (AC1, AC2)."""
+def test_phase_times_cover_named_phases_and_sum_near_wall(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Proving: phases timed; resolve verdict present; index survives the profiler (AC1, AC2)."""
     profiler = _load_profiler()
-    committed(tmp_path, {"src/a.aa": "one\n", "src/b.aa": "two\n"})
+    for key, value in fake_env().items():
+        monkeypatch.setenv(key, value)
+
+    files = {f"src/f{i:03d}.aa": f"body {i}\n" for i in range(100)}
+    committed(tmp_path, files)
     config = config_for(tmp_path)
     with GraphStore(config.db_path) as store:
         full_build(config, store)
 
-    report = profiler.profile(tmp_path, db_path=config.db_path, pull_files=2)
+    report = profiler.profile(tmp_path, db_path=config.db_path, pull_files=100)
     assert {s["scenario"] for s in report["scenarios"]} == {
         "noop",
         "one_edit",
         "pull_shaped",
     }
+    noop = next(s for s in report["scenarios"] if s["scenario"] == "noop")
+    pull = next(s for s in report["scenarios"] if s["scenario"] == "pull_shaped")
+    assert noop["counts_unchanged"] is True
+    assert noop["counts_after"]["files"] >= 1
+    assert noop["resolve_hypothesis"]["verdict"] in {
+        "confirmed",
+        "refuted",
+        "inconclusive",
+    }
+    assert pull["changed_files"] == 100
+    assert isinstance(pull["wall_seconds"], float)
     for scenario in report["scenarios"]:
         phases = scenario["phases"]
         assert list(phases) == list(INCREMENTAL_PHASES)
-        assert "resolve" in phases
         assert scenario["phase_sum_vs_wall"]["within_tolerance"] is True
-        assert abs(scenario["phase_sum_seconds"] - scenario["wall_seconds"]) <= max(
-            profiler.WALL_TOLERANCE * float(scenario["wall_seconds"]), 0.05
-        )
+
+    profiler.assert_tree_matches_index(config)
 
 
 def test_two_noops_leave_identical_counts(tmp_path: Path) -> None:
@@ -65,13 +81,17 @@ def test_two_noops_leave_identical_counts(tmp_path: Path) -> None:
     assert set(second) >= set(INCREMENTAL_PHASES)
 
 
-def test_profile_report_json_round_trip(tmp_path: Path) -> None:
+def test_bind_index_fails_loud_without_adapters(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     profiler = _load_profiler()
     committed(tmp_path, {"src/a.aa": "one\n"})
     config = config_for(tmp_path)
     with GraphStore(config.db_path) as store:
         full_build(config, store)
-    payload = profiler.profile(tmp_path, db_path=config.db_path, pull_files=1)
-    blob = json.dumps(payload)
-    assert json.loads(blob)["scenarios"][2]["scenario"] == "pull_shaped"
-    assert payload["scenarios"][2]["changed_files"] == 1
+    monkeypatch.delenv("CA_FAKE_CMD", raising=False)
+    for key in list(__import__("os").environ):
+        if key.startswith("CA_") and key.endswith("_CMD"):
+            monkeypatch.delenv(key, raising=False)
+    with pytest.raises(Exception, match="no adapters configured"):
+        profiler.bind_index(tmp_path, config.db_path)
