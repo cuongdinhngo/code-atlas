@@ -107,23 +107,23 @@ Origin: field retro round 2 §0 and §6a — the same 29 across both rounds, unl
 
 | ID | Source | Verbatim (abbrev) | Interpretation | Ph1 evidence | Ph2 covered by | Ph3/4 proven by | Status |
 |----|--------|-------------------|----------------|--------------|----------------|-----------------|--------|
-| G1 | Goal | No tool lists the failed files | Expose paths for `parsed_ok=0` | ticket L12–26 | CL1–2 | | ⏳ |
-| G2 | Goal | Data already in `files.parsed_ok` | Listing only; no new persistence | store DDL + counts | CL1 | | ⏳ |
-| R1 | Scope | Store method + operator/agent read | `failed_paths` + `verbose` status | L29–31 | CL1–2 | | ⏳ |
-| R2 | Scope | Bounded; never on cheap path | Cap + not on min/std | L32–34 | CL2 | | ⏳ |
-| R3 | Scope | Say why if known; else paths | Reason absent → paths only | H5 | CL-note | | ⏳ |
-| R4 | Scope | Runbook note after first build | Onboarding §3 → call verbose | L39–41 | CL4 | | ⏳ |
-| C1 | Constraints | Cost unchanged for existing callers | Assert min/std key/payload shape | L44 | CL3 | | ⏳ |
-| C2 | Constraints | No schema change (R3) | No DDL | L45–46 | CL1 | | ⏳ |
-| C3 | Constraints | SQL in store (R1.4); no lang branch | store method only | L47 | CL1 | | ⏳ |
-| C4 | Constraints | Deterministic order (R4.2) | ORDER BY path; two-run assert | L48 | CL1 | | ⏳ |
-| C5 | Constraints | List bounded | LIMIT max_results + truncated | L49 | CL2 | | ⏳ |
-| AC1 | AC | Path retrievable; count matches | fixture ≥1 fail | L52–53 | CL2 | | ⏳ |
-| AC2 | AC | standard/minimal unchanged | key-set assert | L54–55 | CL3 | | ⏳ |
-| AC3 | AC | Cap + says when truncates | truncated flag | L56 | CL2 | | ⏳ |
-| AC4 | AC | Stable order two runs | equality | L57 | CL2 | | ⏳ |
-| AC5 | AC | Runbook tells check after build | grep runbook | L58 | CL4 | | ⏳ |
-| AC6 | AC | pytest/ruff/mypy green | CI | L59 | verify | | ⏳ |
+| G1 | Goal | No tool lists the failed files | Expose paths for `parsed_ok=0` | ticket L12–26 | CL1–2 | | ✅ |
+| G2 | Goal | Data already in `files.parsed_ok` | Listing only; no new persistence | store DDL + counts | CL1 | | ✅ |
+| R1 | Scope | Store method + operator/agent read | `failed_paths` + `verbose` status | L29–31 | CL1–2 | | ✅ |
+| R2 | Scope | Bounded; never on cheap path | Cap + not on min/std | L32–34 | CL2 | | ✅ |
+| R3 | Scope | Say why if known; else paths | Reason absent → paths only | H5 | CL-note | | ✅ |
+| R4 | Scope | Runbook note after first build | Onboarding §3 → call verbose | L39–41 | CL4 | | ✅ |
+| C1 | Constraints | Cost unchanged for existing callers | Assert min/std key/payload shape | L44 | CL3 | | ✅ |
+| C2 | Constraints | No schema change (R3) | No DDL | L45–46 | CL1 | | ✅ |
+| C3 | Constraints | SQL in store (R1.4); no lang branch | store method only | L47 | CL1 | | ✅ |
+| C4 | Constraints | Deterministic order (R4.2) | ORDER BY path; two-run assert | L48 | CL1 | | ✅ |
+| C5 | Constraints | List bounded | LIMIT max_results + truncated | L49 | CL2 | | ✅ |
+| AC1 | AC | Path retrievable; count matches | fixture ≥1 fail | L52–53 | CL2 | | ✅ |
+| AC2 | AC | standard/minimal unchanged | key-set assert | L54–55 | CL3 | | ✅ |
+| AC3 | AC | Cap + says when truncates | truncated flag | L56 | CL2 | | ✅ |
+| AC4 | AC | Stable order two runs | equality | L57 | CL2 | | ✅ |
+| AC5 | AC | Runbook tells check after build | grep runbook | L58 | CL4 | | ✅ |
+| AC6 | AC | pytest/ruff/mypy green | CI | L59 | verify | | ✅ |
 
 `CLARIFICATION: 0 raised | 5 HOW (H1–H5) | j=0`
 
@@ -159,6 +159,8 @@ N/A (no universal all/every inventory beyond AC2's two detail levels — enumera
 | Phase | Dispatch | Round | Tokens |
 |-------|----------|-------|--------|
 | refine | exposure-checker | 1 | unmeasured (blocking retrieval) |
+| review | reviewer | 1 | unmeasured (blocking retrieval) |
+| review | challenger | 1 | unmeasured (blocking retrieval) |
 
 ## Decision log
 
@@ -167,11 +169,13 @@ N/A (no universal all/every inventory beyond AC2's two detail levels — enumera
 | 2026-08-08 | Standing: best option + pass process gates; push/PR need per-action OK |
 | 2026-08-08 | Gate 1 cleared (standing) — refine skip + H1–H5 |
 | 2026-08-08 | Gate 2 cleared (standing) — approach below |
+| 2026-08-08 | Gate 4 clean after CONVENTION §6 fix (reviewer finding 1) |
 
 ## Session status
 
-- **Phase:** execute (Gate 1+2 standing-cleared)
-- **Reviewed at:** —
+- **Phase:** finalise (Gate 4 clean; awaiting outward-action approvals)
+- **Reviewed at:** `e5be6c387031d6f3ffd63dbd46de5c781361fb80`
+- **Reviewed files:** `code_atlas/store.py`, `code_atlas/tools/get_index_status.py`, `tests/test_list_parse_failures.py`, `tests/test_mcp_server.py`, `docs/runbooks/onboarding-a-repo.md`, `docs/PLAN.md`, `docs/CONVENTION.md` (+ working doc / LESSONS exempt)
 
 ## Phase 2 — Design
 
@@ -192,10 +196,23 @@ N/A (no universal all/every inventory beyond AC2's two detail levels — enumera
 | 3 | Proving + cheap-path tests | `tests/test_list_parse_failures.py` | AC1–4,C1 |
 | 4 | Runbook note | `docs/runbooks/onboarding-a-repo.md` | R4,AC5 |
 | 5 | PLAN §12 note | `docs/PLAN.md` | docs |
+| 6 | MCP schema / loud-fail for STATUS `verbose` | `tests/test_mcp_server.py` | AC6 |
+| 7 | CONVENTION §6 `verbose` | `docs/CONVENTION.md` | R7.2 |
 
 **Proving test:** `test_verbose_lists_failed_paths_capped_stable` — plant 3 failed files, `max_results=2`, verbose returns 2 paths in path order, `truncated=True`, `parse_failures=3`; second call identical; standard/minimal lack list keys.
 
 ## Phase 3 — Execute
 
-(in progress)
+Done on `fix/058-list-parse-failures`. Commits: `85d8b99` (impl), `a42ae54` (MCP tests), `e5be6c3` (CONVENTION), `ecc8115` (LESSONS). Suite: **927 passed**.
+
+## Phase 4 — Review
+
+- Reviewer [894bafe3](894bafe3-d190-452c-b9aa-9ae1f0a68b7d): CHANGES REQUESTED → CONVENTION §6 fixed → LGTM condition met.
+- Challenger [6d9c575c](6d9c575c-0c31-487e-898e-dfd963be946c): 15/15 met.
+- Proving test green. Gate 4: **clean**.
+
+## Phase 5 — Finalise
+
+Awaiting separate explicit approval per outward action (push, open PR).
+Cost summary: 3 subagent dispatches, all `unmeasured (blocking retrieval)`; top driver = review pair.
 
