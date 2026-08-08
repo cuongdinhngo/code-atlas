@@ -83,3 +83,15 @@ def test_winner_still_reports_callers_and_may_omit_unresolved(
     assert result["reason"] == "ok"
     # Every bare ``put`` site links to this winner, so the honesty field stays off.
     assert "unresolved_bare_calls" not in result
+
+
+def test_unknown_qname_does_not_claim_bare_name_truncation(
+    store: GraphStore, tmp_path: Path
+) -> None:
+    """A typo must stay no_such_symbol — not a graph-wide same-name hand-off (R5.3)."""
+    from code_atlas.tools.nav_result import REASON_NO_SUCH_SYMBOL
+
+    _plant_truncated_bare_calls(store, tmp_path)
+    result = find_callers.create(db_config(tmp_path))("\\Typo::put", detail_level="minimal")
+    assert result["reason"] == REASON_NO_SUCH_SYMBOL
+    assert "unresolved_bare_calls" not in result

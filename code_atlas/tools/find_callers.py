@@ -98,9 +98,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             outcome = _callers(store, qname, hops=depth, limit=limit, args_at=args_at)
             indexed = bool(store.nodes_by_qualified_name(qname, limit=1))
             container, bare_name = split_qname(qname)
+            # Only when empty + indexed: honesty for the truncated-cap case; skip on hits
+            # (hot path) and on unknown qnames (must not look like truncation).
             unresolved_bare = (
                 store.count_bare_calls_not_targeting(qname, bare_name=bare_name)
-                if container is not None
+                if indexed and container is not None and outcome.total_count == 0
                 else 0
             )
             unrecorded = (
@@ -111,11 +113,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             if include_source:
                 call_site.annotate(config.root, store, outcome.results)
         reason = relation_reason(hit_total=outcome.total_count, symbol_indexed=indexed)
-        if (
-            outcome.total_count == 0
-            and indexed
-            and unresolved_bare > 0
-        ):
+        if outcome.total_count == 0 and indexed and unresolved_bare > 0:
             # Cap dropped this subject from bare-name linking — not "no callers exist".
             reason = REASON_BARE_NAME_TRUNCATED
         result = nav_result(
