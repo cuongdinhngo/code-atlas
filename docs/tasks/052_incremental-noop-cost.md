@@ -4,7 +4,7 @@ slug: incremental-noop-cost
 title: Where does a no-op incremental build spend 62 seconds?
 phase: 1.5b
 milestone: Freshness
-status: in-progress
+status: done
 depends_on: [016, 047]
 ---
 
