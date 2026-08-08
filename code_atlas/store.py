@@ -407,11 +407,15 @@ class GraphStore:
             "stubs": self.stub_file_count(),
         }
 
-    def failed_paths(self, limit: int) -> tuple[str, ...]:
+    def failed_paths(self, limit: int, offset: int = 0) -> tuple[str, ...]:
         """Paths with ``parsed_ok = 0``, ordered — the list behind ``parse_failures`` (task 058)."""
+        if limit < 1:
+            raise ValueError(f"limit must be >= 1, got {limit}")
+        if offset < 0:
+            raise ValueError(f"offset must be >= 0, got {offset}")
         cursor = self._conn.execute(
-            "SELECT path FROM files WHERE parsed_ok = 0 ORDER BY path LIMIT ?",
-            (limit,),
+            "SELECT path FROM files WHERE parsed_ok = 0 ORDER BY path LIMIT ? OFFSET ?",
+            (limit, offset),
         )
         return tuple(str(row[0]) for row in cursor)
 

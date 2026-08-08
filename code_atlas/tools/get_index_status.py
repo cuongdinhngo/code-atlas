@@ -33,6 +33,9 @@ NAME = "get_index_status"
 
 DetailLevel = Literal["minimal", "standard", "verbose"]
 
+# Own cap for the verbose failure list — not ``CA_MAX_RESULTS`` (disk / nav / resolver knob).
+PARSE_FAILURE_PATHS_LIMIT = 50
+
 CURRENT = "current"
 BEHIND = "behind"
 UNKNOWN = "unknown"
@@ -44,13 +47,23 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
     """Bind the tool to one repo and to the tool names this server actually serves."""
     servable = tuple(registered)
 
-    def get_index_status(detail_level: DetailLevel = "standard") -> dict[str, object]:
-        """Index stats, health, last commit, staleness and what to call next. Call this first."""
+    def get_index_status(
+        detail_level: DetailLevel = "standard", offset: int = 0
+    ) -> dict[str, object]:
+        """Index stats, health, last commit, staleness and next tools. Call this first.
+
+        ``verbose`` adds capped ``parse_failure_paths`` plus ``parse_failures_truncated``;
+        pass ``offset`` to page further. ``minimal`` / ``standard`` omit the list (cheap path).
+        """
+        if offset < 0:
+            raise ValueError(f"offset must be >= 0, got {offset}")
+        if offset > 0 and detail_level != "verbose":
+            raise ValueError("offset requires detail_level='verbose'")
         if not config.db_path.is_file():
             return _unbuilt(servable, detail_level, config)
         try:
             with GraphStore(config.db_path) as store:
-                return _status(store, config, servable, detail_level)
+                return _status(store, config, servable, detail_level, offset=offset)
         except SchemaVersionError as mismatch:
             return _mismatched(mismatch, servable, detail_level, config)
 
@@ -73,6 +86,9 @@ def _unbuilt(
     }
     if detail_level in ("standard", "verbose"):
         status["db_path"] = str(config.db_path)
+    if detail_level == "verbose":
+        status["parse_failure_paths"] = []
+        status["parse_failures_truncated"] = False
     return status
 
 
@@ -94,7 +110,12 @@ def _mismatched(
 
 
 def _status(
-    store: GraphStore, config: Config, servable: Sequence[str], detail_level: DetailLevel
+    store: GraphStore,
+    config: Config,
+    servable: Sequence[str],
+    detail_level: DetailLevel,
+    *,
+    offset: int = 0,
 ) -> dict[str, object]:
     counts = store.counts()
     last_commit = store.get_meta(LAST_COMMIT_KEY)
@@ -124,10 +145,10 @@ def _status(
     }
     if detail_level == "standard":
         return enriched
-    paths = store.failed_paths(config.max_results)
+    paths = store.failed_paths(PARSE_FAILURE_PATHS_LIMIT, offset=offset)
     return enriched | {
         "parse_failure_paths": list(paths),
-        "parse_failures_truncated": counts["failed"] > len(paths),
+        "parse_failures_truncated": counts["failed"] > offset + len(paths),
     }
 
 
