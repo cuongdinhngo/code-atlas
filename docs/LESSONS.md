@@ -1,5 +1,12 @@
 # Lessons — code-atlas
 
+## 062 — `key_arg` is an argument index, not a string-literal ordinal
+
+`view_data` rules name which **argument** holds the key. Store `args` only record categories, so
+enrichment must map `key_arg` through those categories to the Nth quoted literal on the call line
+(e.g. `put($bag, 'extra', 1)` with `key_arg: 2`). Treating `key_arg` as a raw literal ordinal fails
+as soon as a non-string arg precedes the key.
+
 ## 061 — Payload fields that earn nothing should leave nav/search
 
 Keep `db_path` on `get_index_status` only. Make `next_tool_suggestions` state-reactive (empty when

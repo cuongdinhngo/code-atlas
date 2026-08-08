@@ -4,7 +4,7 @@ slug: view-databag-producer
 title: 'Producer-side view data-bag edges — rules + enrichment (implements 059 Option 1)'
 phase: 1.5b
 milestone: Coverage
-status: in-progress
+status: done
 depends_on: [030, 040, 059]
 ---
 
@@ -51,6 +51,14 @@ reads stay out of scope (059 rejected option 2 for now).
 [059](059_view-databag-edge.md) (decision + occurrence counts); [040](040_framework-indirection-data.md);
 `code_atlas/enrichment.py`; `code_atlas/contract.py` (`EDGE_KINDS`, `CONTRACT_VERSION`); R2, R3, R4;
 PLAN §19 data-bag decision.
+
+## Outcome
+
+- **Contract v4:** `PROVIDES_VIEW_DATA` + `viewdata:<key>` (`VIEW_DATA_PREFIX`); not in `FQN_EDGE_KINDS`.
+- **Rules:** `CA_INDIRECTION_RULES` `view_data` `{setter, key_arg}` — scan CALLS, map `key_arg` via args categories to the Nth string literal on the call line; HEURISTIC edges on the indirection bookmark.
+- **Nav:** `find_view_data(qname)` returns keys + call-site lines + `rule: true`.
+- **Off by default:** no rules ⇒ no such edges.
+- **Suite:** 962+ passed (proving 2/2).
 
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
 
@@ -226,8 +234,32 @@ Contract bump + enrichment extension + nav + fixtures — multi-file, not lite; 
 
 **Suite:** `962 passed`; ruff/mypy clean on touched paths.
 
+## Phase 4 — Review
+
+| Round | Reviewer | Challenger |
+|-------|----------|------------|
+| 1 | [CHANGES REQUESTED](ed9063d9-c4a2-4640-b8e4-b2dd47519f9f) — SRP carve-out, status honesty, key_arg ordinal | [PASS](dc28f36c-0f7e-4259-975b-475a671d27d3) |
+| 2 | [LGTM](8f2620dd-a9ae-40a6-a25e-73f91b6b5ec8) | [PASS](725a110a-5a1f-4c8f-b2df-d659e06c3c33) |
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|-------|----------|-------|--------|
+| refine | exposure-checker | 1 | unmeasured (blocking retrieval) |
+| analysis | explore (enrichment/040 map) | 1 | unmeasured (blocking retrieval) |
+| review | reviewer | 1 | unmeasured (blocking retrieval) |
+| review | challenger | 1 | unmeasured (blocking retrieval) |
+| review | reviewer | 2 | unmeasured (blocking retrieval) |
+| review | challenger | 2 | unmeasured (blocking retrieval) |
+
+## Durable lesson
+
+`key_arg` is an **argument** index; map through `args` categories to the Nth string literal on the line — never treat `key_arg` as a raw literal ordinal.
+
 ## Session status
 
-- **Phase:** execute → review
+- **Phase:** finalise
+- **Reviewed at:** `35c99e8ace554c2d6fc215cfddd7be46c7ab8eff`
+- **Reviewed files:** contract/enrichment/store/nav/find_view_data/main, PHP handshake, fixtures+proving tests, CONVENTION/PLAN/README/ENGINEERING_RULES, BACKLOG + task frontmatter, proof-collateral tests
 - **work_doc_mode:** embed
 - **working-doc path:** `docs/tasks/062_view-databag-producer.md` (below separator)
