@@ -24,7 +24,7 @@ def test_incremental_tool_payload_cannot_be_read_as_graph_size(tmp_path: Path) -
     config = config_for(tmp_path)
     server = build_server(config)
 
-    full = call(server, BUILD, {"full": True})
+    full = call(server, BUILD, {"full": True, "detail_level": "standard"})
     assert full["mode"] == "full"
     assert set(full["wrote"]) >= _REPORT_KEYS
     assert set(full["graph"]) >= _REPORT_KEYS - {"removed"}
@@ -37,7 +37,7 @@ def test_incremental_tool_payload_cannot_be_read_as_graph_size(tmp_path: Path) -
     committed(tmp_path, {"twin/a.aa": "run a v2\n"}, message="edit twin a")
     assert gitutil.changed_paths(tmp_path, last) == ("twin/a.aa",)
 
-    delta = call(server, BUILD, {"full": False})
+    delta = call(server, BUILD, {"full": False, "detail_level": "standard"})
     status = call(server, STATUS, {})
 
     assert delta["mode"] == "incremental"
@@ -49,3 +49,17 @@ def test_incremental_tool_payload_cannot_be_read_as_graph_size(tmp_path: Path) -
     # Scale is labelled — distinguishable without consulting ``mode``.
     assert delta["wrote"]["edges"] != delta["graph"]["edges"]
     assert full["wrote"]["edges"] == full["graph"]["edges"]
+
+
+def test_minimal_omits_graph_and_keeps_wrote_nesting(tmp_path: Path) -> None:
+    """``graph`` stays off the cheap path; ``wrote`` alone still blocks the flat misread."""
+    committed(tmp_path, MULTI_CANDIDATE)
+    config = config_for(tmp_path)
+    server = build_server(config)
+
+    minimal = call(server, BUILD, {"full": True, "detail_level": "minimal"})
+
+    assert "wrote" in minimal
+    assert "graph" not in minimal
+    assert _REPORT_KEYS.isdisjoint(minimal)
+    assert "last_commit" not in minimal and "db_path" not in minimal
