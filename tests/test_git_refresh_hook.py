@@ -125,6 +125,8 @@ def test_build_tool_returns_busy_when_lock_held(tmp_path: Path) -> None:
     assert result["mode"] == "busy"
     assert result["reason"] == "another_build_running"
 
+
+def test_is_branch_checkout_only_when_flag_is_one() -> None:
     assert refresh_mod.is_branch_checkout("1") is True
     assert refresh_mod.is_branch_checkout("0") is False
     assert refresh_mod.is_branch_checkout(None) is False
