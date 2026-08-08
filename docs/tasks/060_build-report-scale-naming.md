@@ -70,6 +70,19 @@ either way; a "not fixed" that is actually a stale process should not stand in t
 `tests/test_build_report_counts.py`.
 Origin: field retro round 2 §A.5.
 
+## Outcome
+
+- **Presentation (060):** `build_or_update_index` returns nested `wrote` (BuildReport — what this run
+  wrote) and `graph` (`store.counts()` totals). Bare top-level `nodes`/`edges` from the report are gone,
+  so an incremental delta cannot be read as a repo size.
+- **Re-measure (AC4):** `CODE_ATLAS_SCALE_SAMPLE` was **unset** on this host — no anchor remount. On the
+  `MULTI_CANDIDATE` fixture (same path as 051's tool/status agreement), a full build at commit
+  `833b8be5a247fc2766f7aca19350e96ffbbff1fa` has `wrote.nodes`/`wrote.edges` ≡ `graph.*` ≡
+  `get_index_status` (`pytest tests/test_build_report_counts.py::test_the_build_tool_and_the_status_tool_agree`
+  + `tests/test_build_report_scale_naming.py`, green). The round-2 “~949,808 vs 1,775,812” disagreement
+  is the pre-051 stale-process reading; current tip keeps 051 arithmetic and only moves presentation.
+- **Suite:** `933 passed` at that tip; ruff/mypy clean on touched paths.
+
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
 
 # 060 — build-report-scale-naming (working doc)
@@ -105,21 +118,21 @@ Origin: field retro round 2 §A.5.
 
 | ID | Interpretation | Ph2 | Status |
 |----|----------------|-----|--------|
-| G1 | Incremental cannot look like graph size | CL1 | ⏳ |
-| G2 | Scale clear without reading `mode` | CL1 | ⏳ |
-| R1 | Naming/shape fix; 051 arithmetic stands | CL1 | ⏳ |
-| R2 | Test fails on old flat shape | CL2 | ⏳ |
-| R3 | Re-measure full vs status on current server; record | CL3 | ⏳ |
-| R4 | Prefer impossible-wrong over documented | W1 | ⏳ |
-| C1 | No schema/contract (R3) | — | ⏳ |
-| C2 | Determinism — counts unchanged | CL1 | ⏳ |
-| C3 | Totals from `store.counts()` only | CL1 | ⏳ |
-| C4 | Build tool rarely called — larger payload OK | CL1 | ⏳ |
-| AC1 | Incremental not readable as graph size (test) | CL2 | ⏳ |
-| AC2 | Full vs incremental distinguishable w/o `mode` | CL2 | ⏳ |
-| AC3 | 051 agreement tests still pass (BuildReport↔store unchanged; tool keys navigate `wrote`/`graph`) | CL2 | ⏳ |
-| AC4 | Re-measure recorded in Outcome + commit | CL3 | ⏳ |
-| AC5 | pytest/ruff/mypy green | verify | ⏳ |
+| G1 | Incremental cannot look like graph size | CL1 | ✅ |
+| G2 | Scale clear without reading `mode` | CL1 | ✅ |
+| R1 | Naming/shape fix; 051 arithmetic stands | CL1 | ✅ |
+| R2 | Test fails on old flat shape | CL2 | ✅ |
+| R3 | Re-measure full vs status on current server; record | CL3 | ✅ |
+| R4 | Prefer impossible-wrong over documented | W1 | ✅ |
+| C1 | No schema/contract (R3) | — | ✅ |
+| C2 | Determinism — counts unchanged | CL1 | ✅ |
+| C3 | Totals from `store.counts()` only | CL1 | ✅ |
+| C4 | Build tool rarely called — larger payload OK | CL1 | ✅ |
+| AC1 | Incremental not readable as graph size (test) | CL2 | ✅ |
+| AC2 | Full vs incremental distinguishable w/o `mode` | CL2 | ✅ |
+| AC3 | 051 agreement tests still pass (BuildReport↔store unchanged; tool keys navigate `wrote`/`graph`) | CL2 | ✅ |
+| AC4 | Re-measure recorded in Outcome + commit | CL3 | ✅ |
+| AC5 | pytest/ruff/mypy green | verify | ✅ |
 
 `CLARIFICATION: 1 ASSUMED (W1) | j=0` (Gate 1 standing)
 
@@ -145,8 +158,17 @@ Origin: field retro round 2 §A.5.
 
 ## Session status
 
-- **Phase:** execute (Gate 1+2 standing-cleared)
-- **Reviewed at:** —
+- **Phase:** finalise (Gate 4 clean after Outcome; awaiting outward-action approvals)
+- **Reviewed at:** (set after Outcome commit)
+- **Reviewed files:** `code_atlas/tools/build_or_update_index.py`, `tests/test_build_report_scale_naming.py`, `tests/test_build_report_counts.py`, `tests/test_mcp_server.py`, `tests/test_incremental.py`, `tests/test_schema_version_recovery.py`, `docs/PLAN.md`, `docs/tasks/060_…` (Outcome)
+
+## Cost ledger (delta)
+
+| Phase | Dispatch | Round | Tokens |
+|-------|----------|-------|--------|
+| refine | exposure-checker | 1 | unmeasured (blocking retrieval) |
+| review | reviewer | 1 | unmeasured (blocking retrieval) |
+| review | challenger | 1 | unmeasured (blocking retrieval) |
 
 ## Phase 2 — Design
 
@@ -172,5 +194,16 @@ Origin: field retro round 2 §A.5.
 
 ## Phase 3 — Execute
 
-(in progress)
+Done on `fix/060-build-report-scale-naming` @ `833b8be` (+ Outcome docs follow-up). Suite: **933 passed**.
+
+## Phase 4 — Review
+
+- **Reviewer:** [Reviewer](9a7097eb-a616-4aef-8b87-9ec5246010a9) — **CHANGES REQUESTED** → Outcome AC4 missing → added above separator.
+- **Challenger:** [Challenger](649909d2-26dc-430f-8827-1332685d5b72) — **10 met · 1 not met** (AC4 Outcome) → same fix.
+- Proving test green. Gate 4: **clean** after Outcome (standing).
+
+## Phase 5 — Finalise
+
+Awaiting separate explicit approval per outward action (push, open PR).
+Cost summary: 3 subagent dispatches, all `unmeasured (blocking retrieval)`; top driver = review pair.
 

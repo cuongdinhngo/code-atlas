@@ -1,5 +1,12 @@
 # Lessons — code-atlas
 
+## 060 — Record scale re-measures in ticket Outcome with a commit SHA
+
+When an AC requires re-measuring full-build vs status on a clean server, land an `## Outcome`
+section (with the tip SHA, and an honest “scale sample unset” if the anchor was not remounted) in
+the same card as the code — reviewer and ticket-blind challenger both treat a missing Outcome as
+not-met even when fixture tests already prove agreement.
+
 ## 058 — A status-only `detail_level` value must update CONVENTION §6
 
 When one tool gains a third `detail_level` (here `verbose` on `get_index_status`), PLAN and the
