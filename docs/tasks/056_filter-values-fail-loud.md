@@ -287,16 +287,51 @@ Invoke: `pytest tests/test_filter_values_fail_loud.py -q`
 - **Reviewed at** `5b69d6c0b253661f901ae8099a123ba74dc95d2b`
 - **Reviewed files:** `code_atlas/tools/search_symbol.py`, `tests/test_filter_values_fail_loud.py`, `docs/tasks/056_filter-values-fail-loud.md`, `docs/BACKLOG.md`
 - **Reviewer:** [Reviewer](ff65b089-379c-4cbe-bb01-1cf868be7703) — **LGTM**
-- **Challenger:** [Challenger](2f35a89d-5fad-4a6a-a970-c34cdf188a9b) — 14 met · 0 not met · 0 can't tell
+- **Challenger:** [Challenger](2f35a89d-5fad-4a6a-a970-c34cdf188a9b) — **14 met · 0 not met · 0 can't tell**
 - **Gate 4:** clean (standing — no stop)
+
+### Reviewer detail ([Reviewer](ff65b089-379c-4cbe-bb01-1cf868be7703)) @ `5b69d6c`
+
+**Verdict: LGTM.** Critical / Important: none.
+
+| # | Approved change | Verdict |
+|---|-----------------|---------|
+| 1 | `KindArg` + `_require_kind` before SQL — `search_symbol.py` | ✅ L59 before any `GraphStore` |
+| 2 | Proving + schema tests — `tests/test_filter_values_fail_loud.py` | ✅ 4 tests |
+| 3 | Filter survey Outcome + BACKLOG/frontmatter | ✅ F1–F4; `in-progress` both places |
+
+**Rules:** R5.3 loud `ValueError` naming `NODE_KINDS` (find_callers shape); R3.2 enum is `list(contract.NODE_KINDS)` not a hand copy; R1.1/C1 no contract change; R6.1 tool tests.
+
+**Nits (non-blocking):** two schema tests assert the same equality; first direct `from pydantic import Field` under `code_atlas/` (Gate-2–approved — `Literal[*NODE_KINDS]` fails mypy).
+
+**Proving adequacy:** AC1–AC4 covered by the four tests; AC5 Outcome survey; AC6 scoped suite green.
+
+### Challenger detail ([Challenger](2f35a89d-5fad-4a6a-a970-c34cdf188a9b)) — ticket-blind @ `5b69d6c`
+
+**14 met · 0 not met · 0 can't tell.** Requirements rebuilt from raw ticket only (Outcome lines 72–87 above separator used for survey evidence).
+
+| # | Requirement | Verdict |
+|---|-------------|---------|
+| 1 | Reject unknown `kind`; message names accepted values | **met** — `search_symbol.py:36-37` |
+| 2 | Publish vocabulary from `NODE_KINDS` (no hand-copied list) | **met** — `KindArg` `list(contract.NODE_KINDS)` |
+| 3 | Filter survey per parameter (not blanket) | **met** — Outcome F1–F4; only `kind` hardened in code |
+| 4 | Case policy explicit (reject lowercase) | **met** — exact membership; no case-fold |
+| 5 | No contract change | **met** — `contract.py` untouched |
+| 6 | No language branch | **met** |
+| 7 | Correct callers unchanged (`kind="Class"`) | **met** — proving test |
+| 8 | Validation before SQL | **met** — L59 before `search_nodes` |
+| 9–13 | ACs (raise / Class ok / list_tools / derive NODE_KINDS / Outcome) | **met** |
+| 14 | pytest, ruff, mypy green | **met** — 910 passed at tip |
+
+**Scope:** BACKLOG + working-doc growth = bookkeeping, not product creep.
 
 ## Cost ledger (dispatch)
 
 | Phase | Dispatch | Round | Tokens |
 |-------|----------|-------|--------|
-| refine | exposure-checker challenger | 1 | unmeasured (blocking retrieval) |
-| review | reviewer | 1 | unmeasured (blocking retrieval) |
-| review | challenger | 1 | unmeasured (blocking retrieval) |
+| refine | exposure-checker [Challenger](b36f0359-e2db-4c61-99ab-08b57deccf60) | 1 | unmeasured (blocking retrieval) |
+| review | [Reviewer](ff65b089-379c-4cbe-bb01-1cf868be7703) | 1 | unmeasured (blocking retrieval) |
+| review | [Challenger](2f35a89d-5fad-4a6a-a970-c34cdf188a9b) | 1 | unmeasured (blocking retrieval) |
 
 `LEDGER: 3 rows / 3 dispatches` — complete
 
@@ -306,6 +341,6 @@ Invoke: `pytest tests/test_filter_values_fail_loud.py -q`
 
 ## Session status
 
-- **Phase:** finalise — waiting per-action approval for push / PR
-- **Reviewed at** `5b69d6c` (stale-guard baseline)
+- **Phase:** finalise — push / PR approved
+- **Reviewed at** `5b69d6c` (stale-guard baseline; post-review docs-only exempt)
 
