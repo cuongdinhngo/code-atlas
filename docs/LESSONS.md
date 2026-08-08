@@ -1,5 +1,11 @@
 # Lessons — code-atlas
 
+## 052 — Measure-only tickets still need an Outcome defect decision
+
+When AC demands “is this a defect?” but the host has no repo-sized sample, record **suspected /
+unconfirmed** with the field evidence and the profiler command — do not invent a phase split, and do
+not close as honest price without one. Ship the profiler; leave 053 gated.
+
 ## 060 — Record scale re-measures in ticket Outcome with a commit SHA
 
 When an AC requires re-measuring full-build vs status on a clean server, land an `## Outcome`

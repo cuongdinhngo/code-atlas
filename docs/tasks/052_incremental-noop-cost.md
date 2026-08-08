@@ -109,3 +109,104 @@ Local-tier precedent: [045](045_tokens-to-answer-local-repo.md) and
 Origin: field retro round 1 §5, recorded in [`BACKLOG.md`](../BACKLOG.md) as an open observation since
 2026-08-07; the flat-fee measurement (21 files in 61.585 s) is field retro round 2 §5.
 Gates [053](053_refresh-on-checkout-hook.md).
+
+## Outcome
+
+- **Profiler shipped:** `scripts/profile_incremental.py --root /abs/checkout` (045 local-tier). Optional
+  `phase_times` on `incremental_update` records announce · tree_walk · reconcile · hashing · parse ·
+  meta · enrichment · **resolve** — not wired into the MCP payload (measure-only; R1.2).
+- **Fixture evidence:** `tests/test_profile_incremental.py` — three scenarios, phases sum to wall
+  within 15%, two no-ops leave identical counts (R4.2). Resolve is timed explicitly.
+- **Repo-sized re-measure:** `CODE_ATLAS_SCALE_SAMPLE` was **unset** on this host — the field ~62 s
+  flat fee was **not** re-split here. Operator command is in
+  [`runbooks/onboarding-a-repo.md`](../runbooks/onboarding-a-repo.md) §3b.
+- **Defect decision (AC4):** **Suspected defect, unconfirmed seconds.** Field evidence (0-file ≈
+  21-file ≈ 62 s) plus code (unscoped `resolve_edges` on every incremental, including empty
+  `to_parse`) keep the leading hypothesis alive. Closing as “honest price” without a phase split
+  would violate measure-before-decide; closing as “confirmed defect” without repo-sized
+  `resolve_seconds` would invent evidence. **053 stays gated** until an operator profile shows
+  either resolve dominance (→ follow-up fix ticket) or a spread cost (→ hooks out of band).
+- **Suite tip:** record SHA at finalise.
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 052 — incremental-noop-cost (working doc)
+
+- **Ticket:** 052 · local `docs/tasks/052_incremental-noop-cost.md`
+- **Type:** investigation / measurement
+- **Repo(s):** app (`.`)
+- **SCOPE:** M
+- **STRUCTURE:** native
+- **TRACK:** backend — 0/N UI
+- **TIER:** full
+- **BASELINE:** green — `934 passed` (2026-08-08, untouched main)
+- **work_doc_mode:** embed
+- **working-doc path:** this file below separator
+
+## Phase 0 — Refine
+
+`REFINE: 0 unresolved | skip: yes`
+
+`refine skipped: 0 unresolved product-decisions`
+
+**Exposure-checker:** [Challenger](e9fc8bee-6793-4a40-8df5-bbd2ea265ddc) — none (ready).
+
+## Requirements matrix
+
+`SECTIONS: 4 found | 4 decomposed | ROWS: C=5 R=5 G=2 AC=6`
+
+| ID | Interpretation | Status |
+|----|----------------|--------|
+| G1 | Find where ~62s no-op goes; unblock 053 | ⏳ |
+| G2 | Confirm/refute unscoped resolve hypothesis | ⏳ |
+| R1 | Profiler scripts/ local-tier (045) | ⏳ |
+| R2 | Three scenarios: noop / 1-file / ~100-file pull | ⏳ |
+| R3 | Per-phase breakdown + resolve timed | ⏳ |
+| R4 | Defect decision in Outcome | ⏳ |
+| R5 | Runbook incremental cost note | ⏳ |
+| C1 | Measure before any optimisation | ⏳ |
+| C2 | No permanent agent-facing instrumentation unless warranted | ⏳ |
+| C3 | R4.2 counts identical across two no-ops | ⏳ |
+| C4 | No private repo path/report in repo | ⏳ |
+| C5 | SQL in store; no lang branch | ⏳ |
+| AC1 | Profiler + 3 scenarios; phases ≈ wall | ⏳ |
+| AC2 | resolve_edges timed; confirmed/refuted | ⏳ |
+| AC3 | pull-shaped cost stated | ⏳ |
+| AC4 | Outcome defect decision + evidence | ⏳ |
+| AC5 | Runbook expected cost | ⏳ |
+| AC6 | pytest/ruff/mypy + R4.2 counts | ⏳ |
+
+`CLARIFICATION: 0 | j=0`
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|-------|----------|-------|--------|
+| refine | exposure-checker | 1 | unmeasured (blocking retrieval) |
+
+## Decision log
+
+| When | Decision |
+|------|----------|
+| 2026-08-08 | Standing: best option + pass process gates |
+| 2026-08-08 | Gate 1+2 cleared (standing) — measure-only profiler; optional phase_times on incremental_update (not MCP payload) |
+
+## Session status
+
+- **Phase:** execute
+- **Reviewed at:** —
+
+## Phase 2 — Design
+
+**Approach**
+1. Optional `phase_times: dict[str,float]|None` on `incremental_update` / `_count_late_writes` — records announce/tree_walk/reconcile/hashing/parse/meta/enrichment/resolve when set; MCP never passes it (C2).
+2. `scripts/profile_incremental.py --root ABS` — reuse index; scenarios noop / one-edit / pull-N; report default `/tmp/code-atlas-incremental-profile.json`.
+3. Fixture tests prove phases + resolve key + sum tolerance + R4.2 counts.
+4. Runbook: cite field ~62s flat fee + how to run profiler; fill phase numbers when operator has a repo-sized index.
+5. Outcome: `CODE_ATLAS_SCALE_SAMPLE` unset here → defect vs price **awaits operator profile**; ship profiler; do not invent anchor seconds.
+
+**Change list:** indexer phase_times · script · tests · runbook · Outcome · PLAN note if needed.
+
+## Phase 3 — Execute
+
+(in progress)

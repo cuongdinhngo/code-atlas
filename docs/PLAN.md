@@ -267,7 +267,10 @@ always reparsed so adapter tiers and duplicate keys stay intact); `resolve_edges
 `meta.last_commit`. `build_or_update_index(full=false)` runs this when `last_commit` and the diff
 are usable; otherwise it falls back to a full build and reports the mode that actually ran.
 Staleness stays `current | behind | unknown` (commit equality, or `behind` when the worktree is
-dirty). Tests use hermetic throwaway repos so CI can keep a shallow checkout.
+dirty). Tests use hermetic throwaway repos so CI can keep a shallow checkout. Field retros saw
+~62 s flat fee for no-op and small incrementals on a large index (task 052) — profile phases with
+`scripts/profile_incremental.py --root …` (optional `phase_times` on `incremental_update`; not on
+the MCP payload) before deciding whether unscoped `resolve_edges` is a defect or the honest price.
 
 ---
 
