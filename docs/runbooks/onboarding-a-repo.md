@@ -264,10 +264,10 @@ Call every registered tool once against the real index and time it. Expected sha
 
 | Tool | Latency | Note |
 |---|---|---|
-| `get_index_status` | 321 ms | Reads `edge_health`; the one call that scans tiers |
-| `search_symbol` | 36 ms | FTS trigram |
+| `get_index_status` | 321 ms | Reads `edge_health`; the one call that scans tiers. **`db_path` lives here** (and on build reports) — nav/search/read responses no longer carry it (task 061). |
+| `search_symbol` | 36 ms | FTS trigram; redundant File+Class pairs on the same page are suppressed (061) |
 | `file_outline` / `read_symbol` | ~1 ms | Indexed by file / qname |
-| `find_callers` / `find_references` / `find_implementations` | ~1 ms | |
+| `find_callers` / `find_references` / `find_implementations` | ~1 ms | `subject_refreshed_only` only when the subject's file was reparsed this call |
 | `include_graph` / `impact` | < 5 ms | |
 | `reachable_from` / `find_orphans` | ~0.6 s | Walks from every entry-point match |
 | `explain_path` | 6.6 s | Worst case; a shortest-path search over the whole graph |

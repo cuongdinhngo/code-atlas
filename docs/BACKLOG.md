@@ -88,7 +88,7 @@ gap that fixtures never hit.
 | 058 | [`parse_failures: 29` — nobody can find out which 29 files the index cannot see](tasks/058_list-parse-failures.md) | Agent-trust | done | 009, 028 |
 | 059 | [The handler → template data-bag edge is unmodelled](tasks/059_view-databag-edge.md) | Coverage | done | 030, 040 |
 | 060 | [An incremental run reports deltas under the field names a full build uses for totals](tasks/060_build-report-scale-naming.md) | Agent-trust | done | 051 |
-| 061 | [Every response carries fields that earn nothing](tasks/061_payload-weight.md) | Cost | todo | 010, 014, 033 |
+| 061 | [Every response carries fields that earn nothing](tasks/061_payload-weight.md) | Cost | in-progress | 010, 014, 033 |
 | 062 | [Producer-side view data-bag edges — rules + enrichment](tasks/062_view-databag-producer.md) | Coverage | todo | 030, 040, 059 |
 
 **047–049 come from the first external field session** — an agent in the anchor repo used the server for

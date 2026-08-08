@@ -99,7 +99,6 @@ def test_default_args_match_pre_pagination_shape(store: GraphStore, tmp_path: Pa
         "truncated",
         "reason",
         "total_count",
-        "subject_refreshed_only",
     }
     assert got["qname"] == "\\Base"
     assert got["indexed"] is True

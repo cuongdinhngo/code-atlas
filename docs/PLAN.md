@@ -383,7 +383,7 @@ Token-efficient: return qualified names + `file:line`, not bodies, unless a read
 
 | Tool | Key args | Returns |
 |---|---|---|
-| `get_index_status` | `detail_level?`, `offset?` | stats, last_commit, staleness, `next_tool_suggestions`; `standard` also `edge_health` (`by_tier` = trust tiers; `linked`/`unlinked` = whether an edge found any target at all) and `parse_failures`; `verbose` adds capped `parse_failure_paths` + `parse_failures_truncated` (058 — page size `PARSE_FAILURE_PATHS_LIMIT=50`, not `CA_MAX_RESULTS`; `offset` walks further pages). **Call first (~100 tok).** |
+| `get_index_status` | `detail_level?`, `offset?` | stats, last_commit, staleness, `next_tool_suggestions` (reactive: build when not current / no index, else empty — 061); `standard` also `edge_health` (`by_tier` = trust tiers; `linked`/`unlinked` = whether an edge found any target at all), `parse_failures`, and **`db_path`** (the only tool that carries it by default after 061); `verbose` adds capped `parse_failure_paths` + `parse_failures_truncated` (058 — page size `PARSE_FAILURE_PATHS_LIMIT=50`, not `CA_MAX_RESULTS`; `offset` walks further pages). **Call first (~100 tok).** |
 | `build_or_update_index` | `full=false`, `detail_level?` | `wrote` (BuildReport — what this run wrote) + timing; `standard` also `graph` (`store.counts()` — 060; not on the cheap path) so scales are labelled |
 | `search_symbol` | `query, kind?, namespace?, limit?, offset?` | ranked `{qname, kind, file:line}` (FTS + name); stub hits add `stub: true` (039); `reason` + `total_count` (033); `offset` pages in search order (057) |
 | `file_outline` | `path` | symbols + line ranges, no body |

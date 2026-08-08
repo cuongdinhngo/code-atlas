@@ -127,16 +127,14 @@ def _comment_top(lines: Sequence[str], line_start: int) -> int:
 
 
 def _empty(qname: str, *, detail_level: str, db_path: str) -> dict[str, object]:
-    payload: dict[str, object] = {
+    del detail_level, db_path
+    return {
         "indexed": False,
         "qname": qname,
         "found": False,
         "stale": False,
         "source": "",
     }
-    if detail_level == "standard":
-        payload["db_path"] = db_path
-    return payload
 
 
 def _result(
@@ -153,6 +151,7 @@ def _result(
     line_end: int | None = None,
     stub: bool = False,
 ) -> dict[str, object]:
+    del detail_level, db_path
     payload: dict[str, object] = {
         "indexed": True,
         "qname": qname,
@@ -169,6 +168,4 @@ def _result(
             payload["line_end"] = line_end
         if stub:
             payload[contract.STUB_FLAG] = True
-    if detail_level == "standard":
-        payload["db_path"] = db_path
     return payload

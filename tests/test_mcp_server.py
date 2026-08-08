@@ -367,19 +367,16 @@ def test_a_current_index_is_not_told_to_rebuild(repo: Path) -> None:
     config = served_config(repo)
     call(build_server(config), BUILD, {})
 
-    assert call(build_server(config), STATUS, {})["next_tool_suggestions"] == [
-        SEARCH,
-        OUTLINE,
-        READ,
-        CALLERS,
-        REFS,
-        IMPLS,
-        INCLUDE,
-        IMPACT,
-        REACHABLE,
-        ORPHANS,
-        EXPLAIN,
-    ]
+    assert call(build_server(config), STATUS, {})["next_tool_suggestions"] == []
+
+
+def test_a_behind_index_suggests_a_build(repo: Path) -> None:
+    config = served_config(repo)
+    call(build_server(config), BUILD, {})
+    # Mutate an indexed file so staleness is behind without a new commit (047 / 061).
+    path = next(p for p in (repo / "src").rglob("*") if p.is_file())
+    path.write_text(path.read_text(encoding="utf-8") + "// dirty\n", encoding="utf-8")
+    assert call(build_server(config), STATUS, {})["next_tool_suggestions"] == [BUILD]
 
 
 # --- R5 · detail_level on every tool -------------------------------------------------------------
@@ -410,8 +407,13 @@ def test_minimal_is_a_strict_reduction_of_standard(
     minimal = call(server, name, {**arguments, "detail_level": "minimal"})
     standard = call(server, name, {**arguments, "detail_level": "standard"})
 
-    assert set(minimal) < set(standard), f"{name}: minimal is not smaller than standard"
-    assert "db_path" in standard and "db_path" not in minimal
+    assert set(minimal) <= set(standard), f"{name}: minimal grew past standard"
+    if name in {STATUS, BUILD}:
+        assert "db_path" in standard and "db_path" not in minimal
+        assert set(minimal) < set(standard)
+    else:
+        # Nav/search/read no longer carry db_path at standard (task 061).
+        assert "db_path" not in standard
 
 
 @pytest.mark.parametrize(("name", "arguments"), CALLS, ids=[name for name, _ in CALLS])

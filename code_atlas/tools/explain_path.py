@@ -54,8 +54,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             "depth": depth,
             "depth_exhausted": outcome.depth_exhausted,
         }
-        if detail_level == "standard":
-            payload["db_path"] = str(config.db_path)
+        del detail_level
         return payload
 
     return explain_path
@@ -79,8 +78,7 @@ def _not_indexed(
         "depth": depth,
         "depth_exhausted": False,
     }
-    if detail_level == "standard":
-        payload["db_path"] = str(config.db_path)
+    del detail_level, config
     return payload
 
 

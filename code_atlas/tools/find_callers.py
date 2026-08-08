@@ -79,6 +79,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         outside that cap can have zero inbound edges while CALLS sites named its bare method still
         exist. Those sites are counted in ``unresolved_bare_calls``, and an empty answer then uses
         ``reason=bare_name_truncated`` instead of ``no_matches``.
+
+        ``subject_refreshed_only`` is present (and ``true``) only when read-through freshness
+        reparsed the subject's file this call — neighbors were not re-verified (035 / 061).
         """
         if depth < 1:
             raise ValueError(f"depth must be >= 1, got {depth}")
@@ -92,7 +95,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path))
         with GraphStore(config.db_path) as store:
             guard = FreshnessGuard(config, store)
-            if guard.ensure_qname(qname) == "stale":
+            freshness = guard.ensure_qname(qname)
+            if freshness == "stale":
                 return nav_result(
                     qname,
                     [],
@@ -103,7 +107,6 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     total_count=0,
                     depth=depth,
                     frontier_skipped_non_resolved=0,
-                    subject_refreshed_only=True,
                 )
             outcome = _callers(
                 store, qname, hops=depth, limit=cap, offset=offset, args_at=args_at
@@ -139,8 +142,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             total_count=outcome.total_count,
             depth=depth,
             frontier_skipped_non_resolved=outcome.frontier_skipped_non_resolved,
-            subject_refreshed_only=True,
         )
+        if freshness == "repaired":
+            result["subject_refreshed_only"] = True
         if unresolved_bare > 0:
             result["unresolved_bare_calls"] = unresolved_bare
         if unrecorded is not None:
