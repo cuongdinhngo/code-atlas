@@ -67,16 +67,16 @@ jobs:
       - name: Tests (pytest — unit · contract · integration)
         run: pytest -q
 
-      # Tokens-to-answer gate (task 034): fails on a wrong answer or a ratio regression. The floor
-      # is a behavior-lock, not the value claim, and one interpreter is enough — a token count does
-      # not vary by Python version. Current figures and recalibration live in the runbook.
-      - name: Tokens-to-answer benchmark (ratio regression gate)
+      # Tokens-to-answer gate (task 034 / 055): fails on a wrong answer, a ratio regression, or a
+      # recall miss. The ratio floor is a behavior-lock; the recall floor is the correctness gate.
+      # One interpreter is enough — a token count does not vary by Python version.
+      - name: Tokens-to-answer benchmark (ratio + recall regression gate)
         if: matrix.python-version == '3.13'
         env:
           CA_PHP_CMD: php ${{ github.workspace }}/adapters/php/index.php --server
         run: |
           status=0
-          python scripts/tokens_to_answer.py --min-ratio 0.24 \
+          python scripts/tokens_to_answer.py --min-ratio 0.24 --min-recall 1.0 \
             --markdown "${RUNNER_TEMP}/tokens-to-answer.md" --notice || status=$?
           if [ -f "${RUNNER_TEMP}/tokens-to-answer.md" ]; then
             cat "${RUNNER_TEMP}/tokens-to-answer.md" >> "$GITHUB_STEP_SUMMARY"

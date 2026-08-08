@@ -41,9 +41,12 @@ from code_atlas.store import GraphStore  # noqa: E402
 from code_atlas.tools import (  # noqa: E402
     find_callers,
     find_implementations,
+    find_orphans,
     find_references,
     get_index_status,
+    impact,
     include_graph,
+    reachable_from,
     read_symbol,
     search_symbol,
 )
@@ -65,7 +68,11 @@ _TOOL_NAMES = (
     find_references.NAME,
     find_implementations.NAME,
     include_graph.NAME,
+    impact.NAME,
+    reachable_from.NAME,
+    find_orphans.NAME,
 )
+_NATIVE_TOOLS = frozenset({"grep", "read_file"})
 
 
 class BenchmarkRegressionError(AssertionError):
@@ -93,6 +100,9 @@ def bind_tools(config: Config) -> dict[str, Callable[..., dict[str, object]]]:
         find_references.NAME: find_references.create(config),
         find_implementations.NAME: find_implementations.create(config),
         include_graph.NAME: include_graph.create(config),
+        impact.NAME: impact.create(config),
+        reachable_from.NAME: reachable_from.create(config),
+        find_orphans.NAME: find_orphans.create(config),
     }
 
 
@@ -136,6 +146,223 @@ def answer_contains(responses: list[dict[str, object]], expected: list[str]) -> 
     """True when every expected substring appears in some string of the responses."""
     strings = _iter_strings(responses)
     return all(any(exp in text for text in strings) for exp in expected)
+
+
+def found_expected_members(
+    responses: list[dict[str, object]], expected_set: list[str]
+) -> list[str]:
+    """Members of ``expected_set`` that appear as a substring somewhere in the responses."""
+    strings = _iter_strings(responses)
+    return [member for member in expected_set if any(member in text for text in strings)]
+
+
+def result_bearing_responses_empty(responses: list[dict[str, object]]) -> bool:
+    """True when every response that carries a ``results`` list has it empty.
+
+    ``get_index_status`` and similar have no ``results`` key and are ignored. If no response
+    bears ``results``, this returns False (cannot claim an empty nav answer).
+    """
+    bearing = [r for r in responses if isinstance(r, dict) and "results" in r]
+    if not bearing:
+        return False
+    return all(not r.get("results") for r in bearing)
+
+
+def score_recall(
+    responses: list[dict[str, object]], expected_set: list[str]
+) -> dict[str, Any]:
+    """Recall + confidently_wrong against a complete expected set (task 055).
+
+    ``confidently_wrong`` is reserved for an empty ``results`` answer when ground truth is
+    non-empty — distinct from a partial-recall miss (some hits, not all).
+    """
+    if not expected_set:
+        return {
+            "recall": None,
+            "expected_count": 0,
+            "found_count": 0,
+            "found": [],
+            "missing": [],
+            "confidently_wrong": False,
+        }
+    found = found_expected_members(responses, expected_set)
+    missing = [m for m in expected_set if m not in found]
+    empty = result_bearing_responses_empty(responses)
+    confidently_wrong = empty and len(expected_set) > 0
+    return {
+        "recall": round(len(found) / len(expected_set), 3),
+        "expected_count": len(expected_set),
+        "found_count": len(found),
+        "found": found,
+        "missing": missing,
+        "confidently_wrong": confidently_wrong,
+    }
+
+
+def run_native_step(root: Path, step: dict[str, Any]) -> tuple[int, dict[str, object], int]:
+    """Run a non-MCP session step (grep / read_file); tokens, response, files read."""
+    tool = str(step["tool"])
+    args = dict(step.get("args", {}))
+    if tool == "grep":
+        tokens, text = run_grep_path(root, args)
+        return tokens, {"tool": "grep", "results": text.splitlines()[:50], "text": text}, 0
+    if tool == "read_file":
+        rel = str(args["path"])
+        path = root / rel
+        body = path.read_text(encoding="utf-8", errors="replace")
+        tokens = estimate_tokens(rel) + estimate_tokens(body)
+        return tokens, {"tool": "read_file", "path": rel, "results": [body], "text": body}, 1
+    raise KeyError(f"unknown native session tool: {tool}")
+
+
+def run_session_path(
+    config: Config,
+    tools: dict[str, Callable[..., dict[str, object]]],
+    steps: list[dict[str, Any]],
+) -> tuple[int, list[dict[str, object]], dict[str, Any]]:
+    """Execute a mixed MCP + native recipe; return tokens, responses, session stats (task 055)."""
+    total = 0
+    responses: list[dict[str, object]] = []
+    mcp_calls = 0
+    native_calls = 0
+    files_read = 0
+    for step in steps:
+        tool = str(step["tool"])
+        if tool in _NATIVE_TOOLS:
+            native_calls += 1
+            tokens, response, n_files = run_native_step(config.root, step)
+            total += tokens
+            files_read += n_files
+            responses.append(response)
+            continue
+        mcp_calls += 1
+        fn = tools[tool]
+        args = dict(step.get("args", {}))
+        response = fn(**args)
+        blob = json.dumps(response, ensure_ascii=False, sort_keys=True)
+        total += estimate_tokens(json.dumps(args, ensure_ascii=False)) + estimate_tokens(blob)
+        responses.append(response)
+    calls = mcp_calls + native_calls
+    session = {
+        "mcp_calls": mcp_calls,
+        "native_calls": native_calls,
+        "files_read": files_read,
+        "index_use_share": round(mcp_calls / calls, 3) if calls else None,
+    }
+    return total, responses, session
+
+
+def evaluate_question(config: Config, question: dict[str, Any]) -> dict[str, Any]:
+    """Run both paths for one question against an already-built index; return a report row."""
+    tools = bind_tools(config)
+    session_stats: dict[str, Any] | None = None
+    if question.get("session_path"):
+        atlas_tokens, atlas_responses, session_stats = run_session_path(
+            config, tools, list(question["session_path"])
+        )
+    else:
+        atlas_tokens, atlas_responses = run_atlas_path(tools, list(question["atlas_path"]))
+    grep_spec = question.get("grep")
+    if grep_spec:
+        grep_tokens, grep_seen = run_grep_path(config.root, dict(grep_spec))
+        expected = [str(s) for s in question["expected"]]
+        grep_evidence = [str(s) for s in question.get("grep_evidence", expected)]
+        grep_correct = all(s in grep_seen for s in grep_evidence)
+    else:
+        grep_tokens, grep_correct = 0, False
+    expected = [str(s) for s in question["expected"]]
+    atlas_correct = answer_contains(atlas_responses, expected)
+    ratio_eligible = bool(question.get("ratio_eligible", True)) and grep_spec is not None
+    ratio = (
+        round(grep_tokens / atlas_tokens, 3)
+        if atlas_tokens and ratio_eligible
+        else 0.0
+    )
+    row: dict[str, Any] = {
+        "id": str(question["id"]),
+        "question": str(question.get("question", "")),
+        "atlas_tokens": atlas_tokens,
+        "grep_tokens": grep_tokens,
+        "atlas_correct": atlas_correct,
+        "grep_correct": grep_correct,
+        "ratio": ratio,
+        "ratio_eligible": ratio_eligible,
+        "tier": str(question.get("tier", "named")),
+        "answer_reached": atlas_correct,
+    }
+    expected_set = question.get("expected_set")
+    if expected_set is not None:
+        row.update(score_recall(atlas_responses, [str(s) for s in expected_set]))
+    if session_stats is not None:
+        row["session"] = session_stats
+    return row
+
+
+def aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Roll rows up: correctness over all questions; cost ratio over ratio-eligible correct only."""
+    all_correct = [r for r in rows if r["atlas_correct"]]
+    ratio_rows = [
+        r for r in rows if r["atlas_correct"] and r.get("ratio_eligible", True)
+    ]
+    atlas_sum = sum(int(r["atlas_tokens"]) for r in ratio_rows)
+    grep_sum = sum(int(r["grep_tokens"]) for r in ratio_rows)
+    ratio = round(grep_sum / atlas_sum, 3) if atlas_sum else 0.0
+    recall_rows = [r for r in rows if r.get("recall") is not None]
+    recall_avg = (
+        round(sum(float(r["recall"]) for r in recall_rows) / len(recall_rows), 3)
+        if recall_rows
+        else None
+    )
+    confidently_wrong = sum(1 for r in rows if r.get("confidently_wrong"))
+    return {
+        "questions": len(rows),
+        "atlas_correct": len(all_correct),
+        "atlas_tokens": atlas_sum,
+        "grep_tokens": grep_sum,
+        "ratio": ratio,
+        "ratio_questions": len(ratio_rows),
+        "recall_questions": len(recall_rows),
+        "recall": recall_avg,
+        "confidently_wrong": confidently_wrong,
+    }
+
+
+def assert_benchmark(
+    rows: list[dict[str, Any]],
+    *,
+    min_ratio: float | None = None,
+    min_recall: float | None = None,
+    require_atlas_correct: bool = True,
+) -> dict[str, Any]:
+    """Gate: raise if atlas answered wrong, ratio fell, or recall fell below its floor."""
+    if require_atlas_correct:
+        wrong = [r["id"] for r in rows if not r["atlas_correct"]]
+        if wrong:
+            raise BenchmarkRegressionError(
+                f"code-atlas gave a wrong/incomplete answer for: {', '.join(wrong)}"
+            )
+    agg = aggregate(rows)
+    if min_ratio is not None and agg["ratio"] < min_ratio:
+        raise BenchmarkRegressionError(
+            f"tokens-to-answer ratio {agg['ratio']} is below the floor {min_ratio} "
+            f"(grep {agg['grep_tokens']} / atlas {agg['atlas_tokens']} tokens)"
+        )
+    if min_recall is not None:
+        recall_rows = [r for r in rows if r.get("recall") is not None]
+        if not recall_rows:
+            raise BenchmarkRegressionError(
+                f"recall floor {min_recall} set but no question declared expected_set"
+            )
+        bad = [
+            r["id"]
+            for r in recall_rows
+            if float(r["recall"]) < min_recall or r.get("confidently_wrong")
+        ]
+        if bad:
+            raise BenchmarkRegressionError(
+                f"recall below floor {min_recall} (or confidently_wrong) for: {', '.join(bad)}"
+            )
+    return agg
 
 
 def grep_scan(
@@ -186,59 +413,20 @@ def run_grep_path(root: Path, spec: dict[str, Any]) -> tuple[int, str]:
     return tokens, grep_output + "\n" + read_blob
 
 
-def evaluate_question(config: Config, question: dict[str, Any]) -> dict[str, Any]:
-    """Run both paths for one question against an already-built index; return a report row."""
-    tools = bind_tools(config)
-    atlas_tokens, atlas_responses = run_atlas_path(tools, list(question["atlas_path"]))
-    grep_tokens, grep_seen = run_grep_path(config.root, dict(question["grep"]))
-    expected = [str(s) for s in question["expected"]]
-    grep_evidence = [str(s) for s in question.get("grep_evidence", expected)]
-    atlas_correct = answer_contains(atlas_responses, expected)
-    grep_correct = all(s in grep_seen for s in grep_evidence)
-    ratio = round(grep_tokens / atlas_tokens, 3) if atlas_tokens else 0.0
-    return {
-        "id": str(question["id"]),
-        "question": str(question.get("question", "")),
-        "atlas_tokens": atlas_tokens,
-        "grep_tokens": grep_tokens,
-        "atlas_correct": atlas_correct,
-        "grep_correct": grep_correct,
-        "ratio": ratio,
-    }
-
-
-def aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    """Roll rows up over the questions code-atlas answered correctly (the fair comparison set)."""
-    correct = [r for r in rows if r["atlas_correct"]]
-    atlas_sum = sum(int(r["atlas_tokens"]) for r in correct)
-    grep_sum = sum(int(r["grep_tokens"]) for r in correct)
-    ratio = round(grep_sum / atlas_sum, 3) if atlas_sum else 0.0
-    return {
-        "questions": len(rows),
-        "atlas_correct": len(correct),
-        "atlas_tokens": atlas_sum,
-        "grep_tokens": grep_sum,
-        "ratio": ratio,
-    }
-
-
-def assert_benchmark(
-    rows: list[dict[str, Any]], *, min_ratio: float, require_atlas_correct: bool = True
-) -> dict[str, Any]:
-    """Gate: raise if atlas answered anything wrong, or the aggregate ratio fell below the floor."""
-    if require_atlas_correct:
-        wrong = [r["id"] for r in rows if not r["atlas_correct"]]
-        if wrong:
-            raise BenchmarkRegressionError(
-                f"code-atlas gave a wrong/incomplete answer for: {', '.join(wrong)}"
-            )
-    agg = aggregate(rows)
-    if agg["ratio"] < min_ratio:
-        raise BenchmarkRegressionError(
-            f"tokens-to-answer ratio {agg['ratio']} is below the floor {min_ratio} "
-            f"(grep {agg['grep_tokens']} / atlas {agg['atlas_tokens']} tokens)"
-        )
-    return agg
+def _gate_verdict_label(
+    *, min_ratio: float | None, min_recall: float | None, failure: str | None
+) -> str:
+    floors = []
+    if min_ratio is not None:
+        floors.append(f"ratio {min_ratio}")
+    if min_recall is not None:
+        floors.append(f"recall {min_recall}")
+    if not floors:
+        return "report only (no floor)"
+    joined = ", ".join(floors)
+    if failure is None:
+        return f"**PASS** (floor {joined})"
+    return f"**FAIL** (floor {joined})"
 
 
 def verdict_markdown(
@@ -248,26 +436,33 @@ def verdict_markdown(
     failure: str | None,
     samples_skipped: int,
     mode: str = "fixture",
+    min_recall: float | None = None,
 ) -> str:
-    """Markdown block for a CI step summary or a sticky PR comment (task 034 gate)."""
-    if min_ratio is None:
-        verdict = "report only (no floor)"
-    elif failure is None:
-        verdict = f"**PASS** (floor {min_ratio})"
-    else:
-        verdict = f"**FAIL** (floor {min_ratio})"
+    """Markdown block for a CI step summary or a sticky PR comment (task 034 / 055 gate)."""
+    verdict = _gate_verdict_label(
+        min_ratio=min_ratio, min_recall=min_recall, failure=failure
+    )
+    recall = agg.get("recall")
+    recall_cell = "—" if recall is None else str(recall)
+    wrong = agg.get("confidently_wrong", 0)
     lines = [
         COMMENT_MARKER,
         "### Tokens-to-answer (vs grep+`Read`)",
         "",
-        "| ratio | atlas tokens | grep tokens | correct | verdict |",
-        "|---|---|---|---|---|",
-        f"| {agg['ratio']} | {agg['atlas_tokens']} | {agg['grep_tokens']} "
-        f"| {agg['atlas_correct']}/{agg['questions']} | {verdict} |",
+        "| ratio | recall | confidently_wrong | atlas tokens | grep tokens | correct | verdict |",
+        "|---|---|---|---|---|---|---|",
+        (
+            f"| {agg['ratio']} | {recall_cell} | {wrong} | {agg['atlas_tokens']} | "
+            f"{agg['grep_tokens']} | {agg['atlas_correct']}/{agg['questions']} | {verdict} |"
+        ),
         "",
     ]
     if failure:
         lines += ["```", failure, "```", ""]
+    lines.append(
+        "**Recall is a gate; cost is the win.** A cheaper answer that finds less is a regression."
+    )
+    lines.append("")
     if mode == "local":
         # Local tier = the operator's own repo, so nothing here belongs in a public artifact.
         lines.append(
@@ -292,11 +487,27 @@ def verdict_markdown(
     return "\n".join(lines) + "\n"
 
 
-def notice_line(agg: dict[str, Any], *, min_ratio: float | None, failure: str | None) -> str:
+def notice_line(
+    agg: dict[str, Any],
+    *,
+    min_ratio: float | None,
+    failure: str | None,
+    min_recall: float | None = None,
+) -> str:
     """One-line GitHub Actions annotation — shows on the PR's Checks tab without opening a log."""
-    tail = f" — FAILED floor {min_ratio}" if failure else ""
+    floors = []
+    if min_ratio is not None:
+        floors.append(str(min_ratio))
+    if min_recall is not None:
+        floors.append(f"recall={min_recall}")
+    floor_s = ",".join(floors) if floors else ""
+    tail = f" — FAILED floor {floor_s}" if failure else ""
+    recall = agg.get("recall")
+    recall_bit = f" recall={recall}" if recall is not None else ""
+    wrong = agg.get("confidently_wrong", 0)
     return (
-        f"::notice title=Tokens-to-answer::ratio={agg['ratio']} "
+        f"::notice title=Tokens-to-answer::ratio={agg['ratio']}{recall_bit} "
+        f"confidently_wrong={wrong} "
         f"atlas={agg['atlas_tokens']} grep={agg['grep_tokens']} "
         f"correct={agg['atlas_correct']}/{agg['questions']}{tail}"
     )
@@ -482,6 +693,12 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Fail if the aggregate ratio falls below this (omit to only report).",
     )
+    parser.add_argument(
+        "--min-recall",
+        type=float,
+        default=None,
+        help="Fail if any expected_set question recalls below this, or is confidently_wrong.",
+    )
     parser.add_argument("--php-cmd", type=str, default=None)
     parser.add_argument(
         "--samples",
@@ -570,9 +787,11 @@ def main(argv: list[str] | None = None) -> int:
     print(json.dumps({"wrote": str(out), **agg, "samples_skipped": len(sample_ids)}))
 
     failure: str | None = None
-    if args.min_ratio is not None:
+    if args.min_ratio is not None or args.min_recall is not None:
         try:
-            assert_benchmark(rows, min_ratio=args.min_ratio)
+            assert_benchmark(
+                rows, min_ratio=args.min_ratio, min_recall=args.min_recall
+            )
         except BenchmarkRegressionError as exc:
             failure = str(exc)
             print(f"GATE FAILED: {exc}", file=sys.stderr)
@@ -582,6 +801,7 @@ def main(argv: list[str] | None = None) -> int:
         markdown = verdict_markdown(
             agg,
             min_ratio=args.min_ratio,
+            min_recall=args.min_recall,
             failure=failure,
             samples_skipped=len(sample_ids),
             mode="local" if args.local else "sample" if args.samples else "fixture",
@@ -590,7 +810,14 @@ def main(argv: list[str] | None = None) -> int:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(markdown, encoding="utf-8")
     if args.notice:
-        print(notice_line(agg, min_ratio=args.min_ratio, failure=failure))
+        print(
+            notice_line(
+                agg,
+                min_ratio=args.min_ratio,
+                min_recall=args.min_recall,
+                failure=failure,
+            )
+        )
     return 1 if failure else 0
 
 
