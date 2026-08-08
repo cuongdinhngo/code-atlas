@@ -26,7 +26,9 @@ adapter contract. Everywhere else, prefer the simplest thing that works.
 - **R1.4 — SRP per component.** Each module has one reason to change:
   - adapters *parse only* (never touch SQLite),
   - `store.py` *persists/queries only*,
-  - `enrichment.py` *applies optional rule-file edges only* (never parses source; never owns SQL),
+  - `enrichment.py` *applies optional rule-file edges only* (never owns SQL; may read a single
+    already-indexed call-site line to recover string literals when `view_data` rules request it —
+    task 062; never runs a language parser),
   - `resolver.py` *links edges only*,
   - `tools/` *presents only*.
   **Parsing code and storage code must never import each other.**

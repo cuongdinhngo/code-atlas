@@ -67,7 +67,11 @@ def test_handler_publish_keys_queryable_with_rules(tmp_path: Path, store: GraphS
 
     edges = store.edges_by_source(HANDLER, kinds=(contract.PROVIDES_VIEW_DATA,), limit=20)
     assert edges, "expected PROVIDES_VIEW_DATA edges from the assign rule"
-    keys = {contract.VIEW_DATA_PREFIX + "items", contract.VIEW_DATA_PREFIX + "title"}
+    keys = {
+        contract.VIEW_DATA_PREFIX + "items",
+        contract.VIEW_DATA_PREFIX + "title",
+        contract.VIEW_DATA_PREFIX + "extra",
+    }
     assert {row["target_raw"] for row in edges} == keys
     assert all(row["confidence_tier"] == "HEURISTIC" for row in edges)
     assert all(row["file_path"] == INDIRECTION_FILE for row in edges)
@@ -75,9 +79,9 @@ def test_handler_publish_keys_queryable_with_rules(tmp_path: Path, store: GraphS
     tool = find_view_data.create(config)
     payload = tool(HANDLER)
     assert payload["reason"] == "ok"
-    assert payload["total_count"] == 2
+    assert payload["total_count"] == 3
     found = {hit["key"]: hit for hit in payload["results"]}
-    assert set(found) == {"items", "title"}
+    assert set(found) == {"items", "title", "extra"}
     for hit in found.values():
         assert hit[contract.RULE_FLAG] is True
         assert hit["confidence_tier"] == "HEURISTIC"

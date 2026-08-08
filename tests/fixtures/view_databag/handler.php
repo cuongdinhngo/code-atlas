@@ -6,6 +6,10 @@ class ViewBag
     public function assign(string $key, mixed $value): void
     {
     }
+
+    public function put(mixed $bag, string $key, mixed $value): void
+    {
+    }
 }
 
 class OrderController
@@ -15,5 +19,7 @@ class OrderController
         $items = [];
         $view->assign('items', $items);
         $view->assign('title', 'Orders');
+        $bag = null;
+        $view->put($bag, 'extra', 1);
     }
 }

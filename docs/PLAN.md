@@ -42,7 +42,7 @@ These are in tension if mishandled — see the design principles (§2). The rule
 
 SOLID applied where a **real axis of change** exists — languages. Not speculative interfaces inside single-purpose components.
 
-- **SRP** — one reason to change per component: *sidecar/adapter* parses only (never touches SQLite); *store* persists/queries; *enrichment* applies optional rule-file edges only (never parses source; never owns SQL); *resolver* links edges; *tools* present. Enforced rule: parsing code and storage code never import each other.
+- **SRP** — one reason to change per component: *sidecar/adapter* parses only (never touches SQLite); *store* persists/queries; *enrichment* applies optional rule-file edges only (never owns SQL; may read a single already-indexed call-site line to recover string literals when `view_data` rules request it — task 062; never runs a language parser); *resolver* links edges; *tools* present. Enforced rule: parsing code and storage code never import each other.
 - **OCP** — **adding a language must not modify the core.** New language = new adapter satisfying the contract (§4). The core is closed for modification, open for extension.
 - **LSP (Liskov)** — every adapter is substitutable behind the contract: same node/edge vocabulary, same guarantees. **Litmus test: the core contains zero `if language == "…"`.** Any such branch = leaked abstraction → fix the contract instead.
 - **ISP** — the adapter interface is tiny (≈ "given files → emit `{nodes, edges}`"). Optional power (e.g. Roslyn's semantic types) is exposed via **capability flags**, never as methods all adapters must implement.

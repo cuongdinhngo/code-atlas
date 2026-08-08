@@ -193,7 +193,12 @@ def _view_data_edges(
             text = _line_text(config.root, rel, line, line_cache)
             if text is None:
                 continue
-            key = _nth_string_literal(text, key_arg)
+            parsed = _parse_args(args)
+            if parsed is None:
+                continue
+            # key_arg is the 1-based *argument* index; map to the Nth string literal on the line.
+            ordinal = sum(1 for entry in parsed[:key_arg] if entry == "string")
+            key = _nth_string_literal(text, ordinal)
             if key is None:
                 continue
             stamp = (source, key, line)

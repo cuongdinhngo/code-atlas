@@ -4,7 +4,7 @@ slug: view-databag-producer
 title: 'Producer-side view data-bag edges — rules + enrichment (implements 059 Option 1)'
 phase: 1.5b
 milestone: Coverage
-status: todo
+status: in-progress
 depends_on: [030, 040, 059]
 ---
 
