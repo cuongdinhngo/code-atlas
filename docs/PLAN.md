@@ -382,12 +382,12 @@ Token-efficient: return qualified names + `file:line`, not bodies, unless a read
 |---|---|---|
 | `get_index_status` | — | stats, last_commit, staleness, `next_tool_suggestions`; `standard` also `edge_health` (`by_tier` = trust tiers; `linked`/`unlinked` = whether an edge found any target at all) and `parse_failures`. **Call first (~100 tok).** |
 | `build_or_update_index` | `full=false` | counts, timing |
-| `search_symbol` | `query, kind?, namespace?, limit?` | ranked `{qname, kind, file:line}` (FTS + name); stub hits add `stub: true` (039); `reason` + `total_count` (033) |
+| `search_symbol` | `query, kind?, namespace?, limit?, offset?` | ranked `{qname, kind, file:line}` (FTS + name); stub hits add `stub: true` (039); `reason` + `total_count` (033); `offset` pages in search order (057) |
 | `file_outline` | `path` | symbols + line ranges, no body |
 | `read_symbol` | `qname` | source of just that class/method + docblock; stub symbols add `stub: true` (039) |
-| `find_callers` | `qname, depth?, include_source?, arg_position?, arg_is?` | who CALLS/NEW it + confidence; `reason` + `total_count` (033); opt-in capped call-site `source` (037); opt-in argument filter at a 1-based position — a literal category, `absent` or `dynamic` — with `total_count` counting matches and `args_unrecorded` counting the sites it could not judge (049, depth 1 only) |
-| `find_references` | `qname, include_source?` | all edges targeting it; `reason` + `total_count` (033); opt-in capped call-site `source` (037) |
-| `find_implementations` | `qname` | EXTENDS/IMPLEMENTS subtypes; `reason` + `total_count` (033) |
+| `find_callers` | `qname, depth?, include_source?, arg_position?, arg_is?, limit?, offset?` | who CALLS/NEW it + confidence; `reason` + `total_count` (033); opt-in capped call-site `source` (037); opt-in argument filter at a 1-based position — a literal category, `absent` or `dynamic` — with `total_count` counting matches and `args_unrecorded` counting the sites it could not judge (049, depth 1 only); `limit`/`offset` page results (057 — depth 1 uses store OFFSET; depth>1 pages the BFS hit stream; complete enumeration guaranteed at depth 1) |
+| `find_references` | `qname, include_source?, limit?, offset?` | all edges targeting it; `reason` + `total_count` (033); opt-in capped call-site `source` (037); `offset` pages in edge order (057) |
+| `find_implementations` | `qname, limit?, offset?` | EXTENDS/IMPLEMENTS subtypes; `reason` + `total_count` (033); `limit`/`offset` page in edge order (057) |
 | `include_graph` | `path, direction` | `include`/`require` graph (any include-based code) |
 | `impact` | `paths|qnames, depth?` | blast radius, bounded best-score |
 | `reachable_from` | `depth?` | nodes reachable from `CA_ENTRY_POINTS` (RESOLVED IMPACT kinds, forward); `unproven` for HEURISTIC/DYNAMIC-only |

@@ -38,8 +38,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         kind: contract.NodeKind | None = None,
         namespace: str | None = None,
         limit: int | None = None,
-        offset: int = 0,
         detail_level: DetailLevel = "standard",
+        offset: int = 0,
     ) -> dict[str, object]:
         """Ranked symbols matching ``query`` (FTS trigram, or name-prefix for queries < 3 chars).
 

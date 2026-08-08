@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from collections.abc import Iterator
 from dataclasses import replace
 from pathlib import Path
@@ -82,16 +81,32 @@ def test_find_implementations_accepts_limit(store: GraphStore, tmp_path: Path) -
     assert result["truncated"] is True
 
 
-def test_default_args_match_explicit_defaults(store: GraphStore, tmp_path: Path) -> None:
-    """Omitting limit/offset matches today's common case (offset=0, limit=max_results)."""
+def test_default_args_match_pre_pagination_shape(store: GraphStore, tmp_path: Path) -> None:
+    """AC5: default call = first max_results page in store order (pre-057 common case)."""
+    from code_atlas.contract import IMPL_KINDS
+
     _plant_impls(store, tmp_path, n=3)
     config = replace(db_config(tmp_path), root=tmp_path, max_results=2)
-    tool = find_implementations.create(config)
-    omitted = tool("\\Base", detail_level="minimal")
-    explicit = tool("\\Base", detail_level="minimal", limit=None, offset=0)
-    assert json.dumps(omitted, sort_keys=True) == json.dumps(explicit, sort_keys=True)
-    assert omitted["truncated"] is True
-    assert len(omitted["results"]) == 2
+    expected_sources = [
+        str(row["source_qname"])
+        for row in store.edges_by_target("\\Base", kinds=IMPL_KINDS, limit=2, offset=0)
+    ]
+    got = find_implementations.create(config)("\\Base", detail_level="minimal")
+    assert set(got) == {
+        "indexed",
+        "qname",
+        "results",
+        "truncated",
+        "reason",
+        "total_count",
+        "subject_refreshed_only",
+    }
+    assert got["qname"] == "\\Base"
+    assert got["indexed"] is True
+    assert got["truncated"] is True
+    assert got["total_count"] == 3
+    assert [hit["qname"] for hit in got["results"]] == expected_sources
+    assert len(got["results"]) == 2
 
 
 def test_find_callers_depth1_pages(store: GraphStore, tmp_path: Path) -> None:
@@ -167,3 +182,38 @@ def test_find_references_offset(store: GraphStore, tmp_path: Path) -> None:
     second = tool("\\T::put", detail_level="minimal", limit=1, offset=1)
     assert first["truncated"] is True and second["truncated"] is False
     assert first["total_count"] == 2
+
+
+def test_find_callers_depth2_offset_pages_bfs_stream(
+    store: GraphStore, tmp_path: Path
+) -> None:
+    """Depth>1 applies offset to the BFS hit stream (review finding 3)."""
+    nodes = [
+        node("Method", "m", "\\A::m", "a.x"),
+        node("Method", "b", "\\B::b", "a.x"),
+        node("Method", "c", "\\C::c", "a.x"),
+        node("Method", "d", "\\D::d", "a.x"),
+    ]
+    # D→B→A and C→A: depth=2 from A sees D (via B) and C (direct), plus B.
+    edges = [
+        edge(
+            "CALLS", "\\B::b", "\\A::m", "a.x",
+            target_qname="\\A::m", tier="RESOLVED", line=1,
+        ),
+        edge(
+            "CALLS", "\\C::c", "\\A::m", "a.x",
+            target_qname="\\A::m", tier="RESOLVED", line=2,
+        ),
+        edge(
+            "CALLS", "\\D::d", "\\B::b", "a.x",
+            target_qname="\\B::b", tier="RESOLVED", line=3,
+        ),
+    ]
+    seed_file(store, "a.x", nodes, edges, root=tmp_path)
+    config = replace(db_config(tmp_path), root=tmp_path, max_results=10)
+    tool = find_callers.create(config)
+    page0 = tool("\\A::m", depth=2, detail_level="minimal", limit=1, offset=0)
+    page1 = tool("\\A::m", depth=2, detail_level="minimal", limit=1, offset=1)
+    assert page0["results"] and page1["results"]
+    assert page0["results"][0]["qname"] != page1["results"][0]["qname"]
+    assert page0["truncated"] is True

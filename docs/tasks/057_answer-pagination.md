@@ -74,7 +74,8 @@ Origin: field retro round 2 §3b and §A.6 — the 143-vs-142 reconciliation tha
 
 **Tools:** `search_symbol`, `find_implementations`, `find_callers`, `find_references`. Reachability,
 `file_outline`, and `include_graph` stay out. Last page ⇒ `truncated: false`. Default page size
-unchanged. `find_callers` depth=1 is fully enumerable; depth>1 pages the BFS hit stream.
+unchanged. **AC1 scope:** complete enumeration for store-backed pages (incl. `find_callers` depth=1);
+depth>1 pages the BFS hit stream and may still hit a count floor (W4).
 
 **Proving:** `tests/test_answer_pagination.py::test_paged_walk_visits_each_row_once_stable`.
 
