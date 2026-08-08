@@ -573,7 +573,43 @@ Consequences, all adopted:
   unresolved. The refutation rests on the aggregate, not on any single cell. Details in the private
   benchmark notes; nothing repo-identifying is reproduced here.
 
+**Decision — Handler → template data-bag edge (task 059, 2026-08-08). Option 1 — producer side only.**
+
+Do framework-shaped *view data-bag* edges belong in the graph? **Yes, on the producer side only**, as
+opt-in rules data outside `adapters/` applied by `enrichment.py` (the 040 channel) — not as adapter
+code (R2). Implementation is follow-up [062](tasks/062_view-databag-producer.md); this entry is the
+design note.
+
+**Occurrence count** (operator-local §19 anchor; shape only — no private paths or identifiers):
+
+| Signal | Count |
+|--------|------:|
+| Clear view-publish sites (`->render` / `->display` / `->fetch` / `->setVar` / `$this->view->…=`, string keys; **excluding** ORM-contaminated `->with(`) | **100** sites in **35** handler files |
+| Key occurrences / distinct keys in those sites | **296** / **84** |
+| PHP files under view/views/template dirs that read `$this->…` / `<?= $…` | **2159** of **3094** (~33k occurrences, **1364** distinct) |
+| Twig files with `{{ rootVar` roots | **180** of **202** (**1245** / **155** distinct) |
+| Producer files also containing a literal template-path string (pair proxy) | **6** |
+| Field-session qualitative | Round 1: **5** mismatched controller/template pairs; Round 2: request-/branch-key mirror |
+
+**Why not option 3 (permanent non-goal).** The shape is common enough to justify a contract bump later
+(100 clean producer sites, 84 keys, thousands of consumer reads) and two independent field sessions
+named it as the reason the index got zero queries on a real defect. Declaring “grep’s job forever”
+would leave the exact gap the founding-premise redirect promoted 059 to close.
+
+**Why not option 2 (both sides) now.** A template reader for mixed markup (Twig / Blade / PHP views),
+reversing 041’s ignore reasons, and true pair linking (framework-implicit — only 6 path-literal pairs)
+is a separate large cost. YAGNI: ship producer first; revisit consumer if field retros still fail after
+062.
+
+**What a language server does *not* solve here.** LSP go-to-def / find-refs operate on *symbols*. The
+data-bag link is a **string key** — a literal in an array (or setter) on the handler side, a bare
+variable in markup on the template side. Neither end is a symbol the PHP language server binds, so
+Serena-class tools are as blind as today’s graph. This is unclaimed ground, not an LSP race.
+
+**Nav answer after 062.** Given a handler method, list the view-scope keys it publishes (and at which
+lines). The agent still `Read`s the template to confirm the consumer name — half of round 1’s question,
+the half no current tool answers.
+
 **Reference material** (private, same folder): `understand-anything-how-it-works.md`, `code-review-graph-how-it-works.md`.
 
 **Primary validation sample:** a large private PHP 8.5 monorepo — PSR-4 `src/` + ~18k non-namespaced legacy + a ZF1 area, ~112k files, run via Docker (PHP not on host PATH). Used for scale/coverage testing **and (from 2026-08-04) as the agent-first evaluation anchor** (task 034) — always test/metrics only; no repo-specific behavior lives in the adapter (R2, §2 "standard over sample").
-```

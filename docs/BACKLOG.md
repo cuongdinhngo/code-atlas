@@ -86,9 +86,10 @@ gap that fixtures never hit.
 | 056 | [An unknown filter value returns an empty result instead of an error](tasks/056_filter-values-fail-loud.md) | Agent-trust | todo | 014, 033 |
 | 057 | [A large answer cannot be enumerated, so `total_count` cannot be audited](tasks/057_answer-pagination.md) | Agent-trust | todo | 013, 014, 033 |
 | 058 | [`parse_failures: 29` — nobody can find out which 29 files the index cannot see](tasks/058_list-parse-failures.md) | Agent-trust | todo | 009, 028 |
-| 059 | [The handler → template data-bag edge is unmodelled](tasks/059_view-databag-edge.md) | Coverage | todo | 030, 040 |
+| 059 | [The handler → template data-bag edge is unmodelled](tasks/059_view-databag-edge.md) | Coverage | in-progress | 030, 040 |
 | 060 | [An incremental run reports deltas under the field names a full build uses for totals](tasks/060_build-report-scale-naming.md) | Agent-trust | todo | 051 |
 | 061 | [Every response carries fields that earn nothing](tasks/061_payload-weight.md) | Cost | todo | 010, 014, 033 |
+| 062 | [Producer-side view data-bag edges — rules + enrichment](tasks/062_view-databag-producer.md) | Coverage | todo | 030, 040, 059 |
 
 **047–049 come from the first external field session** — an agent in the anchor repo used the server for
 real work and filled in a retro (`v0.1.0`, commit `e117b47`, round 1). Its headline finding was **zero
@@ -118,16 +119,11 @@ reads as proof of absence, one of which reported no callers for a method with si
 **Read them in tiers, and the tiers are the point** (priority set 2026-08-07: *correctness is a gate,
 cost is the win*):
 
-- **Tier 1 — find the right thing.** **059 first** — *reordered 2026-08-08 by the founding-premise
-  benchmark, [PLAN §19](PLAN.md#19-project-context--decision-log)*. That benchmark found an agent
-  reaching for the index in **19% of its tool calls** on five real questions, and 059 names the reason:
-  the commonest defect shape in the anchor repo is a **relationship the graph has no vocabulary for**.
-  It is the only item in this tier that arrived from two independent field sessions, that is a relation
-  rather than a location, and that neither grep nor a language server answers — and its first
-  deliverable is a count that can cheaply kill it. Then **055**, still the acceptance criterion for the
-  fixes under it, since nothing *in this repo* measures what a tool missed (the benchmark was external,
-  hand-graded and n=1 — evidence, not a gate). Then **054** (the false negative, and its Part B ships
-  regardless of anything else), **056**, **057**, **058**.
+- **Tier 1 — find the right thing.** **059 decided Option 1** (producer-side only; [PLAN §19](PLAN.md#19-project-context--decision-log));
+  implementation is **062**. Then **055**, still the acceptance criterion for the fixes under it, since
+  nothing *in this repo* measures what a tool missed (the benchmark was external, hand-graded and n=1 —
+  evidence, not a gate). Then **054** (the false negative, and its Part B ships regardless of anything
+  else), **056**, **057**, **058**.
 - **Tier 2 — do not lie about the answer.** **060**; and 053's motivation rises here, since a stale
   index is a wrong answer, though it stays gated on 052 for the practical reason that a 62-second hook
   will be deleted by whoever waits for it.
@@ -332,17 +328,9 @@ because they are billed differently and dwarf everything else.
 - **A no-op incremental build costs ~62 s on a large repo.** Now ticketed as
   [052](tasks/052_incremental-noop-cost.md) — the observation stayed open here long enough to start
   blocking [053](tasks/053_refresh-on-checkout-hook.md), which is what turned it into work.
-- **The index does not model the controller→template data-bag edge.** A producer writes values into a
-  view scope under **string keys**; the template consumes them as bare variables in mixed markup. Neither
-  end is a symbol and the link is a string, so no nav tool sees it. This was the *entire* defect the first
-  external session was fixing — five producer/consumer key mismatches that rendered empty tables — and it
-  is why that session made zero graph queries. The retro's guess, marked `UNVERIFIED`, is that this
-  generalises to any MVC-ish codebase with a data-bag view layer, i.e. a large fraction of legacy PHP.
-  Not ticketed: it needs a decision about whether framework-shaped edges belong in the graph at all
-  (compare [040](tasks/040_framework-indirection-data.md), which put framework indirection in a rules file
-  *outside* the adapters, and R2 — adapters encode the language standard, never a framework). If the
-  answer is yes, this is a substantial piece of work and the biggest known blind spot. Origin: field retro
-  round 1 §6a.1, §2d.
+- **Controller→template data-bag edge — decided (059), not yet implemented.** Option 1 (producer side
+  only) is recorded in [PLAN §19](PLAN.md#19-project-context--decision-log); shipping the edges is
+  [062](tasks/062_view-databag-producer.md). Origin: field retro round 1 §6a.1 / round 2 §A.6.
 - **`max_results` semantics are documented locally, not by the server.** That the cap governs both
   returned rows *and* the resolver's candidate fan-out (the design smell recorded above) was learned by
   the field session only from a comment in the repo's own config file. Whatever comes of splitting the
