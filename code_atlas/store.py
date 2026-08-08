@@ -492,6 +492,16 @@ class GraphStore:
     ) -> list[Row]:
         return self._edges("source_qname = ?", qname, kinds, limit, offset=offset)
 
+    def count_edges_by_source(
+        self, qname: str, *, kinds: Sequence[str] | None = None
+    ) -> int:
+        """How many edges leave ``qname`` (same kind filter as ``edges_by_source``)."""
+        return self._count_edges("source_qname = ?", qname, kinds)
+
+    def edges_matching_kind(self, kind: str, *, limit: int) -> list[Row]:
+        """Up to ``limit`` edges of ``kind`` in store order (enrichment scans — task 062)."""
+        return self._edges("kind = ?", kind, None, limit)
+
     def edges_by_target(
         self,
         qname: str,

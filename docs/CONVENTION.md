@@ -59,7 +59,10 @@ code-atlas/
 ## 3. The contract vocabulary (fixed spelling — do not vary)
 
 - **Node kinds:** `File Namespace Class Interface Trait Enum Function Method Property ClassConst Const`.
-- **Edge kinds:** `CONTAINS EXTENDS IMPLEMENTS USES_TRAIT CALLS NEW IMPORTS INCLUDES REFERENCES ALIASES`.
+- **Edge kinds:** `CONTAINS EXTENDS IMPLEMENTS USES_TRAIT CALLS NEW IMPORTS INCLUDES REFERENCES ALIASES PROVIDES_VIEW_DATA`.
+- **`PROVIDES_VIEW_DATA`:** handler method → synthetic view-scope key. `target_raw` is
+  `viewdata:<key>` (not an FQN; not in `FQN_EDGE_KINDS`). Emitted only by `CA_INDIRECTION_RULES`
+  `view_data` setter rules (task 062); query with `find_view_data`.
 - **Confidence tiers:** `RESOLVED | HEURISTIC | DYNAMIC`.
 - **Node fields:** `kind, name, qualified_name, file_path, line_start, line_end, modifiers, params, is_test, extra`.
 - **Edge fields:** `kind, source_qname, target_qname?, target_raw, file_path, line, confidence_tier, args?`.

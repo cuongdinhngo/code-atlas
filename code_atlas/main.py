@@ -19,6 +19,7 @@ from code_atlas.tools import (
     find_implementations,
     find_orphans,
     find_references,
+    find_view_data,
     get_index_status,
     impact,
     include_graph,
@@ -41,6 +42,7 @@ TOOL_NAMES: tuple[str, ...] = (
     find_callers.NAME,
     find_references.NAME,
     find_implementations.NAME,
+    find_view_data.NAME,
     include_graph.NAME,
     impact.NAME,
     reachable_from.NAME,
@@ -73,6 +75,8 @@ def build_server(config: Config) -> FastMCP:
         server.tool(guard(find_references.create(config)))
     if find_implementations.NAME in names:
         server.tool(guard(find_implementations.create(config)))
+    if find_view_data.NAME in names:
+        server.tool(guard(find_view_data.create(config)))
     if include_graph.NAME in names:
         server.tool(guard(include_graph.create(config)))
     if impact.NAME in names:
