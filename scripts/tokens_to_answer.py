@@ -157,12 +157,19 @@ def found_expected_members(
 
 
 def result_bearing_responses_empty(responses: list[dict[str, object]]) -> bool:
-    """True when every response that carries a ``results`` list has it empty.
+    """True when every MCP response that carries a ``results`` list has it empty.
 
-    ``get_index_status`` and similar have no ``results`` key and are ignored. If no response
-    bears ``results``, this returns False (cannot claim an empty nav answer).
+    Native session tools (``grep`` / ``read_file``) are ignored so a grepped hit cannot mask
+    an empty nav answer. ``get_index_status`` and similar have no ``results`` key and are
+    ignored. If no MCP response bears ``results``, this returns False.
     """
-    bearing = [r for r in responses if isinstance(r, dict) and "results" in r]
+    bearing = [
+        r
+        for r in responses
+        if isinstance(r, dict)
+        and "results" in r
+        and str(r.get("tool", "")) not in _NATIVE_TOOLS
+    ]
     if not bearing:
         return False
     return all(not r.get("results") for r in bearing)
@@ -204,8 +211,25 @@ def run_native_step(root: Path, step: dict[str, Any]) -> tuple[int, dict[str, ob
     tool = str(step["tool"])
     args = dict(step.get("args", {}))
     if tool == "grep":
-        tokens, text = run_grep_path(root, args)
-        return tokens, {"tool": "grep", "results": text.splitlines()[:50], "text": text}, 0
+        matches, bodies = grep_scan(
+            root,
+            re.compile(str(args["pattern"])),
+            [str(g) for g in args.get("globs", ["*.php"])],
+            int(args.get("max_read_files", 20)),
+        )
+        read_blob = "\n".join(bodies.values())
+        grep_output = "\n".join(matches)
+        tokens = (
+            estimate_tokens(str(args["pattern"]))
+            + estimate_tokens(grep_output)
+            + estimate_tokens(read_blob)
+        )
+        text = grep_output + "\n" + read_blob
+        return (
+            tokens,
+            {"tool": "grep", "results": matches[:50], "text": text},
+            len(bodies),
+        )
     if tool == "read_file":
         rel = str(args["path"])
         path = root / rel

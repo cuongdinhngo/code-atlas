@@ -132,6 +132,32 @@ def test_score_recall_separates_confidently_wrong_from_partial_miss() -> None:
     assert partial_score["confidently_wrong"] is False
     assert partial_score["recall"] == 0.5
     assert partial_score["missing"] == ["\\B"]
+    # Native grep hits must not mask empty MCP nav answers on a session recipe.
+    session_shaped = [
+        {"tool": "grep", "results": ["User.php:12:$repo->put();"], "text": "hit"},
+        {"results": []},  # MCP find_callers with no tool key
+    ]
+    session_score = _h.score_recall(session_shaped, ["\\App\\User::save"])
+    assert session_score["confidently_wrong"] is True
+    assert session_score["recall"] == 0.0
+
+
+def test_recall_gate_fails_when_nav_returns_empty_for_known_set() -> None:
+    """Deliberately broken empty nav answer fails the recall floor (AC: broken resolver case)."""
+    responses = [{"results": []}]  # empty callers — the 054 failure shape
+    score = _h.score_recall(responses, ["\\App\\User::save", "\\App\\Other::touch"])
+    row = {
+        "id": "broken_empty_callers",
+        "atlas_tokens": 10,
+        "grep_tokens": 100,
+        "atlas_correct": True,  # `expected` substring check can still pass on status crumbs
+        "grep_correct": True,
+        "ratio": 10.0,
+        "ratio_eligible": True,
+        **score,
+    }
+    with pytest.raises(_h.BenchmarkRegressionError, match="confidently_wrong|recall"):
+        _h.assert_benchmark([row], min_ratio=None, min_recall=1.0, require_atlas_correct=False)
 
 
 def test_recall_gate_fails_on_confidently_wrong_and_on_low_recall() -> None:
@@ -321,6 +347,7 @@ def test_harness_answers_fixture_questions_and_reports_ratio(tmp_path: Path) -> 
     symptom = next(r for r in rows if r["id"] == "symptom_persist_via_put")
     assert symptom["session"]["index_use_share"] is not None
     assert 0.0 < float(symptom["session"]["index_use_share"]) < 1.0
+    assert int(symptom["session"]["files_read"]) > 0
     agg = _h.aggregate(rows)
     assert agg["atlas_correct"] == fixture_count
     assert agg["ratio"] > 0.0

@@ -170,7 +170,13 @@
       ],
       "grep": {"pattern": "function main"},
       "expected": ["\\Entry\\main", "\\Lib\\Helper"],
-      "expected_set": ["\\Entry\\main", "\\Lib\\Helper"],
+      "expected_set": [
+        "entry.php",
+        "\\Entry",
+        "\\Entry\\main",
+        "\\Lib\\Helper",
+        "\\Lib\\Service"
+      ],
       "grep_evidence": ["function main"]
     },
     {
@@ -186,7 +192,7 @@
       ],
       "grep": {"pattern": "class Unused"},
       "expected": ["\\Dead\\Unused"],
-      "expected_set": ["\\Dead\\Unused"],
+      "expected_set": ["\\Dead", "\\Dead\\Unused"],
       "grep_evidence": ["class Unused"]
     },
     {
@@ -195,7 +201,7 @@
       "root": "tests/fixtures/php/resolve",
       "tier": "symptom",
       "ratio_eligible": false,
-      "question": "Something in this tree writes through a put() call — which method performs that write?",
+      "question": "A caller persists state through a short write helper on a repository-like type — which method performs that write?",
       "session_path": [
         {"tool": "grep", "args": {"pattern": "->put\\(", "globs": ["*.php"], "max_read_files": 5}},
         {"tool": "search_symbol", "args": {"query": "put", "detail_level": "minimal"}},
