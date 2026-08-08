@@ -2,8 +2,9 @@
 
 ``full=true`` always runs a full build. ``full=false`` runs an incremental update when
 ``last_commit`` and ``git diff`` are usable; otherwise it falls back to a full build and names the
-mode that actually ran. The store is opened here, inside the call, because the caller's thread owns
-the connection (R4.3).
+mode that actually ran. Successful payloads nest run writes under ``wrote`` so a delta cannot be
+read as a repo size (task 060); ``standard`` also adds ``graph`` from ``store.counts()``. The store
+is opened here, inside the call, because the caller's thread owns the connection (R4.3).
 """
 
 import time
@@ -39,7 +40,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     def build_or_update_index(
         full: bool = False, detail_level: DetailLevel = "standard"
     ) -> dict[str, object]:
-        """Index this repo and return the counts and elapsed time.
+        """Index this repo; return ``wrote`` counts (and ``graph`` on standard) plus elapsed time.
 
         An index written under an *older* ``schema_version`` is deleted and rebuilt in-band so an
         MCP client can recover without a shell. A *newer* one is refused untouched: that index is
@@ -57,11 +58,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             store = GraphStore(config.db_path)
         try:
             mode, report = _run(config, store, full=full or rebuilt_schema)
-            elapsed = round(time.monotonic() - started, 3)
-            return _result(
-                store, config, report, full, mode, elapsed, detail_level,
+            result = _result(
+                store, config, report, full, mode, detail_level,
                 rebuilt_schema=rebuilt_schema,
             )
+            # Stamp after payload assembly so ``seconds`` includes any ``counts()`` work (060).
+            result["seconds"] = round(time.monotonic() - started, 3)
+            return result
         finally:
             store.close()
 
@@ -107,22 +110,23 @@ def _result(
     report: BuildReport,
     full: bool,
     mode: str,
-    elapsed: float,
     detail_level: DetailLevel,
     *,
     rebuilt_schema: bool,
 ) -> dict[str, object]:
-    # The counts come off the report itself, so a field added there reaches clients without an edit.
+    # ``wrote`` is always nested so a delta cannot be read as a repo size (060).
+    # A field added to BuildReport still reaches clients via asdict without an edit here.
     result: dict[str, object] = {
         "mode": mode,
         "requested_full": full,
-        **asdict(report),
-        "seconds": elapsed,
+        "wrote": asdict(report),
         "schema_rebuilt": rebuilt_schema,
     }
     if detail_level == "minimal":
         return result
+    # ``graph`` is standard-only — not on the cheap path (counts() can scan stubs at scale).
     return result | {
+        "graph": store.counts(),
         "last_commit": store.get_meta(LAST_COMMIT_KEY),
         "built_at": store.get_meta(BUILT_AT_KEY),
         "db_path": str(config.db_path),

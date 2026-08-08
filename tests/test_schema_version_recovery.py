@@ -128,6 +128,7 @@ def test_a_refused_build_reports_no_counts(tmp_path: Path) -> None:
     result = build_or_update_index.create(config)(detail_level="standard")
 
     assert not {"nodes", "edges", "files", "parsed", "failed"} & set(result)
+    assert "wrote" not in result and "graph" not in result
 
 
 # --- get_index_status answers in both directions -------------------------------------------------

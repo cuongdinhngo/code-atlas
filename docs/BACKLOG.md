@@ -87,7 +87,7 @@ gap that fixtures never hit.
 | 057 | [A large answer cannot be enumerated, so `total_count` cannot be audited](tasks/057_answer-pagination.md) | Agent-trust | done | 013, 014, 033 |
 | 058 | [`parse_failures: 29` — nobody can find out which 29 files the index cannot see](tasks/058_list-parse-failures.md) | Agent-trust | done | 009, 028 |
 | 059 | [The handler → template data-bag edge is unmodelled](tasks/059_view-databag-edge.md) | Coverage | done | 030, 040 |
-| 060 | [An incremental run reports deltas under the field names a full build uses for totals](tasks/060_build-report-scale-naming.md) | Agent-trust | todo | 051 |
+| 060 | [An incremental run reports deltas under the field names a full build uses for totals](tasks/060_build-report-scale-naming.md) | Agent-trust | done | 051 |
 | 061 | [Every response carries fields that earn nothing](tasks/061_payload-weight.md) | Cost | todo | 010, 014, 033 |
 | 062 | [Producer-side view data-bag edges — rules + enrichment](tasks/062_view-databag-producer.md) | Coverage | todo | 030, 040, 059 |
 
@@ -238,6 +238,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 056 | Unknown filter values fail loud | **3 dispatch** — refine exposure-checker + review `mango:reviewer` / `mango:challenger`, all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051 | [#66](https://github.com/cuongdinhngo/code-atlas/pull/66) |
 | 057 | Answer pagination for large nav/search results | **4 dispatch** — refine exposure-checker + review `mango:reviewer` / `mango:challenger` + verify-only `mango:reviewer`, all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051 | [#67](https://github.com/cuongdinhngo/code-atlas/pull/67) |
 | 058 | List parse-failure paths on verbose status | **3 dispatch** — refine exposure-checker + review `mango:reviewer` / `mango:challenger`; all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051 | [#68](https://github.com/cuongdinhngo/code-atlas/pull/68) |
+| 060 | Nest build wrote counts beside labelled graph totals | **3 dispatch** — refine exposure-checker + review `mango:reviewer` / `mango:challenger`; all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051 | [#69](https://github.com/cuongdinhngo/code-atlas/pull/69) |
 
 **How 047–049 were measured.** They ran back-to-back in one autonomous session, so no per-task
 transcript exists. Each row is that session's assistant API calls bucketed by commit timestamp — the

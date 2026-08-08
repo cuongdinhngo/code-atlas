@@ -120,7 +120,7 @@ Every tool takes `detail_level` — `minimal` for the payload alone, `standard` 
 | Tool | Returns |
 |---|---|
 | `get_index_status` | index stats, last indexed commit, staleness, next-step suggestions (call first) |
-| `build_or_update_index` | counts + timing; `full=false` incremental when possible, else full |
+| `build_or_update_index` | `wrote` counts + timing; `standard` also `graph` totals; `full=false` incremental when possible, else full |
 | `search_symbol` | ranked symbols (`qname`, kind, `file:line`) |
 | `file_outline` | symbols + line ranges, no bodies |
 | `read_symbol` | source of just one class/method + docblock |
