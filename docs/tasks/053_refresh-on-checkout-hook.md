@@ -189,6 +189,10 @@ the one nothing covers.
 | Phase | Dispatch | Round | Tokens |
 |-------|----------|-------|--------|
 | refine | exposure-checker | 1 | unmeasured (blocking retrieval) |
+| review | reviewer | 1 | unmeasured (blocking retrieval) |
+| review | challenger | 1 | unmeasured (blocking retrieval) |
+| review | reviewer | 2 | unmeasured (blocking retrieval) |
+| review | challenger | 2 | unmeasured (blocking retrieval) |
 
 ## Decision log
 
@@ -196,11 +200,14 @@ the one nothing covers.
 |------|----------|
 | 2026-08-08 | Standing: best option + pass all gates (incl. push/PR) |
 | 2026-08-08 | Proceed 053 via OOB path; 052 scale profile still unset |
+| 2026-08-08 | Gate 1+2 cleared (standing) |
+| 2026-08-08 | Review round 1: share write.lock + keep stderr; round 2 LGTM/PASS |
 
 ## Session status
 
-- **Phase:** design → Gate 2 (standing)
-- **Reviewed at:** —
+- **Phase:** finalise
+- **Reviewed at:** `507274daee247b382569369d1666286168d8e892`
+- **Reviewed files:** refresh.py, index_lock.py, build_or_update_index.py, contrib/git/*, tests/test_git_refresh_hook.py, pyproject.toml, runbook, PLAN, README, LESSONS, BACKLOG, task 053, core module-count tests
 
 ## Phase 2 — Design
 
