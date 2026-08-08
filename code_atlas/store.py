@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS edges (
 CREATE INDEX IF NOT EXISTS idx_edges_src ON edges(source_qname, kind);
 CREATE INDEX IF NOT EXISTS idx_edges_tgt ON edges(target_qname, kind);
 CREATE INDEX IF NOT EXISTS idx_edges_tier ON edges(confidence_tier);
+CREATE INDEX IF NOT EXISTS idx_edges_raw ON edges(target_raw, kind);
 
 CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(
   name, qualified_name, file_path, params,
@@ -512,6 +513,38 @@ class GraphStore:
         reports a filtered count must report this one beside it (§19: no silent narrowing).
         """
         return self._count_edges("target_qname = ?", qname, kinds, extra=("args IS NULL", ()))
+
+    def count_bare_calls_not_targeting(self, qname: str, *, bare_name: str) -> int:
+        """Distinct HEURISTIC CALLS sites named ``bare_name`` that never resolve to ``qname``.
+
+        After a truncated bare-name resolve (top-N Method candidates), call sites link only to
+        the alphabetical winners — so a subject outside the cap has zero inbound CALLS but this
+        count is still positive (task 054 Part B).
+
+        CALLS-only (not ``NEW``): the resolver's bare-name fallback is HEURISTIC ``CALLS``
+        (``resolver.py``). ``GROUP BY source_qname, file_path, line`` collapses sibling rows and
+        two same-name calls on one line into one site.
+        """
+        sql = (
+            "SELECT COUNT(*) FROM ("
+            "  SELECT source_qname, file_path, line FROM edges"
+            "  WHERE kind = 'CALLS' AND target_raw = ?"
+            "    AND confidence_tier = 'HEURISTIC'"
+            "  GROUP BY source_qname, file_path, line"
+            "  HAVING SUM(CASE WHEN target_qname = ? THEN 1 ELSE 0 END) = 0"
+            ")"
+        )
+        return int(self._conn.execute(sql, (bare_name, qname)).fetchone()[0])
+
+    def count_nodes_by_name(self, name: str, *, kind: str | None = None) -> int:
+        """How many nodes share ``name`` (optional ``kind``), via ``idx_nodes_name``."""
+        if kind is None:
+            sql = "SELECT COUNT(*) FROM nodes WHERE name = ?"
+            params: tuple[object, ...] = (name,)
+        else:
+            sql = "SELECT COUNT(*) FROM nodes WHERE name = ? AND kind = ?"
+            params = (name, kind)
+        return int(self._conn.execute(sql, params).fetchone()[0])
 
     def alias_targets(self) -> dict[str, str]:
         """Map alias FQN → real FQN from ``ALIASES`` edges (``source_qname`` → ``target_raw``)."""

@@ -4,7 +4,7 @@ slug: bare-name-callers-silent-drop
 title: '`find_callers` reports `total_count: 0` for a method that has callers, because bare-name resolution silently keeps only the first N declarations'
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [011, 013, 046]
 ---
 
@@ -118,3 +118,128 @@ Payload-honesty precedent: [048](048_edge-health-resolved-ambiguity.md),
 [050](050_schema-version-mismatch-recovery.md) (no empty `results` beside an error).
 Origin: field retro round 2 §4 — reported there as a missing-type-inference limitation; the resolver
 cap is the actual mechanism, found by reading the path afterwards.
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 054 — bare-name-callers-silent-drop (working doc)
+
+- **Ticket:** 054 · local `docs/tasks/054_bare-name-callers-silent-drop.md`
+- **SCOPE:** M · **TIER:** full · **STRUCTURE:** native · **TRACK:** backend
+- **BASELINE:** green area — proving + resolver/nav tools; full suite at review
+- **work_doc_mode:** embed
+- **working-doc path:** this file below separator
+
+## Phase 0 — Refine
+
+`REFINE: 1 want asked | W1=A Part B only (standing) | 3 ASSUMED from exposure | skip: no`
+
+**ASSUMED (standing approval after exposure-checker):**
+1. Honesty metric = distinct CALLS sites with `target_raw`=bare name that never target this subject
+2. Empty case → `reason=bare_name_truncated` + `unresolved_bare_calls` (not bare `no_matches`)
+3. Emit field whenever count > 0; Part A out
+
+**Exposure-checker:** [Challenger](2414f1de-7f0f-480b-b260-c0b1265480c4)
+
+## Requirements matrix (Part B only)
+
+`SECTIONS: 5 | ROWS: C=5 R=4 G=2 AC=5` · `j=0` · Gate 1 cleared (standing)
+
+| ID | Interpretation | Status |
+|----|----------------|--------|
+| R1–R3 | Part B honesty counter on find_callers | ✅ |
+| R4 | Part A gated out | ✅ (not implemented) |
+| C1–C5 | No adapter; store SQL; HEURISTIC; R4; status cheap; cheap count | ✅ |
+| AC1–AC3 | Fixture + truncated reason + deterministic | ✅ |
+| AC4 | Part A not in this ticket | ✅ |
+| AC5 | green suite | ✅ |
+
+- **Gate 1/2:** cleared — standing approval 2026-08-08
+
+## Phase 2 — Design (approved)
+
+| # | Change | Path |
+|---|--------|------|
+| 1 | `count_bare_calls_not_targeting` | `code_atlas/store.py` |
+| 2 | `bare_name_truncated` + field wiring | `nav_result.py`, `find_callers.py` |
+| 3 | Proving tests (drop real + honesty + deterministic) | `tests/test_bare_name_callers_silent_drop.py` |
+| 4 | NAV_REASONS vocabulary test | `tests/test_nav_reason_codes.py` |
+| 5 | BACKLOG/frontmatter | docs |
+
+**Proving test:** `test_find_callers_reports_truncated_bare_name_not_no_matches`
+
+## Phase 3 — Execute
+
+- Branch: `fix/054-bare-name-callers-silent-drop`
+- Commits: `221f07e` (feat), `5092201` (review: indexed+empty-only count)
+- Proving: 5 tests in `test_bare_name_callers_silent_drop.py` + vocabulary — green
+
+## Phase 4 — Review ✋
+
+- reviewer: **CHANGES REQUESTED** → verify-only **LGTM** ([Reviewer](b3f00b88-7934-4cbe-b075-ae1939de7a91) → [Reviewer](b286671d-7e53-4f0e-909d-64ef04349bd7)) @ `5092201`
+- challenger (ticket-blind): **12 met · 1 not met** → mitigated by empty-only count ([Challenger](63eb9ef5-839c-42d4-89d7-5077dc17b03a))
+- Scope reconciliation: diff ⊆ approved Part B list ✅ (no Part A / adapter / resolver budget change)
+- Proving: 5 tests in `test_bare_name_callers_silent_drop.py` + vocabulary; full suite **901 passed**
+- **Clean?** yes
+- **Reviewed at:** `5092201` · files: `code_atlas/store.py`, `code_atlas/tools/find_callers.py`, `code_atlas/tools/nav_result.py`, `tests/test_bare_name_callers_silent_drop.py`, `tests/test_nav_reason_codes.py`, `docs/BACKLOG.md`, `docs/tasks/054_bare-name-callers-silent-drop.md`
+
+### Reviewer detail — round 1 ([Reviewer](b3f00b88-7934-4cbe-b075-ae1939de7a91)) @ `221f07e`
+
+**Verdict: CHANGES REQUESTED** (conditional LGTM). Critical: none.
+
+| # | Finding | Path | Fix |
+|---|---------|------|-----|
+| 1 | `unresolved_bare_calls` emitted for unknown qnames (`\Typo::put` + bare `put` sites → `no_such_symbol` plus a positive count) | `find_callers.py` | Gate count on `indexed` (and empty-only SQL) |
+
+**Scope check:** approved Part B files only; R1.1/R1.4/R5.2; Part A absent ✅.
+
+### Challenger detail ([Challenger](63eb9ef5-839c-42d4-89d7-5077dc17b03a)) — ticket-blind @ `221f07e`
+
+Rebuilt from raw ticket + `main...fix/054-bare-name-callers-silent-drop` only.
+
+**Summary: 12 met · 1 not met · 0 can’t-tell**
+
+| # | Requirement | Verdict |
+|---|-------------|---------|
+| 1–7, 9–13 | Part B count/surface/reason/store SQL/no adapter/R5.2/R4/status cheap/Part A out/ACs/suite | **met** |
+| 8 | Part B adds no second query per nav call | **not met** (always ran `count_bare_calls_not_targeting` for method qnames) |
+
+### Reviewer detail — verify-only ([Reviewer](b286671d-7e53-4f0e-909d-64ef04349bd7)) @ `5092201`
+
+**Verdict: LGTM.** Finding 1 fixed (`indexed and total_count == 0`); unknown-qname regression test present; hot path skips honesty SQL on hits.
+
+**Challenger #8 mitigation:** count SQL only when `indexed and total_count == 0` — empty truncated case still honest; winners and typos pay no extra query.
+
+## Phase 5 — Finalise ✋
+
+- Outward actions (approved 2026-08-08): push ✅ · open PR [#65](https://github.com/cuongdinhngo/code-atlas/pull/65) ✅ · status→done + token row ✅
+- Follow-up deferred: Part A (resolution budget) still gated on anchor benchmark in-ticket
+- Revert path: revert branch commits; close [#65](https://github.com/cuongdinhngo/code-atlas/pull/65)
+
+## Session status
+
+- **Last updated:** 2026-08-08
+- **Current phase:** Phase 5 — Finalise complete (awaiting merge)
+- **Next action:** none (PR open)
+
+---
+
+## Cost ledger
+
+| Phase | Subagent / dispatch | Round | Tokens | Optimizer applied · est./measured saving |
+|-------|---------------------|-------|--------|------------------------------------------|
+| 0 | exposure-checker Challenger ([Challenger](2414f1de-7f0f-480b-b260-c0b1265480c4)) | 1 | unmeasured (blocking retrieval) | — |
+| 4 | mango:reviewer ([Reviewer](b3f00b88-7934-4cbe-b075-ae1939de7a91)) | 1 | unmeasured (blocking retrieval) | — |
+| 4 | mango:challenger ([Challenger](63eb9ef5-839c-42d4-89d7-5077dc17b03a)) | 1 | unmeasured (blocking retrieval) | — |
+| 4 | mango:reviewer verify ([Reviewer](b286671d-7e53-4f0e-909d-64ef04349bd7)) | 2 | unmeasured (blocking retrieval) | — |
+
+`LEDGER TOTAL: 4 dispatch rows · all unmeasured (blocking retrieval) · top cost driver: review`
+
+## Decision log
+
+| When | Decision | Why |
+|------|----------|-----|
+| 2026-08-08 | W1=A Part B only | Standing + recommended |
+| 2026-08-08 | ASSUMED metric/reason/emit | Standing after exposure |
+| 2026-08-08 | Count only indexed+empty | Reviewer finding 1 + challenger #8 |
+| 2026-08-08 | Gate 4 clean | LGTM @ `5092201` |
+| 2026-08-08 | Finalise push+PR approved | user: add review detail, commit, push, open PR |

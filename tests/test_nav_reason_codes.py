@@ -13,6 +13,7 @@ from code_atlas.store import GraphStore
 from code_atlas.tools import find_callers, find_implementations, find_references, search_symbol
 from code_atlas.tools.nav_result import (
     NAV_REASONS,
+    REASON_BARE_NAME_TRUNCATED,
     REASON_INDEX_STALE,
     REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
@@ -151,6 +152,7 @@ def test_reason_vocabulary_includes_index_stale_unused() -> None:
         REASON_NO_SUCH_SYMBOL,
         REASON_NOT_INDEXED,
         REASON_INDEX_STALE,
+        REASON_BARE_NAME_TRUNCATED,
     )
 
 
