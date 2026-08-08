@@ -26,7 +26,15 @@ measures cost, never what a payload carries"* — and nothing was done about it.
 **Both retros also measured the wrong shape.** Every question they timed handed the agent the symbol's
 name up front (`who calls \Foo::save`). That is grep's best case, not the case the project exists for.
 The founding claim — that native tools flounder on a large repo — is about starting from a *symptom*
-with no name in hand, and it has never been measured once.
+with no name in hand.
+
+**Updated 2026-08-08: that claim has now been measured once, externally, and it lost** (PLAN §19). Five
+symptom-first questions, hand-graded: native tools 5/5, code-atlas 3 correct · 1 partial · 1 wrong. That
+round was n=1 per cell, not blind, and lives outside this repo — so it is evidence, **not** the gate this
+ticket builds. Two of its findings change what this ticket must measure, and both are now deliverables
+below: no question in that set needed a whole-graph query, and the agent used the index in only 19% of
+its tool calls. A recall gate that never exercises the tools an agent does not reach for measures the
+wrong half of the problem.
 
 ## Scope / Deliverables
 - **A recall measure, reported next to the cost ratio.** For a question with known ground truth: what
@@ -39,6 +47,15 @@ with no name in hand, and it has never been measured once.
   must find the name before it can use it. This is the only shape that can test the founding claim.
 - **Session-level accounting for that tier**: tokens to the answer, files read, whether the answer was
   reached at all — not per-call cost, which is what the current harness measures.
+- **Whole-graph questions, which no benchmark has ever posed.** At least two questions answerable only
+  by `impact`, `reachable_from`, `find_orphans`, `include_graph` or an edge-health aggregate — the tools
+  the project exists for, and the ones the 2026-08-08 round never touched. Add one whose answer is a
+  *relationship* rather than a location: text search finds locations, and nothing has yet forced the
+  distinction the index's whole claim rests on.
+- **Report index-use share per question** — MCP calls as a fraction of all tool calls. A tool that is
+  correct and never chosen is a fit failure, and it is invisible to both recall and cost. The external
+  round measured 19% for code-atlas and 0% for a language server on the same questions; without this
+  number in the harness, that finding cannot be tracked or moved.
 - **A recall floor in CI, on the fixture tier**, alongside the existing `--min-ratio` gate: a change
   that halves tokens while losing results must fail, and today it passes.
 - **Runbook section** in [`runbooks/tokens-to-answer.md`](../runbooks/tokens-to-answer.md) stating the

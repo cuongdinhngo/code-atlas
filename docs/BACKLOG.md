@@ -118,15 +118,23 @@ reads as proof of absence, one of which reported no callers for a method with si
 **Read them in tiers, and the tiers are the point** (priority set 2026-08-07: *correctness is a gate,
 cost is the win*):
 
-- **Tier 1 — find the right thing.** 055 first, because it is the acceptance criterion for everything
-  under it: nothing today measures what a tool *missed*, so no fix below can be proven. Then **054**
-  (the false negative, and its Part B ships regardless of anything else), **056**, **057**, **058**,
-  **059**.
+- **Tier 1 — find the right thing.** **059 first** — *reordered 2026-08-08 by the founding-premise
+  benchmark, [PLAN §19](PLAN.md#19-project-context--decision-log)*. That benchmark found an agent
+  reaching for the index in **19% of its tool calls** on five real questions, and 059 names the reason:
+  the commonest defect shape in the anchor repo is a **relationship the graph has no vocabulary for**.
+  It is the only item in this tier that arrived from two independent field sessions, that is a relation
+  rather than a location, and that neither grep nor a language server answers — and its first
+  deliverable is a count that can cheaply kill it. Then **055**, still the acceptance criterion for the
+  fixes under it, since nothing *in this repo* measures what a tool missed (the benchmark was external,
+  hand-graded and n=1 — evidence, not a gate). Then **054** (the false negative, and its Part B ships
+  regardless of anything else), **056**, **057**, **058**.
 - **Tier 2 — do not lie about the answer.** **060**; and 053's motivation rises here, since a stale
   index is a wrong answer, though it stays gated on 052 for the practical reason that a 62-second hook
   will be deleted by whoever waits for it.
 - **Tier 3 — token weight.** **061**, last and deliberately so: the same retro measured code-atlas's
-  direct cost at under 1% of a 250–300k-token session. Payload size is not where the leverage is.
+  direct cost at under 1% of a 250–300k-token session, and the 2026-08-08 benchmark put the indexed arm
+  at **1.85× the native arm's tokens** across five questions — 0.84× with one outlier question removed.
+  Token weight is where neither the loss nor the win lives. Payload size is not the leverage.
 
 Two corrections to the retro's own reading, both found by reading the code afterwards and recorded in
 the tickets: 054's cause is **not** missing type inference — the adapter emits the edge and the resolver
@@ -222,7 +230,10 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 051 | `BuildReport` — count the rows the run actually wrote | **0 dispatch** — no subagent ran. Main-loop **109.1k fresh** (42.5k output) + 13.3M cache reads over 72 calls for the fix, 7 tests, the before/after cross-repo measurement (six sample builds) and the doc sweep. The ticket's own cost is the separate row below | [#60](https://github.com/cuongdinhngo/code-atlas/pull/60) |
 | — | Ticket-writing for 051 | **39.5k fresh** (13.5k output) + 3.3M cache reads over 23 calls, read from the session transcript: re-verifying the counts against the anchor repo's index, tracing the ordering in `indexer.py`/`resolver.py`/`enrichment.py`, and the ticket file. Listed here rather than as a 051 row because 051 is not implemented — the row for the fix lands with its own PR | [#59](https://github.com/cuongdinhngo/code-atlas/pull/59) |
 | — | Ticket-writing + the field retro that produced 047–049 | **45.6k fresh** over 28 calls for the three ticket files; a further **1.84M fresh** (503.0k output) + 122.2M cache reads over 576 calls covers the retro form, reading the filled-in retro, the 049 design measurement, and everything else before the first commit. Not attributable to one task, so it is listed here rather than split | — |
+| — | Ticket-writing for 052 + 053 | **463.1k fresh** (58.7k output) + 6.7M cache reads over 72 calls, time-sliced from the session transcript between the 051 and 052/053 commits: enumerating the four freshness layers, reading `indexer.py`'s no-op path to locate the unscoped `resolve_edges` hypothesis, and the two ticket files. The two are not separable — they were written as one pass. **Recorded late:** [#54](https://github.com/cuongdinhngo/code-atlas/pull/54) shipped without this row, which the "Token usage on PR" rule requires; this is the correction, not a new measurement | [#54](https://github.com/cuongdinhngo/code-atlas/pull/54) |
 | — | Ticket-writing for 054 | **356.0k fresh** (139.5k output) + 17.2M cache reads over 104 calls, time-sliced from the session transcript between the 052/053 and 054 commits: reading the round-2 retro, walking `Visitor.php` → `resolver.py` → `store.py` to establish that the adapter emits the edge and the resolver drops it at `max_candidates`, and the ticket file. **This segment also produced the 055–061 tickets** committed one minute later; the split between them is not recoverable, so the 055–061 row does not double-count it | [#61](https://github.com/cuongdinhngo/code-atlas/pull/61) |
+| — | Ticket-writing for 055–061 | **30.2k fresh** (8.0k output) + 2.6M cache reads over 11 calls between the 054 and 055–061 commits — the tail only. The seven ticket files were drafted inside the 054 segment above, so **this row understates them by an unrecoverable amount** and the honest total for 054+055–061 together is the two rows summed: **386.2k fresh over 115 calls** | [#62](https://github.com/cuongdinhngo/code-atlas/pull/62) |
+| — | The founding-premise benchmark and the PLAN §19 decision it forced | **549.6k fresh** (105.4k output) + 7.6M cache reads over 100 calls after the 055–061 commit: reading the three arm result files and the round's lessons file, timing broad `grep` against the anchor tree to test the "search times out" claim, and the doc changes in this PR. The benchmark runs themselves were **headless sessions outside this transcript** and are costed in the private benchmark notes, not here | [#62](https://github.com/cuongdinhngo/code-atlas/pull/62) |
 
 **How 047–049 were measured.** They ran back-to-back in one autonomous session, so no per-task
 transcript exists. Each row is that session's assistant API calls bucketed by commit timestamp — the

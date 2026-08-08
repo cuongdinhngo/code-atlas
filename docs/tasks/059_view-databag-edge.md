@@ -8,6 +8,10 @@ status: todo
 depends_on: [030, 040]
 ---
 
+> **Promoted to the head of tier 1 on 2026-08-08** by the founding-premise benchmark (PLAN §19). That
+> round found an agent reaching for the index in 19% of its tool calls on five real questions; this
+> ticket names the reason. It is now the first thing to do in this tier, ahead of 055.
+
 ## Goal
 Two external field sessions, two real defects, **one missing edge kind**.
 
