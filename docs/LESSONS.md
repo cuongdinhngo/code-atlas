@@ -1,5 +1,11 @@
 # Lessons — code-atlas
 
+## 058 — A status-only `detail_level` value must update CONVENTION §6
+
+When one tool gains a third `detail_level` (here `verbose` on `get_index_status`), PLAN and the
+MCP schema tests are not enough: CONVENTION §6 still said every tool is `{minimal, standard}` and
+review correctly blocked on R7.2. Update CONVENTION in the same card as the Literal change.
+
 ## 057 — Scope "enumerate every result set" to store-ordered pages
 
 When a ticket AC says every oversized answer must be fully enumerable, pin which
