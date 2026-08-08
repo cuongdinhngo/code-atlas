@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from typing import Literal
+from typing import Annotated, Literal
+
+from pydantic import Field
 
 from code_atlas import contract
 from code_atlas.config import Config
@@ -22,13 +24,26 @@ NAME = "search_symbol"
 
 DetailLevel = Literal["minimal", "standard"]
 
+# Enum list is ``list(NODE_KINDS)`` so the published schema cannot drift from the contract (056).
+KindArg = Annotated[
+    str | None,
+    Field(json_schema_extra={"enum": list(contract.NODE_KINDS)}),
+]
+
+
+def _require_kind(kind: str | None) -> str | None:
+    """Reject unknown ``kind`` spellings before any SQL (R5.3); ``None`` means no filter."""
+    if kind is not None and kind not in contract.NODE_KINDS:
+        raise ValueError(f"unknown kind {kind!r}: one of {', '.join(contract.NODE_KINDS)}")
+    return kind
+
 
 def create(config: Config) -> Callable[..., dict[str, object]]:
     """Bind the tool to one repo's configuration."""
 
     def search_symbol(
         query: str,
-        kind: str | None = None,
+        kind: KindArg = None,
         namespace: str | None = None,
         limit: int | None = None,
         detail_level: DetailLevel = "standard",
@@ -41,6 +56,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         and an honest ``total_count`` (never an empty proof of absence).
         Stub-indexed nodes (task 039) also carry ``stub: true``.
         """
+        kind = _require_kind(kind)
         db_path = str(config.db_path)
         if not config.db_path.is_file():
             return list_result(
