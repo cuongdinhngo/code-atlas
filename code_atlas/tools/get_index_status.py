@@ -3,8 +3,9 @@
 ``minimal`` returns exactly the four parts §12 names: stats, ``last_commit``, staleness and
 ``next_tool_suggestions``. ``standard`` adds provenance plus index-health (``edge_health``,
 ``parse_failures``, ``dirty_indexed_files``). ``parse_failures`` mirrors ``failed`` (files with
-``parsed_ok = 0``) under the §12 name — same count, not a subset. Nothing here opens the database
-when there is none: a read tool must not create an index as a side effect.
+``parsed_ok = 0``) under the §12 name — same count, not a subset. ``verbose`` is ``standard`` plus
+a capped ``parse_failure_paths`` list (task 058) — never on the cheap path. Nothing here opens the
+database when there is none: a read tool must not create an index as a side effect.
 
 Staleness counts only files the index covers (047): editing a README leaves the graph correct, and
 a signal that says otherwise costs its reader a rebuild that reindexes nothing.
@@ -30,7 +31,10 @@ from code_atlas.tools import schema_guard
 
 NAME = "get_index_status"
 
-DetailLevel = Literal["minimal", "standard"]
+DetailLevel = Literal["minimal", "standard", "verbose"]
+
+# Own cap for the verbose failure list — not ``CA_MAX_RESULTS`` (disk / nav / resolver knob).
+PARSE_FAILURE_PATHS_LIMIT = 50
 
 CURRENT = "current"
 BEHIND = "behind"
@@ -43,13 +47,23 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
     """Bind the tool to one repo and to the tool names this server actually serves."""
     servable = tuple(registered)
 
-    def get_index_status(detail_level: DetailLevel = "standard") -> dict[str, object]:
-        """Index stats, health, last commit, staleness and what to call next. Call this first."""
+    def get_index_status(
+        detail_level: DetailLevel = "standard", offset: int = 0
+    ) -> dict[str, object]:
+        """Index stats, health, last commit, staleness and next tools. Call this first.
+
+        ``verbose`` adds capped ``parse_failure_paths`` plus ``parse_failures_truncated``;
+        pass ``offset`` to page further. ``minimal`` / ``standard`` omit the list (cheap path).
+        """
+        if offset < 0:
+            raise ValueError(f"offset must be >= 0, got {offset}")
+        if offset > 0 and detail_level != "verbose":
+            raise ValueError("offset requires detail_level='verbose'")
         if not config.db_path.is_file():
             return _unbuilt(servable, detail_level, config)
         try:
             with GraphStore(config.db_path) as store:
-                return _status(store, config, servable, detail_level)
+                return _status(store, config, servable, detail_level, offset=offset)
         except SchemaVersionError as mismatch:
             return _mismatched(mismatch, servable, detail_level, config)
 
@@ -70,8 +84,11 @@ def _unbuilt(
         "staleness": UNKNOWN,
         "next_tool_suggestions": _suggestions(servable, UNKNOWN, indexed=False),
     }
-    if detail_level == "standard":
+    if detail_level in ("standard", "verbose"):
         status["db_path"] = str(config.db_path)
+    if detail_level == "verbose":
+        status["parse_failure_paths"] = []
+        status["parse_failures_truncated"] = False
     return status
 
 
@@ -93,7 +110,12 @@ def _mismatched(
 
 
 def _status(
-    store: GraphStore, config: Config, servable: Sequence[str], detail_level: DetailLevel
+    store: GraphStore,
+    config: Config,
+    servable: Sequence[str],
+    detail_level: DetailLevel,
+    *,
+    offset: int = 0,
 ) -> dict[str, object]:
     counts = store.counts()
     last_commit = store.get_meta(LAST_COMMIT_KEY)
@@ -111,7 +133,7 @@ def _status(
     }
     if detail_level == "minimal":
         return status
-    return status | {
+    enriched = status | {
         "head_commit": head,
         "built_at": store.get_meta(BUILT_AT_KEY),
         "contract_version": store.get_meta(CONTRACT_VERSION_KEY),
@@ -120,6 +142,13 @@ def _status(
         "edge_health": store.edge_health(),
         "parse_failures": counts["failed"],
         "dirty_indexed_files": dirty_count,
+    }
+    if detail_level == "standard":
+        return enriched
+    paths = store.failed_paths(PARSE_FAILURE_PATHS_LIMIT, offset=offset)
+    return enriched | {
+        "parse_failure_paths": list(paths),
+        "parse_failures_truncated": counts["failed"] > offset + len(paths),
     }
 
 
