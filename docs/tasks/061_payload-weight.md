@@ -84,8 +84,13 @@ Origin: field retro round 2 §3e and §5.
 - **`search_symbol`:** suppress `File` hits whose path matches a `Class` hit in the same page.
 - **`subject_refreshed_only`:** emitted only when read-through reparsed the subject this call;
   documented on `find_callers` / `find_references` / `find_implementations` docstrings.
-- **Sizes (fixture, compact JSON):** `find_callers` 187→153 B (−34 with synthetic prior `db_path`);
-  `get_index_status` 508 B; `search_symbol` 85 B.
+- **Sizes (fixture, compact JSON `separators=(",", ":")`):**
+  - `get_index_status` (`standard`, current index): **680→508 B** (−172; before = prior full
+    nav-tool suggestion list when current).
+  - `find_callers` (default/`standard`, missing qname): **199→153 B** (−46; before includes
+    synthetic prior `db_path`).
+  - `search_symbol` (`standard`, empty-ish query): **131→85 B** (−46; before includes synthetic
+    prior `db_path`).
 - **Suite:** **956 passed**.
 
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->

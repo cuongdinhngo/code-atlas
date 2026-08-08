@@ -112,7 +112,8 @@ Drive everything through the MCP tools:
    `find_implementations`, `include_graph`, `impact`, `reachable_from`, `find_orphans`, `explain_path`
    (see [Tools](#tools)).
 
-Every tool takes `detail_level` — `minimal` for the payload alone, `standard` (default) adds provenance.
+Every tool takes `detail_level` — `minimal` for the payload alone; `standard` (default) may add
+provenance (`db_path` on `get_index_status` / build reports only after 061).
 
 > **Language scope today:** only the **PHP** adapter exists. A TypeScript, Python, or C# project won't
 > index yet — those are planned (see [Roadmap](#roadmap)).

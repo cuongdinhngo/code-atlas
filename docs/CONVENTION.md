@@ -114,8 +114,10 @@ code-atlas/
   (037): default **off**, at most **one capped line** per hit (never a body), and never quoted from a
   file whose indexed hash has drifted — such hits carry `source_stale` instead.
 - Every tool accepts `detail_level ∈ {minimal, standard}`, typed as a `Literal` so the protocol
-  validates it and publishes the choice in the input schema. Default **`standard`**; `minimal` is a
-  strict subset — the tool's own payload with the provenance fields dropped.
+  validates it and publishes the choice in the input schema. Default **`standard`**. `minimal` is a
+  subset of `standard` (never a superset). After task 061, `db_path` provenance is only on
+  `get_index_status` / `build_or_update_index` at `standard`; for nav/search/read/outline/reach/explain,
+  `minimal` and `standard` may share the same top-level keys.
   `get_index_status` also accepts `verbose` (task 058): `standard` plus a capped
   `parse_failure_paths` list (`PARSE_FAILURE_PATHS_LIMIT`, not `CA_MAX_RESULTS`) with optional
   `offset` — never on the cheap path; other tools stay `{minimal, standard}`.
