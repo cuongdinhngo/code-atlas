@@ -80,7 +80,9 @@ covered step by step in [`docs/runbooks/onboarding-a-repo.md`](docs/runbooks/onb
 
 Task 035 already reparses drifted files at query time. For eager updates after Claude Code
 `Edit`/`Write` on PHP files, install the PostToolUse hook under
-[`contrib/claude-code/`](contrib/claude-code/) (`code-atlas-poke` console script + `"async": true`).
+[`contrib/claude-code/`](contrib/claude-code/) (`code-atlas-poke` console script + `"async": true`);
+opt-in git refresh after pull/checkout via [`contrib/git/`](contrib/git/) (`code-atlas-refresh`,
+background — never auto-installed into `.git/hooks`).
 Safe no-op when `.code-atlas/graph.db` is missing; does not stall the tool round-trip.
 
 <details>

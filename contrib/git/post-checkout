@@ -1,0 +1,10 @@
+#!/bin/sh
+# Opt-in code-atlas incremental refresh after a *branch* checkout (task 053).
+# Not installed automatically — copy into .git/hooks/ yourself (see README.md).
+# Git passes: $1=prev HEAD, $2=new HEAD, $3=1 for branch checkout, 0 for file.
+# Skip file checkouts so `git checkout -- path` does not spawn a refresh.
+[ "$3" = "1" ] || exit 0
+(
+  code-atlas-refresh >/dev/null 2>&1
+) &
+exit 0

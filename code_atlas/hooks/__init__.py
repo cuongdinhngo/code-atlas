@@ -1,1 +1,1 @@
-"""Opt-in client hooks — outside the MCP tool surface (task 036)."""
+"""Opt-in client hooks — outside the MCP tool surface (tasks 036, 053)."""

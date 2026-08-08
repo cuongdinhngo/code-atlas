@@ -1,0 +1,8 @@
+#!/bin/sh
+# Opt-in code-atlas incremental refresh after git pull / merge (task 053).
+# Not installed automatically — copy into .git/hooks/ yourself (see README.md).
+# Always exit 0; run out of band so a ~minute incremental never blocks git.
+(
+  code-atlas-refresh >/dev/null 2>&1
+) &
+exit 0

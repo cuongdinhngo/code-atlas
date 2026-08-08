@@ -1,5 +1,12 @@
 # Lessons — code-atlas
 
+## 053 — Git refresh hooks must stay opt-in and out of band
+
+When field evidence says an incremental can cost ~a minute, contrib git hooks must spawn
+`code-atlas-refresh` in the background and always `exit 0`. Never auto-write `.git/hooks`.
+Use a non-blocking lock beside the DB so overlapping hooks skip cleanly (R4.3) instead of
+racing the MCP writer.
+
 ## 052 — Measure-only tickets still need an Outcome defect decision
 
 When AC demands “is this a defect?” but the host has no repo-sized sample, record **suspected /
