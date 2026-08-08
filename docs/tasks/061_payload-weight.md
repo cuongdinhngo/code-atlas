@@ -119,6 +119,10 @@ Origin: field retro round 2 §3e and §5.
 | Phase | Dispatch | Round | Tokens |
 |-------|----------|-------|--------|
 | refine | exposure-checker | 1 | unmeasured (blocking retrieval) |
+| review | reviewer | 1 | unmeasured (blocking retrieval) |
+| review | challenger | 1 | unmeasured (blocking retrieval) |
+| review | reviewer | 2 | unmeasured (blocking retrieval) |
+| review | challenger | 2 | unmeasured (blocking retrieval) |
 
 ## Decision log
 
@@ -126,8 +130,10 @@ Origin: field retro round 2 §3e and §5.
 |------|----------|
 | 2026-08-08 | Standing: best option + pass all gates |
 | 2026-08-08 | HOW: drop db_path from nav; reactive suggestions; suppress File∩Class; subject_refreshed_only only when repaired |
+| 2026-08-08 | Review round 2 LGTM + challenger PASS at `dafc22e` |
 
 ## Session status
 
-- **Phase:** execute → review
-- **Reviewed at:** —
+- **Phase:** finalise
+- **Reviewed at:** `dafc22e6924b559cdc851ed10052c85803aa57ee`
+- **Reviewed files:** tools/* (nav/search/status/find_*/read/outline/reach/explain), tests/test_payload_weight.py, test_mcp_server.py, CONVENTION, README, PLAN, runbook, LESSONS, BACKLOG, task 061
