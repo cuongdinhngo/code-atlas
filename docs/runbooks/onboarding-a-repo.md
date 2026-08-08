@@ -234,6 +234,23 @@ so following the message is safe — but a session that reads "mismatch" as "cor
 
 ### Optional: eager freshness
 
+Four mechanisms keep an index current — none of them alone covers a `git pull`:
+
+| Layer | Covers | Automatic? |
+|---|---|---|
+| Read-through freshness (035) | **one** drifted file per tool call | yes, at query time |
+| Poke hook (036) | files the agent edits via `Edit` / `Write` | yes, if installed |
+| Incremental `build_or_update_index(full=false)` | everything git can name since `last_commit` | **no** — someone must call it |
+| Full rebuild | contract bump, older schema, unusable git diff | no |
+
+What each does **not** cover: read-through stops after one file and returns `index_stale`;
+the poke never sees a pull/checkout/IDE edit; the MCP incremental only runs when an agent
+(or operator) invokes it; a full rebuild is never a hook's job.
+
+**Opt-in git hooks (053)** close the pull/checkout hole: copy
+[`contrib/git/`](../../contrib/git/) into `.git/hooks/` (manual — never auto-installed). They
+spawn `code-atlas-refresh` in the background so a large-index incremental cannot block `git`.
+
 Read-through freshness (task 035) already reparses a drifted file at query time, so the poke hook is
 an optimisation, not a requirement. To add it, merge
 [`contrib/claude-code/settings.snippet.json`](../../contrib/claude-code/) into the client settings —

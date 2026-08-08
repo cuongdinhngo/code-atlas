@@ -80,7 +80,7 @@ gap that fixtures never hit.
 | 050 | [A schema-version mismatch is direction-blind — one message for two opposite situations](tasks/050_schema-version-mismatch-recovery.md) | Robustness | done | 010, 016 |
 | 051 | [`BuildReport.edges` counts what the adapters emitted, not what the build wrote](tasks/051_build-report-edge-undercount.md) | Agent-trust | done | 009, 011, 028 |
 | 052 | [Where does a no-op incremental build spend 62 seconds?](tasks/052_incremental-noop-cost.md) | Freshness | done | 016, 047 |
-| 053 | [Nothing refreshes the index when the repo changes outside the agent's editor](tasks/053_refresh-on-checkout-hook.md) | Freshness | todo | 052, 036, 016 |
+| 053 | [Nothing refreshes the index when the repo changes outside the agent's editor](tasks/053_refresh-on-checkout-hook.md) | Freshness | in-progress | 052, 036, 016 |
 | 054 | [`find_callers` reports `total_count: 0` for a method that has callers](tasks/054_bare-name-callers-silent-drop.md) | Agent-trust | done | 011, 013, 046 |
 | 055 | [Nothing measures what the tools fail to find — a recall gate above the cost metric](tasks/055_recall-benchmark.md) | Measure | done | 034, 045 |
 | 056 | [An unknown filter value returns an empty result instead of an error](tasks/056_filter-values-fail-loud.md) | Agent-trust | done | 014, 033 |
@@ -240,6 +240,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 058 | List parse-failure paths on verbose status | **3 dispatch** — refine exposure-checker + review `mango:reviewer` / `mango:challenger`; all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051 | [#68](https://github.com/cuongdinhngo/code-atlas/pull/68) |
 | 060 | Nest build wrote counts beside labelled graph totals | **3 dispatch** — refine exposure-checker + review `mango:reviewer` / `mango:challenger`; all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051 | [#69](https://github.com/cuongdinhngo/code-atlas/pull/69) |
 | 052 | Profile incremental phases; Outcome defect decision | **5 dispatch** — refine exposure-checker + review rounds 1–2 (`mango:reviewer` / `mango:challenger` ×2); all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051 | [#70](https://github.com/cuongdinhngo/code-atlas/pull/70) |
+| 053 | Opt-in git hooks for background index refresh | **5 dispatch** — refine exposure-checker + review rounds 1–2 (`mango:reviewer` / `mango:challenger` ×2); all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051 | (PR pending) |
 
 **How 047–049 were measured.** They ran back-to-back in one autonomous session, so no per-task
 transcript exists. Each row is that session's assistant API calls bucketed by commit timestamp — the
