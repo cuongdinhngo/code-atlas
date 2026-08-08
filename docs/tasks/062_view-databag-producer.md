@@ -148,13 +148,6 @@ References section: citation only — not a requirement row.
 
 Contract bump + enrichment extension + nav + fixtures — multi-file, not lite; single deliverable (not epic).
 
-## Cost ledger
-
-| Phase | Dispatch | Round | Tokens |
-|-------|----------|-------|--------|
-| refine | exposure-checker | 1 | unmeasured (blocking retrieval) |
-| analysis | explore (enrichment/040 map) | 1 | unmeasured (blocking retrieval) |
-
 ## Decision log
 
 | When | Decision |
@@ -236,10 +229,51 @@ Contract bump + enrichment extension + nav + fixtures — multi-file, not lite; 
 
 ## Phase 4 — Review
 
-| Round | Reviewer | Challenger |
-|-------|----------|------------|
-| 1 | [CHANGES REQUESTED](ed9063d9-c4a2-4640-b8e4-b2dd47519f9f) — SRP carve-out, status honesty, key_arg ordinal | [PASS](dc28f36c-0f7e-4259-975b-475a671d27d3) |
-| 2 | [LGTM](8f2620dd-a9ae-40a6-a25e-73f91b6b5ec8) | [PASS](725a110a-5a1f-4c8f-b2df-d659e06c3c33) |
+- **Reviewed at** `35c99e8ace554c2d6fc215cfddd7be46c7ab8eff`
+- **Reviewed files:** `code_atlas/contract.py`, `enrichment.py`, `store.py`, `tools/find_view_data.py`, `tools/nav_result.py`, `main.py`, `adapters/php/index.php`, fixtures + `tests/test_view_databag_producer.py`, `tests/contract/`, CONVENTION/PLAN/README/ENGINEERING_RULES, BACKLOG + task frontmatter, proof-collateral tests
+- **Reviewer round 1:** [Reviewer](ed9063d9-c4a2-4640-b8e4-b2dd47519f9f) — **CHANGES REQUESTED** (3 Important)
+- **Challenger round 1:** [Challenger](dc28f36c-0f7e-4259-975b-475a671d27d3) — **14 met · 0 not met · 1 partial can't-tell** · Gate 4 **PASS**
+- **Reviewer round 2:** [Reviewer](8f2620dd-a9ae-40a6-a25e-73f91b6b5ec8) — **LGTM** (all round-1 findings closed)
+- **Challenger round 2:** [Challenger](725a110a-5a1f-4c8f-b2df-d659e06c3c33) — **16 met · 0 not met · 0 can't tell** · Gate 4 **PASS**
+- **Gate 4:** clean @ `35c99e8` · **PR:** [#73](https://github.com/cuongdinhngo/code-atlas/pull/73)
+
+### Reviewer detail — round 1 ([Reviewer](ed9063d9-c4a2-4640-b8e4-b2dd47519f9f)) @ `5ef1c25`
+
+**Verdict: CHANGES REQUESTED** (conditional LGTM after findings 1–3). Critical: none. Diff ⊆ approved list (CL5 drop → `INDIRECTION_FILE` recorded). Suite **962 passed**; proving 2/2 green.
+
+| # | Finding | Severity | Resolution |
+|---|---------|----------|------------|
+| 1 | Enrichment reads call-site source while R1.4 / PLAN §2 still said “never parses source” | Important | Fixed in `35c99e8` — R1.4 + PLAN §2 carve-out: may read one already-indexed line for `view_data`; never runs a language parser |
+| 2 | PLAN said “Implemented in 062” while BACKLOG + frontmatter stayed `todo` (R7.2) | Important | Fixed in `35c99e8` — `in-progress` (then `done` at finalise) |
+| 3 | `key_arg` treated as string-literal ordinal, not argument index (`put($bag,'extra')` with `key_arg: 2` would miss) | Important | Fixed in `35c99e8` — map via `args` categories to Nth string literal; fixture `put` + `key_arg: 2` |
+
+**Verified (no finding):** contract v4 + `PROVIDES_VIEW_DATA` + `VIEW_DATA_PREFIX`; not in `FQN_EDGE_KINDS`; handshake bumps; R1.1/R2.2; off-by-default; HEURISTIC + `rule` + `INDIRECTION_FILE`; `find_view_data` + `TOOL_NAMES`; SQL confined to `store.py`.
+
+### Challenger detail — round 1 ([Challenger](dc28f36c-0f7e-4259-975b-475a671d27d3)) — ticket-blind @ `5ef1c25`
+
+**14 met · 0 not met · 1 partial can't-tell** (CI R2.2 gate not re-run; adapter/enrichment inspection supports met). Independence: raw ticket + `git diff main...HEAD` only.
+
+| # | Requirement | Verdict |
+|---|-------------|---------|
+| 1 | Producer-only (059 Option 1); consumer OOS | **met** |
+| 2 | `PROVIDES_VIEW_DATA` + contract bump + `tests/contract` | **met** |
+| 3 | Synthetic key address (`viewdata:<key>`) | **met** |
+| 4 | Extend 040 rules (setter → key_arg); no framework in core | **met** |
+| 5 | Nav: handler qname → keys + lines | **met** — `find_view_data` |
+| 6 | Off by default | **met** |
+| 7 | HEURISTIC, not silent RESOLVED | **met** |
+| 8 | R2 adapters clean | **met** / can't-tell on live CI grep |
+| 9 | No Twig/Blade widen | **met** |
+| 10 | Fixtures only (no private repo) | **met** |
+| 11–14 | AC1–AC4 | **met** |
+
+### Reviewer detail — round 2 ([Reviewer](8f2620dd-a9ae-40a6-a25e-73f91b6b5ec8)) @ `35c99e8`
+
+**Verdict: LGTM.** Critical / Important: none. Round-1 findings 1–3 verified closed (SRP carve-out, `in-progress` status, `key_arg` ordinal + `put($bag,'extra',1)` fixture). Proving 2/2; related contract/MCP scan 202 passed.
+
+### Challenger detail — round 2 ([Challenger](725a110a-5a1f-4c8f-b2df-d659e06c3c33)) — ticket-blind @ `35c99e8`
+
+**16 met · 0 not met · 0 can't tell.** Gate 4 **PASS**. Proving + contract schema **43 passed**. Same independence note as round 1.
 
 ## Cost ledger
 
@@ -256,9 +290,14 @@ Contract bump + enrichment extension + nav + fixtures — multi-file, not lite; 
 
 `key_arg` is an **argument** index; map through `args` categories to the Nth string literal on the line — never treat `key_arg` as a raw literal ordinal.
 
+## Phase 5 — Finalise
+
+Push + PR + merge approved (standing). Opened and merged [#73](https://github.com/cuongdinhngo/code-atlas/pull/73).
+Cost summary: **6** subagent dispatches, all `unmeasured (blocking retrieval)`; top driver = review pairs.
+
 ## Session status
 
-- **Phase:** finalise
+- **Phase:** done — PR [#73](https://github.com/cuongdinhngo/code-atlas/pull/73)
 - **Reviewed at:** `35c99e8ace554c2d6fc215cfddd7be46c7ab8eff`
 - **Reviewed files:** contract/enrichment/store/nav/find_view_data/main, PHP handshake, fixtures+proving tests, CONVENTION/PLAN/README/ENGINEERING_RULES, BACKLOG + task frontmatter, proof-collateral tests
 - **work_doc_mode:** embed
