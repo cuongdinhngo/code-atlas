@@ -2,8 +2,9 @@
 
 ``full=true`` always runs a full build. ``full=false`` runs an incremental update when
 ``last_commit`` and ``git diff`` are usable; otherwise it falls back to a full build and names the
-mode that actually ran. The store is opened here, inside the call, because the caller's thread owns
-the connection (R4.3).
+mode that actually ran. Successful payloads nest run writes under ``wrote`` and graph totals under
+``graph`` (task 060) so a delta cannot be read as a repo size. The store is opened here, inside the
+call, because the caller's thread owns the connection (R4.3).
 """
 
 import time
@@ -112,11 +113,20 @@ def _result(
     *,
     rebuilt_schema: bool,
 ) -> dict[str, object]:
-    # The counts come off the report itself, so a field added there reaches clients without an edit.
+    # ``wrote`` = this run; ``graph`` = store totals — same names never mean both (060).
+    counts = store.counts()
     result: dict[str, object] = {
         "mode": mode,
         "requested_full": full,
-        **asdict(report),
+        "wrote": asdict(report),
+        "graph": {
+            "files": counts["files"],
+            "parsed": counts["parsed"],
+            "failed": counts["failed"],
+            "nodes": counts["nodes"],
+            "edges": counts["edges"],
+            "stubs": counts["stubs"],
+        },
         "seconds": elapsed,
         "schema_rebuilt": rebuilt_schema,
     }

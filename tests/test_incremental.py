@@ -321,7 +321,7 @@ def test_uncommitted_edit_is_indexed_and_marks_status_behind(tmp_path: Path) -> 
 
     result = call(server, BUILD, {"full": False})
     assert result["mode"] == "incremental"
-    assert result["parsed"] >= 1
+    assert result["wrote"]["parsed"] >= 1
     digest = hashlib.sha256(b"dirty\n").hexdigest()
     with GraphStore(config.db_path) as store:
         assert store.file_hash("src/a.aa") == digest

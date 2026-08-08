@@ -203,10 +203,11 @@ def test_a_real_client_over_stdio_lists_the_tools_then_builds_and_reports_the_in
     names, built, status = asyncio.run(asyncio.wait_for(session(), STDIO_TIMEOUT))
 
     assert names == sorted(TOOL_NAMES)
-    assert built["files"] == 2 and built["parsed"] == 2, built
-    assert built["nodes"] == 2 and built["seconds"] >= 0
+    assert built["wrote"]["files"] == 2 and built["wrote"]["parsed"] == 2, built
+    assert built["wrote"]["nodes"] == 2 and built["seconds"] >= 0
     for field in ("files", "parsed", "failed", "nodes", "edges", "stubs"):
-        assert status[field] == built[field], f"{field}: status disagrees with its own build"
+        assert status[field] == built["graph"][field], f"{field}: status disagrees with graph"
+        assert built["wrote"][field] == built["graph"][field], f"{field}: full wrote ≠ graph"
 
 
 def test_the_server_module_runs_as_a_script_too(repo: Path) -> None:

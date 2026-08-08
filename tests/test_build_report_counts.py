@@ -95,8 +95,10 @@ def test_the_build_tool_and_the_status_tool_agree(tmp_path: Path) -> None:
     built = call(server, BUILD, {})
     status = call(server, STATUS, {})
 
-    assert built["edges"] == status["edges"]
-    assert built["nodes"] == status["nodes"]
+    assert built["wrote"]["edges"] == status["edges"]
+    assert built["wrote"]["nodes"] == status["nodes"]
+    assert built["graph"]["edges"] == status["edges"]
+    assert built["graph"]["nodes"] == status["nodes"]
 
 
 def test_a_second_full_build_reports_the_same_totals(tmp_path: Path) -> None:

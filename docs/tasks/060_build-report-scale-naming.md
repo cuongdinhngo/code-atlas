@@ -69,3 +69,108 @@ either way; a "not fixed" that is actually a stale process should not stand in t
 [051](051_build-report-edge-undercount.md) — the definition, the scope line left undone, and
 `tests/test_build_report_counts.py`.
 Origin: field retro round 2 §A.5.
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 060 — build-report-scale-naming (working doc)
+
+- **Ticket:** 060 · local `docs/tasks/060_build-report-scale-naming.md`
+- **Type:** bug / enhancement
+- **Repo(s):** app (`.`)
+- **SCOPE:** S
+- **STRUCTURE:** native
+- **TRACK:** backend — 0/N UI
+- **TIER:** full
+- **BASELINE:** green — `932 passed` (2026-08-08, untouched main)
+- **work_doc_mode:** embed
+- **working-doc path:** this file below separator
+
+## Phase 0 — Refine
+
+`REFINE: 1 unresolved | 0 asked (standing→ASSUMED) | 0 HOW in refine | 1 ASSUMED | skip: no`
+
+**INPUT KIND:** ticket
+
+**ASSUMED (standing — confirm at Gate 1):**
+
+| # | Choice | Why |
+|---|--------|-----|
+| W1 | Nested **`wrote`** (BuildReport fields) + labelled **`graph`** (`store.counts()`) on every successful build payload; no bare top-level `nodes`/`edges` from the report | Ticket prefers wrong reading *impossible*; dual labelled scales beat rename-only or wrote-only |
+
+**Exposure-checker:** [Challenger](4e38ff63-31d0-4320-a0cd-c34503e2965d) — surfaced W1.
+
+## Requirements matrix
+
+`SECTIONS: 4 found | 4 decomposed | ROWS: C=4 R=4 G=2 AC=5`
+
+| ID | Interpretation | Ph2 | Status |
+|----|----------------|-----|--------|
+| G1 | Incremental cannot look like graph size | CL1 | ⏳ |
+| G2 | Scale clear without reading `mode` | CL1 | ⏳ |
+| R1 | Naming/shape fix; 051 arithmetic stands | CL1 | ⏳ |
+| R2 | Test fails on old flat shape | CL2 | ⏳ |
+| R3 | Re-measure full vs status on current server; record | CL3 | ⏳ |
+| R4 | Prefer impossible-wrong over documented | W1 | ⏳ |
+| C1 | No schema/contract (R3) | — | ⏳ |
+| C2 | Determinism — counts unchanged | CL1 | ⏳ |
+| C3 | Totals from `store.counts()` only | CL1 | ⏳ |
+| C4 | Build tool rarely called — larger payload OK | CL1 | ⏳ |
+| AC1 | Incremental not readable as graph size (test) | CL2 | ⏳ |
+| AC2 | Full vs incremental distinguishable w/o `mode` | CL2 | ⏳ |
+| AC3 | 051 agreement tests still pass (BuildReport↔store unchanged; tool keys navigate `wrote`/`graph`) | CL2 | ⏳ |
+| AC4 | Re-measure recorded in Outcome + commit | CL3 | ⏳ |
+| AC5 | pytest/ruff/mypy green | verify | ⏳ |
+
+`CLARIFICATION: 1 ASSUMED (W1) | j=0` (Gate 1 standing)
+
+**Cause:** presentation — same field names for delta and total.
+
+**Blast radius:** `build_or_update_index._result`; tests that read build tool keys; PLAN §12 / 051 note.
+
+`SCOPE: S` · `TIER: full`
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|-------|----------|-------|--------|
+| refine | exposure-checker | 1 | unmeasured (blocking retrieval) |
+
+## Decision log
+
+| When | Decision |
+|------|----------|
+| 2026-08-08 | Standing: best option + pass process gates; push/PR need per-action OK |
+| 2026-08-08 | Gate 1 cleared (standing) — W1 nested wrote + graph |
+| 2026-08-08 | Gate 2 cleared (standing) — approach below |
+
+## Session status
+
+- **Phase:** execute (Gate 1+2 standing-cleared)
+- **Reviewed at:** —
+
+## Phase 2 — Design
+
+**Approach**
+1. `_result`: `wrote = asdict(report)`; `graph =` selected `store.counts()` keys; payload carries `wrote` + `graph`, not flat report fields at top level.
+2. Proving test: incremental tool result has `wrote`/`graph`, no top-level `edges`; `wrote["edges"] < graph["edges"]` on multi-candidate fixture.
+3. Update call-sites that read flat build keys (`test_build_report_counts` tool agree → `wrote`/`graph`; `test_mcp_server` build asserts).
+4. Leave BuildReport + 051 store-agreement tests **byte-logic unchanged**.
+5. Re-measure: run fixture agreement under current tip; record `CODE_ATLAS_SCALE_SAMPLE` unset → no anchor remount; fixture proves wrote≡graph on full at this commit.
+
+**Rejected:** rename-only (`wrote_nodes`) without graph (still no scale anchor); totals-only documentation; changing BuildReport arithmetic.
+
+**Change list**
+| # | Change | Path |
+|---|--------|------|
+| 1 | Nested wrote + graph in `_result` | `code_atlas/tools/build_or_update_index.py` |
+| 2 | Proving + shape tests | `tests/test_build_report_scale_naming.py` |
+| 3 | Update flat-key readers | `tests/test_build_report_counts.py`, `tests/test_mcp_server.py`, others as needed |
+| 4 | PLAN §12 note | `docs/PLAN.md` |
+| 5 | Outcome re-measure note | task working doc |
+
+**Proving test:** `test_incremental_tool_payload_cannot_be_read_as_graph_size`
+
+## Phase 3 — Execute
+
+(in progress)
+
