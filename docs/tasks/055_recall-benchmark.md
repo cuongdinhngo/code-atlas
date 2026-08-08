@@ -4,7 +4,7 @@ slug: recall-benchmark
 title: Nothing measures what the tools fail to find — a recall gate above the cost metric
 phase: 1.5b
 milestone: Measure
-status: in-progress
+status: done
 depends_on: [034, 045]
 ---
 
@@ -205,18 +205,70 @@ Origin: field retro round 2, and the priority decision of 2026-08-07 (correctnes
 ## Phase 4 — Review ✋
 
 - reviewer: **CHANGES REQUESTED** → verify-only **LGTM** ([Reviewer](afb8fa8b-1807-44f0-9cf8-461acf1f883c) → [Reviewer](3dd35d04-02f2-440f-b9df-ca99c91d3b28)) @ `8749f93`
-- challenger (ticket-blind): prior 5 not-mets → **5 met** under AC; Goal-only residual = no abstain channel ([Challenger](a819ecca-7538-4bd5-be05-097118380078) → [Challenger](bcebf7cb-27cf-4f60-9bf7-ffd05c8d3a93))
-- Scope reconciliation: diff ⊆ approved list ✅
-- Proving test: 32 harness tests + full suite 896 passed
+- challenger (ticket-blind): prior gaps closed under AC; Goal-only residual = no abstain channel ([Challenger](a819ecca-7538-4bd5-be05-097118380078) → [Challenger](bcebf7cb-27cf-4f60-9bf7-ffd05c8d3a93))
+- Scope reconciliation: diff ⊆ approved list ✅ (scripts/tests/docs/ci/fixtures; no `code_atlas/` / `adapters/`)
+- Proving test: 32 harness tests + full suite **896 passed**
 - **Clean?** yes
 - **Reviewed at:** `8749f93` · reviewed files: `scripts/tokens_to_answer.py`, `scripts/tokens_to_answer_questions.json`, `tests/test_tokens_to_answer.py`, `tests/fixtures/php/reach/*`, `.github/workflows/ci.yml`, `docs/runbooks/tokens-to-answer.md`, `docs/BACKLOG.md`, `docs/tasks/055_recall-benchmark.md`
 - **Exclusion (Goal-only):** tools have no “I don’t know” abstain payload; AC only requires empty→`confidently_wrong`
 
+### Reviewer detail — round 1 ([Reviewer](afb8fa8b-1807-44f0-9cf8-461acf1f883c)) @ `4ef87ce`
+
+**Verdict: CHANGES REQUESTED** (conditional LGTM once Important 1–3 land). Critical: none.
+
+| # | Finding | Path | Fix |
+|---|---------|------|-----|
+| 1 | Incomplete `expected_set` for `reachable_from_entry` (2 of 5 measured qnames) | `scripts/tokens_to_answer_questions.json` | Full set: `entry.php`, `\Entry`, `\Entry\main`, `\Lib\Helper`, `\Lib\Service` |
+| 2 | Incomplete `expected_set` for `orphans_dead_unused` (missing `\Dead`) | same | `["\\Dead", "\\Dead\\Unused"]` |
+| 3 | Native grep hits masked session `confidently_wrong` | `scripts/tokens_to_answer.py` `result_bearing_responses_empty` | Ignore `_NATIVE_TOOLS`; session-shaped test |
+| note | `files_read=0` on grep session steps | `run_native_step` | Return `len(bodies)` |
+
+**Scope check:** all 7 approved change-list paths present; R1.1/R4/min-ratio 0.24/no private IDs ✅.
+
+### Reviewer detail — verify-only ([Reviewer](3dd35d04-02f2-440f-b9df-ca99c91d3b28)) @ `8749f93`
+
+**Verdict: LGTM.** Findings 1–3 + files_read + symptom wording + broken-empty gate test verified fixed. Critical/Important remaining: none.
+
+### Challenger detail — round 1 ([Challenger](a819ecca-7538-4bd5-be05-097118380078)) — ticket-blind @ `4ef87ce`
+
+Rebuilt from raw ticket + `main...feat/055-recall-benchmark` only.
+
+**Summary: 14 met · 5 not met · 0 can’t-tell**
+
+| # | Requirement | Verdict |
+|---|-------------|---------|
+| 1–3, 7–10, 12–17 | Recall/CW/CI/runbook/whole-graph/R4/R1.1/private-repo/`min-ratio` | **met** |
+| 4 | “I don’t know” vs empty | **not met** (no abstain channel) |
+| 5 | Symptom prompt names no method | **not met** (`put()` in question text) |
+| 6 | Session `files_read` for grep | **not met** (hard-coded 0) |
+| 11 | Deliberately-broken empty-nav fails recall gate in a test | **not met** (synthetic ratio only) |
+| 18 | Fixture-tier output unchanged | **not met** (recall columns added) |
+
+### Challenger detail — re-check ([Challenger](bcebf7cb-27cf-4f60-9bf7-ffd05c8d3a93)) — ticket-blind @ `8749f93`
+
+Prior five not-mets re-judged:
+
+| # | Verdict | Evidence |
+|---|---------|----------|
+| 4 | **met (AC)**; Goal-only residual | AC requires empty→CW; no abstain channel remains Goal/Scope prose only |
+| 5 | **met** | Symptom question no longer names `put()` / file / class |
+| 6 | **met** | Grep returns `len(bodies)`; e2e asserts `files_read > 0` |
+| 11 | **met** | `test_recall_gate_fails_when_nav_returns_empty_for_known_set` |
+| 18 | **met** (deliberate-deliverable reading) | `--min-ratio 0.24` kept; recall columns are the ticket |
+
+**Five-item counts: 5 met · 0 not met.** Full-ticket AC/Scope: satisfied; only Goal abstain residual remains.
+
+## Phase 5 — Finalise ✋
+
+- Outward actions (approved 2026-08-08): push · open PR · status→done + token row
+- Follow-up deferred: Goal abstain/“I don’t know” channel (needs tool surface)
+- Revert path: revert branch commits; close the PR
+
 ## Session status
 
 - **Last updated:** 2026-08-08
-- **Current phase:** Phase 5 Finalise — awaiting per-action outward approvals
-- **Next action:** push + open PR (need explicit OK each)
+- **Current phase:** Phase 5 — Finalise (push + PR)
+- **Next action:** push + `gh pr create`
 
 ---
 
@@ -224,11 +276,13 @@ Origin: field retro round 2, and the priority decision of 2026-08-07 (correctnes
 
 | Phase | Subagent / dispatch | Round | Tokens | Optimizer applied · est./measured saving |
 |-------|---------------------|-------|--------|------------------------------------------|
-| 0 | exposure-checker Challenger | 1 | (host session) | — |
-| 4 | reviewer + challenger | 1 | (host session) | — |
-| 4 | reviewer verify + challenger re-check | 2 | (host session) | — |
+| 0 | exposure-checker Challenger ([Challenger](0c65c05b-1f1a-4822-ac56-2566b8c9806e)) | 1 | unmeasured (blocking retrieval) | — |
+| 4 | mango:reviewer ([Reviewer](afb8fa8b-1807-44f0-9cf8-461acf1f883c)) | 1 | unmeasured (blocking retrieval) | — |
+| 4 | mango:challenger ([Challenger](a819ecca-7538-4bd5-be05-097118380078)) | 1 | unmeasured (blocking retrieval) | — |
+| 4 | mango:reviewer verify ([Reviewer](3dd35d04-02f2-440f-b9df-ca99c91d3b28)) | 2 | unmeasured (blocking retrieval) | — |
+| 4 | mango:challenger re-check ([Challenger](bcebf7cb-27cf-4f60-9bf7-ffd05c8d3a93)) | 2 | unmeasured (blocking retrieval) | — |
 
-`LEDGER TOTAL: record on PR open`
+`LEDGER TOTAL: 5 dispatch rows · all unmeasured (blocking retrieval) · top cost driver: review rounds`
 
 ## Decision log
 
@@ -238,3 +292,5 @@ Origin: field retro round 2, and the priority decision of 2026-08-07 (correctnes
 | 2026-08-08 | ASSUMED 1–6 | Standing approval after exposure-checker |
 | 2026-08-08 | ratio_eligible false for whole-graph/symptom | Preserve fixture cost floor semantics |
 | 2026-08-08 | CW = empty MCP results only | AC; no abstain channel in tools (Goal residual) |
+| 2026-08-08 | Gate 4 clean | reviewer LGTM @ `8749f93` after Important 1–3 fixed |
+| 2026-08-08 | Finalise push+PR approved | user: add review detail, commit, push, open PR |
