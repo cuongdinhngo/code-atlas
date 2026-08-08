@@ -19,20 +19,21 @@ Deterministic by design: each question is a **fixed recipe**, not a live model
 
 ```bash
 export CA_PHP_CMD="php $(pwd)/adapters/php/index.php --server"
-python3 scripts/tokens_to_answer.py                 # report only
-python3 scripts/tokens_to_answer.py --min-ratio 1.0 # also gate (non-zero exit if it regresses)
+python3 scripts/tokens_to_answer.py                              # report only
+python3 scripts/tokens_to_answer.py --min-ratio 0.24 --min-recall 1.0  # CI gates
 ```
 
 The report lands under `artifacts/` (gitignored). The pure-Python gate tests
-(`estimate_tokens`, `aggregate`, `assert_benchmark`, grep path) run in CI with no PHP; the
+(`estimate_tokens`, `aggregate`, `assert_benchmark`, grep path, recall scoring) run in CI with no PHP; the
 `@needs_php` test builds the fixtures and runs every committed question end to end.
 
 ## Automatic gate (every PR)
 
 The `test` job in [`ci.yml`](../../.github/workflows/ci.yml) runs
-`python scripts/tokens_to_answer.py --min-ratio 0.24 --markdown … --notice` on every PR — it fails on
-a wrong answer or if the ratio regresses. It runs on **3.13 only** (a token count does not vary by
-interpreter) and reports in four places, so nobody has to open a log:
+`python scripts/tokens_to_answer.py --min-ratio 0.24 --min-recall 1.0 --markdown … --notice` on every
+PR — it fails on a wrong answer, a recall miss / `confidently_wrong`, or if the ratio regresses. It
+runs on **3.13 only** (a token count does not vary by interpreter) and reports in four places, so
+nobody has to open a log:
 
 | Where | What |
 |---|---|
@@ -127,9 +128,23 @@ duplicates did not make the answer cheaper — it **doubled the information at t
 tokens-to-answer is blind to that by construction: it counts what a payload costs, never what it
 carries. A tool returning ten duplicates and a tool returning ten distinct answers score identically.
 
-Treat the ratio as a **cost** measure, not a quality measure. Correctness is carried by `expected`, and
-anything about the *usefulness* of a response — duplicate rows, an honest `total_count`, a right answer
-buried at rank 40 — needs its own check. See the metric follow-up in [`BACKLOG.md`](../BACKLOG.md).
+### Recall gates, cost wins (task 055)
+
+Treat the ratio as a **cost** measure, not a quality measure. **Recall is the gate; cost is the win.**
+A cheaper answer that finds less of a known ground-truth set is a regression — CI enforces that with
+`--min-recall 1.0` on the fixture tier alongside `--min-ratio 0.24`.
+
+- **`expected_set`** — complete hand-written ground truth; the harness reports `recall`, `found`,
+  `missing`.
+- **`confidently_wrong`** — empty `results` when ground truth is non-empty. Counted separately from a
+  partial-recall miss (some hits, not all): the empty answer is what makes an agent stop using the tool.
+- **Symptom-first / session recipes** (`session_path`) mix native `grep` / `read_file` with MCP tools and
+  report session tokens, files read, and **index-use share** (MCP calls / all calls). Short named
+  fixture recipes are MCP-only, so they do not pretend to measure that share.
+- **Whole-graph questions** exercise `impact` / `reachable_from` / `find_orphans` (and similar). When
+  there is no fair grep baseline, set `ratio_eligible: false` so they do not dilute the cost aggregate.
+
+Private-repo symptom sets stay **outside** this repository (same rule as the local tier, task 045).
 
 ## Surface A/B (task 037)
 

@@ -1,5 +1,5 @@
 {
-  "doc": "Ground truth for the tokens-to-answer benchmark (task 034). Each entry is one agent question with a KNOWN correct answer, plus the fixed recipe for both paths. To add a question: pick a fixture with a symbol whose answer you can state exactly; write `atlas_path` (the code-atlas tool calls a competent agent would make), `grep` (the baseline's search pattern), `expected` (substrings that MUST appear in the code-atlas responses for the answer to be right), and optional `grep_evidence` (substrings that must appear in what grep+Read surfaces; defaults to `expected`). `source: fixture` runs against a committed dir (needs the PHP adapter). `source: sample` runs against a pinned public repo named by `sample` (the id in cross_repo_samples.json) — those need a clone+PHP environment and run via `tokens_to_answer.py --samples` on schedule, not per PR.",
+  "doc": "Ground truth for the tokens-to-answer benchmark (task 034 / 055). Each entry is one agent question with a KNOWN correct answer, plus the fixed recipe for both paths. To add a question: pick a fixture with a symbol whose answer you can state exactly; write `atlas_path` (or `session_path` for mixed MCP+native recipes), `grep` (the baseline's search pattern; omit or set `ratio_eligible: false` when there is no fair grep), `expected` (substrings that MUST appear for correctness), optional `expected_set` (complete ground-truth members for recall), and optional `grep_evidence`. `source: fixture` runs against a committed dir (needs the PHP adapter). `source: sample` runs against a pinned public repo named by `sample`. Private-repo symptom sets stay outside this repository (task 045).",
   "questions": [
     {
       "id": "callers_of_repo_put",
@@ -12,6 +12,7 @@
       ],
       "grep": {"pattern": "->put\\("},
       "expected": ["\\App\\User::save"],
+      "expected_set": ["\\App\\User::save"],
       "grep_evidence": ["->put(", "function save"]
     },
     {
@@ -25,6 +26,7 @@
       ],
       "grep": {"pattern": "extends Base"},
       "expected": ["\\App\\User"],
+      "expected_set": ["\\App\\User"],
       "grep_evidence": ["extends Base", "class User"]
     },
     {
@@ -38,6 +40,7 @@
       ],
       "grep": {"pattern": "extends Base"},
       "expected": ["\\App\\User"],
+      "expected_set": ["\\App\\User"],
       "grep_evidence": ["extends Base", "class User"]
     },
     {
@@ -51,6 +54,7 @@
       ],
       "grep": {"pattern": "class User"},
       "expected": ["\\App\\User"],
+      "expected_set": ["\\App\\User"],
       "grep_evidence": ["class User"]
     },
     {
@@ -64,6 +68,7 @@
       ],
       "grep": {"pattern": "class Repo"},
       "expected": ["\\App\\Repo"],
+      "expected_set": ["\\App\\Repo"],
       "grep_evidence": ["class Repo"]
     },
     {
@@ -77,6 +82,7 @@
       ],
       "grep": {"pattern": "function put"},
       "expected": ["function put"],
+      "expected_set": ["function put"],
       "grep_evidence": ["function put"]
     },
     {
@@ -90,6 +96,7 @@
       ],
       "grep": {"pattern": "function save"},
       "expected": ["function save"],
+      "expected_set": ["function save"],
       "grep_evidence": ["function save", "->put("]
     },
     {
@@ -103,6 +110,7 @@
       ],
       "grep": {"pattern": "require"},
       "expected": ["Legacy/Registry.php"],
+      "expected_set": ["Legacy/Registry.php"],
       "grep_evidence": ["Registry.php"]
     },
     {
@@ -116,6 +124,7 @@
       ],
       "grep": {"pattern": "Registry"},
       "expected": ["app.php"],
+      "expected_set": ["app.php"],
       "grep_evidence": ["Registry.php"]
     },
     {
@@ -129,7 +138,77 @@
       ],
       "grep": {"pattern": "->put\\("},
       "expected": ["\\App\\User::save", "$repo->put();"],
+      "expected_set": ["\\App\\User::save", "$repo->put();"],
       "grep_evidence": ["->put(", "function save"]
+    },
+    {
+      "id": "blast_radius_of_repo_put",
+      "source": "fixture",
+      "root": "tests/fixtures/php/resolve",
+      "tier": "whole_graph",
+      "ratio_eligible": false,
+      "question": "If App\\Repo::put changes, which methods sit in its blast radius (relationship, not a location)?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "impact", "args": {"qnames": ["\\App\\Repo::put"], "detail_level": "minimal"}}
+      ],
+      "grep": {"pattern": "function put"},
+      "expected": ["\\App\\User::save"],
+      "expected_set": ["\\App\\Repo::put", "\\App\\User::save"],
+      "grep_evidence": ["function put"]
+    },
+    {
+      "id": "reachable_from_entry",
+      "source": "fixture",
+      "root": "tests/fixtures/php/reach",
+      "tier": "whole_graph",
+      "ratio_eligible": false,
+      "question": "Which symbols are reachable from the configured entry point entry.php?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "reachable_from", "args": {"detail_level": "minimal"}}
+      ],
+      "grep": {"pattern": "function main"},
+      "expected": ["\\Entry\\main", "\\Lib\\Helper"],
+      "expected_set": [
+        "entry.php",
+        "\\Entry",
+        "\\Entry\\main",
+        "\\Lib\\Helper",
+        "\\Lib\\Service"
+      ],
+      "grep_evidence": ["function main"]
+    },
+    {
+      "id": "orphans_dead_unused",
+      "source": "fixture",
+      "root": "tests/fixtures/php/reach",
+      "tier": "whole_graph",
+      "ratio_eligible": false,
+      "question": "Which symbols under namespace Dead are orphans relative to entry.php?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "find_orphans", "args": {"detail_level": "minimal"}}
+      ],
+      "grep": {"pattern": "class Unused"},
+      "expected": ["\\Dead\\Unused"],
+      "expected_set": ["\\Dead", "\\Dead\\Unused"],
+      "grep_evidence": ["class Unused"]
+    },
+    {
+      "id": "symptom_persist_via_put",
+      "source": "fixture",
+      "root": "tests/fixtures/php/resolve",
+      "tier": "symptom",
+      "ratio_eligible": false,
+      "question": "A caller persists state through a short write helper on a repository-like type — which method performs that write?",
+      "session_path": [
+        {"tool": "grep", "args": {"pattern": "->put\\(", "globs": ["*.php"], "max_read_files": 5}},
+        {"tool": "search_symbol", "args": {"query": "put", "detail_level": "minimal"}},
+        {"tool": "find_callers", "args": {"qname": "\\App\\Repo::put", "detail_level": "minimal"}}
+      ],
+      "expected": ["\\App\\User::save"],
+      "expected_set": ["\\App\\User::save"]
     },
     {
       "id": "sample_impls_bignumber",

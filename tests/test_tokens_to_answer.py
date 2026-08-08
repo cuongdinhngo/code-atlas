@@ -95,7 +95,8 @@ def test_verdict_markdown_reports_the_numbers_and_the_pass_verdict() -> None:
     agg = _h.aggregate([_row("a", atlas=100, grep=400)])
     body = _h.verdict_markdown(agg, min_ratio=1.0, failure=None, samples_skipped=2)
     assert _h.COMMENT_MARKER in body  # CI edits its own comment by this marker
-    assert "| 4.0 | 100 | 400 | 1/1 | **PASS** (floor 1.0) |" in body
+    assert "| 4.0 | — | 0 | 100 | 400 | 1/1 | **PASS** (floor ratio 1.0) |" in body
+    assert "Recall is a gate; cost is the win." in body
     assert "Sample-tier questions skipped: 2." in body
 
 
@@ -107,7 +108,7 @@ def test_verdict_markdown_shows_the_failure_reason_when_the_gate_trips() -> None
     body = _h.verdict_markdown(
         _h.aggregate(rows), min_ratio=1.0, failure=str(caught.value), samples_skipped=0
     )
-    assert "**FAIL** (floor 1.0)" in body
+    assert "**FAIL** (floor ratio 1.0)" in body
     assert "below the floor" in body
 
 
@@ -118,6 +119,124 @@ def test_notice_line_is_a_single_actions_annotation() -> None:
     assert "\n" not in line
     assert "ratio=4.0" in line and "correct=1/1" in line
     assert "FAILED" in _h.notice_line(agg, min_ratio=9.0, failure="too low")
+
+
+def test_score_recall_separates_confidently_wrong_from_partial_miss() -> None:
+    """Empty results with non-empty ground truth is confidently_wrong; a partial hit is not."""
+    empty = [{"results": []}]
+    partial = [{"results": [{"qname": "\\A"}]}]
+    empty_score = _h.score_recall(empty, ["\\A", "\\B"])
+    partial_score = _h.score_recall(partial, ["\\A", "\\B"])
+    assert empty_score["confidently_wrong"] is True
+    assert empty_score["recall"] == 0.0
+    assert partial_score["confidently_wrong"] is False
+    assert partial_score["recall"] == 0.5
+    assert partial_score["missing"] == ["\\B"]
+    # Native grep hits must not mask empty MCP nav answers on a session recipe.
+    session_shaped = [
+        {"tool": "grep", "results": ["User.php:12:$repo->put();"], "text": "hit"},
+        {"tool": "find_callers", "results": []},
+    ]
+    session_score = _h.score_recall(session_shaped, ["\\App\\User::save"])
+    assert session_score["confidently_wrong"] is True
+    assert session_score["recall"] == 0.0
+    # An earlier MCP hit must not hide an empty answering step (round-2 defect).
+    masked = [
+        {"tool": "grep", "results": ["a.php:1: ->put("], "text": "…"},
+        {"tool": "search_symbol", "results": [{"qname": "\\App\\Repo::put"}]},
+        {"tool": "find_callers", "results": []},
+    ]
+    masked_score = _h.score_recall(masked, ["\\App\\User::save"])
+    assert masked_score["confidently_wrong"] is True
+    assert masked_score["recall"] == 0.0
+    # Grep text must not earn recall; parent qnames must not match via a child identity.
+    leak = _h.score_recall(
+        [
+            {"tool": "grep", "results": ["x"], "text": "Legacy/Registry.php"},
+            {"tool": "find_callers", "results": []},
+        ],
+        ["Legacy/Registry.php"],
+    )
+    assert leak["recall"] == 0.0 and leak["confidently_wrong"] is True
+    nested = _h.score_recall(
+        [{"tool": "find_orphans", "results": [{"qname": "\\Dead\\Unused"}]}],
+        ["\\Dead", "\\Dead\\Unused"],
+    )
+    assert nested["found"] == ["\\Dead\\Unused"]
+    assert nested["missing"] == ["\\Dead"]
+    assert nested["recall"] == 0.5
+    assert nested["confidently_wrong"] is False
+
+
+def test_recall_gate_fails_when_nav_returns_empty_for_known_set() -> None:
+    """Deliberately broken empty nav answer fails the recall floor (AC: broken resolver case)."""
+    responses = [{"results": []}]  # empty callers — the 054 failure shape
+    score = _h.score_recall(responses, ["\\App\\User::save", "\\App\\Other::touch"])
+    row = {
+        "id": "broken_empty_callers",
+        "atlas_tokens": 10,
+        "grep_tokens": 100,
+        "atlas_correct": True,  # `expected` substring check can still pass on status crumbs
+        "grep_correct": True,
+        "ratio": 10.0,
+        "ratio_eligible": True,
+        **score,
+    }
+    with pytest.raises(_h.BenchmarkRegressionError, match="confidently_wrong|recall"):
+        _h.assert_benchmark([row], min_ratio=None, min_recall=1.0, require_atlas_correct=False)
+
+
+def test_recall_gate_fails_on_confidently_wrong_and_on_low_recall() -> None:
+    rows = [
+        {
+            "id": "empty",
+            "atlas_tokens": 10,
+            "grep_tokens": 100,
+            "atlas_correct": True,
+            "grep_correct": True,
+            "ratio": 10.0,
+            "ratio_eligible": True,
+            "recall": 0.0,
+            "confidently_wrong": True,
+        }
+    ]
+    with pytest.raises(_h.BenchmarkRegressionError, match="confidently_wrong|recall"):
+        _h.assert_benchmark(rows, min_ratio=None, min_recall=1.0)
+
+
+def test_recall_gate_passes_when_every_expected_set_is_complete() -> None:
+    rows = [
+        {
+            "id": "ok",
+            "atlas_tokens": 10,
+            "grep_tokens": 100,
+            "atlas_correct": True,
+            "grep_correct": True,
+            "ratio": 10.0,
+            "ratio_eligible": True,
+            "recall": 1.0,
+            "confidently_wrong": False,
+        }
+    ]
+    agg = _h.assert_benchmark(rows, min_ratio=None, min_recall=1.0)
+    assert agg["recall"] == 1.0
+
+
+def test_aggregate_excludes_ratio_ineligible_from_cost_but_counts_correctness() -> None:
+    rows = [
+        {**_row("a", atlas=100, grep=400), "ratio_eligible": True},
+        {
+            **_row("b", atlas=50, grep=0),
+            "ratio_eligible": False,
+            "grep_tokens": 0,
+            "ratio": None,
+        },
+    ]
+    agg = _h.aggregate(rows)
+    assert agg["atlas_correct"] == 2
+    assert agg["ratio_questions"] == 1
+    assert agg["atlas_tokens"] == 100
+    assert agg["ratio"] == 4.0
 
 
 def test_markdown_and_notice_are_emitted_even_when_the_gate_fails(
@@ -140,7 +259,7 @@ def test_markdown_and_notice_are_emitted_even_when_the_gate_fails(
         ]
     )
     assert code == 1
-    assert "**FAIL** (floor 1.0)" in markdown.read_text(encoding="utf-8")
+    assert "**FAIL** (floor ratio 1.0)" in markdown.read_text(encoding="utf-8")
     assert "::notice title=Tokens-to-answer::" in capsys.readouterr().out
 
 
@@ -169,10 +288,15 @@ def test_questions_file_is_well_formed() -> None:
     for q in questions:
         assert q["id"] not in seen_ids, f"duplicate id {q['id']}"
         seen_ids.add(q["id"])
-        assert q["atlas_path"] and q["expected"]
+        assert q.get("atlas_path") or q.get("session_path"), f"{q['id']} needs a recipe"
+        assert q["expected"]
         source = q.get("source", "fixture")
         if source == "fixture":
             assert (REPO / q["root"]).is_dir(), f"missing fixture root for {q['id']}"
+            if q.get("tier") == "symptom":
+                assert q.get("session_path"), f"symptom {q['id']} needs session_path"
+            if q.get("expected_set") is not None:
+                assert q["expected_set"], f"{q['id']}: empty expected_set is not a complete set"
         elif source == "sample":
             # A sample row names a pin in cross_repo_samples.json and states a grep evidence hit.
             assert q["sample"] in pins, f"{q['id']} names unknown pin {q.get('sample')!r}"
@@ -180,7 +304,8 @@ def test_questions_file_is_well_formed() -> None:
         else:
             # Task 045: a `local` row names somebody's machine, so it never lands in this repo.
             raise AssertionError(f"{q['id']}: unexpected source {source!r} in the committed set")
-
+    assert any(q.get("tier") == "whole_graph" for q in questions)
+    assert any(q.get("tier") == "symptom" for q in questions)
 
 def test_run_sample_questions_selects_and_routes_by_pin(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -238,11 +363,21 @@ def test_harness_answers_fixture_questions_and_reports_ratio(tmp_path: Path) -> 
     wrong = [r["id"] for r in rows if not r["atlas_correct"]]
     assert wrong == [], f"code-atlas failed to answer: {wrong}"
     for r in rows:
-        assert r["atlas_tokens"] > 0 and r["grep_tokens"] > 0
+        assert r["atlas_tokens"] > 0
+        if r.get("ratio_eligible", True):
+            assert r["grep_tokens"] > 0
+    recall_ids = [r["id"] for r in rows if r.get("recall") is not None and r["recall"] < 1.0]
+    assert recall_ids == [], f"fixture recall below 1.0: {recall_ids}"
+    wrong_empty = [r["id"] for r in rows if r.get("confidently_wrong")]
+    assert wrong_empty == [], f"confidently_wrong on fixtures: {wrong_empty}"
+    symptom = next(r for r in rows if r["id"] == "symptom_persist_via_put")
+    assert symptom["session"]["index_use_share"] is not None
+    assert 0.0 < float(symptom["session"]["index_use_share"]) < 1.0
+    assert int(symptom["session"]["files_read"]) > 0
     agg = _h.aggregate(rows)
     assert agg["atlas_correct"] == fixture_count
     assert agg["ratio"] > 0.0
-
+    _h.assert_benchmark(rows, min_ratio=0.24, min_recall=1.0)
 
 # --- Task 045: the local tier (a repo already on disk, its index reused) --------------------
 
