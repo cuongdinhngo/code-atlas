@@ -109,8 +109,8 @@ Drive everything through the MCP tools:
    index **newer** than the server is refused untouched — that means the running server predates the
    upgrade, so restart the MCP client rather than rebuild (see `direction` in the payload).
 3. **Query** — `search_symbol`, `file_outline`, `read_symbol`, `find_callers`, `find_references`,
-   `find_implementations`, `include_graph`, `impact`, `reachable_from`, `find_orphans`, `explain_path`
-   (see [Tools](#tools)).
+   `find_implementations`, `find_view_data`, `include_graph`, `impact`, `reachable_from`, `find_orphans`,
+   `explain_path` (see [Tools](#tools)).
 
 Every tool takes `detail_level` — `minimal` for the payload alone; `standard` (default) may add
 provenance (`db_path` on `get_index_status` / build reports only after 061).
@@ -128,6 +128,7 @@ provenance (`db_path` on `get_index_status` / build reports only after 061).
 | `file_outline` | symbols + line ranges, no bodies |
 | `read_symbol` | source of just one class/method + docblock |
 | `find_callers` / `find_references` / `find_implementations` | resolved relationships + confidence tier; `find_callers` can also filter call sites by argument shape (`arg_position` + `arg_is`) |
+| `find_view_data` | view-scope keys a handler publishes (`PROVIDES_VIEW_DATA` — needs `CA_INDIRECTION_RULES` `view_data` setters) |
 | `include_graph` | `include`/`require` neighbors (`imports` / `imported_by` / `both`) |
 | `impact` | bounded blast radius of a change (paths/qnames), depth-limited with decay |
 | `reachable_from` | forward reachability from configured entry points |

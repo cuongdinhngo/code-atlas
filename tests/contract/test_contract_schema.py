@@ -80,7 +80,7 @@ def test_node_kinds_are_the_eleven_contract_kinds() -> None:
     )
 
 
-def test_edge_kinds_are_the_ten_contract_kinds() -> None:
+def test_edge_kinds_are_the_eleven_contract_kinds() -> None:
     assert EDGE_KINDS == (
         "CONTAINS",
         "EXTENDS",
@@ -92,6 +92,7 @@ def test_edge_kinds_are_the_ten_contract_kinds() -> None:
         "INCLUDES",
         "REFERENCES",
         "ALIASES",
+        "PROVIDES_VIEW_DATA",
     )
 
 
@@ -158,7 +159,7 @@ def test_target_qname_is_not_required_so_adapters_can_emit_bare_edges() -> None:
 
 
 def test_contract_version_is_exported() -> None:
-    assert CONTRACT_VERSION == 3
+    assert CONTRACT_VERSION == 4
 
 
 def test_known_capabilities_advertises_semantic_types() -> None:

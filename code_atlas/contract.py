@@ -18,7 +18,7 @@ An adapter opens the stream by announcing itself once — the **handshake** of �
 
 from typing import Literal, get_args
 
-CONTRACT_VERSION = 3
+CONTRACT_VERSION = 4
 
 # Ordered Literal is the typing SSoT; NODE_KINDS is derived so schemas cannot drift (R3.2 / 056).
 NodeKind = Literal[
@@ -47,6 +47,7 @@ EDGE_KINDS: tuple[str, ...] = (
     "INCLUDES",
     "REFERENCES",
     "ALIASES",
+    "PROVIDES_VIEW_DATA",
 )
 
 # Resolver (§8.2) looks these up by FQN; new EDGE_KINDS must opt in here (not silently join).
@@ -136,6 +137,10 @@ KNOWN_CAPABILITIES: tuple[str, ...] = ("semantic_types",)
 STUB_FLAG = "stub"
 # Tool-payload key for edges emitted from CA_INDIRECTION_RULES (task 040). Not a contract bump.
 RULE_FLAG = "rule"
+
+# Synthetic target_raw for PROVIDES_VIEW_DATA (task 062) — not an FQN; never resolved.
+VIEW_DATA_PREFIX = "viewdata:"
+PROVIDES_VIEW_DATA = "PROVIDES_VIEW_DATA"
 
 MEMBER_SEPARATOR = "::"
 

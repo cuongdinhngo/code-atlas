@@ -374,7 +374,7 @@ Ignore: built-ins (`vendor/ var/ uploads/ log/ node_modules/ .git/ *.blade.*`) +
 
 **Stub roots (task 039).** `CA_STUB_ROOTS` walks named dependency trees **outside** the ignore/git collect path (so `vendor/` can be indexed without weakening directory exclusion). Files under those roots are parsed with `declarations_only` (signatures + EXTENDS/IMPLEMENTS/…; no CALLS/NEW from bodies); nodes carry `extra.stub=true` and surface as `stub: true` on `search_symbol` / `read_symbol`. Off by default — enabling it costs one declarations pass over the dependency tree. Matching is **case-sensitive** (`Vendor` ≠ `vendor`); a configured root that is missing, not a directory, or overlaps git-collected source fails loud (R5.3). `BuildReport.stubs` / `get_index_status.stubs` count stub files so a zero is visible.
 
-**Indirection rules (task 040).** `CA_INDIRECTION_RULES` names repo-relative JSON files **outside** `adapters/` (R2.2). Each file may list `aliases` (`from`/`to` FQNs → HEURISTIC `ALIASES` edges) and `calls` (`source`/`target`/`line` → HEURISTIC `CALLS`). Applied after parse and before `resolve_edges`, so facade aliases reuse task 030’s remap. Off by default — no rules ⇒ graph unchanged. Missing/invalid rule files fail loud **before** parse (R5.3). Rule edges live on a synthetic bookmark path (not on disk); nav hits carry `rule: true` and omit `file`/`line` so they never read as `source_stale`. **v1 limit:** `calls` entries are exact qname pairs (hand-enumerated) — no pattern/glob; aliases scale because the resolver remaps every call through the facade. Pattern-shaped rules are a follow-up.
+**Indirection rules (task 040 / 062).** `CA_INDIRECTION_RULES` names repo-relative JSON files **outside** `adapters/` (R2.2). Each file may list `aliases` (`from`/`to` FQNs → HEURISTIC `ALIASES` edges), `calls` (`source`/`target`/`line` → HEURISTIC `CALLS`), and `view_data` (`setter` method/FQN + `key_arg` → HEURISTIC `PROVIDES_VIEW_DATA` with `target_raw` `viewdata:<key>`, scanned from adapter CALLS + call-site string literals — task 062). Applied after parse and before `resolve_edges`, so facade aliases reuse task 030’s remap. Off by default — no rules ⇒ graph unchanged. Missing/invalid rule files fail loud **before** parse (R5.3). Rule edges live on a synthetic bookmark path (not on disk); nav hits carry `rule: true`. `PROVIDES_VIEW_DATA` hits keep call-site `line` and resolve `file` from the subject method. **v1 limit:** `calls` entries are exact qname pairs (hand-enumerated); `view_data` setters match exact `target_raw` or `::<method>` suffix; one-line string-arg extraction only.
 
 ---
 
@@ -615,7 +615,9 @@ Serena-class tools are as blind as today’s graph. This is unclaimed ground, no
 
 **Nav answer after 062.** Given a handler method, list the view-scope keys it publishes (and at which
 lines). The agent still `Read`s the template to confirm the consumer name — half of round 1’s question,
-the half no current tool answers.
+the half no current tool answers. **Implemented in [062](tasks/062_view-databag-producer.md):** edge
+kind `PROVIDES_VIEW_DATA`, `viewdata:<key>` targets, `CA_INDIRECTION_RULES` `view_data` setters, tool
+`find_view_data`.
 
 **Reference material** (private, same folder): `understand-anything-how-it-works.md`, `code-review-graph-how-it-works.md`.
 
