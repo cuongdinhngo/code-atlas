@@ -23,12 +23,19 @@ NAME = "search_symbol"
 DetailLevel = Literal["minimal", "standard"]
 
 
+def _require_kind(kind: contract.NodeKind | None) -> contract.NodeKind | None:
+    """Reject unknown ``kind`` spellings before any SQL (R5.3); ``None`` means no filter."""
+    if kind is not None and kind not in contract.NODE_KINDS:
+        raise ValueError(f"unknown kind {kind!r}: one of {', '.join(contract.NODE_KINDS)}")
+    return kind
+
+
 def create(config: Config) -> Callable[..., dict[str, object]]:
     """Bind the tool to one repo's configuration."""
 
     def search_symbol(
         query: str,
-        kind: str | None = None,
+        kind: contract.NodeKind | None = None,
         namespace: str | None = None,
         limit: int | None = None,
         detail_level: DetailLevel = "standard",
@@ -41,6 +48,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         and an honest ``total_count`` (never an empty proof of absence).
         Stub-indexed nodes (task 039) also carry ``stub: true``.
         """
+        kind = _require_kind(kind)
         db_path = str(config.db_path)
         if not config.db_path.is_file():
             return list_result(

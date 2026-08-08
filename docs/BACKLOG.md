@@ -83,7 +83,7 @@ gap that fixtures never hit.
 | 053 | [Nothing refreshes the index when the repo changes outside the agent's editor](tasks/053_refresh-on-checkout-hook.md) | Freshness | todo | 052, 036, 016 |
 | 054 | [`find_callers` reports `total_count: 0` for a method that has callers](tasks/054_bare-name-callers-silent-drop.md) | Agent-trust | done | 011, 013, 046 |
 | 055 | [Nothing measures what the tools fail to find — a recall gate above the cost metric](tasks/055_recall-benchmark.md) | Measure | done | 034, 045 |
-| 056 | [An unknown filter value returns an empty result instead of an error](tasks/056_filter-values-fail-loud.md) | Agent-trust | todo | 014, 033 |
+| 056 | [An unknown filter value returns an empty result instead of an error](tasks/056_filter-values-fail-loud.md) | Agent-trust | done | 014, 033 |
 | 057 | [A large answer cannot be enumerated, so `total_count` cannot be audited](tasks/057_answer-pagination.md) | Agent-trust | todo | 013, 014, 033 |
 | 058 | [`parse_failures: 29` — nobody can find out which 29 files the index cannot see](tasks/058_list-parse-failures.md) | Agent-trust | todo | 009, 028 |
 | 059 | [The handler → template data-bag edge is unmodelled](tasks/059_view-databag-edge.md) | Coverage | done | 030, 040 |
@@ -235,6 +235,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 059 | Handler → template data-bag edge — Option 1 decision | **2 dispatch** — review `mango:reviewer` + ticket-blind `mango:challenger`, both **`unmeasured (blocking retrieval)`** (Cursor Task returns did not surface a usage block). Phases 0–3 and 5 dispatched **nothing** (refine skipped; design/execute/finalise on the main model; no Explore fan-out). **Main-loop spend is unmeasured**, as for 004–051 | [#63](https://github.com/cuongdinhngo/code-atlas/pull/63) |
 | 055 | Recall gate beside tokens-to-answer cost ratio | **5 dispatch** — exposure-checker `mango:challenger` + review `mango:reviewer` / `mango:challenger` + verify-only re-review of both, all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model (no Explore fan-out). **Main-loop spend is unmeasured**, as for 004–051 | [#64](https://github.com/cuongdinhngo/code-atlas/pull/64) |
 | 054 | Bare-name callers silent drop — Part B honesty | **4 dispatch** — exposure-checker `mango:challenger` + review `mango:reviewer` / `mango:challenger` + verify-only `mango:reviewer`, all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051 | [#65](https://github.com/cuongdinhngo/code-atlas/pull/65) |
+| 056 | Unknown filter values fail loud | **3 dispatch** — refine exposure-checker + review `mango:reviewer` / `mango:challenger`, all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051 | [#66](https://github.com/cuongdinhngo/code-atlas/pull/66) |
 
 **How 047–049 were measured.** They ran back-to-back in one autonomous session, so no per-task
 transcript exists. Each row is that session's assistant API calls bucketed by commit timestamp — the

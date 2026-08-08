@@ -1,5 +1,14 @@
 # Lessons — code-atlas
 
+## 056 — Spell `NodeKind` as `Literal[…]` and derive `NODE_KINDS` with `get_args`
+
+`Literal[*NODE_KINDS]` fails mypy (`valid-type`) even when the tuple looks like string literals.
+Spelling the `Literal` out (`NodeKind = Literal["File", …]`) and setting
+`NODE_KINDS = get_args(NodeKind)` keeps one vocabulary, types MCP `kind: NodeKind | None` cleanly,
+and publishes `anyOf: [{enum…, type:string}, {type:null}]` — coherent with a null default.
+Do **not** bolt `enum` on via `json_schema_extra` as a sibling of `anyOf`: sibling keywords are
+ANDed, so `null` satisfies `anyOf` but fails `enum` and the schema rejects its own default.
+
 ## 043 — A per-file dedupe keys on the full UNIQUE key, and a core guard never names `sqlite3`
 Two constraints surfaced while making a duplicate-declaration file soft-fail instead of aborting the
 build:
