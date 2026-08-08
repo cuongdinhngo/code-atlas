@@ -47,6 +47,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         include_source: bool = False,
         arg_position: int | None = None,
         arg_is: str | None = None,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> dict[str, object]:
         """Who CALLS or NEWs ``qname``.
 
@@ -55,7 +57,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         in ``frontier_skipped_non_resolved`` when a deeper hop was requested.
 
         ``total_count`` is the size of the BFS hit set within ``depth`` (exact at depth 1;
-        a lower bound when a deeper walk hits the count budget).
+        a lower bound when a deeper walk hits the count budget — and at depth > 1 that floor
+        is valid for the requested page only, because the budget grows with ``offset``).
 
         ``include_source`` (default off, so the common case stays token-frugal) adds each call
         site's own source line as ``source``, capped in length — answering "show me" without a
@@ -69,6 +72,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         call sites the filter could not judge — sites whose arguments were never recorded, which
         are never counted as matches. Depth 1 only.
 
+        ``limit`` / ``offset`` page results (057). At depth 1 the store owns OFFSET; deeper walks
+        apply offset to the BFS hit stream. Complete enumeration is guaranteed at depth 1.
+
         When bare-name resolution capped Method candidates alphabetically (task 054), a subject
         outside that cap can have zero inbound edges while CALLS sites named its bare method still
         exist. Those sites are counted in ``unresolved_bare_calls``, and an empty answer then uses
@@ -76,10 +82,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         """
         if depth < 1:
             raise ValueError(f"depth must be >= 1, got {depth}")
+        if offset < 0:
+            raise ValueError(f"offset must be >= 0, got {offset}")
+        cap = config.max_results if limit is None else min(limit, config.max_results)
+        if cap < 1:
+            raise ValueError(f"limit must be >= 1, got {cap}")
         args_at = _args_at(arg_position, arg_is, depth=depth)
         if not config.db_path.is_file():
             return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path))
-        limit = config.max_results
         with GraphStore(config.db_path) as store:
             guard = FreshnessGuard(config, store)
             if guard.ensure_qname(qname) == "stale":
@@ -95,7 +105,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     frontier_skipped_non_resolved=0,
                     subject_refreshed_only=True,
                 )
-            outcome = _callers(store, qname, hops=depth, limit=limit, args_at=args_at)
+            outcome = _callers(
+                store, qname, hops=depth, limit=cap, offset=offset, args_at=args_at
+            )
             indexed = bool(store.nodes_by_qualified_name(qname, limit=1))
             container, bare_name = split_qname(qname)
             unresolved_bare = 0
@@ -161,18 +173,19 @@ def _callers(
     *,
     hops: int,
     limit: int,
+    offset: int = 0,
     args_at: tuple[int, str] | None = None,
 ) -> _CallersOutcome:
     """BFS over CALLS/NEW into ``qname``; only RESOLVED edges expand the frontier (A3 / HOW-5)."""
     if hops == 1:
         total = store.count_edges_by_target(qname, kinds=CALLER_KINDS, args_at=args_at)
         edges = store.edges_by_target(
-            qname, kinds=CALLER_KINDS, limit=limit, args_at=args_at
+            qname, kinds=CALLER_KINDS, limit=limit, offset=offset, args_at=args_at
         )
         hits = [edge_hit(edge, depth=1) for edge in edges]
         return _CallersOutcome(
             results=hits,
-            truncated=total > len(hits),
+            truncated=offset + len(hits) < total,
             total_count=total,
             frontier_skipped_non_resolved=0,
         )
@@ -183,7 +196,8 @@ def _callers(
     queue: deque[tuple[str, int]] = deque([(qname, 0)])
     skipped_non_resolved = 0
     total_count = 0
-    count_budget = max(limit * _COUNT_BUDGET_FACTOR, limit + 1)
+    skipped = 0
+    count_budget = max(limit * _COUNT_BUDGET_FACTOR, limit + 1) + offset
     hit_budget = False
 
     while queue and total_count < count_budget:
@@ -197,7 +211,9 @@ def _callers(
                 continue
             seen_edge_ids.add(eid)
             total_count += 1
-            if len(results) < limit:
+            if skipped < offset:
+                skipped += 1
+            elif len(results) < limit:
                 results.append(edge_hit(edge, depth=hop + 1))
             tier = str(edge.get("confidence_tier") or _RESOLVED)
             source = str(edge["source_qname"])
@@ -214,7 +230,7 @@ def _callers(
             if total_count >= count_budget:
                 hit_budget = True
                 break
-    truncated = total_count > len(results) or hit_budget or bool(queue)
+    truncated = offset + len(results) < total_count or hit_budget or bool(queue)
     return _CallersOutcome(
         results=results,
         truncated=truncated,

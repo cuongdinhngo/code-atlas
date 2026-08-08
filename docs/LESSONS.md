@@ -1,5 +1,12 @@
 # Lessons — code-atlas
 
+## 057 — Scope "enumerate every result set" to store-ordered pages
+
+When a ticket AC says every oversized answer must be fully enumerable, pin which
+tools/depths use a total store ``ORDER BY … LIMIT/OFFSET`` versus a BFS with a
+count floor. Otherwise review correctly rejects depth>1 callers as incomplete
+against the letter of the AC. Record the scope in Outcome + PLAN in the same card.
+
 ## 056 — Spell `NodeKind` as `Literal[…]` and derive `NODE_KINDS` with `get_args`
 
 `Literal[*NODE_KINDS]` fails mypy (`valid-type`) even when the tuple looks like string literals.

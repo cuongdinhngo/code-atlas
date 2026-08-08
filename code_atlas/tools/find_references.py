@@ -30,6 +30,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         qname: str,
         detail_level: DetailLevel = "standard",
         include_source: bool = False,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> dict[str, object]:
         """Edges whose resolved ``target_qname`` is ``qname``, with confidence tiers.
 
@@ -40,10 +42,17 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``include_source`` (default off, so the common case stays token-frugal) adds each site's
         own source line as ``source``, capped in length. A site whose file drifted since indexing
         is never quoted: those hits carry ``source_stale`` instead.
+
+        ``limit`` / ``offset`` page in store edge order (057); default limit is
+        ``CA_MAX_RESULTS``.
         """
+        if offset < 0:
+            raise ValueError(f"offset must be >= 0, got {offset}")
+        cap = config.max_results if limit is None else min(limit, config.max_results)
+        if cap < 1:
+            raise ValueError(f"limit must be >= 1, got {cap}")
         if not config.db_path.is_file():
             return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path))
-        limit = config.max_results
         with GraphStore(config.db_path) as store:
             guard = FreshnessGuard(config, store)
             if guard.ensure_qname(qname) == "stale":
@@ -70,11 +79,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     total_count=0,
                     subject_refreshed_only=True,
                 )
-            edges = store.edges_by_target(qname, limit=limit)
+            edges = store.edges_by_target(qname, limit=cap, offset=offset)
             results = [edge_hit(edge) for edge in edges]
             if include_source:
                 call_site.annotate(config.root, store, results)
-        truncated = total_count > len(results)
+        truncated = offset + len(results) < total_count
         return nav_result(
             qname,
             results,
