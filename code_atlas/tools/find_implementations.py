@@ -36,13 +36,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         ``limit`` defaults to ``CA_MAX_RESULTS``; ``offset`` pages in store edge order (057).
         """
-        if not config.db_path.is_file():
-            return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path))
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
         cap = config.max_results if limit is None else min(limit, config.max_results)
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
+        if not config.db_path.is_file():
+            return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path))
         with GraphStore(config.db_path) as store:
             guard = FreshnessGuard(config, store)
             if guard.ensure_qname(qname) == "stale":

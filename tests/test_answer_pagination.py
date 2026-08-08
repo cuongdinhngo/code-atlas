@@ -217,3 +217,44 @@ def test_find_callers_depth2_offset_pages_bfs_stream(
     assert page0["results"] and page1["results"]
     assert page0["results"][0]["qname"] != page1["results"][0]["qname"]
     assert page0["truncated"] is True
+
+
+def test_search_offset_past_end_is_ok_not_no_matches(
+    store: GraphStore, tmp_path: Path
+) -> None:
+    """Empty page with total_count > 0 must not read as proof of absence (PR #67)."""
+    nodes = [node("Class", f"Hit{i}", f"\\Hit{i}", "a.x") for i in range(4)]
+    seed_file(store, "a.x", nodes, [], root=tmp_path)
+    config = replace(db_config(tmp_path), root=tmp_path, max_results=2)
+    result = search_symbol.create(config)(
+        "Hit", detail_level="minimal", limit=2, offset=99
+    )
+    assert result["results"] == []
+    assert result["total_count"] == 4
+    assert result["truncated"] is False
+    assert result["reason"] == "ok"
+    assert result["reason"] != "no_matches"
+
+
+@pytest.mark.parametrize(
+    "factory",
+    [
+        find_implementations.create,
+        find_references.create,
+        search_symbol.create,
+        find_callers.create,
+    ],
+    ids=["implementations", "references", "search", "callers"],
+)
+def test_bad_offset_fails_loud_when_unindexed(
+    tmp_path: Path, factory: object
+) -> None:
+    """Caller errors must not hide behind ``not_indexed`` (PR #67 / #66 shape)."""
+    config = replace(db_config(tmp_path), root=tmp_path)
+    assert not config.db_path.is_file()
+    tool = factory(config)  # type: ignore[operator]
+    with pytest.raises(ValueError, match="offset"):
+        if factory is search_symbol.create:
+            tool("User", offset=-1, detail_level="minimal")
+        else:
+            tool("\\X", offset=-1, detail_level="minimal")

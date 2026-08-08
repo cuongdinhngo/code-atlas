@@ -57,7 +57,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         in ``frontier_skipped_non_resolved`` when a deeper hop was requested.
 
         ``total_count`` is the size of the BFS hit set within ``depth`` (exact at depth 1;
-        a lower bound when a deeper walk hits the count budget).
+        a lower bound when a deeper walk hits the count budget — and at depth > 1 that floor
+        is valid for the requested page only, because the budget grows with ``offset``).
 
         ``include_source`` (default off, so the common case stays token-frugal) adds each call
         site's own source line as ``source``, capped in length — answering "show me" without a
@@ -83,12 +84,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             raise ValueError(f"depth must be >= 1, got {depth}")
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
-        args_at = _args_at(arg_position, arg_is, depth=depth)
-        if not config.db_path.is_file():
-            return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path))
         cap = config.max_results if limit is None else min(limit, config.max_results)
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
+        args_at = _args_at(arg_position, arg_is, depth=depth)
+        if not config.db_path.is_file():
+            return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path))
         with GraphStore(config.db_path) as store:
             guard = FreshnessGuard(config, store)
             if guard.ensure_qname(qname) == "stale":
