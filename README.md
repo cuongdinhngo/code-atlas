@@ -11,10 +11,19 @@ first, then TypeScript/JavaScript, Python, C#/.NET.
 
 ## Why
 
-Native AI-coding tools + `grep` are weak at language-specific, name-resolved queries on large repos:
-they read whole files, miss cross-file relationships, and burn tokens. code-atlas parses each language
-with its **best** parser into a **SQLite symbol graph**, then serves symbol-level, resolved,
-token-efficient tools over MCP.
+**`grep` is good at finding locations. It cannot produce a relationship.** Ask it who calls a method
+and it gives you every line that contains the name — across every class that happens to declare one,
+with no way to tell a resolved call from a coincidence, and no second number to check itself against.
+code-atlas parses each language with its **best** parser into a **SQLite symbol graph**, then serves
+symbol-level, *resolved* relationships over MCP: callers, implementations, blast radius, reachability,
+the path between two symbols.
+
+> **Honest scope.** This project began on the claim that native tools and `grep` are weak at
+> name-resolved *search* on large repos. On 2026-08-08 that was measured against a ~19k-file private
+> monorepo and it did not hold — native tools answered five real symptom-first questions correctly, and
+> broad `grep` over that tree ran in under nine seconds at every scope. **If you want faster text
+> search, you do not need this.** What survives the measurement is the edge data above. See
+> [`docs/PLAN.md`](docs/PLAN.md) §19 for the full result, including what it got wrong.
 
 - **Symbol-level, name-resolved** — "who calls this method?", "what implements this interface?", "read
   just this method", "blast radius of changing this file" — not grep-and-read-everything.

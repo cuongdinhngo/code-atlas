@@ -15,6 +15,12 @@ depends_on: [016, 047]
 flips `staleness` to `behind` — but it did not make the call cheaper, and an agent that follows
 `next_tool_suggestions` still pays that minute whenever any indexed source file is dirty.
 
+**Round 2 turned the observation into a measurement, and it is worse than round 1 suggested.** A real
+incremental that reindexed **21 changed files** returned `seconds: 61.585` — *within one second of the
+0-file run*. So ~62 s is not the cost of the work; it is a **flat fee**, and the per-file cost is in the
+noise. A one-line typo fix costs the same minute as a twenty-one-file merge. The retro's own reading:
+this is what pushes an agent toward reindexing rarely, which is what produces stale answers.
+
 Nobody knows where the minute goes. That is the whole problem: it blocks two decisions at once.
 
 - **Is it a defect at all?** 62 s to reconcile a 19k-file tree against a 1.78M-edge graph may simply
@@ -101,4 +107,5 @@ Other fixed costs a no-op still pays, in call order:
 Local-tier precedent: [045](045_tokens-to-answer-local-repo.md) and
 [`runbooks/tokens-to-answer.md`](../runbooks/tokens-to-answer.md) §local tier.
 Origin: field retro round 1 §5, recorded in [`BACKLOG.md`](../BACKLOG.md) as an open observation since
-2026-08-07. Gates [053](053_refresh-on-checkout-hook.md).
+2026-08-07; the flat-fee measurement (21 files in 61.585 s) is field retro round 2 §5.
+Gates [053](053_refresh-on-checkout-hook.md).

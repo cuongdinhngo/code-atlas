@@ -3,7 +3,7 @@
 > Status: **Draft** · A local-first, multi-language code-intelligence MCP server.
 > Name: **`code-atlas`** (evolved: `php-code-graph` → `code-graph` → **`code-atlas`**; it's multi-language). GitHub repo: `code-atlas`.
 
-A local-first MCP server that indexes a codebase into SQLite and exposes **fast, resolved, token-efficient** search / read / navigation / impact tools — the things native Claude Code tools and grep are weak at on large repos.
+A local-first MCP server that indexes a codebase into SQLite and exposes **fast, resolved, token-efficient** search / read / navigation / impact tools — above all the **resolved relationships** between symbols, which text search cannot produce at any speed. (This line used to claim native tools and grep are weak at search on large repos; that premise was measured and refuted on 2026-08-08 — see §19.)
 
 **Language-agnostic core + per-language adapters.** PHP ships first; TypeScript/JavaScript, then Python, then C#/.NET follow behind the *same* contract. On top of the graph, a later phase adds an **Understand-Anything-style onboarding** feature.
 
@@ -501,7 +501,9 @@ New surface (separate from indexing): `generate_onboarding`, `architecture_overv
 ## 19. Project context & decision log
 > This is the durable record — kept **in this plan**, not in any external memory store. Do not use the Claude Code Memory feature for this project; decisions live here and in the repo.
 
-**What & why.** Build a local-first, multi-language code-intelligence MCP (`code-atlas`) because native Claude Code tools and grep are weak at language-specific, name-resolved search on large repos. It indexes into SQLite and serves fast, token-efficient search/read/nav/impact tools.
+**What & why.** Build a local-first, multi-language code-intelligence MCP (`code-atlas`) ~~because native Claude Code tools and grep are weak at language-specific, name-resolved search on large repos~~. It indexes into SQLite and serves fast, token-efficient search/read/nav/impact tools.
+
+> **The struck clause was the founding premise and it was measured false on 2026-08-08.** It is kept, struck, as the historical motivation rather than deleted, because every decision below was taken under it. What replaces it is narrower: **the index sells resolved relationships, not search speed.** See *Founding-premise benchmark* at the end of this list.
 
 **Decisions locked so far:**
 - **Architecture** — language-agnostic core + per-language adapters, each using the language's best parser, joined by one frozen/versioned JSON contract (§4). Engine lineage: code-review-graph.
@@ -532,6 +534,44 @@ holds, reinforced by the unpriced cost of one muddier description (C3) and R1.2.
 - **Open risk (recorded, not resolved).** At the limit this resembles a language server, and a better PHP language-server backend might reach further. We still go depth-first — the founding complaint is that live LSP indexing of tens of thousands of files is too slow, and no backend fixes an architecture — but the objection is acknowledged, and the tokens-to-answer harness (034) is what keeps us honest about it.
 - **Cheap unblocker:** resolve the license (`README.md` "TBD" → a real `LICENSE`, task 032) — an unlicensed MCP server doesn't get installed.
 - **Field-report validation (2026-08-05; [`FEEDBACK.md`](FEEDBACK.md) Round 4).** A parallel `claude --bg` fan-out over worktrees of a large private PHP monorepo OOM'd because each agent inherited and re-spawned a resident-LSP code-intelligence MCP server (~5.6 GB/agent, and pointed at `main` not the worktree — wasteful *and* wrong). Repo-verified: code-atlas does **not** reproduce this — no resident language server (query tools open/close SQLite per call, `find_callers.py:67`; adapters are transient and parse one file at a time, `adapter.py:83-88` / `indexer.py:102-104`), and `db_path` is `cwd`-relative so a worktree agent reads its own index, not `main` (`config.py:117`). Concrete confirmation of the SQLite-index thesis. Residual caveat is a transient build-time process burst under many concurrent builds — see [`runbooks/parallel-agents.md`](runbooks/parallel-agents.md).
+
+**Decision — Founding-premise benchmark (2026-08-08). The premise is refuted; the claim that replaces it is narrower.**
+Five symptom-first questions on the anchor monorepo — none naming a file, class or method — with ground
+truth established by hand beforehand, one fresh headless session per (question × arm), no coaching.
+Results, and every one of them cuts against the premise:
+
+- **Native tools only: 5/5 correct**, zero confidently-wrong answers, no index, no cold start; four of
+  the five answered in 46–164 s. On one question it *beat* the operator's own hand-written ground truth.
+- **code-atlas: 3 correct · 1 partial · 1 wrong cause**, at **1.85×** the native arm's tokens across all
+  five (0.84× excluding one outlier question — both numbers are true and neither stands alone).
+- **A third arm with a resident-LSP code-intelligence MCP server available scored 4 correct · 1 partial
+  while invoking that server zero times in 84 tool calls.** It measured adoption, not capability.
+- Separately, broad `grep` over the same tree was timed at **0.07–8.7 s at every scope**, against a
+  standing claim in that repo's own agent instructions that it "routinely times out". Not reproducible.
+
+Consequences, all adopted:
+
+- **Search speed is not the product.** Drop any work aimed at beating grep on per-symbol lookup or on
+  counting; two of the five questions measured that race and it is neither winnable nor worth winning.
+- **What survives is relationships, not locations.** The one cell code-atlas won outright: `find_callers`
+  returned resolved-edge counts that the agent cross-checked against grep's raw counts and reconciled by
+  tier. Text search cannot produce an independent second count at all. This is the replacement claim.
+- **Fit, not accuracy, is the binding constraint.** Given the index, the agent reached for it in **22 of
+  117 tool calls (19 %)**, and on two of five questions essentially not at all; the LSP arm's 0 % is the
+  same finding at its limit. The whole-graph tools this argues for — `impact` (017),
+  `find_orphans`/`reachable_from` (031), `explain_path` (038) — **already shipped**, and no real question
+  needed one. So the gap is demand and modelling, not capability, and building more tools does not close it.
+- **Redirect (see [`BACKLOG.md`](BACKLOG.md) tiers).** 059 — the unmodelled handler → template data-bag
+  edge — moves to the head of tier 1: two independent field sessions produced it, it is a relation rather
+  than a location, and neither grep nor a language server answers it. 061 (payload weight) is demoted.
+- **§13 is unchanged and now has evidence.** code-atlas and a language server are not substitutes; the
+  benchmark could not even make an agent choose between them.
+- **Threats, recorded rather than hidden.** n = 1 per cell; question selection was not blind (all five
+  drawn from work already done); the one accidental repeat — the mechanism question, run twice under the
+  indexed arm's configuration with the server denied and then granted — produced **opposite verdicts**,
+  and whether that is session variance or the index steering the agent away from a control-flow defect is
+  unresolved. The refutation rests on the aggregate, not on any single cell. Details in the private
+  benchmark notes; nothing repo-identifying is reproduced here.
 
 **Reference material** (private, same folder): `understand-anything-how-it-works.md`, `code-review-graph-how-it-works.md`.
 
