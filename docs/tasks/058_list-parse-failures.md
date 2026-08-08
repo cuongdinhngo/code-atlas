@@ -65,3 +65,137 @@ behind it); `code_atlas/indexer.py` `_parse_all` / `_write` (where `parsed_ok` i
 Cheapness constraint: field retro round 1 §7 and round 2 §7 both name `get_index_status` as the thing
 that must not break.
 Origin: field retro round 2 §0 and §6a — the same 29 across both rounds, unlistable.
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 058 — list-parse-failures (working doc)
+
+- **Ticket:** 058 · local `docs/tasks/058_list-parse-failures.md`
+- **Type:** enhancement
+- **Repo(s):** app (`.`)
+- **SCOPE:** S
+- **STRUCTURE:** native
+- **TRACK:** backend — 0/N UI
+- **TIER:** full (multi-file store+tool+tests+docs; not quick/single-row)
+- **BASELINE:** green — `924 passed` (2026-08-08, untouched main)
+- **work_doc_mode:** embed
+- **working-doc path:** this file below separator
+
+## Phase 0 — Refine
+
+`REFINE: 0 unresolved product-decisions | skip: yes`
+
+`refine skipped: 0 unresolved product-decisions`
+
+**INPUT KIND:** ticket
+
+**Exposure-checker:** [Challenger](095749d1-2100-47af-aaea-535e5f88ba66) — none (ready).
+
+**HOW premises (analysis, cited — not refine wants):**
+
+| # | Decision | Resolution | Citation |
+|---|----------|------------|----------|
+| H1 | Surface | Third `detail_level` on `get_index_status` (`verbose`), not a 14th tool | ticket L29–31 |
+| H2 | Cheap path | List never on `minimal`/`standard` | ticket L32–34, L44 |
+| H3 | Cap | `config.max_results` + truncation flag | PLAN / nav `truncated`; ticket L49 |
+| H4 | Order | `ORDER BY path` | R4.2; `store.file_paths` |
+| H5 | Reason | Does **not** survive to store (`files` DDL / `upsert_file` have no error col; indexer discards `ParseResult.error`) → paths only; no schema here | ticket L35–38; `store.py` DDL; `indexer.py` upsert |
+
+## Requirements matrix
+
+`SECTIONS: 4 found (Goal, Scope/Deliverables, Constraints, Acceptance) | 4 decomposed | ROWS: C=5 R=4 G=2 AC=6`
+
+| ID | Source | Verbatim (abbrev) | Interpretation | Ph1 evidence | Ph2 covered by | Ph3/4 proven by | Status |
+|----|--------|-------------------|----------------|--------------|----------------|-----------------|--------|
+| G1 | Goal | No tool lists the failed files | Expose paths for `parsed_ok=0` | ticket L12–26 | CL1–2 | | ⏳ |
+| G2 | Goal | Data already in `files.parsed_ok` | Listing only; no new persistence | store DDL + counts | CL1 | | ⏳ |
+| R1 | Scope | Store method + operator/agent read | `failed_paths` + `verbose` status | L29–31 | CL1–2 | | ⏳ |
+| R2 | Scope | Bounded; never on cheap path | Cap + not on min/std | L32–34 | CL2 | | ⏳ |
+| R3 | Scope | Say why if known; else paths | Reason absent → paths only | H5 | CL-note | | ⏳ |
+| R4 | Scope | Runbook note after first build | Onboarding §3 → call verbose | L39–41 | CL4 | | ⏳ |
+| C1 | Constraints | Cost unchanged for existing callers | Assert min/std key/payload shape | L44 | CL3 | | ⏳ |
+| C2 | Constraints | No schema change (R3) | No DDL | L45–46 | CL1 | | ⏳ |
+| C3 | Constraints | SQL in store (R1.4); no lang branch | store method only | L47 | CL1 | | ⏳ |
+| C4 | Constraints | Deterministic order (R4.2) | ORDER BY path; two-run assert | L48 | CL1 | | ⏳ |
+| C5 | Constraints | List bounded | LIMIT max_results + truncated | L49 | CL2 | | ⏳ |
+| AC1 | AC | Path retrievable; count matches | fixture ≥1 fail | L52–53 | CL2 | | ⏳ |
+| AC2 | AC | standard/minimal unchanged | key-set assert | L54–55 | CL3 | | ⏳ |
+| AC3 | AC | Cap + says when truncates | truncated flag | L56 | CL2 | | ⏳ |
+| AC4 | AC | Stable order two runs | equality | L57 | CL2 | | ⏳ |
+| AC5 | AC | Runbook tells check after build | grep runbook | L58 | CL4 | | ⏳ |
+| AC6 | AC | pytest/ruff/mypy green | CI | L59 | verify | | ⏳ |
+
+`CLARIFICATION: 0 raised | 5 HOW (H1–H5) | j=0`
+
+**Cause:** presentation gap — count without listing.
+
+**Blast radius:** `store.py`, `get_index_status.py`, tests, onboarding runbook, PLAN §12.
+
+`RULE SECTIONS: R1.1 N/A | R1.4 ✅ | R3 ✅ (no schema) | R4.2 ✅ | R5.2 spirit (honest truncation)`
+
+`SCOPE: S` · `TIER: full`
+
+## AC validation
+
+| AC | Ticket | Computed | Match | Falsifiable |
+|----|--------|----------|-------|-------------|
+| AC1 | path + count match | `len(paths)≤cap`; `parse_failures==failed` | Y | Y |
+| AC2 | min/std unchanged | frozen key sets / no list keys | Y | Y |
+| AC3 | capped + truncate signal | `parse_failures_truncated` | Y | Y |
+| AC4 | stable order | two calls identical | Y | Y |
+| AC5 | runbook note | string present | Y | Y |
+| AC6 | green | commands | Y | Y |
+
+## Inventory
+
+N/A (no universal all/every inventory beyond AC2's two detail levels — enumerated in tests).
+
+## Clarifications
+
+`CLARIFICATION: 0 raised | 5 self-resolved (H1–H5) | j=0`
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|-------|----------|-------|--------|
+| refine | exposure-checker | 1 | unmeasured (blocking retrieval) |
+
+## Decision log
+
+| When | Decision |
+|------|----------|
+| 2026-08-08 | Standing: best option + pass process gates; push/PR need per-action OK |
+| 2026-08-08 | Gate 1 cleared (standing) — refine skip + H1–H5 |
+| 2026-08-08 | Gate 2 cleared (standing) — approach below |
+
+## Session status
+
+- **Phase:** execute (Gate 1+2 standing-cleared)
+- **Reviewed at:** —
+
+## Phase 2 — Design
+
+**Approach**
+1. `GraphStore.failed_paths(limit: int) -> tuple[str, …]` — `WHERE parsed_ok = 0 ORDER BY path LIMIT ?`.
+2. `get_index_status` `DetailLevel = Literal["minimal","standard","verbose"]`. `verbose` = full `standard` payload + `parse_failure_paths` (capped at `config.max_results`) + `parse_failures_truncated` (`failed > len(paths)`). Unbuilt/mismatched: same as standard (no list keys).
+3. Assert AC2: minimal/standard never gain list keys; proving test plants >cap failures.
+4. Runbook §3: after first build, call `get_index_status(detail_level="verbose")`.
+5. PLAN §12: document `verbose` for this tool only; reason does not persist (H5).
+
+**Rejected:** 14th tool (ticket prefer extend); schema for reason (own ticket); list on `standard` (cheap-path constraint); opaque pagination (cap+flag enough for ops).
+
+**Change list**
+| # | Change | Path | Rows |
+|---|--------|------|------|
+| 1 | `failed_paths(limit)` | `code_atlas/store.py` | R1,C3,C4,C5 |
+| 2 | `verbose` + list fields | `code_atlas/tools/get_index_status.py` | R1,R2,C1,AC1–4 |
+| 3 | Proving + cheap-path tests | `tests/test_list_parse_failures.py` | AC1–4,C1 |
+| 4 | Runbook note | `docs/runbooks/onboarding-a-repo.md` | R4,AC5 |
+| 5 | PLAN §12 note | `docs/PLAN.md` | docs |
+
+**Proving test:** `test_verbose_lists_failed_paths_capped_stable` — plant 3 failed files, `max_results=2`, verbose returns 2 paths in path order, `truncated=True`, `parse_failures=3`; second call identical; standard/minimal lack list keys.
+
+## Phase 3 — Execute
+
+(in progress)
+

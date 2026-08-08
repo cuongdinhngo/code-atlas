@@ -407,6 +407,14 @@ class GraphStore:
             "stubs": self.stub_file_count(),
         }
 
+    def failed_paths(self, limit: int) -> tuple[str, ...]:
+        """Paths with ``parsed_ok = 0``, ordered — the list behind ``parse_failures`` (task 058)."""
+        cursor = self._conn.execute(
+            "SELECT path FROM files WHERE parsed_ok = 0 ORDER BY path LIMIT ?",
+            (limit,),
+        )
+        return tuple(str(row[0]) for row in cursor)
+
     def stub_file_count(self) -> int:
         """Distinct files whose nodes carry ``extra.stub`` (task 039)."""
         (count,) = self._conn.execute(

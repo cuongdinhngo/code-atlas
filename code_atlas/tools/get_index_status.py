@@ -3,8 +3,9 @@
 ``minimal`` returns exactly the four parts §12 names: stats, ``last_commit``, staleness and
 ``next_tool_suggestions``. ``standard`` adds provenance plus index-health (``edge_health``,
 ``parse_failures``, ``dirty_indexed_files``). ``parse_failures`` mirrors ``failed`` (files with
-``parsed_ok = 0``) under the §12 name — same count, not a subset. Nothing here opens the database
-when there is none: a read tool must not create an index as a side effect.
+``parsed_ok = 0``) under the §12 name — same count, not a subset. ``verbose`` is ``standard`` plus
+a capped ``parse_failure_paths`` list (task 058) — never on the cheap path. Nothing here opens the
+database when there is none: a read tool must not create an index as a side effect.
 
 Staleness counts only files the index covers (047): editing a README leaves the graph correct, and
 a signal that says otherwise costs its reader a rebuild that reindexes nothing.
@@ -30,7 +31,7 @@ from code_atlas.tools import schema_guard
 
 NAME = "get_index_status"
 
-DetailLevel = Literal["minimal", "standard"]
+DetailLevel = Literal["minimal", "standard", "verbose"]
 
 CURRENT = "current"
 BEHIND = "behind"
@@ -70,7 +71,7 @@ def _unbuilt(
         "staleness": UNKNOWN,
         "next_tool_suggestions": _suggestions(servable, UNKNOWN, indexed=False),
     }
-    if detail_level == "standard":
+    if detail_level in ("standard", "verbose"):
         status["db_path"] = str(config.db_path)
     return status
 
@@ -111,7 +112,7 @@ def _status(
     }
     if detail_level == "minimal":
         return status
-    return status | {
+    enriched = status | {
         "head_commit": head,
         "built_at": store.get_meta(BUILT_AT_KEY),
         "contract_version": store.get_meta(CONTRACT_VERSION_KEY),
@@ -120,6 +121,13 @@ def _status(
         "edge_health": store.edge_health(),
         "parse_failures": counts["failed"],
         "dirty_indexed_files": dirty_count,
+    }
+    if detail_level == "standard":
+        return enriched
+    paths = store.failed_paths(config.max_results)
+    return enriched | {
+        "parse_failure_paths": list(paths),
+        "parse_failures_truncated": counts["failed"] > len(paths),
     }
 
 

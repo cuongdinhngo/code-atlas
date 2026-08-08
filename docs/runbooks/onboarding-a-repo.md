@@ -50,6 +50,12 @@ Adding workers past a handful buys little.
 
 ## 3. Read the parse failures — they are usually not your bug
 
+After the first build, call `get_index_status(detail_level="verbose")` and read
+`parse_failure_paths` (capped; `parse_failures_truncated` is true when the list is incomplete). The
+count alone (`parse_failures` on `standard`) does not say whether the hole is vendored fixtures or
+controllers — listing them is how you catch a systematic failure (one directory, one encoding, one
+PHP version) at onboarding rather than two field retros later.
+
 Sort the `parsed_ok = 0` list into two piles:
 
 - **Bundled legacy libraries.** Vendored PDF/spreadsheet trees (TCPDF, dompdf, MPDF, FPDF, PHPExcel)
