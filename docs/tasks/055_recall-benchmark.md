@@ -197,15 +197,26 @@ Origin: field retro round 2, and the priority decision of 2026-08-07 (correctnes
 ## Phase 3 — Execute
 
 - Branch: `feat/055-recall-benchmark`
-- Proving tests: recall separation + recall gate + ratio_eligible aggregate + e2e
-- Verification: fixture bench `ratio=0.269 recall=1.0 confidently_wrong=0` over 14 questions; `895 passed`; ruff/mypy clean
-- Diff ⊆ approved list (scripts/tests/docs/ci/fixture only)
+- Commits: `4ef87ce` (feat), `8749f93` (review fixes)
+- Proving tests: recall separation + session CW + empty-nav gate + `@needs_php` e2e
+- Verification: fixture bench `ratio=0.269 recall=1.0 confidently_wrong=0` / 14 Q; **896 passed**; ruff/mypy clean
+- Diff ⊆ approved list ✅; review findings 1–3 fixed in `8749f93`
+
+## Phase 4 — Review ✋
+
+- reviewer: **CHANGES REQUESTED** → verify-only **LGTM** ([Reviewer](afb8fa8b-1807-44f0-9cf8-461acf1f883c) → [Reviewer](3dd35d04-02f2-440f-b9df-ca99c91d3b28)) @ `8749f93`
+- challenger (ticket-blind): prior 5 not-mets → **5 met** under AC; Goal-only residual = no abstain channel ([Challenger](a819ecca-7538-4bd5-be05-097118380078) → [Challenger](bcebf7cb-27cf-4f60-9bf7-ffd05c8d3a93))
+- Scope reconciliation: diff ⊆ approved list ✅
+- Proving test: 32 harness tests + full suite 896 passed
+- **Clean?** yes
+- **Reviewed at:** `8749f93` · reviewed files: `scripts/tokens_to_answer.py`, `scripts/tokens_to_answer_questions.json`, `tests/test_tokens_to_answer.py`, `tests/fixtures/php/reach/*`, `.github/workflows/ci.yml`, `docs/runbooks/tokens-to-answer.md`, `docs/BACKLOG.md`, `docs/tasks/055_recall-benchmark.md`
+- **Exclusion (Goal-only):** tools have no “I don’t know” abstain payload; AC only requires empty→`confidently_wrong`
 
 ## Session status
 
 - **Last updated:** 2026-08-08
-- **Current phase:** Phase 3 → review
-- **Next action:** Commit; reviewer + challenger
+- **Current phase:** Phase 5 Finalise — awaiting per-action outward approvals
+- **Next action:** push + open PR (need explicit OK each)
 
 ---
 
@@ -214,8 +225,10 @@ Origin: field retro round 2, and the priority decision of 2026-08-07 (correctnes
 | Phase | Subagent / dispatch | Round | Tokens | Optimizer applied · est./measured saving |
 |-------|---------------------|-------|--------|------------------------------------------|
 | 0 | exposure-checker Challenger | 1 | (host session) | — |
+| 4 | reviewer + challenger | 1 | (host session) | — |
+| 4 | reviewer verify + challenger re-check | 2 | (host session) | — |
 
-`LEDGER TOTAL: see PR token row at finalise`
+`LEDGER TOTAL: record on PR open`
 
 ## Decision log
 
@@ -224,3 +237,4 @@ Origin: field retro round 2, and the priority decision of 2026-08-07 (correctnes
 | 2026-08-08 | W1=A, W2=A | Standing approval recommended |
 | 2026-08-08 | ASSUMED 1–6 | Standing approval after exposure-checker |
 | 2026-08-08 | ratio_eligible false for whole-graph/symptom | Preserve fixture cost floor semantics |
+| 2026-08-08 | CW = empty MCP results only | AC; no abstain channel in tools (Goal residual) |
