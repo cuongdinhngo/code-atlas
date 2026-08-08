@@ -3,8 +3,9 @@
 # Not installed automatically — copy into .git/hooks/ yourself (see README.md).
 # Git passes: $1=prev HEAD, $2=new HEAD, $3=1 for branch checkout, 0 for file.
 # Skip file checkouts so `git checkout -- path` does not spawn a refresh.
+# Keep stderr so missing PATH / ConfigError stay visible (R5.3).
 [ "$3" = "1" ] || exit 0
 (
-  code-atlas-refresh >/dev/null 2>&1
+  code-atlas-refresh >/dev/null
 ) &
 exit 0

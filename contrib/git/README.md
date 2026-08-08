@@ -31,14 +31,15 @@ version-controlled, and this project never writes into a user's `.git` for them.
 |-----------|--------|
 | No `.code-atlas/graph.db` under cwd / `$CLAUDE_PROJECT_DIR` | Exit 0; verbose: `skipped: no index` (never full-builds) |
 | Index present | Background incremental; verbose: `refreshed` |
-| Another refresh holds `.code-atlas/refresh.lock` | Exit 0; verbose: `skipped: another refresh is running` |
+| Another build holds `.code-atlas/write.lock` (hook or MCP) | Exit 0; verbose: `skipped: another build is running` |
 | `post-checkout` with git's 3rd arg ≠ `1` (file checkout) | Hook exits 0 immediately; no refresh |
-| Install/config error | Exit 0; **always** one stderr line `code-atlas refresh skipped: …` |
+| Install/config error | Exit 0; **always** one stderr line `code-atlas refresh skipped: …` (hooks keep stderr) |
 
 **Why background?** A no-op / small incremental on a large index can cost on the
 order of a minute (task 052). A hook that blocks `git pull` for that long gets
 deleted. The scripts spawn `code-atlas-refresh` and return 0 immediately.
 
-**Why a lock file?** R4.3 — one SQLite writer. Two overlapping hooks (or a hook
-racing the MCP server's build) must not both write. The second process skips
-cleanly instead of partially updating the graph.
+**Why a lock file?** R4.3 — one SQLite writer. `build_or_update_index` and
+`code-atlas-refresh` share `.code-atlas/write.lock`. A second process (another
+hook, or a hook racing the MCP server's build) skips cleanly instead of writing
+in parallel.

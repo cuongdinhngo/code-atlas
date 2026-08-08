@@ -15,6 +15,7 @@ from typing import Literal
 
 from code_atlas import gitutil
 from code_atlas.config import Config
+from code_atlas.index_lock import try_index_write_lock
 from code_atlas.indexer import BuildReport, full_build, incremental_update
 from code_atlas.store import (
     BUILT_AT_KEY,
@@ -32,6 +33,7 @@ DetailLevel = Literal["minimal", "standard"]
 FULL = "full"
 INCREMENTAL = "incremental"
 REFUSED = "refused"
+BUSY = "busy"
 
 
 def create(config: Config) -> Callable[..., dict[str, object]]:
@@ -44,31 +46,50 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         An index written under an *older* ``schema_version`` is deleted and rebuilt in-band so an
         MCP client can recover without a shell. A *newer* one is refused untouched: that index is
-        current and this server process is the stale one (task 050).
+        current and this server process is the stale one (task 050). Concurrent writers share
+        ``write.lock`` (task 053); a held lock returns ``mode: busy`` without opening the DB.
         """
         started = time.monotonic()
-        rebuilt_schema = False
-        try:
-            store = GraphStore(config.db_path)
-        except SchemaVersionError as mismatch:
-            if mismatch.direction != SCHEMA_OLDER:
-                return _refused(config, mismatch, full)
-            _unlink_index(config.db_path)
-            rebuilt_schema = True
-            store = GraphStore(config.db_path)
-        try:
-            mode, report = _run(config, store, full=full or rebuilt_schema)
-            result = _result(
-                store, config, report, full, mode, detail_level,
-                rebuilt_schema=rebuilt_schema,
-            )
-            # Stamp after payload assembly so ``seconds`` includes any ``counts()`` work (060).
-            result["seconds"] = round(time.monotonic() - started, 3)
-            return result
-        finally:
-            store.close()
+        with try_index_write_lock(config.db_path) as held:
+            if not held:
+                return {
+                    "mode": BUSY,
+                    "requested_full": full,
+                    "reason": "another_build_running",
+                    "db_path": str(config.db_path),
+                    "seconds": round(time.monotonic() - started, 3),
+                }
+            return _build(config, full=full, detail_level=detail_level, started=started)
 
     return build_or_update_index
+
+
+def _build(
+    config: Config,
+    *,
+    full: bool,
+    detail_level: DetailLevel,
+    started: float,
+) -> dict[str, object]:
+    rebuilt_schema = False
+    try:
+        store = GraphStore(config.db_path)
+    except SchemaVersionError as mismatch:
+        if mismatch.direction != SCHEMA_OLDER:
+            return _refused(config, mismatch, full)
+        _unlink_index(config.db_path)
+        rebuilt_schema = True
+        store = GraphStore(config.db_path)
+    try:
+        mode, report = _run(config, store, full=full or rebuilt_schema)
+        result = _result(
+            store, config, report, full, mode, detail_level,
+            rebuilt_schema=rebuilt_schema,
+        )
+        result["seconds"] = round(time.monotonic() - started, 3)
+        return result
+    finally:
+        store.close()
 
 
 def _run(config: Config, store: GraphStore, *, full: bool) -> tuple[str, BuildReport]:

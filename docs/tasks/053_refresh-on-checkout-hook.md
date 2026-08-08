@@ -106,9 +106,11 @@ the one nothing covers.
 - **Entry point:** `code-atlas-refresh` → `code_atlas.hooks.refresh` — reuses
   `build_or_update_index(full=false)`; no index → exit 0; install errors → one stderr line; always
   exit 0.
-- **Overlap:** non-blocking flock on `.code-atlas/refresh.lock`; loser skips (R4.3).
+- **Overlap:** shared non-blocking flock on `.code-atlas/write.lock` inside
+  `build_or_update_index` (and thus refresh); loser → hook skip / tool `mode: busy`.
 - **Mode:** out of band — `contrib/git/post-merge` and `post-checkout` spawn refresh in the
-  background (052 / field ~62s; not inline). `post-checkout` requires git’s 3rd arg `1`.
+  background (052 / field ~62s; not inline). stderr kept; stdout discarded. `post-checkout`
+  requires git’s 3rd arg `1`.
 - **Opt-in:** README states hooks are not installed automatically; never writes `.git/hooks`.
 - **Runbook:** four-layer table under “Optional: eager freshness”.
 - **Proving:** `tests/test_git_refresh_hook.py` — **946 passed** at tip (pre-review commit).

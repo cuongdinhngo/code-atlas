@@ -74,7 +74,9 @@ def test_second_refresh_skips_while_lock_held(tmp_path: Path) -> None:
     with GraphStore(config.db_path) as store:
         full_build(config, store)
         before = dict(store.counts())
-    lock_path = db.parent / "refresh.lock"
+    from code_atlas.index_lock import LOCK_NAME
+
+    lock_path = db.parent / LOCK_NAME
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with lock_path.open("a+", encoding="utf-8") as lock_file:
         fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
@@ -83,7 +85,7 @@ def test_second_refresh_skips_while_lock_held(tmp_path: Path) -> None:
         finally:
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
     assert completed.returncode == 0
-    assert b"another refresh is running" in completed.stderr
+    assert b"another build is running" in completed.stderr
     with GraphStore(config.db_path) as store:
         assert dict(store.counts()) == before
 
@@ -104,7 +106,25 @@ def test_refresh_install_error_still_exits_zero(
     assert "code-atlas refresh skipped:" in err
 
 
-def test_is_branch_checkout_only_when_flag_is_one() -> None:
+def test_build_tool_returns_busy_when_lock_held(tmp_path: Path) -> None:
+    write(tmp_path, "src/a.aa", "class Thing {}\n")
+    db = tmp_path / ".code-atlas" / "graph.db"
+    config = load_config(tmp_path, {**fake_env(), "CA_DB_PATH": str(db)})
+    with GraphStore(config.db_path) as store:
+        full_build(config, store)
+    from code_atlas.index_lock import LOCK_NAME
+    from code_atlas.tools.build_or_update_index import create
+
+    lock_path = db.parent / LOCK_NAME
+    with lock_path.open("a+", encoding="utf-8") as lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        try:
+            result = create(config)(full=False)
+        finally:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+    assert result["mode"] == "busy"
+    assert result["reason"] == "another_build_running"
+
     assert refresh_mod.is_branch_checkout("1") is True
     assert refresh_mod.is_branch_checkout("0") is False
     assert refresh_mod.is_branch_checkout(None) is False

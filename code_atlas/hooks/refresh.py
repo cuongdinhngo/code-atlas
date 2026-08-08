@@ -3,13 +3,12 @@
 Runs the same path as ``build_or_update_index(full=false)`` when an index already
 exists. Safe no-op with no index (never builds). Always exits 0 so a hook never
 fails the git command. Pair with background spawn in ``contrib/git/`` (field ~62s
-flat fee — not inline). Concurrent refreshes take a non-blocking lock beside the
-DB; the loser skips cleanly (R4.3).
+flat fee — not inline). Write locking lives in the build tool (R4.3) so a hook
+and the MCP server share one mutex; a busy peer is a clean skip.
 """
 
 from __future__ import annotations
 
-import fcntl
 import os
 import sys
 from pathlib import Path
@@ -46,20 +45,11 @@ def refresh(root: Path, *, verbose: bool = False) -> int:
         if not config.db_path.is_file():
             _note("skipped: no index", verbose=verbose)
             return 0
-
-        lock_path = config.db_path.parent / "refresh.lock"
-        lock_path.parent.mkdir(parents=True, exist_ok=True)
-        with lock_path.open("a+", encoding="utf-8") as lock_file:
-            try:
-                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError:
-                _note("skipped: another refresh is running", verbose=verbose)
-                return 0
-            try:
-                create(config)(full=False)
-                _note("refreshed", verbose=verbose)
-            finally:
-                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+        result = create(config)(full=False)
+        if result.get("mode") == "busy":
+            _note("skipped: another build is running", verbose=verbose)
+        else:
+            _note("refreshed", verbose=verbose)
     except Exception as error:
         print(
             f"code-atlas refresh skipped: {type(error).__name__}: {error}",
