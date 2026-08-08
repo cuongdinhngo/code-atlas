@@ -419,9 +419,11 @@ def test_a_detail_level_outside_the_contract_fails_loud(
 ) -> None:
     server = build_server(served_config(repo))
 
-    message = raises_through_the_client(server, name, {**arguments, "detail_level": "verbose"})
+    message = raises_through_the_client(server, name, {**arguments, "detail_level": "debug"})
 
     assert "minimal" in message and "standard" in message
+    if name == STATUS:
+        assert "verbose" in message
 
 
 def test_the_detail_level_choices_are_published_in_the_input_schema(repo: Path) -> None:
@@ -433,7 +435,12 @@ def test_the_detail_level_choices_are_published_in_the_input_schema(repo: Path) 
 
     for name, schema in asyncio.run(schemas()).items():
         levels = schema["properties"]["detail_level"]
-        assert sorted(levels.get("enum", [])) == ["minimal", "standard"], f"{name}: {levels}"
+        expected = (
+            ["minimal", "standard", "verbose"]
+            if name == STATUS
+            else ["minimal", "standard"]
+        )
+        assert sorted(levels.get("enum", [])) == expected, f"{name}: {levels}"
 
 
 # --- REF1 · the cheap entry point stays cheap ----------------------------------------------------
