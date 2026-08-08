@@ -4,7 +4,7 @@ slug: build-report-scale-naming
 title: An incremental run reports deltas under the same field names a full build uses for totals
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [051]
 ---
 
@@ -158,7 +158,7 @@ Origin: field retro round 2 §A.5.
 
 ## Session status
 
-- **Phase:** finalise (Gate 4 clean after Outcome; awaiting outward-action approvals)
+- **Phase:** done — PR pending
 - **Reviewed at:** `69bbd7a6aa5d61a08a6261bd24dafcd68e1931f3`
 - **Reviewed files:** `code_atlas/tools/build_or_update_index.py`, `tests/test_build_report_scale_naming.py`, `tests/test_build_report_counts.py`, `tests/test_mcp_server.py`, `tests/test_incremental.py`, `tests/test_schema_version_recovery.py`, `docs/PLAN.md`, `docs/tasks/060_…` (Outcome)
 
@@ -204,6 +204,6 @@ Done on `fix/060-build-report-scale-naming` @ `833b8be` (+ Outcome docs follow-u
 
 ## Phase 5 — Finalise
 
-Awaiting separate explicit approval per outward action (push, open PR).
+Push + PR approved (standing).
 Cost summary: 3 subagent dispatches, all `unmeasured (blocking retrieval)`; top driver = review pair.
 
