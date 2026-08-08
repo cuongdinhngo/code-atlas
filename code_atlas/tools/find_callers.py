@@ -98,13 +98,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             outcome = _callers(store, qname, hops=depth, limit=limit, args_at=args_at)
             indexed = bool(store.nodes_by_qualified_name(qname, limit=1))
             container, bare_name = split_qname(qname)
-            # Only when empty + indexed: honesty for the truncated-cap case; skip on hits
-            # (hot path) and on unknown qnames (must not look like truncation).
-            unresolved_bare = (
-                store.count_bare_calls_not_targeting(qname, bare_name=bare_name)
-                if indexed and container is not None and outcome.total_count == 0
-                else 0
-            )
+            unresolved_bare = 0
+            if indexed and container is not None and outcome.total_count == 0:
+                # Method-shaped only — Function ``\App\put`` ≠ bare Method ``put``.
+                # Cap uses query-time max_results (index-time may differ — Part A).
+                if store.count_nodes_by_name(bare_name, kind="Method") > config.max_results:
+                    unresolved_bare = store.count_bare_calls_not_targeting(
+                        qname, bare_name=bare_name
+                    )
             unrecorded = (
                 store.count_edges_without_args(qname, kinds=CALLER_KINDS)
                 if args_at is not None
