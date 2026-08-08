@@ -4,7 +4,7 @@ slug: view-databag-edge
 title: 'The handler → template data-bag edge is unmodelled — the primary defect in two consecutive field sessions'
 phase: 1.5b
 milestone: Coverage
-status: in-progress
+status: done
 depends_on: [030, 040]
 ---
 
@@ -267,7 +267,7 @@ Caveat: raw `->with(` is huge (~3k sites) but mostly ORM eager-load; it was excl
 | 1 | PLAN §19 decision note (option 1 + counts + LSP contrast + reject 2/3) | `docs/PLAN.md` | G1,G2,R1,R4,C1–C5,AC1,AC4 | 9/9 |
 | 2 | Follow-up ticket with contract bump / rules shape / nav answer | `docs/tasks/062_view-databag-producer.md` | R2,C2,AC2 | 3/3 |
 | 3 | BACKLOG: 059 in-progress, add 062, clear open observation | `docs/BACKLOG.md` | R1,R7.2 | 2/2 |
-| 4 | 059 frontmatter `status: in-progress` (→ done at PR) | `docs/tasks/059_view-databag-edge.md` (raw) | R7.2 | 1/1 |
+| 4 | 059 frontmatter `status: done` (+ token row at PR) | `docs/tasks/059_view-databag-edge.md` (raw) | R7.2 | 1/1 |
 | 5 | Proving test for PLAN + 062 markers | `tests/test_databag_decision_059.py` | AC1,AC2,AC4 | 3/3 |
 
 AC3 → **N/A** (option ≠ 3). No runbook decline note. No code/adapter touch. Blast-radius: docs + one new test; no shared type/factory fan-out.
@@ -363,10 +363,10 @@ Rebuilt from raw ticket + `main...docs/059-view-databag-edge` only (working doc 
 ## Phase 5 — Finalise ✋
 
 - PR draft: `/tmp/pr-059.md`
-- Outward actions (approved 2026-08-08): push branch · open PR · then status→done + token row
+- Outward actions (approved 2026-08-08): push ✅ · open PR [#63](https://github.com/cuongdinhngo/code-atlas/pull/63) ✅ · status→done + token row (this commit)
 - Follow-up for deferred: **062** (already drafted); R3/AC3 N/A
 - Durable lesson: none written this run (operator did not request `docs/LESSONS.md`)
-- Revert path: revert `9cc8204` (+ bookkeeping); close PR; drop 062 if abandoned
+- Revert path: revert branch commits; close [#63](https://github.com/cuongdinhngo/code-atlas/pull/63); drop 062 if abandoned
 
 ## Cost ledger
 
@@ -387,11 +387,11 @@ Rebuilt from raw ticket + `main...docs/059-view-databag-edge` only (working doc 
 | 2026-08-08 | **Option 1** (producer-only) | counts + field sessions reject 3; YAGNI/041 cost reject 2-now; 040 channel fits |
 | 2026-08-08 | Gate 2 cleared | same standing approval |
 | 2026-08-08 | Gate 4 clean | reviewer LGTM + challenger 8/0/1 (can’t-tell = recorded exclusion) |
-| 2026-08-08 | Finalise A+B+C approved | user: commit review detail, push, open PR |
+| 2026-08-08 | Finalise A+B+C approved | user: commit review detail, push, open PR → [#63](https://github.com/cuongdinhngo/code-atlas/pull/63) |
 
 ## Session status
 
 - **Last updated:** 2026-08-08
-- **Current phase:** Phase 5 — Finalise (executing approved outward actions)
-- **Next action:** Commit review detail → push → `gh pr create` → bookkeeping done+token row
-- **Blocked on:** nothing (actions approved)
+- **Current phase:** Phase 5 — Finalise complete (awaiting merge)
+- **Next action:** Merge [#63](https://github.com/cuongdinhngo/code-atlas/pull/63) when ready; then pick up **062**
+- **Blocked on:** nothing
