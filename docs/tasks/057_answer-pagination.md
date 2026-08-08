@@ -217,3 +217,41 @@ depth>1 pages the BFS hit stream and may still hit a count floor (W4).
 
 - **Phase:** execute → review
 
+
+## Phase 4 — Review
+
+- **Reviewed at** `e539b197c6fe96fa25df0361011d667531183ba4`
+- **Reviewed files:** `code_atlas/store.py`, four tools, `tests/test_answer_pagination.py`, `docs/PLAN.md`, `docs/tasks/057_…`, `docs/BACKLOG.md`
+- **Reviewer round 1:** [Reviewer](1fb2e463-7654-4450-9963-6249608d27d8) — **CHANGES REQUESTED** (PLAN signatures; AC5 golden; depth>1 test)
+- **Challenger:** [Challenger](146c33e6-4141-4e83-a8ce-8cd988842da0) — 14 met · 1 not met (depth>1 complete enum — scoped by W4) · 1 can't tell (AC5 — fixed)
+- **Reviewer verify:** [Reviewer](593b9a36-dcd9-4f95-8a8c-9ae828c0d706) — **LGTM** @ `e539b19`
+- **Gate 4:** clean
+
+### Reviewer detail — round 1
+
+Important: (1) PLAN §12 omit limit/offset — fixed; (2) AC5 omitted≡explicit only — fixed to store-order first page; (3) depth>1 BFS offset untested — fixed.
+
+### Challenger detail
+
+**not met #11:** depth>1 not fully enumerable — accepted under ratified W4 (store-backed / depth=1 AC1). Documented in Outcome + PLAN.
+
+## Cost ledger (dispatch)
+
+| Phase | Dispatch | Round | Tokens |
+|-------|----------|-------|--------|
+| refine | exposure-checker | 1 | unmeasured (blocking retrieval) |
+| review | reviewer | 1 | unmeasured (blocking retrieval) |
+| review | challenger | 1 | unmeasured (blocking retrieval) |
+| review | reviewer verify | 2 | unmeasured (blocking retrieval) |
+
+`LEDGER: 4 rows / 4 dispatches`
+
+## Durable lesson
+
+Paging ACs that say "every result set" must name which tools/depths are store-ORDER-BY enumerable versus BFS floors — otherwise challengers correctly fail depth>1 against the letter of the ticket.
+
+## Session status
+
+- **Phase:** finalise — waiting push / PR approval
+- **Reviewed at** `e539b19`
+
