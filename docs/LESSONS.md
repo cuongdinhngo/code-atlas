@@ -1,5 +1,13 @@
 # Lessons — code-atlas
 
+## 056 — MCP enum from NODE_KINDS without `Literal[*…]`
+
+`Literal[*NODE_KINDS]` is fine at runtime on 3.12+ but mypy rejects it (`valid-type`) even when
+the tuple looks like string literals. To publish a contract-derived vocabulary in the MCP schema
+without restructuring `contract.py`, use `Annotated[str | None, Field(json_schema_extra={"enum":
+list(NODE_KINDS)})]` for discovery and an explicit `ValueError` (find_callers shape) for the loud
+message — `json_schema_extra` does not pre-validate, so the tool body still owns R5.3.
+
 ## 043 — A per-file dedupe keys on the full UNIQUE key, and a core guard never names `sqlite3`
 Two constraints surfaced while making a duplicate-declaration file soft-fail instead of aborting the
 build:

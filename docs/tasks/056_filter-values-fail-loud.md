@@ -4,7 +4,7 @@ slug: filter-values-fail-loud
 title: An unknown filter value returns an empty result instead of an error
 phase: 1.5b
 milestone: Agent-trust
-status: in-progress
+status: done
 depends_on: [014, 033]
 ---
 
@@ -280,4 +280,32 @@ Invoke: `pytest tests/test_filter_values_fail_loud.py -q`
 
 - **Phase:** execute → review
 - Gates 1–2 cleared (standing)
+
+
+## Phase 4 — Review
+
+- **Reviewed at** `5b69d6c0b253661f901ae8099a123ba74dc95d2b`
+- **Reviewed files:** `code_atlas/tools/search_symbol.py`, `tests/test_filter_values_fail_loud.py`, `docs/tasks/056_filter-values-fail-loud.md`, `docs/BACKLOG.md`
+- **Reviewer:** [Reviewer](ff65b089-379c-4cbe-bb01-1cf868be7703) — **LGTM**
+- **Challenger:** [Challenger](2f35a89d-5fad-4a6a-a970-c34cdf188a9b) — 14 met · 0 not met · 0 can't tell
+- **Gate 4:** clean (standing — no stop)
+
+## Cost ledger (dispatch)
+
+| Phase | Dispatch | Round | Tokens |
+|-------|----------|-------|--------|
+| refine | exposure-checker challenger | 1 | unmeasured (blocking retrieval) |
+| review | reviewer | 1 | unmeasured (blocking retrieval) |
+| review | challenger | 1 | unmeasured (blocking retrieval) |
+
+`LEDGER: 3 rows / 3 dispatches` — complete
+
+## Durable lesson
+
+`Literal[*NODE_KINDS]` fails mypy (`valid-type`) even when the tuple is inferred literals; publishing a contract-derived enum without a contract restructure needs `Annotated` + `Field(json_schema_extra={"enum": list(NODE_KINDS)})` (schema-only) plus an explicit `ValueError` for the R5.3 message.
+
+## Session status
+
+- **Phase:** finalise — waiting per-action approval for push / PR
+- **Reviewed at** `5b69d6c` (stale-guard baseline)
 
