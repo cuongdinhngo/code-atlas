@@ -4,7 +4,7 @@ slug: list-parse-failures
 title: '`parse_failures: 29` — nobody can find out which 29 files the index cannot see'
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [009, 028]
 ---
 
