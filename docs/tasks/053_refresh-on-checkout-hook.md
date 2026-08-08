@@ -4,7 +4,7 @@ slug: refresh-on-checkout-hook
 title: Nothing refreshes the index when the repo changes outside the agent's editor
 phase: 1.5b
 milestone: Freshness
-status: in-progress
+status: done
 depends_on: [052, 036, 016]
 ---
 
