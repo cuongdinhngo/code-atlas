@@ -170,18 +170,45 @@ cap is the actual mechanism, found by reading the path afterwards.
 ## Phase 3 — Execute
 
 - Branch: `fix/054-bare-name-callers-silent-drop`
-- Proving: 4 new tests + nav vocabulary — green
+- Commits: `221f07e` (feat), `5092201` (review: indexed+empty-only count)
+- Proving: 5 tests in `test_bare_name_callers_silent_drop.py` + vocabulary — green
+
+## Phase 4 — Review ✋
+
+- reviewer: **CHANGES REQUESTED** → verify-only **LGTM** ([Reviewer](b3f00b88-7934-4cbe-b075-ae1939de7a91) → [Reviewer](b286671d-7e53-4f0e-909d-64ef04349bd7)) @ `5092201`
+- challenger: **12 met · 1 not met** (second query) → addressed by empty-only count ([Challenger](63eb9ef5-839c-42d4-89d7-5077dc17b03a))
+- **Clean?** yes
+- **Reviewed at:** `5092201` · files: `code_atlas/store.py`, `code_atlas/tools/find_callers.py`, `code_atlas/tools/nav_result.py`, `tests/test_bare_name_callers_silent_drop.py`, `tests/test_nav_reason_codes.py`, `docs/BACKLOG.md`, `docs/tasks/054_bare-name-callers-silent-drop.md`
+
+### Reviewer detail — round 1 ([Reviewer](b3f00b88-7934-4cbe-b075-ae1939de7a91))
+
+**CHANGES REQUESTED.** Important: `unresolved_bare_calls` emitted for unknown qnames (`\Typo::put` + bare `put` sites → `no_such_symbol` plus count). Fixed by gating on `indexed` (+ empty-only SQL).
+
+### Challenger detail ([Challenger](63eb9ef5-839c-42d4-89d7-5077dc17b03a))
+
+Part B ACs met; constraint “no second query per nav” not met when count always ran. Mitigated: count only when `indexed and total_count == 0`.
+
+### Reviewer verify ([Reviewer](b286671d-7e53-4f0e-909d-64ef04349bd7)) @ `5092201`
+
+**LGTM.**
+
+## Phase 5 — Finalise ✋
+
+- Outward actions awaiting approval: push · open PR · status→done + token row
 
 ## Session status
 
-- **Current phase:** Phase 3 → review
-- **Next action:** commit; reviewer + challenger
+- **Current phase:** Phase 5 Finalise — awaiting per-action outward approvals
+- **Next action:** push + PR (need explicit OK)
 
 ## Cost ledger
 
 | Phase | Subagent | Round | Tokens |
 |-------|----------|-------|--------|
 | 0 | exposure Challenger | 1 | unmeasured (blocking retrieval) |
+| 4 | reviewer | 1 | unmeasured (blocking retrieval) |
+| 4 | challenger | 1 | unmeasured (blocking retrieval) |
+| 4 | reviewer verify | 2 | unmeasured (blocking retrieval) |
 
 ## Decision log
 
@@ -189,3 +216,5 @@ cap is the actual mechanism, found by reading the path afterwards.
 |------|----------|-----|
 | 2026-08-08 | W1=A Part B only | Standing + recommended |
 | 2026-08-08 | ASSUMED metric/reason/emit | Standing after exposure |
+| 2026-08-08 | Count only indexed+empty | Reviewer + challenger #8 |
+| 2026-08-08 | Gate 4 clean | LGTM @ `5092201` |
