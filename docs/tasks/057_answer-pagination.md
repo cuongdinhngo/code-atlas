@@ -4,7 +4,7 @@ slug: answer-pagination
 title: A large answer cannot be enumerated, so `total_count` cannot be audited
 phase: 1.5b
 milestone: Agent-trust
-status: in-progress
+status: done
 depends_on: [013, 014, 033]
 ---
 
