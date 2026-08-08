@@ -260,15 +260,15 @@ Prior five not-mets re-judged:
 
 ## Phase 5 — Finalise ✋
 
-- Outward actions (approved 2026-08-08): push · open PR · status→done + token row
+- Outward actions (approved 2026-08-08): push ✅ · open PR [#64](https://github.com/cuongdinhngo/code-atlas/pull/64) ✅ · status→done + token row ✅
 - Follow-up deferred: Goal abstain/“I don’t know” channel (needs tool surface)
-- Revert path: revert branch commits; close the PR
+- Revert path: revert branch commits; close [#64](https://github.com/cuongdinhngo/code-atlas/pull/64)
 
 ## Session status
 
 - **Last updated:** 2026-08-08
-- **Current phase:** Phase 5 — Finalise (push + PR)
-- **Next action:** push + `gh pr create`
+- **Current phase:** Phase 5 — Finalise complete (awaiting merge)
+- **Next action:** none (PR open)
 
 ---
 
