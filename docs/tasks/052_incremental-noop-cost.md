@@ -4,7 +4,7 @@ slug: incremental-noop-cost
 title: Where does a no-op incremental build spend 62 seconds?
 phase: 1.5b
 milestone: Freshness
-status: todo
+status: in_progress
 depends_on: [016, 047]
 ---
 
@@ -188,6 +188,8 @@ Gates [053](053_refresh-on-checkout-hook.md).
 | refine | exposure-checker | 1 | unmeasured (blocking retrieval) |
 | review | reviewer | 1 | unmeasured (blocking retrieval) |
 | review | challenger | 1 | unmeasured (blocking retrieval) |
+| review | reviewer | 2 | unmeasured (blocking retrieval) |
+| review | challenger | 2 | unmeasured (blocking retrieval) |
 
 ## Decision log
 
@@ -196,11 +198,13 @@ Gates [053](053_refresh-on-checkout-hook.md).
 | 2026-08-08 | Standing: best option + pass process gates |
 | 2026-08-08 | Gate 1+2 cleared (standing) — measure-only profiler; optional phase_times on incremental_update (not MCP payload) |
 | 2026-08-08 | Review round 1: CHANGES REQUESTED — empty-adapter wipe + hash-stale after restore; fixed in `017d59f` + follow-up |
+| 2026-08-08 | Review round 2: LGTM + challenger PASS (Gate 4 clean) |
 
 ## Session status
 
-- **Phase:** review (round 2 pending)
-- **Reviewed at:** —
+- **Phase:** finalise
+- **Reviewed at:** `27de30d97487a5bd382522077466b841e09a22c4`
+- **Reviewed files:** `code_atlas/indexer.py`, `scripts/profile_incremental.py`, `tests/test_profile_incremental.py`, `docs/tasks/052_incremental-noop-cost.md`, `docs/runbooks/onboarding-a-repo.md`, `docs/PLAN.md`, `docs/LESSONS.md`
 
 ## Phase 2 — Design
 
@@ -215,10 +219,15 @@ Gates [053](053_refresh-on-checkout-hook.md).
 
 ## Phase 3 — Execute
 
-Tip lineage: `34e1224` (feat) → `017d59f` (review harden) → Outcome/mypy/LESSONS commit pending.
+Tip lineage: `34e1224` → `017d59f` → `32d7461` → `27de30d`.
 
-**Proving:** `tests/test_profile_incremental.py`. Full pytest **937 passed**.
+**Proving:** `tests/test_profile_incremental.py` — 3 passed. Full pytest **937 passed**.
 
 ## Phase 4 — Review
 
-Round 1: reviewer CHANGES REQUESTED (bind_index empty adapters; touch/restore hash-stale). Challenger: confirm/refute + stated pull cost incomplete at tip `34e1224`. Fixes landed; round 2 pending.
+Round 1: CHANGES REQUESTED ([reviewer](f1b1e0de-19e4-4dc9-a718-3843c235162a) / [challenger](1b1e1592-2747-4137-bf25-7b4059871495)).
+Round 2: **LGTM** [reviewer](465a1c0e-3cc1-41c0-88d4-5a95322d7393); challenger **PASS** [challenger](760950fb-8e3a-4310-b293-f3b7b1eb8c26). Gate 4 clean.
+
+## Durable lesson
+
+Already in `docs/LESSONS.md` (052): fixture refute + pull wall in Outcome even when scale unset; fail loud on empty adapters; resync after restore.
