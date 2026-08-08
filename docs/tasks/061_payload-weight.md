@@ -4,7 +4,7 @@ slug: payload-weight
 title: Every response carries fields that earn nothing — `db_path`, a fixed suggestion list, duplicate File rows
 phase: 1.5b
 milestone: Cost
-status: in-progress
+status: done
 depends_on: [010, 014, 033]
 ---
 
