@@ -4,7 +4,7 @@ slug: incremental-noop-cost
 title: Where does a no-op incremental build spend 62 seconds?
 phase: 1.5b
 milestone: Freshness
-status: todo
+status: in-progress
 depends_on: [016, 047]
 ---
 
@@ -109,3 +109,125 @@ Local-tier precedent: [045](045_tokens-to-answer-local-repo.md) and
 Origin: field retro round 1 §5, recorded in [`BACKLOG.md`](../BACKLOG.md) as an open observation since
 2026-08-07; the flat-fee measurement (21 files in 61.585 s) is field retro round 2 §5.
 Gates [053](053_refresh-on-checkout-hook.md).
+
+## Outcome
+
+- **Profiler shipped:** `scripts/profile_incremental.py --root /abs/checkout` (045 local-tier). Optional
+  `phase_times` on `incremental_update` records announce · tree_walk · reconcile · hashing · parse ·
+  meta · enrichment · **resolve** — not wired into the MCP payload (measure-only; R1.2). Fails loud
+  if no `CA_*_CMD` adapters (avoids empty-reconcile wipe).
+- **Fixture evidence (fake adapters, ~100 files):** three scenarios; phases ≈ wall; two no-ops keep
+  identical `store.counts()`; post-restore `_resync` keeps hashes current. Report emits
+  `resolve_hypothesis.verdict` + `summary.noop_resolve_verdict`.
+  - noop: wall≈0.03s, resolve≈0.0001s → **refuted** at fixture scale (≥50% wall threshold).
+  - pull_shaped (`pull_files=100`): **wall≈0.45s**, resolve≈0.0002s → **refuted** at fixture scale.
+- **Repo-sized re-measure:** `CODE_ATLAS_SCALE_SAMPLE` was **unset** on this host — the field ~62 s
+  flat fee was **not** re-split here. Operator command is in
+  [`runbooks/onboarding-a-repo.md`](../runbooks/onboarding-a-repo.md) §3b.
+- **Defect decision (AC4):** **Suspected defect, unconfirmed seconds** (at scale). Fixture run
+  **refutes** “resolve dominates wall” *on the tiny graph*; field evidence (0-file ≈ 21-file ≈ 62 s)
+  plus unscoped `resolve_edges` on every incremental keep the hypothesis alive for a large index.
+  **053 stays gated** until an operator profile shows resolve dominance (→ fix ticket) or a spread
+  cost (→ hooks out of band).
+- **Suite tip:** `32d7461011bff2c355061500416d15c6ba66f3aa` — **937 passed**.
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 052 — incremental-noop-cost (working doc)
+
+- **Ticket:** 052 · local `docs/tasks/052_incremental-noop-cost.md`
+- **Type:** investigation / measurement
+- **Repo(s):** app (`.`)
+- **SCOPE:** M
+- **STRUCTURE:** native
+- **TRACK:** backend — 0/N UI
+- **TIER:** full
+- **BASELINE:** green — `934 passed` (2026-08-08, untouched main)
+- **work_doc_mode:** embed
+- **working-doc path:** this file below separator
+
+## Phase 0 — Refine
+
+`REFINE: 0 unresolved | skip: yes`
+
+`refine skipped: 0 unresolved product-decisions`
+
+**Exposure-checker:** [Challenger](e9fc8bee-6793-4a40-8df5-bbd2ea265ddc) — none (ready).
+
+## Requirements matrix
+
+`SECTIONS: 4 found | 4 decomposed | ROWS: C=5 R=5 G=2 AC=6`
+
+| ID | Interpretation | Status |
+|----|----------------|--------|
+| G1 | Find where ~62s no-op goes; unblock 053 | ✅ profiler + Outcome; scale sample unset |
+| G2 | Confirm/refute unscoped resolve hypothesis | ✅ fixture **refuted**; scale **unconfirmed** |
+| R1 | Profiler scripts/ local-tier (045) | ✅ |
+| R2 | Three scenarios: noop / 1-file / ~100-file pull | ✅ |
+| R3 | Per-phase breakdown + resolve timed | ✅ |
+| R4 | Defect decision in Outcome | ✅ suspected/unconfirmed (scale) |
+| R5 | Runbook incremental cost note | ✅ §3b |
+| C1 | Measure before any optimisation | ✅ |
+| C2 | No permanent agent-facing instrumentation unless warranted | ✅ phase_times optional |
+| C3 | R4.2 counts identical across two no-ops | ✅ |
+| C4 | No private repo path/report in repo | ✅ /tmp default |
+| C5 | SQL in store; no lang branch | ✅ |
+| AC1 | Profiler + 3 scenarios; phases ≈ wall | ✅ |
+| AC2 | resolve_edges timed; confirmed/refuted | ✅ verdict in report |
+| AC3 | pull-shaped cost stated | ✅ ~0.45s / 100 files (fixture) |
+| AC4 | Outcome defect decision + evidence | ✅ |
+| AC5 | Runbook expected cost | ✅ |
+| AC6 | pytest/ruff/mypy + R4.2 counts | ✅ |
+
+`CLARIFICATION: 0 | j=0`
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|-------|----------|-------|--------|
+| refine | exposure-checker | 1 | unmeasured (blocking retrieval) |
+| review | reviewer | 1 | unmeasured (blocking retrieval) |
+| review | challenger | 1 | unmeasured (blocking retrieval) |
+| review | reviewer | 2 | unmeasured (blocking retrieval) |
+| review | challenger | 2 | unmeasured (blocking retrieval) |
+
+## Decision log
+
+| When | Decision |
+|------|----------|
+| 2026-08-08 | Standing: best option + pass process gates |
+| 2026-08-08 | Gate 1+2 cleared (standing) — measure-only profiler; optional phase_times on incremental_update (not MCP payload) |
+| 2026-08-08 | Review round 1: CHANGES REQUESTED — empty-adapter wipe + hash-stale after restore; fixed in `017d59f` + follow-up |
+| 2026-08-08 | Review round 2: LGTM + challenger PASS (Gate 4 clean) |
+
+## Session status
+
+- **Phase:** finalise
+- **Reviewed at:** `27de30d97487a5bd382522077466b841e09a22c4`
+- **Reviewed files:** `code_atlas/indexer.py`, `scripts/profile_incremental.py`, `tests/test_profile_incremental.py`, `docs/tasks/052_incremental-noop-cost.md`, `docs/runbooks/onboarding-a-repo.md`, `docs/PLAN.md`, `docs/LESSONS.md`
+
+## Phase 2 — Design
+
+**Approach**
+1. Optional `phase_times: dict[str,float]|None` on `incremental_update` / `_count_late_writes` — records announce/tree_walk/reconcile/hashing/parse/meta/enrichment/resolve when set; MCP never passes it (C2).
+2. `scripts/profile_incremental.py --root ABS` — reuse index; scenarios noop / one-edit / pull-N; report default `/tmp/code-atlas-incremental-profile.json`.
+3. Fixture tests prove phases + resolve key + sum tolerance + R4.2 counts.
+4. Runbook: cite field ~62s flat fee + how to run profiler; fill phase numbers when operator has a repo-sized index.
+5. Outcome: `CODE_ATLAS_SCALE_SAMPLE` unset here → defect vs price **awaits operator profile**; ship profiler; do not invent anchor seconds.
+
+**Change list:** indexer phase_times · script · tests · runbook · Outcome · PLAN note if needed.
+
+## Phase 3 — Execute
+
+Tip lineage: `34e1224` → `017d59f` → `32d7461` → `27de30d`.
+
+**Proving:** `tests/test_profile_incremental.py` — 3 passed. Full pytest **937 passed**.
+
+## Phase 4 — Review
+
+Round 1: CHANGES REQUESTED ([reviewer](f1b1e0de-19e4-4dc9-a718-3843c235162a) / [challenger](1b1e1592-2747-4137-bf25-7b4059871495)).
+Round 2: **LGTM** [reviewer](465a1c0e-3cc1-41c0-88d4-5a95322d7393); challenger **PASS** [challenger](760950fb-8e3a-4310-b293-f3b7b1eb8c26). Gate 4 clean.
+
+## Durable lesson
+
+Already in `docs/LESSONS.md` (052): fixture refute + pull wall in Outcome even when scale unset; fail loud on empty adapters; resync after restore.

@@ -1,5 +1,16 @@
 # Lessons — code-atlas
 
+## 052 — Measure-only tickets still need an Outcome defect decision
+
+When AC demands “is this a defect?” but the host has no repo-sized sample, record **suspected /
+unconfirmed** with the field evidence and the profiler command — do not invent a phase split, and do
+not close as honest price without one. Ship the profiler; leave 053 gated. Fixture-scale
+confirm/refute + a stated pull_shaped wall still belong in Outcome even when the scale sample is unset.
+
+A local-tier profiler that rebuilds `Config` from process env must **fail loud** when
+`adapter_cmds` is empty — otherwise reconcile can wipe the index. After touch+restore scenarios,
+re-run an untimed incremental so hashes match the restored tree.
+
 ## 060 — Record scale re-measures in ticket Outcome with a commit SHA
 
 When an AC requires re-measuring full-build vs status on a clean server, land an `## Outcome`

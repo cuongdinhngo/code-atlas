@@ -69,6 +69,28 @@ Sort the `parsed_ok = 0` list into two piles:
 
 A `parsed_ok` of 99.8 % on a repo this old is the expected shape. Investigate a number below ~99 %.
 
+## 3b. Budget the incremental — it has a flat fee
+
+Field retros measured **~62 s** for `build_or_update_index(full=false)` on an ~19k-file /
+~1.8M-edge index whether **0** or **21** files changed — a flat fee, not the parse cost (task 052).
+Until you measure your tree, budget about a minute per incremental on a repo that size; do not put
+that call on a synchronous git hook ([053](../tasks/053_refresh-on-checkout-hook.md) is gated on the
+number).
+
+Confirm where the minute goes with the local-tier profiler (reuses the on-disk index; report stays
+outside this repo by default):
+
+```bash
+python scripts/profile_incremental.py --root /abs/path/to/checkout \
+  --report /tmp/code-atlas-incremental-profile.json
+```
+
+It times announce · tree walk · reconcile · hashing · parse · meta · enrichment · **resolve** for
+noop / one-edit / ~100-file pull-shaped scenarios. If `resolve` dominates the wall on a no-op, the
+unscoped `resolve_edges` hypothesis is confirmed and a follow-up fix ticket is warranted; if the cost
+is spread across walk/reconcile/resolve, treat it as the honest price of that graph and keep hooks
+out of band.
+
 ## 4. Tune four knobs, then rebuild once
 
 Put them in a committed-or-not `.code-atlas.toml` at the repo root (see

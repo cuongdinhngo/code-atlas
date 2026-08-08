@@ -47,6 +47,18 @@ from code_atlas.store import (
 # How often the watchdog looks for an overrun call: small beside any sane timeout, cheap to poll.
 WATCHDOG_INTERVAL = 0.25
 
+# Named phases for optional ``phase_times`` on ``incremental_update`` (task 052 profiler).
+INCREMENTAL_PHASES = (
+    "announce",
+    "tree_walk",
+    "reconcile",
+    "hashing",
+    "parse",
+    "meta",
+    "enrichment",
+    "resolve",
+)
+
 _READ_CHUNK = 1 << 20
 
 # Directory names skipped under a stub walk — same built-in dirs as ignore (§11), minus nothing
@@ -126,13 +138,19 @@ def full_build(config: Config, store: GraphStore) -> BuildReport:
 
 
 def incremental_update(
-    config: Config, store: GraphStore, changed: Sequence[str]
+    config: Config,
+    store: GraphStore,
+    changed: Sequence[str],
+    *,
+    phase_times: dict[str, float] | None = None,
 ) -> BuildReport:
     """Re-index ``changed ∪ dependents`` and re-link into affected qnames (§8.3).
 
     ``changed`` is the git path set (commit range ∪ dirty tree); the caller falls back to
     :func:`full_build` when git cannot name one. Deletes and rename sources drop out of ``collect``
     and are reconciled away after their qnames are folded into ``affected``.
+
+    When ``phase_times`` is set (profiler only — task 052), records per-phase wall seconds in place.
     """
     stored = store.get_meta(CONTRACT_VERSION_KEY)
     if stored is not None and stored != str(contract.CONTRACT_VERSION):
@@ -143,9 +161,12 @@ def incremental_update(
     watchdog = _Watchdog(config.adapter_timeout)
     watchdog.start()
     try:
+        mark = time.monotonic()
         announced = _announce(config, watchdog)
+        _phase_add(phase_times, "announce", mark)
         try:
             owners = _owners(announced)
+            mark = time.monotonic()
             paths = collect(config.root, tuple(owners))
             stubs = (
                 collect_stubs(config.root, config.stub_roots, tuple(owners))
@@ -153,12 +174,14 @@ def incremental_update(
                 else ()
             )
             _reject_stub_source_overlap(paths, stubs)
+            _phase_add(phase_times, "tree_walk", mark)
             stub_set = set(stubs)
             wanted = set(paths)
             kept = tuple(sorted(wanted | stub_set))
             changed_set = set(changed)
-            indexed = set(store.file_paths())
 
+            mark = time.monotonic()
+            indexed = set(store.file_paths())
             prior = sorted(changed_set & indexed)
             affected = set(store.qnames_in_files(prior))
             # File nodes use the path as qname; include deleted/renamed-away paths so inbound edges
@@ -167,10 +190,11 @@ def incremental_update(
             gone = sorted((indexed - set(kept)) - {INDIRECTION_FILE})
             affected.update(store.qnames_in_files(gone))
             affected.update(gone)
-
             dependents = set(store.file_paths_targeting(sorted(affected))) & wanted
             removed = _reconcile(store, kept)
+            _phase_add(phase_times, "reconcile", mark)
 
+            mark = time.monotonic()
             candidates = sorted((changed_set | dependents) & wanted)
             # Dependents are unchanged by construction, so hash-skip must not apply to them —
             # replace_file_rows restores adapter tiers and duplicate keys that unlink cannot.
@@ -186,34 +210,56 @@ def incremental_update(
                 if path not in indexed or not file_is_current(store, config.root, path)
             )
             to_parse = list(dict.fromkeys(to_parse))
+            _phase_add(phase_times, "hashing", mark)
+
+            mark = time.monotonic()
             counts = (
                 _parse_all(config, store, watchdog, announced, owners, to_parse)
                 if to_parse
                 else {"parsed": 0, "failed": 0, "nodes": 0, "edges": 0}
             )
+            _phase_add(phase_times, "parse", mark)
         finally:
             for adapter in announced.values():
                 adapter.stop()
     finally:
         watchdog.stop()
 
+    mark = time.monotonic()
     _record_meta(config, store, tuple(owners))
-    _count_late_writes(counts, config, store, rules)
+    _phase_add(phase_times, "meta", mark)
+    _count_late_writes(counts, config, store, rules, phase_times=phase_times)
     return BuildReport(
         files=len(to_parse), stubs=len(stub_set & set(to_parse)), removed=removed, **counts
     )
 
 
+def _phase_add(times: dict[str, float] | None, phase: str, started: float) -> None:
+    """Accumulate one phase's wall seconds when the profiler dict is present (052)."""
+    if times is None:
+        return
+    times[phase] = times.get(phase, 0.0) + (time.monotonic() - started)
+
+
 def _count_late_writes(
-    counts: dict[str, int], config: Config, store: GraphStore, rules: RulesPayload | None
+    counts: dict[str, int],
+    config: Config,
+    store: GraphStore,
+    rules: RulesPayload | None,
+    *,
+    phase_times: dict[str, float] | None = None,
 ) -> None:
     """Run the two writers that come after the parse tally, and fold what they wrote into it (051).
 
     Enrichment inserts its synthetic rows and the resolver inserts a sibling per extra candidate.
     A report built from the parse tally alone describes a smaller graph than the build just made.
     """
+    mark = time.monotonic()
     enriched = apply_indirection_rules(config, store, payload=rules)
+    _phase_add(phase_times, "enrichment", mark)
+    mark = time.monotonic()
     siblings = resolve_edges(store, max_candidates=config.max_results)
+    _phase_add(phase_times, "resolve", mark)
     counts["nodes"] += enriched.nodes
     counts["edges"] += enriched.edges + siblings
 
