@@ -222,27 +222,62 @@ depth>1 pages the BFS hit stream and may still hit a count floor (W4).
 
 - **Reviewed at** `e539b197c6fe96fa25df0361011d667531183ba4`
 - **Reviewed files:** `code_atlas/store.py`, four tools, `tests/test_answer_pagination.py`, `docs/PLAN.md`, `docs/tasks/057_…`, `docs/BACKLOG.md`
-- **Reviewer round 1:** [Reviewer](1fb2e463-7654-4450-9963-6249608d27d8) — **CHANGES REQUESTED** (PLAN signatures; AC5 golden; depth>1 test)
-- **Challenger:** [Challenger](146c33e6-4141-4e83-a8ce-8cd988842da0) — 14 met · 1 not met (depth>1 complete enum — scoped by W4) · 1 can't tell (AC5 — fixed)
+- **Reviewer round 1:** [Reviewer](1fb2e463-7654-4450-9963-6249608d27d8) — **CHANGES REQUESTED**
+- **Challenger:** [Challenger](146c33e6-4141-4e83-a8ce-8cd988842da0) — **14 met · 1 not met · 1 can't tell**
 - **Reviewer verify:** [Reviewer](593b9a36-dcd9-4f95-8a8c-9ae828c0d706) — **LGTM** @ `e539b19`
-- **Gate 4:** clean
+- **Gate 4:** clean · **PR:** [#67](https://github.com/cuongdinhngo/code-atlas/pull/67)
 
-### Reviewer detail — round 1
+### Reviewer detail — round 1 ([Reviewer](1fb2e463-7654-4450-9963-6249608d27d8)) @ `cb0f1e1`
 
-Important: (1) PLAN §12 omit limit/offset — fixed; (2) AC5 omitted≡explicit only — fixed to store-order first page; (3) depth>1 BFS offset untested — fixed.
+**Verdict: CHANGES REQUESTED** (conditional LGTM after findings 1–3). Critical: none. Diff ⊆ approved list.
 
-### Challenger detail
+| # | Finding | Severity | Resolution |
+|---|---------|----------|------------|
+| 1 | PLAN §12 signatures omit `limit?`/`offset?` (R7.2) | Important | Fixed in `e539b19` — PLAN table updated |
+| 2 | AC5 only asserted omitted ≡ explicit defaults, not store-order first page | Important | Fixed — `test_default_args_match_pre_pagination_shape` |
+| 3 | `find_callers` depth>1 BFS `offset` untested (R6.1) | Important | Fixed — `test_find_callers_depth2_offset_pages_bfs_stream` |
 
-**not met #11:** depth>1 not fully enumerable — accepted under ratified W4 (store-backed / depth=1 AC1). Documented in Outcome + PLAN.
+**Nit (non-blocking):** `search_symbol` had `offset` before `detail_level` — reordered in `e539b19`.
+
+**Proving (round 1):** AC2 walk adequate; AC5/depth>1 inadequate until fixes.
+
+### Challenger detail ([Challenger](146c33e6-4141-4e83-a8ce-8cd988842da0)) — ticket-blind @ `cb0f1e1`
+
+**14 met · 1 not met · 1 can't tell.** Independence: raw ticket + diff (working-doc below separator not used for intent).
+
+| # | Requirement | Verdict |
+|---|-------------|---------|
+| 1 | Uniform walk (`offset` or cursor) across tools | **met** |
+| 2 | `limit` on `find_implementations` | **met** |
+| 3 | Stable total order (`id`-terminated) | **met** |
+| 4 | Last page identifiable (`truncated=false`) | **met** |
+| 5 | Do not raise default page size | **met** |
+| 6 | Common-case token cost unchanged | **met** |
+| 7 | SQL LIMIT/OFFSET in store | **met** |
+| 8 | R4.2 determinism | **met** |
+| 9 | No contract/schema change | **met** |
+| 10 | Reachability in/out decided | **met** (out) |
+| 11 | AC: every oversized set fully enumerable | **not met** — depth>1 BFS may hit count floor |
+| 12 | AC: paged walk unique + stable two runs | **met** |
+| 13 | AC: `find_implementations` accepts `limit` | **met** |
+| 14 | AC: last page identifiable | **met** |
+| 15 | AC: default-args byte-identical to today | **can't tell** (then fixed by AC5 store-order assert) |
+| 16 | pytest / ruff / mypy green | **met** |
+
+**#11 mitigation (W4):** complete enumeration required for store-backed pages (incl. `find_callers` depth=1); depth>1 pages the BFS stream — documented in Outcome + PLAN.
+
+### Reviewer detail — verify-only ([Reviewer](593b9a36-dcd9-4f95-8a8c-9ae828c0d706)) @ `e539b19`
+
+**Verdict: LGTM.** Findings 1–3 closed; 8/8 pagination tests passed; no new Important/Critical.
 
 ## Cost ledger (dispatch)
 
 | Phase | Dispatch | Round | Tokens |
 |-------|----------|-------|--------|
-| refine | exposure-checker | 1 | unmeasured (blocking retrieval) |
-| review | reviewer | 1 | unmeasured (blocking retrieval) |
-| review | challenger | 1 | unmeasured (blocking retrieval) |
-| review | reviewer verify | 2 | unmeasured (blocking retrieval) |
+| refine | exposure-checker [Challenger](2eff6265-4c08-4dc1-86fa-dbd0fd06eadd) | 1 | unmeasured (blocking retrieval) |
+| review | [Reviewer](1fb2e463-7654-4450-9963-6249608d27d8) | 1 | unmeasured (blocking retrieval) |
+| review | [Challenger](146c33e6-4141-4e83-a8ce-8cd988842da0) | 1 | unmeasured (blocking retrieval) |
+| review | [Reviewer](593b9a36-dcd9-4f95-8a8c-9ae828c0d706) verify | 2 | unmeasured (blocking retrieval) |
 
 `LEDGER: 4 rows / 4 dispatches`
 
@@ -252,6 +287,6 @@ Paging ACs that say "every result set" must name which tools/depths are store-OR
 
 ## Session status
 
-- **Phase:** finalise — waiting push / PR approval
+- **Phase:** finalise complete — PR [#67](https://github.com/cuongdinhngo/code-atlas/pull/67)
 - **Reviewed at** `e539b19`
 
