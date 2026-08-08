@@ -4,7 +4,7 @@ slug: filter-values-fail-loud
 title: An unknown filter value returns an empty result instead of an error
 phase: 1.5b
 milestone: Agent-trust
-status: in_progress
+status: in-progress
 depends_on: [014, 033]
 ---
 
