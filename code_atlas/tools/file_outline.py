@@ -90,16 +90,14 @@ def _hit(row: Mapping[str, object] | Row) -> dict[str, object]:
 
 
 def _empty(path: str, *, detail_level: str, db_path: str) -> dict[str, object]:
-    payload: dict[str, object] = {
+    del detail_level, db_path
+    return {
         "indexed": False,
         "path": path,
         "found": False,
         "results": [],
         "truncated": False,
     }
-    if detail_level == "standard":
-        payload["db_path"] = db_path
-    return payload
 
 
 def _result(
@@ -113,6 +111,7 @@ def _result(
     reason: str | None = None,
     total_count: int | None = None,
 ) -> dict[str, object]:
+    del detail_level, db_path
     payload: dict[str, object] = {
         "indexed": True,
         "path": path,
@@ -124,6 +123,4 @@ def _result(
         payload["reason"] = reason
     if total_count is not None:
         payload["total_count"] = total_count
-    if detail_level == "standard":
-        payload["db_path"] = db_path
     return payload

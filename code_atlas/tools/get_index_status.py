@@ -180,10 +180,11 @@ def _staleness(last_commit: str | None, head: str | None, *, dirty: bool | None)
 
 
 def _suggestions(servable: Sequence[str], staleness: str, *, indexed: bool) -> list[str]:
-    """Only tools this server serves; nav tools only once there is an index to navigate."""
-    if not indexed:
-        wanted = [BUILD_TOOL]
-    else:
-        wanted = [BUILD_TOOL] if staleness != CURRENT else []
-        wanted += [name for name in servable if name not in {NAME, BUILD_TOOL}]
-    return [name for name in wanted if name in servable]
+    """State-reactive hints — never the full tool list (task 061).
+
+    No index / stale or dirty index → suggest a build. A current index → empty (the
+    client already knows the servable tools).
+    """
+    if not indexed or staleness != CURRENT:
+        return [name for name in (BUILD_TOOL,) if name in servable]
+    return []

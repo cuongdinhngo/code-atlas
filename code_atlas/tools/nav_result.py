@@ -82,13 +82,17 @@ def empty_nav(
     subject: str,
     *,
     detail_level: str,
-    db_path: str,
+    db_path: str = "",
     subject_key: str = "qname",
     reason: NavReason = REASON_NOT_INDEXED,
     total_count: int = 0,
 ) -> dict[str, object]:
-    """No database yet — read tools must not create one."""
-    result: dict[str, object] = {
+    """No database yet — read tools must not create one.
+
+    ``db_path`` is accepted for call-site stability but never attached (task 061).
+    """
+    del detail_level, db_path
+    return {
         "indexed": False,
         subject_key: subject,
         "results": [],
@@ -96,9 +100,6 @@ def empty_nav(
         "reason": reason,
         "total_count": total_count,
     }
-    if detail_level == "standard":
-        result["db_path"] = db_path
-    return result
 
 
 def nav_result(
@@ -106,14 +107,19 @@ def nav_result(
     results: list[dict[str, object]],
     *,
     detail_level: str,
-    db_path: str,
+    db_path: str = "",
     truncated: bool,
     reason: NavReason | None = None,
     total_count: int | None = None,
     subject_key: str = "qname",
     **extra: object,
 ) -> dict[str, object]:
-    """Shape a nav payload; omit ``reason`` / ``total_count`` unless explicitly set."""
+    """Shape a nav payload; omit ``reason`` / ``total_count`` unless explicitly set.
+
+    ``db_path`` is accepted but never attached — use ``get_index_status`` (task 061).
+    """
+    del detail_level, db_path
+    extra.pop("db_path", None)
     payload: dict[str, object] = {
         "indexed": True,
         subject_key: subject,
@@ -125,8 +131,6 @@ def nav_result(
         payload["reason"] = reason
     if total_count is not None:
         payload["total_count"] = total_count
-    if detail_level == "standard":
-        payload["db_path"] = db_path
     return payload
 
 
@@ -134,23 +138,21 @@ def list_result(
     results: list[dict[str, object]],
     *,
     detail_level: str,
-    db_path: str,
+    db_path: str = "",
     truncated: bool,
     reason: NavReason,
     total_count: int,
     indexed: bool = True,
 ) -> dict[str, object]:
     """Search-style payload — same reason/total_count fields, no subject key."""
-    payload: dict[str, object] = {
+    del detail_level, db_path
+    return {
         "indexed": indexed,
         "results": results,
         "truncated": truncated,
         "reason": reason,
         "total_count": total_count,
     }
-    if detail_level == "standard":
-        payload["db_path"] = db_path
-    return payload
 
 
 def relation_reason(*, hit_total: int, symbol_indexed: bool) -> NavReason:

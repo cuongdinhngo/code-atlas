@@ -35,6 +35,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         """Direct subtypes that EXTEND or IMPLEMENT ``qname`` (not transitive — see impact/017).
 
         ``limit`` defaults to ``CA_MAX_RESULTS``; ``offset`` pages in store edge order (057).
+
+        ``subject_refreshed_only`` is present (and ``true``) only when read-through freshness
+        reparsed the subject's file this call — neighbors were not re-verified (035 / 061).
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
@@ -45,7 +48,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path))
         with GraphStore(config.db_path) as store:
             guard = FreshnessGuard(config, store)
-            if guard.ensure_qname(qname) == "stale":
+            freshness = guard.ensure_qname(qname)
+            if freshness == "stale":
                 return nav_result(
                     qname,
                     [],
@@ -54,7 +58,6 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     truncated=False,
                     reason=REASON_INDEX_STALE,
                     total_count=0,
-                    subject_refreshed_only=True,
                 )
             total_count = store.count_edges_by_target(qname, kinds=IMPL_KINDS)
             indexed = bool(store.nodes_by_qualified_name(qname, limit=1))
@@ -67,14 +70,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     truncated=False,
                     reason=REASON_NO_SUCH_SYMBOL,
                     total_count=0,
-                    subject_refreshed_only=True,
                 )
             edges = store.edges_by_target(
                 qname, kinds=IMPL_KINDS, limit=cap, offset=offset
             )
             results = [edge_hit(edge) for edge in edges]
         truncated = offset + len(results) < total_count
-        return nav_result(
+        result = nav_result(
             qname,
             results,
             detail_level=detail_level,
@@ -82,7 +84,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             truncated=truncated,
             reason=relation_reason(hit_total=total_count, symbol_indexed=indexed),
             total_count=total_count,
-            subject_refreshed_only=True,
         )
+        if freshness == "repaired":
+            result["subject_refreshed_only"] = True
+        return result
 
     return find_implementations

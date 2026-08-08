@@ -1,5 +1,11 @@
 # Lessons — code-atlas
 
+## 061 — Payload fields that earn nothing should leave nav/search
+
+Keep `db_path` on `get_index_status` only. Make `next_tool_suggestions` state-reactive (empty when
+current). Suppress redundant File∩Class search hits. Emit `subject_refreshed_only` only when the
+subject was actually reparsed — a constant `true` is dead weight.
+
 ## 053 — Git refresh hooks must stay opt-in and out of band
 
 When field evidence says an incremental can cost ~a minute, contrib git hooks must spawn

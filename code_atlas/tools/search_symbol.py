@@ -48,6 +48,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         those use a name/qname prefix scan. On hash drift beyond the per-call reparse cap, returns
         hits with ``reason=index_stale`` and an honest ``total_count`` (never an empty proof of
         absence). Stub-indexed nodes (task 039) also carry ``stub: true``.
+
+        A ``File`` hit whose path is already the declaring file of a ``Class`` hit in the same
+        page is suppressed (task 061) — use ``kind`` to request File rows explicitly.
         """
         kind = _require_kind(kind)
         if offset < 0:
@@ -79,7 +82,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     query, kind=kind, namespace=namespace, limit=cap + 1, offset=offset
                 )
             truncated = len(rows) > cap
-            results = [_hit(row) for row in rows[:cap]]
+            results = _suppress_redundant_file_hits([_hit(row) for row in rows[:cap]])
             if truncated or offset > 0:
                 total_count = store.count_search_nodes(
                     query, kind=kind, namespace=namespace
@@ -102,6 +105,20 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         )
 
     return search_symbol
+
+
+def _suppress_redundant_file_hits(
+    results: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """Drop File rows that only restate a Class's declaring file in this page (061)."""
+    class_files = {r["file"] for r in results if r.get("kind") == "Class"}
+    if not class_files:
+        return results
+    return [
+        row
+        for row in results
+        if not (row.get("kind") == "File" and row.get("file") in class_files)
+    ]
 
 
 def _hit(row: Mapping[str, object] | Row) -> dict[str, object]:

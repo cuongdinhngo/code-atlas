@@ -4,7 +4,7 @@ slug: payload-weight
 title: Every response carries fields that earn nothing — `db_path`, a fixed suggestion list, duplicate File rows
 phase: 1.5b
 milestone: Cost
-status: todo
+status: in-progress
 depends_on: [010, 014, 033]
 ---
 
@@ -74,3 +74,66 @@ It is recorded so the observations are not lost, not because it is urgent.
 `find_references.py` (`subject_refreshed_only=True`).
 Relative-cost evidence: field retro round 2 §9 (code-atlas under 1% of session tokens) and §3e / §5.
 Origin: field retro round 2 §3e and §5.
+
+## Outcome
+
+- **`db_path`:** dropped from nav/search/read/outline/reach/explain payloads; kept on
+  `get_index_status` (and build reports). Alternate source: call status once.
+- **`next_tool_suggestions`:** reactive — `[build_or_update_index]` when not indexed or not
+  `current`; `[]` when current (asserted across both states).
+- **`search_symbol`:** suppress `File` hits whose path matches a `Class` hit in the same page.
+- **`subject_refreshed_only`:** emitted only when read-through reparsed the subject this call;
+  documented on `find_callers` / `find_references` / `find_implementations` docstrings.
+- **Sizes (fixture, compact JSON `separators=(",", ":")`):**
+  - `get_index_status` (`standard`, current index): **680→508 B** (−172; before = prior full
+    nav-tool suggestion list when current).
+  - `find_callers` (default/`standard`, missing qname): **199→153 B** (−46; before includes
+    synthetic prior `db_path`).
+  - `search_symbol` (`standard`, empty-ish query): **131→85 B** (−46; before includes synthetic
+    prior `db_path`).
+- **Suite:** **956 passed**.
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 061 — payload-weight (working doc)
+
+- **Ticket:** 061 · local `docs/tasks/061_payload-weight.md`
+- **SCOPE:** M · **TIER:** full · **TRACK:** backend
+- **BASELINE:** green — tip `198f28a` / 949+ before change
+- **work_doc_mode:** embed
+
+## Phase 0 — Refine
+
+`REFINE: 0 unresolved | skip: yes`
+
+`refine skipped: 0 unresolved product-decisions`
+
+**Exposure-checker:** [Challenger](dbbeb1f0-9832-4a1a-9216-82b972cff604) — none (ready). 054–057 done.
+
+## Requirements matrix
+
+`SECTIONS: 4 | ROWS: C=4 R=4 G=1 AC=6` — all ✅ after execute (see Outcome).
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|-------|----------|-------|--------|
+| refine | exposure-checker | 1 | unmeasured (blocking retrieval) |
+| review | reviewer | 1 | unmeasured (blocking retrieval) |
+| review | challenger | 1 | unmeasured (blocking retrieval) |
+| review | reviewer | 2 | unmeasured (blocking retrieval) |
+| review | challenger | 2 | unmeasured (blocking retrieval) |
+
+## Decision log
+
+| When | Decision |
+|------|----------|
+| 2026-08-08 | Standing: best option + pass all gates |
+| 2026-08-08 | HOW: drop db_path from nav; reactive suggestions; suppress File∩Class; subject_refreshed_only only when repaired |
+| 2026-08-08 | Review round 2 LGTM + challenger PASS at `dafc22e` |
+
+## Session status
+
+- **Phase:** finalise
+- **Reviewed at:** `dafc22e6924b559cdc851ed10052c85803aa57ee`
+- **Reviewed files:** tools/* (nav/search/status/find_*/read/outline/reach/explain), tests/test_payload_weight.py, test_mcp_server.py, CONVENTION, README, PLAN, runbook, LESSONS, BACKLOG, task 061
