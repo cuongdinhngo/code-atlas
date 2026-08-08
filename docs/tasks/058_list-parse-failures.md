@@ -173,7 +173,7 @@ N/A (no universal all/every inventory beyond AC2's two detail levels — enumera
 
 ## Session status
 
-- **Phase:** finalise (Gate 4 clean; awaiting outward-action approvals)
+- **Phase:** done — PR [#68](https://github.com/cuongdinhngo/code-atlas/pull/68)
 - **Reviewed at:** `e5be6c387031d6f3ffd63dbd46de5c781361fb80`
 - **Reviewed files:** `code_atlas/store.py`, `code_atlas/tools/get_index_status.py`, `tests/test_list_parse_failures.py`, `tests/test_mcp_server.py`, `docs/runbooks/onboarding-a-repo.md`, `docs/PLAN.md`, `docs/CONVENTION.md` (+ working doc / LESSONS exempt)
 
@@ -213,6 +213,6 @@ Done on `fix/058-list-parse-failures`. Commits: `85d8b99` (impl), `a42ae54` (MCP
 
 ## Phase 5 — Finalise
 
-Awaiting separate explicit approval per outward action (push, open PR).
+Push + PR approved (standing). Opened [#68](https://github.com/cuongdinhngo/code-atlas/pull/68).
 Cost summary: 3 subagent dispatches, all `unmeasured (blocking retrieval)`; top driver = review pair.
 
