@@ -513,6 +513,23 @@ class GraphStore:
         """
         return self._count_edges("target_qname = ?", qname, kinds, extra=("args IS NULL", ()))
 
+    def count_bare_calls_not_targeting(self, qname: str, *, bare_name: str) -> int:
+        """Distinct CALLS sites named ``bare_name`` that never resolve to ``qname``.
+
+        After a truncated bare-name resolve (top-N Method candidates), call sites link only to
+        the alphabetical winners — so a subject outside the cap has zero inbound CALLS but this
+        count is still positive (task 054 Part B).
+        """
+        sql = (
+            "SELECT COUNT(*) FROM ("
+            "  SELECT source_qname, file_path, line FROM edges"
+            "  WHERE kind = 'CALLS' AND target_raw = ?"
+            "  GROUP BY source_qname, file_path, line"
+            "  HAVING SUM(CASE WHEN target_qname = ? THEN 1 ELSE 0 END) = 0"
+            ")"
+        )
+        return int(self._conn.execute(sql, (bare_name, qname)).fetchone()[0])
+
     def alias_targets(self) -> dict[str, str]:
         """Map alias FQN → real FQN from ``ALIASES`` edges (``source_qname`` → ``target_raw``)."""
         rows = self._conn.execute(

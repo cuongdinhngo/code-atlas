@@ -7,11 +7,12 @@ from collections.abc import Callable
 from typing import Literal, NamedTuple
 
 from code_atlas.config import Config
-from code_atlas.contract import ARG_SELECTORS, CALLER_KINDS, CONFIDENCE_TIERS
+from code_atlas.contract import ARG_SELECTORS, CALLER_KINDS, CONFIDENCE_TIERS, split_qname
 from code_atlas.store import GraphStore
 from code_atlas.tools import call_site
 from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
+    REASON_BARE_NAME_TRUNCATED,
     REASON_INDEX_STALE,
     edge_hit,
     edge_id,
@@ -67,6 +68,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         a literal). ``total_count`` then counts matches, and ``args_unrecorded`` says how many
         call sites the filter could not judge — sites whose arguments were never recorded, which
         are never counted as matches. Depth 1 only.
+
+        When bare-name resolution capped Method candidates alphabetically (task 054), a subject
+        outside that cap can have zero inbound edges while CALLS sites named its bare method still
+        exist. Those sites are counted in ``unresolved_bare_calls``, and an empty answer then uses
+        ``reason=bare_name_truncated`` instead of ``no_matches``.
         """
         if depth < 1:
             raise ValueError(f"depth must be >= 1, got {depth}")
@@ -91,6 +97,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 )
             outcome = _callers(store, qname, hops=depth, limit=limit, args_at=args_at)
             indexed = bool(store.nodes_by_qualified_name(qname, limit=1))
+            container, bare_name = split_qname(qname)
+            unresolved_bare = (
+                store.count_bare_calls_not_targeting(qname, bare_name=bare_name)
+                if container is not None
+                else 0
+            )
             unrecorded = (
                 store.count_edges_without_args(qname, kinds=CALLER_KINDS)
                 if args_at is not None
@@ -99,6 +111,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             if include_source:
                 call_site.annotate(config.root, store, outcome.results)
         reason = relation_reason(hit_total=outcome.total_count, symbol_indexed=indexed)
+        if (
+            outcome.total_count == 0
+            and indexed
+            and unresolved_bare > 0
+        ):
+            # Cap dropped this subject from bare-name linking — not "no callers exist".
+            reason = REASON_BARE_NAME_TRUNCATED
         result = nav_result(
             qname,
             outcome.results,
@@ -111,6 +130,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             frontier_skipped_non_resolved=outcome.frontier_skipped_non_resolved,
             subject_refreshed_only=True,
         )
+        if unresolved_bare > 0:
+            result["unresolved_bare_calls"] = unresolved_bare
         if unrecorded is not None:
             result["args_unrecorded"] = unrecorded
         return result

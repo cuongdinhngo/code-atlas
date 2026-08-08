@@ -19,6 +19,7 @@ NavReason = Literal[
     "no_such_symbol",
     "not_indexed",
     "index_stale",
+    "bare_name_truncated",
 ]
 
 REASON_OK: NavReason = "ok"
@@ -26,6 +27,7 @@ REASON_NO_MATCHES: NavReason = "no_matches"
 REASON_NO_SUCH_SYMBOL: NavReason = "no_such_symbol"
 REASON_NOT_INDEXED: NavReason = "not_indexed"
 REASON_INDEX_STALE: NavReason = "index_stale"  # vocabulary for 035; not emitted by 033
+REASON_BARE_NAME_TRUNCATED: NavReason = "bare_name_truncated"
 
 NAV_REASONS: tuple[NavReason, ...] = (
     REASON_OK,
@@ -33,6 +35,7 @@ NAV_REASONS: tuple[NavReason, ...] = (
     REASON_NO_SUCH_SYMBOL,
     REASON_NOT_INDEXED,
     REASON_INDEX_STALE,
+    REASON_BARE_NAME_TRUNCATED,
 )
 
 

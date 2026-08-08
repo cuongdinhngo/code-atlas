@@ -4,7 +4,7 @@ slug: bare-name-callers-silent-drop
 title: '`find_callers` reports `total_count: 0` for a method that has callers, because bare-name resolution silently keeps only the first N declarations'
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: in-progress
 depends_on: [011, 013, 046]
 ---
 
@@ -118,3 +118,74 @@ Payload-honesty precedent: [048](048_edge-health-resolved-ambiguity.md),
 [050](050_schema-version-mismatch-recovery.md) (no empty `results` beside an error).
 Origin: field retro round 2 §4 — reported there as a missing-type-inference limitation; the resolver
 cap is the actual mechanism, found by reading the path afterwards.
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 054 — bare-name-callers-silent-drop (working doc)
+
+- **Ticket:** 054 · local `docs/tasks/054_bare-name-callers-silent-drop.md`
+- **SCOPE:** M · **TIER:** full · **STRUCTURE:** native · **TRACK:** backend
+- **BASELINE:** green area — proving + resolver/nav tools; full suite at review
+- **work_doc_mode:** embed
+- **working-doc path:** this file below separator
+
+## Phase 0 — Refine
+
+`REFINE: 1 want asked | W1=A Part B only (standing) | 3 ASSUMED from exposure | skip: no`
+
+**ASSUMED (standing approval after exposure-checker):**
+1. Honesty metric = distinct CALLS sites with `target_raw`=bare name that never target this subject
+2. Empty case → `reason=bare_name_truncated` + `unresolved_bare_calls` (not bare `no_matches`)
+3. Emit field whenever count > 0; Part A out
+
+**Exposure-checker:** [Challenger](2414f1de-7f0f-480b-b260-c0b1265480c4)
+
+## Requirements matrix (Part B only)
+
+`SECTIONS: 5 | ROWS: C=5 R=4 G=2 AC=5` · `j=0` · Gate 1 cleared (standing)
+
+| ID | Interpretation | Status |
+|----|----------------|--------|
+| R1–R3 | Part B honesty counter on find_callers | ✅ |
+| R4 | Part A gated out | ✅ (not implemented) |
+| C1–C5 | No adapter; store SQL; HEURISTIC; R4; status cheap; cheap count | ✅ |
+| AC1–AC3 | Fixture + truncated reason + deterministic | ✅ |
+| AC4 | Part A not in this ticket | ✅ |
+| AC5 | green suite | ✅ |
+
+- **Gate 1/2:** cleared — standing approval 2026-08-08
+
+## Phase 2 — Design (approved)
+
+| # | Change | Path |
+|---|--------|------|
+| 1 | `count_bare_calls_not_targeting` | `code_atlas/store.py` |
+| 2 | `bare_name_truncated` + field wiring | `nav_result.py`, `find_callers.py` |
+| 3 | Proving tests (drop real + honesty + deterministic) | `tests/test_bare_name_callers_silent_drop.py` |
+| 4 | NAV_REASONS vocabulary test | `tests/test_nav_reason_codes.py` |
+| 5 | BACKLOG/frontmatter | docs |
+
+**Proving test:** `test_find_callers_reports_truncated_bare_name_not_no_matches`
+
+## Phase 3 — Execute
+
+- Branch: `fix/054-bare-name-callers-silent-drop`
+- Proving: 4 new tests + nav vocabulary — green
+
+## Session status
+
+- **Current phase:** Phase 3 → review
+- **Next action:** commit; reviewer + challenger
+
+## Cost ledger
+
+| Phase | Subagent | Round | Tokens |
+|-------|----------|-------|--------|
+| 0 | exposure Challenger | 1 | unmeasured (blocking retrieval) |
+
+## Decision log
+
+| When | Decision | Why |
+|------|----------|-----|
+| 2026-08-08 | W1=A Part B only | Standing + recommended |
+| 2026-08-08 | ASSUMED metric/reason/emit | Standing after exposure |
