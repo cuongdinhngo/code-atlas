@@ -114,19 +114,22 @@ Gates [053](053_refresh-on-checkout-hook.md).
 
 - **Profiler shipped:** `scripts/profile_incremental.py --root /abs/checkout` (045 local-tier). Optional
   `phase_times` on `incremental_update` records announce · tree_walk · reconcile · hashing · parse ·
-  meta · enrichment · **resolve** — not wired into the MCP payload (measure-only; R1.2).
-- **Fixture evidence:** `tests/test_profile_incremental.py` — three scenarios, phases sum to wall
-  within 15%, two no-ops leave identical counts (R4.2). Resolve is timed explicitly.
+  meta · enrichment · **resolve** — not wired into the MCP payload (measure-only; R1.2). Fails loud
+  if no `CA_*_CMD` adapters (avoids empty-reconcile wipe).
+- **Fixture evidence (fake adapters, ~100 files):** three scenarios; phases ≈ wall; two no-ops keep
+  identical `store.counts()`; post-restore `_resync` keeps hashes current. Report emits
+  `resolve_hypothesis.verdict` + `summary.noop_resolve_verdict`.
+  - noop: wall≈0.03s, resolve≈0.0001s → **refuted** at fixture scale (≥50% wall threshold).
+  - pull_shaped (`pull_files=100`): **wall≈0.45s**, resolve≈0.0002s → **refuted** at fixture scale.
 - **Repo-sized re-measure:** `CODE_ATLAS_SCALE_SAMPLE` was **unset** on this host — the field ~62 s
   flat fee was **not** re-split here. Operator command is in
   [`runbooks/onboarding-a-repo.md`](../runbooks/onboarding-a-repo.md) §3b.
-- **Defect decision (AC4):** **Suspected defect, unconfirmed seconds.** Field evidence (0-file ≈
-  21-file ≈ 62 s) plus code (unscoped `resolve_edges` on every incremental, including empty
-  `to_parse`) keep the leading hypothesis alive. Closing as “honest price” without a phase split
-  would violate measure-before-decide; closing as “confirmed defect” without repo-sized
-  `resolve_seconds` would invent evidence. **053 stays gated** until an operator profile shows
-  either resolve dominance (→ follow-up fix ticket) or a spread cost (→ hooks out of band).
-- **Suite tip:** `34e122471f2a15359cddf6e63ac6517e839cc7de` — **937 passed**.
+- **Defect decision (AC4):** **Suspected defect, unconfirmed seconds** (at scale). Fixture run
+  **refutes** “resolve dominates wall” *on the tiny graph*; field evidence (0-file ≈ 21-file ≈ 62 s)
+  plus unscoped `resolve_edges` on every incremental keep the hypothesis alive for a large index.
+  **053 stays gated** until an operator profile shows resolve dominance (→ fix ticket) or a spread
+  cost (→ hooks out of band).
+- **Suite tip:** pending commit after Outcome/mypy — full suite **937 passed**.
 
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
 
@@ -157,24 +160,24 @@ Gates [053](053_refresh-on-checkout-hook.md).
 
 | ID | Interpretation | Status |
 |----|----------------|--------|
-| G1 | Find where ~62s no-op goes; unblock 053 | ⏳ |
-| G2 | Confirm/refute unscoped resolve hypothesis | ⏳ |
-| R1 | Profiler scripts/ local-tier (045) | ⏳ |
-| R2 | Three scenarios: noop / 1-file / ~100-file pull | ⏳ |
-| R3 | Per-phase breakdown + resolve timed | ⏳ |
-| R4 | Defect decision in Outcome | ⏳ |
-| R5 | Runbook incremental cost note | ⏳ |
-| C1 | Measure before any optimisation | ⏳ |
-| C2 | No permanent agent-facing instrumentation unless warranted | ⏳ |
-| C3 | R4.2 counts identical across two no-ops | ⏳ |
-| C4 | No private repo path/report in repo | ⏳ |
-| C5 | SQL in store; no lang branch | ⏳ |
-| AC1 | Profiler + 3 scenarios; phases ≈ wall | ⏳ |
-| AC2 | resolve_edges timed; confirmed/refuted | ⏳ |
-| AC3 | pull-shaped cost stated | ⏳ |
-| AC4 | Outcome defect decision + evidence | ⏳ |
-| AC5 | Runbook expected cost | ⏳ |
-| AC6 | pytest/ruff/mypy + R4.2 counts | ⏳ |
+| G1 | Find where ~62s no-op goes; unblock 053 | ✅ profiler + Outcome; scale sample unset |
+| G2 | Confirm/refute unscoped resolve hypothesis | ✅ fixture **refuted**; scale **unconfirmed** |
+| R1 | Profiler scripts/ local-tier (045) | ✅ |
+| R2 | Three scenarios: noop / 1-file / ~100-file pull | ✅ |
+| R3 | Per-phase breakdown + resolve timed | ✅ |
+| R4 | Defect decision in Outcome | ✅ suspected/unconfirmed (scale) |
+| R5 | Runbook incremental cost note | ✅ §3b |
+| C1 | Measure before any optimisation | ✅ |
+| C2 | No permanent agent-facing instrumentation unless warranted | ✅ phase_times optional |
+| C3 | R4.2 counts identical across two no-ops | ✅ |
+| C4 | No private repo path/report in repo | ✅ /tmp default |
+| C5 | SQL in store; no lang branch | ✅ |
+| AC1 | Profiler + 3 scenarios; phases ≈ wall | ✅ |
+| AC2 | resolve_edges timed; confirmed/refuted | ✅ verdict in report |
+| AC3 | pull-shaped cost stated | ✅ ~0.45s / 100 files (fixture) |
+| AC4 | Outcome defect decision + evidence | ✅ |
+| AC5 | Runbook expected cost | ✅ |
+| AC6 | pytest/ruff/mypy + R4.2 counts | ✅ |
 
 `CLARIFICATION: 0 | j=0`
 
@@ -183,6 +186,8 @@ Gates [053](053_refresh-on-checkout-hook.md).
 | Phase | Dispatch | Round | Tokens |
 |-------|----------|-------|--------|
 | refine | exposure-checker | 1 | unmeasured (blocking retrieval) |
+| review | reviewer | 1 | unmeasured (blocking retrieval) |
+| review | challenger | 1 | unmeasured (blocking retrieval) |
 
 ## Decision log
 
@@ -190,10 +195,11 @@ Gates [053](053_refresh-on-checkout-hook.md).
 |------|----------|
 | 2026-08-08 | Standing: best option + pass process gates |
 | 2026-08-08 | Gate 1+2 cleared (standing) — measure-only profiler; optional phase_times on incremental_update (not MCP payload) |
+| 2026-08-08 | Review round 1: CHANGES REQUESTED — empty-adapter wipe + hash-stale after restore; fixed in `017d59f` + follow-up |
 
 ## Session status
 
-- **Phase:** execute
+- **Phase:** review (round 2 pending)
 - **Reviewed at:** —
 
 ## Phase 2 — Design
@@ -209,4 +215,10 @@ Gates [053](053_refresh-on-checkout-hook.md).
 
 ## Phase 3 — Execute
 
-(in progress)
+Tip lineage: `34e1224` (feat) → `017d59f` (review harden) → Outcome/mypy/LESSONS commit pending.
+
+**Proving:** `tests/test_profile_incremental.py`. Full pytest **937 passed**.
+
+## Phase 4 — Review
+
+Round 1: reviewer CHANGES REQUESTED (bind_index empty adapters; touch/restore hash-stale). Challenger: confirm/refute + stated pull cost incomplete at tip `34e1224`. Fixes landed; round 2 pending.

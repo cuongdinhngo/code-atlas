@@ -24,6 +24,7 @@ import sys
 import time
 from dataclasses import asdict, replace
 from pathlib import Path
+from typing import Any
 
 _REPO = Path(__file__).resolve().parent.parent
 if str(_REPO) not in sys.path:
@@ -99,7 +100,7 @@ def _run_scenario(
     *,
     name: str,
     changed: list[str],
-) -> dict[str, object]:
+) -> dict[str, Any]:
     times: dict[str, float] = {}
     wall_started = time.monotonic()
     with GraphStore(config.db_path) as store:
@@ -155,14 +156,14 @@ def profile(
     *,
     db_path: Path | None,
     pull_files: int,
-) -> dict[str, object]:
+) -> dict[str, Any]:
     config = bind_index(root, db_path)
     with GraphStore(config.db_path) as store:
         sources = _indexed_sources(store, root, max(pull_files, 1))
     if not sources:
         raise SystemExit(f"no on-disk indexed files under {root}")
 
-    scenarios: list[dict[str, object]] = []
+    scenarios: list[dict[str, Any]] = []
 
     scenarios.append(_run_scenario(config, name="noop", changed=[]))
 
@@ -255,11 +256,11 @@ def main(argv: list[str] | None = None) -> int:
                     {
                         "name": s["scenario"],
                         "wall_seconds": s["wall_seconds"],
-                        "resolve_seconds": s["phases"]["resolve"],  # type: ignore[index]
-                        "resolve_verdict": s["resolve_hypothesis"]["verdict"],  # type: ignore[index]
+                        "resolve_seconds": s["phases"]["resolve"],
+                        "resolve_verdict": s["resolve_hypothesis"]["verdict"],
                         "changed_files": s["changed_files"],
                     }
-                    for s in payload["scenarios"]  # type: ignore[index]
+                    for s in payload["scenarios"]
                 ],
             },
             indent=2,
