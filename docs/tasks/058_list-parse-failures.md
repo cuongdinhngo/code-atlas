@@ -207,9 +207,45 @@ Done on `fix/058-list-parse-failures`. Commits: `85d8b99` (impl), `a42ae54` (MCP
 
 ## Phase 4 — Review
 
-- Reviewer [894bafe3](894bafe3-d190-452c-b9aa-9ae1f0a68b7d): CHANGES REQUESTED → CONVENTION §6 fixed → LGTM condition met.
-- Challenger [6d9c575c](6d9c575c-0c31-487e-898e-dfd963be946c): 15/15 met.
-- Proving test green. Gate 4: **clean**.
+- **Reviewed at** `e5be6c387031d6f3ffd63dbd46de5c781361fb80`
+- **Reviewed files:** `code_atlas/store.py`, `code_atlas/tools/get_index_status.py`, `tests/test_list_parse_failures.py`, `tests/test_mcp_server.py`, `docs/runbooks/onboarding-a-repo.md`, `docs/PLAN.md`, `docs/CONVENTION.md` (+ working doc / LESSONS exempt)
+- **Reviewer round 1:** [Reviewer](894bafe3-d190-452c-b9aa-9ae1f0a68b7d) — **CHANGES REQUESTED** (conditional LGTM once finding 1 lands)
+- **Challenger:** [Challenger](6d9c575c-0c31-487e-898e-dfd963be946c) — **15 met · 0 not met · 0 can't tell**
+- **Gate 4:** clean after CONVENTION §6 fix @ `e5be6c3` · **PR:** [#68](https://github.com/cuongdinhngo/code-atlas/pull/68)
+
+### Reviewer detail — round 1 ([Reviewer](894bafe3-d190-452c-b9aa-9ae1f0a68b7d)) @ pre-CONVENTION tip
+
+**Verdict: CHANGES REQUESTED** (conditional LGTM after finding 1). Critical: none. Diff ⊆ approved change list (+ MCP schema companion).
+
+| # | Finding | Severity | Resolution |
+|---|---------|----------|------------|
+| 1 | `docs/CONVENTION.md` §6 still claimed every tool is only `{minimal, standard}` while STATUS accepts `verbose` (R7.2 / pre-PR self-check) | Important | Fixed in `e5be6c3` — CONVENTION §6 notes status-only `verbose` |
+
+**Proving test:** present and green — `tests/test_list_parse_failures.py::test_verbose_lists_failed_paths_capped_stable` (3 failed files, `CA_MAX_RESULTS=2` → ordered cap, `truncated=True`, two-run equality). Also green: cheap-path omit, under-cap, MCP schema/loud-fail for STATUS.
+
+**Verified (no finding):** `failed_paths` SQL `WHERE parsed_ok = 0 ORDER BY path LIMIT ?`; cheap path returns before `failed_paths` for minimal/standard; truncation via `counts["failed"] > len(paths)`; no DDL / reason persistence; R1.1 / R1.4 / R4.2 / R6.1 ok.
+
+### Challenger detail ([Challenger](6d9c575c-0c31-487e-898e-dfd963be946c)) — ticket-blind @ branch tip
+
+**15 met · 0 not met · 0 can't tell.** Independence: raw ticket + `git diff main...HEAD` only (working-doc below separator not used for intent).
+
+| # | Requirement | Verdict |
+|---|-------------|---------|
+| 1 | Store method listing `files.parsed_ok = 0` | **met** — `store.py:410-416` `failed_paths` |
+| 2 | Operator/agent read via existing surface (prefer status `detail_level`, not 14th tool) | **met** — `verbose` + `parse_failure_paths` |
+| 3 | List not on `standard` / cheap path | **met** — list only after standard return |
+| 4 | List bounded | **met** — `config.max_results` / `LIMIT ?` |
+| 5 | Say so when truncated | **met** — `parse_failures_truncated` |
+| 6 | Check if failure reason survives; paths-only if not; no schema here | **met** — `ParseResult.error` not persisted; PLAN records paths-only |
+| 7 | No schema change (R3) | **met** — DDL untouched |
+| 8 | SQL in store (R1.4) | **met** |
+| 9 | No language branch in core (R1.1) | **met** |
+| 10 | Deterministic ordered listing; stable across two runs (R4.2) | **met** — `ORDER BY path` + proving equality |
+| 11 | Cost unchanged for existing callers — asserted minimal + standard | **met** — key-set / omit-list asserts |
+| 12 | AC: path retrievable; count matches `parse_failures` | **met** |
+| 13 | AC: minimal/standard unchanged for callers not asking for list | **met** |
+| 14 | AC: runbook tells operator to check list after first build | **met** — onboarding §3 |
+| 15 | AC: pytest / ruff / mypy green | **met** — 927 passed |
 
 ## Phase 5 — Finalise
 
