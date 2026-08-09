@@ -94,6 +94,7 @@ def empty_nav(
     subject: str,
     *,
     detail_level: str,
+    index_root: str,
     db_path: str = "",
     subject_key: str = "qname",
     reason: NavReason = REASON_NOT_INDEXED,
@@ -102,6 +103,7 @@ def empty_nav(
     """No database yet — read tools must not create one.
 
     ``db_path`` is accepted for call-site stability but never attached (task 061).
+    ``index_root`` is the source tree the server was configured with (task 071).
     """
     del detail_level, db_path
     return {
@@ -111,6 +113,7 @@ def empty_nav(
         "truncated": False,
         "reason": reason,
         "total_count": total_count,
+        "index_root": index_root,
     }
 
 
@@ -119,6 +122,7 @@ def nav_result(
     results: list[dict[str, object]],
     *,
     detail_level: str,
+    index_root: str,
     db_path: str = "",
     truncated: bool,
     reason: NavReason | None = None,
@@ -129,6 +133,7 @@ def nav_result(
     """Shape a nav payload; omit ``reason`` / ``total_count`` unless explicitly set.
 
     ``db_path`` is accepted but never attached — use ``get_index_status`` (task 061).
+    ``index_root`` always ships so a caller can compare against its own cwd (task 071).
     """
     del detail_level, db_path
     extra.pop("db_path", None)
@@ -137,6 +142,7 @@ def nav_result(
         subject_key: subject,
         "results": results,
         "truncated": truncated,
+        "index_root": index_root,
         **extra,
     }
     if reason is not None:
@@ -150,6 +156,7 @@ def list_result(
     results: list[dict[str, object]],
     *,
     detail_level: str,
+    index_root: str,
     db_path: str = "",
     truncated: bool,
     reason: NavReason,
@@ -164,6 +171,7 @@ def list_result(
         "truncated": truncated,
         "reason": reason,
         "total_count": total_count,
+        "index_root": index_root,
     }
 
 

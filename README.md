@@ -113,7 +113,8 @@ Drive everything through the MCP tools:
    `explain_path` (see [Tools](#tools)).
 
 Every tool takes `detail_level` — `minimal` for the payload alone; `standard` (default) may add
-provenance (`db_path` on `get_index_status` / build reports only after 061).
+provenance (`db_path` on `get_index_status` / build reports only after 061). Every answer also carries
+`index_root` (the configured source tree — task 071) so a worktree agent can spot a mismatched server.
 
 > **Language scope today:** only the **PHP** adapter exists. A TypeScript, Python, or C# project won't
 > index yet — those are planned (see [Roadmap](#roadmap)).

@@ -83,6 +83,7 @@ def _unbuilt(
         "last_commit": None,
         "staleness": UNKNOWN,
         "next_tool_suggestions": _suggestions(servable, UNKNOWN, indexed=False),
+        "index_root": config.index_root,
     }
     if detail_level in ("standard", "verbose"):
         status["db_path"] = str(config.db_path)
@@ -130,6 +131,7 @@ def _status(
         "last_commit": last_commit,
         "staleness": staleness,
         "next_tool_suggestions": _suggestions(servable, staleness, indexed=indexed),
+        "index_root": config.index_root,
     }
     if detail_level == "minimal":
         return status

@@ -39,7 +39,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         repair fails (adapter/DB error). Stub-indexed nodes (task 039) also carry ``stub: true``.
         """
         if not config.db_path.is_file():
-            return _empty(qname, detail_level=detail_level, db_path=str(config.db_path))
+            return _empty(
+                qname,
+                detail_level=detail_level,
+                db_path=str(config.db_path),
+                index_root=config.index_root,
+            )
         with GraphStore(config.db_path) as store:
             rows = store.nodes_by_qualified_name(qname, limit=1)
             guard = FreshnessGuard(config, store)
@@ -52,6 +57,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                             "",
                             detail_level=detail_level,
                             db_path=str(config.db_path),
+                            index_root=config.index_root,
                             found=False,
                             stale=True,
                             reason=REASON_INDEX_STALE,
@@ -66,6 +72,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         "",
                         detail_level=detail_level,
                         db_path=str(config.db_path),
+                        index_root=config.index_root,
                         found=False,
                         reason=REASON_OK,
                     )
@@ -77,6 +84,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     "",
                     detail_level=detail_level,
                     db_path=str(config.db_path),
+                    index_root=config.index_root,
                     found=True,
                     stale=True,
                     reason=REASON_INDEX_STALE,
@@ -92,6 +100,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         "",
                         detail_level=detail_level,
                         db_path=str(config.db_path),
+                        index_root=config.index_root,
                         found=False,
                         reason=REASON_OK,
                     )
@@ -110,6 +119,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 source,
                 detail_level=detail_level,
                 db_path=str(config.db_path),
+                index_root=config.index_root,
                 found=True,
                 stale=False,
                 reason=REASON_OK,
@@ -149,7 +159,9 @@ def _comment_top(lines: Sequence[str], line_start: int) -> int:
     return top
 
 
-def _empty(qname: str, *, detail_level: str, db_path: str) -> dict[str, object]:
+def _empty(
+    qname: str, *, detail_level: str, db_path: str, index_root: str
+) -> dict[str, object]:
     del detail_level, db_path
     return {
         "indexed": False,
@@ -157,6 +169,7 @@ def _empty(qname: str, *, detail_level: str, db_path: str) -> dict[str, object]:
         "found": False,
         "stale": False,
         "source": "",
+        "index_root": index_root,
     }
 
 
@@ -166,6 +179,7 @@ def _result(
     *,
     detail_level: str,
     db_path: str,
+    index_root: str,
     found: bool,
     stale: bool = False,
     reason: str | None = None,
@@ -181,6 +195,7 @@ def _result(
         "found": found,
         "stale": stale,
         "source": source,
+        "index_root": index_root,
     }
     if reason is not None:
         payload["reason"] = reason

@@ -28,6 +28,7 @@ def test_nav_helpers_omit_db_path() -> None:
         [],
         detail_level="standard",
         db_path="/secret/graph.db",
+        index_root="/trees/main",
         truncated=False,
         reason="no_matches",
         total_count=0,
@@ -36,11 +37,13 @@ def test_nav_helpers_omit_db_path() -> None:
         [],
         detail_level="standard",
         db_path="/secret/graph.db",
+        index_root="/trees/main",
         truncated=False,
         reason="no_matches",
         total_count=0,
     )
     assert "db_path" not in empty and "db_path" not in listed
+    assert empty["index_root"] == listed["index_root"] == "/trees/main"
 
 
 def test_status_keeps_db_path_while_nav_drops_it(tmp_path: Path) -> None:
@@ -104,5 +107,6 @@ def test_payload_size_before_after_recorded_shape(tmp_path: Path) -> None:
     }
     assert sizes["get_index_status"] > sizes["find_callers"]
     assert "db_path" in status and "db_path" not in callers and "db_path" not in search
-    # Surfaced for Outcome / humans reading the proving test.
-    assert sizes["find_callers"] < 400
+    assert "index_root" in status and "index_root" in callers and "index_root" in search
+    # Surfaced for Outcome / humans reading the proving test (071 raises the soft ceiling).
+    assert sizes["find_callers"] < 500

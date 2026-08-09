@@ -90,6 +90,31 @@ def estimate_tokens(text: str) -> int:
     return -(-len(text) // 4)  # ceil division
 
 
+# Absolute paths a payload carries (071's `index_root`, `get_index_status`'s `db_path`). Their
+# length is a property of where the checkout lives, so counting them verbatim would make the gate
+# a function of path depth: the same code measured 0.326 at `/tmp/w` and 0.236 sixty chars deeper.
+ENV_PATH_FIELDS = ("index_root", "db_path")
+ENV_PATH_PLACEHOLDER = "/<root>"
+
+
+def normalize_env_paths(payload: object) -> object:
+    """Fixed-width stand-in for environment-dependent paths, so the count is checkout-invariant.
+
+    Only what is *counted* is normalized; the raw response still reaches correctness matching.
+    A field's presence is still paid for — adding one moves the number, moving the repo does not.
+    """
+    if isinstance(payload, dict):
+        return {
+            key: ENV_PATH_PLACEHOLDER
+            if key in ENV_PATH_FIELDS and isinstance(value, str)
+            else normalize_env_paths(value)
+            for key, value in payload.items()
+        }
+    if isinstance(payload, list):
+        return [normalize_env_paths(item) for item in payload]
+    return payload
+
+
 def bind_tools(config: Config) -> dict[str, Callable[..., dict[str, object]]]:
     """One repo's tool callables, keyed by name (the recipe's vocabulary)."""
     return {
@@ -121,7 +146,7 @@ def run_atlas_path(
         fn = tools[str(step["tool"])]
         args = dict(step.get("args", {}))
         response = fn(**args)
-        blob = json.dumps(response, ensure_ascii=False, sort_keys=True)
+        blob = json.dumps(normalize_env_paths(response), ensure_ascii=False, sort_keys=True)
         total += estimate_tokens(json.dumps(args, ensure_ascii=False)) + estimate_tokens(blob)
         responses.append(response)
     return total, responses
@@ -297,7 +322,7 @@ def run_session_path(
         args = dict(step.get("args", {}))
         response = dict(fn(**args))
         response["tool"] = tool
-        blob = json.dumps(response, ensure_ascii=False, sort_keys=True)
+        blob = json.dumps(normalize_env_paths(response), ensure_ascii=False, sort_keys=True)
         total += estimate_tokens(json.dumps(args, ensure_ascii=False)) + estimate_tokens(blob)
         responses.append(response)
     calls = mcp_calls + native_calls

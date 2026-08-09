@@ -20,7 +20,7 @@ Deterministic by design: each question is a **fixed recipe**, not a live model
 ```bash
 export CA_PHP_CMD="php $(pwd)/adapters/php/index.php --server"
 python3 scripts/tokens_to_answer.py                              # report only
-python3 scripts/tokens_to_answer.py --min-ratio 0.29 --min-recall 1.0  # CI gates
+python3 scripts/tokens_to_answer.py --min-ratio 0.27 --min-recall 1.0  # CI gates
 ```
 
 The report lands under `artifacts/` (gitignored). The pure-Python gate tests
@@ -30,7 +30,7 @@ The report lands under `artifacts/` (gitignored). The pure-Python gate tests
 ## Automatic gate (every PR)
 
 The `test` job in [`ci.yml`](../../.github/workflows/ci.yml) runs
-`python scripts/tokens_to_answer.py --min-ratio 0.29 --min-recall 1.0 --markdown … --notice` on every
+`python scripts/tokens_to_answer.py --min-ratio 0.27 --min-recall 1.0 --markdown … --notice` on every
 PR — it fails on a wrong answer, a recall miss / `confidently_wrong`, or if the ratio regresses. It
 runs on **3.13 only** (a token count does not vary by interpreter) and reports in four places, so
 nobody has to open a log:
@@ -132,7 +132,7 @@ carries. A tool returning ten duplicates and a tool returning ten distinct answe
 
 Treat the ratio as a **cost** measure, not a quality measure. **Recall is the gate; cost is the win.**
 A cheaper answer that finds less of a known ground-truth set is a regression — CI enforces that with
-`--min-recall 1.0` on the fixture tier alongside `--min-ratio 0.29`.
+`--min-recall 1.0` on the fixture tier alongside `--min-ratio 0.27`.
 
 - **`expected_set`** — complete hand-written ground truth; the harness reports `recall`, `found`,
   `missing`.
@@ -171,14 +171,20 @@ one docstring during 037 moved the break-even from 11.4 to 8.9).
 Recalibrate the floor to `0.8 × observed` whenever the fixtures or recipes change. Response-shape
 work also moves it: the ratio has drifted **0.302 → 0.293 → 0.286 → 0.282 → 0.367** (1409 → 1452 →
 1484 → 1696 → 1305 atlas tokens) as tasks 033 and 035 added `reason` / `total_count` to every payload
-and task 061 then trimmed the dead fields back out. The last step is the only one that *widened* the
-headroom: at 0.367 observed the old `0.24` floor sat at 0.65× observed, so a 35% payload regression
-would have passed green — the floor is now **0.29**. The 1484 → 1696 step was
-**observed** during task 045 and is not attributed here — 045 changed no payload, and a
-stash-and-compare run proved the fixture report byte-identical across its diff. Whatever widened those
-responses did so without updating this line, which is the argument for re-reading the floor before
-calling a breach a retrieval regression. Re-read the floor before assuming a failure is a
-regression in retrieval rather than a wider response.
+and task 061 then trimmed the dead fields back out. The 1484 → 1696 step was **observed** during task
+045 and is not attributed: 045 changed no payload, and a stash-and-compare run proved the fixture
+report byte-identical across its diff. Whatever widened those responses did so without updating this
+line — which is the argument for re-reading the floor before calling a breach a retrieval regression.
+
+**Task 071 broke the series, and the fix is why the current number is comparable at all.** Putting an
+absolute `index_root` on every answer made the count a function of *where the checkout lives*: the same
+code, same 14/14 answers, measured **0.326** with the fixture workdir at `/tmp/w`, **0.277** sixty
+characters deeper, and **0.236** at ~110 characters. A floor calibrated on one path reads as a
+retrieval regression on another. `normalize_env_paths` now substitutes a fixed-width placeholder for
+`index_root` / `db_path` **in the counted blob only** — a field's presence is still paid for, so adding
+one still moves the number, while moving the repo does not. Post-fix the fixture tier is **0.336**
+(1426 atlas tokens), identical across all three workdirs, and the floor is **0.27**. Figures before
+this paragraph were counted with verbatim paths and are not strictly comparable to it.
 
 ## Adding a question
 

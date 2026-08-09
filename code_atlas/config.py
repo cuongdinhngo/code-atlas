@@ -75,6 +75,14 @@ class Config:
         """The launch argv for one adapter, or None when none is configured for it."""
         return self.adapter_cmds.get(lang.lower())
 
+    @property
+    def index_root(self) -> str:
+        """The tree this server indexes, as every answer names it (task 071).
+
+        One definition: a payload field 38 call sites re-derived cannot be changed in one place.
+        """
+        return str(self.root.resolve())
+
 
 def env_name(key: str) -> str:
     """The environment variable for a project-file key: ``db_path`` → ``CA_DB_PATH``."""

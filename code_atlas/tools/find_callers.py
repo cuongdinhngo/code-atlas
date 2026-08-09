@@ -94,7 +94,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             raise ValueError(f"limit must be >= 1, got {cap}")
         args_at = _args_at(arg_position, arg_is, depth=depth)
         if not config.db_path.is_file():
-            return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path))
+            return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path),
+            index_root=config.index_root,
+        )
         with GraphStore(config.db_path) as store:
             guard = FreshnessGuard(config, store)
             freshness = guard.ensure_qname(qname)
@@ -105,6 +107,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         [],
                         detail_level=detail_level,
                         db_path=str(config.db_path),
+                        index_root=config.index_root,
                         truncated=False,
                         reason=REASON_INDEX_STALE,
                         total_count=0,
@@ -142,6 +145,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             outcome.results,
             detail_level=detail_level,
             db_path=str(config.db_path),
+            index_root=config.index_root,
             truncated=outcome.truncated,
             reason=reason,
             total_count=outcome.total_count,

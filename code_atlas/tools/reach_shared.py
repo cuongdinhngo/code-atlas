@@ -51,6 +51,7 @@ def no_roots(detail_level: DetailLevel, config: Config) -> dict[str, object]:
         "authoritative": False,
         "depth_exhausted": False,
         "message": "no roots configured — set CA_ENTRY_POINTS or entry_points in .code-atlas.toml",
+        "index_root": config.index_root,
     }
     del detail_level
     return payload
@@ -77,6 +78,7 @@ def reach_payload(
     *,
     detail_level: DetailLevel,
     db_path: str,
+    index_root: str,
     truncated: bool,
     depth: int | None,
     unproven: list[dict[str, object]],
@@ -90,6 +92,7 @@ def reach_payload(
         results,
         detail_level=detail_level,
         db_path=db_path,
+        index_root=index_root,
         truncated=truncated,
         depth=depth,
         status="ok",

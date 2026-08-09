@@ -40,7 +40,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if not roots:
             return no_roots(detail_level, config)
         if not config.db_path.is_file():
-            return empty_nav("", detail_level=detail_level, db_path=str(config.db_path))
+            return empty_nav("", detail_level=detail_level, db_path=str(config.db_path),
+            index_root=config.index_root,
+        )
         with GraphStore(config.db_path) as store:
             seeds = entry_seeds(store, roots)
             outcome = store.find_orphans(
@@ -53,6 +55,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             results,
             detail_level=detail_level,
             db_path=str(config.db_path),
+            index_root=config.index_root,
             truncated=outcome.truncated,
             depth=depth,
             unproven=unproven_hits(outcome.unproven),

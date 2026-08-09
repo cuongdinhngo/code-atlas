@@ -60,7 +60,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         rel = _repo_relative(config.root, path)
         if not config.db_path.is_file():
             return empty_nav(
-                rel, detail_level=detail_level, db_path=str(config.db_path), subject_key="path"
+                rel, detail_level=detail_level, db_path=str(config.db_path), subject_key="path",
+                index_root=config.index_root,
             )
         limit = config.max_results
         reason = None
@@ -79,6 +80,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             outcome.results,
             detail_level=detail_level,
             db_path=str(config.db_path),
+            index_root=config.index_root,
             truncated=outcome.truncated,
             subject_key="path",
             reason=reason,

@@ -78,7 +78,7 @@ jobs:
           CA_PHP_CMD: php ${{ github.workspace }}/adapters/php/index.php --server
         run: |
           status=0
-          python scripts/tokens_to_answer.py --min-ratio 0.29 --min-recall 1.0 \
+          python scripts/tokens_to_answer.py --min-ratio 0.27 --min-recall 1.0 \
             --markdown "${RUNNER_TEMP}/tokens-to-answer.md" --notice || status=$?
           if [ -f "${RUNNER_TEMP}/tokens-to-answer.md" ]; then
             cat "${RUNNER_TEMP}/tokens-to-answer.md" >> "$GITHUB_STEP_SUMMARY"
