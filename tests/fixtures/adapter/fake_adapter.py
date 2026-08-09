@@ -23,6 +23,12 @@ FOREVER = 600
 
 HANDSHAKES = {
     "ok": {"name": "fake", "extensions": SUFFIXES, "capabilities": {}, "contract_version": 5},
+    "empty-extensions": {
+        "name": "fake",
+        "extensions": [],
+        "capabilities": {},
+        "contract_version": 5,
+    },
     "rich-capabilities": {
         "name": "fake",
         "extensions": SUFFIXES,

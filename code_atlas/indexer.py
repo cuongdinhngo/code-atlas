@@ -108,12 +108,14 @@ def full_build(config: Config, store: GraphStore) -> BuildReport:
     """
     # Validate rules before any parse so a bad file fails loud without a half-built index (R5.3).
     rules = load_indirection_rules(config)
+    _require_configured_adapters(config)
     watchdog = _Watchdog(config.adapter_timeout)
     watchdog.start()
     try:
         announced = _announce(config, watchdog)
         try:
             owners = _owners(announced)
+            _require_announced_suffixes(owners)
             paths = collect(config.root, tuple(owners))
             stubs = (
                 collect_stubs(config.root, config.stub_roots, tuple(owners))
@@ -158,6 +160,7 @@ def incremental_update(
         return full_build(config, store)
 
     rules = load_indirection_rules(config)
+    _require_configured_adapters(config)
     watchdog = _Watchdog(config.adapter_timeout)
     watchdog.start()
     try:
@@ -166,6 +169,7 @@ def incremental_update(
         _phase_add(phase_times, "announce", mark)
         try:
             owners = _owners(announced)
+            _require_announced_suffixes(owners)
             mark = time.monotonic()
             paths = collect(config.root, tuple(owners))
             stubs = (
@@ -491,6 +495,24 @@ def _announce(config: Config, watchdog: _Watchdog) -> dict[str, SubprocessAdapte
             adapter.stop()
         raise
     return started
+
+
+def _require_configured_adapters(config: Config) -> None:
+    """Empty ``adapter_cmds`` is misconfiguration, not an empty repo (task 064 / R5.3)."""
+    if config.adapter_cmds:
+        return
+    raise AdapterError(
+        "no adapters configured — set CA_<LANG>_CMD or .code-atlas.toml [adapter_cmd].<lang>"
+    )
+
+
+def _require_announced_suffixes(owners: Mapping[str, str]) -> None:
+    """Adapters that handshake with no extensions cannot index anything (task 064)."""
+    if owners:
+        return
+    raise AdapterError(
+        "adapters announced no file suffixes — check each adapter's handshake extensions"
+    )
 
 
 def _adapter(config: Config, key: str) -> SubprocessAdapter:

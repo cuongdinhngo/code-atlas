@@ -10,6 +10,8 @@ change must not be able to quietly restore the destructive behaviour.
 """
 
 import asyncio
+import shlex
+import sys
 from pathlib import Path
 
 import pytest
@@ -33,6 +35,7 @@ from tests.test_mcp_server import CALLS, call
 OLDER = "1"
 NEWER = "9"
 GIBBERISH = "2.0-rc1"
+FAKE = Path(__file__).resolve().parent / "fixtures" / "adapter" / "fake_adapter.py"
 
 
 def indexed(root: Path, version: str) -> Config:
@@ -42,7 +45,15 @@ def indexed(root: Path, version: str) -> Config:
     ever opening the index — a pass there would prove nothing about the mismatch.
     """
     root.mkdir(parents=True, exist_ok=True)
-    config = load_config(root, {"CA_WORKERS": "1", "CA_ENTRY_POINTS": "public/*.php"})
+    config = load_config(
+        root,
+        {
+            "CA_WORKERS": "1",
+            "CA_ENTRY_POINTS": "public/*.php",
+            # Task 064: empty adapter_cmds refuses the build — keep a no-op adapter for heal paths.
+            "CA_FAKE_CMD": shlex.join([sys.executable, str(FAKE), "ok"]),
+        },
+    )
     with GraphStore(config.db_path) as store:
         store.set_meta(SCHEMA_VERSION_KEY, version)
     return config

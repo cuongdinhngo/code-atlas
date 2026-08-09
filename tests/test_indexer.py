@@ -28,7 +28,13 @@ from code_atlas import contract
 from code_atlas.adapter import AdapterError, ParseResult
 from code_atlas.config import Config, load_config
 from code_atlas.indexer import BuildReport, _write, collect, full_build
-from code_atlas.store import BUILT_AT_KEY, CONTRACT_VERSION_KEY, LAST_COMMIT_KEY, GraphStore
+from code_atlas.store import (
+    BUILT_AT_KEY,
+    CONTRACT_VERSION_KEY,
+    INDEXED_SUFFIXES_KEY,
+    LAST_COMMIT_KEY,
+    GraphStore,
+)
 
 REPO = Path(__file__).resolve().parent.parent
 FAKE = REPO / "tests" / "fixtures" / "adapter" / "fake_adapter.py"
@@ -489,15 +495,17 @@ def test_the_language_stored_is_the_one_the_adapter_announced(
     assert files_table(store)["src/a.aa"][1] == "fake"
 
 
-def test_a_build_with_no_configured_adapter_indexes_nothing(
+def test_a_build_with_no_configured_adapter_fails_loud(
     tmp_path: Path, store: GraphStore
 ) -> None:
+    """Task 064: empty adapter_cmds is config error, not a successful empty index."""
     tree(tmp_path, "src/a.aa")
 
-    report = full_build(load_config(tmp_path, {"CA_WORKERS": "1"}), store)
+    with pytest.raises(AdapterError, match="no adapters configured"):
+        full_build(load_config(tmp_path, {"CA_WORKERS": "1"}), store)
 
-    assert report == BuildReport(files=0, parsed=0, failed=0, removed=0, nodes=0, edges=0, stubs=0)
-    assert store.get_meta(BUILT_AT_KEY), "an empty build still stamps the index"
+    assert store.get_meta(LAST_COMMIT_KEY) is None
+    assert store.get_meta(INDEXED_SUFFIXES_KEY) is None
 
 
 # --- task 043: the per-file write soft-fails a bad file; it never aborts the build (R5.1) ---------
