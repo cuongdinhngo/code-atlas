@@ -21,7 +21,7 @@ from typing import NamedTuple
 from code_atlas import contract
 from code_atlas.contract import CONFIDENCE_TIERS
 
-SCHEMA_VERSION = "3"
+SCHEMA_VERSION = "4"
 SCHEMA_VERSION_KEY = "schema_version"
 CONTRACT_VERSION_KEY = "contract_version"
 LAST_COMMIT_KEY = "last_commit"
@@ -71,7 +71,7 @@ CREATE INDEX IF NOT EXISTS idx_nodes_file ON nodes(file_path);
 
 CREATE TABLE IF NOT EXISTS edges (
   id INTEGER PRIMARY KEY, kind TEXT, source_qname TEXT, target_qname TEXT, target_raw TEXT,
-  file_path TEXT, line INT, confidence_tier TEXT DEFAULT 'RESOLVED', args TEXT);
+  file_path TEXT, line INT, confidence_tier TEXT DEFAULT 'RESOLVED', args TEXT, arg_keys TEXT);
 CREATE INDEX IF NOT EXISTS idx_edges_src ON edges(source_qname, kind);
 CREATE INDEX IF NOT EXISTS idx_edges_tgt ON edges(target_qname, kind);
 CREATE INDEX IF NOT EXISTS idx_edges_tier ON edges(confidence_tier);

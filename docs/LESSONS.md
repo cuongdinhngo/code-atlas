@@ -1,5 +1,11 @@
 # Lessons — code-atlas
 
+## 063 — Count-first ACs need an Outcome above the mango separator
+
+A “count before code” AC cannot be proven from a single squash commit. Put the table + kill/proceed
+in the ticket **Outcome** (above the working-doc separator) and pin it with a small test that reads
+that section — otherwise a ticket-blind challenger marks AC1 `can't tell` and Gate 4 fails.
+
 ## 062 — `key_arg` is an argument index, not a string-literal ordinal
 
 `view_data` rules name which **argument** holds the key. Store `args` only record categories, so

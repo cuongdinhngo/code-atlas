@@ -60,29 +60,30 @@ def _php_env(root: Path, *, rules: bool) -> dict[str, str]:
 
 @needs_php
 def test_handler_publish_keys_queryable_with_rules(tmp_path: Path, store: GraphStore) -> None:
-    """AC1 proving: rules on ⇒ find_view_data returns planted keys; HEURISTIC + rule."""
+    """Rules on ⇒ find_view_data returns planted keys (string + array_keys); HEURISTIC + rule."""
     _plant(tmp_path)
     config = load_config(tmp_path, _php_env(tmp_path, rules=True))
     assert full_build(config, store).failed == 0
 
     edges = store.edges_by_source(HANDLER, kinds=(contract.PROVIDES_VIEW_DATA,), limit=20)
-    assert edges, "expected PROVIDES_VIEW_DATA edges from the assign rule"
+    assert edges, "expected PROVIDES_VIEW_DATA edges from the view_data rules"
+    # assign/put lines + setData array line: items/title each appear twice (different lines).
     keys = {
         contract.VIEW_DATA_PREFIX + "items",
         contract.VIEW_DATA_PREFIX + "title",
         contract.VIEW_DATA_PREFIX + "extra",
     }
     assert {row["target_raw"] for row in edges} == keys
+    assert len(edges) == 5
     assert all(row["confidence_tier"] == "HEURISTIC" for row in edges)
     assert all(row["file_path"] == INDIRECTION_FILE for row in edges)
 
     tool = find_view_data.create(config)
     payload = tool(HANDLER)
     assert payload["reason"] == "ok"
-    assert payload["total_count"] == 3
-    found = {hit["key"]: hit for hit in payload["results"]}
-    assert set(found) == {"items", "title", "extra"}
-    for hit in found.values():
+    assert payload["total_count"] == 5
+    assert {hit["key"] for hit in payload["results"]} == {"items", "title", "extra"}
+    for hit in payload["results"]:
         assert hit[contract.RULE_FLAG] is True
         assert hit["confidence_tier"] == "HEURISTIC"
         assert hit["kind"] == contract.PROVIDES_VIEW_DATA
@@ -92,7 +93,7 @@ def test_handler_publish_keys_queryable_with_rules(tmp_path: Path, store: GraphS
 
 @needs_php
 def test_without_rules_no_view_data_edges(tmp_path: Path, store: GraphStore) -> None:
-    """AC1: no CA_INDIRECTION_RULES ⇒ graph has no PROVIDES_VIEW_DATA."""
+    """AC5: no CA_INDIRECTION_RULES ⇒ graph has no PROVIDES_VIEW_DATA."""
     _plant(tmp_path)
     config = load_config(tmp_path, _php_env(tmp_path, rules=False))
     assert full_build(config, store).failed == 0
@@ -102,3 +103,24 @@ def test_without_rules_no_view_data_edges(tmp_path: Path, store: GraphStore) -> 
     payload = find_view_data.create(config)(HANDLER)
     assert payload["total_count"] == 0
     assert payload["results"] == []
+
+
+@needs_php
+def test_array_literal_keys_are_recorded_on_calls(tmp_path: Path, store: GraphStore) -> None:
+    """Adapter emits arg_keys for top-level string keys; non-literal keys do not shift."""
+    _plant(tmp_path)
+    config = load_config(tmp_path, _php_env(tmp_path, rules=False))
+    assert full_build(config, store).failed == 0
+
+    calls = [
+        row
+        for row in store.edges_by_source(HANDLER, kinds=("CALLS",), limit=20)
+        if row["target_raw"] == "setData" or str(row["target_raw"]).endswith("::setData")
+    ]
+    assert len(calls) == 1
+    raw_keys = calls[0]["arg_keys"]
+    if isinstance(raw_keys, str):
+        import json
+
+        raw_keys = json.loads(raw_keys)
+    assert raw_keys == [["items", "title"]]

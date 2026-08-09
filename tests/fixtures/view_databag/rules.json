@@ -1,6 +1,7 @@
 {
   "view_data": [
     {"setter": "assign", "key_arg": 1},
-    {"setter": "put", "key_arg": 2}
+    {"setter": "put", "key_arg": 2},
+    {"setter": "setData", "key_arg": 1, "key_from": "array_keys"}
   ]
 }

@@ -131,7 +131,7 @@ def test_node_fields_are_the_ten_contract_fields() -> None:
     )
 
 
-def test_edge_fields_are_the_eight_contract_fields() -> None:
+def test_edge_fields_are_the_nine_contract_fields() -> None:
     assert EDGE_FIELDS == (
         "kind",
         "source_qname",
@@ -141,6 +141,7 @@ def test_edge_fields_are_the_eight_contract_fields() -> None:
         "line",
         "confidence_tier",
         "args",
+        "arg_keys",
     )
 
 
@@ -159,7 +160,7 @@ def test_target_qname_is_not_required_so_adapters_can_emit_bare_edges() -> None:
 
 
 def test_contract_version_is_exported() -> None:
-    assert CONTRACT_VERSION == 4
+    assert CONTRACT_VERSION == 5
 
 
 def test_known_capabilities_advertises_semantic_types() -> None:
