@@ -231,6 +231,18 @@ Related: [054](054_bare-name-callers-silent-drop.md) (a silent drop with a count
 
 `SKIPPED` per user instruction (`/solve 065 with skipped review`). No `Reviewed at` marker.
 
+**Post-PR review (main loop, 0 dispatch) — 2 defects, both fixed on the branch:**
+
+| # | Defect | Fix |
+|---|--------|-----|
+| 1 | `mypy code_atlas` failed — `**extras: dict[str, object]` into `nav_result` collides with its `total_count: int \| None` keyword. CI gates mypy, so the PR was red | Drop `**extras`; build the payload with explicit kwargs and attach `unresolved_includes` after |
+| 2 | The new reason fired for `direction="imported_by"` only. `both` is the **default**, and the ticket's own evidence row is a file with 2 computed-path requirers — under `both` it still returned `results: []`, `unresolved_includes: 0` (outbound count) and **no reason**: the confident zero AC4 exists to kill, at the direction agents actually call | Trigger on `direction in ("imported_by", "both")`; two asserts added to the proving test |
+
+Also noted, deliberately **not** changed: the bare-name arm of the `find_references` trigger can count
+an unqualified reference to a same-named class in another namespace. Suppressing it under name
+ambiguity would restore a confident zero for whichever class *is* referenced — the approximation errs
+in the safe direction, and is now stated at the call site.
+
 ## Phase 5 — Finalise
 
 Pending outward-action approvals.

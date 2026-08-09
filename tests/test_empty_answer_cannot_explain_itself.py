@@ -156,6 +156,13 @@ def test_include_graph_imported_by_omits_always_zero_and_flags_unlinked(
     assert outbound["unresolved_includes"] == 1
     assert outbound.get("reason") != REASON_RELATIONSHIP_NOT_MODELLED
 
+    # "both" is the default direction — an outbound-only zero must not read as complete.
+    default = tool("lib.php")
+    assert default["results"] == []
+    assert default["unresolved_includes"] == 0
+    assert default["reason"] == REASON_RELATIONSHIP_NOT_MODELLED
+    assert default["try_instead"] == TRY_INSTEAD_PATH_BASENAME_SEARCH
+
 
 def test_include_graph_imported_by_genuine_empty_has_no_unresolved_field(
     tmp_path: Path, store: GraphStore
@@ -167,11 +174,16 @@ def test_include_graph_imported_by_genuine_empty_has_no_unresolved_field(
         [],
         root=tmp_path,
     )
-    inbound = include_graph.create(db_config(tmp_path))("orphan.php", direction="imported_by")
+    tool = include_graph.create(db_config(tmp_path))
+    inbound = tool("orphan.php", direction="imported_by")
     assert "unresolved_includes" not in inbound
     assert inbound["results"] == []
     assert inbound.get("reason") != REASON_RELATIONSHIP_NOT_MODELLED
     assert "try_instead" not in inbound
+
+    default = tool("orphan.php")
+    assert default.get("reason") != REASON_RELATIONSHIP_NOT_MODELLED
+    assert "try_instead" not in default
 
 
 def test_reason_vocabulary_pins_relationship_not_modelled() -> None:

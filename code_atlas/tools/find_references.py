@@ -96,6 +96,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             reason = relation_reason(hit_total=total_count, symbol_indexed=indexed)
             try_instead: str | None = None
             # Empty + unlinked REFERENCES/IMPORTS ⇒ relationship not modelled (not a genuine zero).
+            # The bare-name arm is approximate — an unqualified same-name target counts as
+            # evidence, erring toward "may be unmodelled" over a confident zero.
             if reason == REASON_NO_MATCHES and nodes:
                 name = str(nodes[0]["name"])
                 unlinked = store.count_unlinked_by_target_raw(

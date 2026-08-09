@@ -49,8 +49,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         only, capped by ``CA_MAX_RESULTS``. Linked edges only appear in ``results``.
         ``unresolved_includes`` counts bare/dynamic includes on the seed path's ``imports`` side
         and is omitted for ``imported_by`` (inbound unresolved is unanswerable as a confident
-        zero — task 065). Empty ``imported_by`` with unlinked includes mentioning the basename
-        returns ``reason=relationship_not_modelled`` plus ``try_instead``.
+        zero — task 065). An empty answer in a direction that reads inbound (``imported_by`` or
+        ``both``) with unlinked includes mentioning the basename returns
+        ``reason=relationship_not_modelled`` plus ``try_instead``.
         """
         if depth < 1:
             raise ValueError(f"depth must be >= 1, got {depth}")
@@ -67,31 +68,26 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         with GraphStore(config.db_path) as store:
             outcome = _graph(store, rel, direction=direction, hops=depth, limit=limit)
             if (
-                direction == "imported_by"
+                direction in ("imported_by", "both")
                 and not outcome.results
                 and store.count_unlinked_includes_mentioning(PurePosixPath(rel).name) > 0
             ):
                 reason = REASON_RELATIONSHIP_NOT_MODELLED
                 try_instead = TRY_INSTEAD_PATH_BASENAME_SEARCH
-        extras: dict[str, object] = {
-            "direction": direction,
-            "depth": depth,
-        }
-        if outcome.unresolved_includes is not None:
-            extras["unresolved_includes"] = outcome.unresolved_includes
-        return attach_try_instead(
-            nav_result(
-                rel,
-                outcome.results,
-                detail_level=detail_level,
-                db_path=str(config.db_path),
-                truncated=outcome.truncated,
-                subject_key="path",
-                reason=reason,
-                **extras,
-            ),
-            try_instead,
+        payload = nav_result(
+            rel,
+            outcome.results,
+            detail_level=detail_level,
+            db_path=str(config.db_path),
+            truncated=outcome.truncated,
+            subject_key="path",
+            reason=reason,
+            direction=direction,
+            depth=depth,
         )
+        if outcome.unresolved_includes is not None:
+            payload["unresolved_includes"] = outcome.unresolved_includes
+        return attach_try_instead(payload, try_instead)
 
     return include_graph
 
