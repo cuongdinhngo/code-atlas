@@ -141,7 +141,7 @@ def reply(path):
 
 
 def extra_nodes(path):
-    """Emit `# symbol: Name` markers from the file body so reparse can discover new symbols (073)."""
+    """Emit `# symbol: Name` markers from the file body for reparse discovery (073)."""
     try:
         with open(path, encoding="utf-8") as handle:
             text = handle.read()

@@ -1,4 +1,4 @@
-"""Query-time read-through freshness — repair drifted files before shaping a response (035 / 073)."""
+"""Query-time read-through freshness — repair drifted files before answering (035 / 073)."""
 
 from __future__ import annotations
 
