@@ -90,7 +90,7 @@ gap that fixtures never hit.
 | 060 | [An incremental run reports deltas under the field names a full build uses for totals](tasks/060_build-report-scale-naming.md) | Agent-trust | done | 051 |
 | 061 | [Every response carries fields that earn nothing](tasks/061_payload-weight.md) | Cost | done | 010, 014, 033 |
 | 062 | [Producer-side view data-bag edges — rules + enrichment](tasks/062_view-databag-producer.md) | Coverage | done | 030, 040, 059 |
-| 063 | [The data-bag setter takes an array, not a key — 062 emits nothing on the anchor repo](tasks/063_view-databag-array-keys.md) | Coverage | in-progress | 062, 002, 049 |
+| 063 | [The data-bag setter takes an array, not a key — 062 emits nothing on the anchor repo](tasks/063_view-databag-array-keys.md) | Coverage | done | 062, 002, 049 |
 
 **047–049 come from the first external field session** — an agent in the anchor repo used the server for
 real work and filled in a retro (`v0.1.0`, commit `e117b47`, round 1). Its headline finding was **zero
@@ -243,6 +243,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 060 | Nest build wrote counts beside labelled graph totals | **3 dispatch** — refine exposure-checker + review `mango:reviewer` / `mango:challenger`; all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051 | [#69](https://github.com/cuongdinhngo/code-atlas/pull/69) |
 | 052 | Profile incremental phases; Outcome defect decision | **5 dispatch** — refine exposure-checker + review rounds 1–2 (`mango:reviewer` / `mango:challenger` ×2); all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051 | [#70](https://github.com/cuongdinhngo/code-atlas/pull/70) |
 | 053 | Opt-in git hooks for background index refresh | **5 dispatch** — refine exposure-checker + review rounds 1–2 (`mango:reviewer` / `mango:challenger` ×2); all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051 | [#71](https://github.com/cuongdinhngo/code-atlas/pull/71) |
+| 063 | Array-literal view-data keys (`arg_keys` + `key_from`) | **6 dispatch** — refine + analysis explore + review reviewer/challenger ×2; all **`unmeasured (blocking retrieval)`**. Main-loop unmeasured | pending |
 | 062 | Producer-side view data-bag edges (PROVIDES_VIEW_DATA + find_view_data) | **6 dispatch** — refine exposure-checker + analysis explore + review `mango:reviewer` / `mango:challenger` ×2; all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051 | [#73](https://github.com/cuongdinhngo/code-atlas/pull/73) |
 | 061 | Trim dead payload weight from nav and search | **5 dispatch** — refine exposure-checker + review rounds 1–2 (`mango:reviewer` / `mango:challenger` ×2); all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051 | [#72](https://github.com/cuongdinhngo/code-atlas/pull/72) |
 

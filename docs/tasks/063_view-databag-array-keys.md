@@ -4,7 +4,7 @@ slug: view-databag-array-keys
 title: 'The data-bag setter takes an array, not a key — 062 emits nothing on the anchor repo'
 phase: 1.5b
 milestone: Coverage
-status: in-progress
+status: done
 depends_on: [062, 002, 049]
 ---
 
@@ -259,8 +259,41 @@ References: citation only.
 **Branch:** `feat/063-view-databag-array-keys`
 **Suite:** 965 passed.
 
+## Phase 4 — Review
+
+- **Reviewed at** `1aeee235a02c6adb61af78e9d7b4b189f9d3fb9c`
+- **Reviewer round 1:** [Reviewer](f7f56936-5a1a-4561-8f5c-c33b1e2ac9a3) — **LGTM**
+- **Challenger round 1:** [Challenger](80979760-4593-4efc-afd6-4a3a6c4f78c3) — **11 met · 0 not met · 1 can't tell** (AC1 temporal) · Gate 4 **FAIL**
+- **Reviewer round 2:** [Reviewer](9bec63ad-7a7c-47f2-bb3b-1331df80d70f) — **LGTM** (AC1 Outcome pin)
+- **Challenger round 2:** [Challenger](99bfb3a9-0414-4c39-8da1-44adce8c1281) — **16 met · 0 not met · 0 can't tell** · Gate 4 **PASS**
+
+### Reviewer detail — round 1 @ `e238144`
+**LGTM.** Critical/Important: none. Contract v5 `arg_keys`, schema 4, PHP keys, `key_from`, 062 path, find_view_data unchanged, AC1 proceed recorded.
+
+### Challenger detail — round 1 @ `e238144`
+**FAIL** on AC1 process (single commit can't prove count-before-code). Product ACs met.
+
+### Round 2 (@ `1aeee23`)
+Outcome AC1 table above separator + `tests/test_view_databag_shape_count.py` + LESSONS → challenger **PASS**, reviewer still **LGTM**.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|-------|----------|-------|--------|
+| refine | exposure-checker | 1 | unmeasured (blocking retrieval) |
+| analysis | explore | 1 | unmeasured (blocking retrieval) |
+| review | reviewer | 1 | unmeasured (blocking retrieval) |
+| review | challenger | 1 | unmeasured (blocking retrieval) |
+| review | reviewer | 2 | unmeasured (blocking retrieval) |
+| review | challenger | 2 | unmeasured (blocking retrieval) |
+
+## Phase 5 — Finalise
+
+Standing: push + PR + merge when CI green.
+
 ## Session status
 
-- **Phase:** execute → review
+- **Phase:** finalise
+- **Reviewed at:** `1aeee235a02c6adb61af78e9d7b4b189f9d3fb9c`
 - **work_doc_mode:** embed
 - **working-doc path:** `docs/tasks/063_view-databag-array-keys.md` (below separator)
