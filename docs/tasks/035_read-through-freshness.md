@@ -16,6 +16,13 @@ correctness: when a tool is about to return rows touching file X, compare X's cu
 stored `files.hash`, and if it drifted, reparse **just X** through the adapter inline before
 answering. One adapter call, milliseconds, no daemon, no determinism violation (§19 agent-first pivot).
 
+**Result-driven boundary (clarified by task 073).** Freshness repairs paths the answer already
+touched (hit files / subject file / outline path). A zero-hit query has no such path — before 073 it
+returned a confident empty without checking dirty indexed files. 073 adds miss-driven repair: when
+exactly one indexed file is dirty (git), spend the same `READ_THROUGH_CAP=1` on that file; when
+several are dirty, emit `index_stale` rather than claiming absence. Path-named tools remain stronger
+than query-named ones when more than one file has drifted.
+
 ## Scope / Deliverables
 - A query-time staleness check shared across the read/nav tools: hash the on-disk file, compare to
   `store.file_hash(rel)`, and on mismatch reparse that single file through the adapter and update its

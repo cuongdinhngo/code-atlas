@@ -11,7 +11,13 @@ from code_atlas import contract
 from code_atlas.config import Config
 from code_atlas.store import GraphStore
 from code_atlas.tools.freshness import FreshnessGuard
-from code_atlas.tools.nav_result import REASON_INDEX_STALE, REASON_OK, is_stub
+from code_atlas.tools.nav_result import (
+    REASON_INDEX_STALE,
+    REASON_OK,
+    TRY_INSTEAD_FILE_OUTLINE,
+    attach_try_instead,
+    is_stub,
+)
 
 NAME = "read_symbol"
 
@@ -36,16 +42,33 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             return _empty(qname, detail_level=detail_level, db_path=str(config.db_path))
         with GraphStore(config.db_path) as store:
             rows = store.nodes_by_qualified_name(qname, limit=1)
-            if not rows:
-                return _result(
-                    qname,
-                    "",
-                    detail_level=detail_level,
-                    db_path=str(config.db_path),
-                    found=False,
-                    reason=REASON_OK,
-                )
             guard = FreshnessGuard(config, store)
+            if not rows:
+                status = guard.ensure_miss()
+                if status == "stale":
+                    return attach_try_instead(
+                        _result(
+                            qname,
+                            "",
+                            detail_level=detail_level,
+                            db_path=str(config.db_path),
+                            found=False,
+                            stale=True,
+                            reason=REASON_INDEX_STALE,
+                        ),
+                        TRY_INSTEAD_FILE_OUTLINE,
+                    )
+                if status == "repaired":
+                    rows = store.nodes_by_qualified_name(qname, limit=1)
+                if not rows:
+                    return _result(
+                        qname,
+                        "",
+                        detail_level=detail_level,
+                        db_path=str(config.db_path),
+                        found=False,
+                        reason=REASON_OK,
+                    )
             rel = str(rows[0]["file_path"])
             status = guard.ensure(rel)
             if status == "stale":
