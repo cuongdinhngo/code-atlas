@@ -171,7 +171,31 @@ Representative sizes on a temp fixture (`index_root` length 16):
 | search_symbol | 85 | 117 | +32 |
 | get_index_status | 508 | 540 | +32 |
 
-Delta ≈ `,"index_root":"<path>"`. Real paths are longer; soft ceiling on callers raised 400 → 500 chars in tests. Fixture tokens-to-answer: 1807 atlas / 479 grep = **0.265** → floor **0.21**.
+Delta ≈ `,"index_root":"<path>"`. Real paths are longer; soft ceiling on callers raised 400 → 500 chars in tests.
+
+**"Real paths are longer" was the defect, not a caveat.** Because the field is an absolute path, the
+fixture tier stopped measuring the response and started measuring the *checkout's depth* — same code,
+same 14/14 answers, three workdirs:
+
+| fixture workdir | path chars | atlas tokens | ratio |
+|---|---|---|---|
+| `/tmp/w` | 6 | 1470 | **0.326** |
+| `/tmp/aaaa…/eeee` | 55 | 1731 | **0.277** |
+| a session scratchpad | ~112 | 2030 | **0.236** |
+
+The `0.265` this section recorded was one point on that curve, so the floor derived from it (`0.21`)
+was a property of one machine: a deeper clone reads as a retrieval regression, a shallower one hands
+back headroom the lock is supposed to hold. The runbook's own claim — "deterministic by design … so CI
+can gate on it (R4)" — no longer held.
+
+**Fix:** `normalize_env_paths` in the harness substitutes a fixed-width placeholder for `index_root` /
+`db_path` **in the counted blob only**; the raw response still reaches correctness matching, and a
+field's *presence* is still charged (`test_normalization_still_charges_for_a_new_field`). Post-fix:
+**1426 atlas / 479 grep = 0.336**, byte-identical across all three workdirs above, floor **0.27**.
+
+Second finding, same review: `str(config.root.resolve())` was re-derived at **38 call sites** across 14
+tool modules — one payload field with 38 definitions, and 071's own neighbours (072, 073) are the
+tickets most likely to need to change how a tree is named. Now `Config.index_root`, one definition.
 
 ## Cost ledger
 

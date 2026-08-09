@@ -64,7 +64,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
         db_path = str(config.db_path)
-        index_root = str(config.root.resolve())
+        index_root = config.index_root
         if not config.db_path.is_file():
             return list_result(
                 [],

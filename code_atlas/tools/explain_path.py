@@ -56,7 +56,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             "truncated": outcome.truncated or outcome.status == PATH_STATUS_INCOMPLETE,
             "depth": depth,
             "depth_exhausted": outcome.depth_exhausted,
-            "index_root": str(config.root.resolve()),
+            "index_root": config.index_root,
         }
         del detail_level
         return payload
@@ -81,7 +81,7 @@ def _not_indexed(
         "truncated": False,
         "depth": depth,
         "depth_exhausted": False,
-        "index_root": str(config.root.resolve()),
+        "index_root": config.index_root,
     }
     del detail_level
     return payload

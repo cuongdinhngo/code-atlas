@@ -352,6 +352,42 @@ def test_questions_file_is_valid_json_on_disk() -> None:
 
 
 @needs_php
+def _counted(payload: dict[str, object]) -> int:
+    return _h.estimate_tokens(
+        json.dumps(_h.normalize_env_paths(payload), ensure_ascii=False, sort_keys=True)
+    )
+
+
+def test_token_count_does_not_depend_on_where_the_checkout_lives() -> None:
+    """`index_root` length is environmental (071) — the gate must not measure path depth.
+
+    Unnormalized, the same fixtures measured ratio 0.326 / 0.277 / 0.236 at three workdir depths.
+    """
+    shallow = {"index_root": "/tmp/w", "results": [{"file": "src/a.php", "line": 3}]}
+    deep = {
+        "index_root": "/home/runner/work/code-atlas/code-atlas/artifacts/tokens-to-answer/case0",
+        "results": [{"file": "src/a.php", "line": 3}],
+    }
+    assert _counted(shallow) == _counted(deep)
+    assert _counted(dict(shallow, db_path="/tmp/w/.code-atlas/graph.db")) == _counted(
+        dict(deep, db_path="/home/runner/work/code-atlas/code-atlas/.code-atlas/graph.db")
+    )
+
+
+def test_normalization_still_charges_for_a_new_field() -> None:
+    """Neutralizing path *length* must not neutralize payload *growth* — the lock still bites."""
+    base = {"index_root": "/tmp/w", "reason": "ok"}
+    assert _counted(dict(base, next_tool_suggestions=["build_or_update_index"])) > _counted(base)
+
+
+def test_normalization_reaches_nested_payload_paths() -> None:
+    nested = {"outer": {"index_root": "/a/very/long/absolute/path/somewhere"}, "rows": [1, 2]}
+    assert _h.normalize_env_paths(nested) == {
+        "outer": {"index_root": _h.ENV_PATH_PLACEHOLDER},
+        "rows": [1, 2],
+    }
+
+
 def test_harness_answers_fixture_questions_and_reports_ratio(tmp_path: Path) -> None:
     """Proving path: build the real fixtures, run every committed question end to end."""
     php_cmd = shlex.join([PHP or "php", str(PHP_ENTRY), "--server"])
@@ -378,7 +414,7 @@ def test_harness_answers_fixture_questions_and_reports_ratio(tmp_path: Path) -> 
     assert agg["atlas_correct"] == fixture_count
     assert agg["ratio"] > 0.0
     # Same floors ci.yml gates on, so the proving path fails with the gate, not after it.
-    _h.assert_benchmark(rows, min_ratio=0.21, min_recall=1.0)
+    _h.assert_benchmark(rows, min_ratio=0.27, min_recall=1.0)
 
 # --- Task 045: the local tier (a repo already on disk, its index reused) --------------------
 

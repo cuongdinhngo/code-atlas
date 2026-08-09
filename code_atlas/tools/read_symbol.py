@@ -43,7 +43,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 qname,
                 detail_level=detail_level,
                 db_path=str(config.db_path),
-                index_root=str(config.root.resolve()),
+                index_root=config.index_root,
             )
         with GraphStore(config.db_path) as store:
             rows = store.nodes_by_qualified_name(qname, limit=1)
@@ -57,7 +57,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                             "",
                             detail_level=detail_level,
                             db_path=str(config.db_path),
-                            index_root=str(config.root.resolve()),
+                            index_root=config.index_root,
                             found=False,
                             stale=True,
                             reason=REASON_INDEX_STALE,
@@ -72,7 +72,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         "",
                         detail_level=detail_level,
                         db_path=str(config.db_path),
-                        index_root=str(config.root.resolve()),
+                        index_root=config.index_root,
                         found=False,
                         reason=REASON_OK,
                     )
@@ -84,7 +84,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     "",
                     detail_level=detail_level,
                     db_path=str(config.db_path),
-                    index_root=str(config.root.resolve()),
+                    index_root=config.index_root,
                     found=True,
                     stale=True,
                     reason=REASON_INDEX_STALE,
@@ -100,7 +100,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         "",
                         detail_level=detail_level,
                         db_path=str(config.db_path),
-                        index_root=str(config.root.resolve()),
+                        index_root=config.index_root,
                         found=False,
                         reason=REASON_OK,
                     )
@@ -119,7 +119,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 source,
                 detail_level=detail_level,
                 db_path=str(config.db_path),
-                index_root=str(config.root.resolve()),
+                index_root=config.index_root,
                 found=True,
                 stale=False,
                 reason=REASON_OK,

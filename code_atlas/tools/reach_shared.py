@@ -51,7 +51,7 @@ def no_roots(detail_level: DetailLevel, config: Config) -> dict[str, object]:
         "authoritative": False,
         "depth_exhausted": False,
         "message": "no roots configured — set CA_ENTRY_POINTS or entry_points in .code-atlas.toml",
-        "index_root": str(config.root.resolve()),
+        "index_root": config.index_root,
     }
     del detail_level
     return payload

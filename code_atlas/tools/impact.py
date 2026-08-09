@@ -39,7 +39,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         subject = _subject(paths, qnames)
         if not config.db_path.is_file():
             return empty_nav(subject, detail_level=detail_level, db_path=str(config.db_path),
-            index_root=str(config.root.resolve()),
+            index_root=config.index_root,
         )
         with GraphStore(config.db_path) as store:
             seeds = _seeds(store, paths=paths or [], qnames=qnames or [])
@@ -53,7 +53,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             results,
             detail_level=detail_level,
             db_path=str(config.db_path),
-            index_root=str(config.root.resolve()),
+            index_root=config.index_root,
             truncated=truncated,
             depth=hops,
             frontier_skipped_non_resolved=outcome.frontier_skipped_non_resolved,

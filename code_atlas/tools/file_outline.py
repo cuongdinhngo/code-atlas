@@ -30,7 +30,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 path,
                 detail_level=detail_level,
                 db_path=str(config.db_path),
-                index_root=str(config.root.resolve()),
+                index_root=config.index_root,
             )
         rel = _repo_relative(config.root, path)
         limit = config.max_results
@@ -41,7 +41,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     [],
                     detail_level=detail_level,
                     db_path=str(config.db_path),
-                    index_root=str(config.root.resolve()),
+                    index_root=config.index_root,
                     truncated=False,
                     found=False,
                 )
@@ -52,7 +52,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     [],
                     detail_level=detail_level,
                     db_path=str(config.db_path),
-                    index_root=str(config.root.resolve()),
+                    index_root=config.index_root,
                     truncated=False,
                     found=True,
                     reason=REASON_INDEX_STALE,
@@ -66,7 +66,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             results,
             detail_level=detail_level,
             db_path=str(config.db_path),
-            index_root=str(config.root.resolve()),
+            index_root=config.index_root,
             truncated=truncated,
             found=True,
             reason=REASON_OK,
