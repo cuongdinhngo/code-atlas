@@ -84,8 +84,9 @@ and the build reported success.
 
 - **Empty `adapter_cmds`:** `AdapterError` naming `CA_<LANG>_CMD` and `[adapter_cmd].<lang>` before
   announce / meta (full + incremental + `build_or_update_index`).
-- **Empty suffix union:** handshake already rejects empty `extensions`; `_require_announced_suffixes`
-  keeps the same refusal if owners is empty after announce.
+- **Empty suffix union:** owned by the handshake — `contract._check_extensions` rejects empty
+  `extensions` before `start()` returns, so `owners` can never be empty once adapters are
+  configured. A post-`_owners` guard was added, found unreachable in review, and removed.
 - **Zero files + non-empty suffixes:** success (data). Distinguisher: non-empty `indexed_suffixes`.
 - **Proving tests:** `tests/test_build_without_adapter_silent.py`.
 
@@ -179,9 +180,9 @@ config (empty adapter_cmds / empty announced suffixes) — not soft file failure
 
 ## Phase 2 — Design
 
-**Approach:** Guard beside `_announce`: `_require_configured_adapters` before start;
-`_require_announced_suffixes` after `_owners`. Raise `AdapterError` before `_record_meta`.
-Zero-files with suffixes stays success.
+**Approach:** Guard beside `_announce`: `_require_configured_adapters` before start. Raise
+`AdapterError` before `_record_meta`. Zero-files with suffixes stays success. (A second guard
+after `_owners` was shipped, then removed as unreachable — see the follow-up below.)
 
 **Rejected:** Soft-fail with `files:0` + warning flag — still reads as a healthy empty index
 (the defect). Unlink DB on every refusal — too aggressive when a prior good index exists and
@@ -213,13 +214,24 @@ Gate 2 cleared under standing approval.
 
 ## Phase 4 — Review
 
-**Skipped** (user: `/solve 064 but no review step`).
+**Skipped** during the run (user: `/solve 064 but no review step`). Reviewed after merge; one
+finding, fixed on `fix/064-followup-unreachable-suffix-guard`.
+
+### Post-merge review finding — `_require_announced_suffixes` was unreachable
+
+`contract._check_extensions` (`code_atlas/contract.py:224`) already rejects `extensions: []` at
+the handshake, and `_require_configured_adapters` guarantees at least one adapter, so `owners`
+could never be empty. The AC3 test matched `r"extensions|suffixes"`, which the *handshake* error
+also satisfies — it passed identically with the guard deleted, so it proved nothing. Fix: drop
+both call sites and the function; pin AC3 on the real mechanism with a `validate_meta` assertion
+plus an end-to-end match on `invalid handshake: meta.extensions`.
 
 ## Cost ledger
 
 | Phase | Dispatch | Round | Tokens |
 |-------|----------|-------|--------|
 | — | — | — | no subagent dispatch this run |
+| post-merge review + fix | — | — | 0 dispatch — main loop only, **unmeasured** |
 
 ## Phase 5 — Finalise
 

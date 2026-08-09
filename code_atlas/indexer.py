@@ -115,7 +115,6 @@ def full_build(config: Config, store: GraphStore) -> BuildReport:
         announced = _announce(config, watchdog)
         try:
             owners = _owners(announced)
-            _require_announced_suffixes(owners)
             paths = collect(config.root, tuple(owners))
             stubs = (
                 collect_stubs(config.root, config.stub_roots, tuple(owners))
@@ -169,7 +168,6 @@ def incremental_update(
         _phase_add(phase_times, "announce", mark)
         try:
             owners = _owners(announced)
-            _require_announced_suffixes(owners)
             mark = time.monotonic()
             paths = collect(config.root, tuple(owners))
             stubs = (
@@ -503,15 +501,6 @@ def _require_configured_adapters(config: Config) -> None:
         return
     raise AdapterError(
         "no adapters configured — set CA_<LANG>_CMD or .code-atlas.toml [adapter_cmd].<lang>"
-    )
-
-
-def _require_announced_suffixes(owners: Mapping[str, str]) -> None:
-    """Adapters that handshake with no extensions cannot index anything (task 064)."""
-    if owners:
-        return
-    raise AdapterError(
-        "adapters announced no file suffixes — check each adapter's handshake extensions"
     )
 
 
