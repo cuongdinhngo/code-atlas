@@ -253,6 +253,7 @@ def test_missing_database_does_not_create_one(tmp_path: Path) -> None:
         "truncated": False,
         "reason": "not_indexed",
         "total_count": 0,
+        "index_root": str(config.root.resolve()),
     }
     assert not config.db_path.is_file()
 

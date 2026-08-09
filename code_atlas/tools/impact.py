@@ -38,7 +38,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             raise ValueError(f"depth must be >= 0, got {hops}")
         subject = _subject(paths, qnames)
         if not config.db_path.is_file():
-            return empty_nav(subject, detail_level=detail_level, db_path=str(config.db_path))
+            return empty_nav(subject, detail_level=detail_level, db_path=str(config.db_path),
+            index_root=str(config.root.resolve()),
+        )
         with GraphStore(config.db_path) as store:
             seeds = _seeds(store, paths=paths or [], qnames=qnames or [])
             outcome = store.impact_radius(
@@ -51,6 +53,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             results,
             detail_level=detail_level,
             db_path=str(config.db_path),
+            index_root=str(config.root.resolve()),
             truncated=truncated,
             depth=hops,
             frontier_skipped_non_resolved=outcome.frontier_skipped_non_resolved,

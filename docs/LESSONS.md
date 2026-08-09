@@ -1,5 +1,12 @@
 # Lessons — code-atlas
 
+## 071 — Answers must name the tree they describe
+
+`db_path` on status is a database location; agents need the **source root**. Emit `index_root` =
+`config.root` on every answer (not status-only — agents skip status). Never guess the client's cwd.
+Recommend `CA_DB_PATH` per worktree for isolation; the field only makes the un-isolated case legible.
+Recalibrate the tokens-to-answer floor when every payload grows (`0.8 × observed`).
+
 ## 064 — Empty adapter map is misconfiguration, not an empty repo
 
 `_announce` looping zero times looks like "nothing to do". Fail before meta when

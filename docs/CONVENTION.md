@@ -123,8 +123,10 @@ code-atlas/
 - Every tool accepts `detail_level ∈ {minimal, standard}`, typed as a `Literal` so the protocol
   validates it and publishes the choice in the input schema. Default **`standard`**. `minimal` is a
   subset of `standard` (never a superset). After task 061, `db_path` provenance is only on
-  `get_index_status` / `build_or_update_index` at `standard`; for nav/search/read/outline/reach/explain,
-  `minimal` and `standard` may share the same top-level keys.
+  `get_index_status` / `build_or_update_index` at `standard`; after task 071, **`index_root`** (the
+  configured source tree) ships on every answer payload including status at every detail level —
+  identity of the tree, not the database file. For nav/search/read/outline/reach/explain, `minimal`
+  and `standard` may share the same top-level keys.
   `get_index_status` also accepts `verbose` (task 058): `standard` plus a capped
   `parse_failure_paths` list (`PARSE_FAILURE_PATHS_LIMIT`, not `CA_MAX_RESULTS`) with optional
   `offset` — never on the cheap path; other tools stay `{minimal, standard}`.

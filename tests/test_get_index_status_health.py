@@ -9,7 +9,7 @@ from code_atlas.store import GraphStore
 from code_atlas.tools import get_index_status
 from tests.test_store import an_edge, nodes_for
 
-# Frozen minimal key set as of task 010/028 pre-change — AC3 must not grow this.
+# Frozen minimal key set — task 071 adds ``index_root`` on every status detail level.
 _MINIMAL_KEYS = frozenset(
     {
         "indexed",
@@ -22,6 +22,7 @@ _MINIMAL_KEYS = frozenset(
         "last_commit",
         "staleness",
         "next_tool_suggestions",
+        "index_root",
     }
 )
 
@@ -125,6 +126,7 @@ def test_minimal_payload_stays_byte_identical_to_the_pre_health_shape(tmp_path: 
         "last_commit": None,
         "staleness": "unknown",
         "next_tool_suggestions": [],
+        "index_root": str(config.root.resolve()),
     }
     assert "edge_health" not in minimal and "parse_failures" not in minimal
     assert "edge_health" in standard and "parse_failures" in standard

@@ -29,8 +29,8 @@ server's cwd is the main checkout no matter where the client runs.
 Proven with a two-marker probe — a uniquely named method injected into the *same file* in both trees:
 the worktree agent asked `file_outline` about **its own path** and was handed the **main checkout's**
 symbol, while its own symbol was reported absent. The payload said `reason: "ok"`. Since task 061
-removed `db_path` from nav payloads, **no field in any read tool names the tree**
-([071](../tasks/071_answers-do-not-name-their-tree.md) fixes that).
+removed `db_path` from nav payloads, **no field in any read tool named the tree** until
+([071](../tasks/071_answers-do-not-name-their-tree.md)) landed `index_root`.
 
 This is the same defect the resident-LSP server had (it hardcoded `--project <main repo>`). code-atlas
 does not avoid it — it reproduces it identically. For that tool the memory verdict was "switch it off",
@@ -41,14 +41,14 @@ finding.
 
 | Option | What the agent gets | Cost |
 |---|---|---|
-| **Isolate** — `CA_DB_PATH` per worktree, built once before dispatch | correct answers about its own tree | one incremental build, ~83 s on the anchor repo |
+| **Isolate (recommended)** — `CA_DB_PATH` per worktree, built once before dispatch | correct answers about its own tree | one incremental build, ~83 s on the anchor repo |
 | **Fail loud** — drop the `cd` so cwd decides | `indexed: false` / `reason: "not_indexed"`, every tool inert | zero; honest and useless |
-| **Do nothing** | confident answers about `main`, unmarked | zero, and it is the one option that produces wrong work |
+| **Share main's index** — keep `cd <main>` and compare `index_root` | answers about `main`; mismatch is visible (071) | zero; only safe when the agent's diff is tiny |
 
-Until 071 lands, if you take option 3 anyway: treat **every symbol answer as a statement about
-`main`**, and re-read your own changed files directly. The exposure is small for a worktree branched
-off `main` hours ago and **grows with the size of the agent's own diff** — it is worst exactly when the
-agent is doing the most work.
+**Recommended fan-out recipe:** set a distinct `CA_DB_PATH` (and matching `root` / working directory)
+per worktree, run one `build_or_update_index` before dispatch, and leave the shared main index alone.
+Task 071 makes option 3 legible — every read payload carries `index_root` — but it does **not** make
+sharing correct. If you share anyway, compare `index_root` to the agent's cwd before trusting a hit.
 
 ## Do this
 

@@ -4,7 +4,7 @@ slug: answers-do-not-name-their-tree
 title: 'A worktree agent gets the main checkout''s symbols with `reason: "ok"` and no field names the tree'
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: in-progress
 depends_on: [033, 061, 065]
 ---
 
@@ -98,3 +98,94 @@ corroboration), §9 fix #1. `code_atlas/main.py:113` (`load_config(Path.cwd(), �
 (where `db_path` is dropped). Related: [061](061_payload-weight.md) (the rule this pushes against),
 [065](065_empty-answer-cannot-explain-itself.md) (same family: an answer that cannot describe its own
 limits), [033](033_nav-reason-codes.md) (the `reason` vocabulary that says `ok` here).
+
+---
+
+# 071 — working doc (mango)
+
+## Session status
+
+- **Phase:** finalise (review skipped per user instruction)
+- **SCOPE:** M
+- **STRUCTURE:** native
+- **TRACK:** backend
+- **TIER:** full (review skipped)
+- **work_doc_mode:** embed
+- **working-doc path:** this file below separator
+- **Branch:** `fix/071-answers-do-not-name-their-tree`
+
+## Phase 0 — Refine
+
+`REFINE: 5 unresolved surfaced | 4 want asked | 4 how resolved+cited | 4 ASSUMED (blanket) | skip: no`
+
+**Settled wants** (user: best option + pass all gates):
+
+| # | Want | Chosen |
+|---|------|--------|
+| W1 | field shape | `index_root` = `str(config.root.resolve())` |
+| W2 | where emitted | every answer payload (not status-only) |
+| W3 | isolation docs | recommend `CA_DB_PATH` per worktree |
+| W4 | review | skip Phase 4 this run |
+
+**HOW:** source root not db_path; no client-cwd heuristic; no row-set behaviour change; measure weight vs 061.
+
+## Requirements matrix
+
+`ROWS: C=4 R=4 G=1 AC=4`
+
+| ID | Interpretation | Status |
+|----|----------------|--------|
+| G1 | every answer names source tree | ✅ |
+| R1 | emit `index_root` from config.root | ✅ |
+| R2 | reconcile 061 — one field, weight recorded | ✅ |
+| R3 | do not guess client cwd | ✅ |
+| R4 | docs recommend CA_DB_PATH isolation | ✅ |
+| C1–C4 | R4/R1.1/061/no row change | ✅ |
+| AC1 | read tool carries root without status | ✅ |
+| AC2 | configured root ≠ cwd proving test | ✅ |
+| AC3 | status has index_root + db_path | ✅ |
+| AC4 | weight before/after recorded | ✅ |
+
+## Design (Gate 2 — approved by blanket)
+
+**Approach:** thread `index_root` through `empty_nav` / `nav_result` / `list_result` / reach / explain / status helpers; call sites pass `str(config.root.resolve())`.
+
+**Rejected:** status-only; reintroduce `db_path` on nav; server compares client cwd.
+
+**Change list:**
+1. `nav_result.py` — require/emit `index_root`
+2. All nav/search/read/reach/explain/status tools — pass through
+3. `tests/test_index_root.py` + fixture/shape updates
+4. Docs: PLAN, CONVENTION, LESSONS, BACKLOG, parallel-agents, tokens-to-answer floor, onboarding
+5. Recalibrate tokens-to-answer floor 0.29 → 0.21
+
+**Proving test:** `test_index_root_is_configured_root_not_process_cwd`
+
+## Weight (061 reconciliation)
+
+Representative sizes on a temp fixture (`index_root` length 16):
+
+| Payload | before (no field) | after | delta |
+|---------|-------------------|-------|-------|
+| find_callers | 153 | 185 | +32 |
+| search_symbol | 85 | 117 | +32 |
+| get_index_status | 508 | 540 | +32 |
+
+Delta ≈ `,"index_root":"<path>"`. Real paths are longer; soft ceiling on callers raised 400 → 500 chars in tests. Fixture tokens-to-answer: 1807 atlas / 479 grep = **0.265** → floor **0.21**.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|-------|----------|-------|--------|
+| refine | explore | 1 | unmeasured (blocking retrieval) |
+| refine | exposure-checker challenger | 1 | unmeasured (blocking retrieval) |
+
+## Decision log
+
+| When | Decision |
+|------|----------|
+| 2026-08-09 | emit index_root everywhere; recommend CA_DB_PATH; skip review; recalibrate ratio floor |
+
+## Reviewed at
+
+skipped (user instruction)

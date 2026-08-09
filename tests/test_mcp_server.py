@@ -413,9 +413,16 @@ def test_minimal_is_a_strict_reduction_of_standard(
     if name in {STATUS, BUILD}:
         assert "db_path" in standard and "db_path" not in minimal
         assert set(minimal) < set(standard)
+        if name == STATUS:
+            assert "index_root" in minimal and minimal["index_root"] == standard["index_root"]
     else:
         # Nav/search/read no longer carry db_path at standard (task 061).
         assert "db_path" not in standard
+        # Every answer names the configured source tree (task 071).
+        assert "index_root" in standard and "index_root" in minimal
+        assert standard["index_root"] == minimal["index_root"] == str(
+            served_config(repo).root.resolve()
+        )
 
 
 @pytest.mark.parametrize(("name", "arguments"), CALLS, ids=[name for name, _ in CALLS])

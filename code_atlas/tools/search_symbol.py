@@ -64,11 +64,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
         db_path = str(config.db_path)
+        index_root = str(config.root.resolve())
         if not config.db_path.is_file():
             return list_result(
                 [],
                 detail_level=detail_level,
                 db_path=db_path,
+                index_root=index_root,
                 truncated=False,
                 reason=REASON_NOT_INDEXED,
                 total_count=0,
@@ -108,6 +110,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             results,
             detail_level=detail_level,
             db_path=db_path,
+            index_root=index_root,
             truncated=truncated,
             reason=reason,
             total_count=total_count,

@@ -26,7 +26,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         repo-relative form stored in the index. ``found`` is false when that path is not indexed.
         """
         if not config.db_path.is_file():
-            return _empty(path, detail_level=detail_level, db_path=str(config.db_path))
+            return _empty(
+                path,
+                detail_level=detail_level,
+                db_path=str(config.db_path),
+                index_root=str(config.root.resolve()),
+            )
         rel = _repo_relative(config.root, path)
         limit = config.max_results
         with GraphStore(config.db_path) as store:
@@ -36,6 +41,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     [],
                     detail_level=detail_level,
                     db_path=str(config.db_path),
+                    index_root=str(config.root.resolve()),
                     truncated=False,
                     found=False,
                 )
@@ -46,6 +52,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     [],
                     detail_level=detail_level,
                     db_path=str(config.db_path),
+                    index_root=str(config.root.resolve()),
                     truncated=False,
                     found=True,
                     reason=REASON_INDEX_STALE,
@@ -59,6 +66,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             results,
             detail_level=detail_level,
             db_path=str(config.db_path),
+            index_root=str(config.root.resolve()),
             truncated=truncated,
             found=True,
             reason=REASON_OK,
@@ -89,7 +97,9 @@ def _hit(row: Mapping[str, object] | Row) -> dict[str, object]:
     return hit
 
 
-def _empty(path: str, *, detail_level: str, db_path: str) -> dict[str, object]:
+def _empty(
+    path: str, *, detail_level: str, db_path: str, index_root: str
+) -> dict[str, object]:
     del detail_level, db_path
     return {
         "indexed": False,
@@ -97,6 +107,7 @@ def _empty(path: str, *, detail_level: str, db_path: str) -> dict[str, object]:
         "found": False,
         "results": [],
         "truncated": False,
+        "index_root": index_root,
     }
 
 
@@ -106,6 +117,7 @@ def _result(
     *,
     detail_level: str,
     db_path: str,
+    index_root: str,
     truncated: bool,
     found: bool,
     reason: str | None = None,
@@ -118,6 +130,7 @@ def _result(
         "found": found,
         "results": results,
         "truncated": truncated,
+        "index_root": index_root,
     }
     if reason is not None:
         payload["reason"] = reason

@@ -98,7 +98,7 @@ gap that fixtures never hit.
 | 068 | [The rules bookmark is counted as an indexed, successfully parsed source file](tasks/068_rules-bookmark-counted-as-source-file.md) | Agent-trust | todo | 040, 062, 064 |
 | 069 | [`find_view_data` went uncalled in the exact session it was built for](tasks/069_tool-names-do-not-say-what-they-answer.md) | Agent-fit | todo | 062, 063, 038 |
 | 070 | [One qname, five definitions, 23 callers merged — no way to ask about one of them](tasks/070_ambiguous-qname-no-scoping.md) | Agent-fit | todo | 043, 013, 011 |
-| 071 | [A worktree agent gets the main checkout's symbols with `reason: "ok"` and no field names the tree](tasks/071_answers-do-not-name-their-tree.md) | Agent-trust | todo | 033, 061, 065 |
+| 071 | [A worktree agent gets the main checkout's symbols with `reason: "ok"` and no field names the tree](tasks/071_answers-do-not-name-their-tree.md) | Agent-trust | in-progress | 033, 061, 065 |
 | 072 | [`mode: "busy"` returns in 0.0 s and reads like success](tasks/072_busy-build-hides-staleness.md) | Agent-trust | todo | 053, 033 |
 | 073 | [Read-through freshness repairs only rows it already found — a new symbol is confidently reported absent](tasks/073_freshness-cannot-find-what-is-not-indexed.md) | Agent-trust | done | 035, 065, 033 |
 | 074 | [The one repeated benchmark cell says the index may make control-flow answers worse — resolve it at n ≥ 3](tasks/074_does-the-index-harm-mechanism-questions.md) | Measure | todo | 055, 067, 045 |
