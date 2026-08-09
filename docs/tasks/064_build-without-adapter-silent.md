@@ -231,6 +231,7 @@ plus an end-to-end match on `invalid handshake: meta.extensions`.
 | Phase | Dispatch | Round | Tokens |
 |-------|----------|-------|--------|
 | — | — | — | no subagent dispatch this run |
+| post-merge review + fix | — | — | 0 dispatch — main loop only, **unmeasured** |
 
 ## Phase 5 — Finalise
 
