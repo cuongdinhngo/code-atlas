@@ -42,6 +42,10 @@ Why the payload cannot help today:
   the source tree the answers describe.
 - The failure is not an error path. It is the success path returning a confident wrong answer, which
   is the worst of the outcomes the run set out to look for.
+- **Freshness makes it worse, not better.** `FreshnessGuard.ensure` resolves the path against
+  `config.root` (`freshness.py`), which is the main checkout — so a drifted file is reparsed from the
+  **wrong tree** and the wrong answer is *freshly computed*, not merely stale. No staleness signal can
+  ever catch this: by every check the server can make, the answer is current.
 
 Scope of the exposure, honestly: for a worktree branched off `main` hours earlier, "who calls this /
 where is this defined" is answered identically by both trees, which is why the observed fan-out still

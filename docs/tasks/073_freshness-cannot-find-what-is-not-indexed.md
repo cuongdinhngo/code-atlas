@@ -26,9 +26,27 @@ file_outline(src/System/RegionManager.php) -> names=[…, 'atlasProbeMainAb3', �
 guard repaired that path and the symbol appeared. `search_symbol` names only a query, so it had
 nothing to repair.
 
-**The field write-up attributed this to the FTS index not being refreshed. That is not the mechanism**
-and the distinction matters, because the FTS explanation would make this a narrow `search_symbol` bug
-when it is in fact general:
+### Reproduced in this repo, and the FTS explanation is ruled out
+A three-file PHP fixture, built full, then a method appended to `src/Widget.php` on disk with no
+rebuild. Same server, three calls in this order:
+
+```
+A. search_symbol("atlasProbeZq7")   -> {"results":[], "reason":"no_matches", "total_count":0}
+B. file_outline("src/Widget.php")   -> [..., '\App\Widget::atlasProbeZq7']
+C. search_symbol("atlasProbeZq7")   -> {"results":[{...line 4}], "reason":"ok", "total_count":1}
+```
+
+**C is the decisive cell.** If the FTS table were the stale component, C would still fail — the same
+FTS is queried in A and C, and nothing between them rebuilt it. C succeeds because B's *path-named*
+call performed the reparse that A never attempted, and the insert triggers carried the row into FTS
+correctly on the way.
+
+**Consequence for the fix: "refresh FTS as part of `reparse_file`" is a no-op** and would leave the
+defect in place. FTS is already refreshed by every reparse. What is missing is the reparse.
+
+### Why the FTS reading is wrong
+The distinction matters because the FTS explanation would make this a narrow `search_symbol` bug when
+it is in fact general:
 
 - `nodes_fts` is an external-content fts5 table kept current by triggers on every insert, delete and
   update of `nodes` (`store.py:80-97`). A reparse that writes a node **does** update FTS.
@@ -86,7 +104,8 @@ appears at N=1, on a single quiet server, the moment a file changes.
 - The `ensure_qname` no-rows path behaves consistently with the `ensure_paths` empty path across all
   six consuming tools; a test enumerates them.
 - A fixture-scale regression test writes a new symbol into an indexed file, queries it three ways
-  (path-named, qname-named, query-named) and pins each answer.
+  (path-named, qname-named, query-named) and pins each answer. The A/B/C sequence above is that test;
+  it must include cell C, which is what distinguishes this defect from a stale-FTS one.
 - 035's documented guarantee matches the code.
 
 ## References
