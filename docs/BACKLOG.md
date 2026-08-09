@@ -332,6 +332,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 064 | Refuse build with no adapter / empty suffixes | **0 dispatch** — review skipped per run instruction; main-loop unmeasured. Post-merge review (main loop, **0 dispatch**) found the suffix guard unreachable → follow-up PR | [#79](https://github.com/cuongdinhngo/code-atlas/pull/79), [#80](https://github.com/cuongdinhngo/code-atlas/pull/80) |
 | 065 | Empty answer cannot explain itself (`relationship_not_modelled`) | **2 dispatch** — refine explore + exposure-checker `mango:challenger`; both **`unmeasured (blocking retrieval)`**. Review skipped per run instruction. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051. Post-PR review (main loop, **0 dispatch**) found a failing `mypy` gate and the reason missing on the default `both` direction; both fixed on the branch | [#81](https://github.com/cuongdinhngo/code-atlas/pull/81) |
 | 062 | Producer-side view data-bag edges (PROVIDES_VIEW_DATA + find_view_data) | **6 dispatch** — refine exposure-checker + analysis explore + review `mango:reviewer` / `mango:challenger` ×2; all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051 | [#73](https://github.com/cuongdinhngo/code-atlas/pull/73) |
+| — | CI drift audit — recalibrate the gates the last ten tasks moved | **0 dispatch** — no ticket and no working doc, so there is no cost ledger to roll up: an audit read of the three workflows against the current tree, one fixture benchmark run to re-measure the ratio, and a full `pytest`. **Main-loop spend is unmeasured** (host does not surface usage), as for 004–051 | [#83](https://github.com/cuongdinhngo/code-atlas/pull/83) |
 | 061 | Trim dead payload weight from nav and search | **5 dispatch** — refine exposure-checker + review rounds 1–2 (`mango:reviewer` / `mango:challenger` ×2); all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051 | [#72](https://github.com/cuongdinhngo/code-atlas/pull/72) |
 
 **How 047–049 were measured.** They ran back-to-back in one autonomous session, so no per-task
@@ -459,6 +460,12 @@ because they are billed differently and dwarf everything else.
 - **018 construct gaps:** any cross-repo misses → fill the gap log in
   [`runbooks/cross-repo-validation.md`](runbooks/cross-repo-validation.md) and feed task 007 / 025.
   (Gap log is still empty — no scheduled run has recorded a miss.)
+- **Three CI items deferred from the drift audit** (the audit that recalibrated the ratio floor; each
+  is a *tightening*, not a lag, which is why none shipped with it): (a) `requires-python = ">=3.12"`
+  is open-ended while the matrix stops at 3.13 — add 3.14 or cap the claim; (b) `mypy` covers
+  `code_atlas` only, so `scripts/tokens_to_answer.py` — which *is* the gate logic — is unchecked
+  (R6.6 asks for the core, so this is above the rule, not behind it); (c) `actions/checkout@v4` /
+  `setup-python@v5` are a major behind and there is no `dependabot.yml` to notice.
 ## Suggested order
 
 Critical path to first release: **001 → 002 → 004/005 → 006 → 007 → 009 → 010 → 011 → 013 → 014 (ship)**.
