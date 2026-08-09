@@ -167,31 +167,22 @@ def _view_data_edges(
 ) -> list[dict[str, object]]:
     if not rules:
         return []
-    # Cap the CALLS scan; enrichment must stay bounded (R4 / CA_MAX_RESULTS spirit).
-    calls = store.edges_matching_kind("CALLS", limit=max(10_000, config.max_results * 200))
+    # Indexed per-setter lookups (idx_edges_raw) — O(matching sites), not a capped CALLS prefix.
     out: list[dict[str, object]] = []
     seen: set[tuple[str, str, int]] = set()
     line_cache: dict[tuple[str, int], str | None] = {}
-    for edge in calls:
-        if edge.get("file_path") == INDIRECTION_FILE:
-            continue
-        target = str(edge.get("target_raw") or "")
-        matched = [
-            (key_arg, key_from)
-            for setter, key_arg, key_from in rules
-            if _setter_matches(target, setter)
-        ]
-        if not matched:
-            continue
-        args = edge.get("args")
-        source = str(edge.get("source_qname") or "")
-        line = edge.get("line")
-        if not source or type(line) is not int:
-            continue
-        rel = edge.get("file_path")
-        if not isinstance(rel, str) or not rel:
-            continue
-        for key_arg, key_from in matched:
+    for setter, key_arg, key_from in rules:
+        for edge in _calls_for_setter(store, setter):
+            if edge.get("file_path") == INDIRECTION_FILE:
+                continue
+            args = edge.get("args")
+            source = str(edge.get("source_qname") or "")
+            line = edge.get("line")
+            if not source or type(line) is not int:
+                continue
+            rel = edge.get("file_path")
+            if not isinstance(rel, str) or not rel:
+                continue
             keys = _keys_for_rule(
                 config, edge, args, key_arg, key_from, rel, line, line_cache
             )
@@ -218,6 +209,22 @@ def _view_data_edges(
         )
     )
     return out
+
+
+def _calls_for_setter(store: GraphStore, setter: str) -> list[dict[str, object]]:
+    """CALLS matching ``setter`` via exact ``target_raw``, plus ``::setter`` when bare."""
+    rows = list(store.calls_by_target_raw(setter))
+    if "::" in setter:
+        return rows
+    seen_ids = {row.get("id") for row in rows if row.get("id") is not None}
+    for row in store.calls_ending_with_target_raw(f"::{setter}"):
+        edge_id = row.get("id")
+        if edge_id is not None and edge_id in seen_ids:
+            continue
+        if edge_id is not None:
+            seen_ids.add(edge_id)
+        rows.append(row)
+    return rows
 
 
 def _keys_for_rule(
@@ -248,7 +255,12 @@ def _keys_for_rule(
 
 
 def _keys_from_arg_keys(arg_keys: object, args: object, key_arg: int) -> list[str]:
-    """Keys from ``arg_keys[key_arg-1]`` when that arg is an array (task 063)."""
+    """Keys from ``arg_keys[key_arg-1]`` when that arg is an array (task 063).
+
+    Absent field, null slot, and ``[]`` all yield no keys here — edge emission cannot
+    distinguish them. AC4's "not captured" vs "none found" is enforced by schema refusal
+    of pre-v5 indexes; adapter #2 should advertise capture via an R1.6 capability.
+    """
     parsed_args = _parse_args(args)
     if parsed_args is None or key_arg < 1 or key_arg > len(parsed_args):
         return []
@@ -275,14 +287,6 @@ def _parse_arg_keys(raw: object) -> list[object] | None:
             return None
         return loaded if isinstance(loaded, list) else None
     return None
-
-
-def _setter_matches(target_raw: str, setter: str) -> bool:
-    if target_raw == setter:
-        return True
-    if "::" not in setter and target_raw.endswith(f"::{setter}"):
-        return True
-    return False
 
 
 def _arg_is_string(args: object, key_arg: int) -> bool:

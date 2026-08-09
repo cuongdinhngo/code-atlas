@@ -26,6 +26,12 @@ class OrderController
         $bag = null;
         $view->put($bag, 'extra', 1);
         $dyn = 'skip';
-        $view->setData(['items' => $items, $dyn => 1, 'title' => 'Orders']);
+        $view->setData([
+            'items' => $items,
+            '5' => 'numeric-string-key',
+            $dyn => 1,
+            'title' => 'Orders',
+            '08' => 'leading-zero-stays-string',
+        ]);
     }
 }

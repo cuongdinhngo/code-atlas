@@ -502,6 +502,26 @@ class GraphStore:
         """Up to ``limit`` edges of ``kind`` in store order (enrichment scans — task 062)."""
         return self._edges("kind = ?", kind, None, limit)
 
+    def calls_by_target_raw(self, target_raw: str) -> list[Row]:
+        """Every CALLS edge with exact ``target_raw`` (``idx_edges_raw``; no scan cap)."""
+        sql = (
+            f"SELECT id, {_EDGE_COLUMNS} FROM edges "
+            "WHERE kind = 'CALLS' AND target_raw = ? "
+            f"ORDER BY {_EDGE_ORDER}"
+        )
+        return self._rows(EDGE_ROW_KEYS, sql, (target_raw,))
+
+    def calls_ending_with_target_raw(self, suffix: str) -> list[Row]:
+        """CALLS whose ``target_raw`` ends with ``suffix`` (bare-setter ``::method`` arm)."""
+        if not suffix:
+            raise ValueError("suffix must be non-empty")
+        sql = (
+            f"SELECT id, {_EDGE_COLUMNS} FROM edges "
+            "WHERE kind = 'CALLS' AND substr(target_raw, -?) = ? "
+            f"ORDER BY {_EDGE_ORDER}"
+        )
+        return self._rows(EDGE_ROW_KEYS, sql, (len(suffix), suffix))
+
     def edges_by_target(
         self,
         qname: str,

@@ -93,9 +93,15 @@ Counted before adapter work (session 2026-08-09). Kill would leave the anchor pe
 
 ### Shipped
 - **Contract v5 + schema 4:** `arg_keys` parallel to `args` (string keys of array literals).
-- **Adapter:** top-level string keys only; non-literal keys do not shift.
-- **Rules:** `key_from: "array_keys"` (default `"string"` unchanged for 062).
-- **Suite:** 965 passed.
+- **Adapter:** top-level string keys only; non-literal keys do not shift; decimal-integer-like
+  string keys skipped (PHP casts them to int).
+- **Rules:** `key_from: "array_keys"` (default `"string"` unchanged for 062). Branching on
+  `key_from` is rule-shape dispatch, not an R1.1 language branch.
+- **Enrichment:** CALLS looked up per setter via `idx_edges_raw` (no 10k CALLS-prefix cap —
+  PR #75 review).
+- **AC4 note:** absent / null / `[]` collapse at enrichment edge emission; schema refusal of
+  pre-v5 indexes carries "not captured". Per-row null is the wrong long-term carrier (R1.6).
+- **Suite:** 965 passed at merge; follow-up adds setter-lookup + numeric-key coverage.
 
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
 

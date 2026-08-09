@@ -1,5 +1,12 @@
 # Lessons — code-atlas
 
+## 063 follow-up — Cap the match set, not the CALLS table
+
+`view_data` enrichment must look up CALLS by setter (`idx_edges_raw`), not scan a
+`source_qname` prefix of *all* CALLS. A 10k cap on the whole table silently missed
+~99% of anchor `setData` sites. Bound = O(matching sites); report truncation only if
+a match-set cap returns.
+
 ## 063 — Count-first ACs need an Outcome above the mango separator
 
 A “count before code” AC cannot be proven from a single squash commit. Put the table + kill/proceed

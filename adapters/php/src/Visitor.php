@@ -801,6 +801,10 @@ final class Visitor extends NodeVisitorAbstract
                 continue;
             }
             if ($item->key instanceof Node\Scalar\String_) {
+                // PHP casts decimal-integer-like string keys to int — not extract()-able.
+                if (self::isDecimalIntegerStringKey($item->key->value)) {
+                    continue;
+                }
                 $keys[] = $item->key->value;
             } elseif ($item->key instanceof Node\Scalar\InterpolatedString) {
                 // Interpolated keys are not a fixed string — contribute nothing (063).
@@ -810,6 +814,21 @@ final class Visitor extends NodeVisitorAbstract
         }
 
         return $keys;
+    }
+
+    /**
+     * True when PHP would cast this string array key to int (language.types.array).
+     */
+    private static function isDecimalIntegerStringKey(string $value): bool
+    {
+        if ($value === '' || $value[0] === '+') {
+            return false;
+        }
+        if ($value === '0' || $value === '-0') {
+            return true;
+        }
+
+        return (bool) preg_match('/^-?[1-9][0-9]*$/', $value);
     }
 
     private static function literalKind(Node\Expr $value): ?string
