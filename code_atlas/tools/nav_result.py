@@ -44,6 +44,8 @@ NAV_REASONS: tuple[NavReason, ...] = (
 # Machine-stable alternate routes when reason is relationship_not_modelled (task 065).
 TRY_INSTEAD_FIND_REFERENCES_ON_METHOD_QNAME = "find_references_on_method_qname"
 TRY_INSTEAD_PATH_BASENAME_SEARCH = "path_basename_search"
+# Empty miss while multiple indexed files are dirty — path-named tools are stronger (073).
+TRY_INSTEAD_FILE_OUTLINE = "file_outline"
 
 
 def edge_id(edge: Mapping[str, Any] | Row) -> int:

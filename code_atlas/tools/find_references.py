@@ -15,6 +15,7 @@ from code_atlas.tools.nav_result import (
     REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
     REASON_RELATIONSHIP_NOT_MODELLED,
+    TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_FIND_REFERENCES_ON_METHOD_QNAME,
     attach_try_instead,
     edge_hit,
@@ -67,14 +68,17 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             guard = FreshnessGuard(config, store)
             freshness = guard.ensure_qname(qname)
             if freshness == "stale":
-                return nav_result(
-                    qname,
-                    [],
-                    detail_level=detail_level,
-                    db_path=str(config.db_path),
-                    truncated=False,
-                    reason=REASON_INDEX_STALE,
-                    total_count=0,
+                return attach_try_instead(
+                    nav_result(
+                        qname,
+                        [],
+                        detail_level=detail_level,
+                        db_path=str(config.db_path),
+                        truncated=False,
+                        reason=REASON_INDEX_STALE,
+                        total_count=0,
+                    ),
+                    TRY_INSTEAD_FILE_OUTLINE,
                 )
             total_count = store.count_edges_by_target(qname)
             nodes = store.nodes_by_qualified_name(qname, limit=1)

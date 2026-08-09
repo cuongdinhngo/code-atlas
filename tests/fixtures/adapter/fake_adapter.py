@@ -130,7 +130,40 @@ def reply(path):
                 "confidence_tier": "HEURISTIC",
             }
         ]
-    return json.dumps({"path": path, "ok": True, "nodes": [node], "edges": edges})
+    return json.dumps(
+        {
+            "path": path,
+            "ok": True,
+            "nodes": [node, *extra_nodes(path)],
+            "edges": edges,
+        }
+    )
+
+
+def extra_nodes(path):
+    """Emit `# symbol: Name` markers from the file body for reparse discovery (073)."""
+    try:
+        with open(path, encoding="utf-8") as handle:
+            text = handle.read()
+    except OSError:
+        return []
+    found = []
+    for line in text.splitlines():
+        if not line.startswith("# symbol:"):
+            continue
+        name = line.split(":", 1)[1].strip()
+        if not name:
+            continue
+        found.append(
+            {
+                "kind": "Method",
+                "name": name,
+                "qualified_name": f"{path}::{name}",
+                "file_path": path,
+                "line_start": 1,
+            }
+        )
+    return found
 
 
 def count_boot(boot_log):

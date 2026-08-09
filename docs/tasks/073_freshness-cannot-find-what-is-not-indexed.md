@@ -4,7 +4,7 @@ slug: freshness-cannot-find-what-is-not-indexed
 title: 'Read-through freshness repairs only rows it already found — a new symbol is confidently reported absent'
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [035, 065, 033]
 ---
 
@@ -116,3 +116,59 @@ shows the call ordering), §10.2 (the protocol gap that surfaced it).
 that rule out the first-guess mechanism). Related: [035](035_read-through-freshness.md) (the
 guarantee), [065](065_empty-answer-cannot-explain-itself.md) (the channel this should reuse),
 [033](033_nav-reason-codes.md) (`index_stale` and the reason vocabulary).
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 073 — freshness-cannot-find-what-is-not-indexed (working doc)
+
+- **Ticket:** 073 · local file
+- **Type:** bug / agent-trust
+- **SCOPE:** M · **TRACK:** backend · **TIER:** full (review skipped)
+- **BASELINE:** green (pre-change main suite)
+- **work_doc_mode:** embed
+
+## Phase 0 — Refine
+
+`REFINE: hybrid ratified under blanket approval | skip: no`
+
+**Settled wants:** hybrid of (b)+(a) — sole dirty indexed file → miss-repair under CAP=1; multi-dirty → `index_stale` + `try_instead=file_outline`; post-repair miss → genuine empty; candidate set = git dirty ∩ indexed suffixes.
+
+**Exposure-checker:** [challenger](58f7b485-d6f9-4825-bcb9-30cb672ef065) — gaps A1–A4 ratified as above.
+
+## Matrix (summary)
+
+`SECTIONS: 5 | ROWS: G1 R1–5 C1–4 AC1–5` — all ✅ via miss-repair + tests + 035 doc note.
+
+## Design
+
+Approach: `FreshnessGuard.ensure_miss` + `ensure_qname` no-rows → miss; `search_symbol` zero-hit → miss; multi-dirty stale + hint; document 035 boundary.
+
+Rejected: always reparse all dirty (cap violation); pure signal-only (leaves single-edit case broken); raise CAP.
+
+Proving: `tests/test_freshness_cannot_find_what_is_not_indexed.py`
+
+## Execute
+
+Branch `fix/073-freshness-cannot-find-what-is-not-indexed`. Suite **1007 passed**. Review skipped.
+
+**Post-PR review (main loop, 0 dispatch) — one defect, fixed on the branch.** The `search_symbol`
+miss-repair keyed off an empty *page*, not an empty answer, so it also fired when `offset` walked past
+the end (057). Measured on a two-node fixture, query `Thing`, `limit=1`, two dirty indexed files:
+`offset=0 → reason ok, total_count 2` but `offset=9 → reason index_stale, total_count 2, no
+try_instead` — the freshness verdict flipped with pagination on an answer that was never empty, and
+with a single dirty file the same path spent the `READ_THROUGH_CAP` reparse on a query that already
+had hits. Fix: gate the miss on `offset == 0`; pinned by
+`test_empty_page_past_the_end_is_not_a_miss`, which also asserts the cap is unspent. The nav tools are
+unaffected — `ensure_qname` keys off the subject qname, not the page.
+
+## Cost ledger
+
+| Phase | Dispatch | Tokens |
+|-------|----------|--------|
+| refine | explore | unmeasured (blocking retrieval) |
+| refine | exposure-checker | unmeasured (blocking retrieval) |
+
+## Session status
+
+finalise → ship (user pre-approved commit/push/PR)
+

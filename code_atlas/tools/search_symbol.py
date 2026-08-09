@@ -14,6 +14,8 @@ from code_atlas.tools.nav_result import (
     REASON_NO_MATCHES,
     REASON_NOT_INDEXED,
     REASON_OK,
+    TRY_INSTEAD_FILE_OUTLINE,
+    attach_try_instead,
     is_stub,
     list_result,
 )
@@ -47,7 +49,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``offset`` pages in search order (057). Trigram cannot match terms under three characters;
         those use a name/qname prefix scan. On hash drift beyond the per-call reparse cap, returns
         hits with ``reason=index_stale`` and an honest ``total_count`` (never an empty proof of
-        absence). Stub-indexed nodes (task 039) also carry ``stub: true``.
+        absence). A zero-hit **first page** may spend the same cap on the sole dirty indexed file
+        (073) — an empty page under ``offset`` is not an empty answer, so it repairs nothing;
+        multiple dirty files yield empty ``index_stale`` plus ``try_instead``. Stub-indexed nodes
+        (task 039) also carry ``stub: true``.
 
         A ``File`` hit whose path is already the declaring file of a ``Class`` hit in the same
         page is suppressed (task 061) — use ``kind`` to request File rows explicitly.
@@ -76,6 +81,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             )
             hit_paths = [str(row["file_path"]) for row in rows[:cap]]
             status = guard.ensure_paths(hit_paths)
+            # Zero hits never yield hit paths — miss-repair the sole dirty indexed file (073).
+            # First page only: an empty page past the end is not an empty answer (057).
+            if not rows and offset == 0 and status == "ok":
+                status = guard.ensure_miss()
             # Re-query only when a repair may have changed FTS/rows.
             if status == "repaired" or (status == "stale" and guard.used > 0):
                 rows = store.search_nodes(
@@ -95,7 +104,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         else:
             # Page emptiness ≠ answer emptiness once offset can walk past the end (057).
             reason = REASON_OK if total_count > 0 else REASON_NO_MATCHES
-        return list_result(
+        payload = list_result(
             results,
             detail_level=detail_level,
             db_path=db_path,
@@ -103,6 +112,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             reason=reason,
             total_count=total_count,
         )
+        # Empty + unverified (multi-dirty miss) — point at path-named tools (073).
+        if reason == REASON_INDEX_STALE and total_count == 0:
+            return attach_try_instead(payload, TRY_INSTEAD_FILE_OUTLINE)
+        return payload
 
     return search_symbol
 

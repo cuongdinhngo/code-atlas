@@ -495,6 +495,13 @@ bytes (and the matching content hash) in `seed_file(..., root=)` — a shared sh
 trusted the index for missing paths caused the trust bug 033 closed. Adapter/DB failures during
 `reparse_file` also degrade to `"stale"` instead of crashing the read tool.
 
+## 073 — Zero-hit freshness cannot invent a subject path
+Read-through (035) only repaired paths already on the answer. A brand-new symbol in a drifted file
+matched nothing, so `ensure_qname` / `search_symbol` returned a confident empty without reparsing.
+**Fix:** miss-repair spends `READ_THROUGH_CAP=1` on the sole dirty indexed tracked file; multiple dirty
+files emit `index_stale` + `try_instead=file_outline` instead of guessing. Requires git
+`dirty_paths`. Generalises: result-driven repair is incomplete without a documented miss path.
+
 ## 065 — Inbound includes cannot be counted by target_qname
 `include_graph(direction="imported_by")` used to emit `unresolved_includes: 0` because the outbound
 counter is skipped for that direction — a confident zero that is structurally always zero. Unlinked

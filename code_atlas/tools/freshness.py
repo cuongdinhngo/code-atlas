@@ -1,13 +1,14 @@
-"""Query-time read-through freshness — repair drifted files before shaping a response (035)."""
+"""Query-time read-through freshness — repair drifted files before answering (035 / 073)."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Literal
 
+from code_atlas import gitutil
 from code_atlas.config import Config
-from code_atlas.indexer import file_is_current, reparse_file
-from code_atlas.store import GraphStore
+from code_atlas.indexer import file_is_current, indexable, reparse_file
+from code_atlas.store import INDEXED_SUFFIXES_KEY, GraphStore
 
 # Cap reparses per tool call (WANT-1 / Goal: one adapter call). Overflow → index_stale.
 READ_THROUGH_CAP = 1
@@ -17,7 +18,12 @@ EnsureResult = Literal["ok", "repaired", "stale"]
 
 @dataclass
 class FreshnessGuard:
-    """Per-call budget for inline reparses against one open store."""
+    """Per-call budget for inline reparses against one open store.
+
+    Result-driven repair (035): paths already on the answer are hash-checked. Miss-driven
+    repair (073): a zero-hit query may spend the same cap on the sole dirty indexed file.
+    Multiple dirty indexed files cannot be chosen under the cap — callers get ``stale``.
+    """
 
     config: Config
     store: GraphStore
@@ -46,11 +52,25 @@ class FreshnessGuard:
         return "repaired"
 
     def ensure_qname(self, qname: str) -> EnsureResult:
-        """Ensure the indexed file for ``qname`` when a node row exists."""
+        """Ensure the indexed file for ``qname``, or miss-repair when no node row exists (073)."""
         rows = self.store.nodes_by_qualified_name(qname, limit=1)
-        if not rows:
+        if rows:
+            return self.ensure(str(rows[0]["file_path"]))
+        return self.ensure_miss()
+
+    def ensure_miss(self) -> EnsureResult:
+        """When a query matched nothing: repair the sole dirty indexed file, else signal.
+
+        Zero dirty → ``ok`` (absence is as current as the index). Exactly one → ``ensure`` it.
+        Multiple → ``stale`` without spending the cap (no deterministic single subject under
+        ``READ_THROUGH_CAP``). Requires git ``dirty_paths``; outside a repo returns ``ok``.
+        """
+        candidates = dirty_indexed_paths(self.store, self.config)
+        if not candidates:
             return "ok"
-        return self.ensure(str(rows[0]["file_path"]))
+        if len(candidates) > 1:
+            return "stale"
+        return self.ensure(candidates[0])
 
     def ensure_paths(self, paths: list[str]) -> EnsureResult:
         """Ensure each path in order; return ``stale`` if any drifted file cannot be repaired."""
@@ -66,3 +86,14 @@ class FreshnessGuard:
             if status == "repaired":
                 worst = "repaired"
         return worst
+
+
+def dirty_indexed_paths(store: GraphStore, config: Config) -> list[str]:
+    """Sorted dirty tracked paths this index covers — empty when git cannot answer (073)."""
+    paths = gitutil.dirty_paths(config.root)
+    if not paths:
+        return []
+    suffixes = store.get_meta(INDEXED_SUFFIXES_KEY)
+    if not suffixes:
+        return []
+    return list(indexable(paths, config.root, suffixes.split(",")))

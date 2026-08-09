@@ -12,6 +12,8 @@ from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
     REASON_INDEX_STALE,
     REASON_NO_SUCH_SYMBOL,
+    TRY_INSTEAD_FILE_OUTLINE,
+    attach_try_instead,
     edge_hit,
     empty_nav,
     nav_result,
@@ -53,14 +55,17 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             guard = FreshnessGuard(config, store)
             freshness = guard.ensure_qname(qname)
             if freshness == "stale":
-                return nav_result(
-                    qname,
-                    [],
-                    detail_level=detail_level,
-                    db_path=str(config.db_path),
-                    truncated=False,
-                    reason=REASON_INDEX_STALE,
-                    total_count=0,
+                return attach_try_instead(
+                    nav_result(
+                        qname,
+                        [],
+                        detail_level=detail_level,
+                        db_path=str(config.db_path),
+                        truncated=False,
+                        reason=REASON_INDEX_STALE,
+                        total_count=0,
+                    ),
+                    TRY_INSTEAD_FILE_OUTLINE,
                 )
             total_count = store.count_edges_by_target(qname, kinds=IMPL_KINDS)
             indexed = bool(store.nodes_by_qualified_name(qname, limit=1))
