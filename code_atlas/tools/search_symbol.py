@@ -49,7 +49,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``offset`` pages in search order (057). Trigram cannot match terms under three characters;
         those use a name/qname prefix scan. On hash drift beyond the per-call reparse cap, returns
         hits with ``reason=index_stale`` and an honest ``total_count`` (never an empty proof of
-        absence). A zero-hit query may spend the same cap on the sole dirty indexed file (073);
+        absence). A zero-hit **first page** may spend the same cap on the sole dirty indexed file
+        (073) — an empty page under ``offset`` is not an empty answer, so it repairs nothing;
         multiple dirty files yield empty ``index_stale`` plus ``try_instead``. Stub-indexed nodes
         (task 039) also carry ``stub: true``.
 
@@ -81,7 +82,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             hit_paths = [str(row["file_path"]) for row in rows[:cap]]
             status = guard.ensure_paths(hit_paths)
             # Zero hits never yield hit paths — miss-repair the sole dirty indexed file (073).
-            if not rows and status == "ok":
+            # First page only: an empty page past the end is not an empty answer (057).
+            if not rows and offset == 0 and status == "ok":
                 status = guard.ensure_miss()
             # Re-query only when a repair may have changed FTS/rows.
             if status == "repaired" or (status == "stale" and guard.used > 0):

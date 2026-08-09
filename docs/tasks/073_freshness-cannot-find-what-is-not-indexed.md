@@ -151,6 +151,16 @@ Proving: `tests/test_freshness_cannot_find_what_is_not_indexed.py`
 
 Branch `fix/073-freshness-cannot-find-what-is-not-indexed`. Suite **1007 passed**. Review skipped.
 
+**Post-PR review (main loop, 0 dispatch) — one defect, fixed on the branch.** The `search_symbol`
+miss-repair keyed off an empty *page*, not an empty answer, so it also fired when `offset` walked past
+the end (057). Measured on a two-node fixture, query `Thing`, `limit=1`, two dirty indexed files:
+`offset=0 → reason ok, total_count 2` but `offset=9 → reason index_stale, total_count 2, no
+try_instead` — the freshness verdict flipped with pagination on an answer that was never empty, and
+with a single dirty file the same path spent the `READ_THROUGH_CAP` reparse on a query that already
+had hits. Fix: gate the miss on `offset == 0`; pinned by
+`test_empty_page_past_the_end_is_not_a_miss`, which also asserts the cap is unspent. The nav tools are
+unaffected — `ensure_qname` keys off the subject qname, not the page.
+
 ## Cost ledger
 
 | Phase | Dispatch | Tokens |
