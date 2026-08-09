@@ -281,8 +281,8 @@ def _check_row(
         )
     if "args" in row:
         errors += _check_args(path, row["args"])
-    if "arg_keys" in row:
-        errors += _check_arg_keys(path, row["arg_keys"], row.get("args"))
+    if ARG_KEYS_FIELD in row:
+        errors += _check_arg_keys(path, row[ARG_KEYS_FIELD], row.get("args"))
     return errors
 
 

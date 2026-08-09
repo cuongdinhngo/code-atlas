@@ -72,17 +72,19 @@ def test_handler_publish_keys_queryable_with_rules(tmp_path: Path, store: GraphS
         contract.VIEW_DATA_PREFIX + "items",
         contract.VIEW_DATA_PREFIX + "title",
         contract.VIEW_DATA_PREFIX + "extra",
+        contract.VIEW_DATA_PREFIX + "08",
     }
     assert {row["target_raw"] for row in edges} == keys
-    assert len(edges) == 5
+    assert len(edges) == 6
     assert all(row["confidence_tier"] == "HEURISTIC" for row in edges)
     assert all(row["file_path"] == INDIRECTION_FILE for row in edges)
 
     tool = find_view_data.create(config)
     payload = tool(HANDLER)
     assert payload["reason"] == "ok"
-    assert payload["total_count"] == 5
-    assert {hit["key"] for hit in payload["results"]} == {"items", "title", "extra"}
+    assert payload["total_count"] == 6
+    assert {hit["key"] for hit in payload["results"]} == {"items", "title", "extra", "08"}
+    assert "5" not in {hit["key"] for hit in payload["results"]}
     for hit in payload["results"]:
         assert hit[contract.RULE_FLAG] is True
         assert hit["confidence_tier"] == "HEURISTIC"
@@ -123,4 +125,4 @@ def test_array_literal_keys_are_recorded_on_calls(tmp_path: Path, store: GraphSt
         import json
 
         raw_keys = json.loads(raw_keys)
-    assert raw_keys == [["items", "title"]]
+    assert raw_keys == [["items", "title", "08"]]
