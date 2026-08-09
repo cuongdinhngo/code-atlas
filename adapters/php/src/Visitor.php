@@ -741,6 +741,7 @@ final class Visitor extends NodeVisitorAbstract
         }
         if ($call !== null && ($args = self::argLiterals($call)) !== null) {
             $edge['args'] = $args;
+            $edge['arg_keys'] = self::argKeys($call);
         }
         $this->edges[] = $edge;
     }
@@ -767,6 +768,48 @@ final class Visitor extends NodeVisitorAbstract
         }
 
         return $out;
+    }
+
+    /**
+     * Parallel to argLiterals: null for non-array args; ordered string keys for array literals.
+     * Non-literal keys / unpack items contribute nothing and do not insert placeholders (063).
+     *
+     * @return list<list<string>|null>
+     */
+    private static function argKeys(Node\Expr\CallLike $call): array
+    {
+        $out = [];
+        foreach ($call->getArgs() as $arg) {
+            if ($arg->value instanceof Node\Expr\Array_) {
+                $out[] = self::arrayLiteralStringKeys($arg->value);
+            } else {
+                $out[] = null;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function arrayLiteralStringKeys(Node\Expr\Array_ $array): array
+    {
+        $keys = [];
+        foreach ($array->items as $item) {
+            if ($item === null || $item->unpack || $item->key === null) {
+                continue;
+            }
+            if ($item->key instanceof Node\Scalar\String_) {
+                $keys[] = $item->key->value;
+            } elseif ($item->key instanceof Node\Scalar\InterpolatedString) {
+                // Interpolated keys are not a fixed string — contribute nothing (063).
+                continue;
+            }
+            // Non-literal keys ($k => …) contribute nothing and do not shift later keys.
+        }
+
+        return $keys;
     }
 
     private static function literalKind(Node\Expr $value): ?string

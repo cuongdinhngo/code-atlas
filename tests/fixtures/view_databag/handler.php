@@ -10,6 +10,10 @@ class ViewBag
     public function put(mixed $bag, string $key, mixed $value): void
     {
     }
+
+    public function setData(array $data): void
+    {
+    }
 }
 
 class OrderController
@@ -21,5 +25,7 @@ class OrderController
         $view->assign('title', 'Orders');
         $bag = null;
         $view->put($bag, 'extra', 1);
+        $dyn = 'skip';
+        $view->setData(['items' => $items, $dyn => 1, 'title' => 'Orders']);
     }
 }

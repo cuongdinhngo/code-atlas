@@ -65,7 +65,11 @@ code-atlas/
   `view_data` setter rules (task 062); query with `find_view_data`.
 - **Confidence tiers:** `RESOLVED | HEURISTIC | DYNAMIC`.
 - **Node fields:** `kind, name, qualified_name, file_path, line_start, line_end, modifiers, params, is_test, extra`.
-- **Edge fields:** `kind, source_qname, target_qname?, target_raw, file_path, line, confidence_tier, args?`.
+- **Edge fields:** `kind, source_qname, target_qname?, target_raw, file_path, line, confidence_tier, args?, arg_keys?`.
+- **`arg_keys` (contract v5):** optional list parallel to `args`. For an `"array"` arg, a list of
+  top-level string keys from the array literal (empty list = captured, none found). `null` for
+  non-array args. Absent field = keys not captured (pre-v5). Used by `view_data` rules with
+  `key_from: "array_keys"` (task 063).
 - **Argument literals (`args` entries):** `null true false number string array` — the literal's
   *category*, never its value; a JSON `null` entry means "not a literal". Omitting `args` means the
   arguments are unknown, which is never the same as "no arguments".

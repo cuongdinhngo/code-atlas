@@ -4,7 +4,7 @@ slug: view-databag-array-keys
 title: 'The data-bag setter takes an array, not a key — 062 emits nothing on the anchor repo'
 phase: 1.5b
 milestone: Coverage
-status: todo
+status: in-progress
 depends_on: [062, 002, 049]
 ---
 
@@ -77,3 +77,179 @@ categories, and why they carry no values); `code_atlas/enrichment.py` (`_view_da
 `_arg_is_string`); `code_atlas/contract.py` (`ARG_LITERALS`, `CONTRACT_VERSION`); R1.1, R2, R3, R4.
 Origin: onboarding the anchor repo onto contract v4, 2026-08-08 — found while writing the 062 rules
 file, not by a session using the tool.
+
+## Outcome
+
+- **AC1 count → PROCEED** (fixtures: 2 key-value / 0 array; anchor Evidence: 7,663/11,204 setData are array).
+- **Contract v5 + schema 4:** `arg_keys` parallel to `args` (string keys of array literals).
+- **Adapter:** top-level string keys only; non-literal keys do not shift.
+- **Rules:** `key_from: "array_keys"` (default `"string"` unchanged for 062).
+- **Suite:** 965 passed.
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 063 — view-databag-array-keys (working doc)
+
+- **Ticket:** 063 · local `docs/tasks/063_view-databag-array-keys.md`
+- **Type:** enhancement
+- **Repo(s):** app (`.`)
+- **SCOPE:** M
+- **STRUCTURE:** native
+- **TRACK:** backend — 0/N UI
+- **TIER:** full
+- **BASELINE:** green — `964 passed` at tip `cb23db7` (untouched main, 2026-08-09)
+- **work_doc_mode:** embed (plain local-file ticket)
+- **working-doc path:** this file below separator
+
+## Phase 0 — Refine
+
+`REFINE: 0 unresolved | skip: yes`
+
+`refine skipped: 0 unresolved product-decisions`
+
+**INPUT KIND:** ticket
+
+**Exposure-checker:** [Challenger](2a4f003d-0a66-42df-9ee9-7c83c2c64dee) — `none (ready)`. HOW (sibling field vs widened `args`; rule encoding) → design.
+
+## Requirements matrix
+
+`SECTIONS: 5 found (Goal, Evidence, Scope/Deliverables, Constraints, Acceptance criteria) | 5 decomposed | ROWS: C=5 R=6 G=1 AC=5`
+
+Evidence section → support rows under G/R (counts inform kill gate), not separate IDs beyond R0.
+
+| ID | Source | Interpretation | Ph1 evidence | Ph2 | Ph3/4 | Status |
+|----|--------|----------------|--------------|-----|-------|--------|
+| G1 | Goal | Close array-literal publish gap so 059 shape is reachable where 062's key_arg alone yields 0 edges | ticket + anchor counts in Evidence | | | |
+| R0 | Scope | **Count first** (fixture + anchor): (key,value) vs array-literal; kill/proceed recorded before adapter code | AC1; 059 precedent | | | |
+| R1 | Scope | PHP adapter emits top-level array-literal **string keys** (order-preserving; non-literal/spread/nested contribute nothing, no shift) | Visitor `literalKind` Array_ → `"array"` only today | | | |
+| R2 | Scope | Contract: place for keys; bump version + tests/contract; old `"array"` ≠ “keys found empty” | EDGE_FIELDS has `args` only; no edge `extra` | | | |
+| R3 | Scope | Extend 062 `view_data` rule: “keys of array at arg N”; keep string `key_arg` working | enrichment `{setter,key_arg}` only | | | |
+| R4 | Scope | Same `find_view_data` surface for both shapes | find_view_data.py | | | |
+| R5 | Scope | Off by default — no rules ⇒ no PROVIDES_VIEW_DATA | 040/062 | | | |
+| C1 | Constraints | R2 — language fact in adapter, no framework/repo names | R2.2 | | | |
+| C2 | Constraints | R1.1 — core applies rules generically | enrichment | | | |
+| C3 | Constraints | R4 — deterministic; HEURISTIC not silent RESOLVED | 062 | | | |
+| C4 | Constraints | Consumer/option 2 stays out | 059/062 | | | |
+| C5 | Constraints | Fixtures only; private aggregates only | Evidence already aggregate | | | |
+| AC1 | AC | Count + kill/proceed in working doc before adapter code | falsifiable doc artifact | | | |
+| AC2 | AC | Array fixture → items+title edges; (key,value) fixture unchanged from 062 | pytest | | | |
+| AC3 | AC | Non-literal key emits nothing / no shift | pytest | | | |
+| AC4 | AC | contract_version bump + tests/contract; prior index = no keys captured | contract tests | | | |
+| AC5 | AC | No rules ⇒ no PROVIDES_VIEW_DATA | pytest | | | |
+
+References: citation only.
+
+## AC validation
+
+| AC | Falsifiable? | Notes |
+|----|--------------|-------|
+| AC1 | yes (doc count + proceed/kill line) | Must precede adapter edits in execute |
+| AC2–AC5 | yes (pytest / contract pins) | |
+
+## Clarifications
+
+`CLARIFICATION: 3 raised | 3 self-resolved (HOW→design) | 0 for human decision`
+
+| # | Item | Resolution | Citation |
+|---|------|------------|----------|
+| 1 | Sibling field vs widened `args` | HOW → design (prefer sibling `arg_keys` parallel to `args` — safer for SQL filters + old indexes) | ticket Scope; store `_args_predicate` |
+| 2 | Rule encoding for “keys of array at N” | HOW → design (e.g. `key_from: "array_keys"` + `key_arg`) | ticket |
+| 3 | Count methodology “as 059” | HOW → design/execute (fixture corpus grep + record ticket Evidence as anchor aggregates; CODE_ATLAS_SCALE_SAMPLE if set) | ticket R0 |
+
+**Gate 0:** none (`j=0`).
+
+## Cause / blast radius
+
+- **Cause:** adapter emits `"array"` category only; 062 enrichment requires `"string"` at `key_arg`.
+- **Blast:** PHP `Visitor.php` args; `contract.py` v4→5 + EDGE_FIELDS; store insert/validate; enrichment view_data; fixtures/tests; CONVENTION/PLAN. Nav tool shape unchanged. No Twig/Blade.
+
+## Scope / tier
+
+`SCOPE: M` · `TIER: full` · `TRACK: backend`
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|-------|----------|-------|--------|
+| refine | exposure-checker | 1 | unmeasured (blocking retrieval) |
+| analysis | explore (args/enrichment map) | 1 | unmeasured (blocking retrieval) |
+
+## Decision log
+
+| When | Decision |
+|------|----------|
+| 2026-08-09 | Standing (prior): best option + pass all gates incl. push/PR/merge when CI green |
+| 2026-08-09 | refine skip: 0 unresolved; deps 062/002/049 done; baseline 964 @ cb23db7 |
+
+## Decision log (delta)
+
+| When | Decision |
+|------|----------|
+| 2026-08-09 | Gate 1 cleared (standing) |
+| 2026-08-09 | Gate 2 cleared (standing) — approach below |
+| 2026-08-09 | **AC1 count → PROCEED** (see Phase 2) |
+
+## Phase 2 — Design
+
+### AC1 — Publish-shape count (before adapter code)
+
+| Corpus | (key,value) sites | array-literal setter sites | Notes |
+|--------|------------------:|---------------------------:|-------|
+| `tests/fixtures/**/*.php` (32 files) | **2** (`view_databag/handler.php` assign) | **0** | Fixture corpus is 062-shaped only today |
+| Anchor repo (ticket Evidence, 2026-08-08, aggregates only) | **0** matching assign/with/setVar/render for view bag; 67 request-param helpers (not bag) | **7,663** of **11,204** `setData` CALLS are `args=["array"]` | Dominates the shape 059 was filed for |
+
+**Kill/proceed:** **PROCEED.** Array-literal publish is rare in *this* fixture tree but is the dominant (and only) view-bag shape on the anchor; killing would leave 062 permanently empty there. Plant an array fixture in this ticket so both shapes are proven in-repo.
+
+### Approach
+1. **Contract v5 + schema 4:** optional edge field `arg_keys` (JSON list parallel to `args`: `null` for non-array args; list of string keys for array args — possibly empty). Absent field / null slot = keys not captured (old indexes). Empty list = captured, no string keys.
+2. **PHP adapter:** for `Array_` args, emit top-level string keys in order; non-literal keys / unpack contribute nothing and do not insert placeholders.
+3. **Rules:** `view_data` entries may set `key_from: "array_keys"` (default `"string"` = 062). Same `key_arg`. Enrichment reads `arg_keys[key_arg-1]` and emits one `PROVIDES_VIEW_DATA` per key.
+4. **Nav:** unchanged `find_view_data`.
+5. Handshake `contract_version: 5`.
+
+### Rejected
+| Alt | Why |
+|-----|-----|
+| Widen `args` entry to object | Breaks 049 `json_extract` filters / ARG_LITERALS |
+| Line-regex parse of PHP arrays | Fragile; ticket wants adapter capture |
+| Kill ticket (fixtures only rare) | Anchor evidence is the filing reason |
+
+### Assumptions
+| # | Assumption | Tag | Mitigation |
+|---|------------|-----|------------|
+| A1 | PHP-Parser exposes ArrayItem keys as String_ for `'k'=>` | verified-enough | proving fixture |
+| A2 | Parallel `arg_keys` survives store JSON round-trip | novel-untested | proving + call-site tests |
+
+### Change list
+| # | Change | Area | Rows |
+|---|--------|------|------|
+| CL1 | `CONTRACT_VERSION=5`, `arg_keys` on `EDGE_FIELDS`, validate | `contract.py` | R2,AC4 |
+| CL2 | `SCHEMA_VERSION=4`, edges.arg_keys column | `store.py` | R2,AC4 |
+| CL3 | Emit `arg_keys` for array literals | `adapters/php/Visitor.php` | R1,C1 |
+| CL4 | Handshake + fake adapter → 5 | php index + fake_adapter + version pins | AC4 |
+| CL5 | `view_data.key_from` + enrichment array path | `enrichment.py` | R3,R5,AC2,AC5 |
+| CL6 | Array fixture + tests (array + non-literal + 062 regression + off) | fixtures + tests | AC2,AC3,AC5 |
+| CL7 | Docs CONVENTION/PLAN/README as needed | docs | G1 |
+| CL8 | Proof collateral: EDGE_FIELDS pins, VOCABULARY len, schema tests | tests | AC4 |
+
+### Verification
+| AC | Layer | Proof |
+|----|-------|-------|
+| AC1 | doc | count table above |
+| AC2 | integration | proving pytest |
+| AC3 | integration | non-literal key fixture |
+| AC4 | logic | contract + schema pins |
+| AC5 | integration | no-rules test |
+
+**Proving test:** `tests/test_view_databag_producer.py` (extend) / `test_view_databag_array_keys.py`
+
+## Phase 3 — Execute
+
+**Branch:** `feat/063-view-databag-array-keys`
+**Suite:** 965 passed.
+
+## Session status
+
+- **Phase:** execute → review
+- **work_doc_mode:** embed
+- **working-doc path:** `docs/tasks/063_view-databag-array-keys.md` (below separator)

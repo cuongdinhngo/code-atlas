@@ -90,7 +90,7 @@ gap that fixtures never hit.
 | 060 | [An incremental run reports deltas under the field names a full build uses for totals](tasks/060_build-report-scale-naming.md) | Agent-trust | done | 051 |
 | 061 | [Every response carries fields that earn nothing](tasks/061_payload-weight.md) | Cost | done | 010, 014, 033 |
 | 062 | [Producer-side view data-bag edges — rules + enrichment](tasks/062_view-databag-producer.md) | Coverage | done | 030, 040, 059 |
-| 063 | [The data-bag setter takes an array, not a key — 062 emits nothing on the anchor repo](tasks/063_view-databag-array-keys.md) | Coverage | todo | 062, 002, 049 |
+| 063 | [The data-bag setter takes an array, not a key — 062 emits nothing on the anchor repo](tasks/063_view-databag-array-keys.md) | Coverage | in-progress | 062, 002, 049 |
 
 **047–049 come from the first external field session** — an agent in the anchor repo used the server for
 real work and filled in a retro (`v0.1.0`, commit `e117b47`, round 1). Its headline finding was **zero

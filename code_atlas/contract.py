@@ -18,7 +18,7 @@ An adapter opens the stream by announcing itself once — the **handshake** of �
 
 from typing import Literal, get_args
 
-CONTRACT_VERSION = 4
+CONTRACT_VERSION = 5
 
 # Ordered Literal is the typing SSoT; NODE_KINDS is derived so schemas cannot drift (R3.2 / 056).
 NodeKind = Literal[
@@ -93,12 +93,16 @@ EDGE_FIELDS: tuple[str, ...] = (
     "line",
     "confidence_tier",
     "args",
+    "arg_keys",
 )
 
 # One entry per argument at a CALLS/NEW site, in source order (contract v3, task 049).
 # JSON ``null`` means "not a literal" — a variable, a call, any expression the parser saw but did
 # not evaluate. A string is one of ARG_LITERALS: the *category*, never the value.
 ARG_LITERALS: tuple[str, ...] = ("null", "true", "false", "number", "string", "array")
+# Parallel to ``args`` (contract v5, task 063): per-arg ``null`` or a list of top-level string
+# keys from an array literal. Absent field / null slot = keys not captured (pre-v5 indexes).
+ARG_KEYS_FIELD = "arg_keys"
 # Reserved ``args`` selectors that are not literals: fewer arguments than asked for, and "present
 # but not a literal". Kept apart from ARG_LITERALS so neither list can shadow the other.
 ARG_ABSENT = "absent"
@@ -277,6 +281,8 @@ def _check_row(
         )
     if "args" in row:
         errors += _check_args(path, row["args"])
+    if "arg_keys" in row:
+        errors += _check_arg_keys(path, row["arg_keys"], row.get("args"))
     return errors
 
 
@@ -291,6 +297,33 @@ def _check_args(path: str, args: object) -> list[str]:
         for index, entry in enumerate(args)
         if entry is not None and entry not in ARG_LITERALS
     ]
+
+
+def _check_arg_keys(path: str, arg_keys: object, args: object) -> list[str]:
+    """``arg_keys`` is a list parallel to ``args``: null or a list of strings per position."""
+    if arg_keys is None:
+        return []
+    if not isinstance(arg_keys, list):
+        return [_wrong_type(f"{path}.arg_keys", arg_keys, "a list of key lists or nulls")]
+    errors: list[str] = []
+    if isinstance(args, list) and len(arg_keys) != len(args):
+        errors.append(
+            f"{path}.arg_keys: length {len(arg_keys)} must match args length {len(args)}"
+        )
+    for index, entry in enumerate(arg_keys):
+        if entry is None:
+            continue
+        if not isinstance(entry, list):
+            errors.append(
+                _wrong_type(f"{path}.arg_keys[{index}]", entry, "a list of strings or null")
+            )
+            continue
+        for key_index, key in enumerate(entry):
+            if not isinstance(key, str):
+                errors.append(
+                    _wrong_type(f"{path}.arg_keys[{index}][{key_index}]", key, "a string")
+                )
+    return errors
 
 
 def _check_keys(

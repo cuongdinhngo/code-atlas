@@ -36,7 +36,7 @@ class RulesPayload:
 
     aliases: tuple[tuple[str, str], ...]
     calls: tuple[tuple[str, str, int], ...]
-    view_data: tuple[tuple[str, int], ...]
+    view_data: tuple[tuple[str, int, str], ...]
     digest: str
 
 
@@ -52,7 +52,7 @@ def load_indirection_rules(config: Config) -> RulesPayload | None:
 
     aliases: list[tuple[str, str]] = []
     calls: list[tuple[str, str, int]] = []
-    view_data: list[tuple[str, int]] = []
+    view_data: list[tuple[str, int, str]] = []
     digester = hashlib.sha256()
     for relative in sorted(paths):
         full = config.root / relative
@@ -163,7 +163,7 @@ def view_data_key(target_raw: object) -> str | None:
 
 
 def _view_data_edges(
-    config: Config, store: GraphStore, rules: tuple[tuple[str, int], ...]
+    config: Config, store: GraphStore, rules: tuple[tuple[str, int, str], ...]
 ) -> list[dict[str, object]]:
     if not rules:
         return []
@@ -176,7 +176,11 @@ def _view_data_edges(
         if edge.get("file_path") == INDIRECTION_FILE:
             continue
         target = str(edge.get("target_raw") or "")
-        matched = [_key_arg for setter, _key_arg in rules if _setter_matches(target, setter)]
+        matched = [
+            (key_arg, key_from)
+            for setter, key_arg, key_from in rules
+            if _setter_matches(target, setter)
+        ]
         if not matched:
             continue
         args = edge.get("args")
@@ -187,34 +191,25 @@ def _view_data_edges(
         rel = edge.get("file_path")
         if not isinstance(rel, str) or not rel:
             continue
-        for key_arg in matched:
-            if not _arg_is_string(args, key_arg):
-                continue
-            text = _line_text(config.root, rel, line, line_cache)
-            if text is None:
-                continue
-            parsed = _parse_args(args)
-            if parsed is None:
-                continue
-            # key_arg is the 1-based *argument* index; map to the Nth string literal on the line.
-            ordinal = sum(1 for entry in parsed[:key_arg] if entry == "string")
-            key = _nth_string_literal(text, ordinal)
-            if key is None:
-                continue
-            stamp = (source, key, line)
-            if stamp in seen:
-                continue
-            seen.add(stamp)
-            out.append(
-                {
-                    "kind": contract.PROVIDES_VIEW_DATA,
-                    "source_qname": source,
-                    "target_raw": f"{contract.VIEW_DATA_PREFIX}{key}",
-                    "file_path": INDIRECTION_FILE,
-                    "line": line,
-                    "confidence_tier": _HEURISTIC,
-                }
+        for key_arg, key_from in matched:
+            keys = _keys_for_rule(
+                config, edge, args, key_arg, key_from, rel, line, line_cache
             )
+            for key in keys:
+                stamp = (source, key, line)
+                if stamp in seen:
+                    continue
+                seen.add(stamp)
+                out.append(
+                    {
+                        "kind": contract.PROVIDES_VIEW_DATA,
+                        "source_qname": source,
+                        "target_raw": f"{contract.VIEW_DATA_PREFIX}{key}",
+                        "file_path": INDIRECTION_FILE,
+                        "line": line,
+                        "confidence_tier": _HEURISTIC,
+                    }
+                )
     out.sort(
         key=lambda row: (
             str(row["source_qname"]),
@@ -223,6 +218,63 @@ def _view_data_edges(
         )
     )
     return out
+
+
+def _keys_for_rule(
+    config: Config,
+    edge: dict[str, object],
+    args: object,
+    key_arg: int,
+    key_from: str,
+    rel: str,
+    line: int,
+    line_cache: dict[tuple[str, int], str | None],
+) -> list[str]:
+    if key_from == "array_keys":
+        return _keys_from_arg_keys(edge.get("arg_keys"), args, key_arg)
+    if key_from != "string":
+        return []
+    if not _arg_is_string(args, key_arg):
+        return []
+    text = _line_text(config.root, rel, line, line_cache)
+    if text is None:
+        return []
+    parsed = _parse_args(args)
+    if parsed is None:
+        return []
+    ordinal = sum(1 for entry in parsed[:key_arg] if entry == "string")
+    key = _nth_string_literal(text, ordinal)
+    return [key] if key is not None else []
+
+
+def _keys_from_arg_keys(arg_keys: object, args: object, key_arg: int) -> list[str]:
+    """Keys from ``arg_keys[key_arg-1]`` when that arg is an array (task 063)."""
+    parsed_args = _parse_args(args)
+    if parsed_args is None or key_arg < 1 or key_arg > len(parsed_args):
+        return []
+    if parsed_args[key_arg - 1] != "array":
+        return []
+    slots = _parse_arg_keys(arg_keys)
+    if slots is None or key_arg > len(slots):
+        return []
+    entry = slots[key_arg - 1]
+    if not isinstance(entry, list):
+        return []
+    return [key for key in entry if isinstance(key, str) and key]
+
+
+def _parse_arg_keys(raw: object) -> list[object] | None:
+    if raw is None:
+        return None
+    if isinstance(raw, list):
+        return raw
+    if isinstance(raw, str):
+        try:
+            loaded = json.loads(raw)
+        except json.JSONDecodeError:
+            return None
+        return loaded if isinstance(loaded, list) else None
+    return None
 
 
 def _setter_matches(target_raw: str, setter: str) -> bool:
@@ -299,7 +351,9 @@ def _nth_string_literal(line: str, n: int) -> str | None:
 
 def _load_rules(
     label: str, raw_bytes: bytes
-) -> tuple[list[tuple[str, str]], list[tuple[str, str, int]], list[tuple[str, int]]]:
+) -> tuple[
+    list[tuple[str, str]], list[tuple[str, str, int]], list[tuple[str, int, str]]
+]:
     try:
         raw = json.loads(raw_bytes.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -326,7 +380,7 @@ def _load_rules(
             raise ConfigError(f"indirection_rules: {label!r} calls.line must be an int >= 1")
         calls.append((source, target, line))
 
-    view_data: list[tuple[str, int]] = []
+    view_data: list[tuple[str, int, str]] = []
     for item in _as_list(raw.get("view_data"), label, "view_data"):
         if not isinstance(item, dict):
             raise ConfigError(f"indirection_rules: {label!r} view_data entries must be objects")
@@ -334,7 +388,13 @@ def _load_rules(
         key_arg = item.get("key_arg")
         if type(key_arg) is not int or key_arg < 1:
             raise ConfigError(f"indirection_rules: {label!r} view_data.key_arg must be an int >= 1")
-        view_data.append((setter, key_arg))
+        key_from = item.get("key_from", "string")
+        if key_from not in ("string", "array_keys"):
+            raise ConfigError(
+                f"indirection_rules: {label!r} view_data.key_from must be "
+                f"'string' or 'array_keys'"
+            )
+        view_data.append((setter, key_arg, key_from))
 
     return aliases, calls, view_data
 

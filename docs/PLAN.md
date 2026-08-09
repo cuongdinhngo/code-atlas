@@ -101,8 +101,9 @@ Adapter runs as a long-lived process; core feeds newline-delimited requests, rea
 Node fields: `kind, name, qualified_name, file_path, line_start, line_end, modifiers, params, is_test, extra(JSON)`.
 
 **Edge kinds**: `CONTAINS, EXTENDS, IMPLEMENTS, USES_TRAIT, CALLS, NEW, IMPORTS, INCLUDES, REFERENCES, ALIASES`.
-Edge fields: `kind, source_qname, target_qname?, target_raw, file_path, line, confidence_tier(RESOLVED|HEURISTIC|DYNAMIC), args?(JSON)`.
+Edge fields: `kind, source_qname, target_qname?, target_raw, file_path, line, confidence_tier(RESOLVED|HEURISTIC|DYNAMIC), args?(JSON), arg_keys?(JSON)`.
 `args` (contract v3, task 049) is one entry per argument at a `CALLS`/`NEW` site, in source order: `null` when the argument is any non-literal expression, otherwise its literal **category** from `contract.ARG_LITERALS` (`null, true, false, number, string, array`) — never the value. The whole field is omitted when positions cannot be trusted (a spread, a named argument) or when the adapter does not record arguments; omitted means *unknown*, never *no arguments*.
+`arg_keys` (contract v5, task 063) is optional and parallel to `args`: `null` for a non-array arg; a list of top-level **string keys** from an array literal (empty list = captured, none found). Absent field = keys not captured (pre-v5 indexes). Values are never recorded.
 
 **Qualified-name convention** (identical across languages, adapter's job to honor):
 `\Ns\Class`, `\Ns\Class::method`, `\Ns\Class::$prop`, `\Ns\Class::CONST`, `\ns\func`, files as repo-relative paths. The **container** keeps its language-native separator (`\`, `.`, `/`); the **member** boundary is always `::` (`contract.MEMBER_SEPARATOR`), so C# maps to `Namespace.Type::Member` and Python to `module.Class::method`. **JS/TS has no namespaces** — symbols are module-scoped, so the qname is module-path–anchored, e.g. `src/user.ts::User::save`, `src/util.ts::default`, `src/util.ts::helper` (see §4.4 — this is the case that pressure-tests the convention).
@@ -303,7 +304,7 @@ CREATE INDEX idx_nodes_kind ON nodes(kind);
 CREATE INDEX idx_nodes_file ON nodes(file_path);
 CREATE TABLE edges (
   id INTEGER PRIMARY KEY, kind TEXT, source_qname TEXT, target_qname TEXT, target_raw TEXT,
-  file_path TEXT, line INT, confidence_tier TEXT DEFAULT 'RESOLVED', args TEXT);
+  file_path TEXT, line INT, confidence_tier TEXT DEFAULT 'RESOLVED', args TEXT, arg_keys TEXT);
 CREATE INDEX idx_edges_src ON edges(source_qname, kind);
 CREATE INDEX idx_edges_tgt ON edges(target_qname, kind);
 CREATE INDEX idx_edges_tier ON edges(confidence_tier);
@@ -336,11 +337,12 @@ guard's two branches, an `interface X` + `class X` fixture), which **would** tri
 deterministic — R4.2) before insert, so a duplicate-declaration file soft-succeeds with one node per
 qname rather than aborting the build (R5.1, task 043). NULL/anonymous qnames are never collapsed.
 
-**`schema_version` is `"3"` and enforced loud.** On open, a database carrying a different value raises
+**`schema_version` is `"4"` and enforced loud.** On open, a database carrying a different value raises
 — the DB is a derived cache, so there is no migration runner (this section's decision; R7.4 is about
 dead abstractions and was cited here in error). Version **2** added
 `tokenize='trigram'` on `nodes_fts` (camelCase substring search); version **3** adds the `edges.args`
-column that carries contract v3's per-call-site argument shapes (task 049).
+column that carries contract v3's per-call-site argument shapes (task 049); version **4** adds
+`edges.arg_keys` for array-literal string keys (contract v5, task 063).
 
 **The mismatch has a direction, and the two directions need opposite actions (task 050).** The stamp
 is read *before* the DDL runs, so a database this build cannot read is never written to, and
@@ -374,7 +376,7 @@ Ignore: built-ins (`vendor/ var/ uploads/ log/ node_modules/ .git/ *.blade.*`) +
 
 **Stub roots (task 039).** `CA_STUB_ROOTS` walks named dependency trees **outside** the ignore/git collect path (so `vendor/` can be indexed without weakening directory exclusion). Files under those roots are parsed with `declarations_only` (signatures + EXTENDS/IMPLEMENTS/…; no CALLS/NEW from bodies); nodes carry `extra.stub=true` and surface as `stub: true` on `search_symbol` / `read_symbol`. Off by default — enabling it costs one declarations pass over the dependency tree. Matching is **case-sensitive** (`Vendor` ≠ `vendor`); a configured root that is missing, not a directory, or overlaps git-collected source fails loud (R5.3). `BuildReport.stubs` / `get_index_status.stubs` count stub files so a zero is visible.
 
-**Indirection rules (task 040 / 062).** `CA_INDIRECTION_RULES` names repo-relative JSON files **outside** `adapters/` (R2.2). Each file may list `aliases` (`from`/`to` FQNs → HEURISTIC `ALIASES` edges), `calls` (`source`/`target`/`line` → HEURISTIC `CALLS`), and `view_data` (`setter` method/FQN + `key_arg` → HEURISTIC `PROVIDES_VIEW_DATA` with `target_raw` `viewdata:<key>`, scanned from adapter CALLS + call-site string literals — task 062). Applied after parse and before `resolve_edges`, so facade aliases reuse task 030’s remap. Off by default — no rules ⇒ graph unchanged. Missing/invalid rule files fail loud **before** parse (R5.3). Rule edges live on a synthetic bookmark path (not on disk); nav hits carry `rule: true`. `PROVIDES_VIEW_DATA` hits keep call-site `line` and resolve `file` from the subject method. **v1 limit:** `calls` entries are exact qname pairs (hand-enumerated); `view_data` setters match exact `target_raw` or `::<method>` suffix; one-line string-arg extraction only.
+**Indirection rules (task 040 / 062 / 063).** `CA_INDIRECTION_RULES` names repo-relative JSON files **outside** `adapters/` (R2.2). Each file may list `aliases` (`from`/`to` FQNs → HEURISTIC `ALIASES` edges), `calls` (`source`/`target`/`line` → HEURISTIC `CALLS`), and `view_data` (`setter` + `key_arg` + optional `key_from` → HEURISTIC `PROVIDES_VIEW_DATA` with `target_raw` `viewdata:<key>`). Default `key_from` is `"string"` (062: recover the string literal at that arg from the call line). `"array_keys"` (063) reads `arg_keys` from the adapter for that array arg. Applied after parse and before `resolve_edges`. Off by default — no rules ⇒ graph unchanged. Missing/invalid rule files fail loud **before** parse (R5.3). Rule edges live on a synthetic bookmark path; nav hits carry `rule: true`. `PROVIDES_VIEW_DATA` hits keep call-site `line` and resolve `file` from the subject method.
 
 ---
 

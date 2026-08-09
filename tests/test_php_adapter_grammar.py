@@ -254,7 +254,7 @@ def test_i19_attributes_are_raw_on_the_declaration() -> None:
 
 def test_ac4_contract_vocabulary_pins_current_kinds() -> None:
     """025 pinned no-bump; 030 bumped to v2; 049 to v3 with `args` — keep the pin current."""
-    assert CONTRACT_VERSION == 4
+    assert CONTRACT_VERSION == 5
     assert NODE_KINDS == (
         "File", "Namespace", "Class", "Interface", "Trait", "Enum",
         "Function", "Method", "Property", "ClassConst", "Const",
@@ -265,3 +265,4 @@ def test_ac4_contract_vocabulary_pins_current_kinds() -> None:
     )
     assert "extra" in NODE_FIELDS
     assert "extra" not in EDGE_FIELDS
+    assert "arg_keys" in EDGE_FIELDS
