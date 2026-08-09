@@ -4,7 +4,7 @@ slug: build-without-adapter-silent
 title: 'A build with no adapter configured reports success over an empty index'
 phase: 1.5b
 milestone: Agent-trust
-status: in-progress
+status: done
 depends_on: [009, 028, 056]
 ---
 
