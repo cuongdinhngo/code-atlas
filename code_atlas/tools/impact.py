@@ -29,6 +29,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``depth`` defaults to ``CA_IMPACT_DEPTH``; the node budget is ``CA_IMPACT_MAX_NODES``.
         HEURISTIC/DYNAMIC neighbors are returned with their tier but do not expand the
         frontier. Missing seeds and a missing database yield an empty successful result.
+
+        Walks resolver-linked IMPACT kinds only — an empty answer is a modelled zero for those
+        kinds, not ``relationship_not_modelled`` (task 065; see ``find_references``).
         """
         hops = config.impact_depth if depth is None else depth
         if hops < 0:

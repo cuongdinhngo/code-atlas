@@ -9,7 +9,15 @@ from typing import Literal, NamedTuple
 
 from code_atlas.config import Config
 from code_atlas.store import GraphStore
-from code_atlas.tools.nav_result import edge_hit, edge_id, empty_nav, nav_result
+from code_atlas.tools.nav_result import (
+    REASON_RELATIONSHIP_NOT_MODELLED,
+    TRY_INSTEAD_PATH_BASENAME_SEARCH,
+    attach_try_instead,
+    edge_hit,
+    edge_id,
+    empty_nav,
+    nav_result,
+)
 
 NAME = "include_graph"
 
@@ -22,7 +30,7 @@ _INCLUDE = ("INCLUDES",)
 class _GraphOutcome(NamedTuple):
     results: list[dict[str, object]]
     truncated: bool
-    unresolved_includes: int
+    unresolved_includes: int | None
 
 
 def create(config: Config) -> Callable[..., dict[str, object]]:
@@ -38,8 +46,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         ``direction`` is ``imports`` (what this file includes), ``imported_by`` (who includes it),
         or ``both``. ``depth`` defaults to 1 (direct); deeper values BFS over linked ``INCLUDES``
-        only, capped by ``CA_MAX_RESULTS``. Linked edges only appear in ``results``;
-        ``unresolved_includes`` counts bare/dynamic includes on the seed path's ``imports`` side.
+        only, capped by ``CA_MAX_RESULTS``. Linked edges only appear in ``results``.
+        ``unresolved_includes`` counts bare/dynamic includes on the seed path's ``imports`` side
+        and is omitted for ``imported_by`` (inbound unresolved is unanswerable as a confident
+        zero — task 065). Empty ``imported_by`` with unlinked includes mentioning the basename
+        returns ``reason=relationship_not_modelled`` plus ``try_instead``.
         """
         if depth < 1:
             raise ValueError(f"depth must be >= 1, got {depth}")
@@ -51,18 +62,35 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 rel, detail_level=detail_level, db_path=str(config.db_path), subject_key="path"
             )
         limit = config.max_results
+        reason = None
+        try_instead: str | None = None
         with GraphStore(config.db_path) as store:
             outcome = _graph(store, rel, direction=direction, hops=depth, limit=limit)
-        return nav_result(
-            rel,
-            outcome.results,
-            detail_level=detail_level,
-            db_path=str(config.db_path),
-            truncated=outcome.truncated,
-            subject_key="path",
-            direction=direction,
-            depth=depth,
-            unresolved_includes=outcome.unresolved_includes,
+            if (
+                direction == "imported_by"
+                and not outcome.results
+                and store.count_unlinked_includes_mentioning(PurePosixPath(rel).name) > 0
+            ):
+                reason = REASON_RELATIONSHIP_NOT_MODELLED
+                try_instead = TRY_INSTEAD_PATH_BASENAME_SEARCH
+        extras: dict[str, object] = {
+            "direction": direction,
+            "depth": depth,
+        }
+        if outcome.unresolved_includes is not None:
+            extras["unresolved_includes"] = outcome.unresolved_includes
+        return attach_try_instead(
+            nav_result(
+                rel,
+                outcome.results,
+                detail_level=detail_level,
+                db_path=str(config.db_path),
+                truncated=outcome.truncated,
+                subject_key="path",
+                reason=reason,
+                **extras,
+            ),
+            try_instead,
         )
 
     return include_graph
@@ -81,7 +109,9 @@ def _graph(
     visited: set[str] = {path}
     queue: deque[tuple[str, int]] = deque([(path, 0)])
     truncated = False
-    unresolved = _count_unresolved_imports(store, path) if direction in ("imports", "both") else 0
+    unresolved: int | None = (
+        _count_unresolved_imports(store, path) if direction in ("imports", "both") else None
+    )
 
     while queue and len(results) < limit:
         current, hop = queue.popleft()

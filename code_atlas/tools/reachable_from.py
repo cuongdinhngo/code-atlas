@@ -33,6 +33,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``CA_IMPACT_MAX_NODES`` binds (transitive closure). Pass ``depth`` to cap hops;
         ``depth_exhausted`` / ``truncated`` signal an incomplete answer. Unset entry
         points yield ``status=no_roots_configured``.
+
+        Reachability uses the same linked IMPACT kinds as ``impact`` — empty/unproven is not
+        ``relationship_not_modelled`` (task 065).
         """
         if depth is not None and depth < 0:
             raise ValueError(f"depth must be >= 0, got {depth}")

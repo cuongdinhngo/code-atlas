@@ -6,12 +6,17 @@ from collections.abc import Callable
 from typing import Literal
 
 from code_atlas.config import Config
+from code_atlas.contract import UNMODELLED_REFERENCE_KINDS
 from code_atlas.store import GraphStore
 from code_atlas.tools import call_site
 from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
     REASON_INDEX_STALE,
+    REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
+    REASON_RELATIONSHIP_NOT_MODELLED,
+    TRY_INSTEAD_FIND_REFERENCES_ON_METHOD_QNAME,
+    attach_try_instead,
     edge_hit,
     empty_nav,
     nav_result,
@@ -37,7 +42,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         Only kinds the resolver links are visible (FQN edge kinds + ``INCLUDES``). Bare
         ``IMPORTS`` / ``CONTAINS`` / ``REFERENCES`` stay unlinkable until the resolver grows —
-        they never appear here even though the SQL has no kind filter.
+        they never appear here even though the SQL has no kind filter. When unlinked
+        ``REFERENCES``/``IMPORTS`` exist for an indexed subject and linked hits are zero, the
+        payload uses ``reason=relationship_not_modelled`` and ``try_instead`` (task 065).
 
         ``include_source`` (default off, so the common case stays token-frugal) adds each site's
         own source line as ``source``, capped in length. A site whose file drifted since indexing
@@ -70,7 +77,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     total_count=0,
                 )
             total_count = store.count_edges_by_target(qname)
-            indexed = bool(store.nodes_by_qualified_name(qname, limit=1))
+            nodes = store.nodes_by_qualified_name(qname, limit=1)
+            indexed = bool(nodes)
             if total_count == 0 and not indexed:
                 return nav_result(
                     qname,
@@ -85,6 +93,17 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             results = [edge_hit(edge) for edge in edges]
             if include_source:
                 call_site.annotate(config.root, store, results)
+            reason = relation_reason(hit_total=total_count, symbol_indexed=indexed)
+            try_instead: str | None = None
+            # Empty + unlinked REFERENCES/IMPORTS ⇒ relationship not modelled (not a genuine zero).
+            if reason == REASON_NO_MATCHES and nodes:
+                name = str(nodes[0]["name"])
+                unlinked = store.count_unlinked_by_target_raw(
+                    (qname, name), kinds=UNMODELLED_REFERENCE_KINDS
+                )
+                if unlinked > 0:
+                    reason = REASON_RELATIONSHIP_NOT_MODELLED
+                    try_instead = TRY_INSTEAD_FIND_REFERENCES_ON_METHOD_QNAME
         truncated = offset + len(results) < total_count
         result = nav_result(
             qname,
@@ -92,11 +111,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             detail_level=detail_level,
             db_path=str(config.db_path),
             truncated=truncated,
-            reason=relation_reason(hit_total=total_count, symbol_indexed=indexed),
+            reason=reason,
             total_count=total_count,
         )
         if freshness == "repaired":
             result["subject_refreshed_only"] = True
-        return result
+        return attach_try_instead(result, try_instead)
 
     return find_references

@@ -590,6 +590,40 @@ class GraphStore:
         )
         return int(self._conn.execute(sql, (bare_name, qname)).fetchone()[0])
 
+    def count_unlinked_by_target_raw(
+        self, raws: Sequence[str], *, kinds: Sequence[str]
+    ) -> int:
+        """Edges whose ``target_raw`` matches and ``target_qname`` is still empty (task 065).
+
+        Evidence that a relationship exists in the table but the resolver never links that kind.
+        """
+        cleaned = tuple(raw for raw in raws if raw)
+        if not cleaned or not kinds:
+            return 0
+        kind_marks = ",".join("?" * len(kinds))
+        raw_marks = ",".join("?" * len(cleaned))
+        sql = (
+            f"SELECT COUNT(*) FROM edges WHERE kind IN ({kind_marks}) "
+            f"AND target_raw IN ({raw_marks}) "
+            "AND (target_qname IS NULL OR target_qname = '')"
+        )
+        return int(self._conn.execute(sql, (*kinds, *cleaned)).fetchone()[0])
+
+    def count_unlinked_includes_mentioning(self, needle: str) -> int:
+        """Unlinked ``INCLUDES`` whose ``target_raw`` contains ``needle`` (task 065).
+
+        Cheap inbound approximation: dynamic/computed paths never get ``target_qname``, so
+        per-path inbound unresolved cannot be exact — basename/path fragment is the proxy.
+        """
+        if not needle:
+            return 0
+        sql = (
+            "SELECT COUNT(*) FROM edges WHERE kind = 'INCLUDES' "
+            "AND (target_qname IS NULL OR target_qname = '') "
+            "AND instr(target_raw, ?) > 0"
+        )
+        return int(self._conn.execute(sql, (needle,)).fetchone()[0])
+
     def count_nodes_by_name(self, name: str, *, kind: str | None = None) -> int:
         """How many nodes share ``name`` (optional ``kind``), via ``idx_nodes_name``."""
         if kind is None:

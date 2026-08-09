@@ -495,6 +495,14 @@ bytes (and the matching content hash) in `seed_file(..., root=)` — a shared sh
 trusted the index for missing paths caused the trust bug 033 closed. Adapter/DB failures during
 `reparse_file` also degrade to `"stale"` instead of crashing the read tool.
 
+## 065 — Inbound includes cannot be counted by target_qname
+`include_graph(direction="imported_by")` used to emit `unresolved_includes: 0` because the outbound
+counter is skipped for that direction — a confident zero that is structurally always zero. Unlinked
+inbound edges have empty `target_qname`, so they are invisible to `edges_by_target`. **Fix:** omit the
+field for `imported_by`, and only claim `relationship_not_modelled` when a cheaper basename
+`instr(target_raw, …)` proxy finds evidence. Generalises: a counter that is unanswerable in one
+query direction must not print zero; absent beats a structural lie.
+
 ## 004 — `git checkout -- <file>` restores the committed state, so it deletes uncommitted work
 While negative-controlling the R3.2 guard, a violating literal was appended to `code_atlas/store.py` and
 then reverted with `git checkout -- code_atlas/store.py`. The implementation was **not yet committed**, so

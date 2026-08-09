@@ -58,6 +58,8 @@ FQN_EDGE_KINDS: frozenset[str] = frozenset(
 # Named semantic subsets for nav tools (§12) — consumers import these; do not re-list kinds.
 CALLER_KINDS: tuple[str, ...] = ("CALLS", "NEW")
 IMPL_KINDS: tuple[str, ...] = ("EXTENDS", "IMPLEMENTS")
+# find_references honesty evidence (065) — kinds the resolver leaves bare (§8.2).
+UNMODELLED_REFERENCE_KINDS: tuple[str, ...] = ("REFERENCES", "IMPORTS")
 
 # Impact engine (§12 / M6) — incoming-edge walk weights (callers / subtypes / includers).
 IMPACT_KIND_WEIGHTS: dict[str, float] = {

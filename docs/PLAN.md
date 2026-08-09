@@ -391,9 +391,9 @@ Token-efficient: return qualified names + `file:line`, not bodies, unless a read
 | `file_outline` | `path` | symbols + line ranges, no body |
 | `read_symbol` | `qname` | source of just that class/method + docblock; stub symbols add `stub: true` (039) |
 | `find_callers` | `qname, depth?, include_source?, arg_position?, arg_is?, limit?, offset?` | who CALLS/NEW it + confidence; `reason` + `total_count` (033); opt-in capped call-site `source` (037); opt-in argument filter at a 1-based position — a literal category, `absent` or `dynamic` — with `total_count` counting matches and `args_unrecorded` counting the sites it could not judge (049, depth 1 only); `limit`/`offset` page results (057 — depth 1 uses store OFFSET; depth>1 pages the BFS hit stream; complete enumeration guaranteed at depth 1; at depth>1 `total_count` is a floor valid for that page only) |
-| `find_references` | `qname, include_source?, limit?, offset?` | all edges targeting it; `reason` + `total_count` (033); opt-in capped call-site `source` (037); `offset` pages in edge order (057) |
+| `find_references` | `qname, include_source?, limit?, offset?` | all **linked** edges targeting it; `reason` + `total_count` (033); empty + unlinked `REFERENCES`/`IMPORTS` → `relationship_not_modelled` + `try_instead` (065); opt-in capped call-site `source` (037); `offset` pages in edge order (057) |
 | `find_implementations` | `qname, limit?, offset?` | EXTENDS/IMPLEMENTS subtypes; `reason` + `total_count` (033); `limit`/`offset` page in edge order (057) |
-| `include_graph` | `path, direction` | `include`/`require` graph (any include-based code) |
+| `include_graph` | `path, direction` | `include`/`require` graph; `unresolved_includes` on imports/both only — omitted for `imported_by`; empty inbound with unlinked basename hits → `relationship_not_modelled` + `try_instead` (065) |
 | `impact` | `paths|qnames, depth?` | blast radius, bounded best-score |
 | `reachable_from` | `depth?` | nodes reachable from `CA_ENTRY_POINTS` (RESOLVED IMPACT kinds, forward); `unproven` for HEURISTIC/DYNAMIC-only |
 | `find_orphans` | `depth?` | complement: zero-inbound / unreachable-from-roots with `why`; never empty-success without roots |
