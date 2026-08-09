@@ -90,6 +90,7 @@ gap that fixtures never hit.
 | 060 | [An incremental run reports deltas under the field names a full build uses for totals](tasks/060_build-report-scale-naming.md) | Agent-trust | done | 051 |
 | 061 | [Every response carries fields that earn nothing](tasks/061_payload-weight.md) | Cost | done | 010, 014, 033 |
 | 062 | [Producer-side view data-bag edges — rules + enrichment](tasks/062_view-databag-producer.md) | Coverage | done | 030, 040, 059 |
+| 063 | [The data-bag setter takes an array, not a key — 062 emits nothing on the anchor repo](tasks/063_view-databag-array-keys.md) | Coverage | todo | 062, 002, 049 |
 
 **047–049 come from the first external field session** — an agent in the anchor repo used the server for
 real work and filled in a retro (`v0.1.0`, commit `e117b47`, round 1). Its headline finding was **zero
@@ -122,7 +123,8 @@ cost is the win*):
 - **Tier 1 — find the right thing.** **059 decided Option 1** (producer-side only;
   [PLAN §19](PLAN.md#19-project-context--decision-log)); **062 inherits its tier-1 head slot** — the
   founding-premise reorder's reasons (relation not location, two field sessions, unanswered by grep or
-  LSP) apply to the implementation, not the decision. Then **055**, still the acceptance criterion for
+  LSP) apply to the implementation, not the decision. **063 continues that slot** — 062's rule shape
+  finds nothing on the anchor repo, so the tier-1 reason it was ranked for is not yet paid off. Then **055**, still the acceptance criterion for
   the fixes under it, since nothing *in this repo* measures what a tool missed (the benchmark was
   external, hand-graded and n=1 — evidence, not a gate). Then **054** (the false negative, and its Part
   B ships regardless of anything else), **056**, **057**, **058**.
@@ -341,9 +343,17 @@ because they are billed differently and dwarf everything else.
 - **A no-op incremental build costs ~62 s on a large repo.** Now ticketed as
   [052](tasks/052_incremental-noop-cost.md) — the observation stayed open here long enough to start
   blocking [053](tasks/053_refresh-on-checkout-hook.md), which is what turned it into work.
-- **Controller→template data-bag edge — decided (059), not yet implemented.** Option 1 (producer side
-  only) is recorded in [PLAN §19](PLAN.md#19-project-context--decision-log); shipping the edges is
-  [062](tasks/062_view-databag-producer.md). Origin: field retro round 1 §6a.1, §2d / round 2 §A.6.
+- **Controller→template data-bag edge — decided (059), shipped (062), and still unreachable on the
+  anchor repo.** Option 1 (producer side only) is recorded in
+  [PLAN §19](PLAN.md#19-project-context--decision-log) and the edges landed in
+  [062](tasks/062_view-databag-producer.md). Onboarding the anchor repo onto contract v4 then found
+  062's rule shape — setter + a string-literal `key_arg` — matches **0** call sites there: that repo
+  publishes with an array literal (`setData(['items' => $x])`), so the keys are the array's own, and
+  `args` records the argument *category* only (`contract.py:101`), never the keys inside it. Rules
+  written for it emit nothing, and no `key_arg` value changes that. Ticketed as
+  [063](tasks/063_view-databag-array-keys.md), which counts the two publish shapes before writing any
+  adapter code. Origin: field retro round 1 §6a.1, §2d / round 2 §A.6; the gap found 2026-08-08 while
+  writing the rules file, not by a session using the tool.
 - **`max_results` semantics are documented locally, not by the server.** That the cap governs both
   returned rows *and* the resolver's candidate fan-out (the design smell recorded above) was learned by
   the field session only from a comment in the repo's own config file. Whatever comes of splitting the
