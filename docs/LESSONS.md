@@ -1,5 +1,11 @@
 # Lessons — code-atlas
 
+## 068 — Synthetic anchors are edges, not source files
+
+A rules bookmark that is a real `files` row with `parsed_ok=True` makes two honest counters disagree
+by one. Keep the edge `file_path` for provenance; do not upsert a `files` row or File node. Purge
+legacy bookmark rows on every apply so upgrades self-heal.
+
 ## 071 — Answers must name the tree they describe
 
 `db_path` on status is a database location; agents need the **source root**. Emit `index_root` =

@@ -17,12 +17,9 @@ from code_atlas import contract
 from code_atlas.config import Config, ConfigError
 from code_atlas.store import GraphStore
 
-# Synthetic path holding rule-emitted rows; replaced each build, dropped when rules are off.
-# Not a real on-disk file — tools must treat edges here as rule-derived (see edge_hit).
+# Synthetic path holding rule-emitted edges; replaced each build, dropped when rules are off.
+# Not a real on-disk file — no files row / File node (068); nav treats edges as rule-derived.
 INDIRECTION_FILE = ".code-atlas/indirection-rules"
-
-# files.language value — underscore-prefixed so it is never mistaken for a language handshake.
-_RULES_LANGUAGE = "_rules"
 
 _HEURISTIC = contract.CONFIDENCE_TIERS[1]
 
@@ -94,26 +91,20 @@ NOTHING = Enriched(nodes=0, edges=0)
 def apply_indirection_rules(
     config: Config, store: GraphStore, *, payload: RulesPayload | None = None
 ) -> Enriched:
-    """Replace synthetic ALIASES/CALLS/PROVIDES_VIEW_DATA rows, or clear when off."""
+    """Replace synthetic ALIASES/CALLS/PROVIDES_VIEW_DATA rows, or clear when off.
+
+    Edges keep ``file_path=INDIRECTION_FILE``; there is no ``files`` row and no File node
+    (task 068 — counters and source-file tools must not treat the bookmark as source).
+    """
+    # Always purge first so a pre-068 index cannot keep a leftover files/File bookmark.
+    store.remove_file(INDIRECTION_FILE)
     if not config.indirection_rules:
-        if INDIRECTION_FILE in store.file_paths():
-            store.remove_file(INDIRECTION_FILE)
         return NOTHING
 
     loaded = payload if payload is not None else load_indirection_rules(config)
     if loaded is None:
         return NOTHING
 
-    nodes: list[dict[str, object]] = [
-        {
-            "kind": "File",
-            "name": Path(INDIRECTION_FILE).name,
-            "qualified_name": INDIRECTION_FILE,
-            "file_path": INDIRECTION_FILE,
-            "line_start": 1,
-            "line_end": 1,
-        }
-    ]
     edges: list[dict[str, object]] = []
     for source, target in loaded.aliases:
         edges.append(
@@ -139,9 +130,8 @@ def apply_indirection_rules(
         )
     edges.extend(_view_data_edges(config, store, loaded.view_data))
 
-    store.upsert_file(INDIRECTION_FILE, loaded.digest, _RULES_LANGUAGE, parsed_ok=True)
-    store.replace_file_rows(INDIRECTION_FILE, nodes, edges)
-    return Enriched(nodes=len(nodes), edges=len(edges))
+    store.replace_file_rows(INDIRECTION_FILE, [], edges)
+    return Enriched(nodes=0, edges=len(edges))
 
 
 def is_rule_edge_path(path: object) -> bool:
