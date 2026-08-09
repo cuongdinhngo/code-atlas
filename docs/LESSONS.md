@@ -1,5 +1,12 @@
 # Lessons — code-atlas
 
+## 064 — Empty adapter map is misconfiguration, not an empty repo
+
+`_announce` looping zero times looks like "nothing to do". Fail before meta when
+`adapter_cmds` is empty (and when the suffix union is empty). A successful build over
+zero matching files still stamps non-empty `indexed_suffixes` so callers can tell the
+two apart.
+
 ## 063 follow-up — Cap the match set, not the CALLS table
 
 `view_data` enrichment must look up CALLS by setter (`idx_edges_raw`), not scan a

@@ -291,16 +291,28 @@ def test_prompts_are_registered(tmp_path: Path) -> None:
 
 def test_build_recovers_from_foreign_schema_version(tmp_path: Path) -> None:
     """An MCP client must not need a shell to escape a schema_version bump."""
+    import sys
+
     from code_atlas.store import SCHEMA_VERSION, SCHEMA_VERSION_KEY, SchemaVersionError
     from code_atlas.tools import build_or_update_index
 
+    fake = REPO / "tests" / "fixtures" / "adapter" / "fake_adapter.py"
     db = tmp_path / "graph.db"
     with GraphStore(db) as created:
         created.set_meta(SCHEMA_VERSION_KEY, "1")
     with pytest.raises(SchemaVersionError):
         GraphStore(db)
-    config = replace(load_config(tmp_path, {"CA_WORKERS": "1"}), db_path=db)
-    # No adapter files — empty build is enough to prove open+recover.
+    config = replace(
+        load_config(
+            tmp_path,
+            {
+                "CA_WORKERS": "1",
+                "CA_FAKE_CMD": shlex.join([sys.executable, str(fake), "ok"]),
+            },
+        ),
+        db_path=db,
+    )
+    # No matching source files — empty collect is fine once adapters are configured (064).
     result = build_or_update_index.create(config)(detail_level="minimal")
     assert result["schema_rebuilt"] is True
     with GraphStore(db) as reopened:

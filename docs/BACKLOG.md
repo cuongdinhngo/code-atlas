@@ -91,7 +91,7 @@ gap that fixtures never hit.
 | 061 | [Every response carries fields that earn nothing](tasks/061_payload-weight.md) | Cost | done | 010, 014, 033 |
 | 062 | [Producer-side view data-bag edges — rules + enrichment](tasks/062_view-databag-producer.md) | Coverage | done | 030, 040, 059 |
 | 063 | [The data-bag setter takes an array, not a key — 062 emits nothing on the anchor repo](tasks/063_view-databag-array-keys.md) | Coverage | done | 062, 002, 049 |
-| 064 | [A build with no adapter configured reports success over an empty index](tasks/064_build-without-adapter-silent.md) | Agent-trust | todo | 009, 028, 056 |
+| 064 | [A build with no adapter configured reports success over an empty index](tasks/064_build-without-adapter-silent.md) | Agent-trust | done | 009, 028, 056 |
 | 065 | [An empty answer cannot say why it is empty — three tools returned 0 for 1, 3348 and 2 real sites](tasks/065_empty-answer-cannot-explain-itself.md) | Agent-trust | todo | 033, 054, 056 |
 | 066 | [`limit: 30` returns 10 rows and nothing in the payload says it was clamped](tasks/066_limit-clamped-silently.md) | Agent-trust | todo | 057, 033 |
 | 067 | [Page 1 of `find_callers` was 100% of the tree the agent must not touch](tasks/067_first-page-not-representative.md) | Agent-trust | todo | 057, 013 |
@@ -329,6 +329,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 052 | Profile incremental phases; Outcome defect decision | **5 dispatch** — refine exposure-checker + review rounds 1–2 (`mango:reviewer` / `mango:challenger` ×2); all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051 | [#70](https://github.com/cuongdinhngo/code-atlas/pull/70) |
 | 053 | Opt-in git hooks for background index refresh | **5 dispatch** — refine exposure-checker + review rounds 1–2 (`mango:reviewer` / `mango:challenger` ×2); all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051 | [#71](https://github.com/cuongdinhngo/code-atlas/pull/71) |
 | 063 | Array-literal view-data keys (`arg_keys` + `key_from`) | **6 dispatch** — refine + analysis explore + review reviewer/challenger ×2; all **`unmeasured (blocking retrieval)`**. Main-loop unmeasured | [#75](https://github.com/cuongdinhngo/code-atlas/pull/75) |
+| 064 | Refuse build with no adapter / empty suffixes | **0 dispatch** — review skipped per run instruction; main-loop unmeasured | [#79](https://github.com/cuongdinhngo/code-atlas/pull/79) |
 | 062 | Producer-side view data-bag edges (PROVIDES_VIEW_DATA + find_view_data) | **6 dispatch** — refine exposure-checker + analysis explore + review `mango:reviewer` / `mango:challenger` ×2; all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051 | [#73](https://github.com/cuongdinhngo/code-atlas/pull/73) |
 | 061 | Trim dead payload weight from nav and search | **5 dispatch** — refine exposure-checker + review rounds 1–2 (`mango:reviewer` / `mango:challenger` ×2); all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051 | [#72](https://github.com/cuongdinhngo/code-atlas/pull/72) |
 
