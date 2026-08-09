@@ -110,13 +110,11 @@ The `min_edges` floors were re-derived at the manifest's stated ~80% of a known-
 350→356, 1,180→1,204, 2,780→3,498 — and the suite re-run green (3 ok, 0 failed). They were floors, so
 a larger count could only have passed more easily; leaving them would have been passing by luck.
 
-**One disagreement deliberately left standing, and pinned.** With `indirection_rules` on, enrichment
-upserts a `files` row for the synthetic rules path, so `store.counts()` reports one more `files` and
-one more `parsed` than the report does. Counting it in `parsed` would claim an adapter parsed a file
-that does not exist; excluding it from `store.counts()` reaches into `get_index_status`, `find_orphans`
-and the health payloads for a difference of one row. It is now asserted
-(`test_the_rules_bookmark_is_the_one_known_disagreement`) so it cannot drift unnoticed, and it is
-named in PLAN §8.1.
+**One disagreement was deliberately left standing in 051, then closed by 068.** With
+`indirection_rules` on, enrichment used to upsert a `files` row for the synthetic rules path, so
+`store.counts()` reported one more `files`/`parsed` than the report. Task
+[068](068_rules-bookmark-counted-as-source-file.md) stopped writing that row (and its File node);
+equality is now asserted by `test_rules_bookmark_does_not_inflate_source_file_counts`.
 
 **Found in passing:** the cross-repo runner opens a cached sample index directly and has no recovery
 for a schema mismatch — it reported the sample as failed. Harmless in CI, which clones fresh, and it

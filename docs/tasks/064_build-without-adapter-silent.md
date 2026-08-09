@@ -29,10 +29,11 @@ fail-loud case; this path evades it. Make a build that cannot parse anything ref
   table nor a `CA_<LANG>_CMD` variable yields `{}` — the exact shape that slips through.
 - Downstream is then consistent and silent: `_owners` is `{}`, `collect(root, ())` returns nothing,
   and `_record_meta` writes the empty suffix list as fact.
-- `nodes: 1` alongside `parsed: 0` is the **rules bookmark**, not a parsed symbol: `indirection_rules`
-  was configured for this build, and `enrichment.py:142` writes `.code-atlas/indirection-rules` as a
-  `File` node and a `files` row with `parsed_ok=True`. That the bookmark is counted as source is its
-  own defect — [068](068_rules-bookmark-counted-as-source-file.md) owns it.
+- `nodes: 1` alongside `parsed: 0` was the **rules bookmark**, not a parsed symbol:
+  `indirection_rules` was configured and enrichment used to write `.code-atlas/indirection-rules` as a
+  `File` node + `files` row with `parsed_ok=True`. **Closed by [068](068_rules-bookmark-counted-as-source-file.md):**
+  rule edges still use that path, but there is no `files` row / File node, so an adapter-less build with
+  rules on no longer reports a phantom source file or node.
 
 The failure is worse than a crash because it is *stable*: re-running reproduces it, and the index
 looks healthy to every tool that inspects it.
@@ -51,8 +52,9 @@ looks healthy to every tool that inspects it.
   current index of the repo — no `last_commit`, no empty `indexed_suffixes` row.
 - **Same refusal through MCP.** `build_or_update_index` surfaces the error; it must not return a
   report with `files: 0` and no signal.
-- **`nodes: 1` is accounted for** — the rules bookmark, tracked in
-  [068](068_rules-bookmark-counted-as-source-file.md). Nothing to do here beyond not re-deriving it.
+- **`nodes: 1` is accounted for** — was the rules bookmark; **fixed in
+  [068](068_rules-bookmark-counted-as-source-file.md)** (edges only, no File/`files` row). Nothing further
+  to do here.
 
 ## Constraints
 - R5.3 — config error, so loud; a single unparseable source file stays soft. Do not blur the two.

@@ -4,7 +4,7 @@ slug: rules-bookmark-counted-as-source-file
 title: 'The rules bookmark is counted as an indexed, successfully parsed source file'
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: in-progress
 depends_on: [040, 062, 064]
 ---
 
@@ -76,3 +76,74 @@ Related: [040](040_framework-indirection-data.md) (the rules channel),
 [064](064_build-without-adapter-silent.md) (the `nodes: 1` question this closes),
 [028](028_index-health-metrics.md) (the counters), [051](051_build-report-edge-undercount.md)
 (precedent: a build number that did not match the graph it described).
+
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 068 — working doc (mango)
+
+## Session status
+
+- **Phase:** execute complete; review skipped; finalise pending
+- **SCOPE:** M
+- **STRUCTURE:** native
+- **TRACK:** backend
+- **TIER:** full (review skipped)
+- **BASELINE:** green — 1016 passed
+- **work_doc_mode:** embed
+- **working-doc path:** this file below separator
+- **Branch:** `fix/068-rules-bookmark-counted-as-source-file`
+
+## Phase 0 — Refine
+
+`REFINE: 5 want ASSUMED (blanket) | HOW cited | exposure-checker 8 findings folded | skip: no`
+
+| # | Want | Chosen (ratified) |
+|---|------|-------------------|
+| W1 | representation | Drop `files` row + File node; keep edges on `INDIRECTION_FILE` |
+| W2 | schema bump | No — edges have no FK |
+| W3 | legacy purge | Always `remove_file` before apply |
+| W4 | neighbours | No search/outline/orphan subject; dirty/failed/stubs N/A |
+| W5 | review | Skip this run |
+
+## Requirements matrix
+
+`SECTIONS: 5 | ROWS: C=3 R=5 G=1 AC=4` — all ✅ under Ph3
+
+| ID | Interpretation | Status |
+|----|----------------|--------|
+| G1 | stop counting bookmark as source | ✅ |
+| R1 | exclude from files/parsed counters | ✅ by construction |
+| R2 | BuildReport ↔ status agree with rules on | ✅ proving test |
+| R3 | one representation everywhere | ✅ edges-only |
+| R4 | neighbour verdicts | ✅ |
+| R5 | close 064 | ✅ |
+| AC1–4 | equality + no surface + view_data + 064 | ✅ |
+
+## Design (Gate 2 — approved)
+
+**Approach:** `apply_indirection_rules` always purges the bookmark path, then writes edges only via `replace_file_rows(..., [], edges)` — never `upsert_file` / File node.
+
+**Change list:**
+1. `code_atlas/enrichment.py` — edges-only apply + purge
+2. Flip 051 disagreement test → equality; legacy purge + tool-subject tests
+3. Docs: PLAN, LESSONS, 064, BACKLOG, task 068
+
+**Proving test:** `test_rules_bookmark_does_not_inflate_source_file_counts`
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|-------|----------|-------|--------|
+| refine | explore | 1 | unmeasured (blocking retrieval) |
+| refine | exposure-checker challenger | 1 | unmeasured (blocking retrieval) |
+
+## Decision log
+
+| When | Decision |
+|------|----------|
+| 2026-08-09 | edges-only representation; purge legacy; skip review |
+
+## Reviewed at
+
+skipped (user instruction)

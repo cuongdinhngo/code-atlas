@@ -16,6 +16,7 @@ from pathlib import Path
 
 from code_atlas import gitutil
 from code_atlas.config import Config, load_config
+from code_atlas.enrichment import INDIRECTION_FILE
 from code_atlas.indexer import full_build, incremental_update
 from code_atlas.main import build_server
 from code_atlas.store import LAST_COMMIT_KEY, GraphStore
@@ -115,7 +116,7 @@ def test_a_second_full_build_reports_the_same_totals(tmp_path: Path) -> None:
 
 
 def test_enrichment_rows_are_counted_too(tmp_path: Path) -> None:
-    """The rules insert a File node and two edges after the tally; all three were missing."""
+    """Rule edges fold into wrote/graph; no synthetic File node (068)."""
     committed(tmp_path, MULTI_CANDIDATE)
     plain = config_for(tmp_path)
     enriched = with_rules(tmp_path)
@@ -126,22 +127,90 @@ def test_enrichment_rows_are_counted_too(tmp_path: Path) -> None:
         ruled = full_build(enriched, store)
         counted = store.counts()
 
-    assert ruled.nodes == bare.nodes + 1
+    assert ruled.nodes == bare.nodes
     assert ruled.edges == bare.edges + len(RULES["aliases"]) + len(RULES["calls"])
     assert (ruled.nodes, ruled.edges) == (counted["nodes"], counted["edges"])
 
 
-def test_the_rules_bookmark_is_the_one_known_disagreement(tmp_path: Path) -> None:
-    """`files`/`parsed` still differ by the synthetic rules path — pinned so it cannot drift."""
+def test_rules_bookmark_does_not_inflate_source_file_counts(tmp_path: Path) -> None:
+    """068 proving: with rules on, status files/parsed equal BuildReport and table."""
     committed(tmp_path, MULTI_CANDIDATE)
     config = with_rules(tmp_path)
 
     with GraphStore(config.db_path) as store:
         report = full_build(config, store)
         counted = store.counts()
+        assert INDIRECTION_FILE not in store.file_paths()
+        assert not store._conn.execute(
+            "SELECT 1 FROM nodes WHERE file_path = ?", (INDIRECTION_FILE,)
+        ).fetchone()
+        assert store._conn.execute(
+            "SELECT COUNT(*) FROM edges WHERE file_path = ?", (INDIRECTION_FILE,)
+        ).fetchone()[0] == len(RULES["aliases"]) + len(RULES["calls"])
 
-    assert counted["files"] == report.files + 1
-    assert counted["parsed"] == report.parsed + 1
+    assert counted["files"] == report.files
+    assert counted["parsed"] == report.parsed
+    assert counted["files"] == len(MULTI_CANDIDATE)
+
+    server = build_server(config)
+    status = call(server, STATUS, {})
+    built = call(server, BUILD, {"full": True})
+    assert status["files"] == built["wrote"]["files"] == report.files
+    assert status["parsed"] == built["wrote"]["parsed"] == report.parsed
+
+
+def test_legacy_rules_bookmark_file_row_is_purged(tmp_path: Path) -> None:
+    """A pre-068 files/File bookmark is removed on the next rules apply."""
+    committed(tmp_path, MULTI_CANDIDATE)
+    config = with_rules(tmp_path)
+    with GraphStore(config.db_path) as store:
+        store.upsert_file(INDIRECTION_FILE, "legacy", "_rules", parsed_ok=True)
+        store.replace_file_rows(
+            INDIRECTION_FILE,
+            [
+                {
+                    "kind": "File",
+                    "name": "indirection-rules",
+                    "qualified_name": INDIRECTION_FILE,
+                    "file_path": INDIRECTION_FILE,
+                    "line_start": 1,
+                    "line_end": 1,
+                }
+            ],
+            [],
+        )
+        assert INDIRECTION_FILE in store.file_paths()
+        full_build(config, store)
+        assert INDIRECTION_FILE not in store.file_paths()
+        assert not store._conn.execute(
+            "SELECT 1 FROM nodes WHERE file_path = ?", (INDIRECTION_FILE,)
+        ).fetchone()
+        assert (
+            store._conn.execute(
+                "SELECT COUNT(*) FROM edges WHERE file_path = ?", (INDIRECTION_FILE,)
+            ).fetchone()[0]
+            == len(RULES["aliases"]) + len(RULES["calls"])
+        )
+
+
+def test_rules_bookmark_is_not_a_source_file_tool_subject(tmp_path: Path) -> None:
+    """search / outline / orphans never treat the bookmark path as source (068)."""
+    from code_atlas.tools.file_outline import create as outline_create
+    from code_atlas.tools.find_orphans import create as orphans_create
+    from code_atlas.tools.search_symbol import create as search_create
+
+    committed(tmp_path, MULTI_CANDIDATE)
+    config = with_rules(tmp_path)
+    with GraphStore(config.db_path) as store:
+        full_build(config, store)
+    search = search_create(config)(query="indirection-rules")
+    assert all(hit.get("file") != INDIRECTION_FILE for hit in search["results"])
+    assert all(hit.get("qname") != INDIRECTION_FILE for hit in search["results"])
+    outline = outline_create(config)(path=INDIRECTION_FILE)
+    assert outline.get("found") is False
+    orphans = orphans_create(config)()
+    assert all(hit.get("file") != INDIRECTION_FILE for hit in orphans.get("results", []))
+    assert all(hit.get("qname") != INDIRECTION_FILE for hit in orphans.get("results", []))
 
 
 def test_an_incremental_run_reports_its_delta_not_the_graph(tmp_path: Path) -> None:

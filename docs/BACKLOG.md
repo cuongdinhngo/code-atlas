@@ -95,7 +95,7 @@ gap that fixtures never hit.
 | 065 | [An empty answer cannot say why it is empty — three tools returned 0 for 1, 3348 and 2 real sites](tasks/065_empty-answer-cannot-explain-itself.md) | Agent-trust | done | 033, 054, 056 |
 | 066 | [`limit: 30` returns 10 rows and nothing in the payload says it was clamped](tasks/066_limit-clamped-silently.md) | Agent-trust | todo | 057, 033 |
 | 067 | [Page 1 of `find_callers` was 100% of the tree the agent must not touch](tasks/067_first-page-not-representative.md) | Agent-trust | todo | 057, 013 |
-| 068 | [The rules bookmark is counted as an indexed, successfully parsed source file](tasks/068_rules-bookmark-counted-as-source-file.md) | Agent-trust | todo | 040, 062, 064 |
+| 068 | [The rules bookmark is counted as an indexed, successfully parsed source file](tasks/068_rules-bookmark-counted-as-source-file.md) | Agent-trust | in-progress | 040, 062, 064 |
 | 069 | [`find_view_data` went uncalled in the exact session it was built for](tasks/069_tool-names-do-not-say-what-they-answer.md) | Agent-fit | todo | 062, 063, 038 |
 | 070 | [One qname, five definitions, 23 callers merged — no way to ask about one of them](tasks/070_ambiguous-qname-no-scoping.md) | Agent-fit | todo | 043, 013, 011 |
 | 071 | [A worktree agent gets the main checkout's symbols with `reason: "ok"` and no field names the tree](tasks/071_answers-do-not-name-their-tree.md) | Agent-trust | done | 033, 061, 065 |
