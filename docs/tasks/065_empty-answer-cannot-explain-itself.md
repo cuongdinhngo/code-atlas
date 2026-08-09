@@ -4,7 +4,7 @@ slug: empty-answer-cannot-explain-itself
 title: 'An empty answer cannot say why it is empty — three tools returned 0 for 1, 3348 and 2 real sites'
 phase: 1.5b
 milestone: Agent-trust
-status: in-progress
+status: done
 depends_on: [033, 054, 056]
 ---
 

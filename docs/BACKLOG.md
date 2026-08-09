@@ -92,7 +92,7 @@ gap that fixtures never hit.
 | 062 | [Producer-side view data-bag edges — rules + enrichment](tasks/062_view-databag-producer.md) | Coverage | done | 030, 040, 059 |
 | 063 | [The data-bag setter takes an array, not a key — 062 emits nothing on the anchor repo](tasks/063_view-databag-array-keys.md) | Coverage | done | 062, 002, 049 |
 | 064 | [A build with no adapter configured reports success over an empty index](tasks/064_build-without-adapter-silent.md) | Agent-trust | done | 009, 028, 056 |
-| 065 | [An empty answer cannot say why it is empty — three tools returned 0 for 1, 3348 and 2 real sites](tasks/065_empty-answer-cannot-explain-itself.md) | Agent-trust | in-progress | 033, 054, 056 |
+| 065 | [An empty answer cannot say why it is empty — three tools returned 0 for 1, 3348 and 2 real sites](tasks/065_empty-answer-cannot-explain-itself.md) | Agent-trust | done | 033, 054, 056 |
 | 066 | [`limit: 30` returns 10 rows and nothing in the payload says it was clamped](tasks/066_limit-clamped-silently.md) | Agent-trust | todo | 057, 033 |
 | 067 | [Page 1 of `find_callers` was 100% of the tree the agent must not touch](tasks/067_first-page-not-representative.md) | Agent-trust | todo | 057, 013 |
 | 068 | [The rules bookmark is counted as an indexed, successfully parsed source file](tasks/068_rules-bookmark-counted-as-source-file.md) | Agent-trust | todo | 040, 062, 064 |
