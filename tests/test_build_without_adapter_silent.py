@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from code_atlas import contract
 from code_atlas.adapter import AdapterError
 from code_atlas.config import load_config
 from code_atlas.indexer import full_build, incremental_update
@@ -74,8 +75,14 @@ def test_build_or_update_index_surfaces_empty_adapters(tmp_path: Path) -> None:
         tool(full=True)
 
 
+def test_the_contract_rejects_an_empty_extension_list() -> None:
+    """AC3 mechanism: the handshake validator is what makes an empty suffix union impossible."""
+    meta = {"name": "fake", "extensions": [], "capabilities": {}, "contract_version": 5}
+    assert any("meta.extensions" in error for error in contract.validate_meta(meta))
+
+
 def test_empty_suffix_union_refuses(tmp_path: Path, store: GraphStore) -> None:
-    """AC3: empty ``extensions`` fails loud (handshake / suffix guard) with no meta stamp."""
+    """AC3: an adapter announcing no ``extensions`` fails at the handshake, leaving no meta."""
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "a.aa").write_text("x\n", encoding="utf-8")
     _git_init(tmp_path)
@@ -86,7 +93,7 @@ def test_empty_suffix_union_refuses(tmp_path: Path, store: GraphStore) -> None:
             "CA_FAKE_CMD": shlex.join([sys.executable, str(FAKE), "empty-extensions"]),
         },
     )
-    with pytest.raises(AdapterError, match="extensions|suffixes"):
+    with pytest.raises(AdapterError, match=r"invalid handshake: meta\.extensions"):
         full_build(config, store)
     assert store.get_meta(LAST_COMMIT_KEY) is None
     assert store.get_meta(INDEXED_SUFFIXES_KEY) is None

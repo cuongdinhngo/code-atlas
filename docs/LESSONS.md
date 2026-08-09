@@ -3,9 +3,11 @@
 ## 064 — Empty adapter map is misconfiguration, not an empty repo
 
 `_announce` looping zero times looks like "nothing to do". Fail before meta when
-`adapter_cmds` is empty (and when the suffix union is empty). A successful build over
-zero matching files still stamps non-empty `indexed_suffixes` so callers can tell the
-two apart.
+`adapter_cmds` is empty. A successful build over zero matching files still stamps
+non-empty `indexed_suffixes` so callers can tell the two apart. The empty-suffix-union
+half needed no code: the handshake validator already rejects `extensions: []`. A guard
+added for it was unreachable, and its test matched a regex the *handshake* error also
+satisfied — a proving test must name the mechanism it proves, or it proves nothing.
 
 ## 063 follow-up — Cap the match set, not the CALLS table
 
