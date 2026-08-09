@@ -4,7 +4,7 @@ slug: answers-do-not-name-their-tree
 title: 'A worktree agent gets the main checkout''s symbols with `reason: "ok"` and no field names the tree'
 phase: 1.5b
 milestone: Agent-trust
-status: in-progress
+status: done
 depends_on: [033, 061, 065]
 ---
 
