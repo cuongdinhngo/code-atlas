@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-TICKET = Path(__file__).resolve().parent.parent / "docs" / "tasks" / "063_view-databag-array-keys.md"
+TICKET = (
+    Path(__file__).resolve().parent.parent
+    / "docs"
+    / "tasks"
+    / "063_view-databag-array-keys.md"
+)
 
 
 def test_ac1_count_and_proceed_are_in_the_ticket_outcome() -> None:

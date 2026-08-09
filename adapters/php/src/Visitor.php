@@ -797,7 +797,7 @@ final class Visitor extends NodeVisitorAbstract
     {
         $keys = [];
         foreach ($array->items as $item) {
-            if ($item === null || $item->unpack || $item->key === null) {
+            if ($item->unpack || $item->key === null) {
                 continue;
             }
             if ($item->key instanceof Node\Scalar\String_) {
