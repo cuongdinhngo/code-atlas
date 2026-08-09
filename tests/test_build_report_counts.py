@@ -193,14 +193,57 @@ def test_legacy_rules_bookmark_file_row_is_purged(tmp_path: Path) -> None:
         )
 
 
+def test_legacy_bookmark_is_purged_by_an_incremental_run_without_losing_rule_edges(
+    tmp_path: Path,
+) -> None:
+    """The reconcile path, not just a full build: purge must not cost the rule edges (068).
+
+    `_reconcile` runs before `_count_late_writes`, so a pre-068 row is removed there and enrichment
+    re-inserts its edges in the same run. That ordering is what lets the bookmark exemption go.
+    """
+    committed(tmp_path, MULTI_CANDIDATE)
+    config = with_rules(tmp_path)
+    rule_edges = len(RULES["aliases"]) + len(RULES["calls"])
+    with GraphStore(config.db_path) as store:
+        full_build(config, store)
+        store.upsert_file(INDIRECTION_FILE, "legacy", "_rules", parsed_ok=True)
+        assert INDIRECTION_FILE in store.file_paths()
+        before = store.counts()
+
+        report = incremental_update(config, store, ["twin/a.aa"])
+
+        assert INDIRECTION_FILE not in store.file_paths()
+        assert report.removed == 1, "the purged bookmark row is reported, not hidden"
+        assert (
+            store._conn.execute(
+                "SELECT COUNT(*) FROM edges WHERE file_path = ?", (INDIRECTION_FILE,)
+            ).fetchone()[0]
+            == rule_edges
+        )
+        after = store.counts()
+        assert after["files"] == before["files"] - 1
+        assert after["edges"] == before["edges"]
+
+
 def test_rules_bookmark_is_not_a_source_file_tool_subject(tmp_path: Path) -> None:
-    """search / outline / orphans never treat the bookmark path as source (068)."""
+    """search / outline / orphans / reachable_from never treat the bookmark as source (068).
+
+    Entry points are set on purpose: without them both reachability tools return
+    `no_roots_configured` with zero rows, and every "the bookmark is absent" assertion below
+    would pass over an empty list.
+    """
     from code_atlas.tools.file_outline import create as outline_create
     from code_atlas.tools.find_orphans import create as orphans_create
+    from code_atlas.tools.reachable_from import create as reach_create
     from code_atlas.tools.search_symbol import create as search_create
 
     committed(tmp_path, MULTI_CANDIDATE)
-    config = with_rules(tmp_path)
+    with_rules(tmp_path)
+    config = config_for(
+        tmp_path,
+        CA_INDIRECTION_RULES="rules/rules.json",
+        CA_ENTRY_POINTS="dep/name_caller.aa",
+    )
     with GraphStore(config.db_path) as store:
         full_build(config, store)
     search = search_create(config)(query="indirection-rules")
@@ -208,9 +251,11 @@ def test_rules_bookmark_is_not_a_source_file_tool_subject(tmp_path: Path) -> Non
     assert all(hit.get("qname") != INDIRECTION_FILE for hit in search["results"])
     outline = outline_create(config)(path=INDIRECTION_FILE)
     assert outline.get("found") is False
-    orphans = orphans_create(config)()
-    assert all(hit.get("file") != INDIRECTION_FILE for hit in orphans.get("results", []))
-    assert all(hit.get("qname") != INDIRECTION_FILE for hit in orphans.get("results", []))
+    for payload in (orphans_create(config)(), reach_create(config)()):
+        assert payload["status"] == "ok", payload.get("message")
+        assert payload["results"], "empty results would make the assertions below vacuous"
+        assert all(hit.get("file") != INDIRECTION_FILE for hit in payload["results"])
+        assert all(hit.get("qname") != INDIRECTION_FILE for hit in payload["results"])
 
 
 def test_an_incremental_run_reports_its_delta_not_the_graph(tmp_path: Path) -> None:

@@ -28,7 +28,6 @@ from code_atlas import contract, gitutil
 from code_atlas.adapter import AdapterError, ParseResult, SubprocessAdapter, extension_index
 from code_atlas.config import Config, ConfigError
 from code_atlas.enrichment import (
-    INDIRECTION_FILE,
     RulesPayload,
     apply_indirection_rules,
     load_indirection_rules,
@@ -189,7 +188,7 @@ def incremental_update(
             # File nodes use the path as qname; include deleted/renamed-away paths so inbound edges
             # re-link (git diff names only the rename destination).
             affected.update(changed_set)
-            gone = sorted((indexed - set(kept)) - {INDIRECTION_FILE})
+            gone = sorted(indexed - set(kept))
             affected.update(store.qnames_in_files(gone))
             affected.update(gone)
             dependents = set(store.file_paths_targeting(sorted(affected))) & wanted
@@ -544,10 +543,11 @@ def _walk(root: Path, matcher: IgnoreMatcher, wanted: set[str]) -> list[str]:
 def _reconcile(store: GraphStore, paths: Sequence[str]) -> int:
     """Drop every indexed path the collection no longer yields, with its nodes and edges (§8.1).
 
-    The synthetic indirection bookmark is owned by :func:`apply_indirection_rules`, not collect —
-    skipping it here keeps ``BuildReport.removed`` honest when rules stay on across builds.
+    No bookmark exemption: since 068 the rules path has no ``files`` row, so it cannot appear here.
+    A pre-068 row does, and reconciling it away *is* the purge — enrichment, which runs after,
+    re-inserts its edges in the same build.
     """
-    gone = sorted(set(store.file_paths()) - set(paths) - {INDIRECTION_FILE})
+    gone = sorted(set(store.file_paths()) - set(paths))
     for path in gone:
         store.remove_file(path)
     return len(gone)

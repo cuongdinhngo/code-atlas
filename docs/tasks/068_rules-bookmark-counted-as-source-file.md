@@ -103,7 +103,7 @@ Related: [040](040_framework-indirection-data.md) (the rules channel),
 | W1 | representation | Drop `files` row + File node; keep edges on `INDIRECTION_FILE` |
 | W2 | schema bump | No — edges have no FK |
 | W3 | legacy purge | Always `remove_file` before apply |
-| W4 | neighbours | No search/outline/orphan subject; dirty/failed/stubs N/A |
+| W4 | neighbours | No search/outline/orphan/reachable_from subject; dirty/failed/stubs N/A |
 | W5 | review | Skip this run |
 
 ## Requirements matrix
@@ -130,6 +130,30 @@ Related: [040](040_framework-indirection-data.md) (the rules channel),
 3. Docs: PLAN, LESSONS, 064, BACKLOG, task 068
 
 **Proving test:** `test_rules_bookmark_does_not_inflate_source_file_counts`
+
+## Post-PR review (main loop, 0 dispatch) — two findings, both fixed on the branch
+
+**1. R3 ("one representation everywhere") was not met — the exemptions outlived the row.**
+`indexer.py:192` and `:550` still subtracted `{INDIRECTION_FILE}` from sets built out of
+`store.file_paths()`. Post-068 the bookmark has no `files` row, so neither subtraction can ever
+match: they are the "real row that most call sites remember to skip" pattern this ticket exists to
+delete, kept alive after the row was gone (R7.4). Both removed, with the import.
+
+Safe because of ordering, which is now pinned rather than assumed: `_reconcile` runs at
+`indexer.py:126` (full) / `:196` (incremental), and `_count_late_writes` → `apply_indirection_rules`
+always runs after it, on both paths, with no early return between. So on a **pre-068** index the
+reconcile pass performs the purge and enrichment re-inserts the edges in the same run — the end state
+is identical, and `removed` counts the one row that really was removed.
+`test_legacy_bookmark_is_purged_by_an_incremental_run_without_losing_rule_edges` covers the
+incremental path the branch had only tested through `full_build`, and asserts the rule edges survive.
+
+**2. The neighbour verdict (R4/W4) was proven vacuously, and missed `reachable_from`.**
+`test_rules_bookmark_is_not_a_source_file_tool_subject` called `find_orphans` on a config with no
+entry points, so it returned `status: no_roots_configured` with **zero rows** — every "the bookmark
+is absent" assertion passed over an empty list. `reachable_from`, named in the ticket's own neighbour
+list, was not checked at all. The test now sets `CA_ENTRY_POINTS`, asserts each payload is `ok` with
+non-empty results *before* asserting absence, and covers both tools (3 orphans / 2 reachable rows on
+the fixture).
 
 ## Cost ledger
 
