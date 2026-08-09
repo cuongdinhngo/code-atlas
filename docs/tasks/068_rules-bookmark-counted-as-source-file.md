@@ -4,7 +4,7 @@ slug: rules-bookmark-counted-as-source-file
 title: 'The rules bookmark is counted as an indexed, successfully parsed source file'
 phase: 1.5b
 milestone: Agent-trust
-status: in-progress
+status: done
 depends_on: [040, 062, 064]
 ---
 
