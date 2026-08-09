@@ -261,11 +261,13 @@ References: citation only.
 
 ## Phase 4 — Review
 
-- **Reviewed at** `1aeee235a02c6adb61af78e9d7b4b189f9d3fb9c`
+- **Reviewed at** `bf17836de0cab7099135957f448aa7504542b6ab` (CI-fix re-review; prior LGTM @ `1aeee23`)
 - **Reviewer round 1:** [Reviewer](f7f56936-5a1a-4561-8f5c-c33b1e2ac9a3) — **LGTM**
 - **Challenger round 1:** [Challenger](80979760-4593-4efc-afd6-4a3a6c4f78c3) — **11 met · 0 not met · 1 can't tell** (AC1 temporal) · Gate 4 **FAIL**
 - **Reviewer round 2:** [Reviewer](9bec63ad-7a7c-47f2-bb3b-1331df80d70f) — **LGTM** (AC1 Outcome pin)
 - **Challenger round 2:** [Challenger](99bfb3a9-0414-4c39-8da1-44adce8c1281) — **16 met · 0 not met · 0 can't tell** · Gate 4 **PASS**
+- **Reviewer round 3:** [Reviewer](88cdbae8-48f2-43eb-a2b0-b2f060d71f52) — **LGTM** (phpstan + ruff CI fix)
+- **Challenger round 3:** [Challenger](97381296-d0c8-4ea4-b2d2-d37476576a26) — **16 met · 0 not met · 0 can't tell** · Gate 4 **PASS**
 
 ### Reviewer detail — round 1 @ `e238144`
 **LGTM.** Critical/Important: none. Contract v5 `arg_keys`, schema 4, PHP keys, `key_from`, 062 path, find_view_data unchanged, AC1 proceed recorded.
@@ -275,6 +277,9 @@ References: citation only.
 
 ### Round 2 (@ `1aeee23`)
 Outcome AC1 table above separator + `tests/test_view_databag_shape_count.py` + LESSONS → challenger **PASS**, reviewer still **LGTM**.
+
+### Round 3 (@ `bf17836`)
+CI fix: drop always-false `$item === null` (phpstan); wrap `TICKET` path (ruff E501). Reviewer **LGTM**, challenger **PASS**.
 
 ## Cost ledger
 
@@ -294,6 +299,6 @@ Standing: push + PR + merge when CI green.
 ## Session status
 
 - **Phase:** finalise
-- **Reviewed at:** `1aeee235a02c6adb61af78e9d7b4b189f9d3fb9c`
+- **Reviewed at:** `bf17836de0cab7099135957f448aa7504542b6ab`
 - **work_doc_mode:** embed
 - **working-doc path:** `docs/tasks/063_view-databag-array-keys.md` (below separator)
