@@ -298,7 +298,8 @@ Standing: push + PR + merge when CI green.
 
 ## Session status
 
-- **Phase:** finalise
+- **Phase:** done
+- **PR:** [#75](https://github.com/cuongdinhngo/code-atlas/pull/75) merged
 - **Reviewed at:** `bf17836de0cab7099135957f448aa7504542b6ab`
 - **work_doc_mode:** embed
 - **working-doc path:** `docs/tasks/063_view-databag-array-keys.md` (below separator)
