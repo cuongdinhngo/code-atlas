@@ -91,6 +91,13 @@ gap that fixtures never hit.
 | 061 | [Every response carries fields that earn nothing](tasks/061_payload-weight.md) | Cost | done | 010, 014, 033 |
 | 062 | [Producer-side view data-bag edges — rules + enrichment](tasks/062_view-databag-producer.md) | Coverage | done | 030, 040, 059 |
 | 063 | [The data-bag setter takes an array, not a key — 062 emits nothing on the anchor repo](tasks/063_view-databag-array-keys.md) | Coverage | done | 062, 002, 049 |
+| 064 | [A build with no adapter configured reports success over an empty index](tasks/064_build-without-adapter-silent.md) | Agent-trust | todo | 009, 028, 056 |
+| 065 | [An empty answer cannot say why it is empty — three tools returned 0 for 1, 3348 and 2 real sites](tasks/065_empty-answer-cannot-explain-itself.md) | Agent-trust | todo | 033, 054, 056 |
+| 066 | [`limit: 30` returns 10 rows and nothing in the payload says it was clamped](tasks/066_limit-clamped-silently.md) | Agent-trust | todo | 057, 033 |
+| 067 | [Page 1 of `find_callers` was 100% of the tree the agent must not touch](tasks/067_first-page-not-representative.md) | Agent-trust | todo | 057, 013 |
+| 068 | [The rules bookmark is counted as an indexed, successfully parsed source file](tasks/068_rules-bookmark-counted-as-source-file.md) | Agent-trust | todo | 040, 062, 064 |
+| 069 | [`find_view_data` went uncalled in the exact session it was built for](tasks/069_tool-names-do-not-say-what-they-answer.md) | Agent-fit | todo | 062, 063, 038 |
+| 070 | [One qname, five definitions, 23 callers merged — no way to ask about one of them](tasks/070_ambiguous-qname-no-scoping.md) | Agent-fit | todo | 043, 013, 011 |
 
 **047–049 come from the first external field session** — an agent in the anchor repo used the server for
 real work and filled in a retro (`v0.1.0`, commit `e117b47`, round 1). Its headline finding was **zero
@@ -135,6 +142,39 @@ cost is the win*):
   direct cost at under 1% of a 250–300k-token session, and the 2026-08-08 benchmark put the indexed arm
   at **1.85× the native arm's tokens** across five questions — 0.84× with one outlier question removed.
   Token weight is where neither the loss nor the win lives. Payload size is not the leverage.
+
+**065–070 come from field retro round 3** (2026-08-09, contract v5, the first session on the rebuilt
+index). It ran under an explicit independence rule — no prior retro, benchmark or finding read, and
+no code-atlas source consulted to explain behaviour — so it is a clean third data point rather than a
+re-confirmation. Its headline is a ratio, not a defect: **5 of 14 tools called, ~1.8% of session
+tokens, every graph call inside the first third of the session.** The task was ~20% "find the code"
+and ~80% "prove the behaviour under a config flag", and the graph can only ever compete for the first
+part. What it did compete for it won: `find_callers` returned **23/23** call sites with **8/8**
+hand-verified against `grep` — including `<?php func(); ?>` inside mixed PHP/HTML — and **17/17**
+calls used a correct argument form first try, across three name shapes, with zero errors.
+
+- **Tier 1 — a confident zero is the only defect here that can make a careful agent wrong.** **065**:
+  three tools returned nothing for questions whose true answers were **1**, **3,348** and **2** sites,
+  and no payload could distinguish "not modelled" from "not there". The session escaped only by
+  routing around the tools; the anchor repo's own `CLAUDE.md` tells agents those tools are *required,
+  not grep*, so the loss is latent, not absent. **068** is the same honesty class one layer down — the
+  rules bookmark counted as a parsed source file, which made two of our own numbers disagree by one
+  and was caught blind, from outside.
+- **Tier 2 — correct answers presented so they mislead.** **067** (page 1 was 100% `legacy/`, 0%
+  `src/`, on a result whose data was perfect) and **066** (`limit: 30` silently served 10). Round 3's
+  sharpest observation is that these two made a *fully correct* tool a **net loss** on the one
+  question it was asked — §11b: "a benchmark that scores precision and recall would rank these
+  exactly backwards".
+- **Tier 3 — capability nobody can find.** **069**: `find_view_data` scored **0 calls** in a session
+  spent entirely on a view and the data reaching it, because the name gave no model of the question
+  it answers. Three tickets of work, invisible at recognition time. **070** (one qname, five
+  definitions, no scoping) is the coverage question round 3 raised and could only answer by hand.
+
+One documentation finding sits outside the tiers: the anchor repo's `CLAUDE.md` asserts `grep` "times
+out" and costs "~650× the tokens", and round 3 observed neither — no `grep` timed out, and the `grep`
+alternative to its most expensive graph call was **cheaper**. The evaluator flagged its own structural
+bias (it was working inside the instructions under evaluation) and reported the mismatch anyway. That
+claim needs evidence or removal; it is not a code-atlas defect.
 
 Two corrections to the retro's own reading, both found by reading the code afterwards and recorded in
 the tickets: 054's cause is **not** missing type inference — the adapter emits the edge and the resolver
@@ -352,9 +392,18 @@ because they are billed differently and dwarf everything else.
   publishes with an array literal (`setData(['items' => $x])`), so the keys are the array's own, and
   `args` records the argument *category* only (`contract.py:101`), never the keys inside it. Rules
   written for it emit nothing, and no `key_arg` value changes that. Ticketed as
-  [063](tasks/063_view-databag-array-keys.md), which counts the two publish shapes before writing any
-  adapter code. Origin: field retro round 1 §6a.1, §2d / round 2 §A.6; the gap found 2026-08-08 while
-  writing the rules file, not by a session using the tool.
+  [063](tasks/063_view-databag-array-keys.md), which counted the two publish shapes before writing any
+  adapter code and then shipped `arg_keys` + `key_from: "array_keys"` (PR #75/#76, contract v5) — the
+  shape is reachable now, and the anchor repo's rules file uses it. Origin: field retro round 1 §6a.1,
+  §2d / round 2 §A.6; the gap found 2026-08-08 while writing the rules file, not by a session using
+  the tool.
+- **A build with no adapter configured succeeds over an empty index** —
+  [064](tasks/064_build-without-adapter-silent.md). `_announce` iterates `config.adapter_cmds`
+  (`indexer.py:484`), so an *empty* table means zero iterations and the R5.3 error at `indexer.py:499`
+  never fires. Measured 2026-08-09: exit 0 in 0.277 s, `files: 0`, and a 76 KB DB carrying
+  `schema_version = 4`, `contract_version = 5`, `last_commit`, and `indexed_suffixes = ""` — an index
+  that presents as current and valid while holding nothing. Origin: rebuilding the anchor repo onto
+  contract v5; the operator forgot `CA_PHP_CMD`.
 - **`max_results` semantics are documented locally, not by the server.** That the cap governs both
   returned rows *and* the resolver's candidate fan-out (the design smell recorded above) was learned by
   the field session only from a comment in the repo's own config file. Whatever comes of splitting the
