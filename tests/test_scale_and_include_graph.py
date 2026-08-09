@@ -131,6 +131,7 @@ def test_include_graph_imports_and_imported_by(tmp_path: Path) -> None:
     assert {hit["path"] for hit in imports["results"]} == {"Legacy/Registry.php"}
     assert {hit["path"] for hit in imported_by["results"]} == {"app.php"}
     assert imports["unresolved_includes"] == 0
+    assert "unresolved_includes" not in imported_by
 
 
 def test_include_graph_exact_fill_at_depth_one_is_not_truncated(tmp_path: Path) -> None:

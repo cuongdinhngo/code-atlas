@@ -31,6 +31,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         is ``status=path``; a path that needs HEURISTIC/DYNAMIC hops is
         ``unproven``. Missing endpoints → ``unknown``; bound hit before ``to`` →
         ``incomplete``; both present with no route → ``no_path``.
+
+        Path search is over linked IMPACT kinds — ``no_path`` is modelled, not
+        ``relationship_not_modelled`` (task 065).
         """
         if depth is not None and depth < 0:
             raise ValueError(f"depth must be >= 0, got {depth}")

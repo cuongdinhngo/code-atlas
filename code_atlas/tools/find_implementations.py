@@ -38,6 +38,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         ``subject_refreshed_only`` is present (and ``true``) only when read-through freshness
         reparsed the subject's file this call — neighbors were not re-verified (035 / 061).
+
+        ``EXTENDS``/``IMPLEMENTS`` are resolver-linked — empty here is a genuine zero, never
+        ``relationship_not_modelled`` (task 065).
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")

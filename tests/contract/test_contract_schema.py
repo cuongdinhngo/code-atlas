@@ -112,6 +112,15 @@ def test_caller_and_impl_kinds_are_named_fqn_subsets() -> None:
     assert IMPL_KINDS == ("EXTENDS", "IMPLEMENTS")
 
 
+def test_unmodelled_reference_kinds_are_bare_edge_subset() -> None:
+    from code_atlas.contract import UNMODELLED_REFERENCE_KINDS
+
+    assert frozenset(UNMODELLED_REFERENCE_KINDS) <= frozenset(EDGE_KINDS)
+    assert frozenset(UNMODELLED_REFERENCE_KINDS).isdisjoint(FQN_EDGE_KINDS)
+    assert "INCLUDES" not in UNMODELLED_REFERENCE_KINDS
+    assert UNMODELLED_REFERENCE_KINDS == ("REFERENCES", "IMPORTS")
+
+
 def test_confidence_tiers_are_the_three_contract_tiers() -> None:
     assert CONFIDENCE_TIERS == ("RESOLVED", "HEURISTIC", "DYNAMIC")
 

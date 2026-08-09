@@ -19,6 +19,7 @@ from code_atlas.tools.nav_result import (
     REASON_NO_SUCH_SYMBOL,
     REASON_NOT_INDEXED,
     REASON_OK,
+    REASON_RELATIONSHIP_NOT_MODELLED,
 )
 from tests.test_nav_tools import db_config, edge, node, seed_file
 
@@ -153,6 +154,7 @@ def test_reason_vocabulary_includes_index_stale_unused() -> None:
         REASON_NOT_INDEXED,
         REASON_INDEX_STALE,
         REASON_BARE_NAME_TRUNCATED,
+        REASON_RELATIONSHIP_NOT_MODELLED,
     )
 
 
