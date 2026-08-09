@@ -98,6 +98,9 @@ gap that fixtures never hit.
 | 068 | [The rules bookmark is counted as an indexed, successfully parsed source file](tasks/068_rules-bookmark-counted-as-source-file.md) | Agent-trust | todo | 040, 062, 064 |
 | 069 | [`find_view_data` went uncalled in the exact session it was built for](tasks/069_tool-names-do-not-say-what-they-answer.md) | Agent-fit | todo | 062, 063, 038 |
 | 070 | [One qname, five definitions, 23 callers merged — no way to ask about one of them](tasks/070_ambiguous-qname-no-scoping.md) | Agent-fit | todo | 043, 013, 011 |
+| 071 | [A worktree agent gets the main checkout's symbols with `reason: "ok"` and no field names the tree](tasks/071_answers-do-not-name-their-tree.md) | Agent-trust | todo | 033, 061, 065 |
+| 072 | [`mode: "busy"` returns in 0.0 s and reads like success](tasks/072_busy-build-hides-staleness.md) | Agent-trust | todo | 053, 033 |
+| 073 | [Read-through freshness repairs only rows it already found — a new symbol is confidently reported absent](tasks/073_freshness-cannot-find-what-is-not-indexed.md) | Agent-trust | todo | 035, 065, 033 |
 
 **047–049 come from the first external field session** — an agent in the anchor repo used the server for
 real work and filled in a retro (`v0.1.0`, commit `e117b47`, round 1). Its headline finding was **zero
@@ -181,6 +184,28 @@ the tickets: 054's cause is **not** missing type inference — the adapter emits
 drops it at a cap — and 060's "not fixed" full-build disagreement reproduces 051's pre-fix figures
 exactly, on a session whose server process predated the fix. The second is re-measured, not assumed, in
 060.
+
+**071–073 come from the memory/concurrency field run** (2026-08-09, commit `869dcc6`) — a measurement
+protocol, not a questionnaire: N = 1/2/3/5 servers, 4,500 tool calls at N=5, PSS sampled per stage.
+**Memory is a non-finding, and that is the headline.** The n-th concurrent agent costs **~70 MB PSS**,
+of which the 925 MB index is **0 MB** — `graph.db` is never mmapped and no descriptor survives a call
+(`PRAGMAS` sets no `mmap_size`; `GraphStore` opens and closes per call), so the file is resident once,
+in the OS page cache, 93.7% of it, shared by everyone. Five agents cost 1.3% of RAM and returned 4.3×
+the single-agent throughput. The write path was equally honest: 452 drift events under 3-way
+contention produced **zero** `index_stale` soft-fails and zero `SQLITE_BUSY` reaching a caller, and a
+121 MB WAL checkpointed itself away — precisely because nobody holds the DB open. **The failures are
+all in what an answer claims about itself, and all three return a confident answer rather than an
+error.** **071** is the one that matters: a worktree agent asked about its own path and was handed a
+symbol that exists only in the main checkout, with `reason: "ok"` — and 061 had already stripped
+`db_path` from nav payloads, so no field names the tree at all. It breaks at N=1 and gets worse the
+larger the agent's own diff. **072**: the losing concurrent build is refused in 0.0 s with no staleness
+attached, so "refresh then investigate" reads as done. **073** corrects the run's own diagnosis — the
+FTS triggers are fine (`store.py:80-97`); read-through freshness is **result-driven**, repairing only
+the paths of rows a query already matched, so a newly written symbol is reported absent with the
+strongest freshness claim the vocabulary has. Against Serena + Intelephense on the same repo (~5.6 GB
+per agent, same worktree defect), the memory verdict inverts: keep code-atlas in every agent. Which is
+exactly why 071 is now the whole finding — the correctness problem is no longer masked by a memory
+problem.
 
 **052–053 come from a freshness review, not a field session.** Enumerating what actually keeps an
 index current gives four layers — read-through freshness repairs one file per tool call (035), the
