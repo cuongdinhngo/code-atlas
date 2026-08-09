@@ -101,6 +101,7 @@ gap that fixtures never hit.
 | 071 | [A worktree agent gets the main checkout's symbols with `reason: "ok"` and no field names the tree](tasks/071_answers-do-not-name-their-tree.md) | Agent-trust | todo | 033, 061, 065 |
 | 072 | [`mode: "busy"` returns in 0.0 s and reads like success](tasks/072_busy-build-hides-staleness.md) | Agent-trust | todo | 053, 033 |
 | 073 | [Read-through freshness repairs only rows it already found — a new symbol is confidently reported absent](tasks/073_freshness-cannot-find-what-is-not-indexed.md) | Agent-trust | todo | 035, 065, 033 |
+| 074 | [The one repeated benchmark cell says the index may make control-flow answers worse — resolve it at n ≥ 3](tasks/074_does-the-index-harm-mechanism-questions.md) | Measure | todo | 055, 067, 045 |
 
 **047–049 come from the first external field session** — an agent in the anchor repo used the server for
 real work and filled in a retro (`v0.1.0`, commit `e117b47`, round 1). Its headline finding was **zero
@@ -205,7 +206,24 @@ the paths of rows a query already matched, so a newly written symbol is reported
 strongest freshness claim the vocabulary has. Against Serena + Intelephense on the same repo (~5.6 GB
 per agent, same worktree defect), the memory verdict inverts: keep code-atlas in every agent. Which is
 exactly why 071 is now the whole finding — the correctness problem is no longer masked by a memory
-problem.
+problem. **The run also refuted one of our own claims**: PLAN §19's 2026-08-05 entry and
+`runbooks/parallel-agents.md` both asserted that `db_path` being `cwd`-relative meant a worktree agent
+reads its own index. The config statement is true and the operational conclusion was false; both are
+corrected in this change, and the runbook is now measured rather than reasoned.
+
+**074 comes from outside this run** — a reading of PLAN §19's own threats paragraph prompted by an
+independent assessment on the anchor repo. The founding-premise benchmark's one accidental repeat ran
+the **mechanism question** twice under the indexed arm, server denied and then granted, and got
+**opposite verdicts** — the denied run was right. It is the only datapoint suggesting the index costs
+*accuracy* rather than merely failing to pay for itself, it sits on the question type the replacement
+claim exists to serve, and it has been recorded as "unresolved" since 2026-08-08 with no ticket owning
+it. 067 supplies a candidate mechanism from a different session: a *fully correct* result that
+terminated the reasoning which would have reached the truth. 074 resolves it at n ≥ 3 with the
+consequences pre-registered, **including narrowing the recommended scope in writing if the granted arm
+loses**. Two things it must not claim: the anchor repo's resident-LSP server was uninstalled
+2026-08-07 and its benchmark arm invoked it zero times in 84 calls, so **no answer-quality comparison
+against a language server exists** — the memory comparison in the 071–073 run is about cost and
+routing only; and the 19 % adoption figure means the token result measures adoption, not capability.
 
 **052–053 come from a freshness review, not a field session.** Enumerating what actually keeps an
 index current gives four layers — read-through freshness repairs one file per tool call (035), the
@@ -298,6 +316,8 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | — | Ticket-writing for 052 + 053 | **463.1k fresh** (58.7k output) + 6.7M cache reads over 72 calls, time-sliced from the session transcript between the 051 and 052/053 commits: enumerating the four freshness layers, reading `indexer.py`'s no-op path to locate the unscoped `resolve_edges` hypothesis, and the two ticket files. The two are not separable — they were written as one pass. **Recorded late:** [#54](https://github.com/cuongdinhngo/code-atlas/pull/54) shipped without this row, which the "Token usage on PR" rule requires; this is the correction, not a new measurement | [#54](https://github.com/cuongdinhngo/code-atlas/pull/54) |
 | — | Ticket-writing for 054 | **356.0k fresh** (139.5k output) + 17.2M cache reads over 104 calls, time-sliced from the session transcript between the 052/053 and 054 commits: reading the round-2 retro, walking `Visitor.php` → `resolver.py` → `store.py` to establish that the adapter emits the edge and the resolver drops it at `max_candidates`, and the ticket file. **This segment also produced the 055–061 tickets** committed one minute later; the split between them is not recoverable, so the 055–061 row does not double-count it | [#61](https://github.com/cuongdinhngo/code-atlas/pull/61) |
 | — | Ticket-writing for 055–061 | **30.2k fresh** (8.0k output) + 2.6M cache reads over 11 calls between the 054 and 055–061 commits — the tail only. The seven ticket files were drafted inside the 054 segment above, so **this row understates them by an unrecoverable amount** and the honest total for 054+055–061 together is the two rows summed: **386.2k fresh over 115 calls** | [#62](https://github.com/cuongdinhngo/code-atlas/pull/62) |
+| — | Ticket-writing for 064–070 | **384.8k fresh** (117.1k output) + 11.8M cache reads over 136 calls, time-sliced from the session transcript between the last 063 commit and the 064–070 commit. The segment covers more than the seven ticket files: the anchor-repo rebuild onto contract v5 with indirection rules enabled and its verification against ground truth, the round-3 retro form, reading the filled-in retro, and independently reproducing every claim before ticketing it (which corrected two of the retro's numbers). Not separable, so the row is the segment. **Recorded late:** [#77](https://github.com/cuongdinhngo/code-atlas/pull/77) shipped without this row, which the "Token usage on PR" rule requires; this is the correction, not a new measurement | [#77](https://github.com/cuongdinhngo/code-atlas/pull/77) |
+| — | Ticket-writing for 071–074 + the memory/concurrency run | **222.0k fresh** (58.3k output) + 5.9M cache reads over 56 calls, time-sliced between the 064–070 and 071–073 commits: authoring the measurement protocol, reading the filled-in run, verifying its mechanism claims against `store.py`/`freshness.py`/`search_symbol.py` (which corrected its FTS diagnosis), and the three ticket files. **Understated by the tail**: 074, the PLAN §19 correction, the runbook rewrite and this row itself fall after that commit and are not counted here | [#78](https://github.com/cuongdinhngo/code-atlas/pull/78) |
 | — | The founding-premise benchmark and the PLAN §19 decision it forced | **549.6k fresh** (105.4k output) + 7.6M cache reads over 100 calls after the 055–061 commit: reading the three arm result files and the round's lessons file, timing broad `grep` against the anchor tree to test the "search times out" claim, and the doc changes in this PR. The benchmark runs themselves were **headless sessions outside this transcript** and are costed in the private benchmark notes, not here | [#62](https://github.com/cuongdinhngo/code-atlas/pull/62) |
 | 059 | Handler → template data-bag edge — Option 1 decision | **2 dispatch** — review `mango:reviewer` + ticket-blind `mango:challenger`, both **`unmeasured (blocking retrieval)`** (Cursor Task returns did not surface a usage block). Phases 0–3 and 5 dispatched **nothing** (refine skipped; design/execute/finalise on the main model; no Explore fan-out). **Main-loop spend is unmeasured**, as for 004–051 | [#63](https://github.com/cuongdinhngo/code-atlas/pull/63) |
 | 055 | Recall gate beside tokens-to-answer cost ratio | **5 dispatch** — exposure-checker `mango:challenger` + review `mango:reviewer` / `mango:challenger` + verify-only re-review of both, all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model (no Explore fan-out). **Main-loop spend is unmeasured**, as for 004–051 | [#64](https://github.com/cuongdinhngo/code-atlas/pull/64) |
