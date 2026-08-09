@@ -377,7 +377,8 @@ def test_harness_answers_fixture_questions_and_reports_ratio(tmp_path: Path) -> 
     agg = _h.aggregate(rows)
     assert agg["atlas_correct"] == fixture_count
     assert agg["ratio"] > 0.0
-    _h.assert_benchmark(rows, min_ratio=0.24, min_recall=1.0)
+    # Same floors ci.yml gates on, so the proving path fails with the gate, not after it.
+    _h.assert_benchmark(rows, min_ratio=0.29, min_recall=1.0)
 
 # --- Task 045: the local tier (a repo already on disk, its index reused) --------------------
 

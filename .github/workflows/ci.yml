@@ -38,7 +38,9 @@ jobs:
           pip install .
           python -c "import importlib.metadata as m; assert m.version('code-atlas')"
           python -c "from code_atlas.main import TOOL_NAMES; assert 'search_symbol' in TOOL_NAMES"
-          python -c "import importlib.metadata as m; eps = m.entry_points(); scripts = eps.select(group='console_scripts') if hasattr(eps, 'select') else eps.get('console_scripts', []); assert any(getattr(e, 'name', None) == 'code-atlas' for e in scripts)"
+          # Every declared console script, not just the server: a broken hook entry point (036, 053)
+          # only surfaces when a user runs it, which is inside their git hook.
+          python -c "import importlib.metadata as m; eps = m.entry_points(); scripts = eps.select(group='console_scripts') if hasattr(eps, 'select') else eps.get('console_scripts', []); names = {getattr(e, 'name', None) for e in scripts}; want = {'code-atlas', 'code-atlas-poke', 'code-atlas-refresh'}; assert want <= names, sorted(want - names)"
 
       - name: Install (editable + dev tools)
         run: |
@@ -76,7 +78,7 @@ jobs:
           CA_PHP_CMD: php ${{ github.workspace }}/adapters/php/index.php --server
         run: |
           status=0
-          python scripts/tokens_to_answer.py --min-ratio 0.24 --min-recall 1.0 \
+          python scripts/tokens_to_answer.py --min-ratio 0.29 --min-recall 1.0 \
             --markdown "${RUNNER_TEMP}/tokens-to-answer.md" --notice || status=$?
           if [ -f "${RUNNER_TEMP}/tokens-to-answer.md" ]; then
             cat "${RUNNER_TEMP}/tokens-to-answer.md" >> "$GITHUB_STEP_SUMMARY"
@@ -118,6 +120,9 @@ jobs:
   adapters:
     name: adapter manifests · syntax · static analysis
     runs-on: ubuntu-latest
+    # Least privilege: this job only reads the tree.
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -153,6 +158,9 @@ jobs:
   guardrails:
     name: rulebook grep-gates
     runs-on: ubuntu-latest
+    # Least privilege: the gates read source and commit messages, nothing else.
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
