@@ -80,7 +80,18 @@ file, not by a session using the tool.
 
 ## Outcome
 
-- **AC1 count → PROCEED** (fixtures: 2 key-value / 0 array; anchor Evidence: 7,663/11,204 setData are array).
+### AC1 — Publish-shape count → **PROCEED**
+
+Counted before adapter work (session 2026-08-09). Kill would leave the anchor permanently empty under 062.
+
+| Corpus | (key,value) sites | array-literal setter sites | Notes |
+|--------|------------------:|---------------------------:|-------|
+| `tests/fixtures/**/*.php` (at count time, pre-array fixture) | **2** | **0** | Only 062 `assign` sites |
+| Anchor repo (Evidence above; aggregates only) | **0** view-bag assign/with/setVar/render; 67 request-param helpers (not bag) | **7,663** of **11,204** `setData` CALLS with `args=["array"]` | Dominant shape 059 was filed for |
+
+**Call:** **PROCEED** — implement adapter `arg_keys` + `key_from: "array_keys"`.
+
+### Shipped
 - **Contract v5 + schema 4:** `arg_keys` parallel to `args` (string keys of array literals).
 - **Adapter:** top-level string keys only; non-literal keys do not shift.
 - **Rules:** `key_from: "array_keys"` (default `"string"` unchanged for 062).
