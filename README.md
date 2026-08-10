@@ -194,6 +194,25 @@ Files are skipped using built-in patterns (`vendor/ var/ uploads/ log/ node_modu
 `.gitignore`, then an optional `.codeatlasignore` — later rules win, so `.codeatlasignore` can
 re-include what an earlier source excluded.
 
+## Testing
+
+The test command is `pytest`. The full suite needs a POSIX host (the index lock uses `fcntl`) and the
+PHP adapter (`php` on `PATH` + `composer install` in `adapters/php`); without those, tests that need
+them **skip or fail to collect** — so a partial local run is not the whole suite.
+
+To run **everything** off any host (Windows/macOS included), use the Linux test image — it mirrors
+CI's `ruff · mypy · pytest` gate with the adapter's composer deps baked in:
+
+```sh
+scripts/docker-test.sh                       # ruff + mypy + pytest -q (the full suite)
+scripts/docker-test.sh pytest -q -k php      # just the PHP-adapter integration tests
+# or, via compose:
+docker compose -f docker/compose.yaml run --rm --build test
+```
+
+The image (`docker/Dockerfile`) copies the source in at build time, so re-run after editing to test
+the new code (Docker's layer cache keeps dependency installs warm). See [`docker/`](docker/).
+
 ## Language support
 
 | Language | Parser | Status |
