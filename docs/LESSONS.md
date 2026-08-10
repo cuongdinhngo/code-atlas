@@ -1,5 +1,18 @@
 # Lessons — code-atlas
 
+## 067 — A storage sort reused for presentation makes correct results mislead
+
+`_EDGE_ORDER` leads with `source_qname`, which *is* the file path for file-scope call sites, so a
+truncated page 1 clusters into whichever top-level subtree sorts first — a fully correct, honest
+payload (`truncated`, `total_count`) that still points a one-page reader away from the answer.
+Correctness and usefulness diverge when the visible sample is unrepresentative, and no honesty field
+repairs the sample. **Fix pattern:** prefer a cheap structural *representativeness signal* over a
+reorder — an additive `result_subtrees` (top-level path segment → count over the full set) tells the
+reader what the page hides while leaving row order, `offset` paging (057), determinism (R4), and every
+golden payload untouched. The "measure before designing" kill gate earned its place: quantifying the
+skew first showed it was **structural and guaranteed**, not rare — which justified building the fix
+but chose the additive signal over an expensive total-order change.
+
 ## 068 — Synthetic anchors are edges, not source files
 
 A rules bookmark that is a real `files` row with `parsed_ok=True` makes two honest counters disagree

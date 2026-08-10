@@ -290,6 +290,16 @@ Additive only; no DDL / schema-version / contract-version change. Rollback = rev
 
 ## Phase 5 — Finalise ✋ final gate
 
+- **PR draft:** scratchpad `pr-067.md` → opened as [#86](https://github.com/cuongdinhngo/code-atlas/pull/86).
+- **Outward actions (operator pre-approved all in the run args):**
+  - [x] push branch `fix/067-first-page-not-representative`
+  - [x] open PR #86 via `gh` from `.github/pull_request_template.md`
+  - [x] push bookkeeping commit (BACKLOG PR link + durable lesson) on the same branch
+  - [ ] tracker comment / transition — not requested this run
+- **Stale-review guard:** review was skipped by instruction, so there is no `Reviewed at` marker to diff against; recorded as an explicit operator waiver, not a silent pass.
+- **Durable lesson:** `## 067` added to `docs/LESSONS.md` (a storage sort reused for presentation makes correct results mislead; prefer a structural representativeness signal over a reorder) — landed on the pushed branch.
+- **Revert path:** additive only; `git revert` the three commits or drop the branch — no schema/contract/version migration to undo.
+
 _(pending)_
 
 ---
