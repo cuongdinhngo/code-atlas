@@ -42,16 +42,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         depth: int = 1,
         detail_level: DetailLevel = "standard",
     ) -> dict[str, object]:
-        """``include``/``require`` neighbors of ``path``.
+        """What does this file pull in, and what pulls it in?
 
         ``direction`` is ``imports`` (what this file includes), ``imported_by`` (who includes it),
         or ``both``. ``depth`` defaults to 1 (direct); deeper values BFS over linked ``INCLUDES``
-        only, capped by ``CA_MAX_RESULTS``. Linked edges only appear in ``results``.
-        ``unresolved_includes`` counts bare/dynamic includes on the seed path's ``imports`` side
-        and is omitted for ``imported_by`` (inbound unresolved is unanswerable as a confident
-        zero — task 065). An empty answer in a direction that reads inbound (``imported_by`` or
-        ``both``) with unlinked includes mentioning the basename returns
-        ``reason=relationship_not_modelled`` plus ``try_instead``.
+        only, capped by ``CA_MAX_RESULTS``. ``unresolved_includes`` counts bare/dynamic includes on
+        the seed's ``imports`` side and is omitted for ``imported_by`` (inbound unresolved is not a
+        confident zero — 065). An empty inbound answer with unlinked includes mentioning the
+        basename returns ``reason=relationship_not_modelled`` plus ``try_instead``.
         """
         if depth < 1:
             raise ValueError(f"depth must be >= 1, got {depth}")

@@ -7,8 +7,9 @@ from fastmcp import FastMCP
 EXPLORE_AREA = "explore_area"
 FIND_USAGES = "find_usages"
 IMPACT_OF_CHANGE = "impact_of_change"
+WHICH_TOOL = "which_tool"
 
-PROMPT_NAMES: tuple[str, ...] = (EXPLORE_AREA, FIND_USAGES, IMPACT_OF_CHANGE)
+PROMPT_NAMES: tuple[str, ...] = (EXPLORE_AREA, FIND_USAGES, IMPACT_OF_CHANGE, WHICH_TOOL)
 
 
 def register(server: FastMCP) -> None:
@@ -49,6 +50,29 @@ def register(server: FastMCP) -> None:
             "highest-score hits you must inspect — do not open entire files."
         )
 
+    def which_tool(question: str = "") -> str:
+        """Which code-atlas tool answers a given question? A recognition map for all 14 tools."""
+        asked = f" You asked: {question}." if question.strip() else ""
+        return (
+            "Pick the code-atlas tool whose answer matches your question." + asked + " Map:\n"
+            "- Is the index built/fresh/healthy, what next? -> get_index_status (call first).\n"
+            "- Build or refresh the index -> build_or_update_index.\n"
+            "- Find a symbol by partial name/text -> search_symbol.\n"
+            "- What does a file define, and where -> file_outline.\n"
+            "- Read one symbol's source -> read_symbol.\n"
+            "- Who calls this function/method -> find_callers.\n"
+            "- Where is this symbol used -> find_references.\n"
+            "- Which types extend/implement this -> find_implementations.\n"
+            "- What variables a handler passes to its template -> find_view_data.\n"
+            "- What a file includes / what includes it -> include_graph.\n"
+            "- What breaks if I change this -> impact.\n"
+            "- What is reachable from entry points / what is dead -> reachable_from.\n"
+            "- Which symbols look unused -> find_orphans.\n"
+            "- How does one symbol reach another -> explain_path.\n"
+            "Then call get_index_status first if unsure the index is current."
+        )
+
     server.prompt(name=EXPLORE_AREA)(explore_area)
     server.prompt(name=FIND_USAGES)(find_usages)
     server.prompt(name=IMPACT_OF_CHANGE)(impact_of_change)
+    server.prompt(name=WHICH_TOOL)(which_tool)

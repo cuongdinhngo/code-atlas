@@ -55,14 +55,14 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
     def get_index_status(
         detail_level: DetailLevel = "standard", offset: int = 0
     ) -> dict[str, object]:
-        """Index stats, health, last commit, staleness and next tools. Call this first.
+        """Is the index built, fresh, and healthy — and what should I call next? Call this first.
 
-        ``verbose`` adds capped ``parse_failure_paths`` plus ``parse_failures_truncated``;
-        pass ``offset`` to page further. ``minimal`` / ``standard`` omit the list (cheap path).
-
-        ``standard``/``verbose`` also carry ``max_results`` — the effective ceiling a caller
-        sizes requests against — and its ``governs`` list: it caps both returned rows and the
-        resolver's candidate fan-out, so ``total_count`` is not the only cap (066).
+        Reports stats, health, last commit, staleness, and next-tool suggestions. ``verbose`` adds
+        capped ``parse_failure_paths`` plus ``parse_failures_truncated``; pass ``offset`` to page
+        further. ``minimal`` / ``standard`` omit the list (cheap path). ``standard``/``verbose``
+        also carry ``max_results`` — the effective ceiling a caller sizes requests against — and
+        its ``governs`` list: it caps both returned rows and the resolver's candidate fan-out, so
+        ``total_count`` is not the only cap (066).
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")

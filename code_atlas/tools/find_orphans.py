@@ -27,11 +27,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         depth: int | None = None,
         detail_level: DetailLevel = "standard",
     ) -> dict[str, object]:
-        """Symbols/files outside proven reachability from ``CA_ENTRY_POINTS``.
+        """Which symbols and files look unused — nothing calls them and no entry point reaches them?
 
-        Each orphan carries ``why``: ``no_inbound`` or ``unreachable_from_roots``.
-        HEURISTIC-only neighbors are ``unproven``, never orphans. Default walk is
-        closure (see ``reachable_from``); unset entry points yield
+        Each orphan carries ``why``: ``no_inbound`` or ``unreachable_from_roots``. Reachability
+        starts from ``CA_ENTRY_POINTS``; HEURISTIC-only neighbors are ``unproven``, never orphans.
+        Default walk is closure (see ``reachable_from``); unset entry points yield
         ``status=no_roots_configured``.
         """
         if depth is not None and depth < 0:

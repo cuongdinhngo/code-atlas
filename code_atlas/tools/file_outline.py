@@ -20,10 +20,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     """Bind the tool to one repo's configuration."""
 
     def file_outline(path: str, detail_level: DetailLevel = "standard") -> dict[str, object]:
-        """Symbols in ``path`` with ``line_start``/``line_end`` — never source bodies.
+        """What does this file define, and on what lines — without printing the source?
 
-        ``path`` may be absolute (under the repo root) or ``./``-prefixed; it is normalised to the
-        repo-relative form stored in the index. ``found`` is false when that path is not indexed.
+        Returns each symbol with its ``line_start``/``line_end``, never bodies. ``path`` may be
+        absolute (under the repo root) or ``./``-prefixed; it is normalised to the repo-relative
+        form stored in the index. ``found`` is false when that path is not indexed.
         """
         if not config.db_path.is_file():
             return _empty(

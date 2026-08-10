@@ -34,11 +34,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     """Bind the tool to one repo's configuration."""
 
     def read_symbol(qname: str, detail_level: DetailLevel = "standard") -> dict[str, object]:
-        """Source for ``qname``: ``line_start…line_end`` plus contiguous comments above.
+        """Read just one symbol's source and its doc comment, without opening the whole file.
 
-        Never returns the whole file. On hash drift, reparses that one file inline (035). Returns
-        ``stale: true`` and ``reason=index_stale`` when the file is missing, no adapter owns it, or
-        repair fails (adapter/DB error). Stub-indexed nodes (task 039) also carry ``stub: true``.
+        Returns ``line_start…line_end`` for ``qname`` plus contiguous comments above. On hash drift,
+        reparses that one file inline (035); returns ``stale: true`` and ``reason=index_stale`` when
+        the file is missing, no adapter owns it, or repair fails. Stub-indexed nodes carry
+        ``stub: true`` (039); a qname with more than one definition adds ``ambiguous_definitions``
+        (070).
         """
         if not config.db_path.is_file():
             return _empty(

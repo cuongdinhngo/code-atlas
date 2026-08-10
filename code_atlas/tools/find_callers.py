@@ -56,7 +56,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         limit: int | None = None,
         offset: int = 0,
     ) -> dict[str, object]:
-        """Who CALLS or NEWs ``qname``.
+        """Who calls this function or method? Every call site, with confidence and optional depth.
 
         ``depth`` defaults to 1 (direct). Deeper values BFS over CALLS/NEW, but only
         ``RESOLVED`` edges expand the frontier — HEURISTIC/DYNAMIC hits are returned and counted

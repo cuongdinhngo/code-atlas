@@ -23,9 +23,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         depth: int | None = None,
         detail_level: DetailLevel = "standard",
     ) -> dict[str, object]:
-        """Blast radius of changed paths and/or qnames (bounded best-score).
+        """What could break if I change this file or symbol — the blast radius?
 
-        Seeds are the union of every indexed node on ``paths`` and the explicit ``qnames``.
+        Bounded best-score over changed paths and/or qnames. Seeds are the union of every indexed
+        node on ``paths`` and the explicit ``qnames``.
         ``depth`` defaults to ``CA_IMPACT_DEPTH``; the node budget is ``CA_IMPACT_MAX_NODES``.
         HEURISTIC/DYNAMIC neighbors are returned with their tier but do not expand the
         frontier. Missing seeds and a missing database yield an empty successful result.

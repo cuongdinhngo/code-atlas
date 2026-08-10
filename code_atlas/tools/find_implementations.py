@@ -35,15 +35,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         limit: int | None = None,
         offset: int = 0,
     ) -> dict[str, object]:
-        """Direct subtypes that EXTEND or IMPLEMENT ``qname`` (not transitive — see impact/017).
+        """Which types extend or implement this one? Direct subtypes only (not transitive).
 
         ``limit`` defaults to ``CA_MAX_RESULTS``; ``offset`` pages in store edge order (057).
-
-        ``subject_refreshed_only`` is present (and ``true``) only when read-through freshness
-        reparsed the subject's file this call — neighbors were not re-verified (035 / 061).
-
-        ``EXTENDS``/``IMPLEMENTS`` are resolver-linked — empty here is a genuine zero, never
-        ``relationship_not_modelled`` (task 065).
+        ``EXTENDS``/``IMPLEMENTS`` are resolver-linked, so empty here is a genuine zero, never
+        ``relationship_not_modelled`` (065). ``subject_refreshed_only`` is ``true`` only when
+        read-through freshness reparsed the subject's file this call — neighbors were not
+        re-verified (035 / 061). For transitive subtypes, see ``impact``.
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
