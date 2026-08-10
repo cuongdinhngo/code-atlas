@@ -21,6 +21,7 @@ from code_atlas.store import (
     BUILT_AT_KEY,
     LAST_COMMIT_KEY,
     SCHEMA_OLDER,
+    WRITE_ERRORS,
     GraphStore,
     SchemaVersionError,
 )
@@ -35,6 +36,10 @@ FULL = "full"
 INCREMENTAL = "incremental"
 REFUSED = "refused"
 BUSY = "busy"
+
+# Opening the index for a busy-branch staleness read may hit a foreign schema or, in a cold-start
+# race, a write-locked DB; either degrades to ``unknown`` rather than raising (R5.3, C2).
+_STALENESS_READ_ERRORS: tuple[type[BaseException], ...] = (SchemaVersionError, *WRITE_ERRORS)
 
 
 def create(config: Config) -> Callable[..., dict[str, object]]:
@@ -80,13 +85,18 @@ def _busy(config: Config, *, full: bool, started: float) -> dict[str, object]:
 
 
 def _busy_staleness(config: Config) -> dict[str, str | None]:
-    """Best-effort staleness of the index the loser will read; never raises (R5.3, C2)."""
+    """Best-effort staleness of the index the loser will read; never raises (R5.3, C2).
+
+    ``WRITE_ERRORS`` guards the cold-start race: a first build in flight leaves the DB file present
+    but its schema uncommitted, so opening it here would block on the winner's write lock and time
+    out — degrade to ``unknown`` rather than let the busy refusal raise.
+    """
     if not config.db_path.is_file():
         return {"staleness": UNKNOWN, "last_commit": None, "head_commit": None}
     try:
         with GraphStore(config.db_path) as store:
             return compute_staleness(store, config)
-    except SchemaVersionError:
+    except _STALENESS_READ_ERRORS:
         return {"staleness": UNKNOWN, "last_commit": None, "head_commit": None}
 
 
