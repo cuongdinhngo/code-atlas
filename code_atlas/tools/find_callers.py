@@ -15,6 +15,7 @@ from code_atlas.tools.nav_result import (
     REASON_BARE_NAME_TRUNCATED,
     REASON_INDEX_STALE,
     TRY_INSTEAD_FILE_OUTLINE,
+    attach_result_subtrees,
     attach_try_instead,
     edge_hit,
     edge_id,
@@ -136,6 +137,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             )
             if include_source:
                 call_site.annotate(config.root, store, outcome.results)
+            # Skewed page 1 hides other subtrees — advertise the full spread (task 067).
+            # Depth 1 only: the store spread is exact there; deeper total_count is a floor.
+            subtrees = (
+                store.edge_subtrees_by_target(qname, kinds=CALLER_KINDS, args_at=args_at)
+                if depth == 1 and outcome.truncated
+                else {}
+            )
         reason = relation_reason(hit_total=outcome.total_count, symbol_indexed=indexed)
         if outcome.total_count == 0 and indexed and unresolved_bare > 0:
             # Cap dropped this subject from bare-name linking — not "no callers exist".
@@ -158,6 +166,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             result["unresolved_bare_calls"] = unresolved_bare
         if unrecorded is not None:
             result["args_unrecorded"] = unrecorded
+        attach_result_subtrees(result, subtrees)
         return result
 
     return find_callers

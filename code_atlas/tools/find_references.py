@@ -17,6 +17,7 @@ from code_atlas.tools.nav_result import (
     REASON_RELATIONSHIP_NOT_MODELLED,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_FIND_REFERENCES_ON_METHOD_QNAME,
+    attach_result_subtrees,
     attach_try_instead,
     edge_hit,
     empty_nav,
@@ -99,6 +100,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 )
             edges = store.edges_by_target(qname, limit=cap, offset=offset)
             results = [edge_hit(edge) for edge in edges]
+            # Skewed page 1 hides other subtrees — advertise the full spread (task 067).
+            subtrees = (
+                store.edge_subtrees_by_target(qname)
+                if offset + len(results) < total_count
+                else {}
+            )
             if include_source:
                 call_site.annotate(config.root, store, results)
             reason = relation_reason(hit_total=total_count, symbol_indexed=indexed)
@@ -127,6 +134,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         )
         if freshness == "repaired":
             result["subject_refreshed_only"] = True
+        attach_result_subtrees(result, subtrees)
         return attach_try_instead(result, try_instead)
 
     return find_references

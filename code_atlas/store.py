@@ -558,6 +558,37 @@ class GraphStore:
             "target_qname = ?", qname, kinds, extra=_args_predicate(args_at)
         )
 
+    def edge_subtrees_by_target(
+        self,
+        qname: str,
+        *,
+        kinds: Sequence[str] | None = None,
+        args_at: tuple[int, str] | None = None,
+    ) -> dict[str, int]:
+        """Top-level path segment → count over the full set targeting ``qname`` (task 067).
+
+        Same filters as ``count_edges_by_target``, so the numbers reconcile. ``JOIN files``
+        drops the synthetic rule bookmark (no ``files`` row since 068), leaving only real
+        source subtrees. The segment is the path text before the first ``/`` — structural,
+        never a repo name (R2); ``GROUP BY``/``ORDER BY`` keep the dict deterministic (R4.2).
+        """
+        clause, params = self._edge_where(
+            "target_qname = ?", kinds, _args_predicate(args_at)
+        )
+        segment = (
+            "CASE WHEN instr(files.path, '/') > 0 "
+            "THEN substr(files.path, 1, instr(files.path, '/') - 1) ELSE files.path END"
+        )
+        sql = (
+            f"SELECT {segment} AS seg, COUNT(*) FROM edges "
+            "JOIN files ON files.path = edges.file_path "
+            f"WHERE {clause} GROUP BY seg ORDER BY seg"
+        )
+        return {
+            str(seg): int(count)
+            for seg, count in self._conn.execute(sql, (qname, *params))
+        }
+
     def count_edges_without_args(
         self, qname: str, *, kinds: Sequence[str] | None = None
     ) -> int:
