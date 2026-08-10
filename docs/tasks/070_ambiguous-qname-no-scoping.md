@@ -309,7 +309,6 @@ landed as a `task-notification`, so its usage block was carried (no `unmeasured`
 Main-loop spend is **not measured by mango** (dispatch-only); see `rtk gain` for the output-noise side.
 
 ## Session status
-- **Phase:** finalise — code + docs complete, delta-green (Docker 1063). Committing → push → open PR
-  on the maintainer's standing approval.
-- **Next action:** open PR #90 (predicted) from `.github/pull_request_template.md`.
-- **Revert:** close PR, delete branch `feat/070-ambiguous-qname-no-scoping`.
+- **Phase:** finalise — **complete (PR #91).** Delta-green (Docker 1063 passed), pushed.
+- **Next action:** maintainer review on [PR #91](https://github.com/cuongdinhngo/code-atlas/pull/91).
+- **Revert:** close PR #91, delete branch `feat/070-ambiguous-qname-no-scoping`.
