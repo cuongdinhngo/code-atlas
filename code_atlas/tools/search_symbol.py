@@ -6,7 +6,7 @@ from collections.abc import Callable, Mapping
 from typing import Literal
 
 from code_atlas import contract
-from code_atlas.config import Config
+from code_atlas.config import Config, clamp_limit
 from code_atlas.store import GraphStore, Row
 from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
@@ -15,6 +15,7 @@ from code_atlas.tools.nav_result import (
     REASON_NOT_INDEXED,
     REASON_OK,
     TRY_INSTEAD_FILE_OUTLINE,
+    attach_limit_capped,
     attach_try_instead,
     is_stub,
     list_result,
@@ -60,7 +61,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         kind = _require_kind(kind)
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
-        cap = config.max_results if limit is None else min(limit, config.max_results)
+        cap, limit_clamped = clamp_limit(limit, config.max_results)
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
         db_path = str(config.db_path)
@@ -118,6 +119,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         # Empty + unverified (multi-dirty miss) — point at path-named tools (073).
         if reason == REASON_INDEX_STALE and total_count == 0:
             return attach_try_instead(payload, TRY_INSTEAD_FILE_OUTLINE)
+        attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
         return payload
 
     return search_symbol

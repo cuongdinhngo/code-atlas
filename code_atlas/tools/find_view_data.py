@@ -6,13 +6,14 @@ from collections.abc import Callable
 from typing import Literal
 
 from code_atlas import contract
-from code_atlas.config import Config
+from code_atlas.config import Config, clamp_limit
 from code_atlas.enrichment import view_data_key
 from code_atlas.store import GraphStore
 from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
     REASON_INDEX_STALE,
     TRY_INSTEAD_FILE_OUTLINE,
+    attach_limit_capped,
     attach_try_instead,
     edge_hit,
     empty_nav,
@@ -45,7 +46,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
-        cap = config.max_results if limit is None else min(limit, config.max_results)
+        cap, limit_clamped = clamp_limit(limit, config.max_results)
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
         if not config.db_path.is_file():
@@ -95,6 +96,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             )
             if freshness == "repaired":
                 result["subject_refreshed_only"] = True
+            attach_limit_capped(result, cap=cap, clamped=limit_clamped)
             return result
 
     return find_view_data

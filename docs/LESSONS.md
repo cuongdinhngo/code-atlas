@@ -1,5 +1,20 @@
 # Lessons — code-atlas
 
+## 066 — Report an argument the server honoured only partially, and enumerate limit-takers from code
+
+`cap = min(limit, max_results)` silently discarded the excess: `truncated`/`total_count` said *more
+exist* but never *the tool honoured fewer than you asked* — different questions. A previous reader was
+burned and hand-patched a caveat into the anchor repo's `CLAUDE.md`, i.e. the server was exporting a
+caveat into every consumer's docs. **Fix pattern:** surface the honoured-vs-requested gap at the point
+of use — one conditional field (`limit_capped_to`, the effective value) via a shared helper, present
+only when a clamp occurred (061) — and state the knob's *full* meaning in the server's own answer
+(`max_results` + `governs`: rows **and** resolver candidate fan-out — a hidden double duty makes a
+caller mis-read `total_count`). **Uniformity guard:** a "holds for five tools, not the sixth" caveat is
+worse than none, so guard it with a **source-scan test** that fails if any `tools/*.py` declaring a user
+`limit` skips the helper — a new tool can't silently opt out. **Inventory from code, not prose:** the
+ticket said "…and friends" but the code showed exactly five user-`limit` tools (`file_outline` uses
+`max_results` directly, no user param) — the denominator came from `limit: int | None`, not the ticket.
+
 ## 067 — A storage sort reused for presentation makes correct results mislead
 
 `_EDGE_ORDER` leads with `source_qname`, which *is* the file path for file-scope call sites, so a
