@@ -191,6 +191,19 @@ def attach_try_instead(payload: dict[str, object], try_instead: str | None) -> d
     return payload
 
 
+def attach_result_subtrees(
+    payload: dict[str, object], subtrees: Mapping[str, int]
+) -> dict[str, object]:
+    """Advertise the full result's top-level subtrees when a page hides some (task 067).
+
+    Attached only when the set spans >1 subtree; otherwise a one-page reader sees the whole
+    spread anyway and the field would only add tokens. Callers gate on ``truncated`` first.
+    """
+    if len(subtrees) > 1:
+        payload["result_subtrees"] = dict(subtrees)
+    return payload
+
+
 def is_stub(raw: object) -> bool:
     """True when a node's ``extra`` JSON carries the stub marker (task 039)."""
     if not isinstance(raw, str) or not raw.strip():
