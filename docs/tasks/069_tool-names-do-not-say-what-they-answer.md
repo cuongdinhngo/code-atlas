@@ -335,7 +335,6 @@ two-axis sweep + the two recorded deviations stand as the in-conversation surfac
 Main-loop spend is **not measured by mango** (dispatch-only); see `rtk gain` for output-noise.
 
 ## Session status
-- **Phase:** finalise — code + docs complete, delta-green (Docker 1065). Committing → push → open PR
-  on the maintainer's standing approval.
-- **Next action:** open the PR from `.github/pull_request_template.md`.
-- **Revert:** close PR, delete branch `feat/069-tool-names-do-not-say-what-they-answer`.
+- **Phase:** finalise — **complete (PR #92).** Delta-green (Docker 1065 passed), pushed.
+- **Next action:** maintainer review on [PR #92](https://github.com/cuongdinhngo/code-atlas/pull/92).
+- **Revert:** close PR #92, delete branch `feat/069-tool-names-do-not-say-what-they-answer`.
