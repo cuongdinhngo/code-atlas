@@ -4,7 +4,7 @@ slug: busy-build-hides-staleness
 title: '`mode: "busy"` returns in 0.0 s and reads like success — the caller then queries a stale index'
 phase: 1.5b
 milestone: Agent-trust
-status: in-progress
+status: done
 depends_on: [053, 033]
 ---
 
@@ -368,11 +368,35 @@ index+tree → same payload, staleness is a pure function of committed meta + gi
 
 ---
 
+## Phase 4 — Review
+
+**Waived** per run args (`with skipped review`). No `mango:reviewer` / `mango:challenger` dispatched.
+The two execute deviations were self-adjudicated (both benign): the guard-count bumps are mandatory
+for a new core module; the doc rule lives in the runbook README links to, not README itself.
+
+## Phase 5 — Finalise
+
+- **Bookkeeping:** status → done (frontmatter + BACKLOG); token row added; lesson recorded.
+- **Outward (user-approved + standing maintainer authorization):** push `feat/072-busy-build-hides-staleness`, open PR.
+
+### Cost ledger (dispatch)
+
+`LEDGER: 0 dispatch rows | 0 subagents ran (review waived, no fan-out) | complete`. Main-loop spend is
+unmeasured — mango measures subagent dispatch only.
+
+### Durable lesson
+A change that adds/removes a core module must grep **pinned counts** (`len(...) == N`, parametrize
+sources), not just moved symbols — the two `== 36` guard tests broke on the new `staleness.py` and
+surfaced only at the full-suite run. Recorded in `docs/LESSONS.md` (072).
+
+---
+
 ## Session status
 
 - **Ticket:** 072
 - **work_doc_mode:** embed
 - **working-doc path:** `docs/tasks/072_busy-build-hides-staleness.md`
-- **Current phase:** execute — complete; flowing to **review**
+- **Current phase:** finalise — bookkeeping done; outward actions (push + PR) approved, executing
 - **Blocked on:** none
-- **Next action:** review (reviewer + ticket-blind challenger)
+- **Next action:** push branch, open PR; then update the BACKLOG token row with the real PR number
+- **Revert path:** branch `feat/072-busy-build-hides-staleness` (commits `07017c8`, `0d070df`, `3b5d89c` + bookkeeping); undo = close PR + delete branch. No schema/data migration.
