@@ -1,5 +1,17 @@
 # Lessons — code-atlas
 
+## 070 — A wall-clock-tolerance test can fail under load; isolate before calling it a regression
+`test_profile_incremental::test_phase_times_cover_named_phases_and_sum_near_wall` asserts
+`phase_sum_vs_wall.within_tolerance` — a timing assertion, so it is **load-sensitive**. During 070's
+delta validation it failed twice, once in the full suite and once in a scoped run — but only when my
+two `@needs_php` fixture builds (real PHP subprocesses) and back-to-back Docker image builds were
+loading the host. It **passed in isolation with my changes** and **passed on clean `main`**, and 070
+touches nothing in the incremental-build path. **Fix pattern:** when a timing/tolerance test fails
+during delta validation, before treating it as a regression, (a) re-run it *in isolation* with your
+change, and (b) run it on the *stashed clean base* — if it passes both, it is a pre-existing
+load-driven flake and a baseline exclusion, not your delta. Do not chase it as a bug in the change,
+and do not weaken your delta to "fix" it. (A calmer full run then went green: 1063 passed.)
+
 ## 072 — A change that adds/removes a core module must grep pinned counts, not just moved symbols
 The design's test-blast-radius grep matched the **symbols** being moved (the staleness constants,
 which stayed importable via re-export) and concluded "no existing assertion is invalidated". But two
