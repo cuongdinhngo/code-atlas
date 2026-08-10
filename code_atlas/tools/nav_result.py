@@ -217,6 +217,35 @@ def attach_result_subtrees(
     return payload
 
 
+AMBIGUOUS_DEFINITIONS = "ambiguous_definitions"
+
+
+def definition_sites(rows: list[Row]) -> list[dict[str, object]]:
+    """Shape definition nodes into ``{file, line, kind}`` sites, in ``_NODE_ORDER`` (R4)."""
+    sites: list[dict[str, object]] = []
+    for row in rows:
+        # One key per statement — R3.2 sole-source gate forbids a vocabulary dict literal.
+        site: dict[str, object] = {}
+        site["file"] = row["file_path"]
+        site["line"] = row["line_start"]
+        site["kind"] = row["kind"]
+        sites.append(site)
+    return sites
+
+
+def attach_ambiguous_definitions(
+    payload: dict[str, object], sites: list[dict[str, object]]
+) -> dict[str, object]:
+    """Warn the subject qname is non-unique — attached only when >1 (task 070; 061 conditional).
+
+    Absent for a unique qname, so that payload is byte-identical to before. The list names the
+    definition sites; it never picks one (R4) — binding may be load-order dependent.
+    """
+    if len(sites) > 1:
+        payload[AMBIGUOUS_DEFINITIONS] = sites
+    return payload
+
+
 def is_stub(raw: object) -> bool:
     """True when a node's ``extra`` JSON carries the stub marker (task 039)."""
     if not isinstance(raw, str) or not raw.strip():

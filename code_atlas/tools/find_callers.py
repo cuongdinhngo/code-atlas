@@ -15,9 +15,11 @@ from code_atlas.tools.nav_result import (
     REASON_BARE_NAME_TRUNCATED,
     REASON_INDEX_STALE,
     TRY_INSTEAD_FILE_OUTLINE,
+    attach_ambiguous_definitions,
     attach_limit_capped,
     attach_result_subtrees,
     attach_try_instead,
+    definition_sites,
     edge_hit,
     edge_id,
     empty_nav,
@@ -121,7 +123,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             outcome = _callers(
                 store, qname, hops=depth, limit=cap, offset=offset, args_at=args_at
             )
-            indexed = bool(store.nodes_by_qualified_name(qname, limit=1))
+            # Widen the existing indexed-check fetch to surface every definition site (task 070).
+            subject_nodes = store.nodes_by_qualified_name(qname, limit=config.max_results)
+            indexed = bool(subject_nodes)
             container, bare_name = split_qname(qname)
             unresolved_bare = 0
             if indexed and container is not None and outcome.total_count == 0:
@@ -168,6 +172,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if unrecorded is not None:
             result["args_unrecorded"] = unrecorded
         attach_result_subtrees(result, subtrees)
+        attach_ambiguous_definitions(result, definition_sites(subject_nodes))
         attach_limit_capped(result, cap=cap, clamped=limit_clamped)
         return result
 
