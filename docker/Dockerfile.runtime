@@ -1,0 +1,42 @@
+# code-atlas RUNTIME image — ships the MCP server itself over stdio, with the PHP adapter.
+# Lean: no pytest/ruff/mypy, no composer/git at runtime (composer runs only in the build stage).
+#
+# An MCP client launches it per project, mounting the repo to index at /workspace:
+#   docker run -i --rm -v /path/to/project:/workspace code-atlas-server
+# The server indexes its working directory (/workspace) and writes .code-atlas/graph.db there.
+
+# ---- stage 1: resolve the PHP adapter's vendor tree (composer needed here only) ----
+FROM python:3.12-slim-bookworm AS adapter-deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        php-cli php-mbstring php-xml curl git unzip ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+RUN curl -sS https://getcomposer.org/installer \
+    | php -- --install-dir=/usr/local/bin --filename=composer
+WORKDIR /opt/code-atlas/adapters/php
+COPY adapters/php/composer.json adapters/php/composer.lock ./
+RUN composer install --no-dev --no-interaction --no-progress
+
+# ---- stage 2: lean runtime — server + adapter only ----
+FROM python:3.12-slim-bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        php-cli php-mbstring php-xml \
+    && rm -rf /var/lib/apt/lists/*
+
+# The server, runtime deps only (pyproject's base deps — not the [dev] extra).
+WORKDIR /opt/code-atlas
+COPY pyproject.toml README.md ./
+COPY code_atlas ./code_atlas
+RUN pip install --no-cache-dir .
+
+# The adapter source + its resolved vendor tree from stage 1 (referenced by CA_PHP_CMD's abs path).
+COPY adapters/php ./adapters/php
+COPY --from=adapter-deps /opt/code-atlas/adapters/php/vendor ./adapters/php/vendor
+
+# How the core spawns the PHP adapter for .php files.
+ENV CA_PHP_CMD="php /opt/code-atlas/adapters/php/index.php --server"
+
+# The server indexes its working directory; mount the target repo here. Runs over stdio, so a client
+# must attach stdin (`docker run -i`). Tip: pass `--user $(id -u):$(id -g)` to keep .code-atlas
+# writes owned by you rather than root.
+WORKDIR /workspace
+ENTRYPOINT ["code-atlas"]

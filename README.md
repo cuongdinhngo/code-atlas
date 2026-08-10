@@ -96,6 +96,34 @@ this checkout, so `CA_PHP_CMD` must be an **absolute** path. Docker instead of h
 [`adapters/php/README.md`](adapters/php/README.md).
 </details>
 
+### Ship the server in a container
+
+To run the whole MCP server (core + PHP adapter) from a container instead of installing Python and PHP
+on the host, build the runtime image and point your client at `docker run`:
+
+```bash
+docker build -f docker/Dockerfile.runtime -t code-atlas-server .
+```
+
+```jsonc
+// .mcp.json — the server indexes the mounted repo and writes .code-atlas/graph.db into it
+{
+  "mcpServers": {
+    "code-atlas": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm",
+               "-v", "/abs/path/to/your-project:/workspace",
+               "code-atlas-server"]
+    }
+  }
+}
+```
+
+The server talks MCP over stdio, so `-i` (stdin attached) is required; it indexes `/workspace`, so mount
+the repo there. Add `"--user", "1000:1000"` (your uid:gid) to the args to keep `.code-atlas/` writes
+owned by you rather than root. The image bundles the pinned PHP adapter, so no host PHP/Composer is
+needed. See [`docker/`](docker/).
+
 ## Usage
 
 Drive everything through the MCP tools:
