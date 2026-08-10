@@ -1,5 +1,17 @@
 # Lessons — code-atlas
 
+## 074 — A measurement ticket that needs an external environment splits into prep → run → analyze
+074's core is an n≥3 headless benchmark on the anchor repo — data this session cannot produce, and
+must never fabricate ("every claim is a counted artifact"; "do not change any tool to make the number
+come out"). The wrong move is to run a local toy-repo substitute (it cannot reproduce a confident
+*partial* answer terminating correct reasoning) or to invent verdicts. The right move: **split the
+ticket** — commit a **pre-registration** (outcomes → consequences, protocol, rubric, capture template)
+that is **git-timestamped before any run**, hand the runs to the maintainer's environment, then score
+and decide in a later cycle. Pre-registering in git is what makes the result unarguable after the
+fact. A benchmark ticket has **no proving test**; its proving artifact is the pre-registration plus the
+recorded per-run verdicts. Shipping the prep half alone is a legitimate stopping point — but the PR and
+status must say so plainly (measurement ACs still open), never imply the threat was resolved.
+
 ## 069 — Adding a member to a pinned vocabulary breaks its pin tests AND every consumer's allow-set
 Adding `REASON_CAPABILITY_NOT_CONFIGURED` to `NAV_REASONS` broke **four** tests, and the design's
 test-blast-radius grep found only one (the prompt-registration test — which in fact needed no edit).

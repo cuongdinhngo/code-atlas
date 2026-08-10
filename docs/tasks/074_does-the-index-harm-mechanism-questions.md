@@ -253,20 +253,33 @@ turn, once the results table is filled.
 ## Phase 4 — review
 **Waived** by the run instruction. Nothing to review yet beyond the additive docs package.
 
-## Phase 5 — finalise
-Deferred to the post-run turn. On that turn: score the pasted verdicts, apply the selected
-pre-registered consequence to PLAN §19 + README **in the same change** (AC3/AC4), decide R5, record
-the token row in BACKLOG, capture the durable lesson, and open the PR.
+## Phase 5 — finalise (partial — pre-registration shipped by maintainer decision)
+The maintainer decided the pre-registration/protocol is a sufficient deliverable to ship now and to
+stop here — the n≥3 runs are **not** performed in this cycle. So this PR ships the **prep half only**:
+- **Done:** R2 (rubric), R3 (capture template), R4/AC1-front (pre-registration recorded **before** any
+  run, git-timestamped). C1–C4 honoured (no code, native-only, no repo-identifying content).
+- **Deferred to a follow-up** (needs the maintainer's anchor-repo runs): R1/R5 (the runs),
+  AC1-back (n≥3 per-run verdicts), AC2 (mechanism per wrong cell), AC3/AC4 (delete-or-replace the
+  §19 threat + sync README). PLAN §19's threat paragraph is therefore **left as-is** — deliberately,
+  since resolving it requires the data this PR does not fabricate.
+The PR is framed as a pre-registered protocol, not a resolved measurement. No benchmark numbers invented.
 
 ## Session status
-- **Phase:** execute (prep) — **complete and committed**; **HARD STOP awaiting maintainer runs.**
-- **What's committed:** the pre-run package (pre-registration + protocol + rubric + capture template),
-  git-timestamped before any run, on branch `docs/074-does-the-index-harm-mechanism-questions`.
-- **Maintainer action:** run ≥6 cells (2 arms × n≥3) on the anchor repo per the protocol, fill the
-  results table in `docs/benchmarks/074_mechanism-question.md`, paste it back.
-- **Next action (post-runs, my turn):** score → apply the pre-registered outcome to PLAN §19 +
-  README → decide R5 → BACKLOG token row + durable lesson → open the PR.
-- **Revert:** delete `docs/benchmarks/074_mechanism-question.md` + the branch.
+- **Phase:** finalise — **pre-registration shipped**; runs + §19/README decision **deferred** (maintainer
+  chose to stop after prep).
+- **Ticket state:** `in-progress` — the measurement ACs (AC1-back/AC2/AC3/AC4) remain open for a
+  future cycle when the anchor-repo runs are done; the pre-registration is banked and git-timestamped.
+- **To resume:** run ≥6 cells (2 arms × n≥3) on the anchor repo per
+  `docs/benchmarks/074_mechanism-question.md`, fill its results table, then score → apply the selected
+  pre-registered outcome to PLAN §19 + README → decide R5.
+- **Revert:** revert the PR / delete `docs/benchmarks/074_mechanism-question.md` + the branch.
+
+### Cost ledger
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| _(none — no subagent dispatched this run)_ | — | — | — |
+
+`LEDGER TOTAL: 0 · no subagent dispatched.` All work on the main model (not measured by mango).
 
 ### Cost ledger
 | Phase | Dispatch | Round | Tokens |
