@@ -102,6 +102,14 @@ gap that fixtures never hit.
 | 072 | [`mode: "busy"` returns in 0.0 s and reads like success](tasks/072_busy-build-hides-staleness.md) | Agent-trust | done | 053, 033 |
 | 073 | [Read-through freshness repairs only rows it already found — a new symbol is confidently reported absent](tasks/073_freshness-cannot-find-what-is-not-indexed.md) | Agent-trust | done | 035, 065, 033 |
 | 074 | [The one repeated benchmark cell says the index may make control-flow answers worse — resolve it at n ≥ 3](tasks/074_does-the-index-harm-mechanism-questions.md) | Measure | in-progress | 055, 067, 045 |
+| 075 | [`read_symbol` answers `found: false` with `reason: "ok"` for a class the index holds](tasks/075_read-symbol-confident-zero-on-unnormalised-qname.md) | Agent-trust | todo | 065, 070, 014 |
+| 076 | [A bare method name still answers `no_such_symbol` while its qualified form has 82 callers](tasks/076_bare-name-subject-reads-as-absence.md) | Agent-trust | todo | 054, 011, 013 |
+| 077 | [The branch changed under a live session and `staleness: "current"` was true, correct, and useless](tasks/077_index-cannot-name-the-revision-it-describes.md) | Agent-trust | todo | 071, 047, 072 |
+| 078 | [`ambiguous_definitions` warns about two declarations while `source` silently ships one](tasks/078_ambiguous-payload-still-picks-one-definition.md) | Agent-trust | todo | 070, 043, 049 |
+| 079 | [`build_or_update_index` is the one payload with no `index_root`](tasks/079_build-payload-does-not-name-its-tree.md) | Agent-trust | todo | 071, 060 |
+| 080 | [A no-op incremental costs ~56 s and reports 6,071 edges written for 0 files parsed](tasks/080_noop-incremental-cost-and-uninterpretable-writes.md) | Cost | todo | 052, 051, 060 |
+| 081 | [The four routing prompts have never been reachable by an agent](tasks/081_routing-prompts-are-not-in-the-agents-surface.md) | Agent-fit | todo | 069, 017, 038 |
+| 082 | [Two claims nobody outside can check: what `files` counts, and whether a busy build ever says so](tasks/082_claims-nobody-outside-can-check.md) | Agent-trust | todo | 068, 072, 028 |
 
 **047–049 come from the first external field session** — an agent in the anchor repo used the server for
 real work and filled in a retro (`v0.1.0`, commit `e117b47`, round 1). Its headline finding was **zero
@@ -236,6 +244,45 @@ trigger: `git pull`, a branch switch, a rebase or an edit from another terminal 
 **052 gates 053 deliberately**: a `post-merge` hook that costs the field-measured 62 s is worse than a
 stale index, so the number comes before the automation.
 
+**075–082 come from field retro round 4** (2026-08-10, commit `e8f56d0`, contract v5 / schema 4) — the
+first **verification** round: eleven fixes born of rounds 2–3 were in the binary and none had been seen
+by an agent doing real work. Verdicts on the twelve verification items: **7 FIXED (verified)** — 066
+`limit_capped_to`, 067 `result_subtrees`, 070 `ambiguous_definitions`, 071 `index_root` (8/8 nav
+payloads), 073 **both halves**, 062/063 view-data (5/5 keys exact on a real array-literal `setData`),
+051/060 build-vs-status totals — **2 IMPROVED, not fixed** (065, 069), **1 NOT FIXED, reproduced**
+(054), **2 NOT EXERCISED** (068, 072). The round cost 0.5 % of session tokens for the in-work calls.
+
+**Read the round with three caveats it states about itself.** (1) Protocol was violated: the file was
+filled in *after* the work and §A was read first, so the recognition test is **void** and every §A
+verdict is a post-hoc probe — evidence about payloads, not about usefulness. (2) The server process
+**changed mid-session** (a client reconnect; the pre-reconnect status payload lacks the `max_results`
+block), so all §A verdicts are from the post-reconnect build — round 2's failure mode arriving from a
+direction the pre-flight does not check, "did anything restart *during*". (3) The session was **review
+and orchestration**, not a bug hunt: 4 of 14 tools in the work, and **4 of 6 question shapes — every
+control-flow and mechanism shape — never arose in 3 hours.** Net verdict was "neither faster nor
+slower", and that is a statement about the session type as much as the tool. It is also a lead for
+[074](tasks/074_does-the-index-harm-mechanism-questions.md): if the value is concentrated in a kind of
+session, a fair benchmark should say which kind.
+
+**The two most valuable findings landed outside the verification section**, which the retro itself
+calls out: §A is a regression harness and is structurally incapable of surfacing anything new.
+**075** is the one that could have made a careful agent wrong — `read_symbol` returned
+`{"found": false, "reason": "ok"}` for a class the index holds under a leading backslash, while the
+evaluator was reviewing an agent's PR that claimed to extend it; believing it meant a **false CRITICAL
+on a correct PR**, and one extra `file_outline` call was the whole margin. **077** is the same class as
+071 one level up: a branch switch under a live session left `staleness: "current"` true, correct and
+useless, because no payload names the revision — only SHAs. Order: **075 → 076** (design them together;
+both are "my question was malformed" reported as "the world is empty", and one reason-vocabulary change
+may serve both) → **077** → **078/079** (small, bounded) → **082** (makes 068 and 072 checkable at all)
+→ **081** → **080** (cost, and last for the same reason 061 was).
+
+Two corrections to the round's own reading, both verified in this repo before ticketing: **a second
+builder *is* reachable** — `code-atlas-refresh` runs the same path as `build_or_update_index(full=false)`
+and already reports a lost race, so 072's `busy` payload is exercisable and the gap is affordance, not
+capability (recorded in 082); and 069's descriptions half **did** work — `find_view_data` went uncalled
+for want of an occasion, not for want of recognition, so 081 is about the prompt *channel*, not the
+description content.
+
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
 
 **Deferred, not cancelled** (human-ratified 2026-08-04). Breadth waits until the PHP agent-loop
@@ -343,6 +390,8 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 070 | Ambiguous qname — `ambiguous_definitions` warning on the single-subject nav tools; scoping ruled out by the edge model | **78.5k dispatch** — 1 subagent (analysis Explore fan-out mapping store qname methods + fixture landscape, 17 tool uses / 126 s), landed as a `task-notification` so its usage block was carried. Review waived per run instruction; design, execute and finalise on the main model (three Docker full-suite runs for delta-green). **Main-loop spend is unmeasured**, as for 004–051 (host does not surface per-task usage) | [#91](https://github.com/cuongdinhngo/code-atlas/pull/91) |
 | 069 | Question-first tool descriptions + `capability_not_configured` inert signal + `which_tool` routing prompt | **113.7k dispatch** — 2 subagents, both `task-notification`s (usage carried): analysis Explore (descriptions/tests/field-questions map, 88.3k, 40 tool uses / 227 s) + an execute blind-reader routing exercise (25.3k). Review waived per run instruction; design, execute and finalise on the main model (several Docker full-suite runs). **Main-loop spend is unmeasured**, as for 004–051 (host does not surface per-task usage) | [#92](https://github.com/cuongdinhngo/code-atlas/pull/92) |
 | 074 | Pre-registered mechanism-question benchmark protocol (prep half; runs + §19/README decision deferred) | **0 dispatch** — no subagent ran: a measurement ticket whose core (n≥3 headless arms) needs the anchor repo, so this cycle ships only the pre-registration/protocol; analysis, design and the prep write-up on the main model, review waived per run instruction. **Main-loop spend is unmeasured**, as for 004–051 (host does not surface per-task usage) | [#93](https://github.com/cuongdinhngo/code-atlas/pull/93) |
+
+| — | Field retro round 4 + ticket-writing for 075–082 | **0 dispatch** — no subagent ran: authoring the round-4 retro form, reading the filled-in retro end to end, verifying its claims against this repo before ticketing (which corrected two of them — `code-atlas-refresh` as a reachable second builder, and 069's descriptions half working), and the eight ticket files, all on the main model. **Main-loop spend is unmeasured** (host does not surface per-task usage), as for 004–051. **No PR:** committed directly to `main` on the maintainer's explicit instruction for docs-only changes | — |
 
 **How 047–049 were measured.** They ran back-to-back in one autonomous session, so no per-task
 transcript exists. Each row is that session's assistant API calls bucketed by commit timestamp — the
