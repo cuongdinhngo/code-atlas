@@ -263,7 +263,15 @@ Additive; no DDL/schema/contract change. Rollback = revert the branch. Single re
 
 ## Phase 5 — Finalise ✋ final gate
 
-_(pending)_
+- **PR draft:** scratchpad `pr-066.md` → opened as [#87](https://github.com/cuongdinhngo/code-atlas/pull/87).
+- **Outward actions (operator pre-approved all in the run args):**
+  - [x] push branch `fix/066-limit-clamped-silently`
+  - [x] open PR #87 via `gh` from `.github/pull_request_template.md`
+  - [x] push bookkeeping commit (BACKLOG PR link + durable lesson) on the same branch
+  - [ ] tracker comment / transition — not requested this run
+- **Stale-review guard:** review skipped by instruction → no `Reviewed at` marker; recorded as an explicit operator waiver, not a silent pass. PR diff vs `main` verified 066-only (`main` is an ancestor; 067's code not re-included).
+- **Durable lesson:** `## 066` added to `docs/LESSONS.md` (report a partially-honoured argument at point of use + state a knob's double duty + a source-scan uniformity guard; enumerate limit-takers from code).
+- **Revert path:** additive; no schema/contract/version change. `git revert` the five commits or drop the branch.
 
 ---
 
