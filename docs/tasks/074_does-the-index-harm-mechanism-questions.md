@@ -4,7 +4,7 @@ slug: does-the-index-harm-mechanism-questions
 title: 'The one repeated benchmark cell says the index may make control-flow answers worse — resolve it at n ≥ 3'
 phase: 1.5b
 milestone: Measure
-status: todo
+status: in-progress
 depends_on: [055, 067, 045]
 ---
 
@@ -84,3 +84,206 @@ hidden" paragraph (the repeat and its opposite verdicts) and the 22/117 adoption
 [067](067_first-page-not-representative.md) (an independent instance of correct-but-harmful),
 [065](065_empty-answer-cannot-explain-itself.md) (confident emptiness as a candidate mechanism),
 [045](045_tokens-to-answer-local-repo.md) (the local-tier harness).
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# Working doc — 074
+
+## Session status
+- **Phase:** 1 analysis — complete; **STOPPED at Gate 1**, awaiting approval.
+- **work_doc_mode:** embed (appended below the separator).
+- **Kind:** measurement + decision ticket — **not a code change** (C4).
+- **Split (Gate-0, maintainer-decided):** *"I prep, you run, I analyze."* This turn commits the
+  pre-run package (pre-registration + protocol + rubric + capture template); the maintainer runs the
+  n≥3 arms on the anchor repo; a later turn scores, applies the pre-registered outcome, edits
+  PLAN §19 + README, and opens the PR.
+- **Branch (planned):** `docs/074-does-the-index-harm-mechanism-questions` (measurement/docs, not `feat`).
+- **STRUCTURE:** native · **TRACK:** backend · **SCOPE:** M · **TIER:** full.
+
+## Phase 1 — analysis
+
+### Decompose
+`SECTIONS: 6 found (Goal, Why-not-noise, Scope/Deliverables, Constraints, Acceptance criteria, References) | 6 decomposed | ROWS: G=1 R=5 C=4 AC=4 (+2 context: Why-not-noise, References)`
+
+### Requirements matrix
+| ID | Source | Verbatim (compressed) | Interpretation | Ph1 evidence | Status |
+|---|---|---|---|---|---|
+| G1 | Goal | One accidental repeat (mechanism question, denied vs granted) gave opposite verdicts; denied was right; resolve at n≥3, act on a bad answer | Replicate the cell; decide from data | PLAN §19 threat para (551-588) | ✅ |
+| R1 | Scope | Re-run mechanism question n≥3/arm, granted vs denied, identical prompt, fresh session, hand ground truth | **Maintainer runs** (anchor repo); I supply the exact protocol | needs anchor repo + headless MCP | ⏳ prep now, run pending |
+| R2 | Scope | Score cause-correctness, not tokens (055: cost metric can't see worst failures) | Cause-correctness rubric; tokens recorded but non-deciding | 055 | ✅ rubric prepped |
+| R3 | Scope | Record the mechanism when granted is wrong — which tool call preceded the wrong turn; 067 / 065 shape / ignored | Per-run capture template | 067, 065 | ✅ template prepped |
+| R4 | Scope | Pre-register what each outcome causes, before running | The 3-outcome table, committed **before** runs | ticket §Scope | ✅ **prepped this turn** |
+| R5 | Scope | Extend to a 2nd mechanism question only if the first replicates | Conditional; gated on R1 result | ticket §Scope | ✅ condition stated |
+| C1 | Constraint | Nothing repo-identifying enters this repo — shapes/counts/verdicts only | Protocol names the question *shape*; maintainer uses the real question from private notes | every prior field record | ✅ |
+| C2 | Constraint | Comparison arm is native tools only; no LSP arm | Two arms: granted / denied | LSP invoked 0× in 84 calls | ✅ |
+| C3 | Constraint | R4 (determinism) not at stake — measures agent behaviour; say so in write-up | Write-up notes variance ≠ server defect | ticket §Constraints | ✅ noted in rubric |
+| C4 | Constraint | Do not change any tool to make the number come out; measurement + decision only | No code/tool change in this ticket | — | ✅ |
+| AC1 | AC | n≥3/arm, per-run verdicts + pre-registered consequences recorded **before** runs | Pre-registration committed now; verdicts filled after runs | — | ⏳ pre-reg done, verdicts pending |
+| AC2 | AC | Each wrong granted answer has a named mechanism or explicit "not identified" | Capture template forces the field | — | ⏳ pending runs |
+| AC3 | AC | §19 threat deleted (variance) or replaced by a scope statement | Templated both ways; applied after runs | — | ⏳ pending runs |
+| AC4 | AC | README + PLAN value claims match the outcome, same change | Applied with AC3 | — | ⏳ pending runs |
+
+### AC validation
+- "n ≥ 3 per arm" — the falsifiable floor; two arms × ≥3 = **≥6 cells**. Falsifiable ✅.
+- The verdicts/mechanisms (AC1 back-half, AC2) and the §19/README decision (AC3/AC4) are **contingent
+  on measurement I cannot perform here** — recorded as maintainer-run, not invented. This is the
+  honest reading of a benchmark ticket, not a coverage gap in code.
+- No acceptance value is a vague adjective; "cause-correct" is pinned by the rubric below (a named
+  ground-truth cause; the answer's stated cause matches or does not).
+
+### Clarification
+`CLARIFICATION: 1 raised | 0 self-resolved | 1 human-decided (Gate 0, resolved)`
+- **Gate 0 (resolved):** the n≥3 runs need the anchor repo + headless MCP sessions — the maintainer's
+  environment, not this repo. Maintainer chose *"I prep, you run, I analyze."* → this turn prepares
+  the pre-run package and STOPS before the runs; no benchmark numbers are fabricated.
+
+`j = 0` remaining → proceed (Gate 0 already cleared by the maintainer's choice).
+
+### Measurement inventory (the cells the maintainer runs)
+`ARMS: 2 (granted, denied) × n≥3 = ≥6 cells`, one mechanism question, identical prompt, fresh
+headless session per cell, ground truth hand-established first. Optional R5 second question only if
+the first replicates.
+
+### Baseline
+`BASELINE: green (Docker ~1065 on main) — unchanged. This ticket adds no code and no tests; the only
+in-repo artifacts are docs (the pre-run package now; the §19/README decision later). C4 forbids a
+code change.`
+
+### Declarations
+`STRUCTURE: native` · `TRACK: backend (docs/measurement)` · `SCOPE: M` · `TIER: full`
+Branch/PR type is **`docs`**, not `feat` — no behaviour change (C4).
+
+### Cost ledger
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| _(none yet — no subagent dispatched)_ | | | |
+
+## Phase 2 — design (Gate 2)
+
+### Approach
+This ticket's output is a **measurement and a decision**, not code. The design is the *protocol* that
+makes the measurement honest and the decision unarguable. The maintainer runs it; I supply and commit,
+**before any run**, four artifacts (below), then score and decide once the verdicts come back.
+
+**Where it lives:** a self-contained protocol doc `docs/benchmarks/074_mechanism-question.md` (new
+`docs/benchmarks/` home — this is a reusable measurement artifact the maintainer executes from and
+pastes results into, cleaner than burying it in the working doc). The working doc links to it.
+
+### Rejected alternatives
+1. **Run a local toy-repo substitute for the anchor** — rejected: the phenomenon (a confident
+   *partial* answer that terminates otherwise-correct reasoning) needs a real, large, ambiguous tree;
+   a toy repo cannot reproduce it, so it would be measurement theater (worse than no data).
+2. **Fabricate/estimate the n≥3 verdicts to "complete" the ticket now** — rejected outright: violates
+   "every claim is a counted artifact" and the ticket's own "do not change any tool to make the number
+   come out". A benchmark's value is that it can surprise us.
+3. **Bury the pre-registration in the working doc** — rejected: it must be a clean artifact the
+   maintainer runs from and that git timestamps *before* the runs; a dedicated doc is that artifact.
+
+### Assumptions
+- The maintainer can run fresh headless `claude` sessions on the anchor repo with the code-atlas MCP
+  server **granted** (registered) and **denied** (absent / `CA_TOOLS=""`), no coaching — **verified**
+  by the original 2026-08-08 run existing (PLAN §19).
+- The original mechanism question's exact text lives in the private benchmark notes — **assumed**; the
+  protocol references it by *shape* and asks the maintainer to reuse the exact original (C1: nothing
+  repo-identifying enters this repo).
+- No novel-untested third-party/runtime assumption in-repo (no code runs here). Gate-2 assumptions
+  check clear.
+
+### The four pre-run artifacts (committed this turn)
+1. **Pre-registration (R4/AC1).** The three outcomes and their pre-committed consequences, verbatim
+   from the ticket, as a table — so the result cannot be argued after the fact:
+   - *granted ≈ denied* → session variance → **delete** the §19 threat; stop spending on it.
+   - *granted worse, mechanism identified* → the mechanism becomes a ticket; tool description/ordering
+     changes (067 likely already that ticket).
+   - *granted worse, no mechanism* → **narrow the recommended scope in writing** in PLAN §19 + README
+     (which question types the index is for, which to keep it out of).
+2. **Protocol (R1).** Arms (granted/denied), n≥3, identical prompt, fresh session per cell,
+   ground-truth-first, no coaching; native-tools-only comparison (C2, no LSP arm); the question
+   *shape* (a control-flow / "how does X reach Y / what happens when Z" mechanism question) with the
+   instruction to reuse the exact original from private notes.
+3. **Scoring rubric (R2/C3).** Cause-correctness is the verdict: `correct | partial | wrong-cause`,
+   judged against the hand-established ground-truth cause. Tokens recorded but **non-deciding** (055).
+   A note that variance here is **agent behaviour, not an R4 server defect**.
+4. **Mechanism-capture template (R3/AC2).** Per wrong granted-arm run: which tool call preceded the
+   wrong turn; payload classification — `correct-but-unrepresentative (067)` / `confidently-empty
+   (065)` / `ignored` / `other`; or an explicit **"mechanism not identified"**. Plus a results table
+   skeleton (per-cell verdict) for the maintainer to paste into.
+
+### Verification plan (per-AC, layer-matched)
+| AC | risk layer | proof artifact | layer-match |
+|---|---|---|---|
+| AC1 (pre-reg before runs; n≥3 verdicts) | process/measurement | pre-registration committed now (git-timestamped before runs); verdicts table filled from the maintainer's runs | ✅ (pre-reg now; verdicts pending) |
+| AC2 (named mechanism or "not identified") | measurement | capture template forces the field per wrong run | ⏳ pending runs |
+| AC3 (delete or replace §19 threat) | documentation | both edits pre-drafted; the run outcome selects one | ⏳ pending runs |
+| AC4 (README + PLAN match outcome) | documentation | applied in the same change as AC3 | ⏳ pending runs |
+
+No layer mismatch: a measurement AC is proven by the recorded measurement, not by a unit test. There
+is **no proving test** and that is correct for a benchmark ticket — the "proving" artifact is the
+pre-registration + the recorded per-run verdicts. Recorded as such, not as a coverage gap.
+
+### Rollback + porting
+The pre-run package is additive docs; rollback = delete `docs/benchmarks/074_*.md`. The later
+§19/README decision is a doc edit revertable by `git revert`. Single repo.
+
+### SCOPE
+`SCOPE: M` — unchanged. No tier crossing. Branch/PR type **`docs`** (C4: no behaviour change).
+
+## Phase 3 — execute (prep portion)
+
+Branch `docs/074-does-the-index-harm-mechanism-questions`. Wrote the pre-run package:
+[`docs/benchmarks/074_mechanism-question.md`](../benchmarks/074_mechanism-question.md) — the
+pre-registration (3 outcomes → consequences), protocol (2 arms × n≥3, identical prompt, fresh
+session, ground-truth-first, native-only), cause-correctness rubric (tokens non-deciding; variance ≠
+R4 defect), mechanism-capture template, and an empty results table for the maintainer to paste into.
+
+### Verification sweep
+- **Axis 1 (file set):** one new doc under `docs/benchmarks/` + this working doc; **no code, no
+  tests** touched (C4). Diff ⊆ approved list. ✅
+- **Axis 2 (design conformance):** all four pre-run artifacts present as designed; no proving test
+  (correct for a benchmark). The pre-registration is committed **before** any run (git-timestamped),
+  satisfying AC1's "recorded before the runs".
+
+### Hard STOP — awaiting the maintainer's runs
+Per the Gate-0 split (*"I prep, you run, I analyze"*), execute does **not** proceed to the runs, the
+scoring, the §19/README decision, or the PR — those are pending real data I cannot produce here.
+No benchmark numbers are invented. Committing + pushing the pre-run package now (so the
+pre-registration is git-timestamped before any run); **no PR yet** — the PR is opened in the analysis
+turn, once the results table is filled.
+
+## Phase 4 — review
+**Waived** by the run instruction. Nothing to review yet beyond the additive docs package.
+
+## Phase 5 — finalise (partial — pre-registration shipped by maintainer decision)
+The maintainer decided the pre-registration/protocol is a sufficient deliverable to ship now and to
+stop here — the n≥3 runs are **not** performed in this cycle. So this PR ships the **prep half only**:
+- **Done:** R2 (rubric), R3 (capture template), R4/AC1-front (pre-registration recorded **before** any
+  run, git-timestamped). C1–C4 honoured (no code, native-only, no repo-identifying content).
+- **Deferred to a follow-up** (needs the maintainer's anchor-repo runs): R1/R5 (the runs),
+  AC1-back (n≥3 per-run verdicts), AC2 (mechanism per wrong cell), AC3/AC4 (delete-or-replace the
+  §19 threat + sync README). PLAN §19's threat paragraph is therefore **left as-is** — deliberately,
+  since resolving it requires the data this PR does not fabricate.
+The PR is framed as a pre-registered protocol, not a resolved measurement. No benchmark numbers invented.
+
+## Session status
+- **Phase:** finalise — **pre-registration shipped (PR #93)**; runs + §19/README decision **deferred**
+  (maintainer chose to stop after prep).
+- **Ticket state:** `in-progress` — the measurement ACs (AC1-back/AC2/AC3/AC4) remain open for a
+  future cycle when the anchor-repo runs are done; the pre-registration is banked and git-timestamped.
+- **To resume:** run ≥6 cells (2 arms × n≥3) on the anchor repo per
+  `docs/benchmarks/074_mechanism-question.md`, fill its results table, then score → apply the selected
+  pre-registered outcome to PLAN §19 + README → decide R5.
+- **Revert:** revert the PR / delete `docs/benchmarks/074_mechanism-question.md` + the branch.
+
+### Cost ledger
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| _(none — no subagent dispatched this run)_ | — | — | — |
+
+`LEDGER TOTAL: 0 · no subagent dispatched.` All work on the main model (not measured by mango).
+
+### Cost ledger
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| _(none — no subagent dispatched this run)_ | — | — | — |
+
+`LEDGER TOTAL: 0 · no subagent dispatched.` All work ran on the main model (not measured by mango).
