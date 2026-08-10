@@ -16,9 +16,10 @@ import pytest
 
 from code_atlas.config import Config, load_config
 from code_atlas.index_lock import LOCK_NAME
+from code_atlas.store import WRITE_ERRORS
 from code_atlas.tools import build_or_update_index
 from code_atlas.tools.build_or_update_index import create
-from code_atlas.tools.staleness import BEHIND, CURRENT
+from code_atlas.tools.staleness import BEHIND, CURRENT, UNKNOWN
 from tests.test_incremental import committed, fake_env, git
 from tests.test_staleness_scope import SOURCE, build_index
 
@@ -81,6 +82,28 @@ def test_successful_build_payload_carries_no_busy_fields(repo: Path) -> None:
     assert "performed" not in result
     assert "staleness" not in result
     assert "head_commit" not in result  # staleness fields land only on the rare busy payload (061)
+
+
+def test_busy_refusal_degrades_to_unknown_when_the_index_cannot_be_read(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """C2/R5.3: the cold-start race — a first build in flight leaves the schema uncommitted, so the
+    loser's staleness open times out on the write lock. Busy must degrade to ``unknown``, not raise.
+    """
+    db_path = build_index(repo)
+
+    def locked(*args: object, **kwargs: object) -> object:
+        raise WRITE_ERRORS[0]("database is locked")
+
+    monkeypatch.setattr(build_or_update_index, "GraphStore", locked)
+
+    result = busy_while_locked(config_for(repo, db_path))
+
+    assert result["mode"] == "busy"
+    assert result["performed"] is False
+    assert result["staleness"] == UNKNOWN
+    assert result["last_commit"] is None
+    assert result["head_commit"] is None
 
 
 def test_two_concurrent_builds_run_exactly_one_and_the_loser_carries_staleness(

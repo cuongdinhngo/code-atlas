@@ -374,6 +374,21 @@ index+tree → same payload, staleness is a pure function of committed meta + gi
 The two execute deviations were self-adjudicated (both benign): the guard-count bumps are mandatory
 for a new core module; the doc rule lives in the runbook README links to, not README itself.
 
+### Post-PR review pass (on PR #89) — one finding, fixed
+
+`_busy` opens a *normal* `GraphStore`, not a literally read-only connection: `GraphStore.__init__`
+runs `executescript(DDL)` + `commit()` (`store.py:299`). On a healthy built index every `CREATE …
+IF NOT EXISTS` is a no-op that takes no write lock (hence the measured ~0.03 s and green AC3), so
+assumption A1 holds *in the steady state*. But the **cold-start race** was a gap in C2 ("busy never
+raises"): while the winner runs the *first-ever* build, the DB file exists but its schema is not yet
+committed, so the loser's staleness open tries to write the schema, blocks on the winner's write
+lock for `busy_timeout` (5 s), then raises `sqlite3.OperationalError` — which `except
+SchemaVersionError` did not catch. **Fix:** broaden the guard to `(SchemaVersionError, *WRITE_ERRORS)`
+(the sanctioned tuple `store.py` exposes so tools catch DB errors without naming `sqlite3` — R1.4),
+degrading to `staleness: unknown` exactly as the docstring already promised. Regression test:
+`test_busy_refusal_degrades_to_unknown_when_the_index_cannot_be_read`. Suite now **1057 passed**,
+ruff + mypy clean (Docker).
+
 ## Phase 5 — Finalise
 
 - **Bookkeeping:** status → done (frontmatter + BACKLOG); token row added; lesson recorded.
@@ -396,7 +411,7 @@ surfaced only at the full-suite run. Recorded in `docs/LESSONS.md` (072).
 - **Ticket:** 072
 - **work_doc_mode:** embed
 - **working-doc path:** `docs/tasks/072_busy-build-hides-staleness.md`
-- **Current phase:** finalise — complete (PR #89)
+- **Current phase:** finalise — complete (PR #89); post-PR review pass applied one fix (cold-start C2 guard)
 - **Blocked on:** none
 - **PR:** https://github.com/cuongdinhngo/code-atlas/pull/89
 - **Next action:** none (await review/merge)
