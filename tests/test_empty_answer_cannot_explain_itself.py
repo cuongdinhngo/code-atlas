@@ -11,6 +11,7 @@ from code_atlas.store import GraphStore
 from code_atlas.tools import find_implementations, find_references, include_graph
 from code_atlas.tools.nav_result import (
     NAV_REASONS,
+    REASON_CAPABILITY_NOT_CONFIGURED,
     REASON_NO_MATCHES,
     REASON_OK,
     REASON_RELATIONSHIP_NOT_MODELLED,
@@ -188,4 +189,5 @@ def test_include_graph_imported_by_genuine_empty_has_no_unresolved_field(
 
 def test_reason_vocabulary_pins_relationship_not_modelled() -> None:
     assert REASON_RELATIONSHIP_NOT_MODELLED in NAV_REASONS
-    assert NAV_REASONS[-1] == REASON_RELATIONSHIP_NOT_MODELLED
+    # 069 appended capability_not_configured as the newest reason, after this one.
+    assert NAV_REASONS[-1] == REASON_CAPABILITY_NOT_CONFIGURED

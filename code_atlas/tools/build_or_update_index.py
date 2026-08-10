@@ -48,13 +48,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     def build_or_update_index(
         full: bool = False, detail_level: DetailLevel = "standard"
     ) -> dict[str, object]:
-        """Index this repo; return ``wrote`` counts (and ``graph`` on standard) plus elapsed time.
+        """Build or refresh this repo's index so the other tools have current data.
 
-        An index written under an *older* ``schema_version`` is deleted and rebuilt in-band so an
-        MCP client can recover without a shell. A *newer* one is refused untouched: that index is
-        current and this server process is the stale one (task 050). Concurrent writers share
-        ``write.lock`` (task 053); a held lock returns ``mode: busy`` carrying the staleness of the
-        index the loser is about to query, read-only (task 072).
+        Returns ``wrote`` counts (and ``graph`` on standard) plus elapsed time. An index written
+        under an *older* ``schema_version`` is deleted and rebuilt in-band so an MCP client can
+        recover without a shell; a *newer* one is refused untouched — that index is current and this
+        server is the stale one (050). Concurrent writers share ``write.lock`` (053); a held lock
+        returns ``mode: busy`` carrying the staleness of the index the loser is about to query,
+        read-only (072).
         """
         started = time.monotonic()
         with try_index_write_lock(config.db_path) as held:

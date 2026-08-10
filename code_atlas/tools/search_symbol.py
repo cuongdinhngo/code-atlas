@@ -44,19 +44,16 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         detail_level: DetailLevel = "standard",
         offset: int = 0,
     ) -> dict[str, object]:
-        """Ranked symbols matching ``query`` (FTS trigram, or name-prefix for queries < 3 chars).
+        """Find a symbol from part of its name or text — ranked, with where each one lives.
 
-        Returns ``{qname, kind, file, line}`` rows, capped by ``limit`` or ``CA_MAX_RESULTS``.
-        ``offset`` pages in search order (057). Trigram cannot match terms under three characters;
-        those use a name/qname prefix scan. On hash drift beyond the per-call reparse cap, returns
-        hits with ``reason=index_stale`` and an honest ``total_count`` (never an empty proof of
-        absence). A zero-hit **first page** may spend the same cap on the sole dirty indexed file
-        (073) — an empty page under ``offset`` is not an empty answer, so it repairs nothing;
-        multiple dirty files yield empty ``index_stale`` plus ``try_instead``. Stub-indexed nodes
-        (task 039) also carry ``stub: true``.
-
-        A ``File`` hit whose path is already the declaring file of a ``Class`` hit in the same
-        page is suppressed (task 061) — use ``kind`` to request File rows explicitly.
+        Returns ``{qname, kind, file, line}`` rows (FTS trigram, or a name/qname prefix scan for
+        queries under three characters), capped by ``limit`` or ``CA_MAX_RESULTS``; ``offset`` pages
+        in search order (057). On hash drift beyond the per-call reparse cap, returns hits with
+        ``reason=index_stale`` and an honest ``total_count`` (never an empty proof of absence); a
+        zero-hit first page may repair the sole dirty indexed file, and several dirty files yield
+        empty ``index_stale`` plus ``try_instead`` (073). Stub-indexed nodes carry ``stub: true``
+        (039); a ``File`` hit that only restates a ``Class`` hit's declaring file in the same page
+        is suppressed — request File rows via ``kind`` (061).
         """
         kind = _require_kind(kind)
         if offset < 0:

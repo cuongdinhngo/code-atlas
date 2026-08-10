@@ -23,9 +23,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         depth: int | None = None,
         detail_level: DetailLevel = "standard",
     ) -> dict[str, object]:
-        """Shortest path from ``from_qname`` to ``to_qname`` over IMPACT edges.
+        """How does one symbol reach another — the shortest path between them?
 
-        Walks outgoing CALLS/NEW/INCLUDES/EXTENDS/IMPLEMENTS (same kinds as
+        Walks outgoing CALLS/NEW/INCLUDES/EXTENDS/IMPLEMENTS from ``from_qname`` to ``to_qname``
+        (same kinds as
         ``impact`` / ``reachable_from``). Default ``depth`` is unset — walk until
         the frontier empties or ``CA_IMPACT_MAX_NODES`` binds. A RESOLVED-only path
         is ``status=path``; a path that needs HEURISTIC/DYNAMIC hops is

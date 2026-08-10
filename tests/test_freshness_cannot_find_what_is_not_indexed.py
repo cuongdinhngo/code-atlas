@@ -18,6 +18,7 @@ from code_atlas.tools import (
 )
 from code_atlas.tools.freshness import FreshnessGuard, dirty_indexed_paths
 from code_atlas.tools.nav_result import (
+    REASON_CAPABILITY_NOT_CONFIGURED,
     REASON_INDEX_STALE,
     REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
@@ -125,7 +126,9 @@ def test_ensure_qname_miss_then_symbol_indexed(tmp_path: Path) -> None:
         find_view_data.create,
     ):
         result = factory(config)(qname, detail_level="minimal")
-        assert result["reason"] in {REASON_NO_MATCHES, REASON_OK}
+        # find_view_data with no rules reports capability_not_configured — still a found symbol,
+        # not no_such_symbol, so the miss-repair worked (069).
+        assert result["reason"] in {REASON_NO_MATCHES, REASON_OK, REASON_CAPABILITY_NOT_CONFIGURED}
         assert result["reason"] != REASON_NO_SUCH_SYMBOL
     assert read_symbol.create(config)(qname, detail_level="minimal")["found"] is True
 

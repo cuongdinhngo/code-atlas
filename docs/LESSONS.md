@@ -1,5 +1,22 @@
 # Lessons — code-atlas
 
+## 069 — Adding a member to a pinned vocabulary breaks its pin tests AND every consumer's allow-set
+Adding `REASON_CAPABILITY_NOT_CONFIGURED` to `NAV_REASONS` broke **four** tests, and the design's
+test-blast-radius grep found only one (the prompt-registration test — which in fact needed no edit).
+The real collateral: two tests that **pin** the vocabulary (`NAV_REASONS == (...)`,
+`NAV_REASONS[-1] == …`) and two freshness tests that **consume** it via a per-tool reason **allow-set**
+(`assert reason in {no_matches, ok}`). **Fix pattern:** when adding a member to a shared enum/vocabulary
+tuple, grep for the collection name (`NAV_REASONS`) **and** for set/`in` **memberships** of its
+constants across tests — not just the constant's definition. A new member is invalidated both where the
+set is pinned and where any consumer enumerates the values it will accept. (Generalizes 070's pinned-count
+lesson from counts to vocabulary + consumer allow-sets.)
+
+Second, smaller lesson from the same run: an "inert vs empty" signal belongs **on the existing
+empty-answer branch** (override `no_matches`), not as an **early return before the shared
+freshness/clamp path** — the early return silently dropped `find_view_data` out of the six-consumer
+freshness invariant and the clamp-uniformity guard. Reclassify the reason; keep the tool on every
+shared code path.
+
 ## 070 — A wall-clock-tolerance test can fail under load; isolate before calling it a regression
 `test_profile_incremental::test_phase_times_cover_named_phases_and_sum_near_wall` asserts
 `phase_sum_vs_wall.within_tolerance` — a timing assertion, so it is **load-sensitive**. During 070's

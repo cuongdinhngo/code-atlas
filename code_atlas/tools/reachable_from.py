@@ -27,8 +27,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         depth: int | None = None,
         detail_level: DetailLevel = "standard",
     ) -> dict[str, object]:
-        """Nodes reachable from ``CA_ENTRY_POINTS`` via RESOLVED IMPACT edges.
+        """What is actually reachable from the app's entry points (and what is dead)?
 
+        Walks forward from ``CA_ENTRY_POINTS`` over RESOLVED impact relations.
         Default ``depth`` is unset — walk until the frontier empties or
         ``CA_IMPACT_MAX_NODES`` binds (transitive closure). Pass ``depth`` to cap hops;
         ``depth_exhausted`` / ``truncated`` signal an incomplete answer. Unset entry

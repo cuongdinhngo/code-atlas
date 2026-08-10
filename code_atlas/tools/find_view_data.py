@@ -11,7 +11,9 @@ from code_atlas.enrichment import view_data_key
 from code_atlas.store import GraphStore
 from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
+    REASON_CAPABILITY_NOT_CONFIGURED,
     REASON_INDEX_STALE,
+    REASON_NO_MATCHES,
     TRY_INSTEAD_FILE_OUTLINE,
     attach_limit_capped,
     attach_try_instead,
@@ -37,12 +39,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         limit: int | None = None,
         offset: int = 0,
     ) -> dict[str, object]:
-        """View-scope keys ``qname`` publishes via rule-derived ``PROVIDES_VIEW_DATA`` edges.
+        """What variables does this handler make available to its template?
 
-        Requires ``CA_INDIRECTION_RULES`` with a ``view_data`` setter rule; without rules the
-        graph has no such edges. Each hit carries ``key``, call-site ``line``, ``rule: true``,
-        and ``confidence_tier`` ``HEURISTIC``. ``file`` is the subject's declaration path when
-        known (edges live on the synthetic rules bookmark).
+        Each hit carries the ``key`` a caller can read in the view, the call-site ``line``, and
+        ``rule: true``. Needs ``CA_INDIRECTION_RULES`` with a ``view_data`` setter rule: with no
+        rules configured the answer is ``reason=capability_not_configured`` (the tool is inert on
+        this index), which is distinct from a configured repo where this handler simply publishes
+        nothing (``no_matches``). ``file`` is the subject's declaration path when known.
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
@@ -84,6 +87,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     hit["file"] = file_path
                 results.append(hit)
             truncated = offset + len(results) < total
+            reason = relation_reason(hit_total=total, symbol_indexed=indexed)
+            if reason == REASON_NO_MATCHES and config.indirection_rules is None:
+                # Indexed handler, empty only because no rules are configured — inert, not a
+                # genuine "publishes nothing" zero (069). A missing subject stays no_such_symbol.
+                reason = REASON_CAPABILITY_NOT_CONFIGURED
             result = nav_result(
                 qname,
                 results,
@@ -91,7 +99,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 db_path=str(config.db_path),
                 index_root=config.index_root,
                 truncated=truncated,
-                reason=relation_reason(hit_total=total, symbol_indexed=indexed),
+                reason=reason,
                 total_count=total,
             )
             if freshness == "repaired":

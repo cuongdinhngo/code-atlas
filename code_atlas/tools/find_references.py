@@ -43,8 +43,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         limit: int | None = None,
         offset: int = 0,
     ) -> dict[str, object]:
-        """Edges whose resolved ``target_qname`` is ``qname``, with confidence tiers.
+        """Where is this symbol used across the codebase?
 
+        Resolved edges whose ``target_qname`` is ``qname``, with confidence tiers.
         Only kinds the resolver links are visible (FQN edge kinds + ``INCLUDES``). Bare
         ``IMPORTS`` / ``CONTAINS`` / ``REFERENCES`` stay unlinkable until the resolver grows —
         they never appear here even though the SQL has no kind filter. When unlinked
