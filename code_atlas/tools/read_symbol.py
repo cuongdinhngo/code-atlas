@@ -15,7 +15,9 @@ from code_atlas.tools.nav_result import (
     REASON_INDEX_STALE,
     REASON_OK,
     TRY_INSTEAD_FILE_OUTLINE,
+    attach_ambiguous_definitions,
     attach_try_instead,
+    definition_sites,
     is_stub,
 )
 
@@ -46,7 +48,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 index_root=config.index_root,
             )
         with GraphStore(config.db_path) as store:
-            rows = store.nodes_by_qualified_name(qname, limit=1)
+            rows = store.nodes_by_qualified_name(qname, limit=config.max_results)
             guard = FreshnessGuard(config, store)
             if not rows:
                 status = guard.ensure_miss()
@@ -65,7 +67,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         TRY_INSTEAD_FILE_OUTLINE,
                     )
                 if status == "repaired":
-                    rows = store.nodes_by_qualified_name(qname, limit=1)
+                    rows = store.nodes_by_qualified_name(qname, limit=config.max_results)
                 if not rows:
                     return _result(
                         qname,
@@ -93,7 +95,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     line_end=None,
                 )
             if status == "repaired":
-                rows = store.nodes_by_qualified_name(qname, limit=1)
+                rows = store.nodes_by_qualified_name(qname, limit=config.max_results)
                 if not rows:
                     return _result(
                         qname,
@@ -114,7 +116,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             end_raw = node["line_end"]
             end = end_raw if isinstance(end_raw, int) else start
             source = _slice(path, start, end)
-            return _result(
+            result = _result(
                 qname,
                 source,
                 detail_level=detail_level,
@@ -128,6 +130,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 line_end=end,
                 stub=is_stub(node.get("extra")),
             )
+            # The source shown is one of N same-qname defs — name them all, pick none (task 070).
+            return attach_ambiguous_definitions(result, definition_sites(rows))
 
     return read_symbol
 

@@ -17,9 +17,11 @@ from code_atlas.tools.nav_result import (
     REASON_RELATIONSHIP_NOT_MODELLED,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_FIND_REFERENCES_ON_METHOD_QNAME,
+    attach_ambiguous_definitions,
     attach_limit_capped,
     attach_result_subtrees,
     attach_try_instead,
+    definition_sites,
     edge_hit,
     empty_nav,
     nav_result,
@@ -86,7 +88,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     TRY_INSTEAD_FILE_OUTLINE,
                 )
             total_count = store.count_edges_by_target(qname)
-            nodes = store.nodes_by_qualified_name(qname, limit=1)
+            # Widen the existing indexed-check fetch to surface every definition site (task 070).
+            nodes = store.nodes_by_qualified_name(qname, limit=config.max_results)
             indexed = bool(nodes)
             if total_count == 0 and not indexed:
                 return nav_result(
@@ -136,6 +139,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if freshness == "repaired":
             result["subject_refreshed_only"] = True
         attach_result_subtrees(result, subtrees)
+        attach_ambiguous_definitions(result, definition_sites(nodes))
         attach_limit_capped(result, cap=cap, clamped=limit_clamped)
         return attach_try_instead(result, try_instead)
 
