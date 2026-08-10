@@ -101,7 +101,7 @@ gap that fixtures never hit.
 | 071 | [A worktree agent gets the main checkout's symbols with `reason: "ok"` and no field names the tree](tasks/071_answers-do-not-name-their-tree.md) | Agent-trust | done | 033, 061, 065 |
 | 072 | [`mode: "busy"` returns in 0.0 s and reads like success](tasks/072_busy-build-hides-staleness.md) | Agent-trust | done | 053, 033 |
 | 073 | [Read-through freshness repairs only rows it already found — a new symbol is confidently reported absent](tasks/073_freshness-cannot-find-what-is-not-indexed.md) | Agent-trust | done | 035, 065, 033 |
-| 074 | [The one repeated benchmark cell says the index may make control-flow answers worse — resolve it at n ≥ 3](tasks/074_does-the-index-harm-mechanism-questions.md) | Measure | todo | 055, 067, 045 |
+| 074 | [The one repeated benchmark cell says the index may make control-flow answers worse — resolve it at n ≥ 3](tasks/074_does-the-index-harm-mechanism-questions.md) | Measure | in-progress | 055, 067, 045 |
 
 **047–049 come from the first external field session** — an agent in the anchor repo used the server for
 real work and filled in a retro (`v0.1.0`, commit `e117b47`, round 1). Its headline finding was **zero
