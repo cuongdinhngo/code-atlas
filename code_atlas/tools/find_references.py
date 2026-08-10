@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Literal
 
-from code_atlas.config import Config
+from code_atlas.config import Config, clamp_limit
 from code_atlas.contract import UNMODELLED_REFERENCE_KINDS
 from code_atlas.store import GraphStore
 from code_atlas.tools import call_site
@@ -17,6 +17,7 @@ from code_atlas.tools.nav_result import (
     REASON_RELATIONSHIP_NOT_MODELLED,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_FIND_REFERENCES_ON_METHOD_QNAME,
+    attach_limit_capped,
     attach_result_subtrees,
     attach_try_instead,
     edge_hit,
@@ -60,7 +61,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
-        cap = config.max_results if limit is None else min(limit, config.max_results)
+        cap, limit_clamped = clamp_limit(limit, config.max_results)
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
         if not config.db_path.is_file():
@@ -135,6 +136,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if freshness == "repaired":
             result["subject_refreshed_only"] = True
         attach_result_subtrees(result, subtrees)
+        attach_limit_capped(result, cap=cap, clamped=limit_clamped)
         return attach_try_instead(result, try_instead)
 
     return find_references
