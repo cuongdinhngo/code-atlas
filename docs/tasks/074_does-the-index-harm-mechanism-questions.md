@@ -265,8 +265,8 @@ stop here — the n≥3 runs are **not** performed in this cycle. So this PR shi
 The PR is framed as a pre-registered protocol, not a resolved measurement. No benchmark numbers invented.
 
 ## Session status
-- **Phase:** finalise — **pre-registration shipped**; runs + §19/README decision **deferred** (maintainer
-  chose to stop after prep).
+- **Phase:** finalise — **pre-registration shipped (PR #93)**; runs + §19/README decision **deferred**
+  (maintainer chose to stop after prep).
 - **Ticket state:** `in-progress` — the measurement ACs (AC1-back/AC2/AC3/AC4) remain open for a
   future cycle when the anchor-repo runs are done; the pre-registration is banked and git-timestamped.
 - **To resume:** run ≥6 cells (2 arms × n≥3) on the anchor repo per
