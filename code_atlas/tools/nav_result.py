@@ -191,6 +191,19 @@ def attach_try_instead(payload: dict[str, object], try_instead: str | None) -> d
     return payload
 
 
+def attach_limit_capped(
+    payload: dict[str, object], *, cap: int, clamped: bool
+) -> dict[str, object]:
+    """Report a reduced ``limit`` as ``limit_capped_to`` — only when a clamp occurred (066/061).
+
+    The effective cap tells a caller their request was reduced and to what, without a config
+    read. Omitted when the request was honoured, keeping the non-clamp payload unchanged.
+    """
+    if clamped:
+        payload["limit_capped_to"] = cap
+    return payload
+
+
 def attach_result_subtrees(
     payload: dict[str, object], subtrees: Mapping[str, int]
 ) -> dict[str, object]:

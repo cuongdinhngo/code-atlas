@@ -329,3 +329,14 @@ def _as_text(label: str, raw: object) -> str:
     if not isinstance(raw, str) or not raw.strip():
         raise ConfigError(f"{label}: {raw!r} is not a non-empty string")
     return raw
+
+
+def clamp_limit(limit: int | None, max_results: int) -> tuple[int, bool]:
+    """The one home for the paging cap: effective cap + whether a request was reduced (066).
+
+    ``clamped`` is True only when the caller asked for more than the ceiling, so a tool can
+    surface the reduction without a config read. ``limit is None`` (unset) is never a clamp.
+    """
+    if limit is None:
+        return max_results, False
+    return min(limit, max_results), limit > max_results
