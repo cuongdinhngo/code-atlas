@@ -54,6 +54,10 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
 
         ``verbose`` adds capped ``parse_failure_paths`` plus ``parse_failures_truncated``;
         pass ``offset`` to page further. ``minimal`` / ``standard`` omit the list (cheap path).
+
+        ``standard``/``verbose`` also carry ``max_results`` — the effective ceiling a caller
+        sizes requests against — and its ``governs`` list: it caps both returned rows and the
+        resolver's candidate fan-out, so ``total_count`` is not the only cap (066).
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
@@ -68,6 +72,14 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
             return _mismatched(mismatch, servable, detail_level, config)
 
     return get_index_status
+
+
+def _max_results_field(config: Config) -> dict[str, object]:
+    """The ceiling plus what it governs, so a caller sizes requests without a config read (066)."""
+    return {
+        "value": config.max_results,
+        "governs": ["returned_rows", "resolver_candidate_fanout"],
+    }
 
 
 def _unbuilt(
@@ -87,6 +99,7 @@ def _unbuilt(
     }
     if detail_level in ("standard", "verbose"):
         status["db_path"] = str(config.db_path)
+        status["max_results"] = _max_results_field(config)
     if detail_level == "verbose":
         status["parse_failure_paths"] = []
         status["parse_failures_truncated"] = False
@@ -144,6 +157,8 @@ def _status(
         "edge_health": store.edge_health(),
         "parse_failures": counts["failed"],
         "dirty_indexed_files": dirty_count,
+        # The ceiling a caller sizes requests against, and its double duty (066).
+        "max_results": _max_results_field(config),
     }
     if detail_level == "standard":
         return enriched
