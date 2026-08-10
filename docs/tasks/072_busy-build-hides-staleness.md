@@ -396,7 +396,8 @@ surfaced only at the full-suite run. Recorded in `docs/LESSONS.md` (072).
 - **Ticket:** 072
 - **work_doc_mode:** embed
 - **working-doc path:** `docs/tasks/072_busy-build-hides-staleness.md`
-- **Current phase:** finalise — bookkeeping done; outward actions (push + PR) approved, executing
+- **Current phase:** finalise — complete (PR #89)
 - **Blocked on:** none
-- **Next action:** push branch, open PR; then update the BACKLOG token row with the real PR number
-- **Revert path:** branch `feat/072-busy-build-hides-staleness` (commits `07017c8`, `0d070df`, `3b5d89c` + bookkeeping); undo = close PR + delete branch. No schema/data migration.
+- **PR:** https://github.com/cuongdinhngo/code-atlas/pull/89
+- **Next action:** none (await review/merge)
+- **Revert path:** branch `feat/072-busy-build-hides-staleness` (commits `07017c8`, `0d070df`, `3b5d89c`, `e5415c1`); undo = close PR + delete branch. No schema/data migration.
