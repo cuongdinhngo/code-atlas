@@ -1,0 +1,35 @@
+# Keep the build context small and the image reproducible: nothing host-, editor-, or
+# artifact-specific, and never the resolved dependency trees (rebuilt inside the image).
+.git
+.github
+.claude
+
+# Python caches / build outputs
+**/__pycache__
+*.py[cod]
+.venv
+venv
+*.egg-info
+.pytest_cache
+.pytest_full.log
+.mypy_cache
+.ruff_cache
+build
+dist
+
+# Index artifacts and scale-timing outputs
+.code-atlas
+*.db
+*.db-wal
+*.db-shm
+artifacts
+
+# Resolved dependency trees — installed fresh in the image
+adapters/php/vendor
+node_modules
+
+# Editors / OS
+.idea
+.vscode
+.DS_Store
+Thumbs.db

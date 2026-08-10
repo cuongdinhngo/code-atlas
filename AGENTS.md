@@ -55,6 +55,34 @@ MCP client ──stdio──▶ core (Python/FastMCP) ──JSONL contract──
 - Adapters: `adapters/<lang>/`, each self-contained and launched via `CA_<LANG>_CMD` (PHP first).
 - Tests: `tests/contract/` — the conformance suite every adapter must pass. Full layout + naming in CONVENTION.md.
 - Tooling: `.harness.json` (mango lifecycle config), `.github/workflows/ci.yml` (ruff · mypy · pytest + R1.1/R2.2 grep-gates), `.github/pull_request_template.md`.
+- Docker: `docker/Dockerfile` (test image), `docker/Dockerfile.runtime` (ship the server), `docker/compose.yaml`, `scripts/docker-test.sh`.
+
+## Running the full test suite — use Docker, never report it as unrunnable
+`test_command` is `pytest`, but the full suite needs a **POSIX host** (the index lock imports `fcntl`)
+and the **PHP adapter** (`php` + `composer install`). On the maintainer's **Windows** dev host bare
+`pytest` is red — `fcntl` breaks collection of every module importing `main.py`, and the PHP-adapter
+subprocess tests can't launch. **This is a platform limitation, not a regression** — do not conclude
+"the suite can't run" and do not ask how to run it. Run it in Docker:
+
+- `scripts/docker-test.sh` — builds `docker/Dockerfile` (Linux + PHP adapter) and runs the CI gate
+  `ruff · mypy · pytest -q`. Expect **~1049 passed, 0 skipped**. Scope it by passing a command, e.g.
+  `scripts/docker-test.sh pytest -q -k php`.
+- Prove **delta-green here** before a PR. A bare-`pytest` red on Windows is the known platform
+  exclusion above — confirm green via Docker, then say so; don't leave it as "unverified".
+- Ship the server itself in a container with `docker/Dockerfile.runtime` (stdio; mount the repo at
+  `/workspace`) — see README *Ship the server in a container*.
+
+## Maintainer workflow — single-maintainer repo; don't re-ask what's already authorized
+- **Finishing a task runs through to the PR without pausing to confirm:** commit in logical units →
+  push the **feature branch** → open a PR from `.github/pull_request_template.md` (docs + token ledger
+  updated first, per the rules above). This is the maintainer's standing, durable approval recorded
+  here — it *is* the per-action approval mango asks for on these finishing steps; the maintainer
+  reviews on the PR.
+- **Still stop and confirm** for irreversible / higher-blast actions: force-push, history rewrite,
+  deleting a branch/tag, committing to `main` directly, merging a PR, or publishing an image/release.
+- **Honor the run's args:** `/mango:solve … with skipped review` means run without the review phase and
+  don't reintroduce a waived gate; still surface each ✋ gate in-conversation so the maintainer can
+  interject, but proceed on the standing approval rather than waiting.
 
 ## Ship discipline (plan §15)
 M0 spike → M1 full build → M2 resolver+contract tests → **M3 search/read/outline = first daily release (task 014)** → M4 scale → M5 incremental → M6 impact. Then adapters #2–#4, then onboarding.

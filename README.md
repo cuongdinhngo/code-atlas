@@ -96,6 +96,34 @@ this checkout, so `CA_PHP_CMD` must be an **absolute** path. Docker instead of h
 [`adapters/php/README.md`](adapters/php/README.md).
 </details>
 
+### Ship the server in a container
+
+To run the whole MCP server (core + PHP adapter) from a container instead of installing Python and PHP
+on the host, build the runtime image and point your client at `docker run`:
+
+```bash
+docker build -f docker/Dockerfile.runtime -t code-atlas-server .
+```
+
+```jsonc
+// .mcp.json — the server indexes the mounted repo and writes .code-atlas/graph.db into it
+{
+  "mcpServers": {
+    "code-atlas": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm",
+               "-v", "/abs/path/to/your-project:/workspace",
+               "code-atlas-server"]
+    }
+  }
+}
+```
+
+The server talks MCP over stdio, so `-i` (stdin attached) is required; it indexes `/workspace`, so mount
+the repo there. Add `"--user", "1000:1000"` (your uid:gid) to the args to keep `.code-atlas/` writes
+owned by you rather than root. The image bundles the pinned PHP adapter, so no host PHP/Composer is
+needed. See [`docker/`](docker/).
+
 ## Usage
 
 Drive everything through the MCP tools:
@@ -193,6 +221,25 @@ files to it.
 Files are skipped using built-in patterns (`vendor/ var/ uploads/ log/ node_modules/ .git/`), then
 `.gitignore`, then an optional `.codeatlasignore` — later rules win, so `.codeatlasignore` can
 re-include what an earlier source excluded.
+
+## Testing
+
+The test command is `pytest`. The full suite needs a POSIX host (the index lock uses `fcntl`) and the
+PHP adapter (`php` on `PATH` + `composer install` in `adapters/php`); without those, tests that need
+them **skip or fail to collect** — so a partial local run is not the whole suite.
+
+To run **everything** off any host (Windows/macOS included), use the Linux test image — it mirrors
+CI's `ruff · mypy · pytest` gate with the adapter's composer deps baked in:
+
+```sh
+scripts/docker-test.sh                       # ruff + mypy + pytest -q (the full suite)
+scripts/docker-test.sh pytest -q -k php      # just the PHP-adapter integration tests
+# or, via compose:
+docker compose -f docker/compose.yaml run --rm --build test
+```
+
+The image (`docker/Dockerfile`) copies the source in at build time, so re-run after editing to test
+the new code (Docker's layer cache keeps dependency installs warm). See [`docker/`](docker/).
 
 ## Language support
 

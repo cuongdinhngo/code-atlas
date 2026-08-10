@@ -1,0 +1,13 @@
+# Reproducible test/dev env for code-atlas — runs the CI gates on Linux (POSIX fcntl + PHP adapter).
+#
+#   docker compose -f docker/compose.yaml run --rm --build test
+#     -> ruff check . && mypy code_atlas && pytest -q   (the image's default CMD)
+#
+#   docker compose -f docker/compose.yaml run --rm --build test pytest -q tests/test_store.py
+#     -> any command, run against the code baked into the image at build time
+services:
+  test:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: code-atlas-test
