@@ -15,12 +15,10 @@ from collections.abc import Callable, Sequence
 from typing import Literal
 
 from code_atlas.config import Config
-from code_atlas.gitutil import dirty_paths, head_commit
-from code_atlas.indexer import indexable
+from code_atlas.gitutil import head_commit
 from code_atlas.store import (
     BUILT_AT_KEY,
     CONTRACT_VERSION_KEY,
-    INDEXED_SUFFIXES_KEY,
     LAST_COMMIT_KEY,
     SCHEMA_OLDER,
     SCHEMA_VERSION_KEY,
@@ -28,6 +26,13 @@ from code_atlas.store import (
     SchemaVersionError,
 )
 from code_atlas.tools import schema_guard
+from code_atlas.tools.staleness import (
+    BEHIND,
+    CURRENT,
+    UNKNOWN,
+    dirty_indexed,
+    staleness_of,
+)
 
 NAME = "get_index_status"
 
@@ -36,9 +41,9 @@ DetailLevel = Literal["minimal", "standard", "verbose"]
 # Own cap for the verbose failure list — not ``CA_MAX_RESULTS`` (disk / nav / resolver knob).
 PARSE_FAILURE_PATHS_LIMIT = 50
 
-CURRENT = "current"
-BEHIND = "behind"
-UNKNOWN = "unknown"
+# Staleness vocabulary lives in ``staleness`` (shared with the build busy refusal, task 072);
+# re-exported here so callers importing it from this module keep working.
+__all__ = ["NAME", "create", "CURRENT", "BEHIND", "UNKNOWN"]
 
 BUILD_TOOL = "build_or_update_index"
 
@@ -134,8 +139,8 @@ def _status(
     counts = store.counts()
     last_commit = store.get_meta(LAST_COMMIT_KEY)
     head = head_commit(config.root)
-    dirty, dirty_count = _dirty_indexed(store, config)
-    staleness = _staleness(last_commit, head, dirty=dirty)
+    dirty, dirty_count = dirty_indexed(store, config)
+    staleness = staleness_of(last_commit, head, dirty=dirty)
     indexed = counts["files"] > 0
 
     status: dict[str, object] = {
@@ -167,33 +172,6 @@ def _status(
         "parse_failure_paths": list(paths),
         "parse_failures_truncated": counts["failed"] > offset + len(paths),
     }
-
-
-def _dirty_indexed(store: GraphStore, config: Config) -> tuple[bool | None, int | None]:
-    """Are any *indexed* files dirty, and how many — a dirty README is not a stale graph (047).
-
-    Falls back to the whole tracked tree when the index predates this key, which over-reports
-    rather than promising freshness it cannot check (R5.2's spirit: never claim the stronger tier).
-    """
-    paths = dirty_paths(config.root)
-    if paths is None:
-        return None, None
-    suffixes = store.get_meta(INDEXED_SUFFIXES_KEY)
-    if not suffixes:
-        return bool(paths), None
-    hits = indexable(paths, config.root, suffixes.split(","))
-    return bool(hits), len(hits)
-
-
-def _staleness(last_commit: str | None, head: str | None, *, dirty: bool | None) -> str:
-    """``unknown`` unless both commits known; ``behind`` if HEAD moved or ``dirty`` (047)."""
-    if last_commit is None or head is None:
-        return UNKNOWN
-    if last_commit != head:
-        return BEHIND
-    if dirty:
-        return BEHIND
-    return CURRENT
 
 
 def _suggestions(servable: Sequence[str], staleness: str, *, indexed: bool) -> list[str]:

@@ -99,7 +99,7 @@ gap that fixtures never hit.
 | 069 | [`find_view_data` went uncalled in the exact session it was built for](tasks/069_tool-names-do-not-say-what-they-answer.md) | Agent-fit | todo | 062, 063, 038 |
 | 070 | [One qname, five definitions, 23 callers merged — no way to ask about one of them](tasks/070_ambiguous-qname-no-scoping.md) | Agent-fit | todo | 043, 013, 011 |
 | 071 | [A worktree agent gets the main checkout's symbols with `reason: "ok"` and no field names the tree](tasks/071_answers-do-not-name-their-tree.md) | Agent-trust | done | 033, 061, 065 |
-| 072 | [`mode: "busy"` returns in 0.0 s and reads like success](tasks/072_busy-build-hides-staleness.md) | Agent-trust | todo | 053, 033 |
+| 072 | [`mode: "busy"` returns in 0.0 s and reads like success](tasks/072_busy-build-hides-staleness.md) | Agent-trust | done | 053, 033 |
 | 073 | [Read-through freshness repairs only rows it already found — a new symbol is confidently reported absent](tasks/073_freshness-cannot-find-what-is-not-indexed.md) | Agent-trust | done | 035, 065, 033 |
 | 074 | [The one repeated benchmark cell says the index may make control-flow answers worse — resolve it at n ≥ 3](tasks/074_does-the-index-harm-mechanism-questions.md) | Measure | todo | 055, 067, 045 |
 
@@ -339,6 +339,7 @@ transcript and labelled as such, so a `0 dispatch` row is never left standing as
 | 062 | Producer-side view data-bag edges (PROVIDES_VIEW_DATA + find_view_data) | **6 dispatch** — refine exposure-checker + analysis explore + review `mango:reviewer` / `mango:challenger` ×2; all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051 | [#73](https://github.com/cuongdinhngo/code-atlas/pull/73) |
 | — | CI drift audit — recalibrate the gates the last ten tasks moved | **0 dispatch** — no ticket and no working doc, so there is no cost ledger to roll up: an audit read of the three workflows against the current tree, one fixture benchmark run to re-measure the ratio, and a full `pytest`. **Main-loop spend is unmeasured** (host does not surface usage), as for 004–051 | [#83](https://github.com/cuongdinhngo/code-atlas/pull/83) |
 | 061 | Trim dead payload weight from nav and search | **5 dispatch** — refine exposure-checker + review rounds 1–2 (`mango:reviewer` / `mango:challenger` ×2); all **`unmeasured (blocking retrieval)`**. Phases 1–3 and 5 on the main model. **Main-loop spend is unmeasured**, as for 004–051 | [#72](https://github.com/cuongdinhngo/code-atlas/pull/72) |
+| 072 | `mode: "busy"` carries staleness + `performed: false` | **0 dispatch** — no subagent ran: review waived per run instruction, no Explore fan-out; analysis, design, execute and finalise all on the main model, plus a Docker measurement of busy-branch latency under 4-way contention. **Main-loop spend is unmeasured**, as for 004–051 (host does not surface per-task usage) | [#89](https://github.com/cuongdinhngo/code-atlas/pull/89) |
 
 **How 047–049 were measured.** They ran back-to-back in one autonomous session, so no per-task
 transcript exists. Each row is that session's assistant API calls bucketed by commit timestamp — the

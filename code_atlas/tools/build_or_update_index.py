@@ -25,6 +25,7 @@ from code_atlas.store import (
     SchemaVersionError,
 )
 from code_atlas.tools import schema_guard
+from code_atlas.tools.staleness import UNKNOWN, compute_staleness
 
 NAME = "build_or_update_index"
 
@@ -47,21 +48,46 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         An index written under an *older* ``schema_version`` is deleted and rebuilt in-band so an
         MCP client can recover without a shell. A *newer* one is refused untouched: that index is
         current and this server process is the stale one (task 050). Concurrent writers share
-        ``write.lock`` (task 053); a held lock returns ``mode: busy`` without opening the DB.
+        ``write.lock`` (task 053); a held lock returns ``mode: busy`` carrying the staleness of the
+        index the loser is about to query, read-only (task 072).
         """
         started = time.monotonic()
         with try_index_write_lock(config.db_path) as held:
             if not held:
-                return {
-                    "mode": BUSY,
-                    "requested_full": full,
-                    "reason": "another_build_running",
-                    "db_path": str(config.db_path),
-                    "seconds": round(time.monotonic() - started, 3),
-                }
+                return _busy(config, full=full, started=started)
             return _build(config, full=full, detail_level=detail_level, started=started)
 
     return build_or_update_index
+
+
+def _busy(config: Config, *, full: bool, started: float) -> dict[str, object]:
+    """Another writer holds the lock: report what the caller is about to query, not just why (072).
+
+    ``performed: false`` states the consequence in the reason channel (033) — the refresh did not
+    run — beside the ``staleness``/``last_commit``/``head_commit`` fields ``get_index_status`` uses,
+    so a caller has one vocabulary. A read-only open cannot corrupt the winner's build (053) and
+    degrades to ``unknown`` rather than raising when there is no readable index (R5.3).
+    """
+    return {
+        "mode": BUSY,
+        "requested_full": full,
+        "performed": False,
+        "reason": "another_build_running",
+        **_busy_staleness(config),
+        "db_path": str(config.db_path),
+        "seconds": round(time.monotonic() - started, 3),
+    }
+
+
+def _busy_staleness(config: Config) -> dict[str, str | None]:
+    """Best-effort staleness of the index the loser will read; never raises (R5.3, C2)."""
+    if not config.db_path.is_file():
+        return {"staleness": UNKNOWN, "last_commit": None, "head_commit": None}
+    try:
+        with GraphStore(config.db_path) as store:
+            return compute_staleness(store, config)
+    except SchemaVersionError:
+        return {"staleness": UNKNOWN, "last_commit": None, "head_commit": None}
 
 
 def _build(

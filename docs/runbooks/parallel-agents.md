@@ -53,9 +53,13 @@ sharing correct. If you share anyway, compare `index_root` to the agent's cwd be
 ## Do this
 
 - **Refresh the index once, before dispatch — never from inside an agent.** Two concurrent
-  `build_or_update_index` calls are mutually excluded correctly by `write.lock`, but the loser returns
-  `mode: "busy"` in **0.0 s** with no staleness attached, which an agent whose plan is "refresh, then
-  investigate" reads as done ([072](../tasks/072_busy-build-hides-staleness.md)).
+  `build_or_update_index` calls are mutually excluded correctly by `write.lock`; the loser returns
+  `mode: "busy"`, `performed: false`. Since [072](../tasks/072_busy-build-hides-staleness.md) that
+  refusal also carries the staleness of the index it would have read
+  (`staleness`/`last_commit`/`head_commit`, the `get_index_status` vocabulary), so an agent whose plan
+  is "refresh, then investigate" can now tell the refresh did **not** run instead of reading the
+  0.0 s reply as done. The rule stands regardless: a busy refusal means *your* refresh did not happen,
+  so refresh once before dispatch rather than relying on an in-agent call that may lose the race.
 - **Cap `CA_WORKERS` when many agents build at once.** A build fans out up to `workers` PHP processes
   (default `max(1, min(cpu-2, 8))`, `config.py`); measured at 6 during one incremental build. `N`
   agents each building → `N × workers` short-lived PHP processes. Set `CA_WORKERS=1` or `2`, or

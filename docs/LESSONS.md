@@ -1,5 +1,16 @@
 # Lessons — code-atlas
 
+## 072 — A change that adds/removes a core module must grep pinned counts, not just moved symbols
+The design's test-blast-radius grep matched the **symbols** being moved (the staleness constants,
+which stayed importable via re-export) and concluded "no existing assertion is invalidated". But two
+guardrail tests pin the **core-module count** (`assert len(core_modules()) == 36` in
+`test_sql_confinement.py` and `test_core_is_language_agnostic.py`), and a *new* module `staleness.py`
+broke both — surfacing only at the full-suite run, as an execute deviation. **Fix pattern:** when a
+change adds or removes a file under a swept tree, the blast-radius step must also grep for **pinned
+file/module counts and parametrize sources** (`len(... ) == N`, `rglob`, `parametrize(... modules())`),
+not only the renamed/moved symbols — a count guard is invalidated by the file *existing*, with no
+symbol match to find it by.
+
 ## 066 — Report an argument the server honoured only partially, and enumerate limit-takers from code
 
 `cap = min(limit, max_results)` silently discarded the excess: `truncated`/`total_count` said *more
