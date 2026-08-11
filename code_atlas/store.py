@@ -476,6 +476,22 @@ class GraphStore:
             key_column="qualified_name", keys=qnames, kind=kind, limit=limit
         )
 
+    def nodes_by_qname_endswith(self, name: str, suffix: str, *, limit: int) -> list[Row]:
+        """Nodes whose short ``name`` matches and whose ``qualified_name`` ends with ``suffix``.
+
+        ``name`` seeks ``idx_nodes_name``; the suffix ``LIKE`` runs only over that small set.
+        Component-boundary correctness is the caller's job (task 075/076).
+        """
+        if limit < 1:
+            raise ValueError(f"limit must be >= 1, got {limit}")
+        pattern = "%" + _like_literal(suffix)
+        sql = (
+            f"SELECT id, {_NODE_COLUMNS} FROM nodes "
+            "WHERE name = ? AND qualified_name LIKE ? ESCAPE '!' "
+            f"ORDER BY {_NODE_ORDER} LIMIT ?"
+        )
+        return self._rows(NODE_ROW_KEYS, sql, (name, pattern, limit))
+
     def nodes_by_kind(self, kind: str, *, limit: int) -> list[Row]:
         return self._nodes("kind = ?", kind, None, limit)
 

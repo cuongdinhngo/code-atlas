@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Mapping
-from typing import Any, Literal
+from typing import Any, Literal, NamedTuple
 
 from code_atlas import contract
 from code_atlas.contract import CONFIDENCE_TIERS
 from code_atlas.enrichment import is_rule_edge_kind, is_rule_edge_path
-from code_atlas.store import Row
+from code_atlas.store import GraphStore, Row
 
 _RESOLVED = CONFIDENCE_TIERS[0]
 
@@ -22,6 +23,7 @@ NavReason = Literal[
     "bare_name_truncated",
     "relationship_not_modelled",
     "capability_not_configured",
+    "name_not_qualified",
 ]
 
 REASON_OK: NavReason = "ok"
@@ -33,6 +35,8 @@ REASON_BARE_NAME_TRUNCATED: NavReason = "bare_name_truncated"
 REASON_RELATIONSHIP_NOT_MODELLED: NavReason = "relationship_not_modelled"
 # The tool's capability needs config that is absent — inert, not a genuine zero (069).
 REASON_CAPABILITY_NOT_CONFIGURED: NavReason = "capability_not_configured"
+# The subject is under-qualified: N indexed symbols end with it — ask a narrower question (075/076).
+REASON_NAME_NOT_QUALIFIED: NavReason = "name_not_qualified"
 
 NAV_REASONS: tuple[NavReason, ...] = (
     REASON_OK,
@@ -43,6 +47,7 @@ NAV_REASONS: tuple[NavReason, ...] = (
     REASON_BARE_NAME_TRUNCATED,
     REASON_RELATIONSHIP_NOT_MODELLED,
     REASON_CAPABILITY_NOT_CONFIGURED,
+    REASON_NAME_NOT_QUALIFIED,
 )
 
 # Machine-stable alternate routes when reason is relationship_not_modelled (task 065).
@@ -50,6 +55,8 @@ TRY_INSTEAD_FIND_REFERENCES_ON_METHOD_QNAME = "find_references_on_method_qname"
 TRY_INSTEAD_PATH_BASENAME_SEARCH = "path_basename_search"
 # Empty miss while multiple indexed files are dirty — path-named tools are stronger (073).
 TRY_INSTEAD_FILE_OUTLINE = "file_outline"
+# An under-qualified subject has candidates — search_symbol enumerates them (075/076).
+TRY_INSTEAD_SEARCH_SYMBOL = "search_symbol"
 
 
 def edge_id(edge: Mapping[str, Any] | Row) -> int:
@@ -186,6 +193,62 @@ def relation_reason(*, hit_total: int, symbol_indexed: bool) -> NavReason:
     if not symbol_indexed:
         return REASON_NO_SUCH_SYMBOL
     return REASON_NO_MATCHES
+
+
+# Generic identifier lexis — NOT a language branch (no `if language`); the same tolerance the
+# read_symbol comment regex already relies on. A qname component is a run of these chars.
+_IDENT_TRAILING = re.compile(r"[A-Za-z0-9_]+$")
+_IDENT_CHAR = re.compile(r"[A-Za-z0-9_]")
+
+
+class SubjectResolution(NamedTuple):
+    """How a subject qname the index has no exact node for classifies (miss path only)."""
+
+    status: str  # "absent" | "resolved_unique" | "ambiguous"
+    qname: str  # the stored qname to use downstream when resolved_unique; else the input
+    candidate_count: int  # boundary-suffix candidate floor (0 when absent)
+
+
+def classify_missing_subject(
+    store: GraphStore, qname: str, *, limit: int
+) -> SubjectResolution:
+    """Classify a subject the index holds no exact node for, without any language-specific rule.
+
+    Counts indexed qnames that end with ``qname`` at a component boundary — so a leading-anchor
+    difference (``Ns\\Sub\\Enum`` vs ``\\Ns\\Sub\\Enum``) resolves as one candidate, and a bare
+    member name (``isEnabled``) surfaces as many. Runs on the miss path only (a hit never pays).
+    """
+    trailing = _IDENT_TRAILING.search(qname)
+    if trailing is None:
+        return SubjectResolution("absent", qname, 0)
+    candidates = store.nodes_by_qname_endswith(trailing.group(0), qname, limit=limit + 1)
+    matches = [
+        str(row["qualified_name"])
+        for row in candidates
+        if _ends_at_boundary(str(row["qualified_name"]), qname)
+    ]
+    if not matches:
+        return SubjectResolution("absent", qname, 0)
+    if len(matches) == 1:
+        return SubjectResolution("resolved_unique", matches[0], 1)
+    return SubjectResolution("ambiguous", qname, len(matches))
+
+
+def _ends_at_boundary(stored: str, suffix: str) -> bool:
+    """``stored`` ends with ``suffix`` and the char before it (if any) is a non-identifier."""
+    if not stored.endswith(suffix):
+        return False
+    prefix = stored[: len(stored) - len(suffix)]
+    return prefix == "" or _IDENT_CHAR.match(prefix[-1]) is None
+
+
+def attach_name_not_qualified(
+    payload: dict[str, object], candidate_count: int
+) -> dict[str, object]:
+    """Disclose the under-qualified candidate floor + the route out (061 conditional; 066 bound)."""
+    payload["candidate_count"] = candidate_count
+    payload["try_instead"] = TRY_INSTEAD_SEARCH_SYMBOL
+    return payload
 
 
 def attach_try_instead(payload: dict[str, object], try_instead: str | None) -> dict[str, object]:

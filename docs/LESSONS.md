@@ -1,5 +1,17 @@
 # Lessons — code-atlas
 
+## 075 — "Bump `contract_version`" can name the wrong contract — verify before you force a reindex
+Tickets 075/076 constrained the change with "R3 — a new `reason` value is contract vocabulary: bump
+`contract_version`." Taken literally that bumps the **adapter** JSONL contract (`contract.CONTRACT_VERSION`),
+whose bump makes every existing index schema-incompatible → **a full reindex for all users**. But nav
+`reason` codes are **tool-output** vocabulary: defined in `nav_result.NAV_REASONS`, tested in
+`test_nav_reason_codes.py`, and — the decisive evidence — `CONTRACT_VERSION` was still `5` after 054, 065
+and 069 each added a reason. Two vocabularies both called "the contract"; only one gates reindexing.
+**Fix:** before honoring a "bump the contract" constraint, locate where the vocabulary is *defined* and
+which *conformance suite* tests it; if that is not `contract.py` / `tests/contract/`, it is not the
+adapter contract and must not bump `CONTRACT_VERSION`. Surface the correction in the design + PR
+(detect-and-surface, per the uncodified-standard rule), never silently comply or silently ignore.
+
 ## 074 — A measurement ticket that needs an external environment splits into prep → run → analyze
 074's core is an n≥3 headless benchmark on the anchor repo — data this session cannot produce, and
 must never fabricate ("every claim is a counted artifact"; "do not change any tool to make the number

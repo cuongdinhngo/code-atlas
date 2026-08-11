@@ -16,6 +16,7 @@ from code_atlas.tools.nav_result import (
     REASON_BARE_NAME_TRUNCATED,
     REASON_CAPABILITY_NOT_CONFIGURED,
     REASON_INDEX_STALE,
+    REASON_NAME_NOT_QUALIFIED,
     REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
     REASON_NOT_INDEXED,
@@ -157,6 +158,7 @@ def test_reason_vocabulary_includes_index_stale_unused() -> None:
         REASON_BARE_NAME_TRUNCATED,
         REASON_RELATIONSHIP_NOT_MODELLED,
         REASON_CAPABILITY_NOT_CONFIGURED,
+        REASON_NAME_NOT_QUALIFIED,
     )
 
 
