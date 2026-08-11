@@ -4,7 +4,7 @@ slug: read-symbol-confident-zero-on-unnormalised-qname
 title: '`read_symbol` answers `found: false` with `reason: "ok"` for a class the index holds — one leading backslash apart'
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [065, 070, 014]
 ---
 

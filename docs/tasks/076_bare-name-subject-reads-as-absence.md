@@ -4,7 +4,7 @@ slug: bare-name-subject-reads-as-absence
 title: 'A bare method name still answers `no_such_symbol` while its qualified form has 82 callers'
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [054, 011, 013]
 ---
 
