@@ -119,6 +119,18 @@ Payload-honesty precedent: [048](048_edge-health-resolved-ambiguity.md),
 Origin: field retro round 2 §4 — reported there as a missing-type-inference limitation; the resolver
 cap is the actual mechanism, found by reading the path afterwards.
 
+## Part B re-verification (task 076 request, 2026-08-11)
+
+**Verdict: Part B still holds and is undisturbed by 075/076.** Part B fires on the **indexed** empty
+path — `find_callers.py` sets `unresolved_bare_calls` and `reason=bare_name_truncated` only when
+`indexed and outcome.total_count == 0`. 076's new `name_not_qualified` classifier fires only on the
+**not-indexed** empty path (`total_count == 0 and not indexed`) via an `elif`, so the two branches are
+mutually exclusive and never collide. All five `test_bare_name_callers_silent_drop.py` assertions stay
+green. Net effect on the field-observability gap 076 raised: an agent holding the **qualified** subject
+still gets `unresolved_bare_calls` (Part B); one holding only the **bare** method name — the case 076
+is about — now gets `name_not_qualified` + `try_instead: search_symbol` instead of a bare
+`no_such_symbol`. Part A remains gated and unaddressed.
+
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
 
 # 054 — bare-name-callers-silent-drop (working doc)

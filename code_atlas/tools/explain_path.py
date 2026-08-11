@@ -7,7 +7,7 @@ from typing import Literal
 
 from code_atlas.config import Config
 from code_atlas.store import PATH_STATUS_INCOMPLETE, GraphStore, Row
-from code_atlas.tools.nav_result import REASON_NOT_INDEXED
+from code_atlas.tools.nav_result import REASON_NOT_INDEXED, classify_missing_subject
 
 NAME = "explain_path"
 
@@ -41,6 +41,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if not config.db_path.is_file():
             return _not_indexed(from_qname, to_qname, depth, detail_level, config)
         with GraphStore(config.db_path) as store:
+            # Re-point a uniquely-resolvable under-anchored endpoint; echo it (075/076).
+            from_qname = _resolve_endpoint(store, from_qname, config.max_results)
+            to_qname = _resolve_endpoint(store, to_qname, config.max_results)
             outcome = store.explain_path(
                 from_qname,
                 to_qname,
@@ -86,6 +89,18 @@ def _not_indexed(
     }
     del detail_level
     return payload
+
+
+def _resolve_endpoint(store: GraphStore, qname: str, max_results: int) -> str:
+    """The stored qname for an endpoint: exact, or a uniquely-resolvable under-anchored form.
+
+    An ambiguous or absent endpoint is returned unchanged, so ``store.explain_path`` still
+    reports ``unknown`` for it exactly as before (075/076).
+    """
+    if not qname or store.nodes_by_qualified_name(qname, limit=1):
+        return qname
+    resolution = classify_missing_subject(store, qname, limit=max_results)
+    return resolution.qname if resolution.status == "resolved_unique" else qname
 
 
 def _shape_hop(hop: Row) -> dict[str, object]:

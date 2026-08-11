@@ -12,6 +12,7 @@ from code_atlas.tools import find_implementations, find_references, include_grap
 from code_atlas.tools.nav_result import (
     NAV_REASONS,
     REASON_CAPABILITY_NOT_CONFIGURED,
+    REASON_NAME_NOT_QUALIFIED,
     REASON_NO_MATCHES,
     REASON_OK,
     REASON_RELATIONSHIP_NOT_MODELLED,
@@ -189,5 +190,6 @@ def test_include_graph_imported_by_genuine_empty_has_no_unresolved_field(
 
 def test_reason_vocabulary_pins_relationship_not_modelled() -> None:
     assert REASON_RELATIONSHIP_NOT_MODELLED in NAV_REASONS
-    # 069 appended capability_not_configured as the newest reason, after this one.
-    assert NAV_REASONS[-1] == REASON_CAPABILITY_NOT_CONFIGURED
+    assert REASON_CAPABILITY_NOT_CONFIGURED in NAV_REASONS
+    # 075/076 appended name_not_qualified as the newest reason, after capability_not_configured.
+    assert NAV_REASONS[-1] == REASON_NAME_NOT_QUALIFIED

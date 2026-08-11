@@ -7,7 +7,7 @@ from typing import Literal
 
 from code_atlas.config import Config
 from code_atlas.store import GraphStore
-from code_atlas.tools.nav_result import empty_nav, nav_result
+from code_atlas.tools.nav_result import classify_missing_subject, empty_nav, nav_result
 
 NAME = "impact"
 
@@ -43,7 +43,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             index_root=config.index_root,
         )
         with GraphStore(config.db_path) as store:
-            seeds = _seeds(store, paths=paths or [], qnames=qnames or [])
+            seeds = _seeds(
+                store, paths=paths or [], qnames=qnames or [], max_results=config.max_results
+            )
             outcome = store.impact_radius(
                 seeds, depth=hops, max_nodes=config.impact_max_nodes + 1
             )
@@ -74,19 +76,16 @@ def _subject(paths: list[str] | None, qnames: list[str] | None) -> str:
 
 
 def _seeds(
-    store: GraphStore, *, paths: Sequence[str], qnames: Sequence[str]
+    store: GraphStore, *, paths: Sequence[str], qnames: Sequence[str], max_results: int
 ) -> list[str]:
     """Union path-file nodes with explicit qnames (stable order: qnames then path nodes)."""
     found: list[str] = []
     seen: set[str] = set()
     for qname in qnames:
-        if (
-            qname
-            and qname not in seen
-            and store.nodes_by_qualified_name(qname, limit=1)
-        ):
-            seen.add(qname)
-            found.append(qname)
+        resolved = _resolve_seed(store, qname, max_results) if qname else None
+        if resolved is not None and resolved not in seen:
+            seen.add(resolved)
+            found.append(resolved)
     for path in paths:
         if not path:
             continue
@@ -96,3 +95,15 @@ def _seeds(
                 seen.add(qname)
                 found.append(qname)
     return found
+
+
+def _resolve_seed(store: GraphStore, qname: str, max_results: int) -> str | None:
+    """A seed's stored qname: exact, or a uniquely-resolvable under-anchored form (075/076).
+
+    An ambiguous or absent seed returns None — impact has no per-seed reason channel, so it
+    stays counted in ``seeds_dropped`` exactly as before.
+    """
+    if store.nodes_by_qualified_name(qname, limit=1):
+        return qname
+    resolution = classify_missing_subject(store, qname, limit=max_results)
+    return resolution.qname if resolution.status == "resolved_unique" else None

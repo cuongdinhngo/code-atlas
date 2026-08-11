@@ -13,10 +13,14 @@ from code_atlas.store import GraphStore
 from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
     REASON_INDEX_STALE,
+    REASON_NAME_NOT_QUALIFIED,
+    REASON_NO_SUCH_SYMBOL,
     REASON_OK,
     TRY_INSTEAD_FILE_OUTLINE,
     attach_ambiguous_definitions,
+    attach_name_not_qualified,
     attach_try_instead,
+    classify_missing_subject,
     definition_sites,
     is_stub,
 )
@@ -71,15 +75,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 if status == "repaired":
                     rows = store.nodes_by_qualified_name(qname, limit=config.max_results)
                 if not rows:
-                    return _result(
-                        qname,
-                        "",
-                        detail_level=detail_level,
-                        db_path=str(config.db_path),
-                        index_root=config.index_root,
-                        found=False,
-                        reason=REASON_OK,
+                    # An exact miss is classified, never reported as reason=ok (075/076).
+                    qname, rows, miss = _resolve_miss(
+                        store, config, qname, detail_level=detail_level
                     )
+                    if miss is not None:
+                        return miss
             rel = str(rows[0]["file_path"])
             status = guard.ensure(rel)
             if status == "stale":
@@ -99,15 +100,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             if status == "repaired":
                 rows = store.nodes_by_qualified_name(qname, limit=config.max_results)
                 if not rows:
-                    return _result(
-                        qname,
-                        "",
-                        detail_level=detail_level,
-                        db_path=str(config.db_path),
-                        index_root=config.index_root,
-                        found=False,
-                        reason=REASON_OK,
+                    qname, rows, miss = _resolve_miss(
+                        store, config, qname, detail_level=detail_level
                     )
+                    if miss is not None:
+                        return miss
                 rel = str(rows[0]["file_path"])
             node = rows[0]
             path = config.root / rel
@@ -136,6 +133,45 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             return attach_ambiguous_definitions(result, definition_sites(rows))
 
     return read_symbol
+
+
+def _resolve_miss(
+    store: GraphStore, config: Config, qname: str, *, detail_level: str
+) -> tuple[str, list[dict[str, object]], dict[str, object] | None]:
+    """Classify an exact miss: re-point a unique candidate (returns its rows), else a truthful miss.
+
+    Returns ``(qname, rows, miss)`` — when ``rows`` is non-empty the caller reads on with the
+    (possibly re-pointed) ``qname``; when ``miss`` is set the caller returns it verbatim.
+    """
+    resolution = classify_missing_subject(store, qname, limit=config.max_results)
+    if resolution.status == "resolved_unique":
+        rows = store.nodes_by_qualified_name(resolution.qname, limit=config.max_results)
+        if rows:
+            return resolution.qname, list(rows), None
+    if resolution.status == "ambiguous":
+        return qname, [], attach_name_not_qualified(
+            _miss_result(qname, detail_level=detail_level, config=config,
+                         reason=REASON_NAME_NOT_QUALIFIED),
+            resolution.candidate_count,
+        )
+    return qname, [], _miss_result(
+        qname, detail_level=detail_level, config=config, reason=REASON_NO_SUCH_SYMBOL
+    )
+
+
+def _miss_result(
+    qname: str, *, detail_level: str, config: Config, reason: str
+) -> dict[str, object]:
+    """A not-found payload that names which kind of nothing this is — never reason=ok (075)."""
+    return _result(
+        qname,
+        "",
+        detail_level=detail_level,
+        db_path=str(config.db_path),
+        index_root=config.index_root,
+        found=False,
+        reason=reason,
+    )
 
 
 def _slice(path: Path, line_start: int, line_end: int) -> str:

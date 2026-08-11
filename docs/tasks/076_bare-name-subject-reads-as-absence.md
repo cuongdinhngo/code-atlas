@@ -77,6 +77,15 @@ Three outcomes must be distinguishable without reading code-atlas source:
   receive one.
 - 054's Part B has a live-index verdict written into that ticket.
 
+## Resolution (2026-08-11)
+Delivered together with **075** under one shared design — the mango working doc lives in
+[`075`](075_read-symbol-confident-zero-on-unnormalised-qname.md) (below its raw-ticket separator).
+One language-agnostic classifier (`nav_result.classify_missing_subject`) serves both: a bare/under-
+qualified subject with candidates returns `name_not_qualified` + `candidate_count` +
+`try_instead: search_symbol` across every single-subject tool; a zero-candidate bare name stays
+`no_such_symbol`. No adapter `contract_version` bump (reason codes are tool-output vocabulary, not the
+adapter contract). 054's Part-B live verdict is written into that ticket.
+
 ## References
 Field retro round 4 §A.10 (`NOT FIXED (reproduced)`), §4 rows 3–4, §10 carve-out (a); probes P2/P3.
 Related: [054](054_bare-name-callers-silent-drop.md) (resolver-side drop — the fix that this one is

@@ -14,11 +14,14 @@ from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
     REASON_BARE_NAME_TRUNCATED,
     REASON_INDEX_STALE,
+    REASON_NAME_NOT_QUALIFIED,
     TRY_INSTEAD_FILE_OUTLINE,
     attach_ambiguous_definitions,
     attach_limit_capped,
+    attach_name_not_qualified,
     attach_result_subtrees,
     attach_try_instead,
+    classify_missing_subject,
     definition_sites,
     edge_hit,
     edge_id,
@@ -126,6 +129,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             # Widen the existing indexed-check fetch to surface every definition site (task 070).
             subject_nodes = store.nodes_by_qualified_name(qname, limit=config.max_results)
             indexed = bool(subject_nodes)
+            # A subject with no node and no inbound edges: is it truly absent, or under-qualified?
+            # N indexed qnames end with it → name_not_qualified, not no_such_symbol (075/076).
+            name_not_qualified = (
+                classify_missing_subject(store, qname, limit=config.max_results).candidate_count
+                if outcome.total_count == 0 and not indexed
+                else 0
+            )
             container, bare_name = split_qname(qname)
             unresolved_bare = 0
             if indexed and container is not None and outcome.total_count == 0:
@@ -153,6 +163,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if outcome.total_count == 0 and indexed and unresolved_bare > 0:
             # Cap dropped this subject from bare-name linking — not "no callers exist".
             reason = REASON_BARE_NAME_TRUNCATED
+        elif name_not_qualified > 0:
+            reason = REASON_NAME_NOT_QUALIFIED
         result = nav_result(
             qname,
             outcome.results,
@@ -169,6 +181,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             result["subject_refreshed_only"] = True
         if unresolved_bare > 0:
             result["unresolved_bare_calls"] = unresolved_bare
+        if name_not_qualified > 0:
+            attach_name_not_qualified(result, name_not_qualified)
         if unrecorded is not None:
             result["args_unrecorded"] = unrecorded
         attach_result_subtrees(result, subtrees)

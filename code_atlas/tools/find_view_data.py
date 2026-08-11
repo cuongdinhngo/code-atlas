@@ -13,10 +13,13 @@ from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
     REASON_CAPABILITY_NOT_CONFIGURED,
     REASON_INDEX_STALE,
+    REASON_NAME_NOT_QUALIFIED,
     REASON_NO_MATCHES,
     TRY_INSTEAD_FILE_OUTLINE,
     attach_limit_capped,
+    attach_name_not_qualified,
     attach_try_instead,
+    classify_missing_subject,
     edge_hit,
     empty_nav,
     nav_result,
@@ -92,6 +95,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 # Indexed handler, empty only because no rules are configured — inert, not a
                 # genuine "publishes nothing" zero (069). A missing subject stays no_such_symbol.
                 reason = REASON_CAPABILITY_NOT_CONFIGURED
+            # Under-qualified (N indexed qnames end with it), not a genuine absence (075/076).
+            name_not_qualified = (
+                classify_missing_subject(store, qname, limit=config.max_results).candidate_count
+                if total == 0 and not indexed
+                else 0
+            )
+            if name_not_qualified > 0:
+                reason = REASON_NAME_NOT_QUALIFIED
             result = nav_result(
                 qname,
                 results,
@@ -104,6 +115,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             )
             if freshness == "repaired":
                 result["subject_refreshed_only"] = True
+            if name_not_qualified > 0:
+                attach_name_not_qualified(result, name_not_qualified)
             attach_limit_capped(result, cap=cap, clamped=limit_clamped)
             return result
 
