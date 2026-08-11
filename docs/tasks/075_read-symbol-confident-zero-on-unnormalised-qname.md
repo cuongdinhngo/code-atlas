@@ -308,9 +308,21 @@ Branch `fix/075-qname-subject-honesty`. Change-list delivered exactly as designe
 
 **Local (Windows):** ruff ✅ · mypy ✅ on changed code (the 5 `index_lock` `fcntl` errors are the known
 Windows-only mypy noise, Linux-clean); targeted pytest for the touched tools green except the documented
-adapter-subprocess exclusion. **Delta-green proof: `scripts/docker-test.sh` (Linux + PHP) — pending.**
+adapter-subprocess exclusion. **Delta-green proof:** `scripts/docker-test.sh` (Linux + PHP) run on the
+exact committed tree (untracked Phase-3 stubs stashed aside) — **ruff · mypy · 1094 passed, 0 failed**.
 
 ## Phase 4 — Review — SKIPPED (maintainer instruction 2026-08-11; waived gate, not reintroduced).
+
+## Phase 5 — Finalise
+- Commits: `cabf836` (fix + tests + docs), `2d4b49b` (status done + token rows). Branch
+  `fix/075-qname-subject-honesty`. **PR [#94](https://github.com/cuongdinhngo/code-atlas/pull/94).**
+- Untracked Phase-3 stubs (083–091, `docs/phase3-onboarding/`) deliberately **not** committed — separate
+  unratified work; excluded from this PR so CI (which checks out the commit) does not see them.
+- Both 075 and 076 → `status: done` (frontmatter + BACKLOG) with token rows; 054 Part-B verdict + 076
+  shared-design pointer + PLAN §12/§19 + LESSONS 075 recorded.
+- Standing maintainer approval covered push + PR (single-maintainer workflow, AGENTS.md); no merge done.
+
+**Session status:** finalise complete — PR #94 open, delta-green (1094 passed), awaiting maintainer merge.
 
 ## Cost ledger
 | Phase | Dispatch | Round | Tokens |
