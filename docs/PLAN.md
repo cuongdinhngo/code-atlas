@@ -12,7 +12,7 @@ A local-first MCP server that indexes a codebase into SQLite and exposes **fast,
 ## 0. Priorities (driving order)
 1. **Make the MCP work.** PHP end-to-end, daily-usable, before anything is generalized.
 2. **Extensible to other languages** (TypeScript/JavaScript next, then Python, then C#/.NET) **without touching the core.**
-3. **Onboarding feature** (Understand-Anything style) as a Phase-2 consumer of the graph.
+3. **Onboarding feature** (Understand-Anything style) as a Phase-3 consumer of the graph.
 
 These are in tension if mishandled — see the design principles (§2). The rule: architect for multi-language, but *implement* one language first; let language #2 harden the abstraction.
 
@@ -435,7 +435,7 @@ Coexist in `.mcp.json`. If tool overlap annoys, trim the LSP tool's search tools
 
 ---
 
-## 14. Phase 2 — Onboarding feature (Understand-Anything style)
+## 14. Phase 3 — Onboarding feature (Understand-Anything style)
 
 Built **after** the MCP is in daily use. Not a fork of Understand-Anything — a **consumer of the graph you already have** (which is the substrate UA spends its whole pipeline building, at higher fidelity than tree-sitter). Multi-language for free: works for every language with an adapter.
 
@@ -465,9 +465,14 @@ New surface (separate from indexing): `generate_onboarding`, `architecture_overv
 - **M8** **Python adapter** (`ast` + `jedi`) — cheap once the contract is hardened.
 - **M9** **C#/.NET adapter** (Roslyn sidecar) — confirms the contract holds for a second namespaced+semantic-model language.
 
-**Phase 3 — Onboarding:**
-- **M10** `architecture_overview` + layers (heuristic → LLM).
-- **M11** `guided_tour` + markdown onboarding docs.
+**Phase 3 — Onboarding** (deterministic-first; LLM opt-in and out of core + CI — breakdown in
+[`phase3-onboarding/PHASE3_ONBOARDING.md`](phase3-onboarding/PHASE3_ONBOARDING.md)):
+- **M10** `architecture_overview` + layers (deterministic) — 083 graph-metrics · 084 layer assignment ·
+  085 summarizer seam + deterministic default · 086 `architecture_overview` tool.
+- **M11** `guided_tour` + markdown docs + viewer — 087 tour (topological, carries SCC) ·
+  088 `generate_onboarding` (committable markdown + manifest) · 089 static HTML viewer.
+- **M12** LLM enrichment (opt-in, deferred, out of core + CI) — 090 LLM summarizer behind the 085 seam ·
+  091 LLM layer-name refinement.
 
 ---
 
