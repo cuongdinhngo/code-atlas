@@ -70,9 +70,10 @@ def _busy(config: Config, *, full: bool, started: float) -> dict[str, object]:
     """Another writer holds the lock: report what the caller is about to query, not just why (072).
 
     ``performed: false`` states the consequence in the reason channel (033) — the refresh did not
-    run — beside the ``staleness``/``last_commit``/``head_commit`` fields ``get_index_status`` uses,
-    so a caller has one vocabulary. A read-only open cannot corrupt the winner's build (053) and
-    degrades to ``unknown`` rather than raising when there is no readable index (R5.3).
+    run — beside the ``staleness``/``last_commit``/``head_commit``/``last_ref``/``head_ref`` fields
+    ``get_index_status`` uses, so a caller has one vocabulary. A read-only open cannot corrupt the
+    winner's build (053) and degrades to ``unknown`` rather than raising when there is no readable
+    index (R5.3).
     """
     return {
         "mode": BUSY,
@@ -85,6 +86,17 @@ def _busy(config: Config, *, full: bool, started: float) -> dict[str, object]:
     }
 
 
+def _unknown_staleness() -> dict[str, str | None]:
+    """Soft degrade for a busy refusal that cannot read the index (072 / 077)."""
+    return {
+        "staleness": UNKNOWN,
+        "last_commit": None,
+        "head_commit": None,
+        "last_ref": None,
+        "head_ref": None,
+    }
+
+
 def _busy_staleness(config: Config) -> dict[str, str | None]:
     """Best-effort staleness of the index the loser will read; never raises (R5.3, C2).
 
@@ -93,12 +105,12 @@ def _busy_staleness(config: Config) -> dict[str, str | None]:
     out — degrade to ``unknown`` rather than let the busy refusal raise.
     """
     if not config.db_path.is_file():
-        return {"staleness": UNKNOWN, "last_commit": None, "head_commit": None}
+        return _unknown_staleness()
     try:
         with GraphStore(config.db_path) as store:
             return compute_staleness(store, config)
     except _STALENESS_READ_ERRORS:
-        return {"staleness": UNKNOWN, "last_commit": None, "head_commit": None}
+        return _unknown_staleness()
 
 
 def _build(

@@ -49,6 +49,11 @@ finding.
 per worktree, run one `build_or_update_index` before dispatch, and leave the shared main index alone.
 Task 071 makes option 3 legible — every read payload carries `index_root` — but it does **not** make
 sharing correct. If you share anyway, compare `index_root` to the agent's cwd before trusting a hit.
+Task [077](../tasks/077_index-cannot-name-the-revision-it-describes.md) extends the same idea one
+level up: `get_index_status` (and a busy build refusal) also carry `last_ref`/`head_ref`, so a
+mid-session branch switch is visible even when `staleness` still says `current`. The **directory**
+mismatch is still revealed by `index_root`; the **revision** mismatch by comparing those refs (or
+your remembered branch) to `head_ref`.
 
 ## Do this
 
@@ -56,7 +61,8 @@ sharing correct. If you share anyway, compare `index_root` to the agent's cwd be
   `build_or_update_index` calls are mutually excluded correctly by `write.lock`; the loser returns
   `mode: "busy"`, `performed: false`. Since [072](../tasks/072_busy-build-hides-staleness.md) that
   refusal also carries the staleness of the index it would have read
-  (`staleness`/`last_commit`/`head_commit`, the `get_index_status` vocabulary), so an agent whose plan
+  (`staleness`/`last_commit`/`head_commit`/`last_ref`/`head_ref`, the `get_index_status` vocabulary),
+  so an agent whose plan
   is "refresh, then investigate" can now tell the refresh did **not** run instead of reading the
   0.0 s reply as done. The rule stands regardless: a busy refusal means *your* refresh did not happen,
   so refresh once before dispatch rather than relying on an in-agent call that may lose the race.

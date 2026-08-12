@@ -30,6 +30,16 @@ def head_commit(root: Path) -> str | None:
     return None if found is None else (found.strip() or None)
 
 
+def head_ref(root: Path) -> str | None:
+    """Branch/ref name at HEAD, ``HEAD`` when detached, or None when git cannot answer (077).
+
+    ``rev-parse --abbrev-ref HEAD`` is the short name agents reason in; detached checkouts report
+    the literal ``HEAD`` (a value, not an omission — 061).
+    """
+    found = _run(root, "rev-parse", "--abbrev-ref", "HEAD")
+    return None if found is None else (found.strip() or None)
+
+
 def changed_paths(root: Path, since: str) -> tuple[str, ...] | None:
     """Paths that differ from ``since`` on disk, or None when git cannot answer (§8.3).
 

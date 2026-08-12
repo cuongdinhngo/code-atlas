@@ -13,7 +13,7 @@ import pytest
 
 from code_atlas import gitutil
 from code_atlas.config import load_config
-from code_atlas.store import INDEXED_SUFFIXES_KEY, LAST_COMMIT_KEY, GraphStore
+from code_atlas.store import INDEXED_SUFFIXES_KEY, LAST_COMMIT_KEY, LAST_REF_KEY, GraphStore
 from code_atlas.tools import get_index_status
 from code_atlas.tools.get_index_status import BEHIND, CURRENT, UNKNOWN
 from tests.test_incremental import committed, git, write
@@ -30,6 +30,9 @@ def build_index(root: Path, *, suffixes: str | None = ".php") -> Path:
         store.upsert_file(SOURCE, "h", "php")
         store.replace_file_rows(SOURCE, nodes_for(SOURCE), [])
         store.set_meta(LAST_COMMIT_KEY, git(root, "rev-parse", "HEAD"))
+        ref = gitutil.head_ref(root)
+        if ref is not None:
+            store.set_meta(LAST_REF_KEY, ref)
         if suffixes is not None:
             store.set_meta(INDEXED_SUFFIXES_KEY, suffixes)
     return db_path

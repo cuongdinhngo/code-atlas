@@ -25,6 +25,8 @@ SCHEMA_VERSION = "4"
 SCHEMA_VERSION_KEY = "schema_version"
 CONTRACT_VERSION_KEY = "contract_version"
 LAST_COMMIT_KEY = "last_commit"
+# Human ref the index was built on (branch name or ``HEAD`` when detached) — beside the SHA (077).
+LAST_REF_KEY = "last_ref"
 BUILT_AT_KEY = "built_at"
 # Which suffixes the build claimed. Only the adapter handshake knows them, and a status read must
 # not start an adapter to find out — so the build leaves them here (047).
@@ -33,6 +35,7 @@ META_KEYS: tuple[str, ...] = (
     SCHEMA_VERSION_KEY,
     CONTRACT_VERSION_KEY,
     LAST_COMMIT_KEY,
+    LAST_REF_KEY,
     BUILT_AT_KEY,
     INDEXED_SUFFIXES_KEY,
 )

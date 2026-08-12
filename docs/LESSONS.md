@@ -1,5 +1,14 @@
 # Lessons — code-atlas
 
+## 077 — Name the revision with dual refs; do not invent a third staleness word
+`staleness: "current"` after an out-of-band branch switch + rebuild is *true* and still useless —
+agents reason in branch names, not SHAs. The temptation is a new word (`switched` / `diverged`).
+Resist it: 047 owns which files move the signal, and a third word forces every consumer to relearn
+the vocabulary. **Ship `last_ref` (meta, stamped at build) + `head_ref` (live) beside the SHA
+pair**, keep `current`/`behind`/`unknown`, and put the pair on the shared status↔busy vocabulary
+(072) — not on nav (061; directory mismatch stays `index_root`). Detached HEAD is the value
+`HEAD`, not an omission.
+
 ## 075 — "Bump `contract_version`" can name the wrong contract — verify before you force a reindex
 Tickets 075/076 constrained the change with "R3 — a new `reason` value is contract vocabulary: bump
 `contract_version`." Taken literally that bumps the **adapter** JSONL contract (`contract.CONTRACT_VERSION`),

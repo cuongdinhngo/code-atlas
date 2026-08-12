@@ -15,11 +15,12 @@ from collections.abc import Callable, Sequence
 from typing import Literal
 
 from code_atlas.config import Config
-from code_atlas.gitutil import head_commit
+from code_atlas.gitutil import head_commit, head_ref
 from code_atlas.store import (
     BUILT_AT_KEY,
     CONTRACT_VERSION_KEY,
     LAST_COMMIT_KEY,
+    LAST_REF_KEY,
     SCHEMA_OLDER,
     SCHEMA_VERSION_KEY,
     GraphStore,
@@ -98,6 +99,8 @@ def _unbuilt(
         "edges": 0,
         "stubs": 0,
         "last_commit": None,
+        "last_ref": None,
+        "head_ref": head_ref(config.root),
         "staleness": UNKNOWN,
         "next_tool_suggestions": _suggestions(servable, UNKNOWN, indexed=False),
         "index_root": config.index_root,
@@ -147,6 +150,8 @@ def _status(
         "indexed": indexed,
         **counts,
         "last_commit": last_commit,
+        "last_ref": store.get_meta(LAST_REF_KEY),
+        "head_ref": head_ref(config.root),
         "staleness": staleness,
         "next_tool_suggestions": _suggestions(servable, staleness, indexed=indexed),
         "index_root": config.index_root,
