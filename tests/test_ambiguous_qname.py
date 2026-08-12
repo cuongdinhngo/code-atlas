@@ -13,11 +13,10 @@ import shutil
 import sqlite3
 import subprocess
 from collections.abc import Iterator
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
-
-from dataclasses import replace
 
 from code_atlas.config import Config, load_config
 from code_atlas.indexer import full_build
