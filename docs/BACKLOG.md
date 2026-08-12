@@ -318,7 +318,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | 074 | 0 dispatch — prep half only; the n ≥ 3 runs need the anchor repo | [#93](https://github.com/cuongdinhngo/code-atlas/pull/93) |
 | 075 | 0 dispatch (review waived); two Docker full-suite runs for delta-green (**1094 passed**) | [#94](https://github.com/cuongdinhngo/code-atlas/pull/94) |
 | 076 | 0 dispatch — folded into 075's run; shared cost is the row above | [#94](https://github.com/cuongdinhngo/code-atlas/pull/94) |
-| 077 | 2 dispatch, unmeasured (explore + exposure-checker); review waived | _(this PR)_ |
+| 077 | 2 dispatch, unmeasured (explore + exposure-checker); review waived | [#96](https://github.com/cuongdinhngo/code-atlas/pull/96) |
 | — | Field retro round 4 + ticket-writing for 075–082: 0 dispatch. **No PR** — committed straight to `main` on the maintainer's instruction for docs-only changes | — |
 
 **How 047–049 were measured.** One autonomous session, no per-task transcript: each row is the API
