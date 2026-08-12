@@ -1,16 +1,17 @@
-"""Shared commit/dirty staleness vocabulary (tasks 047, 072).
+"""Shared commit/dirty staleness vocabulary (tasks 047, 072, 077).
 
-One source for ``staleness`` / ``last_commit`` / ``head_commit`` so ``get_index_status`` and the
-``build_or_update_index`` busy refusal speak one vocabulary, not two. Staleness counts only files
-the index covers (047): a dirty README is not a stale graph.
+One source for ``staleness`` / ``last_commit`` / ``head_commit`` / ``last_ref`` / ``head_ref`` so
+``get_index_status`` and the ``build_or_update_index`` busy refusal speak one vocabulary, not two.
+Staleness counts only files the index covers (047): a dirty README is not a stale graph. Refs name
+the revision humans reason in without re-modelling ``current``/``behind``/``unknown`` (077).
 """
 
 from __future__ import annotations
 
 from code_atlas.config import Config
-from code_atlas.gitutil import dirty_paths, head_commit
+from code_atlas.gitutil import dirty_paths, head_commit_and_ref
 from code_atlas.indexer import indexable
-from code_atlas.store import INDEXED_SUFFIXES_KEY, LAST_COMMIT_KEY, GraphStore
+from code_atlas.store import INDEXED_SUFFIXES_KEY, LAST_COMMIT_KEY, LAST_REF_KEY, GraphStore
 
 CURRENT = "current"
 BEHIND = "behind"
@@ -44,13 +45,41 @@ def staleness_of(last_commit: str | None, head: str | None, *, dirty: bool | Non
     return CURRENT
 
 
-def compute_staleness(store: GraphStore, config: Config) -> dict[str, str | None]:
-    """The three staleness fields ``get_index_status`` reports, reused on other payloads (072)."""
+OMIT: object = object()
+
+
+def last_ref_for_payload(store: GraphStore) -> str | None | object:
+    """Value for ``last_ref``, or ``OMIT`` when the index predates 077 (key absent, SHA present).
+
+    ``null`` means non-git / cleared — never "built before this field existed" (061 / 077).
+    """
+    if store.has_meta(LAST_REF_KEY):
+        return store.get_meta(LAST_REF_KEY)
+    if store.get_meta(LAST_COMMIT_KEY) is not None:
+        return OMIT
+    return None
+
+
+def compute_staleness(
+    store: GraphStore, config: Config, *, include_dirty_count: bool = False
+) -> dict[str, object]:
+    """Staleness fields for status and busy (072 / 077). One git HEAD read for SHA + ref.
+
+    ``last_ref`` is omitted (not null) when the index predates 077 so agents do not read
+    "non-git" off a current SHA index. Busy callers ignore ``dirty_indexed_files``.
+    """
     last_commit = store.get_meta(LAST_COMMIT_KEY)
-    head = head_commit(config.root)
-    dirty, _ = dirty_indexed(store, config)
-    return {
+    head, href = head_commit_and_ref(config.root)
+    dirty, dirty_count = dirty_indexed(store, config)
+    fields: dict[str, object] = {
         "last_commit": last_commit,
         "head_commit": head,
+        "head_ref": href,
         "staleness": staleness_of(last_commit, head, dirty=dirty),
     }
+    ref = last_ref_for_payload(store)
+    if ref is not OMIT:
+        fields["last_ref"] = ref
+    if include_dirty_count:
+        fields["dirty_indexed_files"] = dirty_count
+    return fields

@@ -2,8 +2,9 @@
 
 The field run: two clients raced ``build_or_update_index``; the loser returned ``mode: busy`` in
 0.0 s with no staleness, so a "refresh then investigate" agent read it as success and queried a
-stale index. The busy payload must now carry ``staleness``/``last_commit``/``head_commit`` (the
-``get_index_status`` vocabulary) plus ``performed: false`` — while exactly one build runs (053).
+stale index. The busy payload must now carry ``staleness``/``last_commit``/``head_commit``/
+``last_ref``/``head_ref`` (the ``get_index_status`` vocabulary) plus ``performed: false`` — while
+exactly one build runs (053).
 """
 
 from __future__ import annotations
@@ -58,6 +59,8 @@ def test_busy_refusal_carries_staleness_of_the_index_it_will_query(repo: Path) -
     assert result["reason"] == "another_build_running"
     assert result["last_commit"] == head
     assert result["head_commit"] == head
+    branch = git(repo, "rev-parse", "--abbrev-ref", "HEAD")
+    assert result["last_ref"] == result["head_ref"] == branch
 
 
 def test_busy_refusal_reports_behind_when_head_has_moved(repo: Path) -> None:
@@ -104,6 +107,8 @@ def test_busy_refusal_degrades_to_unknown_when_the_index_cannot_be_read(
     assert result["staleness"] == UNKNOWN
     assert result["last_commit"] is None
     assert result["head_commit"] is None
+    assert result["last_ref"] is None
+    assert result["head_ref"] is None
 
 
 def test_two_concurrent_builds_run_exactly_one_and_the_loser_carries_staleness(

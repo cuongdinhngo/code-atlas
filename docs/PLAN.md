@@ -243,7 +243,9 @@ echo json_encode(['path'=>$path,'ok'=>true,'nodes'=>$v->nodes,'edges'=>$v->edges
 3. Fan paths across **N adapter processes** (`max(1, min(cpu-2, 8))` — the floor keeps a 1–2-core host at one worker); per result hash bytes, upsert `files`, replace that file's `nodes`+bare `edges`. Single SQLite writer.
 
 **Bounding a silent adapter (deadline).** One watchdog thread per build arms a deadline of `CA_ADAPTER_TIMEOUT` seconds around every blocking adapter call — the handshake as well as a reply — and **kills the child** when it expires; the parked read then returns nothing and the driver raises. Disposition by call site: a **probe** boot that never announces is **loud** (no file is known yet, so there is nothing to record as unparsed — R5.3); a **worker** boot or a silent **reply** is **soft** — the worker retires or replaces its adapter, and the build returns. Every collected path leaves a `files` row, `parsed_ok=0` when nothing ever answered for it. Killing, rather than `select`, is deliberate: `select` does not work on Windows pipes.
-4. Store `meta.last_commit`, `contract_version`, `built_at`. `last_commit` is left **unset** when git cannot name one (no repo, no commit yet) rather than fabricated.
+4. Store `meta.last_commit`, `meta.last_ref` (077 — branch/ref name, or `HEAD` when detached),
+   `contract_version`, `built_at`. `last_commit` / `last_ref` are **cleared** when git cannot name
+   them (no repo, no commit yet) rather than left inheriting a prior build's stamp.
 5. Run **resolver** (§8.2), then report. **`BuildReport` counts what the run *wrote*, not what the graph holds** (task 051). Steps 3–4 tally adapter output, but enrichment (§13) and the resolver both insert rows afterwards — synthetic ALIASES/CALLS, and one sibling per extra candidate at a multi-match call site — so a report taken from the parse tally alone understates the graph it just built: 949,808 against 1,775,812 stored on the anchor repo, and 3,481 against 4,373 on a public PSR-4 library. Both writers now return what they wrote and the report folds it in, so a full build agrees with `store.counts()` (what `get_index_status` reports) while an incremental run still reports its own delta. The MCP tool nests those under `wrote` so a delta cannot be mistaken for a repo size; `standard` also carries `store.counts()` as `graph` (task 060 — not on `minimal`, which stays cheap). Rule edges keep a synthetic `file_path` bookmark with no `files` row and no File node (task 068), so `files`/`parsed` stay aligned with `BuildReport`.
 6. `nodes_fts` needs **no rebuild**: §10's triggers keep it current through every per-file replace, so a rebuild per build would cost a full re-index and change nothing. `GraphStore.rebuild_search_index` stays as the repair tool for a stale index.
 
@@ -265,7 +267,7 @@ uncommitted edits are visible to `full=false`). Add single-hop **dependents** (f
 into changed or departing symbols — including rename sources that git only reports as the new
 path); reparse `changed ∪ dependents` (hash-skip only unchanged *changed* paths — dependents are
 always reparsed so adapter tiers and duplicate keys stay intact); `resolve_edges`; bump
-`meta.last_commit`. `build_or_update_index(full=false)` runs this when `last_commit` and the diff
+`meta.last_commit` / `meta.last_ref`. `build_or_update_index(full=false)` runs this when `last_commit` and the diff
 are usable; otherwise it falls back to a full build and reports the mode that actually ran.
 Staleness stays `current | behind | unknown` (commit equality, or `behind` when the worktree is
 dirty). Tests use hermetic throwaway repos so CI can keep a shallow checkout. Field retros saw
@@ -322,7 +324,7 @@ CREATE VIRTUAL TABLE nodes_fts USING fts5(
 CREATE TRIGGER nodes_ai AFTER INSERT ON nodes BEGIN … END;   -- insert
 CREATE TRIGGER nodes_ad AFTER DELETE ON nodes BEGIN … END;   -- 'delete' with the OLD values
 CREATE TRIGGER nodes_au AFTER UPDATE ON nodes BEGIN … END;   -- 'delete' then insert
-CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);  -- schema_version, contract_version, last_commit, built_at
+CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);  -- schema_version, contract_version, last_commit, last_ref, built_at
 ```
 
 **`qualified_name` is unique per file, not globally.** Two files in one PHP namespace each emit a
@@ -385,8 +387,8 @@ Token-efficient: return qualified names + `file:line`, not bodies, unless a read
 
 | Tool | Key args | Returns |
 |---|---|---|
-| `get_index_status` | `detail_level?`, `offset?` | stats, last_commit, staleness, `next_tool_suggestions` (reactive: build when not current / no index, else empty — 061); **`index_root`** on every detail level (071 — source tree the answers describe); `standard` also `edge_health` (`by_tier` = trust tiers; `linked`/`unlinked` = whether an edge found any target at all), `parse_failures`, and **`db_path`** (with build reports; nav/search/read omit `db_path` — 061); `verbose` adds capped `parse_failure_paths` + `parse_failures_truncated` (058 — page size `PARSE_FAILURE_PATHS_LIMIT=50`, not `CA_MAX_RESULTS`; `offset` walks further pages). **Call first (~100 tok).** |
-| `build_or_update_index` | `full=false`, `detail_level?` | `wrote` (BuildReport — what this run wrote) + timing; `standard` also `graph` (`store.counts()` — 060; not on the cheap path) so scales are labelled. A concurrent writer returns `mode: "busy"`, `performed: false`, and the staleness of the index the loser would read — `staleness`/`last_commit`/`head_commit`, the `get_index_status` vocabulary (072) — so a refusal is not misread as a completed refresh; the read is read-only (053 unchanged) and lands only on the rare busy payload (061) |
+| `get_index_status` | `detail_level?`, `offset?` | stats, last_commit, staleness, `next_tool_suggestions` (reactive: build when not current / no index, else empty — 061); **`index_root`** on every detail level (071 — source tree the answers describe); **`last_ref`/`head_ref`** on every detail level when known (077 — human name of the revision the index was built on and HEAD is on now; `HEAD` when detached; `null` when non-git; **omitted** when the index predates 077 so `null` is not overloaded — staleness vocabulary unchanged); `standard` also `edge_health` (`by_tier` = trust tiers; `linked`/`unlinked` = whether an edge found any target at all), `parse_failures`, and **`db_path`** (with build reports; nav/search/read omit `db_path` — 061); `verbose` adds capped `parse_failure_paths` + `parse_failures_truncated` (058 — page size `PARSE_FAILURE_PATHS_LIMIT=50`, not `CA_MAX_RESULTS`; `offset` walks further pages). **Call first (~100 tok).** |
+| `build_or_update_index` | `full=false`, `detail_level?` | `wrote` (BuildReport — what this run wrote) + timing; `standard` also `graph` (`store.counts()` — 060; not on the cheap path) so scales are labelled. A concurrent writer returns `mode: "busy"`, `performed: false`, and the staleness of the index the loser would read — `staleness`/`last_commit`/`head_commit`/`last_ref`/`head_ref`, the `get_index_status` vocabulary (072 / 077) — so a refusal is not misread as a completed refresh; the read is read-only (053 unchanged) and lands only on the rare busy payload (061) |
 | `search_symbol` | `query, kind?, namespace?, limit?, offset?` | ranked `{qname, kind, file:line}` (FTS + name); stub hits add `stub: true` (039); `reason` + `total_count` (033); zero-hit may miss-repair the sole dirty indexed file or emit empty `index_stale`+`try_instead` when several are dirty (073); `offset` pages in search order (057) |
 | `file_outline` | `path` | symbols + line ranges, no body |
 | `read_symbol` | `qname` | source of just that class/method + docblock; stub symbols add `stub: true` (039); a qname with >1 definition adds `ambiguous_definitions` (each site's `file`/`line`/`kind`) — the shown source is one of them, and the payload names the rest, picking none (070) |

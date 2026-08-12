@@ -15,24 +15,16 @@ from collections.abc import Callable, Sequence
 from typing import Literal
 
 from code_atlas.config import Config
-from code_atlas.gitutil import head_commit
 from code_atlas.store import (
     BUILT_AT_KEY,
     CONTRACT_VERSION_KEY,
-    LAST_COMMIT_KEY,
     SCHEMA_OLDER,
     SCHEMA_VERSION_KEY,
     GraphStore,
     SchemaVersionError,
 )
 from code_atlas.tools import schema_guard
-from code_atlas.tools.staleness import (
-    BEHIND,
-    CURRENT,
-    UNKNOWN,
-    dirty_indexed,
-    staleness_of,
-)
+from code_atlas.tools.staleness import BEHIND, CURRENT, UNKNOWN, compute_staleness
 
 NAME = "get_index_status"
 
@@ -90,7 +82,11 @@ def _max_results_field(config: Config) -> dict[str, object]:
 def _unbuilt(
     servable: Sequence[str], detail_level: DetailLevel, config: Config
 ) -> dict[str, object]:
-    """No database file yet — say so cheaply rather than creating one to count zeroes."""
+    """No database file yet — say so cheaply rather than creating one to count zeroes.
+
+    No git spawn: an unbuilt reply must not block on a wedged ``rev-parse`` (077). Refs are null
+    beside ``last_commit``, matching every other unbuilt provenance field.
+    """
     status: dict[str, object] = {
         "indexed": False,
         "files": 0,
@@ -98,6 +94,8 @@ def _unbuilt(
         "edges": 0,
         "stubs": 0,
         "last_commit": None,
+        "last_ref": None,
+        "head_ref": None,
         "staleness": UNKNOWN,
         "next_tool_suggestions": _suggestions(servable, UNKNOWN, indexed=False),
         "index_root": config.index_root,
@@ -137,24 +135,22 @@ def _status(
     offset: int = 0,
 ) -> dict[str, object]:
     counts = store.counts()
-    last_commit = store.get_meta(LAST_COMMIT_KEY)
-    head = head_commit(config.root)
-    dirty, dirty_count = dirty_indexed(store, config)
-    staleness = staleness_of(last_commit, head, dirty=dirty)
+    revision = compute_staleness(store, config, include_dirty_count=True)
+    dirty_count = revision.pop("dirty_indexed_files")
+    staleness = str(revision["staleness"])
     indexed = counts["files"] > 0
 
     status: dict[str, object] = {
         "indexed": indexed,
         **counts,
-        "last_commit": last_commit,
-        "staleness": staleness,
+        **{k: v for k, v in revision.items() if k != "head_commit"},
         "next_tool_suggestions": _suggestions(servable, staleness, indexed=indexed),
         "index_root": config.index_root,
     }
     if detail_level == "minimal":
         return status
     enriched = status | {
-        "head_commit": head,
+        "head_commit": revision["head_commit"],
         "built_at": store.get_meta(BUILT_AT_KEY),
         "contract_version": store.get_meta(CONTRACT_VERSION_KEY),
         "schema_version": store.get_meta(SCHEMA_VERSION_KEY),

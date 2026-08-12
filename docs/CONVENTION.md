@@ -125,7 +125,11 @@ code-atlas/
   subset of `standard` (never a superset). After task 061, `db_path` provenance is only on
   `get_index_status` / `build_or_update_index` at `standard`; after task 071, **`index_root`** (the
   configured source tree) ships on every answer payload including status at every detail level —
-  identity of the tree, not the database file. For nav/search/read/outline/reach/explain, `minimal`
+  identity of the tree, not the database file. After task 077, status (and the busy build refusal
+  that shares its vocabulary) also names **`last_ref`/`head_ref`** — the human revision the index
+  was built on and HEAD is on now (`HEAD` when detached; `null` when non-git; omitted when the
+  index predates 077 so `null` is not read as "not under git"); nav payloads stay
+  on `index_root` only. For nav/search/read/outline/reach/explain, `minimal`
   and `standard` may share the same top-level keys.
   `get_index_status` also accepts `verbose` (task 058): `standard` plus a capped
   `parse_failure_paths` list (`PARSE_FAILURE_PATHS_LIMIT`, not `CA_MAX_RESULTS`) with optional
