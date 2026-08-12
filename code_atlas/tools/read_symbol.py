@@ -16,7 +16,9 @@ from code_atlas.tools.nav_result import (
     REASON_NAME_NOT_QUALIFIED,
     REASON_NO_SUCH_SYMBOL,
     REASON_OK,
+    REASON_SUBJECT_AMBIGUOUS,
     TRY_INSTEAD_FILE_OUTLINE,
+    TRY_INSTEAD_SEARCH_SYMBOL,
     attach_ambiguous_definitions,
     attach_name_not_qualified,
     attach_try_instead,
@@ -43,8 +45,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         Returns ``line_start…line_end`` for ``qname`` plus contiguous comments above. On hash drift,
         reparses that one file inline (035); returns ``stale: true`` and ``reason=index_stale`` when
         the file is missing, no adapter owns it, or repair fails. Stub-indexed nodes carry
-        ``stub: true`` (039); a qname with more than one definition adds ``ambiguous_definitions``
-        (070).
+        ``stub: true`` (039). A qname with more than one definition returns
+        ``reason=subject_ambiguous`` plus ``ambiguous_definitions`` and **no body** — empty
+        ``source``, no ``file``/``line_*`` — so one region's code cannot be read while ignoring the
+        list (070 warn; 078 refuse). ``try_instead`` points at ``search_symbol`` / ``file_outline``.
         """
         if not config.db_path.is_file():
             return _empty(
@@ -53,8 +57,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 db_path=str(config.db_path),
                 index_root=config.index_root,
             )
+        # +1 so CA_MAX_RESULTS=1 cannot hide a second definition (078).
+        fetch_limit = config.max_results + 1
         with GraphStore(config.db_path) as store:
-            rows = store.nodes_by_qualified_name(qname, limit=config.max_results)
+            rows = list(store.nodes_by_qualified_name(qname, limit=fetch_limit))
             guard = FreshnessGuard(config, store)
             if not rows:
                 status = guard.ensure_miss()
@@ -73,15 +79,18 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         TRY_INSTEAD_FILE_OUTLINE,
                     )
                 if status == "repaired":
-                    rows = store.nodes_by_qualified_name(qname, limit=config.max_results)
+                    rows = list(store.nodes_by_qualified_name(qname, limit=fetch_limit))
                 if not rows:
-                    # An exact miss is classified, never reported as reason=ok (075/076).
                     qname, rows, miss = _resolve_miss(
-                        store, config, qname, detail_level=detail_level
+                        store, config, qname, detail_level=detail_level, fetch_limit=fetch_limit
                     )
                     if miss is not None:
                         return miss
-            rel = str(rows[0]["file_path"])
+            # Refuse before freshness — the list needs no file bytes (078 review).
+            if len(rows) > 1:
+                return _refuse_ambiguous(qname, rows, detail_level=detail_level, config=config)
+            node = rows[0]
+            rel = str(node["file_path"])
             status = guard.ensure(rel)
             if status == "stale":
                 return _result(
@@ -94,19 +103,19 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     stale=True,
                     reason=REASON_INDEX_STALE,
                     file=rel,
-                    line_start=None,
-                    line_end=None,
                 )
             if status == "repaired":
-                rows = store.nodes_by_qualified_name(qname, limit=config.max_results)
+                rows = list(store.nodes_by_qualified_name(qname, limit=fetch_limit))
                 if not rows:
                     qname, rows, miss = _resolve_miss(
-                        store, config, qname, detail_level=detail_level
+                        store, config, qname, detail_level=detail_level, fetch_limit=fetch_limit
                     )
                     if miss is not None:
                         return miss
-                rel = str(rows[0]["file_path"])
-            node = rows[0]
+                if len(rows) > 1:
+                    return _refuse_ambiguous(qname, rows, detail_level=detail_level, config=config)
+                node = rows[0]
+                rel = str(node["file_path"])
             path = config.root / rel
             start_raw = node["line_start"]
             if not isinstance(start_raw, int):
@@ -115,7 +124,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             end_raw = node["line_end"]
             end = end_raw if isinstance(end_raw, int) else start
             source = _slice(path, start, end)
-            result = _result(
+            return _result(
                 qname,
                 source,
                 detail_level=detail_level,
@@ -129,14 +138,46 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 line_end=end,
                 stub=is_stub(node.get("extra")),
             )
-            # The source shown is one of N same-qname defs — name them all, pick none (task 070).
-            return attach_ambiguous_definitions(result, definition_sites(rows))
 
     return read_symbol
 
 
+def _refuse_ambiguous(
+    qname: str,
+    rows: list[dict[str, object]],
+    *,
+    detail_level: str,
+    config: Config,
+) -> dict[str, object]:
+    """No body when N>1 — list the sites; never reason=ok with empty source (075/078)."""
+    sites = definition_sites(rows)
+    stub = any(is_stub(row.get("extra")) for row in rows)
+    return attach_try_instead(
+        attach_ambiguous_definitions(
+            _result(
+                qname,
+                "",
+                detail_level=detail_level,
+                db_path=str(config.db_path),
+                index_root=config.index_root,
+                found=False,
+                stale=False,
+                reason=REASON_SUBJECT_AMBIGUOUS,
+                stub=stub,
+            ),
+            sites,
+        ),
+        TRY_INSTEAD_SEARCH_SYMBOL,
+    )
+
+
 def _resolve_miss(
-    store: GraphStore, config: Config, qname: str, *, detail_level: str
+    store: GraphStore,
+    config: Config,
+    qname: str,
+    *,
+    detail_level: str,
+    fetch_limit: int,
 ) -> tuple[str, list[dict[str, object]], dict[str, object] | None]:
     """Classify an exact miss: re-point a unique candidate (returns its rows), else a truthful miss.
 
@@ -145,9 +186,9 @@ def _resolve_miss(
     """
     resolution = classify_missing_subject(store, qname, limit=config.max_results)
     if resolution.status == "resolved_unique":
-        rows = store.nodes_by_qualified_name(resolution.qname, limit=config.max_results)
+        rows = list(store.nodes_by_qualified_name(resolution.qname, limit=fetch_limit))
         if rows:
-            return resolution.qname, list(rows), None
+            return resolution.qname, rows, None
     if resolution.status == "ambiguous":
         return qname, [], attach_name_not_qualified(
             _miss_result(qname, detail_level=detail_level, config=config,
@@ -241,11 +282,11 @@ def _result(
     }
     if reason is not None:
         payload["reason"] = reason
-    if found:
+    if file is not None:
         payload["file"] = file
-        if not stale:
-            payload["line_start"] = line_start
-            payload["line_end"] = line_end
-        if stub:
-            payload[contract.STUB_FLAG] = True
+    if found and not stale and line_start is not None:
+        payload["line_start"] = line_start
+        payload["line_end"] = line_end
+    if stub:
+        payload[contract.STUB_FLAG] = True
     return payload

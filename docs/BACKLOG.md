@@ -13,7 +13,6 @@ what landed, and what it cost* — narrative rationale lives in those three.
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
 | 074 | [Does the index harm mechanism questions? — resolve at n ≥ 3](tasks/074_does-the-index-harm-mechanism-questions.md) | Measure | in-progress | 055, 067, 045 |
-| 078 | [`ambiguous_definitions` warns while `source` silently ships one](tasks/078_ambiguous-payload-still-picks-one-definition.md) | Agent-trust | todo | 070, 043, 049 |
 | 079 | [`build_or_update_index` is the one payload with no `index_root`](tasks/079_build-payload-does-not-name-its-tree.md) | Agent-trust | todo | 071, 060 |
 | 080 | [No-op incremental costs ~56 s and reports 6,071 edges for 0 files](tasks/080_noop-incremental-cost-and-uninterpretable-writes.md) | Cost | todo | 052, 051, 060 |
 | 081 | [The four routing prompts have never been reachable by an agent](tasks/081_routing-prompts-are-not-in-the-agents-surface.md) | Agent-fit | todo | 069, 017, 038 |
@@ -28,9 +27,9 @@ what landed, and what it cost* — narrative rationale lives in those three.
 | 090 | [Onboarding — LLM summarizer behind the seam (opt-in)](tasks/090_llm-summarizer-impl.md) | Phase 3 / M12 | todo | 085, 088 |
 | 091 | [Onboarding — LLM layer-name refinement (opt-in)](tasks/091_llm-layer-refinement.md) | Phase 3 / M12 | todo | 084, 090 |
 
-**Order (round-4 tickets):** **078/079** (small, bounded) **→ 082** (makes 068 and 072 checkable
+**Order (round-4 tickets):** **079** (small, bounded) **→ 082** (makes 068 and 072 checkable
 at all) **→ 081 → 080** (cost, and last for the same reason 061 was). 075 → 076 shipped together;
-**077 shipped** (revision naming on status/busy).
+**077–078 shipped** (revision naming; refuse ambiguous body).
 **074's core needs the anchor repo** — only the pre-registered protocol has landed.
 
 **Then:** Phase 3 onboarding (083 → 091; M10 → M11 → M12) or Phase 2 language breadth — both are
@@ -141,6 +140,7 @@ this track are in [Open work](#open-work); everything below has landed.
 | 075 | [`read_symbol` answers `found: false` with `reason: "ok"` for a class the index holds](tasks/075_read-symbol-confident-zero-on-unnormalised-qname.md) | Agent-trust | done | 065, 070, 014 |
 | 076 | [A bare method name answers `no_such_symbol` while its qualified form has 82 callers](tasks/076_bare-name-subject-reads-as-absence.md) | Agent-trust | done | 054, 011, 013 |
 | 077 | [The index cannot name the revision it describes](tasks/077_index-cannot-name-the-revision-it-describes.md) | Agent-trust | done | 071, 047, 072 |
+| 078 | [`ambiguous_definitions` warns while `source` silently ships one](tasks/078_ambiguous-payload-still-picks-one-definition.md) | Agent-trust | done | 070, 043, 049 |
 
 ### Where these tickets came from
 
@@ -319,6 +319,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | 075 | 0 dispatch (review waived); two Docker full-suite runs for delta-green (**1094 passed**) | [#94](https://github.com/cuongdinhngo/code-atlas/pull/94) |
 | 076 | 0 dispatch — folded into 075's run; shared cost is the row above | [#94](https://github.com/cuongdinhngo/code-atlas/pull/94) |
 | 077 | 2 dispatch, unmeasured (explore + exposure-checker); review waived | [#96](https://github.com/cuongdinhngo/code-atlas/pull/96) |
+| 078 | 2 dispatch, unmeasured (explore + exposure-checker); review waived | [#97](https://github.com/cuongdinhngo/code-atlas/pull/97) |
 | — | Field retro round 4 + ticket-writing for 075–082: 0 dispatch. **No PR** — committed straight to `main` on the maintainer's instruction for docs-only changes | — |
 
 **How 047–049 were measured.** One autonomous session, no per-task transcript: each row is the API

@@ -1,5 +1,14 @@
 # Lessons — code-atlas
 
+## 078 — A warning field next to a body is ignorable; refuse the body
+`ambiguous_definitions` named every site and still shipped one region's `source`/`file`/`line_*`.
+Agents read the body and skip the list — the exact failure 070's caveat predicted. **Marking the
+chosen site (option 2) still relies on a second field; a disambiguator arg (option 3) is a large
+surface.** Prefer **refuse the body** when N>1: empty `source`, omit site keys, keep the list,
+`reason=subject_ambiguous` + `found=false` + `try_instead` (never `reason=ok` with an empty answer —
+075/076). Refuse **before** freshness and probe multiplicity with `max_results+1`. Unique payloads
+stay byte-identical (061). Re-ask via existing `search_symbol` / `file_outline`, not a new parameter.
+
 ## 077 — Name the revision with dual refs; do not invent a third staleness word
 `staleness: "current"` after an out-of-band branch switch + rebuild is *true* and still useless —
 agents reason in branch names, not SHAs. The temptation is a new word (`switched` / `diverged`).

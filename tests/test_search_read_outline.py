@@ -200,6 +200,7 @@ def test_read_symbol_refuses_stale_file_bytes(tmp_path: Path, store: GraphStore)
     assert result["found"] is True
     assert result["stale"] is True
     assert result["source"] == ""
+    assert result["file"] == "src/Doc.php"
 
 
 def test_trigram_fts_matches_camel_case(store: GraphStore) -> None:

@@ -24,6 +24,7 @@ NavReason = Literal[
     "relationship_not_modelled",
     "capability_not_configured",
     "name_not_qualified",
+    "subject_ambiguous",
 ]
 
 REASON_OK: NavReason = "ok"
@@ -37,6 +38,8 @@ REASON_RELATIONSHIP_NOT_MODELLED: NavReason = "relationship_not_modelled"
 REASON_CAPABILITY_NOT_CONFIGURED: NavReason = "capability_not_configured"
 # The subject is under-qualified: N indexed symbols end with it — ask a narrower question (075/076).
 REASON_NAME_NOT_QUALIFIED: NavReason = "name_not_qualified"
+# The subject qname has >1 definition — refuse a single-site body (078).
+REASON_SUBJECT_AMBIGUOUS: NavReason = "subject_ambiguous"
 
 NAV_REASONS: tuple[NavReason, ...] = (
     REASON_OK,
@@ -48,6 +51,7 @@ NAV_REASONS: tuple[NavReason, ...] = (
     REASON_RELATIONSHIP_NOT_MODELLED,
     REASON_CAPABILITY_NOT_CONFIGURED,
     REASON_NAME_NOT_QUALIFIED,
+    REASON_SUBJECT_AMBIGUOUS,
 )
 
 # Machine-stable alternate routes when reason is relationship_not_modelled (task 065).
@@ -288,7 +292,10 @@ AMBIGUOUS_DEFINITIONS = "ambiguous_definitions"
 
 
 def definition_sites(rows: list[Row]) -> list[dict[str, object]]:
-    """Shape definition nodes into ``{file, line, kind}`` sites, in ``_NODE_ORDER`` (R4)."""
+    """Shape definition nodes into ``{file, line, kind}`` sites, in ``_NODE_ORDER`` (R4).
+
+    ``stub: true`` is attached per site only when set (039 / 078) — omitted otherwise (061).
+    """
     sites: list[dict[str, object]] = []
     for row in rows:
         # One key per statement — R3.2 sole-source gate forbids a vocabulary dict literal.
@@ -296,6 +303,8 @@ def definition_sites(rows: list[Row]) -> list[dict[str, object]]:
         site["file"] = row["file_path"]
         site["line"] = row["line_start"]
         site["kind"] = row["kind"]
+        if is_stub(row.get("extra")):
+            site[contract.STUB_FLAG] = True
         sites.append(site)
     return sites
 
@@ -305,8 +314,9 @@ def attach_ambiguous_definitions(
 ) -> dict[str, object]:
     """Warn the subject qname is non-unique — attached only when >1 (task 070; 061 conditional).
 
-    Absent for a unique qname, so that payload is byte-identical to before. The list names the
-    definition sites; it never picks one (R4) — binding may be load-order dependent.
+    Absent for a unique qname, so that payload is byte-identical to before. The list names every
+    definition site and never picks one (R4) — binding may be load-order dependent. Body-returning
+    tools must not ship ``source``/site fields alongside this list (078).
     """
     if len(sites) > 1:
         payload[AMBIGUOUS_DEFINITIONS] = sites
