@@ -19,9 +19,9 @@ STATUSES = ("todo", "in-progress", "blocked", "deferred", "done")
 FRONTMATTER_STATUS = re.compile(r"^status:\s*(\S+)\s*$", re.MULTILINE)
 # `| 006 | [PHP adapter spike](…) | M0 | done | 002 |` — id, title, milestone, status, deps.
 TASK_ROW = re.compile(r"^\|\s*(\d{3})\s*\|[^|]*\|[^|]*\|\s*([a-z-]+)\s*\|", re.MULTILINE)
-# `| 006 | PHP adapter spike | …tokens… | [#13](…) |` — id, title, spend, PR link.
+# `| 006 | …tokens… | [#13](…) |` — id, spend, PR link (table compacted at ab41ee8).
 TOKEN_ROW = re.compile(
-    r"^\|\s*(\d{3})\s*\|[^|]*\|\s*(\S[^|]*?)\s*\|\s*(\S[^|]*?)\s*\|", re.MULTILINE
+    r"^\|\s*(\d{3})\s*\|\s*(\S[^|]*?)\s*\|\s*(\S[^|]*?)\s*\|", re.MULTILINE
 )
 
 

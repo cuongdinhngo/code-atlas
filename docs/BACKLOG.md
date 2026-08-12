@@ -19,15 +19,22 @@ what landed, and what it cost* — narrative rationale lives in those three.
 | 080 | [No-op incremental costs ~56 s and reports 6,071 edges for 0 files](tasks/080_noop-incremental-cost-and-uninterpretable-writes.md) | Cost | todo | 052, 051, 060 |
 | 081 | [The four routing prompts have never been reachable by an agent](tasks/081_routing-prompts-are-not-in-the-agents-surface.md) | Agent-fit | todo | 069, 017, 038 |
 | 082 | [Two claims nobody outside can check](tasks/082_claims-nobody-outside-can-check.md) | Agent-trust | todo | 068, 072, 028 |
-| 022 | [Onboarding — architecture overview + layers](tasks/022_architecture-overview.md) | Phase 3 / M10 | todo | 014 |
-| 023 | [Onboarding — guided tour + markdown docs](tasks/023_guided-tour-and-docs.md) | Phase 3 / M11 | todo | 022 |
+| 083 | [Onboarding — deterministic graph-metrics foundation](tasks/083_onboarding-graph-metrics.md) | Phase 3 / M10 | todo | 014, 031, 017 |
+| 084 | [Onboarding — architectural layer assignment](tasks/084_onboarding-layer-assignment.md) | Phase 3 / M10 | todo | 083 |
+| 085 | [Onboarding — Summarizer Protocol seam + deterministic default](tasks/085_onboarding-summarizer-seam.md) | Phase 3 / M10 | todo | 083 |
+| 086 | [Onboarding — architecture_overview tool](tasks/086_architecture-overview-tool.md) | Phase 3 / M10 | todo | 084, 085 |
+| 087 | [Onboarding — guided_tour tool](tasks/087_guided-tour-tool.md) | Phase 3 / M11 | todo | 083, 086 |
+| 088 | [Onboarding — generate_onboarding markdown + manifest](tasks/088_generate-onboarding-markdown.md) | Phase 3 / M11 | todo | 084, 086, 087 |
+| 089 | [Onboarding — static HTML viewer](tasks/089_onboarding-viewer.md) | Phase 3 / M11 | todo | 088 |
+| 090 | [Onboarding — LLM summarizer behind the seam (opt-in)](tasks/090_llm-summarizer-impl.md) | Phase 3 / M12 | todo | 085, 088 |
+| 091 | [Onboarding — LLM layer-name refinement (opt-in)](tasks/091_llm-layer-refinement.md) | Phase 3 / M12 | todo | 084, 090 |
 
 **Order (round-4 tickets):** **077 → 078/079** (small, bounded) **→ 082** (makes 068 and 072 checkable
 at all) **→ 081 → 080** (cost, and last for the same reason 061 was). 075 → 076 shipped together.
 **074's core needs the anchor repo** — only the pre-registered protocol has landed.
 
-**Then:** Phase 3 onboarding (022 → 023) or Phase 2 language breadth — both are unblocked by Phase 1.5;
-breadth stays deferred per §19.
+**Then:** Phase 3 onboarding (083 → 091; M10 → M11 → M12) or Phase 2 language breadth — both are
+unblocked by Phase 1.5; breadth stays deferred per §19.
 
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
 
