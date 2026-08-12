@@ -43,8 +43,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         Returns ``line_start…line_end`` for ``qname`` plus contiguous comments above. On hash drift,
         reparses that one file inline (035); returns ``stale: true`` and ``reason=index_stale`` when
         the file is missing, no adapter owns it, or repair fails. Stub-indexed nodes carry
-        ``stub: true`` (039); a qname with more than one definition adds ``ambiguous_definitions``
-        (070).
+        ``stub: true`` (039). A qname with more than one definition adds ``ambiguous_definitions``
+        and **refuses the body** — empty ``source``, no ``file``/``line_*`` — so an agent cannot
+        silently read one region's code (070 warn; 078 refuse). Re-ask via ``file_outline`` on a
+        site from the list, or ``search_symbol`` for the declarations.
         """
         if not config.db_path.is_file():
             return _empty(
@@ -81,9 +83,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     )
                     if miss is not None:
                         return miss
-            rel = str(rows[0]["file_path"])
-            status = guard.ensure(rel)
-            if status == "stale":
+            fresh = _refresh_definition_files(store, config, guard, qname, rows)
+            if fresh == "stale":
                 return _result(
                     qname,
                     "",
@@ -93,20 +94,31 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     found=True,
                     stale=True,
                     reason=REASON_INDEX_STALE,
-                    file=rel,
-                    line_start=None,
-                    line_end=None,
                 )
-            if status == "repaired":
-                rows = store.nodes_by_qualified_name(qname, limit=config.max_results)
-                if not rows:
-                    qname, rows, miss = _resolve_miss(
-                        store, config, qname, detail_level=detail_level
-                    )
-                    if miss is not None:
-                        return miss
-                rel = str(rows[0]["file_path"])
+            rows = fresh
+            if not rows:
+                qname, rows, miss = _resolve_miss(
+                    store, config, qname, detail_level=detail_level
+                )
+                if miss is not None:
+                    return miss
+            if len(rows) > 1:
+                # Refuse a silent single-site body — list the sites, ship no source (078).
+                return attach_ambiguous_definitions(
+                    _result(
+                        qname,
+                        "",
+                        detail_level=detail_level,
+                        db_path=str(config.db_path),
+                        index_root=config.index_root,
+                        found=True,
+                        stale=False,
+                        reason=REASON_OK,
+                    ),
+                    definition_sites(rows),
+                )
             node = rows[0]
+            rel = str(node["file_path"])
             path = config.root / rel
             start_raw = node["line_start"]
             if not isinstance(start_raw, int):
@@ -115,7 +127,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             end_raw = node["line_end"]
             end = end_raw if isinstance(end_raw, int) else start
             source = _slice(path, start, end)
-            result = _result(
+            return _result(
                 qname,
                 source,
                 detail_level=detail_level,
@@ -129,10 +141,28 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 line_end=end,
                 stub=is_stub(node.get("extra")),
             )
-            # The source shown is one of N same-qname defs — name them all, pick none (task 070).
-            return attach_ambiguous_definitions(result, definition_sites(rows))
 
     return read_symbol
+
+
+def _refresh_definition_files(
+    store: GraphStore,
+    config: Config,
+    guard: FreshnessGuard,
+    qname: str,
+    rows: list[dict[str, object]],
+) -> list[dict[str, object]] | Literal["stale"]:
+    """Ensure every definition file; re-fetch after repair. ``stale`` if any file cannot repair."""
+    repaired = False
+    for path in sorted({str(row["file_path"]) for row in rows}):
+        status = guard.ensure(path)
+        if status == "stale":
+            return "stale"
+        if status == "repaired":
+            repaired = True
+    if repaired:
+        return store.nodes_by_qualified_name(qname, limit=config.max_results)
+    return rows
 
 
 def _resolve_miss(
@@ -241,11 +271,11 @@ def _result(
     }
     if reason is not None:
         payload["reason"] = reason
-    if found:
+    if found and file is not None:
         payload["file"] = file
-        if not stale:
-            payload["line_start"] = line_start
-            payload["line_end"] = line_end
-        if stub:
-            payload[contract.STUB_FLAG] = True
+    if found and not stale and line_start is not None:
+        payload["line_start"] = line_start
+        payload["line_end"] = line_end
+    if found and stub:
+        payload[contract.STUB_FLAG] = True
     return payload

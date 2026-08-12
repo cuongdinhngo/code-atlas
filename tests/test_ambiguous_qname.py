@@ -150,14 +150,17 @@ def test_find_references_flags_ambiguous_subject(tmp_path: Path, store: GraphSto
     assert {str(s["file"]) for s in result[AMBIGUOUS_DEFINITIONS]} == {"a.php", "b.php"}
 
 
-def test_read_symbol_shows_one_definition_but_flags_the_rest(
+def test_read_symbol_refuses_body_when_ambiguous(
     tmp_path: Path, store: GraphStore
 ) -> None:
+    """078: ambiguous qname ships the list and no silent single-site body."""
     _seed_two_defs(store, tmp_path)
     result = read_symbol.create(db_config(tmp_path))("\\dup", detail_level="minimal")
     assert result["found"] is True
-    assert result["file"] in {"a.php", "b.php"}  # one definition is shown ...
-    # ... and the rest are named.
+    assert result["reason"] == "ok"
+    assert result["source"] == ""
+    assert "file" not in result
+    assert "line_start" not in result and "line_end" not in result
     assert {str(s["file"]) for s in result[AMBIGUOUS_DEFINITIONS]} == {"a.php", "b.php"}
 
 
@@ -180,3 +183,8 @@ def test_unique_qname_payload_omits_the_ambiguity_key(
     assert AMBIGUOUS_DEFINITIONS not in refs
     assert AMBIGUOUS_DEFINITIONS not in body
     assert callers["total_count"] == 1  # the one caller, unchanged
+    # Unique read still ships a body site (078 — unambiguous path unchanged).
+    assert body["found"] is True
+    assert body["source"]
+    assert body["file"] == "u.php"
+    assert "line_start" in body and "line_end" in body

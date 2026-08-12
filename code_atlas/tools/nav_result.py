@@ -305,8 +305,9 @@ def attach_ambiguous_definitions(
 ) -> dict[str, object]:
     """Warn the subject qname is non-unique — attached only when >1 (task 070; 061 conditional).
 
-    Absent for a unique qname, so that payload is byte-identical to before. The list names the
-    definition sites; it never picks one (R4) — binding may be load-order dependent.
+    Absent for a unique qname, so that payload is byte-identical to before. The list names every
+    definition site and never picks one (R4) — binding may be load-order dependent. Body-returning
+    tools must not ship ``source``/site fields alongside this list (078).
     """
     if len(sites) > 1:
         payload[AMBIGUOUS_DEFINITIONS] = sites

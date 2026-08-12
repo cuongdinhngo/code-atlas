@@ -14,6 +14,12 @@ sites under that one qname and offers no way to scope to a definition. The calle
 calls *this* one", and nothing in the payload warns that the question is ambiguous. On this index
 **22,261 qnames have more than one definition** — this is the common case, not an edge case.
 
+> **078 pointer.** "Never picks a winner" here scopes to the **`ambiguous_definitions` field** and
+> to edge-model scoping (which remains unanswerable). It does **not** license a body-returning tool
+> to ship one definition's `source`/`file`/`line_*` beside the list — that silent pick is closed by
+> [078](078_ambiguous-payload-still-picks-one-definition.md) (`read_symbol` refuses the body when
+> the list is present).
+
 ## Evidence (anchor repo, index built 2026-08-09, queried directly)
 ```
 \getActiveStatus  Function  legacy/alpha/web/include/member_transaction.php:20

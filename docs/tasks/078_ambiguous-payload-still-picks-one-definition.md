@@ -4,7 +4,7 @@ slug: ambiguous-payload-still-picks-one-definition
 title: '`ambiguous_definitions` warns about two declarations while `source` silently ships one of them'
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [070, 043, 049]
 ---
 
@@ -81,3 +81,172 @@ Related: [070](070_ambiguous-qname-no-scoping.md) (the warning field, and its ed
 [043](043_duplicate-decl-resilience.md) (why two nodes per qname are legitimate),
 [049](049_call-site-argument-selectivity.md) (the existing selectivity vocabulary),
 [046](046_resolver-qname-candidate-dedupe.md) (duplicate edges, already fixed at the cause).
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 078 — ambiguous payload still picks one definition (working doc)
+
+- **Ticket:** 078 · local `docs/tasks/078_ambiguous-payload-still-picks-one-definition.md`
+- **Type:** enhancement (agent-trust)
+- **Repo(s):** app (`.`)
+- **SCOPE:** M
+- **STRUCTURE:** native
+- **TRACK:** backend
+- **TIER:** full (review **skipped** by invoke)
+- **BASELINE:** green — `1115 passed in 48.95s` (`.venv/bin/pytest -q`, 2026-08-12)
+  <!-- baseline exclusions: none -->
+
+---
+
+## Phase 0 — Refine
+
+`REFINE: 4 unresolved surfaced | 0 want-decision asked | 6 how-decision resolved+cited | 2 ASSUMED | skip: no`
+
+**INPUT KIND:** ticket
+
+**Settled wants:** _(none asked — handed back)_
+
+**Resolved HOW (cited)**
+
+| # | HOW | Resolution | Citation |
+|---|-----|------------|----------|
+| 1 | 070 edge "never pick" vs body tools | 070 ruling is edge-model only; body tools are 078's call | ticket L47–49 |
+| 2 | Keep `reason=ok` | 070 kept reason orthogonal to the list | 070 rejected `reason=ambiguous_*` |
+| 3 | 049 ↔ disambiguator | N/A under refuse-body (no new arg) | exposure-checker; design 1 |
+| 4 | R4 chooser when body ships | N/A under full refuse — no body/site shipped | exposure-checker |
+| 5 | Re-ask without `file=` | Client uses `file_outline` / `search_symbol` on a site from `ambiguous_definitions` | ticket option 1; existing tools |
+| 6 | find_* / file_outline | find_* already warn without a body; file_outline is path-based (no qname body) | explore brief |
+
+**ASSUMED (awaiting ratification)**
+
+| # | Assumed choice | Why | Confirm at | Reverses? |
+|---|----------------|-----|------------|-----------|
+| 1 | **Design 1 — refuse body** when subject qname has >1 definition: `source=""`, omit `file`/`line_*`, keep `found=true` + `reason=ok` + `ambiguous_definitions` | Makes warning unignorable; avoids option-2 ignore-second-field failure; avoids option-3 API surface / 049 collision | Gate 1 | no |
+| 2 | **Defer** impact/explain_path single-site loc display (`_impact_node_loc`) to a follow-up — AC is body-shaped; this ticket ships `read_symbol` | Keeps SCOPE=M; inventory recorded | Gate 1 | no |
+
+**Exposure-checker:** 049/R4/re-ask → HOW #3–5. No further wants.
+
+---
+
+## Requirements matrix
+
+`SECTIONS: 6 found (Goal, Evidence, Choice, Scope, Constraints, AC) | 6 decomposed | ROWS: C=4 R=5 G=1 AC=4`
+
+| ID | Source | Verbatim | Interpretation | Ph1 evidence | Ph2 | Ph3/4 | Status |
+|----|--------|----------|----------------|--------------|-----|-------|--------|
+| G1 | Goal | payload picks one def while field warns | Body tools must not ship a silent single-site body when N>1 | `read_symbol.py:109-133` | CL1–3 | | ❌ |
+| R1 | Scope | One decision on every body/single-site tool | Refuse-body on `read_symbol`; find_* already OK; impact/explain deferred (ASSUMED #2) | ticket L52–54 | CL1,CL6 | | ❌ |
+| R2 | Scope | Ambiguity impossible to miss | No `source` / site fields when N>1 | ticket L54–55 | CL1 | | ❌ |
+| R3 | Scope | Unique case byte-identical | Key absent; body unchanged | 061; test unique | CL4 | | ❌ |
+| R4 | Scope | 049 interaction | N/A — no disambiguator arg | ticket L57–58 | — | | ✅ |
+| R5 | Scope | Two-region fixture | Existing ambiguous fixture / in-memory two defs | `test_ambiguous_qname.py` | CL4 | | ❌ |
+| C1 | Constraint | R2 — no repo names | Fixture abstract | ENGINEERING_RULES R2 | CL4 | | ❌ |
+| C2 | Constraint | R3 — new field/param bumps contract | No new field/param — omit existing | R3 | — | | ✅ |
+| C3 | Constraint | R4 — deterministic if any pick | Full refuse → N/A | ticket L65–66 | CL1 | | ✅ |
+| C4 | Constraint | 061 — nothing on unambiguous | Conditional path only | 061 | CL4 | | ❌ |
+| AC1 | AC | No body without naming chosen decl | Refuse: no body at all when N>1 | ticket L70–71 | CL4 | | ❌ |
+| AC2 | AC | Unambiguous byte-identical | Assert key absent + body fields | ticket L72 | CL4 | | ❌ |
+| AC3 | AC | Document list + body rule + load-order | Tool docstring + PLAN + 070 pointer | ticket L73–74 | CL5 | | ❌ |
+| AC4 | AC | 070 updated with pointer | Scope "never picks" to the field | ticket L75–76 | CL5 | | ❌ |
+
+## AC validation
+
+| AC | Ticket | Computed | Match? | Falsifiable? |
+|----|--------|----------|--------|--------------|
+| AC1 | no body without naming chosen | refuse ⇒ no source/file/line when N>1 + list present | Y | pytest |
+| AC2 | unique unchanged | freeze unique payload keys/values vs pre-change shape | Y | pytest |
+| AC3 | docs together | grep tool docstring + PLAN | Y | grep |
+| AC4 | 070 pointer | edit 070 | Y | grep |
+
+## Clarifications
+
+`CLARIFICATION: 2 raised | 2 ASSUMED (standing best-option) | 0 for human decision`
+
+---
+
+## Phase 1 — Analysis ✋ Gate 1
+
+- **Gap:** `read_symbol` attaches `ambiguous_definitions` but still fills `source`/`file`/`line_*` from `rows[0]` (`_NODE_ORDER`). Agents read `source` and ignore the list.
+- **Blast radius:** `read_symbol.py`; `test_ambiguous_qname.py` (locks today's bug); PLAN §12; 070 task text; `nav_result.attach_*` docstring. find_* unchanged. impact/explain deferred.
+- **RULE SECTIONS:** R2 ✅ · R3 N/A (no new vocab) · R4 ✅ · R6.1 ✅ · 061 ✅
+- **Gate 1 status:** **cleared** (standing approval; ASSUMED #1–#2 ratified)
+- **TIER:** full · review waived · **SCOPE:** M
+
+---
+
+## Phase 2 — Design ✋ Gate 2
+
+- **Approach:** When `nodes_by_qualified_name` returns >1 row, `read_symbol` returns `found=true`, `reason=ok`, `source=""`, omits `file`/`line_start`/`line_end`, attaches `ambiguous_definitions`. Freshness: ensure each distinct def file (repair), re-fetch, then apply the same rule. Unique path unchanged. Update tool docstring (re-ask via `file_outline`/`search_symbol`). Rewrite proving test. Update PLAN + 070 pointer. Docstring on `attach_ambiguous_definitions`: list never picks; body tools must not either (078).
+
+- **Rejected:** (2) mark chosen — still ignoreable. (3) `file=` arg — largest surface + 049 risk.
+
+**Assumptions**
+
+| Assumption | Tag | Proof |
+|------------|-----|-------|
+| Omitting site keys when found=true is valid for clients | verified | stale path already omits lines; tests updated |
+| No contract bump | verified | no new field/param |
+
+**Change-list**
+
+| # | Change | File | Rows |
+|---|--------|------|------|
+| CL1 | Refuse body when N>1 | `read_symbol.py` | G1,R1,R2,AC1,C3 |
+| CL2 | `_result` omit file/lines when None | `read_symbol.py` | R2 |
+| CL3 | attach docstring + PLAN wording | `nav_result.py`, `PLAN.md` | AC3 |
+| CL4 | Rewrite ambiguous read test + unique assert | `tests/test_ambiguous_qname.py` | AC1,AC2,R3,R5,C4 |
+| CL5 | 070 pointer + tool docstring | `070_…md`, `read_symbol` docstring | AC3,AC4 |
+| CL6 | BACKLOG / LESSONS / ticket status on finalise | docs | bookkeeping |
+
+**Proving test:** `test_read_symbol_refuses_body_when_ambiguous` — two defs → `source==""`, no `file`, `ambiguous_definitions` has both. Unique payload still omits key.
+
+**Verification plan:** AC1–4 integration/docs ✅ layer-match. Coverage-gap: impact/explain deferred (ASSUMED #2) ⚠.
+
+- **Gate 2 status:** **cleared** (standing approval)
+
+---
+
+## Phase 3 — Execute
+- Branch: `feat/078-ambiguous-payload-still-picks-one-definition`
+- Proving test: `test_read_symbol_refuses_body_when_ambiguous`
+- Verification sweep: diff ⊆ CL1–CL6 ✅; Approach bullets implemented-as-approved ✅
+- Full suite: **1115 passed**. Design-invalidation: none
+
+
+## Phase 4 — Review ✋
+- **Skipped** by invoke.
+
+## Phase 5 — Finalise ✋
+- PR draft: `/tmp/pr-078.md`
+- Outward actions (invoke-approved): commit + push + open PR
+- Durable lesson: `docs/LESSONS.md` (078 refuse body)
+
+
+---
+
+## Cost ledger
+
+| Phase | Subagent / dispatch | Round | Tokens | Optimizer |
+|-------|---------------------|-------|--------|-----------|
+| 0 | explore (context) | 1 | unmeasured (blocking retrieval) | rtk expect |
+| 0 | challenger (exposure-checker) | 1 | unmeasured (blocking retrieval) | rtk expect |
+
+`LEDGER TOTAL: unmeasured (2 blocking) · top: Phase 0 explore + exposure-checker`
+
+---
+
+## Decision log
+
+| When | Decision | Why |
+|------|----------|-----|
+| Gate 1 | ASSUMED #1 refuse-body ratified | standing best-option |
+| Gate 1 | ASSUMED #2 defer impact/explain | SCOPE M; AC is body |
+| Gate 1–2 | review waived | invoke |
+
+## Session status
+
+- **Last updated:** 2026-08-12
+- **work_doc_mode:** embed → `docs/tasks/078_ambiguous-payload-still-picks-one-definition.md`
+- **Current phase:** Phase 5 — Finalise
+- **Next action:** commit + push + open PR
+- **Blocked on:** nothing
