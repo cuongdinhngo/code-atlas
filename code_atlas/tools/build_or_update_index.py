@@ -86,7 +86,7 @@ def _busy(config: Config, *, full: bool, started: float) -> dict[str, object]:
     }
 
 
-def _unknown_staleness() -> dict[str, str | None]:
+def _unknown_staleness() -> dict[str, object]:
     """Soft degrade for a busy refusal that cannot read the index (072 / 077)."""
     return {
         "staleness": UNKNOWN,
@@ -97,7 +97,7 @@ def _unknown_staleness() -> dict[str, str | None]:
     }
 
 
-def _busy_staleness(config: Config) -> dict[str, str | None]:
+def _busy_staleness(config: Config) -> dict[str, object]:
     """Best-effort staleness of the index the loser will read; never raises (R5.3, C2).
 
     ``WRITE_ERRORS`` guards the cold-start race: a first build in flight leaves the DB file present

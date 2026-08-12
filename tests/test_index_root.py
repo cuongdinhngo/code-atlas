@@ -75,6 +75,8 @@ def test_index_root_is_configured_root_not_process_cwd(tmp_path: Path) -> None:
     for payload in (status, search, callers, outline):
         assert payload["index_root"] == expected
     assert "db_path" not in search and "db_path" not in callers and "db_path" not in outline
+    assert status["last_ref"] == status["head_ref"]
+    assert status["head_ref"] is not None
 
 
 def test_status_reports_index_root_beside_db_path(tmp_path: Path) -> None:

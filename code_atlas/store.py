@@ -374,6 +374,11 @@ class GraphStore:
         row = self._conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
         return None if row is None else str(row[0])
 
+    def has_meta(self, key: str) -> bool:
+        """True when the key exists — distinguishes absent (pre-077) from a stamped null-clear."""
+        row = self._conn.execute("SELECT 1 FROM meta WHERE key = ?", (key,)).fetchone()
+        return row is not None
+
     def set_meta(self, key: str, value: str) -> None:
         with self._conn:
             self._conn.execute(
@@ -381,6 +386,11 @@ class GraphStore:
                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                 (key, value),
             )
+
+    def delete_meta(self, key: str) -> None:
+        """Drop a meta row so a rebuild cannot inherit a stale stamp (077)."""
+        with self._conn:
+            self._conn.execute("DELETE FROM meta WHERE key = ?", (key,))
 
     def rebuild_search_index(self) -> None:
         """Repair only: the triggers keep nodes_fts current, so this just recovers a stale index."""

@@ -703,16 +703,19 @@ def _write(
 
 
 def _record_meta(config: Config, store: GraphStore, suffixes: Sequence[str]) -> None:
-    """Stamp the build (§8.1 step 4). Commit/ref stay unset when git cannot name them."""
+    """Stamp the build (§8.1 step 4). Clear commit/ref when git cannot name them (077)."""
     store.set_meta(CONTRACT_VERSION_KEY, str(contract.CONTRACT_VERSION))
     store.set_meta(BUILT_AT_KEY, store.now())
     store.set_meta(INDEXED_SUFFIXES_KEY, ",".join(sorted({s.lower() for s in suffixes})))
-    commit = gitutil.head_commit(config.root)
+    commit, ref = gitutil.head_commit_and_ref(config.root)
     if commit is not None:
         store.set_meta(LAST_COMMIT_KEY, commit)
-    ref = gitutil.head_ref(config.root)
+    else:
+        store.delete_meta(LAST_COMMIT_KEY)
     if ref is not None:
         store.set_meta(LAST_REF_KEY, ref)
+    else:
+        store.delete_meta(LAST_REF_KEY)
 
 
 def _suffix(path: str) -> str:

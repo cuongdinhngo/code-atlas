@@ -26,18 +26,30 @@ def ls_files(root: Path) -> tuple[str, ...] | None:
 
 def head_commit(root: Path) -> str | None:
     """The commit the working tree is at, or None when there is no repo or no commit yet."""
-    found = _run(root, "rev-parse", "HEAD")
-    return None if found is None else (found.strip() or None)
+    commit, _ = head_commit_and_ref(root)
+    return commit
 
 
 def head_ref(root: Path) -> str | None:
-    """Branch/ref name at HEAD, ``HEAD`` when detached, or None when git cannot answer (077).
+    """Branch/ref name at HEAD, ``HEAD`` when detached, or None when git cannot answer (077)."""
+    _, ref = head_commit_and_ref(root)
+    return ref
 
-    ``rev-parse --abbrev-ref HEAD`` is the short name agents reason in; detached checkouts report
-    the literal ``HEAD`` (a value, not an omission — 061).
+
+def head_commit_and_ref(root: Path) -> tuple[str | None, str | None]:
+    """SHA and abbrev-ref from one ``rev-parse`` — one HEAD read, no mid-call drift (077).
+
+    Detached checkouts report the literal ``HEAD`` as the ref (a value, not an omission — 061).
     """
-    found = _run(root, "rev-parse", "--abbrev-ref", "HEAD")
-    return None if found is None else (found.strip() or None)
+    found = _run(root, "rev-parse", "HEAD", "--abbrev-ref", "HEAD")
+    if found is None:
+        return None, None
+    lines = [line.strip() for line in found.splitlines() if line.strip()]
+    if not lines:
+        return None, None
+    commit = lines[0] or None
+    ref = lines[1] if len(lines) > 1 else None
+    return commit, ref or None
 
 
 def changed_paths(root: Path, since: str) -> tuple[str, ...] | None:

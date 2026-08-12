@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from code_atlas.config import load_config
 from code_atlas.store import GraphStore
 from code_atlas.tools import get_index_status
@@ -105,8 +107,12 @@ def test_parse_failures_is_zero_on_a_clean_graph(tmp_path: Path) -> None:
     assert tool(detail_level="standard")["parse_failures"] == 0
 
 
-def test_minimal_payload_stays_byte_identical_to_the_pre_health_shape(tmp_path: Path) -> None:
+def test_minimal_payload_stays_byte_identical_to_the_pre_health_shape(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """AC3: health fields stay standard-only; stubs (039) is on both levels."""
+    # Isolate from an enclosing git worktree so live head_ref stays null (077).
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.resolve()))
     db_path = tmp_path / ".code-atlas" / "graph.db"
     db_path.parent.mkdir(parents=True)
     _plant_health_graph(db_path)

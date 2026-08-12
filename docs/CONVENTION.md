@@ -127,7 +127,8 @@ code-atlas/
   configured source tree) ships on every answer payload including status at every detail level —
   identity of the tree, not the database file. After task 077, status (and the busy build refusal
   that shares its vocabulary) also names **`last_ref`/`head_ref`** — the human revision the index
-  was built on and HEAD is on now (`HEAD` when detached; `null` when non-git); nav payloads stay
+  was built on and HEAD is on now (`HEAD` when detached; `null` when non-git; omitted when the
+  index predates 077 so `null` is not read as "not under git"); nav payloads stay
   on `index_root` only. For nav/search/read/outline/reach/explain, `minimal`
   and `standard` may share the same top-level keys.
   `get_index_status` also accepts `verbose` (task 058): `standard` plus a capped

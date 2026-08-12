@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
-import pytest
-
-from code_atlas import gitutil
 from code_atlas.config import load_config
+from code_atlas.indexer import full_build
+from code_atlas.store import LAST_COMMIT_KEY, LAST_REF_KEY, GraphStore
 from code_atlas.tools import get_index_status
 from tests.test_incremental import committed, fake_env, git
 from tests.test_mcp_server import BUILD, build_server, call, committed_repo, served_config
@@ -69,34 +67,41 @@ def test_non_git_directory_degrades_without_raising(tmp_path: Path) -> None:
     assert found["staleness"] == "unknown"
 
 
-def test_git_failure_returns_none_not_raise(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_rebuild_without_git_clears_stale_last_ref(tmp_path: Path) -> None:
+    """A rebuild that cannot name a ref must not inherit the prior branch stamp."""
     committed(tmp_path, {SOURCE: "<?php class A {}\n"})
-    monkeypatch.setattr(gitutil, "_run", lambda *a, **k: None)
+    db_path = tmp_path / ".code-atlas" / "graph.db"
+    config = load_config(tmp_path, {**fake_env(), "CA_DB_PATH": str(db_path)})
+    with GraphStore(db_path) as store:
+        full_build(config, store)
+        assert store.get_meta(LAST_REF_KEY) is not None
 
-    assert gitutil.head_ref(tmp_path) is None
-
-
-def test_worktree_mismatch_revealed_by_index_root(tmp_path: Path) -> None:
-    """AC4: when server root ≠ caller cwd, index_root is the revealing field (071/077)."""
-    repo = tmp_path / "indexed-tree"
-    repo.mkdir()
-    committed_repo(repo, "src/a.aa")
-    elsewhere = tmp_path / "agent-cwd"
-    elsewhere.mkdir()
-    config = load_config(repo, fake_env())
-
-    previous = Path.cwd()
+    git_dir = tmp_path / ".git"
+    git_dir.rename(tmp_path / ".git.bak")
     try:
-        os.chdir(elsewhere)
-        server = build_server(config)
-        call(server, BUILD, {})
-        found = call(server, "get_index_status", {"detail_level": "minimal"})
+        with GraphStore(db_path) as store:
+            full_build(config, store)
+            assert not store.has_meta(LAST_REF_KEY)
+            assert not store.has_meta(LAST_COMMIT_KEY)
     finally:
-        os.chdir(previous)
+        (tmp_path / ".git.bak").rename(git_dir)
 
-    assert found["index_root"] == str(config.root.resolve())
-    assert found["index_root"] != str(elsewhere.resolve())
-    assert found["last_ref"] == found["head_ref"]
+    found = status(tmp_path, db_path)
+    assert found["last_ref"] is None
+    assert found["last_commit"] is None
+
+
+def test_pre_077_index_omits_last_ref_rather_than_claiming_non_git(tmp_path: Path) -> None:
+    """Absent last_ref key + present last_commit ⇒ omit the field (not null=non-git)."""
+    committed(tmp_path, {SOURCE: "<?php class A {}\n"})
+    db_path = build_index(tmp_path)
+    with GraphStore(db_path) as store:
+        store.delete_meta(LAST_REF_KEY)
+        assert store.get_meta(LAST_COMMIT_KEY) is not None
+        assert not store.has_meta(LAST_REF_KEY)
+
+    found = status(tmp_path, db_path)
+
+    assert "last_ref" not in found
     assert found["head_ref"] is not None
+    assert found["last_commit"] is not None
