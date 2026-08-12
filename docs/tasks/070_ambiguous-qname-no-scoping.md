@@ -18,7 +18,7 @@ calls *this* one", and nothing in the payload warns that the question is ambiguo
 > to edge-model scoping (which remains unanswerable). It does **not** license a body-returning tool
 > to ship one definition's `source`/`file`/`line_*` beside the list — that silent pick is closed by
 > [078](078_ambiguous-payload-still-picks-one-definition.md) (`read_symbol` refuses the body when
-> the list is present).
+> the list is present — `reason=subject_ambiguous`, no `source`/`file`/`line_*`).
 
 ## Evidence (anchor repo, index built 2026-08-09, queried directly)
 ```

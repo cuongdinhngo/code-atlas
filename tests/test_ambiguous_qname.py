@@ -17,11 +17,17 @@ from pathlib import Path
 
 import pytest
 
+from dataclasses import replace
+
 from code_atlas.config import Config, load_config
 from code_atlas.indexer import full_build
 from code_atlas.store import GraphStore
 from code_atlas.tools import find_callers, find_references, read_symbol, search_symbol
-from code_atlas.tools.nav_result import AMBIGUOUS_DEFINITIONS
+from code_atlas.tools.nav_result import (
+    AMBIGUOUS_DEFINITIONS,
+    REASON_SUBJECT_AMBIGUOUS,
+    TRY_INSTEAD_SEARCH_SYMBOL,
+)
 from tests.test_nav_tools import PHP, PHP_ENTRY, db_config, edge, needs_php, node, seed_file
 
 AMBIGUOUS_FIXTURES = Path(__file__).resolve().parent / "fixtures" / "php" / "ambiguous"
@@ -156,12 +162,56 @@ def test_read_symbol_refuses_body_when_ambiguous(
     """078: ambiguous qname ships the list and no silent single-site body."""
     _seed_two_defs(store, tmp_path)
     result = read_symbol.create(db_config(tmp_path))("\\dup", detail_level="minimal")
-    assert result["found"] is True
-    assert result["reason"] == "ok"
+    assert result["found"] is False
+    assert result["reason"] == REASON_SUBJECT_AMBIGUOUS
     assert result["source"] == ""
+    assert result["try_instead"] == TRY_INSTEAD_SEARCH_SYMBOL
     assert "file" not in result
     assert "line_start" not in result and "line_end" not in result
     assert {str(s["file"]) for s in result[AMBIGUOUS_DEFINITIONS]} == {"a.php", "b.php"}
+
+
+def test_read_symbol_refuses_even_when_max_results_is_one(
+    tmp_path: Path, store: GraphStore
+) -> None:
+    """078: CA_MAX_RESULTS=1 must not hide a second definition and ship one body."""
+    _seed_two_defs(store, tmp_path)
+    config = replace(db_config(tmp_path), max_results=1)
+    result = read_symbol.create(config)("\\dup", detail_level="minimal")
+    assert result["reason"] == REASON_SUBJECT_AMBIGUOUS
+    assert result["source"] == ""
+    assert AMBIGUOUS_DEFINITIONS in result
+    assert len(result[AMBIGUOUS_DEFINITIONS]) >= 2
+
+
+def test_read_symbol_refuses_when_secondary_definition_file_is_gone(
+    tmp_path: Path, store: GraphStore
+) -> None:
+    """078: refuse before freshness — a drifted secondary file must not collapse to index_stale."""
+    _seed_two_defs(store, tmp_path)
+    (tmp_path / "b.php").unlink()
+    result = read_symbol.create(db_config(tmp_path))("\\dup", detail_level="minimal")
+    assert result["reason"] == REASON_SUBJECT_AMBIGUOUS
+    assert result.get("stale") is False
+    assert {str(s["file"]) for s in result[AMBIGUOUS_DEFINITIONS]} == {"a.php", "b.php"}
+    assert result["source"] == ""
+
+
+def test_read_symbol_ambiguous_stub_defs_carry_stub_marker(
+    tmp_path: Path, store: GraphStore
+) -> None:
+    """078/039: refusal still surfaces stub when any definition is stub-indexed."""
+    stub_a = node("Function", "dup", "\\dup", "a.php")
+    stub_a["extra"] = '{"stub": true}'
+    stub_b = node("Function", "dup", "\\dup", "b.php")
+    stub_b["extra"] = '{"stub": true}'
+    seed_file(store, "a.php", [stub_a], [], root=tmp_path)
+    seed_file(store, "b.php", [stub_b], [], root=tmp_path)
+    result = read_symbol.create(db_config(tmp_path))("\\dup", detail_level="minimal")
+    assert result["reason"] == REASON_SUBJECT_AMBIGUOUS
+    assert result.get("stub") is True
+    for site in result[AMBIGUOUS_DEFINITIONS]:
+        assert site.get("stub") is True
 
 
 def test_unique_qname_payload_omits_the_ambiguity_key(

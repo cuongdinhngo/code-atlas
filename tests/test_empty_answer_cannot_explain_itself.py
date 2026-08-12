@@ -16,6 +16,7 @@ from code_atlas.tools.nav_result import (
     REASON_NO_MATCHES,
     REASON_OK,
     REASON_RELATIONSHIP_NOT_MODELLED,
+    REASON_SUBJECT_AMBIGUOUS,
     TRY_INSTEAD_FIND_REFERENCES_ON_METHOD_QNAME,
     TRY_INSTEAD_PATH_BASENAME_SEARCH,
 )
@@ -191,5 +192,6 @@ def test_include_graph_imported_by_genuine_empty_has_no_unresolved_field(
 def test_reason_vocabulary_pins_relationship_not_modelled() -> None:
     assert REASON_RELATIONSHIP_NOT_MODELLED in NAV_REASONS
     assert REASON_CAPABILITY_NOT_CONFIGURED in NAV_REASONS
-    # 075/076 appended name_not_qualified as the newest reason, after capability_not_configured.
-    assert NAV_REASONS[-1] == REASON_NAME_NOT_QUALIFIED
+    assert REASON_NAME_NOT_QUALIFIED in NAV_REASONS
+    # 078 appended subject_ambiguous as the newest reason (tool vocab — not CONTRACT_VERSION).
+    assert NAV_REASONS[-1] == REASON_SUBJECT_AMBIGUOUS

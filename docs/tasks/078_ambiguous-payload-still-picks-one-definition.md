@@ -121,7 +121,7 @@ Related: [070](070_ambiguous-qname-no-scoping.md) (the warning field, and its ed
 
 | # | Assumed choice | Why | Confirm at | Reverses? |
 |---|----------------|-----|------------|-----------|
-| 1 | **Design 1 — refuse body** when subject qname has >1 definition: `source=""`, omit `file`/`line_*`, keep `found=true` + `reason=ok` + `ambiguous_definitions` | Makes warning unignorable; avoids option-2 ignore-second-field failure; avoids option-3 API surface / 049 collision | Gate 1 | no |
+| 1 | **Design 1 — refuse body** when subject qname has >1 definition: `source=""`, omit `file`/`line_*`, `found=false` + `reason=subject_ambiguous` + `try_instead` + `ambiguous_definitions` (PR review: never `reason=ok` on an empty answer — 075/076) | Makes warning unignorable; avoids option-2 ignore-second-field failure; avoids option-3 API surface / 049 collision | Gate 1 | no |
 | 2 | **Defer** impact/explain_path single-site loc display (`_impact_node_loc`) to a follow-up — AC is body-shaped; this ticket ships `read_symbol` | Keeps SCOPE=M; inventory recorded | Gate 1 | no |
 
 **Exposure-checker:** 049/R4/re-ask → HOW #3–5. No further wants.
@@ -176,7 +176,9 @@ Related: [070](070_ambiguous-qname-no-scoping.md) (the warning field, and its ed
 
 ## Phase 2 — Design ✋ Gate 2
 
-- **Approach:** When `nodes_by_qualified_name` returns >1 row, `read_symbol` returns `found=true`, `reason=ok`, `source=""`, omits `file`/`line_start`/`line_end`, attaches `ambiguous_definitions`. Freshness: ensure each distinct def file (repair), re-fetch, then apply the same rule. Unique path unchanged. Update tool docstring (re-ask via `file_outline`/`search_symbol`). Rewrite proving test. Update PLAN + 070 pointer. Docstring on `attach_ambiguous_definitions`: list never picks; body tools must not either (078).
+- **Approach:** When `nodes_by_qualified_name` returns >1 row (probe `limit=max_results+1`), `read_symbol` returns `found=false`, `reason=subject_ambiguous`, `source=""`, omits `file`/`line_start`/`line_end`, attaches `ambiguous_definitions` + `try_instead: search_symbol` (and `stub` when any site is stub). Refuse **before** freshness — only a unique definition's file is ensured (align with find_*). Unique path unchanged. Update tool docstring. Rewrite proving test + cover max_results=1 / secondary-file drift / stub. Update PLAN + 070 pointer. Docstring on `attach_ambiguous_definitions`: list never picks; body tools must not either (078).
+
+**PR #97 review follow-ups (applied):** refuse-before-freshness; restore unique `index_stale.file`; `subject_ambiguous` reason (tool vocab, no `CONTRACT_VERSION` bump); `max_results+1` probe; stub on refusal + per-site; drop multi-file refresh helper; tests for drift/`max_results=1`/stub.
 
 - **Rejected:** (2) mark chosen — still ignoreable. (3) `file=` arg — largest surface + 049 risk.
 
