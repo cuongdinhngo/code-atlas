@@ -1,0 +1,351 @@
+<title>code-atlas — Phase 3 Onboarding roadmap</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --ground:#f6f8fa; --surface:#ffffff; --surface-2:#eef2f6; --panel:#e9eef3;
+    --ink:#141d27; --ink-soft:#4c5a6a; --ink-faint:#7c8a9a;
+    --hairline:#d7dee6; --hairline-2:#c3cdd8;
+    --core:#137a68; --core-bg:#dff0ec;
+    --present:#a5641a; --present-bg:#f7ead8;
+    --llm:#6a53c9; --llm-bg:#e9e4f8;
+    --done:#2f7d4f; --defer:#8a6d1e;
+    --shadow:0 1px 2px rgba(20,29,39,.06),0 8px 24px rgba(20,29,39,.06);
+    --mono:ui-monospace,"Cascadia Code","Cascadia Mono",Consolas,"SFMono-Regular",Menlo,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0d131a; --surface:#141d26; --surface-2:#1a242f; --panel:#1f2a36;
+      --ink:#e7edf3; --ink-soft:#a6b3c1; --ink-faint:#788696;
+      --hairline:#263340; --hairline-2:#33424f;
+      --core:#3fb8a2; --core-bg:#10312b;
+      --present:#e0973f; --present-bg:#3a2c17;
+      --llm:#a493ef; --llm-bg:#241d3d;
+      --done:#5bbd82; --defer:#c9a648;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0d131a; --surface:#141d26; --surface-2:#1a242f; --panel:#1f2a36;
+    --ink:#e7edf3; --ink-soft:#a6b3c1; --ink-faint:#788696;
+    --hairline:#263340; --hairline-2:#33424f;
+    --core:#3fb8a2; --core-bg:#10312b;
+    --present:#e0973f; --present-bg:#3a2c17;
+    --llm:#a493ef; --llm-bg:#241d3d;
+    --done:#5bbd82; --defer:#c9a648;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+  }
+
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:var(--sans); font-size:16px; line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:920px; margin:0 auto; padding:clamp(1.5rem,4vw,4rem) clamp(1.1rem,4vw,2.5rem) 5rem}
+
+  .eyebrow{font-family:var(--mono); font-size:.72rem; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--ink-faint); margin:0}
+  .eyebrow b{color:var(--present); font-weight:600}
+
+  h1{font-size:clamp(2rem,5.5vw,3.1rem); line-height:1.04; letter-spacing:-.02em; font-weight:760;
+    margin:.5rem 0 .1rem; text-wrap:balance}
+  .thesis{font-size:clamp(1.05rem,2.4vw,1.3rem); color:var(--ink-soft); max-width:38ch; margin:.7rem 0 0;
+    text-wrap:balance}
+
+  h2{font-size:1.42rem; letter-spacing:-.01em; font-weight:700; margin:0 0 .2rem; text-wrap:balance}
+  h3{font-size:1.02rem; margin:0 0 .3rem; font-weight:680}
+  p{margin:.55rem 0}
+  a{color:var(--present)}
+
+  section{margin-top:clamp(2.4rem,6vw,3.6rem)}
+  .sec-head{display:flex; align-items:baseline; gap:.8rem; border-bottom:1px solid var(--hairline);
+    padding-bottom:.5rem; margin-bottom:1.1rem}
+  .sec-head .n{font-family:var(--mono); font-size:.8rem; color:var(--ink-faint)}
+
+  .lead{background:var(--surface); border:1px solid var(--hairline); border-radius:14px;
+    padding:1.15rem 1.25rem; box-shadow:var(--shadow); display:grid; gap:.7rem}
+  .lead .row{display:grid; grid-template-columns:8.5rem 1fr; gap:.4rem 1rem; align-items:start}
+  .lead .k{font-family:var(--mono); font-size:.74rem; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--ink-faint); padding-top:.15rem}
+  .lead .v{margin:0}
+  @media (max-width:560px){ .lead .row{grid-template-columns:1fr; gap:.1rem} }
+
+  /* decisions taken */
+  .decisions{display:flex; flex-wrap:wrap; gap:.5rem; margin-top:1rem}
+  .chip{font-family:var(--mono); font-size:.74rem; border:1px solid var(--hairline-2);
+    background:var(--surface-2); color:var(--ink-soft); border-radius:999px; padding:.28rem .7rem}
+  .chip b{color:var(--ink); font-weight:600}
+
+  /* pipeline mechanism */
+  .pipe-scroll{overflow-x:auto; padding:.3rem 0 .6rem}
+  .pipe{display:flex; align-items:stretch; gap:0; min-width:640px}
+  .stage{flex:1; background:var(--surface); border:1px solid var(--hairline); border-radius:12px;
+    padding:.85rem .9rem; display:grid; gap:.35rem; box-shadow:var(--shadow); position:relative}
+  .stage .tag{font-family:var(--mono); font-size:.66rem; letter-spacing:.12em; text-transform:uppercase;
+    font-weight:600}
+  .stage h4{margin:0; font-size:.98rem}
+  .stage p{margin:0; font-size:.82rem; color:var(--ink-soft); line-height:1.45}
+  .stage.core{border-color:var(--core); background:var(--core-bg)}
+  .stage.core .tag{color:var(--core)}
+  .stage.enrich{border-color:var(--hairline-2)}
+  .stage.enrich .tag{color:var(--ink-soft)}
+  .stage.present{border-color:var(--present); background:var(--present-bg)}
+  .stage.present .tag{color:var(--present)}
+  .arrow{flex:0 0 2rem; display:flex; align-items:center; justify-content:center; color:var(--ink-faint);
+    font-family:var(--mono); font-size:1.2rem}
+  .llm-note{display:flex; gap:.55rem; align-items:center; margin-top:.7rem; font-size:.83rem;
+    color:var(--ink-soft)}
+  .llm-swatch{flex:0 0 auto; font-family:var(--mono); font-size:.7rem; color:var(--llm);
+    border:1px dashed var(--llm); background:var(--llm-bg); border-radius:6px; padding:.15rem .5rem}
+
+  /* milestone rail */
+  .rail-scroll{overflow-x:auto; padding-bottom:.4rem}
+  .rail{display:flex; align-items:center; gap:0; min-width:560px}
+  .stop{flex:1; text-align:center; border-radius:10px; padding:.6rem .5rem; border:1px solid var(--hairline);
+    background:var(--surface)}
+  .stop .m{font-family:var(--mono); font-weight:700; font-size:.95rem}
+  .stop .s{font-size:.78rem; color:var(--ink-soft)}
+  .stop.m10{border-bottom:3px solid var(--core)}
+  .stop.m11{border-bottom:3px solid var(--present)}
+  .stop.m12{border-bottom:3px solid var(--llm)}
+  .rail .arrow{flex:0 0 1.8rem}
+
+  /* milestone cards */
+  .cards{display:grid; gap:1.1rem}
+  .card{background:var(--surface); border:1px solid var(--hairline); border-radius:14px; overflow:hidden;
+    box-shadow:var(--shadow)}
+  .card > .top{padding:1rem 1.15rem .9rem; border-left:4px solid var(--edge)}
+  .card.m10{--edge:var(--core)} .card.m11{--edge:var(--present)} .card.m12{--edge:var(--llm)}
+  .card .mlabel{font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--edge); font-weight:600}
+  .card .goal{color:var(--ink-soft); margin:.35rem 0 0; font-size:.92rem}
+  .tasks{list-style:none; margin:.6rem 0 0; padding:0; display:grid; gap:.35rem}
+  .tasks li{display:grid; grid-template-columns:2.6rem 1fr; gap:.6rem; font-size:.9rem; align-items:baseline}
+  .tasks .id{font-family:var(--mono); font-size:.8rem; color:var(--edge); font-weight:600}
+  .brainstorm{background:var(--surface-2); border-top:1px solid var(--hairline); padding:.9rem 1.15rem 1.05rem}
+  .brainstorm .bh{font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--ink-faint); margin:0 0 .55rem; display:flex; align-items:center; gap:.5rem}
+  .q{margin:0 0 .7rem; padding-left:.9rem; border-left:2px solid var(--hairline-2)}
+  .q:last-child{margin-bottom:0}
+  .q .qt{font-weight:640; font-size:.9rem}
+  .q .opts{margin:.2rem 0 0; font-size:.85rem; color:var(--ink-soft)}
+  .q .rec{color:var(--core); font-weight:600}
+  .q code{font-family:var(--mono); font-size:.82em; background:var(--panel); padding:.05rem .35rem;
+    border-radius:5px; color:var(--ink)}
+  .brainstorm.locked{background:var(--core-bg); border-top-color:var(--core)}
+  .brainstorm.locked .bh{color:var(--core)}
+  .brainstorm.locked .q{border-left-color:var(--core)}
+  .q .lk{font-family:var(--mono); font-size:.7rem; color:var(--core); font-weight:700}
+
+  .callout{border:1px solid var(--present); background:var(--present-bg); border-radius:14px;
+    padding:1.05rem 1.2rem}
+  .callout h3{color:var(--present)}
+  .callout .metric{font-family:var(--mono); font-size:.86rem; color:var(--ink); margin-top:.4rem}
+
+  .risks{display:grid; gap:.6rem}
+  .risk{display:grid; grid-template-columns:1fr; gap:.15rem; background:var(--surface);
+    border:1px solid var(--hairline); border-radius:10px; padding:.7rem .9rem}
+  .risk .rt{font-weight:640; font-size:.92rem}
+  .risk .rm{font-size:.85rem; color:var(--ink-soft)}
+  .risk .rm b{color:var(--core); font-weight:600}
+
+  .table-scroll{overflow-x:auto; border:1px solid var(--hairline); border-radius:12px}
+  table{border-collapse:collapse; width:100%; min-width:640px; font-size:.87rem}
+  th,td{text-align:left; padding:.6rem .8rem; border-bottom:1px solid var(--hairline); vertical-align:top}
+  thead th{font-family:var(--mono); font-size:.7rem; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--ink-faint); background:var(--surface-2)}
+  tbody tr:last-child td{border-bottom:none}
+  td .tid{font-family:var(--mono); font-weight:700; color:var(--ink)}
+  td .dep{font-family:var(--mono); font-size:.78rem; color:var(--ink-faint); white-space:nowrap}
+  .badge{font-family:var(--mono); font-size:.68rem; padding:.1rem .45rem; border-radius:5px;
+    border:1px solid var(--hairline-2); color:var(--ink-soft)}
+  .badge.det{color:var(--core); border-color:var(--core)}
+  .badge.pres{color:var(--present); border-color:var(--present)}
+  .badge.llm{color:var(--llm); border-color:var(--llm)}
+
+  .foot{margin-top:3rem; padding-top:1rem; border-top:1px solid var(--hairline);
+    font-family:var(--mono); font-size:.74rem; color:var(--ink-faint); line-height:1.7}
+
+  @media (prefers-reduced-motion:no-preference){
+    .reveal{animation:rise .5s ease both}
+    @keyframes rise{from{opacity:0; transform:translateY(8px)}to{opacity:1; transform:none}}
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="reveal">
+    <p class="eyebrow">code-atlas · <b>Phase 3</b> · roadmap &amp; brainstorm</p>
+    <h1>Onboarding: the phase where the graph tells a story</h1>
+    <p class="thesis">Turn the resolved symbol graph into an account a newcomer — human or agent — can read: layers, a guided tour, committable docs.</p>
+  </header>
+
+  <section class="reveal">
+    <div class="sec-head"><h2>What Phase 3 is</h2></div>
+    <div class="lead">
+      <div class="row"><span class="k">Premise</span><p class="v">Search speed was measured false as the selling point (PLAN §19). What the graph uniquely holds is <em>relationships</em> — and “explain this codebase / where do I start / what are the layers” is exactly the relationship question <code>grep</code> can’t answer. Onboarding is where that value should finally pay off.</p></div>
+      <div class="row"><span class="k">Not a fork</span><p class="v">Not a rebuild of Understand-Anything — a <em>consumer</em> of the graph you already have, at higher fidelity than tree-sitter. Multi-language for free later; validated on PHP now (the only adapter).</p></div>
+      <div class="row"><span class="k">Done means</span><p class="v">Onboarding tools + committable markdown + a viewer work on a real PHP repo; the core stays deterministic (LLM out of core <em>and</em> CI, proven by a stub); no PHP-specific logic; and the onboarding question-class beats hand-mapping on tokens-to-answer — or we narrow the scope in writing.</p></div>
+    </div>
+    <div class="decisions">
+      <span class="chip">Audience: <b>human + agent</b> (one graph, two presentations)</span>
+      <span class="chip">Output: <b>markdown-in-repo → static viewer</b></span>
+      <span class="chip">LLM: <b>deterministic-first, added later</b></span>
+    </div>
+  </section>
+
+  <section class="reveal">
+    <div class="sec-head"><h2>The mechanism</h2><span class="n">graph → enrichment → presentation</span></div>
+    <p>One discipline holds the whole phase together: a clean split. The core computes; enrichment interprets; presentation renders. The only stage that may touch an LLM is the last-added one, and it lives <em>outside</em> the core.</p>
+    <div class="pipe-scroll">
+      <div class="pipe">
+        <div class="stage core">
+          <span class="tag">deterministic · ships today</span>
+          <h4>Symbol graph</h4>
+          <p>SQLite nodes · edges · resolved relationships. Read-only, bounded, byte-stable (R4).</p>
+        </div>
+        <div class="arrow">→</div>
+        <div class="stage enrich">
+          <span class="tag">enrichment</span>
+          <h4>Metrics · layers · summaries</h4>
+          <p>Deterministic default (fan-in/out, heuristic layers, structural summaries). One stubbable seam for later LLM.</p>
+        </div>
+        <div class="arrow">→</div>
+        <div class="stage present">
+          <span class="tag">presentation</span>
+          <h4>Tools · markdown · viewer</h4>
+          <p>Agent-facing JSON tools + committable docs + a self-contained HTML viewer off the same manifest.</p>
+        </div>
+      </div>
+    </div>
+    <p class="llm-note"><span class="llm-swatch">M12 · opt-in</span> The LLM summarizer plugs into the enrichment seam but never imports the core and never runs in the per-PR gate (R4.1). Deterministic path stands alone.</p>
+  </section>
+
+  <section class="reveal">
+    <div class="sec-head"><h2>Milestones</h2><span class="n">dependency order</span></div>
+    <div class="rail-scroll">
+      <div class="rail">
+        <div class="stop m10"><div class="m">M10</div><div class="s">Overview + layers</div></div>
+        <div class="arrow">→</div>
+        <div class="stop m11"><div class="m">M11</div><div class="s">Tour + docs + viewer</div></div>
+        <div class="arrow">→</div>
+        <div class="stop m12"><div class="m">M12</div><div class="s">LLM enrichment (opt-in)</div></div>
+      </div>
+    </div>
+
+    <div class="cards" style="margin-top:1.3rem">
+
+      <!-- M10 -->
+      <article class="card m10">
+        <div class="top">
+          <div class="mlabel">M10 · deterministic</div>
+          <h3>architecture_overview + layers</h3>
+          <p class="goal">Assign modules to architectural layers and expose them as an agent-facing overview — with zero LLM.</p>
+          <ul class="tasks">
+            <li><span class="id">083</span><span>Graph-metrics foundation — fan-in/out, entry points, dependency direction (read-only SQL in <code>store.py</code>).</span></li>
+            <li><span class="id">084</span><span>Layer assignment — namespace/dir heuristic refined by dependency direction, graph-metric fallback for flat legacy trees.</span></li>
+            <li><span class="id">085</span><span>Summarizer <em>seam</em> (Protocol) + deterministic default; a CI test proves the graph→enrichment→presentation split with the middle stubbed.</span></li>
+            <li><span class="id">086</span><span>The <code>architecture_overview</code> tool — JSON layers + modules + metrics; carries <code>index_root</code> and reason codes.</span></li>
+          </ul>
+        </div>
+        <div class="brainstorm locked">
+          <p class="bh">✓ decisions locked · 2026-08-11</p>
+          <div class="q"><span class="qt">Module unit</span> <span class="lk">→ file path</span><p class="opts">Per-symbol = qname. Matches how impact/include_graph aggregate; flat PSR-0/global legacy makes a namespace-unit unreliable.</p></div>
+          <div class="q"><span class="qt">SCC / cycle detection vs R4.3</span> <span class="lk">→ defer to 087</span><p class="opts">SCC lands in the tour with its own node budget. 083 stays cheap SQL aggregates → R4.3-clean.</p></div>
+          <div class="q"><span class="qt">Entry-point definition</span> <span class="lk">→ zero-inbound roots</span><p class="opts">Pure, deterministic, no config knob. 087 may additionally seed from config for a rooted walk.</p></div>
+          <div class="q"><span class="qt">Layering heuristic (flat legacy namespaces)</span> <span class="lk">→ prefix + direction, with fallback</span><p class="opts">Namespace/dir prefix refined by dependency direction; pure dependency-direction fallback when namespaces are uninformative. Don’t block on the LLM (091 is optional refinement); measure layer quality on the anchor repo first.</p></div>
+        </div>
+      </article>
+
+      <!-- M11 -->
+      <article class="card m11">
+        <div class="top">
+          <div class="mlabel">M11 · deterministic + viewer</div>
+          <h3>guided_tour + markdown docs + viewer</h3>
+          <p class="goal">A dependency-ordered walk and committable onboarding docs, plus a small offline viewer over the same manifest.</p>
+          <ul class="tasks">
+            <li><span class="id">087</span><span>The <code>guided_tour</code> tool — topological walk seeded from entry points, cycle-safe via SCC condensation (SCC lands here).</span></li>
+            <li><span class="id">088</span><span><code>generate_onboarding</code> — emit committable markdown (overview · tour · per-module) + a <code>manifest.json</code>.</span></li>
+            <li><span class="id">089</span><span>Static HTML viewer — one self-contained, theme-aware file reading the manifest; no server, no external deps.</span></li>
+          </ul>
+        </div>
+        <div class="brainstorm">
+          <p class="bh">◆ decision points to brainstorm</p>
+          <div class="q"><span class="qt">Where do the artifacts live?</span><p class="opts"><span class="rec">Markdown committed under <code>docs/onboarding/</code></span> (D2: committable) · caches under <code>.code-atlas/onboarding/</code> (regenerable, gitignored).</p></div>
+          <div class="q"><span class="qt">Tour granularity &amp; length?</span><p class="opts">File-level vs symbol-level stops · a stop budget so a 40k-file repo doesn’t emit a 40k-stop tour.</p></div>
+          <div class="q"><span class="qt">Coherence is not falsifiable (task-023 note).</span><p class="opts">CI can only assert <em>structure</em> — sections present, dependency order respected, deterministic given a fixed stub. Coherence = a recorded manual check, not a gate.</p></div>
+        </div>
+      </article>
+
+      <!-- M12 -->
+      <article class="card m12">
+        <div class="top">
+          <div class="mlabel">M12 · opt-in · out of core</div>
+          <h3>LLM enrichment</h3>
+          <p class="goal">Real prose summaries and layer-name refinement behind the M10 seam — deferred until the deterministic path is proven and measured.</p>
+          <ul class="tasks">
+            <li><span class="id">090</span><span>LLM summarizer implementation behind the 085 seam; content-hash cache so runs replay and diffs stay stable; opt-in config; never in the per-PR gate.</span></li>
+            <li><span class="id">091</span><span>LLM layer refinement — better layer names/boundaries where namespaces are uninformative (optional).</span></li>
+          </ul>
+        </div>
+        <div class="brainstorm">
+          <p class="bh">◆ decision points to brainstorm</p>
+          <div class="q"><span class="qt">Provider / model?</span><p class="opts"><span class="rec">Claude</span> — a mid tier for per-module summaries, a top tier only for the layer-refinement pass. Confirmed against the API reference at implementation time.</p></div>
+          <div class="q"><span class="qt">Determinism &amp; cost?</span><p class="opts">Cache keyed on symbol content-hash, committable, so CI/replay stay deterministic. Budget the pass; it runs on demand, never per-PR.</p></div>
+          <div class="q"><span class="qt">Seam shape?</span><p class="opts"><span class="rec">In-process Protocol first (YAGNI)</span> · escalate to a subprocess sidecar (like the adapters) only if isolation demands it.</p></div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <section class="reveal">
+    <div class="sec-head"><h2>How we’ll know it earned its cost</h2></div>
+    <div class="callout">
+      <h3>Gate the phase on the harness, not on vibes</h3>
+      <p>Add an <strong>onboarding question-class</strong> to the tokens-to-answer harness (034/045) and the recall gate (055). Baseline = <code>grep</code>+<code>Read</code> with an agent building the map by hand.</p>
+      <p class="metric">Q: “top-level layers &amp; their dependencies?” · “entry point + first 5 things to read?” · “what depends on module X?”</p>
+      <p style="margin-top:.5rem; font-size:.9rem; color:var(--ink-soft)">If the tools don’t beat hand-mapping on this class, say so in writing and narrow the scope — the same §19 discipline that recorded the founding premise as false.</p>
+    </div>
+  </section>
+
+  <section class="reveal">
+    <div class="sec-head"><h2>Risks &amp; sequencing</h2></div>
+    <div class="risks">
+      <div class="risk"><span class="rt">Layering on flat-namespace legacy PHP</span><span class="rm">The anchor repo is exactly the hard case. <b>Mitigate:</b> dependency-direction fallback when namespaces are uninformative; consider LLM refinement (091) before trusting layer names.</span></div>
+      <div class="risk"><span class="rt">LLM cost &amp; nondeterminism</span><span class="rm">Would fight R4. <b>Mitigate:</b> deterministic-first; content-hash cache; never in the per-PR gate.</span></div>
+      <div class="risk"><span class="rt">SCC is whole-graph vs R4.3</span><span class="rm">Cycle detection wants the whole graph in memory. <b>Mitigate:</b> node-budgeted traversal in the tour, the same pattern impact/reach already use.</span></div>
+      <div class="risk"><span class="rt">“Multi-language for free” — but only PHP exists</span><span class="rm">Onboarding ships on PHP. <b>Mitigate:</b> enforce language-agnostic by design (no PHP strings, CI grep-gate) even with one adapter.</span></div>
+      <div class="risk"><span class="rt">Sequencing vs the Phase 1.5 tail (074–082)</span><span class="rm">M10 is read-only over the graph → can run <b>in parallel</b>. Recommend closing 074 (does the index harm mechanism answers) and 077 (name the revision) first, since narratives inherit any graph-trust defect.</span></div>
+    </div>
+  </section>
+
+  <section class="reveal">
+    <div class="sec-head"><h2>Task breakdown</h2><span class="n">083 → 091</span></div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Task</th><th>One-liner</th><th>Stage</th><th>Depends on</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tid">083</span></td><td>Graph-metrics foundation — fan-in/out, entry points, direction (read-only SQL)</td><td><span class="badge det">M10 det</span></td><td><span class="dep">014, 031, 017</span></td></tr>
+          <tr><td><span class="tid">084</span></td><td>Layer assignment — heuristic + dependency-direction refine; graph-metric fallback</td><td><span class="badge det">M10 det</span></td><td><span class="dep">083</span></td></tr>
+          <tr><td><span class="tid">085</span></td><td>Summarizer Protocol seam + deterministic default; CI stub test for the split</td><td><span class="badge det">M10 det</span></td><td><span class="dep">083</span></td></tr>
+          <tr><td><span class="tid">086</span></td><td><code>architecture_overview</code> tool — JSON layers + modules + metrics</td><td><span class="badge pres">M10 tool</span></td><td><span class="dep">084, 085</span></td></tr>
+          <tr><td><span class="tid">087</span></td><td><code>guided_tour</code> tool — topo, entry-seeded, cycle-safe (carries SCC)</td><td><span class="badge pres">M11 tool</span></td><td><span class="dep">083, 086</span></td></tr>
+          <tr><td><span class="tid">088</span></td><td><code>generate_onboarding</code> — committable markdown + <code>manifest.json</code></td><td><span class="badge pres">M11 docs</span></td><td><span class="dep">084, 086, 087</span></td></tr>
+          <tr><td><span class="tid">089</span></td><td>Static HTML viewer — self-contained, reads the manifest</td><td><span class="badge pres">M11 viewer</span></td><td><span class="dep">088</span></td></tr>
+          <tr><td><span class="tid">090</span></td><td>LLM summarizer behind the 085 seam — Claude; content-hash cache; opt-in; out of core/CI</td><td><span class="badge llm">M12 opt-in</span></td><td><span class="dep">085, 088</span></td></tr>
+          <tr><td><span class="tid">091</span></td><td>LLM layer refinement — better names/boundaries where namespaces are weak</td><td><span class="badge llm">M12 opt-in</span></td><td><span class="dep">084, 090</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <p class="foot">
+    Draft for brainstorming — not yet folded into PLAN §14/§15. Task IDs 083–091 are proposed, not ratified.<br>
+    Decisions taken 2026-08-11: audience = human + agent · markdown-in-repo then viewer · deterministic-first LLM.<br>
+    Next: lock the M10 decision points, then flesh out 083 → 086.
+  </p>
+
+</div>
