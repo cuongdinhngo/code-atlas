@@ -231,7 +231,16 @@ def incremental_update(
     mark = time.monotonic()
     _record_meta(config, store, tuple(owners), census)
     _phase_add(phase_times, "meta", mark)
-    _count_late_writes(counts, config, store, rules, phase_times=phase_times)
+    # A true no-op (nothing parsed, nothing reconciled) leaves the graph unchanged, so the late
+    # writers would only re-derive rows already present — full-graph work that was the ~56 s floor
+    # and the 6,071-edge no-op number (task 080). Skip them; ``wrote.*`` then means the delta.
+    if to_parse or removed:
+        _count_late_writes(counts, config, store, rules, phase_times=phase_times)
+    else:
+        # Record the skipped phases as ~0 so the profile shows the cut, not a missing phase (052).
+        skipped = time.monotonic()
+        _phase_add(phase_times, "enrichment", skipped)
+        _phase_add(phase_times, "resolve", skipped)
     return BuildReport(
         files=len(to_parse), stubs=len(stub_set & set(to_parse)), removed=removed, **counts
     )
