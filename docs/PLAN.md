@@ -273,7 +273,13 @@ Staleness stays `current | behind | unknown` (commit equality, or `behind` when 
 dirty). Tests use hermetic throwaway repos so CI can keep a shallow checkout. Field retros saw
 ~62 s flat fee for no-op and small incrementals on a large index (task 052) — profile phases with
 `scripts/profile_incremental.py --root …` (optional `phase_times` on `incremental_update`; not on
-the MCP payload) before deciding whether unscoped `resolve_edges` is a defect or the honest price.
+the MCP payload). **No-op short-circuit (task 080):** when the delta is empty (`to_parse` and
+`removed` both empty), the late writers (`apply_indirection_rules` + full-graph `resolve_edges`) are
+skipped — their output is already in the store and idempotent — so a true no-op costs only
+collect+diff+hash and reports an honest `wrote:{files:0,parsed:0,nodes:0,edges:0}` instead of
+re-derived siblings (the field's `edges:6071` at ~56 s). A *non-empty* delta still runs them
+(correctness unchanged). The general small-delta case (a few files still pay a full-graph resolve)
+would need delta-scoped resolver state (a schema change) and is a separate follow-up.
 
 ---
 
