@@ -1,5 +1,21 @@
 # Lessons — code-atlas
 
+## 080 — A "delta" count that is non-zero on an empty delta means the work isn't gated on the delta
+080's no-op reported `edges:6071` for 0 files parsed and cost ~56s because `incremental_update` ran
+the late writers (enrichment + full-graph `resolve_edges`) unconditionally — even when nothing
+changed, where they only re-derive rows already in the store. The unreadable *number* and the *cost*
+had one cause: work not gated on the delta. **Fix:** gate it — skip the late writers when
+`to_parse` and `removed` are both empty (idempotent on an unchanged graph, so state-equivalent); the
+count then means the delta and the floor drops. Guard on the **empty delta**, never on the count
+itself (circular) and never by skipping when there *is* a delta (that's the 068 anti-pattern the
+ticket names). Two corollaries: (1) when a cost ticket's real number is on an environment you don't
+have (the anchor repo), ship the fix + fixture proof and record the absolute seconds as an
+operator-confirmed follow-up, not a merge gate (cf. 074) — don't let it stall like 052→053 did;
+(2) a mechanical blast-radius grep of the changed *symbol* misses callers that pass it differently —
+here a profiler test drove `incremental_update` with `phase_times=` and asserted every phase is
+present; grep the phase/inventory constant too, and prefer a fix that keeps the invariant (record the
+skipped phases as 0.0) over weakening the other ticket's assertion.
+
 ## 081 — A capability on a channel the consumer never sees is unshipped, however well it works
 081's four MCP prompts worked perfectly and were never once invoked in four field rounds — because
 the agent's client surfaces only tools to the model; prompts are human-invoked entries the model
