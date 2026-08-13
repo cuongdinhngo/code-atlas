@@ -1,5 +1,18 @@
 # Lessons — code-atlas
 
+## 082 — A ticket's illustrative cause-list is a hint, not the schema; count what the code actually does
+082 asked to publish `files` skip counts "by cause (ignore rule, suffix, size, unreadable)". Only two
+of the four are real collect-time skips (`suffix`, `ignore`); "unreadable" is the existing parse-time
+`failed` bucket (`parsed_ok=0`, already on verbose via 058) and code-atlas applies no size limit at
+all. Implementing all four literally would have invented a size-filter (new inclusion policy that
+changes what gets indexed) and double-counted unreadable. **Fix:** at analysis, re-derive every
+enumerated acceptance value against the code before treating it as the schema — an AC's parenthetical
+list is a Gate-1 falsifiability check, not a spec. Publish the causes that exist, map the rest to where
+they already live, and never add a filter just to satisfy a list. Generalises: a reconciliation that
+"closes by construction" (a partition of one walk) is the honest shape — R4's "one walk, not two ways
+to count" — so design the census as a partition and let the arithmetic close, rather than reconciling
+two independently-derived numbers.
+
 ## 079 — A "refusal path" the ticket wants to carry a field may not return a payload at all
 079 asked for `index_root` on "every refusal path (no adapter, empty suffixes, schema mismatch)".
 Two of those (`no_adapter`, `empty_suffixes`) did not *return* a payload — they `raise AdapterError`
