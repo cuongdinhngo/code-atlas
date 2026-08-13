@@ -90,6 +90,9 @@ branch), `code_atlas/index_lock.py:19` (`try_index_write_lock`),
 `code_atlas/hooks/refresh.py:49` (an existing consumer that already branches on `mode == "busy"`).
 Related: [053](053_refresh-on-checkout-hook.md) (the lock), [033](033_nav-reason-codes.md),
 [071](071_answers-do-not-name-their-tree.md) (the run's other silent-wrong-answer shape).
+**Verification (082):** the busy refusal is now reproducible from outside — the `code-atlas-refresh`
+race recipe (with its expected payload) is documented in `docs/runbooks/parallel-agents.md`. See
+[082](082_claims-nobody-outside-can-check.md).
 
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
 
