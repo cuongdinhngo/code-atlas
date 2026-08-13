@@ -62,7 +62,11 @@ def test_empty_adapter_cmds_refuses_incremental(tmp_path: Path, store: GraphStor
 
 
 def test_build_or_update_index_surfaces_empty_adapters(tmp_path: Path) -> None:
-    """AC2: tool path raises — not a files:0 success report."""
+    """AC2 / 079: tool path refuses as a payload naming the tree — not a files:0 success report.
+
+    The indexer still raises ``AdapterError`` (above); the tool boundary catches it and returns a
+    ``mode: refused`` payload so a parallel agent reads which tree the refusal is about (079).
+    """
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / ".keep").write_text("", encoding="utf-8")
     _git_init(tmp_path)
@@ -71,8 +75,17 @@ def test_build_or_update_index_surfaces_empty_adapters(tmp_path: Path) -> None:
         {"CA_WORKERS": "1", "CA_DB_PATH": str(tmp_path / ".code-atlas" / "graph.db")},
     )
     tool = build_or_update_index.create(config)
-    with pytest.raises(AdapterError, match="no adapters configured"):
-        tool(full=True)
+    result = tool(full=True)
+
+    assert result["mode"] == build_or_update_index.REFUSED
+    assert result["performed"] is False
+    assert result["reason"] == build_or_update_index.NO_USABLE_ADAPTER
+    assert result["index_root"] == str(tmp_path.resolve())
+    assert "no adapters configured" in str(result["detail"])
+    # 064's invariant: no index is written — the refusal reports it, it never fakes a files:0 build.
+    with GraphStore(tmp_path / ".code-atlas" / "graph.db") as store:
+        assert store.get_meta(LAST_COMMIT_KEY) is None
+        assert store.get_meta(INDEXED_SUFFIXES_KEY) is None
 
 
 def test_the_contract_rejects_an_empty_extension_list() -> None:
