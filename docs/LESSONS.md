@@ -1,5 +1,17 @@
 # Lessons — code-atlas
 
+## 081 — A capability on a channel the consumer never sees is unshipped, however well it works
+081's four MCP prompts worked perfectly and were never once invoked in four field rounds — because
+the agent's client surfaces only tools to the model; prompts are human-invoked entries the model
+cannot see. The defect was a **category error** (counting a human-facing channel as agent-facing), not
+a bug. **Fix:** for any capability, verify the *consumer's actual surface* reaches it before counting
+it as delivered — reachability is a property of the delivery channel, not of the feature's
+correctness. The smallest honest fix is often to relabel and re-home, not to rebuild: here, keep the
+prompts as operator recipes, route agents via the surface they do see (tool descriptions, 069), and
+add no 15th tool (a scanned surface has a budget). Generalises: when a ticket hands you a design choice
+"with the field evidence in hand", let the evidence of what the consumer *reached* — not what was
+*built* — pick the design.
+
 ## 082 — A ticket's illustrative cause-list is a hint, not the schema; count what the code actually does
 082 asked to publish `files` skip counts "by cause (ignore rule, suffix, size, unreadable)". Only two
 of the four are real collect-time skips (`suffix`, `ignore`); "unreadable" is the existing parse-time
