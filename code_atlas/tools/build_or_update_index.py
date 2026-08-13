@@ -59,7 +59,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         recover without a shell; a *newer* one is refused untouched — that index is current and this
         server is the stale one (050). Concurrent writers share ``write.lock`` (053); a held lock
         returns ``mode: busy`` carrying the staleness of the index the loser is about to query,
-        read-only (072).
+        read-only (072). To *see* a busy refusal on purpose, follow the ``code-atlas-refresh`` race
+        recipe in ``docs/runbooks/parallel-agents.md`` (082).
         """
         started = time.monotonic()
         with try_index_write_lock(config.db_path) as held:

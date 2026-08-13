@@ -78,6 +78,35 @@ your remembered branch) to `head_ref`.
   Verify what the agents actually got by reading `/proc/<pid>/cwd` of the live servers, not the config
   file: configuration is an intention, `/proc` is what happened.
 
+## Reproduce a busy refusal (verify 072 from outside)
+
+The refusal is reachable from the CLI without writing a test: **`code-atlas-refresh`** runs the same
+incremental path as `build_or_update_index(full=false)` and shares the same `write.lock`, so it is the
+**second writer** that makes a build lose the race. To observe `mode: "busy"` on purpose:
+
+1. Start a slow build and keep it running (e.g. a full build on a large tree, or hold the lock in a
+   shell). While it holds `write.lock`,
+2. call `build_or_update_index` (or run `code-atlas-refresh`) from a second process.
+
+The loser returns — never a 0.0 s "done":
+
+```json
+{
+  "mode": "busy",
+  "performed": false,
+  "reason": "another_build_running",
+  "staleness": "current",
+  "last_commit": "…", "head_commit": "…", "last_ref": "…", "head_ref": "…",
+  "index_root": "…",
+  "seconds": 0.0
+}
+```
+
+`performed: false` is the load-bearing field: your refresh did **not** run, so do not read the reply as
+a completed refresh. `code-atlas-refresh` prints `skipped: another build is running` for the same
+event. Pinned by `tests/test_git_refresh_hook.py::test_build_tool_returns_busy_when_lock_held` and
+`tests/test_busy_build_staleness.py`.
+
 ## Don't worry about
 
 - **Steady-state query memory.** Tools open and close the store per call; nothing holds the graph in

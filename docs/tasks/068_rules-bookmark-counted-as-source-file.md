@@ -76,6 +76,10 @@ Related: [040](040_framework-indirection-data.md) (the rules channel),
 [064](064_build-without-adapter-silent.md) (the `nodes: 1` question this closes),
 [028](028_index-health-metrics.md) (the counters), [051](051_build-report-edge-undercount.md)
 (precedent: a build number that did not match the graph it described).
+**Verification (082):** this ±1 is now auditable from outside — verbose `get_index_status` carries a
+`collection` block so `collected − skipped(suffix, ignore) = kept`, `kept + stubs = files`, and the
+bookmark's exclusion is checkable arithmetic. See
+[082](082_claims-nobody-outside-can-check.md).
 
 
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->

@@ -21,7 +21,7 @@ import threading
 import time
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path, PurePosixPath
 
 from code_atlas import contract, gitutil
@@ -36,6 +36,7 @@ from code_atlas.ignore import BUILTIN_PATTERNS, IgnoreMatcher, compile_pattern, 
 from code_atlas.resolver import resolve_edges
 from code_atlas.store import (
     BUILT_AT_KEY,
+    COLLECTION_CENSUS_KEY,
     CONTRACT_VERSION_KEY,
     INDEXED_SUFFIXES_KEY,
     LAST_COMMIT_KEY,
@@ -115,7 +116,7 @@ def full_build(config: Config, store: GraphStore) -> BuildReport:
         announced = _announce(config, watchdog)
         try:
             owners = _owners(announced)
-            paths = collect(config.root, tuple(owners))
+            paths, census = _collect_with_census(config.root, tuple(owners))
             stubs = (
                 collect_stubs(config.root, config.stub_roots, tuple(owners))
                 if config.stub_roots
@@ -133,7 +134,7 @@ def full_build(config: Config, store: GraphStore) -> BuildReport:
 
     # No FTS rebuild here: §10's triggers keep `nodes_fts` current through every replace, so a
     # rebuild per build would cost a full re-index and change nothing (deviation D1).
-    _record_meta(config, store, tuple(owners))
+    _record_meta(config, store, tuple(owners), census)
     _count_late_writes(counts, config, store, rules)
     return BuildReport(files=len(kept), stubs=len(stubs), removed=removed, **counts)
 
@@ -169,7 +170,7 @@ def incremental_update(
         try:
             owners = _owners(announced)
             mark = time.monotonic()
-            paths = collect(config.root, tuple(owners))
+            paths, census = _collect_with_census(config.root, tuple(owners))
             stubs = (
                 collect_stubs(config.root, config.stub_roots, tuple(owners))
                 if config.stub_roots
@@ -228,7 +229,7 @@ def incremental_update(
         watchdog.stop()
 
     mark = time.monotonic()
-    _record_meta(config, store, tuple(owners))
+    _record_meta(config, store, tuple(owners), census)
     _phase_add(phase_times, "meta", mark)
     _count_late_writes(counts, config, store, rules, phase_times=phase_times)
     return BuildReport(
@@ -320,17 +321,52 @@ def file_is_current(store: GraphStore, root: Path, path: str) -> bool:
     return bool(digest) and store.file_hash(path) == digest
 
 
+@dataclass(frozen=True)
+class CollectionCensus:
+    """The collect walk's own tally so an outsider can reconcile ``files`` (task 082).
+
+    A partition of the walked set: ``collected - skipped_suffix - skipped_ignore == kept`` by
+    construction. On a git repo ``collected == len(git ls-files)`` — the outsider's denominator.
+    """
+
+    collected: int
+    skipped_suffix: int
+    skipped_ignore: int
+    kept: int
+
+
 def collect(root: Path, suffixes: Sequence[str]) -> tuple[str, ...]:
     """The paths to index: tracked files of a claimed suffix, minus the ignore rules (§8.1, §11).
 
     Sorted here rather than trusted from git, so the order is a property of this core and not of
     whichever git version the host ships (R4.2).
     """
+    return _collect_with_census(root, suffixes)[0]
+
+
+def _collect_with_census(
+    root: Path, suffixes: Sequence[str]
+) -> tuple[tuple[str, ...], CollectionCensus]:
+    """``collect`` plus the by-cause census, from the SAME single walk (task 082, R4).
+
+    Partitions the walked set into suffix-skipped / ignore-skipped / kept in one pass, so the
+    reconciliation arithmetic closes by construction and no second traversal invents a rival count.
+    """
     matcher = load_ignore(root)
     wanted = {suffix.lower() for suffix in suffixes}
     tracked = gitutil.ls_files(root)
     found = _walk(root, matcher, wanted) if tracked is None else tracked
-    return tuple(sorted(indexable(found, root, suffixes)))
+    kept: list[str] = []
+    skipped_suffix = skipped_ignore = 0
+    for path in found:
+        if _suffix(path) not in wanted:
+            skipped_suffix += 1
+        elif matcher.is_ignored(path):
+            skipped_ignore += 1
+        else:
+            kept.append(path)
+    census = CollectionCensus(len(found), skipped_suffix, skipped_ignore, len(kept))
+    return tuple(sorted(kept)), census
 
 
 def indexable(paths: Iterable[str], root: Path, suffixes: Sequence[str]) -> tuple[str, ...]:
@@ -702,11 +738,18 @@ def _write(
         tally["failed"] += 1
 
 
-def _record_meta(config: Config, store: GraphStore, suffixes: Sequence[str]) -> None:
-    """Stamp the build (§8.1 step 4). Clear commit/ref when git cannot name them (077)."""
+def _record_meta(
+    config: Config, store: GraphStore, suffixes: Sequence[str], census: CollectionCensus
+) -> None:
+    """Stamp the build (§8.1 step 4). Clear commit/ref when git cannot name them (077).
+
+    The collection census is stamped so verbose ``get_index_status`` can publish the denominator an
+    outsider reconciles ``files`` against, without re-walking the tree (task 082, R4).
+    """
     store.set_meta(CONTRACT_VERSION_KEY, str(contract.CONTRACT_VERSION))
     store.set_meta(BUILT_AT_KEY, store.now())
     store.set_meta(INDEXED_SUFFIXES_KEY, ",".join(sorted({s.lower() for s in suffixes})))
+    store.set_meta(COLLECTION_CENSUS_KEY, json.dumps(asdict(census)))
     commit, ref = gitutil.head_commit_and_ref(config.root)
     if commit is not None:
         store.set_meta(LAST_COMMIT_KEY, commit)

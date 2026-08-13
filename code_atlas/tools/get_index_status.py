@@ -18,6 +18,7 @@ from code_atlas.config import Config
 from code_atlas.store import (
     BUILT_AT_KEY,
     CONTRACT_VERSION_KEY,
+    INDEXED_SUFFIXES_KEY,
     SCHEMA_OLDER,
     SCHEMA_VERSION_KEY,
     GraphStore,
@@ -54,7 +55,9 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
         further. ``minimal`` / ``standard`` omit the list (cheap path). ``standard``/``verbose``
         also carry ``max_results`` — the effective ceiling a caller sizes requests against — and
         its ``governs`` list: it caps both returned rows and the resolver's candidate fan-out, so
-        ``total_count`` is not the only cap (066).
+        ``total_count`` is not the only cap (066). ``verbose`` also carries ``collection`` — the
+        denominator to reconcile ``files`` against your own ``git ls-files``:
+        ``collected - skipped.suffix - skipped.ignore == kept``, ``kept + stubs == files`` (082).
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
@@ -76,6 +79,24 @@ def _max_results_field(config: Config) -> dict[str, object]:
     return {
         "value": config.max_results,
         "governs": ["returned_rows", "resolver_candidate_fanout"],
+    }
+
+
+def _collection_field(store: GraphStore) -> dict[str, object] | None:
+    """The verbose reconciliation block, or ``None`` for a pre-082 index (task 082).
+
+    Lets an outsider reconcile ``files`` end to end without reading source:
+    ``collected - skipped.suffix - skipped.ignore == kept``, and ``kept + stubs == files``.
+    """
+    census = store.collection_census()
+    if census is None:
+        return None
+    suffixes = store.get_meta(INDEXED_SUFFIXES_KEY)
+    return {
+        "collected": census["collected"],
+        "skipped": {"suffix": census["skipped_suffix"], "ignore": census["skipped_ignore"]},
+        "kept": census["kept"],
+        "indexed_suffixes": suffixes.split(",") if suffixes else [],
     }
 
 
@@ -164,10 +185,14 @@ def _status(
     if detail_level == "standard":
         return enriched
     paths = store.failed_paths(PARSE_FAILURE_PATHS_LIMIT, offset=offset)
-    return enriched | {
+    verbose = enriched | {
         "parse_failure_paths": list(paths),
         "parse_failures_truncated": counts["failed"] > offset + len(paths),
     }
+    collection = _collection_field(store)
+    if collection is not None:
+        verbose["collection"] = collection
+    return verbose
 
 
 def _suggestions(servable: Sequence[str], staleness: str, *, indexed: bool) -> list[str]:
