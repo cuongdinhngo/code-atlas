@@ -164,13 +164,18 @@ provenance (`db_path` on `get_index_status` / build reports only after 061). Eve
 | `find_orphans` | unreachable / zero-inbound symbols (dead-code candidates) |
 | `explain_path` | shortest control-flow path between two symbols |
 
-## Prompts
+## Operator prompts (human-invoked — not part of the agent tool surface)
+
+These MCP prompts are **operator recipes a human invokes**; an agent's client exposes only the tools
+above to the model, so a model never sees a prompt (task 081). Agent routing lives in the tool
+descriptions themselves (each names the question it answers — task 069), not here.
 
 | Prompt | Recipe |
 |---|---|
 | `explore_area` | status → search/outline → read only what's needed |
 | `find_usages` | status → find_references / find_callers / find_implementations → read to confirm |
 | `impact_of_change` | status → impact on the changed paths/qnames → read only the blast-radius surface |
+| `which_tool` | a recognition map: which tool answers a given question, across all 14 tools |
 
 ### Planned
 

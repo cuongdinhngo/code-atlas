@@ -1,4 +1,11 @@
-"""Efficiency prompts — status → search/outline → read only what is needed (§12)."""
+"""Operator-facing efficiency recipes — status → search/outline → read only what is needed (§12).
+
+These are **human-invoked MCP prompts, not agent-facing capability**. An agent's client surfaces the
+14 tools to the model, but MCP prompts surface as human-invoked entries the model never sees — so
+across four field rounds no prompt was ever called (task 081). Agent routing lives in the tool
+descriptions (069, field-verified); these prompts stay as operator recipes. `which_tool` is the
+recognition map a human can open, not a routing tool the agent scans.
+"""
 
 from __future__ import annotations
 
