@@ -31,6 +31,9 @@ BUILT_AT_KEY = "built_at"
 # Which suffixes the build claimed. Only the adapter handshake knows them, and a status read must
 # not start an adapter to find out — so the build leaves them here (047).
 INDEXED_SUFFIXES_KEY = "indexed_suffixes"
+# The collect walk's by-cause tally (JSON), so verbose status can publish the denominator an
+# outsider reconciles ``files`` against without a second traversal (task 082).
+COLLECTION_CENSUS_KEY = "collection_census"
 META_KEYS: tuple[str, ...] = (
     SCHEMA_VERSION_KEY,
     CONTRACT_VERSION_KEY,
@@ -38,6 +41,7 @@ META_KEYS: tuple[str, ...] = (
     LAST_REF_KEY,
     BUILT_AT_KEY,
     INDEXED_SUFFIXES_KEY,
+    COLLECTION_CENSUS_KEY,
 )
 
 # Bound SQLite variable lists so a large incremental unlink cannot trip the host's max-vars.
@@ -419,6 +423,18 @@ class GraphStore:
             "edges": edges,
             "stubs": self.stub_file_count(),
         }
+
+    def collection_census(self) -> dict[str, int] | None:
+        """The stored collect-walk tally, or ``None`` for a pre-082 index (task 082).
+
+        ``None`` (not a zeroed dict) so verbose status omits the block rather than publish a fake
+        denominator for an index built before the census existed.
+        """
+        raw = self.get_meta(COLLECTION_CENSUS_KEY)
+        if not raw:
+            return None
+        parsed = json.loads(raw)
+        return {key: int(value) for key, value in parsed.items()}
 
     def failed_paths(self, limit: int, offset: int = 0) -> tuple[str, ...]:
         """Paths with ``parsed_ok = 0``, ordered — the list behind ``parse_failures`` (task 058)."""

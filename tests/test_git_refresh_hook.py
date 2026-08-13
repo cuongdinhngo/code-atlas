@@ -122,8 +122,12 @@ def test_build_tool_returns_busy_when_lock_held(tmp_path: Path) -> None:
             result = create(config)(full=False)
         finally:
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+    # The documented recipe's payload (082): a busy refusal is never a 0.0 s "done".
     assert result["mode"] == "busy"
     assert result["reason"] == "another_build_running"
+    assert result["performed"] is False
+    for field in ("staleness", "last_commit", "head_commit", "last_ref", "head_ref"):
+        assert field in result, field
 
 
 def test_is_branch_checkout_only_when_flag_is_one() -> None:
