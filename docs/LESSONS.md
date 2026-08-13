@@ -1,5 +1,16 @@
 # Lessons — code-atlas
 
+## 079 — A "refusal path" the ticket wants to carry a field may not return a payload at all
+079 asked for `index_root` on "every refusal path (no adapter, empty suffixes, schema mismatch)".
+Two of those (`no_adapter`, `empty_suffixes`) did not *return* a payload — they `raise AdapterError`
+(064's deliberate fail-loud). An exception carries no payload field, so satisfying the AC required
+converting the raise to a returned `mode: refused` payload at the tool boundary (the `schema_guard`
+pattern) — a real contract change to the *other* ticket's tests. **Fix:** at analysis, for any
+"attach field X to every <shape>" requirement, verify each named shape actually *returns* that shape
+vs. *raises*; surface the raise→payload conversion (and the test it breaks) as an explicit Gate-1
+decision and a proof-collateral change-list item, not an execute surprise. Generalises: "every
+refusal" is not a given set of payloads until you confirm each refusal is a payload.
+
 ## 078 — A warning field next to a body is ignorable; refuse the body
 `ambiguous_definitions` named every site and still shipped one region's `source`/`file`/`line_*`.
 Agents read the body and skip the list — the exact failure 070's caveat predicted. **Marking the

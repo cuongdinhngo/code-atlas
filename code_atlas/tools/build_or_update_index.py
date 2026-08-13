@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Literal
 
 from code_atlas import gitutil
+from code_atlas.adapter import AdapterError
 from code_atlas.config import Config
 from code_atlas.index_lock import try_index_write_lock
 from code_atlas.indexer import BuildReport, full_build, incremental_update
@@ -26,7 +27,7 @@ from code_atlas.store import (
     SchemaVersionError,
 )
 from code_atlas.tools import schema_guard
-from code_atlas.tools.staleness import UNKNOWN, compute_staleness
+from code_atlas.tools.staleness import OMIT, UNKNOWN, compute_staleness, last_ref_for_payload
 
 NAME = "build_or_update_index"
 
@@ -36,6 +37,9 @@ FULL = "full"
 INCREMENTAL = "incremental"
 REFUSED = "refused"
 BUSY = "busy"
+# One reason for any adapter-unusable build (unconfigured / bad handshake): the caller's situation
+# is the same — no build ran, here is the tree and why — and ``detail`` carries the specifics (064).
+NO_USABLE_ADAPTER = "no_usable_adapter"
 
 # Opening the index for a busy-branch staleness read may hit a foreign schema or, in a cold-start
 # race, a write-locked DB; either degrades to ``unknown`` rather than raising (R5.3, C2).
@@ -61,9 +65,34 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         with try_index_write_lock(config.db_path) as held:
             if not held:
                 return _busy(config, full=full, started=started)
-            return _build(config, full=full, detail_level=detail_level, started=started)
+            try:
+                return _build(config, full=full, detail_level=detail_level, started=started)
+            except AdapterError as broken:
+                return _adapter_refused(config, broken, full=full, started=started)
 
     return build_or_update_index
+
+
+def _adapter_refused(
+    config: Config, broken: AdapterError, *, full: bool, started: float
+) -> dict[str, object]:
+    """No usable adapter: refuse as a payload naming the tree, never a stack trace (064 / 079).
+
+    A build with no configured adapter or a bad handshake used to raise; a raised error carries no
+    ``index_root``, so a parallel agent could not tell which tree the refusal was about. Mirrors
+    ``schema_guard``: the refusal reaches the caller as a payload, still writing no index (064's
+    concern) and naming the tree it declined to write (071/079).
+    """
+    return {
+        "mode": REFUSED,
+        "requested_full": full,
+        "performed": False,
+        "reason": NO_USABLE_ADAPTER,
+        "detail": str(broken),
+        "index_root": config.index_root,
+        "db_path": str(config.db_path),
+        "seconds": round(time.monotonic() - started, 3),
+    }
 
 
 def _busy(config: Config, *, full: bool, started: float) -> dict[str, object]:
@@ -82,6 +111,7 @@ def _busy(config: Config, *, full: bool, started: float) -> dict[str, object]:
         "reason": "another_build_running",
         **_busy_staleness(config),
         "db_path": str(config.db_path),
+        "index_root": config.index_root,
         "seconds": round(time.monotonic() - started, 3),
     }
 
@@ -171,6 +201,7 @@ def _refused(config: Config, mismatch: SchemaVersionError, full: bool) -> dict[s
         "requested_full": full,
         "schema_rebuilt": False,
         "db_path": str(config.db_path),
+        "index_root": config.index_root,
     }
 
 
@@ -186,18 +217,26 @@ def _result(
 ) -> dict[str, object]:
     # ``wrote`` is always nested so a delta cannot be read as a repo size (060).
     # A field added to BuildReport still reaches clients via asdict without an edit here.
+    # ``index_root`` ships on both detail levels — it is the fingerprint every payload names (079).
     result: dict[str, object] = {
         "mode": mode,
         "requested_full": full,
         "wrote": asdict(report),
         "schema_rebuilt": rebuilt_schema,
+        "index_root": config.index_root,
     }
     if detail_level == "minimal":
         return result
     # ``graph`` is standard-only — not on the cheap path (counts() can scan stubs at scale).
-    return result | {
+    enriched = result | {
         "graph": store.counts(),
         "last_commit": store.get_meta(LAST_COMMIT_KEY),
         "built_at": store.get_meta(BUILT_AT_KEY),
         "db_path": str(config.db_path),
     }
+    # ``last_ref`` names the revision beside the commit (077); omitted, never null, for a pre-077
+    # index — a just-built index always has it, so OMIT is a guard, not the live path.
+    ref = last_ref_for_payload(store)
+    if ref is not OMIT:
+        enriched["last_ref"] = ref
+    return enriched

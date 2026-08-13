@@ -13,7 +13,7 @@ what landed, and what it cost* — narrative rationale lives in those three.
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
 | 074 | [Does the index harm mechanism questions? — resolve at n ≥ 3](tasks/074_does-the-index-harm-mechanism-questions.md) | Measure | in-progress | 055, 067, 045 |
-| 079 | [`build_or_update_index` is the one payload with no `index_root`](tasks/079_build-payload-does-not-name-its-tree.md) | Agent-trust | todo | 071, 060 |
+| 079 | [`build_or_update_index` is the one payload with no `index_root`](tasks/079_build-payload-does-not-name-its-tree.md) | Agent-trust | done | 071, 060 |
 | 080 | [No-op incremental costs ~56 s and reports 6,071 edges for 0 files](tasks/080_noop-incremental-cost-and-uninterpretable-writes.md) | Cost | todo | 052, 051, 060 |
 | 081 | [The four routing prompts have never been reachable by an agent](tasks/081_routing-prompts-are-not-in-the-agents-surface.md) | Agent-fit | todo | 069, 017, 038 |
 | 082 | [Two claims nobody outside can check](tasks/082_claims-nobody-outside-can-check.md) | Agent-trust | todo | 068, 072, 028 |
@@ -320,6 +320,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | 076 | 0 dispatch — folded into 075's run; shared cost is the row above | [#94](https://github.com/cuongdinhngo/code-atlas/pull/94) |
 | 077 | 2 dispatch, unmeasured (explore + exposure-checker); review waived | [#96](https://github.com/cuongdinhngo/code-atlas/pull/96) |
 | 078 | 2 dispatch, unmeasured (explore + exposure-checker); review waived | [#97](https://github.com/cuongdinhngo/code-atlas/pull/97) |
+| 079 | 0 dispatch (review waived); main-loop only. Four Docker runs for delta-green (full gate **1130 passed**) | [#98](https://github.com/cuongdinhngo/code-atlas/pull/98) |
 | — | Field retro round 4 + ticket-writing for 075–082: 0 dispatch. **No PR** — committed straight to `main` on the maintainer's instruction for docs-only changes | — |
 
 **How 047–049 were measured.** One autonomous session, no per-task transcript: each row is the API
