@@ -27,17 +27,31 @@ BUILTIN_PATTERNS: tuple[str, ...] = (
 
 GITIGNORE_FILE = ".gitignore"
 ATLAS_IGNORE_FILE = ".codeatlasignore"
+# Built-ins have no filename; file sources derive from COMPOSED_IGNORE_FILES (095, not a hand list).
+SOURCE_BUILTIN = "builtin"
+COMPOSED_IGNORE_FILES: tuple[str, ...] = (GITIGNORE_FILE, ATLAS_IGNORE_FILE)
 
 _MAGIC = re.compile(r"\*\*|[*?\[]")
 
 
+def source_name(ignore_file: str) -> str:
+    """Payload key for a composed ignore file: strip the leading dot from its name."""
+    return ignore_file.lstrip(".")
+
+
+def composed_source_names() -> frozenset[str]:
+    """Every source ``load_ignore`` can stamp — derived from the composition, never listed."""
+    return frozenset((SOURCE_BUILTIN, *(source_name(name) for name in COMPOSED_IGNORE_FILES)))
+
+
 @dataclass(frozen=True, slots=True)
 class _Rule:
-    """One ignore pattern: its regex, whether it re-includes, and whether it is directory-only."""
+    """One ignore pattern: its regex, whether it re-includes, directory-only, and which source."""
 
     regex: re.Pattern[str]
     negated: bool
     dir_only: bool
+    source: str
 
 
 class IgnoreMatcher:
@@ -48,36 +62,51 @@ class IgnoreMatcher:
 
     def is_ignored(self, path: str, *, is_dir: bool = False) -> bool:
         """True when ``path`` — or any directory above it — is excluded."""
+        return self.ignore_source(path, is_dir=is_dir) is not None
+
+    def ignore_source(self, path: str, *, is_dir: bool = False) -> str | None:
+        """The source that excluded ``path``, or ``None`` when it is kept.
+
+        Same ancestor walk as :meth:`is_ignored`: a path under an excluded directory stays
+        excluded (later ``!`` cannot re-include it). Within one path, the last match wins.
+        """
         parts = PurePosixPath(path.strip("/")).parts
         for depth in range(1, len(parts)):
-            if self._decide("/".join(parts[:depth]), is_dir=True):
-                return True
-        return self._decide("/".join(parts), is_dir=is_dir)
+            source = self._decide_source("/".join(parts[:depth]), is_dir=True)
+            if source is not None:
+                return source
+        return self._decide_source("/".join(parts), is_dir=is_dir)
 
-    def _decide(self, path: str, *, is_dir: bool) -> bool:
-        """Apply every rule to one path in order; the last match wins, as git does."""
+    def _decide_source(self, path: str, *, is_dir: bool) -> str | None:
+        """Apply every rule in order; the last excluding decision names the source."""
         ignored = False
+        source: str | None = None
         for rule in self.rules:
             if rule.dir_only and not is_dir:
                 continue
             if rule.regex.fullmatch(path):
                 ignored = not rule.negated
-        return ignored
+                source = rule.source if ignored else None
+        return source
 
 
 def load_ignore(root: Path) -> IgnoreMatcher:
     """Built-ins, then ``.gitignore``, then the optional ``.codeatlasignore`` — later rules win."""
-    lines = list(BUILTIN_PATTERNS)
-    for name in (GITIGNORE_FILE, ATLAS_IGNORE_FILE):
+    rules: list[_Rule] = []
+    for pattern in BUILTIN_PATTERNS:
+        if (rule := compile_pattern(pattern, source=SOURCE_BUILTIN)) is not None:
+            rules.append(rule)
+    for name in COMPOSED_IGNORE_FILES:
         path = root / name
         if path.is_file():
-            lines += path.read_text(encoding="utf-8").splitlines()
-    return IgnoreMatcher(
-        tuple(rule for line in lines if (rule := compile_pattern(line)) is not None)
-    )
+            origin = source_name(name)
+            for line in path.read_text(encoding="utf-8").splitlines():
+                if (rule := compile_pattern(line, source=origin)) is not None:
+                    rules.append(rule)
+    return IgnoreMatcher(tuple(rules))
 
 
-def compile_pattern(line: str) -> _Rule | None:
+def compile_pattern(line: str, source: str = SOURCE_BUILTIN) -> _Rule | None:
     """Translate one gitignore-style line into a rule, or None for a blank line or comment."""
     pattern = line.strip()
     if not pattern or pattern.startswith("#"):
@@ -96,7 +125,7 @@ def compile_pattern(line: str) -> _Rule | None:
         return None
 
     prefix = "" if anchored else r"(?:.*/)?"
-    return _Rule(re.compile(prefix + _translate(pattern)), negated, dir_only)
+    return _Rule(re.compile(prefix + _translate(pattern)), negated, dir_only, source)
 
 
 def translate_path_pattern(pattern: str) -> str:

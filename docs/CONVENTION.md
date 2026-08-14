@@ -135,7 +135,8 @@ code-atlas/
   `parse_failure_paths` list (`PARSE_FAILURE_PATHS_LIMIT`, not `CA_MAX_RESULTS`) with optional
   `offset` — never on the cheap path; other tools stay `{minimal, standard}`. Verbose `collection`
   (082) also carries `skipped.untracked` beside the `collected − suffix − ignore == kept` identity
-  (092). `not_indexed` on a payload with `indexed: true` means the subject maps to an untracked
+  (092). At `verbose` only, `skipped.ignore_sources` names which composed ignore source dropped each
+  skip (095); `ignore` stays the int so 082 still closes; omit when empty (061). `not_indexed` on a payload with `indexed: true` means the subject maps to an untracked
   indexable file; `try_instead` is a real tool name and `try_instead_hint` carries the git-add
   prose (061 omit when empty). A subject matches an untracked file on its **stem** — a path-shaped
   qname's trailing ident is the file extension, so `Missing.aa` must not match `aa.aa` (092).

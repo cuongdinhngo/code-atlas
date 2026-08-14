@@ -1,5 +1,48 @@
 # Lessons — code-atlas
 
+## 095 — An ignore total that does not name its source is an unauditable denominator
+082 made `skipped.ignore` an outsider-checkable int, and the identities close. The 9,541 files in
+that bucket all have an indexed suffix — they are PHP the index chose not to hold — and nothing
+named the rule. Retro suggested `{gitignore, config, vendor}`. That list is a **hint, not the
+schema** (082): `load_ignore` composes built-ins + `.gitignore` + `.codeatlasignore`; `vendor/` is a
+pattern inside the builtin source, and there is no `CA_*` ignore knob. **Fix:** stamp each `_Rule`
+with its source as the matcher concatenates; attribute by the same last-excluding-rule walk
+`is_ignored` already uses (the ticket’s “first match wins” was an example of a stable rule, not the
+matcher); keep `ignore` as the int; publish `skipped.ignore_sources` at verbose only, omitted when
+empty. Persist the dict on a **sibling** meta key — `collection_census()` int-casts every value
+(092). On the git path most `.gitignore` hits never enter `collected`, so the breakdown names what
+**this matcher** dropped. Per-pattern counts would re-publish the ignore file (061). The absolute
+9,541 is an operator paste, not a merge gate (080/074).
+
+### 095-C1 — Source keys are derived from the composition, never listed
+- type: 2 generalisable-heuristic
+- handle: derived-not-listed-invariant
+- status: proposed (awaiting human confirm)
+- seen: 093, 095
+- evidence: `ignore.py` `COMPOSED_IGNORE_FILES` / `composed_source_names()`;
+  `tests/test_ignore_bucket_names_its_rule.py::test_composed_source_names_are_derived_and_exclude_retro_keys`
+- area: tests / R1.1
+- destination: `rulebook_path` (code subject) — recurrence ≥ 2; `/mango:promote` is the cross-ticket pass
+
+### 095-C2 — A JSON meta reader that int-casts cannot hold a dict; use a sibling key
+- type: 2 generalisable-heuristic
+- handle: sibling-meta-non-int
+- status: proposed (awaiting human confirm)
+- seen: 092, 095
+- evidence: `store.py` `collection_census()` int-casts; `IGNORE_SOURCES_KEY` beside
+  `UNTRACKED_INDEXABLE_KEY`
+- area: store / census
+- destination: `rulebook_path` (code subject) — recurrence ≥ 2; `/mango:promote` is the cross-ticket pass
+
+### 095-C3 — On the git collect path, ignore_sources names matcher leftovers, not git’s drops
+- type: 5 project-ground-truth
+- status: proposed (awaiting human confirm)
+- area: collection census / ignore
+- sub-shape: descriptive
+- evidence: PLAN §11; `git ls-files` already applies `.gitignore`; proving test uses
+  `.codeatlasignore` + builtin, and `git add -f` for a gitignore source
+- destination: stays in lessons_path (descriptive; PLAN §11 already records it)
+
 ## 093 — A field whose values are usually callable trains the reader to call all of them
 Three of five `try_instead` values were real tools; two were instructions shaped like identifiers
 (`find_references_on_method_qname`, `path_basename_search`). The field's *routing* was right both
@@ -43,11 +86,12 @@ trap.
 - type: 2 generalisable-heuristic
 - handle: derived-not-listed-invariant
 - status: confirmed
-- seen: 093
+- seen: 093, 095
 - evidence: `tests/test_try_instead_is_a_callable_tool_name.py` reads `vars(nav_result)` +
-  `main.TOOL_NAMES`; `test_the_dead_route_guard_can_actually_fail` injects a dead constant
+  `main.TOOL_NAMES`; `test_the_dead_route_guard_can_actually_fail` injects a dead constant;
+  095: `composed_source_names()` from `COMPOSED_IGNORE_FILES`
 - area: tests / R1.1
-- destination: `rulebook_path` (code subject) — recurrence 1, not yet promotable
+- destination: `rulebook_path` (code subject) — recurrence ≥ 2; `/mango:promote` is the cross-ticket pass
 
 ### 093-C3 — A guard is not a guard until it has been made to fail
 - type: 2 generalisable-heuristic

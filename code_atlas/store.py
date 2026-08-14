@@ -36,6 +36,8 @@ INDEXED_SUFFIXES_KEY = "indexed_suffixes"
 COLLECTION_CENSUS_KEY = "collection_census"
 # Indexable-suffix, not-ignored untracked paths (JSON list) — separate from the int census (092).
 UNTRACKED_INDEXABLE_KEY = "untracked_indexable"
+# Per-source ignore counts (JSON object) — sibling of the int census; that reader int-casts (095).
+IGNORE_SOURCES_KEY = "ignore_sources"
 META_KEYS: tuple[str, ...] = (
     SCHEMA_VERSION_KEY,
     CONTRACT_VERSION_KEY,
@@ -45,6 +47,7 @@ META_KEYS: tuple[str, ...] = (
     INDEXED_SUFFIXES_KEY,
     COLLECTION_CENSUS_KEY,
     UNTRACKED_INDEXABLE_KEY,
+    IGNORE_SOURCES_KEY,
 )
 
 # Bound SQLite variable lists so a large incremental unlink cannot trip the host's max-vars.
@@ -448,6 +451,16 @@ class GraphStore:
         if not isinstance(parsed, list):
             return ()
         return tuple(str(path) for path in parsed)
+
+    def ignore_source_counts(self) -> dict[str, int]:
+        """Per-source ignore tallies stamped at the last build, or empty when absent (095)."""
+        raw = self.get_meta(IGNORE_SOURCES_KEY)
+        if not raw:
+            return {}
+        parsed = json.loads(raw)
+        if not isinstance(parsed, dict):
+            return {}
+        return {str(key): int(value) for key, value in parsed.items() if int(value) > 0}
 
     def failed_paths(self, limit: int, offset: int = 0) -> tuple[str, ...]:
         """Paths with ``parsed_ok = 0``, ordered — the list behind ``parse_failures`` (task 058)."""

@@ -59,7 +59,8 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
         denominator to reconcile ``files`` against your own ``git ls-files``:
         ``collected - skipped.suffix - skipped.ignore == kept``, ``kept + stubs == files`` (082).
         ``skipped.untracked`` sits beside that identity: files git does not list, with an indexed
-        suffix, that are not ignored (092).
+        suffix, that are not ignored (092). ``verbose`` also names ``skipped.ignore_sources`` —
+        per-source counts that sum to ``skipped.ignore`` (095); omitted when empty or pre-095.
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
@@ -173,7 +174,7 @@ def _status(
         "parse_failure_paths": list(paths),
         "parse_failures_truncated": counts["failed"] > offset + len(paths),
     }
-    collection = collection_field(store)
+    collection = collection_field(store, ignore_sources=True)
     if collection is not None:
         verbose["collection"] = collection
     return verbose

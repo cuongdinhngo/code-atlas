@@ -20,6 +20,7 @@ import pytest
 
 from code_atlas import contract
 from code_atlas.config import load_config
+from code_atlas.ignore import SOURCE_BUILTIN
 from code_atlas.indexer import full_build
 from code_atlas.store import GraphStore
 from code_atlas.tools import get_index_status
@@ -68,6 +69,7 @@ def test_verbose_status_reconciles_files_end_to_end(tmp_path: Path) -> None:
     tracked = [line for line in git(tmp_path, "ls-files").splitlines() if line]
     assert col["collected"] == len(tracked)
     assert col["skipped"]["ignore"] == 1  # vendor/lib.aa
+    assert col["skipped"]["ignore_sources"] == {SOURCE_BUILTIN: 1}
     assert col["kept"] == 2  # src/a.aa, src/b.aa
     # collected - skipped(suffix, ignore) = kept, and kept + stubs = files (the reconciliation).
     assert col["collected"] - col["skipped"]["suffix"] - col["skipped"]["ignore"] == col["kept"]

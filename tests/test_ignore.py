@@ -11,8 +11,12 @@ import pytest
 from code_atlas.ignore import (
     ATLAS_IGNORE_FILE,
     BUILTIN_PATTERNS,
+    COMPOSED_IGNORE_FILES,
     GITIGNORE_FILE,
+    SOURCE_BUILTIN,
+    composed_source_names,
     load_ignore,
+    source_name,
 )
 
 
@@ -155,3 +159,26 @@ def test_rules_keep_their_source_order(tmp_path: Path) -> None:
 
     assert [rule.regex.pattern for rule in first] == [rule.regex.pattern for rule in second]
     assert len(first) == len(BUILTIN_PATTERNS) + 2
+
+
+def test_ignore_source_names_the_last_excluding_source(tmp_path: Path) -> None:
+    write(tmp_path, ATLAS_IGNORE_FILE, "vendor/")
+    matcher = load_ignore(tmp_path)
+
+    assert matcher.ignore_source("vendor/lib.php") == source_name(ATLAS_IGNORE_FILE)
+    assert matcher.ignore_source("src/app.php") is None
+    assert matcher.is_ignored("vendor/lib.php")
+    assert not matcher.is_ignored("src/app.php")
+
+
+def test_every_loaded_rule_stamps_a_composed_source(tmp_path: Path) -> None:
+    write(tmp_path, GITIGNORE_FILE, "*.log")
+    write(tmp_path, ATLAS_IGNORE_FILE, "generated/")
+    allowed = composed_source_names()
+    matcher = load_ignore(tmp_path)
+
+    assert {rule.source for rule in matcher.rules} <= allowed
+    assert SOURCE_BUILTIN in {rule.source for rule in matcher.rules}
+    assert source_name(GITIGNORE_FILE) in {rule.source for rule in matcher.rules}
+    assert source_name(ATLAS_IGNORE_FILE) in {rule.source for rule in matcher.rules}
+    assert COMPOSED_IGNORE_FILES == (GITIGNORE_FILE, ATLAS_IGNORE_FILE)
