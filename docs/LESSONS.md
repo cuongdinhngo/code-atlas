@@ -22,7 +22,8 @@ empty. Persist the dict on a **sibling** meta key — `collection_census()` int-
 - evidence: `ignore.py` `COMPOSED_IGNORE_FILES` / `composed_source_names()`;
   `tests/test_ignore_bucket_names_its_rule.py::test_composed_source_names_are_derived_and_exclude_retro_keys`
 - area: tests / R1.1
-- destination: `rulebook_path` (code subject) — recurrence ≥ 2; `/mango:promote` is the cross-ticket pass
+- destination: `rulebook_path` — **promoted 2026-08-14** to `docs/ENGINEERING_RULES.md` **R6.7** (with
+  `093-C2`), tagged `PROVISIONAL (awaiting ratification)`. Re-runs of `/mango:promote` skip this class.
 
 ### 095-C2 — A JSON meta reader that int-casts cannot hold a dict; use a sibling key
 - type: 2 generalisable-heuristic
@@ -32,7 +33,8 @@ empty. Persist the dict on a **sibling** meta key — `collection_census()` int-
 - evidence: `store.py` `collection_census()` int-casts; `IGNORE_SOURCES_KEY` beside
   `UNTRACKED_INDEXABLE_KEY`
 - area: store / census
-- destination: `rulebook_path` (code subject) — recurrence ≥ 2; `/mango:promote` is the cross-ticket pass
+- destination: `rulebook_path` — **promoted 2026-08-14** to `docs/ENGINEERING_RULES.md` **R1.7**, tagged
+  `PROVISIONAL (awaiting ratification)`. Re-runs of `/mango:promote` skip this class.
 
 ### 095-C3 — On the git collect path, ignore_sources names matcher leftovers, not git’s drops
 - type: 5 project-ground-truth
@@ -91,7 +93,8 @@ trap.
   `main.TOOL_NAMES`; `test_the_dead_route_guard_can_actually_fail` injects a dead constant;
   095: `composed_source_names()` from `COMPOSED_IGNORE_FILES`
 - area: tests / R1.1
-- destination: `rulebook_path` (code subject) — recurrence ≥ 2; `/mango:promote` is the cross-ticket pass
+- destination: `rulebook_path` — **promoted 2026-08-14** to `docs/ENGINEERING_RULES.md` **R6.7** (with
+  `095-C1`), tagged `PROVISIONAL (awaiting ratification)`. Re-runs of `/mango:promote` skip this class.
 
 ### 093-C3 — A guard is not a guard until it has been made to fail
 - type: 2 generalisable-heuristic

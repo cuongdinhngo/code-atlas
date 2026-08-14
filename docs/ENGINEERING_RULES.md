@@ -37,6 +37,14 @@ adapter contract. Everywhere else, prefer the simplest thing that works.
 - **R1.6 — Optional power via capability flags (ISP).** Richer data (e.g. Roslyn's `semantic_types`) is
   advertised as a capability the core *may* use, never a method all adapters must implement. The core
   degrades gracefully when a capability is absent.
+- **R1.7 — A reader that coerces every value constrains what may be stored beside it; add a sibling key,
+  never loosen the reader.** `PROVISIONAL (awaiting ratification)` — promoted from `LESSONS.md` `095-C2`
+  (handle `sibling-meta-non-int`, seen 092, 095). When a persisted blob is read through an accessor that
+  coerces types — `collection_census()` int-casts every value — a datum of a different shape goes on its
+  **own** meta key beside it, never inside the coerced structure. Widening the accessor to admit the new
+  shape trades a total, checkable contract for a conditional one, and every existing consumer inherits the
+  looser type. *Falsifier:* a non-int value inside the census structure, or an accessor whose coercion was
+  relaxed rather than a sibling key added — cf. `UNTRACKED_INDEXABLE_KEY` (092), `IGNORE_SOURCES_KEY` (095).
 
 ## 2. Standard over sample
 
@@ -122,6 +130,15 @@ adapter contract. Everywhere else, prefer the simplest thing that works.
   baseline file, no `@phpstan-ignore`, no inline `@var` override, no widened signature or cast added
   only to silence a rule. Either fix the code or argue the level down in the rule book — where the
   argument is reviewable. `php -l` does **not** satisfy this; it catches syntax, not types.
+- **R6.7 — A guard that needs "every valid X" derives the set; it never lists it.**
+  `PROVISIONAL (awaiting ratification)` — promoted from `LESSONS.md` `093-C2` + `095-C1` (handle
+  `derived-not-listed-invariant`, seen 093, 095). When a test or a payload needs the set of all valid
+  members — tool names, ignore-source keys, reason codes — it derives that set from the definition site
+  (a module namespace, a registry, the composition that builds it) rather than re-typing the members. A
+  hand-kept list is precisely what drifts when member N+1 arrives, and it drifts **silently**, because the
+  guard still passes. *Falsifier:* a literal list of valid members inside a test or tool where a derivation
+  was available — `main.TOOL_NAMES` / `vars(module)` (093), `composed_source_names()` from
+  `COMPOSED_IGNORE_FILES` (095) — or a new member that ships without failing any guard.
 
 ## 7. Change discipline
 
