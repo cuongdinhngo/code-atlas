@@ -160,6 +160,34 @@ def test_empty_page_past_the_end_is_not_a_miss(tmp_path: Path) -> None:
         assert not file_is_current(store, tmp_path, "src/a.aa")
 
 
+def test_repaired_miss_still_names_the_repair_and_the_unrecorded_args(tmp_path: Path) -> None:
+    """A repaired-then-absent subject keeps ``subject_refreshed_only`` (073) + ``args_unrecorded``.
+
+    092's exact-miss shortcut returns before the shared fall-through, so both signals have to be
+    attached on the miss itself — a symbol deleted since the build is the reachable case.
+    """
+    write(tmp_path, "src/a.aa", "class Thing {}\n# symbol: Gone\n")
+    _git_init(tmp_path)
+    config = config_for(tmp_path)
+    with GraphStore(config.db_path) as store:
+        full_build(config, store)
+    write(tmp_path, "src/a.aa", "class Thing {}\n")
+
+    qname = "src/a.aa::Gone"
+    callers = find_callers.create(config)(
+        qname, detail_level="minimal", arg_position=1, arg_is="string"
+    )
+    assert callers["reason"] == REASON_NO_SUCH_SYMBOL
+    assert callers["subject_refreshed_only"] is True
+    assert callers["args_unrecorded"] == 0
+
+    # The caller above spent the repair, so re-dirty the file for the second consumer.
+    write(tmp_path, "src/a.aa", "class Thing {}\n# drift\n")
+    view = find_view_data.create(config)(qname, detail_level="minimal")
+    assert view["reason"] == REASON_NO_SUCH_SYMBOL
+    assert view["subject_refreshed_only"] is True
+
+
 def test_dirty_indexed_paths_ignores_non_indexed_suffixes(tmp_path: Path) -> None:
     write(tmp_path, "src/a.aa", "class A {}\n")
     write(tmp_path, "README.md", "hi\n")

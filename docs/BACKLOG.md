@@ -13,7 +13,6 @@ what landed, and what it cost* — narrative rationale lives in those three.
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
 | 074 | [Does the index harm mechanism questions? — resolve at n ≥ 3](tasks/074_does-the-index-harm-mechanism-questions.md) | Measure | in-progress | 055, 067, 045 |
-| 092 | [An untracked file is skipped silently, then answers `no_such_symbol`](tasks/092_untracked-files-are-invisible-and-answer-no-such-symbol.md) | Agent-trust | todo | 073, 082, 065 |
 | 093 | [`try_instead` returns a string that is not a callable tool name](tasks/093_try-instead-is-not-a-callable-tool-name.md) | Agent-fit | todo | 065, 076, 069 |
 | 094 | [A `::class` constant in a routing array is `relationship_not_modelled`](tasks/094_class-constant-in-array-literal-is-not-an-edge.md) | Coverage | todo | 030, 011, 002 |
 | 095 | [`collection.ignore: 9541` excludes indexable PHP by an unnamed rule](tasks/095_ignore-bucket-does-not-name-its-rule.md) | Agent-trust | todo | 082, 003, 068 |
@@ -168,6 +167,7 @@ this track are in [Open work](#open-work); everything below has landed.
 | 080 | [No-op incremental costs ~56 s and reports 6,071 edges for 0 files](tasks/080_noop-incremental-cost-and-uninterpretable-writes.md) | Cost | done | 052, 051, 060 |
 | 081 | [The four routing prompts have never been reachable by an agent](tasks/081_routing-prompts-are-not-in-the-agents-surface.md) | Agent-fit | done | 069, 017, 038 |
 | 082 | [Two claims nobody outside can check](tasks/082_claims-nobody-outside-can-check.md) | Agent-trust | done | 068, 072, 028 |
+| 092 | [An untracked file is skipped silently, then answers `no_such_symbol`](tasks/092_untracked-files-are-invisible-and-answer-no-such-symbol.md) | Agent-trust | done | 073, 082, 065 |
 
 ### Where these tickets came from
 
@@ -353,6 +353,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | 082 | 1 dispatch — refine exposure-checker **50.5k** (9 tool-uses, 154 s); review waived. Docker runs for delta-green (full gate **1134 passed**) | [#99](https://github.com/cuongdinhngo/code-atlas/pull/99) |
 | 081 | 1 dispatch — refine exposure-checker **60.4k** (17 tool-uses, 194 s); review waived. Docker runs for delta-green (full gate **1137 passed**) | [#100](https://github.com/cuongdinhngo/code-atlas/pull/100) |
 | 080 | 1 dispatch — refine exposure-checker **57.8k** (8 tool-uses, 187 s); review waived. Docker runs for delta-green (full gate **1140 passed**); one blast-radius miss caught + absorbed | [#101](https://github.com/cuongdinhngo/code-atlas/pull/101) |
+| 092 | 1 dispatch — refine exposure-checker unmeasured (blocking retrieval); review waived at solve time, then done on the PR (0 dispatch, in-session). Docker delta-green (full gate **1167 passed**; branch pre-review 1165, `main` 1160 — both re-measured, the "1162" first recorded here was a stale count) | [#102](https://github.com/cuongdinhngo/code-atlas/pull/102) |
 | — | Field retro round 4 + ticket-writing for 075–082: 0 dispatch. **No PR** — committed straight to `main` on the maintainer's instruction for docs-only changes | — |
 
 **How 047–049 were measured.** One autonomous session, no per-task transcript: each row is the API

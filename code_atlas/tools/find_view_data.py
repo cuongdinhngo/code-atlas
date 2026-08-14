@@ -13,17 +13,17 @@ from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
     REASON_CAPABILITY_NOT_CONFIGURED,
     REASON_INDEX_STALE,
-    REASON_NAME_NOT_QUALIFIED,
     REASON_NO_MATCHES,
+    REASON_NO_SUCH_SYMBOL,
     TRY_INSTEAD_FILE_OUTLINE,
     attach_limit_capped,
-    attach_name_not_qualified,
     attach_try_instead,
     classify_missing_subject,
     edge_hit,
     empty_nav,
     nav_result,
     relation_reason,
+    shape_exact_miss,
 )
 
 NAME = "find_view_data"
@@ -78,6 +78,25 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 )
             total = store.count_edges_by_source(qname, kinds=_KIND)
             indexed = bool(store.nodes_by_qualified_name(qname, limit=1))
+            if total == 0 and not indexed:
+                miss = nav_result(
+                    qname,
+                    [],
+                    detail_level=detail_level,
+                    db_path=str(config.db_path),
+                    index_root=config.index_root,
+                    truncated=False,
+                    reason=REASON_NO_SUCH_SYMBOL,
+                    total_count=0,
+                )
+                # A miss still names what the guard repaired (073) — the 092 shortcut must not
+                # drop a signal the fall-through carried.
+                if freshness == "repaired":
+                    miss["subject_refreshed_only"] = True
+                attach_limit_capped(miss, cap=cap, clamped=limit_clamped)
+                return shape_exact_miss(
+                    miss, classify_missing_subject(store, qname, limit=config.max_results)
+                )
             rows = store.edges_by_source(qname, kinds=_KIND, limit=cap, offset=offset)
             file_path = _subject_file(store, qname)
             results: list[dict[str, object]] = []
@@ -95,14 +114,6 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 # Indexed handler, empty only because no rules are configured — inert, not a
                 # genuine "publishes nothing" zero (069). A missing subject stays no_such_symbol.
                 reason = REASON_CAPABILITY_NOT_CONFIGURED
-            # Under-qualified (N indexed qnames end with it), not a genuine absence (075/076).
-            name_not_qualified = (
-                classify_missing_subject(store, qname, limit=config.max_results).candidate_count
-                if total == 0 and not indexed
-                else 0
-            )
-            if name_not_qualified > 0:
-                reason = REASON_NAME_NOT_QUALIFIED
             result = nav_result(
                 qname,
                 results,
@@ -115,8 +126,6 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             )
             if freshness == "repaired":
                 result["subject_refreshed_only"] = True
-            if name_not_qualified > 0:
-                attach_name_not_qualified(result, name_not_qualified)
             attach_limit_capped(result, cap=cap, clamped=limit_clamped)
             return result
 

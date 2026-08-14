@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
+from pathlib import PurePosixPath
 from typing import Any, Literal, NamedTuple
 
 from code_atlas import contract
@@ -61,6 +62,9 @@ TRY_INSTEAD_PATH_BASENAME_SEARCH = "path_basename_search"
 TRY_INSTEAD_FILE_OUTLINE = "file_outline"
 # An under-qualified subject has candidates — search_symbol enumerates them (075/076).
 TRY_INSTEAD_SEARCH_SYMBOL = "search_symbol"
+# Untracked indexable file — rebuild after git add (092). Real tool name; hint is sibling.
+TRY_INSTEAD_BUILD_OR_UPDATE_INDEX = "build_or_update_index"
+TRY_INSTEAD_HINT_UNTRACKED = "git add the untracked file, then rebuild"
 
 
 def edge_id(edge: Mapping[str, Any] | Row) -> int:
@@ -208,9 +212,10 @@ _IDENT_CHAR = re.compile(r"[A-Za-z0-9_]")
 class SubjectResolution(NamedTuple):
     """How a subject qname the index has no exact node for classifies (miss path only)."""
 
-    status: str  # "absent" | "resolved_unique" | "ambiguous"
+    status: str  # "absent" | "resolved_unique" | "ambiguous" | "untracked"
     qname: str  # the stored qname to use downstream when resolved_unique; else the input
     candidate_count: int  # boundary-suffix candidate floor (0 when absent)
+    untracked_paths: tuple[str, ...] = ()
 
 
 def classify_missing_subject(
@@ -221,6 +226,7 @@ def classify_missing_subject(
     Counts indexed qnames that end with ``qname`` at a component boundary — so a leading-anchor
     difference (``Ns\\Sub\\Enum`` vs ``\\Ns\\Sub\\Enum``) resolves as one candidate, and a bare
     member name (``isEnabled``) surfaces as many. Runs on the miss path only (a hit never pays).
+    An exact miss that maps to a stored untracked indexable path is ``untracked`` (task 092).
     """
     trailing = _IDENT_TRAILING.search(qname)
     if trailing is None:
@@ -231,11 +237,34 @@ def classify_missing_subject(
         for row in candidates
         if _ends_at_boundary(str(row["qualified_name"]), qname)
     ]
-    if not matches:
-        return SubjectResolution("absent", qname, 0)
-    if len(matches) == 1:
-        return SubjectResolution("resolved_unique", matches[0], 1)
-    return SubjectResolution("ambiguous", qname, len(matches))
+    if matches:
+        if len(matches) == 1:
+            return SubjectResolution("resolved_unique", matches[0], 1)
+        return SubjectResolution("ambiguous", qname, len(matches))
+    untracked = _matching_untracked(store.untracked_indexable_paths(), qname)
+    if untracked:
+        return SubjectResolution("untracked", qname, 0, untracked)
+    return SubjectResolution("absent", qname, 0)
+
+
+def _matching_untracked(paths: Sequence[str], qname: str) -> tuple[str, ...]:
+    """Untracked files whose stem matches the subject's type-part ident or path stem (092)."""
+    keys = _untracked_match_keys(qname)
+    if not keys:
+        return ()
+    return tuple(path for path in paths if PurePosixPath(path).stem in keys)
+
+
+def _untracked_match_keys(qname: str) -> frozenset[str]:
+    # A path-shaped subject matches on its stem only: its trailing ident is the file
+    # extension, and ``Foo.aa`` must not match an untracked ``aa.aa`` (092).
+    container, _member = contract.split_qname(qname)
+    hay = container or qname
+    as_path = PurePosixPath(hay)
+    if as_path.suffix and as_path.stem:
+        return frozenset({as_path.stem})
+    trailing = _IDENT_TRAILING.search(hay)
+    return frozenset({trailing.group(0)}) if trailing is not None else frozenset()
 
 
 def _ends_at_boundary(stored: str, suffix: str) -> bool:
@@ -260,6 +289,33 @@ def attach_try_instead(payload: dict[str, object], try_instead: str | None) -> d
     if try_instead:
         payload["try_instead"] = try_instead
     return payload
+
+
+def attach_untracked_not_indexed(
+    payload: dict[str, object], paths: Sequence[str]
+) -> dict[str, object]:
+    """An index exists but this subject lives in an untracked file (task 092; 061 omit-empty)."""
+    payload["reason"] = REASON_NOT_INDEXED
+    payload["try_instead"] = TRY_INSTEAD_BUILD_OR_UPDATE_INDEX
+    payload["try_instead_hint"] = TRY_INSTEAD_HINT_UNTRACKED
+    if len(paths) == 1:
+        payload["untracked_path"] = paths[0]
+    elif paths:
+        payload["untracked_paths"] = list(paths)
+    return payload
+
+
+def shape_exact_miss(
+    miss: dict[str, object], resolution: SubjectResolution
+) -> dict[str, object]:
+    """Fill an exact-miss payload from the classifier (075/076/092)."""
+    if resolution.status == "untracked":
+        return attach_untracked_not_indexed(miss, resolution.untracked_paths)
+    if resolution.candidate_count:
+        miss["reason"] = REASON_NAME_NOT_QUALIFIED
+        return attach_name_not_qualified(miss, resolution.candidate_count)
+    miss["reason"] = REASON_NO_SUCH_SYMBOL
+    return miss
 
 
 def attach_limit_capped(

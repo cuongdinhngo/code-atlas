@@ -24,6 +24,18 @@ def ls_files(root: Path) -> tuple[str, ...] | None:
     return tuple(sorted(path for path in found.split("\0") if path))
 
 
+def ls_untracked(root: Path) -> tuple[str, ...] | None:
+    """Untracked paths git does not ignore, repo-relative and POSIX-separated, or None.
+
+    ``--exclude-standard`` drops gitignored names; ``-z`` matches ``ls_files``. Sorted here
+    so the untracked census is a property of this core (R4.2), not of git's listing order.
+    """
+    found = _run(root, "ls-files", "-o", "-z", "--exclude-standard")
+    if found is None:
+        return None
+    return tuple(sorted(path for path in found.split("\0") if path))
+
+
 def head_commit(root: Path) -> str | None:
     """The commit the working tree is at, or None when there is no repo or no commit yet."""
     commit, _ = head_commit_and_ref(root)

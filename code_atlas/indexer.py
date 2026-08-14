@@ -41,6 +41,7 @@ from code_atlas.store import (
     INDEXED_SUFFIXES_KEY,
     LAST_COMMIT_KEY,
     LAST_REF_KEY,
+    UNTRACKED_INDEXABLE_KEY,
     WRITE_ERRORS,
     GraphStore,
 )
@@ -116,7 +117,7 @@ def full_build(config: Config, store: GraphStore) -> BuildReport:
         announced = _announce(config, watchdog)
         try:
             owners = _owners(announced)
-            paths, census = _collect_with_census(config.root, tuple(owners))
+            paths, census, untracked = _collect_with_census(config.root, tuple(owners))
             stubs = (
                 collect_stubs(config.root, config.stub_roots, tuple(owners))
                 if config.stub_roots
@@ -134,7 +135,7 @@ def full_build(config: Config, store: GraphStore) -> BuildReport:
 
     # No FTS rebuild here: §10's triggers keep `nodes_fts` current through every replace, so a
     # rebuild per build would cost a full re-index and change nothing (deviation D1).
-    _record_meta(config, store, tuple(owners), census)
+    _record_meta(config, store, tuple(owners), census, untracked)
     _count_late_writes(counts, config, store, rules)
     return BuildReport(files=len(kept), stubs=len(stubs), removed=removed, **counts)
 
@@ -170,7 +171,7 @@ def incremental_update(
         try:
             owners = _owners(announced)
             mark = time.monotonic()
-            paths, census = _collect_with_census(config.root, tuple(owners))
+            paths, census, untracked = _collect_with_census(config.root, tuple(owners))
             stubs = (
                 collect_stubs(config.root, config.stub_roots, tuple(owners))
                 if config.stub_roots
@@ -229,7 +230,7 @@ def incremental_update(
         watchdog.stop()
 
     mark = time.monotonic()
-    _record_meta(config, store, tuple(owners), census)
+    _record_meta(config, store, tuple(owners), census, untracked)
     _phase_add(phase_times, "meta", mark)
     # A true no-op (nothing parsed, nothing reconciled) leaves the graph unchanged, so the late
     # writers would only re-derive rows already present — full-graph work that was the ~56 s floor
@@ -335,13 +336,15 @@ class CollectionCensus:
     """The collect walk's own tally so an outsider can reconcile ``files`` (task 082).
 
     A partition of the walked set: ``collected - skipped_suffix - skipped_ignore == kept`` by
-    construction. On a git repo ``collected == len(git ls-files)`` — the outsider's denominator.
+    construction. On a git repo ``collected == len(git ls-files)``. ``skipped_untracked`` sits
+    beside that partition (task 092) — untracked files are never in ``collected``.
     """
 
     collected: int
     skipped_suffix: int
     skipped_ignore: int
     kept: int
+    skipped_untracked: int = 0
 
 
 def collect(root: Path, suffixes: Sequence[str]) -> tuple[str, ...]:
@@ -355,11 +358,12 @@ def collect(root: Path, suffixes: Sequence[str]) -> tuple[str, ...]:
 
 def _collect_with_census(
     root: Path, suffixes: Sequence[str]
-) -> tuple[tuple[str, ...], CollectionCensus]:
+) -> tuple[tuple[str, ...], CollectionCensus, tuple[str, ...]]:
     """``collect`` plus the by-cause census, from the SAME single walk (task 082, R4).
 
     Partitions the walked set into suffix-skipped / ignore-skipped / kept in one pass, so the
     reconciliation arithmetic closes by construction and no second traversal invents a rival count.
+    Untracked indexable paths are a second **git spawn**, not a second filesystem walk (task 092).
     """
     matcher = load_ignore(root)
     wanted = {suffix.lower() for suffix in suffixes}
@@ -374,8 +378,25 @@ def _collect_with_census(
             skipped_ignore += 1
         else:
             kept.append(path)
-    census = CollectionCensus(len(found), skipped_suffix, skipped_ignore, len(kept))
-    return tuple(sorted(kept)), census
+    untracked = _indexable_untracked(root, wanted, matcher) if tracked is not None else ()
+    census = CollectionCensus(
+        len(found), skipped_suffix, skipped_ignore, len(kept), len(untracked)
+    )
+    return tuple(sorted(kept)), census, untracked
+
+
+def _indexable_untracked(
+    root: Path, wanted: set[str], matcher: IgnoreMatcher
+) -> tuple[str, ...]:
+    """Untracked paths with a claimed suffix that code-atlas does not ignore (task 092)."""
+    found = gitutil.ls_untracked(root)
+    if found is None:
+        return ()
+    return tuple(
+        path
+        for path in found
+        if _suffix(path) in wanted and not matcher.is_ignored(path)
+    )
 
 
 def indexable(paths: Iterable[str], root: Path, suffixes: Sequence[str]) -> tuple[str, ...]:
@@ -748,17 +769,23 @@ def _write(
 
 
 def _record_meta(
-    config: Config, store: GraphStore, suffixes: Sequence[str], census: CollectionCensus
+    config: Config,
+    store: GraphStore,
+    suffixes: Sequence[str],
+    census: CollectionCensus,
+    untracked: tuple[str, ...] = (),
 ) -> None:
     """Stamp the build (§8.1 step 4). Clear commit/ref when git cannot name them (077).
 
     The collection census is stamped so verbose ``get_index_status`` can publish the denominator an
-    outsider reconciles ``files`` against, without re-walking the tree (task 082, R4).
+    outsider reconciles ``files`` against, without re-walking the tree (task 082, R4). Untracked
+    indexable paths live on a sibling key — ``collection_census()`` int-casts every value (092).
     """
     store.set_meta(CONTRACT_VERSION_KEY, str(contract.CONTRACT_VERSION))
     store.set_meta(BUILT_AT_KEY, store.now())
     store.set_meta(INDEXED_SUFFIXES_KEY, ",".join(sorted({s.lower() for s in suffixes})))
     store.set_meta(COLLECTION_CENSUS_KEY, json.dumps(asdict(census)))
+    store.set_meta(UNTRACKED_INDEXABLE_KEY, json.dumps(list(untracked)))
     commit, ref = gitutil.head_commit_and_ref(config.root)
     if commit is not None:
         store.set_meta(LAST_COMMIT_KEY, commit)

@@ -34,6 +34,8 @@ INDEXED_SUFFIXES_KEY = "indexed_suffixes"
 # The collect walk's by-cause tally (JSON), so verbose status can publish the denominator an
 # outsider reconciles ``files`` against without a second traversal (task 082).
 COLLECTION_CENSUS_KEY = "collection_census"
+# Indexable-suffix, not-ignored untracked paths (JSON list) — separate from the int census (092).
+UNTRACKED_INDEXABLE_KEY = "untracked_indexable"
 META_KEYS: tuple[str, ...] = (
     SCHEMA_VERSION_KEY,
     CONTRACT_VERSION_KEY,
@@ -42,6 +44,7 @@ META_KEYS: tuple[str, ...] = (
     BUILT_AT_KEY,
     INDEXED_SUFFIXES_KEY,
     COLLECTION_CENSUS_KEY,
+    UNTRACKED_INDEXABLE_KEY,
 )
 
 # Bound SQLite variable lists so a large incremental unlink cannot trip the host's max-vars.
@@ -435,6 +438,16 @@ class GraphStore:
             return None
         parsed = json.loads(raw)
         return {key: int(value) for key, value in parsed.items()}
+
+    def untracked_indexable_paths(self) -> tuple[str, ...]:
+        """Untracked indexable paths stamped at the last build, or empty when absent (092)."""
+        raw = self.get_meta(UNTRACKED_INDEXABLE_KEY)
+        if not raw:
+            return ()
+        parsed = json.loads(raw)
+        if not isinstance(parsed, list):
+            return ()
+        return tuple(str(path) for path in parsed)
 
     def failed_paths(self, limit: int, offset: int = 0) -> tuple[str, ...]:
         """Paths with ``parsed_ok = 0``, ordered — the list behind ``parse_failures`` (task 058)."""

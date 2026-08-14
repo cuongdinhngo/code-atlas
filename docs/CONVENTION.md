@@ -133,11 +133,18 @@ code-atlas/
   and `standard` may share the same top-level keys.
   `get_index_status` also accepts `verbose` (task 058): `standard` plus a capped
   `parse_failure_paths` list (`PARSE_FAILURE_PATHS_LIMIT`, not `CA_MAX_RESULTS`) with optional
-  `offset` — never on the cheap path; other tools stay `{minimal, standard}`.
+  `offset` — never on the cheap path; other tools stay `{minimal, standard}`. Verbose `collection`
+  (082) also carries `skipped.untracked` beside the `collected − suffix − ignore == kept` identity
+  (092). `not_indexed` on a payload with `indexed: true` means the subject maps to an untracked
+  indexable file; `try_instead` is a real tool name and `try_instead_hint` carries the git-add
+  prose (061 omit when empty). A subject matches an untracked file on its **stem** — a path-shaped
+  qname's trailing ident is the file extension, so `Missing.aa` must not match `aa.aa` (092).
 - One module per tool at `code_atlas/tools/<tool_name>.py`, named exactly as the MCP tool. Each
   exposes `NAME` and a `create(...)` that returns the registered function: **the returned function's
   signature is the MCP signature and its docstring is the tool description**, so configuration flows
-  in through the closure rather than through global state.
+  in through the closure rather than through global state. Logic two tools share lives in its own
+  helper module beside them (`nav_result`, `staleness`, `reach_shared`, `collection`) — a tool module
+  never imports another tool module.
 - `get_index_status` is the cheap entry point (~100 tok) and suggests next tools — **only tools the
   server actually registered**, never one a client could not call.
 - Tool availability gated by the `CA_TOOLS` allow-list; a name that is not a served tool is a loud

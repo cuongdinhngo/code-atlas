@@ -3,7 +3,8 @@
 ``full=true`` always runs a full build. ``full=false`` runs an incremental update when
 ``last_commit`` and ``git diff`` are usable; otherwise it falls back to a full build and names the
 mode that actually ran. Successful payloads nest run writes under ``wrote`` so a delta cannot be
-read as a repo size (task 060); ``standard`` also adds ``graph`` from ``store.counts()``. The store
+read as a repo size (task 060); ``standard`` also adds ``graph`` from ``store.counts()``
+and ``collection`` (the 082 census, including ``skipped.untracked`` — task 092). The store
 is opened here, inside the call, because the caller's thread owns the connection (R4.3).
 """
 
@@ -27,6 +28,7 @@ from code_atlas.store import (
     SchemaVersionError,
 )
 from code_atlas.tools import schema_guard
+from code_atlas.tools.collection import collection_field
 from code_atlas.tools.staleness import OMIT, UNKNOWN, compute_staleness, last_ref_for_payload
 
 NAME = "build_or_update_index"
@@ -240,4 +242,7 @@ def _result(
     ref = last_ref_for_payload(store)
     if ref is not OMIT:
         enriched["last_ref"] = ref
+    collection = collection_field(store)
+    if collection is not None:
+        enriched["collection"] = collection
     return enriched

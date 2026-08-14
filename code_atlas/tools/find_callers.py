@@ -14,11 +14,10 @@ from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
     REASON_BARE_NAME_TRUNCATED,
     REASON_INDEX_STALE,
-    REASON_NAME_NOT_QUALIFIED,
+    REASON_NO_SUCH_SYMBOL,
     TRY_INSTEAD_FILE_OUTLINE,
     attach_ambiguous_definitions,
     attach_limit_capped,
-    attach_name_not_qualified,
     attach_result_subtrees,
     attach_try_instead,
     classify_missing_subject,
@@ -28,6 +27,7 @@ from code_atlas.tools.nav_result import (
     empty_nav,
     nav_result,
     relation_reason,
+    shape_exact_miss,
 )
 
 NAME = "find_callers"
@@ -91,6 +91,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         ``subject_refreshed_only`` is present (and ``true``) only when read-through freshness
         reparsed the subject's file this call — neighbors were not re-verified (035 / 061).
+        An untracked indexable file matching the subject is ``reason=not_indexed`` plus
+        ``try_instead=build_or_update_index`` — never ``no_such_symbol`` (092).
         """
         if depth < 1:
             raise ValueError(f"depth must be >= 1, got {depth}")
@@ -129,13 +131,35 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             # Widen the existing indexed-check fetch to surface every definition site (task 070).
             subject_nodes = store.nodes_by_qualified_name(qname, limit=config.max_results)
             indexed = bool(subject_nodes)
-            # A subject with no node and no inbound edges: is it truly absent, or under-qualified?
-            # N indexed qnames end with it → name_not_qualified, not no_such_symbol (075/076).
-            name_not_qualified = (
-                classify_missing_subject(store, qname, limit=config.max_results).candidate_count
-                if outcome.total_count == 0 and not indexed
-                else 0
+            unrecorded = (
+                store.count_edges_without_args(qname, kinds=CALLER_KINDS)
+                if args_at is not None
+                else None
             )
+            if outcome.total_count == 0 and not indexed:
+                resolution = classify_missing_subject(
+                    store, qname, limit=config.max_results
+                )
+                miss = nav_result(
+                    qname,
+                    [],
+                    detail_level=detail_level,
+                    db_path=str(config.db_path),
+                    index_root=config.index_root,
+                    truncated=False,
+                    reason=REASON_NO_SUCH_SYMBOL,
+                    total_count=0,
+                    depth=depth,
+                    frontier_skipped_non_resolved=0,
+                )
+                # A miss still names what the guard repaired (073) and what it could not judge
+                # (049) — the 092 shortcut must not drop signals the fall-through carried.
+                if freshness == "repaired":
+                    miss["subject_refreshed_only"] = True
+                if unrecorded is not None:
+                    miss["args_unrecorded"] = unrecorded
+                attach_limit_capped(miss, cap=cap, clamped=limit_clamped)
+                return shape_exact_miss(miss, resolution)
             container, bare_name = split_qname(qname)
             unresolved_bare = 0
             if indexed and container is not None and outcome.total_count == 0:
@@ -145,11 +169,6 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     unresolved_bare = store.count_bare_calls_not_targeting(
                         qname, bare_name=bare_name
                     )
-            unrecorded = (
-                store.count_edges_without_args(qname, kinds=CALLER_KINDS)
-                if args_at is not None
-                else None
-            )
             if include_source:
                 call_site.annotate(config.root, store, outcome.results)
             # Skewed page 1 hides other subtrees — advertise the full spread (task 067).
@@ -163,8 +182,6 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if outcome.total_count == 0 and indexed and unresolved_bare > 0:
             # Cap dropped this subject from bare-name linking — not "no callers exist".
             reason = REASON_BARE_NAME_TRUNCATED
-        elif name_not_qualified > 0:
-            reason = REASON_NAME_NOT_QUALIFIED
         result = nav_result(
             qname,
             outcome.results,
@@ -181,8 +198,6 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             result["subject_refreshed_only"] = True
         if unresolved_bare > 0:
             result["unresolved_bare_calls"] = unresolved_bare
-        if name_not_qualified > 0:
-            attach_name_not_qualified(result, name_not_qualified)
         if unrecorded is not None:
             result["args_unrecorded"] = unrecorded
         attach_result_subtrees(result, subtrees)

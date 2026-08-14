@@ -1,5 +1,19 @@
 # Lessons — code-atlas
 
+## 092 — A partition cannot count what never entered the walked set
+`collect()` partitions `git ls-files`. Untracked files are not skipped-by-rule; they are never in
+`found`, so 082's identity stayed green while four new classes answered `no_such_symbol`. **Fix:**
+sit `skipped.untracked` *beside* the partition (a second git spawn, not a second filesystem walk —
+folding them into `collected` would break `collected == git ls-files`). Stamp the int on the census
+JSON and the path list on a **sibling** meta key — `collection_census()` int-casts every value.
+Classify the miss by matching stored stems, reuse `not_indexed` (`indexed: true` vs unbuilt's
+`indexed: false`), and put git-add prose in `try_instead_hint` so `try_instead` stays a real tool
+(093). Do not index the file.
+**Review addendum.** An early return that replaces a fall-through inherits its whole payload
+contract: 092's exact-miss shortcut silently dropped `subject_refreshed_only` (073) and
+`args_unrecorded` (049) because both were attached below it. And match an untracked file on the
+**stem** — a path-shaped qname's trailing ident is its extension, so `Missing.aa` matched `aa.aa`.
+
 ## 080 — A "delta" count that is non-zero on an empty delta means the work isn't gated on the delta
 080's no-op reported `edges:6071` for 0 files parsed and cost ~56s because `incremental_update` ran
 the late writers (enrichment + full-graph `resolve_edges`) unconditionally — even when nothing

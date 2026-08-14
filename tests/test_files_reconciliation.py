@@ -73,6 +73,7 @@ def test_verbose_status_reconciles_files_end_to_end(tmp_path: Path) -> None:
     assert col["collected"] - col["skipped"]["suffix"] - col["skipped"]["ignore"] == col["kept"]
     assert col["kept"] + status["stubs"] == status["files"]
     assert ".aa" in col["indexed_suffixes"]
+    assert col["skipped"]["untracked"] == 0
 
 
 def test_collection_absent_before_first_build_and_omitted_pre_082(tmp_path: Path) -> None:

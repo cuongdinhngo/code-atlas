@@ -25,6 +25,7 @@ from code_atlas.tools.nav_result import (
     classify_missing_subject,
     definition_sites,
     is_stub,
+    shape_exact_miss,
 )
 
 NAME = "read_symbol"
@@ -49,6 +50,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``reason=subject_ambiguous`` plus ``ambiguous_definitions`` and **no body** — empty
         ``source``, no ``file``/``line_*`` — so one region's code cannot be read while ignoring the
         list (070 warn; 078 refuse). ``try_instead`` points at ``search_symbol`` / ``file_outline``.
+        An untracked indexable file matching the subject is ``reason=not_indexed`` (092).
         """
         if not config.db_path.is_file():
             return _empty(
@@ -194,6 +196,16 @@ def _resolve_miss(
             _miss_result(qname, detail_level=detail_level, config=config,
                          reason=REASON_NAME_NOT_QUALIFIED),
             resolution.candidate_count,
+        )
+    if resolution.status == "untracked":
+        return qname, [], shape_exact_miss(
+            _miss_result(
+                qname,
+                detail_level=detail_level,
+                config=config,
+                reason=REASON_NO_SUCH_SYMBOL,
+            ),
+            resolution,
         )
     return qname, [], _miss_result(
         qname, detail_level=detail_level, config=config, reason=REASON_NO_SUCH_SYMBOL

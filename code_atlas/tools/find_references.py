@@ -12,7 +12,6 @@ from code_atlas.tools import call_site
 from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
     REASON_INDEX_STALE,
-    REASON_NAME_NOT_QUALIFIED,
     REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
     REASON_RELATIONSHIP_NOT_MODELLED,
@@ -20,7 +19,6 @@ from code_atlas.tools.nav_result import (
     TRY_INSTEAD_FIND_REFERENCES_ON_METHOD_QNAME,
     attach_ambiguous_definitions,
     attach_limit_capped,
-    attach_name_not_qualified,
     attach_result_subtrees,
     attach_try_instead,
     classify_missing_subject,
@@ -29,6 +27,7 @@ from code_atlas.tools.nav_result import (
     empty_nav,
     nav_result,
     relation_reason,
+    shape_exact_miss,
 )
 
 NAME = "find_references"
@@ -96,10 +95,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             nodes = store.nodes_by_qualified_name(qname, limit=config.max_results)
             indexed = bool(nodes)
             if total_count == 0 and not indexed:
-                # Under-qualified (N indexed qnames end with it), not a genuine absence (075/076).
-                candidates = classify_missing_subject(
+                # Under-qualified, untracked, or a genuine absence (075/076/092).
+                resolution = classify_missing_subject(
                     store, qname, limit=config.max_results
-                ).candidate_count
+                )
                 miss = nav_result(
                     qname,
                     [],
@@ -107,10 +106,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     db_path=str(config.db_path),
                     index_root=config.index_root,
                     truncated=False,
-                    reason=REASON_NAME_NOT_QUALIFIED if candidates else REASON_NO_SUCH_SYMBOL,
+                    reason=REASON_NO_SUCH_SYMBOL,
                     total_count=0,
                 )
-                return attach_name_not_qualified(miss, candidates) if candidates else miss
+                return shape_exact_miss(miss, resolution)
             edges = store.edges_by_target(qname, limit=cap, offset=offset)
             results = [edge_hit(edge) for edge in edges]
             # Skewed page 1 hides other subtrees — advertise the full spread (task 067).
