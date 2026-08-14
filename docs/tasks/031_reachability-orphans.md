@@ -170,6 +170,22 @@ Reachability edge kinds N=5 (`IMPACT_KINDS`): CALLS, NEW, EXTENDS, IMPLEMENTS, I
 `RULE SECTIONS: R1.1 ✅ · R1.2 ✅ · R1.4 ✅ · R2 ✅ · R4.3 ✅ · R5.2 ✅ · R5.3 ✅ · R6 ✅ · R7 ✅ · DB/UI N/A`
 `SCOPE: M` · `TIER: full`
 
+## Field note — `find_orphans` on a dynamic-dispatch codebase (2026-08-14, round-5 interview §5)
+
+**The evaluator's own two new controllers are orphans by this tool's accounting.** They are the live
+entry points of a working screen, reached through a routing table of `::class` constants dispatched by
+a variable method name; `find_references` returns 0 for both, correctly and uselessly. On that repo
+the tool is, in the evaluator's words, *"a false-positive engine"* — and it named `find_orphans` its
+strongest delete on evidence, the only one of five backed by something that happened rather than by a
+tool name it had never read.
+
+Recorded, not actioned: the tool is not wrong (the edges genuinely do not exist), and deleting it on
+one session's evidence would be the same error the interview warns about in its own §5 caveat. Two
+things must land before this verdict is re-taken —
+[094](094_class-constant-in-array-literal-is-not-an-edge.md) (model the `::class`-in-array-literal
+mention, which is exactly the missing edge here) and a re-run on the anchor afterwards. If the
+false-positive rate survives 094, *then* `find_orphans` owes the surface a reason to stay.
+
 ---
 
 ## Phase 1 — Analysis ✋ Gate 1

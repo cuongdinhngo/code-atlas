@@ -42,6 +42,19 @@ Round 5 is the first round to show cost changing *what the agent asked*, not jus
 Retro §11.7: *"If the goal is for the graph to be consulted during work rather than around it, the
 sub-minute incremental for small deltas is the enabling change, not a nice-to-have."*
 
+**Qualified the same day — cost is the *second* constraint (field interview §4).** Asked what it
+would have asked at a 1 s refresh, the evaluator predicted "substantially different", checked its
+transcript, and downgraded to "slightly": two real calls, both of the form *I just wrote this, is it
+what I think it is*. Then the adversarial pass, which this ticket must not ignore: **the two calls it
+most needed and did not make required no rebuild at all** — `file_outline` on a months-old legacy file
+and `search_symbol kind:"Function"` for a name sweep. Both would have cost ~1 s at any point in the
+session. *"Cost shaped my cadence; framing shaped my misses, and the misses are where the value was."*
+
+So this ticket buys back ~5 wasted calls, one wrong belief and one follow-up commit — real, and worth
+doing — but it does **not** buy adoption. Do not fund it as the adoption fix; that is
+[099](099_write-time-signal-seam.md), and a read-time signal is the thing that genuinely *depends* on
+this floor existing.
+
 ## Scope / Deliverables
 - **Profile a small nonempty delta on a large index** and name the dominant phase, the way 052 did
   for the no-op. 080's analysis already points at full-graph `resolve_edges` / enrichment running

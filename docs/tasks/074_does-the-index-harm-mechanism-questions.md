@@ -81,17 +81,31 @@ being denied the tool made the answer **better**, which low adoption cannot prod
 | Round | Session shape | Mechanism shapes that arose | Verdict |
 |---|---|---|---|
 | Field retro 4 (2026-08-10) | review + orchestration, ~3 h | **2 of 6** — every control-flow and mechanism shape absent | No datapoint. A lead about *applicability*, not harm |
-| Field retro 5 (2026-08-14) | legacy→unified **port**, ~5 h | **3 of 6** — first round to satisfy the "prefer a session with mechanism questions" rule | **n = 1: helped**, narrowly and decisively |
+| Field retro 5 (2026-08-14) | legacy→unified **port**, ~5 h | **3 of 6** — first round to satisfy the "prefer a session with mechanism questions" rule | **n = 1: helped, narrowly** — *downgraded from "decisively" the same day; see the retraction below* |
 
-Round 5's detail, because the sign is not uniform: the graph **won** the "has this symbol been ported,
-and under what name?" question — `search_symbol` found a renamed *and recased* method behind an
-off-by-default feature flag, which grep structurally cannot find because the old name is the string
-that no longer exists. It **lost** the one control-flow question (front controller → `displayAction`,
-dynamic dispatch): 5 calls, three flavours of nothing, answered by grep in one — and, importantly for
-this ticket, it produced a **wrong belief about the cause** of the emptiness, which is mild harm of
-exactly the kind the benchmark's repeat suggested. Counts toward the n as *helped, with a recorded
-harm*. Session type is now a named variable: this is n = 1 for **legacy→unified port**, and the
-original benchmark's cell was a bug hunt.
+**Retraction, from the round-5 interview (§6.5), applied here because this ticket's whole value is
+that its cells are honest.** The retro claimed the graph prevented a latent fatal: a ported method had
+been renamed **and recased** (`getActiveHPIOById` → `getActiveHpioById`) behind a feature flag off in
+every environment smoked. **That claim is void — PHP method names are case-insensitive**, so the call
+would have resolved at runtime and could never have fataled. What actually happened: the *class* was
+ported under a different name and grep for the legacy class name returns **0 hits** in the unified
+tree, so `search_symbol` collapsed a name-similarity hunt into one precise call. Real help, and
+**no demonstrable defect prevented** — the evaluator states it cannot show that a case-insensitive
+grep on the distinctive stem would have failed.
+
+Round 5's remaining detail, because the sign is not uniform: it **lost** the one control-flow question
+(front controller → `displayAction`, dynamic dispatch): 5 calls, three flavours of nothing, answered
+by grep in one — and, importantly for this ticket, it produced a **wrong belief about the cause** of
+the emptiness, which is mild harm of exactly the kind the benchmark's repeat suggested. Counts toward
+the n as *helped narrowly, with a recorded harm*. Session type is now a named variable: this is n = 1
+for **legacy→unified port**, and the original benchmark's cell was a bug hunt.
+
+**Protocol consequence for the remaining runs.** The retraction was produced by a **second instrument
+run on the same evaluator immediately after the retro** — six questions about the moments it did *not*
+call the tool. A retro cannot audit itself; this pair caught a false headline within the hour. Every
+remaining arm of this benchmark should carry the same interview tail, and the pair must be counted as
+**one** observer, not two (the interviewee and the retro author are one context with one set of blind
+spots).
 
 ## References
 `docs/PLAN.md` §19 — *Founding-premise benchmark (2026-08-08)*, the "Threats, recorded rather than

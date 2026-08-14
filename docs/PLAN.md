@@ -594,17 +594,21 @@ holds, reinforced by the unpriced cost of one muddier description (C3) and R1.2.
   079, 082 fixed on probes; **080 fixed and confirmed in the field — no-op 56.1 s → 2.113 s, 26×,
   `wrote.edges: 0`, two no-ops byte-identical**), and **081 `NOT OBSERVED`** — see below.
   **Three things this round establishes that no earlier round could.** *(i)* **The graph's win is
-  real and narrow:** `search_symbol` found a renamed-and-**recased** ported method
-  (`getActiveHPIOById` → `getActiveHpioById`) behind a feature flag that is off in every environment
-  smoked — grep is structurally worst at exactly this, because the old name is the string that no
-  longer exists. That single call is why the verdict is *keep it, keep it mandatory*.
+  real and narrower than this round first claimed** — ~~a renamed-and-recased method behind an
+  off-by-default feature flag, a latent fatal grep could not have caught~~ **retracted the same day by
+  the round-5 interview (§6.5, entry below): PHP method names are case-insensitive, so the recasing
+  could never have fataled.** What `search_symbol` actually did: the *class* had been ported under a
+  different name, and grep for the legacy class name returns **0 hits** in the unified tree — one
+  precise call in place of a name-similarity hunt. Real, but **no demonstrable defect prevented**.
   *(ii)* **Cost now shapes behaviour, not just the bill.** code-atlas was **well under 1 %** of
   session tokens but **181.7 s of in-work build time for 35 changed files**; the cliff is entirely
   between zero and one file (0 → 2.1 s, 2 → 59.25 s, 14 → 61.6 s). The evaluator batched: 8 calls at
   the start, 7 at the end, **1 in three hours of writing code** — including the moment it was
   hand-counting closures and got the count wrong into a committed comment. 080 removed the idle-poll
   tax and left the **edit-then-ask** tax, which is the one an agent actually pays →
-  [096](tasks/096_edit-then-ask-tax-two-files-cost-a-minute.md).
+  [096](tasks/096_edit-then-ask-tax-two-files-cost-a-minute.md). **Qualified the same day by the
+  interview (§4):** cost shaped the *cadence*, but the two calls that mattered most needed **no
+  rebuild at all** — cost is the second constraint, framing is the first.
   *(iii)* **Recognition ≠ recall, and the probe only measures recognition.** §0.5 scored **14/14** —
   but **7 of 14 tool descriptions were never loaded** (this harness defers MCP schemas), so 081's
   stated mechanism (routing moved *into* descriptions) was never exercised and the rate measures
@@ -630,9 +634,50 @@ holds, reinforced by the unpriced cost of one muddier description (C3) and R1.2.
   question on a different axis; and 067 **partially recurred** — `search_symbol` returned
   `total_count: 417`, `truncated: true`, 6 rows, with **no `result_subtrees`** to say the page was
   skewed, and the evaluator acted on page 1 without paging. **074 advances to n = 1** for session type
-  *legacy→unified port*: **helped**, decisively, on one question class; mild harm on the routing
-  question it cannot model (5 calls, a wrong belief about the cause). Tickets 092–097; order in
-  [`BACKLOG.md`](BACKLOG.md#open-work).
+  *legacy→unified port*: **helped, narrowly** (see the retraction above), on one question class; mild
+  harm on the routing question it cannot model (5 calls, a wrong belief about the cause). Tickets
+  092–097; order in [`BACKLOG.md`](BACKLOG.md#open-work).
+
+- **Field interview — "the questions you did not ask" (2026-08-14, same session as round 5, same
+  commit `348a8a7`).** A second instrument, run on the same evaluator right after the retro: six
+  questions about the moments it **did not** call the tool. **Weight it as one observer, not two** —
+  the interviewee authored the retro an hour earlier and declares itself maximally contaminated; §1–§5
+  survive only because they inventory *non-events*, which no retro asked about. It earns its keep
+  three times over.
+  **(a) It retracted the round's headline** (§6.5, applied above). The evaluator asserted a
+  language-semantics claim it had never tested; PHP method names are case-insensitive, so the
+  "prevented a latent flag-gated fatal" story is void. **The lesson is about the instrument, not the
+  claim: a retro cannot audit itself, and a same-session interview is the cheapest thing that can.**
+  **(b) Adoption is a *position* problem, not a speed problem** — the single most important finding
+  here. All **three** decisions the evaluator made without the graph wanted the same thing: **one line
+  inside a `Read` it was already performing**, and **none wanted a tool call**. Reinforced by §4: the
+  two highest-value uncalled queries (`file_outline` on a months-old legacy file, `search_symbol
+  kind:"Function"` for a name-collision sweep) needed **no rebuild** and would have cost ~1 s at any
+  point — and were still not made. Framing, not latency → [099](tasks/099_write-time-signal-seam.md).
+  **(c) The evidence-layer thesis now has behavioural proof, against the evaluator's own interest**
+  (§2): the PR body pastes **nine** kinds of counted evidence — HTTP status, byte counts, row counts,
+  two verbatim `alert()` strings, test and assertion counts — and **zero** graph payloads, although
+  `impact` had already returned `seeds_dropped: 0, frontier_skipped_non_resolved: 0`. The evaluator's
+  own reading: *"my behaviour treated the browser as an evidence source and code-atlas as a search
+  layer."* → [100](tasks/100_claim-signing-output-mode.md).
+  **Also new:** a **call-shape** miss no cost metric can see — the collision sweep had **10 subjects at
+  once**, the graph takes one per call, a shell loop takes all ten (§7.3) →
+  [101](tasks/101_nav-tools-take-one-subject-at-a-time.md); and an evidence-backed hazard in
+  `find_orphans` — **the evaluator's own two new controllers are orphans by the graph's accounting**,
+  being live entry points reached by dynamic dispatch (recorded in [031](tasks/031_reachability-orphans.md)).
+  **The strategic ask, and the one judgement the interview cannot make for us** (§8, explicitly opinion
+  and explicitly design, which the instrument otherwise forbids): the anchor repo's dominant chore is
+  *port a legacy file into the unified tree without breaking the other region*, and the graph holds
+  **neither** relation that chore is made of — legacy↔unified, and region-A↔region-B. Its proposal is
+  to seed the first from a ~4,300-entry mapping the repo already maintains. **Adopted in principle,
+  rejected as proposed:** ingesting a repo's own mapping file is sample-over-standard (R2). What the
+  core may learn is one **generic correspondence relation**, config-fed, adapter-blind — under which
+  legacy↔unified and region-A↔region-B are the *same* primitive, and "has this mapping rotted?" becomes
+  checkable → [098](tasks/098_correspondence-relation-seam.md). Its third ask (cross-language asset
+  lineage) is **not** a language problem as it assumed: *N files share a basename across different
+  roots* is a file-level relation over rows the core already holds, needing no JS adapter — folded into
+  098's design as the second correspondence source to weigh. Full instrument and answers live with the
+  retros, outside this repo (R-8/I-8: the anchor repo is not named here).
 
 **Decision — Founding-premise benchmark (2026-08-08). The premise is refuted; the claim that replaces it is narrower.**
 Five symptom-first questions on the anchor monorepo — none naming a file, class or method — with ground

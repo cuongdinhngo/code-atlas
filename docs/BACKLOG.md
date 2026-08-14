@@ -19,6 +19,10 @@ what landed, and what it cost* — narrative rationale lives in those three.
 | 095 | [`collection.ignore: 9541` excludes indexable PHP by an unnamed rule](tasks/095_ignore-bucket-does-not-name-its-rule.md) | Agent-trust | todo | 082, 003, 068 |
 | 096 | [A 2-file incremental costs 59 s while a no-op costs 2 s](tasks/096_edit-then-ask-tax-two-files-cost-a-minute.md) | Cost | todo | 080, 052, 016 |
 | 097 | [The recognition probe measures names, not descriptions or recall](tasks/097_recognition-probe-measures-names-not-recall.md) | Measure | todo | 081, 069, 074 |
+| 098 | [The graph holds neither relation the work is made of — port-of and variant-of](tasks/098_correspondence-relation-seam.md) | Coverage | todo | 030, 011, 003 |
+| 099 | [Every decision made without the graph wanted a line inside a file read](tasks/099_write-time-signal-seam.md) | Agent-fit | todo | 097, 069, 036 |
+| 100 | [Nine kinds of evidence in the PR, zero graph payloads](tasks/100_claim-signing-output-mode.md) | Agent-fit | todo | 017, 057, 061 |
+| 101 | [A ten-name sweep is ten calls, so the agent used a shell loop](tasks/101_nav-tools-take-one-subject-at-a-time.md) | Agent-fit | todo | 014, 013, 066 |
 | 083 | [Onboarding — deterministic graph-metrics foundation](tasks/083_onboarding-graph-metrics.md) | Phase 3 / M10 | todo | 014, 031, 017 |
 | 084 | [Onboarding — architectural layer assignment](tasks/084_onboarding-layer-assignment.md) | Phase 3 / M10 | todo | 083 |
 | 085 | [Onboarding — Summarizer Protocol seam + deterministic default](tasks/085_onboarding-summarizer-seam.md) | Phase 3 / M10 | todo | 083 |
@@ -35,8 +39,17 @@ non-existent symbol) **→ 093** (small, bounded, and 092 adds a route that must
 round cannot score 081 either) **→ 094** (adapter + contract weight) **→ 096** (cost, and last for
 the same reason 061 and 080 were — but it is the round's behaviour finding, not just a number).
 **Round 4 closed:** 075–082 all landed; round 5 verified 7 of 8 fixed and 081 `NOT OBSERVED` (§A).
+
+**Order (round-5 interview tickets) — these are positioning, not defects.** The round-5 tickets fix
+what the tool *says*; these four decide **where it stands**. **099** first (every decision the field
+made without the graph wanted a line inside a file read — this is the adoption finding, and 096 is
+its enabler, not its substitute) **→ 100** (the tool holds evidence-grade payloads that never reach
+the artifact; smallest change with the largest positioning effect) **→ 101** (a shape fix, bounded)
+**→ 098** last and largest — the relation the anchor's work is actually made of, and the one that
+must be designed against **R2** before a line of it is written.
 **074's core needs the anchor repo** — the pre-registered protocol has landed and round 5 is its
-**n = 1** (session type *legacy→unified port*; verdict **helped**).
+**n = 1** (session type *legacy→unified port*; verdict **helped, narrowly** — downgraded by the
+interview's §6.5 retraction; see the ticket).
 
 **Then:** Phase 3 onboarding (083 → 091; M10 → M11 → M12) or Phase 2 language breadth — both are
 unblocked by Phase 1.5; breadth stays deferred per §19.
@@ -168,6 +181,7 @@ memory run, the founding-premise benchmark), [`FEEDBACK.md`](FEEDBACK.md) (exter
 | Freshness review (not a session) | 052–053 | Of four layers that keep an index current, only `build_or_update_index(full=false)` has no trigger. **052 gates 053**: a `post-merge` hook costing the field-measured 62 s is worse than a stale index |
 | Field retro 4 (2026-08-10, `e8f56d0`) | 075–082 | First **verification** round: 7 fixed and verified, 2 improved, 1 reproduced (054), 2 not exercised. Read with its own three caveats — protocol violated so the recognition test is **void**, the server changed mid-session via a client reconnect, and **4 of 6 question shapes never arose**. Both findings that mattered came from *outside* the verification section (075, 077), which is a regression harness |
 | Field retro 5 (2026-08-14, `348a8a7`) | 092–097 | First round with **mechanism questions in the work** (3 of 6 shapes) and the first where **cost changed what was asked**: 16 calls, 8 at the start, 7 at the end, **1 in three hours of writing code**, because each refresh cost ~60 s. **8 of 8 checked claims exact, zero false statements** — every failure was silence or ambiguity. Sharpest point: an untracked file answered `no_such_symbol` while `dirty_indexed_files: 0` and the build payload both read green (092). Verification: 7 of 8 round-4 fixes confirmed, 081 **NOT OBSERVED** — its proxy scored 14/14 off bare names because 7 of 14 descriptions were never loaded (097) |
+| Field **interview** — round-5 companion (2026-08-14) | 098–101 | Six questions about the moments the agent **did not** call the tool, run on the same evaluator right after the retro. It **retracted the round's headline** (PHP method names are case-insensitive, so the "prevented a latent fatal" story is void — 074 downgraded to *helped, narrowly*), and produced the finding four rounds of routing and cost work had missed: **all three decisions made without the graph wanted one line inside a `Read` already happening, and none wanted a tool call** — while the two most valuable uncalled queries **needed no rebuild at all**. Plus the behavioural proof for the evidence-layer thesis: **nine kinds of counted evidence in the PR body, zero graph payloads**, holding `seeds_dropped: 0` the whole time |
 | PLAN §19 threats paragraph | 074 | The founding-premise benchmark's one accidental repeat ran the mechanism question twice under the indexed arm and got **opposite verdicts**, the denied run right — the only datapoint suggesting the index costs *accuracy* |
 
 Three notes that still govern open work:
