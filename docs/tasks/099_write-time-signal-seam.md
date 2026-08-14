@@ -48,6 +48,19 @@ The three moments, with the line the evaluator says would have had to appear, an
   evaluator wrote a prose summary and discarded the payload. *"The tool did its job; I was the lossy
   step."*
 
+## Generality — why this one survives the "n = 1, one repo" filter
+The evidence is a single session on the anchor repo — a **real user, and the first**, but one user.
+What makes this finding portable is that **its subject is the agent, not the repository**: an agent frames
+a task, reads files, writes files, and only then — if at all — chooses a tool. The three moments are
+about *when an agent is receptive to information*, and nothing in them depends on that repo's
+migration, its regional split, or PHP. The same convergence would be predicted for a Python service
+or a TypeScript monorepo, and the next field round can falsify it cheaply: if the signal is shipped
+and the next evaluator tunes it out or never mentions it, the finding was session-specific.
+
+The two lines it proposes are equally repo-neutral: *what does this file define* is `file_outline`,
+which exists for every language the server will ever support, and *this path is untracked* is a
+property of git, not of any codebase.
+
 ## The question this ticket must answer before it writes code
 **Is a write-time/read-time signal something code-atlas may ship at all?** An MCP server answers when
 asked; it does not sit in the host's file-read path. The channel the interview points at is a **host

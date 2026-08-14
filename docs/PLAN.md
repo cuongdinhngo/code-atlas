@@ -676,8 +676,33 @@ holds, reinforced by the unpriced cost of one muddier description (C3) and R1.2.
   checkable → [098](tasks/098_correspondence-relation-seam.md). Its third ask (cross-language asset
   lineage) is **not** a language problem as it assumed: *N files share a basename across different
   roots* is a file-level relation over rows the core already holds, needing no JS adapter — folded into
-  098's design as the second correspondence source to weigh. Full instrument and answers live with the
+  098's design as the second correspondence source to weigh — **and 098 is `deferred` behind a written
+  evidence gate, not scheduled** (see the decision below). Full instrument and answers live with the
   retros, outside this repo (R-8/I-8: the anchor repo is not named here).
+
+**Decision — how one user's evidence is weighed (2026-08-14, prompted by the round-5 interview).**
+The anchor repo is the project's **first production user**: a real adopter with real work, and the
+source of every field finding this project has acted on since round 1. It is **not** the roadmap. A
+general MCP server is installed by repositories that share none of its shape, and a relation, field or
+tool added for one adopter is paid for by all of them. So field evidence is filtered, not obeyed:
+
+- **A finding whose subject is the *agent* generalises by default** — how an agent frames a task, when
+  it is receptive to information, what it will paste into a PR, what interface shape it reaches for.
+  These hold wherever an agent works, and the next round can falsify them cheaply. Tickets
+  [099](tasks/099_write-time-signal-seam.md), [100](tasks/100_claim-signing-output-mode.md),
+  [101](tasks/101_nav-tools-take-one-subject-at-a-time.md) are all of this kind.
+- **A finding whose subject is the *repository* does not** — its migration lane, its regional split, its
+  mapping file, its dispatch idiom. Such a finding is recorded and gated: it needs a **second,
+  independent repository**, a stated cost to users who declare nothing, and a written rejection of the
+  cheaper alternative before it may spend schema or surface. [098](tasks/098_correspondence-relation-seam.md)
+  is the first ticket to carry that gate, and it is deferred under it.
+- **A finding about the *language* is neither** — it belongs to the adapter and is settled by the
+  language spec, never by a repo's usage (**R2**, already CI-gated).
+
+This is R2's rule applied one level up, to evidence rather than to code: **standard over sample holds
+for what we learn as well as for what we encode.** The reflex to guard against is the flattering one —
+a detailed, well-argued field report from the only user we have reads like a product spec, and the
+better the report, the stronger the pull.
 
 **Decision — Founding-premise benchmark (2026-08-08). The premise is refuted; the claim that replaces it is narrower.**
 Five symptom-first questions on the anchor monorepo — none naming a file, class or method — with ground

@@ -39,6 +39,17 @@ The consumer already exists in this project's own workflow: a gated lifecycle in
 a counted artifact* and a PR template that must be filled with evidence. code-atlas is the natural
 producer for the rows about code relationships, and today it produces none of them in quotable form.
 
+## Generality — why this one survives the "n = 1, one repo" filter
+Nothing here is a property of the anchor repository. Every project that reviews code has an artifact
+where claims are made — a PR body, a review comment, a commit message, a changelog — and in every one
+of them *"nothing depends on this"* is a claim a reader cannot check. The behaviour observed is the
+agent's, not the repo's: it quoted every tool that produced quotable output and paraphrased the one
+that did not. That is a property of the payload format, which every user of this server receives.
+
+The counter-hypothesis worth naming: perhaps agents simply do not paste MCP output, and a quotable
+line would go unused. The next field round settles it at no cost — ship the line and look at whether
+it appears in the artifact.
+
 ## Scope / Deliverables
 - **A quotable line per answer**, opt-in, carrying the four things a reader needs to re-run it:
   **subject · question · answer · revision**. The revision half is already available

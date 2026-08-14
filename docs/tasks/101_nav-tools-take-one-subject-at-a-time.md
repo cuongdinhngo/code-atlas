@@ -37,6 +37,16 @@ take a list.
 - §7.3 of the interview states the general form: *"Any tool that answers 'is this name taken' will lose
   to a sweep until it can take a list."*
 
+## Generality — why this one survives the "n = 1, one repo" filter
+The question that lost — *are any of these N names already taken?* — is not specific to a migration or
+to PHP. Renaming a batch of symbols, checking a list of candidate identifiers before generating code,
+auditing a set of paths named in a diff: all are list-shaped, and an agent facing a list-shaped
+question will reach for the tool that takes a list. The mismatch is between **the granularity of the
+question and the granularity of the interface**, and both sides of that are code-atlas's, not the
+anchor's.
+
+Bounded on purpose: this ticket batches subjects, and does not become a query language.
+
 ## Scope / Deliverables
 - **Decide which tools take a list of subjects, and which must not.** `search_symbol` is the clear
   case (a name-availability sweep). `impact` already takes multiple paths. Single-answer tools like

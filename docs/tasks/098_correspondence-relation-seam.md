@@ -1,43 +1,68 @@
 ---
 id: 098
 slug: correspondence-relation-seam
-title: 'The graph holds neither relation the anchor repo''s work is made of — port-of and variant-of'
+title: 'Is "this file is a copy/port of that file" a relation code-atlas should hold? — evidence-gated'
 phase: 1.5b
 milestone: Coverage
-status: todo
+status: deferred
 depends_on: [030, 011, 003]
 ---
 
-## Goal
-The anchor repo's dominant activity is *port a legacy file into the unified tree without breaking the
-other region*. That chore is made of exactly two relations, and code-atlas holds **neither**:
+> **Status: deferred, and deliberately so.** This ticket holds a hypothesis and its gate, not a plan.
+> The demand is real and comes from the project's **first production user** — but it is **n = 1**, from
+> a repository whose shape (one application maintained as two regional copies, mid-migration into a
+> unified tree) is not the shape of most repositories, and code-atlas is a **general MCP server** whose
+> every user would carry the cost. **The gate is in "Evidence gate" below.**
 
-1. **`legacy file ↔ unified file`** — which legacy source became which unified source.
-2. **`region-A file ↔ region-B file`** — the same application, twice, and the two copies drift.
+## Goal — the hypothesis
+Some repositories contain **two files that are versions of each other**: a legacy source and the
+module that replaced it, a vendored fork and its upstream, `v1/` and `v2/` of an API, a variant
+maintained per region or per tenant. Where that is true, questions about *the pair* dominate the work
+— has this been ported, and to what? did these two drift? — and code-atlas holds no relation that can
+answer them, in any language.
 
-Every question the field session actually struggled with reduces to one of these. It read **1,913
-lines** of two legacy sources and counted grid columns by eye to decide whether the port should be
-one shared file or two region-specific ones. It answered *"has this been ported, and to what?"* with
-a name-similarity search. It shipped a claim about historical route resolution that nothing in the
-repo could check.
+The index already **notices** the pattern and refuses on it: two definitions of one qname in two trees
+returns `subject_ambiguous` ([078](078_ambiguous-payload-still-picks-one-definition.md) — correct, and
+a real improvement). The hypothesis is that one step further on is a useful primitive: *for this file
+or symbol, what is its counterpart, and how do they differ?*
 
-Meanwhile the index *notices* relation 2 and **refuses** on it: `subject_ambiguous` listing two
-definitions of the same qname in two regional trees ([078](078_ambiguous-payload-still-picks-one-definition.md),
-correct behaviour and a real improvement). One step further on is the useful primitive: *for this
-symbol in region A, what is the region-B counterpart and how do they differ?*
+**Where this came from, and how much it weighs.** The anchor repo's dominant chore is exactly this,
+and the round-5 field session spent its analysis phase doing by hand what the relation would answer —
+reading 1,913 lines of two legacy sources and counting grid columns by eye to decide whether one port
+or two. **This is a real user with a real need, not a lab exercise** — it is the project's first
+production adopter and every finding this project has ever acted on came from it. What it is not is
+*every* user: one customer's dominant chore is demand, not yet a requirement for a server that other
+repositories will install. The relation is deferred because it costs everyone, not because the need
+is doubted.
 
-## The decision this ticket exists to make
-The field session proposed seeding relation 1 from a hand-maintained mapping (~4,300 entries,
-`legacy path → unified path(s)`, CI-enforced) that the anchor repo already keeps.
+## The decision already taken, so it is not re-litigated
+The field session proposed seeding the relation from a hand-maintained mapping file (~4,300 entries)
+that its repo already keeps and CI-enforces.
 
-**Adopted in principle; rejected as proposed.** Ingesting a specific repo's mapping file is
-sample-over-standard (**R2**) — the exact thing CI gates. What the core may learn is **one generic
-relation**: *this file/symbol corresponds to that file/symbol*, with a **source** and a
-**confidence**, supplied by configuration and never by adapter knowledge. Under that primitive,
-legacy↔unified and region-A↔region-B are the **same** relation with different sources, and so is any
-fork/vendor/variant pair in any language.
+**Rejected as proposed, and this part is settled.** Ingesting a specific repo's mapping format is
+sample-over-standard (**R2**) — the exact thing CI gates, and the failure mode a public server cannot
+afford. If this relation is ever built, what the core may learn is **one generic relation** — *this
+file/symbol corresponds to that one*, carrying a **source** and a **confidence**, supplied by
+declared configuration and never by adapter knowledge. Under that primitive, legacy↔replacement,
+fork↔upstream and variant↔variant are the **same** relation with different sources, in any language.
 
-The design must answer, in this order:
+## Evidence gate — what must be true before this leaves `deferred`
+All three, and none of them is satisfied today:
+
+1. **A second, independent repository** — not the anchor, ideally not PHP — where the same question
+   recurs and is answered by hand. One user's dominant chore is demand, not yet a product requirement
+   (**R1.2**: no abstraction until the second instance exists). Note what this gate does *not* say: it
+   does not say the anchor's need is invalid, only that it cannot by itself decide a schema every user
+   inherits.
+2. **A statement of what it costs everyone else.** A relation carried in the schema is paid for by
+   every user of the server, including the majority whose repositories contain no such pairs. Name the
+   cost — storage, build time, payload weight, one more concept in the surface — and show it is near
+   zero when the config declares nothing.
+3. **A cheaper alternative rejected in writing.** Specifically: a repo that maintains such a mapping
+   can already answer these questions with its own tooling. The question is not *is this useful* but
+   *is this useful enough to belong in a general code index rather than beside one*.
+
+**If the gate is met, the design must answer, in this order:**
 1. **Is a correspondence an edge, or its own table?** It is not a call, an include, or an
    inheritance; it relates *files* as often as symbols, and it can be many-to-many.
 2. **What are the admissible sources, and how does the core stay ignorant of their format?** A
@@ -52,19 +77,24 @@ The design must answer, in this order:
 4. **What does it refuse to answer?** Correspondence is asserted, not inferred. The tier and the
    source must ride on every hit so nobody mistakes a config assertion for a resolved edge.
 
-## Evidence (field interview, 2026-08-14, §8.2 — opinion, explicitly flagged as such by its author)
-- §1 Moment 2: the region-split decision was made by reading 1,196 + 717 lines end to end and
-  counting columns by eye. A correspondence query would have answered *"region A defines 7 top-level
-  functions, region B defines 6, 4 names differ"* in one call.
-- §8.2 (2): the anchor project keeps a dedicated pattern file for one defect class — *"A and B
-  diverged and someone assumed they hadn't."* That is this relation, unheld.
-- §8.2 (3): two confirmed instances in three days of a shared asset being one region's lineage,
-  silently disabling the other region's UI with **nothing in any server log**.
-- §6.5 / §8.2 (1): the one genuine win of the session — *"has this been ported, and under what
-  name?"* — was answered by name similarity, and the interview downgraded it precisely because
-  similarity is not correspondence.
+## Evidence — all of it from one repository (field interview, 2026-08-14, §8.2, flagged by its author as opinion)
+- §1 Moment 2: a split decision made by reading 1,196 + 717 lines end to end and counting columns by
+  eye. The relation would have answered *"tree A defines 7 top-level functions, tree B defines 6, 4
+  names differ"* in one call.
+- §8.2 (2): that project keeps a dedicated pattern file for one defect class — *"the two copies
+  diverged and someone assumed they hadn't."*
+- §8.2 (3): two confirmed instances in three days of a shared asset belonging to one copy's lineage,
+  silently disabling the other's UI with **nothing in any server log**.
+- §6.5 / §8.2 (1): the session's one genuine win — *"has this been ported, and under what name?"* —
+  was answered by name **similarity**, and the interview downgraded it precisely because similarity
+  is not correspondence.
 
-## Scope / Deliverables
+**How much this weighs.** One session, one repository, one session type, and an author who marked the
+section as opinion and as a violation of the instrument's own "do not design" rule. It is enough to
+open a hypothesis and write the gate. It is **not** enough to spend schema, build time and a concept
+in the tool surface that every other user would carry.
+
+## Scope / Deliverables — only if the gate opens
 - **Design first, and expect the design to be most of the ticket.** Answer the four questions above
   with a written verdict each; a rejected alternative is a deliverable here, not a footnote.
 - **A storage shape** for correspondences with `source` and `confidence`, and a migration verdict
@@ -86,6 +116,9 @@ The design must answer, in this order:
 - **R1.1** — zero language branches; correspondence is language-agnostic by construction.
 - **R4** — deterministic: asserted pairs in, identical rows out. No ranking, no fuzzy matching.
 - **R1.2 / YAGNI** — one seam, one source to start. Do not build a plugin system for sources.
+- **Zero cost when undeclared.** The majority of repositories have no such pairs. A user who declares
+  nothing must pay nothing: no table growth, no build-time work, no extra field in any payload, no
+  extra tool in the surface. If that cannot be achieved, the answer to this ticket is **no**.
 - Scale: the anchor holds 18,926 indexed files; a many-to-many table over that must not slow status
   or nav answers. Measure.
 
