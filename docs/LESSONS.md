@@ -36,7 +36,8 @@ trap.
 - evidence: `nav_result.py:58-76` (naming rule); `tests/test_try_instead_is_a_callable_tool_name.py`
   (4 failed / 2 passed pre-fix, 6 passed after); field retro round 5 §4, §9 runner-up
 - area: tool payloads / R1.1 / R4
-- destination: `rulebook_path` (code subject) — awaiting `/mango:promote` at recurrence >= 2
+- destination: `rulebook_path` — **promoted 2026-08-14** to `docs/ENGINEERING_RULES.md` **R5.4**,
+  tagged `PROVISIONAL (awaiting ratification)`. Re-runs of `/mango:promote` must skip this class.
 
 ### 093-C2 — An enumeration guard derives its sets; it never lists them
 - type: 2 generalisable-heuristic

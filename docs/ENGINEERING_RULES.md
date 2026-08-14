@@ -84,6 +84,19 @@ adapter contract. Everywhere else, prefer the simplest thing that works.
   rows carry the per-file detail (task 046). Multiplicity is not ambiguity.
 - **R5.3** — Fail loud on *config/programmer* errors (bad `CA_*`, missing adapter command); fail soft on
   *data* errors (one weird source file). Don't confuse the two.
+- **R5.4 — A field the reader is expected to act on holds one register; prose gets a sibling field.**
+  `PROVISIONAL (awaiting ratification)` — promoted from `LESSONS.md` `093-C1` (handle
+  `try-instead-tool-name`, seen 092, 093). When a payload field carries a value the reader is meant to
+  *execute* — a route, a tool name, an identifier — **every** value of that field must be machine-checkable
+  as that kind, and the qualifier saying *how* to re-ask goes in a named sibling (`try_instead` /
+  `try_instead_hint`). One prose value makes the whole field ambiguous, not just itself: the reader cannot
+  tell a route from an instruction without spending a call. Before emitting a route it must (a) be a member
+  of a registry **derived from code**, not a hand-kept list, (b) not name the tool that is answering — a
+  self-route loops for the mechanical reader the field exists for, and (c) be able to answer the question
+  that caused the miss. **Where no registered tool can answer, emit the hint and no route:** naming a tool
+  that cannot answer is worse than naming none, because the reader spends a call and gets a confident wrong
+  answer. *Falsifier:* a route constant whose value is not in the registry, or an emitter whose
+  `try_instead` equals its own tool name — the enumeration test fails.
 
 ## 6. Testing (definition of done)
 
