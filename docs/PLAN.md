@@ -581,6 +581,59 @@ holds, reinforced by the unpriced cost of one muddier description (C3) and R1.2.
   the adapter contract for a tool string would force every user to reindex for nothing; the new reason
   extends `NAV_REASONS` and its own conformance test instead.
 
+- **Field retro round 5 — the first round with mechanism questions, and the first where cost changed
+  what was asked (2026-08-14; commit `348a8a7`, contract v5 / schema 4, anchor monorepo at 18,926
+  indexed files · 186,463 nodes · 1,788,290 edges).** Session was a legacy→unified **port**: two
+  procedural pages (1,196 + 717 lines) into the unified tree, region-split, reviewed, shipped —
+  ~5 h, ~95 tool calls, **16 of them code-atlas**. Run blind (R-1 clean) with two declared caveats.
+  **The round is positive on truth and negative on reach.** All **8 of 8 checked claims exact, zero
+  false statements**; every failure was *silence or ambiguity*, never a wrong answer, which is why
+  §10's carve-outs are narrow. Verification of round 4's eight: **7 fixed** (075 met unprompted in
+  real work — an unnormalised qname resolved; 077 the headline round-4 defect closed, a mid-session
+  branch switch was legible at a glance from `head_ref`/`last_ref` with no SHA memorised; 076, 078,
+  079, 082 fixed on probes; **080 fixed and confirmed in the field — no-op 56.1 s → 2.113 s, 26×,
+  `wrote.edges: 0`, two no-ops byte-identical**), and **081 `NOT OBSERVED`** — see below.
+  **Three things this round establishes that no earlier round could.** *(i)* **The graph's win is
+  real and narrow:** `search_symbol` found a renamed-and-**recased** ported method
+  (`getActiveHPIOById` → `getActiveHpioById`) behind a feature flag that is off in every environment
+  smoked — grep is structurally worst at exactly this, because the old name is the string that no
+  longer exists. That single call is why the verdict is *keep it, keep it mandatory*.
+  *(ii)* **Cost now shapes behaviour, not just the bill.** code-atlas was **well under 1 %** of
+  session tokens but **181.7 s of in-work build time for 35 changed files**; the cliff is entirely
+  between zero and one file (0 → 2.1 s, 2 → 59.25 s, 14 → 61.6 s). The evaluator batched: 8 calls at
+  the start, 7 at the end, **1 in three hours of writing code** — including the moment it was
+  hand-counting closures and got the count wrong into a committed comment. 080 removed the idle-poll
+  tax and left the **edit-then-ask** tax, which is the one an agent actually pays →
+  [096](tasks/096_edit-then-ask-tax-two-files-cost-a-minute.md).
+  *(iii)* **Recognition ≠ recall, and the probe only measures recognition.** §0.5 scored **14/14** —
+  but **7 of 14 tool descriptions were never loaded** (this harness defers MCP schemas), so 081's
+  stated mechanism (routing moved *into* descriptions) was never exercised and the rate measures
+  **names**. Recorded `NOT OBSERVED`, not fixed-or-broken. The failure that cost real time is one
+  register down: `file_outline` — named correctly at Q4, description loaded — went uncalled on a
+  1,196-line port source whose 7 functions + 2 closures it returns in ~1 KB →
+  [097](tasks/097_recognition-probe-measures-names-not-recall.md).
+  **The §9 primary is [092](tasks/092_untracked-files-are-invisible-and-answer-no-such-symbol.md):**
+  four newly written classes were **untracked**, so `collect()`'s `git ls-files` walk never saw them;
+  the build reported `wrote:{files:14}` with no skip, `dirty_indexed_files: 0` was literally true and
+  actively misleading, and the lookup answered `no_such_symbol` — for a class on disk — while the
+  vocabulary already owns `not_indexed`. Two independent nothings (untracked invisibility, an
+  unmodelled edge kind) were indistinguishable until a commit changed the reason string.
+  Also ticketed: [093](tasks/093_try-instead-is-not-a-callable-tool-name.md) (`try_instead:
+  "find_references_on_method_qname"` is prose in an identifier slot while every other value is a real
+  tool), [094](tasks/094_class-constant-in-array-literal-is-not-an-edge.md) (`::class` in a routing
+  array refused as `relationship_not_modelled` while a `DYNAMIC` tier holds 2,956 edges — "partly
+  wrong to be silent"), [095](tasks/095_ignore-bucket-does-not-name-its-rule.md) (082's census
+  reconciles to the file, but 9,541 excluded files are indexable PHP under an unnamed rule, so every
+  absence answer has an unknown denominator). **Two carry-overs, not ticketed:** the session's
+  highest-defect-value question was again **outside the graph's remit** (a PHP→JS asset-lineage
+  breakage, found by grep + a live browser probe) — the same shape as round 4's property-write
+  question on a different axis; and 067 **partially recurred** — `search_symbol` returned
+  `total_count: 417`, `truncated: true`, 6 rows, with **no `result_subtrees`** to say the page was
+  skewed, and the evaluator acted on page 1 without paging. **074 advances to n = 1** for session type
+  *legacy→unified port*: **helped**, decisively, on one question class; mild harm on the routing
+  question it cannot model (5 calls, a wrong belief about the cause). Tickets 092–097; order in
+  [`BACKLOG.md`](BACKLOG.md#open-work).
+
 **Decision — Founding-premise benchmark (2026-08-08). The premise is refuted; the claim that replaces it is narrower.**
 Five symptom-first questions on the anchor monorepo — none naming a file, class or method — with ground
 truth established by hand beforehand, one fresh headless session per (question × arm), no coaching.

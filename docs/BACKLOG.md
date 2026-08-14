@@ -13,10 +13,12 @@ what landed, and what it cost* — narrative rationale lives in those three.
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
 | 074 | [Does the index harm mechanism questions? — resolve at n ≥ 3](tasks/074_does-the-index-harm-mechanism-questions.md) | Measure | in-progress | 055, 067, 045 |
-| 079 | [`build_or_update_index` is the one payload with no `index_root`](tasks/079_build-payload-does-not-name-its-tree.md) | Agent-trust | done | 071, 060 |
-| 080 | [No-op incremental costs ~56 s and reports 6,071 edges for 0 files](tasks/080_noop-incremental-cost-and-uninterpretable-writes.md) | Cost | done | 052, 051, 060 |
-| 081 | [The four routing prompts have never been reachable by an agent](tasks/081_routing-prompts-are-not-in-the-agents-surface.md) | Agent-fit | done | 069, 017, 038 |
-| 082 | [Two claims nobody outside can check](tasks/082_claims-nobody-outside-can-check.md) | Agent-trust | done | 068, 072, 028 |
+| 092 | [An untracked file is skipped silently, then answers `no_such_symbol`](tasks/092_untracked-files-are-invisible-and-answer-no-such-symbol.md) | Agent-trust | todo | 073, 082, 065 |
+| 093 | [`try_instead` returns a string that is not a callable tool name](tasks/093_try-instead-is-not-a-callable-tool-name.md) | Agent-fit | todo | 065, 076, 069 |
+| 094 | [A `::class` constant in a routing array is `relationship_not_modelled`](tasks/094_class-constant-in-array-literal-is-not-an-edge.md) | Coverage | todo | 030, 011, 002 |
+| 095 | [`collection.ignore: 9541` excludes indexable PHP by an unnamed rule](tasks/095_ignore-bucket-does-not-name-its-rule.md) | Agent-trust | todo | 082, 003, 068 |
+| 096 | [A 2-file incremental costs 59 s while a no-op costs 2 s](tasks/096_edit-then-ask-tax-two-files-cost-a-minute.md) | Cost | todo | 080, 052, 016 |
+| 097 | [The recognition probe measures names, not descriptions or recall](tasks/097_recognition-probe-measures-names-not-recall.md) | Measure | todo | 081, 069, 074 |
 | 083 | [Onboarding — deterministic graph-metrics foundation](tasks/083_onboarding-graph-metrics.md) | Phase 3 / M10 | todo | 014, 031, 017 |
 | 084 | [Onboarding — architectural layer assignment](tasks/084_onboarding-layer-assignment.md) | Phase 3 / M10 | todo | 083 |
 | 085 | [Onboarding — Summarizer Protocol seam + deterministic default](tasks/085_onboarding-summarizer-seam.md) | Phase 3 / M10 | todo | 083 |
@@ -27,10 +29,14 @@ what landed, and what it cost* — narrative rationale lives in those three.
 | 090 | [Onboarding — LLM summarizer behind the seam (opt-in)](tasks/090_llm-summarizer-impl.md) | Phase 3 / M12 | todo | 085, 088 |
 | 091 | [Onboarding — LLM layer-name refinement (opt-in)](tasks/091_llm-layer-refinement.md) | Phase 3 / M12 | todo | 084, 090 |
 
-**Order (round-4 tickets):** **079** (small, bounded) **→ 082** (makes 068 and 072 checkable
-at all) **→ 081 → 080** (cost, and last for the same reason 061 was). 075 → 076 shipped together;
-**077–078 shipped** (revision naming; refuse ambiguous body).
-**074's core needs the anchor repo** — only the pre-registered protocol has landed.
+**Order (round-5 tickets):** **092** (the one that cost field time — an untracked file reads as a
+non-existent symbol) **→ 093** (small, bounded, and 092 adds a route that must obey it) **→ 095**
+(names the denominator 082 made auditable) **→ 097** (protocol; must land before round 6 or that
+round cannot score 081 either) **→ 094** (adapter + contract weight) **→ 096** (cost, and last for
+the same reason 061 and 080 were — but it is the round's behaviour finding, not just a number).
+**Round 4 closed:** 075–082 all landed; round 5 verified 7 of 8 fixed and 081 `NOT OBSERVED` (§A).
+**074's core needs the anchor repo** — the pre-registered protocol has landed and round 5 is its
+**n = 1** (session type *legacy→unified port*; verdict **helped**).
 
 **Then:** Phase 3 onboarding (083 → 091; M10 → M11 → M12) or Phase 2 language breadth — both are
 unblocked by Phase 1.5; breadth stays deferred per §19.
@@ -141,6 +147,10 @@ this track are in [Open work](#open-work); everything below has landed.
 | 076 | [A bare method name answers `no_such_symbol` while its qualified form has 82 callers](tasks/076_bare-name-subject-reads-as-absence.md) | Agent-trust | done | 054, 011, 013 |
 | 077 | [The index cannot name the revision it describes](tasks/077_index-cannot-name-the-revision-it-describes.md) | Agent-trust | done | 071, 047, 072 |
 | 078 | [`ambiguous_definitions` warns while `source` silently ships one](tasks/078_ambiguous-payload-still-picks-one-definition.md) | Agent-trust | done | 070, 043, 049 |
+| 079 | [`build_or_update_index` is the one payload with no `index_root`](tasks/079_build-payload-does-not-name-its-tree.md) | Agent-trust | done | 071, 060 |
+| 080 | [No-op incremental costs ~56 s and reports 6,071 edges for 0 files](tasks/080_noop-incremental-cost-and-uninterpretable-writes.md) | Cost | done | 052, 051, 060 |
+| 081 | [The four routing prompts have never been reachable by an agent](tasks/081_routing-prompts-are-not-in-the-agents-surface.md) | Agent-fit | done | 069, 017, 038 |
+| 082 | [Two claims nobody outside can check](tasks/082_claims-nobody-outside-can-check.md) | Agent-trust | done | 068, 072, 028 |
 
 ### Where these tickets came from
 
@@ -157,6 +167,7 @@ memory run, the founding-premise benchmark), [`FEEDBACK.md`](FEEDBACK.md) (exter
 | Memory & concurrency run (`869dcc6`) | 071–073 | **Memory is a non-finding**: n-th agent ~70 MB PSS, the 925 MB index **0 MB** (never mmapped), 5 agents = 1.3% of RAM at **4.3×** throughput, 452 drift events with zero soft-fails and zero `SQLITE_BUSY`. All three defects are about what an answer *claims* — a worktree agent got the main checkout's symbol with `reason: "ok"` (071), refuting our own `cwd`-relative-`db_path` isolation claim |
 | Freshness review (not a session) | 052–053 | Of four layers that keep an index current, only `build_or_update_index(full=false)` has no trigger. **052 gates 053**: a `post-merge` hook costing the field-measured 62 s is worse than a stale index |
 | Field retro 4 (2026-08-10, `e8f56d0`) | 075–082 | First **verification** round: 7 fixed and verified, 2 improved, 1 reproduced (054), 2 not exercised. Read with its own three caveats — protocol violated so the recognition test is **void**, the server changed mid-session via a client reconnect, and **4 of 6 question shapes never arose**. Both findings that mattered came from *outside* the verification section (075, 077), which is a regression harness |
+| Field retro 5 (2026-08-14, `348a8a7`) | 092–097 | First round with **mechanism questions in the work** (3 of 6 shapes) and the first where **cost changed what was asked**: 16 calls, 8 at the start, 7 at the end, **1 in three hours of writing code**, because each refresh cost ~60 s. **8 of 8 checked claims exact, zero false statements** — every failure was silence or ambiguity. Sharpest point: an untracked file answered `no_such_symbol` while `dirty_indexed_files: 0` and the build payload both read green (092). Verification: 7 of 8 round-4 fixes confirmed, 081 **NOT OBSERVED** — its proxy scored 14/14 off bare names because 7 of 14 descriptions were never loaded (097) |
 | PLAN §19 threats paragraph | 074 | The founding-premise benchmark's one accidental repeat ran the mechanism question twice under the indexed arm and got **opposite verdicts**, the denied run right — the only datapoint suggesting the index costs *accuracy* |
 
 Three notes that still govern open work:

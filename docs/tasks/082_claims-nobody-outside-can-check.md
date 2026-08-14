@@ -89,6 +89,16 @@ runs the incremental path and reports a lost race). Related:
 [028](028_index-health-metrics.md) (the counters), [053](053_refresh-on-checkout-hook.md)
 (`code-atlas-refresh`), [`runbooks/parallel-agents.md`](../runbooks/parallel-agents.md).
 
+## Field verification (retro round 5, 2026-08-14) — **FIXED**, with a semantic gap
+Both identities held exactly on the anchor index — `55278 − 26811 − 9541 == 18926 == kept` and
+`18926 + 0 stubs == 18926 == files` — and `collected` matched the evaluator's own
+`git ls-files | wc -l` = **55278** *to the file*. The denominator is auditable from outside, which is
+what Part A asked for. **The gap:** the `ignore` bucket's **9,541 files are all indexed-suffix PHP**
+and nothing names the rule that excluded them; the evaluator probed two guesses with `file_outline`
+and disproved both. Every absence answer over that repo therefore still has an unnamed exclusion →
+[095](095_ignore-bucket-does-not-name-its-rule.md). Part B (`mode: "busy"`) was again **not
+exercised** — no build race occurred in the session.
+
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
 
 # Working doc — 082

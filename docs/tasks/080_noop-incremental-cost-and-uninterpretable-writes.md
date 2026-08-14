@@ -79,6 +79,15 @@ decision), [051](051_build-report-edge-undercount.md) and
 [036](036_edit-index-hook.md), [053](053_refresh-on-checkout-hook.md) (the two consumers of this
 floor), [016](016_incremental-git.md).
 
+## Field verification (retro round 5, 2026-08-14 — the operator re-measure named as a follow-up)
+**FIXED, confirmed on the anchor index.** No-op: **2.113 s / 2.106 s** against round 4's 56.1 s /
+57.4 s (~**26×**); `wrote.edges` **0** against 6,071 — exactly the stated signal; two consecutive
+no-ops **byte-identical** (`wrote`, `graph`, `last_commit` all equal; only `built_at` and `seconds`
+differ). This closes AC1/AC3's absolute-seconds coverage-gap exclusion (ASSUMED-A).
+**The named follow-up is confirmed open and is now its own ticket:** a **2-file** delta cost
+**59.25 s** (14 files → 61.6 s), so the cliff is entirely between zero and one →
+[096](096_edit-then-ask-tax-two-files-cost-a-minute.md).
+
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
 
 # Working doc — 080

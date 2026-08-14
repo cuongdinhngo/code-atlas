@@ -82,6 +82,16 @@ description worked), §11 item 2 (probe-shaped evidence caveat). Related:
 [038](038_explain-path.md) (the tool round 4 expected to want and never called),
 [061](061_payload-weight.md) (capability that earns nothing).
 
+## Field verification (retro round 5, 2026-08-14) — **NOT OBSERVED**
+The reclassification is invisible from the agent side by design, so §0.5's recognition rate is the
+stated proxy — and the proxy did not measure what this ticket changed. The round scored **14/14**,
+but **7 of the 14 tool descriptions were never loaded**: the harness defers MCP schemas, so routing
+ran on **bare names** for half the surface. A rate a name list passes at 100 % cannot distinguish
+"descriptions route well" from "names are self-evident", and the two tools never called in the work
+(`find_callers`, `include_graph`) are precisely ones whose descriptions were never read. Recorded as
+NOT OBSERVED, not fixed-or-broken — the measurement is the thing that failed →
+[097](097_recognition-probe-measures-names-not-recall.md).
+
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
 
 # Working doc — 081

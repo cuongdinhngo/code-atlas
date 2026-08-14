@@ -77,6 +77,22 @@ being denied the tool made the answer **better**, which low adoption cannot prod
   the question types the index is not for.
 - The README's and PLAN's value claims match the outcome, in the same change.
 
+## Field observations (not the benchmark's arms — they do not substitute for a run)
+| Round | Session shape | Mechanism shapes that arose | Verdict |
+|---|---|---|---|
+| Field retro 4 (2026-08-10) | review + orchestration, ~3 h | **2 of 6** — every control-flow and mechanism shape absent | No datapoint. A lead about *applicability*, not harm |
+| Field retro 5 (2026-08-14) | legacy→unified **port**, ~5 h | **3 of 6** — first round to satisfy the "prefer a session with mechanism questions" rule | **n = 1: helped**, narrowly and decisively |
+
+Round 5's detail, because the sign is not uniform: the graph **won** the "has this symbol been ported,
+and under what name?" question — `search_symbol` found a renamed *and recased* method behind an
+off-by-default feature flag, which grep structurally cannot find because the old name is the string
+that no longer exists. It **lost** the one control-flow question (front controller → `displayAction`,
+dynamic dispatch): 5 calls, three flavours of nothing, answered by grep in one — and, importantly for
+this ticket, it produced a **wrong belief about the cause** of the emptiness, which is mild harm of
+exactly the kind the benchmark's repeat suggested. Counts toward the n as *helped, with a recorded
+harm*. Session type is now a named variable: this is n = 1 for **legacy→unified port**, and the
+original benchmark's cell was a bug hunt.
+
 ## References
 `docs/PLAN.md` §19 — *Founding-premise benchmark (2026-08-08)*, the "Threats, recorded rather than
 hidden" paragraph (the repeat and its opposite verdicts) and the 22/117 adoption figure. Related:
