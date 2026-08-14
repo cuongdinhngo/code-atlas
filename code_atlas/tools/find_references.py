@@ -16,7 +16,8 @@ from code_atlas.tools.nav_result import (
     REASON_NO_SUCH_SYMBOL,
     REASON_RELATIONSHIP_NOT_MODELLED,
     TRY_INSTEAD_FILE_OUTLINE,
-    TRY_INSTEAD_FIND_REFERENCES_ON_METHOD_QNAME,
+    TRY_INSTEAD_HINT_METHOD_QNAME,
+    TRY_INSTEAD_SEARCH_SYMBOL,
     attach_ambiguous_definitions,
     attach_limit_capped,
     attach_result_subtrees,
@@ -52,7 +53,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``IMPORTS`` / ``CONTAINS`` / ``REFERENCES`` stay unlinkable until the resolver grows —
         they never appear here even though the SQL has no kind filter. When unlinked
         ``REFERENCES``/``IMPORTS`` exist for an indexed subject and linked hits are zero, the
-        payload uses ``reason=relationship_not_modelled`` and ``try_instead`` (task 065).
+        payload uses ``reason=relationship_not_modelled``, ``try_instead=search_symbol`` (it
+        enumerates the class's methods) and a ``try_instead_hint`` naming the two-step (065/093).
 
         ``include_source`` (default off, so the common case stays token-frugal) adds each site's
         own source line as ``source``, capped in length. A site whose file drifted since indexing
@@ -122,6 +124,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 call_site.annotate(config.root, store, results)
             reason = relation_reason(hit_total=total_count, symbol_indexed=indexed)
             try_instead: str | None = None
+            try_instead_hint: str | None = None
             # Empty + unlinked REFERENCES/IMPORTS ⇒ relationship not modelled (not a genuine zero).
             # The bare-name arm is approximate — an unqualified same-name target counts as
             # evidence, erring toward "may be unmodelled" over a confident zero.
@@ -132,7 +135,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 )
                 if unlinked > 0:
                     reason = REASON_RELATIONSHIP_NOT_MODELLED
-                    try_instead = TRY_INSTEAD_FIND_REFERENCES_ON_METHOD_QNAME
+                    # search_symbol enumerates the class's methods — the qnames the hint
+                    # asks for. Routing back to find_references would loop (093 review).
+                    try_instead = TRY_INSTEAD_SEARCH_SYMBOL
+                    try_instead_hint = TRY_INSTEAD_HINT_METHOD_QNAME
         truncated = offset + len(results) < total_count
         result = nav_result(
             qname,
@@ -149,6 +155,6 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         attach_result_subtrees(result, subtrees)
         attach_ambiguous_definitions(result, definition_sites(nodes))
         attach_limit_capped(result, cap=cap, clamped=limit_clamped)
-        return attach_try_instead(result, try_instead)
+        return attach_try_instead(result, try_instead, try_instead_hint)
 
     return find_references

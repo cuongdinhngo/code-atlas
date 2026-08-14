@@ -399,9 +399,9 @@ Token-efficient: return qualified names + `file:line`, not bodies, unless a read
 | `file_outline` | `path` | symbols + line ranges, no body |
 | `read_symbol` | `qname` | source of just that class/method + docblock; stub symbols add `stub: true` (039); a qname with >1 definition adds `ambiguous_definitions` (each site's `file`/`line`/`kind`, plus `stub` when set) and **refuses the body** with `reason=subject_ambiguous`, `found=false`, empty `source`, no `file`/`line_*`, and `try_instead: search_symbol` — so one region's code cannot be read while ignoring the list (070 warn; 078 refuse); an untracked indexable file matching the subject is `reason=not_indexed` with `try_instead=build_or_update_index` (092 — never `no_such_symbol`) |
 | `find_callers` | `qname, depth?, include_source?, arg_position?, arg_is?, limit?, offset?` | who CALLS/NEW it + confidence; `reason` + `total_count` (033); opt-in capped call-site `source` (037); opt-in argument filter at a 1-based position — a literal category, `absent` or `dynamic` — with `total_count` counting matches and `args_unrecorded` counting the sites it could not judge (049, depth 1 only); `limit`/`offset` page results (057 — depth 1 uses store OFFSET; depth>1 pages the BFS hit stream; complete enumeration guaranteed at depth 1; at depth>1 `total_count` is a floor valid for that page only); a truncated depth-1 page whose full result spans >1 top-level path subtree adds `result_subtrees` (segment→count) so a one-page reader sees the subtrees it did not (067); a subject qname with >1 definition adds `ambiguous_definitions` (each site's `file`/`line`/`kind`) so the merged callers read as ambiguous, not authoritative (070); an untracked indexable file matching the subject is `reason=not_indexed` + `try_instead=build_or_update_index` (092) |
-| `find_references` | `qname, include_source?, limit?, offset?` | all **linked** edges targeting it; `reason` + `total_count` (033); empty + unlinked `REFERENCES`/`IMPORTS` → `relationship_not_modelled` + `try_instead` (065); opt-in capped call-site `source` (037); `offset` pages in edge order (057); a truncated page whose full result spans >1 top-level path subtree adds `result_subtrees` (segment→count) so a one-page reader sees the subtrees it did not (067); a subject qname with >1 definition adds `ambiguous_definitions` (each site's `file`/`line`/`kind`) — 070 |
+| `find_references` | `qname, include_source?, limit?, offset?` | all **linked** edges targeting it; `reason` + `total_count` (033); empty + unlinked `REFERENCES`/`IMPORTS` → `relationship_not_modelled` + `try_instead=search_symbol` + `try_instead_hint` naming the method-qname two-step (065; callable, progress-making route 093); opt-in capped call-site `source` (037); `offset` pages in edge order (057); a truncated page whose full result spans >1 top-level path subtree adds `result_subtrees` (segment→count) so a one-page reader sees the subtrees it did not (067); a subject qname with >1 definition adds `ambiguous_definitions` (each site's `file`/`line`/`kind`) — 070 |
 | `find_implementations` | `qname, limit?, offset?` | EXTENDS/IMPLEMENTS subtypes; `reason` + `total_count` (033); `limit`/`offset` page in edge order (057) |
-| `include_graph` | `path, direction` | `include`/`require` graph; `unresolved_includes` on imports/both only — omitted for `imported_by`; empty inbound with unlinked basename hits → `relationship_not_modelled` + `try_instead` (065) |
+| `include_graph` | `path, direction` | `include`/`require` graph; `unresolved_includes` on imports/both only — omitted for `imported_by`; empty inbound with unlinked basename hits → `relationship_not_modelled` + `try_instead_hint` and deliberately **no** `try_instead` — no registered tool reads unlinked include text (065/093) |
 | `impact` | `paths|qnames, depth?` | blast radius, bounded best-score |
 | `reachable_from` | `depth?` | nodes reachable from `CA_ENTRY_POINTS` (RESOLVED IMPACT kinds, forward); `unproven` for HEURISTIC/DYNAMIC-only |
 | `find_orphans` | `depth?` | complement: zero-inbound / unreachable-from-roots with `why`; never empty-success without roots |
@@ -622,9 +622,20 @@ holds, reinforced by the unpriced cost of one muddier description (C3) and R1.2.
   actively misleading, and the lookup answered `no_such_symbol` — for a class on disk — while the
   vocabulary already owns `not_indexed`. **Shipped (092):** untracked files sit beside the 082 census (`skipped.untracked`); a miss that maps to a stored untracked indexable path returns `not_indexed` + `try_instead=build_or_update_index`. Two independent nothings (untracked invisibility, an
   unmodelled edge kind) were indistinguishable until a commit changed the reason string.
-  Also ticketed: [093](tasks/093_try-instead-is-not-a-callable-tool-name.md) (`try_instead:
-  "find_references_on_method_qname"` is prose in an identifier slot while every other value is a real
-  tool), [094](tasks/094_class-constant-in-array-literal-is-not-an-edge.md) (`::class` in a routing
+  **Shipped (093):** `try_instead` is now one register — every value it can emit is a **registered
+  tool name**, and the qualifier that says how to re-ask moved to the sibling `try_instead_hint`
+  (092's shape, generalised). A route must also **make progress** and **be able to answer**: the
+  class-level `find_references` miss routes to `search_symbol` (it enumerates the method qnames the
+  hint asks for — routing back to `find_references` would loop), and `include_graph`'s
+  unlinked-inbound miss carries the **hint alone with no route**, because the evidence is include
+  text in `edges.target_raw` and no registered tool reads it — `search_symbol` there answers
+  `reason=ok` with the symbols declared *in* the file, omitting the includer.
+  `tests/test_try_instead_is_a_callable_tool_name.py` derives the route set from `main.TOOL_NAMES`
+  and the hint set from the module namespace, so the next prose value fails the gate instead of
+  shipping (R1.1). No `contract_version` bump — `try_instead` is tool-output vocabulary, not the
+  adapter contract (075/076 precedent). **Open, not ticketed:** nothing searches unlinked include
+  text, so "who includes this file" stays unanswerable when the include path is dynamic.
+  Also ticketed: [094](tasks/094_class-constant-in-array-literal-is-not-an-edge.md) (`::class` in a routing
   array refused as `relationship_not_modelled` while a `DYNAMIC` tier holds 2,956 edges — "partly
   wrong to be silent"), [095](tasks/095_ignore-bucket-does-not-name-its-rule.md) (082's census
   reconciles to the file, but 9,541 excluded files are indexable PHP under an unnamed rule, so every

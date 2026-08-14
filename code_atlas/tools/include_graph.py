@@ -11,7 +11,7 @@ from code_atlas.config import Config
 from code_atlas.store import GraphStore
 from code_atlas.tools.nav_result import (
     REASON_RELATIONSHIP_NOT_MODELLED,
-    TRY_INSTEAD_PATH_BASENAME_SEARCH,
+    TRY_INSTEAD_HINT_PATH_BASENAME,
     attach_try_instead,
     edge_hit,
     edge_id,
@@ -49,7 +49,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         only, capped by ``CA_MAX_RESULTS``. ``unresolved_includes`` counts bare/dynamic includes on
         the seed's ``imports`` side and is omitted for ``imported_by`` (inbound unresolved is not a
         confident zero — 065). An empty inbound answer with unlinked includes mentioning the
-        basename returns ``reason=relationship_not_modelled`` plus ``try_instead``.
+        basename returns ``reason=relationship_not_modelled`` plus a ``try_instead_hint`` and
+        deliberately NO ``try_instead`` — no registered tool reads unlinked include text (093).
         """
         if depth < 1:
             raise ValueError(f"depth must be >= 1, got {depth}")
@@ -64,6 +65,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         limit = config.max_results
         reason = None
         try_instead: str | None = None
+        try_instead_hint: str | None = None
         with GraphStore(config.db_path) as store:
             outcome = _graph(store, rel, direction=direction, hops=depth, limit=limit)
             if (
@@ -72,7 +74,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 and store.count_unlinked_includes_mentioning(PurePosixPath(rel).name) > 0
             ):
                 reason = REASON_RELATIONSHIP_NOT_MODELLED
-                try_instead = TRY_INSTEAD_PATH_BASENAME_SEARCH
+                # Hint only, no route: no registered tool reads unlinked include text, and
+                # search_symbol would answer reason=ok without the includer (093 review).
+                try_instead_hint = TRY_INSTEAD_HINT_PATH_BASENAME
         payload = nav_result(
             rel,
             outcome.results,
@@ -87,7 +91,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         )
         if outcome.unresolved_includes is not None:
             payload["unresolved_includes"] = outcome.unresolved_includes
-        return attach_try_instead(payload, try_instead)
+        return attach_try_instead(payload, try_instead, try_instead_hint)
 
     return include_graph
 

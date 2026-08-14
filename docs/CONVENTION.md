@@ -139,6 +139,27 @@ code-atlas/
   indexable file; `try_instead` is a real tool name and `try_instead_hint` carries the git-add
   prose (061 omit when empty). A subject matches an untracked file on its **stem** — a path-shaped
   qname's trailing ident is the file extension, so `Missing.aa` must not match `aa.aa` (092).
+- **`try_instead` is two registers, and each stays in its own field (093).** Every value the core
+  can emit is a **registered MCP tool name the reader can call**; the qualifier that says *how* to
+  re-ask is prose in the sibling `try_instead_hint`, attached only alongside a route (061 omit when
+  empty). Prose in the identifier slot is what made the field ambiguous — a reader could not tell
+  a route from an instruction without trying one. The naming rule carries the split in the source:
+  `TRY_INSTEAD_*` is a tool name, `TRY_INSTEAD_HINT_*` is prose, and neither holds the other's kind.
+  `tests/test_try_instead_is_a_callable_tool_name.py` derives both sets from the module namespace
+  and `main.TOOL_NAMES`, so a future value is gated without editing a hand-kept list (R1.1).
+  Two further rules the route must satisfy, because "callable" is not the same as "useful":
+  **a route must make progress** — a tool never routes to itself (`find_references` on a class
+  routes to `search_symbol`, which enumerates the method qnames the hint asks for; routing back to
+  itself loops for the mechanical reader the field exists for); and **a route must be able to
+  answer** — where no registered tool can, the payload carries the **hint alone and no
+  `try_instead`** (`include_graph`'s unlinked-inbound miss: the evidence is include text in
+  `edges.target_raw` and `nodes_fts` covers name/qname/file_path/params only, so `search_symbol`
+  would answer `reason=ok` with the symbols declared *in* the file and silently omit the includer).
+  Naming a tool that cannot answer is worse than naming none — the reader spends a call and gets a
+  confident wrong answer, which is the 075/076 failure this vocabulary exists to prevent.
+  **Known boundary, not closed:** callability is checked against the full `main.TOOL_NAMES`, while
+  `CA_TOOLS` may serve a subset — `nav_result` has no `Config`, so a restricted deployment can be
+  offered a route it does not expose (pre-existing; also true of `file_outline`).
 - One module per tool at `code_atlas/tools/<tool_name>.py`, named exactly as the MCP tool. Each
   exposes `NAME` and a `create(...)` that returns the registered function: **the returned function's
   signature is the MCP signature and its docstring is the tool description**, so configuration flows

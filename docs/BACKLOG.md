@@ -13,7 +13,6 @@ what landed, and what it cost* — narrative rationale lives in those three.
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
 | 074 | [Does the index harm mechanism questions? — resolve at n ≥ 3](tasks/074_does-the-index-harm-mechanism-questions.md) | Measure | in-progress | 055, 067, 045 |
-| 093 | [`try_instead` returns a string that is not a callable tool name](tasks/093_try-instead-is-not-a-callable-tool-name.md) | Agent-fit | todo | 065, 076, 069 |
 | 094 | [A `::class` constant in a routing array is `relationship_not_modelled`](tasks/094_class-constant-in-array-literal-is-not-an-edge.md) | Coverage | todo | 030, 011, 002 |
 | 095 | [`collection.ignore: 9541` excludes indexable PHP by an unnamed rule](tasks/095_ignore-bucket-does-not-name-its-rule.md) | Agent-trust | todo | 082, 003, 068 |
 | 096 | [A 2-file incremental costs 59 s while a no-op costs 2 s](tasks/096_edit-then-ask-tax-two-files-cost-a-minute.md) | Cost | todo | 080, 052, 016 |
@@ -32,8 +31,8 @@ what landed, and what it cost* — narrative rationale lives in those three.
 | 090 | [Onboarding — LLM summarizer behind the seam (opt-in)](tasks/090_llm-summarizer-impl.md) | Phase 3 / M12 | todo | 085, 088 |
 | 091 | [Onboarding — LLM layer-name refinement (opt-in)](tasks/091_llm-layer-refinement.md) | Phase 3 / M12 | todo | 084, 090 |
 
-**Order (round-5 tickets):** **092** (the one that cost field time — an untracked file reads as a
-non-existent symbol) **→ 093** (small, bounded, and 092 adds a route that must obey it) **→ 095**
+**Order (round-5 tickets):** ~~**092**~~ (done — an untracked file read as a non-existent symbol)
+**→ ~~093~~** (done — 092's route shape generalised to every `try_instead`) **→ 095**
 (names the denominator 082 made auditable) **→ 097** (protocol; must land before round 6 or that
 round cannot score 081 either) **→ 094** (adapter + contract weight) **→ 096** (cost, and last for
 the same reason 061 and 080 were — but it is the round's behaviour finding, not just a number).
@@ -168,6 +167,7 @@ this track are in [Open work](#open-work); everything below has landed.
 | 081 | [The four routing prompts have never been reachable by an agent](tasks/081_routing-prompts-are-not-in-the-agents-surface.md) | Agent-fit | done | 069, 017, 038 |
 | 082 | [Two claims nobody outside can check](tasks/082_claims-nobody-outside-can-check.md) | Agent-trust | done | 068, 072, 028 |
 | 092 | [An untracked file is skipped silently, then answers `no_such_symbol`](tasks/092_untracked-files-are-invisible-and-answer-no-such-symbol.md) | Agent-trust | done | 073, 082, 065 |
+| 093 | [`try_instead` returns a string that is not a callable tool name](tasks/093_try-instead-is-not-a-callable-tool-name.md) | Agent-fit | done | 065, 076, 069 |
 
 ### Where these tickets came from
 
@@ -354,6 +354,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | 081 | 1 dispatch — refine exposure-checker **60.4k** (17 tool-uses, 194 s); review waived. Docker runs for delta-green (full gate **1137 passed**) | [#100](https://github.com/cuongdinhngo/code-atlas/pull/100) |
 | 080 | 1 dispatch — refine exposure-checker **57.8k** (8 tool-uses, 187 s); review waived. Docker runs for delta-green (full gate **1140 passed**); one blast-radius miss caught + absorbed | [#101](https://github.com/cuongdinhngo/code-atlas/pull/101) |
 | 092 | 1 dispatch — refine exposure-checker unmeasured (blocking retrieval); review waived at solve time, then done on the PR (0 dispatch, in-session). Docker delta-green (full gate **1167 passed**; branch pre-review 1165, `main` 1160 — both re-measured, the "1162" first recorded here was a stale count) | [#102](https://github.com/cuongdinhngo/code-atlas/pull/102) |
+| 093 | 1 dispatch — `/code-review` on the PR **61.7k** (20 tool-uses, 205 s); refine skipped (0 unresolved product-decisions), review waived at solve time then run on the PR. Docker delta-green (full gate **1175 passed**; `main` baseline 1167, +8 new tests, none removed — 1173 pre-review, +2 from the review fixes) | [#103](https://github.com/cuongdinhngo/code-atlas/pull/103) |
 | — | Field retro round 4 + ticket-writing for 075–082: 0 dispatch. **No PR** — committed straight to `main` on the maintainer's instruction for docs-only changes | — |
 
 **How 047–049 were measured.** One autonomous session, no per-task transcript: each row is the API

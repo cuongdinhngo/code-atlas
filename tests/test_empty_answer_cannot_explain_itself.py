@@ -17,8 +17,9 @@ from code_atlas.tools.nav_result import (
     REASON_OK,
     REASON_RELATIONSHIP_NOT_MODELLED,
     REASON_SUBJECT_AMBIGUOUS,
-    TRY_INSTEAD_FIND_REFERENCES_ON_METHOD_QNAME,
-    TRY_INSTEAD_PATH_BASENAME_SEARCH,
+    TRY_INSTEAD_HINT_METHOD_QNAME,
+    TRY_INSTEAD_HINT_PATH_BASENAME,
+    TRY_INSTEAD_SEARCH_SYMBOL,
 )
 from tests.test_nav_tools import db_config, edge, node, seed_file
 
@@ -77,12 +78,16 @@ def test_find_references_unlinked_class_refs_are_not_no_matches(
     assert empty_class["reason"] == REASON_RELATIONSHIP_NOT_MODELLED
     assert empty_class["total_count"] == 0
     assert empty_class["results"] == []
-    assert empty_class["try_instead"] == TRY_INSTEAD_FIND_REFERENCES_ON_METHOD_QNAME
+    # 093: the route is callable, makes progress (not a self-route), and the qualifier is prose
+    # in its own field, never in the identifier slot.
+    assert empty_class["try_instead"] == TRY_INSTEAD_SEARCH_SYMBOL
+    assert empty_class["try_instead_hint"] == TRY_INSTEAD_HINT_METHOD_QNAME
 
     method = refs("\\ModelMember::getActiveStatus", detail_level="minimal")
     assert method["reason"] == REASON_OK
     assert method["total_count"] == 1
     assert "try_instead" not in method
+    assert "try_instead_hint" not in method
 
 
 def test_find_references_genuine_zero_stays_no_matches(
@@ -153,7 +158,9 @@ def test_include_graph_imported_by_omits_always_zero_and_flags_unlinked(
     assert "unresolved_includes" not in inbound
     assert inbound["results"] == []
     assert inbound["reason"] == REASON_RELATIONSHIP_NOT_MODELLED
-    assert inbound["try_instead"] == TRY_INSTEAD_PATH_BASENAME_SEARCH
+    # Hint only: no registered tool reads unlinked include text, so 093 names none (061).
+    assert inbound["try_instead_hint"] == TRY_INSTEAD_HINT_PATH_BASENAME
+    assert "try_instead" not in inbound
 
     outbound = tool("app.php", direction="imports")
     assert outbound["unresolved_includes"] == 1
@@ -164,7 +171,8 @@ def test_include_graph_imported_by_omits_always_zero_and_flags_unlinked(
     assert default["results"] == []
     assert default["unresolved_includes"] == 0
     assert default["reason"] == REASON_RELATIONSHIP_NOT_MODELLED
-    assert default["try_instead"] == TRY_INSTEAD_PATH_BASENAME_SEARCH
+    assert default["try_instead_hint"] == TRY_INSTEAD_HINT_PATH_BASENAME
+    assert "try_instead" not in default
 
 
 def test_include_graph_imported_by_genuine_empty_has_no_unresolved_field(
@@ -183,10 +191,13 @@ def test_include_graph_imported_by_genuine_empty_has_no_unresolved_field(
     assert inbound["results"] == []
     assert inbound.get("reason") != REASON_RELATIONSHIP_NOT_MODELLED
     assert "try_instead" not in inbound
+    # A hint can now stand alone (093), so a genuine empty must carry neither field.
+    assert "try_instead_hint" not in inbound
 
     default = tool("orphan.php")
     assert default.get("reason") != REASON_RELATIONSHIP_NOT_MODELLED
     assert "try_instead" not in default
+    assert "try_instead_hint" not in default
 
 
 def test_reason_vocabulary_pins_relationship_not_modelled() -> None:

@@ -55,13 +55,27 @@ NAV_REASONS: tuple[NavReason, ...] = (
     REASON_SUBJECT_AMBIGUOUS,
 )
 
+# Two registers, one naming rule (093): ``TRY_INSTEAD_*`` is a registered tool name the reader can
+# call, ``TRY_INSTEAD_HINT_*`` is prose naming the qualifier. Neither holds the other's kind — prose
+# in the identifier slot makes every value ambiguous. Pinned by the invariant test.
 # Machine-stable alternate routes when reason is relationship_not_modelled (task 065).
-TRY_INSTEAD_FIND_REFERENCES_ON_METHOD_QNAME = "find_references_on_method_qname"
-TRY_INSTEAD_PATH_BASENAME_SEARCH = "path_basename_search"
+# The route must MAKE PROGRESS, not just resolve: routing a tool back to itself loops for the
+# mechanical reader this field exists for, so the class-level miss routes to the enumerator.
+TRY_INSTEAD_HINT_METHOD_QNAME = (
+    "list the class's methods, then re-ask find_references with a method qname "
+    "(Class::method) — the class-level reference is not modelled"
+)
 # Empty miss while multiple indexed files are dirty — path-named tools are stronger (073).
 TRY_INSTEAD_FILE_OUTLINE = "file_outline"
 # An under-qualified subject has candidates — search_symbol enumerates them (075/076).
 TRY_INSTEAD_SEARCH_SYMBOL = "search_symbol"
+# No route on purpose: the evidence is unlinked include TEXT (edges.target_raw) and no registered
+# tool reads it — nodes_fts covers name/qname/file_path/params only. A route here would answer
+# reason=ok with symbols declared IN the file, silently omitting the includer (075/076).
+TRY_INSTEAD_HINT_PATH_BASENAME = (
+    "no indexed tool answers this — the include path is bare or dynamic, so search the file's "
+    "basename as text outside the index"
+)
 # Untracked indexable file — rebuild after git add (092). Real tool name; hint is sibling.
 TRY_INSTEAD_BUILD_OR_UPDATE_INDEX = "build_or_update_index"
 TRY_INSTEAD_HINT_UNTRACKED = "git add the untracked file, then rebuild"
@@ -284,10 +298,18 @@ def attach_name_not_qualified(
     return payload
 
 
-def attach_try_instead(payload: dict[str, object], try_instead: str | None) -> dict[str, object]:
-    """Attach ``try_instead`` only when set (task 061 — omit when it means nothing)."""
+def attach_try_instead(
+    payload: dict[str, object], try_instead: str | None, hint: str | None = None
+) -> dict[str, object]:
+    """Attach the callable route, and the hint saying how to re-ask. Each omitted when unset (061).
+
+    A hint may stand ALONE: when no registered tool can answer, naming a tool that cannot is worse
+    than naming none — the reader spends a call and gets a confident wrong answer (075/076).
+    """
     if try_instead:
         payload["try_instead"] = try_instead
+    if hint:
+        payload["try_instead_hint"] = hint
     return payload
 
 

@@ -1,5 +1,73 @@
 # Lessons — code-atlas
 
+## 093 — A field whose values are usually callable trains the reader to call all of them
+Three of five `try_instead` values were real tools; two were instructions shaped like identifiers
+(`find_references_on_method_qname`, `path_basename_search`). The field's *routing* was right both
+times — an evaluator that followed one got a better answer — but it first had to try the string as a
+tool, find nothing, and infer the meaning. **One prose value makes the whole field ambiguous**, not
+just itself: a reader cannot tell a route from an instruction without spending a call. **Fix:** one
+register per field — `try_instead` is a registered tool name, the qualifier is prose in the sibling
+`try_instead_hint` (092's shape, generalised); a self-route (`find_references` → `find_references`)
+is honest when only the *subject* was wrong. **Carry the split into the source as a naming rule**
+(`TRY_INSTEAD_*` vs `TRY_INSTEAD_HINT_*`) so a test can derive both sets from the module namespace
+and `main.TOOL_NAMES` — a hand-kept list of allowed values is the thing that drifts (R1.1). Prove the
+gate by running it against the pre-fix shape: 4 of 6 failed there, 6 pass after. A guard that passes
+on both shapes is not a guard.
+**Review addendum — "callable" is not "useful", and a guard needs its own guard.** Three things the
+first cut got wrong. (1) The dead-route guard scanned every module *including the one that defines
+the constants*, so each name was always found by its own definition line and the test **could never
+fail** — a false-green in a test written to be a gate. Skip assignment lines, and add a test that
+**injects a dead constant and asserts the guard reports it**. (2) A route must **make progress**: the
+class-level miss self-routed `find_references` → `find_references`, which loops for exactly the
+mechanical reader the field targets. Route to the enumerator (`search_symbol` returns the class's
+method qnames) instead. (3) A route must **be able to answer**. The unlinked-include miss routed to
+`search_symbol`, but that evidence lives in `edges.target_raw` while `nodes_fts` covers
+name/qname/file_path/params — following it returned `reason: ok` with the symbols declared *in* the
+file and no includer. **Where no tool can answer, emit the hint alone and no route**: naming a tool
+that cannot answer is worse than naming none, because the reader spends a call and gets a confident
+wrong answer. Making a bad route *callable* is what turned an unfollowable string into a followable
+trap.
+
+### 093-C1 — A machine-readable field holds one register; prose gets its own field
+- type: 2 generalisable-heuristic
+- handle: try-instead-tool-name
+- status: confirmed
+- seen: 092, 093
+- evidence: `nav_result.py:58-76` (naming rule); `tests/test_try_instead_is_a_callable_tool_name.py`
+  (4 failed / 2 passed pre-fix, 6 passed after); field retro round 5 §4, §9 runner-up
+- area: tool payloads / R1.1 / R4
+- destination: `rulebook_path` (code subject) — awaiting `/mango:promote` at recurrence >= 2
+
+### 093-C2 — An enumeration guard derives its sets; it never lists them
+- type: 2 generalisable-heuristic
+- handle: derived-not-listed-invariant
+- status: confirmed
+- seen: 093
+- evidence: `tests/test_try_instead_is_a_callable_tool_name.py` reads `vars(nav_result)` +
+  `main.TOOL_NAMES`; `test_the_dead_route_guard_can_actually_fail` injects a dead constant
+- area: tests / R1.1
+- destination: `rulebook_path` (code subject) — recurrence 1, not yet promotable
+
+### 093-C3 — A guard is not a guard until it has been made to fail
+- type: 2 generalisable-heuristic
+- handle: prove-the-guard-fails
+- status: confirmed
+- seen: 093
+- evidence: the dead-route guard scanned its own definition site and could never fail, yet shipped in
+  PR #103 advertised as "the audit cannot go stale"; caught by review, not by the suite
+- area: tests / R1.1
+- destination: `rulebook_path` (code subject) — recurrence 1, not yet promotable
+
+### 093-C4 — A route the reader cannot use is worse callable than not
+- type: 2 generalisable-heuristic
+- handle: route-must-answer
+- status: confirmed
+- seen: 093
+- evidence: `include_graph` → `search_symbol` returned `reason: ok`, `total_count: 2`, includer
+  absent (`store.py:701-714` vs `store.py:90-92`); now hint-only, no route
+- area: tool payloads / 065 / 075 / 076
+- destination: `rulebook_path` (code subject) — recurrence 1, not yet promotable
+
 ## 092 — A partition cannot count what never entered the walked set
 `collect()` partitions `git ls-files`. Untracked files are not skipped-by-rule; they are never in
 `found`, so 082's identity stayed green while four new classes answered `no_such_symbol`. **Fix:**
