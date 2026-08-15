@@ -52,13 +52,14 @@ EDGE_KINDS: tuple[str, ...] = (
 
 # Resolver (§8.2) looks these up by FQN; new EDGE_KINDS must opt in here (not silently join).
 FQN_EDGE_KINDS: frozenset[str] = frozenset(
-    {"EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS", "NEW", "ALIASES"}
+    {"EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS", "NEW", "ALIASES", "REFERENCES"}
 )
 
 # Named semantic subsets for nav tools (§12) — consumers import these; do not re-list kinds.
 CALLER_KINDS: tuple[str, ...] = ("CALLS", "NEW")
 IMPL_KINDS: tuple[str, ...] = ("EXTENDS", "IMPLEMENTS")
-# find_references honesty evidence (065) — kinds the resolver leaves bare (§8.2).
+# find_references honesty evidence (065) — kinds that may still be bare after resolve.
+# REFERENCES is also FQN-linked (094); leftovers (or planted unlinked rows) still count.
 UNMODELLED_REFERENCE_KINDS: tuple[str, ...] = ("REFERENCES", "IMPORTS")
 
 # Impact engine (§12 / M6) — incoming-edge walk weights (callers / subtypes / includers).

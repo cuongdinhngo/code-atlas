@@ -1,5 +1,31 @@
 # Lessons — code-atlas
 
+## 094 — A mention the resolver skips is indistinguishable from a relationship it refused
+`Foo::class` in an array was a textual, unambiguous class name, and `find_references` still
+answered `relationship_not_modelled` because (1) the PHP adapter never emitted `REFERENCES` and
+(2) `skip_dynamic` dropped every `DYNAMIC` row — including ones whose `target_raw` is an FQN.
+**Fix:** emit `REFERENCES`/`DYNAMIC` for `Name::class`; opt the kind into `FQN_EDGE_KINDS`; keep
+`skip_dynamic` from hiding `REFERENCES`; leave the linked tier `DYNAMIC`. An all-`DYNAMIC` page
+sets `authoritative: false` so it reads as a candidate list. Variable-method dispatch stays
+unmodelled. No new `edge_kind` (R3). Anchor edge-count delta is an operator paste, not a merge gate.
+
+### 094-C1 — skip_dynamic must not drop a DYNAMIC row whose target is an FQN
+- type: 2 generalisable-heuristic
+- handle: skip-dynamic-means-unlinkable
+- status: proposed (awaiting human confirm)
+- seen: 094
+- evidence: `store.py` `iter_unresolved_edges`; `tests/test_class_const_mention.py::test_skip_dynamic_still_yields_reference_mentions`
+- area: resolver / store
+- destination: `rulebook_path` (if it recurs)
+
+### 094-C2 — A ::class mention is a REFERENCES edge, not a CALLS or a new kind
+- type: 5 project-ground-truth
+- status: proposed (awaiting human confirm)
+- area: adapter / contract
+- sub-shape: descriptive
+- evidence: ticket 094; `Visitor.php` `enterClassConstFetch`; PLAN §8.2
+- destination: stays in lessons_path (PLAN §8.2 already records it)
+
 ## 097 — A recognition score off names cannot measure descriptions, and recognition is not recall
 Round 5 scored 14/14 on the blind probe while 7 of 14 descriptions were never loaded, then named
 `file_outline` at Q4 and did not call it when a 1,196-line port needed the symbol map. **Fix:** the

@@ -760,7 +760,8 @@ class GraphStore:
         """Stream unresolved edges in ``id`` order so a large graph need not load at once (§8.2 M4).
 
         ``batch_size`` is validated immediately (not deferred to first ``next()``).
-        ``skip_dynamic`` omits ``DYNAMIC`` rows so resolve batches stay full of linkable work.
+        ``skip_dynamic`` omits unlinkable ``DYNAMIC`` rows (not ``REFERENCES`` — those
+        carry an FQN and must still resolve, task 094).
         ``file_path`` scopes to edges emitted by one file (read-through reparse).
         """
         if batch_size < 1:
@@ -773,7 +774,11 @@ class GraphStore:
         self, batch_size: int, *, skip_dynamic: bool, file_path: str | None = None
     ) -> Iterator[list[Row]]:
         last_id = 0
-        dynamic_clause = " AND confidence_tier != 'DYNAMIC'" if skip_dynamic else ""
+        dynamic_clause = (
+            " AND (confidence_tier != 'DYNAMIC' OR kind = 'REFERENCES')"
+            if skip_dynamic
+            else ""
+        )
         path_clause = " AND file_path = ?" if file_path is not None else ""
         sql = (
             f"SELECT id, {_EDGE_COLUMNS} FROM edges "

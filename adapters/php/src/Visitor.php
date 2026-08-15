@@ -242,7 +242,47 @@ final class Visitor extends NodeVisitorAbstract
             $this->enterFuncCall($node, $node->name);
         } elseif ($node instanceof Node\Expr\Include_) {
             $this->enterInclude($node);
+        } elseif ($node instanceof Node\Expr\ClassConstFetch) {
+            $this->enterClassConstFetch($node);
         }
+    }
+
+    /** ``Foo::class`` is a textual class mention — not a call and not ``new`` (task 094). */
+    private function enterClassConstFetch(Node\Expr\ClassConstFetch $node): void
+    {
+        if (!($node->class instanceof Node\Name) || !($node->name instanceof Node\Identifier)) {
+            return;
+        }
+        if (strcasecmp($node->name->toString(), 'class') !== 0) {
+            return;
+        }
+        $target = $this->mentionTarget($node->class);
+        if ($target === null) {
+            return;
+        }
+        $this->edge(
+            'REFERENCES',
+            $this->container(),
+            $target,
+            $node->getStartLine(),
+            'DYNAMIC',
+        );
+    }
+
+    /** self/static/parent name the enclosing class-like, as in enterStaticCall; null → no edge. */
+    private function mentionTarget(Node\Name $class): ?string
+    {
+        $special = strtolower($class->toString());
+        if ($special === 'self' || $special === 'static') {
+            $frame = $this->innermostScope(Node\Stmt\ClassLike::class);
+
+            return $frame === null ? null : $frame[1];
+        }
+        if ($special === 'parent') {
+            return $this->enclosingParentQname();
+        }
+
+        return self::fqn($class);
     }
 
     /** $qname and $name are resolved by the caller, which is where their non-nullness is known. */

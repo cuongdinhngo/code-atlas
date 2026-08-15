@@ -61,6 +61,10 @@ code-atlas/
 
 - **Node kinds:** `File Namespace Class Interface Trait Enum Function Method Property ClassConst Const`.
 - **Edge kinds:** `CONTAINS EXTENDS IMPLEMENTS USES_TRAIT CALLS NEW IMPORTS INCLUDES REFERENCES ALIASES PROVIDES_VIEW_DATA`.
+- **`REFERENCES`:** a textual class mention (`Foo::class` — task 094). FQN-linked at `DYNAMIC`;
+  not a `CALLS` and not a `NEW`. `self`/`static`/`parent` name the enclosing class-like (as
+  `CALLS` does), never a literal `\self`. Leftover unlinked rows still feed
+  `relationship_not_modelled`.
 - **`PROVIDES_VIEW_DATA`:** handler method → synthetic view-scope key. `target_raw` is
   `viewdata:<key>` (not an FQN; not in `FQN_EDGE_KINDS`). Emitted only by `CA_INDIRECTION_RULES`
   `view_data` setter rules (task 062); query with `find_view_data`.

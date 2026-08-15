@@ -99,7 +99,7 @@ def test_edge_kinds_are_the_eleven_contract_kinds() -> None:
 def test_fqn_edge_kinds_opt_in_from_edge_kinds() -> None:
     assert FQN_EDGE_KINDS <= frozenset(EDGE_KINDS)
     assert FQN_EDGE_KINDS == frozenset(
-        {"EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS", "NEW", "ALIASES"}
+        {"EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS", "NEW", "ALIASES", "REFERENCES"}
     )
 
 
@@ -116,7 +116,8 @@ def test_unmodelled_reference_kinds_are_bare_edge_subset() -> None:
     from code_atlas.contract import UNMODELLED_REFERENCE_KINDS
 
     assert frozenset(UNMODELLED_REFERENCE_KINDS) <= frozenset(EDGE_KINDS)
-    assert frozenset(UNMODELLED_REFERENCE_KINDS).isdisjoint(FQN_EDGE_KINDS)
+    assert "IMPORTS" not in FQN_EDGE_KINDS
+    assert "REFERENCES" in FQN_EDGE_KINDS
     assert "INCLUDES" not in UNMODELLED_REFERENCE_KINDS
     assert UNMODELLED_REFERENCE_KINDS == ("REFERENCES", "IMPORTS")
 

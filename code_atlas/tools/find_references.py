@@ -49,9 +49,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         """Where is this symbol used across the codebase?
 
         Resolved edges whose ``target_qname`` is ``qname``, with confidence tiers.
-        Only kinds the resolver links are visible (FQN edge kinds + ``INCLUDES``). Bare
-        ``IMPORTS`` / ``CONTAINS`` / ``REFERENCES`` stay unlinkable until the resolver grows —
-        they never appear here even though the SQL has no kind filter. When unlinked
+        ``REFERENCES`` (a ``Foo::class`` mention) is FQN-linked at ``DYNAMIC`` — a candidate
+        list, not a proven use. When every returned hit is ``DYNAMIC``, the payload sets
+        ``authoritative: false``. Bare ``IMPORTS`` stay unlinkable. When unlinked
         ``REFERENCES``/``IMPORTS`` exist for an indexed subject and linked hits are zero, the
         payload uses ``reason=relationship_not_modelled``, ``try_instead=search_symbol`` (it
         enumerates the class's methods) and a ``try_instead_hint`` naming the two-step (065/093).
@@ -155,6 +155,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         attach_result_subtrees(result, subtrees)
         attach_ambiguous_definitions(result, definition_sites(nodes))
         attach_limit_capped(result, cap=cap, clamped=limit_clamped)
+        if results and all(hit.get("confidence_tier") == "DYNAMIC" for hit in results):
+            result["authoritative"] = False
         return attach_try_instead(result, try_instead, try_instead_hint)
 
     return find_references
