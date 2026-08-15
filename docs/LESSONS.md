@@ -1,5 +1,48 @@
 # Lessons — code-atlas
 
+## promote-2026-08-15 — Recurrence that only grows when someone writes a lesson under-counts the rules worth having
+`/mango:promote`'s first real run proposed **nothing**, then the same corpus corrected proposed two
+candidates. The corpus was wrong, not the pass: `seen:` grew only when a **new lesson** was written,
+never when an existing handle was recalled and answered at design. `prove-the-guard-fails` read as
+recurrence 1 while it had bound 093, 096 and 099; `derived-not-listed-invariant` had two uncredited
+sightings and R6.7 cited two of its three claims. **The bias has a direction:** a class that keeps
+being *honoured* rather than re-broken never accrues sightings — which is the class most worth
+promoting. **Second finding from the same run:** the ratified candidate was a near-duplicate of an
+existing rule (R6.5 already carried its special case), and promotion's idempotency grep — handle slug
+plus claim IDs — structurally cannot catch that. **Fix:** `docs/AGENT_BRIEF.md` P1 and P2; the mango
+half is a type-3 signal in `docs/SKILL_GAP_CANDIDATES.md`, since no lesson edits a mango skill.
+
+### PROM-C1 — A counter that only increments on the rare path measures the rare path
+- type: 2 generalisable-heuristic
+- handle: increment-on-the-common-path
+- status: proposed (awaiting human confirm)
+- seen: promote-2026-08-15
+- evidence: `seen:` grew on lesson-write (rare) not on handle-answer (common), so recurrence
+  under-counted every honoured class; corrected in PR #112
+- area: process / learning loop
+- destination: `agent_brief_path` — **written 2026-08-15** as `docs/AGENT_BRIEF.md` **P1**
+
+### PROM-C2 — An idempotency check keyed on identity cannot detect duplication of substance
+- type: 2 generalisable-heuristic
+- handle: identity-check-misses-substance
+- status: proposed (awaiting human confirm)
+- seen: promote-2026-08-15
+- evidence: promote greps handle slug + claim IDs; R6.5 already carried the candidate's substance
+  under a different handle, so the grep was a clean miss that looked like a verified negative
+- area: process / learning loop
+- destination: `agent_brief_path` — **written 2026-08-15** as `docs/AGENT_BRIEF.md` **P2**;
+  the harness half is `docs/SKILL_GAP_CANDIDATES.md` **SG-1** (type 3, out of promotion scope)
+
+### PROM-C3 — A ticket is written at a point in time; the code moves under it
+- type: 2 generalisable-heuristic
+- handle: record-the-deviation-as-a-deviation
+- status: proposed (awaiting human confirm)
+- seen: promote-2026-08-15
+- evidence: 099's evidence table asked for a `no_such_symbol` warning that 092 had already replaced
+  with `not_indexed`; shipped the current form with a test asserting the superseded string is absent
+- area: process / lifecycle
+- destination: `agent_brief_path` — **written 2026-08-15** as `docs/AGENT_BRIEF.md` **P3**
+
 ## 099 — A channel that only answers when asked cannot carry information the asker never requests
 Four rounds treated low adoption as routing (069, 081) then as cost (080, 096). The interview said
 **position**: all three decisions made without the graph wanted one line at a `Read` or a `Write`,

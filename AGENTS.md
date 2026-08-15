@@ -20,6 +20,7 @@ Validate with `/mango:doctor`. Run a ticket with `/mango:solve <KEY>`.
 **Read these before non-trivial work** (they govern every session):
 - [`docs/PLAN.md`](docs/PLAN.md) — authoritative design (§-refs below point here).
 - [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) — binding *how we build* rules (R1.1…). The pre-PR self-check at the bottom is your gate.
+- [`docs/AGENT_BRIEF.md`](docs/AGENT_BRIEF.md) — binding *how we run the lifecycle* rules (P1…): keeping `seen:` honest, reading a rule's destination before proposing a new one, recording a deviation from a ticket as a deviation.
 - [`docs/CONVENTION.md`](docs/CONVENTION.md) — naming, repo layout, the fixed contract vocabulary, style.
 - [`docs/BACKLOG.md`](docs/BACKLOG.md) — tasks (`docs/tasks/NNN_slug.md`); keep status in sync there **and** in each task's frontmatter.
 
