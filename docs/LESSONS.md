@@ -318,6 +318,23 @@ change, and (b) run it on the *stashed clean base* — if it passes both, it is 
 load-driven flake and a baseline exclusion, not your delta. Do not chase it as a bug in the change,
 and do not weaken your delta to "fix" it. (A calmer full run then went green: 1063 passed.)
 
+**Recurred on CI `main` after #108 — and the cause is structural, not merely "load".** py3.12 red,
+py3.13 green on the same commit. The slack is `max(0.15 × wall, floor)`, and on the sub-second
+scenarios (`noop`, `one_edit`) the **floor** is what binds — it was `0.05` s. What it has to cover
+is the work no phase times: adapter subprocess teardown, the store open, the profiler's two count
+snapshots. That cost is not proportional-slow, it is **spiky**: throttled to 0.4 CPU, 40 noops gave
+p50 **8 ms**, p90 **65 ms**, max **115 ms** — **8 of 40 over the old floor**, 0 over `0.20`. At ~20 %
+per scenario and three scenarios a run, a red run is a coin flip, which is exactly the one-runner-red
+signature. **Method note:** the first hypothesis (the profiler's own snapshots dominate the gap) was
+*refuted by measuring* — moving the wall boundary off them barely moved it — and that refutation is
+what located the rest of the glue inside `incremental_update`. Do not ship a timing fix whose
+mechanism you have not reproduced. **Fix:** floor raised to `0.20` s and named
+(`WALL_FLOOR_SECONDS`), sized ~1.7× the worst tail actually produced; the report now carries
+`unattributed_seconds`, so the glue is a visible number that can be watched instead of a pass/fail
+bit; the test also asserts the load-independent half (the gap is never negative). **General shape:**
+a `max(relative, absolute)` tolerance is only as portable as its absolute term — size that term
+against the *tail* on a contended host, never the steady state on a fast dev box.
+
 ## 072 — A change that adds/removes a core module must grep pinned counts, not just moved symbols
 The design's test-blast-radius grep matched the **symbols** being moved (the staleness constants,
 which stayed importable via re-export) and concluded "no existing assertion is invalidated". But two

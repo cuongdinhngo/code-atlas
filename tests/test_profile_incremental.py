@@ -57,7 +57,10 @@ def test_phase_times_cover_named_phases_and_sum_near_wall(
     for scenario in report["scenarios"]:
         phases = scenario["phases"]
         assert list(phases) == list(INCREMENTAL_PHASES)
-        assert scenario["phase_sum_vs_wall"]["within_tolerance"] is True
+        gap = scenario["phase_sum_vs_wall"]
+        assert gap["within_tolerance"] is True
+        # Load-independent: phases are spans inside wall, so the glue is never negative (070).
+        assert gap["unattributed_seconds"] >= 0.0
 
     profiler.assert_tree_matches_index(config)
 

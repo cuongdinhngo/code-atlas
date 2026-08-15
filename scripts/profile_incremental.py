@@ -38,6 +38,10 @@ PHASES = INCREMENTAL_PHASES
 
 # Phases must sum to wall within this relative slack (timers exclude tiny glue).
 WALL_TOLERANCE = 0.15
+# Floor for the slack on a sub-second scenario. The glue no phase covers — adapter subprocess
+# teardown, the store open, the profiler's two count snapshots — has a heavy tail on a contended
+# host (p50 8 ms, p90 65 ms, max 115 ms at 0.4 CPU), so a floor at the steady-state cost reds CI.
+WALL_FLOOR_SECONDS = 0.20
 # Noop: resolve "dominates" when it is at least this share of wall (field hypothesis).
 RESOLVE_DOMINANCE = 0.5
 
@@ -119,8 +123,10 @@ def _run_scenario(
         "phase_sum_seconds": round(phase_sum, 4),
         "phase_sum_vs_wall": {
             "tolerance": WALL_TOLERANCE,
+            "floor_seconds": WALL_FLOOR_SECONDS,
+            "unattributed_seconds": round(wall - phase_sum, 4),
             "within_tolerance": abs(phase_sum - wall)
-            <= max(WALL_TOLERANCE * wall, 0.05),
+            <= max(WALL_TOLERANCE * wall, WALL_FLOOR_SECONDS),
         },
         "resolve_hypothesis": _resolve_verdict(phases, wall),
         "report": asdict(report),
