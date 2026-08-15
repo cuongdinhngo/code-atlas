@@ -119,10 +119,10 @@ unmodelled. No new `edge_kind` (R3). Anchor edge-count delta is an operator past
 - type: 2 generalisable-heuristic
 - handle: skip-dynamic-means-unlinkable
 - status: proposed (awaiting human confirm)
-- seen: 094
+- seen: 094, 096
 - evidence: `store.py` `iter_unresolved_edges`; `tests/test_class_const_mention.py::test_skip_dynamic_still_yields_reference_mentions`
 - area: resolver / store
-- destination: `rulebook_path` (if it recurs)
+- destination: `rulebook_path` — **promotion rejected 2026-08-15**: the second sighting (096) was the rule *binding a design*, not the defect recurring, so the class is load-bearing twice but has failed only once. Re-propose on a real second failure
 
 ### 094-C2 — A ::class mention is a REFERENCES edge, not a CALLS or a new kind
 - type: 5 project-ground-truth
@@ -147,7 +147,7 @@ the agent notice. 074’s n = 1 for *legacy→unified port* is unchanged.
 - type: 2 generalisable-heuristic
 - handle: derived-not-listed-invariant
 - status: proposed (awaiting human confirm)
-- seen: 093, 095, 097
+- seen: 093, 095, 096, 097, 099
 - evidence: `tests/test_recognition_probe_protocol.py` parses intended tools from the probe table
   and compares them to `main.TOOL_NAMES`; `test_the_probe_surface_guard_can_actually_fail` injects
   a name the table does not have
@@ -183,7 +183,7 @@ empty. Persist the dict on a **sibling** meta key — `collection_census()` int-
 - type: 2 generalisable-heuristic
 - handle: derived-not-listed-invariant
 - status: proposed (awaiting human confirm)
-- seen: 093, 095, 097
+- seen: 093, 095, 096, 097, 099
 - evidence: `ignore.py` `COMPOSED_IGNORE_FILES` / `composed_source_names()`;
   `tests/test_ignore_bucket_names_its_rule.py::test_composed_source_names_are_derived_and_exclude_retro_keys`
 - area: tests / R1.1
@@ -253,7 +253,7 @@ trap.
 - type: 2 generalisable-heuristic
 - handle: derived-not-listed-invariant
 - status: confirmed
-- seen: 093, 095
+- seen: 093, 095, 096, 097, 099
 - evidence: `tests/test_try_instead_is_a_callable_tool_name.py` reads `vars(nav_result)` +
   `main.TOOL_NAMES`; `test_the_dead_route_guard_can_actually_fail` injects a dead constant;
   095: `composed_source_names()` from `COMPOSED_IGNORE_FILES`
@@ -265,11 +265,11 @@ trap.
 - type: 2 generalisable-heuristic
 - handle: prove-the-guard-fails
 - status: confirmed
-- seen: 093
+- seen: 093, 096, 099
 - evidence: the dead-route guard scanned its own definition site and could never fail, yet shipped in
   PR #103 advertised as "the audit cannot go stale"; caught by review, not by the suite
 - area: tests / R1.1
-- destination: `rulebook_path` (code subject) — recurrence 1, not yet promotable
+- destination: `rulebook_path` — **promoted 2026-08-15** into `docs/ENGINEERING_RULES.md` **R6.5**, which already carried the special case (a sweep guarded against emptying itself); this widened it to every guard rather than adding a near-duplicate rule
 
 ### 093-C4 — A route the reader cannot use is worse callable than not
 - type: 2 generalisable-heuristic

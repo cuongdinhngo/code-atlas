@@ -123,7 +123,13 @@ adapter contract. Everywhere else, prefer the simplest thing that works.
   Every grep-gate or file sweep excludes vendored trees (`vendor/`, `node_modules/`) — a dependency's
   own documentation is not this repo's source, and greps a framework name inside one. The exclusion
   itself needs a test asserting the sweep is still non-empty; a filter that swallows the authored files
-  restores the 0/0 vacuity the guard existed to remove.
+  restores the 0/0 vacuity the guard existed to remove. **This generalises to every guard, not only a
+  sweep** (handle `prove-the-guard-fails`, `LESSONS.md` `093-C3`, seen 093, 096, 099): a guard ships
+  only once it has been *observed failing* — run it against the shape it forbids (the pre-fix code, a
+  sabotaged input, an injected invalid member) and record what failed. *Falsifier:* a guard test whose
+  PR claims a defect class is prevented with no recorded red run — cf. the dead-route guard that
+  scanned its own definition site (093), the delta-scope key set stubbed to `set()` (096), the
+  positive-fire test that stops the silence negatives passing vacuously (099).
 - **R6.6 — Every language gets a static analyser in CI, at its strictest clean setting.** The core has
   `mypy`; the PHP adapter has **PHPStan at `level: max`** (`adapters/php/phpstan.neon`), and each later
   adapter brings the equivalent for its language. Suppression is not how a finding is closed: no
@@ -131,14 +137,17 @@ adapter contract. Everywhere else, prefer the simplest thing that works.
   only to silence a rule. Either fix the code or argue the level down in the rule book — where the
   argument is reviewable. `php -l` does **not** satisfy this; it catches syntax, not types.
 - **R6.7 — A guard that needs "every valid X" derives the set; it never lists it.**
-  `PROVISIONAL (awaiting ratification)` — promoted from `LESSONS.md` `093-C2` + `095-C1` (handle
-  `derived-not-listed-invariant`, seen 093, 095). When a test or a payload needs the set of all valid
-  members — tool names, ignore-source keys, reason codes — it derives that set from the definition site
+  `PROVISIONAL (awaiting ratification)` — promoted from `LESSONS.md` `093-C2` + `095-C1` + `097-C1`
+  (handle `derived-not-listed-invariant`, seen 093, 095, 096, 097, 099). When a test or a payload
+  needs the set of all valid members — tool names, ignore-source keys, reason codes — it derives that
+  set from the definition site
   (a module namespace, a registry, the composition that builds it) rather than re-typing the members. A
   hand-kept list is precisely what drifts when member N+1 arrives, and it drifts **silently**, because the
   guard still passes. *Falsifier:* a literal list of valid members inside a test or tool where a derivation
   was available — `main.TOOL_NAMES` / `vars(module)` (093), `composed_source_names()` from
-  `COMPOSED_IGNORE_FILES` (095) — or a new member that ships without failing any guard.
+  `COMPOSED_IGNORE_FILES` (095), `contract.FQN_EDGE_KINDS` passed into the scoped scan rather than
+  re-typed in `store.py` (096), one `estimate_tokens` definition site (099) — or a new member that
+  ships without failing any guard.
 
 ## 7. Change discipline
 
