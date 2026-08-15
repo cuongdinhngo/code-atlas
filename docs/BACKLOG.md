@@ -13,7 +13,6 @@ what landed, and what it cost* — narrative rationale lives in those three.
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
 | 074 | [Does the index harm mechanism questions? — resolve at n ≥ 3](tasks/074_does-the-index-harm-mechanism-questions.md) | Measure | in-progress | 055, 067, 045 |
-| 096 | [A 2-file incremental costs 59 s while a no-op costs 2 s](tasks/096_edit-then-ask-tax-two-files-cost-a-minute.md) | Cost | todo | 080, 052, 016 |
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 099 | [Every decision made without the graph wanted a line inside a file read](tasks/099_write-time-signal-seam.md) | Agent-fit | todo | 097, 069, 036 |
 | 100 | [Nine kinds of evidence in the PR, zero graph payloads](tasks/100_claim-signing-output-mode.md) | Agent-fit | todo | 017, 057, 061 |
@@ -169,6 +168,7 @@ this track are in [Open work](#open-work); everything below has landed.
 | 095 | [`collection.ignore: 9541` excludes indexable PHP by an unnamed rule](tasks/095_ignore-bucket-does-not-name-its-rule.md) | Agent-trust | done | 082, 003, 068 |
 | 097 | [The recognition probe measures names, not descriptions or recall](tasks/097_recognition-probe-measures-names-not-recall.md) | Measure | done | 081, 069, 074 |
 | 094 | [A `::class` constant in a routing array is `relationship_not_modelled`](tasks/094_class-constant-in-array-literal-is-not-an-edge.md) | Coverage | done | 030, 011, 002 |
+| 096 | [A 2-file incremental costs 59 s while a no-op costs 2 s](tasks/096_edit-then-ask-tax-two-files-cost-a-minute.md) | Cost | done | 080, 052, 016 |
 
 ### Where these tickets came from
 
@@ -359,6 +359,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | 095 | 1 dispatch — refine exposure-checker unmeasured (host does not surface usage); review waived at solve time. Docker delta-green (full gate **1183 passed**; `main` baseline 1175, +8 new tests, none removed) | [#105](https://github.com/cuongdinhngo/code-atlas/pull/105) |
 | 097 | 1 dispatch — refine exposure-checker unmeasured (host does not surface usage); review waived at solve time. Docker delta-green (full gate **1191 passed**; `main` baseline 1183, +8 new tests, none removed) | [#107](https://github.com/cuongdinhngo/code-atlas/pull/107) |
 | 094 | 1 dispatch — refine exposure-checker unmeasured (host does not surface usage); review waived at solve time, then run on the PR (0 dispatch, in-session — caught `self`/`static`/`parent``::class` emitting `\self`). Docker delta-green (full gate **1196 passed**; `main` baseline 1191, +5 new tests, none removed — 1195 pre-review, +1 from the review fix) | [#108](https://github.com/cuongdinhngo/code-atlas/pull/108) |
+| 096 | **0 dispatch — main-loop only** (challenge waived at solve time; the host does not surface subagent usage, so a dispatched row would have read `unmeasured` either way). Docker delta-green (full gate **1204 passed**; `main` baseline 1196, +8 new tests, none removed — 1202 pre-review, +2 from the second review pass). Cost dominated by the synthetic-index profiling runs (5k/20k/60k, before and after), not by the diff | [#110](https://github.com/cuongdinhngo/code-atlas/pull/110) |
 | — | CI red on `main` after #108: profiler wall-tolerance floor. 0 dispatch, main-loop only. Docker gate **1196 passed**, plus a throttled (0.4 CPU) 40-run repro sizing the floor from the measured tail | [#109](https://github.com/cuongdinhngo/code-atlas/pull/109) |
 | — | Field retro round 4 + ticket-writing for 075–082: 0 dispatch. **No PR** — committed straight to `main` on the maintainer's instruction for docs-only changes | — |
 

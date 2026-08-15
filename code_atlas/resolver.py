@@ -1,9 +1,10 @@
 """Generic cross-file edge linking — FQN / name / path → node, no language branches (§8.2)."""
 
+from collections.abc import Mapping, Sequence
 from pathlib import PurePosixPath
 
 from code_atlas import contract
-from code_atlas.store import GraphStore
+from code_atlas.store import DeltaScope, GraphStore
 
 # RESOLVED is strongest; DYNAMIC is weakest — never promote a weaker incoming claim (R5.2).
 _TIER_STRENGTH = {tier: index for index, tier in enumerate(contract.CONFIDENCE_TIERS)}
@@ -15,13 +16,75 @@ _RESOLVE_BATCH = 1000
 assert "INCLUDES" not in contract.FQN_EDGE_KINDS
 
 
+_BARE_NAME_KIND = "Method"
+
+
+def _alias_preimages(keys: set[str], aliases: Mapping[str, str]) -> set[str]:
+    """Every ``target_raw`` whose alias-followed lookup key is in ``keys`` (096).
+
+    ``_lookup_raw`` rewrites a raw through the alias map — whole name and container alike — so a
+    scope compared against raw text alone would skip an edge naming the alias of a delta's class.
+    """
+    if not aliases:
+        return set()
+    inverse: dict[str, set[str]] = {}
+    for alias, real in aliases.items():
+        inverse.setdefault(real, set()).add(alias)
+
+    def sources(real: str) -> set[str]:
+        """Walk the alias map backwards; the ``found`` guard makes a cycle terminate."""
+        found: set[str] = set()
+        pending = [real]
+        while pending:
+            for alias in inverse.get(pending.pop(), ()):
+                if alias not in found:
+                    found.add(alias)
+                    pending.append(alias)
+        return found
+
+    extra: set[str] = set()
+    for key in keys:
+        extra.update(sources(key))
+        container, member = contract.split_qname(key)
+        if container is not None:
+            extra.update(contract.join_qname(alias, member) for alias in sources(container))
+    return extra
+
+
+def delta_scope(
+    store: GraphStore, files: Sequence[str], *, aliases: Mapping[str, str] | None = None
+) -> DeltaScope:
+    """The keys a delta could newly satisfy: qnames it declares, plus bare method names (096).
+
+    An FQN edge resolves by ``target_raw``; the unmatched-CALLS second pass resolves by bare
+    name. Those two are the whole lookup surface, so they are the whole key set — widened by the
+    aliases of each key, because ``_lookup_raw`` reaches a key through the alias map too.
+    """
+    keys = set(store.qnames_in_files(files))
+    keys.update(store.node_names_in_files(files, kind=_BARE_NAME_KIND))
+    keys.update(_alias_preimages(keys, store.alias_targets() if aliases is None else aliases))
+    return DeltaScope(
+        files=tuple(files),
+        keys=tuple(sorted(keys)),
+        scoped_kinds=tuple(sorted(contract.FQN_EDGE_KINDS)),
+    )
+
+
 def resolve_edges(
-    store: GraphStore, *, max_candidates: int, file_path: str | None = None
+    store: GraphStore,
+    *,
+    max_candidates: int,
+    file_path: str | None = None,
+    delta: DeltaScope | None = None,
 ) -> int:
     """Link bare edges after every node exists; ``max_candidates`` caps multi-match HEURISTIC.
 
     When ``file_path`` is set, only unresolved edges from that file are considered (read-through
     reparse). Full builds omit it so the whole unresolved set is linked.
+
+    ``delta`` narrows the FQN-resolved kinds to the edges an incremental could have changed the
+    answer for (096). It is equivalent to a full pass only while the alias map is unchanged —
+    the caller owns that check, because only it can snapshot the map before the parse.
 
     Returns the number of **sibling rows inserted**. They are rows this run wrote, and the build
     report has to count them or it reports a graph smaller than the one it just made (task 051).
@@ -31,7 +94,7 @@ def resolve_edges(
     # Built once: every ALIASES row is in the store before resolve runs (full parse first).
     alias_map = store.alias_targets()
     for batch in store.iter_unresolved_edges(
-        batch_size=_RESOLVE_BATCH, skip_dynamic=True, file_path=file_path
+        batch_size=_RESOLVE_BATCH, skip_dynamic=True, file_path=file_path, delta=delta
     ):
         links: list[tuple[int, str, str]] = []
         siblings: list[dict[str, object]] = []

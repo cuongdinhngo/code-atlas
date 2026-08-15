@@ -1,5 +1,67 @@
 # Lessons — code-atlas
 
+## 096 — A cost fix whose correctness argument is "the delta is what changed" needs the case where it isn't
+`resolve_edges` re-scanned the **whole** unresolved residue on every incremental — measured flat
+across delta size at two scales (20k residue: 0.074 s at 2 files vs 0.078 s at 14; 60k: 0.408 vs
+0.405), so the cost was O(residue) and the 0→1-file cliff was the entire tax. **Fix:** an optional
+delta scope streams only edges the delta could have changed the answer for — those emitted by the
+parsed files, plus those whose `target_raw` is a key the delta now declares. **The trap:** file A
+holds an unresolved edge to `\X` and the delta adds `\X` in file B; A is *not* a dependent, because
+`file_paths_targeting` matches `target_qname`, which is still NULL — so a file-scoped resolve leaves
+it unlinked forever while a full resolve links it. The key set, not the file set, is what makes the
+scope equivalent. **Bound:** equivalence holds only while the alias map is fixed (`_lookup_raw` is
+key-pure given that map), so the map is snapshotted before the parse and a change falls back to a
+full pass — and *pinning* that map is not enough, because `_lookup_raw` also **reaches** a key
+through it: the key set has to carry each key's aliases too (096-C4, found in review). **No schema
+change** — the ticket assumed one was required; `idx_edges_raw` already
+indexed the lookup.
+
+### 096-C1 — A scoped scan is equivalent only for the keys the scope can name
+- type: 2 generalisable-heuristic
+- handle: scope-by-key-not-by-file
+- status: proposed (awaiting human confirm)
+- seen: 096
+- evidence: `tests/test_delta_resolve.py::test_delta_resolve_links_residue_a_new_file_satisfies`;
+  stubbing the key set to `set()` fails 5 of 8 tests
+- area: resolver / store
+- destination: `rulebook_path` (if it recurs)
+
+### 096-C2 — A purity argument that depends on a lookup table must pin that table, not assume it
+- type: 2 generalisable-heuristic
+- handle: pin-the-table-a-purity-claim-rests-on
+- status: proposed (awaiting human confirm)
+- seen: 096
+- evidence: `indexer.py` snapshots `alias_targets()` **before the parse** and falls back to a full
+  resolve when it moved; a snapshot taken after the parse would already contain the new rows and
+  silently miss the change
+- area: resolver / indexer
+- destination: `rulebook_path` (if it recurs)
+
+### 096-C3 — A writer that runs after the delta is computed must be added to the delta
+- type: 2 generalisable-heuristic
+- handle: late-writer-outside-the-delta
+- status: proposed (awaiting human confirm)
+- seen: 096
+- evidence: `apply_indirection_rules` rewrites every rule row bare under `INDIRECTION_FILE` *after*
+  the parse, so a scope built from `to_parse` never covered it and the fresh `ALIASES` row stayed
+  unresolved; `tests/test_delta_resolve.py::test_enrichment_rows_resolve_under_a_delta_scope`
+- area: indexer / enrichment
+- destination: `rulebook_path` (if it recurs)
+
+### 096-C4 — A scope keyed on raw text must invert every rewrite the lookup applies to that text
+- type: 2 generalisable-heuristic
+- handle: invert-the-rewrite-the-lookup-applies
+- status: proposed (awaiting human confirm)
+- seen: 096
+- evidence: `_lookup_raw` maps a raw through the alias map (whole name *and* container), so an edge
+  naming `\Ns\Aka` resolves to the delta's `\Ns\Real` — comparing `target_raw` against the key set
+  alone skipped it in a file no delta lists, while a full resolve linked it. `delta_scope` now adds
+  each key's alias pre-images; `tests/test_delta_resolve.py::test_delta_scope_covers_an_edge_naming_an_alias`
+  and `::test_delta_scope_covers_an_aliased_container` — reverting the expansion fails both, and
+  only those two
+- area: resolver
+- destination: `rulebook_path` (if it recurs)
+
 ## 094 — A mention the resolver skips is indistinguishable from a relationship it refused
 `Foo::class` in an array was a textual, unambiguous class name, and `find_references` still
 answered `relationship_not_modelled` because (1) the PHP adapter never emitted `REFERENCES` and

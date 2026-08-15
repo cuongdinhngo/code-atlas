@@ -610,6 +610,16 @@ holds, reinforced by the unpriced cost of one muddier description (C3) and R1.2.
   [096](tasks/096_edit-then-ask-tax-two-files-cost-a-minute.md). **Qualified the same day by the
   interview (§4):** cost shaped the *cadence*, but the two calls that mattered most needed **no
   rebuild at all** — cost is the second constraint, framing is the first.
+  **Shipped (096):** the profile confirmed 080's pointer and narrowed it — `resolve` was the only
+  late writer scanning the whole graph (enrichment is already O(rule matches)), and it measured
+  **flat across delta size** at two scales, i.e. O(residue). `resolve_edges` now takes an optional
+  delta scope keyed on **what the delta declares** (its qnames plus bare method names), not on which
+  files it touched: file A can hold an unresolved edge to a class file B adds, and A is never a
+  dependent because `file_paths_targeting` matches `target_qname`, still NULL. Equivalence to a full
+  resolve is the gate (R4.2) and needs the alias map fixed, so it is snapshotted before the parse and
+  any change falls back to a full pass. **No schema change** — the ticket assumed one was required;
+  `idx_edges_raw` already indexed the lookup, and the persisted-watermark route is recorded as
+  rejected. Full builds and 080's no-op guard are untouched.
   *(iii)* **Recognition ≠ recall, and the probe only measures recognition.** §0.5 scored **14/14** —
   but **7 of 14 tool descriptions were never loaded** (this harness defers MCP schemas), so 081's
   stated mechanism (routing moved *into* descriptions) was never exercised and the rate measures

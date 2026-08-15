@@ -157,6 +157,18 @@ class OrphanResult(NamedTuple):
     depth_exhausted: bool
 
 
+class DeltaScope(NamedTuple):
+    """What one incremental could have changed the resolve answer for (task 096).
+
+    ``scoped_kinds`` are the kinds resolved by a lookup key; every other kind streams unscoped.
+    The caller supplies them, so this module re-lists no edge kind (R6.7).
+    """
+
+    files: tuple[str, ...]
+    keys: tuple[str, ...]
+    scoped_kinds: tuple[str, ...]
+
+
 # explain_path statuses (task 038) — distinct outcomes, never empty-as-proof.
 PATH_STATUS_PATH = "path"
 PATH_STATUS_UNPROVEN = "unproven"
@@ -756,6 +768,7 @@ class GraphStore:
         batch_size: int = 1000,
         skip_dynamic: bool = False,
         file_path: str | None = None,
+        delta: DeltaScope | None = None,
     ) -> Iterator[list[Row]]:
         """Stream unresolved edges in ``id`` order so a large graph need not load at once (§8.2 M4).
 
@@ -763,15 +776,23 @@ class GraphStore:
         ``skip_dynamic`` omits unlinkable ``DYNAMIC`` rows (not ``REFERENCES`` — those
         carry an FQN and must still resolve, task 094).
         ``file_path`` scopes to edges emitted by one file (read-through reparse).
+        ``delta`` narrows the key-resolved kinds to what one incremental could have changed
+        the answer for; every other kind streams unscoped (task 096). The caller owns the
+        taxonomy — this method re-lists no kind.
         """
         if batch_size < 1:
             raise ValueError(f"batch_size must be >= 1, got {batch_size}")
         return self._iter_unresolved_edges(
-            batch_size, skip_dynamic=skip_dynamic, file_path=file_path
+            batch_size, skip_dynamic=skip_dynamic, file_path=file_path, delta=delta
         )
 
     def _iter_unresolved_edges(
-        self, batch_size: int, *, skip_dynamic: bool, file_path: str | None = None
+        self,
+        batch_size: int,
+        *,
+        skip_dynamic: bool,
+        file_path: str | None = None,
+        delta: DeltaScope | None = None,
     ) -> Iterator[list[Row]]:
         last_id = 0
         dynamic_clause = (
@@ -780,22 +801,69 @@ class GraphStore:
             else ""
         )
         path_clause = " AND file_path = ?" if file_path is not None else ""
+        delta_clause = ""
+        delta_params: tuple[object, ...] = ()
+        if delta is not None:
+            kinds = ", ".join("?" for _ in delta.scoped_kinds)
+            delta_clause = (
+                f" AND (kind NOT IN ({kinds})"
+                " OR file_path IN (SELECT path FROM temp.delta_files)"
+                " OR target_raw IN (SELECT key FROM temp.delta_keys))"
+            )
+            delta_params = tuple(delta.scoped_kinds)
         sql = (
             f"SELECT id, {_EDGE_COLUMNS} FROM edges "
-            f"WHERE target_qname IS NULL{dynamic_clause}{path_clause} AND id > ? "
-            f"ORDER BY id LIMIT ?"
+            f"WHERE target_qname IS NULL{dynamic_clause}{path_clause}{delta_clause} "
+            f"AND id > ? ORDER BY id LIMIT ?"
         )
-        while True:
-            params: tuple[object, ...] = (
-                (file_path, last_id, batch_size)
-                if file_path is not None
-                else (last_id, batch_size)
+        if delta is not None:
+            self._fill_delta_temps(delta)
+        try:
+            while True:
+                head: tuple[object, ...] = () if file_path is None else (file_path,)
+                params = (*head, *delta_params, last_id, batch_size)
+                batch = self._rows(EDGE_ROW_KEYS, sql, params)
+                if not batch:
+                    return
+                last_id = int(str(batch[-1]["id"]))
+                yield batch
+        finally:
+            if delta is not None:
+                self._drop_delta_temps()
+
+    def _fill_delta_temps(self, delta: DeltaScope) -> None:
+        """Stage the delta's files and lookup keys so the scan joins instead of binding N params."""
+        self._drop_delta_temps()
+        conn = self._conn
+        with conn:
+            conn.execute("CREATE TEMP TABLE delta_files (path TEXT PRIMARY KEY)")
+            conn.execute("CREATE TEMP TABLE delta_keys (key TEXT PRIMARY KEY)")
+            conn.executemany(
+                "INSERT OR IGNORE INTO temp.delta_files (path) VALUES (?)",
+                [(path,) for path in delta.files],
             )
-            batch = self._rows(EDGE_ROW_KEYS, sql, params)
-            if not batch:
-                return
-            last_id = int(str(batch[-1]["id"]))
-            yield batch
+            conn.executemany(
+                "INSERT OR IGNORE INTO temp.delta_keys (key) VALUES (?)",
+                [(key,) for key in delta.keys],
+            )
+
+    def _drop_delta_temps(self) -> None:
+        self._conn.execute("DROP TABLE IF EXISTS temp.delta_files")
+        self._conn.execute("DROP TABLE IF EXISTS temp.delta_keys")
+
+    def node_names_in_files(self, paths: Sequence[str], *, kind: str) -> tuple[str, ...]:
+        """Bare ``name`` of each ``kind`` node under ``paths`` — the bare-name lookup keys (096)."""
+        if not paths:
+            return ()
+        found: set[str] = set()
+        for chunk in _chunks(paths, _IN_CHUNK):
+            placeholders = ", ".join("?" * len(chunk))
+            rows = self._conn.execute(
+                f"SELECT DISTINCT name FROM nodes WHERE kind = ? AND file_path IN ({placeholders})",
+                (kind, *chunk),
+            )
+            found.update(str(row[0]) for row in rows)
+        return tuple(sorted(found))
 
     def link_edge(self, edge_id: int, target_qname: str, confidence_tier: str) -> None:
         """Set one edge's resolved target and tier (resolver only — R1.4)."""

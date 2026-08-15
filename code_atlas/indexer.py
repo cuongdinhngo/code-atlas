@@ -29,12 +29,13 @@ from code_atlas import contract, gitutil
 from code_atlas.adapter import AdapterError, ParseResult, SubprocessAdapter, extension_index
 from code_atlas.config import Config, ConfigError
 from code_atlas.enrichment import (
+    INDIRECTION_FILE,
     RulesPayload,
     apply_indirection_rules,
     load_indirection_rules,
 )
 from code_atlas.ignore import BUILTIN_PATTERNS, IgnoreMatcher, compile_pattern, load_ignore
-from code_atlas.resolver import resolve_edges
+from code_atlas.resolver import delta_scope, resolve_edges
 from code_atlas.store import (
     BUILT_AT_KEY,
     COLLECTION_CENSUS_KEY,
@@ -166,6 +167,9 @@ def incremental_update(
 
     rules = load_indirection_rules(config)
     _require_configured_adapters(config)
+    # Snapshot before the parse: a delta-scoped resolve is only equivalent to a full one while
+    # the alias map is fixed, and the parse is what can change it (task 096).
+    aliases_before = store.alias_targets()
     watchdog = _Watchdog(config.adapter_timeout)
     watchdog.start()
     try:
@@ -242,7 +246,15 @@ def incremental_update(
     # writers would only re-derive rows already present — full-graph work that was the ~56 s floor
     # and the 6,071-edge no-op number (task 080). Skip them; ``wrote.*`` then means the delta.
     if to_parse or removed:
-        _count_late_writes(counts, config, store, rules, phase_times=phase_times)
+        _count_late_writes(
+            counts,
+            config,
+            store,
+            rules,
+            phase_times=phase_times,
+            parsed=tuple(to_parse),
+            aliases_before=aliases_before,
+        )
     else:
         # Record the skipped phases as ~0 so the profile shows the cut, not a missing phase (052).
         skipped = time.monotonic()
@@ -267,17 +279,28 @@ def _count_late_writes(
     rules: RulesPayload | None,
     *,
     phase_times: dict[str, float] | None = None,
+    parsed: tuple[str, ...] | None = None,
+    aliases_before: dict[str, str] | None = None,
 ) -> None:
     """Run the two writers that come after the parse tally, and fold what they wrote into it (051).
 
     Enrichment inserts its synthetic rows and the resolver inserts a sibling per extra candidate.
     A report built from the parse tally alone describes a smaller graph than the build just made.
+
+    ``parsed`` scopes the resolve to that delta (096); it falls back to a full pass when the
+    alias map moved, because ``_lookup_raw`` is only key-pure while that map is fixed.
     """
     mark = time.monotonic()
     enriched = apply_indirection_rules(config, store, payload=rules)
     _phase_add(phase_times, "enrichment", mark)
     mark = time.monotonic()
-    siblings = resolve_edges(store, max_candidates=config.max_results)
+    delta = None
+    aliases_now = store.alias_targets()
+    if parsed is not None and aliases_now == aliases_before:
+        # Enrichment rewrites its rows *after* the parse under a synthetic path no delta lists,
+        # so the bookmark is always in scope or its fresh edges would never resolve.
+        delta = delta_scope(store, (*parsed, INDIRECTION_FILE), aliases=aliases_now)
+    siblings = resolve_edges(store, max_candidates=config.max_results, delta=delta)
     _phase_add(phase_times, "resolve", mark)
     counts["nodes"] += enriched.nodes
     counts["edges"] += enriched.edges + siblings
