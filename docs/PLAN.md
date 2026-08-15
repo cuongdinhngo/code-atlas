@@ -693,6 +693,18 @@ holds, reinforced by the unpriced cost of one muddier description (C3) and R1.2.
   two highest-value uncalled queries (`file_outline` on a months-old legacy file, `search_symbol
   kind:"Function"` for a name-collision sweep) needed **no rebuild** and would have cost ~1 s at any
   point — and were still not made. Framing, not latency → [099](tasks/099_write-time-signal-seam.md).
+  **Shipped (099) — the verdict, which is a position statement as much as a feature:** the signal
+  lives in the **host's hook surface**, not on a payload rider. `next_tool_suggestions` reaches the
+  agent *after it asks*, and the core cannot observe a `Read` — so that channel is **structurally**
+  incapable of carrying this, not merely too expensive (061). `code-atlas-signal` ships as the third
+  hook of 036/053's kind: two lines only (the outline at `Read`, the untracked warning at a creating
+  `Write`), a ~150-token hard cap, no build and no write lock, and a **structural** silence rule —
+  any other tool, an existing path, a file below the symbol floor, or no index, all silent with no
+  session state. **code-atlas offers the command and wires nothing.** The bound this records is the
+  ceiling on 069/081-style routing work: *no description reaches an agent that never opens the tool
+  list* — which is why 097 (recognition) and 099 (position) are one finding from two sides. The
+  falsifier is in retro §0.6: a next round that reports the signal *tuned out* at the shipped cap
+  makes this session-specific.
   **(c) The evidence-layer thesis now has behavioural proof, against the evaluator's own interest**
   (§2): the PR body pastes **nine** kinds of counted evidence — HTTP status, byte counts, row counts,
   two verbatim `alert()` strings, test and assertion counts — and **zero** graph payloads, although

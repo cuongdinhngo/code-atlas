@@ -85,6 +85,35 @@ opt-in git refresh after pull/checkout via [`contrib/git/`](contrib/git/) (`code
 background — never auto-installed into `.git/hooks`).
 Safe no-op when `.code-atlas/graph.db` is missing; does not stall the tool round-trip.
 
+### The read-time signal — a line that rides along with a file you are already opening (opt-in)
+
+Field evidence (task [099](docs/tasks/099_write-time-signal-seam.md)): the three most consequential
+decisions an agent made *without* calling code-atlas all wanted **one line at the moment of a `Read`
+or a `Write`** — and none of them wanted a tool call. An MCP tool answers when asked; this fires
+when the agent was never going to ask, so it is a **hook**, not a tool.
+
+`code-atlas-signal` prints at most one line (~150 tokens, hard cap) and exits 0:
+
+- **`Read`** an indexed file with ≥ 5 symbols → `code-atlas: <path> defines N symbols — name:line, …`
+- **`Write`** creating a new path under the indexed tree → `code-atlas: <path> is untracked — symbol
+  queries answer `not_indexed` until it is committed and reindexed`
+
+It never builds, never reparses and never takes the write lock; a file that has drifted since the
+last index still answers, with `(index may be behind)` appended.
+
+**Wire `Read` at `PostToolUse` and `Write` at `PreToolUse`.** The create-vs-edit test is whether the
+path exists yet, so a `PostToolUse` `Write` is silent by construction — correct for an edit, useless
+for a create.
+
+**It stays silent** on any other tool (so browser-probe output and CI shell results are untouched),
+on writes to files that already exist, on files below the symbol floor, and when there is no index.
+That silence rule is the design, not a default: a line that fires on every read is chrome within
+three invocations.
+
+**code-atlas does not wire itself into anyone's editor.** As with the poke and refresh hooks, the
+command is offered and the host decides — there is no installer and nothing is written to your
+settings.
+
 <details>
 <summary>Prefer to wire it up by hand?</summary>
 

@@ -361,3 +361,8 @@ Ledger complete: 1 dispatch → 1 row, plus one 0-dispatch in-session review rou
 1. Commit on `fix/092-…`
 2. Push branch
 3. `gh pr create` from `.github/pull_request_template.md`
+
+**099 meets this defect at the moment it is created.** `code-atlas-signal` warns at the `Write`
+that creates an untracked indexable path — *"symbol queries answer `not_indexed` until it is
+committed and reindexed"* — rather than leaving the agent to discover it an hour later from a
+query. Same defect, delivered at the moment it is cheap to act on.

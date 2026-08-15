@@ -21,6 +21,21 @@ Record, or the §0.5 score is void:
 Also record the host-repo caveat when it applies: an agent guide that pre-routes tool names
 verbatim is routing priming from outside code-atlas and biases the name-inclusive rate up.
 
+## 0.6 The read-time signal (099)
+
+If the host wired `code-atlas-signal`, record for each round — otherwise write `not wired`:
+
+- **Fired:** how many times, and on what (Read outline / untracked-at-create).
+- **Per firing, one of:** `seen and acted on` · `seen and ignored` · `tuned out` (the evaluator
+  reports it stopped registering) · `not seen`.
+- **The verdict question 099 owes:** did the signal reach the moment of decision, or did the
+  evaluator learn to treat it as chrome? The field's own bound was ~150 tokens landing and ~500
+  becoming chrome — a `tuned out` at the shipped cap **falsifies** the finding, and that is the
+  point of recording it.
+
+This is the other half of §0.5. Recognition asks *would you pick the right tool*; this asks *did the
+information reach you when you were not choosing a tool at all*.
+
 ## 2 Coverage of the 14 tools
 
 For every tool **not** called in the work, assign **exactly one** bucket:

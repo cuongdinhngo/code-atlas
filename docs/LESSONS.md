@@ -1,5 +1,49 @@
 # Lessons — code-atlas
 
+## 099 — A channel that only answers when asked cannot carry information the asker never requests
+Four rounds treated low adoption as routing (069, 081) then as cost (080, 096). The interview said
+**position**: all three decisions made without the graph wanted one line at a `Read` or a `Write`,
+and **none wanted a tool call**. Cost cannot explain it — both top uncalled queries needed no
+rebuild. **Fix:** `code-atlas-signal`, a hook-shaped entry point (the third of 036/053's kind),
+offered and never wired. **The reasoning that settled it:** `next_tool_suggestions` reaches the agent
+*after it asks*, and the core cannot observe a `Read` — so the rider channel is **structurally**
+incapable, not merely expensive. **Bound:** no description reaches an agent that never opens the tool
+list; that is the ceiling on 069/081-style work, and 097 is the same finding measured from the
+recognition side. **Falsifier, recorded in retro §0.6:** if the next round reports the signal *tuned
+out* at the shipped cap, the finding was session-specific.
+
+### 099-C1 — Where a signal is delivered can be a capability question, not a cost question
+- type: 2 generalisable-heuristic
+- handle: channel-cannot-carry-unasked-information
+- status: proposed (awaiting human confirm)
+- seen: 099
+- evidence: `next_tool_suggestions` rides answers to questions; the finding is that the question is
+  never asked, so no token budget on that channel would have helped
+- area: agent-fit / product position
+- destination: `rulebook_path` (if it recurs)
+
+### 099-C2 — A silence rule keyed to structure needs no state; one keyed to history does
+- type: 2 generalisable-heuristic
+- handle: structural-silence-over-stateful-latch
+- status: proposed (awaiting human confirm)
+- seen: 099
+- evidence: every occasion the field named as costly (probe output, CI shells, authoring writes) is
+  excludable by tool name or by "the path already exists"; a fire-once-per-session latch would need
+  persistence and would still be wrong on the second session
+- area: hooks
+- destination: `rulebook_path` (if it recurs)
+
+### 099-C3 — When a create-vs-edit test reads the filesystem, the hook event is part of the contract
+- type: 2 generalisable-heuristic
+- handle: hook-event-is-part-of-the-contract
+- status: proposed (awaiting human confirm)
+- seen: 099
+- evidence: the untracked signal is silent by construction at `PostToolUse` because the file exists
+  by then; `tests/test_write_time_signal.py::test_the_write_signal_is_a_pre_tool_use_signal` pins it
+  so the silence cannot be misread as a bug
+- area: hooks
+- destination: `rulebook_path` (if it recurs)
+
 ## 096 — A cost fix whose correctness argument is "the delta is what changed" needs the case where it isn't
 `resolve_edges` re-scanned the **whole** unresolved residue on every incremental — measured flat
 across delta size at two scales (20k residue: 0.074 s at 2 files vs 0.078 s at 14; 60k: 0.408 vs

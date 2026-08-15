@@ -38,6 +38,7 @@ import cross_repo_validate  # noqa: E402 — reuse the clone-at-SHA + php-cmd ma
 from code_atlas.config import Config, load_config  # noqa: E402
 from code_atlas.indexer import full_build  # noqa: E402
 from code_atlas.store import GraphStore  # noqa: E402
+from code_atlas.tokens import estimate_tokens  # noqa: E402 — one definition site (099)
 from code_atlas.tools import (  # noqa: E402
     find_callers,
     find_implementations,
@@ -79,15 +80,6 @@ class BenchmarkRegressionError(AssertionError):
     """The tokens-to-answer gate failed: atlas got an answer wrong, or the ratio regressed."""
 
 
-def estimate_tokens(text: str) -> int:
-    """Deterministic ~4-chars-per-token proxy — NOT a real tokenizer.
-
-    Applied identically to both paths, so the *ratio* is meaningful without a model
-    dependency. Swap in a real tokenizer later without changing any caller.
-    """
-    if not text:
-        return 0
-    return -(-len(text) // 4)  # ceil division
 
 
 # Absolute paths a payload carries (071's `index_root`, `get_index_status`'s `db_path`). Their
