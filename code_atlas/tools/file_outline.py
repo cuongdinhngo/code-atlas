@@ -22,6 +22,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     def file_outline(path: str, detail_level: DetailLevel = "standard") -> dict[str, object]:
         """What does this file define, and on what lines — without printing the source?
 
+        Call this before you read or port a large file — it is the symbol map, not a body.
         Returns each symbol with its ``line_start``/``line_end``, never bodies. ``path`` may be
         absolute (under the repo root) or ``./``-prefixed; it is normalised to the repo-relative
         form stored in the index. ``found`` is false when that path is not indexed.

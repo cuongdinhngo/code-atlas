@@ -169,6 +169,9 @@ provenance (`db_path` on `get_index_status` / build reports only after 061). Eve
 These MCP prompts are **operator recipes a human invokes**; an agent's client exposes only the tools
 above to the model, so a model never sees a prompt (task 081). Agent routing lives in the tool
 descriptions themselves (each names the question it answers — task 069), not here.
+The blind recognition probe that scores whether those descriptions route — and that separates
+name-only answers from description-backed ones — is
+[`docs/runbooks/tool-recognition-probe.md`](docs/runbooks/tool-recognition-probe.md) (081, 097).
 
 | Prompt | Recipe |
 |---|---|

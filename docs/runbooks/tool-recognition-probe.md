@@ -1,10 +1,11 @@
 # Tool-recognition probe
 
 A re-runnable **blind** measurement of whether an agent, seeing only the tool surface, routes a
-natural-language question to the right code-atlas tool. It is the recognition test task 081 owes the
-next field round — the thing round 4's §0.5 was meant to produce before protocol order voided it. It
-replaces a self-report ("could you find the right tool?") with a scored, reproducible instrument, and
-it is modelled on 069's blind-reader pick-rate.
+natural-language question to the right code-atlas tool. It is the recognition test task 081 owes
+the next field round. Task 097 added the markings that stop a name-only 14/14 from being read as
+an 081 score.
+
+The retro template that consumes this probe is [`field-retro.md`](field-retro.md) §0.5.
 
 ## Why blind order matters (the non-contamination rule)
 
@@ -19,12 +20,22 @@ discussion. One question at a time; record the first tool named; no retries, no 
 1. Point a fresh agent at a repo with a **built, current** index (`get_index_status` shows
    `staleness: current`) and the standard 14-tool surface. Do **not** show it `which_tool` or the
    answer key below.
-2. Ask each question in the set verbatim. For each, record the **first** tool the agent says it would
-   call (or "none / unsure").
-3. Score: a question is **recognised** when the recorded tool equals the intended tool below. The
-   recognition rate is `recognised / total`.
-4. Report the rate with the per-question picks, so a miss is inspectable (which tool was chosen
-   instead). Do not average away a systematic confusion (e.g. `find_references` vs `find_callers`).
+2. **Before scoring**, record **resident descriptions**: how many of the 14 tool descriptions were
+   in context at scoring time (`K / 14`). This harness often defers MCP schemas — a name list is
+   not a description set.
+3. Ask each question in the set verbatim. For each, record:
+   - the **first** tool the agent says it would call (or "none / unsure");
+   - whether that answer was **name-only** or **description-backed** (the intended tool's schema
+     was in context when the agent answered).
+4. Score **two rates**, never one undifferentiated 14/14:
+   - **name-inclusive** = `recognised / 14`. Label it as such. This is what round 5 reported.
+   - **description-backed** = `recognised among description-backed answers / D`, where `D` is the
+     number of answers marked description-backed in step 3. This is the 081 proxy. `D` equals `K`
+     only if residency held for the whole probe; when a schema loads mid-probe the step-3 markings
+     win — report `D` and re-record `K`. If `D = 0`, record 081 as `NOT OBSERVED`. If `K < 14`, do
+     **not** treat a name-inclusive 14/14 as evidence that descriptions route.
+5. Report both rates with the per-question picks and markings, so a miss is inspectable. Do not
+   average away a systematic confusion (e.g. `find_references` vs `find_callers`).
 
 ## Question set and intended tool (the answer key — do not show the agent before scoring)
 
@@ -33,7 +44,7 @@ discussion. One question at a time; record the first tool named; no retries, no 
 | 1 | Is the index built, fresh, and healthy — and what should I call next? | `get_index_status` |
 | 2 | Build or refresh the index for this repo. | `build_or_update_index` |
 | 3 | Find a symbol when I only know part of its name. | `search_symbol` |
-| 4 | What does this file define, and on what lines? | `file_outline` |
+| 4 | I am about to port a thousand-line source file. I need its symbols and line ranges without reading the body, so I do not count functions by hand. | `file_outline` |
 | 5 | Show me the source of just this one method. | `read_symbol` |
 | 6 | Who calls this function? | `find_callers` |
 | 7 | Where is this symbol used across the codebase? | `find_references` |
@@ -45,14 +56,26 @@ discussion. One question at a time; record the first tool named; no retries, no 
 | 13 | Which symbols look unused? | `find_orphans` |
 | 14 | How does one symbol reach another through the call graph? | `explain_path` |
 
+### Why Q4 discriminates (task 097)
+
+Q4 is phrased in the user's occasion, not the tool's name or opener. A bare name list that
+answers `read_symbol` or the host `Read` is a **miss** — those names look like "read the file."
+The description is what says this tool returns the symbol map **without** the body. Round 5's
+Q4 ("What does this file define, and on what lines?") was close enough to the opener that a
+name-only pass still scored it. This shape is the one a name list can fail.
+
+Scoring **only** over description-backed answers (step 4) is what makes 081 re-scorable. User-worded
+Q4 is what makes the *set* able to fail a name-only pass. Near-miss pairs (`find_callers` vs
+`find_references`) stay in the set as a confusion watch; they are not the 081 discriminator —
+round 5 already separated those off names.
+
 ## Reading the result
 
 - The set has **14 questions, one per tool** — the same 14 the `which_tool` map covers, so a full
   miss on the map and a full miss here would agree.
-- A **recognition-rate bar** for "the surface routes well enough" is a project call, not a mango gate;
-  record the rate and let the next retro judge it against the prior round. A useful reference point:
-  069 shipped its descriptions on the strength of a blind-reader pick-rate, and field round 4 verified
-  five openers read as their question. Treat a rate at or below a prior round's as a regression to
-  investigate (a description that stopped leading with its question), not a pass/fail switch.
+- A **recognition-rate bar** for "the surface routes well enough" is a project call, not a mango
+  gate; judge the **description-backed** rate against the prior round. A name-inclusive 14/14 with
+  `K < 14` is saturated names, not a pass.
 - Because the probe is blind and reproducible, a later round can **re-run it without contaminating
-  itself**, which is the property task 081's acceptance criterion asks for.
+  itself**.
+- This file is a protocol, not a benchmark harness. 055 and 074 own measurement infrastructure.

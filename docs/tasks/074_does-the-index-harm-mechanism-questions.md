@@ -99,6 +99,8 @@ by grep in one — and, importantly for this ticket, it produced a **wrong belie
 the emptiness, which is mild harm of exactly the kind the benchmark's repeat suggested. Counts toward
 the n as *helped narrowly, with a recorded harm*. Session type is now a named variable: this is n = 1
 for **legacy→unified port**, and the original benchmark's cell was a bug hunt.
+**097 does not reset this n.** That ticket changes how recognition is scored; it does not open a
+new session-type counter. Round 5 remains n = 1 for legacy→unified port.
 
 **Protocol consequence for the remaining runs.** The retraction was produced by a **second instrument
 run on the same evaluator immediately after the retro** — six questions about the moments it did *not*

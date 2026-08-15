@@ -36,6 +36,7 @@ code-atlas/
 └── docs/
     ├── PLAN.md                        # authoritative design
     ├── ENGINEERING_RULES.md  CONVENTION.md  BACKLOG.md
+    ├── runbooks/                     # operator protocols (onboarding, recognition probe, field retro)
     └── tasks/NNN_slug.md             # one file per task
 ```
 

@@ -1,5 +1,38 @@
 # Lessons — code-atlas
 
+## 097 — A recognition score off names cannot measure descriptions, and recognition is not recall
+Round 5 scored 14/14 on the blind probe while 7 of 14 descriptions were never loaded, then named
+`file_outline` at Q4 and did not call it when a 1,196-line port needed the symbol map. **Fix:** the
+probe records resident `K/14`, marks each answer name-only or description-backed, and reports two
+rates. The 081 proxy is the description-backed rate (or `NOT OBSERVED` when `K = 0`). Q4 is
+occasion-worded so a name list can miss it. Retro §2 gained a fourth bucket — *knew it, it fit, did
+not think of it* — whose opposite fix is a workflow trigger, not a better description. The
+`file_outline` occasion lives in the tool description and the onboarding runbook, not in
+`next_tool_suggestions` (061 / R4). **Bound:** descriptions can name the occasion; they cannot make
+the agent notice. 074’s n = 1 for *legacy→unified port* is unchanged.
+
+### 097-C1 — A set the probe claims to cover is derived from the surface, never listed
+- type: 2 generalisable-heuristic
+- handle: derived-not-listed-invariant
+- status: proposed (awaiting human confirm)
+- seen: 093, 095, 097
+- evidence: `tests/test_recognition_probe_protocol.py` parses intended tools from the probe table
+  and compares them to `main.TOOL_NAMES`; `test_the_probe_surface_guard_can_actually_fail` injects
+  a name the table does not have
+- area: tests / R1.1
+- destination: `rulebook_path` — already **promoted** as `docs/ENGINEERING_RULES.md` **R6.7**
+  (093-C2 / 095-C1). This sighting is recurrence, not a new class. `/mango:promote` is the
+  cross-ticket pass.
+
+### 097-C2 — Descriptions can name an occasion; they cannot make the agent notice it
+- type: 5 project-ground-truth
+- status: proposed (awaiting human confirm)
+- area: routing surface / recognition vs recall
+- sub-shape: descriptive
+- evidence: field retro round 5 §11.3; `file_outline` named at Q4, description loaded, unused on
+  the 1,196-line port; trigger placed in description + onboarding, not `next_tool_suggestions`
+- destination: stays in lessons_path (descriptive; PLAN §19 already records the bound)
+
 ## 095 — An ignore total that does not name its source is an unauditable denominator
 082 made `skipped.ignore` an outsider-checkable int, and the identities close. The 9,541 files in
 that bucket all have an indexed suffix — they are PHP the index chose not to hold — and nothing
@@ -18,7 +51,7 @@ empty. Persist the dict on a **sibling** meta key — `collection_census()` int-
 - type: 2 generalisable-heuristic
 - handle: derived-not-listed-invariant
 - status: proposed (awaiting human confirm)
-- seen: 093, 095
+- seen: 093, 095, 097
 - evidence: `ignore.py` `COMPOSED_IGNORE_FILES` / `composed_source_names()`;
   `tests/test_ignore_bucket_names_its_rule.py::test_composed_source_names_are_derived_and_exclude_retro_keys`
 - area: tests / R1.1

@@ -616,6 +616,13 @@ holds, reinforced by the unpriced cost of one muddier description (C3) and R1.2.
   register down: `file_outline` — named correctly at Q4, description loaded — went uncalled on a
   1,196-line port source whose 7 functions + 2 closures it returns in ~1 KB →
   [097](tasks/097_recognition-probe-measures-names-not-recall.md).
+  **Shipped (097):** the probe records resident descriptions and marks each answer name-only or
+  description-backed; the 081 score is the description-backed rate (or `NOT OBSERVED` when `K = 0`).
+  Q4 is occasion-worded so a bare name list can miss it. Retro §2 has a fourth bucket (*knew it, it
+  fit, did not think of it* → workflow trigger, not a better description). The `file_outline`
+  occasion lives in the tool description and the onboarding runbook — not in `next_tool_suggestions`
+  (061 / R4). That is the bound on 081-style fixes: descriptions can name the occasion; they cannot
+  make the agent notice. 074's n = 1 for legacy→unified port is unchanged.
   **The §9 primary is [092](tasks/092_untracked-files-are-invisible-and-answer-no-such-symbol.md):**
   four newly written classes were **untracked**, so `collect()`'s `git ls-files` walk never saw them;
   the build reported `wrote:{files:14}` with no skip, `dirty_indexed_files: 0` was literally true and

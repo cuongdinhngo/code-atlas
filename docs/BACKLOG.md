@@ -15,7 +15,6 @@ what landed, and what it cost* — narrative rationale lives in those three.
 | 074 | [Does the index harm mechanism questions? — resolve at n ≥ 3](tasks/074_does-the-index-harm-mechanism-questions.md) | Measure | in-progress | 055, 067, 045 |
 | 094 | [A `::class` constant in a routing array is `relationship_not_modelled`](tasks/094_class-constant-in-array-literal-is-not-an-edge.md) | Coverage | todo | 030, 011, 002 |
 | 096 | [A 2-file incremental costs 59 s while a no-op costs 2 s](tasks/096_edit-then-ask-tax-two-files-cost-a-minute.md) | Cost | todo | 080, 052, 016 |
-| 097 | [The recognition probe measures names, not descriptions or recall](tasks/097_recognition-probe-measures-names-not-recall.md) | Measure | todo | 081, 069, 074 |
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 099 | [Every decision made without the graph wanted a line inside a file read](tasks/099_write-time-signal-seam.md) | Agent-fit | todo | 097, 069, 036 |
 | 100 | [Nine kinds of evidence in the PR, zero graph payloads](tasks/100_claim-signing-output-mode.md) | Agent-fit | todo | 017, 057, 061 |
@@ -32,8 +31,8 @@ what landed, and what it cost* — narrative rationale lives in those three.
 
 **Order (round-5 tickets):** ~~**092**~~ (done — an untracked file read as a non-existent symbol)
 **→ ~~093~~** (done — 092's route shape generalised to every `try_instead`) **→ ~~095~~**
-(done — names the denominator 082 made auditable) **→ 097** (protocol; must land before round 6 or that
-round cannot score 081 either) **→ 094** (adapter + contract weight) **→ 096** (cost, and last for
+(done — names the denominator 082 made auditable) **→ ~~097~~** (done — protocol now scores
+descriptions separately from names, and names the recall bucket) **→ 094** (adapter + contract weight) **→ 096** (cost, and last for
 the same reason 061 and 080 were — but it is the round's behaviour finding, not just a number).
 **Round 4 closed:** 075–082 all landed; round 5 verified 7 of 8 fixed and 081 `NOT OBSERVED` (§A).
 
@@ -168,6 +167,7 @@ this track are in [Open work](#open-work); everything below has landed.
 | 092 | [An untracked file is skipped silently, then answers `no_such_symbol`](tasks/092_untracked-files-are-invisible-and-answer-no-such-symbol.md) | Agent-trust | done | 073, 082, 065 |
 | 093 | [`try_instead` returns a string that is not a callable tool name](tasks/093_try-instead-is-not-a-callable-tool-name.md) | Agent-fit | done | 065, 076, 069 |
 | 095 | [`collection.ignore: 9541` excludes indexable PHP by an unnamed rule](tasks/095_ignore-bucket-does-not-name-its-rule.md) | Agent-trust | done | 082, 003, 068 |
+| 097 | [The recognition probe measures names, not descriptions or recall](tasks/097_recognition-probe-measures-names-not-recall.md) | Measure | done | 081, 069, 074 |
 
 ### Where these tickets came from
 
@@ -356,6 +356,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | 092 | 1 dispatch — refine exposure-checker unmeasured (blocking retrieval); review waived at solve time, then done on the PR (0 dispatch, in-session). Docker delta-green (full gate **1167 passed**; branch pre-review 1165, `main` 1160 — both re-measured, the "1162" first recorded here was a stale count) | [#102](https://github.com/cuongdinhngo/code-atlas/pull/102) |
 | 093 | 1 dispatch — `/code-review` on the PR **61.7k** (20 tool-uses, 205 s); refine skipped (0 unresolved product-decisions), review waived at solve time then run on the PR. Docker delta-green (full gate **1175 passed**; `main` baseline 1167, +8 new tests, none removed — 1173 pre-review, +2 from the review fixes) | [#103](https://github.com/cuongdinhngo/code-atlas/pull/103) |
 | 095 | 1 dispatch — refine exposure-checker unmeasured (host does not surface usage); review waived at solve time. Docker delta-green (full gate **1183 passed**; `main` baseline 1175, +8 new tests, none removed) | [#105](https://github.com/cuongdinhngo/code-atlas/pull/105) |
+| 097 | 1 dispatch — refine exposure-checker unmeasured (host does not surface usage); review waived at solve time. Docker delta-green (full gate **1191 passed**; `main` baseline 1183, +8 new tests, none removed) | [#107](https://github.com/cuongdinhngo/code-atlas/pull/107) |
 | — | Field retro round 4 + ticket-writing for 075–082: 0 dispatch. **No PR** — committed straight to `main` on the maintainer's instruction for docs-only changes | — |
 
 **How 047–049 were measured.** One autonomous session, no per-task transcript: each row is the API

@@ -272,6 +272,12 @@ Call every registered tool once against the real index and time it. Expected sha
 | `reachable_from` / `find_orphans` | ~0.6 s | Walks from every entry-point match |
 | `explain_path` | 6.6 s | Worst case; a shortest-path search over the whole graph |
 
+**Before you read or port a large file, call `file_outline`.** Round 5 named this the
+highest-leverage uncalled tool: a 1,196-line source is 7 functions + 2 closures with line ranges
+in ~1 KB. The tool description now says so. `next_tool_suggestions` cannot — the core does not
+see that you are about to Read, and a suggestion on every payload would violate 061. Knowing the
+name is not the same as noticing the occasion (097).
+
 Two calling conventions to get right in a smoke test, or you will report a false negative:
 
 - **`impact`'s first positional parameter is `paths`, not `qnames`.** Passing a qname positionally
