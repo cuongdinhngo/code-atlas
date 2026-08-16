@@ -9,7 +9,7 @@ from typing import Literal, NamedTuple
 from code_atlas.config import Config, clamp_limit
 from code_atlas.contract import ARG_SELECTORS, CALLER_KINDS, CONFIDENCE_TIERS, split_qname
 from code_atlas.store import GraphStore
-from code_atlas.tools import call_site
+from code_atlas.tools import call_site, claim
 from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
     REASON_BARE_NAME_TRUNCATED,
@@ -29,10 +29,15 @@ from code_atlas.tools.nav_result import (
     relation_reason,
     shape_exact_miss,
 )
+from code_atlas.tools.staleness import compute_staleness
 
 NAME = "find_callers"
 
 DetailLevel = Literal["minimal", "standard"]
+
+QUESTION = "callers"
+# Caveats that ride the claim line when present — each omitted when the payload has no such key.
+CLAIM_CARRY = ("frontier_skipped_non_resolved", "unresolved_bare_calls", "args_unrecorded")
 
 _RESOLVED = CONFIDENCE_TIERS[0]
 # Cap BFS counting so total_count stays honest-as-a-floor without walking the whole graph.
@@ -58,6 +63,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         arg_is: str | None = None,
         limit: int | None = None,
         offset: int = 0,
+        sign: bool = False,
     ) -> dict[str, object]:
         """Who calls this function or method? Every call site, with confidence and optional depth.
 
@@ -93,6 +99,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         reparsed the subject's file this call — neighbors were not re-verified (035 / 061).
         An untracked indexable file matching the subject is ``reason=not_indexed`` plus
         ``try_instead=build_or_update_index`` — never ``no_such_symbol`` (092).
+
+        ``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
+        ``key=value`` line naming subject, question, answer and the revision the index describes.
+        The weakest tier present is named, so the line can never claim ``RESOLVED`` over a
+        ``HEURISTIC`` hit. An answer with no index carries no line (task 100).
         """
         if depth < 1:
             raise ValueError(f"depth must be >= 1, got {depth}")
@@ -106,11 +117,28 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path),
             index_root=config.index_root,
         )
+        staleness: dict[str, object] = {}
+
+        def signed(payload: dict[str, object]) -> dict[str, object]:
+            """Attach the claim line, or hand the payload back untouched (task 100)."""
+            if not sign:
+                return payload
+            return claim.sign(
+                payload,
+                tool=NAME,
+                question=QUESTION,
+                subject_parts=[qname],
+                staleness=staleness,
+                carry=CLAIM_CARRY,
+            )
+
         with GraphStore(config.db_path) as store:
+            if sign:
+                staleness = compute_staleness(store, config, include_dirty_count=True)
             guard = FreshnessGuard(config, store)
             freshness = guard.ensure_qname(qname)
             if freshness == "stale":
-                return attach_try_instead(
+                return signed(attach_try_instead(
                     nav_result(
                         qname,
                         [],
@@ -124,7 +152,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         frontier_skipped_non_resolved=0,
                     ),
                     TRY_INSTEAD_FILE_OUTLINE,
-                )
+                ))
             outcome = _callers(
                 store, qname, hops=depth, limit=cap, offset=offset, args_at=args_at
             )
@@ -159,7 +187,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 if unrecorded is not None:
                     miss["args_unrecorded"] = unrecorded
                 attach_limit_capped(miss, cap=cap, clamped=limit_clamped)
-                return shape_exact_miss(miss, resolution)
+                return signed(shape_exact_miss(miss, resolution))
             container, bare_name = split_qname(qname)
             unresolved_bare = 0
             if indexed and container is not None and outcome.total_count == 0:
@@ -203,7 +231,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         attach_result_subtrees(result, subtrees)
         attach_ambiguous_definitions(result, definition_sites(subject_nodes))
         attach_limit_capped(result, cap=cap, clamped=limit_clamped)
-        return result
+        return signed(result)
 
     return find_callers
 

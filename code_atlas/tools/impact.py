@@ -7,11 +7,17 @@ from typing import Literal
 
 from code_atlas.config import Config
 from code_atlas.store import GraphStore
+from code_atlas.tools import claim
 from code_atlas.tools.nav_result import classify_missing_subject, empty_nav, nav_result
+from code_atlas.tools.staleness import compute_staleness
 
 NAME = "impact"
 
 DetailLevel = Literal["minimal", "standard"]
+
+QUESTION = "blast-radius"
+# The two counts that make an empty answer a MODELLED zero rather than a failed query (065).
+CLAIM_CARRY = ("seeds_dropped", "frontier_skipped_non_resolved")
 
 
 def create(config: Config) -> Callable[..., dict[str, object]]:
@@ -22,6 +28,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         qnames: list[str] | None = None,
         depth: int | None = None,
         detail_level: DetailLevel = "standard",
+        sign: bool = False,
     ) -> dict[str, object]:
         """What could break if I change this file or symbol — the blast radius?
 
@@ -33,11 +40,19 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         Walks resolver-linked IMPACT kinds only — an empty answer is a modelled zero for those
         kinds, not ``relationship_not_modelled`` (task 065; see ``find_references``).
+
+        ``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
+        ``key=value`` line naming subject, question, answer and the revision the index describes,
+        with ``seeds`` beside ``answer`` (``answer == seeds`` is the modelled zero: nothing beyond
+        the seeds depends on them) and ``seeds_dropped`` / ``frontier_skipped_non_resolved``.
+        No line is emitted when there is no index, or when no seed resolved — neither answer can
+        name a revision or a countable subject, and a claim that cannot be re-run is decoration.
         """
         hops = config.impact_depth if depth is None else depth
         if hops < 0:
             raise ValueError(f"depth must be >= 0, got {hops}")
-        subject = _subject(paths, qnames)
+        parts = _subject_parts(paths, qnames)
+        subject = ",".join(parts)
         if not config.db_path.is_file():
             return empty_nav(subject, detail_level=detail_level, db_path=str(config.db_path),
             index_root=config.index_root,
@@ -49,9 +64,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             outcome = store.impact_radius(
                 seeds, depth=hops, max_nodes=config.impact_max_nodes + 1
             )
+            staleness = compute_staleness(store, config, include_dirty_count=True) if sign else {}
         truncated = len(outcome.rows) > config.impact_max_nodes
         results = outcome.rows[: config.impact_max_nodes]
-        return nav_result(
+        result = nav_result(
             subject,
             results,
             detail_level=detail_level,
@@ -62,17 +78,32 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             frontier_skipped_non_resolved=outcome.frontier_skipped_non_resolved,
             seeds_dropped=outcome.seeds_dropped,
         )
+        # No seed resolved ⇒ the payload cannot tell "nothing depends on this" from "your subject
+        # was not found" — ``seeds_dropped`` stays 0 there. Such an answer gets no line (task 100).
+        if not sign or not seeds:
+            return result
+        return claim.sign(
+            result,
+            tool=NAME,
+            question=QUESTION,
+            subject_parts=parts,
+            staleness=staleness,
+            carry=CLAIM_CARRY,
+            extra=(("seeds", len(seeds)),),
+        )
 
     return impact
 
 
-def _subject(paths: list[str] | None, qnames: list[str] | None) -> str:
+def _subject_parts(paths: list[str] | None, qnames: list[str] | None) -> list[str]:
+    """Subject items in stable order (qnames then paths) — joined for the payload, capped in the
+    claim line."""
     bits: list[str] = []
     if qnames:
         bits.extend(qnames)
     if paths:
         bits.extend(paths)
-    return ",".join(bits) if bits else ""
+    return bits
 
 
 def _seeds(

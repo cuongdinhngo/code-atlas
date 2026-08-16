@@ -8,7 +8,7 @@ from typing import Literal
 from code_atlas.config import Config, clamp_limit
 from code_atlas.contract import UNMODELLED_REFERENCE_KINDS
 from code_atlas.store import GraphStore
-from code_atlas.tools import call_site
+from code_atlas.tools import call_site, claim
 from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
     REASON_INDEX_STALE,
@@ -30,10 +30,15 @@ from code_atlas.tools.nav_result import (
     relation_reason,
     shape_exact_miss,
 )
+from code_atlas.tools.staleness import compute_staleness
 
 NAME = "find_references"
 
 DetailLevel = Literal["minimal", "standard"]
+
+QUESTION = "references"
+# ``authoritative: false`` (every hit DYNAMIC) is the caveat this answer can lose to a bare count.
+CLAIM_CARRY = ("authoritative",)
 
 
 def create(config: Config) -> Callable[..., dict[str, object]]:
@@ -45,6 +50,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         include_source: bool = False,
         limit: int | None = None,
         offset: int = 0,
+        sign: bool = False,
     ) -> dict[str, object]:
         """Where is this symbol used across the codebase?
 
@@ -65,6 +71,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         ``subject_refreshed_only`` is present (and ``true``) only when read-through freshness
         reparsed the subject's file this call — neighbors were not re-verified (035 / 061).
+
+        ``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
+        ``key=value`` line naming subject, question, answer and the revision the index describes,
+        carrying ``authoritative`` when every hit is ``DYNAMIC``. An answer with no index carries
+        no line (task 100).
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
@@ -75,11 +86,28 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path),
             index_root=config.index_root,
         )
+        staleness: dict[str, object] = {}
+
+        def signed(payload: dict[str, object]) -> dict[str, object]:
+            """Attach the claim line, or hand the payload back untouched (task 100)."""
+            if not sign:
+                return payload
+            return claim.sign(
+                payload,
+                tool=NAME,
+                question=QUESTION,
+                subject_parts=[qname],
+                staleness=staleness,
+                carry=CLAIM_CARRY,
+            )
+
         with GraphStore(config.db_path) as store:
+            if sign:
+                staleness = compute_staleness(store, config, include_dirty_count=True)
             guard = FreshnessGuard(config, store)
             freshness = guard.ensure_qname(qname)
             if freshness == "stale":
-                return attach_try_instead(
+                return signed(attach_try_instead(
                     nav_result(
                         qname,
                         [],
@@ -91,7 +119,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         total_count=0,
                     ),
                     TRY_INSTEAD_FILE_OUTLINE,
-                )
+                ))
             total_count = store.count_edges_by_target(qname)
             # Widen the existing indexed-check fetch to surface every definition site (task 070).
             nodes = store.nodes_by_qualified_name(qname, limit=config.max_results)
@@ -111,7 +139,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     reason=REASON_NO_SUCH_SYMBOL,
                     total_count=0,
                 )
-                return shape_exact_miss(miss, resolution)
+                return signed(shape_exact_miss(miss, resolution))
             edges = store.edges_by_target(qname, limit=cap, offset=offset)
             results = [edge_hit(edge) for edge in edges]
             # Skewed page 1 hides other subtrees — advertise the full spread (task 067).
@@ -157,6 +185,6 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         attach_limit_capped(result, cap=cap, clamped=limit_clamped)
         if results and all(hit.get("confidence_tier") == "DYNAMIC" for hit in results):
             result["authoritative"] = False
-        return attach_try_instead(result, try_instead, try_instead_hint)
+        return signed(attach_try_instead(result, try_instead, try_instead_hint))
 
     return find_references

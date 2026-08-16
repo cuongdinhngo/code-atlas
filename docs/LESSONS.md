@@ -1,5 +1,67 @@
 # Lessons — code-atlas
 
+## 100 — A caveat is only as reachable as the payload shape you read it from
+The signed line was built to make a caveat undroppable by giving each one its own key. It then
+dropped one anyway: `get_index_status` sourced `parse_failures` **from the payload**, and that key
+only exists at `standard`/`verbose`. At `minimal` the same index, with the same real parse failure,
+produced a signed, quotable claim with the caveat missing — the exact harm the mechanism exists to
+prevent, inside the mechanism itself. The data was in scope the whole time (`counts["failed"]` is
+computed unconditionally); only the **source** was wrong. **Found by the reviewer, not by me**, and
+untested: no test exercised that signer's line content at all, so its AC was green on inspection.
+**Second finding, same round:** an embedded `"` was quote-wrapped but never escaped, corrupting the
+line's own grammar. The proposed fix — fold `"` to `'` — was rejected: folding silently rewrites the
+subject of a claim whose whole purpose is to be re-checked. Doubling the quote is lossless and adds
+no escape character, so separator backslashes still survive.
+
+### 100-C1 — A value read from a payload inherits that payload's most minimal shape
+- type: 2 generalisable-heuristic
+- handle: source-the-caveat-from-the-computation
+- status: proposed (awaiting human confirm)
+- seen: 100
+- evidence: `CLAIM_CARRY = ("parse_failures",)` read the key off the payload, which only carries it
+  at `standard`/`verbose`; the `minimal` line shipped without the caveat while `counts["failed"]`
+  was 1. Fixed by sourcing from the computation, not the presentation
+- area: tool payloads / claim signing
+
+### 100-C2 — When an artifact exists to be re-checked, a lossy repair is worse than the corruption
+- type: 2 generalisable-heuristic
+- handle: lossless-repair-for-a-checkable-artifact
+- status: proposed (awaiting human confirm)
+- seen: 100
+- evidence: review proposed folding an inner `"` to `'`; that would have silently renamed the path a
+  reader is meant to verify. Quote-doubling round-trips exactly and keeps the no-escape-character
+  grammar the backslash-separated qualified names depend on
+- area: tool payloads / claim signing
+
+### 100-C3 — A grep-gate sweep is per-commit, not per-ticket
+- type: 2 generalisable-heuristic
+- handle: re-run-the-sweep-after-the-last-edit
+- status: proposed (awaiting human confirm)
+- seen: 100
+- evidence: the Phase-3 R1.1 sweep was clean; a later commit's **docstring** reintroduced a language
+  name in a core module and the gate failed the build. The sweep was honest when run and stale by
+  the time it was quoted — and review round 1 could not see it either, since the text post-dated it
+- area: process / verification sweep
+
+### 100-C4 — Do not sign what the payload cannot distinguish
+- type: 2 generalisable-heuristic
+- handle: do-not-attest-past-the-payloads-resolution
+- status: proposed (awaiting human confirm)
+- seen: 100
+- evidence: `impact_radius` returns `seeds_dropped = 0` for an empty seed set, so an absent subject
+  and a genuine modelled zero are indistinguishable in the payload. Rather than fix the count
+  in-flight (outside the change list) or sign over it, the answer gets **no line**
+- area: impact / claim signing
+
+### 100-C5 — impact seeds are returned inside `results`, so a bare count is ambiguous
+- type: 5 project-ground-truth
+- status: proposed (awaiting human confirm)
+- seen: 100
+- evidence: `store.impact_radius` includes the seeds themselves, so `answer=N` conflates *N
+  dependents* with *N seeds and zero dependents*. The line carries `seeds=` beside `answer=`;
+  `answer == seeds` is the modelled zero
+- area: impact / store
+
 ## promote-2026-08-15 — Recurrence that only grows when someone writes a lesson under-counts the rules worth having
 `/mango:promote`'s first real run proposed **nothing**, then the same corpus corrected proposed two
 candidates. The corpus was wrong, not the pass: `seen:` grew only when a **new lesson** was written,
@@ -190,7 +252,7 @@ the agent notice. 074’s n = 1 for *legacy→unified port* is unchanged.
 - type: 2 generalisable-heuristic
 - handle: derived-not-listed-invariant
 - status: proposed (awaiting human confirm)
-- seen: 093, 095, 096, 097, 099
+- seen: 093, 095, 096, 097, 099, 100
 - evidence: `tests/test_recognition_probe_protocol.py` parses intended tools from the probe table
   and compares them to `main.TOOL_NAMES`; `test_the_probe_surface_guard_can_actually_fail` injects
   a name the table does not have
@@ -226,7 +288,7 @@ empty. Persist the dict on a **sibling** meta key — `collection_census()` int-
 - type: 2 generalisable-heuristic
 - handle: derived-not-listed-invariant
 - status: proposed (awaiting human confirm)
-- seen: 093, 095, 096, 097, 099
+- seen: 093, 095, 096, 097, 099, 100
 - evidence: `ignore.py` `COMPOSED_IGNORE_FILES` / `composed_source_names()`;
   `tests/test_ignore_bucket_names_its_rule.py::test_composed_source_names_are_derived_and_exclude_retro_keys`
 - area: tests / R1.1
@@ -285,7 +347,7 @@ trap.
 - type: 2 generalisable-heuristic
 - handle: try-instead-tool-name
 - status: confirmed
-- seen: 092, 093
+- seen: 092, 093, 100
 - evidence: `nav_result.py:58-76` (naming rule); `tests/test_try_instead_is_a_callable_tool_name.py`
   (4 failed / 2 passed pre-fix, 6 passed after); field retro round 5 §4, §9 runner-up
 - area: tool payloads / R1.1 / R4
@@ -296,7 +358,7 @@ trap.
 - type: 2 generalisable-heuristic
 - handle: derived-not-listed-invariant
 - status: confirmed
-- seen: 093, 095, 096, 097, 099
+- seen: 093, 095, 096, 097, 099, 100
 - evidence: `tests/test_try_instead_is_a_callable_tool_name.py` reads `vars(nav_result)` +
   `main.TOOL_NAMES`; `test_the_dead_route_guard_can_actually_fail` injects a dead constant;
   095: `composed_source_names()` from `COMPOSED_IGNORE_FILES`
@@ -308,7 +370,7 @@ trap.
 - type: 2 generalisable-heuristic
 - handle: prove-the-guard-fails
 - status: confirmed
-- seen: 093, 096, 099
+- seen: 093, 096, 099, 100
 - evidence: the dead-route guard scanned its own definition site and could never fail, yet shipped in
   PR #103 advertised as "the audit cannot go stale"; caught by review, not by the suite
 - area: tests / R1.1

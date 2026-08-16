@@ -193,6 +193,62 @@ provenance (`db_path` on `get_index_status` / build reports only after 061). Eve
 | `find_orphans` | unreachable / zero-inbound symbols (dead-code candidates) |
 | `explain_path` | shortest control-flow path between two symbols |
 
+### Signing a claim — `sign: true` (opt-in, off by default)
+
+Four tools answer with an **attestation** rather than a list: a modelled zero, a counted set at a
+named tier, the revision an answer describes. Those are claims a text search cannot make — and a
+claim that never reaches the artifact where it is made has, in practice, not been produced.
+
+Pass `sign: true` to `impact`, `find_callers`, `find_references` or `get_index_status` and the
+payload gains one extra key, `claim`: a single `key=value` line a human or an agent can paste
+straight into a PR body, a review comment or a commit message.
+
+A real example. This prose shipped in a PR:
+
+> No product code, no `src/` consumer.
+
+A reader cannot check it. The payload that could have signed it was already on screen:
+
+```
+code-atlas/1 tool=impact subject="app/Http/A.php,app/B.php,+2" question=blast-radius answer=25 tier=RESOLVED seeds=4 seeds_dropped=0 frontier_skipped_non_resolved=0 rev=a1b2c3d ref=main index=current
+```
+
+`answer=25 seeds=4` says twenty-one things depend on the four changed paths; `answer=4 seeds=4`
+would be the **modelled zero** — the blast radius is the seeds themselves. `seeds_dropped=0` is what
+separates that zero from a query that found nothing because it asked wrong.
+
+**The line degrades honestly.** Every caveat owns its own key, so a weakening answer cannot quietly
+drop it: `tier=` always names the **weakest** tier present, `index=behind` (with `dirty_indexed=`)
+says HEAD has moved past the tree the answer describes, `authoritative=false` marks an all-`DYNAMIC`
+candidate list, `truncated=true` marks a page rather than a set, and `reason=` rides along whenever
+the answer is not a plain `ok`.
+
+**When no line is emitted.** An answer over an unbuilt index, and an `impact` answer where no seed
+resolved, carry **no** `claim` — neither can name a revision or a countable subject, and a claim
+that cannot be re-run is decoration. The payload still says so in its own fields.
+
+**Cost.** Off by default and byte-identical to today when off. When on, the line costs one extra
+git HEAD read and, measured on a one-symbol answer, **+51 tokens** on `impact` and **+46** on
+`find_callers` (`code_atlas/tokens.py` proxy). The signed payload is pinned under a 60-token delta.
+
+#### Answers deliberately left unsigned
+
+A list of rows is not a claim. Signing one would produce a quotable artifact that asserts nothing —
+worse than none. Each of these would have lost a caveat that no one-line form can carry:
+
+| Tool | The caveat a one-line claim would have lost |
+|---|---|
+| `build_or_update_index` | it reports work done, not a state of the world — the counts describe a run, and a run is not a claim about the tree |
+| `search_symbol` | ranking. A count of matches says nothing about whether the right one is on the page |
+| `file_outline` | structure. "17 symbols" is not the claim a reader wants; the shape is |
+| `read_symbol` | the body IS the answer — a line summarising source is a paraphrase of the thing itself |
+| `find_implementations` | interface scope: a count is meaningless without which interface, and stubs vs real implementers differ |
+| `find_view_data` | `capability_not_configured` — a zero here is usually an inert tool, not a modelled zero (069) |
+| `include_graph` | direction. `imports` and `imported_by` are different claims and a single count conflates them |
+| `reachable_from` | the entry-point set it was configured with — the claim is only as good as `CA_ENTRY_POINTS`, which the line cannot carry |
+| `find_orphans` | "unreachable" is a candidate, not a verdict — dynamic dispatch and framework wiring are outside the graph |
+| `explain_path` | a path is a sequence; its length without its hops is not checkable |
+
 ## Operator prompts (human-invoked — not part of the agent tool surface)
 
 These MCP prompts are **operator recipes a human invokes**; an agent's client exposes only the tools

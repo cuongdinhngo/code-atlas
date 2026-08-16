@@ -23,13 +23,15 @@ from code_atlas.store import (
     GraphStore,
     SchemaVersionError,
 )
-from code_atlas.tools import schema_guard
+from code_atlas.tools import claim, schema_guard
 from code_atlas.tools.collection import collection_field
 from code_atlas.tools.staleness import BEHIND, CURRENT, UNKNOWN, compute_staleness
 
 NAME = "get_index_status"
 
 DetailLevel = Literal["minimal", "standard", "verbose"]
+
+QUESTION = "indexed-files"
 
 # Own cap for the verbose failure list — not ``CA_MAX_RESULTS`` (disk / nav / resolver knob).
 PARSE_FAILURE_PATHS_LIMIT = 50
@@ -46,7 +48,7 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
     servable = tuple(registered)
 
     def get_index_status(
-        detail_level: DetailLevel = "standard", offset: int = 0
+        detail_level: DetailLevel = "standard", offset: int = 0, sign: bool = False
     ) -> dict[str, object]:
         """Is the index built, fresh, and healthy — and what should I call next? Call this first.
 
@@ -61,6 +63,10 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
         ``skipped.untracked`` sits beside that identity: files git does not list, with an indexed
         suffix, that are not ignored (092). ``verbose`` also names ``skipped.ignore_sources`` —
         per-source counts that sum to ``skipped.ignore`` (095); omitted when empty or pre-095.
+
+        ``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
+        ``key=value`` line stating how many files this index covers and at which revision. An
+        unbuilt or unreadable index carries no line — it cannot name a revision (task 100).
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
@@ -70,7 +76,7 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
             return _unbuilt(servable, detail_level, config)
         try:
             with GraphStore(config.db_path) as store:
-                return _status(store, config, servable, detail_level, offset=offset)
+                return _status(store, config, servable, detail_level, offset=offset, sign=sign)
         except SchemaVersionError as mismatch:
             return _mismatched(mismatch, servable, detail_level, config)
 
@@ -139,12 +145,32 @@ def _status(
     detail_level: DetailLevel,
     *,
     offset: int = 0,
+    sign: bool = False,
 ) -> dict[str, object]:
     counts = store.counts()
     revision = compute_staleness(store, config, include_dirty_count=True)
     dirty_count = revision.pop("dirty_indexed_files")
     staleness = str(revision["staleness"])
     indexed = counts["files"] > 0
+
+    def signed(payload: dict[str, object]) -> dict[str, object]:
+        """Attach the claim line, or hand the payload back untouched (task 100).
+
+        The caveat comes from ``counts``, not from the payload: ``parse_failures`` is only
+        exposed at ``standard``/``verbose``, so carrying it off the payload would drop it from
+        the ``minimal`` line while the failures were real.
+        """
+        if not sign:
+            return payload
+        return claim.sign(
+            payload,
+            tool=NAME,
+            question=QUESTION,
+            subject_parts=[config.index_root],
+            staleness={**revision, "dirty_indexed_files": dirty_count},
+            answer=counts["files"],
+            extra=(("parse_failures", counts["failed"]),) if counts["failed"] else (),
+        )
 
     status: dict[str, object] = {
         "indexed": indexed,
@@ -154,7 +180,7 @@ def _status(
         "index_root": config.index_root,
     }
     if detail_level == "minimal":
-        return status
+        return signed(status)
     enriched = status | {
         "head_commit": revision["head_commit"],
         "built_at": store.get_meta(BUILT_AT_KEY),
@@ -168,7 +194,7 @@ def _status(
         "max_results": _max_results_field(config),
     }
     if detail_level == "standard":
-        return enriched
+        return signed(enriched)
     paths = store.failed_paths(PARSE_FAILURE_PATHS_LIMIT, offset=offset)
     verbose = enriched | {
         "parse_failure_paths": list(paths),
@@ -177,7 +203,7 @@ def _status(
     collection = collection_field(store, ignore_sources=True)
     if collection is not None:
         verbose["collection"] = collection
-    return verbose
+    return signed(verbose)
 
 
 def _suggestions(servable: Sequence[str], staleness: str, *, indexed: bool) -> list[str]:
