@@ -557,6 +557,7 @@ $ impact(qnames=["\App\Nope"], sign=True)
 This is pre-existing `impact` behaviour, not something this diff introduced. Signing it would have
 promoted an internal inaccuracy into a quotable claim, which D1 prevents. **Fixing the count itself
 is outside the approved change list** — recorded for a follow-up ticket rather than absorbed.
+**Follow-up opened:** [102](102_impact-cannot-tell-an-absent-subject-from-a-zero.md).
 
 ### Empirical output
 
