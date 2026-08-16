@@ -249,6 +249,55 @@ worse than none. Each of these would have lost a caveat that no one-line form ca
 | `find_orphans` | "unreachable" is a candidate, not a verdict — dynamic dispatch and framework wiring are outside the graph |
 | `explain_path` | a path is a sequence; its length without its hops is not checkable |
 
+## Sweeps — `search_symbol` takes a list of subjects (task 101)
+
+*"Are any of these ten names already taken?"* is one question. Until 101 it was **ten calls**, so a
+field session framed it as a sweep and reached for `grep -rn` instead — one call for all ten, over
+two directories, where the index would have searched the whole tree. The tool was known and the cost
+was not the problem: **ten calls is the wrong granularity for one question.**
+
+```jsonc
+search_symbol(queries: ["getState", "setState", "flushCache", …], kind: "Function")
+→ { "indexed": true, "subject_count": 10, "index_root": "…",
+    "subjects": [                                  // caller's order, never merged or deduped
+      {"query": "getState",  "results": [{"qname": "\\Lib\\getState", …}], "reason": "ok",         "total_count": 1, "truncated": false},
+      {"query": "setState",  "results": [],                                "reason": "no_matches", "total_count": 0, "truncated": false}
+    ] }
+```
+
+Answer *i* answers subject *i*, so one miss never colours the other nine, and each entry carries its
+own `reason` (and its own `try_instead`, when it has one). At most `CA_MAX_SUBJECTS` (default **25**)
+subjects are accepted; the rest come back named in `subjects_dropped` beside `subjects_capped_to` —
+a sweep exists to be complete, so a silent truncation is worse than ten honest calls (066). Passing
+`query` and `queries` together raises. A `query=`-only call is byte-identical to before.
+
+One caveat the shape imposes: a sweep shares **one** read-through repair budget across every subject,
+because scaling it per subject is the unbounded fan-out the bound exists to prevent. A subject whose
+file drifted may therefore answer `index_stale` where a single call would have repaired it — the
+answer says so rather than reporting a quieter `no_matches`.
+
+#### Tools that take one subject at a time
+
+Batching is not free: it is only right where the question is genuinely list-shaped. One batched tool
+first, proven in the field, before the pattern spreads (R1.2). Each of these keeps a single subject
+for a reason:
+
+| Tool | Why one subject |
+|---|---|
+| `get_index_status` | there is one index; a list of subjects has no meaning for a server-state answer |
+| `build_or_update_index` | a build is one write against one tree — R4.3's single writer, not a fan-out |
+| `file_outline` | already plural in its answer: one path returns every symbol in it |
+| `read_symbol` | a batched body read is just a file read, and bodies are the one thing this server does not return in bulk |
+| `find_callers` | the answer is a bounded traversal per subject; N subjects is N traversals, and the honest form of that is N calls the caller can page independently |
+| `find_references` | same traversal cost as `find_callers`, plus `ambiguous_definitions` is a per-subject warning a merged page would bury (070) |
+| `find_implementations` | subtypes of a list of interfaces is a different question — a union, which is exactly the merge 070 forbids |
+| `find_view_data` | its zero is usually `capability_not_configured`, an inert-tool fact about the call, not about a subject (069) |
+| `include_graph` | its subject is a path and its answer is already a graph; batching graphs means merging them |
+| `impact` | it already takes `paths` and `qnames` — and merges them into one radius on purpose, because a blast radius is a union by definition (see ticket 102 for the cost of that merge) |
+| `reachable_from` | its subject is the configured entry-point set, not a caller-supplied name |
+| `find_orphans` | the complement of the whole graph — there is no subject to list |
+| `explain_path` | its subject is already a pair; a list of pairs is a query language, which 101 deliberately is not |
+
 ## Operator prompts (human-invoked — not part of the agent tool surface)
 
 These MCP prompts are **operator recipes a human invokes**; an agent's client exposes only the tools

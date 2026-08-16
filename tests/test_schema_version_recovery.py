@@ -213,5 +213,12 @@ def test_the_guard_leaves_the_published_input_schema_alone(tmp_path: Path) -> No
             return {tool.name: tool.inputSchema for tool in await client.list_tools()}
 
     published = asyncio.run(schemas())
-    assert set(published["search_symbol"]["properties"]) >= {"query", "limit", "detail_level"}
-    assert published["search_symbol"]["required"] == ["query"]
+    assert set(published["search_symbol"]["properties"]) >= {
+        "query",
+        "queries",
+        "limit",
+        "detail_level",
+    }
+    # 101 made the subject a choice of two spellings, so neither can be schema-required; the
+    # tool raises when zero or both arrive. `impact` has published no required arg since M6.
+    assert "required" not in published["search_symbol"]

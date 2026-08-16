@@ -145,6 +145,18 @@ code-atlas/
   indexable file; `try_instead` is a real tool name and `try_instead_hint` carries the git-add
   prose (061 omit when empty). A subject matches an untracked file on its **stem** — a path-shaped
   qname's trailing ident is the file extension, so `Missing.aa` must not match `aa.aa` (092).
+- **A batched answer keys on position, and states the envelope once (101).** A tool that takes a
+  list of subjects (`search_symbol`'s `queries`) returns `subjects`: entry *i* answers subject *i*,
+  in the caller's order, never deduped, never merged. Each entry carries only what varies —
+  `query`, `results`, `truncated`, `reason`, `total_count`, and its own `try_instead` when it has
+  one — while `indexed`, `index_root` and `subject_count` sit once on the envelope (061). The
+  envelope carries **no** `reason` of its own: a batch-level verdict would colour subjects it knows
+  nothing about. The fan-out bound is `max_subjects`, disclosed as `subjects_capped_to` plus
+  `subjects_dropped` naming every subject refused, both omitted when nothing was dropped (066/061).
+  A missing index answers the **call** — `indexed: false`, `reason: not_indexed`, no `subjects`
+  list — for the same reason `schema_guard.payload` ships no empty `results`: N identical empty
+  answers read as N proofs of absence. Where a subject has two spellings (`query` or `queries`),
+  neither is schema-`required` and passing both raises (R5.3).
 - **`try_instead` is two registers, and each stays in its own field (093).** Every value the core
   can emit is a **registered MCP tool name the reader can call**; the qualifier that says *how* to
   re-ask is prose in the sibling `try_instead_hint`, attached only alongside a route (061 omit when

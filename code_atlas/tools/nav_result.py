@@ -208,6 +208,72 @@ def list_result(
     }
 
 
+def subject_answer(
+    query: str,
+    results: list[dict[str, object]],
+    *,
+    truncated: bool,
+    reason: NavReason,
+    total_count: int,
+) -> dict[str, object]:
+    """One subject's own answer inside a batch (task 101).
+
+    Carries no ``indexed`` / ``index_root``: those are facts about the call, and repeating them
+    once per subject is the boilerplate 061 forbids. Every field here varies per subject, so one
+    miss among ten cannot colour the other nine.
+    """
+    answer: dict[str, object] = {}
+    answer["query"] = query
+    answer["results"] = results
+    answer["truncated"] = truncated
+    answer["reason"] = reason
+    answer["total_count"] = total_count
+    return answer
+
+
+def batch_result(
+    answers: list[dict[str, object]], *, index_root: str
+) -> dict[str, object]:
+    """The batch envelope — what is true of the whole call, stated once (task 101; 061).
+
+    ``subjects`` keeps the caller's order and is never deduped or merged: answer *i* answers
+    subject *i*. A merged set would re-create 070's defect at batch scale (R4.2).
+    """
+    payload: dict[str, object] = {}
+    payload["indexed"] = True
+    payload["subject_count"] = len(answers)
+    payload["subjects"] = answers
+    payload["index_root"] = index_root
+    return payload
+
+
+def batch_not_indexed(index_root: str) -> dict[str, object]:
+    """No index yet, answered once for the whole sweep (task 101).
+
+    Ships no ``subjects`` list on purpose — the same reason ``schema_guard.payload`` ships no
+    empty ``results``: N identical empty answers read as N proofs of absence (061).
+    """
+    payload: dict[str, object] = {}
+    payload["indexed"] = False
+    payload["reason"] = REASON_NOT_INDEXED
+    payload["index_root"] = index_root
+    return payload
+
+
+def attach_subjects_capped(
+    payload: dict[str, object], *, cap: int, dropped: Sequence[str]
+) -> dict[str, object]:
+    """Name the subjects the fan-out bound refused — only when it refused some (066/061; 101).
+
+    The list carries both halves of the disclosure: its length is how many were dropped, its items
+    are which. A sweep exists to be complete, so a silent truncation is worse than ten honest calls.
+    """
+    if dropped:
+        payload["subjects_capped_to"] = cap
+        payload["subjects_dropped"] = list(dropped)
+    return payload
+
+
 def relation_reason(*, hit_total: int, symbol_indexed: bool) -> NavReason:
     """Classify find_* after counting edges: hits / empty indexed / unknown qname."""
     if hit_total > 0:

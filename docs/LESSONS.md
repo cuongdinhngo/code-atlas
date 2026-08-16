@@ -17,7 +17,7 @@ no escape character, so separator backslashes still survive.
 - type: 2 generalisable-heuristic
 - handle: source-the-caveat-from-the-computation
 - status: proposed (awaiting human confirm)
-- seen: 100
+- seen: 100, 101
 - evidence: `CLAIM_CARRY = ("parse_failures",)` read the key off the payload, which only carries it
   at `standard`/`verbose`; the `minimal` line shipped without the caveat while `counts["failed"]`
   was 1. Fixed by sourcing from the computation, not the presentation
@@ -37,7 +37,7 @@ no escape character, so separator backslashes still survive.
 - type: 2 generalisable-heuristic
 - handle: re-run-the-sweep-after-the-last-edit
 - status: proposed (awaiting human confirm)
-- seen: 100
+- seen: 100, 101
 - evidence: the Phase-3 R1.1 sweep was clean; a later commit's **docstring** reintroduced a language
   name in a core module and the gate failed the build. The sweep was honest when run and stale by
   the time it was quoted — and review round 1 could not see it either, since the text post-dated it
@@ -47,7 +47,7 @@ no escape character, so separator backslashes still survive.
 - type: 2 generalisable-heuristic
 - handle: do-not-attest-past-the-payloads-resolution
 - status: proposed (awaiting human confirm)
-- seen: 100
+- seen: 100, 101
 - evidence: `impact_radius` returns `seeds_dropped = 0` for an empty seed set, so an absent subject
   and a genuine modelled zero are indistinguishable in the payload. Rather than fix the count
   in-flight (outside the change list) or sign over it, the answer gets **no line**
@@ -99,7 +99,7 @@ half is a type-3 signal in `docs/SKILL_GAP_CANDIDATES.md`, since no lesson edits
 - type: 2 generalisable-heuristic
 - handle: record-the-deviation-as-a-deviation
 - status: proposed (awaiting human confirm)
-- seen: promote-2026-08-15
+- seen: promote-2026-08-15, 101
 - evidence: 099's evidence table asked for a `no_such_symbol` warning that 092 had already replaced
   with `not_indexed`; shipped the current form with a test asserting the superseded string is absent
 - area: process / lifecycle
@@ -252,7 +252,7 @@ the agent notice. 074’s n = 1 for *legacy→unified port* is unchanged.
 - type: 2 generalisable-heuristic
 - handle: derived-not-listed-invariant
 - status: proposed (awaiting human confirm)
-- seen: 093, 095, 096, 097, 099, 100
+- seen: 093, 095, 096, 097, 099, 100, 101
 - evidence: `tests/test_recognition_probe_protocol.py` parses intended tools from the probe table
   and compares them to `main.TOOL_NAMES`; `test_the_probe_surface_guard_can_actually_fail` injects
   a name the table does not have
@@ -288,7 +288,7 @@ empty. Persist the dict on a **sibling** meta key — `collection_census()` int-
 - type: 2 generalisable-heuristic
 - handle: derived-not-listed-invariant
 - status: proposed (awaiting human confirm)
-- seen: 093, 095, 096, 097, 099, 100
+- seen: 093, 095, 096, 097, 099, 100, 101
 - evidence: `ignore.py` `COMPOSED_IGNORE_FILES` / `composed_source_names()`;
   `tests/test_ignore_bucket_names_its_rule.py::test_composed_source_names_are_derived_and_exclude_retro_keys`
 - area: tests / R1.1
@@ -347,7 +347,7 @@ trap.
 - type: 2 generalisable-heuristic
 - handle: try-instead-tool-name
 - status: confirmed
-- seen: 092, 093, 100
+- seen: 092, 093, 100, 101
 - evidence: `nav_result.py:58-76` (naming rule); `tests/test_try_instead_is_a_callable_tool_name.py`
   (4 failed / 2 passed pre-fix, 6 passed after); field retro round 5 §4, §9 runner-up
 - area: tool payloads / R1.1 / R4
@@ -358,7 +358,7 @@ trap.
 - type: 2 generalisable-heuristic
 - handle: derived-not-listed-invariant
 - status: confirmed
-- seen: 093, 095, 096, 097, 099, 100
+- seen: 093, 095, 096, 097, 099, 100, 101
 - evidence: `tests/test_try_instead_is_a_callable_tool_name.py` reads `vars(nav_result)` +
   `main.TOOL_NAMES`; `test_the_dead_route_guard_can_actually_fail` injects a dead constant;
   095: `composed_source_names()` from `COMPOSED_IGNORE_FILES`
@@ -370,7 +370,7 @@ trap.
 - type: 2 generalisable-heuristic
 - handle: prove-the-guard-fails
 - status: confirmed
-- seen: 093, 096, 099, 100
+- seen: 093, 096, 099, 100, 101
 - evidence: the dead-route guard scanned its own definition site and could never fail, yet shipped in
   PR #103 advertised as "the audit cannot go stale"; caught by review, not by the suite
 - area: tests / R1.1
@@ -380,7 +380,7 @@ trap.
 - type: 2 generalisable-heuristic
 - handle: route-must-answer
 - status: confirmed
-- seen: 093
+- seen: 093, 101
 - evidence: `include_graph` → `search_symbol` returned `reason: ok`, `total_count: 2`, includer
   absent (`store.py:701-714` vs `store.py:90-92`); now hint-only, no route
 - area: tool payloads / 065 / 075 / 076

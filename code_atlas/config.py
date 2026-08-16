@@ -14,7 +14,7 @@ import os
 import re
 import shlex
 import tomllib
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
@@ -28,6 +28,7 @@ KNOB_KEYS: tuple[str, ...] = (
     "workers",
     "adapter_timeout",
     "max_results",
+    "max_subjects",
     "impact_depth",
     "impact_max_nodes",
     "entry_points",
@@ -42,6 +43,9 @@ DEFAULT_DB_PATH = Path(".code-atlas/graph.db")
 # Seconds one adapter may stay silent — booting or answering — before the build kills it (§8.1).
 DEFAULT_ADAPTER_TIMEOUT = 30
 DEFAULT_MAX_RESULTS = 50
+# Subjects one batched call may carry (101). Ten is the field sweep; the headroom stops a batch
+# from becoming a query language, and the cap is disclosed rather than silently applied (066).
+DEFAULT_MAX_SUBJECTS = 25
 DEFAULT_IMPACT_DEPTH = 2
 DEFAULT_IMPACT_MAX_NODES = 500
 MAX_WORKERS = 8
@@ -61,6 +65,7 @@ class Config:
     workers: int
     adapter_timeout: int
     max_results: int
+    max_subjects: int
     impact_depth: int
     impact_max_nodes: int
     entry_points: tuple[str, ...] | None
@@ -128,6 +133,9 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
             "adapter_timeout", _as_int, DEFAULT_ADAPTER_TIMEOUT, environ, file_values
         ),
         max_results=_resolve("max_results", _as_int, DEFAULT_MAX_RESULTS, environ, file_values),
+        max_subjects=_resolve(
+            "max_subjects", _as_int, DEFAULT_MAX_SUBJECTS, environ, file_values
+        ),
         impact_depth=_resolve("impact_depth", _as_int, DEFAULT_IMPACT_DEPTH, environ, file_values),
         impact_max_nodes=_resolve(
             "impact_max_nodes", _as_int, DEFAULT_IMPACT_MAX_NODES, environ, file_values
@@ -340,3 +348,16 @@ def clamp_limit(limit: int | None, max_results: int) -> tuple[int, bool]:
     if limit is None:
         return max_results, False
     return min(limit, max_results), limit > max_results
+
+
+def clamp_subjects(
+    subjects: Sequence[str], max_subjects: int
+) -> tuple[list[str], list[str]]:
+    """The batch's fan-out bound: the subjects kept, and the ones dropped, in caller order (101).
+
+    A sweep exists to be complete, so the dropped names travel with the answer instead of a bare
+    count — the caller can re-ask for exactly them (066 applied to subjects rather than rows).
+    """
+    if max_subjects < 1:
+        raise ConfigError(f"{env_name('max_subjects')}: {max_subjects} is not >= 1")
+    return list(subjects[:max_subjects]), list(subjects[max_subjects:])

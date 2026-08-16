@@ -79,6 +79,15 @@ KNOBS = (
         lambda root: 50,
     ),
     Knob(
+        "CA_MAX_SUBJECTS",
+        "max_subjects = 8",
+        "12",
+        lambda config: config.max_subjects,
+        lambda root: 12,
+        lambda root: 8,
+        lambda root: 25,
+    ),
+    Knob(
         "CA_IMPACT_DEPTH",
         "impact_depth = 4",
         "5",
@@ -191,7 +200,7 @@ def test_every_knob_has_a_precedence_case() -> None:
     # Guards the guard: dropping a knob from KNOBS would otherwise shrink AC1's coverage silently.
     covered = {knob.variable for knob in KNOBS}
     assert {env_name(key) for key in KNOB_KEYS} | {"CA_PHP_CMD"} == covered
-    assert len(KNOB_KEYS) == 12
+    assert len(KNOB_KEYS) == 13
 
 
 def test_env_name_is_derived_from_the_project_file_key() -> None:
@@ -200,6 +209,7 @@ def test_env_name_is_derived_from_the_project_file_key() -> None:
         "CA_WORKERS",
         "CA_ADAPTER_TIMEOUT",
         "CA_MAX_RESULTS",
+        "CA_MAX_SUBJECTS",
         "CA_IMPACT_DEPTH",
         "CA_IMPACT_MAX_NODES",
         "CA_ENTRY_POINTS",
