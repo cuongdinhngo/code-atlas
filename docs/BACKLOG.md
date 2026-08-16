@@ -31,17 +31,22 @@ what landed, and what it cost* — narrative rationale lives in those three.
 **→ ~~093~~** (done — 092's route shape generalised to every `try_instead`) **→ ~~095~~**
 (done — names the denominator 082 made auditable) **→ ~~097~~** (done — protocol now scores
 descriptions separately from names, and names the recall bucket) **→ ~~094~~** (done — `::class`
-mentions are DYNAMIC REFERENCES) **→ 096** (cost, and last for
-the same reason 061 and 080 were — but it is the round's behaviour finding, not just a number).
-**Round 4 closed:** 075–082 all landed; round 5 verified 7 of 8 fixed and 081 `NOT OBSERVED` (§A).
+mentions are DYNAMIC REFERENCES) **→ ~~096~~** (done — cost, and last for
+the same reason 061 and 080 were, but it is the round's behaviour finding, not just a number).
+**Round 5 closed:** 092–097 all landed. **Round 4 closed:** 075–082 all landed; round 5 verified
+7 of 8 fixed and 081 `NOT OBSERVED` (§A).
 
 **Order (round-5 interview tickets) — these are positioning, not defects.** The round-5 tickets fix
-what the tool *says*; these decide **where it stands**. **099** first (every decision the field made
-without the graph wanted a line inside a file read — this is the adoption finding, and 096 is its
-enabler, not its substitute) **→ 100** (the tool holds evidence-grade payloads that never reach the
-artifact; smallest change with the largest positioning effect) **→ 101** (a shape fix, bounded).
-All three generalise because **their subject is the agent, not the repository** — see the evidence
-filter in [PLAN §19](PLAN.md#19-project-context--decision-log).
+what the tool *says*; these decide **where it stands**. ~~**099**~~ first (done — every decision the
+field made without the graph wanted a line inside a file read; the adoption finding, with 096 as its
+enabler, not its substitute) **→ ~~100~~** (done — the tool held evidence-grade payloads that never
+reached the artifact; smallest change with the largest positioning effect) **→ ~~101~~** (done — a
+shape fix, bounded). All three generalise because **their subject is the agent, not the repository**
+— see the evidence filter in [PLAN §19](PLAN.md#19-project-context--decision-log).
+**Then 102**, the only open ticket on this track: measured *during* 100, it is the same evidence
+argument one field in — `impact` answers an unresolvable subject with `results: []` and
+`seeds_dropped: 0`, the exact pair a modelled zero returns, so the field that exists to separate
+them cannot. Unblocked now that 100 has landed.
 **098 is `deferred` behind that filter, not queued:** the demand is real and comes from the project's
 first production user, but the relation is that repository's shape, and a general server cannot spend
 schema every user inherits on **n = 1**. Its gate — a second independent repo, zero cost when
@@ -188,6 +193,7 @@ memory run, the founding-premise benchmark), [`FEEDBACK.md`](FEEDBACK.md) (exter
 | Field retro 4 (2026-08-10, `e8f56d0`) | 075–082 | First **verification** round: 7 fixed and verified, 2 improved, 1 reproduced (054), 2 not exercised. Read with its own three caveats — protocol violated so the recognition test is **void**, the server changed mid-session via a client reconnect, and **4 of 6 question shapes never arose**. Both findings that mattered came from *outside* the verification section (075, 077), which is a regression harness |
 | Field retro 5 (2026-08-14, `348a8a7`) | 092–097 | First round with **mechanism questions in the work** (3 of 6 shapes) and the first where **cost changed what was asked**: 16 calls, 8 at the start, 7 at the end, **1 in three hours of writing code**, because each refresh cost ~60 s. **8 of 8 checked claims exact, zero false statements** — every failure was silence or ambiguity. Sharpest point: an untracked file answered `no_such_symbol` while `dirty_indexed_files: 0` and the build payload both read green (092). Verification: 7 of 8 round-4 fixes confirmed, 081 **NOT OBSERVED** — its proxy scored 14/14 off bare names because 7 of 14 descriptions were never loaded (097) |
 | Field **interview** — round-5 companion (2026-08-14) | 099–101 (+098 gated) | Six questions about the moments the agent **did not** call the tool, run on the same evaluator right after the retro. It **retracted the round's headline** (PHP method names are case-insensitive, so the "prevented a latent fatal" story is void — 074 downgraded to *helped, narrowly*), and produced the finding four rounds of routing and cost work had missed: **all three decisions made without the graph wanted one line inside a `Read` already happening, and none wanted a tool call** — while the two most valuable uncalled queries **needed no rebuild at all**. Plus the behavioural proof for the evidence-layer thesis: **nine kinds of counted evidence in the PR body, zero graph payloads**, holding `seeds_dropped: 0` the whole time |
+| Measured while building 100 (2026-08-16) | 102 | Signing an `impact` answer put its caveats on one quotable line — and exposed that the line can be honest and still useless: `impact(qnames=["\App\Nope"])` returns `results=0 seeds_dropped=0` for a subject that is **not in the index at all**, the identical pair a genuine modelled zero returns. The early return in `store.py:1009-1011` fires before any counting, so the one field a reader consults to tell the two apart is the one that cannot |
 | PLAN §19 threats paragraph | 074 | The founding-premise benchmark's one accidental repeat ran the mechanism question twice under the indexed arm and got **opposite verdicts**, the denied run right — the only datapoint suggesting the index costs *accuracy* |
 
 Three notes that still govern open work:
@@ -365,6 +371,9 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | 096 | **0 dispatch — main-loop only** (challenge waived at solve time; the host does not surface subagent usage, so a dispatched row would have read `unmeasured` either way). Docker delta-green (full gate **1204 passed**; `main` baseline 1196, +8 new tests, none removed — 1202 pre-review, +2 from the second review pass). Cost dominated by the synthetic-index profiling runs (5k/20k/60k, before and after), not by the diff | [#110](https://github.com/cuongdinhngo/code-atlas/pull/110) |
 | 099 | **0 dispatch — main-loop only** (challenge waived at solve time; host does not surface subagent usage). Docker delta-green (full gate **1222 passed**; `main` baseline 1204, +14 new tests and +4 parametrized cases from two new core modules, none removed) | [#111](https://github.com/cuongdinhngo/code-atlas/pull/111) |
 | — | CI red on `main` after #108: profiler wall-tolerance floor. 0 dispatch, main-loop only. Docker gate **1196 passed**, plus a throttled (0.4 CPU) 40-run repro sizing the floor from the measured tail | [#109](https://github.com/cuongdinhngo/code-atlas/pull/109) |
+| 100 | **296.0k dispatch, all measured** — `mango:reviewer` r1 134.9k (54 / 649 s) + r2 verify 161.1k (16 / 272 s); refine + analysis fan-out not dispatched (session standing instruction, disclosed). Main-loop unmeasured | [#114](https://github.com/cuongdinhngo/code-atlas/pull/114) |
+| 101 | **139.2k dispatch, measured** — `mango:reviewer` r1 139.2k (47 / 952 s), CHANGES REQUESTED with 2 real Important findings; r2 not dispatched (conditional LGTM, verify done in the main loop); challenger waived. Main-loop unmeasured — the A1/A2 harness + 29 tests were the real spend | [#116](https://github.com/cuongdinhngo/code-atlas/pull/116) |
+| — | Ticket-writing for 102: 0 dispatch; the defect was measured during 100, not by a separate run | [#115](https://github.com/cuongdinhngo/code-atlas/pull/115) |
 | — | Field retro round 4 + ticket-writing for 075–082: 0 dispatch. **No PR** — committed straight to `main` on the maintainer's instruction for docs-only changes | — |
 
 **How 047–049 were measured.** One autonomous session, no per-task transcript: each row is the API
