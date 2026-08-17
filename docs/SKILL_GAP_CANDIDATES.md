@@ -7,6 +7,47 @@ Each entry names the phase, what it did, what it could have done instead, and th
 
 ---
 
+## SG-3 — `autorun`'s envelope scripts assume a POSIX shell; on Windows the checks run under cmd.exe
+
+- **phase:** `/mango:autorun` — `scripts/run_contract.py` (`write`, deriving `value`) and
+  `scripts/reconcile.py` (`run`, executing each condition's `check`)
+- **observed:** 2026-08-17, code-atlas, task 083 (second autorun in this repo)
+- **status:** open
+
+**What it does.** Both scripts run a condition's `derived-by` / `check` command via
+`subprocess.run(command, shell=True)`. On a POSIX host that is `/bin/sh -c <command>`, so the floor
+checks — written as shell one-liners — run as intended.
+
+**What it misses.** On Windows, `subprocess(shell=True)` invokes **`cmd.exe /c <command>`**, not a
+POSIX shell. `cmd.exe` ignores single quotes and treats `&&`, `"`, `|`, `(`, `)` as its own
+metacharacters regardless of quoting. The `LOCAL-HEAD-PUSHED` floor check the skill prescribes —
+`L=$(git rev-parse --verify -q <branch>) && R=$(...) && test "$L" = "$R"` — is therefore split by
+`cmd.exe` at the first `&&` and fails with `'R' is not recognized…`, reporting a spurious result that
+has nothing to do with whether the head is pushed. The two floor checks that are single native
+commands (`gh pr view …`, `git diff --quiet …`) work; only the one needing shell composition breaks.
+
+**The incident.** Building the RUN CONTRACT for task 083 on the Windows dev host, the prescribed
+`LOCAL-HEAD-PUSHED` check errored under `cmd.exe` before the run could start. Workaround: wrap the
+POSIX body in `bash -lc "…"` **inside cmd double-quotes** (cmd double-quotes protect `&&`; the body
+uses `[[ -n $L && $L = $R ]]` so no inner double-quotes are needed), and resolve refs with
+`git rev-parse --verify -q` so an absent branch reports BROKEN rather than the empty-vs-empty HOLDING
+the skill already warns about. The rest of the envelope (t0 clean, gate-2 bind, close 3/3 holding)
+then ran correctly.
+
+**A doable check the scripts could name.** Either (a) run the shell command explicitly through a
+POSIX shell — `subprocess.run(["bash", "-lc", command])` / honour `SHELL` — so the prescribed
+one-liners are portable, or (b) document in the skill that on a non-POSIX host each floor `check`
+must be a single native command or a `bash -lc` wrapper inside cmd double-quotes. Neither needs new
+tooling; (a) is a one-line change to how the command is spawned.
+
+**Why it matters beyond one repo.** `autorun`'s whole value is that the harness — not the agent —
+decides each condition. A checker that mis-fires for a shell reason on the maintainer's own platform
+undercuts exactly that guarantee: the agent has to hand-repair the check, which is the manual step
+the envelope exists to remove. Any Windows-hosted mango user hits this the first time a floor check
+needs shell composition.
+
+---
+
 ## SG-2 — `design`'s Assumptions table has no per-call-path denominator
 
 - **phase:** `/mango:design`, step 3 (Assumptions)

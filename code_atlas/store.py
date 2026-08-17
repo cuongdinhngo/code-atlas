@@ -519,6 +519,34 @@ class GraphStore:
             "unlinked": total - int(linked),
         }
 
+    def dependency_edges(self) -> list[tuple[str, str]]:
+        """Distinct resolved dependency pairs ``(source, target)``, self-loops excluded (task 083).
+
+        ``target_qname IS NOT NULL`` keeps resolved edges only: ``ALIASES`` carry ``target_raw``,
+        not ``target_qname``, so they drop out with no kind branch (R1.1). ``GROUP BY`` dedupes;
+        the ``ORDER BY`` is stable for byte-reproducible metrics (R4.2).
+        """
+        cursor = self._conn.execute(
+            "SELECT source_qname, target_qname FROM edges "
+            "WHERE target_qname IS NOT NULL AND source_qname <> target_qname "
+            "GROUP BY source_qname, target_qname "
+            "ORDER BY source_qname, target_qname"
+        )
+        return [(str(source), str(target)) for source, target in cursor]
+
+    def node_universe(self) -> list[tuple[str, str]]:
+        """Every ``(qualified_name, file_path)`` — the node set + qname→module map (task 083).
+
+        A qname can map to more than one file (duplicate/ambiguous decls, ``UNIQUE(qname, path)``);
+        the pure caller (``onboarding.metrics``) dedupes it. Stable ``ORDER BY`` (R4.2).
+        """
+        cursor = self._conn.execute(
+            "SELECT qualified_name, file_path FROM nodes "
+            "GROUP BY qualified_name, file_path "
+            "ORDER BY qualified_name, file_path"
+        )
+        return [(str(qname), str(path)) for qname, path in cursor]
+
     def nodes_by_name(self, name: str, *, kind: str | None = None, limit: int) -> list[Row]:
         """Single-key lookup via the batch path; prefer ``nodes_by_names`` in a loop."""
         return self.nodes_by_names([name], kind=kind, limit=limit).get(name, [])
