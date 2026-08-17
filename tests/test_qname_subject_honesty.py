@@ -147,6 +147,8 @@ def test_no_tool_returns_absence_with_reason_ok(config: Config) -> None:
         find_implementations.create(config)(absent, detail_level="minimal"),
         find_view_data.create(config)(absent, detail_level="minimal"),
         file_outline.create(config)("no/such/file.php"),
+        # An impact answer whose every subject was lost says so too (task 102).
+        impact.create(config)(qnames=[absent], detail_level="minimal"),
     ]
     for payload in payloads:
         empty = payload.get("found") is False or payload.get("results") == []
@@ -160,8 +162,8 @@ def test_impact_seeds_repoint_unique_and_drop_ambiguous(config: Config) -> None:
     with GraphStore(config.db_path) as store:
         assert impact._seeds(
             store, paths=[], qnames=["Ns\\Sub\\Enum"], max_results=50
-        ) == ["\\Ns\\Sub\\Enum"]
-        assert impact._seeds(store, paths=[], qnames=["isEnabled"], max_results=50) == []
+        ).seeds == ["\\Ns\\Sub\\Enum"]
+        assert impact._seeds(store, paths=[], qnames=["isEnabled"], max_results=50).seeds == []
 
 
 def test_explain_path_endpoint_repoints_unique_only(config: Config) -> None:

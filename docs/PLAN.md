@@ -423,9 +423,22 @@ for R4.2. Every caveat owns its own key — `tier` names the **weakest** tier pr
 drop one the way a prose clause can. **Not signed:** the ten tools whose answers are lists of rows
 rather than claims; the exclusion list, with the caveat each would have lost, is in the README.
 **No line is emitted** for an unbuilt index, or for an `impact` answer where no seed resolved — the
-latter because `impact_radius` returns `seeds_dropped = 0` for an empty seed set (`store.py:1009`),
-so the payload cannot tell an absent subject from a genuine zero. Measured cost: **+51 tokens** on
-`impact`, **+46** on `find_callers`; default payloads byte-identical (061).
+latter because a question nothing answered would be signed `answer=0` for a subject the index never
+held, and a claim that cannot be re-run is decoration. (Until task **102** the stated reason was
+different and weaker: `seeds_dropped` was `0` for a lost subject too, so the payload could not tell
+an absent subject from a genuine zero and the guard was covering for the count. The count is honest
+now — the guard is kept on its own merits.) Measured cost: **+51 tokens** on `impact`, **+46** on
+`find_callers`; default payloads byte-identical (061).
+
+**`seeds_dropped` counts every requested subject that produced no seed (task 102).** A qname that is
+absent or resolves to many, a path with no indexed node, and any seed the node budget pruned all
+count — the tool's lost-subject count added to the store's prune count. So `results: []` with
+`seeds_dropped: 0` means a **modelled zero and nothing else**, which is the claim `impact` exists to
+make and a text search cannot. When *every* named subject was lost the answer also carries `reason`
+(`no_such_symbol` / `name_not_qualified` / `not_indexed`, with `candidate_count` / `try_instead`
+where the classifier has them — the same `shape_exact_miss` machinery as 075/076/092). A merged
+multi-subject radius states only the base class it can prove for every subject: it has no per-subject
+reason channel, and inventing one is the batch shape 101 gave `search_symbol`, not this tool.
 
 **Sweeps — one call for a list of subjects (task 101).** *"Are any of these ten names already
 taken?"* was ten calls, so the round-5 field session framed it as a sweep and ran `grep -rn` over two

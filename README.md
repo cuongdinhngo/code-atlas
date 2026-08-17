@@ -215,7 +215,10 @@ code-atlas/1 tool=impact subject="app/Http/A.php,app/B.php,+2" question=blast-ra
 
 `answer=25 seeds=4` says twenty-one things depend on the four changed paths; `answer=4 seeds=4`
 would be the **modelled zero** — the blast radius is the seeds themselves. `seeds_dropped=0` is what
-separates that zero from a query that found nothing because it asked wrong.
+separates that zero from a query that found nothing because it asked wrong: every subject you named
+that produced no seed is counted there, so a non-zero value means the question, not the codebase,
+came up empty. An `impact` answer that lost *every* subject also carries `reason` (and, where the
+classifier has them, `candidate_count` / `try_instead`) rather than an unexplained empty result.
 
 **The line degrades honestly.** Every caveat owns its own key, so a weakening answer cannot quietly
 drop it: `tier=` always names the **weakest** tier present, `index=behind` (with `dirty_indexed=`)
@@ -224,8 +227,9 @@ candidate list, `truncated=true` marks a page rather than a set, and `reason=` r
 the answer is not a plain `ok`.
 
 **When no line is emitted.** An answer over an unbuilt index, and an `impact` answer where no seed
-resolved, carry **no** `claim` — neither can name a revision or a countable subject, and a claim
-that cannot be re-run is decoration. The payload still says so in its own fields.
+resolved, carry **no** `claim` — a question nothing answered would be signed `answer=0` for a subject
+the index never held, and a claim that cannot be re-run is decoration. The payload still says so in
+its own fields: `seeds_dropped` names the loss and `reason` names its kind.
 
 **Cost.** Off by default and byte-identical to today when off. When on, the line costs one extra
 git HEAD read and, measured on a one-symbol answer, **+51 tokens** on `impact` and **+46** on

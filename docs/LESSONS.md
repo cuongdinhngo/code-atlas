@@ -1,5 +1,55 @@
 # Lessons — code-atlas
 
+## 102 — The fix for "a resolvable subject reported as absent" reintroduced it, one argument over
+`seeds_dropped` was documented as the field that separates a modelled zero from a failed query, but
+it was **assigned in exactly one place** — the store's budget prune. A subject the tool could not
+resolve was never counted in any shape, so the ticket's named root cause (the empty-seed early
+return) was the *second* half of the hole; `impact(paths=[a, b])` with `b` unknown also reported `0`
+without that return ever firing. **Then the fix repeated the bug in miniature:** the new `qnames`
+loop guarded `classify_missing_subject`'s `resolved_unique` status and the new `paths` loop did not,
+so a path-slot subject that re-pointed to a real qname (075/076) was counted **lost** and labelled
+`name_not_qualified` with `candidate_count: 1`. Gate 2 had recorded that exact hazard as
+**assumption 3 — verified**; it was verified for the path that existed, and asserted for the path
+the same change added. **Found by the reviewer, not by me**, and confirmed by measurement before it
+was accepted: `qnames=["App\Nope"] → results=2 seeds_dropped=0` beside
+`paths=["App\Nope"] → results=0 seeds_dropped=1 reason=name_not_qualified`.
+
+### 102-C1 — An assumption is verified for the paths that existed when it was checked
+- type: 2 generalisable-heuristic
+- handle: re-verify-the-assumption-on-a-new-path
+- status: proposed (awaiting human confirm)
+- seen: 102
+- evidence: Gate 2 assumption 3 (*"a `resolved_unique` resolution can never reach
+  `_explain_lost_subject`"*) was true of the `qnames` loop it was read against, and false of the
+  `paths` loop the same change introduced. A spike confirmed the mislabelling
+  (`classify('Nope') -> resolved_unique … shape={'reason': 'name_not_qualified'}`) and the design
+  cited that spike as the reason the branch keys on `status` — for one caller
+- area: process / design assumptions
+- destination: `agent_brief_path` (process subject) — recurrence 1, not yet promotable
+
+### 102-C2 — Two call sites consuming one classifier need one shared rule, not two copies
+- type: 2 generalisable-heuristic
+- handle: one-rule-for-every-subject-slot
+- status: proposed (awaiting human confirm)
+- seen: 102
+- evidence: `impact._seeds` grew a second subject slot; the guard was written twice and one copy was
+  wrong. Fixed by a single `take()` both slots call, so they cannot drift apart again. The same
+  shape exists in `read_symbol.py:189` and `find_callers.py:168`, which each branch on
+  `resolution.status == "resolved_unique"` independently
+- area: tools / subject resolution
+- destination: `rulebook_path` (code subject) — recurrence 1, not yet promotable
+
+### 102-C3 — `seeds_dropped` has two producers, and an unknown path has no reason of its own
+- type: 5 project-ground-truth
+- status: proposed (awaiting human confirm)
+- seen: 102
+- evidence: the field now sums `store.impact_radius`'s budget prune (`store.py:1051`) with the
+  tool's lost-subject count (`impact.py`), and the two can never overlap because a dropped subject
+  never enters `ordered_seeds`. A truly unknown **path** reports `no_such_symbol` — true at the
+  class level, not path-specific; `file_outline` has the same gap (`found: false`, no reason), so a
+  path-shaped reason is a surface-wide follow-up, not an impact-only one
+- area: impact / store / tool payloads
+
 ## 100 — A caveat is only as reachable as the payload shape you read it from
 The signed line was built to make a caveat undroppable by giving each one its own key. It then
 dropped one anyway: `get_index_status` sourced `parse_failures` **from the payload**, and that key
@@ -17,7 +67,7 @@ no escape character, so separator backslashes still survive.
 - type: 2 generalisable-heuristic
 - handle: source-the-caveat-from-the-computation
 - status: proposed (awaiting human confirm)
-- seen: 100, 101
+- seen: 100, 101, 102
 - evidence: `CLAIM_CARRY = ("parse_failures",)` read the key off the payload, which only carries it
   at `standard`/`verbose`; the `minimal` line shipped without the caveat while `counts["failed"]`
   was 1. Fixed by sourcing from the computation, not the presentation
@@ -37,7 +87,7 @@ no escape character, so separator backslashes still survive.
 - type: 2 generalisable-heuristic
 - handle: re-run-the-sweep-after-the-last-edit
 - status: proposed (awaiting human confirm)
-- seen: 100, 101
+- seen: 100, 101, 102
 - evidence: the Phase-3 R1.1 sweep was clean; a later commit's **docstring** reintroduced a language
   name in a core module and the gate failed the build. The sweep was honest when run and stale by
   the time it was quoted — and review round 1 could not see it either, since the text post-dated it
@@ -47,7 +97,7 @@ no escape character, so separator backslashes still survive.
 - type: 2 generalisable-heuristic
 - handle: do-not-attest-past-the-payloads-resolution
 - status: proposed (awaiting human confirm)
-- seen: 100, 101
+- seen: 100, 101, 102
 - evidence: `impact_radius` returns `seeds_dropped = 0` for an empty seed set, so an absent subject
   and a genuine modelled zero are indistinguishable in the payload. Rather than fix the count
   in-flight (outside the change list) or sign over it, the answer gets **no line**
@@ -252,7 +302,7 @@ the agent notice. 074’s n = 1 for *legacy→unified port* is unchanged.
 - type: 2 generalisable-heuristic
 - handle: derived-not-listed-invariant
 - status: proposed (awaiting human confirm)
-- seen: 093, 095, 096, 097, 099, 100, 101
+- seen: 093, 095, 096, 097, 099, 100, 101, 102
 - evidence: `tests/test_recognition_probe_protocol.py` parses intended tools from the probe table
   and compares them to `main.TOOL_NAMES`; `test_the_probe_surface_guard_can_actually_fail` injects
   a name the table does not have
@@ -288,7 +338,7 @@ empty. Persist the dict on a **sibling** meta key — `collection_census()` int-
 - type: 2 generalisable-heuristic
 - handle: derived-not-listed-invariant
 - status: proposed (awaiting human confirm)
-- seen: 093, 095, 096, 097, 099, 100, 101
+- seen: 093, 095, 096, 097, 099, 100, 101, 102
 - evidence: `ignore.py` `COMPOSED_IGNORE_FILES` / `composed_source_names()`;
   `tests/test_ignore_bucket_names_its_rule.py::test_composed_source_names_are_derived_and_exclude_retro_keys`
 - area: tests / R1.1
@@ -347,7 +397,7 @@ trap.
 - type: 2 generalisable-heuristic
 - handle: try-instead-tool-name
 - status: confirmed
-- seen: 092, 093, 100, 101
+- seen: 092, 093, 100, 101, 102
 - evidence: `nav_result.py:58-76` (naming rule); `tests/test_try_instead_is_a_callable_tool_name.py`
   (4 failed / 2 passed pre-fix, 6 passed after); field retro round 5 §4, §9 runner-up
 - area: tool payloads / R1.1 / R4
@@ -358,7 +408,7 @@ trap.
 - type: 2 generalisable-heuristic
 - handle: derived-not-listed-invariant
 - status: confirmed
-- seen: 093, 095, 096, 097, 099, 100, 101
+- seen: 093, 095, 096, 097, 099, 100, 101, 102
 - evidence: `tests/test_try_instead_is_a_callable_tool_name.py` reads `vars(nav_result)` +
   `main.TOOL_NAMES`; `test_the_dead_route_guard_can_actually_fail` injects a dead constant;
   095: `composed_source_names()` from `COMPOSED_IGNORE_FILES`
@@ -380,11 +430,17 @@ trap.
 - type: 2 generalisable-heuristic
 - handle: route-must-answer
 - status: confirmed
-- seen: 093, 101
+- seen: 093, 101, 102
 - evidence: `include_graph` → `search_symbol` returned `reason: ok`, `total_count: 2`, includer
-  absent (`store.py:701-714` vs `store.py:90-92`); now hint-only, no route
+  absent (`store.py:701-714` vs `store.py:90-92`); now hint-only, no route. 102: an all-dropped
+  `impact` answer routes through `shape_exact_miss`, so its route is a registered tool that can
+  answer (`search_symbol` / `build_or_update_index`) and never `impact` itself
 - area: tool payloads / 065 / 075 / 076
-- destination: `rulebook_path` (code subject) — recurrence 1, not yet promotable
+- destination: `rulebook_path` (code subject) — recurrence **3**. Per `AGENT_BRIEF.md` **P2**, read
+  the destination first: **R5.4 already carries this substance** (*"(c) be able to answer the
+  question that caused the miss … where no registered tool can answer, emit the hint and no
+  route"*). Propose **widening R5.4's citation** to include this class, not a new rule. For
+  `/mango:promote`, not for a single ticket's finalise
 
 ## 092 — A partition cannot count what never entered the walked set
 `collect()` partitions `git ls-files`. Untracked files are not skipped-by-rule; they are never in

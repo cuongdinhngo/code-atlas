@@ -8,9 +8,14 @@ from pathlib import Path
 
 import pytest
 
-from code_atlas.config import load_config
+from code_atlas.config import Config, load_config
 from code_atlas.store import IMPACT_DECAY, IMPACT_FLOOR, IMPACT_WEIGHTS, GraphStore
 from code_atlas.tools import impact as impact_tool
+from code_atlas.tools.nav_result import (
+    REASON_NAME_NOT_QUALIFIED,
+    REASON_NO_SUCH_SYMBOL,
+    TRY_INSTEAD_SEARCH_SYMBOL,
+)
 
 # Hand-traced scores (A1): seed 1.0; CALLS weight 1.0; EXTENDS 0.9; decay ×0.7.
 SEED = "\\Changed"
@@ -339,3 +344,122 @@ def test_best_score_wins_across_multiple_paths(store: GraphStore) -> None:
     by_qname = {str(r["qname"]): r for r in outcome.rows}
     assert by_qname[target]["score"] == pytest.approx(SCORE_CALLER)
     assert by_qname[target]["depth"] == 1
+
+
+# --- 102: an absent subject is a dropped seed, never a modelled zero -------------------------
+
+ABSENT = "\\App\\Nope"
+
+
+def configured(tmp_path: Path, **overrides: object) -> Config:
+    return replace(load_config(tmp_path, {}), db_path=tmp_path / "graph.db", **overrides)
+
+
+def test_absent_subject_and_modelled_zero_differ_on_seeds_dropped(
+    store: GraphStore, tmp_path: Path
+) -> None:
+    """AC1/AC2 (proving test) — the one number that tells a failed query from a modelled zero.
+
+    Before task 102 both answers reported ``seeds_dropped: 0``, so the strongest claim this tool
+    makes was indistinguishable from its weakest. They must now differ on the same fixture.
+    """
+    plant_graph(store)
+    tool = impact_tool.create(configured(tmp_path))
+
+    absent = tool(qnames=[ABSENT], depth=1)
+    modelled_zero = tool(qnames=[GRAND], depth=1)
+
+    assert absent["results"] == []
+    assert absent["seeds_dropped"] == 1
+    assert absent["reason"] == REASON_NO_SUCH_SYMBOL
+    assert [str(r["qname"]) for r in modelled_zero["results"]] == [GRAND]
+    assert modelled_zero["seeds_dropped"] == 0
+    # The common answer is untouched: no reason, no new key (061).
+    assert "reason" not in modelled_zero
+    assert absent["seeds_dropped"] != modelled_zero["seeds_dropped"]
+
+
+def test_partial_loss_counts_the_seed_that_was_lost(
+    store: GraphStore, tmp_path: Path
+) -> None:
+    """AC3 — one subject resolves and one does not, in both subject shapes."""
+    plant_graph(store)
+    tool = impact_tool.create(configured(tmp_path))
+
+    by_qname = tool(qnames=[SEED, ABSENT], depth=1)
+    by_path = tool(paths=["a.php", "no/such/file.php"], depth=0)
+
+    assert by_qname["results"] and by_qname["seeds_dropped"] == 1
+    assert by_path["results"] and by_path["seeds_dropped"] == 1
+    # A partial answer still answers, so it keeps the common shape.
+    assert "reason" not in by_qname and "reason" not in by_path
+
+
+def test_a_path_subject_that_resolves_uniquely_is_a_seed_not_a_drop(
+    store: GraphStore, tmp_path: Path
+) -> None:
+    """Review finding 1 — both subject slots treat a resolvable subject the same way.
+
+    ``classify_missing_subject`` re-points an under-anchored subject (075/076), and it is reached
+    from the ``paths`` slot too. Counting what it resolved as *lost* would re-create, inside this
+    fix, the very defect the fix removes.
+    """
+    plant_graph(store)
+    tool = impact_tool.create(configured(tmp_path))
+
+    by_path = tool(paths=["Changed"], depth=1)
+    by_qname = tool(qnames=["Changed"], depth=1)
+
+    assert by_path["seeds_dropped"] == 0
+    assert "reason" not in by_path
+    assert SEED in {str(r["qname"]) for r in by_path["results"]}
+    # The same subject, whichever argument carried it.
+    assert by_path["results"] == by_qname["results"]
+
+
+def test_budget_pruned_and_lost_seeds_are_summed(store: GraphStore, tmp_path: Path) -> None:
+    """R1 — the tool's lost-subject count is ADDED to the store's budget-prune count."""
+    plant_graph(store)
+    tool = impact_tool.create(configured(tmp_path, impact_max_nodes=1))
+
+    payload = tool(qnames=[SEED, CALLER, CHILD, ABSENT], depth=0)
+
+    # 3 resolved seeds against a store budget of 2 prunes one; the 4th never resolved.
+    assert payload["seeds_dropped"] == 2
+
+
+def test_two_lost_subjects_carry_only_the_class_the_payload_can_prove(
+    store: GraphStore, tmp_path: Path
+) -> None:
+    """A merged radius has no per-subject reason channel, so it states the base class only."""
+    plant_graph(store)
+    tool = impact_tool.create(configured(tmp_path))
+
+    payload = tool(qnames=[ABSENT, "\\App\\AlsoNope"], depth=1)
+
+    assert payload["seeds_dropped"] == 2
+    assert payload["reason"] == REASON_NO_SUCH_SYMBOL
+    assert "candidate_count" not in payload
+
+
+def test_an_under_qualified_lost_subject_names_its_candidates(
+    store: GraphStore, tmp_path: Path
+) -> None:
+    """W1/R2 — the empty answer routes the reader out, reusing 075/076's classification."""
+    path = "u.php"
+    seed_file(
+        store,
+        path,
+        [
+            node("Method", "isEnabled", "\\A::isEnabled", path),
+            node("Method", "isEnabled", "\\B::isEnabled", path),
+        ],
+        [],
+    )
+    payload = impact_tool.create(configured(tmp_path))(qnames=["isEnabled"], depth=1)
+
+    assert payload["results"] == []
+    assert payload["seeds_dropped"] == 1
+    assert payload["reason"] == REASON_NAME_NOT_QUALIFIED
+    assert payload["candidate_count"] == 2
+    assert payload["try_instead"] == TRY_INSTEAD_SEARCH_SYMBOL

@@ -7,6 +7,46 @@ Each entry names the phase, what it did, what it could have done instead, and th
 
 ---
 
+## SG-2 — `design`'s Assumptions table has no per-call-path denominator
+
+- **phase:** `/mango:design`, step 3 (Assumptions)
+- **observed:** 2026-08-16, code-atlas, task 102
+- **status:** open
+
+**What it does.** Requires every assumption to be tagged `verified | novel-untested`, and every
+`novel-untested` third-party/runtime one to be resolved by a spike or by an integration-shaped
+proving test. Task 102 did exactly that: a spike was run, its output pasted, and the assumption
+tagged `verified`.
+
+**What it misses.** An assumption is verified **against a call path**, and the step records no
+denominator for how many call paths the change will have. Task 102's assumption 3 —
+*"a `resolved_unique` resolution can never reach the miss-explainer"* — was true of the one loop that
+existed and false of the second loop the same change added. The spike output even showed the
+mislabelling that would occur (`classify('Nope') -> resolved_unique … 'reason': 'name_not_qualified'`)
+and was cited as the reason the guard keys on `status` — for one caller. The tag read `verified` for
+the change as a whole.
+
+**The incident.** The reviewer found it: `impact(qnames=["App\Nope"])` returned `results=2
+seeds_dropped=0` while `impact(paths=["App\Nope"])` returned `results=0 seeds_dropped=1
+reason=name_not_qualified` — a resolvable subject reported as absent, which is the defect class the
+ticket was opened to remove, reintroduced inside its own fix. Every gate before review passed:
+`diff ⊆ approved list`, design-conformance clean on all five approach bullets, 5/5 new guards
+observed failing first, full suite green.
+
+**A doable check the step could name.** When an assumption is about a **code path** (*"X can never
+reach Y"*), enumerate the call paths that will consume the assumption **after** the change — the
+change list already names them — and record the assumption as `verified k/N paths`. Task 102's would
+have read `1/2` and blocked. This needs no new tooling: the change list and the blast-radius trace
+are already in front of the phase.
+
+**Why it matters beyond one repo.** A `verified` tag on an assumption is one of the few things later
+phases do not re-derive — review re-checks scope and behaviour, not the Assumptions table — so a
+half-verified assumption travels all the way to the reviewer, who is the last line rather than a
+second line. Here the reviewer caught it; a run with the challenger waived and a less thorough
+reviewer would have shipped it.
+
+---
+
 ## SG-1 — `promote` step 4 checks for the *class*, not for the *substance*
 
 - **phase:** `/mango:promote`, step 4 (idempotency)

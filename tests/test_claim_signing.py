@@ -150,15 +150,16 @@ def test_impact_modelled_zero_is_signed_with_subject_question_answer_and_revisio
 
 
 def test_impact_refuses_to_sign_an_answer_whose_subject_never_resolved(tmp_path: Path) -> None:
-    """C5 — ``seeds_dropped`` stays 0 when no seed resolves, so the payload cannot tell an absent
-    subject from a genuine zero. An answer that would lose that caveat gets no line."""
+    """C5, revised by task 102 — the payload now tells the two apart (``seeds_dropped: 1``), and
+    the refusal survives on its own reason: a question nothing answered would be signed
+    ``answer=0`` for a subject the index never held."""
     db_path = indexed_repo(tmp_path)
     config = configured(tmp_path, db_path)
     real = impact.create(config)(qnames=[SUBJECT], sign=True)
     absent = impact.create(config)(qnames=["\\App\\Nope"], sign=True)
 
     assert CLAIM_KEY in real  # positive control: signing does happen on this fixture
-    assert absent["results"] == [] and absent["seeds_dropped"] == 0
+    assert absent["results"] == [] and absent["seeds_dropped"] == 1
     assert CLAIM_KEY not in absent
 
 
