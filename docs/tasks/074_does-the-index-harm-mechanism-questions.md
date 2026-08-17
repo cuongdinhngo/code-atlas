@@ -4,7 +4,7 @@ slug: does-the-index-harm-mechanism-questions
 title: 'The one repeated benchmark cell says the index may make control-flow answers worse — resolve it at n ≥ 3'
 phase: 1.5b
 milestone: Measure
-status: in-progress
+status: blocked
 depends_on: [055, 067, 045]
 ---
 
@@ -299,8 +299,10 @@ The PR is framed as a pre-registered protocol, not a resolved measurement. No be
 ## Session status
 - **Phase:** finalise — **pre-registration shipped (PR #93)**; runs + §19/README decision **deferred**
   (maintainer chose to stop after prep).
-- **Ticket state:** `in-progress` — the measurement ACs (AC1-back/AC2/AC3/AC4) remain open for a
-  future cycle when the anchor-repo runs are done; the pre-registration is banked and git-timestamped.
+- **Ticket state:** `blocked` (2026-08-17) — parked awaiting the maintainer's anchor-repo runs. Nothing
+  in-repo can advance it; field retros do not substitute for a run (see the field-observations note).
+  The measurement ACs (AC1-back/AC2/AC3/AC4) remain open for a future cycle; the pre-registration is
+  banked and git-timestamped.
 - **To resume:** run ≥6 cells (2 arms × n≥3) on the anchor repo per
   `docs/benchmarks/074_mechanism-question.md`, fill its results table, then score → apply the selected
   pre-registered outcome to PLAN §19 + README → decide R5.
