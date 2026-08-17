@@ -94,7 +94,7 @@ adapter contract. Everywhere else, prefer the simplest thing that works.
   *data* errors (one weird source file). Don't confuse the two.
 - **R5.4 — A field the reader is expected to act on holds one register; prose gets a sibling field.**
   `PROVISIONAL (awaiting ratification)` — promoted from `LESSONS.md` `093-C1` (handle
-  `try-instead-tool-name`, seen 092, 093). When a payload field carries a value the reader is meant to
+  `try-instead-tool-name`, seen 092, 093, 100, 101, 102). When a payload field carries a value the reader is meant to
   *execute* — a route, a tool name, an identifier — **every** value of that field must be machine-checkable
   as that kind, and the qualifier saying *how* to re-ask goes in a named sibling (`try_instead` /
   `try_instead_hint`). One prose value makes the whole field ambiguous, not just itself: the reader cannot
@@ -103,8 +103,27 @@ adapter contract. Everywhere else, prefer the simplest thing that works.
   self-route loops for the mechanical reader the field exists for, and (c) be able to answer the question
   that caused the miss. **Where no registered tool can answer, emit the hint and no route:** naming a tool
   that cannot answer is worse than naming none, because the reader spends a call and gets a confident wrong
-  answer. *Falsifier:* a route constant whose value is not in the registry, or an emitter whose
-  `try_instead` equals its own tool name — the enumeration test fails.
+  answer. *Falsifier:* a route constant whose value is not in the registry, an emitter whose
+  `try_instead` equals its own tool name — the enumeration test fails — or a route that cannot answer the
+  question that caused the miss: call the routed tool on the subject that missed and it returns `reason: ok`
+  while the thing the reader was looking for is still absent (clause (c), handle `route-must-answer`,
+  `LESSONS.md` `093-C4`, seen 093, 101, 102).
+
+- **R5.5 — A reported value is sourced from the computation that owns the whole fact.**
+  `PROVISIONAL (awaiting ratification)` — promoted from `LESSONS.md` `100-C1` (handle
+  `source-the-caveat-from-the-computation`, seen 100, 101, 102) by the `/mango:promote` run of
+  2026-08-16. When a surface — a payload field, a signed claim line, a summary — reports a count or a
+  caveat, read it from the computation that owns the **entire** fact the field names, never from a
+  producer whose scope is narrower than the field's documented meaning. Two ways this breaks: the source
+  carries the value only at some **detail levels**, or the source computes it only for some of the
+  **cases** the field's name covers. Both ship a value that is honest about its source and false about
+  its subject. *Falsifier:* a field whose producers, enumerated by grep, cover fewer cases than its name
+  or docstring claims — or a caveat present at one detail level and absent at another for the same
+  underlying fact. Measured twice: `CLAIM_CARRY = ("parse_failures",)` read the key off a payload that
+  only carries it at `standard`/`verbose`, so the `minimal` line shipped without the caveat while
+  `counts["failed"]` was 1 (100); and `seeds_dropped` was assigned in exactly one place — the store's
+  budget prune — while documented as the field that names every dropped seed, so a subject the tool
+  could not resolve was never counted at all (102).
 
 ## 6. Testing (definition of done)
 
@@ -124,7 +143,7 @@ adapter contract. Everywhere else, prefer the simplest thing that works.
   own documentation is not this repo's source, and greps a framework name inside one. The exclusion
   itself needs a test asserting the sweep is still non-empty; a filter that swallows the authored files
   restores the 0/0 vacuity the guard existed to remove. **This generalises to every guard, not only a
-  sweep** (handle `prove-the-guard-fails`, `LESSONS.md` `093-C3`, seen 093, 096, 099): a guard ships
+  sweep** (handle `prove-the-guard-fails`, `LESSONS.md` `093-C3`, seen 093, 096, 099, 100, 101): a guard ships
   only once it has been *observed failing* — run it against the shape it forbids (the pre-fix code, a
   sabotaged input, an injected invalid member) and record what failed. *Falsifier:* a guard test whose
   PR claims a defect class is prevented with no recorded red run — cf. the dead-route guard that
@@ -138,7 +157,7 @@ adapter contract. Everywhere else, prefer the simplest thing that works.
   argument is reviewable. `php -l` does **not** satisfy this; it catches syntax, not types.
 - **R6.7 — A guard that needs "every valid X" derives the set; it never lists it.**
   `PROVISIONAL (awaiting ratification)` — promoted from `LESSONS.md` `093-C2` + `095-C1` + `097-C1`
-  (handle `derived-not-listed-invariant`, seen 093, 095, 096, 097, 099). When a test or a payload
+  (handle `derived-not-listed-invariant`, seen 093, 095, 096, 097, 099, 100, 101, 102). When a test or a payload
   needs the set of all valid members — tool names, ignore-source keys, reason codes — it derives that
   set from the definition site
   (a module namespace, a registry, the composition that builds it) rather than re-typing the members. A

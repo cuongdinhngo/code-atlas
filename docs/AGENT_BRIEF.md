@@ -49,7 +49,8 @@ diff.
 
 ## P3 — Record a deviation from the ticket text as a deviation, in the ticket
 
-`PROVISIONAL (awaiting ratification)` — from 099, 2026-08-15.
+`PROVISIONAL (awaiting ratification)` — from 099, 2026-08-15. Handle
+`record-the-deviation-as-a-deviation` (`LESSONS.md` `PROM-C3`, seen promote-2026-08-15, 101).
 
 A ticket is written at a point in time and the code moves under it. When shipping something the
 ticket's own words contradict, say so in the Resolution — what the ticket said, what shipped, and
@@ -63,6 +64,29 @@ had since changed that to `not_indexed`, so the shipped line says `not_indexed` 
 
 **Falsifier.** A diff that contradicts a quoted ticket requirement with no deviation note in the
 working doc.
+
+## P4 — A quoted gate result names the commit it was run at, and that commit is the last one
+
+`PROVISIONAL (awaiting ratification)` — promoted from `LESSONS.md` `100-C3` (handle
+`re-run-the-sweep-after-the-last-edit`, seen 100, 101, 102) by the `/mango:promote` run of 2026-08-16.
+
+A sweep, grep-gate or suite run is evidence about **one commit**, never about a ticket. Before quoting
+one as done — in a working doc, a PR body, or a cost ledger — re-run it after the **final** edit,
+including a docs-only or bookkeeping commit, and record the SHA it describes beside the count.
+
+**Why it costs.** The claim is honest when measured and false when read, and no reviewer can catch it:
+the text that breaks it post-dates the review. Measured three times. In **100** the Phase-3 R1.1 sweep
+was clean and a later commit's *docstring* reintroduced a language name in a core module, failing the
+build. In **101** the delta-green claim was *"true when it was measured and stale when it was
+committed"* — the docs commit flipped `status: todo → done` in both places, which is exactly what arms
+`test_backlog_bookkeeping.py::test_a_finished_task_records_what_it_cost`, and that test then demanded a
+Token-usage row that did not exist yet; the class had been recalled at refine and judged *"does not
+apply"*, and it was the one that fired. In **102** the ordering was built around it up front and the
+gate re-ran at the final SHA — no incident.
+
+**Falsifier.** A working doc, PR body or ledger quoting a gate result whose recorded SHA is not the
+branch tip — or quoting a count with no SHA at all, which is the same failure with the evidence
+removed.
 
 ---
 

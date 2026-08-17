@@ -66,12 +66,18 @@ no escape character, so separator backslashes still survive.
 ### 100-C1 — A value read from a payload inherits that payload's most minimal shape
 - type: 2 generalisable-heuristic
 - handle: source-the-caveat-from-the-computation
-- status: proposed (awaiting human confirm)
+- status: confirmed — **not retired** on promotion (2026-08-16), so recall keeps surfacing the handle
+  and R5.5 stays reachable by the recalled-handle route, not only by change type
 - seen: 100, 101, 102
 - evidence: `CLAIM_CARRY = ("parse_failures",)` read the key off the payload, which only carries it
   at `standard`/`verbose`; the `minimal` line shipped without the caveat while `counts["failed"]`
-  was 1. Fixed by sourcing from the computation, not the presentation
+  was 1. Fixed by sourcing from the computation, not the presentation. 102: `seeds_dropped` was
+  assigned in exactly one place — the store's budget prune — while documented as the field naming
+  every dropped seed, so the same principle diagnosed a pre-existing defect
 - area: tool payloads / claim signing
+- destination: `rulebook_path` — **promoted 2026-08-16** to `docs/ENGINEERING_RULES.md` **R5.5**,
+  tagged `PROVISIONAL (awaiting ratification)`, widened at promotion to cover both breaks (narrow by
+  detail level, narrow by case). Re-runs of `/mango:promote` must skip this class
 
 ### 100-C2 — When an artifact exists to be re-checked, a lossy repair is worse than the corruption
 - type: 2 generalisable-heuristic
@@ -86,12 +92,16 @@ no escape character, so separator backslashes still survive.
 ### 100-C3 — A grep-gate sweep is per-commit, not per-ticket
 - type: 2 generalisable-heuristic
 - handle: re-run-the-sweep-after-the-last-edit
-- status: proposed (awaiting human confirm)
+- status: confirmed — **not retired** on promotion (2026-08-16), same reason as `100-C1`
 - seen: 100, 101, 102
 - evidence: the Phase-3 R1.1 sweep was clean; a later commit's **docstring** reintroduced a language
   name in a core module and the gate failed the build. The sweep was honest when run and stale by
   the time it was quoted — and review round 1 could not see it either, since the text post-dated it
 - area: process / verification sweep
+- destination: `agent_brief_path` (process subject) — **promoted 2026-08-16** to
+  `docs/AGENT_BRIEF.md` **P4**, tagged `PROVISIONAL (awaiting ratification)`. Two real failures (100,
+  101) against one binding (102); in 101 it had been recalled and judged *"does not apply"* and was
+  the one that fired. Re-runs of `/mango:promote` must skip this class
 
 ### 100-C4 — Do not sign what the payload cannot distinguish
 - type: 2 generalisable-heuristic
@@ -102,6 +112,12 @@ no escape character, so separator backslashes still survive.
   and a genuine modelled zero are indistinguishable in the payload. Rather than fix the count
   in-flight (outside the change list) or sign over it, the answer gets **no line**
 - area: impact / claim signing
+- destination: `rulebook_path` — **promotion rejected 2026-08-16**: recurrence 3, but **all three
+  sightings are the class binding a design (100, 101, 102) and none is the defect recurring** — the
+  same shape as `094-C1`'s rejection of 2026-08-15 (*"load-bearing twice but has failed only once"*).
+  Note also that 102 **removed this claim's cited evidence** by making the payload distinguish the two
+  cases, so the guard it argued for now stands on a different reason. Re-propose on a real failure —
+  a signed line that asserts something its own payload cannot tell apart
 
 ### 100-C5 — impact seeds are returned inside `results`, so a bare count is ambiguous
 - type: 5 project-ground-truth
@@ -436,11 +452,10 @@ trap.
   `impact` answer routes through `shape_exact_miss`, so its route is a registered tool that can
   answer (`search_symbol` / `build_or_update_index`) and never `impact` itself
 - area: tool payloads / 065 / 075 / 076
-- destination: `rulebook_path` (code subject) — recurrence **3**. Per `AGENT_BRIEF.md` **P2**, read
-  the destination first: **R5.4 already carries this substance** (*"(c) be able to answer the
-  question that caused the miss … where no registered tool can answer, emit the hint and no
-  route"*). Propose **widening R5.4's citation** to include this class, not a new rule. For
-  `/mango:promote`, not for a single ticket's finalise
+- destination: `rulebook_path` — **folded into R5.4 on 2026-08-16** rather than promoted as a new
+  rule; **not retired** (retire declined 2026-08-16, as for `100-C1` / `100-C3`). Per `AGENT_BRIEF.md` **P2** the substance was already in R5.4 clause (c), but the rule's
+  *falsifier* tested only clauses (a) and (b) — so the class was stated and unenforceable. R5.4's
+  falsifier now covers (c) and cites this handle. Re-runs of `/mango:promote` must skip this class
 
 ## 092 — A partition cannot count what never entered the walked set
 `collect()` partitions `git ls-files`. Untracked files are not skipped-by-rule; they are never in
