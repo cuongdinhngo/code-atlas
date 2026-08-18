@@ -19,8 +19,8 @@ what landed, and what it cost* — narrative rationale lives in those three.
 | 102 | [`impact` reports `seeds_dropped: 0` for a subject it never found](tasks/102_impact-cannot-tell-an-absent-subject-from-a-zero.md) | Agent-fit | done | 017, 100 |
 | 083 | [Onboarding — deterministic graph-metrics foundation](tasks/083_onboarding-graph-metrics.md) | Phase 3 / M10 | done | 014, 031, 017 |
 | 084 | [Onboarding — architectural layer assignment](tasks/084_onboarding-layer-assignment.md) | Phase 3 / M10 | done | 083 |
-| 103 | [Onboarding — layer granularity: strip common prefix, group by top segment](tasks/103_onboarding-layer-granularity.md) | Phase 3 / M10 | done (F1 known — see 104) | 084 |
-| 104 | [Onboarding — fix the layer collapse (F1): group beneath the dominant subtree](tasks/104_onboarding-layer-signal.md) | Phase 3 / M10 | todo | 103 |
+| 103 | [Onboarding — layer granularity: strip common prefix, group by top segment](tasks/103_onboarding-layer-granularity.md) | Phase 3 / M10 | done | 084 |
+| 104 | [Onboarding — fix the layer collapse (F1): group beneath the dominant subtree](tasks/104_onboarding-layer-signal.md) | Phase 3 / M10 | blocked | 103 |
 | 085 | [Onboarding — Summarizer Protocol seam + deterministic default](tasks/085_onboarding-summarizer-seam.md) | Phase 3 / M10 | todo | 083 |
 | 086 | [Onboarding — architecture_overview tool](tasks/086_architecture-overview-tool.md) | Phase 3 / M10 | todo | 084, 085, 104 |
 | 087 | [Onboarding — guided_tour tool](tasks/087_guided-tour-tool.md) | Phase 3 / M11 | todo | 083, 086 |
@@ -56,6 +56,11 @@ undeclared, a cheaper alternative rejected in writing — is written into the ti
 **074's core needs the anchor repo** — the pre-registered protocol has landed and round 5 is its
 **n = 1** (session type *legacy→unified port*; verdict **helped, narrowly** — downgraded by the
 interview's §6.5 retraction; see the ticket).
+
+**104 fixes 103's shipped F1 collapse** (the dominant-subtree grouping) and its C1 implementation +
+AC1/AC3/AC4 have landed, but it is **`blocked` on AC2** — the real anchor-repo proof, which is the
+point of the ticket — until an anchor-repo indexing session validates the layer assignment. **086
+must not start until AC2 clears** (086 depends on 104).
 
 **Then:** Phase 3 onboarding (083 → 091; M10 → M11 → M12) or Phase 2 language breadth — both are
 unblocked by Phase 1.5; breadth stays deferred per §19.
@@ -381,6 +386,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | 083 | **65.4k dispatch, measured** — `mango:reviewer` r1 65.4k (30 tool-uses, 233 s) → LGTM, no findings. Challenger **waived by `--no-challenger`**; refine exposure-checker (refine self-skipped, 0 unresolved) and analysis Explore fan-out (done in the main loop) **not dispatched**, disclosed. Main-loop unmeasured (host does not surface usage). Docker delta-green (`main` baseline **1268** → branch **1283**, +15: 11 authored tests + 4 from the two per-module R1.1 sweeps; none removed). Second `/mango:autorun` run in this repo | [#120](https://github.com/cuongdinhngo/code-atlas/pull/120) |
 | 084 | **124.4k dispatch, measured** — `mango:reviewer` r1 **74.0k** (32 tool-uses, 297 s) → LGTM, no findings + `mango:challenger` **50.4k** (22 tool-uses, 170 s) → 9 met / 1 recorded-exclusion (AC1(b) anchor manual check). Challenger **ON** (default). refine self-skipped (0 unresolved) → exposure-checker not dispatched; analysis Explore fan-out done in the main loop; no extractor — disclosed. Main-loop unmeasured (host does not surface usage). Docker delta-green (full gate **1291 passed**, mypy 44 files, ruff clean; scoped baseline 103→111). Third `/mango:autorun` run in this repo | [#121](https://github.com/cuongdinhngo/code-atlas/pull/121) |
 | 103 | **175.4k dispatch, all measured** — refine exposure-checker (ticket-blind challenger) **38.9k** (3 tool-uses, 103 s) → raised 5 items → 3 product-decisions (2 ASSUMED, delegated by the maintainer); `mango:reviewer` r1 **77.1k** (22 tool-uses, 295 s) → **LGTM**, no findings; `mango:challenger` **59.5k** (13 tool-uses, 259 s) → 8 met / 2 not-met on tested deliverables (AC1 rank assertion + AC4(c) lone-module test — both **fixed**) / 1 ambiguity (AC5 wording — **reconciled**). Challenger **ON** (default); refine did **NOT** self-skip (first autorun here where it exposed real product-decisions). Verify-only re-review in the main loop (fixes stayed in the named findings). Main-loop unmeasured (host does not surface usage). Docker delta-green (full gate **1299 passed**, mypy 44 files, ruff clean; scoped baseline 100→106). Fourth `/mango:autorun` run in this repo | [#122](https://github.com/cuongdinhngo/code-atlas/pull/122) |
+| 104 | **91.8k dispatch, measured** — `mango:reviewer` r1 **91.8k** (21 tool-uses, 401 s) → **LGTM**, no Critical/Important + 1 non-blocking observation (byte-stability test could not observe order-dependence past `_grain`'s sort) **acted on** (commit `bf1bea2`: a determinism probe at the `assign_layers` boundary on a count-tie fixture). Challenger **waived by `--no-challenger`** (0); refine **self-skipped** (0 unresolved — 104 pre-decides the signal) → no exposure-checker; analysis Explore fan-out done in the main loop — disclosed. Main-loop unmeasured (host does not surface usage). Docker delta-green (full gate **1308 passed, 0 failed**; `main` was **red** — 2 bookkeeping failures from 103's unparseable status cell, fixed here; +6 onboarding tests, none removed). Fifth `/mango:autorun` run. **Ticket `blocked` on AC2** (anchor-repo proof outstanding — recorded exclusion) | [#123](https://github.com/cuongdinhngo/code-atlas/pull/123) |
 
 **How 047–049 were measured.** One autonomous session, no per-task transcript: each row is the API
 calls between the previous commit and that task's own commit. The approximation runs one way — work
