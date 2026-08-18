@@ -194,7 +194,7 @@ provenance (`db_path` on `get_index_status` / build reports only after 061). Eve
 | `explain_path` | shortest control-flow path between two symbols |
 | `architecture_overview` | this repo's layers, their degrees and the crossings between them; every list capped at `CA_MAX_RESULTS`, `verbose` pages the per-module rows with `offset` (onboarding) |
 | `guided_tour` | dependency-ordered reading list of files, cycle-safe via SCC condensation; a component no entry point reaches is re-seeded, not dropped; walk bounded by `CA_IMPACT_MAX_NODES`, page capped at `CA_MAX_RESULTS` with `offset` (onboarding) |
-| `generate_onboarding` | write committable markdown (overview · tour · per-module) plus `manifest.json` under `docs/onboarding/`; removes only the pages its own last manifest recorded and refuses a tree it did not write; regenerable cache under `.code-atlas/onboarding/`; tour/pages bounded by `CA_IMPACT_MAX_NODES` (onboarding) |
+| `generate_onboarding` | write committable markdown (overview · tour · per-module) plus `manifest.json` and a self-contained `index.html` viewer under `docs/onboarding/` (offline, theme-aware, repo text escaped so a path cannot inject markup, `<noscript>` fallback); removes only the pages its own last manifest recorded and refuses a tree it did not write; regenerable cache under `.code-atlas/onboarding/`; tour/pages bounded by `CA_IMPACT_MAX_NODES` (onboarding) |
 
 ### Signing a claim — `sign: true` (opt-in, off by default)
 

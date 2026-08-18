@@ -32,6 +32,7 @@ OUTPUT_DIR = "docs/onboarding"
 OVERVIEW_NAME = "overview.md"
 TOUR_NAME = "tour.md"
 MANIFEST_NAME = "manifest.json"
+VIEWER_NAME = "index.html"
 PAGES_DIR = "modules"
 CACHE_DIR = ".code-atlas/onboarding"
 CACHE_NAME = "artifact.json"
@@ -43,6 +44,7 @@ __all__ = [
     "OVERVIEW_NAME",
     "PAGES_DIR",
     "TOUR_NAME",
+    "VIEWER_NAME",
     "H_CROSSINGS",
     "H_IN_TOUR",
     "H_LAYER",
@@ -414,6 +416,7 @@ def manifest_dict(artifact: OnboardingArtifact) -> dict[str, object]:
         ],
         "tour": TOUR_NAME,
         "truncated": artifact.truncated,
+        "viewer": VIEWER_NAME,
     }
 
 

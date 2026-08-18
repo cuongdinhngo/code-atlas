@@ -1,8 +1,8 @@
-"""``generate_onboarding`` — write committable onboarding docs from the graph (task 088, M11).
+"""``generate_onboarding`` — write committable onboarding docs from the graph (task 088/089, M11).
 
 Presentation + IO. Enrichment is ``onboarding.artifact`` composing 083–087; this module reads the
-store, writes markdown + manifest under ``docs/onboarding/``, and a regenerable cache under
-``.code-atlas/onboarding/``. No SQL here, no LLM, no language branch (R1.1/R1.4/R4).
+store, writes markdown, manifest, and a self-contained ``index.html`` under ``docs/onboarding/``,
+and a regenerable cache under ``.code-atlas/onboarding/``. No SQL, no LLM, no language branch.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from code_atlas.onboarding.artifact import (
     OVERVIEW_NAME,
     PAGES_DIR,
     TOUR_NAME,
+    VIEWER_NAME,
     OnboardingArtifact,
     build_artifact,
     cache_json,
@@ -30,6 +31,7 @@ from code_atlas.onboarding.artifact import (
     render_tour,
 )
 from code_atlas.onboarding.summary import StructuralSummarizer, Summarizer
+from code_atlas.onboarding.viewer import render_viewer
 from code_atlas.store import GraphStore
 from code_atlas.tools.nav_result import (
     REASON_NO_MATCHES,
@@ -55,7 +57,9 @@ def create(
         """Write committable onboarding docs for this repo — overview, tour, and per-module pages.
 
         Reads the index and writes markdown plus a ``manifest.json`` under ``docs/onboarding/``
-        so a human (or the 089 viewer) can review the map in git. Regenerating rewrites this
+        so a human (or the 089 viewer) can review the map in git. Also writes ``index.html`` —
+        one self-contained page that embeds the same facts, so it opens offline with no
+        server and no fetch. Regenerating rewrites this
         tool's own files and removes only the module pages its last ``manifest.json`` recorded —
         a hand-authored file in that tree is left alone, and a tree holding these names without
         that manifest is refused rather than overwritten. A regenerable cache of the
@@ -114,7 +118,7 @@ def _refuse_foreign_tree(out: Path) -> None:
     """Our filenames without our manifest mean somebody else owns this tree (050)."""
     if (out / MANIFEST_NAME).is_file():
         return
-    for name in (OVERVIEW_NAME, TOUR_NAME):
+    for name in (OVERVIEW_NAME, TOUR_NAME, VIEWER_NAME):
         if (out / name).exists():
             raise ValueError(
                 f"refusing to overwrite {OUTPUT_DIR}/{name}: no {MANIFEST_NAME}, so this "
@@ -152,6 +156,7 @@ def _write(root: Path, artifact: OnboardingArtifact) -> tuple[str, ...]:
         OVERVIEW_NAME: render_overview(artifact),
         TOUR_NAME: render_tour(artifact),
         MANIFEST_NAME: manifest_json(artifact),
+        VIEWER_NAME: render_viewer(artifact),
     }
     for name, text in files.items():
         (out / name).write_text(text, encoding="utf-8", newline="\n")

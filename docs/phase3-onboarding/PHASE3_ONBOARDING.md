@@ -86,7 +86,7 @@ A dependency-ordered walk and committable onboarding docs, plus a small offline 
 |----|------|
 | 087 | The `guided_tour` tool — topological walk seeded from entry points, cycle-safe via SCC condensation (**SCC lands here**). |
 | 088 | `generate_onboarding` — emit committable markdown (overview · tour · per-module) + a `manifest.json`. |
-| 089 | Static HTML viewer — one self-contained, theme-aware file reading the manifest; no server, no external deps. |
+| 089 | Static HTML viewer — one self-contained, theme-aware file reading the manifest; no server, no external deps. **Shipped:** `docs/onboarding/index.html` emitted by `generate_onboarding`; payload embedded (no `file://` fetch). |
 
 **Decision points — M11:**
 - **Artifact location** — **locked by 088:** markdown + `manifest.json` committed under

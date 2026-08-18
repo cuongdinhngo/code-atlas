@@ -54,10 +54,11 @@ code-atlas/
   names lower-cased without the `CA_` prefix, plus an `[adapter_cmd]` table whose values are a
   complete argv, as a string or a list of words); DB at
   `<repo>/.code-atlas/graph.db`; ignore file `.codeatlasignore`; onboarding markdown +
-  `manifest.json` under `<repo>/docs/onboarding/` (committed); regenerable onboarding cache
-  under `<repo>/.code-atlas/onboarding/` (gitignored with the rest of `.code-atlas/`). The
-  committed tree is owned by its `manifest.json`: regeneration removes only the pages that
-  manifest lists, so a hand-authored file there is safe.
+  `manifest.json` + self-contained `index.html` viewer under `<repo>/docs/onboarding/`
+  (committed); regenerable onboarding cache under `<repo>/.code-atlas/onboarding/`
+  (gitignored with the rest of `.code-atlas/`). The committed tree is owned by its
+  `manifest.json`: regeneration removes only the pages that manifest lists, so a
+  hand-authored file there is safe.
 - **Task files:** `docs/tasks/NNN_slug.md`, zero-padded 3-digit id, `kebab-case` slug (`014_search-read-outline.md`).
 
 ## 3. The contract vocabulary (fixed spelling — do not vary)
