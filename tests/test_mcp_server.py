@@ -40,6 +40,7 @@ from code_atlas.tools.find_orphans import NAME as ORPHANS
 from code_atlas.tools.find_references import NAME as REFS
 from code_atlas.tools.find_view_data import NAME as VIEW_DATA
 from code_atlas.tools.get_index_status import NAME as STATUS
+from code_atlas.tools.guided_tour import NAME as TOUR
 from code_atlas.tools.impact import NAME as IMPACT
 from code_atlas.tools.include_graph import NAME as INCLUDE
 from code_atlas.tools.reachable_from import NAME as REACHABLE
@@ -181,6 +182,7 @@ def test_the_proof_has_something_to_run() -> None:
         ORPHANS,
         EXPLAIN,
         OVERVIEW,
+        TOUR,
     )
 
 

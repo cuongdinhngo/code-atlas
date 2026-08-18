@@ -15,7 +15,7 @@ from typing import Any
 from fastmcp import Client
 
 from code_atlas import contract
-from code_atlas.main import build_server
+from code_atlas.main import TOOL_NAMES, build_server
 from code_atlas.store import GraphStore
 from code_atlas.tools import find_view_data
 from code_atlas.tools.nav_result import (
@@ -47,7 +47,7 @@ def _opener(description: str) -> str:
 def test_each_tool_opens_with_the_question_not_the_mechanism(tmp_path: Path) -> None:
     """Proving (AC1/AC4): no opener leads with an edge kind, a config var, or a language."""
     descriptions = _descriptions(build_server(db_config(tmp_path)))
-    assert len(descriptions) == 15
+    assert set(descriptions) == set(TOOL_NAMES)
     for name, description in descriptions.items():
         opener = _opener(description)
         for kind in _EDGE_KINDS:

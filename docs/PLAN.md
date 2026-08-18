@@ -408,6 +408,7 @@ Token-efficient: return qualified names + `file:line`, not bodies, unless a read
 | `find_orphans` | `depth?` | complement: zero-inbound / unreachable-from-roots with `why`; never empty-success without roots |
 | `explain_path` | `from_qname, to_qname, depth?` | shortest A→B path over outgoing IMPACT kinds; `status` = `path` / `unproven` / `no_path` / `unknown` / `incomplete` |
 | `architecture_overview` | `detail_level?`, `offset?` | this repo's architectural layers, ordered by net dependency direction — one row per layer with its module count, and at `standard` its degrees, a repo-level `summary` and `cross_layer_edges` (layer → layer crossings, heaviest first). **A layer is a *sub*directory of the dominant subtree, not a top-level directory**, so a monorepo yields hundreds: `results` and `cross_layer_edges` are both capped at `CA_MAX_RESULTS`, `truncated` describes `results` (the shared `nav_result` convention) and `cross_layer_edges_truncated` its own list, while `total_count` is the layer count **before** the cap and `summary.cross_layer_edges` the crossing count before its own. `verbose` adds one row per module **in layer order** (rank 0 first — an alphabetical cap hands back one directory and omits whole layers the same payload just named) with `modules_truncated` and `modules_offset`; `offset` pages further and is refused outside `verbose`, so no layer's modules are unreachable. `method` names how the grouping was derived (`dominant-subtree`, or the `dependency-direction-fallback` a flat tree falls back to) (086) |
+| `guided_tour` | `detail_level?`, `offset?` | dependency-ordered reading list of files, seeded from zero-inbound entry points, cycle-safe via SCC condensation (087). A component **no entry point reaches** (it must hold a cycle) is re-seeded from the lowest unseen file rather than silently omitted; earlier rounds outrank later ones under the node budget. The walk is bounded by `CA_IMPACT_MAX_NODES` (R4.3); `results` is one page of `CA_MAX_RESULTS` stops from `offset` (`results_offset` echoes it, so the tail stays reachable — 086's convention). `truncated` is true when the budget left an indexed file out of the tour or when stops remain after this page. `minimal` is files only; `standard` adds a one-line `rationale` and, for a cycle, the `scc` members. A stop only claims `entry point (zero inbound)` where the store proved zero inbound — a cycle member the budget cut off reads `reached from outside the walk`. |
 | `namespace_tree` | `prefix?` | namespaces + members |
 
 **Claim signing — `sign: true` on the four attesting tools (task 100).** An attestation that never
@@ -421,7 +422,7 @@ plus the revision the index describes (`rev`/`ref`/`index`, from `staleness.comp
 payload and an already-read staleness dict, so R1.4/R4.1 hold by construction and key order is fixed
 for R4.2. Every caveat owns its own key — `tier` names the **weakest** tier present (R5.2),
 `index=behind`, `authoritative=false`, `truncated=true`, `reason=` — so a degrading answer cannot
-drop one the way a prose clause can. **Not signed:** the ten tools whose answers are lists of rows
+drop one the way a prose clause can. **Not signed:** the eleven tools whose answers are lists of rows
 rather than claims; the exclusion list, with the caveat each would have lost, is in the README.
 **No line is emitted** for an unbuilt index, or for an `impact` answer where no seed resolved — the
 latter because a question nothing answered would be signed `answer=0` for a subject the index never
@@ -533,7 +534,7 @@ New surface (separate from indexing): `generate_onboarding`, `architecture_overv
   085 summarizer seam + deterministic default · 086 `architecture_overview` tool. **M10 complete** —
   the tool ships as the 15th on the surface; 104's dominant-subtree grouping is proven on three real
   pinned repos, with one recorded limitation (see 104/105).
-- **M11** `guided_tour` + markdown docs + viewer — 087 tour (topological, carries SCC) ·
+- **M11** `guided_tour` + markdown docs + viewer — 087 tour (topological, carries SCC; the 16th tool) ·
   088 `generate_onboarding` (committable markdown + manifest) · 089 static HTML viewer.
 - **M12** LLM enrichment (opt-in, deferred, out of core + CI) — 090 LLM summarizer behind the 085 seam ·
   091 LLM layer-name refinement.

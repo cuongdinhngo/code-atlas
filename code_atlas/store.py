@@ -177,6 +177,19 @@ PATH_STATUS_UNKNOWN = "unknown"
 PATH_STATUS_INCOMPLETE = "incomplete"
 
 
+class TourSubgraph(NamedTuple):
+    """Node-budgeted module-grain dependency subgraph for the guided tour (task 087).
+
+    ``entry_points`` is the subset of ``files`` with genuinely zero inbound, which a reader
+    of ``edges`` alone cannot recover once the budget dropped a predecessor.
+    """
+
+    files: tuple[str, ...]
+    edges: tuple[tuple[str, str], ...]
+    truncated: bool
+    entry_points: tuple[str, ...] = ()
+
+
 class ExplainPathResult(NamedTuple):
     """Shortest A→B path over IMPACT_KINDS, or a distinct non-path status (task 038)."""
 
@@ -546,6 +559,77 @@ class GraphStore:
             "ORDER BY qualified_name, file_path"
         )
         return [(str(qname), str(path)) for qname, path in cursor]
+
+    def tour_subgraph(self, *, max_nodes: int) -> TourSubgraph:
+        """Budgeted module-grain walk covering every file the budget admits (task 087 / R4.3).
+
+        Round 1 seeds files with no inbound cross-file resolved edge, ``ORDER BY file_path``.
+        A component no such seed reaches (it must hold a cycle) would otherwise be silently
+        absent, so later rounds re-seed the lowest unseen file until the budget binds. Earlier
+        rounds outrank later ones under the prune. ``truncated`` means files were left out.
+        """
+        if max_nodes < 1:
+            raise ValueError(f"max_nodes must be >= 1, got {max_nodes}")
+        conn = self._conn
+        self._tour_drop_temps()
+        try:
+            conn.execute(
+                "CREATE TEMP TABLE tour_seen ("
+                "file_path TEXT PRIMARY KEY, depth INT NOT NULL, is_seed INT NOT NULL, "
+                "round INT NOT NULL)"
+            )
+            conn.execute(
+                "CREATE TEMP TABLE tour_frontier (file_path TEXT PRIMARY KEY, depth INT NOT NULL)"
+            )
+            seeds = self._tour_entry_seeds(max_nodes)
+            entries = set(seeds)
+            if not seeds:  # the whole graph is one cycle: start at the first file, same order
+                seeds = self._tour_lowest_unseen()
+            if not seeds:
+                return TourSubgraph((), (), False)
+            walked = 0
+            self._tour_admit_seeds(seeds, walked)
+            self._tour_expand(max_nodes, walked)
+            # A component no entry point reaches is not absent — it is the next round (087 review).
+            while self._tour_seen_count() < max_nodes:
+                later = self._tour_lowest_unseen()
+                if not later:
+                    break
+                walked += 1
+                self._tour_admit_seeds(later, walked)
+                self._tour_expand(max_nodes, walked)
+            files = tuple(
+                str(row[0])
+                for row in conn.execute(
+                    "SELECT file_path FROM temp.tour_seen ORDER BY file_path"
+                )
+            )
+            edges = tuple(
+                (str(src), str(tgt))
+                for src, tgt in conn.execute(
+                    "SELECT DISTINCT src.file_path, tgt.file_path "
+                    "FROM edges e "
+                    "JOIN nodes src ON src.qualified_name = e.source_qname "
+                    "JOIN nodes tgt ON tgt.qualified_name = e.target_qname "
+                    "JOIN temp.tour_seen a ON a.file_path = src.file_path "
+                    "JOIN temp.tour_seen b ON b.file_path = tgt.file_path "
+                    "WHERE e.target_qname IS NOT NULL AND src.file_path <> tgt.file_path "
+                    "ORDER BY src.file_path, tgt.file_path"
+                )
+            )
+            # One honest signal: truncated means an indexed file did not make the tour.
+            left_out = conn.execute(
+                "SELECT 1 FROM nodes "
+                "WHERE file_path NOT IN (SELECT file_path FROM temp.tour_seen) LIMIT 1"
+            ).fetchone()
+            return TourSubgraph(
+                files,
+                edges,
+                left_out is not None,
+                tuple(path for path in files if path in entries),
+            )
+        finally:
+            self._tour_drop_temps()
 
     def nodes_by_name(self, name: str, *, kind: str | None = None, limit: int) -> list[Row]:
         """Single-key lookup via the batch path; prefer ``nodes_by_names`` in a loop."""
@@ -1697,6 +1781,110 @@ class GraphStore:
             "reach_before",
         ):
             self._conn.execute(f"DROP TABLE IF EXISTS temp.{name}")
+
+    def _tour_drop_temps(self) -> None:
+        for name in ("tour_seen", "tour_frontier", "tour_next", "tour_before"):
+            self._conn.execute(f"DROP TABLE IF EXISTS temp.{name}")
+
+    def _tour_prune_seen(self, max_nodes: int) -> None:
+        """Earliest round first, then seeds, then shallowest depth (tie: file_path ASC).
+
+        ``round`` leads so a later re-seed round can only fill room the entry-seeded walk
+        left over — it never evicts a file the entry points reached.
+        """
+        self._conn.execute(
+            "DELETE FROM temp.tour_seen WHERE file_path NOT IN ("
+            "  SELECT file_path FROM ("
+            "    SELECT file_path FROM temp.tour_seen "
+            "    ORDER BY round ASC, is_seed DESC, depth ASC, file_path ASC LIMIT ?"
+            "  )"
+            ")",
+            (max_nodes,),
+        )
+
+    def _tour_seen_count(self) -> int:
+        (count,) = self._conn.execute("SELECT COUNT(*) FROM temp.tour_seen").fetchone()
+        return int(count)
+
+    def _tour_entry_seeds(self, max_nodes: int) -> list[str]:
+        """Files with no inbound cross-file resolved edge — the reading order's roots."""
+        inbound = (
+            "SELECT DISTINCT tgt.file_path FROM edges e "
+            "JOIN nodes src ON src.qualified_name = e.source_qname "
+            "JOIN nodes tgt ON tgt.qualified_name = e.target_qname "
+            "WHERE e.target_qname IS NOT NULL AND src.file_path <> tgt.file_path"
+        )
+        return [
+            str(row[0])
+            for row in self._conn.execute(
+                "SELECT file_path FROM nodes "
+                f"WHERE file_path NOT IN ({inbound}) "
+                "GROUP BY file_path ORDER BY file_path LIMIT ?",
+                (max_nodes,),
+            )
+        ]
+
+    def _tour_lowest_unseen(self) -> list[str]:
+        """The lowest-ordered indexed file the walk has not admitted yet (R4.2)."""
+        return [
+            str(row[0])
+            for row in self._conn.execute(
+                "SELECT file_path FROM nodes "
+                "WHERE file_path NOT IN (SELECT file_path FROM temp.tour_seen) "
+                "GROUP BY file_path ORDER BY file_path LIMIT 1"
+            )
+        ]
+
+    def _tour_admit_seeds(self, seeds: Sequence[str], round_no: int) -> None:
+        """Plant this round's seeds in both ``tour_seen`` and the frontier."""
+        self._conn.executemany(
+            "INSERT OR IGNORE INTO temp.tour_seen (file_path, depth, is_seed, round) "
+            "VALUES (?, 0, 1, ?)",
+            [(path, round_no) for path in seeds],
+        )
+        self._conn.executemany(
+            "INSERT OR IGNORE INTO temp.tour_frontier (file_path, depth) VALUES (?, 0)",
+            [(path,) for path in seeds],
+        )
+
+    def _tour_expand(self, max_nodes: int, round_no: int) -> None:
+        """Drain the frontier wave by wave; only newly admitted files expand the next wave."""
+        conn = self._conn
+        expand_sql = (
+            "INSERT INTO temp.tour_next (file_path, depth) "
+            "SELECT DISTINCT tgt.file_path, f.depth + 1 "
+            "FROM temp.tour_frontier f "
+            "JOIN nodes src ON src.file_path = f.file_path "
+            "JOIN edges e ON e.source_qname = src.qualified_name "
+            "JOIN nodes tgt ON tgt.qualified_name = e.target_qname "
+            "WHERE e.target_qname IS NOT NULL AND tgt.file_path <> src.file_path"
+        )
+        while conn.execute("SELECT 1 FROM temp.tour_frontier LIMIT 1").fetchone() is not None:
+            conn.execute("DROP TABLE IF EXISTS temp.tour_next")
+            conn.execute(
+                "CREATE TEMP TABLE tour_next (file_path TEXT NOT NULL, depth INT NOT NULL)"
+            )
+            conn.execute(expand_sql)
+            conn.execute("DROP TABLE IF EXISTS temp.tour_before")
+            conn.execute(
+                "CREATE TEMP TABLE tour_before AS SELECT file_path FROM temp.tour_seen"
+            )
+            before = self._tour_seen_count()
+            conn.execute(
+                "INSERT OR IGNORE INTO temp.tour_seen (file_path, depth, is_seed, round) "
+                "SELECT n.file_path, MIN(n.depth), 0, ? FROM temp.tour_next n "
+                "GROUP BY n.file_path",
+                (round_no,),
+            )
+            self._tour_prune_seen(max_nodes)
+            conn.execute("DELETE FROM temp.tour_frontier")
+            if self._tour_seen_count() <= before:  # nothing new admitted: cycle or budget
+                break
+            conn.execute(
+                "INSERT INTO temp.tour_frontier (file_path, depth) "
+                "SELECT s.file_path, s.depth FROM temp.tour_seen s "
+                "WHERE s.file_path NOT IN (SELECT file_path FROM temp.tour_before)"
+            )
 
     def _reach_prune_seen(self, max_nodes: int) -> None:
         """Keep seeds preferentially, then shallowest depth (tie: qname ASC)."""

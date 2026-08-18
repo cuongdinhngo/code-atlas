@@ -193,6 +193,7 @@ provenance (`db_path` on `get_index_status` / build reports only after 061). Eve
 | `find_orphans` | unreachable / zero-inbound symbols (dead-code candidates) |
 | `explain_path` | shortest control-flow path between two symbols |
 | `architecture_overview` | this repo's layers, their degrees and the crossings between them; every list capped at `CA_MAX_RESULTS`, `verbose` pages the per-module rows with `offset` (onboarding) |
+| `guided_tour` | dependency-ordered reading list of files, cycle-safe via SCC condensation; a component no entry point reaches is re-seeded, not dropped; walk bounded by `CA_IMPACT_MAX_NODES`, page capped at `CA_MAX_RESULTS` with `offset` (onboarding) |
 
 ### Signing a claim — `sign: true` (opt-in, off by default)
 
@@ -254,6 +255,7 @@ worse than none. Each of these would have lost a caveat that no one-line form ca
 | `find_orphans` | "unreachable" is a candidate, not a verdict — dynamic dispatch and framework wiring are outside the graph |
 | `explain_path` | a path is a sequence; its length without its hops is not checkable |
 | `architecture_overview` | a layer split is a shape, and a count of layers asserts nothing a reader could check; the method that derived it is the caveat, and it already rides the payload |
+| `guided_tour` | a reading order is a sequence; its length without the stops and their rationales is not checkable |
 
 ## Sweeps — `search_symbol` takes a list of subjects (task 101)
 
@@ -304,6 +306,7 @@ for a reason:
 | `find_orphans` | the complement of the whole graph — there is no subject to list |
 | `explain_path` | its subject is already a pair; a list of pairs is a query language, which 101 deliberately is not |
 | `architecture_overview` | its subject is the whole index — there is one repo to lay out, and a list of subjects has no meaning for a repo-wide shape |
+| `guided_tour` | its subject is the whole index — there is one reading order, and a list of subjects has no meaning for a repo-wide walk |
 
 ## Operator prompts (human-invoked — not part of the agent tool surface)
 
@@ -319,7 +322,7 @@ name-only answers from description-backed ones — is
 | `explore_area` | status → search/outline → read only what's needed |
 | `find_usages` | status → find_references / find_callers / find_implementations → read to confirm |
 | `impact_of_change` | status → impact on the changed paths/qnames → read only the blast-radius surface |
-| `which_tool` | a recognition map: which tool answers a given question, across all 15 tools |
+| `which_tool` | a recognition map: which tool answers a given question, across all 16 tools |
 
 ### Planned
 

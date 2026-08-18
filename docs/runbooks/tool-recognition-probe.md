@@ -57,6 +57,7 @@ discussion. One question at a time; record the first tool named; no retries, no 
 | 13 | Which symbols look unused? | `find_orphans` |
 | 14 | How does one symbol reach another through the call graph? | `explain_path` |
 | 15 | I have never opened this codebase. What are its top-level parts, and which depends on which? | `architecture_overview` |
+| 16 | I have never opened this codebase. What should I read first, in dependency order? | `guided_tour` |
 
 ### Why Q4 discriminates (task 097)
 

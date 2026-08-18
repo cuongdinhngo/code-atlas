@@ -1,5 +1,56 @@
 # Lessons — code-atlas
 
+## 087 (review round) — A bounded walk from entry points is not the codebase, and `truncated: false` claimed it was
+Four defects, all found on the PR, all reproduced before the fix. The two that matter are one class:
+a payload that cannot distinguish *complete* from *cut short*. A component no zero-inbound file
+reaches (it must hold a cycle) was silently absent with `truncated: false` and a `total_count` of only
+the reachable part — a 3-file index answered with 1 stop; and the surviving member of a budget-cut
+cycle was labelled `entry point (zero inbound)` when the store had proved no such thing. The other two
+are robustness: recursive Tarjan died with `RecursionError` once `CA_IMPACT_MAX_NODES` admitted a chain
+deeper than the interpreter limit (~1200), and a capped `results` page had no `offset`, so the tail of
+a reading order was unreachable — the convention 086 had established one ticket earlier.
+
+### 087-C2 — A walk seeded from a computed root set must report what the seeding could not reach
+- type: 2 generalisable-heuristic
+- handle: do-not-attest-past-the-payloads-resolution
+- status: proposed (awaiting human confirm)
+- seen: 087
+- evidence: `tour_subgraph` seeded from zero-inbound files only; an entry + an unreachable `X ⇄ Y`
+  returned 1 stop, `truncated: false`, `total_count: 1`. Fix: re-seed the lowest unseen file until the
+  budget binds, and derive `truncated` from *an indexed file is not in the tour* instead of the
+  seed/prune bookkeeping. Same class as 100-C4 and 102 (a modelled zero must not read as an absence)
+- area: onboarding / store bounded walks / tool payloads
+- destination: `rulebook_path` (R4.3's bounded-walk rule says nothing yet about reporting the bound's
+  effect on *coverage*; `/mango:promote` is the cross-ticket pass)
+
+### 087-C3 — A recursive graph walk inherits the interpreter's depth limit as a silent input bound
+- type: 2 generalisable-heuristic
+- handle: bound-the-recursion-or-make-it-iterative
+- status: proposed (awaiting human confirm)
+- seen: 087
+- evidence: recursive Tarjan in `onboarding/tour.py` raised `RecursionError` at 1200 nodes; the tool's
+  own budget knob `CA_IMPACT_MAX_NODES` is user-settable with no ceiling, so raising it turned a
+  bounded answer into a crash. Rewritten with an explicit work-stack; probe at 1500 nodes
+- area: core graph algorithms
+- destination: `rulebook_path` (near R4.3 — the sibling of "never load the whole graph" is "never
+  recurse per node")
+
+## 087 — A listed `len(descriptions) == N` is a surface count-pin even when it never names `TOOL_NAMES`
+Design grepped `TOOL_NAMES ==` and `all 15 tools` and still missed `tests/test_tool_descriptions.py:50`
+(`assert len(descriptions) == 15`). Execute folded it as proof collateral of registering the 16th
+tool and derived the pin (`set(descriptions) == set(TOOL_NAMES)`). Same class as 085-C1 (count-pin)
+and R6.7 (derive the set).
+
+### 087-C1 — A listed integer that is the live tool-surface size is a blast-radius hit when adding a tool
+- type: 2 generalisable-heuristic
+- handle: count-pin-in-blast-radius
+- status: proposed (awaiting human confirm)
+- seen: 087
+- evidence: `tests/test_tool_descriptions.py:50` was `len(descriptions) == 15`; design's
+  `TOOL_NAMES ==` grep did not hit it; execute changed the pin to `set(descriptions) == set(TOOL_NAMES)`
+- area: analysis/design blast-radius tracing
+- destination: `agent_brief_path` (process; same class as 085-C1 — `/mango:promote` is the cross-ticket pass)
+
 ## 085 — A new file under a guarded directory is a blast-radius hit for that guard's COUNT pin, and an AC phrased as a failure mode needs the guard that can actually exhibit it
 The Gate-2 blast-radius trace confirmed the two grep-gates *glob* the new module (`CORE.rglob("*.py")`)
 but missed that they also **count-pin** the module total (`len(core_modules()) == 44`); execute caught
@@ -12,7 +63,7 @@ seam), and R6.5 still wanted the guard *observed* failing (a recorded sabotage r
 - type: 2 generalisable-heuristic
 - handle: count-pin-in-blast-radius
 - status: proposed (awaiting human confirm)
-- seen: 085
+- seen: 085, 087
 - evidence: Gate-2 trace saw `test_core_is_language_agnostic`/`test_sql_confinement` glob
   `CORE.rglob("*.py")` (auto-covering `summary.py`) but not their `assert len(core_modules()) == 44`;
   the bump to 45 landed as a recorded 2-file deviation in execute, not in the approved change-list.
@@ -158,7 +209,7 @@ no escape character, so separator backslashes still survive.
 - type: 2 generalisable-heuristic
 - handle: do-not-attest-past-the-payloads-resolution
 - status: proposed (awaiting human confirm)
-- seen: 100, 101, 102
+- seen: 100, 101, 102, 087
 - evidence: `impact_radius` returns `seeds_dropped = 0` for an empty seed set, so an absent subject
   and a genuine modelled zero are indistinguishable in the payload. Rather than fix the count
   in-flight (outside the change list) or sign over it, the answer gets **no line**
@@ -369,7 +420,7 @@ the agent notice. 074’s n = 1 for *legacy→unified port* is unchanged.
 - type: 2 generalisable-heuristic
 - handle: derived-not-listed-invariant
 - status: proposed (awaiting human confirm)
-- seen: 093, 095, 096, 097, 099, 100, 101, 102
+- seen: 093, 095, 096, 097, 099, 100, 101, 102, 087
 - evidence: `tests/test_recognition_probe_protocol.py` parses intended tools from the probe table
   and compares them to `main.TOOL_NAMES`; `test_the_probe_surface_guard_can_actually_fail` injects
   a name the table does not have
@@ -487,7 +538,7 @@ trap.
 - type: 2 generalisable-heuristic
 - handle: prove-the-guard-fails
 - status: confirmed
-- seen: 093, 096, 099, 100, 101
+- seen: 093, 096, 099, 100, 101, 087
 - evidence: the dead-route guard scanned its own definition site and could never fail, yet shipped in
   PR #103 advertised as "the audit cannot go stale"; caught by review, not by the suite
 - area: tests / R1.1
