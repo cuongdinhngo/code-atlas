@@ -4,9 +4,17 @@ slug: onboarding-layer-granularity
 title: Onboarding — layer granularity: strip common path prefix, group by top segment (M10)
 phase: 3
 milestone: M10
-status: in-progress
+status: done
 depends_on: [084]
 ---
+
+> **Shipped in PR #122 (merged 2026-08-18) — with a known limitation, tracked by [104].**
+> The common-root-segment heuristic fixes 084's over-fragmentation but **under-fragments** in the
+> inverse direction: a single top-level file outside the dominant tree (e.g. `routes/web.php` beside
+> `app/**`) empties the common prefix and collapses the whole application into one layer (retro F1).
+> This shipped deliberately as **deterministic-but-limited scaffolding** — `assign_layers` has **no
+> consumer until 086** (`architecture_overview`, still `todo`), so the defect reaches nothing. **104
+> replaces the grouping with the dominant-subtree signal and must land before 086 consumes it.**
 
 ## Goal
 Make the namespace-prefix layer heuristic (084) group modules at the **architectural** grain the ticket

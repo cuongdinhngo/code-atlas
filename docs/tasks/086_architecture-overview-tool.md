@@ -5,8 +5,13 @@ title: Onboarding — architecture_overview tool (M10)
 phase: 3
 milestone: M10
 status: todo
-depends_on: [084, 085]
+depends_on: [084, 085, 104]
 ---
+
+> **Gated on [104].** This is the first consumer of `assign_layers`. 103 (PR #122) shipped a layer
+> heuristic that collapses real multi-root repos into one layer (retro F1); 104 fixes it with the
+> dominant-subtree signal. Do **not** surface layers through this tool until 104 has landed — that is
+> why 104 is a hard dependency, not just 084/085.
 
 ## Goal
 Expose the deterministic layers + metrics as an agent-facing MCP tool — the first onboarding tool.
