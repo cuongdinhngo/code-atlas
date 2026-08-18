@@ -1,5 +1,37 @@
 # Lessons — code-atlas
 
+## 085 — A new file under a guarded directory is a blast-radius hit for that guard's COUNT pin, and an AC phrased as a failure mode needs the guard that can actually exhibit it
+The Gate-2 blast-radius trace confirmed the two grep-gates *glob* the new module (`CORE.rglob("*.py")`)
+but missed that they also **count-pin** the module total (`len(core_modules()) == 44`); execute caught
+the 44→45 bump as a 2-file deviation. Separately, AC2 was phrased as a failure mode ("would fail if
+presentation read the graph directly"), but the presentation function structurally *cannot* reach the
+graph — so the fake-summarizer test actually guards a different boundary (enrichment routes through the
+seam), and R6.5 still wanted the guard *observed* failing (a recorded sabotage run), not argued.
+
+### 085-C1 — A count-pinned guard is a blast-radius hit for any file added to its globbed set
+- type: 2 generalisable-heuristic
+- handle: count-pin-in-blast-radius
+- status: proposed (awaiting human confirm)
+- seen: 085
+- evidence: Gate-2 trace saw `test_core_is_language_agnostic`/`test_sql_confinement` glob
+  `CORE.rglob("*.py")` (auto-covering `summary.py`) but not their `assert len(core_modules()) == 44`;
+  the bump to 45 landed as a recorded 2-file deviation in execute, not in the approved change-list.
+- area: analysis/design blast-radius tracing
+- destination: `agent_brief_path` (if it recurs — process subject; seen once, stays in lessons)
+
+### 085-C2 — An AC phrased as a failure mode needs the guard that can actually exhibit that failure
+- type: 2 generalisable-heuristic
+- handle: ac-failure-mode-needs-the-right-guard
+- status: proposed (awaiting human confirm)
+- seen: 085
+- evidence: AC2 "would fail if presentation read the graph directly" — but `summaries_as_dict(summaries)`
+  has no parameter reaching the graph, so that failure mode is guarded *structurally* by a different
+  test; the fake-summarizer test guards that enrichment routes through the seam. Reviewer (PR #124)
+  flagged the framing mismatch + the absent R6.5 red run; fixed by splitting the claim into two named
+  guards and recording a sabotage red run.
+- area: tests / AC decomposition / R6.5 (prove-the-guard-fails)
+- destination: `rulebook_path` (if it recurs — code subject; seen once, stays in lessons)
+
 ## 084 — Piping the Docker gate through `tail` reports the pipe's exit, masking a ruff/mypy failure
 The gate `docker-test.sh` runs `ruff check . && mypy code_atlas && pytest -q`, which fails correctly on
 a ruff error. But run as `bash scripts/docker-test.sh 2>&1 | tail -N`, the shell reports the exit status
