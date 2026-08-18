@@ -36,7 +36,7 @@ If the host wired `code-atlas-signal`, record for each round — otherwise write
 This is the other half of §0.5. Recognition asks *would you pick the right tool*; this asks *did the
 information reach you when you were not choosing a tool at all*.
 
-## 2 Coverage of the 14 tools
+## 2 Coverage of the 15 tools
 
 For every tool **not** called in the work, assign **exactly one** bucket:
 

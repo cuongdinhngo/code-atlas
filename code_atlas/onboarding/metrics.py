@@ -69,6 +69,34 @@ def _metric_dict(metric: NodeMetric) -> dict[str, object]:
     }
 
 
+def _qname_files(nodes: Iterable[tuple[str, str]]) -> dict[str, set[str]]:
+    """The qname → declaring-file map. One qname can hold several files (ambiguous decls)."""
+    files: dict[str, set[str]] = {}
+    for qname, file_path in nodes:
+        files.setdefault(qname, set()).add(file_path)
+    return files
+
+
+def module_edges(
+    nodes: Iterable[tuple[str, str]], edges: Iterable[tuple[str, str]]
+) -> tuple[tuple[str, str], ...]:
+    """Distinct cross-module dependency pairs at module grain — what task 086 aggregates by layer.
+
+    Deliberately a sibling of ``compute_metrics`` rather than a ``GraphMetrics`` field: a relation
+    is not a metric, and adding it there would move 083's pinned serialisation. Sorted (R4.2).
+    """
+    files = _qname_files(nodes)
+    pairs: set[tuple[str, str]] = set()
+    for source, target in edges:
+        if source == target:  # same guard as compute_metrics: a self-reference is not a dependency
+            continue
+        for src_file in files.get(source, ()):
+            for tgt_file in files.get(target, ()):
+                if src_file != tgt_file:  # an intra-module edge is not a module dependency
+                    pairs.add((src_file, tgt_file))
+    return tuple(sorted(pairs))
+
+
 def _grain(
     universe: Iterable[str],
     inbound: dict[str, set[str]],
@@ -96,11 +124,8 @@ def compute_metrics(
     Deterministic regardless of argument order (R4.2). Entry points are the zero-inbound roots (R3);
     SCC/cycle membership is out of scope (task 087) — a node in a cycle simply reads ``mixed``.
     """
-    qname_files: dict[str, set[str]] = {}
-    module_universe: set[str] = set()
-    for qname, file_path in nodes:
-        qname_files.setdefault(qname, set()).add(file_path)
-        module_universe.add(file_path)
+    qname_files = _qname_files(nodes)
+    module_universe = {path for paths in qname_files.values() for path in paths}
 
     sym_in: dict[str, set[str]] = {}
     sym_out: dict[str, set[str]] = {}

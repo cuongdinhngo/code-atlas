@@ -1,7 +1,7 @@
 """Operator-facing efficiency recipes — status → search/outline → read only what is needed (§12).
 
 These are **human-invoked MCP prompts, not agent-facing capability**. An agent's client surfaces the
-14 tools to the model, but MCP prompts surface as human-invoked entries the model never sees — so
+15 tools to the model, but MCP prompts surface as human-invoked entries the model never sees — so
 across four field rounds no prompt was ever called (task 081). Agent routing lives in the tool
 descriptions (069, field-verified); these prompts stay as operator recipes. `which_tool` is the
 recognition map a human can open, not a routing tool the agent scans.
@@ -58,7 +58,7 @@ def register(server: FastMCP) -> None:
         )
 
     def which_tool(question: str = "") -> str:
-        """Which code-atlas tool answers a given question? A recognition map for all 14 tools."""
+        """Which code-atlas tool answers a given question? A recognition map for all 15 tools."""
         asked = f" You asked: {question}." if question.strip() else ""
         return (
             "Pick the code-atlas tool whose answer matches your question." + asked + " Map:\n"
@@ -76,6 +76,8 @@ def register(server: FastMCP) -> None:
             "- What is reachable from entry points / what is dead -> reachable_from.\n"
             "- Which symbols look unused -> find_orphans.\n"
             "- How does one symbol reach another -> explain_path.\n"
+            "- What are this codebase's layers, and how do they depend on each other "
+            "-> architecture_overview.\n"
             "Then call get_index_status first if unsure the index is current."
         )
 

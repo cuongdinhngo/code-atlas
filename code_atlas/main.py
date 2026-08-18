@@ -12,6 +12,7 @@ from fastmcp import FastMCP
 
 from code_atlas.config import Config, ConfigError, load_config
 from code_atlas.tools import (
+    architecture_overview,
     build_or_update_index,
     explain_path,
     file_outline,
@@ -48,6 +49,7 @@ TOOL_NAMES: tuple[str, ...] = (
     reachable_from.NAME,
     find_orphans.NAME,
     explain_path.NAME,
+    architecture_overview.NAME,
 )
 
 
@@ -87,6 +89,8 @@ def build_server(config: Config) -> FastMCP:
         server.tool(guard(find_orphans.create(config)))
     if explain_path.NAME in names:
         server.tool(guard(explain_path.create(config)))
+    if architecture_overview.NAME in names:
+        server.tool(guard(architecture_overview.create(config)))
     prompts.register(server)
     return server
 

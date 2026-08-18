@@ -18,17 +18,19 @@ import sys
 import threading
 from collections.abc import Iterator, Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, get_args
 
 import pytest
 from fastmcp import Client
 from fastmcp.client.transports import StdioTransport
 from fastmcp.exceptions import ToolError
 
+from code_atlas import tools
 from code_atlas.config import Config, ConfigError, load_config
 from code_atlas.indexer import full_build
 from code_atlas.main import TOOL_NAMES, build_server
 from code_atlas.store import GraphStore
+from code_atlas.tools.architecture_overview import NAME as OVERVIEW
 from code_atlas.tools.build_or_update_index import NAME as BUILD
 from code_atlas.tools.explain_path import NAME as EXPLAIN
 from code_atlas.tools.file_outline import NAME as OUTLINE
@@ -178,6 +180,7 @@ def test_the_proof_has_something_to_run() -> None:
         REACHABLE,
         ORPHANS,
         EXPLAIN,
+        OVERVIEW,
     )
 
 
@@ -384,6 +387,21 @@ def test_a_behind_index_suggests_a_build(repo: Path) -> None:
 # --- R5 · detail_level on every tool -------------------------------------------------------------
 
 
+def declared_levels() -> dict[str, list[str]]:
+    """Each tool's allowed levels, read off its own module's ``DetailLevel`` alias (R6.7).
+
+    The alias IS the enum FastMCP publishes, so hand-listing which tool also accepts ``verbose`` is
+    exactly the list that drifts silently when tool N+1 arrives.
+    """
+    levels: dict[str, list[str]] = {}
+    for module in vars(tools).values():
+        name = getattr(module, "NAME", None)
+        alias = getattr(module, "DetailLevel", None)
+        if isinstance(name, str) and alias is not None:
+            levels[name] = sorted(get_args(alias))
+    return levels
+
+
 CALLS: tuple[tuple[str, dict[str, object]], ...] = (
     (STATUS, {}),
     (BUILD, {}),
@@ -398,6 +416,7 @@ CALLS: tuple[tuple[str, dict[str, object]], ...] = (
     (REACHABLE, {}),
     (ORPHANS, {}),
     (EXPLAIN, {"from_qname": "\\A", "to_qname": "\\B"}),
+    (OVERVIEW, {}),
 )
 
 
@@ -433,9 +452,8 @@ def test_a_detail_level_outside_the_contract_fails_loud(
 
     message = raises_through_the_client(server, name, {**arguments, "detail_level": "debug"})
 
-    assert "minimal" in message and "standard" in message
-    if name == STATUS:
-        assert "verbose" in message
+    for level in declared_levels()[name]:
+        assert level in message, f"{name}: {level} missing from {message!r}"
 
 
 def test_the_detail_level_choices_are_published_in_the_input_schema(repo: Path) -> None:
@@ -445,14 +463,11 @@ def test_the_detail_level_choices_are_published_in_the_input_schema(repo: Path) 
         async with Client(build_server(served_config(repo))) as client:
             return {tool.name: tool.inputSchema for tool in await client.list_tools()}
 
+    declared = declared_levels()
+    assert set(declared) == set(TOOL_NAMES)  # denominator derived, never listed (R6.7)
     for name, schema in asyncio.run(schemas()).items():
         levels = schema["properties"]["detail_level"]
-        expected = (
-            ["minimal", "standard", "verbose"]
-            if name == STATUS
-            else ["minimal", "standard"]
-        )
-        assert sorted(levels.get("enum", [])) == expected, f"{name}: {levels}"
+        assert sorted(levels.get("enum", [])) == declared[name], f"{name}: {levels}"
 
 
 # --- REF1 · the cheap entry point stays cheap ----------------------------------------------------

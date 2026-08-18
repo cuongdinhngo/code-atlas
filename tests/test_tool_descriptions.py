@@ -47,7 +47,7 @@ def _opener(description: str) -> str:
 def test_each_tool_opens_with_the_question_not_the_mechanism(tmp_path: Path) -> None:
     """Proving (AC1/AC4): no opener leads with an edge kind, a config var, or a language."""
     descriptions = _descriptions(build_server(db_config(tmp_path)))
-    assert len(descriptions) == 14
+    assert len(descriptions) == 15
     for name, description in descriptions.items():
         opener = _opener(description)
         for kind in _EDGE_KINDS:

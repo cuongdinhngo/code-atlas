@@ -390,7 +390,7 @@ Ignore: built-ins (`vendor/ var/ uploads/ log/ node_modules/ .git/ *.blade.*`) +
 ---
 
 ## 12. MCP tools (language-agnostic — same tools for every language)
-Token-efficient: return qualified names + `file:line`, not bodies, unless a read tool is called. Every tool takes `detail_level ∈ {minimal, standard}`; `get_index_status` also accepts `verbose` (task 058).
+Token-efficient: return qualified names + `file:line`, not bodies, unless a read tool is called. Every tool takes `detail_level ∈ {minimal, standard}`; `get_index_status` (task 058) and `architecture_overview` (task 086) also accept `verbose` — in both cases for a capped extra list that must not ride the cheap path. Each tool's own `DetailLevel` alias is the published enum, and the guard derives the expectation from it rather than naming the exceptions (R6.7).
 
 | Tool | Key args | Returns |
 |---|---|---|
@@ -407,6 +407,7 @@ Token-efficient: return qualified names + `file:line`, not bodies, unless a read
 | `reachable_from` | `depth?` | nodes reachable from `CA_ENTRY_POINTS` (RESOLVED IMPACT kinds, forward); `unproven` for HEURISTIC/DYNAMIC-only |
 | `find_orphans` | `depth?` | complement: zero-inbound / unreachable-from-roots with `why`; never empty-success without roots |
 | `explain_path` | `from_qname, to_qname, depth?` | shortest A→B path over outgoing IMPACT kinds; `status` = `path` / `unproven` / `no_path` / `unknown` / `incomplete` |
+| `architecture_overview` | `detail_level?`, `offset?` | this repo's architectural layers, ordered by net dependency direction — one row per layer with its module count, and at `standard` its degrees, a repo-level `summary` and `cross_layer_edges` (layer → layer crossings, heaviest first). **A layer is a *sub*directory of the dominant subtree, not a top-level directory**, so a monorepo yields hundreds: `results` and `cross_layer_edges` are both capped at `CA_MAX_RESULTS`, `truncated` describes `results` (the shared `nav_result` convention) and `cross_layer_edges_truncated` its own list, while `total_count` is the layer count **before** the cap and `summary.cross_layer_edges` the crossing count before its own. `verbose` adds one row per module **in layer order** (rank 0 first — an alphabetical cap hands back one directory and omits whole layers the same payload just named) with `modules_truncated` and `modules_offset`; `offset` pages further and is refused outside `verbose`, so no layer's modules are unreachable. `method` names how the grouping was derived (`dominant-subtree`, or the `dependency-direction-fallback` a flat tree falls back to) (086) |
 | `namespace_tree` | `prefix?` | namespaces + members |
 
 **Claim signing — `sign: true` on the four attesting tools (task 100).** An attestation that never
@@ -529,7 +530,9 @@ New surface (separate from indexing): `generate_onboarding`, `architecture_overv
 **Phase 3 — Onboarding** (deterministic-first; LLM opt-in and out of core + CI — breakdown in
 [`phase3-onboarding/PHASE3_ONBOARDING.md`](phase3-onboarding/PHASE3_ONBOARDING.md)):
 - **M10** `architecture_overview` + layers (deterministic) — 083 graph-metrics · 084 layer assignment ·
-  085 summarizer seam + deterministic default · 086 `architecture_overview` tool.
+  085 summarizer seam + deterministic default · 086 `architecture_overview` tool. **M10 complete** —
+  the tool ships as the 15th on the surface; 104's dominant-subtree grouping is proven on three real
+  pinned repos, with one recorded limitation (see 104/105).
 - **M11** `guided_tour` + markdown docs + viewer — 087 tour (topological, carries SCC) ·
   088 `generate_onboarding` (committable markdown + manifest) · 089 static HTML viewer.
 - **M12** LLM enrichment (opt-in, deferred, out of core + CI) — 090 LLM summarizer behind the 085 seam ·

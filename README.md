@@ -192,6 +192,7 @@ provenance (`db_path` on `get_index_status` / build reports only after 061). Eve
 | `reachable_from` | forward reachability from configured entry points |
 | `find_orphans` | unreachable / zero-inbound symbols (dead-code candidates) |
 | `explain_path` | shortest control-flow path between two symbols |
+| `architecture_overview` | this repo's layers, their degrees and the crossings between them; every list capped at `CA_MAX_RESULTS`, `verbose` pages the per-module rows with `offset` (onboarding) |
 
 ### Signing a claim — `sign: true` (opt-in, off by default)
 
@@ -252,6 +253,7 @@ worse than none. Each of these would have lost a caveat that no one-line form ca
 | `reachable_from` | the entry-point set it was configured with — the claim is only as good as `CA_ENTRY_POINTS`, which the line cannot carry |
 | `find_orphans` | "unreachable" is a candidate, not a verdict — dynamic dispatch and framework wiring are outside the graph |
 | `explain_path` | a path is a sequence; its length without its hops is not checkable |
+| `architecture_overview` | a layer split is a shape, and a count of layers asserts nothing a reader could check; the method that derived it is the caveat, and it already rides the payload |
 
 ## Sweeps — `search_symbol` takes a list of subjects (task 101)
 
@@ -301,6 +303,7 @@ for a reason:
 | `reachable_from` | its subject is the configured entry-point set, not a caller-supplied name |
 | `find_orphans` | the complement of the whole graph — there is no subject to list |
 | `explain_path` | its subject is already a pair; a list of pairs is a query language, which 101 deliberately is not |
+| `architecture_overview` | its subject is the whole index — there is one repo to lay out, and a list of subjects has no meaning for a repo-wide shape |
 
 ## Operator prompts (human-invoked — not part of the agent tool surface)
 
@@ -316,7 +319,7 @@ name-only answers from description-backed ones — is
 | `explore_area` | status → search/outline → read only what's needed |
 | `find_usages` | status → find_references / find_callers / find_implementations → read to confirm |
 | `impact_of_change` | status → impact on the changed paths/qnames → read only the blast-radius surface |
-| `which_tool` | a recognition map: which tool answers a given question, across all 14 tools |
+| `which_tool` | a recognition map: which tool answers a given question, across all 15 tools |
 
 ### Planned
 

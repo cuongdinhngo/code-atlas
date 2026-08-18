@@ -1,4 +1,4 @@
-"""Deterministic architectural-layer assignment for Phase-3 onboarding (task 084, M10; 103, 104).
+"""Deterministic architectural-layer assignment for Phase-3 onboarding (084, M10; 103, 104, 086).
 
 Pure functions over 083's ``GraphMetrics`` — no SQL, no LLM, no language branches (R1.1/R1.4/R4).
 The heuristic is **dominant-subtree** (task 104): group modules beneath the top-level directory that
@@ -6,7 +6,8 @@ holds the most modules (strip the common prefix *within* that subtree, layer by 
 segment), while every **other** top-level directory becomes its own layer. A **pure
 dependency-direction fallback** takes over when the paths yield < 2 named groups (flat legacy, or a
 single directory). Identical input yields byte-identical output (R4.2); layer names are the repo's
-own path segments (or direction labels), never a per-language taxonomy.
+own path segments (or direction labels), never a per-language taxonomy. ``cross_layer_edges`` (086)
+aggregates module-grain edges into the layer → layer crossings the overview tool renders.
 """
 
 from __future__ import annotations
@@ -60,6 +61,39 @@ class LayerAssignment:
     def to_json(self) -> str:
         """Deterministic JSON — the byte-stability surface (R4.2)."""
         return json.dumps(self.as_dict(), sort_keys=True, ensure_ascii=False)
+
+
+@dataclass(frozen=True)
+class LayerEdge:
+    """How many module-grain dependencies cross from one layer into another (task 086)."""
+
+    source: str
+    target: str
+    count: int
+
+    def as_dict(self) -> dict[str, object]:
+        """A plain, order-stable dict view — the serialisation the overview tool renders."""
+        return {"source": self.source, "target": self.target, "count": self.count}
+
+
+def cross_layer_edges(
+    module_edges: tuple[tuple[str, str], ...], assignment: LayerAssignment
+) -> tuple[LayerEdge, ...]:
+    """Aggregate module-grain edges into layer → layer counts; same-layer pairs are not crossings.
+
+    Heaviest first, ties by name, so identical input yields byte-identical output (R4.2). A module
+    the assignment does not cover cannot be placed and is skipped rather than guessed.
+    """
+    layer_of = {module.module: module.layer for module in assignment.modules}
+    counts: dict[tuple[str, str], int] = {}
+    for source, target in module_edges:
+        pair = (layer_of.get(source), layer_of.get(target))
+        if pair[0] is None or pair[1] is None or pair[0] == pair[1]:
+            continue
+        key = (pair[0], pair[1])
+        counts[key] = counts.get(key, 0) + 1
+    order = sorted(counts, key=lambda key: (-counts[key], key[0], key[1]))
+    return tuple(LayerEdge(source, target, counts[(source, target)]) for source, target in order)
 
 
 def _dirs(module: str) -> list[str]:
