@@ -194,6 +194,7 @@ provenance (`db_path` on `get_index_status` / build reports only after 061). Eve
 | `explain_path` | shortest control-flow path between two symbols |
 | `architecture_overview` | this repo's layers, their degrees and the crossings between them; every list capped at `CA_MAX_RESULTS`, `verbose` pages the per-module rows with `offset` (onboarding) |
 | `guided_tour` | dependency-ordered reading list of files, cycle-safe via SCC condensation; a component no entry point reaches is re-seeded, not dropped; walk bounded by `CA_IMPACT_MAX_NODES`, page capped at `CA_MAX_RESULTS` with `offset` (onboarding) |
+| `generate_onboarding` | write committable markdown (overview · tour · per-module) plus `manifest.json` under `docs/onboarding/`; removes only the pages its own last manifest recorded and refuses a tree it did not write; regenerable cache under `.code-atlas/onboarding/`; tour/pages bounded by `CA_IMPACT_MAX_NODES` (onboarding) |
 
 ### Signing a claim — `sign: true` (opt-in, off by default)
 
@@ -256,6 +257,7 @@ worse than none. Each of these would have lost a caveat that no one-line form ca
 | `explain_path` | a path is a sequence; its length without its hops is not checkable |
 | `architecture_overview` | a layer split is a shape, and a count of layers asserts nothing a reader could check; the method that derived it is the caveat, and it already rides the payload |
 | `guided_tour` | a reading order is a sequence; its length without the stops and their rationales is not checkable |
+| `generate_onboarding` | it reports files written, not a state of the world — a count of pages is not the docs themselves |
 
 ## Sweeps — `search_symbol` takes a list of subjects (task 101)
 
@@ -307,6 +309,7 @@ for a reason:
 | `explain_path` | its subject is already a pair; a list of pairs is a query language, which 101 deliberately is not |
 | `architecture_overview` | its subject is the whole index — there is one repo to lay out, and a list of subjects has no meaning for a repo-wide shape |
 | `guided_tour` | its subject is the whole index — there is one reading order, and a list of subjects has no meaning for a repo-wide walk |
+| `generate_onboarding` | a write is one artifact against one tree — R4.3's single writer, not a fan-out |
 
 ## Operator prompts (human-invoked — not part of the agent tool surface)
 
@@ -322,7 +325,7 @@ name-only answers from description-backed ones — is
 | `explore_area` | status → search/outline → read only what's needed |
 | `find_usages` | status → find_references / find_callers / find_implementations → read to confirm |
 | `impact_of_change` | status → impact on the changed paths/qnames → read only the blast-radius surface |
-| `which_tool` | a recognition map: which tool answers a given question, across all 16 tools |
+| `which_tool` | a recognition map: which tool answers a given question, across all 17 tools |
 
 ### Planned
 

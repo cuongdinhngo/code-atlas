@@ -25,7 +25,7 @@ what landed, and what it cost* — narrative rationale lives in those three.
 | 085 | [Onboarding — Summarizer Protocol seam + deterministic default](tasks/085_onboarding-summarizer-seam.md) | Phase 3 / M10 | done | 083 |
 | 086 | [Onboarding — architecture_overview tool](tasks/086_architecture-overview-tool.md) | Phase 3 / M10 | done | 084, 085, 104 |
 | 087 | [Onboarding — guided_tour tool](tasks/087_guided-tour-tool.md) | Phase 3 / M11 | done | 083, 086 |
-| 088 | [Onboarding — generate_onboarding markdown + manifest](tasks/088_generate-onboarding-markdown.md) | Phase 3 / M11 | todo | 084, 086, 087 |
+| 088 | [Onboarding — generate_onboarding markdown + manifest](tasks/088_generate-onboarding-markdown.md) | Phase 3 / M11 | done | 084, 086, 087 |
 | 089 | [Onboarding — static HTML viewer](tasks/089_onboarding-viewer.md) | Phase 3 / M11 | todo | 088 |
 | 090 | [Onboarding — LLM summarizer behind the seam (opt-in)](tasks/090_llm-summarizer-impl.md) | Phase 3 / M12 | todo | 085, 088 |
 | 091 | [Onboarding — LLM layer-name refinement (opt-in)](tasks/091_llm-layer-refinement.md) | Phase 3 / M12 | todo | 084, 090 |
@@ -72,8 +72,8 @@ against the measured evidence rather than waiting on it**, and its payload carri
 reader can see which grouping produced a split.
 
 **M10 is complete** (083 · 084 · 085 · 103 · 104 · 086) — `architecture_overview` is the 15th tool on
-the surface. **087 shipped** (`guided_tour`, 16th tool). **Next: 088** (`generate_onboarding`), with
-**105** as M10's open residual.
+the surface. **087 shipped** (`guided_tour`, 16th tool). **088 shipped** (`generate_onboarding`,
+17th tool). **Next: 089** (static HTML viewer), with **105** as M10's open residual.
 
 **Then:** Phase 3 onboarding (083 → 091; M10 → M11 → M12) or Phase 2 language breadth — both are
 unblocked by Phase 1.5; breadth stays deferred per §19.
@@ -404,6 +404,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 
 | 086 | **0 dispatch — no subagent was dispatched this run.** Run as `/mango:solve 086 with skipped review and challenger`: the **review phase was waived by the operator argument** and the **challenger with it**, refine **self-skipped** (0 unresolved) so no exposure-checker ran, and the analysis fan-out was done in the main loop. Every phase ran in the main loop, which this host does not surface usage for — so the ledger is **complete with one honest marker**: dispatch **0 rows**, main-loop **unmeasured (host does not surface usage)**. Delta-green: gate **1317 → 1336 passed, 0 failed** (+19: 9 authored tool tests, 8 parametrized cases the new tool adds to the existing per-tool sweeps, 2 bookkeeping cases from ticket 105's row; none removed), ruff clean, mypy **46 files**; confirmed in Docker (`scripts/docker-test.sh`). **Self-review round on the PR** (operator asked for a direct review instead of mango reviewer+challenger, so still 0 dispatch): 6 findings, all reproduced, all fixed — the worst was `results`/`cross_layer_edges` uncapped on the default path (176 KB → 7.8 KB on a 1000-module synthetic). Three real pinned repos indexed for AC1 (evidence in the working doc) | [#125](https://github.com/cuongdinhngo/code-atlas/pull/125) |
 | 087 | **0 dispatch — no subagent was dispatched this run.** Run as `/mango:solve 087 with skipped Review + Challenger`: review waived, challenger off, refine self-skipped (0 unresolved). Main-loop **unmeasured (host does not surface usage)**. Delta-green: **1336 → 1347 passed, 0 failed** (+11: 5 authored tests in `test_guided_tour.py` + parametrized `TOOL_NAMES` cases; none removed), ruff clean, mypy **48 files**. Host `.venv/bin/pytest -q` (Linux + PHP) at `6c2475e`. **Review round on the PR** (maintainer asked for a direct review, so still 0 dispatch): PR CI is red for **four billing-blocked jobs**, not for code — gate proven in Docker. 4 findings, all reproduced then fixed; the worst was a component no entry point reaches being silently absent with `truncated: false` (a 3-file index answered with 1 stop). Delta-green **1347 → 1353**, +6 tests. | [#126](https://github.com/cuongdinhngo/code-atlas/pull/126) |
+| 088 | **0 dispatch — no subagent was dispatched this run.** Run as `/mango:solve 088 with skipped Review + Challenger`: review waived, challenger off, refine self-skipped (0 unresolved). Main-loop **unmeasured (host does not surface usage)**. Delta-green: **1353 → 1373 passed, 0 failed** (+20: 6 authored tests in `test_generate_onboarding.py` + parametrized `TOOL_NAMES`/`CALLS` cases; none removed), ruff clean, mypy **50 files**. Host `.venv/bin/pytest -q` (Linux + PHP) at `bd431a4`. **Review round on the PR** (maintainer asked for a direct review, so still 0 dispatch): PR CI red for the same **four billing-blocked jobs**, not for code — gate proven in Docker. 2 findings, both reproduced then fixed; the worst was `shutil.rmtree` on `docs/onboarding/modules`, which deleted hand-authored files the tool never wrote (050's rule). Delta-green **1373 → 1377**, +4 tests. | [#127](https://github.com/cuongdinhngo/code-atlas/pull/127) |
 
 **How 047–049 were measured.** One autonomous session, no per-task transcript: each row is the API
 calls between the previous commit and that task's own commit. The approximation runs one way — work

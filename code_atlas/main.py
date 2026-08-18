@@ -21,6 +21,7 @@ from code_atlas.tools import (
     find_orphans,
     find_references,
     find_view_data,
+    generate_onboarding,
     get_index_status,
     guided_tour,
     impact,
@@ -52,6 +53,7 @@ TOOL_NAMES: tuple[str, ...] = (
     explain_path.NAME,
     architecture_overview.NAME,
     guided_tour.NAME,
+    generate_onboarding.NAME,
 )
 
 
@@ -95,6 +97,8 @@ def build_server(config: Config) -> FastMCP:
         server.tool(guard(architecture_overview.create(config)))
     if guided_tour.NAME in names:
         server.tool(guard(guided_tour.create(config)))
+    if generate_onboarding.NAME in names:
+        server.tool(guard(generate_onboarding.create(config)))
     prompts.register(server)
     return server
 

@@ -88,12 +88,11 @@ A dependency-ordered walk and committable onboarding docs, plus a small offline 
 | 088 | `generate_onboarding` — emit committable markdown (overview · tour · per-module) + a `manifest.json`. |
 | 089 | Static HTML viewer — one self-contained, theme-aware file reading the manifest; no server, no external deps. |
 
-**Decision points — open (brainstorm before M11):**
-- **Artifact location** — markdown committed under `docs/onboarding/`; regenerable caches under
-  `.code-atlas/onboarding/` (gitignored). (Leaning committed markdown, per the 2026-08-11 output
-  decision.)
-- **Tour granularity & length** — file-level vs symbol-level stops; a stop budget so a 40k-file repo
-  does not emit a 40k-stop tour.
+**Decision points — M11:**
+- **Artifact location** — **locked by 088:** markdown + `manifest.json` committed under
+  `docs/onboarding/`; regenerable cache under `.code-atlas/onboarding/` (gitignored).
+- **Tour granularity & length** — **locked by 087:** file-level stops; walk bounded by
+  `CA_IMPACT_MAX_NODES`. 088 reuses that budget for per-module pages.
 - **Coherence is not falsifiable** (task-023 note) — CI asserts *structure* only (sections present,
   dependency order respected, deterministic given a fixed stub); coherence = a recorded manual check,
   not a gate.
