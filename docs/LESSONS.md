@@ -1,5 +1,24 @@
 # Lessons — code-atlas
 
+## 084 — Piping the Docker gate through `tail` reports the pipe's exit, masking a ruff/mypy failure
+The gate `docker-test.sh` runs `ruff check . && mypy code_atlas && pytest -q`, which fails correctly on
+a ruff error. But run as `bash scripts/docker-test.sh 2>&1 | tail -N`, the shell reports the exit status
+of `tail` (0), not of the gate — so a run with `ruff … Found 10 errors` still surfaced as
+`[exited with code 0]`. The green was only visible because the run was judged by its **output content**,
+not the pipeline exit code. In an unattended run this is a false-green hazard: a red gate can read as
+passed. Judge a piped gate by its content (`Success: no issues …`, `N passed`, ruff silent-on-success),
+or drop the pipe so the real exit code propagates.
+
+### 084-C1 — Judge a piped command's result by its output, not the pipeline's exit status
+- type: 4 gotcha
+- status: proposed (awaiting human confirm)
+- seen: 084
+- evidence: `bash scripts/docker-test.sh 2>&1 | tail -20` printed ruff's `Found 10 errors` then
+  `[exited with code 0]` (tail's exit). The ruff failure was caught by reading the content, not the
+  status. `&&`-chained gate → ruff failing stops the chain, but the pipe hides that.
+- area: workflow / running the Docker gate on a non-Linux host
+- destination: `gotchas_path` (recurrence 1 — recorded, not yet promotable)
+
 ## 102 — The fix for "a resolvable subject reported as absent" reintroduced it, one argument over
 `seeds_dropped` was documented as the field that separates a modelled zero from a failed query, but
 it was **assigned in exactly one place** — the store's budget prune. A subject the tool could not

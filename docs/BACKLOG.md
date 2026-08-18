@@ -18,7 +18,7 @@ what landed, and what it cost* — narrative rationale lives in those three.
 | 101 | [A ten-name sweep is ten calls, so the agent used a shell loop](tasks/101_nav-tools-take-one-subject-at-a-time.md) | Agent-fit | done | 014, 013, 066 |
 | 102 | [`impact` reports `seeds_dropped: 0` for a subject it never found](tasks/102_impact-cannot-tell-an-absent-subject-from-a-zero.md) | Agent-fit | done | 017, 100 |
 | 083 | [Onboarding — deterministic graph-metrics foundation](tasks/083_onboarding-graph-metrics.md) | Phase 3 / M10 | done | 014, 031, 017 |
-| 084 | [Onboarding — architectural layer assignment](tasks/084_onboarding-layer-assignment.md) | Phase 3 / M10 | todo | 083 |
+| 084 | [Onboarding — architectural layer assignment](tasks/084_onboarding-layer-assignment.md) | Phase 3 / M10 | done | 083 |
 | 085 | [Onboarding — Summarizer Protocol seam + deterministic default](tasks/085_onboarding-summarizer-seam.md) | Phase 3 / M10 | todo | 083 |
 | 086 | [Onboarding — architecture_overview tool](tasks/086_architecture-overview-tool.md) | Phase 3 / M10 | todo | 084, 085 |
 | 087 | [Onboarding — guided_tour tool](tasks/087_guided-tour-tool.md) | Phase 3 / M11 | todo | 083, 086 |
@@ -377,6 +377,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | — | Ticket-writing for 102: 0 dispatch; the defect was measured during 100, not by a separate run | [#115](https://github.com/cuongdinhngo/code-atlas/pull/115) |
 | — | Field retro round 4 + ticket-writing for 075–082: 0 dispatch. **No PR** — committed straight to `main` on the maintainer's instruction for docs-only changes | — |
 | 083 | **65.4k dispatch, measured** — `mango:reviewer` r1 65.4k (30 tool-uses, 233 s) → LGTM, no findings. Challenger **waived by `--no-challenger`**; refine exposure-checker (refine self-skipped, 0 unresolved) and analysis Explore fan-out (done in the main loop) **not dispatched**, disclosed. Main-loop unmeasured (host does not surface usage). Docker delta-green (`main` baseline **1268** → branch **1283**, +15: 11 authored tests + 4 from the two per-module R1.1 sweeps; none removed). Second `/mango:autorun` run in this repo | [#120](https://github.com/cuongdinhngo/code-atlas/pull/120) |
+| 084 | **124.4k dispatch, measured** — `mango:reviewer` r1 **74.0k** (32 tool-uses, 297 s) → LGTM, no findings + `mango:challenger` **50.4k** (22 tool-uses, 170 s) → 9 met / 1 recorded-exclusion (AC1(b) anchor manual check). Challenger **ON** (default). refine self-skipped (0 unresolved) → exposure-checker not dispatched; analysis Explore fan-out done in the main loop; no extractor — disclosed. Main-loop unmeasured (host does not surface usage). Docker delta-green (full gate **1291 passed**, mypy 44 files, ruff clean; scoped baseline 103→111). Third `/mango:autorun` run in this repo | [#121](https://github.com/cuongdinhngo/code-atlas/pull/121) |
 
 **How 047–049 were measured.** One autonomous session, no per-task transcript: each row is the API
 calls between the previous commit and that task's own commit. The approximation runs one way — work
