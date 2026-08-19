@@ -533,8 +533,8 @@ New surface (separate from indexing): `generate_onboarding`, `architecture_overv
 [`phase3-onboarding/PHASE3_ONBOARDING.md`](phase3-onboarding/PHASE3_ONBOARDING.md)):
 - **M10** `architecture_overview` + layers (deterministic) — 083 graph-metrics · 084 layer assignment ·
   085 summarizer seam + deterministic default · 086 `architecture_overview` tool. **M10 complete** —
-  the tool ships as the 15th on the surface; 104's dominant-subtree grouping is proven on three real
-  pinned repos, with one recorded limitation (see 104/105).
+  the tool ships as the 15th on the surface; 104's dominant-subtree grouping (105: elected by graph
+  mass, not file count) is proven on three real pinned repos with no residual collapse (see 104/105).
 - **M11** `guided_tour` + markdown docs + viewer — 087 tour (topological, carries SCC; the 16th tool) ·
   088 `generate_onboarding` (17th tool: committable markdown + manifest under `docs/onboarding/`) ·
   089 static HTML viewer (`index.html` emitted by `generate_onboarding`; artifact embedded, offline).

@@ -1,5 +1,41 @@
 # Lessons — code-atlas
 
+## 105 — Elect "the main subtree" by graph mass, not file count; make the real-repo check committed
+104's dominant-subtree heuristic elected the top-level directory holding the most **files**. On the
+`laravel/laravel` skeleton `config/` (10 flat settings files) out-counted `app/` (3 connected source
+files), so the whole application collapsed into one layer — the very F1 shape 104 existed to fix. The
+fix: elect by **graph mass** (Σ fan_in+fan_out), so a populous-but-disconnected directory can't
+out-vote a small connected core — no directory stop-list (R2.2), no language branch (R1.1), still
+deterministic. Separately, this is the 5th time an authored fixture that mirrors the code's own
+assumption hid a path-shape defect; 105's durable countermeasure is a **committed, re-runnable
+real-repo reporter** (`scripts/layer_report.py`) so the real check is not an ad-hoc session action.
+
+### 105-C1 — Elect a "dominant" group by connectivity mass, not by member count
+- type: 1 technical-fact
+- handle: elect-by-graph-mass-not-file-count
+- status: proposed (awaiting human confirm)
+- seen: 105
+- evidence: `code_atlas/onboarding/layers.py::_dominant_subtree` sums `fan_in + fan_out`;
+  `tests/test_onboarding_layers.py::test_dominant_subtree_survives_a_config_dir_with_more_files` is
+  red on the count rule, green on mass; three real repos in 105's working doc (AC2)
+- area: onboarding layer assignment / graph heuristics
+- destination: `gotchas_path` (a design fact about this heuristic, not a build rule)
+
+### 105-C2 — When AC needs a real-repo judgement, ship a committed reporter, not an ad-hoc run
+- type: 2 generalisable-heuristic
+- handle: fixture-shape-begs-the-question
+- status: proposed (awaiting human confirm)
+- seen: 084, 103, 104, 086, 105
+- evidence: authored fixtures hid the same class of path-shape defect across 084/103/104/086; 105 adds
+  `scripts/layer_report.py` (clones+indexes the pinned repos, prints `assign_layers`) as the committed
+  real-repo check
+- area: test design / heuristics judged on real inputs
+- note: `seen:` crosses ≥2 ticket keys → this is a **cross-ticket promotion candidate**
+  (`/mango:promote`, run by the maintainer between tickets), not a within-ticket write
+- destination: `rulebook_path` (a heuristic over path/graph shape must be proven on a real indexed
+  repo, via a committed re-runnable check — a fixture that shares the code's assumption cannot)
+
+
 ## 091 — Constrain a seam's return type so a bad implementer can't break a core invariant
 091 lets an LLM rename architectural layers. The obvious seam shape — `refine(assignment) -> new
 assignment` — would let a hallucinating impl drop modules, invent layers, or scramble ranks, and the

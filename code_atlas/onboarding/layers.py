@@ -1,9 +1,10 @@
 """Deterministic architectural-layer assignment for Phase-3 onboarding (084, M10; 103, 104, 086).
 
 Pure functions over 083's ``GraphMetrics`` — no SQL, no LLM, no language branches (R1.1/R1.4/R4).
-The heuristic is **dominant-subtree** (task 104): group modules beneath the top-level directory that
-holds the most modules (strip the common prefix *within* that subtree, layer by the first remaining
-segment), while every **other** top-level directory becomes its own layer. A **pure
+The heuristic is **dominant-subtree** (tasks 104, 105): group modules beneath the top-level dir that
+carries the most dependency mass (Σ fan_in+fan_out, so a flat settings dir can't out-vote a small
+source tree — task 105); strip the common prefix *within* that subtree, layer by the first remaining
+segment, while every **other** top-level directory becomes its own layer. A **pure
 dependency-direction fallback** takes over when the paths yield < 2 named groups (flat legacy, or a
 single directory). Identical input yields byte-identical output (R4.2); layer names are the repo's
 own path segments (or direction labels), never a per-language taxonomy. ``cross_layer_edges`` (086)
@@ -130,16 +131,19 @@ def _common_dir_prefix(modules: tuple[NodeMetric, ...]) -> list[str]:
 
 
 def _dominant_subtree(modules: tuple[NodeMetric, ...]) -> str | None:
-    """The top-level directory holding the most modules; ties broken by name for determinism (R4.2).
-    Root files (no top dir) do not compete; ``None`` when no module has a top-level directory."""
-    counts: dict[str, int] = {}
+    """Top-level dir with the most dependency mass (Σ fan_in+fan_out); mass ties fall back to module
+    count, then name (R4.2). Mass over count so a flat settings dir can't out-vote a small connected
+    source tree (105); count keeps the old most-populous pick on an edgeless index."""
+    mass: dict[str, int] = {}
+    count: dict[str, int] = {}
     for metric in modules:
         top = _top_dir(metric.key)
         if top is not None:
-            counts[top] = counts.get(top, 0) + 1
-    if not counts:
+            mass[top] = mass.get(top, 0) + metric.fan_in + metric.fan_out
+            count[top] = count.get(top, 0) + 1
+    if not mass:
         return None
-    return sorted(counts, key=lambda name: (-counts[name], name))[0]
+    return sorted(mass, key=lambda name: (-mass[name], -count[name], name))[0]
 
 
 def _layer_of(module: str, dominant: str, sub_common: list[str]) -> str:

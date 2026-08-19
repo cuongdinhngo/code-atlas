@@ -181,6 +181,11 @@ by **file count**, and this skeleton's `config/` holds 10 indexed files against 
 fixture (a) could not catch it because it authored 8 classes under `app/**`, so `app/` dominated by
 construction — the second time an authored fixture has hidden a path-shape defect.
 
+> **Fixed by [task 105](105_dominant-subtree-loses-to-a-config-dir.md)** (`_dominant_subtree` elects by
+> graph mass, not file count). Re-run of this same repo now yields `… → Http(1) → … → Models(1) →
+> Providers(1)` — `app/**` split, no `app` layer — while `symfony/demo` and `brick/math` stay
+> byte-identical to the assignments below. See 105's working doc for the three re-runs.
+
 **Verdict.** C1 is right on the two repos with a real source tree and wrong on the scaffold whose
 settings directory out-counts it. Recorded as **task 105** (with the directory stop-list rejected in
 advance per R2.2, and an AC that forbids the question-begging fixture shape). **104 stays `blocked`:**

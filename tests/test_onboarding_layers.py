@@ -1,9 +1,10 @@
 """Task 084/103/104 — deterministic architectural-layer assignment.
 
 The layer logic is pure over 083's ``GraphMetrics``, so the fixtures are plain Python — no database.
-The primary path is **dominant-subtree** (104): group beneath the top-level dir holding the most
-modules, keep every other top-level dir as its own layer; a **flat-namespace** graph falls back to
-pure dependency direction. 104's real-shape regression fixtures (AC3) live at the file's end.
+The primary path is **dominant-subtree** (104, 105): group beneath the top-level dir carrying the
+most dependency mass (Σ fan_in+fan_out), keep every other top-level dir as its own layer; a
+**flat-namespace** graph falls back to pure dependency direction. 104's real-shape regression
+fixtures (AC3) live at the file's end, with 105's config-heavy rewrite of fixture (a).
 Byte-stability (R4.2) is proven by computing twice over shuffled input and byte-comparing the JSON.
 """
 
@@ -229,23 +230,34 @@ def test_fallback_bands_are_derived_from_direction_labels() -> None:
 # shipped 103) and C2 (first-two-segments). Fixture coverage NEVER closes AC2 (a real indexed repo);
 # it guards the shapes AC2 would have caught, so a future refactor cannot silently reintroduce F1.
 
-# (a) A real Laravel tree: 8 classes under app/** PLUS one routes/web.php. Under C0 the lone routes
-# file empties the common prefix, so every app/** file collapses into a single "app" layer (F1).
+# (a) 105's config-heavy rewrite of 104's fixture (retro `fixture-shape-begs-the-question`, 3rd).
+# 104 authored MORE files under app/** than anywhere else, so app/ dominated by construction and the
+# file-count defect stayed hidden. Here config/** ships 8 flat, edge-less settings files against
+# app/**'s 7 connected classes — the real laravel shape. Under the old count rule config/ wins and
+# app/** collapses to a single "app" layer (F1); only graph mass keeps app/ dominant and splits it.
 LARAVEL_NODES = [
     ("App\\Http\\Controllers\\Api\\UserController", "app/Http/Controllers/Api/UserController.php"),
     ("App\\Http\\Controllers\\HomeController", "app/Http/Controllers/HomeController.php"),
-    ("App\\Http\\Middleware\\Authenticate", "app/Http/Middleware/Authenticate.php"),
     ("App\\Models\\User", "app/Models/User.php"),
     ("App\\Models\\Invoice", "app/Models/Invoice.php"),
     ("App\\Services\\Billing", "app/Services/Billing.php"),
     ("App\\Providers\\AppServiceProvider", "app/Providers/AppServiceProvider.php"),
     ("App\\Console\\Kernel", "app/Console/Kernel.php"),
-    ("routes_web", "routes/web.php"),
+    ("config_app", "config/app.php"),
+    ("config_auth", "config/auth.php"),
+    ("config_cache", "config/cache.php"),
+    ("config_database", "config/database.php"),
+    ("config_mail", "config/mail.php"),
+    ("config_queue", "config/queue.php"),
+    ("config_services", "config/services.php"),
+    ("config_session", "config/session.php"),
 ]
 LARAVEL_EDGES = [
-    ("routes_web", "App\\Http\\Controllers\\Api\\UserController"),
     ("App\\Http\\Controllers\\Api\\UserController", "App\\Services\\Billing"),
+    ("App\\Http\\Controllers\\HomeController", "App\\Models\\User"),
     ("App\\Services\\Billing", "App\\Models\\Invoice"),
+    ("App\\Providers\\AppServiceProvider", "App\\Services\\Billing"),
+    ("App\\Console\\Kernel", "App\\Services\\Billing"),
 ]
 
 # (b) Deep root: everything under src/App/**. C2 (first-two-segments) collapses it all into
@@ -278,33 +290,45 @@ ROOT_FILE_NODES = [
 ]
 ROOT_FILE_EDGES = [("config_app", "App\\Http\\Kernel")]
 
-# A count tie (dir "a" and "b" each hold 2 modules) where the dominant choice CHANGES the output:
-# "a" splits into Http/Models, "b" has no sub-structure. The (-count, name) tie-break must pick "a"
-# regardless of input order — a buggy insertion-order tie-break would flip to "b", and the layers
-# with it, so reversing the modules is a real probe.
+# A mass tie (dir "a" and "b" each carry Σ fan_in+fan_out = 2, and each holds 2 modules) where the
+# dominant choice CHANGES the output: "a" splits into Http/Models, "b" has no sub-structure. The
+# (-mass, -count, name) tie-break must pick "a" regardless of input order — a buggy insertion-order
+# tie-break would flip to "b", and the layers with it, so reversing the modules is a real probe.
 TIE_NODES = [
     ("A\\Http\\X", "a/Http/X.php"),
     ("A\\Models\\Y", "a/Models/Y.php"),
     ("B\\Z", "b/Z.php"),
     ("B\\W", "b/W.php"),
 ]
-TIE_EDGES = [("A\\Http\\X", "A\\Models\\Y"), ("A\\Models\\Y", "B\\Z")]
+TIE_EDGES = [("A\\Http\\X", "A\\Models\\Y"), ("B\\Z", "B\\W")]
+
+# An index with nodes but NO resolved edges (early language phase, or independent files): every dir
+# has mass 0, so the tie-break falls back to module count — populous zzz/ (2 files) dominates and
+# splits, not the alphabetically-first aaa/ that a name-only tie-break would wrongly elect (leaving
+# zzz/ collapsed). Preserves the pre-105 most-populous behaviour on an edgeless index (review F2).
+EDGELESS_NODES = [
+    ("Zzz\\Http\\A", "zzz/Http/A.php"),
+    ("Zzz\\Models\\B", "zzz/Models/B.php"),
+    ("Aaa\\C", "aaa/C.php"),
+]
+EDGELESS_EDGES: list[tuple[str, str]] = []
 
 
-def test_dominant_subtree_does_not_collapse_laravel_app_into_one_layer() -> None:
-    # PROVING TEST (104 / AC3(a), the F1 fix). One routes/web.php outside app/** must NOT flatten
-    # the whole application into a single "app" layer (the shipped-103 defect). app/** splits by its
-    # second segment; routes/ stays its own layer.
+def test_dominant_subtree_survives_a_config_dir_with_more_files() -> None:
+    # PROVING TEST (105 / AC3(a), the F1 fix). config/** out-COUNTS app/** (8 files vs 7) but has no
+    # edges, so the old file-count rule elects config/ and collapses app/** into one "app" layer.
+    # Graph mass (Σ fan_in+fan_out) keeps app/ dominant: it splits by its 2nd segment while config/
+    # stays one layer. Red on main:layers.py (count), green here (mass).
     assigned = assign_layers(compute_metrics(LARAVEL_NODES, LARAVEL_EDGES))
     assert assigned.method == "dominant-subtree"
     assert "app" not in assigned.layers
     assert {"Http", "Models", "Services", "Providers", "Console"} <= set(assigned.layers)
-    assert "routes" in assigned.layers
+    assert "config" in assigned.layers
     placed = {m.module: m.layer for m in assigned.modules}
     assert placed["app/Http/Controllers/Api/UserController.php"] == "Http"
     assert placed["app/Models/User.php"] == "Models"
     assert placed["app/Services/Billing.php"] == "Services"
-    assert placed["routes/web.php"] == "routes"
+    assert placed["config/app.php"] == "config"
 
 
 def test_deep_src_app_tree_still_splits_into_http_domain_infra() -> None:
@@ -355,7 +379,7 @@ def test_dominant_subtree_pipeline_is_byte_stable_across_two_runs() -> None:
 def test_dominant_subtree_tie_break_is_order_independent_at_the_assign_boundary() -> None:
     # 104 / AC4 (R4.2) + lesson 009. compute_metrics._grain already sorts modules, so shuffling its
     # INPUT cannot observe order-dependence inside assign_layers. Shuffle the modules tuple at the
-    # assign_layers boundary itself, on a fixture whose OUTPUT depends on the count tie-break.
+    # assign_layers boundary itself, on a fixture whose OUTPUT depends on the mass tie-break (105).
     metrics = compute_metrics(TIE_NODES, TIE_EDGES)
     shuffled = dataclasses.replace(metrics, modules=tuple(reversed(metrics.modules)))
     first, second = assign_layers(metrics), assign_layers(shuffled)
@@ -363,3 +387,13 @@ def test_dominant_subtree_tie_break_is_order_independent_at_the_assign_boundary(
     # "a" (alphabetically first of the tie) is dominant and splits; "b" stays one layer.
     assert {"Http", "Models", "b"} <= set(first.layers)
     assert "a" not in first.layers
+
+
+def test_edgeless_index_falls_back_to_module_count_not_alphabetical() -> None:
+    # 105 review F2. No resolved edges → every dir has mass 0; the tie-break falls back to module
+    # count, so the populous zzz/ dominates and splits (Http/Models) rather than an arbitrary
+    # alphabetical pick electing aaa/ and collapsing zzz/. Preserves pre-105 most-populous.
+    assigned = assign_layers(compute_metrics(EDGELESS_NODES, EDGELESS_EDGES))
+    assert assigned.method == "dominant-subtree"
+    assert {"Http", "Models"} <= set(assigned.layers)
+    assert "zzz" not in assigned.layers

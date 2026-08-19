@@ -21,7 +21,7 @@ what landed, and what it cost* — narrative rationale lives in those three.
 | 084 | [Onboarding — architectural layer assignment](tasks/084_onboarding-layer-assignment.md) | Phase 3 / M10 | done | 083 |
 | 103 | [Onboarding — layer granularity: strip common prefix, group by top segment](tasks/103_onboarding-layer-granularity.md) | Phase 3 / M10 | done | 084 |
 | 104 | [Onboarding — fix the layer collapse (F1): group beneath the dominant subtree](tasks/104_onboarding-layer-signal.md) | Phase 3 / M10 | blocked | 103 |
-| 105 | [Onboarding — the dominant subtree is decided by file count, and a config dir can win it](tasks/105_dominant-subtree-loses-to-a-config-dir.md) | Phase 3 / M10 | todo | 104, 086 |
+| 105 | [Onboarding — the dominant subtree is decided by file count, and a config dir can win it](tasks/105_dominant-subtree-loses-to-a-config-dir.md) | Phase 3 / M10 | done | 104, 086 |
 | 085 | [Onboarding — Summarizer Protocol seam + deterministic default](tasks/085_onboarding-summarizer-seam.md) | Phase 3 / M10 | done | 083 |
 | 086 | [Onboarding — architecture_overview tool](tasks/086_architecture-overview-tool.md) | Phase 3 / M10 | done | 084, 085, 104 |
 | 087 | [Onboarding — guided_tour tool](tasks/087_guided-tour-tool.md) | Phase 3 / M11 | done | 083, 086 |
@@ -61,15 +61,17 @@ interview's §6.5 retraction; see the ticket).
 **104 fixes 103's shipped F1 collapse** (the dominant-subtree grouping); its C1 implementation +
 AC1/AC3/AC4 landed, and AC2 — the real-repo proof — was **produced by 086**, whose own AC1 asks for
 the same evidence. 086 indexed the three real repos already pinned in `scripts/cross_repo_samples.json`
-and recorded the actual layer assignment for each: **`symfony/demo` and `brick/math` are
-architecturally sensible**; **`laravel/laravel` still collapses `app/**`**, because that skeleton's
-`config/` holds 10 indexed files against `app/`'s 3 and the dominant subtree is elected by file
-**count**. 104's AC3 fixture (a) hid it by authoring 8 classes under `app/**`. That narrow residual is
-**105**, with a rejected-in-advance stop-list (R2.2) and an AC that forbids the question-begging
-fixture shape. 104 stays **`blocked`** — its AC2 names the **anchor monorepo**, and three public repos
-are stronger than fixtures but are not that repo; the maintainer holds that judgement. **086 shipped
-against the measured evidence rather than waiting on it**, and its payload carries `method` so a
-reader can see which grouping produced a split.
+and found **`laravel/laravel` still collapsed `app/**`**, because that skeleton's `config/` holds 10
+indexed files against `app/`'s 3 and the dominant subtree was elected by file **count**.
+
+**105 fixes that** (`done`): `_dominant_subtree` now elects by **graph mass** (Σ fan_in+fan_out), so a
+flat, disconnected settings directory can no longer out-vote a small but connected source tree — no
+directory stop-list (R2.2), no language branch (R1.1), still deterministic (R4.2). Proven on the same
+three pinned repos via the new committed `scripts/layer_report.py`: **`laravel/laravel` now splits
+`app/**` into Http/Models/Providers**, and **`symfony/demo` / `brick/math` are byte-identical to 086's
+recorded assignments** (no regression). 104 stays **`blocked`** — its AC2 names the **anchor
+monorepo**, and three public repos are stronger than fixtures but are not that repo; the maintainer
+holds that judgement.
 
 **M10 is complete** (083 · 084 · 085 · 103 · 104 · 086) — `architecture_overview` is the 15th tool on
 the surface. **087 shipped** (`guided_tour`, 16th tool). **088 shipped** (`generate_onboarding`,
@@ -78,7 +80,8 @@ seam — the `onboarding_llm/` package + `code-atlas-llm` entry point, opt-in, t
 LLM). **091 shipped** (LLM layer-name refinement behind a new 091 `LayerRefiner` seam — renames the
 weak dependency-direction bands 084 falls back to on flat namespaces; opt-in via
 `CA_ONBOARDING_LAYER_REFINER`, off by default, core still imports no LLM). **M12 is complete**
-(090 · 091). **Next: 105** (M10's open residual).
+(090 · 091). **105 shipped** (dominant subtree elected by graph mass, not file count — the laravel
+`app/**` collapse is fixed and proven on the three pinned repos).
 
 **Then:** Phase 3 onboarding (083 → 091; M10 → M11 → M12) or Phase 2 language breadth — both are
 unblocked by Phase 1.5; breadth stays deferred per §19.
@@ -412,6 +415,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | 088 | **0 dispatch — no subagent was dispatched this run.** Run as `/mango:solve 088 with skipped Review + Challenger`: review waived, challenger off, refine self-skipped (0 unresolved). Main-loop **unmeasured (host does not surface usage)**. Delta-green: **1353 → 1373 passed, 0 failed** (+20: 6 authored tests in `test_generate_onboarding.py` + parametrized `TOOL_NAMES`/`CALLS` cases; none removed), ruff clean, mypy **50 files**. Host `.venv/bin/pytest -q` (Linux + PHP) at `bd431a4`. **Review round on the PR** (maintainer asked for a direct review, so still 0 dispatch): PR CI red for the same **four billing-blocked jobs**, not for code — gate proven in Docker. 2 findings, both reproduced then fixed; the worst was `shutil.rmtree` on `docs/onboarding/modules`, which deleted hand-authored files the tool never wrote (050's rule). Delta-green **1373 → 1377**, +4 tests. | [#127](https://github.com/cuongdinhngo/code-atlas/pull/127) |
 | 089 | **0 dispatch — no subagent was dispatched this run.** Run as `/mango:solve 089 with skipped Review + Challenger`: review waived, challenger off, refine self-skipped (0 unresolved). Main-loop **unmeasured (host does not surface usage)**. Delta-green: **1377 → 1382 passed, 0 failed** (+5: 3 authored tests in `test_onboarding_viewer.py` + 2 count-pin cases; none removed), ruff clean, mypy **51 files**. Host `.venv/bin/pytest -q` (Linux + PHP) at `9ff28b4`. **Review round on the PR** (maintainer asked for a direct review, so still 0 dispatch): PR CI red for the same **four billing-blocked jobs**, not for code — gate proven in Docker. 3 findings: the `<`-escape that stops a script-tag breakout had **no test** (deleting it kept the suite green, and a directory `a<` + file `script>x` makes a path string carry `</script>`), a blank page with scripting off, and no `lang`. All fixed. Delta-green **1382 → 1384**, +2 tests. | [#128](https://github.com/cuongdinhngo/code-atlas/pull/128) |
 | 090 | **0 dispatch — no subagent was dispatched this run.** Run as `/mango:solve 090 with skipped review & challenger`: review waived, challenger off, refine ran (4 how-decisions resolved+cited, 0 want-decisions, 0 ASSUMED). Main-loop **unmeasured (host does not surface usage)**. Delta-green: **1384 → 1441 passed, 0 failed** (+57: 6 authored tests in `test_onboarding_llm.py` + the `no-core-module-imports-an-llm` parametrization over the 51 core modules; count-pins `core_modules() == 51` **unchanged** — the LLM code lives outside `code_atlas/`), ruff clean, mypy clean (`onboarding_llm` added to files). Docker `scripts/docker-test.sh` at `77.42s`. Self-verification sweep in the main loop (review phase waived by run arg): diff ⊆ approved change-list, every Approach bullet implemented-as-approved. **Post-PR `/code-review #129`** (main-loop review, still 0 dispatch): 5 findings, all reproduced then fixed on the generation/cache path — empty/refused result was cached permanently (now falls back, uncached), `max_tokens` shared with adaptive thinking (256 → 2048), `anthropic` floor predated `output_config` (dropped `output_config`, floor → `>=0.69`), malformed cache entry raised `KeyError` (now a miss), cache key omitted `_SYSTEM`/`max_tokens` (folded in). +2 tests. Delta-green **1441 → 1443**. | [#129](https://github.com/cuongdinhngo/code-atlas/pull/129) |
+| 105 | **0 dispatch — no subagent was dispatched this run.** Run as `/mango:solve 105 with skipped review & challenger`: review waived, challenger off, refine self-skipped (0 unresolved — the signal is a design how-decision the ticket hands to the design phase, not a want-decision). Main-loop **unmeasured (host does not surface usage)**. Core change is one function: `_dominant_subtree` elects by graph mass (Σ fan_in+fan_out), not file count — **no new file under `code_atlas/`**, so count-pins `core_modules() == 51` unchanged. Delta-green: full Docker gate **1453 passed, 0 failed** (proving test renamed/retargeted), ruff clean, mypy **51 source files**. **AC2 satisfied this session** (unlike 104): `scripts/docker-test.sh python scripts/layer_report.py` cloned+indexed the three pinned repos — laravel/laravel splits `app/**` into Http/Models/Providers (F1 fixed), symfony/demo + brick/math byte-identical to 086. New committed opt-in `scripts/layer_report.py` is the durable answer to the recurring `fixture-shape-begs-the-question` lesson. **Post-PR `/code-review #131`** (main-loop, still 0 dispatch): 4 findings, all dispositioned — F2 edgeless index elected alphabetically not most-populous (**fixed**: mass tie-break falls back to `-count`, then name; +1 edgeless test), F3 `layer_report.py` had no assertions (**fixed**: per-repo require/forbid check with non-zero exit), F4 docstring count inconsistency (**fixed**), F1 hub-dir out-mass a documented deferred trade-off. Delta-green **1453 → 1454**. | [#131](https://github.com/cuongdinhngo/code-atlas/pull/131) |
 | 091 | **0 dispatch — no subagent was dispatched this run.** Run as `/mango:solve 091 with skipped review & challenger`: review waived, challenger off, refine ran (4 how-decisions resolved+cited — new `LayerRefiner` seam, rename-map contract, names-only scope, `claude-opus-5` top tier; 0 want-decisions, 0 ASSUMED). Main-loop **unmeasured (host does not surface usage)**. Delta-green: **1443 → 1453 passed, 0 failed** (+10 authored tests in `test_onboarding_llm_layers.py`; the seam types live in the existing `layers.py`, so **no new file under `code_atlas/`** — count-pins `core_modules() == 51` **unchanged**, mypy sees 51 source files), ruff clean, mypy clean. Docker `scripts/docker-test.sh` at `130.25s`. Self-verification sweep in the main loop (review phase waived by run arg): diff ⊆ approved change-list, every Approach bullet implemented-as-approved. Extracted `onboarding_llm/client.py` (shared client Protocol + `first_text`) so 090's summarizer and 091's refiner share one shape (DRY). | [#130](https://github.com/cuongdinhngo/code-atlas/pull/130) |
 
 **How 047–049 were measured.** One autonomous session, no per-task transcript: each row is the API
