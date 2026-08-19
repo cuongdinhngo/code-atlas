@@ -139,6 +139,8 @@ pre {
       "method: " + (data.method || ""),
       "layers: " + ((data.layers || []).length),
       "stops: " + ((data.stops || []).length),
+      "pages: " + ((data.pages || []).length),
+      "no page (isolated, no summary): " + ((data.isolated || []).length),
       "truncated: " + (data.truncated ? "true" : "false")
     ];
     bits.forEach(function (line) { panel.appendChild(el("p", line)); });
@@ -217,6 +219,7 @@ def viewer_payload(artifact: OnboardingArtifact) -> dict[str, object]:
             }
             for row in artifact.layers
         ],
+        "isolated": list(artifact.isolated),
         "method": artifact.method,
         "pages": [
             {

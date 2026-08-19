@@ -132,3 +132,27 @@ def test_the_viewer_degrades_without_scripting_and_declares_its_language(
     assert '<html lang="en">' in html
     assert "<noscript" in html
     assert "overview.md" in html and "tour.md" in html
+
+
+def test_the_viewer_names_the_modules_it_has_no_page_for(tmp_path: Path) -> None:
+    """107: the embedded payload carries the suppressed list, so the page cannot imply coverage.
+
+    The stop list still holds every module; the viewer already answers a stop with no page
+    ("No page for this stop."), so a suppressed module is visible, not a dead link.
+    """
+    from tests.test_generate_onboarding import _sparse_repo
+
+    config = _sparse_repo(tmp_path)
+    generate_onboarding.create(config)()
+    html = _html(tmp_path)
+    payload = _payload(html)
+
+    isolated = [f"scripts/s{index:02d}.aa" for index in range(3)]
+    assert payload["isolated"] == isolated
+    assert [page["file"] for page in payload["pages"]] == ["src/A.aa", "src/B.aa"]
+    assert {stop["file"] for stop in payload["stops"]} == set(isolated) | {
+        "src/A.aa",
+        "src/B.aa",
+    }
+    assert "no page (isolated, no summary): " in html
+    assert "No page for this stop." in html

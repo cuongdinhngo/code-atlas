@@ -219,3 +219,122 @@ def test_recorded_pages_deletes_nothing_it_cannot_prove_it_wrote() -> None:
     assert recorded_pages('{"modules": "nope"}') == ()
     for hostile in ("../../etc/passwd", "/etc/passwd", "modules/../../x.md", "notes.md"):
         assert recorded_pages(json.dumps({"modules": [{"page": hostile}]})) == ()
+
+
+def _sparse_repo(tmp_path: Path) -> Path:
+    """Isolated modules plus one connected pair — the shape task 107 measured on real repos.
+
+    `laravel/laravel` emits 20 such pages of 26, `symfony/demo` 7 of 51: a module with no
+    resolved edge in either direction and no docblock has nothing a page can say.
+    """
+    from tests.test_nav_tools import edge, node, seed_file
+
+    config = db_config(tmp_path)
+    with GraphStore(config.db_path) as store:
+        for index in range(3):
+            path = f"scripts/s{index:02d}.aa"
+            seed_file(
+                store,
+                path,
+                [node("Class", f"S{index:02d}", f"\\S{index:02d}", path)],
+                [],
+                root=tmp_path,
+            )
+        seed_file(
+            store,
+            "src/A.aa",
+            [node("Class", "A", "\\A", "src/A.aa")],
+            [edge("CALLS", "\\A", "\\B", "src/A.aa", target_qname="\\B")],
+            root=tmp_path,
+        )
+        seed_file(
+            store, "src/B.aa", [node("Class", "B", "\\B", "src/B.aa")], [], root=tmp_path
+        )
+    return config
+
+
+def test_generate_onboarding_suppresses_a_contentless_page_and_counts_it(
+    tmp_path: Path,
+) -> None:
+    """Proving test (107): a page saying only path + role + layer + three ``(none)``s is filler.
+
+    It is not written, the overview counts what has no page, and the manifest names those
+    modules with ``page: null`` instead of a dead link. The connected pair keeps its pages.
+    """
+    config = _sparse_repo(tmp_path)
+    payload = generate_onboarding.create(config)()
+    out = _out(tmp_path)
+    overview = (out / "overview.md").read_text(encoding="utf-8")
+    manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
+
+    isolated = [f"scripts/s{index:02d}.aa" for index in range(3)]
+    for path in isolated:
+        assert not (out / "modules" / Path(path + ".md")).exists(), path
+    for path in ("src/A.aa", "src/B.aa"):
+        assert (out / "modules" / Path(path + ".md")).is_file(), path
+
+    assert "- module pages: 2" in overview
+    assert "- modules with no page (isolated, no summary): 3" in overview
+    assert manifest["isolated"] == isolated
+    assert payload["isolated_modules"] == 3
+    # The reading order keeps every module; only the empty page is gone.
+    stops = {row["file"]: row["page"] for row in manifest["stops"]}
+    assert set(stops) == set(isolated) | {"src/A.aa", "src/B.aa"}
+    assert [stops[path] for path in isolated] == [None, None, None]
+    assert stops["src/A.aa"] == "modules/src/A.aa.md"
+
+
+def test_generate_onboarding_keeps_a_page_whose_neighbours_the_budget_cut(
+    tmp_path: Path,
+) -> None:
+    """A module with edges the walk could not afford keeps its page and states the count (102)."""
+    config = replace(_cycle_repo(tmp_path), impact_max_nodes=1)
+    generate_onboarding.create(config)()
+    page = _out(tmp_path) / "modules" / Path(ROUTES + ".md")
+
+    assert page.is_file(), "a module with real edges must not be suppressed as contentless"
+    text = page.read_text(encoding="utf-8")
+    assert "- outgoing: (none admitted in this tour; 1 in the full graph)" in text
+    assert "- incoming: (none)" in text
+
+
+def test_generate_onboarding_composition_is_byte_stable(tmp_path: Path) -> None:
+    """The suppressed-page shape must stay deterministic (R4.2)."""
+    config = _sparse_repo(tmp_path)
+    first = generate_onboarding.create(config)()
+    manifest = (_out(tmp_path) / "manifest.json").read_bytes()
+    overview = (_out(tmp_path) / "overview.md").read_bytes()
+    assert generate_onboarding.create(config)() == first
+    assert (_out(tmp_path) / "manifest.json").read_bytes() == manifest
+    assert (_out(tmp_path) / "overview.md").read_bytes() == overview
+
+
+def test_generate_onboarding_deletes_a_page_that_became_contentless(tmp_path: Path) -> None:
+    """AC3: a page the last manifest recorded is still removed once it is suppressed (050/088)."""
+    config = _sparse_repo(tmp_path)
+    with GraphStore(config.db_path) as store:  # give an isolated module one edge, then remove it
+        from tests.test_nav_tools import edge, node, seed_file
+
+        seed_file(
+            store,
+            "scripts/s00.aa",
+            [node("Class", "S00", "\\S00", "scripts/s00.aa")],
+            [edge("CALLS", "\\S00", "\\B", "scripts/s00.aa", target_qname="\\B")],
+            root=tmp_path,
+        )
+    generate_onboarding.create(config)()
+    page = _out(tmp_path) / "modules" / Path("scripts/s00.aa.md")
+    assert page.is_file()
+
+    with GraphStore(config.db_path) as store:
+        from tests.test_nav_tools import node, seed_file
+
+        seed_file(
+            store,
+            "scripts/s00.aa",
+            [node("Class", "S00", "\\S00", "scripts/s00.aa")],
+            [],
+            root=tmp_path,
+        )
+    generate_onboarding.create(config)()
+    assert not page.exists(), "the tool must remove a page it wrote once it turns contentless"

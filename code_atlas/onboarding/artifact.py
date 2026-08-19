@@ -105,6 +105,8 @@ class ModulePage:
     of: int
     outgoing: tuple[str, ...]
     incoming: tuple[str, ...]
+    fan_in: int
+    fan_out: int
 
 
 @dataclass(frozen=True)
@@ -118,6 +120,8 @@ class OnboardingArtifact:
     crossings: tuple[tuple[str, str, int], ...]
     stops: tuple[TourStop, ...]
     pages: tuple[ModulePage, ...]
+    isolated: tuple[str, ...] = ()
+    """Modules a page would say nothing about: no edge either way, no summary (task 107)."""
 
     def as_dict(self) -> dict[str, object]:
         """Order-stable dict for the regenerable cache (R4.2)."""
@@ -137,10 +141,13 @@ class OnboardingArtifact:
                 }
                 for row in self.layers
             ],
+            "isolated": list(self.isolated),
             "method": self.method,
             "pages": [
                 {
                     "docline": page.docline,
+                    "fan_in": page.fan_in,
+                    "fan_out": page.fan_out,
                     "file": page.file,
                     "incoming": list(page.incoming),
                     "index": page.index,
@@ -271,10 +278,17 @@ def build_artifact(
     summaries = {summary.key: summary for summary in summarize_modules(facts, summarizer)}
     outgoing, incoming = _neighbours(tour_edges)
     pages: list[ModulePage] = []
+    isolated: list[str] = []
     for index, stop in enumerate(stops, start=1):
         metric_row = placed.get(stop.file)
         summary = summaries.get(stop.file)
         if metric_row is None or summary is None:
+            continue
+        degrees = by_key[stop.file]
+        # No edge either way in the WHOLE graph and no summary: a page could only repeat the
+        # path. Budget-cut neighbours are a different fact — that page stays and says so (107).
+        if not summary.docline and not degrees.fan_in and not degrees.fan_out:
+            isolated.append(stop.file)
             continue
         pages.append(
             ModulePage(
@@ -290,6 +304,8 @@ def build_artifact(
                 of=len(stops),
                 outgoing=outgoing.get(stop.file, ()),
                 incoming=incoming.get(stop.file, ()),
+                fan_in=degrees.fan_in,
+                fan_out=degrees.fan_out,
             )
         )
     crossings = cross_layer_edges(module_edges(nodes, edges), assignment)
@@ -308,6 +324,7 @@ def build_artifact(
         crossings=tuple((edge.source, edge.target, edge.count) for edge in crossings),
         stops=stops,
         pages=tuple(pages),
+        isolated=tuple(sorted(isolated)),
     )
 
 
@@ -325,6 +342,7 @@ def render_overview(artifact: OnboardingArtifact) -> str:
         f"- module entry points: {artifact.summary['module_entry_points']}",
         f"- cross-layer edges: {artifact.summary['cross_layer_edges']}",
         f"- module pages: {len(artifact.pages)}",
+        f"- modules with no page (isolated, no summary): {len(artifact.isolated)}",
         f"- truncated: {'true' if artifact.truncated else 'false'}",
         "",
         H_LAYERS,
@@ -363,11 +381,18 @@ def render_tour(artifact: OnboardingArtifact) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _absent(degree: int) -> str:
+    """An empty neighbour list is either a real zero or the budget's doing — say which (102)."""
+    if degree:
+        return f"(none admitted in this tour; {degree} in the full graph)"
+    return "(none)"
+
+
 def render_module(page: ModulePage) -> str:
     """One per-module page. Structure is fixed so CI can assert headings, not prose."""
     docline = page.docline if page.docline else "(none)"
-    out = ", ".join(f"`{path}`" for path in page.outgoing) or "(none)"
-    incoming = ", ".join(f"`{path}`" for path in page.incoming) or "(none)"
+    out = ", ".join(f"`{path}`" for path in page.outgoing) or _absent(page.fan_out)
+    incoming = ", ".join(f"`{path}`" for path in page.incoming) or _absent(page.fan_in)
     lines = [
         f"# `{page.file}`",
         "",
@@ -396,7 +421,12 @@ def render_module(page: ModulePage) -> str:
 
 
 def manifest_dict(artifact: OnboardingArtifact) -> dict[str, object]:
-    """What the viewer (089) reads: relative paths + the tour order. No wall-clock (R4.2)."""
+    """What the viewer (089) reads: relative paths + the tour order. No wall-clock (R4.2).
+
+    A stop whose page was suppressed carries ``page: null`` — a path to a file this run did not
+    write would be a dead link, and the manifest is also the delete record (050/107).
+    """
+    written = {page.file for page in artifact.pages}
     return {
         "layers": [
             {
@@ -409,6 +439,7 @@ def manifest_dict(artifact: OnboardingArtifact) -> dict[str, object]:
             }
             for row in artifact.layers
         ],
+        "isolated": list(artifact.isolated),
         "method": artifact.method,
         "modules": [
             {"file": page.file, "layer": page.layer, "page": page.relpath}
@@ -418,7 +449,7 @@ def manifest_dict(artifact: OnboardingArtifact) -> dict[str, object]:
         "stops": [
             {
                 "file": stop.file,
-                "page": page_relpath(stop.file),
+                "page": page_relpath(stop.file) if stop.file in written else None,
                 "rationale": stop.rationale,
             }
             for stop in artifact.stops

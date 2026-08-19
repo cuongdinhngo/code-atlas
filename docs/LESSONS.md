@@ -1,5 +1,20 @@
 # Lessons — code-atlas
 
+## 107 — Re-measure a ticket's evidence before designing from it; a sibling may have already moved it
+107 was filed from the same run as 106 and claimed **500/500** onboarding pages had empty neighbour
+lists. By the time it was worked, 106 had shipped and the true figure was **0/500** — and its AC2,
+which named that repo as the proving ground, would have passed with no code change at all. Re-measuring
+first both saved the false-green and relocated the defect: `laravel/laravel` still emitted a
+contentless page for **20 of its 26** modules, `symfony/demo` for **7 of 51**. The fix suppresses a page
+only where the module is *provably* contentless (full-graph degree 0 **and** no summary) and keeps the
+page where the **budget** hid the neighbours, stating the count it cannot show.
+
+**No new claim — three recurrences, bumped on the handles that already own them:**
+`ac-failure-mode-needs-the-right-guard` (085 → 085, 107: a real-repo AC's *repo* is part of its guard),
+`re-verify-the-assumption-on-a-new-path` (102 → 102, 107: verified-at-a-commit, not verified-forever),
+and `do-not-attest-past-the-payloads-resolution` (088, 089 → +107: a page count is not coverage, and an
+empty list must say whether the budget or the graph made it empty).
+
 ## 106 — A budget whose intake is unranked buys the alphabet, and a pinned-repo suite can be blind to the ratio that breaks it
 `tour_subgraph` seeded with `ORDER BY file_path LIMIT <whole budget>`. On a repo with 8,477
 zero-inbound files against a 500-node budget the seed list *was* the budget: `_tour_expand` never
@@ -211,7 +226,11 @@ these filenames without that manifest is refused. Second finding, same shape as 
 - type: 2 generalisable-heuristic
 - handle: do-not-attest-past-the-payloads-resolution
 - status: proposed (awaiting human confirm)
-- seen: 088, 089
+- seen: 088, 089, 107
+- evidence: 107 adds the same shape one level down — `overview.md` counted 26 `module pages` where 20
+  said only path + role + layer + three `(none)`s, and an empty neighbour list could not distinguish
+  "no edge in the graph" from "the budget could not afford the neighbour"; the page now states the
+  full-graph degree instead of a flat `(none)`.
 - evidence: `overview.md` printed `- modules: 4` with one page on disk and no truncation line, while
   `tour.md` and `manifest.json` both carried `truncated`. The overview is the file a human opens first.
   Fix: `- module pages: N` + `- truncated:` in the summary block
@@ -292,7 +311,11 @@ seam), and R6.5 still wanted the guard *observed* failing (a recorded sabotage r
 - type: 2 generalisable-heuristic
 - handle: ac-failure-mode-needs-the-right-guard
 - status: proposed (awaiting human confirm)
-- seen: 085
+- seen: 085, 107
+- evidence: 107's AC2 named the anchor monorepo as its proving ground, where 106 had already removed
+  every contentless page — the AC would have passed with **zero** code change. Amended at Gate 1 to
+  the repos that still exhibit it (`laravel/laravel` 20 of 26, `symfony/demo` 7 of 51). The guard has
+  to be a place the failure can still happen, and that includes the *repo* a real-repo AC names.
 - evidence: AC2 "would fail if presentation read the graph directly" — but `summaries_as_dict(summaries)`
   has no parameter reaching the graph, so that failure mode is guarded *structurally* by a different
   test; the fake-summarizer test guards that enrichment routes through the seam. Reviewer (PR #124)
@@ -338,7 +361,11 @@ was accepted: `qnames=["App\Nope"] → results=2 seeds_dropped=0` beside
 - type: 2 generalisable-heuristic
 - handle: re-verify-the-assumption-on-a-new-path
 - status: proposed (awaiting human confirm)
-- seen: 102
+- seen: 102, 107
+- evidence: 107 generalises it from *paths* to *time*. Its counted evidence ("500/500 pages have both
+  neighbour lists empty") was measured before its sibling 106 landed; re-measured at `f3d48a9` it read
+  **0/500**. A ticket's own numbers are verified against the commit they were taken at, so refine
+  re-measures rather than inherits them — here that is what exposed the vacuous AC above.
 - evidence: Gate 2 assumption 3 (*"a `resolved_unique` resolution can never reach
   `_explain_lost_subject`"*) was true of the `qnames` loop it was read against, and false of the
   `paths` loop the same change introduced. A spike confirmed the mislabelling

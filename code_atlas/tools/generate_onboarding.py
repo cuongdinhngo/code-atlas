@@ -71,6 +71,10 @@ def create(
         same node-budgeted subgraph ``guided_tour`` uses (``CA_IMPACT_MAX_NODES``) — roots ranked
         by out-degree, capped at a quarter of the budget so the pages describe files the walk
         actually reached (106); ``truncated`` is true when that budget left an indexed file out.
+        A module with **no edge either way and no summary** gets **no page** — one would only
+        repeat its path — and `standard` reports how many via ``isolated_modules``, the overview
+        counts them, and the manifest names them with ``page: null`` (107). A page whose
+        neighbours the budget cut is kept and says so.
         ``results`` lists the committed relative paths, capped at ``CA_MAX_RESULTS``.
         ``minimal`` omits the cache path.
         """
@@ -198,4 +202,5 @@ def _payload(
     }
     if detail_level == "standard":
         payload["cache"] = f"{CACHE_DIR}/{CACHE_NAME}"
+        payload["isolated_modules"] = len(artifact.isolated)
     return payload
