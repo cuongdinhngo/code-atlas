@@ -243,3 +243,119 @@ def test_guided_tour_does_not_call_a_pruned_cycle_member_an_entry_point(
 
     assert _files(tour) == [ISO_X] and tour["truncated"] is True
     assert tour["results"][0]["rationale"] == RATIONALE_OUTSIDE
+
+
+def _wide_entry_repo(tmp_path: Path) -> Config:
+    """More zero-inbound roots than the budget: 12 roots with 3 collaborators each, 28 isolated.
+
+    The shape task 106 measured — entry points (40) far exceed the node budget, and the
+    alphabetically-first of them (``iso/``) are isolated files carrying no edge at all.
+    """
+    config = db_config(tmp_path)
+    with GraphStore(config.db_path) as store:
+        for index in range(12):
+            root = f"src/fat{index:02d}.aa"
+            seed_file(
+                store,
+                root,
+                [node("Class", f"Fat{index:02d}", f"\\Fat{index:02d}", root)],
+                [
+                    edge(
+                        "CALLS",
+                        f"\\Fat{index:02d}",
+                        f"\\Mid{index:02d}_{leg}",
+                        root,
+                        target_qname=f"\\Mid{index:02d}_{leg}",
+                    )
+                    for leg in range(3)
+                ],
+                root=tmp_path,
+            )
+            for leg in range(3):
+                mid = f"src/mid{index:02d}_{leg}.aa"
+                leaf = f"src/leaf{index:02d}_{leg}.aa"
+                seed_file(
+                    store,
+                    mid,
+                    [node("Class", f"Mid{index:02d}_{leg}", f"\\Mid{index:02d}_{leg}", mid)],
+                    [
+                        edge(
+                            "CALLS",
+                            f"\\Mid{index:02d}_{leg}",
+                            f"\\Leaf{index:02d}_{leg}",
+                            mid,
+                            target_qname=f"\\Leaf{index:02d}_{leg}",
+                        )
+                    ],
+                    root=tmp_path,
+                )
+                seed_file(
+                    store,
+                    leaf,
+                    [node("Class", f"Leaf{index:02d}_{leg}", f"\\Leaf{index:02d}_{leg}", leaf)],
+                    [],
+                    root=tmp_path,
+                )
+        for index in range(28):
+            iso = f"iso/thin{index:02d}.aa"
+            seed_file(
+                store,
+                iso,
+                [node("Class", f"Thin{index:02d}", f"\\Thin{index:02d}", iso)],
+                [],
+                root=tmp_path,
+            )
+    return config
+
+
+def test_guided_tour_expands_when_entry_points_exceed_the_budget(tmp_path: Path) -> None:
+    """Proving test (106): the budget buys roots that lead somewhere, so the walk expands.
+
+    Pre-fix, 40 alphabetically-first entry seeds filled a budget of 40 and the walk never
+    traversed one edge: every stop was a seed and every module page had empty neighbours.
+    """
+    config = replace(_wide_entry_repo(tmp_path), impact_max_nodes=40)
+    tour = guided_tour.create(config)()
+
+    stops = tour["results"]
+    assert isinstance(stops, list)
+    assert len(stops) == 40
+    assert tour["truncated"] is True
+    seeded = [row for row in stops if row["rationale"] == RATIONALE_ENTRY]
+    reached = [row for row in stops if str(row["rationale"]).startswith("reached from ")]
+    # The cap is max_nodes // 4, so expansion — not the seed list — owns most of the budget.
+    assert len(seeded) == 10
+    assert len(reached) == 30
+    assert len(reached) > len(stops) // 2
+    # Ranking, not the alphabet: the isolated `iso/` files sort first but lead nowhere.
+    assert not [row for row in stops if str(row["file"]).startswith("iso/")]
+    assert guided_tour.create(config)() == tour
+
+
+def test_guided_tour_seed_rank_breaks_a_degree_tie_by_path(tmp_path: Path) -> None:
+    """Equal mass must resolve by ``file_path``, so the seed order is total (R4.2)."""
+    config = replace(_wide_entry_repo(tmp_path), impact_max_nodes=40)
+    files = _files(guided_tour.create(config)())
+    assert sorted(name for name in files if "/fat" in name) == [
+        f"src/fat{index:02d}.aa" for index in range(10)
+    ]
+
+
+def test_guided_tour_seed_cap_does_not_cost_coverage_when_nothing_expands(
+    tmp_path: Path,
+) -> None:
+    """A cap on seed intake orders budget spend; it is not a coverage cut (106 D3)."""
+    config = db_config(tmp_path)
+    with GraphStore(config.db_path) as store:
+        for index in range(20):
+            path = f"flat/f{index:02d}.aa"
+            seed_file(
+                store,
+                path,
+                [node("Class", f"F{index:02d}", f"\\F{index:02d}", path)],
+                [],
+                root=tmp_path,
+            )
+    tight = guided_tour.create(replace(config, impact_max_nodes=5))()
+    assert _files(tight) == [f"flat/f{index:02d}.aa" for index in range(5)]
+    assert tight["truncated"] is True

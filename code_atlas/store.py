@@ -21,6 +21,10 @@ from typing import NamedTuple
 from code_atlas import contract
 from code_atlas.contract import CONFIDENCE_TIERS
 
+# A quarter of the tour budget may go to roots, so the walk always has room to expand
+# (task 106: 8,477 entry points against a 500 budget left zero room and zero edges).
+_TOUR_SEED_BUDGET_DIVISOR = 4
+
 SCHEMA_VERSION = "4"
 SCHEMA_VERSION_KEY = "schema_version"
 CONTRACT_VERSION_KEY = "contract_version"
@@ -563,10 +567,13 @@ class GraphStore:
     def tour_subgraph(self, *, max_nodes: int) -> TourSubgraph:
         """Budgeted module-grain walk covering every file the budget admits (task 087 / R4.3).
 
-        Round 1 seeds files with no inbound cross-file resolved edge, ``ORDER BY file_path``.
-        A component no such seed reaches (it must hold a cycle) would otherwise be silently
-        absent, so later rounds re-seed the lowest unseen file until the budget binds. Earlier
-        rounds outrank later ones under the prune. ``truncated`` means files were left out.
+        Round 1 seeds files with no inbound cross-file resolved edge, **ranked by dependency
+        out-degree** and capped at a quarter of the budget so expansion always has room — an
+        alphabetical seed list large enough to fill the budget bought isolated files and never
+        traversed an edge (task 106). A component no seed reaches (it must hold a cycle) would
+        otherwise be silently absent, so later rounds re-seed the widest-reaching unseen files
+        until the budget binds. Earlier rounds outrank later ones under the prune.
+        ``truncated`` means files were left out.
         """
         if max_nodes < 1:
             raise ValueError(f"max_nodes must be >= 1, got {max_nodes}")
@@ -581,18 +588,22 @@ class GraphStore:
             conn.execute(
                 "CREATE TEMP TABLE tour_frontier (file_path TEXT PRIMARY KEY, depth INT NOT NULL)"
             )
-            seeds = self._tour_entry_seeds(max_nodes)
+            self._tour_build_out_degree()
+            seed_cap = max(1, max_nodes // _TOUR_SEED_BUDGET_DIVISOR)
+            seeds = self._tour_entry_seeds(seed_cap)
             entries = set(seeds)
-            if not seeds:  # the whole graph is one cycle: start at the first file, same order
-                seeds = self._tour_lowest_unseen()
+            if not seeds:  # the whole graph is one cycle: start at the widest-reaching file
+                seeds = self._tour_ranked_unseen(seed_cap)
             if not seeds:
                 return TourSubgraph((), (), False)
             walked = 0
             self._tour_admit_seeds(seeds, walked)
             self._tour_expand(max_nodes, walked)
             # A component no entry point reaches is not absent — it is the next round (087 review).
-            while self._tour_seen_count() < max_nodes:
-                later = self._tour_lowest_unseen()
+            # The seed cap orders budget spend, it does not cut coverage: this loop refills what
+            # expansion left unused, so an edgeless repo still fills the budget (106).
+            while (room := max_nodes - self._tour_seen_count()) > 0:
+                later = self._tour_ranked_unseen(min(room, seed_cap))
                 if not later:
                     break
                 walked += 1
@@ -1783,7 +1794,7 @@ class GraphStore:
             self._conn.execute(f"DROP TABLE IF EXISTS temp.{name}")
 
     def _tour_drop_temps(self) -> None:
-        for name in ("tour_seen", "tour_frontier", "tour_next", "tour_before"):
+        for name in ("tour_seen", "tour_frontier", "tour_next", "tour_before", "tour_out_degree"):
             self._conn.execute(f"DROP TABLE IF EXISTS temp.{name}")
 
     def _tour_prune_seen(self, max_nodes: int) -> None:
@@ -1806,32 +1817,56 @@ class GraphStore:
         (count,) = self._conn.execute("SELECT COUNT(*) FROM temp.tour_seen").fetchone()
         return int(count)
 
-    def _tour_entry_seeds(self, max_nodes: int) -> list[str]:
-        """Files with no inbound cross-file resolved edge — the reading order's roots."""
+    def _tour_build_out_degree(self) -> None:
+        """One pass: each module's out-degree — how many distinct modules it depends on (106).
+
+        Out-degree, not total degree: what the reading order wants next is a file that *leads*
+        somewhere. One grouped scan, so ranking never traverses the graph (R4.3).
+        """
+        self._conn.execute(
+            "CREATE TEMP TABLE tour_out_degree AS "
+            "SELECT src.file_path AS file_path, "
+            "       COUNT(DISTINCT tgt.file_path) AS out_degree "
+            "FROM edges e "
+            "JOIN nodes src ON src.qualified_name = e.source_qname "
+            "JOIN nodes tgt ON tgt.qualified_name = e.target_qname "
+            "WHERE e.target_qname IS NOT NULL AND src.file_path <> tgt.file_path "
+            "GROUP BY src.file_path"
+        )
+        self._conn.execute(
+            "CREATE UNIQUE INDEX temp.idx_tour_out_degree ON tour_out_degree (file_path)"
+        )
+
+    def _tour_entry_seeds(self, limit: int) -> list[str]:
+        """The reading order's roots: no inbound cross-file edge, heaviest first (087 / 106).
+
+        Ranked by out-degree, so a root that leads somewhere outranks an isolated file instead
+        of winning the budget by sorting first.
+        """
         inbound = (
             "SELECT DISTINCT tgt.file_path FROM edges e "
             "JOIN nodes src ON src.qualified_name = e.source_qname "
             "JOIN nodes tgt ON tgt.qualified_name = e.target_qname "
             "WHERE e.target_qname IS NOT NULL AND src.file_path <> tgt.file_path"
         )
-        return [
-            str(row[0])
-            for row in self._conn.execute(
-                "SELECT file_path FROM nodes "
-                f"WHERE file_path NOT IN ({inbound}) "
-                "GROUP BY file_path ORDER BY file_path LIMIT ?",
-                (max_nodes,),
-            )
-        ]
+        return self._tour_ranked(f"n.file_path NOT IN ({inbound})", limit)
 
-    def _tour_lowest_unseen(self) -> list[str]:
-        """The lowest-ordered indexed file the walk has not admitted yet (R4.2)."""
+    def _tour_ranked_unseen(self, limit: int) -> list[str]:
+        """The widest-reaching indexed files the walk has not admitted yet (R4.2)."""
+        return self._tour_ranked(
+            "n.file_path NOT IN (SELECT file_path FROM temp.tour_seen)", limit
+        )
+
+    def _tour_ranked(self, where: str, limit: int) -> list[str]:
+        """Candidates by out-degree DESC then ``file_path`` ASC — total over a unique key (R4.2)."""
         return [
             str(row[0])
             for row in self._conn.execute(
-                "SELECT file_path FROM nodes "
-                "WHERE file_path NOT IN (SELECT file_path FROM temp.tour_seen) "
-                "GROUP BY file_path ORDER BY file_path LIMIT 1"
+                "SELECT n.file_path, COALESCE(d.out_degree, 0) AS out_degree FROM nodes n "
+                "LEFT JOIN temp.tour_out_degree d ON d.file_path = n.file_path "
+                f"WHERE {where} "
+                "GROUP BY n.file_path ORDER BY out_degree DESC, n.file_path ASC LIMIT ?",
+                (limit,),
             )
         ]
 

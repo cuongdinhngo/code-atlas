@@ -68,9 +68,11 @@ def create(
         that manifest is refused rather than overwritten. A regenerable cache of the
         same structure lands under ``.code-atlas/onboarding/`` (gitignored). Deterministic given
         the summarizer: no timestamps. The walk that sizes the tour and per-module pages is the
-        same node-budgeted subgraph ``guided_tour`` uses (``CA_IMPACT_MAX_NODES``); ``truncated``
-        is true when that budget left an indexed file out. ``results`` lists the committed
-        relative paths, capped at ``CA_MAX_RESULTS``. ``minimal`` omits the cache path.
+        same node-budgeted subgraph ``guided_tour`` uses (``CA_IMPACT_MAX_NODES``) — roots ranked
+        by out-degree, capped at a quarter of the budget so the pages describe files the walk
+        actually reached (106); ``truncated`` is true when that budget left an indexed file out.
+        ``results`` lists the committed relative paths, capped at ``CA_MAX_RESULTS``.
+        ``minimal`` omits the cache path.
         """
         if not config.db_path.is_file():
             return _unbuilt(config)

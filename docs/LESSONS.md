@@ -1,5 +1,44 @@
 # Lessons — code-atlas
 
+## 106 — A budget whose intake is unranked buys the alphabet, and a pinned-repo suite can be blind to the ratio that breaks it
+`tour_subgraph` seeded with `ORDER BY file_path LIMIT <whole budget>`. On a repo with 8,477
+zero-inbound files against a 500-node budget the seed list *was* the budget: `_tour_expand` never
+traversed one edge, so every tour stop read `entry point (zero inbound)`, every generated module page
+had empty neighbour lists, and the admitted 500 were whatever sorted first in ASCII — a vendored
+framework and legacy view templates, while the two trees holding 10k modules never appeared. Two
+selection rules fixed it: rank intake by **out-degree**, and cap seed intake at **a quarter** of the
+budget so the second phase has room. The three pinned public repos could not have caught this: their
+entry counts (23/30/9) sit under the cap, so their tours came back **byte-identical**.
+
+**Nothing new to learn here — three recurrences, recorded where they already live:**
+- The unranked cap is **067**'s lesson again ("a storage sort reused for presentation makes correct
+  results mislead"), one layer down: `ORDER BY file_path LIMIT <budget>` in `_tour_entry_seeds`, and
+  the same shape 086 recorded at `docs/PLAN.md:411` for `architecture_overview`'s verbose paging.
+  Third instance of the class; no new claim.
+- The pinned suite being green on both sides of a real defect is `fixture-shape-begs-the-question`
+  (**105-C2**), whose `seen:` is bumped to include 106 rather than re-stated here — a cross-repo suite
+  can be blind not only to a path *shape* but to a *ratio* (entry points ≫ budget) none of its members
+  crosses.
+- Measuring the approved-but-costlier design before keeping it (the two-sided mass table: 6.125 s of a
+  10.096 s call, its inbound half feeding nothing; one out-degree signal gave a byte-identical
+  subgraph at 5.969 s) is **067**'s "measure before designing" kill gate earning its place a second
+  time.
+
+### 106-C1 — `ruff format` over a whole file is scope, not compliance, when CI only runs `ruff check`
+- type: 1 technical-fact
+- handle: format-churn-is-scope
+- status: proposed (awaiting human confirm)
+- seen: 106
+- evidence: `.github/workflows/ci.yml` runs `ruff check .` and `mypy`, never `ruff format --check`.
+  A `ruff format code_atlas/store.py` pass to settle two long lines reformatted **204 unrelated
+  lines**, inflating a +67/−26 diff past the approved change list; the file was restored and the
+  change re-applied by hand.
+- falsifier: a diff carrying formatter-only hunks in files the ticket did not otherwise touch, in a
+  repo whose CI does not enforce the formatter
+- area: change discipline / diff scope
+- destination: `gotchas_path` — **note: `docs/gotchas.md` does not exist yet**; ratifying this
+  claim creates it rather than adding to it (not created unilaterally)
+
 ## 105 — Elect "the main subtree" by graph mass, not file count; make the real-repo check committed
 104's dominant-subtree heuristic elected the top-level directory holding the most **files**. On the
 `laravel/laravel` skeleton `config/` (10 flat settings files) out-counted `app/` (3 connected source
@@ -25,7 +64,7 @@ real-repo reporter** (`scripts/layer_report.py`) so the real check is not an ad-
 - type: 2 generalisable-heuristic
 - handle: fixture-shape-begs-the-question
 - status: proposed (awaiting human confirm)
-- seen: 084, 103, 104, 086, 105
+- seen: 084, 103, 104, 086, 105, 106
 - evidence: authored fixtures hid the same class of path-shape defect across 084/103/104/086; 105 adds
   `scripts/layer_report.py` (clones+indexes the pinned repos, prints `assign_layers`) as the committed
   real-repo check
