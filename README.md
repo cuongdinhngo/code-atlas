@@ -377,6 +377,16 @@ Files are skipped using built-in patterns (`vendor/ var/ uploads/ log/ node_modu
 `.gitignore`, then an optional `.codeatlasignore` — later rules win, so `.codeatlasignore` can
 re-include what an earlier source excluded.
 
+### Optional LLM summaries (opt-in, off by default)
+
+The onboarding tools use a deterministic structural summarizer by default — no LLM, no network. An
+opt-in package, [`onboarding_llm/`](onboarding_llm/README.md), can replace the one-line module
+summary with a Claude-written one behind the 085 seam. The **core never imports it**: you install the
+`llm` extra, set `CA_ONBOARDING_SUMMARIZER=llm`, and run `code-atlas-llm` instead of `code-atlas`.
+Summaries are memoised in a content-hash cache so runs replay and diffs stay stable. These are
+`onboarding_llm` knobs (`CA_ONBOARDING_SUMMARIZER`, `CA_ONBOARDING_LLM_MODEL`,
+`CA_ONBOARDING_LLM_CACHE`), not core config — details in that package's README.
+
 ## Testing
 
 The test command is `pytest`. The full suite needs a POSIX host (the index lock uses `fcntl`) and the

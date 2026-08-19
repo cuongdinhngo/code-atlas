@@ -1,5 +1,26 @@
 # Lessons — code-atlas
 
+## 090 — "The core must never import X" is honoured most strongly by an entry point outside the core
+R4.1 says the core must never import an LLM. A config-gated deferred `import onboarding_llm` inside
+`main.py` would satisfy CI (the import never fires) but still *names* the LLM package in core source.
+090 instead widened the core seam to `build_server(config, summarizer=None)` — the core names only the
+085 `Summarizer` *type* — and put the injection in a **separate `code-atlas-llm` entry point outside
+`code_atlas/`**, so the core→LLM edge is literally absent. A filesystem confinement test greps
+`code_atlas/**` for any `import anthropic`/`onboarding_llm` and finds none. Mirrors how adapters live
+outside the core with their own launch.
+
+### 090-C1 — A "never import X" rule wants an out-of-core entry point, not a deferred in-core import
+- type: 2 generalisable-heuristic
+- handle: plugin-entry-point-keeps-the-core-import-clean
+- status: proposed (awaiting human confirm)
+- seen: 090
+- evidence: `build_server(config, summarizer=None)` threads the seam; `onboarding_llm/server.py:run`
+  injects the LLM impl; `tests/test_onboarding_llm.py::test_no_core_module_imports_an_llm` proves
+  `code_atlas/**` names neither `anthropic` nor `onboarding_llm`
+- area: seam placement / optional plugins
+- destination: `rulebook_path` (R4.1-adjacent — where the injection of an out-of-core impl lives)
+
+
 ## 089 — An HTML file that must open from `file://` cannot fetch a sibling JSON
 `generate_onboarding` already wrote `manifest.json`. A viewer that `fetch`ed it would pass in a
 dev server and fail the moment a human double-clicked the file — the AC is "opens offline from

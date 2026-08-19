@@ -104,7 +104,7 @@ path is proven and measured.
 
 | ID | Task |
 |----|------|
-| 090 | LLM summarizer behind the 085 seam; content-hash cache so runs replay and diffs stay stable; opt-in config; never in the per-PR gate. |
+| 090 | LLM summarizer behind the 085 seam; content-hash cache so runs replay and diffs stay stable; opt-in config; never in the per-PR gate. **Shipped:** `onboarding_llm/` package + `code-atlas-llm` entry point (opt-in via `CA_ONBOARDING_SUMMARIZER`); the core imports no LLM. |
 | 091 | LLM layer refinement — better layer names/boundaries where namespaces are uninformative (optional). |
 
 **Decision points — open (brainstorm before M12):**

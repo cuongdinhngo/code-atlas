@@ -14,15 +14,19 @@ classifiers = ["License :: OSI Approved :: MIT License"]
 
 [project.optional-dependencies]
 dev = ["pytest", "ruff", "mypy"]
+# Opt-in LLM summarizer (task 090); never required by the core or the CI gate (R4.1). Floor is
+# recent enough to resolve current Claude model ids (Sonnet 5 / Opus 5 era); latest at write is 0.122.
+llm = ["anthropic>=0.69"]
 
 [project.scripts]
 code-atlas = "code_atlas.main:main"
+code-atlas-llm = "onboarding_llm.server:run"
 code-atlas-poke = "code_atlas.hooks.poke:main"
 code-atlas-refresh = "code_atlas.hooks.refresh:main"
 code-atlas-signal = "code_atlas.hooks.signal:main"
 
 [tool.setuptools.packages.find]
-include = ["code_atlas*"]
+include = ["code_atlas*", "onboarding_llm*"]
 
 [tool.ruff]
 target-version = "py312"
@@ -33,7 +37,7 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.mypy]
 python_version = "3.12"
-files = ["code_atlas"]
+files = ["code_atlas", "onboarding_llm"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
