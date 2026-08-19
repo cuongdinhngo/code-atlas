@@ -381,11 +381,14 @@ re-include what an earlier source excluded.
 
 The onboarding tools use a deterministic structural summarizer by default — no LLM, no network. An
 opt-in package, [`onboarding_llm/`](onboarding_llm/README.md), can replace the one-line module
-summary with a Claude-written one behind the 085 seam. The **core never imports it**: you install the
-`llm` extra, set `CA_ONBOARDING_SUMMARIZER=llm`, and run `code-atlas-llm` instead of `code-atlas`.
-Summaries are memoised in a content-hash cache so runs replay and diffs stay stable. These are
-`onboarding_llm` knobs (`CA_ONBOARDING_SUMMARIZER`, `CA_ONBOARDING_LLM_MODEL`,
-`CA_ONBOARDING_LLM_CACHE`), not core config — details in that package's README.
+summary with a Claude-written one behind the 085 seam, and can rename weak architectural layers
+(the generic `source`/`sink`/`mixed` bands 084 falls back to on flat namespaces) via the 091 seam.
+The **core never imports it**: you install the `llm` extra, set `CA_ONBOARDING_SUMMARIZER=llm` and/or
+`CA_ONBOARDING_LAYER_REFINER=llm`, and run `code-atlas-llm` instead of `code-atlas`. Both are memoised
+in content-hash caches so runs replay and diffs stay stable. These are `onboarding_llm` knobs
+(`CA_ONBOARDING_SUMMARIZER`, `CA_ONBOARDING_LLM_MODEL`, `CA_ONBOARDING_LLM_CACHE`;
+`CA_ONBOARDING_LAYER_REFINER`, `CA_ONBOARDING_LLM_LAYER_MODEL`, `CA_ONBOARDING_LLM_LAYER_CACHE`), not
+core config — details in that package's README.
 
 ## Testing
 

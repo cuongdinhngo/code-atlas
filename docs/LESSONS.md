@@ -1,5 +1,28 @@
 # Lessons — code-atlas
 
+## 091 — Constrain a seam's return type so a bad implementer can't break a core invariant
+091 lets an LLM rename architectural layers. The obvious seam shape — `refine(assignment) -> new
+assignment` — would let a hallucinating impl drop modules, invent layers, or scramble ranks, and the
+core would have to defensively re-validate everything downstream. Instead the `LayerRefiner` seam
+returns a **rename map** `{old_layer: new_layer}`; the core applies it. The narrow return type makes
+the dangerous outcomes *unrepresentable* — coverage, module→layer membership, and dependency order are
+preserved by construction, no matter what the LLM says. The applier only renames and renormalises
+ranks; an empty/inapplicable map returns the input object unchanged (the off path is byte-identical to
+the heuristic — AC3, proven with `to_json()` equality).
+
+### 091-C1 — Make a seam return the delta, not a rebuilt whole, when a bad impl could corrupt invariants
+- type: 2 generalisable-heuristic
+- handle: seam-returns-constrained-delta-not-rebuilt-whole
+- status: proposed (awaiting human confirm)
+- seen: 091
+- evidence: `code_atlas/onboarding/layers.py::refine_layers` applies a `{old: new}` map from
+  `LayerRefiner.refine_names`; `tests/test_onboarding_llm_layers.py::test_llm_renames_weak_layers`
+  asserts coverage is intact and `::test_off_by_default_is_byte_identical_to_084` pins AC3
+- area: seam design / untrusted (LLM) implementers behind a Protocol
+- destination: `rulebook_path` (R1.2/R7.4-adjacent — a seam whose impl may be an LLM should make
+  invariant-violating outputs unrepresentable rather than re-validating them)
+
+
 ## 090 — "The core must never import X" is honoured most strongly by an entry point outside the core
 R4.1 says the core must never import an LLM. A config-gated deferred `import onboarding_llm` inside
 `main.py` would satisfy CI (the import never fires) but still *names* the LLM package in core source.

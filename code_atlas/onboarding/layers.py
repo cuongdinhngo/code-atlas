@@ -13,7 +13,9 @@ aggregates module-grain edges into the layer → layer crossings the overview to
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Protocol
 
 from code_atlas.onboarding.metrics import GraphMetrics, NodeMetric
 
@@ -202,3 +204,61 @@ def assign_layers(metrics: GraphMetrics) -> LayerAssignment:
         if module_layer.layer not in layers:
             layers.append(module_layer.layer)
     return LayerAssignment(layers=tuple(layers), modules=assigned, method=method)
+
+
+class LayerRefiner(Protocol):
+    """The 091 seam: propose better human names for weak layers (the flat-namespace fallback case).
+
+    Returns a ``{old_layer: new_layer}`` rename map — never a re-grouping, so coverage and order are
+    preserved by construction. An LLM impl matches this from **outside** ``code_atlas/`` (R4.1)."""
+
+    def refine_names(self, assignment: LayerAssignment, metrics: GraphMetrics) -> Mapping[str, str]:
+        ...
+
+
+class IdentityLayerRefiner:
+    """The deterministic default: no rename, so output is byte-identical to 084 (AC3, R4/R4.1)."""
+
+    def refine_names(
+        self, assignment: LayerAssignment, metrics: GraphMetrics
+    ) -> Mapping[str, str]:
+        return {}
+
+
+def refine_layers(
+    assignment: LayerAssignment, metrics: GraphMetrics, refiner: LayerRefiner
+) -> LayerAssignment:
+    """Apply a refiner's rename map to 084's assignment, deterministically (task 091, M12).
+
+    Only layer NAMES change; module coverage is preserved and ranks are renormalised (a merge keeps
+    the min original rank). An empty/inapplicable map returns the assignment unchanged — the off
+    path, byte-identical to 084 (AC3). ``method`` is untouched (its pin covers ``assign_layers``).
+    """
+    named = set(assignment.layers)
+    renames = {
+        old: new
+        for old, new in refiner.refine_names(assignment, metrics).items()
+        if old in named and isinstance(new, str) and new.strip() and new != old
+    }
+    if not renames:
+        return assignment
+    best_rank: dict[str, int] = {}
+    for module in assignment.modules:
+        new = renames.get(module.layer, module.layer)
+        best_rank[new] = min(best_rank.get(new, module.rank), module.rank)
+    order = sorted(best_rank, key=lambda name: (best_rank[name], name))
+    rank_of = {name: rank for rank, name in enumerate(order)}
+    modules = tuple(
+        sorted(
+            (
+                ModuleLayer(
+                    module.module,
+                    renames.get(module.layer, module.layer),
+                    rank_of[renames.get(module.layer, module.layer)],
+                )
+                for module in assignment.modules
+            ),
+            key=lambda module: module.module,
+        )
+    )
+    return LayerAssignment(layers=tuple(order), modules=modules, method=assignment.method)

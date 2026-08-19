@@ -45,7 +45,7 @@ alone with zero LLM.
 |---|---|
 | **R4 / R4.1** — core deterministic, no LLM/network | Deterministic enrichment (`metrics`, `layers`, structural `summary`) may live under `code_atlas/onboarding/` — same precedent as `enrichment.py` (optional, off by default, no LLM). The **LLM** summarizer is a separate impl injected through one `Summarizer` Protocol seam and lives **outside** `code_atlas/` (proposed `onboarding_llm/`, mirroring `adapters/`). CI stubs the seam. |
 | **R1.1** — zero language branches | No `if language == …`; layering is driven by graph shape + generic namespace/dir strings. The existing CI grep-gate (`tests/test_core_is_language_agnostic.py`) already covers any new file under `code_atlas/`. |
-| **R1.2** — one seam, YAGNI | Exactly **one** new seam: the `Summarizer` Protocol — justified by a hard rule (R4.1 forces the LLM out of core), not speculation. Default impl is the deterministic structural summarizer; no registry until a second summarizer exists. |
+| **R1.2** — one seam, YAGNI | Two enrichment seams, each forced by the same hard rule (R4.1 pushes the LLM out of core), not speculation: the `Summarizer` Protocol (085/090) and the `LayerRefiner` Protocol (091). Each has a deterministic in-core default (structural summarizer; identity refiner) **and** an LLM implementer shipping with it, so neither is a dead abstraction (R7.4); no registry — the entry point injects them with one `if opted-in` each. |
 | **R1.4 / SQL confinement** | All SQL stays in `store.py` (guarded by `tests/test_sql_confinement.py`); onboarding modules call the store's read API, never embed SQL, never parse, never write. |
 | **R4.3** — never load the whole graph | Metrics are SQL `GROUP BY` aggregates (one row per node, not per edge). Whole-graph work (SCC) is node-budgeted, the pattern `impact`/`reach` already use. |
 
@@ -105,7 +105,7 @@ path is proven and measured.
 | ID | Task |
 |----|------|
 | 090 | LLM summarizer behind the 085 seam; content-hash cache so runs replay and diffs stay stable; opt-in config; never in the per-PR gate. **Shipped:** `onboarding_llm/` package + `code-atlas-llm` entry point (opt-in via `CA_ONBOARDING_SUMMARIZER`); the core imports no LLM. |
-| 091 | LLM layer refinement — better layer names/boundaries where namespaces are uninformative (optional). |
+| 091 | LLM layer refinement — better layer names where namespaces are uninformative (optional). **Shipped:** `LLMLayerRefiner` behind a new 091 `LayerRefiner` seam in `layers.py`, injected via `code-atlas-llm` (opt-in `CA_ONBOARDING_LAYER_REFINER`); renames only the weak dependency-direction bands (module *boundaries* left to a follow-up); own content-hash cache; the core imports no LLM. |
 
 **Decision points — open (brainstorm before M12):**
 - **Provider / model** — recommend **Claude**: a mid tier for per-module summaries, a top tier only for

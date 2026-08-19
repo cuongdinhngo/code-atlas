@@ -11,7 +11,14 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 
-from code_atlas.onboarding.layers import LayerAssignment, assign_layers, cross_layer_edges
+from code_atlas.onboarding.layers import (
+    IdentityLayerRefiner,
+    LayerAssignment,
+    LayerRefiner,
+    assign_layers,
+    cross_layer_edges,
+    refine_layers,
+)
 from code_atlas.onboarding.metrics import GraphMetrics, compute_metrics, module_edges
 from code_atlas.onboarding.summary import NodeFacts, Summarizer, summarize_modules
 from code_atlas.onboarding.tour import TourStop, ordered_stops
@@ -249,12 +256,14 @@ def build_artifact(
     entry_points: Sequence[str],
     truncated: bool,
     summarizer: Summarizer,
+    layer_refiner: LayerRefiner | None = None,
 ) -> OnboardingArtifact | None:
     """Compose 083–087 into one artifact. ``None`` when the index has no module."""
     metrics = compute_metrics(nodes, edges)
     if not metrics.modules:
         return None
-    assignment = assign_layers(metrics)
+    refiner: LayerRefiner = IdentityLayerRefiner() if layer_refiner is None else layer_refiner
+    assignment = refine_layers(assign_layers(metrics), metrics, refiner)
     stops = ordered_stops(tour_files, tour_edges, entry_points)
     by_key = {metric.key: metric for metric in metrics.modules}
     placed = {module.module: module for module in assignment.modules}

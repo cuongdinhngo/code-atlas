@@ -17,7 +17,14 @@ from collections.abc import Callable
 from typing import Literal
 
 from code_atlas.config import Config
-from code_atlas.onboarding.layers import LayerAssignment, assign_layers, cross_layer_edges
+from code_atlas.onboarding.layers import (
+    IdentityLayerRefiner,
+    LayerAssignment,
+    LayerRefiner,
+    assign_layers,
+    cross_layer_edges,
+    refine_layers,
+)
 from code_atlas.onboarding.metrics import GraphMetrics, NodeMetric, compute_metrics, module_edges
 from code_atlas.onboarding.summary import (
     NodeFacts,
@@ -41,10 +48,13 @@ __all__ = ["NAME", "create"]
 
 
 def create(
-    config: Config, summarizer: Summarizer | None = None
+    config: Config,
+    summarizer: Summarizer | None = None,
+    layer_refiner: LayerRefiner | None = None,
 ) -> Callable[..., dict[str, object]]:
-    """Bind the tool to one repo and to the 085 seam (deterministic summarizer by default)."""
+    """Bind the tool to one repo and the 085/091 seams (deterministic defaults when unset)."""
     seam: Summarizer = StructuralSummarizer() if summarizer is None else summarizer
+    refiner: LayerRefiner = IdentityLayerRefiner() if layer_refiner is None else layer_refiner
 
     def architecture_overview(
         detail_level: DetailLevel = "standard", offset: int = 0
@@ -73,7 +83,7 @@ def create(
         metrics = compute_metrics(nodes, edges)
         if not metrics.modules:
             return _empty(config)
-        assignment = assign_layers(metrics)
+        assignment = refine_layers(assign_layers(metrics), metrics, refiner)
         return _overview(
             config, metrics, assignment, nodes, edges, detail_level, seam, offset=offset
         )

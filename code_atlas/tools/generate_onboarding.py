@@ -30,6 +30,7 @@ from code_atlas.onboarding.artifact import (
     render_overview,
     render_tour,
 )
+from code_atlas.onboarding.layers import LayerRefiner
 from code_atlas.onboarding.summary import StructuralSummarizer, Summarizer
 from code_atlas.onboarding.viewer import render_viewer
 from code_atlas.store import GraphStore
@@ -48,9 +49,11 @@ __all__ = ["NAME", "create"]
 
 
 def create(
-    config: Config, summarizer: Summarizer | None = None
+    config: Config,
+    summarizer: Summarizer | None = None,
+    layer_refiner: LayerRefiner | None = None,
 ) -> Callable[..., dict[str, object]]:
-    """Bind the tool to one repo and to the 085 seam (deterministic summarizer by default)."""
+    """Bind the tool to one repo and the 085/091 seams (deterministic defaults when unset)."""
     seam: Summarizer = StructuralSummarizer() if summarizer is None else summarizer
 
     def generate_onboarding(detail_level: DetailLevel = "standard") -> dict[str, object]:
@@ -83,6 +86,7 @@ def create(
             subgraph.entry_points,
             subgraph.truncated,
             seam,
+            layer_refiner,
         )
         if artifact is None:
             return _empty(config)
