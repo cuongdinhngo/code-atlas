@@ -21,6 +21,7 @@ from code_atlas.onboarding.layers import (
     refine_layers,
 )
 from code_atlas.onboarding.metrics import GraphMetrics, compute_metrics, module_edges
+from code_atlas.onboarding.steps import TourStep, build_steps
 from code_atlas.onboarding.summary import NodeFacts, Summarizer, summarize_modules
 from code_atlas.onboarding.tour import TourStop, ordered_stops
 
@@ -122,6 +123,8 @@ class OnboardingArtifact:
     crossings: tuple[tuple[str, str, int], ...]
     stops: tuple[TourStop, ...]
     pages: tuple[ModulePage, ...]
+    steps: tuple[TourStep, ...] = ()
+    """The narrative reading order: 5–15 grouped steps over the stops (task 111)."""
     isolated: tuple[str, ...] = ()
     """Modules a page would say nothing about: no edge either way, no summary (task 107)."""
 
@@ -164,6 +167,17 @@ class OnboardingArtifact:
                     "of": page.of,
                 }
                 for page in self.pages
+            ],
+            "steps": [
+                {
+                    "covers": step.covers,
+                    "cycle_size": step.cycle_size,
+                    "modules": list(step.modules),
+                    "order": step.order,
+                    "title": step.title,
+                    "why": step.why,
+                }
+                for step in self.steps
             ],
             "stops": [
                 {"file": stop.file, "rationale": stop.rationale, "scc": list(stop.scc)}
@@ -337,6 +351,7 @@ def build_artifact(
         crossings=tuple((edge.source, edge.target, edge.count) for edge in crossings),
         stops=stops,
         pages=tuple(pages),
+        steps=build_steps(stops, assignment, metrics, tour_edges, entry_points),
         isolated=tuple(sorted(isolated)),
     )
     # The gate refuses a filler or oversized artifact rather than write a bad tree (task 109, 050).
@@ -383,7 +398,11 @@ def render_overview(artifact: OnboardingArtifact) -> str:
 
 
 def render_tour(artifact: OnboardingArtifact, max_results: int) -> str:
-    """Committed tour markdown: the dependency-ordered reading list. Trailing newline."""
+    """Committed tour markdown: 5–15 narrative steps (task 111). Every number is interpolated (AC6).
+
+    A step names up to five modules and states how many it covers, so a cycle is one line stating
+    its size rather than one line per member (the pre-111 500-stop dump). Trailing newline (R4.2).
+    """
     lines = [
         H_TOUR,
         "",
@@ -392,12 +411,13 @@ def render_tour(artifact: OnboardingArtifact, max_results: int) -> str:
         H_ORDER,
         "",
     ]
-    if not artifact.stops:
+    if not artifact.steps:
         lines.append("- (none)")
     else:
-        for index, stop in enumerate(artifact.stops, start=1):
-            rationale = _rationale_line(stop.rationale, stop.scc, max_results)
-            lines.append(f"{index}. `{stop.file}` — {rationale}")
+        for step in artifact.steps:
+            lines.append(f"{step.order}. **{step.title}** — {step.why}")
+            named = ", ".join(f"`{module}`" for module in step.modules)
+            lines.append(f"   - {named} ({len(step.modules)} of {step.covers})")
     return "\n".join(lines) + "\n"
 
 

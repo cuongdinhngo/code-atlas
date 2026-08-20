@@ -78,12 +78,12 @@ def test_generate_onboarding_writes_structured_markdown_in_dependency_order(
     for heading in (H_TOUR, H_ORDER):
         assert heading in tour
 
+    # The tour is now 5–15 grouped steps, not one line per file (111). A step names ≤5 modules
+    # and folds a cycle into one "cycle of N" line, so B rides A's step, unnamed.
     assert tour.index(f"`{ROUTES}`") < tour.index(f"`{A}`")
-    assert tour.index(f"`{ROUTES}`") < tour.index(f"`{B}`")
     assert tour.index(f"`{A}`") < tour.index(f"`{LEAF}`")
-    assert tour.index(f"`{B}`") < tour.index(f"`{LEAF}`")
     assert tour.count(f"`{A}`") == 1
-    assert tour.count(f"`{B}`") == 1
+    assert "cycle of 2 modules" in tour
 
     stops = [row["file"] for row in manifest["stops"]]
     assert stops[0] == ROUTES

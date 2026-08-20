@@ -11,9 +11,10 @@ from __future__ import annotations
 from code_atlas.onboarding.artifact import OnboardingArtifact, render_module
 
 # The numbers the gate defends (task 109 AC3). C2 sits above 108's capped page (6,878 B) and below
-# its uncapped one (40,074 B). C4 is the current default tour budget; 111 tightens it to [5, 15].
+# its uncapped one (40,074 B). C4 now bounds narrative steps to [MIN, MAX] (111): MAX is the hard
+# ceiling the gate enforces; the floor is build_steps' target, unreachable on a tiny subgraph.
 MAX_PAGE_BYTES = 16384
-MAX_TOUR_STEPS = 500
+MAX_TOUR_STEPS = 15
 
 __all__ = ["MAX_PAGE_BYTES", "MAX_TOUR_STEPS", "QualityGateError", "check_artifact"]
 
@@ -73,8 +74,13 @@ def check_artifact(
     for isolated in artifact.isolated:  # C5: isolated modules come from the tour, so must be in it.
         if isolated not in stop_files:
             raise QualityGateError("C5", isolated, "isolated module is not a tour-stop file")
-    if len(artifact.stops) > max_tour_steps:  # C4: pre-111 regression ceiling.
-        raise QualityGateError("C4", "tour", f"{len(artifact.stops)} stops (> {max_tour_steps})")
+    if len(artifact.steps) > max_tour_steps:  # C4: the narrative tour ceiling (111 AC4).
+        raise QualityGateError(
+            "C4", "tour", f"{len(artifact.steps)} steps (> {max_tour_steps})"
+        )
+    for step in artifact.steps:  # C4: no step may be empty — 109's ceiling becomes a real bound.
+        if not step.modules:
+            raise QualityGateError("C4", f"step[{step.order}]", "step names no module")
     for row in artifact.layers:  # C3: every layer must carry a non-empty description (110).
         if not row.description.strip():
             raise QualityGateError("C3", f"layer[rank {row.rank}]", "layer description is empty")

@@ -24,6 +24,7 @@ from code_atlas.onboarding.quality_gate import (
     QualityGateError,
     check_artifact,
 )
+from code_atlas.onboarding.steps import TourStep
 from code_atlas.onboarding.tour import TourStop
 
 _LAYER = LayerRow(
@@ -66,6 +67,7 @@ def _artifact(
     layers: tuple[LayerRow, ...] = (_LAYER,),
     crossings: tuple[tuple[str, str, int], ...] = (),
     isolated: tuple[str, ...] = (),
+    steps: tuple[TourStep, ...] = (),
 ) -> OnboardingArtifact:
     return OnboardingArtifact(
         method="dominant-subtree",
@@ -75,12 +77,21 @@ def _artifact(
         crossings=crossings,
         stops=stops,
         pages=pages,
+        steps=steps,
         isolated=isolated,
     )
 
 
 def _stops(*files: str) -> tuple[TourStop, ...]:
     return tuple(TourStop(file=f, rationale="entry point", scc=()) for f in files)
+
+
+def _steps(count: int) -> tuple[TourStep, ...]:
+    """``count`` well-formed steps, each naming one module (used for the C4 ceiling fixture)."""
+    return tuple(
+        TourStep(order=i + 1, title="core", modules=(f"m{i}.py",), why="x", covers=1, cycle_size=0)
+        for i in range(count)
+    )
 
 
 def _valid() -> OnboardingArtifact:
@@ -142,13 +153,22 @@ def test_c3_layer_with_an_empty_description() -> None:
     assert exc.value.check == "C3"
 
 
-def test_c4_tour_over_the_recorded_step_ceiling() -> None:
-    files = tuple(f"m{i:04d}.py" for i in range(MAX_TOUR_STEPS + 1))
-    art = _artifact((), _stops(*files))
+def test_c4_tour_over_the_step_ceiling() -> None:
+    art = _artifact((), _stops("a.py"), steps=_steps(MAX_TOUR_STEPS + 1))
     with pytest.raises(QualityGateError) as exc:
         check_artifact(art, max_results=50)
     assert exc.value.check == "C4"
     assert exc.value.path == "tour"
+
+
+def test_c4_a_step_that_names_no_module_is_empty() -> None:
+    """AC4: 109's ceiling becomes a real bound — an empty step is refused, not only over-count."""
+    empty = (TourStep(order=1, title="core", modules=(), why="x", covers=0, cycle_size=0),)
+    art = _artifact((), _stops("a.py"), steps=empty)
+    with pytest.raises(QualityGateError) as exc:
+        check_artifact(art, max_results=50)
+    assert exc.value.check == "C4"
+    assert exc.value.path == "step[1]"
 
 
 def test_c5_scc_names_a_file_outside_the_tour() -> None:
@@ -219,21 +239,24 @@ def test_ac2_reverting_108_would_make_c2_red() -> None:
 # --- AC3 / AC5: a synthetic-scale artifact passes, and the gate is cheap over it ---
 
 
+_SCALE_STOPS = 500
+
+
 def _scale_artifact() -> OnboardingArtifact:
-    """MAX_TOUR_STEPS stops, wide-but-capped pages — the anchor's shape without the anchor (H6)."""
-    files = tuple(f"src/pkg{i % 20}/file{i:04d}.py" for i in range(MAX_TOUR_STEPS))
+    """500 stops/pages with MAX_TOUR_STEPS steps — the anchor's shape without the anchor (H6)."""
+    files = tuple(f"src/pkg{i % 20}/file{i:04d}.py" for i in range(_SCALE_STOPS))
     wide = tuple(f"src/pkg/dep{j:03d}.py" for j in range(60))
     pages = tuple(
-        _page(f, i + 1, MAX_TOUR_STEPS, outgoing=wide, incoming=wide, fan_in=60, fan_out=60)
+        _page(f, i + 1, _SCALE_STOPS, outgoing=wide, incoming=wide, fan_in=60, fan_out=60)
         for i, f in enumerate(files)
     )
-    return _artifact(pages, _stops(*files))
+    return _artifact(pages, _stops(*files), steps=_steps(MAX_TOUR_STEPS))
 
 
 def test_ac3_synthetic_scale_artifact_passes_at_the_recorded_ceilings() -> None:
     """AC3: the gate passes on the anchor-shaped artifact; the defended numbers are pinned here."""
     assert MAX_PAGE_BYTES == 16384
-    assert MAX_TOUR_STEPS == 500
+    assert MAX_TOUR_STEPS == 15
     check_artifact(_scale_artifact(), max_results=50)
 
 
