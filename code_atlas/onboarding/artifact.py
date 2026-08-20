@@ -318,7 +318,7 @@ def build_artifact(
         or len(page.scc) > max_results
         for page in pages
     )
-    return OnboardingArtifact(
+    artifact = OnboardingArtifact(
         method=assignment.method,
         truncated=truncated or list_truncated,
         summary={
@@ -335,6 +335,11 @@ def build_artifact(
         pages=tuple(pages),
         isolated=tuple(sorted(isolated)),
     )
+    # The gate refuses a filler or oversized artifact rather than write a bad tree (task 109, 050).
+    from code_atlas.onboarding.quality_gate import check_artifact
+
+    check_artifact(artifact, max_results=max_results)
+    return artifact
 
 
 def render_overview(artifact: OnboardingArtifact) -> str:
