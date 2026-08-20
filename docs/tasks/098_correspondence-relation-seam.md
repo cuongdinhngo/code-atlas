@@ -94,6 +94,66 @@ section as opinion and as a violation of the instrument's own "do not design" ru
 open a hypothesis and write the gate. It is **not** enough to spend schema, build time and a concept
 in the tool surface that every other user would carry.
 
+## Evidence from task 115 (structural mirror detection, landed 2026-08-20)
+
+[115](115_mirror-subtree-detection.md) was written to be this ticket's evidence: produce the
+correspondence set **structurally**, with no new edge kind and no `contract_version` bump, and measure
+how large and how useful it is. It landed. Here is what it found, and the verdict is **keep 098
+deferred** — the evidence weakens the case for a schema relation rather than strengthening it.
+
+### What was measured
+`find_mirror_subtrees` discovers sibling directories whose *relative path sets* overlap, gated on both
+the shared count (≥ 25) and the Jaccard fraction (≥ 0.30). Run over every independent repository
+available:
+
+| repo | accepted pairs | best sibling pair, ungated | overlap | shared |
+|---|--:|---|--:|--:|
+| anchor monorepo | 1 | the two application subtrees | **0.615** | **4,244** |
+| `laravel/laravel` @ `ff031db` | **0** | `tests/Feature` ↔ `tests/Unit` | 1.000 | **1** |
+| `symfony/demo` @ `03fe256` | **0** | none shares any relative path | — | 0 |
+| `brick/math` @ `b61d8e6` | **0** | none shares any relative path | — | 0 |
+
+### Gate item 1 — a second, independent repository: **STILL NOT MET**
+This is the finding that matters. A structural detector, run over three independent public
+repositories, found the shape in **none** of them. `laravel/laravel`'s only candidate is a pair of
+mirrored *test* directories sharing exactly one file — mirrored scaffolding, not a mirrored
+application. So `n` is still **1**, and it is still the anchor. The demand has not generalised, and
+this gate item is no closer to being satisfied than when 098 was deferred.
+
+### Gate item 2 — what it costs everyone else: **ANSWERED — "nearly nothing, precisely because it is
+not in the schema"**
+115's cost on a repository without the shape is one bounded pass over a path list already in memory,
+producing an empty list. No table, no edge kind, no column, no build-time cost, no payload weight, and
+nothing for a user to configure. That is the cost profile gate item 2 asks a schema relation to
+demonstrate — and 115 achieves it precisely *by not being in the schema*.
+
+### Gate item 3 — a cheaper alternative rejected in writing: **THE ALTERNATIVE WAS NOT REJECTED — IT WORKS**
+Gate item 3 asked for a cheaper alternative to be rejected in writing. The opposite happened. The
+cheaper alternative — path-shape correspondence computed at presentation time from rows the core
+already holds — was **built and it delivers the thing the user actually asked for**: paste a path, get
+the parallel path, or be told there is no counterpart. The lookup, including the negative answer that
+marks divergence, needs no relation in the graph.
+
+### What 115 could not do, stated honestly
+- **It compares paths, never contents.** A shared path means both subtrees hold a file of that name,
+  not that the two files are copies. 098's design question 3 (*what does a stale correspondence look
+  like?*) is therefore still unanswered by 115 — and it remains the strongest argument for holding a
+  real relation, because a path-based map cannot notice drift.
+- **It only finds *sibling* subtrees.** A legacy file and the module that replaced it in an unrelated
+  part of the tree, or a vendored fork and its upstream, are invisible to it. 115 covers the
+  region-copy shape and nothing else.
+- **It cannot represent a many-to-many or hand-asserted mapping**, which 098's design question 1 treats
+  as a requirement.
+
+### Verdict
+**098 stays `deferred`, and 115 is the reason it can afford to.** Gate item 1 is unmet and further from
+being met than before, because the shape now has measured absence on three independent repositories
+rather than merely no evidence. Gate items 2 and 3 are answered *against* a schema relation: the
+presentation-layer answer is nearly free and sufficient for the region-copy case. What would reopen
+this is narrower than the original hypothesis: a second repository with the shape, **plus** a demand
+that path comparison provably cannot serve — drift detection between two files, or an asserted
+many-to-many mapping. Until then, correspondence lives beside the index, not in it.
+
 ## Scope / Deliverables — only if the gate opens
 - **Design first, and expect the design to be most of the ticket.** Answer the four questions above
   with a written verdict each; a rejected alternative is a deliverable here, not a footnote.

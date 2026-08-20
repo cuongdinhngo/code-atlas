@@ -201,7 +201,7 @@ is the reshape; Wave 3 is enrichment and the new viewer.
 | 2 | 112 | [One compact onboarding dataset, aggregates in `store.py`](../tasks/112_onboarding-dataset-contract.md) | the contract both renderers consume; keeps SQL in `store.py` (R1.4) | 083, 086, 110 |
 | 2 | 113 | [Zero-inbound is four populations, not one number](../tasks/113_reachability-split.md) | **done** — retracts the "45 % entry points" claim; five buckets from 110's ratified vocabulary + structure | 083, 112 |
 | 3 | 114 | [Business modules from directory structure](../tasks/114_business-module-table.md) | **done** — the bridge from "fix screen X" to a file; container level derived, coverage stated | 112 |
-| 3 | 115 | [Mirror-subtree detection — evidence for 098](../tasks/115_mirror-subtree-detection.md) | turns the duplication trap into a lookup; feeds the deferred 098 decision | 112, 098 |
+| 3 | 115 | [Mirror-subtree detection — evidence for 098](../tasks/115_mirror-subtree-detection.md) | **done** — the trap as a lookup; its measured absence on 3 public repos keeps 098 deferred | 112 (feeds 098) |
 | 3 | 116 | [Dashboard viewer: sitemap, matrix, search](../tasks/116_dashboard-viewer.md) | replaces the 31 MB dump with the reviewed map | 112, 114, 115 |
 | 3 | 117 | [LLM prose for layer descriptions and tour steps](../tasks/117_llm-prose-for-map.md) | the §4 prose half, through the existing seams | 110, 111, 090, 091 |
 

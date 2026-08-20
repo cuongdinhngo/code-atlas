@@ -27,6 +27,7 @@ from code_atlas.onboarding.layers import (
     refine_layers,
 )
 from code_atlas.onboarding.metrics import GraphMetrics, NodeMetric, compute_metrics, module_edges
+from code_atlas.onboarding.mirrors import find_mirror_subtrees
 from code_atlas.onboarding.modules import find_business_modules
 from code_atlas.onboarding.reachability import classify_reachability
 from code_atlas.onboarding.summary import (
@@ -228,6 +229,12 @@ def _overview(
         stub_roots=config.stub_roots,
         limit=limit,
     )
+    # Mirrored sibling subtrees: the duplication trap, discovered rather than configured (115).
+    mirrors = find_mirror_subtrees(
+        [metric.key for metric in metrics.modules],
+        stub_roots=config.stub_roots,
+        sample_limit=limit,
+    )
     payload["summary"] = {
         "layers": len(assignment.layers),
         "modules": len(metrics.modules),
@@ -235,6 +242,7 @@ def _overview(
         "module_entry_points": len(metrics.module_entry_points),
         "reachability": split.as_dict(),
         "business_modules": modules.as_dict(),
+        "mirrors": mirrors.as_dict(),
         "cross_layer_edges": len(crossings),
         "method": assignment.method,
     }

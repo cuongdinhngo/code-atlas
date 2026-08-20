@@ -28,13 +28,14 @@ from code_atlas.onboarding.layers import (
     refine_layers,
 )
 from code_atlas.onboarding.metrics import GraphMetrics, compute_metrics, module_edges
+from code_atlas.onboarding.mirrors import MirrorReport, find_mirror_subtrees
 from code_atlas.onboarding.modules import COVERAGE_NOTE, ModuleMap, find_business_modules
 from code_atlas.onboarding.reachability import ReachabilitySplit, classify_reachability
 
 # 2: the zero-inbound total became the ``reachability`` split (113). 3: the ``modules``
-# capability table (114). Each is a shape change, so the dataset's own version bumps — this is
-# NOT ``contract_version``; the adapter contract is untouched.
-DATASET_VERSION = 3
+# capability table (114). 4: the ``mirrors`` pair table (115). Each is a shape change, so the
+# dataset's own version bumps — this is NOT ``contract_version``; the adapter contract is untouched.
+DATASET_VERSION = 4
 # A directory is kept in the tree only when its subtree holds at least this many symbols — the
 # mockup's prune, so a 40k-file repo yields a map of a few dozen rows, not thousands (AC3).
 DIR_SYMBOL_THRESHOLD = 400
@@ -49,6 +50,7 @@ __all__ = [
     "LayerStat",
     "MatrixEdge",
     "OnboardingDataset",
+    "MirrorReport",
     "ModuleMap",
     "PathIndex",
     "ReachabilitySplit",
@@ -152,6 +154,7 @@ class OnboardingDataset:
     path_index: PathIndex
     reachability: ReachabilitySplit
     modules: ModuleMap
+    mirrors: MirrorReport
 
     def as_dict(self) -> dict[str, object]:
         """Order-stable dict view — the byte-stability surface (R4.2/AC2)."""
@@ -183,6 +186,7 @@ class OnboardingDataset:
                 {"count": m.count, "source": m.source, "target": m.target} for m in self.matrix
             ],
             "method": self.method,
+            "mirrors": self.mirrors.as_dict(),
             "modules": self.modules.as_dict(),
             "node_counts": [{"count": k.count, "kind": k.kind} for k in self.node_counts],
             "parsed": self.parsed,
@@ -303,6 +307,7 @@ def build_dataset(
     reachability_sample_max: int = 0,
     file_class_counts: Sequence[tuple[str, int]] = (),
     module_max: int = 0,
+    mirror_sample_max: int = 0,
 ) -> OnboardingDataset:
     """Assemble the aggregate dataset from bounded ``store.py`` rows (see module docstring).
 
@@ -344,6 +349,11 @@ def build_dataset(
             fan_in={metric.key: metric.fan_in for metric in metrics.modules},
             stub_roots=declared_stub_roots,
             limit=module_max,
+        ),
+        mirrors=find_mirror_subtrees(
+            file_paths,
+            stub_roots=declared_stub_roots,
+            sample_limit=mirror_sample_max,
         ),
     )
 
@@ -406,6 +416,16 @@ def render_dataset_overview(dataset: OnboardingDataset) -> str:
         lines.append("- (no capability layout found)")
     for container, reason in mods.refused:
         lines.append(f"- refused `{container}`: {reason}")
+    lines.extend(["", "## Mirror subtrees", ""])
+    lines.append(f"- {dataset.mirrors.caveat}")
+    if dataset.mirrors.pairs:
+        for mir in dataset.mirrors.pairs:
+            lines.append(
+                f"- `{mir.left}` <-> `{mir.right}`: {mir.shared} shared paths "
+                f"({mir.overlap:.0%} overlap), {mir.left_only} / {mir.right_only} on one side only"
+            )
+    else:
+        lines.append("- (no mirrored sibling subtrees detected)")
     lines.extend(["", "## Zero-inbound modules, by population", ""])
     split = dataset.reachability
     lines.append(f"- zero-inbound modules (raw total): {split.total}")

@@ -130,6 +130,7 @@ def create(
             reachability_sample_max=config.max_results,
             file_class_counts=file_classes,
             module_max=config.max_results,
+            mirror_sample_max=config.max_results,
         )
         written = _write(Path(config.root), artifact, dataset, config.max_results)
         return _payload(config, artifact, written, detail_level)

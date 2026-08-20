@@ -1,5 +1,35 @@
 # Lessons — code-atlas
 
+## 115 — Explaining an R2-tainted prototype in a comment reintroduces the taint the code avoided
+Two tickets running, the R2.2 grep-gate has fired on my own prose rather than on code. In 114 a
+docstring named a pinned public repo to explain a measurement; in 115 the module docstring explained the
+mockup prototype by **reproducing its regex, its tree prefix and its region names** — the exact literals
+the implementation had gone to trouble to avoid. Both times the code was clean and the comment was the
+violation. The mechanism is worth naming because it is counter-intuitive: the more carefully a module
+avoids a tainted pattern, the more its author wants to explain *what it avoided and why*, and the
+natural way to do that is to quote the thing. **Fix:** describe a rejected pattern by its **shape**, not
+its literals — "one hardcoded tree prefix and two region names" carries the whole lesson and trips
+nothing. *Falsifier:* a comment containing a string that would fail the gate if it appeared in code.
+This is `LESSONS.md` 003 recurring at a new site (a grep-gate reads prose as input), and `seen:` now
+crosses **two ticket keys (114, 115)**, so it is a `/mango:promote` candidate rather than a third
+ticket-local note.
+
+The corollary is that **widening a gate pays off on the ticket after it lands, not eventually.** 113
+widened the R2.2 gate from `adapters/` to `code_atlas/` because 113 put a path-shape classifier in the
+core. It caught 114 and then 115 — both mine, both in comments, neither suspected. *Fix:* widen a gate
+the moment its subject moves into scope, not when a violation is suspected; the first violation it
+catches is likely to be the one you are writing.
+
+## 115b — An acceptance criterion's example fixture can contradict the sentence it illustrates
+AC1 read "a fixture with `a/x`, `a/y`, `b/x` reports one shared path and one on each side". Those three
+paths cannot do that: they give one shared, one on the left, and **none** on the right. Compare 114,
+where AC1's two-module fixture could not clear the threshold AC5 required on a real repo. Twice now the
+prose stated the requirement correctly and the illustration under-specified it. *Fix:* when an AC pairs
+a requirement with an example, treat the **sentence** as the requirement and the example as a sketch —
+then assert both, so the sentence is proven and the literal listing is still covered. Do not silently
+follow the example and report the AC green. *Falsifier:* a test whose fixture matches an AC's listing
+while asserting something weaker than the AC's sentence.
+
 ## 114 — Measure the real trees before choosing a threshold, and put the accessor where the check needs it
 The three pinned public repos are already cloned under `artifacts/cross-repo-cache/`, so the candidate
 module rule was measured against real directory shapes **before** the design was written rather than

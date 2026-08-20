@@ -145,6 +145,8 @@ def test_minimal_omits_the_costly_blocks_and_verbose_adds_the_module_rows(tmp_pa
     split = summary.pop("reachability")
     # 114: the capability table rides the same summary; this fixture has no container layout.
     modules = summary.pop("business_modules")
+    # 115: mirror pairs ride the same summary; this fixture has no mirrored siblings.
+    mirrors = summary.pop("mirrors")
     assert summary == {
         "layers": 4,
         "modules": 5,
@@ -159,6 +161,7 @@ def test_minimal_omits_the_costly_blocks_and_verbose_adds_the_module_rows(tmp_pa
     assert split["dropped"] == []
     assert modules["modules"] == [] and modules["containers"] == []
     assert modules["coverage"]["total"] == 5
+    assert mirrors["pairs"] == [] and mirrors["caveat"]
     assert standard["cross_layer_edges_truncated"] is False
     assert "modules" not in standard
 

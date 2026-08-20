@@ -22,6 +22,7 @@ from code_atlas.onboarding.layers import (
     refine_layers,
 )
 from code_atlas.onboarding.metrics import GraphMetrics, compute_metrics, module_edges
+from code_atlas.onboarding.mirrors import find_mirror_subtrees
 from code_atlas.onboarding.modules import COVERAGE_NOTE, find_business_modules
 from code_atlas.onboarding.reachability import classify_reachability
 from code_atlas.onboarding.steps import TourStep, build_steps
@@ -30,6 +31,7 @@ from code_atlas.onboarding.tour import TourStop, ordered_stops
 
 H_OVERVIEW = "# Architecture overview"
 H_SUMMARY = "## Summary"
+H_MIRRORS = "## Mirror subtrees"
 H_MODULES = "## Business modules"
 H_REACHABILITY = "## Zero-inbound modules, by population"
 H_LAYERS = "## Layers"
@@ -63,6 +65,7 @@ __all__ = [
     "H_IN_TOUR",
     "H_LAYER",
     "H_LAYERS",
+    "H_MIRRORS",
     "H_MODULES",
     "H_MODULE_SUMMARY",
     "H_NEIGHBOURS",
@@ -354,6 +357,11 @@ def build_artifact(
             "method": assignment.method,
             "module_entry_points": len(metrics.module_entry_points),
             "modules": len(metrics.modules),
+            "mirrors": find_mirror_subtrees(
+                file_paths or [metric.key for metric in metrics.modules],
+                stub_roots=declared_stub_roots,
+                sample_limit=max_results,
+            ).as_dict(),
             "business_modules": find_business_modules(
                 file_paths or [metric.key for metric in metrics.modules],
                 class_counts=dict(file_class_counts),
@@ -381,6 +389,28 @@ def build_artifact(
 
     check_artifact(artifact, max_results=max_results)
     return artifact
+
+
+def _mirror_lines(mirrors: object) -> list[str]:
+    """Mirrored sibling subtrees, caveat first (task 115).
+
+    The caveat leads, because the counts are about PATHS and a reader must not take them for proof
+    that the files are copies. No pair renders an explicit "none detected" rather than an empty gap.
+    """
+    if not isinstance(mirrors, dict):
+        return []
+    lines = [H_MIRRORS, "", f"- {mirrors.get('caveat', '')}"]
+    pairs = mirrors.get("pairs")
+    for pair in pairs if isinstance(pairs, list) else []:
+        lines.append(
+            f"- `{pair['left']}` <-> `{pair['right']}`: {pair['shared']} shared paths "
+            f"({pair['overlap']:.0%} overlap), {pair['left_only']} / {pair['right_only']} "
+            "on one side only"
+        )
+    if not pairs:
+        lines.append("- (no mirrored sibling subtrees detected)")
+    lines.append("")
+    return lines
 
 
 def _module_lines(modules: object) -> list[str]:
@@ -458,6 +488,7 @@ def render_overview(artifact: OnboardingArtifact) -> str:
         f"- truncated: {'true' if artifact.truncated else 'false'}",
         "",
     ]
+    lines.extend(_mirror_lines(artifact.summary.get("mirrors")))
     lines.extend(_module_lines(artifact.summary.get("business_modules")))
     lines.extend(_reachability_lines(artifact.summary.get("reachability")))
     lines.extend([H_LAYERS, ""])
