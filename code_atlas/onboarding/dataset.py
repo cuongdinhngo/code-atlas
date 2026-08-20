@@ -28,11 +28,13 @@ from code_atlas.onboarding.layers import (
     refine_layers,
 )
 from code_atlas.onboarding.metrics import GraphMetrics, compute_metrics, module_edges
+from code_atlas.onboarding.modules import COVERAGE_NOTE, ModuleMap, find_business_modules
 from code_atlas.onboarding.reachability import ReachabilitySplit, classify_reachability
 
-# 2: the zero-inbound total became the ``reachability`` split (task 113) — a shape change, so the
-# dataset's own version bumps. This is NOT ``contract_version``; the adapter contract is untouched.
-DATASET_VERSION = 2
+# 2: the zero-inbound total became the ``reachability`` split (113). 3: the ``modules``
+# capability table (114). Each is a shape change, so the dataset's own version bumps — this is
+# NOT ``contract_version``; the adapter contract is untouched.
+DATASET_VERSION = 3
 # A directory is kept in the tree only when its subtree holds at least this many symbols — the
 # mockup's prune, so a 40k-file repo yields a map of a few dozen rows, not thousands (AC3).
 DIR_SYMBOL_THRESHOLD = 400
@@ -47,6 +49,7 @@ __all__ = [
     "LayerStat",
     "MatrixEdge",
     "OnboardingDataset",
+    "ModuleMap",
     "PathIndex",
     "ReachabilitySplit",
     "build_dataset",
@@ -148,6 +151,7 @@ class OnboardingDataset:
     tree: tuple[DirStat, ...]
     path_index: PathIndex
     reachability: ReachabilitySplit
+    modules: ModuleMap
 
     def as_dict(self) -> dict[str, object]:
         """Order-stable dict view — the byte-stability surface (R4.2/AC2)."""
@@ -179,6 +183,7 @@ class OnboardingDataset:
                 {"count": m.count, "source": m.source, "target": m.target} for m in self.matrix
             ],
             "method": self.method,
+            "modules": self.modules.as_dict(),
             "node_counts": [{"count": k.count, "kind": k.kind} for k in self.node_counts],
             "parsed": self.parsed,
             "reachability": self.reachability.as_dict(),
@@ -296,6 +301,8 @@ def build_dataset(
     declared_entry_points: Sequence[str] | None = None,
     declared_stub_roots: Sequence[str] | None = None,
     reachability_sample_max: int = 0,
+    file_class_counts: Sequence[tuple[str, int]] = (),
+    module_max: int = 0,
 ) -> OnboardingDataset:
     """Assemble the aggregate dataset from bounded ``store.py`` rows (see module docstring).
 
@@ -330,6 +337,13 @@ def build_dataset(
             entry_points=declared_entry_points,
             stub_roots=declared_stub_roots,
             sample_limit=reachability_sample_max,
+        ),
+        modules=find_business_modules(
+            file_paths,
+            class_counts=dict(file_class_counts),
+            fan_in={metric.key: metric.fan_in for metric in metrics.modules},
+            stub_roots=declared_stub_roots,
+            limit=module_max,
         ),
     )
 
@@ -374,6 +388,24 @@ def render_dataset_overview(dataset: OnboardingDataset) -> str:
             lines.append(f"- `{edge.source}` → `{edge.target}` ({edge.count})")
     else:
         lines.append("- (none)")
+    lines.extend(["", "## Business modules", ""])
+    mods = dataset.modules
+    lines.append(
+        f"- coverage: {mods.covered} of {mods.total} indexed files ({mods.percent} %); "
+        f"{mods.excluded} excluded as vendored or test code"
+    )
+    lines.append(f"  - {COVERAGE_NOTE}")
+    if mods.modules:
+        for mod in mods.modules:
+            flag = " — **only tree**" if mod.single_tree else ""
+            lines.append(
+                f"- `{mod.module}`: {mod.files} files, {mod.classes} classes, "
+                f"trees {', '.join(mod.trees)}{flag}"
+            )
+    else:
+        lines.append("- (no capability layout found)")
+    for container, reason in mods.refused:
+        lines.append(f"- refused `{container}`: {reason}")
     lines.extend(["", "## Zero-inbound modules, by population", ""])
     split = dataset.reachability
     lines.append(f"- zero-inbound modules (raw total): {split.total}")

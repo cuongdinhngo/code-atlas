@@ -143,6 +143,8 @@ def test_minimal_omits_the_costly_blocks_and_verbose_adds_the_module_rows(tmp_pa
     summary = dict(standard["summary"])  # type: ignore[call-overload]
     # 113: the zero-inbound total is now a population split; the raw total stays beside it.
     split = summary.pop("reachability")
+    # 114: the capability table rides the same summary; this fixture has no container layout.
+    modules = summary.pop("business_modules")
     assert summary == {
         "layers": 4,
         "modules": 5,
@@ -155,6 +157,8 @@ def test_minimal_omits_the_costly_blocks_and_verbose_adds_the_module_rows(tmp_pa
     assert sum(bucket["count"] for bucket in split["buckets"]) == 2
     assert [bucket["bucket"] for bucket in split["buckets"]] == list(BUCKETS)
     assert split["dropped"] == []
+    assert modules["modules"] == [] and modules["containers"] == []
+    assert modules["coverage"]["total"] == 5
     assert standard["cross_layer_edges_truncated"] is False
     assert "modules" not in standard
 

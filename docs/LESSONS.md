@@ -1,5 +1,36 @@
 # Lessons — code-atlas
 
+## 114 — Measure the real trees before choosing a threshold, and put the accessor where the check needs it
+The three pinned public repos are already cloned under `artifacts/cross-repo-cache/`, so the candidate
+module rule was measured against real directory shapes **before** the design was written rather than
+proven on a fixture afterwards. That ordering changed the design twice. A file-count floor — the
+prototype's `files >= 8` — cannot separate a library's `Exception` directory (10 files) from a genuine
+business module, so the layout decision had to move to a **peer count** instead. And one pin's widest
+container turned out to be organised by *responsibility* (4 of its 7 children are role words), so a
+table built from it would have listed `Controller`, `Entity` and `Form` as business capabilities. Both
+gates exist only because the measurement came first. *Fix:* when a ticket's rule is a threshold over
+path shape, spend the ten minutes to run it over every real tree available **before** writing the design
+— a fixture authored after the fact agrees with whatever threshold you picked. Generalises the
+`fixture-shape-begs-the-question` retro from "add a real-repo check" to "let the real repos choose the
+constant".
+
+The second lesson is about **where an accessor lives**. 113 added `responsibility_layer(module)` as the
+public way to ask what role a path names, and 114 needed the same question about a **bare directory
+name**. It silently returned `None` for every one of them, because it treats its argument as a module
+path and drops the final segment as a filename — so `responsibility_layer("controller")` is `None`, and
+every role-organised container would have passed the new gate and shipped its role directories as
+business modules. The accessor was correct for its own caller and wrong for the next one. *Fix:* when a
+check needs a different **grain** than the existing accessor offers (segment vs path, row vs table,
+node vs file), add the accessor at that grain next to the first one — do not pass a reshaped argument
+into the old one and do not reach into the private it wraps. *Falsifier:* a call site that massages its
+input into the shape an accessor expects (`f"{name}/x"`) is the smell.
+
+And a gate paid for itself immediately: **113 widened the R2.2 grep-gate to `code_atlas/`, and the very
+next ticket tripped it on its own docstring** — a comment naming a pinned public repo to explain a
+measurement. This is `LESSONS.md` 003 recurring (a grep-gate reads prose as input), and it is the
+argument for widening a gate the moment its subject moves into scope rather than when a violation is
+suspected: the violation here was mine, in a comment, one ticket later.
+
 ## 113 — A field the contract declares but no adapter emits is a false-zero source, not a signal
 113 needed to bucket zero-inbound files into tests / vendored / web-surface / dynamic / dead-suspect
 under R2.2, and two of the obvious signals were traps. `nodes.is_test` looks decisive — it is a

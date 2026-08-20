@@ -93,6 +93,7 @@ def create(
             classes = store.largest_classes(limit=config.max_results)
             file_syms = store.file_symbol_counts()
             file_paths = store.file_paths()
+            file_classes = store.file_class_counts()
         artifact = build_artifact(
             nodes,
             edges,
@@ -105,6 +106,8 @@ def create(
             max_results=config.max_results,
             declared_entry_points=config.entry_points,
             declared_stub_roots=config.stub_roots,
+            file_paths=file_paths,
+            file_class_counts=file_classes,
         )
         if artifact is None:
             return _empty(config)
@@ -125,6 +128,8 @@ def create(
             declared_entry_points=config.entry_points,
             declared_stub_roots=config.stub_roots,
             reachability_sample_max=config.max_results,
+            file_class_counts=file_classes,
+            module_max=config.max_results,
         )
         written = _write(Path(config.root), artifact, dataset, config.max_results)
         return _payload(config, artifact, written, detail_level)

@@ -158,6 +158,17 @@ Two items are flagged rather than assumed, because they touch **R2.2 (standard o
    neither. Where no indexed path names any responsibility, the vocabulary buckets are **dropped with
    the reason stated** rather than reported as a misleading zero.
 
+3. **Business-module detection.** The prototype derives modules with a container regex naming
+   `application|modules`, a `SKIP` set holding **region names** (`alpha`, `beta`, `anz`) *and* **library
+   names** (`tcpdf`, `mpdf`, `adodb`, `smarty`, `zend`, …), plus hardcoded tree prefixes
+   (`legacy/alpha/`, `legacy/beta/`, `src/`) — four separate R2.2 violations, so it is not portable.
+   **Resolved in task 114 (landed) by deriving the level instead of naming it:** the container is the
+   directory fanning out into ≥ 4 peer subtrees of ≥ 3 files, its children are the modules, and its own
+   parent is their tree — which makes region and container names structurally incapable of becoming
+   modules. A container whose children are ≥ half role names (110's vocabulary) is refused with its
+   reason. Measured on the three pins: **zero modules on all three**, `symfony/demo`'s `src` refused as
+   role-organised — the honest zero AC5 asks for, not invented groups.
+
 ---
 
 ## 6. Known limits of the mockup, stated up front
@@ -189,7 +200,7 @@ is the reshape; Wave 3 is enrichment and the new viewer.
 | 2 | 111 | [The tour is 5–15 narrative steps, not one stop per module](../tasks/111_tour-is-narrative-steps.md) | biggest single value change: 500 stops → a readable reading order | 087, 110 |
 | 2 | 112 | [One compact onboarding dataset, aggregates in `store.py`](../tasks/112_onboarding-dataset-contract.md) | the contract both renderers consume; keeps SQL in `store.py` (R1.4) | 083, 086, 110 |
 | 2 | 113 | [Zero-inbound is four populations, not one number](../tasks/113_reachability-split.md) | **done** — retracts the "45 % entry points" claim; five buckets from 110's ratified vocabulary + structure | 083, 112 |
-| 3 | 114 | [Business modules from directory structure](../tasks/114_business-module-table.md) | the bridge from "fix screen X" to a file; must state its own coverage | 112 |
+| 3 | 114 | [Business modules from directory structure](../tasks/114_business-module-table.md) | **done** — the bridge from "fix screen X" to a file; container level derived, coverage stated | 112 |
 | 3 | 115 | [Mirror-subtree detection — evidence for 098](../tasks/115_mirror-subtree-detection.md) | turns the duplication trap into a lookup; feeds the deferred 098 decision | 112, 098 |
 | 3 | 116 | [Dashboard viewer: sitemap, matrix, search](../tasks/116_dashboard-viewer.md) | replaces the 31 MB dump with the reviewed map | 112, 114, 115 |
 | 3 | 117 | [LLM prose for layer descriptions and tour steps](../tasks/117_llm-prose-for-map.md) | the §4 prose half, through the existing seams | 110, 111, 090, 091 |

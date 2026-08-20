@@ -626,6 +626,18 @@ class GraphStore:
         )
         return tuple((str(q), str(f), int(m)) for q, f, m in cursor)
 
+    def file_class_counts(self) -> tuple[tuple[str, int], ...]:
+        """Per-file class count ``(file, classes)`` — the business-module table's substrate (114).
+
+        One GROUP BY pass, same shape and bound as ``file_symbol_counts`` (R4.3). ``'Class'`` is
+        a contract node kind, not a repo name (``largest_classes`` precedent). Stable order (R4.2).
+        """
+        cursor = self._conn.execute(
+            "SELECT file_path, COUNT(*) FROM nodes WHERE file_path IS NOT NULL AND kind = 'Class' "
+            "GROUP BY file_path ORDER BY file_path"
+        )
+        return tuple((str(path), int(count)) for path, count in cursor)
+
     def file_symbol_counts(self) -> tuple[tuple[str, int], ...]:
         """Per-file symbol count ``(file, symbols)`` — the directory-tree substrate (task 112).
 

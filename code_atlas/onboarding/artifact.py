@@ -22,6 +22,7 @@ from code_atlas.onboarding.layers import (
     refine_layers,
 )
 from code_atlas.onboarding.metrics import GraphMetrics, compute_metrics, module_edges
+from code_atlas.onboarding.modules import COVERAGE_NOTE, find_business_modules
 from code_atlas.onboarding.reachability import classify_reachability
 from code_atlas.onboarding.steps import TourStep, build_steps
 from code_atlas.onboarding.summary import NodeFacts, Summarizer, summarize_modules
@@ -29,6 +30,7 @@ from code_atlas.onboarding.tour import TourStop, ordered_stops
 
 H_OVERVIEW = "# Architecture overview"
 H_SUMMARY = "## Summary"
+H_MODULES = "## Business modules"
 H_REACHABILITY = "## Zero-inbound modules, by population"
 H_LAYERS = "## Layers"
 H_CROSSINGS = "## Cross-layer edges"
@@ -61,6 +63,7 @@ __all__ = [
     "H_IN_TOUR",
     "H_LAYER",
     "H_LAYERS",
+    "H_MODULES",
     "H_MODULE_SUMMARY",
     "H_NEIGHBOURS",
     "H_ORDER",
@@ -284,6 +287,8 @@ def build_artifact(
     max_results: int,
     declared_entry_points: Sequence[str] | None = None,
     declared_stub_roots: Sequence[str] | None = None,
+    file_paths: Sequence[str] = (),
+    file_class_counts: Sequence[tuple[str, int]] = (),
 ) -> OnboardingArtifact | None:
     """Compose 083–087 into one artifact. ``None`` when the index has no module.
 
@@ -349,6 +354,13 @@ def build_artifact(
             "method": assignment.method,
             "module_entry_points": len(metrics.module_entry_points),
             "modules": len(metrics.modules),
+            "business_modules": find_business_modules(
+                file_paths or [metric.key for metric in metrics.modules],
+                class_counts=dict(file_class_counts),
+                fan_in={metric.key: metric.fan_in for metric in metrics.modules},
+                stub_roots=declared_stub_roots,
+                limit=max_results,
+            ).as_dict(),
             "reachability": classify_reachability(
                 metrics,
                 entry_points=declared_entry_points,
@@ -369,6 +381,41 @@ def build_artifact(
 
     check_artifact(artifact, max_results=max_results)
     return artifact
+
+
+def _module_lines(modules: object) -> list[str]:
+    """The capability table with the coverage it does NOT claim (task 114).
+
+    Coverage is printed before the rows, so a reader cannot take the table for the whole repo; a
+    container refused for grouping by role is named with its reason instead of vanishing (AC5).
+    """
+    if not isinstance(modules, dict):
+        return []
+    cover = modules.get("coverage", {})
+    lines = [
+        H_MODULES,
+        "",
+        f"- coverage: {cover.get('covered', 0)} of {cover.get('total', 0)} indexed files "
+        f"({cover.get('percent', 0.0)} %); {cover.get('excluded', 0)} excluded "
+        "as vendored or test code",
+        f"  - {COVERAGE_NOTE}",
+    ]
+    rows = modules.get("modules")
+    for row in rows if isinstance(rows, list) else []:
+        flag = " — **only tree**" if row.get("single_tree") else ""
+        lines.append(
+            f"- `{row['module']}`: {row['files']} files, {row['classes']} classes, "
+            f"trees {', '.join(row['trees'])}{flag}"
+        )
+        if row.get("hub"):
+            lines.append(f"  - busiest file: `{row['hub']}` (fan_in {row['hub_fan_in']})")
+    if not rows:
+        lines.append("- (no capability layout found)")
+    refused = modules.get("refused")
+    for entry in refused if isinstance(refused, list) else []:
+        lines.append(f"- refused `{entry['container']}`: {entry['reason']}")
+    lines.append("")
+    return lines
 
 
 def _reachability_lines(split: object) -> list[str]:
@@ -411,6 +458,7 @@ def render_overview(artifact: OnboardingArtifact) -> str:
         f"- truncated: {'true' if artifact.truncated else 'false'}",
         "",
     ]
+    lines.extend(_module_lines(artifact.summary.get("business_modules")))
     lines.extend(_reachability_lines(artifact.summary.get("reachability")))
     lines.extend([H_LAYERS, ""])
     for row in artifact.layers:

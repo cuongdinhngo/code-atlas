@@ -187,6 +187,15 @@ def _responsibility_layer(module: str) -> str | None:
     return None
 
 
+def responsibility_of_segment(segment: str) -> str | None:
+    """The responsibility layer a single path SEGMENT names, or None (task 114).
+
+    ``responsibility_layer`` drops the last segment as a filename, so it cannot answer this for a
+    bare directory name. Case-insensitive and simple-plural aware, like the grouping itself.
+    """
+    return _match_keyword(segment)
+
+
 def responsibility_layer(module: str) -> str | None:
     """The responsibility layer a module's PATH names, or None — 110's signal, without the grouping.
 
