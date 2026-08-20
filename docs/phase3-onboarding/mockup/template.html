@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="vi" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>anchor-repo — Bản đồ hệ thống</title>
+<style>
+:root{
+ --bg:#0d1117; --panel:#161b22; --panel2:#1c2230; --line:#2a3441; --line2:#3a4553;
+ --tx:#e6edf3; --tx2:#9aa8b6; --tx3:#6e7d8d;
+ --ac:#4dabf7; --warn:#f59f00; --bad:#e8590c; --vio:#9775fa; --ok:#37b24d;
+ --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+ --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+:root[data-theme="light"]{
+ --bg:#f6f8fa; --panel:#fff; --panel2:#eef1f5; --line:#d8dee4; --line2:#c2cad2;
+ --tx:#1f2328; --tx2:#57606a; --tx3:#8c959f; --ac:#0969da;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font:14px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:var(--ac);text-decoration:none}
+.wrap{display:flex;min-height:100vh}
+nav{width:238px;flex:0 0 238px;border-right:1px solid var(--line);background:var(--panel);
+    position:sticky;top:0;height:100vh;overflow-y:auto;padding:18px 0}
+nav .brand{padding:0 20px 14px;border-bottom:1px solid var(--line);margin-bottom:10px}
+nav .brand b{display:block;font-size:15px}
+nav .brand span{font:11px/1.4 var(--mono);color:var(--tx3)}
+nav a.item{display:flex;align-items:center;gap:9px;padding:7px 20px;color:var(--tx2);font-size:13px;
+  border-left:2px solid transparent}
+nav a.item:hover{background:var(--panel2);color:var(--tx)}
+nav a.item.on{color:var(--tx);border-left-color:var(--ac);background:var(--panel2)}
+nav a.item i{width:15px;text-align:center;font-style:normal;opacity:.65}
+nav .grp{padding:13px 20px 4px;font:10px/1 var(--mono);text-transform:uppercase;
+  letter-spacing:.12em;color:var(--tx3)}
+.navbtn{margin:6px 20px 0;padding:6px 10px;background:var(--panel2);border:1px solid var(--line);
+  color:var(--tx2);border-radius:6px;font:11.5px var(--sans);cursor:pointer;width:calc(100% - 40px);
+  text-align:left;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.navbtn:hover{color:var(--tx);border-color:var(--line2)}
+.navbtn kbd{font:10px var(--mono);border:1px solid var(--line2);border-radius:3px;padding:1px 4px;color:var(--tx3)}
+main{flex:1;min-width:0;padding:30px 40px 80px;max-width:1260px}
+section{margin-bottom:50px;scroll-margin-top:18px}
+h1{font-size:26px;letter-spacing:-.5px;margin:0 0 6px}
+h2{font-size:18px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+h2 .num{font:11px var(--mono);color:var(--tx3);border:1px solid var(--line);border-radius:4px;padding:2px 6px}
+.lede{color:var(--tx2);margin:0 0 18px;max-width:78ch}
+.sub{color:var(--tx3);font-size:12px;margin:-2px 0 16px}
+.grid{display:grid;gap:12px}
+.g4{grid-template-columns:repeat(auto-fit,minmax(158px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.g2{grid-template-columns:repeat(auto-fit,minmax(330px,1fr))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:14px 16px}
+.stat .v{font:23px/1.1 var(--mono);color:var(--ac)}
+.stat .k{font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em;margin-top:5px}
+.stat .n{font-size:11px;color:var(--tx2);margin-top:6px}
+.fact{border-left:3px solid var(--ac)}
+.fact.w{border-left-color:var(--warn)}.fact.b{border-left-color:var(--bad)}.fact.v{border-left-color:var(--vio)}
+.fact h4{margin:0 0 6px;font-size:13px}
+.fact p{margin:0;font-size:12.5px;color:var(--tx2)}
+code{font:11.5px var(--mono);background:var(--panel2);padding:1px 5px;border-radius:3px;color:var(--tx)}
+.tmbar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.crumb{font:12px var(--mono);color:var(--tx2)}
+.crumb b{color:var(--tx)} .crumb a{cursor:pointer}
+#tm{position:relative;width:100%;height:440px;background:var(--panel);border:1px solid var(--line);
+  border-radius:9px;overflow:hidden}
+.cell{position:absolute;border:1px solid var(--bg);overflow:hidden;cursor:pointer;transition:filter .12s}
+.cell:hover{filter:brightness(1.25);z-index:3}
+.cell .lb{position:absolute;inset:0;padding:6px 8px;pointer-events:none}
+.cell .lb .nm{font:600 12px/1.2 var(--sans);color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.65);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cell .lb .mt{font:10px/1.3 var(--mono);color:rgba(255,255,255,.85);text-shadow:0 1px 3px rgba(0,0,0,.65)}
+.cell.leaf{cursor:default}
+.lyr{display:grid;grid-template-columns:minmax(150px,215px) 1fr auto;gap:14px;align-items:center;
+  padding:9px 0;border-bottom:1px solid var(--line)}
+.lyr:last-child{border-bottom:0}
+.lyr .nm{font-size:13px;display:flex;align-items:flex-start;gap:8px}
+.dot{width:9px;height:9px;border-radius:2px;flex:0 0 9px;margin-top:5px;display:inline-block}
+.stack{display:flex;height:16px;border-radius:3px;overflow:hidden;background:var(--panel2)}
+.stack i{display:block;height:100%}
+.lyr .qty{font:11.5px var(--mono);color:var(--tx2);white-space:nowrap}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--tx2);margin:12px 0 0;align-items:center}
+.legend span{display:flex;align-items:center;gap:6px}
+.desc{font-size:11.5px;color:var(--tx3);margin-top:2px}
+.mxwrap{overflow-x:auto;border:1px solid var(--line);border-radius:9px;background:var(--panel)}
+table.mx{border-collapse:collapse;font:11px var(--mono);min-width:max-content}
+table.mx th,table.mx td{padding:0;text-align:center}
+table.mx th.rh{text-align:right;padding:0 10px 0 12px;font-weight:500;color:var(--tx2);
+  white-space:nowrap;font-family:var(--sans);font-size:11.5px}
+table.mx th.ch{height:124px;vertical-align:bottom;padding-bottom:8px;width:36px}
+table.mx th.ch div{writing-mode:vertical-rl;transform:rotate(180deg);color:var(--tx2);
+  font-family:var(--sans);font-size:11.5px;font-weight:500;white-space:nowrap}
+table.mx td.c{width:36px;height:30px;border:1px solid var(--bg);color:#fff;font-size:10px}
+table.mx td.c.z{color:var(--tx3)}
+table.tb{width:100%;border-collapse:collapse;font-size:12.5px}
+table.tb th{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line2);color:var(--tx3);
+  font:10px/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap}
+table.tb td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+table.tb tr:last-child td{border-bottom:0}
+table.tb td.p{font:11.5px var(--mono);color:var(--tx2);word-break:break-all}
+table.tb td.n{font:12px var(--mono);text-align:right;white-space:nowrap}
+.pill{display:inline-block;font:10px var(--mono);padding:2px 7px;border-radius:99px;
+  border:1px solid var(--line2);color:var(--tx2);white-space:nowrap}
+.pill.a{border-color:var(--ac);color:var(--ac)}
+.pill.g{border-color:var(--ok);color:var(--ok)}
+.pill.o{border-color:var(--warn);color:var(--warn)}
+.bar{height:5px;border-radius:3px;background:var(--ac);margin-top:4px}
+.step{display:grid;grid-template-columns:34px 1fr;gap:14px;padding:13px 0;border-bottom:1px solid var(--line)}
+.step:last-child{border-bottom:0}
+.step .no{width:28px;height:28px;border-radius:50%;background:var(--panel2);border:1px solid var(--line2);
+  display:flex;align-items:center;justify-content:center;font:12px var(--mono);color:var(--ac)}
+.step h4{margin:3px 0 5px;font-size:14px}
+.step p{margin:0 0 7px;color:var(--tx2);font-size:13px;max-width:84ch}
+.step .files{display:flex;flex-direction:column;gap:3px;align-items:flex-start}
+.note{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--warn);
+  border-radius:7px;padding:12px 15px;font-size:12.5px;color:var(--tx2)}
+.prov{border:1px solid var(--line);border-radius:9px;background:var(--panel);padding:15px 17px;font-size:12.5px}
+.prov h4{margin:0 0 8px;font-size:13px}
+.prov ul{margin:0;padding-left:19px;color:var(--tx2)}
+.prov li{margin-bottom:4px}
+/* ---- search overlay ---- */
+#ov{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:50;
+  align-items:flex-start;justify-content:center;padding-top:9vh}
+#ov.on{display:flex}
+#pal{width:min(760px,92vw);background:var(--panel);border:1px solid var(--line2);border-radius:11px;
+  box-shadow:0 18px 50px rgba(0,0,0,.5);overflow:hidden}
+#q{width:100%;border:0;outline:0;background:transparent;color:var(--tx);font:14px var(--mono);
+  padding:15px 17px;border-bottom:1px solid var(--line)}
+#res{max-height:56vh;overflow-y:auto}
+.r{padding:8px 17px;border-bottom:1px solid var(--line);cursor:pointer}
+.r:last-child{border-bottom:0}
+.r:hover,.r.sel{background:var(--panel2)}
+.r .t{font:11.5px var(--mono);color:var(--tx);word-break:break-all}
+.r .m{font-size:11px;color:var(--tx3);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap}
+.r .m b{color:var(--ok);font-weight:500}
+.r .m i{color:var(--warn);font-style:normal}
+#rhint{padding:11px 17px;font-size:11.5px;color:var(--tx3)}
+mark{background:rgba(77,171,247,.28);color:var(--tx);border-radius:2px}
+@media(max-width:880px){
+ .wrap{flex-direction:column}
+ nav{width:auto;flex:none;height:auto;position:static;border-right:0;border-bottom:1px solid var(--line)}
+ nav a.item{display:inline-flex} .navbtn{width:auto}
+ main{padding:20px 16px 60px} #tm{height:370px} .lyr{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav>
+  <div class="brand"><b>anchor-repo</b><span id="brandMeta"></span></div>
+  <button class="navbtn" id="openSearch"><span>Tìm đường dẫn…</span><kbd>Ctrl K</kbd></button>
+  <div class="grp">Định hướng</div>
+  <a class="item" href="#overview"><i>&#9670;</i>Tổng quan</a>
+  <a class="item" href="#facts"><i>!</i>Phải biết trước</a>
+  <a class="item" href="#modules"><i>&#9707;</i>Nghiệp vụ &rarr; thư mục</a>
+  <div class="grp">Bản đồ</div>
+  <a class="item" href="#sitemap"><i>&#9638;</i>Sitemap</a>
+  <a class="item" href="#layers"><i>&#9636;</i>Tầng &amp; phân bố</a>
+  <a class="item" href="#deps"><i>&#8646;</i>Ma trận phụ thuộc</a>
+  <div class="grp">Điểm nóng</div>
+  <a class="item" href="#hubs"><i>&#9673;</i>Hub</a>
+  <a class="item" href="#dup"><i>&#10697;</i>Trùng lặp ALPHA/BETA</a>
+  <a class="item" href="#reach"><i>&#8709;</i>Không ai gọi tới</a>
+  <a class="item" href="#classes"><i>&#9642;</i>Class lớn</a>
+  <div class="grp">Lộ trình</div>
+  <a class="item" href="#tour"><i>&#9654;</i>Tour 12 bước</a>
+  <a class="item" href="#prov"><i>&#9432;</i>Số này từ đâu</a>
+  <button class="navbtn" id="themeBtn"><span>Đổi theme</span><kbd>&#9686;</kbd></button>
+</nav>
+
+<main>
+<section id="overview">
+  <h1>anchor-repo &mdash; bản đồ hệ thống</h1>
+  <p class="lede" id="lede1"></p>
+  <div class="grid g4" id="stats"></div>
+  <p class="sub" id="freshness"></p>
+</section>
+
+<section id="facts">
+  <h2><span class="num">01</span>Sáu điều phải biết trước khi sửa dòng nào</h2>
+  <p class="lede">Những thứ không đọc cây thư mục ra được, và là nguyên nhân của phần lớn bug bất ngờ.</p>
+  <div class="grid g2" id="facts_g"></div>
+</section>
+
+<section id="modules">
+  <h2><span class="num">02</span>Nghiệp vụ &rarr; thư mục</h2>
+  <p class="lede">Cầu nối duy nhất giữa "sếp giao tôi fix màn hình X" và "tôi mở file nào".
+  Tên module lấy từ chính thư mục <code>application/</code> và <code>modules/</code> trong code.
+  Bấm một hàng để mở nó trong ô tìm kiếm.</p>
+  <div class="card" style="padding:4px 6px"><table class="tb" id="mod_t"></table></div>
+  <p class="sub" id="modNote"></p>
+</section>
+
+<section id="sitemap">
+  <h2><span class="num">03</span>Sitemap &mdash; mã nguồn nằm ở đâu</h2>
+  <p class="lede">Diện tích ô = số symbol (class, method, function, property). Màu = tầng trách nhiệm
+  chiếm đa số <i>bên trong</i> ô đó. Bấm để đi sâu.</p>
+  <div class="tmbar"><span class="crumb" id="crumb"></span></div>
+  <div id="tm"></div>
+  <div class="legend" id="tmLegend"></div>
+</section>
+
+<section id="layers">
+  <h2><span class="num">04</span>Tầng trách nhiệm &amp; phân bố class</h2>
+  <p class="lede">Tầng suy từ <b>vai trò</b> của thư mục sâu nhất (controller / model / service / view / job…),
+  không phải tên thư mục gốc. Thanh cho thấy mã trong tầng là OOP hay script thủ tục.</p>
+  <div class="card" id="layers_t"></div>
+  <div class="legend" id="lyrLegend"></div>
+</section>
+
+<section id="deps">
+  <h2><span class="num">05</span>Ai gọi ai</h2>
+  <p class="lede">Đủ cả <span id="nLayers"></span> tầng, không cắt bớt. Ô càng sáng càng nhiều phụ thuộc.
+  Hàng = tầng gọi, cột = tầng bị gọi.</p>
+  <div class="mxwrap" id="mx"></div>
+  <p class="sub" id="mxNote"></p>
+</section>
+
+<section id="hubs">
+  <h2><span class="num">06</span>Hub &mdash; sửa vào đây là chạm cả hệ thống</h2>
+  <p class="lede">Xếp theo số tệp phụ thuộc vào nó. Đây là danh sách cần review kỹ nhất.</p>
+  <div class="card" style="padding:4px 6px"><table class="tb" id="hubs_t"></table></div>
+</section>
+
+<section id="dup">
+  <h2><span class="num">07</span>Trùng lặp ALPHA / BETA &mdash; cái bẫy lớn nhất</h2>
+  <p class="lede">Dán một đường dẫn <code>legacy/alpha/…</code> hoặc <code>legacy/beta/…</code> vào ô tìm kiếm
+  (<kbd>Ctrl K</kbd>) &mdash; nó trả lại bản song song ngay, nếu có.</p>
+  <div class="grid g3" id="dup_g" style="margin-bottom:14px"></div>
+  <div class="note" id="dupNote"></div>
+</section>
+
+<section id="reach">
+  <h2><span class="num">08</span>Không ai gọi tới &mdash; và điều đó nghĩa là gì</h2>
+  <p class="lede" id="reachLede"></p>
+  <div class="grid g4" id="reach_g" style="margin-bottom:14px"></div>
+  <div class="note" id="reachNote"></div>
+</section>
+
+<section id="classes">
+  <h2><span class="num">09</span>Class lớn nhất</h2>
+  <p class="lede">Xếp theo số method trong cùng tệp. Gần hết là thư viện bên thứ ba copy vào mã nguồn.</p>
+  <div class="card" style="padding:4px 6px"><table class="tb" id="cls_t"></table></div>
+</section>
+
+<section id="tour">
+  <h2><span class="num">10</span>Tour 12 bước</h2>
+  <p class="lede">Mỗi bước dựa trên bước trước. Mọi con số dưới đây tính từ chỉ mục, không viết cứng.</p>
+  <div class="card" id="tour_t"></div>
+</section>
+
+<section id="prov">
+  <h2><span class="num">11</span>Số này từ đâu</h2>
+  <div class="prov" id="prov_c"></div>
+</section>
+</main>
+</div>
+
+<div id="ov"><div id="pal">
+  <input id="q" placeholder="Dán đường dẫn, hoặc gõ tên file / module / class…" autocomplete="off" spellcheck="false">
+  <div id="res"></div><div id="rhint"></div>
+</div></div>
+
+<script id="data" type="application/json">__DATA__</script>
+<script>
+const D = JSON.parse(document.getElementById('data').textContent);
+const fmt = n => n.toLocaleString('en-US');
+const el = (t,c,h) => { const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e; };
+const put = (id,h) => { const n=document.getElementById(id); if(n) n.innerHTML=h; };
+const esc = s => String(s).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+
+/* ---------- derived scalars: every number on this page comes from here ---------- */
+const PATHS = D.files_idx.map(f => (D.dirs[f[0]] ? D.dirs[f[0]]+'/' : '') + f[1]);
+const PSET = new Set(PATHS);
+const LAYERS = Object.keys(D.layers);
+const PAL = ['#4dabf7','#f59f00','#37b24d','#9775fa','#e8590c','#20c997',
+             '#f06595','#748ffc','#fcc419','#22b8cf','#ff8787','#868e96'];
+const COLOR = {}; LAYERS.forEach((L,i)=>COLOR[L]=PAL[i%PAL.length]);
+const totalSym  = Object.values(D.kinds).reduce((a,b)=>a+b,0);
+const totalEdge = Object.values(D.edge_kinds).reduce((a,b)=>a+b,0);
+const confTot   = Object.values(D.edge_conf).reduce((a,b)=>a+b,0);
+const HEUR      = Math.round(100*D.edge_conf.HEURISTIC/confTot);
+const EP        = D.entry_split;
+const NFILES    = D.files[1];
+const MIRTOT    = D.mirror.both + D.mirror.alpha_only + D.mirror.beta_only;
+const MIRPCT    = Math.round(100*D.mirror.both/MIRTOT);
+/* look a hub up by path fragment — returns null rather than inventing a number */
+const hubIn = frag => { const h=D.hubs.find(x=>x.path.indexOf(frag)>=0); return h?h.in:null; };
+const hubsLike = frag => D.hubs.filter(x=>x.path.indexOf(frag)>=0);
+const layer = L => D.layers[L] || {};
+const treeAt = segs => segs.reduce((n,s)=>(n&&n.ch?n.ch[s]:null), {ch:D.tree});
+const selfEdge = L => { const m=D.matrix.find(x=>x.from===L&&x.to===L); return m?m.n:0; };
+const clsCopies = name => D.classes.filter(c=>c.name===name).length;
+
+const LDESC = {
+ 'Shared Library':'DB wrapper, error handler, session, PDF, Excel. Mọi tầng đều gọi vào đây.',
+ 'Views':'Trang hiển thị và form. Phần lớn là script thủ tục, rất ít class.',
+ 'Uncategorised':'Thư mục không mang tên vai trò rõ ràng — nợ đặt tên, phải đọc mới biết.',
+ 'Domain / Data':'Model, repository, lớp truy cập bảng. Gần như 1 class / 1 tệp.',
+ 'Vendor / Framework':'Zend, SimpleSAML, log4php — thư viện ngoài nằm trong cây mã.',
+ 'Integration / Reporting':'assessments, WSDL, export, báo cáo. Cụm khép kín.',
+ 'HTTP / Entry':'Front controller và controller từng module — cửa vào của request.',
+ 'Services':'Nghiệp vụ tách khỏi controller. Hướng mã mới đang đi.',
+ 'Middleware / Auth':'Đăng nhập, session, phân quyền, ACL.',
+ 'Tests':'PHPUnit: Unit, Integration, Stubs.',
+ 'Config / Migration':'Cấu hình, alias, migration SQL.',
+ 'Background Jobs':'Cron, queue, batch. Rất nhỏ so với kích thước repo.'
+};
+
+/* ---------- overview ---------- */
+put('lede1','Ứng dụng PHP quản lý cơ sở chăm sóc người cao tuổi, phục vụ <b>hai thị trường</b> '
+ +'(ALPHA và BETA) từ hai cây mã gần như nhân bản, cộng một tầng mã mới có namespace ở <code>src/</code>. '
+ +'Trang này là bản đồ để định hướng trong <b>mã nguồn</b> — không thay tài liệu vận hành của repo.');
+[['Tệp PHP',fmt(NFILES),(D.files[0]-NFILES)+' tệp không parse được'],
+ ['Class',fmt(D.kinds.Class),'chỉ '+D.kinds.Interface+' interface · '+D.kinds.Trait+' trait'],
+ ['Method',fmt(D.kinds.Method),'+ '+fmt(D.kinds.Function)+' hàm toàn cục'],
+ ['Quan hệ',fmt(totalEdge),HEUR+'% ở mức suy đoán'],
+ ['Tầng trách nhiệm',LAYERS.length,'suy từ vai trò thư mục'],
+ ['Module nghiệp vụ',D.modules.length,'lấy từ tên thư mục trong code']
+].forEach(([k,v,n])=>{
+  const c=el('div','card stat'); c.append(el('div','v',v),el('div','k',k),el('div','n',n));
+  document.getElementById('stats').append(c);
+});
+document.getElementById('brandMeta').textContent=D.commit.slice(0,12);
+put('freshness','Chụp tại commit '+D.commit.slice(0,12)+' · '+fmt(totalSym)+' symbol · '
+  +fmt(PATHS.length)+' đường dẫn nhúng sẵn cho ô tìm kiếm.');
+
+/* ---------- facts (all numbers computed) ---------- */
+const dbw = hubsLike('DatabaseWrapper');
+[['b','Hai bản sao của cùng một ứng dụng',
+  '<b>'+fmt(D.mirror.both)+'</b> đường dẫn tồn tại ở <code>legacy/alpha/</code> <i>và</i> '
+  +'<code>legacy/beta/</code> — '+MIRPCT+'% cây legacy. Sửa một bên mà quên bên kia là lỗi phổ biến nhất. '
+  +'Chỉ '+fmt(D.mirror.alpha_only)+' tệp riêng ALPHA và '+fmt(D.mirror.beta_only)+' riêng BETA.'],
+ ['b','Tầng truy cập DB có '+dbw.length+' bản',
+  '<code>DatabaseWrapper.php</code> xuất hiện '+dbw.length+' lần, với '
+  +dbw.map(h=>fmt(h.in)).join(' / ')+' tệp phụ thuộc. Phải biết mình đang ở bản nào.'],
+ ['w','Gần như không có abstraction',
+  '<b>'+fmt(D.kinds.Class)+'</b> class nhưng chỉ <b>'+D.kinds.Interface+'</b> interface và <b>'
+  +D.kinds.Trait+'</b> trait. Đừng tìm interface để mock — phần lớn phụ thuộc là gọi trực tiếp hoặc <code>new</code>.'],
+ ['w','Test là hub lớn nhất repo',
+  '<code>'+D.hubs[0].path+'</code> có '+fmt(D.hubs[0].in)+' tệp phụ thuộc — nhiều hơn bất kỳ tệp '
+  +'production nào. Test và production dùng chung một phần lớn đường nạp.'],
+ ['v','Chỉ '+fmt(EP.web)+' tệp là cửa vào web thật',
+  fmt(EP.zero_inbound)+' tệp không ai include, nhưng đó <b>không</b> phải '+fmt(EP.zero_inbound)
+  +' endpoint: '+fmt(EP.web)+' cửa vào web, '+fmt(EP.vendor)+' vendor, '+fmt(EP.test)+' test, '
+  +fmt(EP.unknown)+' còn lại chưa phân giải. Xem mục 08.'],
+ ['','Đọc con số với sự dè dặt',
+  '<b>'+HEUR+'%</b> quan hệ ở mức <code>HEURISTIC</code> — suy từ tên, chưa phân giải chắc chắn. '
+  +'PHP động (<code>$obj-&gt;$method()</code>, include theo biến) không phân giải tĩnh được.']
+].forEach(([k,h,p])=>{
+  const c=el('div','card fact '+k); c.append(el('h4',null,h),el('p',null,p));
+  document.getElementById('facts_g').append(c);
+});
+
+/* ---------- modules ---------- */
+const SIDEPILL = {alpha:'g', beta:'a', src:'o'};
+put('mod_t','<tr><th>Module</th><th>Có ở</th><th style="text-align:right">Tệp</th>'
+ +'<th style="text-align:right">Class</th><th>Hub của module</th></tr>'
+ + D.modules.map((m,i)=>'<tr data-mod="'+i+'" style="cursor:pointer"><td><b>'+esc(m.name)+'</b>'
+   +'<div class="desc">'+esc(m.dirs.alpha||m.dirs.beta||m.dirs.src||'')+'</div></td>'
+   +'<td>'+m.sides.map(s=>'<span class="pill '+SIDEPILL[s]+'">'+s+'</span>').join(' ')+'</td>'
+   +'<td class="n">'+fmt(m.files)+'</td><td class="n">'+fmt(m.classes)+'</td>'
+   +'<td class="p">'+esc(m.hub||'—')+(m.hub_in>0?' <span class="pill">'+fmt(m.hub_in)+' phụ thuộc</span>':'')
+   +'</td></tr>').join(''));
+const modFiles = D.modules.reduce((a,m)=>a+m.files,0);
+const modCov = Math.round(100*modFiles/NFILES);
+put('modNote','Module chỉ có một bên (<code>alpha</code> hoặc <code>beta</code>) là chỗ hai thị trường đã phân kỳ — '
+ +'kiểm trước khi giả định tính năng tồn tại ở cả hai; '+D.modules.filter(m=>m.sides.length===1).length
+ +'/'+D.modules.length+' module ở đây chỉ có một bên. '
+ +'<b>Bảng này KHÔNG phủ hết repo:</b> nó chỉ thấy được cái gì tồn tại như một thư mục module, '
+ +'tức '+fmt(modFiles)+' / '+fmt(NFILES)+' tệp ('+modCov+'%). Rất nhiều màn hình legacy là tệp phẳng '
+ +'nằm thẳng trong <code>web/</code> (ví dụ <code>LedgerReport.php</code>) nên không có module nào — '
+ +'với những cái đó, dùng <kbd>Ctrl K</kbd>.');
+document.querySelectorAll('#mod_t tr[data-mod]').forEach(tr=>{
+  tr.onclick=()=>{ const m=D.modules[+tr.dataset.mod]; openPal(m.dirs.alpha||m.dirs.beta||m.dirs.src||m.name); };
+});
+
+/* ---------- treemap ---------- */
+function squarify(items,x,y,w,h,out){
+  if(!items.length) return out;
+  const total=items.reduce((a,b)=>a+b.v,0);
+  if(total<=0||w<1||h<1) return out;
+  const horiz=w>=h, side=horiz?h:w;
+  let best=Infinity, cut=1, acc=0;
+  for(let i=0;i<items.length;i++){
+    acc+=items[i].v;
+    const len=(horiz?w:h)*(acc/total);
+    if(len<=0) continue;
+    let worst=0;
+    for(let j=0;j<=i;j++){
+      const t=(items[j].v/acc)*side;
+      if(t>0) worst=Math.max(worst,Math.max(len/t,t/len));
+    }
+    if(worst<=best){best=worst;cut=i+1;} else break;
+  }
+  const row=items.slice(0,cut), rest=items.slice(cut);
+  const rowSum=row.reduce((a,b)=>a+b.v,0);
+  const len=(horiz?w:h)*(rowSum/total);
+  let off=0;
+  row.forEach(it=>{
+    const t=side*(it.v/rowSum);
+    out.push(horiz?Object.assign({},it,{x:x,y:y+off,w:len,h:t})
+                  :Object.assign({},it,{x:x+off,y:y,w:t,h:len}));
+    off+=t;
+  });
+  return horiz?squarify(rest,x+len,y,w-len,h,out):squarify(rest,x,y+len,w,h-len,out);
+}
+let tpath=[];
+function drawTM(){
+  const box=document.getElementById('tm'); box.innerHTML='';
+  const cur=treeAt(tpath)||{ch:D.tree}, ch=cur.ch||{};
+  const items=Object.entries(ch).map(([k,v])=>({k:k,v:v.n,f:v.f,c:v.c,L:v.L,
+    leaf:!Object.keys(v.ch||{}).length})).sort((a,b)=>b.v-a.v);
+  const W=box.clientWidth||900, H=box.clientHeight||440;
+  squarify(items,0,0,W,H,[]).forEach(it=>{
+    const d=el('div','cell'+(it.leaf?' leaf':''));
+    d.style.cssText='left:'+it.x+'px;top:'+it.y+'px;width:'+it.w+'px;height:'+it.h
+      +'px;background:'+(COLOR[it.L]||'#5c6773');
+    if(it.w>52&&it.h>26){
+      const lb=el('div','lb'); lb.append(el('div','nm',esc(it.k)));
+      if(it.h>44) lb.append(el('div','mt',fmt(it.v)+' symbol · '+fmt(it.f)+' tệp'
+        +(it.c?' · '+fmt(it.c)+' class':'')));
+      d.append(lb);
+    }
+    d.title=[...tpath,it.k].join('/')+'\n'+fmt(it.v)+' symbol · '+fmt(it.f)+' tệp · '+fmt(it.c)
+      +' class\ntầng đa số: '+it.L+(it.leaf?'\n(dưới ngưỡng — không đi sâu thêm)':'\nBấm để đi sâu');
+    if(!it.leaf) d.onclick=()=>{tpath.push(it.k);drawTM();};
+    box.append(d);
+  });
+  const cr=document.getElementById('crumb'); cr.innerHTML='';
+  const root=el('a',null,'(repo)'); root.onclick=()=>{tpath=[];drawTM();}; cr.append(root);
+  tpath.forEach((s,i)=>{
+    cr.append(document.createTextNode(' / '));
+    if(i===tpath.length-1) cr.append(el('b',null,esc(s)));
+    else { const a=el('a',null,esc(s)); a.onclick=()=>{tpath=tpath.slice(0,i+1);drawTM();}; cr.append(a); }
+  });
+  if(tpath.length){
+    cr.append(document.createTextNode('  '));
+    cr.append(el('span',null,'<span class="pill">'+fmt(cur.n)+' symbol · '+fmt(cur.f)+' tệp</span>'));
+  }
+}
+drawTM(); addEventListener('resize',drawTM);
+put('tmLegend',LAYERS.map(L=>'<span><i class="dot" style="background:'+COLOR[L]+'"></i>'+L+'</span>').join(''));
+
+/* ---------- layers ---------- */
+const KINDS=[['Class','#4dabf7'],['Method','#9775fa'],['Function','#f59f00'],
+             ['Property','#37b24d'],['Interface','#f06595']];
+const lbox=document.getElementById('layers_t');
+const maxF=Math.max.apply(null,LAYERS.map(L=>D.layers[L].files));
+LAYERS.forEach(L=>{
+  const v=D.layers[L], sym=KINDS.reduce((a,kc)=>a+(v[kc[0]]||0),0)||1;
+  const r=el('div','lyr');
+  r.append(el('div','nm','<i class="dot" style="background:'+COLOR[L]+'"></i><span>'+L
+    +'<div class="desc">'+(LDESC[L]||'')+'</div></span>'));
+  const st=el('div','stack'); st.style.width=Math.max(6,100*v.files/maxF)+'%';
+  KINDS.forEach(kc=>{ if(v[kc[0]]){ const i=el('i');
+    i.style.cssText='background:'+kc[1]+';width:'+(100*v[kc[0]]/sym)+'%'; st.append(i);} });
+  const mid=el('div'); mid.append(st); r.append(mid);
+  r.append(el('div','qty',fmt(v.files)+' tệp · '+fmt(v.Class||0)+' class · '+fmt(v.Method||0)+' method'));
+  lbox.append(r);
+});
+put('lyrLegend','Thành phần thanh: '+KINDS.map(kc=>'<span><i class="dot" style="background:'+kc[1]
+  +'"></i>'+kc[0]+'</span>').join('')+'<span>độ dài thanh = số tệp</span>');
+
+/* ---------- matrix: every layer, no silent cut ---------- */
+put('nLayers',String(LAYERS.length));
+const M={}; D.matrix.forEach(m=>{M[m.from+' '+m.to]=m.n;});
+const mxMax=Math.max.apply(null,D.matrix.map(m=>m.n));
+let mt='<table class="mx"><tr><th class="rh"></th>';
+LAYERS.forEach(L=>{mt+='<th class="ch"><div>'+L+'</div></th>';});
+mt+='</tr>';
+LAYERS.forEach(a=>{
+  mt+='<tr><th class="rh">'+a+'</th>';
+  LAYERS.forEach(b=>{
+    const n=M[a+' '+b]||0, s=n?Math.pow(n/mxMax,0.42):0;
+    const lab=n>=1000?Math.round(n/1000)+'k':(n||'');
+    mt+='<td class="c'+(n?'':' z')+'" style="background:'+(n?'rgba(77,171,247,'+(0.10+s*0.85)+')':'transparent')
+      +'" title="'+a+' → '+b+': '+fmt(n)+' cạnh">'+lab+'</td>';
+  });
+  mt+='</tr>';
+});
+put('mx',mt+'</table>');
+put('mxNote','Đường dày nhất: '+D.matrix[0].from+' → '+D.matrix[0].to+' ('+fmt(D.matrix[0].n)
+  +' cạnh). Đường chéo là phụ thuộc trong cùng tầng. Tổng '+fmt(D.matrix.length)+' cặp tầng có cạnh.');
+
+/* ---------- hubs ---------- */
+const hmax=D.hubs[0].in;
+put('hubs_t','<tr><th>Tệp</th><th>Tầng</th><th style="text-align:right">Bị phụ thuộc</th>'
+ +'<th style="text-align:right">Symbol</th></tr>'
+ + D.hubs.slice(0,18).map(h=>'<tr><td class="p">'+esc(h.path)+'</td><td><span class="pill" style="border-color:'
+   +COLOR[h.layer]+';color:'+COLOR[h.layer]+'">'+h.layer+'</span></td><td class="n">'+fmt(h.in)
+   +'<div class="bar" style="width:'+Math.round(100*h.in/hmax)+'%"></div></td><td class="n">'
+   +fmt(h.symbols)+'</td></tr>').join(''));
+
+/* ---------- duplication ---------- */
+[['Mirror ALPHA ↔ BETA',fmt(D.mirror.both),MIRPCT+'% cây legacy, tồn tại cả hai bên'],
+ ['Chỉ có ở ALPHA',fmt(D.mirror.alpha_only),'phân kỳ thật, hoặc nợ chưa port'],
+ ['Chỉ có ở BETA',fmt(D.mirror.beta_only),'phân kỳ thật, hoặc nợ chưa port']
+].forEach(([k,v,n])=>{
+  const c=el('div','card stat'); c.append(el('div','v',v),el('div','k',k),el('div','n',n));
+  document.getElementById('dup_g').append(c);
+});
+put('dupNote','<b>Thử ngay:</b> '+D.mirror.sample.slice(0,3)
+  .map(s=>'<a href="#" data-try="legacy/alpha/'+esc(s)+'"><code>legacy/alpha/'+esc(s)+'</code></a>').join(', ')
+  +'. Thư viện bên thứ ba cũng bị copy nhiều lần — <code>TCPDF</code> có '+clsCopies('TCPDF')
+  +' bản trong bảng class lớn nhất, <code>mPDF</code> có '+clsCopies('mPDF')+' bản.');
+document.querySelectorAll('[data-try]').forEach(a=>{
+  a.onclick=e=>{e.preventDefault();openPal(a.dataset.try);};
+});
+
+/* ---------- reachability, stated honestly ---------- */
+put('reachLede',fmt(EP.zero_inbound)+' tệp ('+Math.round(100*EP.zero_inbound/NFILES)
+ +'% repo) không có tệp nào include tới, theo phân tích tĩnh. Gộp cả '+fmt(EP.zero_inbound)
+ +' lại rồi gọi là "endpoint" là sai — chúng là bốn thứ rất khác nhau:');
+[['Cửa vào web',fmt(EP.web),'dưới public/ hoặc */controller/, hoặc là index/main.php'],
+ ['Vendor',fmt(EP.vendor),'tcpdf, mpdf, adodb, Zend… — không phải mã của team'],
+ ['Test / fixture',fmt(EP.test),'chạy bằng PHPUnit, không qua web'],
+ ['Chưa phân giải',fmt(EP.unknown),'trong đó '+fmt(EP.viewish)+' là view/template']
+].forEach(([k,v,n])=>{
+  const c=el('div','card stat'); c.append(el('div','v',v),el('div','k',k),el('div','n',n));
+  document.getElementById('reach_g').append(c);
+});
+put('reachNote','<b>Đừng đọc "chưa phân giải" thành "mã chết".</b> '+fmt(EP.viewish)
+ +' tệp trong đó là view/template — PHP nạp chúng bằng <code>include</code> với biến, nên phân tích tĩnh '
+ +'không thấy cạnh. Nhóm đáng nghi thật là <b>'+fmt(EP.silent)+'</b> tệp không có cạnh vào <i>và</i> '
+ +'không có cạnh ra — ví dụ '+D.silent_sample.slice(0,2).map(s=>'<code>'+esc(s)+'</code>').join(', ')
+ +'. Đó là danh sách đáng đi kiểm tra, không phải kết luận.');
+
+/* ---------- classes ---------- */
+put('cls_t','<tr><th>Class</th><th>Tầng</th><th style="text-align:right">Method trong tệp</th>'
+ +'<th>Vị trí</th></tr>'
+ + D.classes.slice(0,14).map(c=>'<tr><td><b>'+esc(c.name)+'</b></td><td><span class="pill" style="border-color:'
+   +(COLOR[c.layer]||'var(--line2)')+';color:'+(COLOR[c.layer]||'var(--tx2)')+'">'+c.layer
+   +'</span></td><td class="n">'+c.methods+'</td><td class="p">'+esc(c.path)+'</td></tr>').join(''));
+
+/* ---------- tour: numbers interpolated, never hardcoded ---------- */
+const srcApp = treeAt(['src','Application']);
+const vw = layer('Views'), dd = layer('Domain / Data'), ir = layer('Integration / Reporting');
+const TOUR=[
+ ['Hai cây, một ứng dụng',
+  'Trước khi mở tệp nào: <code>legacy/alpha/</code> và <code>legacy/beta/</code> là hai bản gần như nhân bản của '
+  +'cùng một ứng dụng ('+fmt(D.mirror.both)+' đường dẫn trùng), cộng <code>src/</code> là tầng mã mới. '
+  +'Mọi câu "tệp này ở đâu" phải trả lời trước: bản nào?',
+  ['legacy/alpha/','legacy/beta/','src/']],
+ ['Request vào bằng cửa nào',
+  'Chỉ '+fmt(EP.web)+' tệp là cửa vào web thật. Routing chủ yếu theo filesystem — một URL thường trỏ '
+  +'thẳng tới <code>application/&lt;module&gt;/controller/&lt;action&gt;.php</code> chứ không qua một router trung tâm.',
+  ['public/','*/application/*/controller/']],
+ ['Bootstrap và error handler',
+  'Gần như mọi request nạp <code>error_handler.php</code> và <code>error_handler_session.php</code>'
+  +(hubIn('error_handler.php')?' (khoảng '+fmt(hubIn('error_handler.php'))+' tệp phụ thuộc mỗi bản)':'')
+  +'. Đây là nơi session, log và xử lý lỗi được cài — đọc trước khi debug bất cứ thứ gì.',
+  hubsLike('error_handler').slice(0,2).map(h=>h.path)],
+ ['Truy cập dữ liệu: DatabaseWrapper',
+  'Tầng DB, có '+dbw.length+' bản với '+dbw.map(h=>fmt(h.in)).join(' / ')+' tệp phụ thuộc. '
+  +'Hiểu API của nó là hiểu phần lớn cách code này nói chuyện với database.',
+  dbw.map(h=>h.path)],
+ ['Hàm toàn cục dùng chung',
+  hubsLike('helper_functions').length
+   ? '<code>'+hubsLike('helper_functions')[0].path+'</code> ('+fmt(hubsLike('helper_functions')[0].in)
+     +' tệp phụ thuộc) là túi hàm toàn cục: không namespace, không class — nhưng ở khắp nơi.'
+   : 'Có một túi hàm toàn cục dùng chung, không namespace và không class.',
+  hubsLike('helper_functions').map(h=>h.path)],
+ ['Tầng mã mới: src/Application',
+  srcApp ? fmt(srcApp.f)+' tệp, '+fmt(srcApp.c)+' class, có namespace và PSR-4. Đây là nơi code mới nên '
+    +'được viết, và là hình mẫu cho phần legacy khi được port dần.'
+         : 'Tầng mã mới có namespace nằm dưới <code>src/</code>.',
+  ['src/Application/','src/System/']],
+ ['Domain / Data',
+  fmt(dd.files||0)+' tệp, '+fmt(dd.Class||0)+' class — gần như một class một tệp. Model và lớp truy cập bảng; '
+  +'nơi đọc để hiểu nghiệp vụ dữ liệu.',
+  ['*/model/','*/entity/','*/repository/']],
+ ['Views: nơi OOP dừng lại',
+  fmt(vw.files||0)+' tệp nhưng chỉ '+fmt(vw.Class||0)+' class. Phần lớn là script thủ tục trộn HTML và '
+  +'truy vấn. Đừng mong tìm được template engine nhất quán.',
+  ['*/pages/','*/view/','*/forms/']],
+ ['Integration / Reporting là một hòn đảo',
+  fmt(ir.files||0)+' tệp, '+fmt(ir.Class||0)+' class, và '+fmt(selfEdge('Integration / Reporting'))
+  +' cạnh nằm <i>bên trong</i> chính tầng này. Sửa ở đây ít lan ra ngoài — và ngược lại.',
+  ['*/assessments/','*/WSDL/','*/reports/']],
+ ['Thư viện ngoài nằm trong cây mã',
+  'Class lớn nhất repo là <code>'+D.classes[0].name+'</code> ('+D.classes[0].methods+' method) và nó có '
+  +clsCopies(D.classes[0].name)+' bản. Chúng làm phình mọi số đếm, và không nên refactor — chỉ nên cô lập.',
+  D.classes.slice(0,2).map(c=>c.path)],
+ ['Test dùng chung đường nạp với production',
+  '<code>'+D.hubs[0].path+'</code> là hub lớn nhất repo ('+fmt(D.hubs[0].in)+' tệp phụ thuộc), trên cả mọi '
+  +'tệp production. Test không tách biệt — đổi một stub có thể đổi hành vi test diện rộng.',
+  D.hubs.filter(h=>h.layer==='Tests').slice(0,2).map(h=>h.path)],
+ ['Biết giới hạn của bản đồ này',
+  HEUR+'% quan hệ ở mức HEURISTIC, và '+fmt(EP.unknown)+' tệp không phân giải được đường vào. '
+  +'PHP động không đọc được bằng phân tích tĩnh. Trước khi sửa, xác minh lại bằng cách tìm chuỗi thật '
+  +'trong repo (<code>grep -rn "TênHàm" --include=*.php</code>) chứ đừng tin bản đồ là đủ.',
+  ['(bản đồ định hướng, không phải bằng chứng)']]
+];
+put('tour_t',TOUR.map((s,i)=>'<div class="step"><div class="no">'+(i+1)+'</div><div><h4>'+s[0]
+ +'</h4><p>'+s[1]+'</p><div class="files">'+s[2].filter(Boolean).map(f=>'<code>'+esc(f)+'</code>').join('')
+ +'</div></div></div>').join(''));
+
+/* ---------- provenance ---------- */
+put('prov_c','<h4>Suy trực tiếp từ chỉ mục — kiểm lại được, không có ý kiến của ai</h4><ul>'
+ +'<li>Mọi con số đếm: tệp, class, method, cạnh, mức độ tin cậy.</li>'
+ +'<li>Tầng trách nhiệm: khớp từ vựng vai trò với thư mục <i>sâu nhất</i> của đường dẫn.</li>'
+ +'<li>Ma trận, hub, treemap, mirror ALPHA/BETA, phân loại khả năng tới được, bảng module.</li>'
+ +'<li>Mọi con số trong tour — nội suy từ dữ liệu, không viết cứng, nên regen là tự cập nhật.</li>'
+ +'</ul><h4 style="margin-top:12px">Do người viết — trong bản thật, đây là phần LLM sinh</h4><ul>'
+ +'<li>Câu mô tả mỗi tầng, và cách diễn đạt 6 điều "phải biết trước".</li>'
+ +'<li>Đoạn văn của 12 bước tour (khung và số thì tự động).</li>'
+ +'</ul><p style="margin:12px 0 0;color:var(--tx3)">Đây là mockup thiết kế cho '
+ +'<code>generate_onboarding</code> của code-atlas, dựng trên chỉ mục thật của repo tại commit '
+ +'<code>'+D.commit.slice(0,12)+'</code>. Không có số nào bịa; phần diễn giải được đánh dấu ở trên. '
+ +'Tài liệu vận hành (cách chạy app, môi trường, DB) là việc của repo, không phải của bản đồ này.</p>');
+
+/* ---------- search palette: paths + modules + hubs + classes, and the mirror lookup ---------- */
+const ov=document.getElementById('ov'), qi=document.getElementById('q'), rs=document.getElementById('res');
+function counterpart(p){
+  if(p.indexOf('legacy/alpha/')===0){ const o='legacy/beta/'+p.slice(11); return PSET.has(o)?o:null; }
+  if(p.indexOf('legacy/beta/')===0){ const o='legacy/alpha/'+p.slice(10); return PSET.has(o)?o:null; }
+  return null;
+}
+const hi=(s,q)=>{ const i=s.toLowerCase().indexOf(q); return i<0?esc(s)
+  : esc(s.slice(0,i))+'<mark>'+esc(s.slice(i,i+q.length))+'</mark>'+esc(s.slice(i+q.length)); };
+function render(qs){
+  const q=qs.trim().toLowerCase();
+  rs.innerHTML='';
+  if(!q){ document.getElementById('rhint').innerHTML='Gõ tối thiểu 2 ký tự. '
+    +'Dán một đường dẫn <code>legacy/alpha/…</code> để xem bản song song BETA.'; return; }
+  if(q.length<2){ document.getElementById('rhint').textContent='Gõ thêm…'; return; }
+  const exact=PATHS.filter(p=>p.toLowerCase()===q);
+  const part=PATHS.filter(p=>p.toLowerCase()!==q && p.toLowerCase().indexOf(q)>=0);
+  const hits=exact.concat(part).slice(0,40);
+  const mods=D.modules.filter(m=>m.name.toLowerCase().indexOf(q)>=0);
+  const cls=D.classes.filter(c=>c.name.toLowerCase().indexOf(q)>=0);
+  mods.forEach(m=>{
+    const r=el('div','r');
+    r.innerHTML='<div class="t">module '+hi(m.name,q)+'</div><div class="m"><span>'+fmt(m.files)
+      +' tệp · '+fmt(m.classes)+' class</span><span>có ở: '+m.sides.join(', ')+'</span>'
+      +(m.hub?'<span>hub: '+esc(m.hub)+'</span>':'')+'</div>';
+    r.onclick=()=>{ qi.value=m.dirs.alpha||m.dirs.beta||m.dirs.src||m.name; render(qi.value); };
+    rs.append(r);
+  });
+  cls.slice(0,6).forEach(c=>{
+    const r=el('div','r');
+    r.innerHTML='<div class="t">class '+hi(c.name,q)+'</div><div class="m"><span>'+c.methods
+      +' method</span><span>'+esc(c.path)+'</span></div>';
+    r.onclick=()=>{ qi.value=c.path; render(c.path); };
+    rs.append(r);
+  });
+  hits.forEach(p=>{
+    const cp=counterpart(p), r=el('div','r');
+    const mirror = cp ? '<b>&#10697; bản song song: '+esc(cp)+'</b>'
+      : (p.indexOf('legacy/')===0 ? '<i>&#9888; không có bản song song</i>' : '');
+    r.innerHTML='<div class="t">'+hi(p,q)+'</div><div class="m">'+mirror+'</div>';
+    if(cp) r.onclick=()=>{ qi.value=cp; render(cp); };
+    rs.append(r);
+  });
+  const n=hits.length+mods.length+Math.min(cls.length,6);
+  document.getElementById('rhint').innerHTML = n
+    ? 'Hiện '+n+' kết quả'+(part.length>40?' (đã cắt, còn '+fmt(part.length-40+exact.length)+' đường dẫn khớp)':'')
+    : 'Không khớp gì trong '+fmt(PATHS.length)+' đường dẫn.';
+}
+function openPal(v){ ov.classList.add('on'); qi.value=v||''; render(qi.value); qi.focus(); qi.select(); }
+function closePal(){ ov.classList.remove('on'); }
+document.getElementById('openSearch').onclick=()=>openPal('');
+qi.oninput=()=>render(qi.value);
+ov.onclick=e=>{ if(e.target===ov) closePal(); };
+addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){ e.preventDefault(); openPal(''); }
+  else if(e.key==='Escape') closePal();
+});
+
+/* ---------- nav highlight + theme ---------- */
+const links=[].slice.call(document.querySelectorAll('nav a.item'));
+const obs=new IntersectionObserver(es=>{
+  es.forEach(e=>{ if(e.isIntersecting)
+    links.forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+e.target.id)); });
+},{rootMargin:'-12% 0px -72% 0px'});
+document.querySelectorAll('section').forEach(s=>obs.observe(s));
+document.getElementById('themeBtn').onclick=function(){
+  const r=document.documentElement;
+  r.dataset.theme = r.dataset.theme==='dark'?'light':'dark';
+  drawTM();
+};
+</script>
+</body>
+</html>

@@ -31,6 +31,16 @@ what landed, and what it cost* — narrative rationale lives in those three.
 | 091 | [Onboarding — LLM layer-name refinement (opt-in)](tasks/091_llm-layer-refinement.md) | Phase 3 / M12 | done | 084, 090 |
 | 106 | [Onboarding — the tour budget buys the 500 alphabetically-first isolated files](tasks/106_tour-budget-buys-500-alphabetical-isolated-files.md) | Phase 3 / M11 | done | 087, 088 |
 | 107 | [Onboarding — a page with no neighbours and no summary is filler](tasks/107_a-page-with-no-neighbours-and-no-summary-is-filler.md) | Phase 3 / M11 | done | 088, 106 |
+| 108 | [Onboarding — a module page prints every neighbour, so the median page is 82 KB](tasks/108_module-page-neighbour-list-is-unbounded.md) | Phase 3 / M11 | todo | 088, 107 |
+| 109 | [Onboarding — a quality gate on the emitted artifact, so filler cannot ship again](tasks/109_onboarding-artifact-quality-gate.md) | Phase 3 / M11 | todo | 088, 108 |
+| 110 | [Onboarding — layers are directory names, not architecture; name them by responsibility](tasks/110_layers-named-by-responsibility.md) | Phase 3 / M10 | todo | 084, 105, 109 |
+| 111 | [Onboarding — the tour is one stop per module, so 500 modules is a 500-stop "tour"](tasks/111_tour-is-narrative-steps.md) | Phase 3 / M11 | todo | 087, 110 |
+| 112 | [Onboarding — one compact dataset as the contract behind every renderer](tasks/112_onboarding-dataset-contract.md) | Phase 3 / M11 | todo | 083, 086, 110 |
+| 113 | [Onboarding — "zero inbound" is four populations, and one number misleads](tasks/113_reachability-split.md) | Phase 3 / M11 | todo | 083, 112 |
+| 114 | [Onboarding — nothing bridges "fix screen X" to a file path](tasks/114_business-module-table.md) | Phase 3 / M11 | todo | 112 |
+| 115 | [Onboarding — sibling subtrees duplicating 62% of their paths, and nothing says so](tasks/115_mirror-subtree-detection.md) | Phase 3 / M11 | todo | 112, 098 |
+| 116 | [Onboarding — replace the 31 MB page dump with a navigable system map](tasks/116_dashboard-viewer.md) | Phase 3 / M11 | todo | 112, 114, 115 |
+| 117 | [Onboarding — the map's structure is derivable, its prose is not; route prose through the seams](tasks/117_llm-prose-for-map.md) | Phase 3 / M12 | todo | 110, 111, 090, 091 |
 
 **Order (round-5 tickets):** ~~**092**~~ (done — an untracked file read as a non-existent symbol)
 **→ ~~093~~** (done — 092's route shape generalised to every `try_instead`) **→ ~~095~~**
@@ -84,6 +94,8 @@ weak dependency-direction bands 084 falls back to on flat namespaces; opt-in via
 `CA_ONBOARDING_LAYER_REFINER`, off by default, core still imports no LLM). **M12 is complete**
 (090 · 091). **105 shipped** (dominant subtree elected by graph mass, not file count — the laravel
 `app/**` collapse is fixed and proven on the three pinned repos).
+
+**Onboarding reshape (108–117), 2026-08-20.** Reviewing the emitted artifact on the anchor monorepo as a human newcomer found it unusable: 43 MB total, a median module page of 82,218 bytes that is 99.96 % flat path lists, `Summary: (none)` on 500/500 pages, and a 500-stop "tour". A reviewed mockup — one self-contained 891 KB page with a sitemap treemap, responsibility layers, a full dependency matrix, hubs, a business-module table, mirror-subtree lookup and a 12-step tour — is recorded in [`phase3-onboarding/ONBOARDING_MOCKUP.md`](phase3-onboarding/ONBOARDING_MOCKUP.md) with a reproducible prototype. It splits the audience: **the MCP tools are the product for AI, the onboarding artifact is the product for humans**. Tasks **108–117** implement it — wave 1 (108 · 109) is independently shippable, wave 2 (110–113) is the reshape, wave 3 (114–117) is the map and its prose. Two R2.2 judgments are held for the maintainer: whether a generic architectural vocabulary is a standard (110), and how to detect vendored code without naming libraries (113).
 
 **Then:** Phase 3 onboarding (083 → 091; M10 → M11 → M12) or Phase 2 language breadth — both are
 unblocked by Phase 1.5; breadth stays deferred per §19.
