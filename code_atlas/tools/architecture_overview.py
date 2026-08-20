@@ -27,6 +27,7 @@ from code_atlas.onboarding.layers import (
     refine_layers,
 )
 from code_atlas.onboarding.metrics import GraphMetrics, NodeMetric, compute_metrics, module_edges
+from code_atlas.onboarding.reachability import classify_reachability
 from code_atlas.onboarding.summary import (
     NodeFacts,
     StructuralSummarizer,
@@ -66,10 +67,12 @@ def create(
         names the entry points — the map an onboarding reader would otherwise build by hand.
         ``results`` is the layer list, capped at ``CA_MAX_RESULTS`` with ``truncated``, and
         ``total_count`` is the layer count before the cap. ``standard`` adds each layer's degrees, a
-        repo-level ``summary`` and ``cross_layer_edges`` (layer → layer crossings, heaviest first,
-        capped with its own flag). ``verbose`` adds one row per module in layer order with its
-        degrees and role — ``modules_truncated`` says the cap bit, and ``offset`` pages further, so
-        no layer's modules are unreachable. ``method`` names how the grouping was derived, so a
+        repo-level ``summary`` — whose ``reachability`` splits the zero-inbound modules into the
+        populations they are (web surface, vendored, tests, dynamic, no-edge-either-way), keeping
+        the raw total beside it — and ``cross_layer_edges`` (layer → layer crossings, heaviest
+        first, capped with its own flag). ``verbose`` adds one row per module in layer order with
+        its degrees and role — ``modules_truncated`` says the cap bit, and ``offset`` pages further,
+        so no layer's modules are unreachable. ``method`` names how the grouping was derived, so a
         caller can tell a path-derived split from the dependency-direction fallback.
         """
         if offset < 0:
@@ -206,11 +209,20 @@ def _overview(
     if not rich:
         return payload
     crossings = cross_layer_edges(module_edges(nodes, edges), assignment)
+    # The zero-inbound total is four unrelated populations; the split is the answer, the raw
+    # total stays beside it for anyone who wants it (task 113).
+    split = classify_reachability(
+        metrics,
+        entry_points=config.entry_points,
+        stub_roots=config.stub_roots,
+        sample_limit=limit,
+    )
     payload["summary"] = {
         "layers": len(assignment.layers),
         "modules": len(metrics.modules),
         "symbols": len(metrics.symbols),
         "module_entry_points": len(metrics.module_entry_points),
+        "reachability": split.as_dict(),
         "cross_layer_edges": len(crossings),
         "method": assignment.method,
     }

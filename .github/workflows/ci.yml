@@ -193,6 +193,12 @@ jobs:
             echo "::error::R2.2 — repo/framework name found in adapter source"
             exit 1
           fi
+          # Task 113 put a path-shape classifier in the core, so the gate must cover it too. Scoped
+          # to code_atlas/: scripts/ and tests/ legitimately name the pinned public repos (R2.3).
+          if grep -rEin 'laravel|symfony|wordpress|drupal|magento' code_atlas/; then
+            echo "::error::R2.2 — repo/framework name found in core source"
+            exit 1
+          fi
           echo "R2.2 ok"
 
       - name: R7.3 — no co-author or AI-attribution trailer

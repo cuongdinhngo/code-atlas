@@ -22,12 +22,14 @@ from code_atlas.onboarding.layers import (
     refine_layers,
 )
 from code_atlas.onboarding.metrics import GraphMetrics, compute_metrics, module_edges
+from code_atlas.onboarding.reachability import classify_reachability
 from code_atlas.onboarding.steps import TourStep, build_steps
 from code_atlas.onboarding.summary import NodeFacts, Summarizer, summarize_modules
 from code_atlas.onboarding.tour import TourStop, ordered_stops
 
 H_OVERVIEW = "# Architecture overview"
 H_SUMMARY = "## Summary"
+H_REACHABILITY = "## Zero-inbound modules, by population"
 H_LAYERS = "## Layers"
 H_CROSSINGS = "## Cross-layer edges"
 H_TOUR = "# Guided tour"
@@ -63,6 +65,7 @@ __all__ = [
     "H_NEIGHBOURS",
     "H_ORDER",
     "H_OVERVIEW",
+    "H_REACHABILITY",
     "H_ROLE",
     "H_SUMMARY",
     "H_TOUR",
@@ -279,8 +282,14 @@ def build_artifact(
     layer_refiner: LayerRefiner | None = None,
     *,
     max_results: int,
+    declared_entry_points: Sequence[str] | None = None,
+    declared_stub_roots: Sequence[str] | None = None,
 ) -> OnboardingArtifact | None:
-    """Compose 083–087 into one artifact. ``None`` when the index has no module."""
+    """Compose 083–087 into one artifact. ``None`` when the index has no module.
+
+    ``declared_*`` are the operator's own ``entry_points``/``stub_roots`` — 113's highest-trust
+    signal for the reachability split. Unset simply leaves those buckets to the path signal.
+    """
     metrics = compute_metrics(nodes, edges)
     if not metrics.modules:
         return None
@@ -340,6 +349,12 @@ def build_artifact(
             "method": assignment.method,
             "module_entry_points": len(metrics.module_entry_points),
             "modules": len(metrics.modules),
+            "reachability": classify_reachability(
+                metrics,
+                entry_points=declared_entry_points,
+                stub_roots=declared_stub_roots,
+                sample_limit=max_results,
+            ).as_dict(),
             "symbols": len(metrics.symbols),
         },
         layers=_layer_rows(metrics, assignment),
@@ -356,6 +371,29 @@ def build_artifact(
     return artifact
 
 
+def _reachability_lines(split: object) -> list[str]:
+    """The zero-inbound split as its own section — never one number (task 113).
+
+    Every bucket renders, including an empty one (an honest zero — AC4); a bucket the classifier
+    could not fill renders in a ``dropped`` list with its reason, not as a zero (AC5).
+    """
+    if not isinstance(split, dict):
+        return []
+    total = split.get("total", 0)
+    lines = [H_REACHABILITY, "", f"- zero-inbound modules (raw total): {total}", ""]
+    buckets = split.get("buckets")
+    for bucket in buckets if isinstance(buckets, list) else []:
+        cut = " (sample capped)" if bucket.get("sample_truncated") else ""
+        lines.append(f"- **{bucket['label']}**: {bucket['count']}{cut}")
+        lines.append(f"  - {bucket['note']}")
+        lines.append(f"  - signal: {bucket['signal']}")
+    dropped = split.get("dropped")
+    for row in dropped if isinstance(dropped, list) else []:
+        lines.append(f"- **{row['bucket']}**: not reported — {row['reason']}")
+    lines.append("")
+    return lines
+
+
 def render_overview(artifact: OnboardingArtifact) -> str:
     """Committed overview markdown: summary, layers, crossings. Trailing newline (R4.2)."""
     lines = [
@@ -367,15 +405,14 @@ def render_overview(artifact: OnboardingArtifact) -> str:
         f"- layers: {artifact.summary['layers']}",
         f"- modules: {artifact.summary['modules']}",
         f"- symbols: {artifact.summary['symbols']}",
-        f"- module entry points: {artifact.summary['module_entry_points']}",
         f"- cross-layer edges: {artifact.summary['cross_layer_edges']}",
         f"- module pages: {len(artifact.pages)}",
         f"- modules with no page (isolated, no summary): {len(artifact.isolated)}",
         f"- truncated: {'true' if artifact.truncated else 'false'}",
         "",
-        H_LAYERS,
-        "",
     ]
+    lines.extend(_reachability_lines(artifact.summary.get("reachability")))
+    lines.extend([H_LAYERS, ""])
     for row in artifact.layers:
         lines.append(
             f"- rank {row.rank}: `{row.layer}` ({row.modules} modules, "

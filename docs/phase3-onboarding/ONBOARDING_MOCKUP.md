@@ -151,9 +151,12 @@ Two items are flagged rather than assumed, because they touch **R2.2 (standard o
 
 2. **Vendor detection.** The prototype recognises vendored libraries by library name
    (`tcpdf`, `mpdf`, `adodb`, …). That **is** framework naming and would violate R2.2 inside the core.
-   Task 113 must instead derive it from the language's own standard — Composer's `vendor/` convention
-   and `composer.json` autoload roots — or fall back to the structural signal (no inbound *and* no
-   outbound edge). This is called out as a known gap, not smuggled in.
+   **Resolved in task 113 (landed), and it needed no new signal:** 110's responsibility vocabulary was
+   already ratified as an R2.2 standard and already carries `vendor`, so the bucket is filled by the
+   path signal, with the operator's own `stub_roots` declaration outranking it where set. No
+   `composer.json` parsing was built — it stays the documented upgrade path for a repo that declares
+   neither. Where no indexed path names any responsibility, the vocabulary buckets are **dropped with
+   the reason stated** rather than reported as a misleading zero.
 
 ---
 
@@ -185,7 +188,7 @@ is the reshape; Wave 3 is enrichment and the new viewer.
 | 2 | 110 | [Layers named by responsibility, deepest segment wins](../tasks/110_layers-named-by-responsibility.md) | directory names are not architecture; needs the R2.2 judgment | 084, 105, 109 |
 | 2 | 111 | [The tour is 5–15 narrative steps, not one stop per module](../tasks/111_tour-is-narrative-steps.md) | biggest single value change: 500 stops → a readable reading order | 087, 110 |
 | 2 | 112 | [One compact onboarding dataset, aggregates in `store.py`](../tasks/112_onboarding-dataset-contract.md) | the contract both renderers consume; keeps SQL in `store.py` (R1.4) | 083, 086, 110 |
-| 2 | 113 | [Zero-inbound is four populations, not one number](../tasks/113_reachability-split.md) | retract the "45 % entry points" claim; needs an R2.2-safe vendor signal | 083, 112 |
+| 2 | 113 | [Zero-inbound is four populations, not one number](../tasks/113_reachability-split.md) | **done** — retracts the "45 % entry points" claim; five buckets from 110's ratified vocabulary + structure | 083, 112 |
 | 3 | 114 | [Business modules from directory structure](../tasks/114_business-module-table.md) | the bridge from "fix screen X" to a file; must state its own coverage | 112 |
 | 3 | 115 | [Mirror-subtree detection — evidence for 098](../tasks/115_mirror-subtree-detection.md) | turns the duplication trap into a lookup; feeds the deferred 098 decision | 112, 098 |
 | 3 | 116 | [Dashboard viewer: sitemap, matrix, search](../tasks/116_dashboard-viewer.md) | replaces the 31 MB dump with the reviewed map | 112, 114, 115 |

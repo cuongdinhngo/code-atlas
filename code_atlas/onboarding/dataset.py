@@ -28,8 +28,11 @@ from code_atlas.onboarding.layers import (
     refine_layers,
 )
 from code_atlas.onboarding.metrics import GraphMetrics, compute_metrics, module_edges
+from code_atlas.onboarding.reachability import ReachabilitySplit, classify_reachability
 
-DATASET_VERSION = 1
+# 2: the zero-inbound total became the ``reachability`` split (task 113) — a shape change, so the
+# dataset's own version bumps. This is NOT ``contract_version``; the adapter contract is untouched.
+DATASET_VERSION = 2
 # A directory is kept in the tree only when its subtree holds at least this many symbols — the
 # mockup's prune, so a 40k-file repo yields a map of a few dozen rows, not thousands (AC3).
 DIR_SYMBOL_THRESHOLD = 400
@@ -45,6 +48,7 @@ __all__ = [
     "MatrixEdge",
     "OnboardingDataset",
     "PathIndex",
+    "ReachabilitySplit",
     "build_dataset",
     "dataset_json",
     "render_dataset_overview",
@@ -143,6 +147,7 @@ class OnboardingDataset:
     classes: tuple[ClassStat, ...]
     tree: tuple[DirStat, ...]
     path_index: PathIndex
+    reachability: ReachabilitySplit
 
     def as_dict(self) -> dict[str, object]:
         """Order-stable dict view — the byte-stability surface (R4.2/AC2)."""
@@ -176,6 +181,7 @@ class OnboardingDataset:
             "method": self.method,
             "node_counts": [{"count": k.count, "kind": k.kind} for k in self.node_counts],
             "parsed": self.parsed,
+            "reachability": self.reachability.as_dict(),
             "path_index": {
                 "dirs": list(self.path_index.dirs),
                 "entries": [[index, name] for index, name in self.path_index.entries],
@@ -287,6 +293,9 @@ def build_dataset(
     path_index_max: int,
     layer_refiner: LayerRefiner | None = None,
     dir_symbol_threshold: int = DIR_SYMBOL_THRESHOLD,
+    declared_entry_points: Sequence[str] | None = None,
+    declared_stub_roots: Sequence[str] | None = None,
+    reachability_sample_max: int = 0,
 ) -> OnboardingDataset:
     """Assemble the aggregate dataset from bounded ``store.py`` rows (see module docstring).
 
@@ -316,6 +325,12 @@ def build_dataset(
         ),
         tree=_tree(file_symbol_counts, layer_of, dir_symbol_threshold),
         path_index=_path_index(file_paths, path_index_max),
+        reachability=classify_reachability(
+            metrics,
+            entry_points=declared_entry_points,
+            stub_roots=declared_stub_roots,
+            sample_limit=reachability_sample_max,
+        ),
     )
 
 
@@ -359,6 +374,14 @@ def render_dataset_overview(dataset: OnboardingDataset) -> str:
             lines.append(f"- `{edge.source}` → `{edge.target}` ({edge.count})")
     else:
         lines.append("- (none)")
+    lines.extend(["", "## Zero-inbound modules, by population", ""])
+    split = dataset.reachability
+    lines.append(f"- zero-inbound modules (raw total): {split.total}")
+    for bucket in split.buckets:
+        lines.append(f"- `{bucket.bucket}` — {bucket.label}: {bucket.count}")
+        lines.append(f"  - {bucket.note}")
+    for bucket_id, reason in split.dropped:
+        lines.append(f"- `{bucket_id}`: not reported — {reason}")
     lines.extend(["", "## Hubs", ""])
     if dataset.hubs:
         for hub in dataset.hubs:

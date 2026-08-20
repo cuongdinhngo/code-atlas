@@ -1,5 +1,32 @@
 # Lessons — code-atlas
 
+## 113 — A field the contract declares but no adapter emits is a false-zero source, not a signal
+113 needed to bucket zero-inbound files into tests / vendored / web-surface / dynamic / dead-suspect
+under R2.2, and two of the obvious signals were traps. `nodes.is_test` looks decisive — it is a
+declared contract field (`contract.py:86`), it is exactly semantically right, and the store has a
+column for it. **No adapter emits it.** Every row is the DDL default `0`, so a test bucket keyed on it
+would have rendered **0** on the anchor repo's 1,776 test files and silently pushed all of them into
+the dead-code-suspect bucket — a false accusation against the codebase, produced by a field that
+"exists". *Fix:* before keying behaviour off a contract field, grep for its **producers**, not its
+declaration; a field with a schema and no writer is worth less than no field, because it reads as
+authoritative. Generalises to every optional contract field: the DDL default and "not applicable here"
+are indistinguishable downstream unless something records which one it is.
+
+The second trap was **keying off derived names that a later seam may rewrite.** The natural
+implementation reads `LayerAssignment.layers` for `"Tests"`, but the 091 `LayerRefiner` exists to
+*rename* layers, so an opt-in LLM pass would have silently emptied the bucket with no test failing
+(the refiner is off by default, so CI would stay green forever). *Fix:* key off the **pure input** —
+`responsibility_layer(path)`, a function of the path — not off the post-seam output. Generalises: when
+a seam's whole job is to transform X, no other consumer may treat X's *pre*-transform values as stable.
+
+And the reusable move that made the ticket cheap: **the ticket's own held-open R2.2 judgment was
+already ratified elsewhere in the repo.** 113 was written expecting to need a new vendor signal
+(Composer autoload parsing) or to ship an honest three-bucket fallback. 110 had already ratified a
+36-word responsibility vocabulary as an **R2.2 standard**, and it already contained `vendor`, `test`,
+`spec`, `mock`, `controller`, `route`, `api` — every word 113 needed. *Fix:* before building a signal
+to satisfy a constraint, search the repo for a **previously ratified** answer to the same constraint;
+a rule-book judgment is reusable inventory, not a one-ticket artifact.
+
 ## 107 — Re-measure a ticket's evidence before designing from it; a sibling may have already moved it
 107 was filed from the same run as 106 and claimed **500/500** onboarding pages had empty neighbour
 lists. By the time it was worked, 106 had shipped and the true figure was **0/500** — and its AC2,

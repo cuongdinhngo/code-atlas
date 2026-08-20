@@ -103,6 +103,8 @@ def create(
             seam,
             layer_refiner,
             max_results=config.max_results,
+            declared_entry_points=config.entry_points,
+            declared_stub_roots=config.stub_roots,
         )
         if artifact is None:
             return _empty(config)
@@ -120,6 +122,9 @@ def create(
             file_paths=file_paths,
             path_index_max=config.path_index_max,
             layer_refiner=layer_refiner,
+            declared_entry_points=config.entry_points,
+            declared_stub_roots=config.stub_roots,
+            reachability_sample_max=config.max_results,
         )
         written = _write(Path(config.root), artifact, dataset, config.max_results)
         return _payload(config, artifact, written, detail_level)

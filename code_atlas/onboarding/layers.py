@@ -187,6 +187,15 @@ def _responsibility_layer(module: str) -> str | None:
     return None
 
 
+def responsibility_layer(module: str) -> str | None:
+    """The responsibility layer a module's PATH names, or None — 110's signal, without the grouping.
+
+    Public because a consumer must key off the path, not off ``LayerAssignment.layers``: the 091
+    refiner may RENAME a layer, which would silently empty a caller's bucket (task 113).
+    """
+    return _responsibility_layer(module)
+
+
 def _common_dir_prefix(modules: tuple[NodeMetric, ...]) -> list[str]:
     """The longest run of leading whole directory segments shared by every module (segment-wise,
     never a mid-segment character prefix — R2). Order-independent, so the result is byte-stable."""

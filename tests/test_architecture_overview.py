@@ -13,6 +13,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from code_atlas.config import Config
+from code_atlas.onboarding.reachability import BUCKETS
 from code_atlas.onboarding.summary import NodeFacts, Summary
 from code_atlas.store import GraphStore
 from code_atlas.tools import architecture_overview
@@ -139,7 +140,10 @@ def test_minimal_omits_the_costly_blocks_and_verbose_adds_the_module_rows(tmp_pa
     assert set(standard["results"][0]) == {
         "layer", "description", "rank", "modules", "fan_in", "fan_out", "entry_points"
     }
-    assert standard["summary"] == {
+    summary = dict(standard["summary"])  # type: ignore[call-overload]
+    # 113: the zero-inbound total is now a population split; the raw total stays beside it.
+    split = summary.pop("reachability")
+    assert summary == {
         "layers": 4,
         "modules": 5,
         "symbols": 5,
@@ -147,6 +151,10 @@ def test_minimal_omits_the_costly_blocks_and_verbose_adds_the_module_rows(tmp_pa
         "cross_layer_edges": len(standard["cross_layer_edges"]),
         "method": "responsibility",
     }
+    assert split["total"] == 2
+    assert sum(bucket["count"] for bucket in split["buckets"]) == 2
+    assert [bucket["bucket"] for bucket in split["buckets"]] == list(BUCKETS)
+    assert split["dropped"] == []
     assert standard["cross_layer_edges_truncated"] is False
     assert "modules" not in standard
 

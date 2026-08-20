@@ -28,6 +28,7 @@ from code_atlas.onboarding.dataset import (
     render_dataset_overview,
 )
 from code_atlas.onboarding.metrics import compute_metrics
+from code_atlas.onboarding.reachability import ReachabilitySplit
 from code_atlas.store import GraphStore
 
 # A three-module chain across two responsibility directories: A → B → C.
@@ -95,6 +96,7 @@ def test_ac5_renderer_from_dataset_alone() -> None:
         classes=(ClassStat("\\B", "app/services/B.aa", "services", 7),),
         tree=(DirStat("app/services", 27, 4, "services"),),
         path_index=PathIndex(("app",), ((0, "x.aa"),), 42, 20, True),
+        reachability=ReachabilitySplit(0, (), ()),
     )
     text = render_dataset_overview(fixture)
     assert "# Architecture overview" in text
