@@ -264,6 +264,8 @@ def build_artifact(
     truncated: bool,
     summarizer: Summarizer,
     layer_refiner: LayerRefiner | None = None,
+    *,
+    max_results: int,
 ) -> OnboardingArtifact | None:
     """Compose 083–087 into one artifact. ``None`` when the index has no module."""
     metrics = compute_metrics(nodes, edges)
@@ -309,9 +311,16 @@ def build_artifact(
             )
         )
     crossings = cross_layer_edges(module_edges(nodes, edges), assignment)
+    # A capped neighbour or SCC list is a cut just like the walk budget's — one flag says so (108).
+    list_truncated = any(
+        len(page.outgoing) > max_results
+        or len(page.incoming) > max_results
+        or len(page.scc) > max_results
+        for page in pages
+    )
     return OnboardingArtifact(
         method=assignment.method,
-        truncated=truncated,
+        truncated=truncated or list_truncated,
         summary={
             "cross_layer_edges": len(crossings),
             "layers": len(assignment.layers),
@@ -363,7 +372,7 @@ def render_overview(artifact: OnboardingArtifact) -> str:
     return "\n".join(lines) + "\n"
 
 
-def render_tour(artifact: OnboardingArtifact) -> str:
+def render_tour(artifact: OnboardingArtifact, max_results: int) -> str:
     """Committed tour markdown: the dependency-ordered reading list. Trailing newline."""
     lines = [
         H_TOUR,
@@ -377,7 +386,8 @@ def render_tour(artifact: OnboardingArtifact) -> str:
         lines.append("- (none)")
     else:
         for index, stop in enumerate(artifact.stops, start=1):
-            lines.append(f"{index}. `{stop.file}` — {stop.rationale}")
+            rationale = _rationale_line(stop.rationale, stop.scc, max_results)
+            lines.append(f"{index}. `{stop.file}` — {rationale}")
     return "\n".join(lines) + "\n"
 
 
@@ -388,11 +398,33 @@ def _absent(degree: int) -> str:
     return "(none)"
 
 
-def render_module(page: ModulePage) -> str:
+def _shown_suffix(shown: int, total: int) -> str:
+    """Name a cut list with both numbers so it is never read as the whole truth (033/057/107)."""
+    return f" ({shown} shown of {total})" if total > shown else ""
+
+
+def _neighbour_line(paths: tuple[str, ...], degree: int, max_results: int) -> str:
+    """A neighbour list capped at ``max_results``; an empty one keeps 107's ``_absent`` wording."""
+    if not paths:
+        return _absent(degree)
+    shown = paths[:max_results]
+    return ", ".join(f"`{path}`" for path in shown) + _shown_suffix(len(shown), len(paths))
+
+
+def _rationale_line(rationale: str, scc: tuple[str, ...], max_results: int) -> str:
+    """Cap the SCC list a cycle rationale repeats on every member; identical per member (R4.2)."""
+    if len(scc) <= 1:
+        return rationale
+    shown = scc[:max_results]
+    return "cycle with " + ", ".join(shown) + _shown_suffix(len(shown), len(scc))
+
+
+def render_module(page: ModulePage, max_results: int) -> str:
     """One per-module page. Structure is fixed so CI can assert headings, not prose."""
     docline = page.docline if page.docline else "(none)"
-    out = ", ".join(f"`{path}`" for path in page.outgoing) or _absent(page.fan_out)
-    incoming = ", ".join(f"`{path}`" for path in page.incoming) or _absent(page.fan_in)
+    out = _neighbour_line(page.outgoing, page.fan_out, max_results)
+    incoming = _neighbour_line(page.incoming, page.fan_in, max_results)
+    rationale = _rationale_line(page.rationale, page.scc, max_results)
     lines = [
         f"# `{page.file}`",
         "",
@@ -410,7 +442,7 @@ def render_module(page: ModulePage) -> str:
         "",
         H_IN_TOUR,
         "",
-        f"Stop {page.index} of {page.of}. {page.rationale}",
+        f"Stop {page.index} of {page.of}. {rationale}",
         "",
         H_NEIGHBOURS,
         "",

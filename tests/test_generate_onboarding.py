@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+from code_atlas.config import Config
 from code_atlas.onboarding.artifact import (
     H_CROSSINGS,
     H_IN_TOUR,
@@ -338,3 +339,135 @@ def test_generate_onboarding_deletes_a_page_that_became_contentless(tmp_path: Pa
         )
     generate_onboarding.create(config)()
     assert not page.exists(), "the tool must remove a page it wrote once it turns contentless"
+
+
+CAP = 5
+
+
+def _wide_repo(tmp_path: Path) -> Config:
+    """A hub with 2*CAP callees and a 2*CAP-member cycle — both exceed a CAP-sized cap (108)."""
+    from tests.test_nav_tools import edge, node, seed_file
+
+    config = replace(db_config(tmp_path), max_results=CAP, impact_max_nodes=500)
+    with GraphStore(config.db_path) as store:
+        seed_file(
+            store,
+            "src/Hub.aa",
+            [node("Class", "Hub", "\\Hub", "src/Hub.aa")],
+            [
+                edge("CALLS", "\\Hub", f"\\L{i:02d}", "src/Hub.aa", target_qname=f"\\L{i:02d}")
+                for i in range(2 * CAP)
+            ],
+            root=tmp_path,
+        )
+        for i in range(2 * CAP):
+            path = f"leaf/L{i:02d}.aa"
+            seed_file(
+                store, path, [node("Class", f"L{i:02d}", f"\\L{i:02d}", path)], [], root=tmp_path
+            )
+        for i in range(2 * CAP):
+            path = f"cyc/C{i:02d}.aa"
+            nxt = (i + 1) % (2 * CAP)
+            seed_file(
+                store,
+                path,
+                [node("Class", f"C{i:02d}", f"\\C{i:02d}", path)],
+                [edge("CALLS", f"\\C{i:02d}", f"\\C{nxt:02d}", path, target_qname=f"\\C{nxt:02d}")],
+                root=tmp_path,
+            )
+    return config
+
+
+def _page(tmp_path: Path, relpath: str) -> str:
+    return (_out(tmp_path) / "modules" / Path(relpath + ".md")).read_text(encoding="utf-8")
+
+
+def test_module_page_caps_neighbours_and_scc(tmp_path: Path) -> None:
+    """Proving test (AC1, R6.5): a page with 2*CAP neighbours lists exactly CAP and names the cut.
+
+    Observed red against pre-108 code: ``render_module`` joined the whole tuple, so the page listed
+    all 2*CAP paths and carried no ``(N shown of M)`` marker.
+    """
+    generate_onboarding.create(_wide_repo(tmp_path))()
+
+    hub = _page(tmp_path, "src/Hub.aa")
+    out_line = next(line for line in hub.splitlines() if line.startswith("- outgoing:"))
+    assert out_line.count("`") == 2 * CAP  # CAP back-ticked paths, two ticks each
+    assert f"({CAP} shown of {2 * CAP})" in out_line
+    assert "`leaf/L04.aa`" in out_line and "`leaf/L05.aa`" not in out_line
+
+    stop_line = next(line for line in _page(tmp_path, "cyc/C00.aa").splitlines()
+                     if line.startswith("Stop "))
+    assert "cycle with " in stop_line
+    assert f"({CAP} shown of {2 * CAP})" in stop_line
+    assert "cyc/C04.aa" in stop_line and "cyc/C05.aa" not in stop_line
+
+
+def test_page_distinguishes_cut_empty_and_uncut(tmp_path: Path) -> None:
+    """AC2: a cut list names both numbers; a real zero keeps 107's ``_absent`` wording."""
+    generate_onboarding.create(_wide_repo(tmp_path))()
+
+    hub = _page(tmp_path, "src/Hub.aa")
+    assert "- outgoing: `leaf/L00.aa`" in hub  # cut list starts with the paths, not a marker
+    assert f"({CAP} shown of {2 * CAP})" in hub
+    assert "- incoming: (none)\n" in hub  # a genuine zero, not a cut
+
+    leaf = _page(tmp_path, "leaf/L00.aa")
+    assert "- outgoing: (none)\n" in leaf
+    assert "- incoming: `src/Hub.aa`\n" in leaf  # one neighbour, uncut, no marker
+    assert "shown of" not in leaf
+
+
+def test_scc_stop_line_is_capped_and_byte_identical_across_members(tmp_path: Path) -> None:
+    """AC3: every member of a > CAP cycle prints the same capped cycle description (R4.2)."""
+    generate_onboarding.create(_wide_repo(tmp_path))()
+
+    def cycle_desc(name: str) -> str:
+        page = _page(tmp_path, f"cyc/{name}.aa")
+        line = next(row for row in page.splitlines() if row.startswith("Stop "))
+        return line[line.index("cycle with"):]
+
+    first, last = cycle_desc("C00"), cycle_desc("C09")
+    assert first == last  # byte-identical capped member list
+    assert f"({CAP} shown of {2 * CAP})" in first
+
+
+def test_manifest_and_payload_agree_with_pages_on_the_cut(tmp_path: Path) -> None:
+    """AC5: the cut is carried by ``truncated`` in both the payload and the manifest."""
+    payload = generate_onboarding.create(_wide_repo(tmp_path))()
+    manifest = json.loads((_out(tmp_path) / "manifest.json").read_text(encoding="utf-8"))
+
+    assert payload["truncated"] is True
+    assert manifest["truncated"] is True
+    assert "shown of" in _page(tmp_path, "src/Hub.aa")  # the flag is not lying
+
+
+def test_capped_page_stays_small_where_uncapped_blows_past_8kb() -> None:
+    """AC4: on a page reproducing the 82 KB shape, the default cap brings it well under 8 KB.
+
+    Rendering with an enormous cap reproduces pre-108 (uncapped) bytes, so this is a before/after.
+    """
+    from code_atlas.onboarding.artifact import ModulePage, render_module
+
+    scc = tuple(f"app/domain/service/module/Component{i:03d}.aa" for i in range(300))
+    neighbours = tuple(f"app/domain/service/module/Neighbour{i:03d}.aa" for i in range(300))
+    page = ModulePage(
+        file="app/domain/service/module/Hub.aa",
+        relpath="modules/app/domain/service/module/Hub.aa.md",
+        layer="app",
+        rank=0,
+        role="entry-point",
+        docline="",
+        rationale="cycle with " + ", ".join(scc),
+        scc=scc,
+        index=1,
+        of=300,
+        outgoing=neighbours,
+        incoming=neighbours,
+        fan_in=300,
+        fan_out=300,
+    )
+    before = len(render_module(page, 10**9).encode("utf-8"))
+    after = len(render_module(page, 50).encode("utf-8"))
+    assert before > 8192, before
+    assert after < 8192, after

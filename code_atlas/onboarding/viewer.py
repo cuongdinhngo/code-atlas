@@ -9,7 +9,11 @@ from __future__ import annotations
 
 import json
 
-from code_atlas.onboarding.artifact import OnboardingArtifact, render_module
+from code_atlas.onboarding.artifact import (
+    OnboardingArtifact,
+    _rationale_line,
+    render_module,
+)
 
 _PLACEHOLDER = "__ONBOARDING_PAYLOAD__"
 
@@ -201,7 +205,7 @@ pre {
 """
 
 
-def viewer_payload(artifact: OnboardingArtifact) -> dict[str, object]:
+def viewer_payload(artifact: OnboardingArtifact, max_results: int) -> dict[str, object]:
     """The JSON the HTML page boots from — same facts as the markdown, no wall-clock."""
     return {
         "crossings": [
@@ -223,7 +227,7 @@ def viewer_payload(artifact: OnboardingArtifact) -> dict[str, object]:
         "method": artifact.method,
         "pages": [
             {
-                "body": render_module(page),
+                "body": render_module(page, max_results),
                 "file": page.file,
                 "layer": page.layer,
                 "role": page.role,
@@ -231,19 +235,20 @@ def viewer_payload(artifact: OnboardingArtifact) -> dict[str, object]:
             for page in artifact.pages
         ],
         "stops": [
-            {"file": stop.file, "rationale": stop.rationale} for stop in artifact.stops
+            {"file": stop.file, "rationale": _rationale_line(stop.rationale, stop.scc, max_results)}
+            for stop in artifact.stops
         ],
         "truncated": artifact.truncated,
     }
 
 
-def render_viewer(artifact: OnboardingArtifact) -> str:
+def render_viewer(artifact: OnboardingArtifact, max_results: int) -> str:
     """One HTML file. Payload is JSON with ``<`` escaped so it cannot break the script tag.
 
     The escape is load-bearing, not cosmetic: a repo path can hold ``</script>`` (a directory
     ``a<`` and a file ``script>x``), which would end the JSON block and leave the rest of the
     payload as live markup. ``test_onboarding_viewer`` pins it.
     """
-    blob = json.dumps(viewer_payload(artifact), sort_keys=True, ensure_ascii=True)
+    blob = json.dumps(viewer_payload(artifact, max_results), sort_keys=True, ensure_ascii=True)
     blob = blob.replace("<", "\\u003c")
     return _TEMPLATE.replace(_PLACEHOLDER, blob)

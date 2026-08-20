@@ -93,10 +93,11 @@ def create(
             subgraph.truncated,
             seam,
             layer_refiner,
+            max_results=config.max_results,
         )
         if artifact is None:
             return _empty(config)
-        written = _write(Path(config.root), artifact)
+        written = _write(Path(config.root), artifact, config.max_results)
         return _payload(config, artifact, written, detail_level)
 
     return generate_onboarding
@@ -155,7 +156,7 @@ def _remove_recorded_pages(out: Path) -> None:
             path.rmdir()
 
 
-def _write(root: Path, artifact: OnboardingArtifact) -> tuple[str, ...]:
+def _write(root: Path, artifact: OnboardingArtifact, max_results: int) -> tuple[str, ...]:
     """Rewrite this tool's own onboarding files and the cache. Paths are POSIX."""
     out = root / OUTPUT_DIR
     _refuse_foreign_tree(out)
@@ -164,9 +165,9 @@ def _write(root: Path, artifact: OnboardingArtifact) -> tuple[str, ...]:
     written: list[str] = []
     files = {
         OVERVIEW_NAME: render_overview(artifact),
-        TOUR_NAME: render_tour(artifact),
+        TOUR_NAME: render_tour(artifact, max_results),
         MANIFEST_NAME: manifest_json(artifact),
-        VIEWER_NAME: render_viewer(artifact),
+        VIEWER_NAME: render_viewer(artifact, max_results),
     }
     for name, text in files.items():
         (out / name).write_text(text, encoding="utf-8", newline="\n")
@@ -174,7 +175,7 @@ def _write(root: Path, artifact: OnboardingArtifact) -> tuple[str, ...]:
     for page in artifact.pages:
         dest = out / Path(*PurePosixPath(page.relpath).parts)
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(render_module(page), encoding="utf-8", newline="\n")
+        dest.write_text(render_module(page, max_results), encoding="utf-8", newline="\n")
         written.append(f"{OUTPUT_DIR}/{page.relpath}")
     cache = root / CACHE_DIR
     cache.mkdir(parents=True, exist_ok=True)
