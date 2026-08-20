@@ -5,10 +5,10 @@ Presentation only. The graph computes (083's two store pulls), enrichment interp
 language branch reaches it (R1.1/R1.4/R4). An LLM summarizer (090) arrives through the 085 seam
 ``create`` already accepts, never through a second abstraction (R1.2).
 
-``results`` is the LAYER list, because the layer set is the answer this tool exists for. It is NOT
-small by construction — under dominant-subtree grouping a layer is a *sub*directory of the dominant
-tree, so a monorepo yields hundreds — hence every list here is capped like every other tool's, and
-``truncated`` describes ``results`` as the shared convention requires.
+``results`` is the LAYER list, because the layer set is the answer this tool exists for. Under
+responsibility grouping (110) the set is small and named; under the dominant-subtree fallback a
+layer is a *sub*directory of the dominant tree, so a monorepo can yield hundreds — hence every list
+here is capped like every other tool's, and ``truncated`` describes ``results`` as convention wants.
 """
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ from code_atlas.onboarding.layers import (
     LayerRefiner,
     assign_layers,
     cross_layer_edges,
+    layer_description,
     refine_layers,
 )
 from code_atlas.onboarding.metrics import GraphMetrics, NodeMetric, compute_metrics, module_edges
@@ -132,7 +133,12 @@ def _layer_rows(
     rows: list[dict[str, object]] = []
     for layer in assignment.layers:
         modules, fan_in, fan_out, entry_points = tallies[layer]
-        row: dict[str, object] = {"layer": layer, "rank": rank[layer], "modules": modules}
+        row: dict[str, object] = {
+            "layer": layer,
+            "description": layer_description(layer),
+            "rank": rank[layer],
+            "modules": modules,
+        }
         if degrees:
             row |= {"fan_in": fan_in, "fan_out": fan_out, "entry_points": entry_points}
         rows.append(row)
@@ -181,8 +187,9 @@ def _overview(
 ) -> dict[str, object]:
     """The answer itself — cheap at ``minimal``, per-module only at ``verbose`` (061).
 
-    Every list is capped at ``max_results``: a layer is a subdirectory of the dominant tree, so
-    neither the layer list nor the crossings between them are small by construction.
+    Every list is capped at ``max_results``: under the dominant-subtree fallback a layer is a
+    subdirectory of the dominant tree, so neither the layer list nor the crossings are small by
+    construction; the cap holds regardless of grouping method.
     """
     rich = detail_level in ("standard", "verbose")
     limit = config.max_results

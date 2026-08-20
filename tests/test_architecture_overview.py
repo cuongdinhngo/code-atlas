@@ -31,11 +31,12 @@ ROUTES = "routes/web.aa"
 
 
 def _fixture_repo(tmp_path: Path) -> Config:
-    """Three layers under a dominant ``app/`` subtree plus one outlier top-level directory.
+    """A repo whose directories name responsibilities (models, services, routes) plus ``app/Http``,
+    which matches no keyword and reads Uncategorised (110).
 
-    Http -> Models and Http -> Services are the crossings; routes/ -> Http is the entry edge, so
-    the ordering is decided by dependency direction rather than by name. Account -> User is an
-    INTRA-layer edge on purpose: without one, "a crossing is never same-layer" cannot fail.
+    The ``app/Http`` controller depends on Models and Services; routes/ depends on it, so ordering
+    is decided by dependency direction. Account -> User is an INTRA-layer edge (Domain / Data) on
+    purpose: without one, "a crossing is never same-layer" cannot fail.
     """
     config = db_config(tmp_path)
     with GraphStore(config.db_path) as store:
@@ -104,15 +105,20 @@ def test_architecture_overview_reports_the_known_layer_split_of_a_fixture_repo(
 
     assert overview["indexed"] is True
     assert overview["reason"] == REASON_OK
-    assert overview["method"] == "dominant-subtree"
-    assert set(_layers(overview)) == {"routes", "Http", "Services", "Models"}
-    # The dominant subtree is app/ (3 modules), so app/** splits rather than collapsing (104 F1).
+    assert overview["method"] == "responsibility"
+    # controllers/models/services/routes name responsibilities; app/Http itself matches no keyword
+    # and reads Uncategorised — reported, not hidden (110).
+    assert set(_layers(overview)) == {"HTTP / Entry", "Uncategorised", "Services", "Domain / Data"}
     assert "app" not in _layers(overview)
     assert overview["total_count"] == 4
-    assert _layers(overview)[-1] == "Models"  # pure sink: nothing it depends on
-    assert {"source": "Http", "target": "Models", "count": 1} in overview["cross_layer_edges"]
-    assert {"source": "routes", "target": "Http", "count": 1} in overview["cross_layer_edges"]
-    # Account -> User lives inside Models; a crossing list that carries it is not a crossing list.
+    assert _layers(overview)[-1] == "Domain / Data"  # pure sink: nothing it depends on
+    assert {"source": "Services", "target": "Domain / Data", "count": 1} in (
+        overview["cross_layer_edges"]
+    )
+    assert {"source": "HTTP / Entry", "target": "Uncategorised", "count": 1} in (
+        overview["cross_layer_edges"]
+    )
+    # Account -> User lives inside Domain / Data; a crossing carrying it is not a crossing list.
     for crossing in overview["cross_layer_edges"]:
         assert crossing["source"] != crossing["target"]
 
@@ -127,11 +133,11 @@ def test_minimal_omits_the_costly_blocks_and_verbose_adds_the_module_rows(tmp_pa
     minimal = architecture_overview.create(config)(detail_level="minimal")
     assert "summary" not in minimal and "cross_layer_edges" not in minimal
     assert "modules" not in minimal
-    assert set(minimal["results"][0]) == {"layer", "rank", "modules"}
+    assert set(minimal["results"][0]) == {"layer", "description", "rank", "modules"}
 
     standard = architecture_overview.create(config)(detail_level="standard")
     assert set(standard["results"][0]) == {
-        "layer", "rank", "modules", "fan_in", "fan_out", "entry_points"
+        "layer", "description", "rank", "modules", "fan_in", "fan_out", "entry_points"
     }
     assert standard["summary"] == {
         "layers": 4,
@@ -139,7 +145,7 @@ def test_minimal_omits_the_costly_blocks_and_verbose_adds_the_module_rows(tmp_pa
         "symbols": 5,
         "module_entry_points": 2,
         "cross_layer_edges": len(standard["cross_layer_edges"]),
-        "method": "dominant-subtree",
+        "method": "responsibility",
     }
     assert standard["cross_layer_edges_truncated"] is False
     assert "modules" not in standard
@@ -154,7 +160,7 @@ def test_minimal_omits_the_costly_blocks_and_verbose_adds_the_module_rows(tmp_pa
         row["rank"] for row in verbose["modules"]
     )
     http_row = next(row for row in verbose["modules"] if row["module"] == HTTP)
-    assert http_row["layer"] == "Http" and http_row["direction"] == "mixed"
+    assert http_row["layer"] == "Uncategorised" and http_row["direction"] == "mixed"
     assert http_row["role"] == "connector"  # through the 085 seam, not a local table
 
 
@@ -215,7 +221,7 @@ def test_the_module_page_is_capped_and_offset_reaches_the_rest(tmp_path: Path) -
         walked += [row["module"] for row in page["modules"]]
     assert sorted(walked) == sorted([HTTP, MODEL, ACCOUNT, SERVICE, ROUTES])
     assert {row["layer"] for row in tool(detail_level="verbose", offset=4)["modules"]} <= {
-        "Models"
+        "Domain / Data"
     }
     assert tool(detail_level="verbose", offset=4)["modules_truncated"] is False
 

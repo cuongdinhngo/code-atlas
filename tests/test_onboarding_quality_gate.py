@@ -26,7 +26,15 @@ from code_atlas.onboarding.quality_gate import (
 )
 from code_atlas.onboarding.tour import TourStop
 
-_LAYER = LayerRow(layer="core", rank=0, modules=2, fan_in=1, fan_out=1, entry_points=1)
+_LAYER = LayerRow(
+    layer="core",
+    rank=0,
+    modules=2,
+    fan_in=1,
+    fan_out=1,
+    entry_points=1,
+    description="the core layer",
+)
 
 
 def _page(file: str, index: int, of: int, **over: object) -> ModulePage:
@@ -113,11 +121,21 @@ def test_c2_page_over_the_byte_ceiling_even_when_capped() -> None:
     assert exc.value.path == "b.py"
 
 
-def test_c3_layer_with_an_empty_name() -> None:
+def test_c3_layer_with_an_empty_description() -> None:
     art = _artifact(
         (_page("a.py", 1, 2), _page("b.py", 2, 2)),
         _stops("a.py", "b.py"),
-        layers=(LayerRow(layer="   ", rank=0, modules=2, fan_in=1, fan_out=1, entry_points=1),),
+        layers=(
+            LayerRow(
+                layer="core",
+                rank=0,
+                modules=2,
+                fan_in=1,
+                fan_out=1,
+                entry_points=1,
+                description="  ",
+            ),
+        ),
     )
     with pytest.raises(QualityGateError) as exc:
         check_artifact(art, max_results=50)

@@ -214,6 +214,7 @@ def viewer_payload(artifact: OnboardingArtifact, max_results: int) -> dict[str, 
         ],
         "layers": [
             {
+                "description": row.description,
                 "entry_points": row.entry_points,
                 "fan_in": row.fan_in,
                 "fan_out": row.fan_out,

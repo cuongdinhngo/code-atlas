@@ -17,6 +17,7 @@ from code_atlas.onboarding.layers import (
     LayerRefiner,
     assign_layers,
     cross_layer_edges,
+    layer_description,
     refine_layers,
 )
 from code_atlas.onboarding.metrics import GraphMetrics, compute_metrics, module_edges
@@ -79,7 +80,7 @@ __all__ = [
 
 @dataclass(frozen=True)
 class LayerRow:
-    """One overview layer: name, rank, size, and aggregated degrees."""
+    """One overview layer: name, description, rank, size, and aggregated degrees."""
 
     layer: str
     rank: int
@@ -87,6 +88,7 @@ class LayerRow:
     fan_in: int
     fan_out: int
     entry_points: int
+    description: str
 
 
 @dataclass(frozen=True)
@@ -132,6 +134,7 @@ class OnboardingArtifact:
             ],
             "layers": [
                 {
+                    "description": row.description,
                     "entry_points": row.entry_points,
                     "fan_in": row.fan_in,
                     "fan_out": row.fan_out,
@@ -236,6 +239,7 @@ def _layer_rows(metrics: GraphMetrics, assignment: LayerAssignment) -> tuple[Lay
             fan_in=tallies[layer][1],
             fan_out=tallies[layer][2],
             entry_points=tallies[layer][3],
+            description=layer_description(layer),
         )
         for layer in assignment.layers
     )
@@ -368,6 +372,7 @@ def render_overview(artifact: OnboardingArtifact) -> str:
             f"fan_in {row.fan_in}, fan_out {row.fan_out}, "
             f"{row.entry_points} entry points)"
         )
+        lines.append(f"  - {row.description}")
     lines.extend(["", H_CROSSINGS, ""])
     if artifact.crossings:
         for source, target, count in artifact.crossings:
@@ -467,6 +472,7 @@ def manifest_dict(artifact: OnboardingArtifact) -> dict[str, object]:
     return {
         "layers": [
             {
+                "description": row.description,
                 "entry_points": row.entry_points,
                 "fan_in": row.fan_in,
                 "fan_out": row.fan_out,

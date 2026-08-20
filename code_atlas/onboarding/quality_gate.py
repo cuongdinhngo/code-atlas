@@ -75,7 +75,7 @@ def check_artifact(
             raise QualityGateError("C5", isolated, "isolated module is not a tour-stop file")
     if len(artifact.stops) > max_tour_steps:  # C4: pre-111 regression ceiling.
         raise QualityGateError("C4", "tour", f"{len(artifact.stops)} stops (> {max_tour_steps})")
-    for row in artifact.layers:  # C3: unnamed layer is filler (110 strengthens to a description).
-        if not row.layer.strip():
-            raise QualityGateError("C3", f"layer[rank {row.rank}]", "layer name is empty")
+    for row in artifact.layers:  # C3: every layer must carry a non-empty description (110).
+        if not row.description.strip():
+            raise QualityGateError("C3", f"layer[rank {row.rank}]", "layer description is empty")
     _check_canonical(artifact)

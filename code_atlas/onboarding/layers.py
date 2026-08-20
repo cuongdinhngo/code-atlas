@@ -22,7 +22,11 @@ from code_atlas.onboarding.metrics import GraphMetrics, NodeMetric
 
 # Derived-from-source: a pin test cross-checks this tuple against the methods assign_layers() emits,
 # rather than re-typing a copy (R6.7 / derived-not-listed-invariant).
-LAYER_METHODS: tuple[str, ...] = ("dominant-subtree", "dependency-direction-fallback")
+LAYER_METHODS: tuple[str, ...] = (
+    "responsibility",
+    "dominant-subtree",
+    "dependency-direction-fallback",
+)
 
 # A module at the repo root (no directory) has no path segment to name a layer; it lands here
 # rather than emitting the empty string (task 104 residual).
@@ -32,6 +36,69 @@ _ROOT_LAYER = "(root)"
 # test asserts it equals DIRECTION_LABELS, so a new metrics label cannot ship unplaced (R6.7). The
 # ORDER is a semantic choice — sources depend on sinks, so sources lead.
 _FALLBACK_ORDER: tuple[str, ...] = ("source", "mixed", "sink", "isolated")
+
+UNCATEGORISED = "Uncategorised"
+
+# The responsibility vocabulary (task 110, ratified STANDARD under R2.2 — every word is an industry
+# architectural convention, none names a repo, product or framework). Keyword → layer name.
+_VOCABULARY: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("HTTP / Entry", ("controller", "handler", "route", "endpoint", "api")),
+    ("Services", ("service", "usecase")),
+    ("Domain / Data", ("model", "entity", "repository")),
+    ("Views", ("view", "template", "page", "form")),
+    ("Middleware / Auth", ("middleware", "filter", "auth", "session")),
+    ("Background Jobs", ("job", "cron", "queue", "worker")),
+    ("Integration / Reporting", ("report", "export", "integration")),
+    ("Shared Library", ("lib", "util", "helper", "common", "system")),
+    ("Tests", ("test", "spec", "mock")),
+    ("Config / Migration", ("config", "migration")),
+    ("Vendor / Framework", ("vendor",)),
+)
+RESPONSIBILITY_KEYWORDS: dict[str, str] = {
+    keyword: layer for layer, keywords in _VOCABULARY for keyword in keywords
+}
+
+# A description for every layer name a run can emit — the 12 responsibility layers, the four
+# direction bands, and the root — so 109's C3 is real, not vacuous. LLM prose replaces these in 117.
+LAYER_DESCRIPTIONS: dict[str, str] = {
+    "HTTP / Entry": "Request entry points: controllers, routes and API handlers.",
+    "Services": "Application services and use-cases that coordinate domain logic.",
+    "Domain / Data": "Domain models, entities and repositories — the data layer.",
+    "Views": "Presentation: views, templates, pages and forms.",
+    "Middleware / Auth": "Request middleware, filters, authentication and sessions.",
+    "Background Jobs": "Asynchronous work: jobs, cron tasks, queues and workers.",
+    "Integration / Reporting": "Outbound integration, reporting and data export.",
+    "Shared Library": "Shared libraries, utilities and helpers reused across the codebase.",
+    "Tests": "Automated tests, specs and mocks.",
+    "Config / Migration": "Configuration and database migrations.",
+    "Vendor / Framework": "Third-party vendor and framework code.",
+    UNCATEGORISED: "Modules whose path matched no responsibility keyword — a naming-debt signal.",
+    "source": "Entry-side modules with outward dependencies and none inbound.",
+    "sink": "Foundation modules others depend on, depending on nothing indexed.",
+    "mixed": "Modules with dependencies both ways, including cycles.",
+    "isolated": "Modules with no dependency either way.",
+    _ROOT_LAYER: "Files at the repository root.",
+}
+
+
+def layer_description(layer: str) -> str:
+    """A non-empty description for any layer name — ratified prose or a structural default (110)."""
+    return LAYER_DESCRIPTIONS.get(layer, f'Modules grouped under "{layer}".')
+
+
+def _match_keyword(segment: str) -> str | None:
+    """The layer a path segment names, or None. Case-insensitive, simple-plural aware (110)."""
+    seg = segment.lower()
+    candidates = [seg]
+    if seg.endswith("ies"):
+        candidates.append(seg[:-3] + "y")
+    elif seg.endswith("s"):
+        candidates.append(seg[:-1])
+    for candidate in candidates:
+        layer = RESPONSIBILITY_KEYWORDS.get(candidate)
+        if layer is not None:
+            return layer
+    return None
 
 
 @dataclass(frozen=True)
@@ -111,6 +178,15 @@ def _top_dir(module: str) -> str | None:
     return dirs[0] if dirs else None
 
 
+def _responsibility_layer(module: str) -> str | None:
+    """Deepest directory segment naming a responsibility, or None (deepest-wins, task 110 H2)."""
+    for segment in reversed(_dirs(module)):
+        layer = _match_keyword(segment)
+        if layer is not None:
+            return layer
+    return None
+
+
 def _common_dir_prefix(modules: tuple[NodeMetric, ...]) -> list[str]:
     """The longest run of leading whole directory segments shared by every module (segment-wise,
     never a mid-segment character prefix — R2). Order-independent, so the result is byte-stable."""
@@ -186,23 +262,29 @@ def _by_direction(modules: tuple[NodeMetric, ...]) -> tuple[ModuleLayer, ...]:
 
 
 def assign_layers(metrics: GraphMetrics) -> LayerAssignment:
-    """Assign modules to ordered architectural layers over 083's metrics (tasks 084, 103, 104).
+    """Assign modules to ordered architectural layers over 083's metrics (tasks 084, 103, 104, 110).
 
-    Dominant-subtree grouping refined by dependency direction; a pure dependency-direction fallback
-    when the paths do not split into >= 2 named groups (flat legacy, or a single directory).
-    Deterministic regardless of input order (R4.2). Module unit = ``file_path`` (locked 2026-08-11).
+    Responsibility-first (110): group each module by the deepest path segment naming a role
+    (``Uncategorised`` when none does), used when that yields >= 2 layers. Otherwise fall back to
+    dominant-subtree grouping (105), then a pure dependency-direction fallback (084) for flat legacy
+    or a single directory. Deterministic regardless of input order (R4.2). Unit = ``file_path``.
     """
     modules = metrics.modules
-    dominant = _dominant_subtree(modules)
-    subtree = tuple(m for m in modules if _top_dir(m.key) == dominant)
-    sub_common = _common_dir_prefix(subtree)
-    grouped = {m.key: _layer_of(m.key, dominant or "", sub_common) for m in modules}
-    if dominant is not None and len(set(grouped.values())) >= 2:
-        assigned = _by_group(modules, grouped)
-        method = "dominant-subtree"
+    responsibility = {m.key: (_responsibility_layer(m.key) or UNCATEGORISED) for m in modules}
+    if len(set(responsibility.values())) >= 2:
+        assigned = _by_group(modules, responsibility)
+        method = "responsibility"
     else:
-        assigned = _by_direction(modules)
-        method = "dependency-direction-fallback"
+        dominant = _dominant_subtree(modules)
+        subtree = tuple(m for m in modules if _top_dir(m.key) == dominant)
+        sub_common = _common_dir_prefix(subtree)
+        grouped = {m.key: _layer_of(m.key, dominant or "", sub_common) for m in modules}
+        if dominant is not None and len(set(grouped.values())) >= 2:
+            assigned = _by_group(modules, grouped)
+            method = "dominant-subtree"
+        else:
+            assigned = _by_direction(modules)
+            method = "dependency-direction-fallback"
     layers: list[str] = []
     for module_layer in sorted(assigned, key=lambda m: m.rank):
         if module_layer.layer not in layers:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Print + CHECK `assign_layers` for the pinned public PHP repos — the AC2 real-repo gate (105).
+"""Print + CHECK `assign_layers` for the pinned public PHP repos — the real-repo gate (105, 110).
 
 Authored fixtures have now hidden a path-shape layer defect five times (retro
 `fixture-shape-begs-the-question`; 084, 103, 104, 086, 105). This makes the real-repo check
@@ -33,13 +33,14 @@ from scripts.cross_repo_validate import (  # noqa: E402
     load_manifest,
 )
 
-# The invariant each pinned repo must satisfy — robust subsets, not exact counts (PHP-version drift
-# moves those). laravel: app/** must stay split (F1 fix), never one "app" layer. symfony / brick:
-# the source tree's known subdirs must remain distinct layers (086's recorded, sensible split).
+# The invariant each pinned repo must satisfy under 110's responsibility grouping — robust subsets,
+# not exact counts (PHP-version drift moves those). laravel/symfony: the controller and model/entity
+# trees surface as HTTP/Entry + Domain/Data (never a collapsed "app"). brick is a pure math library
+# with no web/domain roles, so it is legitimately Tests + Uncategorised — the signal 110 surfaces.
 _EXPECT: dict[str, tuple[frozenset[str], frozenset[str]]] = {
-    "laravel_app": (frozenset({"Http", "Models"}), frozenset({"app"})),
-    "symfony_demo": (frozenset({"Controller", "Entity", "Repository"}), frozenset()),
-    "brick_math": (frozenset({"src", "Exception", "Internal"}), frozenset()),
+    "laravel_app": (frozenset({"HTTP / Entry", "Domain / Data"}), frozenset({"app"})),
+    "symfony_demo": (frozenset({"HTTP / Entry", "Domain / Data", "Views"}), frozenset()),
+    "brick_math": (frozenset({"Tests", "Uncategorised"}), frozenset()),
 }
 
 
@@ -55,8 +56,11 @@ def format_report(
     chain = " → ".join(f"{layer}({per_layer[layer]})" for layer in assignment.layers)
     crossings = cross_layer_edges(module_edges(nodes, edges), assignment)
     top = " · ".join(f"{e.source}→{e.target} ×{e.count}" for e in crossings[:4])
+    total = len(assignment.modules)
+    uncat = per_layer.get("Uncategorised", 0)
+    share = f"{uncat}/{total} ({100 * uncat // total if total else 0}%)"
     return (
-        f"  method={assignment.method}  layers={len(assignment.layers)}\n"
+        f"  method={assignment.method}  layers={len(assignment.layers)}  uncategorised={share}\n"
         f"  {chain}\n  crossings: {top}"
     )
 
