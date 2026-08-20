@@ -11,6 +11,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 
+from code_atlas.onboarding.dataset import OnboardingDataset
 from code_atlas.onboarding.layers import (
     IdentityLayerRefiner,
     LayerAssignment,
@@ -209,7 +210,7 @@ def _is_page_path(rel: str) -> bool:
 
 
 def recorded_pages(manifest_text: str) -> tuple[str, ...]:
-    """The page paths a previous ``manifest.json`` claims this tool wrote.
+    """The page paths a previous ``manifest.json`` claims this tool wrote (task 112 ``pages`` key).
 
     Anything unparseable, foreign-shaped, or outside ``modules/*.md`` yields nothing: the
     writer deletes only what it can prove it wrote (050 — never destroy another's file).
@@ -218,17 +219,11 @@ def recorded_pages(manifest_text: str) -> tuple[str, ...]:
         data = json.loads(manifest_text)
     except ValueError:
         return ()
-    modules = data.get("modules") if isinstance(data, dict) else None
-    if not isinstance(modules, list):
+    pages = data.get("pages") if isinstance(data, dict) else None
+    if not isinstance(pages, list):
         return ()
-    pages = {
-        entry["page"]
-        for entry in modules
-        if isinstance(entry, dict)
-        and isinstance(entry.get("page"), str)
-        and _is_page_path(entry["page"])
-    }
-    return tuple(sorted(pages))
+    kept = {page for page in pages if isinstance(page, str) and _is_page_path(page)}
+    return tuple(sorted(kept))
 
 
 def _layer_rows(metrics: GraphMetrics, assignment: LayerAssignment) -> tuple[LayerRow, ...]:
@@ -482,50 +477,28 @@ def render_module(page: ModulePage, max_results: int) -> str:
     return "\n".join(lines) + "\n"
 
 
-def manifest_dict(artifact: OnboardingArtifact) -> dict[str, object]:
-    """What the viewer (089) reads: relative paths + the tour order. No wall-clock (R4.2).
-
-    A stop whose page was suppressed carries ``page: null`` — a path to a file this run did not
-    write would be a dead link, and the manifest is also the delete record (050/107).
-    """
-    written = {page.file for page in artifact.pages}
+def manifest_dict(
+    artifact: OnboardingArtifact, dataset: OnboardingDataset
+) -> dict[str, object]:
+    """The one committed machine-readable artifact: the aggregate dataset (task 112) plus this
+    run's operational record — the page paths written (the 050 delete-record) and the doc
+    pointers. Reduced to the dataset: the per-module dump is gone. No wall-clock (R4.2/AC2)."""
     return {
-        "layers": [
-            {
-                "description": row.description,
-                "entry_points": row.entry_points,
-                "fan_in": row.fan_in,
-                "fan_out": row.fan_out,
-                "layer": row.layer,
-                "modules": row.modules,
-                "rank": row.rank,
-            }
-            for row in artifact.layers
-        ],
-        "isolated": list(artifact.isolated),
-        "method": artifact.method,
-        "modules": [
-            {"file": page.file, "layer": page.layer, "page": page.relpath}
-            for page in artifact.pages
-        ],
+        **dataset.as_dict(),
         "overview": OVERVIEW_NAME,
-        "stops": [
-            {
-                "file": stop.file,
-                "page": page_relpath(stop.file) if stop.file in written else None,
-                "rationale": stop.rationale,
-            }
-            for stop in artifact.stops
-        ],
+        "pages": sorted(page.relpath for page in artifact.pages),
         "tour": TOUR_NAME,
         "truncated": artifact.truncated,
         "viewer": VIEWER_NAME,
     }
 
 
-def manifest_json(artifact: OnboardingArtifact) -> str:
+def manifest_json(artifact: OnboardingArtifact, dataset: OnboardingDataset) -> str:
     """Deterministic JSON for ``manifest.json``."""
-    return json.dumps(manifest_dict(artifact), sort_keys=True, ensure_ascii=False, indent=2) + "\n"
+    return (
+        json.dumps(manifest_dict(artifact, dataset), sort_keys=True, ensure_ascii=False, indent=2)
+        + "\n"
+    )
 
 
 def cache_json(artifact: OnboardingArtifact) -> str:

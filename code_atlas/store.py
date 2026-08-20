@@ -564,6 +564,81 @@ class GraphStore:
         )
         return [(str(qname), str(path)) for qname, path in cursor]
 
+    def node_kind_counts(self) -> tuple[tuple[str, int], ...]:
+        """Node totals per ``kind`` — the onboarding dataset's kind census (task 112).
+
+        One GROUP BY pass, bounded by the kind vocabulary (``contract.NODE_KINDS``) not the node
+        count. A NULL kind reads as ``''`` and sorts first; stable ``ORDER BY`` (R4.2).
+        """
+        cursor = self._conn.execute(
+            "SELECT COALESCE(kind, ''), COUNT(*) FROM nodes GROUP BY kind ORDER BY kind"
+        )
+        return tuple((str(kind), int(count)) for kind, count in cursor)
+
+    def edge_kind_counts(self) -> tuple[tuple[str, int], ...]:
+        """Edge totals per ``kind`` (task 112). Bounded by the edge vocabulary; stable (R4.2)."""
+        cursor = self._conn.execute(
+            "SELECT COALESCE(kind, ''), COUNT(*) FROM edges GROUP BY kind ORDER BY kind"
+        )
+        return tuple((str(kind), int(count)) for kind, count in cursor)
+
+    def module_hubs(self, *, limit: int) -> tuple[tuple[str, int, int], ...]:
+        """Top ``limit`` files by module fan-in: ``(file, fan_in, fan_out)`` (task 112).
+
+        Fan-in/out count *distinct other files*, the same module grain ``compute_metrics`` uses, so
+        a hub's fan-in equals its module metric (R6.7 — one definition, not two). Bounded by
+        ``limit``; ties break on ``file_path`` for a byte-stable ranking (R4.2).
+        """
+        if limit < 1:
+            raise ValueError(f"limit must be >= 1, got {limit}")
+        cursor = self._conn.execute(
+            "WITH me AS ("
+            "  SELECT DISTINCT src.file_path AS s, tgt.file_path AS t FROM edges e "
+            "  JOIN nodes src ON src.qualified_name = e.source_qname "
+            "  JOIN nodes tgt ON tgt.qualified_name = e.target_qname "
+            "  WHERE e.target_qname IS NOT NULL AND e.source_qname <> e.target_qname "
+            "    AND src.file_path <> tgt.file_path"
+            "), fin AS (SELECT t AS f, COUNT(*) AS fan_in FROM me GROUP BY t), "
+            "fout AS (SELECT s AS f, COUNT(*) AS fan_out FROM me GROUP BY s) "
+            "SELECT fin.f, fin.fan_in, COALESCE(fout.fan_out, 0) "
+            "FROM fin LEFT JOIN fout ON fout.f = fin.f "
+            "ORDER BY fin.fan_in DESC, fin.f ASC LIMIT ?",
+            (limit,),
+        )
+        return tuple((str(f), int(fi), int(fo)) for f, fi, fo in cursor)
+
+    def largest_classes(self, *, limit: int) -> tuple[tuple[str, str, int], ...]:
+        """Top ``limit`` classes by member count: ``(qualified_name, file, members)`` (task 112).
+
+        Members are ``Method`` nodes sharing the class's file — the mockup's file-grain heuristic
+        (a file with several classes over-counts; refined presentation is 116/117). ``'Class'`` /
+        ``'Method'`` are contract node kinds, not repo names (R2). Bounded by ``limit``; ties break
+        on ``qualified_name`` then ``file`` (R4.2).
+        """
+        if limit < 1:
+            raise ValueError(f"limit must be >= 1, got {limit}")
+        cursor = self._conn.execute(
+            "SELECT c.qualified_name, c.file_path, COUNT(m.id) AS members FROM nodes c "
+            "LEFT JOIN nodes m ON m.file_path = c.file_path AND m.kind = 'Method' "
+            "WHERE c.kind = 'Class' GROUP BY c.id "
+            "ORDER BY members DESC, c.qualified_name ASC, c.file_path ASC LIMIT ?",
+            (limit,),
+        )
+        return tuple((str(q), str(f), int(m)) for q, f, m in cursor)
+
+    def file_symbol_counts(self) -> tuple[tuple[str, int], ...]:
+        """Per-file symbol count ``(file, symbols)`` — the directory-tree substrate (task 112).
+
+        One GROUP BY pass over ``nodes``. O(files), same class as ``file_paths``/``node_universe``:
+        no recursive walk (R4.3). The caller rolls these up by directory and prunes at a symbol
+        threshold, so what the dataset keeps is bounded. Stable ``ORDER BY`` (R4.2).
+        """
+        cursor = self._conn.execute(
+            "SELECT file_path, COUNT(*) FROM nodes WHERE file_path IS NOT NULL "
+            "GROUP BY file_path ORDER BY file_path"
+        )
+        return tuple((str(path), int(count)) for path, count in cursor)
+
     def tour_subgraph(self, *, max_nodes: int) -> TourSubgraph:
         """Budgeted module-grain walk covering every file the budget admits (task 087 / R4.3).
 

@@ -30,6 +30,7 @@ from code_atlas.onboarding.artifact import (
     render_overview,
     render_tour,
 )
+from code_atlas.onboarding.dataset import OnboardingDataset, build_dataset
 from code_atlas.onboarding.layers import LayerRefiner
 from code_atlas.onboarding.summary import StructuralSummarizer, Summarizer
 from code_atlas.onboarding.viewer import render_viewer
@@ -84,6 +85,14 @@ def create(
             nodes = store.node_universe()
             edges = store.dependency_edges()
             subgraph = store.tour_subgraph(max_nodes=config.impact_max_nodes)
+            counts = store.counts()
+            node_kinds = store.node_kind_counts()
+            edge_kinds = store.edge_kind_counts()
+            confidence = store.edge_health()["by_tier"]
+            hubs = store.module_hubs(limit=config.max_results)
+            classes = store.largest_classes(limit=config.max_results)
+            file_syms = store.file_symbol_counts()
+            file_paths = store.file_paths()
         artifact = build_artifact(
             nodes,
             edges,
@@ -97,7 +106,22 @@ def create(
         )
         if artifact is None:
             return _empty(config)
-        written = _write(Path(config.root), artifact, config.max_results)
+        dataset = build_dataset(
+            nodes,
+            edges,
+            files=counts["files"],
+            parsed=counts["parsed"],
+            node_kind_counts=node_kinds,
+            edge_kind_counts=edge_kinds,
+            confidence=confidence,  # type: ignore[arg-type]
+            hubs=hubs,
+            classes=classes,
+            file_symbol_counts=file_syms,
+            file_paths=file_paths,
+            path_index_max=config.path_index_max,
+            layer_refiner=layer_refiner,
+        )
+        written = _write(Path(config.root), artifact, dataset, config.max_results)
         return _payload(config, artifact, written, detail_level)
 
     return generate_onboarding
@@ -156,7 +180,9 @@ def _remove_recorded_pages(out: Path) -> None:
             path.rmdir()
 
 
-def _write(root: Path, artifact: OnboardingArtifact, max_results: int) -> tuple[str, ...]:
+def _write(
+    root: Path, artifact: OnboardingArtifact, dataset: OnboardingDataset, max_results: int
+) -> tuple[str, ...]:
     """Rewrite this tool's own onboarding files and the cache. Paths are POSIX."""
     out = root / OUTPUT_DIR
     _refuse_foreign_tree(out)
@@ -166,7 +192,7 @@ def _write(root: Path, artifact: OnboardingArtifact, max_results: int) -> tuple[
     files = {
         OVERVIEW_NAME: render_overview(artifact),
         TOUR_NAME: render_tour(artifact, max_results),
-        MANIFEST_NAME: manifest_json(artifact),
+        MANIFEST_NAME: manifest_json(artifact, dataset),
         VIEWER_NAME: render_viewer(artifact, max_results),
     }
     for name, text in files.items():

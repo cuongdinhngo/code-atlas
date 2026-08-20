@@ -29,7 +29,7 @@ def core_modules() -> list[Path]:
 
 def test_the_guard_has_something_to_check() -> None:
     # Guards the guard: an empty module list or an empty store would pass every check vacuously.
-    assert len(core_modules()) == 53  # +1: onboarding/steps.py (task 111)
+    assert len(core_modules()) == 54  # +1: onboarding/dataset.py (task 112)
     assert len((CORE / STORE).read_text(encoding="utf-8").splitlines()) > 50
 
 
@@ -53,6 +53,20 @@ def test_exactly_one_core_module_touches_sqlite() -> None:
         if SQL.search(module.read_text(encoding="utf-8"))
     ]
     assert touching == [STORE]
+
+
+def test_onboarding_and_tools_are_sql_free() -> None:
+    """AC1 (task 112): every onboarding aggregate is a ``store.py`` query, so no SQL and no
+    ``sqlite3`` import lives under ``onboarding/`` or ``tools/`` — the prototype's direct reads
+    must never be copied into the core (R1.4)."""
+    scoped = sorted((CORE / "onboarding").rglob("*.py")) + sorted((CORE / "tools").rglob("*.py"))
+    assert scoped, "the scoped sweep found no module — it would pass vacuously"
+    offenders = [
+        module.relative_to(CORE).as_posix()
+        for module in scoped
+        if SQL.search(module.read_text(encoding="utf-8"))
+    ]
+    assert offenders == []
 
 
 def authored_adapter_sources() -> list[Path]:

@@ -85,11 +85,12 @@ def test_generate_onboarding_writes_structured_markdown_in_dependency_order(
     assert tour.count(f"`{A}`") == 1
     assert "cycle of 2 modules" in tour
 
-    stops = [row["file"] for row in manifest["stops"]]
-    assert stops[0] == ROUTES
-    assert set(stops[1:3]) == {A, B}
-    assert stops[-1] == LEAF
-    assert stops == [row["file"] for row in manifest["stops"]]
+    # The manifest is now the aggregate dataset (112) + the operational page-delete record. The
+    # reading order lives in tour.md (asserted above); the manifest no longer dumps per-stop rows.
+    assert manifest["version"] >= 1
+    assert isinstance(manifest["node_counts"], list) and isinstance(manifest["layers"], list)
+    assert manifest["pages"] == sorted(manifest["pages"])
+    assert "modules/" + A + ".md" in manifest["pages"]
 
     for path in (ROUTES, A, B, LEAF):
         page = out / "modules" / Path(path + ".md")
@@ -212,14 +213,12 @@ def test_generate_onboarding_overview_discloses_a_truncated_map(tmp_path: Path) 
 
 def test_recorded_pages_deletes_nothing_it_cannot_prove_it_wrote() -> None:
     """A foreign, tampered or unparseable manifest yields no deletion list."""
-    assert recorded_pages('{"modules": [{"page": "modules/app/A.aa.md"}]}') == (
-        "modules/app/A.aa.md",
-    )
+    assert recorded_pages('{"pages": ["modules/app/A.aa.md"]}') == ("modules/app/A.aa.md",)
     assert recorded_pages("not json") == ()
     assert recorded_pages("[]") == ()
-    assert recorded_pages('{"modules": "nope"}') == ()
+    assert recorded_pages('{"pages": "nope"}') == ()
     for hostile in ("../../etc/passwd", "/etc/passwd", "modules/../../x.md", "notes.md"):
-        assert recorded_pages(json.dumps({"modules": [{"page": hostile}]})) == ()
+        assert recorded_pages(json.dumps({"pages": [hostile]})) == ()
 
 
 def _sparse_repo(tmp_path: Path) -> Path:
@@ -276,13 +275,12 @@ def test_generate_onboarding_suppresses_a_contentless_page_and_counts_it(
 
     assert "- module pages: 2" in overview
     assert "- modules with no page (isolated, no summary): 3" in overview
-    assert manifest["isolated"] == isolated
     assert payload["isolated_modules"] == 3
-    # The reading order keeps every module; only the empty page is gone.
-    stops = {row["file"]: row["page"] for row in manifest["stops"]}
-    assert set(stops) == set(isolated) | {"src/A.aa", "src/B.aa"}
-    assert [stops[path] for path in isolated] == [None, None, None]
-    assert stops["src/A.aa"] == "modules/src/A.aa.md"
+    # The manifest's page record (the 050 delete-list) names only the pages actually written:
+    # the connected pair, never a suppressed isolated module.
+    assert set(manifest["pages"]) == {"modules/src/A.aa.md", "modules/src/B.aa.md"}
+    for path in isolated:
+        assert "modules/" + path + ".md" not in manifest["pages"]
 
 
 def test_generate_onboarding_keeps_a_page_whose_neighbours_the_budget_cut(
@@ -308,6 +306,21 @@ def test_generate_onboarding_composition_is_byte_stable(tmp_path: Path) -> None:
     assert generate_onboarding.create(config)() == first
     assert (_out(tmp_path) / "manifest.json").read_bytes() == manifest
     assert (_out(tmp_path) / "overview.md").read_bytes() == overview
+
+
+def test_generate_onboarding_path_index_cap_trims_and_states_both_numbers(tmp_path: Path) -> None:
+    """AC6 (112): a small path-index cap trims the dataset, which then carries both numbers, and
+    the artifact still passes the 109 quality gate (build_artifact runs it, so a green run proves
+    C5 survives the dataset reduction)."""
+    config = replace(_sparse_repo(tmp_path), path_index_max=2)
+    payload = generate_onboarding.create(config)()
+    assert payload["reason"] == REASON_OK  # the gate did not reject the tree
+    manifest = json.loads((_out(tmp_path) / "manifest.json").read_text(encoding="utf-8"))
+    path_index = manifest["path_index"]
+    assert path_index["truncated"] is True
+    assert path_index["total"] == 5  # three isolated modules + the connected pair
+    assert path_index["shown"] == 2
+    assert len(path_index["entries"]) == 2
 
 
 def test_generate_onboarding_deletes_a_page_that_became_contentless(tmp_path: Path) -> None:

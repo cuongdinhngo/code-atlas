@@ -31,6 +31,7 @@ KNOB_KEYS: tuple[str, ...] = (
     "max_subjects",
     "impact_depth",
     "impact_max_nodes",
+    "path_index_max",
     "entry_points",
     "stub_roots",
     "indirection_rules",
@@ -48,6 +49,9 @@ DEFAULT_MAX_RESULTS = 50
 DEFAULT_MAX_SUBJECTS = 25
 DEFAULT_IMPACT_DEPTH = 2
 DEFAULT_IMPACT_MAX_NODES = 500
+# Path-index ceiling for the onboarding dataset (task 112): the front-coded file list is the one
+# unbounded section, so it is capped and the dataset states both numbers when the cap trims (AC6).
+DEFAULT_PATH_INDEX_MAX = 20000
 MAX_WORKERS = 8
 RESERVED_CPUS = 2
 
@@ -68,6 +72,7 @@ class Config:
     max_subjects: int
     impact_depth: int
     impact_max_nodes: int
+    path_index_max: int
     entry_points: tuple[str, ...] | None
     stub_roots: tuple[str, ...] | None
     indirection_rules: tuple[str, ...] | None
@@ -139,6 +144,9 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
         impact_depth=_resolve("impact_depth", _as_int, DEFAULT_IMPACT_DEPTH, environ, file_values),
         impact_max_nodes=_resolve(
             "impact_max_nodes", _as_int, DEFAULT_IMPACT_MAX_NODES, environ, file_values
+        ),
+        path_index_max=_resolve(
+            "path_index_max", _as_int, DEFAULT_PATH_INDEX_MAX, environ, file_values
         ),
         entry_points=_resolve("entry_points", _as_entry_points, None, environ, file_values),
         stub_roots=_resolve("stub_roots", _as_stub_roots, None, environ, file_values),
