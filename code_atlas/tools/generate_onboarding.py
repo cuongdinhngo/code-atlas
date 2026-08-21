@@ -34,7 +34,7 @@ from code_atlas.onboarding.dataset import OnboardingDataset, build_dataset
 from code_atlas.onboarding.layers import LayerRefiner
 from code_atlas.onboarding.summary import StructuralSummarizer, Summarizer
 from code_atlas.onboarding.viewer import render_viewer
-from code_atlas.store import GraphStore
+from code_atlas.store import LAST_COMMIT_KEY, GraphStore
 from code_atlas.tools.nav_result import (
     REASON_NO_MATCHES,
     REASON_NOT_INDEXED,
@@ -94,6 +94,8 @@ def create(
             file_syms = store.file_symbol_counts()
             file_paths = store.file_paths()
             file_classes = store.file_class_counts()
+            file_kinds = store.file_kind_counts()
+            commit = store.get_meta(LAST_COMMIT_KEY) or ""
         artifact = build_artifact(
             nodes,
             edges,
@@ -131,6 +133,8 @@ def create(
             file_class_counts=file_classes,
             module_max=config.max_results,
             mirror_sample_max=config.max_results,
+            file_kind_counts=file_kinds,
+            commit=commit,
         )
         written = _write(Path(config.root), artifact, dataset, config.max_results)
         return _payload(config, artifact, written, detail_level)
@@ -204,7 +208,7 @@ def _write(
         OVERVIEW_NAME: render_overview(artifact),
         TOUR_NAME: render_tour(artifact, max_results),
         MANIFEST_NAME: manifest_json(artifact, dataset),
-        VIEWER_NAME: render_viewer(artifact, max_results),
+        VIEWER_NAME: render_viewer(dataset, max_results),
     }
     for name, text in files.items():
         (out / name).write_text(text, encoding="utf-8", newline="\n")

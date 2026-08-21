@@ -86,6 +86,8 @@ def test_ac5_renderer_from_dataset_alone() -> None:
         files=12,
         parsed=11,
         method="dominant-subtree",
+        commit="0f1e2d3c4b5a",
+        dir_symbol_threshold=400,
         node_counts=(KindCount("Class", 9),),
         edge_counts=(KindCount("CALLS", 14),),
         confidence=(KindCount("RESOLVED", 14),),
@@ -225,6 +227,22 @@ def test_module_hubs_match_the_module_metric_fan_in(tmp_path: Path) -> None:
     assert dict((f, fi) for f, fi, _ in hubs) == {"app/services/B.aa": 1, "app/services/C.aa": 1}
 
 
+def test_file_kind_counts_group_by_file_and_kind(tmp_path: Path) -> None:
+    """116: the composition bar's substrate — one GROUP BY, bounded by files x kinds (R4.3)."""
+    config = _seeded(tmp_path)
+    with GraphStore(config.db_path) as store:
+        rows = store.file_kind_counts()
+        symbols = dict(store.file_symbol_counts())
+    assert rows == tuple(sorted(rows)), "stable ORDER BY (R4.2)"
+    per_file: dict[str, int] = {}
+    for path, _kind, count in rows:
+        per_file[path] = per_file.get(path, 0) + count
+    # Derived, not listed: the per-kind split must reconcile with the per-file total (R6.7).
+    assert per_file == symbols
+    assert ("app/services/B.aa", "Method", 1) in rows
+    assert ("app/services/B.aa", "Class", 1) in rows
+
+
 def test_largest_classes_and_symbol_counts(tmp_path: Path) -> None:
     config = _seeded(tmp_path)
     with GraphStore(config.db_path) as store:
@@ -244,3 +262,46 @@ def test_bounded_aggregates_reject_a_non_positive_limit(tmp_path: Path) -> None:
                 store.module_hubs(limit=bad)
             with pytest.raises(ValueError):
                 store.largest_classes(limit=bad)
+
+
+# --- 116: the three fields that let the map render from the dataset alone ----------------------
+
+
+def test_the_commit_and_prune_threshold_ride_with_the_dataset() -> None:
+    """116/AC3: the map's stamp and its empty-state sentence must be derived, not passed in."""
+    built = _build(commit="abcdef123456", dir_symbol_threshold=7)
+    assert built.commit == "abcdef123456"
+    assert built.dir_symbol_threshold == 7
+    payload = built.as_dict()
+    assert payload["commit"] == "abcdef123456"
+    assert payload["dir_symbol_threshold"] == 7
+    # Absent repo or no commit yet is a normal state, not a configuration error (gitutil).
+    assert _build().commit == ""
+
+
+def test_each_layer_carries_its_node_kind_composition() -> None:
+    """116: what makes a procedural layer visible as procedural.
+
+    Module grain is file grain, so a layer's composition is the sum over its own files — and a
+    file belonging to no layer contributes to none of them.
+    """
+    built = _build(
+        file_kind_counts=[
+            ("app/services/B.aa", "Class", 1),
+            ("app/services/B.aa", "Method", 6),
+            ("nowhere/Ghost.aa", "Class", 99),
+        ]
+    )
+    by_layer = {row.layer: row for row in built.layers}
+    owner = next(row for row in built.layers if row.kinds)
+    assert [(k.kind, k.count) for k in owner.kinds] == [("Method", 6), ("Class", 1)]
+    total = sum(k.count for row in by_layer.values() for k in row.kinds)
+    assert total == 7, "a file belonging to no layer contributes to none"
+
+
+def test_a_layer_with_no_kind_counts_reports_an_empty_composition() -> None:
+    """No composition data is an empty bar, never a fabricated one."""
+    for row in _build().layers:
+        assert row.kinds == ()
+    for row in _build().as_dict()["layers"]:  # type: ignore[index]
+        assert row["kinds"] == []

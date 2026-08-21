@@ -33,9 +33,10 @@ from code_atlas.onboarding.modules import COVERAGE_NOTE, ModuleMap, find_busines
 from code_atlas.onboarding.reachability import ReachabilitySplit, classify_reachability
 
 # 2: the zero-inbound total became the ``reachability`` split (113). 3: the ``modules``
-# capability table (114). 4: the ``mirrors`` pair table (115). Each is a shape change, so the
-# dataset's own version bumps — this is NOT ``contract_version``; the adapter contract is untouched.
-DATASET_VERSION = 4
+# capability table (114). 4: the ``mirrors`` pair table (115). 5: ``commit``, per-layer ``kinds``
+# and ``dir_symbol_threshold``, so the map renders from the dataset ALONE and states the threshold
+# it was pruned at (116). This is NOT ``contract_version``; the adapter contract is untouched.
+DATASET_VERSION = 5
 # A directory is kept in the tree only when its subtree holds at least this many symbols — the
 # mockup's prune, so a 40k-file repo yields a map of a few dozen rows, not thousands (AC3).
 DIR_SYMBOL_THRESHOLD = 400
@@ -79,6 +80,8 @@ class LayerStat:
     fan_out: int
     entry_points: int
     description: str
+    kinds: tuple[KindCount, ...] = ()
+    """Node kinds declared by this layer's files — what makes a procedural layer visible (116)."""
 
 
 @dataclass(frozen=True)
@@ -143,6 +146,8 @@ class OnboardingDataset:
     files: int
     parsed: int
     method: str
+    commit: str
+    dir_symbol_threshold: int
     node_counts: tuple[KindCount, ...]
     edge_counts: tuple[KindCount, ...]
     confidence: tuple[KindCount, ...]
@@ -163,7 +168,9 @@ class OnboardingDataset:
                 {"file": c.file, "layer": c.layer, "members": c.members, "name": c.name}
                 for c in self.classes
             ],
+            "commit": self.commit,
             "confidence": [{"count": k.count, "tier": k.kind} for k in self.confidence],
+            "dir_symbol_threshold": self.dir_symbol_threshold,
             "edge_counts": [{"count": k.count, "kind": k.kind} for k in self.edge_counts],
             "files": self.files,
             "hubs": [
@@ -176,6 +183,7 @@ class OnboardingDataset:
                     "entry_points": ly.entry_points,
                     "fan_in": ly.fan_in,
                     "fan_out": ly.fan_out,
+                    "kinds": [{"count": k.count, "kind": k.kind} for k in ly.kinds],
                     "layer": ly.layer,
                     "modules": ly.modules,
                     "rank": ly.rank,
@@ -206,8 +214,17 @@ class OnboardingDataset:
         }
 
 
-def _layer_stats(metrics: GraphMetrics, assignment: LayerAssignment) -> tuple[LayerStat, ...]:
-    """The layer table in dependency order — the overview's ``_layer_rows``, at dataset grain."""
+def _layer_stats(
+    metrics: GraphMetrics,
+    assignment: LayerAssignment,
+    file_kind_counts: Sequence[tuple[str, str, int]] = (),
+) -> tuple[LayerStat, ...]:
+    """The layer table in dependency order, plus each layer's node-kind composition (task 116).
+
+    Module grain **is** file grain (``metrics.py``), so a layer's composition is the sum of the kind
+    counts of the files assigned to it. Kinds are sorted by descending count then name, so the bar
+    is stable and its dominant segment reads first (R4.2).
+    """
     by_key = {metric.key: metric for metric in metrics.modules}
     entries = set(metrics.module_entry_points)
     rank: dict[str, int] = {}
@@ -220,6 +237,12 @@ def _layer_stats(metrics: GraphMetrics, assignment: LayerAssignment) -> tuple[La
         tally[1] += metric.fan_in
         tally[2] += metric.fan_out
         tally[3] += 1 if module.module in entries else 0
+    kinds: dict[str, Counter[str]] = {}
+    layer_of = {module.module: module.layer for module in assignment.modules}
+    for path, kind, count in file_kind_counts:
+        layer = layer_of.get(path)
+        if layer is not None:
+            kinds.setdefault(layer, Counter())[kind] += count
     return tuple(
         LayerStat(
             layer=layer,
@@ -229,6 +252,12 @@ def _layer_stats(metrics: GraphMetrics, assignment: LayerAssignment) -> tuple[La
             fan_out=tallies[layer][2],
             entry_points=tallies[layer][3],
             description=layer_description(layer),
+            kinds=tuple(
+                KindCount(kind, count)
+                for kind, count in sorted(
+                    kinds.get(layer, Counter()).items(), key=lambda item: (-item[1], item[0])
+                )
+            ),
         )
         for layer in assignment.layers
     )
@@ -308,6 +337,8 @@ def build_dataset(
     file_class_counts: Sequence[tuple[str, int]] = (),
     module_max: int = 0,
     mirror_sample_max: int = 0,
+    file_kind_counts: Sequence[tuple[str, str, int]] = (),
+    commit: str = "",
 ) -> OnboardingDataset:
     """Assemble the aggregate dataset from bounded ``store.py`` rows (see module docstring).
 
@@ -325,10 +356,12 @@ def build_dataset(
         files=files,
         parsed=parsed,
         method=assignment.method,
+        commit=commit,
+        dir_symbol_threshold=dir_symbol_threshold,
         node_counts=tuple(KindCount(kind, count) for kind, count in node_kind_counts),
         edge_counts=tuple(KindCount(kind, count) for kind, count in edge_kind_counts),
         confidence=tuple(KindCount(tier, confidence[tier]) for tier in sorted(confidence)),
-        layers=_layer_stats(metrics, assignment),
+        layers=_layer_stats(metrics, assignment, file_kind_counts),
         matrix=tuple(MatrixEdge(e.source, e.target, e.count) for e in matrix),
         hubs=tuple(Hub(f, layer_of.get(f, ""), fi, fo) for f, fi, fo in hubs),
         classes=tuple(

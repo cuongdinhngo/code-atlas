@@ -28,7 +28,7 @@ if str(_REPO) not in sys.path:
     sys.path.insert(0, str(_REPO))
 
 from code_atlas.onboarding.dataset import build_dataset, dataset_json  # noqa: E402
-from code_atlas.store import GraphStore  # noqa: E402
+from code_atlas.store import LAST_COMMIT_KEY, GraphStore  # noqa: E402
 from scripts.cross_repo_validate import (  # noqa: E402
     checkout_pinned,
     index_root,
@@ -56,6 +56,8 @@ def _dataset(store: GraphStore, *, path_index_max: int):
         file_symbol_counts=store.file_symbol_counts(),
         file_paths=store.file_paths(),
         path_index_max=path_index_max,
+        file_kind_counts=store.file_kind_counts(),
+        commit=store.get_meta(LAST_COMMIT_KEY) or "",
     )
 
 
@@ -68,6 +70,7 @@ def _timings(store: GraphStore) -> tuple[float, float]:
     store.module_hubs(limit=_MAX_RESULTS)
     store.largest_classes(limit=_MAX_RESULTS)
     store.file_symbol_counts()
+    store.file_kind_counts()
     store.file_paths()
     aggregate = time.perf_counter() - start
     start = time.perf_counter()

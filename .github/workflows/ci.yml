@@ -50,6 +50,12 @@ jobs:
         with:
           php-version: "8.3"
 
+      # A test dependency only: the onboarding map renders client-side, so task 116's AC4/AC5/AC6
+      # are proven by running the page under `tests/viewer_dom_stub.js`, not by grepping the HTML.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - uses: actions/cache@v4
         with:
           path: adapters/php/vendor

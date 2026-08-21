@@ -638,6 +638,19 @@ class GraphStore:
         )
         return tuple((str(path), int(count)) for path, count in cursor)
 
+    def file_kind_counts(self) -> tuple[tuple[str, str, int], ...]:
+        """Per-file, per-kind counts ``(file, kind, count)`` — the layer composition bar (task 116).
+
+        One GROUP BY pass; rows bounded by files x ``contract.NODE_KINDS``, not by node count
+        (R4.3). A NULL kind reads as ``''``. Stable ``ORDER BY`` (R4.2).
+        """
+        cursor = self._conn.execute(
+            "SELECT file_path, COALESCE(kind, ''), COUNT(*) FROM nodes "
+            "WHERE file_path IS NOT NULL GROUP BY file_path, kind "
+            "ORDER BY file_path, kind"
+        )
+        return tuple((str(path), str(kind), int(count)) for path, kind, count in cursor)
+
     def file_symbol_counts(self) -> tuple[tuple[str, int], ...]:
         """Per-file symbol count ``(file, symbols)`` — the directory-tree substrate (task 112).
 

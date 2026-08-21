@@ -1,5 +1,40 @@
 # Lessons — code-atlas
 
+## 116 — A ticket's headline measurement can be stale because an earlier ticket in the same wave fixed it
+116 opens on a **31,057,609-byte** page. Rendering the same viewer against an anchor-scale artifact
+measured **921,746 B** — task 108, three tickets earlier in the same wave, had already capped the
+module-page neighbour lists and removed ~97 % of it. Nothing was wrong with the ticket when it was
+written; the wave it belongs to had simply moved underneath it. **Fix:** re-measure a ticket's headline
+number before choosing the proving test from it, because the *reason* a ticket exists and the *evidence*
+it cites can decay separately. Here the second sentence — "a data dump, not a map" — was untouched and
+was the whole defect, so the deliverable did not change but the red did: from a size assertion to the
+structural absence of every spatial aggregate in the payload. Generalises: when tickets in a wave
+overlap, treat each one's opening measurement as a claim with a date on it.
+
+## 116b — "No literal numbers" cannot mean "every displayed figure moves"
+AC4 asked for a test that mutates the dataset and checks every displayed figure moved. Written
+literally, it fails on correct code: the layer count, the node-kind count, the bucket count and the
+prune threshold are all read from the dataset yet are **scale-invariant**, and a percentage is a ratio,
+so scaling every count leaves them exactly where they were. Weakening the assertion to "most figures
+moved" would have made it unfalsifiable. **Fix:** split it where the semantics actually split — a
+**static** half that strips style and script and asserts no digit survives in the template's visible
+text (which is what "literal number in the template" means for markup), and a **behavioural** half
+scoped to figures of four digits or more, where the scoping is not a hedge but the thing that makes it
+exact: at four digits a figure *is* a count, so it must move. The same reading is what deleted the
+prototype's numbered section badges — they were literal numbers that would have survived any mutation
+and forced the assertion to go fuzzy.
+
+## 116c — A fixture that exercises a threshold must sit on the realistic side of it
+Two size measurements on the same page disagreed by 2x, and both were "correct". The hand measurement
+used 12 symbols per file; the test fixture used 199, which put **every** directory over
+`DIR_SYMBOL_THRESHOLD` and grew the directory tree from 167 rows to ~5,399. A second fixture built
+paths that named no responsibility, so layer assignment fell through to structural grouping and
+produced **102 layers and a 10,404-cell matrix** — no real repo's shape, and it left the size budget
+passing by **1,490 bytes**. **Fix:** derive the fixture's shape from a measured repo, not from
+round numbers, and keep exactly one definition of it — the test now imports the generator from the
+committed report script, so the number asserted is the number the script prints. A pass by luck and a
+pass by construction look identical in the output.
+
 ## 115 — Explaining an R2-tainted prototype in a comment reintroduces the taint the code avoided
 Two tickets running, the R2.2 grep-gate has fired on my own prose rather than on code. In 114 a
 docstring named a pinned public repo to explain a measurement; in 115 the module docstring explained the

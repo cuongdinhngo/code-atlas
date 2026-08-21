@@ -6,8 +6,12 @@ FROM python:3.12-slim-bookworm
 # PHP CLI + the extensions nikic/php-parser and composer need; git/unzip/curl for composer itself.
 # Debian bookworm ships PHP 8.2 (composer.json requires >=8.1); CI uses 8.3 — the pinned parser
 # build in composer.lock, not the runtime minor, is what keeps parses deterministic (R4.2).
+# `nodejs` is a TEST dependency, not a runtime one: the onboarding map builds its content in the
+# browser, so task 116's AC4/AC5/AC6 are only provable by running the page under
+# tests/viewer_dom_stub.js — grepping the HTML would see zero rendered figures.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         php-cli php-mbstring php-xml \
+        nodejs \
         git unzip curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 

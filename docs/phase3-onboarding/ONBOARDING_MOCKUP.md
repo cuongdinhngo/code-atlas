@@ -20,7 +20,7 @@ plus a tour file, a manifest, and a viewer. On the anchor repo that is:
 | `overview.md` | 2,683 | the only part anyone can use |
 | `tour.md` | 6,312,632 | 500 lines of `path — reached from path` |
 | `manifest.json` | 6,507,331 | machine-only, and no machine reads it |
-| `index.html` | 31,057,609 | a paginated data dump, not a map |
+| `index.html` | 31,057,609 | a paginated data dump, not a map — **116 replaced it with the map; note that 108 had already cut this to ~0.9 MB by capping the page bodies, so the size half of the complaint was mostly spent before 116 started, and the "dump, not a map" half was all of it** |
 | 500 module pages | 24,643,326 | see below |
 | **total** | **≈ 43 MB** | |
 
@@ -179,11 +179,22 @@ Two items are flagged rather than assumed, because they touch **R2.2 (standard o
   reviewer's own scenario — the screen they named has no module directory.
 - **Prose is hand-written** (§4) and will differ once the LLM produces it.
 - **Search embeds every path**, which is what takes the file from ~50 KB to 891 KB. Acceptable against
-  43 MB, but it is a real cost and the cap should be a knob.
+  43 MB, but it is a real cost and the cap should be a knob. **116 measured it exactly**: the path
+  index is 96.9 % of the anchor's whole dataset (843,439 of 870,878 bytes), the shipped map is
+  969 KB with it and 109 KB without, and the knob is `CA_PATH_INDEX_MAX` — which the page reads, so
+  a capped index makes search state its own incompleteness rather than reporting a silent miss.
 - **No per-symbol detail.** The map stops at file grain deliberately; symbol-level questions are what
   the MCP tools are for.
 - **Not measured on a second repo.** Every number here is one monorepo. Layer vocabulary and mirror
   detection especially need a second and third shape before they are called general.
+- **The pinned public repos cannot test the size budget** (found in 116). At 26–51 files each they
+  sit two orders of magnitude under both thresholds, so a green run there proves nothing about them;
+  the budget is asserted against a synthetic dataset at the anchor's *measured* cardinality instead.
+  Two of the three also map **zero** directories at `DIR_SYMBOL_THRESHOLD`, so the sitemap is empty
+  on a small repo — which is why the map names the threshold rather than drawing a blank box.
+- **The map's size follows the directory tree's cardinality** (found in 116), which the symbol
+  threshold bounds only for a repo of ordinary symbol density. A dense repo keeps more directories
+  and a bigger page; `scripts/viewer_report.py` prints the mapped-directory count for that reason.
 
 ---
 
@@ -202,7 +213,7 @@ is the reshape; Wave 3 is enrichment and the new viewer.
 | 2 | 113 | [Zero-inbound is four populations, not one number](../tasks/113_reachability-split.md) | **done** — retracts the "45 % entry points" claim; five buckets from 110's ratified vocabulary + structure | 083, 112 |
 | 3 | 114 | [Business modules from directory structure](../tasks/114_business-module-table.md) | **done** — the bridge from "fix screen X" to a file; container level derived, coverage stated | 112 |
 | 3 | 115 | [Mirror-subtree detection — evidence for 098](../tasks/115_mirror-subtree-detection.md) | **done** — the trap as a lookup; its measured absence on 3 public repos keeps 098 deferred | 112 (feeds 098) |
-| 3 | 116 | [Dashboard viewer: sitemap, matrix, search](../tasks/116_dashboard-viewer.md) | replaces the 31 MB dump with the reviewed map | 112, 114, 115 |
+| 3 | 116 | [Dashboard viewer: sitemap, matrix, search](../tasks/116_dashboard-viewer.md) | **done** — the map itself, rendered from the 112 dataset alone; `DATASET_VERSION` 5 | 112, 114, 115 |
 | 3 | 117 | [LLM prose for layer descriptions and tour steps](../tasks/117_llm-prose-for-map.md) | the §4 prose half, through the existing seams | 110, 111, 090, 091 |
 
 **Not in scope, deliberately:** run-the-app / environment / deployment documentation (§2); symbol-grain
