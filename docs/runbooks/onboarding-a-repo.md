@@ -101,7 +101,7 @@ Put them in a committed-or-not `.code-atlas.toml` at the repo root (see
 | `workers` | Leave CPUs for the writer. More than ~6 does not help (§2 above). |
 | `adapter_timeout` | Legacy page scripts run to thousands of lines; the 30 s default is tight when workers compete. 60 s is safer. |
 | `max_results` | **Also caps resolver fan-out.** See below — this is the disk knob. It does **not** size `parse_failure_paths` on `verbose` status (fixed page of 50 + `offset`). |
-| `entry_points` | Without it `reachable_from` / `find_orphans` return `no_roots_configured` and do nothing. |
+| `entry_points` | Without it `reachable_from` / `find_orphans` return `no_roots_configured` and do nothing. A **stale** root is worse than none: declare only what a request can actually reach (§9). |
 
 ### `max_results` is doing two jobs
 
@@ -310,6 +310,28 @@ autoloaded classes produce no `INCLUDES` edges (see the PSR-4 follow-up in
 [`BACKLOG.md`](../BACKLOG.md)). A repo with a large `require`-based legacy area still gets real value —
 4,640 resolved `INCLUDES` edges on the sample repo, all from the legacy side.
 
+## 9. Generate the onboarding map — and check what your own declarations did to it
+
+Indexing gives an agent its tools; `generate_onboarding` gives a **human** the map. On the same
+~19k-file monorepo it takes **17 s** over the existing index and writes `docs/onboarding/`: a
+**950 KB** self-contained `index.html` (offline, theme-aware), `overview.md`, `tour.md`, and 500
+module pages at a **median 2,943 B**. Regenerating rewrites only the pages its own last
+`manifest.json` recorded, so a hand-authored file in that tree survives.
+
+Read the **Zero-inbound modules, by population** block first, and read it against your own config:
+
+- `entry_points` is the highest-trust signal precisely because you wrote it — which means a stale glob
+  quietly manufactures a whole population. On the anchor, `legacy/*/web/*.php` matched 1,087 files
+  and parked **560** of them in *Web entry points*, while its nginx had rooted at `public/` only for
+  two task cycles. Nothing in the output could reveal that (**119** exists to fix the disclosure), and
+  the side effect is worse than a wrong label: **a declared root can never be an orphan**, so every
+  unreferenced legacy page was self-justifying to `find_orphans`.
+- Verify the declaration against the **deployment**, not the directory tree: the web server's document
+  root and its `location` blocks decide what a request can address. Correcting that one glob moved the
+  bucket **901 → 341**, with 494 files landing in *not statically reachable* and 66 in *no edge either
+  way* — the second list being the only one worth reading as deletion candidates.
+- Expect `Summary: (none)` on every module page today; that is **118**, not your repo.
+
 ## Checklist
 
 - [ ] Grammar version covers the repo's PHP target; Docker avoided if a host CLI exists
@@ -320,3 +342,5 @@ autoloaded classes produce no `INCLUDES` edges (see the PSR-4 follow-up in
 - [ ] Tracked-vs-indexed file counts diffed; `.gitignore` negations checked
 - [ ] MCP server registered at local scope with a `cd` wrapper; shared `.mcp.json` untouched
 - [ ] Every tool called once; latencies and empty-result reasons understood
+- [ ] `generate_onboarding` run once; the map opened and read as a newcomer would
+- [ ] Every `entry_points` glob checked against the deployment, not the tree

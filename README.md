@@ -51,6 +51,11 @@ MCP client ──stdio──▶ core (Python / FastMCP) ──JSONL contract─�
 The core is language-agnostic (no per-language branches). Adapters parse files and emit a common
 `{nodes, edges}` vocabulary; the core stores them, resolves cross-file edges, and exposes MCP tools.
 
+On top of that graph sits the **onboarding layer**: deterministic enrichment (metrics → responsibility
+layers → dataset) feeding three tools and one committable **system map**. The LLM is optional, writes
+prose only, and lives outside the core in `onboarding_llm/` — with it switched off the map still renders
+complete.
+
 ## Install
 
 You need **Python ≥ 3.12**, and — to index PHP (the only adapter so far) — a **PHP CLI ≥ 8.1** and
@@ -428,9 +433,12 @@ the new code (Docker's layer cache keeps dependency installs warm). See [`docker
 
 - **Phase 1 — Core + PHP:** full build → resolver → **search/read/outline (first daily release)** →
   scale → incremental → impact.
-- **Phase 2 — More languages:** TS/JS (hardens the contract), then Python, then C#/.NET.
-- **Phase 3 — Onboarding:** an Understand-Anything-style layer on top of the graph (architecture
-  overview, guided tour, generated onboarding docs).
+- **Phase 3 — Onboarding: shipped** (ahead of language breadth — depth before breadth). `architecture_overview`,
+  `guided_tour` and `generate_onboarding` emit a committable **system map** under `docs/onboarding/`:
+  responsibility layers, dependency matrix, hubs, a business-module table, mirror-subtree lookup, a
+  bounded tour, and the zero-inbound population split. Deterministic by default; LLM prose is opt-in.
+- **Phase 2 — More languages: deferred, not cancelled.** TS/JS (hardens the contract), then Python,
+  then C#/.NET — order unchanged; it waits until the PHP agent-loop is complete.
 
 ## Design principles
 

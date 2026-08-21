@@ -70,8 +70,11 @@ adapter contract. Everywhere else, prefer the simplest thing that works.
 
 ## 4. Determinism & purity of the core
 
-- **R4.1 — No LLM or network calls in the core.** Ever. LLM enrichment lives only in the Phase-2
-  onboarding layer, cleanly separated: *deterministic graph → LLM enrichment → presentation.*
+- **R4.1 — No LLM or network calls in the core.** Ever. LLM enrichment lives only in the Phase-3
+  onboarding layer, cleanly separated: *deterministic graph → LLM enrichment → presentation.* In practice
+  that means **outside `code_atlas/`**: the three implementers (090 summarizer, 091 layer refiner, 117
+  prose writer) live in `onboarding_llm/`, are injected through Protocol seams, and are off by default.
+  *CI grep-gates this* — no prompt text, model id or LLM import may appear under `code_atlas/` (task 117).
 - **R4.2 — Identical input → identical output.** Same repo state produces identical rows. No wall-clock,
   randomness, or set-ordering leaking into stored data. Incremental update for a state must equal a full
   rebuild of that state.
@@ -136,8 +139,9 @@ adapter contract. Everywhere else, prefer the simplest thing that works.
   static-vs-instance call, syntax error) — independent of any real repo.
 - **R6.3 — Cross-repo validation** proves "works on any repo": several varied repos index without crashes
   and with sane counts. No single repo defines "correct".
-- **R6.4 — Guardrail tests are real tests.** The grep-gates (no language branches in core; no
-  repo/framework names in adapters) run in CI and fail the build.
+- **R6.4 — Guardrail tests are real tests.** The three grep-gates (R1.1 no language branches in core;
+  R2.2 no repo/framework names in adapters or core; R4.1 no prompt/model id/LLM import in core) run in
+  CI and fail the build.
 - **R6.5 — A guardrail sweep covers *authored* source only, and is guarded against emptying itself.**
   Every grep-gate or file sweep excludes vendored trees (`vendor/`, `node_modules/`) — a dependency's
   own documentation is not this repo's source, and greps a framework name inside one. The exclusion

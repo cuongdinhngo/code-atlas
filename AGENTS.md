@@ -28,13 +28,20 @@ Validate with `/mango:doctor`. Run a ticket with `/mango:solve <KEY>`.
 A local-first **MCP server** that indexes a codebase into **SQLite** and exposes fast, name-resolved,
 token-efficient **search / read / navigation / impact** tools. **Language-agnostic core + per-language
 adapters**, joined by one versioned **JSON contract**. Roll-out order: **PHP → TypeScript/JavaScript →
-Python → C#/.NET**. An Understand-Anything-style onboarding layer is Phase 2.
+Python → C#/.NET**. An Understand-Anything-style onboarding
+layer is **Phase 3, and it has shipped** (M10-M12) — it emits a committable system map from the same
+graph, deterministic by default with LLM prose opt-in and out of the core.
 
 ```
 MCP client ──stdio──▶ core (Python/FastMCP) ──JSONL contract──▶ language adapter (PHP: nikic/php-parser)
                           │
                           ▼
                    SQLite .code-atlas/graph.db   (nodes · edges · files · fts5 · meta, WAL, incremental)
+                          │
+                          ▼
+          onboarding enrichment (deterministic) ──▶ tools · markdown · system map
+                          ╎ three Protocol seams, off by default
+                          └╌╌▶ onboarding_llm/  (opt-in LLM prose — OUTSIDE the core)
 ```
 
 ## Non-negotiable rules (summary — authoritative detail in ENGINEERING_RULES.md)
@@ -43,7 +50,9 @@ MCP client ──stdio──▶ core (Python/FastMCP) ──JSONL contract──
 - **SRP boundaries** — adapters parse only; `store.py` owns SQLite; the two never import each other (R1.4).
 - **Standard over sample** — adapters encode the language spec/PSRs, never a repo's names or framework; samples drive tests/perf only (R2, CI-gated).
 - **Contract is frozen & versioned** — change vocabulary/qname ⇒ bump `contract_version` + update conformance tests; `contract.py` is the single source of truth (R3).
-- **Deterministic core** — no LLM/network in the core (that's Phase-2 onboarding only); identical input → identical rows (R4).
+- **Deterministic core** — no LLM/network in the core; the onboarding LLM lives in `onboarding_llm/`,
+  outside `code_atlas/`, injected through Protocol seams and off by default (R4/R4.1, CI-gated).
+  Identical input → identical rows (R4.2).
 - **Do NOT use the Claude Code Memory feature** for this project — decisions live in the plan (§19) and the repo.
 - **Commits** — no `Co-Authored-By` / AI-attribution trailer.
 - **Comments** — keep every code comment to **≤ 3 lines**; if it needs more, the code or a doc should carry it instead.
@@ -53,9 +62,12 @@ MCP client ──stdio──▶ core (Python/FastMCP) ──JSONL contract──
 
 ## Where things live
 - Core: `code_atlas/` (`main.py` FastMCP, `config.py`, `contract.py`, `adapter.py`, `store.py`, `indexer.py`, `resolver.py`, `tools/`).
+- Onboarding: `code_atlas/onboarding/` (deterministic enrichment — metrics, layers, dataset, artifact,
+  viewer, tour, mirrors, reachability, headlines, quality gate) + `onboarding_llm/` (the opt-in LLM
+  implementers, kept outside the core by R4.1).
 - Adapters: `adapters/<lang>/`, each self-contained and launched via `CA_<LANG>_CMD` (PHP first).
 - Tests: `tests/contract/` — the conformance suite every adapter must pass. Full layout + naming in CONVENTION.md.
-- Tooling: `.harness.json` (mango lifecycle config), `.github/workflows/ci.yml` (ruff · mypy · pytest + R1.1/R2.2 grep-gates), `.github/pull_request_template.md`.
+- Tooling: `.harness.json` (mango lifecycle config), `.github/workflows/ci.yml` (ruff · mypy · pytest + R1.1/R2.2/R4.1 grep-gates), `.github/pull_request_template.md`.
 - Docker: `docker/Dockerfile` (test image), `docker/Dockerfile.runtime` (ship the server), `docker/compose.yaml`, `scripts/docker-test.sh`.
 
 ## Running the full test suite — use Docker, never report it as unrunnable
@@ -66,7 +78,8 @@ subprocess tests can't launch. **This is a platform limitation, not a regression
 "the suite can't run" and do not ask how to run it. Run it in Docker:
 
 - `scripts/docker-test.sh` — builds `docker/Dockerfile` (Linux + PHP adapter) and runs the CI gate
-  `ruff · mypy · pytest -q`. Expect **~1049 passed, 0 skipped**. Scope it by passing a command, e.g.
+  `ruff · mypy · pytest -q`. Expect **~1679 passed, 0 skipped** (measured 2026-08-21; a POSIX host
+  with `php` on PATH runs the same suite bare, so a Linux dev box needs no container). Scope it by passing a command, e.g.
   `scripts/docker-test.sh pytest -q -k php`.
 - Prove **delta-green here** before a PR. A bare-`pytest` red on Windows is the known platform
   exclusion above — confirm green via Docker, then say so; don't leave it as "unverified".
@@ -86,4 +99,8 @@ subprocess tests can't launch. **This is a platform limitation, not a regression
   interject, but proceed on the standing approval rather than waiting.
 
 ## Ship discipline (plan §15)
-M0 spike → M1 full build → M2 resolver+contract tests → **M3 search/read/outline = first daily release (task 014)** → M4 scale → M5 incremental → M6 impact. Then adapters #2–#4, then onboarding.
+M0 spike → M1 full build → M2 resolver+contract tests → **M3 search/read/outline = first daily release (task 014)** → M4 scale → M5 incremental → M6 impact.
+**Phase 3 onboarding shipped ahead of language breadth:** M10 (`architecture_overview` + layers) · M11
+(`guided_tour`, `generate_onboarding`, the navigable system map) · M12 (opt-in LLM prose behind three
+seams, out of the core) are **all complete** — 17 tools on the surface. Adapters #2–#4 stay **deferred**
+(§19 pivot: depth before breadth).

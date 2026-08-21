@@ -24,8 +24,16 @@ code-atlas/
 │   ├── indexer.py                    # full_build / incremental_update
 │   ├── enrichment.py                 # optional CA_INDIRECTION_RULES → HEURISTIC edges (task 040)
 │   ├── resolver.py                   # phase-2 edge linking (generic, no language branches)
-│   ├── gitutil.py  ignore.py
+│   ├── gitutil.py  ignore.py  index_lock.py  tokens.py
+│   ├── onboarding/                   # Phase-3 enrichment: metrics, layers, dataset, artifact, viewer,
+│   │                                 # tour/steps, modules, mirrors, reachability, headlines,
+│   │                                 # prose + summary seams, quality_gate — deterministic, no LLM
+│   ├── hooks/                        # opt-in editor/checkout hooks (036, 053)
 │   └── tools/                        # one module per MCP tool
+├── onboarding_llm/                   # the LLM implementers, OUTSIDE the core by R4.1 (CI grep-gated):
+│                                     # summarizer (090), layer_refiner (091), prose (117) + cache/client
+├── scripts/                          # operator reports & benchmarks (never imported by the server)
+├── docker/                           # test image, runtime image, compose
 ├── adapters/
 │   ├── php/                          # self-contained: composer.json, index.php, src/{Parser,Visitor}.php
 │   ├── typescript/ python/ csharp/   # added in order; each self-contained
@@ -35,7 +43,9 @@ code-atlas/
 │   └── test_*.py
 └── docs/
     ├── PLAN.md                        # authoritative design
-    ├── ENGINEERING_RULES.md  CONVENTION.md  BACKLOG.md
+    ├── ENGINEERING_RULES.md  CONVENTION.md  BACKLOG.md  AGENT_BRIEF.md  LESSONS.md  FEEDBACK.md
+    ├── phase3-onboarding/             # the onboarding roadmap + the reviewed mockup it was built from
+    ├── benchmarks/                    # recorded measurement runs
     ├── runbooks/                     # operator protocols (onboarding, recognition probe, field retro)
     └── tasks/NNN_slug.md             # one file per task
 ```

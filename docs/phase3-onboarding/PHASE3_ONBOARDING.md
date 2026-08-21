@@ -1,9 +1,13 @@
 # Phase 3 — Onboarding: roadmap & brainstorm
 
-> **Status:** ratified 2026-08-12 — folded into [`PLAN.md`](../PLAN.md) §14/§15 and registered in
-> [`BACKLOG.md`](../BACKLOG.md) (tasks **083–091**, superseding the old placeholders 022/023). Milestone
-> **M12** (LLM enrichment) is now named in PLAN §15 alongside M10/M11. This doc stays the detailed
-> source of truth; the M11/M12 decision points below remain open until each ticket runs through mango.
+> **Status: delivered.** Ratified 2026-08-12, folded into [`PLAN.md`](../PLAN.md) §14/§15 and registered
+> in [`BACKLOG.md`](../BACKLOG.md) (tasks **083–091**, superseding the old placeholders 022/023).
+> **M10, M11 and M12 are all complete**, and the roadmap below is now a record of what was decided
+> rather than a set of open questions — every M11/M12 decision point is resolved in place. The plan was
+> also **reshaped mid-flight** by tasks **108–117** after a human read the emitted artifact: the page
+> dump became one navigable system map (see [`ONBOARDING_MOCKUP.md`](ONBOARDING_MOCKUP.md)). Two quality
+> defects found by field measurement on 2026-08-21 are open as **118** (module summaries are starved at
+> the seam) and **119** (the reachability split hides which signal produced each count).
 > **Companion:** [`phase3-roadmap.html`](phase3-roadmap.html) — the same roadmap as a visual
 > brainstorming surface (open in a browser). This markdown is the version-controllable source of truth
 > and additionally records the architecture-vs-rules placement.
@@ -108,15 +112,28 @@ path is proven and measured.
 | 091 | LLM layer refinement — better layer names where namespaces are uninformative (optional). **Shipped:** `LLMLayerRefiner` behind a new 091 `LayerRefiner` seam in `layers.py`, injected via `code-atlas-llm` (opt-in `CA_ONBOARDING_LAYER_REFINER`); renames only the weak dependency-direction bands (module *boundaries* left to a follow-up); own content-hash cache; the core imports no LLM. |
 | 117 | LLM prose for the map — layer descriptions, tour-step narratives and the wording of the headline facts. **Shipped:** one `ProseWriter` seam (`code_atlas/onboarding/prose.py`) with one method for all three slots, `LLMProseWriter` behind it in `onboarding_llm/` (opt-in `CA_ONBOARDING_PROSE`); headline *candidates* derived in `onboarding/headlines.py` so enrichment words the map and never changes it; filler refused by 109's C1, a failure degrades to the structural sentence, and spend is capped per slot at 33 calls a build. `DATASET_VERSION` 6. |
 
-**Decision points — open (brainstorm before M12):**
-- **Provider / model** — recommend **Claude**: a mid tier for per-module summaries, a top tier only for
-  the layer-refinement pass. Confirmed against the API reference at implementation time.
-- **Determinism & cost** — cache keyed on symbol content-hash, committable, so CI/replay stay
-  deterministic; budget the pass; it runs on demand, never per-PR.
-- **Seam shape** — in-process Protocol first (YAGNI); escalate to a subprocess sidecar (like the
-  adapters) only if isolation demands it.
+**Decision points — all resolved as built:**
+- **Provider / model — Claude, one tier.** `claude-sonnet-5` is the default for every slot
+  (`CA_ONBOARDING_LLM_MODEL` / `_LAYER_MODEL` / `_PROSE_MODEL` override per seam). The "top tier for the
+  layer pass" half of the recommendation was dropped with the pass itself: 117 measured that 091's
+  rename seam fires on nothing once 110 names layers by responsibility.
+- **Determinism & cost — as proposed, and bounded by construction.** Content-hash caches per seam,
+  committable, sorted-key JSON, no timestamps; on demand, never in the per-PR gate; the ceiling is
+  derived (6 headline families + 12 layers + 15 tour steps = **33 calls a build**) and enforced per slot.
+- **Seam shape — in-process Protocol, no sidecar.** Three seams, each with a deterministic in-core
+  default and one implementer in `onboarding_llm/`; the core imports no LLM (CI grep-gate R4.1).
 
 ## 5. How we'll know it earned its cost
+
+> **Unmet, and saying so is the point.** This section specified the gate — an **onboarding
+> question-class** in the tokens-to-answer harness (034/045) plus the recall gate (055), baselined
+> against `grep`+`Read` — and **it was never added**: `scripts/tokens_to_answer_questions.json` holds no
+> onboarding question today. M10–M12 shipped on a different kind of evidence: a human read the emitted
+> artifact and found nine specific defects, which became 108–117, and field measurement on the anchor
+> found two more (118 · 119). That is real evidence of *defects fixed*; it is not evidence that the
+> phase **beat hand-mapping on tokens**, which is what this section promised to measure. Tracked as
+> **121** — and per the §19 discipline, the honest reading until it runs is that the onboarding
+> question-class is **unmeasured**, not won.
 
 Gate the phase on the harness, not on vibes. Add an **onboarding question-class** to the
 tokens-to-answer harness (034/045) and the recall gate (055). Baseline = `grep`+`Read` with an agent
