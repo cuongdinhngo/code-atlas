@@ -12,6 +12,7 @@ from fastmcp import FastMCP
 
 from code_atlas.config import Config, ConfigError, load_config
 from code_atlas.onboarding.layers import LayerRefiner
+from code_atlas.onboarding.prose import ProseWriter
 from code_atlas.onboarding.summary import Summarizer
 from code_atlas.tools import (
     architecture_overview,
@@ -63,15 +64,17 @@ def build_server(
     config: Config,
     summarizer: Summarizer | None = None,
     layer_refiner: LayerRefiner | None = None,
+    prose_writer: ProseWriter | None = None,
 ) -> FastMCP:
     """One repo's server: the allowed tools, each bound to ``config``, on a fresh app.
 
     Query tools are wrapped by ``guard`` so a schema-version mismatch arrives as an answer with a
     next action rather than a stack trace (050); the two index-lifecycle tools answer it themselves.
 
-    ``summarizer`` (085 seam, task 090) and ``layer_refiner`` (091 seam) are the two enrichment
-    injection points: ``None`` keeps the deterministic defaults, so the core never depends on an LLM
-    (R4.1). The opt-in LLM impls are injected from **outside** ``code_atlas/`` (``onboarding_llm``).
+    ``summarizer`` (085 seam, task 090), ``layer_refiner`` (091 seam) and ``prose_writer`` (117
+    seam) are the enrichment injection points: ``None`` keeps the deterministic defaults, so the
+    core never depends on an LLM (R4.1). The opt-in LLM impls are injected from **outside**
+    ``code_atlas/`` (``onboarding_llm``).
     """
     names = allowed_tools(config.tools)
     server: FastMCP = FastMCP(SERVER_NAME)
@@ -104,11 +107,23 @@ def build_server(
     if explain_path.NAME in names:
         server.tool(guard(explain_path.create(config)))
     if architecture_overview.NAME in names:
-        server.tool(guard(architecture_overview.create(config, summarizer, layer_refiner)))
+        server.tool(
+            guard(
+                architecture_overview.create(
+                    config, summarizer, layer_refiner, prose_writer
+                )
+            )
+        )
     if guided_tour.NAME in names:
         server.tool(guard(guided_tour.create(config)))
     if generate_onboarding.NAME in names:
-        server.tool(guard(generate_onboarding.create(config, summarizer, layer_refiner)))
+        server.tool(
+            guard(
+                generate_onboarding.create(
+                    config, summarizer, layer_refiner, prose_writer
+                )
+            )
+        )
     prompts.register(server)
     return server
 

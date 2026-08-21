@@ -26,11 +26,13 @@ The one and only place an LLM touches code-atlas. It lives **outside** `code_atl
    ```bash
    export CA_ONBOARDING_SUMMARIZER=llm      # 090 — per-module summaries
    export CA_ONBOARDING_LAYER_REFINER=llm   # 091 — layer-name refinement
+   export CA_ONBOARDING_PROSE=llm           # 117 — the map's prose
    code-atlas-llm                    # == python -m onboarding_llm
    ```
 
-With neither switch set, `code-atlas-llm` behaves exactly like `code-atlas` — the deterministic
-`StructuralSummarizer` and 084's heuristic layers. The two switches are independent.
+With no switch set, `code-atlas-llm` behaves exactly like `code-atlas` — the deterministic
+`StructuralSummarizer`, 084's heuristic layers and the structural prose. The switches are
+independent.
 
 ## Configuration
 
@@ -42,12 +44,29 @@ With neither switch set, `code-atlas-llm` behaves exactly like `code-atlas` — 
 | `CA_ONBOARDING_LAYER_REFINER` | *(unset)* | `llm`/`claude` enables layer-name refinement; anything else = 084 heuristic |
 | `CA_ONBOARDING_LLM_LAYER_MODEL` | `claude-opus-5` | Layer model — a top tier for the refinement pass (PHASE3 §4 M12) |
 | `CA_ONBOARDING_LLM_LAYER_CACHE` | `.code-atlas/onboarding-llm-layers.json` | Layer content-hash cache path |
+| `CA_ONBOARDING_PROSE` | *(unset)* | `llm`/`claude` enables the 117 prose seam; anything else = structural defaults |
+| `CA_ONBOARDING_LLM_PROSE_MODEL` | `claude-opus-5` | Prose model — a top tier, the highest-judgment slot (PHASE3 §4 M12) |
+| `CA_ONBOARDING_LLM_PROSE_CACHE` | `.code-atlas/onboarding-llm-prose.json` | Prose content-hash cache path |
+
+### What the prose seam writes, and what it cannot
+
+Three slots and nothing else: a layer's one-line responsibility, a tour step's 2–4 sentence
+narrative, and the wording of a headline fact. **Which** headlines exist, every count, ranking and
+grouping, and the tour's own order are all derived before the seam is consulted, so enrichment can
+reword the map but never change what it says. Inputs are structural only — member paths, degree mix,
+node-kind composition — never file contents. A model failure, a refusal, or prose that merely
+restates a path all resolve the same way: the slot keeps its deterministic sentence. Spend is capped
+per slot (6 headlines, 12 layers, 15 steps — 33 calls for a whole build, whatever the repo's size);
+`generate_onboarding` reports `prose_calls` and `prose_declined`, and
+`scripts/prose_cost_report.py` records the cost on real repos.
 
 ## The caches — deterministic, committable
 
 Each result is keyed on **content** — a summary on the module's (path, signature, docblock, role,
 model, prompt version); a layer name on the layer's membership (its sorted file list, model, prompt
-version). A rename or reorder is a cache hit, an edit is a miss. Both files are sorted-key JSON with
-no timestamps, so they are byte-stable and diff cleanly. The default locations are gitignored
+version); a piece of prose on its slot's whole request (the facts, the deterministic sentence it
+replaces, and for a tour step the prose already settled for the step before it). A rename or reorder
+is a cache hit, an edit is a miss. All three files are sorted-key JSON with no timestamps, so they
+are byte-stable and diff cleanly. The default locations are gitignored
 (regenerable, like 088's onboarding cache); point the `_CACHE` env at a **tracked** path to commit the
 results so every run — anywhere — replays them without calling Claude.

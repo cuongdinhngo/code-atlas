@@ -32,6 +32,7 @@ from code_atlas.onboarding.artifact import (
 )
 from code_atlas.onboarding.dataset import OnboardingDataset, build_dataset
 from code_atlas.onboarding.layers import LayerRefiner
+from code_atlas.onboarding.prose import ProseRun, ProseWriter
 from code_atlas.onboarding.summary import StructuralSummarizer, Summarizer
 from code_atlas.onboarding.viewer import render_viewer
 from code_atlas.store import LAST_COMMIT_KEY, GraphStore
@@ -53,8 +54,9 @@ def create(
     config: Config,
     summarizer: Summarizer | None = None,
     layer_refiner: LayerRefiner | None = None,
+    prose_writer: ProseWriter | None = None,
 ) -> Callable[..., dict[str, object]]:
-    """Bind the tool to one repo and the 085/091 seams (deterministic defaults when unset)."""
+    """Bind the tool to one repo and the 085/091/117 seams (deterministic defaults when unset)."""
     seam: Summarizer = StructuralSummarizer() if summarizer is None else summarizer
 
     def generate_onboarding(detail_level: DetailLevel = "standard") -> dict[str, object]:
@@ -81,6 +83,9 @@ def create(
         """
         if not config.db_path.is_file():
             return _unbuilt(config)
+        # One budget for the whole write: the artifact and the dataset build the same layer table,
+        # so a shared run pays for each layer description once and caps the build as a whole (117).
+        prose = ProseRun(prose_writer)
         with GraphStore(config.db_path) as store:
             nodes = store.node_universe()
             edges = store.dependency_edges()
@@ -110,6 +115,7 @@ def create(
             declared_stub_roots=config.stub_roots,
             file_paths=file_paths,
             file_class_counts=file_classes,
+            prose=prose,
         )
         if artifact is None:
             return _empty(config)
@@ -135,9 +141,10 @@ def create(
             mirror_sample_max=config.max_results,
             file_kind_counts=file_kinds,
             commit=commit,
+            prose=prose,
         )
         written = _write(Path(config.root), artifact, dataset, config.max_results)
-        return _payload(config, artifact, written, detail_level)
+        return _payload(config, artifact, written, detail_level, prose)
 
     return generate_onboarding
 
@@ -229,6 +236,7 @@ def _payload(
     artifact: OnboardingArtifact,
     written: tuple[str, ...],
     detail_level: DetailLevel,
+    prose: ProseRun,
 ) -> dict[str, object]:
     """``results`` is the committed path list, capped; ``truncated`` covers walk and page."""
     limit = config.max_results
@@ -245,4 +253,8 @@ def _payload(
     if detail_level == "standard":
         payload["cache"] = f"{CACHE_DIR}/{CACHE_NAME}"
         payload["isolated_modules"] = len(artifact.isolated)
+        # What the 117 seam cost this write, and how many slots its ceiling left structural. Not in
+        # the dataset on purpose: a number that moved when the seam turned on would break AC2.
+        payload["prose_calls"] = prose.calls
+        payload["prose_declined"] = prose.declined
     return payload

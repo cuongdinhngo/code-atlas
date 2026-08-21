@@ -9,6 +9,8 @@ R1.1/R1.4/R4). ``build_artifact`` runs it and raises rather than emit a bad tree
 from __future__ import annotations
 
 from code_atlas.onboarding.artifact import OnboardingArtifact, render_module
+from code_atlas.onboarding.dataset import OnboardingDataset
+from code_atlas.onboarding.prose import is_filler
 
 # The numbers the gate defends (task 109 AC3). C2 sits above 108's capped page (6,878 B) and below
 # its uncapped one (40,074 B). C4 now bounds narrative steps to [MIN, MAX] (111): MAX is the hard
@@ -16,7 +18,13 @@ from code_atlas.onboarding.artifact import OnboardingArtifact, render_module
 MAX_PAGE_BYTES = 16384
 MAX_TOUR_STEPS = 15
 
-__all__ = ["MAX_PAGE_BYTES", "MAX_TOUR_STEPS", "QualityGateError", "check_artifact"]
+__all__ = [
+    "MAX_PAGE_BYTES",
+    "MAX_TOUR_STEPS",
+    "QualityGateError",
+    "check_artifact",
+    "check_dataset",
+]
 
 
 class QualityGateError(ValueError):
@@ -84,4 +92,41 @@ def check_artifact(
     for row in artifact.layers:  # C3: every layer must carry a non-empty description (110).
         if not row.description.strip():
             raise QualityGateError("C3", f"layer[rank {row.rank}]", "layer description is empty")
+    _check_prose(artifact)
     _check_canonical(artifact)
+
+
+def _check_prose(artifact: OnboardingArtifact) -> None:
+    """C1 over the three prose slots (117 AC6) — generated prose gets no exemption from the gate.
+
+    The seam already discards filler and falls back, so this can only trip on prose that reached the
+    artifact some other way — which is exactly what a gate is for, not a duplicate of the seam.
+    """
+    for row in artifact.layers:
+        if is_filler(row.description, row.layer):
+            raise QualityGateError(
+                "C1", f"layer[{row.layer}]", "description only restates the layer's own name"
+            )
+    for step in artifact.steps:
+        if is_filler(step.why, step.title, *step.modules):
+            raise QualityGateError(
+                "C1", f"step[{step.order}]", "narrative only restates its own title and modules"
+            )
+
+
+def check_dataset(dataset: OnboardingDataset) -> None:
+    """C1 over the dataset's own prose — the headline slot (task 117 AC6).
+
+    The headlines live in the dataset rather than the artifact, so they need the gate applied here;
+    the rule and its predicate are the artifact's, not a second one. Pure: raise or return.
+    """
+    for headline in dataset.headlines:
+        if is_filler(headline.text, headline.key, headline.label):
+            raise QualityGateError(
+                "C1", f"headline[{headline.key}]", "headline only restates its own key"
+            )
+    for layer in dataset.layers:
+        if is_filler(layer.description, layer.layer):
+            raise QualityGateError(
+                "C1", f"layer[{layer.layer}]", "description only restates the layer's own name"
+            )

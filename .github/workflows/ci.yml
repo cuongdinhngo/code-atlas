@@ -207,6 +207,24 @@ jobs:
           fi
           echo "R2.2 ok"
 
+      - name: R4.1 — no prompt, model name or LLM import in the core (task 117 AC7)
+        run: |
+          if [ ! -d code_atlas ]; then
+            echo "::error::R4.1 — code_atlas/ is missing; this gate cannot pass vacuously"
+            exit 1
+          fi
+          # The 117 prose seam declares a Protocol and nothing else: every prompt, model id and
+          # `anthropic` import lives in onboarding_llm/. A leak here is a determinism breach (R4).
+          if grep -rEn "^[[:space:]]*(from|import)[[:space:]]+(anthropic|onboarding_llm)\b" code_atlas/; then
+            echo "::error::R4.1 — the core imports an LLM package"
+            exit 1
+          fi
+          if grep -rEin 'claude-[a-z0-9.]|gpt-[0-9]|max_tokens|no preamble' code_atlas/; then
+            echo "::error::R4.1 — a prompt or model name found in core source"
+            exit 1
+          fi
+          echo "R4.1 ok"
+
       - name: R7.3 — no co-author or AI-attribution trailer
         if: github.event_name == 'pull_request'
         env:

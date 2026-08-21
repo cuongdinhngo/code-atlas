@@ -18,6 +18,7 @@ from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
+from code_atlas.onboarding.headlines import Headline, headline_candidates
 from code_atlas.onboarding.layers import (
     IdentityLayerRefiner,
     LayerAssignment,
@@ -25,18 +26,21 @@ from code_atlas.onboarding.layers import (
     assign_layers,
     cross_layer_edges,
     layer_description,
+    layer_descriptions,
     refine_layers,
 )
 from code_atlas.onboarding.metrics import GraphMetrics, compute_metrics, module_edges
 from code_atlas.onboarding.mirrors import MirrorReport, find_mirror_subtrees
 from code_atlas.onboarding.modules import COVERAGE_NOTE, ModuleMap, find_business_modules
+from code_atlas.onboarding.prose import ProseRun
 from code_atlas.onboarding.reachability import ReachabilitySplit, classify_reachability
 
 # 2: the zero-inbound total became the ``reachability`` split (113). 3: the ``modules``
 # capability table (114). 4: the ``mirrors`` pair table (115). 5: ``commit``, per-layer ``kinds``
 # and ``dir_symbol_threshold``, so the map renders from the dataset ALONE and states the threshold
-# it was pruned at (116). This is NOT ``contract_version``; the adapter contract is untouched.
-DATASET_VERSION = 5
+# it was pruned at (116). 6: ``headlines`` — the facts a newcomer needs first, derived here and
+# worded through the 117 seam. This is NOT ``contract_version``; the adapter contract is untouched.
+DATASET_VERSION = 6
 # A directory is kept in the tree only when its subtree holds at least this many symbols — the
 # mockup's prune, so a 40k-file repo yields a map of a few dozen rows, not thousands (AC3).
 DIR_SYMBOL_THRESHOLD = 400
@@ -46,6 +50,7 @@ __all__ = [
     "DIR_SYMBOL_THRESHOLD",
     "ClassStat",
     "DirStat",
+    "Headline",
     "Hub",
     "KindCount",
     "LayerStat",
@@ -160,6 +165,8 @@ class OnboardingDataset:
     reachability: ReachabilitySplit
     modules: ModuleMap
     mirrors: MirrorReport
+    headlines: tuple[Headline, ...] = ()
+    """The facts a newcomer needs first: derived here, worded through the 117 seam (task 117)."""
 
     def as_dict(self) -> dict[str, object]:
         """Order-stable dict view — the byte-stability surface (R4.2/AC2)."""
@@ -173,6 +180,7 @@ class OnboardingDataset:
             "dir_symbol_threshold": self.dir_symbol_threshold,
             "edge_counts": [{"count": k.count, "kind": k.kind} for k in self.edge_counts],
             "files": self.files,
+            "headlines": [row.as_dict() for row in self.headlines],
             "hubs": [
                 {"fan_in": h.fan_in, "fan_out": h.fan_out, "file": h.file, "layer": h.layer}
                 for h in self.hubs
@@ -218,13 +226,16 @@ def _layer_stats(
     metrics: GraphMetrics,
     assignment: LayerAssignment,
     file_kind_counts: Sequence[tuple[str, str, int]] = (),
+    described: Mapping[str, str] | None = None,
 ) -> tuple[LayerStat, ...]:
     """The layer table in dependency order, plus each layer's node-kind composition (task 116).
 
     Module grain **is** file grain (``metrics.py``), so a layer's composition is the sum of the kind
     counts of the files assigned to it. Kinds are sorted by descending count then name, so the bar
-    is stable and its dominant segment reads first (R4.2).
+    is stable and its dominant segment reads first (R4.2). ``described`` is 117's prose, already
+    resolved (a missing entry falls back to 110's default, so a partial map is still complete).
     """
+    prose = dict(described or {})
     by_key = {metric.key: metric for metric in metrics.modules}
     entries = set(metrics.module_entry_points)
     rank: dict[str, int] = {}
@@ -251,7 +262,7 @@ def _layer_stats(
             fan_in=tallies[layer][1],
             fan_out=tallies[layer][2],
             entry_points=tallies[layer][3],
-            description=layer_description(layer),
+            description=prose.get(layer) or layer_description(layer),
             kinds=tuple(
                 KindCount(kind, count)
                 for kind, count in sorted(
@@ -339,19 +350,50 @@ def build_dataset(
     mirror_sample_max: int = 0,
     file_kind_counts: Sequence[tuple[str, str, int]] = (),
     commit: str = "",
+    prose: ProseRun | None = None,
 ) -> OnboardingDataset:
     """Assemble the aggregate dataset from bounded ``store.py`` rows (see module docstring).
 
     ``nodes``/``edges`` drive only 110's pure layer reasoning (``compute_metrics`` +
     ``refine_layers``), which labels the layer table, matrix, hubs, classes and tree; every count
     itself already came from SQL. Identical input yields an identical dataset (R4.2).
+
+    ``prose`` is the 117 seam. Headline wording is requested BEFORE the layer descriptions, so a
+    repo whose layers exhaust their own slot ceiling cannot leave the headlines unwritten (AC5). It
+    touches only prose: every count, ranking and grouping below is already settled (AC2).
     """
     metrics = compute_metrics(nodes, edges)
     refiner: LayerRefiner = IdentityLayerRefiner() if layer_refiner is None else layer_refiner
     assignment = refine_layers(assign_layers(metrics), metrics, refiner)
     layer_of = {module.module: module.layer for module in assignment.modules}
     matrix = cross_layer_edges(module_edges(nodes, edges), assignment)
-    return OnboardingDataset(
+    reachability = classify_reachability(
+        metrics,
+        entry_points=declared_entry_points,
+        stub_roots=declared_stub_roots,
+        sample_limit=reachability_sample_max,
+    )
+    business = find_business_modules(
+        file_paths,
+        class_counts=dict(file_class_counts),
+        fan_in={metric.key: metric.fan_in for metric in metrics.modules},
+        stub_roots=declared_stub_roots,
+        limit=module_max,
+    )
+    mirrors = find_mirror_subtrees(
+        file_paths, stub_roots=declared_stub_roots, sample_limit=mirror_sample_max
+    )
+    headlines = headline_candidates(
+        node_kind_counts=node_kind_counts,
+        edge_kind_counts=edge_kind_counts,
+        confidence=confidence,
+        hubs=hubs,
+        reachability=reachability,
+        modules=business,
+        mirrors=mirrors,
+        prose=prose,
+    )
+    dataset = OnboardingDataset(
         version=DATASET_VERSION,
         files=files,
         parsed=parsed,
@@ -361,7 +403,12 @@ def build_dataset(
         node_counts=tuple(KindCount(kind, count) for kind, count in node_kind_counts),
         edge_counts=tuple(KindCount(kind, count) for kind, count in edge_kind_counts),
         confidence=tuple(KindCount(tier, confidence[tier]) for tier in sorted(confidence)),
-        layers=_layer_stats(metrics, assignment, file_kind_counts),
+        layers=_layer_stats(
+            metrics,
+            assignment,
+            file_kind_counts,
+            layer_descriptions(assignment, metrics, prose),
+        ),
         matrix=tuple(MatrixEdge(e.source, e.target, e.count) for e in matrix),
         hubs=tuple(Hub(f, layer_of.get(f, ""), fi, fo) for f, fi, fo in hubs),
         classes=tuple(
@@ -370,25 +417,17 @@ def build_dataset(
         ),
         tree=_tree(file_symbol_counts, layer_of, dir_symbol_threshold),
         path_index=_path_index(file_paths, path_index_max),
-        reachability=classify_reachability(
-            metrics,
-            entry_points=declared_entry_points,
-            stub_roots=declared_stub_roots,
-            sample_limit=reachability_sample_max,
-        ),
-        modules=find_business_modules(
-            file_paths,
-            class_counts=dict(file_class_counts),
-            fan_in={metric.key: metric.fan_in for metric in metrics.modules},
-            stub_roots=declared_stub_roots,
-            limit=module_max,
-        ),
-        mirrors=find_mirror_subtrees(
-            file_paths,
-            stub_roots=declared_stub_roots,
-            sample_limit=mirror_sample_max,
-        ),
+        reachability=reachability,
+        modules=business,
+        mirrors=mirrors,
+        headlines=headlines,
     )
+    # The gate refuses filler prose rather than ship a hollow headline (task 109 C1, 117 AC6). A
+    # deferred import: quality_gate reads this module's shape, so a top-level one would cycle.
+    from code_atlas.onboarding.quality_gate import check_dataset
+
+    check_dataset(dataset)
+    return dataset
 
 
 def dataset_json(dataset: OnboardingDataset) -> str:

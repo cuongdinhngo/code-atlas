@@ -115,6 +115,12 @@ h2 { font-size:18px; margin:0 0 4px; }
   background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:14px 16px;
 }
 .stat .v { font:23px/1.1 var(--mono); color:var(--ac); }
+.head { display:flex; gap:12px; align-items:baseline; }
+.head b {
+  flex:0 0 108px; font:10px/1.5 var(--mono); text-transform:uppercase; letter-spacing:.1em;
+  color:var(--tx3);
+}
+.head span { color:var(--tx2); }
 .stat .k {
   font-size:11px; color:var(--tx3); text-transform:uppercase; letter-spacing:.08em; margin-top:5px;
 }
@@ -268,6 +274,7 @@ table.tb td.n { font:12px var(--mono); text-align:right; white-space:nowrap; }
   <h1>System map</h1>
   <p class="lede" id="lede"></p>
   <div class="grid g4" id="stats"></div>
+  <div class="grid" id="heads"></div>
   <p class="sub" id="stampLine"></p>
 </section>
 <section id="modules">
@@ -414,6 +421,10 @@ var STATS = [
   ["Mapped directories", fmt(D.tree.length),
    "holding at least " + fmt(D.dir_symbol_threshold) + " symbols"]
 ];
+put("heads", (D.headlines || []).map(function (row) {
+  return '<div class="card head"><b>' + esc(row.label) + '</b><span>' + esc(row.text)
+    + "</span></div>";
+}).join(""));
 put("stats", STATS.map(function (row) {
   return '<div class="card stat"><div class="v">' + row[1] + '</div><div class="k">'
     + row[0] + '</div><div class="n">' + row[2] + "</div></div>";

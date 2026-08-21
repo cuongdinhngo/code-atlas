@@ -106,6 +106,7 @@ path is proven and measured.
 |----|------|
 | 090 | LLM summarizer behind the 085 seam; content-hash cache so runs replay and diffs stay stable; opt-in config; never in the per-PR gate. **Shipped:** `onboarding_llm/` package + `code-atlas-llm` entry point (opt-in via `CA_ONBOARDING_SUMMARIZER`); the core imports no LLM. |
 | 091 | LLM layer refinement — better layer names where namespaces are uninformative (optional). **Shipped:** `LLMLayerRefiner` behind a new 091 `LayerRefiner` seam in `layers.py`, injected via `code-atlas-llm` (opt-in `CA_ONBOARDING_LAYER_REFINER`); renames only the weak dependency-direction bands (module *boundaries* left to a follow-up); own content-hash cache; the core imports no LLM. |
+| 117 | LLM prose for the map — layer descriptions, tour-step narratives and the wording of the headline facts. **Shipped:** one `ProseWriter` seam (`code_atlas/onboarding/prose.py`) with one method for all three slots, `LLMProseWriter` behind it in `onboarding_llm/` (opt-in `CA_ONBOARDING_PROSE`); headline *candidates* derived in `onboarding/headlines.py` so enrichment words the map and never changes it; filler refused by 109's C1, a failure degrades to the structural sentence, and spend is capped per slot at 33 calls a build. `DATASET_VERSION` 6. |
 
 **Decision points — open (brainstorm before M12):**
 - **Provider / model** — recommend **Claude**: a mid tier for per-module summaries, a top tier only for

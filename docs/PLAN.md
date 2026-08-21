@@ -550,8 +550,20 @@ New surface (separate from indexing): `generate_onboarding`, `architecture_overv
   over the HTML sees zero rendered figures and would be a false green.
   **115 named the duplication trap** (`DATASET_VERSION` 4) as a lookup rather than three
   numbers, and its measured absence on three public repos is the evidence keeping 098 deferred.
+  **117 closed the reshape** by routing the map's prose — layer descriptions, tour-step narratives,
+  and the wording of the headline facts (`DATASET_VERSION` 6, adding `headlines`) — through one new
+  seam, leaving every count, ranking and grouping derived as before.
 - **M12** LLM enrichment (opt-in, deferred, out of core + CI) — 090 LLM summarizer behind the 085 seam ·
-  091 LLM layer-name refinement.
+  091 LLM layer-name refinement · 117 the `ProseWriter` seam for the map's three prose slots.
+  117 measured that 091's rename seam **fires on nothing** once 110 made `responsibility` the
+  primary layer method: all three pinned public repos yield zero weak layers, so a description is
+  wanted for *every* layer and cannot hang off a weakness-gated seam. The prose seam is therefore
+  one Protocol with one method serving all three slots, which is also what gives the filler guard,
+  the failure degradation and the per-run call ceiling exactly one home each (R1.2/R7.1). The
+  ceiling is derived, not invented — 6 headline families + 110's 12 responsibility layers + 109's
+  15-step C4 ceiling = **33 calls for a whole build**, enforced per slot so a repo falling back to
+  per-directory layers cannot starve the tour: measured at 18,929 files, 1,176 layer descriptions
+  were requested, the ceiling served 12 and refused 1,164.
 
 ---
 

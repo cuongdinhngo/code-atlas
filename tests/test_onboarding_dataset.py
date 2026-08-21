@@ -305,3 +305,27 @@ def test_a_layer_with_no_kind_counts_reports_an_empty_composition() -> None:
         assert row.kinds == ()
     for row in _build().as_dict()["layers"]:  # type: ignore[index]
         assert row["kinds"] == []
+
+
+# --- 117: the headline block rides with the dataset -------------------------------------------
+
+
+def test_the_headline_facts_ride_with_the_dataset_and_the_version_says_so() -> None:
+    """117 — one renderer-agnostic block, and the shape bump that announces it."""
+    from code_atlas.onboarding.headlines import HEADLINE_FAMILIES
+
+    payload = _build().as_dict()
+    assert payload["version"] == DATASET_VERSION == 6
+    headlines = payload["headlines"]
+    assert isinstance(headlines, list) and headlines
+    assert all(set(row) == {"key", "label", "text"} for row in headlines)
+    keys = [row["key"] for row in headlines]
+    assert keys == [family for family in HEADLINE_FAMILIES if family in keys]
+    assert len(keys) <= len(HEADLINE_FAMILIES)
+
+
+def test_a_headline_never_outnumbers_its_families_however_big_the_repo() -> None:
+    """R4.3 — the block is bounded by the family set, not by anything the repo can grow."""
+    from code_atlas.onboarding.headlines import HEADLINE_FAMILIES
+
+    assert len(_build().headlines) <= len(HEADLINE_FAMILIES)

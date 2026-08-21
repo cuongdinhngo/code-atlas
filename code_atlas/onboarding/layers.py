@@ -14,11 +14,13 @@ aggregates module-grain edges into the layer → layer crossings the overview to
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections import Counter
+from collections.abc import Container, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
 from code_atlas.onboarding.metrics import GraphMetrics, NodeMetric
+from code_atlas.onboarding.prose import SLOT_LAYER, ProseRequest, ProseRun
 
 # Derived-from-source: a pin test cross-checks this tuple against the methods assign_layers() emits,
 # rather than re-typing a copy (R6.7 / derived-not-listed-invariant).
@@ -366,3 +368,66 @@ def refine_layers(
         )
     )
     return LayerAssignment(layers=tuple(order), modules=modules, method=assignment.method)
+
+
+# How many of a layer's member paths one prose request may show. The request identity folds in the
+# FULL membership, so two layers differing only past the cap stay distinct (091's pattern).
+_MAX_MEMBERS_SHOWN = 40
+
+
+def layer_descriptions(
+    assignment: LayerAssignment, metrics: GraphMetrics, prose: ProseRun | None = None
+) -> dict[str, str]:
+    """Each layer's one-line responsibility description (task 117, M12).
+
+    The structural default is 110's ratified prose; the 117 seam may rewrite it from structural
+    facts alone — membership, degree mix and direction, never file contents. With ``prose`` unset
+    every layer keeps its default, so this is byte-identical to 110 (AC1). Sorted inputs (R4.2).
+    """
+    members: dict[str, list[str]] = {}
+    for module in assignment.modules:
+        members.setdefault(module.layer, []).append(module.module)
+    by_key = {metric.key: metric for metric in metrics.modules}
+    entries = set(metrics.module_entry_points)
+    described: dict[str, str] = {}
+    for layer in assignment.layers:
+        paths = sorted(members.get(layer, []))
+        default = layer_description(layer)
+        if prose is None:
+            described[layer] = default
+            continue
+        described[layer] = prose.text(
+            ProseRequest(
+                slot=SLOT_LAYER,
+                key=layer,
+                default=default,
+                facts=_layer_facts(layer, paths, by_key, entries),
+                names=(layer, *paths),
+            )
+        )
+    return described
+
+
+def _layer_facts(
+    layer: str,
+    paths: Sequence[str],
+    by_key: Mapping[str, NodeMetric],
+    entries: Container[str],
+) -> tuple[tuple[str, str], ...]:
+    """Structural facts about one layer: size, degree totals, direction mix, member sample."""
+    directions: Counter[str] = Counter(
+        by_key[path].direction for path in paths if path in by_key
+    )
+    shown = list(paths[:_MAX_MEMBERS_SHOWN])
+    rest = len(paths) - len(shown)
+    mix = ", ".join(f"{name} {count}" for name, count in sorted(directions.items()))
+    sample = ", ".join(shown) + (f", and {rest} more" if rest else "")
+    return (
+        ("layer", layer),
+        ("modules", str(len(paths))),
+        ("fan in", str(sum(by_key[path].fan_in for path in paths if path in by_key))),
+        ("fan out", str(sum(by_key[path].fan_out for path in paths if path in by_key))),
+        ("entry points", str(sum(1 for path in paths if path in entries))),
+        ("direction mix", mix),
+        ("member paths", sample),
+    )

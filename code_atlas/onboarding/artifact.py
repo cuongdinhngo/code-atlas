@@ -7,7 +7,7 @@ headings, lists, and a JSON manifest. No SQL, no LLM, no language branch (R1.1/R
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 
@@ -19,11 +19,13 @@ from code_atlas.onboarding.layers import (
     assign_layers,
     cross_layer_edges,
     layer_description,
+    layer_descriptions,
     refine_layers,
 )
 from code_atlas.onboarding.metrics import GraphMetrics, compute_metrics, module_edges
 from code_atlas.onboarding.mirrors import find_mirror_subtrees
 from code_atlas.onboarding.modules import COVERAGE_NOTE, find_business_modules
+from code_atlas.onboarding.prose import ProseRun
 from code_atlas.onboarding.reachability import classify_reachability
 from code_atlas.onboarding.steps import TourStep, build_steps
 from code_atlas.onboarding.summary import NodeFacts, Summarizer, summarize_modules
@@ -235,8 +237,17 @@ def recorded_pages(manifest_text: str) -> tuple[str, ...]:
     return tuple(sorted(kept))
 
 
-def _layer_rows(metrics: GraphMetrics, assignment: LayerAssignment) -> tuple[LayerRow, ...]:
-    """One row per layer, in the assignment's dependency order (rank 0 = most source-like)."""
+def _layer_rows(
+    metrics: GraphMetrics,
+    assignment: LayerAssignment,
+    described: Mapping[str, str] | None = None,
+) -> tuple[LayerRow, ...]:
+    """One row per layer, in the assignment's dependency order (rank 0 = most source-like).
+
+    ``described`` is 117's already-resolved prose; a missing entry keeps 110's structural default,
+    so a partially-enriched map is still a complete one.
+    """
+    prose = dict(described or {})
     by_key = {metric.key: metric for metric in metrics.modules}
     entries = set(metrics.module_entry_points)
     rank: dict[str, int] = {}
@@ -257,7 +268,7 @@ def _layer_rows(metrics: GraphMetrics, assignment: LayerAssignment) -> tuple[Lay
             fan_in=tallies[layer][1],
             fan_out=tallies[layer][2],
             entry_points=tallies[layer][3],
-            description=layer_description(layer),
+            description=prose.get(layer) or layer_description(layer),
         )
         for layer in assignment.layers
     )
@@ -292,17 +303,22 @@ def build_artifact(
     declared_stub_roots: Sequence[str] | None = None,
     file_paths: Sequence[str] = (),
     file_class_counts: Sequence[tuple[str, int]] = (),
+    prose: ProseRun | None = None,
 ) -> OnboardingArtifact | None:
     """Compose 083–087 into one artifact. ``None`` when the index has no module.
 
     ``declared_*`` are the operator's own ``entry_points``/``stub_roots`` — 113's highest-trust
     signal for the reachability split. Unset simply leaves those buckets to the path signal.
+
+    ``prose`` is the 117 seam over the layer descriptions and the step narratives. Unset, both keep
+    their structural defaults and this is byte-identical to the deterministic build (AC1).
     """
     metrics = compute_metrics(nodes, edges)
     if not metrics.modules:
         return None
     refiner: LayerRefiner = IdentityLayerRefiner() if layer_refiner is None else layer_refiner
     assignment = refine_layers(assign_layers(metrics), metrics, refiner)
+    described = layer_descriptions(assignment, metrics, prose)
     stops = ordered_stops(tour_files, tour_edges, entry_points)
     by_key = {metric.key: metric for metric in metrics.modules}
     placed = {module.module: module for module in assignment.modules}
@@ -377,11 +393,20 @@ def build_artifact(
             ).as_dict(),
             "symbols": len(metrics.symbols),
         },
-        layers=_layer_rows(metrics, assignment),
+        layers=_layer_rows(metrics, assignment, described),
         crossings=tuple((edge.source, edge.target, edge.count) for edge in crossings),
         stops=stops,
         pages=tuple(pages),
-        steps=build_steps(stops, assignment, metrics, tour_edges, entry_points),
+        steps=build_steps(
+            stops,
+            assignment,
+            metrics,
+            tour_edges,
+            entry_points,
+            prose=prose,
+            docline_of={key: value.docline for key, value in summaries.items()},
+            descriptions=described,
+        ),
         isolated=tuple(sorted(isolated)),
     )
     # The gate refuses a filler or oversized artifact rather than write a bad tree (task 109, 050).

@@ -192,6 +192,14 @@ Two items are flagged rather than assumed, because they touch **R2.2 (standard o
   the budget is asserted against a synthetic dataset at the anchor's *measured* cardinality instead.
   Two of the three also map **zero** directories at `DIR_SYMBOL_THRESHOLD`, so the sitemap is empty
   on a small repo — which is why the map names the threshold rather than drawing a blank box.
+- **091's layer-rename seam fires on nothing** (found in 117). It is gated on the *weak* layer names
+  084 falls back to, and 110 made `responsibility` the primary method, which names every layer — all
+  three pins yield zero weak layers. The seam is not wrong, it is simply unreachable on a
+  normally-shaped repo, so 117's per-layer descriptions could not hang off it.
+- **The prose cost is bounded by existing caps, not by a guess** (found in 117): 6 headline families
+  + 110's 12 responsibility layers + 109's 15-step C4 ceiling = 33 calls for a whole build. It is
+  enforced per slot, because a repo falling back to per-directory layers is unbounded — at 18,929
+  synthetic files, 1,176 layer descriptions were requested and 1,164 refused.
 - **The map's size follows the directory tree's cardinality** (found in 116), which the symbol
   threshold bounds only for a repo of ordinary symbol density. A dense repo keeps more directories
   and a bigger page; `scripts/viewer_report.py` prints the mapped-directory count for that reason.
@@ -214,7 +222,7 @@ is the reshape; Wave 3 is enrichment and the new viewer.
 | 3 | 114 | [Business modules from directory structure](../tasks/114_business-module-table.md) | **done** — the bridge from "fix screen X" to a file; container level derived, coverage stated | 112 |
 | 3 | 115 | [Mirror-subtree detection — evidence for 098](../tasks/115_mirror-subtree-detection.md) | **done** — the trap as a lookup; its measured absence on 3 public repos keeps 098 deferred | 112 (feeds 098) |
 | 3 | 116 | [Dashboard viewer: sitemap, matrix, search](../tasks/116_dashboard-viewer.md) | **done** — the map itself, rendered from the 112 dataset alone; `DATASET_VERSION` 5 | 112, 114, 115 |
-| 3 | 117 | [LLM prose for layer descriptions and tour steps](../tasks/117_llm-prose-for-map.md) | the §4 prose half, through the existing seams | 110, 111, 090, 091 |
+| 3 | 117 | [LLM prose for layer descriptions and tour steps](../tasks/117_llm-prose-for-map.md) | **done** — one `ProseWriter` seam over three prose slots; headlines derived, worded through it; `DATASET_VERSION` 6 | 110, 111, 090, 091 |
 
 **Not in scope, deliberately:** run-the-app / environment / deployment documentation (§2); symbol-grain
 pages (§6); a second-repo generalisation pass, which should follow 116 rather than gate it.

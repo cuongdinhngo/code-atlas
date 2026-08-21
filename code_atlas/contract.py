@@ -36,6 +36,12 @@ NodeKind = Literal[
 ]
 NODE_KINDS: tuple[str, ...] = get_args(NodeKind)
 
+# Node-kind subsets the 117 abstraction headline reads — consumers import these, never re-list the
+# kinds (the same rule CALLER_KINDS/IMPL_KINDS carry below). A named subset of an existing
+# vocabulary is not a vocabulary change, so CONTRACT_VERSION is untouched (R3).
+TYPE_KINDS: tuple[str, ...] = ("Class", "Interface", "Trait", "Enum")
+CALLABLE_KINDS: tuple[str, ...] = ("Function", "Method")
+
 EDGE_KINDS: tuple[str, ...] = (
     "CONTAINS",
     "EXTENDS",

@@ -13,7 +13,7 @@ here is capped like every other tool's, and ``truncated`` describes ``results`` 
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Literal
 
 from code_atlas.config import Config
@@ -24,11 +24,13 @@ from code_atlas.onboarding.layers import (
     assign_layers,
     cross_layer_edges,
     layer_description,
+    layer_descriptions,
     refine_layers,
 )
 from code_atlas.onboarding.metrics import GraphMetrics, NodeMetric, compute_metrics, module_edges
 from code_atlas.onboarding.mirrors import find_mirror_subtrees
 from code_atlas.onboarding.modules import find_business_modules
+from code_atlas.onboarding.prose import ProseRun, ProseWriter
 from code_atlas.onboarding.reachability import classify_reachability
 from code_atlas.onboarding.summary import (
     NodeFacts,
@@ -55,8 +57,9 @@ def create(
     config: Config,
     summarizer: Summarizer | None = None,
     layer_refiner: LayerRefiner | None = None,
+    prose_writer: ProseWriter | None = None,
 ) -> Callable[..., dict[str, object]]:
-    """Bind the tool to one repo and the 085/091 seams (deterministic defaults when unset)."""
+    """Bind the tool to one repo and the 085/091/117 seams (deterministic defaults when unset)."""
     seam: Summarizer = StructuralSummarizer() if summarizer is None else summarizer
     refiner: LayerRefiner = IdentityLayerRefiner() if layer_refiner is None else layer_refiner
 
@@ -90,8 +93,10 @@ def create(
         if not metrics.modules:
             return _empty(config)
         assignment = refine_layers(assign_layers(metrics), metrics, refiner)
+        described = layer_descriptions(assignment, metrics, ProseRun(prose_writer))
         return _overview(
-            config, metrics, assignment, nodes, edges, detail_level, seam, offset=offset
+            config, metrics, assignment, nodes, edges, detail_level, seam,
+            offset=offset, described=described,
         )
 
     return architecture_overview
@@ -120,9 +125,16 @@ def _empty(config: Config) -> dict[str, object]:
 
 
 def _layer_rows(
-    metrics: GraphMetrics, assignment: LayerAssignment, *, degrees: bool
+    metrics: GraphMetrics,
+    assignment: LayerAssignment,
+    *,
+    degrees: bool,
+    described: Mapping[str, str],
 ) -> list[dict[str, object]]:
-    """One row per layer, in the assignment's dependency order (rank 0 = most source-like)."""
+    """One row per layer, in the assignment's dependency order (rank 0 = most source-like).
+
+    ``described`` is 117's already-resolved prose; a missing entry keeps 110's default.
+    """
     by_key = {metric.key: metric for metric in metrics.modules}
     entries = set(metrics.module_entry_points)
     rank: dict[str, int] = {}
@@ -140,7 +152,7 @@ def _layer_rows(
         modules, fan_in, fan_out, entry_points = tallies[layer]
         row: dict[str, object] = {
             "layer": layer,
-            "description": layer_description(layer),
+            "description": described.get(layer) or layer_description(layer),
             "rank": rank[layer],
             "modules": modules,
         }
@@ -189,6 +201,7 @@ def _overview(
     seam: Summarizer,
     *,
     offset: int,
+    described: Mapping[str, str],
 ) -> dict[str, object]:
     """The answer itself — cheap at ``minimal``, per-module only at ``verbose`` (061).
 
@@ -198,7 +211,7 @@ def _overview(
     """
     rich = detail_level in ("standard", "verbose")
     limit = config.max_results
-    layers = _layer_rows(metrics, assignment, degrees=rich)
+    layers = _layer_rows(metrics, assignment, degrees=rich, described=described)
     payload: dict[str, object] = {
         "indexed": True,
         "results": layers[:limit],

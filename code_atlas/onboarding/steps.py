@@ -16,11 +16,16 @@ from dataclasses import dataclass, replace
 
 from code_atlas.onboarding.layers import LayerAssignment, layer_description
 from code_atlas.onboarding.metrics import GraphMetrics
+from code_atlas.onboarding.prose import SLOT_STEP, ProseRequest, ProseRun
 from code_atlas.onboarding.tour import TourStop
 
 MIN_STEPS = 5
 MAX_STEPS = 15
 MODULES_PER_STEP = 5
+
+# How many of a step's modules one prose request may show, with their summaries. The request
+# identity folds in the full named list, so two steps differing past the cap stay distinct.
+MODULES_IN_PROSE = 5
 
 __all__ = ["MAX_STEPS", "MIN_STEPS", "MODULES_PER_STEP", "TourStep", "build_steps"]
 
@@ -107,12 +112,18 @@ def build_steps(
     min_steps: int = MIN_STEPS,
     max_steps: int = MAX_STEPS,
     modules_per_step: int = MODULES_PER_STEP,
+    prose: ProseRun | None = None,
+    docline_of: Mapping[str, str] | None = None,
+    descriptions: Mapping[str, str] | None = None,
 ) -> tuple[TourStep, ...]:
     """Group the ordered stops into ``[min, max]`` reading steps (see module docstring).
 
     ``min_steps`` is a target the grouping reaches by splitting when material allows, never a floor
     the caller can rely on for a tiny subgraph; ``max_steps`` is the hard ceiling the quality gate
     enforces (109 C4). Identical input yields identical steps, titles and order (R4.2).
+
+    ``prose`` is the 117 seam over the ``why`` slot: with it unset every step keeps the structural
+    sentence below (AC1). Grouping, order, titles and counts are never the seam's to change.
     """
     if not stops:
         return ()
@@ -124,7 +135,10 @@ def build_steps(
     buckets = _initial_buckets(_components(stops), rank_of, layer_of, depth)
     buckets = _merge_to_ceiling(buckets, layer_of, max_steps)
     buckets = _split_to_floor(buckets, layer_of, fan_in, min_steps)
-    return _render_steps(buckets, fan_in, modules_per_step)
+    steps = _render_steps(buckets, fan_in, modules_per_step)
+    if prose is None:
+        return steps
+    return _narrate(steps, prose, fan_in, docline_of or {}, descriptions or {})
 
 
 def _bucket_of(
@@ -274,3 +288,58 @@ def _render_steps(buckets: Sequence[_Bucket], fan_in: Mapping[str, int],
             )
         )
     return tuple(steps)
+
+
+def _narrate(
+    steps: Sequence[TourStep],
+    prose: ProseRun,
+    fan_in: Mapping[str, int],
+    docline_of: Mapping[str, str],
+    descriptions: Mapping[str, str],
+) -> tuple[TourStep, ...]:
+    """Rewrite each step's ``why`` through the 117 seam, in order, chaining the previous step.
+
+    Sequential on purpose: a reading order reads better when step N can refer to step N-1, so each
+    request carries the prose already settled for its predecessor. That makes step N's cache key
+    depend on N-1's, a chain that still replays byte-for-byte from a committed cache (AC3).
+    """
+    narrated: list[TourStep] = []
+    previous = ""
+    for step in steps:
+        previous = prose.text(
+            ProseRequest(
+                slot=SLOT_STEP,
+                key=str(step.order),
+                default=step.why,
+                facts=_step_facts(step, fan_in, docline_of, descriptions),
+                names=(step.title, *step.modules),
+                previous=previous,
+            )
+        )
+        narrated.append(replace(step, why=previous))
+    return tuple(narrated)
+
+
+def _step_facts(
+    step: TourStep,
+    fan_in: Mapping[str, int],
+    docline_of: Mapping[str, str],
+    descriptions: Mapping[str, str],
+) -> tuple[tuple[str, str], ...]:
+    """One step's structural context: its layer, what it covers, and its modules with degrees."""
+    layer = step.title.split(" (")[0]
+    shown = step.modules[:MODULES_IN_PROSE]
+    modules = "; ".join(
+        f"{module} ({fan_in.get(module, 0)} dependents)"
+        + (f": {docline_of[module]}" if docline_of.get(module) else "")
+        for module in shown
+    )
+    return (
+        ("step", str(step.order)),
+        ("title", step.title),
+        ("layer", layer),
+        ("layer description", descriptions.get(layer, layer_description(layer))),
+        ("modules covered", str(step.covers)),
+        ("cycle size", str(step.cycle_size)),
+        ("modules named", modules),
+    )

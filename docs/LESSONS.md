@@ -1,5 +1,39 @@
 # Lessons — code-atlas
 
+## 117 — A seam can still be live code and yet fire on nothing, because a later ticket moved the ground
+091 built a `LayerRefiner` seam that renames the **weak** layers 084 falls back to
+(`source`/`sink`/`mixed`/`isolated`/`(root)`). Task 110 then made `responsibility` the primary layer
+method, and it names every layer from a path vocabulary. Measured on all three pinned public repos:
+**zero weak layers**, so the rename seam matches nothing on a normally-shaped repo. Nothing was
+broken and no test failed — the gate for the seam's *usefulness* was never a test. 117's ticket then
+routed per-layer descriptions through that seam, which would have delivered prose for zero layers.
+**Fix:** before extending a seam, measure how often the existing one actually fires. A seam's
+reachability is a property of the whole pipeline, not of the seam, so it decays silently when an
+earlier stage changes. This is the same class as 116's stale headline measurement — a ticket and the
+wave it belongs to move independently — but one level up: there the *evidence* decayed, here the
+*mechanism* did.
+
+## 117b — Where a guard lives decides how many copies of it you own
+The ticket asked for prose in three slots (layer, tour step, headline) and named two routes for them
+(extend 091's seam, add one for steps). Each slot needs the same four guards: reject filler, degrade
+on failure, memoise, and stay under a call ceiling. Two routes means two copies of all four, and the
+ceiling in particular is **wrong** when duplicated: two half-budgets are not one budget. Collapsing
+to one `ProseWriter` Protocol with one method put each guard in exactly one place.
+**Fix:** count the guards before choosing the seam count. If N routes each need the same guard, the
+guard — not the domain — is telling you how many abstractions there should be. A shared *budget* is
+the strongest such signal, because it cannot be split without changing what it means.
+
+## 117c — A cap you cannot show biting is not evidence that it works
+The prose ceiling (33 calls) is derived from caps that already exist, and every realistic repo lands
+under it: the three pins cost 12–25 calls, and an 18,929-file synthetic with named layers cost 24.
+So the whole cost report was green **without the ceiling ever engaging** — it proved the arithmetic,
+not the enforcement. Adding one row whose paths name no responsibility (084 falls back to
+per-directory layers, unbounded) produced the number that matters: **1,176 layer descriptions
+requested, 12 served, 1,164 refused.**
+**Fix:** a bound needs a case on each side of it. A report where the limit never triggers is
+measuring the happy path and reporting it as the limit's proof — the same vacuous-green shape the CI
+gates guard against with their "this check cannot pass vacuously" preludes.
+
 ## 116 — A ticket's headline measurement can be stale because an earlier ticket in the same wave fixed it
 116 opens on a **31,057,609-byte** page. Rendering the same viewer against an anchor-scale artifact
 measured **921,746 B** — task 108, three tickets earlier in the same wave, had already capped the

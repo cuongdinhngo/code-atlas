@@ -491,3 +491,28 @@ def test_the_harness_itself_is_committed_and_runnable() -> None:
     """A headless gate that silently vanishes proves nothing (R6.5)."""
     assert STUB.is_file()
     assert shutil.which("node") is not None or sys.platform == "win32"
+
+
+# --- 117: the headline strip reaches the page ------------------------------------------------
+
+
+@needs_node
+def test_the_headline_facts_reach_the_overview_section(tmp_path: Path) -> None:
+    """117 — the dataset's headlines render as prose in the overview, not just in the payload."""
+    dataset = _dataset(_anchor_paths(400, 80))
+    report = _report(tmp_path, render_viewer(dataset, 50))
+    text = report["sections"]["overview"]["text"]
+    assert dataset.headlines, "the fixture produced no headline candidate"
+    for row in dataset.headlines:
+        assert row.label.upper() in text.upper(), row.key
+        assert row.text[:40] in text, row.key
+
+
+@needs_node
+def test_a_dataset_with_no_headline_renders_the_page_without_one(tmp_path: Path) -> None:
+    """A repo the families have nothing to say about gets no strip, not an empty box."""
+    from dataclasses import replace
+
+    bare = replace(_dataset(_anchor_paths(400, 80)), headlines=())
+    report = _report(tmp_path, render_viewer(bare, 50))
+    assert report["sections"]["overview"]["text"], "the overview lost its own content"
