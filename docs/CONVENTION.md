@@ -137,90 +137,79 @@ code-atlas/
 
 ## 6. MCP tool conventions
 
-- Return **qualified names + `file:line`**, not source bodies — unless it's a read tool (`read_symbol`,
-  `file_outline`), or an explicitly opt-in `include_source` on `find_callers` / `find_references`
-  (037): default **off**, at most **one capped line** per hit (never a body), and never quoted from a
-  file whose indexed hash has drifted — such hits carry `source_stale` instead.
-- Every tool accepts `detail_level ∈ {minimal, standard}`, typed as a `Literal` so the protocol
-  validates it and publishes the choice in the input schema. Default **`standard`**. `minimal` is a
-  subset of `standard` (never a superset). After task 061, `db_path` provenance is only on
-  `get_index_status` / `build_or_update_index` at `standard`; after task 071, **`index_root`** (the
-  configured source tree) ships on every answer payload including status at every detail level —
-  identity of the tree, not the database file. After task 077, status (and the busy build refusal
-  that shares its vocabulary) also names **`last_ref`/`head_ref`** — the human revision the index
-  was built on and HEAD is on now (`HEAD` when detached; `null` when non-git; omitted when the
-  index predates 077 so `null` is not read as "not under git"); nav payloads stay
-  on `index_root` only. ``get_index_status`` at ``standard``/``verbose`` also carries
-  ``server_version`` and ``server_build`` — the running package and a build id from git or package
-  content, not the index schema (125); ``minimal`` omits them. A build id from a checkout with
-  uncommitted changes carries ``+dirty``, because the tree is not the commit it sits on and a
-  retro must not quote a commit that did not answer. A signed claim adds ``server=`` and
-  ``build=`` beside the index revision keys (100/125). For nav/search/read/outline/reach/explain,
-  `minimal`
-  and `standard` may share the same top-level keys.
-  `get_index_status` also accepts `verbose` (task 058): `standard` plus a capped
-  `parse_failure_paths` list (`PARSE_FAILURE_PATHS_LIMIT`, not `CA_MAX_RESULTS`) with optional
-  `offset` — never on the cheap path; other tools stay `{minimal, standard}`. Verbose `collection`
-  (082) also carries `skipped.untracked` beside the `collected − suffix − ignore == kept` identity
-  (092). At `verbose` only, `skipped.ignore_sources` names which composed ignore source dropped each
-  skip (095); `ignore` stays the int so 082 still closes; omit when empty (061). `not_indexed` on a payload with `indexed: true` means the subject maps to an untracked
-  indexable file; `try_instead` is a real tool name and `try_instead_hint` carries the git-add
-  prose (061 omit when empty). `resolved_qname` on a nav answer is the stored qname the tool
-  actually queried when it differed from the typed subject by a leading-anchor (075/122);
-  omitted on an exact hit so the common path is unchanged (061). A truncated ``file_outline``
-  page adds ``result_kinds`` (symbol kind → count over the whole file) when the file spans >1
-  kind, so a capped symbol map cannot read as complete (067/123). A truncated ``find_orphans``
-  page reports ``total_count`` as the orphan population; at ``minimal`` ``unproven`` rows are
-  omitted and at ``standard`` they are capped to the page, with ``unproven_total`` naming the
-  full population under one name in both cases. ``truncated`` describes the page alone so a
-  pager terminates; a walk that hit ``CA_ORPHANS_MAX_NODES`` adds ``walk_truncated``, because
-  unreached nodes look orphaned and the population is then an over-estimate (124). A subject matches an untracked file on its **stem** — a path-shaped
-  qname's trailing ident is the file extension, so `Missing.aa` must not match `aa.aa` (092).
-- **A batched answer keys on position, and states the envelope once (101).** A tool that takes a
-  list of subjects (`search_symbol`'s `queries`) returns `subjects`: entry *i* answers subject *i*,
-  in the caller's order, never deduped, never merged. Each entry carries only what varies —
-  `query`, `results`, `truncated`, `reason`, `total_count`, and its own `try_instead` when it has
-  one — while `indexed`, `index_root` and `subject_count` sit once on the envelope (061). The
-  envelope carries **no** `reason` of its own: a batch-level verdict would colour subjects it knows
-  nothing about. The fan-out bound is `max_subjects`, disclosed as `subjects_capped_to` plus
-  `subjects_dropped` naming every subject refused, both omitted when nothing was dropped (066/061).
-  A missing index answers the **call** — `indexed: false`, `reason: not_indexed`, no `subjects`
-  list — for the same reason `schema_guard.payload` ships no empty `results`: N identical empty
-  answers read as N proofs of absence. Where a subject has two spellings (`query` or `queries`),
-  neither is schema-`required` and passing both raises (R5.3).
-- **`try_instead` is two registers, and each stays in its own field (093).** Every value the core
-  can emit is a **registered MCP tool name the reader can call**; the qualifier that says *how* to
-  re-ask is prose in the sibling `try_instead_hint`, attached only alongside a route (061 omit when
-  empty). Prose in the identifier slot is what made the field ambiguous — a reader could not tell
-  a route from an instruction without trying one. The naming rule carries the split in the source:
-  `TRY_INSTEAD_*` is a tool name, `TRY_INSTEAD_HINT_*` is prose, and neither holds the other's kind.
-  `tests/test_try_instead_is_a_callable_tool_name.py` derives both sets from the module namespace
-  and `main.TOOL_NAMES`, so a future value is gated without editing a hand-kept list (R1.1).
-  Two further rules the route must satisfy, because "callable" is not the same as "useful":
-  **a route must make progress** — a tool never routes to itself (`find_references` on a class
-  routes to `search_symbol`, which enumerates the method qnames the hint asks for; routing back to
-  itself loops for the mechanical reader the field exists for); and **a route must be able to
-  answer** — where no registered tool can, the payload carries the **hint alone and no
-  `try_instead`** (`include_graph`'s unlinked-inbound miss: the evidence is include text in
-  `edges.target_raw` and `nodes_fts` covers name/qname/file_path/params only, so `search_symbol`
-  would answer `reason=ok` with the symbols declared *in* the file and silently omit the includer).
-  Naming a tool that cannot answer is worse than naming none — the reader spends a call and gets a
-  confident wrong answer, which is the 075/076 failure this vocabulary exists to prevent.
-  **Known boundary, not closed:** callability is checked against the full `main.TOOL_NAMES`, while
+This section is the mechanical rule; the reasoning behind each one is in its task and in
+[`ENGINEERING_RULES.md`](ENGINEERING_RULES.md).
+
+- **Answer shape.** Return **qualified names + `file:line`**, not source bodies — except the read
+  tools (`read_symbol`, `file_outline`) and the opt-in `include_source` on
+  `find_callers`/`find_references` (037): default **off**, at most **one capped line** per hit,
+  never a body, and never quoted from a file whose indexed hash drifted (those hits carry
+  `source_stale`).
+- **`detail_level`.** Every tool takes `detail_level ∈ {minimal, standard}`, typed as a `Literal`
+  so the protocol validates it and publishes the choice in the input schema. Default **`standard`**;
+  `minimal` is always a **subset**, never a superset, and for nav/search/read/outline/reach/explain
+  the two may share the same top-level keys. `get_index_status` alone also accepts `verbose` (058);
+  every other tool stays `{minimal, standard}`.
+
+**Provenance and honesty fields.** One name per fact; each is omitted where it would only restate
+what the payload already says (061). An answer must state what it is *not* telling you.
+
+| Field | On | Rule |
+|---|---|---|
+| `index_root` | **every** payload, every detail level | the configured source tree — identity of the tree, not the database file (071) |
+| `db_path` | `get_index_status` / `build_or_update_index` at `standard` | nowhere else after 061 |
+| `last_ref` / `head_ref` | status + the busy-build refusal sharing its vocabulary | the revision the index was built on and the one HEAD is on now. `HEAD` when detached, `null` when non-git, **omitted** pre-077 so `null` is not read as "not under git". Nav payloads stay on `index_root` alone (077) |
+| `server_version` / `server_build` | status at `standard`/`verbose`; `minimal` omits both | the running package and a build id from git or package content, not the index schema. An uncommitted checkout's id carries **`+dirty`** — a retro must not quote a commit that did not answer. Signed claims add `server=`/`build=` beside the index revision keys (100/125) |
+| `parse_failure_paths` | status at `verbose` | capped by `PARSE_FAILURE_PATHS_LIMIT`, not `CA_MAX_RESULTS`; optional `offset`; never on the cheap path (058) |
+| `skipped.untracked` | verbose `collection` | beside the `collected − suffix − ignore == kept` identity (082/092) |
+| `skipped.ignore_sources` | verbose `collection` only | which composed ignore source dropped each skip; `ignore` stays the int so 082 still closes; omit when empty (095/061) |
+| `not_indexed` | any payload with `indexed: true` | the subject maps to an untracked indexable file. Match on the file **stem**: a path-shaped qname's trailing ident is its extension, so `Missing.aa` must not match `aa.aa` (092) |
+| `resolved_qname` | nav answers | the stored qname actually queried, when a leading anchor made it differ from the typed subject; omitted on an exact hit (075/122) |
+| `result_kinds` | a truncated `file_outline` page | symbol kind → count over the **whole** file, when the file spans more than one kind, so a capped map cannot read as complete (067/123) |
+| `total_count` | `find_orphans` | the orphan population, not the page length (124) |
+| `unproven_total` | `find_orphans` | the full population of the `unproven` rows, one name at both levels — those rows are omitted at `minimal` and capped to the page at `standard` (124) |
+| `truncated` | paged answers | describes **the page alone**, so a pager terminates (057/124) |
+| `walk_truncated` | `find_orphans` | the walk hit `CA_ORPHANS_MAX_NODES`, so the population is an over-estimate — unreached nodes look orphaned (124) |
+
+- **`try_instead` is two registers, each in its own field (093).** The value is always a
+  **registered MCP tool name the reader can call**; the *how to re-ask* qualifier is prose in the
+  sibling `try_instead_hint`, attached only alongside a route (061 omit when empty). The source
+  carries the split — `TRY_INSTEAD_*` is a tool name, `TRY_INSTEAD_HINT_*` is prose, neither holds
+  the other's kind — and `tests/test_try_instead_is_a_callable_tool_name.py` derives both sets from
+  the module namespace and `main.TOOL_NAMES` rather than a hand-kept list (R1.1). Callable is not
+  sufficient. A route must also **make progress**: no tool routes to itself (`find_references` on a
+  class routes to `search_symbol`, which enumerates the method qnames the hint asks for). And it
+  must be **able to answer**: where no registered tool can, emit the **hint alone, no
+  `try_instead`**, since naming a tool that cannot answer buys a confident wrong answer (075/076).
+  The standing case is `include_graph`'s unlinked-inbound miss — its evidence is include text in
+  `edges.target_raw`, which `nodes_fts` (name/qname/file_path/params) does not cover — `search_symbol`
+  would answer `reason=ok` over the symbols declared *in* the file and omit the includer.
+  **Known boundary, not closed:** callability is checked against the full `main.TOOL_NAMES` while
   `CA_TOOLS` may serve a subset — `nav_result` has no `Config`, so a restricted deployment can be
-  offered a route it does not expose (pre-existing; also true of `file_outline`).
-- One module per tool at `code_atlas/tools/<tool_name>.py`, named exactly as the MCP tool. Each
-  exposes `NAME` and a `create(...)` that returns the registered function: **the returned function's
-  signature is the MCP signature and its docstring is the tool description**, so configuration flows
-  in through the closure rather than through global state. Logic two tools share lives in its own
-  helper module beside them (`nav_result`, `staleness`, `reach_shared`, `collection`) — a tool module
-  never imports another tool module.
-- `get_index_status` is the cheap entry point (~100 tok) and suggests next tools — **only tools the
-  server actually registered**, never one a client could not call.
-- Tool availability gated by the `CA_TOOLS` allow-list; a name that is not a served tool is a loud
-  `ConfigError`, checked in `main.py` (the only place that knows the tool names).
-- A tool opens its own `GraphStore` **inside the call**. FastMCP runs tools on a worker thread, and a
-  sqlite3 connection belongs to the thread that created it, so a store held by the server raises.
+  offered a route it does not expose (also true of `file_outline`).
+- **A batched answer keys on position and states the envelope once (101).** A tool taking a list of
+  subjects (`search_symbol`'s `queries`) returns `subjects`: entry *i* answers subject *i*, in the
+  caller's order, never deduped, never merged. An entry carries only what varies — `query`,
+  `results`, `truncated`, `reason`, `total_count`, its own `try_instead` — while `indexed`,
+  `index_root` and `subject_count` sit once on the envelope (061). The envelope carries **no
+  `reason`**: a batch-level verdict would colour subjects it knows nothing about. The fan-out bound
+  is `max_subjects`, disclosed as `subjects_capped_to` plus `subjects_dropped` naming every refused
+  subject, both omitted when nothing was dropped (066/061). A missing index answers the **call**
+  (`indexed: false`, `reason: not_indexed`, no `subjects` list), like `schema_guard.payload`
+  shipping no empty `results` — N identical empty answers read as N proofs of absence. Where a
+  subject has two spellings (`query` or `queries`), neither is schema-`required` and passing both
+  raises (R5.3).
+- **Module layout.** One module per tool at `code_atlas/tools/<tool_name>.py`, named exactly as the
+  MCP tool, exposing `NAME` and a `create(...)` returning the registered function: **its signature
+  is the MCP signature and its docstring is the tool description**, so configuration flows in
+  through the closure, not global state. Logic two tools share lives in its own helper module beside
+  them (`nav_result`, `staleness`, `reach_shared`, `collection`); a tool module never imports
+  another tool module.
+- **Surface and runtime.** `get_index_status` is the cheap entry point (~100 tok) and suggests next
+  tools — **only tools the server actually registered**. `CA_TOOLS` gates availability; an unserved
+  name is a loud `ConfigError`, checked in `main.py` (the only place that knows the tool names). A
+  tool opens its own `GraphStore` **inside the call**: FastMCP runs tools on a worker thread and a
+  sqlite3 connection belongs to the thread that created it, so a server-held store raises.
 
 ## 7. Git conventions
 
