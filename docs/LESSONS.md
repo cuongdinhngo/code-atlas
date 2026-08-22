@@ -1,5 +1,21 @@
 # Lessons — code-atlas
 
+## 123 — When `total_count` names the page, a truncated symbol map reads as complete
+`file_outline` set `total_count=len(results)`, so a 12-symbol file at cap 10 returned
+`total_count: 10` beside `truncated: true` — the worst shape for a tool whose docstring calls
+itself "the symbol map". The fix is the same contract the other list tools already carry: store-side
+count, `limit`/`offset`, and a spread field when the page hides part of the answer.
+
+### 123-C1 — `total_count` is the true total everywhere it appears, never the page length
+- type: 2 generalisable-heuristic
+- handle: total-count-is-the-true-total-not-the-page
+- status: proposed (awaiting human confirm)
+- seen: 123
+- evidence: `file_outline.py` used `total_count=len(results)`; closed by `count_nodes_by_file` +
+  `tests/test_total_count_semantics.py` enumerating every emitter
+- area: tools / payload honesty
+- destination: `rulebook_path` (code subject) — recurrence 1, not yet promotable
+
 ## 122 — A shaper that keys on a count two statuses share will mis-file the one it was meant to honour
 `classify_missing_subject` returns `resolved_unique` with `candidate_count: 1` and `ambiguous` with
 `candidate_count > 1`. `shape_exact_miss` treated any positive count as `name_not_qualified`, so the

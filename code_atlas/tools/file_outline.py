@@ -6,10 +6,15 @@ from collections.abc import Callable, Mapping
 from pathlib import Path, PurePosixPath
 from typing import Literal
 
-from code_atlas.config import Config
+from code_atlas.config import Config, clamp_limit
 from code_atlas.store import GraphStore, Row
 from code_atlas.tools.freshness import FreshnessGuard
-from code_atlas.tools.nav_result import REASON_INDEX_STALE, REASON_OK
+from code_atlas.tools.nav_result import (
+    REASON_INDEX_STALE,
+    REASON_OK,
+    attach_limit_capped,
+    attach_result_kinds,
+)
 
 NAME = "file_outline"
 
@@ -19,14 +24,30 @@ DetailLevel = Literal["minimal", "standard"]
 def create(config: Config) -> Callable[..., dict[str, object]]:
     """Bind the tool to one repo's configuration."""
 
-    def file_outline(path: str, detail_level: DetailLevel = "standard") -> dict[str, object]:
+    def file_outline(
+        path: str,
+        detail_level: DetailLevel = "standard",
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> dict[str, object]:
         """What does this file define, and on what lines — without printing the source?
 
         Call this before you read or port a large file — it is the symbol map, not a body.
         Returns each symbol with its ``line_start``/``line_end``, never bodies. ``path`` may be
         absolute (under the repo root) or ``./``-prefixed; it is normalised to the repo-relative
         form stored in the index. ``found`` is false when that path is not indexed.
+
+        ``limit`` defaults to ``CA_MAX_RESULTS``; ``offset`` pages in store symbol order (057).
+        ``total_count`` is the file's full symbol count, not the page length — when the map is
+        capped, ``truncated`` is true and ``result_kinds`` names how many symbols of each kind
+        the file holds — omitted for a single-kind file, where it would restate ``total_count``
+        — so a one-page reader can see what the page omitted (067/123).
         """
+        if offset < 0:
+            raise ValueError(f"offset must be >= 0, got {offset}")
+        cap, limit_clamped = clamp_limit(limit, config.max_results)
+        if cap < 1:
+            raise ValueError(f"limit must be >= 1, got {cap}")
         if not config.db_path.is_file():
             return _empty(
                 path,
@@ -35,7 +56,6 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 index_root=config.index_root,
             )
         rel = _repo_relative(config.root, path)
-        limit = config.max_results
         with GraphStore(config.db_path) as store:
             if store.file_hash(rel) is None:
                 return _result(
@@ -60,10 +80,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     reason=REASON_INDEX_STALE,
                     total_count=0,
                 )
-            rows = store.nodes_by_file(rel, limit=limit + 1)
-        truncated = len(rows) > limit
-        results = [_hit(row) for row in rows[:limit]]
-        return _result(
+            total_count = store.count_nodes_by_file(rel)
+            rows = store.nodes_by_file(rel, limit=cap, offset=offset)
+            results = [_hit(row) for row in rows]
+            truncated = offset + len(results) < total_count
+            kind_spread = store.node_kinds_by_file(rel) if truncated else None
+        payload = _result(
             rel,
             results,
             detail_level=detail_level,
@@ -72,8 +94,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             truncated=truncated,
             found=True,
             reason=REASON_OK,
-            total_count=len(results),
+            total_count=total_count,
         )
+        if truncated and kind_spread is not None:
+            attach_result_kinds(payload, kind_spread)
+        attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
+        return payload
 
     return file_outline
 

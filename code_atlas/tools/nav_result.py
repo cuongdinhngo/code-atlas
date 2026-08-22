@@ -455,6 +455,19 @@ def attach_result_subtrees(
     return payload
 
 
+def attach_result_kinds(
+    payload: dict[str, object], kinds: Mapping[str, int]
+) -> dict[str, object]:
+    """Advertise the full file's symbol-kind spread when a page hides some (task 123).
+
+    Same 067/061 contract as ``attach_result_subtrees``: only when >1 kind, and callers
+    gate on ``truncated`` first so a one-page reader never pays for a redundant field.
+    """
+    if len(kinds) > 1:
+        payload["result_kinds"] = dict(kinds)
+    return payload
+
+
 AMBIGUOUS_DEFINITIONS = "ambiguous_definitions"
 
 

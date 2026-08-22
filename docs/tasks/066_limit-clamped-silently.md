@@ -137,7 +137,11 @@ No numeric acceptance values to re-derive; no mismatches. All ACs falsifiable �
 | 4 | `find_view_data` | `find_view_data.py:48` | | ⬜ |
 | 5 | `search_symbol` | `search_symbol.py:63` | | ⬜ |
 
-Out of scope (no user `limit` param → nothing to clamp): `file_outline` (`file_outline.py:36`, uses `config.max_results` directly) and `include_graph` (`include_graph.py:66`). The ticket's "file_outline and friends" is a hint, not the denominator — file_outline reports `truncated` but never reduces a caller's request. AC3's enumerating test must be built so that if either later grows a `limit` param, it is forced into the clamp-signal contract.
+Out of scope at ship (no user `limit` param → nothing to clamp): `include_graph`
+(`include_graph.py:66`). **`file_outline` was out of scope then and is closed by
+[123](123_file-outline-total-count-is-the-page-length.md)** — it now takes `limit`, routes through
+the clamp helpers, and is in the enumerating test denominator (N=6). AC3's enumerating test must be built so that if either later grows a
+`limit` param, it is forced into the clamp-signal contract.
 
 ## Clarifications
 

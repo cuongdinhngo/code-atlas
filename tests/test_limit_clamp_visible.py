@@ -17,6 +17,7 @@ from code_atlas import contract
 from code_atlas.config import Config, clamp_limit, load_config
 from code_atlas.store import GraphStore
 from code_atlas.tools import (
+    file_outline,
     find_callers,
     find_implementations,
     find_references,
@@ -27,6 +28,7 @@ from code_atlas.tools import (
 
 CEILING = 3
 NROWS = 10  # > CEILING so every tool truncates and clamps a generous limit
+PATH = "app/w.php"
 REPO = Path(__file__).resolve().parent.parent
 
 
@@ -83,6 +85,8 @@ def _edge(
 
 
 def _call(name: str, config: Config, limit: int | None) -> dict[str, object]:
+    if name == "file_outline":
+        return file_outline.create(config)(PATH, limit=limit, detail_level="minimal")
     if name == "find_callers":
         return find_callers.create(config)("\\T", limit=limit, detail_level="minimal")
     if name == "find_references":
@@ -97,6 +101,7 @@ def _call(name: str, config: Config, limit: int | None) -> dict[str, object]:
 
 
 TOOLS = [
+    "file_outline",
     "find_callers",
     "find_references",
     "find_implementations",
@@ -163,4 +168,4 @@ def test_no_limit_taking_tool_opts_out_of_the_signal() -> None:
         if "clamp_limit(" not in src or "attach_limit_capped(" not in src:
             offenders.append(module.name)
     assert not offenders, f"limit-taking tools missing the clamp signal: {offenders}"
-    assert len(covered) == len(TOOLS)  # the known five; a new one must be added deliberately
+    assert len(covered) == len(TOOLS)  # the known six; a new one must be added deliberately

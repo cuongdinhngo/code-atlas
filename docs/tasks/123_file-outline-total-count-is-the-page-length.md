@@ -4,7 +4,7 @@ slug: file-outline-total-count-is-the-page-length
 title: '`file_outline` omitted the symbol under repair, reported `total_count: 10` for a 12-symbol file, and has no page 2'
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [014, 057, 066, 067]
 ---
 
@@ -103,3 +103,34 @@ it is the argument for this ticket rather than a separate one.
 7. **AC7.** 057's and 066's recorded exclusions are updated in those tickets to say the exclusion was
    closed by field evidence — a deliberate scope boundary that later cost an answer should read as
    revisited, not as forgotten.
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 123 — file_outline total_count is the page length (working doc)
+
+- **Ticket:** 123 · `docs/tasks/123_file-outline-total-count-is-the-page-length.md`
+- **Type:** bug
+- **SCOPE:** M · **TIER:** full
+- **CHALLENGER:** OFF · **Review:** SKIPPED (solve args)
+- **BASELINE:** 1692 passed (main, 2026-08-22)
+
+## Execute summary
+
+- `store.count_nodes_by_file`, `node_kinds_by_file`, `nodes_by_file` + `offset`
+- `file_outline`: honest `total_count`, `limit`/`offset`, `result_kinds`, clamp contract
+- Tests: `test_file_outline_pagination.py`, `test_total_count_semantics.py`; 066 denominator → 6
+- Delta-green: **1692 → 1709 passed** (+17)
+
+## Session status
+
+- **Current phase:** complete (shipped)
+- **work_doc_mode:** embed
+- **Next action:** commit, push, open PR
+
+## Cost ledger
+
+| Phase | Subagent / dispatch | Round | Tokens |
+|-------|---------------------|-------|--------|
+| — | no subagent dispatched | — | unmeasured (host does not surface usage) |
+
+**LEDGER TOTAL:** 0 dispatch · main-loop only

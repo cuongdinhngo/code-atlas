@@ -73,7 +73,9 @@ Origin: field retro round 2 §3b and §A.6 — the 143-vs-142 reconciliation tha
 **Mechanism:** `limit` + `offset` (not cursor). Store owns `LIMIT`/`OFFSET` on edge and search reads.
 
 **Tools:** `search_symbol`, `find_implementations`, `find_callers`, `find_references`. Reachability,
-`file_outline`, and `include_graph` stay out. Last page ⇒ `truncated: false`. Default page size
+`file_outline`, and `include_graph` stayed out at ship time — **`file_outline` closed by
+[123](123_file-outline-total-count-is-the-page-length.md)** (field evidence: `total_count` was the
+page length; honest count + `limit`/`offset` + `result_kinds`). `include_graph` remains out. Last page ⇒ `truncated: false`. Default page size
 unchanged. **AC1 scope:** complete enumeration for store-backed pages (incl. `find_callers` depth=1);
 depth>1 pages the BFS hit stream and may still hit a count floor (W4).
 

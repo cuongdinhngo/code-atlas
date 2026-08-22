@@ -785,8 +785,35 @@ class GraphStore:
     def nodes_by_kind(self, kind: str, *, limit: int) -> list[Row]:
         return self._nodes("kind = ?", kind, None, limit)
 
-    def nodes_by_file(self, path: str, *, limit: int) -> list[Row]:
-        return self._nodes("file_path = ?", path, None, limit)
+    def count_nodes_by_file(self, path: str) -> int:
+        """How many symbols live on ``path`` (same set ``nodes_by_file`` pages)."""
+        cursor = self._conn.execute(
+            "SELECT COUNT(*) FROM nodes WHERE file_path = ?",
+            (path,),
+        )
+        row = cursor.fetchone()
+        assert row is not None
+        return int(row[0])
+
+    def node_kinds_by_file(self, path: str) -> dict[str, int]:
+        """Per-kind symbol counts on ``path`` — the outline spread substrate (task 123)."""
+        cursor = self._conn.execute(
+            "SELECT COALESCE(kind, ''), COUNT(*) FROM nodes WHERE file_path = ? "
+            "GROUP BY kind ORDER BY kind",
+            (path,),
+        )
+        return {str(kind): int(count) for kind, count in cursor}
+
+    def nodes_by_file(self, path: str, *, limit: int, offset: int = 0) -> list[Row]:
+        if offset < 0:
+            raise ValueError(f"offset must be >= 0, got {offset}")
+        if limit < 1:
+            raise ValueError(f"limit must be >= 1, got {limit}")
+        sql = (
+            f"SELECT id, {_NODE_COLUMNS} FROM nodes WHERE file_path = ? "
+            f"ORDER BY {_NODE_ORDER} LIMIT ? OFFSET ?"
+        )
+        return self._rows(NODE_ROW_KEYS, sql, (path, limit, offset))
 
     def edges_by_source(
         self,
