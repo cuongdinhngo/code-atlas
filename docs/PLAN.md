@@ -463,8 +463,14 @@ that must not ride the cheap path.
 | `guided_tour` | `detail_level?`, `offset?` | a dependency-ordered reading list, seeded from zero-inbound entry points and cycle-safe via SCC condensation (087); seeds ranked by out-degree and capped at a quarter of the budget, so a repo with more entry points than budget still gets a tour rather than the alphabet (106) |
 | `generate_onboarding` | `detail_level?` | writes the committable artifact from the graph — `docs/onboarding/` markdown + `manifest.json` + a self-contained `index.html` system map (088/089/116). It removes only the pages its own last manifest recorded, and refuses a tree it does not own (088 review) |
 
-*Planned, not shipped:* `namespace_tree` (namespaces + members) — listed under **Planned** in the
-README, and deliberately absent from `main.TOOL_NAMES`.
+*Considered and not planned:* `namespace_tree` (namespaces + members) was named as a task-013/014
+consumer of `split_qname` in task 002 and never built. It carried no ticket and no backlog row across
+125 tasks, and three things now argue against it: `search_symbol` already takes a `namespace` filter,
+`architecture_overview` answers repo shape, and §19's founding-premise benchmark found the gap is
+**demand and modelling, not capability** — the whole-graph tools it would have joined had already
+shipped and no real question needed one. A scanned tool surface has a budget (081), so the row is
+removed from the README rather than carried as a standing promise. Re-propose it on a field question
+it answers that no shipped tool does.
 
 **Claim signing — `sign: true` on the four attesting tools (task 100).** An attestation that never
 reaches the artifact where the claim is made has, practically, not been produced: the round-5 session

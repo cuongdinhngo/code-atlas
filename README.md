@@ -4,10 +4,13 @@
 search, navigation, and impact analysis.** Language-agnostic core with per-language adapters — PHP
 first, then TypeScript/JavaScript, Python, C#/.NET.
 
-> Status: **the PHP path is feature-complete and daily-usable** — index → search / read / outline →
-> callers / refs / impls → impact → incremental (`git diff`) → reachability / orphans, plus a
-> read-through freshness reparse. Other languages are still planned. See [`docs/PLAN.md`](docs/PLAN.md)
-> for the full design and milestones.
+> Status: **shipped and in daily use — 17 tools.** The PHP path is feature-complete: index → search /
+> read / outline → callers / refs / impls → impact → incremental (`git diff`) → reachability /
+> orphans → shortest path, plus a read-through freshness reparse. The **onboarding layer has shipped
+> too** (`architecture_overview`, `guided_tour`, `generate_onboarding`) and emits a committable
+> system map. **Other languages are deferred, not cancelled** — depth on PHP first. See
+> [`docs/PLAN.md`](docs/PLAN.md) for the design and milestones, [`docs/BACKLOG.md`](docs/BACKLOG.md)
+> for what is open.
 
 ## Why
 
@@ -171,8 +174,12 @@ Drive everything through the MCP tools:
    index **newer** than the server is refused untouched — that means the running server predates the
    upgrade, so restart the MCP client rather than rebuild (see `direction` in the payload).
 3. **Query** — `search_symbol`, `file_outline`, `read_symbol`, `find_callers`, `find_references`,
-   `find_implementations`, `find_view_data`, `include_graph`, `impact`, `reachable_from`, `find_orphans`,
-   `explain_path` (see [Tools](#tools)).
+   `find_implementations`, `find_view_data`, `include_graph`, `impact`, `reachable_from`,
+   `find_orphans`, `explain_path`.
+4. **Understand a repo you did not write** — `architecture_overview` (layers and their crossings),
+   `guided_tour` (a dependency-ordered reading list), `generate_onboarding` (write the committable
+   system map). These answer a once-per-repo question, not a once-per-ticket one. See
+   [Tools](#tools).
 
 Every tool takes `detail_level` — `minimal` for the payload alone; `standard` (default) may add
 provenance (`db_path` on `get_index_status` / build reports only after 061). Every answer also carries
@@ -185,7 +192,7 @@ provenance (`db_path` on `get_index_status` / build reports only after 061). Eve
 
 | Tool | Returns |
 |---|---|
-| `get_index_status` | index stats, last indexed commit, staleness, next-step suggestions (call first) |
+| `get_index_status` | index stats, last indexed commit, staleness, next-step suggestions (call first). `standard` also names the running build — `server_version` and `server_build`, with `+dirty` when the checkout has uncommitted changes — so a report can say which code answered it (125) |
 | `build_or_update_index` | `wrote` counts + timing; `standard` also `graph` totals; `full=false` incremental when possible, else full |
 | `search_symbol` | ranked symbols (`qname`, kind, `file:line`) |
 | `file_outline` | symbols + line ranges, no bodies |
@@ -195,11 +202,38 @@ provenance (`db_path` on `get_index_status` / build reports only after 061). Eve
 | `include_graph` | `include`/`require` neighbors (`imports` / `imported_by` / `both`) |
 | `impact` | bounded blast radius of a change (paths/qnames), depth-limited with decay |
 | `reachable_from` | forward reachability from configured entry points |
-| `find_orphans` | unreachable / zero-inbound symbols (dead-code candidates) |
+| `find_orphans` | unreachable / zero-inbound symbols (dead-code candidates); pages with `limit`/`offset`, and its walk is bounded by its **own** `CA_ORPHANS_MAX_NODES` rather than the impact budget. `walk_truncated` marks an answer where the walk stopped early, so the orphan count is an over-estimate (124) |
 | `explain_path` | shortest control-flow path between two symbols |
 | `architecture_overview` | this repo's layers, their degrees and the crossings between them; `summary.reachability` splits the zero-inbound modules into their real populations — web surface, vendored, tests, no-inbound-but-outbound (**not** dead code), no-edge-either-way (a list to check, not a conclusion) — with the raw total kept beside them; every list capped at `CA_MAX_RESULTS`, `verbose` pages the per-module rows with `offset`; `summary.business_modules` is the capability table — which file to open for a named screen — with its own coverage beside it, the container level derived from the tree rather than named, and a role-organised container refused with its reason; `summary.mirrors` names sibling subtrees that duplicate each other's paths — discovered, not configured — with a counterpart lookup whose negative answer marks divergence, and the standing caveat that it compares paths, not bytes (onboarding) |
 | `guided_tour` | dependency-ordered reading list of files, cycle-safe via SCC condensation; roots ranked by out-degree and capped at a quarter of the node budget, so the walk expands instead of spending the budget on isolated files; a component no entry point reaches is re-seeded, not dropped; walk bounded by `CA_IMPACT_MAX_NODES`, page capped at `CA_MAX_RESULTS` with `offset` (onboarding) |
 | `generate_onboarding` | write committable markdown (overview · tour · per-module) plus `manifest.json` and a self-contained `index.html` **system map** under `docs/onboarding/` (offline, theme-aware, repo text escaped so a path cannot inject markup, `<noscript>` fallback). The map renders the onboarding dataset **alone** — sitemap treemap with drill-down, layer table with its node-kind composition, the full layer×layer dependency matrix with nothing cut, hubs, the capability table, the zero-inbound split, the mirror panel, a search palette with counterpart lookup, and a provenance section naming which parts are derived; every figure is interpolated, so the same dataset always renders identical bytes, and a section that is empty or capped says so instead of looking exhaustive; removes only the pages its own last manifest recorded and refuses a tree it did not write; a module with no edge either way and no summary gets **no page** (one would only repeat its path) — the overview counts them, the manifest names them with `page: null`, `standard` reports `isolated_modules`, and a page whose neighbours the budget cut is kept and says so; regenerable cache under `.code-atlas/onboarding/`; tour/pages bounded by `CA_IMPACT_MAX_NODES` (onboarding) |
+
+### Reading an answer — every payload says what it is not telling you
+
+An answer that is silently partial is worse than no answer, so the payload carries its own limits.
+Nine list-returning tools take **`limit` / `offset`** and page in a stable order, and every one of
+them reports:
+
+- **`total_count`** — the true size of the answer, never the length of the page you were handed.
+- **`truncated`** — whether *this page* is the whole set. It describes the page alone, so a pager
+  terminates; a walk that stopped on its own node budget says so separately in `walk_truncated`.
+- **`limit_capped_to`** — present only when your `limit` exceeded `CA_MAX_RESULTS`. The server
+  honoured fewer rows than you asked for, and says so rather than letting `truncated` imply it.
+- **`reason`** — why an answer is empty. `no_such_symbol`, `name_not_qualified` (with
+  `candidate_count`), `not_indexed` (the file is on disk but untracked), `relationship_not_modelled`,
+  `capability_not_configured`. **An empty result is never an unexplained zero**, and where a better
+  route exists the payload names a real, callable tool in `try_instead`.
+- **`resolved_qname`** — when you typed `Foo\Bar` and the index stores `\Foo\Bar`, the tool answers
+  about the stored name and tells you which one it used.
+
+Two more fire when a page could mislead: a truncated `file_outline` adds **`result_kinds`** (every
+kind in the file with its count, so a capped symbol map cannot read as complete), and a truncated
+`find_callers` page spanning several top-level subtrees adds **`result_subtrees`**, because page 1 of
+a store-ordered answer clusters into whichever subtree sorts first.
+
+Every answer also carries **`index_root`** — the source tree it describes — so an agent in a worktree
+can spot a server pointed at the main checkout. Full field reference:
+[`docs/CONVENTION.md`](docs/CONVENTION.md) §6.
 
 ### Signing a claim — `sign: true` (opt-in, off by default)
 
@@ -332,12 +366,6 @@ name-only answers from description-backed ones — is
 | `impact_of_change` | status → impact on the changed paths/qnames → read only the blast-radius surface |
 | `which_tool` | a recognition map: which tool answers a given question, across all 17 tools |
 
-### Planned
-
-| Tool | Returns |
-|---|---|
-| `namespace_tree` | namespaces + members |
-
 ## Configuration
 
 Every knob resolves **environment → project file → default**. The project file is
@@ -350,10 +378,15 @@ a silent fallback.
 | `CA_DB_PATH` | `db_path` | `.code-atlas/graph.db` | index location (relative to the repo root) |
 | `CA_WORKERS` | `workers` | `max(1, min(cpu-2, 8))` | adapter processes during a build |
 | `CA_ADAPTER_TIMEOUT` | `adapter_timeout` | `30` | seconds an adapter may stay silent before a build kills it |
-| `CA_MAX_RESULTS` | `max_results` | `50` | result cap for search/nav tools |
+| `CA_MAX_RESULTS` | `max_results` | `50` | result cap for search/nav tools — **and** the resolver's per-call-site candidate fan-out, which sets index size; a request above the cap is honoured to the cap and says so in `limit_capped_to` |
+| `CA_MAX_SUBJECTS` | `max_subjects` | `25` | subjects one `search_symbol` sweep may take; a refused subject is named in `subjects_dropped`, never dropped silently |
 | `CA_IMPACT_DEPTH` | `impact_depth` | `2` | hops the impact engine traverses (with default decay/floor, depths above ~8 are a no-op) |
 | `CA_IMPACT_MAX_NODES` | `impact_max_nodes` | `500` | node budget for one impact query (seeds kept preferentially when over budget) |
+| `CA_ORPHANS_MAX_NODES` | `orphans_max_nodes` | `500` | node budget for the reachability walk inside `find_orphans` only — deliberately **not** the impact knob, so tuning one cannot change which orphans exist |
 | `CA_PATH_INDEX_MAX` | `path_index_max` | `20000` | path cap for the onboarding dataset's front-coded path index; when it trims, the dataset carries both the total and the shown count |
+| `CA_ENTRY_POINTS` | `entry_points` | unset | file globs that seed reachability. **`reachable_from` and `find_orphans` need this** — unset, they report *no roots configured* rather than guessing |
+| `CA_STUB_ROOTS` | `stub_roots` | unset | dependency roots (e.g. `vendor`) to index declarations-only, so third-party signatures resolve; hits carry `stub: true`. Costs one extra pass |
+| `CA_INDIRECTION_RULES` | `indirection_rules` | unset | JSON rule files mapping framework indirection to edges. **`find_view_data` needs this** — without `view_data` setters it answers `capability_not_configured`, not a zero |
 | `CA_TOOLS` | `tools` | all tools | comma-separated tool allow-list |
 | `CA_HOST_ROOT` | `host_root` | unset | absolute-path rewrite only (pair with `CA_CONTAINER_ROOT`; unused by the relative-path build) |
 | `CA_CONTAINER_ROOT` | `container_root` | unset | absolute-path rewrite only (pair with `CA_HOST_ROOT`) |
@@ -379,9 +412,10 @@ it never has to know where a language's adapter lives. An adapter announces its 
 suffixes it owns, and its capabilities on the first line it writes — that handshake is what routes
 files to it.
 
-Files are skipped using built-in patterns (`vendor/ var/ uploads/ log/ node_modules/ .git/`), then
-`.gitignore`, then an optional `.codeatlasignore` — later rules win, so `.codeatlasignore` can
-re-include what an earlier source excluded.
+Files are skipped using built-in patterns (`vendor/ var/ uploads/ log/ node_modules/ .git/
+*.blade.*`), then `.gitignore`, then an optional `.codeatlasignore` — later rules win, so
+`.codeatlasignore` can re-include what an earlier source excluded. A path below an excluded
+*directory* stays excluded, which is what lets the walk prune a subtree.
 
 ### Optional LLM enrichment (opt-in, off by default)
 
@@ -447,6 +481,29 @@ contract) + **YAGNI** (one seam only until a second adapter exists) + **standard
 encode the language spec/standards, never a specific repo's conventions). Details in the
 [build plan](docs/PLAN.md). Cross-repo validation (opt-in / scheduled, not per-PR) lives in
 [`docs/runbooks/cross-repo-validation.md`](docs/runbooks/cross-repo-validation.md).
+
+## Documentation
+
+| Doc | Answers |
+|---|---|
+| [`docs/PLAN.md`](docs/PLAN.md) | the authoritative design — the contract, the schema, the resolver, every tool, and **§19**, the decision log: what was measured, what was refuted, and why the project is shaped this way |
+| [`docs/BACKLOG.md`](docs/BACKLOG.md) | what is open, what landed, and what each task cost |
+| [`docs/CONVENTION.md`](docs/CONVENTION.md) | naming, repo layout, the fixed contract vocabulary, and **§6** — the payload contract every tool answer obeys |
+| [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) | the binding *how we build* rules (R1.1 …), several of them CI-gated |
+| [`docs/LESSONS.md`](docs/LESSONS.md) | what shipping this taught us, per task — the evidence the rules were promoted from |
+| [`docs/FEEDBACK.md`](docs/FEEDBACK.md) | external review rounds and the field retros they produced |
+
+**Runbooks** — operator protocols, each reproducible:
+[onboarding a large legacy repo](docs/runbooks/onboarding-a-repo.md) ·
+[tokens-to-answer](docs/runbooks/tokens-to-answer.md) (the value claim and how it is gated) ·
+[parallel agents](docs/runbooks/parallel-agents.md) (measured memory and write contention) ·
+[cross-repo validation](docs/runbooks/cross-repo-validation.md) ·
+[field retro](docs/runbooks/field-retro.md) ·
+[tool-recognition probe](docs/runbooks/tool-recognition-probe.md).
+
+Phase 3's own breakdown, and the reviewed mockup the system map was built from, are under
+[`docs/phase3-onboarding/`](docs/phase3-onboarding/). Contributing agents should start at
+[`AGENTS.md`](AGENTS.md).
 
 ## License
 
