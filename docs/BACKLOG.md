@@ -45,6 +45,10 @@ what landed, and what it cost* — narrative rationale lives in those three.
 | 119 | [Onboarding — the reachability split never says which signal produced each count](tasks/119_reachability-signal-provenance.md) | Phase 3 / M11 | todo | 113, 116 |
 | 120 | ["Can this subtree be deleted?" — subtree dependency with duplicate-declaration attribution — evidence-gated](tasks/120_subtree-dependency-attribution.md) | Coverage | todo | 017, 043, 078, 115 |
 | 121 | [Phase 3 shipped without its own cost gate — the onboarding question-class was never added to the harness](tasks/121_onboarding-question-class-never-measured.md) | Measure | todo | 034, 045, 055, 086, 087, 088 |
+| 122 | [075 normalised the leading backslash for three tools; four `find_*` tools still decline over it](tasks/122_exact-miss-shaping-discards-a-resolved-subject.md) | Agent-trust | todo | 075, 076, 065, 093 |
+| 123 | [`file_outline` omitted the symbol under repair, reported `total_count: 10` for a 12-symbol file, and has no page 2](tasks/123_file-outline-total-count-is-the-page-length.md) | Agent-trust | todo | 014, 057, 066, 067 |
+| 124 | [`find_orphans` blew the transport limit at 19k files, on the one ticket whose root cause *was* an orphan](tasks/124_find-orphans-cannot-answer-at-scale.md) | Agent-fit | todo | 031, 057, 066, 119 |
+| 125 | [No payload names the server build — every field retro is told its own subject by an operator](tasks/125_no-payload-names-the-server-build.md) | Measure | todo | 082, 095, 100 |
 
 **Order (round-5 tickets):** ~~**092**~~ (done — an untracked file read as a non-existent symbol)
 **→ ~~093~~** (done — 092's route shape generalised to every `try_instead`) **→ ~~095~~**
@@ -54,6 +58,39 @@ mentions are DYNAMIC REFERENCES) **→ ~~096~~** (done — cost, and last for
 the same reason 061 and 080 were, but it is the round's behaviour finding, not just a number).
 **Round 5 closed:** 092–097 all landed. **Round 4 closed:** 075–082 all landed; round 5 verified
 7 of 8 fixed and 081 `NOT OBSERVED` (§A).
+
+**Order (round-6 tickets), 2026-08-21 — all four are payload honesty, none is a graph defect.** The
+round's own closing line is the ordering argument: *"the graph knew everything I asked it; the failures
+were the tool knowing and not saying how much it was not telling me, and the tool knowing and declining
+over punctuation."* So **122** first — it is the round's single most expensive event (one silently-empty
+answer moved the evaluator to `grep` for the remaining **four of five** tickets) and it is
+[075](tasks/075_read-symbol-confident-zero-on-unnormalised-qname.md)'s own scope bullet left unfinished:
+`classify_missing_subject` resolves the leading-anchor case to `resolved_unique` and three tools
+(`read_symbol`, `explain_path`, `impact`) honour it while four (`find_references`, `find_callers`,
+`find_implementations`, `find_view_data`) discard the resolved qname inside the shared
+`shape_exact_miss`. **→ 123** (`file_outline` returned 10 of a 12-symbol file, omitted the method under
+repair, and reported `total_count: 10` — the field means *page length* there and *true total* on
+`search_symbol`; round 5 called this tool its most expensive **miss**, round 6 called it and it was
+**wrong**). **→ 124** (`find_orphans` exceeded the transport limit at 154,004 characters and cannot be
+paged; it borrows `impact_max_nodes` for a cap that decides which orphans are visible at all, and the one
+ticket that round whose root cause *was* an orphan got nothing from it). **→ 125** last, and it is the
+cheapest: no payload names the server build, so every retro in this series has been told its own subject
+by an operator — round 6 identified the build by reading task numbers out of tool `description` prose.
+
+123 and 124 are **recorded exclusions meeting their first field evidence**, not oversights:
+[057](tasks/057_answer-pagination.md) wrote *"Reachability, `file_outline`, and `include_graph` stay
+out"* and [066](tasks/066_limit-clamped-silently.md) ruled `file_outline` out of the clamp contract with
+a forward clause for exactly this case. Nine tools already take `offset`; these two are the only
+list-returning tools that do not. **Two things round 6 measured and no ticket claims:** `edge_health`
+HEURISTIC sat at **63.81 %** against round 4's 63.8 % — unmoved to three significant figures across two
+rounds and ~20 tasks, tracked by the regressions table for three rounds without a ticket aimed at it, so
+it is either a non-goal that should say so or an unowned gap; and the round's most valuable result came
+from a question the evaluator **never asked** (a `search_symbol` page returned a test class whose
+docblock falsified a claim already shipped), which no benchmark scoring "given question Q, did the tool
+return A" can see. That is also independent evidence for **121**: five bug-fix tickets generated **zero**
+calls to the three onboarding tools, because onboarding answers a once-per-repo question and a ticket
+asks a once-per-ticket one — so 121's question-class must measure a newcomer, not a maintainer, or it
+will fail for the wrong reason.
 
 **Order (round-5 interview tickets) — these are positioning, not defects.** The round-5 tickets fix
 what the tool *says*; these decide **where it stands**. ~~**099**~~ first (done — every decision the
@@ -133,9 +170,12 @@ holds **zero** onboarding questions. M10–M12 are complete; whether they beat h
 **unmeasured**, not won — the same exposure that made the founding search-speed premise false (§19),
 one phase later.
 
-**Then:** the two onboarding-quality tickets (118 · 119) close what the field measurement found;
-Phase 2 language breadth stays deferred per §19. 104 stays `blocked` because 105 superseded its
-approach (graph mass, not file count), not because it is waiting on anything.
+**Then:** round 6's payload-honesty tickets go first (**122 → 123 → 124 → 125**) — they are the
+mechanism tools an agent uses every ticket, and 122 is a defect that already cost a field session its
+tool. The two onboarding-quality tickets (118 · 119) close what the field measurement found; **121**
+decides whether Phase 3 is measured at all, and round 6 sharpened how (a newcomer's question-class, not
+a maintainer's). Phase 2 language breadth stays deferred per §19. 104 stays `blocked` because 105
+superseded its approach (graph mass, not file count), not because it is waiting on anything.
 
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
 
@@ -481,6 +521,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | 116 | **0 dispatch — no subagent was dispatched this run.** Run as `/mango:solve 116 with skipped review & challenge`: review waived, challenger off. Main-loop **unmeasured (host does not surface usage)**. refine ran the **ticket-refine** path (1 unresolved product-decision, W1: the map drops 089's Tour tab and renders the dataset **alone** — assumed, ratified at Gate 1); 6 how-decisions H1–H6. **`viewer.py` rewritten, not duplicated** (AC7), so the core-module pin stays at **57**; `viewer_payload` deleted rather than ported — 089 kept a second hand-written payload shape and the dataset now *is* the payload. `DATASET_VERSION` 4 -> 5 for three fields, each forced by an AC: `commit` (AC3 needs the dataset to be the sole input), per-layer `kinds` (the composition bar, from a new bounded `store.file_kind_counts()`), and `dir_symbol_threshold` (AC4 forbids a template literal, and the empty-sitemap sentence must name the threshold). **The ticket's premise was partly falsified and the proving test re-chosen:** 089's viewer at anchor scale measures **921,746 B, not 31 MB** — task **108 had already removed ~97 %** by capping the page bodies — so the red is the *absence of the spatial answer*, not the size. **node is now a test dependency** (`docker/Dockerfile` + CI): the page builds its content in the browser, so AC4/AC5/AC6 have no static formulation and a grep over the HTML would be a false green; `tests/viewer_dom_stub.js` runs the page and reports what rendered, with every assertion in Python. **AC4 reformulated after it asserted something false** — "every figure moved" cannot hold for a cardinality or a ratio, so it is now a static half (no digit in the template's visible text) plus a behavioural half (every >=4-digit figure disjoint under a x1009 count scaling). **AC2 measured, and the pins named as unable to test it** (26–51 files, two orders of magnitude under both thresholds): asserted against a synthetic dataset at the anchor's *measured* cardinality — **969,009 B** with the path index (index alone 860,143 B = **1.020x** the anchor's 843,439 B, which is **96.9 %** of its whole dataset) and **108,940 B** without, vs 089's 921,746 B — **8.5x smaller without the index, while answering more**. Two of three pins map **zero** directories, so the empty sitemap names its threshold instead of drawing a blank box. Delta-green: full Docker gate **1618 passed, 0 failed** (main 1601, +17 net = 13 in the rewritten viewer suite + 4 dataset tests; none removed), ruff clean, mypy clean over **57 source files**. **Anchor deferred to operator** via `CA_ANCHOR` in `scripts/viewer_report.py` (108/112–115 pattern). | [#143](https://github.com/cuongdinhngo/code-atlas/pull/143) |
 | 117 | **0 dispatch — no subagent was dispatched this run.** Run as `/mango:solve 117 with skipped review & challenge`: review waived, challenger off. Main-loop **unmeasured (host does not surface usage)**. refine ran the **ticket-refine** path (2 unresolved decisions: the seam's routing, and AC1's reading — the latter tagged `ASSUMED` and ratified at Gate 1); 4 how-decisions H1–H4. **The ticket's routing bullet was falsified by measurement before any code was written:** it sends layer descriptions through 091's `LayerRefiner`, which is gated on the *weak* names 084 falls back to — and 110 made `responsibility` the primary method, so all three pinned repos yield **zero weak layers** and that route would have described **0 of 14** layers. Replaced by **one** `ProseWriter` Protocol with one method serving all three slots, which is also the only way the filler guard (AC6), the failure degradation (AC4) and the per-run ceiling (AC5) get one home each instead of two — a split budget is not a budget. `LayerRefiner` left untouched. New pure core modules `onboarding/prose.py` (seam + `is_filler` + `ProseRun`) and `onboarding/headlines.py` (six derived candidate families); `TYPE_KINDS`/`CALLABLE_KINDS` added to `contract.py` as **named subsets** of the existing vocabulary, so `CONTRACT_VERSION` stays 5 (R3); `DATASET_VERSION` 5 -> 6 for `headlines`; **count-pins bumped 57 -> 59**. **AC1 could not mean what it says** — the Scope requires structural-default headline sentences when the seam is off, which is new deterministic content, so the map's bytes necessarily move; read (and ratified) as the reproducibility claim, proven over all four renderers against both `None` and an explicit identity run. **The call ceiling is derived, not invented:** 6 families + 110's 12 layers + 109's 15-step C4 = **33**, pinned by a test that re-derives each from its source (R6.7) rather than trusting the copy. **AC5 measured, including the case where the ceiling actually bites** — the pins cost 12/17/25 cold calls and 0 warm, an 18,929-file synthetic with named layers costs 24, and the same synthetic with paths naming no responsibility (084 falls back to per-directory layers, unbounded) requests **1,176 layer descriptions, is served 12 and refused 1,164**: a report where the limit never triggers proves the arithmetic, not the enforcement. Tokens are printed as prompt **bytes** plus a labelled char/4 **estimate**, never as a measurement. Two gates caught real work: an AC6 test asserted that a writer returning `"Services"` is filler for every layer — it is filler only for the layer *named* Services, and C1 catches prose that restates what it was handed, not prose that is merely wrong (fixture fixed, predicate kept); and a shared `indexed_pins()` helper was written and then **deleted** on finding the three existing report scripts wrap that loop in a per-repo `try/except`, so migrating them was not mechanical and was out of scope. Delta-green: full Docker gate **1671 passed, 0 failed** (main 1618, +53 net = 47 authored + 6 from tests parametrized over the core-module list; none removed), ruff clean, mypy clean over **59 source files**. New CI grep-gate **R4.1** (no prompt, model id or LLM import under `code_atlas/` — AC7). **Anchor deferred to operator** via `scripts/prose_cost_report.py` (108/112–116 pattern). | [#144](https://github.com/cuongdinhngo/code-atlas/pull/144) |
 | — | **Docs-truth sweep + four tickets authored (118 · 119 · 120 · 121).** 0 dispatch — main-loop only, **unmeasured** (the host surfaces no usage block); no mango lifecycle, so `no work doc`. The spend was reading, not writing: two onboarding regenerations on the anchor monorepo (17 s each), a hand-written attribution pass over its 1.0 GB index, and the doc audit itself. Delta-green: Docker gate **1679 passed**, ruff clean, mypy clean over 59 source files (`main` baseline 1671; the +8 is `test_backlog_bookkeeping`'s two parametrized rows per new task file — no test authored, none removed) | [#145](https://github.com/cuongdinhngo/code-atlas/pull/145) |
+| — | **Round-6 retro triage + four tickets authored (122 · 123 · 124 · 125).** 0 dispatch — main-loop only, **unmeasured** (no usage block surfaced); no mango lifecycle, so `no work doc`. The spend was verification, not authoring: every one of the retro's five findings was re-derived from source before it was written down, which is what turned "one-character fix" into 075's unfinished scope bullet and turned two "defects" into 057's recorded exclusions. Docs-only, no source touched; suite unchanged except `test_backlog_bookkeeping`'s parametrized rows for the four new task files | [#146](https://github.com/cuongdinhngo/code-atlas/pull/146) |
 
 **How 047–049 were measured.** One autonomous session, no per-task transcript: each row is the API
 calls between the previous commit and that task's own commit. The approximation runs one way — work
