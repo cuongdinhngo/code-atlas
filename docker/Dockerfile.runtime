@@ -27,6 +27,7 @@ WORKDIR /opt/code-atlas
 COPY pyproject.toml README.md ./
 COPY code_atlas ./code_atlas
 RUN pip install --no-cache-dir .
+RUN python -c "from code_atlas.build_info import server_identity; i=server_identity(); assert i['version'] and len(i['build'])==7"
 
 # The adapter source + its resolved vendor tree from stage 1 (referenced by CA_PHP_CMD's abs path).
 COPY adapters/php ./adapters/php

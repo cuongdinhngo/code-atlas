@@ -3,6 +3,28 @@
 The sections a field-round write-up must fill. Not a benchmark harness (055 / 074 own those).
 Copy the headings; leave unused later sections blank rather than inventing a parallel outline.
 
+## 0.a Server build
+
+Before the work (and again at the end), record which **code-atlas server** answered — not the indexed
+repo's commit, not `contract_version` / `schema_version` (those name the index schema).
+
+One call suffices:
+
+```text
+get_index_status(detail_level="standard")
+```
+
+Copy `server_version` and `server_build` from the payload. Two builds of the same declared version
+must differ in `server_build`. If either field is absent, write **NOT OBSERVED** and treat every
+verification verdict as unanchored.
+
+A `server_build` ending in `+dirty` means the server ran from a checkout with uncommitted changes:
+record it verbatim and do not quote the bare commit, because the code that answered is not that
+commit. A clean run is the only one whose findings can be reproduced from a commit id alone.
+
+When quoting a signed claim (`sign=true`), the line also carries `server=` and `build=` beside the
+index revision keys.
+
 ## 0.5 Recognition probe
 
 Run [`tool-recognition-probe.md`](tool-recognition-probe.md) **before** the agent sees

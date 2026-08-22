@@ -69,6 +69,9 @@ def test_the_probe_surface_guard_can_actually_fail() -> None:
 
 def test_retro_template_asks_for_resident_count_and_four_buckets() -> None:
     text = RETRO.read_text(encoding="utf-8")
+    assert "0.a" in text
+    assert "server_version" in text
+    assert "server_build" in text
     assert "0.5" in text
     assert "name-only" in text
     assert "description-backed" in text

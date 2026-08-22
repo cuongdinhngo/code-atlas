@@ -1,5 +1,21 @@
 # Lessons — code-atlas
 
+## 125 — Schema version names the index, not the server that read it
+``get_index_status`` reported ``contract_version`` and ``schema_version`` — both describe the
+database shape, unchanged since task 063 — while round 6 identified the running build by reading
+task numbers out of tool docstrings. The fix adds ``server_version`` + ``server_build`` on status
+(standard/verbose) and ``server``/``build`` on signed claims, derived from git or package content.
+
+### 125-C1 — Server identity is orthogonal to contract/schema version
+- type: 2 generalisable-heuristic
+- handle: server-identity-orthogonal-to-schema-version
+- status: proposed (awaiting human confirm)
+- seen: 125
+- evidence: round-6 retro could not answer §0.a; closed by ``build_info.server_identity`` +
+  ``field-retro.md`` §0.a
+- area: tools / evaluation / provenance
+- destination: `rulebook_path` (code subject) — recurrence 1, not yet promotable
+
 ## 124 — A walk budget named for another tool is a cap on what you can ever see
 `find_orphans` passed `impact_max_nodes` into the reachability walk, so changing impact's knob changed
 which orphans existed in the answer — and the 500-row cap decided visibility with no `offset` to look

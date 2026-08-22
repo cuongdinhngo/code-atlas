@@ -150,7 +150,13 @@ code-atlas/
   that shares its vocabulary) also names **`last_ref`/`head_ref`** — the human revision the index
   was built on and HEAD is on now (`HEAD` when detached; `null` when non-git; omitted when the
   index predates 077 so `null` is not read as "not under git"); nav payloads stay
-  on `index_root` only. For nav/search/read/outline/reach/explain, `minimal`
+  on `index_root` only. ``get_index_status`` at ``standard``/``verbose`` also carries
+  ``server_version`` and ``server_build`` — the running package and a build id from git or package
+  content, not the index schema (125); ``minimal`` omits them. A build id from a checkout with
+  uncommitted changes carries ``+dirty``, because the tree is not the commit it sits on and a
+  retro must not quote a commit that did not answer. A signed claim adds ``server=`` and
+  ``build=`` beside the index revision keys (100/125). For nav/search/read/outline/reach/explain,
+  `minimal`
   and `standard` may share the same top-level keys.
   `get_index_status` also accepts `verbose` (task 058): `standard` plus a capped
   `parse_failure_paths` list (`PARSE_FAILURE_PATHS_LIMIT`, not `CA_MAX_RESULTS`) with optional

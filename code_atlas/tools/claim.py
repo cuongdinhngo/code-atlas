@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
+from code_atlas.build_info import server_identity
 from code_atlas.contract import CONFIDENCE_TIERS
 from code_atlas.tools.nav_result import REASON_OK
 from code_atlas.tools.staleness import BEHIND
@@ -75,6 +76,12 @@ def revision_fields(staleness: Mapping[str, object]) -> list[tuple[str, object]]
     if state == BEHIND and dirty:
         fields.append(("dirty_indexed", dirty))
     return fields
+
+
+def server_fields() -> list[tuple[str, object]]:
+    """Which server build produced this answer — orthogonal to index revision (125)."""
+    ident = server_identity()
+    return [("server", ident["version"]), ("build", ident["build"])]
 
 
 def render(fields: Sequence[tuple[str, object]]) -> str:
@@ -141,5 +148,6 @@ def sign(
     if payload.get("truncated"):
         fields.append(("truncated", True))
     fields.extend(revision_fields(staleness))
+    fields.extend(server_fields())
     payload[CLAIM_KEY] = f"{CLAIM_SCHEMA} {render(fields)}"
     return payload

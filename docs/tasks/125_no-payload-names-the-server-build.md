@@ -4,7 +4,7 @@ slug: no-payload-names-the-server-build
 title: 'No payload on any of the 17 tools names the server build — every field retro has to be told its own subject by an operator'
 phase: 1.5b
 milestone: Measure
-status: todo
+status: done
 depends_on: [082, 095, 100]
 ---
 
@@ -76,3 +76,37 @@ Versioning the *contract* or the *schema* — those exist, are correct, and mean
    a timestamp or a build clock, so identical input yields identical output.
 6. **AC6.** The retro protocol's §0.a question is answerable from one call, and that is recorded in the
    evaluation harness docs so round 7 does not have to ask an operator.
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 125 — no payload names the server build (working doc)
+
+- **Ticket:** 125 · `docs/tasks/125_no-payload-names-the-server-build.md`
+- **Type:** measure
+- **SCOPE:** M · **TIER:** full
+- **CHALLENGER:** OFF · **Review:** SKIPPED (solve args)
+- **BASELINE:** 1725 passed (main after 124, 2026-08-22)
+
+## Execute summary
+
+- `code_atlas/build_info.py`: `server_identity()` — version + git or content hash
+- `get_index_status`: `server_version` / `server_build` at standard/verbose
+- Review: a dirty checkout reports `<commit>+dirty`, and a missing package version degrades
+  to `unknown` rather than raising inside `claim.sign`
+- `claim.sign`: `server=` / `build=` keys
+- `field-retro.md` §0.a; `Dockerfile.runtime` build-time assert
+- Tests: `tests/test_server_build.py`
+- Delta-green: **1725 → 1739 passed** (+14)
+
+## Session status
+
+- **Current phase:** complete (shipped)
+- **work_doc_mode:** embed
+- **Next action:** commit, push, open PR
+
+## Cost ledger
+
+| Phase | Dispatch | Notes |
+|---|---|---|
+| solve (main loop) | 0 | review/challenger waived; host unmeasured |
+| **Total** | **0** | |
