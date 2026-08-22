@@ -4,7 +4,7 @@ slug: find-orphans-cannot-answer-at-scale
 title: '`find_orphans` blew the transport limit at 19k files, and on the one ticket whose root cause *was* an orphan it contributed nothing'
 phase: 1.5b
 milestone: Agent-fit
-status: todo
+status: done
 depends_on: [031, 057, 066, 119]
 ---
 
@@ -30,7 +30,8 @@ which makes it harmless, not useful."*
 
 Round 6 adds a standing carve-out to the mandatory-tool policy on the strength of this: **treat
 `find_orphans` as unavailable at >10k files.** A shipped tool carrying an operational
-"do not call this" is the cost being recorded here.
+"do not call this" is the cost being recorded here. **Retired by 124** — paging + transport-safe
+`minimal` make the tool callable at anchor scale; no file-size carve-out remains in the runbooks.
 
 ## The exclusion was deliberate — same as [123](123_file-outline-total-count-is-the-page-length.md)
 
@@ -79,4 +80,37 @@ been visible had 119 existed.
 6. **AC6.** The round-6 case is reproduced as a test at reduced scale: a known-orphaned file beyond the
    first page is reachable via `offset`, and unreachable without it.
 7. **AC7.** Round 6's ">10k files: treat as unavailable" carve-out is retired in writing once AC1 holds
-   — an operational workaround that outlives its defect becomes folklore.
+   — an operational workaround that outlives its defect becomes folklore. **Closed:** runbooks §4 and
+   this ticket's field note; no mandatory-tool file-size exclusion remains.
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 124 — find_orphans cannot answer at scale (working doc)
+
+- **Ticket:** 124 · `docs/tasks/124_find-orphans-cannot-answer-at-scale.md`
+- **Type:** bug
+- **SCOPE:** M · **TIER:** full
+- **CHALLENGER:** OFF · **Review:** SKIPPED (solve args)
+- **BASELINE:** 1710 passed (main after 123, 2026-08-22)
+
+## Execute summary
+
+- `CA_ORPHANS_MAX_NODES` / `orphans_max_nodes` — walk budget for `find_orphans` only
+- `store.find_orphans`: SQL paging, `orphan_total`, walk via `orphans_max_nodes`
+- Tool: `limit`/`offset`, honest `total_count`, page-only `truncated` + `walk_truncated`,
+  `minimal` → `unproven_total` only
+- Tests: `test_find_orphans_pagination.py`; 066/123 guard denominators updated
+- Delta-green: **1710 → 1725 passed** (+15)
+
+## Session status
+
+- **Current phase:** complete (shipped)
+- **work_doc_mode:** embed
+- **Next action:** commit, push, open PR
+
+## Cost ledger
+
+| Phase | Dispatch | Notes |
+|---|---|---|
+| solve (main loop) | 0 | review/challenger waived; host unmeasured |
+| **Total** | **0** | |

@@ -75,7 +75,9 @@ Origin: field retro round 2 §3b and §A.6 — the 143-vs-142 reconciliation tha
 **Tools:** `search_symbol`, `find_implementations`, `find_callers`, `find_references`. Reachability,
 `file_outline`, and `include_graph` stayed out at ship time — **`file_outline` closed by
 [123](123_file-outline-total-count-is-the-page-length.md)** (field evidence: `total_count` was the
-page length; honest count + `limit`/`offset` + `result_kinds`). `include_graph` remains out. Last page ⇒ `truncated: false`. Default page size
+page length; honest count + `limit`/`offset` + `result_kinds`); **`find_orphans` closed by
+[124](124_find-orphans-cannot-answer-at-scale.md)** (field evidence: transport blowout at 19k files;
+`limit`/`offset`, own walk budget `CA_ORPHANS_MAX_NODES`, `minimal` transport-safe). `include_graph` remains out. Last page ⇒ `truncated: false`. Default page size
 unchanged. **AC1 scope:** complete enumeration for store-backed pages (incl. `find_callers` depth=1);
 depth>1 pages the BFS hit stream and may still hit a count floor (W4).
 

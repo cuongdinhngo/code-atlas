@@ -91,6 +91,14 @@ def _max_results_field(config: Config) -> dict[str, object]:
     }
 
 
+def _orphans_max_nodes_field(config: Config) -> dict[str, object]:
+    """Walk budget for ``find_orphans`` — separate from ``impact_max_nodes`` (124)."""
+    return {
+        "value": config.orphans_max_nodes,
+        "governs": ["orphans_reachability_walk"],
+    }
+
+
 def _unbuilt(
     servable: Sequence[str], detail_level: DetailLevel, config: Config
 ) -> dict[str, object]:
@@ -192,6 +200,7 @@ def _status(
         "dirty_indexed_files": dirty_count,
         # The ceiling a caller sizes requests against, and its double duty (066).
         "max_results": _max_results_field(config),
+        "orphans_max_nodes": _orphans_max_nodes_field(config),
     }
     if detail_level == "standard":
         return signed(enriched)

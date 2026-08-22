@@ -130,12 +130,15 @@ the sample repo took the database from **2,115 MB to 1,133 MB**. (That figure al
 
 Budget roughly **1 GB of index per 20k legacy PHP files** at `max_results = 10`.
 
-### If you set `entry_points`, also look at `impact_max_nodes`
+### If you set `entry_points`, also look at `impact_max_nodes` and `orphans_max_nodes`
 
-`reachable_from` and `find_orphans` are bounded by `impact_max_nodes` (default 500), **not** by
-`max_results`. At `detail_level = "standard"` a 500-row reachability answer is ~160 KB of JSON — tens
-of thousands of tokens, which defeats the point. Use `detail_level = "minimal"`, pass a smaller
-`limit`, or lower `impact_max_nodes` for interactive use.
+`reachable_from` is bounded by `impact_max_nodes` (default 500), **not** by `max_results`.
+`find_orphans` pages orphan rows via `limit`/`offset` (same as other list tools) and uses its own
+walk budget `orphans_max_nodes` (`CA_ORPHANS_MAX_NODES`, default 500) — changing `impact_max_nodes`
+does not change which orphans are returned. At `detail_level = "standard"` a 500-row reachability
+answer is ~160 KB of JSON — tens of thousands of tokens, which defeats the point. For orphans at
+scale, prefer `detail_level = "minimal"` (omits `unproven` rows; carries `unproven_total`), pass a
+smaller `limit`, or lower the relevant walk budget for interactive use.
 
 ## 5. Ignore hygiene: check for `.gitignore` negations that re-include vendor trees
 

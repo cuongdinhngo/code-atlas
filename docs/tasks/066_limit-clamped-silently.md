@@ -140,7 +140,8 @@ No numeric acceptance values to re-derive; no mismatches. All ACs falsifiable �
 Out of scope at ship (no user `limit` param → nothing to clamp): `include_graph`
 (`include_graph.py:66`). **`file_outline` was out of scope then and is closed by
 [123](123_file-outline-total-count-is-the-page-length.md)** — it now takes `limit`, routes through
-the clamp helpers, and is in the enumerating test denominator (N=6). AC3's enumerating test must be built so that if either later grows a
+the clamp helpers, and is in the enumerating test denominator (N=6). **`find_orphans` closed by
+[124](124_find-orphans-cannot-answer-at-scale.md)** — same clamp contract (N=7). AC3's enumerating test must be built so that if either later grows a
 `limit` param, it is forced into the clamp-signal contract.
 
 ## Clarifications

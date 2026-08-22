@@ -54,9 +54,8 @@ evidence. Both prior paging tickets ruled `file_outline` out **on purpose**:
 
 The exclusions were reasonable when made and are cheap to close now: **nine tools already carry
 `offset: int = 0`** (`search_symbol`, `find_references`, `find_callers`, `find_implementations`,
-`find_view_data`, `get_index_status`, `architecture_overview`, `guided_tour`). `file_outline` and
-`find_orphans` ([124](124_find-orphans-cannot-answer-at-scale.md)) are the only two list-returning
-tools without it. The pattern exists seven times over; this is joining it, not inventing it.
+`find_view_data`, `get_index_status`, `architecture_overview`, `guided_tour`, `file_outline`
+(123), `find_orphans` (124)). `include_graph` is the remaining list-returning tool without paging.
 
 ## Why raising `max_results` is not the fix
 

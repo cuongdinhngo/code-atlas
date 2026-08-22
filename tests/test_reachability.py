@@ -159,6 +159,7 @@ def config_for(
         db_path=tmp_path / "graph.db",
         entry_points=entry_points,
         impact_max_nodes=50,
+        orphans_max_nodes=50,
     )
 
 
@@ -237,6 +238,7 @@ def test_default_closure_does_not_orphan_deep_chain(
         db_path=tmp_path / "graph.db",
         entry_points=("src/entry.php",),
         impact_max_nodes=50,
+        orphans_max_nodes=50,
     )
     orphans = find_orphans_tool.create(config)()
     assert orphans["depth_exhausted"] is False
@@ -244,7 +246,9 @@ def test_default_closure_does_not_orphan_deep_chain(
     assert orphans["results"] == []
     shallow = find_orphans_tool.create(config)(depth=2)
     assert shallow["depth_exhausted"] is True
-    assert shallow["truncated"] is True
+    # The short walk is what stopped early; the page itself is complete (124).
+    assert shallow["walk_truncated"] is True
+    assert shallow["truncated"] is False
     why = {str(r["qname"]) for r in shallow["results"]}
     assert "\\C::c" in why
     assert "\\D::d" in why

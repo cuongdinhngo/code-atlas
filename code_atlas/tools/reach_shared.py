@@ -85,6 +85,7 @@ def reach_payload(
     depth_exhausted: bool,
     edge_health: object | None = None,
     frontier_skipped_non_resolved: int | None = None,
+    total_count: int | None = None,
 ) -> dict[str, object]:
     """Shared nav_result shape for both reachability tools."""
     payload = nav_result(
@@ -100,6 +101,7 @@ def reach_payload(
         unproven=unproven,
         authoritative=False,
         depth_exhausted=depth_exhausted,
+        total_count=total_count,
     )
     if edge_health is not None:
         payload["edge_health"] = edge_health

@@ -163,7 +163,12 @@ code-atlas/
   actually queried when it differed from the typed subject by a leading-anchor (075/122);
   omitted on an exact hit so the common path is unchanged (061). A truncated ``file_outline``
   page adds ``result_kinds`` (symbol kind → count over the whole file) when the file spans >1
-  kind, so a capped symbol map cannot read as complete (067/123). A subject matches an untracked file on its **stem** — a path-shaped
+  kind, so a capped symbol map cannot read as complete (067/123). A truncated ``find_orphans``
+  page reports ``total_count`` as the orphan population; at ``minimal`` ``unproven`` rows are
+  omitted and at ``standard`` they are capped to the page, with ``unproven_total`` naming the
+  full population under one name in both cases. ``truncated`` describes the page alone so a
+  pager terminates; a walk that hit ``CA_ORPHANS_MAX_NODES`` adds ``walk_truncated``, because
+  unreached nodes look orphaned and the population is then an over-estimate (124). A subject matches an untracked file on its **stem** — a path-shaped
   qname's trailing ident is the file extension, so `Missing.aa` must not match `aa.aa` (092).
 - **A batched answer keys on position, and states the envelope once (101).** A tool that takes a
   list of subjects (`search_symbol`'s `queries`) returns `subjects`: entry *i* answers subject *i*,

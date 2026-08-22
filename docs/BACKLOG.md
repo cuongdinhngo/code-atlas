@@ -47,7 +47,7 @@ what landed, and what it cost* — narrative rationale lives in those three.
 | 121 | [Phase 3 shipped without its own cost gate — the onboarding question-class was never added to the harness](tasks/121_onboarding-question-class-never-measured.md) | Measure | todo | 034, 045, 055, 086, 087, 088 |
 | 122 | [075 normalised the leading backslash for three tools; four `find_*` tools still decline over it](tasks/122_exact-miss-shaping-discards-a-resolved-subject.md) | Agent-trust | done | 075, 076, 065, 093 |
 | 123 | [`file_outline` omitted the symbol under repair, reported `total_count: 10` for a 12-symbol file, and has no page 2](tasks/123_file-outline-total-count-is-the-page-length.md) | Agent-trust | done | 014, 057, 066, 067 |
-| 124 | [`find_orphans` blew the transport limit at 19k files, on the one ticket whose root cause *was* an orphan](tasks/124_find-orphans-cannot-answer-at-scale.md) | Agent-fit | todo | 031, 057, 066, 119 |
+| 124 | [`find_orphans` blew the transport limit at 19k files, on the one ticket whose root cause *was* an orphan](tasks/124_find-orphans-cannot-answer-at-scale.md) | Agent-fit | done | 031, 057, 066, 119 |
 | 125 | [No payload names the server build — every field retro is told its own subject by an operator](tasks/125_no-payload-names-the-server-build.md) | Measure | todo | 082, 095, 100 |
 
 **Order (round-5 tickets):** ~~**092**~~ (done — an untracked file read as a non-existent symbol)
@@ -171,7 +171,7 @@ holds **zero** onboarding questions. M10–M12 are complete; whether they beat h
 **unmeasured**, not won — the same exposure that made the founding search-speed premise false (§19),
 one phase later.
 
-**Then:** round 6's payload-honesty tickets go first (**122 → 123 → 124 → 125**) — they are the
+**Then:** round 6's payload-honesty tickets go first (**122 → 123 → ~~124~~ → 125**) — they are the
 mechanism tools an agent uses every ticket, and 122 is a defect that already cost a field session its
 tool. The two onboarding-quality tickets (118 · 119) close what the field measurement found; **121**
 decides whether Phase 3 is measured at all, and round 6 sharpened how (a newcomer's question-class, not
@@ -351,10 +351,11 @@ Three notes that still govern open work:
   **0.02%** (178.318 → 178.356), because `max_results` fills the budget either way. Correctness is
   covered by `expected`; nothing covers *usefulness*. Worth a second axis — distinct answers per
   response, or rank-of-first-correct — before the ratio is used to judge a retrieval change.
-- **Reachability payload size at `detail_level="standard"`:** `reachable_from` / `find_orphans` are
-  bounded by `impact_max_nodes` (default 500) rather than `max_results`, and a 500-row answer is
-  ~160 KB of JSON against a §19 metric measured *in tokens*. Worth a lower default or a
-  `minimal`-by-default shape; workaround in [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
+- **Reachability payload size at `detail_level="standard"`:** `reachable_from` is still bounded by
+  `impact_max_nodes` (default 500) rather than `max_results`, and a 500-row answer is ~160 KB of JSON
+  against a §19 metric measured *in tokens*. `find_orphans` now pages via `limit`/`offset` and has its
+  own walk budget (`CA_ORPHANS_MAX_NODES`); use `minimal` at scale (124). Worth a lower default or a
+  `minimal`-by-default shape for `reachable_from`; workaround in [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
 - **Parser-OOM size cap (optional):** multi-MB generated files (TCPDF/PHPExcel CID font tables ~1.5 MB,
   MPDF ~1.2 MB) exhaust the PHP parser and kill the adapter process. Already handled — `indexer._work`
   (`code_atlas/indexer.py:565-573`) soft-fails the file and restarts the adapter — but a pre-skip by
@@ -525,6 +526,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | — | **Round-6 retro triage + four tickets authored (122 · 123 · 124 · 125).** 0 dispatch — main-loop only, **unmeasured** (no usage block surfaced); no mango lifecycle, so `no work doc`. The spend was verification, not authoring: every one of the retro's five findings was re-derived from source before it was written down, which is what turned "one-character fix" into 075's unfinished scope bullet and turned two "defects" into 057's recorded exclusions. Docs-only, no source touched; suite unchanged except `test_backlog_bookkeeping`'s parametrized rows for the four new task files | [#146](https://github.com/cuongdinhngo/code-atlas/pull/146) |
 | 122 | **0 dispatch — no subagent was dispatched this run.** Run as `/mango:solve 122 with skipped review & Challenge`: review waived, challenger off, refine self-skipped (0 unresolved). Main-loop **unmeasured (host does not surface usage)**. `shape_exact_miss` now branches on `resolved_unique` before `candidate_count`; four `find_*` tools re-point via shared `unique_repoint` and attach `resolved_qname` when the answered qname differs from the asked one. Delta-green: **1687 → 1692 passed, 0 failed** (+5 authored tests in `test_qname_subject_honesty.py`; none removed), ruff clean, mypy clean over 5 touched source files. 075 sibling-surface bullet closed with enumerating test evidence | [#147](https://github.com/cuongdinhngo/code-atlas/pull/147) |
 | 123 | **0 dispatch — no subagent was dispatched this run.** Run as `/mango:solve 123 with skipped review & Challenge`: review waived, challenger off. Main-loop **unmeasured (host does not surface usage)**. `file_outline` now reports the store-side symbol count, pages with `limit`/`offset`, attaches `result_kinds` when truncated, and joins 066's clamp denominator (N=6). Delta-green: **1692 → 1710 passed, 0 failed** (+18: 13 new tests across three files, plus the R6.7 source-scan guard added in review; none removed), ruff clean, mypy clean. 057/066 exclusion bullets closed with field-evidence pointers | [#148](https://github.com/cuongdinhngo/code-atlas/pull/148) |
+| 124 | **0 dispatch — no subagent was dispatched this run.** Run as `/mango:solve 124 with skipped review & Challenge`: review waived, challenger off. Main-loop **unmeasured (host does not surface usage)**. `find_orphans` pages with `limit`/`offset`, names orphan population in `total_count`, uses `CA_ORPHANS_MAX_NODES` for the walk (not `impact_max_nodes`), and keeps `minimal` transport-safe via `unproven_total`. Review split page truncation from walk truncation (`walk_truncated`) — folded together, a budget-bound walk kept `truncated: true` on every page and the documented pager never terminated. Delta-green: **1710 → 1725 passed, 0 failed** (+15: 8 new pagination tests, the review's pager-termination test, guard/collateral updates; none removed), ruff clean, mypy clean. Round-6 >10k carve-out retired; 057/066 exclusion bullets closed | [#149](https://github.com/cuongdinhngo/code-atlas/pull/149) |
 
 **How 047–049 were measured.** One autonomous session, no per-task transcript: each row is the API
 calls between the previous commit and that task's own commit. The approximation runs one way — work

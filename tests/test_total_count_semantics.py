@@ -16,6 +16,7 @@ from code_atlas.tools import (
     file_outline,
     find_callers,
     find_implementations,
+    find_orphans,
     find_references,
     find_view_data,
     guided_tour,
@@ -34,6 +35,8 @@ def _config(tmp_path: Path) -> Config:
         root=tmp_path,
         max_results=CEILING,
         impact_max_nodes=50,
+        orphans_max_nodes=500,
+        entry_points=(PATH,),
     )
 
 
@@ -123,6 +126,8 @@ def _call(name: str, config: Config) -> dict[str, object]:
         return guided_tour.create(config)(detail_level="minimal")
     if name == "architecture_overview":
         return architecture_overview.create(config)(detail_level="minimal")
+    if name == "find_orphans":
+        return find_orphans.create(config)(detail_level="minimal")
     raise AssertionError(name)
 
 
@@ -136,6 +141,7 @@ TOTAL_COUNT_TOOLS = [
     "find_view_data",
     "guided_tour",
     "architecture_overview",
+    "find_orphans",
 ]
 
 
@@ -152,10 +158,17 @@ def test_truncated_payload_reports_true_total_not_page_length(
     assert int(result["total_count"]) > len(result["results"])
 
 
-# Helpers, not emitters: ``nav_result``/``claim`` shape or read the field for other tools,
-# ``get_index_status`` names it in prose only, and ``generate_onboarding`` reports a write count
-# that is never paged — so none of the four is a paged emitter this invariant can assert against.
-NOT_PAGED_EMITTERS = {"nav_result", "claim", "get_index_status", "generate_onboarding"}
+# Helpers, not emitters: ``nav_result``/``claim``/``reach_shared`` shape or read the field for
+# other tools, ``get_index_status`` names it in prose only, and ``generate_onboarding`` reports a
+# write count that is never paged — so none of the four is a paged emitter this invariant can
+# assert against.
+NOT_PAGED_EMITTERS = {
+    "nav_result",
+    "claim",
+    "reach_shared",
+    "get_index_status",
+    "generate_onboarding",
+}
 
 
 def test_total_count_denominator_is_guarded_by_a_source_scan() -> None:

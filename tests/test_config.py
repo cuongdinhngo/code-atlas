@@ -106,6 +106,15 @@ KNOBS = (
         lambda root: 500,
     ),
     Knob(
+        "CA_ORPHANS_MAX_NODES",
+        "orphans_max_nodes = 90",
+        "120",
+        lambda config: config.orphans_max_nodes,
+        lambda root: 120,
+        lambda root: 90,
+        lambda root: 500,
+    ),
+    Knob(
         "CA_PATH_INDEX_MAX",
         "path_index_max = 5000",
         "8000",
@@ -209,7 +218,7 @@ def test_every_knob_has_a_precedence_case() -> None:
     # Guards the guard: dropping a knob from KNOBS would otherwise shrink AC1's coverage silently.
     covered = {knob.variable for knob in KNOBS}
     assert {env_name(key) for key in KNOB_KEYS} | {"CA_PHP_CMD"} == covered
-    assert len(KNOB_KEYS) == 14
+    assert len(KNOB_KEYS) == 15
 
 
 def test_env_name_is_derived_from_the_project_file_key() -> None:
@@ -221,6 +230,7 @@ def test_env_name_is_derived_from_the_project_file_key() -> None:
         "CA_MAX_SUBJECTS",
         "CA_IMPACT_DEPTH",
         "CA_IMPACT_MAX_NODES",
+        "CA_ORPHANS_MAX_NODES",
         "CA_PATH_INDEX_MAX",
         "CA_ENTRY_POINTS",
         "CA_STUB_ROOTS",

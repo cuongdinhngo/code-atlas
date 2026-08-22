@@ -157,8 +157,10 @@ class OrphanResult(NamedTuple):
 
     orphans: list[Row]
     unproven: list[Row]
+    orphan_total: int
     truncated: bool
     depth_exhausted: bool
+    walk_truncated: bool
 
 
 class DeltaScope(NamedTuple):
@@ -1597,9 +1599,19 @@ class GraphStore:
                 self._reach_drop_temps()
 
     def find_orphans(
-        self, seeds: Sequence[str], *, depth: int | None, max_nodes: int
+        self,
+        seeds: Sequence[str],
+        *,
+        depth: int | None,
+        max_nodes: int,
+        limit: int,
+        offset: int = 0,
     ) -> OrphanResult:
         """Orphans = indexed nodes outside reachable∪unproven∪seeds, with why (task 031)."""
+        if offset < 0:
+            raise ValueError(f"offset must be >= 0, got {offset}")
+        if limit < 1:
+            raise ValueError(f"limit must be >= 1, got {limit}")
         reach = self.reachable_from(
             seeds, depth=depth, max_nodes=max_nodes, retain_temps=True
         )
@@ -1622,6 +1634,12 @@ class GraphStore:
                         "INSERT OR IGNORE INTO temp.reach_excluded (qname) VALUES (?)",
                         (qname,),
                     )
+            orphan_total = int(
+                conn.execute(
+                    "SELECT COUNT(*) FROM nodes n "
+                    "WHERE n.qualified_name NOT IN (SELECT qname FROM temp.reach_excluded)"
+                ).fetchone()[0]
+            )
             kind_placeholders = ", ".join("?" for _ in contract.IMPACT_KINDS)
             sql = (
                 "SELECT n.qualified_name AS qname, n.kind, n.file_path AS file, "
@@ -1634,18 +1652,12 @@ class GraphStore:
                 "FROM nodes n "
                 "WHERE n.qualified_name NOT IN (SELECT qname FROM temp.reach_excluded) "
                 "ORDER BY n.qualified_name ASC, n.file_path ASC, n.line_start ASC, n.id ASC "
-                "LIMIT ?"
+                "LIMIT ? OFFSET ?"
             )
             rows = self._rows(
                 ("qname", "kind") + ("file", "line_start", "why"),
                 sql,
-                (*contract.IMPACT_KINDS, max_nodes),
-            )
-            orphan_total = int(
-                conn.execute(
-                    "SELECT COUNT(*) FROM nodes n "
-                    "WHERE n.qualified_name NOT IN (SELECT qname FROM temp.reach_excluded)"
-                ).fetchone()[0]
+                (*contract.IMPACT_KINDS, limit, offset),
             )
             orphans: list[Row] = []
             for row in rows:
@@ -1657,9 +1669,16 @@ class GraphStore:
                 item["kind"] = row["kind"]
                 item["line"] = row["line_start"]
                 orphans.append(item)
-            truncated = reach.truncated or orphan_total > max_nodes
+            # `truncated` describes this page only, so a pager terminates; the walk hitting its
+            # own budget is `walk_truncated` — a different fact, and it never ends (057/124).
+            page_truncated = offset + len(orphans) < orphan_total
             return OrphanResult(
-                orphans, reach.unproven, truncated, reach.depth_exhausted
+                orphans,
+                reach.unproven,
+                orphan_total,
+                page_truncated,
+                reach.depth_exhausted,
+                reach.truncated,
             )
         finally:
             conn.execute("DROP TABLE IF EXISTS temp.reach_excluded")

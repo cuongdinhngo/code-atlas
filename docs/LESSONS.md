@@ -1,5 +1,24 @@
 # Lessons — code-atlas
 
+## 124 — A walk budget named for another tool is a cap on what you can ever see
+`find_orphans` passed `impact_max_nodes` into the reachability walk, so changing impact's knob changed
+which orphans existed in the answer — and the 500-row cap decided visibility with no `offset` to look
+further. At 19k files the `standard` payload blew the transport limit (154k chars). The fix splits
+concerns: page rows with `limit`/`offset`, walk with `CA_ORPHANS_MAX_NODES`, and `minimal` that omits
+`unproven` rows while `unproven_total` carries the count. Review added the corollary: once rows
+page, `truncated` must describe the page alone — the walk's own budget is `walk_truncated`, or the
+pager never stops on the very repo the ticket is about.
+
+### 124-C1 — A tool's walk budget must be named for that tool, not borrowed from a sibling
+- type: 2 generalisable-heuristic
+- handle: walk-budget-named-for-the-tool-that-walks
+- status: proposed (awaiting human confirm)
+- seen: 124
+- evidence: `find_orphans.py` used `config.impact_max_nodes`; closed by `CA_ORPHANS_MAX_NODES` +
+  AC3 tests proving impact knob independence
+- area: tools / config / reachability
+- destination: `rulebook_path` (code subject) — recurrence 1, not yet promotable
+
 ## 123 — When `total_count` names the page, a truncated symbol map reads as complete
 `file_outline` set `total_count=len(results)`, so a 12-symbol file at cap 10 returned
 `total_count: 10` beside `truncated: true` — the worst shape for a tool whose docstring calls
