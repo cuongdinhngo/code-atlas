@@ -1,0 +1,231 @@
+#!/usr/bin/env sh
+# Run the whole CI gate locally, in the order .github/workflows/ci.yml runs it.
+#
+# GitHub Actions cannot run for this repo (private, no Actions budget), so this script IS the gate.
+# It mirrors all three CI jobs — test · adapters · guardrails — and is the single step to perform
+# before a push. Keep it in step with ci.yml: a check here that ci.yml lacks, or the reverse, means
+# one of the two is lying about what was verified.
+#
+#   scripts/gate.sh            # every check
+#   scripts/gate.sh --fast     # skip pytest and the tokens benchmark (the two slow ones)
+#
+# Exit status is 0 only when every check that ran passed AND nothing was skipped for a missing
+# tool — a gate that quietly shrinks to the checks your machine can do is the 0/0 vacuity R6.5
+# exists to prevent. Skips are counted, named, and turn the summary red.
+set -eu
+
+root=$(CDPATH= cd "$(dirname "$0")/.." && pwd)
+cd "$root"
+
+fast=0
+[ "${1:-}" = "--fast" ] && fast=1
+
+# Prefer the project venv, fall back to PATH.
+py=$root/.venv/bin/python
+[ -x "$py" ] || py=$(command -v python3 || command -v python)
+bin=$(dirname "$py")
+
+passed=0
+failed=0
+skipped=0
+report=""
+
+_record() {  # _record <status> <name> [detail]
+    report="${report}${1}|${2}|${3:-}
+"
+    case $1 in
+        PASS) passed=$((passed + 1)) ;;
+        FAIL) failed=$((failed + 1)) ;;
+        SKIP) skipped=$((skipped + 1)) ;;
+    esac
+    printf '  %-4s %s%s\n' "$1" "$2" "${3:+  — $3}"
+}
+
+# Judge a step by its own exit status, never a pipeline's (LESSONS 084: piping through `tail`
+# reports tail's 0 and masks a red gate). Output goes to a log we only print on failure.
+_run() {  # _run <name> <command...>
+    name=$1
+    shift
+    if "$@" >"$log" 2>&1; then
+        _record PASS "$name"
+    else
+        _record FAIL "$name"
+        sed 's/^/      /' "$log" | tail -30
+    fi
+}
+
+log=$(mktemp)
+trap 'rm -f "$log"' EXIT
+
+echo "== job: test =="
+
+# ci.yml step "Install check": the declared console scripts resolve and import. Derived from
+# [project.scripts], never listed (R6.7). Weaker than CI's by construction: CI checks a fresh
+# non-editable `pip install .`, while from the repo root importlib.metadata prefers the checked-out
+# `code_atlas.egg-info` over site-packages — so this verifies the *declaration*, and it prints which
+# metadata it read so that is not mistaken for a check of your installed venv.
+if "$py" - <<'PY' >"$log" 2>&1
+import importlib.metadata as md
+import pathlib
+import sys
+import tomllib
+
+declared = set(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["scripts"])
+eps = {
+    e.name: e
+    for e in md.entry_points(group="console_scripts")
+    if e.dist and e.dist.name == "code-atlas"
+}
+assert declared, "no [project.scripts] found; this check would pass vacuously"
+if declared != set(eps):
+    sys.exit(
+        f"declared {sorted(declared)} != installed {sorted(eps)}\n"
+        "if this is a stale dev venv, reinstall: uv pip install -e '.[dev]'"
+    )
+for name in sorted(eps):
+    eps[name].load()
+from code_atlas.main import TOOL_NAMES
+
+assert "search_symbol" in TOOL_NAMES
+print("metadata:", md.distribution("code-atlas")._path)
+print("entry points ok:", ", ".join(sorted(eps)))
+PY
+then
+    _record PASS "entry points (derived from [project.scripts])" \
+        "$(sed -n 's/^metadata: //p' "$log")"
+else
+    _record FAIL "entry points (derived from [project.scripts])"
+    sed 's/^/      /' "$log"
+fi
+
+_run "ruff check ." "$bin/ruff" check .
+# No path argument — a positional overrides `files` in pyproject.toml and would silently drop
+# onboarding_llm/ from the check.
+_run "mypy (code_atlas + onboarding_llm)" "$bin/mypy"
+
+if [ "$fast" -eq 1 ]; then
+    _record SKIP "pytest" "--fast"
+    _record SKIP "tokens-to-answer" "--fast"
+else
+    _run "pytest -q" "$bin/pytest" -q
+    if command -v php >/dev/null 2>&1; then
+        CA_PHP_CMD="php $root/adapters/php/index.php --server"
+        export CA_PHP_CMD
+        _run "tokens-to-answer (ratio >= 0.27, recall 1.0)" \
+            "$py" scripts/tokens_to_answer.py --min-ratio 0.27 --min-recall 1.0
+        unset CA_PHP_CMD
+    else
+        _record SKIP "tokens-to-answer" "php not on PATH"
+    fi
+fi
+
+echo "== job: adapters =="
+
+if command -v composer >/dev/null 2>&1; then
+    _run "composer validate --strict (R8.3)" \
+        composer validate --strict --no-check-publish --working-dir=adapters/php
+else
+    _record SKIP "composer validate (R8.3)" "composer not on PATH"
+fi
+
+if command -v php >/dev/null 2>&1; then
+    # R6.5 — authored source only, and the sweep must not be able to empty itself.
+    count=$(find adapters -path '*/vendor' -prune -o -name '*.php' -print | wc -l | tr -d ' ')
+    if [ "$count" -eq 0 ]; then
+        _record FAIL "php -l (authored source)" "no adapter source found — would pass vacuously"
+    elif find adapters -path '*/vendor' -prune -o -name '*.php' -print0 \
+        | xargs -0 -n1 php -l >"$log" 2>&1; then
+        _record PASS "php -l (authored source)" "$count file(s)"
+    else
+        _record FAIL "php -l (authored source)"
+        sed 's/^/      /' "$log" | tail -20
+    fi
+else
+    _record SKIP "php -l (authored source)" "php not on PATH"
+fi
+
+if [ -x adapters/php/vendor/bin/phpstan ]; then
+    _run "phpstan level max (R6.6)" \
+        adapters/php/vendor/bin/phpstan analyse --no-progress \
+        --configuration=adapters/php/phpstan.neon
+else
+    _record SKIP "phpstan level max (R6.6)" "run: composer install --working-dir=adapters/php"
+fi
+
+echo "== job: guardrails =="
+
+# Each gate carries its own anti-vacuity check, exactly as ci.yml does: a missing directory is a
+# failure, never a silent pass.
+_gate() {  # _gate <name> <dir> <pattern> [dir2 pattern2 …]
+    name=$1
+    dir=$2
+    pattern=$3
+    if [ ! -d "$dir" ]; then
+        _record FAIL "$name" "$dir/ is missing — this gate cannot pass vacuously"
+        return
+    fi
+    if grep -rEn "$pattern" "$dir" >"$log" 2>&1; then
+        _record FAIL "$name"
+        sed 's/^/      /' "$log" | head -10
+    else
+        _record PASS "$name"
+    fi
+}
+
+_gate "R1.1 no language branch in core" code_atlas \
+    'if[^\n]*\blanguage\b[^\n]*==|match[^\n]*\blanguage\b'
+
+if [ ! -d adapters ] || [ ! -d code_atlas ]; then
+    _record FAIL "R2.2 no repo/framework name" "a swept directory is missing"
+elif grep -rEin --exclude-dir=vendor --exclude-dir=node_modules \
+    'laravel|symfony|wordpress|drupal|magento' adapters/ >"$log" 2>&1 \
+    || grep -rEin 'laravel|symfony|wordpress|drupal|magento' code_atlas/ >>"$log" 2>&1; then
+    _record FAIL "R2.2 no repo/framework name"
+    sed 's/^/      /' "$log" | head -10
+else
+    _record PASS "R2.2 no repo/framework name"
+fi
+
+if [ ! -d code_atlas ]; then
+    _record FAIL "R4.1 no LLM in core" "code_atlas/ is missing"
+elif grep -rEn "^[[:space:]]*(from|import)[[:space:]]+(anthropic|onboarding_llm)\b" \
+    code_atlas/ >"$log" 2>&1 \
+    || grep -rEin 'claude-[a-z0-9.]|gpt-[0-9]|max_tokens|no preamble' code_atlas/ >>"$log" 2>&1; then
+    _record FAIL "R4.1 no LLM in core"
+    sed 's/^/      /' "$log" | head -10
+else
+    _record PASS "R4.1 no LLM in core"
+fi
+
+# CI compares the PR's commit range; locally the useful range is what is not yet on the remote.
+range=origin/main..HEAD
+if ! git rev-parse --verify -q origin/main >/dev/null 2>&1; then
+    _record SKIP "R7.3 no AI-attribution trailer" "no origin/main to compare against"
+elif [ "$(git rev-list --count "$range")" -eq 0 ]; then
+    _record PASS "R7.3 no AI-attribution trailer" "nothing unpushed to check"
+elif git log --format='%B' "$range" | grep -Ein 'co-authored-by:|generated with|🤖' >"$log" 2>&1; then
+    _record FAIL "R7.3 no AI-attribution trailer"
+    sed 's/^/      /' "$log" | head -10
+else
+    _record PASS "R7.3 no AI-attribution trailer" \
+        "$(git rev-list --count "$range") commit(s)"
+fi
+
+echo
+echo "== summary =="
+printf '%s' "$report" | while IFS='|' read -r status name detail; do
+    [ -n "$status" ] || continue
+    [ "$status" = PASS ] || printf '  %-4s %s%s\n' "$status" "$name" "${detail:+  — $detail}"
+done
+echo "  $passed passed · $failed failed · $skipped skipped"
+
+if [ "$failed" -gt 0 ]; then
+    echo "GATE RED — $failed check(s) failed"
+    exit 1
+fi
+if [ "$skipped" -gt 0 ]; then
+    # A gate that shrank to what this machine can run has not verified the tree (R6.5).
+    echo "GATE INCOMPLETE — $skipped check(s) skipped; this is not a green gate"
+    exit 2
+fi
+echo "GATE GREEN — all $passed checks passed"

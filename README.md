@@ -437,7 +437,13 @@ These are `onboarding_llm` knobs, not core config — the full table is in that 
 
 ## Testing
 
-The test command is `pytest`. The full suite needs a POSIX host (the index lock uses `fcntl`) and the
+`scripts/gate.sh` runs the whole gate in one step — entry points, `ruff`, `mypy`, `pytest`, the
+tokens-to-answer benchmark, `composer validate`, `php -l`, phpstan at level max, and the four
+rulebook grep-gates — in the same order [`ci.yml`](.github/workflows/ci.yml) runs them. It exits
+non-zero if a check **failed or was skipped**, because a gate that quietly shrinks to whatever the
+host can run has not verified anything. Add `--fast` to skip the two slow checks.
+
+The test command on its own is `pytest`. The full suite needs a POSIX host (the index lock uses `fcntl`) and the
 PHP adapter (`php` on `PATH` + `composer install` in `adapters/php`); without those, tests that need
 them **skip or fail to collect** — so a partial local run is not the whole suite.
 

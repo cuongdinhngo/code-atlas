@@ -70,6 +70,15 @@ MCP client ──stdio──▶ core (Python/FastMCP) ──JSONL contract──
 - Tooling: `.harness.json` (mango lifecycle config), `.github/workflows/ci.yml` (ruff · mypy · pytest + R1.1/R2.2/R4.1 grep-gates), `.github/pull_request_template.md`.
 - Docker: `docker/Dockerfile` (test image), `docker/Dockerfile.runtime` (ship the server), `docker/compose.yaml`, `scripts/docker-test.sh`.
 
+## Before a PR or a push — run `scripts/gate.sh`
+**GitHub Actions cannot run for this repo** (private, no Actions budget: every job fails in seconds
+with no logs). `scripts/gate.sh` **is** the gate — it mirrors all three CI jobs in `ci.yml`'s order:
+entry points · ruff · mypy · pytest · tokens-to-answer · composer validate · `php -l` · phpstan ·
+the four grep-gates. ~100 s here; `--fast` skips pytest and the benchmark for a quick loop.
+It exits **2 when a check was skipped** (a gate that shrank to what your machine can run has not
+verified the tree — R6.5), so only `GATE GREEN` counts. Keep it in step with `ci.yml`: a check in
+one and not the other means one of them is lying about what was verified.
+
 ## Running the full test suite — use Docker, never report it as unrunnable
 `test_command` is `pytest`, but the full suite needs a **POSIX host** (the index lock imports `fcntl`)
 and the **PHP adapter** (`php` + `composer install`). On the maintainer's **Windows** dev host bare
