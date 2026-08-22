@@ -409,11 +409,26 @@ Three notes that still govern open work:
 - **018 construct gaps:** any cross-repo misses → fill the gap log in
   [`runbooks/cross-repo-validation.md`](runbooks/cross-repo-validation.md) and feed task 007 / 025.
   (Gap log is still empty — no scheduled run has recorded a miss.)
-- **Three CI items deferred from the drift audit** (each a *tightening*, not a lag): (a)
-  `requires-python = ">=3.12"` is open-ended while the matrix stops at 3.13 — add 3.14 or cap the claim;
-  (b) `mypy` covers `code_atlas` only, so `scripts/tokens_to_answer.py` — which *is* the gate logic — is
-  unchecked; (c) `actions/checkout@v4` / `setup-python@v5` are a major behind, and there is no
-  `dependabot.yml` to notice.
+- **CI items deferred from the drift audit** (each a *tightening*, not a lag): (a)
+  `requires-python = ">=3.12"` is open-ended while the matrix stops at 3.13 — add 3.14 or cap the
+  claim; (b) `scripts/` is still outside `[tool.mypy] files`, so `scripts/tokens_to_answer.py` —
+  which *is* the gate logic — is unchecked (the `code_atlas`-only half of this was **closed
+  2026-08-22**: CI ran `mypy code_atlas`, whose positional argument overrode the config and checked
+  60 of the declared 68 files, leaving `onboarding_llm/` untyped; CI now runs bare `mypy`);
+  (c) `actions/checkout@v4` / `setup-python@v5` are a major behind, and there is no `dependabot.yml`
+  to notice.
+- **Docker images are never built by CI** (recorded 2026-08-22, not ticketed). `docker/Dockerfile`
+  — the test image `AGENTS.md` points agents at — is built by nothing, so it can rot silently, while
+  `docker/Dockerfile.runtime` **is** built inside `pytest` by
+  `test_runtime_image_reports_server_build`, on **both** matrix legs, because the test skips only
+  when docker is absent from PATH. The honest shape is one docker job building both images and an
+  opt-in env var on the pytest arm. Moot while Actions is unbillable (below), but it survives that.
+- **GitHub Actions has not run since 2026-08-22** — the repo is private and the account has no
+  Actions budget, so every job fails in seconds with no logs. PRs #147–#150 and the docs pushes
+  after them all merged with **zero automated signal**; the gate was reproduced locally each time
+  (`ruff · mypy · pytest · the four grep-gates · tokens-to-answer · composer validate · php -l ·
+  phpstan`). Local reproduction is the standing arrangement, not a lapse — but it is a human step,
+  so a gate that only CI would have caught is a gate that is currently off.
 
 ## Token usage
 
