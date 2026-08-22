@@ -18,6 +18,7 @@ from code_atlas.tools.nav_result import (
     TRY_INSTEAD_FILE_OUTLINE,
     attach_ambiguous_definitions,
     attach_limit_capped,
+    attach_resolved_qname,
     attach_result_subtrees,
     attach_try_instead,
     classify_missing_subject,
@@ -28,6 +29,7 @@ from code_atlas.tools.nav_result import (
     nav_result,
     relation_reason,
     shape_exact_miss,
+    unique_repoint,
 )
 from code_atlas.tools.staleness import compute_staleness
 
@@ -104,6 +106,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``key=value`` line naming subject, question, answer and the revision the index describes.
         The weakest tier present is named, so the line can never claim ``RESOLVED`` over a
         ``HEURISTIC`` hit. An answer with no index carries no line (task 100).
+
+        A leading-anchor difference from the stored qname is re-pointed and answered;
+        ``resolved_qname`` names the stored form (075/122). An exact stored qname is unchanged.
         """
         if depth < 1:
             raise ValueError(f"depth must be >= 1, got {depth}")
@@ -153,56 +158,73 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     ),
                     TRY_INSTEAD_FILE_OUTLINE,
                 ))
+            asked = qname
+            lookup = qname
             outcome = _callers(
-                store, qname, hops=depth, limit=cap, offset=offset, args_at=args_at
+                store, lookup, hops=depth, limit=cap, offset=offset, args_at=args_at
             )
             # Widen the existing indexed-check fetch to surface every definition site (task 070).
-            subject_nodes = store.nodes_by_qualified_name(qname, limit=config.max_results)
+            subject_nodes = store.nodes_by_qualified_name(lookup, limit=config.max_results)
             indexed = bool(subject_nodes)
             unrecorded = (
-                store.count_edges_without_args(qname, kinds=CALLER_KINDS)
+                store.count_edges_without_args(lookup, kinds=CALLER_KINDS)
                 if args_at is not None
                 else None
             )
             if outcome.total_count == 0 and not indexed:
                 resolution = classify_missing_subject(
-                    store, qname, limit=config.max_results
+                    store, asked, limit=config.max_results
                 )
-                miss = nav_result(
-                    qname,
-                    [],
-                    detail_level=detail_level,
-                    db_path=str(config.db_path),
-                    index_root=config.index_root,
-                    truncated=False,
-                    reason=REASON_NO_SUCH_SYMBOL,
-                    total_count=0,
-                    depth=depth,
-                    frontier_skipped_non_resolved=0,
+                repointed = unique_repoint(resolution)
+                if repointed is None:
+                    miss = nav_result(
+                        asked,
+                        [],
+                        detail_level=detail_level,
+                        db_path=str(config.db_path),
+                        index_root=config.index_root,
+                        truncated=False,
+                        reason=REASON_NO_SUCH_SYMBOL,
+                        total_count=0,
+                        depth=depth,
+                        frontier_skipped_non_resolved=0,
+                    )
+                    # A miss still names what the guard repaired (073) and what it could not judge
+                    # (049) — the 092 shortcut must not drop signals the fall-through carried.
+                    if freshness == "repaired":
+                        miss["subject_refreshed_only"] = True
+                    if unrecorded is not None:
+                        miss["args_unrecorded"] = unrecorded
+                    attach_limit_capped(miss, cap=cap, clamped=limit_clamped)
+                    return signed(shape_exact_miss(miss, resolution))
+                lookup = repointed
+                outcome = _callers(
+                    store, lookup, hops=depth, limit=cap, offset=offset, args_at=args_at
                 )
-                # A miss still names what the guard repaired (073) and what it could not judge
-                # (049) — the 092 shortcut must not drop signals the fall-through carried.
-                if freshness == "repaired":
-                    miss["subject_refreshed_only"] = True
-                if unrecorded is not None:
-                    miss["args_unrecorded"] = unrecorded
-                attach_limit_capped(miss, cap=cap, clamped=limit_clamped)
-                return signed(shape_exact_miss(miss, resolution))
-            container, bare_name = split_qname(qname)
+                subject_nodes = store.nodes_by_qualified_name(
+                    lookup, limit=config.max_results
+                )
+                indexed = bool(subject_nodes)
+                unrecorded = (
+                    store.count_edges_without_args(lookup, kinds=CALLER_KINDS)
+                    if args_at is not None
+                    else None
+                )
+            container, bare_name = split_qname(lookup)
             unresolved_bare = 0
             if indexed and container is not None and outcome.total_count == 0:
                 # Method-shaped only — Function ``\App\put`` ≠ bare Method ``put``.
                 # Cap uses query-time max_results (index-time may differ — Part A).
                 if store.count_nodes_by_name(bare_name, kind="Method") > config.max_results:
                     unresolved_bare = store.count_bare_calls_not_targeting(
-                        qname, bare_name=bare_name
+                        lookup, bare_name=bare_name
                     )
             if include_source:
                 call_site.annotate(config.root, store, outcome.results)
             # Skewed page 1 hides other subtrees — advertise the full spread (task 067).
             # Depth 1 only: the store spread is exact there; deeper total_count is a floor.
             subtrees = (
-                store.edge_subtrees_by_target(qname, kinds=CALLER_KINDS, args_at=args_at)
+                store.edge_subtrees_by_target(lookup, kinds=CALLER_KINDS, args_at=args_at)
                 if depth == 1 and outcome.truncated
                 else {}
             )
@@ -231,6 +253,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         attach_result_subtrees(result, subtrees)
         attach_ambiguous_definitions(result, definition_sites(subject_nodes))
         attach_limit_capped(result, cap=cap, clamped=limit_clamped)
+        attach_resolved_qname(result, asked=asked, answered=lookup)
         return signed(result)
 
     return find_callers

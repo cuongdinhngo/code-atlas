@@ -30,8 +30,14 @@ from code_atlas.tools.nav_result import (
     REASON_NO_SUCH_SYMBOL,
     REASON_OK,
     TRY_INSTEAD_SEARCH_SYMBOL,
+    SubjectResolution,
+    shape_exact_miss,
 )
 from tests.test_nav_tools import db_config, edge, node, seed_file
+
+_TOOLS_DIR = Path(__file__).resolve().parent.parent / "code_atlas" / "tools"
+_ASKED = "Ns\\Sub\\Enum"
+_STORED = "\\Ns\\Sub\\Enum"
 
 # One indexed file. `\Ns\Sub\Enum` is unique (leading-anchor case); `isEnabled` is a member name
 # two classes carry (bare/under-qualified case); one caller targets the qualified `isEnabled`.
@@ -50,6 +56,14 @@ _EDGES = [
         "\\Ns\\Sub\\Flags::isEnabled",
         "app.php",
         target_qname="\\Ns\\Sub\\Flags::isEnabled",
+    ),
+    # Unique target for find_references / find_implementations leading-anchor (122).
+    edge(
+        "EXTENDS",
+        "\\Ns\\Sub\\Flags",
+        "Enum",
+        "app.php",
+        target_qname="\\Ns\\Sub\\Enum",
     ),
 ]
 
@@ -171,3 +185,104 @@ def test_explain_path_endpoint_repoints_unique_only(config: Config) -> None:
         assert explain_path._resolve_endpoint(store, "Ns\\Sub\\Enum", 50) == "\\Ns\\Sub\\Enum"
         assert explain_path._resolve_endpoint(store, "\\Ns\\Sub\\Enum", 50) == "\\Ns\\Sub\\Enum"
         assert explain_path._resolve_endpoint(store, "isEnabled", 50) == "isEnabled"
+
+
+# --- 122: resolved_unique is answered, not shaped as name_not_qualified ----------------------
+
+def _classifier_caller_modules() -> list[str]:
+    """Every tools/*.py that calls the classifier — derived, never listed (R6.7 / 066)."""
+    names: list[str] = []
+    for path in sorted(_TOOLS_DIR.glob("*.py")):
+        if path.name == "nav_result.py":
+            continue
+        if "classify_missing_subject(" in path.read_text(encoding="utf-8"):
+            names.append(path.stem)
+    return names
+
+
+def _call_classifier_caller(name: str, config: Config, qname: str) -> dict[str, object]:
+    if name == "read_symbol":
+        return read_symbol.create(config)(qname)
+    if name == "find_references":
+        return find_references.create(config)(qname, detail_level="minimal")
+    if name == "find_callers":
+        return find_callers.create(config)(qname, detail_level="minimal")
+    if name == "find_implementations":
+        return find_implementations.create(config)(qname, detail_level="minimal")
+    if name == "find_view_data":
+        return find_view_data.create(config)(qname, detail_level="minimal")
+    if name == "impact":
+        return impact.create(config)(qnames=[qname], detail_level="minimal")
+    if name == "explain_path":
+        return explain_path.create(config)(qname, "\\Ns\\Sub\\Flags", detail_level="minimal")
+    raise AssertionError(f"add an invoke arm for new classifier caller {name}")
+
+
+def _empty_with_unique_candidate(payload: dict[str, object]) -> bool:
+    results = payload.get("results")
+    empty = payload.get("found") is False or results == []
+    return empty and payload.get("candidate_count") == 1
+
+
+def test_find_references_leading_anchor_matches_stored_form(config: Config) -> None:
+    """PROVING TEST — unanchored find_references matches the leading-\\ form (122 AC2/AC3)."""
+    tool = find_references.create(config)
+    anchored = tool(_STORED, detail_level="minimal")
+    asked = tool(_ASKED, detail_level="minimal")
+    assert anchored["results"]
+    assert asked["results"] == anchored["results"]
+    assert asked["total_count"] == anchored["total_count"]
+    assert [hit["confidence_tier"] for hit in asked["results"]] == [
+        hit["confidence_tier"] for hit in anchored["results"]
+    ]
+    assert asked["resolved_qname"] == _STORED
+    assert "resolved_qname" not in anchored
+    exact = tool(_STORED, detail_level="minimal")
+    assert exact == anchored  # exact hit byte-identical (AC3 / R4.2)
+
+
+def test_every_classifier_caller_honours_resolved_unique(config: Config) -> None:
+    """AC1 — denominator is the derived caller set; each honours resolved_unique."""
+    callers = _classifier_caller_modules()
+    assert callers, "classifier caller scan emptied itself"
+    for name in callers:
+        payload = _call_classifier_caller(name, config, _ASKED)
+        assert not _empty_with_unique_candidate(payload), (name, payload)
+        assert payload.get("reason") != REASON_NAME_NOT_QUALIFIED, (name, payload)
+        if name == "read_symbol":
+            assert payload["found"] is True
+        elif name == "explain_path":
+            assert payload["from_qname"] == _STORED
+        elif name == "impact":
+            assert payload.get("seeds_dropped", 0) == 0
+        else:
+            assert payload.get("resolved_qname") == _STORED
+
+
+def test_shape_exact_miss_resolved_unique_is_not_name_not_qualified() -> None:
+    """AC4 — the shaper itself cannot file a unique resolve as under-qualified."""
+    miss: dict[str, object] = {"qname": _ASKED, "results": []}
+    shaped = shape_exact_miss(
+        miss, SubjectResolution("resolved_unique", _STORED, 1)
+    )
+    assert shaped.get("reason") != REASON_NAME_NOT_QUALIFIED
+    assert "candidate_count" not in shaped
+    assert shaped["resolved_qname"] == _STORED
+
+
+def test_no_nav_tool_returns_empty_with_candidate_count_one(config: Config) -> None:
+    """AC4 — candidate_count:1 + empty results is unreachable from any classifier caller."""
+    for name in _classifier_caller_modules():
+        for subject in (_ASKED, _STORED, "isEnabled", "\\Nope\\Missing"):
+            payload = _call_classifier_caller(name, config, subject)
+            assert not _empty_with_unique_candidate(payload), (name, subject, payload)
+
+
+def test_ambiguous_path_unchanged_on_find_references(config: Config) -> None:
+    """AC5 — many candidates stay a refusal; would fail if this change made ambiguity forgiving."""
+    result = find_references.create(config)("isEnabled", detail_level="minimal")
+    assert result["reason"] == REASON_NAME_NOT_QUALIFIED
+    assert result["results"] == []
+    assert result["candidate_count"] == 2
+    assert result["try_instead"] == TRY_INSTEAD_SEARCH_SYMBOL
+    assert "resolved_qname" not in result

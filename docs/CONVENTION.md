@@ -159,7 +159,9 @@ code-atlas/
   (092). At `verbose` only, `skipped.ignore_sources` names which composed ignore source dropped each
   skip (095); `ignore` stays the int so 082 still closes; omit when empty (061). `not_indexed` on a payload with `indexed: true` means the subject maps to an untracked
   indexable file; `try_instead` is a real tool name and `try_instead_hint` carries the git-add
-  prose (061 omit when empty). A subject matches an untracked file on its **stem** — a path-shaped
+  prose (061 omit when empty). `resolved_qname` on a nav answer is the stored qname the tool
+  actually queried when it differed from the typed subject by a leading-anchor (075/122);
+  omitted on an exact hit so the common path is unchanged (061). A subject matches an untracked file on its **stem** — a path-shaped
   qname's trailing ident is the file extension, so `Missing.aa` must not match `aa.aa` (092).
 - **A batched answer keys on position, and states the envelope once (101).** A tool that takes a
   list of subjects (`search_symbol`'s `queries`) returns `subjects`: entry *i* answers subject *i*,

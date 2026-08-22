@@ -57,6 +57,9 @@ brought into that vocabulary: it has a `found` boolean and a `reason` that is al
 - **Decide and record the sibling surface.** `read_symbol`, `file_outline`'s symbol arguments,
   `find_*` subjects, `impact`, `explain_path` — each gets an explicit verdict on whether it accepts
   an unnormalised qname today and what it will do after this change.
+  **Closed by [122](122_exact-miss-shaping-discards-a-resolved-subject.md).** Evidence:
+  `tests/test_qname_subject_honesty.py::test_every_classifier_caller_honours_resolved_unique`
+  (enumerating test over every `classify_missing_subject` caller).
 - **This is the same class of defect as [076](076_bare-name-subject-reads-as-absence.md)** (a bare,
   unqualified subject answering `no_such_symbol`). Design them together; ship one reason-vocabulary
   change if that is the smaller diff, and say so in the design.

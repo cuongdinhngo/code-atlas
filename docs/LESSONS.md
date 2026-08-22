@@ -1,5 +1,36 @@
 # Lessons — code-atlas
 
+## 122 — A shaper that keys on a count two statuses share will mis-file the one it was meant to honour
+`classify_missing_subject` returns `resolved_unique` with `candidate_count: 1` and `ambiguous` with
+`candidate_count > 1`. `shape_exact_miss` treated any positive count as `name_not_qualified`, so the
+unique case — the one the classifier had already resolved — was discarded and the stored qname never
+reached the four `find_*` tools. 075 had recorded a sibling-surface verdict in prose while those
+four callers still hit the fall-through; the enumerating test is what actually closes it.
+
+### 122-C1 — Branch a miss-shaper on classifier status, never on a count several statuses share
+- type: 2 generalisable-heuristic
+- handle: branch-on-status-not-shared-count
+- status: proposed (awaiting human confirm)
+- seen: 122
+- evidence: `shape_exact_miss` (`nav_result.py`) fell through `if resolution.candidate_count` for
+  `resolved_unique` (which carries count 1) and emitted `name_not_qualified`. Fixed by branching on
+  `status == "resolved_unique"` first; `unique_repoint` is the one predicate the four `find_*`
+  retries share
+- area: tools / subject resolution
+- destination: `rulebook_path` (code subject) — recurrence 1, not yet promotable
+
+### 122-C2 — A sibling-surface verdict is closed by an enumerating test, not by a scope bullet
+- type: 2 generalisable-heuristic
+- handle: enumerating-test-closes-the-sibling-surface
+- status: proposed (awaiting human confirm)
+- seen: 122
+- evidence: 075's scope bullet "decide and record the sibling surface" was marked done while
+  3/7 classifier callers honoured `resolved_unique`. The defect survived two field rounds. Closed
+  by `test_every_classifier_caller_honours_resolved_unique`, which derives the caller set from
+  `classify_missing_subject(`
+- area: process / inventory close
+- destination: `agent_brief_path` (process subject) — recurrence 1, not yet promotable
+
 ## 117 — A seam can still be live code and yet fire on nothing, because a later ticket moved the ground
 091 built a `LayerRefiner` seam that renames the **weak** layers 084 falls back to
 (`source`/`sink`/`mixed`/`isolated`/`(root)`). Task 110 then made `responsibility` the primary layer
@@ -518,7 +549,7 @@ was accepted: `qnames=["App\Nope"] → results=2 seeds_dropped=0` beside
 - type: 2 generalisable-heuristic
 - handle: re-verify-the-assumption-on-a-new-path
 - status: proposed (awaiting human confirm)
-- seen: 102, 107
+- seen: 102, 107, 122
 - evidence: 107 generalises it from *paths* to *time*. Its counted evidence ("500/500 pages have both
   neighbour lists empty") was measured before its sibling 106 landed; re-measured at `f3d48a9` it read
   **0/500**. A ticket's own numbers are verified against the commit they were taken at, so refine
@@ -535,7 +566,7 @@ was accepted: `qnames=["App\Nope"] → results=2 seeds_dropped=0` beside
 - type: 2 generalisable-heuristic
 - handle: one-rule-for-every-subject-slot
 - status: proposed (awaiting human confirm)
-- seen: 102
+- seen: 102, 122
 - evidence: `impact._seeds` grew a second subject slot; the guard was written twice and one copy was
   wrong. Fixed by a single `take()` both slots call, so they cannot drift apart again. The same
   shape exists in `read_symbol.py:189` and `find_callers.py:168`, which each branch on
@@ -572,7 +603,7 @@ no escape character, so separator backslashes still survive.
 - handle: source-the-caveat-from-the-computation
 - status: confirmed — **not retired** on promotion (2026-08-16), so recall keeps surfacing the handle
   and R5.5 stays reachable by the recalled-handle route, not only by change type
-- seen: 100, 101, 102
+- seen: 100, 101, 102, 122
 - evidence: `CLAIM_CARRY = ("parse_failures",)` read the key off the payload, which only carries it
   at `standard`/`verbose`; the `minimal` line shipped without the caveat while `counts["failed"]`
   was 1. Fixed by sourcing from the computation, not the presentation. 102: `seeds_dropped` was
@@ -928,7 +959,7 @@ trap.
 - type: 2 generalisable-heuristic
 - handle: derived-not-listed-invariant
 - status: confirmed
-- seen: 093, 095, 096, 097, 099, 100, 101, 102
+- seen: 093, 095, 096, 097, 099, 100, 101, 102, 122
 - evidence: `tests/test_try_instead_is_a_callable_tool_name.py` reads `vars(nav_result)` +
   `main.TOOL_NAMES`; `test_the_dead_route_guard_can_actually_fail` injects a dead constant;
   095: `composed_source_names()` from `COMPOSED_IGNORE_FILES`
@@ -940,7 +971,7 @@ trap.
 - type: 2 generalisable-heuristic
 - handle: prove-the-guard-fails
 - status: confirmed
-- seen: 093, 096, 099, 100, 101, 087, 088
+- seen: 093, 096, 099, 100, 101, 087, 088, 122
 - evidence: the dead-route guard scanned its own definition site and could never fail, yet shipped in
   PR #103 advertised as "the audit cannot go stale"; caught by review, not by the suite
 - area: tests / R1.1

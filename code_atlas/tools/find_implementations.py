@@ -14,6 +14,7 @@ from code_atlas.tools.nav_result import (
     REASON_NO_SUCH_SYMBOL,
     TRY_INSTEAD_FILE_OUTLINE,
     attach_limit_capped,
+    attach_resolved_qname,
     attach_try_instead,
     classify_missing_subject,
     edge_hit,
@@ -21,6 +22,7 @@ from code_atlas.tools.nav_result import (
     nav_result,
     relation_reason,
     shape_exact_miss,
+    unique_repoint,
 )
 
 NAME = "find_implementations"
@@ -43,7 +45,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``EXTENDS``/``IMPLEMENTS`` are resolver-linked, so empty here is a genuine zero, never
         ``relationship_not_modelled`` (065). ``subject_refreshed_only`` is ``true`` only when
         read-through freshness reparsed the subject's file this call — neighbors were not
-        re-verified (035 / 061). For transitive subtypes, see ``impact``.
+        re-verified (035 / 061). For transitive subtypes, see ``impact``. A leading-anchor
+        difference from the stored qname is re-pointed; ``resolved_qname`` names the stored
+        form (075/122). An exact stored qname is unchanged.
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
@@ -71,26 +75,33 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     ),
                     TRY_INSTEAD_FILE_OUTLINE,
                 )
-            total_count = store.count_edges_by_target(qname, kinds=IMPL_KINDS)
-            indexed = bool(store.nodes_by_qualified_name(qname, limit=1))
+            asked = qname
+            lookup = qname
+            total_count = store.count_edges_by_target(lookup, kinds=IMPL_KINDS)
+            indexed = bool(store.nodes_by_qualified_name(lookup, limit=1))
             if total_count == 0 and not indexed:
-                # Under-qualified, untracked, or a genuine absence (075/076/092).
+                # Under-qualified, untracked, or a genuine absence (075/076/092/122).
                 resolution = classify_missing_subject(
-                    store, qname, limit=config.max_results
+                    store, asked, limit=config.max_results
                 )
-                miss = nav_result(
-                    qname,
-                    [],
-                    detail_level=detail_level,
-                    db_path=str(config.db_path),
-                    index_root=config.index_root,
-                    truncated=False,
-                    reason=REASON_NO_SUCH_SYMBOL,
-                    total_count=0,
-                )
-                return shape_exact_miss(miss, resolution)
+                repointed = unique_repoint(resolution)
+                if repointed is None:
+                    miss = nav_result(
+                        asked,
+                        [],
+                        detail_level=detail_level,
+                        db_path=str(config.db_path),
+                        index_root=config.index_root,
+                        truncated=False,
+                        reason=REASON_NO_SUCH_SYMBOL,
+                        total_count=0,
+                    )
+                    return shape_exact_miss(miss, resolution)
+                lookup = repointed
+                total_count = store.count_edges_by_target(lookup, kinds=IMPL_KINDS)
+                indexed = bool(store.nodes_by_qualified_name(lookup, limit=1))
             edges = store.edges_by_target(
-                qname, kinds=IMPL_KINDS, limit=cap, offset=offset
+                lookup, kinds=IMPL_KINDS, limit=cap, offset=offset
             )
             results = [edge_hit(edge) for edge in edges]
         truncated = offset + len(results) < total_count
@@ -107,6 +118,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if freshness == "repaired":
             result["subject_refreshed_only"] = True
         attach_limit_capped(result, cap=cap, clamped=limit_clamped)
+        attach_resolved_qname(result, asked=asked, answered=lookup)
         return result
 
     return find_implementations

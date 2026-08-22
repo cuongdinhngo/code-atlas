@@ -17,6 +17,7 @@ from code_atlas.tools.nav_result import (
     REASON_NO_SUCH_SYMBOL,
     TRY_INSTEAD_FILE_OUTLINE,
     attach_limit_capped,
+    attach_resolved_qname,
     attach_try_instead,
     classify_missing_subject,
     edge_hit,
@@ -24,6 +25,7 @@ from code_atlas.tools.nav_result import (
     nav_result,
     relation_reason,
     shape_exact_miss,
+    unique_repoint,
 )
 
 NAME = "find_view_data"
@@ -49,6 +51,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         rules configured the answer is ``reason=capability_not_configured`` (the tool is inert on
         this index), which is distinct from a configured repo where this handler simply publishes
         nothing (``no_matches``). ``file`` is the subject's declaration path when known.
+        A leading-anchor difference from the stored qname is re-pointed; ``resolved_qname``
+        names the stored form (075/122). An exact stored qname is unchanged.
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
@@ -76,32 +80,40 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     ),
                     TRY_INSTEAD_FILE_OUTLINE,
                 )
-            total = store.count_edges_by_source(qname, kinds=_KIND)
-            indexed = bool(store.nodes_by_qualified_name(qname, limit=1))
+            asked = qname
+            lookup = qname
+            total = store.count_edges_by_source(lookup, kinds=_KIND)
+            indexed = bool(store.nodes_by_qualified_name(lookup, limit=1))
             if total == 0 and not indexed:
-                miss = nav_result(
-                    qname,
-                    [],
-                    detail_level=detail_level,
-                    db_path=str(config.db_path),
-                    index_root=config.index_root,
-                    truncated=False,
-                    reason=REASON_NO_SUCH_SYMBOL,
-                    total_count=0,
+                resolution = classify_missing_subject(
+                    store, asked, limit=config.max_results
                 )
-                # A miss still names what the guard repaired (073) — the 092 shortcut must not
-                # drop a signal the fall-through carried.
-                if freshness == "repaired":
-                    miss["subject_refreshed_only"] = True
-                attach_limit_capped(miss, cap=cap, clamped=limit_clamped)
-                return shape_exact_miss(
-                    miss, classify_missing_subject(store, qname, limit=config.max_results)
-                )
-            rows = store.edges_by_source(qname, kinds=_KIND, limit=cap, offset=offset)
-            file_path = _subject_file(store, qname)
+                repointed = unique_repoint(resolution)
+                if repointed is None:
+                    miss = nav_result(
+                        asked,
+                        [],
+                        detail_level=detail_level,
+                        db_path=str(config.db_path),
+                        index_root=config.index_root,
+                        truncated=False,
+                        reason=REASON_NO_SUCH_SYMBOL,
+                        total_count=0,
+                    )
+                    # A miss still names what the guard repaired (073) — the 092 shortcut must not
+                    # drop a signal the fall-through carried.
+                    if freshness == "repaired":
+                        miss["subject_refreshed_only"] = True
+                    attach_limit_capped(miss, cap=cap, clamped=limit_clamped)
+                    return shape_exact_miss(miss, resolution)
+                lookup = repointed
+                total = store.count_edges_by_source(lookup, kinds=_KIND)
+                indexed = bool(store.nodes_by_qualified_name(lookup, limit=1))
+            rows = store.edges_by_source(lookup, kinds=_KIND, limit=cap, offset=offset)
+            file_path = _subject_file(store, lookup)
             results: list[dict[str, object]] = []
             for edge in rows:
-                hit = edge_hit(edge, subject=qname)
+                hit = edge_hit(edge, subject=lookup)
                 key = view_data_key(edge.get("target_raw"))
                 if key is not None:
                     hit["key"] = key
@@ -115,7 +127,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 # genuine "publishes nothing" zero (069). A missing subject stays no_such_symbol.
                 reason = REASON_CAPABILITY_NOT_CONFIGURED
             result = nav_result(
-                qname,
+                asked,
                 results,
                 detail_level=detail_level,
                 db_path=str(config.db_path),
@@ -127,6 +139,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             if freshness == "repaired":
                 result["subject_refreshed_only"] = True
             attach_limit_capped(result, cap=cap, clamped=limit_clamped)
+            attach_resolved_qname(result, asked=asked, answered=lookup)
             return result
 
     return find_view_data

@@ -355,6 +355,22 @@ def _ends_at_boundary(stored: str, suffix: str) -> bool:
     return prefix == "" or _IDENT_CHAR.match(prefix[-1]) is None
 
 
+def unique_repoint(resolution: SubjectResolution) -> str | None:
+    """Stored qname when a miss uniquely resolved; else None (shape the miss)."""
+    if resolution.status == "resolved_unique":
+        return resolution.qname
+    return None
+
+
+def attach_resolved_qname(
+    payload: dict[str, object], *, asked: str, answered: str
+) -> dict[str, object]:
+    """Disclose the stored qname only when it differs from what the caller typed (061/075)."""
+    if answered != asked:
+        payload["resolved_qname"] = answered
+    return payload
+
+
 def attach_name_not_qualified(
     payload: dict[str, object], candidate_count: int
 ) -> dict[str, object]:
@@ -396,9 +412,16 @@ def attach_untracked_not_indexed(
 def shape_exact_miss(
     miss: dict[str, object], resolution: SubjectResolution
 ) -> dict[str, object]:
-    """Fill an exact-miss payload from the classifier (075/076/092)."""
+    """Fill an exact-miss payload from the classifier (075/076/092/122).
+
+    ``resolved_unique`` is not under-qualified — callers re-point onto ``resolution.qname``.
+    """
     if resolution.status == "untracked":
         return attach_untracked_not_indexed(miss, resolution.untracked_paths)
+    if resolution.status == "resolved_unique":
+        asked = miss.get("qname")
+        asked_qname = asked if isinstance(asked, str) else resolution.qname
+        return attach_resolved_qname(miss, asked=asked_qname, answered=resolution.qname)
     if resolution.candidate_count:
         miss["reason"] = REASON_NAME_NOT_QUALIFIED
         return attach_name_not_qualified(miss, resolution.candidate_count)

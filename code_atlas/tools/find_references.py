@@ -20,6 +20,7 @@ from code_atlas.tools.nav_result import (
     TRY_INSTEAD_SEARCH_SYMBOL,
     attach_ambiguous_definitions,
     attach_limit_capped,
+    attach_resolved_qname,
     attach_result_subtrees,
     attach_try_instead,
     classify_missing_subject,
@@ -29,6 +30,7 @@ from code_atlas.tools.nav_result import (
     nav_result,
     relation_reason,
     shape_exact_miss,
+    unique_repoint,
 )
 from code_atlas.tools.staleness import compute_staleness
 
@@ -76,6 +78,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``key=value`` line naming subject, question, answer and the revision the index describes,
         carrying ``authoritative`` when every hit is ``DYNAMIC``. An answer with no index carries
         no line (task 100).
+
+        A leading-anchor difference from the stored qname (``Ns\\Sub\\Enum`` vs
+        ``\\Ns\\Sub\\Enum``) is re-pointed and answered; ``resolved_qname`` names the
+        stored form (075/122). An exact stored qname is unchanged.
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
@@ -120,31 +126,39 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     ),
                     TRY_INSTEAD_FILE_OUTLINE,
                 ))
-            total_count = store.count_edges_by_target(qname)
+            asked = qname
+            lookup = qname
+            total_count = store.count_edges_by_target(lookup)
             # Widen the existing indexed-check fetch to surface every definition site (task 070).
-            nodes = store.nodes_by_qualified_name(qname, limit=config.max_results)
+            nodes = store.nodes_by_qualified_name(lookup, limit=config.max_results)
             indexed = bool(nodes)
             if total_count == 0 and not indexed:
-                # Under-qualified, untracked, or a genuine absence (075/076/092).
+                # Under-qualified, untracked, or a genuine absence (075/076/092/122).
                 resolution = classify_missing_subject(
-                    store, qname, limit=config.max_results
+                    store, asked, limit=config.max_results
                 )
-                miss = nav_result(
-                    qname,
-                    [],
-                    detail_level=detail_level,
-                    db_path=str(config.db_path),
-                    index_root=config.index_root,
-                    truncated=False,
-                    reason=REASON_NO_SUCH_SYMBOL,
-                    total_count=0,
-                )
-                return signed(shape_exact_miss(miss, resolution))
-            edges = store.edges_by_target(qname, limit=cap, offset=offset)
+                repointed = unique_repoint(resolution)
+                if repointed is None:
+                    miss = nav_result(
+                        asked,
+                        [],
+                        detail_level=detail_level,
+                        db_path=str(config.db_path),
+                        index_root=config.index_root,
+                        truncated=False,
+                        reason=REASON_NO_SUCH_SYMBOL,
+                        total_count=0,
+                    )
+                    return signed(shape_exact_miss(miss, resolution))
+                lookup = repointed
+                total_count = store.count_edges_by_target(lookup)
+                nodes = store.nodes_by_qualified_name(lookup, limit=config.max_results)
+                indexed = bool(nodes)
+            edges = store.edges_by_target(lookup, limit=cap, offset=offset)
             results = [edge_hit(edge) for edge in edges]
             # Skewed page 1 hides other subtrees — advertise the full spread (task 067).
             subtrees = (
-                store.edge_subtrees_by_target(qname)
+                store.edge_subtrees_by_target(lookup)
                 if offset + len(results) < total_count
                 else {}
             )
@@ -159,7 +173,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             if reason == REASON_NO_MATCHES and nodes:
                 name = str(nodes[0]["name"])
                 unlinked = store.count_unlinked_by_target_raw(
-                    (qname, name), kinds=UNMODELLED_REFERENCE_KINDS
+                    (lookup, name), kinds=UNMODELLED_REFERENCE_KINDS
                 )
                 if unlinked > 0:
                     reason = REASON_RELATIONSHIP_NOT_MODELLED
@@ -183,6 +197,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         attach_result_subtrees(result, subtrees)
         attach_ambiguous_definitions(result, definition_sites(nodes))
         attach_limit_capped(result, cap=cap, clamped=limit_clamped)
+        attach_resolved_qname(result, asked=asked, answered=lookup)
         if results and all(hit.get("confidence_tier") == "DYNAMIC" for hit in results):
             result["authoritative"] = False
         return signed(attach_try_instead(result, try_instead, try_instead_hint))
