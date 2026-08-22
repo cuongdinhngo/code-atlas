@@ -60,23 +60,25 @@ the same reason 061 and 080 were, but it is the round's behaviour finding, not j
 7 of 8 fixed and 081 `NOT OBSERVED` (§A).
 
 **Order (round-6 tickets), 2026-08-21 — all four are payload honesty, none is a graph defect.** The
-round's own closing line is the ordering argument: *"the graph knew everything I asked it; the failures
-were the tool knowing and not saying how much it was not telling me, and the tool knowing and declining
-over punctuation."* So ~~**122**~~ first (done — the four `find_*` tools now re-point onto the
-resolved qname and disclose `resolved_qname`) — it is the round's single most expensive event (one silently-empty
-answer moved the evaluator to `grep` for the remaining **four of five** tickets) and it is
-[075](tasks/075_read-symbol-confident-zero-on-unnormalised-qname.md)'s own scope bullet left unfinished:
-`classify_missing_subject` resolves the leading-anchor case to `resolved_unique` and three tools
-(`read_symbol`, `explain_path`, `impact`) honour it while four (`find_references`, `find_callers`,
-`find_implementations`, `find_view_data`) discard the resolved qname inside the shared
-`shape_exact_miss`. **→ 123** (`file_outline` returned 10 of a 12-symbol file, omitted the method under
-repair, and reported `total_count: 10` — the field means *page length* there and *true total* on
-`search_symbol`; round 5 called this tool its most expensive **miss**, round 6 called it and it was
-**wrong**). **→ 124** (`find_orphans` exceeded the transport limit at 154,004 characters and cannot be
-paged; it borrows `impact_max_nodes` for a cap that decides which orphans are visible at all, and the one
-ticket that round whose root cause *was* an orphan got nothing from it). **→ 125** last, and it is the
-cheapest: no payload names the server build, so every retro in this series has been told its own subject
-by an operator — round 6 identified the build by reading task numbers out of tool `description` prose.
+round's own closing line is the ordering argument: *"the graph knew everything I asked it; the
+failures were the tool knowing and not saying how much it was not telling me, and the tool knowing
+and declining over punctuation."* So ~~**122**~~ first (done — the four `find_*` tools now re-point
+onto the resolved qname and disclose `resolved_qname`) — it is the round's single most expensive
+event (one silently-empty answer moved the evaluator to `grep` for the remaining **four of five**
+tickets) and it is [075](tasks/075_read-symbol-confident-zero-on-unnormalised-qname.md)'s own scope
+bullet left unfinished: `classify_missing_subject` resolves the leading-anchor case to
+`resolved_unique` and three tools (`read_symbol`, `explain_path`, `impact`) honour it while four
+(`find_references`, `find_callers`, `find_implementations`, `find_view_data`) discard the resolved
+qname inside the shared `shape_exact_miss`. **→ ~~123~~** (done — `file_outline` returned 10 of a 12-symbol
+file, omitted the method under repair, and reported `total_count: 10` — the field means *page
+length* there and *true total* on `search_symbol`; round 5 called this tool its most expensive
+**miss**, round 6 called it and it was **wrong**). **→ ~~124~~** (done — `find_orphans` exceeded the transport
+limit at 154,004 characters and cannot be paged; it borrows `impact_max_nodes` for a cap that
+decides which orphans are visible at all, and the one ticket that round whose root cause *was* an
+orphan got nothing from it). **→ ~~125~~** last, and it is the cheapest: no payload names the server
+build, so every retro in this series has been told its own subject by an operator — round 6
+identified the build by reading task numbers out of tool `description` prose.
+**Round 6 closed:** 122–125 all landed.
 
 123 and 124 are **recorded exclusions meeting their first field evidence**, not oversights:
 [057](tasks/057_answer-pagination.md) wrote *"Reachability, `file_outline`, and `include_graph` stay
@@ -127,19 +129,47 @@ recorded assignments** (no regression). 104 stays **`blocked`** — its AC2 name
 monorepo**, and three public repos are stronger than fixtures but are not that repo; the maintainer
 holds that judgement.
 
-**M10 is complete** (083 · 084 · 085 · 103 · 104 · 086) — `architecture_overview` is the 15th tool on
-the surface. **087 shipped** (`guided_tour`, 16th tool). **088 shipped** (`generate_onboarding`,
+**M10 is complete** (083 · 084 · 085 · 103 · 104 · 086) — `architecture_overview` is the 15th tool
+on the surface. **087 shipped** (`guided_tour`, 16th tool). **088 shipped** (`generate_onboarding`,
 17th tool). **089 shipped** (static HTML viewer). **090 shipped** (LLM summarizer behind the 085
-seam — the `onboarding_llm/` package + `code-atlas-llm` entry point, opt-in, the core still imports no
-LLM). **091 shipped** (LLM layer-name refinement behind a new 091 `LayerRefiner` seam — renames the
-weak dependency-direction bands 084 falls back to on flat namespaces; opt-in via
+seam — the `onboarding_llm/` package + `code-atlas-llm` entry point, opt-in, the core still imports
+no LLM). **091 shipped** (LLM layer-name refinement behind a new 091 `LayerRefiner` seam — renames
+the weak dependency-direction bands 084 falls back to on flat namespaces; opt-in via
 `CA_ONBOARDING_LAYER_REFINER`, off by default, core still imports no LLM). **117 shipped** (one
 `ProseWriter` seam for the map's three prose slots — layer descriptions, tour-step narratives, and
 the wording of the headline facts; opt-in via `CA_ONBOARDING_PROSE`, off by default, core still
-imports no LLM). **M12 is complete** (090 · 091 · 117). **105 shipped** (dominant subtree elected by graph mass, not file count — the laravel
-`app/**` collapse is fixed and proven on the three pinned repos).
+imports no LLM). **M12 is complete** (090 · 091 · 117). **105 shipped** (dominant subtree elected by
+graph mass, not file count — the laravel `app/**` collapse is fixed and proven on the three pinned
+repos).
 
-**Onboarding reshape (108–117), 2026-08-20.** Reviewing the emitted artifact on the anchor monorepo as a human newcomer found it unusable: 43 MB total, a median module page of 82,218 bytes that is 99.96 % flat path lists, `Summary: (none)` on 500/500 pages, and a 500-stop "tour". A reviewed mockup — one self-contained 891 KB page with a sitemap treemap, responsibility layers, a full dependency matrix, hubs, a business-module table, mirror-subtree lookup and a 12-step tour — is recorded in [`phase3-onboarding/ONBOARDING_MOCKUP.md`](phase3-onboarding/ONBOARDING_MOCKUP.md) with a reproducible prototype. It splits the audience: **the MCP tools are the product for AI, the onboarding artifact is the product for humans**. Tasks **108–117** implement it — wave 1 (108 · 109) is independently shippable, wave 2 (110–113) is the reshape — **all four landed** — and wave 3 (114–117) is the map and its prose — **all four landed, so the reshape is complete**. 116 found that **108 had already removed ~97 % of the 31 MB** by capping the page bodies, so the size half of the original complaint was largely spent before the map was built; the "data dump, not a map" half was the whole of it, and the map answers that by rendering the 112 dataset alone (`DATASET_VERSION` 5). Its size is measured, not asserted: the path index is **96.9 %** of the anchor's dataset, the page is **969 KB** with it and **109 KB** without, and the three pinned public repos are recorded as a **smoke run that cannot falsify the budget** at 26–51 files each. 115's measured absence of mirrored subtrees on three public repos is now written into 098 as the evidence keeping that ticket deferred. 117 closed it, and its own measurement is the finding worth keeping: **091's rename seam fires on nothing** now that 110 made `responsibility` the primary layer method — all three pins yield zero weak layers — so the ticket's routing bullet was falsified and the prose went through one new seam serving all three slots instead. The cost is bounded by construction rather than by a guess: 6 headline families + 110's 12 layers + 109's 15-step ceiling = **33 calls a build**, enforced per slot, and at 18,929 synthetic files the ceiling served 12 layer descriptions and refused 1,164. Both R2.2 judgments are now settled: a generic architectural vocabulary **is** a standard (110, maintainer-ratified), and **113 needed no separate vendor signal at all** — that same ratified vocabulary already carries `vendor`, so the classifier is composition of 110 + 083's degrees + the operator's own `entry_points`/`stub_roots`, with no library-name list and no `composer.json` parsing.
+**Onboarding reshape (108–117), 2026-08-20.** Reviewing the emitted artifact on the anchor monorepo
+as a human newcomer found it unusable: 43 MB total, a median module page of 82,218 bytes that is
+99.96 % flat path lists, `Summary: (none)` on 500/500 pages, and a 500-stop "tour". A reviewed
+mockup — one self-contained 891 KB page with a sitemap treemap, responsibility layers, a full
+dependency matrix, hubs, a business-module table, mirror-subtree lookup and a 12-step tour — is
+recorded in [`phase3-onboarding/ONBOARDING_MOCKUP.md`](phase3-onboarding/ONBOARDING_MOCKUP.md) with
+a reproducible prototype. It splits the audience: **the MCP tools are the product for AI, the
+onboarding artifact is the product for humans**. Tasks **108–117** implement it — wave 1 (108 · 109)
+is independently shippable, wave 2 (110–113) is the reshape — **all four landed** — and wave 3
+(114–117) is the map and its prose — **all four landed, so the reshape is complete**. 116 found that
+**108 had already removed ~97 % of the 31 MB** by capping the page bodies, so the size half of the
+original complaint was largely spent before the map was built; the "data dump, not a map" half was
+the whole of it, and the map answers that by rendering the 112 dataset alone (`DATASET_VERSION` 5).
+Its size is measured, not asserted: the path index is **96.9 %** of the anchor's dataset, the page
+is **969 KB** with it and **109 KB** without, and the three pinned public repos are recorded as a
+**smoke run that cannot falsify the budget** at 26–51 files each. 115's measured absence of mirrored
+subtrees on three public repos is now written into 098 as the evidence keeping that ticket deferred.
+117 closed it, and its own measurement is the finding worth keeping: **091's rename seam fires on
+nothing** now that 110 made `responsibility` the primary layer method — all three pins yield zero
+weak layers — so the ticket's routing bullet was falsified and the prose went through one new seam
+serving all three slots instead. The cost is bounded by construction rather than by a guess: 6
+headline families + 110's 12 layers + 109's 15-step ceiling = **33 calls a build**, enforced per
+slot, and at 18,929 synthetic files the ceiling served 12 layer descriptions and refused 1,164. Both
+R2.2 judgments are now settled: a generic architectural vocabulary **is** a standard (110,
+maintainer-ratified), and **113 needed no separate vendor signal at all** — that same ratified
+vocabulary already carries `vendor`, so the classifier is composition of 110 + 083's degrees + the
+operator's own `entry_points`/`stub_roots`, with no library-name list and no `composer.json`
+parsing.
 
 **Field measurement on the anchor, 2026-08-21 — what the shipped map got right and what it did not.**
 Regenerating the artifact on the anchor monorepo (18,972 modules, 135,649 symbols, index at that
@@ -159,19 +189,18 @@ findings came out of reading it as a newcomer, and both are now tickets:
   knob the bucket went **901 → 341**, with 494 files moving to *not statically reachable* and 66 to
   *no edge either way*. Classification changed; no fact did.
 
-**120** is the third, and it is **gated, not scheduled**: answering "what still depends on this subtree,
-so can it be deleted?" on the anchor took hand-written SQL, and the naive attribution was wrong by
-**5.7×** (23,086 vs 4,013 resolved `src → legacy` edges) because 22,282 symbols are declared in more
-than one file. Real need, **n = 1** — held to 098's discipline.
+**120** is the third, and it is **gated, not scheduled**: answering "what still depends on this
+subtree, so can it be deleted?" on the anchor took hand-written SQL, and the naive attribution was
+wrong by **5.7×** (23,086 vs 4,013 resolved `src → legacy` edges) because 22,282 symbols are
+declared in more than one file. Real need, **n = 1** — held to 098's discipline. **The phase's own
+cost gate never ran — 121.** [`PHASE3_ONBOARDING.md`](phase3-onboarding/PHASE3_ONBOARDING.md) §5
+gated the whole phase on an **onboarding question-class** in the tokens-to-answer harness (034/045)
+plus the recall gate (055), baselined against `grep`+`Read`.
+`scripts/tokens_to_answer_questions.json` holds **zero** onboarding questions. M10–M12 are complete;
+whether they beat hand-mapping on tokens is **unmeasured**, not won — the same exposure that made
+the founding search-speed premise false (§19), one phase later.
 
-**The phase's own cost gate never ran — 121.** [`PHASE3_ONBOARDING.md`](phase3-onboarding/PHASE3_ONBOARDING.md)
-§5 gated the whole phase on an **onboarding question-class** in the tokens-to-answer harness (034/045)
-plus the recall gate (055), baselined against `grep`+`Read`. `scripts/tokens_to_answer_questions.json`
-holds **zero** onboarding questions. M10–M12 are complete; whether they beat hand-mapping on tokens is
-**unmeasured**, not won — the same exposure that made the founding search-speed premise false (§19),
-one phase later.
-
-**Then:** round 6's payload-honesty tickets (**122 → 123 → 124 → ~~125~~ done**) closed the
+**Then:** round 6's payload-honesty tickets (**~~122~~ → ~~123~~ → ~~124~~ → ~~125~~**, all done) closed the
 mechanism tools an agent uses every ticket, and 122 is a defect that already cost a field session its
 tool. The two onboarding-quality tickets (118 · 119) close what the field measurement found; **121**
 decides whether Phase 3 is measured at all, and round 6 sharpened how (a newcomer's question-class, not
@@ -486,14 +515,12 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | 093 | 1 dispatch — `/code-review` on the PR **61.7k** (20 tool-uses, 205 s); refine skipped (0 unresolved product-decisions), review waived at solve time then run on the PR. Docker delta-green (full gate **1175 passed**; `main` baseline 1167, +8 new tests, none removed — 1173 pre-review, +2 from the review fixes) | [#103](https://github.com/cuongdinhngo/code-atlas/pull/103) |
 | 095 | 1 dispatch — refine exposure-checker unmeasured (host does not surface usage); review waived at solve time. Docker delta-green (full gate **1183 passed**; `main` baseline 1175, +8 new tests, none removed) | [#105](https://github.com/cuongdinhngo/code-atlas/pull/105) |
 | 097 | 1 dispatch — refine exposure-checker unmeasured (host does not surface usage); review waived at solve time. Docker delta-green (full gate **1191 passed**; `main` baseline 1183, +8 new tests, none removed) | [#107](https://github.com/cuongdinhngo/code-atlas/pull/107) |
-| 101 | **139.2k dispatch, all measured** — reviewer r1 139.2k (47 tool-uses, 952 s), returned CHANGES REQUESTED with 2 Important findings, both real and both fixed; verify pass **not dispatched** (conditional LGTM, done in the main loop). Challenger **waived by operator**; refine exposure-checker and analysis Explore fan-out **not dispatched** (session standing instruction), disclosed rather than silently skipped. Docker delta-green (full gate **1262 passed**; `main` baseline 1240, +22 new tests, none removed). Review finding 1: the first delta-green claim was true when measured and stale when committed — the docs commit itself armed the bookkeeping test | [#116](https://github.com/cuongdinhngo/code-atlas/pull/116) |
-| 100 | **296.0k dispatch, all measured** — reviewer r1 134.9k (54 tool-uses, 649 s) + reviewer r2 verify 161.1k (16 / 272 s). Challenger **waived by operator**; refine exposure-checker and analysis Explore fan-out **not dispatched** (session standing instruction), disclosed rather than silently skipped. Docker delta-green (full gate **1238 passed**; `main` baseline 1222, +16 new tests, none removed). Review found 2 Important defects, both fixed | [#114](https://github.com/cuongdinhngo/code-atlas/pull/114) |
 | 094 | 1 dispatch — refine exposure-checker unmeasured (host does not surface usage); review waived at solve time, then run on the PR (0 dispatch, in-session — caught `self`/`static`/`parent``::class` emitting `\self`). Docker delta-green (full gate **1196 passed**; `main` baseline 1191, +5 new tests, none removed — 1195 pre-review, +1 from the review fix) | [#108](https://github.com/cuongdinhngo/code-atlas/pull/108) |
 | 096 | **0 dispatch — main-loop only** (challenge waived at solve time; the host does not surface subagent usage, so a dispatched row would have read `unmeasured` either way). Docker delta-green (full gate **1204 passed**; `main` baseline 1196, +8 new tests, none removed — 1202 pre-review, +2 from the second review pass). Cost dominated by the synthetic-index profiling runs (5k/20k/60k, before and after), not by the diff | [#110](https://github.com/cuongdinhngo/code-atlas/pull/110) |
 | 099 | **0 dispatch — main-loop only** (challenge waived at solve time; host does not surface subagent usage). Docker delta-green (full gate **1222 passed**; `main` baseline 1204, +14 new tests and +4 parametrized cases from two new core modules, none removed) | [#111](https://github.com/cuongdinhngo/code-atlas/pull/111) |
 | — | CI red on `main` after #108: profiler wall-tolerance floor. 0 dispatch, main-loop only. Docker gate **1196 passed**, plus a throttled (0.4 CPU) 40-run repro sizing the floor from the measured tail | [#109](https://github.com/cuongdinhngo/code-atlas/pull/109) |
-| 100 | **296.0k dispatch, all measured** — `mango:reviewer` r1 134.9k (54 / 649 s) + r2 verify 161.1k (16 / 272 s); refine + analysis fan-out not dispatched (session standing instruction, disclosed). Main-loop unmeasured | [#114](https://github.com/cuongdinhngo/code-atlas/pull/114) |
-| 101 | **139.2k dispatch, measured** — `mango:reviewer` r1 139.2k (47 / 952 s), CHANGES REQUESTED with 2 real Important findings; r2 not dispatched (conditional LGTM, verify done in the main loop); challenger waived. Main-loop unmeasured — the A1/A2 harness + 29 tests were the real spend | [#116](https://github.com/cuongdinhngo/code-atlas/pull/116) |
+| 100 | **296.0k dispatch, all measured** — `mango:reviewer` r1 134.9k (54 tool-uses, 649 s) + r2 verify 161.1k (16 / 272 s). Challenger **waived by operator**; refine exposure-checker and analysis Explore fan-out **not dispatched** (session standing instruction), disclosed rather than silently skipped. Main-loop unmeasured. Docker delta-green (full gate **1238 passed**; `main` baseline 1222, +16 new tests, none removed). Review found 2 Important defects, both fixed | [#114](https://github.com/cuongdinhngo/code-atlas/pull/114) |
+| 101 | **139.2k dispatch, all measured** — `mango:reviewer` r1 139.2k (47 tool-uses, 952 s), CHANGES REQUESTED with 2 Important findings, both real and both fixed; r2 verify **not dispatched** (conditional LGTM, done in the main loop). Challenger **waived by operator**; refine exposure-checker and analysis Explore fan-out **not dispatched** (session standing instruction), disclosed rather than silently skipped. Main-loop unmeasured — the A1/A2 harness + 29 tests were the real spend. Docker delta-green (full gate **1262 passed**; `main` baseline 1240, +22 new tests, none removed). Review finding 1: the first delta-green claim was true when measured and stale when committed — the docs commit itself armed the bookkeeping test | [#116](https://github.com/cuongdinhngo/code-atlas/pull/116) |
 | 102 | **89.4k dispatch, all measured** — `mango:reviewer` r1 89.4k (27 tool-uses, 356 s), CHANGES REQUESTED / conditional LGTM with 1 Important finding: the fix's own new `paths` branch counted a *resolvable* subject as lost and labelled it `name_not_qualified` — the defect class the ticket exists to remove, reintroduced inside its fix. Confirmed by measurement before it was accepted. Verify pass **not dispatched** (fix stayed inside the approved rows, done in the main loop). Challenger **waived by `--no-challenger`**; refine exposure-checker and analysis Explore fan-out **not dispatched** (session standing instruction), disclosed rather than silently skipped. Main-loop unmeasured — the two Docker gate runs and the live probes were the real spend. Docker delta-green (full gate **1268 passed**; `main` baseline 1262, +6 new tests, none removed). First run of `/mango:autorun` in this repo | [#117](https://github.com/cuongdinhngo/code-atlas/pull/117) |
 | — | Ticket-writing for 102: 0 dispatch; the defect was measured during 100, not by a separate run | [#115](https://github.com/cuongdinhngo/code-atlas/pull/115) |
 | — | Field retro round 4 + ticket-writing for 075–082: 0 dispatch. **No PR** — committed straight to `main` on the maintainer's instruction for docs-only changes | — |
@@ -502,7 +529,6 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | 103 | **175.4k dispatch, all measured** — refine exposure-checker (ticket-blind challenger) **38.9k** (3 tool-uses, 103 s) → raised 5 items → 3 product-decisions (2 ASSUMED, delegated by the maintainer); `mango:reviewer` r1 **77.1k** (22 tool-uses, 295 s) → **LGTM**, no findings; `mango:challenger` **59.5k** (13 tool-uses, 259 s) → 8 met / 2 not-met on tested deliverables (AC1 rank assertion + AC4(c) lone-module test — both **fixed**) / 1 ambiguity (AC5 wording — **reconciled**). Challenger **ON** (default); refine did **NOT** self-skip (first autorun here where it exposed real product-decisions). Verify-only re-review in the main loop (fixes stayed in the named findings). Main-loop unmeasured (host does not surface usage). Docker delta-green (full gate **1299 passed**, mypy 44 files, ruff clean; scoped baseline 100→106). Fourth `/mango:autorun` run in this repo | [#122](https://github.com/cuongdinhngo/code-atlas/pull/122) |
 | 104 | **91.8k dispatch, measured** — `mango:reviewer` r1 **91.8k** (21 tool-uses, 401 s) → **LGTM**, no Critical/Important + 1 non-blocking observation (byte-stability test could not observe order-dependence past `_grain`'s sort) **acted on** (commit `bf1bea2`: a determinism probe at the `assign_layers` boundary on a count-tie fixture). Challenger **waived by `--no-challenger`** (0); refine **self-skipped** (0 unresolved — 104 pre-decides the signal) → no exposure-checker; analysis Explore fan-out done in the main loop — disclosed. Main-loop unmeasured (host does not surface usage). Docker delta-green (full gate **1308 passed, 0 failed**; `main` was **red** — 2 bookkeeping failures from 103's unparseable status cell, fixed here; +6 onboarding tests, none removed). Fifth `/mango:autorun` run. **Ticket `blocked` on AC2** (anchor-repo proof outstanding — recorded exclusion) | [#123](https://github.com/cuongdinhngo/code-atlas/pull/123) |
 | 085 | **136.5k dispatch, measured** — `mango:reviewer` r1 **88.6k** (24 tool-uses, 262 s) → **CHANGES REQUESTED → conditional LGTM**, no Critical + 2 Important (F1 docs-before-PR bookkeeping; F2 the split-guard's made-to-fail claim needed a *recorded red run* per R6.5 + a docstring framing correction) — **both landed**, verify-only re-review in the main loop (fixes stayed in the named findings). `mango:challenger` **47.9k** (10 tool-uses, 78 s) → **9 met / 0 not-met / 0 can't-tell**. Challenger **ON** (default); refine **self-skipped** (0 unresolved) → no exposure-checker; analysis Explore fan-out done in the main loop; no extractor — disclosed. Main-loop unmeasured (host does not surface usage). Docker delta-green (full gate **1317 passed, 0 failed**, mypy **45 files**, ruff clean; `main` baseline **1308** → branch **1317**, +9: 7 authored tests + 2 per-module parametrized guard cases for the new core module; none removed). Sixth `/mango:autorun` run | [#124](https://github.com/cuongdinhngo/code-atlas/pull/124) |
-
 | 086 | **0 dispatch — no subagent was dispatched this run.** Run as `/mango:solve 086 with skipped review and challenger`: the **review phase was waived by the operator argument** and the **challenger with it**, refine **self-skipped** (0 unresolved) so no exposure-checker ran, and the analysis fan-out was done in the main loop. Every phase ran in the main loop, which this host does not surface usage for — so the ledger is **complete with one honest marker**: dispatch **0 rows**, main-loop **unmeasured (host does not surface usage)**. Delta-green: gate **1317 → 1336 passed, 0 failed** (+19: 9 authored tool tests, 8 parametrized cases the new tool adds to the existing per-tool sweeps, 2 bookkeeping cases from ticket 105's row; none removed), ruff clean, mypy **46 files**; confirmed in Docker (`scripts/docker-test.sh`). **Self-review round on the PR** (operator asked for a direct review instead of mango reviewer+challenger, so still 0 dispatch): 6 findings, all reproduced, all fixed — the worst was `results`/`cross_layer_edges` uncapped on the default path (176 KB → 7.8 KB on a 1000-module synthetic). Three real pinned repos indexed for AC1 (evidence in the working doc) | [#125](https://github.com/cuongdinhngo/code-atlas/pull/125) |
 | 087 | **0 dispatch — no subagent was dispatched this run.** Run as `/mango:solve 087 with skipped Review + Challenger`: review waived, challenger off, refine self-skipped (0 unresolved). Main-loop **unmeasured (host does not surface usage)**. Delta-green: **1336 → 1347 passed, 0 failed** (+11: 5 authored tests in `test_guided_tour.py` + parametrized `TOOL_NAMES` cases; none removed), ruff clean, mypy **48 files**. Host `.venv/bin/pytest -q` (Linux + PHP) at `6c2475e`. **Review round on the PR** (maintainer asked for a direct review, so still 0 dispatch): PR CI is red for **four billing-blocked jobs**, not for code — gate proven in Docker. 4 findings, all reproduced then fixed; the worst was a component no entry point reaches being silently absent with `truncated: false` (a 3-file index answered with 1 stop). Delta-green **1347 → 1353**, +6 tests. | [#126](https://github.com/cuongdinhngo/code-atlas/pull/126) |
 | 088 | **0 dispatch — no subagent was dispatched this run.** Run as `/mango:solve 088 with skipped Review + Challenger`: review waived, challenger off, refine self-skipped (0 unresolved). Main-loop **unmeasured (host does not surface usage)**. Delta-green: **1353 → 1373 passed, 0 failed** (+20: 6 authored tests in `test_generate_onboarding.py` + parametrized `TOOL_NAMES`/`CALLS` cases; none removed), ruff clean, mypy **50 files**. Host `.venv/bin/pytest -q` (Linux + PHP) at `bd431a4`. **Review round on the PR** (maintainer asked for a direct review, so still 0 dispatch): PR CI red for the same **four billing-blocked jobs**, not for code — gate proven in Docker. 2 findings, both reproduced then fixed; the worst was `shutil.rmtree` on `docs/onboarding/modules`, which deleted hand-authored files the tool never wrote (050's rule). Delta-green **1373 → 1377**, +4 tests. | [#127](https://github.com/cuongdinhngo/code-atlas/pull/127) |
