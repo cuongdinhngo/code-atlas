@@ -18,7 +18,7 @@ An adapter opens the stream by announcing itself once â€” the **handshake** of Â
 
 from typing import Literal, get_args
 
-CONTRACT_VERSION = 5
+CONTRACT_VERSION = 6
 
 # Ordered Literal is the typing SSoT; NODE_KINDS is derived so schemas cannot drift (R3.2 / 056).
 NodeKind = Literal[

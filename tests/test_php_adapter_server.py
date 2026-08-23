@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from code_atlas.adapter import AdapterError, SubprocessAdapter
+from code_atlas.contract import CONTRACT_VERSION
 
 ROOT = Path(__file__).resolve().parent.parent
 ADAPTER = ROOT / "adapters" / "php"
@@ -179,7 +180,7 @@ def test_a_blank_or_malformed_request_line_does_not_desync_the_stream() -> None:
     assert process.stdin is not None and process.stdout is not None
     try:
         handshake = json.loads(process.stdout.readline())
-        assert handshake["contract_version"] == 5
+        assert handshake["contract_version"] == CONTRACT_VERSION
 
         process.stdin.write("\n")
         process.stdin.write("   \n")
@@ -224,7 +225,7 @@ def test_a_reply_is_readable_before_the_process_exits_even_when_the_host_buffers
                 process.kill()
                 pytest.fail("the handshake never arrived — the reply sat in PHP's output buffer")
 
-        assert json.loads(handshake)["contract_version"] == 5
+        assert json.loads(handshake)["contract_version"] == CONTRACT_VERSION
     finally:
         process.stdin.close()
         process.wait(timeout=30)

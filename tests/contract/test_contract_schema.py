@@ -170,7 +170,7 @@ def test_target_qname_is_not_required_so_adapters_can_emit_bare_edges() -> None:
 
 
 def test_contract_version_is_exported() -> None:
-    assert CONTRACT_VERSION == 5
+    assert CONTRACT_VERSION == 6
 
 
 def test_known_capabilities_advertises_semantic_types() -> None:

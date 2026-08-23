@@ -77,6 +77,10 @@ code-atlas/
 
 - **Node kinds:** `File Namespace Class Interface Trait Enum Function Method Property ClassConst Const`.
 - **Edge kinds:** `CONTAINS EXTENDS IMPLEMENTS USES_TRAIT CALLS NEW IMPORTS INCLUDES REFERENCES ALIASES PROVIDES_VIEW_DATA`.
+- **`INCLUDES`:** `include`/`require` — `source_qname` is the **including file's path**, never the
+  enclosing namespace or class (task 129). An include splices a file into a file, and the target is
+  resolved relative to that file's directory, so both ends of the edge are paths. `target_raw` is the
+  literal as written (`'../helpers.php'`) or `(dynamic)` at `DYNAMIC` for a non-literal expression.
 - **`REFERENCES`:** a textual class mention (`Foo::class` — task 094). FQN-linked at `DYNAMIC`;
   not a `CALLS` and not a `NEW`. `self`/`static`/`parent` name the enclosing class-like (as
   `CALLS` does), never a literal `\self`. Leftover unlinked rows still feed

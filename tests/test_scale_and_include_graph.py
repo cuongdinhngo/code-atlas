@@ -134,6 +134,41 @@ def test_include_graph_imports_and_imported_by(tmp_path: Path) -> None:
     assert "unresolved_includes" not in imported_by
 
 
+@needs_php
+def test_include_graph_answers_for_a_namespaced_file(tmp_path: Path) -> None:
+    """Task 129: an INCLUDES edge anchors on the file, so a namespaced includer is answerable.
+
+    Fails pre-129, and silently: the edge's source was the enclosing container, which inside a
+    namespaced file is the namespace. `imports` returned `[]` **with** `unresolved_includes: 0` —
+    an affirmative claim that nothing was dropped — while two `require_once` lines sat in the file.
+    In a PSR-4 repo every file declares a namespace, so this was every file.
+    """
+    root = tmp_path / "repo"
+    shutil.copytree(INCLUDE_FIXTURES, root)
+    cfg = replace(
+        load_config(root, {"CA_PHP_CMD": php_cmd()}),
+        db_path=tmp_path / "graph.db",
+        root=root,
+    )
+    with GraphStore(cfg.db_path) as store:
+        full_build(cfg, store)
+        # The anchor itself, not only what the tool makes of it.
+        assert store.edges_by_source("\\Shop", kinds=("INCLUDES",), limit=10) == []
+        anchored = store.edges_by_source("Shop/Bootstrap.php", kinds=("INCLUDES",), limit=10)
+    assert len(anchored) == 2, anchored
+
+    tool = include_graph.create(cfg)
+    imports = tool("Shop/Bootstrap.php", direction="imports")
+    assert {hit["path"] for hit in imports["results"]} == {"helpers.php"}
+    # The dynamic require is unanswerable, and the payload says so instead of claiming zero.
+    assert imports["unresolved_includes"] == 1
+
+    imported_by = tool("helpers.php", direction="imported_by")
+    assert {hit["path"] for hit in imported_by["results"]} == {"Shop/Bootstrap.php"}
+    # `path` carries a path, not the includer's namespace.
+    assert all(not str(hit["path"]).startswith("\\") for hit in imported_by["results"])
+
+
 def test_include_graph_exact_fill_at_depth_one_is_not_truncated(tmp_path: Path) -> None:
     """Regression: depth=1 with exactly max_results neighbors must not set truncated."""
     db = tmp_path / "graph.db"

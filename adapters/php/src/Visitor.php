@@ -725,10 +725,12 @@ final class Visitor extends NodeVisitorAbstract
 
     private function enterInclude(Node\Expr\Include_ $node): void
     {
+        // Anchored on the file, never the enclosing container: an include splices a file in, and
+        // the target is already resolved relative to this file's directory, not to a namespace.
         $literal = $node->expr instanceof Node\Scalar\String_ ? $node->expr->value : null;
         $this->edge(
             'INCLUDES',
-            $this->container(),
+            $this->path,
             $literal ?? '(dynamic)',
             $node->getStartLine(),
             $literal === null ? 'DYNAMIC' : null

@@ -14,6 +14,8 @@ import os
 import sys
 import time
 
+from code_atlas.contract import CONTRACT_VERSION
+
 BOOT_LOG = "CA_FAKE_BOOTLOG"
 PATH_LOG = "CA_FAKE_PATHLOG"
 SUFFIXES = [".aa", ".bb"]
@@ -22,20 +24,29 @@ SUFFIXES = [".aa", ".bb"]
 FOREVER = 600
 
 HANDSHAKES = {
-    "ok": {"name": "fake", "extensions": SUFFIXES, "capabilities": {}, "contract_version": 5},
+    "ok": {
+        "name": "fake",
+        "extensions": SUFFIXES,
+        "capabilities": {},
+        "contract_version": CONTRACT_VERSION,
+    },
     "empty-extensions": {
         "name": "fake",
         "extensions": [],
         "capabilities": {},
-        "contract_version": 5,
+        "contract_version": CONTRACT_VERSION,
     },
     "rich-capabilities": {
         "name": "fake",
         "extensions": SUFFIXES,
         "capabilities": {"semantic_types": True, "not_a_known_flag": True},
-        "contract_version": 5,
+        "contract_version": CONTRACT_VERSION,
     },
-    "no-capabilities": {"name": "fake", "extensions": SUFFIXES, "contract_version": 5},
+    "no-capabilities": {
+        "name": "fake",
+        "extensions": SUFFIXES,
+        "contract_version": CONTRACT_VERSION,
+    },
     "bad-version": {
         "name": "fake",
         "extensions": SUFFIXES,
@@ -48,7 +59,11 @@ HANDSHAKES = {
         "capabilities": {},
         "contract_version": 1,
     },
-    "invalid-handshake": {"name": "fake", "capabilities": {}, "contract_version": 5},
+    "invalid-handshake": {
+        "name": "fake",
+        "capabilities": {},
+        "contract_version": CONTRACT_VERSION,
+    },
     "not-json-handshake": None,
     "no-handshake": None,
 }

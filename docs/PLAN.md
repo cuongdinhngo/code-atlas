@@ -122,7 +122,7 @@ The single seam between core and every language. Two parts:
 ### 4.1 Subprocess protocol (streaming, language-neutral)
 Adapter runs as a long-lived process; core feeds newline-delimited requests, reads JSONL results. One process boot amortized across all files.
 ```
-← {"name":"php","extensions":[".php"],"capabilities":{},"contract_version":5}   # handshake, first line
+← {"name":"php","extensions":[".php"],"capabilities":{},"contract_version":6}   # handshake, first line
 → {"path":"src/Models/User.php"}                              # stdin, one JSON/line
 ← {"path":"src/Models/User.php","ok":true,"nodes":[…],"edges":[…]}   # stdout JSONL
 ← {"path":"legacy/foo.php","ok":false,"error":"syntax error @12"}
@@ -151,6 +151,14 @@ range), and a few optional descriptors; an edge carries its kind, the qname it c
 target both **raw** and (after the resolver) **resolved**, where the reference sits, and the
 confidence tier that says how much to trust the link. Adapters emit edges **bare** — `target_raw`
 is required, `target_qname` is the resolver's to fill (R3.3, §8.2).
+
+**Why `INCLUDES` anchors on the file.** `source_qname` for an include is the **including file's**
+path, never the enclosing namespace (contract v6, task 129). The deciding argument is that the other
+end already was one: the resolver joins `target_raw` onto the includer's *directory*, never onto
+`source_qname`, so the target side had always treated an include as file-to-file and the source side
+was the inconsistent one. Anchoring on the container made `include_graph(direction="imports")` answer
+`[]` **with** `unresolved_includes: 0` for every file declaring a namespace — in a PSR-4 repo, every
+file. Spelling and per-kind semantics: [`CONVENTION.md`](CONVENTION.md) §3.
 
 **Why `args` records categories and never values.** `args` (contract v3, task 049) is one entry per
 argument at a `CALLS`/`NEW` site, in source order: `null` for any non-literal expression, otherwise
