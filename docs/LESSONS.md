@@ -99,6 +99,12 @@ rather than a hope).
 - destination: stays in `lessons_path` until a second sighting — one occurrence, and the check it
   implies (reconcile a rule's `seen:` against the class index whenever either moves) is cheap enough
   to state without a rule
+- resolved: 134 removed the surface instead of adding the check. The rule book's `seen:` lists had no
+  reader — P1 binds the list in **this** file, and `/mango:promote` greps the destination only for the
+  handle slug and the claim IDs — so every provenance line is now `handle (claim-ids)` and the
+  sightings live in the class index alone. There is nothing left to reconcile, which is a better
+  answer than reconciling it on a schedule. The class cannot recur while that holds; reopen it if a
+  ticket count is ever copied out of this file again.
 
 ## 121 — A gate nobody could run reads exactly like a gate nobody got round to
 `ROADMAP.md` §5 gated the whole onboarding phase on an onboarding question-class in the

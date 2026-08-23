@@ -16,6 +16,7 @@
 - [ ] There is a test, and it is the smallest change that ships value
 - [ ] Comments are ≤ 3 lines each
 - [ ] Related docs updated (PLAN / BACKLOG + task frontmatter / CONVENTION / ENGINEERING_RULES / README)
+- [ ] Standing docs **pruned, not only appended** — nothing added retells a task file, LESSONS.md or a benchmark; `tests/test_doc_size_budget.py` green — R7.6
 - [ ] No `Co-Authored-By` / AI-attribution trailer on commits
 
 ## Notes

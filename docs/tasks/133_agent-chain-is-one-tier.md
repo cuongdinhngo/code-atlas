@@ -4,7 +4,7 @@ slug: agent-chain-is-one-tier
 title: The always-binding read is ~66.5k tokens and most of it is reference — tier the agent chain and gate the tier
 phase: 1.5b
 milestone: Docs
-status: todo
+status: in-progress
 depends_on: [132]
 ---
 
@@ -67,10 +67,24 @@ number this repo does not ship.
    the number, and — R6.5 — is shipped with a recorded red run: made to fail by putting a
    consult-only file back on the binding list.
 
+## AC1 landed in 134 — the rest is untouched
+
+`scripts/agent_chain_cost.py` shipped with [134](134_standing-docs-grow-and-nothing-prunes-them.md),
+because that ticket's per-file ceilings were constants chosen from a session run, which is R6.3's own
+falsifier. It derives the chain from `CLAUDE.md`'s `@import` and the bullet list `AGENTS.md` itself
+labels *read before non-trivial work* — the set is never listed in the script (R6.7) — and its
+output is byte-identical across runs.
+
+It confirms both numbers this ticket was written on: the same 7 files, and **66,500 → 49,153 tokens**
+after 134's prune. **AC2's < 25,000 is still 24,153 tokens away, and none of AC2–AC6 has started.**
+The remaining gap is almost entirely the two bodies this ticket exists to move: `PLAN.md` §19 and
+`BACKLOG.md`'s token ledger.
+
 ## Acceptance criteria
 
-- **AC1** `scripts/agent_chain_cost.py` exists, is read-only, uses `estimate_tokens`, and reports
-  tier-1 files/lines/tokens and the tier-2 closure. Two runs on one tree are byte-identical (R4.2).
+- **AC1** ✅ *(shipped in 134)* `scripts/agent_chain_cost.py` exists, is read-only, uses
+  `estimate_tokens`, and reports the chain's files/lines/tokens. Two runs on one tree are
+  byte-identical (R4.2).
 - **AC2** The measured tier-1 total is **< 25,000 tokens**, reported in this ticket's Outcome with
   the commit it was measured at (P4).
 - **AC3** Nothing binding left tier 1: every rule id (`R*`, `P*`) reachable from the chain before the

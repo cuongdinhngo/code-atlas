@@ -61,9 +61,12 @@ MCP client ──stdio──▶ core (Python/FastMCP) ──JSONL contract──
 - **Do NOT use the Claude Code Memory feature** for this project — decisions live in the plan (§19) and the repo.
 - **Commits** — no `Co-Authored-By` / AI-attribution trailer.
 - **Comments** — keep every code comment to **≤ 3 lines**; if it needs more, the code or a doc should carry it instead.
-- **Docs before PR, cost included** — update every doc the change affects, and record the task's
-  token spend in both its working-doc ledger and BACKLOG's Token usage table (R7.2). The pre-PR
-  self-check gates the docs; `tests/test_backlog_bookkeeping.py` gates the spend.
+- **Docs before PR — prune as you add, cost included** — update every doc the change affects, and
+  record the task's token spend in both its working-doc ledger and BACKLOG's Token usage table (R7.2).
+  **A change that adds to a standing doc removes what it supersedes in the same commit, and never
+  retells what a task file, LESSONS.md or a benchmark already holds** (R7.6): every line here is
+  charged to every future session. The pre-PR self-check gates the docs;
+  `tests/test_backlog_bookkeeping.py` gates the spend and `tests/test_doc_size_budget.py` the size.
 - **Pull requests** — when asked to open a PR, base it on `.github/pull_request_template.md` (fill every section, complete the pre-PR self-check). If the template is missing, propose one and create it first, then open the PR (CONVENTION §7).
 
 ## Where things live
