@@ -22,6 +22,33 @@ These are in tension if mishandled — see the design principles (§2). The rule
 
 ## 1. Goals & non-goals
 
+### The two pillars
+
+**This subsection is authoritative.** Everything below in §1 is the *how*; these are the two things
+being built. Where another document states the value of this project, it states it from here.
+
+> **PILLAR 1 — GRAPH.** Resolved code relationships for AI coding agents: who calls this,
+> what implements that, what breaks if this changes. The value is accuracy and
+> consistency, bought at a token cost low enough that an agent can afford to ask.
+> Accuracy means a wrong answer is not an acceptable failure mode; silence is.
+> Consistency has two halves: the same question at the same commit returns the same
+> rows, and two tools asked about the same fact do not contradict each other.
+> Serves the agent, as caller. Surface: the MCP tools.
+>
+> **PILLAR 2 — ONBOARDING.** A rendering of what the code actually is — layers, modules,
+> hubs, entry points, flow — built from the same graph, as diagrams and documents.
+> Two uses, one artifact. SUPERVISION: the rules and the architecture are given to the
+> agent up front, and the agent still drifts; the map shows what was actually generated,
+> so a human can see where it went. PRESENTATION: a human shows the state of the project
+> to someone else. Serves the human, as reviewer and as presenter.
+>
+> **SHARED CONSTRAINT:** both read the same graph. The map never runs a second pipeline —
+> a number on the map is reachable through a tool, at the same commit, at the same
+> confidence tier.
+
+**Supervision is the larger half of Pillar 2**, and it is newer than the directory name
+`code_atlas/onboarding/` — which stays as it is. The code is not renamed from this subsection.
+
 ### Goals
 - Replace "grep + read whole file" with **symbol-level, name-resolved** queries.
 - **Primary consumer is an AI coding agent in a terminal**, not a human in an IDE — so optimize for *tokens-to-correct-answer against a grep+`Read` baseline*, and for **machine-trustable responses**: calibrated confidence tiers, honest empties/truncation, enforced freshness (§19 agent-first pivot, 2026-08-04).
@@ -110,17 +137,35 @@ Adapter runs as a long-lived process; core feeds newline-delimited requests, rea
 - **Failure split (R5.1/R5.3).** Soft, per file: `ok:false`, a result rejected by `validate()`, a non-JSON line, a blank line, undecodable bytes. Loud, per process: an unlaunchable command, a child that exited mid-stream, a desync, a bad handshake. A child that **hangs** is bounded by the build's deadline (§8.1), not by the driver, which stays free of a per-request reader thread.
 
 ### 4.2 JSON schema (the vocabulary every adapter emits)
-**Node kinds** (language-neutral superset): `File, Namespace, Class, Interface, Trait, Enum, Function, Method, Property, ClassConst, Const`.
-Node fields: `kind, name, qualified_name, file_path, line_start, line_end, modifiers, params, is_test, extra(JSON)`.
+**The vocabulary itself is not listed here.** It is defined once in `code_atlas/contract.py` — the
+node kinds (`NODE_KINDS`, derived from an ordered `Literal` so the typing and the tuple cannot
+disagree), the edge kinds (`EDGE_KINDS`), the field sets (`NODE_FIELDS`, `EDGE_FIELDS`, and the
+`REQUIRED_*` subsets that say which may be omitted), `CONFIDENCE_TIERS`, `ARG_LITERALS`, and
+`CONTRACT_VERSION` — and its **spelling plus per-kind semantics** are in
+[`CONVENTION.md`](CONVENTION.md) §3. This section says what the shape *is* and why; it does not
+repeat the members, for the same reason R6.7 forbids a guard that lists a set it could derive: a
+hand-kept copy drifts silently, and the reader who satisfies one copy believes they are done.
 
-**Edge kinds**: `CONTAINS, EXTENDS, IMPLEMENTS, USES_TRAIT, CALLS, NEW, IMPORTS, INCLUDES, REFERENCES, ALIASES, PROVIDES_VIEW_DATA`
-(`PROVIDES_VIEW_DATA` is emitted only by `CA_INDIRECTION_RULES` `view_data` rules — §11, task 062 — and its `target_raw` is `viewdata:<key>`, not an FQN).
-Edge fields: `kind, source_qname, target_qname?, target_raw, file_path, line, confidence_tier(RESOLVED|HEURISTIC|DYNAMIC), args?(JSON), arg_keys?(JSON)`.
-`args` (contract v3, task 049) is one entry per argument at a `CALLS`/`NEW` site, in source order: `null` when the argument is any non-literal expression, otherwise its literal **category** from `contract.ARG_LITERALS` (`null, true, false, number, string, array`) — never the value. The whole field is omitted when positions cannot be trusted (a spread, a named argument) or when the adapter does not record arguments; omitted means *unknown*, never *no arguments*.
-`arg_keys` (contract v5, task 063) is optional and parallel to `args`: `null` for a non-array arg; a list of top-level **string keys** from an array literal (empty list = captured, none found). Absent field = keys not captured (pre-v5 indexes). Values are never recorded.
+**The shape.** A node carries its kind, its name and qualified name, where it is (file plus line
+range), and a few optional descriptors; an edge carries its kind, the qname it comes from, the
+target both **raw** and (after the resolver) **resolved**, where the reference sits, and the
+confidence tier that says how much to trust the link. Adapters emit edges **bare** — `target_raw`
+is required, `target_qname` is the resolver's to fill (R3.3, §8.2).
 
-**Qualified-name convention** (identical across languages, adapter's job to honor):
-`\Ns\Class`, `\Ns\Class::method`, `\Ns\Class::$prop`, `\Ns\Class::CONST`, `\ns\func`, files as repo-relative paths. The **container** keeps its language-native separator (`\`, `.`, `/`); the **member** boundary is always `::` (`contract.MEMBER_SEPARATOR`), so C# maps to `Namespace.Type::Member` and Python to `module.Class::method`. **JS/TS has no namespaces** — symbols are module-scoped, so the qname is module-path–anchored, e.g. `src/user.ts::User::save`, `src/util.ts::default`, `src/util.ts::helper` (see §4.4 — this is the case that pressure-tests the convention).
+**Why `args` records categories and never values.** `args` (contract v3, task 049) is one entry per
+argument at a `CALLS`/`NEW` site, in source order: `null` for any non-literal expression, otherwise
+the literal's **category**, never the literal. A value would make the graph a copy of the source and
+a leak of whatever the source holds; a category is enough to answer *which call sites pass an array
+here*. The whole field is **omitted when positions cannot be trusted** — a spread, a named argument —
+or when the adapter does not record arguments; omitted means *unknown*, never *no arguments*.
+`arg_keys` (contract v5, task 063) is parallel to it and follows the same discipline: keys, never
+values, and an absent field means *not captured* (a pre-v5 index), not *none found*.
+
+**Qualified-name convention** (identical across languages, adapter's job to honor): the **container**
+keeps its language-native separator (`\`, `.`, `/`); the **member** boundary is always
+`contract.MEMBER_SEPARATOR`. That is what lets one resolver serve every language. **JS/TS has no
+namespaces** — symbols are module-scoped, so the qname is module-path–anchored, and that is the case
+that pressure-tests the convention (see §4.4). Worked examples per language: CONVENTION §3.
 
 **Capability flags** (ISP): adapter advertises optionals, e.g. `{"semantic_types": true}` (Roslyn) so the core can *use* richer data when present but never *require* it.
 
@@ -292,39 +337,29 @@ Default A; ship both. (C# adapter will need the .NET SDK; Python adapter runs in
 transaction** (`foreign_keys` is silently ignored inside one): `journal_mode=WAL`, `foreign_keys=ON`,
 `busy_timeout=5000`.
 
-```sql
-PRAGMA journal_mode = WAL;
-CREATE TABLE files (path TEXT PRIMARY KEY, hash TEXT, language TEXT, parsed_ok INT DEFAULT 1, updated_at TEXT);
-CREATE TABLE nodes (
-  id INTEGER PRIMARY KEY, kind TEXT, name TEXT, qualified_name TEXT,
-  file_path TEXT REFERENCES files(path), line_start INT, line_end INT,
-  modifiers TEXT, params TEXT, is_test INT DEFAULT 0, extra TEXT,
-  UNIQUE(qualified_name, file_path));            -- NOT globally unique: see below
-CREATE INDEX idx_nodes_name ON nodes(name);
-CREATE INDEX idx_nodes_kind ON nodes(kind);
-CREATE INDEX idx_nodes_file ON nodes(file_path);
-CREATE TABLE edges (
-  id INTEGER PRIMARY KEY, kind TEXT, source_qname TEXT, target_qname TEXT, target_raw TEXT,
-  file_path TEXT, line INT, confidence_tier TEXT DEFAULT 'RESOLVED', args TEXT, arg_keys TEXT);
-CREATE INDEX idx_edges_src ON edges(source_qname, kind);
-CREATE INDEX idx_edges_tgt ON edges(target_qname, kind);
-CREATE INDEX idx_edges_tier ON edges(confidence_tier);
-CREATE INDEX idx_edges_raw ON edges(target_raw, kind);
-CREATE VIRTUAL TABLE nodes_fts USING fts5(
-  name, qualified_name, file_path, params,
-  content='nodes', content_rowid='id', tokenize='trigram');
--- An external-content fts5 table indexes nothing on its own, so three triggers mirror `nodes`
--- into it. They are load-bearing, not an optimisation: without them every MATCH returns 0 rows
--- while `SELECT count(*) FROM nodes_fts` still reports the content table's size.
--- ``tokenize='trigram'`` (schema_version **2**) makes camelCase substrings match
--- (e.g. ``email`` ⊂ ``findByEmail``); unicode61 did not. Trigram cannot match terms
--- shorter than three characters — ``search_nodes`` falls back to a name/qname prefix
--- ``LIKE`` for those queries so ``DB`` / ``Us`` / ``Go`` stay findable.
-CREATE TRIGGER nodes_ai AFTER INSERT ON nodes BEGIN … END;   -- insert
-CREATE TRIGGER nodes_ad AFTER DELETE ON nodes BEGIN … END;   -- 'delete' with the OLD values
-CREATE TRIGGER nodes_au AFTER UPDATE ON nodes BEGIN … END;   -- 'delete' then insert
-CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);  -- schema_version, contract_version, last_commit, last_ref, built_at
-```
+**The DDL is not copied here.** It is one `DDL` string in `store.py`, which is the only module that
+may hold it; this section is the inventory and the reasoning. What the schema is, in shape:
+
+- **`files`** — one row per indexed path: content hash, language, `parsed_ok`, `updated_at`. The
+  hash is what makes an incremental build possible (§8.3) and `parsed_ok` is why no parallel
+  parse-failure counter exists (task 028).
+- **`nodes`** — the symbols, keyed `UNIQUE(qualified_name, file_path)` and deliberately **not**
+  globally unique (see below), with three indexes for the three ways they are looked up: by bare
+  name, by kind, by file.
+- **`edges`** — the relationships: kind, source qname, target both raw and resolved, site, tier, and
+  the two optional argument columns. Four indexes, one per query direction the tools actually use —
+  outgoing by source, incoming by target, by tier, and by `target_raw` for the pre-resolver and
+  never-resolvable cases.
+- **`nodes_fts`** — an **external-content** fts5 table over four `nodes` columns, mirrored by three
+  triggers. The triggers are load-bearing, not an optimisation: without them every `MATCH` returns
+  0 rows while `SELECT count(*) FROM nodes_fts` still reports the content table's size — a failure
+  that looks like an empty repo. `tokenize='trigram'` (schema_version **2**) is what makes camelCase
+  substrings match (`email` ⊂ `findByEmail`); unicode61 did not. Trigram cannot match terms shorter
+  than three characters, so `search_nodes` falls back to a name/qname prefix `LIKE` for those and
+  `DB` / `Us` / `Go` stay findable.
+- **`meta`** — the key/value stamps. The keys are the `*_KEY` constants in `store.py`; they are not
+  listed here, because the list kept here fell four keys behind the code (task 132) — the precise
+  drift R6.7 exists to prevent.
 
 **`qualified_name` is unique per file, not globally.** Two files in one PHP namespace each emit a
 `Namespace` node with the same qname, and `if (!function_exists(…))` polyfills or legacy
@@ -565,7 +600,7 @@ Coexist in `.mcp.json`. If tool overlap annoys, trim the LSP tool's search tools
 **Shipped (M10–M12, §15).** Not a fork of Understand-Anything — a **consumer of the graph already
 built**, which is the substrate UA spends its whole pipeline producing, at higher fidelity than
 tree-sitter. Multi-language for free: it works for every language with an adapter. Full detail in
-[`phase3-onboarding/PHASE3_ONBOARDING.md`](phase3-onboarding/PHASE3_ONBOARDING.md).
+[`phase3-onboarding/ROADMAP.md`](phase3-onboarding/ROADMAP.md).
 
 It adds two things the graph lacks, and **the split between them landed differently than this
 section originally assumed**:
@@ -608,7 +643,7 @@ cache under `.code-atlas/onboarding/`.
 - **M9** **C#/.NET adapter** (Roslyn sidecar) — confirms the contract holds for a second namespaced+semantic-model language.
 
 **Phase 3 — Onboarding** (deterministic-first; LLM opt-in and out of core + CI — breakdown in
-[`phase3-onboarding/PHASE3_ONBOARDING.md`](phase3-onboarding/PHASE3_ONBOARDING.md)):
+[`phase3-onboarding/ROADMAP.md`](phase3-onboarding/ROADMAP.md)):
 - **M10** `architecture_overview` + layers (deterministic) — 083 graph-metrics · 084 layer assignment ·
   085 summarizer seam + deterministic default · 086 `architecture_overview` tool. **M10 complete** —
   the tool ships as the 15th on the surface; 104's dominant-subtree grouping (105: elected by graph
@@ -936,7 +971,7 @@ holds, reinforced by the unpriced cost of one muddier description (C3) and R1.2.
   — so 121 must measure a **newcomer**, not a maintainer, or it will fail for the wrong reason.
 
 - **Phase 3's own cost gate finally ran (2026-08-23; task 121) — it is a split verdict, and the losing
-  half narrows the phase.** `PHASE3_ONBOARDING.md` §5 gated the whole onboarding phase on an onboarding
+  half narrows the phase.** `ROADMAP.md` §5 gated the whole onboarding phase on an onboarding
   question-class in the tokens-to-answer harness plus the recall gate, baselined against `grep`+`Read`.
   It was never added: three milestones shipped and the file held **zero** onboarding questions. It now
   holds **twelve** (`tier: onboarding`), ten on a committed fixture built for the shapes and two on the

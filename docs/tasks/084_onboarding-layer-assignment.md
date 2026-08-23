@@ -26,7 +26,7 @@ input to `architecture_overview` (086) and the tour (087).
   flat-namespace fixture.
 
 ## References
-[`../phase3-onboarding/PHASE3_ONBOARDING.md`](../phase3-onboarding/PHASE3_ONBOARDING.md) §4 (M10);
+[`../phase3-onboarding/ROADMAP.md`](../phase3-onboarding/ROADMAP.md) §4 (M10);
 PLAN §14, §15 (M10).
 
 # Working doc — 084
@@ -57,7 +57,7 @@ PLAN §14, §15 (M10).
 `REFINE: 0 unresolved surfaced | 0 want-decision asked | 0 how-decision resolved+cited | 0 ASSUMED | skip: yes`
 
 - **Premise (all resolve):** `code_atlas/onboarding/metrics.py` (083's `GraphMetrics`/`compute_metrics`,
-  `NodeMetric`, `direction`/`DIRECTION_LABELS`), `docs/phase3-onboarding/PHASE3_ONBOARDING.md` §4,
+  `NodeMetric`, `direction`/`DIRECTION_LABELS`), `docs/phase3-onboarding/ROADMAP.md` §4,
   `docs/PLAN.md`, `ENGINEERING_RULES.md` R1.1. To-be-created (not missing): `code_atlas/onboarding/layers.py`,
   `architecture_overview` (086), the tour (087).
 - **Skip rationale:** every product-decision is locked (ticket + PHASE3 §4, "LOCKED 2026-08-11"):

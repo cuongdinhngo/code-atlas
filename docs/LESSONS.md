@@ -29,10 +29,10 @@ and the honest move on a new sighting is to bump `seen:`, not to write a fresh c
 
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
-| `derived-not-listed-invariant` | 13 | 087–088, 093, 095–097, 099–102, 121, 122, 127 | **R6.7** |
-| `prove-the-guard-fails` | 10 | 087–089, 093, 096, 099–101, 121, 122 | **R6.5** |
+| `derived-not-listed-invariant` | 14 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132 | **R6.7** |
+| `prove-the-guard-fails` | 11 | 087–089, 093, 096, 099–101, 121, 122, 132 | **R6.5** |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | open — **rejected at rec 3; that verdict is stale** |
-| `fixture-shape-begs-the-question` | 7 | 084, 086, 103–106, 121 | open — never proposed |
+| `fixture-shape-begs-the-question` | 7 | 084, 086, 103–106, 121 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
 | `count-pin-in-blast-radius` | 4 | 085, 087–089 | open — never proposed |
 | `source-the-caveat-from-the-computation` | 5 | 100–102, 122, 127 | **R5.5** |
@@ -48,14 +48,60 @@ and the honest move on a new sighting is to bump `seen:`, not to write a fresh c
 | `own-only-what-you-wrote` | 2 | 088, 089 | open |
 | `skip-dynamic-means-unlinkable` | 2 | 094, 096 | open — rejected 2026-08-15 (2nd sighting bound a design) |
 
-**Four classes are overdue.** `do-not-attest-past-the-payloads-resolution` (7),
-`fixture-shape-begs-the-question` (7), `count-pin-in-blast-radius` (4) and
-`re-verify-the-assumption-on-a-new-path` (3) all clear the recurrence gate and none has ever been
-proposed — because their sightings were split across ids, which is `PROM-C1`'s under-count recurring
-one level up.
+**Three classes are overdue.** `do-not-attest-past-the-payloads-resolution` (7),
+`count-pin-in-blast-radius` (4) and `re-verify-the-assumption-on-a-new-path` (3) all clear the
+recurrence gate and none has ever been proposed — because their sightings were split across ids,
+which is `PROM-C1`'s under-count recurring one level up.
+`fixture-shape-begs-the-question` left this list on 2026-08-23: widened into **R6.3** rather than
+proposed as a new rule, because R6.3 already owned cross-repo validation and P2 asks for the widening.
+
+**A second under-count, one level up again (132).** Both rules' own `seen:` lines had fallen behind
+this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *claim's* list honest and
+nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
+now reconciled to this table.
+
+## 132 — A guard that keeps passing while its inputs move under it
+
+`test_backlog_bookkeeping.py` bounded BACKLOG's Token-usage table by partitioning the tail on
+`## Suggested order` — a heading the file had stopped having, so the ledger ran to end of file and any
+three-cell `| NNN | … | … |` row in a later section counted as a recorded spend. Nothing under
+`## Conventions` is row-shaped today, which is the only reason it never fired. The same reader found
+`Status` at a hard-coded column index and defended itself with floors of 24 tasks / 7 done / 7 token
+rows against a tree holding 130 / 116 / 118.
+
+The audit that found it also over-claimed it, and that is the more useful half. Task 132 stated that a
+fifth `Pillar` column would move `status` out of the capture group and leave the guard passing while
+comparing nothing. Measured before fixing: it fails either way — the row drops and set-equality
+catches it, or the status reads `graph` and the per-task assertion catches it. The positional parse was
+unclear and brittle; it was not vacuous. A defect argued from reading the regex, not from running it,
+was wrong in the direction that would have justified more change than the evidence supported.
+
+### 132-C1 — new sightings of existing classes, recorded as `seen:` bumps
+`derived-not-listed-invariant` (rec 13 → **14**, already **R6.7**) gains 132: the reader now finds the
+`Status` column by reading the table's own header row and bounds each section at the next heading,
+instead of hard-coding an index and a successor heading. A column position is the same hand-kept
+member list one level up — the structure, not the vocabulary.
+`prove-the-guard-fails` (rec 10 → **11**, already **R6.5**) gains 132: four red runs recorded before
+the fix shipped — a stray row below the ledger (old reader ingests it, new one does not), a stray row
+inside it (fails the new subset assertion), the `Status` header renamed to `State` (fails the derived
+lookup), and a `Pillar` column added (passes, by design, which is what makes the tolerance a claim
+rather than a hope).
+
+### 132-C2 — A rule's own `seen:` list drifts even when the claim's does not
+- type: 2 generalisable-heuristic
+- handle: rule-seen-list-drifts-from-the-index
+- status: proposed (awaiting human confirm)
+- seen: 132
+- evidence: R6.7's provenance line listed 8 of the class index's 13 ticket keys and R6.5's listed 5 of
+  10, both behind by every sighting recorded as an index bump rather than a fresh claim; P1 keeps the
+  claim's list honest and no rule kept the rule's
+- area: rule-book provenance / promotion bookkeeping
+- destination: stays in `lessons_path` until a second sighting — one occurrence, and the check it
+  implies (reconcile a rule's `seen:` against the class index whenever either moves) is cheap enough
+  to state without a rule
 
 ## 121 — A gate nobody could run reads exactly like a gate nobody got round to
-`PHASE3_ONBOARDING.md` §5 gated the whole onboarding phase on an onboarding question-class in the
+`ROADMAP.md` §5 gated the whole onboarding phase on an onboarding question-class in the
 tokens-to-answer harness. Three milestones shipped and the file held zero of them, which the backlog
 recorded as *not yet done*. The actual blocker was one line: `bind_tools` never bound
 `architecture_overview`, `guided_tour` or `generate_onboarding`, so **no onboarding question could have

@@ -10,7 +10,7 @@ depends_on: [034, 045, 055, 086, 087, 088]
 
 ## Why this exists
 
-[`PHASE3_ONBOARDING.md`](../phase3-onboarding/PHASE3_ONBOARDING.md) §5 named the gate for the whole
+[`ROADMAP.md`](../phase3-onboarding/ROADMAP.md) §5 named the gate for the whole
 phase, in its own words: *"Gate the phase on the harness, not on vibes. Add an **onboarding
 question-class** to the tokens-to-answer harness (034/045) and the recall gate (055). Baseline =
 `grep`+`Read` with an agent building the map by hand… If the tools do not beat hand-mapping on this

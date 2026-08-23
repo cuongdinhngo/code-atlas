@@ -25,7 +25,7 @@ follow.
 - Fixture test with a cycle asserts the order and that the node budget is honoured.
 
 ## References
-[`../phase3-onboarding/PHASE3_ONBOARDING.md`](../phase3-onboarding/PHASE3_ONBOARDING.md) §4 (M11);
+[`../phase3-onboarding/ROADMAP.md`](../phase3-onboarding/ROADMAP.md) §4 (M11);
 PLAN §14, §15 (M11).
 
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
@@ -73,7 +73,7 @@ PLAN §14, §15 (M11).
 | `code_atlas/tools/guided_tour.py` | to-be-created | absent, as framed |
 | `impact` / `reach` (`impact.py`, `reachable_from.py`, `reach_shared.py`) | referenced-as-existing | present |
 | R4.3 / R4.2 | referenced-as-existing | `docs/ENGINEERING_RULES.md:75-79` |
-| `docs/phase3-onboarding/PHASE3_ONBOARDING.md` | referenced-as-existing | present, §4 M11 |
+| `docs/phase3-onboarding/ROADMAP.md` | referenced-as-existing | present, §4 M11 |
 | `docs/PLAN.md` §14/§15 | referenced-as-existing | present |
 | tickets 083, 086 | referenced-as-existing | both `status: done` |
 

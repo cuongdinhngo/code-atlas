@@ -1,8 +1,16 @@
 # FEEDBACK.md — external review & assessments
 
-A running log of external comments/feedback on code-atlas and the repo-verified assessment of
-each. **Ordered latest-first.** This is a record, not a decision: any conclusion that changes the
+External comments/feedback on code-atlas and the repo-verified assessment of each.
+**Ordered latest-first.** This is a record, not a decision: any conclusion that changes the
 product is ratified in [`PLAN.md`](PLAN.md) §19 and reflected in [`BACKLOG.md`](BACKLOG.md).
+
+> **This series is closed: rounds 1–4, 2026-08-04 to 2026-08-05.** What replaced it is the *field
+> retro* — the same verification move run against the tool in use rather than against a reviewer's
+> prompt. Rounds 5 and 6 are therefore not here: the protocol is
+> [`runbooks/field-retro.md`](runbooks/field-retro.md), each round's findings are in
+> [`PLAN.md`](PLAN.md) §19, and the tickets they produced are in
+> [`BACKLOG.md`](BACKLOG.md#where-these-tickets-came-from). Nothing below has been superseded — a
+> closed record is still the audit trail for the four rounds it covers.
 
 Each entry keeps three things separate: (a) the prompt/question that produced the feedback,
 (b) the reviewer's points, (c) **Assessment** — what was verified against the repo, including

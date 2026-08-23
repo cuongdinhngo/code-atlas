@@ -25,7 +25,7 @@ default, so later LLM enrichment (090/091) plugs in without the core ever import
 - No dead abstraction (R7.4): exactly one Protocol, one default impl.
 
 ## References
-[`../phase3-onboarding/PHASE3_ONBOARDING.md`](../phase3-onboarding/PHASE3_ONBOARDING.md) §2–§4;
+[`../phase3-onboarding/ROADMAP.md`](../phase3-onboarding/ROADMAP.md) §2–§4;
 PLAN §14, §15 (M10). Precedent for optional deterministic enrichment: `code_atlas/enrichment.py`.
 
 ## Session status
@@ -58,7 +58,7 @@ PLAN §14, §15 (M10). Precedent for optional deterministic enrichment: `code_at
 
 **Premise.** All four referenced-as-existing sources resolve: `code_atlas/onboarding/` (exists;
 `metrics.py` = the 083 metrics), `code_atlas/enrichment.py` (the named deterministic-enrichment
-precedent), `docs/phase3-onboarding/PHASE3_ONBOARDING.md` §2–§4. The `Summarizer` Protocol itself is
+precedent), `docs/phase3-onboarding/ROADMAP.md` §2–§4. The `Summarizer` Protocol itself is
 to-be-created (not missing). `m = 0` → continue.
 
 **Recall (advisory, blocks nothing).** `093-C3 prove-the-guard-fails` (type 2, confirmed, seen

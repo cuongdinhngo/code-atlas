@@ -28,7 +28,7 @@ proven and measured.
 - Core behaviour is unchanged when the summarizer is off (default).
 
 ## References
-[`../phase3-onboarding/PHASE3_ONBOARDING.md`](../phase3-onboarding/PHASE3_ONBOARDING.md) §4 (M12);
+[`../phase3-onboarding/ROADMAP.md`](../phase3-onboarding/ROADMAP.md) §4 (M12);
 PLAN §14 (deterministic graph → LLM enrichment → presentation).
 
 ## Session status

@@ -1,6 +1,6 @@
 """The Phase-3 cost gate exists and is scored — task 121.
 
-`PHASE3_ONBOARDING.md` §5 gated the whole onboarding phase on an onboarding question-class in
+`ROADMAP.md` §5 gated the whole onboarding phase on an onboarding question-class in
 the tokens-to-answer harness plus the recall gate, and the class was never added: M10-M12
 shipped unmeasured. These are the guards that keep it from silently disappearing again — the
 class is present, every recipe it names is actually bindable, every question the recall gate

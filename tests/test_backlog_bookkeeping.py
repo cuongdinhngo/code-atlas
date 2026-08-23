@@ -1,9 +1,14 @@
-"""The bookkeeping rules in AGENTS.md, enforced instead of asked for.
+"""The bookkeeping rules in ENGINEERING_RULES.md R7.2, enforced instead of asked for.
 
 Two rules govern every task and neither had a guard: status is kept in sync in **both** the backlog
 table and the task's frontmatter, and a task's token spend is recorded before its PR. They were held
 by a lifecycle gate, so work arriving by another path skipped them silently — which is exactly how
 task 024 shipped without a token row.
+
+The reader below is derived, not positional (task 132). It finds the `Status` column by reading the
+table's own header row and bounds the Token-usage section at the next heading, because the previous
+version hard-coded the column index and bounded the section on a heading the file had stopped
+having — a guard that keeps passing while its inputs move under it.
 """
 
 import re
@@ -17,12 +22,9 @@ TASKS = DOCS / "tasks"
 
 STATUSES = ("todo", "in-progress", "blocked", "deferred", "done")
 FRONTMATTER_STATUS = re.compile(r"^status:\s*(\S+)\s*$", re.MULTILINE)
-# `| 006 | [PHP adapter spike](…) | M0 | done | 002 |` — id, title, milestone, status, deps.
-TASK_ROW = re.compile(r"^\|\s*(\d{3})\s*\|[^|]*\|[^|]*\|\s*([a-z-]+)\s*\|", re.MULTILINE)
-# `| 006 | …tokens… | [#13](…) |` — id, spend, PR link (table compacted at ab41ee8).
-TOKEN_ROW = re.compile(
-    r"^\|\s*(\d{3})\s*\|\s*(\S[^|]*?)\s*\|\s*(\S[^|]*?)\s*\|", re.MULTILINE
-)
+TASK_ID = re.compile(r"^\|\s*(\d{3})\s*\|")
+HEADING = re.compile(r"^##\s+(.*)$", re.MULTILINE)
+TOKEN_SECTION = "Token usage"
 
 
 def task_files() -> dict[str, Path]:
@@ -35,34 +37,105 @@ def frontmatter_status(path: Path) -> str:
     return found.group(1)
 
 
-def backlog_sections() -> tuple[str, str]:
-    """Split the backlog at the token table, so a task row is never read as a token row."""
+def cells(row: str) -> list[str]:
+    """The row's cells, without the empty strings the leading and trailing pipes produce."""
+    return [cell.strip() for cell in row.strip().strip("|").split("|")]
+
+
+def section(title: str) -> str:
+    """One `## ` section's body, bounded by the next `## ` heading — never by a named one.
+
+    Bounding on a specific following heading is how the previous reader ran to EOF for months:
+    the heading it partitioned on had been renamed away, so the Token-usage table silently
+    extended over everything after it.
+    """
     text = BACKLOG.read_text(encoding="utf-8")
-    head, _, tail = text.partition("## Token usage")
-    assert tail, "BACKLOG.md has no Token usage section"
-    tokens, _, _ = tail.partition("## Suggested order")
-    return head, tokens
+    starts = [match for match in HEADING.finditer(text) if match.group(1).strip() == title]
+    assert len(starts) == 1, f"BACKLOG.md has {len(starts)} '## {title}' sections, expected 1"
+    body_from = starts[0].end()
+    following = HEADING.search(text, body_from)
+    return text[body_from : following.start() if following else len(text)]
+
+
+def column_index(body: str, name: str) -> int:
+    """Position of a named column, read from the first table header in this section."""
+    for line in body.splitlines():
+        if line.startswith("|") and name in cells(line):
+            return cells(line).index(name)
+    raise AssertionError(f"no table in this section has a {name!r} column")
+
+
+def rows_by_id(body: str) -> dict[str, list[str]]:
+    """Every `| NNN | …` row in a section, keyed by task id, as cell lists."""
+    found: dict[str, list[str]] = {}
+    for line in body.splitlines():
+        match = TASK_ID.match(line)
+        if match:
+            found[match.group(1)] = cells(line)
+    return found
 
 
 def backlog_statuses() -> dict[str, str]:
-    return dict(TASK_ROW.findall(backlog_sections()[0]))
+    """Task id -> status, across every Open-work and phase table above the token ledger."""
+    text = BACKLOG.read_text(encoding="utf-8")
+    ledger_at = next(
+        match.start() for match in HEADING.finditer(text) if match.group(1).strip() == TOKEN_SECTION
+    )
+    head = text[:ledger_at]
+    statuses: dict[str, str] = {}
+    for match in HEADING.finditer(head):
+        body = head[match.end() : ]
+        next_heading = HEADING.search(body)
+        body = body[: next_heading.start()] if next_heading else body
+        rows = rows_by_id(body)
+        if not rows:
+            continue
+        index = column_index(body, "Status")
+        for task_id, row in rows.items():
+            statuses[task_id] = row[index]
+    return statuses
 
 
 def token_rows() -> dict[str, tuple[str, str]]:
-    return {row[0]: (row[1], row[2]) for row in TOKEN_ROW.findall(backlog_sections()[1])}
+    body = section(TOKEN_SECTION)
+    return {task_id: (row[1], row[2]) for task_id, row in rows_by_id(body).items() if len(row) > 2}
 
 
 def test_the_guard_has_something_to_check() -> None:
-    # Guards the guard: a regex that silently stopped matching would pass every check below.
-    assert len(task_files()) >= 24
-    assert len(backlog_statuses()) == len(task_files())
-    assert len([task for task in backlog_statuses().values() if task == "done"]) >= 7
-    assert len(token_rows()) >= 7
+    """Guards the guard: a reader that silently stopped matching would pass every check below.
+
+    Every count here is derived from the tree, so none of them can be satisfied by a stale floor.
+    """
+    tasks = task_files()
+    statuses = backlog_statuses()
+    assert tasks, "no task files found — the glob is broken"
+    assert set(statuses) == set(tasks), (
+        "BACKLOG rows and task files disagree: "
+        f"only in BACKLOG {sorted(set(statuses) - set(tasks))}, "
+        f"only on disk {sorted(set(tasks) - set(statuses))}"
+    )
+    done = {task_id for task_id, status in statuses.items() if status == "done"}
+    assert done, "no task reads as done — the Status column is not being read"
+    assert done <= set(token_rows()), (
+        f"done tasks with no token row: {sorted(done - set(token_rows()))}"
+    )
+
+
+def test_the_token_ledger_reads_only_its_own_rows() -> None:
+    """No spend row may come from outside the ledger's own section.
+
+    The previous reader partitioned the tail on `## Suggested order` — a heading BACKLOG.md does
+    not have — so the ledger ran to end of file and any `| NNN | … | … |` row in a later section
+    counted as a recorded spend. Made to fail: a three-cell row planted under `## Conventions` is
+    read as task 999's spend by that reader and by this one is not read at all.
+    """
+    stray = set(token_rows()) - set(task_files())
+    assert not stray, f"the token ledger read rows for non-existent tasks: {sorted(stray)}"
 
 
 @pytest.mark.parametrize("task_id", sorted(task_files()))
 def test_status_matches_in_both_places(task_id: str) -> None:
-    # AGENTS.md: status is kept in sync in the backlog table *and* the task's frontmatter.
+    # R7.2: status is kept in sync in the backlog table *and* the task's frontmatter.
     in_file = frontmatter_status(task_files()[task_id])
     assert in_file in STATUSES, f"task {task_id}: {in_file!r} is not a known status"
     assert backlog_statuses().get(task_id) == in_file, (
@@ -73,14 +146,14 @@ def test_status_matches_in_both_places(task_id: str) -> None:
 
 @pytest.mark.parametrize("task_id", sorted(task_files()))
 def test_a_finished_task_records_what_it_cost(task_id: str) -> None:
-    """AGENTS.md: no PR without the token spend recorded — so no `done` task without a row."""
+    """R7.2: no PR without the token spend recorded — so no `done` task without a row."""
     if frontmatter_status(task_files()[task_id]) != "done":
         return
 
     row = token_rows().get(task_id)
     assert row is not None, (
         f"task {task_id} is done but has no row in BACKLOG's Token usage table "
-        "(AGENTS.md, 'Token usage on PR')"
+        "(ENGINEERING_RULES.md R7.2)"
     )
     spend, pull_request = row
     assert "dispatch" in spend or "fresh" in spend, (

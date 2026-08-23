@@ -5,9 +5,12 @@
 > **M10, M11 and M12 are all complete**, and the roadmap below is now a record of what was decided
 > rather than a set of open questions — every M11/M12 decision point is resolved in place. The plan was
 > also **reshaped mid-flight** by tasks **108–117** after a human read the emitted artifact: the page
-> dump became one navigable system map (see [`ONBOARDING_MOCKUP.md`](ONBOARDING_MOCKUP.md)). Two quality
-> defects found by field measurement on 2026-08-21 are open as **118** (module summaries are starved at
-> the seam) and **119** (the reachability split hides which signal produced each count).
+> dump became one navigable system map (see [`ONBOARDING_MOCKUP.md`](ONBOARDING_MOCKUP.md)).
+> **This file does not track status** — [`BACKLOG.md`](../BACKLOG.md) does, under *Open work —
+> Pillar 2*. The two quality defects field measurement found on 2026-08-21 were **118** (module
+> summaries starved at the seam) and **119** (the reachability split not saying which signal produced
+> each count); 119 closed inside 127 on 2026-08-23, which is exactly why a delivered record should
+> not carry a live status line.
 > **Companion:** [`phase3-roadmap.html`](phase3-roadmap.html) — the same roadmap as a visual
 > brainstorming surface (open in a browser). This markdown is the version-controllable source of truth
 > and additionally records the architecture-vs-rules placement.

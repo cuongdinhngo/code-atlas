@@ -22,7 +22,7 @@ legacy case — using the LLM, optionally.
 - With refinement off, layer output is byte-identical to 084.
 
 ## References
-[`../phase3-onboarding/PHASE3_ONBOARDING.md`](../phase3-onboarding/PHASE3_ONBOARDING.md) §4 (M12);
+[`../phase3-onboarding/ROADMAP.md`](../phase3-onboarding/ROADMAP.md) §4 (M12);
 PLAN §14, §15.
 
 ## Session status
@@ -85,7 +85,7 @@ layer-name refinement") resolve. The LLM impl itself is to-be-created → `m = 0
   `artifact.py`, `generate_onboarding.py` (thread + apply the refiner).
 - **Modified (plugin/docs):** `onboarding_llm/{__init__,server,summarizer}.py` (export + wire + repoint
   to the shared client); `README.md`, `onboarding_llm/README.md`, `docs/BACKLOG.md`,
-  `docs/phase3-onboarding/PHASE3_ONBOARDING.md`, `docs/LESSONS.md`, this working doc + frontmatter.
+  `docs/phase3-onboarding/ROADMAP.md`, `docs/LESSONS.md`, this working doc + frontmatter.
 - **Untouched:** `store.py`, `contract.py`, `summary.py`, adapters, resolver, query tools; no contract
   or schema change; no `contract_version` bump. `pyproject.toml` unchanged (reuses the 090 `llm` extra).
 
@@ -147,7 +147,7 @@ layer-name refinement") resolve. The LLM impl itself is to-be-created → `m = 0
 | export + package docs | `onboarding_llm/__init__.py`, `README.md`s | R1, R2 |
 | hermetic + AC3 + replay tests | `tests/test_onboarding_llm_layers.py` | AC1, AC2, AC3 |
 | status + narrative + token row | `docs/BACKLOG.md` | bookkeeping |
-| 091 shipped + 2nd-seam note | `docs/phase3-onboarding/PHASE3_ONBOARDING.md` | bookkeeping |
+| 091 shipped + 2nd-seam note | `docs/phase3-onboarding/ROADMAP.md` | bookkeeping |
 
 ### Verification plan (per-AC)
 | AC | proof artifact |

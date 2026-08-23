@@ -5,6 +5,11 @@ symbol graph, then answers *resolved relationship* questions — who calls this,
 what breaks if I change this file — with every answer carrying its own confidence tier, its own
 truncation, and its own reason for being empty.
 
+The same graph also renders **what the code actually is** — layers, modules, hubs, entry points,
+flow — as a committable map, so a human can see where an agent's work actually went and show the
+state of the project to someone else. Two pillars, one graph, stated authoritatively in
+[`docs/PLAN.md`](docs/PLAN.md) §1.
+
 Language-agnostic core with per-language adapters. **PHP today**; TypeScript/JavaScript, Python and
 C#/.NET are next.
 
@@ -585,6 +590,9 @@ encode the language spec/standards, never a specific repo's conventions). Detail
 
 ## Documentation
 
+Six docs answer most questions. What every standing document is **and is not** — the full role
+table, boundaries included — is [`docs/CONVENTION.md`](docs/CONVENTION.md) §8.1.
+
 | Doc | Answers |
 |---|---|
 | [`docs/PLAN.md`](docs/PLAN.md) | the authoritative design — the contract, the schema, the resolver, every tool, and **§19**, the decision log: what was measured, what was refuted, and why the project is shaped this way |
@@ -592,7 +600,7 @@ encode the language spec/standards, never a specific repo's conventions). Detail
 | [`docs/CONVENTION.md`](docs/CONVENTION.md) | naming, repo layout, the fixed contract vocabulary, and **§6** — the payload contract every tool answer obeys |
 | [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) | the binding *how we build* rules (R1.1 …), several of them CI-gated |
 | [`docs/LESSONS.md`](docs/LESSONS.md) | what shipping this taught us, per task — the evidence the rules were promoted from |
-| [`docs/FEEDBACK.md`](docs/FEEDBACK.md) | external review rounds and the field retros they produced |
+| [`docs/FEEDBACK.md`](docs/FEEDBACK.md) | external review rounds 1–4 (2026-08-04/05) and what each claim checked out as — a closed record; the field retros that replaced it are in PLAN §19 and [`runbooks/field-retro.md`](docs/runbooks/field-retro.md) |
 
 **Runbooks** — operator protocols, each reproducible:
 [onboarding a large legacy repo](docs/runbooks/onboarding-a-repo.md) ·

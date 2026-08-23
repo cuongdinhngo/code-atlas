@@ -223,6 +223,35 @@ what the payload already says (061). An answer must state what it is *not* telli
 
 ## 8. Docs & tracking
 
+### 8.1 What each standing document is — and is not
+
+The **UPPER_SNAKE standing documents are a closed set.** One may be merged or deleted; a new one
+needs an argument in the ticket that proposes it. The *Is NOT* column is the load-bearing one: a
+document without a stated boundary absorbs whatever its author had in mind that day. Rows describe
+what each file contains, not what its title suggests.
+
+| Doc | Reader | Answers | Is **NOT** |
+|---|---|---|---|
+| [`README.md`](../README.md) | a human deciding whether to install | what it does, what it measured, how to install and configure, what every tool returns | not the design record; not a rule book; never the authority for a number — it cites the runbook that produced it |
+| [`AGENTS.md`](../AGENTS.md) | an agent at session start | orientation: what this is, where things live, which docs bind, how the maintainer authorises finishing steps, how to run the gate and the suite | **not a rule origin** — every rule here is a summary with a destination; not a lifecycle rule book (→ `AGENT_BRIEF.md`) |
+| `CLAUDE.md` | the Claude Code harness | one line: `@AGENTS.md` | not content, ever |
+| [`PLAN.md`](PLAN.md) | anyone asking *why is it shaped this way* | **§1 the two pillars (authoritative)**; the design and its reasoning; §19 the durable decision log — what was measured, what was refuted | not the vocabulary of record (→ `contract.py`, §3 above); not a schema listing (→ `store.py`); not task status (→ `BACKLOG.md`) |
+| [`BACKLOG.md`](BACKLOG.md) | anyone asking *what is open, what landed, what it cost* | the ticket tables by pillar, the shipped record by phase, the token ledger | not rationale (→ PLAN §19); not lessons (→ `LESSONS.md`); not a rule origin |
+| [`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) | an agent about to write code | the binding *how we build* rules R1.1…, several CI-gated, each with a falsifier; the pre-PR self-check | not process (→ `AGENT_BRIEF.md`); not naming or style (→ this file); not evidence (→ `LESSONS.md`) |
+| [`AGENT_BRIEF.md`](AGENT_BRIEF.md) | an agent running the lifecycle | the binding *how we run it* rules P1…, each earned by a cited incident. **A `/mango:promote` destination** | never restates a code rule (it says so itself); not orientation; not a harness-gap log (→ `SKILL_GAP_CANDIDATES.md`) |
+| `CONVENTION.md` (this file) | an agent naming or placing something | repo layout, naming, the fixed contract **spelling** and per-kind semantics (§3), Python style, tool/payload conventions (§6), git, and this table | not the authoritative field set (→ `contract.py`); not design reasoning (→ `PLAN.md`) |
+| [`LESSONS.md`](LESSONS.md) | an agent about to propose a rule | per-task claims with handles and `seen:` counts — the corpus rules are promoted from | not a rule (a claim is promoted, not applied); not a decision log |
+| [`SKILL_GAP_CANDIDATES.md`](SKILL_GAP_CANDIDATES.md) | the mango maintainer | type-3 signals: a phase that could have run a check and did not | not a change to any mango skill — this repo never edits one |
+| [`FEEDBACK.md`](FEEDBACK.md) | anyone auditing an outside claim | external review rounds 1–4 and the repo-verified assessment of each — **series closed** | not a decision (→ PLAN §19); not the field retros (→ PLAN §19, `runbooks/field-retro.md`) |
+| [`phase3-onboarding/ROADMAP.md`](phase3-onboarding/ROADMAP.md) | anyone asking how Pillar 2 was decided | the delivered M10–M12 roadmap, the deterministic/LLM split, the architecture-vs-rules placement | not current status (→ `BACKLOG.md`); not the ticket list — its §7 table is a historical copy |
+| [`phase3-onboarding/ONBOARDING_MOCKUP.md`](phase3-onboarding/ONBOARDING_MOCKUP.md) | a reviewer of the system map | the design note the map was reshaped from (2026-08-19), and which parts are deterministic vs prose | not shipped behaviour (→ README, PLAN §14) |
+| [`runbooks/`](runbooks/)`*.md` | an operator reproducing a number | one protocol each, re-runnable, with the conditions the number holds under | never a summary — the caveat travels with the number |
+| [`benchmarks/`](benchmarks/)`*.md` | a reader checking one measurement | the raw result of one question class, cited from its ticket | not a claim about the product — README/PLAN quote these, never the reverse |
+| directory `README.md`s (`adapters/php/`, `onboarding_llm/`, `contrib/*/`, `phase3-onboarding/mockup/`) | someone working in that directory | how to run or launch what is in this directory | not repo-level anything |
+| `.github/pull_request_template.md` | the author opening a PR | the sections and the self-check every PR fills | not the rule it checks (→ `ENGINEERING_RULES.md`, `AGENTS.md`) |
+
+### 8.2 Tracking
+
 - Design decisions → the [build plan](PLAN.md).
 - Task status kept in sync in **both** [`BACKLOG.md`](BACKLOG.md) and the task file's frontmatter.
 - Do **not** use the Claude Code Memory feature for this project — decisions live in the repo.

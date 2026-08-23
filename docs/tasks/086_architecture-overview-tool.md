@@ -28,7 +28,7 @@ Expose the deterministic layers + metrics as an agent-facing MCP tool — the fi
 - Tool test over a fixture repo asserts the payload shape and a known layer split.
 
 ## References
-[`../phase3-onboarding/PHASE3_ONBOARDING.md`](../phase3-onboarding/PHASE3_ONBOARDING.md) §4 (M10);
+[`../phase3-onboarding/ROADMAP.md`](../phase3-onboarding/ROADMAP.md) §4 (M10);
 PLAN §14, §15 (M10).
 
 ## Session status

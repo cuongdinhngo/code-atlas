@@ -20,11 +20,16 @@ Validate with `/mango:doctor`. Run a ticket with `/mango:solve <KEY>`.
 **Read these before non-trivial work** (they govern every session):
 - [`docs/PLAN.md`](docs/PLAN.md) — authoritative design (§-refs below point here).
 - [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) — binding *how we build* rules (R1.1…). The pre-PR self-check at the bottom is your gate.
-- [`docs/AGENT_BRIEF.md`](docs/AGENT_BRIEF.md) — binding *how we run the lifecycle* rules (P1…): keeping `seen:` honest, reading a rule's destination before proposing a new one, recording a deviation from a ticket as a deviation.
+- [`docs/AGENT_BRIEF.md`](docs/AGENT_BRIEF.md) — binding *how we run the lifecycle* rules (`P1`…`Pn`), each earned by a cited incident. Read them there; this file does not enumerate them, because the copy it used to keep went a rule out of date.
 - [`docs/CONVENTION.md`](docs/CONVENTION.md) — naming, repo layout, the fixed contract vocabulary, style.
 - [`docs/BACKLOG.md`](docs/BACKLOG.md) — tasks (`docs/tasks/NNN_slug.md`); keep status in sync there **and** in each task's frontmatter.
 
 ## What this is
+**Two pillars, one graph** — PILLAR 1 the resolved relationships an agent asks for, PILLAR 2 the
+rendering of what the code actually is, for a human supervising that agent or presenting the project.
+Both read the same graph; the map never runs a second pipeline. Stated authoritatively — and this is
+the only place to state it — in [`docs/PLAN.md`](docs/PLAN.md) §1.
+
 A local-first **MCP server** that indexes a codebase into **SQLite** and exposes fast, name-resolved,
 token-efficient **search / read / navigation / impact** tools. **Language-agnostic core + per-language
 adapters**, joined by one versioned **JSON contract**. Roll-out order: **PHP → TypeScript/JavaScript →
@@ -56,9 +61,10 @@ MCP client ──stdio──▶ core (Python/FastMCP) ──JSONL contract──
 - **Do NOT use the Claude Code Memory feature** for this project — decisions live in the plan (§19) and the repo.
 - **Commits** — no `Co-Authored-By` / AI-attribution trailer.
 - **Comments** — keep every code comment to **≤ 3 lines**; if it needs more, the code or a doc should carry it instead.
-- **Docs before PR** — before opening a PR, update every doc the change affects (PLAN, BACKLOG + task frontmatter, CONVENTION, ENGINEERING_RULES, README) so the docs match the work. The PR self-check gates this.
-- **Token usage on PR** — before opening a PR, record the task's token spend in its working-doc cost ledger (`docs/tasks/NNN_slug.work.md`) **and** add/update its row in the Token usage table in [`docs/BACKLOG.md`](docs/BACKLOG.md). No PR without the token spend recorded in both places.
-- **Pull requests** — when asked to open a PR, base it on `.github/pull_request_template.md` (fill every section, complete the pre-PR self-check). If the template is missing, propose one and create it first, then open the PR.
+- **Docs before PR, cost included** — update every doc the change affects, and record the task's
+  token spend in both its working-doc ledger and BACKLOG's Token usage table (R7.2). The pre-PR
+  self-check gates the docs; `tests/test_backlog_bookkeeping.py` gates the spend.
+- **Pull requests** — when asked to open a PR, base it on `.github/pull_request_template.md` (fill every section, complete the pre-PR self-check). If the template is missing, propose one and create it first, then open the PR (CONVENTION §7).
 
 ## Where things live
 - Core: `code_atlas/` (`main.py` FastMCP, `config.py`, `contract.py`, `adapter.py`, `store.py`, `indexer.py`, `resolver.py`, `tools/`).
@@ -75,25 +81,21 @@ MCP client ──stdio──▶ core (Python/FastMCP) ──JSONL contract──
 with no logs). `scripts/gate.sh` **is** the gate — it mirrors all three CI jobs in `ci.yml`'s order:
 entry points · ruff · mypy · pytest · tokens-to-answer · composer validate · `php -l` · phpstan ·
 the four grep-gates. ~100 s here; `--fast` skips pytest and the benchmark for a quick loop.
-It exits **2 when a check was skipped** (a gate that shrank to what your machine can run has not
-verified the tree — R6.5), so only `GATE GREEN` counts. Keep it in step with `ci.yml`: a check in
-one and not the other means one of them is lying about what was verified.
+**Only `GATE GREEN` counts — exit 2 means a check was skipped, which is not a pass (R6.5).** Keep it
+in step with `ci.yml`: a check in one and not the other means one of them is lying about what was
+verified.
 
 ## Running the full test suite — use Docker, never report it as unrunnable
-`test_command` is `pytest`, but the full suite needs a **POSIX host** (the index lock imports `fcntl`)
-and the **PHP adapter** (`php` + `composer install`). On the maintainer's **Windows** dev host bare
-`pytest` is red — `fcntl` breaks collection of every module importing `main.py`, and the PHP-adapter
-subprocess tests can't launch. **This is a platform limitation, not a regression** — do not conclude
-"the suite can't run" and do not ask how to run it. Run it in Docker:
+The suite needs a **POSIX host** (the index lock imports `fcntl`) and the **PHP adapter**. On the
+maintainer's **Windows** dev host bare `pytest` is red for both reasons. **This is a platform
+limitation, not a regression** — do not conclude "the suite can't run" and do not ask how to run it.
+Run it in Docker: the commands and the expected count are in [README *Testing*](README.md#testing)
+(`scripts/docker-test.sh`, ~1679 passed / 0 skipped as of 2026-08-21).
 
-- `scripts/docker-test.sh` — builds `docker/Dockerfile` (Linux + PHP adapter) and runs the CI gate
-  `ruff · mypy · pytest -q`. Expect **~1679 passed, 0 skipped** (measured 2026-08-21; a POSIX host
-  with `php` on PATH runs the same suite bare, so a Linux dev box needs no container). Scope it by passing a command, e.g.
-  `scripts/docker-test.sh pytest -q -k php`.
-- Prove **delta-green here** before a PR. A bare-`pytest` red on Windows is the known platform
-  exclusion above — confirm green via Docker, then say so; don't leave it as "unverified".
-- Ship the server itself in a container with `docker/Dockerfile.runtime` (stdio; mount the repo at
-  `/workspace`) — see README *Ship the server in a container*.
+Prove **delta-green** before a PR, and name the host that produced it. A bare-`pytest` red on
+Windows is the known platform exclusion above — confirm green via Docker, then say so; don't leave
+it as "unverified". To ship the server itself in a container, use `docker/Dockerfile.runtime`
+(stdio; mount the repo at `/workspace`) — see README *Ship the server in a container*.
 
 ## Maintainer workflow — single-maintainer repo; don't re-ask what's already authorized
 - **Finishing a task runs through to the PR without pausing to confirm:** commit in logical units →

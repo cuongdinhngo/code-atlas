@@ -5,7 +5,7 @@
 **Verdict:** the class is **cheaper than hand-mapping where the question is a lookup, and wrong where
 the question is a reading order.** Both halves are below, with the numbers that produced them.
 
-`PHASE3_ONBOARDING.md` §5 gated the whole onboarding phase on this measurement and it never ran; M10-M12
+`ROADMAP.md` §5 gated the whole onboarding phase on this measurement and it never ran; M10-M12
 shipped on defect-fixing evidence instead. This file is the gate finally running, in both directions.
 
 ## What was measured

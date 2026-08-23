@@ -266,7 +266,7 @@ plausible". Prefer symbols already asserted by other tests so the ground truth s
 
 ## Onboarding class (task 121)
 
-`PHASE3_ONBOARDING.md` §5 gated the whole onboarding phase on an onboarding question-class here plus the
+`ROADMAP.md` §5 gated the whole onboarding phase on an onboarding question-class here plus the
 recall gate, and for three milestones the file held **zero** of them. The class now exists: twelve
 questions tagged `tier: onboarding`, ten on the committed fixture `tests/fixtures/php/onboarding` and
 two on the pinned `symfony/demo`. It covers a newcomer's shapes — layers and their crossings, a reading

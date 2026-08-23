@@ -30,7 +30,7 @@ summaries (085) all consume. No new tool surface here.
   fan-in/out, the entry-point set, and the direction summary.
 
 ## References
-[`../phase3-onboarding/PHASE3_ONBOARDING.md`](../phase3-onboarding/PHASE3_ONBOARDING.md) §3–§4 (M10, locked);
+[`../phase3-onboarding/ROADMAP.md`](../phase3-onboarding/ROADMAP.md) §3–§4 (M10, locked);
 PLAN §14, §15 (M10). Reuses `store.py` traversal (`reachable_from`, `impact_radius`, `find_orphans`).
 
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
@@ -59,7 +59,7 @@ PLAN §14, §15 (M10). Reuses `store.py` traversal (`reachable_from`, `impact_ra
 
 - **Premise (all resolve):** `code_atlas/store.py` (+ `reachable_from`/`impact_radius`/`find_orphans`),
   `tests/test_sql_confinement.py`, `tests/test_core_is_language_agnostic.py`,
-  `docs/phase3-onboarding/PHASE3_ONBOARDING.md`, `docs/PLAN.md`. To-be-created (not missing):
+  `docs/phase3-onboarding/ROADMAP.md`, `docs/PLAN.md`. To-be-created (not missing):
   `code_atlas/onboarding/metrics.py`.
 - **Skip rationale:** every product-decision is locked — module unit = file path, entry-point =
   zero-inbound roots, SCC out of scope (ticket, "locked 2026-08-11"); layering direction per

@@ -140,6 +140,17 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   callable, include, static-vs-instance call, syntax error) — independent of any real repo.
 - **R6.3 — Cross-repo validation** proves "works on any repo": several varied repos index without
   crashes and with sane counts. No single repo defines "correct".
+  **And where an acceptance criterion needs a judgement about a real repo — a threshold, a ranking,
+  an elected group, a ratio — that judgement ships as a committed, re-runnable reporter, not an
+  ad-hoc session run.** An authored fixture mirrors the assumption the code already makes, so it
+  cannot exhibit the shape that breaks it; a pinned suite can be green on both sides of a real
+  defect. The reporter prints the real inputs the constant was chosen from, so the constant can be
+  re-justified whenever a pin moves — `scripts/layer_report.py` (105) and `scripts/mirror_report.py`
+  (115) are what compliance looks like. *Falsifier:* an acceptance-criterion threshold, ranking or
+  elected group whose only evidence is a fixture or a session transcript, with no committed
+  reproducer.
+  *Provisional (awaiting ratification) · `LESSONS.md` `105-C2` · handle
+  `fixture-shape-begs-the-question` · seen 084, 086, 103, 104, 105, 106, 121.*
 - **R6.4 — Guardrail tests are real tests.** The three grep-gates (R1.1 no language branches in
   core; R2.2 no repo/framework names in adapters or core; R4.1 no prompt/model id/LLM import in
   core) run in CI and fail the build.
@@ -154,7 +165,13 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   red run — cf. the dead-route guard that scanned its own definition site (093), the delta-scope key
   set stubbed to `set()` (096), the positive-fire test that stops silence negatives passing
   vacuously (099).
-  *`LESSONS.md` `093-C3` · handle `prove-the-guard-fails` · seen 093, 096, 099, 100, 101.*
+  **The gate itself is bound by this rule.** `scripts/gate.sh` mirrors every CI job, and it exits
+  **2 when a check was skipped** — a gate that shrank to what one machine can run has not verified
+  the tree, so only `GATE GREEN` counts as green. Never read a skip as a pass, and never narrow the
+  gate to make it pass; if a check cannot run here, run it where it can (Docker — README
+  *Testing*) and say which host produced the result.
+  *`LESSONS.md` `093-C3` · handle `prove-the-guard-fails` · seen 087, 088, 089, 093, 096, 099, 100,
+  101, 121, 122, 132.*
 - **R6.6 — Every language gets a static analyser in CI, at its strictest clean setting.** The core
   has `mypy`; the PHP adapter has **PHPStan at `level: max`** (`adapters/php/phpstan.neon`), and
   each later adapter brings the equivalent. Suppression is not how a finding is closed: no baseline
@@ -172,14 +189,20 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   (096), one `estimate_tokens` definition site (099) — or a new member that ships without failing
   any guard.
   *Provisional · `LESSONS.md` `093-C2` + `095-C1` + `097-C1` · handle `derived-not-listed-invariant`
-  · seen 093, 095, 096, 097, 099, 100, 101, 102.*
+  · seen 087, 088, 093, 095, 096, 097, 099, 100, 101, 102, 121, 122, 127, 132.*
 
 ## 7. Change discipline
 
 - **R7.1 — Ship the smallest useful thing.** The first release is search/read/outline (014); don't
   gold-plate before it is usable.
-- **R7.2 — Keep the plan and backlog honest.** A design decision updates the [plan](PLAN.md); task
-  status updates both [`BACKLOG.md`](BACKLOG.md) and the task file's frontmatter.
+- **R7.2 — Keep the plan and backlog honest, cost included.** A design decision updates the
+  [plan](PLAN.md); task status updates both [`BACKLOG.md`](BACKLOG.md) and the task file's
+  frontmatter. **And the spend is part of the status:** before a PR opens, the task's token spend
+  goes in its working-doc cost ledger (`docs/tasks/NNN_slug.work.md`) **and** in the Token usage
+  table in `BACKLOG.md`. No PR without it recorded in both places. A finished task whose cost is
+  unrecorded reads as free, and a project that cannot say what a ticket cost cannot argue about
+  where its effort goes. *Falsifier:* a task at `done` with no Token-usage row, or a spend quoted in
+  one place and not the other — guarded by `tests/test_backlog_bookkeeping.py`.
 - **R7.3 — Small, reviewable commits** with imperative messages and no AI-attribution trailer. One
   logical change per commit.
 - **R7.4 — No dead abstractions.** An interface with one implementer and no near-term second gets

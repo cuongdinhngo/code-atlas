@@ -8,7 +8,10 @@ what landed, and what it cost* — narrative rationale lives in those three.
 **Status legend:** `todo` · `in-progress` · `blocked` · `deferred` · `done`
 **Shipped for daily use at task 014** (search/read/outline).
 
-## Open work
+## Open work — Pillar 1 · Graph
+
+Resolved relationships for the agent, and the honesty of the payload that carries them
+([PLAN §1](PLAN.md#1-goals--non-goals)). The `Theme` column is unchanged.
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
@@ -17,6 +20,23 @@ what landed, and what it cost* — narrative rationale lives in those three.
 | 100 | [Nine kinds of evidence in the PR, zero graph payloads](tasks/100_claim-signing-output-mode.md) | Agent-fit | done | 017, 057, 061 |
 | 101 | [A ten-name sweep is ten calls, so the agent used a shell loop](tasks/101_nav-tools-take-one-subject-at-a-time.md) | Agent-fit | done | 014, 013, 066 |
 | 102 | [`impact` reports `seeds_dropped: 0` for a subject it never found](tasks/102_impact-cannot-tell-an-absent-subject-from-a-zero.md) | Agent-fit | done | 017, 100 |
+| 120 | ["Can this subtree be deleted?" — subtree dependency with duplicate-declaration attribution — evidence-gated](tasks/120_subtree-dependency-attribution.md) | Coverage | todo | 017, 043, 078, 115 |
+| 122 | [075 normalised the leading backslash for three tools; four `find_*` tools still decline over it](tasks/122_exact-miss-shaping-discards-a-resolved-subject.md) | Agent-trust | done | 075, 076, 065, 093 |
+| 123 | [`file_outline` omitted the symbol under repair, reported `total_count: 10` for a 12-symbol file, and has no page 2](tasks/123_file-outline-total-count-is-the-page-length.md) | Agent-trust | done | 014, 057, 066, 067 |
+| 124 | [`find_orphans` blew the transport limit at 19k files, on the one ticket whose root cause *was* an orphan](tasks/124_find-orphans-cannot-answer-at-scale.md) | Agent-fit | done | 031, 057, 066, 119 |
+| 125 | [No payload names the server build — every field retro is told its own subject by an operator](tasks/125_no-payload-names-the-server-build.md) | Measure | done | 082, 095, 100 |
+| 128 | [TypeScript/JavaScript — M0 spike only, to answer §4.4 with evidence](tasks/128_typescript-adapter-m0-spike.md) | Phase 2 / M7 | todo | 012, 019 |
+| 129 | [`include_graph(imports)` is a silent zero for any namespaced file — the INCLUDES edge is anchored on the namespace](tasks/129_include_graph_imports-is-a-silent-zero-for-a-namespaced-file.md) | Agent-trust | todo | 121 |
+| 132 | [The doc set costs an agent ~66k tokens before it knows what binds it — give every standing doc a boundary](tasks/132_docs-restructure.md) | Docs | done | — |
+| 133 | [The always-binding read is ~66.5k tokens and most of it is reference — tier the agent chain and gate the tier](tasks/133_agent-chain-is-one-tier.md) | Docs | todo | 132 |
+
+## Open work — Pillar 2 · Onboarding
+
+The rendering of what the code actually is, for a human supervising an agent or presenting the
+project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline.
+
+| # | Task | Theme | Status | Depends on |
+|---|---|---|---|---|
 | 083 | [Onboarding — deterministic graph-metrics foundation](tasks/083_onboarding-graph-metrics.md) | Phase 3 / M10 | done | 014, 031, 017 |
 | 084 | [Onboarding — architectural layer assignment](tasks/084_onboarding-layer-assignment.md) | Phase 3 / M10 | done | 083 |
 | 103 | [Onboarding — layer granularity: strip common prefix, group by top segment](tasks/103_onboarding-layer-granularity.md) | Phase 3 / M10 | done | 084 |
@@ -43,18 +63,12 @@ what landed, and what it cost* — narrative rationale lives in those three.
 | 117 | [Onboarding — the map's structure is derivable, its prose is not; route prose through the seams](tasks/117_llm-prose-for-map.md) | Phase 3 / M12 | done | 110, 111, 090, 091 |
 | 118 | [Onboarding — every module page says `Summary: (none)`, and the cause is the seam, not the repo](tasks/118_module-summary-seam-gets-empty-facts.md) | Phase 3 / M11 | todo | 085, 090, 107, 117 |
 | 119 | [Onboarding — the reachability split never says which signal produced each count](tasks/119_reachability-signal-provenance.md) | Phase 3 / M11 | done | 113, 116 |
-| 120 | ["Can this subtree be deleted?" — subtree dependency with duplicate-declaration attribution — evidence-gated](tasks/120_subtree-dependency-attribution.md) | Coverage | todo | 017, 043, 078, 115 |
 | 121 | [Phase 3 shipped without its own cost gate — the onboarding question-class was never added to the harness](tasks/121_onboarding-question-class-never-measured.md) | Measure | done | 034, 045, 055, 086, 087, 088 |
-| 122 | [075 normalised the leading backslash for three tools; four `find_*` tools still decline over it](tasks/122_exact-miss-shaping-discards-a-resolved-subject.md) | Agent-trust | done | 075, 076, 065, 093 |
-| 123 | [`file_outline` omitted the symbol under repair, reported `total_count: 10` for a 12-symbol file, and has no page 2](tasks/123_file-outline-total-count-is-the-page-length.md) | Agent-trust | done | 014, 057, 066, 067 |
-| 124 | [`find_orphans` blew the transport limit at 19k files, on the one ticket whose root cause *was* an orphan](tasks/124_find-orphans-cannot-answer-at-scale.md) | Agent-fit | done | 031, 057, 066, 119 |
-| 125 | [No payload names the server build — every field retro is told its own subject by an operator](tasks/125_no-payload-names-the-server-build.md) | Measure | done | 082, 095, 100 |
 | 126 | [Onboarding — the map's search palette clusters into one subtree](tasks/126_search-palette-clusters-into-one-subtree.md) | Phase 3 / M11 | done | 067, 115, 116 |
 | 127 | [Onboarding — a caveat the dataset carries can vanish in the rendered map](tasks/127_caveats-drop-at-the-artifact-layer.md) | Phase 3 / M11 | done | 100, 112, 113, 116, 119 |
-| 128 | [TypeScript/JavaScript — M0 spike only, to answer §4.4 with evidence](tasks/128_typescript-adapter-m0-spike.md) | Phase 2 / M7 | todo | 012, 019 |
-| 129 | [`include_graph(imports)` is a silent zero for any namespaced file — the INCLUDES edge is anchored on the namespace](tasks/129_include_graph_imports-is-a-silent-zero-for-a-namespaced-file.md) | Agent-trust | todo | 121 |
 | 130 | [The `web_entry` bucket counts test controllers as web surface — half the count on a canonical repo](tasks/130_web-entry-bucket-counts-test-controllers.md) | Phase 3 / M11 | todo | 113, 119, 121 |
 | 131 | [`guided_tour`'s first five stops are lint and bootstrap config, not the front controller](tasks/131_tour-ranks-configuration-ahead-of-the-front-controller.md) | Phase 3 / M11 | todo | 111, 121 |
+
 
 **Order (round-5 tickets):** ~~**092**~~ (done — an untracked file read as a non-existent symbol)
 **→ ~~093~~** (done — 092's route shape generalised to every `try_instead`) **→ ~~095~~**
@@ -215,7 +229,7 @@ subtree, so can it be deleted?" on the anchor took hand-written SQL, and the nai
 wrong by **5.7×** (23,086 vs 4,013 resolved `src → legacy` edges) because 22,282 symbols are
 declared in more than one file. Real need, **n = 1** — held to 098's discipline. **The phase's own
 cost gate has now run — ~~121~~, done 2026-08-23.**
-[`PHASE3_ONBOARDING.md`](phase3-onboarding/PHASE3_ONBOARDING.md) §5 gated the whole phase on an
+[`ROADMAP.md`](phase3-onboarding/ROADMAP.md) §5 gated the whole phase on an
 **onboarding question-class** in the tokens-to-answer harness (034/045) plus the recall gate (055),
 baselined against `grep`+`Read`, and for three milestones the file held **zero** onboarding questions.
 It now holds **twelve**, and the verdict is split: cheap and correct where the question is a lookup
@@ -300,7 +314,8 @@ and tool *consolidation* (`find_relations`) was measured behind 034 and rejected
 
 Surfaced by a full-build validation against a **large private PHP monorepo** (~40k PHP files, PHP 8.5,
 Docker adapter) and then by four field-retro rounds run on that same anchor repo. Open tickets from
-this track are in [Open work](#open-work); everything below has landed.
+this track are in [Open work — Pillar 1](#open-work--pillar-1--graph) and
+[Pillar 2](#open-work--pillar-2--onboarding); everything below has landed.
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
@@ -458,8 +473,9 @@ Three notes that still govern open work:
 
 ## Token usage
 
-Token spend per task, recorded before its PR is opened (see the "Token usage on PR" rule in
-[`AGENTS.md`](../AGENTS.md)); the per-phase breakdown lives in each task's `tasks/NNN_slug.work.md`
+Token spend per task, recorded before its PR is opened
+([`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) R7.2); the per-phase breakdown lives in each
+task's `tasks/NNN_slug.work.md`
 ledger. mango measures **subagent dispatch only**: `unmeasured` = the host surfaced no usage block, and
 **main-loop spend is unmeasured unless a fresh/cache figure is given** (`rtk gain` is global and cannot
 be attributed to one task, so nothing is invented). `no work doc` = the task skipped the mango
@@ -599,6 +615,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | 127 | **0 dispatch — no subagent was dispatched this run.** Run as `/mango:solve 127 with skipped review & challenger`: review waived, challenger off. Main-loop **unmeasured (host does not surface usage)**. **Two of the review's three instances did not survive contact with the tree** — the mirror *paths, not bytes* caveat already renders twice, and the third is 126 — so the ticket ships with **one** confirmed drop and says so. `derive_caveats` walks the dataset payload for any section owning a `caveat` key (R6.7 — derived, not listed) and the guard asserts it is **rendered under `node`**, because the page embeds the whole dataset as JSON and a file-level check would be green forever. `DATASET_VERSION` 6 → 7. **Red run:** `['reachability']`. Delta-green **1749 → 1756** (+7); `scripts/gate.sh` **GATE GREEN 12/12, 0 skipped**. | [#151](https://github.com/cuongdinhngo/code-atlas/pull/151) |
 | 121 | **0 dispatch — no subagent was dispatched this run.** Main-loop **unmeasured (host does not surface usage)**. Standing approval per AGENTS.md; no mango phase dispatched a subagent. The spend was measurement, not code: a purpose-built ten-module fixture, twelve questions whose ground truth was read out of the source **by hand before the tools ran**, one `symfony/demo` clone at the pinned SHA, and three defects filed rather than fixed (**129 · 130 · 131**) because a tree you are editing measures nothing. **Red run first:** the guard failed 4/7 at HEAD — zero onboarding questions, the three onboarding tools unexercised, ineligible questions stating no reason, and the recall scorer returning `[]` for an onboarding-shaped answer (a false green). Floors recalibrated to `0.8 × observed`: fixture **0.27 → 0.63**, sample **78 → 55**. Delta-green **1756 → 1769** (+13: 7 guard tests, 6 from three new task files); `scripts/gate.sh` GATE GREEN. | [#152](https://github.com/cuongdinhngo/code-atlas/pull/152) |
 | 119 | **0 dispatch — closed inside 127's change** (its guard needed a first customer and this was it). Per-bucket `signals: {declared, vocabulary, structure}`, one `PatternClaim` per declared glob with `files_matched` beside `zero_inbound_claimed`, `DECLARATION_CAVEAT` riding on the split; classification, bucket order and the raw total moved by nothing (AC1), a dropped bucket stays dropped (AC4), no judgment shipped (AC6, asserted). **AC2 met in restated form and the deviation recorded:** its figures (341 = 93 + 248, 901 = 653 + 248) are anchor measurements and the anchor is not on this host, so the assertion became the arithmetic — **the anchor figures remain unverified here**, closable by `scripts/reachability_report.py` against the anchor (the 108/112–117 pattern). | [#151](https://github.com/cuongdinhngo/code-atlas/pull/151) |
+| 132 | **0 dispatch — no subagent was dispatched this run.** Main-loop **unmeasured (host does not surface usage)**. Standing approval per AGENTS.md; no mango phase dispatched — run as a direct two-phase audit-then-execute, Phase 1 producing the plan and touching nothing. **Nine commits, one logical change each**, C6 ordered last because its 29 references across 17 files are the highest-churn and lowest-value step. **The drift the cut was argued from came back clean** — PLAN §4.2 and CONVENTION §3 agree with `contract.py` on all six vocabularies and §10's SQL is byte-equivalent to `store.py`'s `DDL`, so the cut rests on R6.7 plus PLAN §12's own precedent, and the ticket says so rather than implying a diff it did not find; the one real drift was §10's `meta` comment naming 5 of 9 keys. **Two hypotheses refuted and one over-claimed by the audit itself:** H1's merge would have pointed `/mango:promote` at the always-loaded context file, H4's premise was false (FEEDBACK.md states its role in its own second paragraph — the defect is that the series ended and README described it wrongly), and the plan's claim that a `Pillar` column would pass the guard silently was **measured false** before any code changed (recorded in `dff4c72` and §9, `c4412af` deliberately not amended). Promoted out of scope on instruction: the `test_backlog_bookkeeping.py` fix, shipped with **four recorded red runs** (R6.5) — the ledger had no bound and read any three-cell row after it as a spend. Delta-green: link sweep **28 standing docs, 0 broken** after every commit; `test_backlog_bookkeeping` **264 passed** at `3807888`; ruff + mypy clean on the touched source file. Full gate re-run at the final commit (P4): **GATE GREEN — 12 checks, 0 failed, 0 skipped**, `pytest` **1773 passed** on a Linux host. | [#153](https://github.com/cuongdinhngo/code-atlas/pull/153) |
 
 **How 047–049 were measured.** One autonomous session, no per-task transcript: each row is the API
 calls between the previous commit and that task's own commit. The approximation runs one way — work
