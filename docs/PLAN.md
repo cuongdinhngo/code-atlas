@@ -494,6 +494,7 @@ that must not ride the cheap path.
 | `find_view_data` | `qname \| key, limit?, offset?` | which view-scope keys a handler publishes, and which handlers publish a key — the `PROVIDES_VIEW_DATA` relation (062/063). Empty when no `view_data` rules are configured, and it says so rather than reporting a modelled zero (069) |
 | `include_graph` | `path, direction` | the `include`/`require` graph; `unresolved_includes` on `imports`/`both` only — a counter that is structurally zero inbound is omitted rather than printed (065) |
 | `impact` | `paths \| qnames, depth?, sign?` | blast radius — bounded best-score over resolver-linked IMPACT kinds; `seeds_dropped` (see below) |
+| `subtree_dependencies` | `subtree, counterpart?, limit?` | tree-to-tree crossing with duplicate-declaration attribution — attributable vs unattributable always paired; dynamic bridges surfaced (120) |
 | `reachable_from` | `depth?` | what is reachable from `CA_ENTRY_POINTS` over RESOLVED IMPACT kinds; HEURISTIC/DYNAMIC neighbours are `unproven`, not reachable |
 | `find_orphans` | `depth?, limit?, offset?` | the complement — zero-inbound / unreachable-from-roots, each with `why`; never an empty success when no roots are configured |
 | `explain_path` | `from_qname, to_qname, depth?` | the shortest A→B route over outgoing IMPACT kinds; `status` = `path` / `unproven` / `no_path` / `unknown` / `incomplete`, so a bound hit is never conflated with "no route" |

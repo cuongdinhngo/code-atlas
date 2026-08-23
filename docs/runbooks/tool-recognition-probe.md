@@ -53,12 +53,13 @@ discussion. One question at a time; record the first tool named; no retries, no 
 | 9 | What variables does this handler pass to its template? | `find_view_data` |
 | 10 | What does this file include, and what includes it? | `include_graph` |
 | 11 | What breaks if I change this symbol? | `impact` |
-| 12 | What is reachable from the entry points (and what is dead)? | `reachable_from` |
-| 13 | Which symbols look unused? | `find_orphans` |
-| 14 | How does one symbol reach another through the call graph? | `explain_path` |
-| 15 | I have never opened this codebase. What are its top-level parts, and which depends on which? | `architecture_overview` |
-| 16 | I have never opened this codebase. What should I read first, in dependency order? | `guided_tour` |
-| 17 | Write the onboarding docs I can commit: overview, reading order, per-module pages, and a manifest. | `generate_onboarding` |
+| 12 | Can this directory subtree be deleted — what still crosses into or out of it? | `subtree_dependencies` |
+| 13 | What is reachable from the entry points (and what is dead)? | `reachable_from` |
+| 14 | Which symbols look unused? | `find_orphans` |
+| 15 | How does one symbol reach another through the call graph? | `explain_path` |
+| 16 | I have never opened this codebase. What are its top-level parts, and which depends on which? | `architecture_overview` |
+| 17 | I have never opened this codebase. What should I read first, in dependency order? | `guided_tour` |
+| 18 | Write the onboarding docs I can commit: overview, reading order, per-module pages, and a manifest. | `generate_onboarding` |
 
 ### Why Q4 discriminates (task 097)
 

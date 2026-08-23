@@ -21,7 +21,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 100 | [Nine kinds of evidence in the PR, zero graph payloads](tasks/100_claim-signing-output-mode.md) | Agent-fit | done | 017, 057, 061 |
 | 101 | [A ten-name sweep is ten calls, so the agent used a shell loop](tasks/101_nav-tools-take-one-subject-at-a-time.md) | Agent-fit | done | 014, 013, 066 |
 | 102 | [`impact` reports `seeds_dropped: 0` for a subject it never found](tasks/102_impact-cannot-tell-an-absent-subject-from-a-zero.md) | Agent-fit | done | 017, 100 |
-| 120 | ["Can this subtree be deleted?" — subtree dependency with duplicate-declaration attribution — evidence-gated](tasks/120_subtree-dependency-attribution.md) | Coverage | todo | 017, 043, 078, 115 |
+| 120 | ["Can this subtree be deleted?" — subtree dependency with duplicate-declaration attribution](tasks/120_subtree-dependency-attribution.md) | Coverage | done | 017, 043, 078, 115 |
 | 122 | [075 normalised the leading backslash for three tools; four `find_*` tools still decline over it](tasks/122_exact-miss-shaping-discards-a-resolved-subject.md) | Agent-trust | done | 075, 076, 065, 093 |
 | 123 | [`file_outline` omitted the symbol under repair, reported `total_count: 10` for a 12-symbol file, and has no page 2](tasks/123_file-outline-total-count-is-the-page-length.md) | Agent-trust | done | 014, 057, 066, 067 |
 | 124 | [`find_orphans` blew the transport limit at 19k files, on the one ticket whose root cause *was* an orphan](tasks/124_find-orphans-cannot-answer-at-scale.md) | Agent-fit | done | 031, 057, 066, 119 |
@@ -93,8 +93,8 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 - **098 is `deferred` behind an evidence gate, not queued.** The demand is real and comes from the
   first production user, but the relation is that repository's shape, and a general server cannot
   spend schema every user inherits on **n = 1**. The gate is written into the ticket: a second
-  independent repo, zero cost when undeclared, a cheaper alternative rejected in writing. **120** is
-  held to the same discipline — its naive attribution was wrong by 5.7× and its need is still n = 1.
+  independent repo, zero cost when undeclared, a cheaper alternative rejected in writing. **120**
+  shipped after maintainer ratification of the evidence gate (anchor monorepo, n = 1).
 - **104 stays `blocked` because 105 superseded its approach** (dominant subtree elected by graph mass,
   not file count — proven on the three pinned repos), not because it waits on anything. Its AC2 names
   the anchor monorepo, and three public repos are not that repo.

@@ -33,6 +33,7 @@ from code_atlas.tools import (
     reachable_from,
     read_symbol,
     search_symbol,
+    subtree_dependencies,
 )
 from code_atlas.tools.schema_guard import guard
 
@@ -51,6 +52,7 @@ TOOL_NAMES: tuple[str, ...] = (
     find_view_data.NAME,
     include_graph.NAME,
     impact.NAME,
+    subtree_dependencies.NAME,
     reachable_from.NAME,
     find_orphans.NAME,
     explain_path.NAME,
@@ -100,6 +102,8 @@ def build_server(
         server.tool(guard(include_graph.create(config)))
     if impact.NAME in names:
         server.tool(guard(impact.create(config)))
+    if subtree_dependencies.NAME in names:
+        server.tool(guard(subtree_dependencies.create(config)))
     if reachable_from.NAME in names:
         server.tool(guard(reachable_from.create(config)))
     if find_orphans.NAME in names:

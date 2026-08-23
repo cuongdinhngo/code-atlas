@@ -29,7 +29,7 @@ def core_modules() -> list[Path]:
 
 def test_the_guard_has_something_to_check() -> None:
     # Guards the guard: an empty module list or an empty store would pass every check vacuously.
-    assert len(core_modules()) == 60  # +1: build_info.py (task 125)
+    assert len(core_modules()) == 61  # +1: subtree_dependencies.py (task 120)
     assert len((CORE / STORE).read_text(encoding="utf-8").splitlines()) > 50
 
 

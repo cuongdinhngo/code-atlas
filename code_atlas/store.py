@@ -163,6 +163,37 @@ class OrphanResult(NamedTuple):
     walk_truncated: bool
 
 
+class SubtreeTierAttribution(NamedTuple):
+    """Attributable vs duplicate-declaration counts for one confidence tier (task 120)."""
+
+    attributable: int
+    unattributable: int
+
+
+class SubtreeCrossingReport(NamedTuple):
+    """One direction of subtree crossing: tier split plus ranked file/path lists.
+
+    A counts-only direction leaves both lists empty and both totals ``0`` — see
+    ``GraphStore.subtree_dependency_report``, which asks for lists in one direction only.
+    """
+
+    by_tier: dict[str, SubtreeTierAttribution]
+    ranked_files: list[Row]
+    ranked_paths: list[Row]
+    file_total: int
+    path_total: int
+
+
+class SubtreeDependencyResult(NamedTuple):
+    """Tree-to-tree dependency with duplicate-declaration attribution (task 120)."""
+
+    inbound: SubtreeCrossingReport
+    outbound: SubtreeCrossingReport
+    dynamic_bridges: list[Row]
+    bridge_total: int
+    lists_truncated: bool
+
+
 class DeltaScope(NamedTuple):
     """What one incremental could have changed the resolve answer for (task 096).
 
@@ -1684,6 +1715,241 @@ class GraphStore:
             conn.execute("DROP TABLE IF EXISTS temp.reach_excluded")
             self._reach_drop_temps()
 
+    def subtree_dependency_report(
+        self,
+        subtree: str,
+        *,
+        counterpart: str | None = None,
+        max_list: int,
+    ) -> SubtreeDependencyResult:
+        """Crossing edges at subtree grain with duplicate-declaration attribution (task 120).
+
+        Inbound: sources outside ``subtree`` targeting symbols declared under it. Outbound: the
+        reverse. Each edge is ``attributable`` when its target qname is declared only on one side
+        of the boundary, ``unattributable`` when both sides declare it. Tier is never flattened.
+        ``dynamic_bridges`` lists files whose only link is ``DYNAMIC`` — alias bridges with no
+        static edge. Ranked lists cap at ``max_list``; totals are over the full graph (R4.3).
+        Only ``inbound`` carries lists — the ticket asks for the dependent files outside and the
+        depended-on paths inside; ``outbound`` is counts-only, so its lists stay empty.
+        """
+        if max_list < 1:
+            raise ValueError(f"max_list must be >= 1, got {max_list}")
+        subtree_clause, subtree_params = _path_under(subtree, "path")
+        inbound = self._subtree_crossing(
+            source_outside=subtree_clause,
+            source_params=subtree_params,
+            target_inside=subtree_clause,
+            target_params=subtree_params,
+            counterpart=counterpart,
+            counterpart_on="source",
+            max_list=max_list,
+        )
+        outbound = self._subtree_crossing(
+            source_outside=subtree_clause,
+            source_params=subtree_params,
+            target_inside=subtree_clause,
+            target_params=subtree_params,
+            counterpart=counterpart,
+            counterpart_on="target",
+            inbound=False,
+            with_lists=False,
+            max_list=max_list,
+        )
+        bridges, bridge_total = self._subtree_dynamic_bridges(
+            subtree_clause, subtree_params, max_list
+        )
+        lists_truncated = (
+            inbound.file_total > max_list
+            or inbound.path_total > max_list
+            or bridge_total > max_list
+        )
+        return SubtreeDependencyResult(
+            inbound, outbound, bridges, bridge_total, lists_truncated
+        )
+
+    def _subtree_crossing(
+        self,
+        *,
+        source_outside: str,
+        source_params: tuple[str, ...],
+        target_inside: str,
+        target_params: tuple[str, ...],
+        counterpart: str | None,
+        counterpart_on: str,
+        inbound: bool = True,
+        with_lists: bool = True,
+        max_list: int,
+    ) -> SubtreeCrossingReport:
+        """One crossing direction: tier×attribution counts, plus ranked lists when asked.
+
+        ``with_lists=False`` skips the four list/total aggregates — four whole-table scans a
+        caller that never reads them should not pay for (AC5).
+        """
+        st_under = target_inside.replace("path", "n.file_path")
+        st_under_n2 = target_inside.replace("path", "n2.file_path")
+        st_under_e = source_outside.replace("path", "e.file_path")
+        where_params: list[object] = list(source_params)
+        if inbound:
+            source_filter = f"NOT ({st_under_e})"
+            target_exists = (
+                "EXISTS (SELECT 1 FROM nodes n "
+                f"WHERE n.qualified_name = e.target_qname AND ({st_under}))"
+            )
+            where_params.extend(target_params)
+            attrib_outside = (
+                "EXISTS (SELECT 1 FROM nodes n2 "
+                "WHERE n2.qualified_name = e.target_qname "
+                f"AND NOT ({st_under_n2}))"
+            )
+            path_join = (
+                "JOIN nodes n ON n.qualified_name = e.target_qname "
+                f"AND ({st_under})"
+            )
+            path_params_base = list(target_params)
+        else:
+            source_filter = f"({st_under_e})"
+            target_exists = (
+                "EXISTS (SELECT 1 FROM nodes n "
+                f"WHERE n.qualified_name = e.target_qname AND NOT ({st_under}))"
+            )
+            where_params.extend(target_params)
+            attrib_outside = (
+                "EXISTS (SELECT 1 FROM nodes n2 "
+                "WHERE n2.qualified_name = e.target_qname "
+                f"AND ({st_under_n2}))"
+            )
+            path_join = (
+                "JOIN nodes n ON n.qualified_name = e.target_qname "
+                f"AND NOT ({st_under})"
+            )
+            path_params_base = list(target_params)
+        counterpart_filter = ""
+        cp_path_params: list[str] = []
+        if counterpart:
+            cp_clause, cp_params = _path_under(counterpart, "path")
+            cp_path_params = list(cp_params)
+            if counterpart_on == "source":
+                counterpart_filter = (
+                    f" AND ({cp_clause.replace('path', 'e.file_path')})"
+                )
+                where_params.extend(cp_params)
+            else:
+                cp_node = cp_clause.replace("path", "nc.file_path")
+                counterpart_filter = (
+                    " AND EXISTS (SELECT 1 FROM nodes nc "
+                    f"WHERE nc.qualified_name = e.target_qname AND ({cp_node}))"
+                )
+                where_params.extend(cp_params)
+                path_join += f" AND ({cp_clause.replace('path', 'n.file_path')})"
+                path_params_base.extend(cp_path_params)
+        base_where = (
+            f"{source_filter} AND {target_exists} "
+            "AND e.target_qname IS NOT NULL AND e.target_qname != ''"
+            f"{counterpart_filter}"
+        )
+        bind_params: list[object] = [
+            _RESOLVED,
+            *target_params,
+            *source_params,
+            *target_params,
+        ]
+        if counterpart:
+            bind_params.extend(cp_path_params)
+        attrib_case = (
+            f"CASE WHEN {attrib_outside} THEN 'unattributable' ELSE 'attributable' END"
+        )
+        tier_sql = (
+            f"SELECT COALESCE(e.confidence_tier, ?) AS tier, {attrib_case} AS attribution, "
+            f"COUNT(*) FROM edges e WHERE {base_where} "
+            "GROUP BY tier, attribution ORDER BY tier, attribution"
+        )
+        by_tier: dict[str, SubtreeTierAttribution] = {}
+        for tier, attribution, count in self._conn.execute(
+            tier_sql, tuple(bind_params)
+        ):
+            bucket = by_tier.setdefault(
+                str(tier), SubtreeTierAttribution(0, 0)
+            )
+            if str(attribution) == "unattributable":
+                by_tier[str(tier)] = SubtreeTierAttribution(
+                    bucket.attributable, bucket.unattributable + int(count)
+                )
+            else:
+                by_tier[str(tier)] = SubtreeTierAttribution(
+                    bucket.attributable + int(count), bucket.unattributable
+                )
+        where_tuple = tuple(where_params)
+        if not with_lists:
+            return SubtreeCrossingReport(by_tier, [], [], 0, 0)
+        file_sql = (
+            "SELECT e.file_path AS path, COUNT(*) AS edges FROM edges e "
+            f"WHERE {base_where} GROUP BY e.file_path "
+            "ORDER BY edges DESC, path ASC LIMIT ?"
+        )
+        ranked_files = self._rows(
+            ("path", "edges"),
+            file_sql,
+            (*where_tuple, max_list),
+        )
+        file_total = int(
+            self._conn.execute(
+                f"SELECT COUNT(DISTINCT e.file_path) FROM edges e WHERE {base_where}",
+                where_tuple,
+            ).fetchone()[0]
+        )
+        path_sql = (
+            f"SELECT n.file_path AS path, COUNT(*) AS edges FROM edges e {path_join} "
+            f"WHERE {base_where} GROUP BY n.file_path "
+            "ORDER BY edges DESC, path ASC LIMIT ?"
+        )
+        path_query_params = tuple(path_params_base + list(where_params) + [max_list])
+        path_count_params = tuple(path_params_base + list(where_params))
+        ranked_paths = self._rows(
+            ("path", "edges"),
+            path_sql,
+            path_query_params,
+        )
+        path_total = int(
+            self._conn.execute(
+                f"SELECT COUNT(DISTINCT n.file_path) FROM edges e {path_join} "
+                f"WHERE {base_where}",
+                path_count_params,
+            ).fetchone()[0]
+        )
+        return SubtreeCrossingReport(
+            by_tier, ranked_files, ranked_paths, file_total, path_total
+        )
+
+    def _subtree_dynamic_bridges(
+        self, subtree_clause: str, subtree_params: tuple[str, ...], max_list: int
+    ) -> tuple[list[Row], int]:
+        """Files whose only link into ``subtree`` symbols is ``DYNAMIC`` (task 120 AC4)."""
+        target_inside = subtree_clause.replace("path", "n.file_path")
+        where = (
+            "e.confidence_tier = 'DYNAMIC' "
+            "AND e.target_qname IS NOT NULL AND e.target_qname != '' "
+            f"AND EXISTS (SELECT 1 FROM nodes n WHERE n.qualified_name = e.target_qname "
+            f"AND ({target_inside})) "
+            "AND NOT EXISTS ("
+            "  SELECT 1 FROM edges e2 WHERE e2.file_path = e.file_path "
+            "  AND e2.target_qname = e.target_qname AND e2.confidence_tier = ?"
+            ")"
+        )
+        params = (*subtree_params, _RESOLVED)
+        total = int(
+            self._conn.execute(
+                f"SELECT COUNT(DISTINCT e.file_path) FROM edges e WHERE {where}",
+                params,
+            ).fetchone()[0]
+        )
+        rows = self._rows(
+            ("path", "edges"),
+            f"SELECT e.file_path AS path, COUNT(*) AS edges FROM edges e WHERE {where} "
+            "GROUP BY e.file_path ORDER BY edges DESC, path ASC LIMIT ?",
+            (*params, max_list),
+        )
+        return rows, total
+
     def explain_path(
         self,
         from_qname: str,
@@ -2299,6 +2565,13 @@ def _grouped(
         present = tuple(field for field in fields if field in row)
         groups.setdefault(present, []).append(tuple(stored(row[field]) for field in present))
     return groups
+
+
+def _path_under(prefix: str, column: str) -> tuple[str, tuple[str, str]]:
+    """SQL predicate: ``column`` is the prefix or a path beneath it (task 120)."""
+    normalized = prefix if prefix.endswith("/") else f"{prefix}/"
+    bare = normalized.rstrip("/")
+    return f"({column} LIKE ? OR {column} = ?)", (f"{normalized}%", bare)
 
 
 def _narrow(

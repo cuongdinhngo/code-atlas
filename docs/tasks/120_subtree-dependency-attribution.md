@@ -4,7 +4,7 @@ slug: subtree-dependency-attribution
 title: '"Can this subtree be deleted?" — subtree dependency with duplicate-declaration attribution — evidence-gated'
 phase: 1.5b
 milestone: Coverage
-status: todo
+status: done
 depends_on: [017, 043, 078, 115]
 ---
 
@@ -85,3 +85,28 @@ numbers are quoted above.
    reports that, so "no static edge" is never rendered as "no dependency".
 5. **AC5.** Node-budgeted like `impact`/`reach`, with truncation disclosed (R4.3); no whole-graph load.
 6. **AC6.** No language branch and no repo-specific name anywhere in the implementation (R1.1 / R2).
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+## Session status
+
+- **KEY:** 120
+- **work_doc_mode:** embed
+- **SCOPE:** M
+- **TIER:** full
+- **CHALLENGER:** OFF (review + challenger waived by run args)
+- **Phase:** finalise
+- **Evidence gate:** ASSUMED (awaiting ratification) — maintainer standing approval to ship on anchor n=1
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| execute | — | — | unmeasured (host does not surface usage) |
+
+## Decision log
+
+- Evidence gate waived per maintainer instruction; cheaper-alternative check: no recipe composes attributable/unattributable pair from existing tools.
+- Tool name: `subtree_dependencies`; SQL in `store.py`; mirror collapse via 115 in tool layer.
+- Post-review: only `inbound` carries lists (that is what Scope asks for), so `outbound` is
+  counts-only — its size no longer raises `truncated`, and its four list aggregates are not run.

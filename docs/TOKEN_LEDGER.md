@@ -160,6 +160,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | 135 | 0 dispatch (no work doc); main-loop unmeasured. Two sample-tier clones (`symfony/demo`) and one pre-change re-run produced the before/after pair | [#156](https://github.com/cuongdinhngo/code-atlas/pull/156) |
 | 136 | 0 dispatch (no work doc); main-loop unmeasured. Three pinned clones indexed twice for the determinism check; also produced 137 | [#157](https://github.com/cuongdinhngo/code-atlas/pull/157) |
 | 133 | 0 dispatch (review + challenger waived by the run's args); main-loop unmeasured (host surfaces no usage block) | [#158](https://github.com/cuongdinhngo/code-atlas/pull/158) |
+| 120 | 0 dispatch (review + challenger waived by the run's args); main-loop unmeasured (host surfaces no usage block) | [#160](https://github.com/cuongdinhngo/code-atlas/pull/160) |
 
 **How 047–049 were measured.** One autonomous session, no per-task transcript: each row is the API
 calls between the previous commit and that task's own commit. The approximation runs one way — work

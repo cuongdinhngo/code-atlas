@@ -58,7 +58,7 @@ def register(server: FastMCP) -> None:
         )
 
     def which_tool(question: str = "") -> str:
-        """Which code-atlas tool answers a given question? A recognition map for all 17 tools."""
+        """Which code-atlas tool answers a given question? A recognition map for all 18 tools."""
         asked = f" You asked: {question}." if question.strip() else ""
         return (
             "Pick the code-atlas tool whose answer matches your question." + asked + " Map:\n"
@@ -73,6 +73,8 @@ def register(server: FastMCP) -> None:
             "- What variables a handler passes to its template -> find_view_data.\n"
             "- What a file includes / what includes it -> include_graph.\n"
             "- What breaks if I change this -> impact.\n"
+            "- Can this directory subtree be deleted — what crosses into/out of it "
+            "-> subtree_dependencies.\n"
             "- What is reachable from entry points / what is dead -> reachable_from.\n"
             "- Which symbols look unused -> find_orphans.\n"
             "- How does one symbol reach another -> explain_path.\n"

@@ -47,6 +47,7 @@ from code_atlas.tools.include_graph import NAME as INCLUDE
 from code_atlas.tools.reachable_from import NAME as REACHABLE
 from code_atlas.tools.read_symbol import NAME as READ
 from code_atlas.tools.search_symbol import NAME as SEARCH
+from code_atlas.tools.subtree_dependencies import NAME as SUBTREE_DEPS
 
 REPO = Path(__file__).resolve().parent.parent
 FAKE = REPO / "tests" / "fixtures" / "adapter" / "fake_adapter.py"
@@ -179,6 +180,7 @@ def test_the_proof_has_something_to_run() -> None:
         VIEW_DATA,
         INCLUDE,
         IMPACT,
+        SUBTREE_DEPS,
         REACHABLE,
         ORPHANS,
         EXPLAIN,
