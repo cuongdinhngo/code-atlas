@@ -51,7 +51,7 @@ jobs:
           CA_PHP_CMD: php ${{ github.workspace }}/adapters/php/index.php --server
         run: |
           python scripts/tokens_to_answer.py --samples \
-            --min-ratio 78 \
+            --min-ratio 55 \
             --report-out artifacts/tokens-to-answer-sample-report.json \
             --markdown artifacts/tokens-to-answer-sample.md \
             --notice

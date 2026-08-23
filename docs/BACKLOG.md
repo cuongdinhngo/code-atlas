@@ -44,7 +44,7 @@ what landed, and what it cost* — narrative rationale lives in those three.
 | 118 | [Onboarding — every module page says `Summary: (none)`, and the cause is the seam, not the repo](tasks/118_module-summary-seam-gets-empty-facts.md) | Phase 3 / M11 | todo | 085, 090, 107, 117 |
 | 119 | [Onboarding — the reachability split never says which signal produced each count](tasks/119_reachability-signal-provenance.md) | Phase 3 / M11 | done | 113, 116 |
 | 120 | ["Can this subtree be deleted?" — subtree dependency with duplicate-declaration attribution — evidence-gated](tasks/120_subtree-dependency-attribution.md) | Coverage | todo | 017, 043, 078, 115 |
-| 121 | [Phase 3 shipped without its own cost gate — the onboarding question-class was never added to the harness](tasks/121_onboarding-question-class-never-measured.md) | Measure | todo | 034, 045, 055, 086, 087, 088 |
+| 121 | [Phase 3 shipped without its own cost gate — the onboarding question-class was never added to the harness](tasks/121_onboarding-question-class-never-measured.md) | Measure | done | 034, 045, 055, 086, 087, 088 |
 | 122 | [075 normalised the leading backslash for three tools; four `find_*` tools still decline over it](tasks/122_exact-miss-shaping-discards-a-resolved-subject.md) | Agent-trust | done | 075, 076, 065, 093 |
 | 123 | [`file_outline` omitted the symbol under repair, reported `total_count: 10` for a 12-symbol file, and has no page 2](tasks/123_file-outline-total-count-is-the-page-length.md) | Agent-trust | done | 014, 057, 066, 067 |
 | 124 | [`find_orphans` blew the transport limit at 19k files, on the one ticket whose root cause *was* an orphan](tasks/124_find-orphans-cannot-answer-at-scale.md) | Agent-fit | done | 031, 057, 066, 119 |
@@ -52,6 +52,9 @@ what landed, and what it cost* — narrative rationale lives in those three.
 | 126 | [Onboarding — the map's search palette clusters into one subtree](tasks/126_search-palette-clusters-into-one-subtree.md) | Phase 3 / M11 | done | 067, 115, 116 |
 | 127 | [Onboarding — a caveat the dataset carries can vanish in the rendered map](tasks/127_caveats-drop-at-the-artifact-layer.md) | Phase 3 / M11 | done | 100, 112, 113, 116, 119 |
 | 128 | [TypeScript/JavaScript — M0 spike only, to answer §4.4 with evidence](tasks/128_typescript-adapter-m0-spike.md) | Phase 2 / M7 | todo | 012, 019 |
+| 129 | [`include_graph(imports)` is a silent zero for any namespaced file — the INCLUDES edge is anchored on the namespace](tasks/129_include_graph_imports-is-a-silent-zero-for-a-namespaced-file.md) | Agent-trust | todo | 121 |
+| 130 | [The `web_entry` bucket counts test controllers as web surface — half the count on a canonical repo](tasks/130_web-entry-bucket-counts-test-controllers.md) | Phase 3 / M11 | todo | 113, 119, 121 |
+| 131 | [`guided_tour`'s first five stops are lint and bootstrap config, not the front controller](tasks/131_tour-ranks-configuration-ahead-of-the-front-controller.md) | Phase 3 / M11 | todo | 111, 121 |
 
 **Order (round-5 tickets):** ~~**092**~~ (done — an untracked file read as a non-existent symbol)
 **→ ~~093~~** (done — 092's route shape generalised to every `try_instead`) **→ ~~095~~**
@@ -88,8 +91,11 @@ first (the map's search palette clusters into one subtree — 067's defect besid
 exists to prevent it), then **127**, which is the guard that would have caught 126 and **closes
 [119](tasks/119_reachability-signal-provenance.md) in the same change** (119 is 127's one confirmed
 caveat drop; the review's other two instances were checked against this tree — the mirror caveat
-already renders, and the third is 126). **→ 121** next, and nothing about auto-generated docs or
-diagrams is scheduled until it returns a verdict: it is the phase's own cost gate, never run.
+already renders, and the third is 126). ~~**121**~~ next — **done 2026-08-23, and it returned a split verdict**: the class is cheaper than
+hand-mapping where the question is a lookup (12/12 correct, recall 1.0, fixture aggregate 0.29 → 0.789)
+and **wrong where the question is a reading order** on a canonical real repo. It produced **129 · 130 ·
+131** and narrowed the phase in §5 and §19. Auto-generated docs and diagrams stay unscheduled: a
+verdict of *"cheap and correct for lookups, wrong for orderings"* licenses neither.
 **128** (TS/JS M0 spike) is independent of all three and may run in parallel — as a *proposal* about
 §19's ordering, not a decision. **118** stays the hard prerequisite for auto-doc: the contract has no
 doc field, so a docblock cannot reach a summarizer, and that is a `contract_version` bump plus a
@@ -208,18 +214,23 @@ findings came out of reading it as a newcomer, and both are now tickets:
 subtree, so can it be deleted?" on the anchor took hand-written SQL, and the naive attribution was
 wrong by **5.7×** (23,086 vs 4,013 resolved `src → legacy` edges) because 22,282 symbols are
 declared in more than one file. Real need, **n = 1** — held to 098's discipline. **The phase's own
-cost gate never ran — 121.** [`PHASE3_ONBOARDING.md`](phase3-onboarding/PHASE3_ONBOARDING.md) §5
-gated the whole phase on an **onboarding question-class** in the tokens-to-answer harness (034/045)
-plus the recall gate (055), baselined against `grep`+`Read`.
-`scripts/tokens_to_answer_questions.json` holds **zero** onboarding questions. M10–M12 are complete;
-whether they beat hand-mapping on tokens is **unmeasured**, not won — the same exposure that made
-the founding search-speed premise false (§19), one phase later.
+cost gate has now run — ~~121~~, done 2026-08-23.**
+[`PHASE3_ONBOARDING.md`](phase3-onboarding/PHASE3_ONBOARDING.md) §5 gated the whole phase on an
+**onboarding question-class** in the tokens-to-answer harness (034/045) plus the recall gate (055),
+baselined against `grep`+`Read`, and for three milestones the file held **zero** onboarding questions.
+It now holds **twelve**, and the verdict is split: cheap and correct where the question is a lookup
+(12/12, recall 1.0, fixture aggregate 0.29 → 0.789; 1.58 / 1.34 / 1.01 on the fixture and 4.66 on
+`symfony/demo` where a fair grep baseline exists), **wrong where the question is a reading order** —
+`guided_tour`'s first five stops on `symfony/demo` are a lint config, two bootstrap configs and an
+importmap, front controller fifth. Numbers:
+[`benchmarks/121_onboarding-question-class.md`](benchmarks/121_onboarding-question-class.md); the
+narrowing is in §5 and §19; the defects are **129 · 130 · 131**.
 
 **Then:** round 6's payload-honesty tickets (**~~122~~ → ~~123~~ → ~~124~~ → ~~125~~**, all done) closed the
 mechanism tools an agent uses every ticket, and 122 is a defect that already cost a field session its
-tool. The two onboarding-quality tickets (118 · 119) close what the field measurement found; **121**
-decides whether Phase 3 is measured at all, and round 6 sharpened how (a newcomer's question-class, not
-a maintainer's). Phase 2 language breadth stays deferred per §19. 104 stays `blocked` because 105
+tool. The two onboarding-quality tickets (118 · 119) close what the field measurement found; ~~**121**~~
+decided whether Phase 3 is measured at all — it is, as a newcomer's question-class per round 6, and the
+answer was *"for lookups yes, for reading orders no"*. Phase 2 language breadth stays deferred per §19. 104 stays `blocked` because 105
 superseded its approach (graph mass, not file count), not because it is waiting on anything.
 
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
@@ -586,6 +597,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | 125 | **0 dispatch — no subagent was dispatched this run.** Run as `/mango:solve 125 with skipped review & Challenge`: review waived, challenger off. Main-loop **unmeasured (host does not surface usage)**. `server_identity()` names version + build; `get_index_status(standard)` exposes `server_version`/`server_build`; signed claims carry `server=`/`build=`; field-retro §0.a records the one-call protocol. Review added the `+dirty` marker (a modified checkout was answering under its clean commit's id) and made the content-hash test drive the shipped digest instead of a copy of it. Delta-green: **1725 → 1739 passed, 0 failed** (+14: 9 new tests, 2 from review, 2 count-pins + bookkeeping row; none removed), ruff clean, mypy clean. Runtime Dockerfile asserts build at image build | [#150](https://github.com/cuongdinhngo/code-atlas/pull/150) |
 | 126 | **0 dispatch — no subagent was dispatched this run.** Run as `/mango:solve 126 with skipped review & challenger`: review waived, challenger off, refine self-skipped (0 unresolved product-decisions). Main-loop **unmeasured (host does not surface usage)**. Ranking added inside the palette script only — no new section, no new dependency, cap unchanged. **Red run first:** 121 paths matched, 40 displayed, **40 of 40 from one subtree**, reproducing the reviewed anchor shape on a fixture; the harness gained the displayed rows and the rendered hint so the assertion is about what *rendered*, not what shipped. Representation is a **floor, not a quota** — round-robin was rejected at design because it would let a substring hit outrank a basename hit. Delta-green **1745 → 1749** (+4); `scripts/gate.sh` **GATE GREEN 12/12, 0 skipped**. | [#151](https://github.com/cuongdinhngo/code-atlas/pull/151) |
 | 127 | **0 dispatch — no subagent was dispatched this run.** Run as `/mango:solve 127 with skipped review & challenger`: review waived, challenger off. Main-loop **unmeasured (host does not surface usage)**. **Two of the review's three instances did not survive contact with the tree** — the mirror *paths, not bytes* caveat already renders twice, and the third is 126 — so the ticket ships with **one** confirmed drop and says so. `derive_caveats` walks the dataset payload for any section owning a `caveat` key (R6.7 — derived, not listed) and the guard asserts it is **rendered under `node`**, because the page embeds the whole dataset as JSON and a file-level check would be green forever. `DATASET_VERSION` 6 → 7. **Red run:** `['reachability']`. Delta-green **1749 → 1756** (+7); `scripts/gate.sh` **GATE GREEN 12/12, 0 skipped**. | [#151](https://github.com/cuongdinhngo/code-atlas/pull/151) |
+| 121 | **0 dispatch — no subagent was dispatched this run.** Main-loop **unmeasured (host does not surface usage)**. Standing approval per AGENTS.md; no mango phase dispatched a subagent. The spend was measurement, not code: a purpose-built ten-module fixture, twelve questions whose ground truth was read out of the source **by hand before the tools ran**, one `symfony/demo` clone at the pinned SHA, and three defects filed rather than fixed (**129 · 130 · 131**) because a tree you are editing measures nothing. **Red run first:** the guard failed 4/7 at HEAD — zero onboarding questions, the three onboarding tools unexercised, ineligible questions stating no reason, and the recall scorer returning `[]` for an onboarding-shaped answer (a false green). Floors recalibrated to `0.8 × observed`: fixture **0.27 → 0.63**, sample **78 → 55**. Delta-green **1756 → 1769** (+13: 7 guard tests, 6 from three new task files); `scripts/gate.sh` GATE GREEN. | [#152](https://github.com/cuongdinhngo/code-atlas/pull/152) |
 | 119 | **0 dispatch — closed inside 127's change** (its guard needed a first customer and this was it). Per-bucket `signals: {declared, vocabulary, structure}`, one `PatternClaim` per declared glob with `files_matched` beside `zero_inbound_claimed`, `DECLARATION_CAVEAT` riding on the split; classification, bucket order and the raw total moved by nothing (AC1), a dropped bucket stays dropped (AC4), no judgment shipped (AC6, asserted). **AC2 met in restated form and the deviation recorded:** its figures (341 = 93 + 248, 901 = 653 + 248) are anchor measurements and the anchor is not on this host, so the assertion became the arithmetic — **the anchor figures remain unverified here**, closable by `scripts/reachability_report.py` against the anchor (the 108/112–117 pattern). | [#151](https://github.com/cuongdinhngo/code-atlas/pull/151) |
 
 **How 047–049 were measured.** One autonomous session, no per-task transcript: each row is the API

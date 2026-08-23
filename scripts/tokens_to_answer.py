@@ -40,11 +40,14 @@ from code_atlas.indexer import full_build  # noqa: E402
 from code_atlas.store import GraphStore  # noqa: E402
 from code_atlas.tokens import estimate_tokens  # noqa: E402 — one definition site (099)
 from code_atlas.tools import (  # noqa: E402
+    architecture_overview,
     find_callers,
     find_implementations,
     find_orphans,
     find_references,
+    generate_onboarding,
     get_index_status,
+    guided_tour,
     impact,
     include_graph,
     reachable_from,
@@ -63,6 +66,9 @@ _DEFAULT_PHP = shlex.join(["php", str(_REPO / "adapters" / "php" / "index.php"),
 # The tools a recipe may call, bound per repo. get_index_status needs the servable names.
 _TOOL_NAMES = (
     get_index_status.NAME,
+    architecture_overview.NAME,
+    guided_tour.NAME,
+    generate_onboarding.NAME,
     search_symbol.NAME,
     read_symbol.NAME,
     find_callers.NAME,
@@ -120,6 +126,9 @@ def bind_tools(config: Config) -> dict[str, Callable[..., dict[str, object]]]:
         impact.NAME: impact.create(config),
         reachable_from.NAME: reachable_from.create(config),
         find_orphans.NAME: find_orphans.create(config),
+        architecture_overview.NAME: architecture_overview.create(config),
+        guided_tour.NAME: guided_tour.create(config),
+        generate_onboarding.NAME: generate_onboarding.create(config),
     }
 
 
@@ -174,37 +183,49 @@ def _mcp_responses(responses: list[dict[str, object]]) -> list[dict[str, object]
     ]
 
 
+# Fields a payload uses as an IDENTITY (matched exactly, so a child like ``\\Dead\\Unused``
+# cannot satisfy a parent ``\\Dead``) and the free-text fields where body evidence may appear as
+# a substring. An onboarding answer keys its members on ``layer`` / ``module`` / ``pattern``
+# rather than on a qname, so recall must know those names too (121).
+IDENTITY_FIELDS = ("qname", "path", "qualified_name", "file", "layer", "module", "pattern")
+FREE_TEXT_FIELDS = ("source", "snippet", "body")
+
+
+def _collect_answer_text(
+    payload: object, identities: set[str], free_text: list[str]
+) -> None:
+    """Walk a whole MCP payload, not only its ``results`` list.
+
+    An onboarding answer carries its members under ``modules``, or nested inside ``summary``,
+    so a scorer that reads one known key scores 0 there and the recall gate silently measures
+    nothing — a false green (121). Recursing derives the collection instead of naming it.
+    """
+    if isinstance(payload, dict):
+        for key, value in payload.items():
+            if isinstance(value, str) and value:
+                if key in IDENTITY_FIELDS:
+                    identities.add(value)
+                elif key in FREE_TEXT_FIELDS:
+                    free_text.append(value)
+                continue
+            _collect_answer_text(value, identities, free_text)
+        return
+    if isinstance(payload, (list, tuple)):
+        for item in payload:
+            if isinstance(item, str):
+                free_text.append(item)
+            else:
+                _collect_answer_text(item, identities, free_text)
+
+
 def found_expected_members(
     responses: list[dict[str, object]], expected_set: list[str]
 ) -> list[str]:
-    """Members of ``expected_set`` found in MCP answers (not native grep/read text).
-
-    Identity fields (``qname`` / ``path`` / …) match exactly so a child like
-    ``\\Dead\\Unused`` cannot satisfy a parent ``\\Dead``. Free-text fields
-    (``source`` / snippets) still allow substring matches for body evidence.
-    """
+    """Members of ``expected_set`` found in MCP answers (not native grep/read text)."""
     identities: set[str] = set()
     free_text: list[str] = []
-
-    def absorb(obj: dict[str, object]) -> None:
-        for key in ("qname", "path", "qualified_name", "file"):
-            val = obj.get(key)
-            if isinstance(val, str) and val:
-                identities.add(val)
-        for key in ("source", "snippet", "body"):
-            val = obj.get(key)
-            if isinstance(val, str) and val:
-                free_text.append(val)
-
     for response in _mcp_responses(responses):
-        absorb(response)
-        raw = response.get("results")
-        items = raw if isinstance(raw, list) else []
-        for item in items:
-            if isinstance(item, dict):
-                absorb(item)  # type: ignore[arg-type]
-            elif isinstance(item, str):
-                free_text.append(item)
+        _collect_answer_text(response, identities, free_text)
     return [
         member
         for member in expected_set
@@ -366,6 +387,9 @@ def evaluate_question(config: Config, question: dict[str, Any]) -> dict[str, Any
         "tier": str(question.get("tier", "named")),
         "answer_reached": atlas_correct,
     }
+    if not ratio_eligible:
+        # AC3: an excluded question must say why, in the artifact, not only in the question file.
+        row["ratio_note"] = str(question.get("ratio_note", "no fair grep+Read baseline"))
     expected_set = question.get("expected_set")
     if expected_set is not None:
         row.update(score_recall(atlas_responses, [str(s) for s in expected_set]))

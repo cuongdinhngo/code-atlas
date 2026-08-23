@@ -125,15 +125,32 @@ path is proven and measured.
 
 ## 5. How we'll know it earned its cost
 
-> **Unmet, and saying so is the point.** This section specified the gate — an **onboarding
-> question-class** in the tokens-to-answer harness (034/045) plus the recall gate (055), baselined
-> against `grep`+`Read` — and **it was never added**: `scripts/tokens_to_answer_questions.json` holds no
-> onboarding question today. M10–M12 shipped on a different kind of evidence: a human read the emitted
-> artifact and found nine specific defects, which became 108–117, and field measurement on the anchor
-> found two more (118 · 119). That is real evidence of *defects fixed*; it is not evidence that the
-> phase **beat hand-mapping on tokens**, which is what this section promised to measure. Tracked as
-> **121** — and per the §19 discipline, the honest reading until it runs is that the onboarding
-> question-class is **unmeasured**, not won.
+> **Measured on 2026-08-23 (task 121), and it is a split verdict.** This section specified the gate —
+> an **onboarding question-class** in the tokens-to-answer harness (034/045) plus the recall gate
+> (055), baselined against `grep`+`Read` — and for three milestones it was never added. It now holds
+> **twelve** questions (`tier: onboarding`): ten on the committed fixture
+> `tests/fixtures/php/onboarding`, two on the pinned `symfony/demo`, every ground truth read out of
+> the source by hand before the tools ran. Numbers, both halves:
+> [`../benchmarks/121_onboarding-question-class.md`](../benchmarks/121_onboarding-question-class.md).
+>
+> **Earned:** 12/12 correct, recall 1.0, `confidently_wrong` 0; **1.58 / 1.34 / 1.01** on the fixture
+> and **4.66** on `symfony/demo` for the three questions a grep baseline can fairly answer, moving the
+> fixture aggregate 0.29 → **0.789**. Nine questions have no fair baseline and each states why rather
+> than carrying an invented one.
+>
+> **Not earned — and this section promised to say so:** on a canonical real repo the **reading order
+> is wrong**. `guided_tour`'s first five stops on `symfony/demo` are a lint config, two bootstrap
+> configs and an importmap; the front controller is fifth (**1 of 5** against the hand answer). The
+> `web_entry` count calls 8 files the web surface when 4 are test controllers. Tickets
+> [131](../tasks/131_tour-ranks-configuration-ahead-of-the-front-controller.md),
+> [130](../tasks/130_web-entry-bucket-counts-test-controllers.md), and
+> [129](../tasks/129_include_graph_imports-is-a-silent-zero-for-a-namespaced-file.md) (a silent zero
+> found while establishing ground truth).
+>
+> **Scope narrowed accordingly**, per this section's own instruction: the onboarding layer is measured
+> as a **navigation and provenance aid — which files, which layer, what depends on this, which
+> declaration claimed that count — not as a reading order.** `guided_tour`'s ordering claim is a
+> ticket, not a foundation. Auto-generated docs and diagrams stay behind that line and behind 118.
 
 Gate the phase on the harness, not on vibes. Add an **onboarding question-class** to the
 tokens-to-answer harness (034/045) and the recall gate (055). Baseline = `grep`+`Read` with an agent
@@ -142,6 +159,13 @@ building the map by hand.
 Questions: *"top-level layers & their dependencies?"* · *"entry point + first 5 things to read?"* ·
 *"what depends on module X?"* If the tools do not beat hand-mapping on this class, say so in writing
 and narrow the scope.
+
+**All three shipped as questions, and the middle one is the one that failed** — which is why the
+narrowing above is written in this section rather than argued away. The class also runs seven shapes
+§5 did not name (dead code, feature files, request entry, declared-entry provenance, the committable
+map, naming debt, blast radius); the two shapes no committed tier can measure — mirror subtrees and a
+named business screen on a tree nobody can hold in their head — ship as a **local-tier template** in
+[`../runbooks/tokens-to-answer.md`](../runbooks/tokens-to-answer.md) for an operator with such a repo.
 
 ## 6. Risks & sequencing
 

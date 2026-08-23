@@ -29,10 +29,10 @@ and the honest move on a new sighting is to bump `seen:`, not to write a fresh c
 
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
-| `derived-not-listed-invariant` | 12 | 087–088, 093, 095–097, 099–102, 122, 127 | **R6.7** |
-| `prove-the-guard-fails` | 9 | 087–089, 093, 096, 099–101, 122 | **R6.5** |
+| `derived-not-listed-invariant` | 13 | 087–088, 093, 095–097, 099–102, 121, 122, 127 | **R6.7** |
+| `prove-the-guard-fails` | 10 | 087–089, 093, 096, 099–101, 121, 122 | **R6.5** |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | open — **rejected at rec 3; that verdict is stale** |
-| `fixture-shape-begs-the-question` | 6 | 084, 086, 103–106 | open — never proposed |
+| `fixture-shape-begs-the-question` | 7 | 084, 086, 103–106, 121 | open — never proposed |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
 | `count-pin-in-blast-radius` | 4 | 085, 087–089 | open — never proposed |
 | `source-the-caveat-from-the-computation` | 5 | 100–102, 122, 127 | **R5.5** |
@@ -49,10 +49,66 @@ and the honest move on a new sighting is to bump `seen:`, not to write a fresh c
 | `skip-dynamic-means-unlinkable` | 2 | 094, 096 | open — rejected 2026-08-15 (2nd sighting bound a design) |
 
 **Four classes are overdue.** `do-not-attest-past-the-payloads-resolution` (7),
-`fixture-shape-begs-the-question` (6), `count-pin-in-blast-radius` (4) and
+`fixture-shape-begs-the-question` (7), `count-pin-in-blast-radius` (4) and
 `re-verify-the-assumption-on-a-new-path` (3) all clear the recurrence gate and none has ever been
 proposed — because their sightings were split across ids, which is `PROM-C1`'s under-count recurring
 one level up.
+
+## 121 — A gate nobody could run reads exactly like a gate nobody got round to
+`PHASE3_ONBOARDING.md` §5 gated the whole onboarding phase on an onboarding question-class in the
+tokens-to-answer harness. Three milestones shipped and the file held zero of them, which the backlog
+recorded as *not yet done*. The actual blocker was one line: `bind_tools` never bound
+`architecture_overview`, `guided_tour` or `generate_onboarding`, so **no onboarding question could have
+been written and run at all** — the recipe vocabulary had no word for the subject. "Unmeasured" was
+carrying "unmeasurable with what we built", and nothing in the plan distinguished them.
+
+The second half is the same shape one layer in. Once the questions ran, the recall gate scored **0**
+on every onboarding answer, because `found_expected_members` read identities from `results` and an
+onboarding answer keys its members on `layer` / `module` / `pattern`, under `modules` or nested in
+`summary`. With a shorter `expected_set` that would have been a **green gate that measured nothing** —
+the 127 lesson (assert the rendered output, not the shipped bytes) with a scorer in place of a renderer.
+
+And the verdict itself is the useful artifact, in the direction nobody plans for: the class is cheap and
+correct where the question is a lookup, and **wrong** where it is a reading order — `guided_tour`'s
+first five stops on `symfony/demo` are a lint config, two bootstrap configs and an importmap. §5 had
+promised, in writing, to narrow the scope if that happened, and that promise is the only reason the
+narrowing was cheap to make.
+
+### 121-C1 — A measurement deferred may be a measurement whose instrument cannot address its subject
+- type: 2 generalisable-heuristic
+- handle: instrument-cannot-address-its-subject
+- status: proposed (awaiting human confirm)
+- seen: 121
+- evidence: §5 named this gate for three milestones and the harness could not bind any of the three
+  tools it was meant to measure; the backlog read this as unfinished work, not as an unrunnable gate
+- area: benchmarks / harness / planning
+- destination: stays in `lessons_path` until a second sighting — one occurrence, and the check it
+  implies (before scheduling a measurement, confirm the harness can address the subject) is cheap
+  enough to state without a rule
+
+### 121-C2 — Recall and cost cannot see precision: an over-inclusive answer scores 1.0
+- type: 2 generalisable-heuristic
+- handle: recall-and-cost-cannot-see-precision
+- status: proposed (awaiting human confirm)
+- seen: 121
+- evidence: the `web_entry` bucket calls 8 files the web surface on `symfony/demo` when 4 are
+  `tests/Controller/*Test.php` (ticket 130). Every hand-established member is present, so recall is
+  1.0, `confidently_wrong` is 0 and the cost ratio is unaffected — the harness scores a wrong answer
+  as a perfect one, by construction
+- area: benchmarks / payload honesty
+- destination: stays in `lessons_path` — recorded as a **named gap in the instrument** in
+  `docs/benchmarks/121_onboarding-question-class.md`; a precision metric is a ticket, not a rule
+
+### 121-C3 — new sightings of existing classes, recorded as `seen:` bumps
+`derived-not-listed-invariant` (rec 12 → **13**, already **R6.7**) gains 121: the recall scorer now
+recurses the payload and derives the collection its members live in instead of naming `results`.
+`prove-the-guard-fails` (rec 9 → **10**, already **R6.5**) gains 121: the guard was run at `HEAD` in a
+scratch worktree first and failed **4 of 7** — no class, three tools unexercised, no stated exclusions,
+and the recall scorer returning `[]`. `fixture-shape-begs-the-question` (rec 6 → **7**, still never
+proposed) gains its sharpest sighting yet: the committed fixtures are 2–4 flat files, so an onboarding
+question asked against them gets a degenerate answer — one layer, no hub, no declaration — and the
+measurement would have flattered the tool while locking in nothing. That handle is now at recurrence 7
+with no rule proposed.
 
 ## 126/127 — A guard that reads the shipped file instead of the rendered output is green forever
 The onboarding page embeds its whole dataset as a JSON block, so `caveat in html` is true for every

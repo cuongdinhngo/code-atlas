@@ -298,9 +298,13 @@ def test_questions_file_is_well_formed() -> None:
             if q.get("expected_set") is not None:
                 assert q["expected_set"], f"{q['id']}: empty expected_set is not a complete set"
         elif source == "sample":
-            # A sample row names a pin in cross_repo_samples.json and states a grep evidence hit.
+            # A sample row names a pin in cross_repo_samples.json; a row with a grep baseline states
+            # the evidence that baseline must surface, and a row without one says why (121).
             assert q["sample"] in pins, f"{q['id']} names unknown pin {q.get('sample')!r}"
-            assert q["grep_evidence"], f"sample {q['id']} needs grep_evidence"
+            if q.get("grep"):
+                assert q["grep_evidence"], f"sample {q['id']} needs grep_evidence"
+            else:
+                assert q.get("ratio_note"), f"sample {q['id']} has no baseline and states no reason"
         else:
             # Task 045: a `local` row names somebody's machine, so it never lands in this repo.
             raise AssertionError(f"{q['id']}: unexpected source {source!r} in the committed set")

@@ -20,7 +20,7 @@ Deterministic by design: each question is a **fixed recipe**, not a live model
 ```bash
 export CA_PHP_CMD="php $(pwd)/adapters/php/index.php --server"
 python3 scripts/tokens_to_answer.py                              # report only
-python3 scripts/tokens_to_answer.py --min-ratio 0.27 --min-recall 1.0  # CI gates
+python3 scripts/tokens_to_answer.py --min-ratio 0.63 --min-recall 1.0  # CI gates
 ```
 
 The report lands under `artifacts/` (gitignored). The pure-Python gate tests
@@ -30,7 +30,7 @@ The report lands under `artifacts/` (gitignored). The pure-Python gate tests
 ## Automatic gate (every PR)
 
 The `test` job in [`ci.yml`](../../.github/workflows/ci.yml) runs
-`python scripts/tokens_to_answer.py --min-ratio 0.27 --min-recall 1.0 --markdown … --notice` on every
+`python scripts/tokens_to_answer.py --min-ratio 0.63 --min-recall 1.0 --markdown … --notice` on every
 PR — it fails on a wrong answer, a recall miss / `confidently_wrong`, or if the ratio regresses. It
 runs on **3.13 only** (a token count does not vary by interpreter) and reports in four places, so
 nobody has to open a log:
@@ -48,11 +48,13 @@ to be visible, so `--markdown` / `--notice` are written before the exit code is 
 `permissions: pull-requests: write` on the job and is `continue-on-error` because a fork PR gets a
 read-only token.
 
-**The floor is a behavior-lock, not the value claim.** The committed fixtures are 4-file toy repos
-where `get_index_status` overhead makes code-atlas *cost more* than reading one tiny file (observed
-ratio ≈ **0.288**: 1666 vs 479 tokens over 10 questions, all answered correctly). The token win
-(ratio ≫ 1) appears only on realistic repos, where grep matches many files an agent must read whole
-— that is the **sample tier**, measured on schedule, not per PR.
+**The floor is a behavior-lock, not the value claim.** Most committed fixtures are 4-file toy repos
+where `get_index_status` overhead makes code-atlas *cost more* than reading one tiny file: the named
+questions alone measured ≈ **0.288** (1666 vs 479 tokens over 10 questions, all correct). The
+**onboarding class** (task 121) raised the fixture aggregate to **0.789** over 13 ratio-eligible
+questions, because its questions are the first fixture-tier questions that make grep read more than one
+file. The full token win (ratio ≫ 1) still appears only on realistic repos — that is the **sample
+tier**, measured on schedule, not per PR.
 
 ## Local tier (a repo already on disk) — task 045
 
@@ -91,6 +93,61 @@ One caveat before trusting a local ratio: `run_grep_path` models grep as "scan t
 every matched file whole", and it walks the **whole** tree per question — ignore rules do not apply,
 because a real agent's grep sees those files too. It is bounded in memory (at most `max_read_files`
 bodies at a time) but still O(repo) in time, so expect seconds per question on a repo-sized tree.
+
+### Onboarding class on a repo of your own (local tier)
+
+The two shapes the committed tiers **cannot** measure are the two a large legacy monorepo has most of:
+*"does this feature exist on both mirror subtrees, or only one?"* (a mirror pair needs 25 shared
+relative paths before it is reported, so no toy fixture can carry one and neither pinned sample has one)
+and *"which files implement the &lt;named business screen&gt;?"* on a tree nobody can hold in their head.
+Run those where such a tree exists, with this template — **kept outside this repository**, because every
+line of it names someone's code:
+
+```json
+{"questions": [
+  {"id": "onb_local_layers", "source": "local", "root": "/abs/path/to/your-repo",
+   "tier": "onboarding", "ratio_eligible": false,
+   "ratio_note": "grep+Read cannot produce a layering.",
+   "question": "What are this codebase's top-level layers, and how do they depend on each other?",
+   "atlas_path": [{"tool": "architecture_overview", "args": {"detail_level": "standard"}}],
+   "expected": ["<a layer name you verified by hand>"],
+   "expected_set": ["<every layer you expect>", "..."]},
+
+  {"id": "onb_local_mirror", "source": "local", "root": "/abs/path/to/your-repo",
+   "tier": "onboarding",
+   "question": "Does <feature> exist on both mirror subtrees, or only one?",
+   "atlas_path": [{"tool": "architecture_overview", "args": {"detail_level": "standard"}},
+                  {"tool": "search_symbol", "args": {"query": "<feature>", "detail_level": "minimal"}}],
+   "grep": {"pattern": "<feature>", "globs": ["*.php"], "max_read_files": 20},
+   "expected": ["<the path on side A>", "<the path on side B, or the one you proved absent>"],
+   "expected_set": ["<complete, established by hand first>"],
+   "grep_evidence": ["<a line grep must surface>"]},
+
+  {"id": "onb_local_screen", "source": "local", "root": "/abs/path/to/your-repo",
+   "tier": "onboarding",
+   "question": "Which files implement the <named business screen>?",
+   "atlas_path": [{"tool": "search_symbol", "args": {"query": "<screen>", "detail_level": "minimal"}}],
+   "grep": {"pattern": "<screen>", "globs": ["*.php"], "max_read_files": 20},
+   "expected": ["<a qname you verified by hand>"],
+   "expected_set": ["<complete, established by hand first>"],
+   "grep_evidence": ["<a line grep must surface>"]}
+]}
+```
+
+```bash
+export CA_PHP_CMD="php $(pwd)/adapters/php/index.php --server"
+python scripts/tokens_to_answer.py --local --questions /abs/path/outside/this/repo/onboarding.json
+# rows land in artifacts/tokens-to-answer-local-report.json — per question, not just the aggregate
+```
+
+Three rules, or the numbers are worthless:
+
+1. **Establish every ground truth by hand, written down before the tools run.** Do not let the map
+   define its own correct answer — that is the one failure mode this measurement cannot recover from.
+2. **Do not include `generate_onboarding`.** It writes `docs/onboarding/` into the tree it is pointed
+   at; the committed fixture tier measures it on an isolated copy for exactly that reason.
+3. **Report per question, not the aggregate.** An average hides the case where the map wins big on two
+   and loses on six — which is precisely what happened on `symfony/demo`.
 
 ### First local-tier measurement
 
@@ -132,7 +189,7 @@ carries. A tool returning ten duplicates and a tool returning ten distinct answe
 
 Treat the ratio as a **cost** measure, not a quality measure. **Recall is the gate; cost is the win.**
 A cheaper answer that finds less of a known ground-truth set is a regression — CI enforces that with
-`--min-recall 1.0` on the fixture tier alongside `--min-ratio 0.27`.
+`--min-recall 1.0` on the fixture tier alongside `--min-ratio 0.63`.
 
 - **`expected_set`** — complete hand-written ground truth; the harness reports `recall`, `found`,
   `missing`.
@@ -199,9 +256,32 @@ Each entry is one agent question with a **known** correct answer plus the recipe
 | `grep` | baseline search: `{pattern, globs?, max_read_files?}` |
 | `expected` | substrings that MUST appear in the code-atlas responses |
 | `grep_evidence` | substrings that must appear in what grep+`Read` surfaces (defaults to `expected`) |
+| `expected_set` | the **complete** ground-truth set, so 055's recall gate scores the answer |
+| `tier` | question class — `named` (default), `whole_graph`, `symptom`, `onboarding` |
+| `ratio_eligible` | `false` when no fair grep baseline exists |
+| `ratio_note` | **required** whenever the question is out of the ratio: why, in one sentence. It reaches the report row, so the artifact carries the reason too |
 
 State an answer you can verify exactly — `expected` is the falsifiable check, not "looks
 plausible". Prefer symbols already asserted by other tests so the ground truth stays grounded.
+
+## Onboarding class (task 121)
+
+`PHASE3_ONBOARDING.md` §5 gated the whole onboarding phase on an onboarding question-class here plus the
+recall gate, and for three milestones the file held **zero** of them. The class now exists: twelve
+questions tagged `tier: onboarding`, ten on the committed fixture `tests/fixtures/php/onboarding` and
+two on the pinned `symfony/demo`. It covers a newcomer's shapes — layers and their crossings, a reading
+order, what depends on a hub, what a change breaks, is this file dead, which files implement a feature,
+where a page is pulled in, which declaration produced a count, write me a committable map, and which
+paths name no responsibility at all.
+
+Nine of the twelve are **out of the cost ratio on purpose**: a layering, a reading order, a blast radius
+and a whole-graph negative are not things a grep pattern returns, and each says so in its `ratio_note`
+rather than carrying a baseline invented to flatter the comparison.
+
+**Read the verdict, both halves, in
+[`docs/benchmarks/121_onboarding-question-class.md`](../benchmarks/121_onboarding-question-class.md)** —
+the class is cheaper than hand-mapping where the question is a lookup, and **wrong** where the question
+is a reading order (tickets 129 · 130 · 131 came out of the run).
 
 ## Sample tier (pinned public repos) — the real value claim (task 042)
 
@@ -213,7 +293,11 @@ matches many files an agent must read whole while code-atlas returns the one res
 **Observed aggregate ratio: `98.2`** (grep `435,338` / code-atlas `4,433` tokens over 5 questions,
 5/5 answered correctly) — i.e. code-atlas is ~**98×** cheaper here. Per-question ratios range from
 `19.3` (symfony/demo `Post::getId` callers) to `147.4` (brick/math `BigInteger` references). This is
-the number the fixtures cannot show (there, grep wins on volume at ~0.29).
+the number the fixtures cannot show (there the aggregate is 0.789, and grep still wins on volume
+on the named questions). Adding task 121's two onboarding questions moved this aggregate to
+**69.06** — not a regression, but an aggregate now spanning two question classes: an onboarding
+lookup that makes grep read five files cannot show the ~100× that a `find_references` over a
+40-file tree shows.
 
 ### Reproduce
 
@@ -232,7 +316,7 @@ only — so the per-PR gate is untouched.
 ### Scheduled run
 
 [`.github/workflows/tokens-to-answer-sample.yml`](../../.github/workflows/tokens-to-answer-sample.yml)
-runs it on `workflow_dispatch` and weekly (Monday 06:30 UTC) with floor `78` (≈ `0.8 × observed`,
+runs it on `workflow_dispatch` and weekly (Monday 06:30 UTC) with floor `55` (≈ `0.8 × observed`,
 recalibrate from the first Linux run as with the fixture floor). Not per-PR: it needs a clone + PHP
 and is slower. On failure it opens/comments a `tokens-to-answer-sample` issue (scheduled logs are easy
 to miss).

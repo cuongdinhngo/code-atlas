@@ -31,7 +31,8 @@ Every number here is reproducible from a runbook in this repo.
 
 | What | Result | Where |
 |---|---|---|
-| Tokens to reach a resolved answer, vs grep-and-read | **~98× cheaper** on pinned public PHP repos (laravel / symfony / brick) | [`tokens-to-answer.md`](docs/runbooks/tokens-to-answer.md) |
+| Tokens to reach a resolved answer, vs grep-and-read | **~69× cheaper** across the whole question set on pinned public PHP repos (laravel / symfony / brick); **95–114×** on the relation queries alone | [`tokens-to-answer.md`](docs/runbooks/tokens-to-answer.md) |
+| The onboarding layer's own cost gate | **cheaper for lookups** (12/12 correct, recall 1.0) and **wrong for reading order** (1 of 5 on a canonical repo) | [`121_onboarding-question-class.md`](docs/benchmarks/121_onboarding-question-class.md) |
 | Cost of the *n*-th parallel agent | **~70 MB PSS**; the 925 MB index costs **0 MB** (page-cached, never mmapped) | [`parallel-agents.md`](docs/runbooks/parallel-agents.md) |
 | Five agents vs one | **4.3× throughput**, 1.3 % of RAM, zero `SQLITE_BUSY` reaching a caller | same |
 | No-op rebuild after 080 | **56.1 s → 2.113 s (26×)**, two no-ops byte-identical | §19 |

@@ -904,7 +904,7 @@ holds, reinforced by the unpriced cost of one muddier description (C3) and R1.2.
   need, **n = 1**. And **121** records that Phase 3's own cost gate never ran:
   `tokens_to_answer_questions.json` holds **zero** onboarding questions, so whether M10–M12 beat
   hand-mapping on tokens is **unmeasured, not won** — the same exposure that made the founding
-  premise false, one phase later.
+  premise false, one phase later. *(It ran on 2026-08-23; the split verdict is the 121 entry below.)*
 
 - **Field retro round 6 (2026-08-21) — four findings, all payload honesty, none a graph defect.** The
   round's own closing line is the finding: *"the graph knew everything I asked it; the failures were
@@ -934,6 +934,44 @@ holds, reinforced by the unpriced cost of one muddier description (C3) and R1.2.
   independent evidence for 121: five bug-fix tickets generated **zero** calls to the three onboarding
   tools, because onboarding answers a once-per-repo question and a ticket asks a once-per-ticket one
   — so 121 must measure a **newcomer**, not a maintainer, or it will fail for the wrong reason.
+
+- **Phase 3's own cost gate finally ran (2026-08-23; task 121) — it is a split verdict, and the losing
+  half narrows the phase.** `PHASE3_ONBOARDING.md` §5 gated the whole onboarding phase on an onboarding
+  question-class in the tokens-to-answer harness plus the recall gate, baselined against `grep`+`Read`.
+  It was never added: three milestones shipped and the file held **zero** onboarding questions. It now
+  holds **twelve** (`tier: onboarding`), ten on a committed fixture built for the shapes and two on the
+  pinned `symfony/demo`, every ground truth read out of the source **by hand before the tools ran**.
+  Full numbers: [`benchmarks/121_onboarding-question-class.md`](benchmarks/121_onboarding-question-class.md).
+  **The half that wins.** 12/12 correct, recall 1.0, `confidently_wrong` 0. The three questions with a
+  fair grep baseline come in at **1.58 / 1.34 / 1.01** on a ten-module fixture and **4.66** on
+  `symfony/demo` — and the fixture aggregate moved **0.29 → 0.789**, because onboarding questions are the
+  first fixture-tier questions that make grep read more than one file. Nine of the twelve have **no**
+  fair baseline and say so in a `ratio_note` that reaches the report row: a layering, a reading order, a
+  blast radius and a whole-graph negative are not things a pattern returns, and a baseline invented for
+  them would only flatter the comparison.
+  **The half that loses, which is the more useful half.** On a canonical real repo the map is *wrong*
+  where the question is a **reading order**: `guided_tour`'s first five stops on `symfony/demo` are a
+  lint config, two bootstrap configs and an importmap, with the front controller fifth — **1 of 5**
+  against the hand answer (131). And the `web_entry` bucket calls **8** files the web surface when 4 are
+  `tests/Controller/*Test.php`: the payload's `signals` says `vocabulary: 8` honestly, the label does
+  not (130). A third defect fell out of establishing ground truth: `include_graph(direction="imports")`
+  returns `results: []` **with `unresolved_includes: 0`** for any namespaced file, because the INCLUDES
+  edge is anchored on the namespace node — a silent zero on every file in a PSR-4 repo, invisible until
+  now because the only include fixture declares no namespace (129).
+  **So, narrowing, in §5's own terms.** The onboarding layer is **measured as a navigation and
+  provenance aid, not as a reading order**: what it earns its cost on is *which files, which layer, what
+  depends on this, which declaration claimed that count*. `guided_tour`'s ordering claim is **not
+  earned** and is now a ticket, not a feature to build on. Auto-generated documentation and diagrams
+  stay behind this line and behind **118** — the founding-premise mistake was building on an unmeasured
+  premise, and one measurement that says *"cheap and correct for lookups, wrong for orderings"* is not a
+  licence for either.
+  **What the gate still cannot see, recorded rather than implied.** It scores recall and cost, never
+  **precision** — finding 130 passes every mechanical check while being a wrong answer — and never
+  whether a human would act on the answer: on `symfony/demo` the largest layer is `Uncategorised` (18 of
+  51 modules), a complete, correct, low-information answer that scores 1.0. The **mirror** shape, the
+  anchor's most valuable one, cannot be measured by any committed tier (a pair needs 25 shared relative
+  paths), so it ships as a local-tier template in
+  [`runbooks/tokens-to-answer.md`](runbooks/tokens-to-answer.md) for an operator with such a tree.
 
 **Decision — how one user's evidence is weighed (2026-08-14, prompted by the round-5 interview).**
 The anchor repo is the project's **first production user**: a real adopter with real work, and the

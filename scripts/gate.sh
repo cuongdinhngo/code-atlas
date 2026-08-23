@@ -111,8 +111,8 @@ else
     if command -v php >/dev/null 2>&1; then
         CA_PHP_CMD="php $root/adapters/php/index.php --server"
         export CA_PHP_CMD
-        _run "tokens-to-answer (ratio >= 0.27, recall 1.0)" \
-            "$py" scripts/tokens_to_answer.py --min-ratio 0.27 --min-recall 1.0
+        _run "tokens-to-answer (ratio >= 0.63, recall 1.0)" \
+            "$py" scripts/tokens_to_answer.py --min-ratio 0.63 --min-recall 1.0
         unset CA_PHP_CMD
     else
         _record SKIP "tokens-to-answer" "php not on PATH"

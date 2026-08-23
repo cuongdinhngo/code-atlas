@@ -1,5 +1,5 @@
 {
-  "doc": "Ground truth for the tokens-to-answer benchmark (task 034 / 055). Each entry is one agent question with a KNOWN correct answer, plus the fixed recipe for both paths. To add a question: pick a fixture with a symbol whose answer you can state exactly; write `atlas_path` (or `session_path` for mixed MCP+native recipes), `grep` (the baseline's search pattern; omit or set `ratio_eligible: false` when there is no fair grep), `expected` (substrings that MUST appear for correctness), optional `expected_set` (complete ground-truth members for recall), and optional `grep_evidence`. `source: fixture` runs against a committed dir (needs the PHP adapter). `source: sample` runs against a pinned public repo named by `sample`. Private-repo symptom sets stay outside this repository (task 045).",
+  "doc": "Ground truth for the tokens-to-answer benchmark (task 034 / 055). Each entry is one agent question with a KNOWN correct answer, plus the fixed recipe for both paths. To add a question: pick a fixture with a symbol whose answer you can state exactly; write `atlas_path` (or `session_path` for mixed MCP+native recipes), `grep` (the baseline's search pattern; omit or set `ratio_eligible: false` when there is no fair grep), `expected` (substrings that MUST appear for correctness), optional `expected_set` (complete ground-truth members for recall), and optional `grep_evidence`. `ratio_note` states WHY a question is out of the ratio (required when `ratio_eligible` is false; it reaches the report row). `source: fixture` runs against a committed dir (needs the PHP adapter). `source: sample` runs against a pinned public repo named by `sample`. Private-repo symptom sets stay outside this repository (task 045).",
   "questions": [
     {
       "id": "callers_of_repo_put",
@@ -147,6 +147,7 @@
       "root": "tests/fixtures/php/resolve",
       "tier": "whole_graph",
       "ratio_eligible": false,
+      "ratio_note": "Blast radius is a transitive relationship, not a location: no grep pattern returns the set of symbols a change reaches.",
       "question": "If App\\Repo::put changes, which methods sit in its blast radius (relationship, not a location)?",
       "atlas_path": [
         {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
@@ -163,6 +164,7 @@
       "root": "tests/fixtures/php/reach",
       "tier": "whole_graph",
       "ratio_eligible": false,
+      "ratio_note": "Reachability is a whole-graph traversal from the declared entry points; grep can find the entry file but not the population it reaches.",
       "question": "Which symbols are reachable from the configured entry point entry.php?",
       "atlas_path": [
         {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
@@ -185,6 +187,7 @@
       "root": "tests/fixtures/php/reach",
       "tier": "whole_graph",
       "ratio_eligible": false,
+      "ratio_note": "Deadness is a whole-graph negative: no grep pattern proves the absence of a caller.",
       "question": "Which symbols under namespace Dead are orphans relative to entry.php?",
       "atlas_path": [
         {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
@@ -201,6 +204,7 @@
       "root": "tests/fixtures/php/resolve",
       "tier": "symptom",
       "ratio_eligible": false,
+      "ratio_note": "The recipe IS the mixed session (grep + index); measuring it against a grep-only baseline would compare the baseline with itself.",
       "question": "A caller persists state through a short write helper on a repository-like type — which method performs that write?",
       "session_path": [
         {"tool": "grep", "args": {"pattern": "->put\\(", "globs": ["*.php"], "max_read_files": 5}},
@@ -209,6 +213,268 @@
       ],
       "expected": ["\\App\\User::save"],
       "expected_set": ["\\App\\User::save"]
+    },
+    {
+      "id": "onb_layers_and_dependencies",
+      "source": "fixture",
+      "root": "tests/fixtures/php/onboarding",
+      "tier": "onboarding",
+      "ratio_eligible": false,
+      "ratio_note": "grep+Read cannot produce a layering: no pattern returns layers, their order, or the crossings between them, so any baseline here would be an invented number flattering the comparison.",
+      "question": "I am new here. What are this codebase's top-level layers, and how do they depend on each other?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "architecture_overview", "args": {"detail_level": "standard"}}
+      ],
+      "expected": ["HTTP / Entry", "Services", "Domain / Data", "Shared Library", "responsibility"],
+      "expected_set": [
+        "HTTP / Entry",
+        "Integration / Reporting",
+        "Background Jobs",
+        "Uncategorised",
+        "Config / Migration",
+        "Services",
+        "Views",
+        "Domain / Data",
+        "Shared Library"
+      ]
+    },
+    {
+      "id": "onb_read_first",
+      "source": "fixture",
+      "root": "tests/fixtures/php/onboarding",
+      "tier": "onboarding",
+      "ratio_eligible": false,
+      "ratio_note": "A reading order is a topological walk of the graph; grep+Read has no baseline that yields an order, only files that mention a pattern.",
+      "question": "Where do I start reading, and in what order? Give me the entry points and the first files to read.",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "guided_tour", "args": {"detail_level": "standard"}}
+      ],
+      "expected": ["controllers/InvoiceController.php", "services/InvoiceService.php", "entry point (zero inbound)"],
+      "expected_set": [
+        "config/settings.php",
+        "controllers/InvoiceController.php",
+        "jobs/ReminderJob.php",
+        "legacy/RetiredExporter.php",
+        "reports/InvoiceReport.php",
+        "services/InvoiceService.php",
+        "repositories/InvoiceRepository.php",
+        "lib/Clock.php",
+        "models/Invoice.php",
+        "views/invoice_page.php"
+      ]
+    },
+    {
+      "id": "onb_depends_on_shared_module",
+      "source": "fixture",
+      "root": "tests/fixtures/php/onboarding",
+      "tier": "onboarding",
+      "question": "What depends on the shared library module lib/Clock.php — which files include it, and which methods call into it?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "include_graph", "args": {"path": "lib/Clock.php", "direction": "imported_by"}},
+        {"tool": "find_callers", "args": {"qname": "\\Shop\\Lib\\Clock::now", "detail_level": "minimal"}}
+      ],
+      "grep": {"pattern": "Clock"},
+      "expected": [
+        "\\Shop\\Services\\InvoiceService::recent",
+        "\\Shop\\Repositories\\InvoiceRepository::findRecent"
+      ],
+      "expected_set": [
+        "legacy/RetiredExporter.php",
+        "repositories/InvoiceRepository.php",
+        "\\Shop\\Legacy\\RetiredExporter::dump",
+        "\\Shop\\Reports\\InvoiceReport::render",
+        "\\Shop\\Repositories\\InvoiceRepository::findRecent",
+        "\\Shop\\Services\\InvoiceService::recent"
+      ],
+      "grep_evidence": ["class Clock", "->now()"]
+    },
+    {
+      "id": "onb_hub_blast_radius",
+      "source": "fixture",
+      "root": "tests/fixtures/php/onboarding",
+      "tier": "onboarding",
+      "ratio_eligible": false,
+      "ratio_note": "Blast radius is a transitive relationship, not a location; the same exclusion the named-symbol impact question carries.",
+      "question": "What breaks if I change the hub method Shop\\Lib\\Clock::now()?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "impact", "args": {"qnames": ["\\Shop\\Lib\\Clock::now"], "detail_level": "minimal"}}
+      ],
+      "expected": [
+        "\\Shop\\Services\\InvoiceService::recent",
+        "\\Shop\\Reports\\InvoiceReport::render"
+      ],
+      "expected_set": [
+        "\\Shop\\Lib\\Clock::now",
+        "\\Shop\\Legacy\\RetiredExporter::dump",
+        "\\Shop\\Reports\\InvoiceReport::render",
+        "\\Shop\\Repositories\\InvoiceRepository::findRecent",
+        "\\Shop\\Services\\InvoiceService::recent"
+      ]
+    },
+    {
+      "id": "onb_dead_file",
+      "source": "fixture",
+      "root": "tests/fixtures/php/onboarding",
+      "tier": "onboarding",
+      "ratio_eligible": false,
+      "ratio_note": "Deadness is a whole-graph negative: no grep pattern proves the absence of a caller, so a baseline would measure a different question.",
+      "question": "Is legacy/RetiredExporter.php dead code — is anything reaching it from the declared entry points?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "find_orphans", "args": {"detail_level": "minimal"}}
+      ],
+      "expected": ["\\Shop\\Legacy\\RetiredExporter", "no_inbound"],
+      "expected_set": [
+        "legacy/RetiredExporter.php",
+        "\\Shop\\Legacy\\RetiredExporter",
+        "\\Shop\\Legacy\\RetiredExporter::dump"
+      ]
+    },
+    {
+      "id": "onb_feature_files",
+      "source": "fixture",
+      "root": "tests/fixtures/php/onboarding",
+      "tier": "onboarding",
+      "question": "Which files implement the invoice listing feature?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "search_symbol", "args": {"query": "Invoice", "detail_level": "minimal"}}
+      ],
+      "grep": {"pattern": "Invoice"},
+      "expected": [
+        "\\Shop\\Controllers\\InvoiceController",
+        "\\Shop\\Services\\InvoiceService",
+        "\\Shop\\Repositories\\InvoiceRepository"
+      ],
+      "expected_set": [
+        "\\Shop\\Controllers\\InvoiceController",
+        "\\Shop\\Services\\InvoiceService",
+        "\\Shop\\Repositories\\InvoiceRepository",
+        "\\Shop\\Models\\Invoice",
+        "\\Shop\\Reports\\InvoiceReport",
+        "views/invoice_page.php"
+      ],
+      "grep_evidence": ["class InvoiceController", "class InvoiceService"]
+    },
+    {
+      "id": "onb_request_entry",
+      "source": "fixture",
+      "root": "tests/fixtures/php/onboarding",
+      "tier": "onboarding",
+      "question": "Where does a request for the invoice page enter the code — what pulls views/invoice_page.php in?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "include_graph", "args": {"path": "views/invoice_page.php", "direction": "imported_by"}}
+      ],
+      "grep": {"pattern": "invoice_page"},
+      "expected": ["controllers/InvoiceController.php"],
+      "expected_set": ["controllers/InvoiceController.php"],
+      "grep_evidence": ["invoice_page.php"]
+    },
+    {
+      "id": "onb_declared_entry_points",
+      "source": "fixture",
+      "root": "tests/fixtures/php/onboarding",
+      "tier": "onboarding",
+      "ratio_eligible": false,
+      "ratio_note": "The answer is which declaration produced a count, and how far it can be trusted; grep can print the declaration file but cannot produce the population it claims.",
+      "question": "Which files are the declared web entry points, what glob claimed them, and how far does that claim go?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "architecture_overview", "args": {"detail_level": "standard"}}
+      ],
+      "expected": [
+        "controllers/*.php",
+        "Web entry points",
+        "the core does not check whether a declaration still holds"
+      ],
+      "expected_set": ["controllers/*.php", "controllers/InvoiceController.php"]
+    },
+    {
+      "id": "onb_committable_map",
+      "source": "fixture",
+      "root": "tests/fixtures/php/onboarding",
+      "tier": "onboarding",
+      "ratio_eligible": false,
+      "ratio_note": "The answer is a written artifact, not a lookup; grep+Read has nothing to compare against a file it would have to author.",
+      "question": "Give me a committable map of this repo I can review in git.",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "generate_onboarding", "args": {"detail_level": "standard"}}
+      ],
+      "expected": ["docs/onboarding/overview.md", "docs/onboarding/manifest.json"],
+      "expected_set": [
+        "docs/onboarding/overview.md",
+        "docs/onboarding/tour.md",
+        "docs/onboarding/index.html",
+        "docs/onboarding/manifest.json"
+      ]
+    },
+    {
+      "id": "onb_naming_debt",
+      "source": "fixture",
+      "root": "tests/fixtures/php/onboarding",
+      "tier": "onboarding",
+      "ratio_eligible": false,
+      "ratio_note": "The answer is the complement of a vocabulary match over every module; grep can find a directory name but not the modules whose paths name no responsibility at all.",
+      "question": "Which layer owns each module, and which modules' paths name no responsibility at all?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "architecture_overview", "args": {"detail_level": "verbose"}}
+      ],
+      "expected": ["Uncategorised", "legacy/RetiredExporter.php", "naming-debt"],
+      "expected_set": [
+        "Uncategorised",
+        "legacy/RetiredExporter.php",
+        "controllers/InvoiceController.php",
+        "lib/Clock.php",
+        "Shared Library"
+      ]
+    },
+    {
+      "id": "onb_sample_layers",
+      "source": "sample",
+      "sample": "symfony_demo",
+      "tier": "onboarding",
+      "ratio_eligible": false,
+      "ratio_note": "grep+Read cannot produce a layering; the same exclusion the fixture-tier layer question carries.",
+      "question": "I am new to this repo. What are its top-level layers, and which crossings carry the most dependencies?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "architecture_overview", "args": {"detail_level": "standard"}}
+      ],
+      "expected": ["HTTP / Entry", "Domain / Data", "Views", "responsibility"],
+      "expected_set": [
+        "HTTP / Entry",
+        "Domain / Data",
+        "Views",
+        "Tests",
+        "Config / Migration",
+        "Shared Library",
+        "Uncategorised"
+      ]
+    },
+    {
+      "id": "onb_sample_feature_files",
+      "source": "sample",
+      "sample": "symfony_demo",
+      "tier": "onboarding",
+      "question": "Which files implement the blog administration screens?",
+      "atlas_path": [
+        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
+        {"tool": "search_symbol", "args": {"query": "BlogController", "detail_level": "minimal"}}
+      ],
+      "grep": {"pattern": "BlogController"},
+      "expected": ["\\App\\Controller\\Admin\\BlogController"],
+      "expected_set": [
+        "\\App\\Controller\\Admin\\BlogController",
+        "\\App\\Controller\\BlogController"
+      ],
+      "grep_evidence": ["class BlogController"]
     },
     {
       "id": "sample_impls_bignumber",
