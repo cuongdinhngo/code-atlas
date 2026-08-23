@@ -9,6 +9,9 @@ The reader below is derived, not positional (task 132). It finds the `Status` co
 table's own header row and bounds the Token-usage section at the next heading, because the previous
 version hard-coded the column index and bounded the section on a heading the file had stopped
 having — a guard that keeps passing while its inputs move under it.
+
+The ledger moved to `TOKEN_LEDGER.md` in task 133 (it was 4,773 tokens of tier 1). Only the two
+paths below changed; every assertion is the one 132 left.
 """
 
 import re
@@ -18,6 +21,7 @@ import pytest
 
 DOCS = Path(__file__).resolve().parent.parent / "docs"
 BACKLOG = DOCS / "BACKLOG.md"
+LEDGER = DOCS / "TOKEN_LEDGER.md"
 TASKS = DOCS / "tasks"
 
 STATUSES = ("todo", "in-progress", "blocked", "deferred", "done")
@@ -42,16 +46,16 @@ def cells(row: str) -> list[str]:
     return [cell.strip() for cell in row.strip().strip("|").split("|")]
 
 
-def section(title: str) -> str:
+def section(path: Path, title: str) -> str:
     """One `## ` section's body, bounded by the next `## ` heading — never by a named one.
 
     Bounding on a specific following heading is how the previous reader ran to EOF for months:
     the heading it partitioned on had been renamed away, so the Token-usage table silently
     extended over everything after it.
     """
-    text = BACKLOG.read_text(encoding="utf-8")
+    text = path.read_text(encoding="utf-8")
     starts = [match for match in HEADING.finditer(text) if match.group(1).strip() == title]
-    assert len(starts) == 1, f"BACKLOG.md has {len(starts)} '## {title}' sections, expected 1"
+    assert len(starts) == 1, f"{path.name} has {len(starts)} '## {title}' sections, expected 1"
     body_from = starts[0].end()
     following = HEADING.search(text, body_from)
     return text[body_from : following.start() if following else len(text)]
@@ -76,12 +80,13 @@ def rows_by_id(body: str) -> dict[str, list[str]]:
 
 
 def backlog_statuses() -> dict[str, str]:
-    """Task id -> status, across every Open-work and phase table above the token ledger."""
-    text = BACKLOG.read_text(encoding="utf-8")
-    ledger_at = next(
-        match.start() for match in HEADING.finditer(text) if match.group(1).strip() == TOKEN_SECTION
-    )
-    head = text[:ledger_at]
+    """Task id -> status, across every Open-work and phase table in BACKLOG.
+
+    No longer bounded above the ledger: since 133 the ledger is a different file, so every
+    `| NNN | … |` row still in BACKLOG belongs to a status table. A section with no such row, or
+    with no `Status` column, is skipped rather than partitioned around.
+    """
+    head = BACKLOG.read_text(encoding="utf-8")
     statuses: dict[str, str] = {}
     for match in HEADING.finditer(head):
         body = head[match.end() : ]
@@ -97,7 +102,7 @@ def backlog_statuses() -> dict[str, str]:
 
 
 def token_rows() -> dict[str, tuple[str, str]]:
-    body = section(TOKEN_SECTION)
+    body = section(LEDGER, TOKEN_SECTION)
     return {task_id: (row[1], row[2]) for task_id, row in rows_by_id(body).items() if len(row) > 2}
 
 
@@ -126,8 +131,8 @@ def test_the_token_ledger_reads_only_its_own_rows() -> None:
 
     The previous reader partitioned the tail on `## Suggested order` — a heading BACKLOG.md does
     not have — so the ledger ran to end of file and any `| NNN | … | … |` row in a later section
-    counted as a recorded spend. Made to fail: a three-cell row planted under `## Conventions` is
-    read as task 999's spend by that reader and by this one is not read at all.
+    counted as a recorded spend. Made to fail: a three-cell row planted after the ledger's own
+    section is read as task 999's spend by that reader and by this one is not read at all.
     """
     stray = set(token_rows()) - set(task_files())
     assert not stray, f"the token ledger read rows for non-existent tasks: {sorted(stray)}"
@@ -152,7 +157,7 @@ def test_a_finished_task_records_what_it_cost(task_id: str) -> None:
 
     row = token_rows().get(task_id)
     assert row is not None, (
-        f"task {task_id} is done but has no row in BACKLOG's Token usage table "
+        f"task {task_id} is done but has no row in TOKEN_LEDGER.md's Token usage table "
         "(ENGINEERING_RULES.md R7.2)"
     )
     spend, pull_request = row

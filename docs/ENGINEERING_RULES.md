@@ -174,7 +174,7 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
 - **R7.2 — Keep the plan and backlog honest, cost included.** A design decision updates the
   [plan](PLAN.md); task status updates both [`BACKLOG.md`](BACKLOG.md) and the task file's
   frontmatter. **And the spend is part of the status:** before a PR opens, the task's token spend
-  goes in its working-doc cost ledger **and** in BACKLOG's Token usage table. A finished task whose
+  goes in its working-doc cost ledger **and** in [`TOKEN_LEDGER.md`](TOKEN_LEDGER.md). A finished task whose
   cost is unrecorded reads as free, and a project that cannot say what a ticket cost cannot argue
   about where its effort goes. *Falsifier:* a task at `done` with no Token-usage row, or a spend
   quoted in one place and not the other — guarded by `tests/test_backlog_bookkeeping.py`.
@@ -184,9 +184,11 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   deleted; revisit when the second arrives.
 - **R7.5 — Comments stay ≤ 3 lines.** Explain *what + why*, not the obvious. If it needs more, the
   code should be clearer or the explanation belongs in a doc/docstring.
-- **R7.6 — A standing document is pruned by the change that adds to it.** `PLAN.md`, `BACKLOG.md`,
-  `AGENTS.md`, `CONVENTION.md` and this file are read before every non-trivial task, so a line added
-  to one is charged to every future session. A change that adds **removes what it supersedes in the
+- **R7.6 — A standing document is pruned by the change that adds to it.** `AGENTS.md`,
+  `BACKLOG.md`, `CONVENTION.md`, `AGENT_BRIEF.md` and this file are **tier 1** — read before every
+  non-trivial task (CONVENTION §8.1), so a line added to one is charged to every future session, and
+  the sum is capped by `tests/test_agent_chain_budget.py`. `PLAN.md` is tier 2 and still ceilinged,
+  because a `§`-ref pulls it in. A change that adds **removes what it supersedes in the
   same commit**, and never restates what a task file, a `LESSONS.md` entry or a `benchmarks/` file
   already holds. **Session narrative is not a decision** — record the decision and the number that
   binds it, and leave the story where it happened. R7.2 keeps these documents *honest*; this one

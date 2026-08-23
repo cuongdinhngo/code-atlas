@@ -590,13 +590,14 @@ encode the language spec/standards, never a specific repo's conventions). Detail
 
 ## Documentation
 
-Six docs answer most questions. What every standing document is **and is not** — the full role
+Seven docs answer most questions. What every standing document is **and is not** — the full role
 table, boundaries included — is [`docs/CONVENTION.md`](docs/CONVENTION.md) §8.1.
 
 | Doc | Answers |
 |---|---|
 | [`docs/PLAN.md`](docs/PLAN.md) | the authoritative design — the contract, the schema, the resolver, every tool, and **§19**, the decision log: what was measured, what was refuted, and why the project is shaped this way |
-| [`docs/BACKLOG.md`](docs/BACKLOG.md) | what is open, what landed, and what each task cost |
+| [`docs/BACKLOG.md`](docs/BACKLOG.md) | what is open and what landed |
+| [`docs/TOKEN_LEDGER.md`](docs/TOKEN_LEDGER.md) | what each task cost — one spend row per ticket |
 | [`docs/CONVENTION.md`](docs/CONVENTION.md) | naming, repo layout, the fixed contract vocabulary, and **§6** — the payload contract every tool answer obeys |
 | [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) | the binding *how we build* rules (R1.1 …), several of them CI-gated |
 | [`docs/LESSONS.md`](docs/LESSONS.md) | what shipping this taught us, per task — the evidence the rules were promoted from |

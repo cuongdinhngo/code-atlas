@@ -60,6 +60,29 @@ this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *c
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
 
+## 133 — A per-file ceiling cannot bound what the caller actually pays
+
+134 gave every standing doc a ceiling and each one held, yet the sum an agent read before it knew
+what bound it was still **49,572 tokens** — six files each comfortably under their own number. A
+budget expressed only per-file is unbounded in the dimension that matters, because the count of files
+is free. **Fix:** cap the *sum* (`tests/test_agent_chain_budget.py`, 25,000) and derive the member
+set from the chain's own list, so adding a file to `AGENTS.md`'s binding list is what trips the
+guard. Generalises: whenever a cost is paid over a set, bound the set's total, not its elements —
+and check the arithmetic before committing to a fix, because this ticket's two *named* moves (PLAN
+§19 + the token ledger, 11,795 tokens) fell 12,777 short of its own stated goal.
+
+*Claim `133-C1` — a per-element ceiling on a cost paid over a set leaves the total unbounded, because
+the element count is free.* · type: 2 · handle: `per-element-ceiling-leaves-total-unbounded` ·
+status: confirmed · seen: 133 · area: docs/budgets · evidence:
+`tests/test_doc_size_budget.py` all-green at a 49,572-token tier 1 · destination: stays in
+lessons_path until a second key.
+
+*Claim `133-C2` — a demotion is only real if returning the demoted item breaches the budget; assert
+that, or the boundary is decoration.* · type: 2 · handle: `demotion-needs-a-breach-test` · status:
+confirmed · seen: 133 · area: tests/guards · evidence:
+`tests/test_agent_chain_budget.py::test_returning_a_consult_only_doc_to_the_binding_list_breaches` ·
+destination: stays in lessons_path until a second key.
+
 ## 132 — A guard that keeps passing while its inputs move under it
 
 `test_backlog_bookkeeping.py` bounded BACKLOG's Token-usage table by partitioning the tail on

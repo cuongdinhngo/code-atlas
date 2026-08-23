@@ -17,12 +17,17 @@ outward action without a separate explicit approval per action; tracker writes g
 Validate with `/mango:doctor`. Run a ticket with `/mango:solve <KEY>`.
 <!-- /mango:standing-context -->
 
-**Read these before non-trivial work** (they govern every session):
-- [`docs/PLAN.md`](docs/PLAN.md) — authoritative design (§-refs below point here).
+**Read these before non-trivial work** — **tier 1**; every session pays for all of it, so it is capped at 25,000 tokens by `tests/test_agent_chain_budget.py`, measured by `scripts/agent_chain_cost.py`:
 - [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) — binding *how we build* rules (R1.1…). The pre-PR self-check at the bottom is your gate.
 - [`docs/AGENT_BRIEF.md`](docs/AGENT_BRIEF.md) — binding *how we run the lifecycle* rules (`P1`…`Pn`), each earned by a cited incident. Read them there; this file does not enumerate them, because the copy it used to keep went a rule out of date.
 - [`docs/CONVENTION.md`](docs/CONVENTION.md) — naming, repo layout, the fixed contract vocabulary, style.
 - [`docs/BACKLOG.md`](docs/BACKLOG.md) — tasks (`docs/tasks/NNN_slug.md`); keep status in sync there **and** in each task's frontmatter.
+
+**Consult when you need it** — **tier 2**: reference, binding where a tier-1 rule cites it, but reached by a pointer and never read at session start:
+- [`docs/PLAN.md`](docs/PLAN.md) — authoritative design; every `§`-ref below points here, and §19 is the decision log you open when a decision is questioned.
+- [`docs/TOKEN_LEDGER.md`](docs/TOKEN_LEDGER.md) — one spend row per ticket (R7.2).
+- [`docs/LESSONS.md`](docs/LESSONS.md) — the claim corpus promotion reads; its `seen:` counts are the only gate (P1).
+- [`docs/SKILL_GAP_CANDIDATES.md`](docs/SKILL_GAP_CANDIDATES.md) — type-3 signals for mango's maintainer; this repo never edits a skill.
 
 ## What this is
 **Two pillars, one graph** — PILLAR 1 the resolved relationships an agent asks for, PILLAR 2 the
@@ -62,7 +67,7 @@ MCP client ──stdio──▶ core (Python/FastMCP) ──JSONL contract──
 - **Commits** — no `Co-Authored-By` / AI-attribution trailer.
 - **Comments** — keep every code comment to **≤ 3 lines**; if it needs more, the code or a doc should carry it instead.
 - **Docs before PR — prune as you add, cost included** — update every doc the change affects, and
-  record the task's token spend in both its working-doc ledger and BACKLOG's Token usage table (R7.2).
+  record the task's token spend in both its working-doc ledger and [`docs/TOKEN_LEDGER.md`](docs/TOKEN_LEDGER.md) (R7.2).
   **A change that adds to a standing doc removes what it supersedes in the same commit, and never
   retells what a task file, LESSONS.md or a benchmark already holds** (R7.6): every line here is
   charged to every future session. The pre-PR self-check gates the docs;
