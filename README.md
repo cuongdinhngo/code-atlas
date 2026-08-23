@@ -1,46 +1,88 @@
 # code-atlas
 
-**Local-first MCP server that indexes your codebase into a symbol graph for fast, token-efficient
-search, navigation, and impact analysis.** Language-agnostic core with per-language adapters — PHP
-first, then TypeScript/JavaScript, Python, C#/.NET.
+**An evidence layer for AI coding agents.** Local-first MCP server that indexes your codebase into a
+symbol graph, then answers *resolved relationship* questions — who calls this, what implements that,
+what breaks if I change this file — with every answer carrying its own confidence tier, its own
+truncation, and its own reason for being empty.
+
+Language-agnostic core with per-language adapters. **PHP today**; TypeScript/JavaScript, Python and
+C#/.NET are next.
 
 > Status: **shipped and in daily use — 17 tools.** The PHP path is feature-complete: index → search /
 > read / outline → callers / refs / impls → impact → incremental (`git diff`) → reachability /
-> orphans → shortest path, plus a read-through freshness reparse. The **onboarding layer has shipped
+> orphans → shortest path, plus read-through freshness reparse. The **onboarding layer has shipped
 > too** (`architecture_overview`, `guided_tour`, `generate_onboarding`) and emits a committable
-> system map. **Other languages are deferred, not cancelled** — depth on PHP first. See
-> [`docs/PLAN.md`](docs/PLAN.md) for the design and milestones, [`docs/BACKLOG.md`](docs/BACKLOG.md)
-> for what is open.
+> system map. See [`docs/PLAN.md`](docs/PLAN.md) for design and milestones,
+> [`docs/BACKLOG.md`](docs/BACKLOG.md) for what is open.
 
-## Why
+## The problem it solves
 
-**`grep` is good at finding locations. It cannot produce a relationship.** Ask it who calls a method
-and it gives you every line that contains the name — across every class that happens to declare one,
-with no way to tell a resolved call from a coincidence, and no second number to check itself against.
-code-atlas parses each language with its **best** parser into a **SQLite symbol graph**, then serves
-symbol-level, *resolved* relationships over MCP: callers, implementations, blast radius, reachability,
-the path between two symbols.
+An agent asks *"who calls `save()`?"*. `grep` returns every line containing the string — across every
+class that happens to declare one, with no way to tell a resolved call from a coincidence. The agent
+reads them all to find out. **That reading is the cost**, and it is paid in context, not in seconds.
 
-> **Honest scope.** This project began on the claim that native tools and `grep` are weak at
-> name-resolved *search* on large repos. On 2026-08-08 that was measured against a ~19k-file private
-> monorepo and it did not hold — native tools answered five real symptom-first questions correctly, and
-> broad `grep` over that tree ran in under nine seconds at every scope. **If you want faster text
-> search, you do not need this.** What survives the measurement is the edge data above. See
-> [`docs/PLAN.md`](docs/PLAN.md) §19 for the full result, including what it got wrong.
+code-atlas parses each language with its **best** parser into a **SQLite symbol graph**, resolves
+cross-file edges once at index time, and serves the answer as rows: callers, implementations, blast
+radius, reachability, the path between two symbols.
 
-- **Symbol-level, name-resolved** — "who calls this method?", "what implements this interface?", "read
-  just this method", "blast radius of changing this file" — not grep-and-read-everything.
-- **Language-agnostic core + per-language adapters** — each language uses the parser that actually
-  understands it (PHP → nikic/php-parser, TS/JS → TypeScript Compiler API, Python → `ast`+jedi, C# →
-  Roslyn), all speaking one versioned JSON contract.
-- **Local-first & deterministic** — everything runs offline against a local SQLite index; no LLM or
-  network in the core. Incremental updates via `git diff`. Requires **SQLite ≥ 3.25** (window
-  functions for batched resolver lookups; Python's bundled `sqlite3` on supported platforms qualifies).
-- **Complements your LSP tooling** — code-atlas is the indexed search/impact layer; a language server stays for precise nav/edit.
+## Measured, not asserted
 
-The token saving is measured, not asserted: a deterministic tokens-to-answer benchmark shows
-code-atlas reaching the resolved answer **~98× cheaper** than grep-and-read on pinned public PHP repos
-(laravel / symfony / brick) — see [`docs/runbooks/tokens-to-answer.md`](docs/runbooks/tokens-to-answer.md).
+Every number here is reproducible from a runbook in this repo.
+
+| What | Result | Where |
+|---|---|---|
+| Tokens to reach a resolved answer, vs grep-and-read | **~98× cheaper** on pinned public PHP repos (laravel / symfony / brick) | [`tokens-to-answer.md`](docs/runbooks/tokens-to-answer.md) |
+| Cost of the *n*-th parallel agent | **~70 MB PSS**; the 925 MB index costs **0 MB** (page-cached, never mmapped) | [`parallel-agents.md`](docs/runbooks/parallel-agents.md) |
+| Five agents vs one | **4.3× throughput**, 1.3 % of RAM, zero `SQLITE_BUSY` reaching a caller | same |
+| No-op rebuild after 080 | **56.1 s → 2.113 s (26×)**, two no-ops byte-identical | §19 |
+| Answer correctness, blind field round 5 | **8 of 8 checked claims exact, zero false statements** | §19 |
+
+The last row is the one the design optimises for. Every failure that round was *silence or ambiguity*
+— never a wrong answer.
+
+## Who this is for
+
+- a large PHP codebase (>10k files) you did not write
+- an AI agent doing the reading, not a human in an IDE
+- you need the answer to be checkable, not plausible
+
+A reader who fails all three should be able to leave in ten seconds. That is a feature: a wrong
+install is a bad first impression you never get to correct.
+
+## Answers that say what they are not telling you
+
+A silently partial answer is worse than no answer, so the payload carries its own limits:
+`total_count` (the true size, not the page), `truncated`, `limit_capped_to`, `reason` (`no_such_symbol`
+· `name_not_qualified` · `not_indexed` · `relationship_not_modelled` · `capability_not_configured`),
+`resolved_qname`, `index_root`, and `confidence_tier` on every edge — `RESOLVED`, `HEURISTIC` or
+`DYNAMIC`, never a guess linked as a fact.
+
+Pass `sign: true` and four tools add a one-line `claim` you can paste into a PR body — a claim a text
+search cannot make, in a form a reviewer can re-run.
+
+## What it is not
+
+- **Not a faster `grep`.** Broad `grep` over a 19k-file tree runs in under nine seconds. If you want
+  faster text search, you do not need this. See *Founding premise, refuted* below.
+- **Not a language server.** code-atlas is the indexed search/impact layer; an LSP stays for precise
+  nav and edit.
+- **Not an editor.** It returns exact line ranges; it never mutates code.
+- **Not multi-language yet.** Only the PHP adapter exists. A TypeScript, Python or C# project will
+  not index today.
+
+## Founding premise, refuted
+
+This project began on the claim that native tools and `grep` are weak at name-resolved *search* on
+large repos. On **2026-08-08** that was measured against a ~19k-file private monorepo and **it did not
+hold** — native tools answered five real symptom-first questions correctly, and broad `grep` ran under
+nine seconds at every scope.
+
+The claim is kept in [`docs/PLAN.md`](docs/PLAN.md) §19 **struck, not deleted**, because every decision
+in this repo was taken under it. What replaced it is narrower and is what the table above measures:
+**the index sells resolved relationships and token cost, not search speed.**
+
+That refutation is the reason for the payload discipline in the section above. §19 has the full
+result, including what it got wrong.
 
 ## How it works
 
@@ -51,13 +93,14 @@ MCP client ──stdio──▶ core (Python / FastMCP) ──JSONL contract─�
                    SQLite  .code-atlas/graph.db   (nodes · edges · files · fts5 · meta)
 ```
 
-The core is language-agnostic (no per-language branches). Adapters parse files and emit a common
-`{nodes, edges}` vocabulary; the core stores them, resolves cross-file edges, and exposes MCP tools.
+The core is language-agnostic — no per-language branches, CI-gated. Adapters parse files and emit a
+common `{nodes, edges}` vocabulary; the core stores them, resolves cross-file edges, and exposes MCP
+tools. Everything runs offline against local SQLite; incremental updates via `git diff`. Requires
+**SQLite ≥ 3.25**.
 
-On top of that graph sits the **onboarding layer**: deterministic enrichment (metrics → responsibility
-layers → dataset) feeding three tools and one committable **system map**. The LLM is optional, writes
-prose only, and lives outside the core in `onboarding_llm/` — with it switched off the map still renders
-complete.
+On top of that graph sits the **onboarding layer**: deterministic enrichment feeding three tools and
+one committable system map. The LLM is optional, writes prose only, lives outside the core in
+`onboarding_llm/`, and with it switched off the map still renders complete.
 
 ## Install
 
@@ -83,44 +126,6 @@ the `code-atlas` tools appear.
 Onboarding a **large legacy repo** — where the first build takes minutes, `.gitignore` negations can
 smuggle vendored trees into the index, and one knob decides whether the database is 1 GB or 2 GB — is
 covered step by step in [`docs/runbooks/onboarding-a-repo.md`](docs/runbooks/onboarding-a-repo.md).
-
-### Keep the index fresh while Claude edits (opt-in)
-
-Task 035 already reparses drifted files at query time. For eager updates after Claude Code
-`Edit`/`Write` on PHP files, install the PostToolUse hook under
-[`contrib/claude-code/`](contrib/claude-code/) (`code-atlas-poke` console script + `"async": true`);
-opt-in git refresh after pull/checkout via [`contrib/git/`](contrib/git/) (`code-atlas-refresh`,
-background — never auto-installed into `.git/hooks`).
-Safe no-op when `.code-atlas/graph.db` is missing; does not stall the tool round-trip.
-
-### The read-time signal — a line that rides along with a file you are already opening (opt-in)
-
-Field evidence (task [099](docs/tasks/099_write-time-signal-seam.md)): the three most consequential
-decisions an agent made *without* calling code-atlas all wanted **one line at the moment of a `Read`
-or a `Write`** — and none of them wanted a tool call. An MCP tool answers when asked; this fires
-when the agent was never going to ask, so it is a **hook**, not a tool.
-
-`code-atlas-signal` prints at most one line (~150 tokens, hard cap) and exits 0:
-
-- **`Read`** an indexed file with ≥ 5 symbols → `code-atlas: <path> defines N symbols — name:line, …`
-- **`Write`** creating a new path under the indexed tree → `code-atlas: <path> is untracked — symbol
-  queries answer `not_indexed` until it is committed and reindexed`
-
-It never builds, never reparses and never takes the write lock; a file that has drifted since the
-last index still answers, with `(index may be behind)` appended.
-
-**Wire `Read` at `PostToolUse` and `Write` at `PreToolUse`.** The create-vs-edit test is whether the
-path exists yet, so a `PostToolUse` `Write` is silent by construction — correct for an edit, useless
-for a create.
-
-**It stays silent** on any other tool (so browser-probe output and CI shell results are untouched),
-on writes to files that already exist, on files below the symbol floor, and when there is no index.
-That silence rule is the design, not a default: a line that fires on every read is chrome within
-three invocations.
-
-**code-atlas does not wire itself into anyone's editor.** As with the poke and refresh hooks, the
-command is offered and the host decides — there is no installer and nothing is written to your
-settings.
 
 <details>
 <summary>Prefer to wire it up by hand?</summary>
@@ -204,9 +209,47 @@ provenance (`db_path` on `get_index_status` / build reports only after 061). Eve
 | `reachable_from` | forward reachability from configured entry points |
 | `find_orphans` | unreachable / zero-inbound symbols (dead-code candidates); pages with `limit`/`offset`, and its walk is bounded by its **own** `CA_ORPHANS_MAX_NODES` rather than the impact budget. `walk_truncated` marks an answer where the walk stopped early, so the orphan count is an over-estimate (124) |
 | `explain_path` | shortest control-flow path between two symbols |
-| `architecture_overview` | this repo's layers, their degrees and the crossings between them; `summary.reachability` splits the zero-inbound modules into their real populations — web surface, vendored, tests, no-inbound-but-outbound (**not** dead code), no-edge-either-way (a list to check, not a conclusion) — with the raw total kept beside them; every list capped at `CA_MAX_RESULTS`, `verbose` pages the per-module rows with `offset`; `summary.business_modules` is the capability table — which file to open for a named screen — with its own coverage beside it, the container level derived from the tree rather than named, and a role-organised container refused with its reason; `summary.mirrors` names sibling subtrees that duplicate each other's paths — discovered, not configured — with a counterpart lookup whose negative answer marks divergence, and the standing caveat that it compares paths, not bytes (onboarding) |
-| `guided_tour` | dependency-ordered reading list of files, cycle-safe via SCC condensation; roots ranked by out-degree and capped at a quarter of the node budget, so the walk expands instead of spending the budget on isolated files; a component no entry point reaches is re-seeded, not dropped; walk bounded by `CA_IMPACT_MAX_NODES`, page capped at `CA_MAX_RESULTS` with `offset` (onboarding) |
-| `generate_onboarding` | write committable markdown (overview · tour · per-module) plus `manifest.json` and a self-contained `index.html` **system map** under `docs/onboarding/` (offline, theme-aware, repo text escaped so a path cannot inject markup, `<noscript>` fallback). The map renders the onboarding dataset **alone** — sitemap treemap with drill-down, layer table with its node-kind composition, the full layer×layer dependency matrix with nothing cut, hubs, the capability table, the zero-inbound split, the mirror panel, a search palette with counterpart lookup, and a provenance section naming which parts are derived; every figure is interpolated, so the same dataset always renders identical bytes, and a section that is empty or capped says so instead of looking exhaustive; removes only the pages its own last manifest recorded and refuses a tree it did not write; a module with no edge either way and no summary gets **no page** (one would only repeat its path) — the overview counts them, the manifest names them with `page: null`, `standard` reports `isolated_modules`, and a page whose neighbours the budget cut is kept and says so; regenerable cache under `.code-atlas/onboarding/`; tour/pages bounded by `CA_IMPACT_MAX_NODES` (onboarding) |
+| `architecture_overview` | this repo's layers, their degrees and the crossings between them — plus the zero-inbound split, the capability table and the mirror panel ([detail](#architecture_overview--layers-crossings-and-the-populations-behind-a-zero)) (onboarding) |
+| `guided_tour` | a dependency-ordered reading list of files, cycle-safe and budget-bounded ([detail](#guided_tour--a-reading-order-that-expands)) (onboarding) |
+| `generate_onboarding` | writes the committable markdown and the self-contained `index.html` **system map** under `docs/onboarding/` ([detail](#generate_onboarding--the-committable-system-map)) (onboarding) |
+
+### `architecture_overview` — layers, crossings, and the populations behind a zero
+
+- `summary.reachability` splits the zero-inbound modules into their real populations — web surface,
+  vendored, tests, no-inbound-but-outbound (**not** dead code), no-edge-either-way (a list to check,
+  not a conclusion) — with the raw total kept beside them.
+- `summary.business_modules` is the capability table — which file to open for a named screen — with
+  its own coverage beside it, the container level derived from the tree rather than named, and a
+  role-organised container refused with its reason.
+- `summary.mirrors` names sibling subtrees that duplicate each other's paths — discovered, not
+  configured — with a counterpart lookup whose negative answer marks divergence, and the standing
+  caveat that it compares paths, not bytes.
+- Every list is capped at `CA_MAX_RESULTS`; `verbose` pages the per-module rows with `offset`.
+
+### `guided_tour` — a reading order that expands
+
+- Dependency-ordered list of files, cycle-safe via SCC condensation.
+- Roots are ranked by out-degree and capped at a quarter of the node budget, so the walk expands
+  instead of spending the budget on isolated files.
+- A component no entry point reaches is re-seeded, not dropped.
+- The walk is bounded by `CA_IMPACT_MAX_NODES`; the page is capped at `CA_MAX_RESULTS` with `offset`.
+
+### `generate_onboarding` — the committable system map
+
+- Writes markdown (overview · tour · per-module) plus `manifest.json` and a self-contained
+  `index.html` under `docs/onboarding/` — offline, theme-aware, repo text escaped so a path cannot
+  inject markup, with a `<noscript>` fallback.
+- The map renders the onboarding dataset **alone**: sitemap treemap with drill-down, layer table with
+  its node-kind composition, the full layer×layer dependency matrix with nothing cut, hubs, the
+  capability table, the zero-inbound split, the mirror panel, a search palette with counterpart
+  lookup, and a provenance section naming which parts are derived.
+- Every figure is interpolated, so the same dataset always renders identical bytes, and a section
+  that is empty or capped says so instead of looking exhaustive.
+- It removes only the pages its own last manifest recorded, and refuses a tree it did not write.
+- A module with no edge either way and no summary gets **no page** (one would only repeat its path) —
+  the overview counts them, the manifest names them with `page: null`, `standard` reports
+  `isolated_modules`, and a page whose neighbours the budget cut is kept and says so.
+- Regenerable cache under `.code-atlas/onboarding/`; tour and pages bounded by `CA_IMPACT_MAX_NODES`.
 
 ### Reading an answer — every payload says what it is not telling you
 
@@ -365,6 +408,50 @@ name-only answers from description-backed ones — is
 | `find_usages` | status → find_references / find_callers / find_implementations → read to confirm |
 | `impact_of_change` | status → impact on the changed paths/qnames → read only the blast-radius surface |
 | `which_tool` | a recognition map: which tool answers a given question, across all 17 tools |
+
+## Hooks (opt-in)
+
+code-atlas answers when asked. Two hooks cover the moments an agent was never going to ask — an edit
+that drifts the index, and a `Read` that could have carried one line of context. Both are opt-in, and
+both are offered rather than installed.
+
+### Keep the index fresh while Claude edits (opt-in)
+
+Task 035 already reparses drifted files at query time. For eager updates after Claude Code
+`Edit`/`Write` on PHP files, install the PostToolUse hook under
+[`contrib/claude-code/`](contrib/claude-code/) (`code-atlas-poke` console script + `"async": true`);
+opt-in git refresh after pull/checkout via [`contrib/git/`](contrib/git/) (`code-atlas-refresh`,
+background — never auto-installed into `.git/hooks`).
+Safe no-op when `.code-atlas/graph.db` is missing; does not stall the tool round-trip.
+
+### The read-time signal — a line that rides along with a file you are already opening (opt-in)
+
+Field evidence (task [099](docs/tasks/099_write-time-signal-seam.md)): the three most consequential
+decisions an agent made *without* calling code-atlas all wanted **one line at the moment of a `Read`
+or a `Write`** — and none of them wanted a tool call. An MCP tool answers when asked; this fires
+when the agent was never going to ask, so it is a **hook**, not a tool.
+
+`code-atlas-signal` prints at most one line (~150 tokens, hard cap) and exits 0:
+
+- **`Read`** an indexed file with ≥ 5 symbols → `code-atlas: <path> defines N symbols — name:line, …`
+- **`Write`** creating a new path under the indexed tree → `code-atlas: <path> is untracked — symbol
+  queries answer `not_indexed` until it is committed and reindexed`
+
+It never builds, never reparses and never takes the write lock; a file that has drifted since the
+last index still answers, with `(index may be behind)` appended.
+
+**Wire `Read` at `PostToolUse` and `Write` at `PreToolUse`.** The create-vs-edit test is whether the
+path exists yet, so a `PostToolUse` `Write` is silent by construction — correct for an edit, useless
+for a create.
+
+**It stays silent** on any other tool (so browser-probe output and CI shell results are untouched),
+on writes to files that already exist, on files below the symbol floor, and when there is no index.
+That silence rule is the design, not a default: a line that fires on every read is chrome within
+three invocations.
+
+**code-atlas does not wire itself into anyone's editor.** As with the poke and refresh hooks, the
+command is offered and the host decides — there is no installer and nothing is written to your
+settings.
 
 ## Configuration
 
