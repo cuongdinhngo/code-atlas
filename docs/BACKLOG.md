@@ -31,7 +31,8 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 133 | [The always-binding read is ~66.5k tokens and most of it is reference — tier the agent chain and gate the tier](tasks/133_agent-chain-is-one-tier.md) | Docs | in-progress | 132 |
 | 134 | [The standing docs grew to 66k tokens of mostly retold narrative — prune them and gate the size](tasks/134_standing-docs-grow-and-nothing-prunes-them.md) | Docs | done | 132 |
 | 135 | [The recall gate cannot see a wrong answer — an answer with every expected row plus four wrong ones scores 1.0](tasks/135_harness-scores-recall-but-never-precision.md) | Measure | done | 055, 121, 130 |
-| 136 | [Two thirds of the graph's edges are HEURISTIC, the plan promises the fix, and no ticket ever carried it](tasks/136_heuristic-share-has-no-owner.md) | Coverage | todo | 025, 029, 011 |
+| 136 | [Two thirds of the graph's edges are HEURISTIC, the plan promises the fix, and no ticket ever carried it](tasks/136_heuristic-share-has-no-owner.md) | Coverage | done | 025, 029, 011 |
+| 137 | [A PHP local type table — the cause of ≥99% of the HEURISTIC share, with a measured target per pin](tasks/137_php-local-type-table.md) | Coverage | todo | 136, 039 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -106,10 +107,13 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
   Auto-generated docs and diagrams stay unscheduled: that verdict licenses neither.
 - **128 (TS/JS M0 spike) is independent** of the open Pillar-2 work and may run in parallel — as a
   *proposal* about §19's ordering, not a decision. Phase 2 breadth stays deferred.
-- **The two things round 6 measured now have tickets.** `edge_health` HEURISTIC, unmoved at 63.8 %
-  across two rounds and ~20 tasks, is **136**. Round 6's most valuable result came from a question the
-  evaluator **never asked**, which no benchmark scoring "given question Q, did the tool return A" can
-  see — the reachable half of that is **135**, the precision the recall gate cannot see.
+- **Both things round 6 measured are now closed, and both premises moved.** 135 gave the harness a
+  precision axis; the recall gate could not see a wrong answer, and the first thing the axis does is
+  fail on 130 ([benchmark](benchmarks/135_precision-axis.md)). 136 broke the HEURISTIC share down by
+  cause: the tracked **63.8 %** turned out to name the private anchor repo and no committed pin
+  (19–36 %), the cause is local type information (**≥99 %**, so §17's LSP defer covers ≤0.6 %), and the
+  movable share is capped by `vendor/` coverage at **0 / 22.5 / 92.5 %** — hence **137**, with a
+  measured target per pin ([benchmark](benchmarks/136_heuristic-causes.md)).
 - **074 must not claim** an answer-quality comparison against a language server: the anchor's resident
   LSP was uninstalled 2026-08-07 and invoked zero times in 84 calls, so its 19 % adoption figure
   measures adoption, not capability. Its core still needs the anchor repo; round 5 is its n = 1
@@ -431,6 +435,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | 129 | 0 dispatch; main-loop unmeasured | [#154](https://github.com/cuongdinhngo/code-atlas/pull/154) |
 | 134 | 0 dispatch; main-loop unmeasured | [#155](https://github.com/cuongdinhngo/code-atlas/pull/155) |
 | 135 | 0 dispatch (no work doc); main-loop unmeasured. Two sample-tier clones (`symfony/demo`) and one pre-change re-run produced the before/after pair | [#156](https://github.com/cuongdinhngo/code-atlas/pull/156) |
+| 136 | 0 dispatch (no work doc); main-loop unmeasured. Three pinned clones indexed twice for the determinism check; also produced 137 | [#157](https://github.com/cuongdinhngo/code-atlas/pull/157) |
 
 **How 047–049 were measured.** One autonomous session, no per-task transcript: each row is the API
 calls between the previous commit and that task's own commit. The approximation runs one way — work
