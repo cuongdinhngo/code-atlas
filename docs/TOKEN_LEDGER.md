@@ -123,7 +123,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | 083 | **65.4k dispatch, measured** — `mango:reviewer` r1 65.4k (30 tool-uses, 233 s) → LGTM, no findings; main-loop unmeasured. | [#120](https://github.com/cuongdinhngo/code-atlas/pull/120) |
 | 084 | **124.4k dispatch, measured**; main-loop unmeasured. | [#121](https://github.com/cuongdinhngo/code-atlas/pull/121) |
 | 103 | **175.4k dispatch, all measured**; main-loop unmeasured. | [#122](https://github.com/cuongdinhngo/code-atlas/pull/122) |
-| 104 | **91.8k dispatch, measured**; main-loop unmeasured. | [#123](https://github.com/cuongdinhngo/code-atlas/pull/123) |
+| 104 | **91.8k dispatch, measured**; main-loop unmeasured. AC2 closed later at 0 dispatch by three pinned-repo `layer_report.py` runs (#159). | [#123](https://github.com/cuongdinhngo/code-atlas/pull/123) |
 | 085 | **136.5k dispatch, measured**; main-loop unmeasured. | [#124](https://github.com/cuongdinhngo/code-atlas/pull/124) |
 | 086 | 0 dispatch (review waived); main-loop unmeasured | [#125](https://github.com/cuongdinhngo/code-atlas/pull/125) |
 | 087 | 0 dispatch (review waived); main-loop unmeasured | [#126](https://github.com/cuongdinhngo/code-atlas/pull/126) |

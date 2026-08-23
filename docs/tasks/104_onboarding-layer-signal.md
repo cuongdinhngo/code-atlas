@@ -4,7 +4,7 @@ slug: onboarding-layer-signal
 title: Onboarding — fix the layer collapse (F1): group beneath the dominant subtree (M10)
 phase: 3
 milestone: M10
-status: blocked
+status: done
 depends_on: [103]
 ---
 
@@ -298,3 +298,72 @@ determinism-test-observability · seen: 104]** a byte-stability test that shuffl
 pipeline's input cannot observe order-dependence in the stage under test; shuffle at the stage boundary.
 Recurs with 103's equivalent test (the reviewer flagged both). **Proposed, not written** — awaiting
 maintainer ratification.
+
+## AC2 resolved — 2026-08-23, and the verdict on C1 is negative
+
+104 parked at `blocked` because AC2 needed a **real indexed repo** and the anchor PHP monorepo was
+unavailable that session. It is still unavailable. AC2 is discharged anyway, by two things that did
+not exist when this ticket was written:
+
+**1. The real-repo run happened — in 105 — and it refuted this ticket's own C1.** 105 ran
+dominant-subtree against `laravel/laravel` at the SHA already pinned in
+[`scripts/cross_repo_samples.json`](../../scripts/cross_repo_samples.json) and found the dominant
+subtree was **`config/` (10 modules)**, not `app/` (3) — collapsing the application into one `app`
+layer, *the exact F1 shape 104 existed to fix*. So AC2's real-input gate ran, and **C1 as 104 shipped
+it failed it.** 105 replaced the file-count tie-break with graph mass; 110 replaced path-segment names
+with responsibility names. **This ticket closes because its deliverable landed and its gate now
+exists — not because C1 was vindicated.** 104's own AC3 fixture (a) is what hid the defect (it
+authored 8 classes under `app/**` so `app/` could not lose the count); the fixture in the tree today
+is 105's replacement, and it is labelled `105 / AC3(a)`.
+
+**2. The human eyeball AC2 asked for has been replaced by a committed assertion**, which is strictly
+stronger: [`scripts/layer_report.py`](../../scripts/layer_report.py) clones, indexes and **asserts**
+the invariant per pinned repo, because authored fixtures had by then hidden a path-shape layer defect
+**five times** (084, 103, 104, 086, 105 — retro `fixture-shape-begs-the-question`).
+
+### Recorded assignment at HEAD (`b277f1a`), `scripts/layer_report.py`, Linux host
+
+```
+### laravel_app @ ff031db
+  method=responsibility  layers=5  uncategorised=6/26 (23%)
+  Config / Migration(13) → HTTP / Entry(3) → Tests(3) → Uncategorised(6) → Domain / Data(1)
+
+### symfony_demo @ 03fe256
+  method=responsibility  layers=7  uncategorised=18/51 (35%)
+  Uncategorised(18) → HTTP / Entry(8) → Tests(6) → Views(8) → Config / Migration(2)
+  → Shared Library(2) → Domain / Data(7)
+
+### brick_math @ b61d8e6
+  method=responsibility  layers=2  uncategorised=24/32 (75%)
+  Tests(8) → Uncategorised(24)
+
+all repos pass the layer check
+```
+
+**Human judgement (AC2's second half).** Architecturally sensible on the two app-shaped repos: no
+collapsed `app` layer anywhere, controllers land in *HTTP / Entry* and models/entities in
+*Domain / Data*, and `config/` is now **one layer named for what it is** rather than the winner that
+swallows the application — F1 and 105's defect are both absent. `brick_math` at 75 %
+*Uncategorised* is **correct, not a miss**: a pure arbitrary-precision math library has no web or
+domain roles to surface, and `layer_report.py`'s `_EXPECT` records that as the expected shape. The
+honest limitation, stated rather than hidden: these are three small pins (26 / 51 / 32 modules), so
+this is evidence the rule does not collapse on real trees — **not** evidence about a 112k-file
+monorepo. That remains untested, and is the same gap 074 carries.
+
+### AC status at close
+| AC | State | Evidence |
+|---|---|---|
+| AC1 design gate | ✅ | C1 + four rejected alternatives recorded, PR [#123](https://github.com/cuongdinhngo/code-atlas/pull/123) |
+| AC2 real-input gate | ✅ **with a negative verdict on C1** | 105's `laravel/laravel` run refuted C1; `layer_report.py` green at HEAD, readout above |
+| AC3 regression fixtures | ✅ | `tests/test_onboarding_layers.py` — (a) at :431 *(105's replacement)*, (b) :447, (c) :458, (d) :469 |
+| AC4 invariants | ✅ | R4.2 byte-stability :481 + shuffled-input :490; `LAYER_METHODS` derived-not-listed guard; 49 layer tests green |
+
+### Two ticket assumptions overtaken by events
+- *"086 must not start until AC2 clears"* — 086 shipped 2026-08-18 and so did 105/110/111–117. The
+  ordering constraint was overtaken; what protected 086 in the end was 105 catching the defect on
+  real input, not this gate holding the queue.
+- *"the anchor PHP monorepo the plan already names"* — the project has since built a **pinned public
+  sample tier** (042) which is the substitute AC2 lacked. It is smaller, and the paragraph above says
+  so instead of letting the pass imply monorepo coverage.
+
+**No code change in this ticket** — the implementation it verifies is already in `main` via 105/110.
