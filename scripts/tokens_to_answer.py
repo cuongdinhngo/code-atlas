@@ -277,6 +277,152 @@ def score_recall(
     }
 
 
+# --- Precision: what the answer claimed that ground truth does not hold (task 135) -------------
+#
+# Recall alone cannot see a wrong answer: every expected member plus four wrong ones scores 1.0.
+# The denominator has to be the answer's OWN claimed population, and three measurements show the
+# payload's identity bag is not it — `find_callers` echoes the queried `qname`, one result carries
+# the same member under both `qname` and `file`, and `find_orphans` puts `unproven` beside
+# `results` on purpose (R5.2's honest tiers). So the population is DECLARED per question, and an
+# answer shape that legitimately returns more than it was asked for declares why instead.
+
+
+def _truncated_beside(parent: dict[str, object], key: str) -> bool:
+    """Whether the list at ``parent[key]`` is a capped page rather than the whole population.
+
+    Read at the list's own parent, never at the payload root: ``architecture_overview`` carries a
+    ``truncated`` for its layer list and a ``sample_truncated`` inside each bucket, and voiding a
+    bucket's precision because the layer list was capped would report the wrong reason.
+    """
+    return bool(parent.get(f"{key}_truncated") or parent.get("truncated"))
+
+
+def _resolve_scope(node: object, scope: list[Any]) -> tuple[object, bool]:
+    """Walk a declared projection; returns the node reached and whether it is a truncated page.
+
+    The projection is data, not a grammar: a string segment indexes a dict key, a dict segment
+    picks the one list element whose fields it matches. Unresolvable returns ``(None, False)``.
+    """
+    truncated = False
+    for segment in scope:
+        if isinstance(segment, dict):
+            if not isinstance(node, list):
+                return None, False
+            picked = [
+                item
+                for item in node
+                if isinstance(item, dict) and all(item.get(k) == v for k, v in segment.items())
+            ]
+            if len(picked) != 1:
+                return None, False
+            node = picked[0]
+            continue
+        if not isinstance(node, dict) or segment not in node:
+            return None, False
+        # A capped page is not a population: scoring one would call the cap a wrong answer.
+        truncated = _truncated_beside(node, segment)
+        node = node[segment]
+    return node, truncated
+
+
+def claimed_population(
+    responses: list[dict[str, object]], scope: list[Any]
+) -> tuple[list[object], bool] | None:
+    """The items the answering step asserts, at the question's declared projection.
+
+    The answering step is the last MCP response: a recipe's earlier steps are lookups, and it is
+    the same rule ``result_bearing_responses_empty`` already scores emptiness by.
+    """
+    mcp = _mcp_responses(responses)
+    if not mcp:
+        return None
+    node, truncated = _resolve_scope(mcp[-1], scope)
+    if not isinstance(node, list):
+        return None
+    return node, truncated
+
+
+def _item_identities(item: object) -> list[str]:
+    """The names one claimed item goes by — the identity vocabulary recall already shares."""
+    if isinstance(item, str):
+        return [item] if item else []
+    if isinstance(item, dict):
+        return [
+            value
+            for key, value in item.items()
+            if key in IDENTITY_FIELDS and isinstance(value, str) and value
+        ]
+    return []
+
+
+def precision_declaration(question: dict[str, Any]) -> tuple[list[Any] | None, str]:
+    """Where this question's claimed population is, or the written reason it has none (AC4).
+
+    Refusing the default is the point: a metric that quietly skips a question reports green
+    while measuring nothing, which is exactly how the recall gate missed the onboarding class
+    (121). A new question cannot be added without answering this.
+    """
+    scope = question.get("precision_scope")
+    note = str(question.get("precision_note", ""))
+    if scope is None and not note:
+        raise ValueError(
+            f"question {question['id']!r} declares expected_set but neither precision_scope nor "
+            "precision_note — say where its claimed population is, or why it has none"
+        )
+    if scope is not None and not isinstance(scope, list):
+        raise ValueError(f"question {question['id']!r}: precision_scope must be a path list")
+    return scope, note
+
+
+def score_precision(
+    responses: list[dict[str, object]], expected_set: list[str], scope: list[Any]
+) -> dict[str, Any]:
+    """Precision + the members claimed that ground truth does not hold (task 135).
+
+    Counts items, not strings, so one result naming itself twice is one claim. ``precision`` is
+    ``None`` — never a default 1.0 — whenever the population could not be read.
+    """
+    population = claimed_population(responses, scope)
+    if population is None:
+        return {
+            "precision": None,
+            "precision_eligible": True,
+            "claimed_count": 0,
+            "unexpected": [],
+            "precision_note": f"precision_scope {scope} did not resolve to a list in the answer",
+        }
+    items, truncated = population
+    if truncated:
+        return {
+            "precision": None,
+            "precision_eligible": True,
+            "claimed_count": len(items),
+            "unexpected": [],
+            "precision_note": "the claimed population is truncated — a page is not a population",
+        }
+    if not items:
+        # An empty answer is confidently_wrong's business; precision has no denominator here.
+        return {
+            "precision": None,
+            "precision_eligible": True,
+            "claimed_count": 0,
+            "unexpected": [],
+            "precision_note": "the answer claimed nothing — see confidently_wrong",
+        }
+    wanted = set(expected_set)
+    unexpected: list[str] = []
+    for item in items:
+        identities = _item_identities(item)
+        if not any(identity in wanted for identity in identities):
+            unexpected.append(identities[0] if identities else json.dumps(item, sort_keys=True))
+    return {
+        "precision": round((len(items) - len(unexpected)) / len(items), 3),
+        "precision_eligible": True,
+        "claimed_count": len(items),
+        "unexpected": unexpected,
+    }
+
+
 def run_native_step(root: Path, step: dict[str, Any]) -> tuple[int, dict[str, object], int]:
     """Run a non-MCP session step (grep / read_file); tokens, response, files read."""
     tool = str(step["tool"])
@@ -392,7 +538,13 @@ def evaluate_question(config: Config, question: dict[str, Any]) -> dict[str, Any
         row["ratio_note"] = str(question.get("ratio_note", "no fair grep+Read baseline"))
     expected_set = question.get("expected_set")
     if expected_set is not None:
-        row.update(score_recall(atlas_responses, [str(s) for s in expected_set]))
+        members = [str(s) for s in expected_set]
+        row.update(score_recall(atlas_responses, members))
+        scope, note = precision_declaration(question)
+        if scope is None:
+            row.update({"precision": None, "precision_eligible": False, "precision_note": note})
+        else:
+            row.update(score_precision(atlas_responses, members, scope))
     if session_stats is not None:
         row["session"] = session_stats
     return row
@@ -414,6 +566,12 @@ def aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
         else None
     )
     confidently_wrong = sum(1 for r in rows if r.get("confidently_wrong"))
+    precision_rows = [r for r in rows if r.get("precision") is not None]
+    precision_avg = (
+        round(sum(float(r["precision"]) for r in precision_rows) / len(precision_rows), 3)
+        if precision_rows
+        else None
+    )
     return {
         "questions": len(rows),
         "atlas_correct": len(all_correct),
@@ -424,6 +582,9 @@ def aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "recall_questions": len(recall_rows),
         "recall": recall_avg,
         "confidently_wrong": confidently_wrong,
+        "precision_questions": len(precision_rows),
+        "precision": precision_avg,
+        "unexpected": sum(len(list(r.get("unexpected") or [])) for r in rows),
     }
 
 
@@ -432,9 +593,10 @@ def assert_benchmark(
     *,
     min_ratio: float | None = None,
     min_recall: float | None = None,
+    min_precision: float | None = None,
     require_atlas_correct: bool = True,
 ) -> dict[str, Any]:
-    """Gate: raise if atlas answered wrong, ratio fell, or recall fell below its floor."""
+    """Gate: raise if atlas answered wrong, or ratio / recall / precision fell below a floor."""
     if require_atlas_correct:
         wrong = [r["id"] for r in rows if not r["atlas_correct"]]
         if wrong:
@@ -461,6 +623,33 @@ def assert_benchmark(
         if bad:
             raise BenchmarkRegressionError(
                 f"recall below floor {min_recall} (or confidently_wrong) for: {', '.join(bad)}"
+            )
+    if min_precision is not None:
+        eligible = [r for r in rows if r.get("precision_eligible")]
+        if not eligible:
+            raise BenchmarkRegressionError(
+                f"precision floor {min_precision} set but no question declared precision_scope"
+            )
+        unmeasured = [
+            f"{r['id']} ({r.get('precision_note', 'no reason recorded')})"
+            for r in eligible
+            if r.get("precision") is None
+        ]
+        if unmeasured:
+            raise BenchmarkRegressionError(
+                "declared precision-eligible but nothing was measured for: "
+                + "; ".join(unmeasured)
+            )
+        # Name the members, not only the score: a bare ratio is not a diagnosable failure (AC3).
+        breaches = [
+            f"{r['id']} precision {r['precision']} — unexpected: "
+            + ", ".join(str(m) for m in (r.get("unexpected") or []))
+            for r in eligible
+            if float(r["precision"]) < min_precision
+        ]
+        if breaches:
+            raise BenchmarkRegressionError(
+                f"precision below floor {min_precision}: " + "; ".join(breaches)
             )
     return agg
 
@@ -514,13 +703,19 @@ def run_grep_path(root: Path, spec: dict[str, Any]) -> tuple[int, str]:
 
 
 def _gate_verdict_label(
-    *, min_ratio: float | None, min_recall: float | None, failure: str | None
+    *,
+    min_ratio: float | None,
+    min_recall: float | None,
+    failure: str | None,
+    min_precision: float | None = None,
 ) -> str:
     floors = []
     if min_ratio is not None:
         floors.append(f"ratio {min_ratio}")
     if min_recall is not None:
         floors.append(f"recall {min_recall}")
+    if min_precision is not None:
+        floors.append(f"precision {min_precision}")
     if not floors:
         return "report only (no floor)"
     joined = ", ".join(floors)
@@ -537,30 +732,39 @@ def verdict_markdown(
     samples_skipped: int,
     mode: str = "fixture",
     min_recall: float | None = None,
+    min_precision: float | None = None,
 ) -> str:
-    """Markdown block for a CI step summary or a sticky PR comment (task 034 / 055 gate)."""
+    """Markdown block for a CI step summary or a sticky PR comment (task 034 / 055 / 135 gate)."""
     verdict = _gate_verdict_label(
-        min_ratio=min_ratio, min_recall=min_recall, failure=failure
+        min_ratio=min_ratio,
+        min_recall=min_recall,
+        failure=failure,
+        min_precision=min_precision,
     )
     recall = agg.get("recall")
     recall_cell = "—" if recall is None else str(recall)
+    precision = agg.get("precision")
+    precision_cell = "—" if precision is None else str(precision)
     wrong = agg.get("confidently_wrong", 0)
     lines = [
         COMMENT_MARKER,
         "### Tokens-to-answer (vs grep+`Read`)",
         "",
-        "| ratio | recall | confidently_wrong | atlas tokens | grep tokens | correct | verdict |",
-        "|---|---|---|---|---|---|---|",
+        "| ratio | recall | precision | confidently_wrong | atlas tokens | grep tokens | "
+        "correct | verdict |",
+        "|---|---|---|---|---|---|---|---|",
         (
-            f"| {agg['ratio']} | {recall_cell} | {wrong} | {agg['atlas_tokens']} | "
-            f"{agg['grep_tokens']} | {agg['atlas_correct']}/{agg['questions']} | {verdict} |"
+            f"| {agg['ratio']} | {recall_cell} | {precision_cell} | {wrong} | "
+            f"{agg['atlas_tokens']} | {agg['grep_tokens']} | "
+            f"{agg['atlas_correct']}/{agg['questions']} | {verdict} |"
         ),
         "",
     ]
     if failure:
         lines += ["```", failure, "```", ""]
     lines.append(
-        "**Recall is a gate; cost is the win.** A cheaper answer that finds less is a regression."
+        "**Recall and precision are gates; cost is the win.** A cheaper answer that finds less is "
+        "a regression, and one that finds more than is true is a wrong answer."
     )
     lines.append("")
     if mode == "local":
@@ -593,6 +797,7 @@ def notice_line(
     min_ratio: float | None,
     failure: str | None,
     min_recall: float | None = None,
+    min_precision: float | None = None,
 ) -> str:
     """One-line GitHub Actions annotation — shows on the PR's Checks tab without opening a log."""
     floors = []
@@ -600,14 +805,18 @@ def notice_line(
         floors.append(str(min_ratio))
     if min_recall is not None:
         floors.append(f"recall={min_recall}")
+    if min_precision is not None:
+        floors.append(f"precision={min_precision}")
     floor_s = ",".join(floors) if floors else ""
     tail = f" — FAILED floor {floor_s}" if failure else ""
     recall = agg.get("recall")
     recall_bit = f" recall={recall}" if recall is not None else ""
+    precision = agg.get("precision")
+    precision_bit = f" precision={precision}" if precision is not None else ""
     wrong = agg.get("confidently_wrong", 0)
     return (
-        f"::notice title=Tokens-to-answer::ratio={agg['ratio']}{recall_bit} "
-        f"confidently_wrong={wrong} "
+        f"::notice title=Tokens-to-answer::ratio={agg['ratio']}{recall_bit}{precision_bit} "
+        f"confidently_wrong={wrong} unexpected={agg.get('unexpected', 0)} "
         f"atlas={agg['atlas_tokens']} grep={agg['grep_tokens']} "
         f"correct={agg['atlas_correct']}/{agg['questions']}{tail}"
     )
@@ -799,6 +1008,12 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Fail if any expected_set question recalls below this, or is confidently_wrong.",
     )
+    parser.add_argument(
+        "--min-precision",
+        type=float,
+        default=None,
+        help="Fail if any precision-eligible question claims more than ground truth holds.",
+    )
     parser.add_argument("--php-cmd", type=str, default=None)
     parser.add_argument(
         "--samples",
@@ -887,10 +1102,14 @@ def main(argv: list[str] | None = None) -> int:
     print(json.dumps({"wrote": str(out), **agg, "samples_skipped": len(sample_ids)}))
 
     failure: str | None = None
-    if args.min_ratio is not None or args.min_recall is not None:
+    floors = (args.min_ratio, args.min_recall, args.min_precision)
+    if any(floor is not None for floor in floors):
         try:
             assert_benchmark(
-                rows, min_ratio=args.min_ratio, min_recall=args.min_recall
+                rows,
+                min_ratio=args.min_ratio,
+                min_recall=args.min_recall,
+                min_precision=args.min_precision,
             )
         except BenchmarkRegressionError as exc:
             failure = str(exc)
@@ -902,6 +1121,7 @@ def main(argv: list[str] | None = None) -> int:
             agg,
             min_ratio=args.min_ratio,
             min_recall=args.min_recall,
+            min_precision=args.min_precision,
             failure=failure,
             samples_skipped=len(sample_ids),
             mode="local" if args.local else "sample" if args.samples else "fixture",
@@ -915,6 +1135,7 @@ def main(argv: list[str] | None = None) -> int:
                 agg,
                 min_ratio=args.min_ratio,
                 min_recall=args.min_recall,
+                min_precision=args.min_precision,
                 failure=failure,
             )
         )

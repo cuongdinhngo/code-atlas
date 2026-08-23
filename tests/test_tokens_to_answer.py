@@ -95,8 +95,8 @@ def test_verdict_markdown_reports_the_numbers_and_the_pass_verdict() -> None:
     agg = _h.aggregate([_row("a", atlas=100, grep=400)])
     body = _h.verdict_markdown(agg, min_ratio=1.0, failure=None, samples_skipped=2)
     assert _h.COMMENT_MARKER in body  # CI edits its own comment by this marker
-    assert "| 4.0 | — | 0 | 100 | 400 | 1/1 | **PASS** (floor ratio 1.0) |" in body
-    assert "Recall is a gate; cost is the win." in body
+    assert "| 4.0 | — | — | 0 | 100 | 400 | 1/1 | **PASS** (floor ratio 1.0) |" in body
+    assert "Recall and precision are gates; cost is the win." in body
     assert "Sample-tier questions skipped: 2." in body
 
 
@@ -576,3 +576,214 @@ def test_local_tier_reuses_a_prebuilt_index_and_is_deterministic(tmp_path: Path)
     assert first[0]["atlas_tokens"] > 0 and first[0]["grep_tokens"] > 0
     assert first == second, "same index + same question must give the same token counts (R4)"
     assert not (repo / ".git").exists()
+
+
+# --- Task 135: precision — what the answer claimed that ground truth does not hold ------------
+#
+# The hole this closes: an answer with every expected member PLUS wrong extras scored recall 1.0,
+# confidently_wrong False, and passed. Every test below is written so it fails without the axis.
+
+
+def _web_entry_payload(*, truncated: bool = False) -> dict[str, object]:
+    """Defect 130's measured shape: web_entry counts 8, four of them PHPUnit tests."""
+    return {
+        "tool": "architecture_overview",
+        "results": [{"layer": "HTTP / Entry"}],
+        "truncated": True,  # the LAYER list's cap must not void the bucket's precision
+        "summary": {
+            "reachability": {
+                "buckets": [
+                    {"bucket": "test", "sample": ["tests/bootstrap.php"]},
+                    {
+                        "bucket": "web_entry",
+                        "count": 8,
+                        "sample": [
+                            "src/Controller/Admin/BlogController.php",
+                            "src/Controller/BlogController.php",
+                            "src/Controller/SecurityController.php",
+                            "src/Controller/UserController.php",
+                            "tests/Controller/Admin/BlogControllerTest.php",
+                            "tests/Controller/BlogControllerTest.php",
+                            "tests/Controller/DefaultControllerTest.php",
+                            "tests/Controller/UserControllerTest.php",
+                        ],
+                        "sample_truncated": truncated,
+                    },
+                ]
+            }
+        },
+    }
+
+
+WEB_ENTRY_SCOPE = ["summary", "reachability", "buckets", {"bucket": "web_entry"}, "sample"]
+WEB_ENTRY_TRUTH = [
+    "src/Controller/Admin/BlogController.php",
+    "src/Controller/BlogController.php",
+    "src/Controller/SecurityController.php",
+    "src/Controller/UserController.php",
+]
+
+
+def _precision_row(
+    rid: str, *, precision: float | None, unexpected: list[str], eligible: bool = True
+) -> dict[str, object]:
+    row = _row(rid, atlas=100, grep=100)
+    row.update(
+        {"precision": precision, "precision_eligible": eligible, "unexpected": unexpected}
+    )
+    return row
+
+
+def test_precision_names_every_member_the_answer_claimed_and_truth_does_not_hold() -> None:
+    """AC2's shape: precision 0.5 and the four test controllers listed, not counted."""
+    scored = _h.score_precision([_web_entry_payload()], WEB_ENTRY_TRUTH, WEB_ENTRY_SCOPE)
+    assert scored["precision"] == 0.5
+    assert scored["claimed_count"] == 8
+    assert scored["unexpected"] == [
+        "tests/Controller/Admin/BlogControllerTest.php",
+        "tests/Controller/BlogControllerTest.php",
+        "tests/Controller/DefaultControllerTest.php",
+        "tests/Controller/UserControllerTest.php",
+    ]
+
+
+def test_the_same_answer_scores_perfect_recall() -> None:
+    """The ticket's premise, pinned: recall alone cannot see this wrong answer."""
+    recall = _h.score_recall([_web_entry_payload()], WEB_ENTRY_TRUTH)
+    assert recall["recall"] == 1.0 and recall["confidently_wrong"] is False
+
+
+def test_precision_counts_items_not_identity_strings() -> None:
+    """One result naming itself under both `qname` and `file` is ONE claim, not two."""
+    payload = {
+        "tool": "find_callers",
+        "qname": "\\App\\Repo::put",  # the query, echoed back — never a claim
+        "results": [{"qname": "\\App\\User::save", "file": "User.php", "line": 9}],
+    }
+    scored = _h.score_precision([payload], ["\\App\\User::save"], ["results"])
+    assert scored == {
+        "precision": 1.0,
+        "precision_eligible": True,
+        "claimed_count": 1,
+        "unexpected": [],
+    }
+
+
+def test_precision_ignores_an_honest_tier_carried_beside_the_answer() -> None:
+    """`unproven` sits next to `results` on purpose (R5.2) — scoring it would punish the hedge."""
+    payload = {
+        "tool": "find_orphans",
+        "results": [{"qname": "\\Dead\\Unused", "file": "dead.php"}],
+        "unproven": [{"qname": "\\Lib\\Maybe", "file": "lib.php"}],
+    }
+    scored = _h.score_precision([payload], ["\\Dead\\Unused"], ["results"])
+    assert scored["precision"] == 1.0 and scored["unexpected"] == []
+
+
+def test_precision_scope_picks_one_list_element_by_its_own_fields() -> None:
+    """The projection is data, not a grammar: `{"bucket": ...}` selects, it does not parse."""
+    population = _h.claimed_population([_web_entry_payload()], WEB_ENTRY_SCOPE)
+    assert population is not None
+    items, truncated = population
+    assert len(items) == 8 and truncated is False
+
+
+def test_a_truncated_page_is_never_scored_as_a_population() -> None:
+    scored = _h.score_precision(
+        [_web_entry_payload(truncated=True)], WEB_ENTRY_TRUTH, WEB_ENTRY_SCOPE
+    )
+    assert scored["precision"] is None
+    assert "truncated" in str(scored["precision_note"])
+
+
+def test_an_unresolvable_scope_reports_no_precision_rather_than_a_default() -> None:
+    scored = _h.score_precision([{"tool": "read_symbol", "source": "…"}], ["x"], ["results"])
+    assert scored["precision"] is None and scored["unexpected"] == []
+
+
+def test_a_question_with_expected_set_must_declare_precision_one_way_or_the_other() -> None:
+    """AC4: silence is the 121 failure — a metric that skips a question and still reports green."""
+    with pytest.raises(ValueError, match="neither precision_scope nor precision_note"):
+        _h.precision_declaration({"id": "q", "expected_set": ["a"]})
+    assert _h.precision_declaration({"id": "q", "precision_scope": ["results"]}) == (
+        ["results"],
+        "",
+    )
+    assert _h.precision_declaration({"id": "q", "precision_note": "a ranked page"}) == (
+        None,
+        "a ranked page",
+    )
+
+
+def test_every_committed_question_with_expected_set_declares_precision() -> None:
+    """Derived from the file, never a list here (R6.7): a new question cannot skip the axis."""
+    undeclared = [
+        q["id"]
+        for q in _h.load_questions(QUESTIONS)
+        if q.get("expected_set")
+        and q.get("precision_scope") is None
+        and not q.get("precision_note")
+    ]
+    assert not undeclared, f"expected_set with no precision declaration: {undeclared}"
+
+
+def test_the_recall_floor_passes_the_answer_the_precision_floor_rejects() -> None:
+    """The ticket in one assertion: the old gate was green on exactly this row."""
+    wrong = ["tests/Controller/BlogControllerTest.php"]
+    row = _precision_row("web", precision=0.5, unexpected=wrong)
+    row.update({"recall": 1.0, "confidently_wrong": False})
+    _h.assert_benchmark([row], min_recall=1.0)
+    with pytest.raises(_h.BenchmarkRegressionError):
+        _h.assert_benchmark([row], min_precision=1.0)
+
+
+def test_precision_gate_names_the_question_and_the_members_it_rejected() -> None:
+    """AC3: a bare score is not a diagnosable failure."""
+    wrong = ["tests/Controller/BlogControllerTest.php"]
+    row = _precision_row("web", precision=0.5, unexpected=wrong)
+    with pytest.raises(_h.BenchmarkRegressionError) as exc:
+        _h.assert_benchmark([row], min_precision=1.0)
+    assert "web" in str(exc.value)
+    assert "tests/Controller/BlogControllerTest.php" in str(exc.value)
+
+
+def test_precision_floor_fails_loud_when_nothing_declared_it() -> None:
+    ineligible = _precision_row("q", precision=None, unexpected=[], eligible=False)
+    with pytest.raises(_h.BenchmarkRegressionError, match="no question declared precision_scope"):
+        _h.assert_benchmark([ineligible], min_precision=1.0)
+
+
+def test_precision_floor_fails_when_an_eligible_question_measured_nothing() -> None:
+    """A declared axis that produced no number is a failure, not a skip (R5.3)."""
+    row = _precision_row("q", precision=None, unexpected=[])
+    row["precision_note"] = "scope did not resolve"
+    with pytest.raises(_h.BenchmarkRegressionError, match="scope did not resolve"):
+        _h.assert_benchmark([row], min_precision=1.0)
+
+
+def test_precision_floor_passes_when_every_eligible_answer_claims_only_what_is_true() -> None:
+    rows = [
+        _precision_row("a", precision=1.0, unexpected=[]),
+        _precision_row("b", precision=None, unexpected=[], eligible=False),
+    ]
+    agg = _h.assert_benchmark(rows, min_precision=1.0)
+    assert agg["precision"] == 1.0 and agg["precision_questions"] == 1 and agg["unexpected"] == 0
+
+
+def test_aggregate_counts_unexpected_members_across_rows() -> None:
+    rows = [
+        _precision_row("a", precision=0.5, unexpected=["x", "y"]),
+        _precision_row("b", precision=1.0, unexpected=[]),
+    ]
+    agg = _h.aggregate(rows)
+    assert agg["unexpected"] == 2 and agg["precision"] == 0.75
+
+
+def test_verdict_and_notice_carry_precision() -> None:
+    agg = _h.aggregate([_precision_row("a", precision=0.5, unexpected=["x"])])
+    markdown = _h.verdict_markdown(
+        agg, min_ratio=0.5, min_recall=1.0, min_precision=1.0, failure="boom", samples_skipped=0
+    )
+    assert "| precision |" in markdown and "0.5" in markdown and "precision 1.0" in markdown
+    notice = _h.notice_line(agg, min_ratio=0.5, min_precision=1.0, failure="boom")
+    assert "precision=0.5" in notice and "unexpected=1" in notice

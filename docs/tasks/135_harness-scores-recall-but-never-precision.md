@@ -4,7 +4,7 @@ slug: harness-scores-recall-but-never-precision
 title: The recall gate cannot see a wrong answer — an answer with every expected row plus four wrong ones scores 1.0
 phase: 1.5b
 milestone: Measure
-status: todo
+status: done
 depends_on: [055, 121, 130]
 ---
 
@@ -81,3 +81,77 @@ narrower `expected_exhaustive: true`, and states which questions carry it and wh
 - **A precision floor in CI.** Add the axis and record the first numbers; choosing the number the
   build dies on is a separate judgement, and picking it in the same change as the metric would set it
   to whatever today happens to score.
+
+---
+
+## Design decision — the claimed population is **declared**, and the identity bag is measurably wrong
+
+The ticket asked which eligibility mechanism to use. The prior question turned out to be *what the
+denominator even is*, and it is settled by measurement rather than taste. Scoring every identity
+string in the payload gives **0.33** for a correct `find_callers` answer, for three independent
+reasons, each seen on an answer that is right:
+
+1. the payload **echoes the query** (`qname: "\App\Repo::put"`) — a correct answer is charged for
+   repeating what it was asked;
+2. one member arrives under **several fields** (`qname` *and* `file`), so cardinality becomes
+   field-count, not answer-count;
+3. payloads carry **deliberately separate populations** — `unproven` beside `results`, `summary`
+   beside both. Those are R5.2's honest tiers; a metric that reads them as claims would punish
+   exactly the hedging this project sells.
+
+So the population is **declared per question**, following the `ratio_eligible` / `ratio_note`
+precedent the ticket named:
+
+- **`precision_scope`** — the path into the answering payload holding what the answer claims. It is
+  data, not a grammar: a string segment indexes a key, a `{"field": value}` segment picks the one
+  list element whose fields match (`["summary","reachability","buckets",{"bucket":"web_entry"},"sample"]`).
+- **`precision_note`** — why a shape has no claimable population.
+- **Neither is refused.** A row with `expected_set` and no declaration raises. This is the one place
+  a default would have been fatal: defaulting to *ineligible* is exactly how the recall gate reported
+  green while measuring nothing on the onboarding class (121), and defaulting to *eligible* would
+  fire on correct answers. `expected_exhaustive: true` was rejected for the same reason — it says a
+  set is complete without saying complete *of what*, and three of the shapes here are exhaustive of
+  something the payload does not hold.
+
+Two further rules fell out of the measurement, not the design: precision counts **items, not
+strings** (so a result naming itself twice is one claim), and a **truncated page is never scored as a
+population** — read at the list's own parent, because `architecture_overview` carries a `truncated`
+for its layer list and a `sample_truncated` inside each bucket, and voiding a bucket for the layer
+list's cap would report the wrong reason.
+
+## Outcome
+
+**Done.** All five AC met. Numbers, per-question rows and the reproduce commands are in
+[`docs/benchmarks/135_precision-axis.md`](../benchmarks/135_precision-axis.md).
+
+- **AC1** `precision`, `unexpected`, `claimed_count` on every eligible row; nothing but a reason on
+  the rest. 15 of 26 `expected_set` questions are eligible on the fixture tier, 2 on the sample tier.
+- **AC2 — the proving run.** `onb_sample_web_surface` (new, pinned `symfony/demo`) scores
+  **precision 0.5** with the four `tests/Controller/*Test.php` named in `unexpected`, and the gate
+  exits 1. **Red run recorded (R6.5), as a before/after pair on the same question, repo and index:**
+  the harness on `main` at `ce38042` scored it `recall 1.0`, `confidently_wrong False`, **exit 0 — PASS**.
+- **AC3** the failure names the question *and* every member: `precision below floor 1.0:
+  onb_sample_web_surface precision 0.5 — unexpected: tests/Controller/…Test.php, …`.
+- **AC4** all 11 ineligible rows carry their reason in the report, and
+  `test_every_committed_question_with_expected_set_declares_precision` derives the set that needs one
+  from the file itself (R6.7) — a new question cannot skip the axis.
+- **AC5** deterministic and offline: the scorer is pure payload arithmetic, and two fixture runs on
+  one tree produce identical rows.
+
+**Deviation from *Out of scope*, recorded as one (P3).** The ticket deferred "a precision floor in
+CI". `--min-precision 1.0` is now in `scripts/gate.sh` and `ci.yml` beside `--min-recall 1.0`. The
+reason the exclusion does not apply: 1.0 is not a threshold chosen from what today happens to score —
+it is the only floor PILLAR 1's standard admits (*a wrong answer is unacceptable*), it is the floor
+recall already carries, and the fixture tier measures **1.0 across 15 eligible questions with 0
+unexpected**, so nothing was relaxed to fit it. Shipping the axis unenforced is what R6.5 forbids: a
+guard nothing runs is not a guard. Flagged here and in the PR rather than done quietly.
+
+**Finding for a follow-up, not fixed here.** The largest exclusion class is four questions that narrow
+the tool's population in their **prose** rather than in the call (`orphans_dead_unused` asks for
+orphans *under one namespace*; `find_orphans` returns all of them). Those can never be
+precision-gated as written — measured 0.154 and 0.143 for answers that are correct. Recorded in the
+benchmark; not scope-crept into this ticket.
+
+**Delta-green:** `pytest` **1806 passed, 0 failed** (1786 before this branch) on Linux with PHP 8.3.6;
+`scripts/gate.sh` **GATE GREEN — 12 passed · 0 failed · 0 skipped**, the tokens-to-answer check now
+gating precision.

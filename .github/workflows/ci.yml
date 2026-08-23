@@ -113,6 +113,7 @@ jobs:
         run: |
           status=0
           python scripts/tokens_to_answer.py --min-ratio 0.63 --min-recall 1.0 \
+            --min-precision 1.0 \
             --markdown "${RUNNER_TEMP}/tokens-to-answer.md" --notice || status=$?
           if [ -f "${RUNNER_TEMP}/tokens-to-answer.md" ]; then
             cat "${RUNNER_TEMP}/tokens-to-answer.md" >> "$GITHUB_STEP_SUMMARY"

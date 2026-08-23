@@ -30,7 +30,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 132 | [The doc set costs an agent ~66k tokens before it knows what binds it — give every standing doc a boundary](tasks/132_docs-restructure.md) | Docs | done | — |
 | 133 | [The always-binding read is ~66.5k tokens and most of it is reference — tier the agent chain and gate the tier](tasks/133_agent-chain-is-one-tier.md) | Docs | in-progress | 132 |
 | 134 | [The standing docs grew to 66k tokens of mostly retold narrative — prune them and gate the size](tasks/134_standing-docs-grow-and-nothing-prunes-them.md) | Docs | done | 132 |
-| 135 | [The recall gate cannot see a wrong answer — an answer with every expected row plus four wrong ones scores 1.0](tasks/135_harness-scores-recall-but-never-precision.md) | Measure | todo | 055, 121, 130 |
+| 135 | [The recall gate cannot see a wrong answer — an answer with every expected row plus four wrong ones scores 1.0](tasks/135_harness-scores-recall-but-never-precision.md) | Measure | done | 055, 121, 130 |
 | 136 | [Two thirds of the graph's edges are HEURISTIC, the plan promises the fix, and no ticket ever carried it](tasks/136_heuristic-share-has-no-owner.md) | Coverage | todo | 025, 029, 011 |
 
 ## Open work — Pillar 2 · Onboarding
@@ -430,6 +430,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | 132 | 0 dispatch; main-loop unmeasured | [#153](https://github.com/cuongdinhngo/code-atlas/pull/153) |
 | 129 | 0 dispatch; main-loop unmeasured | [#154](https://github.com/cuongdinhngo/code-atlas/pull/154) |
 | 134 | 0 dispatch; main-loop unmeasured | [#155](https://github.com/cuongdinhngo/code-atlas/pull/155) |
+| 135 | 0 dispatch (no work doc); main-loop unmeasured. Two sample-tier clones (`symfony/demo`) and one pre-change re-run produced the before/after pair | [#156](https://github.com/cuongdinhngo/code-atlas/pull/156) |
 
 **How 047–049 were measured.** One autonomous session, no per-task transcript: each row is the API
 calls between the previous commit and that task's own commit. The approximation runs one way — work

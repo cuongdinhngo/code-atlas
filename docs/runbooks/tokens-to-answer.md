@@ -20,18 +20,21 @@ Deterministic by design: each question is a **fixed recipe**, not a live model
 ```bash
 export CA_PHP_CMD="php $(pwd)/adapters/php/index.php --server"
 python3 scripts/tokens_to_answer.py                              # report only
-python3 scripts/tokens_to_answer.py --min-ratio 0.63 --min-recall 1.0  # CI gates
+python3 scripts/tokens_to_answer.py \
+  --min-ratio 0.63 --min-recall 1.0 --min-precision 1.0        # CI gates
 ```
 
 The report lands under `artifacts/` (gitignored). The pure-Python gate tests
-(`estimate_tokens`, `aggregate`, `assert_benchmark`, grep path, recall scoring) run in CI with no PHP; the
+(`estimate_tokens`, `aggregate`, `assert_benchmark`, grep path, recall and precision scoring) run in
+CI with no PHP; the
 `@needs_php` test builds the fixtures and runs every committed question end to end.
 
 ## Automatic gate (every PR)
 
 The `test` job in [`ci.yml`](../../.github/workflows/ci.yml) runs
-`python scripts/tokens_to_answer.py --min-ratio 0.63 --min-recall 1.0 --markdown … --notice` on every
-PR — it fails on a wrong answer, a recall miss / `confidently_wrong`, or if the ratio regresses. It
+`python scripts/tokens_to_answer.py --min-ratio 0.63 --min-recall 1.0 --min-precision 1.0 --markdown …
+--notice` on every PR — it fails on a wrong answer, a recall miss / `confidently_wrong`, a precision
+breach, or if the ratio regresses. It
 runs on **3.13 only** (a token count does not vary by interpreter) and reports in four places, so
 nobody has to open a log:
 
@@ -185,14 +188,20 @@ duplicates did not make the answer cheaper — it **doubled the information at t
 tokens-to-answer is blind to that by construction: it counts what a payload costs, never what it
 carries. A tool returning ten duplicates and a tool returning ten distinct answers score identically.
 
-### Recall gates, cost wins (task 055)
+### Recall and precision gate, cost wins (tasks 055 / 135)
 
-Treat the ratio as a **cost** measure, not a quality measure. **Recall is the gate; cost is the win.**
-A cheaper answer that finds less of a known ground-truth set is a regression — CI enforces that with
-`--min-recall 1.0` on the fixture tier alongside `--min-ratio 0.63`.
+Treat the ratio as a **cost** measure, not a quality measure. **Recall and precision are the gates;
+cost is the win.** A cheaper answer that finds less of a known ground-truth set is a regression, and
+one that claims more than is true is a wrong answer — CI enforces both at `1.0` on the fixture tier
+alongside `--min-ratio 0.63`.
 
 - **`expected_set`** — complete hand-written ground truth; the harness reports `recall`, `found`,
   `missing`.
+- **`precision` / `unexpected`** — over the answer's own claimed population, declared per question by
+  `precision_scope` (a path into the answering payload) or excused by `precision_note`. Counted per
+  **item**, so a result naming itself under both `qname` and `file` is one claim; a truncated page is
+  never scored as a population. A row with `expected_set` and neither key is refused, so the axis
+  cannot default to green (135).
 - **`confidently_wrong`** — empty `results` when ground truth is non-empty. Counted separately from a
   partial-recall miss (some hits, not all): the empty answer is what makes an agent stop using the tool.
 - **Symptom-first / session recipes** (`session_path`) mix native `grep` / `read_file` with MCP tools and
@@ -257,6 +266,8 @@ Each entry is one agent question with a **known** correct answer plus the recipe
 | `expected` | substrings that MUST appear in the code-atlas responses |
 | `grep_evidence` | substrings that must appear in what grep+`Read` surfaces (defaults to `expected`) |
 | `expected_set` | the **complete** ground-truth set, so 055's recall gate scores the answer |
+| `precision_scope` | path into the answering payload holding what the answer claims: a string indexes a key, `{"field": value}` picks one list element. Required with `expected_set` unless `precision_note` says why (135) |
+| `precision_note` | **required** when a shape has no claimable population — a ranked page, a body, a question that narrows the tool's population in prose |
 | `tier` | question class — `named` (default), `whole_graph`, `symptom`, `onboarding` |
 | `ratio_eligible` | `false` when no fair grep baseline exists |
 | `ratio_note` | **required** whenever the question is out of the ratio: why, in one sentence. It reaches the report row, so the artifact carries the reason too |
