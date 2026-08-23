@@ -29,16 +29,18 @@ and the honest move on a new sighting is to bump `seen:`, not to write a fresh c
 
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
-| `derived-not-listed-invariant` | 11 | 087–088, 093, 095–097, 099–102, 122 | **R6.7** |
+| `derived-not-listed-invariant` | 12 | 087–088, 093, 095–097, 099–102, 122, 127 | **R6.7** |
 | `prove-the-guard-fails` | 9 | 087–089, 093, 096, 099–101, 122 | **R6.5** |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | open — **rejected at rec 3; that verdict is stale** |
 | `fixture-shape-begs-the-question` | 6 | 084, 086, 103–106 | open — never proposed |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
 | `count-pin-in-blast-radius` | 4 | 085, 087–089 | open — never proposed |
-| `source-the-caveat-from-the-computation` | 4 | 100–102, 122 | **R5.5** |
+| `source-the-caveat-from-the-computation` | 5 | 100–102, 122, 127 | **R5.5** |
 | `re-verify-the-assumption-on-a-new-path` | 3 | 102, 107, 122 | open — never proposed |
 | `re-run-the-sweep-after-the-last-edit` | 3 | 100–102 | **AGENT_BRIEF P4** |
 | `route-must-answer` | 3 | 093, 101, 102 | folded into **R5.4**'s falsifier |
+| `rank-before-truncate` | 2 | 067, 126 | open — proposed 2026-08-23, awaiting ratify |
+| `guard-asserts-rendered-not-shipped-bytes` | 2 | 116, 127 | open — proposed 2026-08-23, awaiting ratify |
 | `sibling-meta-non-int` | 2 | 092, 095 | **R1.7** |
 | `record-the-deviation-as-a-deviation` | 2 | 101, promote-2026-08-15 | **AGENT_BRIEF P3** |
 | `one-rule-for-every-subject-slot` | 2 | 102, 122 | open — never proposed |
@@ -51,6 +53,46 @@ and the honest move on a new sighting is to bump `seen:`, not to write a fresh c
 `re-verify-the-assumption-on-a-new-path` (3) all clear the recurrence gate and none has ever been
 proposed — because their sightings were split across ids, which is `PROM-C1`'s under-count recurring
 one level up.
+
+## 126/127 — A guard that reads the shipped file instead of the rendered output is green forever
+The onboarding page embeds its whole dataset as a JSON block, so `caveat in html` is true for every
+caveat the dataset carries **whether or not the page ever renders it**. The first formulation of 127's
+guard would have passed on day one and every day after. Rewritten to run the page under `node` and
+read the rendered sections, it failed immediately on the real drop (`['reachability']`). Same shape as
+116's own finding: a grep over an HTML page whose content is built in the browser sees zero rendered
+figures.
+
+### 127-C1 — A guard over a generated artifact asserts the RENDERED output, never the artifact bytes
+- type: 2 generalisable-heuristic
+- handle: guard-asserts-rendered-not-shipped-bytes
+- status: proposed (awaiting human confirm)
+- seen: 116, 127
+- evidence: 116 made `node` a test dependency because a grep over the HTML would be a false green;
+  127's file-level formulation of the caveat guard is green by construction, the rendered one caught
+  the drop on its first run
+- area: onboarding / artifact / guards
+- destination: `rulebook_path` (code subject) — recurrence 2 across 116 and 127, **promotable**: run
+  `/mango:promote` for the handle above
+
+### 127-C2 — new sighting of an existing class, recorded as a `seen:` bump, not a fresh claim
+`derived-not-listed-invariant` (rec 11 → **12**, already **R6.7**) gains 127: the caveat set the guard
+iterates is derived from the dataset payload, so caveat N+1 is covered the moment it exists. The class
+index's own instruction is that a new sighting bumps `seen:` rather than re-deriving the rule.
+`source-the-caveat-from-the-computation` (rec 4 → **5**, already **R5.5**) gains 127 as well: the
+declaration caveat now rides on the split that computes the declared counts, and `path_index.caveat` is
+sourced where the cap is decided rather than re-worded by the renderer.
+
+### 126-C1 — Ranking must precede truncation wherever a page is cut, tool payload or artifact
+- type: 2 generalisable-heuristic
+- handle: rank-before-truncate
+- status: proposed (awaiting human confirm)
+- seen: 067, 126
+- evidence: 067 fixed it for `find_callers` and added `result_subtrees`; 126 found the same defect
+  unmitigated in the map's search palette, beside the mirror panel that exists to prevent the failure
+  it caused. (123 is *not* counted here — its claim is `total_count` semantics, not ranking.)
+- area: tools / onboarding / payload honesty
+- destination: `rulebook_path` (code subject) — recurrence 2 across 067 and 126, **promotable**: run
+  `/mango:promote` for the handle above
 
 ## 125 — Schema version names the index, not the server that read it
 ``get_index_status`` reported ``contract_version`` and ``schema_version`` — both describe the

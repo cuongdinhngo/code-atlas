@@ -33,6 +33,19 @@ TEST = "test"
 DYNAMIC = "dynamic_or_unresolved"
 ISOLATED = "isolated"
 
+# Which signal proved a module's membership (task 119). Fixed order, so the tally is byte-stable.
+SIGNAL_DECLARED = "declared"
+SIGNAL_VOCABULARY = "vocabulary"
+SIGNAL_STRUCTURE = "structure"
+SIGNAL_ORDER: tuple[str, ...] = (SIGNAL_DECLARED, SIGNAL_VOCABULARY, SIGNAL_STRUCTURE)
+
+# 119: a declared count is only as good as the declaration, and the core cannot know whether one
+# is stale. Descriptive, never a verdict on a glob (119 AC6) — the numbers sit beside each other.
+DECLARATION_CAVEAT = (
+    "A count labelled declared comes from the globs listed beside it, matched as written; "
+    "the core does not check whether a declaration still holds."
+)
+
 # The reason a bucket is dropped rather than zeroed (AC5): path naming carries no information here.
 NO_VOCABULARY_SIGNAL = (
     "no indexed path names a responsibility role; the responsibility-vocabulary "
@@ -85,14 +98,43 @@ __all__ = [
     "LAYER_TESTS",
     "LAYER_VENDOR",
     "LAYER_WEB_ENTRY",
+    "DECLARATION_CAVEAT",
     "NO_VOCABULARY_SIGNAL",
+    "PatternClaim",
     "ReachabilityBucket",
     "ReachabilitySplit",
     "TEST",
     "VENDOR",
+    "SIGNAL_DECLARED",
+    "SIGNAL_ORDER",
+    "SIGNAL_STRUCTURE",
+    "SIGNAL_VOCABULARY",
     "WEB_ENTRY",
     "classify_reachability",
 ]
+
+
+@dataclass(frozen=True)
+class PatternClaim:
+    """One declared pattern: what it matches in the index, and what it claimed here (task 119).
+
+    ``files_matched`` counts every indexed module the pattern matches; ``zero_inbound_claimed``
+    counts only the zero-inbound modules it put in a bucket. A pattern matching 1,087 files and
+    claiming 560 roots is then legible without reproducing ``_bucket_of`` by hand.
+    """
+
+    pattern: str
+    kind: str
+    files_matched: int
+    zero_inbound_claimed: int
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "files_matched": self.files_matched,
+            "kind": self.kind,
+            "pattern": self.pattern,
+            "zero_inbound_claimed": self.zero_inbound_claimed,
+        }
 
 
 @dataclass(frozen=True)
@@ -106,6 +148,8 @@ class ReachabilityBucket:
     count: int
     sample: tuple[str, ...]
     sample_truncated: bool
+    signals: tuple[tuple[str, int], ...] = ()
+    """Which signal proved each member (119). Every kind reports, zero included, never omitted."""
 
     def as_dict(self) -> dict[str, object]:
         """Order-stable dict view — what every renderer serialises (R4.2)."""
@@ -117,6 +161,7 @@ class ReachabilityBucket:
             "sample": list(self.sample),
             "sample_truncated": self.sample_truncated,
             "signal": self.signal,
+            "signals": dict(self.signals),
         }
 
 
@@ -127,12 +172,18 @@ class ReachabilitySplit:
     total: int
     buckets: tuple[ReachabilityBucket, ...]
     dropped: tuple[tuple[str, str], ...]
+    patterns: tuple[PatternClaim, ...] = ()
+    """The operator's own declarations and what each one claimed here (task 119)."""
+    caveat: str = DECLARATION_CAVEAT
+    """Rides WITH the counts, so no renderer can show a declared count without it (R5.5)."""
 
     def as_dict(self) -> dict[str, object]:
         """Order-stable dict view; ``total`` keeps the raw number, just not as the headline."""
         return {
             "buckets": [bucket.as_dict() for bucket in self.buckets],
+            "caveat": self.caveat,
             "dropped": [{"bucket": bucket, "reason": reason} for bucket, reason in self.dropped],
+            "patterns": [claim.as_dict() for claim in self.patterns],
             "total": self.total,
         }
 
@@ -146,6 +197,14 @@ def _matches(path: str, rules: Sequence[re.Pattern[str]]) -> bool:
     return any(rule.match(path) for rule in rules)
 
 
+def _first_match(path: str, rules: Sequence[re.Pattern[str]]) -> int | None:
+    """Index of the first pattern that matches, so a claim is attributed to one pattern only."""
+    for index, rule in enumerate(rules):
+        if rule.match(path):
+            return index
+    return None
+
+
 def _bucket_of(
     path: str,
     *,
@@ -153,24 +212,27 @@ def _bucket_of(
     entry_rules: Sequence[re.Pattern[str]],
     stub_rules: Sequence[re.Pattern[str]],
     vocabulary: bool,
-) -> str:
-    """The one bucket a zero-inbound module lands in. First match wins, so buckets are disjoint.
+) -> tuple[str, str, tuple[str, int] | None]:
+    """The one bucket a zero-inbound module lands in, WITH what proved it (task 119).
 
-    Role before structure: a test file with no edges is a test, not a dead-code candidate.
+    First match wins, so buckets are disjoint and a claim belongs to one pattern only. Role
+    before structure: a test file with no edges is a test, not a dead-code candidate.
     """
-    if _matches(path, entry_rules):
-        return WEB_ENTRY
-    if _matches(path, stub_rules):
-        return VENDOR
+    hit = _first_match(path, entry_rules)
+    if hit is not None:
+        return WEB_ENTRY, SIGNAL_DECLARED, ("entry_points", hit)
+    hit = _first_match(path, stub_rules)
+    if hit is not None:
+        return VENDOR, SIGNAL_DECLARED, ("stub_roots", hit)
     if vocabulary:
         layer = responsibility_layer(path)
         if layer == LAYER_WEB_ENTRY:
-            return WEB_ENTRY
+            return WEB_ENTRY, SIGNAL_VOCABULARY, None
         if layer == LAYER_VENDOR:
-            return VENDOR
+            return VENDOR, SIGNAL_VOCABULARY, None
         if layer == LAYER_TESTS:
-            return TEST
-    return DYNAMIC if fan_out else ISOLATED
+            return TEST, SIGNAL_VOCABULARY, None
+    return (DYNAMIC if fan_out else ISOLATED), SIGNAL_STRUCTURE, None
 
 
 def classify_reachability(
@@ -195,8 +257,12 @@ def classify_reachability(
     fan_out_of: Mapping[str, int] = {metric.key: metric.fan_out for metric in metrics.modules}
 
     members: dict[str, list[str]] = {bucket: [] for bucket in BUCKETS}
+    tallies: dict[str, dict[str, int]] = {
+        bucket: dict.fromkeys(SIGNAL_ORDER, 0) for bucket in BUCKETS
+    }
+    claimed: dict[tuple[str, int], int] = {}
     for path in sorted(metrics.module_entry_points):
-        bucket = _bucket_of(
+        bucket, signal, claim = _bucket_of(
             path,
             fan_out=fan_out_of.get(path, 0),
             entry_rules=entry_rules,
@@ -204,6 +270,28 @@ def classify_reachability(
             vocabulary=vocabulary,
         )
         members[bucket].append(path)
+        tallies[bucket][signal] += 1
+        if claim is not None:
+            claimed[claim] = claimed.get(claim, 0) + 1
+
+    # What each declaration matches in the whole index, beside what it claimed here (119 AC3).
+    # A pattern matching nothing reports zero rather than omitted, so a typo is visible.
+    declarations = tuple(
+        ("entry_points", index, pattern, rule)
+        for index, (pattern, rule) in enumerate(zip(entry_points or (), entry_rules, strict=True))
+    ) + tuple(
+        ("stub_roots", index, pattern, rule)
+        for index, (pattern, rule) in enumerate(zip(stub_roots or (), stub_rules, strict=True))
+    )
+    claims = tuple(
+        PatternClaim(
+            pattern=pattern,
+            kind=kind,
+            files_matched=sum(1 for metric in metrics.modules if rule.match(metric.key)),
+            zero_inbound_claimed=claimed.get((kind, index), 0),
+        )
+        for kind, index, pattern, rule in declarations
+    )
 
     # A structural bucket is always fillable; a vocabulary-only bucket is not, unless the operator
     # declared its own roots — a declaration stands on its own, whatever the paths look like.
@@ -224,10 +312,12 @@ def classify_reachability(
                 count=len(paths),
                 sample=tuple(paths[:sample_limit]),
                 sample_truncated=len(paths) > sample_limit,
+                signals=tuple((name, tallies[bucket][name]) for name in SIGNAL_ORDER),
             )
         )
     return ReachabilitySplit(
         total=len(metrics.module_entry_points),
         buckets=tuple(buckets),
         dropped=tuple(dropped),
+        patterns=claims,
     )

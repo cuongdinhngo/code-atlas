@@ -99,6 +99,8 @@ const matrix = {
 const search = {};
 for (const q of queries) {
   const found = MAP.search(q);
+  // Drive the page's own draw() as well, so the reported hint is the rendered one (126).
+  MAP.open(q);
   search[q] = {
     shown: found.shown,
     paths: found.paths,
@@ -107,6 +109,8 @@ for (const q of queries) {
     short: !!found.short,
     first: found.items.length ? found.items[0].text : null,
     kinds: found.items.slice(0, 6).map((i) => i.kind),
+    items: found.items.map((i) => i.text),
+    hint: strip(nodes.rhint ? nodes.rhint.innerHTML : '').replace(/\s+/g, ' ').trim(),
   };
 }
 const counterpart = {};

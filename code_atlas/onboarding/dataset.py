@@ -39,8 +39,10 @@ from code_atlas.onboarding.reachability import ReachabilitySplit, classify_reach
 # capability table (114). 4: the ``mirrors`` pair table (115). 5: ``commit``, per-layer ``kinds``
 # and ``dir_symbol_threshold``, so the map renders from the dataset ALONE and states the threshold
 # it was pruned at (116). 6: ``headlines`` — the facts a newcomer needs first, derived here and
-# worded through the 117 seam. This is NOT ``contract_version``; the adapter contract is untouched.
-DATASET_VERSION = 6
+# worded through the 117 seam. 7: caveats and declaration provenance — ``path_index.caveat``,
+# ``reachability.caveat``/``patterns``, per-bucket ``signals`` (119/127), so a caveat and a
+# declared count travel together. This is NOT ``contract_version``; the contract is untouched.
+DATASET_VERSION = 7
 # A directory is kept in the tree only when its subtree holds at least this many symbols — the
 # mockup's prune, so a 40k-file repo yields a map of a few dozen rows, not thousands (AC3).
 DIR_SYMBOL_THRESHOLD = 400
@@ -141,6 +143,8 @@ class PathIndex:
     total: int
     shown: int
     truncated: bool
+    caveat: str = ""
+    """What a search miss over this index does and does not prove — single-sourced here (127)."""
 
 
 @dataclass(frozen=True)
@@ -208,6 +212,7 @@ class OnboardingDataset:
             "parsed": self.parsed,
             "reachability": self.reachability.as_dict(),
             "path_index": {
+                "caveat": self.path_index.caveat,
                 "dirs": list(self.path_index.dirs),
                 "entries": [[index, name] for index, name in self.path_index.entries],
                 "shown": self.path_index.shown,
@@ -220,6 +225,28 @@ class OnboardingDataset:
             ],
             "version": self.version,
         }
+
+
+def derive_caveats(payload: Mapping[str, object], _at: str = "") -> tuple[tuple[str, str], ...]:
+    """Every caveat the dataset carries, DERIVED from the payload rather than listed (R6.7, 127).
+
+    A section owns a caveat by owning a non-empty ``caveat`` key — a structural fact about the
+    contract 112 froze, so caveat N+1 is covered the moment it exists. Returns ``(section, text)``
+    in payload order, which is key order, which is stable (R4.2).
+    """
+    found: list[tuple[str, str]] = []
+    text = payload.get("caveat")
+    if isinstance(text, str) and text:
+        found.append((_at or "dataset", text))
+    for key, value in payload.items():
+        where = f"{_at}.{key}" if _at else key
+        if isinstance(value, Mapping):
+            found.extend(derive_caveats(value, where))
+        elif isinstance(value, list):
+            for index, row in enumerate(value):
+                if isinstance(row, Mapping):
+                    found.extend(derive_caveats(row, f"{where}[{index}]"))
+    return tuple(found)
 
 
 def _layer_stats(
@@ -317,12 +344,21 @@ def _path_index(file_paths: Sequence[str], cap: int) -> PathIndex:
             dir_index[head] = len(dirs)
             dirs.append(head)
         entries.append((dir_index[head], tail))
+    truncated = len(file_paths) > cap
+    caveat = (
+        f"The search index holds {len(kept):,} of {len(file_paths):,} paths, so a search miss may "
+        "be a cap rather than an absence."
+        if truncated
+        else f"The search index holds every one of the {len(file_paths):,} indexed paths, so a "
+        "search miss is a real absence."
+    )
     return PathIndex(
         dirs=tuple(dirs),
         entries=tuple(entries),
         total=len(file_paths),
         shown=len(kept),
-        truncated=len(file_paths) > cap,
+        truncated=truncated,
+        caveat=caveat,
     )
 
 
@@ -504,8 +540,17 @@ def render_dataset_overview(dataset: OnboardingDataset) -> str:
     for bucket in split.buckets:
         lines.append(f"- `{bucket.bucket}` — {bucket.label}: {bucket.count}")
         lines.append(f"  - {bucket.note}")
+        named = ", ".join(f"{count} {name}" for name, count in bucket.signals if count)
+        if named:
+            lines.append(f"  - by signal: {named}")
     for bucket_id, reason in split.dropped:
         lines.append(f"- `{bucket_id}`: not reported — {reason}")
+    lines.append(f"- {split.caveat}")
+    for claim in split.patterns:
+        lines.append(
+            f"  - `{claim.pattern}` ({claim.kind}): matches {claim.files_matched} indexed files, "
+            f"claims {claim.zero_inbound_claimed} of the modules above"
+        )
     lines.extend(["", "## Hubs", ""])
     if dataset.hubs:
         for hub in dataset.hubs:

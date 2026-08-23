@@ -631,6 +631,12 @@ cache under `.code-atlas/onboarding/`.
   **117 closed the reshape** by routing the map's prose — layer descriptions, tour-step narratives,
   and the wording of the headline facts (`DATASET_VERSION` 6, adding `headlines`) — through one new
   seam, leaving every count, ranking and grouping derived as before.
+  **126/127 answered an external review of the shipped artifact**: the map's search palette ranked
+  nothing before truncating, so page 1 was whichever subtree the walk reached first — 067's finding
+  at the artifact layer, beside the mirror panel that exists to prevent it — and a caveat the dataset
+  carried could silently fail to render, which 127 turns into a derived guard rather than a habit
+  (`DATASET_VERSION` 7, adding `path_index.caveat`, `reachability.caveat`/`patterns` and per-bucket
+  `signals`, so **119**'s "one number over two signals" closes with it).
 - **M12** LLM enrichment (opt-in, deferred, out of core + CI) — 090 LLM summarizer behind the 085 seam ·
   091 LLM layer-name refinement · 117 the `ProseWriter` seam for the map's three prose slots.
   117 measured that 091's rename seam **fires on nothing** once 110 made `responsibility` the

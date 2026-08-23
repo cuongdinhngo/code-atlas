@@ -662,8 +662,12 @@ put("reachLede", fmt(SPLIT.total) + " files (" + pct(SPLIT.total, D.files)
   + "number would be wrong — it is " + fmt(SPLIT.buckets.length)
   + " different populations, and only the last is a list of suspects.");
 put("reachGrid", SPLIT.buckets.map(function (b) {
+  /* 119: one number over two signals hid a false declaration, so the tally rides the card. */
+  var tally = Object.keys(b.signals || {}).filter(function (k) { return b.signals[k]; })
+    .map(function (k) { return fmt(b.signals[k]) + " " + esc(k); }).join(" \u00b7 ");
   return '<div class="card stat"><div class="v">' + fmt(b.count) + '</div><div class="k">'
-    + esc(b.label) + '</div><div class="n">' + esc(b.signal) + "</div></div>";
+    + esc(b.label) + '</div><div class="n">' + esc(b.signal)
+    + (tally ? '</div><div class="n">' + tally : "") + "</div></div>";
 }).join(""));
 put("reachNote", SPLIT.buckets.map(function (b) {
   return "<b>" + esc(b.label) + ".</b> " + esc(b.note)
@@ -672,7 +676,14 @@ put("reachNote", SPLIT.buckets.map(function (b) {
       }).join(", ") + (b.sample_truncated ? " (sample capped)" : "") : "");
 }).join("<br>") + SPLIT.dropped.map(function (row) {
   return "<br><b>" + esc(row.bucket) + " is not reported.</b> " + esc(row.reason);
-}).join(""));
+}).join("") + "<br>" + esc(SPLIT.caveat) + (SPLIT.patterns.length
+  ? "<br>" + SPLIT.patterns.map(function (c) {
+      return "<code>" + esc(c.pattern) + "</code> (" + esc(c.kind) + ") matches "
+        + fmt(c.files_matched) + " indexed files and claims " + fmt(c.zero_inbound_claimed)
+        + " of the modules above";
+    }).join("<br>")
+  : "<br>No entry-point or dependency-root globs are declared, so no count above is a declared one."
+));
 
 /* ---------- largest classes ---------- */
 put("clsLede", "Ranked by declared members in the same file. This is the " + fmt(D.classes.length)
@@ -704,11 +715,7 @@ put("provCard",
   + "<li>" + esc(MIR.caveat) + "</li>"
   + "<li>" + pct(HEUR, CONF) + "% of dependencies sit below the exact confidence tier: they were "
   + "inferred, not resolved. Dynamic dispatch is not statically visible at all.</li>"
-  + "<li>" + (INDEX_PARTIAL
-      ? "The search index holds " + fmt(PATHS.length) + " of " + fmt(D.path_index.total)
-        + " paths, so a search miss may be a cap rather than an absence."
-      : "The search index holds every one of the " + fmt(D.path_index.total)
-        + " indexed paths, so a search miss is a real absence.") + "</li>"
+  + "<li>" + esc(D.path_index.caveat) + "</li>"
   + "<li>Operational documentation — how to run this, its environment, its data — belongs "
   + "to the repository and is not derivable from an index.</li></ul>"
   + '<p class="sub">Companion documents written beside this page: <code>overview.md</code>, '
@@ -736,10 +743,64 @@ function counterpart(path) {
 
 /* ---------- search palette ---------- */
 var SHOWN_MAX = 40;
+var NAMED_TREES = 6;
+function subtreeOf(path) {
+  var cut = path.indexOf("/");
+  return cut > 0 ? path.slice(0, cut) : "";
+}
+/* Rank first, truncate second (067). Basename beats directory, short beats long, name breaks
+   the tie — a total order, so the page cannot depend on the walk that filled the index. */
+function rankOf(low, q) {
+  var base = low.slice(low.lastIndexOf("/") + 1);
+  if (low === q) return 0;
+  if (base === q) return 1;
+  if (base.indexOf(q) >= 0) return 2;
+  return 3;
+}
+function ranked(hits, q) {
+  return hits.map(function (p) { return { path: p, rank: rankOf(p.toLowerCase(), q) }; })
+    .sort(function (a, b) {
+      return a.rank - b.rank || a.path.length - b.path.length
+        || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+    });
+}
+/* A floor, not a quota: every subtree in the full match set keeps one row on the page, and it is
+   paid for by the most over-represented subtree. Never evicts a subtree's last row. */
+function represent(order, cap) {
+  var page = order.slice(0, cap);
+  if (order.length <= cap) return page;
+  var best = {}, trees = [], counts = {}, i;
+  for (i = 0; i < order.length; i++) {
+    var tree = subtreeOf(order[i].path);
+    if (!(tree in best)) { best[tree] = order[i]; trees.push(tree); }
+  }
+  for (i = 0; i < page.length; i++) {
+    var on = subtreeOf(page[i].path);
+    counts[on] = (counts[on] || 0) + 1;
+  }
+  for (i = 0; i < trees.length; i++) {
+    if (counts[trees[i]]) continue;
+    var crowd = null, at = -1, seat;
+    for (seat = 0; seat < page.length; seat++) {
+      var owner = subtreeOf(page[seat].path);
+      if (crowd === null || counts[owner] > counts[crowd]
+          || (counts[owner] === counts[crowd] && seat > at)) { crowd = owner; at = seat; }
+    }
+    if (crowd === null || counts[crowd] < 2) break;
+    counts[crowd] -= 1;
+    counts[trees[i]] = 1;
+    page[at] = best[trees[i]];
+  }
+  return page.sort(function (a, b) {
+    return a.rank - b.rank || a.path.length - b.path.length
+      || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+  });
+}
 function search(raw) {
   var q = String(raw || "").trim().toLowerCase();
   if (q.length < 2) {
-    return { items: [], shown: 0, incomplete: INDEX_PARTIAL, short: true, paths: 0, cut: 0 };
+    return { items: [], shown: 0, incomplete: INDEX_PARTIAL, short: true, paths: 0, cut: 0,
+             trees: [] };
   }
   var exact = [], part = [], i;
   for (i = 0; i < PATHS.length; i++) {
@@ -762,8 +823,13 @@ function search(raw) {
     }
   });
   var hits = exact.concat(part);
-  hits.slice(0, SHOWN_MAX).forEach(function (p) {
-    var answer = counterpart(p), note;
+  var order = ranked(hits, q), spans = {}, trees = [];
+  order.forEach(function (row) {
+    var tree = subtreeOf(row.path);
+    if (tree && !(tree in spans)) { spans[tree] = 1; trees.push(tree); }
+  });
+  represent(order, SHOWN_MAX).forEach(function (row) {
+    var p = row.path, answer = counterpart(p), note;
     if (answer.status === "counterpart") note = "parallel file: " + answer.path;
     else if (answer.status === "no_counterpart") {
       note = "inside a mirror pair with no parallel file"
@@ -773,7 +839,8 @@ function search(raw) {
                  status: answer.status });
   });
   return { items: items, shown: items.length, incomplete: INDEX_PARTIAL, short: false,
-           paths: hits.length, cut: Math.max(0, hits.length - SHOWN_MAX) };
+           paths: hits.length, cut: Math.max(0, hits.length - SHOWN_MAX),
+           trees: trees.sort() };
 }
 function draw(raw) {
   var found = search(raw);
@@ -794,6 +861,12 @@ function draw(raw) {
     ? "Showing " + fmt(found.items.length) + " result"
       + (found.items.length === 1 ? "" : "s")
       + (found.cut ? ", " + fmt(found.cut) + " further path matches not listed" : "")
+      + (found.cut && found.trees.length > 1
+          ? ". The matches span " + fmt(found.trees.length) + " top-level subtrees: "
+            + found.trees.slice(0, NAMED_TREES).join(", ")
+            + (found.trees.length > NAMED_TREES
+                ? " and " + fmt(found.trees.length - NAMED_TREES) + " more" : "")
+          : "")
       + (INDEX_PARTIAL ? ". The embedded index is capped, so there may be more." : ".")
     : "No match among the " + fmt(PATHS.length) + " embedded paths."
       + (INDEX_PARTIAL ? " The index is capped, so this is not proof of absence." : ""));

@@ -516,3 +516,86 @@ def test_a_dataset_with_no_headline_renders_the_page_without_one(tmp_path: Path)
     bare = replace(_dataset(_anchor_paths(400, 80)), headlines=())
     report = _report(tmp_path, render_viewer(bare, 50))
     assert report["sections"]["overview"]["text"], "the overview lost its own content"
+
+
+def _mirror_paths(term: str, per_tree: int) -> list[str]:
+    """Two mirrored subtrees plus one outlier, all matching ``term``, first tree first (126).
+
+    Dataset order is the defect's input: the palette used to slice the first ``SHOWN_MAX`` in this
+    order, so page 1 was whichever tree the walk reached first.
+    """
+    alpha = [f"alpha/mod/{term}_page_{index:04d}.aa" for index in range(per_tree)]
+    beta = [f"beta/mod/{term}_page_{index:04d}.aa" for index in range(per_tree)]
+    return alpha + beta + [f"src/util/{term}_helper.aa"]
+
+
+def _trees(paths: list[str]) -> set[str]:
+    return {path.split("/")[0] for path in paths}
+
+
+@needs_node
+def test_palette_page_one_represents_every_subtree(tmp_path: Path) -> None:
+    """126 AC1: a truncated page must not be one subtree because that subtree sorted first.
+
+    067's finding, one layer out: ``find_callers`` page 1 clustered into whichever subtree came
+    first, and the palette sits beside the mirror panel that exists to prevent exactly that.
+    """
+    paths = _mirror_paths("resident", 60)
+    report = _report(tmp_path, render_viewer(_dataset(paths), 50), "resident")
+    found = report["search"]["resident"]
+
+    assert found["paths"] == 121 and found["cut"] > 0, found
+    shown = [item for item in found["items"] if "/" in item]
+    assert _trees(shown) == {"alpha", "beta", "src"}, shown
+
+
+@needs_node
+def test_palette_ranks_a_basename_match_above_a_path_match(tmp_path: Path) -> None:
+    """126 AC1: score before truncating — a name hit outranks a directory hit."""
+    paths = [f"resident/deep/File{index:04d}.aa" for index in range(60)]
+    paths.append("other/resident.aa")
+    report = _report(tmp_path, render_viewer(_dataset(paths), 50), "resident")
+    shown = [item for item in report["search"]["resident"]["items"] if "/" in item]
+
+    assert shown[0] == "other/resident.aa", shown[:3]
+
+
+@needs_node
+def test_palette_discloses_the_subtrees_a_truncated_page_spans(tmp_path: Path) -> None:
+    """126 AC2: the artifact-layer ``result_subtrees`` — present iff truncated across subtrees."""
+    spanning = _report(
+        tmp_path, render_viewer(_dataset(_mirror_paths("resident", 60)), 50), "resident"
+    )
+    hint = spanning["search"]["resident"]["hint"]
+    assert "3 top-level subtrees" in hint, hint
+    for tree in ("alpha", "beta", "src"):
+        assert tree in hint, hint
+
+    # One subtree, still truncated: there is no span to disclose.
+    single = _report(
+        tmp_path,
+        render_viewer(
+            _dataset([f"alpha/mod/resident_{index:04d}.aa" for index in range(60)]), 50
+        ),
+        "resident",
+    )
+    assert "top-level subtrees" not in single["search"]["resident"]["hint"]
+
+    # Untruncated: nothing to disclose either, across however many subtrees.
+    small = _report(
+        tmp_path, render_viewer(_dataset(_mirror_paths("resident", 5)), 50), "resident"
+    )
+    assert small["search"]["resident"]["cut"] == 0
+    assert "top-level subtrees" not in small["search"]["resident"]["hint"]
+
+
+@needs_node
+def test_palette_order_does_not_depend_on_dataset_order(tmp_path: Path) -> None:
+    """126 AC3: the ranking is a total order, so the displayed page is input-order independent."""
+    paths = _mirror_paths("resident", 60)
+    forward = _report(tmp_path, render_viewer(_dataset(paths), 50), "resident")
+    reversed_ = _report(
+        tmp_path, render_viewer(_dataset(list(reversed(paths))), 50), "resident"
+    )
+
+    assert forward["search"]["resident"]["items"] == reversed_["search"]["resident"]["items"]

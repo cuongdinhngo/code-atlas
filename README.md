@@ -224,6 +224,9 @@ provenance (`db_path` on `get_index_status` / build reports only after 061). Eve
 - `summary.mirrors` names sibling subtrees that duplicate each other's paths — discovered, not
   configured — with a counterpart lookup whose negative answer marks divergence, and the standing
   caveat that it compares paths, not bytes.
+- Each bucket also reports **which signal produced it** — `signals: {declared, vocabulary,
+  structure}` — and every declared glob reports what it `files_matched` beside what it
+  `zero_inbound_claimed`, so a stale declaration is legible instead of invisible (119).
 - Every list is capped at `CA_MAX_RESULTS`; `verbose` pages the per-module rows with `offset`.
 
 ### `guided_tour` — a reading order that expands
@@ -245,6 +248,10 @@ provenance (`db_path` on `get_index_status` / build reports only after 061). Eve
   lookup, and a provenance section naming which parts are derived.
 - Every figure is interpolated, so the same dataset always renders identical bytes, and a section
   that is empty or capped says so instead of looking exhaustive.
+- The search palette ranks before it truncates, keeps one row for every top-level subtree the full
+  match set spans, and names those subtrees when the page is cut — the artifact-layer form of
+  `result_subtrees`. Every caveat the dataset carries is asserted to be *rendered*, by a guard that
+  derives the caveat set from the dataset rather than listing it.
 - It removes only the pages its own last manifest recorded, and refuses a tree it did not write.
 - A module with no edge either way and no summary gets **no page** (one would only repeat its path) —
   the overview counts them, the manifest names them with `page: null`, `standard` reports

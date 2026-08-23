@@ -489,9 +489,23 @@ def _reachability_lines(split: object) -> list[str]:
         lines.append(f"- **{bucket['label']}**: {bucket['count']}{cut}")
         lines.append(f"  - {bucket['note']}")
         lines.append(f"  - signal: {bucket['signal']}")
+        tally = bucket.get("signals")
+        if isinstance(tally, dict) and any(tally.values()):
+            named = ", ".join(f"{count} {name}" for name, count in tally.items() if count)
+            lines.append(f"  - by signal: {named}")
     dropped = split.get("dropped")
     for row in dropped if isinstance(dropped, list) else []:
         lines.append(f"- **{row['bucket']}**: not reported — {row['reason']}")
+    # 119: what each declaration matched, beside what it claimed. The caveat rides with them.
+    caveat = split.get("caveat")
+    if isinstance(caveat, str) and caveat:
+        lines.extend(["", f"- {caveat}"])
+    patterns = split.get("patterns")
+    for claim in patterns if isinstance(patterns, list) else []:
+        lines.append(
+            f"  - `{claim['pattern']}` ({claim['kind']}): matches {claim['files_matched']} "
+            f"indexed files, claims {claim['zero_inbound_claimed']} of the modules above"
+        )
     lines.append("")
     return lines
 
