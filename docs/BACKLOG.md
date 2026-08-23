@@ -34,6 +34,9 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 135 | [The recall gate cannot see a wrong answer — an answer with every expected row plus four wrong ones scores 1.0](tasks/135_harness-scores-recall-but-never-precision.md) | Measure | done | 055, 121, 130 |
 | 136 | [Two thirds of the graph's edges are HEURISTIC, the plan promises the fix, and no ticket ever carried it](tasks/136_heuristic-share-has-no-owner.md) | Coverage | done | 025, 029, 011 |
 | 137 | [A PHP local type table — the cause of ≥99% of the HEURISTIC share, with a measured target per pin](tasks/137_php-local-type-table.md) | Coverage | todo | 136, 039 |
+| 140 | [`impact` answers in symbols, and the decision is module-shaped — 500 rows at ~160 KB is the only answer today](tasks/140_impact-answers-in-symbols-not-modules.md) | Agent-fit | todo | 017, 112, 114, 124 |
+| 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
+| 142 | [The supervision question class was never put through the harness — 121's lesson, one phase later](tasks/142_supervision-question-class-has-no-baseline.md) | Measure | todo | 034, 055, 121, 135 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -73,6 +76,8 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | 127 | [Onboarding — a caveat the dataset carries can vanish in the rendered map](tasks/127_caveats-drop-at-the-artifact-layer.md) | Phase 3 / M11 | done | 100, 112, 113, 116, 119 |
 | 130 | [The `web_entry` bucket counts test controllers as web surface — half the count on a canonical repo](tasks/130_web-entry-bucket-counts-test-controllers.md) | Phase 3 / M11 | todo | 113, 119, 121 |
 | 131 | [`guided_tour`'s first five stops are lint and bootstrap config, not the front controller](tasks/131_tour-ranks-configuration-ahead-of-the-front-controller.md) | Phase 3 / M11 | todo | 111, 121 |
+| 138 | [The architecture rules are prose plus a regex sweep — nothing asks the graph whether they hold](tasks/138_architecture-rules-are-never-asked-of-the-graph.md) | Supervision | todo | 040, 110, 112, 136 |
+| 139 | [The map is a snapshot, so nothing tells a reviewer what the agent changed about the architecture](tasks/139_map-is-a-snapshot-so-nothing-shows-architectural-drift.md) | Supervision | todo | 112, 077, 127 |
 
 
 **Round ordering, and what each round left open.** One line each; the narratives live in
@@ -87,6 +92,7 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | 6 (2026-08-21) | 122–125 | closed — all four payload honesty, none a graph defect |
 | 7 (2026-08-23) | 126 · 127 | closed — 127 closed **119** in the same change |
 | Phase 3 cost gate | 121 → 129 · 130 · 131 | 121 done; 130 · 131 open |
+| Architecture review (2026-08-23) | 138–142 | open — provenance is a design review, not a field retro; **142 runs first** (the baseline), 141 is gated at n = 0 |
 
 **What still governs open work:**
 
