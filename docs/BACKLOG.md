@@ -78,6 +78,9 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | 131 | [`guided_tour`'s first five stops are lint and bootstrap config, not the front controller](tasks/131_tour-ranks-configuration-ahead-of-the-front-controller.md) | Phase 3 / M11 | todo | 111, 121 |
 | 138 | [The architecture rules are prose plus a regex sweep — nothing asks the graph whether they hold](tasks/138_architecture-rules-are-never-asked-of-the-graph.md) | Supervision | todo | 040, 110, 112, 136 |
 | 139 | [The map is a snapshot, so nothing tells a reviewer what the agent changed about the architecture](tasks/139_map-is-a-snapshot-so-nothing-shows-architectural-drift.md) | Supervision | todo | 112, 077, 127 |
+| 143 | [The system map has no diagram — every relation is a table, and PILLAR 2 promised diagrams](tasks/143_the-system-map-has-no-diagram.md) | Presentation | todo | 112, 116, 110, 130 |
+| 144 | [A class diagram is a projection of rows the graph already holds — except the return type](tasks/144_class-diagram-is-a-projection-minus-the-return-type.md) | Presentation | todo | 002, 112, 116 |
+| 145 | [`artifact.json` is a gitignored cache — a second renderer turns it into a published contract](tasks/145_artifact-json-is-a-cache-that-a-second-renderer-turns-into-a-contract.md) | Presentation | blocked | 088, 112, 116, 118 |
 
 
 **Round ordering, and what each round left open.** One line each; the narratives live in
@@ -92,7 +95,7 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | 6 (2026-08-21) | 122–125 | closed — all four payload honesty, none a graph defect |
 | 7 (2026-08-23) | 126 · 127 | closed — 127 closed **119** in the same change |
 | Phase 3 cost gate | 121 → 129 · 130 · 131 | 121 done; 130 · 131 open |
-| Architecture review (2026-08-23) | 138–142 | open — provenance is a design review, not a field retro; **142 runs first** (the baseline), 141 is gated at n = 0 |
+| Architecture review (2026-08-23) | 138–142 · 143–145 | open — provenance is a design review, not a field retro; **142 runs first** (the baseline), 141 is gated at n = 0, 145B waits on 118 |
 
 **What still governs open work:**
 
