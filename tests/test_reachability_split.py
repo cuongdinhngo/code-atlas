@@ -174,6 +174,28 @@ def test_declared_entry_point_glob_outranks_the_path_signal() -> None:
     assert counts[TEST] == 0
 
 
+def test_ac3_test_path_outranks_request_handling_vocabulary() -> None:
+    """AC3 (130) — deepest-wins would call this HTTP / Entry; reachability puts it in test."""
+    fixture = Path("tests/fixtures/php/reachability_collision")
+    assert (fixture / "src/controller/Front.php").is_file()
+    assert (fixture / "tests/controller/FrontTest.php").is_file()
+    web = "src/controller/Front.php"
+    collision = "tests/controller/FrontTest.php"
+    nodes = [("App\\Front", web), ("Tests\\FrontTest", collision)]
+    split = classify_reachability(compute_metrics(nodes, []), sample_limit=10)
+    placement = {
+        path: bucket.bucket for bucket in split.buckets for path in bucket.sample
+    }
+    assert placement[web] == WEB_ENTRY
+    assert placement[collision] == TEST
+    counts = _counts(split)
+    assert sum(counts.values()) == split.total
+    web_bucket = next(b for b in split.buckets if b.bucket == WEB_ENTRY)
+    test_bucket = next(b for b in split.buckets if b.bucket == TEST)
+    assert sum(count for _, count in web_bucket.signals) == web_bucket.count
+    assert sum(count for _, count in test_bucket.signals) == test_bucket.count
+
+
 def test_sample_is_bounded_and_says_so() -> None:
     """The worth-investigating bucket is a bounded sample plus a count (ticket Scope, bullet 2)."""
     nodes = [(f"A\\N{i}", f"a/N{i}.x") for i in range(5)]

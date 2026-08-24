@@ -876,8 +876,9 @@ The consumer is an **AI coding agent in a terminal**, so the incumbent to beat i
   `ratio_note` rather than inventing one that would flatter the comparison.
   **The half that loses, which is the more useful half:** where the question is a **reading order** the
   map is wrong — `guided_tour`'s first five stops on `symfony/demo` are a lint config, two bootstrap
-  configs and an importmap, front controller fifth (131); the `web_entry` bucket calls **8** files the
-  web surface when 4 are `tests/Controller/*Test.php` (130); and `include_graph(direction="imports")`
+  configs and an importmap, front controller fifth (131); ~~the `web_entry` bucket calls **8** files the
+  web surface when 4 are `tests/Controller/*Test.php` (130)~~ **130 closed** — test-path signal
+  outranks request-handling vocabulary; and `include_graph(direction="imports")`
   was a silent zero for every namespaced file (129).
   **The narrowing, in §5's own terms:** the onboarding layer is measured as a **navigation and
   provenance aid, not as a reading order**. `guided_tour`'s ordering claim is **not earned**.
@@ -885,7 +886,8 @@ The consumer is an **AI coding agent in a terminal**, so the incumbent to beat i
   founding-premise mistake was building on an unmeasured premise, and one measurement saying *"cheap
   and correct for lookups, wrong for orderings"* licenses neither.
   **What the gate cannot see, recorded rather than implied:** it scores recall and cost, never
-  **precision** — 130 passes every mechanical check while being a wrong answer — and never whether a
+  **precision** — ~~130 passes every mechanical check while being a wrong answer~~ **130 fixed the
+  web_entry collision; precision now catches the pre-fix shape** — and never whether a
   human would act on the answer: on `symfony/demo` the largest layer is `Uncategorised` (18 of 51
   modules), a complete, correct, low-information answer that scores 1.0. The **mirror** shape, the
   anchor's most valuable one, cannot be measured by any committed tier, so it ships as a local-tier

@@ -18,7 +18,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from code_atlas.ignore import translate_path_pattern
-from code_atlas.onboarding.layers import responsibility_layer
+from code_atlas.onboarding.layers import responsibility_layer, responsibility_of_segment
 from code_atlas.onboarding.metrics import GraphMetrics
 
 # The responsibility layers 110 ratified that name a population here. Derived-from-source: a pin
@@ -59,7 +59,8 @@ BUCKET_SPECS: tuple[tuple[str, str, str, str], ...] = (
     (
         WEB_ENTRY,
         "Web entry points",
-        "declared entry-point globs, or a path naming a request-handling responsibility",
+        "declared entry-point globs, or a path naming a request-handling"
+        " responsibility and no test role",
         "The web surface a request can actually arrive at.",
     ),
     (
@@ -205,6 +206,18 @@ def _first_match(path: str, rules: Sequence[re.Pattern[str]]) -> int | None:
     return None
 
 
+def _names_test_responsibility(path: str) -> bool:
+    """True when any directory segment names a test role (task 130).
+
+    Deepest-wins in ``responsibility_layer`` lets ``tests/controller/Case`` read as HTTP / Entry;
+    reachability checks every segment so a test path never lands in ``web_entry`` silently.
+    """
+    parts = path.split("/")
+    return any(
+        responsibility_of_segment(segment) == LAYER_TESTS for segment in parts[:-1]
+    )
+
+
 def _bucket_of(
     path: str,
     *,
@@ -225,6 +238,9 @@ def _bucket_of(
     if hit is not None:
         return VENDOR, SIGNAL_DECLARED, ("stub_roots", hit)
     if vocabulary:
+        # Test-path before request-handling: a PHPUnit controller test is not web surface (130).
+        if _names_test_responsibility(path):
+            return TEST, SIGNAL_VOCABULARY, None
         layer = responsibility_layer(path)
         if layer == LAYER_WEB_ENTRY:
             return WEB_ENTRY, SIGNAL_VOCABULARY, None

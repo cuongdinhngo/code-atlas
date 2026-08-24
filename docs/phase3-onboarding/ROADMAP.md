@@ -143,8 +143,9 @@ path is proven and measured.
 >
 > **Not earned — and this section promised to say so:** on a canonical real repo the **reading order
 > is wrong**. `guided_tour`'s first five stops on `symfony/demo` are a lint config, two bootstrap
-> configs and an importmap; the front controller is fifth (**1 of 5** against the hand answer). The
-> `web_entry` count calls 8 files the web surface when 4 are test controllers. Tickets
+> configs and an importmap; the front controller is fifth (**1 of 5** against the hand answer). ~~The
+> `web_entry` count calls 8 files the web surface when 4 are test controllers.~~ **130 closed.**
+> Tickets
 > [131](../tasks/131_tour-ranks-configuration-ahead-of-the-front-controller.md),
 > [130](../tasks/130_web-entry-bucket-counts-test-controllers.md), and
 > [129](../tasks/129_include_graph_imports-is-a-silent-zero-for-a-namespaced-file.md) (a silent zero

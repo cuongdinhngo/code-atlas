@@ -64,12 +64,9 @@ layout is the front controller, the kernel, a controller, an entity and its repo
 **1 of 5**, and the four it puts first are lint and bootstrap configuration. Filed as
 [`131`](../tasks/131_tour-ranks-configuration-ahead-of-the-front-controller.md).
 
-**2. Half the "web surface" is tests.** The `web_entry` bucket reports 8 files; 4 of them are
-`tests/Controller/*Test.php`. The vocabulary signal (a path segment naming a request-handling
-responsibility) wins over the test-path signal, so a count labelled *"the web surface a request can
-actually arrive at"* is **50 % test code** here. `signals` correctly reports `vocabulary: 8`, so the
-payload does not lie — but the label does. Filed as
-[`130`](../tasks/130_web-entry-bucket-counts-test-controllers.md).
+**2. ~~Half the "web surface" is tests.~~ Closed by [130](../tasks/130_web-entry-bucket-counts-test-controllers.md), 2026-08-24.**
+Reachability now checks every directory segment for a test role before the request-handling
+vocabulary, so `tests/Controller/*Test.php` lands in `test`, not `web_entry`.
 
 **3. `include_graph` cannot answer "what does this file include?" for a namespaced file.** The
 INCLUDES edge is anchored on the file's *namespace* node, so `direction: imports` returns
