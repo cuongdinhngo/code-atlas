@@ -554,9 +554,10 @@ These are `onboarding_llm` knobs, not core config — the full table is in that 
 
 ## Testing
 
-`scripts/gate.sh` runs the whole gate in one step — entry points, `ruff`, `mypy`, `pytest`, the
-tokens-to-answer benchmark, `composer validate`, `php -l`, phpstan at level max, and the four
-rulebook grep-gates — in the same order [`ci.yml`](.github/workflows/ci.yml) runs them. It exits
+`scripts/gate.sh` runs the whole gate in one step — bytecode invalidation, entry points, `ruff`,
+`mypy`, `pytest`, the tokens-to-answer benchmark, `composer validate`, `php -l`, phpstan at level
+max, and the four rulebook grep-gates — in the same order
+[`ci.yml`](.github/workflows/ci.yml) runs them. It exits
 non-zero if a check **failed or was skipped**, because a gate that quietly shrinks to whatever the
 host can run has not verified anything. Add `--fast` to skip the two slow checks.
 

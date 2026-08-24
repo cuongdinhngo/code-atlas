@@ -59,6 +59,14 @@ trap 'rm -f "$log"' EXIT
 
 echo "== job: test =="
 
+# First, before anything below imports the tree. A .pyc records the source mtime in whole seconds
+# plus its size, so an edit inside one second that keeps the length is invisible and every check
+# after it reads stale bytecode — a GREEN about code that is not on disk (task 146). `-f` is what
+# does the work: without it compileall skips files whose cache it already considers current.
+_run "bytecode invalidation (checked-hash, 146)" \
+    "$py" -m compileall -q -f --invalidation-mode checked-hash \
+    code_atlas onboarding_llm tests
+
 # ci.yml step "Install check": the declared console scripts resolve and import. Derived from
 # [project.scripts], never listed (R6.7). Weaker than CI's by construction: CI checks a fresh
 # non-editable `pip install .`, while from the repo root importlib.metadata prefers the checked-out

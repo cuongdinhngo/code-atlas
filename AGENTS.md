@@ -87,8 +87,8 @@ MCP client ──stdio──▶ core (Python/FastMCP) ──JSONL contract──
 ## Before a PR or a push — run `scripts/gate.sh`
 **GitHub Actions cannot run for this repo** (private, no Actions budget: every job fails in seconds
 with no logs). `scripts/gate.sh` **is** the gate — it mirrors all three CI jobs in `ci.yml`'s order:
-entry points · ruff · mypy · pytest · tokens-to-answer · composer validate · `php -l` · phpstan ·
-the four grep-gates. ~100 s here; `--fast` skips pytest and the benchmark for a quick loop.
+bytecode invalidation · entry points · ruff · mypy · pytest · tokens-to-answer · composer
+validate · `php -l` · phpstan · the four grep-gates. ~100 s here; `--fast` skips pytest and the benchmark for a quick loop.
 **Only `GATE GREEN` counts — exit 2 means a check was skipped, which is not a pass (R6.5).** Keep it
 in step with `ci.yml`: a check in one and not the other means one of them is lying about what was
 verified.

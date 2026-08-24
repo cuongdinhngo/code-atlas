@@ -89,6 +89,13 @@ jobs:
       - name: Install the PHP adapter's own runtime deps
         run: composer install --no-dev --no-interaction --no-progress --working-dir=adapters/php
 
+      # Keeps this job in step with scripts/gate.sh, which is where the step earns its keep: a
+      # same-second, same-size edit leaves a .pyc looking valid, so every later check reads stale
+      # bytecode (task 146). A fresh runner has none to be stale — here it is insurance only.
+      - name: Bytecode invalidation (checked-hash, task 146)
+        run: python -m compileall -q -f --invalidation-mode checked-hash
+          code_atlas onboarding_llm tests
+
       # No `if:` guards below. They existed while these directories were empty; today their only
       # effect would be to skip the check and pass green when the directory goes missing.
       - name: Lint (ruff)

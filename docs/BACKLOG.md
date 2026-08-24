@@ -81,6 +81,7 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | 143 | [The system map has no diagram — every relation is a table, and PILLAR 2 promised diagrams](tasks/143_the-system-map-has-no-diagram.md) | Presentation | done | 112, 116, 110, 130 |
 | 144 | [A class diagram is a projection of rows the graph already holds — except the return type](tasks/144_class-diagram-is-a-projection-minus-the-return-type.md) | Presentation | done | 002, 112, 116 |
 | 145 | [`artifact.json` is a gitignored cache — a second renderer turns it into a published contract](tasks/145_artifact-json-is-a-cache-that-a-second-renderer-turns-into-a-contract.md) | Presentation | done | 088, 112, 116, 118 |
+| 146 | [`scripts/gate.sh` can report GREEN against bytecode that is not the source on disk](tasks/146_gate-can-pass-on-stale-bytecode.md) | Measure | done | — |
 
 
 **Round ordering, and what each round left open.** One line each; the narratives live in
