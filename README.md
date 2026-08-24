@@ -13,7 +13,7 @@ state of the project to someone else. Two pillars, one graph, stated authoritati
 Language-agnostic core with per-language adapters. **PHP today**; TypeScript/JavaScript, Python and
 C#/.NET are next.
 
-> Status: **shipped and in daily use — 21 tools.** The PHP path is feature-complete: index → search /
+> Status: **shipped and in daily use — 22 tools.** The PHP path is feature-complete: index → search /
 > read / outline → callers / refs / impls → impact → incremental (`git diff`) → reachability /
 > orphans → shortest path, plus read-through freshness reparse. The **onboarding layer has shipped
 > too** (`architecture_overview`, `guided_tour`, `generate_onboarding`) and emits a committable
@@ -213,6 +213,7 @@ provenance (`db_path` on `get_index_status` / build reports only after 061). Eve
 | `find_view_data` | view-scope keys a handler publishes (`PROVIDES_VIEW_DATA` — needs `CA_INDIRECTION_RULES` `view_data` setters) |
 | `include_graph` | `include`/`require` neighbors (`imports` / `imported_by` / `both`) |
 | `impact` | bounded blast radius of a change (paths/qnames), depth-limited with decay |
+| `impact_modules` | the same radius rolled up to the business modules it reaches — per-module symbol counts split by confidence tier, one exemplar `file:line` to read first, and an explicit `unassigned` bucket. `walk_truncated` marks a bounded walk, which makes every count an under-estimate (140) |
 | `subtree_dependencies` | tree-to-tree crossing with duplicate-declaration attribution — attributable vs unattributable always paired; dynamic alias bridges surfaced |
 | `reachable_from` | forward reachability from configured entry points |
 | `find_orphans` | unreachable / zero-inbound symbols (dead-code candidates); pages with `limit`/`offset`, and its walk is bounded by its **own** `CA_ORPHANS_MAX_NODES` rather than the impact budget. `walk_truncated` marks an answer where the walk stopped early, so the orphan count is an over-estimate (124) |
@@ -305,7 +306,8 @@ Four tools answer with an **attestation** rather than a list: a modelled zero, a
 named tier, the revision an answer describes. Those are claims a text search cannot make — and a
 claim that never reaches the artifact where it is made has, in practice, not been produced.
 
-Pass `sign: true` to `impact`, `find_callers`, `find_references` or `get_index_status` and the
+Pass `sign: true` to `impact`, `impact_modules`, `find_callers`, `find_references` or
+`get_index_status` and the
 payload gains one extra key, `claim`: a single `key=value` line a human or an agent can paste
 straight into a PR body, a review comment or a commit message.
 
@@ -411,6 +413,7 @@ for a reason:
 | `find_view_data` | its zero is usually `capability_not_configured`, an inert-tool fact about the call, not about a subject (069) |
 | `include_graph` | its subject is a path and its answer is already a graph; batching graphs means merging them |
 | `impact` | it already takes `paths` and `qnames` — and merges them into one radius on purpose, because a blast radius is a union by definition (see ticket 102 for the cost of that merge) |
+| `impact_modules` | the same subject as `impact`, and the same reason: one radius, rolled up once |
 | `subtree_dependencies` | its subject is a directory prefix — the answer is a repo-wide report, not a per-name lookup |
 | `reachable_from` | its subject is the configured entry-point set, not a caller-supplied name |
 | `find_orphans` | the complement of the whole graph — there is no subject to list |
@@ -436,7 +439,7 @@ name-only answers from description-backed ones — is
 | `explore_area` | status → search/outline → read only what's needed |
 | `find_usages` | status → find_references / find_callers / find_implementations → read to confirm |
 | `impact_of_change` | status → impact on the changed paths/qnames → read only the blast-radius surface |
-| `which_tool` | a recognition map: which tool answers a given question, across all 21 tools |
+| `which_tool` | a recognition map: which tool answers a given question, across all 22 tools |
 
 ## Hooks (opt-in)
 

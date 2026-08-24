@@ -20,6 +20,9 @@ from code_atlas.tools.staleness import compute_staleness
 
 NAME = "impact"
 
+# ``subject_parts`` / ``resolve_seeds`` / ``explain_lost_subject`` / ``SeedSet`` are public so the
+# module rollup (140) answers about the same seeds this tool does. One definition, two answers.
+
 DetailLevel = Literal["minimal", "standard"]
 
 QUESTION = "blast-radius"
@@ -27,7 +30,7 @@ QUESTION = "blast-radius"
 CLAIM_CARRY = ("seeds_dropped", "frontier_skipped_non_resolved")
 
 
-class _SeedSet(NamedTuple):
+class SeedSet(NamedTuple):
     """Resolved seeds, plus one resolution per requested subject that produced none (task 102)."""
 
     seeds: list[str]
@@ -72,14 +75,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         hops = config.impact_depth if depth is None else depth
         if hops < 0:
             raise ValueError(f"depth must be >= 0, got {hops}")
-        parts = _subject_parts(paths, qnames)
+        parts = subject_parts(paths, qnames)
         subject = ",".join(parts)
         if not config.db_path.is_file():
             return empty_nav(subject, detail_level=detail_level, db_path=str(config.db_path),
             index_root=config.index_root,
         )
         with GraphStore(config.db_path) as store:
-            seed_set = _seeds(
+            seed_set = resolve_seeds(
                 store, paths=paths or [], qnames=qnames or [], max_results=config.max_results
             )
             outcome = store.impact_radius(
@@ -100,7 +103,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             seeds_dropped=outcome.seeds_dropped + len(seed_set.dropped),
         )
         if seed_set.dropped and not seed_set.seeds:
-            _explain_lost_subject(result, seed_set.dropped)
+            explain_lost_subject(result, seed_set.dropped)
         # A question no seed answered gets no line: it would be signed ``answer=0`` for a subject
         # the index never held. The payload names the loss in ``seeds_dropped`` (tasks 100, 102).
         if not sign or not seed_set.seeds:
@@ -118,7 +121,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     return impact
 
 
-def _subject_parts(paths: list[str] | None, qnames: list[str] | None) -> list[str]:
+def subject_parts(paths: list[str] | None, qnames: list[str] | None) -> list[str]:
     """Subject items in stable order (qnames then paths) — joined for the payload, capped in the
     claim line."""
     bits: list[str] = []
@@ -129,9 +132,9 @@ def _subject_parts(paths: list[str] | None, qnames: list[str] | None) -> list[st
     return bits
 
 
-def _seeds(
+def resolve_seeds(
     store: GraphStore, *, paths: Sequence[str], qnames: Sequence[str], max_results: int
-) -> _SeedSet:
+) -> SeedSet:
     """Union path-file nodes with explicit qnames (stable order: qnames then path nodes).
 
     A requested subject that resolves to nothing is kept as its resolution rather than forgotten,
@@ -167,7 +170,7 @@ def _seeds(
             if qname not in seen:
                 seen.add(qname)
                 found.append(qname)
-    return _SeedSet(found, tuple(dropped))
+    return SeedSet(found, tuple(dropped))
 
 
 def _resolve_seed(store: GraphStore, qname: str, max_results: int) -> SubjectResolution:
@@ -181,7 +184,7 @@ def _resolve_seed(store: GraphStore, qname: str, max_results: int) -> SubjectRes
     return classify_missing_subject(store, qname, limit=max_results)
 
 
-def _explain_lost_subject(
+def explain_lost_subject(
     result: dict[str, object], dropped: tuple[SubjectResolution, ...]
 ) -> dict[str, object]:
     """Say why the answer is empty when every named subject was lost (065/075/076; task 102).

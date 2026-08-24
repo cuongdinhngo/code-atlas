@@ -140,6 +140,12 @@ answer is ~160 KB of JSON — tens of thousands of tokens, which defeats the poi
 scale, prefer `detail_level = "minimal"` (omits `unproven` rows; carries `unproven_total`), pass a
 smaller `limit`, or lower the relevant walk budget for interactive use.
 
+For a **blast radius** specifically, the shrink is no longer a workaround: `impact_modules` answers
+the same walk rolled up to business modules, which is bounded by the module count rather than the
+radius — 12 152 tokens down to 178 on `brick/math`'s busiest symbol
+([benchmark](../benchmarks/140_module_rollup.md)). It states `walk_truncated` when the same bound
+bites, so a shortened walk is never read as a smaller blast radius.
+
 ## 5. Ignore hygiene: check for `.gitignore` negations that re-include vendor trees
 
 code-atlas layers built-ins → `.gitignore` → `.codeatlasignore`, and **the last matching rule wins**

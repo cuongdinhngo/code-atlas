@@ -46,6 +46,8 @@ COVERAGE_NOTE = (
 
 __all__ = [
     "COVERAGE_NOTE",
+    "directory_owners",
+    "module_of_path",
     "EXCLUDED_LAYERS",
     "MIN_CONTAINER_MODULES",
     "MIN_MODULE_FILES",
@@ -288,6 +290,23 @@ def find_business_modules(
         excluded=excluded,
         truncated=len(rows) > limit,
     )
+
+
+def directory_owners(modules: Sequence[BusinessModule]) -> dict[str, str]:
+    """Directory → module name, straight off the published table (114).
+
+    The assignment a consumer joins on, so nothing has to re-derive which directory belongs to
+    which capability — a second derivation is a second module notion, which PLAN §1 forbids.
+    """
+    return {directory: module.module for module in modules for directory in module.directories}
+
+
+def module_of_path(path: str, owner_of_dir: Mapping[str, str]) -> str | None:
+    """The module owning ``path``, or None when the table does not cover it.
+
+    Public name for the rule the table was built with, so a join uses it rather than a lookalike.
+    """
+    return _owner(path, owner_of_dir)
 
 
 def _owner(path: str, owner_of_dir: Mapping[str, str]) -> str | None:

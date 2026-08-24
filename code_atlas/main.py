@@ -31,6 +31,7 @@ from code_atlas.tools import (
     get_index_status,
     guided_tour,
     impact,
+    impact_modules,
     include_graph,
     prompts,
     reachable_from,
@@ -55,6 +56,7 @@ TOOL_NAMES: tuple[str, ...] = (
     find_view_data.NAME,
     include_graph.NAME,
     impact.NAME,
+    impact_modules.NAME,
     subtree_dependencies.NAME,
     reachable_from.NAME,
     find_orphans.NAME,
@@ -108,6 +110,8 @@ def build_server(
         server.tool(guard(include_graph.create(config)))
     if impact.NAME in names:
         server.tool(guard(impact.create(config)))
+    if impact_modules.NAME in names:
+        server.tool(guard(impact_modules.create(config)))
     if subtree_dependencies.NAME in names:
         server.tool(guard(subtree_dependencies.create(config)))
     if reachable_from.NAME in names:

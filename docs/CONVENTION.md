@@ -179,6 +179,8 @@ what the payload already says (061). An answer must state what it is *not* telli
 | `unproven_total` | `find_orphans` | the full population of the `unproven` rows, one name at both levels — those rows are omitted at `minimal` and capped to the page at `standard` (124) |
 | `truncated` | paged answers | describes **the page alone**, so a pager terminates (057/124) |
 | `walk_truncated` | `find_orphans` | the walk hit `CA_ORPHANS_MAX_NODES`, so the population is an over-estimate — unreached nodes look orphaned (124) |
+| `walk_truncated` | `impact_modules` | the walk hit `CA_IMPACT_MAX_NODES`, so every per-module count is an **under**-estimate — a module reached only beyond the bound is missing from the table entirely, not merely undercounted (140) |
+| `module_table_truncated` | `impact_modules` | 114's module table was itself capped at `CA_MAX_RESULTS`, so rows counted under `unassigned` include files whose module exists and was cut — that bucket is an **over**-count. Two bounds, two names: one shrinks the walk, the other shrinks the table (140) |
 
 - **`try_instead` is two registers, each in its own field (093).** The value is always a
   **registered MCP tool name the reader can call**; the *how to re-ask* qualifier is prose in the

@@ -46,6 +46,7 @@ from code_atlas.tools.generate_onboarding import NAME as ONBOARD
 from code_atlas.tools.get_index_status import NAME as STATUS
 from code_atlas.tools.guided_tour import NAME as TOUR
 from code_atlas.tools.impact import NAME as IMPACT
+from code_atlas.tools.impact_modules import NAME as IMPACT_MODULES
 from code_atlas.tools.include_graph import NAME as INCLUDE
 from code_atlas.tools.reachable_from import NAME as REACHABLE
 from code_atlas.tools.read_symbol import NAME as READ
@@ -183,6 +184,7 @@ def test_the_proof_has_something_to_run() -> None:
         VIEW_DATA,
         INCLUDE,
         IMPACT,
+        IMPACT_MODULES,
         SUBTREE_DEPS,
         REACHABLE,
         ORPHANS,

@@ -73,6 +73,7 @@ def register(server: FastMCP) -> None:
             "- What variables a handler passes to its template -> find_view_data.\n"
             "- What a file includes / what includes it -> include_graph.\n"
             "- What breaks if I change this -> impact.\n"
+        "- Which modules does that change reach, and where to start -> impact_modules.\n"
             "- Can this directory subtree be deleted — what crosses into/out of it "
             "-> subtree_dependencies.\n"
             "- What is reachable from entry points / what is dead -> reachable_from.\n"

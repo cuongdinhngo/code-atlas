@@ -30,7 +30,14 @@ from code_atlas.store import (
     GraphStore,
 )
 from code_atlas.tokens import estimate_tokens
-from code_atlas.tools import claim, find_callers, find_references, get_index_status, impact
+from code_atlas.tools import (
+    claim,
+    find_callers,
+    find_references,
+    get_index_status,
+    impact,
+    impact_modules,
+)
 from code_atlas.tools.claim import CLAIM_KEY, CLAIM_SCHEMA, REV_CHARS
 from tests.test_incremental import committed, git
 from tests.test_mcp_server import committed_repo, served_config
@@ -47,7 +54,13 @@ CALLER = "\\App\\Controller::store"
 # The four tools whose answers are attestations (ticket 100 Scope). The denominator they are
 # checked against is derived from ``TOOL_NAMES``, never listed here (R6.7).
 SIGNERS = frozenset(
-    {impact.NAME, find_callers.NAME, find_references.NAME, get_index_status.NAME}
+    {
+        impact.NAME,
+        impact_modules.NAME,
+        find_callers.NAME,
+        find_references.NAME,
+        get_index_status.NAME,
+    }
 )
 
 # The opt-in is one line, not a second payload (061). Measured delta is recorded in the work doc.

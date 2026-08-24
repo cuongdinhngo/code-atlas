@@ -174,10 +174,15 @@ def test_no_tool_returns_absence_with_reason_ok(config: Config) -> None:
 
 def test_impact_seeds_repoint_unique_and_drop_ambiguous(config: Config) -> None:
     with GraphStore(config.db_path) as store:
-        assert impact._seeds(
+        assert impact.resolve_seeds(
             store, paths=[], qnames=["Ns\\Sub\\Enum"], max_results=50
         ).seeds == ["\\Ns\\Sub\\Enum"]
-        assert impact._seeds(store, paths=[], qnames=["isEnabled"], max_results=50).seeds == []
+        assert (
+            impact.resolve_seeds(
+                store, paths=[], qnames=["isEnabled"], max_results=50
+            ).seeds
+            == []
+        )
 
 
 def test_explain_path_endpoint_repoints_unique_only(config: Config) -> None:
