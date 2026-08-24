@@ -68,8 +68,13 @@ VIEWER_NAME = "index.html"
 PAGES_DIR = "modules"
 CACHE_DIR = ".code-atlas/onboarding"
 CACHE_NAME = "artifact.json"
+# First published shape of artifact.json (145). Not contract_version and not DATASET_VERSION:
+# this file is the pages/tour object graph a second renderer would read. Bump when as_dict keys
+# change; tests/test_artifact_contract.py fails a shape change that leaves this at 1.
+ARTIFACT_VERSION = 1
 
 __all__ = [
+    "ARTIFACT_VERSION",
     "CACHE_DIR",
     "CACHE_NAME",
     "MANIFEST_NAME",
@@ -158,7 +163,7 @@ class OnboardingArtifact:
     omitted_dynamic: int = 0
 
     def as_dict(self) -> dict[str, object]:
-        """Order-stable dict for the regenerable cache (R4.2)."""
+        """Order-stable dict for the versioned ``artifact.json`` contract (R4.2 / 145)."""
         return {
             "crossings": [
                 {"count": count, "source": source, "target": target}
@@ -224,6 +229,7 @@ class OnboardingArtifact:
             ],
             "summary": self.summary,
             "truncated": self.truncated,
+            "version": ARTIFACT_VERSION,
         }
 
 
@@ -752,5 +758,5 @@ def manifest_json(
 
 
 def cache_json(artifact: OnboardingArtifact) -> str:
-    """Deterministic JSON for the gitignored regenerable cache."""
+    """Deterministic JSON for ``.code-atlas/onboarding/artifact.json`` (versioned, 145)."""
     return json.dumps(artifact.as_dict(), sort_keys=True, ensure_ascii=False, indent=2) + "\n"

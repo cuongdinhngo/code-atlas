@@ -37,8 +37,8 @@ PROSE_MODEL_ENV = "CA_ONBOARDING_LLM_PROSE_MODEL"
 PROSE_CACHE_ENV = "CA_ONBOARDING_LLM_PROSE_CACHE"
 _ENABLED = frozenset({"llm", "claude"})
 
-# Regenerable cache locations by default (gitignored, like 088's onboarding cache); point the CACHE
-# env at a tracked path to commit the results and make every run replay from the repo.
+# Regenerable caches, gitignored. These stay free-form — the versioned shape is 145's
+# artifact.json, not these. Point the CACHE env at a tracked path to replay every run from the repo.
 DEFAULT_CACHE = ".code-atlas/onboarding-llm-cache.json"
 DEFAULT_LAYER_CACHE = ".code-atlas/onboarding-llm-layers.json"
 DEFAULT_PROSE_CACHE = ".code-atlas/onboarding-llm-prose.json"

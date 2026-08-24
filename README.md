@@ -269,7 +269,8 @@ provenance (`db_path` on `get_index_status` / build reports only after 061). Eve
 - A module with no edge either way and no summary gets **no page** (one would only repeat its path) —
   the overview counts them, the manifest names them with `page: null`, `standard` reports
   `isolated_modules`, and a page whose neighbours the budget cut is kept and says so.
-- Regenerable cache under `.code-atlas/onboarding/`; tour and pages bounded by `CA_IMPACT_MAX_NODES`.
+- Regenerable, versioned `artifact.json` under `.code-atlas/onboarding/` (`ARTIFACT_VERSION`;
+  gitignored). Tour and pages bounded by `CA_IMPACT_MAX_NODES`.
 
 ### Reading an answer — every payload says what it is not telling you
 

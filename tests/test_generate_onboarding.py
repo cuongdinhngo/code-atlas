@@ -15,6 +15,7 @@ import pytest
 
 from code_atlas.config import Config
 from code_atlas.onboarding.artifact import (
+    ARTIFACT_VERSION,
     H_CROSSINGS,
     H_DIAGRAM,
     H_IN_TOUR,
@@ -125,6 +126,8 @@ def test_generate_onboarding_is_byte_stable_across_two_runs(tmp_path: Path) -> N
     assert (_out(tmp_path) / "tour.md").read_bytes() == tour
     assert (_out(tmp_path) / "manifest.json").read_bytes() == manifest
     assert (tmp_path / ".code-atlas" / "onboarding" / "artifact.json").read_bytes() == cache
+    dumped = json.loads(cache)
+    assert dumped["version"] == ARTIFACT_VERSION
 
 
 def test_generate_onboarding_unbuilt_is_not_indexed_and_writes_nothing(tmp_path: Path) -> None:

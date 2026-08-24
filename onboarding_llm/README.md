@@ -68,5 +68,5 @@ version); a piece of prose on its slot's whole request (the facts, the determini
 replaces, and for a tour step the prose already settled for the step before it). A rename or reorder
 is a cache hit, an edit is a miss. All three files are sorted-key JSON with no timestamps, so they
 are byte-stable and diff cleanly. The default locations are gitignored
-(regenerable, like 088's onboarding cache); point the `_CACHE` env at a **tracked** path to commit the
+(regenerable, like 088's onboarding `artifact.json`); point the `_CACHE` env at a **tracked** path to commit the
 results so every run — anywhere — replays them without calling Claude.

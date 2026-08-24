@@ -4,7 +4,7 @@ slug: artifact-json-is-a-cache-that-a-second-renderer-turns-into-a-contract
 title: '`artifact.json` is a gitignored cache — the moment a second renderer reads it, it is a published contract nobody versioned'
 phase: 3
 milestone: Presentation
-status: blocked
+status: done
 depends_on: [088, 112, 116, 118]
 ---
 
@@ -64,10 +64,8 @@ and say what replaces it.
 
 ## Why B waits
 
-The map today prints `Summary: (none)` on **every** module page (118), counts test controllers as web
-surface (130), and opens the tour with a lint config (131). A better renderer would render those in
-nicer type, and a diagram is trusted **more** than a table — the same argument that keeps sequence
-diagrams out of [143](143_the-system-map-has-no-diagram.md). **Unblock condition: 118 closed.**
+118, 130 and 131 have shipped. Phase B still waits on a **stack choice** (Next vs Nuxt), which this
+ticket's Out of scope forbids deciding here.
 
 ## Acceptance criteria — Phase A
 
@@ -76,8 +74,8 @@ diagrams out of [143](143_the-system-map-has-no-diagram.md). **Unblock condition
 - **AC3** No doc still describes the file as a free-form cache.
 - **AC4** Determinism unchanged: identical index → byte-identical file (R4.2).
 
-Phase B's criteria are written when 118 closes; drafting them now would read as a commitment to a stack
-that has not been chosen.
+Phase B's criteria are written when a stack is chosen; drafting them now would read as a commitment
+this ticket's Out of scope forbids.
 
 ## Out of scope
 
@@ -86,3 +84,92 @@ that has not been chosen.
 - **Serving the app from a container.** Deployment, and it is separate — the read-only snapshot idea
   belongs with whatever ticket owns distribution.
 - **Replacing the single-file viewer.**
+
+---
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+<!-- mango:working-doc -->
+
+## Session status
+
+- **Phase:** finalise (execute complete; review/challenger waived)
+- **Branch:** `feat/145-artifact-json-is-a-cache-that-a-second-renderer-turns-into-a-contract`
+- **CHALLENGER:** OFF
+- **work_doc_mode:** embed
+- **TIER:** full · **SCOPE:** M · Phase A only
+
+## PREMISE / REFINE
+
+`PREMISE: 4 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)`
+`refine skipped: 0 unresolved product-decisions` — standing approval to choose approach and pass gates.
+Phase B is out of scope (stack choice). 118 is done and no longer the A/B split.
+
+## Design
+
+- `ARTIFACT_VERSION = 1` on `OnboardingArtifact.as_dict` (not `contract_version`, not `DATASET_VERSION`)
+- Pin key-paths in `tests/test_artifact_contract.py`; at v1 they must equal `V1_KEY_PATHS`; a later
+  version must differ — that is AC2's made-to-fail
+- Docs: PLAN / README / ROADMAP / CONVENTION / tool module stop calling the file a free-form cache
+- File path unchanged: `.code-atlas/onboarding/artifact.json` (gitignored, regenerable)
+- MCP payload key `cache` kept (path to the file); not a published-file-shape change
+
+## Requirements matrix
+
+| ID | Ph3 | Ph4 | Notes |
+|---|---|---|---|
+| AC1 | ✅ | waived | version + pinned key-paths |
+| AC2 | ✅ | waived | v1 vs V1_KEY_PATHS; planted extra key witness |
+| AC3 | ✅ | waived | standing-doc scan |
+| AC4 | ✅ | waived | byte-identical `cache_json` |
+
+## Cost ledger
+
+| phase | dispatch | tokens |
+|---|---|---|
+| execute | main loop | unmeasured (host does not surface usage; review/challenger waived) |
+
+
+## Review of PR #170 — the pin did not cover the shape it claimed to pin
+
+`ARTIFACT_VERSION` and the docs were right. The conformance test was not: `key_paths` added
+`key` for every top-level entry and `key[].field` for the keys of `value[0]` — one level, first
+element only. It never descended into a `Mapping` value, so **`summary` was pinned as a bare key
+and its whole sub-document was unpinned**: 39 of the 86 key-paths a real `generate_onboarding` run
+writes had no row in `V1_KEY_PATHS`.
+
+What sat in that gap is the part a second renderer is most likely to get wrong — the honesty
+vocabulary 113/130/131 built: `summary.reachability.buckets[].sample` / `.count` /
+`.sample_truncated`, `summary.reachability.caveat` and `.dropped`,
+`summary.business_modules.coverage.note` / `.refused` / `.truncated`, and
+`summary.mirrors.caveat`, whose own docstring says *"the caveat rides WITH the counts, so no
+consumer can render one without the other."* Renaming or dropping any of them was a green suite.
+
+Demonstrated, not argued: adding `"planted_new_key"` to the real `summary` — a shape change every
+downstream renderer sees — left **all 25 tests green**, AC2's made-to-fail included. So did
+renaming `sample_truncated` to `sample_cut`.
+
+Fixed:
+
+1. **`key_paths` recurses** into every mapping at any depth and unions over *every* list element,
+   not `value[0]`. `V1_KEY_PATHS` is regenerated to the full 86-path set.
+2. **The pin is taken over the artifact `generate_onboarding` actually writes**, not over
+   `_sample()`. `summary` is a free-form `Mapping` on the dataclass, so a hand-built sample can
+   only ever pin the keys the sample happens to carry — which is how the hole opened. `_sample()`
+   keeps a test of its own: its paths must be a *subset*, never a superset.
+3. **AC2 became a real made-to-fail.** It was `if ARTIFACT_VERSION == 1: assert observed ==
+   V1_KEY_PATHS; return` — a copy of AC1 with a dead branch that asserted a v2 *must* have
+   different keys, which is not true and would redden the suite for the wrong reason on the first
+   bump. The pin is now `KEY_PATHS_BY_VERSION`, keyed by version: a re-shape without a bump is red
+   *and* a bump without a new pinned set is red, each with a message that names which.
+4. `HONESTY_KEY_PATHS` names the bounded-sample and caveat paths explicitly, so a rename is a
+   break by name and not only by set difference.
+5. AC3's doc scan missed `onboarding_llm/README.md`, which this PR itself edited; added.
+   `onboarding_llm/server.py` still called those caches "like 088's onboarding cache" — reworded,
+   since the point of Phase A is that the two are no longer the same kind of file.
+
+Tests: AC1 verified red against a planted `summary` key and against a renamed `sample_truncated`;
+the version-bump discipline verified red by setting `ARTIFACT_VERSION = 2` with no new pin.
+
+**Not fixed, noted:** a path only reachable through a non-empty `mirrors.pairs` or
+`business_modules.containers` is still unpinned — the `_cycle_repo` fixture produces neither. The
+test docstring says so rather than implying the pin is exhaustive.

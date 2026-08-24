@@ -108,6 +108,8 @@ code-atlas/
   - JS/TS (no namespaces): module-path-anchored, e.g. `src/user.ts::User::save`, `src/util.ts::default`.
   - Files: **repo-relative** paths, always (even under Docker path mapping).
 - **Contract version:** `contract_version` in result meta; bump on any vocabulary/field/qname change.
+- **Onboarding `artifact.json` (145):** top-level `version` (`ARTIFACT_VERSION` in `artifact.py`). Not
+  the adapter contract and not `DATASET_VERSION`. Bump when `OnboardingArtifact.as_dict` keys change.
 
 ## 4. Python style
 

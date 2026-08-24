@@ -2,7 +2,8 @@
 
 Presentation + IO. Enrichment is ``onboarding.artifact`` composing 083–087; this module reads the
 store, writes markdown, manifest, and a self-contained ``index.html`` under ``docs/onboarding/``,
-and a regenerable cache under ``.code-atlas/onboarding/``. No SQL, no LLM, no language branch.
+and a versioned ``artifact.json`` under ``.code-atlas/onboarding/``. No SQL, no LLM, no language
+branch.
 """
 
 from __future__ import annotations
@@ -68,8 +69,9 @@ def create(
         server and no fetch. Regenerating rewrites this
         tool's own files and removes only the module pages its last ``manifest.json`` recorded —
         a hand-authored file in that tree is left alone, and a tree holding these names without
-        that manifest is refused rather than overwritten. A regenerable cache of the
-        same structure lands under ``.code-atlas/onboarding/`` (gitignored). Deterministic given
+        that manifest is refused rather than overwritten. A versioned dump of the
+        same structure lands under ``.code-atlas/onboarding/artifact.json`` (gitignored,
+        ``ARTIFACT_VERSION``). Deterministic given
         the summarizer: no timestamps. The walk that sizes the tour and per-module pages is the
         same node-budgeted subgraph ``guided_tour`` uses (``CA_IMPACT_MAX_NODES``) — roots ranked
         by out-degree, capped at a quarter of the budget so the pages describe files the walk
@@ -79,7 +81,7 @@ def create(
         counts them, and the manifest names them with ``page: null`` (107). A page whose
         neighbours the budget cut is kept and says so.
         ``results`` lists the committed relative paths, capped at ``CA_MAX_RESULTS``.
-        ``minimal`` omits the cache path.
+        ``minimal`` omits the path to that file.
         """
         if not config.db_path.is_file():
             return _unbuilt(config)
@@ -228,7 +230,7 @@ def _write(
     index_root: str = "",
     last_ref: str = "",
 ) -> tuple[str, ...]:
-    """Rewrite this tool's own onboarding files and the cache. Paths are POSIX."""
+    """Rewrite this tool's own onboarding files and artifact.json. Paths are POSIX."""
     out = root / OUTPUT_DIR
     _refuse_foreign_tree(out)
     _remove_recorded_pages(out)

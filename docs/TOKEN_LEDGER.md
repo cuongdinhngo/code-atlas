@@ -168,6 +168,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | 139 | 0 dispatch (review + challenger waived by the run's args); main-loop unmeasured (host surfaces no usage block); AC6 deferred to 142 | [#167](https://github.com/cuongdinhngo/code-atlas/pull/167) |
 | 143 | 0 dispatch (review + challenger waived by the run's args); main-loop unmeasured (host surfaces no usage block) | [#168](https://github.com/cuongdinhngo/code-atlas/pull/168) |
 | 144 | 0 dispatch (review + challenger waived by the run's args); main-loop unmeasured (host surfaces no usage block) | [#169](https://github.com/cuongdinhngo/code-atlas/pull/169) |
+| 145 | 0 dispatch (review + challenger waived by the run's args); main-loop unmeasured (host surfaces no usage block); Phase A only | [#170](https://github.com/cuongdinhngo/code-atlas/pull/170) |
 
 **How 047–049 were measured.** One autonomous session, no per-task transcript: each row is the API
 calls between the previous commit and that task's own commit. The approximation runs one way — work

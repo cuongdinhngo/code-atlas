@@ -96,8 +96,8 @@ A dependency-ordered walk and committable onboarding docs, plus a small offline 
 | 089 | Static HTML viewer — one self-contained, theme-aware file reading the manifest; no server, no external deps. **Shipped:** `docs/onboarding/index.html` emitted by `generate_onboarding`; payload embedded (no `file://` fetch). |
 
 **Decision points — M11:**
-- **Artifact location** — **locked by 088:** markdown + `manifest.json` committed under
-  `docs/onboarding/`; regenerable cache under `.code-atlas/onboarding/` (gitignored).
+- **Artifact location** — **locked by 088, versioned by 145:** markdown + `manifest.json` committed under
+  `docs/onboarding/`; versioned `artifact.json` under `.code-atlas/onboarding/` (gitignored).
 - **Tour granularity & length** — **locked by 087:** file-level stops; walk bounded by
   `CA_IMPACT_MAX_NODES`. 088 reuses that budget for per-module pages.
 - **Coherence is not falsifiable** (task-023 note) — CI asserts *structure* only (sections present,
