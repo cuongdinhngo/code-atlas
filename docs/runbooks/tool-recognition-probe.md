@@ -60,6 +60,7 @@ discussion. One question at a time; record the first tool named; no retries, no 
 | 16 | I have never opened this codebase. What are its top-level parts, and which depends on which? | `architecture_overview` |
 | 17 | I have never opened this codebase. What should I read first, in dependency order? | `guided_tour` |
 | 18 | Write the onboarding docs I can commit: overview, reading order, per-module pages, and a manifest. | `generate_onboarding` |
+| 19 | Do the declared architecture dependency rules still hold? | `check_architecture_rules` |
 
 ### Why Q4 discriminates (task 097)
 

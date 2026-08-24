@@ -17,6 +17,7 @@ from code_atlas.onboarding.summary import Summarizer
 from code_atlas.tools import (
     architecture_overview,
     build_or_update_index,
+    check_architecture_rules,
     explain_path,
     file_outline,
     find_callers,
@@ -59,6 +60,7 @@ TOOL_NAMES: tuple[str, ...] = (
     architecture_overview.NAME,
     guided_tour.NAME,
     generate_onboarding.NAME,
+    check_architecture_rules.NAME,
 )
 
 
@@ -128,6 +130,8 @@ def build_server(
                 )
             )
         )
+    if check_architecture_rules.NAME in names:
+        server.tool(guard(check_architecture_rules.create(config)))
     prompts.register(server)
     return server
 

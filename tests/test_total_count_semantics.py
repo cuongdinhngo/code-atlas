@@ -168,6 +168,7 @@ NOT_PAGED_EMITTERS = {
     "reach_shared",
     "get_index_status",
     "generate_onboarding",
+    "check_architecture_rules",  # paging proven in test_architecture_rules; not this fixture
 }
 
 

@@ -1276,7 +1276,12 @@ class GraphStore:
         return _with_namespace(where, params, namespace, qname_column="nodes.qualified_name")
 
     def impact_radius(
-        self, seeds: Sequence[str], *, depth: int, max_nodes: int
+        self,
+        seeds: Sequence[str],
+        *,
+        depth: int,
+        max_nodes: int,
+        kinds: Sequence[str] | None = None,
     ) -> ImpactResult:
         """Bounded best-score blast radius via iterative SQL waves (§12).
 
@@ -1284,11 +1289,15 @@ class GraphStore:
         tiers appear in the result; only ``RESOLVED`` expands the frontier (A2 / nav-013).
         Seeds outrank discovered nodes under the ``max_nodes`` prune. Temp tables live
         in a ``try/finally`` so a mid-wave error cannot leak them onto a long-lived store.
+        ``kinds`` defaults to every IMPACT kind; a subset is for architecture rules (138).
         """
         if depth < 0:
             raise ValueError(f"depth must be >= 0, got {depth}")
         if max_nodes < 1:
             raise ValueError(f"max_nodes must be >= 1, got {max_nodes}")
+        walk_kinds = tuple(kinds) if kinds is not None else contract.IMPACT_KINDS
+        if not walk_kinds:
+            raise ValueError("kinds must be non-empty")
         ordered_seeds = list(dict.fromkeys(q for q in seeds if q))
         if not ordered_seeds:
             return ImpactResult([], 0, 0)
@@ -1314,7 +1323,7 @@ class GraphStore:
             )
             conn.executemany(
                 "INSERT INTO temp.impact_weights (kind, weight) VALUES (?, ?)",
-                [(kind, IMPACT_WEIGHTS[kind]) for kind in contract.IMPACT_KINDS],
+                [(kind, IMPACT_WEIGHTS[kind]) for kind in walk_kinds],
             )
 
             seed_rows = [
@@ -1441,6 +1450,7 @@ class GraphStore:
         depth: int | None,
         max_nodes: int,
         retain_temps: bool = False,
+        kinds: Sequence[str] | None = None,
     ) -> ReachabilityResult:
         """Bounded forward reachability over outgoing IMPACT_KINDS (task 031).
 
@@ -1448,11 +1458,15 @@ class GraphStore:
         Only ``RESOLVED`` edges expand the frontier. HEURISTIC/DYNAMIC neighbors are
         recorded as unproven and never expand. A reached member keeps its container
         qnames alive via :func:`contract.split_qname` (no CONTAINS expand).
+        ``kinds`` defaults to every IMPACT kind; a subset is for architecture rules (138).
         """
         if depth is not None and depth < 0:
             raise ValueError(f"depth must be >= 0, got {depth}")
         if max_nodes < 1:
             raise ValueError(f"max_nodes must be >= 1, got {max_nodes}")
+        walk_kinds = tuple(kinds) if kinds is not None else contract.IMPACT_KINDS
+        if not walk_kinds:
+            raise ValueError("kinds must be non-empty")
         ordered_seeds = list(dict.fromkeys(q for q in seeds if q))
         if not ordered_seeds:
             return ReachabilityResult([], [], 0, False, False)
@@ -1474,7 +1488,7 @@ class GraphStore:
             )
             conn.executemany(
                 "INSERT INTO temp.reach_kinds (kind) VALUES (?)",
-                [(kind,) for kind in contract.IMPACT_KINDS],
+                [(kind,) for kind in walk_kinds],
             )
             conn.executemany(
                 "INSERT INTO temp.reach_seen (qname, depth, is_seed) VALUES (?, 0, 1)",

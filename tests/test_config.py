@@ -151,6 +151,15 @@ KNOBS = (
         lambda root: None,
     ),
     Knob(
+        "CA_ARCHITECTURE_RULES",
+        'architecture_rules = ["rules/arch.json"]',
+        "rules/a.json,rules/b.json",
+        lambda config: config.architecture_rules,
+        lambda root: ("rules/a.json", "rules/b.json"),
+        lambda root: ("rules/arch.json",),
+        lambda root: None,
+    ),
+    Knob(
         "CA_TOOLS",
         'tools = ["search_symbol"]',
         "read_symbol,file_outline",
@@ -218,7 +227,7 @@ def test_every_knob_has_a_precedence_case() -> None:
     # Guards the guard: dropping a knob from KNOBS would otherwise shrink AC1's coverage silently.
     covered = {knob.variable for knob in KNOBS}
     assert {env_name(key) for key in KNOB_KEYS} | {"CA_PHP_CMD"} == covered
-    assert len(KNOB_KEYS) == 15
+    assert len(KNOB_KEYS) == 16
 
 
 def test_env_name_is_derived_from_the_project_file_key() -> None:
@@ -235,6 +244,7 @@ def test_env_name_is_derived_from_the_project_file_key() -> None:
         "CA_ENTRY_POINTS",
         "CA_STUB_ROOTS",
         "CA_INDIRECTION_RULES",
+        "CA_ARCHITECTURE_RULES",
         "CA_TOOLS",
         "CA_HOST_ROOT",
         "CA_CONTAINER_ROOT",

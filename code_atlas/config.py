@@ -36,6 +36,7 @@ KNOB_KEYS: tuple[str, ...] = (
     "entry_points",
     "stub_roots",
     "indirection_rules",
+    "architecture_rules",
     "tools",
     "host_root",
     "container_root",
@@ -79,6 +80,7 @@ class Config:
     entry_points: tuple[str, ...] | None
     stub_roots: tuple[str, ...] | None
     indirection_rules: tuple[str, ...] | None
+    architecture_rules: tuple[str, ...] | None
     tools: tuple[str, ...] | None
     host_root: Path | None
     container_root: Path | None
@@ -158,6 +160,9 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
         stub_roots=_resolve("stub_roots", _as_stub_roots, None, environ, file_values),
         indirection_rules=_resolve(
             "indirection_rules", _as_indirection_rules, None, environ, file_values
+        ),
+        architecture_rules=_resolve(
+            "architecture_rules", _as_architecture_rules, None, environ, file_values
         ),
         tools=_resolve("tools", _as_tools, None, environ, file_values),
         host_root=host_root,
@@ -314,6 +319,13 @@ def _as_stub_roots(label: str, raw: object) -> tuple[str, ...] | None:
 
 def _as_indirection_rules(label: str, raw: object) -> tuple[str, ...] | None:
     """Repo-relative JSON rule paths for framework indirection (task 040). Blank = off."""
+    return _as_repo_relative_list(
+        label, raw, item="file path", collection="rule file paths"
+    )
+
+
+def _as_architecture_rules(label: str, raw: object) -> tuple[str, ...] | None:
+    """Repo-relative JSON rule paths for architecture checks (task 138). Blank = off."""
     return _as_repo_relative_list(
         label, raw, item="file path", collection="rule file paths"
     )

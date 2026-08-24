@@ -22,6 +22,7 @@ from code_atlas.tools.nav_result import (
     REASON_NOT_INDEXED,
     REASON_OK,
     REASON_RELATIONSHIP_NOT_MODELLED,
+    REASON_RULE_MATCHED_NO_FILES,
     REASON_SUBJECT_AMBIGUOUS,
 )
 from tests.test_nav_tools import db_config, edge, node, seed_file
@@ -161,6 +162,7 @@ def test_reason_vocabulary_includes_index_stale_unused() -> None:
         REASON_CAPABILITY_NOT_CONFIGURED,
         REASON_NAME_NOT_QUALIFIED,
         REASON_SUBJECT_AMBIGUOUS,
+        REASON_RULE_MATCHED_NO_FILES,
     )
 
 

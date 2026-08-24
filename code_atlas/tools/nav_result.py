@@ -26,6 +26,7 @@ NavReason = Literal[
     "capability_not_configured",
     "name_not_qualified",
     "subject_ambiguous",
+    "rule_matched_no_files",
 ]
 
 REASON_OK: NavReason = "ok"
@@ -41,6 +42,8 @@ REASON_CAPABILITY_NOT_CONFIGURED: NavReason = "capability_not_configured"
 REASON_NAME_NOT_QUALIFIED: NavReason = "name_not_qualified"
 # The subject qname has >1 definition — refuse a single-site body (078).
 REASON_SUBJECT_AMBIGUOUS: NavReason = "subject_ambiguous"
+# Every declared rule matched no file on one side, so nothing was checked — not a clean pass (138).
+REASON_RULE_MATCHED_NO_FILES: NavReason = "rule_matched_no_files"
 
 NAV_REASONS: tuple[NavReason, ...] = (
     REASON_OK,
@@ -53,6 +56,7 @@ NAV_REASONS: tuple[NavReason, ...] = (
     REASON_CAPABILITY_NOT_CONFIGURED,
     REASON_NAME_NOT_QUALIFIED,
     REASON_SUBJECT_AMBIGUOUS,
+    REASON_RULE_MATCHED_NO_FILES,
 )
 
 # Two registers, one naming rule (093): ``TRY_INSTEAD_*`` is a registered tool name the reader can

@@ -32,6 +32,7 @@ from code_atlas.main import TOOL_NAMES, build_server
 from code_atlas.store import GraphStore
 from code_atlas.tools.architecture_overview import NAME as OVERVIEW
 from code_atlas.tools.build_or_update_index import NAME as BUILD
+from code_atlas.tools.check_architecture_rules import NAME as ARCH_RULES
 from code_atlas.tools.explain_path import NAME as EXPLAIN
 from code_atlas.tools.file_outline import NAME as OUTLINE
 from code_atlas.tools.find_callers import NAME as CALLERS
@@ -187,6 +188,7 @@ def test_the_proof_has_something_to_run() -> None:
         OVERVIEW,
         TOUR,
         ONBOARD,
+        ARCH_RULES,
     )
 
 

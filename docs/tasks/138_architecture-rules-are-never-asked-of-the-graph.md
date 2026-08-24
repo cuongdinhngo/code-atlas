@@ -4,7 +4,7 @@ slug: architecture-rules-are-never-asked-of-the-graph
 title: The architecture rules are prose plus a regex sweep — nothing asks the graph whether they hold
 phase: 3
 milestone: Supervision
-status: todo
+status: done
 depends_on: [040, 110, 112, 136]
 ---
 
@@ -86,3 +86,81 @@ unnecessary rather than shipped.
 - **Any fix, or any suggested fix.** The core never mutates code (§1 non-goal, permanently ceded).
 - **Deciding which rules a project should have.** That is a human ratification step (mango's `codify`
   territory); this ticket only checks rules it is handed.
+
+---
+
+<!-- mango:working-doc -->
+
+## Session status
+
+- **Phase:** finalise (execute complete; review/challenger waived)
+- **Branch:** `feat/138-architecture-rules-are-never-asked-of-the-graph`
+- **CHALLENGER:** OFF
+- **work_doc_mode:** embed
+
+## Evidence gate (pre-implementation)
+
+**One rule regex cannot see:** `domain/**` must not reach `http/**` transitively. Fixture
+`tests/fixtures/architecture_rules/` + planted CALLS chain `domain/Model → service/Bridge →
+http/Front`. Grep over `domain/Model.aa` never names `Front` or `http`; the graph closure does.
+The pin case on a public app (`src/Entity` ↛ `src/Controller`) is the same shape; this repo has no
+Python adapter, so the committed fixture is the proving pin (ticket Scope §5).
+
+## Design
+
+- `CA_ARCHITECTURE_RULES` → JSON `{rules:[{id, sources, forbidden, kinds?, direction?, transitive?}]}`
+- Tool `check_architecture_rules`: confirmed (`results`/`total_count`) vs `candidates`/`candidate_count`
+- Reuses `reachable_from` (kinds subset) / `impact_radius`; no second graph load
+- AC7 **deferred** to 142 — BACKLOG orders the supervision baseline first; inventing a class here
+  would repeat 121
+
+## Requirements matrix
+
+| ID | Ph3 | Ph4 | Notes |
+|---|---|---|---|
+| AC1 | ✅ | waived | `test_ac1_transitive_violation_is_confirmed` |
+| AC2 | ✅ | waived | `test_ac2_heuristic_only_path_is_candidate_not_confirmed` |
+| AC3 | ✅ | waived | `test_ac3_empty_answers_name_their_cause` |
+| AC4 | ✅ | waived | `test_ac4_violation_reproducible_via_find_callers` |
+| AC5 | ✅ | waived | `test_ac5_identical_index_is_byte_identical` |
+| AC6 | ✅ | waived | R2.2 gate; generic vocabulary only |
+| AC7 | deferred | — | owned by 142 |
+
+## Cost ledger
+
+| Phase | Dispatch | Tokens |
+|---|---|---|
+| execute | — | main-loop only |
+| review/challenger | waived | — |
+
+## Review of PR #166 — five defects fixed in-branch
+
+The AC1–AC5 fixture is outgoing + transitive + all-kinds, so three quarters of Scope §1's own rule
+vocabulary shipped unexercised. What that hid:
+
+1. **`direction: "incoming"` ignored `kinds`** — `impact_radius` had no `kinds` parameter, so an
+   incoming rule declaring `["EXTENDS"]` reported a **confirmed** violation off a `CALLS` edge. A
+   false positive is the one failure mode a supervision tool may not have. `kinds` now threads
+   through `impact_radius` exactly as 138 already threaded it through `reachable_from`.
+2. **An absent `confidence_tier` on an incoming row defaulted to `RESOLVED`** — the unsafe side of
+   the partition this module's own docstring calls non-negotiable. Now defaults to the candidate side.
+3. **A rule whose `forbidden` set matched no file reported `status: "checked"`** — a vacuous pass
+   labelled as a check. Both sides empty now report `rule_matched_no_files`; the two counts say which.
+4. **An unknown `rule_id` returned `reason: "ok"`** — a typo read as *your rules hold*. Now
+   `no_matches`.
+5. **`candidates` was always the first page and never flagged short** — `[:cap]` ignored `offset`.
+   Now paged like `results`, with `candidates_truncated`.
+
+Also: the module had forked the reason vocabulary (three private `REASON_*`, one value outside the
+pinned `NAV_REASONS`). `rule_matched_no_files` joined `nav_result`'s pinned tuple; the module keeps
+only its own `STATUS_*` rule-status names, so the core still never imports a tool.
+
+Tests added: `test_incoming_direction_honours_the_declared_edge_kinds`,
+`test_non_transitive_rule_sees_the_direct_hop_only`,
+`test_unknown_rule_id_is_not_reported_as_a_clean_pass`,
+`test_a_rule_whose_forbidden_set_matched_nothing_never_reads_as_checked` — the first and last are
+red without the fixes above.
+
+**Not fixed, noted:** `_incoming_hits` runs one `impact_radius` per seed where `_outgoing_hits` runs
+one `reachable_from` per file. Batching would cost coverage under the `max_nodes` prune, so the
+asymmetry is deliberate; it is a per-symbol query count on a rule with a large source set.

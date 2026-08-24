@@ -16,6 +16,7 @@ from code_atlas.tools.nav_result import (
     REASON_NO_MATCHES,
     REASON_OK,
     REASON_RELATIONSHIP_NOT_MODELLED,
+    REASON_RULE_MATCHED_NO_FILES,
     REASON_SUBJECT_AMBIGUOUS,
     TRY_INSTEAD_HINT_METHOD_QNAME,
     TRY_INSTEAD_HINT_PATH_BASENAME,
@@ -204,5 +205,7 @@ def test_reason_vocabulary_pins_relationship_not_modelled() -> None:
     assert REASON_RELATIONSHIP_NOT_MODELLED in NAV_REASONS
     assert REASON_CAPABILITY_NOT_CONFIGURED in NAV_REASONS
     assert REASON_NAME_NOT_QUALIFIED in NAV_REASONS
-    # 078 appended subject_ambiguous as the newest reason (tool vocab — not CONTRACT_VERSION).
-    assert NAV_REASONS[-1] == REASON_SUBJECT_AMBIGUOUS
+    # Newest-last: 078 appended subject_ambiguous, 138 rule_matched_no_files (tool vocab —
+    # not CONTRACT_VERSION). The pin is that a new reason JOINS this tuple rather than forking it.
+    assert REASON_SUBJECT_AMBIGUOUS in NAV_REASONS
+    assert NAV_REASONS[-1] == REASON_RULE_MATCHED_NO_FILES

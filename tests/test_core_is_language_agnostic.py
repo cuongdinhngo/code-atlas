@@ -39,7 +39,7 @@ def core_modules() -> list[Path]:
 
 def test_the_guard_has_something_to_check() -> None:
     # Guards the guard: an empty module list or an empty name list would pass vacuously.
-    assert len(core_modules()) == 63  # +2: source_slice.py, module_facts.py (task 118)
+    assert len(core_modules()) == 65  # +2: architecture_rules.py, check_architecture_rules.py (138)
     assert len(LANGUAGE_NAMES) == 9
     assert LANGUAGE_NAME.search("a PHP file") and LANGUAGE_BRANCH.search('if language == "x":')
 
