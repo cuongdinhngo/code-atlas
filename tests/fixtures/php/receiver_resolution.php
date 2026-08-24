@@ -19,8 +19,8 @@ final class Child extends Base
     public function go(object $x, string $m): void
     {
         parent::fromBase();
-        $this->fromBase(); // inherited — stay bare HEURISTIC so name-match still links
-        $this->hook(); // trait mixin — consuming class must not claim HasHook::hook
+        $this->fromBase(); // inherited — names Child, the class it was called on (137)
+        $this->hook(); // trait mixin — same: Child::hook, resolved to HasHook by the walk
         $this->go($x, $m);
         self::go($x, $m);
         static::go($x, $m);

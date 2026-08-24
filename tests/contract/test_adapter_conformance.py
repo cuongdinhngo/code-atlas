@@ -119,7 +119,7 @@ STATIC_VS_INSTANCE_EDGE_SHAPES = [
     ("CALLS", "\\App\\Calls\\Service::make", None),
     ("CALLS", "\\App\\Calls\\Service::make", "HEURISTIC"),  # static:: late binding
     ("CALLS", "\\App\\Calls\\Service::run", None),
-    ("CALLS", "run", "HEURISTIC"),
+    ("CALLS", "\\App\\Calls\\Service::run", None),  # `$other = new Service()` (137)
     ("CONTAINS", "\\App\\Calls", None),
     ("CONTAINS", "\\App\\Calls\\Service", None),
     ("CONTAINS", "\\App\\Calls\\Service::make", None),

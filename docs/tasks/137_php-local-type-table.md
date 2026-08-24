@@ -4,7 +4,7 @@ slug: php-local-type-table
 title: A PHP local type table — the cause of ≥99% of the HEURISTIC share, with a measured target per pin
 phase: 1.5b
 milestone: Coverage
-status: todo
+status: done
 depends_on: [136, 039]
 ---
 
@@ -56,3 +56,65 @@ framework, a repo or a name is encoded.
   it cannot be the answer to a default-path share.
 - **Late binding** (`static::`, `'C::m'`, string method names). ≤0.6 %, and PLAN §17's LSP defer is
   the right answer for it.
+
+---
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+<!-- mango:working-doc -->
+
+## Session status
+
+- **Phase:** finalise (execute complete; review/challenger waived per maintainer standing approval)
+- **Branch:** `feat/137-php-local-type-table`
+- **CHALLENGER:** OFF (`with skipped review and challenge`)
+- **work_doc_mode:** embed
+- **TIER:** full · **SCOPE:** L
+
+## Design
+
+Three mechanisms, three commits, each measured on its own — the ticket asked for the cheap half to
+be separable and the measurement proved it was worth separating.
+
+1. **Hierarchy walk** (core). `$this->m()` names the class the call was made ON; the resolver walks
+   `INHERIT_KINDS` to the ancestor that declares `m`. No type inference at all.
+2. **Local type table** (adapter). `TypeName` reads a declared type, `MemberTypes` collects what
+   this file's class-likes declare in a pass of its own, `TypeTable` binds variables and evaluates
+   receiver expressions. Flow-sensitive, forgetful on any write it cannot read.
+3. **Chain walk** (contract + core). When the file names the *member* but not its type, the target
+   is `\A::m()::plus` and the graph follows it, one batched round per chain step.
+
+## Requirements matrix
+
+| ID | Ph3 | Ph4 | Notes |
+|---|---|---|---|
+| AC1 | ✅ | waived | `brick_math` 1 659 → **98** (target ≤ 200) — [benchmark](../benchmarks/137_type-table.md) |
+| AC2 | ✅ | waived | `symfony_demo` 568 → **61** (≤ 450); `laravel_app` claims are qualified names |
+| AC3 | ✅ | waived | subtype fan-out and name-match fallback link at HEURISTIC; 4 tests |
+| AC4 | ✅ | waived | R2.2 grep-gate green; every rule cites the spec, no repo/framework name |
+| AC5 | ✅ | waived | `tests/test_php_local_type_table.py`, 12 tests, red-first, store-level |
+| AC6 | ✅ | waived | `contract_version` 7 → 8, trigger checked against 129's precedent, not assumed |
+
+## Cost ledger
+
+| phase | dispatch | tokens |
+|---|---|---|
+| execute | main loop | unmeasured (host does not surface usage; review/challenger waived) |
+
+## What the measurement caught that review would not have
+
+Three defects survived a green suite and were found only by comparing against a baseline worktree
+at `2455835`. All three are the same mistake — believing a number instead of checking it:
+
+- **The report started lying.** A deferred receiver has `::` in `target_raw`, so the 136 classifier
+  filed 115 of them under `late_bound_or_string_name` and *overstated the one cause a type table
+  cannot fix*. The instrument had to be fixed before its output meant anything.
+- **A nullable return type blocked its own fallback.** `?Depot` resolves to a string that names no
+  node, and the code treated "resolved" as "known", suppressing the name-match that should have
+  caught it. One site, found only by diffing per-site linkage.
+- **Walking up is not the whole answer.** `f(Shape $s)` narrowed by `instanceof`, calling a method
+  only a subtype declares, is ordinary code — the first design lost five sites to it.
+
+`all edges` fell by 820 on `brick/math`, which is exactly what a recall regression looks like. It
+was not one: 1 590 call sites before and after, 0 lost, 1 010 → 1 200 reaching a target. Had that
+been assumed rather than measured, the ticket would have shipped a headline number and a silent
+hole underneath it.

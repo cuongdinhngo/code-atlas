@@ -121,7 +121,8 @@ def test_find_callers_matches_resolve_fixture_baseline(tmp_path: Path, store: Gr
     assert len(hits) == 1
     assert hits[0]["qname"] == "\\App\\User::save"
     assert hits[0]["kind"] == "CALLS"
-    assert hits[0]["confidence_tier"] == "HEURISTIC"
+    # `Repo $repo` types the receiver, so the caller is known rather than name-matched (137).
+    assert hits[0]["confidence_tier"] == "RESOLVED"
     assert hits[0]["file"]
     assert hits[0]["line"]
     assert hits[0]["depth"] == 1
@@ -133,7 +134,10 @@ def test_find_callers_matches_resolve_fixture_baseline(tmp_path: Path, store: Gr
     )
     assert len(deep["results"]) == 1
     assert deep["depth"] == 3
-    assert deep["frontier_skipped_non_resolved"] >= 1
+    # This fixture no longer has a non-RESOLVED frontier edge to skip: its one HEURISTIC hop was
+    # `$repo->put()`, which the receiver's type now settles (137). The counter itself is proven on
+    # a store built for it, below and in test_impact.py — not incidentally, here.
+    assert deep["frontier_skipped_non_resolved"] == 0
 
 
 def test_dynamic_edges_are_flagged_and_not_traversed(tmp_path: Path, store: GraphStore) -> None:

@@ -18,9 +18,12 @@ An adapter opens the stream by announcing itself once — the **handshake** of �
 
 from typing import Literal, get_args
 
-# v7: Method/Function (and closures) carry the declared return type in extra['type'] — same key
-# properties already use. An index built before and updated after would mix eras, so this bumps.
-CONTRACT_VERSION = 7
+# v8: a CALLS target names the class the call was made on whenever the file's own type
+# information says which (137), and `self` / `static` in extra['type'] stay relative instead of
+# being anchored as `\self`. R3.1's literal trigger does not fire — no kind, field or qname
+# convention moved — but 129's mechanism trigger does: an index built before and updated after
+# would answer from bare method names for untouched files and qualified ones for changed files.
+CONTRACT_VERSION = 8
 
 # Ordered Literal is the typing SSoT; NODE_KINDS is derived so schemas cannot drift (R3.2 / 056).
 NodeKind = Literal[
@@ -162,6 +165,31 @@ VIEW_DATA_PREFIX = "viewdata:"
 PROVIDES_VIEW_DATA = "PROVIDES_VIEW_DATA"
 
 MEMBER_SEPARATOR = "::"
+
+# A ``target_raw`` may name the type of a member instead of a type directly (137): the receiver of
+# ``\A::m()::plus`` is whatever ``\A::m`` was declared to return. Adapters emit it when the file
+# names the member but not its type, which is the ordinary case for a call into another file — a
+# single file cannot know all targets (R3.3), and the graph already holds the declared type.
+TYPE_OF_SUFFIX = "()"
+
+# What a declared type may say instead of naming one: the type that declared the member, and the
+# type it was called on. Every language with inheritance has both, so the contract fixes the two
+# words here — the same way it already fixes USES_TRAIT — and the core reads them from here.
+RELATIVE_TYPE_DECLARING = "self"
+RELATIVE_TYPE_RECEIVER = "static"
+RELATIVE_TYPES: tuple[str, ...] = (RELATIVE_TYPE_DECLARING, RELATIVE_TYPE_RECEIVER)
+
+
+def type_of(member_qname: str) -> str:
+    """The reference that means "the declared type of ``member_qname``"."""
+    return member_qname + TYPE_OF_SUFFIX
+
+
+def split_type_of(reference: str) -> str | None:
+    """The member whose type ``reference`` names, or None when it names a type directly."""
+    if not reference.endswith(TYPE_OF_SUFFIX):
+        return None
+    return reference[: -len(TYPE_OF_SUFFIX)]
 
 
 def split_qname(qname: str) -> tuple[str | None, str]:

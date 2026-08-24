@@ -24,18 +24,20 @@ def _calls(result: dict[str, object]) -> list[dict[str, object]]:
 
 @needs_php
 def test_static_vs_instance_rewrites_lexical_receivers() -> None:
-    """Hand-count: self/$this default; static:: FQN at HEURISTIC; $other-> bare HEURISTIC."""
+    """Hand-count: self/$this default; static:: FQN at HEURISTIC; `new`-bound $other resolved."""
     result = parse_file(FIXTURES.relative_to(ROOT) / "static_vs_instance.php")
     calls = _calls(result)
     by_raw = Counter(
         (str(e.get("target_raw")), e.get("confidence_tier")) for e in calls
     )
-    # Service:: + self:: at default; static:: at HEURISTIC; $this→Service::run; $other→run
+    # Service:: + self:: at default; static:: at HEURISTIC; $this and `$other = new Service()`
+    # both name Service::run — the second because the local type table read the `new` (137).
     assert by_raw[("\\App\\Calls\\Service::make", None)] == 2
     assert by_raw[("\\App\\Calls\\Service::make", "HEURISTIC")] == 1
-    assert by_raw[("\\App\\Calls\\Service::run", None)] == 1
-    assert by_raw[("run", "HEURISTIC")] == 1
-    assert sum(1 for e in calls if e.get("confidence_tier") == "HEURISTIC") == 2
+    assert by_raw[("\\App\\Calls\\Service::run", None)] == 2
+    assert by_raw[("run", "HEURISTIC")] == 0
+    # Only static:: is left: late binding is the one cause no receiver type settles (136).
+    assert sum(1 for e in calls if e.get("confidence_tier") == "HEURISTIC") == 1
 
 
 @needs_php
@@ -51,9 +53,10 @@ def test_receiver_fixture_shapes_and_trait_does_not_fabricate_host() -> None:
     assert shapes.count(("\\App\\Recv\\Child::go", None)) == 3
     assert ("\\App\\Recv\\Child::go", "HEURISTIC") in shapes
     assert ("\\App\\Recv\\HasHook::hook", None) in shapes  # trait $this → trait FQN
-    # Inherited / trait-mixin through $this stay bare HEURISTIC (name-match path)
-    assert ("fromBase", "HEURISTIC") in shapes
-    assert ("hook", "HEURISTIC") in shapes
+    # Inherited / trait-mixin through $this name Child — the class the call was made on (137).
+    assert ("\\App\\Recv\\Child::fromBase", None) in shapes
+    assert ("\\App\\Recv\\Child::hook", None) in shapes
+    assert not {raw for raw, _ in shapes} & {"fromBase", "hook"}
     assert ("go", "HEURISTIC") in shapes  # $x->go
     assert ("(dynamic)", "DYNAMIC") in shapes  # $x->$m (task 030)
     # Nested anonymous with no extends: parent:: left as today (\parent::…).
@@ -117,19 +120,21 @@ def test_lexical_receivers_resolve_to_enclosing_class_fqn(
         assert all(row["target_qname"] == "\\App\\Recv\\Child::go" for row in this_calls)
         assert all(row["confidence_tier"] == "RESOLVED" for row in this_calls)
 
-        # Inherited $this->fromBase and trait-mixin $this->hook stay linked via name-match.
+        # Inherited $this->fromBase and trait-mixin $this->hook reach the declaring ancestor
+        # through the hierarchy walk, so the guess they used to need is gone (137).
         by_raw = {row["target_raw"]: row for row in child_calls}
-        assert by_raw["fromBase"]["target_qname"] == "\\App\\Recv\\Base::fromBase"
-        assert by_raw["fromBase"]["confidence_tier"] == "HEURISTIC"
-        assert by_raw["hook"]["target_qname"] == "\\App\\Recv\\HasHook::hook"
-        assert by_raw["hook"]["confidence_tier"] == "HEURISTIC"
+        inherited = {
+            "\\App\\Recv\\Child::fromBase": "\\App\\Recv\\Base::fromBase",
+            "\\App\\Recv\\Child::hook": "\\App\\Recv\\HasHook::hook",
+        }
+        for raw, declared_at in inherited.items():
+            assert by_raw[raw]["target_qname"] == declared_at
+            assert by_raw[raw]["confidence_tier"] == "RESOLVED"
 
         heuristic = [row for row in child_calls if row["confidence_tier"] == "HEURISTIC"]
-        # $x->go + static::go + $this->fromBase + $this->hook
-        assert len(heuristic) == 4
+        # What is left is what no receiver type can settle: $x->go (untyped) + static:: (late).
+        assert len(heuristic) == 2
         assert {row["target_raw"] for row in heuristic} == {
             "go",
             "\\App\\Recv\\Child::go",
-            "fromBase",
-            "hook",
         }

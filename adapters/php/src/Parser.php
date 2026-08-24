@@ -37,14 +37,23 @@ final class Parser
 
         // One handler for both passes: a name that cannot be resolved is collected, never thrown.
         $errors = new ErrorHandler\Collecting();
-        $visitor = new Visitor($path, substr_count($source, "\n") + 1, $source, $declarationsOnly);
+        $members = new MemberTypes();
+        $visitor = new Visitor($path, substr_count($source, "\n") + 1, $source, $declarationsOnly, $members);
         try {
             $statements = $this->parser->parse($source, $errors);
             if (!$errors->hasErrors()) {
-                $traverser = new NodeTraverser();
-                $traverser->addVisitor(new NameResolver($errors));
-                $traverser->addVisitor($visitor);
-                $traverser->traverse($statements ?? []);
+                // Two traversals, not two visitors on one: a method may call one declared below
+                // it, so the member types must be complete before the first edge is emitted.
+                $resolve = new NodeTraverser();
+                $resolve->addVisitor(new NameResolver($errors));
+                if (!$declarationsOnly) {
+                    $resolve->addVisitor($members);
+                }
+                $statements = $resolve->traverse($statements ?? []);
+
+                $emit = new NodeTraverser();
+                $emit->addVisitor($visitor);
+                $emit->traverse($statements);
             }
         } catch (\Throwable $error) {
             // Backstop: Collecting recovers from every syntax error, so only a non-parse fault lands here.

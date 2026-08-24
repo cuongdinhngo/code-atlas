@@ -1058,6 +1058,51 @@ class GraphStore:
         ).fetchall()
         return {str(source): str(target) for source, target in rows}
 
+    def declared_types(self, qnames: Sequence[str]) -> dict[str, str]:
+        """Map member qname → its declared type from ``extra['type']``, for those that carry one.
+
+        The store owns the JSON column, so it owns decoding it (R1.4). Absent, empty and
+        unparseable all mean "this member declares no type" — never a guess at one.
+        """
+        found: dict[str, str] = {}
+        for qname, rows in self.nodes_by_qualified_names(qnames, limit=1).items():
+            if not rows:
+                continue
+            raw = rows[0].get("extra")
+            if not isinstance(raw, str) or not raw:
+                continue
+            try:
+                extra = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+            declared = extra.get("type") if isinstance(extra, dict) else None
+            if isinstance(declared, str) and declared:
+                found[qname] = declared
+        return found
+
+    def hierarchy_parents(self) -> dict[str, tuple[str, ...]]:
+        """Map class-like qname → what it inherits from, in ``INHERIT_KINDS`` order.
+
+        Keyed on ``target_raw``, not ``target_qname``: the resolver walks this *while* it is
+        resolving, when the hierarchy edges may not be linked yet — and an adapter emits these
+        already qualified (R3.3). Two ancestors declaring one member are two real declarations,
+        so the contract's own kind order is the tiebreak — a fixed one, never a per-language one.
+        """
+        rank = {kind: index for index, kind in enumerate(contract.INHERIT_KINDS)}
+        placeholders = ", ".join("?" for _ in contract.INHERIT_KINDS)
+        rows = self._conn.execute(
+            f"SELECT source_qname, kind, target_raw FROM edges WHERE kind IN ({placeholders}) "
+            "ORDER BY source_qname, kind, target_raw, file_path, line, id",
+            contract.INHERIT_KINDS,
+        ).fetchall()
+        grouped: dict[str, list[tuple[int, str]]] = {}
+        for source, kind, target in rows:
+            grouped.setdefault(str(source), []).append((rank[str(kind)], str(target)))
+        return {
+            source: tuple(dict.fromkeys(target for _, target in sorted(parents)))
+            for source, parents in grouped.items()
+        }
+
     def unresolved_edges(self) -> list[Row]:
         """Every unresolved edge (``target_qname`` NULL), in ``id`` order (§8.2).
 

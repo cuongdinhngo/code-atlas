@@ -267,7 +267,7 @@ def test_i20_method_return_type_is_extra_type() -> None:
 
 def test_ac4_contract_vocabulary_pins_current_kinds() -> None:
     """Keep the pin current: 025 no-bump, 030 v2, 049 v3 with `args`, 063 v5, 129 v6, 144 v7."""
-    assert CONTRACT_VERSION == 7
+    assert CONTRACT_VERSION == 8
     assert NODE_KINDS == (
         "File", "Namespace", "Class", "Interface", "Trait", "Enum",
         "Function", "Method", "Property", "ClassConst", "Const",

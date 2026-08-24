@@ -379,14 +379,16 @@ def test_full_build_resolves_a_known_caller_chain_on_fixtures(
     assert helper_calls[0]["target_qname"] == "\\App\\helper"
     assert helper_calls[0]["confidence_tier"] == "RESOLVED"
 
+    # `Repo $repo` is the receiver's type, so `$repo->put()` names the declaration site and the
+    # bare-name fallback this fixture was built for is not reached at all (137).
     put_calls = [
         row
         for row in store.edges_by_source("\\App\\User::save", kinds=("CALLS",), limit=20)
-        if row["target_raw"] == "put"
+        if row["target_raw"] == "\\App\\Repo::put"
     ]
     assert len(put_calls) == 1
     assert put_calls[0]["target_qname"] == "\\App\\Repo::put"
-    assert put_calls[0]["confidence_tier"] == "HEURISTIC"
+    assert put_calls[0]["confidence_tier"] == "RESOLVED"
 
     callers = store.edges_by_target("\\App\\Repo::put", kinds=("CALLS",), limit=10)
     assert [row["source_qname"] for row in callers] == ["\\App\\User::save"]

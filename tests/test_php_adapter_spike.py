@@ -129,8 +129,12 @@ def test_every_edge_is_bare_and_no_guess_is_recorded_as_resolved(case: str) -> N
         assert "target_qname" not in edge
         assert edge["target_raw"]
 
+    # `$repo->put($this)` under `Repo $repo`: the hint is in the file, so the target is the
+    # declaration site and carries no weaker tier (137). R5.2 is untouched — this is not a guess,
+    # and `Repo` being declared elsewhere is the resolver's problem, not a reason to hedge here.
     calls = [edge for edge in parse("namespaced")["edges"] if edge["kind"] == "CALLS"]
-    assert [edge["confidence_tier"] for edge in calls] == ["HEURISTIC"]
+    assert [edge.get("confidence_tier") for edge in calls] == [None]
+    assert [edge["target_raw"] for edge in calls] == ["\\App\\Models\\Repo::put"]
 
 
 @needs_php

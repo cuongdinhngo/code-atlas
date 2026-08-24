@@ -59,7 +59,7 @@ being built. Where another document states the value of this project, it states 
 
 ### Non-goals (core, v1)
 - No rename/refactor/edit — **permanently ceded to the agent's native `Edit`/`Write`** (the consumer is an agent, not an IDE; §19). code-atlas returns exact symbol line ranges those edits act on; it never mutates code.
-- No type inference **in the core** (adapters may supply it where free — e.g. Roslyn's semantic model, and a PHP local type table, now measured and owned by [137](tasks/137_php-local-type-table.md) / opt-in PHPStan `semantic_types`; §19).
+- No type inference **in the core** (adapters may supply it where free — Roslyn's semantic model, the PHP local type table [137](tasks/137_php-local-type-table.md) **shipped**, opt-in PHPStan `semantic_types`; §19). The core still resolves *across* files, because a declared type the adapter recorded is graph data, not inference.
 - **Framework-magic as adapter code** (hard-coded facades/DI/`__call` in adapters) stays forbidden (R2.2).
   Opt-in **indirection rules as data** (`CA_INDIRECTION_RULES`, task 040) are an in-core enrichment
   pass on the standard-language graph — off by default. ORM/`__call` heuristics remain future/out-of-band.
@@ -660,7 +660,7 @@ are **complete**; the per-task breakdown, including the 108–117 reshape, is in
 | TS/JS project-context resolution doesn't fit file-at-a-time protocol | Anticipated (§4.4): adapter loads the tsconfig program once and resolves against it, or a two-pass resolve; PHP/Python unaffected. |
 | PHP process startup × 112k | Long-lived streaming adapter + N workers. |
 | Dynamic PHP (`$obj->$m()`, magic, variable include) | `DYNAMIC` tier, excluded from traversal; name-based `HEURISTIC` fallback. |
-| No type inference for PHP instance calls | Name-match HEURISTIC; the LSP defer covers only the **≤0.6 %** late-binding residual. **136 measured** local type information as the cause of **≥99 %** of the HEURISTIC share, and `vendor/` coverage as its cap (0 / 22.5 / 92.5 % of that share is linkable across the three pins) — [benchmark](benchmarks/136_heuristic-causes.md), owned by 137. C# gets it free via Roslyn capability. |
+| No type inference for PHP instance calls | **Closed by [137](tasks/137_php-local-type-table.md)**: the HEURISTIC share fell to **1.1 / 3.9 / 2.6 %** across the three pins, with no call site losing a target — [benchmark](benchmarks/137_type-table.md). What is left is the late binding 136 predicted, which is the LSP defer's ≤0.6 %, plus receivers whose declaring member is unindexed (136's `vendor/` cap, unchanged). C# gets it free via Roslyn capability. |
 | PHP 8.5 edge cases | nikic ^5 latest; collecting handler flags `parsed_ok=0`. |
 | Host PHP absent | Docker-exec mode (§9-B) or tokenizer-only PHP CLI. |
 | 100k-file DB/memory | SQLite WAL, serial writer, indexed queries, caps; traverse in SQL, never load whole graph. |

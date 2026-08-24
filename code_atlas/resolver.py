@@ -18,6 +18,14 @@ assert "INCLUDES" not in contract.FQN_EDGE_KINDS
 
 _BARE_NAME_KIND = "Method"
 
+# ``\A::m()::b()::c`` is m's type, then b on that, then c on that — the separator between steps.
+_CHAIN_STEP = contract.TYPE_OF_SUFFIX + contract.MEMBER_SEPARATOR
+# How many member types one receiver may be walked through. Real chains are a handful long; the
+# bound is what stops a pathological or cyclic one from costing a round per element.
+_MAX_CHAIN_STEPS = 8
+# How wide a subtype fan-out may go before the answer stops being worth the rows it costs.
+_MAX_SUBTYPES = 64
+
 
 def _alias_preimages(keys: set[str], aliases: Mapping[str, str]) -> set[str]:
     """Every ``target_raw`` whose alias-followed lookup key is in ``keys`` (096).
@@ -93,6 +101,8 @@ def resolve_edges(
     # Alias FQN → real FQN from ALIASES edges (source → target_raw); remaps CALLS/NEW (task 030).
     # Built once: every ALIASES row is in the store before resolve runs (full parse first).
     alias_map = store.alias_targets()
+    # Same reason as the alias map: every hierarchy edge is in the store before resolve runs.
+    parent_map = store.hierarchy_parents()
     for batch in store.iter_unresolved_edges(
         batch_size=_RESOLVE_BATCH, skip_dynamic=True, file_path=file_path, delta=delta
     ):
@@ -126,7 +136,9 @@ def resolve_edges(
             for edge in symbols
         ]
         qname_hits = store.nodes_by_qualified_names(lookup_raws, limit=max_candidates)
-        unmatched_calls: list[dict[str, object]] = []
+        by_name: list[tuple[dict[str, object], str]] = []
+        inherited: list[tuple[dict[str, object], str, str]] = []
+        deferred: list[tuple[dict[str, object], str, str]] = []
         for edge, lookup in zip(symbols, lookup_raws, strict=True):
             incoming = str(edge["confidence_tier"])
             hits = qname_hits.get(lookup, [])
@@ -137,23 +149,297 @@ def resolve_edges(
                     edge, hits, _weaker_tier(incoming, "RESOLVED"), links, siblings
                 )
                 continue
-            if edge["kind"] == "CALLS" and incoming == "HEURISTIC":
-                unmatched_calls.append(edge)
+            if edge["kind"] != "CALLS":
+                continue
+            container, member = contract.split_qname(lookup)
+            if container is None:
+                if incoming == "HEURISTIC":
+                    by_name.append((edge, member))
+                continue
+            if (source := contract.split_type_of(container)) is not None:
+                # The receiver is whatever ``source`` was declared to return, which lives in
+                # another file — the one thing a single file cannot know (R3.3 / 137).
+                deferred.append((edge, source, member))
+            else:
+                # A class does not have to declare what it inherits: the call names the class it
+                # was made on, and an ancestor or trait declares the method (137).
+                inherited.append((edge, container, member))
 
-        if unmatched_calls:
-            call_raws = [str(edge["target_raw"]) for edge in unmatched_calls]
+        unlinked = _resolve_inherited(
+            store, inherited, parent_map, max_candidates, links, siblings
+        )
+        unlinked.extend(
+            _resolve_deferred(store, deferred, parent_map, max_candidates, links, siblings)
+        )
+        by_name.extend(
+            _resolve_subtypes(store, unlinked, parent_map, max_candidates, links, siblings)
+        )
+
+        if by_name:
             method_hits = store.nodes_by_names(
-                call_raws, kind="Method", limit=max_candidates
+                [name for _, name in by_name], kind="Method", limit=max_candidates
             )
-            for edge in unmatched_calls:
-                methods = method_hits.get(str(edge["target_raw"]), [])
+            for edge, name in by_name:
+                methods = method_hits.get(name, [])
                 if methods:
+                    # Weaker than what the edge claimed, never stronger: the name matched, the
+                    # receiver did not (R5.2).
                     _queue_candidates(edge, methods, "HEURISTIC", links, siblings)
 
         # One txn: kill between link and sibling insert must not leave under-linked parents.
         store.apply_resolution(links, siblings)
         inserted += len(siblings)
     return inserted
+
+
+class _Chain:
+    """One call whose receiver is a chain of member types the graph has to walk (137)."""
+
+    __slots__ = ("edge", "steps", "method", "receiver")
+
+    def __init__(self, edge: dict[str, object], reference: str, method: str) -> None:
+        head, *rest = reference.split(_CHAIN_STEP)
+        self.edge = edge
+        self.method = method
+        # The head is a whole member qname; every later step is a member ON the previous type.
+        self.steps: list[str] = [member_of(head), *rest]
+        self.receiver: str | None = container_of(head)
+
+    @property
+    def walking(self) -> bool:
+        return self.receiver is not None and bool(self.steps)
+
+
+def _resolve_deferred(
+    store: GraphStore,
+    deferred: list[tuple[dict[str, object], str, str]],
+    parent_map: Mapping[str, tuple[str, ...]],
+    max_candidates: int,
+    links: list[tuple[int, str, str]],
+    siblings: list[dict[str, object]],
+) -> list[tuple[dict[str, object], str, str]]:
+    """Link a call whose receiver is the declared type of a member declared in another file.
+
+    ``a()->b()->c()`` is one chain, so this walks it a step at a time — every step of every chain
+    in one batched round, never one query per call. Returns what no step could answer; a chain
+    that broke has no receiver type left to walk from, so it carries an empty container.
+    """
+    if not deferred:
+        return []
+    chains = [_Chain(edge, reference, method) for edge, reference, method in deferred]
+    for _ in range(_MAX_CHAIN_STEPS):
+        walking = [chain for chain in chains if chain.walking]
+        if not walking:
+            break
+        ancestries = {
+            chain.receiver: _ancestry(str(chain.receiver), parent_map) for chain in walking
+        }
+        declared = store.declared_types(
+            sorted(
+                contract.join_qname(ancestor, chain.steps[0])
+                for chain in walking
+                for ancestor in ancestries[chain.receiver]
+            )
+        )
+        for chain in walking:
+            found = _declared_class(
+                str(chain.receiver), chain.steps[0], ancestries[chain.receiver], declared
+            )
+            chain.receiver = found
+            if found is not None:
+                chain.steps.pop(0)
+
+    # Anything still walking ran past the step bound; treat it as unanswered, never as resolved.
+    settled = [chain for chain in chains if chain.receiver is not None and not chain.steps]
+    probes = {contract.join_qname(str(chain.receiver), chain.method) for chain in settled}
+    # The receiver itself, because a declared type the graph holds no node for was never really
+    # resolved — a nullable or union type reads as one name and names nothing (137).
+    probes.update(str(chain.receiver) for chain in settled)
+    resolved = store.nodes_by_qualified_names(sorted(probes), limit=max_candidates)
+
+    unanswered: list[tuple[dict[str, object], str, str]] = [
+        (chain.edge, "", chain.method)
+        for chain in chains
+        if chain.receiver is None or chain.steps
+    ]
+    walk: list[tuple[dict[str, object], str, str]] = []
+    for chain in settled:
+        if not resolved.get(str(chain.receiver)):
+            unanswered.append((chain.edge, "", chain.method))
+            continue
+        hits = resolved.get(contract.join_qname(str(chain.receiver), chain.method), [])
+        if hits:
+            tier = _weaker_tier(str(chain.edge["confidence_tier"]), "RESOLVED")
+            _queue_candidates(chain.edge, hits, tier, links, siblings)
+        else:
+            # The receiver is known but does not declare the method here — an ancestor may.
+            walk.append((chain.edge, str(chain.receiver), chain.method))
+    unanswered.extend(
+        _resolve_inherited(store, walk, parent_map, max_candidates, links, siblings)
+    )
+    return unanswered
+
+
+def _resolve_subtypes(
+    store: GraphStore,
+    unlinked: list[tuple[dict[str, object], str, str]],
+    parent_map: Mapping[str, tuple[str, ...]],
+    max_candidates: int,
+    links: list[tuple[int, str, str]],
+    siblings: list[dict[str, object]],
+) -> list[tuple[dict[str, object], str]]:
+    """A receiver whose own type does not declare the member — a subtype does (137).
+
+    ``f(Shape $s)`` narrowed to a concrete one and then asked for a method only that one declares
+    is ordinary code, so walking up cannot be the whole answer. Which subtype runs is a runtime
+    question, so this links at HEURISTIC no matter how certain the receiver was: the *receiver*
+    was known, the *target* is a guess among the subtypes, and R5.2 grades the target.
+
+    Bounded to types the graph actually holds below the receiver — never a same-named method
+    anywhere, which is the name-match path this deliberately narrows.
+    """
+    # Only a broken chain falls back to the name-match path: it never had a receiver type, so a
+    # same-named method is all that is left. A call that names a type the graph simply does not
+    # hold stays unlinked, exactly as an unindexed static call always has — guessing there would
+    # trade a precise unlinked claim for an imprecise linked one (136's vendor cap).
+    def unmatched(entries: list[tuple[dict[str, object], str, str]]) -> list[
+        tuple[dict[str, object], str]
+    ]:
+        return [(edge, member) for edge, container, member in entries if not container]
+
+    candidates = [entry for entry in unlinked if entry[1]]
+    if not candidates:
+        return unmatched(unlinked)
+    children: dict[str, list[str]] = {}
+    for child, parents in parent_map.items():
+        for parent in parents:
+            children.setdefault(parent, []).append(child)
+    chains = {
+        container: _descendants(container, children) for _, container, _ in candidates
+    }
+    probes = {
+        contract.join_qname(subtype, member)
+        for _, container, member in candidates
+        for subtype in chains[container]
+    }
+    hits = store.nodes_by_qualified_names(sorted(probes), limit=max_candidates)
+
+    settled: set[int] = set()
+    for edge, container, member in candidates:
+        found = [
+            node
+            for subtype in chains[container]
+            for node in hits.get(contract.join_qname(subtype, member), [])
+        ]
+        if found:
+            _queue_candidates(
+                edge, found, _weaker_tier(str(edge["confidence_tier"]), "HEURISTIC"),
+                links, siblings,
+            )
+            settled.add(id(edge))
+    return unmatched([entry for entry in unlinked if id(entry[0]) not in settled])
+
+
+def _descendants(container: str, children: Mapping[str, list[str]]) -> list[str]:
+    """Every type below ``container``, breadth-first; ``seen`` makes a cycle terminate."""
+    order: list[str] = []
+    seen = {container}
+    queue = [container]
+    while queue and len(order) < _MAX_SUBTYPES:
+        for child in children.get(queue.pop(0), ()):
+            if child not in seen:
+                seen.add(child)
+                order.append(child)
+                queue.append(child)
+    return order
+
+
+def _declared_class(
+    receiver: str, member: str, ancestry: Sequence[str], declared: Mapping[str, str]
+) -> str | None:
+    """The type ``receiver::member`` was declared to hold, relative ones read against their site.
+
+    ``RELATIVE_TYPE_DECLARING`` is the type that declared the member; ``RELATIVE_TYPE_RECEIVER``
+    is the one it was called on, which is why a fluent builder follows the caller and not the
+    base class. Anything else is used as written — a name that is not a type simply never matches
+    a node, so the core needs no reading of type syntax at all.
+    """
+    for ancestor in ancestry:
+        found = declared.get(contract.join_qname(ancestor, member))
+        if found is None:
+            continue
+        if found == contract.RELATIVE_TYPE_DECLARING:
+            return ancestor
+        if found == contract.RELATIVE_TYPE_RECEIVER:
+            return receiver
+        return found
+    return None
+
+
+def container_of(qname: str) -> str:
+    """The container part of a member qname; a name with no member is its own container."""
+    container, member = contract.split_qname(qname)
+    return qname if container is None else container
+
+
+def member_of(qname: str) -> str:
+    return contract.split_qname(qname)[1]
+
+
+def _ancestry(container: str, parents: Mapping[str, tuple[str, ...]]) -> list[str]:
+    """``container`` then its ancestors, breadth-first in ``hierarchy_parents`` order.
+
+    Breadth-first so the nearest declaration wins, and ``seen`` makes a cycle — which a broken
+    or partially-indexed tree can hold — terminate instead of hanging the build.
+    """
+    order = [container]
+    seen = {container}
+    index = 0
+    while index < len(order):
+        for parent in parents.get(order[index], ()):
+            if parent not in seen:
+                seen.add(parent)
+                order.append(parent)
+        index += 1
+    return order
+
+
+def _resolve_inherited(
+    store: GraphStore,
+    inherited: list[tuple[dict[str, object], str, str]],
+    parent_map: Mapping[str, tuple[str, ...]],
+    max_candidates: int,
+    links: list[tuple[int, str, str]],
+    siblings: list[dict[str, object]],
+) -> list[tuple[dict[str, object], str, str]]:
+    r"""Link ``\C::m`` to the ancestor that actually declares ``m`` — one batched lookup (137).
+
+    Nothing here reads a language: the walk is over ``INHERIT_KINDS``, which every adapter emits
+    (R1.1). Returns the entries no ancestor declared, so a caller can decide what an unanswered
+    receiver costs; for a call the adapter qualified itself, that is nothing — the claim stays
+    the qualified name the receiver earned, which is what names what to stub (136).
+    """
+    if not inherited:
+        return []
+    chains = {container: _ancestry(container, parent_map) for _, container, _ in inherited}
+    probes = {
+        contract.join_qname(ancestor, member)
+        for _, container, member in inherited
+        for ancestor in chains[container]
+    }
+    hits = store.nodes_by_qualified_names(sorted(probes), limit=max_candidates)
+    unlinked: list[tuple[dict[str, object], str, str]] = []
+    for entry in inherited:
+        edge, container, member = entry
+        for ancestor in chains[container]:
+            found = hits.get(contract.join_qname(ancestor, member))
+            if found:
+                tier = _weaker_tier(str(edge["confidence_tier"]), "RESOLVED")
+                _queue_candidates(edge, found, tier, links, siblings)
+                break
+        else:
+            unlinked.append(entry)
+    return unlinked
 
 
 def _follow_aliases(raw: str, alias_map: dict[str, str]) -> str:

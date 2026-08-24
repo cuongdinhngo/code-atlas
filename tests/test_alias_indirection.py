@@ -29,8 +29,8 @@ def _interesting(result: dict[str, object]) -> list[dict[str, object]]:
 
 
 @needs_php
-def test_contract_version_is_five() -> None:
-    assert CONTRACT_VERSION == 7
+def test_contract_version_is_current() -> None:
+    assert CONTRACT_VERSION == 8
 
 
 @needs_php

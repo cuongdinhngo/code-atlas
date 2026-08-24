@@ -25,6 +25,7 @@ _REPO = Path(__file__).resolve().parents[1]
 if str(_REPO) not in sys.path:
     sys.path.insert(0, str(_REPO))
 
+from code_atlas import contract  # noqa: E402
 from code_atlas.store import GraphStore, Row  # noqa: E402
 from scripts.cross_repo_validate import (  # noqa: E402
     checkout_pinned,
@@ -57,6 +58,12 @@ CAUSES: dict[str, tuple[bool, str]] = {
     "new_from_string_local": (
         False,
         "`$v = 'FQN'; new $v` — already a heuristic WIN over DYNAMIC, not a gap to close",
+    ),
+    "unwalkable_receiver_chain": (
+        False,
+        "the receiver is the declared type of a member the graph could not follow — the member "
+        "is unindexed, or declares no type at all. Local type information is present and was "
+        "used; what is missing is a declaration or a target, so no type table closes it",
     ),
 }
 
@@ -120,6 +127,10 @@ def classify(store: GraphStore, edges: list[Row]) -> list[tuple[str, Row]]:
             labelled.append(("new_from_string_local", edge))
         elif kind != "CALLS":
             labelled.append((f"other_{kind.lower()}", edge))
+        elif contract.TYPE_OF_SUFFIX + contract.MEMBER_SEPARATOR in raw:
+            # A receiver the adapter named and the walk could not follow (137) — a different
+            # complaint from late binding, and counting it as one would overstate that cause.
+            labelled.append(("unwalkable_receiver_chain", edge))
         elif "::" in raw:
             labelled.append(("late_bound_or_string_name", edge))
         else:

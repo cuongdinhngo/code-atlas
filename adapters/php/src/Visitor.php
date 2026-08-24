@@ -67,12 +67,20 @@ final class Visitor extends NodeVisitorAbstract
     /** @var list<array<string, string>> */
     private array $stringLocalsStack = [];
 
+    /** Declared member types for the class-likes in THIS file; empty when nothing collected them. */
+    private readonly MemberTypes $members;
+
+    private readonly TypeTable $types;
+
     public function __construct(
         private readonly string $path,
         int $lineCount,
         private readonly string $source = '',
         private readonly bool $declarationsOnly = false,
+        ?MemberTypes $members = null,
     ) {
+        $this->members = $members ?? new MemberTypes();
+        $this->types = new TypeTable($this->members);
         $this->scope = [[null, $path]];
         $this->nodes[] = [
             'kind' => 'File',
@@ -110,6 +118,8 @@ final class Visitor extends NodeVisitorAbstract
         } elseif ($node instanceof Node\Stmt\Function_) {
             if ($node->namespacedName !== null) {
                 $this->stringLocals = [];
+                $this->types->beginFunction(null);
+                $this->types->bindParams($node->params);
                 $this->open($node, 'Function', $node->name->toString(), self::fqn($node->namespacedName), [
                     'params' => $this->params($node->params),
                 ] + $this->extraFields($this->callableExtra($node->attrGroups, $node->returnType)));
@@ -119,6 +129,9 @@ final class Visitor extends NodeVisitorAbstract
             }
         } elseif ($node instanceof Node\Stmt\ClassMethod) {
             $this->stringLocals = [];
+            $frame = $this->innermostScope(Node\Stmt\ClassLike::class);
+            $this->types->beginFunction($frame === null ? null : $frame[1]);
+            $this->types->bindParams($node->params);
             if ($node->name->toString() === '__construct') {
                 $this->declarePromotedProperties($node);
             }
@@ -132,25 +145,41 @@ final class Visitor extends NodeVisitorAbstract
         } elseif ($node instanceof Node\Expr\Closure) {
             $this->stringLocalsStack[] = $this->stringLocals;
             $this->stringLocals = [];
+            // `use` is by value unless by reference, and a by-reference capture can be rewritten
+            // anywhere the closure is called from, so only the by-value ones stay evidence.
+            $this->types->push(inherit: true);
+            $this->types->keepOnly($this->byValueUses($node));
+            $this->types->bindParams($node->params);
             $this->enterClosureLike($node, 'closure', '{closure}', $node->params, $node->static, $node->attrGroups, $node->returnType);
         } elseif ($node instanceof Node\Expr\ArrowFunction) {
             // fn() auto-captures by value — keep outer bindings; stack still restores on leave.
             $this->stringLocalsStack[] = $this->stringLocals;
+            $this->types->push(inherit: true);
+            $this->types->bindParams($node->params);
             $this->enterClosureLike($node, 'fn', '{fn}', $node->params, $node->static, $node->attrGroups, $node->returnType);
         } elseif ($node instanceof Node\Expr\Assign) {
             $this->enterAssign($node);
         } elseif ($node instanceof Node\Expr\AssignOp || $node instanceof Node\Expr\AssignRef) {
             $this->forgetStringLocal($node->var);
+            $this->types->forget($node->var);
         } elseif ($node instanceof Node\Stmt\Foreach_) {
             $this->forgetStringLocal($node->valueVar);
+            $this->types->forget($node->valueVar);
             if ($node->keyVar !== null) {
                 $this->forgetStringLocal($node->keyVar);
+                $this->types->forget($node->keyVar);
             }
         } elseif ($node instanceof Node\Stmt\Catch_ && $node->var !== null) {
             $this->forgetStringLocal($node->var);
+            // `catch (T $e)` declares the type of $e (language.exceptions).
+            $this->types->bind(
+                is_string($node->var->name) ? $node->var->name : '',
+                count($node->types) === 1 ? $this->types->only($node->types[0]) : null,
+            );
         } elseif ($node instanceof Node\Stmt\Unset_) {
             foreach ($node->vars as $var) {
                 $this->forgetStringLocal($var);
+                $this->types->forget($var);
             }
         } else {
             $this->enterMemberOrReference($node);
@@ -165,6 +194,7 @@ final class Visitor extends NodeVisitorAbstract
             if ($this->stringLocalsStack !== []) {
                 $this->stringLocals = array_pop($this->stringLocalsStack);
             }
+            $this->types->pop();
         }
         if ($node instanceof Node\Stmt\Function_ || $node instanceof Node\Stmt\ClassMethod) {
             $this->stringLocals = [];
@@ -493,6 +523,7 @@ final class Visitor extends NodeVisitorAbstract
     /** Record `$v = 'string'` for same-function `new $v` HEURISTIC (task 030). */
     private function enterAssign(Node\Expr\Assign $node): void
     {
+        $this->types->observeAssign($node);
         if (
             $node->var instanceof Node\Expr\Variable
             && is_string($node->var->name)
@@ -595,12 +626,19 @@ final class Visitor extends NodeVisitorAbstract
         if ($node->isFirstClassCallable()) {
             return;
         }
-        // $this / $this?-> → enclosing FQN only when that class-like declares $method here.
-        // Inherited / trait-mixin methods stay bare HEURISTIC so the name-match path still links.
+        // $this / $this?-> → the enclosing FQN, which is the class the call was made ON. Whether
+        // that class declares $method here or inherits it is the resolver's walk to make (137).
         if ($node->var instanceof Node\Expr\Variable
             && $node->var->name === 'this'
-            && ($owner = $this->enclosingDeclaringQname($method)) !== null
+            && ($owner = $this->receiverQnameForThis($method)) !== null
         ) {
+            $this->edge(
+                'CALLS', $this->container(), $owner . '::' . $method, $node->getStartLine(), null, $node,
+            );
+            return;
+        }
+        $owner = $this->types->classOf($node->var);
+        if ($owner !== null && $this->canDeclare($owner, $method)) {
             $this->edge(
                 'CALLS', $this->container(), $owner . '::' . $method, $node->getStartLine(), null, $node,
             );
@@ -609,6 +647,40 @@ final class Visitor extends NodeVisitorAbstract
         $this->edge(
             'CALLS', $this->container(), $method, $node->getStartLine(), 'HEURISTIC', $node,
         );
+    }
+
+    /**
+     * Whether naming ``$class::$method`` is a claim this file can stand behind.
+     *
+     * A class declared elsewhere is the resolver's to answer. One declared HERE is fully known, so
+     * a method it neither declares nor can inherit is reached through `__call` and nothing else —
+     * naming it would invent a declaration site that does not exist.
+     */
+    private function canDeclare(string $class, string $method): bool
+    {
+        if (!$this->members->knows($class)) {
+            return true;
+        }
+
+        return $this->members->method($class, $method) !== null || $this->members->inherits($class);
+    }
+
+    /**
+     * Names a closure captures by value. A by-reference capture can be rewritten by any caller,
+     * so its declared type at this point is not evidence about the object it holds later.
+     *
+     * @return list<string>
+     */
+    private function byValueUses(Node\Expr\Closure $node): array
+    {
+        $names = [];
+        foreach ($node->uses as $use) {
+            if (!$use->byRef && is_string($use->var->name)) {
+                $names[] = $use->var->name;
+            }
+        }
+
+        return $names;
     }
 
     private function enterStaticCall(
@@ -622,7 +694,7 @@ final class Visitor extends NodeVisitorAbstract
         }
         $special = strtolower($class->toString());
         if (($special === 'self' || $special === 'static')
-            && ($owner = $this->enclosingDeclaringQname($method)) !== null
+            && ($owner = $this->receiverQnameForThis($method)) !== null
         ) {
             // static:: late binding, or string method name → HEURISTIC (C2 / task 030).
             $tier = ($special === 'static' || $stringMethod) ? 'HEURISTIC' : null;
@@ -686,6 +758,49 @@ final class Visitor extends NodeVisitorAbstract
         assert($node instanceof Node\Stmt\ClassLike);
 
         return $node->getMethod($method) !== null ? $frame[1] : null;
+    }
+
+    /**
+     * The class-like `$this->$method()` was called on, or null when naming it would be a guess.
+     *
+     * Declared right here is always safe. Otherwise only a class or enum that extends, implements
+     * or uses something can inherit the method — a trait's `$this` is the *using* class (029 AC2),
+     * and a class with no ancestry at all can only reach `$method` through `__call`.
+     */
+    private function receiverQnameForThis(string $method): ?string
+    {
+        if (($owner = $this->enclosingDeclaringQname($method)) !== null) {
+            return $owner;
+        }
+        $frame = $this->innermostScope(Node\Stmt\ClassLike::class);
+        if ($frame === null) {
+            return null;
+        }
+        $node = $frame[0];
+        assert($node instanceof Node\Stmt\ClassLike);
+
+        return self::inherits($node) ? $frame[1] : null;
+    }
+
+    /** True when this declaration can inherit a method it does not declare (PHP: OOP inheritance). */
+    private static function inherits(Node\Stmt\ClassLike $node): bool
+    {
+        if (!$node instanceof Node\Stmt\Class_ && !$node instanceof Node\Stmt\Enum_) {
+            return false;
+        }
+        if ($node instanceof Node\Stmt\Class_ && $node->extends !== null) {
+            return true;
+        }
+        if ($node->implements !== []) {
+            return true;
+        }
+        foreach ($node->stmts as $statement) {
+            if ($statement instanceof Node\Stmt\TraitUse) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** FQN of the enclosing class's `extends` clause, when present in this file. */
@@ -1123,25 +1238,9 @@ final class Visitor extends NodeVisitorAbstract
         }
     }
 
-    /** Every declared type, not just class names: a scalar hint dropped to null reads as untyped. */
     private static function typeName(?Node $type): ?string
     {
-        if ($type instanceof Node\Name) {
-            return self::fqn($type);
-        }
-        if ($type instanceof Node\Identifier) {
-            return $type->toString();
-        }
-        if ($type instanceof Node\NullableType) {
-            return '?' . self::typeName($type->type);
-        }
-        if ($type instanceof Node\UnionType || $type instanceof Node\IntersectionType) {
-            $glue = $type instanceof Node\UnionType ? '|' : '&';
-
-            return implode($glue, array_map(self::typeName(...), $type->types));
-        }
-
-        return null;
+        return TypeName::of($type);
     }
 
     /** The convention anchors every qualified name at the global namespace. */

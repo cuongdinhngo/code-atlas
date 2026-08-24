@@ -7,14 +7,36 @@
       "root": "tests/fixtures/php/resolve",
       "question": "Which methods call App\\Repo::put()?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "find_callers", "args": {"qname": "\\App\\Repo::put", "detail_level": "minimal"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "find_callers",
+          "args": {
+            "qname": "\\App\\Repo::put",
+            "detail_level": "minimal"
+          }
+        }
       ],
-      "grep": {"pattern": "->put\\("},
-      "expected": ["\\App\\User::save"],
-      "precision_scope": ["results"],
-      "expected_set": ["\\App\\User::save"],
-      "grep_evidence": ["->put(", "function save"]
+      "grep": {
+        "pattern": "->put\\("
+      },
+      "expected": [
+        "\\App\\User::save"
+      ],
+      "precision_scope": [
+        "results"
+      ],
+      "expected_set": [
+        "\\App\\User::save"
+      ],
+      "grep_evidence": [
+        "->put(",
+        "function save"
+      ]
     },
     {
       "id": "references_to_base",
@@ -22,14 +44,36 @@
       "root": "tests/fixtures/php/resolve",
       "question": "What references App\\Base?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "find_references", "args": {"qname": "\\App\\Base", "detail_level": "minimal"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "find_references",
+          "args": {
+            "qname": "\\App\\Base",
+            "detail_level": "minimal"
+          }
+        }
       ],
-      "grep": {"pattern": "extends Base"},
-      "expected": ["\\App\\User"],
-      "precision_scope": ["results"],
-      "expected_set": ["\\App\\User"],
-      "grep_evidence": ["extends Base", "class User"]
+      "grep": {
+        "pattern": "extends Base"
+      },
+      "expected": [
+        "\\App\\User"
+      ],
+      "precision_scope": [
+        "results"
+      ],
+      "expected_set": [
+        "\\App\\User"
+      ],
+      "grep_evidence": [
+        "extends Base",
+        "class User"
+      ]
     },
     {
       "id": "implementations_of_base",
@@ -37,14 +81,36 @@
       "root": "tests/fixtures/php/resolve",
       "question": "Which classes extend App\\Base?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "find_implementations", "args": {"qname": "\\App\\Base", "detail_level": "minimal"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "find_implementations",
+          "args": {
+            "qname": "\\App\\Base",
+            "detail_level": "minimal"
+          }
+        }
       ],
-      "grep": {"pattern": "extends Base"},
-      "expected": ["\\App\\User"],
-      "precision_scope": ["results"],
-      "expected_set": ["\\App\\User"],
-      "grep_evidence": ["extends Base", "class User"]
+      "grep": {
+        "pattern": "extends Base"
+      },
+      "expected": [
+        "\\App\\User"
+      ],
+      "precision_scope": [
+        "results"
+      ],
+      "expected_set": [
+        "\\App\\User"
+      ],
+      "grep_evidence": [
+        "extends Base",
+        "class User"
+      ]
     },
     {
       "id": "search_user",
@@ -52,15 +118,33 @@
       "root": "tests/fixtures/php/resolve",
       "question": "Where is the User class defined?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "search_symbol", "args": {"query": "User", "detail_level": "minimal"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "search_symbol",
+          "args": {
+            "query": "User",
+            "detail_level": "minimal"
+          }
+        }
       ],
-      "grep": {"pattern": "class User"},
-      "expected": ["\\App\\User"],
-      "precision_note":
-        "search_symbol answers with a ranked page, not a population: a lower-ranked hit this question did not enumerate is a ranking decision, not a false claim.",
-      "expected_set": ["\\App\\User"],
-      "grep_evidence": ["class User"]
+      "grep": {
+        "pattern": "class User"
+      },
+      "expected": [
+        "\\App\\User"
+      ],
+      "precision_note": "search_symbol answers with a ranked page, not a population: a lower-ranked hit this question did not enumerate is a ranking decision, not a false claim.",
+      "expected_set": [
+        "\\App\\User"
+      ],
+      "grep_evidence": [
+        "class User"
+      ]
     },
     {
       "id": "search_repo",
@@ -68,15 +152,33 @@
       "root": "tests/fixtures/php/resolve",
       "question": "Where is the Repo class defined?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "search_symbol", "args": {"query": "Repo", "detail_level": "minimal"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "search_symbol",
+          "args": {
+            "query": "Repo",
+            "detail_level": "minimal"
+          }
+        }
       ],
-      "grep": {"pattern": "class Repo"},
-      "expected": ["\\App\\Repo"],
-      "precision_note":
-        "search_symbol answers with a ranked page, not a population: a lower-ranked hit this question did not enumerate is a ranking decision, not a false claim.",
-      "expected_set": ["\\App\\Repo"],
-      "grep_evidence": ["class Repo"]
+      "grep": {
+        "pattern": "class Repo"
+      },
+      "expected": [
+        "\\App\\Repo"
+      ],
+      "precision_note": "search_symbol answers with a ranked page, not a population: a lower-ranked hit this question did not enumerate is a ranking decision, not a false claim.",
+      "expected_set": [
+        "\\App\\Repo"
+      ],
+      "grep_evidence": [
+        "class Repo"
+      ]
     },
     {
       "id": "read_repo_put",
@@ -84,15 +186,33 @@
       "root": "tests/fixtures/php/resolve",
       "question": "Show the body of App\\Repo::put().",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "read_symbol", "args": {"qname": "\\App\\Repo::put", "detail_level": "minimal"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "read_symbol",
+          "args": {
+            "qname": "\\App\\Repo::put",
+            "detail_level": "minimal"
+          }
+        }
       ],
-      "grep": {"pattern": "function put"},
-      "expected": ["function put"],
-      "precision_note":
-        "read_symbol answers with a body, not a population: there is no set of claimed members that could be wrong.",
-      "expected_set": ["function put"],
-      "grep_evidence": ["function put"]
+      "grep": {
+        "pattern": "function put"
+      },
+      "expected": [
+        "function put"
+      ],
+      "precision_note": "read_symbol answers with a body, not a population: there is no set of claimed members that could be wrong.",
+      "expected_set": [
+        "function put"
+      ],
+      "grep_evidence": [
+        "function put"
+      ]
     },
     {
       "id": "read_user_save",
@@ -100,15 +220,34 @@
       "root": "tests/fixtures/php/resolve",
       "question": "Show the body of App\\User::save().",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "read_symbol", "args": {"qname": "\\App\\User::save", "detail_level": "minimal"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "read_symbol",
+          "args": {
+            "qname": "\\App\\User::save",
+            "detail_level": "minimal"
+          }
+        }
       ],
-      "grep": {"pattern": "function save"},
-      "expected": ["function save"],
-      "precision_note":
-        "read_symbol answers with a body, not a population: there is no set of claimed members that could be wrong.",
-      "expected_set": ["function save"],
-      "grep_evidence": ["function save", "->put("]
+      "grep": {
+        "pattern": "function save"
+      },
+      "expected": [
+        "function save"
+      ],
+      "precision_note": "read_symbol answers with a body, not a population: there is no set of claimed members that could be wrong.",
+      "expected_set": [
+        "function save"
+      ],
+      "grep_evidence": [
+        "function save",
+        "->put("
+      ]
     },
     {
       "id": "imports_of_app",
@@ -116,14 +255,35 @@
       "root": "tests/fixtures/php/include_graph",
       "question": "What does app.php include?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "include_graph", "args": {"path": "app.php", "direction": "imports"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "include_graph",
+          "args": {
+            "path": "app.php",
+            "direction": "imports"
+          }
+        }
       ],
-      "grep": {"pattern": "require"},
-      "expected": ["Legacy/Registry.php"],
-      "precision_scope": ["results"],
-      "expected_set": ["Legacy/Registry.php"],
-      "grep_evidence": ["Registry.php"]
+      "grep": {
+        "pattern": "require"
+      },
+      "expected": [
+        "Legacy/Registry.php"
+      ],
+      "precision_scope": [
+        "results"
+      ],
+      "expected_set": [
+        "Legacy/Registry.php"
+      ],
+      "grep_evidence": [
+        "Registry.php"
+      ]
     },
     {
       "id": "imported_by_registry",
@@ -131,14 +291,35 @@
       "root": "tests/fixtures/php/include_graph",
       "question": "Who includes Legacy/Registry.php?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "include_graph", "args": {"path": "Legacy/Registry.php", "direction": "imported_by"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "include_graph",
+          "args": {
+            "path": "Legacy/Registry.php",
+            "direction": "imported_by"
+          }
+        }
       ],
-      "grep": {"pattern": "Registry"},
-      "expected": ["app.php"],
-      "precision_scope": ["results"],
-      "expected_set": ["app.php"],
-      "grep_evidence": ["Registry.php"]
+      "grep": {
+        "pattern": "Registry"
+      },
+      "expected": [
+        "app.php"
+      ],
+      "precision_scope": [
+        "results"
+      ],
+      "expected_set": [
+        "app.php"
+      ],
+      "grep_evidence": [
+        "Registry.php"
+      ]
     },
     {
       "id": "call_sites_of_repo_put",
@@ -146,14 +327,39 @@
       "root": "tests/fixtures/php/resolve",
       "question": "Show me where App\\Repo::put() is actually called — the call sites, not just the callers.",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "find_callers", "args": {"qname": "\\App\\Repo::put", "detail_level": "minimal", "include_source": true}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "find_callers",
+          "args": {
+            "qname": "\\App\\Repo::put",
+            "detail_level": "minimal",
+            "include_source": true
+          }
+        }
       ],
-      "grep": {"pattern": "->put\\("},
-      "expected": ["\\App\\User::save", "$repo->put();"],
-      "precision_scope": ["results"],
-      "expected_set": ["\\App\\User::save", "$repo->put();"],
-      "grep_evidence": ["->put(", "function save"]
+      "grep": {
+        "pattern": "->put\\("
+      },
+      "expected": [
+        "\\App\\User::save",
+        "$repo->put();"
+      ],
+      "precision_scope": [
+        "results"
+      ],
+      "expected_set": [
+        "\\App\\User::save",
+        "$repo->put();"
+      ],
+      "grep_evidence": [
+        "->put(",
+        "function save"
+      ]
     },
     {
       "id": "blast_radius_of_repo_put",
@@ -164,14 +370,38 @@
       "ratio_note": "Blast radius is a transitive relationship, not a location: no grep pattern returns the set of symbols a change reaches.",
       "question": "If App\\Repo::put changes, which methods sit in its blast radius (relationship, not a location)?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "impact", "args": {"qnames": ["\\App\\Repo::put"], "detail_level": "minimal"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "impact",
+          "args": {
+            "qnames": [
+              "\\App\\Repo::put"
+            ],
+            "detail_level": "minimal"
+          }
+        }
       ],
-      "grep": {"pattern": "function put"},
-      "expected": ["\\App\\User::save"],
-      "precision_scope": ["results"],
-      "expected_set": ["\\App\\Repo::put", "\\App\\User::save"],
-      "grep_evidence": ["function put"]
+      "grep": {
+        "pattern": "function put"
+      },
+      "expected": [
+        "\\App\\User::save"
+      ],
+      "precision_scope": [
+        "results"
+      ],
+      "expected_set": [
+        "\\App\\Repo::put",
+        "\\App\\User::save"
+      ],
+      "grep_evidence": [
+        "function put"
+      ]
     },
     {
       "id": "reachable_from_entry",
@@ -182,20 +412,47 @@
       "ratio_note": "Reachability is a whole-graph traversal from the declared entry points; grep can find the entry file but not the population it reaches.",
       "question": "Which symbols are reachable from the configured entry point entry.php?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "reachable_from", "args": {"detail_level": "minimal"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "reachable_from",
+          "args": {
+            "detail_level": "minimal"
+          }
+        }
       ],
-      "grep": {"pattern": "function main"},
-      "expected": ["\\Entry\\main", "\\Lib\\Helper"],
-      "precision_scope": ["results"],
+      "grep": {
+        "pattern": "function main"
+      },
+      "expected": [
+        "\\Entry\\main",
+        "\\Lib\\Helper"
+      ],
+      "precision_scope": [
+        "results"
+      ],
       "expected_set": [
-        "entry.php",
         "\\Entry",
         "\\Entry\\main",
+        "\\Lib\\Child",
+        "\\Lib\\Child::ping",
         "\\Lib\\Helper",
-        "\\Lib\\Service"
+        "\\Lib\\Helper::go",
+        "\\Lib\\IFace",
+        "\\Lib\\Impl",
+        "\\Lib\\Impl::x",
+        "\\Lib\\Service",
+        "\\Lib\\Service::run",
+        "entry.php"
       ],
-      "grep_evidence": ["function main"]
+      "grep_evidence": [
+        "function main"
+      ],
+      "expected_set_note": "Grew with 137. `$h = new \\Lib\\Helper(); $h->go()` used to be a bare-name guess, and reachability only walks RESOLVED edges — so the traversal stopped AT Helper and never entered go(). Child/Impl/IFace are in the fixture to be reached through it. \\Lib\\Maybe and \\Dead\\Unused are still unreached, which is what this question exists to check."
     },
     {
       "id": "orphans_dead_unused",
@@ -206,15 +463,33 @@
       "ratio_note": "Deadness is a whole-graph negative: no grep pattern proves the absence of a caller.",
       "question": "Which symbols under namespace Dead are orphans relative to entry.php?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "find_orphans", "args": {"detail_level": "minimal"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "find_orphans",
+          "args": {
+            "detail_level": "minimal"
+          }
+        }
       ],
-      "grep": {"pattern": "class Unused"},
-      "expected": ["\\Dead\\Unused"],
-      "precision_note":
-        "The question narrows find_orphans' whole-graph population in its prose (one namespace / one file) while the call returns every orphan, so the other rows are correct answers to a wider question, not claims this set can refute.",
-      "expected_set": ["\\Dead", "\\Dead\\Unused"],
-      "grep_evidence": ["class Unused"]
+      "grep": {
+        "pattern": "class Unused"
+      },
+      "expected": [
+        "\\Dead\\Unused"
+      ],
+      "precision_note": "The question narrows find_orphans' whole-graph population in its prose (one namespace / one file) while the call returns every orphan, so the other rows are correct answers to a wider question, not claims this set can refute.",
+      "expected_set": [
+        "\\Dead",
+        "\\Dead\\Unused"
+      ],
+      "grep_evidence": [
+        "class Unused"
+      ]
     },
     {
       "id": "symptom_persist_via_put",
@@ -225,13 +500,40 @@
       "ratio_note": "The recipe IS the mixed session (grep + index); measuring it against a grep-only baseline would compare the baseline with itself.",
       "question": "A caller persists state through a short write helper on a repository-like type — which method performs that write?",
       "session_path": [
-        {"tool": "grep", "args": {"pattern": "->put\\(", "globs": ["*.php"], "max_read_files": 5}},
-        {"tool": "search_symbol", "args": {"query": "put", "detail_level": "minimal"}},
-        {"tool": "find_callers", "args": {"qname": "\\App\\Repo::put", "detail_level": "minimal"}}
+        {
+          "tool": "grep",
+          "args": {
+            "pattern": "->put\\(",
+            "globs": [
+              "*.php"
+            ],
+            "max_read_files": 5
+          }
+        },
+        {
+          "tool": "search_symbol",
+          "args": {
+            "query": "put",
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "find_callers",
+          "args": {
+            "qname": "\\App\\Repo::put",
+            "detail_level": "minimal"
+          }
+        }
       ],
-      "expected": ["\\App\\User::save"],
-      "precision_scope": ["results"],
-      "expected_set": ["\\App\\User::save"]
+      "expected": [
+        "\\App\\User::save"
+      ],
+      "precision_scope": [
+        "results"
+      ],
+      "expected_set": [
+        "\\App\\User::save"
+      ]
     },
     {
       "id": "onb_layers_and_dependencies",
@@ -242,11 +544,29 @@
       "ratio_note": "grep+Read cannot produce a layering: no pattern returns layers, their order, or the crossings between them, so any baseline here would be an invented number flattering the comparison.",
       "question": "I am new here. What are this codebase's top-level layers, and how do they depend on each other?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "architecture_overview", "args": {"detail_level": "standard"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "architecture_overview",
+          "args": {
+            "detail_level": "standard"
+          }
+        }
       ],
-      "expected": ["HTTP / Entry", "Services", "Domain / Data", "Shared Library", "responsibility"],
-      "precision_scope": ["results"],
+      "expected": [
+        "HTTP / Entry",
+        "Services",
+        "Domain / Data",
+        "Shared Library",
+        "responsibility"
+      ],
+      "precision_scope": [
+        "results"
+      ],
       "expected_set": [
         "HTTP / Entry",
         "Integration / Reporting",
@@ -268,11 +588,27 @@
       "ratio_note": "A reading order is a topological walk of the graph; grep+Read has no baseline that yields an order, only files that mention a pattern.",
       "question": "Where do I start reading, and in what order? Give me the entry points and the first files to read.",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "guided_tour", "args": {"detail_level": "standard"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "guided_tour",
+          "args": {
+            "detail_level": "standard"
+          }
+        }
       ],
-      "expected": ["controllers/InvoiceController.php", "services/InvoiceService.php", "entry point (zero inbound)"],
-      "precision_scope": ["results"],
+      "expected": [
+        "controllers/InvoiceController.php",
+        "services/InvoiceService.php",
+        "entry point (zero inbound)"
+      ],
+      "precision_scope": [
+        "results"
+      ],
       "expected_set": [
         "config/settings.php",
         "controllers/InvoiceController.php",
@@ -293,16 +629,37 @@
       "tier": "onboarding",
       "question": "What depends on the shared library module lib/Clock.php — which files include it, and which methods call into it?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "include_graph", "args": {"path": "lib/Clock.php", "direction": "imported_by"}},
-        {"tool": "find_callers", "args": {"qname": "\\Shop\\Lib\\Clock::now", "detail_level": "minimal"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "include_graph",
+          "args": {
+            "path": "lib/Clock.php",
+            "direction": "imported_by"
+          }
+        },
+        {
+          "tool": "find_callers",
+          "args": {
+            "qname": "\\Shop\\Lib\\Clock::now",
+            "detail_level": "minimal"
+          }
+        }
       ],
-      "grep": {"pattern": "Clock"},
+      "grep": {
+        "pattern": "Clock"
+      },
       "expected": [
         "\\Shop\\Services\\InvoiceService::recent",
         "\\Shop\\Repositories\\InvoiceRepository::findRecent"
       ],
-      "precision_scope": ["results"],
+      "precision_scope": [
+        "results"
+      ],
       "expected_set": [
         "legacy/RetiredExporter.php",
         "repositories/InvoiceRepository.php",
@@ -311,7 +668,10 @@
         "\\Shop\\Repositories\\InvoiceRepository::findRecent",
         "\\Shop\\Services\\InvoiceService::recent"
       ],
-      "grep_evidence": ["class Clock", "->now()"]
+      "grep_evidence": [
+        "class Clock",
+        "->now()"
+      ]
     },
     {
       "id": "onb_hub_blast_radius",
@@ -322,21 +682,39 @@
       "ratio_note": "Blast radius is a transitive relationship, not a location; the same exclusion the named-symbol impact question carries.",
       "question": "What breaks if I change the hub method Shop\\Lib\\Clock::now()?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "impact", "args": {"qnames": ["\\Shop\\Lib\\Clock::now"], "detail_level": "minimal"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "impact",
+          "args": {
+            "qnames": [
+              "\\Shop\\Lib\\Clock::now"
+            ],
+            "detail_level": "minimal"
+          }
+        }
       ],
       "expected": [
         "\\Shop\\Services\\InvoiceService::recent",
         "\\Shop\\Reports\\InvoiceReport::render"
       ],
-      "precision_scope": ["results"],
+      "precision_scope": [
+        "results"
+      ],
       "expected_set": [
-        "\\Shop\\Lib\\Clock::now",
+        "\\Shop\\Controllers\\InvoiceController::index",
+        "\\Shop\\Jobs\\ReminderJob::run",
         "\\Shop\\Legacy\\RetiredExporter::dump",
+        "\\Shop\\Lib\\Clock::now",
         "\\Shop\\Reports\\InvoiceReport::render",
         "\\Shop\\Repositories\\InvoiceRepository::findRecent",
         "\\Shop\\Services\\InvoiceService::recent"
-      ]
+      ],
+      "expected_set_note": "Grew with 137. Both reach Clock::now transitively through `$service->recent()` on a typed parameter, which was a bare-name guess before and so was not traversed. They were always in the blast radius; the answer just could not see them."
     },
     {
       "id": "onb_dead_file",
@@ -347,12 +725,24 @@
       "ratio_note": "Deadness is a whole-graph negative: no grep pattern proves the absence of a caller, so a baseline would measure a different question.",
       "question": "Is legacy/RetiredExporter.php dead code — is anything reaching it from the declared entry points?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "find_orphans", "args": {"detail_level": "minimal"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "find_orphans",
+          "args": {
+            "detail_level": "minimal"
+          }
+        }
       ],
-      "expected": ["\\Shop\\Legacy\\RetiredExporter", "no_inbound"],
-      "precision_note":
-        "The question narrows find_orphans' whole-graph population in its prose (one namespace / one file) while the call returns every orphan, so the other rows are correct answers to a wider question, not claims this set can refute.",
+      "expected": [
+        "\\Shop\\Legacy\\RetiredExporter",
+        "no_inbound"
+      ],
+      "precision_note": "The question narrows find_orphans' whole-graph population in its prose (one namespace / one file) while the call returns every orphan, so the other rows are correct answers to a wider question, not claims this set can refute.",
       "expected_set": [
         "legacy/RetiredExporter.php",
         "\\Shop\\Legacy\\RetiredExporter",
@@ -366,17 +756,29 @@
       "tier": "onboarding",
       "question": "Which files implement the invoice listing feature?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "search_symbol", "args": {"query": "Invoice", "detail_level": "minimal"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "search_symbol",
+          "args": {
+            "query": "Invoice",
+            "detail_level": "minimal"
+          }
+        }
       ],
-      "grep": {"pattern": "Invoice"},
+      "grep": {
+        "pattern": "Invoice"
+      },
       "expected": [
         "\\Shop\\Controllers\\InvoiceController",
         "\\Shop\\Services\\InvoiceService",
         "\\Shop\\Repositories\\InvoiceRepository"
       ],
-      "precision_note":
-        "search_symbol answers with a ranked page, not a population: a lower-ranked hit this question did not enumerate is a ranking decision, not a false claim.",
+      "precision_note": "search_symbol answers with a ranked page, not a population: a lower-ranked hit this question did not enumerate is a ranking decision, not a false claim.",
       "expected_set": [
         "\\Shop\\Controllers\\InvoiceController",
         "\\Shop\\Services\\InvoiceService",
@@ -385,7 +787,10 @@
         "\\Shop\\Reports\\InvoiceReport",
         "views/invoice_page.php"
       ],
-      "grep_evidence": ["class InvoiceController", "class InvoiceService"]
+      "grep_evidence": [
+        "class InvoiceController",
+        "class InvoiceService"
+      ]
     },
     {
       "id": "onb_request_entry",
@@ -394,14 +799,35 @@
       "tier": "onboarding",
       "question": "Where does a request for the invoice page enter the code — what pulls views/invoice_page.php in?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "include_graph", "args": {"path": "views/invoice_page.php", "direction": "imported_by"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "include_graph",
+          "args": {
+            "path": "views/invoice_page.php",
+            "direction": "imported_by"
+          }
+        }
       ],
-      "grep": {"pattern": "invoice_page"},
-      "expected": ["controllers/InvoiceController.php"],
-      "precision_scope": ["results"],
-      "expected_set": ["controllers/InvoiceController.php"],
-      "grep_evidence": ["invoice_page.php"]
+      "grep": {
+        "pattern": "invoice_page"
+      },
+      "expected": [
+        "controllers/InvoiceController.php"
+      ],
+      "precision_scope": [
+        "results"
+      ],
+      "expected_set": [
+        "controllers/InvoiceController.php"
+      ],
+      "grep_evidence": [
+        "invoice_page.php"
+      ]
     },
     {
       "id": "onb_declared_entry_points",
@@ -412,16 +838,33 @@
       "ratio_note": "The answer is which declaration produced a count, and how far it can be trusted; grep can print the declaration file but cannot produce the population it claims.",
       "question": "Which files are the declared web entry points, what glob claimed them, and how far does that claim go?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "architecture_overview", "args": {"detail_level": "standard"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "architecture_overview",
+          "args": {
+            "detail_level": "standard"
+          }
+        }
       ],
       "expected": [
         "controllers/*.php",
         "Web entry points",
         "the core does not check whether a declaration still holds"
       ],
-      "precision_scope": ["summary", "reachability", "patterns"],
-      "expected_set": ["controllers/*.php", "controllers/InvoiceController.php"]
+      "precision_scope": [
+        "summary",
+        "reachability",
+        "patterns"
+      ],
+      "expected_set": [
+        "controllers/*.php",
+        "controllers/InvoiceController.php"
+      ]
     },
     {
       "id": "onb_committable_map",
@@ -432,12 +875,24 @@
       "ratio_note": "The answer is a written artifact, not a lookup; grep+Read has nothing to compare against a file it would have to author.",
       "question": "Give me a committable map of this repo I can review in git.",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "generate_onboarding", "args": {"detail_level": "standard"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "generate_onboarding",
+          "args": {
+            "detail_level": "standard"
+          }
+        }
       ],
-      "expected": ["docs/onboarding/overview.md", "docs/onboarding/manifest.json"],
-      "precision_note":
-        "generate_onboarding's file list legitimately carries one doc per module, so the four artifacts named here are evidence, not the population.",
+      "expected": [
+        "docs/onboarding/overview.md",
+        "docs/onboarding/manifest.json"
+      ],
+      "precision_note": "generate_onboarding's file list legitimately carries one doc per module, so the four artifacts named here are evidence, not the population.",
       "expected_set": [
         "docs/onboarding/overview.md",
         "docs/onboarding/tour.md",
@@ -454,12 +909,25 @@
       "ratio_note": "The answer is the complement of a vocabulary match over every module; grep can find a directory name but not the modules whose paths name no responsibility at all.",
       "question": "Which layer owns each module, and which modules' paths name no responsibility at all?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "architecture_overview", "args": {"detail_level": "verbose"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "architecture_overview",
+          "args": {
+            "detail_level": "verbose"
+          }
+        }
       ],
-      "expected": ["Uncategorised", "legacy/RetiredExporter.php", "naming-debt"],
-      "precision_note":
-        "expected_set mixes layer names with module paths as the evidence for one prose answer; it enumerates no single population that could hold an extra.",
+      "expected": [
+        "Uncategorised",
+        "legacy/RetiredExporter.php",
+        "naming-debt"
+      ],
+      "precision_note": "expected_set mixes layer names with module paths as the evidence for one prose answer; it enumerates no single population that could hold an extra.",
       "expected_set": [
         "Uncategorised",
         "legacy/RetiredExporter.php",
@@ -477,11 +945,28 @@
       "ratio_note": "grep+Read cannot produce a layering; the same exclusion the fixture-tier layer question carries.",
       "question": "I am new to this repo. What are its top-level layers, and which crossings carry the most dependencies?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "architecture_overview", "args": {"detail_level": "standard"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "architecture_overview",
+          "args": {
+            "detail_level": "standard"
+          }
+        }
       ],
-      "expected": ["HTTP / Entry", "Domain / Data", "Views", "responsibility"],
-      "precision_scope": ["results"],
+      "expected": [
+        "HTTP / Entry",
+        "Domain / Data",
+        "Views",
+        "responsibility"
+      ],
+      "precision_scope": [
+        "results"
+      ],
       "expected_set": [
         "HTTP / Entry",
         "Domain / Data",
@@ -501,11 +986,32 @@
       "ratio_note": "The answer is a population the core derived from signals; grep can list controller files but cannot produce the bucket, or its overlap with the test bucket.",
       "question": "Which files are the web surface a request can actually arrive at?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "architecture_overview", "args": {"detail_level": "standard"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "architecture_overview",
+          "args": {
+            "detail_level": "standard"
+          }
+        }
       ],
-      "expected": ["src/Controller/BlogController.php", "Web entry points"],
-      "precision_scope": ["summary", "reachability", "buckets", {"bucket": "web_entry"}, "sample"],
+      "expected": [
+        "src/Controller/BlogController.php",
+        "Web entry points"
+      ],
+      "precision_scope": [
+        "summary",
+        "reachability",
+        "buckets",
+        {
+          "bucket": "web_entry"
+        },
+        "sample"
+      ],
       "expected_set": [
         "src/Controller/Admin/BlogController.php",
         "src/Controller/BlogController.php",
@@ -520,18 +1026,34 @@
       "tier": "onboarding",
       "question": "Which files implement the blog administration screens?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "search_symbol", "args": {"query": "BlogController", "detail_level": "minimal"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "search_symbol",
+          "args": {
+            "query": "BlogController",
+            "detail_level": "minimal"
+          }
+        }
       ],
-      "grep": {"pattern": "BlogController"},
-      "expected": ["\\App\\Controller\\Admin\\BlogController"],
-      "precision_note":
-        "search_symbol answers with a ranked page, not a population: a lower-ranked hit this question did not enumerate is a ranking decision, not a false claim.",
+      "grep": {
+        "pattern": "BlogController"
+      },
+      "expected": [
+        "\\App\\Controller\\Admin\\BlogController"
+      ],
+      "precision_note": "search_symbol answers with a ranked page, not a population: a lower-ranked hit this question did not enumerate is a ranking decision, not a false claim.",
       "expected_set": [
         "\\App\\Controller\\Admin\\BlogController",
         "\\App\\Controller\\BlogController"
       ],
-      "grep_evidence": ["class BlogController"]
+      "grep_evidence": [
+        "class BlogController"
+      ]
     },
     {
       "id": "sample_impls_bignumber",
@@ -539,12 +1061,31 @@
       "sample": "brick_math",
       "question": "Which classes extend Brick\\Math\\BigNumber?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "find_implementations", "args": {"qname": "\\Brick\\Math\\BigNumber", "detail_level": "minimal"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "find_implementations",
+          "args": {
+            "qname": "\\Brick\\Math\\BigNumber",
+            "detail_level": "minimal"
+          }
+        }
       ],
-      "grep": {"pattern": "extends BigNumber"},
-      "expected": ["\\Brick\\Math\\BigInteger", "\\Brick\\Math\\BigDecimal", "\\Brick\\Math\\BigRational"],
-      "grep_evidence": ["extends BigNumber"]
+      "grep": {
+        "pattern": "extends BigNumber"
+      },
+      "expected": [
+        "\\Brick\\Math\\BigInteger",
+        "\\Brick\\Math\\BigDecimal",
+        "\\Brick\\Math\\BigRational"
+      ],
+      "grep_evidence": [
+        "extends BigNumber"
+      ]
     },
     {
       "id": "sample_refs_biginteger",
@@ -552,12 +1093,29 @@
       "sample": "brick_math",
       "question": "What references Brick\\Math\\BigInteger?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "find_references", "args": {"qname": "\\Brick\\Math\\BigInteger", "detail_level": "minimal"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "find_references",
+          "args": {
+            "qname": "\\Brick\\Math\\BigInteger",
+            "detail_level": "minimal"
+          }
+        }
       ],
-      "grep": {"pattern": "BigInteger"},
-      "expected": ["\\Brick\\Math\\BigInteger::gcd"],
-      "grep_evidence": ["class BigInteger"]
+      "grep": {
+        "pattern": "BigInteger"
+      },
+      "expected": [
+        "\\Brick\\Math\\BigInteger::gcd"
+      ],
+      "grep_evidence": [
+        "class BigInteger"
+      ]
     },
     {
       "id": "sample_callers_bignumber_iszero",
@@ -565,12 +1123,29 @@
       "sample": "brick_math",
       "question": "Which methods call Brick\\Math\\BigNumber::isZero()?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "find_callers", "args": {"qname": "\\Brick\\Math\\BigNumber::isZero", "detail_level": "minimal"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "find_callers",
+          "args": {
+            "qname": "\\Brick\\Math\\BigNumber::isZero",
+            "detail_level": "minimal"
+          }
+        }
       ],
-      "grep": {"pattern": "->isZero\\("},
-      "expected": ["\\Brick\\Math\\BigDecimal::dividedBy"],
-      "grep_evidence": ["->isZero("]
+      "grep": {
+        "pattern": "->isZero\\("
+      },
+      "expected": [
+        "\\Brick\\Math\\BigDecimal::dividedBy"
+      ],
+      "grep_evidence": [
+        "->isZero("
+      ]
     },
     {
       "id": "sample_refs_tag_entity",
@@ -578,12 +1153,29 @@
       "sample": "symfony_demo",
       "question": "What references App\\Entity\\Tag?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "find_references", "args": {"qname": "\\App\\Entity\\Tag", "detail_level": "minimal"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "find_references",
+          "args": {
+            "qname": "\\App\\Entity\\Tag",
+            "detail_level": "minimal"
+          }
+        }
       ],
-      "grep": {"pattern": "Tag"},
-      "expected": ["\\App\\Form\\DataTransformer\\TagArrayToStringTransformer::reverseTransform"],
-      "grep_evidence": ["class Tag"]
+      "grep": {
+        "pattern": "Tag"
+      },
+      "expected": [
+        "\\App\\Form\\DataTransformer\\TagArrayToStringTransformer::reverseTransform"
+      ],
+      "grep_evidence": [
+        "class Tag"
+      ]
     },
     {
       "id": "sample_callers_post_getid",
@@ -591,12 +1183,29 @@
       "sample": "symfony_demo",
       "question": "Which methods call App\\Entity\\Post::getId()?",
       "atlas_path": [
-        {"tool": "get_index_status", "args": {"detail_level": "minimal"}},
-        {"tool": "find_callers", "args": {"qname": "\\App\\Entity\\Post::getId", "detail_level": "minimal"}}
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "find_callers",
+          "args": {
+            "qname": "\\App\\Entity\\Post::getId",
+            "detail_level": "minimal"
+          }
+        }
       ],
-      "grep": {"pattern": "->getId\\("},
-      "expected": ["\\App\\Controller\\Admin\\BlogController::edit"],
-      "grep_evidence": ["->getId("]
+      "grep": {
+        "pattern": "->getId\\("
+      },
+      "expected": [
+        "\\App\\Controller\\Admin\\BlogController::edit"
+      ],
+      "grep_evidence": [
+        "->getId("
+      ]
     }
   ]
 }
