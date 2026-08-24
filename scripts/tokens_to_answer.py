@@ -42,6 +42,7 @@ from code_atlas.tokens import estimate_tokens  # noqa: E402 — one definition s
 from code_atlas.tools import (  # noqa: E402
     architecture_overview,
     check_architecture_rules,
+    diff_architecture,
     find_callers,
     find_implementations,
     find_orphans,
@@ -71,6 +72,7 @@ _TOOL_NAMES = (
     guided_tour.NAME,
     generate_onboarding.NAME,
     check_architecture_rules.NAME,
+    diff_architecture.NAME,
     search_symbol.NAME,
     read_symbol.NAME,
     find_callers.NAME,
@@ -132,6 +134,7 @@ def bind_tools(config: Config) -> dict[str, Callable[..., dict[str, object]]]:
         guided_tour.NAME: guided_tour.create(config),
         generate_onboarding.NAME: generate_onboarding.create(config),
         check_architecture_rules.NAME: check_architecture_rules.create(config),
+        diff_architecture.NAME: diff_architecture.create(config),
     }
 
 

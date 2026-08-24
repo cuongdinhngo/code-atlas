@@ -169,6 +169,7 @@ NOT_PAGED_EMITTERS = {
     "get_index_status",
     "generate_onboarding",
     "check_architecture_rules",  # paging proven in test_architecture_rules; not this fixture
+    "diff_architecture",  # pair of snapshots; no limit/offset page (139)
 }
 
 

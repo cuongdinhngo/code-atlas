@@ -1,0 +1,162 @@
+{
+  "hubs": [
+    {
+      "fan_in": 2,
+      "fan_out": 0,
+      "file": "src/b/B.aa",
+      "layer": "Domain"
+    },
+    {
+      "fan_in": 1,
+      "fan_out": 1,
+      "file": "src/a/A.aa",
+      "layer": "HTTP / Entry"
+    }
+  ],
+  "index_root": "/repo",
+  "last_ref": "rev-a",
+  "layers": [
+    {
+      "description": "d",
+      "entry_points": 1,
+      "fan_in": 0,
+      "fan_out": 1,
+      "kinds": [],
+      "layer": "HTTP / Entry",
+      "modules": 1,
+      "rank": 0
+    },
+    {
+      "description": "d",
+      "entry_points": 0,
+      "fan_in": 1,
+      "fan_out": 0,
+      "kinds": [],
+      "layer": "Domain",
+      "modules": 1,
+      "rank": 1
+    }
+  ],
+  "matrix": [
+    {
+      "count": 1,
+      "source": "HTTP / Entry",
+      "target": "Domain"
+    }
+  ],
+  "modules": {
+    "containers": [
+      "src"
+    ],
+    "coverage": {
+      "covered": 2,
+      "excluded": 0,
+      "note": "n",
+      "percent": 100.0,
+      "total": 2
+    },
+    "modules": [
+      {
+        "classes": 1,
+        "directories": [
+          "src/a"
+        ],
+        "files": 1,
+        "hub": "src/a/A.aa",
+        "hub_fan_in": 1,
+        "module": "a",
+        "single_tree": true,
+        "trees": [
+          "src/a"
+        ]
+      },
+      {
+        "classes": 1,
+        "directories": [
+          "src/b"
+        ],
+        "files": 1,
+        "hub": "src/b/B.aa",
+        "hub_fan_in": 2,
+        "module": "b",
+        "single_tree": true,
+        "trees": [
+          "src/b"
+        ]
+      }
+    ],
+    "refused": [],
+    "truncated": false
+  },
+  "path_index": {
+    "caveat": "path caveat before",
+    "dirs": [],
+    "entries": [],
+    "shown": 0,
+    "total": 0,
+    "truncated": false
+  },
+  "reachability": {
+    "buckets": [
+      {
+        "bucket": "web_entry",
+        "count": 1,
+        "label": "Web",
+        "note": "n",
+        "sample": [
+          "src/a/A.aa"
+        ],
+        "sample_truncated": false,
+        "signal": "s",
+        "signals": {}
+      },
+      {
+        "bucket": "vendor",
+        "count": 0,
+        "label": "V",
+        "note": "n",
+        "sample": [],
+        "sample_truncated": false,
+        "signal": "s",
+        "signals": {}
+      },
+      {
+        "bucket": "test",
+        "count": 0,
+        "label": "T",
+        "note": "n",
+        "sample": [],
+        "sample_truncated": false,
+        "signal": "s",
+        "signals": {}
+      },
+      {
+        "bucket": "dynamic_or_unresolved",
+        "count": 0,
+        "label": "D",
+        "note": "n",
+        "sample": [],
+        "sample_truncated": false,
+        "signal": "s",
+        "signals": {}
+      },
+      {
+        "bucket": "isolated",
+        "count": 1,
+        "label": "I",
+        "note": "n",
+        "sample": [
+          "src/orphan.aa"
+        ],
+        "sample_truncated": false,
+        "signal": "s",
+        "signals": {}
+      }
+    ],
+    "caveat": "shared caveat",
+    "dropped": [],
+    "patterns": [],
+    "total": 2
+  },
+  "version": 7
+}

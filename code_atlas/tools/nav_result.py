@@ -27,6 +27,11 @@ NavReason = Literal[
     "name_not_qualified",
     "subject_ambiguous",
     "rule_matched_no_files",
+    "no_architectural_change",
+    "index_root_mismatch",
+    "dataset_schema_mismatch",
+    "incomplete_snapshot",
+    "snapshot_not_found",
 ]
 
 REASON_OK: NavReason = "ok"
@@ -44,6 +49,12 @@ REASON_NAME_NOT_QUALIFIED: NavReason = "name_not_qualified"
 REASON_SUBJECT_AMBIGUOUS: NavReason = "subject_ambiguous"
 # Every declared rule matched no file on one side, so nothing was checked — not a clean pass (138).
 REASON_RULE_MATCHED_NO_FILES: NavReason = "rule_matched_no_files"
+# 139's snapshot diff: nothing moved, or the two sides cannot be compared at all.
+REASON_NO_ARCHITECTURAL_CHANGE: NavReason = "no_architectural_change"
+REASON_INDEX_ROOT_MISMATCH: NavReason = "index_root_mismatch"
+REASON_DATASET_SCHEMA_MISMATCH: NavReason = "dataset_schema_mismatch"
+REASON_INCOMPLETE_SNAPSHOT: NavReason = "incomplete_snapshot"
+REASON_SNAPSHOT_NOT_FOUND: NavReason = "snapshot_not_found"
 
 NAV_REASONS: tuple[NavReason, ...] = (
     REASON_OK,
@@ -57,6 +68,11 @@ NAV_REASONS: tuple[NavReason, ...] = (
     REASON_NAME_NOT_QUALIFIED,
     REASON_SUBJECT_AMBIGUOUS,
     REASON_RULE_MATCHED_NO_FILES,
+    REASON_NO_ARCHITECTURAL_CHANGE,
+    REASON_INDEX_ROOT_MISMATCH,
+    REASON_DATASET_SCHEMA_MISMATCH,
+    REASON_INCOMPLETE_SNAPSHOT,
+    REASON_SNAPSHOT_NOT_FOUND,
 )
 
 # Two registers, one naming rule (093): ``TRY_INSTEAD_*`` is a registered tool name the reader can

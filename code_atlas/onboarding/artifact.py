@@ -656,13 +656,20 @@ def render_module(page: ModulePage, max_results: int) -> str:
 
 
 def manifest_dict(
-    artifact: OnboardingArtifact, dataset: OnboardingDataset
+    artifact: OnboardingArtifact,
+    dataset: OnboardingDataset,
+    *,
+    index_root: str = "",
+    last_ref: str = "",
 ) -> dict[str, object]:
     """The one committed machine-readable artifact: the aggregate dataset (task 112) plus this
     run's operational record — the page paths written (the 050 delete-record) and the doc
-    pointers. Reduced to the dataset: the per-module dump is gone. No wall-clock (R4.2/AC2)."""
+    pointers. ``index_root`` / ``last_ref`` name the tree and revision so 139 can refuse a
+    cross-tree or cross-schema diff (071 / 077). No wall-clock (R4.2/AC2)."""
     return {
         **dataset.as_dict(),
+        "index_root": index_root,
+        "last_ref": last_ref,
         "overview": OVERVIEW_NAME,
         "pages": sorted(page.relpath for page in artifact.pages),
         "tour": TOUR_NAME,
@@ -671,10 +678,21 @@ def manifest_dict(
     }
 
 
-def manifest_json(artifact: OnboardingArtifact, dataset: OnboardingDataset) -> str:
+def manifest_json(
+    artifact: OnboardingArtifact,
+    dataset: OnboardingDataset,
+    *,
+    index_root: str = "",
+    last_ref: str = "",
+) -> str:
     """Deterministic JSON for ``manifest.json``."""
     return (
-        json.dumps(manifest_dict(artifact, dataset), sort_keys=True, ensure_ascii=False, indent=2)
+        json.dumps(
+            manifest_dict(artifact, dataset, index_root=index_root, last_ref=last_ref),
+            sort_keys=True,
+            ensure_ascii=False,
+            indent=2,
+        )
         + "\n"
     )
 

@@ -13,7 +13,7 @@ state of the project to someone else. Two pillars, one graph, stated authoritati
 Language-agnostic core with per-language adapters. **PHP today**; TypeScript/JavaScript, Python and
 C#/.NET are next.
 
-> Status: **shipped and in daily use — 19 tools.** The PHP path is feature-complete: index → search /
+> Status: **shipped and in daily use — 20 tools.** The PHP path is feature-complete: index → search /
 > read / outline → callers / refs / impls → impact → incremental (`git diff`) → reachability /
 > orphans → shortest path, plus read-through freshness reparse. The **onboarding layer has shipped
 > too** (`architecture_overview`, `guided_tour`, `generate_onboarding`) and emits a committable
@@ -221,6 +221,7 @@ provenance (`db_path` on `get_index_status` / build reports only after 061). Eve
 | `guided_tour` | a dependency-ordered reading list of files, cycle-safe and budget-bounded ([detail](#guided_tour--a-reading-order-that-expands)) (onboarding) |
 | `generate_onboarding` | writes the committable markdown and the self-contained `index.html` **system map** under `docs/onboarding/` ([detail](#generate_onboarding--the-committable-system-map)) (onboarding) |
 | `check_architecture_rules` | confirmed vs candidate violations of declarative path-set dependency rules (`CA_ARCHITECTURE_RULES`) |
+| `diff_architecture` | architectural drift between two onboarding dataset / manifest snapshots |
 
 ### `architecture_overview` — layers, crossings, and the populations behind a zero
 
@@ -359,6 +360,7 @@ worse than none. Each of these would have lost a caveat that no one-line form ca
 | `guided_tour` | a reading order is a sequence; its length without the stops and their rationales is not checkable |
 | `generate_onboarding` | it reports files written, not a state of the world — a count of pages is not the docs themselves |
 | `check_architecture_rules` | confirmed vs candidate is a pair — a one-line violation count would erase the HEURISTIC tier partition (138) |
+| `diff_architecture` | a drift report is a shape across sections — a one-line change count erases which revision and which field moved (139) |
 
 ## Sweeps — `search_symbol` takes a list of subjects (task 101)
 
@@ -413,6 +415,7 @@ for a reason:
 | `guided_tour` | its subject is the whole index — there is one reading order, and a list of subjects has no meaning for a repo-wide walk |
 | `generate_onboarding` | a write is one artifact against one tree — R4.3's single writer, not a fan-out |
 | `check_architecture_rules` | its subject is the configured rule set — a list of rule ids is filtering, not a batch of independent questions |
+| `diff_architecture` | its subject is already a pair of snapshots — a list of pairs is a query language, which 101 deliberately is not |
 
 ## Operator prompts (human-invoked — not part of the agent tool surface)
 
@@ -428,7 +431,7 @@ name-only answers from description-backed ones — is
 | `explore_area` | status → search/outline → read only what's needed |
 | `find_usages` | status → find_references / find_callers / find_implementations → read to confirm |
 | `impact_of_change` | status → impact on the changed paths/qnames → read only the blast-radius surface |
-| `which_tool` | a recognition map: which tool answers a given question, across all 19 tools |
+| `which_tool` | a recognition map: which tool answers a given question, across all 20 tools |
 
 ## Hooks (opt-in)
 

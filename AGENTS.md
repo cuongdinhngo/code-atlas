@@ -121,5 +121,5 @@ it as "unverified". To ship the server itself in a container, use `docker/Docker
 M0 spike → M1 full build → M2 resolver+contract tests → **M3 search/read/outline = first daily release (task 014)** → M4 scale → M5 incremental → M6 impact.
 **Phase 3 onboarding shipped ahead of language breadth:** M10 (`architecture_overview` + layers) · M11
 (`guided_tour`, `generate_onboarding`, the navigable system map) · M12 (opt-in LLM prose behind three
-seams, out of the core) are **all complete** — 19 tools on the surface. Adapters #2–#4 stay **deferred**
+seams, out of the core) are **all complete** — 20 tools on the surface. Adapters #2–#4 stay **deferred**
 (§19 pivot: depth before breadth).

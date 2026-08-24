@@ -35,7 +35,7 @@ from code_atlas.onboarding.layers import LayerRefiner
 from code_atlas.onboarding.prose import ProseRun, ProseWriter
 from code_atlas.onboarding.summary import StructuralSummarizer, Summarizer
 from code_atlas.onboarding.viewer import render_viewer
-from code_atlas.store import LAST_COMMIT_KEY, GraphStore
+from code_atlas.store import LAST_COMMIT_KEY, LAST_REF_KEY, GraphStore
 from code_atlas.tools.nav_result import (
     REASON_NO_MATCHES,
     REASON_NOT_INDEXED,
@@ -101,6 +101,7 @@ def create(
             file_classes = store.file_class_counts()
             file_kinds = store.file_kind_counts()
             commit = store.get_meta(LAST_COMMIT_KEY) or ""
+            last_ref = store.get_meta(LAST_REF_KEY) or commit
             tour_files = subgraph.files
             file_nodes = {
                 path: store.nodes_by_file_all(path)
@@ -150,7 +151,14 @@ def create(
             commit=commit,
             prose=prose,
         )
-        written = _write(Path(config.root), artifact, dataset, config.max_results)
+        written = _write(
+            Path(config.root),
+            artifact,
+            dataset,
+            config.max_results,
+            index_root=config.index_root,
+            last_ref=last_ref,
+        )
         return _payload(config, artifact, written, detail_level, prose)
 
     return generate_onboarding
@@ -210,7 +218,13 @@ def _remove_recorded_pages(out: Path) -> None:
 
 
 def _write(
-    root: Path, artifact: OnboardingArtifact, dataset: OnboardingDataset, max_results: int
+    root: Path,
+    artifact: OnboardingArtifact,
+    dataset: OnboardingDataset,
+    max_results: int,
+    *,
+    index_root: str = "",
+    last_ref: str = "",
 ) -> tuple[str, ...]:
     """Rewrite this tool's own onboarding files and the cache. Paths are POSIX."""
     out = root / OUTPUT_DIR
@@ -221,7 +235,9 @@ def _write(
     files = {
         OVERVIEW_NAME: render_overview(artifact),
         TOUR_NAME: render_tour(artifact, max_results),
-        MANIFEST_NAME: manifest_json(artifact, dataset),
+        MANIFEST_NAME: manifest_json(
+            artifact, dataset, index_root=index_root, last_ref=last_ref
+        ),
         VIEWER_NAME: render_viewer(dataset, max_results),
     }
     for name, text in files.items():
