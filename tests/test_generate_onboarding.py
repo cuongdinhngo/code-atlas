@@ -16,6 +16,7 @@ import pytest
 from code_atlas.config import Config
 from code_atlas.onboarding.artifact import (
     H_CROSSINGS,
+    H_DIAGRAM,
     H_IN_TOUR,
     H_LAYER,
     H_LAYERS,
@@ -73,8 +74,10 @@ def test_generate_onboarding_writes_structured_markdown_in_dependency_order(
     tour = (out / "tour.md").read_text(encoding="utf-8")
     manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
 
-    for heading in (H_OVERVIEW, H_SUMMARY, H_LAYERS, H_CROSSINGS):
+    for heading in (H_OVERVIEW, H_SUMMARY, H_LAYERS, H_DIAGRAM, H_CROSSINGS):
         assert heading in overview
+    assert "```mermaid" in overview
+    assert "flowchart LR" in overview
     for heading in (H_TOUR, H_ORDER):
         assert heading in tour
 

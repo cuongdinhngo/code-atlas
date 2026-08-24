@@ -102,7 +102,9 @@ def store(tmp_path: Path) -> Iterator[GraphStore]:
         yield opened
 
 
-def _edge(source: str, target_qname: str, path: str) -> dict[str, object]:
+def _edge(
+    source: str, target_qname: str, path: str, *, tier: str = "RESOLVED"
+) -> dict[str, object]:
     return {
         "kind": "CALLS",
         "source_qname": source,
@@ -110,6 +112,7 @@ def _edge(source: str, target_qname: str, path: str) -> dict[str, object]:
         "target_qname": target_qname,
         "file_path": path,
         "line": 7,
+        "confidence_tier": tier,
     }
 
 
@@ -136,6 +139,20 @@ def test_dependency_edges_excludes_self_loops_and_unresolved(store: GraphStore) 
         ],
     )
     assert store.dependency_edges() == [("\\A", "\\B")]
+    assert store.dependency_edges_with_tier() == [("\\A", "\\B", "RESOLVED")]
+
+
+def test_dependency_edges_with_tier_resolved_beats_heuristic(store: GraphStore) -> None:
+    store.upsert_file("a.php", "h", "php")
+    store.replace_file_rows(
+        "a.php",
+        [_node("\\A", "a.php"), _node("\\B", "a.php")],
+        [
+            _edge("\\A", "\\B", "a.php", tier="HEURISTIC"),
+            _edge("\\A", "\\B", "a.php", tier="RESOLVED"),
+        ],
+    )
+    assert store.dependency_edges_with_tier() == [("\\A", "\\B", "RESOLVED")]
 
 
 def test_node_universe_is_sorted_qname_file_pairs(store: GraphStore) -> None:

@@ -252,7 +252,8 @@ provenance (`db_path` on `get_index_status` / build reports only after 061). Eve
 
 - Writes markdown (overview · tour · per-module) plus `manifest.json` and a self-contained
   `index.html` under `docs/onboarding/` — offline, theme-aware, repo text escaped so a path cannot
-  inject markup, with a `<noscript>` fallback.
+  inject markup, with a `<noscript>` fallback. `overview.md` includes a mermaid layer flowchart
+  (GitHub/VS Code render it; the HTML map stays fetch-free and does not bundle mermaid).
 - The map renders the onboarding dataset **alone**: sitemap treemap with drill-down, layer table with
   its node-kind composition, the full layer×layer dependency matrix with nothing cut, hubs, the
   capability table, the zero-inbound split, the mirror panel, a search palette with counterpart

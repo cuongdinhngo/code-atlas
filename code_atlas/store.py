@@ -584,6 +584,26 @@ class GraphStore:
         )
         return [(str(source), str(target)) for source, target in cursor]
 
+    def dependency_edges_with_tier(self) -> list[tuple[str, str, str]]:
+        """Distinct resolved pairs with a winning tier — RESOLVED beats HEURISTIC beats DYNAMIC.
+
+        Same pair set as :meth:`dependency_edges`; the extra column is what 143's dashed arrows
+        need. ``GROUP BY`` still dedupes; ``ORDER BY`` is stable (R4.2).
+        """
+        resolved, heuristic, dynamic = CONFIDENCE_TIERS
+        cursor = self._conn.execute(
+            "SELECT source_qname, target_qname, "
+            "CASE WHEN SUM(CASE WHEN confidence_tier = ? THEN 1 ELSE 0 END) > 0 THEN ? "
+            "WHEN SUM(CASE WHEN confidence_tier = ? THEN 1 ELSE 0 END) > 0 THEN ? "
+            "ELSE ? END "
+            "FROM edges "
+            "WHERE target_qname IS NOT NULL AND source_qname <> target_qname "
+            "GROUP BY source_qname, target_qname "
+            "ORDER BY source_qname, target_qname",
+            (resolved, resolved, heuristic, heuristic, dynamic),
+        )
+        return [(str(source), str(target), str(tier)) for source, target, tier in cursor]
+
     def node_universe(self) -> list[tuple[str, str]]:
         """Every ``(qualified_name, file_path)`` — the node set + qname→module map (task 083).
 

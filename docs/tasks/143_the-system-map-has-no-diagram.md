@@ -4,7 +4,7 @@ slug: the-system-map-has-no-diagram
 title: The system map has no diagram — every relation is a table, and PILLAR 2 promised diagrams
 phase: 3
 milestone: Presentation
-status: todo
+status: done
 depends_on: [112, 116, 110, 130]
 ---
 
@@ -66,3 +66,75 @@ positive on lookups (12/12, recall 1.0) and negative on ordering.
   measured ≥99 % of the HEURISTIC share as missing local type information (`brick/math` 1,659 edges);
   and no `EDGE_KINDS` member carries a branch or a loop, so `alt`/`loop` frames have no source. Line
   order (`edges.line`) is not execution order.
+
+---
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+<!-- mango:working-doc -->
+
+## Session status
+
+- **Phase:** finalise (execute complete; review/challenger waived)
+- **Branch:** `feat/143-the-system-map-has-no-diagram`
+- **CHALLENGER:** OFF
+- **work_doc_mode:** embed
+- **TIER:** full · **SCOPE:** M
+
+## PREMISE / REFINE
+
+`PREMISE: 6 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)`
+`refine skipped: 0 unresolved product-decisions`
+`RECALL: 0 claim(s) surfaced | 0 by symbol | 0 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+
+## Design
+
+- Pure `code_atlas/onboarding/layer_diagram.py` mermaid `flowchart LR` from layer names + crossings
+- HEURISTIC-only arrows dashed (`-.->`); DYNAMIC-only omitted and counted
+- `GraphStore.dependency_edges_with_tier` — same pair set as `dependency_edges`, winning tier for AC3
+- Injected into `overview.md` via `render_overview`; HTML viewer unchanged
+- Node cap = `CA_MAX_RESULTS`, disclosed as "N shown of M; the graph is capped"
+- AC6: `docs/benchmarks/143_layer_diagrams.md` from pinned indexes
+
+## Requirements matrix
+
+| ID | Ph3 | Ph4 | Notes |
+|---|---|---|---|
+| AC1 | ✅ | waived | golden mermaid body |
+| AC2 | ✅ | waived | label sum == cell counts |
+| AC3 | ✅ | waived | `-.->` on HEURISTIC-only |
+| AC4 | ✅ | waived | cap disclosure |
+| AC5 | ✅ | waived | `validate_mermaid_flowchart` |
+| AC6 | ✅ | waived | pinned-repo mermaid in benchmarks |
+
+## Cost ledger
+
+| phase | dispatch | tokens |
+|---|---|---|
+| explore | diagram surface | unmeasured (host does not surface usage) |
+
+## Review of PR #168 — two gaps fixed in-branch
+
+1. **The node cap dropped arrows silently.** `render_layer_flowchart` truncates layers, then keeps
+   only edges whose both endpoints survived — and disclosed the layer count alone. `## Cross-layer
+   edges` right below the diagram still lists every crossing, so a reader sees a crossing in the
+   table with no arrow above it and nothing saying why. AC4's own test watched it happen: at
+   `node_cap=1` it asserted `"N1" not in mermaid` and then called the layer-count sentence the
+   disclosure. `LayerDiagram.omitted_capped` now counts the arrows the cap cost and `render_overview`
+   says so, naming the table that still lists them (108/124).
+2. **AC5's validator never ran on the artifact.** `validate_mermaid_flowchart` was called from the
+   benchmark script and the tests, never from the write path, so `generate_onboarding` could commit
+   an unvalidated diagram. `render_overview` now validates what it is about to write. That also
+   exposed that `_label` stripped `"` but not newlines — a dominant-subtree layer name is a directory
+   name, not a vetted vocabulary word, and a newline in one breaks the line-structured diagram
+   outright (the added test fails with `ValueError` from the validator without the strip).
+
+Three tests added; all three are red without the fixes above.
+
+**Checked and correct:** `dependency_edges_with_tier` really is the same pair set as
+`dependency_edges` — identical `WHERE` / `GROUP BY` / `ORDER BY` — so routing `generate_onboarding`'s
+`edges` through it changes nothing for metrics, layers or the tour. It has its own tests in
+`test_onboarding_metrics.py`.
+
+**Not fixed, noted:** the pin script (`scripts/layer_diagram_report.py`) hardcodes `node_cap=50` and
+does not print `omitted_capped`. With ≤ 13 layers it is always 0, so the pins are unaffected; if a
+sample ever exceeds the cap the report would omit arrows without saying so.

@@ -12,6 +12,14 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from code_atlas.onboarding.dataset import OnboardingDataset
+from code_atlas.onboarding.layer_diagram import (
+    RESOLVED,
+    DiagramEdge,
+    diagram_edges,
+    module_edge_tiers,
+    render_layer_flowchart,
+    validate_mermaid_flowchart,
+)
 from code_atlas.onboarding.layers import (
     IdentityLayerRefiner,
     LayerAssignment,
@@ -39,6 +47,7 @@ H_MIRRORS = "## Mirror subtrees"
 H_MODULES = "## Business modules"
 H_REACHABILITY = "## Zero-inbound modules, by population"
 H_LAYERS = "## Layers"
+H_DIAGRAM = "## Layer graph"
 H_CROSSINGS = "## Cross-layer edges"
 H_TOUR = "# Guided tour"
 H_ORDER = "## Reading order"
@@ -69,6 +78,7 @@ __all__ = [
     "TOUR_NAME",
     "VIEWER_NAME",
     "H_CROSSINGS",
+    "H_DIAGRAM",
     "H_IN_TOUR",
     "H_LAYER",
     "H_LAYERS",
@@ -144,6 +154,8 @@ class OnboardingArtifact:
     """The narrative reading order: 5–15 grouped steps over the stops (task 111)."""
     isolated: tuple[str, ...] = ()
     """Modules a page would say nothing about: no edge either way, no summary (task 107)."""
+    diagram_edges: tuple[DiagramEdge, ...] = ()
+    omitted_dynamic: int = 0
 
     def as_dict(self) -> dict[str, object]:
         """Order-stable dict for the regenerable cache (R4.2)."""
@@ -151,6 +163,15 @@ class OnboardingArtifact:
             "crossings": [
                 {"count": count, "source": source, "target": target}
                 for source, target, count in self.crossings
+            ],
+            "diagram_edges": [
+                {
+                    "count": edge.count,
+                    "heuristic_only": edge.heuristic_only,
+                    "source": edge.source,
+                    "target": edge.target,
+                }
+                for edge in self.diagram_edges
             ],
             "layers": [
                 {
@@ -166,6 +187,7 @@ class OnboardingArtifact:
             ],
             "isolated": list(self.isolated),
             "method": self.method,
+            "omitted_dynamic": self.omitted_dynamic,
             "pages": [
                 {
                     "docline": page.docline,
@@ -323,6 +345,7 @@ def build_artifact(
     prose: ProseRun | None = None,
     root: Path | None = None,
     file_nodes: Mapping[str, Sequence[Row]] | None = None,
+    edge_tiers: Sequence[tuple[str, str, str]] | None = None,
 ) -> OnboardingArtifact | None:
     """Compose 083–087 into one artifact. ``None`` when the index has no module.
 
@@ -380,6 +403,11 @@ def build_artifact(
             )
         )
     crossings = cross_layer_edges(module_edges(nodes, edges), assignment)
+    if edge_tiers is None:
+        tiers = tuple((source, target, RESOLVED) for source, target in module_edges(nodes, edges))
+    else:
+        tiers = module_edge_tiers(nodes, edge_tiers)
+    drawn, omitted_dynamic = diagram_edges(tiers, assignment)
     # A capped neighbour or SCC list is a cut just like the walk budget's — one flag says so (108).
     list_truncated = any(
         len(page.outgoing) > max_results
@@ -431,6 +459,8 @@ def build_artifact(
             descriptions=described,
         ),
         isolated=tuple(sorted(isolated)),
+        diagram_edges=drawn,
+        omitted_dynamic=omitted_dynamic,
     )
     # The gate refuses a filler or oversized artifact rather than write a bad tree (task 109, 050).
     from code_atlas.onboarding.quality_gate import check_artifact
@@ -533,8 +563,15 @@ def _reachability_lines(split: object) -> list[str]:
     return lines
 
 
-def render_overview(artifact: OnboardingArtifact) -> str:
-    """Committed overview markdown: summary, layers, crossings. Trailing newline (R4.2)."""
+def render_overview(artifact: OnboardingArtifact, node_cap: int | None = None) -> str:
+    """Committed overview markdown: summary, layers, layer graph, crossings. Trailing newline."""
+    cap = node_cap if node_cap is not None else max(len(artifact.layers), 1)
+    diagram = render_layer_flowchart(
+        [row.layer for row in artifact.layers],
+        artifact.diagram_edges,
+        node_cap=cap,
+        omitted_dynamic=artifact.omitted_dynamic,
+    )
     lines = [
         H_OVERVIEW,
         "",
@@ -561,6 +598,23 @@ def render_overview(artifact: OnboardingArtifact) -> str:
             f"{row.entry_points} entry points)"
         )
         lines.append(f"  - {row.description}")
+    lines.extend(["", H_DIAGRAM, ""])
+    lines.append(
+        f"- layers: {diagram.shown_layers} shown of {diagram.total_layers}"
+        + ("; the graph is capped" if diagram.truncated else "")
+    )
+    lines.append(
+        "- HEURISTIC-only arrows are dashed; "
+        f"DYNAMIC-only crossings omitted: {diagram.omitted_dynamic}"
+    )
+    if diagram.omitted_capped:
+        lines.append(
+            f"- crossings with no arrow because their layer is outside the cap: "
+            f"{diagram.omitted_capped} — the table below still lists them"
+        )
+    # AC5's check guards the committed artifact, not only the benchmark script.
+    validate_mermaid_flowchart(diagram.mermaid)
+    lines.extend(["", "```mermaid", diagram.mermaid.rstrip(), "```"])
     lines.extend(["", H_CROSSINGS, ""])
     if artifact.crossings:
         for source, target, count in artifact.crossings:

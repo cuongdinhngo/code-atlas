@@ -155,8 +155,9 @@ path is proven and measured.
 > **Scope narrowed accordingly**, per this section's own instruction: the onboarding layer is measured
 > as a **navigation and provenance aid — which files, which layer, what depends on this, which
 > declaration claimed that count — not as a curated syllabus.** A dependency walk still is not the
-> hand reading order (kernel / entity / repository). Auto-generated docs and diagrams stay behind
-> that line and behind 118.
+> hand reading order (kernel / entity / repository). **143** put a mermaid layer graph in the
+> committed markdown (a lookup); auto-generated *syllabi* stay behind that line. Class diagrams are
+> [144](../tasks/144_class-diagram-is-a-projection-minus-the-return-type.md).
 
 Gate the phase on the harness, not on vibes. Add an **onboarding question-class** to the
 tokens-to-answer harness (034/045) and the recall gate (055). Baseline = `grep`+`Read` with an agent

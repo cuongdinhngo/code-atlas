@@ -88,7 +88,8 @@ def create(
         prose = ProseRun(prose_writer)
         with GraphStore(config.db_path) as store:
             nodes = store.node_universe()
-            edges = store.dependency_edges()
+            edge_tiers = store.dependency_edges_with_tier()
+            edges = [(source, target) for source, target, _tier in edge_tiers]
             subgraph = store.tour_subgraph(max_nodes=config.impact_max_nodes)
             counts = store.counts()
             node_kinds = store.node_kind_counts()
@@ -124,6 +125,7 @@ def create(
             prose=prose,
             root=Path(config.root),
             file_nodes=file_nodes,
+            edge_tiers=edge_tiers,
         )
         if artifact is None:
             return _empty(config)
@@ -233,7 +235,7 @@ def _write(
     out.mkdir(parents=True, exist_ok=True)
     written: list[str] = []
     files = {
-        OVERVIEW_NAME: render_overview(artifact),
+        OVERVIEW_NAME: render_overview(artifact, node_cap=max_results),
         TOUR_NAME: render_tour(artifact, max_results),
         MANIFEST_NAME: manifest_json(
             artifact, dataset, index_root=index_root, last_ref=last_ref
