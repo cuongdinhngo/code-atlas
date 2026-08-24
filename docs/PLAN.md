@@ -597,7 +597,7 @@ It adds two things the graph lacks, and **both landed differently than this sect
    vocabulary names them, and 117 measured that 091's LLM rename seam fires on nothing. The LLM ended
    up owning **prose only** (layer descriptions, tour narratives, headline wording) behind three
    opt-in seams in `onboarding_llm/`, off by default. The per-module **summary is still empty**: the
-   seam is fed blank facts and the contract carries no docblock (**118**, open).
+   seam is fed read-through docblocks at build time (**118**, done).
 2. **Presentation.** 116 replaced the imagined page dump with a **navigable system map** rendered from
    112's single compact dataset.
 
@@ -881,7 +881,7 @@ The consumer is an **AI coding agent in a terminal**, so the incumbent to beat i
   was a silent zero for every namespaced file (129).
   **The narrowing, in §5's own terms:** the onboarding layer is measured as a **navigation and
   provenance aid, not as a reading order**. `guided_tour`'s ordering claim is **not earned**.
-  Auto-generated documentation and diagrams stay behind this line and behind **118** — the
+   Auto-generated documentation and diagrams stay behind this line and behind **118** (done) — the
   founding-premise mistake was building on an unmeasured premise, and one measurement saying *"cheap
   and correct for lookups, wrong for orderings"* licenses neither.
   **What the gate cannot see, recorded rather than implied:** it scores recall and cost, never

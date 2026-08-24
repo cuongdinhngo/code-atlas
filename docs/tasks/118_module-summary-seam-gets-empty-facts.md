@@ -4,7 +4,7 @@ slug: module-summary-seam-gets-empty-facts
 title: Onboarding — every module page says `Summary: (none)`, and the cause is the seam, not the repo (M11)
 phase: 3
 milestone: M11
-status: todo
+status: done
 depends_on: [085, 090, 107, 117]
 ---
 
@@ -81,5 +81,32 @@ existing freshness work (035) has not already answered. Revisit when a second co
 5. **AC5.** 107's isolation rule keeps both clauses meaningful, proven by a test that fails if `docline` is
    unconditionally empty again.
 6. **AC6.** 109's gate still passes on the anchor, and the median page stays under `MAX_PAGE_BYTES`.
-7. **AC7.** 117's "this codebase has none" premise is corrected in that ticket with the evidence above —
+6. **AC7.** 117's "this codebase has none" premise is corrected in that ticket with the evidence above —
    a wrong recorded cause is how the defect survived three tickets.
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+## Session status
+
+- **KEY:** 118
+- **work_doc_mode:** embed
+- **SCOPE:** M
+- **TIER:** full
+- **CHALLENGER:** OFF (review + challenger waived)
+- **Phase:** done
+- **PR:** [#163](https://github.com/cuongdinhngo/code-atlas/pull/163)
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| execute | — | — | unmeasured (host does not surface usage) |
+
+## Decision log
+- Post-review: `architecture_overview` loads read-through rows for the rendered page only.
+  Eager-loading every indexed file was 5.6x the tool's two graph loads at 30k files (0.49s vs
+  0.09s, 150k rows held) to feed at most `max_results` rows — and `minimal`/`standard` paid it
+  without rendering a module row at all.
+- Read-through via `source_slice.py` + `module_facts.py`; no contract bump (R1.2).
+- `NO_DOCBLOCK` replaces `(none)` in module page summaries (AC3).
+- 117 premise corrected (AC7).

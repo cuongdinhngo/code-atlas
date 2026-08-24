@@ -333,7 +333,8 @@ Read the **Zero-inbound modules, by population** block first, and read it agains
   root and its `location` blocks decide what a request can address. Correcting that one glob moved the
   bucket **901 → 341**, with 494 files landing in *not statically reachable* and 66 in *no edge either
   way* — the second list being the only one worth reading as deletion candidates.
-- Expect `Summary: (none)` on every module page today; that is **118**, not your repo.
+- Expect module summaries from the file's leading doc comment when present; otherwise an explicit
+  no-docblock message — not `(none)` (118).
 
 ## Checklist
 

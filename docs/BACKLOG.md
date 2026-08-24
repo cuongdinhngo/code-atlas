@@ -69,7 +69,7 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | 115 | [Onboarding — sibling subtrees duplicating 62% of their paths, and nothing says so](tasks/115_mirror-subtree-detection.md) | Phase 3 / M11 | done | 112 (feeds 098) |
 | 116 | [Onboarding — replace the 31 MB page dump with a navigable system map](tasks/116_dashboard-viewer.md) | Phase 3 / M11 | done | 112, 114, 115 |
 | 117 | [Onboarding — the map's structure is derivable, its prose is not; route prose through the seams](tasks/117_llm-prose-for-map.md) | Phase 3 / M12 | done | 110, 111, 090, 091 |
-| 118 | [Onboarding — every module page says `Summary: (none)`, and the cause is the seam, not the repo](tasks/118_module-summary-seam-gets-empty-facts.md) | Phase 3 / M11 | todo | 085, 090, 107, 117 |
+| 118 | [Onboarding — every module page says `Summary: (none)`, and the cause is the seam, not the repo](tasks/118_module-summary-seam-gets-empty-facts.md) | Phase 3 / M11 | done | 085, 090, 107, 117 |
 | 119 | [Onboarding — the reachability split never says which signal produced each count](tasks/119_reachability-signal-provenance.md) | Phase 3 / M11 | done | 113, 116 |
 | 121 | [Phase 3 shipped without its own cost gate — the onboarding question-class was never added to the harness](tasks/121_onboarding-question-class-never-measured.md) | Measure | done | 034, 045, 055, 086, 087, 088 |
 | 126 | [Onboarding — the map's search palette clusters into one subtree](tasks/126_search-palette-clusters-into-one-subtree.md) | Phase 3 / M11 | done | 067, 115, 116 |
@@ -95,7 +95,7 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | 6 (2026-08-21) | 122–125 | closed — all four payload honesty, none a graph defect |
 | 7 (2026-08-23) | 126 · 127 | closed — 127 closed **119** in the same change |
 | Phase 3 cost gate | 121 → 129 · 130 · 131 | 121 done; 130 · 131 open |
-| Architecture review (2026-08-23) | 138–142 · 143–145 | open — provenance is a design review, not a field retro; **142 runs first** (the baseline), 141 is gated at n = 0, 145B waits on 118 |
+| Architecture review (2026-08-23) | 138–142 · 143–145 | open — provenance is a design review, not a field retro; **142 runs first** (the baseline), 141 is gated at n = 0, 145B waits on **118** |
 
 **What still governs open work:**
 
@@ -107,9 +107,8 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 - **104 stays `blocked` because 105 superseded its approach** (dominant subtree elected by graph mass,
   not file count — proven on the three pinned repos), not because it waits on anything. Its AC2 names
   the anchor monorepo, and three public repos are not that repo.
-- **118 is the hard prerequisite for auto-generated docs.** The contract carries no doc field, so a
-  docblock cannot reach a summarizer: a `contract_version` bump plus a conformance test in one change
-  (R3.1).
+- **118 shipped** — module summaries now come from read-through docblocks at build time; `(none)` is
+  replaced with an explicit file-attributed absence message when no doc comment exists.
 - **121's verdict is split, and it narrows the phase.** Cheap and correct where the question is a
   lookup (12/12, recall 1.0, fixture aggregate 0.29 → 0.789), **wrong where it is a reading order** —
   `guided_tour` opened `symfony/demo` with a lint config and put the front controller fifth. Numbers:

@@ -10,8 +10,10 @@ depends_on: [110, 111, 090, 091]
 
 ## Why this exists (measured, anchor monorepo)
 
-The deterministic summarizer has nothing to read: **500 / 500** emitted pages carry `Summary: (none)`,
-because `StructuralSummarizer` needs a docblock and this codebase has none. Structure is fully derivable;
+The deterministic summarizer had nothing to read: **500 / 500** emitted pages carried `Summary: (none)`,
+because `artifact.py` passed blank `NodeFacts` — the graph carries no doc field, so the seam was
+starved on every repo (**118**, done). The anchor repo *does* have docblocks; read-through now feeds
+them at build time. Structure is fully derivable;
 meaning is not. In the reviewed mockup, exactly three things were written by hand — and they were the
 three things the reviewer called the most valuable content on the page:
 

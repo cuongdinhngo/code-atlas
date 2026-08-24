@@ -101,10 +101,15 @@ def create(
             file_classes = store.file_class_counts()
             file_kinds = store.file_kind_counts()
             commit = store.get_meta(LAST_COMMIT_KEY) or ""
+            tour_files = subgraph.files
+            file_nodes = {
+                path: store.nodes_by_file_all(path)
+                for path in tour_files
+            }
         artifact = build_artifact(
             nodes,
             edges,
-            subgraph.files,
+            tour_files,
             subgraph.edges,
             subgraph.entry_points,
             subgraph.truncated,
@@ -116,6 +121,8 @@ def create(
             file_paths=file_paths,
             file_class_counts=file_classes,
             prose=prose,
+            root=Path(config.root),
+            file_nodes=file_nodes,
         )
         if artifact is None:
             return _empty(config)

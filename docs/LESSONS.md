@@ -60,6 +60,19 @@ this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *c
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
 
+## 118 — Empty facts at the seam look like an undocumented repo
+
+Every module page showed `Summary: (none)` because `artifact.py` passed `NodeFacts("", "", metric)`
+for every file — not because repositories lack docblocks. 117 recorded the wrong cause ("this codebase
+has none"), which let the defect survive three tickets. Read-through at build time (same disk path as
+`read_symbol`) feeds the summarizer without a contract bump; when a file truly has no doc comment,
+render the absence as a file fact, not `(none)`.
+
+*Claim `118-C1` — hardcoded empty strings at a consumer seam masquerade as missing source data in
+every repository.* · type: 2 · handle: `empty-seam-inputs-masquerade-as-missing-data` · status:
+confirmed · seen: 118 · area: onboarding/artifact · evidence: `artifact.py:325` before fix ·
+destination: stays in lessons_path until a second key.
+
 ## 133 — A per-file ceiling cannot bound what the caller actually pays
 
 134 gave every standing doc a ceiling and each one held, yet the sum an agent read before it knew

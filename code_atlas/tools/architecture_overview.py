@@ -13,7 +13,8 @@ here is capped like every other tool's, and ``truncated`` describes ``results`` 
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
+from pathlib import Path
 from typing import Literal
 
 from code_atlas.config import Config
@@ -29,16 +30,16 @@ from code_atlas.onboarding.layers import (
 )
 from code_atlas.onboarding.metrics import GraphMetrics, NodeMetric, compute_metrics, module_edges
 from code_atlas.onboarding.mirrors import find_mirror_subtrees
+from code_atlas.onboarding.module_facts import module_facts
 from code_atlas.onboarding.modules import find_business_modules
 from code_atlas.onboarding.prose import ProseRun, ProseWriter
 from code_atlas.onboarding.reachability import classify_reachability
 from code_atlas.onboarding.summary import (
-    NodeFacts,
     StructuralSummarizer,
     Summarizer,
     summarize_modules,
 )
-from code_atlas.store import GraphStore
+from code_atlas.store import GraphStore, Row
 from code_atlas.tools.nav_result import (
     REASON_NO_MATCHES,
     REASON_NOT_INDEXED,
@@ -89,6 +90,17 @@ def create(
         with GraphStore(config.db_path) as store:
             nodes = store.node_universe()
             edges = store.dependency_edges()
+
+        def load_file_nodes(paths: Sequence[str]) -> Mapping[str, Sequence[Row]]:
+            """Read-through node rows for the modules on THIS page only (118).
+
+            Eager-loading every indexed file cost one query per file and held the whole node
+            table, to feed at most ``max_results`` rows — and charged it to ``minimal`` too.
+            """
+            if not paths:
+                return {}
+            with GraphStore(config.db_path) as node_store:
+                return {path: node_store.nodes_by_file_all(path) for path in paths}
         metrics = compute_metrics(nodes, edges)
         if not metrics.modules:
             return _empty(config)
@@ -96,7 +108,7 @@ def create(
         described = layer_descriptions(assignment, metrics, ProseRun(prose_writer))
         return _overview(
             config, metrics, assignment, nodes, edges, detail_level, seam,
-            offset=offset, described=described,
+            offset=offset, described=described, load_file_nodes=load_file_nodes,
         )
 
     return architecture_overview
@@ -163,18 +175,28 @@ def _layer_rows(
 
 
 def _module_rows(
-    metrics: GraphMetrics, assignment: LayerAssignment, seam: Summarizer, limit: int, offset: int
+    metrics: GraphMetrics,
+    assignment: LayerAssignment,
+    seam: Summarizer,
+    limit: int,
+    offset: int,
+    *,
+    root: Path,
+    load_file_nodes: Callable[[Sequence[str]], Mapping[str, Sequence[Row]]],
 ) -> tuple[list[dict[str, object]], bool]:
     """One page of module rows in LAYER order, plus whether more remain past this page.
 
     Layer order, not path order: an alphabetical cap hands back one directory and silently omits
-    whole layers the same payload just named. A module has no signature or docblock in the graph,
-    so the facts carry empty strings; 090's LLM impl fills them through the same seam.
+    whole layers the same payload just named. Facts come from read-through at build time (118).
     """
     by_key: dict[str, NodeMetric] = {metric.key: metric for metric in metrics.modules}
     ordered = sorted(assignment.modules, key=lambda m: (m.rank, m.layer, m.module))
     placed = ordered[offset : offset + limit]
-    facts = [NodeFacts("", "", by_key[module.module]) for module in placed]
+    file_nodes = load_file_nodes([module.module for module in placed])
+    facts = [
+        module_facts(root, module.module, by_key[module.module], file_nodes.get(module.module, ()))
+        for module in placed
+    ]
     role_of = {summary.key: summary.role for summary in summarize_modules(facts, seam)}
     rows = [
         {
@@ -202,6 +224,7 @@ def _overview(
     *,
     offset: int,
     described: Mapping[str, str],
+    load_file_nodes: Callable[[Sequence[str]], Mapping[str, Sequence[Row]]],
 ) -> dict[str, object]:
     """The answer itself — cheap at ``minimal``, per-module only at ``verbose`` (061).
 
@@ -264,7 +287,10 @@ def _overview(
     payload["cross_layer_edges_truncated"] = len(crossings) > limit
     if detail_level == "standard":
         return payload
-    rows, more = _module_rows(metrics, assignment, seam, limit, offset)
+    rows, more = _module_rows(
+        metrics, assignment, seam, limit, offset,
+        root=Path(config.root), load_file_nodes=load_file_nodes,
+    )
     payload["modules"] = rows
     payload["modules_offset"] = offset
     payload["modules_truncated"] = more

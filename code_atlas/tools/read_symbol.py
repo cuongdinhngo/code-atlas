@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import re
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from pathlib import Path
 from typing import Literal
 
 from code_atlas import contract
 from code_atlas.config import Config
+from code_atlas.source_slice import declaration_slice
 from code_atlas.store import GraphStore
 from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
@@ -31,10 +31,6 @@ from code_atlas.tools.nav_result import (
 NAME = "read_symbol"
 
 DetailLevel = Literal["minimal", "standard"]
-
-# Heuristic only: adapters should eventually emit a doc range on the node (contract follow-up).
-# Union of common comment leaders — not a language branch, but still language knowledge in core.
-_COMMENT = re.compile(r"^\s*(#|//|/\*|\*|\*/)")
 
 
 def create(config: Config) -> Callable[..., dict[str, object]]:
@@ -229,29 +225,7 @@ def _miss_result(
 
 def _slice(path: Path, line_start: int, line_end: int) -> str:
     """Lines ``line_start…line_end`` (1-based, inclusive) plus contiguous comments above."""
-    if not path.is_file():
-        return ""
-    lines = path.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
-    if line_start < 1 or line_start > len(lines):
-        return ""
-    end = min(max(line_end, line_start), len(lines))
-    top = _comment_top(lines, line_start)
-    return "".join(lines[top - 1 : end])
-
-
-def _comment_top(lines: Sequence[str], line_start: int) -> int:
-    """Walk upward from the line above ``line_start`` while lines look like comments."""
-    top = line_start
-    i = line_start - 1  # 1-based index of the line above the declaration
-    while i >= 1:
-        text = lines[i - 1]
-        if not text.strip():
-            break
-        if not _COMMENT.match(text):
-            break
-        top = i
-        i -= 1
-    return top
+    return declaration_slice(path, line_start, line_end)
 
 
 def _empty(

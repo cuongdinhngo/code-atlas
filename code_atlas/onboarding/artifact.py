@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 from code_atlas.onboarding.dataset import OnboardingDataset
 from code_atlas.onboarding.layers import (
@@ -22,14 +22,16 @@ from code_atlas.onboarding.layers import (
     layer_descriptions,
     refine_layers,
 )
-from code_atlas.onboarding.metrics import GraphMetrics, compute_metrics, module_edges
+from code_atlas.onboarding.metrics import GraphMetrics, NodeMetric, compute_metrics, module_edges
 from code_atlas.onboarding.mirrors import find_mirror_subtrees
+from code_atlas.onboarding.module_facts import module_facts
 from code_atlas.onboarding.modules import COVERAGE_NOTE, find_business_modules
 from code_atlas.onboarding.prose import ProseRun
 from code_atlas.onboarding.reachability import classify_reachability
 from code_atlas.onboarding.steps import TourStep, build_steps
 from code_atlas.onboarding.summary import NodeFacts, Summarizer, summarize_modules
 from code_atlas.onboarding.tour import TourStop, ordered_stops
+from code_atlas.store import Row
 
 H_OVERVIEW = "# Architecture overview"
 H_SUMMARY = "## Summary"
@@ -43,6 +45,9 @@ H_ORDER = "## Reading order"
 H_ROLE = "## Role"
 H_LAYER = "## Layer"
 H_MODULE_SUMMARY = "## Summary"
+
+# Rendered when read-through finds no leading doc comment — file-level absence (118 AC3).
+NO_DOCBLOCK = "No leading doc comment above the indexed declaration in this file."
 H_IN_TOUR = "## In the tour"
 H_NEIGHBOURS = "## Neighbours"
 
@@ -288,6 +293,18 @@ def _neighbours(
     return out_sorted, in_sorted
 
 
+def _module_facts(
+    root: Path | None,
+    file_nodes: Mapping[str, Sequence[Row]] | None,
+    path: str,
+    metric: NodeMetric,
+) -> NodeFacts:
+    """Read-through when ``root`` and ``file_nodes`` are set; else the pre-118 empty stub."""
+    if root is not None and file_nodes is not None:
+        return module_facts(root, path, metric, file_nodes.get(path, ()))
+    return NodeFacts("", "", metric)
+
+
 def build_artifact(
     nodes: Sequence[tuple[str, str]],
     edges: Sequence[tuple[str, str]],
@@ -304,6 +321,8 @@ def build_artifact(
     file_paths: Sequence[str] = (),
     file_class_counts: Sequence[tuple[str, int]] = (),
     prose: ProseRun | None = None,
+    root: Path | None = None,
+    file_nodes: Mapping[str, Sequence[Row]] | None = None,
 ) -> OnboardingArtifact | None:
     """Compose 083–087 into one artifact. ``None`` when the index has no module.
 
@@ -322,7 +341,11 @@ def build_artifact(
     stops = ordered_stops(tour_files, tour_edges, entry_points)
     by_key = {metric.key: metric for metric in metrics.modules}
     placed = {module.module: module for module in assignment.modules}
-    facts = [NodeFacts("", "", by_key[stop.file]) for stop in stops if stop.file in by_key]
+    facts = [
+        _module_facts(root, file_nodes, stop.file, by_key[stop.file])
+        for stop in stops
+        if stop.file in by_key
+    ]
     summaries = {summary.key: summary for summary in summarize_modules(facts, summarizer)}
     outgoing, incoming = _neighbours(tour_edges)
     pages: list[ModulePage] = []
@@ -601,7 +624,7 @@ def _rationale_line(rationale: str, scc: tuple[str, ...], max_results: int) -> s
 
 def render_module(page: ModulePage, max_results: int) -> str:
     """One per-module page. Structure is fixed so CI can assert headings, not prose."""
-    docline = page.docline if page.docline else "(none)"
+    docline = page.docline if page.docline else NO_DOCBLOCK
     out = _neighbour_line(page.outgoing, page.fan_out, max_results)
     incoming = _neighbour_line(page.incoming, page.fan_in, max_results)
     rationale = _rationale_line(page.rationale, page.scc, max_results)
