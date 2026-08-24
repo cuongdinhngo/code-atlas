@@ -62,6 +62,7 @@ discussion. One question at a time; record the first tool named; no retries, no 
 | 18 | Write the onboarding docs I can commit: overview, reading order, per-module pages, and a manifest. | `generate_onboarding` |
 | 19 | Do the declared architecture dependency rules still hold? | `check_architecture_rules` |
 | 20 | What did the agent change about the architecture between two revisions? | `diff_architecture` |
+| 21 | Draw the class diagram for this type (or this file's types). | `class_diagram` |
 
 ### Why Q4 discriminates (task 097)
 

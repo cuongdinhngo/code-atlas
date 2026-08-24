@@ -170,6 +170,7 @@ NOT_PAGED_EMITTERS = {
     "generate_onboarding",
     "check_architecture_rules",  # paging proven in test_architecture_rules; not this fixture
     "diff_architecture",  # pair of snapshots; no limit/offset page (139)
+    "class_diagram",  # limit caps members per type, not a result page (144)
 }
 
 

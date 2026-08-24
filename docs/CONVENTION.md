@@ -90,6 +90,9 @@ code-atlas/
   `view_data` setter rules (task 062); query with `find_view_data`.
 - **Confidence tiers:** `RESOLVED | HEURISTIC | DYNAMIC`.
 - **Node fields:** `kind, name, qualified_name, file_path, line_start, line_end, modifiers, params, is_test, extra`.
+- **`extra['type']` (contract v7):** declared type on `Property` / `ClassConst`, and declared **return
+  type** on `Method` / `Function` (including closures). Same key; a pre-v7 index is rebuilt on bump
+  (task 144).
 - **Edge fields:** `kind, source_qname, target_qname?, target_raw, file_path, line, confidence_tier, args?, arg_keys?`.
 - **`arg_keys` (contract v5):** optional list parallel to `args`. For an `"array"` arg, a list of
   top-level string keys from the array literal (empty list = captured, none found). `null` for

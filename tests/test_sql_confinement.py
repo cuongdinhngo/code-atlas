@@ -29,7 +29,7 @@ def core_modules() -> list[Path]:
 
 def test_the_guard_has_something_to_check() -> None:
     # Guards the guard: an empty module list or an empty store would pass every check vacuously.
-    assert len(core_modules()) == 68  # +1: layer_diagram.py (143)
+    assert len(core_modules()) == 70  # +2: class_diagram onboarding + tool (144)
     assert len((CORE / STORE).read_text(encoding="utf-8").splitlines()) > 50
 
 

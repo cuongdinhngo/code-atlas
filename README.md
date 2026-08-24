@@ -13,7 +13,7 @@ state of the project to someone else. Two pillars, one graph, stated authoritati
 Language-agnostic core with per-language adapters. **PHP today**; TypeScript/JavaScript, Python and
 C#/.NET are next.
 
-> Status: **shipped and in daily use — 20 tools.** The PHP path is feature-complete: index → search /
+> Status: **shipped and in daily use — 21 tools.** The PHP path is feature-complete: index → search /
 > read / outline → callers / refs / impls → impact → incremental (`git diff`) → reachability /
 > orphans → shortest path, plus read-through freshness reparse. The **onboarding layer has shipped
 > too** (`architecture_overview`, `guided_tour`, `generate_onboarding`) and emits a committable
@@ -222,6 +222,7 @@ provenance (`db_path` on `get_index_status` / build reports only after 061). Eve
 | `generate_onboarding` | writes the committable markdown and the self-contained `index.html` **system map** under `docs/onboarding/` ([detail](#generate_onboarding--the-committable-system-map)) (onboarding) |
 | `check_architecture_rules` | confirmed vs candidate violations of declarative path-set dependency rules (`CA_ARCHITECTURE_RULES`) |
 | `diff_architecture` | architectural drift between two onboarding dataset / manifest snapshots |
+| `class_diagram` | mermaid class diagram for one type plus its ancestry, or every type in one file — inheritance from resolved edges; associations from declared types only |
 
 ### `architecture_overview` — layers, crossings, and the populations behind a zero
 
@@ -362,6 +363,7 @@ worse than none. Each of these would have lost a caveat that no one-line form ca
 | `generate_onboarding` | it reports files written, not a state of the world — a count of pages is not the docs themselves |
 | `check_architecture_rules` | confirmed vs candidate is a pair — a one-line violation count would erase the HEURISTIC tier partition (138) |
 | `diff_architecture` | a drift report is a shape across sections — a one-line change count erases which revision and which field moved (139) |
+| `class_diagram` | a diagram is a shape; a count of types without the mermaid body is not checkable (144) |
 
 ## Sweeps — `search_symbol` takes a list of subjects (task 101)
 
@@ -417,6 +419,7 @@ for a reason:
 | `generate_onboarding` | a write is one artifact against one tree — R4.3's single writer, not a fan-out |
 | `check_architecture_rules` | its subject is the configured rule set — a list of rule ids is filtering, not a batch of independent questions |
 | `diff_architecture` | its subject is already a pair of snapshots — a list of pairs is a query language, which 101 deliberately is not |
+| `class_diagram` | its subject is one type (plus ancestry) or one file — a list of subjects is N diagrams, and the honest form is N calls |
 
 ## Operator prompts (human-invoked — not part of the agent tool surface)
 
@@ -432,7 +435,7 @@ name-only answers from description-backed ones — is
 | `explore_area` | status → search/outline → read only what's needed |
 | `find_usages` | status → find_references / find_callers / find_implementations → read to confirm |
 | `impact_of_change` | status → impact on the changed paths/qnames → read only the blast-radius surface |
-| `which_tool` | a recognition map: which tool answers a given question, across all 20 tools |
+| `which_tool` | a recognition map: which tool answers a given question, across all 21 tools |
 
 ## Hooks (opt-in)
 

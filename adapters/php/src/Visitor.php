@@ -112,7 +112,7 @@ final class Visitor extends NodeVisitorAbstract
                 $this->stringLocals = [];
                 $this->open($node, 'Function', $node->name->toString(), self::fqn($node->namespacedName), [
                     'params' => $this->params($node->params),
-                ] + $this->extraFields($this->attributeExtra($node->attrGroups)));
+                ] + $this->extraFields($this->callableExtra($node->attrGroups, $node->returnType)));
             }
             if ($this->declarationsOnly) {
                 return NodeTraverser::DONT_TRAVERSE_CHILDREN;
@@ -125,18 +125,18 @@ final class Visitor extends NodeVisitorAbstract
             $this->open($node, 'Method', $node->name->toString(), $this->member($node->name->toString()), [
                 'modifiers' => $this->methodModifiers($node),
                 'params' => $this->params($node->params),
-            ] + $this->extraFields($this->attributeExtra($node->attrGroups)));
+            ] + $this->extraFields($this->callableExtra($node->attrGroups, $node->returnType)));
             if ($this->declarationsOnly) {
                 return NodeTraverser::DONT_TRAVERSE_CHILDREN;
             }
         } elseif ($node instanceof Node\Expr\Closure) {
             $this->stringLocalsStack[] = $this->stringLocals;
             $this->stringLocals = [];
-            $this->enterClosureLike($node, 'closure', '{closure}', $node->params, $node->static, $node->attrGroups);
+            $this->enterClosureLike($node, 'closure', '{closure}', $node->params, $node->static, $node->attrGroups, $node->returnType);
         } elseif ($node instanceof Node\Expr\ArrowFunction) {
             // fn() auto-captures by value — keep outer bindings; stack still restores on leave.
             $this->stringLocalsStack[] = $this->stringLocals;
-            $this->enterClosureLike($node, 'fn', '{fn}', $node->params, $node->static, $node->attrGroups);
+            $this->enterClosureLike($node, 'fn', '{fn}', $node->params, $node->static, $node->attrGroups, $node->returnType);
         } elseif ($node instanceof Node\Expr\Assign) {
             $this->enterAssign($node);
         } elseif ($node instanceof Node\Expr\AssignOp || $node instanceof Node\Expr\AssignRef) {
@@ -330,13 +330,31 @@ final class Visitor extends NodeVisitorAbstract
         array $params,
         bool $static,
         array $attrGroups,
+        ?Node $returnType,
     ): void {
         $fields = ['params' => $this->params($params)];
         if ($static) {
             $fields['modifiers'] = ['static'];
         }
-        $fields += $this->extraFields($this->attributeExtra($attrGroups));
+        $fields += $this->extraFields($this->callableExtra($attrGroups, $returnType));
         $this->open($node, 'Function', $name, $this->anonymousQname($node, $anchor), $fields);
+    }
+
+    /**
+     * Attributes plus declared return type under ``extra['type']`` (same key as properties; task 144).
+     *
+     * @param Node\AttributeGroup[] $attrGroups
+     *
+     * @return array<string, mixed>
+     */
+    private function callableExtra(array $attrGroups, ?Node $returnType): array
+    {
+        $extra = $this->attributeExtra($attrGroups);
+        if (($type = self::typeName($returnType)) !== null) {
+            $extra['type'] = $type;
+        }
+
+        return $extra;
     }
 
     private function enterProperty(Node\Stmt\Property $node): void

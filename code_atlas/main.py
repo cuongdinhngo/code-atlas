@@ -18,6 +18,7 @@ from code_atlas.tools import (
     architecture_overview,
     build_or_update_index,
     check_architecture_rules,
+    class_diagram,
     diff_architecture,
     explain_path,
     file_outline,
@@ -63,6 +64,7 @@ TOOL_NAMES: tuple[str, ...] = (
     generate_onboarding.NAME,
     check_architecture_rules.NAME,
     diff_architecture.NAME,
+    class_diagram.NAME,
 )
 
 
@@ -136,6 +138,8 @@ def build_server(
         server.tool(guard(check_architecture_rules.create(config)))
     if diff_architecture.NAME in names:
         server.tool(guard(diff_architecture.create(config)))
+    if class_diagram.NAME in names:
+        server.tool(guard(class_diagram.create(config)))
     prompts.register(server)
     return server
 

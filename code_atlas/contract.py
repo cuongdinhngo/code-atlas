@@ -18,7 +18,9 @@ An adapter opens the stream by announcing itself once — the **handshake** of �
 
 from typing import Literal, get_args
 
-CONTRACT_VERSION = 6
+# v7: Method/Function (and closures) carry the declared return type in extra['type'] — same key
+# properties already use. An index built before and updated after would mix eras, so this bumps.
+CONTRACT_VERSION = 7
 
 # Ordered Literal is the typing SSoT; NODE_KINDS is derived so schemas cannot drift (R3.2 / 056).
 NodeKind = Literal[
@@ -64,6 +66,10 @@ FQN_EDGE_KINDS: frozenset[str] = frozenset(
 # Named semantic subsets for nav tools (§12) — consumers import these; do not re-list kinds.
 CALLER_KINDS: tuple[str, ...] = ("CALLS", "NEW")
 IMPL_KINDS: tuple[str, ...] = ("EXTENDS", "IMPLEMENTS")
+# Class-diagram ancestry (144) — inheritance FQN edges only; not CALLS/NEW/ALIASES.
+INHERIT_KINDS: tuple[str, ...] = ("EXTENDS", "IMPLEMENTS", "USES_TRAIT")
+# Contained members a class box lists (144).
+CLASS_MEMBER_KINDS: tuple[str, ...] = ("Method", "Property", "ClassConst")
 # find_references honesty evidence (065) — kinds that may still be bare after resolve.
 # REFERENCES is also FQN-linked (094); leftovers (or planted unlinked rows) still count.
 UNMODELLED_REFERENCE_KINDS: tuple[str, ...] = ("REFERENCES", "IMPORTS")

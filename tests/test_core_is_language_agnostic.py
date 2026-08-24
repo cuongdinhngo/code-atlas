@@ -39,7 +39,7 @@ def core_modules() -> list[Path]:
 
 def test_the_guard_has_something_to_check() -> None:
     # Guards the guard: an empty module list or an empty name list would pass vacuously.
-    assert len(core_modules()) == 68  # +1: layer_diagram.py (143)
+    assert len(core_modules()) == 70  # +2: class_diagram onboarding + tool (144)
     assert len(LANGUAGE_NAMES) == 9
     assert LANGUAGE_NAME.search("a PHP file") and LANGUAGE_BRANCH.search('if language == "x":')
 

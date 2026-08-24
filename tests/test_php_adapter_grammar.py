@@ -246,6 +246,19 @@ def test_i19_attributes_are_raw_on_the_declaration() -> None:
     assert node["extra"]["attributes"] == [{"name": "\\App\\Grammar\\Attr", "args": [1]}]
 
 
+@needs_php
+def test_i20_method_return_type_is_extra_type() -> None:
+    """AC4 (144): Method/Function return type reuses property's ``extra['type']`` key."""
+    nodes = by_qname(parse_grammar())
+    method = nodes["\\App\\Grammar\\Sample::run"]
+    assert method["kind"] == "Method"
+    assert method["extra"]["type"] == "void"
+    assert nodes["\\App\\Grammar\\helper"]["extra"]["type"] == "string"
+    closures = [q for q, n in nodes.items() if n["name"] == "{closure}"]
+    assert len(closures) == 1
+    assert nodes[closures[0]]["extra"]["type"] == "int"
+
+
 # --- AC3 / AC4 ------------------------------------------------------------------------------------
 
 # AC3 (R2.2 framework-name ban) moved to tests/contract/test_guardrail_gates.py in task 012 —
@@ -253,8 +266,8 @@ def test_i19_attributes_are_raw_on_the_declaration() -> None:
 
 
 def test_ac4_contract_vocabulary_pins_current_kinds() -> None:
-    """Keep the pin current: 025 no-bump, 030 v2, 049 v3 with `args`, 063 v5, 129 v6."""
-    assert CONTRACT_VERSION == 6
+    """Keep the pin current: 025 no-bump, 030 v2, 049 v3 with `args`, 063 v5, 129 v6, 144 v7."""
+    assert CONTRACT_VERSION == 7
     assert NODE_KINDS == (
         "File", "Namespace", "Class", "Interface", "Trait", "Enum",
         "Function", "Method", "Property", "ClassConst", "Const",

@@ -57,3 +57,8 @@ enum Pure
 }
 
 const GLOBAL_FLAG = 1;
+
+function helper(): string
+{
+    return '';
+}
