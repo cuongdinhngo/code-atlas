@@ -1,7 +1,7 @@
 # Code-Atlas MCP — Build Plan
 
 > Status: **shipped and in daily use** — Phase 1 (core + PHP, M0–M6) and Phase 3 (onboarding,
-> M10–M12) are complete, 17 tools on the surface; Phase 2 (adapters #2–#4) is deferred (§19).
+> M10–M12) are complete, 22 tools on the surface; Phase 2 (adapters #2–#4) is deferred (§19).
 > A local-first, multi-language code-intelligence MCP server.
 > Name: **`code-atlas`** (evolved: `php-code-graph` → `code-graph` → **`code-atlas`**; it's multi-language). GitHub repo: `code-atlas`.
 

@@ -129,7 +129,7 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
   LSP was uninstalled 2026-08-07 and invoked zero times in 84 calls, so its 19 % adoption figure
   measures adoption, not capability. Its core still needs the anchor repo; round 5 is its n = 1
   (verdict *helped, narrowly*).
-- **M10–M12 are complete** — 17 tools on the surface — and the 108–117 reshape is complete: the map
+- **M10–M12 are complete** — 22 tools on the surface — and the 108–117 reshape is complete: the map
   renders from 112's dataset alone. Detail: [`ROADMAP.md`](phase3-onboarding/ROADMAP.md).
 
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
