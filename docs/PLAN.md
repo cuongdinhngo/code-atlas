@@ -199,12 +199,23 @@ Concrete: **one** generic `SubprocessAdapter` — *not* a class per language. It
 
 The core resolves adapters by file suffix — `extension_index(adapters)` builds the map from what the adapters announced, `adapter_for(path, index)` reads it. **That's the only registry — a dict over already-constructed adapters, not a plugin system; the real one waits until the 2nd adapter exists.**
 
-### 4.4 Project-context resolution (anticipated contract v2, forced by TS/JS)
+### 4.4 Project-context resolution (an anticipated contract bump, forced by TS/JS)
 The v1 protocol is **file-at-a-time** (`parse(path) → {nodes, edges}`), which suits PHP (NameResolver works per file). But the best parsers for **TS/JS (TypeScript Compiler API)** and **C# (Roslyn)** resolve imports/types only against a whole **program / tsconfig / project** — a single file can't see cross-file types or alias mappings. So the contract likely gains, at language #2:
 - an adapter **lifecycle** that loads a project once (`open_project(root)` → hold the program in the sidecar) and answers `parse(path)` against it, so cross-file edges come back `RESOLVED` not `HEURISTIC`;
 - or a **two-pass** mode: adapter emits nodes + `IMPORTS` first, the core builds the file/module map, then asks the adapter to resolve edges with that context.
 
 This is *why* TS/JS is #2 — better to evolve the protocol here than after four languages assume file-at-a-time. PHP/Python keep working under either shape (they just don't need the program context). Bump `contract_version` when this lands.
+
+**Two facts narrow the choice, and both arrived after this section was written (task 128 owns the
+verdict).** First, **one program per worker**: §8.1 fans a language's files across
+`min(workers, len(group))` *independent processes*, so the lifecycle option loads the program N times
+— N× resident memory and N× load latency — and needs a handshake capability that caps that adapter's
+worker count, which is data the adapter announces rather than a branch in the core (R1.6). Second,
+there may be **less to resolve than assumed**: the resolver already promotes a uniquely-matched
+`target_raw` to `RESOLVED`, and name resolution is the adapter's job while node linking is the core's
+(R3.3), so an adapter that resolves a specifier per file earns `RESOLVED` under the contract as it
+stands. Only *inferred* receiver types need more, and task 137 showed a local type table buys those
+without touching the protocol at all.
 
 ---
 

@@ -26,7 +26,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 123 | [`file_outline` omitted the symbol under repair, reported `total_count: 10` for a 12-symbol file, and has no page 2](tasks/123_file-outline-total-count-is-the-page-length.md) | Agent-trust | done | 014, 057, 066, 067 |
 | 124 | [`find_orphans` blew the transport limit at 19k files, on the one ticket whose root cause *was* an orphan](tasks/124_find-orphans-cannot-answer-at-scale.md) | Agent-fit | done | 031, 057, 066, 119 |
 | 125 | [No payload names the server build — every field retro is told its own subject by an operator](tasks/125_no-payload-names-the-server-build.md) | Measure | done | 082, 095, 100 |
-| 128 | [TypeScript/JavaScript — M0 spike only, to answer §4.4 with evidence](tasks/128_typescript-adapter-m0-spike.md) | Phase 2 / M7 | todo | 012, 019 |
+| 128 | [TypeScript/JavaScript — M0 spike only, to answer §4.4 with evidence](tasks/128_typescript-adapter-m0-spike.md) | Phase 2 / M7 | todo | 012, 147, 149 |
 | 129 | [`include_graph(imports)` is a silent zero for any namespaced file — the INCLUDES edge is anchored on the namespace](tasks/129_include_graph_imports-is-a-silent-zero-for-a-namespaced-file.md) | Agent-trust | done | 121 |
 | 132 | [The doc set costs an agent ~66k tokens before it knows what binds it — give every standing doc a boundary](tasks/132_docs-restructure.md) | Docs | done | — |
 | 133 | [The always-binding read is ~66.5k tokens and most of it is reference — tier the agent chain and gate the tier](tasks/133_agent-chain-is-one-tier.md) | Docs | done | 132 |
@@ -115,8 +115,9 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
   **closed by 131** (front controller now in the first five on `symfony/demo`). Numbers:
   [`benchmarks/121_onboarding-question-class.md`](benchmarks/121_onboarding-question-class.md).
   The **layer graph** is now a mermaid flowchart in `generate_onboarding` markdown ([143](tasks/143_the-system-map-has-no-diagram.md)) — a lookup, which 121 scored. Auto-generated *reading orders* stay unscheduled: a dependency walk is still not a curated syllabus.
-- **128 (TS/JS M0 spike) is independent** of the open Pillar-2 work and may run in parallel — as a
-  *proposal* about §19's ordering, not a decision. Phase 2 breadth stays deferred.
+- **128 (TS/JS M0 spike) now has prerequisites** — 147 and 149, not 019, whose `depends_on` it had
+  backwards. It stays a *proposal* about §19's ordering, not a decision; Phase 2 breadth stays
+  deferred, and 019 carries the rest of the breakdown unfiled for the same reason.
 - **Both things round 6 measured are now closed, and both premises moved.** 135 gave the harness a
   precision axis; the recall gate could not see a wrong answer, and the first thing the axis does is
   fail on 130 ([benchmark](benchmarks/135_precision-axis.md)). 136 broke the HEURISTIC share down by
@@ -137,12 +138,20 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 complete — depth before breadth, because a large private PHP monorepo is the anchor for testing *and*
 evaluation (§19). The language *order* is unchanged (§18.2).
 
+**147–149 are `todo`, not deferred, and they are not breadth work.** Two of them fix gates that
+cannot fail today — `tests/contract/` admits exactly one adapter, and the R2.2 framework sweep lists
+only PHP frameworks — and the third names the TS/JS construct inventory R6.2 requires. None parses a
+line of TypeScript, so none of them reorders §19.
+
 | # | Task | Milestone | Status | Depends on |
 |---|---|---|---|---|
-| 019 | [TypeScript/JavaScript adapter + contract v2](tasks/019_typescript-adapter.md) | M7 | deferred | 012, 011 |
+| 019 | [TypeScript/JavaScript adapter + a contract bump](tasks/019_typescript-adapter.md) | M7 | deferred | 012, 011, 128 |
 | 020 | [Python adapter](tasks/020_python-adapter.md) | M8 | deferred | 019 |
 | 021 | [C#/.NET adapter](tasks/021_csharp-adapter.md) | M9 | deferred | 019 |
 | 026 | [Inverse Docker path rebase (adapter #2)](tasks/026_docker-inverse-path-rebase.md) | M7 | deferred | 008, 019 |
+| 147 | [The R3.4 conformance harness is PHP-shaped — `tests/contract/` cannot admit a second adapter](tasks/147_contract-harness-is-php-shaped.md) | M7 | todo | 012, 025 |
+| 148 | [The R2.2 framework sweep lists only PHP frameworks — it cannot fail for adapter #2](tasks/148_r22-framework-sweep-cannot-fail-for-adapter-2.md) | M7 | todo | 012, 146 |
+| 149 | [Name the TS/JS construct inventory before any parsing exists](tasks/149_tsjs-construct-inventory.md) | M7 | todo | 147 |
 
 ## Phase 1 — Core + PHP (done)
 

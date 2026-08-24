@@ -5,13 +5,19 @@ title: TypeScript/JavaScript — M0 spike only, to answer §4.4 with evidence in
 phase: 2
 milestone: M7
 status: todo
-depends_on: [012, 019]
+depends_on: [012, 147, 149]
 ---
 
 ## Why this exists, and why now
 
 [019](019_typescript-adapter.md) is the full M7 adapter and stays **deferred**. This ticket is its
 **M0 equivalent** — the [006](006_php-adapter-spike.md)-shaped spike, and nothing beyond it.
+
+**The dependency ran backwards until 2026-08-24.** This ticket used to declare `depends_on: 019`,
+which is the reverse of what it is: 019 cannot start until the spike answers §4.4. It now depends on
+[147](147_contract-harness-is-php-shaped.md) (the conformance harness admits one adapter today, so
+AC1 has nowhere to run) and [149](149_tsjs-construct-inventory.md) (AC1 names two files without
+saying what either contains).
 
 PLAN §19 ratified *depth before breadth* because the anchor monorepo makes PHP measurable. **That still
 holds and this ticket does not reopen it.** What has changed is what depth is buying: the last several
