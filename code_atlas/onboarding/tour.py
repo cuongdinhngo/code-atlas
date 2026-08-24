@@ -1,14 +1,18 @@
-"""SCC condensation + a deterministic reading-order over a module subgraph (task 087).
+"""SCC condensation + a deterministic reading-order over a module subgraph (task 087 / 131).
 
 Pure graph reasoning — no SQL and no language branches (R1.1/R1.4). The store supplies a
-node-budgeted file-grain subgraph; this module condenses cycles and orders the DAG.
+node-budgeted file-grain subgraph; this module condenses cycles and orders the DAG. Among
+several roots, the order prefers files that lead somewhere and 110's reading-seed layer rank
+(HTTP before Config) — path sort alone opened tours on lint files (131).
 """
 
 from __future__ import annotations
 
 import heapq
-from collections.abc import Collection, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
+
+from code_atlas.onboarding.layers import reading_seed_rank
 
 RATIONALE_ENTRY = "entry point (zero inbound)"
 RATIONALE_OUTSIDE = "reached from outside the walk"
@@ -90,10 +94,40 @@ def _components(
     return tuple(found)
 
 
+def _out_degree(nodes: Collection[str], edges: Sequence[tuple[str, str]]) -> dict[str, int]:
+    """Distinct cross-file targets per file — the same breadth signal store ranking uses (106)."""
+    universe = frozenset(nodes)
+    targets: dict[str, set[str]] = {node: set() for node in nodes}
+    for source, target in edges:
+        if source in universe and target in universe and source != target:
+            targets[source].add(target)
+    return {node: len(targets[node]) for node in nodes}
+
+
+def _ready_key(
+    component: tuple[str, ...],
+    degrees: Mapping[str, int],
+    entries: frozenset[str] | None,
+) -> tuple[int, int, int, int, str]:
+    """Ready-set order: proven entries, then leads-somewhere, layer, out-degree, path."""
+    return min(
+        (
+            0 if (entries is None or file in entries) else 1,
+            0 if degrees.get(file, 0) > 0 else 1,
+            reading_seed_rank(file),
+            -degrees.get(file, 0),
+            file,
+        )
+        for file in component
+    )
+
+
 def _topo(
-    components: Sequence[tuple[str, ...]], edges: Sequence[tuple[str, str]]
+    components: Sequence[tuple[str, ...]],
+    edges: Sequence[tuple[str, str]],
+    entries: frozenset[str] | None,
 ) -> tuple[tuple[str, ...], ...]:
-    """Kahn order of the condensation; the ready-set is a heap keyed by first member (R4.2)."""
+    """Kahn order of the condensation; ready-set keyed for a reading order (131), total (R4.2)."""
     owner = {node: i for i, component in enumerate(components) for node in component}
     size = len(components)
     inbound = [0] * size
@@ -106,8 +140,14 @@ def _topo(
             outbound[src].add(tgt)
             inbound[tgt] += 1
 
-    # First member is unique across components, so the heap key is a total order (R4.2).
-    ready = [(components[i][0], i) for i in range(size) if inbound[i] == 0]
+    degrees = _out_degree(
+        tuple(node for component in components for node in component), edges
+    )
+    ready = [
+        (_ready_key(components[i], degrees, entries), i)
+        for i in range(size)
+        if inbound[i] == 0
+    ]
     heapq.heapify(ready)
     ordered: list[tuple[str, ...]] = []
     while ready:
@@ -116,7 +156,9 @@ def _topo(
         for nxt in sorted(outbound[current]):
             inbound[nxt] -= 1
             if inbound[nxt] == 0:
-                heapq.heappush(ready, (components[nxt][0], nxt))
+                heapq.heappush(
+                    ready, (_ready_key(components[nxt], degrees, entries), nxt)
+                )
     return tuple(ordered)
 
 
@@ -153,7 +195,7 @@ def ordered_stops(
         return ()
     proven = None if entry_points is None else frozenset(entry_points)
     universe = frozenset(files)
-    components = _topo(_components(tuple(sorted(universe)), edges), edges)
+    components = _topo(_components(tuple(sorted(universe)), edges), edges, proven)
     inbound: dict[str, set[str]] = {}
     for source, target in edges:
         if source in universe and target in universe and source != target:

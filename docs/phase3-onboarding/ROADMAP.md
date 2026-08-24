@@ -142,8 +142,9 @@ path is proven and measured.
 > than carrying an invented one.
 >
 > **Not earned — and this section promised to say so:** on a canonical real repo the **reading order
-> is wrong**. `guided_tour`'s first five stops on `symfony/demo` are a lint config, two bootstrap
-> configs and an importmap; the front controller is fifth (**1 of 5** against the hand answer). ~~The
+> was wrong** — lint and bootstrap opened the tour. ~~`guided_tour`'s first five were a lint config,
+> two bootstrap configs and an importmap; front controller fifth.~~ **131 closed** — re-measured first
+> five open on controllers and include `public/index.php`. ~~The
 > `web_entry` count calls 8 files the web surface when 4 are test controllers.~~ **130 closed.**
 > Tickets
 > [131](../tasks/131_tour-ranks-configuration-ahead-of-the-front-controller.md),
@@ -153,8 +154,9 @@ path is proven and measured.
 >
 > **Scope narrowed accordingly**, per this section's own instruction: the onboarding layer is measured
 > as a **navigation and provenance aid — which files, which layer, what depends on this, which
-> declaration claimed that count — not as a reading order.** `guided_tour`'s ordering claim is a
-> ticket, not a foundation. Auto-generated docs and diagrams stay behind that line and behind 118.
+> declaration claimed that count — not as a curated syllabus.** A dependency walk still is not the
+> hand reading order (kernel / entity / repository). Auto-generated docs and diagrams stay behind
+> that line and behind 118.
 
 Gate the phase on the harness, not on vibes. Add an **onboarding question-class** to the
 tokens-to-answer harness (034/045) and the recall gate (055). Baseline = `grep`+`Read` with an agent

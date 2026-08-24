@@ -75,7 +75,7 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | 126 | [Onboarding — the map's search palette clusters into one subtree](tasks/126_search-palette-clusters-into-one-subtree.md) | Phase 3 / M11 | done | 067, 115, 116 |
 | 127 | [Onboarding — a caveat the dataset carries can vanish in the rendered map](tasks/127_caveats-drop-at-the-artifact-layer.md) | Phase 3 / M11 | done | 100, 112, 113, 116, 119 |
 | 130 | [The `web_entry` bucket counts test controllers as web surface — half the count on a canonical repo](tasks/130_web-entry-bucket-counts-test-controllers.md) | Phase 3 / M11 | done | 113, 119, 121 |
-| 131 | [`guided_tour`'s first five stops are lint and bootstrap config, not the front controller](tasks/131_tour-ranks-configuration-ahead-of-the-front-controller.md) | Phase 3 / M11 | todo | 111, 121 |
+| 131 | [`guided_tour`'s first five stops are lint and bootstrap config, not the front controller](tasks/131_tour-ranks-configuration-ahead-of-the-front-controller.md) | Phase 3 / M11 | done | 111, 121 |
 | 138 | [The architecture rules are prose plus a regex sweep — nothing asks the graph whether they hold](tasks/138_architecture-rules-are-never-asked-of-the-graph.md) | Supervision | todo | 040, 110, 112, 136 |
 | 139 | [The map is a snapshot, so nothing tells a reviewer what the agent changed about the architecture](tasks/139_map-is-a-snapshot-so-nothing-shows-architectural-drift.md) | Supervision | todo | 112, 077, 127 |
 | 143 | [The system map has no diagram — every relation is a table, and PILLAR 2 promised diagrams](tasks/143_the-system-map-has-no-diagram.md) | Presentation | todo | 112, 116, 110, 130 |
@@ -94,7 +94,7 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | 5 interview | 099–102 | closed — the subject is the agent, not the repository (§19) |
 | 6 (2026-08-21) | 122–125 | closed — all four payload honesty, none a graph defect |
 | 7 (2026-08-23) | 126 · 127 | closed — 127 closed **119** in the same change |
-| Phase 3 cost gate | 121 → 129 · 130 · 131 | 121 · 129 · 130 done; 131 open |
+| Phase 3 cost gate | 121 → 129 · 130 · 131 | 121 · 129 · 130 · 131 done |
 | Architecture review (2026-08-23) | 138–142 · 143–145 | open — provenance is a design review, not a field retro; **142 runs first** (the baseline), 141 is gated at n = 0, 145B waits on **118** |
 
 **What still governs open work:**
@@ -110,10 +110,10 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 - **118 shipped** — module summaries now come from read-through docblocks at build time; `(none)` is
   replaced with an explicit file-attributed absence message when no doc comment exists.
 - **121's verdict is split, and it narrows the phase.** Cheap and correct where the question is a
-  lookup (12/12, recall 1.0, fixture aggregate 0.29 → 0.789), **wrong where it is a reading order** —
-  `guided_tour` opened `symfony/demo` with a lint config and put the front controller fifth. Numbers:
+  lookup (12/12, recall 1.0, fixture aggregate 0.29 → 0.789); the lint/bootstrap tour opening is
+  **closed by 131** (front controller now in the first five on `symfony/demo`). Numbers:
   [`benchmarks/121_onboarding-question-class.md`](benchmarks/121_onboarding-question-class.md).
-  Auto-generated docs and diagrams stay unscheduled: that verdict licenses neither.
+  Auto-generated docs and diagrams stay unscheduled: a dependency walk is still not a curated syllabus.
 - **128 (TS/JS M0 spike) is independent** of the open Pillar-2 work and may run in parallel — as a
   *proposal* about §19's ordering, not a decision. Phase 2 breadth stays deferred.
 - **Both things round 6 measured are now closed, and both premises moved.** 135 gave the harness a

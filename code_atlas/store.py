@@ -700,13 +700,13 @@ class GraphStore:
     def tour_subgraph(self, *, max_nodes: int) -> TourSubgraph:
         """Budgeted module-grain walk covering every file the budget admits (task 087 / R4.3).
 
-        Round 1 seeds files with no inbound cross-file resolved edge, **ranked by dependency
-        out-degree** and capped at a quarter of the budget so expansion always has room — an
-        alphabetical seed list large enough to fill the budget bought isolated files and never
-        traversed an edge (task 106). A component no seed reaches (it must hold a cycle) would
-        otherwise be silently absent, so later rounds re-seed the widest-reaching unseen files
-        until the budget binds. Earlier rounds outrank later ones under the prune.
-        ``truncated`` means files were left out.
+        Round 1 seeds files with no inbound cross-file resolved edge, **preferring roots that
+        lead somewhere** (out-degree > 0) and ranked by out-degree, capped at a quarter of the
+        budget so expansion always has room — alphabetical zero-outbound seeds bought lint and
+        bootstrap files and never a front controller (tasks 106, 131). A component no seed reaches
+        (it must hold a cycle) would otherwise be silently absent, so later rounds re-seed the
+        widest-reaching unseen files until the budget binds. Earlier rounds outrank later ones
+        under the prune. ``truncated`` means files were left out.
         """
         if max_nodes < 1:
             raise ValueError(f"max_nodes must be >= 1, got {max_nodes}")
@@ -2250,10 +2250,10 @@ class GraphStore:
         )
 
     def _tour_entry_seeds(self, limit: int) -> list[str]:
-        """The reading order's roots: no inbound cross-file edge, heaviest first (087 / 106).
+        """The reading order's roots: no inbound cross-file edge, heaviest first (087 / 106 / 131).
 
-        Ranked by out-degree, so a root that leads somewhere outranks an isolated file instead
-        of winning the budget by sorting first.
+        Prefer roots that lead somewhere (out-degree > 0). A zero-outbound root is not a place to
+        start reading (131); only when every root is isolated do we fall back to path/degree order.
         """
         inbound = (
             "SELECT DISTINCT tgt.file_path FROM edges e "
@@ -2261,6 +2261,11 @@ class GraphStore:
             "JOIN nodes tgt ON tgt.qualified_name = e.target_qname "
             "WHERE e.target_qname IS NOT NULL AND src.file_path <> tgt.file_path"
         )
+        leading = self._tour_ranked(
+            f"n.file_path NOT IN ({inbound}) AND COALESCE(d.out_degree, 0) > 0", limit
+        )
+        if leading:
+            return leading
         return self._tour_ranked(f"n.file_path NOT IN ({inbound})", limit)
 
     def _tour_ranked_unseen(self, limit: int) -> list[str]:

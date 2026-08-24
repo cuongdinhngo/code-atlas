@@ -499,7 +499,7 @@ that must not ride the cheap path.
 | `find_orphans` | `depth?, limit?, offset?` | the complement — zero-inbound / unreachable-from-roots, each with `why`; never an empty success when no roots are configured |
 | `explain_path` | `from_qname, to_qname, depth?` | the shortest A→B route over outgoing IMPACT kinds; `status` = `path` / `unproven` / `no_path` / `unknown` / `incomplete`, so a bound hit is never conflated with "no route" |
 | `architecture_overview` | `detail_level?`, `offset?` | this repo's responsibility layers ordered by net dependency direction — one row per layer with its module count, and at `standard` its degree profile |
-| `guided_tour` | `detail_level?`, `offset?` | a dependency-ordered reading list, seeded from zero-inbound entry points and cycle-safe via SCC condensation (087); seeds ranked by out-degree and capped at a quarter of the budget (106). **Its ordering claim is not earned — see §19, task 121/131** |
+| `guided_tour` | `detail_level?`, `offset?` | a dependency-ordered reading list, seeded from zero-inbound entry points and cycle-safe via SCC condensation (087); seeds prefer out-degree > 0, capped at a quarter of the budget (106), ready-set ordered by reading-seed layer rank (131) |
 | `generate_onboarding` | `detail_level?` | writes the committable artifact from the graph — `docs/onboarding/` markdown + `manifest.json` + a self-contained `index.html` system map (088/089/116). It removes only the pages its own last manifest recorded, and refuses a tree it does not own |
 
 *Considered and not planned:* `namespace_tree` — named as a task-013/014 consumer of `split_qname` and
@@ -875,13 +875,15 @@ The consumer is an **AI coding agent in a terminal**, so the incumbent to beat i
   grep read more than one file. Nine of the twelve have **no** fair baseline and say so in a
   `ratio_note` rather than inventing one that would flatter the comparison.
   **The half that loses, which is the more useful half:** where the question is a **reading order** the
-  map is wrong — `guided_tour`'s first five stops on `symfony/demo` are a lint config, two bootstrap
-  configs and an importmap, front controller fifth (131); ~~the `web_entry` bucket calls **8** files the
+  map is wrong — ~~`guided_tour`'s first five stops on `symfony/demo` are a lint config, two bootstrap
+  configs and an importmap, front controller fifth (131)~~ **131 closed** — re-measured first five open
+  on controllers and include `public/index.php`; ~~the `web_entry` bucket calls **8** files the
   web surface when 4 are `tests/Controller/*Test.php` (130)~~ **130 closed** — test-path signal
   outranks request-handling vocabulary; and `include_graph(direction="imports")`
   was a silent zero for every namespaced file (129).
   **The narrowing, in §5's own terms:** the onboarding layer is measured as a **navigation and
-  provenance aid, not as a reading order**. `guided_tour`'s ordering claim is **not earned**.
+  provenance aid**, not a curated syllabus. ~~`guided_tour`'s ordering claim is **not earned**.~~
+  **131** closed the lint/bootstrap opening; the walk still is not the hand kernel/entity order.
    Auto-generated documentation and diagrams stay behind this line and behind **118** (done) — the
   founding-premise mistake was building on an unmeasured premise, and one measurement saying *"cheap
   and correct for lookups, wrong for orderings"* licenses neither.

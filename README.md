@@ -240,7 +240,8 @@ provenance (`db_path` on `get_index_status` / build reports only after 061). Eve
 ### `guided_tour` — a reading order that expands
 
 - Dependency-ordered list of files, cycle-safe via SCC condensation.
-- Roots are ranked by out-degree and capped at a quarter of the node budget, so the walk expands
+- Roots prefer files that lead somewhere, then reading-seed layer rank (HTTP before Config), and are
+  capped at a quarter of the node budget, so the walk expands
   instead of spending the budget on isolated files.
 - A component no entry point reaches is re-seeded, not dropped.
 - The walk is bounded by `CA_IMPACT_MAX_NODES`; the page is capped at `CA_MAX_RESULTS` with `offset`.

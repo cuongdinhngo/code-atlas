@@ -35,9 +35,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         """What should I read first in this codebase, in dependency order?
 
         A topological walk of the include/call graph, seeded from entry-point files (zero
-        inbound) **ranked by out-degree**, at most a quarter of the budget so the walk always
-        has room to expand — a repo with more entry points than budget would otherwise spend it
-        all on roots and traverse no edge at all (106). A component no entry point reaches is
+        inbound) that **lead somewhere**, ranked by out-degree and reading-seed layer (HTTP /
+        Entry before Config — 131), at most a quarter of the budget so the walk always has room
+        to expand — a repo with more entry points than budget would otherwise spend it all on
+        roots and traverse no edge at all (106). A component no entry point reaches is
         re-seeded rather than dropped. Cycles
         become one strongly-connected component so the walk cannot loop. Each stop is a file
         with a one-line rationale. The walk is bounded by ``CA_IMPACT_MAX_NODES``; ``results``

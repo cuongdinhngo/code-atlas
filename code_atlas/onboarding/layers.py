@@ -60,6 +60,31 @@ RESPONSIBILITY_KEYWORDS: dict[str, str] = {
     keyword: layer for layer, keywords in _VOCABULARY for keyword in keywords
 }
 
+# Tour seed order (131): app responsibilities first, unnamed paths next, then tests/config/vendor.
+# Unnamed (e.g. a CLI command) must beat Config — otherwise bootstrap still opens the tour.
+_LATE_SEED_LAYERS: frozenset[str] = frozenset(
+    ("Tests", "Config / Migration", "Vendor / Framework")
+)
+_SEED_EARLY: tuple[str, ...] = tuple(
+    layer for layer, _ in _VOCABULARY if layer not in _LATE_SEED_LAYERS
+)
+_SEED_LATE: tuple[str, ...] = tuple(
+    layer for layer, _ in _VOCABULARY if layer in _LATE_SEED_LAYERS
+)
+READING_SEED_NONE_RANK: int = len(_SEED_EARLY)
+READING_SEED_LAYER_RANK: dict[str, int] = {
+    **{layer: index for index, layer in enumerate(_SEED_EARLY)},
+    **{
+        layer: READING_SEED_NONE_RANK + 1 + index
+        for index, layer in enumerate(_SEED_LATE)
+    },
+}
+# Web document-root directories — industry convention, not a product name (131 reading seeds only).
+_WEB_ROOT_SEGMENTS: frozenset[str] = frozenset(("public", "www", "htdocs"))
+# Checked on ANY segment, so a deeper generic name cannot un-sink them (130's family): under
+# deepest-wins `vendor/x/lib/` reads as Shared Library and would open a tour on third-party code.
+_SINK_SEED_LAYERS: tuple[str, ...] = ("Tests", "Vendor / Framework")
+
 # A description for every layer name a run can emit — the 12 responsibility layers, the four
 # direction bands, and the root — so 109's C3 is real, not vacuous. LLM prose replaces these in 117.
 LAYER_DESCRIPTIONS: dict[str, str] = {
@@ -205,6 +230,25 @@ def responsibility_layer(module: str) -> str | None:
     refiner may RENAME a layer, which would silently empty a caller's bucket (task 113).
     """
     return _responsibility_layer(module)
+
+
+def reading_seed_rank(module: str) -> int:
+    """Where a zero-inbound root sits in a reading order (task 131). Lower starts earlier.
+
+    Derived from 110's vocabulary plus web-root directory names — no filename list. A test or
+    vendor path sinks even when a deeper segment names a role; ``public/`` (etc.) ranks with
+    HTTP so a front controller is not outranked by every controller class.
+    """
+    dirs = module.split("/")[:-1]
+    for sink in _SINK_SEED_LAYERS:
+        if any(responsibility_of_segment(segment) == sink for segment in dirs):
+            return READING_SEED_LAYER_RANK[sink]
+    if any(segment.lower() in _WEB_ROOT_SEGMENTS for segment in dirs):
+        return READING_SEED_LAYER_RANK["HTTP / Entry"]
+    layer = _responsibility_layer(module)
+    if layer is None:
+        return READING_SEED_NONE_RANK
+    return READING_SEED_LAYER_RANK[layer]
 
 
 def _common_dir_prefix(modules: tuple[NodeMetric, ...]) -> list[str]:

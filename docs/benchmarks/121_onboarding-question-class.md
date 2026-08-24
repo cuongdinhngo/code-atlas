@@ -57,12 +57,21 @@ over a 40-file tree shows. The scheduled floor moves 78 → 55 (`0.8 × observed
 
 ## Where the map loses — established by hand, on `symfony/demo`
 
-**1. The reading order is not a reading order.** `guided_tour`'s first five stops are
-`.php-cs-fixer.dist.php`, `config/bundles.php`, `config/preload.php`, `importmap.php`,
-`public/index.php`. The hand answer to "what are the first five things to read" on a canonical
-layout is the front controller, the kernel, a controller, an entity and its repository. The map gets
-**1 of 5**, and the four it puts first are lint and bootstrap configuration. Filed as
-[`131`](../tasks/131_tour-ranks-configuration-ahead-of-the-front-controller.md).
+**1. ~~The reading order is not a reading order.~~ Closed by [131](../tasks/131_tour-ranks-configuration-ahead-of-the-front-controller.md), 2026-08-24.**
+Re-measured on `symfony/demo` @ `03fe25671b720b15103a2ff26934e94c87bd4d82`, first five stops:
+
+```
+src/Controller/BlogController.php
+src/Controller/Admin/BlogController.php
+src/Controller/UserController.php
+public/index.php
+src/Command/AddUserCommand.php
+```
+
+The front controller is in the first five (AC1). Lint and bootstrap config no longer open the tour
+(zero-outbound roots are not preferred seeds; Config sinks in reading-seed rank). The hand answer's
+kernel / entity / repository sequence is still not reproduced — the tour remains a dependency walk,
+not a curated syllabus.
 
 **2. ~~Half the "web surface" is tests.~~ Closed by [130](../tasks/130_web-entry-bucket-counts-test-controllers.md), 2026-08-24.**
 Reachability now checks every directory segment for a test role before the request-handling

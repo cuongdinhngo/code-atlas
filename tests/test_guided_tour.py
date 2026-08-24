@@ -359,3 +359,39 @@ def test_guided_tour_seed_cap_does_not_cost_coverage_when_nothing_expands(
     tight = guided_tour.create(replace(config, impact_max_nodes=5))()
     assert _files(tight) == [f"flat/f{index:02d}.aa" for index in range(5)]
     assert tight["truncated"] is True
+
+
+def test_ac3_reading_order_puts_front_controller_ahead_of_config_and_lint() -> None:
+    """AC3 (131) — path sort opens on lint; layer + out-degree open on the front controller."""
+    root = Path("tests/fixtures/tour_reading_order")
+    lint = ".lint-config.x"
+    config_file = "config/settings.x"
+    front = "public/index.x"
+    leaf = "src/domain/Model.x"
+    for relative in (lint, config_file, front, leaf):
+        assert (root / relative).is_file(), relative
+    stops = ordered_stops(
+        [lint, config_file, front, leaf],
+        [(front, leaf)],
+    )
+    order = [stop.file for stop in stops]
+    assert order[0] == front
+    assert order.index(front) < order.index(config_file)
+    assert order.index(front) < order.index(lint)
+
+
+def test_ac3_layer_rank_sinks_config_when_it_also_leads_somewhere() -> None:
+    """AC3 (131) — the leads-somewhere term ties here, so only reading_seed_rank can order these.
+
+    Without it the path sort elects ``config/`` and bootstrap opens the tour again.
+    """
+    root = Path("tests/fixtures/tour_reading_order")
+    front, bootstrap, leaf = "public/index.x", "config/bootstrap.x", "src/domain/Model.x"
+    for relative in (front, bootstrap, leaf):
+        assert (root / relative).is_file(), relative
+    stops = ordered_stops(
+        [front, bootstrap, leaf], [(front, leaf), (bootstrap, leaf)]
+    )
+    order = [stop.file for stop in stops]
+    assert order[0] == front
+    assert order.index(front) < order.index(bootstrap)

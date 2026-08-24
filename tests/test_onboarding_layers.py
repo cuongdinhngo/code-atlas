@@ -504,3 +504,47 @@ def test_edgeless_index_falls_back_to_module_count_not_alphabetical() -> None:
     assert assigned.method == "dominant-subtree"
     assert {"Http", "Records"} <= set(assigned.layers)
     assert "zzz" not in assigned.layers
+
+
+# ------------------------------------------------------------------------------------------------
+# Reading-seed rank (131) — the tour's root ordering. Unit-level, because the tour fixture's
+# leads-somewhere term alone decides its order and would pass with the rank stubbed out.
+
+
+def test_late_seed_layers_are_layers_the_vocabulary_can_emit() -> None:
+    # R6.7 pin, as reachability pins its LAYER_* names: _LATE_SEED_LAYERS holds layer-name
+    # LITERALS, so a rename in _VOCABULARY would silently un-sink config and reopen 131.
+    emittable = set(RESPONSIBILITY_KEYWORDS.values())
+    assert layers._LATE_SEED_LAYERS <= emittable
+    assert set(layers._SINK_SEED_LAYERS) <= emittable
+    assert set(layers.READING_SEED_LAYER_RANK) == emittable
+
+
+def test_reading_seed_rank_sinks_config_below_an_unnamed_path() -> None:
+    # The 131 finding itself: bootstrap config opened the tour. An unnamed path (a CLI command
+    # names no responsibility keyword) must still start earlier than config.
+    assert layers.reading_seed_rank("src/command/AddUser.aa") == layers.READING_SEED_NONE_RANK
+    assert layers.reading_seed_rank("config/bundles.aa") > layers.READING_SEED_NONE_RANK
+    assert layers.reading_seed_rank("src/controller/Blog.aa") < layers.READING_SEED_NONE_RANK
+
+
+def test_reading_seed_rank_ranks_the_web_root_with_http_entry() -> None:
+    # A front controller lives in the document root and names no keyword, so deepest-wins puts it
+    # behind every controller class; the web-root segment lifts it to HTTP / Entry (131 AC1).
+    http = layers.READING_SEED_LAYER_RANK["HTTP / Entry"]
+    for root in ("public", "www", "htdocs"):
+        assert layers.reading_seed_rank(f"{root}/index.aa") == http
+
+
+def test_reading_seed_rank_sinks_test_and_vendor_under_a_deeper_role_name() -> None:
+    # Deepest-wins would read these as HTTP / Entry and Shared Library — 130's family: the
+    # shallower authoritative segment must not be beaten by a deeper generic one.
+    assert layers.reading_seed_rank("tests/controller/BlogTest.aa") == (
+        layers.READING_SEED_LAYER_RANK["Tests"]
+    )
+    assert layers.reading_seed_rank("vendor/acme/lib/Thing.aa") == (
+        layers.READING_SEED_LAYER_RANK["Vendor / Framework"]
+    )
+    assert layers.reading_seed_rank("public/vendor/dep/index.aa") == (
+        layers.READING_SEED_LAYER_RANK["Vendor / Framework"]
+    )
