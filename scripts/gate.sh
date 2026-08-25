@@ -115,6 +115,13 @@ if [ "$fast" -eq 1 ]; then
     _record SKIP "pytest" "--fast"
     _record SKIP "tokens-to-answer" "--fast"
 else
+    # The TS adapter's needs_node tests skip without its deps installed; ci.yml installs them, so
+    # mirror that here — otherwise pytest's TS coverage silently shrinks to zero (R6.5).
+    if command -v npm >/dev/null 2>&1; then
+        _run "npm ci (adapters/typescript)" npm ci --prefix adapters/typescript
+    else
+        _record SKIP "npm ci (adapters/typescript)" "npm not on PATH"
+    fi
     _run "pytest -q" "$bin/pytest" -q
     if command -v php >/dev/null 2>&1; then
         CA_PHP_CMD="php $root/adapters/php/index.php --server"

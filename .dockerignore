@@ -1,7 +1,6 @@
 # Keep the build context small and the image reproducible: nothing host-, editor-, or
 # artifact-specific, and never the resolved dependency trees (rebuilt inside the image).
 .git
-.github
 .claude
 
 # Python caches / build outputs

@@ -11,7 +11,7 @@ FROM python:3.12-slim-bookworm
 # tests/viewer_dom_stub.js — grepping the HTML would see zero rendered figures.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         php-cli php-mbstring php-xml \
-        nodejs \
+        nodejs npm \
         git unzip curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
@@ -21,17 +21,21 @@ RUN curl -sS https://getcomposer.org/installer \
 
 WORKDIR /app
 
-# 1) Adapter deps first, keyed on the lock file so source edits don't re-resolve them (layer cache).
+# 1) Adapter deps first, keyed on each lock file so source edits don't re-resolve them (layer cache).
+#    node_modules is .dockerignore'd, so `COPY . .` below never clobbers this clean install.
 COPY adapters/php/composer.json adapters/php/composer.lock adapters/php/
 RUN composer install --no-dev --no-interaction --no-progress --working-dir=adapters/php
+COPY adapters/typescript/package.json adapters/typescript/package-lock.json adapters/typescript/
+RUN npm ci --prefix adapters/typescript
 
 # 2) The source, then an editable install so imports and console entry points resolve like CI.
 COPY . .
 RUN pip install --no-cache-dir -e ".[dev]"
 
-# The adapter launch command; tests pass their own via load_config, but this gives parity with CI's
-# benchmark step and lets `code-atlas` run against the adapter inside the container.
+# The adapter launch commands; tests pass their own via load_config, but these give parity with CI
+# and let `code-atlas` run against an adapter inside the container.
 ENV CA_PHP_CMD="php /app/adapters/php/index.php --server"
+ENV CA_TYPESCRIPT_CMD="node /app/adapters/typescript/index.js --server"
 
 # Default: the three gates CI's test job runs. Override, e.g. `docker run --rm code-atlas-test pytest -q`.
 CMD ["sh", "-c", "ruff check . && mypy code_atlas && pytest -q"]

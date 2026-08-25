@@ -115,10 +115,8 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
   **closed by 131** (front controller now in the first five on `symfony/demo`). Numbers:
   [`benchmarks/121_onboarding-question-class.md`](benchmarks/121_onboarding-question-class.md).
   The **layer graph** is now a mermaid flowchart in `generate_onboarding` markdown ([143](tasks/143_the-system-map-has-no-diagram.md)) — a lookup, which 121 scored. Auto-generated *reading orders* stay unscheduled: a dependency walk is still not a curated syllabus.
-- **128 (TS/JS M0 spike) has shipped.** `adapters/typescript/` parses on `ts.createSourceFile` (no
-  Program) and the §4.4 verdict is recorded there: `MEMBER_SEPARATOR` holds, file-at-a-time survives
-  language #2, no `contract_version` bump. §19's depth-before-breadth was **not** reopened — the spike
-  only tested the contract; 019 (the full adapter) and Phase 2 breadth stay deferred.
+- **128 (TS/JS M0 spike) has shipped, and 019 was reopened on its evidence** (2026-08-25) — see
+  *Phase 2* below. Adapters #3–#4 stay deferred: depth before breadth still holds.
 - **Both things round 6 measured are now closed, and both premises moved.** 135 gave the harness a
   precision axis; the recall gate could not see a wrong answer, and the first thing the axis does is
   fail on 130 ([benchmark](benchmarks/135_precision-axis.md)). 136 broke the HEURISTIC share down by
@@ -140,27 +138,33 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
 
-**Deferred, not cancelled** (human-ratified 2026-08-04). Breadth waits until the PHP agent-loop is
-complete — depth before breadth, because a large private PHP monorepo is the anchor for testing *and*
-evaluation (§19). The language *order* is unchanged (§18.2).
+**Deferred, not cancelled** (human-ratified 2026-08-04) for adapters #3–#4: breadth waits on the PHP
+agent-loop, because a large private PHP monorepo is the anchor for testing *and* evaluation (§19). The
+language *order* is unchanged (§18.2). Adapter #2's prerequisites all landed — 147, 148, 149, 128.
 
-**147, 148 and 149 have all landed — the adapter-#2 gate prerequisites are met.** `tests/contract/`
-is a per-adapter matrix (a data registry keyed by directory name); the R2.2 framework sweep is one
-denylist file (extended to the JS ecosystem) that ci.yml, gate.sh and the pytest all derive from, so
-both gates can now fail for adapter #2; and R6.2 names the TS/JS construct inventory (per-entry map in
-task 149). **128 then shipped the M0 spike** — a working `adapters/typescript/` sidecar answering
-§4.4 with evidence (separator holds, file-at-a-time survives, no contract bump), the core untouched.
-It did not reopen §19; 019 remains the deferred full adapter.
+**019 was reopened by human ratification (2026-08-25)** and its remaining scope is **filed as
+150–157** — the breakdown in the task had been parked "NOT filed" pending exactly that ratification,
+and its proposed 150/151 collapsed into the no-bump verdict. **151 landed with 019** — `obj.method()` emitted no edge
+at all (`128-C1` on the member branch); 22 → 96 CALLS edges on four real JS files. **150 is next:** the
+adapter's only judge is still its own fixtures (R6.6, R6.3).
 
 | # | Task | Milestone | Status | Depends on |
 |---|---|---|---|---|
-| 019 | [TypeScript/JavaScript adapter + a contract bump](tasks/019_typescript-adapter.md) | M7 | deferred | 012, 011, 128 |
+| 019 | [TypeScript/JavaScript adapter + a contract bump](tasks/019_typescript-adapter.md) | M7 | in-progress | 012, 011, 128 |
 | 020 | [Python adapter](tasks/020_python-adapter.md) | M8 | deferred | 019 |
 | 021 | [C#/.NET adapter](tasks/021_csharp-adapter.md) | M9 | deferred | 019 |
 | 026 | [Inverse Docker path rebase (adapter #2)](tasks/026_docker-inverse-path-rebase.md) | M7 | deferred | 008, 019 |
 | 147 | [The R3.4 conformance harness is PHP-shaped — `tests/contract/` cannot admit a second adapter](tasks/147_contract-harness-is-php-shaped.md) | M7 | done | 012, 025 |
 | 148 | [The R2.2 framework sweep lists only PHP frameworks — it cannot fail for adapter #2](tasks/148_r22-framework-sweep-cannot-fail-for-adapter-2.md) | M7 | done | 012, 146 |
 | 149 | [Name the TS/JS construct inventory before any parsing exists](tasks/149_tsjs-construct-inventory.md) | M7 | done | 147 |
+| 150 | [No static analyser (R6.6) and no cross-repo run (R6.3) for the TS adapter](tasks/150_ts-adapter-has-no-gate-but-its-own-fixtures.md) | M7 | todo | 019, 018, 148 |
+| 151 | [`obj.method()` emits no edge at all](tasks/151_ts-member-calls-emit-no-edge.md) | M7 | done | 019, 128, 137 |
+| 152 | [TS call edges carry no `args`/`arg_keys`](tasks/152_ts-call-args-and-arg-keys.md) | M7 | todo | 019, 151 |
+| 153 | [No `semantic_types` — inferred receivers want 137's type table](tasks/153_ts-declared-and-inferred-types.md) | M7 | todo | 019, 151, 137 |
+| 154 | [`allowJs` breadth and JSDoc as a type source](tasks/154_ts-allowjs-and-jsdoc-types.md) | M7 | todo | 019, 153 |
+| 155 | [An aliased specifier and an `export *` both resolve to nothing](tasks/155_ts-tsconfig-paths-and-export-star.md) | M7 | todo | 019 |
+| 156 | [R1.2's condition is met — write the registry verdict down](tasks/156_r12-registry-verdict-now-adapter-2-exists.md) | M7 | todo | 019 |
+| 157 | [R6.2's TS inventory has no named-`export default` case](tasks/157_r62-inventory-has-no-named-default-export-case.md) | M7 | todo | 019, 149 |
 
 ## Phase 1 — Core + PHP (done)
 
@@ -300,9 +304,9 @@ Two notes that still govern open work, beyond the constraints listed above:
 
 One line each, with the pointer that holds the detail. Nothing here is scheduled.
 
-- **Resolver: link `IMPORTS`** so `find_references` sees `use` statements — `IMPORTS ∉ contract.FQN_EDGE_KINDS`, so the resolver never links it. Filed from [PR #23](https://github.com/cuongdinhngo/code-atlas/pull/23); docstring note in `code_atlas/tools/find_references.py`.
-- **PSR-4 / autoload-aware include resolution** — `include_graph` is near-empty on Composer-autoloaded repos, whose only `INCLUDES` edges are dynamic bootstrap `require`s. Found in [042](tasks/042_tokens-to-answer-sample-tier.md); duplicate-name disambiguation across PSR-0 roots is open with it.
-- **`max_results` does two unrelated jobs** — it caps both returned rows and the resolver's per-call-site candidate fan-out, so a query knob silently sets index size (anchor: 4.76M heuristic edges at cap 50 vs 2.60M at cap 10). A `CA_RESOLVE_MAX_CANDIDATES` would separate them, and no payload states which meaning is in force. [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
+- **Resolver: link `IMPORTS`** so `find_references` sees `use` — docstring note in `code_atlas/tools/find_references.py`.
+- **PSR-4 / autoload-aware include resolution**, with PSR-0 duplicate-name disambiguation — [042](tasks/042_tokens-to-answer-sample-tier.md).
+- **`max_results` does two unrelated jobs** — returned rows *and* resolver candidate fan-out, so a query knob sets index size — [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
 - **Tokens-to-answer measures cost, not information** — proven blind by 046: removing 1.06M duplicate edges doubled the distinct answers in a 10-row response and moved the ratio by 0.02 %. Worth a second axis (distinct answers per response, or rank-of-first-correct) before the ratio judges a retrieval change.
 - **`reachable_from` payload size at `standard`** — bounded by `impact_max_nodes` (500), so ~160 KB of JSON against a metric measured in tokens. Worth a lower default or a `minimal`-by-default shape; workaround in [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
 - **Parser-OOM size cap (optional)** — multi-MB generated files exhaust the PHP parser; already soft-failed and restarted (`indexer.py`), but a byte-cap pre-skip (`CA_MAX_FILE_BYTES`) would avoid ~30 crash-and-restart cycles on the anchor. Log what is skipped; no silent truncation.

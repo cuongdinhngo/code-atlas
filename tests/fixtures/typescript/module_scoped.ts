@@ -22,5 +22,6 @@ export function makeUser(): User {
   const created = new User();
   new Logger();
   log(created); // bare call to an imported function — emitted bare for the core to link (R3.3)
+  created.greet(); // receiver unknowable file-at-a-time: bare name at HEURISTIC, two `greet` match
   return created;
 }

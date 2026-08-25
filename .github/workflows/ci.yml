@@ -75,11 +75,15 @@ jobs:
         with:
           php-version: "8.3"
 
-      # A test dependency only: the onboarding map renders client-side, so task 116's AC4/AC5/AC6
-      # are proven by running the page under `tests/viewer_dom_stub.js`, not by grepping the HTML.
+      # Node is a test dependency twice over: the onboarding map renders client-side (task 116, run
+      # under `tests/viewer_dom_stub.js`), and the TypeScript adapter runs on it — its `needs_node`
+      # conformance and import-resolution tests skip without the install below (task 019).
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+
+      - name: Install the TypeScript adapter's own runtime deps
+        run: npm ci --prefix adapters/typescript
 
       - uses: actions/cache@v4
         with:

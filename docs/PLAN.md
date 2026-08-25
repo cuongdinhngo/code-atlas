@@ -236,6 +236,14 @@ in `tests/contract/adapter_registry.py`; the mechanics live in task 128, not her
    the proof the abstraction did not leak (R1.1). `CONTRACT_VERSION` stays 8. A bump remains possible at
    019 **iff** `semantic_types` lands, and would be scoped there.
 
+**019 outcome (structural extraction, evidence not anticipation).** Extending to all 13 of 149's
+constructs and to cross-file resolution confirmed the spike verdict at scale: **no bump, and neither
+§4.4 option is needed.** The adapter resolves each module specifier per file and emits the defining
+module's qname, so an imported `new`/call/heritage target comes back `RESOLVED` under the contract as
+it stands; a re-export barrel is followed through an `ALIASES` edge to the defining module. The core
+diff stays empty. `open_project`/two-pass (and its worker-fan-out cost, §8.1) is therefore still only
+wanted for *type-inferred* receivers (`semantic_types`), the one 019 slice that is deferred.
+
 ---
 
 ## 5. Architecture

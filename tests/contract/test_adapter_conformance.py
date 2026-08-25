@@ -21,11 +21,16 @@ def kind_histogram(rows: list[dict[str, Any]], field: str = "kind") -> dict[str,
     return dict(sorted(Counter(row[field] for row in rows).items()))
 
 
-def edge_shapes(edges: list[dict[str, Any]]) -> list[tuple[str, Any, Any]]:
-    # None tiers sort before named ones when kind+raw collide (e.g. self:: vs static::).
+def edge_shapes(edges: list[dict[str, Any]]) -> list[tuple[str, Any, Any, Any]]:
+    # An edge means nothing without its source: a body edge sourced at the class instead of the
+    # method is a wrong answer no histogram can see (019). None tiers sort before named ones when
+    # kind+raw collide (self:: vs static::); source is the last key, so it only breaks a tie.
     return sorted(
-        ((e["kind"], e.get("target_raw"), e.get("confidence_tier")) for e in edges),
-        key=lambda t: (t[0], str(t[1]), t[2] is not None, str(t[2] or "")),
+        (
+            (e["kind"], e.get("source_qname"), e.get("target_raw"), e.get("confidence_tier"))
+            for e in edges
+        ),
+        key=lambda t: (t[0], str(t[2]), t[3] is not None, str(t[3] or ""), str(t[1])),
     )
 
 

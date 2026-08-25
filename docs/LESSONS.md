@@ -30,7 +30,7 @@ and the honest move on a new sighting is to bump `seen:`, not to write a fresh c
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
 | `derived-not-listed-invariant` | 17 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128 | **R6.7** |
-| `prove-the-guard-fails` | 14 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128 | **R6.5** |
+| `prove-the-guard-fails` | 15 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019 | **R6.5** |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | open — **rejected at rec 3; that verdict is stale** |
 | `fixture-shape-begs-the-question` | 7 | 084, 086, 103–106, 121 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
@@ -59,6 +59,38 @@ proposed as a new rule, because R6.3 already owned cross-repo validation and P2 
 this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *claim's* list honest and
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
+
+## 019 — Adapter #2 is where a convention becomes a contract, and the harness only froze half an edge
+
+Four defects, one shape: the TS adapter disagreed with the PHP adapter about facts `tests/contract/`
+does not assert. Its frozen `exact_edge_shapes` pinned `(kind, target_raw, tier)` and **never**
+`source_qname`, so every body edge could be sourced at the class instead of the method — for either
+adapter — and stay green. `impact`/`who_calls` at method granularity was wrong for TS with 2039 tests
+passing. The shape is now a 4-tuple; the red run failed exactly one row per affected case.
+
+The other three were each a second path nobody walked: a `const x = require(…)` reaches the walk
+through the variable-statement branch, not the import branch, so `declarations_only` silently dropped
+every CommonJS `IMPORTS` while the ESM fixture proved the claim; `export default class Foo` keeps its
+own name on the declaring side while the importing side only ever knows `default`, so the most common
+React/TS shape resolved to a qname no node had; and a NodeNext `./x.js` specifier matched a compiled
+sibling ahead of `./x.ts` because the exact candidate was tried first.
+
+*Claim `019-C1` — a frozen test shape that omits a field cannot fail on it, so the omitted field is
+where two implementations of one contract diverge. Pin every field whose value is a claim, not just
+the ones that differ today. type: 2 · handle: `prove-the-guard-fails` · status: confirmed · seen: 019
+· evidence: `edge_shapes` had no `source_qname`; red run fails `typescript:jsx` +
+`typescript:module-esm` only · destination: R6.5 (already binding — sighting only).*
+
+*Claim `019-C2` — when a construct has two syntaxes that reach the walk by different branches (ESM
+`import` vs `const … = require`), a fixture covering one proves nothing about the other; parametrise
+the test over both module systems. type: 2 · handle: `two-syntaxes-two-paths` · status: proposed ·
+seen: 019 · evidence: `declarations_only` kept ESM `IMPORTS` and dropped every CJS one · destination:
+open — folds into R6.3 if it recurs.*
+
+*Claim `019-C3` — a name that differs between the declaring and the importing side needs an explicit
+alias edge, not a matching convention: `export default class Foo` declares `::Foo` and is imported as
+`::default`. type 5 project-ground-truth · area: TS adapter / resolution · seen 019 · confirmed ·
+stays in lessons_path*
 
 ## 142 — The tokens-to-answer scorer keys recall on a fixed identity vocabulary, not on any field
 When adding a question for a tool, its members are recall/precision-scored only if they sit under one
