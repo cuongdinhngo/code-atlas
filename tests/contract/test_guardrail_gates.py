@@ -27,7 +27,17 @@ SPAWN_TOKEN = '"' + "--" + 'file"'
 # Regexes match `.github/workflows/ci.yml` R1.1 / R2.2. Sweeps intentionally match the shell gates'
 # whole-tree scope (every authored file), not a `*.php` / `*.py` subset.
 LANGUAGE_BRANCH = re.compile(r"if[^\n]*\blanguage\b[^\n]*==|match[^\n]*\blanguage\b")
-FRAMEWORK_NAME = re.compile(r"laravel|symfony|wordpress|drupal|magento", re.IGNORECASE)
+# R2.2 framework names come from one denylist (task 148) so ci.yml/gate.sh/this test cannot drift.
+DENYLIST = TESTS / "contract" / "framework_denylist.txt"
+
+
+def _framework_alternatives() -> list[str]:
+    lines = DENYLIST.read_text(encoding="utf-8").splitlines()
+    return [ln.strip() for ln in lines if ln.strip() and not ln.lstrip().startswith("#")]
+
+
+FRAMEWORK_ALTERNATIVES = _framework_alternatives()
+FRAMEWORK_NAME = re.compile(r"\b(?:" + "|".join(FRAMEWORK_ALTERNATIVES) + r")\b", re.IGNORECASE)
 EXCLUDED_DIR_NAMES = frozenset({"vendor", "node_modules"})
 
 needs_vendor = pytest.mark.skipif(
@@ -84,6 +94,34 @@ def test_r22_planted_framework_name_fails(tmp_path: Path) -> None:
     planted = tmp_path / "leak.php"
     planted.write_text("<?php // laravel example\n", encoding="utf-8")
     assert hits_in([planted], FRAMEWORK_NAME) == [planted]
+
+
+@pytest.mark.parametrize("name", ["laravel", "react", "vue", "nextjs", "express", "nestjs"])
+def test_r22_denylist_covers_each_ecosystem(name: str, tmp_path: Path) -> None:
+    # AC1: a planted framework name from each ecosystem fails the sweep, by control not inspection.
+    planted = tmp_path / "leak.php"
+    planted.write_text(f"<?php // {name} example\n", encoding="utf-8")
+    assert hits_in([planted], FRAMEWORK_NAME) == [planted]
+
+
+def test_r22_bare_next_and_nest_do_not_trip_the_sweep(tmp_path: Path) -> None:
+    # AC3: bare next()/nested must not fire — only the framework spelling (next.js/nest.js) does.
+    planted = tmp_path / "ok.php"
+    planted.write_text("<?php $x = next($a); // nested loop, the next request\n", encoding="utf-8")
+    assert hits_in([planted], FRAMEWORK_NAME) == []
+
+
+def test_r22_denylist_is_non_empty() -> None:
+    # R6.5 guard-the-guard: an empty denylist would make \b(?:)\b match every file or none.
+    assert FRAMEWORK_ALTERNATIVES, "framework denylist is empty"
+
+
+def test_r22_shell_gate_derives_from_the_denylist() -> None:
+    # AC2 + R6.7: gate.sh reads the one denylist, never a hand-kept copy of the alternation.
+    gate = (ROOT / "scripts" / "gate.sh").read_text(encoding="utf-8")
+    assert "framework_denylist.txt" in gate
+    for name in ["laravel", "symfony", "react", "nextjs"]:
+        assert f"{name}|" not in gate, name
 
 
 def _authored_test_py_files() -> list[Path]:

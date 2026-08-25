@@ -29,8 +29,8 @@ and the honest move on a new sighting is to bump `seen:`, not to write a fresh c
 
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
-| `derived-not-listed-invariant` | 15 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147 | **R6.7** |
-| `prove-the-guard-fails` | 12 | 087–089, 093, 096, 099–101, 121, 122, 132, 147 | **R6.5** |
+| `derived-not-listed-invariant` | 16 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148 | **R6.7** |
+| `prove-the-guard-fails` | 13 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148 | **R6.5** |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | open — **rejected at rec 3; that verdict is stale** |
 | `fixture-shape-begs-the-question` | 7 | 084, 086, 103–106, 121 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
@@ -59,6 +59,24 @@ proposed as a new rule, because R6.3 already owned cross-repo validation and P2 
 this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *claim's* list honest and
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
+
+## 148 — A denylist that lists only PHP frameworks cannot fail for a JS adapter
+
+The R2.2 grep-gate hard-coded `laravel|symfony|wordpress|drupal|magento` in three places (ci.yml,
+gate.sh, the pytest), so a TypeScript adapter naming `react`/`vue`/`next` passed clean — GREEN on the
+exact violation R2 exists to catch. Fixed by one `framework_denylist.txt` all three derive from
+(R6.7), extended to the JS ecosystem. The trap was AC3: bare `next`/`nest`/`express` collide with real
+code and prose (`next()`, "nested", "expression", "the next request"), so matching needs word
+boundaries and the framework spelling (`next.js`, not `next`) — a denylist that over-fires is as
+useless as one that under-fires. AC2 was NOT done by a test reading ci.yml: `.github` is in
+`.dockerignore`, so such a test is red on the mandated Docker host (147's finding) — derivation from
+one file is both stronger and Docker-safe.
+
+*Claim `148-C1` — a denylist/guard must be proven to fire on every shape it forbids AND not fire on
+the look-alikes it must ignore; ship both controls. type: 2 · handle: `prove-the-guard-fails` · seen:
+148 · destination: R6.5.*
+*Claim `148-C2` — a value hand-copied into N gates drifts; derive all N from one committed source.
+type: 2 · handle: `derived-not-listed-invariant` · seen: 148 · destination: R6.7.*
 
 ## 147 — A conformance harness written for one adapter cannot fail for the second
 

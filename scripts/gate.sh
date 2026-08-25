@@ -186,13 +186,17 @@ _gate "R1.1 no language branch in core" code_atlas \
 
 if [ ! -d adapters ] || [ ! -d code_atlas ]; then
     _record FAIL "R2.2 no repo/framework name" "a swept directory is missing"
-elif grep -rEin --exclude-dir=vendor --exclude-dir=node_modules \
-    'laravel|symfony|wordpress|drupal|magento' adapters/ >"$log" 2>&1 \
-    || grep -rEin 'laravel|symfony|wordpress|drupal|magento' code_atlas/ >>"$log" 2>&1; then
-    _record FAIL "R2.2 no repo/framework name"
-    sed 's/^/      /' "$log" | head -10
+elif [ ! -s tests/contract/framework_denylist.txt ]; then
+    _record FAIL "R2.2 no repo/framework name" "framework denylist is missing or empty"
 else
-    _record PASS "R2.2 no repo/framework name"
+    fw=$(grep -vE '^[[:space:]]*(#|$)' tests/contract/framework_denylist.txt | tr -d '\r' | paste -sd'|' -)
+    if grep -rEin --exclude-dir=vendor --exclude-dir=node_modules "\\b(${fw})\\b" adapters/ >"$log" 2>&1 \
+        || grep -rEin "\\b(${fw})\\b" code_atlas/ >>"$log" 2>&1; then
+        _record FAIL "R2.2 no repo/framework name"
+        sed 's/^/      /' "$log" | head -10
+    else
+        _record PASS "R2.2 no repo/framework name"
+    fi
 fi
 
 if [ ! -d code_atlas ]; then

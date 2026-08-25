@@ -1,0 +1,21 @@
+# R2.2 framework-name denylist — the single source for the guard's alternation (task 148).
+# One ERE alternative per line; consumers wrap the set in \b(?:...)\b (word-bounded, case-insensitive)
+# and derive their pattern from this file — ci.yml, scripts/gate.sh, and tests/contract/test_guardrail_gates.py.
+# Lives under tests/ because tests/ and scripts/ are deliberately unswept (R2.3), so this file cannot self-match.
+# next/nest use the framework spelling (next.js / nest.js): bare `next`/`nest` collide with real code
+# and prose (PHP/Python next(), "nested", "the next request"), which R2.2's own AC3 forbids.
+laravel
+symfony
+wordpress
+drupal
+magento
+react
+vue
+angular
+svelte
+express
+nuxt
+nextjs
+next\.js
+nestjs
+nest\.js

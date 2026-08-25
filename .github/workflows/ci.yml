@@ -225,19 +225,24 @@ jobs:
         run: |
           # Authored source only: Composer's own autoloader documents itself with a Symfony
           # example, so an unscoped grep fails on a dependency nobody here wrote.
-          # Denylist grows as frameworks are added; the authoritative gate lands with task 012.
+          # The denylist is one file (task 148); ci.yml, scripts/gate.sh and the pytest all read it.
           if [ ! -d adapters ]; then
             echo "::error::R2.2 — adapters/ is missing; this gate cannot pass vacuously"
             exit 1
           fi
+          if [ ! -s tests/contract/framework_denylist.txt ]; then
+            echo "::error::R2.2 — framework denylist is missing or empty"
+            exit 1
+          fi
+          fw=$(grep -vE '^[[:space:]]*(#|$)' tests/contract/framework_denylist.txt | tr -d '\r' | paste -sd'|' -)
           if grep -rEin --exclude-dir=vendor --exclude-dir=node_modules \
-               'laravel|symfony|wordpress|drupal|magento' adapters/; then
+               "\b(${fw})\b" adapters/; then
             echo "::error::R2.2 — repo/framework name found in adapter source"
             exit 1
           fi
           # Task 113 put a path-shape classifier in the core, so the gate must cover it too. Scoped
           # to code_atlas/: scripts/ and tests/ legitimately name the pinned public repos (R2.3).
-          if grep -rEin 'laravel|symfony|wordpress|drupal|magento' code_atlas/; then
+          if grep -rEin "\b(${fw})\b" code_atlas/; then
             echo "::error::R2.2 — repo/framework name found in core source"
             exit 1
           fi
