@@ -60,6 +60,19 @@ this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *c
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
 
+## 149 — Name the spec inventory before the first fixture, or the fixture names the repo
+
+R6.2 named the PHP construct list but not the TS/JS one, so the first TS fixture would have been drawn
+from whatever repo was open — the thing R2 forbids. Named the 13-entry TS/JS inventory in the rule
+book as one compact list, with the per-entry spec/contract-question map in the task file (R7.6) — no
+parsing, no contract decision. `namespace-declare` and `re-export-barrel` are load-bearing: they pin
+whether `MEMBER_SEPARATOR` bends and where `RESOLVED` is won across a barrel.
+
+*Claim `149-C1` — a cross-ticket reference to a symbol at file:line goes stale when a prior ticket
+relocates it (147 moved `R62_CASES` → `adapter_registry.py`); verify a citation still resolves at
+pickup. type: 5 · handle: `verify-cited-reference-at-pickup` · status: confirmed · seen: 149 · area:
+process · destination: stays in lessons_path.*
+
 ## 148 — A denylist that lists only PHP frameworks cannot fail for a JS adapter
 
 The R2.2 grep-gate hard-coded `laravel|symfony|wordpress|drupal|magento` in three places (ci.yml,

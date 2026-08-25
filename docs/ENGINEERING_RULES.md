@@ -124,7 +124,10 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   rows; tool change → a test over a fixture repo.
 - **R6.2 — Spec-driven fixtures, not repo-driven.** PHP fixtures cover language constructs
   (namespaced, global, PSR-0 underscore, trait+conflict, enum, attributes, closures, first-class
-  callable, include, static-vs-instance call, syntax error) — independent of any real repo.
+  callable, include, static-vs-instance call, syntax error); the TS/JS inventory is named too
+  (module-esm, module-cjs, class-heritage, interface-type-alias, enum-const-enum, generics,
+  decorators, arrow-closure, default-export, re-export-barrel, namespace-declare, jsx, syntax-error),
+  each justified by the language spec, never a repo (per-entry map in task 149).
 - **R6.3 — Cross-repo validation** proves "works on any repo": several varied repos index without
   crashes and with sane counts. No single repo defines "correct".
   **And where an acceptance criterion needs a judgement about a real repo — a threshold, a ranking,

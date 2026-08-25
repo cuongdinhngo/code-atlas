@@ -115,9 +115,9 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
   **closed by 131** (front controller now in the first five on `symfony/demo`). Numbers:
   [`benchmarks/121_onboarding-question-class.md`](benchmarks/121_onboarding-question-class.md).
   The **layer graph** is now a mermaid flowchart in `generate_onboarding` markdown ([143](tasks/143_the-system-map-has-no-diagram.md)) — a lookup, which 121 scored. Auto-generated *reading orders* stay unscheduled: a dependency walk is still not a curated syllabus.
-- **128 (TS/JS M0 spike) now has prerequisites** — 147 and 149, not 019, whose `depends_on` it had
-  backwards. It stays a *proposal* about §19's ordering, not a decision; Phase 2 breadth stays
-  deferred, and 019 carries the rest of the breakdown unfiled for the same reason.
+- **128 (TS/JS M0 spike) — prerequisites 147 and 149 are now done.** It stays a *proposal* about
+  §19's ordering, not a decision; Phase 2 breadth stays deferred, and 019 carries the rest of the
+  breakdown unfiled for the same reason. Whoever picks 128 up reads §19 and §4.4 first.
 - **Both things round 6 measured are now closed, and both premises moved.** 135 gave the harness a
   precision axis; the recall gate could not see a wrong answer, and the first thing the axis does is
   fail on 130 ([benchmark](benchmarks/135_precision-axis.md)). 136 broke the HEURISTIC share down by
@@ -138,11 +138,12 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 complete — depth before breadth, because a large private PHP monorepo is the anchor for testing *and*
 evaluation (§19). The language *order* is unchanged (§18.2).
 
-**149 is `todo`, not deferred, and it is not breadth work.** 147 and 148 **landed** — `tests/contract/`
-is now a per-adapter matrix (a data registry keyed by directory name), and the R2.2 framework sweep is
-one denylist file (extended to the JS ecosystem) that ci.yml, gate.sh and the pytest all derive from,
-so both gates can now fail for adapter #2. 149 names the TS/JS construct inventory R6.2 requires (now
-unblocked by 147). It parses no TypeScript, so it does not reorder §19.
+**147, 148 and 149 have all landed — the adapter-#2 gate prerequisites are met.** `tests/contract/`
+is a per-adapter matrix (a data registry keyed by directory name); the R2.2 framework sweep is one
+denylist file (extended to the JS ecosystem) that ci.yml, gate.sh and the pytest all derive from, so
+both gates can now fail for adapter #2; and R6.2 names the TS/JS construct inventory (per-entry map in
+task 149). None parsed any TypeScript, so none reordered §19 — **128 is now unblocked but still a
+proposal** the picker weighs against §19's depth-before-breadth decision.
 
 | # | Task | Milestone | Status | Depends on |
 |---|---|---|---|---|
@@ -152,7 +153,7 @@ unblocked by 147). It parses no TypeScript, so it does not reorder §19.
 | 026 | [Inverse Docker path rebase (adapter #2)](tasks/026_docker-inverse-path-rebase.md) | M7 | deferred | 008, 019 |
 | 147 | [The R3.4 conformance harness is PHP-shaped — `tests/contract/` cannot admit a second adapter](tasks/147_contract-harness-is-php-shaped.md) | M7 | done | 012, 025 |
 | 148 | [The R2.2 framework sweep lists only PHP frameworks — it cannot fail for adapter #2](tasks/148_r22-framework-sweep-cannot-fail-for-adapter-2.md) | M7 | done | 012, 146 |
-| 149 | [Name the TS/JS construct inventory before any parsing exists](tasks/149_tsjs-construct-inventory.md) | M7 | todo | 147 |
+| 149 | [Name the TS/JS construct inventory before any parsing exists](tasks/149_tsjs-construct-inventory.md) | M7 | done | 147 |
 
 ## Phase 1 — Core + PHP (done)
 
