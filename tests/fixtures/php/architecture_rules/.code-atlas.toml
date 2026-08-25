@@ -1,0 +1,2 @@
+architecture_rules = ["rules.json"]
+entry_points = ["http/*.php"]

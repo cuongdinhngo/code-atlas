@@ -1,0 +1,20 @@
+{
+  "rules": [
+    {
+      "id": "domain-must-not-reach-http",
+      "sources": ["domain/**"],
+      "forbidden": ["http/**"],
+      "kinds": ["CALLS", "NEW", "EXTENDS", "IMPLEMENTS", "INCLUDES"],
+      "direction": "outgoing",
+      "transitive": true
+    },
+    {
+      "id": "http-must-not-reach-domain",
+      "sources": ["http/**"],
+      "forbidden": ["domain/**"],
+      "kinds": ["CALLS", "NEW", "EXTENDS", "IMPLEMENTS", "INCLUDES"],
+      "direction": "outgoing",
+      "transitive": true
+    }
+  ]
+}

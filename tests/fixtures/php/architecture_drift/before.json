@@ -1,0 +1,27 @@
+{
+  "version": 7,
+  "index_root": "/fixture/architecture_drift",
+  "last_ref": "before-rev",
+  "modules": {
+    "modules": [
+      {"module": "services/InvoiceService.php"},
+      {"module": "repositories/InvoiceRepository.php"},
+      {"module": "lib/Clock.php"}
+    ]
+  },
+  "layers": [
+    {"layer": "Services"},
+    {"layer": "Shared Library"}
+  ],
+  "matrix": [
+    {"source": "Services", "target": "Shared Library", "count": 2}
+  ],
+  "hubs": [
+    {"file": "lib/Clock.php", "layer": "Shared Library", "fan_in": 3}
+  ],
+  "reachability": {
+    "buckets": [
+      {"bucket": "web_entry", "count": 1, "sample": ["controllers/InvoiceController.php"]}
+    ]
+  }
+}

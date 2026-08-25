@@ -60,6 +60,22 @@ this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *c
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
 
+## 142 — The tokens-to-answer scorer keys recall on a fixed identity vocabulary, not on any field
+When adding a question for a tool, its members are recall/precision-scored only if they sit under one
+of the scorer's identity keys (`qname`/`path`/`file`/`layer`/`module`/`pattern`) or free-text keys
+(`source`/`snippet`/`body`). `check_architecture_rules` keys a violation on
+`source_file`/`forbidden_file`/`rule_id` — none of them — so it is invisible to recall and must
+declare `precision_note`, not `expected_set`; of the four supervision tools only `impact_modules`
+(`module`) and `subtree_dependencies` (`path`) score on both axes. Second, verified by toggle: adding
+a tool to `_TOOL_NAMES` moves **no** existing question's tokens, because `get_index_status(minimal)`
+on a built index does not echo the servable list — which is why a class of `ratio_eligible:false`
+questions leaves the existing cost ratio byte-identical (AC5).
+
+*Claim `142-C1` — the tokens-to-answer recall/precision scorer only sees members under its
+identity/free-text keys, so a tool answering under other field names needs `precision_note`, not
+`expected_set`. type 5 project-ground-truth · descriptive · area: tokens-to-answer harness · seen 142
+· proposed · stays in lessons_path*
+
 ## 128 — A parser that only emits what it can resolve reports less than the contract asks
 
 The TS/JS M0 spike proved the file-at-a-time contract survives language #2 (`ts.createSourceFile`, no

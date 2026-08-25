@@ -1206,6 +1206,211 @@
       "grep_evidence": [
         "->getId("
       ]
+    },
+    {
+      "id": "sup_rule_holds_violation",
+      "source": "fixture",
+      "root": "tests/fixtures/php/architecture_rules",
+      "tier": "supervision",
+      "ratio_eligible": false,
+      "ratio_note": "The violating edge is a transitive closure domain -> service -> http; a grep over the domain file cannot see the http target, so any baseline would answer a different question (task 138's evidence gate).",
+      "question": "Does the architecture rule still hold: may the domain layer reach the http layer?",
+      "atlas_path": [
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "check_architecture_rules",
+          "args": {
+            "detail_level": "standard"
+          }
+        }
+      ],
+      "expected": [
+        "domain-must-not-reach-http",
+        "domain/Model.php",
+        "http/Front.php"
+      ],
+      "precision_note": "check_architecture_rules keys a confirmed violation on rule_id / source_file / forbidden_file, not on the identity vocabulary the recall+precision scorer reads; the violation IS the answer and is checked by substring, so this row measures correctness and cost, not a claimed population."
+    },
+    {
+      "id": "sup_rule_holds_clean",
+      "source": "fixture",
+      "root": "tests/fixtures/php/architecture_rules",
+      "tier": "supervision",
+      "ratio_eligible": false,
+      "ratio_note": "A rule that holds is the ABSENCE of a forbidden-set path through the transitive closure; grep cannot prove that negative, so there is no fair baseline.",
+      "question": "Does the reverse rule still hold: is the http layer kept out of the domain layer?",
+      "atlas_path": [
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "check_architecture_rules",
+          "args": {
+            "rule_id": "http-must-not-reach-domain",
+            "detail_level": "standard"
+          }
+        }
+      ],
+      "expected": [
+        "http-must-not-reach-domain",
+        "checked",
+        "ok"
+      ],
+      "precision_note": "The answer is the CLEAN status of one named rule (total_count 0, reason ok, status checked) — a checked-and-holds verdict, not a population of claimed members; distinguishing it from not-configured / no-such-rule is the point, and there is nothing an extra could pad."
+    },
+    {
+      "id": "sup_arch_drift",
+      "source": "fixture",
+      "root": "tests/fixtures/php/architecture_drift",
+      "tier": "supervision",
+      "ratio_eligible": false,
+      "ratio_note": "Architectural drift is a diff of two derived snapshots (modules, layers, matrix, hubs); grep+Read has no baseline that compares two revisions' structure, only files that mention a pattern in one of them.",
+      "question": "What changed architecturally between these two snapshots of the tree?",
+      "atlas_path": [
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "diff_architecture",
+          "args": {
+            "before": "before.json",
+            "after": "after.json",
+            "detail_level": "standard"
+          }
+        }
+      ],
+      "expected": [
+        "reports/InvoiceReport.php",
+        "Integration / Reporting",
+        "lib/Clock.php"
+      ],
+      "precision_note": "diff_architecture answers with per-section deltas — a module added, a cross-layer pair added, a hub moved — each a different kind of change; there is no single claimed population an extra could pad, so recall scores the drift and precision has no denominator.",
+      "expected_set": [
+        "reports/InvoiceReport.php",
+        "Integration / Reporting",
+        "lib/Clock.php"
+      ]
+    },
+    {
+      "id": "sup_modules_reached",
+      "source": "fixture",
+      "root": "tests/fixtures/php/impact_modules",
+      "tier": "supervision",
+      "ratio_eligible": false,
+      "ratio_note": "The blast radius rolled up by module is a transitive walk grouped by 114's business-module table; no grep pattern returns the reachable set, let alone its per-module split.",
+      "question": "Which modules does changing Fx\\Billing\\Invoice::total reach, and how much of each?",
+      "atlas_path": [
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "impact_modules",
+          "args": {
+            "qnames": [
+              "\\Fx\\Billing\\Invoice::total"
+            ],
+            "detail_level": "standard"
+          }
+        }
+      ],
+      "expected": [
+        "billing",
+        "catalog",
+        "loyalty",
+        "shipping"
+      ],
+      "precision_scope": [
+        "results"
+      ],
+      "expected_set": [
+        "billing",
+        "catalog",
+        "loyalty",
+        "shipping",
+        "unassigned"
+      ]
+    },
+    {
+      "id": "sup_can_split_partial",
+      "source": "fixture",
+      "root": "tests/fixtures/php/onboarding",
+      "tier": "supervision",
+      "ratio_eligible": false,
+      "ratio_note": "Tree-to-tree crossing with duplicate-declaration attribution is a whole-graph aggregation; grep finds a name, not the directional edge set that crosses a subtree boundary.",
+      "question": "Can lib/ be split out — what still depends on it, and is the boundary one-directional?",
+      "atlas_path": [
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "subtree_dependencies",
+          "args": {
+            "subtree": "lib/",
+            "detail_level": "standard"
+          }
+        }
+      ],
+      "expected": [
+        "lib/Clock.php",
+        "legacy/RetiredExporter.php",
+        "services/InvoiceService.php"
+      ],
+      "precision_scope": [
+        "dependent_files"
+      ],
+      "expected_set": [
+        "lib/Clock.php",
+        "legacy/RetiredExporter.php",
+        "repositories/InvoiceRepository.php",
+        "reports/InvoiceReport.php",
+        "services/InvoiceService.php"
+      ]
+    },
+    {
+      "id": "sup_can_split_unanswerable",
+      "source": "fixture",
+      "root": "tests/fixtures/php/onboarding",
+      "tier": "supervision",
+      "ratio_eligible": false,
+      "ratio_note": "The answer is a minimum acyclic cut-edge set no tool produces; there is no baseline of any kind to measure against.",
+      "unanswerable": true,
+      "unanswerable_note": "No tool returns the minimum acyclic cut-edge set. subtree_dependencies gives the cut COST and direction (inbound 6 / outbound 0 for lib/), and guided_tour's Tarjan finds the SCCs behind the reading order, but neither returns the edge set whose removal makes a cyclic boundary acyclic — that is task 141, deferred behind its evidence gate. Recorded as no-tool-answers-this, never scored as a zero.",
+      "question": "Which edges must be cut to make lib/ extractable without breaking a cycle — the minimum acyclic cut set?",
+      "session_path": [
+        {
+          "tool": "subtree_dependencies",
+          "args": {
+            "subtree": "lib/",
+            "detail_level": "standard"
+          }
+        },
+        {
+          "tool": "guided_tour",
+          "args": {
+            "detail_level": "standard"
+          }
+        }
+      ],
+      "expected": [
+        "lib/Clock.php"
+      ]
     }
   ]
 }

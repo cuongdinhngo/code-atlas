@@ -36,7 +36,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 137 | [A PHP local type table — the cause of ≥99% of the HEURISTIC share, with a measured target per pin](tasks/137_php-local-type-table.md) | Coverage | done | 136, 039 |
 | 140 | [`impact` answers in symbols, and the decision is module-shaped — 500 rows at ~160 KB is the only answer today](tasks/140_impact-answers-in-symbols-not-modules.md) | Agent-fit | done | 017, 112, 114, 124 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
-| 142 | [The supervision question class was never put through the harness — 121's lesson, one phase later](tasks/142_supervision-question-class-has-no-baseline.md) | Measure | todo | 034, 055, 121, 135 |
+| 142 | [The supervision question class was never put through the harness — 121's lesson, one phase later](tasks/142_supervision-question-class-has-no-baseline.md) | Measure | done | 034, 055, 121, 135 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -96,7 +96,7 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | 6 (2026-08-21) | 122–125 | closed — all four payload honesty, none a graph defect |
 | 7 (2026-08-23) | 126 · 127 | closed — 127 closed **119** in the same change |
 | Phase 3 cost gate | 121 → 129 · 130 · 131 | 121 · 129 · 130 · 131 done |
-| Architecture review (2026-08-23) | 138–142 · 143–145 | 138 · 139 · 144 · **145A** done (artifact.json versioned); **143** layer mermaid; **142 still first for the class baseline**; 141 gated at n = 0; 145B deferred (stack not chosen; 118 no longer blocks) |
+| Architecture review (2026-08-23) | 138–142 · 143–145 | 138 · 139 · 142 · 144 · **145A** done (artifact.json versioned); **143** layer mermaid; **142** class baseline measured ([benchmark](benchmarks/142_supervision-question-class.md)); 141 gated at n = 0; 145B deferred (stack not chosen; 118 no longer blocks) |
 
 **What still governs open work:**
 
@@ -130,6 +130,11 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
   LSP was uninstalled 2026-08-07 and invoked zero times in 84 calls, so its 19 % adoption figure
   measures adoption, not capability. Its core still needs the anchor repo; round 5 is its n = 1
   (verdict *helped, narrowly*).
+- **142 measured the supervision question-class** (does-rule-hold / what-changed / which-modules-reach /
+  can-split): five of six members are cheap and correct on both axes (recall 1.0, precision 1.0 where a
+  population exists), and the sixth — the minimum acyclic **cut-edge set** — is answered by **no tool**,
+  labelled not scored. That last row **is** evidence for 141's gate item 3
+  ([benchmark](benchmarks/142_supervision-question-class.md)); 141 stays `deferred` at n = 0.
 - **M10–M12 are complete** — 22 tools on the surface — and the 108–117 reshape is complete: the map
   renders from 112's dataset alone. Detail: [`ROADMAP.md`](phase3-onboarding/ROADMAP.md).
 

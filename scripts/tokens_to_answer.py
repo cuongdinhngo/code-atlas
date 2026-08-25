@@ -52,10 +52,12 @@ from code_atlas.tools import (  # noqa: E402
     get_index_status,
     guided_tour,
     impact,
+    impact_modules,
     include_graph,
     reachable_from,
     read_symbol,
     search_symbol,
+    subtree_dependencies,
 )
 
 _QUESTIONS = _REPO / "scripts" / "tokens_to_answer_questions.json"
@@ -82,6 +84,8 @@ _TOOL_NAMES = (
     find_implementations.NAME,
     include_graph.NAME,
     impact.NAME,
+    impact_modules.NAME,
+    subtree_dependencies.NAME,
     reachable_from.NAME,
     find_orphans.NAME,
 )
@@ -130,6 +134,8 @@ def bind_tools(config: Config) -> dict[str, Callable[..., dict[str, object]]]:
         find_implementations.NAME: find_implementations.create(config),
         include_graph.NAME: include_graph.create(config),
         impact.NAME: impact.create(config),
+        impact_modules.NAME: impact_modules.create(config),
+        subtree_dependencies.NAME: subtree_dependencies.create(config),
         reachable_from.NAME: reachable_from.create(config),
         find_orphans.NAME: find_orphans.create(config),
         architecture_overview.NAME: architecture_overview.create(config),
@@ -545,6 +551,11 @@ def evaluate_question(config: Config, question: dict[str, Any]) -> dict[str, Any
     if not ratio_eligible:
         # AC3: an excluded question must say why, in the artifact, not only in the question file.
         row["ratio_note"] = str(question.get("ratio_note", "no fair grep+Read baseline"))
+    if question.get("unanswerable"):
+        # Task 142 AC3: a question no tool can answer is LABELLED, never scored as a zero. It
+        # carries a written reason and declares no expected_set (there is nothing to recall).
+        row["unanswerable"] = True
+        row["unanswerable_note"] = str(question["unanswerable_note"])
     expected_set = question.get("expected_set")
     if expected_set is not None:
         members = [str(s) for s in expected_set]
