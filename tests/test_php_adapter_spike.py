@@ -6,12 +6,12 @@ consistent with itself. CI installs both, so CI is where this file is authoritat
 """
 
 import json
-import subprocess
 from pathlib import Path
 
 import pytest
 
 from code_atlas import contract
+from tests.adapter_cli import run_adapter_file
 from tests.php_adapter_cli import ENTRY, FIXTURES, PHP, ROOT, needs_php, parse_file
 
 # AC1 says "each" of these two file shapes — the denominator every assertion below counts against.
@@ -108,13 +108,10 @@ def test_a_missing_runtime_fails_loud_and_never_as_a_parse_result(tmp_path: Path
     stray = tmp_path / "index.php"
     stray.write_text(ENTRY.read_text(encoding="utf-8"), encoding="utf-8")
 
-    completed = subprocess.run(
-        [str(PHP), str(stray), "--file", str((FIXTURES / CASES["namespaced"]).relative_to(ROOT))],
+    completed = run_adapter_file(
+        [str(PHP), str(stray)],
+        (FIXTURES / CASES["namespaced"]).relative_to(ROOT),
         cwd=ROOT,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        timeout=60,
     )
     assert completed.returncode == 2
     assert completed.stdout == ""

@@ -29,8 +29,8 @@ and the honest move on a new sighting is to bump `seen:`, not to write a fresh c
 
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
-| `derived-not-listed-invariant` | 14 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132 | **R6.7** |
-| `prove-the-guard-fails` | 11 | 087–089, 093, 096, 099–101, 121, 122, 132 | **R6.5** |
+| `derived-not-listed-invariant` | 15 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147 | **R6.7** |
+| `prove-the-guard-fails` | 12 | 087–089, 093, 096, 099–101, 121, 122, 132, 147 | **R6.5** |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | open — **rejected at rec 3; that verdict is stale** |
 | `fixture-shape-begs-the-question` | 7 | 084, 086, 103–106, 121 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
@@ -59,6 +59,23 @@ proposed as a new rule, because R6.3 already owned cross-repo validation and P2 
 this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *claim's* list honest and
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
+
+## 147 — A conformance harness written for one adapter cannot fail for the second
+
+`tests/contract/` hard-coded the PHP CLI, fixtures, and per-file histograms, so the first thing
+adapter #2 met was a gate it could not enter, and the cheapest way past was a fourth copy of the
+`--file` spawn — exactly what `php_adapter_cli.py`'s docstring was written to forbid. The fix is
+data: registration is a table keyed by adapter directory name (`adapter_registry.REGISTRY`), the
+conformance body iterates it with no per-adapter literal, and two guards ship with recorded red runs
+— the module fails on an empty registry (R6.5), and exactly one module may hold the `--file` argv
+(AC4). PHP moved across as one row with byte-identical histograms. Both claims are sightings of
+handles already binding as rules, so the move is to bump `seen:`, not author a new one.
+
+*Claim `147-C1` — a guard/harness proven only against the shape it was written for cannot fail for
+the next; ship it with a recorded red run. type: 2 · handle: `prove-the-guard-fails` · seen: 147 ·
+destination: R6.5.*
+*Claim `147-C2` — where a test needs "every valid adapter", derive the set from the registry, never
+re-list it. type: 2 · handle: `derived-not-listed-invariant` · seen: 147 · destination: R6.7.*
 
 ## 118 — Empty facts at the seam look like an undocumented repo
 

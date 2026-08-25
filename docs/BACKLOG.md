@@ -138,10 +138,11 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 complete — depth before breadth, because a large private PHP monorepo is the anchor for testing *and*
 evaluation (§19). The language *order* is unchanged (§18.2).
 
-**147–149 are `todo`, not deferred, and they are not breadth work.** Two of them fix gates that
-cannot fail today — `tests/contract/` admits exactly one adapter, and the R2.2 framework sweep lists
-only PHP frameworks — and the third names the TS/JS construct inventory R6.2 requires. None parses a
-line of TypeScript, so none of them reorders §19.
+**148–149 are `todo`, not deferred, and they are not breadth work.** 147 **landed** — `tests/contract/`
+is now a per-adapter matrix (a data registry keyed by directory name), so a second adapter enters
+without a fourth copy of the `--file` spawn. 148 still fixes the R2.2 framework sweep (lists only PHP
+frameworks, so it cannot fail for adapter #2) and 149 names the TS/JS construct inventory R6.2 requires
+(now unblocked by 147). None parses a line of TypeScript, so none of them reorders §19.
 
 | # | Task | Milestone | Status | Depends on |
 |---|---|---|---|---|
@@ -149,7 +150,7 @@ line of TypeScript, so none of them reorders §19.
 | 020 | [Python adapter](tasks/020_python-adapter.md) | M8 | deferred | 019 |
 | 021 | [C#/.NET adapter](tasks/021_csharp-adapter.md) | M9 | deferred | 019 |
 | 026 | [Inverse Docker path rebase (adapter #2)](tasks/026_docker-inverse-path-rebase.md) | M7 | deferred | 008, 019 |
-| 147 | [The R3.4 conformance harness is PHP-shaped — `tests/contract/` cannot admit a second adapter](tasks/147_contract-harness-is-php-shaped.md) | M7 | todo | 012, 025 |
+| 147 | [The R3.4 conformance harness is PHP-shaped — `tests/contract/` cannot admit a second adapter](tasks/147_contract-harness-is-php-shaped.md) | M7 | done | 012, 025 |
 | 148 | [The R2.2 framework sweep lists only PHP frameworks — it cannot fail for adapter #2](tasks/148_r22-framework-sweep-cannot-fail-for-adapter-2.md) | M7 | todo | 012, 146 |
 | 149 | [Name the TS/JS construct inventory before any parsing exists](tasks/149_tsjs-construct-inventory.md) | M7 | todo | 147 |
 

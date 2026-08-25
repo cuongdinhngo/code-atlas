@@ -19,6 +19,7 @@ import pytest
 
 from code_atlas.adapter import AdapterError, SubprocessAdapter
 from code_atlas.contract import CONTRACT_VERSION
+from tests.php_adapter_cli import parse_file
 
 ROOT = Path(__file__).resolve().parent.parent
 ADAPTER = ROOT / "adapters" / "php"
@@ -249,16 +250,7 @@ def test_the_server_exits_cleanly_when_its_stdin_closes() -> None:
 @pytest.mark.parametrize("path", [GOOD, OTHER], ids=["namespaced", "global-underscore"])
 def test_both_modes_emit_the_same_result_for_the_same_file(path: str) -> None:
     """One parse implementation behind two entry points — sameness is structural, not a promise."""
-    completed = subprocess.run(
-        [str(PHP), str(ENTRY), "--file", path],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        timeout=60,
-    )
-    assert completed.returncode == 0, completed.stderr
-    from_file = json.loads(completed.stdout)
+    from_file = parse_file(path)
 
     with server() as adapter:
         result = adapter.parse(path)

@@ -172,6 +172,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | 146 | 0 dispatch; main-loop unmeasured (host surfaces no usage block); found while reviewing #170 | [#171](https://github.com/cuongdinhngo/code-atlas/pull/171) |
 | 137 | 0 dispatch; main-loop unmeasured (host surfaces no usage block); review/challenger waived. Three measured commits plus a baseline worktree at 2455835 to prove recall | [#172](https://github.com/cuongdinhngo/code-atlas/pull/172) |
 | 140 | 0 dispatch; main-loop unmeasured (host surfaces no usage block); review/challenger waived. Benchmark run on the pins, not only the fixture, which is what surfaced the empty-module-table case | [#173](https://github.com/cuongdinhngo/code-atlas/pull/173) |
+| 147 | 0 dispatch; main-loop unmeasured (host surfaces no usage block); review/challenger waived. Test-infra only; conformance ran green with PHP present on the dev host | [#174](https://github.com/cuongdinhngo/code-atlas/pull/174) |
 
 **How 047–049 were measured.** One autonomous session, no per-task transcript: each row is the API
 calls between the previous commit and that task's own commit. The approximation runs one way — work

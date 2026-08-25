@@ -6,14 +6,12 @@ cross-adapter conformance matrix; this file owns construct correctness for the P
 
 from __future__ import annotations
 
-import json
 import re
-import subprocess
 from pathlib import Path
 
 from code_atlas import contract
 from code_atlas.contract import CONTRACT_VERSION, EDGE_FIELDS, EDGE_KINDS, NODE_FIELDS, NODE_KINDS
-from tests.php_adapter_cli import ENTRY, PHP, ROOT, needs_php, parse_file
+from tests.php_adapter_cli import needs_php, parse_file
 
 FIXTURE = "tests/fixtures/php/grammar.php"
 
@@ -105,16 +103,7 @@ def test_i2_same_line_anonymous_declarations_get_a_column_suffix(
     line = "class C{public function m(){$a=function(){};$b=function(){};}}"
     fixture = tmp_path / "collide.php"
     fixture.write_text(f"<?php\nnamespace N;\n{line}\n", encoding="utf-8")
-    completed = subprocess.run(
-        [str(PHP), str(ENTRY), "--file", str(fixture)],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        timeout=60,
-    )
-    assert completed.returncode == 0, completed.stderr
-    result = json.loads(completed.stdout)
+    result = parse_file(fixture)
     assert contract.validate(result) == []
     closures = sorted(
         n["qualified_name"] for n in result["nodes"] if n["name"] == "{closure}"
@@ -130,16 +119,7 @@ def test_i2_same_line_anonymous_declarations_get_a_column_suffix(
         f"<?php\nnamespace N;\n{' ' * 4}{line}\n",
         encoding="utf-8",
     )
-    padded_result = json.loads(
-        subprocess.run(
-            [str(PHP), str(ENTRY), "--file", str(padded)],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            timeout=60,
-        ).stdout
-    )
+    padded_result = parse_file(padded)
     padded_closures = sorted(
         n["qualified_name"] for n in padded_result["nodes"] if n["name"] == "{closure}"
     )

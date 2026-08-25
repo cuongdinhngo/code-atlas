@@ -14,9 +14,15 @@ from pathlib import Path
 
 import pytest
 
+from tests.contract.adapter_registry import REGISTRY
+
 ROOT = Path(__file__).resolve().parents[2]
 ADAPTERS = ROOT / "adapters"
 VENDOR = ADAPTERS / "php" / "vendor"
+TESTS = ROOT / "tests"
+CONFORMANCE = TESTS / "contract" / "test_adapter_conformance.py"
+# The one-shot argv literal, assembled so this guard's own source never self-matches.
+SPAWN_TOKEN = '"' + "--" + 'file"'
 
 # Regexes match `.github/workflows/ci.yml` R1.1 / R2.2. Sweeps intentionally match the shell gates'
 # whole-tree scope (every authored file), not a `*.php` / `*.py` subset.
@@ -78,3 +84,31 @@ def test_r22_planted_framework_name_fails(tmp_path: Path) -> None:
     planted = tmp_path / "leak.php"
     planted.write_text("<?php // laravel example\n", encoding="utf-8")
     assert hits_in([planted], FRAMEWORK_NAME) == [planted]
+
+
+def _authored_test_py_files() -> list[Path]:
+    return [
+        path
+        for path in sorted(TESTS.rglob("*.py"))
+        if not any(part in EXCLUDED_DIR_NAMES for part in path.parts)
+    ]
+
+
+def test_ac4_exactly_one_module_spawns_an_adapter_in_one_shot_file_mode() -> None:
+    # 147 AC4: the "fourth copy" the split forbids stays impossible — one `--file` spawn, one place.
+    hits = [p for p in _authored_test_py_files() if SPAWN_TOKEN in p.read_text(encoding="utf-8")]
+    assert [p.name for p in hits] == ["adapter_cli.py"], [str(p.relative_to(ROOT)) for p in hits]
+
+
+def test_ac4_guard_catches_a_planted_second_spawn(tmp_path: Path) -> None:
+    # R6.5 prove-the-guard-fails: a planted second spawn must be seen by the scan.
+    planted = tmp_path / "sneaky_spawn.py"
+    planted.write_text(f"subprocess.run([php, entry, {SPAWN_TOKEN}, rel])\n", encoding="utf-8")
+    assert SPAWN_TOKEN in planted.read_text(encoding="utf-8")
+
+
+def test_ac2_conformance_body_names_no_adapter_directory_literal() -> None:
+    # 147 AC2: a 2nd adapter is a registry row + fixtures, never a literal in the module body.
+    source = CONFORMANCE.read_text(encoding="utf-8")
+    offenders = [name for name in REGISTRY if f'"{name}"' in source]
+    assert offenders == [], offenders
