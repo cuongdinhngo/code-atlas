@@ -150,7 +150,7 @@ adapter's only judge is still its own fixtures (R6.6, R6.3).
 
 | # | Task | Milestone | Status | Depends on |
 |---|---|---|---|---|
-| 019 | [TypeScript/JavaScript adapter + a contract bump](tasks/019_typescript-adapter.md) | M7 | in-progress | 012, 011, 128 |
+| 019 | [TypeScript/JavaScript adapter, no contract bump needed](tasks/019_typescript-adapter.md) | M7 | done | 012, 011, 128 |
 | 020 | [Python adapter](tasks/020_python-adapter.md) | M8 | deferred | 019 |
 | 021 | [C#/.NET adapter](tasks/021_csharp-adapter.md) | M9 | deferred | 019 |
 | 026 | [Inverse Docker path rebase (adapter #2)](tasks/026_docker-inverse-path-rebase.md) | M7 | deferred | 008, 019 |

@@ -4,7 +4,7 @@ slug: typescript-adapter
 title: TypeScript/JavaScript adapter + a contract bump (M7)
 phase: 2
 milestone: M7
-status: in-progress
+status: done
 depends_on: [012, 011, 128, 147, 149]
 ---
 
@@ -78,9 +78,9 @@ The rest were re-cut around what is actually left after this ticket's slices, so
 147 · 148 · 149 were filed and shipped earlier — they fixed gates that were broken with or without
 this ticket.
 
-## Progress — reopened 2026-08-25 (human-ratified)
+## Outcome — reopened and closed 2026-08-25 (human-ratified)
 
-Shipping in slices on `feat/019-typescript-adapter`. §4.4's gate (150) resolved by 128's written
+Shipped in slices on `feat/019-typescript-adapter`, merged as `7424efa` (#179). §4.4's gate (150) resolved by 128's written
 verdict — **no `contract_version` bump, no project-context lifecycle**: the adapter resolves each
 specifier per file and emits the defining module's qname, which the core links RESOLVED as the
 contract stands (so proposed 151 collapsed into "no bump", proven by an empty core diff).
