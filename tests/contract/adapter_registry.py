@@ -12,6 +12,7 @@ from typing import Any
 
 from tests.adapter_cli import AdapterCli
 from tests.php_adapter_cli import CLI as PHP_CLI
+from tests.ts_adapter_cli import CLI as TS_CLI
 
 # filename + frozen kind histograms (None node-hist = syntax-error shape: ok=false, no nodes/edges).
 # Optional exact_edge_shapes pins meaning (kind, target_raw, confidence_tier), not just cardinality.
@@ -157,8 +158,68 @@ PHP_CONFORMANCE = AdapterConformance(
 )
 
 
+# ── TypeScript/JavaScript (task 128 M0 spike) ──────────────────────────────────────────────────
+# Two of 149's named inventory — the pair 128 AC1 asks for. The other 11 constructs are 019's.
+TS_R62_CASES = frozenset({"module-esm", "namespace-declare"})
+
+# Q1 evidence: `::` holds through namespace nesting (Geometry::Circle::area), never TS's `.`.
+_TS_NAMESPACE_EDGE_SHAPES: list[EdgeShape] = [
+    ("CONTAINS", "tests/fixtures/typescript/namespaced.ts::Geometry", None),
+    ("CONTAINS", "tests/fixtures/typescript/namespaced.ts::Geometry::Circle", None),
+    ("CONTAINS", "tests/fixtures/typescript/namespaced.ts::Geometry::Circle::area", None),
+    ("CONTAINS", "tests/fixtures/typescript/namespaced.ts::Geometry::Circle::radius", None),
+    ("CONTAINS", "tests/fixtures/typescript/namespaced.ts::Geometry::Shape", None),
+    ("CONTAINS", "tests/fixtures/typescript/namespaced.ts::Geometry::Shape::area", None),
+    ("CONTAINS", "tests/fixtures/typescript/namespaced.ts::Geometry::Square", None),
+    ("CONTAINS", "tests/fixtures/typescript/namespaced.ts::Geometry::Square::area", None),
+    ("EXTENDS", "tests/fixtures/typescript/namespaced.ts::Geometry::Circle", None),
+    ("IMPLEMENTS", "tests/fixtures/typescript/namespaced.ts::Geometry::Shape", None),
+]
+# Q2 evidence: a same-file target earns its full qname (NEW → ::User, CALLS → ::User::describe)
+# while an imported one stays bare (NEW → Logger, CALLS → log, IMPORTS → ./logger), so the core
+# resolver — not a TS Program — links it. The bare `log` also guards the CALLS-emits-unresolved fix.
+_TS_MODULE_EDGE_SHAPES: list[EdgeShape] = [
+    ("CALLS", "log", None),
+    ("CALLS", "tests/fixtures/typescript/module_scoped.ts::User::describe", None),
+    ("CONTAINS", "tests/fixtures/typescript/module_scoped.ts::Greeter", None),
+    ("CONTAINS", "tests/fixtures/typescript/module_scoped.ts::Greeter::greet", None),
+    ("CONTAINS", "tests/fixtures/typescript/module_scoped.ts::User", None),
+    ("CONTAINS", "tests/fixtures/typescript/module_scoped.ts::User::describe", None),
+    ("CONTAINS", "tests/fixtures/typescript/module_scoped.ts::User::greet", None),
+    ("CONTAINS", "tests/fixtures/typescript/module_scoped.ts::User::name", None),
+    ("CONTAINS", "tests/fixtures/typescript/module_scoped.ts::makeUser", None),
+    ("IMPLEMENTS", "tests/fixtures/typescript/module_scoped.ts::Greeter", None),
+    ("IMPORTS", "./logger", None),
+    ("NEW", "Logger", None),
+    ("NEW", "tests/fixtures/typescript/module_scoped.ts::User", None),
+]
+
+TS_CASES: dict[str, Case] = {
+    "module-esm": Case(
+        "module_scoped.ts",
+        {"File": 1, "Interface": 1, "Class": 1, "Property": 1, "Method": 3, "Function": 1},
+        {"IMPORTS": 1, "CONTAINS": 7, "IMPLEMENTS": 1, "CALLS": 2, "NEW": 2},
+        _TS_MODULE_EDGE_SHAPES,
+    ),
+    "namespace-declare": Case(
+        "namespaced.ts",
+        {"File": 1, "Namespace": 1, "Interface": 1, "Class": 2, "Property": 1, "Method": 3},
+        {"CONTAINS": 8, "EXTENDS": 1, "IMPLEMENTS": 1},
+        _TS_NAMESPACE_EDGE_SHAPES,
+    ),
+}
+
+TS_CONFORMANCE = AdapterConformance(
+    cli=TS_CLI,
+    named_inventory=TS_R62_CASES,
+    excluded_fixtures=frozenset(),
+    cases=TS_CASES,
+)
+
+
 # ── registry ─────────────────────────────────────────────────────────────────────────────────────
 # Keyed by adapter directory name — a 2nd adapter is a new entry here + its fixtures.
 REGISTRY: dict[str, AdapterConformance] = {
     PHP_CONFORMANCE.cli.name: PHP_CONFORMANCE,
+    TS_CONFORMANCE.cli.name: TS_CONFORMANCE,
 }

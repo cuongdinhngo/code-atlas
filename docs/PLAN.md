@@ -199,12 +199,12 @@ Concrete: **one** generic `SubprocessAdapter` — *not* a class per language. It
 
 The core resolves adapters by file suffix — `extension_index(adapters)` builds the map from what the adapters announced, `adapter_for(path, index)` reads it. **That's the only registry — a dict over already-constructed adapters, not a plugin system; the real one waits until the 2nd adapter exists.**
 
-### 4.4 Project-context resolution (an anticipated contract bump, forced by TS/JS)
+### 4.4 Project-context resolution (anticipated as a TS/JS contract bump; 128 found none needed for the spike)
 The v1 protocol is **file-at-a-time** (`parse(path) → {nodes, edges}`), which suits PHP (NameResolver works per file). But the best parsers for **TS/JS (TypeScript Compiler API)** and **C# (Roslyn)** resolve imports/types only against a whole **program / tsconfig / project** — a single file can't see cross-file types or alias mappings. So the contract likely gains, at language #2:
 - an adapter **lifecycle** that loads a project once (`open_project(root)` → hold the program in the sidecar) and answers `parse(path)` against it, so cross-file edges come back `RESOLVED` not `HEURISTIC`;
 - or a **two-pass** mode: adapter emits nodes + `IMPORTS` first, the core builds the file/module map, then asks the adapter to resolve edges with that context.
 
-This is *why* TS/JS is #2 — better to evolve the protocol here than after four languages assume file-at-a-time. PHP/Python keep working under either shape (they just don't need the program context). Bump `contract_version` when this lands.
+This is *why* TS/JS is #2 — better to evolve the protocol here than after four languages assume file-at-a-time. PHP/Python keep working under either shape (they just don't need the program context). A `contract_version` bump was anticipated here — **the 128 spike found it is not needed for structural extraction** (verdict below); it would only be forced by the `semantic_types` path, which is 019.
 
 **Two facts narrow the choice, and both arrived after this section was written (task 128 owns the
 verdict).** First, **one program per worker**: §8.1 fans a language's files across
@@ -216,6 +216,25 @@ there may be **less to resolve than assumed**: the resolver already promotes a u
 (R3.3), so an adapter that resolves a specifier per file earns `RESOLVED` under the contract as it
 stands. Only *inferred* receiver types need more, and task 137 showed a local type table buys those
 without touching the protocol at all.
+
+**Spike verdict (task 128, evidence not anticipation).** The M0 spike built `adapters/typescript/`
+on `ts.createSourceFile` — a syntactic parse, **no `Program`** — and parsed a module-scoped file and a
+namespaced module into contract JSON that `contract.validate()` accepts unchanged (fixtures + histograms
+in `tests/contract/adapter_registry.py`; the mechanics live in task 128, not here).
+
+1. **`MEMBER_SEPARATOR` holds.** Qnames are module-path-anchored (`src/user.ts::User::save`) and `::`
+   joins every member, including a TS `namespace` — `…/namespaced.ts::Geometry::Circle::area`. TS's
+   source-level `.` never enters a qname. The only divergence from PHP is the *root token* (a repo path
+   vs `\Ns`), which the contract already permits (File nodes are path-qnamed). No convention bends.
+2. **Neither §4.4 option is needed — the v1 file-at-a-time protocol survives.** `createSourceFile`
+   yields every node, intra-file edge, and `IMPORTS` (raw specifier as `target_raw`). The adapter
+   resolves *same-file* targets to their full qname (so the core resolver promotes the unique match to
+   `RESOLVED`) and leaves *imported* targets bare for the core to link (R3.3) — the "less to resolve
+   than assumed" fact, confirmed. `open_project`/two-pass is only wanted for *type-inferred* receivers
+   (`semantic_types`), out of scope here.
+3. **No `contract_version` bump.** The spike emits only existing vocabulary and the empty core diff is
+   the proof the abstraction did not leak (R1.1). `CONTRACT_VERSION` stays 8. A bump remains possible at
+   019 **iff** `semantic_types` lands, and would be scoped there.
 
 ---
 

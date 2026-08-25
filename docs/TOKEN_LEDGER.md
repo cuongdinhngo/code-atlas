@@ -175,6 +175,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | 147 | 0 dispatch; main-loop unmeasured (host surfaces no usage block); review/challenger waived. Test-infra only; conformance ran green with PHP present on the dev host | [#174](https://github.com/cuongdinhngo/code-atlas/pull/174) |
 | 148 | 0 dispatch; main-loop unmeasured (host surfaces no usage block); review/challenger waived. One denylist file; ci.yml/gate.sh/pytest derive from it; verified via Docker full suite | [#175](https://github.com/cuongdinhngo/code-atlas/pull/175) |
 | 149 | 0 dispatch; main-loop unmeasured (host surfaces no usage block); review/challenger waived. Docs-only: R6.2 names the TS/JS inventory, per-entry map in the task file | [#176](https://github.com/cuongdinhngo/code-atlas/pull/176) |
+| 128 | 248,338 dispatch (challenger 67,207; reviewer 129,930 + verify 51,201); main-loop unmeasured (host surfaces no usage block). TS/JS M0 spike: new sidecar + 2 fixtures + registry row; core diff empty; §4.4 answered. Delta-green: Docker full suite (2007 passed, TS ran green), dev-host conformance | [#177](https://github.com/cuongdinhngo/code-atlas/pull/177) |
 
 **How 047–049 were measured.** One autonomous session, no per-task transcript: each row is the API
 calls between the previous commit and that task's own commit. The approximation runs one way — work

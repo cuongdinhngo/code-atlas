@@ -29,8 +29,8 @@ and the honest move on a new sighting is to bump `seen:`, not to write a fresh c
 
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
-| `derived-not-listed-invariant` | 16 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148 | **R6.7** |
-| `prove-the-guard-fails` | 13 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148 | **R6.5** |
+| `derived-not-listed-invariant` | 17 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128 | **R6.7** |
+| `prove-the-guard-fails` | 14 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128 | **R6.5** |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | open — **rejected at rec 3; that verdict is stale** |
 | `fixture-shape-begs-the-question` | 7 | 084, 086, 103–106, 121 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
@@ -59,6 +59,33 @@ proposed as a new rule, because R6.3 already owned cross-repo validation and P2 
 this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *claim's* list honest and
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
+
+## 128 — A parser that only emits what it can resolve reports less than the contract asks
+
+The TS/JS M0 spike proved the file-at-a-time contract survives language #2 (`ts.createSourceFile`, no
+Program): `MEMBER_SEPARATOR` holds through `namespace` nesting, same-file targets earn their full
+qname while imports stay bare, no `contract_version` bump — the §4.4 verdict, landed there. The bug the
+review caught was subtler than the design: the `CALLS` branch gated its own *emission* on
+`declared.get(callee)`, so a call to an imported/global name produced **no edge at all** — a stronger
+failure than R3.3 permits, and one no fixture exercised because every fixture call was same-file. The
+fix emits bare (mirroring `NEW`) and adds an imported `log()` call so the conformance case fails
+without it. The pre-pass symbol map is keyed on the bare simple name across the whole file, so three
+`area` methods collide and fall back to bare — safe (no false `RESOLVED`), but a precision limit 019
+must scope per container before it relies on it.
+
+*Claim `128-C1` — an adapter emits every reference it sees and only declines to *resolve*; gating
+edge emission on whether the target is locally known drops what the core was meant to link. type: 2 ·
+handle: `emit-do-not-gate-on-resolution` · status: confirmed · seen: 128 · evidence:
+`adapters/typescript/src/parse.js` CALLS branch, fixture `log()` red-run · destination: open — folds
+into R3.3 if it recurs.*
+*Claim `128-C2` — a same-file name→qname map keyed on the bare simple name collides across
+containers; scope it per container before a later ticket earns `RESOLVED` from it. type: 5 · handle:
+`same-file-symbol-map-scope-per-container` · status: confirmed · seen: 128 · area: adapters ·
+destination: stays in lessons_path.*
+*Claim `128-C3` — the CALLS fix shipped only once a fixture was shown to fail without it. type: 2 ·
+handle: `prove-the-guard-fails` · seen: 128 · destination: R6.5.*
+*Claim `128-C4` — the TS conformance is a registry row; the valid set is `set(adapter.cases)`, never
+re-listed. type: 2 · handle: `derived-not-listed-invariant` · seen: 128 · destination: R6.7.*
 
 ## 149 — Name the spec inventory before the first fixture, or the fixture names the repo
 

@@ -1,0 +1,16 @@
+{
+  "name": "code-atlas-typescript-adapter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "M0 spike: parses TypeScript/JavaScript into the code-atlas contract vocabulary.",
+  "type": "commonjs",
+  "bin": {
+    "code-atlas-typescript-adapter": "index.js"
+  },
+  "scripts": {
+    "start": "node index.js --server"
+  },
+  "dependencies": {
+    "typescript": "5.9.2"
+  }
+}

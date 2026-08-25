@@ -26,7 +26,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 123 | [`file_outline` omitted the symbol under repair, reported `total_count: 10` for a 12-symbol file, and has no page 2](tasks/123_file-outline-total-count-is-the-page-length.md) | Agent-trust | done | 014, 057, 066, 067 |
 | 124 | [`find_orphans` blew the transport limit at 19k files, on the one ticket whose root cause *was* an orphan](tasks/124_find-orphans-cannot-answer-at-scale.md) | Agent-fit | done | 031, 057, 066, 119 |
 | 125 | [No payload names the server build — every field retro is told its own subject by an operator](tasks/125_no-payload-names-the-server-build.md) | Measure | done | 082, 095, 100 |
-| 128 | [TypeScript/JavaScript — M0 spike only, to answer §4.4 with evidence](tasks/128_typescript-adapter-m0-spike.md) | Phase 2 / M7 | todo | 012, 147, 149 |
+| 128 | [TypeScript/JavaScript — M0 spike only, to answer §4.4 with evidence](tasks/128_typescript-adapter-m0-spike.md) | Phase 2 / M7 | done | 012, 147, 149 |
 | 129 | [`include_graph(imports)` is a silent zero for any namespaced file — the INCLUDES edge is anchored on the namespace](tasks/129_include_graph_imports-is-a-silent-zero-for-a-namespaced-file.md) | Agent-trust | done | 121 |
 | 132 | [The doc set costs an agent ~66k tokens before it knows what binds it — give every standing doc a boundary](tasks/132_docs-restructure.md) | Docs | done | — |
 | 133 | [The always-binding read is ~66.5k tokens and most of it is reference — tier the agent chain and gate the tier](tasks/133_agent-chain-is-one-tier.md) | Docs | done | 132 |
@@ -115,9 +115,10 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
   **closed by 131** (front controller now in the first five on `symfony/demo`). Numbers:
   [`benchmarks/121_onboarding-question-class.md`](benchmarks/121_onboarding-question-class.md).
   The **layer graph** is now a mermaid flowchart in `generate_onboarding` markdown ([143](tasks/143_the-system-map-has-no-diagram.md)) — a lookup, which 121 scored. Auto-generated *reading orders* stay unscheduled: a dependency walk is still not a curated syllabus.
-- **128 (TS/JS M0 spike) — prerequisites 147 and 149 are now done.** It stays a *proposal* about
-  §19's ordering, not a decision; Phase 2 breadth stays deferred, and 019 carries the rest of the
-  breakdown unfiled for the same reason. Whoever picks 128 up reads §19 and §4.4 first.
+- **128 (TS/JS M0 spike) has shipped.** `adapters/typescript/` parses on `ts.createSourceFile` (no
+  Program) and the §4.4 verdict is recorded there: `MEMBER_SEPARATOR` holds, file-at-a-time survives
+  language #2, no `contract_version` bump. §19's depth-before-breadth was **not** reopened — the spike
+  only tested the contract; 019 (the full adapter) and Phase 2 breadth stay deferred.
 - **Both things round 6 measured are now closed, and both premises moved.** 135 gave the harness a
   precision axis; the recall gate could not see a wrong answer, and the first thing the axis does is
   fail on 130 ([benchmark](benchmarks/135_precision-axis.md)). 136 broke the HEURISTIC share down by
@@ -142,8 +143,9 @@ evaluation (§19). The language *order* is unchanged (§18.2).
 is a per-adapter matrix (a data registry keyed by directory name); the R2.2 framework sweep is one
 denylist file (extended to the JS ecosystem) that ci.yml, gate.sh and the pytest all derive from, so
 both gates can now fail for adapter #2; and R6.2 names the TS/JS construct inventory (per-entry map in
-task 149). None parsed any TypeScript, so none reordered §19 — **128 is now unblocked but still a
-proposal** the picker weighs against §19's depth-before-breadth decision.
+task 149). **128 then shipped the M0 spike** — a working `adapters/typescript/` sidecar answering
+§4.4 with evidence (separator holds, file-at-a-time survives, no contract bump), the core untouched.
+It did not reopen §19; 019 remains the deferred full adapter.
 
 | # | Task | Milestone | Status | Depends on |
 |---|---|---|---|---|
