@@ -26,15 +26,21 @@ def comment_block(path: Path, line_start: int) -> str:
     return "".join(lines[top - 1 : line_start - 1])
 
 
-def declaration_slice(path: Path, line_start: int, line_end: int) -> str:
-    """Lines ``line_start…line_end`` (1-based, inclusive) plus contiguous comments above."""
+def declaration_slice(
+    path: Path, line_start: int, line_end: int, *, include_comments: bool = True
+) -> str:
+    """Lines ``line_start…line_end`` (1-based, inclusive), with the contiguous comment block above.
+
+    ``include_comments=False`` returns the declaration range alone — no docblock — so the slice
+    matches its own ``line_start``/``line_end`` (read_symbol's ``minimal``, task 163 / 8-H).
+    """
     if not path.is_file():
         return ""
     lines = path.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
     if line_start < 1 or line_start > len(lines):
         return ""
     end = min(max(line_end, line_start), len(lines))
-    top = _comment_top(lines, line_start)
+    top = _comment_top(lines, line_start) if include_comments else line_start
     return "".join(lines[top - 1 : end])
 
 

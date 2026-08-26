@@ -60,6 +60,22 @@ this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *c
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
 
+## 163 — A no-op knob: check the invariant before removing it, or you trade one defect for another
+
+`read_symbol`'s `detail_level` was byte-identical across levels — the ticket's default fix was to
+remove it (YAGNI). But `tests/test_mcp_server.py` enforces an R5 invariant that **every** registered
+tool exposes `detail_level` (`set(declared) == set(TOOL_NAMES)`); removing it from one tool would have
+broken that contract and forced editing a load-bearing invariant. The better fix was to make the knob
+*mean* something — `minimal` drops the docblock — which also closed the 8-H trap (source now matches
+its own line range). The lesson: before deleting a "useless" parameter, grep for the invariant that
+asserts its presence; "remove it" and "make it real" trade differently against the existing contract.
+
+*Claim `163-C1` — before removing a documented-but-inert knob, check for an invariant test that
+asserts its presence across the surface; removing it there trades a no-op for a broken contract, so
+prefer giving the knob real behaviour. type: 2 · handle: `check-the-invariant-before-removing` ·
+status: proposed · seen: 163 · evidence: `test_mcp_server.py` `set(declared) == set(TOOL_NAMES)` would
+fail on read_symbol losing `detail_level` · destination: open — folds into a convention if it recurs.*
+
 ## 162 — Stamp a cross-cutting payload field at each tool's own builder, not at the MCP wrapper
 
 `server_build`/`server_version` had to ride every mechanism answer. The tempting single point was

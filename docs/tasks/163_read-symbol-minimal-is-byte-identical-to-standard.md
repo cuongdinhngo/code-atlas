@@ -4,7 +4,7 @@ slug: read-symbol-minimal-is-byte-identical-to-standard
 title: '`read_symbol` `detail_level: "minimal"` is byte-identical to `standard` — a documented knob that does nothing'
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [014, 066]
 ---
 
@@ -75,3 +75,65 @@ Field retro rounds 7 & 9, finding **7-F** (and touches **8-H** — range vs. doc
 `code_atlas/tools/read_symbol.py:33,226-228,234,260`. Related:
 [014](014_search-read-outline.md) (read_symbol's origin), [066](066_limit-clamped-silently.md)
 (where `minimal` genuinely trims and why it matters).
+
+---
+MANGO WORKING DOC (below this line is NOT part of the raw ticket)
+
+## Session status
+- Phase: finalise (complete). TIER: full. SCOPE: S. CHALLENGER: ON.
+- work_doc_mode: embed (plain local-file ticket).
+- Reviewed at: challenger-only (reviewer waived by run args; challenger ON).
+
+## refine
+PREMISE: 2 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)
+RECALL: 0 claim(s) surfaced | 0 by symbol | 0 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)
+REFINE: 0 unresolved surfaced | 0 want-decision asked | 0 how-decision resolved+cited | 0 ASSUMED | skip: yes
+
+## analysis
+CLARIFICATION: 0 raised | 0 self-resolved (cited) | 0 for human decision
+RULE SECTIONS: 5 applicable — 5 by change-type | 0 by recalled handle — §R7.1 (rulebook) ✅, §R3 (rulebook) ✅, §R4.2 (rulebook) ✅, §061 (task) ✅, §R5 (rulebook) ✅
+SECTIONS: 3 found (Scope, Constraints, Acceptance criteria) | 3 decomposed | ROWS: C=4 R=2 G=1 AC=4
+
+## design — chosen option and why the other was rejected (AC2)
+**Option B chosen** (make `minimal` actually trim), **Option A rejected**. The ticket recommended A
+(remove the knob) by default, but A is not viable here: `tests/test_mcp_server.py` enforces the **R5
+invariant that every registered tool exposes `detail_level`** (`declared_levels()` +
+`set(declared) == set(TOOL_NAMES)`); removing it from `read_symbol` would break that contract and
+force editing a load-bearing invariant. B keeps the uniform surface, makes the knob meaningful, and
+**also closes the 8-H trap**: `minimal`'s `source` is now the declaration range alone, so it matches
+the returned `line_start`/`line_end`, while `standard` keeps the docblock. Implemented with one
+additive `include_comments` flag on `source_slice.declaration_slice` (default `True`, so the
+onboarding read-through caller (118) is unchanged).
+
+EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor
+HANDLES: 0 recalled | 0 traced (command + result) | 0 does not apply (n/a) | 0 unanswered
+
+## execute
+No design-invalidated escalation; no stuck-detector trips. All ACs met.
+
+## review (challenger-only — reviewer waived)
+CHALLENGER: ON. Ticket-blind challenger verdict: **PASS**. AC1/AC3/AC4 MET with path:line; AC2
+(record the chosen option + rejection reason) it marked CAN'T TELL only because it may not read this
+working doc — recorded above. All constraints (R3 no bump, R4.2 determinism, R5 invariant intact,
+8-H closed, R7.1 additive) MET; no scope creep. It also caught a stale `PLAN.md` read_symbol row,
+now corrected. Result: clean (reviewer only — CHALLENGER: ON).
+
+### Cost-ledger
+| phase | dispatch | round | tokens |
+|---|---|---|---|
+| review | challenger (ticket-blind) | 1 | 55,210 |
+
+main-loop: unmeasured (host surfaces no usage block).
+
+## finalise
+Delta-green in Docker (`scripts/docker-test.sh`, linux): pytest 2083 passed / 1 skipped / 0 failed;
+`gate.sh` in-container — ruff · mypy · pytest · tokens-to-answer (ratio ≥ 0.63) · R1.1/R2.2/R4.1
+grep-gates · php -l · composer validate all PASS; phpstan `[OK]` with dev deps. Doc budgets intact
+(PLAN 24000/24000, BACKLOG under).
+
+CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified
+FALSIFY: 1 candidate(s) checked | 1 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)
+RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)
+RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (none) | 0 left in lessons_path
+PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0
+LEDGER TOTAL: 55210 · top cost driver: review/challenger

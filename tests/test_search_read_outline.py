@@ -158,7 +158,7 @@ def test_read_symbol_returns_only_target_plus_docblock(tmp_path: Path, store: Gr
     report = full_build(config, store)
     assert report.parsed == 1 and report.failed == 0
     bound = replace(db_config(tmp_path), root=tmp_path)
-    result = read_symbol.create(bound)("\\App\\Doc::save", detail_level="minimal")
+    result = read_symbol.create(bound)("\\App\\Doc::save", detail_level="standard")
     assert result["found"] is True
     assert result["stale"] is False
     source = str(result["source"])
@@ -167,6 +167,14 @@ def test_read_symbol_returns_only_target_plus_docblock(tmp_path: Path, store: Gr
     assert "function other" not in source
     whole = php.read_text(encoding="utf-8")
     assert len(source) < len(whole)
+    # 163: minimal drops the docblock and matches its own line range (the 8-H fix).
+    minimal = read_symbol.create(bound)("\\App\\Doc::save", detail_level="minimal")
+    min_source = str(minimal["source"])
+    assert "Saves the doc" not in min_source
+    assert "function save" in min_source
+    assert len(min_source) < len(source)
+    span = int(minimal["line_end"]) - int(minimal["line_start"]) + 1
+    assert len(min_source.splitlines()) == span
 
 
 @needs_php

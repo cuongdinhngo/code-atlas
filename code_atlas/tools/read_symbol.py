@@ -40,7 +40,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     def read_symbol(qname: str, detail_level: DetailLevel = "standard") -> dict[str, object]:
         """Read just one symbol's source and its doc comment, without opening the whole file.
 
-        Returns ``line_start…line_end`` for ``qname`` plus contiguous comments above. On hash drift,
+        ``standard`` returns ``line_start…line_end`` for ``qname`` plus the contiguous comment
+        block above it; ``minimal`` returns the declaration range alone (no docblock), so ``source``
+        matches the returned ``line_start``/``line_end`` (163). On hash drift,
         reparses that one file inline (035); returns ``stale: true`` and ``reason=index_stale`` when
         the file is missing, no adapter owns it, or repair fails. Stub-indexed nodes carry
         ``stub: true`` (039). A qname with more than one definition returns
@@ -122,7 +124,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             start = start_raw
             end_raw = node["line_end"]
             end = end_raw if isinstance(end_raw, int) else start
-            source = _slice(path, start, end)
+            source = _slice(path, start, end, detail_level)
             return _result(
                 qname,
                 source,
@@ -224,9 +226,15 @@ def _miss_result(
     )
 
 
-def _slice(path: Path, line_start: int, line_end: int) -> str:
-    """Lines ``line_start…line_end`` (1-based, inclusive) plus contiguous comments above."""
-    return declaration_slice(path, line_start, line_end)
+def _slice(path: Path, line_start: int, line_end: int, detail_level: str) -> str:
+    """``standard`` = declaration + docblock above; ``minimal`` = the declaration range alone (163).
+
+    ``minimal``'s slice matches its own ``line_start``/``line_end``, closing the 8-H mismatch where
+    ``source`` silently carried the comment block the range did not name.
+    """
+    return declaration_slice(
+        path, line_start, line_end, include_comments=detail_level != "minimal"
+    )
 
 
 def _empty(

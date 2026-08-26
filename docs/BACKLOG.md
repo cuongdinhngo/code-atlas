@@ -42,7 +42,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 160 | [A zero answer never names the index language coverage — a false negative wears a modelled zero's clothes](tasks/160_a-zero-answer-never-names-the-index-language-coverage.md) | Agent-trust | todo | 065, 129, 093, 159 |
 | 161 | [`impact` binds a shared qname to one arbitrary twin at tier RESOLVED, and carries no freshness field](tasks/161_impact-resolves-a-shared-qname-to-one-twin-and-carries-no-freshness.md) | Agent-trust | todo | 017, 070, 078, 077 |
 | 162 | [A build swap is invisible on every payload but `get_index_status` — carry a cheap `server_build` stamp](tasks/162_a-build-swap-is-invisible-on-every-payload-but-get-index-status.md) | Agent-trust | done | 125, 077, 100 |
-| 163 | [`read_symbol` `detail_level: "minimal"` is byte-identical to `standard` — a documented knob that does nothing](tasks/163_read-symbol-minimal-is-byte-identical-to-standard.md) | Agent-trust | todo | 014, 066 |
+| 163 | [`read_symbol` `detail_level: "minimal"` is byte-identical to `standard` — a documented knob that does nothing](tasks/163_read-symbol-minimal-is-byte-identical-to-standard.md) | Agent-trust | done | 014, 066 |
 
 ## Open work — Pillar 2 · Onboarding
 
