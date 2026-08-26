@@ -10,6 +10,7 @@ from typing import Literal, NamedTuple
 from code_atlas.config import Config
 from code_atlas.store import GraphStore
 from code_atlas.tools.nav_result import (
+    REASON_NO_MATCHES,
     REASON_RELATIONSHIP_NOT_MODELLED,
     TRY_INSTEAD_HINT_PATH_BASENAME,
     attach_try_instead,
@@ -68,15 +69,15 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         try_instead_hint: str | None = None
         with GraphStore(config.db_path) as store:
             outcome = _graph(store, rel, direction=direction, hops=depth, limit=limit)
-            if (
-                direction in ("imported_by", "both")
-                and not outcome.results
-                and store.count_unlinked_includes_mentioning(PurePosixPath(rel).name) > 0
-            ):
-                reason = REASON_RELATIONSHIP_NOT_MODELLED
-                # Hint only, no route: no registered tool reads unlinked include text, and
-                # search_symbol would answer reason=ok without the includer (093 review).
-                try_instead_hint = TRY_INSTEAD_HINT_PATH_BASENAME
+            if direction in ("imported_by", "both") and not outcome.results:
+                # Never a bare inbound zero (9-B, 160). Unlinked text that mentions this file ⇒ the
+                # relationship exists but is not modelled, with a hint; otherwise it is a genuine
+                # zero named no_matches — not "not modelled" (065 keeps that distinction).
+                if store.count_unlinked_includes_mentioning(PurePosixPath(rel).name) > 0:
+                    reason = REASON_RELATIONSHIP_NOT_MODELLED
+                    try_instead_hint = TRY_INSTEAD_HINT_PATH_BASENAME
+                else:
+                    reason = REASON_NO_MATCHES
         payload = nav_result(
             rel,
             outcome.results,

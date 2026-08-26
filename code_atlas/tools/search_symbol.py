@@ -8,6 +8,7 @@ from typing import Literal, NamedTuple
 from code_atlas import contract
 from code_atlas.config import Config, clamp_limit, clamp_subjects
 from code_atlas.store import GraphStore, Row
+from code_atlas.tools.coverage import attach_coverage_gap, attach_coverage_note
 from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
     REASON_INDEX_STALE,
@@ -131,13 +132,16 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 for subject in kept
             ]
         if not batched:
-            return _single_payload(
-                found[0],
-                detail_level=detail_level,
-                db_path=db_path,
-                index_root=index_root,
-                cap=cap,
-                limit_clamped=limit_clamped,
+            return attach_coverage_note(
+                _single_payload(
+                    found[0],
+                    detail_level=detail_level,
+                    db_path=db_path,
+                    index_root=index_root,
+                    cap=cap,
+                    limit_clamped=limit_clamped,
+                ),
+                config,
             )
         answers = [
             _batch_answer(subject, hits) for subject, hits in zip(kept, found, strict=True)
@@ -145,6 +149,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         payload = batch_result(answers, index_root=index_root)
         attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
         attach_subjects_capped(payload, cap=config.max_subjects, dropped=dropped)
+        # A swept miss is the same 8-A shape as a single one: name the coverage gap once on the
+        # envelope (call-level, never per subject — 061) when any subject came back a genuine zero.
+        if any(not a["results"] and a["reason"] == REASON_NO_MATCHES for a in answers):
+            attach_coverage_gap(payload, config)
         return payload
 
     return search_symbol

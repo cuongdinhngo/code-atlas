@@ -60,6 +60,24 @@ this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *c
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
 
+## 160 — A self-gating, idempotent post-processor adds a cross-cutting field across many exits
+
+A tool like `find_references` has ~4 return points (not-indexed, stale, exact-miss, final). Threading
+a new "name the coverage gap on a zero answer" field through each is error-prone. The clean shape is a
+self-gating, idempotent helper — `attach_coverage_note` returns the payload untouched unless it is
+indexed, empty, and a genuine-absence reason — so it is safe to call at *every* return point, and the
+gate lives in one place, not scattered across each caller. The ticket-blind challenger still earned
+its keep: it found the one path the pattern missed — the `search_symbol` **batch/sweep** envelope,
+which builds answers by a different route than the single-subject path — reproducing the same 8-A
+miss through the sweep API. Coverage must follow *every* entry point a tool advertises, not just the
+scalar one.
+
+*Claim `160-C1` — to add a cross-cutting field to a tool with several early returns, make the attach
+self-gating and idempotent so it is safe at every exit; then audit every ENTRY point too (scalar vs
+batch build answers differently). type: 2 · handle: `self-gating-attach-audit-every-entry` · status:
+proposed · seen: 160 · evidence: single-subject paths were covered; the queries=[...] sweep envelope
+was missed until the challenger flagged it · destination: open — folds into a convention if it recurs.*
+
 ## 159 — A capability invisible from inside the running server is indistinguishable from absent
 
 Round 8 built adapter #2 and it contributed nothing, not for lack of capability but because the

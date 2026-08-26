@@ -9,6 +9,7 @@ from code_atlas.config import Config, clamp_limit
 from code_atlas.contract import UNMODELLED_REFERENCE_KINDS
 from code_atlas.store import GraphStore
 from code_atlas.tools import call_site, claim
+from code_atlas.tools.coverage import attach_coverage_note
 from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
     REASON_INDEX_STALE,
@@ -149,7 +150,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         reason=REASON_NO_SUCH_SYMBOL,
                         total_count=0,
                     )
-                    return signed(shape_exact_miss(miss, resolution))
+                    return signed(attach_coverage_note(shape_exact_miss(miss, resolution), config))
                 lookup = repointed
                 total_count = store.count_edges_by_target(lookup)
                 nodes = store.nodes_by_qualified_name(lookup, limit=config.max_results)
@@ -200,6 +201,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         attach_resolved_qname(result, asked=asked, answered=lookup)
         if results and all(hit.get("confidence_tier") == "DYNAMIC" for hit in results):
             result["authoritative"] = False
-        return signed(attach_try_instead(result, try_instead, try_instead_hint))
+        return signed(
+            attach_coverage_note(
+                attach_try_instead(result, try_instead, try_instead_hint), config
+            )
+        )
 
     return find_references

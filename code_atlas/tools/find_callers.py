@@ -10,6 +10,7 @@ from code_atlas.config import Config, clamp_limit
 from code_atlas.contract import ARG_SELECTORS, CALLER_KINDS, CONFIDENCE_TIERS, split_qname
 from code_atlas.store import GraphStore
 from code_atlas.tools import call_site, claim
+from code_atlas.tools.coverage import attach_coverage_note
 from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
     REASON_BARE_NAME_TRUNCATED,
@@ -196,7 +197,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     if unrecorded is not None:
                         miss["args_unrecorded"] = unrecorded
                     attach_limit_capped(miss, cap=cap, clamped=limit_clamped)
-                    return signed(shape_exact_miss(miss, resolution))
+                    return signed(attach_coverage_note(shape_exact_miss(miss, resolution), config))
                 lookup = repointed
                 outcome = _callers(
                     store, lookup, hops=depth, limit=cap, offset=offset, args_at=args_at
@@ -254,7 +255,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         attach_ambiguous_definitions(result, definition_sites(subject_nodes))
         attach_limit_capped(result, cap=cap, clamped=limit_clamped)
         attach_resolved_qname(result, asked=asked, answered=lookup)
-        return signed(result)
+        return signed(attach_coverage_note(result, config))
 
     return find_callers
 

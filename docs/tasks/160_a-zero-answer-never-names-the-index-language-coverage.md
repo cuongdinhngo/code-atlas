@@ -4,7 +4,7 @@ slug: a-zero-answer-never-names-the-index-language-coverage
 title: 'A zero answer never names the index language coverage — a false negative wears a modelled zero''s clothes'
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [065, 129, 093, 159]
 ---
 
@@ -96,3 +96,70 @@ Field retro rounds 8–9, findings **8-A** / **9-C** (language coverage in zero 
 exception), [129](129_include_graph_imports-is-a-silent-zero-for-a-namespaced-file.md) (the imports-side
 silent zero), [093](093_try-instead-is-not-a-callable-tool-name.md). Shares its coverage source of
 truth with [159](159_get-index-status-does-not-name-available-but-unconfigured-adapters.md).
+
+---
+MANGO WORKING DOC (below this line is NOT part of the raw ticket)
+
+## Session status
+- Phase: finalise (complete). TIER: full. SCOPE: M. CHALLENGER: ON.
+- work_doc_mode: embed (plain local-file ticket).
+- Reviewed at: challenger-only (reviewer waived by run args; challenger ON).
+
+## refine
+PREMISE: 4 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)
+RECALL: 0 claim(s) surfaced | 0 by symbol | 0 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)
+REFINE: 0 unresolved surfaced | 0 want-decision asked | 0 how-decision resolved+cited | 0 ASSUMED | skip: yes
+
+## analysis
+CLARIFICATION: 0 raised | 0 self-resolved (cited) | 0 for human decision
+RULE SECTIONS: 4 applicable — 4 by change-type | 0 by recalled handle — §R1.1 (rulebook) ✅, §R3 (rulebook) ✅, §061 (task) ✅, §R4.2 (rulebook) ✅
+SECTIONS: 3 found (Scope, Constraints, Acceptance criteria) | 3 decomposed | ROWS: C=4 R=3 G=1 AC=5
+
+## design
+`coverage.attach_coverage_note` attaches `unconfigured_adapters` (159's shared source) to an
+**indexed, empty, no_matches/no_such_symbol** answer — self-gating and idempotent, so it is safe at
+every return point of search_symbol / find_references / find_callers / find_implementations /
+find_view_data (single-subject). The batch/sweep envelope gets it via `attach_coverage_gap` when any
+swept subject came back empty (AC1e). The note names what the index does NOT cover — never the
+subject's own language (out of scope). include_graph inbound: an empty answer is never bare —
+`no_matches` for a genuine zero, `relationship_not_modelled` (+hint) when unlinked text mentions the
+file (keeps 065's distinction; closes 9-B). No new NAV_REASONS member, no contract bump (R3).
+
+**9-C (substring-at-`reason: ok`) — deferred, recorded.** The `storeCRM`→`restoreCRM` case is a
+*non-empty* answer, so attaching the note there changes confident-answer semantics and interacts with
+pagination (which page holds the exact hit). It is a "Consider / design call" in the ticket, not a
+numbered AC. Deferred as a distinct follow-up; the numbered ACs (empty answers + include_graph) are
+landed. `attach_coverage_gap` is the reusable seam a future 9-C fix would call.
+
+EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor
+HANDLES: 0 recalled | 0 traced (command + result) | 0 does not apply (n/a) | 0 unanswered
+
+## execute
+No design-invalidated escalation; no stuck-detector trips. AC1 (empty), AC2, AC3, AC4, AC5 met.
+
+## review (challenger-only — reviewer waived)
+CHALLENGER: ON. First pass verdict: mostly PASS but flagged **AC1e** — the search_symbol batch/sweep
+path (`queries=[...]`) did not carry the note, reproducing 8-A through the sweep API — and a docstring
+on `attach_coverage_gap` that claimed a 9-C wiring that did not exist. Both addressed in response:
+the batch envelope now attaches the gap (search_symbol.py, pinned by
+`test_search_symbol_sweep_names_the_coverage_gap`); the docstring now describes its real callers. All
+other ACs it judged MET with path:line. Result after fixes: clean (reviewer only — CHALLENGER: ON).
+
+### Cost-ledger
+| phase | dispatch | round | tokens |
+|---|---|---|---|
+| review | challenger (ticket-blind) | 1 | 104,253 |
+
+main-loop: unmeasured (host surfaces no usage block).
+
+## finalise
+Delta-green in Docker (`scripts/docker-test.sh`, linux): pytest 2102 passed / 1 skipped / 0 failed;
+`gate.sh` in-container — ruff · mypy · pytest · tokens-to-answer (ratio ≥ 0.63) · R1.1/R2.2/R4.1
+grep-gates · php -l · composer validate all PASS; phpstan `[OK]` with dev deps. Docs within budget.
+
+CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified
+FALSIFY: 1 candidate(s) checked | 1 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)
+RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)
+RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (none) | 0 left in lessons_path
+PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0
+LEDGER TOTAL: 104253 · top cost driver: review/challenger
