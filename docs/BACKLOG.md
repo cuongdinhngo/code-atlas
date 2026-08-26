@@ -37,6 +37,12 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 140 | [`impact` answers in symbols, and the decision is module-shaped — 500 rows at ~160 KB is the only answer today](tasks/140_impact-answers-in-symbols-not-modules.md) | Agent-fit | done | 017, 112, 114, 124 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 142 | [The supervision question class was never put through the harness — 121's lesson, one phase later](tasks/142_supervision-question-class-has-no-baseline.md) | Measure | done | 034, 055, 121, 135 |
+| 158 | [The mandated caller sweep is a habit, not a trigger — routing suggestions fire on index state, never on the question](tasks/158_routing-suggestions-fire-on-index-state-not-on-the-question.md) | Agent-fit | todo | 081, 099, 069 |
+| 159 | [An adapter ships in-repo but is invisible until an env var is set — nothing in any payload says it exists](tasks/159_get-index-status-does-not-name-available-but-unconfigured-adapters.md) | Adoption | todo | 064, 028, 095 |
+| 160 | [A zero answer never names the index language coverage — a false negative wears a modelled zero's clothes](tasks/160_a-zero-answer-never-names-the-index-language-coverage.md) | Agent-trust | todo | 065, 129, 093, 159 |
+| 161 | [`impact` binds a shared qname to one arbitrary twin at tier RESOLVED, and carries no freshness field](tasks/161_impact-resolves-a-shared-qname-to-one-twin-and-carries-no-freshness.md) | Agent-trust | todo | 017, 070, 078, 077 |
+| 162 | [A build swap is invisible on every payload but `get_index_status` — carry a cheap `server_build` stamp](tasks/162_a-build-swap-is-invisible-on-every-payload-but-get-index-status.md) | Agent-trust | todo | 125, 077, 100 |
+| 163 | [`read_symbol` `detail_level: "minimal"` is byte-identical to `standard` — a documented knob that does nothing](tasks/163_read-symbol-minimal-is-byte-identical-to-standard.md) | Agent-trust | todo | 014, 066 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -96,6 +102,7 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | 6 (2026-08-21) | 122–125 | closed — all four payload honesty, none a graph defect |
 | 7 (2026-08-23) | 126 · 127 | closed — 127 closed **119** in the same change |
 | Phase 3 cost gate | 121 → 129 · 130 · 131 | 121 · 129 · 130 · 131 done |
+| 8–9 (2026-08-25/26) | 158–163 · 022 | open — first TS/JS field rounds on the anchor: routing miss repeated (158), adapter invisible (159), zero answers silent on coverage (160), `impact` binds a shared qname to one twin (161), build swap invisible off `sign` (162), `read_symbol` `minimal` is a no-op (163); SQL/schema-state deferred (022). Assessed and **declined**: 9-E (`dirty_indexed_files` is uncommitted-drift by design, 047 — `0` was correct), 7-A (`authoritative` mitigation already landed) |
 | Architecture review (2026-08-23) | 138–142 · 143–145 | 138 · 139 · 142 · 144 · **145A** done (artifact.json versioned); **143** layer mermaid; **142** class baseline measured ([benchmark](benchmarks/142_supervision-question-class.md)); 141 gated at n = 0; 145B deferred (stack not chosen; 118 no longer blocks) |
 
 **What still governs open work:**
@@ -153,6 +160,7 @@ adapter's only judge is still its own fixtures (R6.6, R6.3).
 | 019 | [TypeScript/JavaScript adapter, no contract bump needed](tasks/019_typescript-adapter.md) | M7 | done | 012, 011, 128 |
 | 020 | [Python adapter](tasks/020_python-adapter.md) | M8 | deferred | 019 |
 | 021 | [C#/.NET adapter](tasks/021_csharp-adapter.md) | M9 | deferred | 019 |
+| 022 | [SQL / DB-schema awareness — a fifth capability, distinct in kind](tasks/022_sql-schema-adapter.md) | M9+ | deferred | 019, 020, 021 |
 | 026 | [Inverse Docker path rebase (adapter #2)](tasks/026_docker-inverse-path-rebase.md) | M7 | deferred | 008, 019 |
 | 147 | [The R3.4 conformance harness is PHP-shaped — `tests/contract/` cannot admit a second adapter](tasks/147_contract-harness-is-php-shaped.md) | M7 | done | 012, 025 |
 | 148 | [The R2.2 framework sweep lists only PHP frameworks — it cannot fail for adapter #2](tasks/148_r22-framework-sweep-cannot-fail-for-adapter-2.md) | M7 | done | 012, 146 |
@@ -291,6 +299,7 @@ memory run, the founding-premise benchmark), [`FEEDBACK.md`](FEEDBACK.md) (exter
 | Field **interview** (2026-08-14) | 099–101 (+098 gated) | Retracted the round's headline, and found what four rounds of routing work had missed: **all three decisions made without the graph wanted one line inside a `Read` already happening** |
 | Measured while building 100 | 102 | `impact` returns `results=0 seeds_dropped=0` for a subject not in the index — the identical pair a genuine modelled zero returns |
 | PLAN §19 threats paragraph | 074 | The founding-premise benchmark ran one mechanism question twice and got opposite verdicts, the denied run right — the only datapoint suggesting the index costs *accuracy* |
+| Field retro 8–9 (2026-08-25/26) | 158–163, 022 | First TS/JS field rounds. Accuracy high (7/8, 13/13), value low: 0 critical-path artifacts in round 8. The gap is routing (the mandated caller sweep run as `grep`, twice), reach/coverage (adapter #2 shipped but never wired, invisible from the server), and honesty (zero answers silent on language coverage; `impact` bound a shared global to its `legacy/` twin at tier `RESOLVED`). DB-schema state (FIELD-959) is out of a symbol index's scope → 022 deferred |
 
 Two notes that still govern open work, beyond the constraints listed above:
 

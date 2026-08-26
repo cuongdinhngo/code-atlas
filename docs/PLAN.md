@@ -107,6 +107,8 @@ Per-language, pick the best parser; do **not** force one parser across all langu
 | 3 | Python | **`ast`** builtin + `jedi` | Zero-dependency parse; `jedi` for import/name resolution. Popular, cheap to add once the contract is hardened. |
 | 4 | C#/.NET | **Roslyn** (.NET sidecar) | Full **semantic model** → precise type/call/ref edges. Last: its namespace+FQN model is close to PHP's, so it *confirms* rather than reshapes the contract. |
 
+**A fifth capability under consideration — SQL / DB-schema awareness** (task 022, deferred, evidence-gated). Schema and migration facts are *not* source symbols and would need contract vocabulary of their own (R3), so this sits behind 022's gate, **not** in the roll-out order above. Two field-retro rounds (8–9) decided a schema-state ticket the symbol index could not touch — and the same rounds classify DB schema state as out of scope for a symbol index, which is why it is a question, not a plan item.
+
 Rejected globally:
 - **tree-sitter everywhere** — grammar lags releases (misparses PHP 8.5); forces hand-written resolution (the hard part) per language.
 - **Wrapping LSPs as the core** — existing LSP-based tools already do that; an LSP indexing 100k+ files *live* is the sluggishness we're avoiding. (An adapter *may* wrap an LSP internally if that's a language's best option, but the core stays index-based.)
@@ -720,6 +722,9 @@ viewer, §14). Still open:
    §13 says they are not substitutes and the founding-premise benchmark could not make an agent
    choose between them, so this stays a per-installation preference rather than a project decision.
 3. **TS/JS validation repos** — unresolved, and only becomes live at M7.
+4. **Schema-state awareness** — should code-atlas answer DB schema/migration questions at all
+   (task 022), or is that permanently a runtime `INFORMATION_SCHEMA` job no static index should
+   pretend to own? Raised by field retro rounds 8–9 (FIELD-959).
 
 ---
 
