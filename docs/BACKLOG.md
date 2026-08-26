@@ -43,6 +43,10 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 161 | [`impact` binds a shared qname to one arbitrary twin at tier RESOLVED, and carries no freshness field](tasks/161_impact-resolves-a-shared-qname-to-one-twin-and-carries-no-freshness.md) | Agent-trust | done | 017, 070, 078, 077 |
 | 162 | [A build swap is invisible on every payload but `get_index_status` — carry a cheap `server_build` stamp](tasks/162_a-build-swap-is-invisible-on-every-payload-but-get-index-status.md) | Agent-trust | done | 125, 077, 100 |
 | 163 | [`read_symbol` `detail_level: "minimal"` is byte-identical to `standard` — a documented knob that does nothing](tasks/163_read-symbol-minimal-is-byte-identical-to-standard.md) | Agent-trust | done | 014, 066 |
+| 164 | [`server_build` names the repo HEAD, not the code the process loaded](tasks/164_server-build-names-the-repo-not-the-running-process.md) | Agent-trust | todo | 162, 125, 100 |
+| 165 | [`find_callers` on a qualified twin silently omits callers bound to its sibling, and says `reason: "ok"`](tasks/165_find-callers-splits-across-twins-and-says-reason-ok.md) | Agent-trust | todo | 013, 054, 161, 122 |
+| 166 | [`read_symbol` answers from the pre-repair state and calls it `no_such_symbol`](tasks/166_read-symbol-answers-from-pre-repair-state-and-calls-it-no-such-symbol.md) | Agent-trust | todo | 035, 014, 065 |
+| 167 | [A substring near-miss is returned at `reason: "ok"`](tasks/167_a-substring-near-miss-is-reported-as-reason-ok.md) | Agent-trust | todo | 014, 160, 093 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -102,35 +106,26 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | 6 (2026-08-21) | 122–125 | closed — all four payload honesty, none a graph defect |
 | 7 (2026-08-23) | 126 · 127 | closed — 127 closed **119** in the same change |
 | Phase 3 cost gate | 121 → 129 · 130 · 131 | 121 · 129 · 130 · 131 done |
-| 8–9 (2026-08-25/26) | 158–163 · 022 | open — first TS/JS field rounds: routing (158), adapter invisible (159), coverage-silent zeros (160), shared-qname twin bind (161), build stamp (162), `minimal` no-op (163); SQL deferred (022). Declined: 9-E (047, by design), 7-A (already landed) |
+| 8–9 (2026-08-25/26) | 158–163 · 022 | closed — all six shipped in one day and **all six verify on fresh code** (round 10 §12); SQL deferred (022) |
+| 10 (2026-08-26) | 164–167 | open — the verification round: 0 of 6 prior fixes reached a long-lived process, because `server_build` names the repo, not the loaded code (**164**, the round's one requested change). Then 165 · 166 · 167. Roll-out is the named binding constraint and is not a code ticket |
 | Architecture review (2026-08-23) | 138–142 · 143–145 | 138 · 139 · 142 · 144 · **145A** done (artifact.json versioned); **143** layer mermaid; **142** class baseline measured ([benchmark](benchmarks/142_supervision-question-class.md)); 141 gated at n = 0; 145B deferred (stack not chosen; 118 no longer blocks) |
 
 **What still governs open work:**
 
-- **098 is `deferred` behind an evidence gate, not queued.** The demand is real (first production
-  user), but the relation is that repo's shape, and a general server cannot spend schema on **n = 1**.
-  The gate is in the ticket: a second independent repo, zero cost when undeclared, a cheaper
-  alternative rejected in writing. **120** shipped after maintainer ratification (anchor, n = 1).
-- **104 stays `blocked` because 105 superseded its approach** (dominant subtree elected by graph mass,
-  not file count — proven on the three pinned repos), not because it waits on anything. Its AC2 names
-  the anchor monorepo, and three public repos are not that repo.
-- **121's verdict is split, and it narrows the phase.** Cheap and correct where the question is a
-  lookup (12/12, recall 1.0); the lint/bootstrap tour opening is **closed by 131**. Numbers:
-  [`benchmarks/121_onboarding-question-class.md`](benchmarks/121_onboarding-question-class.md). The
-  layer graph is now a mermaid flowchart ([143](tasks/143_the-system-map-has-no-diagram.md)); auto
+- **098 is `deferred` behind an evidence gate, not queued** — a general server cannot spend schema on
+  **n = 1**; the gate itself is in the ticket. **120** shipped after maintainer ratification.
+- **104 stays `blocked` because 105 superseded its approach**, not because it waits on anything. Its
+  AC2 names the anchor monorepo, and three public repos are not that repo.
+- **121 closed the Phase-3 cost gate** ([benchmark](benchmarks/121_onboarding-question-class.md)); auto
   *reading orders* stay unscheduled — a dependency walk is not a curated syllabus.
-- **Both things round 6 measured are now closed, and both premises moved.** 135 gave the harness a
-  precision axis, and the first thing it does is fail on 130
-  ([benchmark](benchmarks/135_precision-axis.md)). 136 broke the HEURISTIC share down by cause — the
-  driver is local type information (≥99 %), hence **137** with a measured target per pin
-  ([benchmark](benchmarks/136_heuristic-causes.md)).
+- **Round 6's two measurements are closed** — 135's precision axis
+  ([benchmark](benchmarks/135_precision-axis.md)) and 136's HEURISTIC-cause split, whose ≥99 % driver is
+  local type information ([benchmark](benchmarks/136_heuristic-causes.md)), hence **137**.
 - **074 must not claim** an answer-quality comparison against a language server: the anchor's LSP was
-  uninstalled and invoked zero times in 84 calls, so 19 % measures adoption, not capability. Still
-  needs the anchor repo; round 5 is its n = 1 (*helped, narrowly*).
-- **142 measured the supervision question-class:** five of six members cheap and correct (recall 1.0,
-  precision 1.0 where a population exists); the sixth — the minimum acyclic cut-edge set — is answered
-  by **no tool**, which **is** evidence for 141's gate item 3
-  ([benchmark](benchmarks/142_supervision-question-class.md)). 141 stays `deferred` at n = 0.
+  never invoked, so its 19 % measures adoption, not capability. Round 5 is its n = 1.
+- **142's sixth member — the minimum acyclic cut-edge set — is answered by no tool**, which is evidence
+  for 141's gate item 3 ([benchmark](benchmarks/142_supervision-question-class.md)). 141 stays
+  `deferred` at n = 0.
 - **M10–M12 are complete** — 22 tools on the surface — and the 108–117 reshape is complete: the map
   renders from 112's dataset alone. Detail: [`ROADMAP.md`](phase3-onboarding/ROADMAP.md).
 
@@ -140,11 +135,11 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 agent-loop, because a large private PHP monorepo is the anchor for testing *and* evaluation (§19). The
 language *order* is unchanged (§18.2). Adapter #2's prerequisites all landed — 147, 148, 149, 128.
 
-**019 was reopened by human ratification (2026-08-25)** and its remaining scope is **filed as
-150–157** — the breakdown in the task had been parked "NOT filed" pending exactly that ratification,
-and its proposed 150/151 collapsed into the no-bump verdict. **151 landed with 019** — `obj.method()` emitted no edge
-at all (`128-C1` on the member branch); 22 → 96 CALLS edges on four real JS files. **150 is next:** the
-adapter's only judge is still its own fixtures (R6.6, R6.3).
+**019 was reopened by human ratification (2026-08-25)**; its remaining scope is filed as **150–157**,
+and **151 landed with it** (`obj.method()` emitted no edge at all — 22 → 96 CALLS edges on four real JS
+files). **150 is next:** the adapter's only judge is still its own fixtures (R6.6, R6.3). Three rounds
+running it has contributed **zero** to the anchor repo — never wired there; a roll-out finding, not an
+adapter one (round 10 §13).
 
 | # | Task | Milestone | Status | Depends on |
 |---|---|---|---|---|
