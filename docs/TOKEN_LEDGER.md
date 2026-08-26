@@ -184,3 +184,4 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 calls between the previous commit and that task's own commit. The approximation runs one way — work
 interleaved across tasks lands in whichever segment it finished in (049 is the known case).
 
+| 162 | 78,854 dispatch (challenger, ticket-blind, 1 round); main-loop unmeasured (host surfaces no usage block); reviewer waived by run args (challenger ON). One source (`build_info.server_provenance`) stamped on the Pillar-1 read/nav/mechanism builders + `reach_shared.no_roots`; Pillar-2 onboarding tools out of scope (scope boundary). Byte cost measured (~53–60 B/payload, test-pinned ≤ 80). Also restored the doc-size gate the ungated retro-docs commit tipped (BACKLOG/PLAN pruned, R7.6). Delta-green: Docker full suite 2079 passed / 1 skipped / 0 failed + `gate.sh` in-container (tokens-to-answer ratio ≥ 0.63, phpstan OK) | [#181](https://github.com/cuongdinhngo/code-atlas/pull/181) |

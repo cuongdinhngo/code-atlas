@@ -14,7 +14,7 @@ a signal that says otherwise costs its reader a rebuild that reindexes nothing.
 from collections.abc import Callable, Sequence
 from typing import Literal
 
-from code_atlas.build_info import server_identity
+from code_atlas.build_info import server_provenance
 from code_atlas.config import Config
 from code_atlas.store import (
     BUILT_AT_KEY,
@@ -100,11 +100,6 @@ def _orphans_max_nodes_field(config: Config) -> dict[str, object]:
     }
 
 
-def _server_provenance() -> dict[str, str]:
-    ident = server_identity()
-    return {"server_version": ident["version"], "server_build": ident["build"]}
-
-
 def _unbuilt(
     servable: Sequence[str], detail_level: DetailLevel, config: Config
 ) -> dict[str, object]:
@@ -129,7 +124,7 @@ def _unbuilt(
     if detail_level in ("standard", "verbose"):
         status["db_path"] = str(config.db_path)
         status["max_results"] = _max_results_field(config)
-        status.update(_server_provenance())
+        status.update(server_provenance())
     if detail_level == "verbose":
         status["parse_failure_paths"] = []
         status["parse_failures_truncated"] = False
@@ -208,7 +203,7 @@ def _status(
         # The ceiling a caller sizes requests against, and its double duty (066).
         "max_results": _max_results_field(config),
         "orphans_max_nodes": _orphans_max_nodes_field(config),
-        **_server_provenance(),
+        **server_provenance(),
     }
     if detail_level == "standard":
         return signed(enriched)

@@ -100,6 +100,8 @@ def test_default_args_match_pre_pagination_shape(store: GraphStore, tmp_path: Pa
         "reason",
         "total_count",
         "index_root",
+        "server_version",
+        "server_build",
     }
     assert got["qname"] == "\\Base"
     assert got["indexed"] is True

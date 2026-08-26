@@ -20,6 +20,7 @@ from typing import Any
 import pytest
 from fastmcp import Client
 
+from code_atlas.build_info import server_provenance
 from code_atlas.config import ConfigError, clamp_subjects
 from code_atlas.main import TOOL_NAMES, build_server
 from code_atlas.store import GraphStore
@@ -146,6 +147,7 @@ def test_the_whole_batched_payload_is_pinned(indexed) -> None:
             },
         ],
         "index_root": str(Path(indexed.root).resolve()),
+        **server_provenance(),
     }
 
 
@@ -242,6 +244,7 @@ def test_a_single_subject_payload_is_unchanged(indexed) -> None:
         "reason": REASON_OK,
         "total_count": 1,
         "index_root": str(Path(indexed.root).resolve()),
+        **server_provenance(),
     }
     # Positive control: the batched keys are absent from a single-subject answer.
     assert "subjects" not in payload

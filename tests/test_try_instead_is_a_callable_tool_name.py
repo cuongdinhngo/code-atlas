@@ -23,6 +23,7 @@ from pathlib import Path
 
 import pytest
 
+from code_atlas.build_info import server_provenance
 from code_atlas.main import TOOL_NAMES
 from code_atlas.store import GraphStore
 from code_atlas.tools import find_references, include_graph, nav_result, search_symbol
@@ -152,6 +153,7 @@ def test_the_field_reported_payload_is_pinned_whole(tmp_path: Path, store: Graph
         "total_count": 0,
         "try_instead": nav_result.TRY_INSTEAD_SEARCH_SYMBOL,
         "try_instead_hint": nav_result.TRY_INSTEAD_HINT_METHOD_QNAME,
+        **server_provenance(),
     }
     assert payload["try_instead"] in TOOL_NAMES
 

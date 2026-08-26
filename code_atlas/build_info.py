@@ -66,4 +66,20 @@ def server_identity() -> dict[str, str]:
     return {"version": _package_version(), "build": build}
 
 
-__all__ = ["BUILD_ID_CHARS", "DIRTY_SUFFIX", "UNKNOWN_VERSION", "server_identity"]
+def server_provenance() -> dict[str, str]:
+    """The two ``server_*`` payload fields — one spelling for every tool (125 / 162).
+
+    Cheap after warm-up: ``server_identity`` is lru-cached and touches git only once per
+    process, so stamping this on the hot path spawns no git (contrast the signing revision).
+    """
+    ident = server_identity()
+    return {"server_version": ident["version"], "server_build": ident["build"]}
+
+
+__all__ = [
+    "BUILD_ID_CHARS",
+    "DIRTY_SUFFIX",
+    "UNKNOWN_VERSION",
+    "server_identity",
+    "server_provenance",
+]

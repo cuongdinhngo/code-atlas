@@ -6,6 +6,7 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Literal
 
+from code_atlas.build_info import server_provenance
 from code_atlas.config import Config
 from code_atlas.ignore import translate_path_pattern
 from code_atlas.store import GraphStore, Row
@@ -52,6 +53,7 @@ def no_roots(detail_level: DetailLevel, config: Config) -> dict[str, object]:
         "depth_exhausted": False,
         "message": "no roots configured — set CA_ENTRY_POINTS or entry_points in .code-atlas.toml",
         "index_root": config.index_root,
+        **server_provenance(),
     }
     del detail_level
     return payload

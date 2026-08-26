@@ -15,6 +15,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from typing import Literal, NamedTuple
 
+from code_atlas.build_info import server_provenance
 from code_atlas.config import Config
 from code_atlas.contract import CONFIDENCE_TIERS
 from code_atlas.onboarding.modules import (
@@ -147,6 +148,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             "walk_truncated": truncated,
             "frontier_skipped_non_resolved": outcome.frontier_skipped_non_resolved,
             "seeds_dropped": outcome.seeds_dropped + len(seed_set.dropped),
+            **server_provenance(),
         }
         notes = [NOTE_UNDER_ESTIMATE] if truncated else []
         if table_truncated:
@@ -185,6 +187,7 @@ def _empty(config: Config, subject: str, *, reason: str, depth: int) -> dict[str
         "subject": subject,
         "symbols_total": 0,
         "walk_truncated": False,
+        **server_provenance(),
     }
 
 

@@ -2,9 +2,9 @@
 
 Task tracker. One file per task in [`docs/tasks/`](tasks/) (`NNN_slug.md`). Source of truth for scope
 is [`PLAN.md`](PLAN.md); the durable decision log is [PLAN §19](PLAN.md#19-project-context--decision-log)
-and the per-task engineering lessons are in [`LESSONS.md`](LESSONS.md). This file tracks *what is open
-and what landed*; what each ticket cost is one row in [`TOKEN_LEDGER.md`](TOKEN_LEDGER.md) (R7.2) —
-narrative rationale lives in those three.
+and per-task lessons are in [`LESSONS.md`](LESSONS.md). This file tracks *what is open and what
+landed*; each ticket's cost is one row in [`TOKEN_LEDGER.md`](TOKEN_LEDGER.md) (R7.2) — narrative
+rationale lives in those three.
 
 **Status legend:** `todo` · `in-progress` · `blocked` · `deferred` · `done`
 **Shipped for daily use at task 014** (search/read/outline).
@@ -41,7 +41,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 159 | [An adapter ships in-repo but is invisible until an env var is set — nothing in any payload says it exists](tasks/159_get-index-status-does-not-name-available-but-unconfigured-adapters.md) | Adoption | todo | 064, 028, 095 |
 | 160 | [A zero answer never names the index language coverage — a false negative wears a modelled zero's clothes](tasks/160_a-zero-answer-never-names-the-index-language-coverage.md) | Agent-trust | todo | 065, 129, 093, 159 |
 | 161 | [`impact` binds a shared qname to one arbitrary twin at tier RESOLVED, and carries no freshness field](tasks/161_impact-resolves-a-shared-qname-to-one-twin-and-carries-no-freshness.md) | Agent-trust | todo | 017, 070, 078, 077 |
-| 162 | [A build swap is invisible on every payload but `get_index_status` — carry a cheap `server_build` stamp](tasks/162_a-build-swap-is-invisible-on-every-payload-but-get-index-status.md) | Agent-trust | todo | 125, 077, 100 |
+| 162 | [A build swap is invisible on every payload but `get_index_status` — carry a cheap `server_build` stamp](tasks/162_a-build-swap-is-invisible-on-every-payload-but-get-index-status.md) | Agent-trust | done | 125, 077, 100 |
 | 163 | [`read_symbol` `detail_level: "minimal"` is byte-identical to `standard` — a documented knob that does nothing](tasks/163_read-symbol-minimal-is-byte-identical-to-standard.md) | Agent-trust | todo | 014, 066 |
 
 ## Open work — Pillar 2 · Onboarding
@@ -102,44 +102,35 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | 6 (2026-08-21) | 122–125 | closed — all four payload honesty, none a graph defect |
 | 7 (2026-08-23) | 126 · 127 | closed — 127 closed **119** in the same change |
 | Phase 3 cost gate | 121 → 129 · 130 · 131 | 121 · 129 · 130 · 131 done |
-| 8–9 (2026-08-25/26) | 158–163 · 022 | open — first TS/JS field rounds on the anchor: routing miss repeated (158), adapter invisible (159), zero answers silent on coverage (160), `impact` binds a shared qname to one twin (161), build swap invisible off `sign` (162), `read_symbol` `minimal` is a no-op (163); SQL/schema-state deferred (022). Assessed and **declined**: 9-E (`dirty_indexed_files` is uncommitted-drift by design, 047 — `0` was correct), 7-A (`authoritative` mitigation already landed) |
+| 8–9 (2026-08-25/26) | 158–163 · 022 | open — first TS/JS field rounds: routing (158), adapter invisible (159), coverage-silent zeros (160), shared-qname twin bind (161), build stamp (162), `minimal` no-op (163); SQL deferred (022). Declined: 9-E (047, by design), 7-A (already landed) |
 | Architecture review (2026-08-23) | 138–142 · 143–145 | 138 · 139 · 142 · 144 · **145A** done (artifact.json versioned); **143** layer mermaid; **142** class baseline measured ([benchmark](benchmarks/142_supervision-question-class.md)); 141 gated at n = 0; 145B deferred (stack not chosen; 118 no longer blocks) |
 
 **What still governs open work:**
 
-- **098 is `deferred` behind an evidence gate, not queued.** The demand is real and comes from the
-  first production user, but the relation is that repository's shape, and a general server cannot
-  spend schema every user inherits on **n = 1**. The gate is written into the ticket: a second
-  independent repo, zero cost when undeclared, a cheaper alternative rejected in writing. **120**
-  shipped after maintainer ratification of the evidence gate (anchor monorepo, n = 1).
+- **098 is `deferred` behind an evidence gate, not queued.** The demand is real (first production
+  user), but the relation is that repo's shape, and a general server cannot spend schema on **n = 1**.
+  The gate is in the ticket: a second independent repo, zero cost when undeclared, a cheaper
+  alternative rejected in writing. **120** shipped after maintainer ratification (anchor, n = 1).
 - **104 stays `blocked` because 105 superseded its approach** (dominant subtree elected by graph mass,
   not file count — proven on the three pinned repos), not because it waits on anything. Its AC2 names
   the anchor monorepo, and three public repos are not that repo.
-- **118 shipped** — module summaries now come from read-through docblocks at build time; `(none)` is
-  replaced with an explicit file-attributed absence message when no doc comment exists.
 - **121's verdict is split, and it narrows the phase.** Cheap and correct where the question is a
-  lookup (12/12, recall 1.0, fixture aggregate 0.29 → 0.789); the lint/bootstrap tour opening is
-  **closed by 131** (front controller now in the first five on `symfony/demo`). Numbers:
-  [`benchmarks/121_onboarding-question-class.md`](benchmarks/121_onboarding-question-class.md).
-  The **layer graph** is now a mermaid flowchart in `generate_onboarding` markdown ([143](tasks/143_the-system-map-has-no-diagram.md)) — a lookup, which 121 scored. Auto-generated *reading orders* stay unscheduled: a dependency walk is still not a curated syllabus.
-- **128 (TS/JS M0 spike) has shipped, and 019 was reopened on its evidence** (2026-08-25) — see
-  *Phase 2* below. Adapters #3–#4 stay deferred: depth before breadth still holds.
+  lookup (12/12, recall 1.0); the lint/bootstrap tour opening is **closed by 131**. Numbers:
+  [`benchmarks/121_onboarding-question-class.md`](benchmarks/121_onboarding-question-class.md). The
+  layer graph is now a mermaid flowchart ([143](tasks/143_the-system-map-has-no-diagram.md)); auto
+  *reading orders* stay unscheduled — a dependency walk is not a curated syllabus.
 - **Both things round 6 measured are now closed, and both premises moved.** 135 gave the harness a
-  precision axis; the recall gate could not see a wrong answer, and the first thing the axis does is
-  fail on 130 ([benchmark](benchmarks/135_precision-axis.md)). 136 broke the HEURISTIC share down by
-  cause: the tracked **63.8 %** turned out to name the private anchor repo and no committed pin
-  (19–36 %), the cause is local type information (**≥99 %**, so §17's LSP defer covers ≤0.6 %), and the
-  movable share is capped by `vendor/` coverage at **0 / 22.5 / 92.5 %** — hence **137**, with a
-  measured target per pin ([benchmark](benchmarks/136_heuristic-causes.md)).
-- **074 must not claim** an answer-quality comparison against a language server: the anchor's resident
-  LSP was uninstalled 2026-08-07 and invoked zero times in 84 calls, so its 19 % adoption figure
-  measures adoption, not capability. Its core still needs the anchor repo; round 5 is its n = 1
-  (verdict *helped, narrowly*).
-- **142 measured the supervision question-class** (does-rule-hold / what-changed / which-modules-reach /
-  can-split): five of six members are cheap and correct on both axes (recall 1.0, precision 1.0 where a
-  population exists), and the sixth — the minimum acyclic **cut-edge set** — is answered by **no tool**,
-  labelled not scored. That last row **is** evidence for 141's gate item 3
-  ([benchmark](benchmarks/142_supervision-question-class.md)); 141 stays `deferred` at n = 0.
+  precision axis, and the first thing it does is fail on 130
+  ([benchmark](benchmarks/135_precision-axis.md)). 136 broke the HEURISTIC share down by cause — the
+  driver is local type information (≥99 %), hence **137** with a measured target per pin
+  ([benchmark](benchmarks/136_heuristic-causes.md)).
+- **074 must not claim** an answer-quality comparison against a language server: the anchor's LSP was
+  uninstalled and invoked zero times in 84 calls, so 19 % measures adoption, not capability. Still
+  needs the anchor repo; round 5 is its n = 1 (*helped, narrowly*).
+- **142 measured the supervision question-class:** five of six members cheap and correct (recall 1.0,
+  precision 1.0 where a population exists); the sixth — the minimum acyclic cut-edge set — is answered
+  by **no tool**, which **is** evidence for 141's gate item 3
+  ([benchmark](benchmarks/142_supervision-question-class.md)). 141 stays `deferred` at n = 0.
 - **M10–M12 are complete** — 22 tools on the surface — and the 108–117 reshape is complete: the map
   renders from 112's dataset alone. Detail: [`ROADMAP.md`](phase3-onboarding/ROADMAP.md).
 
@@ -290,24 +281,21 @@ memory run, the founding-premise benchmark), [`FEEDBACK.md`](FEEDBACK.md) (exter
 |---|---|---|
 | Field retro 1 (`v0.1.0`, `e117b47`) | 047–049 | Zero graph queries in a multi-hour session — the defect lived in string-keyed controller→template data flow, which the index does not model |
 | Same day | 050–051 | A schema-version error was read as a corrupt index and the session fell back to `grep`; verifying the rebuild found the build reporting 949,808 edges against 1,775,812 |
-| Field retro 2 | 054–061 | First session to exercise the graph: **three ways an empty result reads as proof of absence**, one reporting no callers for a method with six live sites |
-| Field retro 3 (2026-08-09) | 065–070 | Blind to prior findings; what the graph competed for it won (`find_callers` 23/23, 8/8 hand-verified). Sharpest point: 066 + 067 made a *fully correct* tool a net loss |
-| Memory & concurrency run (`869dcc6`) | 071–073 | **Memory is a non-finding** (n-th agent ~70 MB PSS, the 925 MB index 0 MB). All three defects are about what an answer *claims* — a worktree agent got the main checkout's symbol with `reason: "ok"` |
+| Field retro 2 | 054–061 | First session to exercise the graph: **three ways an empty result reads as proof of absence** (one: no callers for a method with six live sites) |
+| Field retro 3 (2026-08-09) | 065–070 | Blind to prior findings; what the graph competed for it won (23/23). Sharpest: 066 + 067 made a *fully correct* tool a net loss |
+| Memory & concurrency run (`869dcc6`) | 071–073 | **Memory is a non-finding** (n-th agent ~70 MB PSS). All three defects are about what an answer *claims* — a worktree agent got the main checkout's symbol at `reason: ok` |
 | Freshness review (not a session) | 052–053 | Of four layers keeping an index current, only `build_or_update_index(full=false)` has no trigger; 052 gates 053 |
 | Field retro 4 (2026-08-10) | 075–082 | First verification round: 7 fixed, 2 improved, 1 reproduced, 2 not exercised. Both findings that mattered came from *outside* the verification section, which is a regression harness |
-| Field retro 5 (2026-08-14) | 092–097 | First round where **cost changed what was asked** (1 call in three hours of writing code, each refresh ~60 s). 8/8 checked claims exact — every failure was silence or ambiguity |
+| Field retro 5 (2026-08-14) | 092–097 | First round where **cost changed what was asked** (1 call in 3 h; each refresh ~60 s). 8/8 claims exact — every failure was silence or ambiguity |
 | Field **interview** (2026-08-14) | 099–101 (+098 gated) | Retracted the round's headline, and found what four rounds of routing work had missed: **all three decisions made without the graph wanted one line inside a `Read` already happening** |
 | Measured while building 100 | 102 | `impact` returns `results=0 seeds_dropped=0` for a subject not in the index — the identical pair a genuine modelled zero returns |
 | PLAN §19 threats paragraph | 074 | The founding-premise benchmark ran one mechanism question twice and got opposite verdicts, the denied run right — the only datapoint suggesting the index costs *accuracy* |
-| Field retro 8–9 (2026-08-25/26) | 158–163, 022 | First TS/JS field rounds. Accuracy high (7/8, 13/13), value low: 0 critical-path artifacts in round 8. The gap is routing (the mandated caller sweep run as `grep`, twice), reach/coverage (adapter #2 shipped but never wired, invisible from the server), and honesty (zero answers silent on language coverage; `impact` bound a shared global to its `legacy/` twin at tier `RESOLVED`). DB-schema state (FIELD-959) is out of a symbol index's scope → 022 deferred |
+| Field retro 8–9 (2026-08-25/26) | 158–163, 022 | First TS/JS rounds. Accuracy high (7/8, 13/13), value low: 0 critical-path artifacts. Gaps — routing (caller sweep run as `grep`), reach (adapter #2 unwired/invisible), honesty (coverage-silent zeros; `impact` bound a global to its `legacy/` twin at `RESOLVED`). DB-schema out of scope → 022 |
 
-Two notes that still govern open work, beyond the constraints listed above:
-
-- **Round 4's two self-corrections:** `code-atlas-refresh` *is* a reachable second builder, so 072's
-  `busy` payload is exercisable and the gap is affordance (→ 082); and 069's descriptions half **did**
-  work, so 081 is about the prompt *channel*, not the description content.
-- **One un-evidenced claim, not a code-atlas defect:** the anchor repo's `CLAUDE.md` asserts `grep`
-  "times out" and costs "~650× the tokens"; round 3 observed neither. Needs evidence or removal.
+One note still governs open work, beyond the constraints above: the anchor repo's `CLAUDE.md` asserts
+`grep` "times out" and costs "~650× the tokens" — an **un-evidenced claim, not a code-atlas defect**;
+round 3 observed neither, so it needs evidence or removal. (Round 4's two self-corrections are in
+[`FEEDBACK.md`](FEEDBACK.md).)
 
 ## Follow-ups (not yet ticketed)
 
@@ -316,24 +304,23 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **Resolver: link `IMPORTS`** so `find_references` sees `use` — docstring note in `code_atlas/tools/find_references.py`.
 - **PSR-4 / autoload-aware include resolution**, with PSR-0 duplicate-name disambiguation — [042](tasks/042_tokens-to-answer-sample-tier.md).
 - **`max_results` does two unrelated jobs** — returned rows *and* resolver candidate fan-out, so a query knob sets index size — [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
-- **Tokens-to-answer measures cost, not information** — proven blind by 046: removing 1.06M duplicate edges doubled the distinct answers in a 10-row response and moved the ratio by 0.02 %. Worth a second axis (distinct answers per response, or rank-of-first-correct) before the ratio judges a retrieval change.
-- **`reachable_from` payload size at `standard`** — bounded by `impact_max_nodes` (500), so ~160 KB of JSON against a metric measured in tokens. Worth a lower default or a `minimal`-by-default shape; workaround in [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
-- **Parser-OOM size cap (optional)** — multi-MB generated files exhaust the PHP parser; already soft-failed and restarted (`indexer.py`), but a byte-cap pre-skip (`CA_MAX_FILE_BYTES`) would avoid ~30 crash-and-restart cycles on the anchor. Log what is skipped; no silent truncation.
-- **Adapter-subprocess test harness on Windows (bug)** — `CA_*_CMD` is built with POSIX quoting and split with `posix=False`, so quoted paths reach `CreateProcess` verbatim → `WinError 2`. Fails ~56 adapter-launching tests on the Windows dev host, green on Linux. Surfaced by [043](tasks/043_duplicate-decl-resilience.md).
-- **043 AC1 end-to-end `full_build` dup test** — deferred at Gate 4 as an approved coverage-gap exclusion, blocked by the Windows harness bug above; the surface is already proven at the `_write`+store layer.
+- **Tokens-to-answer measures cost, not information** — 046 removed 1.06M duplicate edges (ratio moved 0.02 %) yet doubled the distinct answers. Worth a second axis (distinct answers, or rank-of-first-correct) before the ratio judges a retrieval change.
+- **`reachable_from` payload size at `standard`** — bounded by `impact_max_nodes` (500), ~160 KB of JSON. Worth a lower default or `minimal`-by-default; workaround in [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
+- **Parser-OOM size cap (optional)** — multi-MB generated files exhaust the PHP parser (already soft-failed/restarted in `indexer.py`); a byte-cap pre-skip (`CA_MAX_FILE_BYTES`) would avoid ~30 restart cycles. Log skips; no silent truncation.
+- **Adapter-subprocess test harness on Windows (bug)** — `CA_*_CMD` uses POSIX quoting but splits with `posix=False`, so quoted paths reach `CreateProcess` verbatim → `WinError 2`. Fails ~56 adapter tests on Windows, green on Linux. Surfaced by [043](tasks/043_duplicate-decl-resilience.md).
+- **043 AC1 end-to-end `full_build` dup test** — deferred at Gate 4 (coverage-gap exclusion), blocked by the Windows bug above; surface already proven at the `_write`+store layer.
 - **PHP-adapter duplicate-declaration fixture (optional)** — the adapter already emits per-declaration, so this only pins it.
-- **015 AC2 operator run** — a real `CODE_ATLAS_SCALE_SAMPLE` timing artifact against the ~112k checkout, folded into [018](tasks/018_cross-repo-validation.md) as optional A4. Needs an operator machine with the private checkout.
+- **015 AC2 operator run** — a `CODE_ATLAS_SCALE_SAMPLE` timing artifact against the ~112k checkout, folded into [018](tasks/018_cross-repo-validation.md) as optional A4. Needs an operator machine.
 - **018 construct gaps** — cross-repo misses feed the (still empty) gap log in [`runbooks/cross-repo-validation.md`](runbooks/cross-repo-validation.md) and tasks 007 / 025.
-- **CI tightenings deferred from the drift audit** — `requires-python = ">=3.12"` is open-ended while the matrix stops at 3.13; `scripts/` is outside `[tool.mypy] files`, so the gate logic in `scripts/tokens_to_answer.py` is unchecked; `checkout@v4` / `setup-python@v5` are a major behind with no `dependabot.yml`.
-- **Docker images are never built by CI** — `docker/Dockerfile` (the test image AGENTS.md points agents at) is built by nothing and can rot silently, while `Dockerfile.runtime` *is* built inside `pytest`. The honest shape is one docker job building both. Moot while Actions is unbillable, but it survives that.
-- **GitHub Actions has not run since 2026-08-22** — private repo, no Actions budget, every job fails in seconds with no logs. `scripts/gate.sh` reproduced locally is the standing arrangement, not a lapse — but it is a human step, so a CI-only gate is currently off.
+- **CI tightenings deferred from the drift audit** — open-ended `requires-python`, `scripts/` outside mypy's `files`, and stale action pins with no `dependabot.yml`; detail in [`DRIFT.md`](DRIFT.md).
+- **Docker images are never built by CI** — `docker/Dockerfile` is built by nothing and can rot, while `Dockerfile.runtime` *is* built inside `pytest`. Honest shape: one docker job building both. Moot while Actions is unbillable, but it survives that.
+- **GitHub Actions has not run since 2026-08-22** — private repo, no Actions budget. `scripts/gate.sh` run locally is the standing arrangement, not a lapse; but it is a human step, so a CI-only gate is off.
 
 ## Conventions
 - Keep task `status` in this table **and** in each task file's frontmatter in sync.
 - New task: next free `NNN`, add file + a row here. Record cross-task deps in `depends_on`.
 - A task reaching `done` also gets its spend row in [`TOKEN_LEDGER.md`](TOKEN_LEDGER.md) (R7.2).
 - Landed narrative belongs in [PLAN §19](PLAN.md#19-project-context--decision-log) or
-  [`LESSONS.md`](LESSONS.md), not here; a follow-up that gets ticketed leaves this file's
-  [Follow-ups](#follow-ups-not-yet-ticketed) list. This rule was written down and then ignored for
-  ~180 lines of round narrative — it is now R7.6, with a ceiling in
+  [`LESSONS.md`](LESSONS.md), not here; a ticketed follow-up leaves the
+  [Follow-ups](#follow-ups-not-yet-ticketed) list. This is R7.6, with a ceiling in
   `tests/test_doc_size_budget.py`.

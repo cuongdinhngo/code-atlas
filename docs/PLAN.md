@@ -98,20 +98,20 @@ marker-mixin design is ISP in practice.
 
 ## 3. Why this backend (decision record)
 
-Per-language, pick the best parser; do **not** force one parser across all languages. **Roll-out order and rationale:**
+Per-language, pick the best parser; do **not** force one across all languages. **Roll-out order and rationale:**
 
 | # | Language | Adapter parser | Why this parser / why this position |
 |---|---|---|---|
-| 1 | PHP | **nikic/php-parser** (^5) | Only reliable **PHP 8.5** parse. `NameResolver` gives FQNs for PSR-4 *and* global code. Needs only the tokenizer ext. **First = a large PHP monorepo is available as a stress-test sample.** |
-| 2 | TypeScript/JavaScript | **TypeScript Compiler API** (via `ts-morph`, Node sidecar) | Official parser+**type checker**; parses JS too (`allowJs`); resolves ESM/CommonJS imports + `tsconfig` path aliases + types. **Second = most popular (BE+FE) AND the best contract-hardener** — module-scoped symbols (no FQNs) + project-context resolution stress the abstraction hardest (§2 counter-principle, §4.4). Also proves the `semantic_types` capability early. |
-| 3 | Python | **`ast`** builtin + `jedi` | Zero-dependency parse; `jedi` for import/name resolution. Popular, cheap to add once the contract is hardened. |
-| 4 | C#/.NET | **Roslyn** (.NET sidecar) | Full **semantic model** → precise type/call/ref edges. Last: its namespace+FQN model is close to PHP's, so it *confirms* rather than reshapes the contract. |
+| 1 | PHP | **nikic/php-parser** (^5) | Only reliable **PHP 8.5** parse. `NameResolver` gives FQNs for PSR-4 *and* global code. Needs only the tokenizer ext. **First = a large PHP monorepo is the stress-test sample.** |
+| 2 | TypeScript/JavaScript | **TypeScript Compiler API** (via `ts-morph`, Node sidecar) | Official parser+**type checker**; parses JS too (`allowJs`); resolves ESM/CommonJS + `tsconfig` aliases + types. **Second = most popular AND best contract-hardener** — module-scoped symbols (no FQNs) + project-context resolution stress the abstraction hardest (§2, §4.4). Proves `semantic_types` early. |
+| 3 | Python | **`ast`** builtin + `jedi` | Zero-dependency parse; `jedi` for import/name resolution. Popular, cheap once the contract is hardened. |
+| 4 | C#/.NET | **Roslyn** (.NET sidecar) | Full **semantic model** → precise type/call/ref edges. Last: its namespace+FQN model resembles PHP's, so it *confirms* rather than reshapes the contract. |
 
-**A fifth capability under consideration — SQL / DB-schema awareness** (task 022, deferred, evidence-gated). Schema and migration facts are *not* source symbols and would need contract vocabulary of their own (R3), so this sits behind 022's gate, **not** in the roll-out order above. Two field-retro rounds (8–9) decided a schema-state ticket the symbol index could not touch — and the same rounds classify DB schema state as out of scope for a symbol index, which is why it is a question, not a plan item.
+**A fifth capability — SQL / DB-schema awareness** (task 022, deferred, evidence-gated): schema/migration facts are *not* source symbols and need their own contract vocabulary (R3), so this sits behind 022's gate, **not** in the roll-out order above.
 
 Rejected globally:
 - **tree-sitter everywhere** — grammar lags releases (misparses PHP 8.5); forces hand-written resolution (the hard part) per language.
-- **Wrapping LSPs as the core** — existing LSP-based tools already do that; an LSP indexing 100k+ files *live* is the sluggishness we're avoiding. (An adapter *may* wrap an LSP internally if that's a language's best option, but the core stays index-based.)
+- **Wrapping LSPs as the core** — existing LSP tools already do that; an LSP indexing 100k+ files *live* is the sluggishness we're avoiding. (An adapter *may* wrap an LSP internally, but the core stays index-based.)
 
 Engine lineage: **code-review-graph** (parse → SQLite, incremental, token-budgeted tools), generalized behind an adapter contract.
 
@@ -716,15 +716,14 @@ its deferral (§3, §19 pivot), the PHP validation repos (task 018 — public pi
 ship point (M3, task 014 — shipped), and onboarding presentation (both: committed markdown *and* a
 viewer, §14). Still open:
 
-1. **PHP runtime** — both modes ship (§9); is a host PHP 8.5 CLI acceptable for indexing on the
-   operator's machines, or is Docker-only the standing answer?
-2. **LSP-tool coexistence** — keep a language server's PHP search tools on, or trim it to nav/edit?
+1. **PHP runtime** — both modes ship (§9); is a host PHP 8.5 CLI acceptable for indexing, or is
+   Docker-only the standing answer?
+2. **LSP-tool coexistence** — keep a language server's PHP search tools on, or trim to nav/edit?
    §13 says they are not substitutes and the founding-premise benchmark could not make an agent
-   choose between them, so this stays a per-installation preference rather than a project decision.
-3. **TS/JS validation repos** — unresolved, and only becomes live at M7.
+   choose, so this stays a per-installation preference, not a project decision.
+3. **TS/JS validation repos** — unresolved; only live at M7.
 4. **Schema-state awareness** — should code-atlas answer DB schema/migration questions at all
-   (task 022), or is that permanently a runtime `INFORMATION_SCHEMA` job no static index should
-   pretend to own? Raised by field retro rounds 8–9 (FIELD-959).
+   (task 022), or is that permanently a runtime `INFORMATION_SCHEMA` job? Raised by field retro 8–9.
 
 ---
 

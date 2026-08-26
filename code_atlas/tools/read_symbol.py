@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Literal
 
 from code_atlas import contract
+from code_atlas.build_info import server_provenance
 from code_atlas.config import Config
 from code_atlas.source_slice import declaration_slice
 from code_atlas.store import GraphStore
@@ -239,6 +240,7 @@ def _empty(
         "stale": False,
         "source": "",
         "index_root": index_root,
+        **server_provenance(),
     }
 
 
@@ -275,4 +277,5 @@ def _result(
         payload["line_end"] = line_end
     if stub:
         payload[contract.STUB_FLAG] = True
+    payload.update(server_provenance())
     return payload

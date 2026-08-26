@@ -60,6 +60,23 @@ this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *c
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
 
+## 162 — Stamp a cross-cutting payload field at each tool's own builder, not at the MCP wrapper
+
+`server_build`/`server_version` had to ride every mechanism answer. The tempting single point was
+`guard()` in `main.py`, which already wraps every query tool. But the whole test suite calls tools by
+their raw `create(config)(...)` closure, **not** through `build_server`/`guard` — so a wrapper-level
+stamp would make the payload shape differ between a direct call and the MCP path, and every unit test
+that pins a payload would still see the un-stamped shape. The field belongs in each tool's own payload
+construction (the shared `nav_result`/`read_symbol`/`file_outline`/… builders), sourced once from
+`build_info.server_provenance()`. The ticket-blind challenger also proved the value of naming the
+boundary: "mechanism" = Pillar 1 here, so Pillar-2 rendering tools are a scope statement, not a gap.
+
+*Claim `162-C1` — a cross-cutting payload field must be stamped where the payload is built, not in the
+transport wrapper, because tests (and any non-MCP caller) reach tools below the wrapper; a wrapper-only
+stamp splits the payload shape by call path. type: 2 · handle: `stamp-at-the-builder-not-the-wrapper` ·
+status: proposed · seen: 162 · evidence: every `tests/test_*` nav/read assertion calls `create(config)`
+directly, never `guard` · destination: open — folds into a convention if it recurs.*
+
 ## 019 — Adapter #2 is where a convention becomes a contract, and the harness only froze half an edge
 
 Four defects, one shape: the TS adapter disagreed with the PHP adapter about facts `tests/contract/`

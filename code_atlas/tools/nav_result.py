@@ -9,6 +9,7 @@ from pathlib import PurePosixPath
 from typing import Any, Literal, NamedTuple
 
 from code_atlas import contract
+from code_atlas.build_info import server_provenance
 from code_atlas.contract import CONFIDENCE_TIERS
 from code_atlas.enrichment import is_rule_edge_kind, is_rule_edge_path
 from code_atlas.store import GraphStore, Row
@@ -167,6 +168,7 @@ def empty_nav(
         "reason": reason,
         "total_count": total_count,
         "index_root": index_root,
+        **server_provenance(),
     }
 
 
@@ -202,6 +204,7 @@ def nav_result(
         payload["reason"] = reason
     if total_count is not None:
         payload["total_count"] = total_count
+    payload.update(server_provenance())
     return payload
 
 
@@ -225,6 +228,7 @@ def list_result(
         "reason": reason,
         "total_count": total_count,
         "index_root": index_root,
+        **server_provenance(),
     }
 
 
@@ -264,6 +268,7 @@ def batch_result(
     payload["subject_count"] = len(answers)
     payload["subjects"] = answers
     payload["index_root"] = index_root
+    payload.update(server_provenance())
     return payload
 
 
@@ -277,6 +282,7 @@ def batch_not_indexed(index_root: str) -> dict[str, object]:
     payload["indexed"] = False
     payload["reason"] = REASON_NOT_INDEXED
     payload["index_root"] = index_root
+    payload.update(server_provenance())
     return payload
 
 

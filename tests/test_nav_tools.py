@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pytest
 
+from code_atlas.build_info import server_provenance
 from code_atlas.config import Config, load_config
 from code_atlas.indexer import full_build
 from code_atlas.store import GraphStore
@@ -258,6 +259,7 @@ def test_missing_database_does_not_create_one(tmp_path: Path) -> None:
         "reason": "not_indexed",
         "total_count": 0,
         "index_root": str(config.root.resolve()),
+        **server_provenance(),
     }
     assert not config.db_path.is_file()
 

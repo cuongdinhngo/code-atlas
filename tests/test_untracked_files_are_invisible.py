@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from code_atlas.build_info import server_provenance
 from code_atlas.main import build_server
 from code_atlas.tools.build_or_update_index import NAME as BUILD
 from code_atlas.tools.find_callers import NAME as CALLERS
@@ -71,6 +72,7 @@ def test_untracked_indexable_file_is_visible_not_absent(tmp_path: Path) -> None:
         "try_instead": TRY_INSTEAD_BUILD_OR_UPDATE_INDEX,
         "try_instead_hint": TRY_INSTEAD_HINT_UNTRACKED,
         "untracked_path": UNTRACKED,
+        **server_provenance(),
     }
 
     read = call(server, READ, {"qname": SUBJECT})

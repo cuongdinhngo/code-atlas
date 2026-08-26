@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Literal
 
+from code_atlas.build_info import server_provenance
 from code_atlas.config import Config
 from code_atlas.store import PATH_STATUS_INCOMPLETE, GraphStore, Row
 from code_atlas.tools.nav_result import REASON_NOT_INDEXED, classify_missing_subject
@@ -61,6 +62,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             "depth": depth,
             "depth_exhausted": outcome.depth_exhausted,
             "index_root": config.index_root,
+            **server_provenance(),
         }
         del detail_level
         return payload
@@ -86,6 +88,7 @@ def _not_indexed(
         "depth": depth,
         "depth_exhausted": False,
         "index_root": config.index_root,
+        **server_provenance(),
     }
     del detail_level
     return payload

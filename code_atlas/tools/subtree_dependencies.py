@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from typing import Literal
 
+from code_atlas.build_info import server_provenance
 from code_atlas.config import Config, clamp_limit
 from code_atlas.onboarding.mirrors import find_mirror_subtrees
 from code_atlas.store import GraphStore, SubtreeDependencyResult, SubtreeTierAttribution
@@ -188,6 +189,7 @@ def _shape_payload(
         payload.pop("dependent_files", None)
         payload.pop("depended_on_paths", None)
         payload.pop("dynamic_bridges", None)
+    payload.update(server_provenance())
     return payload
 
 

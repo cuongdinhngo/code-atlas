@@ -4,7 +4,7 @@ slug: a-build-swap-is-invisible-on-every-payload-but-get-index-status
 title: 'A build swap is invisible on every payload but get_index_status — carry a cheap server_build stamp, without forcing the signing git read onto the hot path'
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [125, 077, 100]
 ---
 
@@ -95,3 +95,70 @@ so the default is unattributable). `code_atlas/build_info.py:62-66` (`server_ide
 (the guard this ticket must not undo), `code_atlas/tools/get_index_status.py:105` (`_server_fields`,
 the source of truth). Builds on [125](125_no-payload-names-the-server-build.md),
 [100](100_claim-signing-output-mode.md) (the opt-in claim line), [077](077_index-cannot-name-the-revision-it-describes.md).
+
+---
+MANGO WORKING DOC (below this line is NOT part of the raw ticket)
+
+## Session status
+- Phase: finalise (complete). TIER: full. SCOPE: S. CHALLENGER: ON.
+- work_doc_mode: embed (plain local-file ticket).
+- Reviewed at: challenger-only (reviewer waived by run args "skipped review and challenger"→challenger ON, reviewer OFF).
+
+## refine
+PREMISE: 3 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)
+RECALL: 0 claim(s) surfaced | 0 by symbol | 0 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)
+REFINE: 0 unresolved surfaced | 0 want-decision asked | 0 how-decision resolved+cited | 0 ASSUMED | skip: yes
+
+## analysis
+CLARIFICATION: 0 raised | 0 self-resolved (cited) | 0 for human decision
+RULE SECTIONS: 5 applicable — 5 by change-type | 0 by recalled handle — §R1.1 (rulebook) ✅, §R3 (rulebook) ✅, §R4.2 (rulebook) ✅, §061 (task) ✅, §R7.1 (rulebook) ✅
+SECTIONS: 3 found (Scope, Constraints, Acceptance criteria) | 3 decomposed | ROWS: C=4 R=4 G=1 AC=5
+
+## design
+One source of truth: `build_info.server_provenance()` returns `{server_version, server_build}` from the
+lru-cached `server_identity()`; `get_index_status` now delegates to it (same spelling). Stamped on the
+Pillar-1 read/nav/mechanism payload builders: `nav_result`/`empty_nav`/`list_result`/`batch_result`/
+`batch_not_indexed`, `read_symbol`, `file_outline`, `explain_path`, `impact_modules`,
+`subtree_dependencies`, and `reach_shared.no_roots()` — never per-subject (061). The revision-bearing
+`claim` line stays sign-gated (no git on the hot path).
+
+EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor
+HANDLES: 0 recalled | 0 traced (command + result) | 0 does not apply (n/a) | 0 unanswered
+
+- **Scope boundary (not a coverage exclusion):** the six Pillar-2 onboarding/rendering tools (`architecture_overview`,
+  `guided_tour`, `generate_onboarding`, `check_architecture_rules`, `diff_architecture`,
+  `class_diagram`) are **not** stamped. The ticket scopes to "read/nav/**mechanism** tools" = Pillar 1
+  in this repo's two-pillar vocabulary (AGENTS.md); Pillar-2 artifacts are committable and must stay
+  build-independent (R4.2), so a per-build stamp does not belong on that surface. Session-level build
+  attribution for those answers is available from `get_index_status`.
+
+## execute
+No design-invalidated escalation; no stuck-detector trips. All ACs met (AC4 added a measured,
+test-pinned byte bound after the challenger flagged it missing).
+
+## review (challenger-only — reviewer waived)
+CHALLENGER: ON. Ticket-blind challenger reconstructed the 5 ACs + constraints from the raw ticket.
+Verdict on the final tree: AC2/AC3/AC5 MET; AC1 MET after `reach_shared.no_roots()` was stamped in
+response; AC4 MET after a measured byte-bound test was added. The challenger's "6 onboarding tools
+unstamped" is dispositioned as the recorded design Exclusion (Pillar-2 ≠ mechanism). No contract bump,
+no sign-flip, no scope creep. Result: clean (reviewer only — CHALLENGER: ON).
+
+### Cost-ledger
+| phase | dispatch | round | tokens |
+|---|---|---|---|
+| review | challenger (ticket-blind) | 1 | 78,854 |
+
+main-loop: unmeasured (host surfaces no usage block).
+
+## finalise
+Delta-green in Docker (`scripts/docker-test.sh`, linux): pytest 2079 passed / 1 skipped / 0 failed;
+`scripts/gate.sh` in-container — ruff · mypy · pytest · tokens-to-answer (ratio ≥ 0.63) · R1.1/R2.2/R4.1
+grep-gates · php -l · composer validate all PASS; phpstan `[OK] No errors` (dev deps installed);
+doc-size budget restored (BACKLOG 9496/9500, PLAN 24000/24000).
+
+CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified
+FALSIFY: 1 candidate(s) checked | 1 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)
+RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)
+RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (none) | 0 left in lessons_path
+PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0
+LEDGER TOTAL: 78854 · top cost driver: review/challenger
