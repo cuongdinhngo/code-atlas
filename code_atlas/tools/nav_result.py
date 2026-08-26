@@ -101,6 +101,11 @@ TRY_INSTEAD_HINT_PATH_BASENAME = (
 TRY_INSTEAD_BUILD_OR_UPDATE_INDEX = "build_or_update_index"
 TRY_INSTEAD_HINT_UNTRACKED = "git add the untracked file, then rebuild"
 
+# A successful body read of a callable symbol earns the next mechanism step at the moment of cost
+# (158): who calls it, what breaks if it changes. Registered tool names (093), asserted callable by
+# the invariant test. Literals, not imports: the tool modules import THIS module (no cycle).
+NEXT_TOOLS_FOR_CALLABLE: tuple[str, ...] = ("find_callers", "impact")
+
 
 def edge_id(edge: Mapping[str, Any] | Row) -> int:
     """Integer primary key of an edge row — fails loud on a bad shape."""
@@ -418,6 +423,17 @@ def attach_try_instead(
         payload["try_instead"] = try_instead
     if hint:
         payload["try_instead_hint"] = hint
+    return payload
+
+
+def attach_next_tools(payload: dict[str, object], kind: str) -> dict[str, object]:
+    """On a successful callable-symbol answer, name the next mechanism step (158).
+
+    Keyed on node kind (contract vocabulary, never language — R1.1). A non-callable kind earns no
+    field, so a Class/Const/Interface read stays byte-identical (061 / AC4).
+    """
+    if kind in contract.CALLABLE_KINDS:
+        payload["next_tool_suggestions"] = list(NEXT_TOOLS_FOR_CALLABLE)
     return payload
 
 

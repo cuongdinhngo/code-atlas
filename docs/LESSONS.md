@@ -60,6 +60,22 @@ this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *c
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
 
+## 158 — Route on the successful answer, not only on a miss or on index state
+
+Two field rounds made the same expensive miss: the pivotal "who calls this?" was answered by grep and
+a 196-line read, while `find_callers` sat one call away. The routing surface only fired on index
+staleness (`get_index_status`) or on a miss (`try_instead`), and the one place the "method → who
+calls it" map was written down was a human-only prompt the model never sees. The fix is not a better
+description — it is to carry the next mechanism step on the channel the agent already reads, at the
+moment of cost: a successful body read of a callable now names find_callers / impact. Routing belongs
+on the *successful* answer keyed to its shape, not only on failure.
+
+*Claim `158-C1` — put the next-step routing on the successful answer (keyed to its shape), on the
+payload channel the agent already reads — not only on a miss/stale path and never on a human-only
+prompt. type: 2 · handle: `route-on-the-successful-answer` · status: proposed · seen: 158 · evidence:
+next_tool_suggestions fired only on staleness; the which_tool prompt was never called in four rounds ·
+destination: open — folds into a convention if it recurs.*
+
 ## 160 — A self-gating, idempotent post-processor adds a cross-cutting field across many exits
 
 A tool like `find_references` has ~4 return points (not-indexed, stale, exact-miss, final). Threading

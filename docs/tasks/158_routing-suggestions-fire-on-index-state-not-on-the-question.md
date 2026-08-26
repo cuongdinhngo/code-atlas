@@ -4,7 +4,7 @@ slug: routing-suggestions-fire-on-index-state-not-on-the-question
 title: 'The mandated caller sweep is a habit, not a trigger — routing suggestions fire on index state, never on the question the agent just asked'
 phase: 1.5b
 milestone: Agent-fit
-status: todo
+status: done
 depends_on: [081, 099, 069]
 ---
 
@@ -93,3 +93,75 @@ invisible until a schema is fetched). `code_atlas/tools/get_index_status.py:226-
 (the prompts are unreachable), [099](099_write-time-signal-seam.md) (every decision made without the
 graph wanted a line inside a `Read` already happening), [069](069_tool-names-do-not-say-what-they-answer.md),
 [093](093_try-instead-is-not-a-callable-tool-name.md), [036](036_edit-index-hook.md).
+
+---
+MANGO WORKING DOC (below this line is NOT part of the raw ticket)
+
+## Session status
+- Phase: finalise (complete). TIER: full. SCOPE: S. CHALLENGER: ON.
+- work_doc_mode: embed (plain local-file ticket).
+- Reviewed at: challenger-only (reviewer waived by run args; challenger ON).
+
+## refine
+PREMISE: 3 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)
+RECALL: 0 claim(s) surfaced | 0 by symbol | 0 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)
+REFINE: 0 unresolved surfaced | 0 want-decision asked | 0 how-decision resolved+cited | 0 ASSUMED | skip: yes
+
+## analysis
+CLARIFICATION: 0 raised | 0 self-resolved (cited) | 0 for human decision
+RULE SECTIONS: 3 applicable — 3 by change-type | 0 by recalled handle — §R1.1 (rulebook) ✅, §061 (task) ✅, §R4.2 (rulebook) ✅
+SECTIONS: 3 found (Scope, Constraints, Acceptance criteria) | 3 decomposed | ROWS: C=3 R=3 G=1 AC=5
+
+## design
+`nav_result.attach_next_tools(payload, kind)` sets `next_tool_suggestions = [find_callers, impact]`
+when `kind in contract.CALLABLE_KINDS` (Function/Method) — reusing the existing field, not a third
+channel (093), keyed on node kind not language (R1.1). read_symbol calls it only on the successful,
+non-stale body-read path; misses/stale/ambiguous returns never reach it (AC4 byte-identical). The
+tool names are literals in nav_result (it cannot import the tool modules — they import it), asserted
+callable against `main.TOOL_NAMES` by the test (AC2).
+
+**AC3 — signature-change trigger decision: DECLINED for the edit-hook, with reason.** The edit-index
+hook (036) reparses a changed file but does not diff old-vs-new signatures, and its output channel
+(hook stdout to the client) is separate from the tool-payload routing this ticket lands. Detecting a
+"tightened signature" needs an AST-level before/after comparison the hook has no capability for today;
+building it is a distinct, larger change. The landed trigger is the payload rider: the moment an agent
+reads a callable body (the exact moment of cost in rounds 8-C/9-F), the answer names find_callers /
+impact. A signature-diff-at-edit-time signal remains a future follow-up on 036, not this ticket.
+
+**file_outline left uncovered (challenger scope note), with reason.** The Scope paragraph mentions
+`file_outline`, but it returns a symbol *map* (line ranges, no body) listing many symbols — a single
+call-level `next_tool_suggestions` cannot name which symbol's callers to fetch, and a per-hit rider
+would fire on every row (061). AC1 names only `read_symbol` (a single body). The load-bearing case is
+read_symbol; file_outline is out of the pattern by shape.
+
+EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor
+HANDLES: 0 recalled | 0 traced (command + result) | 0 does not apply (n/a) | 0 unanswered
+
+## execute
+No design-invalidated escalation; no stuck-detector trips. AC1, AC2, AC4, AC5 met; AC3 decided (declined, above).
+
+## review (challenger-only — reviewer waived)
+CHALLENGER: ON. Ticket-blind challenger verdict: **PASS** — AC1/AC2/AC4/AC5 + R1.1 + 061 + no-third-
+channel + miss/stale-exclusion all MET with path:line (it ran the new tests in Docker, 5 passed);
+AC3 marked CAN'T TELL (the decision record lives in this working doc, above). Its one non-blocking
+note (file_outline vs the Scope paragraph) is dispositioned above. Result: clean (reviewer only —
+CHALLENGER: ON).
+
+### Cost-ledger
+| phase | dispatch | round | tokens |
+|---|---|---|---|
+| review | challenger (ticket-blind) | 1 | 57,441 |
+
+main-loop: unmeasured (host surfaces no usage block).
+
+## finalise
+Delta-green in Docker (`scripts/docker-test.sh`, linux): pytest 2107 passed / 1 skipped / 0 failed;
+`gate.sh` in-container — ruff · mypy · pytest · tokens-to-answer (ratio ≥ 0.63) · R1.1/R2.2/R4.1
+grep-gates · php -l · composer validate all PASS; phpstan `[OK]` with dev deps.
+
+CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified
+FALSIFY: 1 candidate(s) checked | 1 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)
+RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)
+RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (none) | 0 left in lessons_path
+PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0
+LEDGER TOTAL: 57441 · top cost driver: review/challenger

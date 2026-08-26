@@ -22,6 +22,7 @@ from code_atlas.tools.nav_result import (
     TRY_INSTEAD_SEARCH_SYMBOL,
     attach_ambiguous_definitions,
     attach_name_not_qualified,
+    attach_next_tools,
     attach_try_instead,
     classify_missing_subject,
     definition_sites,
@@ -125,7 +126,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             end_raw = node["line_end"]
             end = end_raw if isinstance(end_raw, int) else start
             source = _slice(path, start, end, detail_level)
-            return _result(
+            payload = _result(
                 qname,
                 source,
                 detail_level=detail_level,
@@ -139,6 +140,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 line_end=end,
                 stub=is_stub(node.get("extra")),
             )
+            return attach_next_tools(payload, str(node["kind"]))
 
     return read_symbol
 
