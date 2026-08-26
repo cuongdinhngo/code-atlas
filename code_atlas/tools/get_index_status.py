@@ -14,6 +14,7 @@ a signal that says otherwise costs its reader a rebuild that reindexes nothing.
 from collections.abc import Callable, Sequence
 from typing import Literal
 
+from code_atlas.adapter import unconfigured_adapters
 from code_atlas.build_info import server_provenance
 from code_atlas.config import Config
 from code_atlas.store import (
@@ -64,6 +65,9 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
         ``skipped.untracked`` sits beside that identity: files git does not list, with an indexed
         suffix, that are not ignored (092). ``verbose`` also names ``skipped.ignore_sources`` —
         per-source counts that sum to ``skipped.ignore`` (095); omitted when empty or pre-095.
+        ``standard``/``verbose`` carry ``unconfigured_adapters`` — adapters that ship in-repo but
+        have no launch command, each with the ``CA_<LANG>_CMD`` that enables it; omitted when all
+        are wired (159).
 
         ``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
         ``key=value`` line stating how many files this index covers and at which revision. An
@@ -90,6 +94,13 @@ def _max_results_field(config: Config) -> dict[str, object]:
         "value": config.max_results,
         "governs": ["returned_rows", "resolver_candidate_fanout"],
     }
+
+
+def _attach_unconfigured_adapters(status: dict[str, object], config: Config) -> None:
+    """Name adapters that ship in-repo but are unwired — omit when all configured (159/061)."""
+    unwired = unconfigured_adapters(config.adapter_cmds)
+    if unwired:
+        status["unconfigured_adapters"] = unwired
 
 
 def _orphans_max_nodes_field(config: Config) -> dict[str, object]:
@@ -125,6 +136,7 @@ def _unbuilt(
         status["db_path"] = str(config.db_path)
         status["max_results"] = _max_results_field(config)
         status.update(server_provenance())
+        _attach_unconfigured_adapters(status, config)
     if detail_level == "verbose":
         status["parse_failure_paths"] = []
         status["parse_failures_truncated"] = False
@@ -205,6 +217,7 @@ def _status(
         "orphans_max_nodes": _orphans_max_nodes_field(config),
         **server_provenance(),
     }
+    _attach_unconfigured_adapters(enriched, config)
     if detail_level == "standard":
         return signed(enriched)
     paths = store.failed_paths(PARSE_FAILURE_PATHS_LIMIT, offset=offset)

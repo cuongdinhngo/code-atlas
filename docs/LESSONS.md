@@ -60,6 +60,21 @@ this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *c
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
 
+## 159 — A capability invisible from inside the running server is indistinguishable from absent
+
+Round 8 built adapter #2 and it contributed nothing, not for lack of capability but because the
+server gave no sign it existed unless an env var was already set (finding 8-G). The fix is a
+discoverability pattern: enumerate what *ships* (the `adapters/` directory), diff against what is
+*configured*, and report the gap with the exact switch. Don't infer availability from an env var
+being present — that only describes the past. Deriving the list from the filesystem (not a literal)
+keeps R1.1 intact and makes a future adapter discoverable with zero code change.
+
+*Claim `159-C1` — surface a shipped-but-unconfigured capability proactively by enumerating what ships
+and diffing against config; presence of a config value is evidence of the past, not of what is
+available. type: 2 · handle: `discoverability-enumerate-and-diff` · status: proposed · seen: 159 ·
+evidence: `indexed_suffixes` described only what was indexed; nothing named the unwired TS/JS adapter ·
+destination: open — folds into a convention if it recurs.*
+
 ## 163 — A no-op knob: check the invariant before removing it, or you trade one defect for another
 
 `read_symbol`'s `detail_level` was byte-identical across levels — the ticket's default fix was to

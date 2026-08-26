@@ -309,6 +309,44 @@ def adapter_for(path: str, index: Mapping[str, LanguageAdapter]) -> LanguageAdap
     return index.get(PurePosixPath(path).suffix.lower())
 
 
+# Adapters ship as sibling directories of the ``code_atlas`` package (``adapters/<lang>/``). Absent
+# in a wheel that ships no adapters — then nothing is discoverable, and that is the honest answer.
+ADAPTERS_DIR = Path(__file__).resolve().parent.parent / "adapters"
+
+
+def shipped_adapters(adapters_dir: Path | None = None) -> tuple[str, ...]:
+    """Adapter languages that ship in-repo — one per subdirectory of ``adapters/`` (159).
+
+    The name is the directory, exactly as the extension map takes it from the handshake — never a
+    literal language list here (R1.1). Order-stable (R4.2); empty when the directory is absent.
+    """
+    root = ADAPTERS_DIR if adapters_dir is None else adapters_dir
+    if not root.is_dir():
+        return ()
+    names = [
+        entry.name
+        for entry in root.iterdir()
+        if entry.is_dir() and not entry.name.startswith((".", "_"))
+    ]
+    return tuple(sorted(names))
+
+
+def unconfigured_adapters(
+    configured: Iterable[str], adapters_dir: Path | None = None
+) -> list[dict[str, str]]:
+    """Shipped adapters with no configured launch command — the switch and how to flip it (159).
+
+    Returns ``{language, enable}`` per unwired adapter, sorted (R4.2); ``[]`` when every shipped
+    adapter is configured. Omit-when-empty is the caller's job (061).
+    """
+    wired = {name.lower() for name in configured}
+    return [
+        {"language": name, "enable": f"CA_{name.upper()}_CMD"}
+        for name in shipped_adapters(adapters_dir)
+        if name.lower() not in wired
+    ]
+
+
 def _failure(path: str, error: str) -> ParseResult:
     """One file the adapter could not deliver; the build records it and keeps going (R5.1)."""
     return ParseResult(path=path, ok=False, error=error)
