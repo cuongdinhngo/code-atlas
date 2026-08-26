@@ -10,8 +10,11 @@ from code_atlas.store import GraphStore
 from code_atlas.tools import claim
 from code_atlas.tools.nav_result import (
     REASON_NO_SUCH_SYMBOL,
+    REASON_SUBJECT_AMBIGUOUS,
     SubjectResolution,
+    attach_ambiguous_definitions,
     classify_missing_subject,
+    definition_sites,
     empty_nav,
     nav_result,
     shape_exact_miss,
@@ -65,6 +68,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``reason`` (``no_such_symbol`` / ``name_not_qualified`` / ``not_indexed``, with
         ``candidate_count`` / ``try_instead`` where the classifier has them).
 
+        A seed whose qname has more than one definition is **not** walked (the graph links callers
+        by qname, so it cannot be attributed to one twin): its sites are listed under
+        ``ambiguous_definitions``; when no seed was walkable, ``reason=subject_ambiguous`` (161).
+        The default payload names the revision it describes — ``staleness`` plus ``last_commit`` —
+        so a blast radius acted on destructively is never silently undated (8-E).
+
         ``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
         ``key=value`` line naming subject, question, answer and the revision the index describes,
         with ``seeds`` beside ``answer`` (``answer == seeds`` is the modelled zero: nothing beyond
@@ -85,10 +94,15 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             seed_set = resolve_seeds(
                 store, paths=paths or [], qnames=qnames or [], max_results=config.max_results
             )
-            outcome = store.impact_radius(
-                seed_set.seeds, depth=hops, max_nodes=config.impact_max_nodes + 1
+            walk_seeds, ambiguous_sites = _split_ambiguous(
+                store, seed_set.seeds, config.max_results
             )
-            staleness = compute_staleness(store, config, include_dirty_count=True) if sign else {}
+            outcome = store.impact_radius(
+                walk_seeds, depth=hops, max_nodes=config.impact_max_nodes + 1
+            )
+            # A blast radius is acted on destructively, so it names the revision in-band, not only
+            # behind sign (8-E). One git HEAD read on this low-frequency, high-stakes tool.
+            staleness = compute_staleness(store, config, include_dirty_count=True)
         truncated = len(outcome.rows) > config.impact_max_nodes
         results = outcome.rows[: config.impact_max_nodes]
         result = nav_result(
@@ -100,13 +114,21 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             truncated=truncated,
             depth=hops,
             frontier_skipped_non_resolved=outcome.frontier_skipped_non_resolved,
-            seeds_dropped=outcome.seeds_dropped + len(seed_set.dropped),
+            seeds_dropped=outcome.seeds_dropped + len(seed_set.dropped) + len(ambiguous_sites),
         )
-        if seed_set.dropped and not seed_set.seeds:
+        _attach_freshness(result, staleness)
+        if ambiguous_sites:
+            # A seed qname with >1 definitions cannot be attributed to one twin — the edge model is
+            # qname-keyed — so disclose the sites instead of walking one silently at RESOLVED (9-A).
+            attach_ambiguous_definitions(result, [s for _, sites in ambiguous_sites for s in sites])
+            if not walk_seeds:
+                result["reason"] = REASON_SUBJECT_AMBIGUOUS
+        if seed_set.dropped and not seed_set.seeds and not ambiguous_sites:
             explain_lost_subject(result, seed_set.dropped)
         # A question no seed answered gets no line: it would be signed ``answer=0`` for a subject
         # the index never held. The payload names the loss in ``seeds_dropped`` (tasks 100, 102).
-        if not sign or not seed_set.seeds:
+        # An all-ambiguous call walked nothing, so it is not signed either.
+        if not sign or not walk_seeds:
             return result
         return claim.sign(
             result,
@@ -115,10 +137,41 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             subject_parts=parts,
             staleness=staleness,
             carry=CLAIM_CARRY,
-            extra=(("seeds", len(seed_set.seeds)),),
+            extra=(("seeds", len(walk_seeds)),),
         )
 
     return impact
+
+
+def _split_ambiguous(
+    store: GraphStore, seeds: Sequence[str], max_results: int
+) -> tuple[list[str], list[tuple[str, list[dict[str, object]]]]]:
+    """Partition seeds into walkable (one definition) and ambiguous (a shared qname, 9-A).
+
+    The graph links callers by qname, not node identity, so a qname with >1 definitions cannot be
+    attributed to one twin; such a seed is disclosed, never walked as an arbitrary one. Order-stable
+    (R4.2); the site list is ``definition_sites`` order.
+    """
+    walk: list[str] = []
+    ambiguous: list[tuple[str, list[dict[str, object]]]] = []
+    for qname in seeds:
+        rows = store.nodes_by_qualified_name(qname, limit=max_results)
+        if len(rows) > 1:
+            ambiguous.append((qname, definition_sites(rows)))
+        else:
+            walk.append(qname)
+    return walk, ambiguous
+
+
+def _attach_freshness(result: dict[str, object], staleness: dict[str, object]) -> None:
+    """Name the revision the answer describes, in-band on the default payload (8-E).
+
+    ``staleness`` is the state (current/behind/unknown); ``last_commit`` is the revision the index
+    holds. Omitted only when the index never recorded a commit (pre-077), never silently (061).
+    """
+    result["staleness"] = staleness["staleness"]
+    if staleness.get("last_commit"):
+        result["last_commit"] = staleness["last_commit"]
 
 
 def subject_parts(paths: list[str] | None, qnames: list[str] | None) -> list[str]:

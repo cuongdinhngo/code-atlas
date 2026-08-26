@@ -40,7 +40,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 158 | [The mandated caller sweep is a habit, not a trigger — routing suggestions fire on index state, never on the question](tasks/158_routing-suggestions-fire-on-index-state-not-on-the-question.md) | Agent-fit | done | 081, 099, 069 |
 | 159 | [An adapter ships in-repo but is invisible until an env var is set — nothing in any payload says it exists](tasks/159_get-index-status-does-not-name-available-but-unconfigured-adapters.md) | Adoption | done | 064, 028, 095 |
 | 160 | [A zero answer never names the index language coverage — a false negative wears a modelled zero's clothes](tasks/160_a-zero-answer-never-names-the-index-language-coverage.md) | Agent-trust | done | 065, 129, 093, 159 |
-| 161 | [`impact` binds a shared qname to one arbitrary twin at tier RESOLVED, and carries no freshness field](tasks/161_impact-resolves-a-shared-qname-to-one-twin-and-carries-no-freshness.md) | Agent-trust | todo | 017, 070, 078, 077 |
+| 161 | [`impact` binds a shared qname to one arbitrary twin at tier RESOLVED, and carries no freshness field](tasks/161_impact-resolves-a-shared-qname-to-one-twin-and-carries-no-freshness.md) | Agent-trust | done | 017, 070, 078, 077 |
 | 162 | [A build swap is invisible on every payload but `get_index_status` — carry a cheap `server_build` stamp](tasks/162_a-build-swap-is-invisible-on-every-payload-but-get-index-status.md) | Agent-trust | done | 125, 077, 100 |
 | 163 | [`read_symbol` `detail_level: "minimal"` is byte-identical to `standard` — a documented knob that does nothing](tasks/163_read-symbol-minimal-is-byte-identical-to-standard.md) | Agent-trust | done | 014, 066 |
 

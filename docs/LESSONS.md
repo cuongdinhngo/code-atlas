@@ -60,6 +60,25 @@ this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *c
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
 
+## 161 — When the data model can't answer the ticket honestly, deliver the honest endpoint and record it
+
+161's Scope asked impact to resolve a shared qname to "the same-file definition and its real
+consumers, not the sibling twin." But the graph's edges reference their target by qualified name, not
+node identity, and the impact walk matches on qname — so the graph literally cannot tell which twin a
+caller targets. Preferring one twin would still present the other twin's callers as if they were the
+seed's. The honest move is not to fake a confident radius but to refuse: `subject_ambiguous` with the
+sites, exactly the parity the ticket's own root-cause praised in read_symbol. The lesson: when a
+ticket's literal ask exceeds what the data model can answer, verify the constraint, deliver the honest
+endpoint, and record the deviation for the author — don't silently ship a confident wrong answer to
+satisfy the letter of a spec the model can't support.
+
+*Claim `161-C1` — before implementing a resolution spec, check whether the graph can actually answer
+it; a qname-keyed edge cannot be attributed to a specific same-named node, so "which twin's callers"
+is unanswerable — refuse (subject_ambiguous) rather than fabricate. type: 2 · handle:
+`honest-endpoint-when-model-cannot-answer` · status: proposed · seen: 161 · evidence: edges carry
+target_qname not a node id; impact_radius joins on target_qname · destination: open — folds into a
+convention if it recurs.*
+
 ## 158 — Route on the successful answer, not only on a miss or on index state
 
 Two field rounds made the same expensive miss: the pivotal "who calls this?" was answered by grep and

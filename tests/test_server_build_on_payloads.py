@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 from code_atlas.build_info import server_identity, server_provenance
 from code_atlas.config import load_config
-from code_atlas.tools import impact, reach_shared, read_symbol, search_symbol
+from code_atlas.tools import find_references, reach_shared, read_symbol, search_symbol
 from code_atlas.tools import nav_result as nr
 from tests.test_claim_signing import SUBJECT, configured, indexed_repo
 
@@ -80,16 +80,20 @@ def test_two_builds_are_distinguishable_from_a_nav_payload() -> None:
     assert first["server_version"] == second["server_version"] == "0.1.0"
 
 
-def test_impact_hot_path_carries_build_without_computing_staleness(tmp_path: Path) -> None:
-    """AC1/AC2: the default (sign=false) impact payload names the build and reads no git.
+def test_build_stamp_needs_no_git_on_the_hot_path(tmp_path: Path) -> None:
+    """AC1/AC2: the build stamp is drawn from the lru-cached identity, not a git read.
 
-    ``compute_staleness`` is the git HEAD read + dirty scan; impact.py guards it behind sign=True.
-    Patched to blow up, a default call still answers — proving the stamp is off the git path.
+    ``compute_staleness`` is the git HEAD read + dirty scan; find_references guards it behind
+    sign=True. Patched to blow up, a default call still answers with the build — proving the stamp
+    is off the git path. (impact computes staleness by design now — 161 — so the read/nav tools are
+    where the cheap-build-without-git guarantee is asserted.)
     """
     db_path = indexed_repo(tmp_path)
     config = configured(tmp_path, db_path)
-    with patch.object(impact, "compute_staleness", side_effect=AssertionError("git on hot path")):
-        payload = impact.create(config)(qnames=[SUBJECT], sign=False)
+    with patch.object(
+        find_references, "compute_staleness", side_effect=AssertionError("git on hot path")
+    ):
+        payload = find_references.create(config)(SUBJECT, sign=False)
     ident = server_identity()
     assert payload["server_build"] == ident["build"]
     assert payload["server_version"] == ident["version"]

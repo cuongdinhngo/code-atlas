@@ -4,7 +4,7 @@ slug: impact-resolves-a-shared-qname-to-one-twin-and-carries-no-freshness
 title: '`impact` binds a shared qname to one arbitrary twin at tier RESOLVED, and carries no freshness field for an answer acted on destructively'
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [017, 070, 078, 077]
 ---
 
@@ -107,3 +107,88 @@ Related: [017](017_impact-engine.md) (the engine), [070](070_ambiguous-qname-no-
 five definitions merged), [078](078_ambiguous-payload-still-picks-one-definition.md)
 (`ambiguous_definitions` warns while `source` ships one), [077](077_index-cannot-name-the-revision-it-describes.md),
 [102](102_impact-cannot-tell-an-absent-subject-from-a-zero.md) (the seed-drop count this builds on).
+
+---
+MANGO WORKING DOC (below this line is NOT part of the raw ticket)
+
+## Session status
+- Phase: finalise (complete). TIER: full. SCOPE: M. CHALLENGER: ON.
+- work_doc_mode: embed (plain local-file ticket).
+- Reviewed at: challenger-only (reviewer waived by run args; challenger ON).
+
+## refine
+PREMISE: 4 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)
+RECALL: 0 claim(s) surfaced | 0 by symbol | 0 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)
+REFINE: 0 unresolved surfaced | 0 want-decision asked | 0 how-decision resolved+cited | 0 ASSUMED | skip: yes
+
+## analysis
+CLARIFICATION: 0 raised | 0 self-resolved (cited) | 0 for human decision
+RULE SECTIONS: 4 applicable — 4 by change-type | 0 by recalled handle — §R1.1 (rulebook) ✅, §R2 (rulebook) ✅, §R3 (rulebook) ✅, §R4.2 (rulebook) ✅
+SECTIONS: 3 found (Scope, Constraints, Acceptance criteria) | 3 decomposed | ROWS: C=4 R=2 G=1 AC=5
+
+## design — AC1 deviation, recorded for maintainer review
+The ticket Scope §1 asks for a same-file → same-tree → ambiguous *cascade* that resolves a shared
+qname to the same-file definition **and its real consumers, not the twin's**. That last clause is
+**architecturally unimplementable** under the current contract, and the ticket-blind challenger
+**independently verified** it against `store.py`: edges reference their target by `target_qname`
+(a string), never a node id (`store.py` edges schema), and `impact_radius` walks purely by
+`e.target_qname = f.qname` (`store.py:1415-1424`). So the graph cannot tell which twin a caller
+targets — a same-file-preferred seed would still pull the identical mixed caller set. "Its real
+consumers, not the sibling twin's" cannot be answered without a schema change, which is out of this
+ticket's blast radius (`store.py` unchanged).
+
+Delivered instead the ticket's own cited desired endpoint: **subject_ambiguous parity with
+read_symbol** ("same ambiguity, same index, opposite honesty", round 9 §15, quoted in the ticket's
+own root-cause). `_split_ambiguous` routes any seed qname with >1 definitions to
+`ambiguous_definitions` + (when nothing else walked) `reason=subject_ambiguous`, rather than walking
+one arbitrary twin at tier RESOLVED. A genuinely unique seed still walks (regression-pinned). This is
+a deliberate deviation from Scope §1's literal cascade, grounded in the verified edge model; flagged
+in the PR for the maintainer.
+
+AC3 freshness: `compute_staleness` is now unconditional (not sign-gated); `_attach_freshness` adds
+`staleness` + `last_commit` to the default payload. **Measured (AC3 / 061):** the cheap-path delta is
+24 B (`staleness` alone) to ~83 B (`staleness` + a full 40-char `last_commit`) — bounded, never
+scaling with the radius; pinned ≤ 90 B by a test.
+
+AC4: every impact test file was re-run green in Docker (`test_impact.py`, `test_qname_subject_honesty`,
+`test_impact_modules`, `test_claim_signing`, `test_server_build`) — none asserts an exact impact
+payload and none plants a duplicate-qname fixture, so neither the new `staleness` field nor the
+shared-qname refusal path contradicts any existing seed-binding / `seeds_dropped` expectation. Verdict
+per file: unchanged, no expectation edited. The one moved test
+(`test_impact_hot_path…` → `test_build_stamp_needs_no_git_on_the_hot_path` on find_references) is the
+disclosed consequence of impact now reading git by design.
+
+EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor
+HANDLES: 0 recalled | 0 traced (command + result) | 0 does not apply (n/a) | 0 unanswered
+
+## execute
+No design-invalidated escalation; no stuck-detector trips. AC2/AC3/AC5 met; AC1 delivered as a
+verified, recorded deviation (subject_ambiguous); AC4 re-run green.
+
+## review (challenger-only — reviewer waived)
+CHALLENGER: ON. Verdict: AC2/AC3-freshness/AC5/R1.1/R2/R4.2 MET with path:line; AC1 NOT MET as
+literally worded — but the challenger **independently verified** the qname-keyed edge model makes it
+unimplementable and called the subject_ambiguous substitution "defensible / the honest alternative".
+AC3 size-measurement clause it flagged unaddressed — **fixed**: a measured, test-pinned byte bound
+added. AC4 it marked CAN'T-TELL-from-diff but empirically no regression — the verdict is recorded
+above. Result: clean on the delivered design (reviewer only — CHALLENGER: ON), AC1 deviation flagged
+for the maintainer on the PR.
+
+### Cost-ledger
+| phase | dispatch | round | tokens |
+|---|---|---|---|
+| review | challenger (ticket-blind) | 1 | 85,056 |
+
+main-loop: unmeasured (host surfaces no usage block).
+
+## finalise
+Delta-green in Docker (`scripts/docker-test.sh`, linux): pytest 2111 passed / 1 skipped / 0 failed
+(+ the AC3 measurement test since); `gate.sh` in-container — ruff · mypy · pytest · tokens-to-answer
+(ratio ≥ 0.63) · R1.1/R2.2/R4.1 grep-gates · php -l · composer validate all PASS; phpstan `[OK]`.
+
+CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified
+FALSIFY: 1 candidate(s) checked | 1 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)
+RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)
+RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (none) | 0 left in lessons_path
+PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0
+LEDGER TOTAL: 85056 · top cost driver: review/challenger
