@@ -53,9 +53,9 @@ def test_read_symbol_miss_repairs_committed_drift(tmp_path: Path) -> None:
     """166 AC1: a symbol added and COMMITTED after indexing is visible to the first read.
 
     The working tree is clean (the edit is committed), so the miss-repair's old working-tree-only
-    dirty signal reported zero and no repair fired — a confident ``no_such_symbol`` / ``stale: false``
-    for a symbol that a second call, or search, would return. The index is behind HEAD, and the
-    file that would hold the symbol changed since the indexed commit.
+    dirty signal reported zero and no repair fired — a confident ``no_such_symbol`` / ``stale:
+    false`` for a symbol that a second call, or search, would return. The index is behind HEAD, and
+    the file that would hold the symbol changed since the indexed commit.
     """
     write(tmp_path, "src/Widget.aa", "class Widget {}\n")
     _git_init(tmp_path)
@@ -65,14 +65,15 @@ def test_read_symbol_miss_repairs_committed_drift(tmp_path: Path) -> None:
     write(tmp_path, "src/Widget.aa", "class Widget {}\n# symbol: buildPaginatorQuery\n")
     _git_commit_all(tmp_path, "add buildPaginatorQuery")
 
-    result = read_symbol.create(config)("src/Widget.aa::buildPaginatorQuery", detail_level="minimal")
+    subject = "src/Widget.aa::buildPaginatorQuery"
+    result = read_symbol.create(config)(subject, detail_level="minimal")
     assert result["found"] is True, result
     assert result["stale"] is False
     assert result["reason"] == REASON_OK
 
 
 def test_read_symbol_committed_multi_drift_is_index_stale_not_absent(tmp_path: Path) -> None:
-    """166 AC2: when >1 committed-drifted file blocks a single repair, say index_stale — not absence."""
+    """166 AC2: >1 committed-drifted file blocks a single repair → index_stale, not absence."""
     write(tmp_path, "src/Widget.aa", "class Widget {}\n")
     write(tmp_path, "src/Other.aa", "class Other {}\n")
     _git_init(tmp_path)
@@ -83,7 +84,8 @@ def test_read_symbol_committed_multi_drift_is_index_stale_not_absent(tmp_path: P
     write(tmp_path, "src/Other.aa", "class Other {}\n# symbol: sibling\n")
     _git_commit_all(tmp_path, "two files")
 
-    result = read_symbol.create(config)("src/Widget.aa::buildPaginatorQuery", detail_level="minimal")
+    subject = "src/Widget.aa::buildPaginatorQuery"
+    result = read_symbol.create(config)(subject, detail_level="minimal")
     assert result["reason"] == REASON_INDEX_STALE
     assert result["stale"] is True
     assert result["reason"] != REASON_NO_SUCH_SYMBOL
