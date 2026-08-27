@@ -46,7 +46,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 164 | [`server_build` names the repo HEAD, not the code the process loaded](tasks/164_server-build-names-the-repo-not-the-running-process.md) | Agent-trust | in-progress | 162, 125, 100 |
 | 165 | [`find_callers` on a qualified twin silently omits callers bound to its sibling, and says `reason: "ok"`](tasks/165_find-callers-splits-across-twins-and-says-reason-ok.md) | Agent-trust | in-progress | 013, 054, 161, 122 |
 | 166 | [`read_symbol` answers from the pre-repair state and calls it `no_such_symbol`](tasks/166_read-symbol-answers-from-pre-repair-state-and-calls-it-no-such-symbol.md) | Agent-trust | in-progress | 035, 014, 065 |
-| 167 | [A substring near-miss is returned at `reason: "ok"`](tasks/167_a-substring-near-miss-is-reported-as-reason-ok.md) | Agent-trust | todo | 014, 160, 093 |
+| 167 | [A substring near-miss is returned at `reason: "ok"`](tasks/167_a-substring-near-miss-is-reported-as-reason-ok.md) | Agent-trust | in-progress | 014, 160, 093 |
 
 ## Open work — Pillar 2 · Onboarding
 

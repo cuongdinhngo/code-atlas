@@ -15,6 +15,7 @@ from code_atlas.tools.nav_result import (
     REASON_NO_MATCHES,
     REASON_NOT_INDEXED,
     REASON_OK,
+    REASON_SUBSTRING_MATCH,
     TRY_INSTEAD_FILE_OUTLINE,
     NavReason,
     attach_limit_capped,
@@ -89,7 +90,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         Returns ``{qname, kind, file, line}`` rows (FTS trigram, or a name/qname prefix scan for
         queries under three characters), capped by ``limit`` or ``CA_MAX_RESULTS``; ``offset`` pages
-        in search order (057). On hash drift beyond the per-call reparse cap, returns hits with
+        in search order (057). When the first page holds only substring/trigram near-misses — no
+        result exactly matches or prefixes the query — ``reason=substring_match`` marks the answer a
+        near-miss, not a hit, and carries the language-coverage note (167 / 160). On hash drift
+        beyond the per-call reparse cap, returns hits with
         ``reason=index_stale`` and an honest ``total_count`` (never an empty proof of absence); a
         zero-hit first page may repair the sole dirty indexed file, and several dirty files yield
         empty ``index_stale`` plus ``try_instead`` (073). Stub-indexed nodes carry ``stub: true``
@@ -150,8 +154,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
         attach_subjects_capped(payload, cap=config.max_subjects, dropped=dropped)
         # A swept miss is the same 8-A shape as a single one: name the coverage gap once on the
-        # envelope (call-level, never per subject — 061) when any subject came back a genuine zero.
-        if any(not a["results"] and a["reason"] == REASON_NO_MATCHES for a in answers):
+        # envelope (call-level, never per subject — 061) when any subject came back a genuine zero
+        # or a substring near-miss — the sweep path is the one 160's AC1e showed gets missed (167).
+        if any(
+            (not a["results"] and a["reason"] == REASON_NO_MATCHES)
+            or a["reason"] == REASON_SUBSTRING_MATCH
+            for a in answers
+        ):
             attach_coverage_gap(payload, config)
         return payload
 
@@ -190,10 +199,29 @@ def _search_one(
         total_count = len(results)
     if status == "stale":
         reason: NavReason = REASON_INDEX_STALE
-    else:
+    elif total_count == 0:
         # Page emptiness ≠ answer emptiness once offset can walk past the end (057).
-        reason = REASON_OK if total_count > 0 else REASON_NO_MATCHES
+        reason = REASON_NO_MATCHES
+    elif offset == 0 and not any(_is_direct_match(query, row) for row in rows[:cap]):
+        # First page holds only substring/trigram near-misses — not a confident hit (167).
+        reason = REASON_SUBSTRING_MATCH
+    else:
+        reason = REASON_OK
     return _Hits(results, truncated, reason, total_count)
+
+
+def _is_direct_match(query: str, row: Mapping[str, object] | Row) -> bool:
+    """True when the query is an exact match or a prefix of the row's name or qname (167).
+
+    Case-insensitive and language-agnostic (R1.1): a run of the query against the symbol the search
+    returned, no SQL. Everything else is a substring / trigram near-miss.
+    """
+    q = query.casefold()
+    name = str(row["name"]).casefold()
+    if name == q or name.startswith(q):
+        return True
+    qname = str(row["qualified_name"]).casefold()
+    return qname == q or qname.startswith(q)
 
 
 def _single_payload(

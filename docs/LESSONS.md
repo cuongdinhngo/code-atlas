@@ -60,6 +60,26 @@ this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *c
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
 
+## 167 — Label how a search matched, not just how many rows came back
+
+`search_symbol("storeCRM")` returned `reason: ok, total_count: 7` with `\ModelMember::restoreCRM`
+first — a substring near-miss handed back as a confident hit. The reason was a pure function of the row
+count, blind to *how* the rows matched, even though exact/prefix/substring are distinguishable at query
+time. Worse, because it read `ok`, 160's `attach_coverage_note` (gated on `no_matches`/`no_such_symbol`)
+never fired, so the language-coverage note was suppressed by exactly the shape that most needed it. Fix:
+a distinct `reason: substring_match` when the first page holds no exact or prefix match (classified
+in-memory over the rows already returned — no per-row query), and `attach_coverage_note` extended to
+ride it despite the answer carrying rows. General shape: when a result set can contain near-misses,
+label the *kind* of match at the level the reader and the downstream note both key on (the reason),
+not merely the count.
+
+*Claim `167-C1` — a search answer's `reason` must encode *how* results matched (exact/prefix vs
+substring/trigram), not just whether any came back; a count-only reason lets a near-miss pass as a hit
+and suppresses any note gated on the genuine-absence reasons. type: 2 · handle:
+`label-how-it-matched-not-just-how-many` · status: proposed · seen: 167 · evidence:
+`search_symbol.py:195` reason = ok if total_count>0; closed by `REASON_SUBSTRING_MATCH` +
+`test_substring_near_miss_is_labelled_and_carries_the_gap` · destination: open — folds into a
+convention if it recurs (relates to 160, 065).*
 ## 166 — Drift is measured against the index's commit, not just the working tree
 
 `read_symbol` returned a confident `no_such_symbol` / `stale: false` for a symbol added and **committed**

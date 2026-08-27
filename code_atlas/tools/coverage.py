@@ -10,7 +10,11 @@ from __future__ import annotations
 
 from code_atlas.adapter import unconfigured_adapters
 from code_atlas.config import Config
-from code_atlas.tools.nav_result import REASON_NO_MATCHES, REASON_NO_SUCH_SYMBOL
+from code_atlas.tools.nav_result import (
+    REASON_NO_MATCHES,
+    REASON_NO_SUCH_SYMBOL,
+    REASON_SUBSTRING_MATCH,
+)
 
 COVERAGE_KEY = "unconfigured_adapters"
 
@@ -33,14 +37,21 @@ def attach_coverage_gap(payload: dict[str, object], config: Config) -> dict[str,
 
 
 def attach_coverage_note(payload: dict[str, object], config: Config) -> dict[str, object]:
-    """Name the coverage gap on an indexed *genuine-absence* answer (no_matches / no_such_symbol).
+    """Name the coverage gap on an indexed *genuine-absence* answer, or a substring near-miss (167).
 
     Self-gating and idempotent, so it is safe to call at every return point: never on a not-indexed,
-    stale, under-qualified, untracked, or non-empty answer. A relationship-not-modelled zero is a
-    different kind (it already routes), and is left alone.
+    stale, under-qualified, untracked, or confident (exact/prefix) answer. A
+    relationship-not-modelled zero is a different kind (it already routes), and is left alone. A
+    ``substring_match`` answer is the one carrying results that still needs the note — the requested
+    symbol is absent (167).
     """
-    if not payload.get("indexed") or payload.get("results"):
+    if not payload.get("indexed"):
         return payload
-    if payload.get("reason") not in (REASON_NO_MATCHES, REASON_NO_SUCH_SYMBOL):
+    reason = payload.get("reason")
+    if reason == REASON_SUBSTRING_MATCH:
+        return attach_coverage_gap(payload, config)
+    if payload.get("results"):
+        return payload
+    if reason not in (REASON_NO_MATCHES, REASON_NO_SUCH_SYMBOL):
         return payload
     return attach_coverage_gap(payload, config)

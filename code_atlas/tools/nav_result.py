@@ -33,6 +33,7 @@ NavReason = Literal[
     "dataset_schema_mismatch",
     "incomplete_snapshot",
     "snapshot_not_found",
+    "substring_match",
 ]
 
 REASON_OK: NavReason = "ok"
@@ -56,6 +57,9 @@ REASON_INDEX_ROOT_MISMATCH: NavReason = "index_root_mismatch"
 REASON_DATASET_SCHEMA_MISMATCH: NavReason = "dataset_schema_mismatch"
 REASON_INCOMPLETE_SNAPSHOT: NavReason = "incomplete_snapshot"
 REASON_SNAPSHOT_NOT_FOUND: NavReason = "snapshot_not_found"
+# search_symbol matched only as a substring/trigram — no result is an exact or prefix match, so a
+# near-miss (`storeCRM` → `restoreCRM`) is not a confident hit (167). Carries the 160 coverage note.
+REASON_SUBSTRING_MATCH: NavReason = "substring_match"
 
 NAV_REASONS: tuple[NavReason, ...] = (
     REASON_OK,
@@ -74,6 +78,7 @@ NAV_REASONS: tuple[NavReason, ...] = (
     REASON_DATASET_SCHEMA_MISMATCH,
     REASON_INCOMPLETE_SNAPSHOT,
     REASON_SNAPSHOT_NOT_FOUND,
+    REASON_SUBSTRING_MATCH,
 )
 
 # Two registers, one naming rule (093): ``TRY_INSTEAD_*`` is a registered tool name the reader can

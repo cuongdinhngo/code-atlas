@@ -17,8 +17,17 @@ import pytest
 from code_atlas import adapter
 from code_atlas.config import load_config
 from code_atlas.tools import coverage, find_references, include_graph, search_symbol
-from code_atlas.tools.nav_result import REASON_INDEX_STALE, REASON_NO_MATCHES
-from tests.test_nav_tools import db_config, seed_file, store  # noqa: F401 — store is a fixture
+from code_atlas.tools.nav_result import (
+    REASON_INDEX_STALE,
+    REASON_NO_MATCHES,
+    REASON_SUBSTRING_MATCH,
+)
+from tests.test_nav_tools import (  # noqa: F401 — store is a fixture
+    db_config,
+    node,
+    seed_file,
+    store,
+)
 
 _TS_GAP = [{"language": "typescript", "enable": "CA_TYPESCRIPT_CMD"}]
 
@@ -117,6 +126,96 @@ def test_search_symbol_sweep_names_the_coverage_gap(
     result = search_symbol.create(config)(queries=["iziToast"])
     assert result["subjects"][0]["total_count"] == 0
     assert result["unconfigured_adapters"] == _TS_GAP
+
+
+def test_substring_near_miss_is_labelled_and_carries_the_gap(
+    tmp_path: Path, store, monkeypatch: pytest.MonkeyPatch  # noqa: F811
+) -> None:
+    """167 AC1/AC2: asking for a symbol that exists only as a substring of another is a near-miss.
+
+    The `storeCRM` → `restoreCRM` shape with generic names (R2): the query matches `resetPaginate`
+    as a substring but is neither an exact nor a prefix match, so the answer is `substring_match`,
+    not `ok`, and 160's coverage note rides it despite the row being present.
+    """
+    monkeypatch.setattr(adapter, "ADAPTERS_DIR", _plant_adapters(tmp_path, "php", "typescript"))
+    config = replace(
+        load_config(tmp_path, {"CA_PHP_CMD": "php run"}), db_path=tmp_path / "graph.db"
+    )
+    seed_file(
+        store,
+        "a.php",
+        [node("Method", "resetPaginate", "\\Ns\\Model::resetPaginate", "a.php")],
+        [],
+        root=tmp_path,
+    )
+    result = search_symbol.create(config)("paginate", detail_level="minimal")
+    assert result["total_count"] == 1
+    assert result["reason"] == REASON_SUBSTRING_MATCH
+    assert result["results"][0]["qname"] == "\\Ns\\Model::resetPaginate"
+    assert result["unconfigured_adapters"] == _TS_GAP
+
+
+def test_exact_and_prefix_matches_stay_ok_and_byte_identical(
+    tmp_path: Path, store, monkeypatch: pytest.MonkeyPatch  # noqa: F811
+) -> None:
+    """167 AC3: an answer with an exact (or prefix) match is `ok` with no note — unchanged."""
+    monkeypatch.setattr(adapter, "ADAPTERS_DIR", _plant_adapters(tmp_path, "php", "typescript"))
+    config = replace(
+        load_config(tmp_path, {"CA_PHP_CMD": "php run"}), db_path=tmp_path / "graph.db"
+    )
+    seed_file(
+        store,
+        "a.php",
+        [
+            node("Method", "paginate", "\\Ns\\Model::paginate", "a.php"),
+            node("Method", "paginateQuery", "\\Ns\\Model::paginateQuery", "a.php"),
+        ],
+        [],
+        root=tmp_path,
+    )
+    exact = search_symbol.create(config)("paginate", detail_level="minimal")
+    assert exact["reason"] == "ok"
+    assert "unconfigured_adapters" not in exact
+    prefix = search_symbol.create(config)("paginateQ", detail_level="minimal")
+    assert prefix["reason"] == "ok"
+    assert "unconfigured_adapters" not in prefix
+
+
+def test_sweep_substring_near_miss_names_the_gap_on_the_envelope(
+    tmp_path: Path, store, monkeypatch: pytest.MonkeyPatch  # noqa: F811
+) -> None:
+    """167 AC4: the sweep path carries the same discriminator + envelope note (160 AC1e lesson)."""
+    monkeypatch.setattr(adapter, "ADAPTERS_DIR", _plant_adapters(tmp_path, "php", "typescript"))
+    config = replace(
+        load_config(tmp_path, {"CA_PHP_CMD": "php run"}), db_path=tmp_path / "graph.db"
+    )
+    seed_file(
+        store,
+        "a.php",
+        [node("Method", "resetPaginate", "\\Ns\\Model::resetPaginate", "a.php")],
+        [],
+        root=tmp_path,
+    )
+    result = search_symbol.create(config)(queries=["paginate"])
+    assert result["subjects"][0]["reason"] == REASON_SUBSTRING_MATCH
+    assert result["subjects"][0]["total_count"] == 1
+    assert result["unconfigured_adapters"] == _TS_GAP
+
+
+def test_coverage_note_rides_a_substring_match_with_results(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """167 AC2: the note attaches on a substring_match answer even though it carries results."""
+    monkeypatch.setattr(adapter, "ADAPTERS_DIR", _plant_adapters(tmp_path, "php", "typescript"))
+    config = load_config(tmp_path, {"CA_PHP_CMD": "php run"})
+    payload = {
+        "indexed": True,
+        "results": [{"qname": "\\Ns\\Model::resetPaginate"}],
+        "reason": REASON_SUBSTRING_MATCH,
+        "total_count": 1,
+    }
+    coverage.attach_coverage_note(payload, config)
+    assert payload["unconfigured_adapters"] == _TS_GAP
 
 
 def test_include_graph_imported_by_is_never_a_bare_zero(

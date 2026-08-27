@@ -29,6 +29,7 @@ from code_atlas.tools.nav_result import (
     REASON_RULE_MATCHED_NO_FILES,
     REASON_SNAPSHOT_NOT_FOUND,
     REASON_SUBJECT_AMBIGUOUS,
+    REASON_SUBSTRING_MATCH,
 )
 from tests.test_nav_tools import db_config, edge, node, seed_file
 
@@ -173,6 +174,7 @@ def test_reason_vocabulary_includes_index_stale_unused() -> None:
         REASON_DATASET_SCHEMA_MISMATCH,
         REASON_INCOMPLETE_SNAPSHOT,
         REASON_SNAPSHOT_NOT_FOUND,
+        REASON_SUBSTRING_MATCH,
     )
 
 
