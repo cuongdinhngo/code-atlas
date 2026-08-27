@@ -218,3 +218,89 @@ def test_missing_package_metadata_does_not_break_signing(
 
     monkeypatch.setattr(build_info.importlib.metadata, "version", absent)
     assert build_info._package_version() == build_info.UNKNOWN_VERSION
+
+
+def test_stale_process_when_loaded_differs_from_disk(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """164 AC1: a process whose loaded code differs from HEAD's content reports the loaded id.
+
+    Simulates the divergence a `git pull` under a running server causes — without a real pull —
+    by pinning the frozen loaded id below the current disk content. The build must be the loaded
+    id, `stale_process` must be true, and the repo HEAD must ride alongside as context.
+    """
+    from code_atlas import build_info
+
+    build_info.server_identity.cache_clear()
+    monkeypatch.setattr(build_info, "_LOADED_BUILD_ID", "0ldc0de")
+    monkeypatch.setattr(build_info, "_git_root", lambda: tmp_path)
+    monkeypatch.setattr(build_info.gitutil, "head_commit", lambda root: "abcdef1234567890")
+
+    ident = build_info.server_identity()
+    build_info.server_identity.cache_clear()
+
+    assert ident["build"] == "0ldc0de"
+    assert ident["stale_process"] is True
+    assert ident["repo_head"] == "abcdef1"
+    assert ident["build"] != ident["repo_head"]
+
+    prov = {
+        "server_version": ident["version"],
+        "server_build": ident["build"],
+    }
+    if ident.get("stale_process"):
+        prov["server_stale_process"] = True
+        prov["server_repo_head"] = ident["repo_head"]
+    assert prov["server_stale_process"] is True
+    assert prov["server_repo_head"] == "abcdef1"
+
+
+def test_matching_process_is_byte_identical_and_omits_stale_fields(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """164 AC2 / 061: a process that matches its disk carries no divergence fields."""
+    from code_atlas import build_info
+
+    build_info.server_identity.cache_clear()
+    # Force the matching branch: loaded id equals the current content id, git commit present.
+    monkeypatch.setattr(build_info, "_LOADED_BUILD_ID", build_info._content_build_id())
+    monkeypatch.setattr(build_info, "_git_root", lambda: tmp_path)
+    monkeypatch.setattr(build_info.gitutil, "head_commit", lambda root: "abcdef1234567890")
+    monkeypatch.setattr(build_info.gitutil, "working_tree_dirty", lambda root: False)
+
+    prov = build_info.server_provenance()
+    build_info.server_identity.cache_clear()
+
+    assert set(prov) == {"server_version", "server_build"}
+    assert prov["server_build"] == "abcdef1"
+
+
+def test_stale_process_is_deterministic_across_calls(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """164 AC4 / R4.2: the diverged id derives from the loaded artifact, not a clock."""
+    from code_atlas import build_info
+
+    monkeypatch.setattr(build_info, "_LOADED_BUILD_ID", "0ldc0de")
+    monkeypatch.setattr(build_info, "_git_root", lambda: tmp_path)
+    monkeypatch.setattr(build_info.gitutil, "head_commit", lambda root: "abcdef1234567890")
+
+    build_info.server_identity.cache_clear()
+    first = build_info.server_identity()
+    build_info.server_identity.cache_clear()
+    second = build_info.server_identity()
+    build_info.server_identity.cache_clear()
+    assert first == second
+
+
+def test_one_time_hash_walk_is_bounded(tmp_path: Path) -> None:
+    """164 AC3: the package-tree hash is a one-time, bounded cost — recorded in the task file.
+
+    Not a wall-clock assertion (R4.2 bars a clock in the id); this pins the size of the walk so
+    the recorded timing stays interpretable. The whole `code_atlas` tree is a few hundred KB.
+    """
+    from code_atlas import build_info
+
+    paths = list(build_info._PACKAGE_ROOT.rglob("*.py"))
+    total_bytes = sum(p.stat().st_size for p in paths)
+    assert total_bytes < 5_000_000, f"package tree grew to {total_bytes} B — re-measure AC3"

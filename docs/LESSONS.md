@@ -60,6 +60,26 @@ this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *c
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
 
+## 164 — A build stamp names the code the process LOADED, not the source on disk
+
+162 stamped `server_build` on every payload so a retro could name the binary that answered. It read
+git HEAD, so a long-lived stdio server whose disk moved under it (a `git pull` between process start
+and the first status call) quoted the post-fix commit while running pre-fix code — a confident
+falsehood worse than the unstamped payload it replaced. The fix freezes a content hash of the loaded
+package at import (`_LOADED_BUILD_ID` ≈ what was loaded) and compares it to current disk in
+`server_identity()`: matching → the commit (byte-identical, 061); diverged → the loaded id plus
+`server_stale_process`/`server_repo_head` so the gap is legible in-band. The `+dirty` worktree axis
+is orthogonal and untouched. General shape: an identity/provenance stamp for a persistent process is
+captured at load time, and process-vs-source divergence is disclosed, never hidden.
+
+*Claim `164-C1` — a build/provenance stamp for a long-lived process must be derived from the code the
+process LOADED (captured at import/start), not from the mutable source on disk; disclose any
+process-vs-disk divergence in-band rather than reporting the disk's state as the process's. type: 2 ·
+handle: `identity-names-the-loaded-process-not-the-disk` · status: proposed · seen: 164 · evidence:
+`build_info._git_build_id()` returned git HEAD for an lru-cached-at-first-call identity; closed by
+`_LOADED_BUILD_ID` + the divergence branch + `test_stale_process_when_loaded_differs_from_disk` ·
+destination: open — folds into a convention if it recurs (relates to [[125]] server-identity).*
+
 ## 161 — When the data model can't answer the ticket honestly, deliver the honest endpoint and record it
 
 161's Scope asked impact to resolve a shared qname to "the same-file definition and its real
