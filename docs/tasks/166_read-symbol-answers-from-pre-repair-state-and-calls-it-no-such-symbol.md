@@ -4,7 +4,7 @@ slug: read-symbol-answers-from-pre-repair-state-and-calls-it-no-such-symbol
 title: '`read_symbol` answers from the pre-repair state and reports `no_such_symbol` / `stale: false` — an identical second call returns the symbol'
 phase: 1.5b
 milestone: Agent-trust
-status: in-progress
+status: done
 depends_on: [035, 014, 065]
 ---
 

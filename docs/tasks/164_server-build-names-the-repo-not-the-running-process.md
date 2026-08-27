@@ -4,7 +4,7 @@ slug: server-build-names-the-repo-not-the-running-process
 title: '`server_build` names the repo HEAD, not the code the process loaded — the field built to make a build verifiable reports a commit that did not answer'
 phase: 1.5b
 milestone: Agent-trust
-status: in-progress
+status: done
 depends_on: [162, 125, 100]
 ---
 

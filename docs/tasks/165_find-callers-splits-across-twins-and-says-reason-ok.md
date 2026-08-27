@@ -4,7 +4,7 @@ slug: find-callers-splits-across-twins-and-says-reason-ok
 title: '`find_callers` on a fully-qualified twin silently omits callers bound to its sibling definition, and says `reason: "ok"`'
 phase: 1.5b
 milestone: Agent-trust
-status: in-progress
+status: done
 depends_on: [013, 054, 161, 122]
 ---
 

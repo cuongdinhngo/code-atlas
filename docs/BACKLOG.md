@@ -43,10 +43,10 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 161 | [`impact` binds a shared qname to one arbitrary twin at tier RESOLVED, and carries no freshness field](tasks/161_impact-resolves-a-shared-qname-to-one-twin-and-carries-no-freshness.md) | Agent-trust | done | 017, 070, 078, 077 |
 | 162 | [A build swap is invisible on every payload but `get_index_status` — carry a cheap `server_build` stamp](tasks/162_a-build-swap-is-invisible-on-every-payload-but-get-index-status.md) | Agent-trust | done | 125, 077, 100 |
 | 163 | [`read_symbol` `detail_level: "minimal"` is byte-identical to `standard` — a documented knob that does nothing](tasks/163_read-symbol-minimal-is-byte-identical-to-standard.md) | Agent-trust | done | 014, 066 |
-| 164 | [`server_build` names the repo HEAD, not the code the process loaded](tasks/164_server-build-names-the-repo-not-the-running-process.md) | Agent-trust | in-progress | 162, 125, 100 |
-| 165 | [`find_callers` on a qualified twin silently omits callers bound to its sibling, and says `reason: "ok"`](tasks/165_find-callers-splits-across-twins-and-says-reason-ok.md) | Agent-trust | in-progress | 013, 054, 161, 122 |
-| 166 | [`read_symbol` answers from the pre-repair state and calls it `no_such_symbol`](tasks/166_read-symbol-answers-from-pre-repair-state-and-calls-it-no-such-symbol.md) | Agent-trust | in-progress | 035, 014, 065 |
-| 167 | [A substring near-miss is returned at `reason: "ok"`](tasks/167_a-substring-near-miss-is-reported-as-reason-ok.md) | Agent-trust | in-progress | 014, 160, 093 |
+| 164 | [`server_build` names the repo HEAD, not the code the process loaded](tasks/164_server-build-names-the-repo-not-the-running-process.md) | Agent-trust | done | 162, 125, 100 |
+| 165 | [`find_callers` on a qualified twin silently omits callers bound to its sibling, and says `reason: "ok"`](tasks/165_find-callers-splits-across-twins-and-says-reason-ok.md) | Agent-trust | done | 013, 054, 161, 122 |
+| 166 | [`read_symbol` answers from the pre-repair state and calls it `no_such_symbol`](tasks/166_read-symbol-answers-from-pre-repair-state-and-calls-it-no-such-symbol.md) | Agent-trust | done | 035, 014, 065 |
+| 167 | [A substring near-miss is returned at `reason: "ok"`](tasks/167_a-substring-near-miss-is-reported-as-reason-ok.md) | Agent-trust | done | 014, 160, 093 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -107,7 +107,7 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | 7 (2026-08-23) | 126 · 127 | closed — 127 closed **119** in the same change |
 | Phase 3 cost gate | 121 → 129 · 130 · 131 | 121 · 129 · 130 · 131 done |
 | 8–9 (2026-08-25/26) | 158–163 · 022 | closed — all six shipped in one day and **all six verify on fresh code** (round 10 §12); SQL deferred (022) |
-| 10 (2026-08-26) | 164–167 | open — the verification round: 0 of 6 prior fixes reached a long-lived process, because `server_build` names the repo, not the loaded code (**164**, the round's one requested change). Then 165 · 166 · 167. Roll-out is the named binding constraint and is not a code ticket |
+| 10 (2026-08-26) | 164–167 | closed — the verification round: 0 of 6 prior fixes reached a long-lived process, because `server_build` named the repo, not the loaded code (**164**, the round's one requested change, PR #187). Then 165 (#188) · 166 (#189/#191) · 167 (#190). Roll-out is the named binding constraint and is not a code ticket |
 | Architecture review (2026-08-23) | 138–142 · 143–145 | 138 · 139 · 142 · 144 · **145A** done (artifact.json versioned); **143** layer mermaid; **142** class baseline measured ([benchmark](benchmarks/142_supervision-question-class.md)); 141 gated at n = 0; 145B deferred (stack not chosen; 118 no longer blocks) |
 
 **What still governs open work:**

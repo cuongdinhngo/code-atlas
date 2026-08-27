@@ -4,7 +4,7 @@ slug: a-substring-near-miss-is-reported-as-reason-ok
 title: 'A substring near-miss is returned at `reason: "ok"` — asking for a symbol that does not exist yields a confident hit on a different one'
 phase: 1.5b
 milestone: Agent-trust
-status: in-progress
+status: done
 depends_on: [014, 160, 093]
 ---
 
