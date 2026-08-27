@@ -4,7 +4,7 @@ slug: does-the-index-harm-mechanism-questions
 title: 'The one repeated benchmark cell says the index may make control-flow answers worse — resolve it at n ≥ 3'
 phase: 1.5b
 milestone: Measure
-status: blocked
+status: deferred
 depends_on: [055, 067, 045]
 ---
 
@@ -296,7 +296,22 @@ stop here — the n≥3 runs are **not** performed in this cycle. So this PR shi
   since resolving it requires the data this PR does not fabricate.
 The PR is framed as a pre-registered protocol, not a resolved measurement. No benchmark numbers invented.
 
-## Session status
+## Session status — CLOSED 2026-08-27
+- **Closed `deferred` by the maintainer: value not established.** The run was attempted on the anchor
+  repo and aborted after 1 of 6 cells; it falsified its own frozen key and its granted arm made 0 index
+  calls in 68 (22 tools delivered as deferred names, no schemas, `ToolSearch` never called), so it
+  bought no verdict at any n. Record + the two rules a future run must carry:
+  [`docs/benchmarks/074_mechanism-question.md`](../benchmarks/074_mechanism-question.md) §Run record.
+- **ACs left open, deliberately:** AC1-back (n ≥ 3 verdicts), AC2 (mechanism per wrong cell), AC3/AC4
+  (delete-or-replace the §19 threat + sync README). PLAN §19 now records the threat as unresolved **by
+  decision** instead of pending. The pre-registration stays banked and git-timestamped.
+- **Re-opening is a fresh decision, not a resumption** — it needs a rebuilt granted arm (tools proven
+  callable) and a re-frozen key, at ~$5.58 per cell.
+- **One finding survived and is not this ticket's:** an MCP server whose tools arrive as deferred names
+  gets zero adoption in a 68-call session. Related to 159 (an adapter invisible until an env var is set)
+  — file separately if it is worth a ticket.
+
+### Prior session status (2026-08-17)
 - **Phase:** finalise — **pre-registration shipped (PR #93)**; runs + §19/README decision **deferred**
   (maintainer chose to stop after prep).
 - **Ticket state:** `blocked` (2026-08-17) — parked awaiting the maintainer's anchor-repo runs. Nothing

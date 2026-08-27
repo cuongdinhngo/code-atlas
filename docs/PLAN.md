@@ -995,11 +995,11 @@ Consequences, all adopted:
 - **§13 is unchanged and now has evidence.** code-atlas and a language server are not substitutes; the
   benchmark could not even make an agent choose between them.
 - **Threats, recorded rather than hidden.** n = 1 per cell; question selection was not blind (all five
-  drawn from work already done); the one accidental repeat — the mechanism question, run twice under the
-  indexed arm's configuration with the server denied and then granted — produced **opposite verdicts**,
-  and whether that is session variance or the index steering the agent away from a control-flow defect is
-  unresolved. The refutation rests on the aggregate, not on any single cell. Details in the private
-  benchmark notes; nothing repo-identifying is reproduced here.
+  drawn from work already done); the one accidental repeat — the mechanism question run with the server
+  denied and then granted — produced **opposite verdicts**, and whether that is session variance or the
+  index steering the agent off a control-flow defect is **unresolved by decision**: 074 closed
+  `deferred` (2026-08-27), replication aborted at one cell on an arm with 0 index calls in 68
+  (`benchmarks/074_*`). The refutation rests on the aggregate, not any single cell.
 
 **Decision — Handler → template data-bag edge (task 059, 2026-08-08). Option 1 — producer side only.**
 

@@ -1,6 +1,7 @@
 # 074 — Does the index harm mechanism (control-flow) questions? — pre-registered protocol
 
-**Status:** pre-registered, runs pending (maintainer environment). **Ticket:**
+**Status:** **CLOSED 2026-08-27 — run attempted, aborted, no verdict.** The pre-registration below is
+left verbatim, including the key it falsified; the run record is at the bottom. **Ticket:**
 [`../tasks/074_does-the-index-harm-mechanism-questions.md`](../tasks/074_does-the-index-harm-mechanism-questions.md).
 
 This file is committed **before any run** so the result cannot be argued after the fact. It measures
@@ -97,4 +98,37 @@ Ground-truth cause (frozen before runs): _<one paragraph, non-identifying>_
 Once these rows are filled, the analysis turn applies the selected pre-registered consequence: edits
 PLAN §19 (delete the threat, or replace it with the resolved mechanism / a scope statement) and the
 README value claim **in the same change** (AC3/AC4), and records whether R5's second question is
-warranted.
+warranted. **This never happened — see below.**
+
+## Run record — 2026-08-27, aborted after 1 of 6 cells; ticket closed `deferred`
+
+The maintainer ran the protocol on the anchor repo and stopped it. Harness: one `--strict-mcp-config`
+config per arm as the only difference, `Edit`/`Write` disallowed, fresh headless session per cell,
+interleaved g/d/g/d/g/d. Three things came out of it, and **none of them is a verdict**:
+
+1. **One granted cell ran (rc=0, 985 s, 68 tool calls, $5.58); an earlier attempt was voided** because
+   the session listed the harness directory and could see both arms' configs — the harness was moved
+   outside the repo before the counted attempt. Cells 2–6 were never run: ~$5.58 × 6 for a result the
+   tree's own comments had largely pre-determined.
+2. **The frozen key was falsified by the cell it was meant to score.** The key asserted *no live cause
+   in this tree*; the cell reproduced the fatal and named a mechanism the key did not contain (a loop
+   cursor that **cycles** rather than sticks, because an out-of-range date makes the parse return
+   `false` and the cursor resets to the epoch while the `while` condition stays true — so the
+   cursor-unchanged backstop cannot fire). Scored mechanically the cell reads `wrong-cause`; in truth
+   it is more correct than the key. No verdict recorded, and correctly so.
+3. **The granted arm was not a granted arm.** All 22 code-atlas tools arrived as a `deferred_tools_delta`
+   attachment — **names without schemas** — and the session never called `ToolSearch`, so it made
+   **0 index calls in 68** with no callable tool available. Adoption was structurally zero, which is a
+   fact about tool delivery, not about the index's answer quality.
+
+**Two rules any future run of this protocol must carry**, both earned above:
+
+- **A granted cell with 0 index calls is `void`, not a datapoint**, and the harness must prove the tools
+  arrived callable (schemas present) before the cell counts. Without this, n ≥ 3 buys six native-tools
+  sessions and calls them an arm.
+- **A hand-built key that asserts *absence* must be probed dynamically, not only read.** Reading the
+  guards that closed a defect does not establish that no other shape reaches the same failure.
+
+**Why the ticket is closed rather than re-run:** the value is not established. Each cell costs ~$5.58,
+finding (3) means the arm needs rebuilding before a cell means anything, and finding (2) means the
+question needs a fresh key. Re-opening is a deliberate decision with a rebuilt arm, not a resumption.

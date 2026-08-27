@@ -98,7 +98,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 | 072 | 0 dispatch (review waived); main-loop unmeasured | [#89](https://github.com/cuongdinhngo/code-atlas/pull/89) |
 | 070 | **78.5k dispatch** — 1 analysis Explore (17 / 126 s); review waived | [#91](https://github.com/cuongdinhngo/code-atlas/pull/91) |
 | 069 | **113.7k dispatch** — analysis Explore 88.3k (40 / 227 s) + an execute blind-reader routing exercise 25.3k; review waived | [#92](https://github.com/cuongdinhngo/code-atlas/pull/92) |
-| 074 | 0 dispatch; main-loop unmeasured | [#93](https://github.com/cuongdinhngo/code-atlas/pull/93) |
+| 074 | 0 dispatch; main-loop unmeasured. Second cycle (close-out, 2026-08-27): 0 dispatch; the aborted anchor-repo run cost **$10.98 / 2 cells** on the maintainer's side, not this repo's ledger | [#93](https://github.com/cuongdinhngo/code-atlas/pull/93) |
 | 075 | 0 dispatch (review waived); main-loop unmeasured | [#94](https://github.com/cuongdinhngo/code-atlas/pull/94) |
 | 076 | 0 dispatch; main-loop unmeasured | [#94](https://github.com/cuongdinhngo/code-atlas/pull/94) |
 | 077 | 2 dispatch, unmeasured (explore + exposure-checker); review waived | [#96](https://github.com/cuongdinhngo/code-atlas/pull/96) |
