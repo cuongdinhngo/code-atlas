@@ -118,6 +118,23 @@ one-level disk read would resolve some names and silently miss re-exported ones,
 honest bare edge. So the module dependency is recorded (`IMPORTS`) and per-name resolution through an
 `export *` barrel is not; revisit only if the contract gains a resolve pass.
 
+## Call arguments — `args` / `arg_keys` (task 152)
+
+Every `CALLS`/`NEW` edge carries the contract's `args` (one category per argument, in source order)
+and the parallel `arg_keys`, mirroring the PHP adapter. The category is the *shape*, never the value:
+`string` · `number` · `true` · `false` · `null` · `array` (an object **or** array literal); any other
+expression is `null`. `arg_keys` is the object literal's ordered string keys (`[]` for a positional
+array literal, `null` otherwise).
+
+Four TS shapes with no PHP analogue have a stated answer:
+
+| shape | answer |
+|---|---|
+| a **spread** call argument (`f(...xs)`) | positions become untrustworthy → the whole `args` list is dropped (edge carries neither field), as PHP does for `...$unpack` |
+| a **template literal** (`` f(`hi ${x}`) ``) | category `string` — a string-typed expression, as PHP treats an interpolated string |
+| a **shorthand property** (`{ short }`) | its name is a key (`short`) |
+| a **computed key** (`{ [k]: 1 }`) or an object **spread** (`{ ...rest }`) | contributes no key and does not shift later keys |
+
 ## Still out of scope (later 019 slices)
 
-`args`/`arg_keys` on calls; the `semantic_types` inferred-receiver type table; `allowJs`/JSDoc types.
+The `semantic_types` inferred-receiver type table; `allowJs`/JSDoc types.

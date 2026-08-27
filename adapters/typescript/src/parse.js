@@ -111,6 +111,60 @@ function classifyVariable(stmt, decl) {
   return null;
 }
 
+// The contract `args` category of one argument (task 152), or null for any other expression — the
+// question is "what shape", never the value. Mirrors the PHP adapter's literalKind.
+function literalKind(node) {
+  if (
+    ts.isStringLiteral(node) ||
+    ts.isNoSubstitutionTemplateLiteral(node) ||
+    ts.isTemplateExpression(node)
+  ) {
+    return "string"; // a template literal is a string-typed expression, as PHP treats interpolation
+  }
+  if (ts.isNumericLiteral(node) || ts.isBigIntLiteral(node)) return "number";
+  if (node.kind === ts.SyntaxKind.TrueKeyword) return "true";
+  if (node.kind === ts.SyntaxKind.FalseKeyword) return "false";
+  if (node.kind === ts.SyntaxKind.NullKeyword) return "null";
+  if (ts.isObjectLiteralExpression(node) || ts.isArrayLiteralExpression(node)) return "array";
+  return null;
+}
+
+// One contract `args` entry per call argument, in source order; null = not a literal. A spread
+// argument forwards an unknown count, so no position is trustworthy — the whole list is dropped.
+function argLiterals(call) {
+  const args = call.arguments;
+  if (!args) return []; // `new Foo` with no parens is a zero-argument call
+  const out = [];
+  for (const arg of args) {
+    if (ts.isSpreadElement(arg)) return null;
+    out.push(literalKind(arg));
+  }
+  return out;
+}
+
+// The top-level string keys of an object literal, in order: a normal or shorthand property's name;
+// a computed key or a spread contributes nothing and does not shift later keys (mirrors PHP 063).
+function objectKeys(node) {
+  const keys = [];
+  for (const prop of node.properties) {
+    if (ts.isSpreadAssignment(prop)) continue;
+    const name = prop.name;
+    if (name && (ts.isIdentifier(name) || ts.isStringLiteral(name))) keys.push(name.text);
+  }
+  return keys;
+}
+
+// Parallel to argLiterals: an object/array literal's keys ([] for a positional array), else null.
+function argKeys(call) {
+  const args = call.arguments;
+  if (!args) return [];
+  return args.map((arg) => {
+    if (ts.isObjectLiteralExpression(arg)) return objectKeys(arg);
+    if (ts.isArrayLiteralExpression(arg)) return [];
+    return null;
+  });
+}
+
 function parseFile(path, declarationsOnly) {
   const qpath = toPosix(path);
   let text;
@@ -205,10 +259,18 @@ function parseFile(path, declarationsOnly) {
     if (extra && Object.keys(extra).length > 0) row.extra = extra;
     nodes.push(row);
   };
-  const addEdge = (kind, sourceQname, targetRaw, pos, tier) => {
+  const addEdge = (kind, sourceQname, targetRaw, pos, tier, call) => {
     const row = { kind, source_qname: sourceQname, target_raw: targetRaw, file_path: qpath };
     row.line = lineOf(pos);
     if (tier) row.confidence_tier = tier;
+    // A CALLS/NEW site carries its argument shapes (task 152); a spread drops the whole list.
+    if (call) {
+      const args = argLiterals(call);
+      if (args !== null) {
+        row.args = args;
+        row.arg_keys = argKeys(call);
+      }
+    }
     edges.push(row);
   };
 
@@ -279,7 +341,7 @@ function parseFile(path, declarationsOnly) {
     if (declarationsOnly) return;
     if (ts.isNewExpression(node)) {
       const target = resolveExpr(node.expression);
-      if (target) addEdge("NEW", scope, target, node.getStart(sf));
+      if (target) addEdge("NEW", scope, target, node.getStart(sf), undefined, node);
     }
     if (ts.isCallExpression(node)) {
       const callee = node.expression;
@@ -288,23 +350,23 @@ function parseFile(path, declarationsOnly) {
         callee.expression.kind === ts.SyntaxKind.ThisKeyword &&
         enclosingClass
       ) {
-        addEdge("CALLS", scope, member(enclosingClass, callee.name.text), node.getStart(sf));
+        addEdge("CALLS", scope, member(enclosingClass, callee.name.text), node.getStart(sf), undefined, node);
       } else if (ts.isIdentifier(callee)) {
         // A bare call is reported even when unresolved: the adapter emits, the core links (R3.3).
-        addEdge("CALLS", scope, resolve(callee.text), node.getStart(sf));
+        addEdge("CALLS", scope, resolve(callee.text), node.getStart(sf), undefined, node);
       } else {
         const target = resolveExpr(callee);
         if (target) {
-          addEdge("CALLS", scope, target, node.getStart(sf));
+          addEdge("CALLS", scope, target, node.getStart(sf), undefined, node);
         } else if (ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.name)) {
           // The method name is known and the receiver is not. `HEURISTIC` is not a label here: it is
           // what switches on the core's name-only fallback (`resolver.py` bare-member branch), and
           // it caps the edge so a unique name can never be promoted to RESOLVED (R5.2).
-          addEdge("CALLS", scope, callee.name.text, node.getStart(sf), "HEURISTIC");
+          addEdge("CALLS", scope, callee.name.text, node.getStart(sf), "HEURISTIC", node);
         } else {
           // A computed callee (`obj[name]()`, an IIFE) names nothing linkable. Say so rather than
           // drop the call — the same `(dynamic)`/`DYNAMIC` convention the PHP adapter uses.
-          addEdge("CALLS", scope, "(dynamic)", node.getStart(sf), "DYNAMIC");
+          addEdge("CALLS", scope, "(dynamic)", node.getStart(sf), "DYNAMIC", node);
         }
       }
     }
