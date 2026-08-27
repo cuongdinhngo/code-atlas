@@ -79,13 +79,10 @@ sample. What belongs in the plan is *why the seam is where it is*:
 - The one axis is **languages**, so the one seam is the **adapter contract** (§4) — and it is a JSON
   contract plus a subprocess protocol rather than a Python base class, because a .NET adapter cannot
   implement a Python ABC. That is what makes the inversion real rather than nominal.
-- **Abstract nothing that does not yet have two implementations.** No plugin registry, base classes
-  or DI container for one language. **Language #2 (TypeScript/JavaScript) reveals the correct
-  abstraction** — deliberately chosen because its model is the *most different* from PHP (no FQNs;
-  module-scoped `import`/`export`; ESM+CommonJS; `tsconfig` path aliases; project-context
-  resolution). It stresses the two things most likely to be PHP-shaped after building only PHP: the
-  `qualified_name` convention and file-at-a-time resolution. Expect a **contract v2** there (§4.4).
-  C# and Python confirm and extend rather than reshape.
+- **Abstract nothing that does not yet have two implementations.** Adapter #2 (TS/JS) — chosen as the
+  *most different* from PHP (no FQNs; module-scoped `import`/`export`; ESM+CommonJS; `tsconfig`
+  aliases; project-context resolution) — has now proved the seam: the registry verdict is settled (§19,
+  R1.2) and **no contract v2 was needed** (§4.4). C# and Python confirm and extend rather than reshape.
 - **Standard over sample is a claim about scope, not just about naming:** if a fact about a repo
   would change adapter behaviour, it belongs in the language spec or nowhere. Sample repos buy test
   coverage and performance targets, never semantics (§6.1). §19 extends the same rule to *evidence*.
@@ -668,7 +665,7 @@ aid, not a reading order** (§19).
 - **M6** Impact engine + `impact` tool + prompts.
 
 **Phase 2 — More languages (order: TS/JS → Python → C#) — deferred, §19:**
-- **M7** **TypeScript/JavaScript adapter** (TS Compiler API via `ts-morph`, Node sidecar) behind the *unchanged* core — the real test of OCP/DIP. Expect **contract v2** here (project-context resolution, module-scoped qnames — §4.4).
+- **M7** **TypeScript/JavaScript adapter** (TS Compiler API, Node sidecar) behind the *unchanged* core — the real test of OCP/DIP. Landed (019) with no contract v2 and no core registry (§4.4, §19).
 - **M8** **Python adapter** (`ast` + `jedi`) — cheap once the contract is hardened.
 - **M9** **C#/.NET adapter** (Roslyn sidecar) — confirms the contract holds for a second namespaced+semantic-model language.
 
@@ -694,10 +691,9 @@ are **complete**; the per-task breakdown, including the 108–117 reshape, is in
 ## 17. Risks & mitigations
 | Risk | Mitigation |
 |---|---|
-| Over-abstraction before it works (fights priority #1) | One seam only (contract); PHP concrete; no registry/base-classes until adapter #2. |
+| Over-abstraction before it works (fights priority #1) | One seam only (contract); PHP concrete. **Retired**: adapter #2 landed and confirmed no registry (§19, R1.2). |
 | **Adapter tuned to a sample repo** (breaks "works on any repo") | "Standard over sample" (§2): adapter encodes only the language spec/PSRs; CI grep-gate bans repo/framework names in adapter source; cross-repo validation (§16). |
-| Wrong abstraction guessed from one language | TS/JS (language #2) is what hardens the contract — its module-scoped, project-context model is the most PHP-unlike; expect a contract v2 at M7 (§4.4). |
-| TS/JS project-context resolution doesn't fit file-at-a-time protocol | Anticipated (§4.4): adapter loads the tsconfig program once and resolves against it, or a two-pass resolve; PHP/Python unaffected. |
+| Wrong abstraction / file-at-a-time misfit guessed from one language | **Retired**: TS/JS (the most PHP-unlike, module-scoped, project-context) landed with no contract v2 and the v1 file-at-a-time protocol intact (§4.4). |
 | PHP process startup × 112k | Long-lived streaming adapter + N workers. |
 | Dynamic PHP (`$obj->$m()`, magic, variable include) | `DYNAMIC` tier, excluded from traversal; name-based `HEURISTIC` fallback. |
 | No type inference for PHP instance calls | **Closed by [137](tasks/137_php-local-type-table.md)**: the HEURISTIC share fell to **1.1 / 3.9 / 2.6 %** across the three pins, with no call site losing a target — [benchmark](benchmarks/137_type-table.md). What is left is the late binding 136 predicted, which is the LSP defer's ≤0.6 %, plus receivers whose declaring member is unindexed (136's `vendor/` cap, unchanged). C# gets it free via Roslyn capability. |
@@ -737,7 +733,7 @@ viewer, §14). Still open:
 **Decisions locked so far:**
 - **Architecture** — language-agnostic core + per-language adapters, each using the language's best parser, joined by one frozen/versioned JSON contract (§4). Engine lineage: code-review-graph.
 - **Language order** (§3) — **PHP → TypeScript/JavaScript → Python → C#/.NET.** PHP first (large stress sample). TS/JS second: most popular (BE+FE) *and* the best contract-hardener (module-scoped, project-context, no FQNs → §4.4). Python cheap third. C# last (Roslyn semantic model; confirms the contract). **Revised 2026-08-04:** order retained, but **deferred** behind PHP agent-depth — see the pivot below.
-- **SOLID at the boundaries + YAGNI** (§2) — one seam (the contract); PHP built end-to-end first; language #2 (TS/JS) hardens the abstraction. No registry/base-classes until adapter #2.
+- **SOLID at the boundaries + YAGNI** (§2) — one seam (the contract); PHP built end-to-end first; language #2 (TS/JS) hardens the abstraction. Registry question now settled — see the R1.2 verdict below.
 - **Standard over sample** (§2) — adapters implement the language spec/PSRs only; sample repos drive test coverage & perf targets, never adapter semantics. CI grep-gate bans repo/framework names in adapter source.
 - **Priorities** (§0): make it work (PHP) → extend without touching core → onboarding feature.
 - **Onboarding** (§14) is **Phase 3**, a graph *consumer*; the core stays deterministic and the LLM
@@ -1012,10 +1008,8 @@ opt-in rules data outside `adapters/` applied by `enrichment.py` (the 040 channe
 code (R2). Implementation is follow-up [062](tasks/062_view-databag-producer.md); this entry is the
 design note.
 
-**Occurrence count** (operator-local §19 anchor; shape only — no private paths or identifiers).
-Raw `->with(` is ~3k sites on the anchor but is dominated by ORM eager-load, not view publish — the
-clean producer tally below **excludes** it; including it would inflate the case for a contract bump
-with the wrong evidence.
+**Occurrence count** (operator-local; shape only — no private paths). The clean producer tally below
+**excludes** raw `->with(` (~3k sites, dominated by ORM eager-load, not view publish).
 
 | Signal | Count |
 |--------|------:|
@@ -1043,6 +1037,13 @@ Serena-class tools are as blind as today's graph. This is unclaimed ground, not 
 lines; the agent still `Read`s the template to confirm the consumer name — the half no current tool
 answers. Shipped as edge kind `PROVIDES_VIEW_DATA`, `viewdata:<key>` targets, `CA_INDIRECTION_RULES`
 `view_data` setters, and the tool `find_view_data`.
+
+**Decision — R1.2 registry verdict: NO registry (task 156, 2026-08-27).** Adapter #2 landed (019) with
+an empty core diff: adapters are selected from data — `CA_<LANG>_CMD` → `config.adapter_cmds`
+(`config.py:87`), `indexer._announce` (`indexer.py:576`) loops them, and `extension_index`
+(`adapter.py:289`) builds the extension→owner map from what each announces. The only per-adapter table
+is test-side (`tests/contract/adapter_registry.py`, 147). Reverses only if an adapter needs core-side
+per-language logic (its own ticket; see R1.2).
 
 **Reference material** (private, same folder): `understand-anything-how-it-works.md`, `code-review-graph-how-it-works.md`.
 

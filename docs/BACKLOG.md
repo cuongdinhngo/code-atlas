@@ -107,7 +107,7 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | 7 (2026-08-23) | 126 · 127 | closed — 127 closed **119** in the same change |
 | Phase 3 cost gate | 121 → 129 · 130 · 131 | 121 · 129 · 130 · 131 done |
 | 8–9 (2026-08-25/26) | 158–163 · 022 | closed — all six shipped in one day and **all six verify on fresh code** (round 10 §12); SQL deferred (022) |
-| 10 (2026-08-26) | 164–167 | closed — the verification round: 0 of 6 prior fixes reached a long-lived process, because `server_build` named the repo, not the loaded code (**164**, the round's one requested change, PR #187). Then 165 (#188) · 166 (#189/#191) · 167 (#190). Roll-out is the named binding constraint and is not a code ticket |
+| 10 (2026-08-26) | 164–167 | closed — the verification round: 0 of 6 prior fixes reached a long-lived process, because `server_build` named the repo, not the loaded code (**164**, #187). Then 165 (#188) · 166 (#189) · 167 (#190). Roll-out is the binding constraint, not a code ticket |
 | Architecture review (2026-08-23) | 138–142 · 143–145 | 138 · 139 · 142 · 144 · **145A** done (artifact.json versioned); **143** layer mermaid; **142** class baseline measured ([benchmark](benchmarks/142_supervision-question-class.md)); 141 gated at n = 0; 145B deferred (stack not chosen; 118 no longer blocks) |
 
 **What still governs open work:**
@@ -136,13 +136,10 @@ agent-loop, because a large private PHP monorepo is the anchor for testing *and*
 language *order* is unchanged (§18.2). Adapter #2's prerequisites all landed — 147, 148, 149, 128.
 
 **019 was reopened by human ratification (2026-08-25)**; its remaining scope is filed as **150–157**,
-and **151 landed with it** (`obj.method()` emitted no edge at all — 22 → 96 CALLS edges on four real JS
-files). **150 landed:** the TS adapter now has a static analyser (`tsc --checkJs --strict`, `noImplicitAny`
-deferred to 154) wired into `gate.sh` + `ci.yml`, and the cross-repo reporter runs both adapters from one
-data-driven code path against 3 pinned TS/JS repos (ky · MQTT.js · socket.io, `failed=0`) — the run was
-clean, so no fixture-hidden defect was filed (AC6). Still open: **152 · 153 · 154 · 155 · 156 · 157**. That
-the adapter has contributed **zero** to the anchor repo remains a roll-out finding, not an adapter one
-(round 10 §13).
+and **151 landed with it** (`obj.method()` emitted no edge — 22 → 96 CALLS edges on four JS files).
+**150 landed** (static analyser `tsc --checkJs --strict` in `gate.sh`+`ci.yml`; cross-repo run per-adapter,
+3 TS/JS repos green, no defect filed). Still open: **152 · 153 · 154 · 155 · 157**. The adapter's **zero**
+contribution to the anchor is a roll-out finding, not an adapter one (round 10 §13).
 
 | # | Task | Milestone | Status | Depends on |
 |---|---|---|---|---|
@@ -160,7 +157,7 @@ the adapter has contributed **zero** to the anchor repo remains a roll-out findi
 | 153 | [No `semantic_types` — inferred receivers want 137's type table](tasks/153_ts-declared-and-inferred-types.md) | M7 | todo | 019, 151, 137 |
 | 154 | [`allowJs` breadth and JSDoc as a type source](tasks/154_ts-allowjs-and-jsdoc-types.md) | M7 | todo | 019, 153 |
 | 155 | [An aliased specifier and an `export *` both resolve to nothing](tasks/155_ts-tsconfig-paths-and-export-star.md) | M7 | todo | 019 |
-| 156 | [R1.2's condition is met — write the registry verdict down](tasks/156_r12-registry-verdict-now-adapter-2-exists.md) | M7 | todo | 019 |
+| 156 | [R1.2's condition is met — write the registry verdict down](tasks/156_r12-registry-verdict-now-adapter-2-exists.md) | M7 | done | 019 |
 | 157 | [R6.2's TS inventory has no named-`export default` case](tasks/157_r62-inventory-has-no-named-default-export-case.md) | M7 | todo | 019, 149 |
 
 ## Phase 1 — Core + PHP (done)

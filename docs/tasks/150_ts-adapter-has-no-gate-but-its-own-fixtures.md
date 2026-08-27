@@ -4,7 +4,7 @@ slug: ts-adapter-has-no-gate-but-its-own-fixtures
 title: The TS adapter's only validation is its own fixtures — no static analyser (R6.6), no cross-repo run (R6.3)
 phase: 2
 milestone: M7
-status: todo
+status: done
 depends_on: [019, 018, 148]
 ---
 

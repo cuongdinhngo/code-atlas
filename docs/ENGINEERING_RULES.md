@@ -27,6 +27,11 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
 - **R1.2 — One seam only (YAGNI).** The adapter contract is the sole abstraction. No plugin
   registry, base classes, factories or DI container until adapter #2 (TS/JS) exists and proves the
   shape. Two implementations reveal the right abstraction; one invents the wrong one.
+  **Condition met — verdict: NO registry (adapter #2 landed, 019; task 156).** A second language cost
+  zero core abstraction: adapters are selected from data (`config.adapter_cmds` ← `CA_<LANG>_CMD`),
+  announce their own extensions/capabilities over the handshake, and `extension_index`/`_owners` build
+  the ownership map — the 019 core diff was empty. Only per-adapter table is test-side (147). Evidence:
+  PLAN §19.
 - **R1.3 — Dependency direction is one-way.** The core depends on the **contract**, never on a
   concrete parser (`nikic`, Roslyn, ts-morph); adapters depend on nothing in the core. The genuine
   inversion boundary is the **JSON contract + subprocess protocol**, not a Python base class.
