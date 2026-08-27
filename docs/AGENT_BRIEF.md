@@ -88,6 +88,39 @@ gate re-ran at the final SHA — no incident.
 branch tip — or quoting a count with no SHA at all, which is the same failure with the evidence
 removed.
 
+## P5 — Blast-radius tracing enumerates count-pins, not just globs
+
+`PROVISIONAL (awaiting ratification)` — handle `count-pin-in-blast-radius` (`LESSONS.md` `085-C1`,
+seen 085, 087–089).
+
+When a change adds a member to a surface (a tool, a core module, a registered name), a Gate-2
+blast-radius trace lists not only the globs that auto-cover it but every test that count-pins or
+lists a subset of that surface (`len(...) == N`, a hard-coded member list). A matched pin enters the
+approved change list.
+
+**Why it costs.** A glob auto-covers the new member and reads as full coverage; the `len(...) == N`
+beside it does not, and the bump surfaces later as an execute-phase deviation instead of a planned
+edit.
+
+**Falsifier.** A blast-radius cell listing only globbing guards for a surface the change extends,
+with a `len(...)==N`/listed-subset pin on it unlisted and later caught as a deviation.
+
+## P6 — A verified assumption holds only for the path and tree it was checked on
+
+`PROVISIONAL (awaiting ratification)` — handle `re-verify-the-assumption-on-a-new-path`
+(`LESSONS.md` `102-C1`, seen 102, 107, 122).
+
+When a change adds a call path parallel to the one an assumption was verified on, re-verify on the
+new path; when a ticket inherits a count measured before a sibling landed, re-measure at current
+HEAD. A Gate-2 "verified" is not transitive to a path the same change introduces.
+
+**Why it costs.** The assumption was true of the loop it was read against and false of the loop the
+same change added; the count was measured before the sibling that moved it. No reviewer catches it —
+the breaking path post-dates the check.
+
+**Falsifier.** An assumption marked verified read against one branch while an added parallel branch
+is unguarded, or an AC citing a count not re-measured at pickup HEAD.
+
 ---
 
 ## Not in scope here

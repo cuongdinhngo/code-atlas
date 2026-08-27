@@ -24,34 +24,38 @@ citations use. The other two sightings are aliased under `085-C1` and `093-C3`.
 
 ## Class index — read this before proposing a new rule
 
-Every type-2 handle at recurrence ≥ 2. Six are already binding rules: re-deriving one is wasted work,
-and the honest move on a new sighting is to bump `seen:`, not to write a fresh claim.
+Every type-2 handle at recurrence ≥ 2. Fifteen are already binding rules or brief entries; the honest
+move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are not: two await ratify
+(`rank-before-truncate`, `guard-asserts-rendered-not-shipped-bytes`) and one was rejected
+(`skip-dynamic-means-unlinkable`).
 
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
 | `derived-not-listed-invariant` | 17 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128 | **R6.7** |
 | `prove-the-guard-fails` | 15 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019 | **R6.5** |
-| `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | open — **rejected at rec 3; that verdict is stale** |
+| `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
 | `fixture-shape-begs-the-question` | 7 | 084, 086, 103–106, 121 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
-| `count-pin-in-blast-radius` | 4 | 085, 087–089 | open — never proposed |
+| `count-pin-in-blast-radius` | 4 | 085, 087–089 | **AGENT_BRIEF P5** — promoted 2026-08-27 |
 | `source-the-caveat-from-the-computation` | 5 | 100–102, 122, 127 | **R5.5** |
-| `re-verify-the-assumption-on-a-new-path` | 3 | 102, 107, 122 | open — never proposed |
+| `re-verify-the-assumption-on-a-new-path` | 3 | 102, 107, 122 | **AGENT_BRIEF P6** — promoted 2026-08-27 |
 | `re-run-the-sweep-after-the-last-edit` | 3 | 100–102 | **AGENT_BRIEF P4** |
 | `route-must-answer` | 3 | 093, 101, 102 | folded into **R5.4**'s falsifier |
 | `rank-before-truncate` | 2 | 067, 126 | open — proposed 2026-08-23, awaiting ratify |
 | `guard-asserts-rendered-not-shipped-bytes` | 2 | 116, 127 | open — proposed 2026-08-23, awaiting ratify |
 | `sibling-meta-non-int` | 2 | 092, 095 | **R1.7** |
 | `record-the-deviation-as-a-deviation` | 2 | 101, promote-2026-08-15 | **AGENT_BRIEF P3** |
-| `one-rule-for-every-subject-slot` | 2 | 102, 122 | open — never proposed |
-| `ac-failure-mode-needs-the-right-guard` | 2 | 085, 107 | open |
-| `own-only-what-you-wrote` | 2 | 088, 089 | open |
+| `one-rule-for-every-subject-slot` | 2 | 102, 122 | **R1.8** — promoted 2026-08-27 |
+| `ac-failure-mode-needs-the-right-guard` | 2 | 085, 107 | **R6.8** — promoted 2026-08-27 |
+| `own-only-what-you-wrote` | 2 | 088, 089 | **R5.7** — promoted 2026-08-27 |
 | `skip-dynamic-means-unlinkable` | 2 | 094, 096 | open — rejected 2026-08-15 (2nd sighting bound a design) |
 
-**Three classes are overdue.** `do-not-attest-past-the-payloads-resolution` (7),
-`count-pin-in-blast-radius` (4) and `re-verify-the-assumption-on-a-new-path` (3) all clear the
-recurrence gate and none has ever been proposed — because their sightings were split across ids,
-which is `PROM-C1`'s under-count recurring one level up.
+**The three overdue classes were promoted 2026-08-27**, once their split-across-ids `seen:` lists were
+unioned (the under-count `PROM-C1` names): `do-not-attest-past-the-payloads-resolution` → **R5.6**
+(re-adjudicating the stale 2026-08-16 rejection), `count-pin-in-blast-radius` → **P5**,
+`re-verify-the-assumption-on-a-new-path` → **P6** — with `one-rule-for-every-subject-slot` → **R1.8**,
+`ac-failure-mode-needs-the-right-guard` → **R6.8** and `own-only-what-you-wrote` → **R5.7**, all
+PROVISIONAL awaiting ratification.
 `fixture-shape-begs-the-question` left this list on 2026-08-23: widened into **R6.3** rather than
 proposed as a new rule, because R6.3 already owned cross-repo validation and P2 asks for the widening.
 

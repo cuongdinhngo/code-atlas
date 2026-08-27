@@ -41,8 +41,8 @@ BUDGETS = {
     "AGENTS.md": 2_800,
     "PLAN.md": 24_000,
     "BACKLOG.md": 9_500,
-    "ENGINEERING_RULES.md": 4_200,
-    "AGENT_BRIEF.md": 1_700,
+    "ENGINEERING_RULES.md": 4_900,
+    "AGENT_BRIEF.md": 2_000,
     "CONVENTION.md": 6_300,
 }
 

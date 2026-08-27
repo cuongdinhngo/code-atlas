@@ -51,6 +51,12 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   contract for a conditional one, and every existing consumer inherits the looser type. *Falsifier:*
   a non-int inside the census structure, or a coercion relaxed instead of a sibling key added.
   *Provisional · `sibling-meta-non-int` (`095-C2`).*
+- **R1.8 — One decision, one implementation across every consumer.** When two or more call sites
+  branch on the same classifier/resolver verdict (e.g. `status == "resolved_unique"`), the branch
+  lives in one shared callable they all invoke; a new subject slot reuses it rather than
+  re-implementing it — duplicated copies drift and one goes wrong. *Falsifier:* two sites branching
+  on the same classifier status with duplicated handling instead of a shared call.
+  *Provisional · `one-rule-for-every-subject-slot` (`102-C2`).*
 
 ## 2. Standard over sample
 
@@ -121,6 +127,19 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   grep, covering fewer cases than the field's name or docstring claims — or a caveat present at one
   detail level and absent at another for the same underlying fact.
   *Provisional · `source-the-caveat-from-the-computation` (`100-C1`).*
+- **R5.6 — Never attest past what the payload can distinguish.** When a field cannot separate two
+  states a reader acts on differently — absent subject vs modelled zero, budget-cut walk vs complete —
+  carry a field that separates them or emit no signed line/label for that answer; never sign a value
+  the payload cannot tell apart. Prove it with a test driving both states. Adjacent to R5.5 (where a
+  value is sourced) — this gates whether you may attest at all. *Falsifier:* a count/flag identical
+  across the two states with no separating field, or a test asserting only one.
+  *Provisional · `do-not-attest-past-the-payloads-resolution` (`100-C4`, `087-C2`, `088-C2`).*
+- **R5.7 — A repo-writing tool removes only what its own manifest recorded.** Before deleting or
+  overwriting a tree, read the recorded page list and remove exactly those, refusing foreign paths
+  (`..`, absolute, outside the managed subdir) rather than unlinking them — the rule that guards the
+  index database guards on-disk artifacts too. *Falsifier:* a tool that rmtrees/overwrites a directory
+  without consulting its manifest, destroying a hand-written or foreign file.
+  *Provisional · `own-only-what-you-wrote` (`088-C1`).*
 
 ## 6. Testing (definition of done)
 
@@ -175,6 +194,12 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   list of valid members inside a test or tool where a derivation was available, or a new member that
   ships without failing any guard.
   *Provisional · `derived-not-listed-invariant` (`093-C2`, `095-C1`, `097-C1`).*
+- **R6.8 — An AC phrased as a failure mode needs a guard that can exhibit it.** Close a "would fail
+  if X" AC with a test that reaches X and is seen failing (R6.5); if the code structurally cannot
+  reach X, name the different boundary the test really guards and split the claim. Run it against a
+  repo/fixture that still exhibits the failure, not one a prior ticket cleaned. *Falsifier:* a
+  failure-mode AC closed by a test that passes without reaching the failure, or run where it cannot
+  occur. *Provisional · `ac-failure-mode-needs-the-right-guard` (`085-C2`).*
 
 ## 7. Change discipline
 

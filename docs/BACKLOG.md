@@ -268,29 +268,13 @@ this track are in [Open work — Pillar 1](#open-work--pillar-1--graph) and
 
 ### Where these tickets came from
 
-One line each. Full narratives in [PLAN §19](PLAN.md#19-project-context--decision-log) (round 4, the
-memory run, the founding-premise benchmark), [`FEEDBACK.md`](FEEDBACK.md) (external review rounds) and
-[`LESSONS.md`](LESSONS.md) (per-ticket engineering lessons).
+Each landed track's provenance — round-by-round narratives, headlines and numbers — lives in
+[PLAN §19](PLAN.md#19-project-context--decision-log), [`FEEDBACK.md`](FEEDBACK.md) (external review
+rounds) and [`LESSONS.md`](LESSONS.md), not retold here (R7.6).
 
-| Source | Tickets | Headline |
-|---|---|---|
-| Field retro 1 (`v0.1.0`, `e117b47`) | 047–049 | Zero graph queries in a multi-hour session — the defect lived in string-keyed controller→template data flow, which the index does not model |
-| Same day | 050–051 | A schema-version error was read as a corrupt index and the session fell back to `grep`; verifying the rebuild found the build reporting 949,808 edges against 1,775,812 |
-| Field retro 2 | 054–061 | First session to exercise the graph: **three ways an empty result reads as proof of absence** (one: no callers for a method with six live sites) |
-| Field retro 3 (2026-08-09) | 065–070 | Blind to prior findings; what the graph competed for it won (23/23). Sharpest: 066 + 067 made a *fully correct* tool a net loss |
-| Memory & concurrency run (`869dcc6`) | 071–073 | **Memory is a non-finding** (n-th agent ~70 MB PSS). All three defects are about what an answer *claims* — a worktree agent got the main checkout's symbol at `reason: ok` |
-| Freshness review (not a session) | 052–053 | Of four layers keeping an index current, only `build_or_update_index(full=false)` has no trigger; 052 gates 053 |
-| Field retro 4 (2026-08-10) | 075–082 | First verification round: 7 fixed, 2 improved, 1 reproduced, 2 not exercised. Both findings that mattered came from *outside* the verification section, which is a regression harness |
-| Field retro 5 (2026-08-14) | 092–097 | First round where **cost changed what was asked** (1 call in 3 h; each refresh ~60 s). 8/8 claims exact — every failure was silence or ambiguity |
-| Field **interview** (2026-08-14) | 099–101 (+098 gated) | Retracted the round's headline, and found what four rounds of routing work had missed: **all three decisions made without the graph wanted one line inside a `Read` already happening** |
-| Measured while building 100 | 102 | `impact` returns `results=0 seeds_dropped=0` for a subject not in the index — the identical pair a genuine modelled zero returns |
-| PLAN §19 threats paragraph | 074 | The founding-premise benchmark ran one mechanism question twice and got opposite verdicts, the denied run right — the only datapoint suggesting the index costs *accuracy* |
-| Field retro 8–9 (2026-08-25/26) | 158–163, 022 | First TS/JS rounds. Accuracy high (7/8, 13/13), value low: 0 critical-path artifacts. Gaps — routing (caller sweep run as `grep`), reach (adapter #2 unwired/invisible), honesty (coverage-silent zeros; `impact` bound a global to its `legacy/` twin at `RESOLVED`). DB-schema out of scope → 022 |
-
-One note still governs open work, beyond the constraints above: the anchor repo's `CLAUDE.md` asserts
-`grep` "times out" and costs "~650× the tokens" — an **un-evidenced claim, not a code-atlas defect**;
-round 3 observed neither, so it needs evidence or removal. (Round 4's two self-corrections are in
-[`FEEDBACK.md`](FEEDBACK.md).)
+One note still governs open work: the anchor repo's `CLAUDE.md` asserts `grep` "times out" and costs
+"~650× the tokens" — an **un-evidenced claim, not a code-atlas defect**; round 3 observed neither, so
+it needs evidence or removal.
 
 ## Follow-ups (not yet ticketed)
 
