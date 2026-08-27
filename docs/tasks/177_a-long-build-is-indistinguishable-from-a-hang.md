@@ -49,8 +49,11 @@ cannot be part of a CI job or an onboarding step either.
 
 Two deliverables, not alternatives — the maintainer's framing, kept.
 
-1. **Async.** The tool returns promptly with `mode: "started"` and a job identity; `get_index_status`
-   reports the running build. Design records where job state lives.
+1. **Async.** The tool returns promptly with `mode: "started"` and a job identity, and the running
+   build is reportable. Design records where job state lives. The `build_in_progress` field on
+   `get_index_status` and the read-only lock probe behind it belong to
+   [178](178_status-reads-current-while-a-build-is-still-linking.md) — this ticket reuses that probe
+   rather than defining a second one (R6.7).
 2. **Progress.** A running build publishes how far it has got, so a client (and a human) can tell work
    from a wedge.
 

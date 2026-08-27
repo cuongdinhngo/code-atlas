@@ -57,6 +57,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 175 | [Config is read once at spawn and no payload says so](tasks/175_config-is-loaded-at-spawn-and-nothing-says-so.md) | Agent-trust | todo | 164, 170 |
 | 176 | [No full build from a shell — `refresh` is incremental-only](tasks/176_no-full-build-from-a-shell.md) | Freshness | todo | 010, 053 |
 | 177 | [A valid long build is indistinguishable from a hang — 30 min of silence, no progress](tasks/177_a-long-build-is-indistinguishable-from-a-hang.md) | Agent-trust | todo | 072, 010, 052, 176 |
+| 178 | [`get_index_status` reads `staleness: "current"` while a build is still linking](tasks/178_status-reads-current-while-a-build-is-still-linking.md) | Agent-trust | todo | 072, 077, 010, 177 |
 
 ## Open work — Pillar 2 · Onboarding
 
