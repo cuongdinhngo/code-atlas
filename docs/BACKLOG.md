@@ -51,6 +51,11 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 169 | [An `impact` path seed expands to every symbol in the file and reports 29× the qname](tasks/169_impact-path-seed-walks-every-symbol-and-its-twins.md) | Agent-trust | todo | 161, 017, 078 |
 | 170 | [`server_identity` is cached, so a later build swap is unreportable](tasks/170_server-identity-is-cached-so-a-later-build-swap-is-unreportable.md) | Agent-trust | todo | 164, 162, 125 |
 | 171 | [`sibling_definitions` fires on 83 % of calls and lists nine sites unranked](tasks/171_sibling-definitions-fires-on-most-calls-and-is-unranked.md) | Agent-trust | todo | 165, 168, 013 |
+| 172 | [An incremental build is blind to a scope change — 3,244 files in scope, `wrote.files: 0`](tasks/172_incremental-is-blind-to-a-scope-change.md) | Freshness | todo | 016, 060, 053 |
+| 173 | [Coverage claims key on what is *configured*, not on what is *indexed*](tasks/173_coverage-claims-key-on-configured-not-indexed.md) | Agent-trust | todo | 160, 159, 082 |
+| 174 | [`unconfigured_adapters` names the switch but not the cost](tasks/174_unconfigured-adapters-names-the-switch-not-the-cost.md) | Agent-trust | todo | 159, 082 |
+| 175 | [Config is read once at spawn and no payload says so](tasks/175_config-is-loaded-at-spawn-and-nothing-says-so.md) | Agent-trust | todo | 164, 170 |
+| 176 | [No full build from a shell — `refresh` is incremental-only](tasks/176_no-full-build-from-a-shell.md) | Freshness | todo | 010, 053 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -278,7 +283,7 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **Resolver: link `IMPORTS`** so `find_references` sees `use` — docstring note in `code_atlas/tools/find_references.py`.
 - **PSR-4 / autoload-aware include resolution**, with PSR-0 duplicate-name disambiguation — [042](tasks/042_tokens-to-answer-sample-tier.md).
 - **`max_results` does two unrelated jobs** — returned rows *and* resolver candidate fan-out, so a query knob sets index size — [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
-- **Tokens-to-answer measures cost, not information** — 046 removed 1.06M duplicate edges (ratio moved 0.02 %) yet doubled the distinct answers. Worth a second axis (distinct answers, or rank-of-first-correct) before the ratio judges a retrieval change.
+- **Tokens-to-answer measures cost, not information** — 046 moved the ratio 0.02 % while doubling the distinct answers. Wants a second axis before it judges a retrieval change.
 - **`reachable_from` payload size at `standard`** — bounded by `impact_max_nodes` (500), ~160 KB of JSON. Worth a lower default or `minimal`-by-default; workaround in [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
 - **Parser-OOM size cap (optional)** — multi-MB generated files exhaust the PHP parser (already soft-failed/restarted in `indexer.py`); a byte-cap pre-skip (`CA_MAX_FILE_BYTES`) would avoid ~30 restart cycles. Log skips; no silent truncation.
 - **Adapter-subprocess test harness on Windows (bug)** — `CA_*_CMD` uses POSIX quoting but splits with `posix=False`, so quoted paths reach `CreateProcess` verbatim → `WinError 2`. Fails ~56 adapter tests on Windows, green on Linux. Surfaced by [043](tasks/043_duplicate-decl-resilience.md).
@@ -286,9 +291,9 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **PHP-adapter duplicate-declaration fixture (optional)** — the adapter already emits per-declaration, so this only pins it.
 - **015 AC2 operator run** — a `CODE_ATLAS_SCALE_SAMPLE` timing artifact against the ~112k checkout, folded into [018](tasks/018_cross-repo-validation.md) as optional A4. Needs an operator machine.
 - **018 construct gaps** — cross-repo misses feed the (still empty) gap log in [`runbooks/cross-repo-validation.md`](runbooks/cross-repo-validation.md) and tasks 007 / 025.
-- **CI tightenings deferred from the drift audit** — open-ended `requires-python`, `scripts/` outside mypy's `files`, and stale action pins with no `dependabot.yml`; detail in [`DRIFT.md`](DRIFT.md).
-- **Docker images are never built by CI** — `docker/Dockerfile` is built by nothing and can rot, while `Dockerfile.runtime` *is* built inside `pytest`. Honest shape: one docker job building both. Moot while Actions is unbillable, but it survives that.
-- **GitHub Actions has not run since 2026-08-22** — private repo, no Actions budget. `scripts/gate.sh` run locally is the standing arrangement, not a lapse; but it is a human step, so a CI-only gate is off.
+- **CI tightenings deferred from the drift audit** — [`DRIFT.md`](DRIFT.md) holds all four.
+- **Docker images are never built by CI** — `docker/Dockerfile` can rot; `Dockerfile.runtime` is built inside `pytest`. Honest shape: one job building both. Moot while Actions is unbillable, but it survives that.
+- **GitHub Actions has not run since 2026-08-22** — no budget; `scripts/gate.sh` locally is the standing arrangement (AGENTS.md). It is a human step, so a CI-only gate is off.
 
 ## Conventions
 - Keep task `status` in this table **and** in each task file's frontmatter in sync.
