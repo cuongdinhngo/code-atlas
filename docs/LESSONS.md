@@ -60,6 +60,25 @@ this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *c
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
 
+## 166 — Drift is measured against the index's commit, not just the working tree
+
+`read_symbol` returned a confident `no_such_symbol` / `stale: false` for a symbol added and **committed**
+after the index was built. The miss-repair (`freshness.dirty_indexed_paths`) keyed on
+`gitutil.dirty_paths` — working tree vs HEAD — which is blind to a committed change, so `ensure_miss()`
+found no candidate, ran no repair, and composed the answer from the stale index. The field clue named
+it exactly: `staleness: "behind"` (index commit ≠ HEAD) beside `dirty_indexed_files: 0` (working tree
+clean). Reproduced deterministically (write → index → edit → **commit** → read). Fix: measure drift with
+`changed_paths(root, indexed_commit)` (committed-since ∪ working-tree), so the single-dirty-file repair
+finds a `git pull`'s change as readily as an uncommitted edit; more than one drifted file still yields
+`index_stale`, never `no_such_symbol`. `dirty_indexed_files` itself is correct-as-defined (it counts
+working-tree dirt); the bug was that read_symbol's miss path consumed only that signal.
+
+*Claim `166-C1` — read-through freshness must measure drift against the **indexed commit**, not the
+working tree: a committed change is not working-tree-dirty yet still leaves the index behind, so a
+working-tree-only signal produces a false `no_such_symbol` for a symbol a `git pull` added. type: 2 ·
+handle: `drift-is-vs-the-index-commit-not-the-working-tree` · status: proposed · seen: 166 · evidence:
+`dirty_indexed_paths` used `dirty_paths`; `test_read_symbol_miss_repairs_committed_drift` red pre-fix ·
+destination: open — folds into a convention if it recurs (relates to 073, 047).*
 ## 165 — An answer that is a partition of the truth must be marked a partition
 
 `find_callers` on `\Src\…\EventRunner::bedPriceCheck` returned its own callers and omitted the ones a

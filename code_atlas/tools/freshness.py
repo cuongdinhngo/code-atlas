@@ -8,7 +8,7 @@ from typing import Literal
 from code_atlas import gitutil
 from code_atlas.config import Config
 from code_atlas.indexer import file_is_current, indexable, reparse_file
-from code_atlas.store import INDEXED_SUFFIXES_KEY, GraphStore
+from code_atlas.store import INDEXED_SUFFIXES_KEY, LAST_COMMIT_KEY, GraphStore
 
 # Cap reparses per tool call (WANT-1 / Goal: one adapter call). Overflow → index_stale.
 READ_THROUGH_CAP = 1
@@ -89,8 +89,20 @@ class FreshnessGuard:
 
 
 def dirty_indexed_paths(store: GraphStore, config: Config) -> list[str]:
-    """Sorted dirty tracked paths this index covers — empty when git cannot answer (073)."""
-    paths = gitutil.dirty_paths(config.root)
+    """Sorted drifted tracked paths this index covers — empty when git cannot answer (073).
+
+    Drift is measured against the **indexed commit**, not just the working tree: a file changed
+    and committed after the index was built is not working-tree-dirty, yet the index still predates
+    it (166). ``changed_paths`` unions ``indexed_commit..HEAD`` with the working tree, so both a
+    ``git pull`` and an uncommitted edit are seen. No indexed commit (non-git / legacy) → the
+    working-tree signal alone.
+    """
+    last_commit = store.get_meta(LAST_COMMIT_KEY)
+    paths = (
+        gitutil.changed_paths(config.root, last_commit)
+        if last_commit
+        else gitutil.dirty_paths(config.root)
+    )
     if not paths:
         return []
     suffixes = store.get_meta(INDEXED_SUFFIXES_KEY)
