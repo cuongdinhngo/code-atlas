@@ -175,6 +175,7 @@ TS_R62_CASES = frozenset(
         "decorators",
         "arrow-closure",
         "default-export",
+        "default-export-named",
         "re-export-barrel",
         "jsx",
         "syntax-error",
@@ -301,6 +302,15 @@ _TS_CJS_EDGE_SHAPES: list[EdgeShape] = [
     ("IMPORTS", _tsq(_F_CJS), _tsq("cjs_service.js"), None),
     ("NEW", _tsq(_F_CJS, "boot"), _tsq("cjs_service.js", "Service"), None),
 ]
+# default-export-named: `export default class Foo {}` keeps its own name; an ALIASES ::default ->
+# ::Foo reaches it so a default-import resolves (019 finding). One default per file -> own fixture.
+_F_DEFAULT_NAMED = "default_export_named.ts"
+_TS_DEFAULT_NAMED_EDGE_SHAPES: list[EdgeShape] = [
+    ("ALIASES", _tsq(_F_DEFAULT_NAMED, "default"), _tsq(_F_DEFAULT_NAMED, "Widget"), None),
+    ("CONTAINS", _tsq(_F_DEFAULT_NAMED), _tsq(_F_DEFAULT_NAMED, "Widget"), None),
+    ("CONTAINS", _tsq(_F_DEFAULT_NAMED, "Widget"), _tsq(_F_DEFAULT_NAMED, "Widget::render"), None),
+    ("CONTAINS", _tsq(_F_DEFAULT_NAMED), _tsq(_F_DEFAULT_NAMED, "helper"), None),
+]
 # re-export-barrel: a named re-export ALIASES to the *defining* module (Q2, load-bearing). An
 # `export *` cannot enumerate names file-at-a-time, so it emits only the module dep (IMPORTS).
 _F_BARREL = "reexport_barrel.ts"
@@ -376,6 +386,12 @@ TS_CASES: dict[str, Case] = {
         {"File": 1, "Const": 1, "Function": 2},
         {"CONTAINS": 3},
         _TS_DEFAULT_EDGE_SHAPES,
+    ),
+    "default-export-named": Case(
+        "default_export_named.ts",
+        {"File": 1, "Class": 1, "Method": 1, "Function": 1},
+        {"CONTAINS": 3, "ALIASES": 1},
+        _TS_DEFAULT_NAMED_EDGE_SHAPES,
     ),
     "jsx": Case(
         "jsx.tsx",

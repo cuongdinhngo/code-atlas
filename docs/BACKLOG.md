@@ -158,7 +158,7 @@ contribution to the anchor is a roll-out finding, not an adapter one (round 10 �
 | 154 | [`allowJs` breadth and JSDoc as a type source](tasks/154_ts-allowjs-and-jsdoc-types.md) | M7 | todo | 019, 153 |
 | 155 | [An aliased specifier and an `export *` both resolve to nothing](tasks/155_ts-tsconfig-paths-and-export-star.md) | M7 | todo | 019 |
 | 156 | [R1.2's condition is met — write the registry verdict down](tasks/156_r12-registry-verdict-now-adapter-2-exists.md) | M7 | done | 019 |
-| 157 | [R6.2's TS inventory has no named-`export default` case](tasks/157_r62-inventory-has-no-named-default-export-case.md) | M7 | todo | 019, 149 |
+| 157 | [R6.2's TS inventory has no named-`export default` case](tasks/157_r62-inventory-has-no-named-default-export-case.md) | M7 | done | 019, 149 |
 
 ## Phase 1 — Core + PHP (done)
 

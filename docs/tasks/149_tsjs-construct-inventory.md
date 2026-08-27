@@ -26,8 +26,8 @@ One named inventory, each entry justified by the **ECMAScript / TypeScript speci
 framework or a repo:
 
 `module-esm` · `module-cjs` · `class-heritage` · `interface-type-alias` · `enum-const-enum` ·
-`generics` · `decorators` · `arrow-closure` · `default-export` · `re-export-barrel` ·
-`namespace-declare` · `jsx` · `syntax-error`
+`generics` · `decorators` · `arrow-closure` · `default-export` · `default-export-named` ·
+`re-export-barrel` · `namespace-declare` · `jsx` · `syntax-error`
 
 Two entries are load-bearing and must not be dropped as exotic:
 
@@ -113,14 +113,19 @@ whole-program lifecycle vs two-pass (cross-module resolution)? · **Q3** does ad
 | `generics` | type parameters `<T>` | Q1 does the qname/signature carry type params, or are they erased? |
 | `decorators` | `@decorator` (TC39 / TS) | Q3 a new edge/attribute kind (mirrors PHP attributes) or ignored? |
 | `arrow-closure` | arrow fns / function expressions | Q1 anonymous-member qname suffix (the `{closure@line}` question, second language) |
-| `default-export` | `export default …` | Q1 qname of an unnamed export; Q2 how a default import resolves to it |
+| `default-export` | `export default …` (anonymous) | Q1 qname of an unnamed export; Q2 how a default import resolves to it |
+| `default-export-named` | `export default class Foo {}` (named) | Q2 a named default resolves via ALIASES `::default`→`::Foo` — the React-component shape 019's matrix missed (task 157) |
 | `re-export-barrel` | `export * from` / `export { x } from` | Q2 `target_raw` must name the **defining** module — where RESOLVED is won/lost |
 | `namespace-declare` | TS `namespace` / `declare module` | Q1 the **only** construct with a native container separator — decides if `MEMBER_SEPARATOR` bends |
 | `jsx` | JSX elements (`.tsx`) | Q3 does JSX add node/edge vocabulary or a capability flag, or is it ignored? |
 | `syntax-error` | a malformed source file | R5.1 `ok:false` shape (mirrors PHP `syntax-error`); the mandatory error case |
 
+**Inventory count: 14 entries** — this table is the authoritative count (13 at 149's ship +
+`default-export-named`, added by task 157). R6.2 names the list and points here rather than restating a
+number (R6.7).
+
 **AC3 coverage:** Q1 → module-esm, generics, arrow-closure, default-export, **namespace-declare**;
-Q2 → module-esm, module-cjs, default-export, **re-export-barrel**; Q3 → class-heritage,
+Q2 → module-esm, module-cjs, default-export, default-export-named, **re-export-barrel**; Q3 → class-heritage,
 interface-type-alias, enum-const-enum, decorators, jsx. Both load-bearing entries present.
 
 ## Design
@@ -151,7 +156,7 @@ Plus bookkeeping at finalise: BACKLOG, TOKEN_LEDGER, LESSONS.
 
 - **AC1 measured:** `docs/ENGINEERING_RULES.md` = 4,066 tokens (budget 4,200, not-slack floor 3,360).
   `tests/test_doc_size_budget.py` + `tests/test_agent_chain_budget.py` → 12 passed.
-- **AC2/AC3:** the 13-row inventory table above maps each entry to its spec construct and the §4.4
+- **AC2/AC3:** the inventory table above (14 rows) maps each entry to its spec construct and the §4.4
   question it pins; Q1/Q2/Q3 each covered; `namespace-declare` + `re-export-barrel` present.
 - **AC4:** diff = `docs/ENGINEERING_RULES.md` (R6.2) + `docs/tasks/149_*.md`. Zero fixtures, zero
   adapter code, no contract change.
