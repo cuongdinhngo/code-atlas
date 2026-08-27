@@ -56,6 +56,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 174 | [`unconfigured_adapters` names the switch but not the cost](tasks/174_unconfigured-adapters-names-the-switch-not-the-cost.md) | Agent-trust | todo | 159, 082 |
 | 175 | [Config is read once at spawn and no payload says so](tasks/175_config-is-loaded-at-spawn-and-nothing-says-so.md) | Agent-trust | todo | 164, 170 |
 | 176 | [No full build from a shell — `refresh` is incremental-only](tasks/176_no-full-build-from-a-shell.md) | Freshness | todo | 010, 053 |
+| 177 | [A valid long build is indistinguishable from a hang — 30 min of silence, no progress](tasks/177_a-long-build-is-indistinguishable-from-a-hang.md) | Agent-trust | todo | 072, 010, 052, 176 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -287,9 +288,9 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **`reachable_from` payload size at `standard`** — bounded by `impact_max_nodes` (500), ~160 KB of JSON. Worth a lower default or `minimal`-by-default; workaround in [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
 - **Parser-OOM size cap (optional)** — multi-MB generated files exhaust the PHP parser (already soft-failed/restarted in `indexer.py`); a byte-cap pre-skip (`CA_MAX_FILE_BYTES`) would avoid ~30 restart cycles. Log skips; no silent truncation.
 - **Adapter-subprocess test harness on Windows (bug)** — `CA_*_CMD` uses POSIX quoting but splits with `posix=False`, so quoted paths reach `CreateProcess` verbatim → `WinError 2`. Fails ~56 adapter tests on Windows, green on Linux. Surfaced by [043](tasks/043_duplicate-decl-resilience.md).
-- **043 AC1 end-to-end `full_build` dup test** — deferred at Gate 4 (coverage-gap exclusion), blocked by the Windows bug above; surface already proven at the `_write`+store layer.
+- **043 AC1 end-to-end `full_build` dup test** — blocked by the Windows bug above; the surface is proven at the `_write`+store layer.
 - **PHP-adapter duplicate-declaration fixture (optional)** — the adapter already emits per-declaration, so this only pins it.
-- **015 AC2 operator run** — a `CODE_ATLAS_SCALE_SAMPLE` timing artifact against the ~112k checkout, folded into [018](tasks/018_cross-repo-validation.md) as optional A4. Needs an operator machine.
+- **015 AC2 operator run** — a scale-timing artifact folded into [018](tasks/018_cross-repo-validation.md) as optional A4. Needs an operator machine.
 - **018 construct gaps** — cross-repo misses feed the (still empty) gap log in [`runbooks/cross-repo-validation.md`](runbooks/cross-repo-validation.md) and tasks 007 / 025.
 - **CI tightenings deferred from the drift audit** — [`DRIFT.md`](DRIFT.md) holds all four.
 - **Docker images are never built by CI** — `docker/Dockerfile` can rot; `Dockerfile.runtime` is built inside `pytest`. Honest shape: one job building both. Moot while Actions is unbillable, but it survives that.
