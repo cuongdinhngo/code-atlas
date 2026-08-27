@@ -94,7 +94,10 @@ function decoratorsOf(node, sf) {
 }
 
 function typeTextOf(node, sf) {
-  return node.type ? node.type.getText(sf) : null;
+  // A TS annotation, else a `.js` file's JSDoc `@type`/`@param`, else a function's `@returns` — the
+  // same `extra.type` slot regardless of language flavour (task 154).
+  const annotated = node.type || ts.getJSDocType(node) || ts.getJSDocReturnType(node);
+  return annotated ? annotated.getText(sf) : null;
 }
 
 // A `const f = () => {}` / `= function () {}` binding is a named function (TS infers the name);
@@ -323,6 +326,21 @@ function parseFile(path, declarationsOnly) {
     addEdge("ALIASES", member(qpath, "default"), qname, node.getStart(sf));
   };
 
+  // A JSDoc `@typedef`/`@callback` names a type — the `.js` analogue of a `type` alias, so it emits an
+  // Interface node (task 154). The tag rides the following node's `jsDoc`; anchor it at that container.
+  const emitJsDocDeclarations = (node, container) => {
+    for (const doc of node.jsDoc || []) {
+      for (const tag of doc.tags || []) {
+        if (!ts.isJSDocTypedefTag(tag) && !ts.isJSDocCallbackTag(tag)) continue;
+        if (!tag.name || !ts.isIdentifier(tag.name)) continue;
+        const name = tag.name.text;
+        const qname = member(container, name);
+        addNode("Interface", name, qname, tag, { type_alias: true });
+        addEdge("CONTAINS", container, qname, tag.getStart(sf));
+      }
+    }
+  };
+
   // The class a call receiver evaluates to, from the local type table: a bare variable, or a
   // `this.prop` whose class the enclosing class declared. null when the receiver is untyped.
   const receiverClass = (expr, locals, selfProps) => {
@@ -418,7 +436,7 @@ function parseFile(path, declarationsOnly) {
       // Type binding (137): an annotation or an inferred `new Foo()` types the variable; anything
       // else re-opens it, so the local table never carries a stale class into a later member call.
       if (ts.isIdentifier(decl.name)) {
-        const bound = boundClass(decl.type, init);
+        const bound = boundClass(decl, init);
         if (bound) locals.set(decl.name.text, bound);
         else locals.delete(decl.name.text);
       }
@@ -480,6 +498,7 @@ function parseFile(path, declarationsOnly) {
     }
 
     emitBodyEdges(node, scope, enclosingClass, locals, selfProps);
+    emitJsDocDeclarations(node, container);
 
     // declarations_only stops at a callable's boundary: the node is emitted, its body is not walked.
     if (emittedCallable && declarationsOnly) return;

@@ -7,6 +7,12 @@
 
 const ts = require("typescript");
 
+// The type node a declaration carries: a TS annotation `x: Foo`, or — in a `.js` file — a JSDoc
+// `@type {Foo}` / `@param {Foo}` the language puts in a comment (task 154). Same slot, one consumer.
+function typeNodeOf(node) {
+  return node.type || ts.getJSDocType(node) || null;
+}
+
 // The simple class name a type annotation names: `Foo` / `Foo<T>` -> "Foo". A qualified, union,
 // array or any other type names nothing this file can turn into one class.
 function typeRefName(typeNode) {
@@ -24,19 +30,19 @@ function newExprClass(expr) {
   return null;
 }
 
-// The class an initializer/assignment RHS binds a variable to: an annotation wins, else an inferred
+// The class a declaration binds a variable to: an annotation (TS or JSDoc) wins, else an inferred
 // `new Foo()`; anything else returns null (the caller then forgets the variable).
-function boundClass(typeNode, initializer) {
-  return typeRefName(typeNode) ?? newExprClass(initializer);
+function boundClass(decl, initializer) {
+  return typeRefName(typeNodeOf(decl)) ?? newExprClass(initializer);
 }
 
 // Typed parameters of a callable -> Map(name -> class); a destructured or untyped parameter binds
-// nothing. Seeds a fresh local scope at each function/method boundary.
+// nothing. Seeds a fresh local scope at each function/method boundary. A JSDoc `@param` counts.
 function paramTypeMap(node) {
   const m = new Map();
   for (const p of node.parameters || []) {
     if (ts.isIdentifier(p.name)) {
-      const cls = typeRefName(p.type);
+      const cls = typeRefName(typeNodeOf(p));
       if (cls) m.set(p.name.text, cls);
     }
   }
@@ -48,11 +54,18 @@ function classPropTypeMap(classNode) {
   const m = new Map();
   for (const member of classNode.members || []) {
     if (ts.isPropertyDeclaration(member) && ts.isIdentifier(member.name)) {
-      const cls = typeRefName(member.type);
+      const cls = typeRefName(typeNodeOf(member));
       if (cls) m.set(member.name.text, cls);
     }
   }
   return m;
 }
 
-module.exports = { typeRefName, newExprClass, boundClass, paramTypeMap, classPropTypeMap };
+module.exports = {
+  typeNodeOf,
+  typeRefName,
+  newExprClass,
+  boundClass,
+  paramTypeMap,
+  classPropTypeMap,
+};

@@ -94,12 +94,13 @@ is already a committed runtime dependency, so `tsc --checkJs` adds no new toolch
 for the CommonJS/`node:` globals). ESLint would add a large devDependency tree to do a lint job the
 type-checker's soundness checks subsume. Rejected: ESLint.
 
-**The one strict flag held off: `noImplicitAny`.** The source is deliberately untyped (v1 is a
-syntactic parse), so full `noImplicitAny` reports ~72 implicit-`any` parameters that only per-parameter
-JSDoc types would close — and JSDoc-as-type-source is [task 154](../../docs/tasks/154_ts-allowjs-and-jsdoc-types.md),
-which flips this flag to `true` once those types exist. This is a scoped setting with a forward pointer,
-**not** a suppression: there is no baseline file, no `@ts-nocheck`, no `eslint-disable`. Every other
-strict check (`strictNullChecks`, `noUnusedLocals`, `noImplicitReturns`, …) is on and clean.
+**The one strict flag held off: `noImplicitAny`.** The adapter's *own* source is deliberately untyped,
+so full `noImplicitAny` reports ~72 implicit-`any` parameters that only per-parameter JSDoc on the
+adapter's own functions would close. Typing the adapter's source to turn the flag on is a separate
+concern (a future extension of [task 150](../../docs/tasks/150_ts-adapter-has-no-gate-but-its-own-fixtures.md)'s
+gate), **not** task 154 — 154 reads JSDoc off the *indexed* code, it does not type this repo. This is a
+scoped setting, **not** a suppression: there is no baseline file, no `@ts-nocheck`, no `eslint-disable`.
+Every other strict check (`strictNullChecks`, `noUnusedLocals`, `noImplicitReturns`, …) is on and clean.
 
 ## Module aliases and `export *` (task 155)
 
@@ -159,6 +160,20 @@ receiver that is the **return type of another call** (a fluent `a().b().c()` cha
 cross-file/whole-program view knows — is a file-at-a-time limit, not a checker gap; it is the residual
 the measured HEURISTIC share still carries, and would be its own ticket if a field round demands it.
 
-## Still out of scope (later 019 slices)
+## JSDoc as a type source (task 154)
 
-`allowJs`/JSDoc as a *type source* (task 154).
+A `.js`/`.jsx`/`.mjs`/`.cjs` file carries its types in **JSDoc**, and the adapter reads them off the
+AST (`node.jsDoc`) — still syntactic, no `Program`:
+
+- `@param {Foo}` / `@returns {Foo}` / `@type {Foo}` fill the same `extra.type` slot a TS annotation
+  does, so a consumer sees one field regardless of flavour;
+- those same JSDoc types feed the 153 local type table, so a JSDoc-typed receiver
+  (`@param {Foo} p` → `p.method()`) resolves to `<Class>::method` exactly as a `.ts` one would;
+- a `@typedef` / `@callback` is a named type — the `.js` analogue of a `type` alias — so it emits an
+  `Interface` node (marked `extra.type_alias`).
+
+The `.mjs`/`.cjs`/`.jsx` flavours are the same construct at a different `ScriptKind`, not new cases;
+the R6.2 inventory carries one `jsdoc-types` entry. **Known limit:** an *inline* class-field JSDoc
+(`/** @type {Foo} */ field`) is not attached to the field node by `ts.getJSDocType` in JS mode, so
+that one placement is not typed; a `@param`/`@returns`/`@type`-on-a-variable is. Reading a declared
+type is not verifying it — there is no type-checking of the indexed JS.

@@ -27,7 +27,7 @@ framework or a repo:
 
 `module-esm` · `module-cjs` · `class-heritage` · `interface-type-alias` · `enum-const-enum` ·
 `generics` · `decorators` · `arrow-closure` · `default-export` · `default-export-named` ·
-`re-export-barrel` · `namespace-declare` · `jsx` · `syntax-error`
+`re-export-barrel` · `namespace-declare` · `jsx` · `jsdoc-types` · `syntax-error`
 
 Two entries are load-bearing and must not be dropped as exotic:
 
@@ -118,15 +118,16 @@ whole-program lifecycle vs two-pass (cross-module resolution)? · **Q3** does ad
 | `re-export-barrel` | `export * from` / `export { x } from` | Q2 `target_raw` must name the **defining** module — where RESOLVED is won/lost |
 | `namespace-declare` | TS `namespace` / `declare module` | Q1 the **only** construct with a native container separator — decides if `MEMBER_SEPARATOR` bends |
 | `jsx` | JSX elements (`.tsx`) | Q3 does JSX add node/edge vocabulary or a capability flag, or is it ignored? |
+| `jsdoc-types` | JSDoc `@param`/`@returns`/`@type`/`@typedef` in a `.js` file | Q3 a `.js` file's types live in comments — `@typedef` → Interface, and the rest feed `extra.type` + 153's receiver resolution (task 154) |
 | `syntax-error` | a malformed source file | R5.1 `ok:false` shape (mirrors PHP `syntax-error`); the mandatory error case |
 
-**Inventory count: 14 entries** — this table is the authoritative count (13 at 149's ship +
-`default-export-named`, added by task 157). R6.2 names the list and points here rather than restating a
-number (R6.7).
+**Inventory count: 15 entries** — this table is the authoritative count (13 at 149's ship +
+`default-export-named` from task 157 + `jsdoc-types` from task 154). R6.2 names the list and points
+here rather than restating a number (R6.7).
 
 **AC3 coverage:** Q1 → module-esm, generics, arrow-closure, default-export, **namespace-declare**;
 Q2 → module-esm, module-cjs, default-export, default-export-named, **re-export-barrel**; Q3 → class-heritage,
-interface-type-alias, enum-const-enum, decorators, jsx. Both load-bearing entries present.
+interface-type-alias, enum-const-enum, decorators, jsx, jsdoc-types. Both load-bearing entries present.
 
 ## Design
 
@@ -156,7 +157,7 @@ Plus bookkeeping at finalise: BACKLOG, TOKEN_LEDGER, LESSONS.
 
 - **AC1 measured:** `docs/ENGINEERING_RULES.md` = 4,066 tokens (budget 4,200, not-slack floor 3,360).
   `tests/test_doc_size_budget.py` + `tests/test_agent_chain_budget.py` → 12 passed.
-- **AC2/AC3:** the inventory table above (14 rows) maps each entry to its spec construct and the §4.4
+- **AC2/AC3:** the inventory table above (15 rows) maps each entry to its spec construct and the §4.4
   question it pins; Q1/Q2/Q3 each covered; `namespace-declare` + `re-export-barrel` present.
 - **AC4:** diff = `docs/ENGINEERING_RULES.md` (R6.2) + `docs/tasks/149_*.md`. Zero fixtures, zero
   adapter code, no contract change.

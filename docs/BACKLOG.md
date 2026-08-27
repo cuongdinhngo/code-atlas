@@ -135,10 +135,10 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 agent-loop, because a large private PHP monorepo is the anchor for testing *and* evaluation (§19). The
 language *order* is unchanged (§18.2). Adapter #2's prerequisites all landed — 147, 148, 149, 128.
 
-**019 was reopened by human ratification (2026-08-25)**; its remaining scope is filed as **150–157**,
-and **151 landed with it** (`obj.method()` emitted no edge — 22 → 96 CALLS edges on four JS files).
-**150 landed** (static analyser `tsc --checkJs --strict` in `gate.sh`+`ci.yml`; cross-repo run per-adapter,
-3 TS/JS repos green, no defect filed). Still open: **154**. The adapter's **zero**
+**019 was reopened by human ratification (2026-08-25)**; its remaining scope was filed as **150–157**,
+all now **landed** — the R6.6/R6.3 gate (150), member-call edges (151), `args`/`arg_keys` (152), the
+`semantic_types` type table (153), JSDoc types (154), tsconfig-path aliases + the `export *` verdict
+(155), the registry verdict (156), the named-default inventory case (157). The adapter's **zero**
 contribution to the anchor is a roll-out finding, not an adapter one (round 10 §13).
 
 | # | Task | Milestone | Status | Depends on |
@@ -155,7 +155,7 @@ contribution to the anchor is a roll-out finding, not an adapter one (round 10 �
 | 151 | [`obj.method()` emits no edge at all](tasks/151_ts-member-calls-emit-no-edge.md) | M7 | done | 019, 128, 137 |
 | 152 | [TS call edges carry no `args`/`arg_keys`](tasks/152_ts-call-args-and-arg-keys.md) | M7 | done | 019, 151 |
 | 153 | [No `semantic_types` — inferred receivers want 137's type table](tasks/153_ts-declared-and-inferred-types.md) | M7 | done | 019, 151, 137 |
-| 154 | [`allowJs` breadth and JSDoc as a type source](tasks/154_ts-allowjs-and-jsdoc-types.md) | M7 | todo | 019, 153 |
+| 154 | [`allowJs` breadth and JSDoc as a type source](tasks/154_ts-allowjs-and-jsdoc-types.md) | M7 | done | 019, 153 |
 | 155 | [An aliased specifier and an `export *` both resolve to nothing](tasks/155_ts-tsconfig-paths-and-export-star.md) | M7 | done | 019 |
 | 156 | [R1.2's condition is met — write the registry verdict down](tasks/156_r12-registry-verdict-now-adapter-2-exists.md) | M7 | done | 019 |
 | 157 | [R6.2's TS inventory has no named-`export default` case](tasks/157_r62-inventory-has-no-named-default-export-case.md) | M7 | done | 019, 149 |

@@ -176,6 +176,7 @@ TS_R62_CASES = frozenset(
         "arrow-closure",
         "default-export",
         "default-export-named",
+        "jsdoc-types",
         "re-export-barrel",
         "jsx",
         "syntax-error",
@@ -312,6 +313,16 @@ _TS_DEFAULT_NAMED_EDGE_SHAPES: list[EdgeShape] = [
     ("CONTAINS", _tsq(_F_DEFAULT_NAMED, "Widget"), _tsq(_F_DEFAULT_NAMED, "Widget::render"), None),
     ("CONTAINS", _tsq(_F_DEFAULT_NAMED), _tsq(_F_DEFAULT_NAMED, "helper"), None),
 ]
+# jsdoc-types: a `.js` file typed in JSDoc (task 154). `@typedef Point` is an Interface; `@param
+# {Service}` types the receiver so `svc.handle()` resolves to Service::handle, like a `.ts` file.
+_F_JSDOC = "jsdoc_types.js"
+_TS_JSDOC_EDGE_SHAPES: list[EdgeShape] = [
+    ("CALLS", _tsq(_F_JSDOC, "run"), _tsq(_F_JSDOC, "Service::handle"), None),
+    ("CONTAINS", _tsq(_F_JSDOC), _tsq(_F_JSDOC, "Point"), None),
+    ("CONTAINS", _tsq(_F_JSDOC), _tsq(_F_JSDOC, "Service"), None),
+    ("CONTAINS", _tsq(_F_JSDOC, "Service"), _tsq(_F_JSDOC, "Service::handle"), None),
+    ("CONTAINS", _tsq(_F_JSDOC), _tsq(_F_JSDOC, "run"), None),
+]
 # re-export-barrel: a named re-export ALIASES to the *defining* module (Q2, load-bearing). An
 # `export *` cannot enumerate names file-at-a-time, so it emits only the module dep (IMPORTS).
 _F_BARREL = "reexport_barrel.ts"
@@ -405,6 +416,12 @@ TS_CASES: dict[str, Case] = {
         {"File": 1, "Function": 1},
         {"IMPORTS": 1, "CONTAINS": 1, "NEW": 1},
         _TS_CJS_EDGE_SHAPES,
+    ),
+    "jsdoc-types": Case(
+        "jsdoc_types.js",
+        {"File": 1, "Class": 1, "Interface": 1, "Method": 1, "Function": 1},
+        {"CONTAINS": 4, "CALLS": 1},
+        _TS_JSDOC_EDGE_SHAPES,
     ),
     "re-export-barrel": Case(
         "reexport_barrel.ts",

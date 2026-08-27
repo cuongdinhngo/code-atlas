@@ -132,8 +132,8 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   callable, include, static-vs-instance call, syntax error); the TS/JS inventory is named too
   (module-esm, module-cjs, class-heritage, interface-type-alias, enum-const-enum, generics,
   decorators, arrow-closure, default-export, default-export-named, re-export-barrel,
-  namespace-declare, jsx, syntax-error), each justified by the language spec, never a repo (per-entry
-  map + count in task 149).
+  namespace-declare, jsx, jsdoc-types, syntax-error), each justified by the language spec, never a
+  repo (per-entry map + count in task 149).
 - **R6.3 — Cross-repo validation** proves "works on any repo": several varied repos index without
   crashes and with sane counts. No single repo defines "correct".
   **And where an acceptance criterion needs a judgement about a real repo — a threshold, a ranking,
