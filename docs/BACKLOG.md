@@ -47,6 +47,10 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 165 | [`find_callers` on a qualified twin silently omits callers bound to its sibling, and says `reason: "ok"`](tasks/165_find-callers-splits-across-twins-and-says-reason-ok.md) | Agent-trust | done | 013, 054, 161, 122 |
 | 166 | [`read_symbol` answers from the pre-repair state and calls it `no_such_symbol`](tasks/166_read-symbol-answers-from-pre-repair-state-and-calls-it-no-such-symbol.md) | Agent-trust | done | 035, 014, 065 |
 | 167 | [A substring near-miss is returned at `reason: "ok"`](tasks/167_a-substring-near-miss-is-reported-as-reason-ok.md) | Agent-trust | done | 014, 160, 093 |
+| 168 | [`find_references` under-reports an alias-backed class by 4.7× and still says `reason: "ok"`](tasks/168_find-references-never-got-165s-twin-disclosure.md) | Agent-trust | todo | 165, 013, 122 |
+| 169 | [An `impact` path seed expands to every symbol in the file and reports 29× the qname](tasks/169_impact-path-seed-walks-every-symbol-and-its-twins.md) | Agent-trust | todo | 161, 017, 078 |
+| 170 | [`server_identity` is cached, so a later build swap is unreportable](tasks/170_server-identity-is-cached-so-a-later-build-swap-is-unreportable.md) | Agent-trust | todo | 164, 162, 125 |
+| 171 | [`sibling_definitions` fires on 83 % of calls and lists nine sites unranked](tasks/171_sibling-definitions-fires-on-most-calls-and-is-unranked.md) | Agent-trust | todo | 165, 168, 013 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -95,39 +99,31 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 
 
 **Round ordering, and what each round left open.** One line each; the narratives live in
-[`FEEDBACK.md`](FEEDBACK.md) (external review rounds), [PLAN §19](PLAN.md#19-project-context--decision-log)
-(decisions), [`LESSONS.md`](LESSONS.md) (per-ticket lessons) and `benchmarks/` (numbers).
+[`FEEDBACK.md`](FEEDBACK.md), [PLAN §19](PLAN.md#19-project-context--decision-log),
+[`LESSONS.md`](LESSONS.md) and `benchmarks/`.
 
 | Round | Tickets | State |
 |---|---|---|
-| 4 (2026-08-10) | 075–082 | closed — round 5 verified 7 of 8 fixed, 081 `NOT OBSERVED` |
-| 5 (2026-08-14) | 092–097 | closed — first round with mechanism questions |
-| 5 interview | 099–102 | closed — the subject is the agent, not the repository (§19) |
-| 6 (2026-08-21) | 122–125 | closed — all four payload honesty, none a graph defect |
-| 7 (2026-08-23) | 126 · 127 | closed — 127 closed **119** in the same change |
-| Phase 3 cost gate | 121 → 129 · 130 · 131 | 121 · 129 · 130 · 131 done |
-| 8–9 (2026-08-25/26) | 158–163 · 022 | closed — all six shipped in one day and **all six verify on fresh code** (round 10 §12); SQL deferred (022) |
-| 10 (2026-08-26) | 164–167 | closed — the verification round: 0 of 6 prior fixes reached a long-lived process, because `server_build` named the repo, not the loaded code (**164**, #187). Then 165 (#188) · 166 (#189) · 167 (#190). Roll-out is the binding constraint, not a code ticket |
-| Architecture review (2026-08-23) | 138–142 · 143–145 | 138 · 139 · 142 · 144 · **145A** done (artifact.json versioned); **143** layer mermaid; **142** class baseline measured ([benchmark](benchmarks/142_supervision-question-class.md)); 141 gated at n = 0; 145B deferred (stack not chosen; 118 no longer blocks) |
+| 4–7 (2026-08-10…23) | 075–082 · 092–097 · 099–102 · 122–125 · 126 · 127 | closed — 081 `NOT OBSERVED`; 127 closed **119** in the same change; the subject is the agent, not the repository (§19) |
+| 8–9 (2026-08-25/26) | 158–163 · 022 | closed — six shipped in one day, all six verified on fresh code; SQL deferred (022) |
+| 10 (2026-08-26) | 164–167 | closed — the verification round: 0 of 6 prior fixes reached a long-lived process, because `server_build` named the repo, not the loaded code (**164**, #187), then 165–167 (#188–#190) |
+| 11 (2026-08-27) | 168–171 | open — **first round a fix reached the field**: 2 of 4 in-work, 165 changed a shipped PR. Adapter #2's **fourth** zero, from an absent `CA_<LANG>_CMD` in the consumer's config, not from capability. **Roll-out is the binding constraint and deliberately not a ticket** — the backlog accepts only code, so it goes to the consumer as a PR |
+| Architecture review (2026-08-23) | 138–142 · 143–145 | 138 · 139 · 142 · 144 · **145A** done; **143** open; 141 gated at n = 0; 145B deferred (stack not chosen) |
 
 **What still governs open work:**
 
-- **098 is `deferred` behind an evidence gate, not queued** — a general server cannot spend schema on
-  **n = 1**; the gate itself is in the ticket. **120** shipped after maintainer ratification.
-- **104 stays `blocked` because 105 superseded its approach**, not because it waits on anything. Its
-  AC2 names the anchor monorepo, and three public repos are not that repo.
-- **121 closed the Phase-3 cost gate** ([benchmark](benchmarks/121_onboarding-question-class.md)); auto
-  *reading orders* stay unscheduled — a dependency walk is not a curated syllabus.
-- **Round 6's two measurements are closed** — 135's precision axis
-  ([benchmark](benchmarks/135_precision-axis.md)) and 136's HEURISTIC-cause split, whose ≥99 % driver is
-  local type information ([benchmark](benchmarks/136_heuristic-causes.md)), hence **137**.
-- **074 must not claim** an answer-quality comparison against a language server: the anchor's LSP was
-  never invoked, so its 19 % measures adoption, not capability. Round 5 is its n = 1.
-- **142's sixth member — the minimum acyclic cut-edge set — is answered by no tool**, which is evidence
-  for 141's gate item 3 ([benchmark](benchmarks/142_supervision-question-class.md)). 141 stays
-  `deferred` at n = 0.
-- **M10–M12 are complete** — 22 tools on the surface — and the 108–117 reshape is complete: the map
-  renders from 112's dataset alone. Detail: [`ROADMAP.md`](phase3-onboarding/ROADMAP.md).
+- **098 stays `deferred` behind an evidence gate, not queued** — the gate is in the ticket; **120**
+  shipped after maintainer ratification.
+- **Auto *reading orders* stay unscheduled** — a dependency walk is not a curated syllabus
+  ([121's benchmark](benchmarks/121_onboarding-question-class.md)).
+- **Round 6's two measurements are closed** — [135](benchmarks/135_precision-axis.md) and
+  [136](benchmarks/136_heuristic-causes.md), whose driver is why **137** exists.
+- **074 must not claim** an answer-quality comparison against a language server — the anchor's LSP was
+  never invoked, so its 19 % measures adoption ([protocol](benchmarks/074_mechanism-question.md)).
+- **141 stays `deferred` at n = 0** — its gate item 3 is held by
+  [142's benchmark](benchmarks/142_supervision-question-class.md).
+- **M10–M12 are complete** — 22 tools on the surface; the 108–117 reshape renders the map from
+  112's dataset alone ([`ROADMAP.md`](phase3-onboarding/ROADMAP.md)).
 
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
 
@@ -136,10 +132,9 @@ agent-loop, because a large private PHP monorepo is the anchor for testing *and*
 language *order* is unchanged (§18.2). Adapter #2's prerequisites all landed — 147, 148, 149, 128.
 
 **019 was reopened by human ratification (2026-08-25)**; its remaining scope was filed as **150–157**,
-all now **landed** — the R6.6/R6.3 gate (150), member-call edges (151), `args`/`arg_keys` (152), the
-`semantic_types` type table (153), JSDoc types (154), tsconfig-path aliases + the `export *` verdict
-(155), the registry verdict (156), the named-default inventory case (157). The adapter's **zero**
-contribution to the anchor is a roll-out finding, not an adapter one (round 10 §13).
+all now **landed** (each ticket names its slice). The adapter's **zero** contribution to the anchor is a
+roll-out finding, not an adapter one: round 11 §13 measured it parsing the anchor's real front end at
+53.2 % RESOLVED while still unwired.
 
 | # | Task | Milestone | Status | Depends on |
 |---|---|---|---|---|
