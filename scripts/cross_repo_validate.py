@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Opt-in cross-repo validation harness (task 018 / Plan §16 / R6.3).
+"""Opt-in cross-repo validation harness (task 018 / 150 / Plan §16 / R6.3).
 
-Clones pinned public PHP samples (see ``cross_repo_samples.json``), runs ``full_build``,
-and asserts crash-free + plausible counts. The private large monorepo stays operator-local
-via ``CODE_ATLAS_SCALE_SAMPLE`` (optional; folds the 015 timing capture when set).
+Clones pinned public samples (see ``cross_repo_samples.json``), runs ``full_build``, and asserts
+crash-free + plausible counts. Multi-adapter: each sample names its ``language`` and the harness
+resolves that adapter's command from ``_ADAPTERS`` (data, not a code branch — task 147's move). The
+private large monorepo stays operator-local via ``CODE_ATLAS_SCALE_SAMPLE`` (optional; folds the 015
+timing capture when set).
 
 Not part of per-PR CI — use ``workflow_dispatch`` / weekly schedule, or run locally.
 """
@@ -36,7 +38,16 @@ _DEFAULT_REPORT = _REPO / "artifacts" / "cross-repo-report.json"
 _DEFAULT_PHP = shlex.join(
     ["php", str(_REPO / "adapters" / "php" / "index.php"), "--server"]
 )
-# Public pins: allow a little PHP-version drift, but catch mass-parse regressions.
+_DEFAULT_TYPESCRIPT = shlex.join(
+    ["node", str(_REPO / "adapters" / "typescript" / "index.js"), "--server"]
+)
+# Per-adapter argv is DATA, not a code branch (mirrors task 147): adding a language is a row here
+# plus a sample row, never an edit to the reporter body. `env` names the var `config` reads.
+_ADAPTERS: dict[str, dict[str, str]] = {
+    "php": {"env": "CA_PHP_CMD", "default": _DEFAULT_PHP},
+    "typescript": {"env": "CA_TYPESCRIPT_CMD", "default": _DEFAULT_TYPESCRIPT},
+}
+# Public pins: allow a little language-version drift, but catch mass-parse regressions.
 _PUBLIC_MAX_FAILURE_RATIO = 0.02
 
 
@@ -101,13 +112,14 @@ def load_manifest(path: Path = _MANIFEST) -> list[dict[str, Any]]:
     return samples
 
 
-def resolve_php_cmd() -> str:
-    """Return ``CA_PHP_CMD`` with repo-relative adapter paths made absolute.
+def resolve_adapter_cmd(language: str) -> str:
+    """Return the adapter command for ``language`` with repo-relative paths made absolute.
 
     ``LanguageAdapter`` runs with ``cwd=sample_root``, so a relative
-    ``adapters/php/index.php`` from the code-atlas checkout would miss.
+    ``adapters/<lang>/index.*`` from the code-atlas checkout would miss.
     """
-    raw = os.environ.get("CA_PHP_CMD", "").strip() or _DEFAULT_PHP
+    adapter = _ADAPTERS[language]
+    raw = os.environ.get(adapter["env"], "").strip() or adapter["default"]
     parts = shlex.split(raw)
     fixed: list[str] = []
     for part in parts:
@@ -121,6 +133,11 @@ def resolve_php_cmd() -> str:
         else:
             fixed.append(part)
     return shlex.join(fixed)
+
+
+def resolve_php_cmd() -> str:
+    """Back-compat wrapper — the PHP adapter command (see ``resolve_adapter_cmd``)."""
+    return resolve_adapter_cmd("php")
 
 
 def checkout_pinned(sample: dict[str, Any], cache_root: Path) -> Path:
@@ -158,12 +175,15 @@ def checkout_pinned(sample: dict[str, Any], cache_root: Path) -> Path:
     return dest
 
 
-def index_root(root: Path, *, db_path: Path | None = None) -> BuildReport:
-    """Run ``full_build`` against ``root`` using the host PHP adapter command."""
+def index_root(
+    root: Path, *, language: str = "php", db_path: Path | None = None
+) -> BuildReport:
+    """Run ``full_build`` against ``root`` using the adapter command for ``language``."""
     db = db_path or (root / ".code-atlas" / "graph.db")
     env = {k: v for k, v in os.environ.items() if k.startswith("CA_")}
-    # Always rewrite: sample cwd would break a relative adapters/php path.
-    env["CA_PHP_CMD"] = resolve_php_cmd()
+    # Always rewrite: sample cwd would break a relative adapters/<lang> path.
+    adapter = _ADAPTERS[language]
+    env[adapter["env"]] = resolve_adapter_cmd(language)
     config = replace(load_config(root, env), db_path=db, root=root)
     with GraphStore(config.db_path) as store:
         return full_build(config, store)
@@ -173,6 +193,7 @@ def _ok_row(
     *,
     sample_id: str,
     kind: str,
+    language: str,
     root: Path,
     report: BuildReport,
     elapsed: float,
@@ -180,6 +201,7 @@ def _ok_row(
     return {
         "id": sample_id,
         "kind": kind,
+        "language": language,
         "root": str(root),
         "elapsed_seconds": round(elapsed, 3),
         "files": report.files,
@@ -195,6 +217,7 @@ def _fail_row(
     *,
     sample_id: str,
     kind: str,
+    language: str,
     root: Path | None,
     error: BaseException,
     elapsed: float,
@@ -202,6 +225,7 @@ def _fail_row(
     return {
         "id": sample_id,
         "kind": kind,
+        "language": language,
         "root": str(root) if root is not None else None,
         "elapsed_seconds": round(elapsed, 3),
         "ok": False,
@@ -219,6 +243,11 @@ def run_public_samples(
     for sample in load_manifest():
         sid = str(sample["id"])
         kind = str(sample["kind"])
+        language = str(sample.get("language", "php"))
+        if language not in _ADAPTERS:
+            raise ValueError(
+                f"{sid}: unknown language {language!r} — known: {sorted(_ADAPTERS)}"
+            )
         root: Path | None = None
         started = time.perf_counter()
         try:
@@ -230,7 +259,7 @@ def run_public_samples(
                     )
             else:
                 root = checkout_pinned(sample, cache_root)
-            report = index_root(root)
+            report = index_root(root, language=language)
             elapsed = time.perf_counter() - started
             assert_plausible_counts(
                 report,
@@ -248,6 +277,7 @@ def run_public_samples(
                 _ok_row(
                     sample_id=sid,
                     kind=kind,
+                    language=language,
                     root=root,
                     report=report,
                     elapsed=elapsed,
@@ -259,6 +289,7 @@ def run_public_samples(
                 _fail_row(
                     sample_id=sid,
                     kind=kind,
+                    language=language,
                     root=root,
                     error=exc,
                     elapsed=elapsed,

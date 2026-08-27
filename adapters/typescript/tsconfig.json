@@ -1,0 +1,21 @@
+{
+  "//": "R6.6 static analyser for the TS adapter — the tsc equivalent of the PHP adapter's phpstan-max. `checkJs` type-checks the authored CommonJS `.js` under `--strict`. `noImplicitAny` is the one strict flag held off: the source is deliberately untyped and typing every parameter is task 154 (JSDoc-as-type-source), which flips this to true. This is a scoped setting with a forward pointer, not a per-finding suppression (no baseline, no @ts-nocheck, no eslint-disable). See README.",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": true,
+    "noImplicitAny": false,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "es2022",
+    "types": ["node"],
+    "skipLibCheck": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["index.js", "src/**/*.js"]
+}

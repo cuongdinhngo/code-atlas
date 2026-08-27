@@ -168,6 +168,16 @@ else
     _record SKIP "phpstan level max (R6.6)" "run: composer install --working-dir=adapters/php"
 fi
 
+# TS adapter's phpstan-equivalent: tsc --checkJs --strict over the authored source (R6.6). Deps come
+# from the `npm ci` in the test job above; a SKIP (never PASS) when they are absent keeps exit 2 honest.
+if [ -x adapters/typescript/node_modules/.bin/tsc ]; then
+    _run "tsc --checkJs --strict (R6.6, TS adapter)" \
+        adapters/typescript/node_modules/.bin/tsc -p adapters/typescript/tsconfig.json
+else
+    _record SKIP "tsc --checkJs --strict (R6.6, TS adapter)" \
+        "run: npm ci --prefix adapters/typescript"
+fi
+
 echo "== job: guardrails =="
 
 # Each gate carries its own anti-vacuity check, exactly as ci.yml does: a missing directory is a

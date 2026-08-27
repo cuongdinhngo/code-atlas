@@ -117,11 +117,14 @@ function parseFile(path, declarationsOnly) {
   try {
     text = fs.readFileSync(path, "utf8");
   } catch (error) {
-    return { path: qpath, ok: false, error: `cannot read file: ${error.message}` };
+    const message = error instanceof Error ? error.message : String(error);
+    return { path: qpath, ok: false, error: `cannot read file: ${message}` };
   }
 
   const sf = ts.createSourceFile(qpath, text, ts.ScriptTarget.Latest, true, scriptKindFor(qpath));
-  const diagnostics = sf.parseDiagnostics || [];
+  // `parseDiagnostics` is an internal SourceFile field, absent from the public type — read it via a
+  // documented cast rather than suppress the whole file (task 150 / R6.6).
+  const diagnostics = /** @type {any} */ (sf).parseDiagnostics || [];
   if (diagnostics.length > 0) {
     const message = ts.flattenDiagnosticMessageText(diagnostics[0].messageText, " ");
     return { path: qpath, ok: false, error: `syntax error: ${message}` };

@@ -81,8 +81,27 @@ a compiled sibling) and reading the import binding — so the core links it `RES
 barrel resolves to where `X` is declared; `export default class Foo` aliases `::default` to `::Foo`
 for the same reason. Anything unresolved stays bare.
 
+## Static analysis (R6.6) — `tsc --checkJs --strict`
+
+The adapter source is authored as CommonJS `.js`, so "the equivalent of PHPStan max" is a choice.
+The gate runs **`tsc` in `checkJs` + `strict` mode** over `index.js` and `src/**/*.js`, configured by
+the committed `tsconfig.json` and pinned by `@types/node` in `devDependencies`. Run it with
+`npm run typecheck`; `scripts/gate.sh` and `ci.yml` run it beside the PHP adapter's phpstan.
+
+**Why tsc and not ESLint.** phpstan's analogue is *type* analysis, not lint style — and `typescript`
+is already a committed runtime dependency, so `tsc --checkJs` adds no new toolchain (only `@types/node`
+for the CommonJS/`node:` globals). ESLint would add a large devDependency tree to do a lint job the
+type-checker's soundness checks subsume. Rejected: ESLint.
+
+**The one strict flag held off: `noImplicitAny`.** The source is deliberately untyped (v1 is a
+syntactic parse), so full `noImplicitAny` reports ~72 implicit-`any` parameters that only per-parameter
+JSDoc types would close — and JSDoc-as-type-source is [task 154](../../docs/tasks/154_ts-allowjs-and-jsdoc-types.md),
+which flips this flag to `true` once those types exist. This is a scoped setting with a forward pointer,
+**not** a suppression: there is no baseline file, no `@ts-nocheck`, no `eslint-disable`. Every other
+strict check (`strictNullChecks`, `noUnusedLocals`, `noImplicitReturns`, …) is on and clean.
+
 ## Still out of scope (later 019 slices)
 
 `args`/`arg_keys` on calls; the `semantic_types` inferred-receiver type table; `allowJs`/JSDoc types;
 tsconfig `paths`/`baseUrl` aliases (an aliased specifier resolves to nothing, so its target stays
-bare); `export *` per-name resolution; a `tsc`/eslint strictest-clean gate on this source (R6.6).
+bare); `export *` per-name resolution.

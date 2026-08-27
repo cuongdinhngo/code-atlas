@@ -1,9 +1,10 @@
 {
-  "contract_note": "Pinned public PHP samples for R6.3 / task 018. Not under adapters/ (R2.2). Floors ≈80% of a known-good smoke at this SHA — bump floors when bumping sha.",
+  "contract_note": "Pinned public samples for R6.3 / tasks 018 (PHP) + 150 (TS/JS). Not under adapters/ (R2.2). Each sample names its `language`; the harness resolves that adapter's command from `_ADAPTERS` (data, not a code branch). Floors ≈80% of a known-good smoke at the pinned SHA — bump floors when bumping sha. TS floors from a 2026-08-27 Docker run (node adapter): ky 54f/543n/7781e, mqttjs 80f/725n/6208e, socketio 371f/3533n/60651e; all failed=0.",
   "samples": [
     {
       "id": "laravel_app",
       "kind": "laravel_app",
+      "language": "php",
       "owner": "laravel",
       "repo": "laravel",
       "sha": "ff031dbf57d477d2864bf53a200afe574d3c2853",
@@ -15,6 +16,7 @@
     {
       "id": "symfony_demo",
       "kind": "symfony_app",
+      "language": "php",
       "owner": "symfony",
       "repo": "demo",
       "sha": "03fe25671b720b15103a2ff26934e94c87bd4d82",
@@ -26,6 +28,7 @@
     {
       "id": "brick_math",
       "kind": "psr4_library",
+      "language": "php",
       "owner": "brick",
       "repo": "math",
       "sha": "b61d8e66c3ea05fa8784888575b719f48f76f515",
@@ -33,6 +36,42 @@
       "min_files": 25,
       "min_nodes": 700,
       "min_edges": 3498
+    },
+    {
+      "id": "ky",
+      "kind": "ts_library",
+      "language": "typescript",
+      "owner": "sindresorhus",
+      "repo": "ky",
+      "sha": "0bda554d448c1b57c17a5c18114432c02465d467",
+      "url": "https://github.com/sindresorhus/ky.git",
+      "min_files": 43,
+      "min_nodes": 434,
+      "min_edges": 6224
+    },
+    {
+      "id": "mqttjs",
+      "kind": "ts_js_mixed",
+      "language": "typescript",
+      "owner": "mqttjs",
+      "repo": "MQTT.js",
+      "sha": "6e3a676630a68e6355a94d99a82d1433b486c300",
+      "url": "https://github.com/mqttjs/MQTT.js.git",
+      "min_files": 64,
+      "min_nodes": 580,
+      "min_edges": 4966
+    },
+    {
+      "id": "socketio",
+      "kind": "compiled_beside_source",
+      "language": "typescript",
+      "owner": "socketio",
+      "repo": "socket.io",
+      "sha": "ae7fb46e08c5ed964b4a1ea8b1703e816511598e",
+      "url": "https://github.com/socketio/socket.io.git",
+      "min_files": 296,
+      "min_nodes": 2826,
+      "min_edges": 48520
     }
   ]
 }

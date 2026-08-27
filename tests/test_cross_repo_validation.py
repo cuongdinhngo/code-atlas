@@ -46,11 +46,17 @@ needs_php = pytest.mark.skipif(
 )
 
 
-def test_manifest_lists_three_public_kinds_with_floors() -> None:
+def test_manifest_covers_both_adapters_with_floors() -> None:
+    """AC4 shape: PHP set unchanged + a 3-shape TS/JS set, pinned with floors, outside adapters/."""
     samples = load_manifest(MANIFEST)
-    assert len(samples) == 3
-    kinds = {s["kind"] for s in samples}
-    assert kinds == {"laravel_app", "symfony_app", "psr4_library"}
+    by_lang: dict[str, set[str]] = {}
+    for s in samples:
+        by_lang.setdefault(str(s.get("language", "php")), set()).add(s["kind"])
+    # PHP set is byte-identical to task 018 — this ticket must not perturb it.
+    assert by_lang["php"] == {"laravel_app", "symfony_app", "psr4_library"}
+    # TS/JS variety is the deliverable: a .ts-only lib, a mixed tree, a compiled-beside-source tree.
+    assert {"ts_library", "ts_js_mixed", "compiled_beside_source"} <= by_lang["typescript"]
+    assert sum(1 for s in samples if s.get("language") == "typescript") >= 3
     assert not str(MANIFEST.resolve()).startswith(str(ADAPTERS.resolve()))
     for sample in samples:
         assert sample["sha"]
@@ -132,3 +138,20 @@ def test_harness_plausible_counts_and_parse_isolation(tmp_path: Path) -> None:
 def test_manifest_is_valid_json_on_disk() -> None:
     data = json.loads(MANIFEST.read_text(encoding="utf-8"))
     assert "samples" in data
+
+
+def test_resolve_adapter_cmd_is_per_language(monkeypatch: pytest.MonkeyPatch) -> None:
+    """AC3: one code path, adapter argv as DATA — the command is keyed by language, not branched."""
+    resolve_adapter_cmd = _harness.resolve_adapter_cmd
+    monkeypatch.delenv("CA_PHP_CMD", raising=False)
+    monkeypatch.delenv("CA_TYPESCRIPT_CMD", raising=False)
+
+    php = resolve_adapter_cmd("php")
+    ts = resolve_adapter_cmd("typescript")
+    assert "adapters/php/index.php" in php.replace("\\", "/")
+    assert "adapters/typescript/index.js" in ts.replace("\\", "/")
+    assert ts.split()[0] == "node"
+    # The back-compat wrapper is exactly the php branch (PHP path byte-identical).
+    assert _harness.resolve_php_cmd() == php
+    with pytest.raises(KeyError):
+        resolve_adapter_cmd("cobol")

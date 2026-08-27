@@ -8,9 +8,13 @@
     "code-atlas-typescript-adapter": "index.js"
   },
   "scripts": {
-    "start": "node index.js --server"
+    "start": "node index.js --server",
+    "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "typescript": "5.9.2"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.1"
   }
 }

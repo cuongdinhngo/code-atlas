@@ -137,9 +137,12 @@ language *order* is unchanged (§18.2). Adapter #2's prerequisites all landed �
 
 **019 was reopened by human ratification (2026-08-25)**; its remaining scope is filed as **150–157**,
 and **151 landed with it** (`obj.method()` emitted no edge at all — 22 → 96 CALLS edges on four real JS
-files). **150 is next:** the adapter's only judge is still its own fixtures (R6.6, R6.3). Three rounds
-running it has contributed **zero** to the anchor repo — never wired there; a roll-out finding, not an
-adapter one (round 10 §13).
+files). **150 landed:** the TS adapter now has a static analyser (`tsc --checkJs --strict`, `noImplicitAny`
+deferred to 154) wired into `gate.sh` + `ci.yml`, and the cross-repo reporter runs both adapters from one
+data-driven code path against 3 pinned TS/JS repos (ky · MQTT.js · socket.io, `failed=0`) — the run was
+clean, so no fixture-hidden defect was filed (AC6). Still open: **152 · 153 · 154 · 155 · 156 · 157**. That
+the adapter has contributed **zero** to the anchor repo remains a roll-out finding, not an adapter one
+(round 10 §13).
 
 | # | Task | Milestone | Status | Depends on |
 |---|---|---|---|---|
@@ -151,7 +154,7 @@ adapter one (round 10 §13).
 | 147 | [The R3.4 conformance harness is PHP-shaped — `tests/contract/` cannot admit a second adapter](tasks/147_contract-harness-is-php-shaped.md) | M7 | done | 012, 025 |
 | 148 | [The R2.2 framework sweep lists only PHP frameworks — it cannot fail for adapter #2](tasks/148_r22-framework-sweep-cannot-fail-for-adapter-2.md) | M7 | done | 012, 146 |
 | 149 | [Name the TS/JS construct inventory before any parsing exists](tasks/149_tsjs-construct-inventory.md) | M7 | done | 147 |
-| 150 | [No static analyser (R6.6) and no cross-repo run (R6.3) for the TS adapter](tasks/150_ts-adapter-has-no-gate-but-its-own-fixtures.md) | M7 | todo | 019, 018, 148 |
+| 150 | [No static analyser (R6.6) and no cross-repo run (R6.3) for the TS adapter](tasks/150_ts-adapter-has-no-gate-but-its-own-fixtures.md) | M7 | done | 019, 018, 148 |
 | 151 | [`obj.method()` emits no edge at all](tasks/151_ts-member-calls-emit-no-edge.md) | M7 | done | 019, 128, 137 |
 | 152 | [TS call edges carry no `args`/`arg_keys`](tasks/152_ts-call-args-and-arg-keys.md) | M7 | todo | 019, 151 |
 | 153 | [No `semantic_types` — inferred receivers want 137's type table](tasks/153_ts-declared-and-inferred-types.md) | M7 | todo | 019, 151, 137 |

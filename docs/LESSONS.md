@@ -60,6 +60,27 @@ this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *c
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
 
+## 150 — For an untyped-JS adapter, the phpstan-analogue is tsc-checkJs-strict, minus the flag its untyped-ness owns
+
+The TS adapter is authored as untyped CommonJS `.js`, so "the equivalent of phpstan max" (R6.6) is a
+choice, not a given. Full `tsc --checkJs --strict` reports ~90 errors — but 72 are implicit-`any` on
+parameters that only per-parameter JSDoc types (task 154) can close, so turning the flag on now would
+force either suppressions (banned by the ticket) or pulling 154's work into a gate ticket. The clean
+strictest setting is `strict` with `noImplicitAny` held off and `@types/node` added: it leaves exactly
+2 real findings (an `unknown`-typed catch var, an internal-API property access), both fixed without
+suppression. The deferral is a documented compiler *setting* with a forward pointer, not a per-finding
+suppression (no baseline, no `@ts-nocheck`, no `eslint-disable`). ESLint was rejected — it is a linter,
+not a type analyser, and `typescript` is already a committed dependency. General shape: pick the
+analyser and the one strict flag to defer by *measuring* the finding classes on the real source, and
+tie any deferred flag to the ticket that will earn its turning-on.
+
+*Claim `150-C1` — a static-analysis gate for an intentionally-untyped source should run the type
+checker at its strictest *clean* setting and defer exactly the flags whose findings another scheduled
+ticket owns, with a written pointer — never suppress. type: 2 · handle:
+`analyser-choice-for-an-untyped-adapter` · status: proposed · seen: 150 · evidence:
+`adapters/typescript/tsconfig.json` (`noImplicitAny:false` + 154 pointer); `tsc -p` clean, red-run
+`TS2322` exit 2 · destination: open — folds into a convention if it recurs (relates to 105-C2, 148).*
+
 ## 167 — Label how a search matched, not just how many rows came back
 
 `search_symbol("storeCRM")` returned `reason: ok, total_count: 7` with `\ModelMember::restoreCRM`
