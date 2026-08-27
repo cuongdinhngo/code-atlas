@@ -17,6 +17,7 @@ store order is `source_qname, kind, target_raw, file_path, line, id`). Needs php
 
 from __future__ import annotations
 
+import argparse
 import sys
 from collections import Counter
 from pathlib import Path
@@ -205,15 +206,22 @@ def check(labelled: list[tuple[str, Row]], heuristic: int) -> list[str]:
     return problems
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--only", help="run just the sample with this id (faster focused run)")
+    args = parser.parse_args(argv)
+
     cache_root = _REPO / "artifacts" / "cross-repo-cache"
     failures = 0
     for sample in load_manifest():
         sid = str(sample["id"])
-        print(f"\n### {sid} @ {str(sample['sha'])[:7]}")
+        if args.only and sid != args.only:
+            continue
+        language = str(sample.get("language", "php"))
+        print(f"\n### {sid} @ {str(sample['sha'])[:7]} ({language})")
         try:
             root = checkout_pinned(sample, cache_root)
-            index_root(root)
+            index_root(root, language=language)
             with GraphStore(root / ".code-atlas" / "graph.db") as store:
                 edges = heuristic_edges(store)
                 labelled = classify(store, edges)

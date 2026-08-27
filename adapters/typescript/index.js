@@ -10,7 +10,9 @@ const { parseFile } = require("./src/parse");
 const META = {
   name: "typescript",
   extensions: [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"],
-  capabilities: {},
+  // A local type table (src/types.js) infers a receiver's class from `new`, annotations and
+  // assignments, so a member call resolves to `<Class>::method` — the one capability (task 153).
+  capabilities: { semantic_types: true },
   contract_version: 8,
 };
 

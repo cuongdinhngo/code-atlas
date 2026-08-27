@@ -209,9 +209,10 @@ _TS_NAMESPACE_EDGE_SHAPES: list[EdgeShape] = [
 # and `created.greet()` guards its member-branch twin: name only, so the adapter claims HEURISTIC.
 _F_ESM = "module_scoped.ts"
 _TS_MODULE_EDGE_SHAPES: list[EdgeShape] = [
-    ("CALLS", _tsq(_F_ESM, "makeUser"), "greet", "HEURISTIC"),
     ("CALLS", _tsq(_F_ESM, "makeUser"), "log", None),
     ("CALLS", _tsq(_F_ESM, "User::greet"), _tsq(_F_ESM, "User::describe"), None),
+    # `const created = new User(); created.greet()` -> User::greet, RESOLVED via the table (153).
+    ("CALLS", _tsq(_F_ESM, "makeUser"), _tsq(_F_ESM, "User::greet"), None),
     ("CONTAINS", _tsq(_F_ESM), _tsq(_F_ESM, "Greeter"), None),
     ("CONTAINS", _tsq(_F_ESM, "Greeter"), _tsq(_F_ESM, "Greeter::greet"), None),
     ("CONTAINS", _tsq(_F_ESM), _tsq(_F_ESM, "User"), None),

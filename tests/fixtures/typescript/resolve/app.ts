@@ -3,6 +3,6 @@ import { User } from "./models";
 
 export function make(): User {
   const created = new User();
-  created.greet(); // the receiver's type is another file's fact: bare + HEURISTIC, the core links it
+  created.greet(); // receiver typed by `new User()` -> models.ts::User::greet, RESOLVED (task 153)
   return created;
 }

@@ -12,9 +12,9 @@ dependencies live here and never reach the Python core (R8.1). Started as the ta
   in this directory. `node_modules/` is git-ignored.
 
 Parsing uses `ts.createSourceFile` — a **syntactic** parse, with no `Program` and no type checker.
-That is deliberate: the v1 file-at-a-time contract survives a second language (PLAN §4.4). Type-
-*inferred* receivers (the `semantic_types` capability) are the one thing that would need more, and
-are still out of scope.
+That is deliberate: the v1 file-at-a-time contract survives a second language (PLAN §4.4). A receiver's
+class is inferred syntactically by a local type table (`semantic_types`, task 153 — see below); a
+`Program`/checker is still not used, and 153's verdict is that nothing the graph needs requires one.
 
 ## Protocol
 
@@ -135,6 +135,30 @@ Four TS shapes with no PHP analogue have a stated answer:
 | a **shorthand property** (`{ short }`) | its name is a key (`short`) |
 | a **computed key** (`{ [k]: 1 }`) or an object **spread** (`{ ...rest }`) | contributes no key and does not shift later keys |
 
+## Receiver types — `semantic_types` (task 153)
+
+A member call `obj.method()` resolves to `<Class>::method` at `RESOLVED` when a **local type table**
+(`src/types.js`) can name the receiver's class — otherwise it stays the bare, `HEURISTIC` method name.
+The table is syntactic and file-at-a-time, mirroring the PHP `TypeTable`; every binding is one the
+language itself puts in the file:
+
+- `const x = new Foo()` — an inferred `new`;
+- a parameter or property **annotation** (`(x: Foo)`, `dep: Foo` → `this.dep.m()`);
+- an assignment `x = new Foo()`.
+
+It is **flow-sensitive and forgetful**: `x = somethingElse()` re-opens `x`, so a stale class never
+outlives the assignment that invalidated it. An arrow/function expression inherits the enclosing
+scope's bindings; a function/method/constructor starts fresh with its typed parameters. The adapter
+announces `capabilities: { semantic_types: true }` now the table backs it (R1.6 — announced data, no
+core branch).
+
+**No `Program`/checker (the 153 verdict).** 019 settled that a whole-program `ts.Program` is not
+needed, and this table confirms it: the receiver classes the graph can act on are the ones the spec
+writes into the file, which a syntactic pass reads directly. What a type table *cannot* reach — a
+receiver that is the **return type of another call** (a fluent `a().b().c()` chain), or a type only a
+cross-file/whole-program view knows — is a file-at-a-time limit, not a checker gap; it is the residual
+the measured HEURISTIC share still carries, and would be its own ticket if a field round demands it.
+
 ## Still out of scope (later 019 slices)
 
-The `semantic_types` inferred-receiver type table; `allowJs`/JSDoc types.
+`allowJs`/JSDoc as a *type source* (task 154).

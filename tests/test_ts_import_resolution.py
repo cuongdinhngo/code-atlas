@@ -64,13 +64,13 @@ def test_cross_file_new_resolves_to_the_defining_module(tmp_path: Path) -> None:
         assert boot_new[0]["target_qname"] == "src/service.ts::Service"
         assert boot_new[0]["confidence_tier"] == "RESOLVED"
 
-        # A member call carries only the method name, so the adapter claims HEURISTIC — the tier
-        # that switches on the core's name-only fallback. Without it the edge links to nothing.
+        # `const created = new User(); created.greet()` — the type table names the receiver's class,
+        # so the member call resolves cross-file to models.ts::User::greet at RESOLVED (task 153).
         app_calls = store.edges_by_source("src/app.ts::make", kinds=("CALLS",), limit=10)
         assert len(app_calls) == 1
-        assert app_calls[0]["target_raw"] == "greet"
+        assert app_calls[0]["target_raw"] == "src/models.ts::User::greet"
         assert app_calls[0]["target_qname"] == "src/models.ts::User::greet"
-        assert app_calls[0]["confidence_tier"] == "HEURISTIC"
+        assert app_calls[0]["confidence_tier"] == "RESOLVED"
 
         # A NodeNext `./dual.js` specifier names the TypeScript source, which wins over the compiled
         # `dual.js` sitting beside it — otherwise every import in such a repo lands on build output.

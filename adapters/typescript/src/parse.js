@@ -8,6 +8,7 @@ const fs = require("node:fs");
 const ts = require("typescript");
 const { toPosix, member } = require("./qname");
 const { resolveSpecifier, requireSpecifier, importBindings } = require("./imports");
+const { boundClass, newExprClass, paramTypeMap, classPropTypeMap } = require("./types");
 
 function scriptKindFor(path) {
   if (path.endsWith(".tsx")) return ts.ScriptKind.TSX;
@@ -322,7 +323,21 @@ function parseFile(path, declarationsOnly) {
     addEdge("ALIASES", member(qpath, "default"), qname, node.getStart(sf));
   };
 
-  const emitBodyEdges = (node, scope, enclosingClass) => {
+  // The class a call receiver evaluates to, from the local type table: a bare variable, or a
+  // `this.prop` whose class the enclosing class declared. null when the receiver is untyped.
+  const receiverClass = (expr, locals, selfProps) => {
+    if (ts.isIdentifier(expr)) return locals.get(expr.text) || null;
+    if (
+      ts.isPropertyAccessExpression(expr) &&
+      expr.expression.kind === ts.SyntaxKind.ThisKeyword &&
+      ts.isIdentifier(expr.name)
+    ) {
+      return selfProps.get(expr.name.text) || null;
+    }
+    return null;
+  };
+
+  const emitBodyEdges = (node, scope, enclosingClass, locals, selfProps) => {
     // Module structure (IMPORTS, re-export ALIASES) survives declarations_only; CALLS/NEW do not.
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
       const spec = node.moduleSpecifier.text;
@@ -339,6 +354,17 @@ function parseFile(path, declarationsOnly) {
       return; // a require is an import, never a CALLS
     }
     if (declarationsOnly) return;
+    // Flow-sensitive, forgetful (137): `x = new Foo()` binds x; `x = <anything else>` re-opens it,
+    // so a stale type can never outlive the assignment that invalidated it.
+    if (
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+      ts.isIdentifier(node.left)
+    ) {
+      const cls = newExprClass(node.right);
+      if (cls) locals.set(node.left.text, cls);
+      else locals.delete(node.left.text);
+    }
     if (ts.isNewExpression(node)) {
       const target = resolveExpr(node.expression);
       if (target) addEdge("NEW", scope, target, node.getStart(sf), undefined, node);
@@ -359,10 +385,17 @@ function parseFile(path, declarationsOnly) {
         if (target) {
           addEdge("CALLS", scope, target, node.getStart(sf), undefined, node);
         } else if (ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.name)) {
-          // The method name is known and the receiver is not. `HEURISTIC` is not a label here: it is
-          // what switches on the core's name-only fallback (`resolver.py` bare-member branch), and
-          // it caps the edge so a unique name can never be promoted to RESOLVED (R5.2).
-          addEdge("CALLS", scope, callee.name.text, node.getStart(sf), "HEURISTIC", node);
+          const cls = receiverClass(callee.expression, locals, selfProps);
+          if (cls) {
+            // The local type table named the receiver's class (task 153): emit the full
+            // `<Class>::method` qname so the core links it RESOLVED, not the bare HEURISTIC name.
+            addEdge("CALLS", scope, member(resolve(cls), callee.name.text), node.getStart(sf), undefined, node);
+          } else {
+            // The method name is known and the receiver is not. `HEURISTIC` is not a label here: it
+            // is what switches on the core's name-only fallback (`resolver.py` bare-member branch),
+            // and it caps the edge so a unique name can never be promoted to RESOLVED (R5.2).
+            addEdge("CALLS", scope, callee.name.text, node.getStart(sf), "HEURISTIC", node);
+          }
         } else {
           // A computed callee (`obj[name]()`, an IIFE) names nothing linkable. Say so rather than
           // drop the call — the same `(dynamic)`/`DYNAMIC` convention the PHP adapter uses.
@@ -372,7 +405,7 @@ function parseFile(path, declarationsOnly) {
     }
   };
 
-  const walkVariables = (stmt, container, scope, enclosingClass) => {
+  const walkVariables = (stmt, container, scope, enclosingClass, locals, selfProps) => {
     for (const decl of stmt.declarationList.declarations) {
       const init = decl.initializer;
       const spec = requireSpecifier(init, ts);
@@ -382,19 +415,26 @@ function parseFile(path, declarationsOnly) {
         addEdge("IMPORTS", qpath, resolveSpec(spec) || spec, init.getStart(sf));
         continue;
       }
+      // Type binding (137): an annotation or an inferred `new Foo()` types the variable; anything
+      // else re-opens it, so the local table never carries a stale class into a later member call.
+      if (ts.isIdentifier(decl.name)) {
+        const bound = boundClass(decl.type, init);
+        if (bound) locals.set(decl.name.text, bound);
+        else locals.delete(decl.name.text);
+      }
       const cls = classifyVariable(stmt, decl);
       if (cls && cls.kind === "Function") {
         const qname = member(container, cls.name);
         addNode("Function", cls.name, qname, decl, extraOf(decl));
         addEdge("CONTAINS", container, qname, decl.getStart(sf));
-        if (!declarationsOnly && init) walk(init, qname, qname, null);
+        if (!declarationsOnly && init) walk(init, qname, qname, null, locals, selfProps);
       } else if (cls && cls.kind === "Const") {
         const qname = member(container, cls.name);
         addNode("Const", cls.name, qname, decl, extraOf(decl));
         addEdge("CONTAINS", container, qname, decl.getStart(sf));
-        if (!declarationsOnly && init) walk(init, container, scope, enclosingClass);
+        if (!declarationsOnly && init) walk(init, container, scope, enclosingClass, locals, selfProps);
       } else if (!declarationsOnly && init) {
-        walk(init, container, scope, enclosingClass);
+        walk(init, container, scope, enclosingClass, locals, selfProps);
       }
     }
   };
@@ -402,9 +442,9 @@ function parseFile(path, declarationsOnly) {
   // Main walk: nodes + CONTAINS, plus the edges each construct owns. `scope` is what a body edge is
   // sourced at, `enclosingClass` the qname a `this.method()` resolves against; body walking is
   // skipped for declarations_only.
-  const walk = (node, container, scope, enclosingClass) => {
+  const walk = (node, container, scope, enclosingClass, locals, selfProps) => {
     if (ts.isVariableStatement(node)) {
-      walkVariables(node, container, scope, enclosingClass);
+      walkVariables(node, container, scope, enclosingClass, locals, selfProps);
       return;
     }
 
@@ -412,7 +452,16 @@ function parseFile(path, declarationsOnly) {
     let childContainer = container;
     let childScope = scope;
     let childClass = enclosingClass;
+    let childLocals = locals;
+    let childSelfProps = selfProps;
     let emittedCallable = false;
+
+    // A function/method/ctor opens a fresh local scope seeded with its typed parameters; an arrow or
+    // function expression closes over the outer scope, so it inherits and adds its own (137).
+    if (CALLABLE.has(node.kind)) childLocals = paramTypeMap(node);
+    else if (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) {
+      childLocals = new Map([...locals, ...paramTypeMap(node)]);
+    }
 
     if (kind) {
       const name = nameOf(node);
@@ -423,22 +472,23 @@ function parseFile(path, declarationsOnly) {
         childContainer = qname;
         if (SCOPE.has(node.kind)) childScope = qname;
         if (kind === "Class" || kind === "Interface") childClass = qname;
+        if (kind === "Class") childSelfProps = classPropTypeMap(node);
         if (CALLABLE.has(node.kind)) emittedCallable = true;
         emitHeritage(node, qname);
         emitDefaultAlias(node, name, qname);
       }
     }
 
-    emitBodyEdges(node, scope, enclosingClass);
+    emitBodyEdges(node, scope, enclosingClass, locals, selfProps);
 
     // declarations_only stops at a callable's boundary: the node is emitted, its body is not walked.
     if (emittedCallable && declarationsOnly) return;
     // Decorators annotate a declaration (captured in extra); their expressions are not body edges.
     node.forEachChild((child) => {
-      if (!ts.isDecorator(child)) walk(child, childContainer, childScope, childClass);
+      if (!ts.isDecorator(child)) walk(child, childContainer, childScope, childClass, childLocals, childSelfProps);
     });
   };
-  walk(sf, qpath, qpath, null);
+  walk(sf, qpath, qpath, null, new Map(), new Map());
 
   return { path: qpath, ok: true, nodes, edges };
 }
