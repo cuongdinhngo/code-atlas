@@ -40,7 +40,16 @@ DetailLevel = Literal["minimal", "standard"]
 
 QUESTION = "callers"
 # Caveats that ride the claim line when present — each omitted when the payload has no such key.
-CLAIM_CARRY = ("frontier_skipped_non_resolved", "unresolved_bare_calls", "args_unrecorded")
+CLAIM_CARRY = (
+    "frontier_skipped_non_resolved",
+    "unresolved_bare_calls",
+    "args_unrecorded",
+    "authoritative",
+)
+
+# The subject shares a trailing method name with definitions under other qnames — callers reached
+# by simple name may bind to a sibling, so this answer is a partition, not the whole (task 165).
+SIBLING_DEFINITIONS = "sibling_definitions"
 
 _RESOLVED = CONFIDENCE_TIERS[0]
 # Cap BFS counting so total_count stays honest-as-a-floor without walking the whole graph.
@@ -220,6 +229,18 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     unresolved_bare = store.count_bare_calls_not_targeting(
                         lookup, bare_name=bare_name
                     )
+            sibling_sites: list[dict[str, object]] = []
+            if indexed and container is not None:
+                # A same-named Method under a different qname; a simple-name caller may bind
+                # there, so this count is a partition (task 165). One bounded query.
+                siblings = [
+                    row
+                    for row in store.nodes_by_name(
+                        bare_name, kind="Method", limit=config.max_results
+                    )
+                    if str(row["qualified_name"]) != lookup
+                ]
+                sibling_sites = definition_sites(siblings)
             if include_source:
                 call_site.annotate(config.root, store, outcome.results)
             # Skewed page 1 hides other subtrees — advertise the full spread (task 067).
@@ -253,6 +274,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             result["args_unrecorded"] = unrecorded
         attach_result_subtrees(result, subtrees)
         attach_ambiguous_definitions(result, definition_sites(subject_nodes))
+        if sibling_sites:
+            # A partition of the callers, not the whole — mark it non-authoritative (165, R5.5),
+            # the spelling find_references already carries for a caveated answer.
+            result[SIBLING_DEFINITIONS] = sibling_sites
+            result["authoritative"] = False
         attach_limit_capped(result, cap=cap, clamped=limit_clamped)
         attach_resolved_qname(result, asked=asked, answered=lookup)
         return signed(attach_coverage_note(result, config))

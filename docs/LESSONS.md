@@ -60,6 +60,27 @@ this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *c
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
 
+## 165 — An answer that is a partition of the truth must be marked a partition
+
+`find_callers` on `\Src\…\EventRunner::bedPriceCheck` returned its own callers and omitted the ones a
+simple-name call site binds to the legacy twin `\EventRunner::bedPriceCheck` — a different qname, same
+trailing method name — while answering `reason: ok` with a confident `total_count`. The graph edges
+were correct per qname; the payload presented a partition as the whole. The disclosure that already
+existed (`ambiguous_definitions`) fires only on **exact-qname** twins, so a cross-qname sibling never
+tripped it. Fix: one bounded `nodes_by_name(bare_name, kind)` query surfaces same-named definitions
+under other qnames as `sibling_definitions`, and the answer is marked `authoritative: false` — the
+spelling `find_references` already carried (7-A), now extended to the tool the mandated caller sweep
+routes to. General shape: when an answer is scoped by one identity slot but callers can reach the
+subject by that slot and bind elsewhere, name the other bindings and mark the answer non-authoritative.
+
+*Claim `165-C1` — a tool answer scoped to one qname is a *partition* when the subject shares its
+identity slot (trailing name) with definitions under other qnames; disclose the siblings and mark the
+answer `authoritative: false` rather than presenting the partition as the whole. type: 2 · handle:
+`disclose-a-partition-as-a-partition` · status: proposed · seen: 165 · evidence:
+`find_callers.py:255` disclosed only exact-qname twins (`nodes_by_qualified_name`); closed by a
+`nodes_by_name` sibling query + `test_find_callers_discloses_sibling_definitions_on_a_twin` ·
+destination: open — folds into a convention if it recurs (relates to [[161]], 070, R5.5).*
+
 ## 164 — A build stamp names the code the process LOADED, not the source on disk
 
 162 stamped `server_build` on every payload so a retro could name the binary that answered. It read

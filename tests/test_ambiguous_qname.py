@@ -155,6 +155,85 @@ def test_find_references_flags_ambiguous_subject(tmp_path: Path, store: GraphSto
     assert {str(s["file"]) for s in result[AMBIGUOUS_DEFINITIONS]} == {"a.php", "b.php"}
 
 
+def _seed_twin_methods(store: GraphStore, tmp_path: Path) -> None:
+    """``bedPriceCheck`` on two classes with different qnames, one caller each (task 165)."""
+    seed_file(
+        store,
+        "src.php",
+        [
+            node("Method", "bedPriceCheck", "\\Src\\EventRunner::bedPriceCheck", "src.php"),
+            node("Method", "callSrc", "\\Src\\Caller::callSrc", "src.php"),
+        ],
+        [
+            edge(
+                "CALLS", "\\Src\\Caller::callSrc", "bedPriceCheck", "src.php",
+                target_qname="\\Src\\EventRunner::bedPriceCheck",
+            )
+        ],
+        root=tmp_path,
+    )
+    seed_file(
+        store,
+        "legacy.php",
+        [
+            node("Method", "bedPriceCheck", "\\EventRunner::bedPriceCheck", "legacy.php"),
+            node("Method", "callLegacy", "\\LegacyCaller::callLegacy", "legacy.php"),
+        ],
+        [
+            edge(
+                "CALLS", "\\LegacyCaller::callLegacy", "bedPriceCheck", "legacy.php",
+                target_qname="\\EventRunner::bedPriceCheck",
+            )
+        ],
+        root=tmp_path,
+    )
+
+
+def test_find_callers_discloses_sibling_definitions_on_a_twin(
+    tmp_path: Path, store: GraphStore
+) -> None:
+    """AC1/AC3 (165): a twin's callers are a partition — disclose the sibling site + the caveat."""
+    _seed_twin_methods(store, tmp_path)
+    result = find_callers.create(db_config(tmp_path))(
+        "\\Src\\EventRunner::bedPriceCheck", detail_level="minimal"
+    )
+    # The subject's own caller is returned, exact ...
+    assert result["total_count"] == 1
+    assert result["reason"] == "ok"
+    # ... but the answer is marked a partition and names the sibling definition.
+    assert result["authoritative"] is False
+    sites = result["sibling_definitions"]
+    assert [str(s["file"]) for s in sites] == ["legacy.php"]
+    for site in sites:
+        assert set(site) == {"file", "line", "kind"}
+        assert site["kind"] == "Method"
+    # 070's exact-qname disclosure must not fire — this is a cross-qname sibling, not a twin qname.
+    assert AMBIGUOUS_DEFINITIONS not in result
+
+
+def test_find_callers_solo_method_is_byte_identical(
+    tmp_path: Path, store: GraphStore
+) -> None:
+    """AC2/061 (165): a method with no same-named sibling gains no field."""
+    seed_file(
+        store,
+        "solo.php",
+        [
+            node("Method", "onlyHere", "\\Solo\\Only::onlyHere", "solo.php"),
+            node("Method", "caller", "\\Solo\\C::caller", "solo.php"),
+        ],
+        [edge("CALLS", "\\Solo\\C::caller", "onlyHere", "solo.php",
+              target_qname="\\Solo\\Only::onlyHere")],
+        root=tmp_path,
+    )
+    result = find_callers.create(db_config(tmp_path))(
+        "\\Solo\\Only::onlyHere", detail_level="minimal"
+    )
+    assert result["total_count"] == 1
+    assert "sibling_definitions" not in result
+    assert "authoritative" not in result
+
+
 def test_read_symbol_refuses_body_when_ambiguous(
     tmp_path: Path, store: GraphStore
 ) -> None:
