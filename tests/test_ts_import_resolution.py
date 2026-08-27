@@ -78,3 +78,68 @@ def test_cross_file_new_resolves_to_the_defining_module(tmp_path: Path) -> None:
         assert len(dual_new) == 1
         assert dual_new[0]["target_raw"] == "src/dual.ts::Widget"
         assert dual_new[0]["confidence_tier"] == "RESOLVED"
+
+
+def _build_alias_tree(tmp_path: Path, tsconfigs: dict[str, str]) -> GraphStore:
+    """A tiny project: models.ts + aliased.ts under src/, plus the given tsconfig file(s).
+    Returns an open GraphStore after a full_build (task 155)."""
+    src = tmp_path / "src"
+    src.mkdir()
+    for name in ("models.ts", "aliased.ts"):
+        shutil.copy(RESOLVE / name, src / name)
+    for name, body in tsconfigs.items():
+        (tmp_path / name).write_text(body, encoding="utf-8")
+    (tmp_path / ".code-atlas.toml").write_text(
+        f"[adapter_cmd]\ntypescript = ['{NODE}', '{ENTRY}', '--server']\n", encoding="utf-8"
+    )
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
+    db_path = tmp_path / ".code-atlas" / "graph.db"
+    config = load_config(tmp_path, {"CA_WORKERS": "1", "CA_DB_PATH": str(db_path)})
+    store = GraphStore(db_path)
+    report = full_build(config, store)
+    assert report.failed == 0
+    return store
+
+
+_PATHS_TSCONFIG = '{ "compilerOptions": { "baseUrl": ".", "paths": { "@app/*": ["src/*"] } } }'
+
+
+@needs_node
+def test_tsconfig_paths_alias_resolves_to_the_defining_module(tmp_path: Path) -> None:
+    # `@app/models` resolves through tsconfig `paths` to src/models.ts, so the aliased NEW reaches
+    # the defining class at RESOLVED — the win an alias-built monorepo otherwise loses (AC1).
+    with _build_alias_tree(tmp_path, {"tsconfig.json": _PATHS_TSCONFIG}) as store:
+        new = store.edges_by_source("src/aliased.ts::make", kinds=("NEW",), limit=10)
+        assert len(new) == 1
+        assert new[0]["target_raw"] == "src/models.ts::User"
+        assert new[0]["target_qname"] == "src/models.ts::User"
+        assert new[0]["confidence_tier"] == "RESOLVED"
+
+
+@needs_node
+def test_extends_chained_tsconfig_inherits_paths(tmp_path: Path) -> None:
+    # The `paths` live in a base config; the project's tsconfig only `extends` it. The alias must
+    # still resolve — extends is followed (AC1, the extends-chain fixture).
+    with _build_alias_tree(
+        tmp_path,
+        {
+            "tsconfig.base.json": _PATHS_TSCONFIG,
+            "tsconfig.json": '{ "extends": "./tsconfig.base.json" }',
+        },
+    ) as store:
+        new = store.edges_by_source("src/aliased.ts::make", kinds=("NEW",), limit=10)
+        assert len(new) == 1
+        assert new[0]["target_qname"] == "src/models.ts::User"
+        assert new[0]["confidence_tier"] == "RESOLVED"
+
+
+@needs_node
+def test_malformed_tsconfig_degrades_to_bare_never_crashes(tmp_path: Path) -> None:
+    # A malformed tsconfig must not crash the parse (§4.1): the build succeeds and the alias
+    # stays bare — the NEW does not reach the defining module (AC2). Also the AC1 red-run guard.
+    with _build_alias_tree(tmp_path, {"tsconfig.json": "{ this is not json,,,"}) as store:
+        new = store.edges_by_source("src/aliased.ts::make", kinds=("NEW",), limit=10)
+        assert len(new) == 1
+        assert new[0]["target_raw"] == "User"
+        assert new[0]["target_qname"] != "src/models.ts::User"

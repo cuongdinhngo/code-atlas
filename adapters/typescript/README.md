@@ -75,8 +75,9 @@ a scope; properties and consts only declare). `tests/contract/` freezes that sou
 
 **Resolution (R3.3 — the adapter names, the core links).** A same-file target resolves to its full
 qname; an imported name resolves to `<defining-file>::<exported>` by resolving the module specifier
-(relative + `require`, extension/`index`, and a NodeNext `./x.js` to the `./x.ts` **source** ahead of
-a compiled sibling) and reading the import binding — so the core links it `RESOLVED`.
+(relative + `require`, extension/`index`, a NodeNext `./x.js` to the `./x.ts` **source** ahead of a
+compiled sibling, and a non-relative `@alias` through the nearest tsconfig `baseUrl`/`paths` — task
+155) and reading the import binding — so the core links it `RESOLVED`.
 `export { X } from "./m"` emits an `ALIASES` edge naming the defining module, so an import through a
 barrel resolves to where `X` is declared; `export default class Foo` aliases `::default` to `::Foo`
 for the same reason. Anything unresolved stays bare.
@@ -100,8 +101,23 @@ which flips this flag to `true` once those types exist. This is a scoped setting
 **not** a suppression: there is no baseline file, no `@ts-nocheck`, no `eslint-disable`. Every other
 strict check (`strictNullChecks`, `noUnusedLocals`, `noImplicitReturns`, …) is on and clean.
 
+## Module aliases and `export *` (task 155)
+
+A non-relative specifier is resolved through the **nearest `tsconfig.json`** up the tree (`extends`
+followed), reading `baseUrl`/`paths`: `@app/models` names `src/models.ts` and every edge through it
+resolves, the same as a relative import. The config is read from disk by the adapter (the core stays
+language-blind, R1.1) and is the language's own standard, not a bundler's (R2). A missing or malformed
+`tsconfig.json` degrades to a bare specifier — never a crash (§4.1). Each tsconfig is parsed at most
+once per process.
+
+**`export * from "./m"` stays `IMPORTS`-only — a documented file-at-a-time limit, not a gap.** A named
+re-export (`export { X } from "./m"`) aliases `X` to its defining module, because the name is written
+in the file. `export *` names nothing: enumerating what `./m` exports needs `./m` (and its own
+transitive `export *`s) — whole-program knowledge a file-at-a-time parse does not have. A shallow
+one-level disk read would resolve some names and silently miss re-exported ones, which is worse than an
+honest bare edge. So the module dependency is recorded (`IMPORTS`) and per-name resolution through an
+`export *` barrel is not; revisit only if the contract gains a resolve pass.
+
 ## Still out of scope (later 019 slices)
 
-`args`/`arg_keys` on calls; the `semantic_types` inferred-receiver type table; `allowJs`/JSDoc types;
-tsconfig `paths`/`baseUrl` aliases (an aliased specifier resolves to nothing, so its target stays
-bare); `export *` per-name resolution.
+`args`/`arg_keys` on calls; the `semantic_types` inferred-receiver type table; `allowJs`/JSDoc types.

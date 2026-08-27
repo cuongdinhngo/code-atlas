@@ -7,7 +7,7 @@
 const fs = require("node:fs");
 const ts = require("typescript");
 const { toPosix, member } = require("./qname");
-const { resolveRelative, requireSpecifier, importBindings } = require("./imports");
+const { resolveSpecifier, requireSpecifier, importBindings } = require("./imports");
 
 function scriptKindFor(path) {
   if (path.endsWith(".tsx")) return ts.ScriptKind.TSX;
@@ -168,7 +168,7 @@ function parseFile(path, declarationsOnly) {
   };
   collect(sf, qpath);
 
-  const resolveSpec = (specifier) => resolveRelative(specifier, qpath);
+  const resolveSpec = (specifier) => resolveSpecifier(specifier, qpath);
   const importCtx = importBindings(sf, ts, resolveSpec);
 
   // Name resolution (adapter's half of R3.3): a same-file declaration wins; otherwise an import
