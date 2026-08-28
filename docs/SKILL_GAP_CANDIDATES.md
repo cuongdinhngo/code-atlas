@@ -147,3 +147,13 @@ their re-execution is missing.
 shape. The gap is worst where the project has **no** CI gate for the same rule — here the build
 failed loudly, but a project relying on the lifecycle's sweep alone would have shipped it, with a
 clean pasted artifact standing as the evidence that it had not.
+
+## Type-3 signals from the 8-ticket `/mango:autorun` batch (2026-08-28, mango 1.14.0)
+
+**`check_lines.py --tree` cannot express a deliberately pre-fix red run.** R6.5 requires a guard to
+have been observed failing, so a working doc's red-run record necessarily names the tree *before*
+the fix. The evidence-provenance axis counts that as evidence "from ANOTHER tree" and returns exit
+2, which `autorun` reads as "the gate does not close". Every ticket in this batch that records a red
+run trips it — 8 of 8. Suggested shape: a marker the doc can carry (e.g. `Ran at <sha> (pre-fix)`)
+that the checker counts on its own axis rather than as a stale tree. First seen: 176; seen in all
+eight.
