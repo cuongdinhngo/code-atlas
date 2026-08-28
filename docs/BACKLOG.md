@@ -67,8 +67,9 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 186 | [A zero answer still cannot say "this relation is not modelled for this file's language" — 160's carve-out, now a false negative](tasks/186_a-zero-answer-cannot-say-the-relation-is-unmodelled-for-this-language.md) | Agent-trust | done | 160, 183, 185 |
 | 187 | [`find_orphans` crashes on an entry-point glob that matches nothing](tasks/187_find-orphans-crashes-on-an-entry-point-glob-that-matches-nothing.md) | Agent-trust | todo | 185, 031, 124 |
 | 188 | [`IMPORTS` is never linked, so no tool walks a module graph](tasks/188_imports-edges-are-never-linked-so-no-tool-can-walk-a-module-graph.md) | Agent-fit | done | 186, 019, 155 |
-| 189 | [A twin is a container fact, not a path fact](tasks/189_a-twin-is-a-container-fact-not-a-path-fact.md) | Agent-trust | todo | 181, 171, 165 |
+| 189 | [A twin is a container fact, not a path fact](tasks/189_a-twin-is-a-container-fact-not-a-path-fact.md) | Agent-trust | done | 181, 171, 165 |
 | 190 | [A same-second guard is flaky under suite load](tasks/190_a-same-second-guard-is-flaky-under-suite-load.md) | Coverage | todo | 146 |
+| 191 | [A conditional assertion is a test that never ran](tasks/191_a-conditional-assertion-is-a-test-that-never-ran.md) | Coverage | todo | 189, 181 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -293,7 +294,6 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **PHP-adapter duplicate-declaration fixture (optional)** — the adapter already emits per-declaration, so this only pins it.
 - **015 AC2 operator run** — a scale-timing artifact folded into [018](tasks/018_cross-repo-validation.md) as optional A4. Needs an operator machine.
 - **018 construct gaps** — cross-repo misses feed the (still empty) gap log in [`runbooks/cross-repo-validation.md`](runbooks/cross-repo-validation.md) and tasks 007 / 025.
-- **`test_ac4_a_same_second_same_size_edit_is_a_stale_import` is flaky under load** — its premise is that both writes land in one second; when they straddle the boundary CPython invalidates correctly and the negative control fails claiming *"CPython changed"*. Seen once in a full run, green alone. The test should pin the mtime instead of racing for it.
 - **Four CI tightenings deferred from the drift audit** — the audit's own doc was never committed, so the list is lost; re-derive from `ci.yml` vs `scripts/gate.sh` if it is wanted.
 - **Docker images are never built by CI** — `docker/Dockerfile` can rot (`Dockerfile.runtime` is built inside `pytest`). Honest shape: one job building both. Survives the unbillable-Actions arrangement AGENTS.md records, which also means every gate is a human step.
 

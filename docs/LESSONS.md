@@ -32,12 +32,12 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
 | `derived-not-listed-invariant` | 18 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180 | **R6.7** |
-| `prove-the-guard-fails` | 23 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188 | **R6.5** |
+| `prove-the-guard-fails` | 24 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188, 189 | **R6.5** |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
 | `fixture-shape-begs-the-question` | 9 | 084, 086, 103–106, 121, 183, 185 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
 | `count-pin-in-blast-radius` | 5 | 085, 087–089, 175 | **AGENT_BRIEF P5** — promoted 2026-08-27 |
-| `source-the-caveat-from-the-computation` | 5 | 100–102, 122, 127 | **R5.5** |
+| `source-the-caveat-from-the-computation` | 6 | 100–102, 122, 127, 189 | **R5.5** |
 | `re-verify-the-assumption-on-a-new-path` | 3 | 102, 107, 122 | **AGENT_BRIEF P6** — promoted 2026-08-27 |
 | `re-run-the-sweep-after-the-last-edit` | 3 | 100–102 | **AGENT_BRIEF P4** |
 | `route-must-answer` | 4 | 093, 101, 102, 188 | folded into **R5.4**'s falsifier — 188 is the first sighting of its *other* direction: a route that became answerable |
@@ -63,6 +63,42 @@ proposed as a new rule, because R6.3 already owned cross-repo validation and P2 
 this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *claim's* list honest and
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
+
+## 189 — One field answering two questions cannot be fixed by ranking harder
+171 ranked `sibling_definitions` by shared subtree depth and was **right** — 165 exists because *"a
+simple-name reference may bind there"*, and binding is namespace-and-path local, so nearest-first is
+the correct order for that question. Round 12 then asked a *different* question of the same field —
+*which of these is the regional copy of my class?* — and for that question a twin is by definition
+**far**: it lives in a sibling region (`alpha` / `beta`) while same-name noise lives inside the subject's
+own. 181 measured `shared_subtree_with_subject` ranking the wanted twin **41 of 41** and declined to
+ship a `ranked: true` whose first row was noise.
+
+**The fix was not a better ranking. It was noticing that one field was serving two questions**, and
+that the payload could name which one ran. Both bases are honest; the basis value is the disclosure.
+
+**And the ticket named the right axis with an unreachable datum.** A twin *is* a container fact —
+`\Alpha\ModelMember::getName` and `\Beta\ModelMember::getName` share a container trailing name.
+But `contract.split_qname` splits at `MEMBER_SEPARATOR` and yields the container **qname**; getting
+`ModelMember` out of it needs the container's *native* separator, and naming one is R1.1-barred.
+The ticket therefore costed three ways of publishing the container qname, all of them paying bytes on
+four tools' sibling rows. **There was a container fact already published: the file the container is
+declared in.** Same axis, free datum — the twin is another `ModelMember.php`, the noise is
+`Unrelated0.php` — and `file` is on every site row, so R5.5 is satisfied at **2 bytes** (the basis
+name is two characters longer). Reading `split_qname` before implementing is what found this.
+
+### 189-C1 — One field, two questions: name the predicate that decided, or the reader cannot tell
+When a disclosure serves two questions, ranking cannot be *made* right — one of the two callers will
+always read position 1 wrong. What can be right is the **basis**, and the rule that makes it right is
+180's: **name the one predicate the order was actually decided by, and only when it decided
+something.** If the discriminating predicate is uniform across the list, it decided nothing and
+naming it misstates the order; fall back and say so. `0 < matched < total` is that test, and it is a
+structural question rather than a tuned number (161 AC1), so it holds identically at 2 rows and 93.
+
+**Corollary, and the cheaper half of the lesson:** before pricing a new published field to support a
+basis, check whether the payload *already* carries a datum on the same axis. The ticket's three
+options all cost bytes; the fourth cost two.
+
+type: 2 · seen: 1 · handle: `one-field-two-questions` · tickets: 189
 
 ## 188 — A resolved value nobody consumes is invisible in every health metric
 155 taught the TS adapter to resolve a module specifier through `tsconfig` and it worked:

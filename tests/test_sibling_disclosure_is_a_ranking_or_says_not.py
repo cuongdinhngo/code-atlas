@@ -24,6 +24,7 @@ from code_atlas.config import load_config
 from code_atlas.store import GraphStore
 from code_atlas.tools import find_callers, impact
 from code_atlas.tools.nav_result import (
+    RANK_SHARED_FILE_NAME,
     RANK_SHARED_SUBTREE,
     SIBLING_DEFINITIONS,
     SIBLING_RANKED,
@@ -166,18 +167,17 @@ def test_the_impact_path_seed_reports_unranked_and_is_capped(
     assert int(payload[SIBLING_TOTAL]) > UNRANKED_SIBLING_CAP  # type: ignore[arg-type]
 
 
-def test_the_subtree_basis_would_rank_the_real_twin_BELOW_the_noise(
+def test_the_subtree_basis_counterfactual_is_DISCHARGED_by_189(
     tmp_path: Path, store: GraphStore  # noqa: F811
 ) -> None:
-    """AC3's verdict, and it is a REFUSAL backed by this measurement.
+    """AC3's verdict was a REFUSAL backed by a measurement; **189 discharged it.**
 
-    A one-path request *does* have a subject file, already on the row that found the twin — so Scope
-    3's basis is reachable at zero cost. It was implemented, measured here, and **declined**.
-
-    The anchor's twins live in *sibling regions* (`alpha` / `beta`) while the same-name noise lives
-    **inside the subject's own region**, so `shared_subtree_with_subject` ranks 40 vendor rows ABOVE
-    the one row the caller wants. Shipping that would trade an honest `ranked: false` for a
-    misleading `ranked: true` — re-creating 181's own defect with a better-sounding label.
+    181 implemented Scope 3's basis, measured that `shared_subtree_with_subject` put 40 same-region
+    vendor rows ABOVE the one row the caller wanted, and declined to ship it — an honest
+    `ranked: false` beats a `ranked: true` whose first row is noise. 189 supplied the discriminator
+    181 named — a container fact, read for free from the file the container is declared in — so the
+    same fixture now ranks the twin FIRST. The old order is kept as a committed counterfactual in
+    `tests/test_a_twin_is_ranked_above_same_name_noise.py`.
     """
     subject = SUBJECT_PATH  # src/alpha/model/member/ModelMember.php
     sites = [{"file": TWIN_PATH}] + [
@@ -185,11 +185,9 @@ def test_the_subtree_basis_would_rank_the_real_twin_BELOW_the_noise(
     ]
     ordered, basis = rank_sibling_sites(sites, subject_file=subject)
 
-    assert basis == RANK_SHARED_SUBTREE
-    assert str(ordered[0]["file"]).startswith("src/alpha/vendor/"), "same-region noise wins"
-    assert str(ordered[-1]["file"]) == TWIN_PATH, "the answer the caller wants is LAST"
-    # The discriminator that WOULD work is the sibling's container, not its path.
-    assert "ModelMember" in TWIN_PATH and "Unrelated" not in TWIN_PATH
+    assert basis == RANK_SHARED_FILE_NAME, "189's basis, not 171's"
+    assert str(ordered[0]["file"]) == TWIN_PATH, "the answer the caller wants is now FIRST"
+    assert str(ordered[-1]["file"]).startswith("src/alpha/vendor/")
 
 
 def test_a_qname_subject_still_ranks_as_it_did(

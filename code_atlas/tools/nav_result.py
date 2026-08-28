@@ -561,6 +561,10 @@ CAVEAT_SIBLING_DEFINITIONS = "sibling_definitions"
 # another thing to trust (task 171, R5.5).
 SIBLING_RANKED_BY = "sibling_definitions_ranked_by"
 RANK_SHARED_SUBTREE = "shared_subtree_with_subject"
+# 189: nearness is the wrong axis for *"which of these is my twin?"* — a twin lives in a SIBLING
+# region while same-name noise lives inside the subject's own, so subtree depth ranks the answer
+# last. The one container fact the core can read for free is the file the container is declared in.
+RANK_SHARED_FILE_NAME = "shared_file_name_with_subject"
 # The VERDICT, always stated once there is an order to have (task 181): a caller must be able to ask
 # "is position meaningful here?" without knowing that the old `ranked_by: "path"` meant *unranked*.
 SIBLING_RANKED = "sibling_definitions_ranked"
@@ -586,10 +590,17 @@ def _shared_subtree_depth(subject_file: str, site_file: str) -> int:
 def rank_sibling_sites(
     sites: list[dict[str, object]], *, subject_file: str | None
 ) -> tuple[list[dict[str, object]], str | None]:
-    """Order sibling sites nearest-subtree-first, or admit there was nothing to rank by (171/181).
+    """Order twins first, else nearest first, or admit there was nothing to rank by (171/181/189).
 
     Drops nothing — the sites that were noise for one question are the answer to another (171).
     Pure reordering of rows already fetched: no query per sibling, and none per caller.
+
+    Two bases, and **the one named is the one that decided the order** (180's rule, R5.5).
+    ``shared_file_name_with_subject`` bands the sites that are declared in a file of the subject's
+    own name above those that are not — the twin question. It is named only when it actually
+    PARTITIONED the list: if every site matches, or none does, the order was decided entirely by
+    nearness and ``shared_subtree_with_subject`` is the honest name. That is a structural fact
+    ("did this predicate split the list?"), not a tuned number (161 AC1).
 
     With no subject file there is no evidence to rank against, so the basis is ``None``: rows stay
     ordered by path for determinism (R4.2), but *alphabetical* is a sort, not a ranking, and
@@ -598,14 +609,22 @@ def rank_sibling_sites(
     by_path = sorted(sites, key=lambda site: str(site["file"]))
     if subject_file is None:
         return by_path, None
+    wanted = PurePosixPath(subject_file).name
+
+    def shares_file_name(site: dict[str, object]) -> bool:
+        return PurePosixPath(str(site["file"])).name == wanted
+
+    matched = sum(1 for site in by_path if shares_file_name(site))
+    partitioned = 0 < matched < len(by_path)
     ordered = sorted(
         by_path,
         key=lambda site: (
+            not (partitioned and shares_file_name(site)),
             -_shared_subtree_depth(subject_file, str(site["file"])),
             str(site["file"]),
         ),
     )
-    return ordered, RANK_SHARED_SUBTREE
+    return ordered, RANK_SHARED_FILE_NAME if partitioned else RANK_SHARED_SUBTREE
 
 
 def attach_sibling_definitions(
