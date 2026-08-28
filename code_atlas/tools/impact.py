@@ -9,15 +9,22 @@ from code_atlas.config import Config
 from code_atlas.store import GraphStore
 from code_atlas.tools import claim
 from code_atlas.tools.nav_result import (
+    CAVEAT_SIBLING_DEFINITIONS,
     REASON_NO_SUCH_SYMBOL,
     REASON_SUBJECT_AMBIGUOUS,
+    TRY_INSTEAD_FILE_OUTLINE,
+    TRY_INSTEAD_HINT_IMPACT_BY_QNAME,
     SubjectResolution,
     attach_ambiguous_definitions,
+    attach_authoritative_caveats,
+    attach_sibling_definitions,
+    attach_try_instead,
     classify_missing_subject,
     definition_sites,
     empty_nav,
     nav_result,
     shape_exact_miss,
+    sibling_definition_rows,
 )
 from code_atlas.tools.staleness import compute_staleness
 
@@ -34,10 +41,15 @@ CLAIM_CARRY = ("seeds_dropped", "frontier_skipped_non_resolved")
 
 
 class SeedSet(NamedTuple):
-    """Resolved seeds, plus one resolution per requested subject that produced none (task 102)."""
+    """Resolved seeds, plus one resolution per requested subject that produced none (task 102).
+
+    ``from_paths`` names the seeds a path expanded into, so the payload can state the expansion and
+    the twin check can be applied to exactly the seeds nobody asked for by name (task 169).
+    """
 
     seeds: list[str]
     dropped: tuple[SubjectResolution, ...]
+    from_paths: tuple[str, ...] = ()
 
 
 def create(config: Config) -> Callable[..., dict[str, object]]:
@@ -97,6 +109,20 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             walk_seeds, ambiguous_sites = _split_ambiguous(
                 store, seed_set.seeds, config.max_results
             )
+            # Only the seeds a PATH expanded into: 161 closed the qname half, and a caller who
+            # named a qname asked for that qname (169).
+            from_paths = set(seed_set.from_paths)
+            twinned_sites: list[tuple[str, list[dict[str, object]]]] = []
+            if from_paths:
+                walkable, twinned_sites = _split_twinned(
+                    store,
+                    [seed for seed in walk_seeds if seed in from_paths],
+                    config.max_results,
+                )
+                keep = set(walkable)
+                walk_seeds = [
+                    seed for seed in walk_seeds if seed not in from_paths or seed in keep
+                ]
             outcome = store.impact_radius(
                 walk_seeds, depth=hops, max_nodes=config.impact_max_nodes + 1
             )
@@ -114,16 +140,42 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             truncated=truncated,
             depth=hops,
             frontier_skipped_non_resolved=outcome.frontier_skipped_non_resolved,
-            seeds_dropped=outcome.seeds_dropped + len(seed_set.dropped) + len(ambiguous_sites),
+            seeds_dropped=(
+                outcome.seeds_dropped
+                + len(seed_set.dropped)
+                + len(ambiguous_sites)
+                + len(twinned_sites)
+            ),
         )
         _attach_freshness(result, staleness)
+        if paths:
+            # One file became N seeds, silently, and no field said so: a 6-node answer about one
+            # symbol read like a 176-node answer about 102 of them (169).
+            result["seed_expansion"] = {
+                "paths": len([path for path in paths if path]),
+                "seeds": len(seed_set.from_paths),
+            }
+        if twinned_sites:
+            # The bare-name links would pull in the twin's callers and callees, at RESOLVED-looking
+            # confidence, on the one tool whose answer is acted on destructively (169).
+            attach_sibling_definitions(
+                result,
+                [site for _, sites in twinned_sites for site in sites],
+                subject_file=None,
+            )
+            attach_authoritative_caveats(result, [CAVEAT_SIBLING_DEFINITIONS])
         if ambiguous_sites:
             # A seed qname with >1 definitions cannot be attributed to one twin — the edge model is
             # qname-keyed — so disclose the sites instead of walking one silently at RESOLVED (9-A).
             attach_ambiguous_definitions(result, [s for _, sites in ambiguous_sites for s in sites])
             if not walk_seeds:
                 result["reason"] = REASON_SUBJECT_AMBIGUOUS
-        if seed_set.dropped and not seed_set.seeds and not ambiguous_sites:
+        if twinned_sites and not walk_seeds:
+            result["reason"] = REASON_SUBJECT_AMBIGUOUS
+            attach_try_instead(
+                result, TRY_INSTEAD_FILE_OUTLINE, TRY_INSTEAD_HINT_IMPACT_BY_QNAME
+            )
+        if seed_set.dropped and not seed_set.seeds and not ambiguous_sites and not twinned_sites:
             explain_lost_subject(result, seed_set.dropped)
         # A question no seed answered gets no line: it would be signed ``answer=0`` for a subject
         # the index never held. The payload names the loss in ``seeds_dropped`` (tasks 100, 102).
@@ -161,6 +213,37 @@ def _split_ambiguous(
         else:
             walk.append(qname)
     return walk, ambiguous
+
+
+def _split_twinned(
+    store: GraphStore, seeds: Sequence[str], max_results: int
+) -> tuple[list[str], list[tuple[str, list[dict[str, object]]]]]:
+    """Split path-derived seeds into walkable and twinned (a shared *trailing name*, 165's shape).
+
+    161 closed the shared-*qname* case; the consuming repo's actual shape is a shared trailing name
+    under different qnames, and the walk's bare-name HEURISTIC links then pull in the twin's callers
+    and callees. `impact` is acted on destructively, so a twinned seed is disclosed rather than
+    walked — the same answer `_split_ambiguous` already gives one qname over (R1.8).
+    """
+    walk: list[str] = []
+    twinned: list[tuple[str, list[dict[str, object]]]] = []
+    for qname in seeds:
+        rows = store.nodes_by_qualified_name(qname, limit=1)
+        if not rows:
+            walk.append(qname)
+            continue
+        siblings = sibling_definition_rows(
+            store,
+            bare_name=str(rows[0]["name"]),
+            kind=str(rows[0]["kind"]),
+            lookup=qname,
+            limit=max_results,
+        )
+        if siblings:
+            twinned.append((qname, definition_sites(siblings)))
+        else:
+            walk.append(qname)
+    return walk, twinned
 
 
 def _attach_freshness(result: dict[str, object], staleness: dict[str, object]) -> None:
@@ -211,6 +294,7 @@ def resolve_seeds(
         if not qname:
             continue
         take(_resolve_seed(store, qname, max_results))
+    expanded: list[str] = []
     for path in paths:
         if not path:
             continue
@@ -220,10 +304,15 @@ def resolve_seeds(
             continue
         for row in rows:
             qname = str(row["qualified_name"])
-            if qname not in seen:
-                seen.add(qname)
-                found.append(qname)
-    return SeedSet(found, tuple(dropped))
+            if qname in seen:
+                continue
+            # Through the same gate a qname seed uses (169): a path-derived seed used to be
+            # appended raw, so it was never classified, never counted and never explained.
+            before = len(found)
+            take(_resolve_seed(store, qname, max_results))
+            if len(found) > before:
+                expanded.append(qname)
+    return SeedSet(found, tuple(dropped), tuple(expanded))
 
 
 def _resolve_seed(store: GraphStore, qname: str, max_results: int) -> SubjectResolution:

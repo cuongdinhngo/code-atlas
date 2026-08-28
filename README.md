@@ -321,6 +321,24 @@ another (task 171).
 `ambiguous_definitions` stays separate: that is the *same* qname defined twice, which is a different
 fact and can appear on the same payload.
 
+### An `impact` path seed says how far it expanded, and refuses a twinned one (task 169)
+
+`impact(paths=[...])` used to append **every symbol in the file** as a seed, bypassing the
+classification a `qnames=[...]` seed goes through. One file became N seeds silently, and the walk's
+bare-name links then pulled in the twins' callers and callees — a **29× over-report** measured
+against the same subject asked for by qname, on the one tool whose answer is acted on destructively.
+
+Two things changed, both on the path seed only (the qname half was already fixed):
+
+- **`seed_expansion: {"paths": 1, "seeds": 102}`** — how many seeds the request's paths produced, so
+  a 6-node answer about one symbol is no longer indistinguishable from a 176-node answer about 102.
+- **A path-derived seed whose trailing name is defined elsewhere is disclosed, not walked** — it
+  comes back in `sibling_definitions` with `authoritative: false`, counted in `seeds_dropped`, and
+  when nothing is left walkable the answer is `subject_ambiguous` with a route back
+  (`try_instead: file_outline`, then re-run `impact` with `qnames=[...]`).
+
+A path seed over a file with no same-named twins is unchanged.
+
 > **Language scope today:** only the **PHP** adapter exists. A TypeScript, Python, or C# project won't
 > index yet — those are planned (see [Roadmap](#roadmap)).
 

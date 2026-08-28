@@ -48,7 +48,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 166 | [`read_symbol` answers from the pre-repair state and calls it `no_such_symbol`](tasks/166_read-symbol-answers-from-pre-repair-state-and-calls-it-no-such-symbol.md) | Agent-trust | done | 035, 014, 065 |
 | 167 | [A substring near-miss is returned at `reason: "ok"`](tasks/167_a-substring-near-miss-is-reported-as-reason-ok.md) | Agent-trust | done | 014, 160, 093 |
 | 168 | [`find_references` under-reports an alias-backed class by 4.7× and still says `reason: "ok"`](tasks/168_find-references-never-got-165s-twin-disclosure.md) | Agent-trust | done | 165, 013, 122 |
-| 169 | [An `impact` path seed expands to every symbol in the file and reports 29× the qname](tasks/169_impact-path-seed-walks-every-symbol-and-its-twins.md) | Agent-trust | todo | 161, 017, 078 |
+| 169 | [An `impact` path seed expands to every symbol in the file and reports 29× the qname](tasks/169_impact-path-seed-walks-every-symbol-and-its-twins.md) | Agent-trust | done | 161, 017, 078 |
 | 170 | [`server_identity` is cached, so a later build swap is unreportable](tasks/170_server-identity-is-cached-so-a-later-build-swap-is-unreportable.md) | Agent-trust | todo | 164, 162, 125 |
 | 171 | [`sibling_definitions` fires on 83 % of calls and lists nine sites unranked](tasks/171_sibling-definitions-fires-on-most-calls-and-is-unranked.md) | Agent-trust | done | 165, 168, 013 |
 | 172 | [An incremental build is blind to a scope change — 3,244 files in scope, `wrote.files: 0`](tasks/172_incremental-is-blind-to-a-scope-change.md) | Freshness | done | 016, 060, 053 |
@@ -58,6 +58,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 176 | [No full build from a shell — `refresh` is incremental-only](tasks/176_no-full-build-from-a-shell.md) | Freshness | done | 010, 053 |
 | 177 | [A valid long build is indistinguishable from a hang — 30 min of silence, no progress](tasks/177_a-long-build-is-indistinguishable-from-a-hang.md) | Agent-trust | done | 072, 010, 052, 176 |
 | 178 | [`get_index_status` reads `staleness: "current"` while a build is still linking](tasks/178_status-reads-current-while-a-build-is-still-linking.md) | Agent-trust | done | 072, 077, 010, 177 |
+| 179 | [`impact_modules` inherits 169's seed classification but not its twin refusal](tasks/179_impact-modules-inherits-half-the-seed-fix.md) | Agent-trust | todo | 169, 161, 140 |
 
 ## Open work — Pillar 2 · Onboarding
 

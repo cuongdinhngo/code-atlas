@@ -105,6 +105,12 @@ TRY_INSTEAD_HINT_PATH_BASENAME = (
 # Untracked indexable file — rebuild after git add (092). Real tool name; hint is sibling.
 TRY_INSTEAD_BUILD_OR_UPDATE_INDEX = "build_or_update_index"
 TRY_INSTEAD_HINT_UNTRACKED = "git add the untracked file, then rebuild"
+# A twinned path seed is refused, not answered — but a refusal with no route is the carve-out this
+# repo keeps re-learning about (065, 171). The qname seed is the half 161 already made safe.
+TRY_INSTEAD_HINT_IMPACT_BY_QNAME = (
+    "name one symbol from the file and re-run impact with qnames=[...]; the qname seed "
+    "resolves a shared name instead of walking both (161)"
+)
 
 # A successful body read of a callable symbol earns the next mechanism step at the moment of cost
 # (158): who calls it, what breaks if it changes. Registered tool names (093), asserted callable by
