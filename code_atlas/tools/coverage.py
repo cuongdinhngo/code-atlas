@@ -43,6 +43,19 @@ def relation_unmodelled_for_language(
     return store.language_emits_none_of(language, kinds) is True
 
 
+def relation_carried_by(store: GraphStore, *, file_path: str, kinds: Sequence[str]) -> bool:
+    """Does this file's language emit at least ONE of ``kinds`` in this index (task 188)?
+
+    Not the negation of the function above: that one answers ``False`` where the index cannot say,
+    which is right for withholding a confident zero and wrong for naming a route. Both silences
+    answer ``False`` here, so a route is named only on positive evidence (R5.4 clause c / R5.6).
+    """
+    language = store.language_of_file(file_path)
+    if language is None:
+        return False
+    return store.language_emits_none_of(language, kinds) is False
+
+
 def coverage_gap(config: Config) -> list[dict[str, str]]:
     """The shipped adapters with no launch command — the index's language-coverage gap (159/160)."""
     return unconfigured_adapters(config.adapter_cmds)

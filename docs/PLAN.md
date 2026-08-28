@@ -197,50 +197,12 @@ Concrete: **one** generic `SubprocessAdapter` — *not* a class per language. It
 
 The core resolves adapters by file suffix — `extension_index(adapters)` builds the map from what the adapters announced, `adapter_for(path, index)` reads it. **That's the only registry — a dict over already-constructed adapters, not a plugin system, and after adapter #2 it is the final answer (§19, R1.2).**
 
-### 4.4 Project-context resolution (anticipated as a TS/JS contract bump; none was needed)
-The v1 protocol is **file-at-a-time** (`parse(path) → {nodes, edges}`), which suits PHP (NameResolver works per file). But the best parsers for **TS/JS (TypeScript Compiler API)** and **C# (Roslyn)** resolve imports/types only against a whole **program / tsconfig / project** — a single file can't see cross-file types or alias mappings. So the contract likely gains, at language #2:
-- an adapter **lifecycle** that loads a project once (`open_project(root)` → hold the program in the sidecar) and answers `parse(path)` against it, so cross-file edges come back `RESOLVED` not `HEURISTIC`;
-- or a **two-pass** mode: adapter emits nodes + `IMPORTS` first, the core builds the file/module map, then asks the adapter to resolve edges with that context.
+### 4.4 Project-context resolution — settled: no bump, neither option needed
+The v1 protocol is **file-at-a-time** (`parse(path) → {nodes, edges}`). The best TS/JS and C# parsers resolve types only against a whole **program / tsconfig / project**, so this section anticipated the contract gaining either an adapter **lifecycle** (`open_project(root)`, program held in the sidecar) or a **two-pass** mode (adapter emits nodes + `IMPORTS`, core builds the file map, adapter resolves against it). **Both were measured unnecessary** — first the M0 spike (128), then all 13 of 149's constructs at scale (019): the adapter resolves each module specifier per file and emits the defining module's qname, a re-export barrel is followed through an `ALIASES` edge, and `CONTRACT_VERSION` never moved. Qnames stay module-path-anchored (`src/user.ts::User::save`) with `::` joining every member including a TS `namespace`; only the root token differs from PHP, which path-qnamed `File` nodes already permit.
 
-This is *why* TS/JS is #2 — better to evolve the protocol here than after four languages assume file-at-a-time. PHP/Python keep working under either shape (they just don't need the program context). A `contract_version` bump was anticipated here — **the 128 spike found it is not needed for structural extraction** (verdict below); it would only be forced by the `semantic_types` path, which is 019.
+Two facts settled it, both arriving later than this section. **One program per worker:** §8.1 fans a language's files across independent processes, so a lifecycle would load the program N times and would need a handshake capability capping that adapter's workers — data the adapter announces, never a branch in the core (R1.6). **Less to resolve than assumed:** name resolution is the adapter's job and node linking the core's (R3.3), and 137's local type table bought inferred receivers without touching the protocol at all.
 
-**Two facts narrow the choice, and both arrived after this section was written (task 128 owns the
-verdict).** First, **one program per worker**: §8.1 fans a language's files across
-`min(workers, len(group))` *independent processes*, so the lifecycle option loads the program N times
-— N× resident memory and N× load latency — and needs a handshake capability that caps that adapter's
-worker count, which is data the adapter announces rather than a branch in the core (R1.6). Second,
-there may be **less to resolve than assumed**: the resolver already promotes a uniquely-matched
-`target_raw` to `RESOLVED`, and name resolution is the adapter's job while node linking is the core's
-(R3.3), so an adapter that resolves a specifier per file earns `RESOLVED` under the contract as it
-stands. Only *inferred* receiver types need more, and task 137 showed a local type table buys those
-without touching the protocol at all.
-
-**Spike verdict (task 128, evidence not anticipation).** The M0 spike built `adapters/typescript/`
-on `ts.createSourceFile` — a syntactic parse, **no `Program`** — and parsed a module-scoped file and a
-namespaced module into contract JSON that `contract.validate()` accepts unchanged (fixtures + histograms
-in `tests/contract/adapter_registry.py`; the mechanics live in task 128, not here).
-
-1. **`MEMBER_SEPARATOR` holds.** Qnames are module-path-anchored (`src/user.ts::User::save`) and `::`
-   joins every member, including a TS `namespace` — `…/namespaced.ts::Geometry::Circle::area`. TS's
-   source-level `.` never enters a qname. The only divergence from PHP is the *root token* (a repo path
-   vs `\Ns`), which the contract already permits (File nodes are path-qnamed). No convention bends.
-2. **Neither §4.4 option is needed — the v1 file-at-a-time protocol survives.** `createSourceFile`
-   yields every node, intra-file edge, and `IMPORTS` (raw specifier as `target_raw`). The adapter
-   resolves *same-file* targets to their full qname (so the core resolver promotes the unique match to
-   `RESOLVED`) and leaves *imported* targets bare for the core to link (R3.3) — the "less to resolve
-   than assumed" fact, confirmed. `open_project`/two-pass is only wanted for *type-inferred* receivers
-   (`semantic_types`), out of scope here.
-3. **No `contract_version` bump.** The spike emits only existing vocabulary and the empty core diff is
-   the proof the abstraction did not leak (R1.1). `CONTRACT_VERSION` stays 8. A bump remains possible at
-   019 **iff** `semantic_types` lands, and would be scoped there.
-
-**019 outcome (structural extraction, evidence not anticipation).** Extending to all 13 of 149's
-constructs and to cross-file resolution confirmed the spike verdict at scale: **no bump, and neither
-§4.4 option is needed.** The adapter resolves each module specifier per file and emits the defining
-module's qname, so an imported `new`/call/heritage target comes back `RESOLVED` under the contract as
-it stands; a re-export barrel is followed through an `ALIASES` edge to the defining module. The core
-diff stays empty. `open_project`/two-pass (and its worker-fan-out cost, §8.1) is therefore still only
-wanted for *type-inferred* receivers (`semantic_types`), the one 019 slice that is deferred.
+**Live residual.** `open_project`/two-pass is wanted only for *type-inferred* receivers (`semantic_types`), the one 019 slice still deferred; a bump would be scoped there. Adapter #2 did force one **core** change — task 188 linked the specifiers it had already resolved to their `File` nodes (§8.2) — and it needed no new vocabulary, no new field and no language branch, so the seam held.
 
 ---
 
@@ -342,7 +304,7 @@ Runs after all nodes exist:
 - Instance `CALLS` with unknown receiver type: match by **method name** across the index → one candidate = `HEURISTIC`; many = record top-N `HEURISTIC`; dynamic (`$x->$m()`) = `DYNAMIC`, unlinked. *(Adapters with `semantic_types` capability — Roslyn — pre-resolve these to `RESOLVED`; the resolver just honors what's provided. This is how the same generic code serves both.)* PHP (task 029) emits FQN `target_raw` for lexically bound `$this` / `self` / `static` / `parent` when the enclosing class-like **declares** the method in-file (inherited / trait-mixin `$this->m` stays bare HEURISTIC so name-match still links). Tier convention: RESOLVED names the **declaration site** the file can prove (`$this`/`self`/`parent` at default tier); `static::` is late binding so it keeps the FQN but at `HEURISTIC`.
 - `ALIASES` (task 030): adapter emits alias FQN → real class FQN; resolver links the real target like other FQN kinds, then remaps later CALLS/NEW whose `target_raw` is an alias onto the real class (transitively through alias chains, cycle-safe) so `find_callers` / `find_references` / impact see Alias users under Real. A stored `meta.contract_version` that lags `CONTRACT_VERSION` forces a full rebuild on incremental (never mix vocabulary eras).
 - `REFERENCES` (task 094): a `Foo::class` mention (array value, argument, or assignment — the language construct, not a routing table) is a `DYNAMIC` FQN edge from the enclosing declaration to the named class. The resolver links it and **keeps** `DYNAMIC` (`_weaker_tier`). `skip_dynamic` still drops unlinkable `(dynamic)` CALLS/NEW/INCLUDES, but not `REFERENCES`. Variable-method dispatch stays unmodelled. Leftover unlinked `REFERENCES`/`IMPORTS` still feed `relationship_not_modelled` (065).
-- `INCLUDES`: literal paths resolved relative to includer; variable = `DYNAMIC`.
+- **Path-shaped kinds** (`contract.PATH_TARGET_BASIS` — `INCLUDES`, `IMPORTS`): the target is a **file**, so the lookup is over `File` qnames, never by FQN, and the two kinds are disjoint from `FQN_EDGE_KINDS` so no edge id is double-linked. The contract declares how `target_raw` names the file — `INCLUDES` is includer-relative, `IMPORTS` is the repo-relative path the adapter already resolved (155) — so the resolver reads a declaration instead of sniffing a string (R5.2). **The discriminator is the graph:** a raw naming no indexed file stays bare, which is what leaves a symbol-shaped `IMPORTS` (a class FQN) unlinked with no language branch, and leaves an unresolvable specifier as honest `relationship_not_modelled` evidence (task 188). Variable include = `DYNAMIC`. `IMPORTS` carries `INCLUDES`' impact weight — a module dependency is a file-level dependency — so impact / reachability / orphans finally cross a module boundary.
 - **top-N** is `CA_MAX_RESULTS` / `config.max_results` (default 50) — the same cap the search/nav tools use; no separate resolver knob.
 - Linked tier is the **weaker** of the adapter's incoming `confidence_tier` and the lookup outcome: an FQN hit is would-be `RESOLVED` regardless of how many files declare it (task 046), while a **method-name** match is would-be `HEURISTIC` because those candidates carry genuinely different qnames. A resolved name never upgrades a guess (R5.2).
 - **M4 scale:** per-edge `link_edge`/`insert_edge` commits and loading all unresolved edges into Python

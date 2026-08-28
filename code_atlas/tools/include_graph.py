@@ -9,12 +9,14 @@ from typing import Literal, NamedTuple
 
 from code_atlas.config import Config
 from code_atlas.store import GraphStore
-from code_atlas.tools.coverage import relation_unmodelled_for_language
+from code_atlas.tools.coverage import relation_carried_by, relation_unmodelled_for_language
 from code_atlas.tools.nav_result import (
     REASON_NO_MATCHES,
     REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
     REASON_RELATIONSHIP_NOT_MODELLED,
+    TRY_INSTEAD_FIND_REFERENCES,
     TRY_INSTEAD_HINT_PATH_BASENAME,
+    TRY_INSTEAD_HINT_RELATION_CARRIED_BY_ANOTHER_KIND,
     TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE,
     attach_try_instead,
     edge_hit,
@@ -29,6 +31,8 @@ DetailLevel = Literal["minimal", "standard"]
 Direction = Literal["imports", "imported_by", "both"]
 
 _INCLUDE = ("INCLUDES",)
+# The kind a module language carries the same relation under, linked since 188 — the route's premise
+_MODULE_DEP = ("IMPORTS",)
 
 
 class _GraphOutcome(NamedTuple):
@@ -57,7 +61,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         deliberately NO ``try_instead`` — no registered tool reads unlinked include text (093).
         An empty inbound answer on a file whose **language** emits no ``INCLUDES`` at all returns
         ``reason=relation_unmodelled_for_language`` instead of a confident zero: the relation is
-        carried under another edge kind here, and no indexed tool enumerates it (186).
+        carried under another edge kind here (186). Where that kind is ``IMPORTS``, which 188 links,
+        ``try_instead`` names ``find_references``; where the language emits neither, it stays a hint
+        with no route.
         """
         if depth < 1:
             raise ValueError(f"depth must be >= 1, got {depth}")
@@ -85,9 +91,16 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 elif relation_unmodelled_for_language(store, file_path=rel, kinds=_INCLUDE):
                     # This file's language emits no INCLUDES at all, so there is no unlinked
                     # evidence either and the arm above cannot fire — 186's inversion: the better
-                    # the adapter, the more confident the wrong zero. Hint, and NO route (R5.4c).
+                    # the adapter, the more confident the wrong zero.
                     reason = REASON_RELATION_UNMODELLED_FOR_LANGUAGE
-                    try_instead_hint = TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE
+                    if relation_carried_by(store, file_path=rel, kinds=_MODULE_DEP):
+                        # 188 linked IMPORTS, so a registered tool can now enumerate the relation
+                        # from the same File qname — clause (c) says name it.
+                        try_instead = TRY_INSTEAD_FIND_REFERENCES
+                        try_instead_hint = TRY_INSTEAD_HINT_RELATION_CARRIED_BY_ANOTHER_KIND
+                    else:
+                        # No carrying kind either: hint, and NO route (R5.4c, 186's original case).
+                        try_instead_hint = TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE
                 else:
                     reason = REASON_NO_MATCHES
         payload = nav_result(

@@ -71,8 +71,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         Resolved edges whose ``target_qname`` is ``qname``, with confidence tiers.
         ``REFERENCES`` (a ``Foo::class`` mention) is FQN-linked at ``DYNAMIC`` — a candidate
         list, not a proven use. When every returned hit is ``DYNAMIC``, the payload sets
-        ``authoritative: false``. Bare ``IMPORTS`` stay unlinkable. When unlinked
-        ``REFERENCES``/``IMPORTS`` exist for an indexed subject and linked hits are zero, the
+        ``authoritative: false``. An ``IMPORTS`` naming an indexed file is linked since 188, so a
+        **File** subject lists its importers; one naming a symbol or an unresolvable specifier stays
+        bare. When unlinked ``REFERENCES``/``IMPORTS`` exist for an indexed subject and linked
+        hits are zero, the
         payload uses ``reason=relationship_not_modelled``, ``try_instead=search_symbol`` (it
         enumerates the class's methods) and a ``try_instead_hint`` naming the two-step (065/093).
 

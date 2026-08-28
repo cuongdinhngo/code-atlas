@@ -13,7 +13,7 @@ _TIER_STRENGTH = {tier: index for index, tier in enumerate(contract.CONFIDENCE_T
 _RESOLVE_BATCH = 1000
 
 # Path-shaped kinds must not also be FQN-resolved (would double-link the same edge id).
-assert "INCLUDES" not in contract.FQN_EDGE_KINDS
+assert not (set(contract.PATH_EDGE_KINDS) & contract.FQN_EDGE_KINDS)
 
 
 _BARE_NAME_KIND = "Method"
@@ -108,23 +108,20 @@ def resolve_edges(
     ):
         links: list[tuple[int, str, str]] = []
         siblings: list[dict[str, object]] = []
-        includes: list[dict[str, object]] = []
+        paths: list[dict[str, object]] = []
         symbols: list[dict[str, object]] = []
         for edge in batch:
             kind = str(edge["kind"])
-            if kind == "INCLUDES":
-                includes.append(edge)
+            if kind in contract.PATH_EDGE_KINDS:
+                paths.append(edge)
             elif kind in contract.FQN_EDGE_KINDS:
                 symbols.append(edge)
 
-        include_paths = [
-            _relative_to(str(edge["file_path"]), str(edge["target_raw"]))
-            for edge in includes
-        ]
+        path_keys = [_path_key(edge) for edge in paths]
         file_hits = store.nodes_by_qualified_names(
-            include_paths, kind="File", limit=2
+            path_keys, kind="File", limit=2
         )
-        for edge, path in zip(includes, include_paths, strict=True):
+        for edge, path in zip(paths, path_keys, strict=True):
             hits = file_hits.get(path, [])
             if len(hits) != 1:
                 continue
@@ -496,6 +493,19 @@ def _queue_candidates(
         sibling["target_qname"] = qname
         sibling["confidence_tier"] = tier
         siblings.append(sibling)
+
+
+def _path_key(edge: Mapping[str, object]) -> str:
+    """The ``File`` qname a path-shaped edge names, per the contract's declared basis (188).
+
+    ``repo-relative`` is the path the adapter resolved; ``includer-relative`` is joined onto the
+    emitting file's directory. Either way the discriminator is the graph — a raw naming no indexed
+    file does not link — so a symbol-shaped ``IMPORTS`` stays bare with no language branch.
+    """
+    raw = str(edge["target_raw"])
+    if contract.PATH_TARGET_BASIS[str(edge["kind"])] == "repo-relative":
+        return raw
+    return _relative_to(str(edge["file_path"]), raw)
 
 
 def _relative_to(includer: str, raw: str) -> str:

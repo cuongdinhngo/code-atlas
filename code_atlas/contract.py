@@ -66,6 +66,19 @@ FQN_EDGE_KINDS: frozenset[str] = frozenset(
     {"EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS", "NEW", "ALIASES", "REFERENCES"}
 )
 
+# Path-shaped edges: the target is a FILE, so the resolver looks it up among File qnames instead of
+# by FQN. The kinds differ only in how ``target_raw`` names that file, and the contract states which
+# — the resolver reads a declaration, never the shape of a string (188 / R5.2).
+PATH_TARGET_BASIS: dict[str, str] = {
+    # A textual include names a file relative to the including file's own directory.
+    "INCLUDES": "includer-relative",
+    # A module specifier the adapter already resolved against the filesystem (155). Where it names
+    # nothing indexed — an unresolvable specifier, or a symbol import like `use A\\B\\C` — the
+    # lookup simply misses and the edge stays bare, which is the whole discriminator.
+    "IMPORTS": "repo-relative",
+}
+PATH_EDGE_KINDS: tuple[str, ...] = tuple(PATH_TARGET_BASIS)
+
 # Named semantic subsets for nav tools (§12) — consumers import these; do not re-list kinds.
 CALLER_KINDS: tuple[str, ...] = ("CALLS", "NEW")
 IMPL_KINDS: tuple[str, ...] = ("EXTENDS", "IMPLEMENTS")
@@ -84,6 +97,10 @@ IMPACT_KIND_WEIGHTS: dict[str, float] = {
     "EXTENDS": 0.9,
     "IMPLEMENTS": 0.9,
     "INCLUDES": 0.8,
+    # A module dependency is a file-level dependency, so it carries the include weight (188): a
+    # lower one would rank a real module edge below a same-file call, a higher one would outrank a
+    # direct caller. Contributed nothing before 188 — no IMPORTS edge was ever linked.
+    "IMPORTS": 0.8,
 }
 IMPACT_KINDS: tuple[str, ...] = tuple(IMPACT_KIND_WEIGHTS)
 

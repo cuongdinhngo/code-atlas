@@ -192,9 +192,10 @@ what the payload already says (061). An answer must state what it is *not* telli
   class routes to `search_symbol`, which enumerates the method qnames the hint asks for). And it
   must be **able to answer**: where no registered tool can, emit the **hint alone, no
   `try_instead`**, since naming a tool that cannot answer buys a confident wrong answer (075/076).
-  The standing case is `include_graph`'s unlinked-inbound miss — its evidence is include text in
-  `edges.target_raw`, which `nodes_fts` (name/qname/file_path/params) does not cover — `search_symbol`
-  would answer `reason=ok` over the symbols declared *in* the file and omit the includer.
+  Two live cases, both `include_graph`: its **unlinked-inbound** miss stays route-less because the
+  evidence is include text in `edges.target_raw`, which `nodes_fts` does not index; its **language**
+  miss had no route either until 188 linked `IMPORTS`, and now names `find_references` — emitted on
+  positive evidence that the language emits the carrying kind, never on the index's silence (186/188).
   **Known boundary, not closed:** callability is checked against the full `main.TOOL_NAMES` while
   `CA_TOOLS` may serve a subset — `nav_result` has no `Config`, so a restricted deployment can be
   offered a route it does not expose (also true of `file_outline`).

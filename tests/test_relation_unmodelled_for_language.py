@@ -36,7 +36,8 @@ from code_atlas.tools.nav_result import (
     REASON_NO_MATCHES,
     REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
     REASON_RELATIONSHIP_NOT_MODELLED,
-    TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE,
+    TRY_INSTEAD_FIND_REFERENCES,
+    TRY_INSTEAD_HINT_RELATION_CARRIED_BY_ANOTHER_KIND,
 )
 from tests.php_adapter_cli import CLI as PHP_CLI
 from tests.php_adapter_cli import needs_php
@@ -100,18 +101,21 @@ def test_the_false_negative_is_reproduced_then_named(ts_index: Config) -> None:
 
 
 @needs_node
-def test_no_route_is_emitted_because_no_tool_can_answer(ts_index: Config) -> None:
-    """AC6 / R5.4 clause (c): a hint and NO route — naming a tool that cannot answer is worse.
+def test_the_no_route_became_a_route_once_a_tool_could_answer(ts_index: Config) -> None:
+    """AC6 / R5.4 clause (c), **revised by 188** — and the revision is why the rule is worth having.
 
-    Measured, not assumed: `find_references` on the same file returns zero rows — TS `IMPORTS`
-    edges carry a resolved path in `target_raw` and are never linked to the File node.
+    186 emitted a hint and NO route on a measurement: `find_references` on this file returned zero
+    rows, because TS `IMPORTS` carried a resolved path in `target_raw` that nothing linked. 188
+    linked it, so the same measurement now returns rows and clause (c) says name the tool. The
+    no-route branch is still live for a language that emits neither kind, pinned in
+    `tests/test_imports_link_the_file_they_name.py`.
     """
     payload = include_graph.create(ts_index)(path=TS_IMPORTED, direction="imported_by")
-    assert "try_instead" not in payload
-    assert payload["try_instead_hint"] == TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE
+    assert payload["try_instead"] == TRY_INSTEAD_FIND_REFERENCES
+    assert payload["try_instead_hint"] == TRY_INSTEAD_HINT_RELATION_CARRIED_BY_ANOTHER_KIND
 
     routed = find_references.create(ts_index)(qname=TS_IMPORTED)
-    assert routed["results"] == [], "if this answers, the route becomes the honest thing to emit"
+    assert routed["results"], "the route must answer, or 186's no-route was the right call"
 
 
 @needs_php

@@ -32,7 +32,7 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
 | `derived-not-listed-invariant` | 18 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180 | **R6.7** |
-| `prove-the-guard-fails` | 22 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182 | **R6.5** |
+| `prove-the-guard-fails` | 23 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188 | **R6.5** |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
 | `fixture-shape-begs-the-question` | 9 | 084, 086, 103–106, 121, 183, 185 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
@@ -40,7 +40,7 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 | `source-the-caveat-from-the-computation` | 5 | 100–102, 122, 127 | **R5.5** |
 | `re-verify-the-assumption-on-a-new-path` | 3 | 102, 107, 122 | **AGENT_BRIEF P6** — promoted 2026-08-27 |
 | `re-run-the-sweep-after-the-last-edit` | 3 | 100–102 | **AGENT_BRIEF P4** |
-| `route-must-answer` | 3 | 093, 101, 102 | folded into **R5.4**'s falsifier |
+| `route-must-answer` | 4 | 093, 101, 102, 188 | folded into **R5.4**'s falsifier — 188 is the first sighting of its *other* direction: a route that became answerable |
 | `rank-before-truncate` | 3 | 067, 126, 180 | open — proposed 2026-08-23, **overdue: rec 3, awaiting ratify** |
 | `guard-asserts-rendered-not-shipped-bytes` | 2 | 116, 127 | open — proposed 2026-08-23, awaiting ratify |
 | `sibling-meta-non-int` | 3 | 092, 095, 174 | **R1.7** |
@@ -63,6 +63,50 @@ proposed as a new rule, because R6.3 already owned cross-repo validation and P2 
 this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *claim's* list honest and
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
+
+## 188 — A resolved value nobody consumes is invisible in every health metric
+155 taught the TS adapter to resolve a module specifier through `tsconfig` and it worked:
+`IMPORTS.target_raw` was a repo-relative path that existed in `files`, stamped `RESOLVED`. The core
+threw it away for four tickets. `resolver.py` had one path-linking arm hard-coded to the string
+`"INCLUDES"`, and `FQN_EDGE_KINDS` — the opt-in list the other arm reads — never mentioned `IMPORTS`,
+so the edge fell between two arms that between them cover every other kind.
+
+**Nothing failed loudly, and the reason is the lesson.** 183's per-language tier census reported these
+rows as `RESOLVED`: true about the *producer's* confidence, and silent about whether any consumer read
+it. Measured before the fix: **14 `IMPORTS` rows, 10 naming an indexed file, 0 linked**;
+`find_references` on an imported file answered `relationship_not_modelled` with 0 rows;
+`impact` returned **1 row, its own file**. Every TS file was an island, and 186 spent a ticket
+building an honest *"and no indexed tool enumerates it"* hint over the gap.
+
+**The ticket offered two fixes and both were wrong, in a way that named the third.** Splitting the
+kind needed the adapter to restate an answer it had already given (out of scope, and an R3 bump for no
+new information). Attempting both link shapes with a precedence was an unexercisable arm for a
+hypothetical adapter #3 (R1.2, R6.5). What actually works: **the contract declares how each path kind
+names its file** (`PATH_TARGET_BASIS`) and **the graph is the discriminator** — ask *"does the graph
+hold a file by this name?"*, never *"does this string look like a path?"*. The first question needs no
+per-language notion of shape; the second is R1.1 in disguise. A miss is then evidence, not a guess: a
+symbol-shaped `use A\B\C` and an unresolvable `./logger` both stay bare and both keep feeding
+`relationship_not_modelled`.
+
+**And the ticket's premise about sharing one key was wrong** — `INCLUDES.target_raw` is written
+relative to the *including* file, a resolved specifier is already repo-relative, so `_relative_to`
+doubles the prefix and misses. Reading the function before implementing it is what turned a
+"contract question" into a two-line declaration.
+
+### 188-C1 — Link on the graph, not on the string; and a tier measures the producer, not the consumer
+Two halves of one claim, both learned here.
+
+**(a)** When one edge kind carries two shapes across languages, the discriminator that keeps R1.1 is
+**the graph itself**: perform the lookup and let a miss be the answer. Sniffing the raw's shape needs a
+per-language idea of what a path looks like; asking the graph needs none, is sourced from the
+computation (R5.2), and degrades into honest off-graph evidence instead of a wrong link.
+
+**(b)** A `confidence_tier` records how sure the **producer** was. It says nothing about whether any
+consumer read the value, so a health metric built on tiers reports *fine* while the answer is
+discarded. A resolved-but-unlinked row is the shape to look for: **`RESOLVED` and `target_qname IS
+NULL` together is a consumer gap, and nothing in this repo was watching for it.**
+
+type: 2 · seen: 1 · handle: `link-on-the-graph-not-on-the-string` · tickets: 188
 
 ## 182 — Publish the premise, not only the complement
 Carve-out (e) was HOLD for **five rounds**. Round 12 produced the number that made it a defect:

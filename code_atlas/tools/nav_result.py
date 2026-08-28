@@ -115,6 +115,14 @@ TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE = (
     "this file's language records the dependency under a different edge kind, and no indexed tool "
     "enumerates it — treat the empty answer as unmeasured, not as zero"
 )
+# 188 made a route exist where 186 measured none: the resolver now links a module `IMPORTS` to the
+# file it names, so `find_references` enumerates from the File qname `include_graph` already holds.
+# Emitted only where the subject's language really does emit the carrying kind (R5.4 clause c).
+TRY_INSTEAD_FIND_REFERENCES = "find_references"
+TRY_INSTEAD_HINT_RELATION_CARRIED_BY_ANOTHER_KIND = (
+    "this file's language records the dependency under IMPORTS, not INCLUDES — re-ask "
+    "find_references with this file's path as the qname"
+)
 # Untracked indexable file — rebuild after git add (092). Real tool name; hint is sibling.
 TRY_INSTEAD_BUILD_OR_UPDATE_INDEX = "build_or_update_index"
 TRY_INSTEAD_HINT_UNTRACKED = "git add the untracked file, then rebuild"
