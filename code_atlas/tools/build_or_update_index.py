@@ -8,6 +8,7 @@ and ``collection`` (the 082 census, including ``skipped.untracked`` — task 092
 is opened here, inside the call, because the caller's thread owns the connection (R4.3).
 """
 
+import os
 import time
 from collections.abc import Callable
 from dataclasses import asdict
@@ -17,7 +18,7 @@ from typing import Literal
 from code_atlas import gitutil
 from code_atlas.adapter import AdapterError
 from code_atlas.config import Config
-from code_atlas.index_lock import try_index_write_lock
+from code_atlas.index_lock import publish_build_progress, try_index_write_lock
 from code_atlas.indexer import BuildReport, full_build, incremental_update
 from code_atlas.store import (
     BUILT_AT_KEY,
@@ -32,6 +33,11 @@ from code_atlas.tools.collection import collection_field
 from code_atlas.tools.staleness import OMIT, UNKNOWN, compute_staleness, last_ref_for_payload
 
 NAME = "build_or_update_index"
+
+# How often a running build rewrites its progress line. A phase change always writes; between
+# phases the parse loop is throttled to this, so the cost is bounded by wall time, never by file
+# count (task 177). One fixed-width rewrite of one 200-byte file — never a second pass.
+PROGRESS_INTERVAL = 0.5
 
 DetailLevel = Literal["minimal", "standard"]
 
@@ -174,17 +180,42 @@ def _build(
         store.close()
 
 
+def _progress_sink(config: Config) -> Callable[[str, int, int], None]:
+    """Publish the running build's phase and file counts into the lock it already holds (177).
+
+    Throttled by wall time, and always on a phase change: a file counter alone reaches 100% and
+    then sits in ``resolve`` for an unbounded share of the build, which reads as a wedge one
+    screen later. The phase name is the carrier that cannot do that.
+    """
+    last_phase = ""
+    last_at = 0.0
+
+    def publish(phase: str, done: int, total: int) -> None:
+        nonlocal last_phase, last_at
+        now = time.monotonic()
+        if phase == last_phase and now - last_at < PROGRESS_INTERVAL:
+            return
+        last_phase, last_at = phase, now
+        counted = f" done={done} total={total}" if total else ""
+        publish_build_progress(
+            config.db_path, f"phase={phase}{counted} pid={os.getpid()} at={time.time():.0f}"
+        )
+
+    return publish
+
+
 def _run(config: Config, store: GraphStore, *, full: bool) -> tuple[str, BuildReport]:
     """Pick full vs incremental; degrade to full when git or meta cannot support a diff."""
+    progress = _progress_sink(config)
     if full:
-        return FULL, full_build(config, store)
+        return FULL, full_build(config, store, progress=progress)
     last = store.get_meta(LAST_COMMIT_KEY)
     if last is None or gitutil.head_commit(config.root) is None:
-        return FULL, full_build(config, store)
+        return FULL, full_build(config, store, progress=progress)
     changed = gitutil.changed_paths(config.root, last)
     if changed is None:
-        return FULL, full_build(config, store)
-    return INCREMENTAL, incremental_update(config, store, changed)
+        return FULL, full_build(config, store, progress=progress)
+    return INCREMENTAL, incremental_update(config, store, changed, progress=progress)
 
 
 def _unlink_index(path: Path) -> None:

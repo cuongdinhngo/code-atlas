@@ -218,6 +218,26 @@ One line on stderr per run, and four exit codes a CI job can branch on:
 | `4` | another build is running (the shared `write.lock`) — a clean skip, not a failure |
 | `1` | failed — no usable adapter, a refused schema, or a broken config |
 
+### Is it building, or is it wedged? — `code-atlas-build --status` (task 177)
+
+A full build of a large repo can run for many minutes, and until it returns the tool says nothing —
+a valid long build looked exactly like a hang. A running build now publishes one line into the
+`write.lock` it already holds, and any reader can ask for it:
+
+```bash
+code-atlas-build --status     # → phase=parse done=4210 total=19000 pid=8123 at=1787876431
+```
+
+Exit `0` while a build is running, `3` when none is. Two properties are deliberate:
+
+- **The phase, not just a counter.** A file counter reaches 100 % and then sits in `enrichment`
+  and `resolve` — the whole-graph link phase — for an unbounded share of the wall time. A build
+  stuck at `100 %` reads as a wedge one screen later; `phase=resolve` does not.
+- **The claim cannot outlive the build.** Liveness is the live `flock`, not a written flag: the OS
+  drops the lock when the process dies, so a `kill -9`'d build reports *no build running* on the
+  very next call, even though its last line is still on disk. A `building: true` row in the
+  database would have survived and become permanent.
+
 > **Language scope today:** only the **PHP** adapter exists. A TypeScript, Python, or C# project won't
 > index yet — those are planned (see [Roadmap](#roadmap)).
 

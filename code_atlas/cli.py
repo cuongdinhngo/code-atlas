@@ -14,6 +14,7 @@ import sys
 from collections.abc import Mapping
 from pathlib import Path
 
+from code_atlas.index_lock import read_build_progress
 from code_atlas.tools.build_or_update_index import BUSY as BUSY_MODE
 from code_atlas.tools.build_or_update_index import REFUSED as REFUSED_MODE
 
@@ -57,6 +58,26 @@ def exit_code(result: Mapping[str, object]) -> int:
     return OK if files else NOTHING_TO_DO
 
 
+def status(root: Path) -> int:
+    """Report the running build's progress, so a long build is not read as a hang (task 177).
+
+    The shell path exists because the caller that started the build is blocked inside it: if
+    progress were readable only by a second MCP client, CI and a terminal would still be blind.
+    """
+    try:
+        from code_atlas.config import load_config
+
+        line = read_build_progress(load_config(root).db_path)
+    except Exception as error:  # noqa: BLE001 — a broken read is an exit code, never a traceback
+        _say(f"failed: {type(error).__name__}: {error}")
+        return FAILED
+    if line is None:
+        _say("no build is running")
+        return NOTHING_TO_DO
+    _say(line)
+    return OK
+
+
 def build(root: Path, *, full: bool = False) -> int:
     """Build this repo's index through the MCP route's own tool. Returns the process exit code."""
     try:
@@ -76,9 +97,16 @@ def main(argv: list[str] | None = None) -> int:
         prog="code-atlas-build",
         description="Build or update this repo's code-atlas index from a shell.",
         epilog=(
-            f"exit: {OK} built · {NOTHING_TO_DO} nothing to do · "
+            f"exit: {OK} built (or, with --status, a build is running) · "
+            f"{NOTHING_TO_DO} nothing to do (or no build running) · "
             f"{BUSY_PEER} another build is running · {FAILED} failed"
         ),
+    )
+    parser.add_argument(
+        "--status",
+        action="store_true",
+        help="report the running build's phase and file counts instead of building; the line "
+        "comes from the live write lock, so a killed build reports nothing",
     )
     parser.add_argument(
         "--full",
@@ -87,6 +115,8 @@ def main(argv: list[str] | None = None) -> int:
         "index is absent or git cannot supply a diff)",
     )
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
+    if args.status:
+        return status(_project_root())
     return build(_project_root(), full=args.full)
 
 

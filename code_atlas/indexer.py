@@ -20,7 +20,7 @@ import queue
 import threading
 import time
 from collections import Counter
-from collections.abc import Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from pathlib import Path, PurePosixPath
@@ -64,6 +64,40 @@ INCREMENTAL_PHASES = (
     "resolve",
 )
 
+# A running build's only outward signal (task 177). ``phase`` comes from INCREMENTAL_PHASES above,
+# never a second list (R6.7); ``done``/``total`` are file counts and are 0/0 outside the parse.
+ProgressSink = Callable[[str, int, int], None]
+
+
+class _Progress:
+    """Report phase and file counts to the sink, or do nothing at all when there is none.
+
+    ``None`` is the default everywhere, so a build with no reader runs the same code path it ran
+    before this existed (061) — no formatting, no clock read, no branch inside the parse loop
+    beyond one ``is None``.
+    """
+
+    __slots__ = ("_sink", "_phase", "_done", "_total")
+
+    def __init__(self, sink: ProgressSink | None) -> None:
+        self._sink = sink
+        self._phase = ""
+        self._done = 0
+        self._total = 0
+
+    def phase(self, name: str, *, total: int = 0) -> None:
+        if self._sink is None:
+            return
+        self._phase, self._done, self._total = name, 0, total
+        self._sink(name, 0, total)
+
+    def tick(self) -> None:
+        if self._sink is None:
+            return
+        self._done += 1
+        self._sink(self._phase, self._done, self._total)
+
+
 _READ_CHUNK = 1 << 20
 
 # Directory names skipped under a stub walk — same built-in dirs as ignore (§11), minus nothing
@@ -104,7 +138,9 @@ class BuildReport:
     stubs: int = 0
 
 
-def full_build(config: Config, store: GraphStore) -> BuildReport:
+def full_build(
+    config: Config, store: GraphStore, *, progress: ProgressSink | None = None
+) -> BuildReport:
     """Index every collectable file under ``config.root`` into ``store`` (§8.1 steps 1-5).
 
     Adapters emit bare edges; ``resolve_edges`` links them after every node exists. Every collected
@@ -114,12 +150,15 @@ def full_build(config: Config, store: GraphStore) -> BuildReport:
     # Validate rules before any parse so a bad file fails loud without a half-built index (R5.3).
     rules = load_indirection_rules(config)
     _require_configured_adapters(config)
+    report = _Progress(progress)
     watchdog = _Watchdog(config.adapter_timeout)
     watchdog.start()
     try:
+        report.phase("announce")
         announced = _announce(config, watchdog)
         try:
             owners = _owners(announced)
+            report.phase("tree_walk")
             paths, census, untracked, ignore_sources = _collect_with_census(
                 config.root, tuple(owners)
             )
@@ -130,8 +169,12 @@ def full_build(config: Config, store: GraphStore) -> BuildReport:
             )
             _reject_stub_source_overlap(paths, stubs)
             kept = tuple(sorted(dict.fromkeys([*paths, *stubs])))
+            report.phase("reconcile")
             removed = _reconcile(store, kept)
-            counts = _parse_all(config, store, watchdog, announced, owners, kept)
+            report.phase("parse", total=len(kept))
+            counts = _parse_all(
+                config, store, watchdog, announced, owners, kept, progress=report
+            )
         finally:
             for adapter in announced.values():
                 adapter.stop()
@@ -140,8 +183,9 @@ def full_build(config: Config, store: GraphStore) -> BuildReport:
 
     # No FTS rebuild here: §10's triggers keep `nodes_fts` current through every replace, so a
     # rebuild per build would cost a full re-index and change nothing (deviation D1).
+    report.phase("meta")
     _record_meta(config, store, tuple(owners), census, untracked, ignore_sources)
-    _count_late_writes(counts, config, store, rules)
+    _count_late_writes(counts, config, store, rules, progress=report)
     return BuildReport(files=len(kept), stubs=len(stubs), removed=removed, **counts)
 
 
@@ -151,6 +195,7 @@ def incremental_update(
     changed: Sequence[str],
     *,
     phase_times: dict[str, float] | None = None,
+    progress: ProgressSink | None = None,
 ) -> BuildReport:
     """Re-index ``changed ∪ dependents`` and re-link into affected qnames (§8.3).
 
@@ -163,22 +208,25 @@ def incremental_update(
     stored = store.get_meta(CONTRACT_VERSION_KEY)
     if stored is not None and stored != str(contract.CONTRACT_VERSION):
         # Vocabulary changed — incremental would mix eras; force a full rebuild (task 030 AC1).
-        return full_build(config, store)
+        return full_build(config, store, progress=progress)
 
     rules = load_indirection_rules(config)
     _require_configured_adapters(config)
     # Snapshot before the parse: a delta-scoped resolve is only equivalent to a full one while
     # the alias map is fixed, and the parse is what can change it (task 096).
     aliases_before = store.alias_targets()
+    report = _Progress(progress)
     watchdog = _Watchdog(config.adapter_timeout)
     watchdog.start()
     try:
         mark = time.monotonic()
+        report.phase("announce")
         announced = _announce(config, watchdog)
         _phase_add(phase_times, "announce", mark)
         try:
             owners = _owners(announced)
             mark = time.monotonic()
+            report.phase("tree_walk")
             paths, census, untracked, ignore_sources = _collect_with_census(
                 config.root, tuple(owners)
             )
@@ -195,6 +243,7 @@ def incremental_update(
             changed_set = set(changed)
 
             mark = time.monotonic()
+            report.phase("reconcile")
             indexed = set(store.file_paths())
             prior = sorted(changed_set & indexed)
             affected = set(store.qnames_in_files(prior))
@@ -209,6 +258,7 @@ def incremental_update(
             _phase_add(phase_times, "reconcile", mark)
 
             mark = time.monotonic()
+            report.phase("hashing")
             candidates = sorted((changed_set | dependents) & wanted)
             # Dependents are unchanged by construction, so hash-skip must not apply to them —
             # replace_file_rows restores adapter tiers and duplicate keys that unlink cannot.
@@ -227,8 +277,9 @@ def incremental_update(
             _phase_add(phase_times, "hashing", mark)
 
             mark = time.monotonic()
+            report.phase("parse", total=len(to_parse))
             counts = (
-                _parse_all(config, store, watchdog, announced, owners, to_parse)
+                _parse_all(config, store, watchdog, announced, owners, to_parse, progress=report)
                 if to_parse
                 else {"parsed": 0, "failed": 0, "nodes": 0, "edges": 0}
             )
@@ -240,6 +291,7 @@ def incremental_update(
         watchdog.stop()
 
     mark = time.monotonic()
+    report.phase("meta")
     _record_meta(config, store, tuple(owners), census, untracked, ignore_sources)
     _phase_add(phase_times, "meta", mark)
     # A true no-op (nothing parsed, nothing reconciled) leaves the graph unchanged, so the late
@@ -254,6 +306,7 @@ def incremental_update(
             phase_times=phase_times,
             parsed=tuple(to_parse),
             aliases_before=aliases_before,
+            progress=report,
         )
     else:
         # Record the skipped phases as ~0 so the profile shows the cut, not a missing phase (052).
@@ -281,6 +334,7 @@ def _count_late_writes(
     phase_times: dict[str, float] | None = None,
     parsed: tuple[str, ...] | None = None,
     aliases_before: dict[str, str] | None = None,
+    progress: "_Progress | None" = None,
 ) -> None:
     """Run the two writers that come after the parse tally, and fold what they wrote into it (051).
 
@@ -291,9 +345,13 @@ def _count_late_writes(
     alias map moved, because ``_lookup_raw`` is only key-pure while that map is fixed.
     """
     mark = time.monotonic()
+    if progress is not None:
+        progress.phase("enrichment")
     enriched = apply_indirection_rules(config, store, payload=rules)
     _phase_add(phase_times, "enrichment", mark)
     mark = time.monotonic()
+    if progress is not None:
+        progress.phase("resolve")
     delta = None
     aliases_now = store.alias_targets()
     if parsed is not None and aliases_now == aliases_before:
@@ -659,6 +717,7 @@ def _parse_all(
     announced: Mapping[str, SubprocessAdapter],
     owners: Mapping[str, str],
     paths: Sequence[str],
+    progress: "_Progress | None" = None,
 ) -> dict[str, int]:
     """Fan each adapter's paths across its own workers, writing every result on this thread."""
     # Read the announced names now: an adapter that dies later can no longer say what it was.
@@ -670,13 +729,26 @@ def _parse_all(
         group = [path for path in paths if owners[_suffix(path)] == key]
         if group:
             first = announced[key]
-            _parse_group(config, store, watchdog, key, languages[key], first, group, tally, pending)
+            _parse_group(
+                config,
+                store,
+                watchdog,
+                key,
+                languages[key],
+                first,
+                group,
+                tally,
+                pending,
+                progress,
+            )
 
     for path in sorted(pending):
         # Nothing ever answered for these: every worker retired, or none could be started.
         language = languages[owners[_suffix(path)]]
         store.upsert_file(path, _digest(config.root / path), language, parsed_ok=False)
         tally["failed"] += 1
+        if progress is not None:
+            progress.tick()
     return tally
 
 
@@ -690,6 +762,7 @@ def _parse_group(
     group: Sequence[str],
     tally: dict[str, int],
     pending: set[str],
+    progress: "_Progress | None" = None,
 ) -> None:
     """One adapter's whole share, on ``min(workers, len(group))`` processes and one writer."""
     work: queue.Queue[str] = queue.Queue()
@@ -720,6 +793,8 @@ def _parse_group(
         path, digest, result = item
         _write(store, path, digest, language, result, tally)
         pending.discard(path)
+        if progress is not None:
+            progress.tick()
     for worker in workers:
         worker.join()
 
