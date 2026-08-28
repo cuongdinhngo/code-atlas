@@ -35,6 +35,8 @@ from code_atlas.tools.staleness import BEHIND, CURRENT, UNKNOWN, compute_stalene
 NAME = "get_index_status"
 
 DetailLevel = Literal["minimal", "standard", "verbose"]
+# 183's field, named once. Same block the build stamped, so the payload adds no computation.
+EDGE_HEALTH_BY_LANGUAGE_FIELD = "edge_health_by_language"
 
 QUESTION = "indexed-files"
 
@@ -259,7 +261,28 @@ def _status(
     collection = collection_field(store, ignore_sources=True)
     if collection is not None:
         verbose["collection"] = collection
+    _attach_edge_health_by_language(verbose, store)
     return signed(verbose)
+
+
+def _attach_edge_health_by_language(payload: dict[str, object], store: GraphStore) -> None:
+    """The per-language tier mix at verbose, or nothing at all (task 183).
+
+    Silent on two counts. A pre-183 index has no stamp and says nothing rather than guessing (R5.6);
+    and a single-bucket graph adds no answer the whole-graph ``edge_health`` does not already give,
+    so it stays byte-identical (061). "Bucket" counts ``unattributed`` — a graph whose split is
+    incomplete has something to report even with one language.
+    """
+    stamped = store.stamped_edge_health_by_language()
+    if stamped is None:
+        return
+    by_language = stamped.get("by_language")
+    buckets = len(by_language) if isinstance(by_language, dict) else 0
+    if "unattributed" in stamped:
+        buckets += 1
+    if buckets < 2:
+        return
+    payload[EDGE_HEALTH_BY_LANGUAGE_FIELD] = stamped
 
 
 def _suggestions(servable: Sequence[str], staleness: str, *, indexed: bool) -> list[str]:

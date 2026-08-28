@@ -52,6 +52,10 @@ COLLECTION_CENSUS_KEY = "collection_census"
 UNTRACKED_INDEXABLE_KEY = "untracked_indexable"
 # Per-source ignore counts (JSON object) — sibling of the int census; that reader int-casts (095).
 IGNORE_SOURCES_KEY = "ignore_sources"
+# The tier mix split by the language of the edge's own file (JSON, task 183). Stamped once per
+# build because a whole-graph blend cannot be attributed to any one adapter, and a GROUP BY over
+# the edge table must never reach the per-answer path.
+EDGE_HEALTH_BY_LANGUAGE_KEY = "edge_health_by_language"
 META_KEYS: tuple[str, ...] = (
     SCHEMA_VERSION_KEY,
     CONTRACT_VERSION_KEY,
@@ -604,6 +608,19 @@ class GraphStore:
         ).fetchone()
         return int(count)
 
+    @staticmethod
+    def _tier_block(tiers: Mapping[str, int], linked: int) -> dict[str, object]:
+        """One tier/link block. The single fold rule, so a split cannot sum unlike the whole (R1.8).
+
+        NULL or unknown tiers fold into RESOLVED exactly as §8.2 readers do, which is what makes
+        ``sum(by_tier.values())`` equal the row count for the whole graph and for every slice of it.
+        """
+        by_tier = dict.fromkeys(CONFIDENCE_TIERS, 0)
+        for tier, count in tiers.items():
+            by_tier[tier if tier in by_tier else _RESOLVED] += int(count)
+        total = sum(by_tier.values())
+        return {"by_tier": by_tier, "linked": int(linked), "unlinked": total - int(linked)}
+
     def edge_health(self) -> dict[str, object]:
         """Tier mix and link-resolution split for ``get_index_status`` (R4; SQL only).
 
@@ -613,21 +630,67 @@ class GraphStore:
         ``target_qname`` presence: an edge that found *a* name, at any tier. Only
         ``by_tier.RESOLVED`` says the name is trusted — the two differ by ~2x on a real repo (048).
         """
-        by_tier = dict.fromkeys(CONFIDENCE_TIERS, 0)
-        for tier, count in self._conn.execute(
-            "SELECT confidence_tier, COUNT(*) FROM edges GROUP BY confidence_tier"
-        ):
-            # NULL / unknown reads as RESOLVED, as §8.2 readers already do; keeps the sum == edges.
-            by_tier[str(tier) if tier in by_tier else _RESOLVED] += int(count)
+        tiers = {
+            str(tier): int(count)
+            for tier, count in self._conn.execute(
+                "SELECT confidence_tier, COUNT(*) FROM edges GROUP BY confidence_tier"
+            )
+        }
         (linked,) = self._conn.execute(
             "SELECT COUNT(*) FROM edges WHERE target_qname IS NOT NULL"
         ).fetchone()
-        total = sum(by_tier.values())
-        return {
-            "by_tier": by_tier,
-            "linked": int(linked),
-            "unlinked": total - int(linked),
+        return self._tier_block(tiers, int(linked))
+
+    def edge_health_by_language(self) -> dict[str, object]:
+        """``edge_health`` split by the language of the edge's OWN file (task 183).
+
+        An edge belongs to the file that declared it, so a cross-language edge is one row of the
+        *source* language — the target's language is a different question and is not asked here.
+        One statement; run once per build, never per answer.
+
+        Returns ``{"by_language": {<lang>: block}, "unattributed": block}``, the second present only
+        when some edge's file carries no language: ``edges.file_path`` has no foreign key, so the
+        bucket is not structurally empty and dropping it would break the identity silently. Over
+        every bucket, the tier counts sum to whole-graph ``edge_health`` (082's reconciliation).
+        """
+        tiers: dict[str, dict[str, int]] = {}
+        linked: dict[str, int] = {}
+        for language, tier, count, found in self._conn.execute(
+            "SELECT files.language, edges.confidence_tier, COUNT(*), "
+            "SUM(CASE WHEN edges.target_qname IS NOT NULL THEN 1 ELSE 0 END) "
+            "FROM edges LEFT JOIN files ON files.path = edges.file_path "
+            "GROUP BY files.language, edges.confidence_tier"
+        ):
+            key = str(language) if language else ""
+            tiers.setdefault(key, {})[str(tier)] = int(count)
+            linked[key] = linked.get(key, 0) + int(found or 0)
+        block: dict[str, object] = {
+            "by_language": {
+                name: self._tier_block(tiers[name], linked[name])
+                for name in sorted(name for name in tiers if name)
+            }
         }
+        if "" in tiers:
+            block["unattributed"] = self._tier_block(tiers[""], linked[""])
+        return block
+
+    def stamped_edge_health_by_language(self) -> dict[str, object] | None:
+        """The per-build split, or ``None`` for a pre-183 index (R5.6) — never a computed fallback.
+
+        A fallback would put the GROUP BY this stamp exists to avoid back on the answer path, and an
+        empty dict would claim a one-language graph for an index that simply never measured itself.
+        """
+        raw = self.get_meta(EDGE_HEALTH_BY_LANGUAGE_KEY)
+        if not raw:
+            return None
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            # An unreadable stamp is one we cannot report, not a one-language graph.
+            return None
+        if not isinstance(parsed, dict) or "by_language" not in parsed:
+            return None
+        return dict(parsed)
 
     def dependency_edges(self) -> list[tuple[str, str]]:
         """Distinct resolved dependency pairs ``(source, target)``, self-loops excluded (task 083).

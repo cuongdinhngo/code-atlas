@@ -34,7 +34,7 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 | `derived-not-listed-invariant` | 18 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180 | **R6.7** |
 | `prove-the-guard-fails` | 15 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019 | **R6.5** |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
-| `fixture-shape-begs-the-question` | 7 | 084, 086, 103–106, 121 | **R6.3** — widened 2026-08-23, provisional |
+| `fixture-shape-begs-the-question` | 8 | 084, 086, 103–106, 121, 183 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
 | `count-pin-in-blast-radius` | 4 | 085, 087–089 | **AGENT_BRIEF P5** — promoted 2026-08-27 |
 | `source-the-caveat-from-the-computation` | 5 | 100–102, 122, 127 | **R5.5** |
@@ -45,7 +45,7 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 | `guard-asserts-rendered-not-shipped-bytes` | 2 | 116, 127 | open — proposed 2026-08-23, awaiting ratify |
 | `sibling-meta-non-int` | 2 | 092, 095 | **R1.7** |
 | `record-the-deviation-as-a-deviation` | 2 | 101, promote-2026-08-15 | **AGENT_BRIEF P3** |
-| `one-rule-for-every-subject-slot` | 2 | 102, 122 | **R1.8** — promoted 2026-08-27 |
+| `one-rule-for-every-subject-slot` | 3 | 102, 122, 183 | **R1.8** — promoted 2026-08-27 |
 | `ac-failure-mode-needs-the-right-guard` | 2 | 085, 107 | **R6.8** — promoted 2026-08-27 |
 | `own-only-what-you-wrote` | 2 | 088, 089 | **R5.7** — promoted 2026-08-27 |
 | `skip-dynamic-means-unlinkable` | 2 | 094, 096 | open — rejected 2026-08-15 (2nd sighting bound a design) |
@@ -63,6 +63,40 @@ proposed as a new rule, because R6.3 already owned cross-repo validation and P2 
 this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *claim's* list honest and
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
+
+## 183 — A whole-population aggregate outlives the world that named it, and no test notices
+`edge_health` was written when the index held one language, so *"the graph's tier mix"* and *"this
+adapter's tier mix"* were the same sentence. Adapter #2 made them different sentences and nothing
+changed: same name, same shape, same code, new meaning. Round 12 could only discover it by trying to
+ask — *"HEURISTIC share for the JS/TS slice?"* — and getting *"a measurement the tool cannot make
+about itself."* A +9.6 pp HEURISTIC move across two languages could not be attributed to either.
+
+Two things are worth keeping from the fix. **The tier fold had to become one callable** shared by the
+whole graph and every slice: two folds would make the split sum to something other than the whole, and
+that arithmetic is the only check an outsider has. **And the residue is load-bearing** — the ticket
+asserted `edges.file_path` joins to `files`, but `edges` has no foreign key and `files.language` is
+nullable, so the split has a genuine remainder. Dropping it would have broken the reconciliation
+*silently*, which is the failure the reconciliation exists to prevent; it is carried as
+`unattributed` and pinned by a test that plants one.
+
+The cost is stated rather than rounded: the stamp is **~1.0 s per build** on 2.1 M edges, against
+82.7 ms for the whole-graph number it splits. Accepted because the alternative is that second on
+every `get_index_status` call, and status is the call the convention says to make first. A join-free
+two-step was measured at 686.9 ms and rejected on structure, not speed.
+
+### 183-C1 — When a dimension gains its second value, every aggregate over it becomes a blend
+- type: 2 generalisable-heuristic
+- handle: an-aggregate-outlives-the-world-that-named-it
+- status: proposed (awaiting human confirm)
+- seen: 183
+- evidence: `edge_health` needed no code change to become wrong — a second language arrived and its
+  name silently stopped matching its subject. No test failed, because nothing changed. The class
+  generalises past languages to any population axis that grows from one value to two (tenant, region,
+  adapter, repo).
+- area: store / measurement / roll-out
+- destination: stays in `lessons_path` (recurrence 1) — the actionable form is a roll-out checklist
+  item ("enumerate the aggregates this new dimension makes ambiguous"), which belongs to whichever
+  ticket adds adapter #3.
 
 ## 180 — A relevance score is not an exactness score, and BM25 is systematically wrong about which
 `search_symbol("<name>")` returned *page 1 of 46* with two substring near-misses in small `.js` files

@@ -62,7 +62,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 180 | [`search_symbol` ranks a substring near-miss above six exact matches](tasks/180_search-ranks-a-near-miss-above-exact-matches.md) | Agent-trust | done | 167, 014, 057 |
 | 181 | [`sibling_definitions` at `ranked_by: "path"` is a 93-row dump wearing a ranking's shape](tasks/181_sibling-definitions-fallback-is-a-dump-not-a-ranking.md) | Agent-trust | todo | 171, 168, 169 |
 | 182 | [`find_orphans` returns 215,177 rows it has already flagged unreliable](tasks/182_find-orphans-answers-with-rows-it-has-flagged-unreliable.md) | Agent-fit | todo | 124, 031, 119 |
-| 183 | [`edge_health` is whole-graph only, so no adapter can be evaluated on the repo it was added for](tasks/183_edge-health-has-no-per-language-breakdown.md) | Measure | todo | 136, 082, 173 |
+| 183 | [`edge_health` is whole-graph only, so no adapter can be evaluated on the repo it was added for](tasks/183_edge-health-has-no-per-language-breakdown.md) | Measure | done | 136, 082, 173 |
 | 185 | [No tool is ever asked a question over a second language's graph — the multi-language claim stops at the adapter boundary](tasks/185_no-tool-is-ever-asked-a-question-over-a-second-languages-graph.md) | Coverage | todo | 147, 012, 019 |
 | 186 | [A zero answer still cannot say "this relation is not modelled for this file's language" — 160's carve-out, now a false negative](tasks/186_a-zero-answer-cannot-say-the-relation-is-unmodelled-for-this-language.md) | Agent-trust | todo | 160, 183, 185 |
 

@@ -80,9 +80,8 @@ sample. What belongs in the plan is *why the seam is where it is*:
   contract plus a subprocess protocol rather than a Python base class, because a .NET adapter cannot
   implement a Python ABC. That is what makes the inversion real rather than nominal.
 - **Abstract nothing that does not yet have two implementations.** Adapter #2 (TS/JS) — chosen as the
-  *most different* from PHP (no FQNs; module-scoped `import`/`export`; ESM+CommonJS; `tsconfig`
-  aliases; project-context resolution) — has now proved the seam: the registry verdict is settled (§19,
-  R1.2) and **no contract v2 was needed** (§4.4). C# and Python confirm and extend rather than reshape.
+  *most different* from PHP (no FQNs; module-scoped `import`/`export`; `tsconfig` aliases;
+  project-context resolution) — proved the seam: **no registry, no contract v2** (§19, §4.4).
 - **Standard over sample is a claim about scope, not just about naming:** if a fact about a repo
   would change adapter behaviour, it belongs in the language spec or nowhere. Sample repos buy test
   coverage and performance targets, never semantics (§6.1). §19 extends the same rule to *evidence*.
@@ -196,9 +195,9 @@ class LanguageAdapter(Protocol):
 ```
 Concrete: **one** generic `SubprocessAdapter` — *not* a class per language. It is constructed with a configuration key and the launch argv, and everything language-specific (name, suffixes, capabilities) arrives in the handshake. A `PhpAdapter`/`TsAdapter` subclass would put a language name in the core, which is exactly what R1.1/R1.5 forbid, and would add a type with no behaviour of its own (R7.4).
 
-The core resolves adapters by file suffix — `extension_index(adapters)` builds the map from what the adapters announced, `adapter_for(path, index)` reads it. **That's the only registry — a dict over already-constructed adapters, not a plugin system; the real one waits until the 2nd adapter exists.**
+The core resolves adapters by file suffix — `extension_index(adapters)` builds the map from what the adapters announced, `adapter_for(path, index)` reads it. **That's the only registry — a dict over already-constructed adapters, not a plugin system, and after adapter #2 it is the final answer (§19, R1.2).**
 
-### 4.4 Project-context resolution (anticipated as a TS/JS contract bump; 128 found none needed for the spike)
+### 4.4 Project-context resolution (anticipated as a TS/JS contract bump; none was needed)
 The v1 protocol is **file-at-a-time** (`parse(path) → {nodes, edges}`), which suits PHP (NameResolver works per file). But the best parsers for **TS/JS (TypeScript Compiler API)** and **C# (Roslyn)** resolve imports/types only against a whole **program / tsconfig / project** — a single file can't see cross-file types or alias mappings. So the contract likely gains, at language #2:
 - an adapter **lifecycle** that loads a project once (`open_project(root)` → hold the program in the sidecar) and answers `parse(path)` against it, so cross-file edges come back `RESOLVED` not `HEURISTIC`;
 - or a **two-pass** mode: adapter emits nodes + `IMPORTS` first, the core builds the file/module map, then asks the adapter to resolve edges with that context.
@@ -526,7 +525,7 @@ that must not ride the cheap path.
 
 | Tool | Key args | Answers |
 |---|---|---|
-| `get_index_status` | `detail_level?`, `offset?`, `sign?` | is the index there, fresh and healthy — stats, `last_commit`, staleness, reactive `next_tool_suggestions`; `standard` adds `edge_health`, `parse_failures`, `db_path`; `verbose` adds capped `parse_failure_paths` (058) and **`collection`**, the denominator for reconciling `files` against your own `git ls-files` without reading source (082). **Call first (~100 tok).** |
+| `get_index_status` | `detail_level?`, `offset?`, `sign?` | is the index there, fresh and healthy — stats, `last_commit`, staleness, reactive `next_tool_suggestions`; `standard` adds `edge_health`, `parse_failures`, `db_path`; `verbose` adds capped `parse_failure_paths` (058), **`collection`**, the denominator for reconciling `files` against your own `git ls-files` without reading source (082), and **`edge_health_by_language`** — the tier mix by the declaring file's language, stamped per build, summing to `edge_health`, omitted under two buckets (183). **Call first (~100 tok).** |
 | `build_or_update_index` | `full=false`, `detail_level?` | builds/refreshes; returns `wrote` (this run's writes) + timing, and at `standard` `graph`, so a delta isn't read as repo size (051/060). A concurrent writer returns `mode: "busy"`, `performed: false`, the loser's staleness (072); no usable adapter returns `mode: "refused"` and writes nothing — a payload, not a raise (064/079) |
 | `search_symbol` | `query \| queries, kind?, namespace?, limit?, offset?` | ranked `{qname, kind, file:line}` (FTS + name); stub hits add `stub: true` (039); a zero hit may miss-repair the sole dirty file or report `index_stale` (073). **`queries` sweeps N subjects in one call** (101) |
 | `file_outline` | `path, limit?, offset?` | the file's symbol map — symbols + line ranges, no body |
@@ -691,7 +690,7 @@ are **complete**; the per-task breakdown, including the 108–117 reshape, is in
 ## 17. Risks & mitigations
 | Risk | Mitigation |
 |---|---|
-| Over-abstraction before it works (fights priority #1) | One seam only (contract); PHP concrete. **Retired**: adapter #2 landed and confirmed no registry (§19, R1.2). |
+| Over-abstraction before it works (fights priority #1) | One seam only (contract). **Retired** by adapter #2 (§19, R1.2). |
 | **Adapter tuned to a sample repo** (breaks "works on any repo") | "Standard over sample" (§2): adapter encodes only the language spec/PSRs; CI grep-gate bans repo/framework names in adapter source; cross-repo validation (§16). |
 | Wrong abstraction / file-at-a-time misfit guessed from one language | **Retired**: TS/JS (the most PHP-unlike, module-scoped, project-context) landed with no contract v2 and the v1 file-at-a-time protocol intact (§4.4). |
 | PHP process startup × 112k | Long-lived streaming adapter + N workers. |
