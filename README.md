@@ -197,6 +197,27 @@ Every tool takes `detail_level` — `minimal` for the payload alone; `standard` 
 provenance (`db_path` on `get_index_status` / build reports only after 061). Every answer also carries
 `index_root` (the configured source tree — task 071) so a worktree agent can spot a mismatched server.
 
+### Build from a shell — `code-atlas-build` (task 176)
+
+A CI job cannot call an MCP tool, and `code-atlas-refresh` is deliberately incremental-only and
+never builds without an index (053). `code-atlas-build` is the shell route to a **first** build and
+a **full** rebuild — it calls `build_or_update_index` itself, so the write lock (R4.3), the
+schema-mismatch answer and the report shape are the MCP route's:
+
+```bash
+code-atlas-build          # incremental; falls back to full when there is no index or no git diff
+code-atlas-build --full   # always a full rebuild — after wiring an adapter or changing config
+```
+
+One line on stderr per run, and four exit codes a CI job can branch on:
+
+| Exit | Meaning |
+|---|---|
+| `0` | built — the run wrote files |
+| `3` | nothing to do — the build ran and wrote nothing |
+| `4` | another build is running (the shared `write.lock`) — a clean skip, not a failure |
+| `1` | failed — no usable adapter, a refused schema, or a broken config |
+
 > **Language scope today:** only the **PHP** adapter exists. A TypeScript, Python, or C# project won't
 > index yet — those are planned (see [Roadmap](#roadmap)).
 

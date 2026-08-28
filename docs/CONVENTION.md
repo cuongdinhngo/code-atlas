@@ -24,7 +24,7 @@ code-atlas/
 │   ├── indexer.py                    # full_build / incremental_update
 │   ├── enrichment.py                 # optional CA_INDIRECTION_RULES → HEURISTIC edges (task 040)
 │   ├── resolver.py                   # phase-2 edge linking (generic, no language branches)
-│   ├── gitutil.py  ignore.py  index_lock.py  tokens.py
+│   ├── cli.py  gitutil.py  ignore.py  index_lock.py  tokens.py   # cli.py: code-atlas-build (176)
 │   ├── onboarding/                   # Phase-3 enrichment: metrics, layers, dataset, artifact, viewer,
 │   │                                 # tour/steps, modules, mirrors, reachability, headlines,
 │   │                                 # prose + summary seams, quality_gate — deterministic, no LLM
