@@ -56,6 +56,10 @@ IGNORE_SOURCES_KEY = "ignore_sources"
 # build because a whole-graph blend cannot be attributed to any one adapter, and a GROUP BY over
 # the edge table must never reach the per-answer path.
 EDGE_HEALTH_BY_LANGUAGE_KEY = "edge_health_by_language"
+# Which edge kinds each language has ever emitted (JSON, task 186). Same scan as the tier mix above,
+# because "is this relation absent for this file's language?" is a data question the core may ask
+# without knowing what any language is (R1.1) — and a language name in the core is forbidden.
+EMITTED_KINDS_BY_LANGUAGE_KEY = "emitted_kinds_by_language"
 META_KEYS: tuple[str, ...] = (
     SCHEMA_VERSION_KEY,
     CONTRACT_VERSION_KEY,
@@ -150,6 +154,13 @@ DIRECT_MATCH_SQL_FN = "ca_direct_match"
 _SEARCH_BAND = f"{DIRECT_MATCH_SQL_FN}(?, nodes.name, nodes.qualified_name) DESC"
 
 Row = dict[str, object]
+
+
+class LanguageEdgeCensus(NamedTuple):
+    """Per-language edge facts from one scan: 183's tier mix, and 186's emitted-kind sets."""
+
+    health: dict[str, object]
+    kinds: dict[str, list[str]]
 
 
 class ImpactResult(NamedTuple):
@@ -641,6 +652,44 @@ class GraphStore:
         ).fetchone()
         return self._tier_block(tiers, int(linked))
 
+    def edge_language_census(self) -> "LanguageEdgeCensus":
+        """Both per-language edge facts from ONE statement (tasks 183 + 186).
+
+        183 needs the tier mix per language; 186 needs which kinds each language has ever emitted.
+        Grouping by ``(language, kind, confidence_tier)`` yields both, so the second fact costs no
+        second scan of a table that is 2.1 M rows on the anchor repo.
+        """
+        tiers: dict[str, dict[str, int]] = {}
+        linked: dict[str, int] = {}
+        # Seeded with EVERY indexed language, so one that emitted no edges at all reads as
+        # "emitted nothing" rather than as "never measured" — the two are different claims (R5.6).
+        kinds: dict[str, set[str]] = {name: set() for name in self.indexed_languages()}
+        for language, kind, tier, count, found in self._conn.execute(
+            "SELECT files.language, edges.kind, edges.confidence_tier, COUNT(*), "
+            "SUM(CASE WHEN edges.target_qname IS NOT NULL THEN 1 ELSE 0 END) "
+            "FROM edges LEFT JOIN files ON files.path = edges.file_path "
+            "GROUP BY files.language, edges.kind, edges.confidence_tier"
+        ):
+            key = str(language) if language else ""
+            bucket = tiers.setdefault(key, {})
+            bucket[str(tier)] = bucket.get(str(tier), 0) + int(count)
+            linked[key] = linked.get(key, 0) + int(found or 0)
+            if kind:
+                kinds.setdefault(key, set()).add(str(kind))
+        health: dict[str, object] = {
+            "by_language": {
+                name: self._tier_block(tiers[name], linked[name])
+                for name in sorted(name for name in tiers if name)
+            }
+        }
+        if "" in tiers:
+            health["unattributed"] = self._tier_block(tiers[""], linked[""])
+        return LanguageEdgeCensus(
+            health=health,
+            kinds={name: sorted(kinds[name]) for name in sorted(kinds) if name},
+        )
+
+
     def edge_health_by_language(self) -> dict[str, object]:
         """``edge_health`` split by the language of the edge's OWN file (task 183).
 
@@ -653,26 +702,7 @@ class GraphStore:
         bucket is not structurally empty and dropping it would break the identity silently. Over
         every bucket, the tier counts sum to whole-graph ``edge_health`` (082's reconciliation).
         """
-        tiers: dict[str, dict[str, int]] = {}
-        linked: dict[str, int] = {}
-        for language, tier, count, found in self._conn.execute(
-            "SELECT files.language, edges.confidence_tier, COUNT(*), "
-            "SUM(CASE WHEN edges.target_qname IS NOT NULL THEN 1 ELSE 0 END) "
-            "FROM edges LEFT JOIN files ON files.path = edges.file_path "
-            "GROUP BY files.language, edges.confidence_tier"
-        ):
-            key = str(language) if language else ""
-            tiers.setdefault(key, {})[str(tier)] = int(count)
-            linked[key] = linked.get(key, 0) + int(found or 0)
-        block: dict[str, object] = {
-            "by_language": {
-                name: self._tier_block(tiers[name], linked[name])
-                for name in sorted(name for name in tiers if name)
-            }
-        }
-        if "" in tiers:
-            block["unattributed"] = self._tier_block(tiers[""], linked[""])
-        return block
+        return self.edge_language_census().health
 
     def stamped_edge_health_by_language(self) -> dict[str, object] | None:
         """The per-build split, or ``None`` for a pre-183 index (R5.6) — never a computed fallback.
@@ -691,6 +721,41 @@ class GraphStore:
         if not isinstance(parsed, dict) or "by_language" not in parsed:
             return None
         return dict(parsed)
+
+    def stamped_emitted_kinds_by_language(self) -> dict[str, list[str]] | None:
+        """Per-language emitted edge kinds from the last build, or ``None`` pre-186 (R5.6)."""
+        raw = self.get_meta(EMITTED_KINDS_BY_LANGUAGE_KEY)
+        if not raw:
+            return None
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(parsed, dict):
+            return None
+        return {str(name): [str(k) for k in kinds] for name, kinds in parsed.items()}
+
+    def language_emits_none_of(self, language: str, kinds: Sequence[str]) -> bool | None:
+        """Has this language emitted NONE of ``kinds`` in this index? ``None`` = cannot say (R5.6).
+
+        ``None`` for a pre-186 index and for a language the stamp does not name: an index that
+        never measured itself is not evidence of absence, which is the claim this answers. A
+        language measured with zero edges is named with an empty list, so it answers ``True``.
+        """
+        stamped = self.stamped_emitted_kinds_by_language()
+        if stamped is None or language not in stamped:
+            return None
+        emitted = set(stamped[language])
+        return not any(kind in emitted for kind in kinds)
+
+    def language_of_file(self, path: str) -> str | None:
+        """The indexed language of one file, or ``None`` when the file is not indexed."""
+        row = self._conn.execute(
+            "SELECT language FROM files WHERE path = ?", (path,)
+        ).fetchone()
+        if row is None or not row[0]:
+            return None
+        return str(row[0])
 
     def dependency_edges(self) -> list[tuple[str, str]]:
         """Distinct resolved dependency pairs ``(source, target)``, self-loops excluded (task 083).

@@ -23,6 +23,7 @@ from code_atlas.tools.nav_result import (
     REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
     REASON_OK,
+    REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
     TRY_INSTEAD_FILE_OUTLINE,
 )
 from tests.test_read_through_freshness import config_for, write
@@ -179,8 +180,15 @@ def test_ensure_qname_miss_then_symbol_indexed(tmp_path: Path) -> None:
     ):
         result = factory(config)(qname, detail_level="minimal")
         # find_view_data with no rules reports capability_not_configured — still a found symbol,
-        # not no_such_symbol, so the miss-repair worked (069).
-        assert result["reason"] in {REASON_NO_MATCHES, REASON_OK, REASON_CAPABILITY_NOT_CONFIGURED}
+        # not no_such_symbol, so the miss-repair worked (069). find_references reports 186's
+        # relation_unmodelled_for_language: the fixture adapter emits no REFERENCES/IMPORTS at all,
+        # so its empty answer is genuinely unmeasured — also not no_such_symbol.
+        assert result["reason"] in {
+            REASON_NO_MATCHES,
+            REASON_OK,
+            REASON_CAPABILITY_NOT_CONFIGURED,
+            REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
+        }
         assert result["reason"] != REASON_NO_SUCH_SYMBOL
     assert read_symbol.create(config)(qname, detail_level="minimal")["found"] is True
 

@@ -10,7 +10,8 @@ obligation**, so a declaration cannot be a rubber stamp:
 
   answers                          -> the principal collection is non-empty
   answers_without                  -> non-empty, AND every declared kind is absent from the graph
-  empty_relation_not_modelled      -> empty,     AND every declared kind is absent from the graph
+  empty_relation_not_modelled      -> empty,     AND the kinds are absent, AND the payload's own
+                                      `reason` says so (186 gave this state a reason code)
   not_applicable_by_language       -> empty,     AND the missing language feature is named
   empty_capability_not_configured  -> empty,     AND the payload says so in its own `reason`
 """
@@ -34,6 +35,7 @@ from tests.contract.tool_parity import (
     ANSWERS,
     ANSWERS_WITHOUT,
     EMPTY_CAPABILITY_NOT_CONFIGURED,
+    EMPTY_RELATION_NOT_MODELLED,
     EMPTY_STATES,
     INVOKERS,
     NOT_APPLICABLE_BY_LANGUAGE,
@@ -154,7 +156,7 @@ def test_each_declaration_is_well_formed(name: str, tool: str) -> None:
         assert expect.because, f"{name}:{tool} must name the missing language feature"
     if expect.state == ANSWERS_WITHOUT:
         assert expect.kinds, f"{name}:{tool} must name what the answer is without"
-    if expect.state == EMPTY_CAPABILITY_NOT_CONFIGURED:
+    if expect.state in {EMPTY_CAPABILITY_NOT_CONFIGURED, EMPTY_RELATION_NOT_MODELLED}:
         assert expect.reason, f"{name}:{tool} must name the payload's own reason"
 
 
@@ -187,10 +189,10 @@ def test_tool_parity(
             f"{name}:{tool} claims the answer is shaped by a missing {kind}, "
             f"but this language's graph holds {kind} edges"
         )
-    if expect.state == EMPTY_CAPABILITY_NOT_CONFIGURED:
+    if expect.reason:
         assert payload.get("reason") == expect.reason, (
-            f"{name}:{tool} must be empty for a configuration reason the payload states, "
-            f"not for a language reason; got {payload.get('reason')!r}"
+            f"{name}:{tool} must be empty for the reason it declares, and the payload must say so "
+            f"itself — a bare empty cannot tell the causes apart; got {payload.get('reason')!r}"
         )
 
 

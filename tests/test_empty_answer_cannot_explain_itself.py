@@ -15,6 +15,7 @@ from code_atlas.tools.nav_result import (
     REASON_NAME_NOT_QUALIFIED,
     REASON_NO_MATCHES,
     REASON_OK,
+    REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
     REASON_RELATIONSHIP_NOT_MODELLED,
     REASON_RULE_MATCHED_NO_FILES,
     REASON_SUBJECT_AMBIGUOUS,
@@ -210,4 +211,6 @@ def test_reason_vocabulary_pins_relationship_not_modelled() -> None:
     # not CONTRACT_VERSION). The pin is that a new reason JOINS this tuple rather than forking it.
     assert REASON_SUBJECT_AMBIGUOUS in NAV_REASONS
     assert REASON_RULE_MATCHED_NO_FILES in NAV_REASONS
-    assert NAV_REASONS[-1] == REASON_SUBSTRING_MATCH  # 167 appended substring_match
+    # 167 appended substring_match; 186 appended relation_unmodelled_for_language after it.
+    assert REASON_SUBSTRING_MATCH in NAV_REASONS
+    assert NAV_REASONS[-1] == REASON_RELATION_UNMODELLED_FOR_LANGUAGE

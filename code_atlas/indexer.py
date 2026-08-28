@@ -46,6 +46,7 @@ from code_atlas.store import (
     COVERED_LANGUAGES_KEY,
     COVERED_SUFFIXES_KEY,
     EDGE_HEALTH_BY_LANGUAGE_KEY,
+    EMITTED_KINDS_BY_LANGUAGE_KEY,
     IGNORE_SOURCES_KEY,
     INDEXED_SUFFIXES_KEY,
     LAST_COMMIT_KEY,
@@ -953,9 +954,10 @@ def _record_meta(
     store.set_meta(COVERED_LANGUAGES_KEY, ",".join(store.indexed_languages()))
     # Which adapter's edges are healthy, stamped here for the same reason (task 183): a
     # whole-graph blend cannot be attributed, and a GROUP BY over edges must not reach an answer.
-    store.set_meta(
-        EDGE_HEALTH_BY_LANGUAGE_KEY, json.dumps(store.edge_health_by_language(), sort_keys=True)
-    )
+    # One scan, both facts (183's tier mix + 186's emitted-kind sets) — see edge_language_census.
+    languages = store.edge_language_census()
+    store.set_meta(EDGE_HEALTH_BY_LANGUAGE_KEY, json.dumps(languages.health, sort_keys=True))
+    store.set_meta(EMITTED_KINDS_BY_LANGUAGE_KEY, json.dumps(languages.kinds, sort_keys=True))
     store.set_meta(COLLECTION_CENSUS_KEY, json.dumps(asdict(census)))
     store.set_meta(UNTRACKED_INDEXABLE_KEY, json.dumps(list(untracked)))
     sources = {key: count for key, count in dict(ignore_sources or {}).items() if count}

@@ -32,7 +32,7 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
 | `derived-not-listed-invariant` | 18 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180 | **R6.7** |
-| `prove-the-guard-fails` | 16 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185 | **R6.5** |
+| `prove-the-guard-fails` | 17 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186 | **R6.5** |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
 | `fixture-shape-begs-the-question` | 9 | 084, 086, 103–106, 121, 183, 185 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
@@ -45,7 +45,7 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 | `guard-asserts-rendered-not-shipped-bytes` | 2 | 116, 127 | open — proposed 2026-08-23, awaiting ratify |
 | `sibling-meta-non-int` | 2 | 092, 095 | **R1.7** |
 | `record-the-deviation-as-a-deviation` | 2 | 101, promote-2026-08-15 | **AGENT_BRIEF P3** |
-| `one-rule-for-every-subject-slot` | 3 | 102, 122, 183 | **R1.8** — promoted 2026-08-27 |
+| `one-rule-for-every-subject-slot` | 4 | 102, 122, 183, 186 | **R1.8** — promoted 2026-08-27 |
 | `ac-failure-mode-needs-the-right-guard` | 2 | 085, 107 | **R6.8** — promoted 2026-08-27 |
 | `own-only-what-you-wrote` | 2 | 088, 089 | **R5.7** — promoted 2026-08-27 |
 | `skip-dynamic-means-unlinkable` | 2 | 094, 096 | open — rejected 2026-08-15 (2nd sighting bound a design) |
@@ -63,6 +63,45 @@ proposed as a new rule, because R6.3 already owned cross-repo validation and P2 
 this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *claim's* list honest and
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
+
+## 186 — Honesty keyed on evidence inverts when a second producer arrives
+160 shipped the coverage note and wrote its own limit into a docstring: *"never the subject's own
+language (160 out of scope)."* On one language that costs nothing. On two,
+`include_graph(path=".../models.ts", direction="imported_by")` answered `no_matches` — *"nothing
+imports this file"* — while two files did, under `IMPORTS`, a kind the tool does not read.
+
+**The mechanism is the lesson.** The honest arm (`relationship_not_modelled`) keys on *unlinked
+`INCLUDES` edges as evidence*. An adapter that emits no `INCLUDES` **at all** produces no unlinked
+ones either, so the evidence is zero and the tool falls through to a confident zero: **the better the
+producer, the more confident the wrong answer.** Any caveat that keys on "evidence the thing exists
+but is unresolved" has this shape, and it is invisible until producer #2.
+
+The fix is a data question, never a language name (R1.1): *has this language emitted any of the kinds
+this tool reads, in this index?* — and `ANY`, not `ALL`, because TS emits `IMPORTS` but not
+`REFERENCES`, so a TS `find_references` zero is a **real** zero and relabelling it would swap one
+false claim for another. The fact came free: 183 already scans `edges ⋈ files` once per build, so
+adding `edges.kind` to that `GROUP BY` yields the emitted-kind sets without a second scan.
+
+**Two other things worth keeping.** The route Scope 4 asked for does not exist —
+`find_references` on a TS file returns zero rows, because TS `IMPORTS` edges carry a resolved repo
+path in `target_raw` and the resolver's path-linking branch covers `INCLUDES` only. So R5.4 clause (c)
+applies: hint, no route. The test asserts the would-be route is *empty*, so the day it answers the
+test fails and the decision is revisited rather than forgotten (filed as 188). And a language with
+files but **zero edges** first read as "never measured" rather than "emitted nothing" — the census now
+seeds every indexed language with an empty set, because those are different claims (R5.6).
+
+### 186-C1 — An evidence-keyed caveat is unreachable for a producer that emits none of the vocabulary
+- type: 2 generalisable-heuristic
+- handle: evidence-shaped-honesty-inverts-on-a-second-instance
+- status: proposed (awaiting human confirm)
+- seen: 186
+- evidence: `relationship_not_modelled` fires on unlinked `INCLUDES`; the TS adapter emits no
+  `INCLUDES`, so the arm is structurally unreachable and the fall-through is a confident zero. No code
+  changed for this to become wrong. When adding producer #2 (adapter, tenant, source), ask of every
+  evidence-keyed caveat whether the new producer can generate the evidence at all.
+- area: tools / payload honesty / roll-out
+- destination: stays in `lessons_path` (recurrence 1) — closely related to [[183-C1]]
+  (`an-aggregate-outlives-the-world-that-named-it`); if a second sighting lands, consider unioning.
 
 ## 185 — A matrix of labels is documentation; give every declared state an obligation
 No test in `tests/` imported `code_atlas.tools` and asked anything over a TypeScript-indexed graph, so

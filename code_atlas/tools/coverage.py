@@ -8,6 +8,8 @@ byte-identical (061 / AC3).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from code_atlas.adapter import unconfigured_adapters
 from code_atlas.config import Config
 from code_atlas.store import COVERED_LANGUAGES_KEY, GraphStore
@@ -22,6 +24,23 @@ COVERAGE_KEY = "unconfigured_adapters"
 # flipping the switch emptied the note while the graph still held zero files of that language, so
 # the zero went back to reading as absence. This key asks whether the graph HOLDS the language.
 UNINDEXED_KEY = "unindexed_languages"
+
+
+def relation_unmodelled_for_language(
+    store: GraphStore, *, file_path: str, kinds: Sequence[str]
+) -> bool:
+    """Is this file's language silent on EVERY edge kind the caller reads (task 186)?
+
+    160 wrote its own carve-out down — the coverage note never names *the subject's own language*.
+    On one language that costs nothing; on two it turns an unread relation into a confident zero.
+    The verdict is a data question the core may ask without knowing what a language is (R1.1): has
+    this language ever emitted any of these kinds in this index? ``False`` whenever the index cannot
+    say — no stamp, unindexed file, unnamed language — because silence is not evidence (R5.6).
+    """
+    language = store.language_of_file(file_path)
+    if language is None:
+        return False
+    return store.language_emits_none_of(language, kinds) is True
 
 
 def coverage_gap(config: Config) -> list[dict[str, str]]:

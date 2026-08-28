@@ -9,7 +9,11 @@ from code_atlas.config import Config, clamp_limit
 from code_atlas.contract import UNMODELLED_REFERENCE_KINDS
 from code_atlas.store import GraphStore
 from code_atlas.tools import call_site, claim
-from code_atlas.tools.coverage import attach_coverage_note, covered_languages
+from code_atlas.tools.coverage import (
+    attach_coverage_note,
+    covered_languages,
+    relation_unmodelled_for_language,
+)
 from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
     CAVEAT_ALL_HITS_DYNAMIC,
@@ -17,9 +21,11 @@ from code_atlas.tools.nav_result import (
     REASON_INDEX_STALE,
     REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
+    REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
     REASON_RELATIONSHIP_NOT_MODELLED,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_HINT_METHOD_QNAME,
+    TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE,
     TRY_INSTEAD_SEARCH_SYMBOL,
     attach_ambiguous_definitions,
     attach_authoritative_caveats,
@@ -208,6 +214,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     # asks for. Routing back to find_references would loop (093 review).
                     try_instead = TRY_INSTEAD_SEARCH_SYMBOL
                     try_instead_hint = TRY_INSTEAD_HINT_METHOD_QNAME
+                elif relation_unmodelled_for_language(
+                    store, file_path=str(nodes[0]["file_path"]), kinds=UNMODELLED_REFERENCE_KINDS
+                ):
+                    # One rule, both vocabulary-gated tools (R1.8/186). It does NOT fire while any
+                    # one of the kinds is emitted for this language, which is why a TS subject still
+                    # gets a genuine zero: IMPORTS is modelled there, REFERENCES alone is not.
+                    reason = REASON_RELATION_UNMODELLED_FOR_LANGUAGE
+                    try_instead_hint = TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE
         truncated = offset + len(results) < total_count
         result = nav_result(
             qname,

@@ -77,8 +77,9 @@ class Expect:
     ``kinds`` — edge kinds this tool reads that must be ABSENT from this language's graph
     (asserted for ``empty_relation_not_modelled`` and for ``answers_without``).
     ``because`` — required for ``not_applicable_by_language``: the language feature that does not
-    exist. ``reason`` — required for ``empty_capability_not_configured``: the payload's own word for
-    the missing configuration, so the cell cannot be confused with a language gap.
+    exist. ``reason`` — the payload's own word for why it is empty; **required** for
+    ``empty_capability_not_configured`` and for ``empty_relation_not_modelled`` (186 gave the latter
+    one), so neither cell can be confused with the other or with a genuine zero.
     """
 
     state: str
@@ -275,6 +276,8 @@ TS_PARITY = ToolParity(
             EMPTY_RELATION_NOT_MODELLED,
             kinds=("INCLUDES",),
             because="TS/JS has no textual include; a module specifier is IMPORTS, not INCLUDES",
+            # 186 made this state observable in the payload rather than only in this matrix.
+            reason="relation_unmodelled_for_language",
         ),
         # Answers, but narrower than PHP's: the relation is missing a kind this adapter never emits.
         find_references.NAME: Expect(

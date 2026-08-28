@@ -34,6 +34,7 @@ NavReason = Literal[
     "incomplete_snapshot",
     "snapshot_not_found",
     "substring_match",
+    "relation_unmodelled_for_language",
 ]
 
 REASON_OK: NavReason = "ok"
@@ -60,6 +61,10 @@ REASON_SNAPSHOT_NOT_FOUND: NavReason = "snapshot_not_found"
 # search_symbol matched only as a substring/trigram — no result is an exact or prefix match, so a
 # near-miss (`storeCRM` → `restoreCRM`) is not a confident hit (167). Carries the 160 coverage note.
 REASON_SUBSTRING_MATCH: NavReason = "substring_match"
+# Empty because this file's LANGUAGE emitted none of the kinds the tool reads — read from the
+# index's own per-language stamp, never from a language name (R1.1, 186). Distinct from
+# relationship_not_modelled, which needs unlinked evidence a second language never produces.
+REASON_RELATION_UNMODELLED_FOR_LANGUAGE: NavReason = "relation_unmodelled_for_language"
 
 NAV_REASONS: tuple[NavReason, ...] = (
     REASON_OK,
@@ -79,6 +84,7 @@ NAV_REASONS: tuple[NavReason, ...] = (
     REASON_INCOMPLETE_SNAPSHOT,
     REASON_SNAPSHOT_NOT_FOUND,
     REASON_SUBSTRING_MATCH,
+    REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
 )
 
 # Two registers, one naming rule (093): ``TRY_INSTEAD_*`` is a registered tool name the reader can
@@ -101,6 +107,13 @@ TRY_INSTEAD_SEARCH_SYMBOL = "search_symbol"
 TRY_INSTEAD_HINT_PATH_BASENAME = (
     "no indexed tool answers this — the include path is bare or dynamic, so search the file's "
     "basename as text outside the index"
+)
+# No route ON PURPOSE (R5.4 clause c, measured in 186): where the subject's language emits none
+# of the kinds a tool reads, no registered tool enumerates the relation either — find_references
+# on such a file answers relationship_not_modelled with zero rows. Naming it would be worse.
+TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE = (
+    "this file's language records the dependency under a different edge kind, and no indexed tool "
+    "enumerates it — treat the empty answer as unmeasured, not as zero"
 )
 # Untracked indexable file — rebuild after git add (092). Real tool name; hint is sibling.
 TRY_INSTEAD_BUILD_OR_UPDATE_INDEX = "build_or_update_index"
