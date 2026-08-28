@@ -32,7 +32,7 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
 | `derived-not-listed-invariant` | 18 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180 | **R6.7** |
-| `prove-the-guard-fails` | 18 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174 | **R6.5** |
+| `prove-the-guard-fails` | 19 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170 | **R6.5** |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
 | `fixture-shape-begs-the-question` | 9 | 084, 086, 103–106, 121, 183, 185 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
@@ -63,6 +63,45 @@ proposed as a new rule, because R6.3 already owned cross-repo validation and P2 
 this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *claim's* list honest and
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
+
+## 170 — Never memoise a verdict alongside a fact, and never omit a verdict
+164 froze the loaded build id at import and round 11 verified that half non-circularly. The other half
+never fired: `server_identity` sat behind an unconditional `@lru_cache(maxsize=1)`, so the
+*"does the disk still match"* comparison ran **once** and a swap after the first payload was
+structurally unreportable. For the last twelve minutes of that session the checkout genuinely differed
+from the process and no payload said so — *"harmless only because the delta was a docs-only commit.
+The harmlessness was luck of the delta, not a property of the design."*
+
+**One function returned two kinds of thing.** `version` and the loaded id are properties of the
+**process** and are correctly cached forever; *"the disk still matches"* is a verdict about the
+**world** and expires the moment the world moves. Memoising them together let the cheap permanent fact
+carry the perishable one into the same cache.
+
+**And the mirror image:** 061's omit-when-empty rule was applied to a verdict. For a *value*, absence
+means "nothing to say". For a *verdict*, absence and "checked, all clear" are different claims, and
+164's payload could not express the second. So `stale_process` now rides unconditionally (+38 B,
+measured and re-pinned) while `repo_head` — context for a divergence, meaningless without one — stays
+conditional.
+
+**The probe was decided by a measurement that overturned the first draft.** An `rglob("*.py")` stat
+sweep of the package tree came in at **0.896 ms — only 1.9×** cheaper than the hash walk it replaces:
+same order, so it defeats the purpose. Stat-ing `sys.modules` instead costs **0.174 ms (10× here,
+~36× against the 6.35 ms 164 recorded)** and is the *semantically right set*, since `server_build`
+names the code the process loaded. A newly-imported module is deliberately not a divergence, or every
+lazy import would pay a hash walk.
+
+### 170-C1 — Never cache a verdict together with a fact
+- type: 2 generalisable-heuristic
+- handle: never-cache-a-verdict-with-a-fact
+- status: proposed (awaiting human confirm)
+- seen: 170
+- evidence: `server_identity` returned a permanent property of the process and a perishable verdict
+  about the world from one memoised call. The permanent half made the cache look obviously correct;
+  the verdict froze silently and stayed frozen for the process's life. Its mirror is the 061 half:
+  omit-when-empty is right for a value and wrong for a verdict, because absence and "checked, all
+  clear" are different claims.
+- area: tools / caching / payload honesty
+- destination: stays in `lessons_path` (recurrence 1)
 
 ## 174 — A disclosure can be true, complete, and about the wrong subject
 159 made the unwired adapter visible, and rounds 8–11 then recorded **four consecutive zero

@@ -124,10 +124,10 @@ def test_build_id_without_git_uses_content_hash(monkeypatch: pytest.MonkeyPatch)
     """AC2 path: no ``.git`` ⇒ content hash still names the build (wheel / runtime image)."""
     from code_atlas import build_info
 
-    build_info.server_identity.cache_clear()
+    build_info.reset_identity_cache()
     monkeypatch.setattr(build_info, "_git_root", lambda: None)
     ident = build_info.server_identity()
-    build_info.server_identity.cache_clear()
+    build_info.reset_identity_cache()
     assert ident["version"]
     assert len(ident["build"]) == 7
 
@@ -231,37 +231,36 @@ def test_stale_process_when_loaded_differs_from_disk(
     """
     from code_atlas import build_info
 
-    build_info.server_identity.cache_clear()
+    build_info.reset_identity_cache()
     monkeypatch.setattr(build_info, "_LOADED_BUILD_ID", "0ldc0de")
     monkeypatch.setattr(build_info, "_git_root", lambda: tmp_path)
     monkeypatch.setattr(build_info.gitutil, "head_commit", lambda root: "abcdef1234567890")
 
     ident = build_info.server_identity()
-    build_info.server_identity.cache_clear()
+    build_info.reset_identity_cache()
 
     assert ident["build"] == "0ldc0de"
     assert ident["stale_process"] is True
     assert ident["repo_head"] == "abcdef1"
     assert ident["build"] != ident["repo_head"]
 
-    prov = {
-        "server_version": ident["version"],
-        "server_build": ident["build"],
-    }
-    if ident.get("stale_process"):
-        prov["server_stale_process"] = True
-        prov["server_repo_head"] = ident["repo_head"]
+    prov = build_info.server_provenance()
     assert prov["server_stale_process"] is True
     assert prov["server_repo_head"] == "abcdef1"
 
 
-def test_matching_process_is_byte_identical_and_omits_stale_fields(
+def test_matching_process_carries_the_verdict_and_no_divergence_context(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """164 AC2 / 061: a process that matches its disk carries no divergence fields."""
+    """164 AC2 / 061, widened by 170: the verdict rides, the divergence CONTEXT does not.
+
+    164 omitted `stale_process` on the matching branch, which made "checked and matching" identical
+    to "never checked" — round 11 §12.c could not tell them apart. `server_repo_head` stays
+    conditional: it is context for a divergence, meaningless without one.
+    """
     from code_atlas import build_info
 
-    build_info.server_identity.cache_clear()
+    build_info.reset_identity_cache()
     # Force the matching branch: loaded id equals the current content id, git commit present.
     monkeypatch.setattr(build_info, "_LOADED_BUILD_ID", build_info._content_build_id())
     monkeypatch.setattr(build_info, "_git_root", lambda: tmp_path)
@@ -269,9 +268,10 @@ def test_matching_process_is_byte_identical_and_omits_stale_fields(
     monkeypatch.setattr(build_info.gitutil, "working_tree_dirty", lambda root: False)
 
     prov = build_info.server_provenance()
-    build_info.server_identity.cache_clear()
+    build_info.reset_identity_cache()
 
-    assert set(prov) == {"server_version", "server_build"}
+    assert set(prov) == {"server_version", "server_build", "server_stale_process"}
+    assert prov["server_stale_process"] is False, "the verdict, not silence (170)"
     assert prov["server_build"] == "abcdef1"
 
 
@@ -285,11 +285,11 @@ def test_stale_process_is_deterministic_across_calls(
     monkeypatch.setattr(build_info, "_git_root", lambda: tmp_path)
     monkeypatch.setattr(build_info.gitutil, "head_commit", lambda root: "abcdef1234567890")
 
-    build_info.server_identity.cache_clear()
+    build_info.reset_identity_cache()
     first = build_info.server_identity()
-    build_info.server_identity.cache_clear()
+    build_info.reset_identity_cache()
     second = build_info.server_identity()
-    build_info.server_identity.cache_clear()
+    build_info.reset_identity_cache()
     assert first == second
 
 

@@ -102,6 +102,8 @@ def test_default_args_match_pre_pagination_shape(store: GraphStore, tmp_path: Pa
         "index_root",
         "server_version",
         "server_build",
+        # 170: the divergence verdict rides unconditionally, so silence is not a clean answer.
+        "server_stale_process",
     }
     assert got["qname"] == "\\Base"
     assert got["indexed"] is True

@@ -17,12 +17,18 @@ from code_atlas.tools import find_references, reach_shared, read_symbol, search_
 from code_atlas.tools import nav_result as nr
 from tests.test_claim_signing import SUBJECT, configured, indexed_repo
 
-_KEYS = frozenset({"server_version", "server_build"})
+# 170 added the third: `server_stale_process` is the divergence VERDICT and rides unconditionally,
+# so silence can no longer be read as a clean answer. `server_repo_head` stays conditional context.
+_KEYS = frozenset({"server_version", "server_build", "server_stale_process"})
 
 
-def _prov() -> dict[str, str]:
+def _prov() -> dict[str, object]:
     ident = server_identity()
-    return {"server_version": ident["version"], "server_build": ident["build"]}
+    return {
+        "server_version": ident["version"],
+        "server_build": ident["build"],
+        "server_stale_process": bool(ident.get("stale_process")),
+    }
 
 
 def test_server_provenance_is_the_get_index_status_spelling() -> None:
@@ -117,14 +123,19 @@ def test_reach_shared_no_roots_answer_names_the_build(tmp_path: Path) -> None:
 
 
 def test_server_provenance_byte_cost_is_small_and_measured() -> None:
-    """AC4 / 061: the stamp adds only the two short fields — measured, and bounded by a test.
+    """AC4 / 061: the stamp adds only the three short fields — measured, and bounded by a test.
 
-    Measured delta on a payload's JSON: ~53 bytes (clean 7-char build) to ~60 (``+dirty``); the
-    field never scales with the answer, so it is negligible on any non-empty result.
+    Measured delta on a payload's JSON: **91 bytes** on a clean 7-char build (~98 with ``+dirty``).
+    164's two fields were ~53; 170 added the unconditional `server_stale_process` verdict for
+    **+38** — the price of telling "checked and matching" apart from "never checked"
+    (round 11 §12.c). The stamp never scales with the answer, so it is negligible on any non-empty
+    result; the pinned ceiling is what stops it growing again without a decision.
     """
     with_fields = nr.nav_result(
         "Foo", [], detail_level="standard", index_root="/r", truncated=False
     )
     without = {k: v for k, v in with_fields.items() if k not in _KEYS}
     delta = len(json.dumps(with_fields)) - len(json.dumps(without))
-    assert 0 < delta <= 80, f"server stamp added {delta} bytes; expected the two short fields only"
+    assert 0 < delta <= 100, (
+        f"server stamp added {delta} bytes; expected the three short fields only (170)"
+    )
