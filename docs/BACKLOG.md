@@ -54,7 +54,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 172 | [An incremental build is blind to a scope change — 3,244 files in scope, `wrote.files: 0`](tasks/172_incremental-is-blind-to-a-scope-change.md) | Freshness | done | 016, 060, 053 |
 | 173 | [Coverage claims key on what is *configured*, not on what is *indexed*](tasks/173_coverage-claims-key-on-configured-not-indexed.md) | Agent-trust | done | 160, 159, 082 |
 | 174 | [`unconfigured_adapters` names the switch but not the cost](tasks/174_unconfigured-adapters-names-the-switch-not-the-cost.md) | Agent-trust | done | 159, 082 |
-| 175 | [Config is read once at spawn and no payload says so](tasks/175_config-is-loaded-at-spawn-and-nothing-says-so.md) | Agent-trust | todo | 164, 170 |
+| 175 | [Config is read once at spawn and no payload says so](tasks/175_config-is-loaded-at-spawn-and-nothing-says-so.md) | Agent-trust | done | 164, 170 |
 | 176 | [No full build from a shell — `refresh` is incremental-only](tasks/176_no-full-build-from-a-shell.md) | Freshness | done | 010, 053 |
 | 177 | [A valid long build is indistinguishable from a hang — 30 min of silence, no progress](tasks/177_a-long-build-is-indistinguishable-from-a-hang.md) | Agent-trust | done | 072, 010, 052, 176 |
 | 178 | [`get_index_status` reads `staleness: "current"` while a build is still linking](tasks/178_status-reads-current-while-a-build-is-still-linking.md) | Agent-trust | done | 072, 077, 010, 177 |

@@ -10,6 +10,7 @@ keyed by the lower-cased name, so no language is ever hard-coded in the core (R1
 to a complete **argv** — the driver receives a ready command and never re-parses a string.
 """
 
+import hashlib
 import os
 import re
 import shlex
@@ -85,6 +86,10 @@ class Config:
     host_root: Path | None
     container_root: Path | None
     adapter_cmds: Mapping[str, tuple[str, ...]]
+    # The config this Config was resolved FROM, so the process can be compared to the disk (175).
+    # Defaulted so every `replace(...)` and hand-built Config keeps working; load_config sets both.
+    identity: str = ""
+    config_env: tuple[tuple[str, str], ...] = ()
 
     def adapter_cmd(self, lang: str) -> tuple[str, ...] | None:
         """The launch argv for one adapter, or None when none is configured for it."""
@@ -128,6 +133,58 @@ def to_adapter_path(
     return (container_root / relative).as_posix()
 
 
+CONFIG_ID_CHARS = 7
+# The stable marker for "there is no project file", so an env-only repo still names an identity
+# (125's wheel path, one layer up) instead of hashing nothing and looking like a missing answer.
+_NO_PROJECT_FILE = b"\0no-project-file\0"
+
+
+def _config_env_slice(env: Mapping[str, str]) -> tuple[tuple[str, str], ...]:
+    """Only the ``CA_*`` variables the config reads, sorted — nothing else can move the id."""
+    wanted = {env_name(key) for key in KNOB_KEYS}
+    return tuple(
+        sorted(
+            (name, value)
+            for name, value in env.items()
+            if name in wanted or ADAPTER_CMD_ENV.match(name)
+        )
+    )
+
+
+def config_identity(root: Path, env: Mapping[str, str] | None = None) -> str:
+    """A short hash of the config this call would resolve: the project file's bytes plus its env.
+
+    164 stamped *which code answered*; nothing stamped *which config answered* — and config decides
+    what the index even contains, so a silently stale read costs a whole build (task 175). Content
+    only, never a timestamp, so identical bytes and env give an identical id on any host (R4.2).
+    """
+    environ = os.environ if env is None else env
+    path = root / PROJECT_FILE
+    digest = hashlib.sha256()
+    try:
+        digest.update(path.read_bytes() if path.is_file() else _NO_PROJECT_FILE)
+    except OSError:
+        # Naming the config must never raise, exactly as naming the build must not (cf. build_info).
+        digest.update(_NO_PROJECT_FILE)
+    for name, value in _config_env_slice(environ):
+        digest.update(b"\0")
+        digest.update(name.encode())
+        digest.update(b"=")
+        digest.update(value.encode())
+    return digest.hexdigest()[:CONFIG_ID_CHARS]
+
+
+def config_stale(config: Config) -> bool:
+    """Has the config on disk moved since this ``Config`` was resolved (task 175)?
+
+    Re-derived against **the env this Config was resolved from**, because that is the only honest
+    comparison: a running process's own environment cannot change under it, so the file is the one
+    axis that can move. A live re-read, not a memo — the defect is that it was never compared again.
+    One small file read plus a hash, at build time and on status; never per nav payload.
+    """
+    return config_identity(config.root, dict(config.config_env)) != config.identity
+
+
 def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
     """Resolve every knob for ``root``: environment, then the project file, then the default."""
     environ = os.environ if env is None else env
@@ -168,6 +225,8 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
         host_root=host_root,
         container_root=container_root,
         adapter_cmds=_adapter_cmds(environ, file_values),
+        identity=config_identity(root, environ),
+        config_env=_config_env_slice(environ),
     )
 
 

@@ -42,6 +42,7 @@ from code_atlas.store import (
     BUILD_INCOMPLETE,
     BUILT_AT_KEY,
     COLLECTION_CENSUS_KEY,
+    CONFIG_IDENTITY_KEY,
     CONTRACT_VERSION_KEY,
     COVERED_LANGUAGES_KEY,
     COVERED_SUFFIXES_KEY,
@@ -979,6 +980,9 @@ def _record_meta(
     store.set_meta(UNTRACKED_INDEXABLE_KEY, json.dumps(list(untracked)))
     sources = {key: count for key, count in dict(ignore_sources or {}).items() if count}
     store.set_meta(IGNORE_SOURCES_KEY, json.dumps(dict(sorted(sources.items()))))
+    # Which config produced these contents (task 175). The index can now be asked, so a rebuild
+    # after a config edit is checkable rather than a matter of remembering.
+    store.set_meta(CONFIG_IDENTITY_KEY, config.identity)
     # What `skipped_suffix` is made of — its own key, not inside the int-casting census (R1.7).
     by_suffix = {key: count for key, count in dict(skipped_suffixes or {}).items() if count}
     store.set_meta(SKIPPED_SUFFIX_COUNTS_KEY, json.dumps(dict(sorted(by_suffix.items()))))

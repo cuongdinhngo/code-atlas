@@ -78,9 +78,9 @@ code-atlas/
 - **Node kinds:** `File Namespace Class Interface Trait Enum Function Method Property ClassConst Const`.
 - **Edge kinds:** `CONTAINS EXTENDS IMPLEMENTS USES_TRAIT CALLS NEW IMPORTS INCLUDES REFERENCES ALIASES PROVIDES_VIEW_DATA`.
 - **`INCLUDES`:** `include`/`require` — `source_qname` is the **including file's path**, never the
-  enclosing namespace or class (task 129). An include splices a file into a file, and the target is
-  resolved relative to that file's directory, so both ends of the edge are paths. `target_raw` is the
-  literal as written (`'../helpers.php'`) or `(dynamic)` at `DYNAMIC` for a non-literal expression.
+  enclosing namespace or class (task 129) — the target resolves relative to that file's directory,
+  so both ends are paths. `target_raw` is the literal as written (`'../helpers.php'`) or `(dynamic)`
+  at `DYNAMIC` for a non-literal expression.
 - **`REFERENCES`:** a textual class mention (`Foo::class` — task 094). FQN-linked at `DYNAMIC`;
   not a `CALLS` and not a `NEW`. `self`/`static`/`parent` name the enclosing class-like (as
   `CALLS` does), never a literal `\self`. Leftover unlinked rows still feed
@@ -169,6 +169,7 @@ what the payload already says (061). An answer must state what it is *not* telli
 | `db_path` | `get_index_status` / `build_or_update_index` at `standard` | nowhere else after 061 |
 | `last_ref` / `head_ref` | status + the busy-build refusal sharing its vocabulary | the revision the index was built on and the one HEAD is on now. `HEAD` when detached, `null` when non-git, **omitted** pre-077 so `null` is not read as "not under git". Nav payloads stay on `index_root` alone (077) |
 | `server_version` / `server_build` / `server_stale_process` | status at `standard`/`verbose`; `minimal` omits all three | the running package, a build id from git or package content (not the index schema), and whether the loaded code still matches the disk. `+dirty` on the id is the **worktree** axis, orthogonal to that process one. The verdict rides **unconditionally** — omitting it on the clean case made *checked-and-matching* identical to *never checked* (170); `server_repo_head` is divergence context and stays conditional. Signed claims add `server=`/`build=` (100/125) |
+| `config_build` / `config_stale_process` | status at `standard`/`verbose`; `build_or_update_index` at `standard` | which **config** answered — a hash of the project file plus the `CA_*` it reads, no timestamps — and whether the disk still matches it. The verdict is stated, never omitted (170's rule). `index_config_build` names the config that built the index, only when it differs (061). **Not** on nav payloads: the code axis is already a standing cost there (175) |
 | `parse_failure_paths` | status at `verbose` | capped by `PARSE_FAILURE_PATHS_LIMIT`, not `CA_MAX_RESULTS`; optional `offset`; never on the cheap path (058) |
 | `skipped.*` breakdowns | `collection` | `collected − suffix − ignore == kept`; `untracked` sits **beside** it (092). Each breakdown leaves its parent int intact so 082 closes, and is omitted when empty (061): `ignore_sources` names each ignore-skip's composed source, verbose only (095); `suffix_top` names what `suffix` is made of by **extension** — top 10, count desc then suffix asc, `suffix_kinds` the true denominator, `(none)` for a suffix-less file. Extensions only: the core names no language; the reader joins `unconfigured_adapters` (174/R1.1) |
 | `not_indexed` | any payload with `indexed: true` | the subject maps to an untracked indexable file. Match on the file **stem**: a path-shaped qname's trailing ident is its extension, so `Missing.aa` must not match `aa.aa` (092) |

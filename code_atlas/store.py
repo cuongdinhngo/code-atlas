@@ -56,6 +56,9 @@ IGNORE_SOURCES_KEY = "ignore_sources"
 # the census structure: `collection_census()` int-casts every value, and widening that coercing
 # reader would trade a total contract for a conditional one (R1.7).
 SKIPPED_SUFFIX_COUNTS_KEY = "skipped_suffix_counts"
+# Which CONFIG built this index (task 175) — a different claim from which config is running now.
+# 164 stamped which code answered; the index could not say which config produced its contents.
+CONFIG_IDENTITY_KEY = "config_identity"
 # The tier mix split by the language of the edge's own file (JSON, task 183). Stamped once per
 # build because a whole-graph blend cannot be attributed to any one adapter, and a GROUP BY over
 # the edge table must never reach the per-answer path.

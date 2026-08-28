@@ -30,6 +30,7 @@ from code_atlas.store import (
 )
 from code_atlas.tools import schema_guard
 from code_atlas.tools.collection import collection_field
+from code_atlas.tools.config_provenance import attach_config_provenance
 from code_atlas.tools.staleness import OMIT, UNKNOWN, compute_staleness, last_ref_for_payload
 
 NAME = "build_or_update_index"
@@ -288,4 +289,5 @@ def _result(
     collection = collection_field(store)
     if collection is not None:
         enriched["collection"] = collection
+    attach_config_provenance(enriched, config, store)
     return enriched

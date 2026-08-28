@@ -30,6 +30,7 @@ from code_atlas.store import (
 )
 from code_atlas.tools import claim, schema_guard
 from code_atlas.tools.collection import collection_field
+from code_atlas.tools.config_provenance import attach_config_provenance
 from code_atlas.tools.staleness import BEHIND, CURRENT, UNKNOWN, compute_staleness
 
 NAME = "get_index_status"
@@ -251,6 +252,7 @@ def _status(
     }
     _attach_build_state(enriched, config, store)
     _attach_unconfigured_adapters(enriched, config)
+    attach_config_provenance(enriched, config, store)
     if detail_level == "standard":
         return signed(enriched)
     paths = store.failed_paths(PARSE_FAILURE_PATHS_LIMIT, offset=offset)

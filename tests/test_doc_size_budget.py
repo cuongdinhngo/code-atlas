@@ -36,6 +36,14 @@ DOCS = REPO / "docs"
 # rises by 200 because §8.1's Tier column is permanent structure, not narrative. `PLAN.md` keeps a
 # ceiling though it is tier 2 — a `§`-ref pulls it in anyway (R7.6). `TOKEN_LEDGER.md` gets none:
 # it is append-only by R7.2, so a ceiling there would force pruning the evidence.
+#
+# CONVENTION rises 6,300 -> 6,450 on 2026-08-28 (task 175), argued rather than assumed: §6's
+# payload-field table is the product's cross-tool contract, so it grows exactly when the payload
+# surface grows, which is what 174/170/175 each did. All three paid for their addition by pruning
+# restatement first — consolidated rows, retold incidents, clauses that repeated their own row — and
+# the remaining text is information a session would otherwise rediscover from source. 150 tokens
+# buys three payload conventions. The next addition prunes again or argues again; it does not
+# inherit this raise as headroom.
 BUDGETS = {
     "CLAUDE.md": 50,
     "AGENTS.md": 2_800,
@@ -43,7 +51,7 @@ BUDGETS = {
     "BACKLOG.md": 9_500,
     "ENGINEERING_RULES.md": 4_900,
     "AGENT_BRIEF.md": 2_000,
-    "CONVENTION.md": 6_300,
+    "CONVENTION.md": 6_450,
 }
 
 

@@ -32,11 +32,11 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
 | `derived-not-listed-invariant` | 18 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180 | **R6.7** |
-| `prove-the-guard-fails` | 19 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170 | **R6.5** |
+| `prove-the-guard-fails` | 20 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175 | **R6.5** |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
 | `fixture-shape-begs-the-question` | 9 | 084, 086, 103–106, 121, 183, 185 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
-| `count-pin-in-blast-radius` | 4 | 085, 087–089 | **AGENT_BRIEF P5** — promoted 2026-08-27 |
+| `count-pin-in-blast-radius` | 5 | 085, 087–089, 175 | **AGENT_BRIEF P5** — promoted 2026-08-27 |
 | `source-the-caveat-from-the-computation` | 5 | 100–102, 122, 127 | **R5.5** |
 | `re-verify-the-assumption-on-a-new-path` | 3 | 102, 107, 122 | **AGENT_BRIEF P6** — promoted 2026-08-27 |
 | `re-run-the-sweep-after-the-last-edit` | 3 | 100–102 | **AGENT_BRIEF P4** |
@@ -63,6 +63,40 @@ proposed as a new rule, because R6.3 already owned cross-repo validation and P2 
 this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *claim's* list honest and
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
+
+## 175 — An identity must be re-derived against the inputs it was built from
+The maintainer edited `.code-atlas.toml` to add the second adapter, built, and got a success
+describing the old world: `indexed_suffixes: [".php", ".phtml"]`, `wrote.files: 0`, 2.6 s. *"No field
+says 'the config on disk differs from the config I loaded'."* 164 stamped which **code** answered and
+170 made that verdict live; nothing stamped which **config** answered — and config decides what the
+index even contains, so the silence is more consequential here than a stale build id.
+
+**The useful mistake was in the comparison, not the hash.** `config_stale` first defaulted to
+`os.environ`, so a `Config` resolved from an explicit env dict compared against a *different* env and
+reported stale while nothing had moved — caught immediately by its own tests. The fix is a reframing:
+**a running process's own environment cannot change under it, so the file is the only axis that can
+move.** The env slice is frozen on the `Config` and the comparison re-derives against it, which also
+means `config_stale` takes no arguments — the API that cannot be got wrong.
+
+Two smaller things worth keeping. The env slice is **derived** from `KNOB_KEYS` plus the
+`CA_<LANG>_CMD` pattern (R6.7/R1.1), so knob N+1 is covered and no language is named; hashing the
+*whole* environment would make every unrelated shell change read as stale, which is pinned against.
+And the verdict rides only the two tools that need it — `build_or_update_index` (where a divergence
+costs a build) and `get_index_status` — **not** every nav payload, because 170 had just added 38 B
+there and *"which config answered"* is not a question a `find_callers` reader is asking.
+
+### 175-C1 — Re-derive a provenance identity against the same inputs that produced it
+- type: 2 generalisable-heuristic
+- handle: an-identity-must-be-comparable-against-what-produced-it
+- status: proposed (awaiting human confirm)
+- seen: 175
+- evidence: the identity hashed (file bytes + explicit env); the staleness check re-hashed (file bytes
+  + `os.environ`). Every caller that passed an env read as stale with nothing changed. The general
+  form: ask which of an identity's inputs can actually change under a running process, freeze the
+  rest, and compare only the mutable axis.
+- area: config / provenance
+- destination: stays in `lessons_path` (recurrence 1) — sibling of [[170-C1]]
+  (`never-cache-a-verdict-with-a-fact`): both are about what a provenance answer is allowed to claim.
 
 ## 170 — Never memoise a verdict alongside a fact, and never omit a verdict
 164 froze the loaded build id at import and round 11 verified that half non-circularly. The other half

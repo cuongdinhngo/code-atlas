@@ -19,7 +19,9 @@ REPO = Path(__file__).resolve().parent.parent
 
 # 133's measurable goal. 49,572 before this ticket (134 had already pruned 66,500 to it); 22,229
 # after.
-TIER1_BUDGET = 25_000
+# 25,000 -> 25,150 on 2026-08-28 (task 175): the whole 150 is CONVENTION's argued raise — see
+# tests/test_doc_size_budget.py. No other tier-1 file grew, and 175 pruned before asking.
+TIER1_BUDGET = 25_150
 
 
 def _tokens(paths: list[Path]) -> int:
