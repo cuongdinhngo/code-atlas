@@ -259,6 +259,21 @@ ended, with the whole link phase still to run, so a build killed during linking 
 `staleness: "current"` on an under-linked graph permanently. They are now written after the late
 writes, so nothing claims a graph is built until it is.
 
+### Coverage claims key on what the graph holds (task 173)
+
+A zero answer names the index's language gaps so it cannot read as absence. Both halves of that gap
+are reported, because flipping a switch is not the same as running a build:
+
+| Field | When it appears | What is missing |
+|---|---|---|
+| `unconfigured_adapters` | an adapter ships in-repo with no launch command | the switch — set `CA_<LANG>_CMD` |
+| `unindexed_languages` | the adapter is configured, the graph holds no files of it | the build — `build_or_update_index(full=true)` |
+
+Before this, wiring an adapter emptied the note *and* moved `indexed_suffixes` onto the new
+language — while the graph still held zero files of it. So `collection` now names both sides:
+`indexed_suffixes` is what the graph **holds** files for, and `claimed_suffixes` appears beside it,
+only when the two differ, for what the build was configured to index.
+
 > **Language scope today:** only the **PHP** adapter exists. A TypeScript, Python, or C# project won't
 > index yet — those are planned (see [Roadmap](#roadmap)).
 

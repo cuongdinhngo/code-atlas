@@ -30,6 +30,14 @@ HANDSHAKES = {
         "capabilities": {},
         "contract_version": CONTRACT_VERSION,
     },
+    # A second, differently-named adapter owning its own suffix — the two-language shape task 173
+    # needs. Still spec-driven: the name and suffix are arbitrary tokens, not a real language.
+    "second": {
+        "name": "second",
+        "extensions": [".cc"],
+        "capabilities": {},
+        "contract_version": CONTRACT_VERSION,
+    },
     "empty-extensions": {
         "name": "fake",
         "extensions": [],

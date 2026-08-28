@@ -8,7 +8,11 @@ from typing import Literal, NamedTuple
 from code_atlas import contract
 from code_atlas.config import Config, clamp_limit, clamp_subjects
 from code_atlas.store import GraphStore, Row
-from code_atlas.tools.coverage import attach_coverage_gap, attach_coverage_note
+from code_atlas.tools.coverage import (
+    attach_coverage_gap,
+    attach_coverage_note,
+    covered_languages,
+)
 from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
     REASON_INDEX_STALE,
@@ -125,7 +129,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 indexed=False,
             )
         kept, dropped = clamp_subjects(subjects, config.max_subjects)
+        covered: str | None = None
         with GraphStore(config.db_path) as store:
+            covered = covered_languages(store)
             # One guard for the call: scaling the repair budget with the subject count is the
             # unbounded fan-out the batch bound exists to prevent (101).
             guard = FreshnessGuard(config, store)
@@ -146,6 +152,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     limit_clamped=limit_clamped,
                 ),
                 config,
+                covered,
             )
         answers = [
             _batch_answer(subject, hits) for subject, hits in zip(kept, found, strict=True)
@@ -161,7 +168,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             or a["reason"] == REASON_SUBSTRING_MATCH
             for a in answers
         ):
-            attach_coverage_gap(payload, config)
+            attach_coverage_gap(payload, config, covered)
         return payload
 
     return search_symbol

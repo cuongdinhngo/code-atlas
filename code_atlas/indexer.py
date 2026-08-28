@@ -43,6 +43,8 @@ from code_atlas.store import (
     BUILT_AT_KEY,
     COLLECTION_CENSUS_KEY,
     CONTRACT_VERSION_KEY,
+    COVERED_LANGUAGES_KEY,
+    COVERED_SUFFIXES_KEY,
     IGNORE_SOURCES_KEY,
     INDEXED_SUFFIXES_KEY,
     LAST_COMMIT_KEY,
@@ -903,7 +905,12 @@ def _record_meta(
     # Both build paths reach here only after the late writes, so this is the graph's completion
     # stamp as well as its revision stamp (task 178).
     store.set_meta(BUILD_COMPLETE_KEY, BUILD_COMPLETE)
-    store.set_meta(INDEXED_SUFFIXES_KEY, ",".join(sorted({s.lower() for s in suffixes})))
+    claimed = sorted({s.lower() for s in suffixes})
+    store.set_meta(INDEXED_SUFFIXES_KEY, ",".join(claimed))
+    # What the graph HOLDS, beside what the build CLAIMED (task 173). Both are stamped here, once
+    # per build, so no answer pays a scan of ``files`` to know the index's own coverage gaps.
+    store.set_meta(COVERED_SUFFIXES_KEY, ",".join(store.suffixes_with_files(claimed)))
+    store.set_meta(COVERED_LANGUAGES_KEY, ",".join(store.indexed_languages()))
     store.set_meta(COLLECTION_CENSUS_KEY, json.dumps(asdict(census)))
     store.set_meta(UNTRACKED_INDEXABLE_KEY, json.dumps(list(untracked)))
     sources = {key: count for key, count in dict(ignore_sources or {}).items() if count}

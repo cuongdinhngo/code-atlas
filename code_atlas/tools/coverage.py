@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from code_atlas.adapter import unconfigured_adapters
 from code_atlas.config import Config
+from code_atlas.store import COVERED_LANGUAGES_KEY, GraphStore
 from code_atlas.tools.nav_result import (
     REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
@@ -17,6 +18,10 @@ from code_atlas.tools.nav_result import (
 )
 
 COVERAGE_KEY = "unconfigured_adapters"
+# The second half of the same gap (task 173). 159/160 asked whether the adapter is LAUNCHABLE;
+# flipping the switch emptied the note while the graph still held zero files of that language, so
+# the zero went back to reading as absence. This key asks whether the graph HOLDS the language.
+UNINDEXED_KEY = "unindexed_languages"
 
 
 def coverage_gap(config: Config) -> list[dict[str, str]]:
@@ -24,19 +29,48 @@ def coverage_gap(config: Config) -> list[dict[str, str]]:
     return unconfigured_adapters(config.adapter_cmds)
 
 
-def attach_coverage_gap(payload: dict[str, object], config: Config) -> dict[str, object]:
+def covered_languages(store: GraphStore) -> str | None:
+    """The per-build coverage stamp, read once while the store is open (task 173)."""
+    return store.get_meta(COVERED_LANGUAGES_KEY)
+
+
+def unindexed_languages(config: Config, stamped: str | None) -> list[dict[str, str]]:
+    """Configured languages the graph holds no files for — the switch is on, the build is missing.
+
+    Reads the per-build stamp, never a scan (task 173). An index written before that stamp existed
+    says nothing rather than guessing every configured language is missing (R5.6).
+    """
+    if stamped is None:
+        return []
+    covered = {name.lower() for name in stamped.split(",") if name}
+    return [
+        {"language": name, "rebuild": "build_or_update_index(full=true)"}
+        for name in sorted({name.lower() for name in config.adapter_cmds})
+        if name not in covered
+    ]
+
+
+def attach_coverage_gap(
+    payload: dict[str, object], config: Config, covered: str | None = None
+) -> dict[str, object]:
     """Attach the coverage gap when one exists — the caller has already judged the answer a zero.
 
-    Omit-when-empty (061): a fully-wired server adds nothing. Used by ``attach_coverage_note`` for a
-    single answer, and directly on the batch envelope when a swept subject came back empty.
+    Omit-when-empty (061): a fully-wired, fully-indexed server adds nothing. Used by
+    ``attach_coverage_note`` for a single answer, and directly on the batch envelope when a swept
+    subject came back empty.
     """
     gap = coverage_gap(config)
     if gap:
         payload[COVERAGE_KEY] = gap
+    missing = unindexed_languages(config, covered)
+    if missing:
+        payload[UNINDEXED_KEY] = missing
     return payload
 
 
-def attach_coverage_note(payload: dict[str, object], config: Config) -> dict[str, object]:
+def attach_coverage_note(
+    payload: dict[str, object], config: Config, covered: str | None = None
+) -> dict[str, object]:
     """Name the coverage gap on an indexed *genuine-absence* answer, or a substring near-miss (167).
 
     Self-gating and idempotent, so it is safe to call at every return point: never on a not-indexed,
@@ -49,9 +83,9 @@ def attach_coverage_note(payload: dict[str, object], config: Config) -> dict[str
         return payload
     reason = payload.get("reason")
     if reason == REASON_SUBSTRING_MATCH:
-        return attach_coverage_gap(payload, config)
+        return attach_coverage_gap(payload, config, covered)
     if payload.get("results"):
         return payload
     if reason not in (REASON_NO_MATCHES, REASON_NO_SUCH_SYMBOL):
         return payload
-    return attach_coverage_gap(payload, config)
+    return attach_coverage_gap(payload, config, covered)

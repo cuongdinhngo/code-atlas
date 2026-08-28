@@ -41,6 +41,10 @@ BUILD_INCOMPLETE = "0"
 # Which suffixes the build claimed. Only the adapter handshake knows them, and a status read must
 # not start an adapter to find out — so the build leaves them here (047).
 INDEXED_SUFFIXES_KEY = "indexed_suffixes"
+# What the graph actually HOLDS, as against the claimed scope above (task 173). Computed once per
+# build and read from meta, so a zero answer never pays a scan of ``files`` to know its own gaps.
+COVERED_SUFFIXES_KEY = "covered_suffixes"
+COVERED_LANGUAGES_KEY = "covered_languages"
 # The collect walk's by-cause tally (JSON), so verbose status can publish the denominator an
 # outsider reconciles ``files`` against without a second traversal (task 082).
 COLLECTION_CENSUS_KEY = "collection_census"
@@ -497,6 +501,29 @@ class GraphStore:
             "edges": edges,
             "stubs": self.stub_file_count(),
         }
+
+    def indexed_languages(self) -> tuple[str, ...]:
+        """Languages the graph actually holds files for. One DISTINCT over a small domain."""
+        rows = self._conn.execute(
+            "SELECT DISTINCT language FROM files WHERE language IS NOT NULL AND language != ''"
+            " ORDER BY language"
+        ).fetchall()
+        return tuple(str(language) for (language,) in rows)
+
+    def suffixes_with_files(self, candidates: Sequence[str]) -> tuple[str, ...]:
+        """Which of ``candidates`` the graph has at least one file for.
+
+        One ``LIMIT 1`` probe per candidate — bounded by the adapter count, never by the row count,
+        and run once per build rather than per answer (task 173).
+        """
+        held = []
+        for suffix in candidates:
+            row = self._conn.execute(
+                "SELECT 1 FROM files WHERE lower(path) LIKE ? LIMIT 1", ("%" + suffix.lower(),)
+            ).fetchone()
+            if row is not None:
+                held.append(suffix)
+        return tuple(held)
 
     def collection_census(self) -> dict[str, int] | None:
         """The stored collect-walk tally, or ``None`` for a pre-082 index (task 082).
