@@ -52,6 +52,99 @@ class SeedSet(NamedTuple):
     from_paths: tuple[str, ...] = ()
 
 
+class SeedPlan(NamedTuple):
+    """The whole seed decision, made once for every tool that walks a blast radius (task 179).
+
+    `impact` had the two splits inline, so `impact_modules` inherited the classification and neither
+    refusal — and rolled a twin's modules into the answer, where it is harder to notice than 169's
+    symbol list. One decision, one implementation (R1.8/R6.7); the tools differ in their rows, never
+    in which seeds may be walked.
+    """
+
+    walk_seeds: list[str]
+    from_paths: tuple[str, ...]
+    ambiguous_sites: list[tuple[str, list[dict[str, object]]]]
+    twinned_sites: list[tuple[str, list[dict[str, object]]]]
+    dropped: tuple[SubjectResolution, ...]
+
+    @property
+    def refused(self) -> int:
+        """Seeds this plan removed — every one accounted for in ``seeds_dropped`` (102)."""
+        return len(self.dropped) + len(self.ambiguous_sites) + len(self.twinned_sites)
+
+
+def plan_seeds(
+    store: GraphStore, *, paths: Sequence[str], qnames: Sequence[str], max_results: int
+) -> SeedPlan:
+    """Resolve the subjects, then remove the seeds that cannot honestly be walked (161 + 169)."""
+    seed_set = resolve_seeds(store, paths=paths, qnames=qnames, max_results=max_results)
+    walk_seeds, ambiguous_sites = _split_ambiguous(store, seed_set.seeds, max_results)
+    # Only the seeds a PATH expanded into: 161 closed the qname half, and a caller who named a
+    # qname asked for that qname (169).
+    from_paths = set(seed_set.from_paths)
+    twinned_sites: list[tuple[str, list[dict[str, object]]]] = []
+    if from_paths:
+        walkable, twinned_sites = _split_twinned(
+            store, [seed for seed in walk_seeds if seed in from_paths], max_results
+        )
+        keep = set(walkable)
+        walk_seeds = [seed for seed in walk_seeds if seed not in from_paths or seed in keep]
+    return SeedPlan(
+        walk_seeds=walk_seeds,
+        from_paths=seed_set.from_paths,
+        ambiguous_sites=ambiguous_sites,
+        twinned_sites=twinned_sites,
+        dropped=seed_set.dropped,
+    )
+
+
+def attach_seed_refusals(payload: dict[str, object], plan: SeedPlan) -> None:
+    """Name every refused seed on the payload — the same disclosure, whatever the rows look like.
+
+    A module list that silently lost a seed is worse than one that names the loss, and a rollup is
+    acted on destructively exactly as `impact` is. Copied nowhere: both tools call this (R6.7).
+    """
+    if plan.twinned_sites:
+        # The bare-name links would pull in the twin's callers and callees, at RESOLVED-looking
+        # confidence, on a tool whose answer is acted on destructively (169).
+        attach_sibling_definitions(
+            payload,
+            [site for _, sites in plan.twinned_sites for site in sites],
+            subject_file=None,
+        )
+        attach_authoritative_caveats(payload, [CAVEAT_SIBLING_DEFINITIONS])
+    if plan.ambiguous_sites:
+        # A seed qname with >1 definitions cannot be attributed to one twin — the edge model is
+        # qname-keyed — so disclose the sites instead of walking one silently at RESOLVED (9-A).
+        attach_ambiguous_definitions(
+            payload, [site for _, sites in plan.ambiguous_sites for site in sites]
+        )
+        if not plan.walk_seeds:
+            payload["reason"] = REASON_SUBJECT_AMBIGUOUS
+    if plan.twinned_sites and not plan.walk_seeds:
+        payload["reason"] = REASON_SUBJECT_AMBIGUOUS
+        attach_try_instead(payload, TRY_INSTEAD_FILE_OUTLINE, TRY_INSTEAD_HINT_IMPACT_BY_QNAME)
+    if (
+        plan.dropped
+        and not plan.walk_seeds
+        and not plan.ambiguous_sites
+        and not plan.twinned_sites
+    ):
+        explain_lost_subject(payload, plan.dropped)
+
+
+def attach_seed_expansion(
+    payload: dict[str, object], plan: SeedPlan, paths: Sequence[str] | None
+) -> None:
+    """One file became N seeds: say so, on every tool that accepts a path (169)."""
+    if not paths:
+        return
+    payload["seed_expansion"] = {
+        "paths": len([path for path in paths if path]),
+        "seeds": len(plan.from_paths),
+    }
+
+
 def create(config: Config) -> Callable[..., dict[str, object]]:
     """Bind the tool to one repo's configuration."""
 
@@ -103,28 +196,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             index_root=config.index_root,
         )
         with GraphStore(config.db_path) as store:
-            seed_set = resolve_seeds(
+            plan = plan_seeds(
                 store, paths=paths or [], qnames=qnames or [], max_results=config.max_results
             )
-            walk_seeds, ambiguous_sites = _split_ambiguous(
-                store, seed_set.seeds, config.max_results
-            )
-            # Only the seeds a PATH expanded into: 161 closed the qname half, and a caller who
-            # named a qname asked for that qname (169).
-            from_paths = set(seed_set.from_paths)
-            twinned_sites: list[tuple[str, list[dict[str, object]]]] = []
-            if from_paths:
-                walkable, twinned_sites = _split_twinned(
-                    store,
-                    [seed for seed in walk_seeds if seed in from_paths],
-                    config.max_results,
-                )
-                keep = set(walkable)
-                walk_seeds = [
-                    seed for seed in walk_seeds if seed not in from_paths or seed in keep
-                ]
             outcome = store.impact_radius(
-                walk_seeds, depth=hops, max_nodes=config.impact_max_nodes + 1
+                plan.walk_seeds, depth=hops, max_nodes=config.impact_max_nodes + 1
             )
             # A blast radius is acted on destructively, so it names the revision in-band, not only
             # behind sign (8-E). One git HEAD read on this low-frequency, high-stakes tool.
@@ -140,47 +216,15 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             truncated=truncated,
             depth=hops,
             frontier_skipped_non_resolved=outcome.frontier_skipped_non_resolved,
-            seeds_dropped=(
-                outcome.seeds_dropped
-                + len(seed_set.dropped)
-                + len(ambiguous_sites)
-                + len(twinned_sites)
-            ),
+            seeds_dropped=outcome.seeds_dropped + plan.refused,
         )
         _attach_freshness(result, staleness)
-        if paths:
-            # One file became N seeds, silently, and no field said so: a 6-node answer about one
-            # symbol read like a 176-node answer about 102 of them (169).
-            result["seed_expansion"] = {
-                "paths": len([path for path in paths if path]),
-                "seeds": len(seed_set.from_paths),
-            }
-        if twinned_sites:
-            # The bare-name links would pull in the twin's callers and callees, at RESOLVED-looking
-            # confidence, on the one tool whose answer is acted on destructively (169).
-            attach_sibling_definitions(
-                result,
-                [site for _, sites in twinned_sites for site in sites],
-                subject_file=None,
-            )
-            attach_authoritative_caveats(result, [CAVEAT_SIBLING_DEFINITIONS])
-        if ambiguous_sites:
-            # A seed qname with >1 definitions cannot be attributed to one twin — the edge model is
-            # qname-keyed — so disclose the sites instead of walking one silently at RESOLVED (9-A).
-            attach_ambiguous_definitions(result, [s for _, sites in ambiguous_sites for s in sites])
-            if not walk_seeds:
-                result["reason"] = REASON_SUBJECT_AMBIGUOUS
-        if twinned_sites and not walk_seeds:
-            result["reason"] = REASON_SUBJECT_AMBIGUOUS
-            attach_try_instead(
-                result, TRY_INSTEAD_FILE_OUTLINE, TRY_INSTEAD_HINT_IMPACT_BY_QNAME
-            )
-        if seed_set.dropped and not seed_set.seeds and not ambiguous_sites and not twinned_sites:
-            explain_lost_subject(result, seed_set.dropped)
+        attach_seed_expansion(result, plan, paths)
+        attach_seed_refusals(result, plan)
         # A question no seed answered gets no line: it would be signed ``answer=0`` for a subject
         # the index never held. The payload names the loss in ``seeds_dropped`` (tasks 100, 102).
         # An all-ambiguous call walked nothing, so it is not signed either.
-        if not sign or not walk_seeds:
+        if not sign or not plan.walk_seeds:
             return result
         return claim.sign(
             result,
@@ -189,7 +233,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             subject_parts=parts,
             staleness=staleness,
             carry=CLAIM_CARRY,
-            extra=(("seeds", len(walk_seeds)),),
+            extra=(("seeds", len(plan.walk_seeds)),),
         )
 
     return impact

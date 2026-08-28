@@ -26,8 +26,9 @@ from code_atlas.onboarding.modules import (
 from code_atlas.store import GraphStore, Row
 from code_atlas.tools import claim
 from code_atlas.tools.impact import (
-    explain_lost_subject,
-    resolve_seeds,
+    attach_seed_expansion,
+    attach_seed_refusals,
+    plan_seeds,
     subject_parts,
 )
 from code_atlas.tools.nav_result import REASON_NOT_INDEXED, REASON_OK
@@ -124,11 +125,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             return _empty(config, subject, reason=REASON_NOT_INDEXED, depth=hops)
 
         with GraphStore(config.db_path) as store:
-            seed_set = resolve_seeds(
+            plan = plan_seeds(
                 store, paths=paths or [], qnames=qnames or [], max_results=config.max_results
             )
             outcome = store.impact_radius(
-                seed_set.seeds, depth=hops, max_nodes=config.impact_max_nodes + 1
+                plan.walk_seeds, depth=hops, max_nodes=config.impact_max_nodes + 1
             )
             truncated = len(outcome.rows) > config.impact_max_nodes
             rows = outcome.rows[: config.impact_max_nodes]
@@ -147,7 +148,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             "symbols_total": sum(rollup.symbols for rollup in rollups),
             "walk_truncated": truncated,
             "frontier_skipped_non_resolved": outcome.frontier_skipped_non_resolved,
-            "seeds_dropped": outcome.seeds_dropped + len(seed_set.dropped),
+            "seeds_dropped": outcome.seeds_dropped + plan.refused,
             **server_provenance(),
         }
         notes = [NOTE_UNDER_ESTIMATE] if truncated else []
@@ -158,9 +159,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             notes.append(NOTE_NO_MODULE_TABLE)
         if notes:
             payload["note"] = " · ".join(notes)
-        if seed_set.dropped and not seed_set.seeds:
-            explain_lost_subject(payload, seed_set.dropped)
-        if not sign or not seed_set.seeds:
+        # A module list that silently lost a seed is worse than one that names the loss, and the
+        # rollup hides it better than `impact`'s symbol list does (179). Same disclosure, one site.
+        attach_seed_expansion(payload, plan, paths)
+        attach_seed_refusals(payload, plan)
+        if not sign or not plan.walk_seeds:
             return payload
         return claim.sign(
             payload,
@@ -169,7 +172,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             subject_parts=parts,
             staleness=staleness,
             carry=CLAIM_CARRY,
-            extra=(("seeds", len(seed_set.seeds)), ("modules", len(rollups))),
+            extra=(("seeds", len(plan.walk_seeds)), ("modules", len(rollups))),
         )
 
     return impact_modules

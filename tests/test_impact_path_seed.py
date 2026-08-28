@@ -160,17 +160,21 @@ def test_the_added_cost_is_one_bounded_query_per_seed(
     assert per_call < 0.25, f"{per_call * 1000:.1f} ms/call for a 40-seed path"
 
 
-def test_impact_modules_inherits_the_classification_but_not_the_refusal(
+def test_impact_modules_now_inherits_the_whole_seed_fix(
     tmp_path: Path, store: GraphStore  # noqa: F811
 ) -> None:
-    """AC6: the shared helper carries half the fix. The other half is filed as 179."""
+    """AC6, closed by 179: the rollup inherits the refusal, not only the classification.
+
+    This test used to pin the *gap* and carried the note "if this starts failing, 179 has landed".
+    179 landed, so it now pins the inheritance from the other side — the seeds are refused, counted,
+    and disclosed, and nothing is rolled up from a twin.
+    """
     from code_atlas.tools import impact_modules
 
     plant_twinned_file(store)
     rollup = impact_modules.create(config_for(tmp_path))(paths=[SUBJECT_PATH], depth=0)
 
-    # Inherited, because both tools call `resolve_seeds`: the path seed is classified and counted.
-    assert rollup["seeds_dropped"] == 0
-    # NOT inherited: `_split_twinned` lives in `impact`, so the rollup still walks both twins.
-    assert SIBLING_DEFINITIONS not in rollup, "if this starts failing, 179 has landed — update it"
-    assert rollup["symbols_total"] >= 2
+    assert rollup["seeds_dropped"] == 2, "both twinned seeds are accounted for (102)"
+    assert SIBLING_DEFINITIONS in rollup, "the refusal is disclosed, not silent"
+    assert rollup["symbols_total"] == 0, "nothing was walked, so no module was rolled up"
+    assert rollup["reason"] == REASON_SUBJECT_AMBIGUOUS

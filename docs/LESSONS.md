@@ -45,7 +45,7 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 | `guard-asserts-rendered-not-shipped-bytes` | 2 | 116, 127 | open — proposed 2026-08-23, awaiting ratify |
 | `sibling-meta-non-int` | 2 | 092, 095 | **R1.7** |
 | `record-the-deviation-as-a-deviation` | 2 | 101, promote-2026-08-15 | **AGENT_BRIEF P3** |
-| `one-rule-for-every-subject-slot` | 4 | 102, 122, 183, 186 | **R1.8** — promoted 2026-08-27 |
+| `one-rule-for-every-subject-slot` | 5 | 102, 122, 183, 186, 179 | **R1.8** — promoted 2026-08-27 |
 | `ac-failure-mode-needs-the-right-guard` | 2 | 085, 107 | **R6.8** — promoted 2026-08-27 |
 | `own-only-what-you-wrote` | 2 | 088, 089 | **R5.7** — promoted 2026-08-27 |
 | `skip-dynamic-means-unlinkable` | 2 | 094, 096 | open — rejected 2026-08-15 (2nd sighting bound a design) |
@@ -63,6 +63,39 @@ proposed as a new rule, because R6.3 already owned cross-repo validation and P2 
 this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *claim's* list honest and
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
+
+## 179 — A decision is shared only as far as it has been factored
+`impact_modules` inherited half of 169's seed fix and never had 161's at all. Nothing drifted and
+nothing was copied: `resolve_seeds` was a **function**, so both tools got it, and the two refusal
+splits were twenty lines of `impact`'s tool body, so only `impact` had them. The second consumer
+received the prefix of a decision and looked like it had the whole thing — **because the shared part
+was inside it.**
+
+The consequence is worse in the rollup than in the symbol list. `impact` names symbols, so
+`\West\Plan::createPlan` in an answer about `east/` is visible. `impact_modules` names *modules*,
+so the twin's module arrives as a name and a count, indistinguishable from a real dependency — the red
+run rolls up three symbols where the honest answer is nothing at all.
+
+The fix extracts the whole decision (`plan_seeds`) and the whole disclosure
+(`attach_seed_refusals`), and **AC3 is proven twice**: by grep, that each part has one definition
+site; and behaviourally, that the two tools return the *same* `reason`, `seeds_dropped`,
+`sibling_definitions` and `try_instead` for the same subject — so a future copy that passed the grep
+would still have to keep agreeing. Scope 3's question is answered outright: there is one right answer
+to *"which seeds may honestly be walked"*, and a per-surface relaxation would be a bug with a
+rationale.
+
+### 179-C1 — Ask whether a decision is a callable or a paragraph before expecting inheritance
+- type: 2 generalisable-heuristic
+- handle: a-decision-is-only-shared-as-far-as-it-is-factored
+- status: proposed (awaiting human confirm)
+- seen: 179
+- evidence: `resolve_seeds` (shared) sat *inside* the seed decision, and the two splits that completed
+  it sat in one tool's body. Both tools "shared the seed logic", and one of them silently walked twins
+  for two tickets. A shared helper inside a decision is the strongest disguise the class has.
+- area: tools / shared decisions
+- destination: stays in `lessons_path` (recurrence 1) — sharpens [[one-rule-for-every-subject-slot]]
+  (R1.8) rather than competing with it: R1.8 forbids two implementations, this asks whether there is
+  one *reachable* implementation.
 
 ## 186 — Honesty keyed on evidence inverts when a second producer arrives
 160 shipped the coverage note and wrote its own limit into a docstring: *"never the subject's own
