@@ -529,6 +529,63 @@ CAVEAT_ALL_HITS_DYNAMIC = "all_hits_dynamic"
 CAVEAT_SIBLING_DEFINITIONS = "sibling_definitions"
 
 
+# What the sibling order means. A caveat that fires on 83% of calls cannot be a signal to act on
+# unless it says which site to open first — and it must say what it ranked by, or the order is just
+# another thing to trust (task 171, R5.5).
+SIBLING_RANKED_BY = "sibling_definitions_ranked_by"
+RANK_SHARED_SUBTREE = "shared_subtree_with_subject"
+RANK_PATH = "path"
+
+
+def _shared_subtree_depth(subject_file: str, site_file: str) -> int:
+    """How many leading directory components the two files share."""
+    subject = PurePosixPath(subject_file).parent.parts
+    site = PurePosixPath(site_file).parent.parts
+    depth = 0
+    for left, right in zip(subject, site, strict=False):
+        if left != right:
+            break
+        depth += 1
+    return depth
+
+
+def rank_sibling_sites(
+    sites: list[dict[str, object]], *, subject_file: str | None
+) -> tuple[list[dict[str, object]], str]:
+    """Order sibling sites nearest-subtree-first, and name what the order is based on.
+
+    Drops nothing — the sites that were noise for one question are the answer to another (171).
+    Pure reordering of rows already fetched: no query per sibling, and none per caller.
+    """
+    if subject_file is None:
+        return sorted(sites, key=lambda site: str(site["file"])), RANK_PATH
+    ordered = sorted(
+        sites,
+        key=lambda site: (
+            -_shared_subtree_depth(subject_file, str(site["file"])),
+            str(site["file"]),
+        ),
+    )
+    return ordered, RANK_SHARED_SUBTREE
+
+
+def attach_sibling_definitions(
+    payload: dict[str, object], sites: list[dict[str, object]], *, subject_file: str | None
+) -> bool:
+    """Attach the ranked sites; return whether anything was attached.
+
+    The basis is named only when there are ≥ 2 sites — with one sibling there is no order to
+    explain, and a lone caveat must not grow a field (061 / 171).
+    """
+    if not sites:
+        return False
+    ordered, basis = rank_sibling_sites(sites, subject_file=subject_file)
+    payload[SIBLING_DEFINITIONS] = ordered
+    if len(ordered) > 1:
+        payload[SIBLING_RANKED_BY] = basis
+    return True
+
+
 def attach_authoritative_caveats(
     payload: dict[str, object], caveats: list[str]
 ) -> dict[str, object]:

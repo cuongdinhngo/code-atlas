@@ -305,11 +305,18 @@ Both now carry the same three fields, and each is omitted when there is nothing 
 | `sibling_definitions` | the same-named definitions under other qnames, as `{file, line, kind}` sites |
 | `authoritative: false` | this count is a partition — widen before you act on it |
 | `authoritative_caveats` | **why**: `sibling_definitions`, `all_hits_dynamic`, or both |
+| `sibling_definitions_ranked_by` | what the sibling order is based on — appears with ≥ 2 siblings |
 
 The last one matters because `authoritative: false` alone cannot tell an agent whether to widen the
 query or to distrust the confidence tier — two different actions behind one boolean. The sibling
 query is keyed on the **subject's own kind**, which is 054's rule (a bare Method name is not a
 Function qname) stated once rather than as a per-tool constant.
+
+The sites come back **nearest-subtree-first** — measured by how many leading directory components
+each shares with the subject's own file — with the path as a deterministic tie-break. A caveat
+that fires on most calls can only be a standing instruction unless it says which site to open
+first; nothing is dropped, because the sites that are noise for one question are the answer to
+another (task 171).
 
 `ambiguous_definitions` stays separate: that is the *same* qname defined twice, which is a different
 fact and can appear on the same payload.

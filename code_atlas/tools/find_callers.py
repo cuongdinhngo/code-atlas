@@ -17,13 +17,13 @@ from code_atlas.tools.nav_result import (
     REASON_BARE_NAME_TRUNCATED,
     REASON_INDEX_STALE,
     REASON_NO_SUCH_SYMBOL,
-    SIBLING_DEFINITIONS,
     TRY_INSTEAD_FILE_OUTLINE,
     attach_ambiguous_definitions,
     attach_authoritative_caveats,
     attach_limit_capped,
     attach_resolved_qname,
     attach_result_subtrees,
+    attach_sibling_definitions,
     attach_try_instead,
     classify_missing_subject,
     definition_sites,
@@ -239,6 +239,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         lookup, bare_name=bare_name
                     )
             sibling_sites: list[dict[str, object]] = []
+            # The subject's own file is what "near" is measured against (171).
+            subject_file = str(subject_nodes[0]["file_path"]) if subject_nodes else None
             if indexed and container is not None:
                 # A same-named Method under a different qname; a simple-name caller may bind
                 # there, so this count is a partition (task 165). One bounded query.
@@ -283,10 +285,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             result["args_unrecorded"] = unrecorded
         attach_result_subtrees(result, subtrees)
         attach_ambiguous_definitions(result, definition_sites(subject_nodes))
-        if sibling_sites:
-            # A partition of the callers, not the whole — mark it non-authoritative (165, R5.5),
-            # and name the reason, so an agent can tell this from a tier caveat (168).
-            result[SIBLING_DEFINITIONS] = sibling_sites
+        # A partition of the callers, not the whole — mark it non-authoritative (165, R5.5), name
+        # the reason (168), and rank the sites nearest-subtree-first (171).
+        if attach_sibling_definitions(result, sibling_sites, subject_file=subject_file):
             attach_authoritative_caveats(result, [CAVEAT_SIBLING_DEFINITIONS])
         attach_limit_capped(result, cap=cap, clamped=limit_clamped)
         attach_resolved_qname(result, asked=asked, answered=lookup)

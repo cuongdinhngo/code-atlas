@@ -18,7 +18,6 @@ from code_atlas.tools.nav_result import (
     REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
     REASON_RELATIONSHIP_NOT_MODELLED,
-    SIBLING_DEFINITIONS,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_HINT_METHOD_QNAME,
     TRY_INSTEAD_SEARCH_SYMBOL,
@@ -27,6 +26,7 @@ from code_atlas.tools.nav_result import (
     attach_limit_capped,
     attach_resolved_qname,
     attach_result_subtrees,
+    attach_sibling_definitions,
     attach_try_instead,
     classify_missing_subject,
     definition_sites,
@@ -169,6 +169,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             # A same-named definition under another qname makes this count a partition (168).
             # One bounded query, keyed on the subject's own kind — 054's rule, not a constant.
             sibling_sites: list[dict[str, object]] = []
+            # The subject's own file is what "near" is measured against (171).
+            subject_file = str(nodes[0]["file_path"]) if nodes else None
             if indexed and nodes:
                 sibling_sites = definition_sites(
                     sibling_definition_rows(
@@ -226,8 +228,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         caveats: list[str] = []
         if results and all(hit.get("confidence_tier") == "DYNAMIC" for hit in results):
             caveats.append(CAVEAT_ALL_HITS_DYNAMIC)
-        if sibling_sites:
-            result[SIBLING_DEFINITIONS] = sibling_sites
+        if attach_sibling_definitions(result, sibling_sites, subject_file=subject_file):
             caveats.append(CAVEAT_SIBLING_DEFINITIONS)
         attach_authoritative_caveats(result, caveats)
         return signed(
