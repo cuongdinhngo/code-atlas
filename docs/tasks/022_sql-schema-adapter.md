@@ -35,6 +35,24 @@ has a home in the roadmap — **not** a commitment that a symbol index is the ri
   or to *"decline — runtime `INFORMATION_SCHEMA` is the right tool and no static index should pretend
   to answer it."* Either is a valid close.
 
+## What round 12 split off (2026-08-28)
+
+Field retro round 12 found the anchor's decisive fact in **378,790 lines of T-SQL** and, in doing so,
+separated two capabilities this ticket had held as one:
+
+| | Stays here (022) | Moved to [184](184_tsql-source-adapter-tier-1a.md) |
+|---|---|---|
+| The question | *"does column X exist on table Y? which migration created it?"* | *"which proc writes this table? who `EXEC`s it?"* |
+| Vocabulary cost | tables · columns · migration lineage ⇒ **bump (R3)** | procs → `Function`, `EXEC` → `CALLS` ⇒ **none** |
+| Gated by | **the evidence gate below** | a PLAN §19 ordering decision, argued in that ticket |
+
+**The gate below is unchanged and still unmet** — round 12 is the same anchor as FIELD-959, so the
+demand is two tickets in **one** repo, not two repos. What round 12 changes is only that the *free*
+half no longer waits behind the *paid* half: 184 spends no vocabulary any future user inherits, so it
+is not this gate's business. Tier 2 there — table/column write-sites, the tier that mechanically
+detects *a column defaulted because every writer omits it* — **is** this ticket's, and is the strongest
+evidence yet for opening the gate.
+
 ## Evidence gate (before any build)
 
 Mirrors the 098 gate — a general server does not spend contract vocabulary every user inherits on

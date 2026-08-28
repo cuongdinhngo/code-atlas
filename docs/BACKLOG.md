@@ -59,6 +59,10 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 177 | [A valid long build is indistinguishable from a hang — 30 min of silence, no progress](tasks/177_a-long-build-is-indistinguishable-from-a-hang.md) | Agent-trust | done | 072, 010, 052, 176 |
 | 178 | [`get_index_status` reads `staleness: "current"` while a build is still linking](tasks/178_status-reads-current-while-a-build-is-still-linking.md) | Agent-trust | done | 072, 077, 010, 177 |
 | 179 | [`impact_modules` inherits 169's seed classification but not its twin refusal](tasks/179_impact-modules-inherits-half-the-seed-fix.md) | Agent-trust | todo | 169, 161, 140 |
+| 180 | [`search_symbol` ranks a substring near-miss above six exact matches](tasks/180_search-ranks-a-near-miss-above-exact-matches.md) | Agent-trust | todo | 167, 014, 057 |
+| 181 | [`sibling_definitions` at `ranked_by: "path"` is a 93-row dump wearing a ranking's shape](tasks/181_sibling-definitions-fallback-is-a-dump-not-a-ranking.md) | Agent-trust | todo | 171, 168, 169 |
+| 182 | [`find_orphans` returns 215,177 rows it has already flagged unreliable](tasks/182_find-orphans-answers-with-rows-it-has-flagged-unreliable.md) | Agent-fit | todo | 124, 031, 119 |
+| 183 | [`edge_health` is whole-graph only, so no adapter can be evaluated on the repo it was added for](tasks/183_edge-health-has-no-per-language-breakdown.md) | Measure | todo | 136, 082, 173 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -115,23 +119,19 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | 4–7 (2026-08-10…23) | 075–082 · 092–097 · 099–102 · 122–125 · 126 · 127 | closed — 081 `NOT OBSERVED`; 127 closed **119** in the same change; the subject is the agent, not the repository (§19) |
 | 8–9 (2026-08-25/26) | 158–163 · 022 | closed — six shipped in one day, all six verified on fresh code; SQL deferred (022) |
 | 10 (2026-08-26) | 164–167 | closed — the verification round: 0 of 6 prior fixes reached a long-lived process, because `server_build` named the repo, not the loaded code (**164**, #187), then 165–167 (#188–#190) |
-| 11 (2026-08-27) | 168–171 | open — **first round a fix reached the field**: 2 of 4 in-work, 165 changed a shipped PR. Adapter #2's **fourth** zero, from an absent `CA_<LANG>_CMD` in the consumer's config, not from capability. **Roll-out is the binding constraint and deliberately not a ticket** — the backlog accepts only code, so it goes to the consumer as a PR |
-| Architecture review (2026-08-23) | 138–142 · 143–145 | 138 · 139 · 142 · 144 · **145A** done; **143** open; 141 gated at n = 0; 145B deferred (stack not chosen) |
+| 11 (2026-08-27) | 168–179 | closed — **first round a fix reached the field** (2 of 4 in-work; 165 changed a shipped PR); adapter #2's fourth zero came from an absent `CA_<LANG>_CMD`, not from capability. Eight shipped overnight (#203–#210); 170 · 174 · 175 · 179 stayed open |
+| 12 (2026-08-28) | 180–184 | open — first round with a **two-language** index. The decisive fact was **378,790 lines of T-SQL** the index does not read (`decisive facts in-graph: 1.5 of 6`) → **184**. Adapter #2's fifth zero, now **applicability** rather than roll-out: 0 of 6 units were JS. 2 of 8 fixes fired in-work, 1 changed behaviour (168). **Roll-out unmoved for a fifth round** — `.mcp.json` 0, CI 0 |
+| Architecture review (2026-08-23) | 138–142 · 143–145 | 138 · 139 · 142 · 143 · 144 · **145A** done; 141 gated at n = 0; 145B deferred (stack not chosen) |
 
 **What still governs open work:**
 
-- **098 stays `deferred` behind an evidence gate, not queued** — the gate is in the ticket; **120**
-  shipped after maintainer ratification.
-- **Auto *reading orders* stay unscheduled** — a dependency walk is not a curated syllabus
-  ([121's benchmark](benchmarks/121_onboarding-question-class.md)).
-- **Round 6's two measurements are closed** — [135](benchmarks/135_precision-axis.md) and
-  [136](benchmarks/136_heuristic-causes.md), whose driver is why **137** exists.
-- **074 must not claim** an answer-quality comparison against a language server — the anchor's LSP was
-  never invoked, so its 19 % measures adoption ([protocol](benchmarks/074_mechanism-question.md)).
-- **141 stays `deferred` at n = 0** — its gate item 3 is held by
-  [142's benchmark](benchmarks/142_supervision-question-class.md).
-- **M10–M12 are complete** — 22 tools on the surface; the 108–117 reshape renders the map from
-  112's dataset alone ([`ROADMAP.md`](phase3-onboarding/ROADMAP.md)).
+- **Every `deferred` ticket holds its own gate** — 074, 098, 141 and 022 each state theirs, and 141 is
+  at n = 0; do not queue one without reading it. Auto *reading orders* stay unscheduled
+  ([121](benchmarks/121_onboarding-question-class.md)).
+- **M10–M12 are complete** — 22 tools on the MCP surface, plus four shell entry points; the 108–117
+  reshape renders the map from 112's dataset alone ([`ROADMAP.md`](phase3-onboarding/ROADMAP.md)).
+- **Roll-out is the binding constraint and deliberately not a ticket here** — five rounds standing. The
+  backlog accepts only code, which is the mechanism that defers it, so it goes to the consumer as a PR.
 
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
 
@@ -150,6 +150,7 @@ roll-out finding, not an adapter one: round 11 §13 measured it parsing the anch
 | 020 | [Python adapter](tasks/020_python-adapter.md) | M8 | deferred | 019 |
 | 021 | [C#/.NET adapter](tasks/021_csharp-adapter.md) | M9 | deferred | 019 |
 | 022 | [SQL / DB-schema awareness — a fifth capability, distinct in kind](tasks/022_sql-schema-adapter.md) | M9+ | deferred | 019, 020, 021 |
+| 184 | [T-SQL source adapter, tier 1a — procs, functions and `EXEC` cost zero contract vocabulary](tasks/184_tsql-source-adapter-tier-1a.md) | M9+ | deferred | 019, 147, 183 |
 | 026 | [Inverse Docker path rebase (adapter #2)](tasks/026_docker-inverse-path-rebase.md) | M7 | deferred | 008, 019 |
 | 147 | [The R3.4 conformance harness is PHP-shaped — `tests/contract/` cannot admit a second adapter](tasks/147_contract-harness-is-php-shaped.md) | M7 | done | 012, 025 |
 | 148 | [The R2.2 framework sweep lists only PHP frameworks — it cannot fail for adapter #2](tasks/148_r22-framework-sweep-cannot-fail-for-adapter-2.md) | M7 | done | 012, 146 |
