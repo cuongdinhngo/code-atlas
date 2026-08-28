@@ -51,6 +51,7 @@ from code_atlas.store import (
     INDEXED_SUFFIXES_KEY,
     LAST_COMMIT_KEY,
     LAST_REF_KEY,
+    SKIPPED_SUFFIX_COUNTS_KEY,
     UNTRACKED_INDEXABLE_KEY,
     WRITE_ERRORS,
     GraphStore,
@@ -181,7 +182,7 @@ def full_build(
         try:
             owners = _owners(announced)
             report.phase("tree_walk")
-            paths, census, untracked, ignore_sources = _collect_with_census(
+            paths, census, untracked, ignore_sources, skipped_suffixes = _collect_with_census(
                 config.root, tuple(owners)
             )
             stubs = (
@@ -209,7 +210,9 @@ def full_build(
     # Stamping before them advertised completion for the whole link phase (task 178).
     _count_late_writes(counts, config, store, rules, progress=report)
     report.phase("meta")
-    _record_meta(config, store, tuple(owners), census, untracked, ignore_sources)
+    _record_meta(
+        config, store, tuple(owners), census, untracked, ignore_sources, skipped_suffixes
+    )
     return BuildReport(files=len(kept), stubs=len(stubs), removed=removed, **counts)
 
 
@@ -256,7 +259,7 @@ def incremental_update(
             _require_unchanged_scope(store, owners)
             mark = time.monotonic()
             report.phase("tree_walk")
-            paths, census, untracked, ignore_sources = _collect_with_census(
+            paths, census, untracked, ignore_sources, skipped_suffixes = _collect_with_census(
                 config.root, tuple(owners)
             )
             stubs = (
@@ -351,7 +354,9 @@ def incremental_update(
     # After the link phase, never before it — see full_build (task 178).
     mark = time.monotonic()
     report.phase("meta")
-    _record_meta(config, store, tuple(owners), census, untracked, ignore_sources)
+    _record_meta(
+        config, store, tuple(owners), census, untracked, ignore_sources, skipped_suffixes
+    )
     _phase_add(phase_times, "meta", mark)
     return BuildReport(
         files=len(to_parse), stubs=len(stub_set & set(to_parse)), removed=removed, **counts
@@ -496,13 +501,15 @@ def collect(root: Path, suffixes: Sequence[str]) -> tuple[str, ...]:
 
 def _collect_with_census(
     root: Path, suffixes: Sequence[str]
-) -> tuple[tuple[str, ...], CollectionCensus, tuple[str, ...], dict[str, int]]:
+) -> tuple[tuple[str, ...], CollectionCensus, tuple[str, ...], dict[str, int], dict[str, int]]:
     """``collect`` plus the by-cause census, from the SAME single walk (task 082, R4).
 
     Partitions the walked set into suffix-skipped / ignore-skipped / kept in one pass, so the
     reconciliation arithmetic closes by construction and no second traversal invents a rival count.
     Untracked indexable paths are a second **git spawn**, not a second filesystem walk (task 092).
     Ignore-skip attribution is a per-path source tag from the matcher already used (task 095).
+    The by-suffix breakdown of ``skipped_suffix`` is counted in the same loop (task 174) — the whole
+    tally, capped only where it is published, so the reader can say what the total is made of.
     """
     matcher = load_ignore(root)
     wanted = {suffix.lower() for suffix in suffixes}
@@ -511,9 +518,12 @@ def _collect_with_census(
     kept: list[str] = []
     skipped_suffix = skipped_ignore = 0
     ignore_sources: Counter[str] = Counter()
+    skipped_suffixes: Counter[str] = Counter()
     for path in found:
-        if _suffix(path) not in wanted:
+        if (suffix := _suffix(path)) not in wanted:
             skipped_suffix += 1
+            # A suffix-less file is its own bucket rather than an empty key nothing can read.
+            skipped_suffixes[suffix or "(none)"] += 1
         elif (source := matcher.ignore_source(path)) is not None:
             skipped_ignore += 1
             ignore_sources[source] += 1
@@ -523,7 +533,13 @@ def _collect_with_census(
     census = CollectionCensus(
         len(found), skipped_suffix, skipped_ignore, len(kept), len(untracked)
     )
-    return tuple(sorted(kept)), census, untracked, dict(ignore_sources)
+    return (
+        tuple(sorted(kept)),
+        census,
+        untracked,
+        dict(ignore_sources),
+        dict(skipped_suffixes),
+    )
 
 
 def _indexable_untracked(
@@ -933,6 +949,7 @@ def _record_meta(
     census: CollectionCensus,
     untracked: tuple[str, ...] = (),
     ignore_sources: Mapping[str, int] | None = None,
+    skipped_suffixes: Mapping[str, int] | None = None,
 ) -> None:
     """Stamp the build (§8.1 step 4). Clear commit/ref when git cannot name them (077).
 
@@ -962,6 +979,9 @@ def _record_meta(
     store.set_meta(UNTRACKED_INDEXABLE_KEY, json.dumps(list(untracked)))
     sources = {key: count for key, count in dict(ignore_sources or {}).items() if count}
     store.set_meta(IGNORE_SOURCES_KEY, json.dumps(dict(sorted(sources.items()))))
+    # What `skipped_suffix` is made of — its own key, not inside the int-casting census (R1.7).
+    by_suffix = {key: count for key, count in dict(skipped_suffixes or {}).items() if count}
+    store.set_meta(SKIPPED_SUFFIX_COUNTS_KEY, json.dumps(dict(sorted(by_suffix.items()))))
     commit, ref = gitutil.head_commit_and_ref(config.root)
     if commit is not None:
         store.set_meta(LAST_COMMIT_KEY, commit)

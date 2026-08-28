@@ -52,6 +52,10 @@ COLLECTION_CENSUS_KEY = "collection_census"
 UNTRACKED_INDEXABLE_KEY = "untracked_indexable"
 # Per-source ignore counts (JSON object) — sibling of the int census; that reader int-casts (095).
 IGNORE_SOURCES_KEY = "ignore_sources"
+# What `skipped_suffix` is MADE OF, by extension (JSON object, task 174). Its own key, never inside
+# the census structure: `collection_census()` int-casts every value, and widening that coercing
+# reader would trade a total contract for a conditional one (R1.7).
+SKIPPED_SUFFIX_COUNTS_KEY = "skipped_suffix_counts"
 # The tier mix split by the language of the edge's own file (JSON, task 183). Stamped once per
 # build because a whole-graph blend cannot be attributed to any one adapter, and a GROUP BY over
 # the edge table must never reach the per-answer path.
@@ -595,6 +599,19 @@ class GraphStore:
         if not raw:
             return {}
         parsed = json.loads(raw)
+        if not isinstance(parsed, dict):
+            return {}
+        return {str(key): int(value) for key, value in parsed.items() if int(value) > 0}
+
+    def skipped_suffix_counts(self) -> dict[str, int]:
+        """Per-extension skip tallies stamped at the last build, or empty when absent (task 174)."""
+        raw = self.get_meta(SKIPPED_SUFFIX_COUNTS_KEY)
+        if not raw:
+            return {}
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            return {}
         if not isinstance(parsed, dict):
             return {}
         return {str(key): int(value) for key, value in parsed.items() if int(value) > 0}

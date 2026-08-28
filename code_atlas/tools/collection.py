@@ -6,6 +6,10 @@ so it lives beside them rather than being reached for across a tool module (cf. 
 
 from code_atlas.store import COVERED_SUFFIXES_KEY, INDEXED_SUFFIXES_KEY, GraphStore
 
+# Bounded so a repo with 400 extensions cannot inflate the payload (task 174). Top-N by count,
+# suffix ascending as the tie-break; `suffix_kinds` says how many exist, so the cut is visible.
+SKIPPED_SUFFIX_TOP_N = 10
+
 
 def collection_field(
     store: GraphStore, *, ignore_sources: bool = False
@@ -31,6 +35,7 @@ def collection_field(
         "ignore": census["skipped_ignore"],
         "untracked": census.get("skipped_untracked", 0),
     }
+    _attach_skipped_suffixes(skipped, store)
     if ignore_sources:
         sources = store.ignore_source_counts()
         if sources:
@@ -48,3 +53,19 @@ def collection_field(
     if held != claimed_list:
         block["claimed_suffixes"] = claimed_list
     return block
+
+
+def _attach_skipped_suffixes(skipped: dict[str, object], store: GraphStore) -> None:
+    """Say what ``skipped.suffix`` is MADE OF, so its total names a cost (task 174).
+
+    Four rounds disclosed *"an adapter exists and is unwired"* and reported zero contribution. What
+    would have been acted on is *"2,831 `.js` files in this repo are invisible"* — a fact about the
+    reader's own repo. The core names no language (R1.1); it publishes extensions and the reader
+    joins them with ``unconfigured_adapters``. ``suffix_kinds`` is the denominator for the cut.
+    """
+    counts = store.skipped_suffix_counts()
+    if not counts:
+        return
+    ranked = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    skipped["suffix_top"] = dict(ranked[:SKIPPED_SUFFIX_TOP_N])
+    skipped["suffix_kinds"] = len(counts)

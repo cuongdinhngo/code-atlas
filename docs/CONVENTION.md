@@ -168,10 +168,9 @@ what the payload already says (061). An answer must state what it is *not* telli
 | `index_root` | **every** payload, every detail level | the configured source tree — identity of the tree, not the database file (071) |
 | `db_path` | `get_index_status` / `build_or_update_index` at `standard` | nowhere else after 061 |
 | `last_ref` / `head_ref` | status + the busy-build refusal sharing its vocabulary | the revision the index was built on and the one HEAD is on now. `HEAD` when detached, `null` when non-git, **omitted** pre-077 so `null` is not read as "not under git". Nav payloads stay on `index_root` alone (077) |
-| `server_version` / `server_build` | status at `standard`/`verbose`; `minimal` omits both | the running package and a build id from git or package content, not the index schema. An uncommitted checkout's id carries **`+dirty`** — a retro must not quote a commit that did not answer. Signed claims add `server=`/`build=` beside the index revision keys (100/125) |
+| `server_version` / `server_build` | status at `standard`/`verbose`; `minimal` omits both | the running package and a build id from git or package content, not the index schema. An uncommitted checkout's id carries **`+dirty`**. Signed claims add `server=`/`build=` beside the index revision keys (100/125) |
 | `parse_failure_paths` | status at `verbose` | capped by `PARSE_FAILURE_PATHS_LIMIT`, not `CA_MAX_RESULTS`; optional `offset`; never on the cheap path (058) |
-| `skipped.untracked` | verbose `collection` | beside the `collected − suffix − ignore == kept` identity (082/092) |
-| `skipped.ignore_sources` | verbose `collection` only | which composed ignore source dropped each skip; `ignore` stays the int so 082 still closes; omit when empty (095/061) |
+| `skipped.*` breakdowns | `collection` | `collected − suffix − ignore == kept`; `untracked` sits **beside** it (092). Each breakdown leaves its parent int intact so 082 closes, and is omitted when empty (061): `ignore_sources` names each ignore-skip's composed source, verbose only (095); `suffix_top` names what `suffix` is made of by **extension** — top 10, count desc then suffix asc, `suffix_kinds` the true denominator, `(none)` for a suffix-less file. Extensions only: the core names no language; the reader joins `unconfigured_adapters` (174/R1.1) |
 | `not_indexed` | any payload with `indexed: true` | the subject maps to an untracked indexable file. Match on the file **stem**: a path-shaped qname's trailing ident is its extension, so `Missing.aa` must not match `aa.aa` (092) |
 | `resolved_qname` | nav answers | the stored qname actually queried, when a leading anchor made it differ from the typed subject; omitted on an exact hit (075/122) |
 | `result_kinds` | a truncated `file_outline` page | symbol kind → count over the **whole** file, when the file spans more than one kind, so a capped map cannot read as complete (067/123) |
@@ -180,7 +179,7 @@ what the payload already says (061). An answer must state what it is *not* telli
 | `truncated` | paged answers | describes **the page alone**, so a pager terminates (057/124) |
 | `walk_truncated` | `find_orphans` | the walk hit `CA_ORPHANS_MAX_NODES`, so the population is an over-estimate — unreached nodes look orphaned (124) |
 | `walk_truncated` | `impact_modules` | the walk hit `CA_IMPACT_MAX_NODES`, so every per-module count is an **under**-estimate — a module reached only beyond the bound is missing from the table entirely, not merely undercounted (140) |
-| `module_table_truncated` | `impact_modules` | 114's module table was itself capped at `CA_MAX_RESULTS`, so rows counted under `unassigned` include files whose module exists and was cut — that bucket is an **over**-count. Two bounds, two names: one shrinks the walk, the other shrinks the table (140) |
+| `module_table_truncated` | `impact_modules` | 114's module table was itself capped at `CA_MAX_RESULTS`, so rows counted under `unassigned` include files whose module exists and was cut — that bucket is an **over**-count, distinct from the walk bound (140) |
 
 - **`try_instead` is two registers, each in its own field (093).** The value is always a
   **registered MCP tool name the reader can call**; the *how to re-ask* qualifier is prose in the

@@ -32,7 +32,7 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
 | `derived-not-listed-invariant` | 18 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180 | **R6.7** |
-| `prove-the-guard-fails` | 17 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186 | **R6.5** |
+| `prove-the-guard-fails` | 18 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174 | **R6.5** |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
 | `fixture-shape-begs-the-question` | 9 | 084, 086, 103–106, 121, 183, 185 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
@@ -43,7 +43,7 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 | `route-must-answer` | 3 | 093, 101, 102 | folded into **R5.4**'s falsifier |
 | `rank-before-truncate` | 3 | 067, 126, 180 | open — proposed 2026-08-23, **overdue: rec 3, awaiting ratify** |
 | `guard-asserts-rendered-not-shipped-bytes` | 2 | 116, 127 | open — proposed 2026-08-23, awaiting ratify |
-| `sibling-meta-non-int` | 2 | 092, 095 | **R1.7** |
+| `sibling-meta-non-int` | 3 | 092, 095, 174 | **R1.7** |
 | `record-the-deviation-as-a-deviation` | 2 | 101, promote-2026-08-15 | **AGENT_BRIEF P3** |
 | `one-rule-for-every-subject-slot` | 5 | 102, 122, 183, 186, 179 | **R1.8** — promoted 2026-08-27 |
 | `ac-failure-mode-needs-the-right-guard` | 2 | 085, 107 | **R6.8** — promoted 2026-08-27 |
@@ -63,6 +63,40 @@ proposed as a new rule, because R6.3 already owned cross-repo validation and P2 
 this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *claim's* list honest and
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
+
+## 174 — A disclosure can be true, complete, and about the wrong subject
+159 made the unwired adapter visible, and rounds 8–11 then recorded **four consecutive zero
+contributions** from one absent env var — every one of them disclosed as
+`[{"language": "typescript", "enable": "CA_TYPESCRIPT_CMD"}]`, and none acted on. *"This product has
+an adapter you have not switched on"* is a fact about **the product**. *"2,831 files in your repo are
+invisible"* is a fact about **the reader**. The first, answered perfectly four times, moved nobody.
+
+The reason nobody closed the gap is that the obvious join is impossible: an unwired adapter is never
+launched, so the core cannot ask what extensions it would have claimed, and a suffix→language table
+in the core is R1.1-barred. So **invert the join** — publish the half the core can know (`.js: 2831`
+skipped for its extension) beside the half 159 already publishes (an adapter named `typescript` is
+unwired), in the same payload, and let the reader take the last step.
+
+**R1.7 decided the storage shape, and this is its clearest instance.** The obvious home was a field on
+`CollectionCensus` — but `collection_census()` reads that structure back as `{key: int(value)}`, so a
+`dict[str, int]` inside it would force widening a **coercing** reader and loosen the type for every
+existing consumer. Its own meta key, with its own int-casting reader, mirroring 095's
+`ignore_sources`. And the walk keeps the **whole** tally while only the publisher cuts it, so the cap
+has one definition site and `suffix_kinds` stays the true denominator rather than a capped one.
+
+Cost, measured at 6× field scale: **+0.12 µs per skipped path** (35.52 → 37.71 ms over 20,000 paths),
+once per build, with no second pass and no answer-time query.
+
+### 174-C1 — Disclose the reader's cost, not the product's fact
+- type: 2 generalisable-heuristic
+- handle: disclose-the-readers-cost-not-the-products-fact
+- status: proposed (awaiting human confirm)
+- seen: 174
+- evidence: four rounds disclosed *"an adapter exists and is unwired"* — true, complete, and about the
+  product — and reported zero contribution each time. The number that would have been acted on is a
+  count of the reader's own files. When a disclosure is correct and inert, check whose fact it states.
+- area: tools / payload honesty / adoption
+- destination: stays in `lessons_path` (recurrence 1)
 
 ## 179 — A decision is shared only as far as it has been factored
 `impact_modules` inherited half of 169's seed fix and never had 161's at all. Nothing drifted and
