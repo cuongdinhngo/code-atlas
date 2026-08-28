@@ -284,6 +284,14 @@ recorded as an exclusion.
 
 `LEDGER TOTAL: 0 dispatch (solo main-loop; both review seats waived by run arg) · top cost driver: main-loop (unmeasured — host surfaces no usage block)`
 
+### Envelope note (recorded, not hidden)
+
+`RECONCILE` at close reports `A4-NO-WALL-CLOCK-LEFT-IN-THE-ASSERTION-PATH-AND-NO-MOCK` as **BROKEN**,
+and it is a false positive **in my own condition**: the check greps for `mock`, and the word appears
+once — in the comment that explains there is no mock. Checked past it mechanically: `time.sleep` 0,
+`monkeypatch` 0, `unittest.mock` 0, `os.utime` 1. A crude text guard reporting on prose is worth
+recording rather than re-running until it agrees.
+
 ### Review
 
 SKIPPED per run arg "with skipped review". Reviewer **and** challenger waived. Self-checks: the
