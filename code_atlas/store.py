@@ -32,6 +32,12 @@ LAST_COMMIT_KEY = "last_commit"
 # Human ref the index was built on (branch name or ``HEAD`` when detached) — beside the SHA (077).
 LAST_REF_KEY = "last_ref"
 BUILT_AT_KEY = "built_at"
+# Completeness, not liveness (task 178). Cleared to "0" when a build starts writing and set to "1"
+# only after the late writes have linked the graph, so a build that dies mid-link leaves "0" —
+# a surviving *negative* claim is honest, unlike a surviving "building: true".
+BUILD_COMPLETE_KEY = "build_complete"
+BUILD_COMPLETE = "1"
+BUILD_INCOMPLETE = "0"
 # Which suffixes the build claimed. Only the adapter handshake knows them, and a status read must
 # not start an adapter to find out — so the build leaves them here (047).
 INDEXED_SUFFIXES_KEY = "indexed_suffixes"

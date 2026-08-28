@@ -17,7 +17,10 @@ from typing import Literal
 from code_atlas.adapter import unconfigured_adapters
 from code_atlas.build_info import server_provenance
 from code_atlas.config import Config
+from code_atlas.index_lock import build_in_progress
 from code_atlas.store import (
+    BUILD_COMPLETE,
+    BUILD_COMPLETE_KEY,
     BUILT_AT_KEY,
     CONTRACT_VERSION_KEY,
     SCHEMA_OLDER,
@@ -43,6 +46,12 @@ PARSE_FAILURE_PATHS_LIMIT = 50
 __all__ = ["NAME", "create", "CURRENT", "BEHIND", "UNKNOWN"]
 
 BUILD_TOOL = "build_or_update_index"
+
+# Two axes the revision axis deliberately does not answer (task 178). `staleness` says WHICH
+# REVISION this index describes — 072's busy refusal and 077 both read it that way — so "is a build
+# running" and "did the last build finish linking" get their own names rather than overloading it.
+BUILD_IN_PROGRESS = "build_in_progress"
+INDEX_COMPLETE = "index_complete"
 
 
 def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str, object]]:
@@ -96,6 +105,26 @@ def _max_results_field(config: Config) -> dict[str, object]:
     }
 
 
+def _attach_build_state(
+    status: dict[str, object], config: Config, store: GraphStore | None
+) -> None:
+    """Name a build in flight and an unfinished link phase — both omitted when there is nothing
+    to say, so a quiet server is byte-identical to before (061).
+
+    ``build_in_progress`` is 177's probe, the one definition site (R6.7): read-only, non-blocking,
+    creating nothing, and a missing lock file reads as *no build* rather than unknown (077).
+    """
+    if build_in_progress(config.db_path):
+        status[BUILD_IN_PROGRESS] = True
+    if store is None:
+        return
+    complete = store.get_meta(BUILD_COMPLETE_KEY)
+    # Absent means an index written before this key existed: unknowable, so say nothing. Only a
+    # recorded "0" — a build that started writing and never stamped its completion — is a claim.
+    if complete is not None and complete != BUILD_COMPLETE:
+        status[INDEX_COMPLETE] = False
+
+
 def _attach_unconfigured_adapters(status: dict[str, object], config: Config) -> None:
     """Name adapters that ship in-repo but are unwired — omit when all configured (159/061)."""
     unwired = unconfigured_adapters(config.adapter_cmds)
@@ -136,6 +165,7 @@ def _unbuilt(
         status["db_path"] = str(config.db_path)
         status["max_results"] = _max_results_field(config)
         status.update(server_provenance())
+        _attach_build_state(status, config, None)
         _attach_unconfigured_adapters(status, config)
     if detail_level == "verbose":
         status["parse_failure_paths"] = []
@@ -217,6 +247,7 @@ def _status(
         "orphans_max_nodes": _orphans_max_nodes_field(config),
         **server_provenance(),
     }
+    _attach_build_state(enriched, config, store)
     _attach_unconfigured_adapters(enriched, config)
     if detail_level == "standard":
         return signed(enriched)

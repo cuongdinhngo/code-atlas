@@ -37,6 +37,9 @@ from code_atlas.enrichment import (
 from code_atlas.ignore import BUILTIN_PATTERNS, IgnoreMatcher, compile_pattern, load_ignore
 from code_atlas.resolver import delta_scope, resolve_edges
 from code_atlas.store import (
+    BUILD_COMPLETE,
+    BUILD_COMPLETE_KEY,
+    BUILD_INCOMPLETE,
     BUILT_AT_KEY,
     COLLECTION_CENSUS_KEY,
     CONTRACT_VERSION_KEY,
@@ -151,6 +154,7 @@ def full_build(
     rules = load_indirection_rules(config)
     _require_configured_adapters(config)
     report = _Progress(progress)
+    store.set_meta(BUILD_COMPLETE_KEY, BUILD_INCOMPLETE)
     watchdog = _Watchdog(config.adapter_timeout)
     watchdog.start()
     try:
@@ -183,9 +187,11 @@ def full_build(
 
     # No FTS rebuild here: §10's triggers keep `nodes_fts` current through every replace, so a
     # rebuild per build would cost a full re-index and change nothing (deviation D1).
+    # The late writers link every bare edge, so the graph is not finished until they return.
+    # Stamping before them advertised completion for the whole link phase (task 178).
+    _count_late_writes(counts, config, store, rules, progress=report)
     report.phase("meta")
     _record_meta(config, store, tuple(owners), census, untracked, ignore_sources)
-    _count_late_writes(counts, config, store, rules, progress=report)
     return BuildReport(files=len(kept), stubs=len(stubs), removed=removed, **counts)
 
 
@@ -216,6 +222,7 @@ def incremental_update(
     # the alias map is fixed, and the parse is what can change it (task 096).
     aliases_before = store.alias_targets()
     report = _Progress(progress)
+    store.set_meta(BUILD_COMPLETE_KEY, BUILD_INCOMPLETE)
     watchdog = _Watchdog(config.adapter_timeout)
     watchdog.start()
     try:
@@ -290,10 +297,6 @@ def incremental_update(
     finally:
         watchdog.stop()
 
-    mark = time.monotonic()
-    report.phase("meta")
-    _record_meta(config, store, tuple(owners), census, untracked, ignore_sources)
-    _phase_add(phase_times, "meta", mark)
     # A true no-op (nothing parsed, nothing reconciled) leaves the graph unchanged, so the late
     # writers would only re-derive rows already present — full-graph work that was the ~56 s floor
     # and the 6,071-edge no-op number (task 080). Skip them; ``wrote.*`` then means the delta.
@@ -313,6 +316,11 @@ def incremental_update(
         skipped = time.monotonic()
         _phase_add(phase_times, "enrichment", skipped)
         _phase_add(phase_times, "resolve", skipped)
+    # After the link phase, never before it — see full_build (task 178).
+    mark = time.monotonic()
+    report.phase("meta")
+    _record_meta(config, store, tuple(owners), census, untracked, ignore_sources)
+    _phase_add(phase_times, "meta", mark)
     return BuildReport(
         files=len(to_parse), stubs=len(stub_set & set(to_parse)), removed=removed, **counts
     )
@@ -892,6 +900,9 @@ def _record_meta(
     """
     store.set_meta(CONTRACT_VERSION_KEY, str(contract.CONTRACT_VERSION))
     store.set_meta(BUILT_AT_KEY, store.now())
+    # Both build paths reach here only after the late writes, so this is the graph's completion
+    # stamp as well as its revision stamp (task 178).
+    store.set_meta(BUILD_COMPLETE_KEY, BUILD_COMPLETE)
     store.set_meta(INDEXED_SUFFIXES_KEY, ",".join(sorted({s.lower() for s in suffixes})))
     store.set_meta(COLLECTION_CENSUS_KEY, json.dumps(asdict(census)))
     store.set_meta(UNTRACKED_INDEXABLE_KEY, json.dumps(list(untracked)))

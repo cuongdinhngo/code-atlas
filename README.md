@@ -238,6 +238,27 @@ Exit `0` while a build is running, `3` when none is. Two properties are delibera
   very next call, even though its last line is still on disk. A `building: true` row in the
   database would have survived and become permanent.
 
+### Two things `staleness` deliberately does not tell you (task 178)
+
+`staleness` answers **which revision** this index describes, and nothing else — 072's busy refusal
+and 077 both read it that way. So `standard` status carries two further axes, each omitted when
+there is nothing to say:
+
+| Field | When it appears | What it means |
+|---|---|---|
+| `build_in_progress: true` | a writer holds `write.lock` right now | someone is building; these numbers are moving |
+| `index_complete: false` | the last build never finished linking | the graph holds parsed rows whose edges were never linked |
+
+`build_in_progress` is the same live-`flock` probe `--status` uses, so it cannot outlive the
+process that set it. `index_complete` is the opposite kind of claim and is safe to persist: a build
+writes `0` before it touches the graph and `1` only after the link phase returns, so a build that
+dies mid-link leaves `0` — a surviving *negative* claim is honest.
+
+The build stamp moved with it. `built_at` and `last_commit` used to be written when **parsing**
+ended, with the whole link phase still to run, so a build killed during linking left
+`staleness: "current"` on an under-linked graph permanently. They are now written after the late
+writes, so nothing claims a graph is built until it is.
+
 > **Language scope today:** only the **PHP** adapter exists. A TypeScript, Python, or C# project won't
 > index yet — those are planned (see [Roadmap](#roadmap)).
 
