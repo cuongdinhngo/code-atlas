@@ -7,7 +7,7 @@ from typing import Literal, NamedTuple
 
 from code_atlas import contract
 from code_atlas.config import Config, clamp_limit, clamp_subjects
-from code_atlas.store import GraphStore, Row
+from code_atlas.store import GraphStore, Row, is_direct_match
 from code_atlas.tools.coverage import (
     attach_coverage_gap,
     attach_coverage_note,
@@ -94,7 +94,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         Returns ``{qname, kind, file, line}`` rows (FTS trigram, or a name/qname prefix scan for
         queries under three characters), capped by ``limit`` or ``CA_MAX_RESULTS``; ``offset`` pages
-        in search order (057). When the first page holds only substring/trigram near-misses — no
+        in search order (057). **Exact and prefix matches come first**, near-misses after, relevance
+        as the tie-break inside each band — over the whole result set, not the page (180).
+        When the first page holds only substring/trigram near-misses — no
         result exactly matches or prefixes the query — ``reason=substring_match`` marks the answer a
         near-miss, not a hit, and carries the language-coverage note (167 / 160). On hash drift
         beyond the per-call reparse cap, returns hits with
@@ -209,7 +211,7 @@ def _search_one(
     elif total_count == 0:
         # Page emptiness ≠ answer emptiness once offset can walk past the end (057).
         reason = REASON_NO_MATCHES
-    elif offset == 0 and not any(_is_direct_match(query, row) for row in rows[:cap]):
+    elif offset == 0 and not any(_direct(query, row) for row in rows[:cap]):
         # First page holds only substring/trigram near-misses — not a confident hit (167).
         reason = REASON_SUBSTRING_MATCH
     else:
@@ -217,18 +219,9 @@ def _search_one(
     return _Hits(results, truncated, reason, total_count)
 
 
-def _is_direct_match(query: str, row: Mapping[str, object] | Row) -> bool:
-    """True when the query is an exact match or a prefix of the row's name or qname (167).
-
-    Case-insensitive and language-agnostic (R1.1): a run of the query against the symbol the search
-    returned, no SQL. Everything else is a substring / trigram near-miss.
-    """
-    q = query.casefold()
-    name = str(row["name"]).casefold()
-    if name == q or name.startswith(q):
-        return True
-    qname = str(row["qualified_name"]).casefold()
-    return qname == q or qname.startswith(q)
+def _direct(query: str, row: Mapping[str, object] | Row) -> bool:
+    """``store.is_direct_match`` over a row — the predicate the search ordering bands on (R6.7)."""
+    return is_direct_match(query, str(row["name"]), str(row["qualified_name"]))
 
 
 def _single_payload(

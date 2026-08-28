@@ -140,6 +140,10 @@ EDGES = "edges"
 _NODE_ORDER = "qualified_name, file_path, line_start, id"
 _EDGE_ORDER = "source_qname, kind, target_raw, file_path, line, id"
 _SEARCH_ORDER = "nodes_fts.rank, nodes.qualified_name, nodes.file_path, nodes.id"
+# Exactness outranks BM25 (task 180): a shorter document scores better, so a near-miss in a small
+# file beat six exact matches. The band calls the ONE predicate `reason` is decided by (R6.7).
+DIRECT_MATCH_SQL_FN = "ca_direct_match"
+_SEARCH_BAND = f"{DIRECT_MATCH_SQL_FN}(?, nodes.name, nodes.qualified_name) DESC"
 
 Row = dict[str, object]
 
@@ -303,6 +307,26 @@ def fts_term(query: str) -> str:
     return '"' + query.replace('"', '""') + '"*'
 
 
+def is_direct_match(query: str, name: str, qualified_name: str) -> bool:
+    """True when ``query`` exactly matches or prefixes ``name`` or ``qualified_name`` (task 167).
+
+    Case-insensitive and language-agnostic (R1.1) — a run of the query against the symbol, no SQL.
+    Everything else is a substring / trigram near-miss. One definition site (R6.7): it decides
+    both ``search_symbol``'s ``reason`` and the ordering's exactness band, so the two cannot drift.
+    """
+    q = query.casefold()
+    folded = name.casefold()
+    if folded == q or folded.startswith(q):
+        return True
+    folded = qualified_name.casefold()
+    return folded == q or folded.startswith(q)
+
+
+def _direct_match_udf(query: object, name: object, qualified_name: object) -> int:
+    """``is_direct_match`` as a SQLite scalar, so ORDER BY bands on the predicate, not a copy."""
+    return int(is_direct_match(str(query), str(name or ""), str(qualified_name or "")))
+
+
 def _like_literal(value: str) -> str:
     """Escape ``!``, ``%``, and ``_`` for a ``LIKE … ESCAPE '!'`` pattern (``\\`` stays literal)."""
     return value.replace("!", "!!").replace("%", "!%").replace("_", "!_")
@@ -358,6 +382,9 @@ class GraphStore:
         if str(db_path) != MEMORY_DB:
             db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(db_path)
+        self._conn.create_function(
+            DIRECT_MATCH_SQL_FN, 3, _direct_match_udf, deterministic=True
+        )
         for pragma in PRAGMAS:
             self._conn.execute(f"PRAGMA {pragma}")
         self._create_schema()
@@ -1328,6 +1355,9 @@ class GraphStore:
 
         Optional ``namespace`` is matched case-insensitively: exact or continues
         with ``\\``, ``.``, or ``::``. ``offset`` pages in search order (task 057).
+
+        Exact/prefix matches come first, near-misses after, BM25 rank as the tie-break inside each
+        band (task 180) — banding the whole result set, not the page, so ``offset`` walks it.
         """
         if len(query) < 3:
             return self._search_short(
@@ -1341,9 +1371,9 @@ class GraphStore:
         sql = (
             f"SELECT nodes.id, {_NODE_COLUMNS_JOINED} FROM nodes "
             f"JOIN nodes_fts ON nodes_fts.rowid = nodes.id "
-            f"WHERE {where} ORDER BY {_SEARCH_ORDER} LIMIT ? OFFSET ?"
+            f"WHERE {where} ORDER BY {_SEARCH_BAND}, {_SEARCH_ORDER} LIMIT ? OFFSET ?"
         )
-        return self._rows(NODE_ROW_KEYS, sql, (*params, limit, offset))
+        return self._rows(NODE_ROW_KEYS, sql, (*params, query, limit, offset))
 
     def count_search_nodes(
         self,

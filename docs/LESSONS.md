@@ -31,7 +31,7 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
-| `derived-not-listed-invariant` | 17 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128 | **R6.7** |
+| `derived-not-listed-invariant` | 18 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180 | **R6.7** |
 | `prove-the-guard-fails` | 15 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019 | **R6.5** |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
 | `fixture-shape-begs-the-question` | 7 | 084, 086, 103–106, 121 | **R6.3** — widened 2026-08-23, provisional |
@@ -41,7 +41,7 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 | `re-verify-the-assumption-on-a-new-path` | 3 | 102, 107, 122 | **AGENT_BRIEF P6** — promoted 2026-08-27 |
 | `re-run-the-sweep-after-the-last-edit` | 3 | 100–102 | **AGENT_BRIEF P4** |
 | `route-must-answer` | 3 | 093, 101, 102 | folded into **R5.4**'s falsifier |
-| `rank-before-truncate` | 2 | 067, 126 | open — proposed 2026-08-23, awaiting ratify |
+| `rank-before-truncate` | 3 | 067, 126, 180 | open — proposed 2026-08-23, **overdue: rec 3, awaiting ratify** |
 | `guard-asserts-rendered-not-shipped-bytes` | 2 | 116, 127 | open — proposed 2026-08-23, awaiting ratify |
 | `sibling-meta-non-int` | 2 | 092, 095 | **R1.7** |
 | `record-the-deviation-as-a-deviation` | 2 | 101, promote-2026-08-15 | **AGENT_BRIEF P3** |
@@ -63,6 +63,36 @@ proposed as a new rule, because R6.3 already owned cross-repo validation and P2 
 this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *claim's* list honest and
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
+
+## 180 — A relevance score is not an exactness score, and BM25 is systematically wrong about which
+`search_symbol("<name>")` returned *page 1 of 46* with two substring near-misses in small `.js` files
+above six exact matches in large `.php` ones, at `reason: "ok"` — the label was **right** (exact
+matches were on the page) and the order was wrong, which is worse than a wrong label, because nothing
+warned the reader. BM25 scores a shorter document better, so it inverts exactness whenever the
+near-miss lives in a smaller file; adapter #2 made that the common case. 167 had already built the
+exactness predicate, used it to label the answer, and left `ORDER BY` untouched.
+
+The fix is not a second rule. `is_direct_match` moved into `store.py` and is **registered as a
+SQLite scalar**, so the thing the `ORDER BY` calls per row *is* the function `reason` calls — R6.7
+by construction rather than by convention. Re-spelling the predicate in SQL would have been cheaper
+per row and would have recreated 180's own pathology one layer down: two computations of the same
+fact, with nothing comparing them. Banding the **whole result set** rather than the fetched page is
+what actually fixes the reported answer — an exact match BM25 ranked at 51 does not reach page 1 by
+sorting page 1 — and it costs ≈ 0.43 µs per candidate row (2.705 → 4.007 ms over 3,000 rows), one
+statement, no per-row query. That number is stated rather than rounded to free.
+
+### 180-C1 — A predicate needed both inside a query and outside it is registered, never re-spelled
+- type: 2 generalisable-heuristic
+- handle: one-predicate-two-layers-is-the-drift
+- status: proposed (awaiting human confirm)
+- seen: 180
+- evidence: the exactness band had to run inside `ORDER BY` while `reason` ran over the returned
+  rows. A SQL spelling of `is_direct_match` is a second definition site that no test compares, so the
+  order and the label could disagree — which is the defect 180 exists to fix, moved down a layer.
+  `sqlite3.Connection.create_function(..., deterministic=True)` makes the predicate the same object
+  in both places.
+- area: store / tools / ranking
+- destination: stays in `lessons_path` (recurrence 1)
 
 ## 150 — For an untyped-JS adapter, the phpstan-analogue is tsc-checkJs-strict, minus the flag its untyped-ness owns
 
@@ -559,13 +589,16 @@ sourced where the cap is decided rather than re-worded by the renderer.
 - type: 2 generalisable-heuristic
 - handle: rank-before-truncate
 - status: proposed (awaiting human confirm)
-- seen: 067, 126
+- seen: 067, 126, 180
 - evidence: 067 fixed it for `find_callers` and added `result_subtrees`; 126 found the same defect
   unmitigated in the map's search palette, beside the mirror panel that exists to prevent the failure
   it caused. (123 is *not* counted here — its claim is `total_count` semantics, not ranking.)
+  180 is the class at its source: `search_symbol` computed exactness one layer above the query and
+  cut the page by a different order, so *"page 1 of 46"* held no exact match — and the fix is
+  structural, putting the rank inside the statement that truncates.
 - area: tools / onboarding / payload honesty
-- destination: `rulebook_path` (code subject) — recurrence 2 across 067 and 126, **promotable**: run
-  `/mango:promote` for the handle above
+- destination: `rulebook_path` (code subject) — recurrence **3** across 067, 126 and 180,
+  **overdue**: run `/mango:promote` for the handle above
 
 ## 125 — Schema version names the index, not the server that read it
 ``get_index_status`` reported ``contract_version`` and ``schema_version`` — both describe the
