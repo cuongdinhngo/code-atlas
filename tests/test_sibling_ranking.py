@@ -13,7 +13,6 @@ from pathlib import Path
 from code_atlas.store import GraphStore
 from code_atlas.tools import find_callers, find_references
 from code_atlas.tools.nav_result import (
-    RANK_PATH,
     RANK_SHARED_SUBTREE,
     SIBLING_DEFINITIONS,
     SIBLING_RANKED_BY,
@@ -144,13 +143,18 @@ def test_find_callers_uses_the_same_ordering(store: GraphStore, tmp_path: Path) 
     assert result[SIBLING_RANKED_BY] == RANK_SHARED_SUBTREE
 
 
-def test_the_fallback_basis_is_named_too() -> None:
-    """A subject with no known file still gets a stated order, not an arbitrary one."""
+def test_the_fallback_admits_it_has_no_basis() -> None:
+    """171 named the fallback `path`; 181 retired that value.
+
+    A subject with no known file still gets a deterministic order — but alphabetical is a **sort**,
+    not a ranking, and naming it made the two indistinguishable in the payload. The basis is now
+    `None`, and `attach_sibling_definitions` turns that into an explicit verdict.
+    """
     sites = [{"file": "b.php"}, {"file": "a.php"}]
     ordered, basis = rank_sibling_sites(sites, subject_file=None)
 
-    assert basis == RANK_PATH
-    assert [site["file"] for site in ordered] == ["a.php", "b.php"]
+    assert basis is None
+    assert [site["file"] for site in ordered] == ["a.php", "b.php"], "still deterministic (R4.2)"
 
 
 def test_ranking_adds_no_query_and_no_measurable_cost(

@@ -553,7 +553,14 @@ CAVEAT_SIBLING_DEFINITIONS = "sibling_definitions"
 # another thing to trust (task 171, R5.5).
 SIBLING_RANKED_BY = "sibling_definitions_ranked_by"
 RANK_SHARED_SUBTREE = "shared_subtree_with_subject"
-RANK_PATH = "path"
+# The VERDICT, always stated once there is an order to have (task 181): a caller must be able to ask
+# "is position meaningful here?" without knowing that the old `ranked_by: "path"` meant *unranked*.
+SIBLING_RANKED = "sibling_definitions_ranked"
+# An unranked list is a dump, so it is capped and says so; a RANKED list is never capped, because
+# position is the answer and dropping a row would remove it (171).
+SIBLING_TRUNCATED = "sibling_definitions_truncated"
+SIBLING_TOTAL = "sibling_definitions_total"
+UNRANKED_SIBLING_CAP = 10
 
 
 def _shared_subtree_depth(subject_file: str, site_file: str) -> int:
@@ -570,16 +577,21 @@ def _shared_subtree_depth(subject_file: str, site_file: str) -> int:
 
 def rank_sibling_sites(
     sites: list[dict[str, object]], *, subject_file: str | None
-) -> tuple[list[dict[str, object]], str]:
-    """Order sibling sites nearest-subtree-first, and name what the order is based on.
+) -> tuple[list[dict[str, object]], str | None]:
+    """Order sibling sites nearest-subtree-first, or admit there was nothing to rank by (171/181).
 
     Drops nothing — the sites that were noise for one question are the answer to another (171).
     Pure reordering of rows already fetched: no query per sibling, and none per caller.
+
+    With no subject file there is no evidence to rank against, so the basis is ``None``: rows stay
+    ordered by path for determinism (R4.2), but *alphabetical* is a sort, not a ranking, and
+    calling it ``ranked_by: "path"`` made the two indistinguishable in the payload (181).
     """
+    by_path = sorted(sites, key=lambda site: str(site["file"]))
     if subject_file is None:
-        return sorted(sites, key=lambda site: str(site["file"])), RANK_PATH
+        return by_path, None
     ordered = sorted(
-        sites,
+        by_path,
         key=lambda site: (
             -_shared_subtree_depth(subject_file, str(site["file"])),
             str(site["file"]),
@@ -591,17 +603,33 @@ def rank_sibling_sites(
 def attach_sibling_definitions(
     payload: dict[str, object], sites: list[dict[str, object]], *, subject_file: str | None
 ) -> bool:
-    """Attach the ranked sites; return whether anything was attached.
+    """Attach the sites, say whether position means anything, and cap the list when it does not.
 
-    The basis is named only when there are ≥ 2 sites — with one sibling there is no order to
-    explain, and a lone caveat must not grow a field (061 / 171).
+    Nothing is added below two sites — with one sibling there is no order to explain, and a lone
+    caveat must not grow a field (061 / 171).
+
+    At two or more, ``sibling_definitions_ranked`` is **always** present: it is the verdict a caller
+    branches on, and it must not require knowing that one basis value used to mean *unranked* (181).
+    ``sibling_definitions_ranked_by`` is the value and rides only when there is a basis to name.
+    An unranked list is capped and says so; a ranked one never is, because position is the answer.
     """
     if not sites:
         return False
     ordered, basis = rank_sibling_sites(sites, subject_file=subject_file)
-    payload[SIBLING_DEFINITIONS] = ordered
-    if len(ordered) > 1:
+    if len(ordered) < 2:
+        payload[SIBLING_DEFINITIONS] = ordered
+        return True
+    payload[SIBLING_RANKED] = basis is not None
+    if basis is not None:
         payload[SIBLING_RANKED_BY] = basis
+        payload[SIBLING_DEFINITIONS] = ordered
+        return True
+    # Unranked: 93 alphabetical rows were 91% of a field session's disclosure bytes, and 55% of them
+    # shared only a name with the subject. The total is still reported, so nothing is hidden (066).
+    payload[SIBLING_DEFINITIONS] = ordered[:UNRANKED_SIBLING_CAP]
+    if len(ordered) > UNRANKED_SIBLING_CAP:
+        payload[SIBLING_TRUNCATED] = True
+        payload[SIBLING_TOTAL] = len(ordered)
     return True
 
 

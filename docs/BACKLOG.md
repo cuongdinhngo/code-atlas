@@ -60,13 +60,14 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 178 | [`get_index_status` reads `staleness: "current"` while a build is still linking](tasks/178_status-reads-current-while-a-build-is-still-linking.md) | Agent-trust | done | 072, 077, 010, 177 |
 | 179 | [`impact_modules` inherits 169's seed classification but not its twin refusal](tasks/179_impact-modules-inherits-half-the-seed-fix.md) | Agent-trust | done | 169, 161, 140 |
 | 180 | [`search_symbol` ranks a substring near-miss above six exact matches](tasks/180_search-ranks-a-near-miss-above-exact-matches.md) | Agent-trust | done | 167, 014, 057 |
-| 181 | [`sibling_definitions` at `ranked_by: "path"` is a 93-row dump wearing a ranking's shape](tasks/181_sibling-definitions-fallback-is-a-dump-not-a-ranking.md) | Agent-trust | todo | 171, 168, 169 |
+| 181 | [`sibling_definitions` at `ranked_by: "path"` is a 93-row dump wearing a ranking's shape](tasks/181_sibling-definitions-fallback-is-a-dump-not-a-ranking.md) | Agent-trust | done | 171, 168, 169 |
 | 182 | [`find_orphans` returns 215,177 rows it has already flagged unreliable](tasks/182_find-orphans-answers-with-rows-it-has-flagged-unreliable.md) | Agent-fit | todo | 124, 031, 119 |
 | 183 | [`edge_health` is whole-graph only, so no adapter can be evaluated on the repo it was added for](tasks/183_edge-health-has-no-per-language-breakdown.md) | Measure | done | 136, 082, 173 |
 | 185 | [No tool is ever asked a question over a second language's graph — the multi-language claim stops at the adapter boundary](tasks/185_no-tool-is-ever-asked-a-question-over-a-second-languages-graph.md) | Coverage | done | 147, 012, 019 |
 | 186 | [A zero answer still cannot say "this relation is not modelled for this file's language" — 160's carve-out, now a false negative](tasks/186_a-zero-answer-cannot-say-the-relation-is-unmodelled-for-this-language.md) | Agent-trust | done | 160, 183, 185 |
-| 187 | [`find_orphans` crashes when `CA_ENTRY_POINTS` matches no indexed file](tasks/187_find-orphans-crashes-on-an-entry-point-glob-that-matches-nothing.md) | Agent-trust | todo | 185, 031, 124 |
-| 188 | [`IMPORTS` is never linked, so no tool can walk a module graph](tasks/188_imports-edges-are-never-linked-so-no-tool-can-walk-a-module-graph.md) | Agent-fit | todo | 186, 019, 155 |
+| 187 | [`find_orphans` crashes on an entry-point glob that matches nothing](tasks/187_find-orphans-crashes-on-an-entry-point-glob-that-matches-nothing.md) | Agent-trust | todo | 185, 031, 124 |
+| 188 | [`IMPORTS` is never linked, so no tool walks a module graph](tasks/188_imports-edges-are-never-linked-so-no-tool-can-walk-a-module-graph.md) | Agent-fit | todo | 186, 019, 155 |
+| 189 | [A twin is a container fact, not a path fact](tasks/189_a-twin-is-a-container-fact-not-a-path-fact.md) | Agent-trust | todo | 181, 171, 165 |
 
 ## Open work — Pillar 2 · Onboarding
 

@@ -32,7 +32,7 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
 | `derived-not-listed-invariant` | 18 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180 | **R6.7** |
-| `prove-the-guard-fails` | 20 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175 | **R6.5** |
+| `prove-the-guard-fails` | 21 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181 | **R6.5** |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
 | `fixture-shape-begs-the-question` | 9 | 084, 086, 103–106, 121, 183, 185 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
@@ -63,6 +63,55 @@ proposed as a new rule, because R6.3 already owned cross-repo validation and P2 
 this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *claim's* list honest and
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
+
+## 181 — A fallback must not wear the shape of the thing it falls back from
+171 shipped the ordering 165's caveat needed, and round 12 fired it three times. Case A —
+`find_references` on a class — returned **two siblings, both exactly right**, `ranked_by:
+"shared_subtree_with_subject"`. Case B — `impact(paths=[…])` — returned **93 rows**, 45 % real twins
+and 55 % sharing only a method name, with the needed twin at position ~6, `ranked_by: "path"`. It was
+**8.1 KB of that session's 8.9 KB of new disclosure bytes.**
+
+Every honest property held: 171's order was deterministic, dropped nothing, and named its basis. The
+defect is that `"path"` *reads as a basis* while meaning **there was no basis** — so a caller who does
+not know the vocabulary reads case B's first row as if it were case A's. Round 12 filed it as the
+round's design finding: *fired, noticed, changed nothing.* The test that matters is: **can a reader
+branch correctly without knowing the value vocabulary?**
+
+The fix is 170's rule one field over. `sibling_definitions_ranked` is a boolean **verdict**, always
+present at ≥ 2 sites; `sibling_definitions_ranked_by` is the **value** and rides only when there is a
+basis to name. `"path"` is *retired*, not documented — an honest name cannot mislead. And an unranked
+list is capped at 10 with its total reported: 8,705 B → **1,054 B, 87.9 % saved**, because row 11 of an
+unordered list is not less relevant than row 1, it is equally unordered.
+
+**The more useful half is what did not ship.** Scope 3 asked whether `impact`'s path seeds could get a
+real basis. They can — the seed's own file is on the row that found the twin, at zero cost. It was
+implemented, measured, and **reverted**:
+
+```
+subject : src/alpha/model/member/ModelMember.php
+position  1 : src/alpha/vendor/lib000/Unrelated0.php     <- same region, so it wins
+position 41 : src/beta/model/member/ModelMember.php  <- the answer, LAST
+```
+
+The anchor's twins live in **sibling** regions while the same-name noise lives **inside** the subject's
+own region, so shared-subtree depth measures the wrong axis: it rewards being near, and a twin is by
+definition far. Shipping it would have traded an honest `ranked: false` for a `ranked: true` whose
+first row is noise — 181's own defect with a better label. A twin is a **container** fact, not a path
+fact; filed as 189, with the counterfactual kept as a committed test rather than a paragraph.
+
+### 181-C1 — A fallback branch must differ in shape, not in a value the caller must interpret
+- type: 2 generalisable-heuristic
+- handle: a-fallback-must-not-wear-the-shape-it-falls-back-from
+- status: proposed (awaiting human confirm)
+- seen: 181
+- evidence: `ranked_by: "path"` was deterministic, lossless and documented, and still read as a
+  ranking. Two payloads with the same keys meant two different things. The falsifier is the reader's
+  test: can they branch correctly **without** knowing the value vocabulary? If not, the fallback needs
+  its own field, not its own value. Corollary from the same ticket: an available basis is not therefore
+  a right one — `ranked: true` on a bad basis is worse than `ranked: false`.
+- area: tools / payload honesty
+- destination: stays in `lessons_path` (recurrence 1) — close to [[170-C1]]
+  (`never-cache-a-verdict-with-a-fact`): both separate a verdict from a value.
 
 ## 175 — An identity must be re-derived against the inputs it was built from
 The maintainer edited `.code-atlas.toml` to add the second adapter, built, and got a success
