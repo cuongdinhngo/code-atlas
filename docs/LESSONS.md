@@ -32,9 +32,9 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
 | `derived-not-listed-invariant` | 18 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180 | **R6.7** |
-| `prove-the-guard-fails` | 24 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188, 189 | **R6.5** |
+| `prove-the-guard-fails` | 25 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188, 189, 190 | **R6.5** — 190 is the *other* side of it: not *was it seen failing?* but *did it fail for the thing it forbids?* |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
-| `fixture-shape-begs-the-question` | 9 | 084, 086, 103–106, 121, 183, 185 | **R6.3** — widened 2026-08-23, provisional |
+| `fixture-shape-begs-the-question` | 10 | 084, 086, 103–106, 121, 183, 185, 190 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
 | `count-pin-in-blast-radius` | 5 | 085, 087–089, 175 | **AGENT_BRIEF P5** — promoted 2026-08-27 |
 | `source-the-caveat-from-the-computation` | 6 | 100–102, 122, 127, 189 | **R5.5** |
@@ -63,6 +63,50 @@ proposed as a new rule, because R6.3 already owned cross-repo validation and P2 
 this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *claim's* list honest and
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
+
+## 190 — A guard that RACES for its premise reports the machine, not the hazard
+146's hazard is a **state**: the source moved inside the second the `.pyc` recorded, at the same
+length, so both timestamp-invalidation inputs still match and stale bytecode is imported. The guard
+reached that state by writing the file twice quickly and hoping both writes landed in one clock
+second. Under full-suite load they sometimes straddled the boundary, CPython **correctly** recompiled,
+and the assertion that fired was the one whose message reads *"if this reads 2, CPython changed and
+146 can be dropped"*.
+
+**So the failure was true, the message was false, and nothing outside the test could tell.** Seen
+twice in one batch (175, then 182): green alone, green on a re-run, red once inside a full `pytest`.
+
+The fix is to **construct** the premise: read the two invalidation inputs out of the `.pyc`'s own PEP
+552 header (`slice(8, 12)` mtime, `slice(12, 16)` size), set the source's mtime back to the recorded
+second with `os.utime`, and **assert both halves before importing**. Pinned against the value the
+`.pyc` itself recorded rather than an invented constant, so it cannot drift from what the importer
+will compare. That is not a mock — a real file has that mtime and a real importer decides — it just
+removes the coin toss.
+
+**And the flake's trigger became a test.** Bumping the mtime one second past the recorded value now
+selects the recompile deliberately, so what "the flake is gone" means is checkable in the suite
+rather than argued in a task file.
+
+**Scope 3 found more than it asked for.** The ticket named two double-writers; there were three, and
+the two siblings had a *different* defect: on a straddled second a **timestamp** pyc would also have
+recompiled, so `test_ac4_checked_hash_reads_the_source_that_is_on_disk` could pass without the hash
+doing any work — a begged question (R6.3), not a flake. Pinning the mtime removed the alternative
+explanation and turned a stabilisation into a strengthening.
+
+### 190-C1 — Construct the premise; do not race for it. And check which LINE fails.
+Two halves.
+
+**(a)** When a guard needs a *state* to exist, build the state and assert it. A guard that arranges
+its premise through timing is a guard whose red means *"either the hazard is present or the host was
+busy"* — and a maintainer reading it at 03:00 cannot separate those. Read the premise from the
+artifact under test wherever the artifact records it; a constant the test invents can drift from what
+the code compares.
+
+**(b)** The diagnostic that made this legible is *which assertion fails*. Before: the premise broke
+and the **conclusion's** assertion fired, carrying a message about CPython. After: the premise's own
+two assertions fire, naming which half went. **Assert the premise separately from the claim, or every
+premise failure arrives wearing the claim's explanation.**
+
+type: 2 · seen: 1 · handle: `construct-the-premise-do-not-race-for-it` · tickets: 190
 
 ## 189 — One field answering two questions cannot be fixed by ranking harder
 171 ranked `sibling_definitions` by shared subtree depth and was **right** — 165 exists because *"a
