@@ -13,11 +13,14 @@ from code_atlas.tools import call_site, claim
 from code_atlas.tools.coverage import attach_coverage_note, covered_languages
 from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
+    CAVEAT_SIBLING_DEFINITIONS,
     REASON_BARE_NAME_TRUNCATED,
     REASON_INDEX_STALE,
     REASON_NO_SUCH_SYMBOL,
+    SIBLING_DEFINITIONS,
     TRY_INSTEAD_FILE_OUTLINE,
     attach_ambiguous_definitions,
+    attach_authoritative_caveats,
     attach_limit_capped,
     attach_resolved_qname,
     attach_result_subtrees,
@@ -30,6 +33,7 @@ from code_atlas.tools.nav_result import (
     nav_result,
     relation_reason,
     shape_exact_miss,
+    sibling_definition_rows,
     unique_repoint,
 )
 from code_atlas.tools.staleness import compute_staleness
@@ -49,7 +53,6 @@ CLAIM_CARRY = (
 
 # The subject shares a trailing method name with definitions under other qnames — callers reached
 # by simple name may bind to a sibling, so this answer is a partition, not the whole (task 165).
-SIBLING_DEFINITIONS = "sibling_definitions"
 
 _RESOLVED = CONFIDENCE_TIERS[0]
 # Cap BFS counting so total_count stays honest-as-a-floor without walking the whole graph.
@@ -239,13 +242,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             if indexed and container is not None:
                 # A same-named Method under a different qname; a simple-name caller may bind
                 # there, so this count is a partition (task 165). One bounded query.
-                siblings = [
-                    row
-                    for row in store.nodes_by_name(
-                        bare_name, kind="Method", limit=config.max_results
-                    )
-                    if str(row["qualified_name"]) != lookup
-                ]
+                siblings = sibling_definition_rows(
+                    store,
+                    bare_name=bare_name,
+                    kind="Method",
+                    lookup=lookup,
+                    limit=config.max_results,
+                )
                 sibling_sites = definition_sites(siblings)
             if include_source:
                 call_site.annotate(config.root, store, outcome.results)
@@ -282,9 +285,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         attach_ambiguous_definitions(result, definition_sites(subject_nodes))
         if sibling_sites:
             # A partition of the callers, not the whole — mark it non-authoritative (165, R5.5),
-            # the spelling find_references already carries for a caveated answer.
+            # and name the reason, so an agent can tell this from a tier caveat (168).
             result[SIBLING_DEFINITIONS] = sibling_sites
-            result["authoritative"] = False
+            attach_authoritative_caveats(result, [CAVEAT_SIBLING_DEFINITIONS])
         attach_limit_capped(result, cap=cap, clamped=limit_clamped)
         attach_resolved_qname(result, asked=asked, answered=lookup)
         return signed(attach_coverage_note(result, config, covered))

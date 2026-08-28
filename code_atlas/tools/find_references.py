@@ -12,14 +12,18 @@ from code_atlas.tools import call_site, claim
 from code_atlas.tools.coverage import attach_coverage_note, covered_languages
 from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
+    CAVEAT_ALL_HITS_DYNAMIC,
+    CAVEAT_SIBLING_DEFINITIONS,
     REASON_INDEX_STALE,
     REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
     REASON_RELATIONSHIP_NOT_MODELLED,
+    SIBLING_DEFINITIONS,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_HINT_METHOD_QNAME,
     TRY_INSTEAD_SEARCH_SYMBOL,
     attach_ambiguous_definitions,
+    attach_authoritative_caveats,
     attach_limit_capped,
     attach_resolved_qname,
     attach_result_subtrees,
@@ -31,6 +35,7 @@ from code_atlas.tools.nav_result import (
     nav_result,
     relation_reason,
     shape_exact_miss,
+    sibling_definition_rows,
     unique_repoint,
 )
 from code_atlas.tools.staleness import compute_staleness
@@ -161,6 +166,19 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 total_count = store.count_edges_by_target(lookup)
                 nodes = store.nodes_by_qualified_name(lookup, limit=config.max_results)
                 indexed = bool(nodes)
+            # A same-named definition under another qname makes this count a partition (168).
+            # One bounded query, keyed on the subject's own kind — 054's rule, not a constant.
+            sibling_sites: list[dict[str, object]] = []
+            if indexed and nodes:
+                sibling_sites = definition_sites(
+                    sibling_definition_rows(
+                        store,
+                        bare_name=str(nodes[0]["name"]),
+                        kind=str(nodes[0]["kind"]),
+                        lookup=lookup,
+                        limit=config.max_results,
+                    )
+                )
             edges = store.edges_by_target(lookup, limit=cap, offset=offset)
             results = [edge_hit(edge) for edge in edges]
             # Skewed page 1 hides other subtrees — advertise the full spread (task 067).
@@ -205,8 +223,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         attach_ambiguous_definitions(result, definition_sites(nodes))
         attach_limit_capped(result, cap=cap, clamped=limit_clamped)
         attach_resolved_qname(result, asked=asked, answered=lookup)
+        caveats: list[str] = []
         if results and all(hit.get("confidence_tier") == "DYNAMIC" for hit in results):
-            result["authoritative"] = False
+            caveats.append(CAVEAT_ALL_HITS_DYNAMIC)
+        if sibling_sites:
+            result[SIBLING_DEFINITIONS] = sibling_sites
+            caveats.append(CAVEAT_SIBLING_DEFINITIONS)
+        attach_authoritative_caveats(result, caveats)
         return signed(
             attach_coverage_note(
                 attach_try_instead(result, try_instead, try_instead_hint), config, covered

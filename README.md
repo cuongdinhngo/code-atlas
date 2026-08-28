@@ -292,6 +292,28 @@ it has moved, the build escalates to a full one and **names why**:
 This is the same answer the existing `contract_version` check already gives for the same class of
 change. A build whose scope did not change is byte-identical, and pays one meta read it already made.
 
+### When an answer is a partition, both nav tools say so (task 168)
+
+A same-named definition under a *different* qname means a simple-name reference may bind there, so
+an answer keyed on one qname is a **partition of the truth, not the whole of it**. `find_callers`
+disclosed that; `find_references` did not — 16 hits at `reason: "ok"` against 19 real sites.
+
+Both now carry the same three fields, and each is omitted when there is nothing to say (061):
+
+| Field | Meaning |
+|---|---|
+| `sibling_definitions` | the same-named definitions under other qnames, as `{file, line, kind}` sites |
+| `authoritative: false` | this count is a partition — widen before you act on it |
+| `authoritative_caveats` | **why**: `sibling_definitions`, `all_hits_dynamic`, or both |
+
+The last one matters because `authoritative: false` alone cannot tell an agent whether to widen the
+query or to distrust the confidence tier — two different actions behind one boolean. The sibling
+query is keyed on the **subject's own kind**, which is 054's rule (a bare Method name is not a
+Function qname) stated once rather than as a per-tool constant.
+
+`ambiguous_definitions` stays separate: that is the *same* qname defined twice, which is a different
+fact and can appear on the same payload.
+
 > **Language scope today:** only the **PHP** adapter exists. A TypeScript, Python, or C# project won't
 > index yet — those are planned (see [Roadmap](#roadmap)).
 

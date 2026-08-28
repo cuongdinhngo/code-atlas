@@ -518,6 +518,38 @@ def attach_result_kinds(
 AMBIGUOUS_DEFINITIONS = "ambiguous_definitions"
 
 
+# A same-named definition under a *different* qname: a simple-name reference may bind there, so an
+# answer keyed on one qname is a partition (165). One definition site, both tools (R6.7).
+SIBLING_DEFINITIONS = "sibling_definitions"
+AUTHORITATIVE = "authoritative"
+AUTHORITATIVE_CAVEATS = "authoritative_caveats"
+# The distinct reasons an answer is a partition. Named, because `authoritative: false` alone cannot
+# tell an agent whether to widen the query or to distrust the tier (task 168 AC3).
+CAVEAT_ALL_HITS_DYNAMIC = "all_hits_dynamic"
+CAVEAT_SIBLING_DEFINITIONS = "sibling_definitions"
+
+
+def attach_authoritative_caveats(
+    payload: dict[str, object], caveats: list[str]
+) -> dict[str, object]:
+    """Mark the answer a partition and name every reason it is one. Omit-when-empty (061)."""
+    if not caveats:
+        return payload
+    payload[AUTHORITATIVE] = False
+    payload[AUTHORITATIVE_CAVEATS] = sorted(set(caveats))
+    return payload
+
+
+def sibling_definition_rows(store: object, *, bare_name: str, kind: str, lookup: str, limit: int):
+    """Same-named definitions of the same kind under other qnames. One bounded query (165).
+
+    ``kind`` is the *subject's own* kind rather than a constant: 054's lesson is that a bare Method
+    name and a Function qname are different subjects, and that rule stated once covers both tools.
+    """
+    rows = store.nodes_by_name(bare_name, kind=kind, limit=limit)  # type: ignore[attr-defined]
+    return [row for row in rows if str(row["qualified_name"]) != lookup]
+
+
 def definition_sites(rows: list[Row]) -> list[dict[str, object]]:
     """Shape definition nodes into ``{file, line, kind}`` sites, in ``_NODE_ORDER`` (R4).
 

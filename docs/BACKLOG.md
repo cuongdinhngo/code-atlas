@@ -47,7 +47,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 165 | [`find_callers` on a qualified twin silently omits callers bound to its sibling, and says `reason: "ok"`](tasks/165_find-callers-splits-across-twins-and-says-reason-ok.md) | Agent-trust | done | 013, 054, 161, 122 |
 | 166 | [`read_symbol` answers from the pre-repair state and calls it `no_such_symbol`](tasks/166_read-symbol-answers-from-pre-repair-state-and-calls-it-no-such-symbol.md) | Agent-trust | done | 035, 014, 065 |
 | 167 | [A substring near-miss is returned at `reason: "ok"`](tasks/167_a-substring-near-miss-is-reported-as-reason-ok.md) | Agent-trust | done | 014, 160, 093 |
-| 168 | [`find_references` under-reports an alias-backed class by 4.7× and still says `reason: "ok"`](tasks/168_find-references-never-got-165s-twin-disclosure.md) | Agent-trust | todo | 165, 013, 122 |
+| 168 | [`find_references` under-reports an alias-backed class by 4.7× and still says `reason: "ok"`](tasks/168_find-references-never-got-165s-twin-disclosure.md) | Agent-trust | done | 165, 013, 122 |
 | 169 | [An `impact` path seed expands to every symbol in the file and reports 29× the qname](tasks/169_impact-path-seed-walks-every-symbol-and-its-twins.md) | Agent-trust | todo | 161, 017, 078 |
 | 170 | [`server_identity` is cached, so a later build swap is unreportable](tasks/170_server-identity-is-cached-so-a-later-build-swap-is-unreportable.md) | Agent-trust | todo | 164, 162, 125 |
 | 171 | [`sibling_definitions` fires on 83 % of calls and lists nine sites unranked](tasks/171_sibling-definitions-fires-on-most-calls-and-is-unranked.md) | Agent-trust | todo | 165, 168, 013 |
