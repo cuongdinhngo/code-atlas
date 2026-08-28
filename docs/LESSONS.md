@@ -32,9 +32,9 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
 | `derived-not-listed-invariant` | 18 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180 | **R6.7** |
-| `prove-the-guard-fails` | 15 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019 | **R6.5** |
+| `prove-the-guard-fails` | 16 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185 | **R6.5** |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
-| `fixture-shape-begs-the-question` | 8 | 084, 086, 103–106, 121, 183 | **R6.3** — widened 2026-08-23, provisional |
+| `fixture-shape-begs-the-question` | 9 | 084, 086, 103–106, 121, 183, 185 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
 | `count-pin-in-blast-radius` | 4 | 085, 087–089 | **AGENT_BRIEF P5** — promoted 2026-08-27 |
 | `source-the-caveat-from-the-computation` | 5 | 100–102, 122, 127 | **R5.5** |
@@ -63,6 +63,40 @@ proposed as a new rule, because R6.3 already owned cross-repo validation and P2 
 this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *claim's* list honest and
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
+
+## 185 — A matrix of labels is documentation; give every declared state an obligation
+No test in `tests/` imported `code_atlas.tools` and asked anything over a TypeScript-indexed graph, so
+*"22 tools × every language"* was tested for PHP and **asserted** for TS. Writing the matrix was the
+cheap part. What made it worth having is that every state carries an obligation checked against the
+world, not a label: `answers_without` must name an edge kind, and the test asserts that kind really is
+absent from that language's graph. A red run proved it — a cell claiming *"narrower because `CALLS` is
+missing"* fails, because `CALLS` is there. Without that check the whole file could have been green and
+meaningless.
+
+**Measurement beat the ticket's own premise, twice.** The ticket predicted three tools fail on TS.
+`include_graph` does. `find_references` **answers** — TS emits `IMPORTS`, which is already in
+`UNMODELLED_REFERENCE_KINDS`, so what it loses is the narrower `REFERENCES`. And `find_view_data` is
+empty on **both** languages for a *configuration* reason, not a language one. Folding that into
+"this language doesn't model the relation" would have asserted a language gap where none exists — the
+exact error the ticket was filed to stop. Hence five states, not three: `answers_without` for a real
+answer that is narrower, and `empty_capability_not_configured` for an empty every language shares.
+
+**And the matrix found a live crash on its first run.** `find_orphans` raises
+`OperationalError: no such table: temp.reach_seen` when `CA_ENTRY_POINTS` resolves to zero seeds:
+`reachable_from` returns before creating its temp tables and `find_orphans` reads them. Two consumers
+of one walk disagreeing about the empty case — R1.8 one layer down. Filed as 187, not fixed here.
+
+### 185-C1 — A declared state needs an obligation derived from the world, not a label
+- type: 2 generalisable-heuristic
+- handle: a-declared-state-needs-a-checkable-obligation
+- status: proposed (awaiting human confirm)
+- seen: 185
+- evidence: `answers_without` began as a label meaning "narrower for this language". Nothing checked
+  the claim, so any cell could have named any missing kind and stayed green. Deriving the obligation
+  from the graph's actual edge kinds turned it into an assertion; the red run confirms a false claim
+  now fails. Generalises to any expectation table: state, then the obligation that state implies.
+- area: tests / contract harness
+- destination: stays in `lessons_path` (recurrence 1)
 
 ## 183 — A whole-population aggregate outlives the world that named it, and no test notices
 `edge_health` was written when the index held one language, so *"the graph's tier mix"* and *"this
