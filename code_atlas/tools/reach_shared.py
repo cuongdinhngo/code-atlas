@@ -13,21 +13,30 @@ from code_atlas.store import GraphStore, Row
 from code_atlas.tools.nav_result import nav_result
 
 NO_ROOTS = "no_roots_configured"
+# Two refusals, both sourced from the computation rather than from a threshold (task 182 / R5.2).
+# A truncated walk cannot support a reachability claim, and roots that match no file never started
+# one — either way the honest answer is a named refusal, not 215,177 rows flagged unreliable.
+ROOTS_MATCHED_NOTHING = "roots_matched_nothing"
+WALK_BUDGET_EXHAUSTED = "walk_budget_exhausted"
 DetailLevel = Literal["minimal", "standard"]
 
 
-def entry_seeds(store: GraphStore, patterns: Sequence[str]) -> list[str]:
+def entry_seeds(
+    store: GraphStore, patterns: Sequence[str], paths: Sequence[str] | None = None
+) -> list[str]:
     """Every indexed node on files matching any entry-point glob (W1).
 
     Patterns use the same segment-aware glob language as ignore rules (PLAN §11):
     ``*`` / ``?`` stay inside one path segment; ``**`` crosses directories.
+
+    ``paths`` lets a caller that already holds the file list hand it over, so naming the unmatched
+    roots costs no second query (task 182).
     """
     compiled = tuple(
         re.compile(f"{translate_path_pattern(pattern)}$") for pattern in patterns
     )
-    matched = [
-        path for path in store.file_paths() if any(rule.match(path) for rule in compiled)
-    ]
+    all_paths = store.file_paths() if paths is None else paths
+    matched = [path for path in all_paths if any(rule.match(path) for rule in compiled)]
     found: list[str] = []
     seen: set[str] = set()
     for path in matched:
@@ -56,6 +65,62 @@ def no_roots(detail_level: DetailLevel, config: Config) -> dict[str, object]:
         **server_provenance(),
     }
     del detail_level
+    return payload
+
+
+def unmatched_entry_patterns(
+    paths: Sequence[str], patterns: Sequence[str]
+) -> list[str]:
+    """Entry-point patterns that matched no indexed file (task 182).
+
+    A root matching nothing is the commonest way an orphan answer goes wrong, and the payload could
+    not say so. Pure over the path list the caller already has — no second query.
+    """
+    unmatched: list[str] = []
+    for pattern in patterns:
+        rule = re.compile(f"{translate_path_pattern(pattern)}$")
+        if not any(rule.match(path) for path in paths):
+            unmatched.append(pattern)
+    return unmatched
+
+
+def refuse_reachability(
+    status: str,
+    roots: Sequence[str],
+    *,
+    config: Config,
+    message: str,
+    unmatched: Sequence[str] = (),
+    reached: int | None = None,
+    nodes_total: int | None = None,
+) -> dict[str, object]:
+    """A reachability refusal: what it CAN say, and no row list (task 182).
+
+    Distinct from ``status: ok`` with an empty list, which is the real and useful answer *nothing is
+    orphaned* (102). ``reached`` / ``nodes_total`` are the two numbers that show whether a huge
+    orphan share is dead code or the wrong roots; they ride here, where the reader needs them, so a
+    complete plausible answer stays byte-identical (061).
+    """
+    payload: dict[str, object] = {
+        "indexed": config.db_path.is_file(),
+        "qname": ",".join(roots),
+        "results": [],
+        "truncated": False,
+        "status": status,
+        "entry_points": list(roots),
+        "unproven": [],
+        "authoritative": False,
+        "depth_exhausted": False,
+        "message": message,
+        "index_root": config.index_root,
+        **server_provenance(),
+    }
+    if unmatched:
+        payload["entry_points_unmatched"] = list(unmatched)
+    if reached is not None:
+        payload["roots_reached"] = reached
+    if nodes_total is not None:
+        payload["nodes_total"] = nodes_total
     return payload
 
 

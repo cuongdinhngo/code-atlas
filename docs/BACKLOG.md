@@ -61,13 +61,14 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 179 | [`impact_modules` inherits 169's seed classification but not its twin refusal](tasks/179_impact-modules-inherits-half-the-seed-fix.md) | Agent-trust | done | 169, 161, 140 |
 | 180 | [`search_symbol` ranks a substring near-miss above six exact matches](tasks/180_search-ranks-a-near-miss-above-exact-matches.md) | Agent-trust | done | 167, 014, 057 |
 | 181 | [`sibling_definitions` at `ranked_by: "path"` is a 93-row dump wearing a ranking's shape](tasks/181_sibling-definitions-fallback-is-a-dump-not-a-ranking.md) | Agent-trust | done | 171, 168, 169 |
-| 182 | [`find_orphans` returns 215,177 rows it has already flagged unreliable](tasks/182_find-orphans-answers-with-rows-it-has-flagged-unreliable.md) | Agent-fit | todo | 124, 031, 119 |
+| 182 | [`find_orphans` returns 215,177 rows it has already flagged unreliable](tasks/182_find-orphans-answers-with-rows-it-has-flagged-unreliable.md) | Agent-fit | done | 124, 031, 119 |
 | 183 | [`edge_health` is whole-graph only, so no adapter can be evaluated on the repo it was added for](tasks/183_edge-health-has-no-per-language-breakdown.md) | Measure | done | 136, 082, 173 |
 | 185 | [No tool is ever asked a question over a second language's graph — the multi-language claim stops at the adapter boundary](tasks/185_no-tool-is-ever-asked-a-question-over-a-second-languages-graph.md) | Coverage | done | 147, 012, 019 |
 | 186 | [A zero answer still cannot say "this relation is not modelled for this file's language" — 160's carve-out, now a false negative](tasks/186_a-zero-answer-cannot-say-the-relation-is-unmodelled-for-this-language.md) | Agent-trust | done | 160, 183, 185 |
 | 187 | [`find_orphans` crashes on an entry-point glob that matches nothing](tasks/187_find-orphans-crashes-on-an-entry-point-glob-that-matches-nothing.md) | Agent-trust | todo | 185, 031, 124 |
 | 188 | [`IMPORTS` is never linked, so no tool walks a module graph](tasks/188_imports-edges-are-never-linked-so-no-tool-can-walk-a-module-graph.md) | Agent-fit | todo | 186, 019, 155 |
 | 189 | [A twin is a container fact, not a path fact](tasks/189_a-twin-is-a-container-fact-not-a-path-fact.md) | Agent-trust | todo | 181, 171, 165 |
+| 190 | [A same-second guard is flaky under suite load](tasks/190_a-same-second-guard-is-flaky-under-suite-load.md) | Coverage | todo | 146 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -124,8 +125,8 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | 4–7 (2026-08-10…23) | 075–082 · 092–097 · 099–102 · 122–125 · 126 · 127 | closed — 081 `NOT OBSERVED`; 127 closed **119** in the same change |
 | 8–9 (2026-08-25/26) | 158–163 · 022 | closed — SQL deferred (022) |
 | 10 (2026-08-26) | 164–167 | closed — the verification round: no prior fix reached a long-lived process until **164** (#187); then 165–167 (#188–#190) |
-| 11 (2026-08-27) | 168–179 | closed — **first round a fix reached the field**; adapter #2's fourth zero was an absent `CA_<LANG>_CMD`, not capability. 170 · 174 · 175 · 179 stayed open |
-| 12 (2026-08-28) | 180–186 | open — first **two-language** index. Decisive fact: the T-SQL the index does not read → **184**; adapter #2's fifth zero is now **applicability**, not roll-out. **Roll-out unmoved for a fifth round** — `.mcp.json` 0, CI 0 |
+| 11 (2026-08-27) | 168–179 | closed — **first round a fix reached the field**; adapter #2's fourth zero was an absent `CA_<LANG>_CMD`, not capability |
+| 12 (2026-08-28) | 180–190 | open — first **two-language** index. The T-SQL the index does not read → **184**; adapter #2's fifth zero is **applicability**, not roll-out. Roll-out unmoved for a fifth round — `.mcp.json` 0, CI 0. 187–190 were found by the fixes, not by the round |
 | Architecture review (2026-08-23) | 138–142 · 143–145 | 138 · 139 · 142 · 143 · 144 · **145A** done; 141 gated at n = 0; 145B deferred (stack not chosen) |
 
 **What still governs open work:**
@@ -133,10 +134,10 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 - **Every `deferred` ticket holds its own gate** — 074, 098, 141 and 022 each state theirs, and 141 is
   at n = 0; do not queue one without reading it. Auto *reading orders* stay unscheduled
   ([121](benchmarks/121_onboarding-question-class.md)).
-- **M10–M12 are complete** — 22 tools on the MCP surface, plus four shell entry points; the 108–117
-  reshape renders the map from 112's dataset alone ([`ROADMAP.md`](phase3-onboarding/ROADMAP.md)).
-- **Roll-out is the binding constraint and deliberately not a ticket here** — five rounds standing. The
-  backlog accepts only code, which is the mechanism that defers it, so it goes to the consumer as a PR.
+- **M10–M12 are complete** — 22 tools on the MCP surface, plus four shell entry points
+  ([`ROADMAP.md`](phase3-onboarding/ROADMAP.md)).
+- **Roll-out is the binding constraint and deliberately not a ticket here** — five rounds standing;
+  this backlog accepts only code, so it goes to the consumer as a PR.
 - **The anchor repo is the test subject, not the product** — 185/186 keep the language-agnostic claim
   checked at the tool surface, where 147 only checks it at the adapter's.
 

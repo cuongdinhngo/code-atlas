@@ -57,6 +57,18 @@ likely misconfiguration of the two: an unset variable is obvious, a stale glob i
 crosses the tool boundary as a stack trace rather than an answer with a next action, which is what
 050 exists to prevent.
 
+## Status update (2026-08-28, by 182)
+
+**182 removed the crash from the tool path.** `find_orphans` now returns
+`status: roots_matched_nothing` before it can reach the store, so the reported repro no longer raises
+— pinned by `test_roots_that_match_no_file_refuse_and_name_themselves`, whose red run reproduces this
+exact `OperationalError`.
+
+**What remains is the store-level contract, which is the more general half.**
+`store.reachable_from` still returns before creating its temps on an empty seed list, and
+`store.find_orphans` still reads them — so any *other* caller of `retain_temps=True`, now or later,
+crashes the same way. Scope 2 below is the live part; Scope 1 and 3 are delivered.
+
 ## Scope
 
 1. An entry-point set that resolves to **zero** seeds returns an answer, not a raise. Design records

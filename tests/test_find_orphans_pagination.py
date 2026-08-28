@@ -138,11 +138,15 @@ def test_orphans_max_nodes_governs_the_walk(store: GraphStore, tmp_path: Path) -
     loose = find_orphans.create(replace(config, orphans_max_nodes=50))(
         detail_level="minimal"
     )
-    assert tight["walk_truncated"] is True
+    # 124 asserted the tight walk disclosed `walk_truncated` and returned its rows anyway; 182
+    # turned that into a refusal, because a truncated walk cannot support a reachability claim.
+    assert tight["status"] == find_orphans.WALK_BUDGET_EXHAUSTED
+    assert tight["results"] == []
+    assert tight["roots_reached"] < tight["nodes_total"], "the two numbers that explain the share"
+    # The loose walk is the answer: complete, so no caveat and no refusal.
     assert "walk_truncated" not in loose
-    assert len(tight["results"]) > len(loose["results"])
-    # Both pages hold every orphan they found: page truncation is the pager's signal, and it
-    # must not inherit the walk's — a budget-bound walk would otherwise never stop paging (124).
+    assert loose["status"] == "ok"
+    # Page truncation is still the pager's own signal and must not inherit the walk's (124).
     assert tight["truncated"] is False
     assert loose["truncated"] is False
 
@@ -176,25 +180,21 @@ def test_bad_offset_fails_loud_when_unindexed(tmp_path: Path) -> None:
         tool(offset=-1, detail_level="minimal")
 
 
-def test_pager_terminates_when_the_walk_hit_its_budget(
+def test_a_budget_bound_walk_refuses_instead_of_paging(
     store: GraphStore, tmp_path: Path
 ) -> None:
-    """124: a budget-bound walk must not keep the pager alive after the last page.
+    """124 made the pager terminate; 182 removes the pages altogether.
 
-    ``truncated`` is the page's own flag; folding the walk's budget into it made every page of
-    the 19k-file repo this ticket is about report ``truncated: true`` forever.
+    124's point stands — ``truncated`` is the page's own flag and must not inherit the walk's, or
+    every page of a 19k-file repo reports ``truncated: true`` forever. 182 goes further: there is
+    nothing worth paging, because the walk could not establish reachability at all.
     """
     _plant_many_orphans(store, tmp_path, n=12)
     config = replace(config_for(tmp_path), max_results=50, orphans_max_nodes=1)
-    tool = find_orphans.create(config)
-    offset, pages, seen = 0, 0, []
-    while pages < 5:
-        page = tool(detail_level="minimal", limit=50, offset=offset)
-        pages += 1
-        seen += [str(hit["qname"]) for hit in page["results"]]
-        assert page["walk_truncated"] is True  # the over-estimate is still disclosed
-        if not page["truncated"]:
-            break
-        offset += len(page["results"])
-    assert pages == 1
-    assert len(seen) == page["total_count"]
+    page = find_orphans.create(config)(detail_level="minimal", limit=50, offset=0)
+
+    assert page["status"] == find_orphans.WALK_BUDGET_EXHAUSTED
+    assert page["results"] == []
+    assert page["truncated"] is False, "nothing to page (124's property, now trivially true)"
+    assert page["authoritative"] is False
+    assert "CA_ORPHANS_MAX_NODES" in str(page["message"])

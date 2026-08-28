@@ -186,6 +186,10 @@ class ReachabilityResult(NamedTuple):
     frontier_skipped_non_resolved: int
     truncated: bool
     depth_exhausted: bool
+    # `truncated` conflates three causes and one of them — a caller's own `depth=` — is a deliberate
+    # question, not a failure. This names the BUDGET half, which is the one that cannot be trusted
+    # to say anything about reachability at all (task 182).
+    budget_exhausted: bool = False
 
 
 class OrphanResult(NamedTuple):
@@ -197,6 +201,12 @@ class OrphanResult(NamedTuple):
     truncated: bool
     depth_exhausted: bool
     walk_truncated: bool
+    # How many nodes the roots actually reached, and how many exist (task 182). A 99.31% orphan
+    # share is a correct algorithm with the wrong roots, and only these two numbers show which.
+    reached: int = 0
+    nodes_total: int = 0
+    # The budget half of `walk_truncated`; a caller's own `depth=` is not this (task 182).
+    budget_exhausted: bool = False
 
 
 class SubtreeTierAttribution(NamedTuple):
@@ -1745,7 +1755,7 @@ class GraphStore:
             raise ValueError("kinds must be non-empty")
         ordered_seeds = list(dict.fromkeys(q for q in seeds if q))
         if not ordered_seeds:
-            return ReachabilityResult([], [], 0, False, False)
+            return ReachabilityResult([], [], 0, False, False, False)
 
         conn = self._conn
         self._reach_drop_temps()
@@ -1867,9 +1877,8 @@ class GraphStore:
             unproven_total = int(
                 conn.execute("SELECT COUNT(*) FROM temp.reach_unproven").fetchone()[0]
             )
-            truncated = (
-                depth_exhausted or seen_count >= max_nodes or unproven_total > max_nodes
-            )
+            budget_exhausted = seen_count >= max_nodes or unproven_total > max_nodes
+            truncated = depth_exhausted or budget_exhausted
             # Distinct non-RESOLVED nodes (matches reach_unproven), not per-hop encounters.
             skipped = unproven_total
 
@@ -1913,7 +1922,7 @@ class GraphStore:
                 (max_nodes,),
             )
             return ReachabilityResult(
-                reachable, unproven, skipped, truncated, depth_exhausted
+                reachable, unproven, skipped, truncated, depth_exhausted, budget_exhausted
             )
         finally:
             if not retain_temps:
@@ -1993,6 +2002,9 @@ class GraphStore:
             # `truncated` describes this page only, so a pager terminates; the walk hitting its
             # own budget is `walk_truncated` — a different fact, and it never ends (057/124).
             page_truncated = offset + len(orphans) < orphan_total
+            # Both already computed for the walk's own budget check — no extra pass (task 182).
+            reached = int(conn.execute("SELECT COUNT(*) FROM temp.reach_seen").fetchone()[0])
+            nodes_total = int(conn.execute("SELECT COUNT(*) FROM nodes").fetchone()[0])
             return OrphanResult(
                 orphans,
                 reach.unproven,
@@ -2000,6 +2012,9 @@ class GraphStore:
                 page_truncated,
                 reach.depth_exhausted,
                 reach.truncated,
+                reached,
+                nodes_total,
+                reach.budget_exhausted,
             )
         finally:
             conn.execute("DROP TABLE IF EXISTS temp.reach_excluded")

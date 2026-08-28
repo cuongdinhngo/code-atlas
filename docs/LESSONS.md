@@ -32,7 +32,7 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
 | `derived-not-listed-invariant` | 18 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180 | **R6.7** |
-| `prove-the-guard-fails` | 21 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181 | **R6.5** |
+| `prove-the-guard-fails` | 22 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182 | **R6.5** |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
 | `fixture-shape-begs-the-question` | 9 | 084, 086, 103–106, 121, 183, 185 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
@@ -63,6 +63,44 @@ proposed as a new rule, because R6.3 already owned cross-repo validation and P2 
 this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *claim's* list honest and
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
+
+## 182 — Publish the premise, not only the complement
+Carve-out (e) was HOLD for **five rounds**. Round 12 produced the number that made it a defect:
+`find_orphans` → **215,177 orphans of 216,664 nodes (99.31 %)**, `walk_truncated: true`,
+`authoritative: false`. The tool flagged its own answer unreliable and returned 215,177 rows anyway.
+
+**And the root cause is the roots.** `entry_points: ["public/*.php"]`, but the anchor's
+`public/main.php` `chdir()`s into `legacy/*/web` and dispatches from there — so almost nothing is
+reachable *from those roots*, and the walk reports that faithfully. 99.31 % is a **correct algorithm
+with the wrong roots**, and the payload published the complement (215,177 orphans) without the premise
+(three root files reached a handful of nodes). The two readings — *this code is dead* and *these roots
+are wrong* — were indistinguishable.
+
+**The correction that mattered came from reading the source, not the ticket.** Scope 1 says
+*"`walk_truncated` becomes a refusal"*. But `truncated = depth_exhausted or seen >= max_nodes or
+unproven > max_nodes` — **three causes, one of them the caller's own `depth=`**. Refusing on all three
+would refuse *"what is unreachable within two hops?"*, a legitimate question. Only the budget half
+became a refusal; a red run pins that the literal reading breaks the shallow-walk case.
+
+**Scope 2's threshold was rejected, and shown unnecessary.** *"An orphan share above X % means the
+roots are wrong"* is a claim no row supports (161 AC1) and any X would be tuned on one anchor —
+`fixture-shape-begs-the-question` in numeric form. It is also not needed: the field case already
+carried `walk_truncated`, so the **structural** condition refuses it. What replaces the threshold is
+publishing `roots_reached` / `nodes_total`, so the reader judges plausibility with the evidence.
+
+### 182-C1 — A complement is unreadable without the premise it was taken against
+- type: 2 generalisable-heuristic
+- handle: publish-the-premise-not-only-the-complement
+- status: proposed (awaiting human confirm)
+- seen: 182
+- evidence: 215,177 orphans of 216,664 nodes is unreadable — it is consistent with a dead repo and
+  with three misconfigured globs. *"Three root files reached a handful of nodes"* is the same fact and
+  immediately actionable. Any tool answering with a complement (orphans, unreachable, unused, missing)
+  owes the reader what the premise reached, not only what it excluded. Corollary from the same ticket:
+  **a flag that is the OR of several causes cannot become a refusal until it is split** — one cause
+  here was the caller's own request.
+- area: tools / payload honesty / config
+- destination: stays in `lessons_path` (recurrence 1)
 
 ## 181 — A fallback must not wear the shape of the thing it falls back from
 171 shipped the ordering 165's caveat needed, and round 12 fired it three times. Case A —
