@@ -63,6 +63,8 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 181 | [`sibling_definitions` at `ranked_by: "path"` is a 93-row dump wearing a ranking's shape](tasks/181_sibling-definitions-fallback-is-a-dump-not-a-ranking.md) | Agent-trust | todo | 171, 168, 169 |
 | 182 | [`find_orphans` returns 215,177 rows it has already flagged unreliable](tasks/182_find-orphans-answers-with-rows-it-has-flagged-unreliable.md) | Agent-fit | todo | 124, 031, 119 |
 | 183 | [`edge_health` is whole-graph only, so no adapter can be evaluated on the repo it was added for](tasks/183_edge-health-has-no-per-language-breakdown.md) | Measure | todo | 136, 082, 173 |
+| 185 | [No tool is ever asked a question over a second language's graph — the multi-language claim stops at the adapter boundary](tasks/185_no-tool-is-ever-asked-a-question-over-a-second-languages-graph.md) | Coverage | todo | 147, 012, 019 |
+| 186 | [A zero answer still cannot say "this relation is not modelled for this file's language" — 160's carve-out, now a false negative](tasks/186_a-zero-answer-cannot-say-the-relation-is-unmodelled-for-this-language.md) | Agent-trust | todo | 160, 183, 185 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -116,11 +118,11 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 
 | Round | Tickets | State |
 |---|---|---|
-| 4–7 (2026-08-10…23) | 075–082 · 092–097 · 099–102 · 122–125 · 126 · 127 | closed — 081 `NOT OBSERVED`; 127 closed **119** in the same change; the subject is the agent, not the repository (§19) |
-| 8–9 (2026-08-25/26) | 158–163 · 022 | closed — six shipped in one day, all six verified on fresh code; SQL deferred (022) |
-| 10 (2026-08-26) | 164–167 | closed — the verification round: 0 of 6 prior fixes reached a long-lived process, because `server_build` named the repo, not the loaded code (**164**, #187), then 165–167 (#188–#190) |
-| 11 (2026-08-27) | 168–179 | closed — **first round a fix reached the field** (2 of 4 in-work; 165 changed a shipped PR); adapter #2's fourth zero came from an absent `CA_<LANG>_CMD`, not from capability. Eight shipped overnight (#203–#210); 170 · 174 · 175 · 179 stayed open |
-| 12 (2026-08-28) | 180–184 | open — first round with a **two-language** index. The decisive fact was **378,790 lines of T-SQL** the index does not read (`decisive facts in-graph: 1.5 of 6`) → **184**. Adapter #2's fifth zero, now **applicability** rather than roll-out: 0 of 6 units were JS. 2 of 8 fixes fired in-work, 1 changed behaviour (168). **Roll-out unmoved for a fifth round** — `.mcp.json` 0, CI 0 |
+| 4–7 (2026-08-10…23) | 075–082 · 092–097 · 099–102 · 122–125 · 126 · 127 | closed — 081 `NOT OBSERVED`; 127 closed **119** in the same change |
+| 8–9 (2026-08-25/26) | 158–163 · 022 | closed — SQL deferred (022) |
+| 10 (2026-08-26) | 164–167 | closed — the verification round: no prior fix reached a long-lived process until **164** (#187); then 165–167 (#188–#190) |
+| 11 (2026-08-27) | 168–179 | closed — **first round a fix reached the field**; adapter #2's fourth zero was an absent `CA_<LANG>_CMD`, not capability. 170 · 174 · 175 · 179 stayed open |
+| 12 (2026-08-28) | 180–186 | open — first **two-language** index. Decisive fact: the T-SQL the index does not read → **184**; adapter #2's fifth zero is now **applicability**, not roll-out. **Roll-out unmoved for a fifth round** — `.mcp.json` 0, CI 0 |
 | Architecture review (2026-08-23) | 138–142 · 143–145 | 138 · 139 · 142 · 143 · 144 · **145A** done; 141 gated at n = 0; 145B deferred (stack not chosen) |
 
 **What still governs open work:**
@@ -132,17 +134,15 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
   reshape renders the map from 112's dataset alone ([`ROADMAP.md`](phase3-onboarding/ROADMAP.md)).
 - **Roll-out is the binding constraint and deliberately not a ticket here** — five rounds standing. The
   backlog accepts only code, which is the mechanism that defers it, so it goes to the consumer as a PR.
+- **The anchor repo is the test subject, not the product** — 185/186 keep the language-agnostic claim
+  checked at the tool surface, where 147 only checks it at the adapter's.
 
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
 
-**Deferred, not cancelled** (human-ratified 2026-08-04) for adapters #3–#4: breadth waits on the PHP
-agent-loop, because a large private PHP monorepo is the anchor for testing *and* evaluation (§19). The
-language *order* is unchanged (§18.2). Adapter #2's prerequisites all landed — 147, 148, 149, 128.
-
-**019 was reopened by human ratification (2026-08-25)**; its remaining scope was filed as **150–157**,
-all now **landed** (each ticket names its slice). The adapter's **zero** contribution to the anchor is a
-roll-out finding, not an adapter one: round 11 §13 measured it parsing the anchor's real front end at
-53.2 % RESOLVED while still unwired.
+**Deferred, not cancelled** for adapters #3–#4 (human-ratified 2026-08-04, §19); the language *order*
+is unchanged (§18.2). **019 was reopened 2026-08-25**, its remaining scope filed as **150–157**, all
+landed. Adapter #2 parses the anchor's front end but is unwired there, so its **zero** contribution is
+a roll-out finding, not an adapter one.
 
 | # | Task | Milestone | Status | Depends on |
 |---|---|---|---|---|
@@ -196,9 +196,8 @@ roll-out finding, not an adapter one: round 11 §13 measured it parsing the anch
 
 ## Phase 1.5 — Agent-first PHP depth (done — §19 pivot, 2026-08-04)
 
-Consumer = an AI agent in a terminal; baseline = grep+`Read`. **All of 032–042 landed**; source
-[`FEEDBACK.md`](FEEDBACK.md). **Editing tools are permanently out** (ceded to native `Edit`, §1/§19),
-and tool *consolidation* (`find_relations`) was measured behind 034 and rejected (§19).
+Consumer = an AI agent in a terminal; baseline = grep+`Read`. **Editing tools are permanently out**
+and tool *consolidation* was measured and rejected — both §19.
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
@@ -216,10 +215,9 @@ and tool *consolidation* (`find_relations`) was measured behind 034 and rejected
 
 ## Phase 1.5b — Large-monorepo validation hardening
 
-Surfaced by a full-build validation against a **large private PHP monorepo** (~40k PHP files, PHP 8.5,
-Docker adapter) and then by four field-retro rounds run on that same anchor repo. Open tickets from
-this track are in [Open work — Pillar 1](#open-work--pillar-1--graph) and
-[Pillar 2](#open-work--pillar-2--onboarding); everything below has landed.
+Surfaced by full-build validation against the anchor monorepo and the field-retro rounds run on it.
+Open tickets are in [Pillar 1](#open-work--pillar-1--graph) / [Pillar 2](#open-work--pillar-2--onboarding);
+everything below has landed.
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
@@ -272,13 +270,10 @@ this track are in [Open work — Pillar 1](#open-work--pillar-1--graph) and
 
 ### Where these tickets came from
 
-Each landed track's provenance — round-by-round narratives, headlines and numbers — lives in
-[PLAN §19](PLAN.md#19-project-context--decision-log), [`FEEDBACK.md`](FEEDBACK.md) (external review
-rounds) and [`LESSONS.md`](LESSONS.md), not retold here (R7.6).
-
-One note still governs open work: the anchor repo's `CLAUDE.md` asserts `grep` "times out" and costs
-"~650× the tokens" — an **un-evidenced claim, not a code-atlas defect**; round 3 observed neither, so
-it needs evidence or removal.
+Provenance is in the three docs the preamble names, not retold here (R7.6). One note still governs
+open work: the anchor repo's `CLAUDE.md` asserts `grep` "times out" and costs "~650× the tokens" — an
+**un-evidenced claim, not a code-atlas defect**; round 3 observed neither, so it needs evidence or
+removal.
 
 ## Follow-ups (not yet ticketed)
 
@@ -295,9 +290,9 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **PHP-adapter duplicate-declaration fixture (optional)** — the adapter already emits per-declaration, so this only pins it.
 - **015 AC2 operator run** — a scale-timing artifact folded into [018](tasks/018_cross-repo-validation.md) as optional A4. Needs an operator machine.
 - **018 construct gaps** — cross-repo misses feed the (still empty) gap log in [`runbooks/cross-repo-validation.md`](runbooks/cross-repo-validation.md) and tasks 007 / 025.
-- **CI tightenings deferred from the drift audit** — [`DRIFT.md`](DRIFT.md) holds all four.
-- **Docker images are never built by CI** — `docker/Dockerfile` can rot; `Dockerfile.runtime` is built inside `pytest`. Honest shape: one job building both. Moot while Actions is unbillable, but it survives that.
-- **GitHub Actions has not run since 2026-08-22** — no budget; `scripts/gate.sh` locally is the standing arrangement (AGENTS.md). It is a human step, so a CI-only gate is off.
+- **`test_ac4_a_same_second_same_size_edit_is_a_stale_import` is flaky under load** — its premise is that both writes land in one second; when they straddle the boundary CPython invalidates correctly and the negative control fails claiming *"CPython changed"*. Seen once in a full run, green alone. The test should pin the mtime instead of racing for it.
+- **Four CI tightenings deferred from the drift audit** — the audit's own doc was never committed, so the list is lost; re-derive from `ci.yml` vs `scripts/gate.sh` if it is wanted.
+- **Docker images are never built by CI** — `docker/Dockerfile` can rot (`Dockerfile.runtime` is built inside `pytest`). Honest shape: one job building both. Survives the unbillable-Actions arrangement AGENTS.md records, which also means every gate is a human step.
 
 ## Conventions
 - Keep task `status` in this table **and** in each task file's frontmatter in sync.
