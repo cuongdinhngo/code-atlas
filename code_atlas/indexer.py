@@ -74,6 +74,20 @@ INCREMENTAL_PHASES = (
 ProgressSink = Callable[[str, int, int], None]
 
 
+class _ScopeChanged(Exception):
+    """The announced suffix set differs from the one the index was built with (task 172).
+
+    Raised inside the incremental body so the existing ``finally`` blocks still stop every adapter,
+    and caught one frame out. A file that entered scope because an *adapter* was added is neither a
+    git change nor a dependent, so it is never a candidate — the build would report a clean no-op.
+    """
+
+    def __init__(self, added: tuple[str, ...], removed: tuple[str, ...]) -> None:
+        self.added = added
+        self.removed = removed
+        super().__init__(f"added={added} removed={removed}")
+
+
 class _Progress:
     """Report phase and file counts to the sink, or do nothing at all when there is none.
 
@@ -204,6 +218,7 @@ def incremental_update(
     *,
     phase_times: dict[str, float] | None = None,
     progress: ProgressSink | None = None,
+    scope: dict[str, object] | None = None,
 ) -> BuildReport:
     """Re-index ``changed ∪ dependents`` and re-link into affected qnames (§8.3).
 
@@ -212,6 +227,8 @@ def incremental_update(
     and are reconciled away after their qnames are folded into ``affected``.
 
     When ``phase_times`` is set (profiler only — task 052), records per-phase wall seconds in place.
+    When ``scope`` is set and the announced suffix set has moved, the escalation to a full build is
+    recorded in place, so the report can name why it was not a no-op (task 172).
     """
     stored = store.get_meta(CONTRACT_VERSION_KEY)
     if stored is not None and stored != str(contract.CONTRACT_VERSION):
@@ -234,6 +251,7 @@ def incremental_update(
         _phase_add(phase_times, "announce", mark)
         try:
             owners = _owners(announced)
+            _require_unchanged_scope(store, owners)
             mark = time.monotonic()
             report.phase("tree_walk")
             paths, census, untracked, ignore_sources = _collect_with_census(
@@ -296,6 +314,16 @@ def incremental_update(
         finally:
             for adapter in announced.values():
                 adapter.stop()
+    except _ScopeChanged as moved:
+        # The same class of change as a `contract_version` bump above, and the same answer: a
+        # suffix that entered scope is invisible to a delta the git diff never names (task 172).
+        if scope is not None:
+            scope["scope_change"] = {
+                "added": list(moved.added),
+                "removed": list(moved.removed),
+                "escalated_to": "full",
+            }
+        return full_build(config, store, progress=progress)
     finally:
         watchdog.stop()
 
@@ -326,6 +354,17 @@ def incremental_update(
     return BuildReport(
         files=len(to_parse), stubs=len(stub_set & set(to_parse)), removed=removed, **counts
     )
+
+
+def _require_unchanged_scope(store: GraphStore, owners: Mapping[str, str]) -> None:
+    """Raise when the announced suffix set differs from the one the index was built with (172)."""
+    stored = store.get_meta(INDEXED_SUFFIXES_KEY)
+    if stored is None:
+        return
+    was = {suffix for suffix in stored.split(",") if suffix}
+    now = {suffix.lower() for suffix in owners}
+    if was != now:
+        raise _ScopeChanged(tuple(sorted(now - was)), tuple(sorted(was - now)))
 
 
 def _phase_add(times: dict[str, float] | None, phase: str, started: float) -> None:

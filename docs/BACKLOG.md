@@ -51,7 +51,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 169 | [An `impact` path seed expands to every symbol in the file and reports 29× the qname](tasks/169_impact-path-seed-walks-every-symbol-and-its-twins.md) | Agent-trust | todo | 161, 017, 078 |
 | 170 | [`server_identity` is cached, so a later build swap is unreportable](tasks/170_server-identity-is-cached-so-a-later-build-swap-is-unreportable.md) | Agent-trust | todo | 164, 162, 125 |
 | 171 | [`sibling_definitions` fires on 83 % of calls and lists nine sites unranked](tasks/171_sibling-definitions-fires-on-most-calls-and-is-unranked.md) | Agent-trust | todo | 165, 168, 013 |
-| 172 | [An incremental build is blind to a scope change — 3,244 files in scope, `wrote.files: 0`](tasks/172_incremental-is-blind-to-a-scope-change.md) | Freshness | todo | 016, 060, 053 |
+| 172 | [An incremental build is blind to a scope change — 3,244 files in scope, `wrote.files: 0`](tasks/172_incremental-is-blind-to-a-scope-change.md) | Freshness | done | 016, 060, 053 |
 | 173 | [Coverage claims key on what is *configured*, not on what is *indexed*](tasks/173_coverage-claims-key-on-configured-not-indexed.md) | Agent-trust | done | 160, 159, 082 |
 | 174 | [`unconfigured_adapters` names the switch but not the cost](tasks/174_unconfigured-adapters-names-the-switch-not-the-cost.md) | Agent-trust | todo | 159, 082 |
 | 175 | [Config is read once at spawn and no payload says so](tasks/175_config-is-loaded-at-spawn-and-nothing-says-so.md) | Agent-trust | todo | 164, 170 |

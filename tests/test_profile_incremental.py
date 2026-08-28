@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 from pathlib import Path
 
 import pytest
@@ -28,6 +29,11 @@ def test_phase_times_cover_named_phases_and_sum_near_wall(
 ) -> None:
     """Proving: phases timed; resolve verdict present; index survives the profiler (AC1, AC2)."""
     profiler = _load_profiler()
+    # The profiler reads os.environ, the build below reads an explicit dict. Any ambient
+    # `CA_<LANG>_CMD` would make the two announce different suffix sets — which task 172 now
+    # (correctly) escalates on, turning this phase-timing test into a full-build measurement.
+    for name in [k for k in os.environ if k.startswith("CA_") and k.endswith("_CMD")]:
+        monkeypatch.delenv(name, raising=False)
     for key, value in fake_env().items():
         monkeypatch.setenv(key, value)
 

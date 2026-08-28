@@ -169,11 +169,15 @@ def _build(
         rebuilt_schema = True
         store = GraphStore(config.db_path)
     try:
-        mode, report = _run(config, store, full=full or rebuilt_schema)
+        scope: dict[str, object] = {}
+        mode, report = _run(config, store, full=full or rebuilt_schema, scope=scope)
         result = _result(
             store, config, report, full, mode, detail_level,
             rebuilt_schema=rebuilt_schema,
         )
+        # Names why a `full` ran off an incremental request, so `wrote.files` can never again mean
+        # both "nothing to do" and "could not act on the request" (task 172 / 060).
+        result.update(scope)
         result["seconds"] = round(time.monotonic() - started, 3)
         return result
     finally:
@@ -204,8 +208,15 @@ def _progress_sink(config: Config) -> Callable[[str, int, int], None]:
     return publish
 
 
-def _run(config: Config, store: GraphStore, *, full: bool) -> tuple[str, BuildReport]:
-    """Pick full vs incremental; degrade to full when git or meta cannot support a diff."""
+def _run(
+    config: Config, store: GraphStore, *, full: bool, scope: dict[str, object]
+) -> tuple[str, BuildReport]:
+    """Pick full vs incremental; degrade to full when git or meta cannot support a diff.
+
+    ``scope`` is filled in place when the incremental path escalates because the adapter set
+    moved, so a build that could not act on the request never reports like one that had nothing
+    to do (task 172).
+    """
     progress = _progress_sink(config)
     if full:
         return FULL, full_build(config, store, progress=progress)
@@ -215,7 +226,8 @@ def _run(config: Config, store: GraphStore, *, full: bool) -> tuple[str, BuildRe
     changed = gitutil.changed_paths(config.root, last)
     if changed is None:
         return FULL, full_build(config, store, progress=progress)
-    return INCREMENTAL, incremental_update(config, store, changed, progress=progress)
+    report = incremental_update(config, store, changed, progress=progress, scope=scope)
+    return (FULL if scope else INCREMENTAL), report
 
 
 def _unlink_index(path: Path) -> None:

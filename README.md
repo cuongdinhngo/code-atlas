@@ -274,6 +274,24 @@ language — while the graph still held zero files of it. So `collection` now na
 `indexed_suffixes` is what the graph **holds** files for, and `claimed_suffixes` appears beside it,
 only when the two differ, for what the build was configured to index.
 
+### Wiring a new adapter escalates the next build (task 172)
+
+An incremental build plans from the git delta plus the files that depend on it. A file that entered
+scope because an **adapter** was added is neither, so the build used to report a clean no-op —
+`wrote.files: 0` beside a collection census that counted the new files, and a graph that never grew.
+
+The announced suffix set is now compared against the one the index was built with, in
+`indexer.incremental_update` itself — so the MCP tool and `code-atlas-refresh` both inherit it. When
+it has moved, the build escalates to a full one and **names why**:
+
+```json
+"mode": "full",
+"scope_change": {"added": [".ts", ".tsx"], "removed": [], "escalated_to": "full"}
+```
+
+This is the same answer the existing `contract_version` check already gives for the same class of
+change. A build whose scope did not change is byte-identical, and pays one meta read it already made.
+
 > **Language scope today:** only the **PHP** adapter exists. A TypeScript, Python, or C# project won't
 > index yet — those are planned (see [Roadmap](#roadmap)).
 
