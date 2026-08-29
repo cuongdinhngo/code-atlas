@@ -31,8 +31,8 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
-| `derived-not-listed-invariant` | 18 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180 | **R6.7** |
-| `prove-the-guard-fails` | 25 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188, 189, 190 | **R6.5** — 190 is the *other* side of it: not *was it seen failing?* but *did it fail for the thing it forbids?* |
+| `derived-not-listed-invariant` | 19 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180, 187 | **R6.7** |
+| `prove-the-guard-fails` | 25 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188, 189, 190, 187 | **R6.5** — 190 is the *other* side of it: not *was it seen failing?* but *did it fail for the thing it forbids?* |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
 | `fixture-shape-begs-the-question` | 10 | 084, 086, 103–106, 121, 183, 185, 190 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
@@ -45,7 +45,8 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 | `guard-asserts-rendered-not-shipped-bytes` | 2 | 116, 127 | open — proposed 2026-08-23, awaiting ratify |
 | `sibling-meta-non-int` | 3 | 092, 095, 174 | **R1.7** |
 | `record-the-deviation-as-a-deviation` | 2 | 101, promote-2026-08-15 | **AGENT_BRIEF P3** |
-| `one-rule-for-every-subject-slot` | 5 | 102, 122, 183, 186, 179 | **R1.8** — promoted 2026-08-27 |
+| `one-rule-for-every-subject-slot` | 6 | 102, 122, 183, 186, 179, 187 | **R1.8** — promoted 2026-08-27 |
+| `read-the-syntax-not-the-text` | 2 | 190, 187 | open — proposed 2026-08-29, awaiting ratify; destination **R6.7** |
 | `ac-failure-mode-needs-the-right-guard` | 2 | 085, 107 | **R6.8** — promoted 2026-08-27 |
 | `own-only-what-you-wrote` | 2 | 088, 089 | **R5.7** — promoted 2026-08-27 |
 | `skip-dynamic-means-unlinkable` | 2 | 094, 096 | open — rejected 2026-08-15 (2nd sighting bound a design) |
@@ -63,6 +64,39 @@ proposed as a new rule, because R6.3 already owned cross-repo validation and P2 
 this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *claim's* list honest and
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
+
+## 187 — A promise with two exits is kept on only one of them
+`retain_temps=True` means *the walk's temp tables are still there for you to read*. `reachable_from`
+had two ways out: the walk's `finally`, which honours it, and an empty-seed `return` that fired
+**before the `try` block that creates those tables**. `find_orphans` then read tables that were never
+made, and a glob typo arrived as `OperationalError: no such table: temp.reach_seen`.
+
+**The interesting half is the one that does not crash.** That same return also sat one line above
+`self._reach_drop_temps()`, so an empty walk could not clear a *previous* retained walk either — a
+later reader would be served the previous question's rows, quietly and correctly-looking. **One
+skipped exit produced both a loud failure and a silent one, and only the loud one got filed.**
+
+**The fix was a deletion.** Traced through the loop, the walk already returns exactly the value the
+early return hardcoded for an empty seed list. So the special case never computed a different answer;
+it only skipped the resource contract. **When a short-circuit and the general path agree on the
+answer, the short-circuit is not an optimisation — it is a second implementation of the postcondition,
+and it is the one that will fall behind.**
+
+### 187-C1 — A guard that reads source *text* reports on prose
+- type: 2 generalisable-heuristic
+- handle: read-the-syntax-not-the-text
+- status: proposed (awaiting human confirm)
+- seen: 187, 190
+- evidence: the consumer guard swept `code_atlas/` for the string `retain_temps=True` and reported
+  two consumers — the call site, and the comment documenting the contract. 190 hit the same class
+  from the other side one ticket earlier: its envelope condition grepped for `mock` and found the
+  word inside the comment saying there is no mock, reported as a false BROKEN. Both were fixed by
+  reading structure instead of text; here, `ast.walk` for a `retain_temps` keyword bound to `True`,
+  which cannot match a comment or a docstring.
+- area: tests / guards over source
+- destination: **R6.7** — proposed sharpening. R6.7 already says *derive the set, never list it*; a
+  text sweep looks like a derivation and is not one, because it derives from the wrong grammar. Left
+  for `/mango:promote` and a human to ratify; no rule written here.
 
 ## 190 — A guard that RACES for its premise reports the machine, not the hazard
 146's hazard is a **state**: the source moved inside the second the `.pyc` recorded, at the same

@@ -178,6 +178,13 @@ class ImpactResult(NamedTuple):
     seeds_dropped: int
 
 
+# The temp tables a `retain_temps=True` walk promises its caller (task 187) — one definition site,
+# so a guard derives the set instead of re-typing it (R6.7). `reach_next` / `reach_before` are
+# per-hop scratch and an empty walk never creates them, so they are not part of that promise.
+_REACH_RETAINED_TEMPS = ("reach_seen", "reach_frontier", "reach_kinds", "reach_unproven")
+_REACH_TEMPS = _REACH_RETAINED_TEMPS + ("reach_next", "reach_before")
+
+
 class ReachabilityResult(NamedTuple):
     """Forward reachable set plus unproven (HEURISTIC/DYNAMIC-only) neighbors (task 031)."""
 
@@ -1753,10 +1760,10 @@ class GraphStore:
         walk_kinds = tuple(kinds) if kinds is not None else contract.IMPACT_KINDS
         if not walk_kinds:
             raise ValueError("kinds must be non-empty")
+        # No empty-seed short-circuit: the walk below already returns exactly the empty result, and
+        # returning early skipped both the temps `retain_temps` promises and the drop that keeps a
+        # previous walk from being re-read (task 187).
         ordered_seeds = list(dict.fromkeys(q for q in seeds if q))
-        if not ordered_seeds:
-            return ReachabilityResult([], [], 0, False, False, False)
-
         conn = self._conn
         self._reach_drop_temps()
         try:
@@ -2500,14 +2507,7 @@ class GraphStore:
         )
 
     def _reach_drop_temps(self) -> None:
-        for name in (
-            "reach_seen",
-            "reach_frontier",
-            "reach_kinds",
-            "reach_unproven",
-            "reach_next",
-            "reach_before",
-        ):
+        for name in _REACH_TEMPS:
             self._conn.execute(f"DROP TABLE IF EXISTS temp.{name}")
 
     def _tour_drop_temps(self) -> None:

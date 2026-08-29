@@ -65,7 +65,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 183 | [`edge_health` is whole-graph only, so no adapter can be evaluated on the repo it was added for](tasks/183_edge-health-has-no-per-language-breakdown.md) | Measure | done | 136, 082, 173 |
 | 185 | [No tool is ever asked a question over a second language's graph — the multi-language claim stops at the adapter boundary](tasks/185_no-tool-is-ever-asked-a-question-over-a-second-languages-graph.md) | Coverage | done | 147, 012, 019 |
 | 186 | [A zero answer still cannot say "this relation is not modelled for this file's language" — 160's carve-out, now a false negative](tasks/186_a-zero-answer-cannot-say-the-relation-is-unmodelled-for-this-language.md) | Agent-trust | done | 160, 183, 185 |
-| 187 | [`find_orphans` crashes on an entry-point glob that matches nothing](tasks/187_find-orphans-crashes-on-an-entry-point-glob-that-matches-nothing.md) | Agent-trust | todo | 185, 031, 124 |
+| 187 | [`find_orphans` crashes on an entry-point glob that matches nothing](tasks/187_find-orphans-crashes-on-an-entry-point-glob-that-matches-nothing.md) | Agent-trust | done | 185, 031, 124 |
 | 188 | [`IMPORTS` is never linked, so no tool walks a module graph](tasks/188_imports-edges-are-never-linked-so-no-tool-can-walk-a-module-graph.md) | Agent-fit | done | 186, 019, 155 |
 | 189 | [A twin is a container fact, not a path fact](tasks/189_a-twin-is-a-container-fact-not-a-path-fact.md) | Agent-trust | done | 181, 171, 165 |
 | 190 | [A same-second guard is flaky under suite load](tasks/190_a-same-second-guard-is-flaky-under-suite-load.md) | Coverage | done | 146 |
