@@ -5,7 +5,7 @@ entries, so across four field rounds no prompt was called and the evaluator coul
 ``which_tool``. Design 3: keep the prompts as labelled operator recipes, route agents via tool
 descriptions (069). These tests pin the reconciliation:
 
-- the README documents every prompt and labels the section operator-facing (the category fix);
+- `docs/TOOLS.md` documents every prompt and labels the section operator-facing (the category fix);
 - the ``which_tool`` recognition map stays current with the tool surface;
 - 069's ``capability_not_configured`` branch still fires on an index with no view_data rule.
 """
@@ -28,16 +28,18 @@ from tests.test_incremental import committed, fake_env
 REPO = Path(__file__).resolve().parent.parent
 
 
-def test_readme_documents_all_prompts_as_operator_facing() -> None:
-    """Proving test: every registered prompt is in the README and the section is operator-facing.
+def test_the_tool_reference_documents_all_prompts_as_operator_facing() -> None:
+    """Proving test: every registered prompt is documented and the section is operator-facing.
 
-    Fails pre-081: the README omits ``which_tool`` and carries no operator-facing label.
+    Fails pre-081: the docs omit ``which_tool`` and carry no operator-facing label. The section
+    lived in `README.md` until the README became a 60-second decision page; the assertion is the
+    same one, pointed at the tool reference that now carries the surface.
     """
-    readme = (REPO / "README.md").read_text(encoding="utf-8")
+    surface = (REPO / "docs" / "TOOLS.md").read_text(encoding="utf-8")
     for name in prompts.PROMPT_NAMES:
-        assert f"`{name}`" in readme, f"README does not document prompt {name}"
-    assert "Operator prompts" in readme
-    assert "human-invoked" in readme
+        assert f"`{name}`" in surface, f"docs/TOOLS.md does not document prompt {name}"
+    assert "Operator prompts" in surface
+    assert "human-invoked" in surface
     # The plan carries the same operator-facing framing (AC3: README *and* the plan).
     plan = (REPO / "docs" / "PLAN.md").read_text(encoding="utf-8")
     assert "Operator prompts, not agent routing" in plan

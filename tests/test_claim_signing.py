@@ -44,7 +44,8 @@ from tests.test_mcp_server import committed_repo, served_config
 from tests.test_nav_tools import edge, node
 
 REPO = Path(__file__).resolve().parent.parent
-README = REPO / "README.md"
+# The signing section moved to the design record when the README became a decision page.
+SIGNING_DOC = REPO / "docs" / "design" / "impact-and-claims.md"
 
 SOURCE = "src/a.php"
 OWNER = "\\App\\UserRepo"
@@ -257,7 +258,7 @@ def test_sign_is_published_on_exactly_the_attesting_tools(tmp_path: Path) -> Non
 
 def test_the_docs_show_the_field_claim_beside_the_line_that_would_have_signed_it() -> None:
     """AC4 — the prose that shipped, next to the artifact that was already on screen."""
-    text = README.read_text(encoding="utf-8")
+    text = SIGNING_DOC.read_text(encoding="utf-8")
 
     assert FIELD_PROSE in text
     assert f"{CLAIM_SCHEMA} tool={impact.NAME}" in text
@@ -265,9 +266,9 @@ def test_the_docs_show_the_field_claim_beside_the_line_that_would_have_signed_it
 
 def test_every_unsigned_tool_is_recorded_with_the_caveat_it_would_have_lost() -> None:
     """AC5 — the exclusion list is a finding the docs carry, not an omission (C5)."""
-    section = unsigned_section(README.read_text(encoding="utf-8"))
+    section = unsigned_section(SIGNING_DOC.read_text(encoding="utf-8"))
 
-    assert section, f"README is missing the {UNSIGNED_HEADING!r} section"
+    assert section, f"{SIGNING_DOC.name} is missing the {UNSIGNED_HEADING!r} section"
     for name in sorted(set(TOOL_NAMES) - SIGNERS):
         assert f"`{name}`" in section, name
     for name in sorted(SIGNERS):

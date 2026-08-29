@@ -44,6 +44,17 @@ DOCS = REPO / "docs"
 # the remaining text is information a session would otherwise rediscover from source. 150 tokens
 # buys three payload conventions. The next addition prunes again or argues again; it does not
 # inherit this raise as headroom.
+# CONVENTION rises 6,450 -> 6,600 on 2026-08-29, argued rather than assumed. The README was
+# carrying ten ticket design sections while §8.1's own README row said it is "not the design
+# record" — the table recorded the boundary and nothing enforced it. Splitting that out created two
+# document classes (`TOOLS.md`, `design/*.md`), and a class with no row in §8.1 is precisely the
+# unbounded document the table exists to prevent, so the rows are the fix, not an extra.
+#
+# Paid for inside tier 1, not by raising its total (133's cap is untouched and still binds at
+# 25,150): §1's two directory comments that re-listed the directory beneath them, one restated
+# clause in §8.1's preamble, and AGENTS.md's *Where things live* — a second copy of this file's §1
+# in a file that already said "full layout in CONVENTION.md", which is the R7.6 case exactly. The
+# next addition prunes again or argues again; it does not inherit this raise as headroom.
 BUDGETS = {
     "CLAUDE.md": 50,
     "AGENTS.md": 2_800,
@@ -51,7 +62,7 @@ BUDGETS = {
     "BACKLOG.md": 9_500,
     "ENGINEERING_RULES.md": 4_900,
     "AGENT_BRIEF.md": 2_000,
-    "CONVENTION.md": 6_450,
+    "CONVENTION.md": 6_600,
 }
 
 

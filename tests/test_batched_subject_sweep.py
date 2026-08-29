@@ -36,7 +36,8 @@ from tests.test_mcp_server import committed_repo, served_config
 from tests.test_nav_tools import db_config, node, seed_file
 
 REPO = Path(__file__).resolve().parent.parent
-README = REPO / "README.md"
+# The verdict table moved to the tool reference when the README became a decision page.
+SURFACE = REPO / "docs" / "TOOLS.md"
 
 UNBATCHED_HEADING = "#### Tools that take one subject at a time"
 
@@ -379,9 +380,9 @@ def test_queries_is_published_on_exactly_the_batching_tools(tmp_path: Path) -> N
 
 def test_every_unbatched_tool_is_recorded_with_the_reason_it_stays_single(tmp_path: Path) -> None:
     """AC5 — the per-tool verdict is a finding the docs carry, not an omission."""
-    section = unbatched_section(README.read_text(encoding="utf-8"))
+    section = unbatched_section(SURFACE.read_text(encoding="utf-8"))
 
-    assert section, f"README is missing the {UNBATCHED_HEADING!r} section"
+    assert section, f"docs/TOOLS.md is missing the {UNBATCHED_HEADING!r} section"
     for name in sorted(set(TOOL_NAMES) - BATCHING):
         assert f"`{name}`" in section, name
     for name in sorted(BATCHING):
@@ -390,7 +391,7 @@ def test_every_unbatched_tool_is_recorded_with_the_reason_it_stays_single(tmp_pa
 
 def test_the_verdict_table_gives_every_unbatched_tool_a_reason() -> None:
     """AC5 — *"with reasons"*: a name in a table with an empty cell is not a verdict."""
-    section = unbatched_section(README.read_text(encoding="utf-8"))
+    section = unbatched_section(SURFACE.read_text(encoding="utf-8"))
     rows = re.findall(r"^\| `([a-z_]+)` \| (.+?) \|$", section, re.MULTILINE)
 
     assert {name for name, _ in rows} == set(TOOL_NAMES) - BATCHING

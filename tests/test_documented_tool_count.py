@@ -18,7 +18,7 @@ from code_atlas.main import TOOL_NAMES
 
 REPO = Path(__file__).resolve().parent.parent
 # Every doc allowed to state the surface size. A new one either matches or is added here.
-DOCS = ("README.md", "AGENTS.md", "docs/PLAN.md", "docs/BACKLOG.md")
+DOCS = ("README.md", "AGENTS.md", "docs/PLAN.md", "docs/BACKLOG.md", "docs/TOOLS.md")
 COUNT = re.compile(r"(\d+)[ \t]+tools\b")  # same-line only: `\s+` spanned newlines and caught prose
 
 
