@@ -16,13 +16,14 @@ branch on `ranked_by` reads case B's first row as if it were case A's.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import replace
 from pathlib import Path
 
 from code_atlas.config import load_config
 from code_atlas.store import GraphStore
-from code_atlas.tools import find_callers, impact
+from code_atlas.tools import find_references, impact
 from code_atlas.tools.nav_result import (
     RANK_SHARED_FILE_NAME,
     RANK_SHARED_SUBTREE,
@@ -39,10 +40,25 @@ from tests.test_impact import edge, node, seed_file, store  # noqa: F401 — pyt
 
 SUBJECT_PATH = "src/alpha/model/member/ModelMember.php"
 TWIN_PATH = "src/beta/model/member/ModelMember.php"
+THIRD_PATH = "src/uk/model/member/ModelMember.php"
 
 
 def config_for(tmp_path: Path):
     return replace(load_config(tmp_path, {}), db_path=tmp_path / "graph.db")
+
+
+def seed_fresh(graph: GraphStore, path: str, nodes: list[dict], edges: list[dict], *, root: Path):
+    """Plant rows AND the matching on-disk bytes, so FreshnessGuard answers `ok` (task 191).
+
+    `tests/test_impact.seed_file` skips the bytes, which is cheap and right for `impact` — it does
+    not gate on freshness. A nav tool does, and a stale payload has no disclosure to assert about.
+    """
+    target = root / path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    body = b"# planted\n"
+    target.write_bytes(body)
+    graph.upsert_file(path, hashlib.sha256(body).hexdigest(), "lang")
+    graph.replace_file_rows(path, nodes, edges)
 
 
 def plant_case_b(graph: GraphStore, noise: int) -> None:
@@ -72,16 +88,23 @@ def plant_case_b(graph: GraphStore, noise: int) -> None:
         )
 
 
-def plant_case_a(graph: GraphStore) -> None:
-    """Case A's shape: a subject symbol with two right answers, ranked against its own file."""
-    for path, ns in ((SUBJECT_PATH, "Alpha"), (TWIN_PATH, "Beta")):
-        seed_file(graph, path, [node("Class", "ModelMember", f"\\{ns}\\ModelMember", path)], [])
+def plant_case_a(graph: GraphStore, *, root: Path) -> None:
+    """Case A's shape: a subject symbol with **two** right answers, ranked against its own file.
+
+    Three regions, not two: `attach_sibling_definitions` names a basis only at two or more sites,
+    and the subject itself is excluded from its own sibling list. All three files carry the same
+    name, so the file-name band does not partition and the basis falls to nearest-subtree (189).
+    """
+    for path, ns in ((SUBJECT_PATH, "Alpha"), (TWIN_PATH, "Beta"), (THIRD_PATH, "Uk")):
+        rows = [node("Class", "ModelMember", f"\\{ns}\\ModelMember", path)]
+        seed_fresh(graph, path, rows, [], root=root)
     caller = "src/alpha/model/member/Uses.php"
-    seed_file(
+    seed_fresh(
         graph,
         caller,
         [node("Method", "run", "\\Alpha\\Uses::run", caller)],
         [edge("CALLS", "\\Alpha\\Uses::run", "\\Alpha\\ModelMember", caller)],
+        root=root,
     )
 
 
@@ -193,13 +216,22 @@ def test_the_subtree_basis_counterfactual_is_DISCHARGED_by_189(
 def test_a_qname_subject_still_ranks_as_it_did(
     tmp_path: Path, store: GraphStore  # noqa: F811
 ) -> None:
-    """AC5/061: case A is untouched — a subject symbol has always had a file to rank against."""
-    plant_case_a(store)
-    payload = find_callers.create(config_for(tmp_path))("\\Alpha\\ModelMember")
+    """AC5/061: case A is untouched — a subject symbol has always had a file to rank against.
 
-    if SIBLING_DEFINITIONS in payload:
-        assert payload[SIBLING_RANKED] is True
-        assert payload[SIBLING_RANKED_BY] == RANK_SHARED_SUBTREE
+    Unconditional on purpose (task 191). Under an `if` this asserted nothing for two tickets: the
+    fixture left the index stale, the tool was `find_callers`, which discloses siblings only for a
+    subject qname with a container, and one twin is below the two a basis needs.
+    """
+    plant_case_a(store, root=tmp_path)
+    payload = find_references.create(config_for(tmp_path))("\\Alpha\\ModelMember")
+
+    assert payload["reason"] == "ok", "a stale payload has no disclosure to rank"
+    assert [str(dict(site)["file"]) for site in payload[SIBLING_DEFINITIONS]] == [  # type: ignore[union-attr]
+        TWIN_PATH,
+        THIRD_PATH,
+    ]
+    assert payload[SIBLING_RANKED] is True
+    assert payload[SIBLING_RANKED_BY] == RANK_SHARED_SUBTREE
 
 
 def test_no_sibling_and_one_sibling_stay_byte_identical(

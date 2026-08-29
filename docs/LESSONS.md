@@ -31,10 +31,10 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
-| `derived-not-listed-invariant` | 19 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180, 187 | **R6.7** |
-| `prove-the-guard-fails` | 25 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188, 189, 190, 187 | **R6.5** — 190 is the *other* side of it: not *was it seen failing?* but *did it fail for the thing it forbids?* |
+| `derived-not-listed-invariant` | 20 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180, 187, 191 | **R6.7** |
+| `prove-the-guard-fails` | 25 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188, 189, 190, 187, 191 | **R6.5** — 190 is the *other* side of it: not *was it seen failing?* but *did it fail for the thing it forbids?* |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
-| `fixture-shape-begs-the-question` | 10 | 084, 086, 103–106, 121, 183, 185, 190 | **R6.3** — widened 2026-08-23, provisional |
+| `fixture-shape-begs-the-question` | 11 | 084, 086, 103–106, 121, 183, 185, 190, 191 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
 | `count-pin-in-blast-radius` | 5 | 085, 087–089, 175 | **AGENT_BRIEF P5** — promoted 2026-08-27 |
 | `source-the-caveat-from-the-computation` | 6 | 100–102, 122, 127, 189 | **R5.5** |
@@ -97,6 +97,40 @@ and it is the one that will fall behind.**
 - destination: **R6.7** — proposed sharpening. R6.7 already says *derive the set, never list it*; a
   text sweep looks like a derivation and is not one, because it derives from the wrong grammar. Left
   for `/mango:promote` and a human to ratify; no rule written here.
+
+## 191 — A guard that never ran fails for more reasons than the report can see
+181 wrapped its AC5 assertions in `if SIBLING_DEFINITIONS in payload:`. The payload answered
+`index_stale`, the branch was never taken, and **the test was green while asserting nothing for two
+tickets** — a state nothing in the suite could distinguish from a pass. 189 found it by accident,
+filed it with the cause it could see, and that cause was one of three.
+
+**Taking the filed fix literally leaves the test red, and only running it says so.** A fresh index
+does make the payload answer `reason: ok`, and the field is still absent: the test calls
+`find_callers`, which discloses siblings only for a subject qname *with a container*, and a Class
+qname has none — while `find_references`, the tool 181's own docstring names for this case, has no
+such gate. And the fixture planted one twin where the basis needs two. **A conditional assertion
+does not hide one bug; it hides however many there are, and the report is written from whichever was
+visible at the top.** The first thing a repaired guard owes you is the count of what it concealed.
+
+**Two sites, and the second is the more general one.** The AST sweep also found
+`test_no_tool_returns_absence_with_reason_ok`: seven tools asked about an absent subject, asserting
+only `if empty`. Nothing was wrong with the expectation — the risk is that a tool which stopped
+reporting absence would silently skip its own check. That is R6.5's *a sweep must be guarded against
+emptying itself*, one level up: **inside a test, an `if` over the thing under test is the same
+vacuity as a filter that swallows every file.**
+
+### 191-C1 — Count what a repaired guard was hiding before believing the ticket's cause
+- type: 2 generalisable-heuristic
+- handle: a-guard-fails-for-more-reasons-than-it-was-filed-for
+- status: proposed (awaiting human confirm)
+- seen: 191
+- evidence: the ticket named one cause (a stale index). Removing the conditional and fixing that
+  cause left the test red on two more: the wrong tool for the subject's kind, and a fixture one site
+  below the threshold that produces the field. All three were invisible while the `if` stood,
+  because a conditional assertion reports every one of them identically.
+- area: tests / guards
+- destination: stays in `lessons_path` (recurrence 1) — sharpens [[prove-the-guard-fails]] (R6.5):
+  not only *was it seen failing*, but *how many distinct failures did the guard's absence hide?*
 
 ## 190 — A guard that RACES for its premise reports the machine, not the hazard
 146's hazard is a **state**: the source moved inside the second the `.pyc` recorded, at the same

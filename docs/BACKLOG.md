@@ -69,7 +69,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 188 | [`IMPORTS` is never linked, so no tool walks a module graph](tasks/188_imports-edges-are-never-linked-so-no-tool-can-walk-a-module-graph.md) | Agent-fit | done | 186, 019, 155 |
 | 189 | [A twin is a container fact, not a path fact](tasks/189_a-twin-is-a-container-fact-not-a-path-fact.md) | Agent-trust | done | 181, 171, 165 |
 | 190 | [A same-second guard is flaky under suite load](tasks/190_a-same-second-guard-is-flaky-under-suite-load.md) | Coverage | done | 146 |
-| 191 | [A conditional assertion is a test that never ran](tasks/191_a-conditional-assertion-is-a-test-that-never-ran.md) | Coverage | todo | 189, 181 |
+| 191 | [A conditional assertion is a test that never ran](tasks/191_a-conditional-assertion-is-a-test-that-never-ran.md) | Coverage | done | 189, 181 |
 
 ## Open work — Pillar 2 · Onboarding
 

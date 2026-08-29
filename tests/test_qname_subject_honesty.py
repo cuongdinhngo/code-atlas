@@ -165,9 +165,12 @@ def test_no_tool_returns_absence_with_reason_ok(config: Config) -> None:
         impact.create(config)(qnames=[absent], detail_level="minimal"),
     ]
     for payload in payloads:
+        # Assert the sweep still HAS something to check before checking it (191/R6.5). Every
+        # payload above was asked about an absent subject, so a non-empty one means the sweep
+        # silently stopped matching — which under an `if` read as a pass.
         empty = payload.get("found") is False or payload.get("results") == []
-        if empty:
-            assert payload.get("reason") != REASON_OK, payload
+        assert empty, f"asked about {absent} and got a non-empty answer: {payload}"
+        assert payload.get("reason") != REASON_OK, payload
 
 
 # --- 075/076: multi-subject tools re-point a uniquely-resolvable under-anchored subject --------
