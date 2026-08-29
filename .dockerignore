@@ -2,6 +2,9 @@
 # artifact-specific, and never the resolved dependency trees (rebuilt inside the image).
 .git
 .claude
+# Local lifecycle scratch. `.git` is excluded above, so ruff in the image has no gitignore to
+# honour and would lint whatever git-ignored files reach the context.
+.mango
 
 # Python caches / build outputs
 **/__pycache__
