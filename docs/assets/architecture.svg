@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 400" width="880" height="400" role="img"
+     aria-label="MCP client talks stdio to the language-agnostic core, which drives per-language adapters over a JSONL contract, stores a symbol graph in SQLite, and feeds a deterministic onboarding layer.">
+  <style>
+    .b { fill: none; stroke: #6e7781; stroke-width: 1.5; rx: 8; }
+    .core { stroke: #4c8dff; }
+    .ad   { stroke: #3fb950; }
+    .db   { stroke: #d29922; }
+    .t  { font: 600 14px ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; fill: #6e7781; }
+    .s  { font: 400 11.5px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #8b949e; }
+    .l  { font: 400 11px ui-sans-serif, system-ui, sans-serif; fill: #8b949e; }
+    .a  { fill: none; stroke: #6e7781; stroke-width: 1.4; marker-end: url(#h); }
+    .dash { stroke-dasharray: 5 4; }
+  </style>
+  <defs>
+    <marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#6e7781"/>
+    </marker>
+  </defs>
+
+  <rect class="b" x="16"  y="24"  width="150" height="58"/>
+  <text class="t" x="91"  y="49" text-anchor="middle">MCP client</text>
+  <text class="s" x="91"  y="68" text-anchor="middle">Claude Code, IDE…</text>
+
+  <path class="a" d="M170 53 H262"/>
+  <text class="l" x="216" y="45" text-anchor="middle">stdio</text>
+
+  <rect class="b core" x="266" y="16" width="214" height="74"/>
+  <text class="t" x="373" y="44" text-anchor="middle">core — Python / FastMCP</text>
+  <text class="s" x="373" y="64" text-anchor="middle">22 tools · zero language branches</text>
+  <text class="s" x="373" y="80" text-anchor="middle">resolver · store · indexer</text>
+
+  <path class="a" d="M484 53 H576"/>
+  <text class="l" x="530" y="45" text-anchor="middle">JSONL contract</text>
+  <text class="l" x="530" y="70" text-anchor="middle">versioned, frozen</text>
+
+  <rect class="b ad" x="580" y="16" width="284" height="74"/>
+  <text class="t" x="722" y="42" text-anchor="middle">language adapters</text>
+  <text class="s" x="722" y="62" text-anchor="middle">PHP · nikic/php-parser</text>
+  <text class="s" x="722" y="79" text-anchor="middle">TS/JS · TypeScript compiler API</text>
+
+  <path class="a" d="M373 94 V150"/>
+  <rect class="b db" x="230" y="154" width="286" height="72"/>
+  <text class="t" x="373" y="181" text-anchor="middle">SQLite — .code-atlas/graph.db</text>
+  <text class="s" x="373" y="201" text-anchor="middle">nodes · edges · files · fts5 · meta</text>
+  <text class="s" x="373" y="217" text-anchor="middle">WAL · incremental via git diff</text>
+
+  <path class="a" d="M373 230 V286"/>
+  <rect class="b" x="196" y="290" width="354" height="66"/>
+  <text class="t" x="373" y="316" text-anchor="middle">onboarding — deterministic enrichment</text>
+  <text class="s" x="373" y="336" text-anchor="middle">layers · hubs · tour · committable system map</text>
+
+  <path class="a dash" d="M554 323 H660"/>
+  <rect class="b dash" x="664" y="290" width="200" height="66"/>
+  <text class="t" x="764" y="316" text-anchor="middle">onboarding_llm/</text>
+  <text class="s" x="764" y="336" text-anchor="middle">opt-in prose · off by default</text>
+  <text class="l" x="607" y="315" text-anchor="middle">3 seams</text>
+
+  <text class="l" x="16" y="380">Everything above the dashed box is deterministic and offline: identical input, identical rows.</text>
+</svg>

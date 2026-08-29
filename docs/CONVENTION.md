@@ -25,13 +25,10 @@ code-atlas/
 │   ├── enrichment.py                 # optional CA_INDIRECTION_RULES → HEURISTIC edges (task 040)
 │   ├── resolver.py                   # phase-2 edge linking (generic, no language branches)
 │   ├── cli.py  gitutil.py  ignore.py  index_lock.py  tokens.py   # cli.py: code-atlas-build (176)
-│   ├── onboarding/                   # Phase-3 enrichment: metrics, layers, dataset, artifact, viewer,
-│   │                                 # tour/steps, modules, mirrors, reachability, headlines,
-│   │                                 # prose + summary seams, quality_gate — deterministic, no LLM
+│   ├── onboarding/                   # Phase-3 enrichment, deterministic — one module per concern
 │   ├── hooks/                        # opt-in editor/checkout hooks (036, 053)
 │   └── tools/                        # one module per MCP tool
-├── onboarding_llm/                   # the LLM implementers, OUTSIDE the core by R4.1 (CI grep-gated):
-│                                     # summarizer (090), layer_refiner (091), prose (117) + cache/client
+├── onboarding_llm/                   # the LLM implementers, OUTSIDE the core by R4.1 (CI grep-gated)
 ├── scripts/                          # operator reports & benchmarks (never imported by the server)
 ├── docker/                           # test image, runtime image, compose
 ├── adapters/
@@ -43,6 +40,8 @@ code-atlas/
 │   └── test_*.py
 └── docs/
     ├── PLAN.md                        # authoritative design
+    ├── TOOLS.md                       # the tool surface: every tool, prompts, hooks, config
+    ├── design/  assets/               # why an answer is shaped that way; figures the docs embed
     ├── ENGINEERING_RULES.md  CONVENTION.md  BACKLOG.md  AGENT_BRIEF.md  LESSONS.md  FEEDBACK.md
     ├── phase3-onboarding/             # the onboarding roadmap + the reviewed mockup it was built from
     ├── benchmarks/                    # recorded measurement runs
@@ -239,8 +238,8 @@ what the payload already says (061). An answer must state what it is *not* telli
 
 The **UPPER_SNAKE standing documents are a closed set.** One may be merged or deleted; a new one
 needs an argument in the ticket that proposes it. The *Is NOT* column is the load-bearing one: a
-document without a stated boundary absorbs whatever its author had in mind that day. Rows describe
-what each file contains, not what its title suggests.
+document without a stated boundary absorbs whatever its author had in mind that day, and rows
+describe what a file contains, not what its title suggests.
 
 **Tier** is what a session pays (task 133). **1** = on `AGENTS.md`'s *read before non-trivial work*
 list, charged to every session, under the 25,000-token cap; **2** = on its *consult when you need it*
@@ -249,7 +248,9 @@ document lands in a tier on purpose, here, or it lands in tier 1 by accident.
 
 | Doc | Tier | Reader | Answers | Is **NOT** |
 |---|---|---|---|---|
-| [`README.md`](../README.md) | — | a human deciding whether to install | what it does and measured, how to install, what every tool returns | not the design record; not a rule book; never the authority for a number |
+| [`README.md`](../README.md) | — | a stranger deciding in 60 s whether to install | what it does, one demo, how to install, the measured claims, where the rest is | not the tool reference (→ `TOOLS.md`); **not the design record** (→ `design/`); never the authority for a number |
+| [`TOOLS.md`](TOOLS.md) | — | someone choosing which tool to call | the agent-facing surface: every tool, the batching verdicts, prompts, hooks, config | not the field contract (→ §6); not why (→ `design/`) |
+| [`design/`](design/)`*.md` | — | anyone asking *why is an answer shaped like this* | one file per axis (payload · indexing · impact/claims); each section is a field incident | not a rule (→ `ENGINEERING_RULES.md`); not status (→ `BACKLOG.md`) |
 | [`AGENTS.md`](../AGENTS.md) | 1 | an agent at session start | orientation: what this is, where things live, which docs bind, how the maintainer authorises finishing steps, how to run the gate and the suite | **not a rule origin** — every rule here is a summary with a destination; not a lifecycle rule book (→ `AGENT_BRIEF.md`) |
 | `CLAUDE.md` | 1 | the Claude Code harness | one line: `@AGENTS.md` | not content |
 | [`PLAN.md`](PLAN.md) | 2 | anyone asking *why is it shaped this way* | **§1 the two pillars (authoritative)**; the design and its reasoning; §19 the durable decision log — what was measured, what was refuted | not the vocabulary of record (→ `contract.py`, §3 above); not a schema listing (→ `store.py`); not task status (→ `BACKLOG.md`) |

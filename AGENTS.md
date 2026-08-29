@@ -75,14 +75,13 @@ MCP client ──stdio──▶ core (Python/FastMCP) ──JSONL contract──
 - **Pull requests** — when asked to open a PR, base it on `.github/pull_request_template.md` (fill every section, complete the pre-PR self-check). If the template is missing, propose one and create it first, then open the PR (CONVENTION §7).
 
 ## Where things live
-- Core: `code_atlas/` (`main.py` FastMCP, `config.py`, `contract.py`, `adapter.py`, `store.py`, `indexer.py`, `resolver.py`, `tools/`).
-- Onboarding: `code_atlas/onboarding/` (deterministic enrichment — metrics, layers, dataset, artifact,
-  viewer, tour, mirrors, reachability, headlines, quality gate) + `onboarding_llm/` (the opt-in LLM
-  implementers, kept outside the core by R4.1).
-- Adapters: `adapters/<lang>/`, each self-contained and launched via `CA_<LANG>_CMD` (PHP first).
-- Tests: `tests/contract/` — the conformance suite every adapter must pass. Full layout + naming in CONVENTION.md.
-- Tooling: `.harness.json` (mango lifecycle config), `.github/workflows/ci.yml` (ruff · mypy · pytest + R1.1/R2.2/R4.1 grep-gates), `.github/pull_request_template.md`.
-- Docker: `docker/Dockerfile` (test image), `docker/Dockerfile.runtime` (ship the server), `docker/compose.yaml`, `scripts/docker-test.sh`.
+**The map is [`docs/CONVENTION.md`](docs/CONVENTION.md) §1** — a second copy here is one more thing
+to keep in step, and it drifted. Only the boundaries that decide where your change may go:
+- Core `code_atlas/` is language-agnostic; `store.py` is the only file that touches SQLite (R1.4).
+- `code_atlas/onboarding/` is deterministic; the LLM implementers live in `onboarding_llm/`, outside
+  the core by R4.1 (CI grep-gated).
+- `adapters/<lang>/` is self-contained and launched via `CA_<LANG>_CMD`; `tests/contract/` is the
+  conformance suite every adapter must pass.
 
 ## Before a PR or a push — run `scripts/gate.sh`
 **GitHub Actions cannot run for this repo** (private, no Actions budget: every job fails in seconds
@@ -103,9 +102,8 @@ Run it in Docker: `scripts/docker-test.sh`. The commands and the **expected coun
 Prove **delta-green** before a PR, and name the host that produced it. A bare-`pytest` red on
 Windows is the known platform exclusion above — confirm green via Docker, then say so; don't leave
 it as "unverified". The container route ends on **one** structural skip (the test that shells out to
-`docker`); that is green. Any other skip is not. To ship the server itself in a container, use
-`docker/Dockerfile.runtime` (stdio; mount the repo at `/workspace`) — see README *Ship the server
-in a container*.
+`docker`); that is green, any other skip is not. To ship the server itself in a container, use
+`docker/Dockerfile.runtime` (stdio; mount the repo at `/workspace`) — see README *Quick start*.
 
 ## Maintainer workflow — single-maintainer repo; don't re-ask what's already authorized
 - **Finishing a task runs through to the PR without pausing to confirm:** commit in logical units →
