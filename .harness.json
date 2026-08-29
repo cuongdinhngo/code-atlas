@@ -37,6 +37,9 @@
   "drift_path": "docs/DRIFT.md",
   "pr_host": "gh",
 
+  "doc_size_budget": 40000,
+  "real_corpus_path": null,
+
   "docs_dir": "docs",
   "code_map_cmd": null,
   "db_kind": null,
