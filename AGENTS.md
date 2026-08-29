@@ -97,13 +97,15 @@ verified.
 The suite needs a **POSIX host** (the index lock imports `fcntl`) and the **PHP adapter**. On the
 maintainer's **Windows** dev host bare `pytest` is red for both reasons. **This is a platform
 limitation, not a regression** — do not conclude "the suite can't run" and do not ask how to run it.
-Run it in Docker: the commands and the expected count are in [README *Testing*](README.md#testing)
-(`scripts/docker-test.sh`, ~1679 passed / 0 skipped as of 2026-08-21).
+Run it in Docker: `scripts/docker-test.sh`. The commands and the **expected count** are in
+[README *Testing*](README.md#testing), which is the one place that number is kept.
 
 Prove **delta-green** before a PR, and name the host that produced it. A bare-`pytest` red on
 Windows is the known platform exclusion above — confirm green via Docker, then say so; don't leave
-it as "unverified". To ship the server itself in a container, use `docker/Dockerfile.runtime`
-(stdio; mount the repo at `/workspace`) — see README *Ship the server in a container*.
+it as "unverified". The container route ends on **one** structural skip (the test that shells out to
+`docker`); that is green. Any other skip is not. To ship the server itself in a container, use
+`docker/Dockerfile.runtime` (stdio; mount the repo at `/workspace`) — see README *Ship the server
+in a container*.
 
 ## Maintainer workflow — single-maintainer repo; don't re-ask what's already authorized
 - **Finishing a task runs through to the PR without pausing to confirm:** commit in logical units →

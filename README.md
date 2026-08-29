@@ -10,14 +10,16 @@ flow — as a committable map, so a human can see where an agent's work actually
 state of the project to someone else. Two pillars, one graph, stated authoritatively in
 [`docs/PLAN.md`](docs/PLAN.md) §1.
 
-Language-agnostic core with per-language adapters. **PHP today**; TypeScript/JavaScript, Python and
-C#/.NET are next.
+Language-agnostic core with per-language adapters. **PHP and TypeScript/JavaScript today**; Python
+and C#/.NET are deferred behind the agent loop.
 
-> Status: **shipped and in daily use — 22 tools.** The PHP path is feature-complete: index → search /
-> read / outline → callers / refs / impls → impact → incremental (`git diff`) → reachability /
-> orphans → shortest path, plus read-through freshness reparse. The **onboarding layer has shipped
-> too** (`architecture_overview`, `guided_tour`, `generate_onboarding`) and emits a committable
-> system map. See [`docs/PLAN.md`](docs/PLAN.md) for design and milestones,
+> Status: **shipped and in daily use — 22 tools, two languages.** The PHP path is feature-complete:
+> index → search / read / outline → callers / refs / impls → impact → incremental (`git diff`) →
+> reachability / orphans → shortest path, plus read-through freshness reparse. **Adapter #2
+> (TypeScript/JavaScript) has landed** — the contract took a second language with no version bump,
+> and every tool is now exercised against a second language's graph (185). The **onboarding layer
+> has shipped too** (`architecture_overview`, `guided_tour`, `generate_onboarding`) and emits a
+> committable system map. See [`docs/PLAN.md`](docs/PLAN.md) for design and milestones,
 > [`docs/BACKLOG.md`](docs/BACKLOG.md) for what is open.
 
 ## The problem it solves
@@ -48,7 +50,7 @@ The last row is the one the design optimises for. Every failure that round was *
 
 ## Who this is for
 
-- a large PHP codebase (>10k files) you did not write
+- a large PHP or TypeScript/JavaScript codebase (>10k files) you did not write
 - an AI agent doing the reading, not a human in an IDE
 - you need the answer to be checkable, not plausible
 
@@ -73,8 +75,8 @@ search cannot make, in a form a reviewer can re-run.
 - **Not a language server.** code-atlas is the indexed search/impact layer; an LSP stays for precise
   nav and edit.
 - **Not an editor.** It returns exact line ranges; it never mutates code.
-- **Not multi-language yet.** Only the PHP adapter exists. A TypeScript, Python or C# project will
-  not index today.
+- **Not every language.** PHP and TypeScript/JavaScript index today. A Python or C# project does
+  not — those adapters are deferred, not cancelled.
 
 ## Founding premise, refuted
 
@@ -93,7 +95,7 @@ result, including what it got wrong.
 ## How it works
 
 ```
-MCP client ──stdio──▶ core (Python / FastMCP) ──JSONL contract──▶ language adapter (e.g. PHP sidecar)
+MCP client ──stdio──▶ core (Python / FastMCP) ──JSONL contract──▶ language adapter (PHP · TS/JS)
                           │
                           ▼
                    SQLite  .code-atlas/graph.db   (nodes · edges · files · fts5 · meta)
@@ -110,8 +112,9 @@ one committable system map. The LLM is optional, writes prose only, lives outsid
 
 ## Install
 
-You need **Python ≥ 3.12**, and — to index PHP (the only adapter so far) — a **PHP CLI ≥ 8.1** and
-**[Composer](https://getcomposer.org/)** on your PATH.
+You need **Python ≥ 3.12**, plus the runtime of whichever language you want to index: a **PHP CLI ≥
+8.1** with **[Composer](https://getcomposer.org/)** for PHP, **Node.js ≥ 18** for
+TypeScript/JavaScript.
 
 One command sets everything up and writes a ready-to-use `.mcp.json` into your project:
 
@@ -125,6 +128,19 @@ That installs the core, builds the PHP adapter, and writes `<your-project>/.mcp.
 interpreter, adapter path, and working directory filled in — the three things that are easy to get
 wrong by hand. Run it with no path to print the snippet instead of writing it, or `--no-adapter` to
 skip PHP. If PHP or Composer is missing it tells you and continues; rerun once they're installed.
+
+`setup.py` builds the **PHP** adapter only. To index TypeScript/JavaScript as well, run `npm ci` in
+`adapters/typescript/` and add its launch command — the core resolves any `CA_<LANG>_CMD`
+generically, so a second adapter is one env var, not a code change:
+
+```bash
+npm ci --prefix adapters/typescript
+export CA_TYPESCRIPT_CMD="node /abs/path/to/code-atlas/adapters/typescript/index.js --server"
+```
+
+A newly wired adapter escalates the next build to a full one and says why (see
+[below](#wiring-a-new-adapter-escalates-the-next-build-task-172)), so you do not have to remember to
+force one.
 
 Then **reload your MCP client** (in Claude Code: restart, or re-approve the project's `.mcp.json`) and
 the `code-atlas` tools appear.
@@ -259,6 +275,68 @@ ended, with the whole link phase still to run, so a build killed during linking 
 `staleness: "current"` on an under-linked graph permanently. They are now written after the late
 writes, so nothing claims a graph is built until it is.
 
+### Which code answered, and which config (tasks 170, 175)
+
+`server_build` names the commit the running process imported. `server_stale_process` makes that
+verdict **live**: it fires when a loaded module's own content has moved on, so a build swapped under
+a long-lived server is reportable rather than invisible.
+
+Config is stamped the same way, because config decides what the index even contains — the field
+episode edited `.code-atlas.toml` to add an adapter, built, and got a cheerful `wrote.files: 0`
+describing the old world. `config_build` names the config the process loaded, `index_config_build`
+the one the index was built with, and `config_stale_process` is **stated either way, never
+omitted**: an absent field cannot distinguish *no divergence* from *not checked*.
+
+Both ride `get_index_status` and `build_or_update_index` only — the two places a divergence costs a
+build. Nav payloads already pay for the code axis unconditionally, and symmetry alone is not a good
+enough reason to tax them twice.
+
+### A zero that names the language, not just the index (tasks 186, 188)
+
+160's coverage note names every language the index does not cover — deliberately *excluding* the
+subject's own. On one language that carve-out is free. On two it manufactures a confident false
+negative: `include_graph(path="…/thing.ts", direction="imported_by")` answered `no_matches`, meaning
+*nothing imports this file*, when the truth was *TypeScript does not use `include` — this relation
+is `IMPORTS` here, and this tool does not read it*. The better the adapter, the more confident the
+wrong zero.
+
+An empty inbound answer on a file whose language emits no `INCLUDES` **at all** now returns
+`reason: "relation_unmodelled_for_language"`. Where that language carries the relation under a kind
+that is linked, the payload names a real route; where it carries it under nothing, it stays a hint
+with **no** route, because a fabricated `try_instead` is worse than admitting there isn't one.
+
+That route exists at all because of 188. The TS adapter resolved every `import` specifier to a real
+repo path — `tsconfig` `baseUrl`/`paths` and `export *` included — and the core discarded the
+answer, because nothing linked `IMPORTS`. Every one was unlinked, so no tool could walk a module
+graph. They are linked now, and `find_references` on a module's `File` qname lists its importers.
+
+### `find_orphans` refuses rather than dumping what it has flagged (task 182)
+
+A field round returned **215,177 orphans of 216,664 nodes — 99.31 %** — with `walk_truncated: true`
+and `authoritative: false` beside them. The tool flagged its own answer unreliable and handed over
+the rows anyway. The cause was the roots, not the walk: the repo dispatches after a `chdir()` the
+graph cannot see, so almost nothing is reachable from `CA_ENTRY_POINTS` and the complement is
+essentially the whole codebase.
+
+Two refusals now return **no rows at all** — `status: "roots_matched_nothing"` and
+`status: "walk_budget_exhausted"` — each carrying `roots_reached` and `nodes_total`, the two numbers
+that separate *this code is dead* from *these roots are wrong*. A caller's own `depth=` is
+deliberately not one of them: *"what is unreachable within two hops?"* is a real question and still
+answers. `status: "ok"` with zero rows still means nothing is orphaned, which is an answer, not a
+refusal. The roots stay **configured** rather than derived — a `chdir()` is not a fact the graph
+holds — so `entry_points_unmatched` is named even on a complete answer.
+
+### Exact matches band ahead of near-misses (task 180)
+
+`search_symbol("showAttachment")` returned 46 hits whose first page held two substring near-misses
+and six same-named definitions from a legacy tree, and **not one row** from the directory the caller
+wanted — at `reason: "ok"`, which was *correct*, because exact matches were present further down.
+The label was right and the order was wrong, which is worse than a wrong label: nothing in the
+payload told the caller to page. Exactness now bands the result set, with BM25 as the tie-break
+**inside** each band, over the whole set rather than the page. `reason: "substring_match"` keeps its
+meaning — no direct match on page 1 — and can no longer stay silent while exact matches sit at
+rank 40.
+
 ### Coverage claims key on what the graph holds (task 173)
 
 A zero answer names the index's language gaps so it cannot read as absence. Both halves of that gap
@@ -273,6 +351,11 @@ Before this, wiring an adapter emptied the note *and* moved `indexed_suffixes` o
 language — while the graph still held zero files of it. So `collection` now names both sides:
 `indexed_suffixes` is what the graph **holds** files for, and `claimed_suffixes` appears beside it,
 only when the two differ, for what the build was configured to index.
+
+A skipped total also says what it is *made of* — `skipped.suffix_top` ranks the suffixes behind it,
+`skipped.suffix_kinds` is the denominator (174). *"An adapter exists"* is a fact about the product
+and four consecutive field rounds disclosed it and reported zero; *"3,294 files in **this** repo are
+invisible"* is a fact about the reader's own cost, and it is the one that gets acted on.
 
 ### Wiring a new adapter escalates the next build (task 172)
 
@@ -305,18 +388,27 @@ Both now carry the same three fields, and each is omitted when there is nothing 
 | `sibling_definitions` | the same-named definitions under other qnames, as `{file, line, kind}` sites |
 | `authoritative: false` | this count is a partition — widen before you act on it |
 | `authoritative_caveats` | **why**: `sibling_definitions`, `all_hits_dynamic`, or both |
-| `sibling_definitions_ranked_by` | what the sibling order is based on — appears with ≥ 2 siblings |
+| `sibling_definitions_ranked` | **whether** position means anything here — a boolean verdict, always present at ≥ 2 sites |
+| `sibling_definitions_ranked_by` | **what** the order was decided by — rides only when there is a basis to name |
 
-The last one matters because `authoritative: false` alone cannot tell an agent whether to widen the
-query or to distrust the confidence tier — two different actions behind one boolean. The sibling
-query is keyed on the **subject's own kind**, which is 054's rule (a bare Method name is not a
-Function qname) stated once rather than as a per-tool constant.
+`authoritative: false` alone cannot tell an agent whether to widen the query or to distrust the
+confidence tier — two different actions behind one boolean. The sibling query is keyed on the
+**subject's own kind**, which is 054's rule (a bare Method name is not a Function qname) stated once
+rather than as a per-tool constant.
 
-The sites come back **nearest-subtree-first** — measured by how many leading directory components
-each shares with the subject's own file — with the path as a deterministic tie-break. A caveat
-that fires on most calls can only be a standing instruction unless it says which site to open
-first; nothing is dropped, because the sites that are noise for one question are the answer to
-another (task 171).
+**Two bases, because one field answers two questions** (171 → 181 → 189).
+`shared_file_name_with_subject` puts the same-named files first: a regional twin is another
+`ModelMember.php`, while same-name noise is `Unrelated0.php`. `shared_subtree_with_subject` falls
+back to nearest-first, which is the right order for *"where might a simple name bind?"* — the
+question 165's caveat was actually asking. Ranking on nearness alone put 40 same-region vendor rows
+above the one wanted twin and ranked the answer **last**, so the fix was not a better ranking; it
+was naming which predicate decided the order.
+
+An order with no evidence behind it is no longer dressed as one. `ranked_by: "path"` was **retired
+from the vocabulary, not annotated** — a value that reads as a basis while meaning *there was no
+basis* is a caveat nobody can act on. An unranked list is capped at 10 with its total reported
+(8,705 B → 1,054 B on the field case); a **ranked** list is never capped, because there the position
+*is* the answer.
 
 `ambiguous_definitions` stays separate: that is the *same* qname defined twice, which is a different
 fact and can appear on the same payload.
@@ -339,26 +431,26 @@ Two things changed, both on the path seed only (the qname half was already fixed
 
 A path seed over a file with no same-named twins is unchanged.
 
-> **Language scope today:** only the **PHP** adapter exists. A TypeScript, Python, or C# project won't
-> index yet — those are planned (see [Roadmap](#roadmap)).
+> **Language scope today:** the **PHP** and **TypeScript/JavaScript** adapters ship. A Python or C#
+> project won't index yet — those are deferred (see [Roadmap](#roadmap)).
 
 ## Tools
 
 | Tool | Returns |
 |---|---|
-| `get_index_status` | index stats, last indexed commit, staleness, next-step suggestions (call first). `standard` also names the running build — `server_version` and `server_build`, with `+dirty` when the checkout has uncommitted changes — so a report can say which code answered it (125) |
+| `get_index_status` | index stats, last indexed commit, staleness, next-step suggestions (call first). `standard` also names the running build — `server_version` and `server_build`, with `+dirty` when the checkout has uncommitted changes — so a report can say [which code and which config answered it](#which-code-answered-and-which-config-tasks-170-175) (125/170/175); `verbose` adds `edge_health_by_language`, so a second adapter's tier mix is recoverable from a blended graph (183) |
 | `build_or_update_index` | `wrote` counts + timing; `standard` also `graph` totals; `full=false` incremental when possible, else full |
-| `search_symbol` | ranked symbols (`qname`, kind, `file:line`) |
+| `search_symbol` | ranked symbols (`qname`, kind, `file:line`) — exact and prefix matches band ahead of substring near-misses across the whole result set, not just the page ([180](#exact-matches-band-ahead-of-near-misses-task-180)) |
 | `file_outline` | symbols + line ranges, no bodies |
 | `read_symbol` | source of just one class/method + docblock |
 | `find_callers` / `find_references` / `find_implementations` | resolved relationships + confidence tier; `find_references` on a `Foo::class` mention is `DYNAMIC` and sets `authoritative: false` when every hit is (094); `find_callers` can also filter call sites by argument shape (`arg_position` + `arg_is`) |
 | `find_view_data` | view-scope keys a handler publishes (`PROVIDES_VIEW_DATA` — needs `CA_INDIRECTION_RULES` `view_data` setters) |
-| `include_graph` | `include`/`require` neighbors (`imports` / `imported_by` / `both`) |
+| `include_graph` | `include`/`require` neighbors (`imports` / `imported_by` / `both`); a file whose language carries the relation as `IMPORTS` instead gets `relation_unmodelled_for_language` and a route, never a confident zero (186/188) |
 | `impact` | bounded blast radius of a change (paths/qnames), depth-limited with decay |
 | `impact_modules` | the same radius rolled up to the business modules it reaches — per-module symbol counts split by confidence tier, one exemplar `file:line` to read first, and an explicit `unassigned` bucket. `walk_truncated` marks a bounded walk, which makes every count an under-estimate (140) |
 | `subtree_dependencies` | tree-to-tree crossing with duplicate-declaration attribution — attributable vs unattributable always paired; dynamic alias bridges surfaced |
 | `reachable_from` | forward reachability from configured entry points |
-| `find_orphans` | unreachable / zero-inbound symbols (dead-code candidates); pages with `limit`/`offset`, and its walk is bounded by its **own** `CA_ORPHANS_MAX_NODES` rather than the impact budget. `walk_truncated` marks an answer where the walk stopped early, so the orphan count is an over-estimate (124) |
+| `find_orphans` | unreachable / zero-inbound symbols (dead-code candidates); pages with `limit`/`offset`, and its walk is bounded by its **own** `CA_ORPHANS_MAX_NODES` rather than the impact budget. `walk_truncated` marks an answer where the walk stopped early (124); roots that match nothing, and a walk that exhausts its budget, [refuse instead of returning rows](#find_orphans-refuses-rather-than-dumping-what-it-has-flagged-task-182) (182) |
 | `explain_path` | shortest control-flow path between two symbols |
 | `architecture_overview` | this repo's layers, their degrees and the crossings between them — plus the zero-inbound split, the capability table and the mirror panel ([detail](#architecture_overview--layers-crossings-and-the-populations-behind-a-zero)) (onboarding) |
 | `guided_tour` | a dependency-ordered reading list of files, cycle-safe and budget-bounded ([detail](#guided_tour--a-reading-order-that-expands)) (onboarding) |
@@ -665,6 +757,7 @@ tools = ["get_index_status", "build_or_update_index"]   # only names the server 
 
 [adapter_cmd]
 php = "docker compose exec -T php php /app/adapters/php/index.php --server"
+typescript = "node /abs/path/to/code-atlas/adapters/typescript/index.js --server"
 # or, where quoting bites (Windows paths), one word per entry:
 # php = ["C:\\php\\php.exe", "adapters/php/index.php", "--server"]
 ```
@@ -706,9 +799,10 @@ max, and the four rulebook grep-gates — in the same order
 non-zero if a check **failed or was skipped**, because a gate that quietly shrinks to whatever the
 host can run has not verified anything. Add `--fast` to skip the two slow checks.
 
-The test command on its own is `pytest`. The full suite needs a POSIX host (the index lock uses `fcntl`) and the
-PHP adapter (`php` on `PATH` + `composer install` in `adapters/php`); without those, tests that need
-them **skip or fail to collect** — so a partial local run is not the whole suite.
+The test command on its own is `pytest`. The full suite needs a POSIX host (the index lock uses
+`fcntl`) and **both** adapters — `php` on `PATH` with `composer install` in `adapters/php`, and
+`node` on `PATH` with `npm ci` in `adapters/typescript`. Without those, the tests that need them
+**skip or fail to collect**, so a partial local run is not the whole suite.
 
 To run **everything** off any host (Windows/macOS included), use the Linux test image — it mirrors
 CI's `ruff · mypy · pytest` gate with the adapter's composer deps baked in:
@@ -723,14 +817,31 @@ docker compose -f docker/compose.yaml run --rm --build test
 The image (`docker/Dockerfile`) copies the source in at build time, so re-run after editing to test
 the new code (Docker's layer cache keeps dependency installs warm). See [`docker/`](docker/).
 
+### The expected count
+
+Two numbers, because the two routes are not the same run. Both verified 2026-08-29 on Linux:
+
+| Route | Expected | Why |
+|---|---|---|
+| bare `pytest`, with `php` · `composer` · `node` · `docker` on PATH | **2,483 passed / 0 skipped** | everything runs |
+| `scripts/docker-test.sh` | **2,482 passed / 1 skipped** | `test_runtime_image_reports_server_build` shells out to `docker` to build `Dockerfile.runtime`, which it cannot do from inside the test image |
+
+That one skip is **structural and permanent**, not a red run — it is the only test the container
+route can never reach. Any *other* skip means a missing adapter or a non-POSIX host, and a partial
+run is not a pass (R6.5).
+
+This is the one place these numbers are kept; `AGENTS.md` points here rather than carrying its own
+copy. Name the host that produced your figure when you claim delta-green; per-ticket figures live in
+[`docs/TOKEN_LEDGER.md`](docs/TOKEN_LEDGER.md).
+
 ## Language support
 
 | Language | Parser | Status |
 |---|---|---|
 | PHP (8.5 grammar, 8.1+ runtime) | nikic/php-parser | Available (first) — see [`adapters/php/`](adapters/php/) |
-| TypeScript / JavaScript | TypeScript Compiler API | Planned |
-| Python | `ast` + jedi | Planned |
-| C# / .NET | Roslyn | Planned |
+| TypeScript / JavaScript (Node ≥ 18) | TypeScript compiler API (`ts.createSourceFile`) | Available — see [`adapters/typescript/`](adapters/typescript/) |
+| Python | `ast` + jedi | Deferred |
+| C# / .NET | Roslyn | Deferred |
 
 ## Roadmap
 
@@ -740,14 +851,20 @@ the new code (Docker's layer cache keeps dependency installs warm). See [`docker
   `guided_tour` and `generate_onboarding` emit a committable **system map** under `docs/onboarding/`:
   responsibility layers, dependency matrix, hubs, a business-module table, mirror-subtree lookup, a
   bounded tour, and the zero-inbound population split. Deterministic by default; LLM prose is opt-in.
-- **Phase 2 — More languages: deferred, not cancelled.** TS/JS (hardens the contract), then Python,
-  then C#/.NET — order unchanged; it waits until the PHP agent-loop is complete.
+- **Phase 2 — More languages: TS/JS shipped; Python and C#/.NET deferred, not cancelled.** The
+  second adapter was the contract's real test and it passed **without a version bump** — a syntactic
+  `ts.createSourceFile` parse with no `Program` and no checker, `tsconfig` path aliases and
+  `export *` resolved, `allowJs` breadth with JSDoc as a type source, and a local type table for
+  inferred receivers. R1.2's condition is finally met, and the verdict was written down rather than
+  assumed: still **one seam**, no registry. Python then C#/.NET keep their order; they wait until
+  the agent loop is complete.
 
 ## Design principles
 
 SOLID **at the boundaries** (the axis of change is *languages*, expressed through one versioned
-contract) + **YAGNI** (one seam only until a second adapter exists) + **standard over sample** (adapters
-encode the language spec/standards, never a specific repo's conventions). Details in the
+contract) + **YAGNI** (one seam only — adapter #2 arrived and it stayed one: no registry, no base
+classes, no DI) + **standard over sample** (adapters encode the language spec/standards, never a
+specific repo's conventions). Details in the
 [build plan](docs/PLAN.md). Cross-repo validation (opt-in / scheduled, not per-PR) lives in
 [`docs/runbooks/cross-repo-validation.md`](docs/runbooks/cross-repo-validation.md).
 
