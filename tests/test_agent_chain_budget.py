@@ -21,7 +21,11 @@ REPO = Path(__file__).resolve().parent.parent
 # after.
 # 25,000 -> 25,150 on 2026-08-28 (task 175): the whole 150 is CONVENTION's argued raise — see
 # tests/test_doc_size_budget.py. No other tier-1 file grew, and 175 pruned before asking.
-TIER1_BUDGET = 25_150
+# 25,150 -> 25,200 on 2026-08-30 (tickets 192/194/195): three BACKLOG rows landed at once, which is
+# more than one ticket's headroom. Pruned first, per R7.6 and 175's precedent: a follow-up pointing
+# at a list that no longer exists was removed, and 043's two duplicate-declaration follow-ups were
+# consolidated into one. Those recovered 84 of the 110; the residue is the three rows themselves.
+TIER1_BUDGET = 25_200
 
 
 def _tokens(paths: list[Path]) -> int:

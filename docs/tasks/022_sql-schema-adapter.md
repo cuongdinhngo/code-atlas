@@ -4,8 +4,8 @@ slug: sql-schema-adapter
 title: SQL / DB-schema awareness — a fifth capability, distinct in kind from a source-language adapter
 phase: 2
 milestone: M9+
-status: deferred
-depends_on: [019, 020, 021]
+status: todo
+depends_on: [184]
 ---
 
 ## Why this exists (field retro rounds 8–9, 2026-08-25/26)
@@ -86,3 +86,42 @@ Mirrors the 098 gate — a general server does not spend contract vocabulary eve
 Field retro rounds 8–9 (FIELD-959; "DB schema state" keep-out list). Plan §3 (roll-out order), §18
 (open questions), §19 (decision log). Gate pattern from [098](098_correspondence-relation-seam.md).
 Sibling deferred adapters: [020](020_python-adapter.md), [021](021_csharp-adapter.md).
+
+---
+
+## Session status
+
+- **KEY:** 022 · **work_doc_mode:** embed · **Phase:** 0 refine — complete, then **held**.
+- Refined jointly with [184](184_tsql-source-adapter-tier-1a.md) in one run; the counted artifacts,
+  the recall table and the full ASSUMED list live there and are **not** duplicated here (R7.6).
+- **Held because three of the five ASSUMED items are this ticket's** (A1, A2, A4) and each needs an
+  explicit human confirm at **this ticket's** Gate 1. 184 runs first.
+
+## Phase 0 — refine (this ticket's slice)
+
+`REFINE: see 184 — one joint run (15 surfaced | 2 asked | 7 cited | 5 ASSUMED | skip: no)`
+
+**Settled (from the maintainer).** This ticket is re-scoped to **tier 2 only** — table/column facts
+and column write-sites, both directions (table → its writers, and proc → the tables it writes). The
+defect-class *query* that consumes it moves to its own ticket (C), because this one is
+adapter + contract and that one is a tool over the resulting graph.
+
+**Declined, and it closes PLAN §18.4.** The schema-state half — *"does column X exist? which
+migration created it?"* — is answered **no**, permanently. R4 bars the core from a live database,
+`INFORMATION_SCHEMA` is what actually solved FIELD-959, and a static index that guesses at current
+schema state is worse than the probe that knows. The index answers *where the code writes a column*;
+the database answers *what it currently holds*. This satisfies gate condition 3 ("a cheaper
+alternative rejected in writing") for the surviving half by **accepting** it for this one.
+
+**The three ASSUMED items this ticket must ratify at its own Gate 1** (detail in 184's Phase 0):
+
+- **A1** — widening gate §1 to admit a measured defect class of ≥3 tickets in one repo in place of a
+  second repo. Round 12 supplies four (FIELD-1020 · 1027 · 962 · 1026). **This widens a gate to admit
+  the case standing in front of it, which is the failure mode the gate exists to prevent.** It is the
+  maintainer's call and nothing here should read as it having been made.
+- **A2** — the contract shape: `Table` + `Column` nodes on the existing `CONTAINS`, plus a new
+  Column-targeted `WRITES` edge in `FQN_EDGE_KINDS`. Explicitly not `REFERENCES`.
+- **A4** — `CREATE TRIGGER` moves here from 184's tier 1b: a trigger **is** a writer, so excluding it
+  makes this ticket's headline answer wrong rather than merely incomplete.
+
+**Gate conditions 2 and 3 are unchanged and both satisfiable**; only §1 is at issue.

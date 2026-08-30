@@ -70,6 +70,9 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 189 | [A twin is a container fact, not a path fact](tasks/189_a-twin-is-a-container-fact-not-a-path-fact.md) | Agent-trust | done | 181, 171, 165 |
 | 190 | [A same-second guard is flaky under suite load](tasks/190_a-same-second-guard-is-flaky-under-suite-load.md) | Coverage | done | 146 |
 | 191 | [A conditional assertion is a test that never ran](tasks/191_a-conditional-assertion-is-a-test-that-never-ran.md) | Coverage | done | 189, 181 |
+| 192 | [A partial answer never gets the coverage disclosure](tasks/192_coverage-note-suppressed-on-a-partial-answer.md) | Agent-trust | todo | 160, 173, 186 |
+| 194 | ["Which writers omit this column, and what is its DEFAULT?"](tasks/194_default-filled-column-defect-class-query.md) | Agent-fit | todo | 022 |
+| 195 | [Three tools still read the blend 183 split](tasks/195_three-tools-still-read-the-whole-graph-blend.md) | Measure | todo | 183 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -154,8 +157,8 @@ a roll-out finding, not an adapter one.
 | 019 | [TypeScript/JavaScript adapter, no contract bump needed](tasks/019_typescript-adapter.md) | M7 | done | 012, 011, 128 |
 | 020 | [Python adapter](tasks/020_python-adapter.md) | M8 | deferred | 019 |
 | 021 | [C#/.NET adapter](tasks/021_csharp-adapter.md) | M9 | deferred | 019 |
-| 022 | [SQL / DB-schema awareness — a fifth capability, distinct in kind](tasks/022_sql-schema-adapter.md) | M9+ | deferred | 019, 020, 021 |
-| 184 | [T-SQL source adapter, tier 1a — procs, functions and `EXEC` cost zero contract vocabulary](tasks/184_tsql-source-adapter-tier-1a.md) | M9+ | deferred | 019, 147, 183 |
+| 022 | [SQL / DB-schema awareness — re-scoped to tier 2](tasks/022_sql-schema-adapter.md) | M9+ | todo | 184 |
+| 184 | [T-SQL source adapter, tier 1a](tasks/184_tsql-source-adapter-tier-1a.md) | M9+ | todo | 019, 147, 183 |
 | 026 | [Inverse Docker path rebase (adapter #2)](tasks/026_docker-inverse-path-rebase.md) | M7 | deferred | 008, 019 |
 | 147 | [The R3.4 conformance harness is PHP-shaped — `tests/contract/` cannot admit a second adapter](tasks/147_contract-harness-is-php-shaped.md) | M7 | done | 012, 025 |
 | 148 | [The R2.2 framework sweep lists only PHP frameworks — it cannot fail for adapter #2](tasks/148_r22-framework-sweep-cannot-fail-for-adapter-2.md) | M7 | done | 012, 146 |
@@ -290,11 +293,9 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **`reachable_from` payload size at `standard`** — bounded by `impact_max_nodes` (500), ~160 KB of JSON. Worth a lower default or `minimal`-by-default; workaround in [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
 - **Parser-OOM size cap (optional)** — multi-MB generated files exhaust the PHP parser (already soft-failed/restarted in `indexer.py`); a byte-cap pre-skip (`CA_MAX_FILE_BYTES`) would avoid ~30 restart cycles. Log skips; no silent truncation.
 - **Adapter-subprocess test harness on Windows (bug)** — `CA_*_CMD` uses POSIX quoting but splits with `posix=False`, so quoted paths reach `CreateProcess` verbatim → `WinError 2`. Fails ~56 adapter tests on Windows, green on Linux. Surfaced by [043](tasks/043_duplicate-decl-resilience.md).
-- **043 AC1 end-to-end `full_build` dup test** — blocked by the Windows bug above; the surface is proven at the `_write`+store layer.
-- **PHP-adapter duplicate-declaration fixture (optional)** — the adapter already emits per-declaration, so this only pins it.
+- **043's duplicate-declaration gap** — the end-to-end `full_build` test is blocked by the Windows bug above (the surface is proven at the `_write`+store layer); a PHP-adapter fixture would only pin what the adapter already emits.
 - **015 AC2 operator run** — a scale-timing artifact folded into [018](tasks/018_cross-repo-validation.md) as optional A4. Needs an operator machine.
 - **018 construct gaps** — cross-repo misses feed the (still empty) gap log in [`runbooks/cross-repo-validation.md`](runbooks/cross-repo-validation.md) and tasks 007 / 025.
-- **Four CI tightenings deferred from the drift audit** — the audit's own doc was never committed, so the list is lost; re-derive from `ci.yml` vs `scripts/gate.sh` if it is wanted.
 - **Docker images are never built by CI** — `docker/Dockerfile` can rot (`Dockerfile.runtime` is built inside `pytest`). Honest shape: one job building both. Survives the unbillable-Actions arrangement AGENTS.md records, which also means every gate is a human step.
 
 ## Conventions
