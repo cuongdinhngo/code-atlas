@@ -151,6 +151,7 @@ def test_the_whole_batched_payload_is_pinned(indexed) -> None:
         # A swept miss names the coverage gap on the envelope (160); this fixture wires no adapter.
         "unconfigured_adapters": [
             {"language": "php", "enable": "CA_PHP_CMD"},
+            {"language": "sql", "enable": "CA_SQL_CMD"},
             {"language": "typescript", "enable": "CA_TYPESCRIPT_CMD"},
         ],
         **server_provenance(),

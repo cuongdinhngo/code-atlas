@@ -158,7 +158,7 @@ a roll-out finding, not an adapter one.
 | 020 | [Python adapter](tasks/020_python-adapter.md) | M8 | deferred | 019 |
 | 021 | [C#/.NET adapter](tasks/021_csharp-adapter.md) | M9 | deferred | 019 |
 | 022 | [SQL / DB-schema awareness — re-scoped to tier 2](tasks/022_sql-schema-adapter.md) | M9+ | todo | 184 |
-| 184 | [T-SQL source adapter, tier 1a](tasks/184_tsql-source-adapter-tier-1a.md) | M9+ | todo | 019, 147, 183 |
+| 184 | [T-SQL source adapter, tier 1a](tasks/184_tsql-source-adapter-tier-1a.md) | M9+ | done | 019, 147, 183 |
 | 026 | [Inverse Docker path rebase (adapter #2)](tasks/026_docker-inverse-path-rebase.md) | M7 | deferred | 008, 019 |
 | 147 | [The R3.4 conformance harness is PHP-shaped — `tests/contract/` cannot admit a second adapter](tasks/147_contract-harness-is-php-shaped.md) | M7 | done | 012, 025 |
 | 148 | [The R2.2 framework sweep lists only PHP frameworks — it cannot fail for adapter #2](tasks/148_r22-framework-sweep-cannot-fail-for-adapter-2.md) | M7 | done | 012, 146 |

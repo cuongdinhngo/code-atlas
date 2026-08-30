@@ -1,0 +1,14 @@
+{
+  "name": "code-atlas-sql-adapter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "T-SQL adapter for code-atlas — tier 1a: procedures, functions and EXEC call sites",
+  "main": "index.js",
+  "scripts": {
+    "check": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2",
+    "@types/node": "22.10.2"
+  }
+}

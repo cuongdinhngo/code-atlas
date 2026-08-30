@@ -146,13 +146,12 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
 - **R6.1** — No task is done without tests. Minimum bar per area: adapter change → a fixture +
   conformance assertion; resolver/store/indexer change → an integration test asserting resolved
   rows; tool change → a test over a fixture repo.
-- **R6.2 — Spec-driven fixtures, not repo-driven.** PHP fixtures cover language constructs
-  (namespaced, global, PSR-0 underscore, trait+conflict, enum, attributes, closures, first-class
-  callable, include, static-vs-instance call, syntax error); the TS/JS inventory is named too
-  (module-esm, module-cjs, class-heritage, interface-type-alias, enum-const-enum, generics,
-  decorators, arrow-closure, default-export, default-export-named, re-export-barrel,
-  namespace-declare, jsx, jsdoc-types, syntax-error), each justified by the language spec, never a
-  repo (per-entry map + count in task 149).
+- **R6.2 — Spec-driven fixtures, not repo-driven.** An adapter **names its construct inventory before
+  its first fixture**, or the fixture is drawn from whatever repo is open (task 149). The inventories
+  are **data**, not prose here: `<LANG>_R62_CASES` in `tests/contract/adapter_registry.py`, which the
+  conformance keys must equal — re-listing them in this file is the drift R6.7 forbids. Two things the
+  data cannot carry: a construct with **two spellings reaching the walk by different paths** needs
+  both as cases (`019-C2`); and an adapter with **no syntax-error case** says why in its README.
 - **R6.3 — Cross-repo validation** proves "works on any repo": several varied repos index without
   crashes and with sane counts. No single repo defines "correct".
   **And where an acceptance criterion needs a judgement about a real repo — a threshold, a ranking,

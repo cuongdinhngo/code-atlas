@@ -1,0 +1,20 @@
+{
+  "//": "R6.6 static analyser for the SQL adapter. Unlike the TS adapter (task 150), this source is typed with JSDoc from its first commit, so it runs at FULL strict INCLUDING `noImplicitAny` — there is no untyped legacy to defer and therefore no flag to hold off. No baseline, no @ts-nocheck, no suppression.",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": true,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "es2022",
+    "types": ["node"],
+    "skipLibCheck": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["index.js", "src/**/*.js"]
+}

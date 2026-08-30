@@ -1,0 +1,5 @@
+CREATE PROC dbo.ShortForm
+AS
+BEGIN
+    SELECT 1;
+END

@@ -37,8 +37,8 @@ the only place to state it — in [`docs/PLAN.md`](docs/PLAN.md) §1.
 
 A local-first **MCP server** that indexes a codebase into **SQLite** and exposes fast, name-resolved,
 token-efficient **search / read / navigation / impact** tools. **Language-agnostic core + per-language
-adapters**, joined by one versioned **JSON contract**. Roll-out order: **PHP → TypeScript/JavaScript →
-Python → C#/.NET**. An Understand-Anything-style onboarding
+adapters**, joined by one versioned **JSON contract**. Roll-out order: **PHP → TS/JS → T-SQL →
+Python → C#/.NET** (§19, T-SQL reordered 2026-08-30). An Understand-Anything-style onboarding
 layer is **Phase 3, and it has shipped** (M10-M12) — it emits a committable system map from the same
 graph, deterministic by default with LLM prose opt-in and out of the core.
 
@@ -121,5 +121,5 @@ it as "unverified". The container route ends on **one** structural skip (the tes
 M0 spike → M1 full build → M2 resolver+contract tests → **M3 search/read/outline = first daily release (task 014)** → M4 scale → M5 incremental → M6 impact.
 **Phase 3 onboarding shipped ahead of language breadth:** M10 (`architecture_overview` + layers) · M11
 (`guided_tour`, `generate_onboarding`, the navigable system map) · M12 (opt-in LLM prose behind three
-seams, out of the core) are **all complete** — 22 tools on the surface. **Adapter #2 (TS/JS) landed**
-(019, §19 reopened 2026-08-25); its follow-ups are 150–157. #3–#4 stay deferred.
+seams, out of the core) are **all complete** — 22 tools on the surface. **Adapters #2 (TS/JS, 019)
+and #3 (T-SQL tier 1a, 184) have landed**; Python and C#/.NET stay deferred.

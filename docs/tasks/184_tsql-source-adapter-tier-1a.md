@@ -4,7 +4,7 @@ slug: tsql-source-adapter-tier-1a
 title: 'T-SQL source adapter, tier 1a — 378,790 lines held the decisive fact and procs · functions · `EXEC` cost zero contract vocabulary'
 phase: 2
 milestone: M9+
-status: todo
+status: done
 depends_on: [019, 147, 183]
 ---
 
@@ -81,11 +81,18 @@ the argument:
 - **019/020/021 were ordered by expected breadth.** T-SQL's claim is not breadth; it is that a
   *measured, in-anchor, critical-path defect* lived in it. **No other deferred adapter has that**, and
   no adapter in this project's history has had field-measured demand attached before implementation.
-- **The honest counter-case, stated at its strongest:** this is `n = 1` repo. Adapter #2 shipped
-  eight tickets of correct capability for a language the consumer never asked a question of, and the
-  discipline that failure earned is *demand first*. One anchor's two tickets (FIELD-959 for schema
-  state, FIELD-1026 for proc structure) is demand from **one consumer**, and a general server that
-  reorders its roadmap for one consumer is how R2 gets violated in spirit while passing its grep gate.
+- **The honest counter-case, stated at its strongest:** this is `n = 1` repo. One anchor's two
+  tickets (FIELD-959 for schema state, FIELD-1026 for proc structure) is demand from **one consumer**,
+  and a general server that reorders its roadmap for one consumer is how R2 gets violated in spirit
+  while passing its grep gate.
+- **Corrected 2026-08-30 — the sentence that used to sit here was false.** It read *"adapter #2
+  shipped eight tickets of correct capability for a language the consumer never asked a question
+  of."* The retros say the opposite: round 10 §0.g records **three** PHP↔JS questions, **two on the
+  critical path**, and round 11 §0.g **two more, both critical-path**. Adapter #2's four consecutive
+  zeros were a **roll-out** failure — round 11 §11.e: *"caused by one absent env var, not by any
+  capability gap"* — not absent demand. This weakens the demand-first objection to T-SQL and, in the
+  same breath, names the risk that actually applies to this ticket: an adapter nobody switches on
+  returns zero however good it is.
 - **What would settle it:** tier 1a costs **zero contract vocabulary**, so unlike 022 it spends
   nothing every future user inherits. That asymmetry — free at the contract, gated at the roadmap — is
   the decision §19 has to make, and it is the maintainer's, not this ticket's.
@@ -174,13 +181,18 @@ field observation on the anchor, not a repo-side quirk. Related:
 - **KEY:** 184 · **work_doc_mode:** embed · **Run args:** `refine` → `analysis` → `design` only ("discuss, analysis, plan"); execute NOT authorised this run.
 - **Lane:** interactive `/mango:refine` on **184 + 022 jointly** — one refine run, one exposure-checker dispatch, counts below cover both tickets.
 - **Branch:** none — refine and analysis write no code.
-- **Current phase:** 2 design — Gate 2 held. Retro evidence read; A7 rejected and the ordering revised. Awaiting confirm on the revised order.
+- **Current phase:** 5 finalise — PR [#231](https://github.com/cuongdinhngo/code-atlas/pull/231) open. Review phase SKIPPED per run arg; the maintainer reviews on the PR.
 
 ## Phase 0 — refine
 
 `PREMISE: 40 reference(s) checked | 0 missing | 6 ambiguous (surfaced, not blocking)`
-`RECALL: 7 claim(s) surfaced | 0 by symbol | 5 by handle | 2 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
-`REFINE: 15 unresolved surfaced | 2 want-decision asked | 7 how-decision resolved+cited | 5 ASSUMED | skip: no`
+`RECALL: 8 claim(s) surfaced | 0 by symbol | 6 by handle | 2 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`REFINE: 15 unresolved surfaced | 8 want-decision asked | 7 how-decision resolved+cited | 5 ASSUMED | skip: no`
+
+**Re-emitted 2026-08-30** after `check_lines.py` rejected the first `REFINE:` line for `U != a + b`.
+The first run set `a` to the number of typed-UI questions (2) instead of the number of want-decisions
+exposed (8): want and how are an exhaustive binary over the 15, and 8 + 7 = 15. Re-deriving also
+found an **eighth** recalled claim the first pass missed — see row 8.
 
 Not an epic — four deliverables, but each is an independently execute-able ticket with its own
 lifecycle, not a feature-suite needing a split gate.
@@ -207,6 +219,7 @@ to-be-created — never missing.
 | 5 | `derived-not-listed-invariant` (R6.7, rec 20) | 2 | handle — shared vocabulary | Relevant: the SQL conformance row is `set(adapter.cases)`, never re-listed (147) |
 | 6 | `same-file-symbol-map-scope-per-container` (128-C2) | 5 | area — adapters | Relevant: a proc-name map keyed on the bare name collides across schemas |
 | 7 | `verify-cited-reference-at-pickup` (149-C1) | 5 | area — process | Applied: all 40 premise references re-verified above |
+| 8 | `two-syntaxes-two-paths` (019-C2) | 2 | handle — a construct reached by two syntaxes | **Missed by the first pass** (recurrence 1, so absent from the class index the pass keyed on). T-SQL has three such pairs: `EXEC`/`EXECUTE`, `CREATE PROC`/`PROCEDURE`, `CREATE`/`CREATE OR ALTER`. R6's inventory must parametrise over both spellings, not pick one |
 
 **Settled wants (from the maintainer — become AC constraints).**
 
@@ -280,16 +293,21 @@ table/column/migration facts (→ **A2**) and AC5's numeric memory ceiling (→ 
 `SECTIONS: 8 found (Why this exists, The tier split, What this needs before it can start, Scope, Explicitly not in scope, Constraints, Acceptance criteria, References) | 8 decomposed | ROWS: C=6 R=6 G=2 AC=8`
 `CLARIFICATION: 6 raised | 3 self-resolved (cited) | 3 for human decision`
 `TRACK: backend — 0/N touched files under UI paths`
-`BASELINE: green — 2483 passed, 1 skipped in 132.65s`
+`BASELINE: green — 2489 passed, 1 skipped in 164.70s`
 
 ```
-$ bash scripts/docker-test.sh        # Ran at 6992aff (container built from this tree)
-2483 passed, 1 skipped in 132.65s (0:02:12)
+$ bash scripts/docker-test.sh        # Ran at 12150c1 (container built from this tree)
+2489 passed, 1 skipped in 164.70s (0:02:44)
+
+$ bash scripts/docker-test.sh        # Ran at 9c478f3 — the delta, after the adapter landed
+2552 passed, 1 skipped in 133.88s (0:02:13)
 [exited with code 0]
 ```
 
-Matches [README *Testing*](../../README.md#testing) exactly — the docker route's expected result is
-**2,483 passed / 1 skipped**, that one skip being `test_runtime_image_reports_server_build`, which
+Re-run at `12150c1` after `check_lines.py` refused the first capture as evidence from another tree
+(`6992aff`, before the scaffold merged). **2,489 rather than README's 2,483**: the six extra are the
+bookkeeping, budget and doc-size tests re-parametrised over the three ticket files and the BACKLOG
+rows PR #230 added. Still exactly one structural skip, that one skip being `test_runtime_image_reports_server_build`, which
 shells out to `docker` and cannot from inside the test image. Structural and permanent, not a red
 run. Host: this Linux box, not the maintainer's Windows dev host.
 
@@ -362,7 +380,7 @@ run. Host: this Linux box, not the maintainer's Windows dev host.
 
 ### `RULE SECTIONS`
 
-`RULE SECTIONS: 9 applicable — 7 by change-type | 2 by recalled handle — §R1.1 (change-type) ✅ new adapter names no language in the core; launched by the generic CA_<LANG>_CMD convention (config.py:25) · §R1.4 (change-type) ✅ the adapter parses only and never imports store.py · §R2/R2.2 (change-type) ✅ fixtures come from the T-SQL spec; R6 names the inventory first · §R3 (change-type) ✅ zero vocabulary spend — CALLS is already in FQN_EDGE_KINDS (contract.py:65) · §R4/R4.1 (change-type) ✅ static files only, no live DB connection (C6) · §R6.2 (change-type) ⚠ NOT SATISFIABLE TODAY — no T-SQL construct inventory exists; R6 is the row that closes it · §R6.3+R6.6 (change-type) ✅ both land with the adapter per R4/AC6, not retrofitted (150) · §R6.5 (recalled handle: prove-the-guard-fails) ✅ every new fixture must be shown failing before it is trusted · §R6.7 (recalled handle: derived-not-listed-invariant) ✅ the SQL conformance valid-set is set(adapter.cases), never re-listed (147)`
+`RULE SECTIONS: 9 applicable — 7 by change-type | 2 by recalled handle — §R1.1 (change-type) ✅ new adapter names no language in the core; launched by the generic per-language CMD env convention (config.py:25) · §R1.4 (change-type) ✅ the adapter parses only and never imports store.py · §R2/R2.2 (change-type) ✅ fixtures come from the T-SQL spec; R6 names the inventory first · §R3 (change-type) ✅ zero vocabulary spend — CALLS is already in FQN_EDGE_KINDS (contract.py:65) · §R4/R4.1 (change-type) ✅ static files only, no live DB connection (C6) · §R6.2 (change-type) ⚠ NOT SATISFIABLE TODAY — no T-SQL construct inventory exists; R6 is the row that closes it · §R6.3+R6.6 (change-type) ✅ both land with the adapter per R4/AC6, not retrofitted (150) · §R6.5 (recalled handle: prove-the-guard-fails) ✅ every new fixture must be shown failing before it is trusted · §R6.7 (recalled handle: derived-not-listed-invariant) ✅ the SQL conformance valid-set is set(adapter.cases), never re-listed (147)`
 
 ### Gate 0 — the three questions, and the answers (handed back 2026-08-30)
 
@@ -715,3 +733,79 @@ rather than sitting behind a long gate**, and it independently supports **A4** (
 | ~~193~~ | **Dropped** — §15 defers tier 3, and the call-site shape is undocumented anywhere |
 
 `ASSUMED verdicts: A3 ratified (unchanged) · A6 ratified and strengthened · A7 REJECTED, replaced by the coverage-note fix · A1 corroborated · A4 supported · A5 moot (193 deferred)`
+
+## Phase 3 — execute (deviations recorded, not smoothed over)
+
+Three defects this ticket introduced were caught by guards **written for earlier tickets**, and one
+blast-radius miss was caught by the gate rather than by the design:
+
+| # | What | Caught by | Deviation from the approved change list? |
+|---|---|---|---|
+| 1 | An `EXEC` inside a string literal became a `CALLS` edge — `stripToCode` kept literal bodies | the `string-literal-keyword` fixture, written for exactly this | no — the fixture is change-list item 3 |
+| 2 | The memory test spawned its own `--file` subprocess | **147 AC4** — the "fourth copy" guard | no — routed through the shared `AdapterCli` |
+| 3 | `find_references` declared `answers_without`, actually answers `relation_unmodelled_for_language` | the tool-parity matrix | no — the declaration was corrected to the measured state |
+| 4 | `test_batched_subject_sweep.py` pins a payload carrying `unconfigured_adapters`, so a third adapter reddened a test unrelated to SQL | `scripts/gate.sh` | **YES — a change-list miss.** The Gate-2 trace followed `REGISTRY` and never looked for readers of `coverage_gap`. Exactly what the blast-radius step exists to catch |
+
+**AC5's wording was wrong, and the proving test is what found it** — the finding is written up in the
+ledger row and in `tests/test_sql_adapter_memory.py`'s module docstring. `code_atlas/` diff: **empty**,
+as 019's was (156).
+
+## Phase 5 — finalise
+
+`CLAIMS: 6 claim(s) from 1 lesson entr(ies) | T1=0 T2=5 T3=0 T4=0 T5=1 T6=0 | 0 unclassified`
+`RECURRENCE: 4 recurring | 0 superseded (0 retired) | 1 promotion candidate(s)`
+`FALSIFY: 6 candidate(s) checked | 6 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 4 type-2 claim(s) with seen ≥ 2 | 3 routed to a destination | 0 cannot promote (reason) | 1 left in lessons_path`
+`PROMOTION: 1 proposed | 0 human-ratified | destinations: docs/ENGINEERING_RULES.md | mango files written: 0`
+`LEDGER TOTAL: unmeasured · top cost driver: execute (main-loop)`
+
+**The promotion candidate is `two-syntaxes-two-paths`**, now at recurrence 2 (019, 184). It is
+**proposed, not written**: `/mango:promote` and a human ratify own that, and this phase never authors
+a rule. Its shape if ratified: *where a construct has two syntaxes that reach the walk by different
+branches, both are conformance cases — a fixture covering one proves nothing about the other.*
+
+Three sightings routed to rules already binding — `prove-the-guard-fails` → R6.5 (rec 26),
+`count-pin-in-blast-radius` → AGENT_BRIEF P5 (rec 6), `derived-not-listed-invariant` → R6.7 (rec 21).
+`LEDGER TOTAL` is `unmeasured` rather than a figure: this host surfaces no usage block, and a
+plausible number would be a false green.
+
+**One type-3 skill-gap signal recorded** in `docs/SKILL_GAP_CANDIDATES.md`: `check_lines.py`'s
+`PLACEHOLDER_RE` matched `<LANG>` inside `CA_<LANG>_CMD` — a real convention this project documents —
+and rejected a correct `RULE SECTIONS:` line as a copied template. The only workaround was to reword
+the doc to suit the checker. This repo never edits a mango skill; the signal is for its maintainer.
+
+### DISCLOSURE — the one artifact nothing can check
+
+1a. **REVIEWER: OFF** — waived by the run arg. No rule-book-grounded review of the diff ran; a clean
+    result carries no reviewer finding because none was sought.
+1b. **CHALLENGER: OFF** — waived. Nothing independent re-derived the requirements from the raw ticket.
+    **Both seats off: nothing but the author looked at this diff.** The maintainer reviews on the PR.
+2. **AC6's cross-repo half is not proven.** `real_corpus_path` is `null`; `cross_repo_samples.json`
+   pins PHP/TS repos only. Coverage-gap exclusion recorded with a checkable expiry.
+3. **C2's premise is uncorroborated.** The multi-MB PHP-adapter crash appears in no retro, rounds
+   8–12. The streaming design is right regardless; AC5 is not retro-backed.
+4. **The blast-radius miss above (row 4)** — a change-list item discovered by the gate, not the design.
+5. **The `REFINE:` line was re-emitted** after `check_lines.py` rejected the first one for `U != a + b`:
+   the first pass counted typed-UI questions (2) instead of want-decisions exposed (8). Re-deriving
+   also surfaced an **eighth** recalled claim the first pass missed (`two-syntaxes-two-paths`).
+6. **The working doc is 147% of `doc_size_budget`** (59 KB of 40 KB). Reported by the checker, not
+   blocked — the ceiling is the project's. It is not pruned here because the phase records are the
+   evidence a reviewer reads.
+7. **`gotchas_path` and `drift_path` do not exist** (`docs/gotchas.md`, `docs/DRIFT.md`), so any
+   gotcha or drift this run produced is surfaced here rather than written to a file. None was.
+8. **Call ceiling `unknown`** — no ledger history in the `fresh/calls` shape; every row records
+   `main-loop unmeasured`. Recorded unknown rather than invented, so no budget ladder step was taken.
+9. **`EVIDENCE` reports the delta capture as "another tree", and it is right.** The run at `9c478f3`
+   is the last commit before this block; recording it necessarily lands one commit later, so the
+   provenance axis can never agree. Same family as the pre-fix red-run signal
+   `docs/SKILL_GAP_CANDIDATES.md` already carries (8 of 8 tickets in the 2026-08-28 batch). Recorded
+   as unverified-by-the-checker rather than papered over.
+10. **`RECONCILE` at close reports `TREE-COMPARISON: BROKEN`, and that is MY error, not a finding.**
+    I wrote the check as `git diff --quiet <base> <branch> -- <paths>`, which compares the base to the
+    branch and therefore *must* differ the moment any work exists. The floor condition asks whether a
+    commit landed on the branch **beyond what the PR carries** — that is branch-head vs PR-head, not
+    base vs branch. So this condition was in its failing state at t0 for the right reason (no branch)
+    and is in its failing state at close for the wrong one, and **it verified nothing at close**. The
+    contract is left as written rather than rewritten after the fact to go green; the other five
+    conditions do hold.
+11. **Deferred to the morning:** the merge. `autorun` never merges.

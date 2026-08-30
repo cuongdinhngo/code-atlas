@@ -119,8 +119,10 @@ else
     # mirror that here — otherwise pytest's TS coverage silently shrinks to zero (R6.5).
     if command -v npm >/dev/null 2>&1; then
         _run "npm ci (adapters/typescript)" npm ci --prefix adapters/typescript
+        _run "npm ci (adapters/sql)" npm ci --prefix adapters/sql
     else
         _record SKIP "npm ci (adapters/typescript)" "npm not on PATH"
+        _record SKIP "npm ci (adapters/sql)" "npm not on PATH"
     fi
     _run "pytest -q" "$bin/pytest" -q
     if command -v php >/dev/null 2>&1; then
@@ -176,6 +178,16 @@ if [ -x adapters/typescript/node_modules/.bin/tsc ]; then
 else
     _record SKIP "tsc --checkJs --strict (R6.6, TS adapter)" \
         "run: npm ci --prefix adapters/typescript"
+fi
+
+# The SQL adapter runs the same analyser at FULL strict — `noImplicitAny` included, because it is
+# typed from its first commit and has no legacy to defer (task 184; contrast task 150).
+if [ -x adapters/sql/node_modules/.bin/tsc ]; then
+    _run "tsc --checkJs --strict (R6.6, SQL adapter)" \
+        adapters/sql/node_modules/.bin/tsc -p adapters/sql/tsconfig.json
+else
+    _record SKIP "tsc --checkJs --strict (R6.6, SQL adapter)" \
+        "run: npm ci --prefix adapters/sql"
 fi
 
 echo "== job: guardrails =="

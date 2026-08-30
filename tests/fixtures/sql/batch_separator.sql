@@ -1,0 +1,12 @@
+CREATE PROCEDURE dbo.FirstBatch
+AS
+BEGIN
+    SELECT 1;
+END
+GO
+CREATE PROCEDURE dbo.SecondBatch
+AS
+BEGIN
+    EXEC dbo.FirstBatch;
+END
+GO

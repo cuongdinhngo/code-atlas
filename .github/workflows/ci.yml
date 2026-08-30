@@ -85,6 +85,9 @@ jobs:
       - name: Install the TypeScript adapter's own runtime deps
         run: npm ci --prefix adapters/typescript
 
+      - name: Install SQL adapter dev deps
+        run: npm ci --prefix adapters/sql
+
       - uses: actions/cache@v4
         with:
           path: adapters/php/vendor
@@ -208,8 +211,14 @@ jobs:
       - name: Install the TS adapter's deps, dev tools included
         run: npm ci --prefix adapters/typescript
 
+      - name: Install the SQL adapter's dev tools
+        run: npm ci --prefix adapters/sql
+
       - name: Static analysis (tsc --checkJs --strict) — the TS adapter's phpstan (R6.6)
         run: adapters/typescript/node_modules/.bin/tsc -p adapters/typescript/tsconfig.json
+
+      - name: Static analysis (tsc --checkJs --strict, noImplicitAny ON) — the SQL adapter (R6.6)
+        run: adapters/sql/node_modules/.bin/tsc -p adapters/sql/tsconfig.json
 
   guardrails:
     name: rulebook grep-gates

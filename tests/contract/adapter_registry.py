@@ -12,6 +12,7 @@ from typing import Any
 
 from tests.adapter_cli import AdapterCli
 from tests.php_adapter_cli import CLI as PHP_CLI
+from tests.sql_adapter_cli import CLI as SQL_CLI
 from tests.ts_adapter_cli import CLI as TS_CLI
 
 # filename + frozen kind histograms (None node-hist = syntax-error shape: ok=false, no nodes/edges).
@@ -440,9 +441,123 @@ TS_CONFORMANCE = AdapterConformance(
 )
 
 
+# ── SQL (T-SQL, tier 1a) ─────────────────────────────────────────────────────────────────────────
+# R6.2 named inventory (docs/ENGINEERING_RULES.md) — keys must match this set exactly. Three of the
+# pairs are two spellings of ONE construct and both are cases, never one (claim 019-C2). There is no
+# syntax-error case: a streaming scanner has no parse phase to fail.
+SQL_R62_CASES = frozenset(
+    {
+        "create-procedure",
+        "create-proc-abbrev",
+        "create-or-alter",
+        "create-function-scalar",
+        "create-function-table-valued",
+        "exec-call",
+        "execute-spelling",
+        "exec-with-params",
+        "exec-dynamic",
+        "batch-separator",
+        "delimited-identifier",
+        "string-literal-keyword",
+        "comment-forms",
+    }
+)
+
+_F_BATCH = "tests/fixtures/sql/batch_separator.sql"
+_F_DELIM = "tests/fixtures/sql/delimited_identifier.sql"
+_F_DYN = "tests/fixtures/sql/exec_dynamic.sql"
+_F_STRING = "tests/fixtures/sql/string_literal_keyword.sql"
+_F_COMMENT = "tests/fixtures/sql/comment_forms.sql"
+
+# A SQL object's qname is schema-qualified and file-independent — the database, not the file, is its
+# container — which is what lets an EXEC in one file link to a proc declared in another.
+_SQL_BATCH_EDGE_SHAPES: list[EdgeShape] = [
+    ("CALLS", "dbo.SecondBatch", "dbo.FirstBatch", "RESOLVED"),
+    ("CONTAINS", _F_BATCH, "dbo.FirstBatch", "RESOLVED"),
+    ("CONTAINS", _F_BATCH, "dbo.SecondBatch", "RESOLVED"),
+]
+_SQL_DELIM_EDGE_SHAPES: list[EdgeShape] = [
+    ("CALLS", "dbo.Spaced Name", "dbo.Other Name", "RESOLVED"),
+    ("CALLS", "dbo.Spaced Name", "dbo.Quoted Name", "RESOLVED"),
+    ("CONTAINS", _F_DELIM, "dbo.Spaced Name", "RESOLVED"),
+]
+# Every dynamic arm is emitted and none is RESOLVED (AC7): `EXEC (@sql)`, `sp_executesql`,
+# `EXEC @var`.
+_SQL_DYNAMIC_EDGE_SHAPES: list[EdgeShape] = [
+    ("CALLS", "dbo.DynamicCaller", "(dynamic)", "DYNAMIC"),
+    ("CALLS", "dbo.DynamicCaller", "(dynamic)", "DYNAMIC"),
+    ("CALLS", "dbo.DynamicCaller", "(dynamic)", "DYNAMIC"),
+    ("CONTAINS", _F_DYN, "dbo.DynamicCaller", "RESOLVED"),
+]
+# The two cases that pin what must NOT become an edge: a keyword inside a string literal, and one
+# inside every comment form. Both shipped red before the scanner dropped literal bodies (R6.5).
+_SQL_STRING_EDGE_SHAPES: list[EdgeShape] = [
+    ("CONTAINS", _F_STRING, "dbo.QuotesOnly", "RESOLVED"),
+]
+_SQL_COMMENT_EDGE_SHAPES: list[EdgeShape] = [
+    ("CONTAINS", _F_COMMENT, "dbo.Commented", "RESOLVED"),
+]
+
+SQL_CASES: dict[str, Case] = {
+    "create-procedure": Case("create_procedure.sql", {"File": 1, "Function": 1}, {"CONTAINS": 1}),
+    "create-proc-abbrev": Case(
+        "create_proc_abbrev.sql", {"File": 1, "Function": 1}, {"CONTAINS": 1}
+    ),
+    "create-or-alter": Case("create_or_alter.sql", {"File": 1, "Function": 2}, {"CONTAINS": 2}),
+    "create-function-scalar": Case(
+        "create_function_scalar.sql", {"File": 1, "Function": 1}, {"CONTAINS": 1}
+    ),
+    "create-function-table-valued": Case(
+        "create_function_table_valued.sql", {"File": 1, "Function": 1}, {"CONTAINS": 1}
+    ),
+    "exec-call": Case("exec_call.sql", {"File": 1, "Function": 1}, {"CONTAINS": 1, "CALLS": 1}),
+    "execute-spelling": Case(
+        "execute_spelling.sql", {"File": 1, "Function": 1}, {"CONTAINS": 1, "CALLS": 1}
+    ),
+    "exec-with-params": Case(
+        "exec_with_params.sql", {"File": 1, "Function": 1}, {"CONTAINS": 1, "CALLS": 1}
+    ),
+    "exec-dynamic": Case(
+        "exec_dynamic.sql",
+        {"File": 1, "Function": 1},
+        {"CONTAINS": 1, "CALLS": 3},
+        _SQL_DYNAMIC_EDGE_SHAPES,
+    ),
+    "batch-separator": Case(
+        "batch_separator.sql",
+        {"File": 1, "Function": 2},
+        {"CONTAINS": 2, "CALLS": 1},
+        _SQL_BATCH_EDGE_SHAPES,
+    ),
+    "delimited-identifier": Case(
+        "delimited_identifier.sql",
+        {"File": 1, "Function": 1},
+        {"CONTAINS": 1, "CALLS": 2},
+        _SQL_DELIM_EDGE_SHAPES,
+    ),
+    "string-literal-keyword": Case(
+        "string_literal_keyword.sql",
+        {"File": 1, "Function": 1},
+        {"CONTAINS": 1},
+        _SQL_STRING_EDGE_SHAPES,
+    ),
+    "comment-forms": Case(
+        "comment_forms.sql", {"File": 1, "Function": 1}, {"CONTAINS": 1}, _SQL_COMMENT_EDGE_SHAPES
+    ),
+}
+
+SQL_CONFORMANCE = AdapterConformance(
+    cli=SQL_CLI,
+    named_inventory=SQL_R62_CASES,
+    excluded_fixtures=frozenset(),
+    cases=SQL_CASES,
+)
+
+
 # ── registry ─────────────────────────────────────────────────────────────────────────────────────
 # Keyed by adapter directory name — a 2nd adapter is a new entry here + its fixtures.
 REGISTRY: dict[str, AdapterConformance] = {
     PHP_CONFORMANCE.cli.name: PHP_CONFORMANCE,
     TS_CONFORMANCE.cli.name: TS_CONFORMANCE,
+    SQL_CONFORMANCE.cli.name: SQL_CONFORMANCE,
 }

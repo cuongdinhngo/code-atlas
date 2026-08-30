@@ -1,0 +1,6 @@
+CREATE FUNCTION dbo.NextSequence (@Seed INT)
+RETURNS INT
+AS
+BEGIN
+    RETURN @Seed + 1;
+END

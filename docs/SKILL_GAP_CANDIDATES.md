@@ -157,3 +157,14 @@ the fix. The evidence-provenance axis counts that as evidence "from ANOTHER tree
 run trips it — 8 of 8. Suggested shape: a marker the doc can carry (e.g. `Ran at <sha> (pre-fix)`)
 that the checker counts on its own axis rather than as a stale tree. First seen: 176; seen in all
 eight.
+
+## Type-3 signal from 184 (2026-08-30, mango 1.14.0)
+
+**`check_lines.py`'s `PLACEHOLDER_RE` cannot tell a template slot from a real angle-bracketed
+identifier.** The pattern is `r"<[A-Za-z][A-Za-z0-9 _/+()-]*>|\.\.(?!\d)"`, and it matched `<LANG>`
+inside `CA_<LANG>_CMD` — a genuine environment-variable convention this project documents at
+`code_atlas/config.py:25`. The `RULE SECTIONS:` line was rejected as *"unfilled template placeholder
+— the line was copied, not emitted"* when nothing had been copied and every count was correct. The
+only workaround was to reword the prose around the identifier, which makes the doc worse to serve the
+checker. Suggested shape: exempt a match that sits inside backticks, or require the placeholder to be
+one of the tokens the templates actually ship. First seen: 184.

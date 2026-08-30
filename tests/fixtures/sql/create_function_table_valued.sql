@@ -1,0 +1,7 @@
+CREATE FUNCTION dbo.ActiveRows (@Since DATETIME)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT 1 AS Value
+);

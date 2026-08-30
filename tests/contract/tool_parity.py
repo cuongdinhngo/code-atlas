@@ -44,6 +44,7 @@ from code_atlas.tools import (
 )
 from tests.adapter_cli import AdapterCli
 from tests.php_adapter_cli import CLI as PHP_CLI
+from tests.sql_adapter_cli import CLI as SQL_CLI
 from tests.ts_adapter_cli import CLI as TS_CLI
 
 # ── the state vocabulary, one definition site (R6.7) ────────────────────────────────────────────
@@ -306,9 +307,83 @@ TS_PARITY = ToolParity(
     },
 )
 
+
+# ── T-SQL (tier 1a) ─────────────────────────────────────────────────────────────────────────────
+# The narrowest surface of the three, and deliberately so: tier 1a emits `Function` nodes and
+# CONTAINS/CALLS edges and nothing else, so every relation built on a kind it never emits is EMPTY
+# here BY DECLARATION rather than by accident. A SQL object's qname is schema-qualified and
+# file-independent (`dbo.Caller`), which is why a caller in one file reaches a callee in another.
+SQL_PARITY = ToolParity(
+    cli=SQL_CLI,
+    globs=("*.sql",),
+    adapter_cmd=(),
+    entry_points="src/exec_call.sql",
+    subjects={
+        "query": "Caller",
+        "path": "src/exec_call.sql",
+        "class": "dbo.Caller",
+        "method": "dbo.Caller",
+        "caller": "dbo.SecondBatch",
+        "callee": "dbo.FirstBatch",
+        "interface": "dbo.Caller",
+        "subtree": "src",
+    },
+    tools={
+        **_answering(
+            get_index_status.NAME,
+            build_or_update_index.NAME,
+            search_symbol.NAME,
+            file_outline.NAME,
+            read_symbol.NAME,
+            find_callers.NAME,
+            impact.NAME,
+            impact_modules.NAME,
+            reachable_from.NAME,
+            find_orphans.NAME,
+            explain_path.NAME,
+            architecture_overview.NAME,
+            guided_tour.NAME,
+            generate_onboarding.NAME,
+        ),
+        include_graph.NAME: Expect(
+            EMPTY_RELATION_NOT_MODELLED,
+            kinds=("INCLUDES",),
+            because="T-SQL has no textual include; a proc reaches another by EXEC, which is CALLS",
+            reason="relation_unmodelled_for_language",
+        ),
+        # Measured, not assumed: 186's per-language census DOES fire here. SQL emits neither of
+        # the kinds `find_references` reads, so the payload says so rather than a confident zero.
+        find_references.NAME: Expect(
+            EMPTY_RELATION_NOT_MODELLED,
+            kinds=("REFERENCES", "IMPORTS"),
+            because="tier 1a emits neither a bare type mention nor a module dependency",
+            reason="relation_unmodelled_for_language",
+        ),
+        find_implementations.NAME: Expect(
+            NOT_APPLICABLE_BY_LANGUAGE,
+            kinds=("EXTENDS", "IMPLEMENTS", "USES_TRAIT"),
+            because="T-SQL has no inheritance of any kind; there is no heritage relation to answer",
+        ),
+        class_diagram.NAME: Expect(
+            NOT_APPLICABLE_BY_LANGUAGE,
+            kinds=("EXTENDS", "IMPLEMENTS", "USES_TRAIT"),
+            because="tier 1a emits no Class node, so there is no box to draw",
+        ),
+        subtree_dependencies.NAME: Expect(
+            ANSWERS_WITHOUT,
+            kinds=("INCLUDES",),
+            because="crossings come from CALLS alone; tier 1a emits no INCLUDES to cross on",
+        ),
+        find_view_data.NAME: _VIEW_DATA,
+        check_architecture_rules.NAME: _ARCH_RULES,
+        diff_architecture.NAME: _DIFF_ARCH,
+    },
+)
+
 # ── the matrix ──────────────────────────────────────────────────────────────────────────────────
 # Keyed by adapter directory name, exactly as `adapter_registry.REGISTRY` is.
 PARITY: dict[str, ToolParity] = {
     PHP_PARITY.cli.name: PHP_PARITY,
     TS_PARITY.cli.name: TS_PARITY,
+    SQL_PARITY.cli.name: SQL_PARITY,
 }

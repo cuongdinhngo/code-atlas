@@ -31,12 +31,12 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
-| `derived-not-listed-invariant` | 20 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180, 187, 191 | **R6.7** |
-| `prove-the-guard-fails` | 25 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188, 189, 190, 187, 191 | **R6.5** — 190 is the *other* side of it: not *was it seen failing?* but *did it fail for the thing it forbids?* |
+| `derived-not-listed-invariant` | 21 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180, 187, 191, 184 | **R6.7** |
+| `prove-the-guard-fails` | 26 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188, 189, 190, 187, 191, 184 | **R6.5** — 190 is the *other* side of it: not *was it seen failing?* but *did it fail for the thing it forbids?* |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
 | `fixture-shape-begs-the-question` | 11 | 084, 086, 103–106, 121, 183, 185, 190, 191 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
-| `count-pin-in-blast-radius` | 5 | 085, 087–089, 175 | **AGENT_BRIEF P5** — promoted 2026-08-27 |
+| `count-pin-in-blast-radius` | 6 | 085, 087–089, 175, 184 | **AGENT_BRIEF P5** — promoted 2026-08-27 |
 | `source-the-caveat-from-the-computation` | 6 | 100–102, 122, 127, 189 | **R5.5** |
 | `re-verify-the-assumption-on-a-new-path` | 3 | 102, 107, 122 | **AGENT_BRIEF P6** — promoted 2026-08-27 |
 | `re-run-the-sweep-after-the-last-edit` | 3 | 100–102 | **AGENT_BRIEF P4** |
@@ -47,6 +47,7 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 | `record-the-deviation-as-a-deviation` | 2 | 101, promote-2026-08-15 | **AGENT_BRIEF P3** |
 | `one-rule-for-every-subject-slot` | 6 | 102, 122, 183, 186, 179, 187 | **R1.8** — promoted 2026-08-27 |
 | `read-the-syntax-not-the-text` | 2 | 190, 187 | open — proposed 2026-08-29, awaiting ratify; destination **R6.7** |
+| `two-syntaxes-two-paths` | 2 | 019, 184 | open — **promotion candidate 2026-08-30**, awaiting ratify |
 | `ac-failure-mode-needs-the-right-guard` | 2 | 085, 107 | **R6.8** — promoted 2026-08-27 |
 | `own-only-what-you-wrote` | 2 | 088, 089 | **R5.7** — promoted 2026-08-27 |
 | `skip-dynamic-means-unlinkable` | 2 | 094, 096 | open — rejected 2026-08-15 (2nd sighting bound a design) |
@@ -97,6 +98,48 @@ and it is the one that will fall behind.**
 - destination: **R6.7** — proposed sharpening. R6.7 already says *derive the set, never list it*; a
   text sweep looks like a derivation and is not one, because it derives from the wrong grammar. Left
   for `/mango:promote` and a human to ratify; no rule written here.
+
+## 184 — An acceptance criterion can name an axis the defect does not live on
+
+AC5 asked for *"peak RSS constant in input size"*. **No adapter can satisfy that**, and the reason is
+the protocol, not the parser: §4.1 answers one JSON object per file, so every adapter holds that
+file's whole node list before it can emit. The first proving run measured 2.13x growth and looked
+like a streaming defect; it was the node list, which is the contract's cost and not the scanner's.
+
+The axis the defect actually lives on is **bytes at a fixed symbol count** — that is what a
+whole-file tree causes and a stream does not. Rewritten that way the test falsifies exactly C2: 2
+symbols, 50x the bytes, <1.25x peak RSS, and the red run (`readFileSync` for the chunked reader)
+fails on 2.44x. The symbol axis is pinned as *bounded per symbol* rather than dropped, so the half
+that belongs to §4.1 is measured rather than silently unmeasured.
+
+**Three existing guards each caught a real defect this ticket introduced**, which is the other thing
+worth keeping: a spec-driven fixture (`EXEC` inside a string literal became a `CALLS` edge), 147's
+one-spawn rule (the memory test wrote a fourth `--file` copy), and the tool-parity matrix (a declared
+`answers_without` that actually answers `relation_unmodelled_for_language` — 186's census does fire
+for a third language). None of them was written for this ticket.
+
+*Claim `184-C1` — an AC that names a growth axis must name the axis the defect lives on; where a
+protocol imposes growth of its own, measure the other axis and pin the imposed one as bounded rather
+than deleting it. type: 2 · handle: `measure-the-axis-the-defect-lives-on` · status: proposed · seen:
+184 · evidence: AC5's first wording unsatisfiable by construction (§4.1 one-object-per-file); byte
+axis <1.25x, red run 2.44x · destination: open — folds into R6.8 if it recurs.*
+*Claim `184-C2` — the streaming requirement shipped only once `readFileSync` was shown to fail the
+assertion that names it. type: 2 · handle: `prove-the-guard-fails` · seen: 184 · destination: R6.5.*
+*Claim `184-C3` — T-SQL spells three constructs two ways each (`PROC`/`PROCEDURE`, `EXEC`/`EXECUTE`,
+`CREATE`/`CREATE OR ALTER`); a fixture covering one proves nothing about the other. **Second sighting
+of `019-C2`** — recurrence 2. type: 2 · handle: `two-syntaxes-two-paths` · seen: 019, 184 ·
+destination: open — promotion candidate, needs a human ratify.*
+*Claim `184-C4` — a blast-radius trace that follows the registry misses the readers of a list DERIVED
+from it: `test_batched_subject_sweep.py` pins a payload carrying `unconfigured_adapters`, so adapter
+#3 reddened a test with nothing to do with SQL. type: 2 · handle: `count-pin-in-blast-radius` · seen:
+184 · destination: AGENT_BRIEF P5.*
+*Claim `184-C5` — a streaming scanner has no parse phase, so it has no syntax-error conformance case;
+its `ok:false` path is a missing-file test and the difference belongs in the adapter README. type: 5 ·
+handle: `scanner-has-no-parse-phase` · status: confirmed · seen: 184 · area: adapters · destination:
+stays in lessons_path.*
+*Claim `184-C6` — R6.2 was re-listing in prose three construct inventories `adapter_registry.py`
+already holds as data; that copy was itself the drift R6.7 forbids. type: 2 · handle:
+`derived-not-listed-invariant` · seen: 184 · destination: R6.7.*
 
 ## 191 — A guard that never ran fails for more reasons than the report can see
 181 wrapped its AC5 assertions in `if SIBLING_DEFINITIONS in payload:`. The payload answered

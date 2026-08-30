@@ -1,0 +1,5 @@
+CREATE PROCEDURE dbo.LongForm
+AS
+BEGIN
+    EXECUTE dbo.Target;
+END
