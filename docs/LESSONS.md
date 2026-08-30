@@ -60,6 +60,14 @@ rule** rather than adding a near-duplicate (P2), and one by finding the rule alr
 | `own-only-what-you-wrote` | 2 | 088, 089 | **R5.7** — promoted 2026-08-27 |
 | `skip-dynamic-means-unlinkable` | 3 | 094, 096, 022 | **R5.2** — re-adjudicated and widened 2026-08-30; the 2026-08-15 rejection reasoned from a sighting that *bound* a design, and the third bound one **wrongly** |
 
+**Ratified 2026-08-30 — all 17, on a condition the brief already stated.** The rule book and the
+brief both said a rule stays `PROVISIONAL` *"until a second incident confirms the shape"*, and every
+one of the 17 stood at recurrence ≥ 2 in the table above — the lowest at 2 (`own-only-what-you-wrote`,
+`ac-failure-mode-needs-the-right-guard`, `guard-asserts-rendered-not-shipped-bytes`,
+`an-aggregate-outlives-the-world-that-named-it`), the highest at 22. So the tag was not moved on
+anyone's say-so; it was moved because the condition it named had been met, in some cases fifteen days
+earlier. `Provisional` stays in both vocabularies for the next promotion.
+
 **Six classes were closed 2026-08-30** — see [[promote-2026-08-30]]. Two were **widenings**
 (`skip-dynamic-means-unlinkable` → R5.2, `read-the-syntax-not-the-text` → R6.7), two were new
 (`rank-before-truncate` → R5.8, `guard-asserts-rendered-not-shipped-bytes` → R6.9), one was a new
@@ -70,8 +78,7 @@ brief entry (`an-aggregate-outlives-the-world-that-named-it` → P7), and one **
 unioned (the under-count `PROM-C1` names): `do-not-attest-past-the-payloads-resolution` → **R5.6**
 (re-adjudicating the stale 2026-08-16 rejection), `count-pin-in-blast-radius` → **P5**,
 `re-verify-the-assumption-on-a-new-path` → **P6** — with `one-rule-for-every-subject-slot` → **R1.8**,
-`ac-failure-mode-needs-the-right-guard` → **R6.8** and `own-only-what-you-wrote` → **R5.7**, all
-PROVISIONAL awaiting ratification.
+`ac-failure-mode-needs-the-right-guard` → **R6.8** and `own-only-what-you-wrote` → **R5.7**.
 `fixture-shape-begs-the-question` left this list on 2026-08-23: widened into **R6.3** rather than
 proposed as a new rule, because R6.3 already owned cross-repo validation and P2 asks for the widening.
 
@@ -110,7 +117,7 @@ and it is the one that will fall behind.**
   which cannot match a comment or a docstring.
 - area: tests / guards over source
 - destination: **R6.7** — widened 2026-08-30 with exactly this sharpening,
-  `PROVISIONAL (awaiting ratification)`.
+  `Ratified 2026-08-30`.
 - retired: promoted to R6.7
 
 
@@ -936,7 +943,7 @@ two-step was measured at 686.9 ms and rejected on structure, not speed.
   generalises past languages to any population axis that grows from one value to two (tenant, region,
   adapter, repo).
 - area: store / measurement / roll-out
-- destination: **AGENT_BRIEF P7** — promoted 2026-08-30, `PROVISIONAL (awaiting ratification)`. The
+- destination: **AGENT_BRIEF P7** — promoted 2026-08-30, `Ratified 2026-08-30`. The
   handed-forward enumeration was discharged by 195, which found four consumers where the ticket named
   three; see [[195-C1]].
 - retired: promoted to P7
@@ -1452,7 +1459,7 @@ figures.
   127's file-level formulation of the caveat guard is green by construction, the rendered one caught
   the drop on its first run
 - area: onboarding / artifact / guards
-- destination: **R6.9** — promoted 2026-08-30, `PROVISIONAL (awaiting ratification)`
+- destination: **R6.9** — promoted 2026-08-30, `Ratified 2026-08-30`
 - retired: promoted to R6.9
 
 
@@ -1476,7 +1483,7 @@ sourced where the cap is decided rather than re-worded by the renderer.
   cut the page by a different order, so *"page 1 of 46"* held no exact match — and the fix is
   structural, putting the rank inside the statement that truncates.
 - area: tools / onboarding / payload honesty
-- destination: **R5.8** — promoted 2026-08-30, `PROVISIONAL (awaiting ratification)`
+- destination: **R5.8** — promoted 2026-08-30, `Ratified 2026-08-30`
 - retired: promoted to R5.8
 
 
@@ -2045,7 +2052,7 @@ backslashes still survive. (`100-C1` is now **R5.5**, `100-C3` is **AGENT_BRIEF 
   was 1. Fixed by sourcing from the computation. 102: the same principle diagnosed `seeds_dropped`,
   assigned in one place while documented as naming every dropped seed
 - area: tool payloads / claim signing
-- destination: **promoted 2026-08-16 → R5.5** (`PROVISIONAL`), widened at promotion to cover both
+- destination: **promoted 2026-08-16 → R5.5** (`Ratified 2026-08-30`), widened at promotion to cover both
   breaks (narrow by detail level, narrow by case). **Not retired**, so recall keeps surfacing the
   handle and R5.5 stays reachable by the recalled-handle route. `/mango:promote` skips this class.
 - retired: promoted to R5.5
@@ -2070,7 +2077,7 @@ backslashes still survive. (`100-C1` is now **R5.5**, `100-C3` is **AGENT_BRIEF 
   name in a core module and the gate failed the build. The sweep was honest when run and stale when
   quoted — review round 1 could not see it either, since the text post-dated it
 - area: process / verification sweep
-- destination: **promoted 2026-08-16 → `AGENT_BRIEF.md` P4** (`PROVISIONAL`). Two real failures
+- destination: **promoted 2026-08-16 → `AGENT_BRIEF.md` P4** (`Ratified 2026-08-30`). Two real failures
   (100, 101) against one binding (102); in 101 it had been recalled, judged *"does not apply"*, and
   was the one that fired. **Not retired.** `/mango:promote` skips this class.
 - retired: promoted to P4
@@ -2274,7 +2281,7 @@ new `edge_kind` (R3), and the anchor edge-count delta is an operator paste, not 
 - area: resolver / store
 - destination: **R5.2** — the 2026-08-15 rejection is **overturned 2026-08-30**. It reasoned that 096
 was the rule *binding a design* rather than the defect recurring; 022 is the defect recurring, and it
-bound a design **wrongly** first. Widened into R5.2, `PROVISIONAL (awaiting ratification)`
+bound a design **wrongly** first. Widened into R5.2, `Ratified 2026-08-30`
 - retired: promoted to R5.2
 
 
@@ -2321,7 +2328,7 @@ paste, not a merge gate (080/074).
 - evidence: `store.py` `collection_census()` int-casts; `IGNORE_SOURCES_KEY` beside
   `UNTRACKED_INDEXABLE_KEY`
 - area: store / census
-- destination: **promoted 2026-08-14 → R1.7** (`PROVISIONAL`). `/mango:promote` skips this class.
+- destination: **promoted 2026-08-14 → R1.7** (`Ratified 2026-08-30`). `/mango:promote` skips this class.
 - retired: promoted to R1.7
 
 
@@ -2358,7 +2365,7 @@ answer**: the unlinked-include miss routed to `search_symbol`, whose `nodes_fts`
   `tests/test_try_instead_is_a_callable_tool_name.py` (4 failed / 2 passed pre-fix, 6 after); field
   retro round 5 §4
 - area: tool payloads / R1.1 / R4
-- destination: **promoted 2026-08-14 → R5.4** (`PROVISIONAL`). `/mango:promote` skips this class.
+- destination: **promoted 2026-08-14 → R5.4** (`Ratified 2026-08-30`). `/mango:promote` skips this class.
 - retired: promoted to R5.4
 
 
@@ -2375,7 +2382,7 @@ answer**: the unlinked-include miss routed to `search_symbol`, whose `nodes_fts`
   table does not have (097)
 - area: tests / R1.1
 - destination: `rulebook_path` — **promoted 2026-08-14** to `docs/ENGINEERING_RULES.md` **R6.7**,
-  tagged `PROVISIONAL (awaiting ratification)`. Re-runs of `/mango:promote` skip this class.
+  tagged `Ratified 2026-08-30`. Re-runs of `/mango:promote` skip this class.
 - retired: promoted to R6.7
 
 

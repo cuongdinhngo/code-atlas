@@ -9,8 +9,10 @@ When a rule and a deadline conflict, raise it — don't quietly break the rule. 
 costs a rewrite at adapter #2.
 
 A rule's closing italic line names its **handle** and the `LESSONS.md` claims it was promoted from —
-the two things `/mango:promote` greps to know the class is already carried — plus `Provisional` if it
-binds now but awaits ratification. **Sightings stay in `LESSONS.md`'s class index only.** A second
+the two things `/mango:promote` greps to know the class is already carried — plus its status:
+`Ratified <date>` once a human has confirmed the wording, or `Provisional` while it binds and awaits
+that. Every rule below was ratified 2026-08-30; each had recurrence ≥ 2 in the class index, which is
+the condition the brief states. **Sightings stay in `LESSONS.md`'s class index only.** A second
 copy here has no reader, and the one time it was kept it drifted from the index it was copied from
 (132).
 
@@ -50,13 +52,13 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   beside it, never inside the coerced structure: widening the accessor trades a total, checkable
   contract for a conditional one, and every existing consumer inherits the looser type. *Falsifier:*
   a non-int inside the census structure, or a coercion relaxed instead of a sibling key added.
-  *Provisional · `sibling-meta-non-int` (`095-C2`).*
+  *Ratified 2026-08-30 · `sibling-meta-non-int` (`095-C2`).*
 - **R1.8 — One decision, one implementation across every consumer.** When two or more call sites
   branch on the same classifier/resolver verdict (e.g. `status == "resolved_unique"`), the branch
   lives in one shared callable they all invoke; a new subject slot reuses it rather than
   re-implementing it — duplicated copies drift and one goes wrong. *Falsifier:* two sites branching
   on the same classifier status with duplicated handling instead of a shared call.
-  *Provisional · `one-rule-for-every-subject-slot` (`102-C2`).*
+  *Ratified 2026-08-30 · `one-rule-for-every-subject-slot` (`102-C2`).*
 
 ## 2. Standard over sample
 
@@ -108,7 +110,7 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   outright, so a tier chosen to carry any other distinction — how complete a statement was, which arm
   produced it — does not degrade the edge, it removes it from the graph. Carry that distinction in
   the target's node kind or a new edge kind. *Falsifier:* a `DYNAMIC` edge whose `target_raw` is a
-  resolvable qname. *Provisional · `skip-dynamic-means-unlinkable` (`094-C1`, `022-C2`).*
+  resolvable qname. *Ratified 2026-08-30 · `skip-dynamic-means-unlinkable` (`094-C1`, `022-C2`).*
 - **R5.3** — Fail loud on *config/programmer* errors (bad `CA_*`, missing adapter command); fail
   soft on *data* errors (one weird source file). Don't confuse the two.
 - **R5.4 — A field the reader acts on holds one register; prose gets a sibling field.** Where a
@@ -122,7 +124,7 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   naming none. *Falsifier:* a route constant outside the registry; an emitter whose `try_instead`
   equals its own tool name; or a routed tool that returns `reason: ok` while the thing sought is
   still absent.
-  *Provisional · `try-instead-tool-name` (`093-C1`) · clause (c) `route-must-answer` (`093-C4`).*
+  *Ratified 2026-08-30 · `try-instead-tool-name` (`093-C1`) · clause (c) `route-must-answer` (`093-C4`).*
 - **R5.5 — A reported value is sourced from the computation that owns the whole fact.** When a
   surface — a payload field, a signed claim line, a summary — reports a count or a caveat, read it
   from the computation owning the **entire** fact the field names, never from a producer narrower
@@ -131,25 +133,25 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   a value honest about its source and false about its subject. *Falsifier:* producers, enumerated by
   grep, covering fewer cases than the field's name or docstring claims — or a caveat present at one
   detail level and absent at another for the same underlying fact.
-  *Provisional · `source-the-caveat-from-the-computation` (`100-C1`).*
+  *Ratified 2026-08-30 · `source-the-caveat-from-the-computation` (`100-C1`).*
 - **R5.6 — Never attest past what the payload can distinguish.** When a field cannot separate two
   states a reader acts on differently — absent subject vs modelled zero, budget-cut walk vs complete —
   carry a field that separates them or emit no signed line/label for that answer; never sign a value
   the payload cannot tell apart. Prove it with a test driving both states. Adjacent to R5.5 (where a
   value is sourced) — this gates whether you may attest at all. *Falsifier:* a count/flag identical
   across the two states with no separating field, or a test asserting only one.
-  *Provisional · `do-not-attest-past-the-payloads-resolution` (`100-C4`, `087-C2`, `088-C2`).*
+  *Ratified 2026-08-30 · `do-not-attest-past-the-payloads-resolution` (`100-C4`, `087-C2`, `088-C2`).*
 - **R5.7 — A repo-writing tool removes only what its own manifest recorded.** Before deleting or
   overwriting a tree, read the recorded page list and remove exactly those, refusing foreign paths
   (`..`, absolute, outside the managed subdir) rather than unlinking them — the rule that guards the
   index database guards on-disk artifacts too. *Falsifier:* a tool that rmtrees/overwrites a directory
   without consulting its manifest, destroying a hand-written or foreign file.
-  *Provisional · `own-only-what-you-wrote` (`088-C1`).*
+  *Ratified 2026-08-30 · `own-only-what-you-wrote` (`088-C1`).*
 - **R5.8 — Rank inside the statement that truncates.** Wherever a page is cut — a tool payload or a
   rendered artifact — the ordering that decides which rows matter is applied in the same statement
   that applies the limit. A rank computed a layer above the cut lets page 1 hold none of the rows the
   ranking exists to surface. *Falsifier:* a paged payload whose `ORDER BY` differs from the order it
-  reports ranking by. *Provisional · `rank-before-truncate` (`126-C1`).*
+  reports ranking by. *Ratified 2026-08-30 · `rank-before-truncate` (`126-C1`).*
 
 ## 6. Testing (definition of done)
 
@@ -173,7 +175,7 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   re-justified whenever a pin moves; `scripts/layer_report.py` and `scripts/mirror_report.py` are
   what compliance looks like. *Falsifier:* an acceptance-criterion threshold, ranking or elected
   group whose only evidence is a fixture or a session transcript, with no committed reproducer.
-  *Provisional (awaiting ratification) · `fixture-shape-begs-the-question` (`105-C2`).*
+  *Ratified 2026-08-30 · `fixture-shape-begs-the-question` (`105-C2`).*
 - **R6.4 — Guardrail tests are real tests.** The three grep-gates (R1.1 no language branches in
   core; R2.2 no repo/framework names in adapters or core; R4.1 no prompt/model id/LLM import in
   core) run in CI and fail the build.
@@ -207,19 +209,19 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   grammar (`ast.walk`, a parser); a substring or regex sweep derives from the wrong grammar and
   matches comments, docstrings and prose. *Falsifier:* a guard deciding a source fact from
   `read_text()` plus a pattern where a parse was available.
-  *Provisional · `derived-not-listed-invariant` (`093-C2`, `095-C1`, `097-C1`) ·
+  *Ratified 2026-08-30 · `derived-not-listed-invariant` (`093-C2`, `095-C1`, `097-C1`) ·
   `read-the-syntax-not-the-text` (`187-C1`, `192-C3`).*
 - **R6.8 — An AC phrased as a failure mode needs a guard that can exhibit it.** Close a "would fail
   if X" AC with a test that reaches X and is seen failing (R6.5); if the code structurally cannot
   reach X, name the different boundary the test really guards and split the claim. Run it against a
   repo/fixture that still exhibits the failure, not one a prior ticket cleaned. *Falsifier:* a
   failure-mode AC closed by a test that passes without reaching the failure, or run where it cannot
-  occur. *Provisional · `ac-failure-mode-needs-the-right-guard` (`085-C2`).*
+  occur. *Ratified 2026-08-30 · `ac-failure-mode-needs-the-right-guard` (`085-C2`).*
 - **R6.9 — A guard over a generated artifact asserts the RENDERED output.** Where content is produced
   by a renderer, assert what the renderer produces, never the artifact's bytes: a grep over a page
   built in the browser is green by construction and cannot see the drop. *Falsifier:* a test
   asserting on artifact bytes for content a renderer emits.
-  *Provisional · `guard-asserts-rendered-not-shipped-bytes` (`127-C1`).*
+  *Ratified 2026-08-30 · `guard-asserts-rendered-not-shipped-bytes` (`127-C1`).*
 
 ## 7. Change discipline
 

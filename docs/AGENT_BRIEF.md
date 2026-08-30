@@ -6,13 +6,14 @@ file never restates one. Each rule here earned its place by costing something �
 and a rule whose incident stops recurring should be retired rather than kept for tidiness.
 
 Rules are `P<n>`. Same status vocabulary as the rule book: `PROVISIONAL (awaiting ratification)`
-until a second incident confirms the shape.
+until a second incident confirms the shape, then `Ratified <date>`. Every entry below was ratified
+2026-08-30; each had recurrence ≥ 2, so the stated condition was met before the tag moved.
 
 ---
 
 ## P1 — A claim's `seen:` list grows when the handle is **answered**, not when a lesson is written
 
-`PROVISIONAL (awaiting ratification)` — from the `/mango:promote` run of 2026-08-15.
+`Ratified 2026-08-30` — from the `/mango:promote` run of 2026-08-15.
 
 When a design phase recalls a handle and answers it **traced** — the class bound this change, and the
 working doc's `HANDLES` table says how — append this ticket's key to that claim's `seen:` list in
@@ -31,7 +32,7 @@ claim record does not list that ticket in `seen:`.
 
 ## P2 — Before proposing a promotion, **read** the destination section; the grep is not the check
 
-`PROVISIONAL (awaiting ratification)` — same run.
+`Ratified 2026-08-30` — same run.
 
 `/mango:promote`'s idempotency step greps the destination for the **handle slug** and the **claim
 IDs**. That finds a rule promoted from *this* class. It cannot find a rule that already covers the
@@ -49,7 +50,7 @@ diff.
 
 ## P3 — Record a deviation from the ticket text as a deviation, in the ticket
 
-`PROVISIONAL (awaiting ratification)` — from 099, 2026-08-15. Handle
+`Ratified 2026-08-30` — from 099, 2026-08-15. Handle
 `record-the-deviation-as-a-deviation` (`LESSONS.md` `PROM-C3`, seen promote-2026-08-15, 101).
 
 A ticket is written at a point in time and the code moves under it. When shipping something the
@@ -67,7 +68,7 @@ working doc.
 
 ## P4 — A quoted gate result names the commit it was run at, and that commit is the last one
 
-`PROVISIONAL (awaiting ratification)` — promoted from `LESSONS.md` `100-C3` (handle
+`Ratified 2026-08-30` — promoted from `LESSONS.md` `100-C3` (handle
 `re-run-the-sweep-after-the-last-edit`, seen 100, 101, 102) by the `/mango:promote` run of 2026-08-16.
 
 A sweep, grep-gate or suite run is evidence about **one commit**, never about a ticket. Before quoting
@@ -90,7 +91,7 @@ removed.
 
 ## P5 — Blast-radius tracing enumerates count-pins, not just globs
 
-`PROVISIONAL (awaiting ratification)` — handle `count-pin-in-blast-radius` (`LESSONS.md` `085-C1`,
+`Ratified 2026-08-30` — handle `count-pin-in-blast-radius` (`LESSONS.md` `085-C1`,
 seen 085, 087–089).
 
 When a change adds a member to a surface (a tool, a core module, a registered name), a Gate-2
@@ -107,7 +108,7 @@ with a `len(...)==N`/listed-subset pin on it unlisted and later caught as a devi
 
 ## P6 — A verified assumption holds only for the path and tree it was checked on
 
-`PROVISIONAL (awaiting ratification)` — handle `re-verify-the-assumption-on-a-new-path`
+`Ratified 2026-08-30` — handle `re-verify-the-assumption-on-a-new-path`
 (`LESSONS.md` `102-C1`, seen 102, 107, 122).
 
 When a change adds a call path parallel to the one an assumption was verified on, re-verify on the
@@ -132,7 +133,7 @@ is unguarded, or an AC citing a count not re-measured at pickup HEAD.
 
 ## P7 — A dimension's second value makes every aggregate over it a blend
 
-`PROVISIONAL (awaiting ratification)` — handle `an-aggregate-outlives-the-world-that-named-it`
+`Ratified 2026-08-30` — handle `an-aggregate-outlives-the-world-that-named-it`
 (`LESSONS.md` `183-C1`, `195-C1`).
 
 When a change gives a dimension its second value — a second adapter, tenant, region or repo —
