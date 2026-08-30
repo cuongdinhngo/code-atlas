@@ -680,10 +680,9 @@ viewer, §14). Still open:
    choose, so this stays a per-installation preference, not a project decision.
 3. **TS/JS validation repos** — unresolved; only live at M7.
 4. ~~**Schema-state awareness** — should code-atlas answer DB schema/migration questions at all?~~
-   **Closed 2026-08-30: no, permanently.** R4 bars the core from a live database, `INFORMATION_SCHEMA`
-   is what actually settled FIELD-959, and a static index guessing at current schema state is worse
-   than the probe that knows. The index answers *where the code writes a column*; the database answers
-   *what it currently holds*. Task 022 is re-scoped to that first half (tier 2 write-sites).
+   **Closed 2026-08-30: no, permanently.** R4 bars the core from a live database, and
+   `INFORMATION_SCHEMA` is what actually settled FIELD-959. The index answers *where the code writes a
+   column*; the database answers *what it currently holds*. Task 022 is that first half.
 
 ---
 
@@ -701,12 +700,16 @@ viewer, §14). Still open:
   12 found the decisive fact of a critical-path ticket inside 378,790 lines of T-SQL the index does
   not read (§2.b), `decisive facts in-graph: 1.5 of 6`, `root causes found by a tool call: 0`. No
   other deferred adapter has field-measured demand attached *before* implementation. The asymmetry
-  that settles it: **tier 1a costs zero contract vocabulary** — `Function` and `CALLS` both exist —
-  so unlike task 022 it spends nothing every future user inherits. The honest counter-case is `n = 1`
-  repo; what it does **not** rest on is "adapter #2 shipped for a language nobody asked about", which
+  that settles it: **tier 1a costs zero contract vocabulary** — `Function` and `CALLS` both exist.
+  The honest counter-case is `n = 1` repo; what it does **not** rest on is "adapter #2 shipped for a language nobody asked about", which
   the retros contradict (round 10 §0.g: three PHP↔JS questions, two critical-path; round 11 §0.g: two
   more, both critical-path). Adapter #2's zero was **roll-out** — one absent env var (round 11 §11.e)
   — not absent demand, and that is a different risk which this decision does not remove.
+- **Task 022's evidence gate: discharged, not widened — 2026-08-30.** §1 asked for a second
+  independent repo, and is scoped to the *schema-state* question §18.4 closed permanently, so it no
+  longer describes the ticket. Its premise — nothing every user inherits — survives and is answered
+  by proof: `Table`, `Column` and `WRITES` (**v9**) join **no** existing named subset, so a repo
+  with no `.sql` is unchanged. §1's text stands; round 12's four tickets are demand, not a repo.
 - **Language order** (§3) — **PHP → TypeScript/JavaScript → Python → C#/.NET.** PHP first (large stress sample). TS/JS second: most popular (BE+FE) *and* the best contract-hardener (module-scoped, project-context, no FQNs → §4.4). Python cheap third. C# last (Roslyn semantic model; confirms the contract). **Revised 2026-08-04:** order retained, but **deferred** behind PHP agent-depth — see the pivot below.
 - **SOLID at the boundaries + YAGNI** (§2) — one seam (the contract); PHP built end-to-end first; language #2 (TS/JS) hardens the abstraction. Registry question now settled — see the R1.2 verdict below.
 - **Standard over sample** (§2) — adapters implement the language spec/PSRs only; sample repos drive test coverage & perf targets, never adapter semantics. CI grep-gate bans repo/framework names in adapter source.

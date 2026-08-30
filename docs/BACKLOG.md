@@ -70,7 +70,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 189 | [A twin is a container fact, not a path fact](tasks/189_a-twin-is-a-container-fact-not-a-path-fact.md) | Agent-trust | done | 181, 171, 165 |
 | 190 | [A same-second guard is flaky under suite load](tasks/190_a-same-second-guard-is-flaky-under-suite-load.md) | Coverage | done | 146 |
 | 191 | [A conditional assertion is a test that never ran](tasks/191_a-conditional-assertion-is-a-test-that-never-ran.md) | Coverage | done | 189, 181 |
-| 192 | [A partial answer never gets the coverage disclosure](tasks/192_coverage-note-suppressed-on-a-partial-answer.md) | Agent-trust | todo | 160, 173, 186 |
+| 192 | [A partial answer never gets the coverage disclosure](tasks/192_coverage-note-suppressed-on-a-partial-answer.md) | Agent-trust | done | 160, 173, 186 |
 | 194 | ["Which writers omit this column, and what is its DEFAULT?"](tasks/194_default-filled-column-defect-class-query.md) | Agent-fit | todo | 022 |
 | 195 | [Three tools still read the blend 183 split](tasks/195_three-tools-still-read-the-whole-graph-blend.md) | Measure | todo | 183 |
 
@@ -127,16 +127,16 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | Round | Tickets | State |
 |---|---|---|
 | 4–7 (2026-08-10…23) | 075–082 · 092–097 · 099–102 · 122–125 · 126 · 127 | closed — 081 `NOT OBSERVED`; 127 closed **119** in the same change |
-| 8–9 (2026-08-25/26) | 158–163 · 022 | closed — SQL deferred (022) |
-| 10 (2026-08-26) | 164–167 | closed — the verification round: no prior fix reached a long-lived process until **164** (#187); then 165–167 (#188–#190) |
-| 11 (2026-08-27) | 168–179 | closed — **first round a fix reached the field**; adapter #2's fourth zero was an absent `CA_<LANG>_CMD`, not capability |
-| 12 (2026-08-28) | 180–190 | open — first **two-language** index. The T-SQL the index does not read → **184**; adapter #2's fifth zero is **applicability**, not roll-out. Roll-out unmoved for a fifth round — `.mcp.json` 0, CI 0. 187–190 were found by the fixes, not by the round |
+| 8–9 (2026-08-25/26) | 158–163 · 022 | closed |
+| 10 (2026-08-26) | 164–167 | closed — the verification round: no prior fix reached a long-lived process until **164** |
+| 11 (2026-08-27) | 168–179 | closed — **first round a fix reached the field** |
+| 12 (2026-08-28) | 180–190 | open — first **two-language** index; the T-SQL it could not read became **184** then **022**. Adapter #2's fifth zero is **applicability**, not roll-out. 187–190 were found by the fixes, not by the round |
 | Architecture review (2026-08-23) | 138–142 · 143–145 | 138 · 139 · 142 · 143 · 144 · **145A** done; 141 gated at n = 0; 145B deferred (stack not chosen) |
 
 **What still governs open work:**
 
-- **Every `deferred` ticket holds its own gate** — 074, 098, 141 and 022 each state theirs, and 141 is
-  at n = 0; do not queue one without reading it. Auto *reading orders* stay unscheduled
+- **Every `deferred` ticket holds its own gate** — 074, 098 and 141 each state theirs, and 141 is at
+  n = 0; do not queue one without reading it. Auto *reading orders* stay unscheduled
   ([121](benchmarks/121_onboarding-question-class.md)).
 - **M10–M12 are complete** — 22 tools on the MCP surface, plus four shell entry points
   ([`ROADMAP.md`](phase3-onboarding/ROADMAP.md)).
@@ -147,17 +147,16 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 
 ## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
 
-**Deferred, not cancelled** for adapters #3–#4 (human-ratified 2026-08-04, §19); the language *order*
-is unchanged (§18.2). **019 was reopened 2026-08-25**, its remaining scope filed as **150–157**, all
-landed. Adapter #2 parses the anchor's front end but is unwired there, so its **zero** contribution is
-a roll-out finding, not an adapter one.
+**Deferred, not cancelled** for Python and C#/.NET (human-ratified 2026-08-04, §19); the language
+*order* is unchanged (§18.2). **019 was reopened 2026-08-25**, its remaining scope filed as
+**150–157**, all landed.
 
 | # | Task | Milestone | Status | Depends on |
 |---|---|---|---|---|
 | 019 | [TypeScript/JavaScript adapter, no contract bump needed](tasks/019_typescript-adapter.md) | M7 | done | 012, 011, 128 |
 | 020 | [Python adapter](tasks/020_python-adapter.md) | M8 | deferred | 019 |
 | 021 | [C#/.NET adapter](tasks/021_csharp-adapter.md) | M9 | deferred | 019 |
-| 022 | [SQL / DB-schema awareness — re-scoped to tier 2](tasks/022_sql-schema-adapter.md) | M9+ | todo | 184 |
+| 022 | [SQL / DB-schema awareness — re-scoped to tier 2](tasks/022_sql-schema-adapter.md) | M9+ | done | 184 |
 | 184 | [T-SQL source adapter, tier 1a](tasks/184_tsql-source-adapter-tier-1a.md) | M9+ | done | 019, 147, 183 |
 | 026 | [Inverse Docker path rebase (adapter #2)](tasks/026_docker-inverse-path-rebase.md) | M7 | deferred | 008, 019 |
 | 147 | [The R3.4 conformance harness is PHP-shaped — `tests/contract/` cannot admit a second adapter](tasks/147_contract-harness-is-php-shaped.md) | M7 | done | 012, 025 |

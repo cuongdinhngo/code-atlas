@@ -74,8 +74,8 @@ code-atlas/
 
 ## 3. The contract vocabulary (fixed spelling — do not vary)
 
-- **Node kinds:** `File Namespace Class Interface Trait Enum Function Method Property ClassConst Const`.
-- **Edge kinds:** `CONTAINS EXTENDS IMPLEMENTS USES_TRAIT CALLS NEW IMPORTS INCLUDES REFERENCES ALIASES PROVIDES_VIEW_DATA`.
+- **Node kinds:** `File Namespace Class Interface Trait Enum Function Method Property ClassConst Const Table Column`.
+- **Edge kinds:** `CONTAINS EXTENDS IMPLEMENTS USES_TRAIT CALLS NEW IMPORTS INCLUDES REFERENCES ALIASES PROVIDES_VIEW_DATA WRITES`.
 - **`INCLUDES`:** `include`/`require` — `source_qname` is the **including file's path**, never the
   enclosing namespace or class (task 129) — the target resolves relative to that file's directory,
   so both ends are paths. `target_raw` is the literal as written (`'../helpers.php'`) or `(dynamic)`
@@ -84,6 +84,9 @@ code-atlas/
   not a `CALLS` and not a `NEW`. `self`/`static`/`parent` name the enclosing class-like (as
   `CALLS` does), never a literal `\self`. Leftover unlinked rows still feed
   `relationship_not_modelled`.
+- **`WRITES`:** a routine assigns a column (v9, task 022). The **target kind** says whether the
+  statement named its columns: a `Column` (`dbo.T::Col`) it did, the `Table` it did not — that is
+  *unmeasured*, never *writes none*. `Column.extra`: `data_type`, `default`.
 - **`PROVIDES_VIEW_DATA`:** handler method → synthetic view-scope key. `target_raw` is
   `viewdata:<key>` (not an FQN; not in `FQN_EDGE_KINDS`). Emitted only by `CA_INDIRECTION_RULES`
   `view_data` setter rules (task 062); query with `find_view_data`.
@@ -106,7 +109,7 @@ code-atlas/
   - C#: `Namespace.Type::Member`. Python: `module.Class::method`.
   - JS/TS (no namespaces): module-path-anchored, e.g. `src/user.ts::User::save`, `src/util.ts::default`.
   - Files: **repo-relative** paths, always (even under Docker path mapping).
-- **Contract version:** `contract_version` in result meta; bump on any vocabulary/field/qname change.
+- **Contract version:** `contract_version` in result meta; R3 governs when it bumps.
 - **Onboarding `artifact.json` (145):** top-level `version` (`ARTIFACT_VERSION` in `artifact.py`). Not
   the adapter contract and not `DATASET_VERSION`. Bump when `OnboardingArtifact.as_dict` keys change.
 

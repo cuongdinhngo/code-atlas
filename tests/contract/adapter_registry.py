@@ -460,6 +460,18 @@ SQL_R62_CASES = frozenset(
         "delimited-identifier",
         "string-literal-keyword",
         "comment-forms",
+        # tier 2 (022) — table/column facts and the write sites over them. Four of the ten are a
+        # second spelling of a construct already listed and are their own case, never folded in.
+        "create-table",
+        "table-constraint-not-a-column",
+        "column-default-inline",
+        "column-default-named-constraint",
+        "alter-table-add-column",
+        "insert-with-column-list",
+        "insert-without-into",
+        "insert-without-column-list",
+        "update-set-list",
+        "create-trigger",
     }
 )
 
@@ -468,6 +480,9 @@ _F_DELIM = "tests/fixtures/sql/delimited_identifier.sql"
 _F_DYN = "tests/fixtures/sql/exec_dynamic.sql"
 _F_STRING = "tests/fixtures/sql/string_literal_keyword.sql"
 _F_COMMENT = "tests/fixtures/sql/comment_forms.sql"
+_F_NAMED_DEFAULT = "tests/fixtures/sql/column_default_named_constraint.sql"
+_F_NO_COLS = "tests/fixtures/sql/insert_without_column_list.sql"
+_F_TRIGGER = "tests/fixtures/sql/create_trigger.sql"
 
 # A SQL object's qname is schema-qualified and file-independent — the database, not the file, is its
 # container — which is what lets an EXEC in one file link to a proc declared in another.
@@ -496,6 +511,24 @@ _SQL_STRING_EDGE_SHAPES: list[EdgeShape] = [
 ]
 _SQL_COMMENT_EDGE_SHAPES: list[EdgeShape] = [
     ("CONTAINS", _F_COMMENT, "dbo.Commented", "RESOLVED"),
+]
+
+# The second DEFAULT spelling fills the column the CREATE already declared — one Column node with a
+# default, never a second node for the same column (022 AC5).
+_SQL_NAMED_DEFAULT_EDGE_SHAPES: list[EdgeShape] = [
+    ("CONTAINS", _F_NAMED_DEFAULT, "dbo.Stamped", "RESOLVED"),
+    ("CONTAINS", "dbo.Stamped", "dbo.Stamped::CreatedAt", "RESOLVED"),
+]
+# A writer that names no columns writes the TABLE, not a column of it. Silence here would read as
+# "writes nothing", which is the answer R5.6 forbids (022 AC6).
+_SQL_NO_COLS_EDGE_SHAPES: list[EdgeShape] = [
+    ("CONTAINS", _F_NO_COLS, "dbo.CopyLedger", "RESOLVED"),
+    ("WRITES", "dbo.CopyLedger", "dbo.Ledger", "RESOLVED"),
+]
+# A trigger is a writer, so it is a Function whose body emits WRITES like any other (022 AC4).
+_SQL_TRIGGER_EDGE_SHAPES: list[EdgeShape] = [
+    ("CONTAINS", _F_TRIGGER, "dbo.TR_Ledger", "RESOLVED"),
+    ("WRITES", "dbo.TR_Ledger", "dbo.Ledger::ChangeUser", "RESOLVED"),
 ]
 
 SQL_CASES: dict[str, Case] = {
@@ -543,6 +576,47 @@ SQL_CASES: dict[str, Case] = {
     ),
     "comment-forms": Case(
         "comment_forms.sql", {"File": 1, "Function": 1}, {"CONTAINS": 1}, _SQL_COMMENT_EDGE_SHAPES
+    ),
+    "create-table": Case(
+        "create_table.sql", {"File": 1, "Table": 1, "Column": 2}, {"CONTAINS": 3}
+    ),
+    "table-constraint-not-a-column": Case(
+        "table_constraint_not_a_column.sql", {"File": 1, "Table": 1, "Column": 1}, {"CONTAINS": 2}
+    ),
+    "column-default-inline": Case(
+        "column_default_inline.sql", {"File": 1, "Table": 1, "Column": 1}, {"CONTAINS": 2}
+    ),
+    "column-default-named-constraint": Case(
+        "column_default_named_constraint.sql",
+        {"File": 1, "Table": 1, "Column": 1},
+        {"CONTAINS": 2},
+        _SQL_NAMED_DEFAULT_EDGE_SHAPES,
+    ),
+    "alter-table-add-column": Case(
+        "alter_table_add_column.sql", {"File": 1, "Table": 1, "Column": 1}, {"CONTAINS": 2}
+    ),
+    "insert-with-column-list": Case(
+        "insert_with_column_list.sql",
+        {"File": 1, "Function": 1},
+        {"CONTAINS": 1, "WRITES": 2},
+    ),
+    "insert-without-into": Case(
+        "insert_without_into.sql", {"File": 1, "Function": 1}, {"CONTAINS": 1, "WRITES": 1}
+    ),
+    "insert-without-column-list": Case(
+        "insert_without_column_list.sql",
+        {"File": 1, "Function": 1},
+        {"CONTAINS": 1, "WRITES": 1},
+        _SQL_NO_COLS_EDGE_SHAPES,
+    ),
+    "update-set-list": Case(
+        "update_set_list.sql", {"File": 1, "Function": 1}, {"CONTAINS": 1, "WRITES": 2}
+    ),
+    "create-trigger": Case(
+        "create_trigger.sql",
+        {"File": 1, "Function": 1},
+        {"CONTAINS": 1, "WRITES": 1},
+        _SQL_TRIGGER_EDGE_SHAPES,
     ),
 }
 

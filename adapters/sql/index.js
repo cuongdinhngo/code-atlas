@@ -12,7 +12,7 @@ const META = {
   extensions: [".sql"],
   // No `semantic_types`: tier 1a reads DDL headers and EXEC sites only, and infers no receiver type.
   capabilities: {},
-  contract_version: 8,
+  contract_version: 9,
 };
 
 // One `\n`-framed JSON line straight to stdout so a lock-step reader never blocks (§4.1).

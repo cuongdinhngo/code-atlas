@@ -168,3 +168,33 @@ inside `CA_<LANG>_CMD` — a genuine environment-variable convention this projec
 only workaround was to reword the prose around the identifier, which makes the doc worse to serve the
 checker. Suggested shape: exempt a match that sits inside backticks, or require the placeholder to be
 one of the tokens the templates actually ship. First seen: 184.
+
+## A counted line is truncated at a nested backtick, and reported as a contradiction (022)
+
+`check_lines.py`'s `find_emissions` reads a counted line out of a backticked span. A legitimate
+markdown code span **inside** that line — `` `scan.js` `` in a `RULE SECTIONS:` reason — closes the
+span early, so the body it hands to `parse_line` stops there. The line then fails its `text_rules`
+with *"the count of sections enumerated on the line does not match `<n> applicable`"*: a
+**contradiction** verdict for a line that is internally consistent and merely unread.
+
+The same grammar asks for reasons rich enough to name a file (`§1 … `scan.js` parses …`), so the
+collision is between two shipped expectations, not agent style. The diagnosis cost a debug harness
+around `find_emissions` because the reported finding pointed at the count, not the truncation.
+
+**Signal, not a fix** — this repo never edits a skill. A verdict distinguishing *truncated body* from
+*contradicted count* would have named it immediately.
+
+## A baseline is required to come from another tree, and the evidence guard refuses it for that (022)
+
+`analysis` step 9 mandates a baseline captured **on the untouched checkout** — a different tree, by
+definition. `check_lines`'s evidence guard refuses any empirical-output record whose `Ran at` SHA is
+not the tree under review, with *"A green suite from a tree that is no longer the code satisfies
+every gate above it; this evidence is REFUSED"* — and **exit 2, so the gate does not close**.
+
+Both are right about their own case. A baseline written in the shipped `$ <command>` shape therefore
+fails the run it was mandated by, and the only way out is to stop writing the baseline in that shape
+— which costs the machine-checkable provenance the shape exists to give. 022 took that way out and
+said so in the doc.
+
+**Signal, not a fix.** A record kind that says *this is the pre-change tree, and here is its SHA*
+would let the guard check a baseline's provenance instead of refusing it.

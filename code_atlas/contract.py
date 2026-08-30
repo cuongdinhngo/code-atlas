@@ -18,12 +18,11 @@ An adapter opens the stream by announcing itself once — the **handshake** of �
 
 from typing import Literal, get_args
 
-# v8: a CALLS target names the class the call was made on whenever the file's own type
-# information says which (137), and `self` / `static` in extra['type'] stay relative instead of
-# being anchored as `\self`. R3.1's literal trigger does not fire — no kind, field or qname
-# convention moved — but 129's mechanism trigger does: an index built before and updated after
-# would answer from bare method names for untouched files and qualified ones for changed files.
-CONTRACT_VERSION = 8
+# v9: `Table`, `Column` and `WRITES` join the vocabulary for SQL tier 2 (022). R3.1's literal
+# trigger fires — kinds moved — so the bump is owed. The three words join no existing named subset
+# below, so a repo with no SQL adapter sees identical rows from every tool (`test_sql_tier2_
+# vocabulary_is_opt_in.py`); what it does pay is the one full rebuild any bump forces.
+CONTRACT_VERSION = 9
 
 # Ordered Literal is the typing SSoT; NODE_KINDS is derived so schemas cannot drift (R3.2 / 056).
 NodeKind = Literal[
@@ -38,6 +37,11 @@ NodeKind = Literal[
     "Property",
     "ClassConst",
     "Const",
+    # v9 (022): a database object and its member. A table keeps its native separator (`dbo.Trans`)
+    # and a column joins on with MEMBER_SEPARATOR (`dbo.Trans::ChangeUser`), exactly as a property
+    # does — so the qname convention did not move, only the vocabulary.
+    "Table",
+    "Column",
 ]
 NODE_KINDS: tuple[str, ...] = get_args(NodeKind)
 
@@ -59,11 +63,15 @@ EDGE_KINDS: tuple[str, ...] = (
     "REFERENCES",
     "ALIASES",
     "PROVIDES_VIEW_DATA",
+    # v9 (022): a routine assigns a column. Targets the Column when the statement names it; targets
+    # the Table at DYNAMIC when it writes columns it does not name — the writer is a fact even where
+    # the column list is not, and a guessed list would be worse than an honest one (R5.6).
+    "WRITES",
 )
 
 # Resolver (§8.2) looks these up by FQN; new EDGE_KINDS must opt in here (not silently join).
 FQN_EDGE_KINDS: frozenset[str] = frozenset(
-    {"EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS", "NEW", "ALIASES", "REFERENCES"}
+    {"EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS", "NEW", "ALIASES", "REFERENCES", "WRITES"}
 )
 
 # Path-shaped edges: the target is a FILE, so the resolver looks it up among File qnames instead of

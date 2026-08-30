@@ -64,7 +64,7 @@ def good_result() -> dict[str, object]:
 # --- the vocabulary: exact spelling, exact order (CONVENTION §3) --------------------------------
 
 
-def test_node_kinds_are_the_eleven_contract_kinds() -> None:
+def test_node_kinds_are_the_thirteen_contract_kinds() -> None:
     assert NODE_KINDS == (
         "File",
         "Namespace",
@@ -77,10 +77,12 @@ def test_node_kinds_are_the_eleven_contract_kinds() -> None:
         "Property",
         "ClassConst",
         "Const",
+        "Table",
+        "Column",
     )
 
 
-def test_edge_kinds_are_the_eleven_contract_kinds() -> None:
+def test_edge_kinds_are_the_twelve_contract_kinds() -> None:
     assert EDGE_KINDS == (
         "CONTAINS",
         "EXTENDS",
@@ -93,13 +95,14 @@ def test_edge_kinds_are_the_eleven_contract_kinds() -> None:
         "REFERENCES",
         "ALIASES",
         "PROVIDES_VIEW_DATA",
+        "WRITES",
     )
 
 
 def test_fqn_edge_kinds_opt_in_from_edge_kinds() -> None:
     assert FQN_EDGE_KINDS <= frozenset(EDGE_KINDS)
     assert FQN_EDGE_KINDS == frozenset(
-        {"EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS", "NEW", "ALIASES", "REFERENCES"}
+        {"EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS", "NEW", "ALIASES", "REFERENCES", "WRITES"}
     )
 
 
@@ -170,7 +173,7 @@ def test_target_qname_is_not_required_so_adapters_can_emit_bare_edges() -> None:
 
 
 def test_contract_version_is_exported() -> None:
-    assert CONTRACT_VERSION == 8
+    assert CONTRACT_VERSION == 9
 
 
 def test_known_capabilities_advertises_semantic_types() -> None:
@@ -243,9 +246,11 @@ def test_validate_rejects_unknown_node_kind_with_field_path_and_expectation() ->
 
     errors = validate(result)
 
+    # Derived from the vocabulary, never re-listed (R6.7): a second copy of the kind tuple here is
+    # one more thing a bump must find, and the assertion is about the message SHAPE.
     assert errors == [
-        "nodes[0].kind: 'Klass' is not an allowed node kind (expected one of File, Namespace, "
-        "Class, Interface, Trait, Enum, Function, Method, Property, ClassConst, Const)"
+        "nodes[0].kind: 'Klass' is not an allowed node kind "
+        f"(expected one of {', '.join(NODE_KINDS)})"
     ]
 
 

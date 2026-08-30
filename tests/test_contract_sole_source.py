@@ -50,7 +50,7 @@ def collection_literals(tree: ast.AST) -> list[list[str]]:
 
 def test_the_vocabulary_is_not_empty() -> None:
     # Guards the guard: an empty vocabulary would make every check below pass vacuously.
-    assert len(VOCABULARY) == 42
+    assert len(VOCABULARY) == 45  # +Table +Column +WRITES (022, contract v9)
     assert len(consumers()) >= 5
 
 

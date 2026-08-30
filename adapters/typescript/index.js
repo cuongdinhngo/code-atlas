@@ -13,7 +13,7 @@ const META = {
   // A local type table (src/types.js) infers a receiver's class from `new`, annotations and
   // assignments, so a member call resolves to `<Class>::method` — the one capability (task 153).
   capabilities: { semantic_types: true },
-  contract_version: 8,
+  contract_version: 9,
 };
 
 // One `\n`-framed JSON line straight to stdout so a lock-step reader never blocks (§4.1).

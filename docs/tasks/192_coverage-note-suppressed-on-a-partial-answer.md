@@ -4,7 +4,7 @@ slug: coverage-note-suppressed-on-a-partial-answer
 title: 'The coverage disclosure self-suppresses on any answer carrying results, so a partial answer is the one shape it never reaches'
 phase: 1.5b
 milestone: Agent-fit
-status: todo
+status: done
 depends_on: [160, 173, 186]
 ---
 

@@ -25,18 +25,20 @@ citations use. The other two sightings are aliased under `085-C1` and `093-C3`.
 ## Class index — read this before proposing a new rule
 
 Every type-2 handle at recurrence ≥ 2. Fifteen are already binding rules or brief entries; the honest
-move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are not: two await ratify
-(`rank-before-truncate`, `guard-asserts-rendered-not-shipped-bytes`) and one was rejected
-(`skip-dynamic-means-unlinkable`).
+move on a new sighting is to bump `seen:`, not to write a fresh claim. Five are not: four await ratify
+(`rank-before-truncate`, `guard-asserts-rendered-not-shipped-bytes`, `two-syntaxes-two-paths`,
+`one-field-two-questions`) and one was **rejected and is now up for re-adjudication**
+(`skip-dynamic-means-unlinkable` — the rejection reasoned from a sighting that bound a design; 022 is
+the sighting that bound one wrongly).
 
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
-| `derived-not-listed-invariant` | 21 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180, 187, 191, 184 | **R6.7** |
-| `prove-the-guard-fails` | 27 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188, 189, 190, 187, 191, 184, 192 | **R6.5** — 190 is the *other* side of it: not *was it seen failing?* but *did it fail for the thing it forbids?* |
+| `derived-not-listed-invariant` | 22 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180, 187, 191, 184, 022 | **R6.7** |
+| `prove-the-guard-fails` | 28 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188, 189, 190, 187, 191, 184, 192, 022 | **R6.5** — 190 is the *other* side of it: not *was it seen failing?* but *did it fail for the thing it forbids?* |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
 | `fixture-shape-begs-the-question` | 11 | 084, 086, 103–106, 121, 183, 185, 190, 191 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
-| `count-pin-in-blast-radius` | 6 | 085, 087–089, 175, 184 | **AGENT_BRIEF P5** — promoted 2026-08-27 |
+| `count-pin-in-blast-radius` | 7 | 085, 087–089, 175, 184, 022 | **AGENT_BRIEF P5** — promoted 2026-08-27; 022 is a *deliberate* trace that still under-scoped, so P5 needs the invariant, not the spelling |
 | `source-the-caveat-from-the-computation` | 6 | 100–102, 122, 127, 189 | **R5.5** |
 | `re-verify-the-assumption-on-a-new-path` | 3 | 102, 107, 122 | **AGENT_BRIEF P6** — promoted 2026-08-27 |
 | `re-run-the-sweep-after-the-last-edit` | 3 | 100–102 | **AGENT_BRIEF P4** |
@@ -46,11 +48,12 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 | `sibling-meta-non-int` | 3 | 092, 095, 174 | **R1.7** |
 | `record-the-deviation-as-a-deviation` | 2 | 101, promote-2026-08-15 | **AGENT_BRIEF P3** |
 | `one-rule-for-every-subject-slot` | 6 | 102, 122, 183, 186, 179, 187 | **R1.8** — promoted 2026-08-27 |
+| `one-field-two-questions` | 2 | 189, 022 | open — proposed 2026-08-30, awaiting ratify |
 | `read-the-syntax-not-the-text` | 3 | 190, 187, 192 | open — **overdue: rec 3, awaiting ratify**; destination **R6.7** |
-| `two-syntaxes-two-paths` | 2 | 019, 184 | open — **promotion candidate 2026-08-30**, awaiting ratify |
+| `two-syntaxes-two-paths` | 3 | 019, 184, 022 | open — **overdue: rec 3, awaiting ratify** |
 | `ac-failure-mode-needs-the-right-guard` | 2 | 085, 107 | **R6.8** — promoted 2026-08-27 |
 | `own-only-what-you-wrote` | 2 | 088, 089 | **R5.7** — promoted 2026-08-27 |
-| `skip-dynamic-means-unlinkable` | 2 | 094, 096 | open — rejected 2026-08-15 (2nd sighting bound a design) |
+| `skip-dynamic-means-unlinkable` | 3 | 094, 096, 022 | open — **re-adjudication candidate**: the 2026-08-15 rejection said the 2nd sighting bound a design; the 3rd bound one wrongly first |
 
 **The three overdue classes were promoted 2026-08-27**, once their split-across-ids `seen:` lists were
 unioned (the under-count `PROM-C1` names): `do-not-attest-past-the-payloads-resolution` → **R5.6**
@@ -98,6 +101,75 @@ and it is the one that will fall behind.**
 - destination: **R6.7** — proposed sharpening. R6.7 already says *derive the set, never list it*; a
   text sweep looks like a derivation and is not one, because it derives from the wrong grammar. Left
   for `/mango:promote` and a human to ratify; no rule written here.
+
+## 022 — The tier said how sure; I made it say how complete, and the edge stopped linking
+
+Tier 2 has to distinguish a writer that names its columns from one that does not — `INSERT INTO t
+(a, b)` from `INSERT INTO t SELECT …` — because *"which writers omit column C"* is the whole
+question, and a writer that named no columns is **unmeasured**, not an omitter. I put that
+distinction in `confidence_tier`: `RESOLVED` onto the column, `DYNAMIC` onto the table.
+
+**It was already taken.** `confidence_tier` answers one question — how sure the adapter is of the
+*target* — and the resolver reads it as exactly that: `resolve_edges` iterates with
+`skip_dynamic=True`, so a `DYNAMIC` edge is never linked, on purpose. My table-level write therefore
+arrived bare, and *"which writers of T named no columns"* answered nothing at all. The table name
+was written literally in the source; there was never anything uncertain about the target.
+
+**The fix removes the second question rather than finding a second field for it.** The discriminator
+is already there, in the shape of the graph: a `WRITES` onto a `Column` named it, a `WRITES` onto the
+`Table` did not. Both are `RESOLVED`, both link, and the tier goes back to answering only what it is
+for. The corpus had this twice already under [[skip-dynamic-means-unlinkable]] — a class **rejected**
+in 2026-08-15 on the grounds that its second sighting had *bound a design*. It bound this one too,
+and in the wrong direction first.
+
+**The unit layer could not see it and the design predicted that.** The conformance case asserts the
+adapter's returned edge, which was correct in every field; the defect lives one layer down, where the
+resolver decides what to link. The verification plan classified G1 at the integration layer for
+exactly this reason, and that is the row that caught it.
+
+**A shallow grep found six of the eight count pins.** The blast-radius trace searched for `== 8` and
+`NODE_KINDS ==`; it missed `assert len(VOCABULARY) == 42` and `CONVENTION.md`'s size budget, because
+neither names the thing it counts. `count-pin-in-blast-radius` reaches recurrence 7 on a trace that
+was run deliberately and still under-scoped: the lesson is not *run the grep* but *grep the
+invariant, not the spelling you expect it to have.*
+
+**The evidence gate was discharged, not widened.** Refine proposed replacing *"a second independent
+repo"* with *"…or a measured defect class of ≥3 tickets"*, which would have admitted the case
+standing in front of it — the failure mode a gate exists to prevent. What actually released the
+ticket is that the gate names a *schema-state* question, and Phase 0 declined that half permanently;
+what survives is a source question. The gate's premise — *nothing every user inherits* — outlives its
+§1 and is answered by a test, not an argument: the three new words join no existing named subset, so
+a repo with no `.sql` is byte-identical.
+
+*Claim `022-C1` — `confidence_tier` answers how sure the adapter is of the TARGET; encoding a second
+question in it (how complete the statement was) silently changes whether the edge resolves at all.
+type: 2 · handle: `one-field-two-questions` · seen: 189, 022 · evidence: WRITES onto a table at
+`DYNAMIC` never linked (`resolver.py:104` `skip_dynamic=True`); RESOLVED onto the Table, with the
+target KIND as the discriminator, links · destination: open — recurrence 2.*
+*Claim `022-C2` — a `DYNAMIC` edge is unlinkable by design, so choosing that tier to mean anything
+other than "the target is not knowable" removes the edge from the graph. **Third sighting of a class
+rejected at its second** on the grounds that the sighting had bound a design; it bound this one
+wrongly first. type: 2 · handle: `skip-dynamic-means-unlinkable` · seen: 094, 096, 022 ·
+destination: open — **re-adjudication candidate**, the 2026-08-15 rejection is stale.*
+*Claim `022-C3` — a count pin need not name what it counts, so a blast-radius grep written from the
+expected spelling under-scopes: 6 of 8 pins found, `len(VOCABULARY) == 42` and a doc size budget
+missed. type: 2 · handle: `count-pin-in-blast-radius` · seen: 184, 022 · destination: AGENT_BRIEF P5.*
+*Claim `022-C4` — T-SQL declares a column DEFAULT two ways (inline, and `ADD CONSTRAINT … FOR col`)
+and makes `INTO` optional on `INSERT`; a fixture covering one proves nothing about the other.
+**Third sighting.** type: 2 · handle: `two-syntaxes-two-paths` · seen: 019, 184, 022 · destination:
+open — **overdue: rec 3, awaiting ratify**.*
+*Claim `022-C5` — `CONVENTION.md` published the kind vocabulary as a hand-kept copy with no test
+deriving it from `contract.py`, and it was stale the moment the contract moved. type: 2 · handle:
+`derived-not-listed-invariant` · seen: 184, 022 · destination: R6.7.*
+*Claim `022-C6` — both guards shipped with a recorded red run: the CONVENTION-derivation test failed
+on the stale doc, and the integration proving test failed on the unlinked DYNAMIC edge. type: 2 ·
+handle: `prove-the-guard-fails` · seen: 184, 192, 022 · destination: R6.5.*
+*Claim `022-C7` — a gate that names a capability is discharged when the ticket sheds that capability;
+widening the gate's condition to admit the case in front of it destroys the gate for every later
+ticket, while the gate's stated PREMISE may still bind and is answerable by proof. type: 2 · handle:
+`discharge-the-gate-do-not-widen-it` · status: proposed · seen: 022 · evidence: 022's §1 is scoped to
+schema state, closed permanently in PLAN §18.4; the preamble was answered by
+`test_sql_tier2_vocabulary_is_opt_in.py` instead · destination: open — AGENT_BRIEF if it recurs.*
 
 ## 192 — A disclosure that fires only on an empty answer never reaches a partial one
 
