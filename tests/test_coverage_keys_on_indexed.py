@@ -114,7 +114,12 @@ def test_a_fully_indexed_wired_server_says_nothing_extra(tmp_path: Path) -> None
 def test_the_note_is_self_gating_and_idempotent_across_the_sweep_envelope(
     tmp_path: Path,
 ) -> None:
-    """AC4/160 AC1e: the sweep envelope carries it once, and a confident answer never does."""
+    """AC4/160 AC1e: the envelope carries it once and never per subject — 061's payload weight.
+
+    192 reverses only the last line: a confident answer DOES now carry it, because the gap is a
+    property of the index rather than of how many rows came back. The per-subject rule above is
+    untouched, which is what keeps the sweep from paying for the note N times.
+    """
     write(tmp_path, "src/a.aa", "class Thing {}\n")
     build_tool(config_for(tmp_path, ONE_ADAPTER))(full=True)
     config = config_for(tmp_path, TWO_ADAPTERS)
@@ -127,7 +132,7 @@ def test_the_note_is_self_gating_and_idempotent_across_the_sweep_envelope(
 
     confident = search(query="Thing")
     assert confident["results"]
-    assert coverage.UNINDEXED_KEY not in confident
+    assert coverage.UNINDEXED_KEY in confident, "192: a partial answer says so, results or not"
 
 
 def test_the_claim_is_read_from_meta_not_scanned_per_answer(tmp_path: Path) -> None:

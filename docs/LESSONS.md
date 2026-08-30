@@ -32,7 +32,7 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
 | `derived-not-listed-invariant` | 21 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180, 187, 191, 184 | **R6.7** |
-| `prove-the-guard-fails` | 26 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188, 189, 190, 187, 191, 184 | **R6.5** — 190 is the *other* side of it: not *was it seen failing?* but *did it fail for the thing it forbids?* |
+| `prove-the-guard-fails` | 27 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188, 189, 190, 187, 191, 184, 192 | **R6.5** — 190 is the *other* side of it: not *was it seen failing?* but *did it fail for the thing it forbids?* |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
 | `fixture-shape-begs-the-question` | 11 | 084, 086, 103–106, 121, 183, 185, 190, 191 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
@@ -46,7 +46,7 @@ move on a new sighting is to bump `seen:`, not to write a fresh claim. Three are
 | `sibling-meta-non-int` | 3 | 092, 095, 174 | **R1.7** |
 | `record-the-deviation-as-a-deviation` | 2 | 101, promote-2026-08-15 | **AGENT_BRIEF P3** |
 | `one-rule-for-every-subject-slot` | 6 | 102, 122, 183, 186, 179, 187 | **R1.8** — promoted 2026-08-27 |
-| `read-the-syntax-not-the-text` | 2 | 190, 187 | open — proposed 2026-08-29, awaiting ratify; destination **R6.7** |
+| `read-the-syntax-not-the-text` | 3 | 190, 187, 192 | open — **overdue: rec 3, awaiting ratify**; destination **R6.7** |
 | `two-syntaxes-two-paths` | 2 | 019, 184 | open — **promotion candidate 2026-08-30**, awaiting ratify |
 | `ac-failure-mode-needs-the-right-guard` | 2 | 085, 107 | **R6.8** — promoted 2026-08-27 |
 | `own-only-what-you-wrote` | 2 | 088, 089 | **R5.7** — promoted 2026-08-27 |
@@ -99,6 +99,48 @@ and it is the one that will fall behind.**
   text sweep looks like a derivation and is not one, because it derives from the wrong grammar. Left
   for `/mango:promote` and a human to ratify; no rule written here.
 
+## 192 — A disclosure that fires only on an empty answer never reaches a partial one
+
+`attach_coverage_note` returned early on `payload.get("results")`, so the note that names the index's
+language coverage rode **absence** and never **incompleteness**. Field retro 8-A measured the price:
+`search_symbol("DialogueService")` answered one hit with `reason: ok` while **281 `.js` files**
+referenced it — *"a false negative wearing a modelled zero's clothes"*. Round 12 §14 row 6-C found the
+same shape on a second language. Both times the answer was *right about the rows it had*, which is
+exactly why it was believed.
+
+**The gap belongs to the index, not to the row count**, so the only question the note has to ask is
+whether one exists. That makes the fix one condition, and `attach_coverage_gap`'s omit-when-empty
+(061) supplies the no-false-alarm property for free: a fully-wired, fully-indexed server is still
+byte-identical. The sweep's per-subject rule is untouched, so an envelope still pays for the note once
+rather than N times.
+
+**Two of 160's own assertions had to be reversed**, and they are replaced rather than deleted — the
+docstrings name what changed and why, so the next reader meets the argument instead of a silent flip.
+
+*Claim `192-C1` — a disclosure gated on emptiness cannot describe a partial answer, and a partial
+answer is the one a reader trusts; gate the disclosure on the CONDITION it describes, never on the
+size of the result. type: 2 · handle: `gate-the-disclosure-on-its-condition-not-the-row-count` ·
+status: proposed · seen: 192 · evidence: `coverage.py` returned early on `results`; 8-A's 1-vs-281 and
+round 12's 6-C are the two measured sightings · destination: open — relates to [[186-C1]] and
+[[174-C1]].*
+*Claim `192-C2` — the widening shipped only once the old carve-out was restored and the new assertion
+shown to fail on it (`KeyError: 'unconfigured_adapters'`). type: 2 · handle: `prove-the-guard-fails` ·
+seen: 192 · destination: R6.5.*
+*Claim `192-C3` — a source-TEXT guard reads prose: writing the literal `total_count` into a docstring
+registered `coverage.py` as a `total_count` emitter and reddened a scan that has nothing to do with
+this change. **Third sighting.** type: 2 · handle: `read-the-syntax-not-the-text` · seen: 190, 187,
+192 · destination: R6.7 — overdue, awaiting ratify.*
+*Claim `192-C5` — two tickets incrementing one shared counter are reconciled by a merge that keeps
+one: 184 took `prove-the-guard-fails` 25→26, so 192's identical edit had nothing to apply to and its
+sighting vanished. `seen:` is the ONLY gate on promotion (P1), so a lost sighting is a rule that never
+ripens, and no test fails when it happens. Re-read the counter after any rebase that touched the same
+table. type: 2 · handle: `two-tickets-one-counter` · status: proposed · seen: 192 · evidence: the
+rebase of this branch onto a main carrying 184 · destination: open.*
+*Claim `192-C4` — a gitignored build artefact survives `git checkout`, so a branch can be tested
+against a directory that is not in it: `adapters/sql/node_modules` left over from 184 made
+`shipped_adapters` report a third adapter on a branch that has none. Check the tree matches the branch
+before trusting a payload pin. type: 5 · handle: `ignored-artefact-outlives-the-branch` · status:
+confirmed · seen: 192 · area: process · destination: stays in lessons_path.*
 ## 184 — An acceptance criterion can name an axis the defect does not live on
 
 AC5 asked for *"peak RSS constant in input size"*. **No adapter can satisfy that**, and the reason is

@@ -234,7 +234,11 @@ def test_the_default_bound_leaves_the_field_sweep_room(tmp_path: Path) -> None:
 
 
 def test_a_single_subject_payload_is_unchanged(indexed) -> None:
-    """AC3 (narrowed by D2) — the answer to a ``query=`` call is dict-equal to the pre-101 shape."""
+    """AC3 (narrowed by D2) — dict-equal to the pre-101 shape, plus 192's coverage disclosure.
+
+    The fixture wires no adapter, so the gap is real and the answer is genuinely partial with
+    respect to both shipped languages. 160 exempted a results-carrying answer; 192 does not.
+    """
     payload = sweep(indexed, query="getState", detail_level="minimal")
 
     assert payload == {
@@ -251,6 +255,11 @@ def test_a_single_subject_payload_is_unchanged(indexed) -> None:
         "reason": REASON_OK,
         "total_count": 1,
         "index_root": str(Path(indexed.root).resolve()),
+        "unconfigured_adapters": [
+            {"language": "php", "enable": "CA_PHP_CMD"},
+            {"language": "sql", "enable": "CA_SQL_CMD"},
+            {"language": "typescript", "enable": "CA_TYPESCRIPT_CMD"},
+        ],
         **server_provenance(),
     }
     # Positive control: the batched keys are absent from a single-subject answer.

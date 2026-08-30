@@ -104,6 +104,8 @@ def test_default_args_match_pre_pagination_shape(store: GraphStore, tmp_path: Pa
         "server_build",
         # 170: the divergence verdict rides unconditionally, so silence is not a clean answer.
         "server_stale_process",
+        # 192: this fixture wires no adapter, so every answer — results or not — names the gap.
+        "unconfigured_adapters",
     }
     assert got["qname"] == "\\Base"
     assert got["indexed"] is True

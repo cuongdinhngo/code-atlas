@@ -106,18 +106,24 @@ def attach_coverage_note(
     """Name the coverage gap on an indexed *genuine-absence* answer, or a substring near-miss (167).
 
     Self-gating and idempotent, so it is safe to call at every return point: never on a not-indexed,
-    stale, under-qualified, untracked, or confident (exact/prefix) answer. A
-    relationship-not-modelled zero is a different kind (it already routes), and is left alone. A
-    ``substring_match`` answer is the one carrying results that still needs the note — the requested
-    symbol is absent (167).
+    stale, under-qualified or untracked answer. A relationship-not-modelled zero is a different kind
+    (it already routes), and is left alone.
+
+    **A PARTIAL answer needs the note as much as an empty one (task 192).** 160 exempted every
+    answer carrying results, and field retro 8-A measured what that costs: ``search_symbol``
+    answered **one hit** with ``reason: ok`` for a symbol with **281 real sites** in a language the
+    index does not hold — *"a false negative wearing a modelled zero's clothes"*. Round 12 saw the
+    same shape on a second language. The gap is a property of the INDEX, not of how many rows came
+    back, so the only question is whether one exists.
+
+    Omit-when-empty (061) keeps this from becoming noise: a fully-wired, fully-indexed server is
+    still byte-identical, which is the no-false-alarm property AC2 pins.
     """
     if not payload.get("indexed"):
         return payload
     reason = payload.get("reason")
-    if reason == REASON_SUBSTRING_MATCH:
+    if reason == REASON_SUBSTRING_MATCH or payload.get("results"):
         return attach_coverage_gap(payload, config, covered)
-    if payload.get("results"):
-        return payload
     if reason not in (REASON_NO_MATCHES, REASON_NO_SUCH_SYMBOL):
         return payload
     return attach_coverage_gap(payload, config, covered)
