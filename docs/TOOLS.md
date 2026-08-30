@@ -1,6 +1,6 @@
 # Tools — the full surface
 
-> The agent-facing surface of code-atlas: all 22 tools, what each returns, which take a list of
+> The agent-facing surface of code-atlas: all 23 tools, what each returns, which take a list of
 > subjects and which do not, the operator prompts, and the opt-in hooks. The
 > [README](../README.md) names the handful you call first; this is the reference. It is **not**
 > the payload contract (→ [`CONVENTION.md`](CONVENTION.md) §6) and not design reasoning
@@ -30,6 +30,7 @@
 | `check_architecture_rules` | confirmed vs candidate violations of declarative path-set dependency rules (`CA_ARCHITECTURE_RULES`) |
 | `diff_architecture` | architectural drift between two onboarding dataset / manifest snapshots |
 | `class_diagram` | mermaid class diagram for one type plus its ancestry, or every type in one file — inheritance from resolved edges; associations from declared types only |
+| `check_column_defaults` | which writers of a table omit a column that declares a `DEFAULT`, against the total that write it — a writer naming no columns is *unmeasured*, never an omitter (SQL tier 2) |
 
 ### `architecture_overview` — layers, crossings, and the populations behind a zero
 
@@ -135,6 +136,7 @@ for a reason:
 | `check_architecture_rules` | its subject is the configured rule set — a list of rule ids is filtering, not a batch of independent questions |
 | `diff_architecture` | its subject is already a pair of snapshots — a list of pairs is a query language, which 101 deliberately is not |
 | `class_diagram` | its subject is one type (plus ancestry) or one file — a list of subjects is N diagrams, and the honest form is N calls |
+| `check_column_defaults` | its subject is one table, and the answer is already a scan of every defaulted column on it — a list of tables is N independent scans with no shared arithmetic |
 
 ## Operator prompts (human-invoked — not part of the agent tool surface)
 
@@ -150,7 +152,7 @@ name-only answers from description-backed ones — is
 | `explore_area` | status → search/outline → read only what's needed |
 | `find_usages` | status → find_references / find_callers / find_implementations → read to confirm |
 | `impact_of_change` | status → impact on the changed paths/qnames → read only the blast-radius surface |
-| `which_tool` | a recognition map: which tool answers a given question, across all 22 tools |
+| `which_tool` | a recognition map: which tool answers a given question, across all 23 tools |
 
 ## Hooks (opt-in)
 

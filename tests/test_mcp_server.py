@@ -33,6 +33,7 @@ from code_atlas.store import GraphStore
 from code_atlas.tools.architecture_overview import NAME as OVERVIEW
 from code_atlas.tools.build_or_update_index import NAME as BUILD
 from code_atlas.tools.check_architecture_rules import NAME as ARCH_RULES
+from code_atlas.tools.check_column_defaults import NAME as COL_DEFAULTS
 from code_atlas.tools.class_diagram import NAME as CLASS_DIAG
 from code_atlas.tools.diff_architecture import NAME as DIFF_ARCH
 from code_atlas.tools.explain_path import NAME as EXPLAIN
@@ -193,6 +194,7 @@ def test_the_proof_has_something_to_run() -> None:
         TOUR,
         ONBOARD,
         ARCH_RULES,
+        COL_DEFAULTS,
         DIFF_ARCH,
         CLASS_DIAG,
     )

@@ -4,7 +4,7 @@
 a symbol graph, then answers *resolved relationship* questions — who calls this, what implements
 that, what breaks if I change this file — as rows, not as files to read.
 
-**PHP and TypeScript/JavaScript today.** 22 tools. Deterministic, offline, no LLM in the core.
+**PHP and TypeScript/JavaScript today.** 23 tools. Deterministic, offline, no LLM in the core.
 
 > **~69× fewer tokens** than grep-and-read to reach a resolved answer, measured on pinned public
 > repos — **95–114×** on relation queries alone. [How that is measured](docs/runbooks/tokens-to-answer.md).
@@ -170,7 +170,7 @@ exposes the MCP tools. Everything runs offline against local SQLite, with increm
 | Are any of these ten names already taken? | `search_symbol` with a list of `queries` — one call, not ten |
 | Did this change break an architectural rule? | `check_architecture_rules` · `diff_architecture` |
 
-**All 22 tools, what each returns, and which take a list of subjects: [`docs/TOOLS.md`](docs/TOOLS.md).**
+**All 23 tools, what each returns, and which take a list of subjects: [`docs/TOOLS.md`](docs/TOOLS.md).**
 
 ### Three properties worth knowing before you install
 
@@ -287,7 +287,7 @@ are kept.
 
 | Doc | Answers |
 |---|---|
-| [`docs/TOOLS.md`](docs/TOOLS.md) | all 22 tools, the operator prompts, the opt-in hooks, and which tools take a list of subjects |
+| [`docs/TOOLS.md`](docs/TOOLS.md) | all 23 tools, the operator prompts, the opt-in hooks, and which tools take a list of subjects |
 | [`docs/design/`](docs/design/) | why an answer is shaped the way it is — [payload](docs/design/payload.md) · [indexing & search](docs/design/indexing.md) · [impact & claims](docs/design/impact-and-claims.md) |
 | [`docs/PLAN.md`](docs/PLAN.md) | the authoritative design, and **§19** — the decision log: what was measured, what was refuted |
 | [`docs/BACKLOG.md`](docs/BACKLOG.md) | what is open and what landed |

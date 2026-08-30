@@ -22,6 +22,7 @@ from code_atlas.tools import (
     architecture_overview,
     build_or_update_index,
     check_architecture_rules,
+    check_column_defaults,
     class_diagram,
     diff_architecture,
     explain_path,
@@ -120,6 +121,9 @@ INVOKERS: dict[str, Invoker] = {
     search_symbol.NAME: Invoker(
         lambda c, s, n: search_symbol.create(c)(query=s["query"]), "results"
     ),
+    check_column_defaults.NAME: Invoker(
+        lambda c, s, n: check_column_defaults.create(c)(table=s["table"]), "results"
+    ),
     file_outline.NAME: Invoker(lambda c, s, n: file_outline.create(c)(path=s["path"]), "results"),
     read_symbol.NAME: Invoker(lambda c, s, n: read_symbol.create(c)(qname=s["method"]), "source"),
     find_callers.NAME: Invoker(
@@ -182,6 +186,14 @@ _ARCH_RULES = Expect(
     reason="capability_not_configured",
     because="needs an architecture-rules file; language-independent",
 )
+# A language with no table declarations has no subject for this tool at all — which is a different
+# fact from a relation the adapter could emit and does not (022 spends `Table`/`Column`/`WRITES`,
+# and only a SQL layer produces them).
+_COLUMN_DEFAULTS_ABSENT = Expect(
+    NOT_APPLICABLE_BY_LANGUAGE,
+    kinds=("WRITES",),
+    because="the language declares no tables or columns, so no subject of this tool exists in it",
+)
 _DIFF_ARCH = Expect(
     EMPTY_CAPABILITY_NOT_CONFIGURED,
     reason="snapshot_not_found",
@@ -208,6 +220,7 @@ PHP_PARITY = ToolParity(
         "callee": "\\App\\Calls\\Service::make",
         "interface": "\\App\\Models\\Storable",
         "subtree": "src",
+        "table": "\\App\\Calls\\Service",
     },
     tools={
         **_answering(
@@ -233,6 +246,7 @@ PHP_PARITY = ToolParity(
         ),
         find_view_data.NAME: _VIEW_DATA,
         check_architecture_rules.NAME: _ARCH_RULES,
+        check_column_defaults.NAME: _COLUMN_DEFAULTS_ABSENT,
         diff_architecture.NAME: _DIFF_ARCH,
     },
 )
@@ -249,6 +263,7 @@ TS_PARITY = ToolParity(
         "class": "src/module_scoped.ts::User",
         "method": "src/module_scoped.ts::User::greet",
         "caller": "src/module_scoped.ts::makeUser",
+        "table": "src/module_scoped.ts::User",
         "callee": "src/module_scoped.ts::User::greet",
         "interface": "src/class_heritage.ts::Drawable",
         "subtree": "src",
@@ -303,6 +318,7 @@ TS_PARITY = ToolParity(
         ),
         find_view_data.NAME: _VIEW_DATA,
         check_architecture_rules.NAME: _ARCH_RULES,
+        check_column_defaults.NAME: _COLUMN_DEFAULTS_ABSENT,
         diff_architecture.NAME: _DIFF_ARCH,
     },
 )
@@ -327,6 +343,9 @@ SQL_PARITY = ToolParity(
         "callee": "dbo.FirstBatch",
         "interface": "dbo.Caller",
         "subtree": "src",
+        # The one fixture table that declares a DEFAULT; nothing writes it, which is the
+        # `table_has_no_writers` arm answering rather than a modelled zero.
+        "table": "dbo.Audit",
     },
     tools={
         **_answering(
@@ -344,6 +363,7 @@ SQL_PARITY = ToolParity(
             architecture_overview.NAME,
             guided_tour.NAME,
             generate_onboarding.NAME,
+            check_column_defaults.NAME,
         ),
         include_graph.NAME: Expect(
             EMPTY_RELATION_NOT_MODELLED,

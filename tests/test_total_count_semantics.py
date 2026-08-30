@@ -13,6 +13,7 @@ from code_atlas.config import Config, load_config
 from code_atlas.store import GraphStore
 from code_atlas.tools import (
     architecture_overview,
+    check_column_defaults,
     file_outline,
     find_callers,
     find_implementations,
@@ -26,6 +27,8 @@ from tests.test_nav_tools import edge, node
 
 CEILING = 2
 PATH = "app/w.php"
+SQL_PATH = "db/w.sql"
+TABLE = "dbo.W"
 
 
 def _config(tmp_path: Path) -> Config:
@@ -84,9 +87,25 @@ def _seed(tmp_path: Path) -> None:
         (f"mod/layer{i}/file.php", f"\\L{i}\\File", i + 10)
         for i in range(6)
     ]
+    # A SQL layer too: check_column_defaults pages COLUMNS, which no PHP node can stand in for.
+    sql_on_disk = tmp_path / SQL_PATH
+    sql_on_disk.parent.mkdir(parents=True, exist_ok=True)
+    sql_on_disk.write_bytes(body)
+    sql_nodes: list[dict[str, object]] = [node("Table", "W", TABLE, SQL_PATH)]
+    sql_edges: list[dict[str, object]] = []
+    for i in range(6):
+        column = f"{TABLE}::c{i}"
+        sql_nodes.append(
+            node("Column", f"c{i}", column, SQL_PATH) | {"extra": '{"default": "(getdate())"}'}
+        )
+        sql_edges.append(edge("CONTAINS", TABLE, column, SQL_PATH, target_qname=column))
+        sql_edges.append(edge("WRITES", "dbo.P", column, SQL_PATH, target_qname=column))
+
     with GraphStore(tmp_path / "graph.db") as store:
         store.upsert_file(PATH, hashlib.sha256(body).hexdigest(), "php")
         store.replace_file_rows(PATH, nodes, edges)
+        store.upsert_file(SQL_PATH, hashlib.sha256(body).hexdigest(), "sql")
+        store.replace_file_rows(SQL_PATH, sql_nodes, sql_edges)
         for fpath, qname, line in extra_files:
             target = tmp_path / fpath
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -128,6 +147,8 @@ def _call(name: str, config: Config) -> dict[str, object]:
         return architecture_overview.create(config)(detail_level="minimal")
     if name == "find_orphans":
         return find_orphans.create(config)(detail_level="minimal")
+    if name == "check_column_defaults":
+        return check_column_defaults.create(config)(table=TABLE, detail_level="minimal")
     raise AssertionError(name)
 
 
@@ -142,6 +163,7 @@ TOTAL_COUNT_TOOLS = [
     "guided_tour",
     "architecture_overview",
     "find_orphans",
+    "check_column_defaults",
 ]
 
 

@@ -90,6 +90,8 @@ def register(server: FastMCP) -> None:
             "-> diff_architecture.\n"
             "- Render a class diagram for one type (plus ancestry) or one file "
             "-> class_diagram.\n"
+            "- Which writers of this table omit a column that has a DEFAULT "
+            "-> check_column_defaults.\n"
             "Then call get_index_status first if unsure the index is current."
         )
 

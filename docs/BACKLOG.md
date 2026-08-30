@@ -71,7 +71,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 190 | [A same-second guard is flaky under suite load](tasks/190_a-same-second-guard-is-flaky-under-suite-load.md) | Coverage | done | 146 |
 | 191 | [A conditional assertion is a test that never ran](tasks/191_a-conditional-assertion-is-a-test-that-never-ran.md) | Coverage | done | 189, 181 |
 | 192 | [A partial answer never gets the coverage disclosure](tasks/192_coverage-note-suppressed-on-a-partial-answer.md) | Agent-trust | done | 160, 173, 186 |
-| 194 | ["Which writers omit this column, and what is its DEFAULT?"](tasks/194_default-filled-column-defect-class-query.md) | Agent-fit | todo | 022 |
+| 194 | ["Which writers omit this column, and what is its DEFAULT?"](tasks/194_default-filled-column-defect-class-query.md) | Agent-fit | done | 022 |
 | 195 | [Three tools still read the blend 183 split](tasks/195_three-tools-still-read-the-whole-graph-blend.md) | Measure | todo | 183 |
 
 ## Open work — Pillar 2 · Onboarding
@@ -138,7 +138,7 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 - **Every `deferred` ticket holds its own gate** — 074, 098 and 141 each state theirs, and 141 is at
   n = 0; do not queue one without reading it. Auto *reading orders* stay unscheduled
   ([121](benchmarks/121_onboarding-question-class.md)).
-- **M10–M12 are complete** — 22 tools on the MCP surface, plus four shell entry points
+- **M10–M12 are complete** — 23 tools on the MCP surface, plus four shell entry points
   ([`ROADMAP.md`](phase3-onboarding/ROADMAP.md)).
 - **Roll-out is the binding constraint and deliberately not a ticket here** — five rounds standing;
   this backlog accepts only code, so it goes to the consumer as a PR.

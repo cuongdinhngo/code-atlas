@@ -79,6 +79,7 @@ worse than none. Each of these would have lost a caveat that no one-line form ca
 | Tool | The caveat a one-line claim would have lost |
 |---|---|
 | `build_or_update_index` | it reports work done, not a state of the world — the counts describe a run, and a run is not a claim about the tree |
+| `check_column_defaults` | the ratio it returns is only as complete as the writers the graph measured; a one-line claim would drop the `unmeasured` population, which is the whole point of the answer |
 | `search_symbol` | ranking. A count of matches says nothing about whether the right one is on the page |
 | `file_outline` | structure. "17 symbols" is not the claim a reader wants; the shape is |
 | `read_symbol` | the body IS the answer — a line summarising source is a paraphrase of the thing itself |

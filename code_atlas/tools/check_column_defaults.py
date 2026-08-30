@@ -1,0 +1,222 @@
+"""``check_column_defaults`` — which writers of a table omit a defaulted column? (task 194).
+
+Field retro round 12 §15 named this question verbatim and answered it by hand: four grep passes, a
+purpose-built script mapping each write to its enclosing routine, and two live-database round-trips.
+Tier 2 (022) put those facts in the graph; this reads them back in one call.
+"""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Callable
+from typing import Literal
+
+from code_atlas.config import Config, clamp_limit
+from code_atlas.store import GraphStore
+from code_atlas.tools.coverage import attach_coverage_note, covered_languages
+from code_atlas.tools.nav_result import (
+    REASON_NO_MATCHES,
+    REASON_NO_SUCH_SYMBOL,
+    REASON_NOT_INDEXED,
+    REASON_OK,
+    attach_limit_capped,
+)
+
+NAME = "check_column_defaults"
+
+DetailLevel = Literal["minimal", "standard"]
+
+# This tool's own status vocabulary, beside the payload's fixed nav REASON codes (the same split
+# ``architecture_rules.py`` keeps). A table nothing writes is UNMEASURED, never "nobody omits it".
+STATUS_CHECKED = "checked"
+STATUS_NO_WRITERS = "table_has_no_writers"
+
+_WRITES = ("WRITES",)
+_CONTAINS = ("CONTAINS",)
+# One page of the graph's own edges, not of the answer: the arithmetic needs every writer, and the
+# caller's ``limit`` pages the COLUMNS it gets back.
+_WALK = 10_000
+
+__all__ = ["NAME", "STATUS_CHECKED", "STATUS_NO_WRITERS", "create"]
+
+
+def _sources(store: GraphStore, target: str) -> set[str]:
+    """Every routine with a ``WRITES`` edge onto ``target``."""
+    return {
+        str(row["source_qname"])
+        for row in store.edges_by_target(target, kinds=_WRITES, limit=_WALK)
+    }
+
+
+def _declared_default(node: dict[str, object]) -> str | None:
+    """The DEFAULT expression a ``Column`` node declares, or None when it declares none."""
+    raw = node.get("extra")
+    if not isinstance(raw, str) or not raw:
+        return None
+    try:
+        extra = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    value = extra.get("default") if isinstance(extra, dict) else None
+    return value if isinstance(value, str) else None
+
+
+def _columns_of(store: GraphStore, table: str) -> tuple[list[str], list[tuple[str, str]]]:
+    """Every column of ``table`` in qname order, and the subset declaring a DEFAULT.
+
+    Both are needed and they differ: the DEFAULT subset is what gets reported, while
+    ``writers_total`` is *"the total that write the table"* (R2) — a routine writing only
+    undefaulted columns is still a writer, and omitting it understates every ratio's denominator.
+    """
+    qnames = sorted(
+        str(edge["target_raw"])
+        for edge in store.edges_by_source(table, kinds=_CONTAINS, limit=_WALK)
+    )
+    if not qnames:
+        return [], []
+    found = store.nodes_by_qualified_names(qnames, kind="Column", limit=1)
+    columns = [qname for qname in qnames if found.get(qname)]
+    defaulted: list[tuple[str, str]] = []
+    for qname in columns:
+        declared = _declared_default((found[qname])[0])
+        if declared is not None:
+            defaulted.append((qname, declared))
+    return columns, defaulted
+
+
+def _row(
+    column: str,
+    declared: str,
+    *,
+    named: set[str],
+    unmeasured: set[str],
+    writers: set[str],
+    detail_level: DetailLevel,
+) -> dict[str, object]:
+    """One column's verdict. ``omitted_by`` is ABSENT when no writer was measurable (R5.6)."""
+    omitted = writers - named - unmeasured
+    row: dict[str, object] = {
+        "column": column,
+        "default": declared,
+        "status": STATUS_CHECKED if writers else STATUS_NO_WRITERS,
+        "writers_total": len(writers),
+    }
+    if not writers:
+        # No `omitted_by`, no `omitted_count`: an empty list here reads as "nobody omits it", which
+        # is the modelled zero this tool exists to avoid answering.
+        return row
+    row["omitted_count"] = len(omitted)
+    if detail_level == "standard":
+        row["omitted_by"] = sorted(omitted)
+        row["named_by"] = sorted(named)
+        if unmeasured:
+            row["unmeasured"] = sorted(unmeasured)
+    return row
+
+
+def _envelope(
+    *,
+    table: str,
+    config: Config,
+    indexed: bool,
+    reason: str,
+    results: list[dict[str, object]] | None = None,
+    truncated: bool = False,
+    total_count: int = 0,
+) -> dict[str, object]:
+    return {
+        "index_root": config.index_root,
+        "indexed": indexed,
+        "reason": reason,
+        "results": results if results is not None else [],
+        "table": table,
+        "total_count": total_count,
+        "truncated": truncated,
+    }
+
+
+def create(config: Config) -> Callable[..., dict[str, object]]:
+    """Bind the tool to one repo's configuration."""
+
+    def check_column_defaults(
+        table: str,
+        column: str | None = None,
+        detail_level: DetailLevel = "standard",
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> dict[str, object]:
+        """Which writers of this table omit a column that has a DEFAULT, and what is that DEFAULT?
+
+        Answers the defect class *"a column whose value comes from a DEFAULT because every writer
+        omits it"*. With no ``column``, scans every column of ``table`` that declares a DEFAULT;
+        with one, reports just that column. Each row carries ``omitted_count`` against
+        ``writers_total`` — a ratio, not a bare list — plus ``omitted_by`` and ``named_by`` at
+        ``standard``. A writer that named no columns at all is ``unmeasured``, never counted as
+        omitting; a table with no recorded writers answers ``status: table_has_no_writers`` and
+        carries **no** ``omitted_by``, because an empty list there would claim a zero the graph
+        cannot see. Needs a SQL-layer index (task 022); ``column`` takes the full member qname
+        (``dbo.Trans::ChangeUser``) or the bare column name.
+        """
+        if offset < 0:
+            raise ValueError(f"offset must be >= 0, got {offset}")
+        cap, limit_clamped = clamp_limit(limit, config.max_results)
+        if cap < 1:
+            raise ValueError(f"limit must be >= 1, got {cap}")
+        if not config.db_path.is_file():
+            return _envelope(
+                table=table, config=config, indexed=False, reason=REASON_NOT_INDEXED
+            )
+
+        with GraphStore(config.db_path) as store:
+            covered = covered_languages(store)
+            if not store.nodes_by_qualified_name(table, kind="Table", limit=1):
+                return attach_coverage_note(
+                    _envelope(
+                        table=table, config=config, indexed=True, reason=REASON_NO_SUCH_SYMBOL
+                    ),
+                    config,
+                    covered,
+                )
+            all_columns, columns = _columns_of(store, table)
+            if column is not None:
+                wanted = column if "::" in column else f"{table}::{column}"
+                columns = [pair for pair in columns if pair[0] == wanted]
+            if not columns:
+                return attach_coverage_note(
+                    _envelope(
+                        table=table, config=config, indexed=True, reason=REASON_NO_MATCHES
+                    ),
+                    config,
+                    covered,
+                )
+            # A writer reaching the table itself named no columns (022's discriminator), so it is
+            # unmeasured for every column rather than an omitter of each.
+            unmeasured = _sources(store, table)
+            by_column = {qname: _sources(store, qname) for qname in all_columns}
+            named_by_column = {qname: by_column[qname] for qname, _ in columns}
+            writers = unmeasured.union(*by_column.values()) if by_column else set(unmeasured)
+            rows = [
+                _row(
+                    qname,
+                    declared,
+                    named=named_by_column[qname],
+                    unmeasured=unmeasured,
+                    writers=writers,
+                    detail_level=detail_level,
+                )
+                for qname, declared in columns
+            ]
+            page = rows[offset : offset + cap]
+            payload = _envelope(
+                table=table,
+                config=config,
+                indexed=True,
+                reason=REASON_OK,
+                results=page,
+                truncated=offset + len(page) < len(rows),
+                total_count=len(rows),
+            )
+            attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
+            return attach_coverage_note(payload, config, covered)
+
+    return check_column_defaults

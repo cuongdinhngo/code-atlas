@@ -121,5 +121,5 @@ it as "unverified". The container route ends on **one** structural skip (the tes
 M0 spike → M1 full build → M2 resolver+contract tests → **M3 search/read/outline = first daily release (task 014)** → M4 scale → M5 incremental → M6 impact.
 **Phase 3 onboarding shipped ahead of language breadth:** M10 (`architecture_overview` + layers) · M11
 (`guided_tour`, `generate_onboarding`, the navigable system map) · M12 (opt-in LLM prose behind three
-seams, out of the core) are **all complete** — 22 tools on the surface. **Adapters #2 (TS/JS, 019)
+seams, out of the core) are **all complete** — 23 tools on the surface. **Adapters #2 (TS/JS, 019)
 and #3 (T-SQL, 184 tier 1a + 022 tier 2) have landed**; Python and C#/.NET stay deferred.

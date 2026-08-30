@@ -18,6 +18,7 @@ from code_atlas.tools import (
     architecture_overview,
     build_or_update_index,
     check_architecture_rules,
+    check_column_defaults,
     class_diagram,
     diff_architecture,
     explain_path,
@@ -65,6 +66,7 @@ TOOL_NAMES: tuple[str, ...] = (
     guided_tour.NAME,
     generate_onboarding.NAME,
     check_architecture_rules.NAME,
+    check_column_defaults.NAME,
     diff_architecture.NAME,
     class_diagram.NAME,
 )
@@ -140,6 +142,8 @@ def build_server(
         )
     if check_architecture_rules.NAME in names:
         server.tool(guard(check_architecture_rules.create(config)))
+    if check_column_defaults.NAME in names:
+        server.tool(guard(check_column_defaults.create(config)))
     if diff_architecture.NAME in names:
         server.tool(guard(diff_architecture.create(config)))
     if class_diagram.NAME in names:

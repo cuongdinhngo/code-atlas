@@ -34,11 +34,11 @@ the sighting that bound one wrongly).
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
 | `derived-not-listed-invariant` | 22 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180, 187, 191, 184, 022 | **R6.7** |
-| `prove-the-guard-fails` | 28 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188, 189, 190, 187, 191, 184, 192, 022 | **R6.5** — 190 is the *other* side of it: not *was it seen failing?* but *did it fail for the thing it forbids?* |
+| `prove-the-guard-fails` | 29 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188, 189, 190, 187, 191, 184, 192, 022, 194 | **R6.5** — 190 is the *other* side of it: not *was it seen failing?* but *did it fail for the thing it forbids?* |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
 | `fixture-shape-begs-the-question` | 11 | 084, 086, 103–106, 121, 183, 185, 190, 191 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
-| `count-pin-in-blast-radius` | 7 | 085, 087–089, 175, 184, 022 | **AGENT_BRIEF P5** — promoted 2026-08-27; 022 is a *deliberate* trace that still under-scoped, so P5 needs the invariant, not the spelling |
+| `count-pin-in-blast-radius` | 8 | 085, 087–089, 175, 184, 022, 194 | **AGENT_BRIEF P5** — promoted 2026-08-27; P5 needs the invariant, not the spelling (022) — and 194 adds that a change can move MORE THAN ONE invariant |
 | `source-the-caveat-from-the-computation` | 6 | 100–102, 122, 127, 189 | **R5.5** |
 | `re-verify-the-assumption-on-a-new-path` | 3 | 102, 107, 122 | **AGENT_BRIEF P6** — promoted 2026-08-27 |
 | `re-run-the-sweep-after-the-last-edit` | 3 | 100–102 | **AGENT_BRIEF P4** |
@@ -101,6 +101,63 @@ and it is the one that will fall behind.**
 - destination: **R6.7** — proposed sharpening. R6.7 already says *derive the set, never list it*; a
   text sweep looks like a derivation and is not one, because it derives from the wrong grammar. Left
   for `/mango:promote` and a human to ratify; no rule written here.
+
+## 194 — The trace covered the invariant the change moved, and the change moved two
+
+022 ended with *"grep the invariant, not the spelling you expect it to have"*, so this run did: the
+blast-radius trace was `grep -rln "TOOL_NAMES"`, which found **17 readers** and predicted that twelve
+would fail on their own and five needed an authored entry. Twelve did fail on their own. **Eleven
+needed an authored entry, not five** — and two of the misses were not in the `TOOL_NAMES` family at
+all: `assert len(core_modules()) == 74`, twice, because adding a **file** under `code_atlas/` moves a
+different invariant from adding a **tool**.
+
+**The refinement is one step up from 022's.** Grepping the invariant is right, but a change can move
+more than one, and the trace is only complete once you have enumerated *which* invariants it moves.
+This one moved two: the size of the tool surface, and the number of core modules.
+
+**The proving test caught a real false negative, and it was the ticket's own headline.**
+`writers_total` was computed over the *defaulted* columns' writers, so a routine writing only
+undefaulted columns never entered the population. On the fixture that made `omitted_by` come back
+**empty** — the tool would have answered *"no writer omits `ChangeUser`"* about a table where two of
+four do. The denominator has to be the population that writes the table, not the subset the filter
+selected; the ratio is meaningless otherwise, and the failure direction is the dangerous one.
+
+**The ticket named two homes for the predicate and both were wrong.** *Scope 1* asked design to
+choose between a new rule kind inside `check_architecture_rules` and a parametrisation of that
+engine. That engine's whole vocabulary is path-set reachability — `sources` and `forbidden` are path
+globs, `Violation` carries `source_file`/`forbidden_file` — and this predicate has no file in it.
+Fitting it in means two rule shapes in one dataclass and one tool whose payload means two things. A
+ticket's proposed site is a hypothesis; it gets checked against the engine's actual vocabulary before
+the work is fitted into it.
+
+**One design-list item was dropped on evidence.** CL-9 planned a row in `docs/PLAN.md` §12's tool
+table, and PLAN had 8 tokens of headroom. It turned out PLAN already omits **4 of the 22** tools that
+existed before this one, so its table is not the surface; `docs/TOOLS.md` is, and a test pins it.
+Adding a row would have paid budget to keep up a list nothing maintains.
+
+*Claim `194-C1` — a blast-radius trace is complete only once the invariants the change MOVES are
+enumerated; grepping one invariant well still misses the others. This change moved two — the tool
+surface and the core-module count — and the trace named one, so 5 of 11 authored touchpoints were
+predicted. type: 2 · handle: `count-pin-in-blast-radius` · seen: 184, 022, 194 · destination:
+AGENT_BRIEF P5.*
+*Claim `194-C2` — a ratio's denominator is the whole population, not the subset the query filtered
+to; computing it over the filter empties the numerator and the answer fails silently in the
+false-negative direction. type: 2 · handle: `denominator-is-the-population-not-the-subset` · status:
+proposed · seen: 194 · evidence: `writers_total` over defaulted columns only returned
+`omitted_by: []` for a table where two of four writers omit the column · destination: open —
+recurrence 1.*
+*Claim `194-C3` — a ticket's proposed implementation site is a hypothesis, not a requirement; check
+it against the target engine's actual vocabulary before fitting the work in, because a predicate
+forced into the wrong engine becomes a second shape inside one dataclass. type: 2 · handle:
+`the-ticket-may-name-the-wrong-home` · status: proposed · seen: 194 · destination: open —
+recurrence 1.*
+*Claim `194-C4` — the tool list in `docs/PLAN.md` is NOT the tool surface: it omitted 4 of 22 before
+this ticket. `docs/TOOLS.md` is the surface and `tests/test_documented_tool_count.py` pins its count;
+do not spend PLAN's budget keeping up a list nothing maintains. type: 5 · handle:
+`plan-tool-list-is-not-the-surface` · status: confirmed · seen: 194 · area: docs · destination:
+stays in lessons_path.*
+*Claim `194-C5` — the proving test shipped red: it failed on the empty `omitted_by` above before the
+denominator was fixed. type: 2 · handle: `prove-the-guard-fails` · seen: 194 · destination: R6.5.*
 
 ## 022 — The tier said how sure; I made it say how complete, and the edge stopped linking
 
