@@ -15,6 +15,11 @@ anything with a destination outside this file — keeps the full field block abo
 the narrative it sits under) is written as a compact `*Claim `NNN-Cx` — …*` line carrying the same
 fields inline, including its `area:` recall key.
 
+**A retired claim is skipped by recall, never deleted.** A claim whose class a rule now carries gets
+`retired: promoted to <rule>`; the record stays for history and `RECALL:` passes over it, so the class
+is surfaced by the rule book instead of twice. The condition is that a rule **cites the claim's id** —
+not that the rule has been ratified, which is a separate question (see [[promote-2026-08-30]]).
+
 **One claim record per handle.** Where a class was filed under several ids, the ids are aliased in a
 single heading and the `seen:` lists are unioned — the recurrence is identical either way, and three
 separate blocks made a recurrence-4 class read as three recurrence-1 notes. Two ids had been used
@@ -24,12 +29,11 @@ citations use. The other two sightings are aliased under `085-C1` and `093-C3`.
 
 ## Class index — read this before proposing a new rule
 
-Every type-2 handle at recurrence ≥ 2. Fifteen are already binding rules or brief entries; the honest
-move on a new sighting is to bump `seen:`, not to write a fresh claim. Five are not: four await ratify
-(`rank-before-truncate`, `guard-asserts-rendered-not-shipped-bytes`, `two-syntaxes-two-paths`,
-`one-field-two-questions`) and one was **rejected and is now up for re-adjudication**
-(`skip-dynamic-means-unlinkable` — the rejection reasoned from a sighting that bound a design; 022 is
-the sighting that bound one wrongly).
+Every type-2 handle at recurrence ≥ 2. **Twenty-one are binding rules or brief entries**; the honest
+move on a new sighting is to bump `seen:`, not to write a fresh claim. **One is not**:
+`one-field-two-questions`, rejected 2026-08-30 because its two sightings point opposite ways.
+The 2026-08-30 promotion pass closed the six that were open — two of them by **widening an existing
+rule** rather than adding a near-duplicate (P2), and one by finding the rule already there.
 
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
@@ -43,18 +47,24 @@ the sighting that bound one wrongly).
 | `re-verify-the-assumption-on-a-new-path` | 3 | 102, 107, 122 | **AGENT_BRIEF P6** — promoted 2026-08-27 |
 | `re-run-the-sweep-after-the-last-edit` | 3 | 100–102 | **AGENT_BRIEF P4** |
 | `route-must-answer` | 4 | 093, 101, 102, 188 | folded into **R5.4**'s falsifier — 188 is the first sighting of its *other* direction: a route that became answerable |
-| `rank-before-truncate` | 3 | 067, 126, 180 | open — proposed 2026-08-23, **overdue: rec 3, awaiting ratify** |
-| `guard-asserts-rendered-not-shipped-bytes` | 2 | 116, 127 | open — proposed 2026-08-23, awaiting ratify |
+| `rank-before-truncate` | 3 | 067, 126, 180 | **R5.8** — promoted 2026-08-30 |
+| `guard-asserts-rendered-not-shipped-bytes` | 2 | 116, 127 | **R6.9** — promoted 2026-08-30 |
 | `sibling-meta-non-int` | 3 | 092, 095, 174 | **R1.7** |
 | `record-the-deviation-as-a-deviation` | 2 | 101, promote-2026-08-15 | **AGENT_BRIEF P3** |
 | `one-rule-for-every-subject-slot` | 6 | 102, 122, 183, 186, 179, 187 | **R1.8** — promoted 2026-08-27 |
-| `one-field-two-questions` | 2 | 189, 022 | open — proposed 2026-08-30, awaiting ratify |
-| `read-the-syntax-not-the-text` | 3 | 190, 187, 192 | open — **overdue: rec 3, awaiting ratify**; destination **R6.7** |
-| `an-aggregate-outlives-the-world-that-named-it` | 2 | 183, 195 | open — proposed 2026-08-30, awaiting ratify |
-| `two-syntaxes-two-paths` | 3 | 019, 184, 022 | open — **overdue: rec 3, awaiting ratify** |
+| `one-field-two-questions` | 2 | 189, 022 | open — **rejected 2026-08-30**: the two sightings point opposite ways (189: do not add a field when the payload already carries the axis; 022: do not overload one), so the handle may be over-grouping. Re-propose on a third, independent sighting |
+| `read-the-syntax-not-the-text` | 3 | 190, 187, 192 | **R6.7** — widened 2026-08-30 (a text sweep is not a derivation) |
+| `an-aggregate-outlives-the-world-that-named-it` | 2 | 183, 195 | **AGENT_BRIEF P7** — promoted 2026-08-30 |
+| `two-syntaxes-two-paths` | 3 | 019, 184, 022 | **R6.2** — it was already there, citing `019-C2`; the 2026-08-30 pass found it by grepping the CLAIM ID, not the slug, and extended the citation |
 | `ac-failure-mode-needs-the-right-guard` | 2 | 085, 107 | **R6.8** — promoted 2026-08-27 |
 | `own-only-what-you-wrote` | 2 | 088, 089 | **R5.7** — promoted 2026-08-27 |
-| `skip-dynamic-means-unlinkable` | 3 | 094, 096, 022 | open — **re-adjudication candidate**: the 2026-08-15 rejection said the 2nd sighting bound a design; the 3rd bound one wrongly first |
+| `skip-dynamic-means-unlinkable` | 3 | 094, 096, 022 | **R5.2** — re-adjudicated and widened 2026-08-30; the 2026-08-15 rejection reasoned from a sighting that *bound* a design, and the third bound one **wrongly** |
+
+**Six classes were closed 2026-08-30** — see [[promote-2026-08-30]]. Two were **widenings**
+(`skip-dynamic-means-unlinkable` → R5.2, `read-the-syntax-not-the-text` → R6.7), two were new
+(`rank-before-truncate` → R5.8, `guard-asserts-rendered-not-shipped-bytes` → R6.9), one was a new
+brief entry (`an-aggregate-outlives-the-world-that-named-it` → P7), and one **was already recorded**
+(`two-syntaxes-two-paths`, in R6.2 since 019).
 
 **The three overdue classes were promoted 2026-08-27**, once their split-across-ids `seen:` lists were
 unioned (the under-count `PROM-C1` names): `do-not-attest-past-the-payloads-resolution` → **R5.6**
@@ -99,9 +109,88 @@ and it is the one that will fall behind.**
   reading structure instead of text; here, `ast.walk` for a `retain_temps` keyword bound to `True`,
   which cannot match a comment or a docstring.
 - area: tests / guards over source
-- destination: **R6.7** — proposed sharpening. R6.7 already says *derive the set, never list it*; a
-  text sweep looks like a derivation and is not one, because it derives from the wrong grammar. Left
-  for `/mango:promote` and a human to ratify; no rule written here.
+- destination: **R6.7** — widened 2026-08-30 with exactly this sharpening,
+  `PROVISIONAL (awaiting ratification)`.
+- retired: promoted to R6.7
+
+
+## promote-2026-08-30 — The idempotency grep found nothing because it searched for the wrong string
+
+Seven type-2 classes stood at recurrence ≥ 2 with nothing in either destination. Step 4's grep — the
+check that stops a promotion re-proposing a rule already written — came back `0 matches` for all
+seven, and on that basis all seven went to the human as candidates.
+
+**One of them was already in the rule book.** R6.2 has carried `two-syntaxes-two-paths` since 019,
+in these words: *"a construct with two spellings reaching the walk by different paths needs both as
+cases (`019-C2`)"*. The grep missed it because the rule cites the **claim ID** and the grep searched
+the **handle slug**. The skill says to search both; I searched one, and reported "not yet recorded"
+for a rule sitting in the destination file.
+
+**The repo already had a rule against exactly this, and it is the one I skipped.** `AGENT_BRIEF` P2:
+*"the grep is not the check … read the destination's relevant section and say plainly whether the
+substance is already there — and if it is, propose widening the existing rule rather than adding a
+near-duplicate."* P2 exists because `prove-the-guard-fails` was once proposed as a new R6.8 while
+R6.5 already carried it. This run reproduced that failure one level down: not a near-duplicate under
+a different handle, but a **literal duplicate of the same class**, invisible to a grep that searched
+half of what it was told to.
+
+**Reading the destinations, as P2 asks, changed three verdicts of six.** `skip-dynamic-means-
+unlinkable` became a widening of R5.2 (which already defined what `DYNAMIC` is for, but not that the
+resolver drops it); `read-the-syntax-not-the-text` became a widening of R6.7, which its own claim had
+already proposed; and `two-syntaxes-two-paths` became a citation bump. Only three of the six earned a
+rule of their own. **A promotion pass that proposes six new rules and lands three is working; one
+that proposes six and writes six has not read its destinations.**
+
+**The budget was paid, not raised.** Six edits cost 669 tier-1 tokens against 7 of headroom. The
+chain cap (25,200) is untouched: every `done` row in `BACKLOG.md` is now titled by its own slug
+instead of a prose sentence retelling what that ticket's file already holds — 176 rows, 1,405 tokens,
+and the slug cannot drift because it is the filename. `BACKLOG.md`'s own ceiling dropped 9,500 →
+8,200 in the same change so the freed room cannot be re-consumed by narrative.
+
+**The retire step, and why the corpus had never taken it.** Before this pass, **zero** claims had
+ever been retired, while 11 rules and 6 brief entries stood `PROVISIONAL` — so 17 classes were
+surfacing **twice** on every ticket: once as a claim through `RECALL:` at refine, once as a rule
+through `RULE SECTIONS:` at analysis. The loop had been treating *ratify the rule's wording* and
+*retire the claim it absorbed* as one gate, and because the first never happened, the second never
+could.
+
+**They answer different questions.** `PROVISIONAL (awaiting ratification)` asks *has a human blessed
+this wording*. `retired:` asks *has a rule absorbed this claim*. Only the first is the human's;
+the second is already written down and checkable — **the rule cites the claim's ID.** A rule carrying
+`(`094-C1`)` has asserted it covers 094-C1; retiring 094-C1 makes that assertion operative
+instead of leaving it decorative.
+
+**The asymmetry settles the order.** Retiring early is cheap and reversible: `retired:` never deletes,
+the record stays, and un-retiring is one line if the rule is later rejected. Not retiring costs every
+session, forever, and had been doing so for fifteen days. So the condition used here is neither the
+rule's age nor its ratification state, but the citation: **29 cited ids resolving to 25 distinct claim
+records**, all retired; every claim with no rule citing it stays in recall untouched.
+
+`RETIRE: 25 offered | 25 retired on the human's answer | 0 declined/unanswered | records deleted: 0`
+
+*Claim `PROM-C5` — `PROVISIONAL` and `retired:` answer different questions and must not share a gate:
+coupling them left 17 classes surfacing twice for fifteen days with zero retires. The checkable
+condition for retiring is that a rule **cites the claim id**, which the rule book already records.
+type: 2 · handle: `ratify-and-retire-are-two-gates` · status: proposed · seen: promote-2026-08-30 ·
+evidence: 11 provisional rules + 6 provisional brief entries, 0 retired claims, before this pass ·
+destination: open — recurrence 1.*
+
+*Claim `PROM-C2` — an idempotency grep must search the destination for the **claim IDs** as well as
+the handle slug, because a rule cites the claim that earned it and not the class it belongs to. type:
+2 · handle: `grep-both-the-slug-and-the-claim-id` · status: proposed · seen: promote-2026-08-30 ·
+evidence: `two-syntaxes-two-paths` reported `0 matches` on the slug while `ENGINEERING_RULES.md:154`
+carried it under `019-C2` · destination: open — recurrence 1; the substance belongs in **P2**, which
+already says the grep is not the check.*
+*Claim `PROM-C3` — reading the destination before proposing changed three of six verdicts from "new
+rule" to "widen an existing one"; the count of proposals that survive that read is the pass's own
+health check. **Second sighting of P2's class.** type: 2 · handle:
+`read-the-destination-not-just-the-grep` · status: proposed · seen: promote-2026-08-15,
+promote-2026-08-30 · destination: **AGENT_BRIEF P2** — already binding; this is a `seen:` bump.*
+*Claim `PROM-C4` — R7.6's "prune as you add" has no purchase on a promotion: what a promoted rule
+supersedes is a claim's recall weight in `lessons_path`, which is tier 2, so the payment must come
+from unrelated tier-1 retelling or the rule book can never grow. type: 5 · handle:
+`a-promotion-pays-from-elsewhere-in-tier-1` · status: confirmed · seen: promote-2026-08-30 · area:
+docs / budget · destination: stays in lessons_path.*
 
 ## 195 — 183 predicted the enumeration it was owed, and named three of the four consumers
 
@@ -134,8 +223,8 @@ is a schema bump, not the re-point this ticket scoped itself to. That is the tic
 works from the change that made it ambiguous and therefore misses the consumer that change already
 fixed. **Second sighting of `183-C1`** — recurrence 2. type: 2 · handle:
 `an-aggregate-outlives-the-world-that-named-it` · seen: 183, 195 · evidence: the ticket named three
-consumers; `grep -rn "edge_health()"` found four · destination: open — promotion candidate, needs a
-human ratify.*
+consumers; `grep -rn "edge_health()"` found four · destination: **AGENT_BRIEF P7** — promoted
+2026-08-30 · retired: promoted to P7.*
 *Claim `195-C2` — when an aggregate becomes unattributable, ATTRIBUTE it, do not replace it: for an
 answer whose own scope spans the dimension, the aggregate is still the right denominator and swapping
 in a slice turns an uninformative caveat into a false one. type: 2 · handle:
@@ -254,14 +343,14 @@ target KIND as the discriminator, links · destination: open — recurrence 2.*
 other than "the target is not knowable" removes the edge from the graph. **Third sighting of a class
 rejected at its second** on the grounds that the sighting had bound a design; it bound this one
 wrongly first. type: 2 · handle: `skip-dynamic-means-unlinkable` · seen: 094, 096, 022 ·
-destination: open — **re-adjudication candidate**, the 2026-08-15 rejection is stale.*
+destination: **R5.2** — the 2026-08-15 rejection overturned 2026-08-30 · retired: promoted to R5.2.*
 *Claim `022-C3` — a count pin need not name what it counts, so a blast-radius grep written from the
 expected spelling under-scopes: 6 of 8 pins found, `len(VOCABULARY) == 42` and a doc size budget
 missed. type: 2 · handle: `count-pin-in-blast-radius` · seen: 184, 022 · destination: AGENT_BRIEF P5.*
 *Claim `022-C4` — T-SQL declares a column DEFAULT two ways (inline, and `ADD CONSTRAINT … FOR col`)
 and makes `INTO` optional on `INSERT`; a fixture covering one proves nothing about the other.
 **Third sighting.** type: 2 · handle: `two-syntaxes-two-paths` · seen: 019, 184, 022 · destination:
-open — **overdue: rec 3, awaiting ratify**.*
+**R6.2** — the rule already carried the class; the citation was extended 2026-08-30 · retired: promoted to R6.2.*
 *Claim `022-C5` — `CONVENTION.md` published the kind vocabulary as a hand-kept copy with no test
 deriving it from `contract.py`, and it was stale the moment the contract moved. type: 2 · handle:
 `derived-not-listed-invariant` · seen: 184, 022 · destination: R6.7.*
@@ -305,7 +394,7 @@ seen: 192 · destination: R6.5.*
 *Claim `192-C3` — a source-TEXT guard reads prose: writing the literal `total_count` into a docstring
 registered `coverage.py` as a `total_count` emitter and reddened a scan that has nothing to do with
 this change. **Third sighting.** type: 2 · handle: `read-the-syntax-not-the-text` · seen: 190, 187,
-192 · destination: R6.7 — overdue, awaiting ratify.*
+192 · destination: **R6.7** — widened 2026-08-30 · retired: promoted to R6.7.*
 *Claim `192-C5` — two tickets incrementing one shared counter are reconciled by a merge that keeps
 one: 184 took `prove-the-guard-fails` 25→26, so 192's identical edit had nothing to apply to and its
 sighting vanished. `seen:` is the ONLY gate on promotion (P1), so a lost sighting is a rule that never
@@ -346,7 +435,7 @@ assertion that names it. type: 2 · handle: `prove-the-guard-fails` · seen: 184
 *Claim `184-C3` — T-SQL spells three constructs two ways each (`PROC`/`PROCEDURE`, `EXEC`/`EXECUTE`,
 `CREATE`/`CREATE OR ALTER`); a fixture covering one proves nothing about the other. **Second sighting
 of `019-C2`** — recurrence 2. type: 2 · handle: `two-syntaxes-two-paths` · seen: 019, 184 ·
-destination: open — promotion candidate, needs a human ratify.*
+destination: **R6.2** — the rule already carried the class since 019 · retired: promoted to R6.2.*
 *Claim `184-C4` — a blast-radius trace that follows the registry misses the readers of a list DERIVED
 from it: `test_batched_subject_sweep.py` pins a payload carrying `unconfigured_adapters`, so adapter
 #3 reddened a test with nothing to do with SQL. type: 2 · handle: `count-pin-in-blast-radius` · seen:
@@ -847,9 +936,11 @@ two-step was measured at 686.9 ms and rejected on structure, not speed.
   generalises past languages to any population axis that grows from one value to two (tenant, region,
   adapter, repo).
 - area: store / measurement / roll-out
-- destination: open — **recurrence 2, awaiting ratify.** The handed-forward enumeration
-  ("enumerate the aggregates this new dimension makes ambiguous") was **discharged by 195**, which
-  found four consumers where the ticket named three; see [[195-C1]].
+- destination: **AGENT_BRIEF P7** — promoted 2026-08-30, `PROVISIONAL (awaiting ratification)`. The
+  handed-forward enumeration was discharged by 195, which found four consumers where the ticket named
+  three; see [[195-C1]].
+- retired: promoted to P7
+
 
 ## 180 — A relevance score is not an exactness score, and BM25 is systematically wrong about which
 `search_symbol("<name>")` returned *page 1 of 46* with two substring near-misses in small `.js` files
@@ -1108,7 +1199,7 @@ the ones that differ today. type: 2 · handle: `prove-the-guard-fails` · status
 `import` vs `const … = require`), a fixture covering one proves nothing about the other; parametrise
 the test over both module systems. type: 2 · handle: `two-syntaxes-two-paths` · status: proposed ·
 seen: 019 · evidence: `declarations_only` kept ESM `IMPORTS` and dropped every CJS one · destination:
-open — folds into R6.3 if it recurs.*
+**R6.2**, where it has been since 019 · retired: promoted to R6.2.*
 
 *Claim `019-C3` — a name that differs between the declaring and the importing side needs an explicit
 alias edge, not a matching convention: `export default class Foo` declares `::Foo` and is imported as
@@ -1361,8 +1452,9 @@ figures.
   127's file-level formulation of the caveat guard is green by construction, the rendered one caught
   the drop on its first run
 - area: onboarding / artifact / guards
-- destination: `rulebook_path` (code subject) — recurrence 2 across 116 and 127, **promotable**: run
-  `/mango:promote` for the handle above
+- destination: **R6.9** — promoted 2026-08-30, `PROVISIONAL (awaiting ratification)`
+- retired: promoted to R6.9
+
 
 ### 127-C2 — new sighting of an existing class, recorded as a `seen:` bump, not a fresh claim
 `derived-not-listed-invariant` (rec 11 → **12**, already **R6.7**) gains 127: the caveat set the guard
@@ -1384,8 +1476,9 @@ sourced where the cap is decided rather than re-worded by the renderer.
   cut the page by a different order, so *"page 1 of 46"* held no exact match — and the fix is
   structural, putting the rank inside the statement that truncates.
 - area: tools / onboarding / payload honesty
-- destination: `rulebook_path` (code subject) — recurrence **3** across 067, 126 and 180,
-  **overdue**: run `/mango:promote` for the handle above
+- destination: **R5.8** — promoted 2026-08-30, `PROVISIONAL (awaiting ratification)`
+- retired: promoted to R5.8
+
 
 ## 125 — Schema version names the index, not the server that read it
 ``get_index_status`` reported ``contract_version`` and ``schema_version`` — both describe the
@@ -1670,6 +1763,8 @@ real-repo reporter** (`scripts/layer_report.py`), not an ad-hoc session action.
   (`/mango:promote`, run by the maintainer between tickets), not a within-ticket write
 - destination: `rulebook_path` (a heuristic over path/graph shape must be proven on a real indexed
   repo, via a committed re-runnable check — a fixture that shares the code's assumption cannot)
+- retired: promoted to R6.3
+
 
 
 ## 091 — Constrain a seam's return type so a bad implementer can't break a core invariant
@@ -1781,6 +1876,8 @@ these filenames without that manifest is refused. Second finding, same shape as 
 - area: tools that write to disk
 - destination: `rulebook_path` (R5's degradation section says nothing yet about *destructive* writes;
   `/mango:promote` is the cross-ticket pass)
+- retired: promoted to R5.7
+
 
 ## 087 (review round) — A bounded walk from entry points is not the codebase, and `truncated: false` claimed it was
 Four defects, all found on the PR, all reproduced before the fix. The two that matter are one class:
@@ -1835,6 +1932,8 @@ guards a different boundary (enrichment routes through the seam), and R6.5 still
 - area: analysis/design blast-radius tracing
 - destination: `agent_brief_path` (process subject). Recurrence 4, never proposed — three of the
   four sightings were filed under separate ids, which is exactly the under-count `PROM-C1` names
+- retired: promoted to P5
+
 
 ### 085-C2 — An AC phrased as a failure mode needs the guard that can actually exhibit that failure
 - type: 2 generalisable-heuristic
@@ -1851,6 +1950,8 @@ guards a different boundary (enrichment routes through the seam), and R6.5 still
   to the repos that still exhibit it (`laravel/laravel` 20 of 26, `symfony/demo` 7 of 51).
 - area: tests / AC decomposition / R6.5 (prove-the-guard-fails)
 - destination: `rulebook_path` (if it recurs — code subject; seen once, stays in lessons)
+- retired: promoted to R6.8
+
 
 ## 084 — Piping the Docker gate through `tail` reports the pipe's exit, masking a ruff/mypy failure
 The gate `docker-test.sh` runs `ruff check . && mypy code_atlas && pytest -q`, which fails correctly on
@@ -1896,6 +1997,8 @@ accepted: `qnames=["App\Nope"] → results=2 seeds_dropped=0` beside
 - area: process / design assumptions
 - destination: `agent_brief_path` (process subject) — **recurrence 3** (102, 107, 122), promotable;
   never proposed
+- retired: promoted to P6
+
 
 ### 102-C2 — Two call sites consuming one classifier need one shared rule, not two copies
 - type: 2 generalisable-heuristic
@@ -1908,6 +2011,8 @@ accepted: `qnames=["App\Nope"] → results=2 seeds_dropped=0` beside
   `resolution.status == "resolved_unique"` independently
 - area: tools / subject resolution
 - destination: `rulebook_path` (code subject) — **recurrence 2** (102, 122), promotable
+- retired: promoted to R1.8
+
 
 *Claim `102-C3` — `seeds_dropped` has two producers, and an unknown path has no reason of its own.
 type 5 project-ground-truth · area: impact / store / tool payloads · seen 102 · proposed ·
@@ -1943,6 +2048,8 @@ backslashes still survive. (`100-C1` is now **R5.5**, `100-C3` is **AGENT_BRIEF 
 - destination: **promoted 2026-08-16 → R5.5** (`PROVISIONAL`), widened at promotion to cover both
   breaks (narrow by detail level, narrow by case). **Not retired**, so recall keeps surfacing the
   handle and R5.5 stays reachable by the recalled-handle route. `/mango:promote` skips this class.
+- retired: promoted to R5.5
+
 
 ### 100-C2 — When an artifact exists to be re-checked, a lossy repair is worse than the corruption
 - type: 2 generalisable-heuristic
@@ -1966,6 +2073,8 @@ backslashes still survive. (`100-C1` is now **R5.5**, `100-C3` is **AGENT_BRIEF 
 - destination: **promoted 2026-08-16 → `AGENT_BRIEF.md` P4** (`PROVISIONAL`). Two real failures
   (100, 101) against one binding (102); in 101 it had been recalled, judged *"does not apply"*, and
   was the one that fired. **Not retired.** `/mango:promote` skips this class.
+- retired: promoted to P4
+
 
 ### 100-C4 (also filed as 087-C2, 088-C2) — Do not attest past what the payload can distinguish
 - type: 2 generalisable-heuristic
@@ -1989,6 +2098,8 @@ backslashes still survive. (`100-C1` is now **R5.5**, `100-C3` is **AGENT_BRIEF 
   same reason as `094-C1`'s rejection of 2026-08-15), and that 102 had removed the cited evidence by
   making the payload distinguish the two cases. **That verdict is stale — the list now stands at 7
   tickets, and 087/088 are defects the class caught, not designs it bound.** Re-adjudicate.
+- retired: promoted to R5.6
+
 
 *Claim `100-C5` — impact seeds are returned inside `results`, so a bare count is ambiguous. type 5
 project-ground-truth · area: impact / store · seen 100 · proposed · destination unset.*
@@ -2161,9 +2272,11 @@ new `edge_kind` (R3), and the anchor edge-count delta is an operator paste, not 
 - evidence: `store.py` `iter_unresolved_edges`;
 `tests/test_class_const_mention.py::test_skip_dynamic_still_yields_reference_mentions`
 - area: resolver / store
-- destination: `rulebook_path` — **promotion rejected 2026-08-15**: the second sighting (096) was
-the rule *binding a design*, not the defect recurring, so the class is load-bearing twice but has
-failed only once. Re-propose on a real second failure
+- destination: **R5.2** — the 2026-08-15 rejection is **overturned 2026-08-30**. It reasoned that 096
+was the rule *binding a design* rather than the defect recurring; 022 is the defect recurring, and it
+bound a design **wrongly** first. Widened into R5.2, `PROVISIONAL (awaiting ratification)`
+- retired: promoted to R5.2
+
 
 *Claim `094-C2` — A ::class mention is a REFERENCES edge, not a CALLS or a new kind. type 5 project-
 ground-truth · descriptive · area: adapter / contract · proposed · stays in lessons.*
@@ -2209,6 +2322,8 @@ paste, not a merge gate (080/074).
   `UNTRACKED_INDEXABLE_KEY`
 - area: store / census
 - destination: **promoted 2026-08-14 → R1.7** (`PROVISIONAL`). `/mango:promote` skips this class.
+- retired: promoted to R1.7
+
 
 *Claim `095-C3` — On the git collect path, ignore_sources names matcher leftovers, not git’s drops.
 type 5 project-ground-truth · descriptive · area: collection census / ignore · proposed · stays in
@@ -2244,6 +2359,8 @@ answer**: the unlinked-include miss routed to `search_symbol`, whose `nodes_fts`
   retro round 5 §4
 - area: tool payloads / R1.1 / R4
 - destination: **promoted 2026-08-14 → R5.4** (`PROVISIONAL`). `/mango:promote` skips this class.
+- retired: promoted to R5.4
+
 
 ### 093-C2 (also filed as 095-C1, 097-C1) — An enumeration guard derives its sets; it never lists them
 - type: 2 generalisable-heuristic
@@ -2259,6 +2376,8 @@ answer**: the unlinked-include miss routed to `search_symbol`, whose `nodes_fts`
 - area: tests / R1.1
 - destination: `rulebook_path` — **promoted 2026-08-14** to `docs/ENGINEERING_RULES.md` **R6.7**,
   tagged `PROVISIONAL (awaiting ratification)`. Re-runs of `/mango:promote` skip this class.
+- retired: promoted to R6.7
+
 
 ### 093-C3 (also filed as 089-C1 in the 089 review round) — A guard is not a guard until it has been made to fail
 - type: 2 generalisable-heuristic
@@ -2275,6 +2394,8 @@ answer**: the unlinked-include miss routed to `search_symbol`, whose `nodes_fts`
 - destination: `rulebook_path` — **promoted 2026-08-15** into `docs/ENGINEERING_RULES.md` **R6.5**,
   which already carried the special case (a sweep guarded against emptying itself); this widened it
   to every guard rather than adding a near-duplicate rule
+- retired: promoted to R6.5
+
 
 ### 093-C4 — A route the reader cannot use is worse callable than not
 - type: 2 generalisable-heuristic
@@ -2289,6 +2410,8 @@ answer**: the unlinked-include miss routed to `search_symbol`, whose `nodes_fts`
   `AGENT_BRIEF.md` P2 the substance was already in R5.4 clause (c), but the falsifier tested only
   (a) and (b), so the class was stated and unenforceable. **Not retired** (declined 2026-08-16, as
   for `100-C1` / `100-C3`), so recall keeps surfacing the handle.
+- retired: promoted to R5.4
+
 
 ## 092 — A partition cannot count what never entered the walked set
 `collect()` partitions `git ls-files`. Untracked files are not skipped-by-rule; they are never in

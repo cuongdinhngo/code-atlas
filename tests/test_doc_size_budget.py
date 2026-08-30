@@ -55,13 +55,27 @@ DOCS = REPO / "docs"
 # clause in §8.1's preamble, and AGENTS.md's *Where things live* — a second copy of this file's §1
 # in a file that already said "full layout in CONVENTION.md", which is the R7.6 case exactly. The
 # next addition prunes again or argues again; it does not inherit this raise as headroom.
+# ENGINEERING_RULES 4,900 -> 5,300 and AGENT_BRIEF 2,000 -> 2,250 on 2026-08-30, argued rather than
+# assumed. The 2026-08-30 promotion pass closed six type-2 classes the corpus had earned at
+# recurrence 2-3: R5.2 and R6.7 were WIDENED rather than duplicated (AGENT_BRIEF P2), R5.8 and R6.9
+# are new, P7 is new, and `two-syntaxes-two-paths` was in R6.2 already. R7.6's "prune as you add"
+# has nothing to cut here: what a promoted rule supersedes is the recall weight of a claim
+# in LESSONS.md, which is tier 2 — so the payment has to come from elsewhere in tier 1.
+#
+# Paid for inside tier 1, not by raising its total (133's cap is untouched and still binds at
+# 25,200; the chain sits at 24,575): every `done` row in BACKLOG.md is now titled by its own slug
+# instead of a prose sentence retelling what that ticket's file already holds — 176 rows, 1,405
+# tokens, the R7.6 case exactly, and the slug is derived from the filename so it cannot drift.
+# BACKLOG's own ceiling drops 9,500 -> 8,200 in the same change, so the room that bought these rules
+# cannot be silently re-consumed by narrative. The next addition prunes again or argues again; it
+# does not inherit this raise as headroom.
 BUDGETS = {
     "CLAUDE.md": 50,
     "AGENTS.md": 2_800,
     "PLAN.md": 24_000,
-    "BACKLOG.md": 9_500,
-    "ENGINEERING_RULES.md": 4_900,
-    "AGENT_BRIEF.md": 2_000,
+    "BACKLOG.md": 8_200,
+    "ENGINEERING_RULES.md": 5_300,
+    "AGENT_BRIEF.md": 2_250,
     "CONVENTION.md": 6_600,
 }
 

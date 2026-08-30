@@ -129,3 +129,19 @@ is unguarded, or an AC citing a count not re-measured at pickup HEAD.
 - **Gaps in the mango harness itself** → [`SKILL_GAP_CANDIDATES.md`](SKILL_GAP_CANDIDATES.md).
   No lesson from this repo edits a mango skill; the signal is recorded for its maintainer.
 - **Project facts and findings** → [`LESSONS.md`](LESSONS.md) and [`PLAN.md`](PLAN.md) §19.
+
+## P7 — A dimension's second value makes every aggregate over it a blend
+
+`PROVISIONAL (awaiting ratification)` — handle `an-aggregate-outlives-the-world-that-named-it`
+(`LESSONS.md` `183-C1`, `195-C1`).
+
+When a change gives a dimension its second value — a second adapter, tenant, region or repo —
+enumerate every aggregate over that dimension **from the code**, and record per consumer whether it
+wants the whole, the slice, or both. The enumeration is a change-list item. Distinct from P5, which
+fires when a change **adds a member to a surface**: this one fires with no code change at all.
+
+**Why it costs.** The aggregate needs no edit to become wrong, so nothing fails: `edge_health`
+silently became a blend when a second language arrived, and the enumeration found **four** consumers
+where the ticket named three — the one it missed was the one the previous change had already fixed.
+
+**Falsifier.** A change adding producer #2 whose change list carries no aggregate enumeration.

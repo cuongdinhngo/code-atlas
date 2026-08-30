@@ -104,6 +104,11 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   guess as `RESOLVED`. A name resolving to **one qname declared in several files** is not a guess —
   link it once at `RESOLVED` and let the `nodes` rows carry the per-file detail (046).
   **Multiplicity is not ambiguity.**
+  **The tier answers one question: how sure you are of the TARGET.** The resolver skips `DYNAMIC`
+  outright, so a tier chosen to carry any other distinction — how complete a statement was, which arm
+  produced it — does not degrade the edge, it removes it from the graph. Carry that distinction in
+  the target's node kind or a new edge kind. *Falsifier:* a `DYNAMIC` edge whose `target_raw` is a
+  resolvable qname. *Provisional · `skip-dynamic-means-unlinkable` (`094-C1`, `022-C2`).*
 - **R5.3** — Fail loud on *config/programmer* errors (bad `CA_*`, missing adapter command); fail
   soft on *data* errors (one weird source file). Don't confuse the two.
 - **R5.4 — A field the reader acts on holds one register; prose gets a sibling field.** Where a
@@ -140,6 +145,11 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   index database guards on-disk artifacts too. *Falsifier:* a tool that rmtrees/overwrites a directory
   without consulting its manifest, destroying a hand-written or foreign file.
   *Provisional · `own-only-what-you-wrote` (`088-C1`).*
+- **R5.8 — Rank inside the statement that truncates.** Wherever a page is cut — a tool payload or a
+  rendered artifact — the ordering that decides which rows matter is applied in the same statement
+  that applies the limit. A rank computed a layer above the cut lets page 1 hold none of the rows the
+  ranking exists to surface. *Falsifier:* a paged payload whose `ORDER BY` differs from the order it
+  reports ranking by. *Provisional · `rank-before-truncate` (`126-C1`).*
 
 ## 6. Testing (definition of done)
 
@@ -151,7 +161,8 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   are **data**, not prose here: `<LANG>_R62_CASES` in `tests/contract/adapter_registry.py`, which the
   conformance keys must equal — re-listing them in this file is the drift R6.7 forbids. Two things the
   data cannot carry: a construct with **two spellings reaching the walk by different paths** needs
-  both as cases (`019-C2`); and an adapter with **no syntax-error case** says why in its README.
+  both as cases (`019-C2`, `184-C3`, `022-C4`); and an adapter with **no syntax-error case** says
+  why in its README.
 - **R6.3 — Cross-repo validation** proves "works on any repo": several varied repos index without
   crashes and with sane counts. No single repo defines "correct".
   **And where an acceptance criterion needs a judgement about a real repo — a threshold, a ranking,
@@ -192,13 +203,23 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   N+1 arrives, and it drifts **silently**, because the guard still passes. *Falsifier:* a literal
   list of valid members inside a test or tool where a derivation was available, or a new member that
   ships without failing any guard.
-  *Provisional · `derived-not-listed-invariant` (`093-C2`, `095-C1`, `097-C1`).*
+  **A text sweep is not a derivation.** A guard deciding a fact about source reads the source's
+  grammar (`ast.walk`, a parser); a substring or regex sweep derives from the wrong grammar and
+  matches comments, docstrings and prose. *Falsifier:* a guard deciding a source fact from
+  `read_text()` plus a pattern where a parse was available.
+  *Provisional · `derived-not-listed-invariant` (`093-C2`, `095-C1`, `097-C1`) ·
+  `read-the-syntax-not-the-text` (`187-C1`, `192-C3`).*
 - **R6.8 — An AC phrased as a failure mode needs a guard that can exhibit it.** Close a "would fail
   if X" AC with a test that reaches X and is seen failing (R6.5); if the code structurally cannot
   reach X, name the different boundary the test really guards and split the claim. Run it against a
   repo/fixture that still exhibits the failure, not one a prior ticket cleaned. *Falsifier:* a
   failure-mode AC closed by a test that passes without reaching the failure, or run where it cannot
   occur. *Provisional · `ac-failure-mode-needs-the-right-guard` (`085-C2`).*
+- **R6.9 — A guard over a generated artifact asserts the RENDERED output.** Where content is produced
+  by a renderer, assert what the renderer produces, never the artifact's bytes: a grep over a page
+  built in the browser is green by construction and cannot see the drop. *Falsifier:* a test
+  asserting on artifact bytes for content a renderer emits.
+  *Provisional · `guard-asserts-rendered-not-shipped-bytes` (`127-C1`).*
 
 ## 7. Change discipline
 
