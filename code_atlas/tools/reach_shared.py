@@ -151,6 +151,7 @@ def reach_payload(
     unproven: list[dict[str, object]],
     depth_exhausted: bool,
     edge_health: object | None = None,
+    edge_health_by_language: object | None = None,
     frontier_skipped_non_resolved: int | None = None,
     total_count: int | None = None,
 ) -> dict[str, object]:
@@ -172,6 +173,10 @@ def reach_payload(
     )
     if edge_health is not None:
         payload["edge_health"] = edge_health
+    if edge_health_by_language is not None:
+        # The walk is cross-language, so the blended figure above IS this answer's denominator — but
+        # a blend cannot be attributed (183), and round 12 could not ask which adapter moved it.
+        payload["edge_health_by_language"] = edge_health_by_language
     if frontier_skipped_non_resolved is not None:
         payload["frontier_skipped_non_resolved"] = frontier_skipped_non_resolved
     return payload

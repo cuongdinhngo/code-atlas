@@ -34,7 +34,7 @@ the sighting that bound one wrongly).
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
 | `derived-not-listed-invariant` | 22 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180, 187, 191, 184, 022 | **R6.7** |
-| `prove-the-guard-fails` | 29 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188, 189, 190, 187, 191, 184, 192, 022, 194 | **R6.5** — 190 is the *other* side of it: not *was it seen failing?* but *did it fail for the thing it forbids?* |
+| `prove-the-guard-fails` | 30 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188, 189, 190, 187, 191, 184, 192, 022, 194, 195 | **R6.5** — 190 is the *other* side of it: not *was it seen failing?* but *did it fail for the thing it forbids?* |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
 | `fixture-shape-begs-the-question` | 11 | 084, 086, 103–106, 121, 183, 185, 190, 191 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
@@ -50,6 +50,7 @@ the sighting that bound one wrongly).
 | `one-rule-for-every-subject-slot` | 6 | 102, 122, 183, 186, 179, 187 | **R1.8** — promoted 2026-08-27 |
 | `one-field-two-questions` | 2 | 189, 022 | open — proposed 2026-08-30, awaiting ratify |
 | `read-the-syntax-not-the-text` | 3 | 190, 187, 192 | open — **overdue: rec 3, awaiting ratify**; destination **R6.7** |
+| `an-aggregate-outlives-the-world-that-named-it` | 2 | 183, 195 | open — proposed 2026-08-30, awaiting ratify |
 | `two-syntaxes-two-paths` | 3 | 019, 184, 022 | open — **overdue: rec 3, awaiting ratify** |
 | `ac-failure-mode-needs-the-right-guard` | 2 | 085, 107 | **R6.8** — promoted 2026-08-27 |
 | `own-only-what-you-wrote` | 2 | 088, 089 | **R5.7** — promoted 2026-08-27 |
@@ -101,6 +102,52 @@ and it is the one that will fall behind.**
 - destination: **R6.7** — proposed sharpening. R6.7 already says *derive the set, never list it*; a
   text sweep looks like a derivation and is not one, because it derives from the wrong grammar. Left
   for `/mango:promote` and a human to ratify; no rule written here.
+
+## 195 — 183 predicted the enumeration it was owed, and named three of the four consumers
+
+`183-C1` said the actionable form of *"a second value makes every aggregate over that dimension a
+blend"* is **an enumeration**, and handed it forward: *"belongs to whichever ticket adds adapter
+#3."* 184's AC3 forbade a `code_atlas/` diff, so it landed here. **The grep found four consumers of
+`edge_health()`, and the ticket named three** — `get_index_status` is the one 183 itself fixed, and
+that is exactly why a filer working from the last change misses it. The enumeration has to come from
+the code, which is what Scope 1 says and why it says it.
+
+**The right decision was `both`, and `slice` would have been a regression.** Both re-pointed tools
+walk **across** languages from configured entry points, so the blended figure genuinely *is* their
+denominator. Replacing it with a slice would have made the caveat **wrong** rather than merely
+unattributable — a worse failure than the one being fixed. The ticket's Scope 2 draws that line
+itself (*"a genuinely whole-graph headline is not [the defect]"*), and the fix is additive: keep the
+number, add the attribution.
+
+**The red-run count is 8 of 12, and saying 12 would have overstated the guard.** Four of the twelve
+assertions test the field's *absence* — the pre-183 stamp case and `minimal` — and are correct both
+before and after the change. A red count taken from the file's total counts assertions that were
+never going to move, which is a quieter version of the conditional-assertion failure 191 filed.
+
+**The fourth consumer was deferred to a filed ticket, not dropped.** `generate_onboarding`'s
+`confidence` is a genuinely whole-graph headline for a whole-repo document *and* the one a human
+reads — but it is a field of a versioned published schema with a renderer behind it, so changing it
+is a schema bump, not the re-point this ticket scoped itself to. That is the ticket's own
+*Explicitly not in scope* line applied to itself, and it became [196].
+
+*Claim `195-C1` — the enumeration an ambiguous aggregate owes must be taken from the code: the filer
+works from the change that made it ambiguous and therefore misses the consumer that change already
+fixed. **Second sighting of `183-C1`** — recurrence 2. type: 2 · handle:
+`an-aggregate-outlives-the-world-that-named-it` · seen: 183, 195 · evidence: the ticket named three
+consumers; `grep -rn "edge_health()"` found four · destination: open — promotion candidate, needs a
+human ratify.*
+*Claim `195-C2` — when an aggregate becomes unattributable, ATTRIBUTE it, do not replace it: for an
+answer whose own scope spans the dimension, the aggregate is still the right denominator and swapping
+in a slice turns an uninformative caveat into a false one. type: 2 · handle:
+`attribute-the-aggregate-do-not-replace-it` · status: proposed · seen: 195 · destination: open —
+recurrence 1.*
+*Claim `195-C3` — a red-run count must exclude assertions that pin an ABSENCE: they hold under both
+versions, so counting them inflates what the guard was shown to catch. 8 of 12 here, not 12.
+type: 2 · handle: `prove-the-guard-fails` · seen: 195 · destination: R6.5.*
+*Claim `195-C4` — the tier-1 token budget is paid by finding what another tier-1 file already says
+verbatim, not by raising it: `docs/BACKLOG.md` carried "M10–M12 are complete" and "shipped for daily
+use at task 014", both already in `AGENTS.md`. type: 5 · handle: `tier-1-pays-from-its-duplicates` ·
+status: confirmed · seen: 195 · area: docs · destination: stays in lessons_path.*
 
 ## 194 — The trace covered the invariant the change moved, and the change moved two
 
@@ -794,15 +841,15 @@ two-step was measured at 686.9 ms and rejected on structure, not speed.
 - type: 2 generalisable-heuristic
 - handle: an-aggregate-outlives-the-world-that-named-it
 - status: proposed (awaiting human confirm)
-- seen: 183
+- seen: 183, 195
 - evidence: `edge_health` needed no code change to become wrong — a second language arrived and its
   name silently stopped matching its subject. No test failed, because nothing changed. The class
   generalises past languages to any population axis that grows from one value to two (tenant, region,
   adapter, repo).
 - area: store / measurement / roll-out
-- destination: stays in `lessons_path` (recurrence 1) — the actionable form is a roll-out checklist
-  item ("enumerate the aggregates this new dimension makes ambiguous"), which belongs to whichever
-  ticket adds adapter #3.
+- destination: open — **recurrence 2, awaiting ratify.** The handed-forward enumeration
+  ("enumerate the aggregates this new dimension makes ambiguous") was **discharged by 195**, which
+  found four consumers where the ticket named three; see [[195-C1]].
 
 ## 180 — A relevance score is not an exactness score, and BM25 is systematically wrong about which
 `search_symbol("<name>")` returned *page 1 of 46* with two substring near-misses in small `.js` files

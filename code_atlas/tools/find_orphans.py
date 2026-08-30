@@ -112,6 +112,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     nodes_total=outcome.nodes_total,
                 )
             health = store.edge_health() if detail_level == "standard" else None
+            by_language = (
+                store.stamped_edge_health_by_language() if detail_level == "standard" else None
+            )
         results = [shape_hit(row, extra={"why": row["why"]}) for row in outcome.orphans]
         unproven_rows = outcome.unproven
         if detail_level == "minimal":
@@ -130,6 +133,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             unproven=unproven_payload,
             depth_exhausted=outcome.depth_exhausted,
             edge_health=health,
+            edge_health_by_language=by_language,
             total_count=outcome.orphan_total,
         )
         # One name for one fact. Omitted only where the rows themselves already state it (061).

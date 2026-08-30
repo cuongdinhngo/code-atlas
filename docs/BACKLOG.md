@@ -7,7 +7,6 @@ landed*; each ticket's cost is one row in [`TOKEN_LEDGER.md`](TOKEN_LEDGER.md) (
 rationale lives in those three.
 
 **Status legend:** `todo` · `in-progress` · `blocked` · `deferred` · `done`
-**Shipped for daily use at task 014** (search/read/outline).
 
 ## Open work — Pillar 1 · Graph
 
@@ -72,7 +71,8 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 191 | [A conditional assertion is a test that never ran](tasks/191_a-conditional-assertion-is-a-test-that-never-ran.md) | Coverage | done | 189, 181 |
 | 192 | [A partial answer never gets the coverage disclosure](tasks/192_coverage-note-suppressed-on-a-partial-answer.md) | Agent-trust | done | 160, 173, 186 |
 | 194 | ["Which writers omit this column, and what is its DEFAULT?"](tasks/194_default-filled-column-defect-class-query.md) | Agent-fit | done | 022 |
-| 195 | [Three tools still read the blend 183 split](tasks/195_three-tools-still-read-the-whole-graph-blend.md) | Measure | todo | 183 |
+| 195 | [Three tools still read the blend 183 split](tasks/195_three-tools-still-read-the-whole-graph-blend.md) | Measure | done | 183 |
+| 196 | [The system map cannot attribute its own confidence](tasks/196_the-system-map-cannot-attribute-its-own-confidence.md) | Measure | todo | 195 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -127,10 +127,10 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | Round | Tickets | State |
 |---|---|---|
 | 4–7 (2026-08-10…23) | 075–082 · 092–097 · 099–102 · 122–125 · 126 · 127 | closed — 081 `NOT OBSERVED`; 127 closed **119** in the same change |
-| 8–9 (2026-08-25/26) | 158–163 · 022 | closed |
+| 8–9 (2026-08-25/26) | 158–163 | closed |
 | 10 (2026-08-26) | 164–167 | closed — the verification round: no prior fix reached a long-lived process until **164** |
 | 11 (2026-08-27) | 168–179 | closed — **first round a fix reached the field** |
-| 12 (2026-08-28) | 180–190 | open — first **two-language** index; the T-SQL it could not read became **184** then **022**. Adapter #2's fifth zero is **applicability**, not roll-out. 187–190 were found by the fixes, not by the round |
+| 12 (2026-08-28) | 180–190 | open — first **two-language** index; the T-SQL it could not read became 184/022 and §13 became 195. Adapter #2's fifth zero is **applicability**, not roll-out. 187–190 were found by the fixes, not by the round |
 | Architecture review (2026-08-23) | 138–142 · 143–145 | 138 · 139 · 142 · 143 · 144 · **145A** done; 141 gated at n = 0; 145B deferred (stack not chosen) |
 
 **What still governs open work:**
@@ -138,7 +138,7 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 - **Every `deferred` ticket holds its own gate** — 074, 098 and 141 each state theirs, and 141 is at
   n = 0; do not queue one without reading it. Auto *reading orders* stay unscheduled
   ([121](benchmarks/121_onboarding-question-class.md)).
-- **M10–M12 are complete** — 23 tools on the MCP surface, plus four shell entry points
+- **23 tools** on the MCP surface, plus four shell entry points
   ([`ROADMAP.md`](phase3-onboarding/ROADMAP.md)).
 - **Roll-out is the binding constraint and deliberately not a ticket here** — five rounds standing;
   this backlog accepts only code, so it goes to the consumer as a PR.

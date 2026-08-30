@@ -53,6 +53,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 seeds, depth=depth, max_nodes=config.impact_max_nodes
             )
             health = store.edge_health() if detail_level == "standard" else None
+            by_language = (
+                store.stamped_edge_health_by_language() if detail_level == "standard" else None
+            )
         results = [
             shape_hit(row, extra={"depth": row["depth"]}) for row in outcome.reachable
         ]
@@ -67,6 +70,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             unproven=unproven_hits(outcome.unproven),
             depth_exhausted=outcome.depth_exhausted,
             edge_health=health,
+            edge_health_by_language=by_language,
             frontier_skipped_non_resolved=outcome.frontier_skipped_non_resolved,
         )
 
