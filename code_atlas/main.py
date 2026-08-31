@@ -39,6 +39,7 @@ from code_atlas.tools import (
     read_symbol,
     search_symbol,
     subtree_dependencies,
+    trace_capability,
 )
 from code_atlas.tools.schema_guard import guard
 
@@ -64,6 +65,7 @@ TOOL_NAMES: tuple[str, ...] = (
     explain_path.NAME,
     architecture_overview.NAME,
     guided_tour.NAME,
+    trace_capability.NAME,
     generate_onboarding.NAME,
     check_architecture_rules.NAME,
     check_column_defaults.NAME,
@@ -148,6 +150,8 @@ def build_server(
         server.tool(guard(diff_architecture.create(config)))
     if class_diagram.NAME in names:
         server.tool(guard(class_diagram.create(config)))
+    if trace_capability.NAME in names:
+        server.tool(guard(trace_capability.create(config)))
     prompts.register(server)
     return server
 

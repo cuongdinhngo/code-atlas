@@ -42,6 +42,7 @@ from code_atlas.tools import (
     read_symbol,
     search_symbol,
     subtree_dependencies,
+    trace_capability,
 )
 from tests.adapter_cli import AdapterCli
 from tests.php_adapter_cli import CLI as PHP_CLI
@@ -158,6 +159,9 @@ INVOKERS: dict[str, Invoker] = {
         lambda c, s, n: architecture_overview.create(c)(), "results"
     ),
     guided_tour.NAME: Invoker(lambda c, s, n: guided_tour.create(c)(), "results"),
+    trace_capability.NAME: Invoker(
+        lambda c, s, n: trace_capability.create(c)(qname=s["method"]), "results"
+    ),
     generate_onboarding.NAME: Invoker(
         lambda c, s, n: generate_onboarding.create(c)(), "results"
     ),
@@ -241,6 +245,7 @@ PHP_PARITY = ToolParity(
             explain_path.NAME,
             architecture_overview.NAME,
             guided_tour.NAME,
+            trace_capability.NAME,
             generate_onboarding.NAME,
             class_diagram.NAME,
         ),
@@ -283,6 +288,7 @@ TS_PARITY = ToolParity(
             explain_path.NAME,
             architecture_overview.NAME,
             guided_tour.NAME,
+            trace_capability.NAME,
             generate_onboarding.NAME,
         ),
         # The gap the ticket was filed on, and the only tool that goes EMPTY for a language reason:
@@ -362,6 +368,7 @@ SQL_PARITY = ToolParity(
             explain_path.NAME,
             architecture_overview.NAME,
             guided_tour.NAME,
+            trace_capability.NAME,
             generate_onboarding.NAME,
             check_column_defaults.NAME,
         ),

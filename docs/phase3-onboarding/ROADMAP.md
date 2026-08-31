@@ -130,16 +130,24 @@ path is proven and measured.
 
 > **Measured on 2026-08-23 (task 121), and it is a split verdict.** This section specified the gate —
 > an **onboarding question-class** in the tokens-to-answer harness (034/045) plus the recall gate
-> (055), baselined against `grep`+`Read` — and for three milestones it was never added. It now holds
-> **twelve** questions (`tier: onboarding`): ten on the committed fixture
-> `tests/fixtures/php/onboarding`, two on the pinned `symfony/demo`, every ground truth read out of
-> the source by hand before the tools ran. Numbers, both halves:
+> (055), baselined against `grep`+`Read` — and for three milestones it was never added. The class
+> now runs on the committed fixture `tests/fixtures/php/onboarding` and the pinned `symfony/demo`,
+> every ground truth read out of the source by hand before the tools ran; its size is whatever
+> `tier: onboarding` holds in `scripts/tokens_to_answer_questions.json`, which is where it is
+> counted rather than here (R6.7 — the literal said *twelve* through two later additions). Numbers,
+> both halves:
 > [`../benchmarks/121_onboarding-question-class.md`](../benchmarks/121_onboarding-question-class.md).
 >
 > **Earned:** 12/12 correct, recall 1.0, `confidently_wrong` 0; **1.58 / 1.34 / 1.01** on the fixture
 > and **4.66** on `symfony/demo` for the three questions a grep baseline can fairly answer, moving the
 > fixture aggregate 0.29 → **0.789**. Nine questions have no fair baseline and each states why rather
 > than carrying an invented one.
+>
+> **199 (2026-08-31) — the behaviour question the class did not have.** *"What happens when a user
+> does X?"* was unaskable: 197 measured `summary.flows` on `architecture_overview` at ratio **0.53**
+> (floor 0.63), precision 0.944, `unexpected` 6, and reverted it. `trace_capability` answers the
+> same question per subject and the aggregate moved **0.665 → 0.829** with recall and precision both
+> 1.0 and `unexpected` 0 — at the unchanged floors. The defect was the payload, not the flows.
 >
 > **Not earned — and this section promised to say so:** on a canonical real repo the **reading order
 > was wrong** — lint and bootstrap opened the tour. ~~`guided_tour`'s first five were a lint config,

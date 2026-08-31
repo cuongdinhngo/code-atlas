@@ -65,6 +65,7 @@ discussion. One question at a time; record the first tool named; no retries, no 
 | 21 | Draw the class diagram for this type (or this file's types). | `class_diagram` |
 | 22 | Which modules does this change reach, and which one do I look at first? | `impact_modules` |
 | 23 | Which writers of this table leave a column to its DEFAULT? | `check_column_defaults` |
+| 24 | What happens when a user does this — what does one request touch, entry to data? | `trace_capability` |
 
 ### Why Q4 discriminates (task 097)
 

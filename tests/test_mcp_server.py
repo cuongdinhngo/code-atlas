@@ -53,6 +53,7 @@ from code_atlas.tools.reachable_from import NAME as REACHABLE
 from code_atlas.tools.read_symbol import NAME as READ
 from code_atlas.tools.search_symbol import NAME as SEARCH
 from code_atlas.tools.subtree_dependencies import NAME as SUBTREE_DEPS
+from code_atlas.tools.trace_capability import NAME as TRACE
 
 REPO = Path(__file__).resolve().parent.parent
 FAKE = REPO / "tests" / "fixtures" / "adapter" / "fake_adapter.py"
@@ -192,6 +193,7 @@ def test_the_proof_has_something_to_run() -> None:
         EXPLAIN,
         OVERVIEW,
         TOUR,
+        TRACE,
         ONBOARD,
         ARCH_RULES,
         COL_DEFAULTS,

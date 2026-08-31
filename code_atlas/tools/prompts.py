@@ -92,6 +92,8 @@ def register(server: FastMCP) -> None:
             "-> class_diagram.\n"
             "- Which writers of this table omit a column that has a DEFAULT "
             "-> check_column_defaults.\n"
+            "- What happens when a user does X — one request from entry to the data "
+            "-> trace_capability.\n"
             "Then call get_index_status first if unsure the index is current."
         )
 

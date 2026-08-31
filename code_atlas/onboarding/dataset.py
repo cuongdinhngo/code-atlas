@@ -18,12 +18,7 @@ from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from code_atlas.onboarding.flows import (
-    FlowSet,
-    build_flows,
-    seed_files,
-    seed_symbols,
-)
+from code_atlas.onboarding.flows import FlowSet, flows_from_graph
 from code_atlas.onboarding.headlines import Headline, headline_candidates
 from code_atlas.onboarding.layers import (
     IdentityLayerRefiner,
@@ -40,7 +35,6 @@ from code_atlas.onboarding.mirrors import MirrorReport, find_mirror_subtrees
 from code_atlas.onboarding.modules import (
     COVERAGE_NOTE,
     ModuleMap,
-    directory_owners,
     find_business_modules,
 )
 from code_atlas.onboarding.prose import ProseRun
@@ -560,22 +554,19 @@ def build_dataset(
     )
     # 197 — stamped at the builder, where metrics/layers/modules already exist, so no renderer
     # re-derives a second notion of a flow. Absent rows leave `flows` None, never a false zero.
+    # 199 lifted the assembly into `flows_from_graph` so the query tool cannot drift from this.
     flows: FlowSet | None = None
     if flow_edges is not None:
-        file_of = dict(nodes)
-        layer_of = {m.module: m.layer for m in assignment.modules}
-        seeds = seed_symbols(
-            metrics.entry_points,
-            seed_files(
-                sorted({f for _q, f in nodes if f}),
-                declared_entry_points or (),
-                declared_stub_roots or (),
-            ),
-            file_of,
-        )
-        flows = build_flows(
-            seeds, flow_edges, file_of, layer_of, directory_owners(business.modules),
-            max_flows=flow_max, max_nodes=flow_max_nodes,
+        flows = flows_from_graph(
+            nodes,
+            flow_edges,
+            metrics=metrics,
+            assignment=assignment,
+            modules=business,
+            declared_entry_points=declared_entry_points or (),
+            declared_stub_roots=declared_stub_roots or (),
+            max_flows=flow_max,
+            max_nodes=flow_max_nodes,
         )
     dataset = OnboardingDataset(
         version=DATASET_VERSION,

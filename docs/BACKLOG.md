@@ -125,7 +125,7 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | 146 | [gate can pass on stale bytecode](tasks/146_gate-can-pass-on-stale-bytecode.md) | Measure | done | — |
 | 197 | [no surface follows one request end to end](tasks/197_no-surface-follows-one-request-from-entry-to-the-data-it-writes.md) | Phase 3 / M11 | done | 113, 114, 111, 112, 022 |
 | 198 | [a business module is labelled by its directory name](tasks/198_a-business-module-is-labelled-by-its-directory-name.md) | Phase 3 / M12 | done | 114, 117, 197 |
-| 199 | [flows have no tool so an agent pays for the whole overview](tasks/199_flows-have-no-tool-so-an-agent-pays-for-the-whole-overview.md) | Phase 3 / M11 | todo | 197 |
+| 199 | [flows-have-no-tool-so-an-agent-pays-for-the-whole-overview](tasks/199_flows-have-no-tool-so-an-agent-pays-for-the-whole-overview.md) | Phase 3 / M11 | done | 197 |
 
 
 **Round ordering, and what each round left open.** One line each; the narratives live in
@@ -146,7 +146,7 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 - **Every `deferred` ticket holds its own gate** — 074, 098 and 141 each state theirs, and 141 is at
   n = 0; do not queue one without reading it. Auto *reading orders* stay unscheduled
   ([121](benchmarks/121_onboarding-question-class.md)).
-- **23 tools** on the MCP surface, plus four shell entry points
+- **24 tools** on the MCP surface, plus four shell entry points
   ([`ROADMAP.md`](phase3-onboarding/ROADMAP.md)).
 - **Roll-out is the binding constraint and deliberately not a ticket here** — five rounds standing;
   this backlog accepts only code, so it goes to the consumer as a PR.

@@ -58,6 +58,7 @@ from code_atlas.tools import (  # noqa: E402
     read_symbol,
     search_symbol,
     subtree_dependencies,
+    trace_capability,
 )
 
 _QUESTIONS = _REPO / "scripts" / "tokens_to_answer_questions.json"
@@ -88,6 +89,7 @@ _TOOL_NAMES = (
     subtree_dependencies.NAME,
     reachable_from.NAME,
     find_orphans.NAME,
+    "trace_capability",
 )
 _NATIVE_TOOLS = frozenset({"grep", "read_file"})
 
@@ -144,6 +146,7 @@ def bind_tools(config: Config) -> dict[str, Callable[..., dict[str, object]]]:
         check_architecture_rules.NAME: check_architecture_rules.create(config),
         diff_architecture.NAME: diff_architecture.create(config),
         class_diagram.NAME: class_diagram.create(config),
+        trace_capability.NAME: trace_capability.create(config),
     }
 
 

@@ -42,7 +42,7 @@ rule** rather than adding a near-duplicate (P2), and one by finding the rule alr
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
 | `fixture-shape-begs-the-question` | 11 | 084, 086, 103–106, 121, 183, 185, 190, 191 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
-| `count-pin-in-blast-radius` | 9 | 085, 087–089, 175, 184, 022, 194, 196 | **AGENT_BRIEF P5** — promoted 2026-08-27; P5 needs the invariant, not the spelling (022) — 194 adds that a change can move MORE THAN ONE invariant, and 196 that a pin written as a bare LITERAL is invisible to a trace that greps the invariant's name |
+| `count-pin-in-blast-radius` | 10 | 085, 087–089, 175, 184, 022, 194, 196, 199 | **AGENT_BRIEF P5** — promoted 2026-08-27; P5 needs the invariant, not the spelling (022) — 194 adds that a change can move MORE THAN ONE invariant, and 196 that a pin written as a bare LITERAL is invisible to a trace that greps the invariant's name |
 | `source-the-caveat-from-the-computation` | 6 | 100–102, 122, 127, 189 | **R5.5** |
 | `re-verify-the-assumption-on-a-new-path` | 3 | 102, 107, 122 | **AGENT_BRIEF P6** — promoted 2026-08-27 |
 | `re-run-the-sweep-after-the-last-edit` | 3 | 100–102 | **AGENT_BRIEF P4** |
@@ -53,7 +53,7 @@ rule** rather than adding a near-duplicate (P2), and one by finding the rule alr
 | `record-the-deviation-as-a-deviation` | 2 | 101, promote-2026-08-15 | **AGENT_BRIEF P3** |
 | `one-rule-for-every-subject-slot` | 6 | 102, 122, 183, 186, 179, 187 | **R1.8** — promoted 2026-08-27 |
 | `one-field-two-questions` | 2 | 189, 022 | open — **rejected 2026-08-30**: the two sightings point opposite ways (189: do not add a field when the payload already carries the axis; 022: do not overload one), so the handle may be over-grouping. Re-propose on a third, independent sighting |
-| `read-the-syntax-not-the-text` | 3 | 190, 187, 192 | **R6.7** — widened 2026-08-30 (a text sweep is not a derivation) |
+| `read-the-syntax-not-the-text` | 4 | 190, 187, 192, 199 | **R6.7** — widened 2026-08-30 (a text sweep is not a derivation); 199 adds that prose SAYING a field is absent trips a scan looking for it |
 | `an-aggregate-outlives-the-world-that-named-it` | 2 | 183, 195 | **AGENT_BRIEF P7** — promoted 2026-08-30 |
 | `two-syntaxes-two-paths` | 3 | 019, 184, 022 | **R6.2** — it was already there, citing `019-C2`; the 2026-08-30 pass found it by grepping the CLAIM ID, not the slug, and extended the citation |
 | `ac-failure-mode-needs-the-right-guard` | 2 | 085, 107 | **R6.8** — promoted 2026-08-27 |
@@ -201,6 +201,77 @@ supersedes is a claim's recall weight in `lessons_path`, which is tier 2, so the
 from unrelated tier-1 retelling or the rule book can never grow. type: 5 · handle:
 `a-promotion-pays-from-elsewhere-in-tier-1` · status: confirmed · seen: promote-2026-08-30 · area:
 docs / budget · destination: stays in lessons_path.*
+
+## 199 — The trace greps an example, so it is blind wherever that example never went
+A new MCP tool touches 22 places in this repo. The blast-radius trace found 15, by grepping the
+newest previous tool (194) and folding in every file that named it. The seven it missed split into
+three kinds, and only the first is carelessness:
+
+- **Two count pins I listed and then judged not applicable** — the core-module count and the
+  paging-denominator list. Listing a site and dismissing it is worse than not finding it, because
+  the dismissal reads as coverage.
+- **Three lists 194's tool is not in** — the benchmark harness's `bind_tools`, its own `_TOOL_NAMES`,
+  and the question registry. No grep for `check_column_defaults` can surface a list that never held
+  `check_column_defaults`. The method is structurally blind here, not merely incomplete.
+- **Two verdict tables that demand a REASON, not a row** — *why is this tool not batched* and *why
+  does it not sign a claim*. Both forced a design answer I had not written down anywhere. That is
+  the guard working exactly as intended.
+
+The measurement went the other way and is the ticket's real result. The gate's ratio is a **sum**,
+`grep_sum / atlas_sum`, so a question keeps it green when `g >= 0.63a - 116`. That inequality was
+derived at design, before a line was written: 197 spent `a ~ 2400` and needed `g >= 1396` against
+grep's 852; a per-subject payload needs `g >= 41`. Measured after: **0.665 -> 0.829**. The defect
+197 hit was the payload, and the arithmetic said so in advance rather than after a red gate.
+
+*Claim `199-C1` — a blast-radius trace that greps a PRIOR EXAMPLE is blind to every registry that
+example is not in; grep the invariant's shape (a list of tool names, a dict keyed by tool) as well
+as a known member of it. type: 2 · handle: `count-pin-in-blast-radius` · seen: 085, 087, 088, 089,
+175, 184, 022, 194, 196, 199 · evidence: `git grep -ln check_column_defaults` -> 15 files; the gate
+found 7 more, three of them lists 194's tool had never been added to · destination: AGENT_BRIEF P5.*
+*Claim `199-C2` — listing a blast-radius site and then judging it N/A is worse than missing it: the
+judgement is recorded as coverage and nothing re-checks it. Two of this ticket's three count-pin
+failures were sites the trace had already named. type: 2 · handle:
+`a-dismissed-site-reads-as-a-covered-one` · status: proposed · seen: 199 · evidence:
+`test_sql_confinement`, `test_core_is_language_agnostic` and `test_total_count_semantics` were all
+in the trace output and all dismissed · destination: open — recurrence 1.*
+*Claim `199-C3` — a fixture can make a defect UNREPRODUCIBLE while looking like the right fixture:
+199's stated over-answering could not be shown on the fixture the ticket names, because all four of
+its flow seeds are the same controller, so "every flow" and "this subject's flows" are one set.
+Build the smallest input where the defect is VISIBLE before asserting its absence. type: 2 · handle:
+`the-fixture-can-hide-the-defect-it-was-chosen-for` · status: proposed · seen: 199 · evidence: the
+mutation `matched = list(built.flows)` left the first proving test green; a two-entry seeded repo
+reddens it · destination: open — recurrence 1.*
+*Claim `199-C4` — derive the acceptance measurement's arithmetic BEFORE building, when the metric is
+an aggregate: the gate ratio is a sum, so the pass condition is `g >= 0.63a - 116`, which explains
+197's failure and predicts this ticket's result. A metric read as per-question would have made both
+inexplicable. type: 2 · handle: `derive-the-aggregate-before-you-move-it` · status: proposed · seen:
+199 · evidence: predicted `a ~ 250` needs `g >= 41`; measured 0.665 -> 0.829 · destination: open —
+recurrence 1.*
+*Claim `199-C6` — a cap that binds at SELECTION is invisible to a count of what was CUT: `flows_cut`
+stayed 0 while flows went missing, because the cap dropped seeds before any flow was built. The
+result was not a silent partial but a REFUSAL THAT WAS CONFIDENTLY WRONG — a subject with a real
+flow answered `no_matches`. Check the input the cap ate, not only the output it trimmed. type: 2 ·
+handle: `a-cap-at-selection-leaves-no-trace-in-the-output` · status: proposed · seen: 199 ·
+evidence: `max_results=1` on a two-entry repo -> `\App\ReportController: reason=no_matches
+truncated=False`, while its flow exists · destination: open — recurrence 1.*
+*Claim `199-C7` — when a ticket's acceptance test is a MEASUREMENT the author also authors the
+question for, the honest artifact is a sensitivity table, not a green number: this question passes
+at 0.830 with the shipped grep pattern and at 0.604 — below the floor — with a narrower one that is
+just as defensible. Disclose the range; do not tune the input to widen the margin. type: 2 · handle:
+`disclose-the-measurement-s-sensitivity-not-only-its-value` · status: proposed · seen: 199 ·
+evidence: challenger's sweep over four patterns, 0.604 / 0.630 / 0.630 / 0.830 · destination: open —
+recurrence 1.*
+*Claim `199-C8` — second sighting: `work_doc_mode: embed` makes challenger blindness a MANUAL
+construction, and the mitigation leaked again — this run's challenger reported reading
+`LESSONS.md` and `TOKEN_LEDGER.md` after being told not to. A guarantee that depends on the prompt
+holding is not a guarantee. type: 3 · handle: `embed-mode-leaks-the-working-doc-into-the-diff` ·
+seen: 197, 199 · evidence: the challenger's own independence statement · destination:
+`skill_gap_path` — mango's maintainer, not this repo.*
+*Claim `199-C5` — third sighting: a guard that scans source as TEXT fires on prose. A comment saying
+a field is deliberately ABSENT names the field, and the emitter scan declared the tool an emitter.
+type: 2 · handle: `read-the-syntax-not-the-text` · seen: 190, 187, 192, 199 · evidence: the
+docstring explaining the missing paging denominator reddened its own guard, twice — the second time
+because the guard's FILE NAME contains the field name · destination: R6.7.*
 
 ## 196 — I gated the attribution on the stamp existing; the stamp existing is not the claim
 The obvious predicate for "can this map say which language earned its confidence figure?" is *is

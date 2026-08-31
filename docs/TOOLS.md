@@ -1,6 +1,6 @@
 # Tools — the full surface
 
-> The agent-facing surface of code-atlas: all 23 tools, what each returns, which take a list of
+> The agent-facing surface of code-atlas: all 24 tools, what each returns, which take a list of
 > subjects and which do not, the operator prompts, and the opt-in hooks. The
 > [README](../README.md) names the handful you call first; this is the reference. It is **not**
 > the payload contract (→ [`CONVENTION.md`](CONVENTION.md) §6) and not design reasoning
@@ -31,6 +31,7 @@
 | `diff_architecture` | architectural drift between two onboarding dataset / manifest snapshots |
 | `class_diagram` | mermaid class diagram for one type plus its ancestry, or every type in one file — inheritance from resolved edges; associations from declared types only |
 | `check_column_defaults` | which writers of a table omit a column that declares a `DEFAULT`, against the total that write it — a writer naming no columns is *unmeasured*, never an omitter (SQL tier 2) |
+| `trace_capability` | the capability flows ONE subject takes part in — an entry symbol (`qname`), a file (`path`) or a business module (`module`); each result is a traced path with its hops (`qname` · `file` · `layer` · `kind` · `tier`), how it `ended` and its `sink`. Carries no layer table, matrix or hub list: for the whole picture call `architecture_overview`. A subject the index does not hold answers `no_such_symbol`; one that joins no flow answers `no_matches` (199) |
 
 ### `architecture_overview` — layers, crossings, and the populations behind a zero
 
@@ -137,6 +138,7 @@ for a reason:
 | `diff_architecture` | its subject is already a pair of snapshots — a list of pairs is a query language, which 101 deliberately is not |
 | `class_diagram` | its subject is one type (plus ancestry) or one file — a list of subjects is N diagrams, and the honest form is N calls |
 | `check_column_defaults` | its subject is one table, and the answer is already a scan of every defaulted column on it — a list of tables is N independent scans with no shared arithmetic |
+| `trace_capability` | its subject IS the question — *what happens when a user does X* is asked of one entry, one file or one module. A list would return N unrelated traces and reintroduce exactly the over-answering 199 exists to remove (101) |
 
 ## Operator prompts (human-invoked — not part of the agent tool surface)
 
@@ -152,7 +154,7 @@ name-only answers from description-backed ones — is
 | `explore_area` | status → search/outline → read only what's needed |
 | `find_usages` | status → find_references / find_callers / find_implementations → read to confirm |
 | `impact_of_change` | status → impact on the changed paths/qnames → read only the blast-radius surface |
-| `which_tool` | a recognition map: which tool answers a given question, across all 23 tools |
+| `which_tool` | a recognition map: which tool answers a given question, across all 24 tools |
 
 ## Hooks (opt-in)
 

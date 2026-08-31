@@ -28,9 +28,11 @@ from code_atlas.ignore import translate_path_pattern
 from code_atlas.onboarding.layers import (
     READING_SEED_LAYER_RANK,
     RESPONSIBILITY_KEYWORDS,
+    LayerAssignment,
     reading_seed_rank,
 )
-from code_atlas.onboarding.modules import module_of_path
+from code_atlas.onboarding.metrics import GraphMetrics
+from code_atlas.onboarding.modules import ModuleMap, directory_owners, module_of_path
 from code_atlas.onboarding.reachability import SIGNAL_DECLARED, SIGNAL_VOCABULARY
 
 RESOLVED, HEURISTIC, DYNAMIC = CONFIDENCE_TIERS
@@ -82,6 +84,7 @@ __all__ = [
     "Flow",
     "FlowSet",
     "FlowStep",
+    "flows_from_graph",
     "NO_SEEDS",
     "SINK_LAYER",
     "TRUNCATED_NOTE",
@@ -386,4 +389,44 @@ def build_flows(
         unattributed=tuple(sorted(unattributed)),
         walk_truncated=truncated,
         refused=None,
+    )
+
+
+def flows_from_graph(
+    nodes: Sequence[tuple[str, str]],
+    flow_edges: Sequence[tuple[str, str, str, str]],
+    *,
+    metrics: GraphMetrics,
+    assignment: LayerAssignment,
+    modules: ModuleMap,
+    declared_entry_points: Sequence[str] = (),
+    declared_stub_roots: Sequence[str] = (),
+    max_flows: int,
+    max_nodes: int,
+) -> FlowSet:
+    """Seeds, layer lookup and module ownership, assembled once for every caller (task 199).
+
+    199 added a per-subject query tool beside the dataset. Two copies of this assembly would be two
+    paths to one derivation, and two paths drift — the tool would eventually attribute a file to a
+    different layer than the map does. The aggregates come IN, so no caller recomputes them.
+    """
+    file_of = dict(nodes)
+    layer_of = {module.module: module.layer for module in assignment.modules}
+    seeds = seed_symbols(
+        metrics.entry_points,
+        seed_files(
+            sorted({path for _qname, path in nodes if path}),
+            declared_entry_points,
+            declared_stub_roots,
+        ),
+        file_of,
+    )
+    return build_flows(
+        seeds,
+        flow_edges,
+        file_of,
+        layer_of,
+        directory_owners(modules.modules),
+        max_flows=max_flows,
+        max_nodes=max_nodes,
     )

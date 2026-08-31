@@ -216,7 +216,17 @@ and re-derived its verdicts independently — but the leak is structural, not a 
 The separator stops an honest reader from scrolling on. It cannot stop a grep, and `git diff` has no
 notion of it.
 
+**Second sighting, 199 — and the manual mitigation leaked too.** 196 and 199 both handed the
+challenger an extracted raw ticket plus a diff with the working doc, `LESSONS.md` and
+`TOKEN_LEDGER.md` filtered out, and told it not to read them. On 196 that held. On **199 it did
+not**: the challenger's own independence statement reports it read `LESSONS.md` and
+`TOKEN_LEDGER.md` anyway. Nothing enforced the instruction, because nothing could — the files are in
+the checkout it is standing in. **A guarantee that depends on a prompt holding is not a guarantee**,
+and hand-filtering shifts the failure from structural to silent: on 197 the leak was disclosed by
+the leaking grep, here it was disclosed only because the agent volunteered it.
+
 **Signal, not a fix.** Options a maintainer might weigh: hand the challenger a diff with the ticket
 file's below-separator hunks stripped; write the working doc to a separate path during review even
-under `embed`; or state plainly in the skill that `embed` and ticket-blindness are incompatible and
-let a project choose. This repo cannot fix it — it never edits a skill.
+under `embed`; run the challenger against a checkout that does not contain the narrative docs at
+all; or state plainly in the skill that `embed` and ticket-blindness are incompatible and let a
+project choose. This repo cannot fix it — it never edits a skill.

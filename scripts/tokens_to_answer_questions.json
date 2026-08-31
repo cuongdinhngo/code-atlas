@@ -1411,6 +1411,60 @@
       "expected": [
         "lib/Clock.php"
       ]
+    },
+    {
+      "id": "onb_request_flow",
+      "source": "fixture",
+      "root": "tests/fixtures/php/onboarding",
+      "tier": "onboarding",
+      "question": "What happens when a user opens the invoice list — what path does that request take from the entry point to the data?",
+      "atlas_path": [
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "trace_capability",
+          "args": {
+            "qname": "\\Shop\\Controllers\\InvoiceController::index"
+          }
+        }
+      ],
+      "grep": {
+        "pattern": "Invoice"
+      },
+      "expected": [
+        "\\Shop\\Controllers\\InvoiceController::index",
+        "\\Shop\\Services\\InvoiceService::recent",
+        "\\Shop\\Repositories\\InvoiceRepository::findRecent",
+        "\\Shop\\Models\\Invoice"
+      ],
+      "precision_scope": [
+        "results",
+        {
+          "seed": "\\Shop\\Controllers\\InvoiceController::index"
+        },
+        "steps"
+      ],
+      "expected_set": [
+        "\\Shop\\Controllers\\InvoiceController::index",
+        "\\Shop\\Services\\InvoiceService::recent",
+        "\\Shop\\Repositories\\InvoiceRepository::findRecent",
+        "\\Shop\\Models\\Invoice",
+        "controllers/InvoiceController.php",
+        "services/InvoiceService.php",
+        "repositories/InvoiceRepository.php",
+        "models/Invoice.php",
+        "HTTP / Entry",
+        "Services",
+        "Domain / Data"
+      ],
+      "grep_evidence": [
+        "class InvoiceController",
+        "$repo->findRecent($clock)"
+      ]
     }
   ]
 }

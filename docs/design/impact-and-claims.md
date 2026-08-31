@@ -96,3 +96,4 @@ worse than none. Each of these would have lost a caveat that no one-line form ca
 | `check_architecture_rules` | confirmed vs candidate is a pair — a one-line violation count would erase the HEURISTIC tier partition (138) |
 | `diff_architecture` | a drift report is a shape across sections — a one-line change count erases which revision and which field moved (139) |
 | `class_diagram` | a diagram is a shape; a count of types without the mermaid body is not checkable (144) |
+| `trace_capability` | a traced path is only meaningful hop by hop: a one-line claim would assert *"this request touches N files"* while dropping the order, the layers and the tier of each hop — the parts that make it checkable at all (199) |
