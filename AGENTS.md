@@ -113,9 +113,12 @@ it as "unverified". The container route ends on **one** structural skip (the tes
   reviews on the PR.
 - **Still stop and confirm** for irreversible / higher-blast actions: force-push, history rewrite,
   deleting a branch/tag, committing to `main` directly, merging a PR, or publishing an image/release.
-- **Honor the run's args:** `/mango:solve … with skipped review` means run without the review phase and
-  don't reintroduce a waived gate; still surface each ✋ gate in-conversation so the maintainer can
-  interject, but proceed on the standing approval rather than waiting.
+- **Honor the run's args:** waiving review is **two decisions**, and mango takes them separately —
+  `--no-reviewer` waives the rule-book reviewer (~108k/round), `--no-challenger` waives the
+  ticket-blind challenger (~58k). **"with skipped review" means `--no-reviewer` only**; the review
+  phase still runs and the challenger keeps its seat. Don't reintroduce a waived gate; still surface
+  each ✋ gate in-conversation so the maintainer can interject, but proceed on the standing approval
+  rather than waiting.
 
 ## Ship discipline (plan §15)
 M0 spike → M1 full build → M2 resolver+contract tests → **M3 search/read/outline = first daily release (task 014)** → M4 scale → M5 incremental → M6 impact.
