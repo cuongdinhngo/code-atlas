@@ -75,6 +75,7 @@ const SECTION_OF = {
   layers: ['layerTable', 'lyrLegend'],
   deps: ['mxLede', 'mx', 'mxNote'],
   hubs: ['hubLede', 'hubTable'],
+  flows: ['flowLede', 'flowTable', 'flowNote'],
   mirrors: ['mirLede', 'mirTable', 'mirNote'],
   reach: ['reachLede', 'reachGrid', 'reachNote'],
   classes: ['clsLede', 'clsTable'],

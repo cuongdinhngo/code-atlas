@@ -17,6 +17,7 @@ import re
 import shutil
 import subprocess
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -599,3 +600,60 @@ def test_palette_order_does_not_depend_on_dataset_order(tmp_path: Path) -> None:
     )
 
     assert forward["search"]["resident"]["items"] == reversed_["search"]["resident"]["items"]
+
+
+# --------------------------------------------------------------------------- 197: flows render
+
+
+@needs_node
+def test_the_flows_section_renders_its_figures_from_the_dataset(tmp_path: Path) -> None:
+    """197 — proven by running the page, not by grepping the HTML (116's own rule).
+
+    A grep sees the template's literal ids whether or not the renderer ever filled them, which is
+    exactly the false green 116 recorded. This drives the page and asserts the section reported
+    text and figures that trace back to the dataset it was given.
+    """
+    from code_atlas.onboarding.flows import build_flows
+
+    paths = ["app/controllers/A.aa", "app/services/B.aa", "app/models/C.aa"]
+    file_of = {f"\\Sym{i}": path for i, path in enumerate(paths)}
+    layer_of = {
+        "app/controllers/A.aa": "HTTP / Entry",
+        "app/services/B.aa": "Services",
+        "app/models/C.aa": "Domain / Data",
+    }
+    flows = build_flows(
+        [("\\Sym0", "vocabulary")],
+        [
+            ("\\Sym0", "\\Sym1", "CALLS", "RESOLVED"),
+            ("\\Sym1", "\\Sym2", "CALLS", "RESOLVED"),
+        ],
+        file_of,
+        layer_of,
+        {"app/controllers": "intake"},
+        max_flows=5,
+        max_nodes=50,
+    )
+    assert flows.flows, "the fixture must produce a flow, or this proves nothing"
+
+    dataset = _dataset(paths)
+    rendered = replace(dataset, flows=flows)
+    report = _report(tmp_path, render_viewer(rendered, 50))
+
+    section = report["sections"]["flows"]
+    assert section["text"], "the flows section rendered nothing at all"
+    assert "flow(s) traced" in section["text"]
+    assert "intake" in section["text"], "the module attribution must reach the page"
+    assert "HTTP / Entry" in section["text"], "the layers crossed must reach the page"
+    assert section["figures"], "AC4: every figure is interpolated, so the section must carry some"
+
+
+@needs_node
+def test_an_index_without_flows_says_so_rather_than_rendering_an_empty_table(
+    tmp_path: Path,
+) -> None:
+    """R5.6 — a missing input is stated, never shown as a repository with no requests."""
+    report = _report(tmp_path, render_viewer(_dataset(["app/a.aa", "app/b.aa"]), 50))
+    text = report["sections"]["flows"]["text"]
+    assert "built before capability flows existed" in text
+    assert "missing input" in text

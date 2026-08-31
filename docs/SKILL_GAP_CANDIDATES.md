@@ -198,3 +198,25 @@ said so in the doc.
 
 **Signal, not a fix.** A record kind that says *this is the pre-change tree, and here is its SHA*
 would let the guard check a baseline's provenance instead of refusing it.
+
+## `work_doc_mode: embed` leaks the working doc into the diff the challenger reads (197)
+
+The ticket-blind challenger is given *"only the re-fetched raw ticket + the diff"*, and `analysis`
+step 2 keeps the guarantee by putting the working doc **below a separator line** in the same file
+under `embed`, *"so the review phase can hand the challenger only the raw ticket without leaking the
+design — preserving the challenger-blind guarantee in both modes."*
+
+It does not preserve it. Under `embed`, the working doc lives **inside the ticket file**, and on any
+ticket whose change touches its own ticket file — which is every ticket, because the phases are
+written there — the working doc is **part of the diff**. On 197 the challenger self-disclosed that an
+unscoped `grep` over `git diff` surfaced the cost ledger and the design rationale, including the
+conclusion for a finding it was about to report. It flagged this rather than presenting a clean view,
+and re-derived its verdicts independently — but the leak is structural, not a lapse.
+
+The separator stops an honest reader from scrolling on. It cannot stop a grep, and `git diff` has no
+notion of it.
+
+**Signal, not a fix.** Options a maintainer might weigh: hand the challenger a diff with the ticket
+file's below-separator hunks stripped; write the working doc to a separate path during review even
+under `embed`; or state plainly in the skill that `embed` and ticket-blindness are incompatible and
+let a project choose. This repo cannot fix it — it never edits a skill.

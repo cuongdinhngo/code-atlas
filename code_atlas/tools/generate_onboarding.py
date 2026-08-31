@@ -16,6 +16,7 @@ from code_atlas.config import Config
 from code_atlas.onboarding.artifact import (
     CACHE_DIR,
     CACHE_NAME,
+    FLOWS_NAME,
     MANIFEST_NAME,
     OUTPUT_DIR,
     OVERVIEW_NAME,
@@ -27,11 +28,13 @@ from code_atlas.onboarding.artifact import (
     cache_json,
     manifest_json,
     recorded_pages,
+    render_flows,
     render_module,
     render_overview,
     render_tour,
 )
 from code_atlas.onboarding.dataset import OnboardingDataset, build_dataset
+from code_atlas.onboarding.flows import FLOW_KINDS
 from code_atlas.onboarding.layers import LayerRefiner
 from code_atlas.onboarding.prose import ProseRun, ProseWriter
 from code_atlas.onboarding.summary import StructuralSummarizer, Summarizer
@@ -91,6 +94,7 @@ def create(
         with GraphStore(config.db_path) as store:
             nodes = store.node_universe()
             edge_tiers = store.dependency_edges_with_tier()
+            flow_edge_rows = store.flow_edges(FLOW_KINDS)
             edges = [(source, target) for source, target, _tier in edge_tiers]
             subgraph = store.tour_subgraph(max_nodes=config.impact_max_nodes)
             counts = store.counts()
@@ -154,6 +158,9 @@ def create(
             file_kind_counts=file_kinds,
             commit=commit,
             prose=prose,
+            flow_edges=flow_edge_rows,
+            flow_max=config.max_results,
+            flow_max_nodes=config.impact_max_nodes,
         )
         written = _write(
             Path(config.root),
@@ -239,6 +246,7 @@ def _write(
     files = {
         OVERVIEW_NAME: render_overview(artifact, node_cap=max_results),
         TOUR_NAME: render_tour(artifact, max_results),
+        FLOWS_NAME: render_flows(dataset),
         MANIFEST_NAME: manifest_json(
             artifact, dataset, index_root=index_root, last_ref=last_ref
         ),

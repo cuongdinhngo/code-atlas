@@ -18,6 +18,12 @@ from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
+from code_atlas.onboarding.flows import (
+    FlowSet,
+    build_flows,
+    seed_files,
+    seed_symbols,
+)
 from code_atlas.onboarding.headlines import Headline, headline_candidates
 from code_atlas.onboarding.layers import (
     IdentityLayerRefiner,
@@ -31,7 +37,12 @@ from code_atlas.onboarding.layers import (
 )
 from code_atlas.onboarding.metrics import GraphMetrics, compute_metrics, module_edges
 from code_atlas.onboarding.mirrors import MirrorReport, find_mirror_subtrees
-from code_atlas.onboarding.modules import COVERAGE_NOTE, ModuleMap, find_business_modules
+from code_atlas.onboarding.modules import (
+    COVERAGE_NOTE,
+    ModuleMap,
+    directory_owners,
+    find_business_modules,
+)
 from code_atlas.onboarding.prose import ProseRun
 from code_atlas.onboarding.reachability import ReachabilitySplit, classify_reachability
 
@@ -42,7 +53,7 @@ from code_atlas.onboarding.reachability import ReachabilitySplit, classify_reach
 # worded through the 117 seam. 7: caveats and declaration provenance — ``path_index.caveat``,
 # ``reachability.caveat``/``patterns``, per-bucket ``signals`` (119/127), so a caveat and a
 # declared count travel together. This is NOT ``contract_version``; the contract is untouched.
-DATASET_VERSION = 7
+DATASET_VERSION = 8
 # A directory is kept in the tree only when its subtree holds at least this many symbols — the
 # mockup's prune, so a 40k-file repo yields a map of a few dozen rows, not thousands (AC3).
 DIR_SYMBOL_THRESHOLD = 400
@@ -171,6 +182,8 @@ class OnboardingDataset:
     mirrors: MirrorReport
     headlines: tuple[Headline, ...] = ()
     """The facts a newcomer needs first: derived here, worded through the 117 seam (task 117)."""
+    flows: FlowSet | None = None
+    """197's traces. ``None`` on an index built before flows existed — never a false zero."""
 
     def as_dict(self) -> dict[str, object]:
         """Order-stable dict view — the byte-stability surface (R4.2/AC2)."""
@@ -184,6 +197,7 @@ class OnboardingDataset:
             "dir_symbol_threshold": self.dir_symbol_threshold,
             "edge_counts": [{"count": k.count, "kind": k.kind} for k in self.edge_counts],
             "files": self.files,
+            "flows": self.flows.as_dict() if self.flows is not None else None,
             "headlines": [row.as_dict() for row in self.headlines],
             "hubs": [
                 {"fan_in": h.fan_in, "fan_out": h.fan_out, "file": h.file, "layer": h.layer}
@@ -387,6 +401,9 @@ def build_dataset(
     file_kind_counts: Sequence[tuple[str, str, int]] = (),
     commit: str = "",
     prose: ProseRun | None = None,
+    flow_edges: Sequence[tuple[str, str, str, str]] | None = None,
+    flow_max: int = 0,
+    flow_max_nodes: int = 0,
 ) -> OnboardingDataset:
     """Assemble the aggregate dataset from bounded ``store.py`` rows (see module docstring).
 
@@ -429,8 +446,28 @@ def build_dataset(
         mirrors=mirrors,
         prose=prose,
     )
+    # 197 — stamped at the builder, where metrics/layers/modules already exist, so no renderer
+    # re-derives a second notion of a flow. Absent rows leave `flows` None, never a false zero.
+    flows: FlowSet | None = None
+    if flow_edges is not None:
+        file_of = dict(nodes)
+        layer_of = {m.module: m.layer for m in assignment.modules}
+        seeds = seed_symbols(
+            metrics.entry_points,
+            seed_files(
+                sorted({f for _q, f in nodes if f}),
+                declared_entry_points or (),
+                declared_stub_roots or (),
+            ),
+            file_of,
+        )
+        flows = build_flows(
+            seeds, flow_edges, file_of, layer_of, directory_owners(business.modules),
+            max_flows=flow_max, max_nodes=flow_max_nodes,
+        )
     dataset = OnboardingDataset(
         version=DATASET_VERSION,
+        flows=flows,
         files=files,
         parsed=parsed,
         method=assignment.method,

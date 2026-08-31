@@ -36,6 +36,7 @@ SECTION_IDS: tuple[str, ...] = (
     "layers",
     "deps",
     "hubs",
+    "flows",
     "mirrors",
     "reach",
     "classes",
@@ -260,7 +261,8 @@ table.tb td.n { font:12px var(--mono); text-align:right; white-space:nowrap; }
   <a class="item" href="#deps">Dependency matrix</a>
   <div class="grp">Hotspots</div>
   <a class="item" href="#hubs">Hubs</a>
-  <a class="item" href="#mirrors">Mirror subtrees</a>
+  <a class="item" href="#flows">Capability flows</a>
+<a class="item" href="#mirrors">Mirror subtrees</a>
   <a class="item" href="#reach">Nothing calls these</a>
   <a class="item" href="#classes">Largest classes</a>
   <div class="grp">Provenance</div>
@@ -310,6 +312,12 @@ table.tb td.n { font:12px var(--mono); text-align:right; white-space:nowrap; }
   <h2>Hubs &mdash; editing here touches everything</h2>
   <p class="lede" id="hubLede"></p>
   <div class="card" style="padding:4px 6px"><table class="tb" id="hubTable"></table></div>
+</section>
+<section id="flows">
+  <h2>Capability flows &mdash; one request, end to end</h2>
+  <p class="lede" id="flowLede"></p>
+  <div class="card" style="padding:4px 6px"><table class="tb" id="flowTable"></table></div>
+  <div class="note" id="flowNote"></div>
 </section>
 <section id="mirrors">
   <h2>Mirror subtrees</h2>
@@ -633,6 +641,39 @@ put("hubTable", D.hubs.length
           + '<td class="n">' + fmt(h.fan_out) + "</td></tr>";
       }).join("")
   : "<tr><td>No file in this index has an inbound dependency.</td></tr>");
+
+/* ---------- capability flows (197) ---------- */
+var FL = D.flows;
+if (!FL) {
+  put("flowLede", "This index was built before capability flows existed, so none are recorded. "
+    + "That is a missing input, not a repository with no requests.");
+  put("flowTable", "");
+  put("flowNote", "");
+} else if (FL.refused) {
+  put("flowLede", esc(FL.refused));
+  put("flowTable", "");
+  put("flowNote", "");
+} else {
+  put("flowLede", fmt(FL.flows_found) + " flow(s) traced from " + fmt(FL.seeds_traced) + " of "
+    + fmt(FL.seeds_found) + " entry symbol(s); " + fmt(FL.flows.length) + " shown, "
+    + fmt(FL.flows_cut) + " cut. Each row is one request: every hop is an edge, and a hop that "
+    + "could not be proven ends the trace instead of being bridged.");
+  put("flowTable", FL.flows.length
+    ? '<tr><th>Entry</th><th>Module</th><th>Layers crossed</th><th>Ends</th>'
+      + '<th style="text-align:right">Hops</th></tr>'
+      + FL.flows.map(function (f) {
+          return '<tr><td class="p">' + esc(f.seed) + '</td><td>'
+            + esc(f.module || "unattributed") + '</td><td>' + esc(f.layers.join(" \u2192 "))
+            + '</td><td>' + esc(f.sink ? f.ended + " \u2192 " + f.sink : f.ended)
+            + '</td><td class="n">' + fmt(f.steps.length) + '</td></tr>';
+        }).join("")
+    : '<tr><td>No flow reached a recorded ending.</td></tr>');
+  put("flowNote", esc(FL.coverage_note)
+    + (FL.walk_truncated_note ? " " + esc(FL.walk_truncated_note) : "")
+    + (FL.unattributed.length
+        ? " " + fmt(FL.unattributed.length) + " seed(s) fall outside every module directory."
+        : ""));
+}
 
 /* ---------- mirror subtrees (115) ---------- */
 var MIR = D.mirrors;

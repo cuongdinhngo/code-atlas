@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from code_atlas.onboarding.dataset import OnboardingDataset
+from code_atlas.onboarding.flows import COVERAGE_NOTE as FLOW_COVERAGE_NOTE
+from code_atlas.onboarding.flows import TRUNCATED_NOTE as FLOW_TRUNCATED_NOTE
 from code_atlas.onboarding.layer_diagram import (
     RESOLVED,
     DiagramEdge,
@@ -63,6 +65,7 @@ H_NEIGHBOURS = "## Neighbours"
 OUTPUT_DIR = "docs/onboarding"
 OVERVIEW_NAME = "overview.md"
 TOUR_NAME = "tour.md"
+FLOWS_NAME = "flows.md"
 MANIFEST_NAME = "manifest.json"
 VIEWER_NAME = "index.html"
 PAGES_DIR = "modules"
@@ -102,7 +105,9 @@ __all__ = [
     "OnboardingArtifact",
     "OUTPUT_DIR",
     "build_artifact",
+    "FLOWS_NAME",
     "manifest_dict",
+    "render_flows",
     "page_relpath",
     "recorded_pages",
     "render_module",
@@ -715,6 +720,57 @@ def render_module(page: ModulePage, max_results: int) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_flows(dataset: OnboardingDataset) -> str:
+    """``flows.md`` — one capability trace per section, each with its own mermaid diagram (197).
+
+    One diagram PER FLOW rather than one aggregate: merging disjoint traces into a single graph
+    would lose the one-request framing this page exists for. Node ids are positional, so a qname
+    never becomes a mermaid identifier (the rule 144 already holds).
+    """
+    flows = dataset.flows
+    lines = ["# Capability flows", ""]
+    if flows is None:
+        lines += ["This index carries no flows — it was built before they existed.", ""]
+        return "\n".join(lines)
+    if flows.refused is not None:
+        lines += [f"**Refused.** {flows.refused}", ""]
+        return "\n".join(lines)
+    lines += [
+        f"{flows.flows_found} flow(s) found from {flows.seeds_traced} of {flows.seeds_found} "
+        f"seed(s); {len(flows.flows)} shown, {flows.flows_cut} cut.",
+        "",
+        f"> {FLOW_COVERAGE_NOTE}",
+        "",
+    ]
+    if flows.walk_truncated:
+        lines += [f"> **{FLOW_TRUNCATED_NOTE}**", ""]
+    for index, flow in enumerate(flows.flows, start=1):
+        ended = flow.ended if flow.sink is None else f"{flow.ended} -> `{flow.sink}`"
+        lines += [
+            f"## {index}. `{flow.seed}`",
+            "",
+            f"- module: {flow.module or '_unattributed_'}",
+            f"- layers crossed: {' -> '.join(flow.layers) or '_none_'}",
+            f"- ended: {ended}",
+            "",
+            "```mermaid",
+            "flowchart LR",
+        ]
+        for position, step in enumerate(flow.steps):
+            lines.append(f'  n{position}["{_mermaid_label(step.qname)}"]')
+        for position in range(1, len(flow.steps)):
+            edge = "-->" if flow.steps[position].tier == "RESOLVED" else "-.->"
+            label = f"|{flow.steps[position].kind}|" if flow.steps[position].kind else ""
+            lines.append(f"  n{position - 1} {edge}{label} n{position}")
+        lines += ["```", ""]
+    return "\n".join(lines)
+
+
+def _mermaid_label(qname: str) -> str:
+    """Quotes and brackets would end the node label early; the qname is data, not syntax."""
+    return qname.replace('"', "'").replace("[", "(").replace("]", ")")
+
+
 def manifest_dict(
     artifact: OnboardingArtifact,
     dataset: OnboardingDataset,
@@ -730,6 +786,7 @@ def manifest_dict(
         **dataset.as_dict(),
         "index_root": index_root,
         "last_ref": last_ref,
+        "flows_doc": FLOWS_NAME,
         "overview": OVERVIEW_NAME,
         "pages": sorted(page.relpath for page in artifact.pages),
         "tour": TOUR_NAME,

@@ -59,7 +59,7 @@
 
 ### `generate_onboarding` — the committable system map
 
-- Writes markdown (overview · tour · per-module) plus `manifest.json` and a self-contained
+- Writes markdown (overview · tour · flows · per-module) plus `manifest.json` and a self-contained
   `index.html` under `docs/onboarding/` — offline, theme-aware, repo text escaped so a path cannot
   inject markup, with a `<noscript>` fallback. `overview.md` includes a mermaid layer flowchart
   (GitHub/VS Code render it; the HTML map stays fetch-free and does not bundle mermaid).

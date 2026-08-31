@@ -199,6 +199,41 @@ from unrelated tier-1 retelling or the rule book can never grow. type: 5 · hand
 `a-promotion-pays-from-elsewhere-in-tier-1` · status: confirmed · seen: promote-2026-08-30 · area:
 docs / budget · destination: stays in lessons_path.*
 
+## 197 — The seed test that deepest-wins keeps re-breaking, and a version pin on the wrong document
+A trace surface needs an entry population, and `responsibility_layer` is **deepest-wins**: under it
+`tests/controllers/FooTest.php` and `vendor/a/src/controllers/X.php` both read as *HTTP / Entry*.
+Task 130 closed exactly that on the reachability axis; 131 closed it again on the tour-seed axis
+with an **any-segment** sink check. 197 re-opened it a third time on the flow-seed axis, and no
+test of its own caught it — the ticket-blind challenger did. The repo already held the right
+answer (`reading_seed_rank`); the defect was writing a fourth seed test instead of calling it.
+
+*Claim `197-C1` — a responsibility layer read deepest-wins is never a membership test; membership
+needs an any-segment check, and one already exists. type: 2 · handle:
+`deepest-wins-is-not-a-membership-test` · seen: 130, 131, 197 · evidence: `seed_files` admitted
+`tests/controllers/*`, `spec/handlers/*` and `vendor/*/controllers/*` until it was re-pointed at
+`layers.reading_seed_rank` (`flows.py`, `layers.py:233`) · destination: **third sighting — promote
+or reject**.*
+*Claim `197-C2` — a version constant guards ONE document; bump the one whose shape moved, not the
+one whose neighbour did. `ARTIFACT_VERSION` versions `OnboardingArtifact.as_dict()`; the change
+touched `manifest_dict`, which carries `DATASET_VERSION`. type: 2 · handle:
+`version-the-document-that-moved` · seen: 197 · evidence:
+`test_ac2_a_version_bump_without_a_new_pin_fails` went red on a bump with no shape change
+(`artifact.py:71-73`) · destination: open — recurrence 1.*
+*Claim `197-C3` — a named subset exported by the contract is a spend every consumer inherits; the
+kind set a consumer walks belongs to the consumer. type: 2 · handle:
+`the-consumer-owns-its-kind-set` · seen: 197 · evidence: `FLOW_KINDS` in `contract.py` tripped 022
+AC3's named-subset sweep; moved to `flows.py`, mirroring 138's `rule.kinds` · destination: open —
+recurrence 1.*
+*Claim `197-C4` — under `work_doc_mode: embed` the ticket-blind guarantee cannot hold for a change
+that touches its own ticket: the working doc ships inside the diff, and a separator stops an honest
+reader, not a grep. type: 3 · handle: `embed-mode-leaks-the-working-doc-into-the-diff` · seen: 197 ·
+evidence: the challenger self-disclosed reading rationale via an unscoped `grep` over
+`git diff` · destination: `SKILL_GAP_CANDIDATES.md` — mango-level, not this repo's to fix.*
+*Claim `197-C5` — the tokens-to-answer floor is a real gate, not a report: a surface that cannot
+beat `grep` on its own question fails it. type: 5 · area: benchmarks · verified-at: 2026-08-31 ·
+evidence: `summary.flows` on `architecture_overview` took ratio to 0.53 against a 0.63 floor; the
+surface was reverted rather than the floor lowered · destination: stays in lessons.*
+
 ## 195 — 183 predicted the enumeration it was owed, and named three of the four consumers
 
 `183-C1` said the actionable form of *"a second value makes every aggregate over that dimension a

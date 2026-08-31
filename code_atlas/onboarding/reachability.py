@@ -99,6 +99,7 @@ __all__ = [
     "LAYER_TESTS",
     "LAYER_VENDOR",
     "LAYER_WEB_ENTRY",
+    "names_test_responsibility",
     "DECLARATION_CAVEAT",
     "NO_VOCABULARY_SIGNAL",
     "PatternClaim",
@@ -206,7 +207,7 @@ def _first_match(path: str, rules: Sequence[re.Pattern[str]]) -> int | None:
     return None
 
 
-def _names_test_responsibility(path: str) -> bool:
+def names_test_responsibility(path: str) -> bool:
     """True when any directory segment names a test role (task 130).
 
     Deepest-wins in ``responsibility_layer`` lets ``tests/controller/Case`` read as HTTP / Entry;
@@ -239,7 +240,7 @@ def _bucket_of(
         return VENDOR, SIGNAL_DECLARED, ("stub_roots", hit)
     if vocabulary:
         # Test-path before request-handling: a PHPUnit controller test is not web surface (130).
-        if _names_test_responsibility(path):
+        if names_test_responsibility(path):
             return TEST, SIGNAL_VOCABULARY, None
         layer = responsibility_layer(path)
         if layer == LAYER_WEB_ENTRY:

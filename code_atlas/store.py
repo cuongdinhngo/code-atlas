@@ -829,6 +829,31 @@ class GraphStore:
         )
         return [(str(source), str(target), str(tier)) for source, target, tier in cursor]
 
+    def flow_edges(self, kinds: Sequence[str]) -> list[tuple[str, str, str, str]]:
+        """Distinct resolved pairs with their KIND and winning tier, filtered to ``kinds`` (197).
+
+        ``dependency_edges_with_tier`` drops the kind, so a ``WRITES`` hop and a ``Table`` sink are
+        indistinguishable in it. Filtering in SQL keeps the pull bounded by the kind set rather than
+        by the whole edge table (R4.3); ``ORDER BY`` is stable (R4.2).
+        """
+        if not kinds:
+            return []
+        resolved, heuristic, dynamic = CONFIDENCE_TIERS
+        placeholders = ", ".join("?" for _ in kinds)
+        cursor = self._conn.execute(
+            "SELECT source_qname, target_qname, kind, "
+            "CASE WHEN SUM(CASE WHEN confidence_tier = ? THEN 1 ELSE 0 END) > 0 THEN ? "
+            "WHEN SUM(CASE WHEN confidence_tier = ? THEN 1 ELSE 0 END) > 0 THEN ? "
+            "ELSE ? END "
+            "FROM edges "
+            f"WHERE target_qname IS NOT NULL AND source_qname <> target_qname "
+            f"AND kind IN ({placeholders}) "
+            "GROUP BY source_qname, target_qname, kind "
+            "ORDER BY source_qname, target_qname, kind",
+            (resolved, resolved, heuristic, heuristic, dynamic, *kinds),
+        )
+        return [(str(s), str(t), str(k), str(tier)) for s, t, k, tier in cursor]
+
     def node_universe(self) -> list[tuple[str, str]]:
         """Every ``(qualified_name, file_path)`` — the node set + qname→module map (task 083).
 

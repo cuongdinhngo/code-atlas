@@ -30,7 +30,7 @@ def core_modules() -> list[Path]:
 def test_the_guard_has_something_to_check() -> None:
     # Guards the guard: an empty module list or an empty store would pass every check vacuously.
     # +1 each: coverage (160), cli (176), config_provenance (175), check_column_defaults (194)
-    assert len(core_modules()) == 75
+    assert len(core_modules()) == 76
     assert len((CORE / STORE).read_text(encoding="utf-8").splitlines()) > 50
 
 

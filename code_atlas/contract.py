@@ -112,6 +112,10 @@ IMPACT_KIND_WEIGHTS: dict[str, float] = {
 }
 IMPACT_KINDS: tuple[str, ...] = tuple(IMPACT_KIND_WEIGHTS)
 
+# The one write edge, named once so consumers spell it in a single place (PROVIDES_VIEW_DATA
+# precedent below). A bare string is not a named subset, so tier 2 stays opt-in (022 AC3).
+WRITES = "WRITES"
+
 CONFIDENCE_TIERS: tuple[str, ...] = ("RESOLVED", "HEURISTIC", "DYNAMIC")
 
 NODE_FIELDS: tuple[str, ...] = (
