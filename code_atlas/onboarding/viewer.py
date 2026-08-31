@@ -278,6 +278,7 @@ table.tb td.n { font:12px var(--mono); text-align:right; white-space:nowrap; }
   <div class="grid g4" id="stats"></div>
   <div class="grid" id="heads"></div>
   <p class="sub" id="stampLine"></p>
+  <p class="sub" id="confBy"></p>
 </section>
 <section id="modules">
   <h2>Capability &rarr; directory</h2>
@@ -420,6 +421,17 @@ put("stampLine",
   + "</code> method. " + fmt(PATHS.length) + " of " + fmt(D.path_index.total)
   + " paths are embedded for search"
   + (INDEX_PARTIAL ? ", so search over this page is incomplete." : "."));
+/* 196 — which language earned the confidence figure, or why that cannot be said. Never omitted:
+   this is a document a human reads, so an absent attribution is stated rather than left blank. */
+var CBL = D.confidence_by_language || { available: false, note: "", rows: [] };
+put("confBy", CBL.available
+  ? "Which language earned that: " + CBL.rows.map(function (row) {
+      var all = 0, heur = 0;
+      row.tiers.forEach(function (k) { all += k.count; if (k.tier !== "EXACT") heur += k.count; });
+      return "<b>" + esc(row.language || "unattributed") + "</b> " + fmt(all) + " dependencies ("
+        + pct(heur, all) + "% below exact)";
+    }).join(" &middot; ")
+  : esc(CBL.note));
 var STATS = [
   ["Files", fmt(D.files), fmt(D.files - D.parsed) + " did not parse"],
   ["Symbols", fmt(SYMBOLS), D.node_counts.length + " distinct node kinds"],

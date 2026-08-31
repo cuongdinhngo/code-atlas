@@ -77,7 +77,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 192 | [coverage note suppressed on a partial answer](tasks/192_coverage-note-suppressed-on-a-partial-answer.md) | Agent-trust | done | 160, 173, 186 |
 | 194 | [default filled column defect class query](tasks/194_default-filled-column-defect-class-query.md) | Agent-fit | done | 022 |
 | 195 | [three tools still read the whole graph blend](tasks/195_three-tools-still-read-the-whole-graph-blend.md) | Measure | done | 183 |
-| 196 | [The system map cannot attribute its own confidence](tasks/196_the-system-map-cannot-attribute-its-own-confidence.md) | Measure | todo | 195 |
+| 196 | [the-system-map-cannot-attribute-its-own-confidence](tasks/196_the-system-map-cannot-attribute-its-own-confidence.md) | Measure | done | 195 |
 
 ## Open work — Pillar 2 · Onboarding
 

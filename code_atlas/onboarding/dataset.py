@@ -52,8 +52,11 @@ from code_atlas.onboarding.reachability import ReachabilitySplit, classify_reach
 # it was pruned at (116). 6: ``headlines`` — the facts a newcomer needs first, derived here and
 # worded through the 117 seam. 7: caveats and declaration provenance — ``path_index.caveat``,
 # ``reachability.caveat``/``patterns``, per-bucket ``signals`` (119/127), so a caveat and a
-# declared count travel together. This is NOT ``contract_version``; the contract is untouched.
-DATASET_VERSION = 9
+# declared count travel together. 8: ``flows`` — capability traces (197). 9: ``modules[].label``,
+# a business module's worded name (198). 10: ``confidence_by_language`` — which language earned the
+# confidence figure, read from the 183 stamp (196). This is NOT ``contract_version``; the contract
+# is untouched.
+DATASET_VERSION = 10
 # A directory is kept in the tree only when its subtree holds at least this many symbols — the
 # mockup's prune, so a 40k-file repo yields a map of a few dozen rows, not thousands (AC3).
 DIR_SYMBOL_THRESHOLD = 400
@@ -62,10 +65,12 @@ __all__ = [
     "DATASET_VERSION",
     "DIR_SYMBOL_THRESHOLD",
     "ClassStat",
+    "ConfidenceSplit",
     "DirStat",
     "Headline",
     "Hub",
     "KindCount",
+    "LanguageConfidence",
     "LayerStat",
     "MatrixEdge",
     "OnboardingDataset",
@@ -85,6 +90,44 @@ class KindCount:
 
     kind: str
     count: int
+
+
+@dataclass(frozen=True)
+class LanguageConfidence:
+    """One bucket of the 183 split: a language and its own tier mix (task 196).
+
+    ``language`` is empty for the ``unattributed`` bucket — an edge whose file carries no language.
+    """
+
+    language: str
+    tiers: tuple[KindCount, ...]
+
+
+@dataclass(frozen=True)
+class ConfidenceSplit:
+    """Which language earned the map's confidence figure, or why that cannot be said (task 196).
+
+    ``available`` is not "a stamp was found": it is "these rows account for the whole". A stamp that
+    does not reconcile describes a different graph than the number beside it, so it is refused with
+    a reason rather than rendered (R5.6).
+    """
+
+    rows: tuple[LanguageConfidence, ...] = ()
+    available: bool = False
+    note: str = ""
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "available": self.available,
+            "note": self.note,
+            "rows": [
+                {
+                    "language": row.language,
+                    "tiers": [{"count": k.count, "tier": k.kind} for k in row.tiers],
+                }
+                for row in self.rows
+            ],
+        }
 
 
 @dataclass(frozen=True)
@@ -181,6 +224,7 @@ class OnboardingDataset:
     modules: ModuleMap
     mirrors: MirrorReport
     headlines: tuple[Headline, ...] = ()
+    confidence_by_language: ConfidenceSplit = ConfidenceSplit()
     """The facts a newcomer needs first: derived here, worded through the 117 seam (task 117)."""
     flows: FlowSet | None = None
     """197's traces. ``None`` on an index built before flows existed — never a false zero."""
@@ -194,6 +238,7 @@ class OnboardingDataset:
             ],
             "commit": self.commit,
             "confidence": [{"count": k.count, "tier": k.kind} for k in self.confidence],
+            "confidence_by_language": self.confidence_by_language.as_dict(),
             "dir_symbol_threshold": self.dir_symbol_threshold,
             "edge_counts": [{"count": k.count, "kind": k.kind} for k in self.edge_counts],
             "files": self.files,
@@ -376,6 +421,71 @@ def _path_index(file_paths: Sequence[str], cap: int) -> PathIndex:
     )
 
 
+NO_STAMP_NOTE = (
+    "Attribution unavailable: this index was built before the per-language split was recorded, "
+    "so which language earned the figure above cannot be said."
+)
+NO_EDGES_NOTE = (
+    "Attribution unavailable: no dependencies are recorded in this index, so there is nothing to "
+    "attribute."
+)
+MISMATCH_NOTE = (
+    "Attribution unavailable: the recorded per-language split does not add up to the figure above, "
+    "so it describes a different graph and is not shown."
+)
+
+
+def _as_int(value: object) -> int:
+    """A stamp is JSON off disk: coerce what should be a number, never crash on what is not."""
+    return value if isinstance(value, int) else 0
+
+
+def _confidence_split(
+    confidence: Mapping[str, int],
+    stamped: Mapping[str, object] | None,
+) -> ConfidenceSplit:
+    """Fold the 183 stamp into the map's shape, or state why it cannot be trusted (task 196).
+
+    The gate is arithmetic, not presence: rows are shown only when their tier counts add up to the
+    whole-graph figure they attribute. That one predicate covers an absent stamp, an empty one, and
+    the detectable half of a stale one — none of which may render a language (R5.6).
+    """
+    if stamped is None:
+        return ConfidenceSplit(note=NO_STAMP_NOTE)
+    buckets: list[tuple[str, Mapping[str, object]]] = []
+    by_language = stamped.get("by_language")
+    if isinstance(by_language, Mapping):
+        buckets.extend(
+            (str(name), block)
+            for name, block in sorted(by_language.items())
+            if isinstance(block, Mapping)
+        )
+    unattributed = stamped.get("unattributed")
+    if isinstance(unattributed, Mapping):
+        buckets.append(("", unattributed))
+    rows: list[LanguageConfidence] = []
+    totals: dict[str, int] = {}
+    for name, block in buckets:
+        tiers = block.get("by_tier")
+        if not isinstance(tiers, Mapping):
+            return ConfidenceSplit(note=MISMATCH_NOTE)
+        counts = {str(tier): _as_int(count) for tier, count in tiers.items()}
+        for tier, count in counts.items():
+            totals[tier] = totals.get(tier, 0) + count
+        rows.append(
+            LanguageConfidence(
+                language=name,
+                tiers=tuple(KindCount(tier, counts[tier]) for tier in sorted(counts)),
+            )
+        )
+    whole = {str(tier): int(count) for tier, count in confidence.items() if count}
+    if not whole:
+        return ConfidenceSplit(note=NO_EDGES_NOTE)
+    if {tier: count for tier, count in totals.items() if count} != whole:
+        return ConfidenceSplit(note=MISMATCH_NOTE)
+    return ConfidenceSplit(rows=tuple(rows), available=True)
+
+
 def build_dataset(
     nodes: Sequence[tuple[str, str]],
     edges: Sequence[tuple[str, str]],
@@ -404,6 +514,7 @@ def build_dataset(
     flow_edges: Sequence[tuple[str, str, str, str]] | None = None,
     flow_max: int = 0,
     flow_max_nodes: int = 0,
+    confidence_by_language: Mapping[str, object] | None = None,
 ) -> OnboardingDataset:
     """Assemble the aggregate dataset from bounded ``store.py`` rows (see module docstring).
 
@@ -495,6 +606,7 @@ def build_dataset(
         modules=business,
         mirrors=mirrors,
         headlines=headlines,
+        confidence_by_language=_confidence_split(confidence, confidence_by_language),
     )
     # The gate refuses filler prose rather than ship a hollow headline (task 109 C1, 117 AC6). A
     # deferred import: quality_gate reads this module's shape, so a top-level one would cycle.

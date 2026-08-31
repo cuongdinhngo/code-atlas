@@ -634,7 +634,7 @@ aid, not a reading order** (§19).
 are **complete**; the per-task breakdown, including the 108–117 reshape, is in
 [`phase3-onboarding/ROADMAP.md`](phase3-onboarding/ROADMAP.md).
 - **M10** `architecture_overview` + deterministic layers — 083 · 084 · 085 · 103 · 104 · 086. The 15th tool; 105 elects the dominant subtree by graph mass, proven on three pinned repos.
-- **M11** `guided_tour` (16th) · `generate_onboarding` (17th) · the viewer — **reshaped by 108–117 into the navigable system map**, rendered from 112's dataset alone (`DATASET_VERSION` 7). 116's AC4–AC6 are proven by running the page headlessly under `tests/viewer_dom_stub.js`, because a grep over the HTML sees zero rendered figures and would be a false green.
+- **M11** `guided_tour` (16th) · `generate_onboarding` (17th) · the viewer — **reshaped by 108–117 into the navigable system map**, rendered from 112's dataset alone. 116's AC4–AC6 are proven by running the page headlessly under `tests/viewer_dom_stub.js`, because a grep over the HTML sees zero rendered figures and would be a false green.
 - **M12** LLM enrichment, opt-in and outside the core — 090 · 091 · 117. The per-run call ceiling is **derived, not invented**: 6 headline families + 12 responsibility layers + 109's 15-step ceiling = **33 calls a build**, enforced per slot so a repo falling back to per-directory layers cannot starve the tour (measured at 18,929 files: 1,176 requested, 12 served, 1,164 refused).
 
 ---

@@ -42,7 +42,7 @@ rule** rather than adding a near-duplicate (P2), and one by finding the rule alr
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
 | `fixture-shape-begs-the-question` | 11 | 084, 086, 103–106, 121, 183, 185, 190, 191 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
-| `count-pin-in-blast-radius` | 8 | 085, 087–089, 175, 184, 022, 194 | **AGENT_BRIEF P5** — promoted 2026-08-27; P5 needs the invariant, not the spelling (022) — and 194 adds that a change can move MORE THAN ONE invariant |
+| `count-pin-in-blast-radius` | 9 | 085, 087–089, 175, 184, 022, 194, 196 | **AGENT_BRIEF P5** — promoted 2026-08-27; P5 needs the invariant, not the spelling (022) — 194 adds that a change can move MORE THAN ONE invariant, and 196 that a pin written as a bare LITERAL is invisible to a trace that greps the invariant's name |
 | `source-the-caveat-from-the-computation` | 6 | 100–102, 122, 127, 189 | **R5.5** |
 | `re-verify-the-assumption-on-a-new-path` | 3 | 102, 107, 122 | **AGENT_BRIEF P6** — promoted 2026-08-27 |
 | `re-run-the-sweep-after-the-last-edit` | 3 | 100–102 | **AGENT_BRIEF P4** |
@@ -59,6 +59,9 @@ rule** rather than adding a near-duplicate (P2), and one by finding the rule alr
 | `ac-failure-mode-needs-the-right-guard` | 2 | 085, 107 | **R6.8** — promoted 2026-08-27 |
 | `own-only-what-you-wrote` | 2 | 088, 089 | **R5.7** — promoted 2026-08-27 |
 | `skip-dynamic-means-unlinkable` | 3 | 094, 096, 022 | **R5.2** — re-adjudicated and widened 2026-08-30; the 2026-08-15 rejection reasoned from a sighting that *bound* a design, and the third bound one **wrongly** |
+| `deepest-wins-is-not-a-membership-test` | 3 | 130, 131, 197 | open — **due promotion or rejection**; it reached 3 at 197 and was never entered here, which is why nothing surfaced it |
+| `assert-the-consumer-not-the-field` | 2 | 198, 196 | open — recurrence 2 at 196, which hit it **twice**: once as the guard it built, once as a pair of fields it shipped unread in the same diff |
+| `version-the-document-that-moved` | 2 | 197, 196 | open — recurrence 2 at 196; both are a new key on the published dataset shape |
 
 **Ratified 2026-08-30 — all 17, on a condition the brief already stated.** The rule book and the
 brief both said a rule stays `PROVISIONAL` *"until a second incident confirms the shape"*, and every
@@ -198,6 +201,68 @@ supersedes is a claim's recall weight in `lessons_path`, which is tier 2, so the
 from unrelated tier-1 retelling or the rule book can never grow. type: 5 · handle:
 `a-promotion-pays-from-elsewhere-in-tier-1` · status: confirmed · seen: promote-2026-08-30 · area:
 docs / budget · destination: stays in lessons_path.*
+
+## 196 — I gated the attribution on the stamp existing; the stamp existing is not the claim
+The obvious predicate for "can this map say which language earned its confidence figure?" is *is
+there a stamp*. It is the wrong one. A stamp is present, parseable and shape-valid in three states
+where attributing the number to it would be a lie: a stale one written by an earlier build, a thin
+one naming fewer buckets than the graph has, and an empty one. Gating on the **arithmetic** instead
+— rows are shown only when their tier counts add up to the figure they attribute — collapses all
+three into the one honest answer, and needs no extra state to do it. The ticket asked for the
+reconciliation as an AC to be *tested*; making it the runtime gate cost nothing and is strictly
+stronger.
+
+The exposure-checker paid for its dispatch by counting render sites I had already counted wrong.
+`git grep D.confidence` finds two lines in `viewer.py`; the figure reaches a human at **three**
+places, because two of them print the derived `HEUR`/`CONF` variables rather than the source field,
+and the third is in `headlines.py`. Grepping the source name enumerates where data is *read*, not
+where it is *shown*.
+
+*Claim `196-C1` — gate a disclosure on the invariant it depends on, not on the presence of its
+source: a source that exists can still be wrong, and presence-gating renders it anyway. type: 2 ·
+handle: `gate-on-the-invariant-not-on-presence` · status: proposed · seen: 196 · evidence:
+`stamped_edge_health_by_language()` returns a dict for a stale, thin or empty stamp;
+`_confidence_split` refuses all three on the tier sum · destination: open — recurrence 1.*
+*Claim `196-C2` — to find every place a figure reaches a reader, grep the DERIVED name the renderer
+computes, not only the source field it came from. type: 2 · handle:
+`grep-the-derived-name-not-the-source-name` · status: proposed · seen: 196 · evidence:
+`git grep D.confidence` → 2 sites; `git grep HEUR` → 3, the third being the caveats card the
+exposure-checker named · destination: open — recurrence 1.*
+*Claim `196-C3` — restore a negative control from a BACKUP, never `git checkout <file>`: the control
+runs on an uncommitted tree, so the restore that undoes it deletes the change it was controlling.
+type: 2 · handle: `back-up-before-a-destructive-negative-control` · status: proposed · seen: 196 ·
+evidence: `git checkout code_atlas/onboarding/dataset.py` after control 2 reverted all seven edits
+to HEAD; rebuilt from the edit script · destination: open — recurrence 1.*
+*Claim `196-C4` — second sighting: a field a renderer does not read is not delivered. Both render
+assertions went red with the field present and correct, while all eight field-level tests stayed
+green. type: 2 · handle: `assert-the-consumer-not-the-field` · seen: 198, 196 · evidence: negative
+control 1 — `git stash push viewer.py` → 2 failed, 8 passed · destination: open — recurrence 2.*
+*Claim `196-C7` — a requirement stated as *"read X, do not recompute X"* is unfalsifiable in any
+test that builds once, because the read and the recomputation agree; make them DISAGREE (doctor the
+stored value's labels, keep its arithmetic) or the rule is enforced by nobody. type: 2 · handle:
+`make-the-two-sources-disagree-to-test-which-one-is-read` · status: proposed · seen: 196 · evidence:
+challenger's mutation `stamped_edge_health_by_language()` -> `edge_health_by_language()` left 15
+tests green; it would also have silently disabled `MISMATCH_NOTE`, since a live fold cannot drift ·
+destination: open — recurrence 1.*
+*Claim `196-C8` — third sighting, and this one was committed BY the change whose proving test is a
+negative control for the same class: `LanguageConfidence.linked`/`.unlinked` were folded from the
+stamp, serialized into the published shape, and read by no renderer. Guarding against a defect class
+is not the same as being immune to it. type: 2 · handle: `assert-the-consumer-not-the-field` · seen:
+198, 196 · evidence: `grep -n linked code_atlas/onboarding/viewer.py` -> 0 matches, while
+`as_dict()` emitted both keys; pruned · destination: open — recurrence 2.*
+*Claim `196-C6` — a count pin the trace cannot see is a pin written as a LITERAL where the
+invariant has a name: `git grep DATASET_VERSION` found four pins and the gate found a fifth,
+`assert payload["version"] == 9`, which no grep for the constant could reach. Its docstring still
+said "at DATASET_VERSION 8" — it had gone stale twice. type: 2 · handle: `count-pin-in-blast-radius`
+· seen: 085, 087, 088, 089, 175, 184, 022, 194, 196 · evidence: gate RED on
+`test_flows_ride_with_the_dataset_and_absent_is_not_a_false_zero` after a trace that had reported
+every pin folded in; fixed by pinning against the constant, not by bumping a second copy of the
+number · destination: AGENT_BRIEF P5.*
+*Claim `196-C5` — second sighting: a new key on a published shape moves that shape's version.
+`confidence_by_language` took `DATASET_VERSION` 9 → 10, and the one hard pin was found by grep
+rather than by the suite going red. type: 2 · handle: `version-the-document-that-moved` · seen:
+197, 196 · evidence: `tests/test_onboarding_dataset.py:326` pinned `== 9` literally; the two viewer
+pins compare to the constant and needed no edit · destination: open — recurrence 2.*
 
 ## 198 — Plumbing complete, output disconnected
 The 117 seam gained a fourth slot, a ceiling, a filler guard, a prompt and five tests, and the map a

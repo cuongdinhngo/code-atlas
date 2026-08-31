@@ -311,9 +311,13 @@ def test_a_layer_with_no_kind_counts_reports_an_empty_composition() -> None:
 
 
 def test_flows_ride_with_the_dataset_and_absent_is_not_a_false_zero() -> None:
-    """197 — the key is present at DATASET_VERSION 8; an index without flows says None, not []."""
+    """197 — the key rides with the shape; an index without flows says None, not [].
+
+    The version is asserted against the constant, never a literal: this test is about `flows`, and
+    the second copy of the number went stale twice before a grep for `DATASET_VERSION` could see it.
+    """
     payload = _build().as_dict()
-    assert payload["version"] == 9
+    assert payload["version"] == DATASET_VERSION
     assert "flows" in payload, "a renderer cannot show what the shape does not declare"
     assert payload["flows"] is None, "no flows built => None, never an empty list"
 
@@ -323,7 +327,7 @@ def test_the_headline_facts_ride_with_the_dataset_and_the_version_says_so() -> N
     from code_atlas.onboarding.headlines import HEADLINE_FAMILIES
 
     payload = _build().as_dict()
-    assert payload["version"] == DATASET_VERSION == 9
+    assert payload["version"] == DATASET_VERSION == 10
     headlines = payload["headlines"]
     assert isinstance(headlines, list) and headlines
     assert all(set(row) == {"key", "label", "text"} for row in headlines)

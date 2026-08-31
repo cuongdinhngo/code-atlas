@@ -69,7 +69,7 @@ for (const id of MAP.sections) {
   sections[id] = { text: '', figures: [] };
 }
 const SECTION_OF = {
-  overview: ['lede', 'heads', 'stats', 'stampLine', 'stamp'],
+  overview: ['lede', 'heads', 'stats', 'stampLine', 'stamp', 'confBy'],
   modules: ['modTable', 'modNote'],
   sitemap: ['tm', 'crumb', 'tmLegend'],
   layers: ['layerTable', 'lyrLegend'],

@@ -101,6 +101,8 @@ def create(
             node_kinds = store.node_kind_counts()
             edge_kinds = store.edge_kind_counts()
             confidence = store.edge_health()["by_tier"]
+            # 196 — the stamp beside the blend it attributes, never a second fold (183/195, P7).
+            confidence_by_language = store.stamped_edge_health_by_language()
             hubs = store.module_hubs(limit=config.max_results)
             classes = store.largest_classes(limit=config.max_results)
             file_syms = store.file_symbol_counts()
@@ -161,6 +163,7 @@ def create(
             flow_edges=flow_edge_rows,
             flow_max=config.max_results,
             flow_max_nodes=config.impact_max_nodes,
+            confidence_by_language=confidence_by_language,
         )
         written = _write(
             Path(config.root),
