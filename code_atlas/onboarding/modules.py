@@ -16,10 +16,11 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from code_atlas.ignore import translate_path_pattern
 from code_atlas.onboarding.layers import responsibility_layer, responsibility_of_segment
+from code_atlas.onboarding.prose import SLOT_MODULE, ProseRequest, ProseRun
 
 # A child directory must hold this many candidate files to count as a peer of its siblings — the
 # floor
@@ -63,6 +64,7 @@ class BusinessModule:
     """One capability read out of the tree: its size, where it lives, and its busiest file."""
 
     module: str
+    label: str
     files: int
     classes: int
     trees: tuple[str, ...]
@@ -79,6 +81,7 @@ class BusinessModule:
             "files": self.files,
             "hub": self.hub,
             "hub_fan_in": self.hub_fan_in,
+            "label": self.label,
             "module": self.module,
             "single_tree": self.single_tree,
             "trees": list(self.trees),
@@ -210,6 +213,7 @@ def find_business_modules(
     fan_in: Mapping[str, int],
     stub_roots: Sequence[str] | None = None,
     limit: int,
+    prose: ProseRun | None = None,
     min_files: int = MIN_MODULE_FILES,
     min_modules: int = MIN_CONTAINER_MODULES,
 ) -> ModuleMap:
@@ -269,6 +273,7 @@ def find_business_modules(
     rows = [
         BusinessModule(
             module=label[key],
+            label=label[key],
             files=files.get(key, 0),
             classes=classes.get(key, 0),
             trees=tuple(sorted(trees[key])),
@@ -282,13 +287,46 @@ def find_business_modules(
     # Largest first — the table's reading order; the name breaks ties (R4.2).
     rows.sort(key=lambda row: (-row.files, row.module))
     return ModuleMap(
-        modules=tuple(rows[:limit]),
+        modules=_labelled(tuple(rows[:limit]), prose),
         containers=tuple(sorted(container for container, _ in accepted)),
         refused=tuple(sorted(refused)),
         covered=covered,
         total=len(file_paths),
         excluded=excluded,
         truncated=len(rows) > limit,
+    )
+
+
+def _labelled(
+    rows: tuple[BusinessModule, ...], prose: ProseRun | None
+) -> tuple[BusinessModule, ...]:
+    """Word each module's label through the 117 seam (198). Membership is already decided.
+
+    Applied AFTER the table is built, ranked and cut, so the seam cannot add, drop or re-order a
+    module however it answers — it only replaces a string. With no writer injected every label is
+    the directory name the table already carried, byte for byte (R4/R4.1).
+    """
+    if prose is None or not prose.enabled:
+        return rows
+    return tuple(
+        replace(
+            row,
+            label=prose.text(
+                ProseRequest(
+                    slot=SLOT_MODULE,
+                    key=row.module,
+                    names=(row.module, row.hub, *row.trees),
+                    facts=(
+                        ("files", str(row.files)),
+                        ("classes", str(row.classes)),
+                        ("busiest file", row.hub),
+                        ("directories", ", ".join(row.directories)),
+                    ),
+                    default=row.module,
+                )
+            ),
+        )
+        for row in rows
     )
 
 

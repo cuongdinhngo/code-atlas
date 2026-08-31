@@ -17,6 +17,7 @@ from __future__ import annotations
 from code_atlas.onboarding.prose import (
     SLOT_HEADLINE,
     SLOT_LAYER,
+    SLOT_MODULE,
     SLOT_STEP,
     ProseRequest,
     request_key,
@@ -59,6 +60,12 @@ _SYSTEM = {
     SLOT_HEADLINE: (
         f"{_COMMON} Rewrite this headline fact as one or two sentences that say what it MEANS for "
         "somebody new to the codebase. Keep every figure exactly as given."
+    ),
+    SLOT_MODULE: (
+        f"{_COMMON} Name the business capability this directory holds, as a SHORT noun phrase of "
+        "two to five words — a label for a table cell, not a sentence. Infer it from the facts "
+        "given and nothing else; if they do not say what the capability is, answer with an empty "
+        "string rather than guessing, and the directory name will stand."
     ),
 }
 

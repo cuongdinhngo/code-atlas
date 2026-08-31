@@ -199,6 +199,28 @@ from unrelated tier-1 retelling or the rule book can never grow. type: 5 · hand
 `a-promotion-pays-from-elsewhere-in-tier-1` · status: confirmed · seen: promote-2026-08-30 · area:
 docs / budget · destination: stays in lessons_path.*
 
+## 198 — Plumbing complete, output disconnected
+The 117 seam gained a fourth slot, a ceiling, a filler guard, a prompt and five tests, and the map a
+newcomer reads still printed the directory name — because `artifact.py` was never re-pointed at the
+new field. Every test asserted the *field* held the right value; none asserted a *reader* used it.
+The ticket-blind challenger found it by asking the only question the tests did not: who consumes
+this?
+
+*Claim `198-C1` — a field added for a reader is not delivered until a renderer reads it; assert the
+consumer, not the field. type: 2 · handle: `assert-the-consumer-not-the-field` · seen: 198 ·
+evidence: `BusinessModule.label` populated and tested while `artifact.py` rendered `row['module']`;
+no renderer referenced `label` · destination: open — recurrence 1.*
+*Claim `198-C2` — a guard driven to its limit must inspect the RESULT, not only the counter: the
+ceiling test called the builder and discarded the table, so a seam dropping declined rows passed
+every test. type: 2 · handle: `prove-the-guard-fails` · seen: 093, 019, 147, 184, 192, 194, 195,
+022, 128, 198 · evidence: mutation "drop a declined row" → 5 original tests green, count-arm test
+red · destination: R6.5.*
+*Claim `198-C3` — a requirement can be WRONG, not merely unmet; three of this ticket's own asked for
+things that cannot exist (a derived ceiling with no constant, a rename-stable key for an identity
+that is a path, a slot for a name that already reads). type: 2 · handle:
+`a-requirement-can-be-impossible` · seen: 198 · evidence: Scope 1b, AC4 and Scope 4 corrected in the
+ticket rather than silently unmet · destination: open — recurrence 1.*
+
 ## 197 — The seed test that deepest-wins keeps re-breaking, and a version pin on the wrong document
 A trace surface needs an entry population, and `responsibility_layer` is **deepest-wins**: under it
 `tests/controllers/FooTest.php` and `vendor/a/src/controllers/X.php` both read as *HTTP / Entry*.

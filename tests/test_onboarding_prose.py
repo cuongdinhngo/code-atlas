@@ -24,9 +24,11 @@ from code_atlas.onboarding.layers import RESPONSIBILITY_KEYWORDS, UNCATEGORISED
 from code_atlas.onboarding.metrics import module_edges
 from code_atlas.onboarding.prose import (
     MAX_PROSE_CALLS,
+    MODULE_LABEL_BUDGET,
     SLOT_HEADLINE,
     SLOT_LAYER,
     SLOT_LIMITS,
+    SLOT_MODULE,
     SLOT_STEP,
     ProseRequest,
     ProseRun,
@@ -300,7 +302,11 @@ def test_ac5_the_call_ceiling_is_derived_from_the_caps_that_already_exist() -> N
     assert UNCATEGORISED not in set(RESPONSIBILITY_KEYWORDS.values())  # the +1 above
     assert SLOT_LIMITS[SLOT_STEP] == MAX_TOUR_STEPS
     assert SLOT_LIMITS[SLOT_HEADLINE] == len(HEADLINE_FAMILIES)
-    assert MAX_PROSE_CALLS == sum(SLOT_LIMITS.values()) == 33
+    # 198's module slot is the exception this assertion must state rather than hide: the business
+    # module table is capped by `config.max_results`, so there is no CONSTANT to derive from. The
+    # budget is ratified, and what is pinned is that it does NOT track configuration.
+    assert SLOT_LIMITS[SLOT_MODULE] == MODULE_LABEL_BUDGET == 12
+    assert MAX_PROSE_CALLS == sum(SLOT_LIMITS.values()) == 45
 
 
 def test_ac5_a_memo_hit_is_not_a_call_so_the_ceiling_counts_real_spend() -> None:
@@ -399,3 +405,192 @@ def test_ac7_the_seam_itself_names_no_model_and_no_prompt() -> None:
     """The seam is the surface an impl plugs into; a prompt there would defeat the confinement."""
     source = (CORE / "onboarding" / "prose.py").read_text(encoding="utf-8")
     assert "You are" not in source and "claude" not in source.lower()
+
+
+# --------------------------------------------------------------------------- 198: module labels
+
+
+class _HostileWriter:
+    """A writer that tries to change the table, not just word it — the thing 198 must prevent."""
+
+    def __init__(self) -> None:
+        self.asked: list[str] = []
+
+    def write(self, request) -> str:
+        # Labels that sort OPPOSITE to the order asked. A seam applied before the cut, or a table
+        # re-sorted on the label, reverses the rows — which is what the guard has to detect.
+        self.asked.append(request.key)
+        return f"Capability {chr(ord('z') - len(self.asked))}"
+
+
+def _modules(prose=None):
+    from code_atlas.onboarding.modules import find_business_modules
+
+    paths = [
+        "src/billing/A.aa", "src/billing/B.aa", "src/billing/C.aa",
+        "src/shipping/D.aa", "src/shipping/E.aa", "src/shipping/F.aa",
+        "src/catalog/G.aa", "src/catalog/H.aa", "src/catalog/I.aa",
+        "src/accounts/J.aa", "src/accounts/K.aa", "src/accounts/L.aa",
+    ]
+    return find_business_modules(
+        paths,
+        class_counts={path: 2 for path in paths},
+        fan_in={path: 3 for path in paths},
+        limit=50,
+        prose=prose,
+    )
+
+
+def test_198_with_no_writer_the_label_is_the_directory_name() -> None:
+    """R4/R4.1 — the deterministic path is unchanged and makes no call."""
+    table = _modules()
+    assert table.modules, "the fixture must produce modules, or this proves nothing"
+    for row in table.modules:
+        assert row.label == row.module
+        assert row.as_dict()["label"] == row.module
+
+
+def test_198_the_seam_words_the_label_and_cannot_change_the_table() -> None:
+    """The binding guarantee: membership, order and count are decided before the seam is asked."""
+    from code_atlas.onboarding.prose import ProseRun
+
+    structural = _modules()
+    laboured = _modules(ProseRun(_HostileWriter()))
+
+    assert [r.module for r in laboured.modules] == [r.module for r in structural.modules], (
+        "the seam re-ordered or replaced modules; it may only word them"
+    )
+    assert laboured.covered == structural.covered
+    assert laboured.total == structural.total
+    assert [r.label for r in laboured.modules] != [r.module for r in laboured.modules], (
+        "the writer was never asked, so this test proves nothing about the seam"
+    )
+
+
+def test_198_a_filler_label_degrades_to_the_directory_name() -> None:
+    """109 C1 — a label that only restates the identifier is refused, and the run continues."""
+    from code_atlas.onboarding.prose import ProseRun
+
+    class _Echo:
+        def write(self, request) -> str:
+            return request.key
+
+    for row in _modules(ProseRun(_Echo())).modules:
+        assert row.label == row.module
+
+
+def test_198_a_raising_writer_leaves_every_label_structural() -> None:
+    """AC3 — any seam failure degrades; it never half-writes a table."""
+    from code_atlas.onboarding.prose import ProseRun
+
+    class _Boom:
+        def write(self, request) -> str:
+            raise RuntimeError("model unavailable")
+
+    for row in _modules(ProseRun(_Boom())).modules:
+        assert row.label == row.module
+
+
+def test_198_the_module_slot_is_capped_independently_of_the_others() -> None:
+    """AC4 — a repo full of modules cannot starve the tour of prose."""
+    from code_atlas.onboarding.prose import ProseRun
+
+    writer = _HostileWriter()
+    run = ProseRun(writer, limits={SLOT_MODULE: 2})
+    _modules(run)
+    assert len(writer.asked) == 2, "the per-slot ceiling did not bind"
+    assert run.declined > 0, "declined slots are counted, not silent"
+
+
+def test_198_the_count_survives_the_ceiling_and_every_declined_row_keeps_its_row() -> None:
+    """AC2's count arm — the blind spot the ticket-blind review found and named.
+
+    The order arm was covered; the COUNT arm was not. Every earlier test either ran under a budget
+    the fixture could not exhaust, or drove the ceiling and then discarded the table. So a seam that
+    silently DROPPED a row it declined to label would have passed all of them, which is precisely
+    the "cannot change the count" guarantee AC2 exists to hold.
+    """
+    from code_atlas.onboarding.prose import ProseRun
+
+    structural = _modules()
+    assert len(structural.modules) >= 4, "the fixture must have rows to lose"
+
+    writer = _HostileWriter()
+    run = ProseRun(writer, limits={SLOT_MODULE: 1})
+    starved = _modules(run)
+
+    assert len(writer.asked) == 1, "the ceiling did not bind, so the declined path is untested"
+    assert run.declined > 0
+    assert len(starved.modules) == len(structural.modules), (
+        "a row the seam declined to label was dropped; the ceiling may cost prose, never a row"
+    )
+    assert [r.module for r in starved.modules] == [r.module for r in structural.modules]
+    declined = [r for r in starved.modules if r.label == r.module]
+    assert len(declined) == len(structural.modules) - 1, (
+        "every row past the ceiling must keep the directory name as its label"
+    )
+
+
+def test_198_a_reorder_replays_from_the_memo_and_costs_no_second_call() -> None:
+    """Scope 4's achievable half: identical membership, asked twice, is one call not two.
+
+    The unachievable half is recorded in the ticket. A module's identity IS its directory path, so
+    renaming it changes every member — unlike a layer, whose key is a vocabulary term independent of
+    paths (`layers.py`, `key=layer`). For modules a rename is a genuinely different module, and a
+    cache miss there is correct rather than a defect.
+    """
+    from code_atlas.onboarding.prose import ProseRun
+
+    writer = _HostileWriter()
+    run = ProseRun(writer)
+    first = _modules(run)
+    asked_once = len(writer.asked)
+    second = _modules(run)
+
+    assert asked_once > 0, "nothing was asked, so the memo proves nothing"
+    assert len(writer.asked) == asked_once, "the second pass paid again instead of replaying"
+    assert run.calls == asked_once, "a memo hit must not count as a call"
+    assert [r.label for r in second.modules] == [r.label for r in first.modules]
+
+
+def test_198_the_label_reaches_the_rendered_markdown_not_just_the_field() -> None:
+    """F1 — the defect the ticket-blind review found: a field nothing reads is not delivered.
+
+    Every other 198 test asserts the FIELD carries the label. None of them asked who consumes it,
+    and for one whole review cycle the answer was nobody: `_module_lines` printed the directory
+    name. This asserts the consumer.
+    """
+    from code_atlas.onboarding.artifact import _module_lines
+    from code_atlas.onboarding.prose import ProseRun
+
+    class _Namer:
+        def write(self, request) -> str:
+            return f"Capability of {request.key.title()}"
+
+    table = _modules(ProseRun(_Namer()))
+    payload = {
+        "modules": [row.as_dict() for row in table.modules],
+        "covered": table.covered, "total": table.total, "excluded": table.excluded,
+        "containers": [], "refused": [], "truncated": False,
+    }
+    text = "\n".join(_module_lines(payload))
+    for row in table.modules:
+        assert row.label != row.module, "the writer was not asked; this test would prove nothing"
+        assert row.label in text, f"the label {row.label!r} never reached the rendered page"
+        assert row.module in text, "the directory must stay beside the label, or it is ungreppable"
+
+
+def test_198_with_no_writer_the_rendered_markdown_is_unchanged() -> None:
+    """AC1's real form — the deterministic page keeps printing the directory, with no decoration."""
+    from code_atlas.onboarding.artifact import _module_lines
+
+    table = _modules()
+    payload = {
+        "modules": [row.as_dict() for row in table.modules],
+        "covered": table.covered, "total": table.total, "excluded": table.excluded,
+        "containers": [], "refused": [], "truncated": False,
+    }
+    text = "\n".join(_module_lines(payload))
+    for row in table.modules:
+        assert f"`{row.module}`" in text
+        assert f"**{row.module}**" not in text, "no writer means no bolded label at all"

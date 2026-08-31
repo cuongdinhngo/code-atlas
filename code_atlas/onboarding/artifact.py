@@ -522,8 +522,15 @@ def _module_lines(modules: object) -> list[str]:
     rows = modules.get("modules")
     for row in rows if isinstance(rows, list) else []:
         flag = " — **only tree**" if row.get("single_tree") else ""
+        # 198: the label is what a reader sees; the directory stays beside it, because a renamed
+        # capability a reader cannot grep for would be worse than the bare path it replaced.
+        label = row.get("label") or row["module"]
+        named = (
+            f"**{label}** (`{row['module']}`)" if label != row["module"]
+            else f"`{row['module']}`"
+        )
         lines.append(
-            f"- `{row['module']}`: {row['files']} files, {row['classes']} classes, "
+            f"- {named}: {row['files']} files, {row['classes']} classes, "
             f"trees {', '.join(row['trees'])}{flag}"
         )
         if row.get("hub"):

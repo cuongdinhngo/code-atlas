@@ -53,7 +53,7 @@ from code_atlas.onboarding.reachability import ReachabilitySplit, classify_reach
 # worded through the 117 seam. 7: caveats and declaration provenance — ``path_index.caveat``,
 # ``reachability.caveat``/``patterns``, per-bucket ``signals`` (119/127), so a caveat and a
 # declared count travel together. This is NOT ``contract_version``; the contract is untouched.
-DATASET_VERSION = 8
+DATASET_VERSION = 9
 # A directory is kept in the tree only when its subtree holds at least this many symbols — the
 # mockup's prune, so a 40k-file repo yields a map of a few dozen rows, not thousands (AC3).
 DIR_SYMBOL_THRESHOLD = 400
@@ -432,6 +432,7 @@ def build_dataset(
         fan_in={metric.key: metric.fan_in for metric in metrics.modules},
         stub_roots=declared_stub_roots,
         limit=module_max,
+        prose=prose,
     )
     mirrors = find_mirror_subtrees(
         file_paths, stub_roots=declared_stub_roots, sample_limit=mirror_sample_max

@@ -124,6 +124,7 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | 145 | [artifact json is a cache that a second renderer turns into a contract](tasks/145_artifact-json-is-a-cache-that-a-second-renderer-turns-into-a-contract.md) | Presentation | done | 088, 112, 116, 118 |
 | 146 | [gate can pass on stale bytecode](tasks/146_gate-can-pass-on-stale-bytecode.md) | Measure | done | — |
 | 197 | [no surface follows one request end to end](tasks/197_no-surface-follows-one-request-from-entry-to-the-data-it-writes.md) | Phase 3 / M11 | done | 113, 114, 111, 112, 022 |
+| 198 | [a business module is labelled by its directory name](tasks/198_a-business-module-is-labelled-by-its-directory-name.md) | Phase 3 / M12 | done | 114, 117, 197 |
 | 199 | [flows have no tool so an agent pays for the whole overview](tasks/199_flows-have-no-tool-so-an-agent-pays-for-the-whole-overview.md) | Phase 3 / M11 | todo | 197 |
 
 

@@ -1,10 +1,11 @@
 """The one prose seam behind the onboarding map (task 117, M12).
 
-Everything on the map is derived: counts, rankings, groupings, the matrix, the treemap. Three things
-are not — the per-layer responsibility line, each tour step's narrative, and the wording of the
-headline facts. This module is the single injection point for those three slots and nothing else.
+Everything on the map is derived: counts, rankings, groupings, the matrix, the treemap. Four things
+are not — the per-layer responsibility line, each tour step's narrative, the wording of the headline
+facts, and a business module's label (198). This module is the single injection point for those four
+slots and nothing else.
 
-One :class:`ProseWriter` Protocol with one method serves all three, so the filler guard, the
+One :class:`ProseWriter` Protocol with one method serves all four, so the filler guard, the
 failure degradation and the per-run call ceiling each exist exactly **once** (R1.2/R7.1). An impl
 lives **outside** ``code_atlas/`` (``onboarding_llm``); with none injected :class:`ProseRun` returns
 every slot's structural default, makes no call, and is identity by construction (R4/R4.1, AC1).
@@ -23,18 +24,31 @@ from typing import Protocol
 SLOT_HEADLINE = "headline"
 SLOT_LAYER = "layer"
 SLOT_STEP = "step"
+SLOT_MODULE = "module"
 
 # Per-slot ceilings, so a repo with hundreds of layers cannot starve the tour of prose. Every number
 # is DERIVED from a cap that already exists (110's vocabulary, 109's C4, the headline families) — a
 # pin test asserts each against its source rather than trusting this copy (R6.7).
-SLOT_LIMITS: Mapping[str, int] = {SLOT_HEADLINE: 6, SLOT_LAYER: 12, SLOT_STEP: 15}
+# 198's module slot is the one number here that is NOT derived: the business-module table is
+# capped by `config.max_results`, an operator setting, so deriving from it would make this ceiling a
+# function of configuration — a repo with max_results=500 would buy 500 calls. 12 is a ratified
+# budget constant instead, and the pin test asserts exactly that rather than a false derivation.
+MODULE_LABEL_BUDGET = 12
+SLOT_LIMITS: Mapping[str, int] = {
+    SLOT_HEADLINE: 6,
+    SLOT_LAYER: 12,
+    SLOT_STEP: 15,
+    SLOT_MODULE: MODULE_LABEL_BUDGET,
+}
 MAX_PROSE_CALLS = sum(SLOT_LIMITS.values())
 
 __all__ = [
     "MAX_PROSE_CALLS",
+    "MODULE_LABEL_BUDGET",
     "SLOT_HEADLINE",
     "SLOT_LAYER",
     "SLOT_LIMITS",
+    "SLOT_MODULE",
     "SLOT_STEP",
     "ProseRequest",
     "ProseRun",
