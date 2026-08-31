@@ -29,11 +29,8 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
 - **R1.2 — One seam only (YAGNI).** The adapter contract is the sole abstraction. No plugin
   registry, base classes, factories or DI container until adapter #2 (TS/JS) exists and proves the
   shape. Two implementations reveal the right abstraction; one invents the wrong one.
-  **Condition met — verdict: NO registry (adapter #2 landed, 019; task 156).** A second language cost
-  zero core abstraction: adapters are selected from data (`config.adapter_cmds` ← `CA_<LANG>_CMD`),
-  announce their own extensions/capabilities over the handshake, and `extension_index`/`_owners` build
-  the ownership map — the 019 core diff was empty. Only per-adapter table is test-side (147). Evidence:
-  PLAN §19.
+  **Condition met — verdict: NO registry** (adapter #2 landed, 019; task 156): the 019 core diff was
+  empty, adapters being selected from data. Mechanism and evidence: PLAN §19.
 - **R1.3 — Dependency direction is one-way.** The core depends on the **contract**, never on a
   concrete parser (`nikic`, Roslyn, ts-morph); adapters depend on nothing in the core. The genuine
   inversion boundary is the **JSON contract + subprocess protocol**, not a Python base class.
@@ -60,6 +57,16 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   on the same classifier status with duplicated handling instead of a shared call.
   *Ratified 2026-08-30 · `one-rule-for-every-subject-slot` (`102-C2`).*
 
+- **R1.9 — A single-answer classifier is not a membership test.** A classifier that returns **one**
+  verdict per subject by taking the deepest or best match — `responsibility_layer` is deepest-wins —
+  answers *"which category is this?"*, never *"does this belong to category X?"*: an earlier segment
+  that disqualifies the subject is invisible to a predicate reading only the deepest match, so
+  `tests/controllers/*` reads as an entry point and `vendor/x/lib/` as a shared library. Membership
+  is an **any-segment** predicate, reused where one already exists (`layers.reading_seed_rank`)
+  rather than re-derived, and the classifier itself is left alone. *Falsifier:* a bucket, seed or
+  filter whose truth is `responsibility_layer(...) == <layer>`.
+  *Ratified 2026-08-31 · `deepest-wins-is-not-a-membership-test` (`197-C1`, seen 130, 131, 197).*
+
 ## 2. Standard over sample
 
 - **R2.1** — Adapters implement the **language specification + ecosystem standards** (for PHP: full
@@ -81,6 +88,15 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   core resolver's job. A single file can't know all targets — don't pretend it can.
 - **R3.4** — Every adapter must pass `tests/contract/` before it is considered to exist. That test
   *is* the substitutability guarantee.
+
+- **R3.5 — One version constant per document; bump the one whose shape moved.** Each version
+  constant guards exactly **one** published document — `contract_version` the contract,
+  `DATASET_VERSION` `manifest_dict`, `ARTIFACT_VERSION` `OnboardingArtifact.as_dict()` — and a new
+  key on a shape bumps *that* shape's constant, never a neighbour's. This generalises R3.1 to the
+  documents it does not name: a new key **is** a shape change, so it moves a version even when no
+  vocabulary did. *Falsifier:* a bump on a constant whose document did not change, or a new key on a
+  published shape with no bump.
+  *Ratified 2026-08-31 · `version-the-document-that-moved` (`197-C2`, `196-C5`).*
 
 ## 4. Determinism & purity of the core
 
@@ -186,11 +202,8 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   **This generalises to every guard:** run it against the shape it forbids (the pre-fix code, a
   sabotaged input, an injected invalid member) and record the red run. *Falsifier:* a guard test
   whose PR claims a defect class is prevented with no recorded red run.
-  **The gate itself is bound by this rule.** `scripts/gate.sh` mirrors every CI job and exits **2
-  when a check was skipped** — a gate that shrank to what one machine can run has not verified the
-  tree, so only `GATE GREEN` counts. Never read a skip as a pass, and never narrow the gate to make
-  it pass; if a check cannot run here, run it where it can (Docker — README *Testing*) and say which
-  host produced the result.
+  **The gate itself is bound by this rule** — `scripts/gate.sh` exits **2** on a skipped check and a
+  skip is never a pass; the rest is AGENTS.md *Before a PR or a push*.
   *`prove-the-guard-fails` (`093-C3`).*
 - **R6.6 — Every language gets a static analyser in CI, at its strictest clean setting.** The core
   has `mypy`; the PHP adapter has **PHPStan at `level: max`**, and each later adapter brings the
@@ -217,16 +230,20 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   repo/fixture that still exhibits the failure, not one a prior ticket cleaned. *Falsifier:* a
   failure-mode AC closed by a test that passes without reaching the failure, or run where it cannot
   occur. *Ratified 2026-08-30 · `ac-failure-mode-needs-the-right-guard` (`085-C2`).*
-- **R6.9 — A guard over a generated artifact asserts the RENDERED output.** Where content is produced
-  by a renderer, assert what the renderer produces, never the artifact's bytes: a grep over a page
-  built in the browser is green by construction and cannot see the drop. *Falsifier:* a test
-  asserting on artifact bytes for content a renderer emits.
-  *Ratified 2026-08-30 · `guard-asserts-rendered-not-shipped-bytes` (`127-C1`).*
+- **R6.9 — A guard asserts at the CONSUMER, not at the producer.** Where content is produced by a
+  renderer, assert what the renderer produces, never the artifact's bytes: a grep over a page built
+  in the browser is green by construction and cannot see the drop. **The same holds one step
+  earlier — a field added for a reader is not delivered until a reader reads it:** assert the
+  consumer, not the field, or the field ships populated, serialized and correct while every renderer
+  still prints the old one, and guarding against this class is not immunity to it. *Falsifier:* a
+  test asserting on artifact bytes for content a renderer emits, or a new field whose only
+  assertions are on its own value with no consumer named.
+  *Ratified 2026-08-30 · `guard-asserts-rendered-not-shipped-bytes` (`127-C1`) · widened 2026-08-31 ·
+  `assert-the-consumer-not-the-field` (`198-C1`, `196-C4`, `196-C8`).*
 
 ## 7. Change discipline
 
-- **R7.1 — Ship the smallest useful thing.** The first release is search/read/outline (014); don't
-  gold-plate before it is usable.
+- **R7.1 — Ship the smallest useful thing**; don't gold-plate before it is usable.
 - **R7.2 — Keep the plan and backlog honest, cost included.** A design decision updates the
   [plan](PLAN.md); task status updates both [`BACKLOG.md`](BACKLOG.md) and the task file's
   frontmatter. **And the spend is part of the status:** before a PR opens, the task's token spend
@@ -240,11 +257,10 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   deleted; revisit when the second arrives.
 - **R7.5 — Comments stay ≤ 3 lines.** Explain *what + why*, not the obvious. If it needs more, the
   code should be clearer or the explanation belongs in a doc/docstring.
-- **R7.6 — A standing document is pruned by the change that adds to it.** `AGENTS.md`,
-  `BACKLOG.md`, `CONVENTION.md`, `AGENT_BRIEF.md` and this file are **tier 1** — read before every
-  non-trivial task (CONVENTION §8.1), so a line added to one is charged to every future session, and
-  the sum is capped by `tests/test_agent_chain_budget.py`. `PLAN.md` is tier 2 and still ceilinged,
-  because a `§`-ref pulls it in. A change that adds **removes what it supersedes in the
+- **R7.6 — A standing document is pruned by the change that adds to it.** Every file on AGENTS.md's
+  **tier 1** list is read before non-trivial work, so a line added to one is charged to every future
+  session, and the sum is capped by `tests/test_agent_chain_budget.py`; `PLAN.md` is tier 2 and still
+  ceilinged, because a `§`-ref pulls it in. A change that adds **removes what it supersedes in the
   same commit**, and never restates what a task file, a `LESSONS.md` entry or a `benchmarks/` file
   already holds. **Session narrative is not a decision** — record the decision and the number that
   binds it, and leave the story where it happened. R7.2 keeps these documents *honest*; this one

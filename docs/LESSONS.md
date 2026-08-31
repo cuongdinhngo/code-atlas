@@ -59,9 +59,9 @@ rule** rather than adding a near-duplicate (P2), and one by finding the rule alr
 | `ac-failure-mode-needs-the-right-guard` | 2 | 085, 107 | **R6.8** — promoted 2026-08-27 |
 | `own-only-what-you-wrote` | 2 | 088, 089 | **R5.7** — promoted 2026-08-27 |
 | `skip-dynamic-means-unlinkable` | 3 | 094, 096, 022 | **R5.2** — re-adjudicated and widened 2026-08-30; the 2026-08-15 rejection reasoned from a sighting that *bound* a design, and the third bound one **wrongly** |
-| `deepest-wins-is-not-a-membership-test` | 3 | 130, 131, 197 | open — **due promotion or rejection**; it reached 3 at 197 and was never entered here, which is why nothing surfaced it |
-| `assert-the-consumer-not-the-field` | 2 | 198, 196 | open — recurrence 2 at 196, which hit it **twice**: once as the guard it built, once as a pair of fields it shipped unread in the same diff |
-| `version-the-document-that-moved` | 2 | 197, 196 | open — recurrence 2 at 196; both are a new key on the published dataset shape |
+| `deepest-wins-is-not-a-membership-test` | 3 | 130, 131, 197 | **R1.9** — promoted 2026-08-31; 199 *used* it (exact-equality membership, proven by a negative control), which is a use and not a fourth sighting |
+| `assert-the-consumer-not-the-field` | 2 | 198, 196 | **R6.9** — widened 2026-08-31 rather than duplicated (P2): the rule already asserted at the renderer, and this moves it one step earlier, to the field |
+| `version-the-document-that-moved` | 2 | 197, 196 | **R3.5** — promoted 2026-08-31; it generalises R3.1 to the three versioned documents that rule does not name |
 
 **Ratified 2026-08-30 — all 17, on a condition the brief already stated.** The rule book and the
 brief both said a rule stays `PROVISIONAL` *"until a second incident confirms the shape"*, and every
@@ -306,8 +306,9 @@ evidence: `git checkout code_atlas/onboarding/dataset.py` after control 2 revert
 to HEAD; rebuilt from the edit script · destination: open — recurrence 1.*
 *Claim `196-C4` — second sighting: a field a renderer does not read is not delivered. Both render
 assertions went red with the field present and correct, while all eight field-level tests stayed
-green. type: 2 · handle: `assert-the-consumer-not-the-field` · seen: 198, 196 · evidence: negative
-control 1 — `git stash push viewer.py` → 2 failed, 8 passed · destination: open — recurrence 2.*
+green. type: 2 · handle: `assert-the-consumer-not-the-field` · retired: promoted to R6.9 · seen: 198,
+196 · evidence: negative
+control 1 — `git stash push viewer.py` → 2 failed, 8 passed · destination: **R6.9** — promoted 2026-08-31.*
 *Claim `196-C7` — a requirement stated as *"read X, do not recompute X"* is unfalsifiable in any
 test that builds once, because the read and the recomputation agree; make them DISAGREE (doctor the
 stored value's labels, keep its arithmetic) or the rule is enforced by nobody. type: 2 · handle:
@@ -318,9 +319,10 @@ destination: open — recurrence 1.*
 *Claim `196-C8` — third sighting, and this one was committed BY the change whose proving test is a
 negative control for the same class: `LanguageConfidence.linked`/`.unlinked` were folded from the
 stamp, serialized into the published shape, and read by no renderer. Guarding against a defect class
-is not the same as being immune to it. type: 2 · handle: `assert-the-consumer-not-the-field` · seen:
-198, 196 · evidence: `grep -n linked code_atlas/onboarding/viewer.py` -> 0 matches, while
-`as_dict()` emitted both keys; pruned · destination: open — recurrence 2.*
+is not the same as being immune to it. type: 2 · handle: `assert-the-consumer-not-the-field` ·
+retired: promoted to R6.9 · seen: 198, 196 · evidence:
+`grep -n linked code_atlas/onboarding/viewer.py` -> 0 matches, while
+`as_dict()` emitted both keys; pruned · destination: **R6.9** — promoted 2026-08-31.*
 *Claim `196-C6` — a count pin the trace cannot see is a pin written as a LITERAL where the
 invariant has a name: `git grep DATASET_VERSION` found four pins and the gate found a fifth,
 `assert payload["version"] == 9`, which no grep for the constant could reach. Its docstring still
@@ -331,9 +333,10 @@ every pin folded in; fixed by pinning against the constant, not by bumping a sec
 number · destination: AGENT_BRIEF P5.*
 *Claim `196-C5` — second sighting: a new key on a published shape moves that shape's version.
 `confidence_by_language` took `DATASET_VERSION` 9 → 10, and the one hard pin was found by grep
-rather than by the suite going red. type: 2 · handle: `version-the-document-that-moved` · seen:
-197, 196 · evidence: `tests/test_onboarding_dataset.py:326` pinned `== 9` literally; the two viewer
-pins compare to the constant and needed no edit · destination: open — recurrence 2.*
+rather than by the suite going red. type: 2 · handle: `version-the-document-that-moved` ·
+retired: promoted to R3.5 · seen: 197, 196 · evidence:
+`tests/test_onboarding_dataset.py:326` pinned `== 9` literally; the two viewer
+pins compare to the constant and needed no edit · destination: **R3.5** — promoted 2026-08-31.*
 
 ## 198 — Plumbing complete, output disconnected
 The 117 seam gained a fourth slot, a ceiling, a filler guard, a prompt and five tests, and the map a
@@ -343,9 +346,10 @@ The ticket-blind challenger found it by asking the only question the tests did n
 this?
 
 *Claim `198-C1` — a field added for a reader is not delivered until a renderer reads it; assert the
-consumer, not the field. type: 2 · handle: `assert-the-consumer-not-the-field` · seen: 198 ·
+consumer, not the field. type: 2 · handle: `assert-the-consumer-not-the-field` · retired: promoted
+to R6.9 · seen: 198 ·
 evidence: `BusinessModule.label` populated and tested while `artifact.py` rendered `row['module']`;
-no renderer referenced `label` · destination: open — recurrence 1.*
+no renderer referenced `label` · destination: **R6.9** — promoted 2026-08-31.*
 *Claim `198-C2` — a guard driven to its limit must inspect the RESULT, not only the counter: the
 ceiling test called the builder and discarded the table, so a seam dropping declined rows passed
 every test. type: 2 · handle: `prove-the-guard-fails` · seen: 093, 019, 147, 184, 192, 194, 195,
@@ -367,16 +371,16 @@ answer (`reading_seed_rank`); the defect was writing a fourth seed test instead 
 
 *Claim `197-C1` — a responsibility layer read deepest-wins is never a membership test; membership
 needs an any-segment check, and one already exists. type: 2 · handle:
-`deepest-wins-is-not-a-membership-test` · seen: 130, 131, 197 · evidence: `seed_files` admitted
+`deepest-wins-is-not-a-membership-test` · retired: promoted to R1.9 · seen: 130, 131, 197 ·
+evidence: `seed_files` admitted
 `tests/controllers/*`, `spec/handlers/*` and `vendor/*/controllers/*` until it was re-pointed at
-`layers.reading_seed_rank` (`flows.py`, `layers.py:233`) · destination: **third sighting — promote
-or reject**.*
+`layers.reading_seed_rank` (`flows.py`, `layers.py:233`) · destination: **R1.9** — promoted 2026-08-31.*
 *Claim `197-C2` — a version constant guards ONE document; bump the one whose shape moved, not the
 one whose neighbour did. `ARTIFACT_VERSION` versions `OnboardingArtifact.as_dict()`; the change
 touched `manifest_dict`, which carries `DATASET_VERSION`. type: 2 · handle:
-`version-the-document-that-moved` · seen: 197 · evidence:
+`version-the-document-that-moved` · retired: promoted to R3.5 · seen: 197 · evidence:
 `test_ac2_a_version_bump_without_a_new_pin_fails` went red on a bump with no shape change
-(`artifact.py:71-73`) · destination: open — recurrence 1.*
+(`artifact.py:71-73`) · destination: **R3.5** — promoted 2026-08-31.*
 *Claim `197-C3` — a named subset exported by the contract is a spend every consumer inherits; the
 kind set a consumer walks belongs to the consumer. type: 2 · handle:
 `the-consumer-owns-its-kind-set` · seen: 197 · evidence: `FLOW_KINDS` in `contract.py` tripped 022

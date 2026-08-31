@@ -69,12 +69,19 @@ DOCS = REPO / "docs"
 # BACKLOG's own ceiling drops 9,500 -> 8,200 in the same change, so the room that bought these rules
 # cannot be silently re-consumed by narrative. The next addition prunes again or argues again; it
 # does not inherit this raise as headroom.
+# 2026-08-31 promotion (R1.9 new, R3.5 new, R6.9 widened): ENGINEERING_RULES.md 5,300 -> 5,700.
+# Paid for inside the file first, per R7.6 — four passages that retold what another document
+# already holds were cut for 173 tokens: R1.2's adapter-selection mechanism (PLAN §19), R6.5's gate
+# paragraph (AGENTS.md *Before a PR*), R7.6's re-listing of the tier-1 set (AGENTS.md's own list,
+# and a listed set where a derivation exists is what R6.7 forbids) and R7.1's release history
+# (AGENTS.md *Ship discipline*). 133's cap is still 25,200 and untouched; the chain sits at 25,190,
+# so the three rules were bought, not borrowed. The next addition prunes again or argues again.
 BUDGETS = {
     "CLAUDE.md": 50,
     "AGENTS.md": 2_800,
     "PLAN.md": 24_000,
     "BACKLOG.md": 8_200,
-    "ENGINEERING_RULES.md": 5_300,
+    "ENGINEERING_RULES.md": 5_700,
     "AGENT_BRIEF.md": 2_250,
     "CONVENTION.md": 6_600,
 }
