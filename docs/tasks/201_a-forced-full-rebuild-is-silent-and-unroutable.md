@@ -4,7 +4,7 @@ slug: a-forced-full-rebuild-is-silent-and-unroutable
 title: 'A contract bump escalates to a 73-minute full rebuild with no word to the caller, inside a call that cannot outlive its client — and 050 already answers this for the other version key'
 phase: 1.5b
 milestone: Freshness
-status: in-progress
+status: done
 depends_on: [030, 050, 172, 176, 177]
 ---
 
@@ -149,7 +149,7 @@ Field log: the anchor monorepo's MCP transcript, 2026-08-31 14:48:41 Z cancel �
 
 ## Session status
 
-- **KEY:** 201 · **work_doc_mode:** embed · **Current phase:** 4 review — clean (challenger only; REVIEWER: OFF). Gates 0-4 closed.
+- **KEY:** 201 · **work_doc_mode:** embed · **Current phase:** 5 finalise — complete on disk. PR [#244](https://github.com/cuongdinhngo/code-atlas/pull/244) open. **Next action:** merge #244. **Revert path:** `git revert` the three commits on `feat/201-…`, or close #244 unmerged.
 - `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · **Type:** enhancement.
 - Run arg *"with skipper reviewer"* = **reviewer seat only** (AGENTS.md); the challenger keeps its seat.
 - Run mode `autorun` — stops at the PR, never merges.
@@ -634,8 +634,8 @@ build tool. They live in `indexer.py` instead, beside the predicate, because `ge
 needs the same two strings and a tool importing another tool's payload vocabulary is the second
 definition site R1.8 forbids. Stricter than approved, not different — surfaced for review.
 
-**Status is `in-progress`, not `done`.** R7.2's guard requires a `done` task's ledger row to carry
-its PR link, which does not exist until finalise; the flip and the row land together there.
+**Status flipped to `done` at finalise**, together with the ledger row that carries the PR link —
+R7.2's guard requires exactly that pairing, which is why Phase 3 left it `in-progress`.
 
 ## Phase 4 — review
 
@@ -749,3 +749,45 @@ sighting". Recorded so the non-proposal is auditable rather than an omission.
 |---|---|
 | AC6's anchor-scale replay — exclusion **E1** | the next field-retro round against the anchor monorepo records the timing; the mechanism is already proven under the ticket's own 1.0 s bar |
 | `full_rebuild_required` is absent at `detail_level: minimal` | decision **H6**, following 159's precedent. If a `minimal` caller ever needs the warning, that is a ticket about which fields survive `minimal`, not about this one |
+
+### RECONCILE at close
+
+```
+RECONCILE
+  conditions: 7 declared | 7 re-run | 6 holding | 1 BROKEN | 0 UNBOUND | 0 could-not-run
+  phase     : close | reviewer: off | challenger: on
+```
+
+The single BROKEN is `TREE-COMPARISON`, and it is **expected**: it holds only once the PR is merged,
+and `autorun` stops at the PR. Every ticket-specific condition holds — the refusal is in the build
+tool, the predicate has one site, `get_index_status` names the pending rebuild, and the proving test
+is green. The three conditions 200 got wrong are not repeated: each check here is a single predicate
+whose exit status means what the statement says.
+
+### DISCLOSURE
+
+1. **REVIEWER: OFF** — waived by `--no-reviewer`. **No rule-book-grounded review of this diff ran**;
+   the clean verdict carries no reviewer finding because none was sought.
+   **CHALLENGER: ON** — and it re-derived every requirement, reverted the production check in a
+   worktree to prove the guard is not a tautology, and read `_run`/`_result` against `main` itself.
+2. **UNCHECKED AGENT CLAIMS: 0** — every contract value was derived by a command.
+3. **BUDGET: call-count ceiling `unknown`** — no ledger history for this tier. Actual dispatch spend
+   144,208 tokens across 2 dispatches.
+4. What I chose not to verify, or verified less than fully:
+   - **AC6's anchor-monorepo replay was not run** (exclusion **E1**). The 1.0 s bar is met on a
+     one-file fixture; the 21,588-file claim is unmeasured. The refusal does two string comparisons
+     before touching the store or git, which is why I judge the scale gap low-risk — but that is a
+     judgement, not a measurement.
+   - **A `minimal` caller gets no `full_rebuild_required` warning.** Deliberate (H6, 159's
+     precedent), and the exact surprise this ticket exists to prevent, one detail level down.
+   - **The pre-change probe ran in a detached worktree with `PYTHONPATH` forced**, not in a clean
+     install. It reproduced the reported behaviour, but it is not the field environment.
+   - **`code-atlas-refresh` inherits the escalation record** through the shared `incremental_update`
+     and was **not** exercised end-to-end here; 172's own test covers that path for `scope_change`,
+     and I reasoned by symmetry rather than running it.
+   - **The three Phase-2 design-time traces were refused by the provenance axis** before being
+     reframed. That is the second sighting of `stamp-evidence-with-the-tree-under-review` in two
+     tickets, and the reframing is a judgement about an artifact the checker has no category for.
+   - **The working doc is 127% of its 40,000 B ceiling.** Reported by the checker, not blocked.
+   - **No `reviewer` seat, no real corpus, no anchor monorepo, no live MCP client.**
+   - **Outward actions deferred:** the **merge** of PR #244. `autorun` never merges.
