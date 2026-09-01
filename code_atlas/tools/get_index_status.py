@@ -18,9 +18,14 @@ from code_atlas.adapter import unconfigured_adapters
 from code_atlas.build_info import server_provenance
 from code_atlas.config import Config
 from code_atlas.index_lock import build_in_progress
+from code_atlas.indexer import (
+    CONTRACT_REBUILD_REQUIRED,
+    FULL_REBUILD_ROUTE,
+    IN_BAND_FULL_REBUILD,
+    build_incomplete,
+    contract_rebuild_required,
+)
 from code_atlas.store import (
-    BUILD_COMPLETE,
-    BUILD_COMPLETE_KEY,
     BUILT_AT_KEY,
     CONTRACT_VERSION_KEY,
     SCHEMA_OLDER,
@@ -55,6 +60,7 @@ BUILD_TOOL = "build_or_update_index"
 # running" and "did the last build finish linking" get their own names rather than overloading it.
 BUILD_IN_PROGRESS = "build_in_progress"
 INDEX_COMPLETE = "index_complete"
+FULL_REBUILD_REQUIRED = "full_rebuild_required"
 
 
 def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str, object]]:
@@ -121,11 +127,18 @@ def _attach_build_state(
         status[BUILD_IN_PROGRESS] = True
     if store is None:
         return
-    complete = store.get_meta(BUILD_COMPLETE_KEY)
-    # Absent means an index written before this key existed: unknowable, so say nothing. Only a
-    # recorded "0" — a build that started writing and never stamped its completion — is a claim.
-    if complete is not None and complete != BUILD_COMPLETE:
+    # One derivation for this field and for `staleness`, so the two cannot disagree (202, R6.7).
+    # An absent key is an index written before the key existed: unknowable, so say nothing.
+    if build_incomplete(store):
         status[INDEX_COMPLETE] = False
+    # "Call this first" is only worth following if it names the hour-long rebuild waiting
+    # behind the next incremental. Omitted when none is pending, like 159 (201).
+    if contract_rebuild_required(store):
+        status[FULL_REBUILD_REQUIRED] = {
+            "reason": CONTRACT_REBUILD_REQUIRED,
+            "route": FULL_REBUILD_ROUTE,
+            "in_band_option": IN_BAND_FULL_REBUILD,
+        }
 
 
 def _attach_unconfigured_adapters(status: dict[str, object], config: Config) -> None:

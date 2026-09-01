@@ -45,9 +45,17 @@ def refresh(root: Path, *, verbose: bool = False) -> int:
         if not config.db_path.is_file():
             _note("skipped: no index", verbose=verbose)
             return 0
-        result = create(config)(full=False)
+        # Never starts a full rebuild: 053 says this hook does not build, and a killed
+        # repair would be re-triggered by the next checkout, indefinitely (202).
+        result = create(config)(full=False, repair_incomplete=False)
         if result.get("mode") == "busy":
             _note("skipped: another build is running", verbose=verbose)
+        elif result.get("mode") == "refused":
+            print(
+                f"code-atlas refresh skipped: {result.get('reason')} — "
+                f"run {result.get('route')}",
+                file=sys.stderr,
+            )
         else:
             _note("refreshed", verbose=verbose)
     except Exception as error:

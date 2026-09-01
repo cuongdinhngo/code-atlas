@@ -90,6 +90,101 @@ this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *c
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
 
+## 202 — The fixture is the finding, and the first two versions of it were wrong
+
+A build killed mid-write left an index answering `staleness: "current"` with an empty suggestion
+list, unrepairable because `last_commit` still named HEAD. The fix is small — one predicate, four
+readers. The work was the **fixture**, and getting it honest took two corrections that each hid the
+defect completely:
+
+1. Killing a **full** build leaves no `last_commit`, so `_run` already degrades to full and the
+   unrepairable state is never reached. The field case is a killed **incremental**.
+2. Giving that incremental work by dirtying the tree makes `staleness` read `behind`, so AC1 —
+   *"does not report current"* — passes trivially before the fix. Restoring the tree after the kill
+   is what reproduces `current`, which is the whole defect.
+
+Neither error would have failed a test. Both would have produced a green suite over a scenario that
+was not the one the ticket described.
+
+### 202-C1 — a repro fixture must be checked against the payload it claims to reproduce, field by field
+
+- type: 2 (process) · handle: `reproduce-the-payload-not-the-story`
+- status: proposed (awaiting human confirm)
+- seen: 202
+- evidence: two fixture versions produced an incomplete index and neither reproduced the reported
+  state — the first left `last_commit` absent, the second left the tree dirty so `staleness` read
+  `behind` rather than `current`. The ticket quoted the field payload verbatim; comparing against it
+  field by field is what found both.
+- destination: stays in `lessons_path` (recurrence 1)
+
+### 202-C2 — a guard whose window can close must fail when it does, not pass over an untested window
+
+- type: 2 (code) · handle: `no-vacuous-pass-when-the-window-closes`
+- status: proposed (awaiting human confirm)
+- seen: 202
+- evidence: the kill fixture races a real subprocess. If the build finishes first the test would
+  exercise a completed index and pass — green over the scenario it exists to test. It raises
+  instead, naming R6.5.
+- destination: stays in `lessons_path` (recurrence 1)
+
+*Claim `202-C3` — `compute_staleness` has six consumers, four of them nav tools that sign a payload,
+so a staleness fix confined to `get_index_status` leaves `find_callers` and friends reporting
+`current` over a gutted graph. type: 5 project-ground-truth · descriptive · area: tools / payload
+honesty · proposed · verified-at: 2026-09-01 · stays in lessons.*
+
+*Claim `202-C4` — a payload carrying two independent escalation causes should record BOTH rather
+than let check order pick one: disjoint keys cost nothing and remove a precedence the caller cannot
+observe. type: 2 · handle: `one-field-two-questions` · seen: 189, 022, 202 — **third sighting**, and
+the first that is a defect rather than a use: the shipped code did let order decide, and the
+ticket-blind challenger found it. The class index asks for exactly this before re-proposing.
+status: proposed · destination: **proposed `rulebook_path`**, awaiting a per-claim human ratify.*
+
+## 201 — The label was derived from the bookkeeping, not from what ran
+
+`build_or_update_index(full=false)` on an index one vocabulary era behind ran a full rebuild — 73
+minutes on the anchor monorepo, inside a call that dies at the client's 3600 s ceiling. The ticket
+called that silence. Proving the test red found something the ticket does not say: the payload also
+reported `mode: incremental`. `full_build` **was** entered, but `_run` reads the mode off whether the
+`scope` dict is empty, and nothing wrote to it — so the one field that did speak said the opposite of
+what happened. Recording `contract_change` through the same `scope` dict 172 uses for `scope_change`
+fixes the label and the silence with one mechanism.
+
+The design turn: two **disjoint keys**, never one `escalation` field carrying a `cause`. That is a
+*use* of `one-field-two-questions` (189, 022 — rejected at recurrence 2), not a third sighting of it,
+on the same reading the corpus applied to 199 using `deepest-wins-is-not-a-membership-test`.
+
+### 201-C1 — a design-time trace and a baseline read the PRE-change tree, and are not evidence for the tree under review
+
+- type: 2 (process) · handle: `stamp-evidence-with-the-tree-under-review`
+- status: proposed (awaiting human confirm)
+- seen: 200, 201 — **recurrence 2**. The handle is the join between the two records, and recall
+  greps the handle.
+- sharpens 200-C2 rather than superseding it: 200 learned *stamp the tree under review*; 201 adds
+  *and some artifacts are not evidence for that tree at all* — a blast-radius trace made to decide
+  what to change, and a baseline, both describe the tree **before** it.
+- evidence: three Phase-2 traces stamped at the branch point were refused by
+  `check_lines --phase execute --tree <HEAD>`; re-running them at HEAD would have made them describe
+  the tree after the change, which is not what a design-time trace is. Written as prose-plus-output
+  instead — the same fix 200's baseline took, one ticket earlier.
+- cheaply checkable: run `check_lines.py check <doc> --phase review --tree $(git rev-parse HEAD)`
+  and read its `evidence :` line.
+- destination: **proposed `agent_brief_path`** — a recurring type-2 process claim may not stay in
+  lessons. Awaiting a per-claim human ratify.
+
+### 201-C2 — a field that labels what ran must be derived from what ran, not from a side-channel
+
+- type: 2 (code) · handle: `label-what-ran-not-what-was-recorded`
+- status: proposed (awaiting human confirm)
+- seen: 201
+- evidence: `_run` returned `INCREMENTAL` whenever `scope` was empty, so a contract-forced
+  `full_build` reported `mode: incremental` for as long as the escalation went unrecorded. The label
+  was right exactly when the bookkeeping happened to be written, which is not a guarantee.
+- destination: stays in `lessons_path` (recurrence 1)
+
+*Claim `201-C3` — `code-atlas-build` runs the MCP tool itself (`cli.py:81`), so a refusal added to
+that tool becomes a shell-route refusal unless the CLI opts out; here the refusal *names* the shell
+route, so sharing it would have been a loop. type: 5 project-ground-truth · descriptive · area: cli /
+tools · proposed · verified-at: 2026-09-01 · stays in lessons.*
 ## 200 — A copy of a surface rots at the speed of the surface, and evidence is dated by the tree it ran on
 
 `which_tool` maps every question onto a tool and lives in the one channel a model never sees (081);

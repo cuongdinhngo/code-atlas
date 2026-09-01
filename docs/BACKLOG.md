@@ -79,8 +79,8 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 195 | [three tools still read the whole graph blend](tasks/195_three-tools-still-read-the-whole-graph-blend.md) | Measure | done | 183 |
 | 196 | [the-system-map-cannot-attribute-its-own-confidence](tasks/196_the-system-map-cannot-attribute-its-own-confidence.md) | Measure | done | 195 |
 | 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099 |
-| 201 | [A forced full rebuild is silent and unroutable through MCP](tasks/201_a-forced-full-rebuild-is-silent-and-unroutable.md) | Freshness | todo | 030, 050, 172, 176, 177 |
-| 202 | [A killed build leaves an index that reports current](tasks/202_a-killed-build-leaves-an-index-that-reports-current.md) | Agent-trust | todo | 072, 077, 052, 050, 035 |
+| 201 | [A forced full rebuild is silent and unroutable through MCP](tasks/201_a-forced-full-rebuild-is-silent-and-unroutable.md) | Freshness | done | 030, 050, 172, 176, 177 |
+| 202 | [A killed build leaves an index that reports current](tasks/202_a-killed-build-leaves-an-index-that-reports-current.md) | Agent-trust | done | 072, 077, 052, 050, 035 |
 
 ## Open work — Pillar 2 · Onboarding
 
