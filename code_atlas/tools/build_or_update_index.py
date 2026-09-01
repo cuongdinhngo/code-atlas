@@ -15,13 +15,22 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Literal
 
-from code_atlas import gitutil
+from code_atlas import contract, gitutil
 from code_atlas.adapter import AdapterError
 from code_atlas.config import Config
 from code_atlas.index_lock import publish_build_progress, try_index_write_lock
-from code_atlas.indexer import BuildReport, full_build, incremental_update
+from code_atlas.indexer import (
+    CONTRACT_REBUILD_REQUIRED,
+    FULL_REBUILD_ROUTE,
+    IN_BAND_FULL_REBUILD,
+    BuildReport,
+    contract_rebuild_required,
+    full_build,
+    incremental_update,
+)
 from code_atlas.store import (
     BUILT_AT_KEY,
+    CONTRACT_VERSION_KEY,
     LAST_COMMIT_KEY,
     SCHEMA_OLDER,
     WRITE_ERRORS,
@@ -59,7 +68,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     """Bind the tool to one repo's configuration."""
 
     def build_or_update_index(
-        full: bool = False, detail_level: DetailLevel = "standard"
+        full: bool = False,
+        detail_level: DetailLevel = "standard",
+        allow_full_rebuild: bool = False,
     ) -> dict[str, object]:
         """Build or refresh this repo's index so the other tools have current data.
 
@@ -70,13 +81,26 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         returns ``mode: busy`` carrying the staleness of the index the loser is about to query,
         read-only (072). To *see* a busy refusal on purpose, follow the ``code-atlas-refresh`` race
         recipe in ``docs/runbooks/parallel-agents.md`` (082).
+
+        An index written under an older *vocabulary* era cannot be extended
+        incrementally either (030 AC1). Rather than silently starting an hour-long
+        rebuild inside a call that cannot outlive its client, ``full=false`` returns
+        ``mode: refused`` with ``reason: contract_rebuild_required`` and the route that
+        can serve it. ``allow_full_rebuild=true`` runs that rebuild in-band anyway,
+        accepting the wait (201).
         """
         started = time.monotonic()
         with try_index_write_lock(config.db_path) as held:
             if not held:
                 return _busy(config, full=full, started=started)
             try:
-                return _build(config, full=full, detail_level=detail_level, started=started)
+                return _build(
+                    config,
+                    full=full,
+                    detail_level=detail_level,
+                    started=started,
+                    allow_full_rebuild=allow_full_rebuild,
+                )
             except AdapterError as broken:
                 return _adapter_refused(config, broken, full=full, started=started)
 
@@ -159,6 +183,7 @@ def _build(
     full: bool,
     detail_level: DetailLevel,
     started: float,
+    allow_full_rebuild: bool = False,
 ) -> dict[str, object]:
     rebuilt_schema = False
     try:
@@ -170,6 +195,10 @@ def _build(
         rebuilt_schema = True
         store = GraphStore(config.db_path)
     try:
+        if not (full or rebuilt_schema or allow_full_rebuild) and contract_rebuild_required(
+            store
+        ):
+            return _contract_refused(store, config, full=full, started=started)
         scope: dict[str, object] = {}
         mode, report = _run(config, store, full=full or rebuilt_schema, scope=scope)
         result = _result(
@@ -235,6 +264,30 @@ def _unlink_index(path: Path) -> None:
     """Remove a foreign-schema DB (and WAL siblings) so the next open creates schema current."""
     for sibling in (path, Path(str(path) + "-wal"), Path(str(path) + "-shm")):
         sibling.unlink(missing_ok=True)
+
+
+def _contract_refused(
+    store: GraphStore, config: Config, *, full: bool, started: float
+) -> dict[str, object]:
+    """A lagging vocabulary era forces a full rebuild — say so instead of starting one (201).
+
+    The 050 shape, for the other version key: returned rather than raised so the caller reads
+    the action, and carrying no counts because nothing was built (060). ``route`` answers *what
+    do I do now*, which the previous silence left the caller to find by watching a lock file.
+    """
+    return {
+        "mode": REFUSED,
+        "requested_full": full,
+        "performed": False,
+        "reason": CONTRACT_REBUILD_REQUIRED,
+        "stored_contract_version": store.get_meta(CONTRACT_VERSION_KEY),
+        "contract_version": contract.CONTRACT_VERSION,
+        "route": FULL_REBUILD_ROUTE,
+        "in_band_option": IN_BAND_FULL_REBUILD,
+        "index_root": config.index_root,
+        "db_path": str(config.db_path),
+        "seconds": round(time.monotonic() - started, 3),
+    }
 
 
 def _refused(config: Config, mismatch: SchemaVersionError, full: bool) -> dict[str, object]:

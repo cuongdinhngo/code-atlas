@@ -84,7 +84,9 @@ def build(root: Path, *, full: bool = False) -> int:
         from code_atlas.config import load_config
         from code_atlas.tools.build_or_update_index import create
 
-        result = create(load_config(root))(full=full)
+        # The refusal exists because an MCP call cannot outlive its client; a shell has no
+        # RPC deadline, and the refusal names THIS command as the route (201).
+        result = create(load_config(root))(full=full, allow_full_rebuild=True)
     except Exception as error:  # noqa: BLE001 — a broken build is an exit code, never a traceback
         _say(f"failed: {type(error).__name__}: {error}")
         return FAILED
