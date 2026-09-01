@@ -157,8 +157,8 @@ on the same reading the corpus applied to 199 using `deepest-wins-is-not-a-membe
 
 - type: 2 (process) · handle: `stamp-evidence-with-the-tree-under-review`
 - status: proposed (awaiting human confirm)
-- seen: 200, 201 — **recurrence 2**. (200's own claim record rides its own branch; the handle is the
-  join, and recall greps the handle.)
+- seen: 200, 201 — **recurrence 2**. The handle is the join between the two records, and recall
+  greps the handle.
 - sharpens 200-C2 rather than superseding it: 200 learned *stamp the tree under review*; 201 adds
   *and some artifacts are not evidence for that tree at all* — a blast-radius trace made to decide
   what to change, and a baseline, both describe the tree **before** it.
@@ -185,6 +185,59 @@ on the same reading the corpus applied to 199 using `deepest-wins-is-not-a-membe
 that tool becomes a shell-route refusal unless the CLI opts out; here the refusal *names* the shell
 route, so sharing it would have been a loop. type: 5 project-ground-truth · descriptive · area: cli /
 tools · proposed · verified-at: 2026-09-01 · stays in lessons.*
+## 200 — A copy of a surface rots at the speed of the surface, and evidence is dated by the tree it ran on
+
+`which_tool` maps every question onto a tool and lives in the one channel a model never sees (081);
+the poke snippet's `Edit(*.php)|Write(*.php)` filter was right at 036 and silently wrong from the
+moment adapter #2 landed. Both are the same defect — a value written down beside its source — so
+both fixes are generation plus a guard, not a better copy. The design turn worth keeping is that the
+*simpler* fix for the snippet (delete the filter; `poke` already no-ops on a suffix no adapter owns)
+is correct and **unprovable**: with nothing per-adapter left in the file, no fixture can make the
+guard go red, so R6.5 rejects it. The provable fix won on that ground alone.
+
+The second finding cost a whole review round. Every empirical block was stamped at the **branch
+point**, following the convention the previous ticket's working doc used — and review's provenance
+axis refused all eight, because at review the tree under review is `HEAD`, not where the branch
+started. The eight commands were re-run at the reviewed SHA. The one block that stays at the branch
+point is the `BASELINE`, and that is correct: a baseline measures the pre-change tree by definition,
+so "another tree" is the only honest thing it can be.
+
+### 200-C1 — the counted-line checker parses an enumerated tail from the line's LAST backtick
+
+- type: 1 · handle: `symbol:check_lines.py`
+- status: proposed (awaiting human confirm)
+- seen: 200
+- evidence: a `RULE SECTIONS:` line enumerating eight sections FAILED with *"the count of sections
+  enumerated on the line does not match `<n> applicable`"* while `parse_line` on the same body
+  returned `n=8, k=8, m=0` and `_count_sections` returned 8. The only difference was a nested
+  `` `contract.py` `` inside one section's N/A reason; removing the inner backticks made the line
+  pass unchanged in every other respect.
+- destination: stays in `lessons_path`; also filed as a signal in `SKILL_GAP_CANDIDATES.md`
+
+### 200-C2 — stamp test evidence with the tree under review, never the branch point
+
+- type: 2 (process) · handle: `stamp-evidence-with-the-tree-under-review`
+- status: proposed (awaiting human confirm)
+- seen: 200
+- evidence: eight `Ran at <branch point>` blocks, all refused at review against `HEAD`; re-running
+  them at the reviewed SHA cleared seven, and the eighth is the baseline, which must not move.
+- destination: stays in `lessons_path` (recurrence 1); `agent_brief_path` on a second sighting
+
+### 200-C3 — between two correct fixes, take the one whose guard can be observed failing
+
+- type: 2 (code) · handle: `prefer-the-provable-fix`
+- status: proposed (awaiting human confirm)
+- seen: 200
+- evidence: deleting the snippet's `"if"` filter is correct — `poke.py` exits 0 on a suffix no
+  adapter owns — and leaves nothing a fourth-adapter fixture could turn red. R6.5 asks for the
+  observed failure, so the design that can produce one wins over the shorter diff.
+- destination: stays in `lessons_path` (recurrence 1)
+
+*Claim `200-C4` — every shipped adapter declares its announced suffixes as a one-line literal in its
+own entry file (`adapters/php/index.php:27`, `adapters/typescript/index.js:12`,
+`adapters/sql/index.js:12`), so a guard can read the handshake's own string without starting a
+subprocess. type: 5 project-ground-truth · descriptive · area: adapters · proposed · verified-at:
+2026-09-01 · stays in lessons.*
 
 ## 187 — A promise with two exits is kept on only one of them
 `retain_temps=True` means *the walk's temp tables are still there for you to read*. `reachable_from`
