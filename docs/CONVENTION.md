@@ -31,21 +31,19 @@ code-atlas/
 ├── onboarding_llm/                   # the LLM implementers, OUTSIDE the core by R4.1 (CI grep-gated)
 ├── scripts/                          # operator reports & benchmarks (never imported by the server)
 ├── docker/                           # test image, runtime image, compose
+├── contrib/                          # offered, never installed: skill/ (generated Agent Skill,
+│                                     #   200) claude-code/ codex/ opencode/ git/
 ├── adapters/
 │   ├── php/                          # self-contained: composer.json, index.php, src/{Parser,Visitor}.php
-│   ├── typescript/ python/ csharp/   # added in order; each self-contained
+│   ├── typescript/ sql/              # landed; python/ csharp/ deferred (PLAN §19)
 ├── tests/
 │   ├── contract/                     # schema-conformance every adapter must pass
 │   ├── fixtures/<lang>/…             # spec-driven fixtures
 │   └── test_*.py
-└── docs/
-    ├── PLAN.md                        # authoritative design
-    ├── TOOLS.md                       # the tool surface: every tool, prompts, hooks, config
-    ├── design/  assets/               # why an answer is shaped that way; figures the docs embed
-    ├── ENGINEERING_RULES.md  CONVENTION.md  BACKLOG.md  AGENT_BRIEF.md  LESSONS.md  FEEDBACK.md
-    ├── phase3-onboarding/             # the onboarding roadmap + the reviewed mockup it was built from
-    ├── benchmarks/                    # recorded measurement runs
-    ├── runbooks/                     # operator protocols (onboarding, recognition probe, field retro)
+└── docs/                             # each doc's audience, content and boundary: §8.1 below
+    ├── PLAN.md  TOOLS.md  ENGINEERING_RULES.md  CONVENTION.md  BACKLOG.md  AGENT_BRIEF.md
+    ├── LESSONS.md  TOKEN_LEDGER.md  SKILL_GAP_CANDIDATES.md  FEEDBACK.md
+    ├── design/  assets/  phase3-onboarding/  benchmarks/  runbooks/
     └── tasks/NNN_slug.md             # one file per task
 ```
 

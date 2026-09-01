@@ -272,12 +272,12 @@ scripts/docker-test.sh pytest -q -k php      # just the PHP-adapter integration 
 
 ### The expected count
 
-Two numbers, because the two routes are not the same run. Both verified 2026-08-29 on Linux:
+Two numbers, because the two routes are not the same run. Both verified 2026-09-01 on Linux:
 
 | Route | Expected | Why |
 |---|---|---|
-| bare `pytest`, with `php` · `composer` · `node` · `docker` on PATH | **2,484 passed / 0 skipped** | everything runs |
-| `scripts/docker-test.sh` | **2,483 passed / 1 skipped** | `test_runtime_image_reports_server_build` shells out to `docker` to build `Dockerfile.runtime`, which it cannot do from inside the test image |
+| bare `pytest`, with `php` · `composer` · `node` · `docker` on PATH | **2,739 passed / 0 skipped** | everything runs |
+| `scripts/docker-test.sh` | **2,738 passed / 1 skipped** | `test_runtime_image_reports_server_build` shells out to `docker` to build `Dockerfile.runtime`, which it cannot do from inside the test image |
 
 That one skip is **structural and permanent**, not a red run. Any *other* skip means a missing
 adapter or a non-POSIX host, and a partial run is not a pass. This is the one place these numbers
