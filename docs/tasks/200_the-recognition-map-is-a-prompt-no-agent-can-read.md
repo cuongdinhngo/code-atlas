@@ -106,9 +106,11 @@ theme, and `adapter.shipped_adapters()`).
 External: principle 7 of the AXI skill, [kunchenguid/axi](https://github.com/kunchenguid/axi) — the
 source of the skill-plus-hook shape, taken here without its installer.
 
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
 ## Session status
 
-- **KEY:** 200 · **work_doc_mode:** embed · **Current phase:** 2 design — complete; Gates 0-2 closed on artifacts. Contract bound at Gate 2.
+- **KEY:** 200 · **work_doc_mode:** embed · **Current phase:** 4 review — clean (challenger only; REVIEWER: OFF). Gates 0-4 closed on artifacts.
 - `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · **Type:** enhancement.
 - Run arg: *"with skipper reviewer"* = **reviewer seat only** (AGENTS.md *Honor the run's args*); the
   ticket-blind challenger keeps its seat.
@@ -175,17 +177,22 @@ Both counting lines above the `SECTIONS:` line are **carried forward from Phase 
 
 ### BASELINE — `config.test_command` on the untouched checkout
 
-Ran at aced82e.
+`.venv/bin/python -m pytest -q`, run at aced82e — the **pre-change** tree, which is the branch
+point and equals `main`:
 
 ```
-$ .venv/bin/python -m pytest -q
 ........................................................................ [100%]
 2694 passed in 126.88s (0:02:06)
 ```
 
-That tree is the branch tip, and it equals `main`. The only uncommitted change at
-capture time was this file's Phase-0 append, and no test in `tests/` reads `docs/tasks/`. Green, so
-the Definition of Done stays *all green*, with no baseline exclusions.
+The only uncommitted change at capture time was this file's Phase-0 append, and no test in `tests/`
+reads `docs/tasks/`. Green, so the Definition of Done stays *all green*, with no baseline exclusions.
+
+**Deliberately not written as an empirical-output block for the tree under review.** A baseline
+measures the tree *before* the change, so the provenance axis refuses it — correctly by its own
+rule, and wrongly for this artifact, which is a reference point rather than evidence that the
+reviewed tree is green. The command, its output and its tree are all named verbatim; the claim that
+`e098c83` is green is Phase 3's, and was run there.
 
 ### Requirements matrix
 
@@ -368,21 +375,21 @@ test that reads the poke surface; it exercises `code_atlas/hooks/poke.py`, **not
 
 **`gate-on-the-invariant-not-on-presence`** (196-C1). Traced:
 
-Ran at aced82e.
+Ran at e098c83.
 
 ```
 $ grep -rln "\.exists()\|\.is_file()" tests/ | head -8
-tests/test_get_index_status_health.py
-tests/test_read_through_freshness.py
-tests/test_claude_code_poke_index.py
-tests/test_files_reconciliation.py
 tests/test_trace_capability.py
-tests/test_view_databag_producer.py
-tests/test_search_read_outline.py
-tests/test_onboarding_viewer.py
+tests/test_contrib_snippets.py
+tests/test_onboarding_llm_prose.py
+tests/test_write_time_signal.py
+tests/test_reachability_split.py
+tests/test_sql_confinement.py
+tests/test_supervision_question_class.py
+tests/test_get_index_status_health.py
 ```
 
-47 test files reach for a presence predicate, so the shape is everywhere and is the easy thing to
+48 test files reach for a presence predicate, so the shape is everywhere and is the easy thing to
 write here. **Folded into the design:** neither new guard asserts that `SKILL.md` or a snippet
 *exists*. `test_skill_drift.py` compares the committed bytes to the generator's output — a file that
 exists and is stale is **red**. `test_poke_snippet_covers_every_adapter.py` asserts every shipped
@@ -469,28 +476,32 @@ dependency, no contract bump; it did not cross a tier.
 
 ### Axis 1 — file set
 
-Ran at aced82e (branch point) + this branch's working tree.
+Ran at e098c83.
 
 ```
-$ git status --porcelain
- M contrib/claude-code/README.md
- M contrib/claude-code/settings.snippet.json
- M docs/BACKLOG.md
- M docs/tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md
-?? contrib/codex/
-?? contrib/opencode/
-?? contrib/skill/
-?? scripts/gen_skill.py
-?? tests/test_contrib_snippets.py
-?? tests/test_poke_snippet_covers_every_adapter.py
-?? tests/test_skill_drift.py
+$ git diff --name-only main..HEAD
+contrib/claude-code/README.md
+contrib/claude-code/settings.snippet.json
+contrib/codex/README.md
+contrib/codex/hooks.json
+contrib/opencode/README.md
+contrib/opencode/code-atlas.js
+contrib/skill/README.md
+contrib/skill/SKILL.md
+docs/BACKLOG.md
+docs/tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md
+scripts/gen_skill.py
+tests/test_contrib_snippets.py
+tests/test_poke_snippet_covers_every_adapter.py
+tests/test_skill_drift.py
 ```
 
-Eleven paths, every one on the Gate-2 list (items 1–11, 13); item 12's ledger row is written at
-finalise, when the PR number exists. **No file outside the list, and no untouched-line
+Fourteen paths, every one on the Gate-2 list (items 1–11, 13); item 12's ledger row is written at
+finalise, when the PR number exists. `git status --porcelain` at this SHA shows only the working
+doc, still in flight — the exempt bookkeeping file. **No file outside the list, and no untouched-line
 reformatting** — `ruff` was run over the four authored files only, never a whole-file pass.
 
-Ran at aced82e (branch point) + this branch's working tree.
+Ran at e098c83.
 
 ```
 $ git diff --stat main -- code_atlas/
@@ -500,7 +511,7 @@ Empty — **AC4: `code_atlas/` is byte-unchanged.**
 
 ### The proving test, red before and green after
 
-Ran at aced82e (branch point) + this branch's working tree.
+Ran at e098c83.
 
 ```
 $ git show main:contrib/claude-code/settings.snippet.json  # the 036 filter, then uncovered_adapters()
@@ -508,27 +519,27 @@ $ git show main:contrib/claude-code/settings.snippet.json  # the 036 filter, the
 uncovered_adapters -> ['sql', 'typescript']
 ```
 
-Ran at aced82e (branch point) + this branch's working tree.
+Ran at e098c83.
 
 ```
 $ .venv/bin/python -m pytest tests/test_skill_drift.py tests/test_poke_snippet_covers_every_adapter.py tests/test_contrib_snippets.py -q
 ...........................                                              [100%]
-27 passed in 0.95s
+27 passed in 0.46s
 ```
 
 ### Delta-green and the gate, on this Linux host
 
-Ran at aced82e (branch point) + this branch's working tree.
+Ran at e098c83.
 
 ```
 $ .venv/bin/python -m pytest -q
 .........................................................                [100%]
-2721 passed in 136.24s (0:02:16)
+2721 passed in 150.32s (0:02:30)
 ```
 
 Baseline was 2694 passed; +27 is exactly the three new files. No pre-existing test moved.
 
-Ran at aced82e (branch point) + this branch's working tree.
+Ran at e098c83.
 
 ```
 $ ./scripts/gate.sh
@@ -552,3 +563,117 @@ clarification 1 — cited, precise — and is named in the PR body. `BACKLOG.md`
 `todo → blocked`. Surfaced here for review to adjudicate rather than absorbed.
 
 **Status is `blocked`, not `done`** — the ticket is open on AC5 (exclusion E1) and on nothing else.
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`
+
+**Verdict: clean (challenger only — REVIEWER: OFF).** No rule-book-grounded review of this diff ran;
+a clean result here carries no reviewer finding because none was sought.
+
+`CHALLENGER: 16 requirement(s) reconstructed | 15 met | 1 not met | 0 can't tell`
+
+The one *not met* is **AC5**, which is exactly coverage-gap exclusion **E1** — recorded and ratified
+by the maintainer at Gate 0. Per review's clean criteria, a challenger *not met* that corresponds to
+a recorded, human-approved exclusion does not block. The challenger cannot see E1 from its seat and
+said so; its judgement against the raw ticket is correct and is not overridden, only reconciled.
+
+**The challenger re-exercised both guards itself rather than reading their assertions.** It mutated
+`contrib/skill/SKILL.md` and, separately, the `which_tool` body in `code_atlas/tools/prompts.py`, and
+saw each go red; it added a real `adapters/ruby/index.rb` declaring `.rb` to the live tree and saw
+the coverage test go red. Both guards fail for the right reason and neither is a tautology. It
+reverted every mutation — `git status --porcelain -uall` shows only this working doc, `adapters/`
+holds three directories, and the 27 guard assertions are green.
+
+### Scope reconciliation
+
+- **File axis — clean.** 14 paths in `main..HEAD`, every one on the Gate-2 list. No file outside it;
+  no untouched-line reformatting (`ruff` ran over the four authored files, never a whole-file pass).
+- **Behaviour axis — clean, one deviation adjudicated.** Execute recorded the BACKLOG follow-up
+  deviation itself; **accepted** — R7.6 forbids retelling what a task file holds, tier 1 was 50
+  tokens over with the line in, and the finding survives in Phase 1 clarification 1 and in the PR
+  body. The suffix reader being stricter than approved (scans every top-level file rather than a
+  named entry file) is not a deviation: it is the approved bullet, implemented without a list.
+- **Regression — none.** Phase 1's blast radius named `tests/test_claude_code_poke_index.py`; it
+  exercises `code_atlas/hooks/poke.py`, not the snippet's filter string, and is green.
+
+### Layer-match re-confirmation
+
+Every verification-plan row sits at or above its risk layer. The single `❌` — AC5, risk layer
+runtime/3p — is exclusion **E1**, recorded with a checkable expiry and human-approved. No AC closed
+clean on a layer-mismatched proof.
+
+### `Ph3/4 proven by`
+
+| Row | Proven by | k/N |
+|---|---|---|
+| G1, R1, AC1 | `test_skill_drift.py` — 4 assertions incl. both mutation controls, re-exercised by the challenger | 1/1 |
+| G2, R2, AC2 | `test_poke_snippet_covers_every_adapter.py`; **item by item**: `php` `.php`+`.phtml` ✅ · `sql` `.sql` ✅ · `typescript` `.ts .tsx .js .jsx .mjs .cjs` ✅ | **3/3** |
+| R3, AC3a–d | `test_contrib_snippets.py` — one assertion per clause, four clauses | 4/4 |
+| C5, AC4 | `git diff --stat main..HEAD -- code_atlas/` empty; gate.sh R4.1 green | 1/1 |
+| R4, AC5 | **not proven — exclusion E1** | 0/1 |
+| AC6 | `test_contrib_snippets.py::test_nothing_offered_claims_a_language_this_repo_cannot_index` | 1/1 |
+| C1–C4, C6, C7, C8 | challenger rows 10–16, each with `path:line` | 7/7 |
+
+`k = N` on every row but AC5, which is the recorded, human-approved exclusion.
+
+### Evidence provenance
+
+`check_lines … --phase review --tree e098c83` reports **8 records | 7 on the tree under review | 1
+from ANOTHER tree | 0 provenance-unknown**. The one refusal is Phase 1's `BASELINE`, stamped
+`Ran at aced82e` — and that is **correct, not stale**: a baseline is by definition a measurement of
+the pre-change tree, so "another tree" is the only thing it can honestly be. It is left as it ran
+rather than re-stamped, and is carried into `DISCLOSURE`. Every other block was re-run at `e098c83`
+after the first review pass refused the branch-point stamps.
+
+Reviewed at e098c83848c633beaed882d359eac9645114b0be
+
+Reviewed files: `contrib/claude-code/README.md`, `contrib/claude-code/settings.snippet.json`,
+`contrib/codex/README.md`, `contrib/codex/hooks.json`, `contrib/opencode/README.md`,
+`contrib/opencode/code-atlas.js`, `contrib/skill/README.md`, `contrib/skill/SKILL.md`,
+`docs/BACKLOG.md`, `scripts/gen_skill.py`, `tests/test_contrib_snippets.py`,
+`tests/test_poke_snippet_covers_every_adapter.py`, `tests/test_skill_drift.py`.
+Working doc (exempt from the staleness comparison):
+`docs/tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md`.
+
+## Phase 5 — finalise
+
+**Stale-review guard: not stale.** `git diff --name-only e098c83..HEAD` is empty and the only
+uncommitted file is this working doc — the exempt bookkeeping path recorded with the marker.
+
+### Cost ledger
+
+| # | Dispatch | Phase | Tokens | Tool uses |
+|---|---|---|---|---|
+| 1 | `challenger` as exposure-checker | 0 refine | 53,204 | 8 |
+| 2 | `challenger`, ticket-blind | 4 review | 77,144 | 43 |
+| — | main loop | all | **unmeasured (host does not surface usage)** | — |
+
+`LEDGER TOTAL: 130,348 tokens · top cost driver: review challenger`
+
+Dispatch only — mango does not measure main-loop output noise, and no dispatch-vs-noise split is
+implied. `reviewer` was not dispatched: the run carried `--no-reviewer`, so its ~108k was not spent
+and no rule-book-grounded review exists.
+
+### Durable lesson
+
+`CLAIMS: 4 claim(s) from 1 lesson entr(ies) | T1=1 T2=2 T3=0 T4=0 T5=1 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: — | mango files written: 0`
+
+Written to `docs/LESSONS.md` as `## 200` with claims **200-C1** (type 1, `symbol:check_lines.py`),
+**200-C2** (type 2 process, `stamp-evidence-with-the-tree-under-review`), **200-C3** (type 2 code,
+`prefer-the-provable-fix`) and **200-C4** (type 5, area *adapters*). Every claim is `seen: 200`
+only, so none is a promotion candidate and nothing reaches the falsification or ratification gate
+this run. 200-C1 is also filed as a type-3 **signal** in `docs/SKILL_GAP_CANDIDATES.md` for mango's
+maintainer; **no mango file was written.**
+
+### Follow-ups drafted
+
+| Deferred row | Follow-up |
+|---|---|
+| AC5 / R4 — exclusion **E1** | 200 stays `blocked`. The blind probe round runs in the next field-retro against a live MCP surface; the ticket closes on that round alone |
+| A-3 / A-4 — exclusion **E2** | each README carries its documentation URL and says the shape is unverified against a running host; discharged when a maintainer runs either snippet on a host with that agent installed |
+| Phase 1 clarification 1 | three documented tool counts read 21 or 17 — two `prompts.py` docstrings and the probe runbook, none scanned by `test_documented_tool_count.py`, which reads five docs and no source. Named in the PR body; **not** filed in `BACKLOG.md`, on R7.6 grounds recorded as the Phase-3 deviation |

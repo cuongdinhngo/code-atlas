@@ -230,3 +230,12 @@ file's below-separator hunks stripped; write the working doc to a separate path 
 under `embed`; run the challenger against a checkout that does not contain the narrative docs at
 all; or state plainly in the skill that `embed` and ticket-blindness are incompatible and let a
 project choose. This repo cannot fix it — it never edits a skill.
+
+## check_lines.py parses an enumerated tail from the line's last backtick (seen: 200)
+
+A `RULE SECTIONS:` line enumerating eight sections failed the internal-contradiction rule
+(*"the count of sections enumerated on the line does not match `<n> applicable`"*) while
+`parse_line` on the same body returned `n=8, k=8, m=0` and `_count_sections` returned 8. The only
+difference was a nested `` `contract.py` `` inside one section's `N/A (reason)`; removing the inner
+backticks made the line pass. A counted line whose reason legitimately names a file cannot carry it
+in code ticks. Type-3 signal only — no mango file was edited.
