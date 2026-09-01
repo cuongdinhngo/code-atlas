@@ -4,7 +4,7 @@ slug: a-killed-build-leaves-an-index-that-reports-current
 title: 'A killed build leaves a gutted index that reports staleness current with no suggested action, and no incremental can repair it because last_commit still names HEAD'
 phase: 1.5b
 milestone: Agent-trust
-status: in-progress
+status: done
 depends_on: [072, 077, 052, 050, 035]
 ---
 
@@ -135,7 +135,7 @@ then the status payload quoted above.
 
 ## Session status
 
-- **KEY:** 202 · **work_doc_mode:** embed · **Current phase:** 4 review — clean (challenger only; REVIEWER: OFF). Gates 0-4 closed.
+- **KEY:** 202 · **work_doc_mode:** embed · **Current phase:** 5 finalise — complete on disk. PR [#245](https://github.com/cuongdinhngo/code-atlas/pull/245) open, **based on #244**. **Next action:** merge #244, then #245. **Revert path:** `git revert` the three commits on `feat/202-…`, or close #245 unmerged.
 - `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · **Type:** bug.
 - Run arg *"with skipper reviewer"* = reviewer seat only; the challenger keeps its seat.
 - **Branch is STACKED on 201**, not on `main`: AC5 needs all three escalation reasons present, and
@@ -528,8 +528,8 @@ runs, because they are disjoint keys and neither needs to win a precedence the c
 This also retires the design's own **H4**, which answered the precedence question rather than
 dissolving it. A test holds both true at once.
 
-**Status is `in-progress`**, flipped to `done` at finalise with the ledger row that carries the PR
-link — R7.2's guard requires that pairing.
+**Status flipped to `done` at finalise**, together with the ledger row carrying the PR link —
+R7.2's guard requires that pairing, which is why Phase 3 left it `in-progress`.
 
 ## Phase 4 — review
 
@@ -638,3 +638,43 @@ challenger found it. Falsification gate: *still true* — it produced a real def
 | C1 — a transactional incremental | the deeper fix the ticket explicitly defers: 202 makes the damaged state honest and repairable, a follow-up can make it impossible. Needs its own measurement of the write path's memory and lock profile |
 | C2 — the >5 minute no-op incremental | 5× what 052 recorded, on a different axis; belongs with 052 / 080 / 096 |
 | The joint-cause precedence | dissolved rather than deferred: both causes are recorded, so nothing remains to order |
+
+### RECONCILE at close
+
+```
+RECONCILE
+  conditions: 8 declared | 8 re-run | 7 holding | 1 BROKEN | 0 UNBOUND | 0 could-not-run
+  phase     : close | reviewer: off | challenger: on
+```
+
+The single BROKEN is `TREE-COMPARISON`, **expected**: it holds only after the merge, and `autorun`
+stops at the PR. Every ticket-specific condition holds.
+
+### DISCLOSURE
+
+1. **REVIEWER: OFF** — waived by `--no-reviewer`. **No rule-book-grounded review of this diff ran.**
+   **CHALLENGER: ON** — it reverted the production diff in a worktree to prove the fixture red, read
+   the predicate against the base for AC3, and confirmed no `set_meta` was added.
+2. **UNCHECKED AGENT CLAIMS: 0** — every contract value was derived by a command.
+3. **BUDGET: call-count ceiling `unknown`.** Actual dispatch spend 205,067 tokens across 2.
+4. What I chose not to verify, or verified less than fully:
+   - **Nothing was run against the anchor monorepo.** The 1,500-file fixture reproduces the payload
+     field for field, but the field case was 21,588 files and a >5-minute window; the fixture's
+     window is ~1 s and is caught by polling.
+   - **The kill is a `SIGKILL` mid-`parse`, not mid-`reconcile`.** The field build died in
+     `reconcile`, after committing delete batches. Both leave `build_complete = 0` with
+     `last_commit` at HEAD, which is the state the ticket describes — but they are not the same
+     instant, and I did not build a reconcile-phase kill.
+   - **`repair_incomplete` and the hook change are surface the raw ticket does not ask for.** The
+     challenger flagged it from its blind seat and it is a maintainer-ratified want, not a
+     derivation — a reader who disagrees with W1 should read this as scope.
+   - **The joint-cause test sets `contract_version` by hand** after a real kill. The incomplete half
+     is real; the era-lag half is not, because producing both from real processes needs a build
+     under one era and a kill under another.
+   - **`code-atlas-build --full` was not exercised end-to-end against a killed index.** The refusal
+     names it; the repair is proven through the tool, not through the console script.
+   - **The working doc is at 98% of its 40,000 B ceiling** and the tier-1 sum now carries three
+     status words it did not have this morning.
+   - **No `reviewer` seat, no real corpus, no anchor monorepo.**
+   - **Outward actions deferred:** the **merge** of #245, and of #244 before it. `autorun` never
+     merges.
