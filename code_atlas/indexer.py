@@ -217,6 +217,23 @@ def full_build(
     return BuildReport(files=len(kept), stubs=len(stubs), removed=removed, **counts)
 
 
+# The answer a caller gets when the stored vocabulary era lags: one name for the cause and one
+# for the route, read by both the build tool and `get_index_status` (201).
+CONTRACT_REBUILD_REQUIRED = "contract_rebuild_required"
+FULL_REBUILD_ROUTE = "code-atlas-build --full"
+IN_BAND_FULL_REBUILD = "allow_full_rebuild=true"
+
+
+def contract_rebuild_required(store: GraphStore) -> bool:
+    """True when the stored vocabulary era lags this build's — an incremental would mix them.
+
+    One definition site for the decision ``incremental_update`` makes (R1.8): the build tool and
+    ``get_index_status`` read it to answer *before* a rebuild starts, never a second comparison.
+    """
+    stored = store.get_meta(CONTRACT_VERSION_KEY)
+    return stored is not None and stored != str(contract.CONTRACT_VERSION)
+
+
 def incremental_update(
     config: Config,
     store: GraphStore,
@@ -236,9 +253,15 @@ def incremental_update(
     When ``scope`` is set and the announced suffix set has moved, the escalation to a full build is
     recorded in place, so the report can name why it was not a no-op (task 172).
     """
-    stored = store.get_meta(CONTRACT_VERSION_KEY)
-    if stored is not None and stored != str(contract.CONTRACT_VERSION):
+    if contract_rebuild_required(store):
         # Vocabulary changed — incremental would mix eras; force a full rebuild (task 030 AC1).
+        # Recorded like 172's scope change, so an opted-in caller can tell the causes apart (201).
+        if scope is not None:
+            scope["contract_change"] = {
+                "stored": store.get_meta(CONTRACT_VERSION_KEY),
+                "current": str(contract.CONTRACT_VERSION),
+                "escalated_to": "full",
+            }
         return full_build(config, store, progress=progress)
 
     rules = load_indirection_rules(config)
