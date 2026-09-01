@@ -10,12 +10,15 @@ from __future__ import annotations
 
 from code_atlas.config import Config
 from code_atlas.gitutil import dirty_paths, head_commit_and_ref
-from code_atlas.indexer import indexable
+from code_atlas.indexer import build_incomplete, indexable
 from code_atlas.store import INDEXED_SUFFIXES_KEY, LAST_COMMIT_KEY, LAST_REF_KEY, GraphStore
 
 CURRENT = "current"
 BEHIND = "behind"
 UNKNOWN = "unknown"
+# A graph the last build left half-written. Not `behind` — HEAD has not moved — and
+# emphatically not `current`, which is what a killed build used to report (202).
+INCOMPLETE = "incomplete"
 
 
 def dirty_indexed(store: GraphStore, config: Config) -> tuple[bool | None, int | None]:
@@ -34,8 +37,20 @@ def dirty_indexed(store: GraphStore, config: Config) -> tuple[bool | None, int |
     return bool(hits), len(hits)
 
 
-def staleness_of(last_commit: str | None, head: str | None, *, dirty: bool | None) -> str:
-    """``unknown`` unless both commits known; ``behind`` if HEAD moved or ``dirty`` (047)."""
+def staleness_of(
+    last_commit: str | None,
+    head: str | None,
+    *,
+    dirty: bool | None,
+    incomplete: bool = False,
+) -> str:
+    """``incomplete`` wins; then ``unknown``; then ``behind`` if HEAD moved or dirty (047/202).
+
+    Incompleteness outranks the commit comparison because a killed build leaves ``last_commit``
+    equal to HEAD — the answer that made a gutted graph read ``current``.
+    """
+    if incomplete:
+        return INCOMPLETE
     if last_commit is None or head is None:
         return UNKNOWN
     if last_commit != head:
@@ -75,7 +90,9 @@ def compute_staleness(
         "last_commit": last_commit,
         "head_commit": head,
         "head_ref": href,
-        "staleness": staleness_of(last_commit, head, dirty=dirty),
+        "staleness": staleness_of(
+            last_commit, head, dirty=dirty, incomplete=build_incomplete(store)
+        ),
     }
     ref = last_ref_for_payload(store)
     if ref is not OMIT:

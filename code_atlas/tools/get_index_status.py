@@ -22,11 +22,10 @@ from code_atlas.indexer import (
     CONTRACT_REBUILD_REQUIRED,
     FULL_REBUILD_ROUTE,
     IN_BAND_FULL_REBUILD,
+    build_incomplete,
     contract_rebuild_required,
 )
 from code_atlas.store import (
-    BUILD_COMPLETE,
-    BUILD_COMPLETE_KEY,
     BUILT_AT_KEY,
     CONTRACT_VERSION_KEY,
     SCHEMA_OLDER,
@@ -128,10 +127,9 @@ def _attach_build_state(
         status[BUILD_IN_PROGRESS] = True
     if store is None:
         return
-    complete = store.get_meta(BUILD_COMPLETE_KEY)
-    # Absent means an index written before this key existed: unknowable, so say nothing. Only a
-    # recorded "0" — a build that started writing and never stamped its completion — is a claim.
-    if complete is not None and complete != BUILD_COMPLETE:
+    # One derivation for this field and for `staleness`, so the two cannot disagree (202, R6.7).
+    # An absent key is an index written before the key existed: unknowable, so say nothing.
+    if build_incomplete(store):
         status[INDEX_COMPLETE] = False
     # "Call this first" is only worth following if it names the hour-long rebuild waiting
     # behind the next incremental. Omitted when none is pending, like 159 (201).
