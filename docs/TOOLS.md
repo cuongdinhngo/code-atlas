@@ -144,7 +144,10 @@ for a reason:
 
 These MCP prompts are **operator recipes a human invokes**; an agent's client exposes only the tools
 above to the model, so a model never sees a prompt (task 081). Agent routing lives in the tool
-descriptions themselves (each names the question it answers — task 069), not here.
+descriptions themselves (each names the question it answers — task 069), not here. `which_tool` is
+the exception a model *can* read: task 200 generates its map into an Agent Skill at
+[`contrib/skill/`](../contrib/skill/) — generated from the registered tools, never hand-edited, with
+a drift guard.
 The blind recognition probe that scores whether those descriptions route — and that separates
 name-only answers from description-backed ones — is
 [`docs/runbooks/tool-recognition-probe.md`](runbooks/tool-recognition-probe.md) (081, 097).
@@ -165,7 +168,9 @@ both are offered rather than installed.
 ### Keep the index fresh while Claude edits (opt-in)
 
 Task 035 already reparses drifted files at query time. For eager updates after Claude Code
-`Edit`/`Write` on PHP files, install the PostToolUse hook under
+`Edit`/`Write` on a file **any** installed adapter owns — the matcher is generated from each
+adapter's own declared suffixes, so adapter #4 is covered the day it lands (200) — install the
+PostToolUse hook under
 [`contrib/claude-code/`](../contrib/claude-code/) (`code-atlas-poke` console script + `"async": true`);
 opt-in git refresh after pull/checkout via [`contrib/git/`](../contrib/git/) (`code-atlas-refresh`,
 background — never auto-installed into `.git/hooks`).

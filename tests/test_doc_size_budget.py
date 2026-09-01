@@ -81,9 +81,13 @@ DOCS = REPO / "docs"
 # and therefore slug-titled, which is why 10 tokens of tier-1 slack looked like enough. Tickets
 # 200-202 are the first open rows since, and this file's own preamble says an open row is titled by
 # its finding, because that title is what you read to choose the next ticket. R7.6 has nothing to
-# prune here: the text is the finding, and the prior pass already took the restatement. 100 tokens
-# buys the tracker its open queue back; the rows shrink to slugs the moment they close, which
-# returns the raise. The next addition prunes again or argues again.
+# prune here: the text is the finding, and the prior pass already took the restatement.
+#
+# The raise was argued as temporary — "the rows shrink to slugs the moment they close, which returns
+# the raise" — and closing 201 and 202 measured that claim and refuted it. The three rows cost 138
+# tokens; slug-titling all three returns 11. The raise bought three PERMANENT table rows, not three
+# verbose titles, so it does not come back when they close and no later pass should plan on it. The
+# number to watch is the row count, not the row wording. The next addition prunes or argues again.
 BUDGETS = {
     "CLAUDE.md": 50,
     "AGENTS.md": 2_800,

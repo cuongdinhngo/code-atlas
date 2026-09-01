@@ -318,9 +318,10 @@ into changed or departing symbols — including rename sources that git only rep
 path); reparse `changed ∪ dependents` (hash-skip only unchanged *changed* paths — dependents are
 always reparsed so adapter tiers and duplicate keys stay intact); `resolve_edges`; bump
 `meta.last_commit` / `meta.last_ref`. `build_or_update_index(full=false)` runs this when `last_commit` and the diff
-are usable; otherwise it falls back to a full build and reports the mode that actually ran.
-Staleness stays `current | behind | unknown` (commit equality, or `behind` when the worktree is
-dirty). Tests use hermetic throwaway repos so CI can keep a shallow checkout. Field retros saw
+are usable; otherwise it escalates to a full build and reports the mode that actually ran — or,
+where that escalation is unbounded, answers with the route instead of starting it (201/202).
+Staleness is `current | behind | incomplete | unknown` (commit equality; `behind` when the worktree
+is dirty; `incomplete` outranks both after a build died mid-write, 202). Tests use hermetic throwaway repos so CI can keep a shallow checkout. Field retros saw
 ~62 s flat fee for no-op and small incrementals on a large index (task 052) — profile phases with
 `scripts/profile_incremental.py --root …` (optional `phase_times` on `incremental_update`; not on
 the MCP payload). **No-op short-circuit (task 080):** when the delta is empty (`to_parse` and
@@ -488,7 +489,7 @@ that must not ride the cheap path.
 | Tool | Key args | Answers |
 |---|---|---|
 | `get_index_status` | `detail_level?`, `offset?`, `sign?` | is the index there, fresh and healthy — stats, `last_commit`, staleness, reactive `next_tool_suggestions`; `standard` adds `edge_health`, `parse_failures`, `db_path`; `verbose` adds capped `parse_failure_paths` (058), **`collection`**, the denominator for reconciling `files` against your own `git ls-files` without reading source (082), and **`edge_health_by_language`** — the tier mix by the declaring file's language, stamped per build, summing to `edge_health`, omitted under two buckets (183). **Call first (~100 tok).** |
-| `build_or_update_index` | `full=false`, `detail_level?` | builds/refreshes; returns `wrote` (this run's writes) + timing, and at `standard` `graph`, so a delta isn't read as repo size (051/060). A concurrent writer returns `mode: "busy"`, `performed: false`, the loser's staleness (072); no usable adapter returns `mode: "refused"` and writes nothing — a payload, not a raise (064/079) |
+| `build_or_update_index` | `full=false`, `detail_level?`, `allow_full_rebuild=false`, `repair_incomplete=true` | builds/refreshes; returns `wrote` (this run's writes) + timing, and at `standard` `graph`, so a delta isn't read as repo size (051/060). A concurrent writer returns `mode: "busy"`, `performed: false`, the loser's staleness (072); no usable adapter returns `mode: "refused"` and writes nothing — a payload, not a raise (064/079). An unbounded escalation refuses the same way and names its route: a vocabulary era behind (201), or an index a killed build left incomplete (202); the two flags run it in-band instead |
 | `search_symbol` | `query \| queries, kind?, namespace?, limit?, offset?` | ranked `{qname, kind, file:line}` (FTS + name); stub hits add `stub: true` (039); a zero hit may miss-repair the sole dirty file or report `index_stale` (073). **`queries` sweeps N subjects in one call** (101) |
 | `file_outline` | `path, limit?, offset?` | the file's symbol map — symbols + line ranges, no body |
 | `read_symbol` | `qname, detail_level?` | the source; docblock at `standard`, none at `minimal` (163); stubs add `stub: true` (039). A qname with >1 definition **refuses the body**, lists `ambiguous_definitions` (070 → 078) |
@@ -773,15 +774,11 @@ The consumer is an **AI coding agent in a terminal**, so the incumbent to beat i
 
 - **Field retro round 4 — the first verification round (2026-08-10, `e8f56d0`).** Eleven fixes from
   rounds 2–3 were in the binary and none had been seen by an agent doing real work: **7 verified
-  fixed**, 2 improved, 1 reproduced (054), 2 not exercisable. **Three caveats it states about itself:**
-  the protocol was violated (the verification section was read first, so its recognition test is void),
-  the server process changed mid-session via a client reconnect, and 4 of 6 question shapes never arose
-  in three hours. **The two findings that mattered came from outside the verification section**, which
-  is a regression harness and cannot surface anything new — 075 (`read_symbol` answering
-  `{"found": false, "reason": "ok"}` for a class the index holds, while the evaluator was reviewing a
-  PR claiming to extend it) and 077 (an out-of-band branch switch left `staleness: "current"` true,
-  correct and useless, because no payload names the revision).
-  Order and the round's self-corrections: [`BACKLOG.md`](BACKLOG.md#where-these-tickets-came-from).
+  fixed**, 2 improved, 1 reproduced (054), 2 not exercisable — under three recorded caveats that void
+  its recognition test. **The two findings that mattered came from outside the verification section**,
+  which is a regression harness and cannot surface anything new: 075 and 077. The round's caveats,
+  both findings and its self-corrections are in those task files and
+  [`BACKLOG.md`](BACKLOG.md#where-these-tickets-came-from).
 
 - **Qname-subject honesty — 075 + 076 shipped together (2026-08-11; one shared design).** A
   **malformed** subject (a class stored with a leading `\`, queried without it) and an
