@@ -21,11 +21,17 @@ from pathlib import Path
 
 import pytest
 
+from code_atlas import contract
 from code_atlas.config import load_config
 from code_atlas.gitutil import head_commit
 from code_atlas.index_lock import read_build_progress
 from code_atlas.indexer import INCOMPLETE_INDEX, build_incomplete
-from code_atlas.store import BUILD_COMPLETE_KEY, LAST_COMMIT_KEY, GraphStore
+from code_atlas.store import (
+    BUILD_COMPLETE_KEY,
+    CONTRACT_VERSION_KEY,
+    LAST_COMMIT_KEY,
+    GraphStore,
+)
 from code_atlas.tools.build_or_update_index import NAME as BUILD_NAME
 from code_atlas.tools.build_or_update_index import create as build_tool
 from code_atlas.tools.find_callers import create as find_callers_tool
@@ -213,3 +219,19 @@ def test_a_nav_tool_over_a_gutted_graph_says_so_too(killed_index: Path) -> None:
     claim_line = answer.get("claim")
     assert claim_line is not None, "the signed payload carries no claim to inspect"
     assert INCOMPLETE in str(claim_line), f"a nav tool still reads healthy: {claim_line}"
+
+
+def test_both_escalation_causes_are_reported_when_both_hold(killed_index: Path) -> None:
+    """AC5 — disjoint keys mean neither cause has to win a precedence the caller cannot see.
+
+    Raised by the ticket-blind challenger: with an incomplete index *and* a lagging vocabulary era,
+    whichever check ran first would be the only one reported. Both are true, so both are said.
+    """
+    with GraphStore(config_for(killed_index).db_path) as store:
+        store.set_meta(CONTRACT_VERSION_KEY, str(contract.CONTRACT_VERSION - 1))
+
+    payload = build_tool(config_for(killed_index))(full=False, allow_full_rebuild=True)
+
+    assert payload["mode"] == "full"
+    assert INCOMPLETE_INDEX in payload
+    assert "contract_change" in payload

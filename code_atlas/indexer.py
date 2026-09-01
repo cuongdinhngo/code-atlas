@@ -270,24 +270,24 @@ def incremental_update(
     When ``scope`` is set and the announced suffix set has moved, the escalation to a full build is
     recorded in place, so the report can name why it was not a no-op (task 172).
     """
-    if build_incomplete(store):
-        # A graph that was mid-write is not one an incremental can extend (202) — the same
-        # argument 030 makes for a vocabulary era, recorded the same way 172 records scope.
-        if scope is not None:
-            scope[INCOMPLETE_INDEX] = {
-                "escalated_to": "full",
-                "route": INCOMPLETE_INDEX_ROUTE,
-            }
-        return full_build(config, store, progress=progress)
-    if contract_rebuild_required(store):
+    # Two independent reasons an incremental cannot extend this graph. Both are recorded when both
+    # hold — disjoint keys, so neither has to win a precedence argument the caller cannot see.
+    incomplete, era_moved = build_incomplete(store), contract_rebuild_required(store)
+    if incomplete and scope is not None:
+        # A graph left mid-write is not one an incremental can extend (202): HEAD has not moved,
+        # so the next diff is empty over whatever the killed build had already deleted.
+        scope[INCOMPLETE_INDEX] = {
+            "escalated_to": "full",
+            "route": INCOMPLETE_INDEX_ROUTE,
+        }
+    if era_moved and scope is not None:
         # Vocabulary changed — incremental would mix eras; force a full rebuild (task 030 AC1).
-        # Recorded like 172's scope change, so an opted-in caller can tell the causes apart (201).
-        if scope is not None:
-            scope["contract_change"] = {
-                "stored": store.get_meta(CONTRACT_VERSION_KEY),
-                "current": str(contract.CONTRACT_VERSION),
-                "escalated_to": "full",
-            }
+        scope["contract_change"] = {
+            "stored": store.get_meta(CONTRACT_VERSION_KEY),
+            "current": str(contract.CONTRACT_VERSION),
+            "escalated_to": "full",
+        }
+    if incomplete or era_moved:
         return full_build(config, store, progress=progress)
 
     rules = load_indirection_rules(config)
