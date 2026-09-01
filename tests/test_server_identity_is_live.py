@@ -217,7 +217,7 @@ def test_the_dirty_axis_is_untouched(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
 
 def test_the_added_per_call_cost_is_an_order_below_the_hash_walk() -> None:
-    """AC3: a ceiling, plus a margin against the hash walk this replaces per payload.
+    """AC3: a margin against the hash walk this replaces per payload.
 
     Measured with all 73 modules imported: probe **0.174 ms**, hash **1.73 ms** — 10x here, and
     ~36x against the 6.35 ms walk 164 recorded on the maintainer's host. The margin is asserted at
@@ -237,8 +237,11 @@ def test_the_added_per_call_cost_is_an_order_below_the_hash_walk() -> None:
         build_info._content_build_id()
     hash_ms = (perf_counter() - started) / 5 * 1000
 
+    # The margin is the guard, and it is machine-independent: both figures are measured here,
+    # on this host. The absolute 0.5 ms ceiling that used to sit beside it failed on GitHub's
+    # shared runner at 0.52-0.58 ms while the 4x margin held — a guard on its own boundary,
+    # failing for the wrong reason, which this docstring already warned about.
     assert probe_ms * 4 < hash_ms, f"probe {probe_ms:.4f} ms vs hash {hash_ms:.4f} ms"
-    assert probe_ms < 0.5, f"{probe_ms:.4f} ms per payload for the freshness probe"
 
     started = perf_counter()
     for _ in range(500):

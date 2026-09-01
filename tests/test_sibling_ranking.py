@@ -157,16 +157,40 @@ def test_the_fallback_admits_it_has_no_basis() -> None:
     assert [site["file"] for site in ordered] == ["a.php", "b.php"], "still deterministic (R4.2)"
 
 
+def _per_call(references, qname: str, rounds: int = 200) -> float:
+    """Mean seconds per call, after one warm-up so import and cache effects are not measured."""
+    references(qname)
+    started = time.perf_counter()
+    for _ in range(rounds):
+        references(qname)
+    return (time.perf_counter() - started) / rounds
+
+
 def test_ranking_adds_no_query_and_no_measurable_cost(
     store: GraphStore, tmp_path: Path  # noqa: F811
 ) -> None:
-    """AC5: ranking reuses rows already fetched — it is a sort, not a lookup."""
-    plant_twins(store, tmp_path)
-    references = find_references.create(db_config(tmp_path))
-    references("\\East\\Core\\Plan")
+    """AC5: ranking reuses rows already fetched — it is a sort, not a lookup.
 
-    started = time.perf_counter()
-    for _ in range(200):
-        references("\\East\\Core\\Plan")
-    per_call = (time.perf_counter() - started) / 200
-    assert per_call < 0.00135, f"{per_call * 1000:.3f} ms/call against 165's ~1.35 ms budget"
+    Measured against a subject with **no** twin, on this machine, in this run. The absolute
+    1.35 ms ceiling this used to carry was a figure from one host: it held here and failed on
+    GitHub's shared runner at ~1.8 ms, where the ranked and unranked calls were equally slow — so it
+    reported a machine, not a regression. A ratio cannot do that.
+    """
+    plant_twins(store, tmp_path)
+    seed_file(
+        store,
+        "solo/Only.php",
+        [node("Class", "Only", "\\Solo\\Only", "solo/Only.php")],
+        [],
+        root=tmp_path,
+    )
+    references = find_references.create(db_config(tmp_path))
+
+    unranked = _per_call(references, "\\Solo\\Only")
+    ranked = _per_call(references, "\\East\\Core\\Plan")
+
+    assert unranked > 0, "the unranked baseline measured nothing, so the ratio guards nothing"
+    assert ranked < unranked * 3, (
+        f"ranked {ranked * 1000:.3f} ms/call against unranked {unranked * 1000:.3f} ms/call — "
+        "ranking is a sort over rows already fetched, so it may not cost a lookup"
+    )
