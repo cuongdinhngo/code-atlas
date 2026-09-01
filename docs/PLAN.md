@@ -512,9 +512,9 @@ shape, and §19's founding-premise benchmark found the gap is **demand and model
 the whole-graph tools it would have joined had already shipped and no real question needed one. A
 scanned tool surface has a budget (081), so re-propose it on a field question no shipped tool answers.
 
-**Claim signing — `sign: true` on the four attesting tools (100).** An attestation that never reaches
+**Claim signing — `sign: true` on the five attesting tools (100).** An attestation that never reaches
 the artifact where the claim is made has, practically, not been produced: the round-5 session pasted
-nine kinds of counted evidence into its PR and **zero** code-atlas output. `impact`, `find_callers`,
+nine kinds of counted evidence into its PR and **zero** code-atlas output. `impact`, `impact_modules`, `find_callers`,
 `find_references` and `get_index_status` therefore take `sign: bool = False`, adding one `claim` key —
 a single `key=value` line naming tool, subject, question, answer, the revision the index describes and
 the running server. `claim.py` is a **pure formatter** over an already-computed payload, so R1.4/R4.1
@@ -522,7 +522,8 @@ hold by construction and key order is fixed for R4.2. **Every caveat owns its ow
 the *weakest* tier present, plus `index=behind`, `authoritative=false`, `truncated=true`, `reason=` —
 so a degrading answer cannot drop one the way a prose clause can. **No line is emitted** for an unbuilt
 index or an `impact` answer where no seed resolved: a claim that cannot be re-run is decoration. The
-thirteen tools whose answers are lists of rows rather than claims are not signed. Measured cost: **+51
+rest are not signed: their answers are lists of rows rather than claims. (A count kept here in prose
+would drift the moment a tool lands, which is R6.7 — the signed set is the five above.) Measured cost: **+51
 tokens** on `impact`, **+46** on `find_callers`; default payloads byte-identical (061).
 
 **`seeds_dropped` counts every requested subject that produced no seed (102).** An absent qname, one
