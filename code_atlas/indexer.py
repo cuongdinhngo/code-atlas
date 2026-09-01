@@ -224,6 +224,23 @@ FULL_REBUILD_ROUTE = "code-atlas-build --full"
 IN_BAND_FULL_REBUILD = "allow_full_rebuild=true"
 
 
+INCOMPLETE_INDEX = "incomplete_index"
+# A build that was killed mid-write leaves a graph nothing can repair incrementally: HEAD has
+# not moved, so the next diff is empty and the delete batches it already committed stay gone.
+INCOMPLETE_INDEX_ROUTE = "code-atlas-build --full"
+
+
+def build_incomplete(store: GraphStore) -> bool:
+    """True when the last build started writing and never stamped its completion (202).
+
+    The expression `get_index_status` already used for ``index_complete``, extracted so the
+    staleness vocabulary and the write path read one derivation (R1.8/R6.7). An **absent** key
+    is an index written before the key existed — unknowable, so it is not a claim either way.
+    """
+    stamped = store.get_meta(BUILD_COMPLETE_KEY)
+    return stamped is not None and stamped != BUILD_COMPLETE
+
+
 def contract_rebuild_required(store: GraphStore) -> bool:
     """True when the stored vocabulary era lags this build's — an incremental would mix them.
 
@@ -253,15 +270,24 @@ def incremental_update(
     When ``scope`` is set and the announced suffix set has moved, the escalation to a full build is
     recorded in place, so the report can name why it was not a no-op (task 172).
     """
-    if contract_rebuild_required(store):
+    # Two independent reasons an incremental cannot extend this graph. Both are recorded when both
+    # hold — disjoint keys, so neither has to win a precedence argument the caller cannot see.
+    incomplete, era_moved = build_incomplete(store), contract_rebuild_required(store)
+    if incomplete and scope is not None:
+        # A graph left mid-write is not one an incremental can extend (202): HEAD has not moved,
+        # so the next diff is empty over whatever the killed build had already deleted.
+        scope[INCOMPLETE_INDEX] = {
+            "escalated_to": "full",
+            "route": INCOMPLETE_INDEX_ROUTE,
+        }
+    if era_moved and scope is not None:
         # Vocabulary changed — incremental would mix eras; force a full rebuild (task 030 AC1).
-        # Recorded like 172's scope change, so an opted-in caller can tell the causes apart (201).
-        if scope is not None:
-            scope["contract_change"] = {
-                "stored": store.get_meta(CONTRACT_VERSION_KEY),
-                "current": str(contract.CONTRACT_VERSION),
-                "escalated_to": "full",
-            }
+        scope["contract_change"] = {
+            "stored": store.get_meta(CONTRACT_VERSION_KEY),
+            "current": str(contract.CONTRACT_VERSION),
+            "escalated_to": "full",
+        }
+    if incomplete or era_moved:
         return full_build(config, store, progress=progress)
 
     rules = load_indirection_rules(config)

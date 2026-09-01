@@ -23,7 +23,10 @@ from code_atlas.indexer import (
     CONTRACT_REBUILD_REQUIRED,
     FULL_REBUILD_ROUTE,
     IN_BAND_FULL_REBUILD,
+    INCOMPLETE_INDEX,
+    INCOMPLETE_INDEX_ROUTE,
     BuildReport,
+    build_incomplete,
     contract_rebuild_required,
     full_build,
     incremental_update,
@@ -71,6 +74,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         full: bool = False,
         detail_level: DetailLevel = "standard",
         allow_full_rebuild: bool = False,
+        repair_incomplete: bool = True,
     ) -> dict[str, object]:
         """Build or refresh this repo's index so the other tools have current data.
 
@@ -100,6 +104,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     detail_level=detail_level,
                     started=started,
                     allow_full_rebuild=allow_full_rebuild,
+                    repair_incomplete=repair_incomplete,
                 )
             except AdapterError as broken:
                 return _adapter_refused(config, broken, full=full, started=started)
@@ -184,6 +189,7 @@ def _build(
     detail_level: DetailLevel,
     started: float,
     allow_full_rebuild: bool = False,
+    repair_incomplete: bool = True,
 ) -> dict[str, object]:
     rebuilt_schema = False
     try:
@@ -199,6 +205,8 @@ def _build(
             store
         ):
             return _contract_refused(store, config, full=full, started=started)
+        if not repair_incomplete and build_incomplete(store):
+            return _incomplete_refused(config, full=full, started=started)
         scope: dict[str, object] = {}
         mode, report = _run(config, store, full=full or rebuilt_schema, scope=scope)
         result = _result(
@@ -284,6 +292,24 @@ def _contract_refused(
         "contract_version": contract.CONTRACT_VERSION,
         "route": FULL_REBUILD_ROUTE,
         "in_band_option": IN_BAND_FULL_REBUILD,
+        "index_root": config.index_root,
+        "db_path": str(config.db_path),
+        "seconds": round(time.monotonic() - started, 3),
+    }
+
+
+def _incomplete_refused(config: Config, *, full: bool, started: float) -> dict[str, object]:
+    """The index needs a full rebuild, for a caller that must not start one itself (202).
+
+    The git refresh hook is the caller: 053 says it never builds, and the ticket's own trigger
+    list includes closing the terminal that owns it — so a hook that self-repaired could loop.
+    """
+    return {
+        "mode": REFUSED,
+        "requested_full": full,
+        "performed": False,
+        "reason": INCOMPLETE_INDEX,
+        "route": INCOMPLETE_INDEX_ROUTE,
         "index_root": config.index_root,
         "db_path": str(config.db_path),
         "seconds": round(time.monotonic() - started, 3),
