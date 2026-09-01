@@ -1,6 +1,6 @@
 # Claude Code Edit/Write index poke (task 036)
 
-After Claude Code `Edit`/`Write` on a PHP file, reparse that one file into
+After Claude Code `Edit`/`Write` on a file an adapter owns, reparse that one file into
 `.code-atlas/graph.db` using `code_atlas.indexer.reparse_file` (same write path as a
 full/incremental build). Complements query-time read-through freshness (task 035): the
 index is often already fresh before the next tool call.
@@ -12,8 +12,8 @@ index is often already fresh before the next tool call.
    **`code-atlas-poke`** console script on `PATH` (same interpreter as the install).
 2. Merge [`settings.snippet.json`](settings.snippet.json) into the **project**
    `.claude/settings.json` (shareable) **or** `~/.claude/settings.json` (user-global). Keep
-   `"async": true` so the poke does not stall the Edit/Write round-trip. The `"if"` filter
-   limits the hook to `*.php` while PHP is the only adapter — widen it when more adapters ship.
+   `"async": true` so the poke does not stall the Edit/Write round-trip. The `"if"` filter is
+   **generated** from every shipped adapter's own declared suffixes — never widened by hand.
 3. Restart Claude Code (or reload hooks) so the settings take effect.
 
 No `CODE_ATLAS_ROOT` export is required — the console script is the stable entrypoint.
@@ -39,3 +39,13 @@ echo '{"tool_name":"Edit","tool_input":{"file_path":"'"$CLAUDE_PROJECT_DIR"'/src
 
 Expect `code-atlas poke: poked src/Example.php` (or `skipped: …` with a clear reason) on stderr.
 On a broken install you should see `code-atlas poke skipped: …` even without `--verbose`.
+
+## Regenerate
+
+```bash
+python scripts/gen_skill.py --write
+```
+
+The `"if"` filter is derived from each shipped adapter's entry-file declaration, so an adapter that
+ships without coverage is a red test (`tests/test_poke_snippet_covers_every_adapter.py`), not a
+silent gap — which is how this filter stayed PHP-only across two adapter launches (task 200).

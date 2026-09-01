@@ -1,0 +1,20 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "code-atlas-poke",
+            "statusMessage": "code-atlas: poke index"
+          },
+          {
+            "type": "command",
+            "command": "code-atlas-signal",
+            "statusMessage": "code-atlas: index signal"
+          }
+        ]
+      }
+    ]
+  }
+}
