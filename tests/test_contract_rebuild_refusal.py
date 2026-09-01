@@ -217,3 +217,20 @@ def test_the_refusal_reason_is_not_the_only_thing_that_can_refuse(tmp_path: Path
     payload = build_tool(config)(full=True)
 
     assert payload["reason"] == "no_usable_adapter" != CONTRACT_REBUILD_REQUIRED
+
+
+def test_the_exit_map_covers_the_contract_refusal_it_will_never_see() -> None:
+    """AC7 — 176's map must *cover* the new payload, which "the CLI never sends it" does not prove.
+
+    Raised by the ticket-blind challenger: the shell route opts in, so this branch is unreachable
+    from `code-atlas-build`. Unreachable is not the same as unhandled, and only one of those is
+    checkable.
+    """
+    refusal = {
+        "mode": "refused",
+        "reason": CONTRACT_REBUILD_REQUIRED,
+        "route": FULL_REBUILD_ROUTE,
+        "performed": False,
+    }
+
+    assert cli.exit_code(refusal) == cli.FAILED
