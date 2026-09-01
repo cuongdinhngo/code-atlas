@@ -135,7 +135,7 @@ then the status payload quoted above.
 
 ## Session status
 
-- **KEY:** 202 · **work_doc_mode:** embed · **Current phase:** 2 design — complete; Gates 0-2 closed. Contract bound at Gate 2.
+- **KEY:** 202 · **work_doc_mode:** embed · **Current phase:** 4 review — clean (challenger only; REVIEWER: OFF). Gates 0-4 closed.
 - `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · **Type:** bug.
 - Run arg *"with skipper reviewer"* = reviewer seat only; the challenger keeps its seat.
 - **Branch is STACKED on 201**, not on `main`: AC5 needs all three escalation reasons present, and
@@ -411,3 +411,230 @@ honest answer today, one optional argument defaulting to the escalation AC2 asks
 is stacked on 201**, so a revert of 202 alone leaves 201 intact. One repo, no porting order.
 
 `SCOPE: M` — unchanged.
+
+## Phase 3 — execute
+
+### Axis 1 — file set
+
+Ran at 9a7826b.
+
+```
+$ git diff --name-only feat/201-…..HEAD
+code_atlas/hooks/refresh.py
+code_atlas/indexer.py
+code_atlas/tools/build_or_update_index.py
+code_atlas/tools/get_index_status.py
+code_atlas/tools/staleness.py
+docs/BACKLOG.md
+docs/TOOLS.md
+docs/tasks/202_a-killed-build-leaves-an-index-that-reports-current.md
+tests/test_killed_build_is_honest.py
+```
+
+Nine paths, every one on the Gate-2 list. `docs/CONVENTION.md` was **not** needed — §6 does not
+enumerate the staleness values, checked rather than assumed. The ledger row lands at finalise.
+
+Ran at 9a7826b.
+
+```
+$ git diff --name-only feat/201-…..HEAD -- code_atlas/contract.py
+```
+
+Empty — **C5: no contract bump.**
+
+### The proving test, red before and green after
+
+The pre-change state, reproduced in a detached worktree at 201's tip by killing a real incremental
+and restoring the tree — the field payload, field for field:
+
+```
+build_complete          : 0
+last_commit == HEAD     : True
+staleness               : current
+next_tool_suggestions   : []
+index_complete          : False
+files/nodes/edges       : 1500 1500 0
+next build mode         : incremental
+next build wrote        : {'files': 0, 'parsed': 0, 'failed': 0, 'removed': 0, ...}
+```
+
+**The fixture took two corrections to become honest, and both matter.** The first version killed a
+*full* build — which leaves no `last_commit`, so `_run` already degrades to full and the
+unrepairable state is never reached. The field case is a killed **incremental** on an index whose
+`last_commit` still equals HEAD. To give that incremental work without moving HEAD the tree is
+dirtied, the build is killed mid-parse, and the tree is then **restored** — otherwise `staleness`
+would read `behind` and AC1 would pass trivially before the fix.
+
+Ran at 9a7826b.
+
+```
+$ .venv/bin/python -m pytest tests/test_killed_build_is_honest.py -q
+........                                                                 [100%]
+8 passed in 85.38s (0:01:25)
+```
+
+### Delta-green and the gate
+
+Ran at 9a7826b.
+
+```
+$ .venv/bin/python -m pytest -q
+................................................                         [100%]
+2712 passed in 287.70s (0:04:47)
+```
+
+Baseline was 2704; +8 is exactly the new file. **All eight existing `staleness == "current"`
+assertions predicted green at design time stayed green**, untouched — that prediction, recorded
+before the change, is the regression check.
+
+Ran at 9a7826b.
+
+```
+$ ./scripts/gate.sh
+  17 passed · 0 failed · 0 skipped
+GATE GREEN — all 17 checks passed
+```
+
+### One derivation, one definition site
+
+Ran at 9a7826b.
+
+```
+$ grep -rn "def build_incomplete\|build_incomplete(" code_atlas/ --include=*.py
+code_atlas/tools/build_or_update_index.py:208:        if not repair_incomplete and build_incomplete(store):
+code_atlas/indexer.py:233:def build_incomplete(store: GraphStore) -> bool:
+code_atlas/indexer.py:275:    incomplete, era_moved = build_incomplete(store), contract_rebuild_required(store)
+code_atlas/tools/get_index_status.py:132:    if build_incomplete(store):
+code_atlas/tools/staleness.py:94:            last_commit, head, dirty=dirty, incomplete=build_incomplete(store)
+```
+
+**One definition, four readers** — the escalation, the refusal, `index_complete` and `staleness`.
+AC6 holds by construction, not by review.
+
+### Axis 2 — design-conformance self-check
+
+| Gate-2 Approach bullet | Verdict |
+|---|---|
+| 1. `build_incomplete()` as the single definition site | implemented-as-approved |
+| 2. `INCOMPLETE` in the shared vocabulary, six consumers inherit | implemented-as-approved |
+| 3. `index_complete` off the same predicate; `_suggestions` untouched | implemented-as-approved |
+| 4. `_run` escalates and records `incomplete_index` | **deviated** — see below |
+| 5. `repair_incomplete=False` for the hook | implemented-as-approved |
+
+**One deviation, recorded.** Gate 2 approved a single early return per cause, checking incompleteness
+first. That made the reported reason depend on check order whenever both causes held — the
+ticket-blind challenger found it. Both are now evaluated and **both recorded** before one escalation
+runs, because they are disjoint keys and neither needs to win a precedence the caller cannot see.
+This also retires the design's own **H4**, which answered the precedence question rather than
+dissolving it. A test holds both true at once.
+
+**Status is `in-progress`**, flipped to `done` at finalise with the ledger row that carries the PR
+link — R7.2's guard requires that pairing.
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`
+
+**Verdict: clean (challenger only — REVIEWER: OFF).** No rule-book-grounded review of this diff ran;
+a clean result carries no reviewer finding because none was sought.
+
+`CHALLENGER: 12 requirement(s) reconstructed | 12 met | 0 not met | 0 can't tell`
+
+**It verified AC4 the way AC4 needed verifying.** It built an isolated worktree at 201's tip, copied
+only the test file across with no production change, and confirmed the whole file goes red the
+moment the diff is reverted. It checked AC3 by reading `build_incomplete()` against the base and
+confirming the predicate is byte-for-byte the expression `index_complete` already used, so the
+healthy path cannot have moved. It confirmed the diff adds **no** `set_meta` call anywhere (C6), and
+it removed its worktree afterwards.
+
+**Two notes; one acted on, one answered.**
+
+| Note | Action |
+|---|---|
+| **Ordering:** with an incomplete index *and* a lagging vocabulary era, whichever check ran first was the only cause reported — untested | **Acted.** Both causes are now evaluated and both recorded before one escalation runs. A test holds both true at once. This dissolves design decision **H4** rather than answering it |
+| **Scope:** `repair_incomplete` and the hook change are surface the raw ticket never asks for; 053 is not in its References | **Answered, not changed.** It is the maintainer's ratified want **W1**, taken because the ticket's own trigger list includes closing the terminal that owns the backgrounded hook — a self-repairing hook could be re-killed and re-triggered indefinitely. The **default** path still satisfies AC2 exactly, which the challenger confirmed independently. A blind seat cannot see a ratified want, and flagging it was correct |
+
+### Scope reconciliation
+
+- **File axis — clean.** Nine paths, all on the Gate-2 list. `docs/CONVENTION.md` was checked and
+  found not to enumerate the staleness values, so it is not touched.
+- **Behaviour axis — clean, one deviation adjudicated.** Bullet 4 changed from *first cause wins* to
+  *both causes recorded*; **accepted** — strictly more honest, and it removes a precedence the
+  caller could not observe.
+- **Regression — none.** 2712 passed against a 2704 baseline. The eight existing
+  `staleness == "current"` assertions named at design time all stayed green, untouched.
+
+### Layer-match re-confirmation
+
+Every plan row is integration-level over a real store, a real git repo, a real killed subprocess and
+the real hook entry point. No `❌`, so no exclusion is recorded and none is standing.
+
+### `Ph3/4 proven by`
+
+| Row | Proven by | k/N |
+|---|---|---|
+| G1, R1, AC1 | the proving test off the killed-build fixture; `staleness` and the suggestion list both asserted | 2/2 |
+| G2, R2, AC2 | escalation **and** that the repair ends the damaged state | 2/2 |
+| R3, AC5 | **item by item** over the three escalations, plus the joint case where two hold at once | **3/3 + 1** |
+| R4, AC4 | the fixture kills a real process, carries an anti-vacuity guard, and was independently reverted-and-observed-red by the challenger | 1/1 |
+| AC3 | the healthy payload's key set, plus the eight existing pins | 1/1 |
+| AC6 | one definition, four readers — `grep` in Phase 3 | 1/1 |
+| C5, C6, C7 | `contract.py` untouched; no `set_meta` added; `index_complete` unchanged in name and meaning | 3/3 |
+| W1 | the hook returns 0, builds nothing, and names the route | 1/1 |
+| R6.9 | a nav-tool consumer asserted, not only the status tool | 1/1 |
+
+`k = N` on every row.
+
+Reviewed at 9a7826b
+
+Reviewed files: `code_atlas/hooks/refresh.py`, `code_atlas/indexer.py`,
+`code_atlas/tools/build_or_update_index.py`, `code_atlas/tools/get_index_status.py`,
+`code_atlas/tools/staleness.py`, `docs/BACKLOG.md`, `docs/TOOLS.md`,
+`tests/test_killed_build_is_honest.py`.
+Working doc (exempt): `docs/tasks/202_a-killed-build-leaves-an-index-that-reports-current.md`.
+
+## Phase 5 — finalise
+
+**Stale-review guard: not stale.** `git diff --name-only 9a7826b..HEAD` is empty; only this working
+doc is uncommitted, and it is the exempt path recorded with the marker.
+
+### Cost ledger
+
+| # | Dispatch | Phase | Tokens | Tool uses |
+|---|---|---|---|---|
+| 1 | `challenger` as exposure-checker | 0 refine | 106,695 | 16 |
+| 2 | `challenger`, ticket-blind | 4 review | 98,372 | 44 |
+| — | main loop | all | **unmeasured (host does not surface usage)** | — |
+
+`LEDGER TOTAL: 205,067 tokens · top cost driver: refine exposure-checker`
+
+Dispatch only. `reviewer` was not dispatched (`--no-reviewer`), so its ~108k was not spent and no
+rule-book-grounded review of this diff exists. The exposure-checker outspent the review challenger
+here — it is the dispatch that found the rebuild-storm risk the ticket never raised.
+
+### Durable lesson
+
+`CLAIMS: 4 claim(s) from 1 lesson entr(ies) | T1=0 T2=3 T3=0 T4=0 T5=1 T6=0 | 0 unclassified`
+`RECURRENCE: 1 recurring | 0 superseded (0 retired) | 1 promotion candidate(s)`
+`FALSIFY: 1 candidate(s) checked | 1 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 1 type-2 claim(s) with seen ≥ 2 | 1 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 1 proposed | 0 human-ratified | destinations: docs/ENGINEERING_RULES.md (proposed) | mango files written: 0`
+
+**`one-field-two-questions` reaches its third sighting, and this one is a defect.** The class was
+rejected at recurrence 2 on 2026-08-30 because its two sightings pointed opposite ways, with the
+class index asking for *"a third, independent sighting"*. 201 **used** the class to reject an
+alternative and was deliberately not counted. 202 **suffered** it: the shipped code let check order
+decide which of two simultaneously-true escalation causes was reported, and the ticket-blind
+challenger found it. Falsification gate: *still true* — it produced a real defect in this diff;
+*cheaply checkable* — hold both causes true and assert both keys are present, which is now a test;
+*checked, not repeated* — found by an independent seat, not restated. It is **proposed for
+`docs/ENGINEERING_RULES.md`**, awaiting a per-claim human ratify. Nothing is written there yet, and
+`/mango:promote` is the cross-ticket pass that reads the whole corpus — this phase saw one ticket.
+
+### Follow-ups drafted
+
+| Deferred row | Follow-up |
+|---|---|
+| C1 — a transactional incremental | the deeper fix the ticket explicitly defers: 202 makes the damaged state honest and repairable, a follow-up can make it impossible. Needs its own measurement of the write path's memory and lock profile |
+| C2 — the >5 minute no-op incremental | 5× what 052 recorded, on a different axis; belongs with 052 / 080 / 096 |
+| The joint-cause precedence | dissolved rather than deferred: both causes are recorded, so nothing remains to order |

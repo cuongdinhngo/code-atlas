@@ -90,6 +90,55 @@ this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *c
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
 
+## 202 — The fixture is the finding, and the first two versions of it were wrong
+
+A build killed mid-write left an index answering `staleness: "current"` with an empty suggestion
+list, unrepairable because `last_commit` still named HEAD. The fix is small — one predicate, four
+readers. The work was the **fixture**, and getting it honest took two corrections that each hid the
+defect completely:
+
+1. Killing a **full** build leaves no `last_commit`, so `_run` already degrades to full and the
+   unrepairable state is never reached. The field case is a killed **incremental**.
+2. Giving that incremental work by dirtying the tree makes `staleness` read `behind`, so AC1 —
+   *"does not report current"* — passes trivially before the fix. Restoring the tree after the kill
+   is what reproduces `current`, which is the whole defect.
+
+Neither error would have failed a test. Both would have produced a green suite over a scenario that
+was not the one the ticket described.
+
+### 202-C1 — a repro fixture must be checked against the payload it claims to reproduce, field by field
+
+- type: 2 (process) · handle: `reproduce-the-payload-not-the-story`
+- status: proposed (awaiting human confirm)
+- seen: 202
+- evidence: two fixture versions produced an incomplete index and neither reproduced the reported
+  state — the first left `last_commit` absent, the second left the tree dirty so `staleness` read
+  `behind` rather than `current`. The ticket quoted the field payload verbatim; comparing against it
+  field by field is what found both.
+- destination: stays in `lessons_path` (recurrence 1)
+
+### 202-C2 — a guard whose window can close must fail when it does, not pass over an untested window
+
+- type: 2 (code) · handle: `no-vacuous-pass-when-the-window-closes`
+- status: proposed (awaiting human confirm)
+- seen: 202
+- evidence: the kill fixture races a real subprocess. If the build finishes first the test would
+  exercise a completed index and pass — green over the scenario it exists to test. It raises
+  instead, naming R6.5.
+- destination: stays in `lessons_path` (recurrence 1)
+
+*Claim `202-C3` — `compute_staleness` has six consumers, four of them nav tools that sign a payload,
+so a staleness fix confined to `get_index_status` leaves `find_callers` and friends reporting
+`current` over a gutted graph. type: 5 project-ground-truth · descriptive · area: tools / payload
+honesty · proposed · verified-at: 2026-09-01 · stays in lessons.*
+
+*Claim `202-C4` — a payload carrying two independent escalation causes should record BOTH rather
+than let check order pick one: disjoint keys cost nothing and remove a precedence the caller cannot
+observe. type: 2 · handle: `one-field-two-questions` · seen: 189, 022, 202 — **third sighting**, and
+the first that is a defect rather than a use: the shipped code did let order decide, and the
+ticket-blind challenger found it. The class index asks for exactly this before re-proposing.
+status: proposed · destination: **proposed `rulebook_path`**, awaiting a per-claim human ratify.*
+
 ## 201 — The label was derived from the bookkeeping, not from what ran
 
 `build_or_update_index(full=false)` on an index one vocabulary era behind ran a full rebuild — 73
