@@ -76,11 +76,19 @@ DOCS = REPO / "docs"
 # and a listed set where a derivation exists is what R6.7 forbids) and R7.1's release history
 # (AGENTS.md *Ship discipline*). 133's cap is still 25,200 and untouched; the chain sits at 25,190,
 # so the three rules were bought, not borrowed. The next addition prunes again or argues again.
+# BACKLOG 8,200 -> 8,300 and 133's cap 25,200 -> 25,300 on 2026-09-01, argued rather than assumed.
+# Both ceilings were last re-measured against a table with **no open rows** — every row was `done`
+# and therefore slug-titled, which is why 10 tokens of tier-1 slack looked like enough. Tickets
+# 200-202 are the first open rows since, and this file's own preamble says an open row is titled by
+# its finding, because that title is what you read to choose the next ticket. R7.6 has nothing to
+# prune here: the text is the finding, and the prior pass already took the restatement. 100 tokens
+# buys the tracker its open queue back; the rows shrink to slugs the moment they close, which
+# returns the raise. The next addition prunes again or argues again.
 BUDGETS = {
     "CLAUDE.md": 50,
     "AGENTS.md": 2_800,
     "PLAN.md": 24_000,
-    "BACKLOG.md": 8_200,
+    "BACKLOG.md": 8_300,
     "ENGINEERING_RULES.md": 5_700,
     "AGENT_BRIEF.md": 2_250,
     "CONVENTION.md": 6_600,

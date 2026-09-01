@@ -78,6 +78,9 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 194 | [default filled column defect class query](tasks/194_default-filled-column-defect-class-query.md) | Agent-fit | done | 022 |
 | 195 | [three tools still read the whole graph blend](tasks/195_three-tools-still-read-the-whole-graph-blend.md) | Measure | done | 183 |
 | 196 | [the-system-map-cannot-attribute-its-own-confidence](tasks/196_the-system-map-cannot-attribute-its-own-confidence.md) | Measure | done | 195 |
+| 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | todo | 081, 097, 036, 099 |
+| 201 | [A forced full rebuild is silent and unroutable through MCP](tasks/201_a-forced-full-rebuild-is-silent-and-unroutable.md) | Freshness | todo | 030, 050, 172, 176, 177 |
+| 202 | [A killed build leaves an index that reports current](tasks/202_a-killed-build-leaves-an-index-that-reports-current.md) | Agent-trust | todo | 072, 077, 052, 050, 035 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -301,7 +304,6 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **Parser-OOM size cap (optional)** — multi-MB generated files exhaust the PHP parser (already soft-failed/restarted in `indexer.py`); a byte-cap pre-skip (`CA_MAX_FILE_BYTES`) would avoid ~30 restart cycles. Log skips; no silent truncation.
 - **Adapter-subprocess test harness on Windows (bug)** — `CA_*_CMD` uses POSIX quoting but splits with `posix=False`, so quoted paths reach `CreateProcess` verbatim → `WinError 2`. Fails ~56 adapter tests on Windows, green on Linux. Surfaced by [043](tasks/043_duplicate-decl-resilience.md).
 - **043's duplicate-declaration gap** — the end-to-end `full_build` test is blocked by the Windows bug above (the surface is proven at the `_write`+store layer); a PHP-adapter fixture would only pin what the adapter already emits.
-- **015 AC2 operator run** — a scale-timing artifact folded into [018](tasks/018_cross-repo-validation.md) as optional A4. Needs an operator machine.
 - **018 construct gaps** — cross-repo misses feed the (still empty) gap log in [`runbooks/cross-repo-validation.md`](runbooks/cross-repo-validation.md) and tasks 007 / 025.
 - **Docker images are never built by CI** — `docker/Dockerfile` can rot (`Dockerfile.runtime` is built inside `pytest`). Honest shape: one job building both. Survives the unbillable-Actions arrangement AGENTS.md records, which also means every gate is a human step.
 

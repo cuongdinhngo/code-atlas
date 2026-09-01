@@ -25,7 +25,11 @@ REPO = Path(__file__).resolve().parent.parent
 # more than one ticket's headroom. Pruned first, per R7.6 and 175's precedent: a follow-up pointing
 # at a list that no longer exists was removed, and 043's two duplicate-declaration follow-ups were
 # consolidated into one. Those recovered 84 of the 110; the residue is the three rows themselves.
-TIER1_BUDGET = 25_200
+# 25,200 -> 25,300 on 2026-09-01 (tickets 200/201/202): three open BACKLOG rows again, and this
+# time the prior pass had already taken the restatement — the argument is in
+# tests/test_doc_size_budget.py. An open row costs more than a done one by design, and it repays
+# the raise when it closes and is re-titled by its slug.
+TIER1_BUDGET = 25_300
 
 
 def _tokens(paths: list[Path]) -> int:
