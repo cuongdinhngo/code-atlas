@@ -110,7 +110,7 @@ source of the skill-plus-hook shape, taken here without its installer.
 
 ## Session status
 
-- **KEY:** 200 · **work_doc_mode:** embed · **Current phase:** 4 review — clean (challenger only; REVIEWER: OFF). Gates 0-4 closed on artifacts.
+- **KEY:** 200 · **work_doc_mode:** embed · **Current phase:** 5 finalise — complete on disk. PR [#243](https://github.com/cuongdinhngo/code-atlas/pull/243) open. **Next action:** merge #243, then run the blind probe round (E1) to close AC5. **Revert path:** `git revert` the four commits on `feat/200-…`, or close #243 unmerged.
 - `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · **Type:** enhancement.
 - Run arg: *"with skipper reviewer"* = **reviewer seat only** (AGENTS.md *Honor the run's args*); the
   ticket-blind challenger keeps its seat.
@@ -677,3 +677,58 @@ maintainer; **no mango file was written.**
 | AC5 / R4 — exclusion **E1** | 200 stays `blocked`. The blind probe round runs in the next field-retro against a live MCP surface; the ticket closes on that round alone |
 | A-3 / A-4 — exclusion **E2** | each README carries its documentation URL and says the shape is unverified against a running host; discharged when a maintainer runs either snippet on a host with that agent installed |
 | Phase 1 clarification 1 | three documented tool counts read 21 or 17 — two `prompts.py` docstrings and the probe runbook, none scanned by `test_documented_tool_count.py`, which reads five docs and no source. Named in the PR body; **not** filed in `BACKLOG.md`, on R7.6 grounds recorded as the Phase-3 deviation |
+
+### RECONCILE at close
+
+```
+RECONCILE
+  conditions: 8 declared | 8 re-run | 5 holding | 3 BROKEN | 0 UNBOUND | 0 could-not-run
+  phase     : close | reviewer: off | challenger: on
+```
+
+**Read the three BROKEN first — one is expected, two are conditions I mis-authored at t0.**
+
+| Condition | Why BROKEN |
+|---|---|
+| `TREE-COMPARISON` | **Expected.** It holds only once the PR is merged; `autorun` stops at the PR |
+| `SKILL-EMITTED` | **Mis-authored.** `ls contrib/*/SKILL.md contrib/*/*/SKILL.md` exits 2 because the *second* glob matches nothing, even though the first does. `ls contrib/*/SKILL.md` alone exits 0 and prints `contrib/skill/SKILL.md`. The artifact exists; the check does not say so |
+| `POKE-FILTER-NOT-PHP-FROZEN` | **Mis-authored.** The generated filter legitimately *begins* `Edit(*.php)\|Write(*.php)` — `php` is a shipped adapter and sorts first — so "does not contain the 036 string" was never the invariant. The real one is *covers every shipped adapter*, which is the proving test, green 3/3 |
+
+The contract's guarantee is that it is well-formed and internally consistent, never that a value is
+true. These two are exactly that gap, and they are reported rather than rewritten at close.
+
+### DISCLOSURE
+
+1. **REVIEWER: OFF** — waived by `--no-reviewer` (the run arg *"with skipper reviewer"*, read per
+   AGENTS.md as the reviewer seat only). **No rule-book-grounded review of this diff ran**; the clean
+   verdict carries no reviewer finding because none was sought.
+   **CHALLENGER: ON** — the ticket-blind challenger ran, and re-exercised both guards with real
+   mutations rather than reading their assertions.
+2. **UNCHECKED AGENT CLAIMS: 0** — every contract value was derived by a command.
+3. **BUDGET: call-count ceiling `unknown`** — no ledger history for this tier (125 of 192
+   `TOKEN_LEDGER` rows read `main-loop unmeasured`). Nothing was invented and nothing was blocked.
+   Actual dispatch spend: 130,348 tokens across 2 dispatches.
+4. Everything below is what I chose not to verify, or verified less than fully:
+   - **AC5 was not measured at all** (exclusion **E1**). No probe round, before or after. The ticket
+     ships `blocked`, and the challenger independently reported AC5 unmet.
+   - **The Codex and OpenCode snippet schemas were never executed** (exclusion **E2**) — written from
+     published documentation on a host where neither agent is installed. One third-party write-up
+     disagrees with the reference about the `"hooks"` wrapper; I followed the reference. If either
+     shape is wrong, a hand install silently does not fire.
+   - **Two contract conditions were mis-authored** and reported BROKEN at close for reasons that have
+     nothing to do with the work (table above). I found them only at close, not at t0, because at t0
+     every condition is *supposed* to be failing — which is precisely the blind spot in the t0 check.
+   - **The finalise gate returned exit 2 on its first run**, refusing the Phase-1 `BASELINE` as
+     evidence from another tree. I did not re-stamp it; I stopped writing it as an empirical-output
+     block for the reviewed tree. That is a judgement call about an artifact the checker has no
+     category for, and a reader may reasonably disagree with it.
+   - **Eight evidence blocks were originally stamped at the branch point** and refused at review. They
+     were re-run at `e098c83` — but the first review pass was scoped against stamps that were wrong,
+     and only the harness caught it.
+   - **`docs/BACKLOG.md` carries no follow-up line** for the three stale tool counts, against the
+     Gate-2 change list. Recorded as a Phase-3 deviation and adjudicated at review; the finding lives
+     in Phase 1 and in the PR body only.
+   - **The working doc is 122% of its 40,000 B ceiling.** Reported by the checker, not blocked.
+   - **No `reviewer` seat, no `real_corpus`, no live MCP surface, no running Codex or OpenCode.**
+     Four things this run could not check, listed so the absence is visible.
+   - **Outward actions deferred to the morning:** the **merge** of PR #243. `autorun` never merges.
