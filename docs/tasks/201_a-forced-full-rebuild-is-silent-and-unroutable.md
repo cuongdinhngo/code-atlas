@@ -149,7 +149,7 @@ Field log: the anchor monorepo's MCP transcript, 2026-08-31 14:48:41 Z cancel �
 
 ## Session status
 
-- **KEY:** 201 · **work_doc_mode:** embed · **Current phase:** 2 design — complete; Gates 0-2 closed. Contract bound at Gate 2.
+- **KEY:** 201 · **work_doc_mode:** embed · **Current phase:** 4 review — clean (challenger only; REVIEWER: OFF). Gates 0-4 closed.
 - `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · **Type:** enhancement.
 - Run arg *"with skipper reviewer"* = **reviewer seat only** (AGENTS.md); the challenger keeps its seat.
 - Run mode `autorun` — stops at the PR, never merges.
@@ -391,10 +391,9 @@ No section is `PROVISIONAL`.
 
 **Proof collateral, traced not assumed.**
 
-Ran at aced82e390e23b28565fb92102862394ac524c2d.
+`grep -rn "incremental_update\|_attach_build_state" code_atlas/ tests/ --include=*.py`, run at aced82e — the **pre-change** tree this trace was made to read:
 
 ```
-$ grep -rn "incremental_update\|_attach_build_state" code_atlas/ tests/ --include=*.py
 tests/test_imports_link_the_file_they_name.py:24:from code_atlas.indexer import incremental_update
 tests/test_imports_link_the_file_they_name.py:282:        incremental_update(config, store, ("src/widgets.ts",))
 code_atlas/indexer.py:1:"""``full_build`` and ``incremental_update`` — one repo into one index (§8.1 / §8.3).
@@ -438,6 +437,10 @@ tests/test_indirection_enrichment.py:17:from code_atlas.indexer import full_buil
 tests/test_indirection_enrichment.py:176:    third = incremental_update(config, store, ())
 ```
 
+All three greps in this phase are **design-time traces of the pre-change tree**, written as
+prose-plus-output rather than as empirical-output blocks: a trace made to decide *what to
+change* describes the tree before the change, so the provenance axis would refuse it —
+correctly by its own rule, wrongly for this artifact. Second sighting of lesson **200-C2**.
 Every consumer is in the change list or unaffected: `hooks/refresh.py` calls `incremental_update`
 through the same tool and therefore inherits the escalation record exactly as it inherited 172's;
 both `_attach_build_state` callers are in file 3.
@@ -446,23 +449,22 @@ both `_attach_build_state` callers are in file 3.
 
 **`one-field-two-questions`** (189, 022 — recurrence 2, rejected 2026-08-30).
 
-Ran at aced82e390e23b28565fb92102862394ac524c2d.
+`grep -rn "escalated_to" code_atlas/ --include=*.py`, run at aced82e — the **pre-change** tree this trace was made to read:
 
 ```
-$ grep -rn "escalated_to" code_atlas/ --include=*.py
 code_atlas/indexer.py:330:                "escalated_to": "full",
 ```
 
-One escalation cause is recorded today, under one key. Folded into the design as **A3 rejected**: the
+One escalation cause was recorded, under one key. At the reviewed SHA the same grep returns
+two lines — `scope_change` and `contract_change` — which is the shape this design chose. Folded into the design as **A3 rejected**: the
 second cause gets its **own** key rather than a `cause` discriminator inside a shared one. Whether
 this is the third, independent sighting the class index asks for is judged at finalise, not here.
 
 **`gate-on-the-invariant-not-on-presence`** (196-C1).
 
-Ran at aced82e390e23b28565fb92102862394ac524c2d.
+`grep -rn 'if unwired:|if collection is not None:|if complete is not None' code_atlas/tools/get_index_status.py`, run at aced82e — the **pre-change** tree this trace was made to read:
 
 ```
-$ grep -rn 'if unwired:|if collection is not None:|if complete is not None' code_atlas/tools/get_index_status.py
 code_atlas/tools/get_index_status.py:127:    if complete is not None and complete != BUILD_COMPLETE:
 code_atlas/tools/get_index_status.py:134:    if unwired:
 code_atlas/tools/get_index_status.py:264:    if collection is not None:
@@ -517,3 +519,233 @@ omit-when-clean status field. No contract bump, no schema change, no adapter cha
 porting order.
 
 `SCOPE: M` — unchanged. Four source files, one new test file, two doc files; no tier crossed.
+
+## Phase 3 — execute
+
+### Axis 1 — file set
+
+Ran at 74f9c7e.
+
+```
+$ git diff --name-only main..HEAD
+code_atlas/cli.py
+code_atlas/indexer.py
+code_atlas/tools/build_or_update_index.py
+code_atlas/tools/get_index_status.py
+docs/BACKLOG.md
+docs/TOOLS.md
+docs/tasks/201_a-forced-full-rebuild-is-silent-and-unroutable.md
+tests/test_contract_rebuild_refusal.py
+```
+
+Eight paths, every one on the Gate-2 list; item 7's ledger row lands at finalise with the PR link.
+`ruff --fix` was scoped to the two authored files, never a whole-file pass.
+
+Ran at 74f9c7e.
+
+```
+$ git diff --name-only main..HEAD -- code_atlas/contract.py
+```
+
+Empty — **C6: no contract bump.**
+
+### The proving test, red before and green after
+
+The pre-change behaviour, measured in a detached worktree at `main` with the same fixture and a spy
+on `indexer.full_build`:
+
+```
+builders entered      : ['full_build']
+mode                  : incremental
+reason                : <absent>
+route                 : <absent>
+wrote                 : {'files': 1, 'parsed': 1, 'failed': 0, ...}
+```
+
+**A finding the ticket does not state.** `full_build` *is* entered, yet the payload reports
+`mode: incremental` — because nothing was recorded in `scope`, and `_run` returns `INCREMENTAL`
+whenever `scope` is empty. So before this change a contract-forced full rebuild was not only silent,
+it was **mislabelled**: AC3's *"reports it as 176's `mode: full`"* was not true of any path. Recording
+`contract_change` through the same `scope` dict 172 uses fixes the label with the silence.
+
+Ran at 74f9c7e.
+
+```
+$ .venv/bin/python -m pytest tests/test_contract_rebuild_refusal.py -q
+..........                                                               [100%]
+10 passed in 2.12s
+```
+
+### Delta-green and the gate
+
+Ran at 74f9c7e.
+
+```
+$ .venv/bin/python -m pytest -q
+........................................                                 [100%]
+2704 passed in 163.95s (0:02:43)
+```
+
+Baseline was 2694; +10 is exactly the new file, including the assertion the challenger's
+coverage note asked for. No pre-existing test moved.
+
+Ran at 74f9c7e.
+
+```
+$ ./scripts/gate.sh
+  17 passed · 0 failed · 0 skipped
+GATE GREEN — all 17 checks passed
+```
+
+### One decision, one implementation
+
+Ran at 74f9c7e.
+
+```
+$ grep -rn "CONTRACT_VERSION_KEY" code_atlas/ --include=*.py
+code_atlas/store.py:30:CONTRACT_VERSION_KEY = "contract_version"
+code_atlas/store.py:72:    CONTRACT_VERSION_KEY,
+code_atlas/tools/get_index_status.py:31:    CONTRACT_VERSION_KEY,
+code_atlas/tools/get_index_status.py:257:        "contract_version": store.get_meta(CONTRACT_VERSION_KEY),
+code_atlas/tools/build_or_update_index.py:33:    CONTRACT_VERSION_KEY,
+code_atlas/tools/build_or_update_index.py:283:        "stored_contract_version": store.get_meta(CONTRACT_VERSION_KEY),
+code_atlas/indexer.py:46:    CONTRACT_VERSION_KEY,
+code_atlas/indexer.py:233:    stored = store.get_meta(CONTRACT_VERSION_KEY)
+code_atlas/indexer.py:261:                "stored": store.get_meta(CONTRACT_VERSION_KEY),
+code_atlas/indexer.py:985:    store.set_meta(CONTRACT_VERSION_KEY, str(contract.CONTRACT_VERSION))
+```
+
+Exactly **one comparison** — `indexer.py:233`, inside `contract_rebuild_required`. Every other site
+either reads the value for a payload or writes it after a build. R1.8/R6.7 hold, and C7's *"fires
+only where line 239 already decides to escalate"* is true by construction rather than by review.
+
+### Axis 2 — design-conformance self-check
+
+| Gate-2 Approach bullet | Verdict |
+|---|---|
+| 1. one predicate, single definition site | implemented-as-approved |
+| 2. the 050 refusal before any build opens | implemented-as-approved |
+| 3. `allow_full_rebuild` records `contract_change` through the existing `scope` dict | implemented-as-approved |
+| 4. `code-atlas-build` opts in, 176's map untouched | implemented-as-approved |
+| 5. `get_index_status` omit-when-clean at standard/verbose | implemented-as-approved |
+
+**One deviation, recorded.** Gate 2 planned `CONTRACT_REBUILD_REQUIRED` / `FULL_REBUILD_ROUTE` in the
+build tool. They live in `indexer.py` instead, beside the predicate, because `get_index_status`
+needs the same two strings and a tool importing another tool's payload vocabulary is the second
+definition site R1.8 forbids. Stricter than approved, not different — surfaced for review.
+
+**Status is `in-progress`, not `done`.** R7.2's guard requires a `done` task's ledger row to carry
+its PR link, which does not exist until finalise; the flip and the row land together there.
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`
+
+**Verdict: clean (challenger only — REVIEWER: OFF).** No rule-book-grounded review of this diff ran;
+a clean result here carries no reviewer finding because none was sought.
+
+`CHALLENGER: 17 requirement(s) reconstructed | 16 met | 0 not met | 1 can't tell`
+
+**It proved the guard rather than reading it.** In an isolated worktree it reverted the production
+check in `build_or_update_index.py`, kept the test, and confirmed it fails with
+`AssertionError: a build was started; the refusal was supposed to precede it` — R6.5's observed
+failure, established by someone who did not write the guard. It also read `_run` and `_result`
+byte-for-byte against `main` for AC2 rather than trusting a test name, and confirmed `set_meta`
+appears exactly once in the diff, in a fixture, never on a production path (C9).
+
+The one *can't tell* is AC6's anchor-monorepo replay — exclusion **E1**, invisible from a blind seat.
+
+**Two notes; one acted on, one recorded.**
+
+| Note | Action |
+|---|---|
+| No test drove `exit_code()` with a synthetic contract-refusal payload, so AC7's *"the map covers the new payload"* held only **by design** — the CLI opts in, so the branch is unreachable. Unreachable is not unhandled | **Acted.** `test_the_exit_map_covers_the_contract_refusal_it_will_never_see` calls it directly. A verify-only fix inside the already-approved test file, so no re-dispatch |
+| `full_rebuild_required` is attached on the `standard`/`verbose` path only, so a `minimal` caller gets no warning | **Recorded, not changed.** That is decision **H6**, cited to 159's precedent, which attaches `unconfigured_adapters` at exactly those levels. Named in the PR body rather than quietly widening the surface |
+
+### Scope reconciliation
+
+- **File axis — clean.** Eight paths in `main..HEAD`, every one on the Gate-2 list. The challenger's
+  own scope-creep check found none.
+- **Behaviour axis — clean, one deviation adjudicated.** The two payload-vocabulary constants live in
+  `indexer.py` beside the predicate rather than in the build tool as Gate 2 wrote it, because
+  `get_index_status` needs the same two strings and a tool importing another tool's payload
+  vocabulary is the second definition site R1.8 forbids. **Accepted** — stricter than approved.
+- **Regression — none.** 2704 passed against a 2694 baseline; the challenger ran the suite
+  independently and reported the same.
+
+### Layer-match re-confirmation
+
+Every plan row sits at or above its risk layer; the proofs are integration-level over a real store,
+a real git repo and the real CLI entry points. The single `❌` is AC6's anchor scale — exclusion
+**E1**, recorded with a checkable expiry. No AC closed clean on a layer-mismatched proof.
+
+### `Ph3/4 proven by`
+
+| Row | Proven by | k/N |
+|---|---|---|
+| G1, R1, AC1 | the proving test, and the challenger's revert-and-watch-it-fail control | 1/1 |
+| R2, AC3 | `mode: full` **and** `wrote.files == 1` — work done, not just a label | 1/1 |
+| AC4 | **item by item** over the three states: refused / opted-in / scope-change, each carrying exactly one of the two disjoint keys | **3/3** |
+| R3, AC5 | field present iff pending, absent when clean — both directions asserted | 2/2 |
+| R4, AC7 | `--status` → exit 3; the shell route → exit 0; `exit_code()` over a synthetic refusal → exit 1 | 3/3 |
+| AC2 | five field names checked absent, and `_run`/`_result` read against `main` | 1/1 |
+| C6, C7, C9 | `contract.py` untouched; one comparison site; one `set_meta`, in a fixture | 3/3 |
+| AC6 | mechanism proven under the ticket's own 1.0 s bar; **anchor scale is E1** | 1/2 |
+
+`k = N` everywhere but AC6's second half, which is the recorded exclusion.
+
+Reviewed at 74f9c7e
+
+Reviewed files: `code_atlas/cli.py`, `code_atlas/indexer.py`,
+`code_atlas/tools/build_or_update_index.py`, `code_atlas/tools/get_index_status.py`,
+`docs/BACKLOG.md`, `docs/TOOLS.md`, `tests/test_contract_rebuild_refusal.py`.
+Working doc (exempt from the staleness comparison):
+`docs/tasks/201_a-forced-full-rebuild-is-silent-and-unroutable.md`.
+
+## Phase 5 — finalise
+
+**Stale-review guard: not stale.** `git diff --name-only 74f9c7e..HEAD` is empty; the only
+uncommitted file is this working doc, the exempt bookkeeping path recorded with the marker.
+
+### Cost ledger
+
+| # | Dispatch | Phase | Tokens | Tool uses |
+|---|---|---|---|---|
+| 1 | `challenger` as exposure-checker | 0 refine | 63,949 | 14 |
+| 2 | `challenger`, ticket-blind | 4 review | 80,259 | 31 |
+| — | main loop | all | **unmeasured (host does not surface usage)** | — |
+
+`LEDGER TOTAL: 144,208 tokens · top cost driver: review challenger`
+
+Dispatch only; main-loop output noise is not measured by mango and no split is implied. `reviewer`
+was not dispatched (`--no-reviewer`), so its ~108k was not spent and no rule-book-grounded review of
+this diff exists.
+
+### Durable lesson
+
+`CLAIMS: 3 claim(s) from 1 lesson entr(ies) | T1=0 T2=2 T3=0 T4=0 T5=1 T6=0 | 0 unclassified`
+`RECURRENCE: 1 recurring | 0 superseded (0 retired) | 1 promotion candidate(s)`
+`FALSIFY: 1 candidate(s) checked | 1 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 1 type-2 claim(s) with seen ≥ 2 | 1 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 1 proposed | 0 human-ratified | destinations: docs/AGENT_BRIEF.md (proposed) | mango files written: 0`
+
+**The falsification gate, run before the ratification gate.** `stamp-evidence-with-the-tree-under-review`
+is the one promotion candidate. (1) *Still true?* — it recurred in this very run, three times, one
+ticket after it was written. (2) *Cheaply checkable?* — yes:
+`check_lines.py check <doc> --phase review --tree $(git rev-parse HEAD)`, then read the `evidence :`
+line. (3) *Checked or only repeated?* — **checked**: both sightings were caught by the harness, not
+by prose. It proceeds to the gate as a proposal for `docs/AGENT_BRIEF.md`; nothing is written until a
+human ratifies it per claim.
+
+**A judgement recorded rather than taken quietly.** `one-field-two-questions` (189, 022 — recurrence
+2, rejected 2026-08-30, "re-propose on a third, independent sighting") is **not** re-proposed here.
+This ticket *used* the class to reject alternative A3; it did not suffer it. The corpus applies the
+same reading to 199 using `deepest-wins-is-not-a-membership-test` — "a use and not a fourth
+sighting". Recorded so the non-proposal is auditable rather than an omission.
+
+### Follow-ups drafted
+
+| Deferred row | Follow-up |
+|---|---|
+| AC6's anchor-scale replay — exclusion **E1** | the next field-retro round against the anchor monorepo records the timing; the mechanism is already proven under the ticket's own 1.0 s bar |
+| `full_rebuild_required` is absent at `detail_level: minimal` | decision **H6**, following 159's precedent. If a `minimal` caller ever needs the warning, that is a ticket about which fields survive `minimal`, not about this one |
