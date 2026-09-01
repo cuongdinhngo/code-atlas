@@ -4,7 +4,7 @@
 a symbol graph, then answers *resolved relationship* questions — who calls this, what implements
 that, what breaks if I change this file — as rows, not as files to read.
 
-**PHP and TypeScript/JavaScript today.** 24 tools. Deterministic, offline, no LLM in the core.
+**PHP, TypeScript/JavaScript and T-SQL today.** 24 tools. Deterministic, offline, no LLM in the core.
 
 > **~69× fewer tokens** than grep-and-read to reach a resolved answer, measured on pinned public
 > repos — **95–114×** on relation queries alone. [How that is measured](docs/runbooks/tokens-to-answer.md).
@@ -100,12 +100,15 @@ to get wrong by hand. Run it with no path to print the snippet instead of writin
 `--no-adapter` to skip PHP. If PHP or Composer is missing it says so and continues; rerun once they
 are installed.
 
-For TypeScript/JavaScript, add the second adapter — the core resolves any `CA_<LANG>_CMD`
-generically, so it is one env var, not a code change:
+For TypeScript/JavaScript or T-SQL, add that adapter — the core resolves any `CA_<LANG>_CMD`
+generically from the variable name, so each is one env var, not a code change:
 
 ```bash
 npm ci --prefix adapters/typescript
 export CA_TYPESCRIPT_CMD="node /abs/path/to/code-atlas/adapters/typescript/index.js --server"
+
+npm ci --prefix adapters/sql          # dev-only deps; the scanner itself has none
+export CA_SQL_CMD="node /abs/path/to/code-atlas/adapters/sql/index.js --server"
 ```
 
 Then **reload your MCP client** (in Claude Code: restart, or re-approve the project's `.mcp.json`)
@@ -154,6 +157,7 @@ exposes the MCP tools. Everything runs offline against local SQLite, with increm
 |---|---|---|
 | PHP (8.5 grammar, 8.1+ runtime) | nikic/php-parser | **Available** — see [`adapters/php/`](adapters/php/) |
 | TypeScript / JavaScript (Node ≥ 18) | TypeScript compiler API | **Available** — see [`adapters/typescript/`](adapters/typescript/) |
+| T-SQL (Node ≥ 18) | purpose-built scanner, no production dependencies | **Available** — see [`adapters/sql/`](adapters/sql/) |
 | Python | `ast` + jedi | Deferred |
 | C# / .NET | Roslyn | Deferred |
 
@@ -169,6 +173,9 @@ exposes the MCP tools. Everything runs offline against local SQLite, with increm
 | I did not write this repo — where do I start reading? | `architecture_overview` · `guided_tour` · `generate_onboarding` |
 | Are any of these ten names already taken? | `search_symbol` with a list of `queries` — one call, not ten |
 | Did this change break an architectural rule? | `check_architecture_rules` · `diff_architecture` |
+| What happens when a user does X — entry to data? | `trace_capability`, one entry, file or module per call |
+| Draw me this type and its ancestry | `class_diagram` |
+| Which writers of this table omit a defaulted column? | `check_column_defaults` (T-SQL) |
 
 **All 24 tools, what each returns, and which take a list of subjects: [`docs/TOOLS.md`](docs/TOOLS.md).**
 
@@ -197,7 +204,7 @@ Every number here is reproducible from a runbook in this repo.
 | What | Result | Where |
 |---|---|---|
 | Tokens to reach a resolved answer, vs grep-and-read | **~69× cheaper** across the whole question set on pinned public PHP repos (laravel / symfony / brick); **95–114×** on the relation queries alone | [`tokens-to-answer.md`](docs/runbooks/tokens-to-answer.md) |
-| The onboarding layer's own cost gate | **cheaper for lookups** (12/12 correct, recall 1.0) and **wrong for reading order** (1 of 5 on a canonical repo) | [`121_onboarding-question-class.md`](docs/benchmarks/121_onboarding-question-class.md) |
+| The onboarding layer's own cost gate | **cheaper for lookups** (12/12 correct, recall 1.0); the reading-order half is where it lost, and the three findings it produced (129 · 130 · 131) are closed — the layer is measured as a navigation and provenance aid, not a curated syllabus | [`121_onboarding-question-class.md`](docs/benchmarks/121_onboarding-question-class.md) |
 | Cost of the *n*-th parallel agent | **~70 MB PSS**; the 925 MB index costs **0 MB** (page-cached, never mmapped) | [`parallel-agents.md`](docs/runbooks/parallel-agents.md) |
 | Five agents vs one | **4.3× throughput**, 1.3 % of RAM, zero `SQLITE_BUSY` reaching a caller | same |
 | No-op rebuild after 080 | **56.1 s → 2.113 s (26×)**, two no-ops byte-identical | §19 |
@@ -313,10 +320,12 @@ Contributing agents should start at [`AGENTS.md`](AGENTS.md).
   `architecture_overview`, `guided_tour` and `generate_onboarding` emit a committable **system map**
   under `docs/onboarding/`: responsibility layers, dependency matrix, hubs, a business-module table,
   mirror-subtree lookup, a bounded tour, and the zero-inbound population split.
-- **Phase 2 — More languages: TS/JS shipped; Python and C#/.NET deferred, not cancelled.** The
-  second adapter was the contract's real test and it passed **without a version bump**. R1.2's
+- **Phase 2 — More languages: TS/JS and T-SQL shipped; Python and C#/.NET deferred, not cancelled.**
+  The second adapter was the contract's real test and it passed **without a version bump**. R1.2's
   condition is met, and the verdict was written down rather than assumed: still **one seam**, no
-  registry. Python then C#/.NET keep their order; they wait until the agent loop is complete.
+  registry. T-SQL was then reordered ahead of Python and C#/.NET on **2026-08-30** — not on breadth
+  but on measured in-anchor demand, and because tier 1a cost zero new contract vocabulary
+  ([PLAN §19](docs/PLAN.md)). Python then C#/.NET keep their order behind it.
 
 **Design principles.** SOLID **at the boundaries** (the axis of change is *languages*, expressed
 through one versioned contract) + **YAGNI** (one seam only) + **standard over sample** (adapters
