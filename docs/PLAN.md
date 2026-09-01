@@ -422,23 +422,16 @@ defaults. A field present as `None` is stored as an explicit NULL.
 repo root, is meant to be committed, and is read with stdlib `tomllib`; its keys are the env names
 lower-cased without the prefix, plus an `[adapter_cmd]` table holding one complete argv per language
 (§9). A malformed value or an unknown key **fails loud** (R5.3) — it never falls back. Naming rules
-are in [`CONVENTION.md`](CONVENTION.md) §2; what each knob *governs* is here.
+are in [`CONVENTION.md`](CONVENTION.md) §2, and **every knob, its default and what it governs is in
+[`TOOLS.md`](TOOLS.md) *Configuration reference*** — the copy this section used to keep went two
+knobs out of date, so it is not kept twice (R6.7).
 
-| Knob | Default | Governs |
-|---|---|---|
-| `CA_DB_PATH` | `<repo>/.code-atlas/graph.db` | where the index lives |
-| `CA_WORKERS` | `max(1, min(cpu-2, 8))` | adapter processes in a full build (§8.1) |
-| `CA_ADAPTER_TIMEOUT` | `30` s | how long one adapter may stay silent before the build kills it (§8.1) |
-| `CA_MAX_RESULTS` | `50` | rows a tool returns **and** the resolver's per-call-site candidate fan-out (§8.2) — one knob, two jobs; see the follow-up in BACKLOG |
-| `CA_MAX_SUBJECTS` | `25` | subjects one `search_symbol` sweep may take (101) |
-| `CA_IMPACT_DEPTH` / `CA_IMPACT_MAX_NODES` | `2` / `500` | impact/reachability/path walk bounds |
-| `CA_ORPHANS_MAX_NODES` | `500` | the reachability walk inside `find_orphans` only — **not** borrowed from impact (124) |
-| `CA_ENTRY_POINTS` | unset | reachability roots (file globs). Unset ⇒ the tools report *no roots*, never a guess (031) |
-| `CA_STUB_ROOTS` | unset | dependency roots to index declarations-only (039) |
-| `CA_INDIRECTION_RULES` | unset | rule files mapping framework indirection to ALIASES/CALLS/view-data edges (040/062/063) |
-| `CA_TOOLS` | unset ⇒ all | the served tool allow-list (§12) |
-| `CA_HOST_ROOT` / `CA_CONTAINER_ROOT` | unset | rewrite **absolute** host paths onto a container root; both set or neither (§9) |
-| `CA_<LANG>_CMD` | — | the complete argv launching that adapter (§9), resolved generically from the variable name so no language is named in the core |
+Three knob decisions are design rather than reference, and stay here. `CA_MAX_RESULTS` does **two**
+jobs — the rows a tool returns and the resolver's per-call-site candidate fan-out (§8.2), which sets
+index size; splitting them is an open follow-up in BACKLOG. `CA_ORPHANS_MAX_NODES` is deliberately
+**not** the impact budget, so tuning one cannot change which orphans exist (124). And `CA_<LANG>_CMD`
+is resolved **generically from the variable name**, which is what keeps §9's launch mechanism from
+naming a language in the core (R1.1).
 
 **Ignore.** Built-ins (`vendor/ var/ uploads/ log/ node_modules/ .git/ *.blade.*`) + `.gitignore` +
 optional `.codeatlasignore`, concatenated in that order with the **last matching rule winning**, so a
@@ -476,36 +469,42 @@ integer-like keys contribute nothing.
 
 ## 12. MCP tools (language-agnostic — same tools for every language)
 
-**Seventeen tools.** Token-efficient: qualified names + `file:line`, not bodies, unless a read tool
-is called. The **payload contract** — `detail_level`, the provenance fields (`index_root`,
-`last_ref`/`head_ref`, `server_version`/`server_build`), the honesty fields (`reason`,
-`total_count`, `truncated`, `walk_truncated`, `try_instead`, `resolved_qname`, `result_kinds`,
-`limit_capped_to`, `result_subtrees`), and the batching rules — is specified once in
-[`CONVENTION.md`](CONVENTION.md) §6 and is **not** repeated per tool below. This table says what
-each tool *answers*; §6 says what every answer must disclose. `get_index_status` (058) and
-`architecture_overview` (086) additionally accept `verbose`, in both cases for a capped extra list
-that must not ride the cheap path.
+Token-efficient: qualified names + `file:line`, not bodies, unless a read tool is called. The
+**payload contract** — `detail_level`, the provenance fields (`index_root`, `last_ref`/`head_ref`,
+`server_version`/`server_build`), the honesty fields (`reason`, `total_count`, `truncated`,
+`walk_truncated`, `try_instead`, `resolved_qname`, `result_kinds`, `limit_capped_to`,
+`result_subtrees`), and the batching rules — is specified once in
+[`CONVENTION.md`](CONVENTION.md) §6 and is **not** repeated per tool below. `get_index_status` (058)
+and `architecture_overview` (086) additionally accept `verbose`, in both cases for a capped extra
+list that must not ride the cheap path.
+
+**The registered surface is [`TOOLS.md`](TOOLS.md), not this table** — it is the doc of record for
+what each tool returns, and it is the one that stays in step. This table keeps only the *key args*
+and the design decision behind each, for the tools whose shape a decision here settled; the later
+tools (`impact_modules`, `trace_capability`, the architecture-rule and diagram tools) carry theirs in
+their task files and [`design/`](design/). A per-tool count kept in prose here went seven tools out
+of date, which is R6.7's case: derive it, never list it.
 
 | Tool | Key args | Answers |
 |---|---|---|
-| `get_index_status` | `detail_level?`, `offset?`, `sign?` | is the index there, fresh and healthy — stats, `last_commit`, staleness, reactive `next_tool_suggestions`; `standard` adds `edge_health`, `parse_failures`, `db_path`; `verbose` adds capped `parse_failure_paths` (058), **`collection`**, the denominator for reconciling `files` against your own `git ls-files` without reading source (082), and **`edge_health_by_language`** — the tier mix by the declaring file's language, stamped per build, summing to `edge_health`, omitted under two buckets (183). **Call first (~100 tok).** |
+| `get_index_status` | `detail_level?`, `offset?`, `sign?` | **call first (~100 tok).** `verbose` carries what must not ride the cheap path: capped `parse_failure_paths` (058), `collection` — the denominator for reconciling `files` against your own `git ls-files` without reading source (082) — and `edge_health_by_language`, stamped per build and omitted under two buckets (183) |
 | `build_or_update_index` | `full=false`, `detail_level?`, `allow_full_rebuild=false`, `repair_incomplete=true` | builds/refreshes; returns `wrote` (this run's writes) + timing, and at `standard` `graph`, so a delta isn't read as repo size (051/060). A concurrent writer returns `mode: "busy"`, `performed: false`, the loser's staleness (072); no usable adapter returns `mode: "refused"` and writes nothing — a payload, not a raise (064/079). An unbounded escalation refuses the same way and names its route: a vocabulary era behind (201), or an index a killed build left incomplete (202); the two flags run it in-band instead |
-| `search_symbol` | `query \| queries, kind?, namespace?, limit?, offset?` | ranked `{qname, kind, file:line}` (FTS + name); stub hits add `stub: true` (039); a zero hit may miss-repair the sole dirty file or report `index_stale` (073). **`queries` sweeps N subjects in one call** (101) |
-| `file_outline` | `path, limit?, offset?` | the file's symbol map — symbols + line ranges, no body |
-| `read_symbol` | `qname, detail_level?` | the source; docblock at `standard`, none at `minimal` (163); stubs add `stub: true` (039). A qname with >1 definition **refuses the body**, lists `ambiguous_definitions` (070 → 078) |
-| `find_callers` | `qname, depth?, include_source?, arg_position?, arg_is?, limit?, offset?, sign?` | who CALLS/NEW it, with confidence tier; opt-in capped call-site `source` (037); opt-in argument filter at a 1-based position, with `args_unrecorded` counting the sites it could not judge (049, depth 1 only). Depth 1 enumerates completely; deeper, `total_count` is a floor for that page |
-| `find_references` | `qname, include_source?, limit?, offset?, sign?` | every mention — CALLS/NEW plus `REFERENCES` (`Foo::class`, 094). An all-`DYNAMIC` page sets `authoritative: false` so it reads as a candidate list |
-| `find_implementations` | `qname, limit?, offset?` | EXTENDS/IMPLEMENTS subtypes |
-| `find_view_data` | `qname \| key, limit?, offset?` | which view-scope keys a handler publishes, and which handlers publish a key — the `PROVIDES_VIEW_DATA` relation (062/063). Empty when no `view_data` rules are configured, and it says so rather than reporting a modelled zero (069) |
+| `search_symbol` | `query \| queries, kind?, namespace?, limit?, offset?` | FTS + name ranking; stub hits declare themselves (039); a zero hit may miss-repair the sole dirty file or report `index_stale` rather than answer a confident zero (073). **`queries` sweeps N subjects in one call** (101) |
+| `file_outline` | `path, limit?, offset?` | line ranges, never bodies — the read is a separate, priced call |
+| `read_symbol` | `qname, detail_level?` | docblock at `standard`, none at `minimal` (163); stubs declare themselves (039). A qname with >1 definition **refuses the body** and lists the candidates rather than picking one (070 → 078) |
+| `find_callers` | `qname, depth?, include_source?, arg_position?, arg_is?, limit?, offset?, sign?` | opt-in capped call-site source removes a round-trip (037); the argument filter counts what it could not judge in `args_unrecorded` rather than dropping it (049, depth 1 only). Depth 1 enumerates completely; deeper, `total_count` is a floor for that page |
+| `find_references` | `qname, include_source?, limit?, offset?, sign?` | CALLS/NEW plus `REFERENCES` (`Foo::class`, 094). An all-`DYNAMIC` page sets `authoritative: false` so it reads as a candidate list, not an enumeration |
+| `find_implementations` | `qname, limit?, offset?` | EXTENDS/IMPLEMENTS, resolver-linked only |
+| `find_view_data` | `qname \| key, limit?, offset?` | the `PROVIDES_VIEW_DATA` relation (062/063). With no `view_data` rules configured it says so, rather than reporting a modelled zero (069) |
 | `include_graph` | `path, direction` | the `include`/`require` graph; `unresolved_includes` on `imports`/`both` only — a counter that is structurally zero inbound is omitted rather than printed (065) |
-| `impact` | `paths \| qnames, depth?, sign?` | blast radius — bounded best-score over resolver-linked IMPACT kinds; `seeds_dropped` (see below) |
-| `subtree_dependencies` | `subtree, counterpart?, limit?` | tree-to-tree crossing with duplicate-declaration attribution — attributable vs unattributable always paired; dynamic bridges surfaced (120) |
+| `impact` | `paths \| qnames, depth?, sign?` | bounded best-score over resolver-linked IMPACT kinds; `seeds_dropped` (see below) |
+| `subtree_dependencies` | `subtree, counterpart?, limit?` | attributable and unattributable crossings are always paired, so neither can be read alone; dynamic bridges surfaced (120) |
 | `reachable_from` | `depth?` | what is reachable from `CA_ENTRY_POINTS` over RESOLVED IMPACT kinds; HEURISTIC/DYNAMIC neighbours are `unproven`, not reachable |
-| `find_orphans` | `depth?, limit?, offset?` | the complement — zero-inbound / unreachable-from-roots, each with `why`; never an empty success when no roots are configured |
-| `explain_path` | `from_qname, to_qname, depth?` | the shortest A→B route over outgoing IMPACT kinds; `status` = `path` / `unproven` / `no_path` / `unknown` / `incomplete`, so a bound hit is never conflated with "no route" |
-| `architecture_overview` | `detail_level?`, `offset?` | this repo's responsibility layers ordered by net dependency direction — one row per layer with its module count, and at `standard` its degree profile |
+| `find_orphans` | `depth?, limit?, offset?` | the complement, each row carrying its `why`; never an empty success when no roots are configured |
+| `explain_path` | `from_qname, to_qname, depth?` | shortest A→B over outgoing IMPACT kinds, with a five-value `status` so a bound hit is never conflated with "no route" |
+| `architecture_overview` | `detail_level?`, `offset?` | responsibility layers ordered by **net dependency direction**, which is a derived fact, not a naming convention |
 | `guided_tour` | `detail_level?`, `offset?` | a dependency-ordered reading list, seeded from zero-inbound entry points and cycle-safe via SCC condensation (087); seeds prefer out-degree > 0, capped at a quarter of the budget (106), ready-set ordered by reading-seed layer rank (131) |
-| `generate_onboarding` | `detail_level?` | writes the committable artifact from the graph — `docs/onboarding/` markdown + `manifest.json` + a self-contained `index.html` system map (088/089/116). It removes only the pages its own last manifest recorded, and refuses a tree it does not own |
+| `generate_onboarding` | `detail_level?` | the committable artifact, from the same graph (088/089/116). It removes only the pages its own last manifest recorded, and refuses a tree it does not own |
 
 *Considered and not planned:* `namespace_tree` — named as a task-013/014 consumer of `split_qname` and
 never built. `search_symbol` already takes a `namespace` filter, `architecture_overview` answers repo
@@ -556,10 +555,10 @@ recognition probe that scores whether they route is
 [`runbooks/tool-recognition-probe.md`](runbooks/tool-recognition-probe.md) (081, 097). **The bound
 (099):** no description reaches an agent that never opens the tool list.
 
-**Operator prompts, not agent routing (081).** `explore_area`, `impact_of_change`, `find_usages`,
-`which_tool` hardcode the efficient recipe. An agent's client surfaces only *tools* to the model, so a
-model never sees a prompt — they are human-invoked recipes, and routing for agents lives in the
-descriptions above. Counting a human-facing channel as agent-facing was a category error, not a bug.
+**Operator prompts, not agent routing (081).** An agent's client surfaces only *tools* to the model,
+so a prompt is a human-invoked recipe and routing for agents lives in the descriptions above. Counting
+a human-facing channel as agent-facing was a category error, not a bug — which is why 200 had to
+*generate* `which_tool`'s map into a channel a model does read, rather than improve the prompt.
 
 **Serving (010).** `main.build_server(config)` registers the allowed tools on one FastMCP app and
 `main()` serves it over stdio; the entry point is `code-atlas` (or `python -m code_atlas.main`).
@@ -570,7 +569,7 @@ descriptions above. Counting a human-facing channel as agent-facing was a catego
 code-review-graph's **bounded best-score relaxation in SQLite**: seed = changed qnames; per-edge-kind weight/direction policy (`CALLS/NEW`→callers, `EXTENDS/IMPLEMENTS`→subtypes, `INCLUDES` follows requires, `CONTAINS` not traversed); one best score/node, decay per hop, floor, bounded by depth & max_nodes; `DYNAMIC` edges excluded by default.
 
 ### Reachability / orphans (task 031)
-Inverse of impact: `CA_ENTRY_POINTS` names file/glob roots (every indexed node on matched files is a seed). Globs use the **same segment-aware language as ignore** (`*` stays in one path segment; `**` crosses). `reachable_from` walks **outgoing** `IMPACT_KINDS` with the same RESOLVED-only frontier rule; default `depth` is **unset** (closure until frontier empties or `CA_IMPACT_MAX_NODES`); an explicit `depth` sets `depth_exhausted`/`truncated` when hops remain. A reached member keeps its container qnames alive (`split_qname`) so classes are not orphaned when only methods are called. HEURISTIC/DYNAMIC neighbors are `unproven`, not reachable. `find_orphans` returns the complement with `why` (`no_inbound` | `unreachable_from_roots`); unset roots → `no_roots_configured`. Orphan **rows** page via `limit`/`offset` (057/124); the reachability walk inside `find_orphans` is bounded by **`CA_ORPHANS_MAX_NODES`**, not `CA_IMPACT_MAX_NODES`. At `minimal`, `unproven` rows are omitted; at `standard` they are capped to the page; `unproven_total` names the full population under one name in both cases. `truncated` describes the orphan page alone — folding the walk's budget into it left every page of a large repo reporting `truncated: true` forever — and a walk that stopped on its own budget adds `walk_truncated`, the signal that unreached nodes are inflating the orphan count. Results carry `authoritative: false` and `edge_health` on `standard`.
+Inverse of impact: `CA_ENTRY_POINTS` names file/glob roots (every indexed node on matched files is a seed). Globs use the **same segment-aware language as ignore** (`*` stays in one path segment; `**` crosses). `reachable_from` walks **outgoing** `IMPACT_KINDS` with the same RESOLVED-only frontier rule; default `depth` is **unset** (closure until frontier empties or `CA_IMPACT_MAX_NODES`); an explicit `depth` sets `depth_exhausted`/`truncated` when hops remain. A reached member keeps its container qnames alive (`split_qname`) so classes are not orphaned when only methods are called. HEURISTIC/DYNAMIC neighbors are `unproven`, not reachable. `find_orphans` returns the complement with `why` (`no_inbound` | `unreachable_from_roots`); unset roots → `no_roots_configured`. Its reachability walk is bounded by **`CA_ORPHANS_MAX_NODES`**, never borrowed from impact, so tuning one cannot change which orphans exist (124). The walk's own budget is disclosed separately from the row page (`walk_truncated`, §19 round 6) — unreached nodes inflate an orphan count, and a reader must be able to see that they did.
 
 ### explain_path (task 038)
 Shortest path from `from_qname` to `to_qname` over **outgoing** `IMPACT_KINDS` (same relation set as impact/reachability). Iterative SQL BFS with parent pointers — never a whole-table edge load (R4.3). Caps reuse `CA_IMPACT_MAX_NODES`; default `depth` unset (closure). **RESOLVED-first:** a proven path is preferred; a path that exists only via HEURISTIC/DYNAMIC hops is `status=unproven`. Missing endpoints → `unknown`; bound exhaustion before `to` → `incomplete` (never conflated with `no_path`); both present with no route → `no_path`. Same-qname → empty proven path.
@@ -626,7 +625,8 @@ aid, not a reading order** (§19).
 - **M5** Incremental + git; staleness in status.
 - **M6** Impact engine + `impact` tool + prompts.
 
-**Phase 2 — More languages (order: TS/JS → Python → C#) — deferred, §19:**
+**Phase 2 — More languages — deferred, §19, and reordered there 2026-08-30 to put T-SQL (184 tier 1a
+· 022 tier 2, both landed) ahead of Python and C#:**
 - **M7** **TypeScript/JavaScript adapter** (TS Compiler API, Node sidecar) behind the *unchanged* core — the real test of OCP/DIP. Landed (019) with no contract v2 and no core registry (§4.4, §19).
 - **M8** **Python adapter** (`ast` + `jedi`) — cheap once the contract is hardened.
 - **M9** **C#/.NET adapter** (Roslyn sidecar) — confirms the contract holds for a second namespaced+semantic-model language.
@@ -781,63 +781,51 @@ The consumer is an **AI coding agent in a terminal**, so the incumbent to beat i
   [`BACKLOG.md`](BACKLOG.md#where-these-tickets-came-from).
 
 - **Qname-subject honesty — 075 + 076 shipped together (2026-08-11; one shared design).** A
-  **malformed** subject (a class stored with a leading `\`, queried without it) and an
-  **under-qualified** one (`find_callers("isEnabled")` while the qualified form has 82) were one defect
-  class: both read as *absence*. One language-agnostic classifier
-  (`nav_result.classify_missing_subject`) counts indexed qnames ending with the subject at a component
-  boundary — **0** → `no_such_symbol`, **1** → resolve to the stored qname, **many** →
-  `name_not_qualified` + `candidate_count` + `try_instead` — across all seven qname tools. No `\` is
-  hardcoded in the core (that is PHP-adapter canon); the classifier keys off the generic identifier
-  class `[A-Za-z0-9_]`, not a language branch (R1.1). **Decision: no adapter `contract_version`
-  bump** — nav `reason` codes are tool-output vocabulary (`nav_result.NAV_REASONS`), not the adapter
-  JSONL contract, and bumping it for a tool string would force every user to reindex for nothing.
+  **malformed** subject and an **under-qualified** one were one defect class: both read as *absence*.
+  One language-agnostic classifier (`nav_result.classify_missing_subject`) serves all seven qname
+  tools, keying off the generic identifier class rather than any language's separator (R1.1).
+  **Decision: no adapter `contract_version` bump** — nav `reason` codes are tool-output vocabulary
+  (`nav_result.NAV_REASONS`), not the adapter JSONL contract, and bumping it for a tool string would
+  force every user to reindex for nothing.
 
 - **Field retro round 5 (2026-08-14, `348a8a7`) — the first round with mechanism questions, and the
   first where cost changed what was asked.** **8 of 8 checked claims exact, zero false statements:**
   every failure was silence or ambiguity, never a wrong answer, which is why §10's carve-outs are
   narrow. Three things no earlier round could establish:
   - **Cost shapes behaviour, not just the bill.** Under 1 % of session tokens but **181.7 s** of
-    in-work build time, and the cliff is entirely between zero files and one (0 → 2.1 s, 2 → 59.25 s).
-    The evaluator batched 8 calls at the start, 7 at the end, **1 in three hours of writing code** →
-    **096**, which scopes late resolution on **what the delta declares** (qnames + bare method names),
-    not on which files it touched: file A can hold an unresolved edge to a class file B adds, and A is
-    never a dependent while `target_qname` is still NULL.
-  - **Recognition ≠ recall, and the probe only measured recognition.** It scored **14/14** while 7 of
-    14 descriptions were never loaded, so 081's stated mechanism was never exercised → `NOT OBSERVED`,
-    and **097** split the probe into name-only and description-backed rates. **Descriptions can name
-    an occasion; they cannot make an agent notice it.**
-  - **Two independent nothings were indistinguishable** (**092**): four newly written classes were
-    untracked, so `collect()`'s `git ls-files` walk never saw them; the build reported no skip,
-    `dirty_indexed_files: 0` was literally true and actively misleading, and the lookup answered
-    `no_such_symbol` for a class on disk while the vocabulary already owned `not_indexed`. Shipped with
-    093, 094 and 095.
+    in-work build time, the cliff entirely between zero files and one (0 → 2.1 s, 2 → 59.25 s). The
+    evaluator batched 8 calls at the start, 7 at the end, **1 in three hours of writing code** →
+    **096**, which scopes late resolution on what the delta *declares*, not on which files it touched.
+  - **Recognition ≠ recall, and the probe only measured recognition.** It scored 14/14 while 7 of 14
+    descriptions were never loaded, so 081's mechanism was never exercised → **097** split the probe
+    into name-only and description-backed rates. **Descriptions can name an occasion; they cannot make
+    an agent notice it.**
+  - **Two independent nothings were indistinguishable** (**092**): untracked new classes were invisible
+    to `collect()`'s `git ls-files` walk, `dirty_indexed_files: 0` was literally true and actively
+    misleading, and the lookup said `no_such_symbol` for a class on disk while the vocabulary already
+    owned `not_indexed`. Shipped with 093, 094, 095.
 
   **Open, not ticketed:** nothing searches unlinked include text, so *who includes this file* stays
-  unanswerable when the path is dynamic. **074 advances to n = 1** for session type *legacy→unified
-  port* — **helped, narrowly**, after the retraction below.
+  unanswerable when the path is dynamic.
 
 - **Field interview — "the questions you did not ask" (2026-08-14, same session).** Six questions about
   the moments the evaluator **did not** call the tool. **Weight it as one observer, not two** — the
   interviewee authored the retro an hour earlier and declares itself contaminated; it survives because
-  it inventories *non-events*, which no retro asked about. It earns its keep three times:
-  - **It retracted the round's headline.** The "prevented a latent flag-gated fatal" story rests on PHP
-    method names being case-sensitive; they are not. **The lesson is about the instrument, not the
-    claim: a retro cannot audit itself, and a same-session interview is the cheapest thing that can.**
-  - **Adoption is a *position* problem, not a speed problem** — the finding that matters. All **three**
-    decisions made without the graph wanted **one line inside a `Read` already happening**, and none
-    wanted a tool call; the two highest-value uncalled queries needed no rebuild and would have cost
-    ~1 s. **Shipped (099), and the verdict is a position statement as much as a feature:** the signal
-    lives in the **host's hook surface**, not on a payload rider — `next_tool_suggestions` reaches the
-    agent *after it asks* and the core cannot observe a `Read`, so that channel is **structurally**
-    incapable of carrying this, not merely too expensive (061). `code-atlas-signal` ships two lines, a
-    ~150-token cap, no build and no write lock, and silence by default. **code-atlas offers the command
-    and wires nothing.** The ceiling this records on 069/081-style routing work: *no description reaches
-    an agent that never opens the tool list* — which is why 097 and 099 are one finding from two sides.
+  it inventories *non-events*, which no retro asked about. Three durable results:
+  - **A retro cannot audit itself.** It retracted the round's headline (a story resting on PHP method
+    names being case-sensitive; they are not). A same-session interview is the cheapest instrument
+    that can catch that.
+  - **Adoption is a *position* problem, not a speed problem.** All three decisions made without the
+    graph wanted **one line inside a `Read` already happening**, none wanted a tool call. Shipped
+    (099), and the verdict is a position statement: the signal lives in the **host's hook surface**,
+    never on a payload rider — `next_tool_suggestions` reaches the agent *after it asks* and the core
+    cannot observe a `Read`, so that channel is **structurally** incapable of carrying this, not
+    merely too expensive (061). code-atlas offers the command and wires nothing. The ceiling this
+    records on 069/081-style routing work: *no description reaches an agent that never opens the tool
+    list* — which is why 097 and 099 are one finding from two sides.
   - **The evidence-layer thesis has behavioural proof, against the evaluator's own interest:** the PR
-    body pastes **nine** kinds of counted evidence and **zero** graph payloads, while `impact` had
-    already returned `seeds_dropped: 0` → **100**. Also new, a **call-shape** miss no cost metric can
-    see: the collision sweep had ten subjects, the graph takes one per call, a shell loop takes all ten
-    → **101**.
+    body pasted nine kinds of counted evidence and zero graph payloads (→ **100**), and a ten-subject
+    sweep went to a shell loop because the graph took one subject per call (→ **101**).
 
   **The one judgement the interview cannot make for us:** the anchor's dominant chore is porting a
   legacy file into the unified tree without breaking the other region, and the graph holds **neither**
@@ -848,71 +836,55 @@ The consumer is an **AI coding agent in a terminal**, so the incumbent to beat i
   primitive → [098](tasks/098_correspondence-relation-seam.md), deferred behind the evidence gate below.
 
 - **Phase-3 reshape (2026-08-20; tasks 108–117) — a human read the emitted artifact and it was
-  unusable.** M11 passed every test and failed its reader: 43 MB, a median module page of **82,218
-  bytes** that was 99.96 % flat path lists, `Summary: (none)` on **500/500** pages, and a 500-stop
-  "tour". **The decision it forced is an audience split: the MCP tools are the product for an AI, the
-  onboarding artifact is the product for a human.** 116 then measured that **108 had already removed
-  ~97 % of the 31 MB**, so the size half of the complaint was largely spent before the map was built —
-  "data dump, not a map" was the whole of it. Two R2.2 judgments were settled: a generic architectural
-  vocabulary **is** a standard (110, maintainer-ratified), and 113 needed **no** separate vendor signal
-  because that vocabulary already carries `vendor`. Mockup and waves:
+  unusable.** M11 passed every test and failed its reader: 43 MB, a median module page of 82,218 bytes
+  that was 99.96 % flat path lists, `Summary: (none)` on 500/500 pages. **The decision it forced is an
+  audience split: the MCP tools are the product for an AI, the onboarding artifact is the product for
+  a human.** 116 measured that 108 had already removed ~97 % of the size, so *"data dump, not a map"*
+  was the whole of the complaint. Two R2.2 judgments settled: a generic architectural vocabulary **is**
+  a standard (110, maintainer-ratified), and 113 needed no separate vendor signal because that
+  vocabulary already carries `vendor`. Mockup and waves:
   [`ONBOARDING_MOCKUP.md`](phase3-onboarding/ONBOARDING_MOCKUP.md) ·
   [`ROADMAP.md`](phase3-onboarding/ROADMAP.md).
 
 - **Field measurement on the anchor (2026-08-21) — two things the shipped map could not say.**
-  Regenerating on 18,972 modules / 135,649 symbols took **17 s** and produced a **950 KB** map, 500
-  pages at a **median 2,943 B** (against 82,218 B before 108), gate green. Both findings are open
-  tickets. **118** — the `Summary: (none)` cause is **not** the one 117 recorded: `artifact.py` passes
-  blank `NodeFacts`, so the deterministic summarizer is starved on *every* repo and the opt-in LLM
-  implementer with it. The anchor has docblocks; **the graph has nowhere to carry one** — a contract
-  gap, not a seam gap. **119** — a stale `CA_ENTRY_POINTS` glob put **560** unreachable files in *Web
-  entry points*, made every unreferenced legacy page self-justifying to `find_orphans`, and nothing in
-  the output could expose it; after the operator corrected the knob the bucket went **901 → 341**.
-  *Classification changed; no fact did* — which is the argument for provenance beside a count.
+  Regenerating on 18,972 modules / 135,649 symbols took 17 s for a 950 KB map, 500 pages at a median
+  2,943 B (against 82,218 B before 108). **118** — the `Summary: (none)` cause was a **contract gap,
+  not a seam gap**: the graph had nowhere to carry a docblock, so the deterministic summarizer was
+  starved on *every* repo and the opt-in LLM implementer with it. **119** — a stale `CA_ENTRY_POINTS`
+  glob put 560 unreachable files in *Web entry points* and nothing in the output could expose it;
+  correcting the knob moved the bucket 901 → 341. *Classification changed; no fact did* — which is the
+  argument for provenance beside a count.
 
-- **Field retro round 6 (2026-08-21) — four findings, all payload honesty, none a graph defect.** The
-  round's own closing line is the finding: *"the graph knew everything I asked it; the failures were
-  the tool knowing and not saying how much it was not telling me, and the tool knowing and declining
-  over punctuation."* Two lessons outlive the tickets. **How a sibling surface is closed:** 075
-  recorded a prose verdict, four `find_*` tools went on discarding its resolved qname inside the shared
-  `shape_exact_miss`, and only an enumerating test over the classifier's callers shut it — one silently
-  empty answer had already moved the evaluator to `grep` for the remaining four of five tickets (122).
-  **Once rows page, `truncated` must describe the page alone:** folding a walk budget into it left
-  every page of a large repo reporting `truncated: true` forever, so the walk's own bound is
-  `walk_truncated` (124). 123 and 124 are **recorded exclusions meeting their first field evidence**
-  (057, 066), not oversights. 125 is the cheapest and most self-implicating: no payload named the
-  server build, so every retro in this series has been told its own subject by an operator.
+- **Field retro round 6 (2026-08-21) — four findings, all payload honesty, none a graph defect.** Its
+  own closing line is the finding: *"the graph knew everything I asked it; the failures were the tool
+  knowing and not saying how much it was not telling me, and the tool knowing and declining over
+  punctuation."* Two lessons outlive the tickets. **A sibling surface is closed by an enumerating test
+  over the shared caller, not by a prose verdict** — 075's verdict left four `find_*` tools still
+  discarding its resolved qname inside `shape_exact_miss` (122). **Once rows page, `truncated` must
+  describe the page alone**, so a walk's own bound is `walk_truncated` (124). 123 and 124 are recorded
+  exclusions meeting their first field evidence (057, 066), not oversights; 125 is the most
+  self-implicating — no payload named the server build, so every retro in this series had been told
+  its own subject by an operator.
 
 - **Phase 3's own cost gate ran (2026-08-23; task 121) — a split verdict, and the losing half narrows
-  the phase.** `ROADMAP.md` §5 gated the whole phase on an onboarding question-class in the
-  tokens-to-answer harness plus the recall gate; three milestones shipped while the file held **zero**
-  onboarding questions. It now holds **twelve**, every ground truth read out of the source by hand
-  before the tools ran. Numbers:
+  the phase.** Three milestones shipped while `ROADMAP.md` §5's gating question-class held **zero**
+  onboarding questions; it now holds twelve, ground truth hand-read before the tools ran. Numbers:
   [`benchmarks/121_onboarding-question-class.md`](benchmarks/121_onboarding-question-class.md).
-  **The half that wins:** 12/12 correct, recall 1.0, `confidently_wrong` 0, and the fixture aggregate
-  moved **0.29 → 0.789** because onboarding questions are the first fixture-tier questions that make
-  grep read more than one file. Nine of the twelve have **no** fair baseline and say so in a
-  `ratio_note` rather than inventing one that would flatter the comparison.
-  **The half that loses, which is the more useful half:** where the question is a **reading order** the
-  map is wrong — ~~`guided_tour`'s first five stops on `symfony/demo` are a lint config, two bootstrap
-  configs and an importmap, front controller fifth (131)~~ **131 closed** — re-measured first five open
-  on controllers and include `public/index.php`; ~~the `web_entry` bucket calls **8** files the
-  web surface when 4 are `tests/Controller/*Test.php` (130)~~ **130 closed** — test-path signal
-  outranks request-handling vocabulary; and `include_graph(direction="imports")`
-  was a silent zero for every namespaced file (129).
-  **The narrowing, in §5's own terms:** the onboarding layer is measured as a **navigation and
-  provenance aid**, not a curated syllabus. ~~`guided_tour`'s ordering claim is **not earned**.~~
-  **131** closed the lint/bootstrap opening; the walk still is not the hand kernel/entity order.
-   Auto-generated documentation and diagrams stay behind this line and behind **118** (done) — the
-  founding-premise mistake was building on an unmeasured premise, and one measurement saying *"cheap
-  and correct for lookups, wrong for orderings"* licenses neither.
+  **Won:** 12/12 correct, recall 1.0, `confidently_wrong` 0, fixture aggregate **0.29 → 0.789**. Nine
+  of the twelve have no fair baseline and say so in a `ratio_note` rather than inventing one that
+  would flatter the comparison. **Lost, and it is the more useful half:** where the question is a
+  **reading order** the map was wrong (129, 130, 131 — all closed).
+  **The narrowing, binding:** the onboarding layer is a **navigation and provenance aid, not a
+  curated syllabus** — `guided_tour`'s walk still is not the hand kernel/entity order. Auto-generated
+  documentation and diagrams stay behind that line; the founding-premise mistake was building on an
+  unmeasured premise, and one measurement saying *"cheap and correct for lookups, wrong for
+  orderings"* licenses neither.
   **What the gate cannot see, recorded rather than implied:** it scores recall and cost, never
-  **precision** — ~~130 passes every mechanical check while being a wrong answer~~ **130 fixed the
-  web_entry collision; precision now catches the pre-fix shape** — and never whether a
-  human would act on the answer: on `symfony/demo` the largest layer is `Uncategorised` (18 of 51
-  modules), a complete, correct, low-information answer that scores 1.0. The **mirror** shape, the
-  anchor's most valuable one, cannot be measured by any committed tier, so it ships as a local-tier
-  template in [`runbooks/tokens-to-answer.md`](runbooks/tokens-to-answer.md).
+  **precision**, and never whether a human would act on the answer — on `symfony/demo` the largest
+  layer is `Uncategorised` (18 of 51 modules), a complete, correct, low-information answer that
+  scores 1.0. The **mirror** shape, the anchor's most valuable one, no committed tier can measure, so
+  it ships as a local-tier template in
+  [`runbooks/tokens-to-answer.md`](runbooks/tokens-to-answer.md).
 
 **Decision — how one user's evidence is weighed (2026-08-14, prompted by the round-5 interview).**
 The anchor repo is the project's **first production user**: a real adopter with real work, and the
@@ -983,25 +955,20 @@ opt-in rules data outside `adapters/` applied by `enrichment.py` (the 040 channe
 code (R2). Implementation is follow-up [062](tasks/062_view-databag-producer.md); this entry is the
 design note.
 
-**Occurrence count** (operator-local; shape only — no private paths). The clean producer tally below
-**excludes** raw `->with(` (~3k sites, dominated by ORM eager-load, not view publish).
+**Occurrence count** (operator-local; shape only). Clear view-publish sites — `->render` /
+`->display` / `->fetch` / `->setVar` / `$this->view->…=` with string keys, **excluding** the
+ORM-contaminated `->with(` (~3k sites, dominated by eager-load, not view publish) — number
+**100** sites in **35** handler files, key occurrences / distinct keys **296** / **84**. The consumer side is an
+order larger: most view-directory files and most Twig templates read such a key. Per-signal rows and
+the field-session qualitative are in 059.
 
-| Signal | Count |
-|--------|------:|
-| Clear view-publish sites (`->render` / `->display` / `->fetch` / `->setVar` / `$this->view->…=`, string keys; **excluding** ORM-contaminated `->with(`) | **100** sites in **35** handler files |
-| Key occurrences / distinct keys in those sites | **296** / **84** |
-| PHP files under view/views/template dirs that read `$this->…` / `<?= $…` | **2159** of **3094** (~33k occurrences, **1364** distinct) |
-| Twig files with `{{ rootVar` roots | **180** of **202** (**1245** / **155** distinct) |
-| Producer files also containing a literal template-path string (pair proxy) | **6** |
-| Field-session qualitative | Round 1: **5** mismatched controller/template pairs; Round 2: request-/branch-key mirror |
-
-**Why not option 3 (permanent non-goal), and why not option 2 (both sides) yet.** The shape is common
-enough to justify a contract bump later — 100 clean producer sites, 84 keys, thousands of consumer
-reads — and two independent field sessions named it as the reason the index got zero queries on a real
-defect, so declaring it grep's job forever would leave the exact gap the founding-premise redirect
-promoted 059 to close. Both sides at once is a separate large cost (a template reader for mixed
-Twig/Blade/PHP markup, reversing 041's ignore reasons, and true pair linking with only 6 path-literal
-pairs to go on), so: ship the producer, revisit the consumer if field retros still fail after 062.
+**Why not option 3 (permanent non-goal), and why not option 2 (both sides) yet.** That census is
+common enough to justify a later contract bump, and two independent field sessions named the shape as
+the reason the index got zero queries on a real defect — so declaring it grep's job forever would
+leave the exact gap the founding-premise redirect promoted 059 to close. Both
+sides at once is a separate large cost (a template reader for mixed Twig/Blade/PHP markup, reversing
+041's ignore reasons, and true pair linking with almost no path-literal pairs to go on). So: ship the
+producer, revisit the consumer if field retros still fail after 062.
 
 **What a language server does *not* solve here.** LSP go-to-def / find-refs operate on *symbols*. The
 data-bag link is a **string key** — a literal in an array or setter on the handler side, a bare

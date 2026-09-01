@@ -88,10 +88,20 @@ DOCS = REPO / "docs"
 # tokens; slug-titling all three returns 11. The raise bought three PERMANENT table rows, not three
 # verbose titles, so it does not come back when they close and no later pass should plan on it. The
 # number to watch is the row count, not the row wording. The next addition prunes or argues again.
+# PLAN 24,000 -> 23,000 on 2026-09-01, LOWERED after a compaction pass, so the room it freed cannot
+# be silently re-consumed by narrative — the move BACKLOG's 9,500 -> 8,200 made above. What came out
+# was retelling, never a decision: §19's field-retro and interview entries kept their verdict,
+# their measured numbers and their ticket refs and dropped the walk-through that 075, 077, 121's
+# benchmark, ROADMAP.md and the task files already hold; 130/131 kept their outcome instead of the
+# struck original beside its correction; 059's operator-local occurrence census left, its decision
+# stayed. Two second copies went entirely: §11's knob table (TOOLS.md's Configuration reference is
+# the record, and PLAN's copy was two knobs behind) and the return-shape half of §12's tool cells
+# (TOOLS.md holds what a tool returns; PLAN keeps args and the design decision). Both were drifting,
+# which is the argument (R6.7). Net 23,978 -> 22,855, and no link and no ticket reference was lost.
 BUDGETS = {
     "CLAUDE.md": 50,
     "AGENTS.md": 2_800,
-    "PLAN.md": 24_000,
+    "PLAN.md": 23_000,
     "BACKLOG.md": 8_300,
     "ENGINEERING_RULES.md": 5_700,
     "AGENT_BRIEF.md": 2_250,
