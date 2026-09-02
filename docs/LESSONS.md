@@ -3478,3 +3478,60 @@ untraceable scope creep — it maps to no ticket requirement. **Fix:** add it to
 Scope/Deliverables + a matrix row (task 001 → R6 + change-list item 8) with a one-line rationale, so
 every hunk still traces to a requirement. Splitting it into its own docs ticket is the alternative;
 either way, never let a change ride the branch untraceable to a row.
+
+## 205 — The budget that became a content decision, and two searches that under-reported
+
+The ticket asked how many module pages an artifact should emit. The maintainer answered by removing
+the subject: none. What is worth keeping is not that decision (`docs/TOOLS.md` and the task file hold
+it) but the three ways this run's own instruments under-reported, and one machine fact.
+
+*Claim `205-C1` — a blast-radius trace searching an ATTRIBUTE shape (`\.pages\b`) or a string key
+(`"pages"`) does not find the same symbol used as a **keyword argument** (`pages=(…)`) at a
+constructor call site. type: 2 · handle: `grep-the-keyword-argument-too` · status: proposed
+(awaiting human confirm) · seen: 205 · area: analysis/design blast-radius tracing · evidence: the
+Gate-2 trace enumerated seven test files and missed `tests/test_layer_diagram.py:122`
+(`pages=()`) and two of the three `check_artifact(…, max_results=50)` call sites in
+`tests/test_onboarding_prose.py`; the suite found them, not the trace. Neighbour of
+`count-pin-in-blast-radius` (085-C1) but a different mechanism: pattern shape, not pin awareness ·
+destination: `agent_brief_path` (process subject) — recurrence 1, stays in lessons_path until a
+second key.*
+
+*Claim `205-C2` — a search piped through `head` (or any cap) is not a search: its visible rows read
+as the result set, and the rows beyond the cap are exactly where the miss lives. type: 2 · handle:
+`a-capped-search-is-not-a-search` · status: proposed · seen: 203, 205 — **second sighting** · area:
+process / evidence gathering · evidence: `grep -n "modules/\|render_module\|page"
+code_atlas/onboarding/viewer.py | head -10` returned 10 rows and a *"23 matches in 5 files"* header;
+`viewer.py:774` — which promised *"one page per module under `modules/`"* inside every emitted
+`index.html` — sat beyond the cap, so `viewer.py` never entered the change list and the ticket-blind
+challenger found the false claim instead. 203's ledger row records the first sighting as *"misreading
+filtered `ps` output twice, which left three concurrent builds on one database"*. **Count the matches
+before you read them, or drop the cap.** destination: **proposed `agent_brief_path`** (process
+subject), awaiting a per-claim human ratify.*
+
+*Claim `205-C3` — before removing a key from a set of key names, read which DIRECTION the set
+filters: removing it from a **strip**-list has the opposite effect to removing it from an emit-list.
+type: 2 · handle: `strip-list-is-not-an-emit-list` · status: proposed · seen: 205 · area: code /
+set-shaped config · evidence: the design said to drop `"pages"` from
+`architecture_diff._MANIFEST_KEYS`; that set is stripped from a snapshot **on load**
+(`architecture_diff.py:115`), so dropping it would have made a pre-205 snapshot diff its 500 page
+paths as architectural drift — the precise opposite of the intent · destination: `rulebook_path`
+(code subject) — recurrence 1, stays in lessons_path until a second key.*
+
+*Claim `205-C4` — this machine cannot run `scripts/gate.sh` in full: 27 console scripts under
+`.venv/bin` carry the shebang `#!/home/you/WORKSPACE/Projects/code-atlas/.venv/bin/python3` —
+`Projects`, where the directory is `PROJECTS` — so the kernel cannot find the interpreter and `sh`
+reports the script itself as *not found*; PHPStan resolves its bundled stubs through the same
+wrong-case path and errors before analysing anything. `python -m <tool>` works. type: 5
+project-ground-truth · environment · handle: `wrong-case-venv-breaks-the-gate-launcher` · status:
+proposed · verified-at: 2026-09-02 · area: environment / gate · evidence: `head -1 .venv/bin/mypy`;
+`grep -l "WORKSPACE/Projects" .venv/bin/* | wc -l` → 27; neither `.venv/` nor `adapters/php/vendor/`
+appears in `git diff --name-only main`, so both failures reproduce on `main` · destination: stays in
+lessons_path (recreate both from the correctly-cased path to discharge).*
+
+*Claim `202-C4` **fourth sighting** — `one-field-two-questions` again, and this time the resolution
+was **deletion** rather than a second key: `truncated` folded *"a page's neighbour list was capped"*
+into *"the walk left an indexed file out"*, and removing the page half narrowed the field to one
+question. The narrowing changes committed bytes on an index whose page lists would have been cut,
+which is why it is declared and pinned rather than claimed. type: 2 · handle:
+`one-field-two-questions` · seen: 189, 022, 202, 205 · status: proposed · destination: **proposed
+`rulebook_path`**, awaiting the per-claim human ratify it has been waiting for since 202.*

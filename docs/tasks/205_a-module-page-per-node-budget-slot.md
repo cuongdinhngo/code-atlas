@@ -867,3 +867,56 @@ challenger's finding earned. `ruff check .` clean; `mypy code_atlas onboarding_l
 
 **Working doc:** `docs/tasks/205_a-module-page-per-node-budget-slot.md` (embedded; exempt from the
 staleness comparison, along with `.mango/`).
+
+## Phase 5 — finalise
+
+**Stale-review guard: not stale.** `git diff --name-only 01b5dc7..HEAD` returns only
+`docs/tasks/205_a-module-page-per-node-budget-slot.md` — the marker-bearing working doc, which the
+guard exempts by construction. No non-exempt file changed beyond the reviewed set, and the tree is
+clean.
+
+`config.pr_checklist_path` is unset, so there is no project finalise-checklist to walk; the PR
+template's own self-check is filled in the PR body.
+
+### The learning loop
+
+`CLAIMS: 5 claim(s) from 1 lesson entr(ies) | T1=0 T2=3 T3=1 T4=0 T5=1 T6=0 | 0 unclassified`
+`RECURRENCE: 2 recurring | 0 superseded (0 retired) | 2 promotion candidate(s)`
+`FALSIFY: 2 candidate(s) checked | 2 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 2 type-2 claim(s) with seen ≥ 2 | 2 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 2 proposed | 0 human-ratified | destinations: docs/AGENT_BRIEF.md, docs/ENGINEERING_RULES.md | mango files written: 0`
+
+| Claim | Type | Handle / key | Recurrence | Proposed destination |
+|---|---|---|---|---|
+| `205-C1` an attribute-shaped grep misses the same symbol as a keyword argument | 2 (process) | `grep-the-keyword-argument-too` | 1 | stays in `lessons_path` |
+| `205-C2` a search piped through a cap is not a search | 2 (process) | `a-capped-search-is-not-a-search` | **2** (203, 205) | **`agent_brief_path`** — awaiting ratify |
+| `205-C3` a strip-list is not an emit-list | 2 (code) | `strip-list-is-not-an-emit-list` | 1 | stays in `lessons_path` |
+| `205-C4` this machine's wrong-case venv breaks the gate launcher | 5 (environment) | area: environment / gate, `verified-at: 2026-09-02` | 1 | stays in `lessons_path` |
+| `202-C4` `one-field-two-questions`, fourth sighting | 2 (code) | `one-field-two-questions` | **4** (189, 022, 202, 205) | **`rulebook_path`** — awaiting the ratify it has been waiting for since 202 |
+| — skill-gap SIGNAL: a run contract has no path for a condition the code falsifies after t0 | 3 | — | 1 | `skill_gap_path` — **written, signal only** |
+
+**Falsification, before the ratification gate.** `205-C2`: still true — reproduced this run, and the
+cheap check is re-running the same grep without the cap, which prints `viewer.py:774`. `202-C4`:
+still true; this sighting is a *use* (the field narrowed by deletion), not a new defect, and the
+check is a grep for a payload field folding two questions. Neither is blocked.
+
+**Nothing was promoted.** Both proposals need a per-claim human ratify, and the handover
+authorisation covers exactly two outward actions — push the branch, open the PR — so the rule book
+and the agent brief are **untouched**. `/mango:promote` is the cross-ticket pass for the two
+recurring classes; naming it here is not running it. `mango files written: 0`.
+
+### Cost ledger
+
+| Dispatch | Phase | Tokens | Tool-uses |
+|---|---|---|---|
+| `challenger` as refine's exposure-checker | 0 refine | 101,783 | 31 |
+| `challenger`, ticket-blind | 4 review | 128,653 | 45 |
+| `reviewer` | — | **not spent** — waived by `--no-reviewer` | — |
+
+`LEDGER TOTAL: 230,436 tokens · top cost driver: the ticket-blind challenger at review`
+
+Scope of that number, stated honestly: it measures **subagent dispatch only**. The main loop — this
+run's own greps, test runs, the anchor rebuild's output — is **unmeasured (host surfaces no usage
+block)**, and it is the larger term. For the output-noise side the optimizer's own analytics are the
+instrument (`rtk gain`); mango does not self-instrument the main loop, and no dispatch-vs-noise split
+is implied here.
