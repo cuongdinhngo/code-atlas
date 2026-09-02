@@ -81,6 +81,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099 |
 | 201 | [a forced full rebuild is silent and unroutable](tasks/201_a-forced-full-rebuild-is-silent-and-unroutable.md) | Freshness | done | 030, 050, 172, 176, 177 |
 | 202 | [a killed build leaves an index that reports current](tasks/202_a-killed-build-leaves-an-index-that-reports-current.md) | Agent-trust | done | 072, 077, 052, 050, 035 |
+| 204 | [bare-name resolution has no language predicate](tasks/204_bare-name-resolution-has-no-language-predicate.md) | Agent-trust | done | 046, 137, 183, 185, 186 |
 
 ## Open work — Pillar 2 · Onboarding
 
