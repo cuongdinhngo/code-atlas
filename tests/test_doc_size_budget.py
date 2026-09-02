@@ -98,11 +98,15 @@ DOCS = REPO / "docs"
 # the record, and PLAN's copy was two knobs behind) and the return-shape half of §12's tool cells
 # (TOOLS.md holds what a tool returns; PLAN keeps args and the design decision). Both were drifting,
 # which is the argument (R6.7). Net 23,978 -> 22,855, and no link and no ticket reference was lost.
+# BACKLOG 8,300 -> 8,400 on 2026-09-02 for task 203's open row (measured 8,330). R7.6 was
+# applied first and found nothing: no id is listed twice and every `done` row is already
+# slug-titled. PR #251 raises this to 8,700 for eight more rows; whichever lands second
+# re-measures rather than trusting the other's pre-merge figure.
 BUDGETS = {
     "CLAUDE.md": 50,
     "AGENTS.md": 2_800,
     "PLAN.md": 23_000,
-    "BACKLOG.md": 8_300,
+    "BACKLOG.md": 8_400,
     "ENGINEERING_RULES.md": 5_700,
     "AGENT_BRIEF.md": 2_250,
     "CONVENTION.md": 6_600,

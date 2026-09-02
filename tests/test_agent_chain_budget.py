@@ -29,7 +29,10 @@ REPO = Path(__file__).resolve().parent.parent
 # time the prior pass had already taken the restatement — the argument is in
 # tests/test_doc_size_budget.py. An open row costs more than a done one by design, and it repays
 # the raise when it closes and is re-titled by its slug.
-TIER1_BUDGET = 25_300
+# 25,300 -> 25,400 on 2026-09-02 for task 203's open row (measured 25,342). The whole 54 is
+# BACKLOG's one row; no other tier-1 file moved. PR #251 raises this to 25,700 for its own
+# eight rows, so whichever merges second re-measures with scripts/agent_chain_cost.py.
+TIER1_BUDGET = 25_400
 
 
 def _tokens(paths: list[Path]) -> int:
