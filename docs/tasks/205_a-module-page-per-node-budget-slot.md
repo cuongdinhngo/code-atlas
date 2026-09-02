@@ -10,7 +10,8 @@ depends_on: [106, 107, 108, 109, 111, 118]
 
 ## Why this exists (measured on the anchor monorepo, 2026-09-02)
 
-A regenerated `docs/onboarding/` is **6.1 MB across 505 files**. `modules/` is 3.6 MB of it — and
+A regenerated `docs/onboarding/` is **505 files — 3.0 MB of bytes, 6.1 MB on disk**, because 500 of
+them are sub-kilobyte files each taking a 4 K block. `modules/` is 3.6 MB of that disk figure — and
 holds exactly **500** pages. Not "about 500": 500, because that is
 `DEFAULT_IMPACT_MAX_NODES` (`code_atlas/config.py:54`).
 
@@ -35,13 +36,16 @@ Measured over the emitted tree:
 |---|---|
 | pages | 500 |
 | page size | min 323 B · median **893 B** · max 1,964 B |
-| pages with no docline (`No leading doc comment above the indexed declaration in this file.`) | **277** |
+| pages rendering `No leading doc comment above the indexed declaration in this file.` | **277** |
+| pages rendering a docline that is a bare comment delimiter (`/**` ×186, `/*` ×8, `/*!` ×5, `*/` ×2) | **201** |
+| pages carrying a sentence that describes the file | **~2** |
 | pages with `incoming: (none)` | 125 |
 | pages with **both** lists empty | **0** |
 
 The median page is under 900 bytes and carries: the path (already in the filename), a Role, a Layer,
-a "Stop N of 500" line, and a truncated neighbour list. For 277 of them the Summary line is a
-sentence saying there is no summary.
+a "Stop N of 500" line, and a truncated neighbour list. For 277 the Summary line is a sentence saying
+there is no summary; for 201 more it is a comment delimiter like `/**`, which is worse — it *looks*
+like a summary. Across all 500 pages, roughly **two** carry a sentence that describes the file.
 
 > **Measurement provenance.** Every figure above was read off an artifact generated from the anchor's
 > **field index before [204](204_bare-name-resolution-has-no-language-predicate.md) landed**, which
@@ -67,8 +71,8 @@ if not (page.docline or page.fan_in or page.fan_out):  # C1: the 107 filler rule
     raise QualityGateError("C1", page.file, "page carries no fact beyond its own path")
 ```
 
-The measured `both lists empty` count is **0**, so C1 raised zero times on a run that emitted 277
-summary-less pages. The rule is an `and` over three signals where the reader's question is a
+The measured `both lists empty` count is **0**, so C1 raised zero times on a run in which no page
+carries a usable summary at all. The rule is an `and` over three signals where the reader's question is a
 judgment about one: *does this page tell me something I could not read off the path?* A single
 inbound edge — including a HEURISTIC one — satisfies it. C1 is a non-emptiness check wearing 107's
 name, and the ticket that closed 107 is therefore closed against a guard that does not implement it.
@@ -106,7 +110,7 @@ tour off stops and left `pages` still enumerating them.
    keeps all 500 pages. A reader who wants `overview.md` + `tour.md` + `flows.md` and no
    `modules/` tree has no way to ask.
 5. **A size budget on the emitted tree**, asserted the way the repo already budgets its own docs
-   (`tests/test_doc_size_budget.py`). 6.1 MB of generated Markdown entering a consumer's repo is a
+   (`tests/test_doc_size_budget.py`). 6.1 MB of generated Markdown landing in a consumer's repo is a
    number someone should have had to argue for.
 
 ### Explicitly not in scope
@@ -120,7 +124,7 @@ tour off stops and left `pages` still enumerating them.
   should be tuned against the other's stale number.
 - **Re-tiering edges.** [204](204_bare-name-resolution-has-no-language-predicate.md) already did
   that. Note that 204 will change what the neighbour lists say and therefore what C1 sees, which is
-  a reason to re-measure the 277/125/0 figures on a post-204 index before choosing C1's criterion —
+  a reason to re-measure the docline/125/0 figures on a post-204 index before choosing C1's criterion —
   not a reason to wait.
 
 ## Constraints
@@ -128,7 +132,8 @@ tour off stops and left `pages` still enumerating them.
 - **R7.1** — the smallest useful thing. The defect is "a knob's default became a content decision";
   the fix is a knob of its own, not a new page format.
 - **R6.5** — C1's replacement ships only once it has been **observed failing** on a page the current
-  gate passes. 277 candidates exist in the anchor's tree; commit one as a fixture.
+  gate passes. On the anchor every one of the 500 is a candidate; commit one of each failure shape —
+  the honest sentence and the bare `/**` — as fixtures.
 - **R6.8** — AC3 below is phrased as a failure mode, so it needs a guard that can exhibit it.
 - **R6.9** — assert at the consumer: the guard reads the **emitted tree**, not `ModulePage` objects.
 - **R4.2** — identical input, identical output. A page-count change is a change to committed files
@@ -157,6 +162,6 @@ tour off stops and left `pages` still enumerating them.
 real), [108](108_module-page-neighbour-list-is-unbounded.md) (the neighbour cap the pages already
 carry), [109](109_onboarding-artifact-quality-gate.md) (the gate contract),
 [111](111_tour-is-narrative-steps.md) (15 steps, and the `pages` reader it did not move),
-[118](118_module-summary-seam-gets-empty-facts.md) (why 277 doclines are empty),
+[118](118_module-summary-seam-gets-empty-facts.md) (why the doclines are empty or are delimiters),
 [206](206_onboarding-cannot-be-scoped-to-the-tree-the-reader-works-in.md) (which files, as opposed
 to how many).

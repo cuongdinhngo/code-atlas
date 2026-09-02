@@ -74,6 +74,24 @@ keyword"*.
 > structural and survives either way: no config key expresses a working scope, and R5.8 cuts against
 > a population the reader cannot constrain.
 
+### What 204 already moved (measured by a parallel session, 2026-09-02)
+
+A regeneration against a 204-corrected index re-ranked the pages substantially:
+
+| tree | pre-204 | post-204 |
+|---|---|---|
+| `legacy/` | 383 | 448 |
+| `public/` | 57 | 1 |
+| `Zend/` | 47 | 5 |
+| **`src/`** | **12** | **43** |
+
+So the `zero times` in this ticket's title is a pre-204 figure and the honest current number is that
+the tour reaches `src/` at 43 pages of 500. This is a second-hand measurement — recorded here so
+Scope 0 has a starting point, not as a substitute for it — and it cuts **both** ways: the ranking
+moved *toward* the unified target tree once the false JavaScript out-edges were gone, which weakens
+any argument that degree ranking is hopeless, while 448 of 500 pages still landing in the read-only
+tree leaves the ticket's case intact. Confirm both columns in Scope 0 before choosing a default.
+
 ### Why this is not a ranking bug
 
 Every one of those choices is *correct* for the ranking as specified. `angular.js` genuinely has

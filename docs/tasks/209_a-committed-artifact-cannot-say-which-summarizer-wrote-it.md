@@ -18,14 +18,19 @@ seam: Summarizer = StructuralSummarizer() if summarizer is None else summarizer
 ```
 
 An MCP caller cannot pass one, so every artifact generated through the server is written by
-`StructuralSummarizer`. On the anchor that produced **277 of 500** module pages whose Summary line
-is:
+`StructuralSummarizer`. On the anchor, **not one of the 500 pages carries a usable summary**. They
+fail in two shapes: 277 render the honest sentence,
 
 ```
 No leading doc comment above the indexed declaration in this file.
 ```
 
-That sentence is true. It is also, to a reader, indistinguishable from two very different worlds:
+and 201 more render a bare comment delimiter — `/**` on 186 of them, `/*`, `/*!` or `*/` on the rest —
+presented in the same `## Summary` position as though it were prose. Roughly two pages in five
+hundred carry a sentence that describes their file.
+
+The honest sentence is true. It is also, to a reader, indistinguishable from two very different
+worlds:
 
 1. this repo's code carries no doc comments — a finding about the codebase;
 2. the artifact was generated without the LLM seam configured — a finding about the run.
@@ -44,7 +49,7 @@ payload["prose_calls"] = prose.calls
 payload["prose_declined"] = prose.declined
 ```
 
-Two problems. It describes the **117 prose seam**, not the **085/090 summarizer** that wrote the 277
+Two problems. It describes the **117 prose seam**, not the **085/090 summarizer** that wrote those
 lines; and it is in the *MCP response*, which is discarded, rather than in the *committed artifact*,
 which is kept. The committed tree is what gets read later, and it is the one without the stamp.
 
@@ -118,4 +123,4 @@ recordable.
 [091](091_llm-layer-refinement.md) (the implementations nobody can reach),
 [117](117_llm-prose-for-map.md) (the prose seam and the AC2 this must reconcile),
 [118](118_module-summary-seam-gets-empty-facts.md) (why the fallback sentence is so common),
-[205](205_a-module-page-per-node-budget-slot.md) (the 277 pages, counted).
+[205](205_a-module-page-per-node-budget-slot.md) (the page census these figures come from).

@@ -1,7 +1,7 @@
 ---
 id: 210
 slug: the-artifact-has-one-shape-for-every-reader
-title: "`detail_level` on `generate_onboarding` changes the MCP response and not one byte of the written artifact, so a first-week developer and the engineer auditing coupling are handed the same 6.1 MB tree"
+title: "`detail_level` on `generate_onboarding` changes the MCP response and not one byte of the written artifact, so a first-week developer and the engineer auditing coupling are handed the same 505-file tree"
 phase: 3
 milestone: M12
 status: todo
@@ -26,7 +26,7 @@ Every one of those is a field of the **MCP response**, which the caller reads on
 `manifest.json` — is byte-identical at `minimal` and at `standard`. The knob named for how much
 detail the reader wants does not reach the thing the reader keeps.
 
-So the artifact has exactly one shape, and on the anchor that shape is 6.1 MB across 505 files.
+So the artifact has exactly one shape, and on the anchor that shape is 505 files — 3.0 MB of content occupying 6.1 MB on disk (500 sub-kilobyte files against a 4 K block).
 
 ### The two readers want opposite artifacts
 
@@ -36,11 +36,11 @@ This was measured by reading the generated tree as each:
 |---|---|---|
 | wants | where my work lives, how to run it, ten files to open | coupling hotspots, mirror-subtree overlap, what is unreachable |
 | the tour | 15 steps, none of them in the tree they will edit | irrelevant — they know the layout |
-| `modules/` (3.6 MB, 500 pages) | median 893 B, mostly path restatement | irrelevant — they query the graph |
+| `modules/` (500 pages, 3.6 MB on disk) | median 893 B, mostly path restatement | irrelevant — they query the graph |
 | `overview.md` aggregates | unreadable — 12 layers, 24,535 modules, a 99-row cross-layer table | **this is the whole value** |
 | what is missing | run/test commands, entry-point names, domain vocabulary | confidence attribution on the aggregates |
 
-The load-bearing content for one is noise for the other, and the artifact spends **3.6 MB of 6.1 MB**
+The load-bearing content for one is noise for the other, and the artifact spends **3.6 of its 6.1 MB on disk**
 on the section neither of them named as their primary need.
 
 ### Why a knob, and why not just cut
