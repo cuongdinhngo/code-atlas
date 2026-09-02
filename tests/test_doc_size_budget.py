@@ -98,11 +98,21 @@ DOCS = REPO / "docs"
 # the record, and PLAN's copy was two knobs behind) and the return-shape half of §12's tool cells
 # (TOOLS.md holds what a tool returns; PLAN keeps args and the design decision). Both were drifting,
 # which is the argument (R6.7). Net 23,978 -> 22,855, and no link and no ticket reference was lost.
+# 8,300 -> 8,700 on 2026-09-02 (tickets 205-212): eight open rows from one investigation — a single
+# onboarding artifact read end to end, plus three ideas taken from an external reference tool and
+# one incremental-cost gap the reading exposed. Each defect was filed separately rather than bundled,
+# which is what costs the 400. R7.6 ran first and came back empty both times it was tried: the
+# Conventions section names one mechanism — "a ticketed follow-up leaves the Follow-ups list" — and
+# none of the eight tickets one. 205 and 212 are the near misses and both were rejected on inspection
+# (205's Scope 1 leaves `impact_max_nodes` alone for `reachable_from`; 212 skips on a declaration
+# fingerprint, not the byte cap the parser-OOM follow-up describes), because deleting either line
+# would record a fix that did not happen. No id sits in two tables; every `done` row is slug-titled.
+# This is one raise for the whole session, written once rather than stacked twice in a day.
 BUDGETS = {
     "CLAUDE.md": 50,
     "AGENTS.md": 2_800,
     "PLAN.md": 23_000,
-    "BACKLOG.md": 8_300,
+    "BACKLOG.md": 8_700,
     "ENGINEERING_RULES.md": 5_700,
     "AGENT_BRIEF.md": 2_250,
     "CONVENTION.md": 6_600,
