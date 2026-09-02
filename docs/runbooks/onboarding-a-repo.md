@@ -45,7 +45,7 @@ children. Memory is not the constraint; **wall-clock and disk** are.
 
 Throughput is dominated by the write path, not the parser. The same adapter parses ~490 files/s
 single-threaded in isolation, while a full build with six workers sustains ~19 files/s end-to-end —
-the difference is the single SQLite writer plus the `nodes_fts` trigram triggers (`store.py:75-84`).
+the difference is the single SQLite writer plus the `nodes_fts` trigram triggers (`store.py:122-138`).
 Adding workers past a handful buys little.
 
 ## 3. Read the parse failures — they are usually not your bug
@@ -69,13 +69,15 @@ Sort the `parsed_ok = 0` list into two piles:
 
 A `parsed_ok` of 99.8 % on a repo this old is the expected shape. Investigate a number below ~99 %.
 
-## 3b. Budget the incremental — it has a flat fee
+## 3b. Budget the incremental — the no-op is free, the first changed file is not
 
-Field retros measured **~62 s** for `build_or_update_index(full=false)` on an ~19k-file /
-~1.8M-edge index whether **0** or **21** files changed — a flat fee, not the parse cost (task 052).
-Until you measure your tree, budget about a minute per incremental on a repo that size; do not put
-that call on a synchronous git hook ([053](../tasks/053_refresh-on-checkout-hook.md) is gated on the
-number).
+052 measured **~62 s** for `build_or_update_index(full=false)` on an ~19k-file / ~1.8M-edge index
+whether **0** or **21** files changed, and called it a flat fee. **That shape no longer holds** —
+[096](../tasks/096_edit-then-ask-tax-two-files-cost-a-minute.md)'s delta-scoped resolve closed the
+no-op. Measured on the 24.6k-file anchor, 2026-09-01: **0 files changed = 5.5 s**, 3 files =
+**63.8 s**. So the fee is a step, not a flat rate: a no-op costs seconds and the first real change
+costs about a minute. Budget for the change, not for the poll; do not put that call on a synchronous
+git hook ([053](../tasks/053_refresh-on-checkout-hook.md) is gated on the number).
 
 Confirm where the minute goes with the local-tier profiler (reuses the on-disk index; report stays
 outside this repo by default):
