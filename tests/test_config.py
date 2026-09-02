@@ -115,6 +115,15 @@ KNOBS = (
         lambda root: 500,
     ),
     Knob(
+        "CA_FULL_BUILD_CROSSOVER",
+        "full_build_crossover = 4000",
+        "5000",
+        lambda config: config.full_build_crossover,
+        lambda root: 5000,
+        lambda root: 4000,
+        lambda root: 0,
+    ),
+    Knob(
         "CA_PATH_INDEX_MAX",
         "path_index_max = 5000",
         "8000",
@@ -227,7 +236,7 @@ def test_every_knob_has_a_precedence_case() -> None:
     # Guards the guard: dropping a knob from KNOBS would otherwise shrink AC1's coverage silently.
     covered = {knob.variable for knob in KNOBS}
     assert {env_name(key) for key in KNOB_KEYS} | {"CA_PHP_CMD"} == covered
-    assert len(KNOB_KEYS) == 16
+    assert len(KNOB_KEYS) == 17
 
 
 def test_env_name_is_derived_from_the_project_file_key() -> None:
@@ -240,6 +249,7 @@ def test_env_name_is_derived_from_the_project_file_key() -> None:
         "CA_IMPACT_DEPTH",
         "CA_IMPACT_MAX_NODES",
         "CA_ORPHANS_MAX_NODES",
+        "CA_FULL_BUILD_CROSSOVER",
         "CA_PATH_INDEX_MAX",
         "CA_ENTRY_POINTS",
         "CA_STUB_ROOTS",
