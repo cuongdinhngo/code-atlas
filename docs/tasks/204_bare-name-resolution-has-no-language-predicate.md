@@ -524,12 +524,13 @@ E           KeyError: 'cross_language'
 3 failed, 1 passed, 8 deselected in 0.81s
 ```
 
-### Axis 3 — the suite on the tree under review
+### Axis 3 — the suite
 
-Ran at f90cef8.
+`.venv/bin/python -m pytest -q` on the **code-final** tree f90cef8 — every commit above it is
+docs-only, so this is a reference point and the authoritative run at the tip is CI, below (201-C1):
 
 ```
-$ .venv/bin/python -m pytest -q
+ pytest -q
 FAILED tests/test_backlog_bookkeeping.py::test_the_guard_has_something_to_check
 FAILED tests/test_backlog_bookkeeping.py::test_a_finished_task_records_what_it_cost[204]
 2 failed, 2745 passed in 298.10s (0:04:58)
