@@ -18,7 +18,8 @@ seam: Summarizer = StructuralSummarizer() if summarizer is None else summarizer
 ```
 
 An MCP caller cannot pass one, so every artifact generated through the server is written by
-`StructuralSummarizer`. On the anchor, **not one of the 500 pages carries a usable summary**. They
+`StructuralSummarizer`. On the anchor — pre-204 index, `max_results = 10` — **not one of the 500
+pages carries a usable summary**. They
 fail in two shapes: 277 render the honest sentence,
 
 ```
@@ -38,6 +39,26 @@ worlds:
 The artifact states neither. A person reading `docs/onboarding/` six months from now, or an agent
 grepping it, has no way to tell which they are looking at. This is **R5.6** — never attest past what
 the payload can distinguish — in the one artifact whose whole audience is a human.
+
+### The figures move with the index, so a page census must name one
+
+Regenerating against a 204-corrected index changes the split substantially:
+
+| | pre-204 | post-204 |
+|---|---|---|
+| pages rendering the fallback sentence | 277 | **412** |
+| pages rendering something else | 223 | 88 |
+| of those, a bare comment delimiter | 201 | 75 |
+
+Docline coverage gets **worse**, and that is not a regression: 204 correctly promotes undocumented
+`legacy/` modules into the page set and demotes the documented framework trees that false JavaScript
+edges had been holding up. A truer ranking with less prose in it.
+
+Two consequences for this ticket. Any figure it pins must name the index it came from — the numbers
+above are the two that exist today. And the defect gets *worse* as the graph gets *better*: at 412
+of 500 the artifact is approaching the state where the only thing a Summary section ever says is
+that it has nothing to say, which is exactly when a reader most needs to know whether that is the
+repo talking or the configuration.
 
 ### The provenance exists, and stops at the tool response
 

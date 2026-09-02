@@ -30,7 +30,7 @@ that a reader wants 500 pages, and no repo — 200 files or 24,535 — gets a di
 
 ### What the 500 pages actually contain
 
-Measured over the emitted tree:
+Measured over the emitted tree (pre-204 index, `max_results = 10`):
 
 | | |
 |---|---|
