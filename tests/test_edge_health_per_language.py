@@ -268,3 +268,58 @@ def test_the_split_is_deterministic_and_key_ordered(tmp_path: Path) -> None:
     assert first == second
     assert json.dumps(first, sort_keys=True) == json.dumps(second, sort_keys=True)
     assert list(dict(first["by_language"])) == sorted(dict(first["by_language"]))  # type: ignore[arg-type]
+
+
+def cross_language(block: dict[str, object]) -> dict[str, object]:
+    return dict(block["cross_language"])  # type: ignore[arg-type]
+
+
+def test_the_cross_language_row_counts_the_boundary_183_cannot_see(tmp_path: Path) -> None:
+    """204 AC4: two `second` files reach a `fake` one, and 183's rows call both healthy `second`.
+
+    The row names the boundary as well as the tier, so a non-zero value says WHICH pair to look at
+    — a bare total would leave the reader with the same unattributable blend 183 broke apart. It
+    counts every crossing, not only the guessed ones: `dep/extends_b.cc` EXTENDS a qname another
+    language declares and resolves at **RESOLVED**, which is a crossing on real evidence. That is
+    the row's job — report the boundary; 204 removes only the BARE-NAME guesses across it.
+    """
+    seed_two_languages(tmp_path)
+    payload = verbose(build(tmp_path, TWO_ADAPTERS))
+
+    row = cross_language(dict(payload[FIELD]))  # type: ignore[arg-type]
+    assert row["linked"] == 2
+    assert row["unlinked"] == 0
+    assert dict(row["by_tier"]) == {"RESOLVED": 1, "HEURISTIC": 1, "DYNAMIC": 0}
+    assert row["pairs"] == {"second->fake": 2}
+    # 183's own rows are unchanged and still count both under the DECLARING language only.
+    by_language = dict(dict(payload[FIELD])["by_language"])  # type: ignore[index]
+    assert int(by_language["second"]["by_tier"]["HEURISTIC"]) == 1  # type: ignore[index]
+    assert int(by_language["second"]["by_tier"]["RESOLVED"]) == 1  # type: ignore[index]
+
+
+def test_a_single_language_index_measures_the_row_as_zero(tmp_path: Path) -> None:
+    """A measured 0 is a different claim from an unmeasured one (R5.6) — the key is always there."""
+    write(tmp_path, "lib/core.aa")
+    write(tmp_path, "dep/a.aa")
+    config = build(tmp_path, ONE_ADAPTER)
+
+    with GraphStore(config.db_path) as store:
+        row = cross_language(store.edge_health_by_language())
+    assert row["linked"] == 0
+    assert row["pairs"] == {}
+
+
+def test_a_pre_204_stamp_reports_no_row_rather_than_a_zero(tmp_path: Path) -> None:
+    """P7: an index stamped before this ticket never measured the boundary; it must not read 0."""
+    seed_two_languages(tmp_path)
+    config = build(tmp_path, TWO_ADAPTERS)
+
+    with GraphStore(config.db_path) as store:
+        stamped = store.stamped_edge_health_by_language()
+        assert stamped is not None
+        del stamped["cross_language"]
+        store.set_meta(EDGE_HEALTH_BY_LANGUAGE_KEY, json.dumps(stamped, sort_keys=True))
+
+    payload = verbose(config)
+    assert "cross_language" not in dict(payload[FIELD])
+    assert "by_language" in dict(payload[FIELD]), "183's rows are unaffected"

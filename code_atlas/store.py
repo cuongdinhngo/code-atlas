@@ -721,11 +721,41 @@ class GraphStore:
         }
         if "" in tiers:
             health["unattributed"] = self._tier_block(tiers[""], linked[""])
+        health["cross_language"] = self._cross_language_edges()
         return LanguageEdgeCensus(
             health=health,
             kinds={name: sorted(kinds[name]) for name in sorted(kinds) if name},
         )
 
+
+    def _cross_language_edges(self) -> dict[str, object]:
+        """Linked edges whose target is declared in a file of ANOTHER language (task 204).
+
+        183's per-language rows key on the DECLARING language alone, so a link to a callee that
+        cannot be called counts as healthy. This is the row that can see it: on a graph the
+        bare-name fallback no longer guesses across, it reads 0, and a non-zero value is the
+        regression signal. ~3.2 s on the 2.19 M-edge anchor — one scan per build, never per answer.
+        """
+        tiers: dict[str, int] = {}
+        pairs: dict[str, int] = {}
+        for source, target, tier, count in self._conn.execute(
+            "SELECT src.language, tgt.language, edges.confidence_tier, COUNT(DISTINCT edges.id) "
+            "FROM edges "
+            "JOIN files src ON src.path = edges.file_path "
+            "JOIN nodes ON nodes.qualified_name = edges.target_qname "
+            "JOIN files tgt ON tgt.path = nodes.file_path "
+            "WHERE edges.target_qname IS NOT NULL AND src.language <> tgt.language "
+            "GROUP BY src.language, tgt.language, edges.confidence_tier"
+        ):
+            tiers[str(tier)] = tiers.get(str(tier), 0) + int(count)
+            key = f"{source}->{target}"
+            pairs[key] = pairs.get(key, 0) + int(count)
+        total = sum(tiers.values())
+        # Every counted edge is linked by construction, so the shared fold's own `linked` argument
+        # is the total — one fold rule for every block, never a second spelling of it (R1.8).
+        block = self._tier_block(tiers, total)
+        block["pairs"] = {key: pairs[key] for key in sorted(pairs)}
+        return block
 
     def edge_health_by_language(self) -> dict[str, object]:
         """``edge_health`` split by the language of the edge's OWN file (task 183).

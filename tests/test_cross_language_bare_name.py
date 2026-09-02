@@ -11,7 +11,6 @@ import pytest
 
 from code_atlas.resolver import resolve_edges
 from code_atlas.store import GraphStore
-
 from tests.test_resolver import edge, node
 
 
@@ -68,7 +67,7 @@ def _targets(store: GraphStore) -> list[str]:
 
 
 def test_a_bare_name_call_never_links_across_a_language_boundary(store: GraphStore) -> None:
-    """AC1. Red before the fix: `\\LoggerNDC::push` and `\\PHPExcel_Token_Stack::push` are linked."""
+    """AC1. Red before the fix: both `\\LoggerNDC::push` and `\\PHPExcel_Token_Stack::push` link."""
     _two_language_repo(store)
 
     resolve_edges(store, max_candidates=50)
