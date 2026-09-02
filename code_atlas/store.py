@@ -1056,10 +1056,22 @@ class GraphStore:
         return self.nodes_by_qualified_names([qname], kind=kind, limit=limit).get(qname, [])
 
     def nodes_by_names(
-        self, names: Sequence[str], *, kind: str | None = None, limit: int
+        self,
+        names: Sequence[str],
+        *,
+        kind: str | None = None,
+        limit: int,
+        language: str | None = None,
     ) -> dict[str, list[Row]]:
-        """Per-name top-``limit`` nodes (``_NODE_ORDER`` within each name)."""
-        return self._nodes_batched(key_column="name", keys=names, kind=kind, limit=limit)
+        """Per-name top-``limit`` nodes (``_NODE_ORDER`` within each name).
+
+        ``language`` restricts candidates to nodes declared in files of that language, inside the
+        statement that truncates — so ``limit`` selects from the legal set rather than being spent
+        on candidates a caller would then discard (R5.8, task 204).
+        """
+        return self._nodes_batched(
+            key_column="name", keys=names, kind=kind, limit=limit, language=language
+        )
 
     def nodes_by_qualified_names(
         self, qnames: Sequence[str], *, kind: str | None = None, limit: int
@@ -1300,6 +1312,17 @@ class GraphStore:
             sql = "SELECT COUNT(*) FROM nodes WHERE name = ? AND kind = ?"
             params = (name, kind)
         return int(self._conn.execute(sql, params).fetchone()[0])
+
+    def file_languages(self) -> dict[str, str]:
+        """Map indexed path → its language, for files that carry one (task 204).
+
+        Built once per resolve pass beside the alias and hierarchy maps: the bare-name fallback
+        needs the CALL SITE's language, and a per-edge lookup would be one round per edge.
+        """
+        rows = self._conn.execute(
+            "SELECT path, language FROM files WHERE language IS NOT NULL AND language != ''"
+        ).fetchall()
+        return {str(path): str(language) for path, language in rows}
 
     def alias_targets(self) -> dict[str, str]:
         """Map alias FQN → real FQN from ``ALIASES`` edges (``source_qname`` → ``target_raw``)."""
@@ -2756,6 +2779,7 @@ class GraphStore:
         keys: Sequence[str],
         kind: str | None,
         limit: int,
+        language: str | None = None,
     ) -> dict[str, list[Row]]:
         """Per-key top-N via ``ROW_NUMBER``; keys chunked under ``_IN_CHUNK`` (host max-vars)."""
         if limit < 1:
@@ -2767,7 +2791,10 @@ class GraphStore:
         ordered_keys: list[str] = list(dict.fromkeys(keys))
         if not ordered_keys:
             return {}
-        kind_sql = " AND kind = ?" if kind is not None else ""
+        kind_sql = " AND nodes.kind = ?" if kind is not None else ""
+        # The language predicate rides the same statement as the row limit, never a post-filter.
+        source = "nodes JOIN files ON files.path = nodes.file_path" if language else "nodes"
+        language_sql = " AND files.language = ?" if language else ""
         grouped: dict[str, list[Row]] = {key: [] for key in ordered_keys}
         # Full `_NODE_ORDER` inside the partition — required for `name` keys where
         # `qualified_name` still varies within the partition (R4.2 / AC1).
@@ -2775,17 +2802,20 @@ class GraphStore:
             placeholders = ", ".join("?" for _ in chunk)
             sql = (
                 f"SELECT id, {_NODE_COLUMNS} FROM ("
-                f"  SELECT id, {_NODE_COLUMNS}, "
+                f"  SELECT nodes.id, {_NODE_COLUMNS_JOINED}, "
                 f"    ROW_NUMBER() OVER ("
-                f"      PARTITION BY {key_column} ORDER BY {_NODE_ORDER}"
+                f"      PARTITION BY nodes.{key_column} ORDER BY {_NODE_ORDER}"
                 f"    ) AS rn "
-                f"  FROM nodes WHERE {key_column} IN ({placeholders}){kind_sql}"
+                f"  FROM {source} WHERE nodes.{key_column} IN ({placeholders})"
+                f"{kind_sql}{language_sql}"
                 f") WHERE rn <= ? "
                 f"ORDER BY {_NODE_ORDER}"
             )
             params: list[object] = [*chunk]
             if kind is not None:
                 params.append(kind)
+            if language:
+                params.append(language)
             params.append(limit)
             for row in self._rows(NODE_ROW_KEYS, sql, params):
                 grouped[str(row[key_column])].append(row)

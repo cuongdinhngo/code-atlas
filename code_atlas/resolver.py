@@ -103,6 +103,8 @@ def resolve_edges(
     alias_map = store.alias_targets()
     # Same reason as the alias map: every hierarchy edge is in the store before resolve runs.
     parent_map = store.hierarchy_parents()
+    # The call site's language, for the bare-name fallback below (204). Same one-map-per-run shape.
+    file_languages = store.file_languages()
     for batch in store.iter_unresolved_edges(
         batch_size=_RESOLVE_BATCH, skip_dynamic=True, file_path=file_path, delta=delta
     ):
@@ -172,21 +174,47 @@ def resolve_edges(
             _resolve_subtypes(store, unlinked, parent_map, max_candidates, links, siblings)
         )
 
-        if by_name:
-            method_hits = store.nodes_by_names(
-                [name for _, name in by_name], kind="Method", limit=max_candidates
-            )
-            for edge, name in by_name:
-                methods = method_hits.get(name, [])
-                if methods:
-                    # Weaker than what the edge claimed, never stronger: the name matched, the
-                    # receiver did not (R5.2).
-                    _queue_candidates(edge, methods, "HEURISTIC", links, siblings)
+        _link_by_bare_name(store, by_name, file_languages, max_candidates, links, siblings)
 
         # One txn: kill between link and sibling insert must not leave under-linked parents.
         store.apply_resolution(links, siblings)
         inserted += len(siblings)
     return inserted
+
+
+def _link_by_bare_name(
+    store: GraphStore,
+    by_name: Sequence[tuple[dict[str, object], str]],
+    file_languages: Mapping[str, str],
+    max_candidates: int,
+    links: list[tuple[int, str, str]],
+    siblings: list[dict[str, object]],
+) -> None:
+    """Last chance: link a `CALLS` whose receiver is unknown to a same-named method (R5.2).
+
+    Candidates are restricted to the CALL SITE's own language. A bare name is never evidence of a
+    cross-language call, so there is DELIBERATELY no escape hatch — not even a configured language
+    pair: a real FFI edge is a relation with its own evidence, not a widening of this guess (204).
+    """
+    grouped: dict[str | None, list[tuple[dict[str, object], str]]] = {}
+    for edge, name in by_name:
+        # An unattributed call site is not KNOWN to cross a boundary, so it keeps the old,
+        # unfiltered set rather than silently losing edges this ticket never measured.
+        language = file_languages.get(str(edge["file_path"]))
+        grouped.setdefault(language, []).append((edge, name))
+    for language, pairs in grouped.items():
+        method_hits = store.nodes_by_names(
+            [name for _, name in pairs],
+            kind=_BARE_NAME_KIND,
+            limit=max_candidates,
+            language=language,
+        )
+        for edge, name in pairs:
+            methods = method_hits.get(name, [])
+            if methods:
+                # Weaker than what the edge claimed, never stronger: the name matched, the
+                # receiver did not (R5.2).
+                _queue_candidates(edge, methods, "HEURISTIC", links, siblings)
 
 
 class _Chain:
