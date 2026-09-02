@@ -3526,7 +3526,7 @@ project-ground-truth · environment · handle: `wrong-case-venv-breaks-the-gate-
 proposed · verified-at: 2026-09-02 · area: environment / gate · evidence: `head -1 .venv/bin/mypy`;
 `grep -l "WORKSPACE/Projects" .venv/bin/* | wc -l` → 27; neither `.venv/` nor `adapters/php/vendor/`
 appears in `git diff --name-only main`, so both failures reproduce on `main` · destination: stays in
-lessons_path (recreate both from the correctly-cased path to discharge).*
+lessons_path (recreate both from the correctly-cased path to discharge) · **retired: discharged 2026-09-02 — the shebang half was repaired in place rather than recreated, and the PHPStan half was falsified; superseded by `ENV-C1`.***
 
 *Claim `202-C4` **fourth sighting** — `one-field-two-questions` again, and this time the resolution
 was **deletion** rather than a second key: `truncated` folded *"a page's neighbour list was capped"*
@@ -3661,3 +3661,18 @@ held: on 212 the suite ran to completion BEFORE the review seat was dispatched, 
 had to be discarded. The sighting is the application, which is the only evidence a preventive claim
 can produce. type: 2 · handle: `no-suite-while-a-mutating-reviewer-is-live` · seen: 208, 212 ·
 status: proposed · destination: **proposed `agent_brief_path`**.*
+
+*Claim `ENV-C1` — `205-C4`'s two failures had **two different causes**, and only one of them was the
+shebang. Rewriting the first line of the 22 wrong-case console scripts under `.venv/bin` (plus the 5
+`activate*` scripts, which export `VIRTUAL_ENV`) fixed every python launcher. **PHPStan was never a
+shebang fault at all** — no wrong-case string appears anywhere under `adapters/php`; the failure was
+a stale `/tmp/phpstan` tmpDir whose `cache/PHPStan/**` entries were keyed to the wrong-case *phar*
+path from an earlier run, which is why `phpstan clear-result-cache` did not clear it: that command
+rewrites `resultCache.php` only, not the container/stub cache. Moving the tmpDir aside gave
+`[OK] No errors`. `scripts/gate.sh` now reports **`GATE GREEN — all 17 checks passed`** on `main` at
+`96dd982`, so **R6.6 is proven** where 205, 208 and 212 each had to disclose it UNPROVEN. type: 5
+project-ground-truth · environment · handle: `wrong-case-venv-breaks-the-gate-launcher` · status:
+proposed · verified-at: 2026-09-02 · area: environment / gate · supersedes: `205-C4` · evidence:
+`bash scripts/gate.sh` → `17 passed · 0 failed · 0 skipped`; `grep -rl "WORKSPACE/Projects"
+.venv/bin adapters/php` → no match · destination: stays in lessons_path; it rots the next time the
+venv or the PHPStan tmpDir is rebuilt from a wrong-cased cwd.*
