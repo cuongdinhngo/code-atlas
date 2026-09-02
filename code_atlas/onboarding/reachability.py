@@ -52,40 +52,62 @@ NO_VOCABULARY_SIGNAL = (
     "signal carries no information for this repo"
 )
 
+
+def undeclared_reason(setting: str) -> str:
+    """Why a bucket's 0 is a question nobody asked, not a measured absence (task 208).
+
+    The ONE place these words exist: every renderer prints this string verbatim, so the map, the
+    overview and the dataset cannot drift apart the way 127 found them drifting (R1.8). It names the
+    project-file setting rather than its ``CA_*`` form because no module here may import
+    ``code_atlas.config``, and a second spelling of that prefix would be a second definition site.
+    """
+    return (
+        f"not a measurement: no {setting} declaration was given, and no indexed path names this "
+        f"population, so this 0 is a question nobody asked. Declaring {setting} asks it — and a "
+        "declaration matching no indexed file then reports so beside the count."
+    )
+
 # One table, so no renderer re-words a bucket. Order is the reading order and is fixed (R4.2).
 # ``note`` is the wording AC3 governs: the dynamic bucket denies deadness outright, and the isolated
-# bucket is a suspicion, never a verdict. ``signal`` names what proved membership.
-BUCKET_SPECS: tuple[tuple[str, str, str, str], ...] = (
+# bucket is a suspicion, never a verdict. ``signal`` names what proved membership. ``declaration``
+# names the project-file setting that populates the bucket by declaration — empty for the three that
+# have none by design, which is what keeps them out of 208's unasked-question case entirely.
+BUCKET_SPECS: tuple[tuple[str, str, str, str, str], ...] = (
     (
         WEB_ENTRY,
         "Web entry points",
         "declared entry-point globs, or a path naming a request-handling"
         " responsibility and no test role",
         "The web surface a request can actually arrive at.",
+        "entry_points",
     ),
     (
         VENDOR,
         "Vendored dependencies",
         "declared dependency roots, or a path naming third-party code",
         "Third-party code that ships with the repo; not this team's surface.",
+        "stub_roots",
     ),
     (
         TEST,
         "Tests and fixtures",
         "a path naming a test responsibility",
         "Test and fixture code; nothing in production calls into it by design.",
+        "",
     ),
     (
         DYNAMIC,
         "Not statically reachable",
         "no inbound edge, but outbound edges of its own",
         "Reached dynamically, or by a caller the index cannot resolve — not dead code.",
+        "",
     ),
     (
         ISOLATED,
         "No edge either way — worth checking",
         "no inbound and no outbound edge",
         "A list to check, not a conclusion: nothing statically links these either way.",
+        "",
     ),
 )
 
@@ -106,6 +128,7 @@ __all__ = [
     "ReachabilityBucket",
     "ReachabilitySplit",
     "TEST",
+    "undeclared_reason",
     "VENDOR",
     "SIGNAL_DECLARED",
     "SIGNAL_ORDER",
@@ -152,12 +175,24 @@ class ReachabilityBucket:
     sample_truncated: bool
     signals: tuple[tuple[str, int], ...] = ()
     """Which signal proved each member (119). Every kind reports, zero included, never omitted."""
+    declaration: str = ""
+    """The setting that populates this bucket by declaration; empty when it has none (208)."""
+    caveat: str = ""
+    """Non-empty when this count is an unasked question rather than a measurement (208).
+
+    Named ``caveat`` on purpose: ``dataset.derive_caveats`` collects every non-empty ``caveat`` key
+    at any depth, so the 127 guard that asserts each one is RENDERED covers this field the moment it
+    exists, and a snapshot diff sees a bucket flip from measured-zero to unasked-zero — which its
+    equal before/after counts cannot show.
+    """
 
     def as_dict(self) -> dict[str, object]:
         """Order-stable dict view — what every renderer serialises (R4.2)."""
         return {
             "bucket": self.bucket,
+            "caveat": self.caveat,
             "count": self.count,
+            "declaration": self.declaration,
             "label": self.label,
             "note": self.note,
             "sample": list(self.sample),
@@ -315,11 +350,19 @@ def classify_reachability(
     declared = {WEB_ENTRY: bool(entry_rules), VENDOR: bool(stub_rules), TEST: False}
     buckets: list[ReachabilityBucket] = []
     dropped: list[tuple[str, str]] = []
-    for bucket, label, signal, note in BUCKET_SPECS:
+    for bucket, label, signal, note, declaration in BUCKET_SPECS:
         if bucket in declared and not vocabulary and not declared[bucket]:
             dropped.append((bucket, NO_VOCABULARY_SIGNAL))
             continue
         paths = members[bucket]
+        # 208: an empty bucket whose own declaration was never given is an unasked question, not a
+        # measured absence. It gates on `declared` — was a declaration GIVEN — never on a key's
+        # presence (196), and a bucket with no declaration by design can never reach this.
+        caveat = (
+            undeclared_reason(declaration)
+            if declaration and not declared[bucket] and not paths
+            else ""
+        )
         buckets.append(
             ReachabilityBucket(
                 bucket=bucket,
@@ -330,6 +373,8 @@ def classify_reachability(
                 sample=tuple(paths[:sample_limit]),
                 sample_truncated=len(paths) > sample_limit,
                 signals=tuple((name, tallies[bucket][name]) for name in SIGNAL_ORDER),
+                declaration=declaration,
+                caveat=caveat,
             )
         )
     return ReachabilitySplit(

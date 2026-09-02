@@ -259,3 +259,23 @@ conditions failing against `main` in a throwaway worktree** so the t0 guarantee 
 That works, but it is invented per-run rather than mechanised. A named `amend` sub-command that
 requires a recorded failing observation of the new predicate against the base ref would make it
 auditable. Type-3 signal only — no mango file was edited.
+
+## Nothing sequences the mutating reviewer against the main loop's suite run (seen: 208)
+
+`review`'s brief asks the ticket-blind challenger to **mutate production code** to prove the guards
+bite, and says so explicitly ("run it against the shape it forbids"). The main loop, meanwhile, is
+expected to run `config.test_command` for the delta-green record. Both operate on the **same
+working tree**, and nothing in the skill says they may not overlap.
+
+In this ticket they overlapped twice. The first full suite returned `4 failed, 2775 passed` with
+failures in four files that have nothing to do with the ticket's subject — a result whose only
+honest use was to discard it; the second run was killed. The challenger's restores were byte-exact
+both times, so nothing was corrupted, and the clean run afterwards was `2780 passed`. The cost was
+two suite runs' wall time and a moment of believing four regressions existed.
+
+The git-isolation principle already forbids a subagent from mutating **shared git state**; a
+working-tree mutation is not git state, so it is permitted and correct — the gap is that the phase
+gives the main loop no rule about running a suite while such a seat is live. A one-line ordering
+constraint would close it: dispatch the mutating reviewer, or run the suite, never both at once —
+or have the reviewer mutate inside its own worktree, which the env-parity section already discusses
+for a different reason. Type-3 signal only — no mango file was edited.

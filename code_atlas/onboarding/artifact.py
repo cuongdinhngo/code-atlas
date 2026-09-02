@@ -66,7 +66,8 @@ CACHE_NAME = "artifact.json"
 # tour/steps object graph a second renderer would read. Bump when as_dict keys change;
 # tests/test_artifact_contract.py fails a shape change that leaves the number behind.
 # 1 -> 2 (205): the `pages` and `isolated` keys are gone with the module-page tree.
-ARTIFACT_VERSION = 2
+# 2 -> 3 (208): every reachability bucket gains `caveat` and `declaration`.
+ARTIFACT_VERSION = 3
 
 __all__ = [
     "ARTIFACT_VERSION",
@@ -440,7 +441,9 @@ def _reachability_lines(split: object) -> list[str]:
     """The zero-inbound split as its own section — never one number (task 113).
 
     Every bucket renders, including an empty one (an honest zero — AC4); a bucket the classifier
-    could not fill renders in a ``dropped`` list with its reason, not as a zero (AC5).
+    could not fill renders in a ``dropped`` list with its reason, not as a zero (AC5). An empty
+    bucket whose own declaration was never given carries the classifier's caveat beside its count,
+    because that 0 answers a question nobody asked (208).
     """
     if not isinstance(split, dict):
         return []
@@ -450,6 +453,11 @@ def _reachability_lines(split: object) -> list[str]:
     for bucket in buckets if isinstance(buckets, list) else []:
         cut = " (sample capped)" if bucket.get("sample_truncated") else ""
         lines.append(f"- **{bucket['label']}**: {bucket['count']}{cut}")
+        # 208: where the count is, so a 0 nobody asked for cannot read as a measured absence. The
+        # words are the classifier's; this renderer adds none of its own (R1.8).
+        unasked = bucket.get("caveat")
+        if isinstance(unasked, str) and unasked:
+            lines.append(f"  - **{unasked}**")
         lines.append(f"  - {bucket['note']}")
         lines.append(f"  - signal: {bucket['signal']}")
         tally = bucket.get("signals")

@@ -118,3 +118,27 @@ def test_no_repo_framework_or_language_name_in_the_headline_derivation() -> None
     for name in ("headlines.py", "prose.py"):
         source = Path("code_atlas/onboarding") / name
         assert denied.search(source.read_text(encoding="utf-8")) is None, name
+
+
+def test_the_reachability_headline_carries_the_caveat_of_the_population_it_names() -> None:
+    """208: the headline is a FOURTH reader of the split, and the ticket named only three.
+
+    Without this, *"The largest population is web entry points, at 0 of them"* asserts a population
+    from a question nobody asked — the ticket's own defect, one renderer further along. The
+    ticket-blind challenger found the gap by mutating the append and watching 72 tests stay green,
+    so the guard is written from the mutation that broke nothing.
+    """
+    # The fixture's own paths, with the chain closed into a cycle: every module then has an inbound
+    # edge, so no bucket has a member and the largest is decided by name. The paths still name
+    # responsibilities, so the vocabulary signal is available and no bucket is dropped — and no
+    # declaration was given, so the winning bucket's 0 is a question nobody asked.
+    closed = [*EDGES, ("Lib", "Ctrl")]
+    parts = dict(_parts(), reachability=classify_reachability(
+        compute_metrics(NODES, closed), sample_limit=5
+    ))
+    row = {row.key: row for row in headline_candidates(**parts)}["reachability"]
+
+    assert "0 modules have nothing in the index pointing at them" in row.text
+    assert "not a measurement" in row.text, "the headline must not assert an unasked population"
+    assert "entry_points" in row.text
+

@@ -327,7 +327,7 @@ def test_the_headline_facts_ride_with_the_dataset_and_the_version_says_so() -> N
     from code_atlas.onboarding.headlines import HEADLINE_FAMILIES
 
     payload = _build().as_dict()
-    assert payload["version"] == DATASET_VERSION == 10
+    assert payload["version"] == DATASET_VERSION == 11
     headlines = payload["headlines"]
     assert isinstance(headlines, list) and headlines
     assert all(set(row) == {"key", "label", "text"} for row in headlines)
