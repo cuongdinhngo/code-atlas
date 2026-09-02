@@ -224,6 +224,27 @@ FULL_REBUILD_ROUTE = "code-atlas-build --full"
 IN_BAND_FULL_REBUILD = "allow_full_rebuild=true"
 
 
+COVERAGE_LOSS = "coverage_loss"
+# No route. No registered tool can configure an adapter, and naming one that cannot answer the
+# question is worse than naming none (R5.4c) — so this carries a hint and no route (203).
+COVERAGE_LOSS_HINT = (
+    "configure the missing adapter before rebuilding: set `adapter_cmd.<language>` in "
+    ".code-atlas.toml, or export CA_<LANGUAGE>_CMD"
+)
+COVERAGE_LOSS_IN_BAND = "allow_coverage_loss=true"
+
+
+def coverage_loss(store: GraphStore, configured: Iterable[str]) -> tuple[str, ...]:
+    """Languages the index COVERS that this run has no adapter command for (203).
+
+    Covered-vs-**configured**, never covered-vs-started: an adapter that is configured and then
+    fails to boot already refuses as ``no_usable_adapter``, which is a different fault.
+    """
+    raw = store.get_meta(COVERED_LANGUAGES_KEY) or ""
+    covered = {part.strip() for part in raw.split(",") if part.strip()}
+    return tuple(sorted(covered - {name.lower() for name in configured}))
+
+
 INCOMPLETE_INDEX = "incomplete_index"
 # A build that was killed mid-write leaves a graph nothing can repair incrementally: HEAD has
 # not moved, so the next diff is empty and the delete batches it already committed stay gone.
