@@ -20,10 +20,14 @@ from code_atlas.config import Config
 from code_atlas.index_lock import build_in_progress
 from code_atlas.indexer import (
     CONTRACT_REBUILD_REQUIRED,
+    COVERAGE_LOSS,
+    COVERAGE_LOSS_HINT,
+    COVERAGE_LOSS_IN_BAND,
     FULL_REBUILD_ROUTE,
     IN_BAND_FULL_REBUILD,
     build_incomplete,
     contract_rebuild_required,
+    coverage_loss,
 )
 from code_atlas.store import (
     BUILT_AT_KEY,
@@ -61,6 +65,11 @@ BUILD_TOOL = "build_or_update_index"
 BUILD_IN_PROGRESS = "build_in_progress"
 INDEX_COMPLETE = "index_complete"
 FULL_REBUILD_REQUIRED = "full_rebuild_required"
+COVERAGE_LOSS_PENDING = "coverage_loss_pending"
+# The one state the MCP route cannot report on at all: a build already running. `--status` reads
+# the live lock, which is why it is named here rather than left to be discovered (177, 203).
+BUILD_PROGRESS_ROUTE = "code-atlas-build --status"
+BUILD_PROGRESS_ROUTE_FIELD = "build_progress_route"
 
 
 def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str, object]]:
@@ -125,6 +134,9 @@ def _attach_build_state(
     """
     if build_in_progress(config.db_path):
         status[BUILD_IN_PROGRESS] = True
+        # No MCP tool can report a running build's phase — this one answers with a snapshot and
+        # the lock is what has the live line. Name the route rather than leave it to be found.
+        status[BUILD_PROGRESS_ROUTE_FIELD] = BUILD_PROGRESS_ROUTE
     if store is None:
         return
     # One derivation for this field and for `staleness`, so the two cannot disagree (202, R6.7).
@@ -138,6 +150,16 @@ def _attach_build_state(
             "reason": CONTRACT_REBUILD_REQUIRED,
             "route": FULL_REBUILD_ROUTE,
             "in_band_option": IN_BAND_FULL_REBUILD,
+        }
+    # A build here would REFUSE rather than serve, so the caller needs to know before it calls.
+    # Hint and no route: no registered tool configures an adapter (R5.4c, 203).
+    lost = coverage_loss(store, config.adapter_cmds)
+    if lost:
+        status[COVERAGE_LOSS_PENDING] = {
+            "reason": COVERAGE_LOSS,
+            "lost_languages": list(lost),
+            "hint": COVERAGE_LOSS_HINT,
+            "in_band_option": COVERAGE_LOSS_IN_BAND,
         }
 
 

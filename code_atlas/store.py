@@ -118,6 +118,9 @@ CREATE INDEX IF NOT EXISTS idx_edges_src ON edges(source_qname, kind);
 CREATE INDEX IF NOT EXISTS idx_edges_tgt ON edges(target_qname, kind);
 CREATE INDEX IF NOT EXISTS idx_edges_tier ON edges(confidence_tier);
 CREATE INDEX IF NOT EXISTS idx_edges_raw ON edges(target_raw, kind);
+-- `replace_file_rows` deletes by file_path once per parsed file. Unindexed that is a full scan of
+-- the edge table per file — 189 ms x 24,569 files = 77 min of a 76-minute rebuild (task 203).
+CREATE INDEX IF NOT EXISTS idx_edges_file ON edges(file_path);
 
 CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(
   name, qualified_name, file_path, params,

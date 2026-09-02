@@ -267,6 +267,8 @@ def _validate_root_pair(host_root: Path | None, container_root: Path | None) -> 
     )
 
 
+# `workers` is NOT a throughput knob. Measured on the 24.6k-file anchor (203): 1 worker 633 s,
+# 6 workers 592 s — 1.07x for six processes, because the single SQLite writer is the ceiling.
 def _default_workers() -> int:
     """One worker per CPU less a reserve, capped, never below one (PLAN §8.1)."""
     return max(1, min((os.cpu_count() or 1) - RESERVED_CPUS, MAX_WORKERS))

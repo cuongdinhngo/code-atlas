@@ -207,3 +207,27 @@ def test_a_refused_escalation_does_not_even_mark_the_index_incomplete(repo: Path
 
     with GraphStore(narrowed.db_path) as store:
         assert store.get_meta("build_complete") == "1", "a refusal must write nothing at all"
+
+
+def test_get_index_status_names_the_pending_loss_and_stays_silent_otherwise(repo: Path) -> None:
+    """203 AC6, the 159/174 omit-when-clean shape.
+
+    A build in this state would REFUSE, so the caller needs to know before it calls — and the
+    field carries a hint and no route, because no registered tool configures an adapter (R5.4c).
+    """
+    from code_atlas.tools import get_index_status
+
+    config = build_both(repo)
+    clean = get_index_status.create(config, (get_index_status.NAME,))(detail_level="standard")
+    assert "coverage_loss_pending" not in clean, "silent when nothing is pending"
+
+    narrowed = config_for(repo, ONE)
+    pending = get_index_status.create(narrowed, (get_index_status.NAME,))(
+        detail_level="standard"
+    )
+
+    block = dict(pending["coverage_loss_pending"])  # type: ignore[arg-type]
+    assert block["reason"] == COVERAGE_LOSS
+    assert block["lost_languages"] == ["second"]
+    assert "route" not in block, "no registered tool can configure an adapter (R5.4c)"
+    assert "adapter_cmd" in str(block["hint"])

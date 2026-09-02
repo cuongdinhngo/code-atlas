@@ -4,7 +4,7 @@ slug: a-rebuild-is-gil-bound-and-its-operating-knowledge-is-unroutable
 title: 'A full rebuild sustains ~4.5 files/s because reply decode and the single writer share one GIL — and the operating knowledge that would have kept a caller out of that hour is in a runbook no agent is ever routed to'
 phase: 1.5b
 milestone: Freshness
-status: in-progress
+status: done
 depends_on: [052, 096, 176, 177, 200, 201]
 ---
 
@@ -202,7 +202,7 @@ config change, `config_identity c30ed5e → 2efae9c`.
 
 ## Session status
 
-- **KEY:** 203 · **work_doc_mode:** embed · **Current phase:** 3 execute — **partial delivery, ticket stays open.**
+- **KEY:** 203 · **work_doc_mode:** embed · **Current phase:** 5 finalise — **complete.** Scopes 1, 3 and 5 landed in PR #252 (merged); scopes 2 and 4 in the PR below.
 - `TRACK: backend` · `TIER: full` · `SCOPE: L` · `STRUCTURE: native` · **Type:** bug + perf.
 - Run: `/mango:autorun 203 --no-reviewer`, unattended, third of three tickets after 204 (merged,
   PR #250) and 205 (deferred — see below).
