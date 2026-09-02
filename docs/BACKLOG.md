@@ -132,7 +132,7 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | 197 | [no surface follows one request end to end](tasks/197_no-surface-follows-one-request-from-entry-to-the-data-it-writes.md) | Phase 3 / M11 | done | 113, 114, 111, 112, 022 |
 | 198 | [a business module is labelled by its directory name](tasks/198_a-business-module-is-labelled-by-its-directory-name.md) | Phase 3 / M12 | done | 114, 117, 197 |
 | 199 | [flows-have-no-tool-so-an-agent-pays-for-the-whole-overview](tasks/199_flows-have-no-tool-so-an-agent-pays-for-the-whole-overview.md) | Phase 3 / M11 | done | 197 |
-| 205 | [a module page per node-budget slot](tasks/205_a-module-page-per-node-budget-slot.md) | Phase 3 / M11 | todo | 106, 107, 108, 109, 111, 118 |
+| 205 | [a module page per node-budget slot](tasks/205_a-module-page-per-node-budget-slot.md) | Phase 3 / M11 | done | 106, 107, 108, 109, 111, 118 |
 | 206 | [onboarding cannot be scoped to the tree the reader works in](tasks/206_onboarding-cannot-be-scoped-to-the-tree-the-reader-works-in.md) | Phase 3 / M11 | todo | 105, 111, 112, 121, 126, 131, 205 |
 | 207 | [the artifact answers no question a newcomer asks first](tasks/207_the-artifact-answers-no-question-a-newcomer-asks-first.md) | Phase 3 / M12 | todo | 112, 117, 121, 206 |
 | 208 | [an undeclared reachability bucket reports zero as a measurement](tasks/208_an-undeclared-reachability-bucket-reports-zero-as-a-measurement.md) | Phase 3 / M11 | todo | 113, 119, 130, 182, 186 |
@@ -315,6 +315,8 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **Adapter-subprocess test harness on Windows (bug)** — `CA_*_CMD` uses POSIX quoting but splits with `posix=False`, so quoted paths reach `CreateProcess` verbatim → `WinError 2`. Fails ~56 adapter tests on Windows, green on Linux. Surfaced by [043](tasks/043_duplicate-decl-resilience.md).
 - **043's duplicate-declaration gap** — the end-to-end `full_build` test is blocked by the Windows bug above (the surface is proven at the `_write`+store layer); a PHP-adapter fixture would only pin what the adapter already emits.
 - **018 construct gaps** — cross-repo misses feed the (still empty) gap log in [`runbooks/cross-repo-validation.md`](runbooks/cross-repo-validation.md) and tasks 007 / 025.
+- **The onboarding tree's bulk is outside its Markdown** — `manifest.json` + `index.html` are ~2.5 MB
+  with no ceiling, and two smaller gaps sit beside it — [205](tasks/205_a-module-page-per-node-budget-slot.md).
 - **Docker images are never built by CI** — `docker/Dockerfile` can rot (`Dockerfile.runtime` is built inside `pytest`). Honest shape: one job building both. Survives the unbillable-Actions arrangement AGENTS.md records, which also means every gate is a human step.
 
 ## Conventions

@@ -4,7 +4,7 @@ slug: a-module-page-per-node-budget-slot
 title: "`generate_onboarding` writes exactly `impact_max_nodes` module pages — 500 on every repo, each headed `Stop N of 500` while the tour beside it has 15 steps, and the 107 filler gate never fires because one edge counts as a fact"
 phase: 3
 milestone: M11
-status: todo
+status: done
 depends_on: [106, 107, 108, 109, 111, 118]
 ---
 
@@ -170,7 +170,7 @@ to how many).
 
 ## Session status
 
-- **KEY:** 205 · **work_doc_mode:** embed · **Current phase:** 4 review — **clean (challenger only — REVIEWER: OFF)** at `01b5dc7`, after two rounds; flowing to finalise.
+- **KEY:** 205 · **work_doc_mode:** embed · **Current phase:** 5 finalise — complete on disk. PR [#254](https://github.com/cuongdinhngo/code-atlas/pull/254) open on `main`. **Next action:** merge #254. **Revert path:** `git revert` the four commits on `fix/205-a-module-page-per-node-budget-slot`, or close #254 unmerged; a repo that regenerated in between gets its pages back on the next write, and `ARTIFACT_VERSION` returns to 1 with the revert.
 - `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · **Type:** bug.
 - Run arg *"with skipped reviewer"* = `--no-reviewer`; the reviewer seat is waived, the **challenger
   keeps its seat** (AGENTS.md *Maintainer workflow*).
@@ -920,3 +920,21 @@ run's own greps, test runs, the anchor rebuild's output — is **unmeasured (hos
 block)**, and it is the larger term. For the output-noise side the optimizer's own analytics are the
 instrument (`rtk gain`); mango does not self-instrument the main loop, and no dispatch-vs-noise split
 is implied here.
+
+### Two ceilings raised, with their arguments
+
+`BACKLOG.md` 8,700 → 8,800 and `TIER1_BUDGET` 25,800 → 25,900, both argued in the tests that hold
+them. Measured 8,751 and 25,845. The whole 100 is one two-line follow-up plus 205's row flipping to
+`done`; R7.6 ran first on both files and came back empty, and the three other facts this run earned
+went to `LESSONS.md` and this file rather than to a tier-1 doc — which is what kept it to one raise.
+
+### Outward actions
+
+| # | Action | Status |
+|---|---|---|
+| 1 | push `fix/205-a-module-page-per-node-budget-slot` (carrying the claims and the skill-gap signal, so the durable lesson reaches a shared ref before PR-open) | **done** |
+| 2 | open PR against `main` | **done** — [#254](https://github.com/cuongdinhngo/code-atlas/pull/254) |
+| 3 | push the bookkeeping commit (ledger row, BACKLOG status, the two ceilings) | **done** — same branch, same authorised action |
+| 4 | ratify `205-C2` → `agent_brief_path` and `202-C4` → `rulebook_path` | **not taken** — a per-claim human ratify, which the handover authorisation does not cover. `/mango:promote` is the cross-ticket pass |
+| 5 | merge #254 | **not taken inside this run** — `autorun` never merges |
+| 6 | tracker comment / transition | **N/A** — the tracker is this repo; `BACKLOG.md` + the task frontmatter are the transition, and both are in the diff |

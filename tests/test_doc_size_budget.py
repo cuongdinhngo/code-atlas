@@ -107,12 +107,17 @@ DOCS = REPO / "docs"
 # (205's Scope 1 leaves `impact_max_nodes` alone for `reachable_from`; 212 skips on a declaration
 # fingerprint, not the byte cap the parser-OOM follow-up describes), because deleting either line
 # would record a fix that did not happen. No id sits in two tables; every `done` row is slug-titled.
-# This is one raise for the whole session, written once rather than stacked twice in a day.
+# 8,700 -> 8,800 on 2026-09-02 (205 landing): one follow-up line, because the onboarding tree's
+# remaining bulk — manifest.json + index.html at ~2.5 MB against ~21 KB of Markdown — is a design
+# question nothing else records, and the row flip to `done`. R7.6 ran first and came back empty
+# again: 205 supersedes no BACKLOG line (its own row stays, with `done`), and the three other facts
+# the run earned went to LESSONS.md and the task file rather than here, which is what kept the raise
+# to 100. The follow-up itself is two lines pointing at the task doc, not a retelling of it.
 BUDGETS = {
     "CLAUDE.md": 50,
     "AGENTS.md": 2_800,
     "PLAN.md": 23_000,
-    "BACKLOG.md": 8_700,
+    "BACKLOG.md": 8_800,
     "ENGINEERING_RULES.md": 5_700,
     "AGENT_BRIEF.md": 2_250,
     "CONVENTION.md": 6_600,
