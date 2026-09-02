@@ -480,10 +480,12 @@ f90cef8 unless stated.
 
 ### Axis 1 — file set
 
-Ran at f90cef8.
+`git diff --stat a502e8f <code-final>` — a property of two named commits, reproducible from any
+tree, so it is recorded as a reference point rather than as tree-under-review output (201-C1). The
+commits after this point are docs-only:
 
 ```
-$ git diff --stat a502e8f HEAD
+ git diff --stat a502e8f f90cef8
  code_atlas/resolver.py                 |  48 +++++++++++---
  code_atlas/store.py                    |  74 +++++++++++++++++++--
  tests/test_cross_language_bare_name.py | 113 +++++++++++++++++++++++++++++++++
@@ -535,7 +537,11 @@ FAILED tests/test_backlog_bookkeeping.py::test_a_finished_task_records_what_it_c
 
 2,745 = the baseline's 2,739 plus this ticket's 6. Both failures are the R7.2
 bookkeeping pair for a `done` task whose `TOKEN_LEDGER.md` row cannot exist until its PR has a
-number; the row lands with the PR link and the suite is re-run at the final SHA in Phase 5.
+number. With the row added, **CI on PR #250 is 2,747 passed / 0 failed / 0 skipped on both py3.12
+and py3.13** — the two bookkeeping tests included — plus the tokens-to-answer gate at ratio 0.835,
+recall 1.0, precision 1.0, `confidently_wrong` 0. CI is the authoritative run here: a concurrent
+session was filing tickets 205-208 into this repo's shared working tree during the run, so no local
+full-suite run after that point sees only this branch, and CI does.
 
 ### Axis 4 — the anchor, rebuilt
 
@@ -599,3 +605,78 @@ diff ⊆ approved list (Axis 1). No file outside rows 1–7. `docs/PLAN.md`, `do
 — red at a502e8f (Axis 2), green at f90cef8 (Axis 3).
 
 **Ph3/4 proven by:** Axis 2's two red runs · Axis 3's 2,745-pass suite · Axis 4's anchor pair.
+
+### Challenger — ticket-blind, LGTM
+
+Dispatched twice. **The first run destroyed its own blindness** and said so: it ran an unrestricted
+`git diff a502e8f..HEAD -- . ':!code_atlas' ':!tests'`, which printed this file — `work_doc_mode:
+embed` puts the working doc *inside the ticket*, so any diff wide enough to include `docs/` hands the
+reviewer the author's reasoning. It self-disclosed rather than reporting a compromised verdict, and
+was stopped. That is `embed-mode-leaks-the-working-doc-into-the-diff`, seen again, and it is a
+**type-3 signal**: an embed-mode challenger brief should path-restrict every git command by
+construction, not by the orchestrator remembering to say so.
+
+The second run was briefed to restrict every git command to `code_atlas/` and `tests/`, confirmed its
+independence held, and returned **LGTM — 11 met · 6 can't tell · 0 not met**. It did not take the red
+run on trust: it copied the new test files into its own `git worktree` at `a502e8f` and reproduced
+**5 failed / 10 passed** there against 15/15 green at HEAD.
+
+All 6 *can't tell* are evidence the ticket itself locates outside the diff — Scope 1, AC5 and the
+index-invalidation decision live in the PR body; AC2 and AC4's anchor zero need the rebuild. None is
+a gap in the code.
+
+**Two findings folded in, neither blocking:**
+
+1. **A theoretical double-count in `_cross_language_edges`.** The join is
+   `edges.target_qname = nodes.qualified_name`, and `nodes` is only `UNIQUE(qualified_name,
+   file_path)`. Two files of *different* languages declaring the same literal qname would put one
+   edge in two `(src, tgt)` buckets and double it in the total. Structurally near-impossible under
+   the shipped qname formats — `\Ns\Class::method` (PHP), `file.ts::Class::method` (TS),
+   `dbo.Foo` (T-SQL) cannot collide — but it was undocumented, and now is.
+2. **AC3 is met by the suite, not by the literal fixture the ticket describes.** There is no
+   dedicated PHP-only fixture asserting a byte-identical tier histogram. What proves it is stronger
+   and already existed: **every** resolver test in `tests/test_resolver.py` seeds one language, and
+   all of them pass unchanged, inside a CI run that is 2,747 green. Structurally, when every
+   candidate shares the call site's language the predicate excludes nothing. Recorded as a deviation
+   from the AC's wording rather than closed by writing a redundant test (R7.1).
+
+The challenger also re-derived the `language = ''` fallback as a deliberate, tested hole and asked
+that it be flagged loudly: **an adapter that ships without populating `files.language` gets none of
+this fix.** That is in the PR notes.
+
+## Phase 5 — finalise
+
+`CLAIMS: 3 claim(s) from 1 lesson entr(ies) | T1=0 T2=3 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 1 recurring | 0 superseded (0 retired) | 1 promotion candidate(s)`
+`RECURRING-T2: 1 type-2 claim(s) with seen ≥ 2 | 1 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`FALSIFY: 3 candidate(s) checked | 3 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`PROMOTION: 1 proposed | 0 human-ratified | destinations: docs/SKILL_GAP_CANDIDATES.md | mango files written: 0`
+`LEDGER TOTAL: 1 dispatch, 92,920 tokens (challenger, 45 tool-uses) · top cost driver: main loop (unmeasured — the host surfaces no usage block)`
+
+### Claims
+
+- **204-C1** — *a count quoted from a join is not a count of the joined rows.* The ticket's
+  342,758 / 15.7 % are `(edge, candidate-node)` pairs; the edges are 186,417 / 8.53 %. Re-deriving a
+  cited number before building on it is what caught it. type: 2 · handle:
+  `re-derive-the-cited-count-before-you-build-on-it` · seen: 204 · recurrence 1.
+- **204-C2** — *`work_doc_mode: embed` leaks the working doc into any diff wide enough to include
+  `docs/`, so a ticket-blind reviewer's brief must path-restrict every git command by construction.*
+  type: 2 · handle: `embed-mode-leaks-the-working-doc-into-the-diff` · **seen: 204 + prior — recurrence 2.**
+- **204-C3** — *a shared working tree is not a controlled tree.* A concurrent session filed tickets
+  205-208 and edited both budget tests mid-run, and the checkout directory was renamed under a
+  running process. Every verification after that point moved to an isolated `git worktree`, and CI
+  became the authoritative suite run. type: 2 · handle: `verify-in-a-tree-only-you-are-writing-to` ·
+  seen: 204 · recurrence 1.
+
+**204-C2 reaches recurrence 2** and is routed to `docs/SKILL_GAP_CANDIDATES.md` as a **type-3**
+signal: it is mango's challenger brief that should carry the path restriction, and **this repo never
+edits a skill**. Proposed, not ratified.
+
+### Outward actions
+
+| # | Action | Authorisation | State |
+|---|---|---|---|
+| 1 | push `fix/204-…` | handover, explicit | **done** |
+| 2 | open PR #250 | handover, explicit | **done** |
+| 3 | merge #250 | the user's separate, explicit *"you have my approval to merge if PR is ready"* — **not** an autorun action; autorun never merges | done outside the skill |
+| 4 | tracker transition | none | **deferred** — no tracker beyond the PR |
