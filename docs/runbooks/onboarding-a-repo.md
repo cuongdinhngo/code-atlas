@@ -43,10 +43,19 @@ What a healthy first run looked like: **18,867 files in 1,008 s** (6 workers), 1
 2,836,428 edges, **99.85 % `parsed_ok`**, peak RSS 65 MB in the core and 448 MB across all adapter
 children. Memory is not the constraint; **wall-clock and disk** are.
 
-Throughput is dominated by the write path, not the parser. The same adapter parses ~490 files/s
-single-threaded in isolation, while a full build with six workers sustains ~19 files/s end-to-end —
-the difference is the single SQLite writer plus the `nodes_fts` trigram triggers (`store.py:122-138`).
-Adding workers past a handful buys little.
+Throughput is dominated by the write path, not the parser — the same adapter parses ~490 files/s
+single-threaded in isolation. **`workers` is not a throughput knob and never was.** Two-point
+measurement on the 24.6k-file anchor (task 203, both against the same populated index):
+
+| workers | wall | files/s |
+|---|---|---|
+| 1 | 633 s | 38.8 |
+| 6 | 592 s | 41.5 |
+
+**1.07× for six times the processes.** The serial writer is the ceiling, so set `workers` to a
+handful and spend your attention elsewhere. What *did* cost an hour was a missing index: the
+per-file `DELETE FROM edges WHERE file_path = ?` scanned the whole edge table, 189 ms x 24,569
+files, until `idx_edges_file` landed (`store.py`). The same rebuild went **75.8 min → 9.9 min**.
 
 ## 3. Read the parse failures — they are usually not your bug
 

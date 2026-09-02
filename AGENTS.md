@@ -83,6 +83,11 @@ to keep in step, and it drifted. Only the boundaries that decide where your chan
 - `adapters/<lang>/` is self-contained and launched via `CA_<LANG>_CMD`; `tests/contract/` is the
   conformance suite every adapter must pass.
 
+## Indexing a real repo — from a shell
+`code-atlas-build` builds; `--status` reads a running build's live phase, which no MCP tool can.
+24.6k files: rebuild ~10 min, incremental ~1 min, no-op ~5 s; `workers` is **not** a throughput
+knob (1.07x, 1→6). Detail: [`runbooks/onboarding-a-repo.md`](docs/runbooks/onboarding-a-repo.md).
+
 ## Before a PR or a push — run `scripts/gate.sh`
 **GitHub Actions DO run** — so a local `GATE GREEN` is not the whole answer: read `gh pr checks
 <n>` too, because the shared runner is slower and a wall-clock assertion can pass here and fail
