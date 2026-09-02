@@ -1,9 +1,13 @@
 """Task 109: the structural quality gate over the onboarding artifact (M11).
 
 These tests are pure — they build ``OnboardingArtifact`` fixtures directly, so they run on any host
-(no store, no ``fcntl``, no PHP adapter). AC1's seven fixtures are distinct, one per check; each is
+(no store, no ``fcntl``, no PHP adapter). One deliberately-bad fixture per surviving check, each
 observed red (R6.5) by asserting the *right* check fires. The build-twice byte-stability half of C7
 lives in ``test_generate_onboarding.py`` (it needs a real index).
+
+205 removed the per-module page tree, and with it the four criteria whose subject was a page: C1's
+filler rule, C2's byte ceiling, C6's page identity and C7's page order. Five checks remain — C1 over
+the prose slots, C3, C4, C5 and C7's layer/crossing order — and each still has to be seen red.
 """
 
 from __future__ import annotations
@@ -12,14 +16,8 @@ import time
 
 import pytest
 
-from code_atlas.onboarding.artifact import (
-    LayerRow,
-    ModulePage,
-    OnboardingArtifact,
-    page_relpath,
-)
+from code_atlas.onboarding.artifact import LayerRow, OnboardingArtifact
 from code_atlas.onboarding.quality_gate import (
-    MAX_PAGE_BYTES,
     MAX_TOUR_STEPS,
     QualityGateError,
     check_artifact,
@@ -38,35 +36,11 @@ _LAYER = LayerRow(
 )
 
 
-def _page(file: str, index: int, of: int, **over: object) -> ModulePage:
-    """A page that passes every check; ``over`` knocks out exactly one for a red fixture."""
-    fields: dict[str, object] = {
-        "file": file,
-        "relpath": page_relpath(file),
-        "layer": "core",
-        "rank": 0,
-        "role": "module",
-        "docline": "does a thing",
-        "rationale": "entry point",
-        "scc": (),
-        "index": index,
-        "of": of,
-        "outgoing": (),
-        "incoming": (),
-        "fan_in": 1,
-        "fan_out": 1,
-    }
-    fields.update(over)
-    return ModulePage(**fields)  # type: ignore[arg-type]
-
-
 def _artifact(
-    pages: tuple[ModulePage, ...],
     stops: tuple[TourStop, ...],
     *,
     layers: tuple[LayerRow, ...] = (_LAYER,),
     crossings: tuple[tuple[str, str, int], ...] = (),
-    isolated: tuple[str, ...] = (),
     steps: tuple[TourStep, ...] = (),
 ) -> OnboardingArtifact:
     return OnboardingArtifact(
@@ -76,9 +50,7 @@ def _artifact(
         layers=layers,
         crossings=crossings,
         stops=stops,
-        pages=pages,
         steps=steps,
-        isolated=isolated,
     )
 
 
@@ -95,46 +67,31 @@ def _steps(count: int) -> tuple[TourStep, ...]:
 
 
 def _valid() -> OnboardingArtifact:
-    return _artifact(
-        (_page("a.py", 1, 2), _page("b.py", 2, 2)),
-        _stops("a.py", "b.py"),
-    )
+    return _artifact(_stops("a.py", "b.py"), steps=_steps(2))
 
 
 def test_a_clean_artifact_passes_the_gate() -> None:
     """The floor: the gate must not raise on a well-formed artifact."""
-    check_artifact(_valid(), max_results=50)
+    check_artifact(_valid())
 
 
-# --- AC1: one deliberately-bad fixture per check, each observed red on the right check ---
+# --- one deliberately-bad fixture per surviving check, each red on the right check ---
 
 
-def test_c1_filler_page_with_no_fact_beyond_its_path() -> None:
-    art = _artifact(
-        (_page("a.py", 1, 2), _page("b.py", 2, 2, docline="", fan_in=0, fan_out=0)),
-        _stops("a.py", "b.py"),
+def test_c1_a_step_narrative_that_only_restates_its_own_title() -> None:
+    """C1 survives on the prose slots (117 AC6): generated prose gets no exemption."""
+    filler = (
+        TourStep(order=1, title="core", modules=("core.py",), why="core core.py", covers=1,
+                 cycle_size=0),
     )
     with pytest.raises(QualityGateError) as exc:
-        check_artifact(art, max_results=50)
+        check_artifact(_artifact(_stops("core.py"), steps=filler))
     assert exc.value.check == "C1"
-    assert exc.value.path == "b.py"
-
-
-def test_c2_page_over_the_byte_ceiling_even_when_capped() -> None:
-    wide = tuple(f"pkg/{'z' * 380}/mod{i}.py" for i in range(60))
-    art = _artifact(
-        (_page("a.py", 1, 2), _page("b.py", 2, 2, outgoing=wide, fan_out=len(wide))),
-        _stops("a.py", "b.py"),
-    )
-    with pytest.raises(QualityGateError) as exc:
-        check_artifact(art, max_results=50)
-    assert exc.value.check == "C2"
-    assert exc.value.path == "b.py"
+    assert exc.value.path == "step[1]"
 
 
 def test_c3_layer_with_an_empty_description() -> None:
     art = _artifact(
-        (_page("a.py", 1, 2), _page("b.py", 2, 2)),
         _stops("a.py", "b.py"),
         layers=(
             LayerRow(
@@ -149,14 +106,14 @@ def test_c3_layer_with_an_empty_description() -> None:
         ),
     )
     with pytest.raises(QualityGateError) as exc:
-        check_artifact(art, max_results=50)
+        check_artifact(art)
     assert exc.value.check == "C3"
 
 
 def test_c4_tour_over_the_step_ceiling() -> None:
-    art = _artifact((), _stops("a.py"), steps=_steps(MAX_TOUR_STEPS + 1))
+    art = _artifact(_stops("a.py"), steps=_steps(MAX_TOUR_STEPS + 1))
     with pytest.raises(QualityGateError) as exc:
-        check_artifact(art, max_results=50)
+        check_artifact(art)
     assert exc.value.check == "C4"
     assert exc.value.path == "tour"
 
@@ -164,120 +121,81 @@ def test_c4_tour_over_the_step_ceiling() -> None:
 def test_c4_a_step_that_names_no_module_is_empty() -> None:
     """AC4: 109's ceiling becomes a real bound — an empty step is refused, not only over-count."""
     empty = (TourStep(order=1, title="core", modules=(), why="x", covers=0, cycle_size=0),)
-    art = _artifact((), _stops("a.py"), steps=empty)
+    art = _artifact(_stops("a.py"), steps=empty)
     with pytest.raises(QualityGateError) as exc:
-        check_artifact(art, max_results=50)
+        check_artifact(art)
     assert exc.value.check == "C4"
     assert exc.value.path == "step[1]"
 
 
 def test_c5_scc_names_a_file_outside_the_tour() -> None:
-    art = _artifact(
-        (_page("a.py", 1, 2), _page("b.py", 2, 2, scc=("b.py", "ghost.py"))),
-        _stops("a.py", "b.py"),
+    """C5 now reads the stops directly — a superset of the pages it used to read through (205)."""
+    stops = (
+        TourStop(file="a.py", rationale="entry point", scc=()),
+        TourStop(file="b.py", rationale="cycle", scc=("b.py", "ghost.py")),
     )
     with pytest.raises(QualityGateError) as exc:
-        check_artifact(art, max_results=50)
+        check_artifact(_artifact(stops))
     assert exc.value.check == "C5"
     assert exc.value.path == "ghost.py"
 
 
-def test_c6_two_pages_claim_the_same_path() -> None:
-    art = _artifact(
-        (_page("a.py", 1, 2), _page("a.py", 2, 2)),
-        _stops("a.py", "b.py"),
-    )
+def test_c7_crossings_out_of_canonical_order() -> None:
+    art = _artifact(_stops("a.py"), crossings=(("a", "b", 1), ("c", "d", 9)))
     with pytest.raises(QualityGateError) as exc:
-        check_artifact(art, max_results=50)
-    assert exc.value.check == "C6"
-
-
-def test_c7_pages_out_of_canonical_index_order() -> None:
-    art = _artifact(
-        (_page("a.py", 2, 2), _page("b.py", 1, 2)),
-        _stops("a.py", "b.py"),
-    )
-    with pytest.raises(QualityGateError) as exc:
-        check_artifact(art, max_results=50)
+        check_artifact(art)
     assert exc.value.check == "C7"
-    assert exc.value.path == "pages"
+    assert exc.value.path == "crossings"
 
 
-def test_the_seven_ac1_fixtures_are_distinct_checks() -> None:
-    """AC1: exactly seven checks, and the fixtures above cover each once."""
-    covered = {"C1", "C2", "C3", "C4", "C5", "C6", "C7"}
-    assert len(covered) == 7
-
-
-# --- AC2: reverting 107 makes C1 red; reverting 108 makes C2 red (patch the fixture, not repo) ---
-
-
-def test_ac2_reverting_107_would_make_c1_red() -> None:
-    """The filler page 107's fix suppresses; without that suppression the gate catches it."""
-    art = _artifact(
-        (_page("a.py", 1, 2), _page("filler.py", 2, 2, docline="", fan_in=0, fan_out=0)),
-        _stops("a.py", "filler.py"),
-    )
+def test_c7_layers_out_of_canonical_rank_order() -> None:
+    high = LayerRow(**{**_LAYER.__dict__, "rank": 3})
+    low = LayerRow(**{**_LAYER.__dict__, "rank": 1})
     with pytest.raises(QualityGateError) as exc:
-        check_artifact(art, max_results=50)
-    assert exc.value.check == "C1"
+        check_artifact(_artifact(_stops("a.py"), layers=(high, low)))
+    assert exc.value.check == "C7"
+    assert exc.value.path == "layers"
 
 
-def test_ac2_reverting_108_would_make_c2_red() -> None:
-    """Rendering uncapped (max_results huge) is exactly what reverting 108's cap does → C2 red."""
-    wide = tuple(f"pkg/{'z' * 200}/mod{i}.py" for i in range(400))
-    art = _artifact(
-        (_page("a.py", 1, 2), _page("hub.py", 2, 2, outgoing=wide, fan_out=len(wide))),
-        _stops("a.py", "hub.py"),
-    )
-    check_artifact(art, max_results=50)  # capped: 108's fix in force → passes.
-    with pytest.raises(QualityGateError) as exc:
-        check_artifact(art, max_results=10**9)  # uncapped: 108 reverted → oversized page.
-    assert exc.value.check == "C2"
+def test_the_surviving_checks_each_have_a_red_fixture() -> None:
+    """The gate's criteria are C1, C3, C4, C5, C7 — the page criteria went with the pages (205)."""
+    covered = {"C1", "C3", "C4", "C5", "C7"}
+    assert len(covered) == 5
 
 
-# --- AC3 / AC5: a synthetic-scale artifact passes, and the gate is cheap over it ---
+# --- a synthetic-scale artifact passes, and the gate is cheap over it ---
 
 
 _SCALE_STOPS = 500
 
 
 def _scale_artifact() -> OnboardingArtifact:
-    """500 stops/pages with MAX_TOUR_STEPS steps — the anchor's shape without the anchor (H6)."""
+    """500 stops with MAX_TOUR_STEPS steps — the anchor's shape without the anchor (H6)."""
     files = tuple(f"src/pkg{i % 20}/file{i:04d}.py" for i in range(_SCALE_STOPS))
-    wide = tuple(f"src/pkg/dep{j:03d}.py" for j in range(60))
-    pages = tuple(
-        _page(f, i + 1, _SCALE_STOPS, outgoing=wide, incoming=wide, fan_in=60, fan_out=60)
-        for i, f in enumerate(files)
-    )
-    return _artifact(pages, _stops(*files), steps=_steps(MAX_TOUR_STEPS))
+    return _artifact(_stops(*files), steps=_steps(MAX_TOUR_STEPS))
 
 
-def test_ac3_synthetic_scale_artifact_passes_at_the_recorded_ceilings() -> None:
-    """AC3: the gate passes on the anchor-shaped artifact; the defended numbers are pinned here."""
-    assert MAX_PAGE_BYTES == 16384
+def test_synthetic_scale_artifact_passes_at_the_recorded_ceiling() -> None:
+    """The gate passes on the anchor-shaped artifact; the defended number is pinned here."""
     assert MAX_TOUR_STEPS == 15
-    check_artifact(_scale_artifact(), max_results=50)
+    check_artifact(_scale_artifact())
 
 
-def test_ac5_gate_is_cheap_over_the_scale_artifact() -> None:
-    """AC5: O(pages) str-length + set ops, no IO. Loose smoke bound; anchor timing deferred (H6)."""
+def test_the_gate_is_cheap_over_the_scale_artifact() -> None:
+    """O(stops) set ops, no IO. Loose smoke bound; anchor timing deferred (H6)."""
     art = _scale_artifact()
     start = time.perf_counter()
-    check_artifact(art, max_results=50)
+    check_artifact(art)
     assert time.perf_counter() - start < 2.0
 
 
-# --- AC4: the failure message names the check and the offending path ---
+# --- the failure message names the check and the offending path ---
 
 
-def test_ac4_message_names_the_check_and_the_path() -> None:
-    art = _artifact(
-        (_page("a.py", 1, 2), _page("b.py", 2, 2, docline="", fan_in=0, fan_out=0)),
-        _stops("a.py", "b.py"),
-    )
+def test_message_names_the_check_and_the_path() -> None:
+    stops = (TourStop(file="b.py", rationale="cycle", scc=("b.py", "ghost.py")),)
     with pytest.raises(QualityGateError) as exc:
-        check_artifact(art, max_results=50)
+        check_artifact(_artifact(stops))
     message = str(exc.value)
-    assert "C1" in message
-    assert "b.py" in message
+    assert "C5" in message
+    assert "ghost.py" in message

@@ -278,7 +278,7 @@ def test_ac4_a_failure_degrades_to_the_structural_default_and_the_gate_still_pas
     artifact = _artifact(ProseRun(writer))  # type: ignore[arg-type]
     assert dataset.as_dict() == _dataset().as_dict()
     assert render_tour(artifact, 50) == render_tour(_artifact(), 50)
-    check_artifact(artifact, max_results=50)
+    check_artifact(artifact)
     check_dataset(dataset)
 
 
@@ -345,7 +345,7 @@ def test_ac6_a_real_description_is_not_filler_and_neither_is_any_structural_defa
     assert not is_filler("Application services that coordinate domain logic.", "Services")
     dataset, artifact = _dataset(), _artifact()
     check_dataset(dataset)
-    check_artifact(artifact, max_results=50)
+    check_artifact(artifact)
     for layer in dataset.layers:
         assert not is_filler(layer.description, layer.layer)
     for step in artifact.steps:
@@ -379,7 +379,7 @@ def test_ac6_a_hollow_layer_description_is_refused_by_the_artifact_gate() -> Non
         layers=tuple(replace(row, description=row.layer) for row in artifact.layers),
     )
     with pytest.raises(QualityGateError) as raised:
-        check_artifact(hollow, max_results=50)
+        check_artifact(hollow)
     assert raised.value.check == "C1"
 
 

@@ -239,3 +239,23 @@ A `RULE SECTIONS:` line enumerating eight sections failed the internal-contradic
 difference was a nested `` `contract.py` `` inside one section's `N/A (reason)`; removing the inner
 backticks made the line pass. A counted line whose reason legitimately names a file cannot carry it
 in code ticks. Type-3 signal only — no mango file was edited.
+
+## A run contract has no path for a condition the code FALSIFIES after t0 (seen: 205)
+
+`autorun`'s RUN CONTRACT is written before any work and only `UNBOUND ${…}` placeholders may be
+bound later (Gate 2). But a condition can encode a **wrong requirement** that the code then
+disproves: `MANIFEST-DROPS-PAGES` asserted `architecture_diff` should drop its `"pages"` key, and the
+code showed the opposite is correct (the set is a strip-list). `DOCS-DROP-THE-PROMISE` was
+mis-specified in the same pass — its predicate was the bare word `per-module`, which `impact_modules`
+legitimately uses.
+
+Leaving both in place would have reported `q = 2 BROKEN` at close on conditions that were never real
+requirements — a false red a morning reader has to decode. Amending them silently would destroy the
+t0 guarantee.
+
+What this run did, for want of a named path: re-authored the contract from its spec, kept the
+untouched original beside it as `.mango/run-contract-205.t0.txt`, and **observed both amended
+conditions failing against `main` in a throwaway worktree** so the t0 guarantee held for them too.
+That works, but it is invented per-run rather than mechanised. A named `amend` sub-command that
+requires a recorded failing observation of the new predicate against the base ref would make it
+auditable. Type-3 signal only — no mango file was edited.

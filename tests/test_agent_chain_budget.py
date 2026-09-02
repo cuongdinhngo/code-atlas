@@ -39,7 +39,12 @@ REPO = Path(__file__).resolve().parent.parent
 # later one, re-measured against the merged tree rather than either branch's own figure. R7.6 was
 # applied first and found nothing: no id is listed in two tables, and the 2026-08-30 pass already
 # slug-titled every `done` row, so there is no prose title left to reclaim. The 100 buys one row.
-TIER1_BUDGET = 25_800
+# 25,800 -> 25,900 on 2026-09-02 (205 landing): measured 25,845. The whole 100 is BACKLOG's, and
+# the argument is in tests/test_doc_size_budget.py — one two-line follow-up pointing at the task
+# doc, plus 205's row flipping to `done`. R7.6 ran first on both files and came back empty: the
+# other three facts 205 earned went to LESSONS.md (tier 2) and the task file, which is what kept
+# this to one raise instead of four.
+TIER1_BUDGET = 25_900
 
 
 def _tokens(paths: list[Path]) -> int:

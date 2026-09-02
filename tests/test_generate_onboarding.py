@@ -8,6 +8,7 @@ suffix so nothing in the proof knows which language produced the rows.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import replace
 from pathlib import Path
 
@@ -16,19 +17,19 @@ import pytest
 from code_atlas.config import Config
 from code_atlas.onboarding.artifact import (
     ARTIFACT_VERSION,
+    FLOWS_NAME,
     H_CROSSINGS,
     H_DIAGRAM,
-    H_IN_TOUR,
-    H_LAYER,
     H_LAYERS,
-    H_MODULE_SUMMARY,
-    H_NEIGHBOURS,
     H_ORDER,
     H_OVERVIEW,
-    H_ROLE,
     H_SUMMARY,
     H_TOUR,
+    MANIFEST_NAME,
     OUTPUT_DIR,
+    OVERVIEW_NAME,
+    TOUR_NAME,
+    VIEWER_NAME,
     recorded_pages,
 )
 from code_atlas.onboarding.summary import NodeFacts, Summary
@@ -39,7 +40,7 @@ from code_atlas.tools.nav_result import (
     REASON_NOT_INDEXED,
     REASON_OK,
 )
-from tests.test_guided_tour import LEAF, ROUTES, A, B, _cycle_repo
+from tests.test_guided_tour import LEAF, ROUTES, A, _cycle_repo
 from tests.test_nav_tools import db_config
 
 
@@ -89,20 +90,11 @@ def test_generate_onboarding_writes_structured_markdown_in_dependency_order(
     assert tour.count(f"`{A}`") == 1
     assert "cycle of 2 modules" in tour
 
-    # The manifest is now the aggregate dataset (112) + the operational page-delete record. The
-    # reading order lives in tour.md (asserted above); the manifest no longer dumps per-stop rows.
+    # The manifest is the aggregate dataset (112) plus the doc pointers. The reading order lives
+    # in tour.md (asserted above); the manifest dumps neither per-stop rows nor page paths (205).
     assert manifest["version"] >= 1
     assert isinstance(manifest["node_counts"], list) and isinstance(manifest["layers"], list)
-    assert manifest["pages"] == sorted(manifest["pages"])
-    assert "modules/" + A + ".md" in manifest["pages"]
-
-    for path in (ROUTES, A, B, LEAF):
-        page = out / "modules" / Path(path + ".md")
-        text = page.read_text(encoding="utf-8")
-        for heading in (H_ROLE, H_LAYER, H_MODULE_SUMMARY, H_IN_TOUR, H_NEIGHBOURS):
-            assert heading in text
-        assert f"# `{path}`" in text
-        assert "STUB-DOCLINE" in text
+    assert "pages" not in manifest  # 205 removed the per-module page tree with its record
 
     second = tool()
     assert payload == second
@@ -172,25 +164,6 @@ def test_generate_onboarding_names_no_language(tmp_path: Path) -> None:
         assert lang not in blob
 
 
-def test_generate_onboarding_removes_its_own_stale_pages_but_not_a_hand_written_one(
-    tmp_path: Path,
-) -> None:
-    """Regenerating is not a wipe: only pages the last manifest recorded are removed."""
-    config = _cycle_repo(tmp_path)
-    tool = generate_onboarding.create(config)
-    tool()
-    out = _out(tmp_path)
-    mine = out / "modules" / Path(LEAF + ".md")
-    hand = out / "modules" / "HAND_WRITTEN.md"
-    hand.write_text("# a human wrote this\n", encoding="utf-8")
-    assert mine.is_file()
-
-    generate_onboarding.create(replace(config, impact_max_nodes=1))()
-
-    assert not mine.exists(), "a page the previous manifest recorded should be regenerated away"
-    assert hand.read_text(encoding="utf-8") == "# a human wrote this\n"
-
-
 def test_generate_onboarding_refuses_a_tree_it_did_not_write(tmp_path: Path) -> None:
     """Our filenames without our manifest belong to somebody else — refuse, do not overwrite."""
     config = _cycle_repo(tmp_path)
@@ -206,14 +179,13 @@ def test_generate_onboarding_refuses_a_tree_it_did_not_write(tmp_path: Path) -> 
 
 
 def test_generate_onboarding_overview_discloses_a_truncated_map(tmp_path: Path) -> None:
-    """A committed overview counting every module must say the pages cover only the budget."""
+    """A committed overview counting every module must say the walk covered only the budget."""
     config = replace(_cycle_repo(tmp_path), impact_max_nodes=1)
     payload = generate_onboarding.create(config)()
     overview = (_out(tmp_path) / "overview.md").read_text(encoding="utf-8")
 
     assert payload["truncated"] is True
     assert "- modules: 4" in overview
-    assert "- module pages: 1" in overview
     assert "- truncated: true" in overview
 
 
@@ -259,52 +231,27 @@ def _sparse_repo(tmp_path: Path) -> Path:
     return config
 
 
-def test_generate_onboarding_suppresses_a_contentless_page_and_counts_it(
-    tmp_path: Path,
-) -> None:
-    """Proving test (107): a page saying only path + role + layer + three ``(none)``s is filler.
+def test_the_overview_no_longer_counts_pages_or_isolated_modules(tmp_path: Path) -> None:
+    """AC5' (205): the two page-count lines are gone, and so is the payload's ``isolated_modules``.
 
-    It is not written, the overview counts what has no page, and the manifest names those
-    modules with ``page: null`` instead of a dead link. The connected pair keeps its pages.
+    Observed red against pre-205 code, which printed both lines and the key. 107's *isolated*
+    bucket existed only to explain a page that was not written; with no page tree the fact it
+    carried is the dataset's own no-edge-either-way reachability bucket.
     """
     config = _sparse_repo(tmp_path)
     payload = generate_onboarding.create(config)()
-    out = _out(tmp_path)
-    overview = (out / "overview.md").read_text(encoding="utf-8")
-    manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
+    overview = (_out(tmp_path) / "overview.md").read_text(encoding="utf-8")
 
-    isolated = [f"scripts/s{index:02d}.aa" for index in range(3)]
-    for path in isolated:
-        assert not (out / "modules" / Path(path + ".md")).exists(), path
-    for path in ("src/A.aa", "src/B.aa"):
-        assert (out / "modules" / Path(path + ".md")).is_file(), path
-
-    assert "- module pages: 2" in overview
-    assert "- modules with no page (isolated, no summary): 3" in overview
-    assert payload["isolated_modules"] == 3
-    # The manifest's page record (the 050 delete-list) names only the pages actually written:
-    # the connected pair, never a suppressed isolated module.
-    assert set(manifest["pages"]) == {"modules/src/A.aa.md", "modules/src/B.aa.md"}
-    for path in isolated:
-        assert "modules/" + path + ".md" not in manifest["pages"]
-
-
-def test_generate_onboarding_keeps_a_page_whose_neighbours_the_budget_cut(
-    tmp_path: Path,
-) -> None:
-    """A module with edges the walk could not afford keeps its page and states the count (102)."""
-    config = replace(_cycle_repo(tmp_path), impact_max_nodes=1)
-    generate_onboarding.create(config)()
-    page = _out(tmp_path) / "modules" / Path(ROUTES + ".md")
-
-    assert page.is_file(), "a module with real edges must not be suppressed as contentless"
-    text = page.read_text(encoding="utf-8")
-    assert "- outgoing: (none admitted in this tour; 1 in the full graph)" in text
-    assert "- incoming: (none)" in text
+    assert "- module pages:" not in overview
+    assert "- modules with no page" not in overview
+    assert "isolated_modules" not in payload
+    # Every aggregate the ticket protects is still there, byte-for-byte (R4.2, ticket R6).
+    assert "- modules: 5" in overview
+    assert "- truncated: false" in overview
 
 
 def test_generate_onboarding_composition_is_byte_stable(tmp_path: Path) -> None:
-    """The suppressed-page shape must stay deterministic (R4.2)."""
+    """The emitted composition must stay deterministic (R4.2)."""
     config = _sparse_repo(tmp_path)
     first = generate_onboarding.create(config)()
     manifest = (_out(tmp_path) / "manifest.json").read_bytes()
@@ -329,45 +276,164 @@ def test_generate_onboarding_path_index_cap_trims_and_states_both_numbers(tmp_pa
     assert len(path_index["entries"]) == 2
 
 
-def test_generate_onboarding_deletes_a_page_that_became_contentless(tmp_path: Path) -> None:
-    """AC3: a page the last manifest recorded is still removed once it is suppressed (050/088)."""
+def test_a_pre_205_page_tree_is_cleaned_on_the_next_write(tmp_path: Path) -> None:
+    """205's migration path (R5.7): the first write after 205 removes the pages a pre-205
+    ``manifest.json`` recorded — exactly those, and nothing a hand wrote beside them.
+
+    This is design assumption 4, proven rather than argued: the tool no longer writes a page, so
+    without this the 500 pages already committed in a downstream repo would be stranded forever.
+    """
     config = _sparse_repo(tmp_path)
-    with GraphStore(config.db_path) as store:  # give an isolated module one edge, then remove it
-        from tests.test_nav_tools import edge, node, seed_file
+    out = _out(tmp_path)
+    pages = ("modules/src/A.aa.md", "modules/src/B.aa.md")
+    for rel in pages:  # a tree in the pre-205 shape: the pages plus the manifest that records them
+        page = out / Path(rel)
+        page.parent.mkdir(parents=True, exist_ok=True)
+        page.write_text("# a page the pre-205 tool wrote\n", encoding="utf-8")
+    foreign = out / "modules" / "HAND-WRITTEN.md"
+    foreign.write_text("# not ours\n", encoding="utf-8")
+    (out / "manifest.json").write_text(json.dumps({"pages": list(pages)}), encoding="utf-8")
 
-        seed_file(
-            store,
-            "scripts/s00.aa",
-            [node("Class", "S00", "\\S00", "scripts/s00.aa")],
-            [edge("CALLS", "\\S00", "\\B", "scripts/s00.aa", target_qname="\\B")],
-            root=tmp_path,
-        )
     generate_onboarding.create(config)()
-    page = _out(tmp_path) / "modules" / Path("scripts/s00.aa.md")
-    assert page.is_file()
 
-    with GraphStore(config.db_path) as store:
-        from tests.test_nav_tools import node, seed_file
-
-        seed_file(
-            store,
-            "scripts/s00.aa",
-            [node("Class", "S00", "\\S00", "scripts/s00.aa")],
-            [],
-            root=tmp_path,
-        )
-    generate_onboarding.create(config)()
-    assert not page.exists(), "the tool must remove a page it wrote once it turns contentless"
+    for rel in pages:
+        assert not (out / Path(rel)).exists(), rel
+    assert foreign.read_text(encoding="utf-8") == "# not ours\n"
 
 
-CAP = 5
+# 205's ceiling on the committed Markdown. Measured on the anchor monorepo (24,535 indexed files,
+# `max_results = 10`): overview.md 12,440 B + tour.md 5,798 B + flows.md 3,366 B = 21,604 B. The
+# per-module tree that used to sit beside them was 481,616 B — 95.7 % of the Markdown — and it is
+# gone (205). Nothing left in these three files scales with file count: the steps are capped by
+# MAX_TOUR_STEPS (15), the layer lines by the prose slot limit (12), and every table by
+# `max_results`. The tables DO scale with max_results, and the anchor runs it at 10 against a
+# default of 50, so a default-configured repo of that size lands near 60-70 KB. 128 KiB is that
+# figure with roughly 2x headroom. `tour_report.py`'s _TOUR_KB_CEILING = 64 is the same discipline
+# on one file.
+MAX_EMITTED_MARKDOWN_BYTES = 131_072
 
 
-def _wide_repo(tmp_path: Path) -> Config:
-    """A hub with 2*CAP callees and a 2*CAP-member cycle — both exceed a CAP-sized cap (108)."""
+def _emitted(root: Path) -> dict[str, int]:
+    """Every file the tool wrote, relative to the output dir, with its byte size."""
+    out = _out(root)
+    return {
+        path.relative_to(out).as_posix(): path.stat().st_size
+        for path in sorted(out.rglob("*"))
+        if path.is_file()
+    }
+
+
+def test_the_emitted_tree_carries_no_module_pages(tmp_path: Path) -> None:
+    """Proving test (AC1', 205): the emitted tree is the five documents and nothing else.
+
+    Observed red against pre-205 code, which wrote one `modules/<path>.md` per tour stop — 500 of
+    them on any repo the walk budget filled, because the count WAS `impact_max_nodes`. The file
+    set is derived from the module's own name constants, never re-typed here (R6.7), so a sixth
+    emitted file cannot ship unnoticed.
+    """
+    config = _cycle_repo(tmp_path)
+    payload = generate_onboarding.create(config, _StubSummarizer())()
+
+    expected = {OVERVIEW_NAME, TOUR_NAME, FLOWS_NAME, MANIFEST_NAME, VIEWER_NAME}
+    assert set(_emitted(tmp_path)) == expected
+    assert not (_out(tmp_path) / "modules").exists()
+    assert payload["total_count"] == len(expected)
+    assert all(not rel.startswith(f"{OUTPUT_DIR}/modules/") for rel in payload["results"])
+
+
+def test_the_emitted_file_set_does_not_move_with_the_impact_budget(tmp_path: Path) -> None:
+    """AC1': `impact_max_nodes` is the walk's budget and nothing else's.
+
+    It used to decide how many files landed in a consumer's repo, through four hops that never
+    meant to (124's class, second sighting). Two budgets, one file set.
+    """
+    tight = _cycle_repo(tmp_path)
+    narrow = generate_onboarding.create(replace(tight, impact_max_nodes=1), _StubSummarizer())()
+    narrow_set = set(_emitted(tmp_path))
+    wide = generate_onboarding.create(replace(tight, impact_max_nodes=500), _StubSummarizer())()
+    assert set(_emitted(tmp_path)) == narrow_set
+    assert narrow["total_count"] == wide["total_count"] == len(narrow_set)
+
+
+def test_no_emitted_file_cites_a_stop_position(tmp_path: Path) -> None:
+    """AC2': one meaning for "stop".
+
+    Observed red against pre-205 code: every page header read `Stop 65 of 500` while `tour.md`
+    beside it numbered 15 narrative steps, so one word carried two units and nothing said so.
+    """
+    generate_onboarding.create(_cycle_repo(tmp_path), _StubSummarizer())()
+    out = _out(tmp_path)
+    files = [path for path in sorted(out.rglob("*")) if path.is_file()]
+    citing = [
+        path.name
+        for path in files
+        if re.search(r"Stop \d+ of \d+", path.read_text(encoding="utf-8", errors="replace"))
+    ]
+    assert files, "the sweep must not be able to empty itself (R6.5)"
+    assert citing == []
+
+
+def test_the_emitted_markdown_stays_under_its_ceiling(tmp_path: Path) -> None:
+    """AC6: the committed Markdown has an asserted total, argued above, not merely recorded."""
+    generate_onboarding.create(_cycle_repo(tmp_path), _StubSummarizer())()
+    sizes = _emitted(tmp_path)
+    markdown = {name: size for name, size in sizes.items() if name.endswith(".md")}
+
+    assert set(markdown) == {OVERVIEW_NAME, TOUR_NAME, FLOWS_NAME}
+    assert sum(markdown.values()) <= MAX_EMITTED_MARKDOWN_BYTES, markdown
+
+
+def test_the_emitted_markdown_does_not_grow_with_the_repo(tmp_path: Path) -> None:
+    """AC6, the half that makes the ceiling bite: the total is bounded by caps, not by file count.
+
+    A ceiling asserted only on a four-file fixture would be slack by construction — the number
+    could be anything. 133-C1's class: a per-element ceiling leaves the total free while the
+    element count is free. Here a repo 20x larger must not produce 20x the Markdown.
+    """
+    small = _cycle_repo(tmp_path)
+    generate_onboarding.create(small, _StubSummarizer())()
+    small_bytes = sum(size for name, size in _emitted(tmp_path).items() if name.endswith(".md"))
+
+    big_root = tmp_path / "big"
+    big = _many_module_repo(big_root)
+    generate_onboarding.create(big, _StubSummarizer())()
+    big_bytes = sum(size for name, size in _emitted(big_root).items() if name.endswith(".md"))
+
+    assert big_bytes <= MAX_EMITTED_MARKDOWN_BYTES, big_bytes
+    assert big_bytes < small_bytes * 4, (small_bytes, big_bytes)
+
+
+def _many_module_repo(root: Path) -> Config:
+    """80 modules in one chain — 20x the cycle fixture, to show the Markdown does not follow."""
     from tests.test_nav_tools import edge, node, seed_file
 
-    config = replace(db_config(tmp_path), max_results=CAP, impact_max_nodes=500)
+    config = db_config(root)
+    with GraphStore(config.db_path) as store:
+        for index in range(80):
+            path = f"src/M{index:02d}.aa"
+            nxt = f"\\M{index + 1:02d}"
+            seed_file(
+                store,
+                path,
+                [node("Class", f"M{index:02d}", f"\\M{index:02d}", path)],
+                [edge("CALLS", f"\\M{index:02d}", nxt, path, target_qname=nxt)]
+                if index < 79
+                else [],
+                root=root,
+            )
+    return config
+
+
+def _wide_repo(root: Path) -> Config:
+    """A hub with 2*max_results callees and a 2*max_results-member cycle (task 108's shape).
+
+    Pre-205 this index set `truncated` — not because the walk cut anything, but because a page's
+    neighbour list was capped. It is the fixture that separates the flag's two old meanings.
+    """
+    from tests.test_nav_tools import edge, node, seed_file
+
+    cap = 5
+    config = replace(db_config(root), max_results=cap, impact_max_nodes=500)
     with GraphStore(config.db_path) as store:
         seed_file(
             store,
@@ -375,118 +441,55 @@ def _wide_repo(tmp_path: Path) -> Config:
             [node("Class", "Hub", "\\Hub", "src/Hub.aa")],
             [
                 edge("CALLS", "\\Hub", f"\\L{i:02d}", "src/Hub.aa", target_qname=f"\\L{i:02d}")
-                for i in range(2 * CAP)
+                for i in range(2 * cap)
             ],
-            root=tmp_path,
+            root=root,
         )
-        for i in range(2 * CAP):
+        for i in range(2 * cap):
             path = f"leaf/L{i:02d}.aa"
             seed_file(
-                store, path, [node("Class", f"L{i:02d}", f"\\L{i:02d}", path)], [], root=tmp_path
-            )
-        for i in range(2 * CAP):
-            path = f"cyc/C{i:02d}.aa"
-            nxt = (i + 1) % (2 * CAP)
-            seed_file(
-                store,
-                path,
-                [node("Class", f"C{i:02d}", f"\\C{i:02d}", path)],
-                [edge("CALLS", f"\\C{i:02d}", f"\\C{nxt:02d}", path, target_qname=f"\\C{nxt:02d}")],
-                root=tmp_path,
+                store, path, [node("Class", f"L{i:02d}", f"\\L{i:02d}", path)], [], root=root
             )
     return config
 
 
-def _page(tmp_path: Path, relpath: str) -> str:
-    return (_out(tmp_path) / "modules" / Path(relpath + ".md")).read_text(encoding="utf-8")
+def test_truncated_now_answers_only_the_walk_question(tmp_path: Path) -> None:
+    """AC5', the exception the byte comparison alone did not cover.
 
+    `list_truncated` folded *"a page's neighbour or SCC list was capped"* into the same flag as
+    *"the walk left an indexed file out"* — one field, two questions (189/022/202). With no page
+    there is no neighbour list to cut, so reporting a cut would attest to something the artifact no
+    longer contains (R5.6). The flag therefore narrows, and `overview.md`'s `- truncated:` line
+    moves with it on exactly this class of index — which is a THIRD difference from the pre-change
+    run, beside the two deleted count lines, and it is pinned here rather than left to a claim.
 
-def test_module_page_caps_neighbours_and_scc(tmp_path: Path) -> None:
-    """Proving test (AC1, R6.5): a page with 2*CAP neighbours lists exactly CAP and names the cut.
-
-    Observed red against pre-108 code: ``render_module`` joined the whole tuple, so the page listed
-    all 2*CAP paths and carried no ``(N shown of M)`` marker.
+    Observed red against pre-205 code, which reported `truncated: true` on the wide fixture.
     """
-    generate_onboarding.create(_wide_repo(tmp_path))()
+    wide = _wide_repo(tmp_path)
+    payload = generate_onboarding.create(wide, _StubSummarizer())()
+    overview = (_out(tmp_path) / OVERVIEW_NAME).read_text(encoding="utf-8")
 
-    hub = _page(tmp_path, "src/Hub.aa")
-    out_line = next(line for line in hub.splitlines() if line.startswith("- outgoing:"))
-    assert out_line.count("`") == 2 * CAP  # CAP back-ticked paths, two ticks each
-    assert f"({CAP} shown of {2 * CAP})" in out_line
-    assert "`leaf/L04.aa`" in out_line and "`leaf/L05.aa`" not in out_line
+    assert payload["truncated"] is False, "no page, so no capped page list to report"
+    assert "- truncated: false" in overview
 
-    stop_line = next(line for line in _page(tmp_path, "cyc/C00.aa").splitlines()
-                     if line.startswith("Stop "))
-    assert "cycle with " in stop_line
-    assert f"({CAP} shown of {2 * CAP})" in stop_line
-    assert "cyc/C04.aa" in stop_line and "cyc/C05.aa" not in stop_line
+    cut_root = tmp_path / "cut"
+    cut = replace(_cycle_repo(cut_root), impact_max_nodes=1)
+    assert generate_onboarding.create(cut, _StubSummarizer())()["truncated"] is True
 
 
-def test_page_distinguishes_cut_empty_and_uncut(tmp_path: Path) -> None:
-    """AC2: a cut list names both numbers; a real zero keeps 107's ``_absent`` wording."""
-    generate_onboarding.create(_wide_repo(tmp_path))()
-
-    hub = _page(tmp_path, "src/Hub.aa")
-    assert "- outgoing: `leaf/L00.aa`" in hub  # cut list starts with the paths, not a marker
-    assert f"({CAP} shown of {2 * CAP})" in hub
-    assert "- incoming: (none)\n" in hub  # a genuine zero, not a cut
-
-    leaf = _page(tmp_path, "leaf/L00.aa")
-    assert "- outgoing: (none)\n" in leaf
-    assert "- incoming: `src/Hub.aa`\n" in leaf  # one neighbour, uncut, no marker
-    assert "shown of" not in leaf
-
-
-def test_scc_stop_line_is_capped_and_byte_identical_across_members(tmp_path: Path) -> None:
-    """AC3: every member of a > CAP cycle prints the same capped cycle description (R4.2)."""
-    generate_onboarding.create(_wide_repo(tmp_path))()
-
-    def cycle_desc(name: str) -> str:
-        page = _page(tmp_path, f"cyc/{name}.aa")
-        line = next(row for row in page.splitlines() if row.startswith("Stop "))
-        return line[line.index("cycle with"):]
-
-    first, last = cycle_desc("C00"), cycle_desc("C09")
-    assert first == last  # byte-identical capped member list
-    assert f"({CAP} shown of {2 * CAP})" in first
-
-
-def test_manifest_and_payload_agree_with_pages_on_the_cut(tmp_path: Path) -> None:
-    """AC5: the cut is carried by ``truncated`` in both the payload and the manifest."""
-    payload = generate_onboarding.create(_wide_repo(tmp_path))()
-    manifest = json.loads((_out(tmp_path) / "manifest.json").read_text(encoding="utf-8"))
-
-    assert payload["truncated"] is True
-    assert manifest["truncated"] is True
-    assert "shown of" in _page(tmp_path, "src/Hub.aa")  # the flag is not lying
-
-
-def test_capped_page_stays_small_where_uncapped_blows_past_8kb() -> None:
-    """AC4: on a page reproducing the 82 KB shape, the default cap brings it well under 8 KB.
-
-    Rendering with an enormous cap reproduces pre-108 (uncapped) bytes, so this is a before/after.
-    """
-    from code_atlas.onboarding.artifact import ModulePage, render_module
-
-    scc = tuple(f"app/domain/service/module/Component{i:03d}.aa" for i in range(300))
-    neighbours = tuple(f"app/domain/service/module/Neighbour{i:03d}.aa" for i in range(300))
-    page = ModulePage(
-        file="app/domain/service/module/Hub.aa",
-        relpath="modules/app/domain/service/module/Hub.aa.md",
-        layer="app",
-        rank=0,
-        role="entry-point",
-        docline="",
-        rationale="cycle with " + ", ".join(scc),
-        scc=scc,
-        index=1,
-        of=300,
-        outgoing=neighbours,
-        incoming=neighbours,
-        fan_in=300,
-        fan_out=300,
+def test_the_tool_surfaces_do_not_promise_a_module_page_tree() -> None:
+    """AC7 (R7.6): the superseded promises are deleted from both surfaces, not stacked on."""
+    tools_md = (Path(__file__).resolve().parent.parent / "docs" / "TOOLS.md").read_text(
+        encoding="utf-8"
     )
-    before = len(render_module(page, 10**9).encode("utf-8"))
-    after = len(render_module(page, 50).encode("utf-8"))
-    assert before > 8192, before
-    assert after < 8192, after
+    for superseded in (
+        "Tour and pages bounded by",
+        "isolated_modules",
+        "tour · flows · per-module",
+    ):
+        assert superseded not in tools_md, superseded
+    assert "There is no per-module page tree" in tools_md
+
+    doc = generate_onboarding.create(db_config(Path(__file__).parent)).__doc__ or ""
+    assert "per-module page tree" in doc
+    assert "isolated_modules" not in doc

@@ -18,6 +18,8 @@ from code_atlas.onboarding.dataset import derive_caveats
 from code_atlas.onboarding.reachability import BUCKETS
 
 # Operational keys ``generate_onboarding`` adds beside the dataset — stripped on load.
+# ``pages`` stays although 205 stopped writing it: a pre-205 snapshot still carries the key, and a
+# diff against one must strip it rather than read 500 page paths as architectural drift.
 _MANIFEST_KEYS: frozenset[str] = frozenset(
     {"overview", "pages", "tour", "truncated", "viewer"}
 )

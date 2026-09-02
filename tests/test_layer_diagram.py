@@ -128,7 +128,6 @@ def test_the_overview_says_how_many_arrows_the_cap_cost() -> None:
         ),
         crossings=(("HTTP / Entry", "Services", 1),),
         stops=(),
-        pages=(),
         diagram_edges=(DiagramEdge("HTTP / Entry", "Services", 1, False),),
     )
     md = render_overview(artifact, node_cap=1)

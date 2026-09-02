@@ -17,10 +17,9 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from code_atlas.onboarding.artifact import (
+from code_atlas.onboarding.artifact import (  # noqa: F401 - V1 history needs no page import
     ARTIFACT_VERSION,
     LayerRow,
-    ModulePage,
     OnboardingArtifact,
     cache_json,
 )
@@ -30,8 +29,9 @@ from code_atlas.onboarding.tour import TourStop
 from code_atlas.tools import generate_onboarding
 from tests.test_guided_tour import _cycle_repo
 
-# Frozen at version 1. A bump earns its own entry in KEY_PATHS_BY_VERSION (AC2) — the pin is per
-# version, so "bump without re-pinning" is red and "re-shape without bumping" is red.
+# Frozen per version. A bump earns its own entry in KEY_PATHS_BY_VERSION (AC2) — the pin is per
+# version, so "bump without re-pinning" is red and "re-shape without bumping" is red. V1 is kept
+# as history: a pre-205 artifact.json still carries the page keys, and this is what it looked like.
 V1_KEY_PATHS = frozenset(
     {
         "crossings",
@@ -123,7 +123,15 @@ V1_KEY_PATHS = frozenset(
     }
 )
 
-KEY_PATHS_BY_VERSION: dict[int, frozenset[str]] = {1: V1_KEY_PATHS}
+# V2 (205): the per-module page tree is gone, so `pages`, its member fields, and the `isolated`
+# bucket that existed only to explain a missing page leave the document. Derived from V1 rather
+# than re-typed, so the delta IS the diff (R6.7).
+_V1_PAGE_PATHS = frozenset(
+    {"isolated"} | {path for path in V1_KEY_PATHS if path.split("[")[0] == "pages"}
+)
+V2_KEY_PATHS = V1_KEY_PATHS - _V1_PAGE_PATHS
+
+KEY_PATHS_BY_VERSION: dict[int, frozenset[str]] = {1: V1_KEY_PATHS, 2: V2_KEY_PATHS}
 
 # The bounded-sample and caveat vocabulary (113 / 130 / 131) a second renderer is most likely to
 # drop. Named here so a rename is a contract break by name, not only by set difference.
@@ -161,24 +169,6 @@ def _sample() -> OnboardingArtifact:
         ),
         crossings=(("App", "Lib", 1),),
         stops=(TourStop(file="a.py", rationale="entry point", scc=()),),
-        pages=(
-            ModulePage(
-                file="a.py",
-                relpath="modules/a.py.md",
-                layer="App",
-                rank=0,
-                role="entry-point",
-                docline="hello",
-                rationale="entry point",
-                scc=(),
-                index=1,
-                of=1,
-                outgoing=("b.py",),
-                incoming=(),
-                fan_in=0,
-                fan_out=1,
-            ),
-        ),
         steps=(
             TourStep(
                 order=1,
@@ -189,7 +179,6 @@ def _sample() -> OnboardingArtifact:
                 cycle_size=0,
             ),
         ),
-        isolated=("lonely.py",),
         diagram_edges=(DiagramEdge("App", "Lib", 1, False),),
         omitted_dynamic=0,
     )

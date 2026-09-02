@@ -26,7 +26,7 @@
 | `explain_path` | shortest control-flow path between two symbols |
 | `architecture_overview` | this repo's layers, their degrees and the crossings between them — plus the zero-inbound split, the capability table and the mirror panel ([detail](#architecture_overview--layers-crossings-and-the-populations-behind-a-zero)) (onboarding) |
 | `guided_tour` | a dependency-ordered reading list of files, cycle-safe and budget-bounded ([detail](#guided_tour--a-reading-order-that-expands)) (onboarding) |
-| `generate_onboarding` | writes the committable markdown and the self-contained `index.html` **system map** under `docs/onboarding/` ([detail](#generate_onboarding--the-committable-system-map)) (onboarding) |
+| `generate_onboarding` | writes the committable markdown and the self-contained `index.html` **system map** under `docs/onboarding/` — five files, no per-module page tree ([detail](#generate_onboarding--the-committable-system-map)) (onboarding) |
 | `check_architecture_rules` | confirmed vs candidate violations of declarative path-set dependency rules (`CA_ARCHITECTURE_RULES`) |
 | `diff_architecture` | architectural drift between two onboarding dataset / manifest snapshots |
 | `class_diagram` | mermaid class diagram for one type plus its ancestry, or every type in one file — inheritance from resolved edges; associations from declared types only |
@@ -60,8 +60,9 @@
 
 ### `generate_onboarding` — the committable system map
 
-- Writes markdown (overview · tour · flows · per-module) plus `manifest.json` and a self-contained
-  `index.html` under `docs/onboarding/` — offline, theme-aware, repo text escaped so a path cannot
+- Writes **five files** under `docs/onboarding/` — `overview.md`, `tour.md`, `flows.md`,
+  `manifest.json` and a self-contained
+  `index.html` — offline, theme-aware, repo text escaped so a path cannot
   inject markup, with a `<noscript>` fallback. `overview.md` includes a mermaid layer flowchart
   (GitHub/VS Code render it; the HTML map stays fetch-free and does not bundle mermaid).
 - The map renders the onboarding dataset **alone**: sitemap treemap with drill-down, layer table with
@@ -74,12 +75,15 @@
   match set spans, and names those subtrees when the page is cut — the artifact-layer form of
   `result_subtrees`. Every caveat the dataset carries is asserted to be *rendered*, by a guard that
   derives the caveat set from the dataset rather than listing it.
-- It removes only the pages its own last manifest recorded, and refuses a tree it did not write.
-- A module with no edge either way and no summary gets **no page** (one would only repeat its path) —
-  the overview counts them, the manifest names them with `page: null`, `standard` reports
-  `isolated_modules`, and a page whose neighbours the budget cut is kept and says so.
+- **There is no per-module page tree.** It emitted one page per node-budget slot — 500 on every
+  repo, whatever its size — and the median page carried a path already in its own filename, a role,
+  a layer and a truncated neighbour list; on a 24,535-file repo 412 of the 500 rendered a Summary
+  line saying there was no summary (205). The facts those pages carried are in `tour.md`,
+  `overview.md` and the map.
+- It refuses a tree it did not write, and removes the module pages a **pre-205** manifest recorded —
+  so the first regeneration after 205 cleans the old tree and leaves a hand-authored file alone.
 - Regenerable, versioned `artifact.json` under `.code-atlas/onboarding/` (`ARTIFACT_VERSION`;
-  gitignored). Tour and pages bounded by `CA_IMPACT_MAX_NODES`.
+  gitignored). The tour walk is bounded by `CA_IMPACT_MAX_NODES`; nothing else borrows that budget.
 
 ## Sweeps — `search_symbol` takes a list of subjects (task 101)
 

@@ -467,6 +467,12 @@ def test_the_page_degrades_without_scripting_and_names_its_companions(tmp_path: 
 
     assert "<noscript" in html
     assert "overview.md" in html and "tour.md" in html
+    # 205: the emitted page is a consumer of this promise too (R6.9/R7.6). It named "one page per
+    # module under modules/" long after the tree stopped being written — a false claim committed to
+    # every downstream repo, and untested until the ticket-blind challenger found it.
+    assert "flows.md" in html
+    assert "modules/" not in html
+    assert "per module" not in html
     assert NAMESPACE in html
 
 

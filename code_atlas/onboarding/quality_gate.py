@@ -2,24 +2,27 @@
 
 Two defects shipped and were caught only by a human opening the HTML: 500/500 filler pages (107)
 and an 82 KB median page (108). Both are mechanically detectable. This module is the missing gate —
-seven pure checks over the in-memory ``OnboardingArtifact`` (no IO, no LLM, no language branch,
+pure checks over the in-memory ``OnboardingArtifact`` (no IO, no LLM, no language branch,
 R1.1/R1.4/R4). ``build_artifact`` runs it and raises rather than emit a bad tree (050 precedent).
+
+205 removed the per-module page tree, so the four criteria whose subject was a page (C1's filler
+rule, C2's byte ceiling, C6's page identity, C7's page order) went with it. What is left guards the
+prose slots (C1), the layer table (C3), the narrative steps (C4), cycle membership (C5) and
+canonical order (C7).
 """
 
 from __future__ import annotations
 
-from code_atlas.onboarding.artifact import OnboardingArtifact, render_module
+from code_atlas.onboarding.artifact import OnboardingArtifact
 from code_atlas.onboarding.dataset import OnboardingDataset
 from code_atlas.onboarding.prose import is_filler
 
-# The numbers the gate defends (task 109 AC3). C2 sits above 108's capped page (6,878 B) and below
-# its uncapped one (40,074 B). C4 now bounds narrative steps to [MIN, MAX] (111): MAX is the hard
-# ceiling the gate enforces; the floor is build_steps' target, unreachable on a tiny subgraph.
-MAX_PAGE_BYTES = 16384
+# The number the gate defends (task 109 AC3). C4 bounds narrative steps to [MIN, MAX] (111): MAX is
+# the hard ceiling the gate enforces; the floor is build_steps' target, unreachable on a tiny
+# subgraph.
 MAX_TOUR_STEPS = 15
 
 __all__ = [
-    "MAX_PAGE_BYTES",
     "MAX_TOUR_STEPS",
     "QualityGateError",
     "check_artifact",
@@ -38,50 +41,28 @@ class QualityGateError(ValueError):
 
 def _check_canonical(artifact: OnboardingArtifact) -> None:
     """C7: canonical ordering ⇒ byte-stable render (R4.2). One broken order is enough to trip."""
-    indexes = [page.index for page in artifact.pages]
-    if indexes != sorted(indexes) or len(set(indexes)) != len(indexes):
-        raise QualityGateError("C7", "pages", "pages are not in ascending, distinct index order")
     ranks = [row.rank for row in artifact.layers]
     if ranks != sorted(ranks):
         raise QualityGateError("C7", "layers", "layers are not in ascending rank order")
     crossing_keys = [(-count, source, target) for source, target, count in artifact.crossings]
     if crossing_keys != sorted(crossing_keys):
         raise QualityGateError("C7", "crossings", "crossings are not heaviest-first, then by name")
-    if list(artifact.isolated) != sorted(artifact.isolated):
-        raise QualityGateError("C7", "isolated", "isolated modules are not sorted")
 
 
 def check_artifact(
     artifact: OnboardingArtifact,
     *,
-    max_results: int,
-    max_page_bytes: int = MAX_PAGE_BYTES,
     max_tour_steps: int = MAX_TOUR_STEPS,
 ) -> None:
-    """Run C1–C7 over ``artifact``; raise ``QualityGateError`` on the first violation.
+    """Run the surviving criteria over ``artifact``; raise on the first violation.
 
-    Pure and deterministic: identical input raises identically or not at all. ``max_results`` is the
-    cap ``render_module`` uses so C2 measures the bytes the tree would actually carry (108).
+    Pure and deterministic: identical input raises identically or not at all.
     """
     stop_files = {stop.file for stop in artifact.stops}
-    seen: set[str] = set()
-    for page in artifact.pages:
-        if page.relpath in seen:  # C6: two pages cannot claim the same file on disk.
-            raise QualityGateError("C6", page.relpath, "duplicate page path")
-        seen.add(page.relpath)
-        if page.file not in stop_files:  # C6: a page for a module the tour never visited.
-            raise QualityGateError("C6", page.file, "page for a module absent from the tour")
-        if not (page.docline or page.fan_in or page.fan_out):  # C1: the 107 filler rule.
-            raise QualityGateError("C1", page.file, "page carries no fact beyond its own path")
-        size = len(render_module(page, max_results).encode("utf-8"))
-        if size > max_page_bytes:  # C2: the 108 byte ceiling.
-            raise QualityGateError("C2", page.file, f"page is {size} bytes (> {max_page_bytes})")
-        for member in page.scc:  # C5: a cycle cannot name a file outside the tour.
+    for stop in artifact.stops:
+        for member in stop.scc:  # C5: a cycle cannot name a file outside the tour.
             if member not in stop_files:
                 raise QualityGateError("C5", member, "SCC member is not a tour-stop file")
-    for isolated in artifact.isolated:  # C5: isolated modules come from the tour, so must be in it.
-        if isolated not in stop_files:
-            raise QualityGateError("C5", isolated, "isolated module is not a tour-stop file")
     if len(artifact.steps) > max_tour_steps:  # C4: the narrative tour ceiling (111 AC4).
         raise QualityGateError(
             "C4", "tour", f"{len(artifact.steps)} steps (> {max_tour_steps})"

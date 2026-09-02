@@ -4,6 +4,10 @@ Presentation + IO. Enrichment is ``onboarding.artifact`` composing 083–087; th
 store, writes markdown, manifest, and a self-contained ``index.html`` under ``docs/onboarding/``,
 and a versioned ``artifact.json`` under ``.code-atlas/onboarding/``. No SQL, no LLM, no language
 branch.
+
+205 removed the per-module page tree: five files are written, not 505. The recorded-page removal
+stays as the migration path — the first write after 205 deletes exactly the pages a pre-205
+manifest recorded, and nothing else (R5.7).
 """
 
 from __future__ import annotations
@@ -29,7 +33,6 @@ from code_atlas.onboarding.artifact import (
     manifest_json,
     recorded_pages,
     render_flows,
-    render_module,
     render_overview,
     render_tour,
 )
@@ -64,27 +67,24 @@ def create(
     seam: Summarizer = StructuralSummarizer() if summarizer is None else summarizer
 
     def generate_onboarding(detail_level: DetailLevel = "standard") -> dict[str, object]:
-        """Write committable onboarding docs for this repo — overview, tour, and per-module pages.
+        """Write committable onboarding docs for this repo — overview, guided tour and flows.
 
-        Reads the index and writes markdown plus a ``manifest.json`` under ``docs/onboarding/``
-        so a human (or the 089 viewer) can review the map in git. Also writes ``index.html`` —
-        one self-contained page that embeds the same facts, so it opens offline with no
-        server and no fetch. Regenerating rewrites this
-        tool's own files and removes only the module pages its last ``manifest.json`` recorded —
-        a hand-authored file in that tree is left alone, and a tree holding these names without
-        that manifest is refused rather than overwritten. A versioned dump of the
-        same structure lands under ``.code-atlas/onboarding/artifact.json`` (gitignored,
-        ``ARTIFACT_VERSION``). Deterministic given
-        the summarizer: no timestamps. The walk that sizes the tour and per-module pages is the
-        same node-budgeted subgraph ``guided_tour`` uses (``CA_IMPACT_MAX_NODES``) — roots ranked
-        by out-degree, capped at a quarter of the budget so the pages describe files the walk
-        actually reached (106); ``truncated`` is true when that budget left an indexed file out.
-        A module with **no edge either way and no summary** gets **no page** — one would only
-        repeat its path — and `standard` reports how many via ``isolated_modules``, the overview
-        counts them, and the manifest names them with ``page: null`` (107). A page whose
-        neighbours the budget cut is kept and says so.
+        Reads the index and writes **five files** under ``docs/onboarding/``: ``overview.md``,
+        ``tour.md``, ``flows.md``, ``manifest.json``, and ``index.html`` — one self-contained page
+        that embeds the same facts, so it opens offline with no server and no fetch. There is **no
+        per-module page tree**: 500 sub-kilobyte pages, one per node-budget slot, were emitted on
+        every repo and carried nothing a reader could not read off the path (205).
+        Regenerating rewrites this tool's own files, and removes the module pages a **pre-205**
+        ``manifest.json`` recorded — a hand-authored file in that tree is left alone, and a tree
+        holding these names without that manifest is refused rather than overwritten. A versioned
+        dump of the same structure lands under ``.code-atlas/onboarding/artifact.json``
+        (gitignored, ``ARTIFACT_VERSION``). Deterministic given the summarizer: no timestamps.
+        The walk that sizes the tour is the same node-budgeted subgraph ``guided_tour`` uses
+        (``CA_IMPACT_MAX_NODES``) — roots ranked by out-degree, capped at a quarter of the budget
+        so the tour describes files the walk actually reached (106); ``truncated`` is true when
+        that budget left an indexed file out.
         ``results`` lists the committed relative paths, capped at ``CA_MAX_RESULTS``.
-        ``minimal`` omits the path to that file.
+        ``minimal`` omits the path to the ``artifact.json`` dump.
         """
         if not config.db_path.is_file():
             return _unbuilt(config)
@@ -216,7 +216,8 @@ def _remove_recorded_pages(out: Path) -> None:
     """Delete exactly the pages the last manifest recorded, then directories left empty.
 
     A page this tool never wrote — a hand-authored file under ``modules/`` — is not ours to
-    remove, so the previous ``shutil.rmtree`` is gone.
+    remove, so the previous ``shutil.rmtree`` is gone. Since 205 nothing writes a page, so this
+    runs once against a pre-205 manifest and finds nothing thereafter (R5.7).
     """
     manifest = out / MANIFEST_NAME
     if not manifest.is_file():
@@ -258,11 +259,6 @@ def _write(
     for name, text in files.items():
         (out / name).write_text(text, encoding="utf-8", newline="\n")
         written.append(f"{OUTPUT_DIR}/{name}")
-    for page in artifact.pages:
-        dest = out / Path(*PurePosixPath(page.relpath).parts)
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(render_module(page, max_results), encoding="utf-8", newline="\n")
-        written.append(f"{OUTPUT_DIR}/{page.relpath}")
     cache = root / CACHE_DIR
     cache.mkdir(parents=True, exist_ok=True)
     (cache / CACHE_NAME).write_text(cache_json(artifact), encoding="utf-8", newline="\n")
@@ -290,7 +286,6 @@ def _payload(
     }
     if detail_level == "standard":
         payload["cache"] = f"{CACHE_DIR}/{CACHE_NAME}"
-        payload["isolated_modules"] = len(artifact.isolated)
         # What the 117 seam cost this write, and how many slots its ceiling left structural. Not in
         # the dataset on purpose: a number that moved when the seam turned on would break AC2.
         payload["prose_calls"] = prose.calls

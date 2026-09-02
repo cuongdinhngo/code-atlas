@@ -53,15 +53,6 @@ H_DIAGRAM = "## Layer graph"
 H_CROSSINGS = "## Cross-layer edges"
 H_TOUR = "# Guided tour"
 H_ORDER = "## Reading order"
-H_ROLE = "## Role"
-H_LAYER = "## Layer"
-H_MODULE_SUMMARY = "## Summary"
-
-# Rendered when read-through finds no leading doc comment — file-level absence (118 AC3).
-NO_DOCBLOCK = "No leading doc comment above the indexed declaration in this file."
-H_IN_TOUR = "## In the tour"
-H_NEIGHBOURS = "## Neighbours"
-
 OUTPUT_DIR = "docs/onboarding"
 OVERVIEW_NAME = "overview.md"
 TOUR_NAME = "tour.md"
@@ -71,10 +62,11 @@ VIEWER_NAME = "index.html"
 PAGES_DIR = "modules"
 CACHE_DIR = ".code-atlas/onboarding"
 CACHE_NAME = "artifact.json"
-# First published shape of artifact.json (145). Not contract_version and not DATASET_VERSION:
-# this file is the pages/tour object graph a second renderer would read. Bump when as_dict keys
-# change; tests/test_artifact_contract.py fails a shape change that leaves this at 1.
-ARTIFACT_VERSION = 1
+# Shape of artifact.json (145). Not contract_version and not DATASET_VERSION: this file is the
+# tour/steps object graph a second renderer would read. Bump when as_dict keys change;
+# tests/test_artifact_contract.py fails a shape change that leaves the number behind.
+# 1 -> 2 (205): the `pages` and `isolated` keys are gone with the module-page tree.
+ARTIFACT_VERSION = 2
 
 __all__ = [
     "ARTIFACT_VERSION",
@@ -87,30 +79,22 @@ __all__ = [
     "VIEWER_NAME",
     "H_CROSSINGS",
     "H_DIAGRAM",
-    "H_IN_TOUR",
-    "H_LAYER",
     "H_LAYERS",
     "H_MIRRORS",
     "H_MODULES",
-    "H_MODULE_SUMMARY",
-    "H_NEIGHBOURS",
     "H_ORDER",
     "H_OVERVIEW",
     "H_REACHABILITY",
-    "H_ROLE",
     "H_SUMMARY",
     "H_TOUR",
     "LayerRow",
-    "ModulePage",
     "OnboardingArtifact",
     "OUTPUT_DIR",
     "build_artifact",
     "FLOWS_NAME",
     "manifest_dict",
     "render_flows",
-    "page_relpath",
     "recorded_pages",
-    "render_module",
     "render_overview",
     "render_tour",
 ]
@@ -130,26 +114,6 @@ class LayerRow:
 
 
 @dataclass(frozen=True)
-class ModulePage:
-    """One per-module markdown page, keyed by the module's file path."""
-
-    file: str
-    relpath: str
-    layer: str
-    rank: int
-    role: str
-    docline: str
-    rationale: str
-    scc: tuple[str, ...]
-    index: int
-    of: int
-    outgoing: tuple[str, ...]
-    incoming: tuple[str, ...]
-    fan_in: int
-    fan_out: int
-
-
-@dataclass(frozen=True)
 class OnboardingArtifact:
     """The structured onboarding document set: overview, tour, pages, manifest."""
 
@@ -159,11 +123,8 @@ class OnboardingArtifact:
     layers: tuple[LayerRow, ...]
     crossings: tuple[tuple[str, str, int], ...]
     stops: tuple[TourStop, ...]
-    pages: tuple[ModulePage, ...]
     steps: tuple[TourStep, ...] = ()
     """The narrative reading order: 5–15 grouped steps over the stops (task 111)."""
-    isolated: tuple[str, ...] = ()
-    """Modules a page would say nothing about: no edge either way, no summary (task 107)."""
     diagram_edges: tuple[DiagramEdge, ...] = ()
     omitted_dynamic: int = 0
 
@@ -195,28 +156,8 @@ class OnboardingArtifact:
                 }
                 for row in self.layers
             ],
-            "isolated": list(self.isolated),
             "method": self.method,
             "omitted_dynamic": self.omitted_dynamic,
-            "pages": [
-                {
-                    "docline": page.docline,
-                    "fan_in": page.fan_in,
-                    "fan_out": page.fan_out,
-                    "file": page.file,
-                    "incoming": list(page.incoming),
-                    "index": page.index,
-                    "layer": page.layer,
-                    "outgoing": list(page.outgoing),
-                    "rank": page.rank,
-                    "rationale": page.rationale,
-                    "relpath": page.relpath,
-                    "role": page.role,
-                    "scc": list(page.scc),
-                    "of": page.of,
-                }
-                for page in self.pages
-            ],
             "steps": [
                 {
                     "covers": step.covers,
@@ -238,14 +179,6 @@ class OnboardingArtifact:
         }
 
 
-def page_relpath(file: str) -> str:
-    """POSIX path of the module page under the onboarding dir; rejects ``..`` and absolutes."""
-    rel = PurePosixPath(file)
-    if rel.is_absolute() or ".." in rel.parts:
-        raise ValueError(f"refusing onboarding page path {file!r}")
-    return str(PurePosixPath(PAGES_DIR) / rel.with_name(rel.name + ".md"))
-
-
 def _is_page_path(rel: str) -> bool:
     """Could this tool have written that path? Relative, inside ``modules/``, a ``.md`` file."""
     path = PurePosixPath(rel)
@@ -259,10 +192,11 @@ def _is_page_path(rel: str) -> bool:
 
 
 def recorded_pages(manifest_text: str) -> tuple[str, ...]:
-    """The page paths a previous ``manifest.json`` claims this tool wrote (task 112 ``pages`` key).
+    """The page paths a **pre-205** ``manifest.json`` claims this tool wrote (112's ``pages`` key).
 
-    Anything unparseable, foreign-shaped, or outside ``modules/*.md`` yields nothing: the
-    writer deletes only what it can prove it wrote (050 — never destroy another's file).
+    205 stopped writing per-module pages, and this is how a tree written before it is cleaned: the
+    next write removes exactly the pages the previous manifest recorded, and nothing else (R5.7).
+    Anything unparseable, foreign-shaped, or outside ``modules/*.md`` yields nothing.
     """
     try:
         data = json.loads(manifest_text)
@@ -374,61 +308,21 @@ def build_artifact(
     described = layer_descriptions(assignment, metrics, prose)
     stops = ordered_stops(tour_files, tour_edges, entry_points)
     by_key = {metric.key: metric for metric in metrics.modules}
-    placed = {module.module: module for module in assignment.modules}
     facts = [
         _module_facts(root, file_nodes, stop.file, by_key[stop.file])
         for stop in stops
         if stop.file in by_key
     ]
     summaries = {summary.key: summary for summary in summarize_modules(facts, summarizer)}
-    outgoing, incoming = _neighbours(tour_edges)
-    pages: list[ModulePage] = []
-    isolated: list[str] = []
-    for index, stop in enumerate(stops, start=1):
-        metric_row = placed.get(stop.file)
-        summary = summaries.get(stop.file)
-        if metric_row is None or summary is None:
-            continue
-        degrees = by_key[stop.file]
-        # No edge either way in the WHOLE graph and no summary: a page could only repeat the
-        # path. Budget-cut neighbours are a different fact — that page stays and says so (107).
-        if not summary.docline and not degrees.fan_in and not degrees.fan_out:
-            isolated.append(stop.file)
-            continue
-        pages.append(
-            ModulePage(
-                file=stop.file,
-                relpath=page_relpath(stop.file),
-                layer=metric_row.layer,
-                rank=metric_row.rank,
-                role=summary.role,
-                docline=summary.docline,
-                rationale=stop.rationale,
-                scc=stop.scc,
-                index=index,
-                of=len(stops),
-                outgoing=outgoing.get(stop.file, ()),
-                incoming=incoming.get(stop.file, ()),
-                fan_in=degrees.fan_in,
-                fan_out=degrees.fan_out,
-            )
-        )
     crossings = cross_layer_edges(module_edges(nodes, edges), assignment)
     if edge_tiers is None:
         tiers = tuple((source, target, RESOLVED) for source, target in module_edges(nodes, edges))
     else:
         tiers = module_edge_tiers(nodes, edge_tiers)
     drawn, omitted_dynamic = diagram_edges(tiers, assignment)
-    # A capped neighbour or SCC list is a cut just like the walk budget's — one flag says so (108).
-    list_truncated = any(
-        len(page.outgoing) > max_results
-        or len(page.incoming) > max_results
-        or len(page.scc) > max_results
-        for page in pages
-    )
     artifact = OnboardingArtifact(
         method=assignment.method,
-        truncated=truncated or list_truncated,
+        truncated=truncated,
         summary={
             "cross_layer_edges": len(crossings),
             "layers": len(assignment.layers),
@@ -458,7 +352,6 @@ def build_artifact(
         layers=_layer_rows(metrics, assignment, described),
         crossings=tuple((edge.source, edge.target, edge.count) for edge in crossings),
         stops=stops,
-        pages=tuple(pages),
         steps=build_steps(
             stops,
             assignment,
@@ -469,14 +362,13 @@ def build_artifact(
             docline_of={key: value.docline for key, value in summaries.items()},
             descriptions=described,
         ),
-        isolated=tuple(sorted(isolated)),
         diagram_edges=drawn,
         omitted_dynamic=omitted_dynamic,
     )
-    # The gate refuses a filler or oversized artifact rather than write a bad tree (task 109, 050).
+    # The gate refuses a filler artifact rather than write a bad tree (task 109, 050).
     from code_atlas.onboarding.quality_gate import check_artifact
 
-    check_artifact(artifact, max_results=max_results)
+    check_artifact(artifact)
     return artifact
 
 
@@ -600,8 +492,6 @@ def render_overview(artifact: OnboardingArtifact, node_cap: int | None = None) -
         f"- modules: {artifact.summary['modules']}",
         f"- symbols: {artifact.summary['symbols']}",
         f"- cross-layer edges: {artifact.summary['cross_layer_edges']}",
-        f"- module pages: {len(artifact.pages)}",
-        f"- modules with no page (isolated, no summary): {len(artifact.isolated)}",
         f"- truncated: {'true' if artifact.truncated else 'false'}",
         "",
     ]
@@ -666,24 +556,9 @@ def render_tour(artifact: OnboardingArtifact, max_results: int) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _absent(degree: int) -> str:
-    """An empty neighbour list is either a real zero or the budget's doing — say which (102)."""
-    if degree:
-        return f"(none admitted in this tour; {degree} in the full graph)"
-    return "(none)"
-
-
 def _shown_suffix(shown: int, total: int) -> str:
     """Name a cut list with both numbers so it is never read as the whole truth (033/057/107)."""
     return f" ({shown} shown of {total})" if total > shown else ""
-
-
-def _neighbour_line(paths: tuple[str, ...], degree: int, max_results: int) -> str:
-    """A neighbour list capped at ``max_results``; an empty one keeps 107's ``_absent`` wording."""
-    if not paths:
-        return _absent(degree)
-    shown = paths[:max_results]
-    return ", ".join(f"`{path}`" for path in shown) + _shown_suffix(len(shown), len(paths))
 
 
 def _rationale_line(rationale: str, scc: tuple[str, ...], max_results: int) -> str:
@@ -692,39 +567,6 @@ def _rationale_line(rationale: str, scc: tuple[str, ...], max_results: int) -> s
         return rationale
     shown = scc[:max_results]
     return "cycle with " + ", ".join(shown) + _shown_suffix(len(shown), len(scc))
-
-
-def render_module(page: ModulePage, max_results: int) -> str:
-    """One per-module page. Structure is fixed so CI can assert headings, not prose."""
-    docline = page.docline if page.docline else NO_DOCBLOCK
-    out = _neighbour_line(page.outgoing, page.fan_out, max_results)
-    incoming = _neighbour_line(page.incoming, page.fan_in, max_results)
-    rationale = _rationale_line(page.rationale, page.scc, max_results)
-    lines = [
-        f"# `{page.file}`",
-        "",
-        H_ROLE,
-        "",
-        page.role or "(none)",
-        "",
-        H_LAYER,
-        "",
-        page.layer,
-        "",
-        H_MODULE_SUMMARY,
-        "",
-        docline,
-        "",
-        H_IN_TOUR,
-        "",
-        f"Stop {page.index} of {page.of}. {rationale}",
-        "",
-        H_NEIGHBOURS,
-        "",
-        f"- outgoing: {out}",
-        f"- incoming: {incoming}",
-    ]
-    return "\n".join(lines) + "\n"
 
 
 def render_flows(dataset: OnboardingDataset) -> str:
@@ -786,16 +628,15 @@ def manifest_dict(
     last_ref: str = "",
 ) -> dict[str, object]:
     """The one committed machine-readable artifact: the aggregate dataset (task 112) plus this
-    run's operational record — the page paths written (the 050 delete-record) and the doc
-    pointers. ``index_root`` / ``last_ref`` name the tree and revision so 139 can refuse a
-    cross-tree or cross-schema diff (071 / 077). No wall-clock (R4.2/AC2)."""
+    run's operational record — the doc pointers. ``index_root`` / ``last_ref`` name the tree and
+    revision so 139 can refuse a cross-tree or cross-schema diff (071 / 077). No wall-clock
+    (R4.2/AC2). 205 removed the ``pages`` key with the per-module tree it recorded."""
     return {
         **dataset.as_dict(),
         "index_root": index_root,
         "last_ref": last_ref,
         "flows_doc": FLOWS_NAME,
         "overview": OVERVIEW_NAME,
-        "pages": sorted(page.relpath for page in artifact.pages),
         "tour": TOUR_NAME,
         "truncated": artifact.truncated,
         "viewer": VIEWER_NAME,
