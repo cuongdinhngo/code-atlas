@@ -28,6 +28,7 @@ from code_atlas.onboarding.reachability import (
     VENDOR,
     WEB_ENTRY,
     classify_reachability,
+    undeclared_reason,
 )
 
 # One file per bucket. `src/controller/Front` names a request role, `vendor/pkg/Lib` third-party
@@ -123,14 +124,60 @@ def test_ac3_a_view_like_file_with_no_inbound_is_not_in_the_suspicion_bucket() -
     assert placement["src/view/Page.x"] == DYNAMIC
 
 
-def test_ac4_an_empty_bucket_renders_an_honest_zero() -> None:
-    """AC4 — a repo with no vendored code still renders the vendor row, at zero."""
+def test_ac4_an_empty_bucket_renders_a_zero_and_says_what_it_measured() -> None:
+    """113 AC4 — the vendor row still renders at zero, never omitted.
+
+    **Amended by 208.** 113 called this an *"honest zero"*, and half of that claim stands: the row
+    is rendered rather than dropped. What 208 adds is which question produced the 0 — here the
+    ``stub_roots`` declaration was never given and no path named third-party code, so the count is a
+    question nobody asked. The row carries the classifier's caveat saying so.
+    """
     nodes = [("App\\Front", "src/controller/Front.x"), ("T\\Case", "tests/unit/Case.x")]
     split = classify_reachability(compute_metrics(nodes, []), sample_limit=10)
     counts = {bucket.bucket: bucket.count for bucket in split.buckets}
     assert counts[VENDOR] == 0
     assert VENDOR in counts, "an empty bucket is a rendered zero, never an omitted row"
     assert split.dropped == ()
+
+    vendor = next(bucket for bucket in split.buckets if bucket.bucket == VENDOR)
+    assert vendor.declaration == "stub_roots"
+    assert vendor.caveat == undeclared_reason("stub_roots")
+    assert "not a measurement" in vendor.caveat and "stub_roots" in vendor.caveat
+
+
+def test_208_a_declared_bucket_at_zero_is_a_measured_zero() -> None:
+    """AC1 — the distinction: the same empty bucket, with the declaration given, carries no caveat.
+
+    Observed red against pre-208 code, where neither bucket carried a caveat field at all, so the
+    two cases were indistinguishable in the dataset — which is the defect.
+    """
+    nodes = [("App\\Front", "src/controller/Front.x"), ("T\\Case", "tests/unit/Case.x")]
+    split = classify_reachability(
+        compute_metrics(nodes, []), stub_roots=("third_party",), sample_limit=10
+    )
+    vendor = next(bucket for bucket in split.buckets if bucket.bucket == VENDOR)
+    assert vendor.count == 0, "the declaration matches nothing here — an honest measured zero"
+    assert vendor.caveat == "", "a declaration WAS given, so this 0 answers a question asked"
+    # 119 already reports a declaration that matched nothing, and the two mechanisms compose.
+    assert [(c.pattern, c.files_matched) for c in split.patterns] == [("third_party", 0)]
+
+
+def test_208_a_bucket_with_no_declaration_by_design_never_claims_an_unasked_question() -> None:
+    """AC1 — the three buckets with no declaration-shaped signal can never report one.
+
+    The test bucket's declaration is hard-coded empty (its ``declared`` flag is permanently False),
+    and the two structural buckets are always fillable. A predicate keyed on the count alone would
+    have manufactured an unasked-question reading for every honestly-empty test population.
+    """
+    nodes = [("App\\Front", "src/controller/Front.x")]
+    split = classify_reachability(
+        compute_metrics(nodes, []), entry_points=("src/**",), stub_roots=("v",), sample_limit=10
+    )
+    by_bucket = {bucket.bucket: bucket for bucket in split.buckets}
+    for bucket in (TEST, DYNAMIC, ISOLATED):
+        assert by_bucket[bucket].declaration == ""
+        assert by_bucket[bucket].caveat == "", bucket
+    assert by_bucket[TEST].count == 0, "an honestly empty test population, and no caveat about it"
 
 
 def test_ac5_unfillable_bucket_is_dropped_with_a_reason() -> None:
@@ -218,7 +265,16 @@ def test_output_is_byte_stable_and_bucket_order_is_fixed() -> None:
 
 
 def test_every_bucket_spec_carries_a_label_signal_and_note() -> None:
-    """109's no-filler principle, at bucket grain: no row may ship with empty prose."""
-    for bucket_id, label, signal, note in BUCKET_SPECS:
+    """109's no-filler principle, at bucket grain: no row may ship with empty prose.
+
+    ``declaration`` is deliberately allowed to be empty — three of the five buckets have no
+    declaration-shaped signal at all, and that emptiness is what keeps them out of 208's
+    unasked-question case (asserted below).
+    """
+    for bucket_id, label, signal, note, _declaration in BUCKET_SPECS:
         assert bucket_id and label and signal and note
     assert len(BUCKETS) == len(set(BUCKETS)) == len(BUCKET_SPECS)
+    declared_by_setting = {spec[0]: spec[4] for spec in BUCKET_SPECS}
+    assert declared_by_setting[WEB_ENTRY] == "entry_points"
+    assert declared_by_setting[VENDOR] == "stub_roots"
+    assert declared_by_setting[TEST] == ""

@@ -136,6 +136,10 @@ def _reachability(split: ReachabilitySplit) -> _Candidate:
         f"{split.total} modules have nothing in the index pointing at them. The largest "
         f"population is {largest.label.lower()}, at {largest.count} of them — {largest.note}"
     )
+    # 208: the headline is a fourth reader of the same fact. If the population it named is an
+    # unasked question, it says so in the classifier's words rather than asserting the number.
+    if largest.caveat:
+        text = f"{text} {largest.caveat}"
     facts = tuple((bucket.label, str(bucket.count)) for bucket in split.buckets)
     return text, facts, ()
 

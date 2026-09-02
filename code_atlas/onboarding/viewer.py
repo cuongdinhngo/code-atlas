@@ -718,12 +718,15 @@ put("reachGrid", SPLIT.buckets.map(function (b) {
   /* 119: one number over two signals hid a false declaration, so the tally rides the card. */
   var tally = Object.keys(b.signals || {}).filter(function (k) { return b.signals[k]; })
     .map(function (k) { return fmt(b.signals[k]) + " " + esc(k); }).join(" \u00b7 ");
+  /* 208: a 0 nobody asked for says so on the card, in the classifier's own words. */
   return '<div class="card stat"><div class="v">' + fmt(b.count) + '</div><div class="k">'
     + esc(b.label) + '</div><div class="n">' + esc(b.signal)
-    + (tally ? '</div><div class="n">' + tally : "") + "</div></div>";
+    + (tally ? '</div><div class="n">' + tally : "")
+    + (b.caveat ? '</div><div class="n">' + esc(b.caveat) : "") + "</div></div>";
 }).join(""));
 put("reachNote", SPLIT.buckets.map(function (b) {
   return "<b>" + esc(b.label) + ".</b> " + esc(b.note)
+    + (b.caveat ? " <b>" + esc(b.caveat) + "</b>" : "")
     + (b.sample.length ? " For example " + b.sample.slice(0, 2).map(function (s) {
         return "<code>" + esc(s) + "</code>";
       }).join(", ") + (b.sample_truncated ? " (sample capped)" : "") : "");

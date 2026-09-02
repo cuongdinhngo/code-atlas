@@ -131,7 +131,21 @@ _V1_PAGE_PATHS = frozenset(
 )
 V2_KEY_PATHS = V1_KEY_PATHS - _V1_PAGE_PATHS
 
-KEY_PATHS_BY_VERSION: dict[int, frozenset[str]] = {1: V1_KEY_PATHS, 2: V2_KEY_PATHS}
+# V3 (208): every reachability bucket gains `caveat` and `declaration`. Derived from V2, so the
+# delta IS the diff and a fourth version cannot be pinned by re-typing 90 paths (R6.7).
+_V3_ADDED = frozenset(
+    {
+        "summary.reachability.buckets[].caveat",
+        "summary.reachability.buckets[].declaration",
+    }
+)
+V3_KEY_PATHS = V2_KEY_PATHS | _V3_ADDED
+
+KEY_PATHS_BY_VERSION: dict[int, frozenset[str]] = {
+    1: V1_KEY_PATHS,
+    2: V2_KEY_PATHS,
+    3: V3_KEY_PATHS,
+}
 
 # The bounded-sample and caveat vocabulary (113 / 130 / 131) a second renderer is most likely to
 # drop. Named here so a rename is a contract break by name, not only by set difference.

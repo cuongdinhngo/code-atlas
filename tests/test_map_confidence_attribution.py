@@ -163,8 +163,14 @@ def test_a_single_language_index_is_still_attributed_not_suppressed() -> None:
 
 
 def test_ac3_the_dataset_version_moved_with_the_shape() -> None:
-    """AC3: `confidence_by_language` is a new key on a published shape, so the version moves."""
-    assert DATASET_VERSION == 10
+    """AC3: `confidence_by_language` is a new key on a published shape, so the version moves.
+
+    196's key arrived AT version 10, and a bare `== 10` froze the future: 208 added a per-bucket
+    caveat and broke this pin without breaking 196's claim. The durable form of that claim is the
+    key's presence beside a version at or past the one it arrived at — `test_onboarding_dataset.py`
+    owns the double-pin that makes each bump deliberate.
+    """
+    assert DATASET_VERSION >= 10
 
 
 def test_ac4_the_adapter_contract_is_untouched() -> None:

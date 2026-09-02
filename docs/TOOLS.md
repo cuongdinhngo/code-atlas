@@ -47,6 +47,11 @@
 - Each bucket also reports **which signal produced it** — `signals: {declared, vocabulary,
   structure}` — and every declared glob reports what it `files_matched` beside what it
   `zero_inbound_claimed`, so a stale declaration is legible instead of invisible (119).
+- A bucket whose own declaration was never given **and** whose count is 0 says so where the count
+  is, and names the setting that would populate it (`entry_points` / `stub_roots`, env
+  `CA_ENTRY_POINTS` / `CA_STUB_ROOTS`) — that 0 answers a question nobody asked, and reading it as
+  *"this repo vendors nothing"* is the misreading it now prevents (208). A declaration that matches
+  no indexed file still reports so beside the count, so the two disclosures compose.
 - Every list is capped at `CA_MAX_RESULTS`; `verbose` pages the per-module rows with `offset`.
 
 ### `guided_tour` — a reading order that expands

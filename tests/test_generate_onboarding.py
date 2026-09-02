@@ -493,3 +493,33 @@ def test_the_tool_surfaces_do_not_promise_a_module_page_tree() -> None:
     doc = generate_onboarding.create(db_config(Path(__file__).parent)).__doc__ or ""
     assert "per-module page tree" in doc
     assert "isolated_modules" not in doc
+
+
+def test_an_undeclared_bucket_says_its_zero_is_not_a_measurement(tmp_path: Path) -> None:
+    """Proving test (208 AC2/AC4): the guard reads the EMITTED overview.md, not a bucket object.
+
+    Observed red against pre-208 code, which printed `- **Vendored dependencies**: 0` in a column
+    where every neighbour is a measurement, with nothing to tell a reader that no declaration was
+    ever given and no path named third-party code.
+    """
+    generate_onboarding.create(_cycle_repo(tmp_path), _StubSummarizer())()
+    overview = (_out(tmp_path) / OVERVIEW_NAME).read_text(encoding="utf-8")
+
+    assert "- **Vendored dependencies**: 0" in overview, "the row still renders at zero (113 AC4)"
+    assert "not a measurement" in overview
+    assert "stub_roots" in overview, "AC2: it names the setting that would populate the bucket"
+    # The words are the classifier's; nothing in the renderer spells them (R1.8).
+    assert overview.count("not a measurement") == 1
+
+
+def test_a_repo_whose_buckets_all_have_a_signal_says_nothing_extra(tmp_path: Path) -> None:
+    """AC5: with both declarations given, no bucket is an unasked question and no byte is added."""
+    config = replace(
+        _cycle_repo(tmp_path), entry_points=("routes/**",), stub_roots=("third_party",)
+    )
+    generate_onboarding.create(config, _StubSummarizer())()
+    overview = (_out(tmp_path) / OVERVIEW_NAME).read_text(encoding="utf-8")
+
+    assert "- **Vendored dependencies**: 0" in overview
+    assert "not a measurement" not in overview, "a declared bucket at zero is a measured zero"
+
