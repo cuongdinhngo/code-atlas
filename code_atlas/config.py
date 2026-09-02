@@ -33,6 +33,7 @@ KNOB_KEYS: tuple[str, ...] = (
     "impact_depth",
     "impact_max_nodes",
     "orphans_max_nodes",
+    "full_build_crossover",
     "path_index_max",
     "entry_points",
     "stub_roots",
@@ -53,6 +54,16 @@ DEFAULT_MAX_SUBJECTS = 25
 DEFAULT_IMPACT_DEPTH = 2
 DEFAULT_IMPACT_MAX_NODES = 500
 DEFAULT_ORPHANS_MAX_NODES = 500
+# Files-to-parse above which an incremental costs MORE than one full build, so the delta escalates
+# for cost (212). **0 disables the tier, and 0 is the default, because the measurement says this
+# repo has no such crossover.** Measured on the anchor monorepo (24,569 files), never imported from
+# a reference implementation (R2.3): a delta costs ~60.8 s fixed plus 0.135 s per parsed file up to
+# 1,000 files, but the slope collapses to 0.0088 s/file between 1,000 and 3,000 (196.1 s → 213.6 s)
+# because the resolve phase saturates. Extrapolated to every file that is ~404 s against a measured
+# 550 s full build, so the delta is the cheaper route at every size this repo can reach. The
+# mechanism ships for a differently-shaped repo, which sets CA_FULL_BUILD_CROSSOVER; see the task's
+# CROSSOVER MEASUREMENT block for the method and every number.
+DEFAULT_FULL_BUILD_CROSSOVER = 0
 # Path-index ceiling for the onboarding dataset (task 112): the front-coded file list is the one
 # unbounded section, so it is capped and the dataset states both numbers when the cap trims (AC6).
 DEFAULT_PATH_INDEX_MAX = 20000
@@ -77,6 +88,7 @@ class Config:
     impact_depth: int
     impact_max_nodes: int
     orphans_max_nodes: int
+    full_build_crossover: int
     path_index_max: int
     entry_points: tuple[str, ...] | None
     stub_roots: tuple[str, ...] | None
@@ -209,6 +221,9 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
         ),
         orphans_max_nodes=_resolve(
             "orphans_max_nodes", _as_int, DEFAULT_ORPHANS_MAX_NODES, environ, file_values
+        ),
+        full_build_crossover=_resolve(
+            "full_build_crossover", _as_int, DEFAULT_FULL_BUILD_CROSSOVER, environ, file_values
         ),
         path_index_max=_resolve(
             "path_index_max", _as_int, DEFAULT_PATH_INDEX_MAX, environ, file_values

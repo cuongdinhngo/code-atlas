@@ -78,6 +78,10 @@ INCREMENTAL_PHASES = (
 ProgressSink = Callable[[str, int, int], None]
 
 
+class _TooLarge(Exception):
+    """A delta whose parse set is past the measured crossover: cheaper as a full build (212)."""
+
+
 class _ScopeChanged(Exception):
     """The announced suffix set differs from the one the index was built with (task 172).
 
@@ -266,6 +270,12 @@ def coverage_loss(store: GraphStore, configured: Iterable[str]) -> tuple[str, ..
     return tuple(sorted(covered - {name.lower() for name in configured}))
 
 
+DELTA_TOO_LARGE = "delta_too_large"
+# The fourth escalation, and the first that is not a correctness argument (212). The three above
+# say a delta would be WRONG; this one says it would be SLOWER than the full build it replaces.
+DELTA_TOO_LARGE_ROUTE = "code-atlas-build --full"
+
+
 INCOMPLETE_INDEX = "incomplete_index"
 # A build that was killed mid-write leaves a graph nothing can repair incrementally: HEAD has
 # not moved, so the next diff is empty and the delete batches it already committed stay gone.
@@ -402,6 +412,23 @@ def incremental_update(
             )
             to_parse = list(dict.fromkeys(to_parse))
             _phase_add(phase_times, "hashing", mark)
+            # 212: the first escalation that is about cost rather than correctness, and it is
+            # decided HERE because `to_parse` — not the git diff — is the work the delta would do.
+            # Off unless the operator sets a crossover: measuring this repo found none below its own
+            # size (the delta's slope collapses once resolve saturates), and R2.3 forbids importing
+            # another project's constant. `<= 0` is the disabled sentinel, so the comparison can
+            # never fire on a repo that never measured its own crossover.
+            crossover = config.full_build_crossover
+            if crossover > 0 and len(to_parse) >= crossover:
+                if scope is not None:
+                    scope[DELTA_TOO_LARGE] = {
+                        "to_parse": len(to_parse),
+                        "changed": len(changed_set),
+                        "crossover": config.full_build_crossover,
+                        "escalated_to": "full",
+                        "route": DELTA_TOO_LARGE_ROUTE,
+                    }
+                raise _TooLarge
 
             mark = time.monotonic()
             report.phase("parse", total=len(to_parse))
@@ -414,6 +441,12 @@ def incremental_update(
         finally:
             for adapter in announced.values():
                 adapter.stop()
+    except _TooLarge:
+        # Same answer as the three correctness routes, for the opposite reason: this delta is not
+        # wrong, it is slower. The scope key was recorded before the raise so the report names it.
+        return full_build(
+            config, store, progress=progress, allow_coverage_loss=allow_coverage_loss
+        )
     except _ScopeChanged as moved:
         # The same class of change as a `contract_version` bump above, and the same answer: a
         # suffix that entered scope is invisible to a delta the git diff never names (task 172).
