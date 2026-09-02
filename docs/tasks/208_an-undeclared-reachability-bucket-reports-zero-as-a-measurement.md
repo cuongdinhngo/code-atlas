@@ -4,7 +4,7 @@ slug: an-undeclared-reachability-bucket-reports-zero-as-a-measurement
 title: "`Vendored dependencies: 0` on a repo whose tour is half vendored code — a reachability bucket with no declaration and no vocabulary hit prints a bare `0`, which reads as a measured absence rather than an unasked question"
 phase: 3
 milestone: M11
-status: todo
+status: done
 depends_on: [113, 119, 130, 182, 186]
 ---
 
