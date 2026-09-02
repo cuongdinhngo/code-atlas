@@ -29,7 +29,12 @@ REPO = Path(__file__).resolve().parent.parent
 # time the prior pass had already taken the restatement — the argument is in
 # tests/test_doc_size_budget.py. An open row costs more than a done one by design, and it repays
 # the raise when it closes and is re-titled by its slug.
-TIER1_BUDGET = 25_300
+# 25,300 -> 25,700 on 2026-09-02 (tickets 205-212): eight open BACKLOG rows, and the whole 400 is
+# those rows — no other tier-1 file changed. The R7.6 argument is in tests/test_doc_size_budget.py.
+# Measured at 25,658, re-confirmed unchanged on 48ee6b0 after PR #250 (204) merged — that ticket's
+# own row had landed inside the 54 tokens free at a502e8f, so the merge moved no tier-1 file and the
+# 400 here is this session's eight rows and nothing else.
+TIER1_BUDGET = 25_700
 
 
 def _tokens(paths: list[Path]) -> int:
