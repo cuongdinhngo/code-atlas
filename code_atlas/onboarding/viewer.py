@@ -772,7 +772,7 @@ put("provCard",
   + "<li>Operational documentation — how to run this, its environment, its data — belongs "
   + "to the repository and is not derivable from an index.</li></ul>"
   + '<p class="sub">Companion documents written beside this page: <code>overview.md</code>, '
-  + "<code>tour.md</code> and one page per module under <code>modules/</code>.</p>");
+  + "<code>tour.md</code> and <code>flows.md</code>.</p>");
 
 /* ---------- counterpart lookup (115's four outcomes, in the browser) ---------- */
 function counterpart(path) {

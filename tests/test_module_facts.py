@@ -6,15 +6,10 @@ from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
-from code_atlas.onboarding.artifact import (
-    NO_DOCBLOCK,
-    OUTPUT_DIR,
-    ModulePage,
-    page_relpath,
-    render_module,
-)
+from code_atlas.onboarding.artifact import OUTPUT_DIR
 from code_atlas.onboarding.metrics import NodeMetric
 from code_atlas.onboarding.module_facts import module_facts, signature_for
+from code_atlas.onboarding.prose import ProseRequest
 from code_atlas.onboarding.summary import NodeFacts, StructuralSummarizer
 from code_atlas.store import GraphStore
 from code_atlas.tools import architecture_overview, generate_onboarding
@@ -38,31 +33,56 @@ def test_module_facts_read_docblock_and_signature(tmp_path: Path) -> None:
     assert "Handles billing" in facts.doc
 
 
-def test_render_module_never_shows_summary_none_for_missing_docblock() -> None:
-    """AC3: absence is attributed to the file, not rendered as ``(none)``."""
-    page = ModulePage(
-        file="x.aa",
-        relpath=page_relpath("x.aa"),
-        layer="core",
-        rank=0,
-        role="standalone",
-        docline="",
-        rationale="entry",
-        scc=(),
-        index=1,
-        of=1,
-        outgoing=(),
-        incoming=(),
-        fan_in=0,
-        fan_out=0,
+class _Recorder:
+    """A ProseWriter that records the facts it is handed and declines every slot (117)."""
+
+    def __init__(self) -> None:
+        self.requests: list[ProseRequest] = []
+
+    def write(self, request: ProseRequest) -> str:
+        self.requests.append(request)
+        return ""
+
+
+def _named(recorder: _Recorder) -> str:
+    """The ``modules named`` fact of every step request, joined."""
+    return " | ".join(
+        value
+        for request in recorder.requests
+        for label, value in request.facts
+        if label == "modules named"
     )
-    text = render_module(page, max_results=50)
-    assert NO_DOCBLOCK in text
-    assert "## Summary\n\n(none)" not in text
 
 
-def test_isolation_rule_respects_non_empty_docline(tmp_path: Path) -> None:
-    """AC5: a docline can keep an edgeless module off the isolated list."""
+def test_a_missing_docblock_is_absence_at_the_seam_not_an_invented_sentence(
+    tmp_path: Path,
+) -> None:
+    """AC3, at the consumer the docline still has (205): the tour step's facts.
+
+    Before 205 an absent docblock was rendered on a module page as the sentence *"No leading doc
+    comment above the indexed declaration in this file."* — 412 of the anchor's 500 pages said it,
+    which reads as a fact about the repo when it is a fact about the read-through. With the page
+    tree gone the sentence goes with it: the seam is handed the module with no docline at all, and
+    nothing writes a sentence about the absence.
+    """
+    config = db_config(tmp_path)
+    path = "scripts/alone.aa"
+    with GraphStore(config.db_path) as store:
+        seed_file(store, path, [node("Class", "Alone", "\\Alone", path)], [], root=tmp_path)
+    (tmp_path / path).write_text("class Alone {\n}\n", encoding="utf-8")
+    recorder = _Recorder()
+    generate_onboarding.create(config, prose_writer=recorder)()
+
+    named = _named(recorder)
+    assert path in named
+    assert ": " not in named.split(path, 1)[1].split(";")[0]  # the module, no docline after it
+    tour = (_out(tmp_path) / "tour.md").read_text(encoding="utf-8")
+    assert "No leading doc comment" not in tour
+    assert "(none)" not in tour
+
+
+def test_a_docblock_reaches_the_seam_for_an_edgeless_module(tmp_path: Path) -> None:
+    """AC5, restated at the seam: read-through does not skip a module for having no edge."""
     config = db_config(tmp_path)
     path = "scripts/alone.aa"
     row = node("Class", "Alone", "\\Alone", path)
@@ -70,10 +90,10 @@ def test_isolation_rule_respects_non_empty_docline(tmp_path: Path) -> None:
     with GraphStore(config.db_path) as store:
         seed_file(store, path, [row], [], root=tmp_path)
     (tmp_path / path).write_text(f"{DOC}class Alone {{\n}}\n", encoding="utf-8")
-    payload = generate_onboarding.create(config)()
-    assert payload["isolated_modules"] == 0
-    page = (_out(tmp_path) / "modules" / f"{path}.md").read_text(encoding="utf-8")
-    assert "Handles billing" in page
+    recorder = _Recorder()
+    generate_onboarding.create(config, prose_writer=recorder)()
+
+    assert "Handles billing" in _named(recorder)
 
 
 def test_llm_prompt_receives_non_empty_doc_and_signature() -> None:
@@ -87,8 +107,8 @@ def test_llm_prompt_receives_non_empty_doc_and_signature() -> None:
     assert "Docblock: (none)" not in prompt
 
 
-def test_generate_onboarding_module_page_carries_read_through_summary(tmp_path: Path) -> None:
-    """End-to-end: a file docblock reaches the module page summary."""
+def test_generate_onboarding_read_through_reaches_the_seam(tmp_path: Path) -> None:
+    """End-to-end: a file docblock read at build time reaches the 117 seam's step facts."""
     config = db_config(tmp_path)
     path = "src/A.aa"
     row = node("Class", "A", "\\A", path)
@@ -109,11 +129,12 @@ def test_generate_onboarding_module_page_carries_read_through_summary(tmp_path: 
             root=tmp_path,
         )
     (tmp_path / path).write_text(f"{DOC}class A {{\n}}\n", encoding="utf-8")
-    generate_onboarding.create(config)()
-    text = (_out(tmp_path) / "modules" / f"{path}.md").read_text(encoding="utf-8")
-    assert "Handles billing" in text
-    summary_block = text.split("## Summary", 1)[1].split("##", 1)[0]
-    assert NO_DOCBLOCK not in summary_block
+    recorder = _Recorder()
+    generate_onboarding.create(config, prose_writer=recorder)()
+
+    named = _named(recorder)
+    assert f"{path} (" in named
+    assert "Handles billing" in named
 
 
 def test_signature_for_includes_params() -> None:
