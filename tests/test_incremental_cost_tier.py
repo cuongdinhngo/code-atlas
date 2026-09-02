@@ -21,8 +21,8 @@ from pathlib import Path
 
 from code_atlas import contract
 from code_atlas.config import DEFAULT_FULL_BUILD_CROSSOVER, load_config
-from code_atlas.indexer import DELTA_TOO_LARGE, DELTA_TOO_LARGE_ROUTE
-from code_atlas.store import CONTRACT_VERSION_KEY, GraphStore
+from code_atlas.indexer import DELTA_TOO_LARGE, DELTA_TOO_LARGE_ROUTE, INCOMPLETE_INDEX
+from code_atlas.store import BUILD_COMPLETE_KEY, BUILD_INCOMPLETE, CONTRACT_VERSION_KEY, GraphStore
 from code_atlas.tools.build_or_update_index import create as build_tool
 
 REPO = Path(__file__).resolve().parent.parent
@@ -129,6 +129,26 @@ def test_a_correctness_escalation_takes_precedence_over_cost(tmp_path: Path) -> 
     assert DELTA_TOO_LARGE not in payload, "a cost tier must never mask a correctness answer"
 
 
+def test_an_incomplete_index_outranks_the_cost_tier_too(tmp_path: Path) -> None:
+    """AC7, the residual case: the challenger noted only the contract-era route had a COMBINED test.
+
+    An incomplete index and an over-threshold delta hold at once. The incomplete-index route is
+    decided before the `try` block the cost tier lives in, so it cannot be overtaken — but that is a
+    structural argument until a fixture holds both true at the same time, which this does.
+    """
+    _seeded(tmp_path, files=3)
+    _touch(tmp_path, files=3)
+    config = _config(tmp_path, full_build_crossover=1)
+    with GraphStore(config.db_path) as store:
+        store.set_meta(BUILD_COMPLETE_KEY, BUILD_INCOMPLETE)
+
+    payload = build_tool(config)(full=False)
+
+    assert DELTA_TOO_LARGE not in payload, "a cost tier must never mask an incomplete index"
+    assert payload["mode"] == "full"
+    assert payload[INCOMPLETE_INDEX]["escalated_to"] == "full"
+
+
 def test_the_crossover_is_its_own_knob_and_no_other_budget_moves_it(tmp_path: Path) -> None:
     """R2.3 / the 124 pattern: a named setting of its own, not a borrowed walk budget.
 
@@ -186,3 +206,15 @@ def test_the_escalated_build_indexes_everything_the_delta_would_have_skipped(
     with GraphStore(config.db_path) as store:
         assert store.file_hash("src/late.aa") is not None, "the full build picked up the new file"
         assert len(store.file_paths()) == 4
+
+    # The DISCRIMINATOR, and the assertion this test lacked: a file's presence proves nothing,
+    # because the ordinary hash-gate would have picked `late.aa` up too. Only a real `full_build`
+    # re-parses the files the delta had already hash-skipped, so the parse count is what separates
+    # "escalated" from "silently carried on as a delta". Found by the ticket-blind challenger, which
+    # replaced `raise _TooLarge` with `pass` and watched all six tests stay green.
+    wrote = payload["wrote"]
+    assert isinstance(wrote, dict)
+    assert wrote["parsed"] == 4, (
+        "a full build parses every collected file; a delta that swallowed its escalation would "
+        f"parse only the changed ones, and got {wrote['parsed']}"
+    )

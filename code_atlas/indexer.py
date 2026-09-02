@@ -79,7 +79,19 @@ ProgressSink = Callable[[str, int, int], None]
 
 
 class _TooLarge(Exception):
-    """A delta whose parse set is past the measured crossover: cheaper as a full build (212)."""
+    """A delta whose parse set is past the measured crossover: cheaper as a full build (212).
+
+    It carries the three numbers the report needs, so the ``scope`` key is written by the handler
+    that actually takes the route. Writing the key at the decision and raising afterwards let the
+    two diverge: a lost ``raise`` would report a full build that never ran — 202's lesson inverted,
+    and the ticket-blind challenger's mutation proved a test suite can miss it.
+    """
+
+    def __init__(self, to_parse: int, changed: int, crossover: int) -> None:
+        self.to_parse = to_parse
+        self.changed = changed
+        self.crossover = crossover
+        super().__init__(f"{to_parse} files to parse, past the {crossover} crossover")
 
 
 class _ScopeChanged(Exception):
@@ -420,15 +432,7 @@ def incremental_update(
             # never fire on a repo that never measured its own crossover.
             crossover = config.full_build_crossover
             if crossover > 0 and len(to_parse) >= crossover:
-                if scope is not None:
-                    scope[DELTA_TOO_LARGE] = {
-                        "to_parse": len(to_parse),
-                        "changed": len(changed_set),
-                        "crossover": config.full_build_crossover,
-                        "escalated_to": "full",
-                        "route": DELTA_TOO_LARGE_ROUTE,
-                    }
-                raise _TooLarge
+                raise _TooLarge(len(to_parse), len(changed_set), crossover)
 
             mark = time.monotonic()
             report.phase("parse", total=len(to_parse))
@@ -441,9 +445,18 @@ def incremental_update(
         finally:
             for adapter in announced.values():
                 adapter.stop()
-    except _TooLarge:
+    except _TooLarge as heavy:
         # Same answer as the three correctness routes, for the opposite reason: this delta is not
-        # wrong, it is slower. The scope key was recorded before the raise so the report names it.
+        # wrong, it is slower. The key is written HERE, by the handler that takes the route, so the
+        # report cannot name a full build that did not run.
+        if scope is not None:
+            scope[DELTA_TOO_LARGE] = {
+                "to_parse": heavy.to_parse,
+                "changed": heavy.changed,
+                "crossover": heavy.crossover,
+                "escalated_to": "full",
+                "route": DELTA_TOO_LARGE_ROUTE,
+            }
         return full_build(
             config, store, progress=progress, allow_coverage_loss=allow_coverage_loss
         )
