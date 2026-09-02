@@ -137,13 +137,26 @@ def test_the_git_hook_inherits_the_escalation(tmp_path: Path) -> None:
 
 
 def test_a_removed_adapter_is_named_too(tmp_path: Path) -> None:
-    """The comparison is set difference, not growth: losing a language is also a scope change."""
+    """The comparison is set difference, not growth: losing a language is also a scope change.
+
+    **203 now sits in front of this escalation.** A narrowed adapter set escalates to a full build,
+    and a full build discards the language that left — so the default answer is a refusal, and
+    172's `scope_change` payload is what a caller who OPTS IN to the loss still gets. Both
+    contracts hold; the second one now costs a deliberate flag.
+    """
     write(tmp_path, "src/a.aa", "class Thing {}\n")
     write(tmp_path, "src/c.cc", "class Third {}\n")
     git_repo(tmp_path)
     build_tool(config_for(tmp_path, TWO_ADAPTERS))(full=True)
 
-    payload = build_tool(config_for(tmp_path, ONE_ADAPTER))(full=False)
+    refused = build_tool(config_for(tmp_path, ONE_ADAPTER))(full=False)
+    assert refused["mode"] == "refused"
+    assert refused["reason"] == "coverage_loss"
+    assert refused["lost_languages"] == ["second"]
+
+    payload = build_tool(config_for(tmp_path, ONE_ADAPTER))(
+        full=False, allow_coverage_loss=True
+    )
 
     assert payload["scope_change"] == {
         "added": [],

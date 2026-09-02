@@ -21,19 +21,25 @@ from code_atlas.config import Config
 from code_atlas.index_lock import publish_build_progress, try_index_write_lock
 from code_atlas.indexer import (
     CONTRACT_REBUILD_REQUIRED,
+    COVERAGE_LOSS,
+    COVERAGE_LOSS_HINT,
+    COVERAGE_LOSS_IN_BAND,
     FULL_REBUILD_ROUTE,
     IN_BAND_FULL_REBUILD,
     INCOMPLETE_INDEX,
     INCOMPLETE_INDEX_ROUTE,
     BuildReport,
+    CoverageLossError,
     build_incomplete,
     contract_rebuild_required,
+    coverage_loss,
     full_build,
     incremental_update,
 )
 from code_atlas.store import (
     BUILT_AT_KEY,
     CONTRACT_VERSION_KEY,
+    COVERED_LANGUAGES_KEY,
     LAST_COMMIT_KEY,
     SCHEMA_OLDER,
     WRITE_ERRORS,
@@ -75,6 +81,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         detail_level: DetailLevel = "standard",
         allow_full_rebuild: bool = False,
         repair_incomplete: bool = True,
+        allow_coverage_loss: bool = False,
     ) -> dict[str, object]:
         """Build or refresh this repo's index so the other tools have current data.
 
@@ -105,6 +112,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     started=started,
                     allow_full_rebuild=allow_full_rebuild,
                     repair_incomplete=repair_incomplete,
+                    allow_coverage_loss=allow_coverage_loss,
                 )
             except AdapterError as broken:
                 return _adapter_refused(config, broken, full=full, started=started)
@@ -190,6 +198,7 @@ def _build(
     started: float,
     allow_full_rebuild: bool = False,
     repair_incomplete: bool = True,
+    allow_coverage_loss: bool = False,
 ) -> dict[str, object]:
     rebuilt_schema = False
     try:
@@ -208,7 +217,18 @@ def _build(
         if not repair_incomplete and build_incomplete(store):
             return _incomplete_refused(config, full=full, started=started)
         scope: dict[str, object] = {}
-        mode, report = _run(config, store, full=full or rebuilt_schema, scope=scope)
+        try:
+            mode, report = _run(
+                config,
+                store,
+                full=full or rebuilt_schema,
+                scope=scope,
+                allow_coverage_loss=allow_coverage_loss,
+            )
+        except CoverageLossError as loss:
+            # Raised by `full_build` before it writes, so this covers the escalation paths a
+            # `full=False` request can take as well as an explicit `--full` (203).
+            return _coverage_refused(store, config, loss.lost, full=full, started=started)
         result = _result(
             store, config, report, full, mode, detail_level,
             rebuilt_schema=rebuilt_schema,
@@ -247,7 +267,12 @@ def _progress_sink(config: Config) -> Callable[[str, int, int], None]:
 
 
 def _run(
-    config: Config, store: GraphStore, *, full: bool, scope: dict[str, object]
+    config: Config,
+    store: GraphStore,
+    *,
+    full: bool,
+    scope: dict[str, object],
+    allow_coverage_loss: bool = False,
 ) -> tuple[str, BuildReport]:
     """Pick full vs incremental; degrade to full when git or meta cannot support a diff.
 
@@ -256,15 +281,32 @@ def _run(
     to do (task 172).
     """
     progress = _progress_sink(config)
+    # BEFORE any write, on EVERY path. `full_build` raises this too, but by then an escalating
+    # incremental has already stamped `build_complete = 0`, so the refusal would not be free.
+    # A narrowed adapter set has no safe outcome: escalate and discard, or leave rows nothing can
+    # reparse. Both are refused here, and `allow_coverage_loss` restores either (203).
+    if not allow_coverage_loss:
+        lost = coverage_loss(store, config.adapter_cmds)
+        if lost:
+            raise CoverageLossError(lost)
     if full:
-        return FULL, full_build(config, store, progress=progress)
+        return FULL, full_build(
+            config, store, progress=progress, allow_coverage_loss=allow_coverage_loss
+        )
     last = store.get_meta(LAST_COMMIT_KEY)
     if last is None or gitutil.head_commit(config.root) is None:
-        return FULL, full_build(config, store, progress=progress)
+        return FULL, full_build(
+            config, store, progress=progress, allow_coverage_loss=allow_coverage_loss
+        )
     changed = gitutil.changed_paths(config.root, last)
     if changed is None:
-        return FULL, full_build(config, store, progress=progress)
-    report = incremental_update(config, store, changed, progress=progress, scope=scope)
+        return FULL, full_build(
+            config, store, progress=progress, allow_coverage_loss=allow_coverage_loss
+        )
+    report = incremental_update(
+        config, store, changed, progress=progress, scope=scope,
+        allow_coverage_loss=allow_coverage_loss,
+    )
     return (FULL if scope else INCREMENTAL), report
 
 
@@ -292,6 +334,35 @@ def _contract_refused(
         "contract_version": contract.CONTRACT_VERSION,
         "route": FULL_REBUILD_ROUTE,
         "in_band_option": IN_BAND_FULL_REBUILD,
+        "index_root": config.index_root,
+        "db_path": str(config.db_path),
+        "seconds": round(time.monotonic() - started, 3),
+    }
+
+
+def _coverage_refused(
+    store: GraphStore,
+    config: Config,
+    lost: tuple[str, ...],
+    *,
+    full: bool,
+    started: float,
+) -> dict[str, object]:
+    """The run cannot parse a language the index covers — refuse before writing the loss (203).
+
+    The 050/201 shape, and deliberately **no** `route`: no registered tool can configure an
+    adapter, so this carries a hint instead of a tool that could not answer (R5.4c).
+    """
+    return {
+        "mode": REFUSED,
+        "requested_full": full,
+        "performed": False,
+        "reason": COVERAGE_LOSS,
+        "lost_languages": list(lost),
+        "covered_languages": store.get_meta(COVERED_LANGUAGES_KEY) or "",
+        "configured_languages": sorted(config.adapter_cmds),
+        "hint": COVERAGE_LOSS_HINT,
+        "in_band_option": COVERAGE_LOSS_IN_BAND,
         "index_root": config.index_root,
         "db_path": str(config.db_path),
         "seconds": round(time.monotonic() - started, 3),
