@@ -100,10 +100,10 @@ DOCS = REPO / "docs"
 # which is the argument (R6.7). Net 23,978 -> 22,855, and no link and no ticket reference was lost.
 # 8,300 -> 8,700 on 2026-09-02 (tickets 205-212): eight open rows from one investigation — a single
 # onboarding artifact read end to end, plus three ideas taken from an external reference tool and
-# one incremental-cost gap the reading exposed. Each defect was filed separately rather than bundled,
+# one incremental-cost gap the reading exposed. Each defect was filed separately, not bundled,
 # which is what costs the 400. R7.6 ran first and came back empty both times it was tried: the
 # Conventions section names one mechanism — "a ticketed follow-up leaves the Follow-ups list" — and
-# none of the eight tickets one. 205 and 212 are the near misses and both were rejected on inspection
+# none of the eight tickets one. 205 and 212 are the near misses, both rejected on inspection
 # (205's Scope 1 leaves `impact_max_nodes` alone for `reachable_from`; 212 skips on a declaration
 # fingerprint, not the byte cap the parser-OOM follow-up describes), because deleting either line
 # would record a fix that did not happen. No id sits in two tables; every `done` row is slug-titled.
