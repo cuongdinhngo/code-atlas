@@ -83,7 +83,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 202 | [a killed build leaves an index that reports current](tasks/202_a-killed-build-leaves-an-index-that-reports-current.md) | Agent-trust | done | 072, 077, 052, 050, 035 |
 | 204 | [bare-name resolution has no language predicate](tasks/204_bare-name-resolution-has-no-language-predicate.md) | Agent-trust | done | 046, 137, 183, 185, 186 |
 | 203 | [a rebuild is GIL-bound and its operating knowledge is unroutable](tasks/203_a-rebuild-is-gil-bound-and-its-operating-knowledge-is-unroutable.md) | Freshness | done | 052, 096, 176, 177, 200, 201 |
-| 212 | [an incremental update escalates on correctness but never on cost](tasks/212_an-incremental-update-escalates-on-correctness-but-never-on-cost.md) | Freshness | todo | 030, 052, 080, 096, 172, 202 |
+| 212 | [an incremental update escalates on correctness but never on cost](tasks/212_an-incremental-update-escalates-on-correctness-but-never-on-cost.md) | Freshness | done | 030, 052, 080, 096, 172, 202 |
 | 213 | [a declaration fingerprint so a cosmetic edit is not reparsed](tasks/213_a-declaration-fingerprint-so-a-cosmetic-edit-is-not-reparsed.md) | Freshness | todo | 212, 052, 080 |
 
 ## Open work — Pillar 2 · Onboarding

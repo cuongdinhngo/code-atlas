@@ -4,7 +4,7 @@ slug: an-incremental-update-escalates-on-correctness-but-never-on-cost
 title: "`incremental_update` escalates to a full build only when a delta would be *wrong*, never when it would be slower than one — and no change is ever classified as too small to re-parse"
 phase: 1.5b
 milestone: Freshness
-status: todo
+status: done
 depends_on: [030, 052, 080, 096, 172, 202]
 ---
 
@@ -121,7 +121,7 @@ after doing less work).
 
 ## Session status
 
-- **KEY:** 212 · **work_doc_mode:** embed · **Current phase:** 1 analysis — Gate 1 artifacts below.
+- **KEY:** 212 · **work_doc_mode:** embed · **Current phase:** 5 finalise — complete on disk. PR [#256](https://github.com/cuongdinhngo/code-atlas/pull/256) open on `main`. **Next action:** merge #256. **Revert path:** `git revert` the three commits on `feat/212-…`, or close #256 unmerged — the knob's default is 0, so the revert is a no-op for every existing caller. The split's other half is [213](213_a-declaration-fingerprint-so-a-cosmetic-edit-is-not-reparsed.md), which stays open.
 - `TRACK: backend` · `TIER: full` · `SCOPE: M` (after the ratified split; **L** as filed) ·
   `STRUCTURE: native` · **Type:** enhancement.
 - Run arg *"with skipped reviewer"* = `--no-reviewer`; reviewer waived, **challenger keeps its seat**.
