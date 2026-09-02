@@ -83,6 +83,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 202 | [a killed build leaves an index that reports current](tasks/202_a-killed-build-leaves-an-index-that-reports-current.md) | Agent-trust | done | 072, 077, 052, 050, 035 |
 | 204 | [bare-name resolution has no language predicate](tasks/204_bare-name-resolution-has-no-language-predicate.md) | Agent-trust | done | 046, 137, 183, 185, 186 |
 | 203 | [a rebuild is GIL-bound, and its operating knowledge is unroutable](tasks/203_a-rebuild-is-gil-bound-and-its-operating-knowledge-is-unroutable.md) | Freshness | in-progress | 052, 096, 176, 177, 200, 201 |
+| 212 | [an incremental update escalates on correctness but never on cost](tasks/212_an-incremental-update-escalates-on-correctness-but-never-on-cost.md) | Freshness | todo | 030, 052, 080, 096, 172, 202 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -131,6 +132,13 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | 197 | [no surface follows one request end to end](tasks/197_no-surface-follows-one-request-from-entry-to-the-data-it-writes.md) | Phase 3 / M11 | done | 113, 114, 111, 112, 022 |
 | 198 | [a business module is labelled by its directory name](tasks/198_a-business-module-is-labelled-by-its-directory-name.md) | Phase 3 / M12 | done | 114, 117, 197 |
 | 199 | [flows-have-no-tool-so-an-agent-pays-for-the-whole-overview](tasks/199_flows-have-no-tool-so-an-agent-pays-for-the-whole-overview.md) | Phase 3 / M11 | done | 197 |
+| 205 | [a module page per node-budget slot](tasks/205_a-module-page-per-node-budget-slot.md) | Phase 3 / M11 | todo | 106, 107, 108, 109, 111, 118 |
+| 206 | [onboarding cannot be scoped to the tree the reader works in](tasks/206_onboarding-cannot-be-scoped-to-the-tree-the-reader-works-in.md) | Phase 3 / M11 | todo | 105, 111, 112, 121, 126, 131, 205 |
+| 207 | [the artifact answers no question a newcomer asks first](tasks/207_the-artifact-answers-no-question-a-newcomer-asks-first.md) | Phase 3 / M12 | todo | 112, 117, 121, 206 |
+| 208 | [an undeclared reachability bucket reports zero as a measurement](tasks/208_an-undeclared-reachability-bucket-reports-zero-as-a-measurement.md) | Phase 3 / M11 | todo | 113, 119, 130, 182, 186 |
+| 209 | [a committed artifact cannot say which summarizer wrote it](tasks/209_a-committed-artifact-cannot-say-which-summarizer-wrote-it.md) | Phase 3 / M12 | todo | 085, 090, 117, 118, 205 |
+| 210 | [the artifact has one shape for every reader](tasks/210_the-artifact-has-one-shape-for-every-reader.md) | Phase 3 / M12 | todo | 088, 112, 121, 205, 207, 209 |
+| 211 | [the tour population is ranked but never grouped](tasks/211_the-tour-population-is-ranked-but-never-grouped.md) | Phase 3 / M11 | todo | 084, 105, 110, 131, 204, 206 |
 
 
 **Round ordering, and what each round left open.** One line each; the narratives live in

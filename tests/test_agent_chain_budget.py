@@ -29,10 +29,17 @@ REPO = Path(__file__).resolve().parent.parent
 # time the prior pass had already taken the restatement — the argument is in
 # tests/test_doc_size_budget.py. An open row costs more than a done one by design, and it repays
 # the raise when it closes and is re-titled by its slug.
-# 25,300 -> 25,400 on 2026-09-02 for task 203's open row (measured 25,342). The whole 54 is
-# BACKLOG's one row; no other tier-1 file moved. PR #251 raises this to 25,700 for its own
-# eight rows, so whichever merges second re-measures with scripts/agent_chain_cost.py.
-TIER1_BUDGET = 25_400
+# 25,300 -> 25,700 on 2026-09-02 (tickets 205-212): eight open BACKLOG rows, and the whole 400 is
+# those rows — no other tier-1 file changed. The R7.6 argument is in tests/test_doc_size_budget.py.
+# Measured at 25,658, re-confirmed unchanged on 48ee6b0 after PR #250 (204) merged — that ticket's
+# own row had landed inside the 54 tokens free at a502e8f, so the merge moved no tier-1 file and the
+# 400 here is this session's eight rows and nothing else.
+# 25,700 -> 25,800 on 2026-09-02, second edit the same day: task 203's open row lands on top of the
+# eight above and measures 25,711. Two sessions raised this ceiling within the hour and this is the
+# later one, re-measured against the merged tree rather than either branch's own figure. R7.6 was
+# applied first and found nothing: no id is listed in two tables, and the 2026-08-30 pass already
+# slug-titled every `done` row, so there is no prose title left to reclaim. The 100 buys one row.
+TIER1_BUDGET = 25_800
 
 
 def _tokens(paths: list[Path]) -> int:
