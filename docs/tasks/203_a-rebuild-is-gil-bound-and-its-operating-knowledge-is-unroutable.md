@@ -442,3 +442,190 @@ a full build which would silently narrow coverage now refuses, and `allow_covera
 restores the old behaviour for a caller who means it. One repo, no porting order.
 
 `SCOPE: L` — unchanged, and the ticket stays open.
+
+## Phase 3 — execute
+
+Three commits: `7b49995` the coverage guard, `3df8c2b` the runbook facts, `f644eb6` the ticket and
+the budgets.
+
+### Axis 1 — file set
+
+`git diff --stat 48ee6b0 <tip>` — a property of two named commits, so it is a reference point rather
+than tree-under-review output (201-C1):
+
+```
+ code_atlas/indexer.py                     |  21 +
+ code_atlas/tools/build_or_update_index.py |  43 +
+ docs/BACKLOG.md                           |   1 +
+ docs/runbooks/onboarding-a-repo.md        |  16 +-
+ docs/tasks/203_…md                        | (this file)
+ tests/test_agent_chain_budget.py          |   5 +-
+ tests/test_coverage_loss_refusal.py       | 148 +
+ tests/test_doc_size_budget.py             |   6 +-
+```
+
+Eight files against five approved rows; rows 1–2 are the two core files, row 3 the test, row 4 the
+runbook, row 5 the four bookkeeping files. **diff ⊆ approved list.**
+
+### Axis 2 — the red run (R6.5)
+
+**The first attempt was rejected as evidence.** Reverting the core made the module fail to *import*
+`COVERAGE_LOSS` — which proves the constant is new, not that the behaviour was wrong:
+
+```
+E   ImportError: cannot import name 'COVERAGE_LOSS' from 'code_atlas.indexer'
+1 error in 0.08s
+```
+
+So the constant was inlined and the run repeated against the pre-fix core, exercising behaviour.
+This is the run the ticket rests on:
+
+```
+FAILED test_a_full_build_refuses_to_discard_a_covered_language
+FAILED test_the_refusal_leaves_the_index_untouched
+FAILED test_the_refusal_names_no_route_because_no_tool_can_answer
+FAILED test_the_caller_can_opt_in_to_the_narrowing
+4 failed, 2 passed in 3.21s
+```
+
+The two passes are the two asserting the guard does **not** fire — a first build, and a widening
+run — correctly green on both sides. After: `6 passed`.
+
+### Axis 3 — SCOPE 1, the controlled pair
+
+Two full builds of the anchor, back-to-back on an idle host, **same code** (this branch), same
+corpus (`last_commit 61591c6`), same knobs (`workers 6`, `max_results 10`), read-only against the
+sources with `CA_DB_PATH` in a scratchpad. The **only** difference is whether the target database
+already held the graph. The anchor's own index was never touched.
+
+| | wall | files/s | target DB at start |
+|---|---|---|---|
+| **populated** | **4,545 s · 75.8 min** | **5.41** | 1.16 GiB, 262,899 nodes / 2.08 M edges |
+| **fresh** | **1,751 s · 29.2 min** | **14.03** | empty |
+| | **2.60× · 46.6 min** | | |
+
+Both runs wrote **identical** output — 24,569 files, 262,899 nodes, 2,077,473 edges — so the pair
+differs in wall clock and nothing else (R4.2). For reference, [201](201_a-forced-full-rebuild-is-silent-and-unroutable.md)
+measured the field rebuild at 5,470 s / 4.49 files/s against a **2.2 GiB** populated index.
+
+**AC1's open question is settled.** The ticket asked whether the populated-DB delete is what
+separates 18.7 files/s from 4.5 and said *"no fix should be chosen before it does"*. It is the
+dominant term: **the starting state alone costs 2.6× — 46.6 minutes of a 75.8-minute rebuild.**
+
+**And the pair decomposes into two distinct effects, which the single wall figure hid.** Sampling
+the live lock during the fresh run:
+
+| files done | files/s |
+|---|---|
+| 0 → 7,250 | **43.2** |
+| 7,250 → 10,051 | 23.3 |
+| 10,051 → 12,614 | 21.4 |
+| 12,614 → 14,615 | 16.7 |
+| 14,615 → 18,231 | 13.7 |
+| 18,231 → 19,663 | 11.0 |
+| 19,663 → 21,033 | 10.5 |
+| 21,033 → 22,297 | **9.7** |
+
+1. **An index-size term, present in both runs.** On an empty database the rate falls **43.2 → 9.7
+   files/s** as rows accumulate. Nothing about the source files changed; the per-file write got
+   dearer as `nodes`/`edges` and the `nodes_fts` trigram index grew. The populated run is **flat at
+   5.41 from its first file** because it begins at the far end of this curve.
+2. **A pre-existing-rows term, in the populated run only.** At comparable index size the fresh run
+   still sustains ~9.7 files/s against the populated run's 5.41 — a further **~1.8×**. The fresh
+   run never deletes: `replace_file_rows` (`store.py:481`) wraps `_delete_rows(path)` plus both
+   inserts in one transaction, and on an empty database that delete matches nothing. This is the
+   ticket's own hypothesis, and it is the residue after the size term is accounted for.
+
+**This is the number scope 2 must now be chosen against, and it reframes the choice.** The ticket's
+premise was that decode shares the writer's GIL. That may still be true, but it is not where the
+hour goes: **the wall is dominated by what the write path does per file as the index grows**, and
+moving `json.loads` off the writer's thread cannot touch either term measured above. A maintainer
+picking between a process pool, adapter-side decode and a new framing should know that the
+best case for all three is bounded by the ~29 minutes a fresh build already costs. Truncating the
+tables before a full build, or deferring the FTS index, are candidates this pair makes visible and
+the ticket never listed.
+
+### Axis 4 — scope 5, both facts re-derived
+
+`grep -n "CREATE TRIGGER IF NOT EXISTS nodes_ai" code_atlas/store.py` → `126`; the trigger block
+runs `122-138`, not the `75-84` the runbook cited. The step-not-flat-fee correction takes 052's
+~62 s and this ticket's own field pair (0 files = 5.5 s, 3 files = 63.8 s) — measured on the anchor
+and quoted from the ticket's *Field evidence*, not re-run here (**E1**).
+
+### Design conformance
+
+Every row of the change list landed as designed. Two things the design did not predict, both
+recorded rather than folded in: the **two-term decomposition** above, and that the fresh run is
+**29.2 min, not the ~46 min I estimated earlier** — that earlier estimate came from a run sharing
+the host with a `pytest` suite, which is why this pair was re-run on an idle host.
+
+### Axis 5 — the suite
+
+`pytest -q` in the isolated worktree, on an idle host after the pair finished:
+
+```
+2685 passed, 70 skipped in 282.24s (0:04:42)
+```
+
+Zero failures. 2,685 = the baseline's 2,677 plus this ticket's 8 (six guard cases and the two
+`test_backlog_bookkeeping` params a new task file adds). The 70 skips are unchanged from the
+baseline — this host's, not this branch's; CI is the authority for a fully green run.
+`ruff` clean, `mypy` clean over 85 files.
+
+## Phase 4 — review
+
+`--no-reviewer` waived the rule-book reviewer, so **no rule-book-grounded review of this diff
+exists**. The ticket-blind challenger's verdict is attached to the PR as a comment rather than
+inlined here, because the PR opened first at the maintainer's explicit request.
+
+### Scope reconciliation
+
+diff ⊆ approved list (Axis 1). `contract.py`, `PLAN.md` and `CONVENTION.md` untouched, as designed.
+**The ticket stays open**: scopes 2 and 4 are unattempted, with reasons in *Session status*, and the
+matrix marks R2/R4/AC2/AC3/AC5/AC6 `OPEN` rather than closed.
+
+**Ph3/4 proven by:** Axis 2's behavioural red run · Axis 3's controlled pair on the real corpus ·
+Axis 5's 2,685-pass suite.
+
+## Phase 5 — finalise
+
+`CLAIMS: 3 claim(s) from 1 lesson entr(ies) | T1=0 T2=3 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 1 recurring | 0 superseded (0 retired) | 1 promotion candidate(s)`
+`RECURRING-T2: 1 type-2 claim(s) with seen ≥ 2 | 1 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`FALSIFY: 3 candidate(s) checked | 3 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`PROMOTION: 1 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+`LEDGER TOTAL: 0 dispatch at the time of writing · top cost driver: main loop (unmeasured — the host surfaces no usage block)`
+
+**No `TOKEN_LEDGER.md` row.** R7.2 owes one at `done`; 203 is `in-progress`, so the row is owed by
+the PR that closes scopes 2 and 4. `tests/test_backlog_bookkeeping.py` enforces exactly this.
+
+### Claims
+
+- **203-C1** — *a wall-clock difference can hide two independent terms, and the pair that proves the
+  headline can also decompose it if you sample the run instead of only timing it.* The fresh/populated
+  ratio is 2.60×, but sampling the live lock split it into an index-size term (43.2 → 9.7 files/s
+  within the fresh run) and a pre-existing-rows term (~1.8× residue). The second is the one the
+  ticket hypothesised; the first it never named. type: 2 · handle:
+  `sample-the-run-do-not-only-time-it` · seen: 203 · recurrence 1.
+- **203-C2** — *a red run that fails at import proves the symbol is new, not that the behaviour was
+  wrong.* Reverting the core made the module fail to collect; that was rejected and the constant
+  inlined so the run exercised behaviour. type: 2 · handle:
+  `an-import-error-is-not-a-red-run` · **seen: 203 + `prove-the-guard-fails` (R6.5) — recurrence 2.**
+- **203-C3** — *`ps` output filtered by a wrapper made a live process look dead, and the misreading
+  put three full builds on one database.* The reliable liveness test was the artifact itself — whether
+  the write lock's counter advanced. type: 2 · handle: `test-liveness-by-the-artifact-not-by-ps` ·
+  seen: 203 · recurrence 1.
+
+**203-C2 reaches recurrence 2** against **R6.5**, whose falsifier is *"a guard test whose PR claims a
+defect class is prevented with no recorded red run"*. It is routed to `docs/LESSONS.md` as a
+**sharpening of R6.5's existing falsifier**, not a new rule: a collection error is not a red run.
+Proposed, not ratified — the rule book is the human's to change.
+
+### Outward actions
+
+| # | Action | Authorisation | State |
+|---|---|---|---|
+| 1 | push `fix/203-a-rebuild-is-gil-bound` | handover, explicit | **done** |
+| 2 | open the PR | the maintainer's explicit *"open the PR for 203 once the pair finishes"* | **done** |
+| 3 | merge | **not taken.** 203 is `in-progress`, and the budget lines conflict with PR #251 by design — the merge order is a decision for the maintainer | **deferred** |
+| 4 | tracker transition | none | **deferred** — no tracker beyond the PR |
