@@ -162,7 +162,11 @@ class BuildReport:
 
 
 def full_build(
-    config: Config, store: GraphStore, *, progress: ProgressSink | None = None
+    config: Config,
+    store: GraphStore,
+    *,
+    progress: ProgressSink | None = None,
+    allow_coverage_loss: bool = False,
 ) -> BuildReport:
     """Index every collectable file under ``config.root`` into ``store`` (§8.1 steps 1-5).
 
@@ -170,6 +174,13 @@ def full_build(
     path leaves a ``files`` row, parsed or not. When ``stub_roots`` is set, dependency trees are
     walked outside the normal ignore matcher and parsed declarations-only (task 039).
     """
+    # Before ANY write, and here rather than in the caller: `full_build` is reached from five
+    # places, two of them escalations inside `incremental_update` — one of which fires precisely
+    # BECAUSE the adapter set narrowed (203, R1.8).
+    if not allow_coverage_loss:
+        lost = coverage_loss(store, config.adapter_cmds)
+        if lost:
+            raise CoverageLossError(lost)
     # Validate rules before any parse so a bad file fails loud without a half-built index (R5.3).
     rules = load_indirection_rules(config)
     _require_configured_adapters(config)
@@ -234,6 +245,14 @@ COVERAGE_LOSS_HINT = (
 COVERAGE_LOSS_IN_BAND = "allow_coverage_loss=true"
 
 
+class CoverageLossError(Exception):
+    """A build would discard a language the index covers. Carries the languages (203)."""
+
+    def __init__(self, lost: tuple[str, ...]) -> None:
+        self.lost = lost
+        super().__init__("would discard covered language(s): " + ", ".join(lost))
+
+
 def coverage_loss(store: GraphStore, configured: Iterable[str]) -> tuple[str, ...]:
     """Languages the index COVERS that this run has no adapter command for (203).
 
@@ -241,7 +260,9 @@ def coverage_loss(store: GraphStore, configured: Iterable[str]) -> tuple[str, ..
     fails to boot already refuses as ``no_usable_adapter``, which is a different fault.
     """
     raw = store.get_meta(COVERED_LANGUAGES_KEY) or ""
-    covered = {part.strip() for part in raw.split(",") if part.strip()}
+    # Both sides folded: config keys are lowercased at load, but `covered` comes from the
+    # adapter's announced `name`, which — unlike `extensions` — the contract never lowercases.
+    covered = {part.strip().lower() for part in raw.split(",") if part.strip()}
     return tuple(sorted(covered - {name.lower() for name in configured}))
 
 
@@ -280,6 +301,7 @@ def incremental_update(
     phase_times: dict[str, float] | None = None,
     progress: ProgressSink | None = None,
     scope: dict[str, object] | None = None,
+    allow_coverage_loss: bool = False,
 ) -> BuildReport:
     """Re-index ``changed ∪ dependents`` and re-link into affected qnames (§8.3).
 
@@ -309,7 +331,9 @@ def incremental_update(
             "escalated_to": "full",
         }
     if incomplete or era_moved:
-        return full_build(config, store, progress=progress)
+        return full_build(
+            config, store, progress=progress, allow_coverage_loss=allow_coverage_loss
+        )
 
     rules = load_indirection_rules(config)
     _require_configured_adapters(config)
@@ -399,7 +423,9 @@ def incremental_update(
                 "removed": list(moved.removed),
                 "escalated_to": "full",
             }
-        return full_build(config, store, progress=progress)
+        return full_build(
+            config, store, progress=progress, allow_coverage_loss=allow_coverage_loss
+        )
     finally:
         watchdog.stop()
 

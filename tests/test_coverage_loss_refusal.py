@@ -145,3 +145,65 @@ def test_a_widening_run_is_never_refused(repo: Path) -> None:
 
     assert result["mode"] == "full"
     assert covered(widened) == "fake,second"
+
+
+def test_an_escalating_incremental_is_refused_too(repo: Path, monkeypatch) -> None:
+    """The path a ticket-blind review found: `full=False` reaches `full_build` anyway.
+
+    `_require_unchanged_scope` raises `_ScopeChanged` when the announced suffix set differs —
+    including when it has **narrowed**, which is exactly "an adapter went missing". The handler
+    calls `full_build` directly, so a guard sitting only in front of an explicit `--full` never
+    sees the most common call shape. Red before the guard moved into `full_build`.
+    """
+    config = build_both(repo)
+    before = languages(config)
+    # A commit stamp is what lets `_run` attempt the incremental path at all.
+    monkeypatch.setattr(
+        "code_atlas.tools.build_or_update_index.gitutil.head_commit", lambda _root: "deadbeef"
+    )
+    monkeypatch.setattr(
+        "code_atlas.tools.build_or_update_index.gitutil.changed_paths",
+        lambda _root, _last: ["dep/cross.cc"],
+    )
+    with GraphStore(config.db_path) as store:
+        store.set_meta("last_commit", "cafebabe")
+
+    narrowed = config_for(repo, ONE)
+    result = build_tool(narrowed)(full=False)
+
+    assert result["mode"] == "refused", result
+    assert result["reason"] == COVERAGE_LOSS
+    assert languages(narrowed) == before, "an escalating incremental must not discard it either"
+    assert covered(narrowed) == "fake,second"
+
+
+def test_the_comparison_folds_case_on_both_sides(repo: Path) -> None:
+    """`extensions` is lowercased by the contract; the announced `name` is not, and config keys
+    always are. Folding one side only reports a false loss for a configured language."""
+    build_both(repo)
+    with GraphStore(config_for(repo, BOTH).db_path) as store:
+        store.set_meta(COVERED_LANGUAGES_KEY, "Fake,SECOND")
+
+    result = build_tool(config_for(repo, BOTH))(full=True)
+
+    assert result["mode"] == "full", "both languages ARE configured — this must not refuse"
+
+
+def test_a_refused_escalation_does_not_even_mark_the_index_incomplete(repo: Path) -> None:
+    """The refusal must be free on EVERY path, not only on the `--full` one.
+
+    `incremental_update` stamps `build_complete = 0` before it reaches `full_build`, so a guard
+    that only lived at the write boundary left a refused escalation having already marked the
+    index incomplete — 202's `staleness: incomplete` for a build that never ran. Found by a
+    ticket-blind review of the first version of this guard.
+    """
+    config = build_both(repo)
+    with GraphStore(config.db_path) as store:
+        before = store.get_meta("build_complete")
+    assert before == "1"
+
+    narrowed = config_for(repo, ONE)
+    assert build_tool(narrowed)(full=True)["mode"] == "refused"
+
+    with GraphStore(narrowed.db_path) as store:
+        assert store.get_meta("build_complete") == "1", "a refusal must write nothing at all"

@@ -29,6 +29,7 @@ from code_atlas.indexer import (
     INCOMPLETE_INDEX,
     INCOMPLETE_INDEX_ROUTE,
     BuildReport,
+    CoverageLossError,
     build_incomplete,
     contract_rebuild_required,
     coverage_loss,
@@ -215,14 +216,19 @@ def _build(
             return _contract_refused(store, config, full=full, started=started)
         if not repair_incomplete and build_incomplete(store):
             return _incomplete_refused(config, full=full, started=started)
-        # A full build REPLACES the index, so a language it cannot parse is not skipped — it is
-        # discarded, along with the `covered_languages` stamp that was the only record of it (203).
-        if (full or rebuilt_schema) and not allow_coverage_loss:
-            lost = coverage_loss(store, config.adapter_cmds)
-            if lost:
-                return _coverage_refused(store, config, lost, full=full, started=started)
         scope: dict[str, object] = {}
-        mode, report = _run(config, store, full=full or rebuilt_schema, scope=scope)
+        try:
+            mode, report = _run(
+                config,
+                store,
+                full=full or rebuilt_schema,
+                scope=scope,
+                allow_coverage_loss=allow_coverage_loss,
+            )
+        except CoverageLossError as loss:
+            # Raised by `full_build` before it writes, so this covers the escalation paths a
+            # `full=False` request can take as well as an explicit `--full` (203).
+            return _coverage_refused(store, config, loss.lost, full=full, started=started)
         result = _result(
             store, config, report, full, mode, detail_level,
             rebuilt_schema=rebuilt_schema,
@@ -261,7 +267,12 @@ def _progress_sink(config: Config) -> Callable[[str, int, int], None]:
 
 
 def _run(
-    config: Config, store: GraphStore, *, full: bool, scope: dict[str, object]
+    config: Config,
+    store: GraphStore,
+    *,
+    full: bool,
+    scope: dict[str, object],
+    allow_coverage_loss: bool = False,
 ) -> tuple[str, BuildReport]:
     """Pick full vs incremental; degrade to full when git or meta cannot support a diff.
 
@@ -270,15 +281,32 @@ def _run(
     to do (task 172).
     """
     progress = _progress_sink(config)
+    # BEFORE any write, on EVERY path. `full_build` raises this too, but by then an escalating
+    # incremental has already stamped `build_complete = 0`, so the refusal would not be free.
+    # A narrowed adapter set has no safe outcome: escalate and discard, or leave rows nothing can
+    # reparse. Both are refused here, and `allow_coverage_loss` restores either (203).
+    if not allow_coverage_loss:
+        lost = coverage_loss(store, config.adapter_cmds)
+        if lost:
+            raise CoverageLossError(lost)
     if full:
-        return FULL, full_build(config, store, progress=progress)
+        return FULL, full_build(
+            config, store, progress=progress, allow_coverage_loss=allow_coverage_loss
+        )
     last = store.get_meta(LAST_COMMIT_KEY)
     if last is None or gitutil.head_commit(config.root) is None:
-        return FULL, full_build(config, store, progress=progress)
+        return FULL, full_build(
+            config, store, progress=progress, allow_coverage_loss=allow_coverage_loss
+        )
     changed = gitutil.changed_paths(config.root, last)
     if changed is None:
-        return FULL, full_build(config, store, progress=progress)
-    report = incremental_update(config, store, changed, progress=progress, scope=scope)
+        return FULL, full_build(
+            config, store, progress=progress, allow_coverage_loss=allow_coverage_loss
+        )
+    report = incremental_update(
+        config, store, changed, progress=progress, scope=scope,
+        allow_coverage_loss=allow_coverage_loss,
+    )
     return (FULL if scope else INCREMENTAL), report
 
 
