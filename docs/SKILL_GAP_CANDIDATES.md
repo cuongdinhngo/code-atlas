@@ -279,3 +279,15 @@ gives the main loop no rule about running a suite while such a seat is live. A o
 constraint would close it: dispatch the mutating reviewer, or run the suite, never both at once —
 or have the reviewer mutate inside its own worktree, which the env-parity section already discusses
 for a different reason. Type-3 signal only — no mango file was edited.
+
+## Second sighting: the backticked-N/A-reason bug in `check_lines.py` (seen: 200, 212)
+
+The signal 200 filed fired again, identically. A `RULE SECTIONS:` line enumerating eight sections
+failed the internal-contradiction rule while its counts were correct, because one section's
+`N/A (reason)` legitimately named a module in code ticks. Removing the inner backticks made the line
+pass unchanged otherwise.
+
+Two sightings, one year apart in ticket numbers and one session apart in time, is the recurrence that
+turns a curiosity into a fix worth making: the parser reads an enumerated tail from the line's last
+backtick, so any reason that names a file cannot say so in the repo's own convention for naming
+files. Type-3 signal only — no mango file was edited.

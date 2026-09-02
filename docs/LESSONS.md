@@ -3604,3 +3604,60 @@ and design phases then went through `rtk proxy`. type: 2 · handle:
 `a-capped-search-is-not-a-search` · seen: 203, 205, 208 — **third sighting** · status: proposed ·
 destination: **proposed `agent_brief_path`**, awaiting the per-claim ratify it has been waiting for
 since 205.*
+
+## 212 — Two points do not fix a curve, and the negative answer was the deliverable
+
+*Claim `212-C1` — a marginal cost fitted from two points is a line, not a curve: measure a third
+point NEAR the threshold you are about to set, because the slope that matters is the one there.
+type: 2 · handle: `two-points-do-not-fix-a-curve` · status: proposed (awaiting human confirm) ·
+seen: 212 · area: measurement / thresholds · evidence: N=1 and N=1,000 gave 0.135 s/file and put the
+crossover at 3,616 files, and the number was nearly recorded. N=3,000 measured **213.6 s** where the
+line predicted **466 s** — the slope between 1,000 and 3,000 is 0.0088 s/file, 15× flatter, because
+the resolve phase saturates. The extrapolation would have shipped a default that traded a ~220 s
+delta for a 550 s build · destination: `rulebook_path` (code subject) — recurrence 1, stays in
+lessons_path until a second key.*
+
+*Claim `212-C2` — write the field that NAMES a route inside the handler that TAKES the route, never
+at the decision that precedes it. type: 2 · handle: `the-key-rides-the-route-not-the-decision` ·
+status: proposed · seen: 212 · area: payload honesty · evidence: `scope[DELTA_TOO_LARGE]` was
+written at the decision with `raise _TooLarge` after it; the ticket-blind challenger replaced the
+raise with `pass` and all six tests stayed green while the payload reported `mode: full` and named a
+route for a build that had actually run as a delta — 202's lesson inverted. Moving the numbers onto
+the exception and the key into the `except` makes the two inseparable, and the same mutation now
+fails two tests · destination: `rulebook_path` (code subject) — recurrence 1, and it sharpens
+[[do-not-attest-past-the-payloads-resolution]] (**R5.6**) at a different seam: not what the payload
+can distinguish, but *where* the claim is written.*
+
+*Claim `212-C3` — a measurement that says "the mechanism you were asked for would never fire here"
+is the deliverable, not a failed ticket; the honest shipment is the mechanism with its threshold
+disabled and the numbers recorded beside the constant. type: 2 · handle:
+`a-negative-measurement-is-the-answer` · status: proposed · seen: 212 · area: process / R2.3 ·
+evidence: Scope 1 measured no crossover below the repo's own size, which falsified Scope 2's premise
+(*"a branch touching 5,000 files… certainly is not [cheaper]"* — it is: ~231 s against 550 s). The
+maintainer was asked and chose to ship it off; a 3,600 default would have been a number the data
+contradicts · destination: `agent_brief_path` (process subject) — recurrence 1, stays in
+lessons_path until a second key.*
+
+*Claim `212-C4` — the anchor's incremental cost curve, as of today: noop **7.8 s**, one file
+**60.9 s** (resolve 52.5 s), 1,000 files **196.1 s** (resolve 135.1 s), 3,000 files **213.6 s**
+(resolve 130.8 s), against a **550 s** full build of 24,569 files / 2.08 M edges. Resolve saturates
+by ~1,000 files; a delta is cheaper at every size the repo can reach. 052's 62.296 s no-op is now
+7.8 s (080 landed) and the "about an hour" rebuild is 550 s (203 landed). type: 5
+project-ground-truth · environment · handle: `the-anchors-incremental-is-cheaper-at-every-size` ·
+status: proposed · verified-at: 2026-09-02 · area: indexer / incremental cost · evidence: the task's
+CROSSOVER MEASUREMENT block carries every command · destination: stays in lessons_path; it rots when
+the resolver or the store's write path changes.*
+
+*Claim `085-C1` **eighth sighting** — `count-pin-in-blast-radius` again, and this session alone
+supplied three of the eight: 205 (a `pages=` keyword argument in a constructor call), 208 (a bare
+`DATASET_VERSION == 10`), and 212 (a `KNOBS` precedence table plus an enumerated env-name list with
+`len(KNOB_KEYS) == 16`). Every time, the design's blast-radius trace named the production consumers
+and missed a hand-listed pin in a test. type: 2 · handle: `count-pin-in-blast-radius` · seen: 085,
+087, 088, 089, 184, 022, 194, 212 · status: proposed · destination: **proposed `agent_brief_path`**,
+and at eight sightings it is the strongest promotion candidate in this corpus.*
+
+*Claim `208-C3` **second sighting, by avoidance** — `no-suite-while-a-mutating-reviewer-is-live`
+held: on 212 the suite ran to completion BEFORE the review seat was dispatched, and no suite result
+had to be discarded. The sighting is the application, which is the only evidence a preventive claim
+can produce. type: 2 · handle: `no-suite-while-a-mutating-reviewer-is-live` · seen: 208, 212 ·
+status: proposed · destination: **proposed `agent_brief_path`**.*
