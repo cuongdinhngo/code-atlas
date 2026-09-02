@@ -568,15 +568,41 @@ the host with a `pytest` suite, which is why this pair was re-run on an idle hos
 ```
 
 Zero failures. 2,685 = the baseline's 2,677 plus this ticket's 8 (six guard cases and the two
-`test_backlog_bookkeeping` params a new task file adds). The 70 skips are unchanged from the
-baseline — this host's, not this branch's; CI is the authority for a fully green run.
-`ruff` clean, `mypy` clean over 85 files.
+`test_backlog_bookkeeping` params a new task file adds). **Superseded twice since**: three tests
+added for the challenger's findings, then `main` merged in — the merged tree runs
+`2704 passed, 70 skipped`, and **CI at the tip `f45313f` reports 2,774 passed / 0 failed / 0
+skipped** on py3.12 and py3.13 with the tokens-to-answer gate green (ratio 0.835, recall 1.0,
+precision 1.0). CI is the authority; the 70 local skips are this host's, not this branch's.
 
 ## Phase 4 — review
 
 `--no-reviewer` waived the rule-book reviewer, so **no rule-book-grounded review of this diff
-exists**. The ticket-blind challenger's verdict is attached to the PR as a comment rather than
-inlined here, because the PR opened first at the maintainer's explicit request.
+exists**. The ticket-blind challenger kept its seat and returned **CHANGES REQUESTED — 8 met · 3 not
+met · 4 can't tell**. Both of its findings were real; each was verified in the code before being
+accepted, and a third defect surfaced while fixing the first. Full verdict and response are the PR
+comment; the substance:
+
+1. **The guard covered one of five `full_build` call sites.** Two are escalations inside
+   `incremental_update`, and one fires *precisely because* the adapter set narrowed
+   (`_require_unchanged_scope`). A default `full=False` request — the commonest shape — still
+   discarded the language silently. **The ticket's own defect, by the path the fix did not cover.**
+2. **Case was folded on the configured side only.** Config keys are lowercased at load; the stamp
+   comes from the adapter's announced `name`, which the contract never lowercases (unlike
+   `extensions`, which it explicitly does). A mixed-case name would refuse a configured language.
+3. **Mine, found while fixing 1** — and the challenger's hedge (*"writes nothing: MET for the tested
+   `--full` path; not proven for the escalation paths"*) is what pointed at it.
+   `incremental_update` stamps `build_complete = 0` **before** reaching `full_build`, so refusing
+   there left the index marked incomplete: 202's `staleness: incomplete` for a build that never ran.
+   That contradicted AC4 and this PR's own claim. The check moved ahead of every write.
+
+All three fixed in `13ee043`, each with a red run against the previous commit. **172's
+`test_a_removed_adapter_is_named_too` asserted exactly the dangerous input**, so 203 supersedes it
+there: the test now asserts the refusal on the default path and 172's `scope_change` payload behind
+`allow_coverage_loss=True`. Both contracts hold; the second now costs a deliberate argument.
+
+**#251 merged first**, so this branch merged `main` in and re-measured both budget constants against
+the merged tree. `BACKLOG.md` needed no raise (8,699 / 8,700); `TIER1_BUDGET` went 25,700 → 25,800
+for 203's one row, measured 25,711, with R7.6 applied first and nothing left to reclaim.
 
 ### Scope reconciliation
 
