@@ -3535,3 +3535,72 @@ question. The narrowing changes committed bytes on an index whose page lists wou
 which is why it is declared and pinned rather than claimed. type: 2 · handle:
 `one-field-two-questions` · seen: 189, 022, 202, 205 · status: proposed · destination: **proposed
 `rulebook_path`**, awaiting the per-claim human ratify it has been waiting for since 202.*
+
+## 208 — Naming a field into a contract that already had guards, and three ways evidence was not evidence
+
+*Claim `208-C1` — a test that pins a version with a bare literal (`== 10`) also asserts *"the
+current version is 10"*, which is not the claim it owns; pin the version the key **arrived at**
+(`>= 10`) and leave the current-number pin to the one place that exists to be edited on every bump.
+type: 2 · handle: `pin-the-arrival-not-the-current-number` · status: proposed (awaiting human
+confirm) · seen: 208 · area: test design / versioned shapes · evidence: 196's
+`test_ac3_the_dataset_version_moved_with_the_shape` asserted `DATASET_VERSION == 10` and went red on
+208's bump without 196's claim being wrong; `tests/test_onboarding_dataset.py:330`
+(`== DATASET_VERSION == 11`) is the deliberate double-pin, and a repo-wide grep found no third ·
+destination: `rulebook_path` (code subject) — recurrence 1, stays in lessons_path until a second key.*
+
+*Claim `208-C2` — when adding a field, name it into a contract the project ALREADY derives over, and
+its guards cover the new field for free. type: 2 · handle: `name-into-the-existing-contract` ·
+status: proposed · seen: 208 · area: code / schema design · evidence: calling the new per-bucket
+field `caveat` rather than `unmeasured` made `dataset.derive_caveats` collect it with no edit (it
+walks every non-empty `caveat` key at any depth), turned 127's *"every dataset caveat is rendered in
+the map"* guard into this ticket's AC3 proof — verified by mutating the viewer and watching that
+**unmodified, pre-dating** test go red — and gave `architecture_diff` the bucket's epistemic flip,
+which its equal before/after counts (`0 → 0`) cannot show. Three mechanisms inherited for one word ·
+destination: `rulebook_path` (code subject) — recurrence 1, stays in lessons_path until a second key.*
+
+*Claim `208-C3` — a suite result taken while another process is mutating the tree is not evidence,
+and the only honest use of one is to discard it. type: 2 · handle:
+`no-suite-while-a-mutating-reviewer-is-live` · status: proposed · seen: 208 · area: process /
+evidence gathering · evidence: the review brief asks the ticket-blind challenger to mutate production
+code to prove the guards bite, and I launched the full suite alongside it **twice** in one ticket.
+The first run returned `4 failed, 2775 passed` with failures in `test_answer_pagination`,
+`test_index_root`, `test_payload_weight` and `test_server_build_on_payloads` — none of which touch
+this ticket's subject; the second I killed rather than read. The clean run afterwards was
+`2780 passed`. Nothing was corrupted (the challenger's restores were byte-exact both times), but two
+suite runs' wall time bought nothing · destination: **proposed `agent_brief_path`** (process
+subject), and see the type-3 signal below — nothing in the harness sequences the two.*
+
+*Claim `208-C4` — a guard that goes red proves it bites only if it is red for the reason you think:
+check which BRANCH the fixture reached. type: 2 · handle: `red-for-the-right-reason` · status:
+proposed · seen: 208 · area: test design · evidence: the first headline fixture closed a cycle over
+`app/A.aa`-style paths, which name no responsibility — so `vocabulary` was `False`, the three
+vocabulary buckets were **dropped** (the pre-existing AC5 path), and only structural buckets
+remained, which can never carry the caveat. The assertion failed with the message I expected while
+the fixture never reached the case; closing the cycle over the fixture's own
+`app/controller`/`app/service` paths is what made it real · destination: `rulebook_path` — recurrence
+1, stays in lessons_path until a second key. Sharpens [[prove-the-guard-fails]] (**R6.5**), which
+asks for the red run but not for which branch produced it.*
+
+*Claim `208-C5` — on the anchor monorepo, the `stub_roots` roots its own config file proposes
+(`vendor`, `lib/saml/vendor`) match **0** of its 24,535 indexed files: its third-party code lives
+under `Zend/`, `legacy/alpha/web/include/pdf/` and `.../adodb/`. Declaring them changes no
+count, no bucket and no tour file. type: 5 project-ground-truth · descriptive · handle:
+`the-anchors-vendor-code-is-not-under-vendor` · status: proposed · verified-at: 2026-09-02 · area:
+onboarding / reachability · evidence: the two-way measurement recorded in
+`tasks/208_*.md` (AC6) · destination: stays in lessons_path — the numbers live in the task file and
+R7.6 forbids retelling them here.*
+
+*Claim `196-C2` **second sighting** — `grep-the-derived-name-not-the-source-name` earned its keep:
+greping the rendered name over the whole tree, rather than the dataclass field, is what found the
+**fourth** renderer of the reachability split (`headlines.py:132`) and the **fifth** consumer
+(`architecture_diff.py:336`) that the ticket's own *"three renderers"* undercounts. type: 2 ·
+handle: `grep-the-derived-name-not-the-source-name` · seen: 196, 208 · status: proposed ·
+destination: **proposed `agent_brief_path`** (process subject), awaiting a per-claim human ratify.*
+
+*Claim `205-C2` **third sighting** — `a-capped-search-is-not-a-search` again, one ticket later: a
+compacted `grep` printed *"3 matches in 3 files:"* with no rows and hid `LESSONS.md`'s own class
+index (`:42-54`), which settles the promotion status of three handles. Every search in 208's refine
+and design phases then went through `rtk proxy`. type: 2 · handle:
+`a-capped-search-is-not-a-search` · seen: 203, 205, 208 — **third sighting** · status: proposed ·
+destination: **proposed `agent_brief_path`**, awaiting the per-claim ratify it has been waiting for
+since 205.*
