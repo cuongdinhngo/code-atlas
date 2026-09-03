@@ -5,7 +5,8 @@ store, writes markdown, manifest, and a self-contained ``index.html`` under ``do
 and a versioned ``artifact.json`` under ``.code-atlas/onboarding/``. No SQL, no LLM, no language
 branch.
 
-205 removed the per-module page tree: five files are written, not 505. The recorded-page removal
+205 removed the per-module page tree: at most five files are written, not 505 — and 210 lets an
+audience contract fewer. The recorded-page removal
 stays as the migration path — the first write after 205 deletes exactly the pages a pre-205
 manifest recorded, and nothing else (R5.7).
 """
@@ -36,6 +37,7 @@ from code_atlas.onboarding.artifact import (
     render_overview,
     render_tour,
 )
+from code_atlas.onboarding.audience import FLOWS_DOC, TOUR_DOC, VIEWER_DOC, contract_for
 from code_atlas.onboarding.dataset import OnboardingDataset, build_dataset
 from code_atlas.onboarding.flows import FLOW_KINDS
 from code_atlas.onboarding.layers import IdentityLayerRefiner, LayerRefiner
@@ -72,10 +74,12 @@ def create(
     seam: Summarizer = StructuralSummarizer() if summarizer is None else summarizer
     refiner: LayerRefiner = IdentityLayerRefiner() if layer_refiner is None else layer_refiner
 
-    def generate_onboarding(detail_level: DetailLevel = "standard") -> dict[str, object]:
+    def generate_onboarding(
+        detail_level: DetailLevel = "standard", audience: str | None = None
+    ) -> dict[str, object]:
         """Write committable onboarding docs for this repo — overview, guided tour and flows.
 
-        Reads the index and writes **five files** under ``docs/onboarding/``: ``overview.md``,
+        Reads the index and writes **up to five files** under ``docs/onboarding/``: ``overview.md``,
         ``tour.md``, ``flows.md``, ``manifest.json``, and ``index.html`` — one self-contained page
         that embeds the same facts, so it opens offline with no server and no fetch. There is **no
         per-module page tree**: 500 sub-kilobyte pages, one per node-budget slot, were emitted on
@@ -91,6 +95,12 @@ def create(
         that budget left an indexed file out. ``CA_WORKING_ROOTS`` / ``working_roots`` restricts
         the tour, flow seeds and busiest-file pick to those trees (206); unset is the whole index.
 
+        ``audience`` chooses WHICH SECTIONS THE WRITTEN TREE HOLDS — ``full`` (the default and
+        today's document), ``newcomer`` or ``maintainer``; unset takes ``CA_AUDIENCE``. It is a
+        separate knob from ``detail_level`` on purpose: ``detail_level`` means the same thing on
+        24 tools — how much of the RESPONSE to return — and the response is discarded, so growing
+        it to reshape the committed tree would make those files depend on a per-call argument (210).
+
         ``results`` lists the committed relative paths, capped at ``CA_MAX_RESULTS``.
         ``minimal`` omits the path to the ``artifact.json`` dump.
         """
@@ -98,6 +108,7 @@ def create(
             return _unbuilt(config)
         # One budget for the whole write: the artifact and the dataset build the same layer table,
         # so a shared run pays for each layer description once and caps the build as a whole (117).
+        wants = contract_for(audience if audience is not None else config.audience)
         prose = ProseRun(prose_writer)
         with GraphStore(config.db_path) as store:
             nodes = store.node_universe()
@@ -193,6 +204,7 @@ def create(
             confidence_by_language=confidence_by_language,
             provenance=provenance,
             orientation=orientation,
+            audience=wants.audience,
         )
         written = _write(
             Path(config.root),
@@ -203,8 +215,9 @@ def create(
             working_roots=config.working_roots,
             index_root=config.index_root,
             last_ref=last_ref,
+            audience=wants.audience,
         )
-        return _payload(config, artifact, written, detail_level, prose)
+        return _payload(config, artifact, written, detail_level, prose, wants.audience)
 
     return generate_onboarding
 
@@ -273,8 +286,14 @@ def _write(
     working_roots: Sequence[str] | None = None,
     index_root: str = "",
     last_ref: str = "",
+    audience: str | None = None,
 ) -> tuple[str, ...]:
-    """Rewrite this tool's own onboarding files and artifact.json. Paths are POSIX."""
+    """Rewrite this tool's own onboarding files and artifact.json. Paths are POSIX.
+
+    A document this audience's contract does not name is not written, and a stale copy of it from a
+    previous audience is removed — a tree that still holds one is lying about who it is for (210).
+    """
+    wants = contract_for(audience)
     out = root / OUTPUT_DIR
     _refuse_foreign_tree(out)
     _remove_recorded_pages(out)
@@ -288,6 +307,7 @@ def _write(
             working_roots=working_roots,
             provenance=dataset.provenance,
             orientation=dataset.orientation,
+            audience=wants.audience,
         ),
         TOUR_NAME: render_tour(
             artifact,
@@ -301,7 +321,16 @@ def _write(
         ),
         VIEWER_NAME: render_viewer(dataset, max_results),
     }
+    contracted = {
+        TOUR_NAME: TOUR_DOC,
+        FLOWS_NAME: FLOWS_DOC,
+        VIEWER_NAME: VIEWER_DOC,
+    }
     for name, text in files.items():
+        document = contracted.get(name)
+        if document is not None and not wants.wants_document(document):
+            (out / name).unlink(missing_ok=True)
+            continue
         (out / name).write_text(text, encoding="utf-8", newline="\n")
         written.append(f"{OUTPUT_DIR}/{name}")
     cache = root / CACHE_DIR
@@ -316,9 +345,11 @@ def _payload(
     written: tuple[str, ...],
     detail_level: DetailLevel,
     prose: ProseRun,
+    audience: str,
 ) -> dict[str, object]:
     """``results`` is the committed path list, capped; ``truncated`` covers walk and page."""
     limit = config.max_results
+    wants = contract_for(audience)
     page = written[:limit]
     payload: dict[str, object] = {
         "indexed": True,
@@ -329,6 +360,7 @@ def _payload(
         "index_root": config.index_root,
         "output_dir": OUTPUT_DIR,
         "working_roots": list(config.working_roots) if config.working_roots else None,
+        "audience": wants.audience,
     }
     if detail_level == "standard":
         payload["cache"] = f"{CACHE_DIR}/{CACHE_NAME}"

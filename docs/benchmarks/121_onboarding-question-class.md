@@ -46,12 +46,29 @@ things a pattern returns, and inventing a baseline for them would only flatter t
 | `onb_declared_entry_points` — which glob claimed the count | 1,355 | — | — | 1.0 |
 | `onb_committable_map` — write the map to git | 290 | — | — | 1.0 |
 | `onb_working_scope` — whether the generated map declares a scoped working tree | 173 | — | — | 1.0 |
-| `onb_first_day_commands` — how do I run this project's tests (207) | 1,557 | — | — | n/a |
+| `onb_first_day_commands` — how do I run this project's tests (207) | 1,662 | — | — | n/a |
+| `onb_audience_newcomer` — the day-one command **and** a reading order, from the newcomer tree (210) | 1,210 | — | — | n/a |
+| `onb_audience_maintainer` — cross-layer coupling and duplicated subtrees, from the maintainer tree (210) | 1,538 | — | — | n/a |
 | `onb_naming_debt` — which paths name no responsibility | 1,742 | — | — | 1.0 |
 
 13/13 correct, recall 1.0, `confidently_wrong` 0. Whole fixture tier: **0.789** over 13 ratio-eligible
 questions (was 0.29 before this class existed — the onboarding questions are the first fixture-tier
 questions where the index wins, because they are the first that read more than one file).
+
+## What an audience costs its own reader (210)
+
+Each audience is scored on **its own** question class, out of the tree written for it. Neither
+regresses — both answer correctly — and the newcomer pays less for the answer they came for:
+
+| tree | question class | atlas | correct |
+|---|---|---|---|
+| `full` (today's artifact) | first-day command | 1,662 | ✅ |
+| `newcomer` | first-day command **+ reading order** | **1,210** | ✅ |
+| `maintainer` | cross-layer coupling + mirrors | 1,538 | ✅ |
+
+The newcomer tree answers a **strictly larger** question — the command *and* the reading order —
+for **27 % fewer tokens** than the single artifact spends on the command alone, because the
+sections that reader never uses are not in the document. That is the ticket's claim, measured.
 
 ## Sample tier — a real repo
 

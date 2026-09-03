@@ -281,6 +281,7 @@ table.tb td.n { font:12px var(--mono); text-align:right; white-space:nowrap; }
   <p class="sub" id="stampLine"></p>
   <p class="sub" id="provLine"></p>
   <p class="sub" id="startHere"></p>
+  <p class="sub" id="audienceLine"></p>
   <p class="sub" id="confBy"></p>
 </section>
 <section id="modules">
@@ -445,6 +446,11 @@ put("startHere", ORI.read.length
     + " stated gap(s) \u2014 the full list, with the line each came from, is in "
     + codeOf("overview.md") + "."
   : "No declared project file was found, so this page states no day-one commands.");
+/* 210 — who this tree was written for. Same contract the markdown reads (R1.8). */
+var AUD = D.audience || { audience: "full", purpose: "", sections: {} };
+put("audienceLine",
+  "Written for the <strong>" + esc(AUD.audience) + "</strong> reader. " + esc(AUD.purpose)
+  + " Sections here: " + Object.keys(AUD.sections).sort().map(codeOf).join(", ") + ".");
 /* 196 — which language earned the confidence figure, or why that cannot be said. Never omitted:
    this is a document a human reads, so an absent attribution is stated rather than left blank. */
 var CBL = D.confidence_by_language || { available: false, note: "", rows: [] };

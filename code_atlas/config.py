@@ -20,6 +20,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
 
+from code_atlas.onboarding.audience import DEFAULT_AUDIENCE, resolve_audience
+
 PROJECT_FILE = ".code-atlas.toml"
 ADAPTER_CMD_TABLE = "adapter_cmd"
 ADAPTER_CMD_ENV = re.compile(r"^CA_([A-Z0-9_]+)_CMD$")
@@ -39,6 +41,7 @@ KNOB_KEYS: tuple[str, ...] = (
     "stub_roots",
     "working_roots",
     "project_files",
+    "audience",
     "indirection_rules",
     "architecture_rules",
     "tools",
@@ -96,6 +99,7 @@ class Config:
     stub_roots: tuple[str, ...] | None
     working_roots: tuple[str, ...] | None
     project_files: tuple[str, ...] | None
+    audience: str
     indirection_rules: tuple[str, ...] | None
     architecture_rules: tuple[str, ...] | None
     tools: tuple[str, ...] | None
@@ -237,6 +241,7 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
         project_files=_resolve(
             "project_files", _as_project_files, None, environ, file_values
         ),
+        audience=_resolve("audience", _as_audience, DEFAULT_AUDIENCE, environ, file_values),
         working_roots=_resolve("working_roots", _as_working_roots, None, environ, file_values),
         indirection_rules=_resolve(
             "indirection_rules", _as_indirection_rules, None, environ, file_values
@@ -392,6 +397,11 @@ def _as_entry_points(label: str, raw: object) -> tuple[str, ...] | None:
         raise ConfigError(f"{label}: {raw!r} is not a comma-separated list of entry paths")
     kept = [name.strip() for name in names if name.strip()]
     return tuple(dict.fromkeys(kept)) or None
+
+
+def _as_audience(label: str, raw: object) -> str:
+    """Who the written artifact is for (210). Unknown values fall back, never abort (R5.3)."""
+    return resolve_audience(_as_text(label, raw))
 
 
 def _as_project_files(label: str, raw: object) -> tuple[str, ...] | None:
