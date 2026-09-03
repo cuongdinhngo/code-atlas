@@ -244,3 +244,45 @@ def test_the_documented_knob_table_lists_every_knob() -> None:
     missing = [key for key in KNOB_KEYS if f"`{env_name(key)}`" not in tools]
     assert not missing, f"docs/TOOLS.md's config table does not list {missing}"
     assert len(KNOB_KEYS) > 1, "an empty knob list would pass this vacuously"
+
+
+def test_the_orientation_path_changes_nothing_outside_its_own_section(tmp_path: Path) -> None:
+    """AC6, stated precisely and then proved.
+
+    Read literally — "a repo with no declared project files produces an artifact byte-identical to
+    today's" — AC6 forbids AC3, because Scope 4's entry-point sample changes every repo's
+    `overview.md` whether or not it declares a project file. The two are co-satisfiable on exactly
+    one reading, and it is Scope 2's own: **the section is omitted, not emitted empty**. That is the
+    claim asserted here — the orientation feature adds its section and NOTHING else, so a repo that
+    declares nothing gets byte-for-byte what the same build would produce without this ticket's
+    reader at all.
+    """
+    from code_atlas.onboarding.artifact import build_artifact, render_overview
+    from code_atlas.onboarding.orientation import read_orientation
+    from code_atlas.onboarding.summary import StructuralSummarizer
+
+    (tmp_path / "composer.json").write_text(COMPOSER, encoding="utf-8")
+    nodes = [("\\App\\C", "app/Http/C.aa"), ("\\App\\M", "app/Models/M.aa")]
+    edges = [("\\App\\C", "\\App\\M")]
+    files = ["app/Http/C.aa", "app/Models/M.aa"]
+    artifact = build_artifact(
+        nodes, edges, files, edges, ["app/Http/C.aa"], False, StructuralSummarizer(),
+        max_results=10, file_paths=files,
+    )
+    assert artifact is not None
+    without = render_overview(artifact, node_cap=10, file_paths=files, orientation=None)
+    populated = read_orientation(tmp_path)
+    assert populated.declared, "the fixture must actually declare something, or this is vacuous"
+    with_section = render_overview(
+        artifact, node_cap=10, file_paths=files, orientation=populated
+    )
+
+    assert with_section != without, "the section did not render at all"
+    prefix = "# Architecture overview\n\n"
+    assert without.startswith(prefix + "## Summary"), "the no-orientation overview moved"
+    assert with_section.startswith(prefix)
+    section, marker, remainder = with_section[len(prefix) :].partition("## Summary")
+    assert marker == "## Summary"
+    assert section.startswith(H_ORIENTATION), "something other than the section was inserted"
+    # Excising exactly the inserted section must give back the untouched document, byte for byte.
+    assert prefix + marker + remainder == without

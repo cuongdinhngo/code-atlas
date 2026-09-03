@@ -56,8 +56,12 @@ _YAML_KEY = re.compile(r"^(\s*)([A-Za-z0-9_.\-]+):\s*(.*)$")
 _PORT = re.compile(r"^\s*-\s*[\"']?([0-9]+:[0-9]+(?:/[a-z]+)?)[\"']?\s*$")
 
 # A script name that answers "how do I run the tests?". Matched against the DECLARED script name,
-# never against a repo's directory layout — the vocabulary is the ecosystem's (R2.2).
-_TEST_NAMES = ("test", "tests", "check", "ci", "pytest", "phpunit", "spec")
+# never against a repo's directory layout — the vocabulary is the ecosystem's (R2.2). Compared
+# word-wise so `run-tests` and `ci:check` are found, which an exact-match allowlist missed.
+_TEST_NAMES = frozenset(
+    {"test", "tests", "check", "checks", "ci", "pytest", "phpunit", "spec", "specs"}
+)
+_WORDS = re.compile(r"[a-z0-9]+")
 
 __all__ = [
     "AGENT_BRIEFS",
@@ -138,6 +142,11 @@ def _cite(path: str, line: int) -> str:
     return f"{path}:{line}" if line > 0 else path
 
 
+def _names_a_test(name: str) -> bool:
+    """Whether a DECLARED script/target name says it runs the tests. Word-wise, not exact."""
+    return bool(_TEST_NAMES.intersection(_WORDS.findall(name.lower())))
+
+
 def _read_text(root: Path, name: str) -> tuple[str, str]:
     """``(text, reason)`` — exactly one is non-empty. Never raises (R5.3's posture, AC4)."""
     target = root / name
@@ -160,7 +169,7 @@ def _scripts(text: str, path: str, table: Mapping[str, object]) -> list[Fact]:
             command = " && ".join(str(part) for part in command)
         if not isinstance(command, str) or not command.strip():
             continue
-        kind = "test-command" if name.lower() in _TEST_NAMES else "command"
+        kind = "test-command" if _names_a_test(name) else "command"
         facts.append(
             Fact(kind, name, command.strip(), _cite(path, _line_of_key(text, name)))
         )
@@ -237,7 +246,7 @@ def _from_makefile(text: str, path: str) -> tuple[list[Fact], str]:
                 break
             if follower.strip() and not follower.lstrip().startswith("#"):
                 break
-        kind = "test-command" if name.lower() in _TEST_NAMES else "command"
+        kind = "test-command" if _names_a_test(name) else "command"
         facts.append(Fact(kind, f"make {name}", recipe or f"make {name}", _cite(path, index + 1)))
     return facts, ""
 

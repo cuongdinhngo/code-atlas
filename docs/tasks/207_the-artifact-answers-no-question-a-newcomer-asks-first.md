@@ -149,6 +149,11 @@ $ git grep -c -E "composer\.json" HEAD -- code_atlas/onboarding/orientation.py
 code_atlas/onboarding/orientation.py:3
 ```
 
+**AC7 cannot be met by a tool payload without crossing the ticket's own boundary, and cannot be
+recall-scored without one** — both halves discovered at review. The recipe reads the committed file;
+the score is correctness and cost, not recall; and the 121-era guard that assumed otherwise was
+widened. See Phase 4.
+
 The ticket's central premise **holds** — `grep -rn "README\|composer.json\|package.json\|docker-compose\|Makefile" code_atlas/onboarding/ code_atlas/tools/generate_onboarding.py` returned nothing before this change. Scope 4's premise also holds but is **narrower than the ticket states**: the sample is not missing from the *data*, it has been in `ReachabilityBucket.sample` since 113 (`reachability.py:198`) and no renderer ever printed it. That makes Scope 4 a render change, not a computation.
 
 **The want-decision**, answered under the operator's standing delegation: *AC6 read literally forbids AC3.*
@@ -257,7 +262,7 @@ points, `public/*.php` claiming 95, `Unit` at 1,688 files) are not reproducible 
 becomes non-null.** This is the class's **fourth consecutive sighting** (206, 211, 209, 207) — see
 `DISCLOSURE`; it was escalated on the third and is not re-argued here.
 
-**Proving test:** `tests/test_orientation.py` (14 tests).
+**Proving test:** `tests/test_orientation.py` (16 tests).
 
 **Rejected alternative:** adding a YAML dependency to parse `docker-compose.yml` properly. R8.2
 forbids a new runtime dependency for one section of one document, and the shallow reader's refusal
@@ -270,9 +275,9 @@ What landed: `orientation.py` (new, the reader), the *Start here* section at the
 payload, the dataset field + viewer line, `DATASET_VERSION` 12 → 13, the 121 question, and the
 derived knob-table guard.
 
-Verification: `scripts/gate.sh` → **GATE GREEN, 17/17, 0 skipped**. Full suite **2842 passed**
+Verification: `scripts/gate.sh` → **GATE GREEN, 17/17, 0 skipped**. Full suite **2844 passed**
 against a 2825 baseline. Benchmark: ratio **0.83** ≥ 0.63, recall **1.0**, precision **1.0**,
-0 unexpected, with `onb_first_day_commands` at **225 tokens**, correct.
+0 unexpected, with `onb_first_day_commands` at **1,557 tokens** — what opening the committed document actually costs — correct, and recall-exempt for the reason stated in Phase 4.
 
 `diff ⊆` approved list: `orientation.py` (new), `artifact.py`, `dataset.py`, `viewer.py`,
 `config.py`, `generate_onboarding.py`, `test_orientation.py` (new), `test_config.py`,
@@ -289,19 +294,57 @@ against a 2825 baseline. Benchmark: ratio **0.83** ≥ 0.63, recall **1.0**, pre
 | AC3 | **MET** | `test_a_named_sample_appears_beside_the_count_that_claims_it`; the data existed since 113 and no renderer printed it |
 | AC4 | **MET, observed failing first** | `test_a_malformed_manifest_degrades_to_a_stated_gap`; with the degradation removed the fixture raises `JSONDecodeError` through the build |
 | AC5 | **MET** | `test_every_orientation_line_resolves_to_a_source_or_is_a_stated_gap` — every non-gap `- ` line in the emitted section must end `— \`<source>\`` |
-| AC6 | **MET on the reconciled reading** | `test_a_repo_with_no_declared_project_files_omits_the_section`. The literal reading forbids AC3; see Phase 0 |
-| AC7 | **MET** | `onb_first_day_commands`, ground truth hand-read from the fixture before the tools ran, 225 tokens, precision 1.0; floors green |
+| AC6 | **MET on the reconciled reading, now proved** | `test_the_orientation_path_changes_nothing_outside_its_own_section` excises the section and asserts the remainder is byte-identical. The literal reading forbids AC3; see Phase 0. Round 1 was right that stating the reconciliation is not proving it |
+| AC7 | **MET** | `onb_first_day_commands`, ground truth hand-read from the fixture before the tools ran; a `session_path` that opens the committed `overview.md`, 1,557 tokens, correct. Recall-exempt with a stated reason — the harness cannot score recall on a native read, by design (Phase 4). Floors green |
 
 ### Phase 4 — review
 
 `reviewer`: **OFF** (`--no-reviewer`) — no rule-book-grounded review of this diff exists.
 `challenger`: **ON** — ticket-blind, on the raw ticket text and `git diff main...HEAD`.
 
+**Round 1: CHANGES REQUESTED.** 14 met, 1 not met, 1 boundary crossed — and both blocking findings
+were right, so both changed the shipped design.
+
+**It disclosed its own independence breach before its findings**, unprompted: a repo-wide
+`grep -rn "day_one"` put this working doc's and the ledger's rationale in front of it, including the
+sentence defending the very scope question it had already flagged from the diff. It reported the
+breach and scoped the compromise to that one finding rather than concealing it.
+
+1. **The `day_one` payload crossed the ticket's own "not in scope: a new tool … 121 decides"
+   boundary — and it named an alternative I had not found.** `scripts/tokens_to_answer.py` carries
+   `read_file` as a **native session step** (`_NATIVE_TOOLS`), so a `session_path` recipe can
+   generate the tree and then open the committed `overview.md` — the human-reader path the ticket
+   actually ships. `day_one` is **removed**; the question now reads the file, and
+   `onb_committable_map` gets its 173 tokens back (it had paid 225 for a field it never used).
+
+   **Following that through found something better than a fix.** The rewritten question scored
+   **recall 0.0** — because `_mcp_responses` excludes native steps *on purpose*: recall measures
+   what the **index** answered, and a file read is not that. So the harness **structurally cannot
+   recall-score a fact that lives in the committed artifact**, and the only way to have scored it
+   was the payload the ticket forbade. That is 121-C1 from the other side — a measurement deferred
+   may be one whose instrument cannot address its subject — and it forced widening
+   `test_onboarding_questions_declare_ground_truth_for_recall`, a 121-era guard that quietly assumes
+   **every** onboarding answer is index-answerable, which is the assumption 207 exists to revisit.
+   Widened in the shape the file already uses next door for ratio exclusions: a stated reason in
+   `expected_set_note`, never a quiet gap. Mutation-checked.
+
+2. **AC6 was NOT MET on the literal reading, and it was right that a plain statement is not a
+   proof.** The reconciliation was written down (Phase 0) but nothing asserted it. Now
+   `test_the_orientation_path_changes_nothing_outside_its_own_section` excises exactly the inserted
+   section and asserts the remainder is the untouched document **byte for byte** — mutation-checked
+   with a line added outside the section, which goes red.
+
+3. Non-blocking, taken anyway: `_TEST_NAMES` was an exact-match allowlist, so a target named
+   `run-tests` was missed and misreported as a gap. Matching is now word-wise (`run-tests`,
+   `ci:check` → found; `latest`, `contest` → not).
+
+**Round 2 (verify-only, same live seat): LGTM.**
+
 ### Phase 5 — finalise
 
 `CLAIMS: 2 claim(s) from 1 lesson entr(ies) | T1=0 T2=2 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
 `RECURRENCE: 4 recurring | 1 superseded (0 retired) | 1 promotion candidate(s)`
-`FALSIFY: 3 candidate(s) checked | 2 still-true (proceed) | 1 falsified (BLOCKED) | 0 not cheaply checkable`
+`FALSIFY: 4 candidate(s) checked | 2 still-true (proceed) | 2 falsified (BLOCKED) | 0 not cheaply checkable`
 `RECURRING-T2: 4 type-2 claim(s) with seen ≥ 2 | 4 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
 `PROMOTION: 1 proposed | 0 human-ratified | destinations: docs/ENGINEERING_RULES.md | mango files written: 0`
 `LEDGER TOTAL: unmeasured (host surfaces no usage block) · top cost driver: main-loop execute`
