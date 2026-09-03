@@ -113,7 +113,7 @@ is left, and on a repo where nobody declares anything, grouping alone still beat
 
 ## Working doc (autorun 2026-09-03)
 
-**KEY:** 211 · **work_doc_mode:** embed · **Current phase:** 3 execute
+**KEY:** 211 · **work_doc_mode:** embed · **Current phase:** 5 finalise
 
 ### Phase 0 — refine
 
@@ -192,15 +192,24 @@ Recalled (advisory): `one-rule-for-every-subject-slot` (R1.8 — community label
 
 ### Phase 3 — execute
 
-What landed: union-find communities over tour edges (`community.py`); `build_steps` substitutes the community label only when the layer is `Uncategorised`; `artifact.summary.community_crossings` records communities that straddle ≥2 named layers; `ARTIFACT_VERSION` 3→4.
+What landed: union-find communities over tour edges (`community.py`); `build_steps` substitutes the community label only when the layer is `Uncategorised` and buckets by `(rank, layer, depth)`; `artifact.summary.community_crossings` records communities that straddle ≥2 named layers (bounded, rendered); `ARTIFACT_VERSION` 3→4.
 
 Proving test: `tests/test_community.py::test_two_runs_are_byte_identical` — green.
 
-Verification: `.venv/bin/python -m pytest -q` on this Linux host — **2808 passed** (pre-ruff-fix run; proving tests re-run after lint). Core module count 78→79. No runtime dependency added.
+Verification: `.venv/bin/python -m pytest -q` on this Linux host — **2813 passed, 1 bookkeeping red (BACKLOG status), fixed in finalise**. Core module count 78→79. No runtime dependency added.
 
-`diff ⊆` approved list: `community.py` (new), `steps.py`, `artifact.py`, `test_community.py` (new), `test_artifact_contract.py`, `test_sql_confinement.py`, `test_core_is_language_agnostic.py`, this working doc.
+`diff ⊆` approved list: `community.py` (new), `steps.py`, `artifact.py`, `test_community.py` (new), `test_artifact_contract.py`, `test_sql_confinement.py`, `test_core_is_language_agnostic.py`, this working doc, BACKLOG, TOKEN_LEDGER.
 
-AC2/AC7 (anchor Uncategorised share; `legacy/alpha`↔`legacy/beta`): **E1** — not measured; `.harness.json` `real_corpus_path` is null.
+AC2/AC7 (anchor Uncategorised share; `legacy/alpha`↔`legacy/beta`): **E1** — not measured; `.harness.json` `real_corpus_path` is null. Close-out answer: **cannot measure on this checkout**; deferred until a live corpus path is configured.
+
+### Phase 4 — review
+
+`reviewer`: OFF (`--no-reviewer`) — no rule-book-grounded review.
+`challenger`: ON — round 1 **BLOCK** (qname edges vs file universe; alphabetical naming; crossings unrendered/unbounded; HEURISTIC pass treated all non-RESOLVED). Round 2 after fix: **LGTM**.
+
+### Phase 5 — finalise
+
+PR opened under handover authorisation (push + open PR only). Merge deferred to the operator.
 
 ---
 
