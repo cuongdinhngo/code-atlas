@@ -39,6 +39,7 @@ from code_atlas.onboarding.mirrors import find_mirror_subtrees
 from code_atlas.onboarding.module_facts import module_facts
 from code_atlas.onboarding.modules import COVERAGE_NOTE, find_business_modules
 from code_atlas.onboarding.prose import ProseRun
+from code_atlas.onboarding.provenance import NONE, Provenance
 from code_atlas.onboarding.reachability import classify_reachability
 from code_atlas.onboarding.scope import scoped_paths
 from code_atlas.onboarding.steps import TourStep, build_steps
@@ -55,6 +56,7 @@ H_LAYERS = "## Layers"
 H_DIAGRAM = "## Layer graph"
 H_CROSSINGS = "## Cross-layer edges"
 H_COMMUNITY = "## Community / layer disagreement"
+H_PROVENANCE = "## How this was written"
 H_TOUR = "# Guided tour"
 H_ORDER = "## Reading order"
 OUTPUT_DIR = "docs/onboarding"
@@ -455,6 +457,34 @@ def _community_crossing_lines(crossings: object) -> list[str]:
     return lines
 
 
+def _provenance_lines(provenance: Provenance | None) -> list[str]:
+    """Name the implementation behind each seam, and say what its absence means (209/AC1, R5.6).
+
+    Rendered always: a reader who cannot see this section cannot tell an undocumented repo from an
+    unconfigured run, which is the whole defect. Asserted on the emitted markdown (R6.9 / 127-C1).
+    """
+    stamp = Provenance() if provenance is None else provenance
+    seams = (
+        ("module summaries", stamp.summarizer, "085"),
+        ("map prose", stamp.prose, "117"),
+        ("layer names", stamp.layers, "091"),
+    )
+    lines = [H_PROVENANCE, ""]
+    for label, impl, ticket in seams:
+        written = "the deterministic default" if impl == NONE else f"`{impl}`"
+        lines.append(f"- {label} ({ticket}): {written}")
+    lines.extend(
+        [
+            "",
+            "A summary that says nothing is a fact about the run above, not about the repo: with "
+            "every seam on its deterministic default, no summarizer beyond the structural one was "
+            "consulted.",
+            "",
+        ]
+    )
+    return lines
+
+
 def _module_lines(modules: object) -> list[str]:
     """The capability table with the coverage it does NOT claim (task 114).
 
@@ -547,8 +577,9 @@ def render_overview(
     *,
     file_paths: Sequence[str] = (),
     working_roots: Sequence[str] | None = None,
+    provenance: Provenance | None = None,
 ) -> str:
-    """Committed overview markdown: summary, layers, layer graph, crossings. Trailing newline."""
+    """Committed overview markdown: summary, layers, layer graph, crossings, provenance. Newline."""
     cap = node_cap if node_cap is not None else max(len(artifact.layers), 1)
     diagram = render_layer_flowchart(
         [row.layer for row in artifact.layers],
@@ -605,6 +636,8 @@ def render_overview(
             lines.append(f"- `{source}` → `{target}` ({count})")
     else:
         lines.append("- (none)")
+    lines.append("")
+    lines.extend(_provenance_lines(provenance))
     return "\n".join(lines) + "\n"
 
 

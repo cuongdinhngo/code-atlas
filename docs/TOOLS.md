@@ -279,10 +279,26 @@ responsibility line, each tour step's narrative, and the wording of the headline
 
 **Structure is never the seam's to change.** Every count, ranking, grouping and the set of headline
 facts is derived before a model is consulted, so enrichment rewords the map and nothing more; a
-failure or a filler answer simply leaves the deterministic sentence in place, and spend is capped at
-33 calls per build whatever the repo's size.
+failure or a filler answer simply leaves the deterministic sentence in place.
+
+**What each seam costs per build**, because the two are bounded differently and a single figure for
+"enrichment" was wrong:
+
+| seam | calls per build | bound by |
+|---|---|---|
+| prose (117) | at most **45** whatever the repo's size | a per-slot ceiling: 6 headline · 12 layer · 15 step · 12 module |
+| layer names (091) | one, and only when the layer method is a weak fallback | the layer table, not the repo |
+| module summaries (085) | **one call per tour module** — uncapped by the seam | `CA_IMPACT_MAX_NODES` (default 500), which sizes the tour |
+
+So the summarizer is the expensive one: it scales with the tour budget while prose does not. Narrow
+it with `CA_IMPACT_MAX_NODES` or `CA_WORKING_ROOTS` before turning it on over a large repo.
 
 The **core never imports it**: you install the `llm` extra, set `CA_ONBOARDING_SUMMARIZER=llm`,
 `CA_ONBOARDING_LAYER_REFINER=llm` and/or `CA_ONBOARDING_PROSE=llm`, and run `code-atlas-llm` instead
 of `code-atlas`. All three are memoised in content-hash caches so runs replay and diffs stay stable.
 These are `onboarding_llm` knobs, not core config — the full table is in that package's README.
+
+**Which one wrote the tree you are reading** is recorded in the artifact itself: `overview.md` ends
+with a *How this was written* section and `manifest.json` carries the same three names under
+`provenance`, so an empty summary is attributable to the run rather than read as a fact about the
+repo (209).
