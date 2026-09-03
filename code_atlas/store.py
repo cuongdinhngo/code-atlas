@@ -1000,7 +1000,9 @@ class GraphStore:
         )
         return tuple((str(path), int(count)) for path, count in cursor)
 
-    def tour_subgraph(self, *, max_nodes: int) -> TourSubgraph:
+    def tour_subgraph(
+        self, *, max_nodes: int, files: Sequence[str] | None = None
+    ) -> TourSubgraph:
         """Budgeted module-grain walk covering every file the budget admits (task 087 / R4.3).
 
         Round 1 seeds files with no inbound cross-file resolved edge, **preferring roots that
@@ -1010,12 +1012,28 @@ class GraphStore:
         (it must hold a cycle) would otherwise be silently absent, so later rounds re-seed the
         widest-reaching unseen files until the budget binds. Earlier rounds outrank later ones
         under the prune. ``truncated`` means files were left out.
+
+        ``files`` is an optional membership universe (task 206). Unset walks the whole index.
+        The prefix predicate that produced the list lives elsewhere — this cut is membership only.
         """
         if max_nodes < 1:
             raise ValueError(f"max_nodes must be >= 1, got {max_nodes}")
         conn = self._conn
         self._tour_drop_temps()
         try:
+            conn.execute(
+                "CREATE TEMP TABLE tour_universe (file_path TEXT PRIMARY KEY)"
+            )
+            if files is None:
+                conn.execute(
+                    "INSERT OR IGNORE INTO temp.tour_universe (file_path) "
+                    "SELECT DISTINCT file_path FROM nodes WHERE file_path IS NOT NULL"
+                )
+            else:
+                conn.executemany(
+                    "INSERT OR IGNORE INTO temp.tour_universe (file_path) VALUES (?)",
+                    [(path,) for path in files],
+                )
             conn.execute(
                 "CREATE TEMP TABLE tour_seen ("
                 "file_path TEXT PRIMARY KEY, depth INT NOT NULL, is_seed INT NOT NULL, "
@@ -1064,9 +1082,9 @@ class GraphStore:
                     "ORDER BY src.file_path, tgt.file_path"
                 )
             )
-            # One honest signal: truncated means an indexed file did not make the tour.
+            # One honest signal: truncated means a universe file did not make the tour.
             left_out = conn.execute(
-                "SELECT 1 FROM nodes "
+                "SELECT 1 FROM temp.tour_universe "
                 "WHERE file_path NOT IN (SELECT file_path FROM temp.tour_seen) LIMIT 1"
             ).fetchone()
             return TourSubgraph(
@@ -2592,7 +2610,14 @@ class GraphStore:
             self._conn.execute(f"DROP TABLE IF EXISTS temp.{name}")
 
     def _tour_drop_temps(self) -> None:
-        for name in ("tour_seen", "tour_frontier", "tour_next", "tour_before", "tour_out_degree"):
+        for name in (
+            "tour_seen",
+            "tour_frontier",
+            "tour_next",
+            "tour_before",
+            "tour_out_degree",
+            "tour_universe",
+        ):
             self._conn.execute(f"DROP TABLE IF EXISTS temp.{name}")
 
     def _tour_prune_seen(self, max_nodes: int) -> None:
@@ -2666,6 +2691,7 @@ class GraphStore:
             str(row[0])
             for row in self._conn.execute(
                 "SELECT n.file_path, COALESCE(d.out_degree, 0) AS out_degree FROM nodes n "
+                "JOIN temp.tour_universe u ON u.file_path = n.file_path "
                 "LEFT JOIN temp.tour_out_degree d ON d.file_path = n.file_path "
                 f"WHERE {where} "
                 "GROUP BY n.file_path ORDER BY out_degree DESC, n.file_path ASC LIMIT ?",
@@ -2695,7 +2721,8 @@ class GraphStore:
             "JOIN nodes src ON src.file_path = f.file_path "
             "JOIN edges e ON e.source_qname = src.qualified_name "
             "JOIN nodes tgt ON tgt.qualified_name = e.target_qname "
-            "WHERE e.target_qname IS NOT NULL AND tgt.file_path <> src.file_path"
+            "WHERE e.target_qname IS NOT NULL AND tgt.file_path <> src.file_path "
+            "AND tgt.file_path IN (SELECT file_path FROM temp.tour_universe)"
         )
         while conn.execute("SELECT 1 FROM temp.tour_frontier LIMIT 1").fetchone() is not None:
             conn.execute("DROP TABLE IF EXISTS temp.tour_next")

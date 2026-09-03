@@ -12,7 +12,7 @@ manifest recorded, and nothing else (R5.7).
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path, PurePosixPath
 from typing import Literal
 
@@ -40,6 +40,7 @@ from code_atlas.onboarding.dataset import OnboardingDataset, build_dataset
 from code_atlas.onboarding.flows import FLOW_KINDS
 from code_atlas.onboarding.layers import LayerRefiner
 from code_atlas.onboarding.prose import ProseRun, ProseWriter
+from code_atlas.onboarding.scope import scoped_paths
 from code_atlas.onboarding.summary import StructuralSummarizer, Summarizer
 from code_atlas.onboarding.viewer import render_viewer
 from code_atlas.store import LAST_COMMIT_KEY, LAST_REF_KEY, GraphStore
@@ -82,7 +83,9 @@ def create(
         The walk that sizes the tour is the same node-budgeted subgraph ``guided_tour`` uses
         (``CA_IMPACT_MAX_NODES``) — roots ranked by out-degree, capped at a quarter of the budget
         so the tour describes files the walk actually reached (106); ``truncated`` is true when
-        that budget left an indexed file out.
+        that budget left an indexed file out. ``CA_WORKING_ROOTS`` / ``working_roots`` restricts
+        the tour, flow seeds and busiest-file pick to those trees (206); unset is the whole index.
+
         ``results`` lists the committed relative paths, capped at ``CA_MAX_RESULTS``.
         ``minimal`` omits the path to the ``artifact.json`` dump.
         """
@@ -96,7 +99,15 @@ def create(
             edge_tiers = store.dependency_edges_with_tier()
             flow_edge_rows = store.flow_edges(FLOW_KINDS)
             edges = [(source, target) for source, target, _tier in edge_tiers]
-            subgraph = store.tour_subgraph(max_nodes=config.impact_max_nodes)
+            file_paths = store.file_paths()
+            scoped = (
+                scoped_paths(file_paths, config.working_roots)
+                if config.working_roots
+                else None
+            )
+            subgraph = store.tour_subgraph(
+                max_nodes=config.impact_max_nodes, files=scoped
+            )
             counts = store.counts()
             node_kinds = store.node_kind_counts()
             edge_kinds = store.edge_kind_counts()
@@ -106,7 +117,6 @@ def create(
             hubs = store.module_hubs(limit=config.max_results)
             classes = store.largest_classes(limit=config.max_results)
             file_syms = store.file_symbol_counts()
-            file_paths = store.file_paths()
             file_classes = store.file_class_counts()
             file_kinds = store.file_kind_counts()
             commit = store.get_meta(LAST_COMMIT_KEY) or ""
@@ -128,6 +138,7 @@ def create(
             max_results=config.max_results,
             declared_entry_points=config.entry_points,
             declared_stub_roots=config.stub_roots,
+            working_roots=config.working_roots,
             file_paths=file_paths,
             file_class_counts=file_classes,
             prose=prose,
@@ -153,6 +164,7 @@ def create(
             layer_refiner=layer_refiner,
             declared_entry_points=config.entry_points,
             declared_stub_roots=config.stub_roots,
+            working_roots=config.working_roots,
             reachability_sample_max=config.max_results,
             file_class_counts=file_classes,
             module_max=config.max_results,
@@ -170,6 +182,8 @@ def create(
             artifact,
             dataset,
             config.max_results,
+            file_paths=file_paths,
+            working_roots=config.working_roots,
             index_root=config.index_root,
             last_ref=last_ref,
         )
@@ -238,6 +252,8 @@ def _write(
     dataset: OnboardingDataset,
     max_results: int,
     *,
+    file_paths: Sequence[str] = (),
+    working_roots: Sequence[str] | None = None,
     index_root: str = "",
     last_ref: str = "",
 ) -> tuple[str, ...]:
@@ -248,9 +264,19 @@ def _write(
     out.mkdir(parents=True, exist_ok=True)
     written: list[str] = []
     files = {
-        OVERVIEW_NAME: render_overview(artifact, node_cap=max_results),
-        TOUR_NAME: render_tour(artifact, max_results),
-        FLOWS_NAME: render_flows(dataset),
+        OVERVIEW_NAME: render_overview(
+            artifact,
+            node_cap=max_results,
+            file_paths=file_paths,
+            working_roots=working_roots,
+        ),
+        TOUR_NAME: render_tour(
+            artifact,
+            max_results,
+            file_paths=file_paths,
+            working_roots=working_roots,
+        ),
+        FLOWS_NAME: render_flows(dataset, file_paths=file_paths, working_roots=working_roots),
         MANIFEST_NAME: manifest_json(
             artifact, dataset, index_root=index_root, last_ref=last_ref
         ),
@@ -283,6 +309,7 @@ def _payload(
         "total_count": len(written),
         "index_root": config.index_root,
         "output_dir": OUTPUT_DIR,
+        "working_roots": list(config.working_roots) if config.working_roots else None,
     }
     if detail_level == "standard":
         payload["cache"] = f"{CACHE_DIR}/{CACHE_NAME}"

@@ -901,6 +901,44 @@
       ]
     },
     {
+      "id": "onb_working_scope",
+      "source": "fixture",
+      "root": "tests/fixtures/php/onboarding",
+      "tier": "onboarding",
+      "ratio_eligible": false,
+      "ratio_note": "The answer is whether a generated artifact declares a scoped working tree; grep can print a config file or a tool docstring, but not the write payload and emitted tree together.",
+      "question": "Generate the committable onboarding map and tell me whether it declares a working scope.",
+      "atlas_path": [
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "generate_onboarding",
+          "args": {
+            "detail_level": "standard"
+          }
+        }
+      ],
+      "expected": [
+        "docs/onboarding/overview.md",
+        "working_roots"
+      ],
+      "precision_scope": [
+        "results"
+      ],
+      "precision_note": "The file list is the population; `working_roots` is an extra singleton fact on the payload, so correctness also checks the key by substring.",
+      "expected_set": [
+        "docs/onboarding/overview.md",
+        "docs/onboarding/tour.md",
+        "docs/onboarding/flows.md",
+        "docs/onboarding/index.html",
+        "docs/onboarding/manifest.json"
+      ]
+    },
+    {
       "id": "onb_naming_debt",
       "source": "fixture",
       "root": "tests/fixtures/php/onboarding",

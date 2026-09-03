@@ -499,6 +499,7 @@ def build_dataset(
     dir_symbol_threshold: int = DIR_SYMBOL_THRESHOLD,
     declared_entry_points: Sequence[str] | None = None,
     declared_stub_roots: Sequence[str] | None = None,
+    working_roots: Sequence[str] | None = None,
     reachability_sample_max: int = 0,
     file_class_counts: Sequence[tuple[str, int]] = (),
     module_max: int = 0,
@@ -537,6 +538,7 @@ def build_dataset(
         class_counts=dict(file_class_counts),
         fan_in={metric.key: metric.fan_in for metric in metrics.modules},
         stub_roots=declared_stub_roots,
+        working_roots=working_roots,
         limit=module_max,
         prose=prose,
     )
@@ -566,6 +568,7 @@ def build_dataset(
             modules=business,
             declared_entry_points=declared_entry_points or (),
             declared_stub_roots=declared_stub_roots or (),
+            working_roots=working_roots,
             max_flows=flow_max,
             max_nodes=flow_max_nodes,
         )
