@@ -368,3 +368,47 @@ instead.
 the *"which door a request comes in — never names one"* premise is **still true**; but *"list a
 bounded sample **of them**"* implies the sample must be **computed** — **falsified**: 113 already
 computes it and stores it, so what was missing was three lines in a renderer, not a feature.
+
+### RECONCILE + DISCLOSURE
+
+```
+RECONCILE
+  conditions: 9 declared | 9 re-run | 9 holding | 0 BROKEN | 0 UNBOUND | 0 could-not-run
+  phase     : close | reviewer: off | challenger: on
+```
+
+At **t0**, before any work existed, all 8 bound conditions were observed **BROKEN** against the real
+world and none was struck.
+
+```
+DISCLOSURE
+  1a. REVIEWER: OFF — waived by `--no-reviewer`. No rule-book-grounded review of the diff ran.
+  1b. CHALLENGER: ON — round 1 CHANGES REQUESTED (both blocking findings accepted and shipped),
+      round 2 LGTM.
+  2. UNCHECKED AGENT CLAIMS: 0 — every contract value was derived by a command.
+  3. BUDGET: call-count ceiling 853 (proxy, per-call estimate 2344) — a proxy, not a measurement.
+     Main-loop spend is the larger term and this host surfaces no usage block.
+  4. This list is the ONE artifact nothing can check.
+  5. AC6's literal wording is CONTRADICTED BY AC3 inside the ticket itself, and this run chose a
+     reading rather than asking. The reading is Scope 2's own and is now proved by a test, but a
+     ticket whose ACs contradict each other is a thing the operator may want to rule on.
+  6. DELEGATED PRODUCT DECISION — that reading, and the decision to widen a 121-era guard, were
+     taken under the operator's standing delegation with nobody awake. Read narrowly, both should
+     have waited until morning.
+  7. THE FIRST DESIGN OF AC7 WAS WRONG AND ONLY REVIEW CAUGHT IT. A `day_one` tool payload was
+     added on the belief the harness could not read a written file; it can (`read_file` is a native
+     session step). Had the challenger been waived too, that payload would have shipped, crossing a
+     boundary the ticket states in its own words.
+  8. THE COMPOSE READER IS NOT A YAML PARSER. It reads block style and refuses anchors and flow
+     style. A compose file using either yields no services — stated, not guessed, but still absent.
+  9. NOT VERIFIED: any anchor figure. `real_corpus_path` is null — the class's fourth consecutive
+     sighting (206, 211, 209, 207), escalated at 209.
+ 10. NOT VERIFIED: that a newcomer is actually better served. The artifact now carries commands and
+     citations; whether a person reads them and acts is outside anything measured here.
+ 11. CI FLAKED ONCE on a 15%-tolerance wall-clock assertion
+     (`test_phase_times_cover_named_phases_and_sum_near_wall`, py3.12 red / py3.13 green, on a diff
+     touching no build path); green on re-run. Deliberately NOT fixed by widening the tolerance.
+     Operator: this gate can fail a clean diff.
+ 12. `docs/benchmarks/121`'s table is dated 2026-08-23 and several figures have drifted. A warning
+     was added naming the case that proved it; the table itself is NOT re-measured here.
+```
