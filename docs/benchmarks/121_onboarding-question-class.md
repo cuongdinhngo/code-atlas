@@ -25,6 +25,13 @@ things a pattern returns, and inventing a baseline for them would only flatter t
 
 ## Fixture tier — per question
 
+> **These atlas figures are dated 2026-08-23 and several have since moved** — `onb_committable_map`
+> reads **173** today against the 290 below, because 205 removed the page tree its payload listed.
+> Re-measuring the whole table is its own job and is **not** done here; a row added by a later
+> ticket carries that ticket's own fresh number. Read a figure below as *what this class cost on
+> 2026-08-23*, and take a live number from `artifacts/tokens-to-answer-report.json`. This note
+> exists because a reviewer took 290 from this table as the current value and was wrong (207).
+
 `ratio > 1` means code-atlas is cheaper. `—` means out of the ratio, with its reason in the question file.
 
 | question | atlas | grep | ratio | recall |

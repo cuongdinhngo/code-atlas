@@ -338,7 +338,22 @@ breach and scoped the compromise to that one finding rather than concealing it.
    `run-tests` was missed and misreported as a gap. Matching is now word-wise (`run-tests`,
    `ci:check` → found; `latest`, `contest` → not).
 
-**Round 2 (verify-only, same live seat): LGTM.**
+**Round 2 (verify-only, same live seat): LGTM.** It re-ran the AC6 guard under its own mutation
+(a leaked line outside the section) and watched it fail, and it walked all 16 onboarding questions
+to confirm the widened recall guard is used by exactly one — *"honest scope narrowing, not gate
+erosion"*.
+
+**One number in round 2 is wrong, and the reason is worth keeping.** It reported
+`onb_committable_map` at **290 at all three SHAs**; three live harness runs measured **173 → 225 →
+173**. Its 290 came from `docs/benchmarks/121`'s table, which is dated **2026-08-23** and has drifted
+— 205 removed the page tree that payload listed. A reviewer took a stale documented figure as a
+current measurement, so the table now carries a dated-value warning naming this exact case.
+
+**CI went red once on `test_phase_times_cover_named_phases_and_sum_near_wall`** — a wall-clock
+assertion (`WALL_TOLERANCE = 0.15`) on py3.12 while py3.13 passed, on a diff touching no build or
+profiling path. Green on re-run. This is the class AGENTS.md already predicts. **Not "fixed" by
+loosening the tolerance**, which would be editing a gate to fit a run; surfaced to the operator
+instead.
 
 ### Phase 5 — finalise
 
