@@ -4,7 +4,7 @@ slug: onboarding-cannot-be-scoped-to-the-tree-the-reader-works-in
 title: "Onboarding ranks the whole index by degree, so on a repo that is 78 % read-only legacy the tour visits `src/` zero times and opens with vendored `angular.js` — the artifact has no way to be told which tree the reader actually works in"
 phase: 3
 milestone: M11
-status: todo
+status: done
 depends_on: [105, 111, 112, 121, 126, 131, 205]
 ---
 
@@ -210,7 +210,7 @@ search), [205](205_a-module-page-per-node-budget-slot.md) (how many pages, as op
 
 ## Session status
 
-- **KEY:** 206 · **work_doc_mode:** embed · **Current phase:** 3 execute
+- **KEY:** 206 · **work_doc_mode:** embed · **Current phase:** 5 finalise
 - `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · **Type:** enhancement
 - Run arg *"with skipped reviewer"* = `--no-reviewer`; the reviewer seat is waived, the **challenger keeps its seat**.
 - Branch `feat/206-onboarding-cannot-be-scoped-to-the-tree-the-reader-works-in`, based on `main` at `2acf5fb`.
@@ -464,7 +464,7 @@ Revert the branch commits. No adapter, no schema, no second repo. `config.repos`
 
 ## Phase 3 — execute
 
-Complete on disk.
+Complete, reviewed, PR open.
 
 ### What landed
 
