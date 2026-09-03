@@ -138,6 +138,15 @@ class ProseRun:
         return self._writer is not None
 
     @property
+    def writer(self) -> ProseWriter | None:
+        """The injected writer itself, so 209 can name what ran. ``None`` is the default path.
+
+        The object, not a name: this module imports nothing from ``code_atlas.onboarding``, so
+        spelling the no-writer sentinel here would be a second copy of it.
+        """
+        return self._writer
+
+    @property
     def calls(self) -> int:
         """How many times the writer was actually asked — a memo hit is not a call (AC5)."""
         return sum(self._spent.values())

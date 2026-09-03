@@ -38,8 +38,9 @@ from code_atlas.onboarding.artifact import (
 )
 from code_atlas.onboarding.dataset import OnboardingDataset, build_dataset
 from code_atlas.onboarding.flows import FLOW_KINDS
-from code_atlas.onboarding.layers import LayerRefiner
+from code_atlas.onboarding.layers import IdentityLayerRefiner, LayerRefiner
 from code_atlas.onboarding.prose import ProseRun, ProseWriter
+from code_atlas.onboarding.provenance import Provenance, implementation_name
 from code_atlas.onboarding.scope import scoped_paths
 from code_atlas.onboarding.summary import StructuralSummarizer, Summarizer
 from code_atlas.onboarding.viewer import render_viewer
@@ -65,7 +66,10 @@ def create(
     prose_writer: ProseWriter | None = None,
 ) -> Callable[..., dict[str, object]]:
     """Bind the tool to one repo and the 085/091/117 seams (deterministic defaults when unset)."""
+    # Both defaults resolve HERE, not inside the builders, so 209's stamp can name the object that
+    # actually ran rather than the argument that was passed (LESSONS 201-C2).
     seam: Summarizer = StructuralSummarizer() if summarizer is None else summarizer
+    refiner: LayerRefiner = IdentityLayerRefiner() if layer_refiner is None else layer_refiner
 
     def generate_onboarding(detail_level: DetailLevel = "standard") -> dict[str, object]:
         """Write committable onboarding docs for this repo — overview, guided tour and flows.
@@ -134,7 +138,7 @@ def create(
             subgraph.entry_points,
             subgraph.truncated,
             seam,
-            layer_refiner,
+            refiner,
             max_results=config.max_results,
             declared_entry_points=config.entry_points,
             declared_stub_roots=config.stub_roots,
@@ -148,6 +152,13 @@ def create(
         )
         if artifact is None:
             return _empty(config)
+        # An IDENTITY, never a count: 117's AC2 forbids a dataset number that moves when the
+        # seam turns on, and `prose_calls` stays in the discarded payload for that reason.
+        provenance = Provenance(
+            summarizer=implementation_name(seam),
+            prose=implementation_name(prose.writer),
+            layers=implementation_name(refiner),
+        )
         dataset = build_dataset(
             nodes,
             edges,
@@ -161,7 +172,7 @@ def create(
             file_symbol_counts=file_syms,
             file_paths=file_paths,
             path_index_max=config.path_index_max,
-            layer_refiner=layer_refiner,
+            layer_refiner=refiner,
             declared_entry_points=config.entry_points,
             declared_stub_roots=config.stub_roots,
             working_roots=config.working_roots,
@@ -176,6 +187,7 @@ def create(
             flow_max=config.max_results,
             flow_max_nodes=config.impact_max_nodes,
             confidence_by_language=confidence_by_language,
+            provenance=provenance,
         )
         written = _write(
             Path(config.root),
@@ -269,6 +281,7 @@ def _write(
             node_cap=max_results,
             file_paths=file_paths,
             working_roots=working_roots,
+            provenance=dataset.provenance,
         ),
         TOUR_NAME: render_tour(
             artifact,

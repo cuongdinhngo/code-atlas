@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 
 from code_atlas.onboarding.dataset import OnboardingDataset
+from code_atlas.onboarding.provenance import NONE
 
 _PLACEHOLDER = "__ONBOARDING_DATASET__"
 
@@ -278,6 +279,7 @@ table.tb td.n { font:12px var(--mono); text-align:right; white-space:nowrap; }
   <div class="grid g4" id="stats"></div>
   <div class="grid" id="heads"></div>
   <p class="sub" id="stampLine"></p>
+  <p class="sub" id="provLine"></p>
   <p class="sub" id="confBy"></p>
 </section>
 <section id="modules">
@@ -421,6 +423,17 @@ put("stampLine",
   + "</code> method. " + fmt(PATHS.length) + " of " + fmt(D.path_index.total)
   + " paths are embedded for search"
   + (INDEX_PARTIAL ? ", so search over this page is incomplete." : "."));
+/* 209 — which implementation wrote the text on this page. Reads the same dataset field
+   `overview.md` renders, so the two cannot disagree (R1.8). */
+var NO_IMPL = "__NO_IMPL__";
+var PROV = D.provenance || { summarizer: NO_IMPL, prose: NO_IMPL, layers: NO_IMPL };
+function wroteIt(name) {
+  return name === NO_IMPL ? "the deterministic default" : "<code>" + esc(name) + "</code>";
+}
+put("provLine",
+  "Module summaries were written by " + wroteIt(PROV.summarizer) + ", the prose by "
+  + wroteIt(PROV.prose) + " and the layer names by " + wroteIt(PROV.layers)
+  + ". A summary that says nothing is a fact about that configuration, not about the repository.");
 /* 196 — which language earned the confidence figure, or why that cannot be said. Never omitted:
    this is a document a human reads, so an absent attribution is stated rather than left blank. */
 var CBL = D.confidence_by_language || { available: false, note: "", rows: [] };
@@ -992,5 +1005,6 @@ def render_viewer(dataset: OnboardingDataset, max_results: int) -> str:
     return (
         _TEMPLATE.replace("__NS__", NAMESPACE)
         .replace("__SECTIONS__", json.dumps(list(SECTION_IDS)))
+        .replace("__NO_IMPL__", NONE)
         .replace(_PLACEHOLDER, blob)
     )
