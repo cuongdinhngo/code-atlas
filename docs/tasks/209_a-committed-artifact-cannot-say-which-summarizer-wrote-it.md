@@ -371,3 +371,48 @@ reader should read this row first:
 
 PR opened under the handover authorisation (push + open PR). The merge is authorised separately and
 explicitly by the operator's same message and is taken outside the skill, which never auto-merges.
+
+### RECONCILE + DISCLOSURE
+
+```
+RECONCILE
+  conditions: 8 declared | 8 re-run | 8 holding | 0 BROKEN | 0 UNBOUND | 0 could-not-run
+  phase     : close | reviewer: off | challenger: on
+```
+
+At **t0**, before any work existed, all 7 bound conditions were observed **BROKEN** against the real
+world and none was struck — that is the part of this contract that earned its claim.
+
+```
+DISCLOSURE
+  1a. REVIEWER: OFF — waived by `--no-reviewer`. No rule-book-grounded review of the diff ran; a
+      clean result carries no reviewer finding because none was sought.
+  1b. CHALLENGER: ON — the ticket-blind challenger ran (round 1 CHANGES REQUESTED, round 2 LGTM).
+  2. UNCHECKED AGENT CLAIMS: 0 — every contract value was derived by a command.
+  3. BUDGET: call-count ceiling 853 (proxy, per-call estimate 2344, source: budget.py over 4 ledger
+     rows from 208/212, 138 calls total) — a proxy, not a measurement. Main-loop spend is the larger
+     term and this host surfaces no usage block, so the run's true cost is unmeasured.
+  4. This list is the ONE artifact nothing can check.
+  5. ESCALATION — `.harness.json` `real_corpus_path` is `null`, and this is the **third consecutive
+     ticket** (206, 211, 209) to ship an AC unmeasured for that one missing value. It is a
+     harness-configuration gap the operator owns, not a per-ticket risk to re-record a fourth time.
+  6. DELEGATED PRODUCT DECISION — refine raised one want-decision (*does 209 still ship with its
+     headline defect already closed by 205?*) and nobody was awake to answer it. It was **not**
+     silently adopted as an ASSUMED: it was answered under the operator's explicit standing
+     delegation to "make the necessary decisions". If that delegation is read narrowly, this is the
+     one decision in the run that should have waited until morning.
+  7. A CONTRACT CONDITION WAS MIS-AUTHORED AND CORRECTED AT CLOSE. `STAMP-IN-DATASET` grepped for
+     the word "summarizer" in `dataset.py` — a spelling, in a file that never carries it — and went
+     BROKEN at close as a false red. Re-authored against the invariant (`as_dict` emits the
+     `provenance` key) and re-run. The invariant itself was independently proven by
+     `test_the_committed_manifest_carries_the_same_stamp` throughout. This is P5's own lesson
+     (*"needs the invariant, not the spelling"*) landing on the contract that was meant to enforce it.
+  8. AC3's CLI half is judged **N/A** rather than unbuilt, on the ground that no CLI writes the
+     artifact. That is a judgement about what the ticket meant, not a measurement.
+  9. NOT VERIFIED: that the LLM path actually produces better summaries. Nothing here runs an LLM —
+     the stamp records which side of the seam ran, and says nothing about which side is better. That
+     was Scope 4's job and Scope 4 is E1.
+ 10. `docs/benchmarks/121_*.md`'s figures already differ from a fresh run for reasons predating this
+     ticket, and its global question counts undercount the JSON (13/11/2 vs 15/12/3). Deliberately
+     not touched here; it needs its own re-measurement.
+```
