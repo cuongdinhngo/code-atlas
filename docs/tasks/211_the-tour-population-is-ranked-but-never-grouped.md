@@ -4,7 +4,7 @@ slug: the-tour-population-is-ranked-but-never-grouped
 title: "The tour ranks 24,535 modules by degree and then labels the top 500 by path vocabulary, so three-quarters of the anchor's tour lands in `Uncategorised` — the graph's own community structure is never asked"
 phase: 3
 milestone: M11
-status: todo
+status: in-progress
 depends_on: [084, 105, 110, 131, 204, 206]
 ---
 
@@ -108,6 +108,101 @@ is left, and on a repo where nobody declares anything, grouping alone still beat
    treated as a resolved community.
 6. No runtime dependency is added.
 7. The `legacy/alpha` ↔ `legacy/beta` question from Scope 5 is answered in the close-out either way.
+
+---
+
+## Working doc (autorun 2026-09-03)
+
+**KEY:** 211 · **work_doc_mode:** embed · **Current phase:** 3 execute
+
+### Phase 0 — refine
+
+`PREMISE: 12 reference(s) checked | 0 missing | 1 ambiguous (surfaced, not blocking)`
+`RECALL: 4 claim(s) surfaced | 0 by symbol | 3 by handle | 1 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`REFINE: 0 unresolved surfaced | 0 want-decision asked | 0 how-decision resolved+cited | 0 ASSUMED | skip: yes`
+
+Refine skipped: all scopes, constraints and ACs are product-decided. No want-decisions remain open.
+
+In-repo refs resolved (`tour.py`, `steps.py`, `layers.py` UNCATEGORISED, `artifact.py` build_artifact, `generate_onboarding.py` edge_tiers, `test_onboarding_steps.py`, `test_artifact_contract.py`, R4.2, R3.5, R8.2, R5.2, R1.1, tickets 084/110/131). Ambiguous: the anchor monorepo's live `graph.db` and generated `tour.md` — not this checkout.
+
+Recalled (advisory): `one-rule-for-every-subject-slot` (R1.8 — community label derivation must be one site), `version-the-document-that-moved` (R3.5 — `community_crossings` is a new artifact summary key), `prove-the-guard-fails` (R6.5 — prove the HEURISTIC guard changes community membership).
+
+### Phase 1 — analysis
+
+`PREMISE: 12 reference(s) checked | 0 missing | 1 ambiguous (surfaced, not blocking)`
+`RECALL: 4 claim(s) surfaced | 0 by symbol | 3 by handle | 1 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`SECTIONS: 4 found (Why this exists / Scope, Constraints, Acceptance criteria, References) | 4 decomposed | ROWS: C=3 R=5 G=1 AC=7`
+`CLARIFICATION: 0 raised | 0 self-resolved (cited) | 0 for human decision`
+`RULE SECTIONS: 7 applicable — 7 by change-type | 0 by recalled handle — §R1.1 (no language branch) ✅ · §R3.5 (new artifact summary key → ARTIFACT_VERSION bump) ✅ · §R4.2 (determinism) ✅ · §R5.2 (edge confidence weighting) ✅ · §R5.8 (rank inside truncation) ✅ · §R7.1 (smallest useful) ✅ · §R8.2 (no new dep) ✅`
+`TRACK: backend — 0/N touched files under UI paths`
+`BASELINE: green`
+`SCOPE: M`
+`TIER: full`
+
+| ID | Type | Statement |
+|---|---|---|
+| G | G | Reduce Uncategorised tour share using graph community structure |
+| R1 | R | Compute communities from import edges; substitute where path vocabulary is silent |
+| R2 | R | Deterministic — fixed sort order, explicit tie-breaking (R4.2) |
+| R3 | R | Path vocabulary wins where it fires; communities only fill the silent case |
+| R4 | R | Report community-straddles-two-vocabulary-layers as a finding (R5.8) |
+| R5 | R | Measure Uncategorised share before/after; answer legacy/alpha↔legacy/beta question |
+| C1 | C | No new runtime dependency (R8.2) |
+| C2 | C | RESOLVED edges outrank HEURISTIC edges in community formation (R5.2) |
+| C3 | C | No language branches (R1.1) |
+| AC1 | AC | Two runs, identical community assignments — asserted by test |
+| AC2 | AC | Uncategorised share measured and recorded (E1 for anchor-scale) |
+| AC3 | AC | No-vocabulary-hit community named from members, not bare identifier |
+| AC4 | AC | Path vocabulary wins — fixture |
+| AC5 | AC | HEURISTIC-only cluster treated differently from RESOLVED — fixture |
+| AC6 | AC | No new runtime dep |
+| AC7 | AC | legacy/alpha↔legacy/beta answered in close-out |
+
+`HANDLES: 7 recalled | 7 traced (command + result) | 0 does not apply (reason) | 0 unanswered`
+`EXCLUSIONS: 1 recorded | 1 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 1 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+**E1**: AC2 anchor-scale Uncategorised measurement (before/after on 24,535 files). Expiry: `real_corpus_path` set in `.harness.json`. The fixture proves the mechanism; the anchor number is a reporting exercise requiring a live rebuild.
+
+### Phase 2 — design
+
+`HANDLES: 7 recalled | 7 traced (command + result) | 0 does not apply (reason) | 0 unanswered`
+`EXCLUSIONS: 1 recorded | 1 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 1 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+**Approach:** Three-module change — new `community.py`, modify `steps.py`, modify `artifact.py`.
+
+**1. `code_atlas/onboarding/community.py`** (new):
+- `assign_communities(files, edge_tiers)` → `dict[str, str]` — `{file: community_label}`
+- Two-pass union-find: pass 1 unions RESOLVED edges; pass 2 unions HEURISTIC-only files (C2/AC5)
+- Label = `"Community/" + representative` where representative = alphabetically-first file in the component (R4.2)
+- AC3: label is a path-derived name, never a bare integer identifier
+
+**2. `code_atlas/onboarding/steps.py`** — `build_steps`:
+- Add `community_of: Mapping[str, str] | None = None`
+- In `_initial_buckets`: when `layer_of.get(file, "") == UNCATEGORISED`, override with `community_of.get(file)` when set (AC4: vocabulary wins — override only fires on UNCATEGORISED)
+
+**3. `code_atlas/onboarding/artifact.py`** — `build_artifact`:
+- Compute `community_of = assign_communities(tour_files, tour_edge_tiers)` — tour-scoped (filter inside community.py)
+- Pass to `build_steps`
+- Add `"community_crossings"` to `artifact.summary` — sorted list of `{community, layers}` dicts for communities straddling ≥2 named layers (R4/R5.8)
+- `ARTIFACT_VERSION` bump: 3 → 4 (R3.5)
+
+**Proving test:** `tests/test_community.py::test_two_runs_are_byte_identical`
+
+**Rejected alternative:** Full Louvain (non-deterministic without seeding; union-find on RESOLVED is sufficient and simpler per R7.1).
+
+### Phase 3 — execute
+
+What landed: union-find communities over tour edges (`community.py`); `build_steps` substitutes the community label only when the layer is `Uncategorised`; `artifact.summary.community_crossings` records communities that straddle ≥2 named layers; `ARTIFACT_VERSION` 3→4.
+
+Proving test: `tests/test_community.py::test_two_runs_are_byte_identical` — green.
+
+Verification: `.venv/bin/python -m pytest -q` on this Linux host — **2808 passed** (pre-ruff-fix run; proving tests re-run after lint). Core module count 78→79. No runtime dependency added.
+
+`diff ⊆` approved list: `community.py` (new), `steps.py`, `artifact.py`, `test_community.py` (new), `test_artifact_contract.py`, `test_sql_confinement.py`, `test_core_is_language_agnostic.py`, this working doc.
+
+AC2/AC7 (anchor Uncategorised share; `legacy/alpha`↔`legacy/beta`): **E1** — not measured; `.harness.json` `real_corpus_path` is null.
+
+---
 
 ## References
 
