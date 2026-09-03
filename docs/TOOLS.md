@@ -237,6 +237,7 @@ a silent fallback.
 | `CA_STUB_ROOTS` | `stub_roots` | unset | dependency roots (e.g. `vendor`) to index declarations-only, so third-party signatures resolve; hits carry `stub: true`. Costs one extra pass |
 | `CA_WORKING_ROOTS` | `working_roots` | unset | repo-relative directory prefixes the onboarding artifact treats as the reader's working tree. It narrows the onboarding tour, flow seeds and busiest-file pick; unset is the whole index |
 | `CA_PROJECT_FILES` | `project_files` | the ecosystem manifests, a root `README*` and an agent brief | repo-relative files the onboarding *Start here* section quotes and cites. Values are lifted from declared keys and reproduced verbatim, never summarised; a file that cannot be parsed becomes a stated gap and never fails the build |
+| `CA_AUDIENCE` | `audience` | `full` | who the WRITTEN onboarding tree is for: `full` (every section), `newcomer` (orientation, a four-line summary, the layer vocabulary, the tour and the flows) or `maintainer` (every aggregate, no tour, no orientation). An unrecognised value falls back to `full` and the artifact states which audience it actually used |
 | `CA_INDIRECTION_RULES` | `indirection_rules` | unset | JSON rule files mapping framework indirection to edges. **`find_view_data` needs this** — without `view_data` setters it answers `capability_not_configured`, not a zero |
 | `CA_ARCHITECTURE_RULES` | `architecture_rules` | unset | JSON rule files of path-set dependency constraints. **`check_architecture_rules` needs this** — unset → `capability_not_configured` |
 | `CA_TOOLS` | `tools` | all tools | comma-separated tool allow-list |
@@ -298,6 +299,16 @@ The **core never imports it**: you install the `llm` extra, set `CA_ONBOARDING_S
 `CA_ONBOARDING_LAYER_REFINER=llm` and/or `CA_ONBOARDING_PROSE=llm`, and run `code-atlas-llm` instead
 of `code-atlas`. All three are memoised in content-hash caches so runs replay and diffs stay stable.
 These are `onboarding_llm` knobs, not core config — the full table is in that package's README.
+
+**`audience` and `detail_level` are different knobs, and this is the decision (210).**
+`detail_level` means the same thing on 24 tools — how much of the **response** to return — and the
+response is read once and dropped. Growing it to reshape the committed tree would make files a repo
+checks into git depend on a per-call argument, so it **stays a payload knob and is unchanged**.
+`audience` is the artifact knob: it selects which sections `overview.md` holds and which documents
+are written at all, and the tree states which audience produced it, in `overview.md`'s *Who this was
+written for* section and in `manifest.json`. Each audience is a written content contract — the
+sections it gets **and why that reader needs each one** — held in one place, `onboarding/audience.py`,
+which the markdown, the dataset and the viewer all read rather than re-deriving.
 
 **What a newcomer asks first** is answered above the aggregates, in `overview.md`'s *Start here*
 section: what the repo says it is, how to run its tests, its declared commands, services, ports and

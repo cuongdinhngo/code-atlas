@@ -936,6 +936,84 @@
       "expected_set_note": "No `expected_set`, so this question scores CORRECTNESS and cost but not recall — and that is the instrument's design, not an omission. `_mcp_responses` excludes native steps because recall measures what the INDEX answered, and a file read is not that. 207 ships its answer in the committed markdown a human opens, so the only honest recipe reads that file, and the only honest score is `atlas_correct`. Scoring recall here would have required putting the answer into a tool payload, which is exactly the agent-queryability decision the ticket reserves for 121. Sibling of 121-C1: a measurement deferred may be one whose instrument cannot address its subject."
     },
     {
+      "source": "fixture",
+      "root": "tests/fixtures/php/onboarding",
+      "tier": "onboarding",
+      "ratio_eligible": false,
+      "id": "onb_audience_newcomer",
+      "question": "I joined this week. How do I run the tests, and what should I read first?",
+      "ratio_note": "Two first-day answers out of one committed tree, read the way a person reads it. A grep finds the command in one hop and cannot produce a reading order at all, so the pair has no fair single baseline (210/AC5).",
+      "session_path": [
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "generate_onboarding",
+          "args": {
+            "detail_level": "minimal",
+            "audience": "newcomer"
+          }
+        },
+        {
+          "tool": "read_file",
+          "args": {
+            "path": "docs/onboarding/overview.md"
+          }
+        },
+        {
+          "tool": "read_file",
+          "args": {
+            "path": "docs/onboarding/tour.md"
+          }
+        }
+      ],
+      "expected": [
+        "vendor/bin/phpunit --colors=never",
+        "# Guided tour"
+      ],
+      "precision_note": "Read from the committed markdown a human opens. The newcomer artifact must still answer its own class: the day-one command AND a reading order.",
+      "expected_set_note": "No `expected_set`: the answer lives in the committed tree and `_mcp_responses` excludes native reads from recall by design. Scores correctness and cost, the same exemption `onb_first_day_commands` states."
+    },
+    {
+      "source": "fixture",
+      "root": "tests/fixtures/php/onboarding",
+      "tier": "onboarding",
+      "ratio_eligible": false,
+      "id": "onb_audience_maintainer",
+      "question": "Where does this system couple across layers, and which subtrees duplicate each other?",
+      "ratio_note": "The auditor's own class, out of the same tree written for them. A grep cannot produce a cross-layer matrix or a mirror-overlap finding, so there is no baseline to compare (210/AC5).",
+      "session_path": [
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "generate_onboarding",
+          "args": {
+            "detail_level": "minimal",
+            "audience": "maintainer"
+          }
+        },
+        {
+          "tool": "read_file",
+          "args": {
+            "path": "docs/onboarding/overview.md"
+          }
+        }
+      ],
+      "expected": [
+        "## Cross-layer edges",
+        "## Zero-inbound modules, by population"
+      ],
+      "precision_note": "The maintainer artifact must still carry every aggregate its reader came for; a shape that answers fewer questions of its own class than today's single artifact is not shipped.",
+      "expected_set_note": "No `expected_set`: same native-read exemption as the newcomer question above."
+    },
+    {
       "id": "onb_working_scope",
       "source": "fixture",
       "root": "tests/fixtures/php/onboarding",

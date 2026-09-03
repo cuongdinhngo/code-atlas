@@ -11,6 +11,20 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from code_atlas.onboarding.audience import (
+    COMMUNITY,
+    CROSSINGS,
+    DIAGRAM,
+    LAYERS,
+    MIRRORS,
+    MODULES,
+    ORIENTATION,
+    PROVENANCE,
+    REACHABILITY,
+    SUMMARY,
+    AudienceContract,
+    contract_for,
+)
 from code_atlas.onboarding.community import assign_communities
 from code_atlas.onboarding.dataset import OnboardingDataset
 from code_atlas.onboarding.flows import COVERAGE_NOTE as FLOW_COVERAGE_NOTE
@@ -59,6 +73,7 @@ H_CROSSINGS = "## Cross-layer edges"
 H_COMMUNITY = "## Community / layer disagreement"
 H_ORIENTATION = "## Start here"
 H_PROVENANCE = "## How this was written"
+H_AUDIENCE = "## Who this was written for"
 H_TOUR = "# Guided tour"
 H_ORDER = "## Reading order"
 OUTPUT_DIR = "docs/onboarding"
@@ -511,6 +526,18 @@ def _orientation_lines(orientation: Orientation | None, *, cap: int) -> list[str
     return lines
 
 
+def _audience_lines(wants: AudienceContract) -> list[str]:
+    """AC3 — a committed tree that cannot say who it is for cannot be judged, or regenerated."""
+    return [
+        H_AUDIENCE,
+        "",
+        f"- audience: `{wants.audience}`",
+        f"- {wants.purpose}",
+        f"- sections here: {', '.join(f'`{name}`' for name in sorted(wants.sections))}",
+        "",
+    ]
+
+
 def _provenance_lines(provenance: Provenance | None) -> list[str]:
     """Name the implementation behind each seam, and say what its absence means (209/AC1, R5.6).
 
@@ -640,8 +667,14 @@ def render_overview(
     working_roots: Sequence[str] | None = None,
     provenance: Provenance | None = None,
     orientation: Orientation | None = None,
+    audience: str | None = None,
 ) -> str:
-    """Committed overview markdown: summary, layers, layer graph, crossings, provenance. Newline."""
+    """Committed overview markdown, holding exactly the sections this audience's contract names.
+
+    The contract is read, never re-derived: which sections an audience gets is decided once, in
+    ``onboarding.audience`` (R1.8 / 127's lesson). Unset is ``full`` — today's document.
+    """
+    wants: AudienceContract = contract_for(audience)
     cap = node_cap if node_cap is not None else max(len(artifact.layers), 1)
     diagram = render_layer_flowchart(
         [row.layer for row in artifact.layers],
@@ -649,25 +682,34 @@ def render_overview(
         node_cap=cap,
         omitted_dynamic=artifact.omitted_dynamic,
     )
-    lines = [
-        H_OVERVIEW,
-        "",
-        *_orientation_lines(orientation, cap=cap),
-        H_SUMMARY,
-        "",
-        *_scope_bullets(file_paths, working_roots),
-        f"- method: {artifact.method}",
-        f"- layers: {artifact.summary['layers']}",
-        f"- modules: {artifact.summary['modules']}",
-        f"- symbols: {artifact.summary['symbols']}",
-        f"- cross-layer edges: {artifact.summary['cross_layer_edges']}",
-        f"- truncated: {'true' if artifact.truncated else 'false'}",
-        "",
-    ]
-    lines.extend(_mirror_lines(artifact.summary.get("mirrors")))
-    lines.extend(_community_crossing_lines(artifact.summary.get("community_crossings")))
-    lines.extend(_module_lines(artifact.summary.get("business_modules")))
-    lines.extend(_reachability_lines(artifact.summary.get("reachability")))
+    lines = [H_OVERVIEW, ""]
+    if wants.wants(ORIENTATION):
+        lines.extend(_orientation_lines(orientation, cap=cap))
+    if wants.wants(SUMMARY):
+        lines.extend(
+            [
+                H_SUMMARY,
+                "",
+                *_scope_bullets(file_paths, working_roots),
+                f"- method: {artifact.method}",
+                f"- layers: {artifact.summary['layers']}",
+                f"- modules: {artifact.summary['modules']}",
+                f"- symbols: {artifact.summary['symbols']}",
+                f"- cross-layer edges: {artifact.summary['cross_layer_edges']}",
+                f"- truncated: {'true' if artifact.truncated else 'false'}",
+                "",
+            ]
+        )
+    if wants.wants(MIRRORS):
+        lines.extend(_mirror_lines(artifact.summary.get("mirrors")))
+    if wants.wants(COMMUNITY):
+        lines.extend(_community_crossing_lines(artifact.summary.get("community_crossings")))
+    if wants.wants(MODULES):
+        lines.extend(_module_lines(artifact.summary.get("business_modules")))
+    if wants.wants(REACHABILITY):
+        lines.extend(_reachability_lines(artifact.summary.get("reachability")))
+    if not wants.wants(LAYERS):
+        return _finish(lines, wants, provenance)
     lines.extend([H_LAYERS, ""])
     for row in artifact.layers:
         lines.append(
@@ -676,6 +718,8 @@ def render_overview(
             f"{row.entry_points} entry points)"
         )
         lines.append(f"  - {row.description}")
+    if not wants.wants(DIAGRAM):
+        return _finish(lines, wants, provenance)
     lines.extend(["", H_DIAGRAM, ""])
     lines.append(
         f"- layers: {diagram.shown_layers} shown of {diagram.total_layers}"
@@ -693,14 +737,24 @@ def render_overview(
     # AC5's check guards the committed artifact, not only the benchmark script.
     validate_mermaid_flowchart(diagram.mermaid)
     lines.extend(["", "```mermaid", diagram.mermaid.rstrip(), "```"])
-    lines.extend(["", H_CROSSINGS, ""])
-    if artifact.crossings:
-        for source, target, count in artifact.crossings:
-            lines.append(f"- `{source}` → `{target}` ({count})")
-    else:
-        lines.append("- (none)")
-    lines.append("")
-    lines.extend(_provenance_lines(provenance))
+    if wants.wants(CROSSINGS):
+        lines.extend(["", H_CROSSINGS, ""])
+        if artifact.crossings:
+            for source, target, count in artifact.crossings:
+                lines.append(f"- `{source}` → `{target}` ({count})")
+        else:
+            lines.append("- (none)")
+        lines.append("")
+    return _finish(lines, wants, provenance)
+
+
+def _finish(
+    lines: list[str], wants: AudienceContract, provenance: Provenance | None
+) -> str:
+    """Close the document with the audience line and, when contracted, the provenance stamp."""
+    if wants.wants(PROVENANCE):
+        lines.extend(_provenance_lines(provenance))
+    lines.extend(_audience_lines(wants))
     return "\n".join(lines) + "\n"
 
 
