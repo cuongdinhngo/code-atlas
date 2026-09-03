@@ -323,3 +323,44 @@ that omits files without saying so is a way to miss a change.
 `FALSIFY` detail: *"everything `detail_level` gates lives in `_payload`"* — **still true**. *"the
 written artifact is byte-identical at minimal and standard"* — **still true**. *"505 files, 3.0 MB"*
 — **falsified**: pre-205; five files are written now. The defect survives its own stale figure.
+
+### RECONCILE + DISCLOSURE
+
+```
+RECONCILE
+  conditions: 8 declared | 8 re-run | 8 holding | 0 BROKEN | 0 UNBOUND | 0 could-not-run
+  phase     : close | reviewer: off | challenger: on
+```
+
+At **t0**, before any work existed, all 7 bound conditions were observed **BROKEN** against the real
+world and none was struck.
+
+```
+DISCLOSURE
+  1a. REVIEWER: OFF — waived by `--no-reviewer`. No rule-book-grounded review of the diff ran.
+  1b. CHALLENGER: ON — round 1 LGTM with three non-blocking findings, all taken; round 2 verify-only.
+  2. UNCHECKED AGENT CLAIMS: 0 — every contract value was derived by a command.
+  3. BUDGET: call-count ceiling 853 (proxy, per-call estimate 2344) — a proxy, not a measurement.
+     Main-loop spend is the larger term and this host surfaces no usage block.
+  4. This list is the ONE artifact nothing can check.
+  5. THE R7.4 DECISION WAS MINE TO MAKE AND IT WAS A PRODUCT CALL. The ticket's own AC6 offers
+     "close unbuilt" as a live outcome. It was answered by measuring the contracts rather than by
+     preference, and the measurement is a test — but a different reader could draw the two
+     contracts closer together and reach the opposite answer. Under a narrow reading of the
+     operator's delegation, this is the decision in the run that should have waited until morning.
+  6. THE CONTRACTS ARE MY JUDGEMENT OF WHAT EACH READER WANTS, not a measurement of it. They are
+     derived from the ticket's own two-column table, which was itself written by reading a
+     generated tree as each persona. Nobody has watched a real newcomer use the newcomer artifact.
+  7. AC1's "on the anchor" is E1 (`real_corpus_path` null) — the class's FIFTH consecutive sighting
+     (206, 211, 209, 207, 210), escalated at 209 and not re-argued here.
+  8. THE VIEWER WAS TOUCHED and the ticket excludes "a viewer feature". One sentence stating the
+     audience was judged compliance with R1.8/R3.5 rather than a feature. The challenger read it
+     the same way; both of us could be wrong, and the operator may disagree.
+  9. NOT VERIFIED: that either audience is actually better for its reader. What is measured is that
+     each artifact still answers its own question class, and that the newcomer's does so for fewer
+     tokens. Whether the shape helps a person is not something this harness can see.
+ 10. TOOLING, for the operator: the challenger found this session's `rtk` proxy silently dropping
+     files from `git diff --stat` — `docs/BACKLOG.md`, `docs/TOKEN_LEDGER.md` and this task file
+     were absent (14 files/637 lines) against `/usr/bin/git`'s 17 files/811 lines. A filtered diff
+     listing that omits files without saying so is a way to miss a change.
+```
