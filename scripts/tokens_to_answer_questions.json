@@ -933,6 +933,7 @@
       "expected_set": [
         "docs/onboarding/overview.md",
         "docs/onboarding/tour.md",
+        "docs/onboarding/flows.md",
         "docs/onboarding/index.html",
         "docs/onboarding/manifest.json"
       ]
