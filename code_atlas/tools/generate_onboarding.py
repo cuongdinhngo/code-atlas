@@ -152,6 +152,8 @@ def create(
         )
         if artifact is None:
             return _empty(config)
+        # An IDENTITY, never a count: 117's AC2 forbids a dataset number that moves when the
+        # seam turns on, and `prose_calls` stays in the discarded payload for that reason.
         provenance = Provenance(
             summarizer=implementation_name(seam),
             prose=implementation_name(prose.writer),

@@ -132,3 +132,23 @@ def test_the_documented_prose_cap_is_the_real_one() -> None:
     for slot, limit in SLOT_LIMITS.items():
         assert f"{limit} {slot}" in tools, f"the per-slot table does not state {slot}={limit}"
     assert "one call per tour module" in tools, "the summarizer's own cost is not documented"
+
+
+def test_the_viewer_states_the_same_provenance_as_the_markdown(tmp_path: Path) -> None:
+    """R3.5's other half — the version bumped, so the viewer moved with it (R1.8: one field).
+
+    No JS runtime here, so "renders" is asserted as the two halves that make it render: a
+    ``provLine`` element in the markup AND a ``put`` targeting that exact id. Asserting only the
+    sentence would pass on a page that never displays it — the JS source is in the file either way
+    (R6.5: a guard that cannot be observed failing is not a guard).
+    """
+    from code_atlas.onboarding.artifact import VIEWER_NAME
+
+    generate_onboarding.create(_seed(tmp_path), summarizer=_ShoutySummarizer())()  # type: ignore[arg-type]
+    html = (_out(tmp_path) / VIEWER_NAME).read_text(encoding="utf-8")
+    assert 'id="provLine"' in html, "no element for the provenance line to render into"
+    assert 'put("provLine",' in html, "nothing writes the provenance line into that element"
+    assert "Module summaries were written by" in html
+    assert "a fact about that configuration, not about the repository" in html
+    # The embedded dataset is what the page reads, so the stamp must be in the blob too.
+    assert '"summarizer": "_ShoutySummarizer"' in html.replace("\\u003c", "<")
