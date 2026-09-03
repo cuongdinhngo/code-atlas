@@ -11,6 +11,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from code_atlas.onboarding.community import assign_communities
 from code_atlas.onboarding.dataset import OnboardingDataset
 from code_atlas.onboarding.flows import COVERAGE_NOTE as FLOW_COVERAGE_NOTE
 from code_atlas.onboarding.flows import TRUNCATED_NOTE as FLOW_TRUNCATED_NOTE
@@ -23,6 +24,7 @@ from code_atlas.onboarding.layer_diagram import (
     validate_mermaid_flowchart,
 )
 from code_atlas.onboarding.layers import (
+    UNCATEGORISED,
     IdentityLayerRefiner,
     LayerAssignment,
     LayerRefiner,
@@ -52,6 +54,7 @@ H_REACHABILITY = "## Zero-inbound modules, by population"
 H_LAYERS = "## Layers"
 H_DIAGRAM = "## Layer graph"
 H_CROSSINGS = "## Cross-layer edges"
+H_COMMUNITY = "## Community / layer disagreement"
 H_TOUR = "# Guided tour"
 H_ORDER = "## Reading order"
 OUTPUT_DIR = "docs/onboarding"
@@ -68,7 +71,8 @@ CACHE_NAME = "artifact.json"
 # tests/test_artifact_contract.py fails a shape change that leaves the number behind.
 # 1 -> 2 (205): the `pages` and `isolated` keys are gone with the module-page tree.
 # 2 -> 3 (208): every reachability bucket gains `caveat` and `declaration`.
-ARTIFACT_VERSION = 3
+# 3 -> 4 (211): summary gains `community_crossings`.
+ARTIFACT_VERSION = 4
 
 __all__ = [
     "ARTIFACT_VERSION",
@@ -274,6 +278,37 @@ def _module_facts(
     return NodeFacts("", "", metric)
 
 
+def _community_crossings(
+    community_of: Mapping[str, str],
+    assignment: LayerAssignment,
+    *,
+    limit: int,
+) -> list[dict[str, object]]:
+    """Communities straddling ≥2 named vocabulary layers — the disagreement finding (211/R4).
+
+    UNCATEGORISED is excluded. Ranked by how many named layers they straddle, then name, then
+    sliced at ``limit`` (R5.8). Empty when none detected.
+    """
+    layer_of = {m.module: m.layer for m in assignment.modules}
+    by_community: dict[str, set[str]] = {}
+    for file, community in community_of.items():
+        layer = layer_of.get(file, UNCATEGORISED)
+        if layer != UNCATEGORISED:
+            by_community.setdefault(community, set()).add(layer)
+    ranked = sorted(
+        (
+            (community, sorted(layers))
+            for community, layers in by_community.items()
+            if len(layers) >= 2
+        ),
+        key=lambda row: (-len(row[1]), row[0]),
+    )
+    rows: list[dict[str, object]] = [
+        {"community": community, "layers": layers} for community, layers in ranked
+    ]
+    return rows[: max(0, limit)]
+
+
 def build_artifact(
     nodes: Sequence[tuple[str, str]],
     edges: Sequence[tuple[str, str]],
@@ -323,10 +358,15 @@ def build_artifact(
     else:
         tiers = module_edge_tiers(nodes, edge_tiers)
     drawn, omitted_dynamic = diagram_edges(tiers, assignment)
+    community_of = assign_communities(tour_files, tiers)
+    community_crossings = _community_crossings(
+        community_of, assignment, limit=max_results
+    )
     artifact = OnboardingArtifact(
         method=assignment.method,
         truncated=truncated,
         summary={
+            "community_crossings": community_crossings,
             "cross_layer_edges": len(crossings),
             "layers": len(assignment.layers),
             "method": assignment.method,
@@ -362,6 +402,7 @@ def build_artifact(
             metrics,
             tour_edges,
             entry_points,
+            community_of=community_of,
             prose=prose,
             docline_of={key: value.docline for key, value in summaries.items()},
             descriptions=described,
@@ -394,6 +435,22 @@ def _mirror_lines(mirrors: object) -> list[str]:
         )
     if not pairs:
         lines.append("- (no mirrored sibling subtrees detected)")
+    lines.append("")
+    return lines
+
+
+def _community_crossing_lines(crossings: object) -> list[str]:
+    """Communities that straddle two named layers — omitted when the list is empty (211)."""
+    if not isinstance(crossings, list) or not crossings:
+        return []
+    lines = [H_COMMUNITY, ""]
+    for row in crossings:
+        if not isinstance(row, dict):
+            continue
+        community = row.get("community", "")
+        layers = row.get("layers", ())
+        named = ", ".join(f"`{layer}`" for layer in layers) if isinstance(layers, list) else ""
+        lines.append(f"- `{community}` straddles {named}")
     lines.append("")
     return lines
 
@@ -514,6 +571,7 @@ def render_overview(
         "",
     ]
     lines.extend(_mirror_lines(artifact.summary.get("mirrors")))
+    lines.extend(_community_crossing_lines(artifact.summary.get("community_crossings")))
     lines.extend(_module_lines(artifact.summary.get("business_modules")))
     lines.extend(_reachability_lines(artifact.summary.get("reachability")))
     lines.extend([H_LAYERS, ""])

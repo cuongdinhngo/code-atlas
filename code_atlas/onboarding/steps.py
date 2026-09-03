@@ -14,7 +14,7 @@ from collections import deque
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 
-from code_atlas.onboarding.layers import LayerAssignment, layer_description
+from code_atlas.onboarding.layers import UNCATEGORISED, LayerAssignment, layer_description
 from code_atlas.onboarding.metrics import GraphMetrics
 from code_atlas.onboarding.prose import SLOT_STEP, ProseRequest, ProseRun
 from code_atlas.onboarding.tour import TourStop
@@ -109,6 +109,7 @@ def build_steps(
     edges: Sequence[tuple[str, str]],
     entry_points: Sequence[str],
     *,
+    community_of: Mapping[str, str] | None = None,
     min_steps: int = MIN_STEPS,
     max_steps: int = MAX_STEPS,
     modules_per_step: int = MODULES_PER_STEP,
@@ -129,6 +130,14 @@ def build_steps(
         return ()
     rank_of = {module.module: module.rank for module in assignment.modules}
     layer_of = {module.module: module.layer for module in assignment.modules}
+    # Override UNCATEGORISED with community label when community detection is available (211).
+    if community_of:
+        layer_of = {
+            f: community_of.get(f, layer_of.get(f, ""))
+            if layer_of.get(f, UNCATEGORISED) == UNCATEGORISED
+            else layer_of.get(f, "")
+            for f in layer_of
+        }
     fan_in = {metric.key: metric.fan_in for metric in metrics.modules}
     depth = _bfs_depth([stop.file for stop in stops], edges, entry_points)
 
@@ -168,16 +177,17 @@ def _initial_buckets(
     layer_of: Mapping[str, str],
     depth: Mapping[str, int],
 ) -> list[_Bucket]:
-    """One bucket per (rank, depth) band; an SCC bands by its min member so it is one step (AC2)."""
-    grouped: dict[tuple[int, int], list[tuple[str, ...]]] = {}
+    """One bucket per (rank, layer, depth) band; an SCC is one step (AC2)."""
+    grouped: dict[tuple[int, str, int], list[tuple[str, ...]]] = {}
     for component in components:
         rank = min(rank_of.get(member, 0) for member in component)
         band = min(depth.get(member, 0) for member in component)
-        grouped.setdefault((rank, band), []).append(component)
+        layer = min(layer_of.get(member, "") for member in component)
+        grouped.setdefault((rank, layer, band), []).append(component)
     buckets: list[_Bucket] = []
-    for (rank, band) in sorted(grouped):
-        bucket = _bucket_of(grouped[(rank, band)], rank_of, layer_of)
-        buckets.append(replace(bucket, rank=rank, depth=band))
+    for (rank, layer, band) in sorted(grouped):
+        bucket = _bucket_of(grouped[(rank, layer, band)], rank_of, layer_of)
+        buckets.append(replace(bucket, rank=rank, depth=band, layer=layer))
     return buckets
 
 
