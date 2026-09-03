@@ -4,7 +4,7 @@ slug: the-tour-population-is-ranked-but-never-grouped
 title: "The tour ranks 24,535 modules by degree and then labels the top 500 by path vocabulary, so three-quarters of the anchor's tour lands in `Uncategorised` — the graph's own community structure is never asked"
 phase: 3
 milestone: M11
-status: in-progress
+status: done
 depends_on: [084, 105, 110, 131, 204, 206]
 ---
 
