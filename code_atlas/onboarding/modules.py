@@ -21,6 +21,7 @@ from dataclasses import dataclass, replace
 from code_atlas.ignore import translate_path_pattern
 from code_atlas.onboarding.layers import responsibility_layer, responsibility_of_segment
 from code_atlas.onboarding.prose import SLOT_MODULE, ProseRequest, ProseRun
+from code_atlas.onboarding.scope import in_working_scope
 
 # A child directory must hold this many candidate files to count as a peer of its siblings — the
 # floor
@@ -212,6 +213,7 @@ def find_business_modules(
     class_counts: Mapping[str, int],
     fan_in: Mapping[str, int],
     stub_roots: Sequence[str] | None = None,
+    working_roots: Sequence[str] | None = None,
     limit: int,
     prose: ProseRun | None = None,
     min_files: int = MIN_MODULE_FILES,
@@ -261,9 +263,11 @@ def find_business_modules(
         covered += 1
         files[owner] = files.get(owner, 0) + 1
         classes[owner] = classes.get(owner, 0) + class_counts.get(path, 0)
+        if not in_working_scope(path, working_roots):
+            continue
         score = (fan_in.get(path, 0), path)
         # Highest fan-in wins; the path breaks ties, so the busiest file is chosen
-        # deterministically.
+        # deterministically. working_roots (206) restrict the hub pick, not the module set.
         if owner not in hubs or score > hubs[owner]:
             hubs[owner] = score
 

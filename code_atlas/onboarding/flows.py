@@ -34,6 +34,7 @@ from code_atlas.onboarding.layers import (
 from code_atlas.onboarding.metrics import GraphMetrics
 from code_atlas.onboarding.modules import ModuleMap, directory_owners, module_of_path
 from code_atlas.onboarding.reachability import SIGNAL_DECLARED, SIGNAL_VOCABULARY
+from code_atlas.onboarding.scope import in_working_scope
 
 RESOLVED, HEURISTIC, DYNAMIC = CONFIDENCE_TIERS
 
@@ -206,6 +207,7 @@ def seed_files(
     paths: Sequence[str],
     declared: Sequence[str],
     stub_roots: Sequence[str] = (),
+    working_roots: Sequence[str] | None = None,
 ) -> tuple[tuple[str, str], ...]:
     """Files a request can enter through, with the signal that named each one (119).
 
@@ -221,6 +223,8 @@ def seed_files(
     stubs = [re.compile(translate_path_pattern(f"{root}/**")) for root in stub_roots if root]
     hits: dict[str, str] = {}
     for path in paths:
+        if not in_working_scope(path, working_roots):
+            continue
         if any(rule.match(path) for rule in stubs):
             continue
         if any(rule.match(path) for rule in rules):
@@ -401,6 +405,7 @@ def flows_from_graph(
     modules: ModuleMap,
     declared_entry_points: Sequence[str] = (),
     declared_stub_roots: Sequence[str] = (),
+    working_roots: Sequence[str] | None = None,
     max_flows: int,
     max_nodes: int,
 ) -> FlowSet:
@@ -418,6 +423,7 @@ def flows_from_graph(
             sorted({path for _qname, path in nodes if path}),
             declared_entry_points,
             declared_stub_roots,
+            working_roots,
         ),
         file_of,
     )

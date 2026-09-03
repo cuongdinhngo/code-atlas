@@ -193,3 +193,302 @@ the tour's opening by tuning the ranking rather than the population),
 helped), [126](126_search-palette-clusters-into-one-subtree.md) (the same monorepo failure mode in
 search), [205](205_a-module-page-per-node-budget-slot.md) (how many pages, as opposed to which),
 [208](208_an-undeclared-reachability-bucket-reports-zero-as-a-measurement.md) (the vendored signal).
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 206 — Onboarding cannot be scoped to the tree the reader works in (working doc)
+
+- **Ticket:** 206 · local-file `docs/tasks/206_onboarding-cannot-be-scoped-to-the-tree-the-reader-works-in.md`
+- **Type:** enhancement
+- **Repo(s) / Porting:** app (`.`)
+- **SCOPE:** M
+- **STRUCTURE:** native
+- **TRACK:** backend
+- **TIER:** full
+- **BASELINE:** green
+  <!-- baseline exclusions: none -->
+
+## Session status
+
+- **KEY:** 206 · **work_doc_mode:** embed · **Current phase:** 3 execute
+- `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · **Type:** enhancement
+- Run arg *"with skipped reviewer"* = `--no-reviewer`; the reviewer seat is waived, the **challenger keeps its seat**.
+- Branch `feat/206-onboarding-cannot-be-scoped-to-the-tree-the-reader-works-in`, based on `main` at `2acf5fb`.
+- Contract `.mango/run-contract-206.txt` (t0 snapshot `.mango/run-contract-206.t0.txt`). RECONCILE t0: 8 declared | 6 re-run | **0 holding** | 6 BROKEN | 2 UNBOUND | 0 could-not-run.
+- Handover authorisation (verbatim): push the feature branch, open the PR. Merge is outside this run.
+
+## Phase 0 — refine
+
+`PREMISE: 20 reference(s) checked | 0 missing | 2 ambiguous (surfaced, not blocking)`
+`RECALL: 10 claim(s) surfaced | 0 by symbol | 8 by handle | 2 by area | 0 by finding | 2 retired skipped — advisory (blocks nothing)`
+`REFINE: 0 unresolved surfaced | 0 want-decision asked | 0 how-decision resolved+cited | 0 ASSUMED | skip: yes`
+
+refine skipped: 0 unresolved product-decisions. The ticket already names the key's neighbour (`entry_points` / `stub_roots`), the default (unset = whole index, R4.2), the consumers, and the acceptance bar. INPUT KIND: ticket.
+
+In-repo refs resolved (`config.py:38-39`, TOOLS/CONVENTION, `DATASET_VERSION`, R1.8–R7.6, tickets 105/111/112/121/126/131/145/204/205/208, 121 harness, `KNOB_KEYS`, `ordered_stops`/`seed_files`/`find_business_modules`/`tour_subgraph`). Ambiguous: the **anchor** trees/classes and its generated `tour.md` / `graph.db` — not this checkout.
+
+**Recalled (advisory):** type-2 `one-rule-for-every-subject-slot`, `derived-not-listed-invariant`, `prove-the-guard-fails`, `do-not-attest-past-the-payloads-resolution`, `name-into-the-existing-contract`, `fixture-shape-begs-the-question`, `grep-the-derived-name-not-the-source-name`, `pin-the-arrival-not-the-current-number`. Type-5: `208-C5` (onboarding/reachability, verified-at 2026-09-02), `194-C4` (docs). Retired skipped: `rank-before-truncate`, `205-C4`.
+
+**Settled wants / ASSUMED:** none (skip). Remaining truncate sites after 205: tour files, flow seeds, busiest-file.
+
+## Phase 1 — analysis
+
+`PREMISE: 20 reference(s) checked | 0 missing | 2 ambiguous (surfaced, not blocking)`
+`RECALL: 10 claim(s) surfaced | 0 by symbol | 8 by handle | 2 by area | 0 by finding | 2 retired skipped — advisory (blocks nothing)`
+`SECTIONS: 5 found (Why this exists, Scope, Constraints, Acceptance criteria, References) | 5 decomposed | ROWS: C=6 R=10 G=3 AC=7`
+`CLARIFICATION: 5 raised | 5 self-resolved (cited) | 0 for human decision`
+`RULE SECTIONS: 8 applicable — 6 by change-type | 2 by recalled handle — §1 (change-type) ✅ · §2 (change-type) ✅ · §3 (change-type) ✅ · §4 (change-type) ✅ · §5 (recalled handle: do-not-attest-past-the-payloads-resolution) ✅ · §6 (recalled handle: prove-the-guard-fails, derived-not-listed-invariant) ✅ · §7 (change-type) ✅ · §8 (change-type) N/A (no dependency added, moved or removed)`
+`TRACK: backend — 0/N touched files under UI paths`
+`BASELINE: green`
+`SCOPE: M`
+`TIER: full`
+
+Carried forward from Phase 0.
+
+### BASELINE
+
+`.venv/bin/python -m pytest -q`, **Ran at 2acf5fbae0fbe4dc39f1dd6dae72bac6268671aa** — the untouched `main` tree this branch starts from:
+
+```
+2790 passed in 241.41s (0:04:01)
+```
+
+### The gap, classified
+
+`config` (`config.cause_taxonomy`), at `code_atlas/config.py:38-39` (no working-scope knob beside `entry_points` / `stub_roots`) and `code_atlas/store.py:1003` (`tour_subgraph` ranks and truncates the **whole** file universe). Degree over an unconstrained population is the specified ranking; the missing product is a declared working surface the truncation can honour (R5.8). 205 removed the page consumer (`generate_onboarding.py:8-10`); the remaining three truncated populations still walk the whole index.
+
+### Clarifications (all self-resolved)
+
+| # | Item | Resolution | Citation |
+|---|------|------------|----------|
+| 1 | Scope 2 still names "module pages" after 205 deleted them | Apply the predicate to the **remaining** truncated populations only (tour files, flow seeds, busiest-file). Pages are satisfied-by-absence | 205 W1; `generate_onboarding.py:8-10` |
+| 2 | What is the key called? | `working_roots` / `CA_WORKING_ROOTS` — one more `KNOB_KEYS` entry beside `entry_points` and `stub_roots`, same `env_name` derivation | ticket Scope 1; `config.py:38-39`, `:119` |
+| 3 | Scope 0 live re-measure on the anchor | Use the ticket's own post-204 table (lines 79–95) as the calibration starting point. A live regenerate is a **coverage-gap exclusion**: `real_corpus_path` is unset | ticket *What 204 already moved*; `.harness.json` `real_corpus_path: null` |
+| 4 | Matching semantics | Same as `stub_roots`: repo-relative prefixes, declared and matched as written. No `src/` default | `_as_stub_roots` `config.py:389`; ticket Scope 1 + R2.2 |
+| 5 | Version bump | If `manifest_dict` / `OnboardingArtifact.as_dict()` grows a scope field, bump **that** document's constant (`DATASET_VERSION` and/or `ARTIFACT_VERSION`). Pin arrival with `>= N` | R3.5; `208-C1` |
+
+### AC validation
+
+| AC | Ticket value | Independently re-derived | Falsifiable? | Verdict |
+|----|--------------|--------------------------|--------------|---------|
+| 1 | declared working scope changes tour / pages / flow seeds; settable from project file and env | pages gone (205); remaining: tour + flow seeds + busiest-file. Knob via `KNOB_KEYS` + `env_name` is the existing CA_* form | yes — grep the knob; fixture with/without the key | ✅ |
+| 2 | on the anchor scoped to `src/` + `public/`, tour visits `src/` PHP; no Middleware/Auth step from vendored PDF/DB lib | live-anchor regenerate needs `real_corpus_path` (unset). Mechanism is the same predicate AC1/AC5 prove | **coverage-gap exclusion** for the live-anchor half (expiry: when `real_corpus_path` is set and a 204-corrected index is reachable). Fixture proves "in-scope PHP in, vendored-lib path out of the Auth step" | exclusion, not a bare ✅ |
+| 3 | every scoped section states its scope and the count it was drawn from; overview whole-index aggregates unchanged | render path in `artifact.py` overview + tour/flows headers | yes — string present iff roots set; aggregate bytes unchanged when only scope lines are new | ✅ |
+| 4 | no scope declared → byte-identical to pre-change | R4.2; `working_roots is None` → predicate always true → same populations | yes — byte-compare fixture with the key unset | ✅ |
+| 5 | cross-scope edge still reachable from a scoped page's neighbour list | 205 removed pages; the surviving neighbour list is a tour/flow stop's cited neighbours. Fixture: two trees + one edge | yes — scoped stop still lists the out-of-scope neighbour | ✅ |
+| 6 | 121 harness gains a scoped-repo question; floors not lowered | add one question to `scripts/tokens_to_answer_questions.json`; existing floors stay | yes — question present; floor assertion unchanged | ✅ |
+| 7 | TOOLS.md, CONVENTION.md, config docs carry the key; superseded text deleted | add the row; delete any "whole index only" implication it replaces | yes — grep `CA_WORKING_ROOTS`; no leftover "cannot constrain" claim | ✅ |
+
+### Universal inventory — R2 / AC1 "every truncated onboarding population"
+
+N = 3 remaining consumers (pages = gone, 205):
+
+1. Tour files — `store.tour_subgraph` → `ordered_stops` → `tour.md`
+2. Flow seeds — `flows.seed_files` → `flows.md`
+3. Busiest-file pick — `modules.find_business_modules` hub → overview business-module table
+
+### Requirements matrix
+
+| ID | Source | Verbatim | Interpretation | Ph1 evidence | Ph2 covered by | Ph3/4 proven by | Status |
+|----|--------|----------|----------------|--------------|----------------|-----------------|--------|
+| G1 | Why this exists | "the artifact has no concept of a tree the reader works in" | No config key names the working surface | `config.py:38-39` has `entry_points`/`stub_roots` only | | | ⬜ |
+| G2 | Why this exists | "Every one of those cuts is made against a population the reader has no way to constrain" | R5.8 cannot hold until the population is constrainable | `store.py:1003` `tour_subgraph`; ticket R5.8 paragraph | | | ⬜ |
+| G3 | Why this exists | "This is not a ranking bug" | Degree is correct for the whole index; the defect is the missing scope | ticket *Why this is not a ranking bug* | | | ⬜ |
+| R0 | Scope 0 | "Re-measure on a 204-corrected index before anything else" | Ticket already recorded post-204 (43/500 `src/`). Live regen is the AC2 exclusion | ticket lines 79–95 | | | ⬜ |
+| R1 | Scope 1 | "A resolved setting naming the reader's working roots" | `working_roots` / `CA_WORKING_ROOTS` beside the two existing path lists | `config.py:27-45` | | | ⬜ |
+| R2 | Scope 2 | "Every truncated onboarding population respects it" | One predicate, three consumers (inventory above) | R1.8; `tour_subgraph` / `seed_files` / `find_business_modules` | | | ⬜ |
+| R3 | Scope 3 | "The artifact states its scope in the artifact" | Unset prints "whole index"; set prints the roots and N of M | `artifact.py` `render_overview` | | | ⬜ |
+| R4 | Scope 4 | "Out-of-scope code stays visible as context, never as a destination" | Filter the ranked population, not the neighbour/edge lists | ticket Scope 4 | | | ⬜ |
+| R5 | Scope 5 | "Within scope, rank the tour by what a person actually opens" | Docline + inbound from several distinct modules beats a type-definition hub | ticket Scope 5; applies **inside** the scoped population (R5.8) | | | ⬜ |
+| R6 | Explicitly not | "Indexing less" | Graph stays whole; presentation only | ticket *Explicitly not in scope* | | | ⬜ |
+| R7 | Explicitly not | "Inferring the roots" | No `src/` default (R2.2) | ticket; `config.py` defaults | | | ⬜ |
+| R8 | Explicitly not | "How many pages" | 205 owns the count; this ticket owns which | 205; `generate_onboarding.py:8-10` | | | ⬜ |
+| R9 | Explicitly not | "The vendored-code question" | 208's bucket; scoping `src/` hiding vendors is a side effect | ticket; 208 | | | ⬜ |
+| C1 | Constraints | "R2.2 — no repo's directory names in the core" | Tests/docs may say `src/`; core default must not | `ENGINEERING_RULES.md:75` | | | ⬜ |
+| C2 | Constraints | "R1.8 — the scope predicate has one implementation. A guard greps for a second one" | One callable; CI/test grep for a second body | `ENGINEERING_RULES.md:53` | | | ⬜ |
+| C3 | Constraints | "R5.6 — a scoped section says it is scoped" | Scope line present iff roots set | `ENGINEERING_RULES.md:153` | | | ⬜ |
+| C4 | Constraints | "R4.2 — with the setting unset, output is byte-identical to today's" | `None` → no filter | `ENGINEERING_RULES.md:108` | | | ⬜ |
+| C5 | Constraints | "R3.5 — if the dataset carries the scope, DATASET_VERSION bumps" | Bump the document that grew the key | `ENGINEERING_RULES.md:92` | | | ⬜ |
+| C6 | Constraints | "The 121 harness is the check that this helped" | New question; floors unchanged | ticket; `scripts/tokens_to_answer_questions.json` | | | ⬜ |
+| AC1 | AC 1 | declared scope changes which modules tour/pages/flow seeds cover; project file + env | Knob + three consumers | | | | ⬜ |
+| AC2 | AC 2 | anchor scoped to `src/`+`public/`: src PHP on the tour; no Auth step from vendored PDF/DB | live-anchor = exclusion; fixture proves the mechanism | | | | ⬜ |
+| AC3 | AC 3 | scoped section states scope + count; overview whole-index aggregates unchanged | | | | | ⬜ |
+| AC4 | AC 4 | no scope → byte-identical | | | | | ⬜ |
+| AC5 | AC 5 | cross-scope edge still reachable from a scoped neighbour list | | | | | ⬜ |
+| AC6 | AC 6 | 121 harness gains a scoped-repo question; floors stay | | | | | ⬜ |
+| AC7 | AC 7 | TOOLS.md, CONVENTION.md, config docs carry the key; prune superseded | | | | | ⬜ |
+
+### Coverage-gap exclusions (carry to design `EXCLUSIONS:`)
+
+| id | What | Why | expiry: | seen: |
+|----|------|-----|---------|-------|
+| E1 | AC2 live-anchor regenerate (`src/`+`public/` on anchor-repo) | `real_corpus_path` is unset; doctor noted every input-shape-dependent AC is a gap | when `.harness.json` `real_corpus_path` points at a 204-corrected anchor index | 206 |
+
+### Rule-section answers (not a bare ✅)
+
+- **§1 (change-type)** — R1.8: one `in_working_scope` callable; tour / seeds / hubs invoke it. R1.1: no language branch.
+- **§2 (change-type)** — R2.2: default is unset/`None`, never `src/` / `app/` / `lib`.
+- **§3 (change-type)** — R3.5: bump `DATASET_VERSION` and/or `ARTIFACT_VERSION` iff that document grows a scope field.
+- **§4 (change-type)** — R4.2: unset path is byte-identical; no clock/random in the predicate.
+- **§5 (recalled handle: do-not-attest-past-the-payloads-resolution)** — R5.6/R5.8: scoped sections name the roots; rank inside the scoped truncate.
+- **§6 (recalled handle: prove-the-guard-fails, derived-not-listed-invariant)** — R6.5/R6.7: identity test + second-implementation grep; one definition site.
+- **§7 (change-type)** — R7.6: add `CA_WORKING_ROOTS` and delete the implication that the tour cannot be constrained.
+- **§8 (change-type)** — N/A because no dependency is added, moved, or removed.
+
+### Blast radius
+
+Handler: `Config` + one new predicate. Callers: `generate_onboarding` → `build_artifact` / `build_dataset` / `tour_subgraph` / `seed_files` / `find_business_modules`; docs `TOOLS.md`, `CONVENTION.md`; 121 harness JSON. No `db-map`. Repo: `app` only.
+
+### Uncodified-standard nudge
+
+None. The matching rule (prefix / glob) is the existing `stub_roots` recipe, already in the rule book via R1.8 / R2.2.
+
+## Phase 2 — design
+
+`HANDLES: 8 recalled | 8 traced (command + result) | 0 does not apply (reason) | 0 unanswered`
+`EXCLUSIONS: 1 recorded | 1 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 1 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+### Approach
+
+**One declared list, one predicate, applied before every truncate.** Add `working_roots` / `CA_WORKING_ROOTS` to `KNOB_KEYS` beside `entry_points` and `stub_roots` (same `env_name` derivation, same repo-relative list parser as `stub_roots`). `in_working_scope(path, roots)` lives in `code_atlas/onboarding/scope.py`: `None` or empty means every path (today's behaviour). Prefix membership, the same *shape* as `is_stub_path` (`indexer.py:747`) but a different question (presentation vs declarations-only indexing), so it is **not** a call to `is_stub_path`.
+
+Three consumers invoke that one callable (R1.8):
+
+1. **Tour files** — `generate_onboarding` filters the indexed path list, then `store.tour_subgraph(..., files=scoped)` walks only those paths. `files=` is a membership cut, not a second prefix implementation. Unset `files` is today's walk (`guided_tour` stays whole-index).
+2. **Flow seeds** — `seed_files` drops out-of-scope paths before ranking. A walk may still *cite* an out-of-scope neighbour (R4).
+3. **Busiest-file pick** — `find_business_modules` receives `working_roots` and picks the hub from in-scope candidates only. Other callers (`architecture_overview`, `impact_modules`, `trace_capability`) pass nothing and stay unchanged.
+
+`overview.md` whole-index aggregates (module count, layers, reachability totals) stay unfiltered. Scoped sections (tour, flows, the business-module hub line, and a new scope line under the summary) print the roots and `N of M` indexed files, or `scope: whole index` when unset. The same field is named on the dataset and on `OnboardingArtifact.summary` so the viewer cannot drift (208-C2); `DATASET_VERSION` 11→12 and `ARTIFACT_VERSION` 3→4.
+
+Scope 5's "docline + inbound" rank is **not** a new heuristic: once the population is the working tree, the existing tour rank (out-degree / reading order) runs inside that population (R5.8). Retuning rank is what 105 and 131 already tried.
+
+### Rejected alternatives
+
+1. **Filter `tour_files` after `tour_subgraph`.** The 500-cut still spends the budget on `legacy/`. Post-204, 43/500 src pages happened to leak in; a repo where the live tree is 1 % would get zero. R5.8 requires the truncate to see the scoped universe.
+2. **A new "what a person opens" rank** (docline + inbound-from-N-modules). Ticket *Why this is not a ranking bug*; 105 and 131 already retuned rank without a scope. Rejected as a second mechanism (R7.1).
+3. **Default `working_roots = ["src"]`.** R2.2; ticket *Inferring the roots*.
+4. **Also scope `guided_tour`.** Ticket population list is the artifact (tour / flows / busiest-file). `docs/TOOLS.md:144` already says guided_tour is whole-index. Out of scope.
+5. **Reuse `is_stub_path`.** That predicate answers "index declarations-only"; calling it for presentation would collapse two questions onto one field (`one-field-two-questions`, rejected as a class, still a bad idea here).
+
+### Assumptions
+
+| # | Assumption | Tag | How resolved |
+|---|---|---|---|
+| 1 | `tour_subgraph` can take an optional file universe without changing the unset walk | **verified** (first-party) | we add `files: Sequence[str] \| None = None`; proving test + existing `test_guided_tour` stay green when unset |
+| 2 | Prefix membership matches how operators write `stub_roots` | **verified** | `is_stub_path` `indexer.py:747`; `_as_stub_roots` `config.py:389` |
+| 3 | Overview aggregates do not go through the three truncate sites | **verified** | `render_overview` lines 498–503 read `artifact.summary` module/layer counts from `compute_metrics` over the full graph |
+| 4 | `guided_tour` does not need the knob | **verified** | ticket Scope 2 list; `guided_tour.py:56` has no config roots today |
+
+No novel-untested third-party/runtime assumption.
+
+### Smallest change-list
+
+| # | Change | File / area | Blast radius | Ph2 covered by | k/N |
+|---|---|---|---|---|---|
+| 1 | Add `working_roots` to `KNOB_KEYS`, `Config`, `_resolve` + `_as_working_roots` (alias of repo-relative list) | `code_atlas/config.py` | `tests/test_config.py` (`len(KNOB_KEYS)==17`, env-name list, precedence cases) | G1 R1 C1 AC1 | 4/4 |
+| 2 | `in_working_scope` + `scoped_paths` | `code_atlas/onboarding/scope.py` (new) | the three consumers below; R1.8 grep guard | C2 R2 R6 R7 | 4/4 |
+| 3 | `tour_subgraph(..., files=None)` — membership filter on the walk universe | `code_atlas/store.py` | `guided_tour.py` (unset path); `tests/test_guided_tour.py` | G2 R2 R5 C4 AC1 | 5/5 |
+| 4 | `generate_onboarding` passes scoped files into the walk and threads `working_roots` into artifact/dataset builders | `code_atlas/tools/generate_onboarding.py` | MCP payload; docstring | R1 R2 AC1 | 3/3 |
+| 5 | `seed_files` / `flows_from_graph` honour `working_roots` for seeds only | `code_atlas/onboarding/flows.py` | `tests/test_onboarding_flows.py`; `trace_capability` (no arg → unchanged) | R2 R4 AC1 AC5 | 4/4 |
+| 6 | `find_business_modules(..., working_roots=None)` filters hub candidates | `code_atlas/onboarding/modules.py` | callers that pass nothing stay whole-index: `architecture_overview`, `impact_modules`, `trace_capability`, `test_business_modules` | R2 AC1 | 2/2 |
+| 7 | Thread `working_roots` through `build_artifact` / `build_dataset`; put `scope` on `summary` / dataset; scope line in overview + tour + flows | `artifact.py`, `dataset.py` | viewer `index.html`; `architecture_diff` key set if the new key is operational | R3 C3 AC3 | 3/3 |
+| 8 | `DATASET_VERSION` 11→12, `ARTIFACT_VERSION` 3→4; `KEY_PATHS_BY_VERSION` new entries; arrival pins `>= 12` / `>= 4` | `dataset.py`, `artifact.py`, `tests/test_onboarding_dataset.py`, `tests/test_artifact_contract.py` | any test pinning `== 11` / `== 3` | C5 AC3 | 2/2 |
+| 9 | Unset path is byte-identical (no new line when roots are None — "whole index" would break AC4). When set, print `scope: working_roots=a, b (N of M indexed files)` | `artifact.py` `render_overview` / `render_tour` / `render_flows` | AC4 byte-compare; AC3 string | R3 C3 C4 AC3 AC4 | 5/5 |
+| 10 | Docs: add `CA_WORKING_ROOTS` beside the other two; delete "guided_tour / architecture_overview cannot be constrained" only where this key now can. Do **not** rewrite guided_tour's whole-index line | `docs/TOOLS.md`, `docs/CONVENTION.md` | runbook `onboarding-a-repo.md` if it lists knobs | AC7 C1 | 2/2 |
+| 11 | 121 harness: one scoped-repo question; existing floors untouched | `scripts/tokens_to_answer_questions.json`, `docs/benchmarks/121_onboarding-question-class.md` | `tests/test_tokens_to_answer.py` floors | AC6 C6 | 2/2 |
+| 12 | **Proof collateral** — `tests/test_config.py` knob count 17→18 + env list + a `working_roots` precedence case; flow/module tests that must keep passing with the new optional arg | `tests/test_config.py`, `tests/test_onboarding_flows.py`, `tests/test_business_modules.py` | none further | AC1 C4 | 2/2 |
+| 13 | **New guards** — declared roots keep tour files inside the roots; unset trees byte-identical; cross-scope neighbour still listed; second-implementation grep of the prefix predicate; scope line absent when unset and present when set | `tests/test_working_scope.py` (new) | `test_generate_onboarding` if it snapshots overview | AC1 AC3 AC4 AC5 C2 | 5/5 |
+| 14 | Working doc, `TOKEN_LEDGER.md`, `BACKLOG.md` | `docs/` | R7.2 | — | 3/3 |
+
+### Recalled type-2 handles — every one answered
+
+| Handle | Answer |
+|---|---|
+| `one-rule-for-every-subject-slot` | **traced.** `rg -n "find_business_modules\(|seed_files\(|tour_subgraph\(" --glob '*.py' code_atlas/` → `generate_onboarding.py:99`, `guided_tour.py:56`, `flows.py:205,417`, `modules.py:209`, `artifact.py:338`, `dataset.py:535`, plus three other-tool callers. Folded: one `in_working_scope`; `guided_tour` and the other-tool callers pass nothing |
+| `derived-not-listed-invariant` | **traced.** `rg -n "is_stub_path|path == root or path.startswith" --glob '*.py' code_atlas/` → `indexer.py:743-747` (the indexing predicate). Folded: presentation predicate is a second *question*, one *body*, derived from `working_roots` — not a copied `is_stub_path` and not a listed `if path.startswith("src")` |
+| `prove-the-guard-fails` | **traced.** `rg -n "working_roots|in_working_scope" tests` → 0. Folded: change-list 13 records the red run for the second-implementation grep and the unset-identity byte compare |
+| `do-not-attest-past-the-payloads-resolution` | **traced.** `rg -n "def render_overview|H_SUMMARY" code_atlas/onboarding/artifact.py` → `:484`, `:496`. Summary lines 498–503 have no scope field. Folded: a scope line is emitted **only when roots are set** (AC4 forbids a new "whole index" line on the unset path) |
+| `name-into-the-existing-contract` | **traced.** `DATASET_VERSION = 11` (`dataset.py:54`), `ARTIFACT_VERSION = 3` (`artifact.py:70`). Folded: `scope` rides `summary` / the dataset so the viewer inherits it; both constants bump |
+| `fixture-shape-begs-the-question` | **traced.** Ticket post-204 table is the calibration; `real_corpus_path` is null. Folded: AC5 is a two-tree **authored** fixture (expected output writable); AC2 live-anchor is E1 |
+| `grep-the-derived-name-not-the-source-name` | **traced.** Same consumer list as handle 1, plus `docs/TOOLS.md:236-237` and `docs/CONVENTION.md:59`. Folded: docs and the three truncate sites, not a grep for the string `working_roots` in one file |
+| `pin-the-arrival-not-the-current-number` | **traced.** `tests/test_onboarding_dataset.py:330` `assert payload["version"] == DATASET_VERSION == 11`. Folded: arrival pin becomes `>= 12`; the current-number pin stays the one line that is edited on every bump |
+
+### Rule compliance
+
+- **R1.8 / R6.7** — one `in_working_scope`; `tour_subgraph(files=)` is membership, not a second prefix body. Guard greps for a second `startswith` presentation predicate.
+- **R2.2** — default `None`; `src` appears only in tests/docs.
+- **R3.5** — bump the two documents that grow a `scope` key; `contract.py` untouched.
+- **R4.2** — unset `files=` and unset roots → identical walk and identical markdown (no extra scope line).
+- **R5.6 / R5.8** — scoped sections name the roots; the 500-cut sees the scoped universe.
+- **R5.7** — no tree deletion.
+- **R6.5 / R6.9** — identity and second-implementation guards recorded red first.
+- **R7.1 / R7.6** — no new rank function; docs add the key and delete the "cannot constrain the tour" implication.
+
+### Verification plan
+
+| AC | risk layer | proof artifact | fixture provenance | layer-match? |
+|---|---|---|---|---|
+| AC1 declared scope changes tour / flow seeds / busiest-file; project file + env | integration | integration (`generate_onboarding` on a two-tree fixture + `load_config` env/file) | authored | ✅ |
+| AC2 anchor `src/`+`public/`: src PHP on the tour; no Auth step from vendored PDF/DB | integration (real repo rank) | authored fixture proves the mechanism (in-scope PHP in, `include/pdf` out of an Auth-labelled step). Live-anchor = **E1** | authored + exclusion | ❌ covered by E1 |
+| AC3 scoped section states scope + N of M; overview aggregates unchanged | integration | integration: string present iff roots set; aggregate lines byte-equal | n/a | ✅ |
+| AC4 no scope → byte-identical | integration | two runs, one with roots unset, byte-compare the five emitted files | n/a | ✅ |
+| AC5 cross-scope edge still in the neighbour list | logic | unit: scoped stop lists the out-of-scope neighbour | authored | ✅ |
+| AC6 121 question added; floors unchanged | logic | grep the new id; existing floor assertions untouched | n/a | ✅ |
+| AC7 docs carry the key; superseded text deleted | logic | grep `CA_WORKING_ROOTS`; no leftover "tour cannot be constrained" | n/a | ✅ |
+
+AC2 is the only input-shape-dependent AC (`s = 1`). No real corpus (`c = 0`). E1 covers it (`n = 1`, `s - c <= n`).
+
+### Coverage-gap exclusions
+
+| id | What | risk | why deferred | follow-up | expiry: | seen: |
+|----|------|------|--------------|-----------|---------|-------|
+| E1 | AC2 live-anchor regenerate | integration | `real_corpus_path` is unset | run AC2 against the resolved corpus | when `.harness.json` `real_corpus_path` is set and resolves to a 204-corrected anchor index | 206 |
+
+First occurrence of this class (`r = 0`). No overdue predecessor (`o = 0`).
+
+### Proving test
+
+```
+.venv/bin/python -m pytest tests/test_working_scope.py::test_declared_working_roots_keep_the_tour_inside_the_roots -q
+```
+
+Fails pre-change (`working_roots` is not a config key / tour files ignore it). Passes post-change: a two-tree fixture scoped to `app/` emits tour files only under `app/`, and still lists a `legacy/` neighbour.
+
+### Rollback + porting
+
+Revert the branch commits. No adapter, no schema, no second repo. `config.repos` = `app` only.
+
+### SCOPE
+
+`SCOPE: M` — unchanged. One knob, one predicate, three call sites, docs, one harness question. Not L: no new rank engine, no guided_tour rewrite, no indexer change.
+
+## Phase 3 — execute
+
+Complete on disk.
+
+### What landed
+
+`Config` resolves `working_roots` / `CA_WORKING_ROOTS`; `scope.py` is the one predicate body; the
+three consumers use it; both onboarding documents carry `scope`; `generate_onboarding` emits
+`working_roots`; and 121 gained
+`onb_working_scope`.
+
+`git diff --stat -- code_atlas/ tests/ docs/TOOLS.md docs/CONVENTION.md docs/benchmarks/121_onboarding-question-class.md scripts/tokens_to_answer_questions.json docs/tasks/206_onboarding-cannot-be-scoped-to-the-tree-the-reader-works-in.md`, **Ran at the working tree on `2acf5fb`**:
+15 changed files, all inside the approved list.
+
+### Verification
+
+```bash
+.venv/bin/python -m pytest tests/test_working_scope.py::test_declared_working_roots_keep_the_tour_inside_the_roots -q
+```
+
+`1 passed in 0.54s`
+
+```bash
+.venv/bin/python -m pytest tests/test_config.py tests/test_artifact_contract.py tests/test_onboarding_dataset.py tests/test_generate_onboarding.py tests/test_business_modules.py tests/test_onboarding_flows.py tests/test_tokens_to_answer.py tests/test_working_scope.py -q
+```
+
+`196 passed in 7.54s`
+
+Measured via `scripts/tokens_to_answer.py`: `onb_working_scope` = `atlas_tokens 173`,
+`atlas_correct True`, `answer_reached True`.

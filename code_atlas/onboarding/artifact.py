@@ -36,6 +36,7 @@ from code_atlas.onboarding.metrics import GraphMetrics, NodeMetric, compute_metr
 from code_atlas.onboarding.mirrors import find_mirror_subtrees
 from code_atlas.onboarding.module_facts import module_facts
 from code_atlas.onboarding.modules import COVERAGE_NOTE, find_business_modules
+from code_atlas.onboarding.scope import scoped_paths
 from code_atlas.onboarding.prose import ProseRun
 from code_atlas.onboarding.reachability import classify_reachability
 from code_atlas.onboarding.steps import TourStep, build_steps
@@ -67,7 +68,7 @@ CACHE_NAME = "artifact.json"
 # tests/test_artifact_contract.py fails a shape change that leaves the number behind.
 # 1 -> 2 (205): the `pages` and `isolated` keys are gone with the module-page tree.
 # 2 -> 3 (208): every reachability bucket gains `caveat` and `declaration`.
-ARTIFACT_VERSION = 3
+ARTIFACT_VERSION = 4
 
 __all__ = [
     "ARTIFACT_VERSION",
@@ -286,6 +287,7 @@ def build_artifact(
     max_results: int,
     declared_entry_points: Sequence[str] | None = None,
     declared_stub_roots: Sequence[str] | None = None,
+    working_roots: Sequence[str] | None = None,
     file_paths: Sequence[str] = (),
     file_class_counts: Sequence[tuple[str, int]] = (),
     prose: ProseRun | None = None,
@@ -340,8 +342,10 @@ def build_artifact(
                 class_counts=dict(file_class_counts),
                 fan_in={metric.key: metric.fan_in for metric in metrics.modules},
                 stub_roots=declared_stub_roots,
+                working_roots=working_roots,
                 limit=max_results,
             ).as_dict(),
+            "scope": _scope_dict(file_paths or [metric.key for metric in metrics.modules], working_roots),
             "reachability": classify_reachability(
                 metrics,
                 entry_points=declared_entry_points,
@@ -495,6 +499,7 @@ def render_overview(artifact: OnboardingArtifact, node_cap: int | None = None) -
         "",
         H_SUMMARY,
         "",
+        *_scope_bullets(artifact.summary.get("scope")),
         f"- method: {artifact.method}",
         f"- layers: {artifact.summary['layers']}",
         f"- modules: {artifact.summary['modules']}",
@@ -549,6 +554,7 @@ def render_tour(artifact: OnboardingArtifact, max_results: int) -> str:
     lines = [
         H_TOUR,
         "",
+        *_scope_bullets(artifact.summary.get("scope")),
         f"truncated: {'true' if artifact.truncated else 'false'}",
         "",
         H_ORDER,
@@ -562,6 +568,29 @@ def render_tour(artifact: OnboardingArtifact, max_results: int) -> str:
             named = ", ".join(f"`{module}`" for module in step.modules)
             lines.append(f"   - {named} ({len(step.modules)} of {step.covers})")
     return "\n".join(lines) + "\n"
+
+
+def _scope_dict(
+    file_paths: Sequence[str], roots: Sequence[str] | None
+) -> dict[str, object]:
+    """Always present on the artifact so a second renderer cannot miss the field (R3.5)."""
+    return {
+        "indexed": len(file_paths),
+        "matched": len(scoped_paths(file_paths, roots)),
+        "roots": list(roots) if roots else None,
+    }
+
+
+def _scope_bullets(scope: object) -> list[str]:
+    """Empty when unset, so today's markdown stays byte-identical (AC4)."""
+    if not isinstance(scope, dict) or not scope.get("roots"):
+        return []
+    roots = ", ".join(str(root) for root in scope["roots"])
+    return [
+        f"- scope: working_roots={roots} "
+        f"({scope.get('matched', 0)} of {scope.get('indexed', 0)} indexed files)",
+        "",
+    ]
 
 
 def _shown_suffix(shown: int, total: int) -> str:
@@ -585,7 +614,7 @@ def render_flows(dataset: OnboardingDataset) -> str:
     never becomes a mermaid identifier (the rule 144 already holds).
     """
     flows = dataset.flows
-    lines = ["# Capability flows", ""]
+    lines = ["# Capability flows", "", *_scope_bullets(dataset.scope)]
     if flows is None:
         lines += ["This index carries no flows — it was built before they existed.", ""]
         return "\n".join(lines)

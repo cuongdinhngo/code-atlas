@@ -37,6 +37,7 @@ KNOB_KEYS: tuple[str, ...] = (
     "path_index_max",
     "entry_points",
     "stub_roots",
+    "working_roots",
     "indirection_rules",
     "architecture_rules",
     "tools",
@@ -92,6 +93,7 @@ class Config:
     path_index_max: int
     entry_points: tuple[str, ...] | None
     stub_roots: tuple[str, ...] | None
+    working_roots: tuple[str, ...] | None
     indirection_rules: tuple[str, ...] | None
     architecture_rules: tuple[str, ...] | None
     tools: tuple[str, ...] | None
@@ -230,6 +232,7 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
         ),
         entry_points=_resolve("entry_points", _as_entry_points, None, environ, file_values),
         stub_roots=_resolve("stub_roots", _as_stub_roots, None, environ, file_values),
+        working_roots=_resolve("working_roots", _as_working_roots, None, environ, file_values),
         indirection_rules=_resolve(
             "indirection_rules", _as_indirection_rules, None, environ, file_values
         ),
@@ -390,6 +393,13 @@ def _as_stub_roots(label: str, raw: object) -> tuple[str, ...] | None:
     """Dependency roots for declarations-only stub indexing. Blank/unset = off (task 039)."""
     return _as_repo_relative_list(
         label, raw, item="directory", collection="stub roots"
+    )
+
+
+def _as_working_roots(label: str, raw: object) -> tuple[str, ...] | None:
+    """Presentation roots the onboarding truncate honours. Blank/unset = whole index (task 206)."""
+    return _as_repo_relative_list(
+        label, raw, item="directory", collection="working roots"
     )
 
 

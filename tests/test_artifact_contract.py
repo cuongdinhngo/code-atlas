@@ -141,10 +141,21 @@ _V3_ADDED = frozenset(
 )
 V3_KEY_PATHS = V2_KEY_PATHS | _V3_ADDED
 
+_V4_ADDED = frozenset(
+    {
+        "summary.scope",
+        "summary.scope.indexed",
+        "summary.scope.matched",
+        "summary.scope.roots",
+    }
+)
+V4_KEY_PATHS = V3_KEY_PATHS | _V4_ADDED
+
 KEY_PATHS_BY_VERSION: dict[int, frozenset[str]] = {
     1: V1_KEY_PATHS,
     2: V2_KEY_PATHS,
     3: V3_KEY_PATHS,
+    4: V4_KEY_PATHS,
 }
 
 # The bounded-sample and caveat vocabulary (113 / 130 / 131) a second renderer is most likely to

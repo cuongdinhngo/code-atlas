@@ -39,6 +39,7 @@ from code_atlas.onboarding.modules import (
 )
 from code_atlas.onboarding.prose import ProseRun
 from code_atlas.onboarding.reachability import ReachabilitySplit, classify_reachability
+from code_atlas.onboarding.scope import scoped_paths
 
 # 2: the zero-inbound total became the ``reachability`` split (113). 3: the ``modules``
 # capability table (114). 4: the ``mirrors`` pair table (115). 5: ``commit``, per-layer ``kinds``
@@ -50,8 +51,9 @@ from code_atlas.onboarding.reachability import ReachabilitySplit, classify_reach
 # a business module's worded name (198). 10: ``confidence_by_language`` — which language earned the
 # confidence figure, read from the 183 stamp (196). 11: per-bucket ``caveat`` and ``declaration``,
 # so a bucket whose declaration was never given says its 0 is a question nobody asked rather than a
-# measured absence (208). This is NOT ``contract_version``; the contract is untouched.
-DATASET_VERSION = 11
+# measured absence (208). 12: ``scope`` — the operator's working_roots and the N of M
+# indexed files the truncated surfaces were drawn from (206). This is NOT ``contract_version``.
+DATASET_VERSION = 12
 # A directory is kept in the tree only when its subtree holds at least this many symbols — the
 # mockup's prune, so a 40k-file repo yields a map of a few dozen rows, not thousands (AC3).
 DIR_SYMBOL_THRESHOLD = 400
@@ -223,6 +225,8 @@ class OnboardingDataset:
     """The facts a newcomer needs first: derived here, worded through the 117 seam (task 117)."""
     flows: FlowSet | None = None
     """197's traces. ``None`` on an index built before flows existed — never a false zero."""
+    scope: Mapping[str, object] | None = None
+    """206 — declared working roots and the N of M the truncated surfaces were drawn from."""
 
     def as_dict(self) -> dict[str, object]:
         """Order-stable dict view — the byte-stability surface (R4.2/AC2)."""
@@ -265,6 +269,7 @@ class OnboardingDataset:
             "node_counts": [{"count": k.count, "kind": k.kind} for k in self.node_counts],
             "parsed": self.parsed,
             "reachability": self.reachability.as_dict(),
+            "scope": self.scope,
             "path_index": {
                 "caveat": self.path_index.caveat,
                 "dirs": list(self.path_index.dirs),
@@ -499,6 +504,7 @@ def build_dataset(
     dir_symbol_threshold: int = DIR_SYMBOL_THRESHOLD,
     declared_entry_points: Sequence[str] | None = None,
     declared_stub_roots: Sequence[str] | None = None,
+    working_roots: Sequence[str] | None = None,
     reachability_sample_max: int = 0,
     file_class_counts: Sequence[tuple[str, int]] = (),
     module_max: int = 0,
@@ -537,6 +543,7 @@ def build_dataset(
         class_counts=dict(file_class_counts),
         fan_in={metric.key: metric.fan_in for metric in metrics.modules},
         stub_roots=declared_stub_roots,
+        working_roots=working_roots,
         limit=module_max,
         prose=prose,
     )
@@ -566,6 +573,7 @@ def build_dataset(
             modules=business,
             declared_entry_points=declared_entry_points or (),
             declared_stub_roots=declared_stub_roots or (),
+            working_roots=working_roots,
             max_flows=flow_max,
             max_nodes=flow_max_nodes,
         )
@@ -599,6 +607,11 @@ def build_dataset(
         mirrors=mirrors,
         headlines=headlines,
         confidence_by_language=_confidence_split(confidence, confidence_by_language),
+        scope={
+            "indexed": len(file_paths),
+            "matched": len(scoped_paths(file_paths, working_roots)),
+            "roots": list(working_roots) if working_roots else None,
+        },
     )
     # The gate refuses filler prose rather than ship a hollow headline (task 109 C1, 117 AC6). A
     # deferred import: quality_gate reads this module's shape, so a top-level one would cycle.

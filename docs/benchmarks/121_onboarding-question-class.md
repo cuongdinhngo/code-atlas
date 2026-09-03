@@ -10,8 +10,8 @@ shipped on defect-fixing evidence instead. This file is the gate finally running
 
 ## What was measured
 
-Twelve questions, tagged `tier: onboarding` in
-[`../../scripts/tokens_to_answer_questions.json`](../../scripts/tokens_to_answer_questions.json) — ten
+Thirteen questions, tagged `tier: onboarding` in
+[`../../scripts/tokens_to_answer_questions.json`](../../scripts/tokens_to_answer_questions.json) — eleven
 against the committed fixture `tests/fixtures/php/onboarding` (a ten-module tree with path-derived
 responsibility layers, a hub, a declared entry-point glob, an unreachable module and a module whose
 path names no responsibility), two against the pinned `symfony/demo` at
@@ -38,9 +38,10 @@ things a pattern returns, and inventing a baseline for them would only flatter t
 | `onb_request_entry` — what pulls this page in | 157 | 159 | **1.01** | 1.0 |
 | `onb_declared_entry_points` — which glob claimed the count | 1,355 | — | — | 1.0 |
 | `onb_committable_map` — write the map to git | 290 | — | — | 1.0 |
+| `onb_working_scope` — whether the generated map declares a scoped working tree | 173 | — | — | 1.0 |
 | `onb_naming_debt` — which paths name no responsibility | 1,742 | — | — | 1.0 |
 
-12/12 correct, recall 1.0, `confidently_wrong` 0. Whole fixture tier: **0.789** over 13 ratio-eligible
+13/13 correct, recall 1.0, `confidently_wrong` 0. Whole fixture tier: **0.789** over 13 ratio-eligible
 questions (was 0.29 before this class existed — the onboarding questions are the first fixture-tier
 questions where the index wins, because they are the first that read more than one file).
 
