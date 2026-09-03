@@ -14,8 +14,10 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from pathlib import PurePosixPath
 
-_RESOLVED = "RESOLVED"
-_HEURISTIC = "HEURISTIC"
+from code_atlas.contract import CONFIDENCE_TIERS
+
+# Derived, never re-spelled: a tier rename must not leave this module matching nothing (R3).
+_RESOLVED, _HEURISTIC, _DYNAMIC = CONFIDENCE_TIERS
 COMMUNITY_PREFIX = "Community/"
 
 __all__ = ["COMMUNITY_PREFIX", "assign_communities"]
@@ -68,10 +70,23 @@ def _undirected_degree(
     return {node: len(neighbours[node]) for node in universe}
 
 
-def _community_label(representative: str) -> str:
-    """Label from the representative's path stem — a named member, never a bare id (AC3)."""
-    stem = PurePosixPath(representative).stem
-    return f"{COMMUNITY_PREFIX}{stem}"
+def _labels(representative_of: Mapping[str, str]) -> dict[str, str]:
+    """Label each community by its representative's stem — a named member, never a bare id (AC3).
+
+    Two communities can share a stem (a mirrored tree does it routinely), and one label for both
+    would merge them in the tour and union their layers in the crossings finding. A collided stem
+    falls back to the representative's full extension-less path, which is unique by construction.
+    """
+    by_stem: dict[str, list[str]] = {}
+    for root in sorted(representative_of):
+        by_stem.setdefault(PurePosixPath(representative_of[root]).stem, []).append(root)
+    labels: dict[str, str] = {}
+    for stem, roots in sorted(by_stem.items()):
+        for root in roots:
+            unique = PurePosixPath(representative_of[root]).with_suffix("")
+            name = stem if len(roots) == 1 else str(unique)
+            labels[root] = f"{COMMUNITY_PREFIX}{name}"
+    return labels
 
 
 def assign_communities(
@@ -107,11 +122,14 @@ def assign_communities(
             uf.union(source, target)
 
     degree = _undirected_degree(universe, edge_tiers, frozenset({_RESOLVED, _HEURISTIC}))
+    components = {root: uf.component(root) for root in sorted(uf.roots())}
+    representative_of = {
+        root: min(members, key=lambda member: (-degree[member], member))
+        for root, members in components.items()
+    }
+    labels = _labels(representative_of)
     result: dict[str, str] = {}
-    for root in sorted(uf.roots()):
-        members = uf.component(root)
-        representative = min(members, key=lambda member: (-degree[member], member))
-        label = _community_label(representative)
+    for root, members in components.items():
         for member in members:
-            result[member] = label
+            result[member] = labels[root]
     return result

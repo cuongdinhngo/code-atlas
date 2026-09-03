@@ -297,13 +297,16 @@ def _community_crossings(
             by_community.setdefault(community, set()).add(layer)
     ranked = sorted(
         (
-            {"community": community, "layers": sorted(layers)}
+            (community, sorted(layers))
             for community, layers in by_community.items()
             if len(layers) >= 2
         ),
-        key=lambda row: (-len(row["layers"]), str(row["community"])),
+        key=lambda row: (-len(row[1]), row[0]),
     )
-    return ranked[: max(0, limit)]
+    rows: list[dict[str, object]] = [
+        {"community": community, "layers": layers} for community, layers in ranked
+    ]
+    return rows[: max(0, limit)]
 
 
 def build_artifact(

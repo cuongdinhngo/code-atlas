@@ -89,6 +89,29 @@ def test_community_is_named_after_the_most_connected_member() -> None:
     assert result["z/Hub.php"] == result["z/Other.php"] == result["z/Alpha.php"]
 
 
+def test_two_communities_sharing_a_stem_keep_distinct_labels() -> None:
+    """A mirrored tree gives two communities the same representative stem; labels must still differ.
+
+    One label for both would merge unrelated bands in the tour and union their layers in the
+    crossings finding — the two `Db.php` hubs below are exactly 211's `legacy/alpha`/`legacy/beta` case.
+    """
+    files = [
+        "legacy/alpha/Db.php",
+        "legacy/alpha/Order.php",
+        "legacy/beta/Db.php",
+        "legacy/beta/Order.php",
+    ]
+    edges = _tiers(
+        [("legacy/alpha/Db.php", "legacy/alpha/Order.php"), ("legacy/beta/Db.php", "legacy/beta/Order.php")]
+    )
+    result = assign_communities(files, edges)
+    alpha, beta = result["legacy/alpha/Db.php"], result["legacy/beta/Db.php"]
+    assert result["legacy/alpha/Order.php"] == alpha, "the alpha pair is one community"
+    assert result["legacy/beta/Order.php"] == beta, "the beta pair is one community"
+    assert alpha != beta, f"distinct communities must not share the label {alpha!r}"
+    assert alpha.startswith(COMMUNITY_PREFIX) and beta.startswith(COMMUNITY_PREFIX)
+
+
 def test_dynamic_edges_do_not_join_singletons() -> None:
     """Pass 2 is HEURISTIC only — DYNAMIC is not community evidence."""
     files = ["p.php", "q.php"]
