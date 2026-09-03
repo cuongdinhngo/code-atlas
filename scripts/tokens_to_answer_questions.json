@@ -901,6 +901,41 @@
       ]
     },
     {
+      "id": "onb_first_day_commands",
+      "source": "fixture",
+      "root": "tests/fixtures/php/onboarding",
+      "tier": "onboarding",
+      "ratio_eligible": false,
+      "ratio_note": "The answer is a declared command in a manifest the graph never indexes; a grep would find it in one hop and win, which is the point — this question measures whether the artifact answers a first-day question at all, not whether it beats grep at reading composer.json.",
+      "question": "How do I run this project's tests?",
+      "atlas_path": [
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "generate_onboarding",
+          "args": {
+            "detail_level": "standard"
+          }
+        }
+      ],
+      "expected": [
+        "vendor/bin/phpunit --colors=never",
+        "composer.json:8"
+      ],
+      "precision_note": "`day_one.commands` is the list this question asks for, so it is scored for precision; the surrounding payload is the map's own file list and is not the population here.",
+      "precision_scope": [
+        "day_one",
+        "commands"
+      ],
+      "expected_set": [
+        "test: vendor/bin/phpunit --colors=never (composer.json:8)"
+      ]
+    },
+    {
       "id": "onb_working_scope",
       "source": "fixture",
       "root": "tests/fixtures/php/onboarding",

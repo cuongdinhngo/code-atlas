@@ -39,6 +39,7 @@ things a pattern returns, and inventing a baseline for them would only flatter t
 | `onb_declared_entry_points` — which glob claimed the count | 1,355 | — | — | 1.0 |
 | `onb_committable_map` — write the map to git | 290 | — | — | 1.0 |
 | `onb_working_scope` — whether the generated map declares a scoped working tree | 173 | — | — | 1.0 |
+| `onb_first_day_commands` — how do I run this project's tests (207) | 225 | — | — | 1.0 |
 | `onb_naming_debt` — which paths name no responsibility | 1,742 | — | — | 1.0 |
 
 13/13 correct, recall 1.0, `confidently_wrong` 0. Whole fixture tier: **0.789** over 13 ratio-eligible
@@ -91,6 +92,11 @@ around it: `onb_request_entry` and `onb_depends_on_shared_module` both ask `impo
 - **Precision.** The harness scores recall and cost, not over-inclusion. Finding #2 above passes every
   mechanical check — the four real controllers are all present — and is still a wrong answer. A
   precision metric is the obvious next instrument and does not exist yet.
+- **Anything the graph does not hold.** Every question above is a graph question, because that is
+  what the class was narrowed to. 207 revisits the narrowing: `onb_first_day_commands` is the first
+  question here whose answer is a **declared** fact quoted from a manifest, not a derived one, and
+  it is deliberately out of the ratio — a grep beats the index at reading `composer.json`, and the
+  question measures whether the artifact answers a first-day question at all.
 - **Whether a human would act on the answer.** `onb_layers_and_dependencies` recalls 9 of 9 layers on
   the fixture; on `symfony/demo` the largest layer is `Uncategorised` (18 of 51 modules), because the
   responsibility vocabulary has no word for `Command`, `EventSubscriber`, `Security` or `Twig`. A

@@ -160,6 +160,15 @@ KNOBS = (
         lambda root: None,
     ),
     Knob(
+        "CA_PROJECT_FILES",
+        'project_files = ["composer.json"]',
+        "Makefile,README.md",
+        lambda config: config.project_files,
+        lambda root: ("Makefile", "README.md"),
+        lambda root: ("composer.json",),
+        lambda root: None,
+    ),
+    Knob(
         "CA_INDIRECTION_RULES",
         'indirection_rules = ["rules/app.json"]',
         "rules/a.json,rules/b.json",
@@ -245,7 +254,7 @@ def test_every_knob_has_a_precedence_case() -> None:
     # Guards the guard: dropping a knob from KNOBS would otherwise shrink AC1's coverage silently.
     covered = {knob.variable for knob in KNOBS}
     assert {env_name(key) for key in KNOB_KEYS} | {"CA_PHP_CMD"} == covered
-    assert len(KNOB_KEYS) == 18
+    assert len(KNOB_KEYS) == 19
 
 
 def test_env_name_is_derived_from_the_project_file_key() -> None:
@@ -263,6 +272,7 @@ def test_env_name_is_derived_from_the_project_file_key() -> None:
         "CA_ENTRY_POINTS",
         "CA_STUB_ROOTS",
         "CA_WORKING_ROOTS",
+        "CA_PROJECT_FILES",
         "CA_INDIRECTION_RULES",
         "CA_ARCHITECTURE_RULES",
         "CA_TOOLS",

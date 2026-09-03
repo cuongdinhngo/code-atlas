@@ -328,7 +328,7 @@ def test_the_headline_facts_ride_with_the_dataset_and_the_version_says_so() -> N
 
     payload = _build().as_dict()
     assert payload["version"] == DATASET_VERSION
-    assert DATASET_VERSION == 12
+    assert DATASET_VERSION == 13
     headlines = payload["headlines"]
     assert isinstance(headlines, list) and headlines
     assert all(set(row) == {"key", "label", "text"} for row in headlines)

@@ -280,6 +280,7 @@ table.tb td.n { font:12px var(--mono); text-align:right; white-space:nowrap; }
   <div class="grid" id="heads"></div>
   <p class="sub" id="stampLine"></p>
   <p class="sub" id="provLine"></p>
+  <p class="sub" id="startHere"></p>
   <p class="sub" id="confBy"></p>
 </section>
 <section id="modules">
@@ -434,6 +435,16 @@ put("provLine",
   "Module summaries were written by " + wroteIt(PROV.summarizer) + ", the prose by "
   + wroteIt(PROV.prose) + " and the layer names by " + wroteIt(PROV.layers)
   + ". A summary that says nothing is a fact about that configuration, not about the repository.");
+/* 207 — the day-one answers, each with the path it was quoted from. Same dataset field
+   `overview.md` renders; a reader who cannot see a citation is not shown the fact. */
+var ORI = D.orientation || { facts: [], gaps: [], read: [], unreadable: [] };
+function codeOf(name) { return "<code>" + esc(name) + "</code>"; }
+put("startHere", ORI.read.length
+  ? "Read on day one: " + ORI.read.map(codeOf).join(", ")
+    + ". " + ORI.facts.length + " cited answer(s), " + ORI.gaps.length
+    + " stated gap(s) \u2014 the full list, with the line each came from, is in "
+    + codeOf("overview.md") + "."
+  : "No declared project file was found, so this page states no day-one commands.");
 /* 196 — which language earned the confidence figure, or why that cannot be said. Never omitted:
    this is a document a human reads, so an absent attribution is stated rather than left blank. */
 var CBL = D.confidence_by_language || { available: false, note: "", rows: [] };
