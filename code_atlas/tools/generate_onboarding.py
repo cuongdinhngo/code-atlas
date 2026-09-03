@@ -39,6 +39,7 @@ from code_atlas.onboarding.artifact import (
 from code_atlas.onboarding.dataset import OnboardingDataset, build_dataset
 from code_atlas.onboarding.flows import FLOW_KINDS
 from code_atlas.onboarding.layers import IdentityLayerRefiner, LayerRefiner
+from code_atlas.onboarding.orientation import read_orientation
 from code_atlas.onboarding.prose import ProseRun, ProseWriter
 from code_atlas.onboarding.provenance import Provenance, implementation_name
 from code_atlas.onboarding.scope import scoped_paths
@@ -154,6 +155,9 @@ def create(
             return _empty(config)
         # An IDENTITY, never a count: 117's AC2 forbids a dataset number that moves when the
         # seam turns on, and `prose_calls` stays in the discarded payload for that reason.
+        orientation = read_orientation(
+            Path(config.root), config.project_files, max_facts=config.max_results
+        )
         provenance = Provenance(
             summarizer=implementation_name(seam),
             prose=implementation_name(prose.writer),
@@ -188,6 +192,7 @@ def create(
             flow_max_nodes=config.impact_max_nodes,
             confidence_by_language=confidence_by_language,
             provenance=provenance,
+            orientation=orientation,
         )
         written = _write(
             Path(config.root),
@@ -282,6 +287,7 @@ def _write(
             file_paths=file_paths,
             working_roots=working_roots,
             provenance=dataset.provenance,
+            orientation=dataset.orientation,
         ),
         TOUR_NAME: render_tour(
             artifact,

@@ -1,0 +1,11 @@
+{
+  "name": "fixture/onboarding",
+  "description": "Declared project files for the 207 orientation questions. Not indexed: no adapter owns .json.",
+  "require": {
+    "ext-json": "*"
+  },
+  "scripts": {
+    "test": "vendor/bin/phpunit --colors=never",
+    "serve": "php -S 127.0.0.1:8080 -t public"
+  }
+}

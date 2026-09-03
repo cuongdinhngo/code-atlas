@@ -236,6 +236,7 @@ a silent fallback.
 | `CA_ENTRY_POINTS` | `entry_points` | unset | file globs that seed reachability. **`reachable_from` and `find_orphans` need this** — unset, they report *no roots configured* rather than guessing |
 | `CA_STUB_ROOTS` | `stub_roots` | unset | dependency roots (e.g. `vendor`) to index declarations-only, so third-party signatures resolve; hits carry `stub: true`. Costs one extra pass |
 | `CA_WORKING_ROOTS` | `working_roots` | unset | repo-relative directory prefixes the onboarding artifact treats as the reader's working tree. It narrows the onboarding tour, flow seeds and busiest-file pick; unset is the whole index |
+| `CA_PROJECT_FILES` | `project_files` | the ecosystem manifests, a root `README*` and an agent brief | repo-relative files the onboarding *Start here* section quotes and cites. Values are lifted from declared keys and reproduced verbatim, never summarised; a file that cannot be parsed becomes a stated gap and never fails the build |
 | `CA_INDIRECTION_RULES` | `indirection_rules` | unset | JSON rule files mapping framework indirection to edges. **`find_view_data` needs this** — without `view_data` setters it answers `capability_not_configured`, not a zero |
 | `CA_ARCHITECTURE_RULES` | `architecture_rules` | unset | JSON rule files of path-set dependency constraints. **`check_architecture_rules` needs this** — unset → `capability_not_configured` |
 | `CA_TOOLS` | `tools` | all tools | comma-separated tool allow-list |
@@ -297,6 +298,13 @@ The **core never imports it**: you install the `llm` extra, set `CA_ONBOARDING_S
 `CA_ONBOARDING_LAYER_REFINER=llm` and/or `CA_ONBOARDING_PROSE=llm`, and run `code-atlas-llm` instead
 of `code-atlas`. All three are memoised in content-hash caches so runs replay and diffs stay stable.
 These are `onboarding_llm` knobs, not core config — the full table is in that package's README.
+
+**What a newcomer asks first** is answered above the aggregates, in `overview.md`'s *Start here*
+section: what the repo says it is, how to run its tests, its declared commands, services, ports and
+runtime — each one quoted from a declared project file and carrying the `path:line` it came from,
+and each one the repo does **not** declare stated as an explicit gap rather than left silent. The
+graph never sees these files; the section is I/O over the repo, not inference (207). At
+`detail_level: standard` the tool payload carries the same day-one commands under `day_one`.
 
 **Which one wrote the tree you are reading** is recorded in the artifact itself: `overview.md` ends
 with a *How this was written* section and `manifest.json` carries the same three names under

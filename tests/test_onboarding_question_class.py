@@ -78,10 +78,21 @@ def test_every_recipe_step_is_a_bindable_tool() -> None:
 
 
 def test_onboarding_questions_declare_ground_truth_for_recall() -> None:
-    """AC1: the recall gate scores the class, so every question pins its complete answer."""
+    """AC1: the recall gate scores the class, so every question pins its complete answer.
+
+    Widened by 207, in the same shape as the ratio exclusion below: a question whose answer lives
+    in the **committed artifact** rather than in a tool payload cannot be recall-scored at all,
+    because `_mcp_responses` excludes native steps on purpose — recall measures what the INDEX
+    answered, and a file read is not that. Such a question states that in `expected_set_note` and
+    scores correctness and cost only. Excluded for a stated reason, never quietly.
+    """
     for question in _onboarding():
-        members = question.get("expected_set")
-        assert members, f"{question['id']} has no expected_set — recall cannot score it"
+        if question.get("expected_set"):
+            continue
+        note = str(question.get("expected_set_note", "")).strip()
+        assert note, (
+            f"{question['id']} has no expected_set and states no reason — recall cannot score it"
+        )
 
 
 def test_a_question_out_of_the_ratio_states_why() -> None:

@@ -901,6 +901,41 @@
       ]
     },
     {
+      "id": "onb_first_day_commands",
+      "source": "fixture",
+      "root": "tests/fixtures/php/onboarding",
+      "tier": "onboarding",
+      "ratio_eligible": false,
+      "ratio_note": "The answer is a declared command quoted into the committed artifact, read the way a human reads it: generate the tree, then open overview.md. A grep would find composer.json in one hop and win, which is the point — this measures whether the artifact answers a first-day question at all, not whether it beats grep at reading a manifest.",
+      "question": "How do I run this project's tests?",
+      "expected": [
+        "vendor/bin/phpunit --colors=never",
+        "composer.json:8"
+      ],
+      "precision_note": "Read from the committed markdown a human opens, not from a tool payload: 207 ships content in the artifact, and whether an agent should QUERY it is 121's separate decision, not this one's.",
+      "session_path": [
+        {
+          "tool": "get_index_status",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "generate_onboarding",
+          "args": {
+            "detail_level": "minimal"
+          }
+        },
+        {
+          "tool": "read_file",
+          "args": {
+            "path": "docs/onboarding/overview.md"
+          }
+        }
+      ],
+      "expected_set_note": "No `expected_set`, so this question scores CORRECTNESS and cost but not recall — and that is the instrument's design, not an omission. `_mcp_responses` excludes native steps because recall measures what the INDEX answered, and a file read is not that. 207 ships its answer in the committed markdown a human opens, so the only honest recipe reads that file, and the only honest score is `atlas_correct`. Scoring recall here would have required putting the answer into a tool payload, which is exactly the agent-queryability decision the ticket reserves for 121. Sibling of 121-C1: a measurement deferred may be one whose instrument cannot address its subject."
+    },
+    {
       "id": "onb_working_scope",
       "source": "fixture",
       "root": "tests/fixtures/php/onboarding",

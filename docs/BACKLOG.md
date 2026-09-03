@@ -135,7 +135,7 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | 199 | [flows-have-no-tool-so-an-agent-pays-for-the-whole-overview](tasks/199_flows-have-no-tool-so-an-agent-pays-for-the-whole-overview.md) | Phase 3 / M11 | done | 197 |
 | 205 | [a module page per node-budget slot](tasks/205_a-module-page-per-node-budget-slot.md) | Phase 3 / M11 | done | 106, 107, 108, 109, 111, 118 |
 | 206 | [onboarding-cannot-be-scoped-to-the-tree-the-reader-works-in](tasks/206_onboarding-cannot-be-scoped-to-the-tree-the-reader-works-in.md) | Phase 3 / M11 | done | 105, 111, 112, 121, 126, 131, 205 |
-| 207 | [the artifact answers no question a newcomer asks first](tasks/207_the-artifact-answers-no-question-a-newcomer-asks-first.md) | Phase 3 / M12 | todo | 112, 117, 121, 206 |
+| 207 | [the-artifact-answers-no-question-a-newcomer-asks-first](tasks/207_the-artifact-answers-no-question-a-newcomer-asks-first.md) | Phase 3 / M12 | done | 112, 117, 121, 206 |
 | 208 | [an undeclared reachability bucket reports zero as a measurement](tasks/208_an-undeclared-reachability-bucket-reports-zero-as-a-measurement.md) | Phase 3 / M11 | done | 113, 119, 130, 182, 186 |
 | 209 | [a-committed-artifact-cannot-say-which-summarizer-wrote-it](tasks/209_a-committed-artifact-cannot-say-which-summarizer-wrote-it.md) | Phase 3 / M12 | done | 085, 090, 117, 118, 205 |
 | 210 | [the artifact has one shape for every reader](tasks/210_the-artifact-has-one-shape-for-every-reader.md) | Phase 3 / M12 | todo | 088, 112, 121, 205, 207, 209 |

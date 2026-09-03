@@ -37,6 +37,7 @@ from code_atlas.onboarding.modules import (
     ModuleMap,
     find_business_modules,
 )
+from code_atlas.onboarding.orientation import Orientation
 from code_atlas.onboarding.prose import ProseRun
 from code_atlas.onboarding.provenance import Provenance
 from code_atlas.onboarding.reachability import ReachabilitySplit, classify_reachability
@@ -52,7 +53,7 @@ from code_atlas.onboarding.reachability import ReachabilitySplit, classify_reach
 # confidence figure, read from the 183 stamp (196). 11: per-bucket ``caveat`` and ``declaration``,
 # so a bucket whose declaration was never given says its 0 is a question nobody asked rather than a
 # measured absence (208). This is NOT ``contract_version``; the contract is untouched.
-DATASET_VERSION = 12
+DATASET_VERSION = 13
 # A directory is kept in the tree only when its subtree holds at least this many symbols — the
 # mockup's prune, so a 40k-file repo yields a map of a few dozen rows, not thousands (AC3).
 DIR_SYMBOL_THRESHOLD = 400
@@ -226,6 +227,8 @@ class OnboardingDataset:
     """197's traces. ``None`` on an index built before flows existed — never a false zero."""
     provenance: Provenance = Provenance()
     """209 — which implementation wrote the text, so an absence is attributable to a run."""
+    orientation: Orientation = Orientation()
+    """207 — the day-one answers, quoted from the repo's own declared files, each one cited."""
 
     def as_dict(self) -> dict[str, object]:
         """Order-stable dict view — the byte-stability surface (R4.2/AC2)."""
@@ -266,6 +269,7 @@ class OnboardingDataset:
             "mirrors": self.mirrors.as_dict(),
             "modules": self.modules.as_dict(),
             "node_counts": [{"count": k.count, "kind": k.kind} for k in self.node_counts],
+            "orientation": self.orientation.as_dict(),
             "parsed": self.parsed,
             "provenance": self.provenance.as_dict(),
             "reachability": self.reachability.as_dict(),
@@ -516,6 +520,7 @@ def build_dataset(
     flow_max_nodes: int = 0,
     confidence_by_language: Mapping[str, object] | None = None,
     provenance: Provenance | None = None,
+    orientation: Orientation | None = None,
 ) -> OnboardingDataset:
     """Assemble the aggregate dataset from bounded ``store.py`` rows (see module docstring).
 
@@ -580,6 +585,7 @@ def build_dataset(
     dataset = OnboardingDataset(
         version=DATASET_VERSION,
         provenance=Provenance() if provenance is None else provenance,
+        orientation=Orientation() if orientation is None else orientation,
         flows=flows,
         files=files,
         parsed=parsed,

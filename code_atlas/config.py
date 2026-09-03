@@ -38,6 +38,7 @@ KNOB_KEYS: tuple[str, ...] = (
     "entry_points",
     "stub_roots",
     "working_roots",
+    "project_files",
     "indirection_rules",
     "architecture_rules",
     "tools",
@@ -94,6 +95,7 @@ class Config:
     entry_points: tuple[str, ...] | None
     stub_roots: tuple[str, ...] | None
     working_roots: tuple[str, ...] | None
+    project_files: tuple[str, ...] | None
     indirection_rules: tuple[str, ...] | None
     architecture_rules: tuple[str, ...] | None
     tools: tuple[str, ...] | None
@@ -232,6 +234,9 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
         ),
         entry_points=_resolve("entry_points", _as_entry_points, None, environ, file_values),
         stub_roots=_resolve("stub_roots", _as_stub_roots, None, environ, file_values),
+        project_files=_resolve(
+            "project_files", _as_project_files, None, environ, file_values
+        ),
         working_roots=_resolve("working_roots", _as_working_roots, None, environ, file_values),
         indirection_rules=_resolve(
             "indirection_rules", _as_indirection_rules, None, environ, file_values
@@ -387,6 +392,11 @@ def _as_entry_points(label: str, raw: object) -> tuple[str, ...] | None:
         raise ConfigError(f"{label}: {raw!r} is not a comma-separated list of entry paths")
     kept = [name.strip() for name in names if name.strip()]
     return tuple(dict.fromkeys(kept)) or None
+
+
+def _as_project_files(label: str, raw: object) -> tuple[str, ...] | None:
+    """The declared files the orientation section quotes. Unset = the ecosystem defaults (207)."""
+    return _as_repo_relative_list(label, raw, item="path", collection="project files")
 
 
 def _as_stub_roots(label: str, raw: object) -> tuple[str, ...] | None:

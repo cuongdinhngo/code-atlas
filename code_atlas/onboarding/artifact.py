@@ -38,6 +38,7 @@ from code_atlas.onboarding.metrics import GraphMetrics, NodeMetric, compute_metr
 from code_atlas.onboarding.mirrors import find_mirror_subtrees
 from code_atlas.onboarding.module_facts import module_facts
 from code_atlas.onboarding.modules import COVERAGE_NOTE, find_business_modules
+from code_atlas.onboarding.orientation import Fact, Orientation
 from code_atlas.onboarding.prose import ProseRun
 from code_atlas.onboarding.provenance import NONE, Provenance
 from code_atlas.onboarding.reachability import classify_reachability
@@ -56,6 +57,7 @@ H_LAYERS = "## Layers"
 H_DIAGRAM = "## Layer graph"
 H_CROSSINGS = "## Cross-layer edges"
 H_COMMUNITY = "## Community / layer disagreement"
+H_ORIENTATION = "## Start here"
 H_PROVENANCE = "## How this was written"
 H_TOUR = "# Guided tour"
 H_ORDER = "## Reading order"
@@ -457,6 +459,58 @@ def _community_crossing_lines(crossings: object) -> list[str]:
     return lines
 
 
+_FACT_HEADINGS: tuple[tuple[str, str], ...] = (
+    ("says", "What it says it is"),
+    ("test-command", "How to run the tests"),
+    ("command", "Declared commands"),
+    ("service", "Declared services"),
+    ("port", "Published ports"),
+    ("runtime", "Declared runtime"),
+)
+
+
+def _fact_line(fact: Fact) -> str:
+    """One cited answer. The citation is not optional — AC5 is asserted on this shape."""
+    quoted = fact.value if fact.kind == "says" else f"`{fact.value}`"
+    if fact.kind == "says":
+        return f'- "{quoted}" — `{fact.source}`'
+    if fact.kind == "service":
+        return f"- `{fact.label}` — `{fact.source}`"
+    return f"- `{fact.label}`: {quoted} — `{fact.source}`"
+
+
+def _orientation_lines(orientation: Orientation | None, *, cap: int) -> list[str]:
+    """The day-one answers, above the aggregates (AC1). Omitted entirely when nothing is declared.
+
+    Every emitted line either carries a `path`/`path:line` citation or is an explicit gap sentence;
+    nothing here is generated from anything but a quoted or key-extracted value (AC5).
+    """
+    if orientation is None or not orientation.declared:
+        return []
+    lines = [H_ORIENTATION, ""]
+    for kind, heading in _FACT_HEADINGS:
+        rows = [fact for fact in orientation.facts if fact.kind == kind]
+        if not rows:
+            continue
+        shown = rows[:cap] if cap > 0 else rows
+        lines.append(f"**{heading}**")
+        lines.append("")
+        lines.extend(_fact_line(fact) for fact in shown)
+        if len(shown) < len(rows):
+            lines.append(f"- … {len(rows) - len(shown)} more, not shown")
+        lines.append("")
+    if orientation.gaps:
+        lines.extend(["**What the declared files do not say**", ""])
+        lines.extend(f"- {gap}" for gap in orientation.gaps)
+        lines.append("")
+    read = ", ".join(f"`{name}`" for name in orientation.read) or "none"
+    lines.append(f"- read: {read}")
+    for path, reason in orientation.unreadable:
+        lines.append(f"- `{path}` {reason}")
+    lines.append("")
+    return lines
+
+
 def _provenance_lines(provenance: Provenance | None) -> list[str]:
     """Name the implementation behind each seam, and say what its absence means (209/AC1, R5.6).
 
@@ -550,6 +604,13 @@ def _reachability_lines(split: object) -> list[str]:
             lines.append(f"  - **{unasked}**")
         lines.append(f"  - {bucket['note']}")
         lines.append(f"  - signal: {bucket['signal']}")
+        # 207 — the sample has been in the dataset since 113 and no renderer printed it, so the
+        # count said "306 web entry points" and never named one the reader could open (R5.8).
+        sample = bucket.get("sample")
+        if isinstance(sample, list) and sample:
+            named = ", ".join(f"`{path}`" for path in sample)
+            more = ", …" if bucket.get("sample_truncated") else ""
+            lines.append(f"  - for example: {named}{more}")
         tally = bucket.get("signals")
         if isinstance(tally, dict) and any(tally.values()):
             named = ", ".join(f"{count} {name}" for name, count in tally.items() if count)
@@ -578,6 +639,7 @@ def render_overview(
     file_paths: Sequence[str] = (),
     working_roots: Sequence[str] | None = None,
     provenance: Provenance | None = None,
+    orientation: Orientation | None = None,
 ) -> str:
     """Committed overview markdown: summary, layers, layer graph, crossings, provenance. Newline."""
     cap = node_cap if node_cap is not None else max(len(artifact.layers), 1)
@@ -590,6 +652,7 @@ def render_overview(
     lines = [
         H_OVERVIEW,
         "",
+        *_orientation_lines(orientation, cap=cap),
         H_SUMMARY,
         "",
         *_scope_bullets(file_paths, working_roots),
