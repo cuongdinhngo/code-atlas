@@ -133,7 +133,7 @@ _NEWCOMER = AudienceContract(
     sections={
         ORIENTATION: "The whole point of day one — how to run it, how to test it, what it is.",
         SUMMARY: (
-            "Enough scale to know what they have walked into. The same six-line block the "
+            "Enough scale to know what they have walked into. The same short block the "
             "maintainer gets: what made the aggregates unreadable was the 99-row crossings "
             "table, and that is not in this contract."
         ),

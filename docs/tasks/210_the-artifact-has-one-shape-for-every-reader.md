@@ -309,7 +309,15 @@ proxy **silently dropped `docs/BACKLOG.md`, `docs/TOKEN_LEDGER.md` and the task 
 `git diff --stat`** — 14 files/637 lines against `/usr/bin/git`'s 17/811. A filtered diff listing
 that omits files without saying so is a way to miss a change.
 
-**Round 2 (verify-only, same live seat): LGTM.**
+**Round 2 (verify-only, same live seat): LGTM** — it reverted `artifact.py` to the early-return
+shape itself, watched the new guard go red with the exact expected message, and restored it. It also
+ran the full suite to completion (2858, +1 for the one new test).
+
+It found **one residual overstatement in my own fix**: the reworded contract said *"the same
+six-line block"*, which is **seven** lines when `working_roots` is set, because `_scope_bullets`
+prepends a scope line. A conditionally-true number is the same fault one size smaller, so the number
+is gone rather than hedged — the text now says *"the same short block"*, which is true under every
+configuration.
 
 ### Phase 5 — finalise
 
