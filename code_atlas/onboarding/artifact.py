@@ -54,6 +54,7 @@ H_REACHABILITY = "## Zero-inbound modules, by population"
 H_LAYERS = "## Layers"
 H_DIAGRAM = "## Layer graph"
 H_CROSSINGS = "## Cross-layer edges"
+H_COMMUNITY = "## Community / layer disagreement"
 H_TOUR = "# Guided tour"
 H_ORDER = "## Reading order"
 OUTPUT_DIR = "docs/onboarding"
@@ -280,25 +281,29 @@ def _module_facts(
 def _community_crossings(
     community_of: Mapping[str, str],
     assignment: LayerAssignment,
+    *,
+    limit: int,
 ) -> list[dict[str, object]]:
     """Communities straddling ≥2 named vocabulary layers — the disagreement finding (211/R4).
 
-    A crossing means files from the same import community landed in different named layers.
-    UNCATEGORISED is excluded from this count; community-replaced files are not named layers.
-    Returns a sorted list of ``{community, layers}`` dicts, empty when none detected.
+    UNCATEGORISED is excluded. Ranked by how many named layers they straddle, then name, then
+    sliced at ``limit`` (R5.8). Empty when none detected.
     """
     layer_of = {m.module: m.layer for m in assignment.modules}
     by_community: dict[str, set[str]] = {}
-    for file, community in sorted(community_of.items()):
+    for file, community in community_of.items():
         layer = layer_of.get(file, UNCATEGORISED)
         if layer != UNCATEGORISED:
             by_community.setdefault(community, set()).add(layer)
-    return sorted(
-        ({"community": community, "layers": sorted(layers)}
-         for community, layers in by_community.items()
-         if len(layers) >= 2),
-        key=lambda d: d["community"],
+    ranked = sorted(
+        (
+            {"community": community, "layers": sorted(layers)}
+            for community, layers in by_community.items()
+            if len(layers) >= 2
+        ),
+        key=lambda row: (-len(row["layers"]), str(row["community"])),
     )
+    return ranked[: max(0, limit)]
 
 
 def build_artifact(
@@ -350,14 +355,10 @@ def build_artifact(
     else:
         tiers = module_edge_tiers(nodes, edge_tiers)
     drawn, omitted_dynamic = diagram_edges(tiers, assignment)
-    tour_set = frozenset(tour_files)
-    tour_tiers = [
-        (source, target, tier)
-        for source, target, tier in (edge_tiers or ())
-        if source in tour_set or target in tour_set
-    ]
-    community_of = assign_communities(tour_files, tour_tiers)
-    community_crossings = _community_crossings(community_of, assignment)
+    community_of = assign_communities(tour_files, tiers)
+    community_crossings = _community_crossings(
+        community_of, assignment, limit=max_results
+    )
     artifact = OnboardingArtifact(
         method=assignment.method,
         truncated=truncated,
@@ -431,6 +432,22 @@ def _mirror_lines(mirrors: object) -> list[str]:
         )
     if not pairs:
         lines.append("- (no mirrored sibling subtrees detected)")
+    lines.append("")
+    return lines
+
+
+def _community_crossing_lines(crossings: object) -> list[str]:
+    """Communities that straddle two named layers — omitted when the list is empty (211)."""
+    if not isinstance(crossings, list) or not crossings:
+        return []
+    lines = [H_COMMUNITY, ""]
+    for row in crossings:
+        if not isinstance(row, dict):
+            continue
+        community = row.get("community", "")
+        layers = row.get("layers", ())
+        named = ", ".join(f"`{layer}`" for layer in layers) if isinstance(layers, list) else ""
+        lines.append(f"- `{community}` straddles {named}")
     lines.append("")
     return lines
 
@@ -551,6 +568,7 @@ def render_overview(
         "",
     ]
     lines.extend(_mirror_lines(artifact.summary.get("mirrors")))
+    lines.extend(_community_crossing_lines(artifact.summary.get("community_crossings")))
     lines.extend(_module_lines(artifact.summary.get("business_modules")))
     lines.extend(_reachability_lines(artifact.summary.get("reachability")))
     lines.extend([H_LAYERS, ""])

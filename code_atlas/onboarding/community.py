@@ -14,9 +14,8 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from pathlib import PurePosixPath
 
-# Tier strings that count as high-confidence community evidence.
-_RESOLVED_TIERS = frozenset({"RESOLVED"})
-# The label prefix that distinguishes community names from vocabulary layer names.
+_RESOLVED = "RESOLVED"
+_HEURISTIC = "HEURISTIC"
 COMMUNITY_PREFIX = "Community/"
 
 __all__ = ["COMMUNITY_PREFIX", "assign_communities"]
@@ -30,7 +29,6 @@ class _UnionFind:
 
     def find(self, node: str) -> str:
         while self._parent.get(node, node) != node:
-            # Path compression — keep parent sorted, never random.
             grandparent = self._parent.get(self._parent[node], self._parent[node])
             self._parent[node] = grandparent
             node = grandparent
@@ -40,7 +38,7 @@ class _UnionFind:
         ra, rb = self.find(a), self.find(b)
         if ra == rb:
             return
-        # Smaller root (alphabetically) becomes the representative — deterministic (R4.2).
+        # Smaller root (alphabetically) becomes parent — the label is chosen separately.
         if ra < rb:
             self._parent[rb] = ra
         else:
@@ -51,6 +49,23 @@ class _UnionFind:
 
     def component(self, root: str) -> frozenset[str]:
         return frozenset(node for node in self._parent if self.find(node) == root)
+
+
+def _undirected_degree(
+    universe: frozenset[str],
+    edge_tiers: Sequence[tuple[str, str, str]],
+    allowed: frozenset[str],
+) -> dict[str, int]:
+    """Distinct neighbours per file over the given tiers; keys sorted for R4.2."""
+    neighbours: dict[str, set[str]] = {node: set() for node in universe}
+    for source, target, tier in edge_tiers:
+        if source not in universe or target not in universe or source == target:
+            continue
+        if tier not in allowed:
+            continue
+        neighbours[source].add(target)
+        neighbours[target].add(source)
+    return {node: len(neighbours[node]) for node in universe}
 
 
 def _community_label(representative: str) -> str:
@@ -65,12 +80,10 @@ def assign_communities(
 ) -> Mapping[str, str]:
     """Map every file in ``files`` to a community label derived from the edge graph.
 
-    Pass 1 unions files connected by RESOLVED edges. Pass 2 unions files that remain singletons
-    via HEURISTIC edges (C2 — HEURISTIC evidence is weaker; it cannot override a RESOLVED
-    community, only fill the gap when none exists). A file with no edges is its own community.
-
-    Community labels are ``"Community/" + <stem of alphabetically-first member>`` — a
-    path-derived name, never a bare integer (AC3). Identical input → identical output (R4.2).
+    Pass 1 unions files connected by RESOLVED edges. Pass 2 unions remaining singletons
+    via HEURISTIC edges only (DYNAMIC never joins a community). A file with no edges is
+    its own community. Labels are ``Community/<stem of most-connected member>`` (R2);
+    degree ties break alphabetically (R4.2).
     """
     sorted_files = sorted(files)
     universe = frozenset(sorted_files)
@@ -78,13 +91,10 @@ def assign_communities(
         return {}
 
     uf = _UnionFind(sorted_files)
-
-    # Pass 1 — RESOLVED edges only.
     for source, target, tier in sorted(edge_tiers):
-        if source in universe and target in universe and tier in _RESOLVED_TIERS:
+        if source in universe and target in universe and tier == _RESOLVED:
             uf.union(source, target)
 
-    # Pass 2 — HEURISTIC edges, but only between files that RESOLVED left as singletons.
     resolved_singletons = frozenset(
         node for node in sorted_files if uf.component(uf.find(node)) == frozenset({node})
     )
@@ -92,15 +102,16 @@ def assign_communities(
         if (
             source in resolved_singletons
             and target in resolved_singletons
-            and tier not in _RESOLVED_TIERS
+            and tier == _HEURISTIC
         ):
             uf.union(source, target)
 
-    # Build label map: each component's label is derived from its alphabetically-first member.
+    degree = _undirected_degree(universe, edge_tiers, frozenset({_RESOLVED, _HEURISTIC}))
     result: dict[str, str] = {}
     for root in sorted(uf.roots()):
-        members = sorted(uf.component(root))
-        label = _community_label(members[0])
+        members = uf.component(root)
+        representative = min(members, key=lambda member: (-degree[member], member))
+        label = _community_label(representative)
         for member in members:
             result[member] = label
     return result

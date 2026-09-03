@@ -177,16 +177,17 @@ def _initial_buckets(
     layer_of: Mapping[str, str],
     depth: Mapping[str, int],
 ) -> list[_Bucket]:
-    """One bucket per (rank, depth) band; an SCC bands by its min member so it is one step (AC2)."""
-    grouped: dict[tuple[int, int], list[tuple[str, ...]]] = {}
+    """One bucket per (rank, layer, depth) band; an SCC is one step (AC2)."""
+    grouped: dict[tuple[int, str, int], list[tuple[str, ...]]] = {}
     for component in components:
         rank = min(rank_of.get(member, 0) for member in component)
         band = min(depth.get(member, 0) for member in component)
-        grouped.setdefault((rank, band), []).append(component)
+        layer = min(layer_of.get(member, "") for member in component)
+        grouped.setdefault((rank, layer, band), []).append(component)
     buckets: list[_Bucket] = []
-    for (rank, band) in sorted(grouped):
-        bucket = _bucket_of(grouped[(rank, band)], rank_of, layer_of)
-        buckets.append(replace(bucket, rank=rank, depth=band))
+    for (rank, layer, band) in sorted(grouped):
+        bucket = _bucket_of(grouped[(rank, layer, band)], rank_of, layer_of)
+        buckets.append(replace(bucket, rank=rank, depth=band, layer=layer))
     return buckets
 
 

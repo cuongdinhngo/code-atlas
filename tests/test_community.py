@@ -7,11 +7,18 @@ and two runs over identical input produce byte-identical output (AC1).
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from code_atlas.onboarding.community import COMMUNITY_PREFIX, assign_communities
 from code_atlas.onboarding.layers import UNCATEGORISED, assign_layers
 from code_atlas.onboarding.metrics import compute_metrics
 from code_atlas.onboarding.steps import build_steps
 from code_atlas.onboarding.tour import ordered_stops
+from code_atlas.store import GraphStore
+from code_atlas.tools import generate_onboarding
+from tests.test_generate_onboarding import _out
+from tests.test_nav_tools import db_config, edge, node, seed_file
 
 
 def _tiers(
@@ -69,9 +76,25 @@ def test_community_label_is_path_derived_not_bare_integer(  # AC3
     result = assign_communities(files, edges)
     label = result["app/Foo.php"]
     assert label.startswith(COMMUNITY_PREFIX), f"expected Community/ prefix, got {label!r}"
-    # The suffix is a stem, not an integer.
     suffix = label[len(COMMUNITY_PREFIX):]
     assert not suffix.isdigit(), f"label suffix must not be a bare integer; got {suffix!r}"
+
+
+def test_community_is_named_after_the_most_connected_member() -> None:
+    """Scope 1 — hub stem, not alphabetical first. Hub.php has degree 2; Alpha.php has 1."""
+    files = ["z/Alpha.php", "z/Hub.php", "z/Other.php"]
+    edges = _tiers([("z/Hub.php", "z/Alpha.php"), ("z/Hub.php", "z/Other.php")])
+    result = assign_communities(files, edges)
+    assert result["z/Alpha.php"] == f"{COMMUNITY_PREFIX}Hub"
+    assert result["z/Hub.php"] == result["z/Other.php"] == result["z/Alpha.php"]
+
+
+def test_dynamic_edges_do_not_join_singletons() -> None:
+    """Pass 2 is HEURISTIC only — DYNAMIC is not community evidence."""
+    files = ["p.php", "q.php"]
+    edges = [("p.php", "q.php", "DYNAMIC")]
+    result = assign_communities(files, edges)
+    assert result["p.php"] != result["q.php"]
 
 
 def test_isolated_file_has_its_own_community() -> None:
@@ -133,3 +156,91 @@ def test_uncategorised_files_take_the_community_label() -> None:
     titles = {step.title.split(" (")[0] for step in steps}
     assert UNCATEGORISED not in titles
     assert any(t.startswith(COMMUNITY_PREFIX) for t in titles)
+
+
+def test_generate_onboarding_groups_qname_edges_into_file_communities(
+    tmp_path: Path,
+) -> None:
+    """Production wiring: dependency_edges_with_tier is qnames; communities must still form."""
+    config = db_config(tmp_path)
+    with GraphStore(config.db_path) as store:
+        for i in range(4):
+            path = f"src/pack/A{i}.aa"
+            qname = f"\\Pack\\A{i}"
+            nxt = f"\\Pack\\A{i + 1}" if i < 3 else None
+            edges = (
+                [edge("CALLS", qname, nxt, path, target_qname=nxt)] if nxt else []
+            )
+            seed_file(store, path, [node("Class", f"A{i}", qname, path)], edges, root=tmp_path)
+        for i in range(3):
+            path = f"app/Models/M{i}.aa"
+            qname = f"\\App\\M{i}"
+            seed_file(store, path, [node("Class", f"M{i}", qname, path)], [], root=tmp_path)
+    payload = generate_onboarding.create(config)()
+    artifact = json.loads(
+        (tmp_path / ".code-atlas" / "onboarding" / "artifact.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    tour = (_out(tmp_path) / "tour.md").read_text(encoding="utf-8")
+    assert payload["indexed"] is True
+    titles = [step["title"] for step in artifact["steps"]]
+    assert any(title.startswith(COMMUNITY_PREFIX) for title in titles)
+    assert UNCATEGORISED not in titles
+    assert "Community/" in tour
+    assert "community_crossings" in artifact["summary"]
+
+
+def test_community_crossing_is_ranked_and_rendered(tmp_path: Path) -> None:
+    """A RESOLVED chain through Model → widget → controller surfaces the straddling community."""
+    config = db_config(tmp_path)
+    with GraphStore(config.db_path) as store:
+        seed_file(
+            store,
+            "app/Models/M.aa",
+            [node("Class", "M", "\\App\\M", "app/Models/M.aa")],
+            [
+                edge(
+                    "CALLS",
+                    "\\App\\M",
+                    "\\App\\W",
+                    "app/Models/M.aa",
+                    target_qname="\\App\\W",
+                )
+            ],
+            root=tmp_path,
+        )
+        seed_file(
+            store,
+            "src/widget/W.aa",
+            [node("Class", "W", "\\App\\W", "src/widget/W.aa")],
+            [
+                edge(
+                    "CALLS",
+                    "\\App\\W",
+                    "\\App\\C",
+                    "src/widget/W.aa",
+                    target_qname="\\App\\C",
+                )
+            ],
+            root=tmp_path,
+        )
+        seed_file(
+            store,
+            "app/controllers/C.aa",
+            [node("Class", "C", "\\App\\C", "app/controllers/C.aa")],
+            [],
+            root=tmp_path,
+        )
+    generate_onboarding.create(config)()
+    artifact = json.loads(
+        (tmp_path / ".code-atlas" / "onboarding" / "artifact.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    overview = (_out(tmp_path) / "overview.md").read_text(encoding="utf-8")
+    crossings = artifact["summary"]["community_crossings"]
+    assert crossings
+    layers = set(crossings[0]["layers"])
+    assert {"Domain / Data", "HTTP / Entry"} <= layers
+    assert "## Community / layer disagreement" in overview
