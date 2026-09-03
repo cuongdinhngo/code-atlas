@@ -11,6 +11,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from code_atlas.onboarding.community import assign_communities
 from code_atlas.onboarding.dataset import OnboardingDataset
 from code_atlas.onboarding.flows import COVERAGE_NOTE as FLOW_COVERAGE_NOTE
 from code_atlas.onboarding.flows import TRUNCATED_NOTE as FLOW_TRUNCATED_NOTE
@@ -23,6 +24,7 @@ from code_atlas.onboarding.layer_diagram import (
     validate_mermaid_flowchart,
 )
 from code_atlas.onboarding.layers import (
+    UNCATEGORISED,
     IdentityLayerRefiner,
     LayerAssignment,
     LayerRefiner,
@@ -68,7 +70,8 @@ CACHE_NAME = "artifact.json"
 # tests/test_artifact_contract.py fails a shape change that leaves the number behind.
 # 1 -> 2 (205): the `pages` and `isolated` keys are gone with the module-page tree.
 # 2 -> 3 (208): every reachability bucket gains `caveat` and `declaration`.
-ARTIFACT_VERSION = 3
+# 3 -> 4 (211): summary gains `community_crossings`.
+ARTIFACT_VERSION = 4
 
 __all__ = [
     "ARTIFACT_VERSION",
@@ -274,6 +277,30 @@ def _module_facts(
     return NodeFacts("", "", metric)
 
 
+def _community_crossings(
+    community_of: Mapping[str, str],
+    assignment: LayerAssignment,
+) -> list[dict[str, object]]:
+    """Communities straddling ≥2 named vocabulary layers — the disagreement finding (211/R4).
+
+    A crossing means files from the same import community landed in different named layers.
+    UNCATEGORISED is excluded from this count; community-replaced files are not named layers.
+    Returns a sorted list of ``{community, layers}`` dicts, empty when none detected.
+    """
+    layer_of = {m.module: m.layer for m in assignment.modules}
+    by_community: dict[str, set[str]] = {}
+    for file, community in sorted(community_of.items()):
+        layer = layer_of.get(file, UNCATEGORISED)
+        if layer != UNCATEGORISED:
+            by_community.setdefault(community, set()).add(layer)
+    return sorted(
+        ({"community": community, "layers": sorted(layers)}
+         for community, layers in by_community.items()
+         if len(layers) >= 2),
+        key=lambda d: d["community"],
+    )
+
+
 def build_artifact(
     nodes: Sequence[tuple[str, str]],
     edges: Sequence[tuple[str, str]],
@@ -323,10 +350,19 @@ def build_artifact(
     else:
         tiers = module_edge_tiers(nodes, edge_tiers)
     drawn, omitted_dynamic = diagram_edges(tiers, assignment)
+    tour_set = frozenset(tour_files)
+    tour_tiers = [
+        (source, target, tier)
+        for source, target, tier in (edge_tiers or ())
+        if source in tour_set or target in tour_set
+    ]
+    community_of = assign_communities(tour_files, tour_tiers)
+    community_crossings = _community_crossings(community_of, assignment)
     artifact = OnboardingArtifact(
         method=assignment.method,
         truncated=truncated,
         summary={
+            "community_crossings": community_crossings,
             "cross_layer_edges": len(crossings),
             "layers": len(assignment.layers),
             "method": assignment.method,
@@ -362,6 +398,7 @@ def build_artifact(
             metrics,
             tour_edges,
             entry_points,
+            community_of=community_of,
             prose=prose,
             docline_of={key: value.docline for key, value in summaries.items()},
             descriptions=described,
