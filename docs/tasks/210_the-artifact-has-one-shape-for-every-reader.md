@@ -242,7 +242,7 @@ Handle traces (command → result):
 **Expiry: the first run after it becomes non-null.** Fifth consecutive sighting (206, 211, 209, 207,
 210); escalated at 209 and not re-argued.
 
-**Proving test:** `tests/test_audience.py` (9 tests).
+**Proving test:** `tests/test_audience.py` (10 tests).
 
 **Rejected alternative:** growing `detail_level` to reach the artifact. It would give one argument
 two meanings across 24 tools and make committed files depend on a per-call value — see Phase 0.
@@ -254,7 +254,7 @@ What landed: `audience.py` (the one contract table), the section and document ga
 `overview.md` / `manifest.json` / the viewer, `DATASET_VERSION` 13 → 14, the `TOOLS.md`
 reconciliation, and two per-audience harness questions.
 
-Verification: `scripts/gate.sh` → **GATE GREEN, 17/17, 0 skipped**. Full suite **2857 passed**
+Verification: `scripts/gate.sh` → **GATE GREEN, 17/17, 0 skipped**. Full suite **2858 passed**
 against a 2844 baseline. Benchmark floors hold (ratio 0.83, recall 1.0, precision 1.0).
 
 `diff ⊆` approved list: `audience.py` (new), `artifact.py`, `dataset.py`, `viewer.py`, `config.py`,
@@ -278,6 +278,38 @@ doc, BACKLOG, TOKEN_LEDGER.
 
 `reviewer`: **OFF** (`--no-reviewer`) — no rule-book-grounded review of this diff exists.
 `challenger`: **ON** — ticket-blind, on the raw ticket text and `git diff main...HEAD`.
+
+**Round 1: LGTM** — 11 met, 0 not met, 2 correctly-unexercised, 1 environment-gated (AC1's anchor
+half). It re-derived the 7-section symmetric difference from the dataclass literals and re-ran the
+benchmark and the full suite itself rather than taking the numbers on trust. **All three of its
+non-blocking findings were taken:**
+
+1. **A contract's stated reason overstated what was built.** The newcomer `SUMMARY` entry claimed
+   *"four lines, not a table"* while the renderer emits the identical six-line block for both
+   audiences. A content contract that misdescribes its own output is the defect this ticket is
+   about, one level up. Reworded to what is true: the same block, and what made the aggregates
+   unreadable was the 99-row crossings table, which this contract does not include.
+2. **A latent landmine, and the best finding of the review.** `render_overview` returned early once
+   `LAYERS` was absent, *before* the `DIAGRAM` and `CROSSINGS` gates — so a future audience wanting
+   the diagram but not the layer list would silently lose it. **No shipped audience hits it and no
+   test would have caught it**, which is exactly why it was worth fixing. Every section now gates on
+   its own contract entry, pinned by
+   `test_a_sections_presence_never_depends_on_another_sections`, which renders through a probe
+   contract and goes red when the early return is restored.
+3. **A stale docstring.** `generate_onboarding` still claimed it *"writes five files"*, false for
+   the maintainer audience's four.
+
+It also **disclosed an independence breach unprompted**: a routine `git diff` of `BACKLOG`/
+`TOKEN_LEDGER` surfaced this ticket's authored ledger rationale. It scoped the damage precisely —
+every overlapping fact had already been derived independently, and the one figure it could not
+re-derive (the full `17/17` gate) is named rather than adopted.
+
+**A tooling observation worth the operator's attention**, made in passing: this session's `rtk`
+proxy **silently dropped `docs/BACKLOG.md`, `docs/TOKEN_LEDGER.md` and the task file from
+`git diff --stat`** — 14 files/637 lines against `/usr/bin/git`'s 17/811. A filtered diff listing
+that omits files without saying so is a way to miss a change.
+
+**Round 2 (verify-only, same live seat): LGTM.**
 
 ### Phase 5 — finalise
 

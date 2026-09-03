@@ -184,3 +184,52 @@ def test_one_place_decides_what_an_audience_emits() -> None:
         source = Path(module.__file__ or "").read_text(encoding="utf-8")
         assert "CONTRACTS" not in source, f"{module.__name__} reads the table instead of asking"
     assert contract_for(NEWCOMER) is CONTRACTS[NEWCOMER]
+
+
+def test_a_sections_presence_never_depends_on_another_sections(tmp_path: Path) -> None:
+    """A contract decides what an audience emits; control flow must not decide it again.
+
+    An early return once a section is absent couples one section's presence to another's, so an
+    audience wanting the diagram but not the layer list would silently lose the diagram. There is
+    no such audience today, which is exactly why nothing else would catch it.
+    """
+    from dataclasses import replace
+
+    from code_atlas.onboarding.artifact import build_artifact, render_overview
+    from code_atlas.onboarding.audience import CROSSINGS, DIAGRAM, LAYERS, SUMMARY
+    from code_atlas.onboarding.summary import StructuralSummarizer
+
+    nodes = [("\\App\\C", "app/Http/C.aa"), ("\\App\\M", "app/Models/M.aa")]
+    edges = [("\\App\\C", "\\App\\M")]
+    files = ["app/Http/C.aa", "app/Models/M.aa"]
+    artifact = build_artifact(
+        nodes, edges, files, edges, ["app/Http/C.aa"], False, StructuralSummarizer(),
+        max_results=10, file_paths=files,
+    )
+    assert artifact is not None
+
+    contract = CONTRACTS[FULL]
+    no_layers = replace(
+        contract,
+        audience="probe",
+        sections={
+            key: why
+            for key, why in contract.sections.items()
+            if key in (SUMMARY, DIAGRAM, CROSSINGS)
+        },
+    )
+    assert LAYERS not in no_layers.sections
+
+    # Rendered through the probe contract: the diagram and crossings must both survive.
+    import code_atlas.onboarding.artifact as module
+
+    original = module.contract_for
+    module.contract_for = lambda _audience: no_layers  # type: ignore[assignment]
+    try:
+        rendered = render_overview(artifact, node_cap=10, audience="probe")
+    finally:
+        module.contract_for = original  # type: ignore[assignment]
+
+    assert "## Layers" not in rendered
+    assert "## Layer graph" in rendered, "the diagram vanished with a section it does not depend on"
+    assert "## Cross-layer edges" in rendered

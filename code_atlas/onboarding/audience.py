@@ -132,7 +132,11 @@ _NEWCOMER = AudienceContract(
     ),
     sections={
         ORIENTATION: "The whole point of day one — how to run it, how to test it, what it is.",
-        SUMMARY: "Enough scale to know what they have walked into; four lines, not a table.",
+        SUMMARY: (
+            "Enough scale to know what they have walked into. The same six-line block the "
+            "maintainer gets: what made the aggregates unreadable was the 99-row crossings "
+            "table, and that is not in this contract."
+        ),
         LAYERS: "The vocabulary the tour's steps are named in; unreadable without it.",
         PROVENANCE: "So an empty summary reads as a fact about the run, not about the repo (209).",
     },

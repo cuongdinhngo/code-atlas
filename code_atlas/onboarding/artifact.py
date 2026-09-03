@@ -708,35 +708,36 @@ def render_overview(
         lines.extend(_module_lines(artifact.summary.get("business_modules")))
     if wants.wants(REACHABILITY):
         lines.extend(_reachability_lines(artifact.summary.get("reachability")))
-    if not wants.wants(LAYERS):
-        return _finish(lines, wants, provenance)
-    lines.extend([H_LAYERS, ""])
-    for row in artifact.layers:
+    # Each section gates on its OWN contract entry. An early return here would couple one
+    # section's presence to another's, so a later audience wanting the diagram but not the layer
+    # list would silently lose it — control flow deciding what a contract already decided.
+    if wants.wants(LAYERS):
+        lines.extend([H_LAYERS, ""])
+        for row in artifact.layers:
+            lines.append(
+                f"- rank {row.rank}: `{row.layer}` ({row.modules} modules, "
+                f"fan_in {row.fan_in}, fan_out {row.fan_out}, "
+                f"{row.entry_points} entry points)"
+            )
+            lines.append(f"  - {row.description}")
+    if wants.wants(DIAGRAM):
+        lines.extend(["", H_DIAGRAM, ""])
         lines.append(
-            f"- rank {row.rank}: `{row.layer}` ({row.modules} modules, "
-            f"fan_in {row.fan_in}, fan_out {row.fan_out}, "
-            f"{row.entry_points} entry points)"
+            f"- layers: {diagram.shown_layers} shown of {diagram.total_layers}"
+            + ("; the graph is capped" if diagram.truncated else "")
         )
-        lines.append(f"  - {row.description}")
-    if not wants.wants(DIAGRAM):
-        return _finish(lines, wants, provenance)
-    lines.extend(["", H_DIAGRAM, ""])
-    lines.append(
-        f"- layers: {diagram.shown_layers} shown of {diagram.total_layers}"
-        + ("; the graph is capped" if diagram.truncated else "")
-    )
-    lines.append(
-        "- HEURISTIC-only arrows are dashed; "
-        f"DYNAMIC-only crossings omitted: {diagram.omitted_dynamic}"
-    )
-    if diagram.omitted_capped:
         lines.append(
-            f"- crossings with no arrow because their layer is outside the cap: "
-            f"{diagram.omitted_capped} — the table below still lists them"
+            "- HEURISTIC-only arrows are dashed; "
+            f"DYNAMIC-only crossings omitted: {diagram.omitted_dynamic}"
         )
-    # AC5's check guards the committed artifact, not only the benchmark script.
-    validate_mermaid_flowchart(diagram.mermaid)
-    lines.extend(["", "```mermaid", diagram.mermaid.rstrip(), "```"])
+        if diagram.omitted_capped:
+            lines.append(
+                f"- crossings with no arrow because their layer is outside the cap: "
+                f"{diagram.omitted_capped} — the table below still lists them"
+            )
+        # AC5's check guards the committed artifact, not only the benchmark script.
+        validate_mermaid_flowchart(diagram.mermaid)
+        lines.extend(["", "```mermaid", diagram.mermaid.rstrip(), "```"])
     if wants.wants(CROSSINGS):
         lines.extend(["", H_CROSSINGS, ""])
         if artifact.crossings:

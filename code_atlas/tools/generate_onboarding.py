@@ -5,7 +5,8 @@ store, writes markdown, manifest, and a self-contained ``index.html`` under ``do
 and a versioned ``artifact.json`` under ``.code-atlas/onboarding/``. No SQL, no LLM, no language
 branch.
 
-205 removed the per-module page tree: five files are written, not 505. The recorded-page removal
+205 removed the per-module page tree: at most five files are written, not 505 — and 210 lets an
+audience contract fewer. The recorded-page removal
 stays as the migration path — the first write after 205 deletes exactly the pages a pre-205
 manifest recorded, and nothing else (R5.7).
 """
@@ -78,7 +79,7 @@ def create(
     ) -> dict[str, object]:
         """Write committable onboarding docs for this repo — overview, guided tour and flows.
 
-        Reads the index and writes **five files** under ``docs/onboarding/``: ``overview.md``,
+        Reads the index and writes **up to five files** under ``docs/onboarding/``: ``overview.md``,
         ``tour.md``, ``flows.md``, ``manifest.json``, and ``index.html`` — one self-contained page
         that embeds the same facts, so it opens offline with no server and no fetch. There is **no
         per-module page tree**: 500 sub-kilobyte pages, one per node-budget slot, were emitted on
