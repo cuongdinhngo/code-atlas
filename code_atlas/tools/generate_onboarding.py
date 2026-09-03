@@ -17,7 +17,6 @@ from pathlib import Path, PurePosixPath
 from typing import Literal
 
 from code_atlas.config import Config
-from code_atlas.onboarding.scope import scoped_paths
 from code_atlas.onboarding.artifact import (
     CACHE_DIR,
     CACHE_NAME,
@@ -41,6 +40,7 @@ from code_atlas.onboarding.dataset import OnboardingDataset, build_dataset
 from code_atlas.onboarding.flows import FLOW_KINDS
 from code_atlas.onboarding.layers import LayerRefiner
 from code_atlas.onboarding.prose import ProseRun, ProseWriter
+from code_atlas.onboarding.scope import scoped_paths
 from code_atlas.onboarding.summary import StructuralSummarizer, Summarizer
 from code_atlas.onboarding.viewer import render_viewer
 from code_atlas.store import LAST_COMMIT_KEY, LAST_REF_KEY, GraphStore

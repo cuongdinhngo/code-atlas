@@ -36,9 +36,9 @@ from code_atlas.onboarding.metrics import GraphMetrics, NodeMetric, compute_metr
 from code_atlas.onboarding.mirrors import find_mirror_subtrees
 from code_atlas.onboarding.module_facts import module_facts
 from code_atlas.onboarding.modules import COVERAGE_NOTE, find_business_modules
-from code_atlas.onboarding.scope import scoped_paths
 from code_atlas.onboarding.prose import ProseRun
 from code_atlas.onboarding.reachability import classify_reachability
+from code_atlas.onboarding.scope import scoped_paths
 from code_atlas.onboarding.steps import TourStep, build_steps
 from code_atlas.onboarding.summary import NodeFacts, Summarizer, summarize_modules
 from code_atlas.onboarding.tour import TourStop, ordered_stops
