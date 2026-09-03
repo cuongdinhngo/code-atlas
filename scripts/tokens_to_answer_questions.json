@@ -926,7 +926,16 @@
         "docs/onboarding/overview.md",
         "working_roots"
       ],
-      "precision_note": "generate_onboarding's file list is evidence and the scope answer rides a singleton payload field, not a larger population to score for over-inclusion."
+      "precision_scope": [
+        "results"
+      ],
+      "precision_note": "The file list is the population; `working_roots` is an extra singleton fact on the payload, so correctness also checks the key by substring.",
+      "expected_set": [
+        "docs/onboarding/overview.md",
+        "docs/onboarding/tour.md",
+        "docs/onboarding/index.html",
+        "docs/onboarding/manifest.json"
+      ]
     },
     {
       "id": "onb_naming_debt",
