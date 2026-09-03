@@ -68,7 +68,7 @@ CACHE_NAME = "artifact.json"
 # tests/test_artifact_contract.py fails a shape change that leaves the number behind.
 # 1 -> 2 (205): the `pages` and `isolated` keys are gone with the module-page tree.
 # 2 -> 3 (208): every reachability bucket gains `caveat` and `declaration`.
-ARTIFACT_VERSION = 4
+ARTIFACT_VERSION = 3
 
 __all__ = [
     "ARTIFACT_VERSION",
@@ -345,7 +345,6 @@ def build_artifact(
                 working_roots=working_roots,
                 limit=max_results,
             ).as_dict(),
-            "scope": _scope_dict(file_paths or [metric.key for metric in metrics.modules], working_roots),
             "reachability": classify_reachability(
                 metrics,
                 entry_points=declared_entry_points,
@@ -485,7 +484,13 @@ def _reachability_lines(split: object) -> list[str]:
     return lines
 
 
-def render_overview(artifact: OnboardingArtifact, node_cap: int | None = None) -> str:
+def render_overview(
+    artifact: OnboardingArtifact,
+    node_cap: int | None = None,
+    *,
+    file_paths: Sequence[str] = (),
+    working_roots: Sequence[str] | None = None,
+) -> str:
     """Committed overview markdown: summary, layers, layer graph, crossings. Trailing newline."""
     cap = node_cap if node_cap is not None else max(len(artifact.layers), 1)
     diagram = render_layer_flowchart(
@@ -499,7 +504,7 @@ def render_overview(artifact: OnboardingArtifact, node_cap: int | None = None) -
         "",
         H_SUMMARY,
         "",
-        *_scope_bullets(artifact.summary.get("scope")),
+        *_scope_bullets(file_paths, working_roots),
         f"- method: {artifact.method}",
         f"- layers: {artifact.summary['layers']}",
         f"- modules: {artifact.summary['modules']}",
@@ -545,7 +550,13 @@ def render_overview(artifact: OnboardingArtifact, node_cap: int | None = None) -
     return "\n".join(lines) + "\n"
 
 
-def render_tour(artifact: OnboardingArtifact, max_results: int) -> str:
+def render_tour(
+    artifact: OnboardingArtifact,
+    max_results: int,
+    *,
+    file_paths: Sequence[str] = (),
+    working_roots: Sequence[str] | None = None,
+) -> str:
     """Committed tour markdown: 5–15 narrative steps (task 111). Every number is interpolated (AC6).
 
     A step names up to five modules and states how many it covers, so a cycle is one line stating
@@ -554,7 +565,7 @@ def render_tour(artifact: OnboardingArtifact, max_results: int) -> str:
     lines = [
         H_TOUR,
         "",
-        *_scope_bullets(artifact.summary.get("scope")),
+        *_scope_bullets(file_paths, working_roots),
         f"truncated: {'true' if artifact.truncated else 'false'}",
         "",
         H_ORDER,
@@ -570,25 +581,14 @@ def render_tour(artifact: OnboardingArtifact, max_results: int) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _scope_dict(
-    file_paths: Sequence[str], roots: Sequence[str] | None
-) -> dict[str, object]:
-    """Always present on the artifact so a second renderer cannot miss the field (R3.5)."""
-    return {
-        "indexed": len(file_paths),
-        "matched": len(scoped_paths(file_paths, roots)),
-        "roots": list(roots) if roots else None,
-    }
-
-
-def _scope_bullets(scope: object) -> list[str]:
+def _scope_bullets(file_paths: Sequence[str], roots: Sequence[str] | None) -> list[str]:
     """Empty when unset, so today's markdown stays byte-identical (AC4)."""
-    if not isinstance(scope, dict) or not scope.get("roots"):
+    if not roots:
         return []
-    roots = ", ".join(str(root) for root in scope["roots"])
+    named = ", ".join(str(root) for root in roots)
     return [
-        f"- scope: working_roots={roots} "
-        f"({scope.get('matched', 0)} of {scope.get('indexed', 0)} indexed files)",
+        f"- scope: working_roots={named} "
+        f"({len(scoped_paths(file_paths, roots))} of {len(file_paths)} indexed files)",
         "",
     ]
 
@@ -606,7 +606,12 @@ def _rationale_line(rationale: str, scc: tuple[str, ...], max_results: int) -> s
     return "cycle with " + ", ".join(shown) + _shown_suffix(len(shown), len(scc))
 
 
-def render_flows(dataset: OnboardingDataset) -> str:
+def render_flows(
+    dataset: OnboardingDataset,
+    *,
+    file_paths: Sequence[str] = (),
+    working_roots: Sequence[str] | None = None,
+) -> str:
     """``flows.md`` — one capability trace per section, each with its own mermaid diagram (197).
 
     One diagram PER FLOW rather than one aggregate: merging disjoint traces into a single graph
@@ -614,7 +619,7 @@ def render_flows(dataset: OnboardingDataset) -> str:
     never becomes a mermaid identifier (the rule 144 already holds).
     """
     flows = dataset.flows
-    lines = ["# Capability flows", "", *_scope_bullets(dataset.scope)]
+    lines = ["# Capability flows", "", *_scope_bullets(file_paths, working_roots)]
     if flows is None:
         lines += ["This index carries no flows — it was built before they existed.", ""]
         return "\n".join(lines)

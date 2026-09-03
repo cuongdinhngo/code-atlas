@@ -12,7 +12,7 @@ manifest recorded, and nothing else (R5.7).
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path, PurePosixPath
 from typing import Literal
 
@@ -182,6 +182,8 @@ def create(
             artifact,
             dataset,
             config.max_results,
+            file_paths=file_paths,
+            working_roots=config.working_roots,
             index_root=config.index_root,
             last_ref=last_ref,
         )
@@ -250,6 +252,8 @@ def _write(
     dataset: OnboardingDataset,
     max_results: int,
     *,
+    file_paths: Sequence[str] = (),
+    working_roots: Sequence[str] | None = None,
     index_root: str = "",
     last_ref: str = "",
 ) -> tuple[str, ...]:
@@ -260,9 +264,19 @@ def _write(
     out.mkdir(parents=True, exist_ok=True)
     written: list[str] = []
     files = {
-        OVERVIEW_NAME: render_overview(artifact, node_cap=max_results),
-        TOUR_NAME: render_tour(artifact, max_results),
-        FLOWS_NAME: render_flows(dataset),
+        OVERVIEW_NAME: render_overview(
+            artifact,
+            node_cap=max_results,
+            file_paths=file_paths,
+            working_roots=working_roots,
+        ),
+        TOUR_NAME: render_tour(
+            artifact,
+            max_results,
+            file_paths=file_paths,
+            working_roots=working_roots,
+        ),
+        FLOWS_NAME: render_flows(dataset, file_paths=file_paths, working_roots=working_roots),
         MANIFEST_NAME: manifest_json(
             artifact, dataset, index_root=index_root, last_ref=last_ref
         ),
