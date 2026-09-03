@@ -4,7 +4,7 @@ slug: the-artifact-answers-no-question-a-newcomer-asks-first
 title: "The onboarding artifact never reads a single declared project file, so it answers what the graph is and nothing a newcomer asks first — how to run it, how to test it, and which door a request comes in"
 phase: 3
 milestone: M12
-status: todo
+status: done
 depends_on: [112, 117, 121, 206]
 ---
 
@@ -120,3 +120,193 @@ interpretation, and why this ticket stops short of it),
 harness that must accept it), [186](186_a-zero-answer-cannot-say-the-relation-is-unmodelled-for-this-language.md) (an
 absence is stated, never silent), [206](206_onboarding-cannot-be-scoped-to-the-tree-the-reader-works-in.md)
 (the other half of a newcomer's first question).
+
+---
+
+MANGO WORKING DOC (below this line is NOT part of the raw ticket)
+
+## Working doc (autorun 2026-09-04)
+
+**KEY:** 207 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **reviewer:** OFF (`--no-reviewer`) · **challenger:** ON
+
+### Phase 0 — refine
+
+`PREMISE: 11 reference(s) checked | 0 missing | 1 ambiguous (surfaced, not blocking)`
+`RECALL: 5 claim(s) surfaced | 0 by symbol | 4 by handle | 1 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`REFINE: 5 unresolved surfaced | 1 want-decision asked | 4 how-decision resolved+cited | 0 ASSUMED | skip: no`
+
+**The ticket's premise, re-run with a tree behind it.** The block in the ticket body above carries
+no SHA, so it is not evidence about any tree under review (LESSONS 200-C2). Re-run here:
+
+```
+Ran at c26c48c28c42ad43eb7132833528b51853b4f396 (main, the pre-change tree — a BASELINE, which measures another tree by definition)
+$ git grep -n -E "README|composer\.json|package\.json|docker-compose|Makefile" c26c48c28c42 \
+    -- code_atlas/onboarding/ code_atlas/tools/generate_onboarding.py
+(no matches)
+
+Ran at 2201acf418e37dfd897e35b1cdff0f0f94809de0 (the tree under review)
+$ git grep -c -E "composer\.json" HEAD -- code_atlas/onboarding/orientation.py
+code_atlas/onboarding/orientation.py:3
+```
+
+The ticket's central premise **holds** — `grep -rn "README\|composer.json\|package.json\|docker-compose\|Makefile" code_atlas/onboarding/ code_atlas/tools/generate_onboarding.py` returned nothing before this change. Scope 4's premise also holds but is **narrower than the ticket states**: the sample is not missing from the *data*, it has been in `ReachabilityBucket.sample` since 113 (`reachability.py:198`) and no renderer ever printed it. That makes Scope 4 a render change, not a computation.
+
+**The want-decision**, answered under the operator's standing delegation: *AC6 read literally forbids AC3.*
+"A repo with no declared project files produces an artifact byte-identical to today's" cannot hold
+while Scope 4 adds an entry-point sample to **every** repo's `overview.md`. The two are
+co-satisfiable on exactly one reading, and it is Scope 2's own wording: **the orientation section is
+omitted, not emitted empty**. Taken, pinned by
+`test_a_repo_with_no_declared_project_files_omits_the_section`, and disclosed.
+
+How-decisions, each cited:
+1. **The declared runtime is read by ecosystem spec, not by language name.** R1.1's guard bans every
+   language name in `code_atlas/`, comments included — the first draft read `require.php` /
+   `engines.node` and went red. Composer's spec makes a `require` key **without a `/`** a platform
+   requirement (packages are always `vendor/name`); npm's `engines` is exactly the runtime map. The
+   core now names nothing and picks up `ext-*` for free. R1.1's guard produced a better design.
+2. **`docker-compose` is read by a deliberately shallow block-style scanner, and says so.** There is
+   no stdlib YAML parser and R8.2 forbids a dependency. It reads the one unambiguous shape and
+   reports a gap for anchors or flow style rather than guessing, because a guessed service name is
+   worse than a stated absence (R5.6).
+3. **The citation is anchored to a key position, not found by substring.** A bare
+   `text.find(name)` cited every `pyproject.toml` script to the `name = "code-atlas"` line — a
+   citation that resolves, to the wrong line. Each spelling is now `^`-anchored, with an unanchored
+   `"key":` last resort so a compact one-line manifest still yields a line.
+4. **A one-line agent brief is not a description.** This repo's own `CLAUDE.md` is the single line
+   `@AGENTS.md`; quoting it answers nothing, so a prose excerpt must clear `MIN_EXCERPT_CHARS`, and
+   only the first prose source contributes the "what it says it is" fact.
+
+In-repo refs resolved: `reachability.py` (`sample`, `sample_truncated`), `artifact.py`
+`_reachability_lines`, `config.py` `_as_repo_relative_list` / `KNOB_KEYS`, `dataset.py`,
+`viewer.py`, `generate_onboarding.py`, `tests/contract/framework_denylist.txt` (no ecosystem
+manifest name is on it), `tests/fixtures/php/onboarding`, R2.1/R2.2, R5.3, R6.9, tickets 113/121/186.
+Ambiguous: the anchor's `CLAUDE.md`, `README.md` and `docker-compose.yml` — another checkout.
+
+Recalled (advisory): `derived-not-listed-invariant` (R6.7), `prove-the-guard-fails` (R6.5),
+`count-pin-in-blast-radius` (P5), `do-not-attest-past-the-payloads-resolution` (R5.6); area:
+onboarding / artifact rendering.
+
+### Phase 1 — analysis
+
+`PREMISE: 11 reference(s) checked | 0 missing | 1 ambiguous (surfaced, not blocking)`
+`RECALL: 5 claim(s) surfaced | 0 by symbol | 4 by handle | 1 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`SECTIONS: 5 found (Why this exists · Scope · Constraints · Acceptance criteria · References) | 5 decomposed | ROWS: C=6 R=5 G=1 AC=7`
+`CLARIFICATION: 3 raised | 3 self-resolved (cited) | 0 for human decision`
+`RULE SECTIONS: 10 applicable — 9 by change-type | 1 by recalled handle — §R1.1 (the core names no language) ✅ · §R2.1 (ecosystem standards are knowable) ✅ · §R2.2 (no repo's own names) ✅ · §R3.5 (dataset field ⇒ version bump + viewer) ✅ · §R4.1 (quote, never synthesise) ✅ · §R4.2 (deterministic order and boundaries) ✅ · §R5.3 (a consumer's broken file degrades) ✅ · §R5.8 (rank inside the truncate) ✅ · §R6.9 (assert the emitted markdown) ✅ · §R6.7 (derive the knob table) ✅`
+`TRACK: backend — 0/N touched files under UI paths`
+`BASELINE: green — main at c26c48c, 2825 passed`
+`SCOPE: L`
+`TIER: full`
+
+Clarifications, all self-resolved:
+1. *AC6 vs AC3* — resolved as above (cited Scope 2's wording).
+2. *Does AC7 cross the "no new tool" line?* — resolved: **no tool is added**. The harness can only
+   execute MCP tools (`scripts/tokens_to_answer.py` `run_atlas_path`), so a question answerable only
+   from a written file cannot be scored at all. The existing `generate_onboarding` payload gains a
+   bounded `day_one` block. Cited: the ticket's own *"121 is where that gets decided"* — AC7 is the
+   decision.
+3. *Is `CLAUDE.md` a repo's own name under R2.2?* — resolved: it is a member of the **agent-brief
+   category**, alongside `AGENTS.md`, exactly as `composer.json` is a member of the manifest
+   category; and the whole list is overridable by `project_files`. Cited: R2.1, and the ticket's own
+   licensing of the category.
+
+| ID | Type | Statement |
+|---|---|---|
+| G | G | The artifact answers a newcomer's first questions, from the repo's own declared files |
+| R1 | R | An orientation section above the aggregates; nothing without a citation |
+| R2 | R | A declared list of what counts, resolved like every other setting |
+| R3 | R | Structured, uninterpreted facts only — a key is a fact, a paragraph is a quote |
+| R4 | R | Name the entry points the reachability split counts (bounded, R5.8) |
+| R5 | R | The section says what it could not find |
+| C1 | C | R4.1 — quote and cite, never summarise; no LLM, no network |
+| C2 | C | R2.2 — no repo's own names beyond documented ecosystem categories |
+| C3 | C | R5.6 — an excerpt is labelled an excerpt; never attest past the payload |
+| C4 | C | R5.3 — a malformed project file degrades, never aborts |
+| C5 | C | R4.2 — deterministic file order and excerpt boundaries |
+| C6 | C | R7.1 — five facts a newcomer needs. Not a runbook generator |
+| AC1 | AC | The overview opens with the section; every line carries its path |
+| AC2 | AC | A declared test command verbatim; none declared ⇒ an explicit line |
+| AC3 | AC | A named, bounded entry-point sample beside the count |
+| AC4 | AC | A malformed file degrades, proven by a broken-JSON fixture (observed failing) |
+| AC5 | AC | No uncited sentence; a guard asserts it at the consumer |
+| AC6 | AC | No declared project files ⇒ byte-identical to today's |
+| AC7 | AC | The 121 harness gains a first-day question; floors stay green |
+
+### Phase 2 — design
+
+`HANDLES: 4 recalled | 4 traced (command + result) | 0 does not apply (reason) | 0 unanswered`
+`EXCLUSIONS: 1 recorded | 1 with a checkable expiry | 1 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 1 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+Handle traces (command → result):
+1. `count-pin-in-blast-radius` — the suite found **five** pins, where the grep had found two:
+   `DATASET_VERSION == 12`, both core-module-count guards, `len(KNOB_KEYS) == 18`, and the
+   `env_name` ordering list in `test_config.py`. All five repaired. **Sighting 12.**
+2. `derived-not-listed-invariant` — `docs/TOOLS.md`'s config table declares itself exhaustive and
+   the ledger records it **missed by hand four times** (212's review found the fourth). Rather than
+   a fifth hand-add, it is now derived from `KNOB_KEYS` by
+   `test_the_documented_knob_table_lists_every_knob`, mutation-checked. **The class is discharged,
+   not re-recorded.**
+3. `prove-the-guard-fails` — four mutants, four caught; AC4's is observed **raising**, which is the
+   literal thing R6.5 asks for.
+4. `do-not-attest-past-the-payloads-resolution` — the compose reader refuses anchors and flow style
+   and states that, rather than emitting a service name it cannot stand behind.
+
+**Exclusion (1, with a checkable expiry).** The anchor figures the ticket quotes (306 web entry
+points, `public/*.php` claiming 95, `Unit` at 1,688 files) are not reproducible here:
+`.harness.json` `real_corpus_path` is `null`. **Expiry: the first run after `real_corpus_path`
+becomes non-null.** This is the class's **fourth consecutive sighting** (206, 211, 209, 207) — see
+`DISCLOSURE`; it was escalated on the third and is not re-argued here.
+
+**Proving test:** `tests/test_orientation.py` (14 tests).
+
+**Rejected alternative:** adding a YAML dependency to parse `docker-compose.yml` properly. R8.2
+forbids a new runtime dependency for one section of one document, and the shallow reader's refusal
+path is honest where a parser would only be more complete.
+
+### Phase 3 — execute
+
+What landed: `orientation.py` (new, the reader), the *Start here* section at the top of
+`overview.md`, `CA_PROJECT_FILES`, the entry-point sample beside its count, `day_one` in the tool
+payload, the dataset field + viewer line, `DATASET_VERSION` 12 → 13, the 121 question, and the
+derived knob-table guard.
+
+Verification: `scripts/gate.sh` → **GATE GREEN, 17/17, 0 skipped**. Full suite **2842 passed**
+against a 2825 baseline. Benchmark: ratio **0.83** ≥ 0.63, recall **1.0**, precision **1.0**,
+0 unexpected, with `onb_first_day_commands` at **225 tokens**, correct.
+
+`diff ⊆` approved list: `orientation.py` (new), `artifact.py`, `dataset.py`, `viewer.py`,
+`config.py`, `generate_onboarding.py`, `test_orientation.py` (new), `test_config.py`,
+`test_onboarding_dataset.py`, `test_core_is_language_agnostic.py`, `test_sql_confinement.py`,
+`tests/fixtures/php/onboarding/{composer.json,README.md}`, `scripts/tokens_to_answer_questions.json`,
+`docs/TOOLS.md`, `docs/benchmarks/121_*.md`, this working doc, BACKLOG, TOKEN_LEDGER.
+
+#### Acceptance criteria — close-out
+
+| AC | Verdict | Evidence |
+|---|---|---|
+| AC1 | **MET** | `test_the_overview_opens_with_the_orientation_section` — asserts the section index is *before* `## Summary`, on the emitted file |
+| AC2 | **MET** | `test_a_declared_test_command_is_reproduced_verbatim` (`` `test`: `phpunit --colors` — `composer.json:9` ``) and `test_a_repo_declaring_no_test_command_says_so` |
+| AC3 | **MET** | `test_a_named_sample_appears_beside_the_count_that_claims_it`; the data existed since 113 and no renderer printed it |
+| AC4 | **MET, observed failing first** | `test_a_malformed_manifest_degrades_to_a_stated_gap`; with the degradation removed the fixture raises `JSONDecodeError` through the build |
+| AC5 | **MET** | `test_every_orientation_line_resolves_to_a_source_or_is_a_stated_gap` — every non-gap `- ` line in the emitted section must end `— \`<source>\`` |
+| AC6 | **MET on the reconciled reading** | `test_a_repo_with_no_declared_project_files_omits_the_section`. The literal reading forbids AC3; see Phase 0 |
+| AC7 | **MET** | `onb_first_day_commands`, ground truth hand-read from the fixture before the tools ran, 225 tokens, precision 1.0; floors green |
+
+### Phase 4 — review
+
+`reviewer`: **OFF** (`--no-reviewer`) — no rule-book-grounded review of this diff exists.
+`challenger`: **ON** — ticket-blind, on the raw ticket text and `git diff main...HEAD`.
+
+### Phase 5 — finalise
+
+`CLAIMS: 2 claim(s) from 1 lesson entr(ies) | T1=0 T2=2 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 4 recurring | 1 superseded (0 retired) | 1 promotion candidate(s)`
+`FALSIFY: 3 candidate(s) checked | 2 still-true (proceed) | 1 falsified (BLOCKED) | 0 not cheaply checkable`
+`RECURRING-T2: 4 type-2 claim(s) with seen ≥ 2 | 4 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 1 proposed | 0 human-ratified | destinations: docs/ENGINEERING_RULES.md | mango files written: 0`
+`LEDGER TOTAL: unmeasured (host surfaces no usage block) · top cost driver: main-loop execute`
+
+`FALSIFY` detail: the *"nothing under onboarding mentions a project file"* premise is **still true**;
+the *"which door a request comes in — never names one"* premise is **still true**; but *"list a
+bounded sample **of them**"* implies the sample must be **computed** — **falsified**: 113 already
+computes it and stores it, so what was missing was three lines in a renderer, not a feature.
