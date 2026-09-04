@@ -25,7 +25,7 @@ from code_atlas.contract import CONFIDENCE_TIERS
 # (task 106: 8,477 entry points against a 500 budget left zero room and zero edges).
 _TOUR_SEED_BUDGET_DIVISOR = 4
 
-SCHEMA_VERSION = "4"
+SCHEMA_VERSION = "5"
 SCHEMA_VERSION_KEY = "schema_version"
 CONTRACT_VERSION_KEY = "contract_version"
 LAST_COMMIT_KEY = "last_commit"
@@ -100,7 +100,8 @@ PRAGMAS: tuple[str, ...] = ("journal_mode=WAL", "foreign_keys=ON", "busy_timeout
 
 DDL = """
 CREATE TABLE IF NOT EXISTS files (
-  path TEXT PRIMARY KEY, hash TEXT, language TEXT, parsed_ok INT DEFAULT 1, updated_at TEXT);
+  path TEXT PRIMARY KEY, hash TEXT, language TEXT, parsed_ok INT DEFAULT 1, updated_at TEXT,
+  fingerprint TEXT);
 
 CREATE TABLE IF NOT EXISTS nodes (
   id INTEGER PRIMARY KEY, kind TEXT, name TEXT, qualified_name TEXT,
@@ -469,16 +470,37 @@ class GraphStore:
     # --- writes ---------------------------------------------------------------------------------
 
     def upsert_file(
-        self, path: str, file_hash: str, language: str, *, parsed_ok: bool = True
+        self,
+        path: str,
+        file_hash: str,
+        language: str,
+        *,
+        parsed_ok: bool = True,
+        fingerprint: str | None = None,
     ) -> None:
-        """Insert or update one file row; a failed parse keeps its row with parsed_ok=0 (R5.1)."""
+        """Insert or update one file row; a failed parse keeps its row with parsed_ok=0 (R5.1).
+
+        ``fingerprint`` is the whitespace-normalised digest (213). ``None`` leaves an existing
+        value alone on conflict so test helpers that only plant a hash do not wipe it.
+        """
         with self._conn:
             self._conn.execute(
-                "INSERT INTO files (path, hash, language, parsed_ok, updated_at) "
-                "VALUES (?, ?, ?, ?, ?) ON CONFLICT(path) DO UPDATE SET "
+                "INSERT INTO files (path, hash, language, parsed_ok, updated_at, fingerprint) "
+                "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(path) DO UPDATE SET "
                 "hash = excluded.hash, language = excluded.language, "
-                "parsed_ok = excluded.parsed_ok, updated_at = excluded.updated_at",
-                (path, file_hash, language, int(parsed_ok), self._now()),
+                "parsed_ok = excluded.parsed_ok, updated_at = excluded.updated_at, "
+                "fingerprint = COALESCE(excluded.fingerprint, files.fingerprint)",
+                (path, file_hash, language, int(parsed_ok), self._now(), fingerprint),
+            )
+
+    def touch_file_bytes(
+        self, path: str, file_hash: str, fingerprint: str
+    ) -> None:
+        """Refresh hash + fingerprint without touching nodes/edges (213 fingerprint skip)."""
+        with self._conn:
+            self._conn.execute(
+                "UPDATE files SET hash = ?, fingerprint = ?, updated_at = ? WHERE path = ?",
+                (file_hash, fingerprint, self._now(), path),
             )
 
     def replace_file_rows(
@@ -1574,6 +1596,15 @@ class GraphStore:
         """Content hash stored for ``path``, or ``None`` when the file is not indexed."""
         row = self._conn.execute("SELECT hash FROM files WHERE path = ?", (path,)).fetchone()
         return None if row is None else str(row[0])
+
+    def file_fingerprint(self, path: str) -> str | None:
+        """Whitespace-normalised fingerprint for ``path``, or ``None`` when unset / missing."""
+        row = self._conn.execute(
+            "SELECT fingerprint FROM files WHERE path = ?", (path,)
+        ).fetchone()
+        if row is None or row[0] is None:
+            return None
+        return str(row[0])
 
     def qnames_in_files(self, paths: Sequence[str]) -> tuple[str, ...]:
         """Every ``qualified_name`` living under ``paths``, sorted and de-duplicated (§8.3)."""

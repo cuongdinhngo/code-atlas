@@ -14,8 +14,18 @@ from tests.test_incremental import committed
 from tests.test_mcp_server import call
 
 _REPORT_KEYS = frozenset(
-    {"files", "parsed", "failed", "removed", "nodes", "edges", "stubs"}
+    {
+        "files",
+        "parsed",
+        "failed",
+        "removed",
+        "nodes",
+        "edges",
+        "stubs",
+        "fingerprint_skipped",
+    }
 )
+_GRAPH_KEYS = frozenset({"files", "parsed", "failed", "nodes", "edges", "stubs"})
 
 
 def test_incremental_tool_payload_cannot_be_read_as_graph_size(tmp_path: Path) -> None:
@@ -27,7 +37,7 @@ def test_incremental_tool_payload_cannot_be_read_as_graph_size(tmp_path: Path) -
     full = call(server, BUILD, {"full": True, "detail_level": "standard"})
     assert full["mode"] == "full"
     assert set(full["wrote"]) >= _REPORT_KEYS
-    assert set(full["graph"]) >= _REPORT_KEYS - {"removed"}
+    assert set(full["graph"]) >= _GRAPH_KEYS
     assert full["wrote"]["edges"] == full["graph"]["edges"]
     assert _REPORT_KEYS.isdisjoint(full)  # no bare report fields at top level
 

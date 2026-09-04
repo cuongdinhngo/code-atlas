@@ -353,9 +353,12 @@ transaction** (`foreign_keys` is silently ignored inside one): `journal_mode=WAL
 **The DDL is not copied here.** It is one `DDL` string in `store.py`, which is the only module that
 may hold it; this section is the inventory and the reasoning. What the schema is, in shape:
 
-- **`files`** — one row per indexed path: content hash, language, `parsed_ok`, `updated_at`. The
-  hash is what makes an incremental build possible (§8.3) and `parsed_ok` is why no parallel
-  parse-failure counter exists (task 028).
+- **`files`** — one row per indexed path: content hash, whitespace-normalised `fingerprint`
+  (task 213), language, `parsed_ok`, `updated_at`. The hash is the fast incremental path (§8.3);
+  the fingerprint is consulted only after a hash miss and normalises **line endings and trailing
+  whitespace only** — every newline survives, because equating two files whose lines sit differently
+  would strand the `line_start` / `edges.line` the graph stores (R4.2). `parsed_ok` is why no
+  parallel parse-failure counter exists (task 028).
 - **`nodes`** — the symbols, keyed `UNIQUE(qualified_name, file_path)` and deliberately **not**
   globally unique (see below), with three indexes for the three ways they are looked up: by bare
   name, by kind, by file.
@@ -386,12 +389,13 @@ guard's two branches, an `interface X` + `class X` fixture), which **would** tri
 deterministic — R4.2) before insert, so a duplicate-declaration file soft-succeeds with one node per
 qname rather than aborting the build (R5.1, task 043). NULL/anonymous qnames are never collapsed.
 
-**`schema_version` is `"4"` and enforced loud.** On open, a database carrying a different value raises
+**`schema_version` is `"5"` and enforced loud.** On open, a database carrying a different value raises
 — the DB is a derived cache, so there is no migration runner (this section's decision; R7.4 is about
 dead abstractions and was cited here in error). Version **2** added
 `tokenize='trigram'` on `nodes_fts` (camelCase substring search); version **3** adds the `edges.args`
 column that carries contract v3's per-call-site argument shapes (task 049); version **4** adds
-`edges.arg_keys` for array-literal string keys (contract v5, task 063).
+`edges.arg_keys` for array-literal string keys (contract v5, task 063); version **5** adds
+`files.fingerprint` for the line-preserving whitespace skip tier (task 213).
 
 **The mismatch has a direction, and the two directions need opposite actions (task 050).** The stamp
 is read *before* the DDL runs, so a database this build cannot read is never written to, and

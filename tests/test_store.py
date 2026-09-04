@@ -38,7 +38,7 @@ INDEXES = (
 TRIGGERS = ("nodes_ai", "nodes_ad", "nodes_au")
 SCHEMA_OBJECTS = TABLES + INDEXES + TRIGGERS
 
-FILE_COLUMNS = ("path", "hash", "language", "parsed_ok", "updated_at")
+FILE_COLUMNS = ("path", "hash", "language", "parsed_ok", "updated_at", "fingerprint")
 META_COLUMNS = ("key", "value")
 
 

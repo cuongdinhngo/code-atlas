@@ -166,6 +166,8 @@ class BuildReport:
     Every field is **what this run wrote**, not what the graph holds: ``nodes``/``edges`` include
     the rows enrichment and the resolver insert after the parse tally, so a full build agrees with
     ``store.counts()`` while an incremental run still reports its own delta (task 051).
+    ``fingerprint_skipped`` counts files whose bytes changed but whose whitespace-normalised
+    fingerprint did not — skipped without a parse (213), never confused with ``parsed``.
     """
 
     files: int
@@ -175,6 +177,7 @@ class BuildReport:
     nodes: int
     edges: int
     stubs: int = 0
+    fingerprint_skipped: int = 0
 
 
 def full_build(
@@ -366,6 +369,7 @@ def incremental_update(
     store.set_meta(BUILD_COMPLETE_KEY, BUILD_INCOMPLETE)
     watchdog = _Watchdog(config.adapter_timeout)
     watchdog.start()
+    fingerprint_skipped = 0
     try:
         mark = time.monotonic()
         report.phase("announce")
@@ -411,17 +415,26 @@ def incremental_update(
             candidates = sorted((changed_set | dependents) & wanted)
             # Dependents are unchanged by construction, so hash-skip must not apply to them —
             # replace_file_rows restores adapter tiers and duplicate keys that unlink cannot.
-            to_parse = [
-                path
-                for path in candidates
-                if path in dependents or not file_is_current(store, config.root, path)
-            ]
+            to_parse: list[str] = []
+            for path in candidates:
+                if path in dependents:
+                    to_parse.append(path)
+                    continue
+                if file_is_current(store, config.root, path):
+                    continue
+                if _fingerprint_skip(store, config.root, path):
+                    fingerprint_skipped += 1
+                    continue
+                to_parse.append(path)
             # Stub roots bypass git collect; hash-gate them like normal files (R4.2).
-            to_parse.extend(
-                path
-                for path in sorted(stub_set)
-                if path not in indexed or not file_is_current(store, config.root, path)
-            )
+            for path in sorted(stub_set):
+                if path in indexed and file_is_current(store, config.root, path):
+                    continue
+                if path in indexed and _fingerprint_skip(store, config.root, path):
+                    fingerprint_skipped += 1
+                    continue
+                if path not in to_parse:
+                    to_parse.append(path)
             to_parse = list(dict.fromkeys(to_parse))
             _phase_add(phase_times, "hashing", mark)
             # 212: the first escalation that is about cost rather than correctness, and it is
@@ -502,7 +515,11 @@ def incremental_update(
     )
     _phase_add(phase_times, "meta", mark)
     return BuildReport(
-        files=len(to_parse), stubs=len(stub_set & set(to_parse)), removed=removed, **counts
+        files=len(to_parse),
+        stubs=len(stub_set & set(to_parse)),
+        removed=removed,
+        fingerprint_skipped=fingerprint_skipped,
+        **counts,
     )
 
 
@@ -597,7 +614,17 @@ def reparse_file(config: Config, store: GraphStore, path: str) -> bool:
                 result = as_stub_result(result)
             tally = {"parsed": 0, "failed": 0, "nodes": 0, "edges": 0}
             try:
-                _write(store, path, _digest(config.root / path), language, result, tally)
+                digest = _digest(config.root / path)
+                fingerprint = _whitespace_fingerprint(config.root / path)
+                _write(
+                    store,
+                    path,
+                    digest,
+                    language,
+                    result,
+                    tally,
+                    fingerprint=fingerprint,
+                )
                 resolve_edges(store, max_candidates=config.max_results, file_path=path)
             except Exception:
                 return False
@@ -615,6 +642,42 @@ def file_is_current(store: GraphStore, root: Path, path: str) -> bool:
     """True when the indexed hash equals the file's current bytes — skip a no-op reparse (§8.3)."""
     digest = _digest(root / path)
     return bool(digest) and store.file_hash(path) == digest
+
+
+def _fingerprint_skip(store: GraphStore, root: Path, path: str) -> bool:
+    """True when bytes changed but the whitespace-normalised fingerprint did not (213).
+
+    On a hit, refreshes the stored byte hash so the next run is a byte-hash hit. A fingerprint
+    that cannot be computed (empty digest) never skips — fail loud into parse (R5.3).
+    """
+    fingerprint = _whitespace_fingerprint(root / path)
+    if not fingerprint:
+        return False
+    stored = store.file_fingerprint(path)
+    if stored is None or stored != fingerprint:
+        return False
+    digest = _digest(root / path)
+    if not digest:
+        return False
+    store.touch_file_bytes(path, digest, fingerprint)
+    return True
+
+
+def _whitespace_fingerprint(path: Path) -> str:
+    """SHA-256 of the file with line endings normalised and trailing whitespace stripped (213).
+
+    Every newline and all leading whitespace survive, so two files sharing a fingerprint share
+    every line number the graph stores — collapsing them would let a reformat skip the parse and
+    strand ``line_start`` / ``line_end`` / ``edges.line`` at their pre-reformat values (R4.2).
+    Language-agnostic: operates on bytes, never syntax (R1.1). Empty string when unreadable so
+    the caller fails loud into parse (R5.3). Does not catch comment or string-literal edits.
+    """
+    try:
+        raw = path.read_bytes()
+    except OSError:
+        return ""
+    normalised = b"\n".join(line.rstrip() for line in raw.splitlines())
+    return hashlib.sha256(normalised).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -955,7 +1018,13 @@ def _parse_all(
     for path in sorted(pending):
         # Nothing ever answered for these: every worker retired, or none could be started.
         language = languages[owners[_suffix(path)]]
-        store.upsert_file(path, _digest(config.root / path), language, parsed_ok=False)
+        store.upsert_file(
+            path,
+            _digest(config.root / path),
+            language,
+            parsed_ok=False,
+            fingerprint=_whitespace_fingerprint(config.root / path) or None,
+        )
         tally["failed"] += 1
         if progress is not None:
             progress.tick()
@@ -1001,7 +1070,10 @@ def _parse_group(
             alive -= 1
             continue
         path, digest, result = item
-        _write(store, path, digest, language, result, tally)
+        fingerprint = _whitespace_fingerprint(config.root / path)
+        _write(
+            store, path, digest, language, result, tally, fingerprint=fingerprint
+        )
         pending.discard(path)
         if progress is not None:
             progress.tick()
@@ -1067,14 +1139,20 @@ def _write(
     language: str,
     result: ParseResult,
     tally: dict[str, int],
+    *,
+    fingerprint: str | None = None,
 ) -> None:
     """Persist one file's outcome. Edges go in exactly as the adapter emitted them — bare (R3.3)."""
-    store.upsert_file(path, digest, language, parsed_ok=result.ok)
+    store.upsert_file(
+        path, digest, language, parsed_ok=result.ok, fingerprint=fingerprint or None
+    )
     try:
         deduped = store.replace_file_rows(path, result.nodes, result.edges)
     except WRITE_ERRORS:
         # A per-file store error is a bad *file*, not a bad build: soft-fail and continue (R5.1).
-        store.upsert_file(path, digest, language, parsed_ok=False)
+        store.upsert_file(
+            path, digest, language, parsed_ok=False, fingerprint=fingerprint or None
+        )
         tally["failed"] += 1
         return
     if result.ok:
