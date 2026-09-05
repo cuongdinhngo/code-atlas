@@ -242,7 +242,7 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
             "project_files", _as_project_files, None, environ, file_values
         ),
         audience=_resolve("audience", _as_audience, DEFAULT_AUDIENCE, environ, file_values),
-        working_roots=_resolve("working_roots", _as_working_roots, None, environ, file_values),
+        working_roots=_resolve("working_roots", as_working_roots, None, environ, file_values),
         indirection_rules=_resolve(
             "indirection_rules", _as_indirection_rules, None, environ, file_values
         ),
@@ -416,8 +416,12 @@ def _as_stub_roots(label: str, raw: object) -> tuple[str, ...] | None:
     )
 
 
-def _as_working_roots(label: str, raw: object) -> tuple[str, ...] | None:
-    """Presentation roots the onboarding truncate honours. Blank/unset = whole index (task 206)."""
+def as_working_roots(label: str, raw: object) -> tuple[str, ...] | None:
+    """Presentation roots the onboarding truncate honours. Blank/unset = whole index (task 206).
+
+    Public because ``generate_onboarding`` parses a per-call list through it (216) — one
+    definition of a valid working root, so the tool and the env path cannot drift.
+    """
     return _as_repo_relative_list(
         label, raw, item="directory", collection="working roots"
     )

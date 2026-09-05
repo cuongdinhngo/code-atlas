@@ -17,7 +17,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path, PurePosixPath
 from typing import Literal
 
-from code_atlas.config import Config
+from code_atlas.config import Config, as_working_roots
 from code_atlas.onboarding.artifact import (
     CACHE_DIR,
     CACHE_NAME,
@@ -75,7 +75,9 @@ def create(
     refiner: LayerRefiner = IdentityLayerRefiner() if layer_refiner is None else layer_refiner
 
     def generate_onboarding(
-        detail_level: DetailLevel = "standard", audience: str | None = None
+        detail_level: DetailLevel = "standard",
+        audience: str | None = None,
+        working_roots: list[str] | None = None,
     ) -> dict[str, object]:
         """Write committable onboarding docs for this repo — overview, guided tour and flows.
 
@@ -92,20 +94,30 @@ def create(
         The walk that sizes the tour is the same node-budgeted subgraph ``guided_tour`` uses
         (``CA_IMPACT_MAX_NODES``) — roots ranked by out-degree, capped at a quarter of the budget
         so the tour describes files the walk actually reached (106); ``truncated`` is true when
-        that budget left an indexed file out. ``CA_WORKING_ROOTS`` / ``working_roots`` restricts
-        the tour, flow seeds and busiest-file pick to those trees (206); unset is the whole index.
+        that budget left an indexed file out.
 
-        ``audience`` chooses WHICH SECTIONS THE WRITTEN TREE HOLDS — ``full`` (the default and
-        today's document), ``newcomer`` or ``maintainer``; unset takes ``CA_AUDIENCE``. It is a
-        separate knob from ``detail_level`` on purpose: ``detail_level`` means the same thing on
-        24 tools — how much of the RESPONSE to return — and the response is discarded, so growing
-        it to reshape the committed tree would make those files depend on a per-call argument (210).
+        Three independent axes (210 / 216):
+
+        - ``detail_level`` — how much of the *response* to return (same meaning on 24 tools); the
+          response is discarded, so it does not reshape the committed tree.
+        - ``audience`` — which *sections* the written tree holds (``full`` / ``newcomer`` /
+          ``maintainer``); unset takes ``CA_AUDIENCE``.
+        - ``working_roots`` — which *population* those sections draw from: restricts the tour,
+          flow seeds and busiest-file pick to those trees (206). Omitted inherits
+          ``CA_WORKING_ROOTS`` / config; a list wins over the environment; ``[]`` forces the
+          whole index even when the environment scopes it.
 
         ``results`` lists the committed relative paths, capped at ``CA_MAX_RESULTS``.
         ``minimal`` omits the path to the ``artifact.json`` dump.
         """
         if not config.db_path.is_file():
             return _unbuilt(config)
+        # Explicit argument wins over env/config; None keeps today's CA_WORKING_ROOTS default (216).
+        roots = (
+            config.working_roots
+            if working_roots is None
+            else as_working_roots("working_roots", list(working_roots))
+        )
         # One budget for the whole write: the artifact and the dataset build the same layer table,
         # so a shared run pays for each layer description once and caps the build as a whole (117).
         wants = contract_for(audience if audience is not None else config.audience)
@@ -116,11 +128,7 @@ def create(
             flow_edge_rows = store.flow_edges(FLOW_KINDS)
             edges = [(source, target) for source, target, _tier in edge_tiers]
             file_paths = store.file_paths()
-            scoped = (
-                scoped_paths(file_paths, config.working_roots)
-                if config.working_roots
-                else None
-            )
+            scoped = scoped_paths(file_paths, roots) if roots else None
             subgraph = store.tour_subgraph(
                 max_nodes=config.impact_max_nodes, files=scoped
             )
@@ -154,7 +162,7 @@ def create(
             max_results=config.max_results,
             declared_entry_points=config.entry_points,
             declared_stub_roots=config.stub_roots,
-            working_roots=config.working_roots,
+            working_roots=roots,
             file_paths=file_paths,
             file_class_counts=file_classes,
             prose=prose,
@@ -190,7 +198,7 @@ def create(
             layer_refiner=refiner,
             declared_entry_points=config.entry_points,
             declared_stub_roots=config.stub_roots,
-            working_roots=config.working_roots,
+            working_roots=roots,
             reachability_sample_max=config.max_results,
             file_class_counts=file_classes,
             module_max=config.max_results,
@@ -212,12 +220,14 @@ def create(
             dataset,
             config.max_results,
             file_paths=file_paths,
-            working_roots=config.working_roots,
+            working_roots=roots,
             index_root=config.index_root,
             last_ref=last_ref,
             audience=wants.audience,
         )
-        return _payload(config, artifact, written, detail_level, prose, wants.audience)
+        return _payload(
+            config, artifact, written, detail_level, prose, wants.audience, roots
+        )
 
     return generate_onboarding
 
@@ -346,6 +356,7 @@ def _payload(
     detail_level: DetailLevel,
     prose: ProseRun,
     audience: str,
+    working_roots: Sequence[str] | None,
 ) -> dict[str, object]:
     """``results`` is the committed path list, capped; ``truncated`` covers walk and page."""
     limit = config.max_results
@@ -359,7 +370,7 @@ def _payload(
         "total_count": len(written),
         "index_root": config.index_root,
         "output_dir": OUTPUT_DIR,
-        "working_roots": list(config.working_roots) if config.working_roots else None,
+        "working_roots": list(working_roots) if working_roots else None,
         "audience": wants.audience,
     }
     if detail_level == "standard":

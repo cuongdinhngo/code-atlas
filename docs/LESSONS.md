@@ -3677,6 +3677,17 @@ proposed · verified-at: 2026-09-02 · area: environment / gate · supersedes: `
 .venv/bin adapters/php` → no match · destination: stays in lessons_path; it rots the next time the
 venv or the PHPStan tmpDir is rebuilt from a wrong-cased cwd.*
 
+## 216 — A docstring promise is not an MCP parameter
+
+`generate_onboarding` documented `working_roots` while the signature only exposed
+`detail_level` and `audience`, so 206's scoping was env-only and unreachable from an MCP
+client. Optional argument (explicit wins over `CA_WORKING_ROOTS`); three-axis docstring;
+Scope 4 AST sweep: backticked `working_roots` in a tool docstring ⇒ signature must include it
+(result: zero gaps).
+
+- type: 2 (code) · handle: `docstring-knob-must-be-on-the-schema` · seen: 216 · status: proposed
+  · destination: open — promote if a second tool repeats the 177/216 shape.
+
 ## 215 — A partial writer count that looks finished retires the cross-check
 
 `check_column_defaults` reported `writers_total: 38` with no marker while grep found 55, and

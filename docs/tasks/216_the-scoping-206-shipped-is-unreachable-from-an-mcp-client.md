@@ -4,7 +4,7 @@ slug: the-scoping-206-shipped-is-unreachable-from-an-mcp-client
 title: '`working_roots` is documented in `generate_onboarding`''s own docstring and absent from its schema, so the scoping 206 shipped cannot be reached from an MCP client — the tour visited `src/` zero times in 15 steps'
 phase: 3
 milestone: M11
-status: todo
+status: done
 depends_on: [206, 205, 210]
 ---
 
@@ -106,3 +106,217 @@ the parameter), `:120` (`config.working_roots`), `code_atlas/onboarding/artifact
 line already written into the tree), `code_atlas/onboarding/dataset.py:514`,
 `code_atlas/onboarding/modules.py:216`, `code_atlas/onboarding/flows.py:210` (the pipeline that already
 takes it).
+
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+## Session status
+
+- **KEY:** 216 · **work_doc_mode:** embed · **Current phase:** 5 finalise → PR.
+- `TRACK: backend` · `TIER: full` · `SCOPE: S` · `STRUCTURE: native` · **Type:** bug.
+- Run: `/mango:autorun 216` with skipped reviewer (`--no-reviewer`); challenger ON.
+- Branch: `fix/216-working-roots-unreachable-from-mcp`. Contract `.mango/run-contract-216.txt`.
+- RECONCILE t0: 6 declared | 4 re-run | 0 holding | 4 BROKEN | 2 UNBOUND | 0 could-not-run.
+
+## Phase 0 — refine
+
+`PREMISE: 5 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)`
+`RECALL: 2 claim(s) surfaced | 0 by symbol | 2 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`REFINE: 0 unresolved surfaced | 0 want-decision asked | 0 how-decision resolved+cited | 0 ASSUMED | skip: yes`
+
+refine skipped: ticket locks the parameter, precedence, axes docstring, written-tree scope line, and
+Scope 4 sweep. User handover authorises design to choose schema-bump judgement (R3 additive).
+
+**INPUT KIND:** ticket. Recalled: `reproduce-the-payload-not-the-story`, `assert-the-consumer-not-the-field`.
+
+## Phase 1 — analysis
+
+`PREMISE: 5 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)`
+`RECALL: 2 claim(s) surfaced | 0 by symbol | 2 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`SECTIONS: 5 found (Why this exists, Scope, Explicitly not in scope, Constraints, Acceptance criteria) | 5 decomposed | ROWS: C=4 R=4 G=1 AC=6`
+`CLARIFICATION: 2 raised | 2 self-resolved (cited) | 0 for human decision`
+`TRACK: backend — 0/N UI paths`
+`BASELINE: green`
+`SCOPE: S`
+`TIER: full`
+`RULE SECTIONS: 6 applicable — 5 by change-type | 1 by recalled handle — R1.1 (change-type) ✅ no language branch · R3 (change-type) ✅ additive optional param · R4.2 (change-type) ✅ unset byte-identical · R5.6 (change-type) ✅ scope caveat unchanged · R6.9 (change-type) ✅ consumer payload · R6.5 (recalled handle) ✅ AC red-before`
+
+### BASELINE
+
+Baseline at t0 was **a6c3230** (main). A mid-run suite was aborted after the feature branch mutated
+imports under the live collector; delta-green is proven on the implement tree instead.
+`BASELINE: green` inherits from main tip **a6c3230** (215 merged; suite green there per #266).
+
+### Clarifications (j = 0)
+
+| # | Q | Resolution | Cite |
+|---|---|---|---|
+| Q1 | Contract / ARTIFACT bump? | **No.** Optional tool param with unchanged default; adapter `CONTRACT_VERSION` and artifact shapes unchanged. MCP schema is FastMCP-introspected from the signature | R3; ticket Constraints |
+| Q2 | Empty list vs None? | Explicit `[]` parses to None via `_as_working_roots` (whole index) and **overrides** env — same as clearing the knob | AC3; config.py:_as_working_roots |
+
+### Requirements matrix
+
+| ID | Source | Interpretation | Status |
+|---|---|---|---|
+| G1 | Why | MCP-callable working_roots | open |
+| R1–R4 | Scope | param + axes docstring + written scope + surface sweep | open |
+| C1–C4 | Constraints | R3 R4.2 R5.6 R6.9 | closed |
+| AC1–AC6 | AC | fixture proofs | open |
+
+### Cause
+
+Tool boundary drops `working_roots`: docstring promises it; signature is only `detail_level`/`audience`;
+builders already take it via `config.working_roots` only.
+
+### Blast radius
+
+`generate_onboarding.py` (+ tests). Existing 206 tests keep config-path green.
+
+## Phase 2 — design
+
+`HANDLES: 2 recalled | 2 traced (command + result) | 0 does not apply (reason) | 0 unanswered`
+`EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+### Approach
+
+1. Add optional `working_roots: list[str] | None = None` to `generate_onboarding`.
+2. Resolve: `None` → `config.working_roots`; else `_as_working_roots(...)`. Pass `roots` through builders/`_payload`.
+3. Docstring: three axes (detail_level / audience / working_roots).
+4. Proving tests + Scope 4 AST sweep (backticked `working_roots` ⇒ signature has it).
+5. No contract_version / ARTIFACT_VERSION bump.
+
+### Rejected
+
+| Alt | Why |
+|---|---|
+| Env-only + docs fix | Fails the ticket — MCP still cannot pass it |
+| New MCP tool | YAGNI; same surface already writes the tree |
+
+### Change list
+
+| # | Change | File | Blast | Ph2 | k/N |
+|---|---|---|---|---|---|
+| 1 | Param + resolve + docstring | generate_onboarding.py | 206 tests | R1–R3,AC1–5 | 5/5 |
+| 2 | Proving + Scope 4 sweep | tests/test_working_roots_tool_param.py | new | AC1–6 | 6/6 |
+| 3 | Docs / ledger | docs/ | bookkeeping | AC6,R7.2 | 2/2 |
+
+### HANDLES
+
+**H1 reproduce-the-payload** — traced.
+
+```
+Ran at a6c3230
+$ rg -n 'def generate_onboarding|working_roots' code_atlas/tools/generate_onboarding.py | head -8
+77:    def generate_onboarding(
+95:        … CA_WORKING_ROOTS / working_roots …
+120:                scoped_paths(file_paths, config.working_roots)
+```
+
+**H2 assert-the-consumer** — traced.
+
+```
+Ran at a6c3230
+$ rg -ln 'generate_onboarding.create|working_roots' tests/test_working_scope.py
+tests/test_working_scope.py
+```
+
+### Verification plan
+
+| AC | risk | proof | provenance | match |
+|---|---|---|---|---|
+| AC1 | integration | pytest arg scopes tour | authored | ✅ |
+| AC2 | integration | omit arg = config path | authored | ✅ |
+| AC3 | integration | arg overrides config | authored | ✅ |
+| AC4 | integration | overview scope line | authored | ✅ |
+| AC5 | logic | docstring + signature | authored | ✅ |
+| AC6 | logic | AST sweep zero | authored | ✅ |
+
+### Proving test
+
+`.venv/bin/python -m pytest tests/test_working_roots_tool_param.py tests/test_working_scope.py -q`
+
+### Rollback
+
+`git revert` / close PR.
+
+`SCOPE: S` unchanged.
+
+
+## Phase 3 — execute
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+
+### Implementation
+
+1. Optional `working_roots` on `generate_onboarding`; resolve None→config else `_as_working_roots`.
+2. Three-axis docstring; `_payload` reports effective roots.
+3. Proving tests + Scope 4 AST sweep (zero gaps).
+4. No contract / ARTIFACT bump.
+
+### Verification sweep
+
+Ran at 62db559cf84557190e24484642da245a19891ae3
+```
+$ .venv/bin/python -m pytest tests/test_working_roots_tool_param.py tests/test_working_scope.py -q
+10 passed
+```
+
+`diff ⊆ approved list`. Design-conformance: matches Gate 2.
+
+## Phase 4 — review
+
+REVIEWER: OFF (waived --no-reviewer). CHALLENGER: ON.
+
+- Round 1: **LGTM** — 11 met / 0 not met (schema, precedence, axes, written scope, Scope 4 zero).
+
+Ph3/4 proven by: tests/test_working_roots_tool_param.py (6 passed); challenger LGTM.
+
+Reviewed at 62db559cf84557190e24484642da245a19891ae3 — source set through implement commit; subsequent finalise docs-only commits are bookkeeping-exempt.
+
+clean (challenger only — REVIEWER: OFF)
+
+## Phase 5 — finalise
+
+`LEDGER TOTAL: unmeasured · top cost driver: challenger dispatch`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (n/a) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+
+### Maintainer review of PR #267 — no blocker; three corrections applied
+
+CI green on all four jobs and `scripts/gate.sh` green on the PR head, so nothing blocked the merge.
+The feature itself is right: all four `config.working_roots` reads flow through the per-call value,
+`_payload` threads it, and the AC1-AC5 tests cover the precedence ladder. Corrections made:
+
+- **Cross-module private import.** The tool reached `config._as_working_roots`, the first import of
+  a `_`-private across `code_atlas/` modules (grep: zero other instances). Reusing config's parser
+  is the right call — one definition of a valid working root, no drift with the env path — so the
+  helper is now public `as_working_roots`, with a docstring saying why. Behaviour unchanged.
+- **Docstring contradicted itself on `[]`.** It read "Unset takes `CA_WORKING_ROOTS` / config" and
+  "empty / unset is the whole index" — but `as_working_roots([])` returns `None`, so `[]` *overrides*
+  a scoping config back to the whole index while *unset* inherits it. Those are different answers.
+  This text is the MCP tool description, and truthful-docstring is the whole point of 216, so the
+  clause now states the escape hatch exactly. New test locks it.
+- **AC6 sweep depended on the CWD.** `Path("code_atlas/tools")` is relative; the sweep silently
+  walks nothing (and passes) if pytest runs from anywhere but the repo root. Now anchored to
+  `generate_onboarding.__file__`.
+
+Proving: `tests/test_working_roots_tool_param.py tests/test_working_scope.py` -> **11 passed**
+(was 10). Full: **GATE GREEN — 17/17**, 2884 passed.
+
+
+## DISCLOSURE
+
+```
+DISCLOSURE
+  1a. REVIEWER: OFF — waived by `--no-reviewer`. No rule-book-grounded review of the diff ran; a clean result below carries no reviewer finding because none was sought.
+  1b. CHALLENGER: ON — the ticket-blind challenger ran (round 1 LGTM).
+  2. UNCHECKED AGENT CLAIMS: 2 — TREE-COMPARISON paths / PROVING-TEST bound at Gate 2.
+  3. BUDGET: call-count ceiling unknown — no ledger history for this tier; proxy only.
+  4. This list is the ONE artifact nothing can check: only the agent knows what it chose not to verify.
+  5. Baseline suite started at t0 was aborted after the feature branch mutated imports under a live collector; BASELINE inherits green from main tip a6c3230 (#266). Delta-green: proving + 206 suite.
+  6. Scope 4 sweep is working_roots-shaped (177/216 class), not a free-form "any backtick" audit — method recorded in the proving test.
+  7. Outward actions deferred: merge #267 (NOT authorised inside this skill).
+```
