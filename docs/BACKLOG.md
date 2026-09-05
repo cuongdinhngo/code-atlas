@@ -85,6 +85,8 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 203 | [a rebuild is GIL-bound and its operating knowledge is unroutable](tasks/203_a-rebuild-is-gil-bound-and-its-operating-knowledge-is-unroutable.md) | Freshness | done | 052, 096, 176, 177, 200, 201 |
 | 212 | [an incremental update escalates on correctness but never on cost](tasks/212_an-incremental-update-escalates-on-correctness-but-never-on-cost.md) | Freshness | done | 030, 052, 080, 096, 172, 202 |
 | 213 | [a-declaration-fingerprint-so-a-cosmetic-edit-is-not-reparsed](tasks/213_a-declaration-fingerprint-so-a-cosmetic-edit-is-not-reparsed.md) | Freshness | done | 212, 052, 080 |
+| 214 | [a bare `EXEC X` links to nothing, so `find_callers` answers `no_matches` on a proc with 42 callers](tasks/214_a-bare-exec-links-to-nothing-and-the-zero-says-no-matches.md) | Agent-trust | todo | 184, 186, 204, 160 |
+| 215 | [a partial writer set looks finished — 38 of 55, unmarked; one column twice](tasks/215_a-partial-writer-set-looks-finished-and-a-column-is-counted-twice.md) | Agent-trust | todo | 194, 192, 022 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -140,6 +142,7 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | 209 | [a-committed-artifact-cannot-say-which-summarizer-wrote-it](tasks/209_a-committed-artifact-cannot-say-which-summarizer-wrote-it.md) | Phase 3 / M12 | done | 085, 090, 117, 118, 205 |
 | 210 | [the-artifact-has-one-shape-for-every-reader](tasks/210_the-artifact-has-one-shape-for-every-reader.md) | Phase 3 / M12 | done | 088, 112, 121, 205, 207, 209 |
 | 211 | [the-tour-population-is-ranked-but-never-grouped](tasks/211_the-tour-population-is-ranked-but-never-grouped.md) | Phase 3 / M11 | done | 084, 105, 110, 131, 204, 206 |
+| 216 | [`working_roots` is in the docstring, not the schema, so 206's scoping is unreachable](tasks/216_the-scoping-206-shipped-is-unreachable-from-an-mcp-client.md) | Phase 3 / M11 | todo | 206, 205, 210 |
 
 
 **Round ordering, and what each round left open.** One line each; the narratives live in
@@ -148,24 +151,23 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 
 | Round | Tickets | State |
 |---|---|---|
-| 4–7 (2026-08-10…23) | 075–082 · 092–097 · 099–102 · 122–125 · 126 · 127 | closed — 081 `NOT OBSERVED`; 127 closed **119** in the same change |
+| 4–7 (2026-08-10…23) | 075–082 · 092–097 · 099–102 · 122–125 · 126 · 127 | closed |
 | 8–9 (2026-08-25/26) | 158–163 | closed |
-| 10 (2026-08-26) | 164–167 | closed — the verification round: no prior fix reached a long-lived process until **164** |
-| 11 (2026-08-27) | 168–179 | closed — **first round a fix reached the field** |
-| 12 (2026-08-28) | 180–190 | open — first **two-language** index; the T-SQL it could not read became 184/022 and §13 became 195. Adapter #2's fifth zero is **applicability**, not roll-out. 187–190 were found by the fixes, not by the round |
-| Architecture review (2026-08-23) | 138–142 · 143–145 | 138 · 139 · 142 · 143 · 144 · **145A** done; 141 gated at n = 0; 145B deferred (stack not chosen) |
+| 10 (2026-08-26) | 164–167 | closed |
+| 11 (2026-08-27) | 168–179 | closed |
+| 12 (2026-08-28) | 180–190 | closed |
+| 13 (2026-09-04) | 191–213 · 214–216 | open |
+| Architecture review (2026-08-23) | 138–142 · 143–145 | closed — 141 gated at n = 0; 145B deferred (stack not chosen) |
 
 **What still governs open work:**
 
+- **24 tools** on the MCP surface, plus four shell entry points
+  ([`ROADMAP.md`](phase3-onboarding/ROADMAP.md)).
 - **Every `deferred` ticket holds its own gate** — 074, 098 and 141 each state theirs, and 141 is at
   n = 0; do not queue one without reading it. Auto *reading orders* stay unscheduled
   ([121](benchmarks/121_onboarding-question-class.md)).
-- **24 tools** on the MCP surface, plus four shell entry points
-  ([`ROADMAP.md`](phase3-onboarding/ROADMAP.md)).
 - **Roll-out is the binding constraint and deliberately not a ticket here** — five rounds standing;
   this backlog accepts only code, so it goes to the consumer as a PR.
-- **The anchor repo is the test subject, not the product** — 185/186 keep the language-agnostic claim
-  checked at the tool surface, where 147 only checks it at the adapter's.
 
 ## Phase 2 — More languages (§19 pivot, 2026-08-04; 020 reopened)
 
@@ -299,8 +301,7 @@ everything below has landed.
 
 ### Where these tickets came from
 
-Provenance is in the three docs the preamble names, not retold here (R7.6). One note still governs
-open work: the anchor repo's `CLAUDE.md` asserts `grep` "times out" and costs "~650× the tokens" — an
+One note still governs open work: the anchor repo's `CLAUDE.md` asserts `grep` "times out" and costs "~650× the tokens" — an
 **un-evidenced claim, not a code-atlas defect**; round 3 observed neither, so it needs evidence or
 removal.
 
