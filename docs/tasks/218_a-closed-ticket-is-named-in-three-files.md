@@ -4,7 +4,7 @@ slug: a-closed-ticket-is-named-in-three-files
 title: A closed ticket is named in three files and every session pays for all three
 phase: 2
 milestone: —
-status: in-progress
+status: done
 depends_on: [133, 134, 205]
 ---
 
@@ -37,10 +37,10 @@ R7.2, R7.6 (`docs/ENGINEERING_RULES.md`). Prior prunes: 133 (ledger out of tier 
 
 ## Session status
 
-- **KEY:** 218 · **work_doc_mode:** embed · **Current phase:** 3 execute.
-- **Next action:** run `scripts/gate.sh`, then commit, push and open the PR.
+- **KEY:** 218 · **work_doc_mode:** embed · **Current phase:** closed — merged as `fde7403` (PR #269).
+- **Next action:** none.
 - **Blocked on:** nothing.
-- Branch: `docs/218-prune-the-closed-rows-out-of-backlog`.
+- Branch: `docs/218-prune-the-closed-rows-out-of-backlog` (merged).
 
 ## Phase 0–2 — refine · analysis · design (2026-09-05, compressed)
 
@@ -74,7 +74,9 @@ fails on restoring any one of the 208 removed rows.
 
 ## Phase 3 — execute
 
-`BACKLOG.md` 8,797 → 1,826 tokens (−6,971). Tier 1 25,899 → 18,9xx (measured at gate).
+`BACKLOG.md` 8,797 → 1,826 tokens (−6,971). Tier 1 25,899 → 18,990. `scripts/gate.sh` GATE GREEN
+19/19 on a Linux host; `gh pr checks 269` 4/4. Red run recorded: restoring 020's row fails
+`test_a_closed_ticket_leaves_the_backlog` by id.
 
 ## Cost ledger
 
