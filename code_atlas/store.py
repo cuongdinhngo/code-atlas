@@ -375,6 +375,22 @@ def _like_literal(value: str) -> str:
     return value.replace("!", "!!").replace("%", "!%").replace("_", "!_")
 
 
+# Cap on the unlinked-WRITES scan that backs ``has_unlinked_writes_relating_to`` (215).
+_WALK_UNLINKED = 10_000
+
+
+def _writes_raw_relates_to(raw: str, table_folded: str, bare: str) -> bool:
+    """Does an unlinked WRITES ``target_raw`` name ``table`` under casefold (215)?"""
+    folded = raw.casefold()
+    if folded == table_folded or folded.startswith(table_folded + "::"):
+        return True
+    if folded == bare or folded.startswith(bare + "::"):
+        return True
+    if folded.endswith("." + bare) or ("." + bare + "::") in folded:
+        return True
+    return False
+
+
 def _chunks(values: Sequence[str], size: int) -> Iterator[Sequence[str]]:
     """Yield successive slices of ``values`` so ``IN (...)`` lists stay under the host max."""
     for start in range(0, len(values), size):
@@ -1360,6 +1376,105 @@ class GraphStore:
             "AND (target_qname IS NULL OR target_qname = '')"
         )
         return int(self._conn.execute(sql, (*kinds, *cleaned)).fetchone()[0])
+
+    def has_unlinked_writes_relating_to(self, table: str) -> bool:
+        """True when an unlinked ``WRITES`` still names ``table`` under casefold (task 215).
+
+        The tool cannot see writers that never emitted an edge; this is the incompleteness it
+        *can* know — a write site that reached the graph but never linked.
+        """
+        if not table:
+            return False
+        folded = table.casefold()
+        bare = folded.rsplit(".", 1)[-1]
+        # idx_edges_raw is exact; a casefold scan is bounded by kind + unlinked predicate.
+        sql = (
+            "SELECT target_raw FROM edges WHERE kind = 'WRITES' "
+            "AND (target_qname IS NULL OR target_qname = '') "
+            f"ORDER BY {_EDGE_ORDER} LIMIT ?"
+        )
+        for (raw,) in self._conn.execute(sql, (_WALK_UNLINKED,)):
+            if _writes_raw_relates_to(str(raw), folded, bare):
+                return True
+        return False
+
+    def nodes_by_qualified_names_casefold(
+        self, qnames: Sequence[str], *, kind: str | None = None, limit: int
+    ) -> dict[str, list[Row]]:
+        """Per-qname top-``limit`` nodes matched case-insensitively (task 215 WRITES).
+
+        Keys stay the caller's original spelling; values are store rows whose
+        ``qualified_name`` casefolds equal to that key's casefold.
+        """
+        if limit < 1:
+            raise ValueError(f"limit must be >= 1, got {limit}")
+        ordered = list(dict.fromkeys(qnames))
+        if not ordered:
+            return {}
+        grouped: dict[str, list[Row]] = {key: [] for key in ordered}
+        by_fold: dict[str, list[str]] = {}
+        for key in ordered:
+            by_fold.setdefault(key.casefold(), []).append(key)
+        kind_sql = " AND kind = ?" if kind is not None else ""
+        for chunk in _chunks(list(by_fold), _IN_CHUNK):
+            placeholders = ", ".join("?" for _ in chunk)
+            sql = (
+                f"SELECT id, {_NODE_COLUMNS} FROM ("
+                f"  SELECT id, {_NODE_COLUMNS}, "
+                f"    ROW_NUMBER() OVER ("
+                f"      PARTITION BY LOWER(qualified_name) ORDER BY {_NODE_ORDER}"
+                f"    ) AS rn "
+                f"  FROM nodes WHERE LOWER(qualified_name) IN ({placeholders})"
+                f"{kind_sql}"
+                f") WHERE rn <= ? "
+                f"ORDER BY {_NODE_ORDER}"
+            )
+            params: list[object] = [*chunk]
+            if kind is not None:
+                params.append(kind)
+            params.append(limit)
+            for row in self._rows(NODE_ROW_KEYS, sql, params):
+                fold = str(row["qualified_name"]).casefold()
+                for key in by_fold.get(fold, ()):
+                    grouped[key].append(row)
+        return grouped
+
+    def nodes_by_names_casefold(
+        self, names: Sequence[str], *, kind: str | None = None, limit: int
+    ) -> dict[str, list[Row]]:
+        """Per-name top-``limit`` nodes matched case-insensitively (task 215 WRITES)."""
+        if limit < 1:
+            raise ValueError(f"limit must be >= 1, got {limit}")
+        ordered = list(dict.fromkeys(names))
+        if not ordered:
+            return {}
+        grouped: dict[str, list[Row]] = {key: [] for key in ordered}
+        by_fold: dict[str, list[str]] = {}
+        for key in ordered:
+            by_fold.setdefault(key.casefold(), []).append(key)
+        kind_sql = " AND kind = ?" if kind is not None else ""
+        for chunk in _chunks(list(by_fold), _IN_CHUNK):
+            placeholders = ", ".join("?" for _ in chunk)
+            sql = (
+                f"SELECT id, {_NODE_COLUMNS} FROM ("
+                f"  SELECT id, {_NODE_COLUMNS}, "
+                f"    ROW_NUMBER() OVER ("
+                f"      PARTITION BY LOWER(name) ORDER BY {_NODE_ORDER}"
+                f"    ) AS rn "
+                f"  FROM nodes WHERE LOWER(name) IN ({placeholders})"
+                f"{kind_sql}"
+                f") WHERE rn <= ? "
+                f"ORDER BY {_NODE_ORDER}"
+            )
+            params: list[object] = [*chunk]
+            if kind is not None:
+                params.append(kind)
+            params.append(limit)
+            for row in self._rows(NODE_ROW_KEYS, sql, params):
+                fold = str(row["name"]).casefold()
+                for key in by_fold.get(fold, ()):
+                    grouped[key].append(row)
+        return grouped
 
     def count_unlinked_includes_mentioning(self, needle: str) -> int:
         """Unlinked ``INCLUDES`` whose ``target_raw`` contains ``needle`` (task 065).

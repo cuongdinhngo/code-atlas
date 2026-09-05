@@ -19,6 +19,9 @@ assert not (set(contract.PATH_EDGE_KINDS) & contract.FQN_EDGE_KINDS)
 _BARE_NAME_KIND = "Method"
 # Bare CALLS → unique same-language Function (214). Not the Method HEURISTIC fallback.
 _UNIQUE_FUNCTION_KIND = "Function"
+# WRITES CI targets (215). One name each — never a multi-kind vocab literal (R3.2).
+_TABLE_KIND = "Table"
+_COLUMN_KIND = "Column"
 
 # ``\A::m()::b()::c`` is m's type, then b on that, then c on that — the separator between steps.
 _CHAIN_STEP = contract.TYPE_OF_SUFFIX + contract.MEMBER_SEPARATOR
@@ -141,6 +144,7 @@ def resolve_edges(
         bare_calls: list[tuple[dict[str, object], str, str]] = []
         inherited: list[tuple[dict[str, object], str, str]] = []
         deferred: list[tuple[dict[str, object], str, str]] = []
+        writes_misses: list[dict[str, object]] = []
         for edge, lookup in zip(symbols, lookup_raws, strict=True):
             incoming = str(edge["confidence_tier"])
             hits = qname_hits.get(lookup, [])
@@ -150,6 +154,10 @@ def resolve_edges(
                 _queue_candidates(
                     edge, hits, _weaker_tier(incoming, "RESOLVED"), links, siblings
                 )
+                continue
+            if edge["kind"] == "WRITES":
+                # Case / schema mismatch: exact FQN missed; unique CI link is T-SQL's rule (215).
+                writes_misses.append(edge)
                 continue
             if edge["kind"] != "CALLS":
                 continue
@@ -183,11 +191,86 @@ def resolve_edges(
                 by_name.append((edge, name))
 
         _link_by_bare_name(store, by_name, file_languages, max_candidates, links, siblings)
+        _link_writes_casefold(store, writes_misses, links, siblings)
 
         # One txn: kill between link and sibling insert must not leave under-linked parents.
         store.apply_resolution(links, siblings)
         inserted += len(siblings)
     return inserted
+
+
+def _link_writes_casefold(
+    store: GraphStore,
+    writes_misses: Sequence[dict[str, object]],
+    links: list[tuple[int, str, str]],
+    siblings: list[dict[str, object]],
+) -> None:
+    """Link WRITES whose exact FQN missed via unique case-insensitive / unqualified match (215).
+
+    Zero or two-or-more candidates leave the edge unlinked — ambiguity must not pick a twin.
+    Uses Table/Column kinds only (contract vocabulary); never a language branch (R1.1).
+    """
+    if not writes_misses:
+        return
+    raws = [str(edge["target_raw"]) for edge in writes_misses]
+    # Pass 1: unique casefold of the whole target_raw (schema.table or schema.table::col).
+    ci_hits = store.nodes_by_qualified_names_casefold(raws, limit=2)
+    remaining: list[dict[str, object]] = []
+    for edge, raw in zip(writes_misses, raws, strict=True):
+        hits = ci_hits.get(raw, [])
+        if len(hits) == 1 and str(hits[0]["kind"]) in (_TABLE_KIND, _COLUMN_KIND):
+            tier = _weaker_tier(str(edge["confidence_tier"]), "RESOLVED")
+            _queue_candidates(edge, hits, tier, links, siblings)
+            continue
+        remaining.append(edge)
+    if not remaining:
+        return
+    # Pass 2: unqualified / schema-mismatched table (::column) → unique Table by bare name.
+    containers: list[str] = []
+    members: list[str | None] = []
+    for edge in remaining:
+        container, member = contract.split_qname(str(edge["target_raw"]))
+        if container is None:
+            containers.append(member)
+            members.append(None)
+        else:
+            bare = container.rsplit(".", 1)[-1]
+            containers.append(bare)
+            members.append(member)
+    table_hits = store.nodes_by_names_casefold(containers, kind=_TABLE_KIND, limit=2)
+    column_lookups: list[str] = []
+    column_owners: list[tuple[dict[str, object], str]] = []
+    for edge, bare, col in zip(remaining, containers, members, strict=True):
+        tables = table_hits.get(bare, [])
+        if len(tables) != 1:
+            continue
+        table_qname = str(tables[0]["qualified_name"])
+        if col is None:
+            tier = _weaker_tier(str(edge["confidence_tier"]), "RESOLVED")
+            _queue_candidates(edge, tables, tier, links, siblings)
+            continue
+        column_lookups.append(contract.join_qname(table_qname, col))
+        column_owners.append((edge, table_qname))
+    if not column_lookups:
+        return
+    # Prefer exact declared column qname under the unique table; fall back to CI on that join.
+    exact = store.nodes_by_qualified_names(column_lookups, kind=_COLUMN_KIND, limit=2)
+    need_ci = [
+        qname for qname in column_lookups if len(exact.get(qname, [])) != 1
+    ]
+    ci_cols = (
+        store.nodes_by_qualified_names_casefold(need_ci, kind=_COLUMN_KIND, limit=2)
+        if need_ci
+        else {}
+    )
+    for (edge, _), qname in zip(column_owners, column_lookups, strict=True):
+        hits = exact.get(qname, [])
+        if len(hits) != 1:
+            hits = ci_cols.get(qname, [])
+        if len(hits) != 1:
+            continue
+        tier = _weaker_tier(str(edge["confidence_tier"]), "RESOLVED")
+        _queue_candidates(edge, hits, tier, links, siblings)
 
 
 def _link_by_unique_function(

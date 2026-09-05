@@ -3677,6 +3677,28 @@ proposed · verified-at: 2026-09-02 · area: environment / gate · supersedes: `
 .venv/bin adapters/php` → no match · destination: stays in lessons_path; it rots the next time the
 venv or the PHPStan tmpDir is rebuilt from a wrong-cased cwd.*
 
+## 215 — A partial writer count that looks finished retires the cross-check
+
+`check_column_defaults` reported `writers_total: 38` with no marker while grep found 55, and
+duplicated a column declared in two files. Dedupe CONTAINS by qname (surface `declarations`);
+mark the envelope when linked writers exist and unlinked WRITES still name the table; link
+WRITES via unique case-insensitive / unqualified Table·Column match (SET-on-next-line already
+emitted — the miss was linking).
+
+**AC4 Scope-4 census (method):** index each fixture in `tests/test_check_column_defaults_partial.py`
+alone; writers = linked WRITES onto `dbo.LedgerTrans` or its columns. **After:** case-mismatched
+`Ledgertrans` INSERT links (`writers_total: 2` on that fixture); SET-next-line UPDATE links
+(`named_by` carries the proc). **Before (same fixtures, pre-fix):** case-mismatched WRITES
+unlinked (`target_qname` empty); SET-next-line already emitted but bare/case table left unlinked
+the same way. Anchor field-index before/after (`38` → post-CI count): **not measured**
+(`real_corpus_path` null) — method above is the recorded artefact (E1).
+
+Partial marker uses dedicated `writers_partial*` keys (not 192's language `attach_coverage_note`):
+192's surface is language coverage; this condition is graph incompleteness on WRITES.
+
+- type: 2 (code) · handle: `partial-count-must-say-partial` · seen: 215 · status: proposed
+  · destination: open — promote if a second consumer presents a partial set as complete.
+
 ## 214 — A RESOLVED bare CALLS never reaches the Method HEURISTIC path
 
 The SQL adapter stamps bare `EXEC X` as `RESOLVED` with `target_raw` verbatim. The resolver only

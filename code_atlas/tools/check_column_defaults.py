@@ -30,6 +30,13 @@ DetailLevel = Literal["minimal", "standard"]
 # ``architecture_rules.py`` keeps). A table nothing writes is UNMEASURED, never "nobody omits it".
 STATUS_CHECKED = "checked"
 STATUS_NO_WRITERS = "table_has_no_writers"
+# Present only when linked writers exist AND unlinked WRITES still name this table (215).
+WRITERS_PARTIAL_KEY = "writers_partial"
+WRITERS_PARTIAL_HINT_KEY = "writers_partial_hint"
+WRITERS_PARTIAL_HINT = (
+    "Unlinked WRITES still name this table (case or schema mismatch, "
+    "or forms that emit no edge: dynamic SQL / CREATE-inside-string)."
+)
 
 _WRITES = ("WRITES",)
 _CONTAINS = ("CONTAINS",)
@@ -37,7 +44,15 @@ _CONTAINS = ("CONTAINS",)
 # caller's ``limit`` pages the COLUMNS it gets back.
 _WALK = 10_000
 
-__all__ = ["NAME", "STATUS_CHECKED", "STATUS_NO_WRITERS", "create"]
+__all__ = [
+    "NAME",
+    "STATUS_CHECKED",
+    "STATUS_NO_WRITERS",
+    "WRITERS_PARTIAL_KEY",
+    "WRITERS_PARTIAL_HINT_KEY",
+    "WRITERS_PARTIAL_HINT",
+    "create",
+]
 
 
 def _sources(store: GraphStore, target: str) -> set[str]:
@@ -61,19 +76,23 @@ def _declared_default(node: dict[str, object]) -> str | None:
     return value if isinstance(value, str) else None
 
 
-def _columns_of(store: GraphStore, table: str) -> tuple[list[str], list[tuple[str, str]]]:
-    """Every column of ``table`` in qname order, and the subset declaring a DEFAULT.
+def _columns_of(
+    store: GraphStore, table: str
+) -> tuple[list[str], list[tuple[str, str]], dict[str, int]]:
+    """Every column of ``table`` in qname order, the DEFAULT subset, and CONTAINS multiplicity.
 
-    Both are needed and they differ: the DEFAULT subset is what gets reported, while
+    Both lists are needed and they differ: the DEFAULT subset is what gets reported, while
     ``writers_total`` is *"the total that write the table"* (R2) — a routine writing only
     undefaulted columns is still a writer, and omitting it understates every ratio's denominator.
+    Multiplicity (215): two CONTAINS edges for one column must not yield two rows.
     """
-    qnames = sorted(
-        str(edge["target_raw"])
-        for edge in store.edges_by_source(table, kinds=_CONTAINS, limit=_WALK)
-    )
+    declarations: dict[str, int] = {}
+    for edge in store.edges_by_source(table, kinds=_CONTAINS, limit=_WALK):
+        qname = str(edge["target_raw"])
+        declarations[qname] = declarations.get(qname, 0) + 1
+    qnames = sorted(declarations)
     if not qnames:
-        return [], []
+        return [], [], {}
     found = store.nodes_by_qualified_names(qnames, kind="Column", limit=1)
     columns = [qname for qname in qnames if found.get(qname)]
     defaulted: list[tuple[str, str]] = []
@@ -81,7 +100,7 @@ def _columns_of(store: GraphStore, table: str) -> tuple[list[str], list[tuple[st
         declared = _declared_default((found[qname])[0])
         if declared is not None:
             defaulted.append((qname, declared))
-    return columns, defaulted
+    return columns, defaulted, declarations
 
 
 def _row(
@@ -92,6 +111,7 @@ def _row(
     unmeasured: set[str],
     writers: set[str],
     detail_level: DetailLevel,
+    declarations: int,
 ) -> dict[str, object]:
     """One column's verdict. ``omitted_by`` is ABSENT when no writer was measurable (R5.6)."""
     omitted = writers - named - unmeasured
@@ -101,6 +121,8 @@ def _row(
         "status": STATUS_CHECKED if writers else STATUS_NO_WRITERS,
         "writers_total": len(writers),
     }
+    if declarations > 1:
+        row["declarations"] = declarations
     if not writers:
         # No `omitted_by`, no `omitted_count`: an empty list here reads as "nobody omits it", which
         # is the modelled zero this tool exists to avoid answering.
@@ -154,7 +176,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``standard``. A writer that named no columns at all is ``unmeasured``, never counted as
         omitting; a table with no recorded writers answers ``status: table_has_no_writers`` and
         carries **no** ``omitted_by``, because an empty list there would claim a zero the graph
-        cannot see. Needs a SQL-layer index (task 022); ``column`` takes the full member qname
+        cannot see. When linked writers exist but unlinked ``WRITES`` still name the table, the
+        envelope carries ``writers_partial`` and a hint naming the remaining forms (215). Duplicate
+        ``CONTAINS`` declarations collapse to one row with ``declarations`` when N>1. Needs a
+        SQL-layer index (task 022); ``column`` takes the full member qname
         (``dbo.Trans::ChangeUser``) or the bare column name.
         """
         if offset < 0:
@@ -177,7 +202,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     config,
                     covered,
                 )
-            all_columns, columns = _columns_of(store, table)
+            all_columns, columns, declarations = _columns_of(store, table)
             if column is not None:
                 wanted = column if "::" in column else f"{table}::{column}"
                 columns = [pair for pair in columns if pair[0] == wanted]
@@ -203,6 +228,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     unmeasured=unmeasured,
                     writers=writers,
                     detail_level=detail_level,
+                    declarations=declarations.get(qname, 1),
                 )
                 for qname, declared in columns
             ]
@@ -216,6 +242,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 truncated=offset + len(page) < len(rows),
                 total_count=len(rows),
             )
+            # Partial only when writers exist: empty stays table_has_no_writers (194 AC2 / 215 AC5).
+            if writers and store.has_unlinked_writes_relating_to(table):
+                payload[WRITERS_PARTIAL_KEY] = True
+                payload[WRITERS_PARTIAL_HINT_KEY] = WRITERS_PARTIAL_HINT
             attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
             return attach_coverage_note(payload, config, covered)
 
