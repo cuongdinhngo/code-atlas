@@ -341,7 +341,7 @@ Configurable per adapter via `CA_PHP_CMD`:
 - **A. Host PHP CLI (recommended for indexing).** Install PHP 8.5 CLI (tokenizer only — no app extensions). Native paths, fastest, no mapping. `CA_PHP_CMD="C:\\php\\php.exe adapters/php/index.php --server"` — on Windows prefer the list form in `.code-atlas.toml`.
 - **B. Docker exec.** `CA_PHP_CMD="docker compose exec -T php php /app/adapters/php/index.php --server"`. The build always sends **repo-relative** paths; point the container service's working directory at the mounted repo so those open correctly — that is the Docker happy path. Optional `CA_HOST_ROOT` / `CA_CONTAINER_ROOT` only rewrite **absolute** host paths onto the container root (and the driver rebases echoed wire paths back to the caller). The indexer never passes absolutes today; the pair is for defensive/callers that do. SQLite stores caller-facing paths either way.
 
-Default A; ship both. (C# adapter will need the .NET SDK; Python adapter runs in-process or a venv — each adapter documents its own runtime.)
+Default A; ship both. Each adapter is a subprocess documenting its own runtime (CONVENTION §5); C# will need the .NET SDK.
 
 ---
 
@@ -633,7 +633,7 @@ aid, not a reading order** (§19).
 **Phase 2 — More languages — deferred, §19, and reordered there 2026-08-30 to put T-SQL (184 tier 1a
 · 022 tier 2, both landed) ahead of Python and C#:**
 - **M7** **TypeScript/JavaScript adapter** (TS Compiler API, Node sidecar) behind the *unchanged* core — the real test of OCP/DIP. Landed (019) with no contract v2 and no core registry (§4.4, §19).
-- **M8** **Python adapter** (`ast` + `jedi`) — cheap once the contract is hardened.
+- **M8** **Python adapter** (`ast` + `jedi`) — tier 1a first (020), then depth.
 - **M9** **C#/.NET adapter** (Roslyn sidecar) — confirms the contract holds for a second namespaced+semantic-model language.
 
 **Phase 3 — Onboarding** (deterministic-first; LLM opt-in and out of core + CI). All three milestones
@@ -744,10 +744,10 @@ The consumer is an **AI coding agent in a terminal**, so the incumbent to beat i
   below ≈36 relation calls per session and loses above, a spread of only −234…+434 tokens over 1–100
   calls. No net win ⇒ R1.2 holds, reinforced by the unpriced cost of one muddier description. The A/B
   lives in `scripts/relation_surface_ab.py`; `find_relations` was never shipped.
-- **Depth over breadth.** TS/JS (019) and Python/C# (020/021) are **deferred, not cancelled** — finish
-  the PHP agent-loop first; breadth before depth would leave us mediocre at both. **Human-ratified
-  2026-08-04:** a large private PHP monorepo is the anchor for **testing *and* evaluation**, so depth
-  on PHP is measurable in a way breadth would not be.
+- **Depth over breadth — reversed for 020, 2026-09-04.** 019/020/021 were **deferred, not
+  cancelled** — finish the PHP agent-loop first; **human-ratified 2026-08-04**, a large private PHP
+  monorepo being the anchor for **testing *and* evaluation**. **020 un-deferred by maintainer
+  decision**, without the field-measured demand the T-SQL reorder above required; 021 stays deferred.
 - **Editing permanently ceded** to the agent's native `Edit`/`Write` (§1). code-atlas serves exact line
   ranges; it never mutates code.
 - **Framework magic stays an enrichment layer** (§1 non-goal) — vendor stubs and indirection-as-data

@@ -167,16 +167,16 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 - **The anchor repo is the test subject, not the product** — 185/186 keep the language-agnostic claim
   checked at the tool surface, where 147 only checks it at the adapter's.
 
-## Phase 2 — More languages (deferred — §19 pivot, 2026-08-04)
+## Phase 2 — More languages (§19 pivot, 2026-08-04; 020 reopened)
 
-**Deferred, not cancelled** for Python and C#/.NET (human-ratified 2026-08-04, §19); the language
+**020 un-deferred 2026-09-04** (§19); C#/.NET stays deferred (2026-08-04, §19); the language
 *order* is unchanged (§18.2). **019 was reopened 2026-08-25**, its remaining scope filed as
 **150–157**, all landed.
 
 | # | Task | Milestone | Status | Depends on |
 |---|---|---|---|---|
 | 019 | [typescript adapter](tasks/019_typescript-adapter.md) | M7 | done | 012, 011, 128 |
-| 020 | [Python adapter](tasks/020_python-adapter.md) | M8 | deferred | 019 |
+| 020 | [Python adapter](tasks/020_python-adapter.md) | M8 | todo | 019 |
 | 021 | [C#/.NET adapter](tasks/021_csharp-adapter.md) | M9 | deferred | 019 |
 | 022 | [sql schema adapter](tasks/022_sql-schema-adapter.md) | M9+ | done | 184 |
 | 184 | [tsql source adapter tier 1a](tasks/184_tsql-source-adapter-tier-1a.md) | M9+ | done | 019, 147, 183 |
