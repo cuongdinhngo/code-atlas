@@ -17,6 +17,8 @@ assert not (set(contract.PATH_EDGE_KINDS) & contract.FQN_EDGE_KINDS)
 
 
 _BARE_NAME_KIND = "Method"
+# Bare CALLS → unique same-language Function (214). Not the Method HEURISTIC fallback.
+_UNIQUE_FUNCTION_KIND = "Function"
 
 # ``\A::m()::b()::c`` is m's type, then b on that, then c on that — the separator between steps.
 _CHAIN_STEP = contract.TYPE_OF_SUFFIX + contract.MEMBER_SEPARATOR
@@ -136,6 +138,7 @@ def resolve_edges(
         ]
         qname_hits = store.nodes_by_qualified_names(lookup_raws, limit=max_candidates)
         by_name: list[tuple[dict[str, object], str]] = []
+        bare_calls: list[tuple[dict[str, object], str, str]] = []
         inherited: list[tuple[dict[str, object], str, str]] = []
         deferred: list[tuple[dict[str, object], str, str]] = []
         for edge, lookup in zip(symbols, lookup_raws, strict=True):
@@ -152,8 +155,8 @@ def resolve_edges(
                 continue
             container, member = contract.split_qname(lookup)
             if container is None:
-                if incoming == "HEURISTIC":
-                    by_name.append((edge, member))
+                # Bare: unique Function first (214); HEURISTIC Method is the leftover.
+                bare_calls.append((edge, member, incoming))
                 continue
             if (source := contract.split_type_of(container)) is not None:
                 # The receiver is whatever ``source`` was declared to return, which lives in
@@ -173,6 +176,11 @@ def resolve_edges(
         by_name.extend(
             _resolve_subtypes(store, unlinked, parent_map, max_candidates, links, siblings)
         )
+        for edge, name, incoming in _link_by_unique_function(
+            store, bare_calls, file_languages, links, siblings
+        ):
+            if incoming == "HEURISTIC":
+                by_name.append((edge, name))
 
         _link_by_bare_name(store, by_name, file_languages, max_candidates, links, siblings)
 
@@ -180,6 +188,46 @@ def resolve_edges(
         store.apply_resolution(links, siblings)
         inserted += len(siblings)
     return inserted
+
+
+def _link_by_unique_function(
+    store: GraphStore,
+    bare_calls: Sequence[tuple[dict[str, object], str, str]],
+    file_languages: Mapping[str, str],
+    links: list[tuple[int, str, str]],
+    siblings: list[dict[str, object]],
+) -> list[tuple[dict[str, object], str, str]]:
+    """Link a bare CALLS to the sole same-language Function of that name (214).
+
+    Zero or two-or-more candidates leave the edge unlinked — ambiguity must not pick a twin.
+    Returns every edge this pass did not claim, for the HEURISTIC Method fallback.
+    """
+    # HEURISTIC bare calls belong to the Method fallback (054/204); only a claimed (non-guess)
+    # bare target may bind to a unique Function (schema-unqualified EXEC — 214). An
+    # all-HEURISTIC batch must cost no store query — the budget is O(1) per batch (027).
+    grouped: dict[str | None, list[str]] = {}
+    for edge, name, incoming in bare_calls:
+        if incoming != "HEURISTIC":
+            grouped.setdefault(file_languages.get(str(edge["file_path"])), []).append(name)
+    if not grouped:
+        return list(bare_calls)
+    hits_by_language = {
+        language: store.nodes_by_names(
+            names, kind=_UNIQUE_FUNCTION_KIND, limit=2, language=language
+        )
+        for language, names in grouped.items()
+    }
+    leftovers: list[tuple[dict[str, object], str, str]] = []
+    for edge, name, incoming in bare_calls:
+        language = file_languages.get(str(edge["file_path"]))
+        candidates = hits_by_language.get(language, {}).get(name, [])
+        if incoming != "HEURISTIC" and len(candidates) == 1:
+            _queue_candidates(
+                edge, candidates, _weaker_tier(incoming, "RESOLVED"), links, siblings
+            )
+        else:
+            leftovers.append((edge, name, incoming))
+    return leftovers
 
 
 def _link_by_bare_name(

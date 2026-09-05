@@ -16,8 +16,11 @@ from code_atlas.tools.nav_result import (
     CAVEAT_SIBLING_DEFINITIONS,
     REASON_BARE_NAME_TRUNCATED,
     REASON_INDEX_STALE,
+    REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
+    REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
     TRY_INSTEAD_FILE_OUTLINE,
+    TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE,
     attach_ambiguous_definitions,
     attach_authoritative_caveats,
     attach_limit_capped,
@@ -110,6 +113,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         exist. Those sites are counted in ``unresolved_bare_calls``, and an empty answer then uses
         ``reason=bare_name_truncated`` instead of ``no_matches``.
 
+        When a Function subject still has unlinked CALLS targeting its short name
+        (schema-unqualified ``EXEC`` that could not resolve uniquely — task 214), an empty
+        answer uses ``reason=relation_unmodelled_for_language`` instead of ``no_matches``.
+
         ``subject_refreshed_only`` is present (and ``true``) only when read-through freshness
         reparsed the subject's file this call — neighbors were not re-verified (035 / 061).
         An untracked indexable file matching the subject is ``reason=not_indexed`` plus
@@ -151,6 +158,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             )
 
         covered: str | None = None
+        unlinked_calls = 0
         with GraphStore(config.db_path) as store:
             covered = covered_languages(store)
             if sign:
@@ -241,7 +249,18 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             sibling_sites: list[dict[str, object]] = []
             # The subject's own file is what "near" is measured against (171).
             subject_file = str(subject_nodes[0]["file_path"]) if subject_nodes else None
-            if indexed and container is not None:
+            if indexed and str(subject_nodes[0]["kind"]) == "Function":
+                # Same bare name, other schema/qname — the AC2 visibility surface for SQL (214).
+                # Uses the node's `name` because dotted Function qnames are not `::`-split.
+                siblings = sibling_definition_rows(
+                    store,
+                    bare_name=str(subject_nodes[0]["name"]),
+                    kind="Function",
+                    lookup=lookup,
+                    limit=config.max_results,
+                )
+                sibling_sites = definition_sites(siblings)
+            elif indexed and container is not None:
                 # A same-named Method under a different qname; a simple-name caller may bind
                 # there, so this count is a partition (task 165). One bounded query.
                 siblings = sibling_definition_rows(
@@ -261,10 +280,25 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 if depth == 1 and outcome.truncated
                 else {}
             )
+            unlinked_calls = 0
+            if (
+                outcome.total_count == 0
+                and indexed
+                and unresolved_bare == 0
+                and str(subject_nodes[0]["kind"]) == "Function"
+            ):
+                # CALLS exist but never linked (bare EXEC vs schema-qualified proc — 214).
+                # Function-only: Method subjects keep the bare_name_truncated / no_matches path.
+                subject_name = str(subject_nodes[0]["name"])
+                unlinked_calls = store.count_unlinked_by_target_raw(
+                    (lookup, subject_name), kinds=CALLER_KINDS
+                )
         reason = relation_reason(hit_total=outcome.total_count, symbol_indexed=indexed)
         if outcome.total_count == 0 and indexed and unresolved_bare > 0:
             # Cap dropped this subject from bare-name linking — not "no callers exist".
             reason = REASON_BARE_NAME_TRUNCATED
+        elif reason == REASON_NO_MATCHES and unlinked_calls > 0:
+            reason = REASON_RELATION_UNMODELLED_FOR_LANGUAGE
         result = nav_result(
             qname,
             outcome.results,
@@ -291,6 +325,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             attach_authoritative_caveats(result, [CAVEAT_SIBLING_DEFINITIONS])
         attach_limit_capped(result, cap=cap, clamped=limit_clamped)
         attach_resolved_qname(result, asked=asked, answered=lookup)
+        if reason == REASON_RELATION_UNMODELLED_FOR_LANGUAGE:
+            attach_try_instead(
+                result, None, TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE
+            )
         return signed(attach_coverage_note(result, config, covered))
 
     return find_callers

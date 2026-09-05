@@ -3676,3 +3676,13 @@ proposed · verified-at: 2026-09-02 · area: environment / gate · supersedes: `
 `bash scripts/gate.sh` → `17 passed · 0 failed · 0 skipped`; `grep -rl "WORKSPACE/Projects"
 .venv/bin adapters/php` → no match · destination: stays in lessons_path; it rots the next time the
 venv or the PHPStan tmpDir is rebuilt from a wrong-cased cwd.*
+
+## 214 — A RESOLVED bare CALLS never reaches the Method HEURISTIC path
+
+The SQL adapter stamps bare `EXEC X` as `RESOLVED` with `target_raw` verbatim. The resolver only
+queued bare targets when `incoming == "HEURISTIC"`, so every schema-unqualified EXEC was dropped
+after the FQN miss — and SQL's HEURISTIC count stayed 0. Unique same-language Function linking
+(non-HEURISTIC only) closes it without reopening 204's Method fallback.
+
+- type: 2 (code) · handle: `resolved-bare-never-enters-heuristic-fallback` · seen: 214 · status: proposed
+  · destination: open — promote if a second language hits the same gate.
