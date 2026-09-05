@@ -1,12 +1,13 @@
-# Python adapter (tier 1a)
+# Python adapter (tier 1a + tier 2 framework visibility)
 
 Parses Python into the code-atlas contract vocabulary with the **stdlib `ast` module only** —
-no `jedi`, no third-party runtime deps. Task 020. Depth (jedi, `NEW` promotion, typing
-constructs) is a future tier-2 ticket.
+no `jedi`, no third-party runtime deps. Tasks 020 (tier 1a) and 217 (tier 2).
 
-## Runtime
+## Runtime / grammar floor
 
-- **Python ≥ 3.12.** That is the whole runtime — `dependencies = []` in `pyproject.toml`.
+- **Python ≥ 3.12.** The adapter refuses to handshake/serve on older interpreters (exit 2)
+  because `ast.parse` is bound to the running grammar — a different host would otherwise
+  yield different rows (R4.2). `dependencies = []` in `pyproject.toml`.
 - Own analyser (R6.6): `ruff` + `mypy --strict` over this directory, driven by the
   adapter-local `pyproject.toml` (not the core's mypy `files` list).
 
@@ -21,14 +22,18 @@ CA_PYTHON_CMD="python /abs/path/adapters/python/index.py --server"
 `CA_PYTHON_CMD` is the whole argv, `--server` included — the core appends nothing to it
 (CONVENTION §5).
 
-## What tier 1a emits
+## What it emits
 
 | Construct | Emitted as |
 |---|---|
 | module-level `def` / `class` | Function / Class + CONTAINS |
 | package `__init__.py` | Namespace for the package |
 | single / multiple bases | EXTENDS |
+| `typing.Protocol` / `abc.ABC` (and aliases) | Interface; implementors → IMPLEMENTS |
+| `enum.Enum` (and aliases) | Enum |
 | instance / `@staticmethod` / `@classmethod` / `@property` | Method + `modifiers` |
+| other decorators | REFERENCES to the decorator target |
+| param / return / AnnAssign named types | REFERENCES (builtins / `Any` / `None` skipped) |
 | `async def` | `async` modifier |
 | nested `def` | Function CONTAINS inside parent |
 | `import` / `from` / `as` / relative | IMPORTS (+ ALIASES when names differ) |

@@ -650,6 +650,10 @@ PY_R62_CASES = frozenset(
         "instantiation",
         "module-const",
         "syntax-error",
+        "protocol-abc",
+        "enum-class",
+        "decorator-references",
+        "annotation-references",
     }
 )
 
@@ -674,6 +678,12 @@ _PY_MODULE_EDGE_SHAPES: list[EdgeShape] = [
     ("CONTAINS", _pyq("module.py"), f"{_pymod('module.py')}.Greeter", None),
     ("CONTAINS", f"{_pymod('module.py')}.Greeter", f"{_pymod('module.py')}.Greeter::greet", None),
     ("CONTAINS", _pyq("module.py"), f"{_pymod('module.py')}.make_greeter", None),
+    (
+        "REFERENCES",
+        f"{_pymod('module.py')}.make_greeter",
+        f"{_pymod('module.py')}.Greeter",
+        None,
+    ),
 ]
 _PY_PACKAGE_EDGE_SHAPES: list[EdgeShape] = [
     ("CONTAINS", _pyq("pkg/__init__.py"), _pymod("pkg/__init__.py"), None),
@@ -782,13 +792,78 @@ _PY_CALL_METHOD_EDGE_SHAPES: list[EdgeShape] = [
         f"{_pymod('call_method.py')}.Base",
         None,
     ),
+    (
+        "REFERENCES",
+        f"{_pymod('call_method.py')}.call_on",
+        f"{_pymod('call_method.py')}.Child",
+        None,
+    ),
+]
+_P = "protocol_abc.py"
+_PY_PROTOCOL_EDGE_SHAPES: list[EdgeShape] = [
+    ("CONTAINS", _pyq(_P), f"{_pymod(_P)}.Circle", None),
+    ("CONTAINS", f"{_pymod(_P)}.Circle", f"{_pymod(_P)}.Circle::draw", None),
+    ("CONTAINS", _pyq(_P), f"{_pymod(_P)}.Drawable", None),
+    ("CONTAINS", f"{_pymod(_P)}.Drawable", f"{_pymod(_P)}.Drawable::draw", None),
+    ("CONTAINS", _pyq(_P), f"{_pymod(_P)}.Shape", None),
+    ("CONTAINS", f"{_pymod(_P)}.Shape", f"{_pymod(_P)}.Shape::area", None),
+    ("CONTAINS", _pyq(_P), f"{_pymod(_P)}.Square", None),
+    ("CONTAINS", f"{_pymod(_P)}.Square", f"{_pymod(_P)}.Square::area", None),
+    ("IMPLEMENTS", f"{_pymod(_P)}.Shape", "ABC", None),
+    ("IMPLEMENTS", f"{_pymod(_P)}.Drawable", "Protocol", None),
+    ("IMPLEMENTS", f"{_pymod(_P)}.Circle", f"{_pymod(_P)}.Drawable", None),
+    ("IMPLEMENTS", f"{_pymod(_P)}.Square", f"{_pymod(_P)}.Shape", None),
+    ("IMPORTS", _pyq(_P), "abc", None),
+    ("IMPORTS", _pyq(_P), "typing", None),
+    ("REFERENCES", f"{_pymod(_P)}.Shape::area", "abstractmethod", None),
+]
+_E = "enum_class.py"
+_PY_ENUM_EDGE_SHAPES: list[EdgeShape] = [
+    ("CONTAINS", _pyq(_E), f"{_pymod(_E)}.Color", None),
+    ("CONTAINS", f"{_pymod(_E)}.Color", f"{_pymod(_E)}.Color::BLUE", None),
+    ("CONTAINS", f"{_pymod(_E)}.Color", f"{_pymod(_E)}.Color::RED", None),
+    ("EXTENDS", f"{_pymod(_E)}.Color", "Enum", None),
+    ("IMPORTS", _pyq(_E), "enum", None),
+]
+_D = "decorator_references.py"
+_PY_DECORATOR_EDGE_SHAPES: list[EdgeShape] = [
+    ("CONTAINS", _pyq(_D), f"{_pymod(_D)}.Service", None),
+    ("CONTAINS", f"{_pymod(_D)}.Service", f"{_pymod(_D)}.Service::run", None),
+    ("CONTAINS", f"{_pymod(_D)}.Service", f"{_pymod(_D)}.Service::util", None),
+    ("CONTAINS", _pyq(_D), f"{_pymod(_D)}.audit", None),
+    ("CONTAINS", f"{_pymod(_D)}.audit", f"{_pymod(_D)}.audit::wrap", None),
+    ("CONTAINS", _pyq(_D), f"{_pymod(_D)}.audited", None),
+    ("CONTAINS", _pyq(_D), f"{_pymod(_D)}.guard", None),
+    ("CONTAINS", _pyq(_D), f"{_pymod(_D)}.handler", None),
+    ("REFERENCES", f"{_pymod(_D)}.audited", f"{_pymod(_D)}.audit", None),
+    ("REFERENCES", f"{_pymod(_D)}.Service::run", f"{_pymod(_D)}.guard", None),
+    ("REFERENCES", f"{_pymod(_D)}.handler", f"{_pymod(_D)}.guard", None),
+]
+_A = "annotation_references.py"
+_PY_ANNOTATION_EDGE_SHAPES: list[EdgeShape] = [
+    ("CALLS", f"{_pymod(_A)}.Repo::get", f"{_pymod(_A)}.User", None),
+    ("CONTAINS", _pyq(_A), f"{_pymod(_A)}.Repo", None),
+    ("CONTAINS", f"{_pymod(_A)}.Repo", f"{_pymod(_A)}.Repo::find", None),
+    ("CONTAINS", f"{_pymod(_A)}.Repo", f"{_pymod(_A)}.Repo::get", None),
+    ("CONTAINS", f"{_pymod(_A)}.Repo", f"{_pymod(_A)}.Repo::merge", None),
+    ("CONTAINS", f"{_pymod(_A)}.Repo", f"{_pymod(_A)}.Repo::owner", None),
+    ("CONTAINS", f"{_pymod(_A)}.Repo", f"{_pymod(_A)}.Repo::tag", None),
+    ("CONTAINS", _pyq(_A), f"{_pymod(_A)}.User", None),
+    ("IMPORTS", _pyq(_A), "typing", None),
+    ("REFERENCES", f"{_pymod(_A)}.Repo::merge", f"{_pymod(_A)}.Repo", None),
+    ("REFERENCES", f"{_pymod(_A)}.Repo::find", f"{_pymod(_A)}.User", None),
+    ("REFERENCES", f"{_pymod(_A)}.Repo::get", f"{_pymod(_A)}.User", None),
+    ("REFERENCES", f"{_pymod(_A)}.Repo::merge", f"{_pymod(_A)}.User", None),
+    ("REFERENCES", f"{_pymod(_A)}.Repo::merge", f"{_pymod(_A)}.User", None),
+    ("REFERENCES", f"{_pymod(_A)}.Repo::merge", f"{_pymod(_A)}.User", None),
+    ("REFERENCES", f"{_pymod(_A)}.Repo::owner", f"{_pymod(_A)}.User", None),
 ]
 
 PY_CASES: dict[str, Case] = {
     "module": Case(
         "module.py",
         {"Class": 1, "File": 1, "Function": 1, "Method": 1},
-        {"CALLS": 1, "CONTAINS": 3},
+        {"CALLS": 1, "CONTAINS": 3, "REFERENCES": 1},
         _PY_MODULE_EDGE_SHAPES,
     ),
     "package-init": Case(
@@ -860,13 +935,35 @@ PY_CASES: dict[str, Case] = {
     "call-method": Case(
         "call_method.py",
         {"Class": 2, "File": 1, "Function": 1, "Method": 3},
-        {"CALLS": 3, "CONTAINS": 6, "EXTENDS": 1},
+        {"CALLS": 3, "CONTAINS": 6, "EXTENDS": 1, "REFERENCES": 1},
         _PY_CALL_METHOD_EDGE_SHAPES,
     ),
     "instantiation": Case(
         "instantiation.py",
         {"Class": 1, "File": 1, "Function": 1, "Method": 1},
-        {"CALLS": 1, "CONTAINS": 3},
+        {"CALLS": 1, "CONTAINS": 3, "REFERENCES": 1},
+        [
+            (
+                "CALLS",
+                f"{_pymod('instantiation.py')}.make",
+                f"{_pymod('instantiation.py')}.Box",
+                None,
+            ),
+            ("CONTAINS", _pyq("instantiation.py"), f"{_pymod('instantiation.py')}.Box", None),
+            (
+                "CONTAINS",
+                f"{_pymod('instantiation.py')}.Box",
+                f"{_pymod('instantiation.py')}.Box::__init__",
+                None,
+            ),
+            ("CONTAINS", _pyq("instantiation.py"), f"{_pymod('instantiation.py')}.make", None),
+            (
+                "REFERENCES",
+                f"{_pymod('instantiation.py')}.make",
+                f"{_pymod('instantiation.py')}.Box",
+                None,
+            ),
+        ],
     ),
     "module-const": Case(
         "module_const.py",
@@ -874,6 +971,30 @@ PY_CASES: dict[str, Case] = {
         {"CONTAINS": 3},
     ),
     "syntax-error": Case("syntax_error.py", None, None),
+    "protocol-abc": Case(
+        "protocol_abc.py",
+        {"Class": 2, "File": 1, "Interface": 2, "Method": 4},
+        {"CONTAINS": 8, "IMPLEMENTS": 4, "IMPORTS": 2, "REFERENCES": 1},
+        _PY_PROTOCOL_EDGE_SHAPES,
+    ),
+    "enum-class": Case(
+        "enum_class.py",
+        {"Enum": 1, "File": 1, "Property": 2},
+        {"CONTAINS": 3, "EXTENDS": 1, "IMPORTS": 1},
+        _PY_ENUM_EDGE_SHAPES,
+    ),
+    "decorator-references": Case(
+        "decorator_references.py",
+        {"Class": 1, "File": 1, "Function": 5, "Method": 2},
+        {"CONTAINS": 8, "REFERENCES": 3},
+        _PY_DECORATOR_EDGE_SHAPES,
+    ),
+    "annotation-references": Case(
+        "annotation_references.py",
+        {"Class": 2, "File": 1, "Method": 3, "Property": 2},
+        {"CALLS": 1, "CONTAINS": 7, "IMPORTS": 1, "REFERENCES": 7},
+        _PY_ANNOTATION_EDGE_SHAPES,
+    ),
 }
 
 PY_CONFORMANCE = AdapterConformance(

@@ -52,7 +52,6 @@ M10–M12 have all landed; round narratives live in [`FEEDBACK.md`](FEEDBACK.md)
 |---|---|---|---|---|
 | 021 | [C#/.NET adapter](tasks/021_csharp-adapter.md) | M9 | deferred | 019 |
 | 026 | [Inverse Docker path rebase (adapter #2)](tasks/026_docker-inverse-path-rebase.md) | M7 | deferred | 008, 019 |
-| 217 | [Python sees no decorator and no annotation, which is where a Python framework keeps its edges](tasks/217_python-tier-2-framework-visibility.md) | M8 | todo | 020, 137 |
 
 ## Landed phases — nothing open
 

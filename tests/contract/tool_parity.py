@@ -409,10 +409,9 @@ SQL_PARITY = ToolParity(
 )
 
 
-# ── Python (tier 1a) ────────────────────────────────────────────────────────────────────────────
-# Adapter #4 emits CONTAINS / CALLS / IMPORTS / EXTENDS and nothing else. Two consequences are
-# declared below rather than discovered: Python's only heritage is a base list (EXTENDS), and a
-# module dependency is always an import statement, never a textual include.
+# ── Python (tier 2 — 217) ───────────────────────────────────────────────────────────────────────
+# Adapter #4 now emits REFERENCES (decorators/annotations) and IMPLEMENTS (Protocol/ABC). Heritage
+# without traits mirrors TS: EXTENDS + IMPLEMENTS, never USES_TRAIT. Includes stay unmodelled.
 PY_PARITY = ToolParity(
     cli=PY_CLI,
     globs=("*.py",),
@@ -426,7 +425,7 @@ PY_PARITY = ToolParity(
         "caller": "src.module.make_greeter",
         # `Greeter()` is a call in tier 1a, so the class is what `make_greeter` reaches.
         "callee": "src.module.Greeter",
-        "interface": "src.class_inheritance.Animal",
+        "interface": "src.protocol_abc.Drawable",
         "subtree": "src",
         "table": "src.module.Greeter",
     },
@@ -438,6 +437,7 @@ PY_PARITY = ToolParity(
             file_outline.NAME,
             read_symbol.NAME,
             find_callers.NAME,
+            find_references.NAME,
             impact.NAME,
             impact_modules.NAME,
             reachable_from.NAME,
@@ -448,22 +448,15 @@ PY_PARITY = ToolParity(
             trace_capability.NAME,
             generate_onboarding.NAME,
         ),
-        # Narrower than PHP's, and written down rather than assumed: each names a kind the adapter
-        # never emits, so the state is only green while that kind is genuinely absent (185).
-        find_references.NAME: Expect(
-            ANSWERS_WITHOUT,
-            kinds=("REFERENCES",),
-            because="Python has no bare type mention; a name in an annotation is not an edge",
-        ),
         find_implementations.NAME: Expect(
             ANSWERS_WITHOUT,
-            kinds=("IMPLEMENTS", "USES_TRAIT"),
-            because="Python has neither an interface nor a trait; a base list is EXTENDS alone",
+            kinds=("USES_TRAIT",),
+            because="Python has no traits; Protocol/ABC heritage is EXTENDS/IMPLEMENTS only",
         ),
         class_diagram.NAME: Expect(
             ANSWERS_WITHOUT,
-            kinds=("IMPLEMENTS", "USES_TRAIT"),
-            because="no class carries an implements or trait row, so the box has EXTENDS only",
+            kinds=("USES_TRAIT",),
+            because="Python has no traits, so no class carries a trait row",
         ),
         include_graph.NAME: Expect(
             EMPTY_RELATION_NOT_MODELLED,

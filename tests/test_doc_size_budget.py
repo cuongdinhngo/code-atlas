@@ -117,11 +117,15 @@ DOCS = REPO / "docs"
 # ceiling drops 6,600 rather than banking it — a budget that is not close enough to bite is the
 # slack the test below forbids. The 374 of headroom is ~10 open rows, which is more than the file
 # has ever held open at once.
+# 2,200 -> 2,100 on 2026-09-05 (217 closing): measured 1,736 once 217's `done` row left, and
+# 2,200 is more than 25 % above that, which the test below calls slack. 218's figure had only
+# 14 tokens of margin against its own rule; 2,100 keeps ~10 open rows of headroom and 434 of
+# margin. Nothing is banked — the ceiling tracks the file.
 BUDGETS = {
     "CLAUDE.md": 50,
     "AGENTS.md": 2_800,
     "PLAN.md": 23_000,
-    "BACKLOG.md": 2_200,
+    "BACKLOG.md": 2_100,
     "ENGINEERING_RULES.md": 5_700,
     "AGENT_BRIEF.md": 2_250,
     "CONVENTION.md": 6_600,

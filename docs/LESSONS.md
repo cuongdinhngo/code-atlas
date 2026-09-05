@@ -90,6 +90,20 @@ this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *c
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
 
+## 217 — Extending an adapter's edge kinds without updating tool_parity is a false-red suite
+
+When Python gained REFERENCES/IMPLEMENTS, conformance was green but `test_tool_parity` failed
+because `PY_PARITY` still declared those kinds absent. The companion matrix is part of the blast
+radius of any vocabulary the graph newly holds (185).
+
+### 217-C1 — When an adapter starts emitting a kind that tool_parity listed as absent, update the parity row in the same change
+- type: 2
+- status: proposed (awaiting human confirm)
+- evidence: challenger 217 round 1; `tests/contract/tool_parity.py` PY_PARITY; 49 python parity tests green after
+- handle: `parity-row-tracks-emitted-kinds`
+- destination: stays in lessons_path
+- seen: 217
+
 ## 020 — ast.Module has no end_lineno; File spans must come from the source text
 
 CPython's `ast.Module` carries neither `lineno` nor `end_lineno`. Taking

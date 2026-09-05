@@ -1,4 +1,4 @@
-"""Walk a ``.py`` file with stdlib ``ast`` and emit contract nodes/edges (task 020 tier 1a)."""
+"""Walk a ``.py`` file with stdlib ``ast`` and emit contract nodes/edges (task 020 + 217)."""
 
 from __future__ import annotations
 
@@ -9,6 +9,46 @@ from typing import Any
 from src.imports import import_target_raw, resolve_import
 
 MEMBER_SEP = "::"
+
+_MODIFIER_DECORATORS = frozenset({"staticmethod", "classmethod", "property"})
+# Matched on the leaf, so a bare `Protocol`, `typing.Protocol` and `t.ABC` all classify alike.
+_INTERFACE_LEAVES = frozenset({"Protocol", "ABC"})
+_ENUM_LEAVES = frozenset({"Enum"})
+_STRIP_CONTAINERS = frozenset(
+    {"Optional", "Union", "list", "dict", "List", "Dict", "tuple", "Tuple", "set", "Set"}
+)
+_SKIP_TYPE_NAMES = frozenset(
+    {
+        "int",
+        "str",
+        "bool",
+        "bytes",
+        "float",
+        "complex",
+        "None",
+        "Any",
+        "object",
+        "Optional",
+        "Union",
+        "list",
+        "dict",
+        "List",
+        "Dict",
+        "tuple",
+        "Tuple",
+        "set",
+        "Set",
+        "Callable",
+        "Iterable",
+        "Sequence",
+        "Mapping",
+        "Type",
+        "ClassVar",
+        "Final",
+        "Literal",
+        "Self",
+    }
+)
 
 
 def to_posix(path: str) -> str:
@@ -33,18 +73,21 @@ def dotted(container: str, name: str) -> str:
     return f"{container}.{name}" if container else name
 
 
+def _decorator_leaf_name(deco: ast.expr) -> str | None:
+    node: ast.expr = deco.func if isinstance(deco, ast.Call) else deco
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    return None
+
+
 def _decorator_names(node: ast.AST) -> list[str]:
     names: list[str] = []
     for deco in getattr(node, "decorator_list", []) or []:
-        if isinstance(deco, ast.Name):
-            names.append(deco.id)
-        elif isinstance(deco, ast.Attribute):
-            names.append(deco.attr)
-        elif isinstance(deco, ast.Call):
-            if isinstance(deco.func, ast.Name):
-                names.append(deco.func.id)
-            elif isinstance(deco.func, ast.Attribute):
-                names.append(deco.func.attr)
+        leaf = _decorator_leaf_name(deco)
+        if leaf:
+            names.append(leaf)
     return names
 
 
@@ -53,7 +96,7 @@ def _method_modifiers(node: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]
     if isinstance(node, ast.AsyncFunctionDef):
         mods.append("async")
     for name in _decorator_names(node):
-        if name in ("staticmethod", "classmethod", "property") and name not in mods:
+        if name in _MODIFIER_DECORATORS and name not in mods:
             mods.append(name)
     return mods
 
@@ -64,6 +107,57 @@ def _function_modifiers(node: ast.FunctionDef | ast.AsyncFunctionDef) -> list[st
 
 def _is_upper_const(name: str) -> bool:
     return name.isupper() and any(c.isalpha() for c in name)
+
+
+def _attr_dotted(expr: ast.Attribute) -> str:
+    parts: list[str] = []
+    cur: ast.expr = expr
+    while isinstance(cur, ast.Attribute):
+        parts.append(cur.attr)
+        cur = cur.value
+    # The loop exits only on a non-Attribute, so a Name is the only spelling left to keep.
+    parts.append(cur.id if isinstance(cur, ast.Name) else "(dynamic)")
+    parts.reverse()
+    return ".".join(parts)
+
+
+def _unwrap_base(base: ast.expr) -> ast.expr:
+    """Peel ``Protocol[T]`` / ``Enum[…]`` to the named base expression."""
+    return base.value if isinstance(base, ast.Subscript) else base
+
+
+def _marker_from_base_expr(
+    base: ast.expr,
+    *,
+    import_aliases: dict[str, str],
+) -> str | None:
+    """Return a classification marker (Protocol/ABC/Enum/…) for a base expression."""
+    node = _unwrap_base(base)
+    if isinstance(node, ast.Name):
+        name = node.id
+        return import_aliases.get(name, name)
+    if isinstance(node, ast.Attribute):
+        return _attr_dotted(node)
+    return None
+
+
+def _is_interface_marker(marker: str) -> bool:
+    return marker.rsplit(".", 1)[-1] in _INTERFACE_LEAVES
+
+
+def _is_enum_marker(marker: str) -> bool:
+    return marker.rsplit(".", 1)[-1] in _ENUM_LEAVES
+
+
+def _type_name_worthy(raw: str) -> bool:
+    if not raw or raw == "(dynamic)":
+        return False
+    leaf = raw.rsplit(".", 1)[-1]
+    if leaf in _SKIP_TYPE_NAMES or raw in _SKIP_TYPE_NAMES:
+        return False
+    if "." in raw:
+        return True
+    return bool(leaf) and leaf[0].isupper()
 
 
 def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
@@ -125,7 +219,14 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
     # Same-file name → qname map (ambiguous names fall back to bare).
     declared: dict[str, str | None] = {}
     method_qnames: set[str] = set()
+    # Same-file base qnames for ``super().m()`` resolution (020).
     class_bases: dict[str, list[str]] = {}
+    # Classification markers per class (Protocol/ABC/Enum / import aliases / bare names).
+    class_base_markers: dict[str, list[str]] = {}
+    # Local import name → marker (Protocol/ABC/Enum) or imported symbol name.
+    import_aliases: dict[str, str] = {}
+    class_kind: dict[str, str] = {}
+    interface_qnames: set[str] = set()
 
     def remember(name: str, qname: str) -> None:
         if name in declared:
@@ -133,7 +234,36 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
         else:
             declared[name] = qname
 
+    def note_import_alias(local: str, imported: str, module: str | None) -> None:
+        leaf = imported.rsplit(".", 1)[-1]
+        if module in ("typing", "abc") and leaf in ("Protocol", "ABC"):
+            import_aliases[local] = f"{module}.{leaf}"
+        elif module == "enum" and leaf == "Enum":
+            import_aliases[local] = "enum.Enum"
+        elif leaf in ("Protocol", "ABC", "Enum"):
+            import_aliases[local] = leaf
+        else:
+            import_aliases[local] = imported
+
+    def collect_imports(stmt: ast.AST) -> None:
+        if isinstance(stmt, ast.Import):
+            for alias in stmt.names:
+                local = alias.asname or alias.name.split(".", 1)[0]
+                # ``import typing`` / ``import enum as e`` — Attribute bases use the module name.
+                import_aliases[local] = alias.name
+            return
+        if isinstance(stmt, ast.ImportFrom):
+            module = stmt.module
+            for alias in stmt.names:
+                if alias.name == "*":
+                    continue
+                local = alias.asname or alias.name
+                note_import_alias(local, alias.name, module)
+
     def collect(stmt: ast.AST, class_qname: str | None, func_qname: str | None) -> None:
+        if isinstance(stmt, (ast.Import, ast.ImportFrom)):
+            collect_imports(stmt)
+            return
         if isinstance(stmt, ast.ClassDef):
             qn = (
                 member(class_qname, stmt.name)
@@ -142,12 +272,19 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
             )
             remember(stmt.name, qn)
             bases: list[str] = []
+            markers: list[str] = []
             for base in stmt.bases:
-                if isinstance(base, ast.Name):
-                    bases.append(resolve_name_early(base.id, qn))
-                elif isinstance(base, ast.Attribute):
-                    bases.append(base.attr)
+                marker = _marker_from_base_expr(base, import_aliases=import_aliases)
+                if marker is not None:
+                    markers.append(marker)
+                node = _unwrap_base(base)
+                if isinstance(node, ast.Name):
+                    local = declared.get(node.id)
+                    bases.append(local if local else node.id)
+                elif isinstance(node, ast.Attribute):
+                    bases.append(_attr_dotted(node))
             class_bases[qn] = bases
+            class_base_markers[qn] = markers
             for child in stmt.body:
                 collect(child, qn, None)
         elif isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -173,14 +310,40 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
                         remember(target.id, member(class_qname, target.id))
                     elif _is_upper_const(target.id):
                         remember(target.id, dotted(mod, target.id))
-
-    def resolve_name_early(name: str, _current_class: str) -> str:
-        # During collect, prior declarations in ``declared`` are already visible.
-        local = declared.get(name)
-        return local if local else dotted(mod, name)
+        elif isinstance(stmt, ast.If):
+            for nested in (*stmt.body, *stmt.orelse):
+                collect(nested, class_qname, func_qname)
+        elif isinstance(stmt, (ast.For, ast.AsyncFor, ast.While)):
+            for nested in (*stmt.body, *stmt.orelse):
+                collect(nested, class_qname, func_qname)
+        elif isinstance(stmt, (ast.With, ast.AsyncWith)):
+            for nested in stmt.body:
+                collect(nested, class_qname, func_qname)
+        elif isinstance(stmt, ast.Try):
+            for nested in stmt.body:
+                collect(nested, class_qname, func_qname)
+            for handler in stmt.handlers:
+                for nested in handler.body:
+                    collect(nested, class_qname, func_qname)
+            for nested in (*stmt.orelse, *stmt.finalbody):
+                collect(nested, class_qname, func_qname)
 
     for stmt in tree.body:
         collect(stmt, None, None)
+
+    # Classify ClassDefs after the full collect (bases + aliases available).
+    for qn, markers in class_base_markers.items():
+        kind = "Class"
+        for marker in markers:
+            if _is_interface_marker(marker):
+                kind = "Interface"
+                break
+            if _is_enum_marker(marker):
+                kind = "Enum"
+                break
+        class_kind[qn] = kind
+        if kind == "Interface":
+            interface_qnames.add(qn)
 
     def resolve_name(name: str) -> str:
         local = declared.get(name)
@@ -227,6 +390,101 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
         if tier:
             row["confidence_tier"] = tier
         edges.append(row)
+
+    def decorator_target_raw(deco: ast.expr) -> str | None:
+        node: ast.expr = deco.func if isinstance(deco, ast.Call) else deco
+        if isinstance(node, ast.Name):
+            return resolve_name(node.id)
+        if isinstance(node, ast.Attribute):
+            return _attr_dotted(node)
+        return None
+
+    def emit_decorator_refs(owner_qname: str, node: ast.AST) -> None:
+        for deco in getattr(node, "decorator_list", []) or []:
+            leaf = _decorator_leaf_name(deco)
+            if leaf in _MODIFIER_DECORATORS:
+                continue
+            target = decorator_target_raw(deco)
+            if target:
+                add_edge("REFERENCES", owner_qname, target, deco)
+
+    def annotation_type_targets(ann: ast.expr) -> list[str]:
+        found: list[str] = []
+
+        def consider(raw: str) -> None:
+            if _type_name_worthy(raw) and raw not in found:
+                found.append(raw)
+
+        def walk(expr: ast.expr) -> None:
+            if isinstance(expr, ast.Name):
+                consider(resolve_name(expr.id))
+                return
+            if isinstance(expr, ast.Attribute):
+                consider(_attr_dotted(expr))
+                return
+            if isinstance(expr, ast.Constant):
+                return
+            if isinstance(expr, ast.BinOp) and isinstance(expr.op, ast.BitOr):
+                walk(expr.left)
+                walk(expr.right)
+                return
+            if isinstance(expr, ast.Subscript):
+                value = expr.value
+                slice_node = expr.slice
+                container_name: str | None = None
+                if isinstance(value, ast.Name):
+                    container_name = value.id
+                elif isinstance(value, ast.Attribute):
+                    container_name = value.attr
+                if container_name not in _STRIP_CONTAINERS:
+                    walk(value)
+                if isinstance(slice_node, ast.Tuple):
+                    for elt in slice_node.elts:
+                        walk(elt)
+                else:
+                    walk(slice_node)
+                return
+            if isinstance(expr, ast.Tuple):
+                for elt in expr.elts:
+                    walk(elt)
+
+        walk(ann)
+        return found
+
+    def emit_annotation_refs(owner_qname: str, ann: ast.expr | None, at: ast.AST) -> None:
+        if ann is None:
+            return
+        for target in annotation_type_targets(ann):
+            add_edge("REFERENCES", owner_qname, target, at)
+
+    def emit_function_annotation_refs(
+        owner_qname: str, node: ast.FunctionDef | ast.AsyncFunctionDef
+    ) -> None:
+        emit_annotation_refs(owner_qname, node.returns, node)
+        args = node.args
+        for arg in [*args.posonlyargs, *args.args, *args.kwonlyargs]:
+            emit_annotation_refs(owner_qname, arg.annotation, arg)
+        if args.vararg is not None:
+            emit_annotation_refs(owner_qname, args.vararg.annotation, args.vararg)
+        if args.kwarg is not None:
+            emit_annotation_refs(owner_qname, args.kwarg.annotation, args.kwarg)
+
+    def base_edge_kind(base: ast.expr, target_raw: str) -> str:
+        marker = _marker_from_base_expr(base, import_aliases=import_aliases)
+        if marker and _is_interface_marker(marker):
+            return "IMPLEMENTS"
+        if target_raw in interface_qnames:
+            return "IMPLEMENTS"
+        # Same-file name that resolves to an Interface.
+        if isinstance(base, ast.Name):
+            resolved = resolve_name(base.id)
+            if resolved in interface_qnames:
+                return "IMPLEMENTS"
+            leaf = base.id
+            aliased = import_aliases.get(leaf)
+            if aliased and _is_interface_marker(aliased):
+                return "IMPLEMENTS"
+        return "EXTENDS"
 
     def emit_imports(node: ast.Import | ast.ImportFrom) -> None:
         if isinstance(node, ast.Import):
@@ -344,13 +602,18 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
                 qn = member(enclosing_class, stmt.name)
             else:
                 qn = dotted(mod, stmt.name)
-            add_node("Class", stmt.name, qn, stmt)
+            kind = class_kind.get(qn, "Class")
+            add_node(kind, stmt.name, qn, stmt)
             add_edge("CONTAINS", container, qn, stmt)
+            emit_decorator_refs(qn, stmt)
             for base in stmt.bases:
-                if isinstance(base, ast.Name):
-                    add_edge("EXTENDS", qn, resolve_name(base.id), base)
-                elif isinstance(base, ast.Attribute):
-                    add_edge("EXTENDS", qn, base.attr, base)
+                node = _unwrap_base(base)
+                if isinstance(node, ast.Name):
+                    base_target = resolve_name(node.id)
+                    add_edge(base_edge_kind(base, base_target), qn, base_target, base)
+                elif isinstance(node, ast.Attribute):
+                    base_target = _attr_dotted(node)
+                    add_edge(base_edge_kind(base, base_target), qn, base_target, base)
             walk_body(stmt.body, qn, qn, qn)
             return
 
@@ -370,6 +633,8 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
                 mods = _function_modifiers(stmt)
             add_node(kind, stmt.name, qn, stmt, modifiers=mods or None)
             add_edge("CONTAINS", container, qn, stmt)
+            emit_decorator_refs(qn, stmt)
+            emit_function_annotation_refs(qn, stmt)
             if not declarations_only:
                 walk_body(stmt.body, qn, qn, enclosing_class)
             return
@@ -380,6 +645,7 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
                 targets = list(stmt.targets)
             elif stmt.target is not None:
                 targets = [stmt.target]
+            owner_for_ann: str | None = None
             for target in targets:
                 if not isinstance(target, ast.Name):
                     continue
@@ -387,10 +653,16 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
                     qn = member(enclosing_class, target.id)
                     add_node("Property", target.id, qn, stmt)
                     add_edge("CONTAINS", enclosing_class, qn, stmt)
+                    owner_for_ann = qn
                 elif container in (qpath, mod) and _is_upper_const(target.id):
                     qn = dotted(mod, target.id)
                     add_node("Const", target.id, qn, stmt)
                     add_edge("CONTAINS", container, qn, stmt)
+                    owner_for_ann = qn
+            if isinstance(stmt, ast.AnnAssign):
+                # Class-body / annotated assign → REFERENCES from the Property/Const (or scope).
+                src = owner_for_ann or scope
+                emit_annotation_refs(src, stmt.annotation, stmt)
             if not declarations_only and isinstance(stmt, ast.Assign) and stmt.value:
                 _walk_expr(stmt.value, scope, enclosing_class)
             elif not declarations_only and isinstance(stmt, ast.AnnAssign) and stmt.value:

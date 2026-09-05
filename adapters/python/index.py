@@ -45,6 +45,15 @@ def serve() -> None:
 
 
 def main(argv: list[str]) -> int:
+    # Grammar floor is R4.2: ``ast.parse`` tracks the running interpreter (task 217 / AC3).
+    # Kept even under requires-python>=3.12 so a wrong CA_PYTHON_CMD host fails loudly.
+    if sys.version_info < (3, 12):  # noqa: UP036
+        ver = sys.version_info
+        sys.stderr.write(
+            "code-atlas python adapter requires Python >= 3.12 "
+            f"(running {ver[0]}.{ver[1]})\n"
+        )
+        return 2
     if len(argv) == 1 and argv[0] == "--server":
         serve()
         return 0
