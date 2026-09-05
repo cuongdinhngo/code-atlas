@@ -12,6 +12,13 @@ having — a guard that keeps passing while its inputs move under it.
 
 The ledger moved to `TOKEN_LEDGER.md` in task 133 (it was 4,773 tokens of tier 1). Only the two
 paths below changed; every assertion is the one 132 left.
+
+Task 218 narrowed the sync invariant rather than dropping it. A closed ticket no longer keeps a
+BACKLOG row (it was 8,797 of an 8,800-token budget, 208 of 214 rows naming what the task file
+already named), so `set(BACKLOG) == set(tasks)` had to go. What replaces it is not weaker: an
+**open** task must have a row that agrees with its frontmatter, a **done** task must have a ledger
+row and must **not** have a row here, and no task may fall through both — the same "a task cannot
+go untracked" the old equality bought, minus the copy R7.6 forbids.
 """
 
 import re
@@ -114,15 +121,32 @@ def test_the_guard_has_something_to_check() -> None:
     tasks = task_files()
     statuses = backlog_statuses()
     assert tasks, "no task files found — the glob is broken"
-    assert set(statuses) == set(tasks), (
-        "BACKLOG rows and task files disagree: "
-        f"only in BACKLOG {sorted(set(statuses) - set(tasks))}, "
-        f"only on disk {sorted(set(tasks) - set(statuses))}"
+    assert statuses, "no BACKLOG row parsed — the row reader is broken"
+    assert set(statuses) <= set(tasks), (
+        f"BACKLOG rows for tasks that do not exist: {sorted(set(statuses) - set(tasks))}"
     )
-    done = {task_id for task_id, status in statuses.items() if status == "done"}
-    assert done, "no task reads as done — the Status column is not being read"
+    on_disk = {task_id: frontmatter_status(path) for task_id, path in tasks.items()}
+    done = {task_id for task_id, status in on_disk.items() if status == "done"}
+    assert done, "no task reads as done — the frontmatter status is not being read"
     assert done <= set(token_rows()), (
         f"done tasks with no token row: {sorted(done - set(token_rows()))}"
+    )
+    # Every task is tracked by exactly one of the two: a BACKLOG row, or a closing ledger row.
+    untracked = {task_id for task_id in tasks if task_id not in statuses and task_id not in done}
+    assert not untracked, (
+        f"tasks with neither a BACKLOG row nor a done status: {sorted(untracked)}"
+    )
+
+
+def test_a_closed_ticket_leaves_the_backlog() -> None:
+    """R7.6, task 218: a `done` row here is a third naming of the task file and its ledger row.
+
+    Made to fail: restore any one of the 208 rows 218 removed and this reports it by id.
+    """
+    lingering = sorted(task_id for task_id, row in backlog_statuses().items() if row == "done")
+    assert not lingering, (
+        f"BACKLOG still carries {len(lingering)} `done` row(s): {lingering}. A closing ticket's "
+        "row goes in the same commit that adds its TOKEN_LEDGER.md spend row (R7.2, R7.6)."
     )
 
 
@@ -140,9 +164,12 @@ def test_the_token_ledger_reads_only_its_own_rows() -> None:
 
 @pytest.mark.parametrize("task_id", sorted(task_files()))
 def test_status_matches_in_both_places(task_id: str) -> None:
-    # R7.2: status is kept in sync in the backlog table *and* the task's frontmatter.
+    # R7.2: an *open* task's status is kept in sync in the backlog table *and* its frontmatter.
     in_file = frontmatter_status(task_files()[task_id])
     assert in_file in STATUSES, f"task {task_id}: {in_file!r} is not a known status"
+    if in_file == "done":
+        # Carried by its ledger row from here on — see test_a_closed_ticket_leaves_the_backlog.
+        return
     assert backlog_statuses().get(task_id) == in_file, (
         f"task {task_id}: BACKLOG says {backlog_statuses().get(task_id)!r}, "
         f"its frontmatter says {in_file!r}"

@@ -245,12 +245,15 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
 
 - **R7.1 — Ship the smallest useful thing**; don't gold-plate before it is usable.
 - **R7.2 — Keep the plan and backlog honest, cost included.** A design decision updates the
-  [plan](PLAN.md); task status updates both [`BACKLOG.md`](BACKLOG.md) and the task file's
-  frontmatter. **And the spend is part of the status:** before a PR opens, the task's token spend
-  goes in its working-doc cost ledger **and** in [`TOKEN_LEDGER.md`](TOKEN_LEDGER.md). A finished task whose
-  cost is unrecorded reads as free, and a project that cannot say what a ticket cost cannot argue
-  about where its effort goes. *Falsifier:* a task at `done` with no Token-usage row, or a spend
-  quoted in one place and not the other — guarded by `tests/test_backlog_bookkeeping.py`.
+  [plan](PLAN.md); an **open** task's status updates both [`BACKLOG.md`](BACKLOG.md) and the task
+  file's frontmatter. **And the spend is part of the status:** before a PR opens, the task's token
+  spend goes in its working-doc cost ledger **and** in [`TOKEN_LEDGER.md`](TOKEN_LEDGER.md). A
+  finished task whose cost is unrecorded reads as free, and a project that cannot say what a ticket
+  cost cannot argue about where its effort goes. **A task that reaches `done` leaves BACKLOG in the
+  same commit that records its spend** (218) — the ledger row carries it from then on, so the closed
+  ticket is named twice, not three times (R7.6). *Falsifier:* a task at `done` with no Token-usage
+  row, an open task whose two statuses disagree, or a `done` row still in BACKLOG — all guarded by
+  `tests/test_backlog_bookkeeping.py`.
 - **R7.3 — Small, reviewable commits** with imperative messages and no AI-attribution trailer. One
   logical change per commit.
 - **R7.4 — No dead abstractions.** An interface with one implementer and no near-term second gets

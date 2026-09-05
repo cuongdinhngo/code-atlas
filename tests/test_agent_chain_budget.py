@@ -44,7 +44,11 @@ REPO = Path(__file__).resolve().parent.parent
 # doc, plus 205's row flipping to `done`. R7.6 ran first on both files and came back empty: the
 # other three facts 205 earned went to LESSONS.md (tier 2) and the task file, which is what kept
 # this to one raise instead of four.
-TIER1_BUDGET = 25_900
+# 25,900 -> 19,400 on 2026-09-05 (task 218): measured 18,990 once BACKLOG shed its 208 `done` rows
+# (8,797 -> 1,826). The whole 6,971 is given back rather than held: it was never content, it was the
+# same ticket named a third time beside its task file and its ledger row. 410 of headroom, which the
+# doc-size test's 25 % slack rule keeps honest per file.
+TIER1_BUDGET = 19_400
 
 
 def _tokens(paths: list[Path]) -> int:

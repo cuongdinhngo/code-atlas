@@ -113,11 +113,15 @@ DOCS = REPO / "docs"
 # again: 205 supersedes no BACKLOG line (its own row stays, with `done`), and the three other facts
 # the run earned went to LESSONS.md and the task file rather than here, which is what kept the raise
 # to 100. The follow-up itself is two lines pointing at the task doc, not a retelling of it.
+# 8,800 -> 2,200 on 2026-09-05 (task 218): measured 1,826 after the 208 `done` rows came out. The
+# ceiling drops 6,600 rather than banking it — a budget that is not close enough to bite is the
+# slack the test below forbids. The 374 of headroom is ~10 open rows, which is more than the file
+# has ever held open at once.
 BUDGETS = {
     "CLAUDE.md": 50,
     "AGENTS.md": 2_800,
     "PLAN.md": 23_000,
-    "BACKLOG.md": 8_800,
+    "BACKLOG.md": 2_200,
     "ENGINEERING_RULES.md": 5_700,
     "AGENT_BRIEF.md": 2_250,
     "CONVENTION.md": 6_600,
