@@ -101,6 +101,7 @@ jobs:
       # bytecode (task 146). A fresh runner has none to be stale — here it is insurance only.
       - name: Bytecode invalidation (checked-hash, task 146)
         run: python -m compileall -q -f --invalidation-mode checked-hash
+          -x 'tests[/\\]fixtures[/\\]python[/\\]'
           code_atlas onboarding_llm tests
 
       # No `if:` guards below. They existed while these directories were empty; today their only
@@ -219,6 +220,23 @@ jobs:
 
       - name: Static analysis (tsc --checkJs --strict, noImplicitAny ON) — the SQL adapter (R6.6)
         run: adapters/sql/node_modules/.bin/tsc -p adapters/sql/tsconfig.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install ruff + mypy for the Python adapter analyser (R6.6)
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff mypy
+
+      - name: Static analysis (ruff) — the Python adapter (R6.6)
+        run: ruff check adapters/python
+
+      - name: Static analysis (mypy --strict) — the Python adapter (R6.6)
+        run: mypy --config-file adapters/python/pyproject.toml
 
   guardrails:
     name: rulebook grep-gates

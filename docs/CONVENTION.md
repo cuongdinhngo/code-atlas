@@ -35,7 +35,7 @@ code-atlas/
 │                                     #   200) claude-code/ codex/ opencode/ git/
 ├── adapters/
 │   ├── php/                          # self-contained: composer.json, index.php, src/{Parser,Visitor}.php
-│   ├── typescript/ sql/              # landed; python/ csharp/ deferred (PLAN §19)
+│   ├── typescript/ sql/ python/      # landed; csharp/ deferred (PLAN §19)
 ├── tests/
 │   ├── contract/                     # schema-conformance every adapter must pass
 │   ├── fixtures/<lang>/…             # spec-driven fixtures

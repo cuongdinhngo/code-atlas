@@ -65,6 +65,7 @@ echo "== job: test =="
 # does the work: without it compileall skips files whose cache it already considers current.
 _run "bytecode invalidation (checked-hash, 146)" \
     "$py" -m compileall -q -f --invalidation-mode checked-hash \
+    -x 'tests[/\\]fixtures[/\\]python[/\\]' \
     code_atlas onboarding_llm tests
 
 # ci.yml step "Install check": the declared console scripts resolve and import. Derived from
@@ -188,6 +189,21 @@ if [ -x adapters/sql/node_modules/.bin/tsc ]; then
 else
     _record SKIP "tsc --checkJs --strict (R6.6, SQL adapter)" \
         "run: npm ci --prefix adapters/sql"
+fi
+
+# Python adapter (task 020): ruff + mypy --strict over adapters/python only (R6.6). Uses the
+# core venv's tools with the adapter-local pyproject.toml — zero adapter runtime deps.
+if [ -x "$bin/ruff" ]; then
+    _run "ruff check (R6.6, Python adapter)" \
+        "$bin/ruff" check adapters/python
+else
+    _record SKIP "ruff check (R6.6, Python adapter)" "ruff not in .venv"
+fi
+if [ -x "$bin/mypy" ]; then
+    _run "mypy --strict (R6.6, Python adapter)" \
+        "$bin/mypy" --config-file adapters/python/pyproject.toml
+else
+    _record SKIP "mypy --strict (R6.6, Python adapter)" "mypy not in .venv"
 fi
 
 echo "== job: guardrails =="

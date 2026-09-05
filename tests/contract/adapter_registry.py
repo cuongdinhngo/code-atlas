@@ -12,6 +12,7 @@ from typing import Any
 
 from tests.adapter_cli import AdapterCli
 from tests.php_adapter_cli import CLI as PHP_CLI
+from tests.python_adapter_cli import CLI as PY_CLI
 from tests.sql_adapter_cli import CLI as SQL_CLI
 from tests.ts_adapter_cli import CLI as TS_CLI
 
@@ -628,10 +629,275 @@ SQL_CONFORMANCE = AdapterConformance(
 )
 
 
+# ── Python (task 020 tier 1a) ────────────────────────────────────────────────────────────────────
+# N=16 construct inventory ratified at Gate 1.
+# Zero new contract vocabulary; CONTRACT_VERSION stays 9.
+PY_R62_CASES = frozenset(
+    {
+        "module",
+        "package-init",
+        "class-inheritance",
+        "class-multiple-inheritance",
+        "method-kinds",
+        "async-def",
+        "nested-function",
+        "import-plain",
+        "import-from",
+        "import-alias",
+        "import-relative",
+        "call-function",
+        "call-method",
+        "instantiation",
+        "module-const",
+        "syntax-error",
+    }
+)
+
+
+def _pyq(fixture: str) -> str:
+    """Repo-relative path of a Python fixture (File qname)."""
+    return f"tests/fixtures/python/{fixture}"
+
+
+def _pymod(fixture: str) -> str:
+    """Dotted module name for a fixture path under ``tests/fixtures/python/``."""
+    base = f"tests/fixtures/python/{fixture}"
+    if base.endswith("/__init__.py"):
+        return base[: -len("/__init__.py")].replace("/", ".")
+    if base.endswith(".py"):
+        return base[: -len(".py")].replace("/", ".")
+    return base.replace("/", ".")
+
+
+_PY_MODULE_EDGE_SHAPES: list[EdgeShape] = [
+    ("CALLS", f"{_pymod('module.py')}.make_greeter", f"{_pymod('module.py')}.Greeter", None),
+    ("CONTAINS", _pyq("module.py"), f"{_pymod('module.py')}.Greeter", None),
+    ("CONTAINS", f"{_pymod('module.py')}.Greeter", f"{_pymod('module.py')}.Greeter::greet", None),
+    ("CONTAINS", _pyq("module.py"), f"{_pymod('module.py')}.make_greeter", None),
+]
+_PY_PACKAGE_EDGE_SHAPES: list[EdgeShape] = [
+    ("CONTAINS", _pyq("pkg/__init__.py"), _pymod("pkg/__init__.py"), None),
+]
+_PY_INHERIT_EDGE_SHAPES: list[EdgeShape] = [
+    ("CONTAINS", _pyq("class_inheritance.py"), f"{_pymod('class_inheritance.py')}.Animal", None),
+    (
+        "CONTAINS",
+        f"{_pymod('class_inheritance.py')}.Animal",
+        f"{_pymod('class_inheritance.py')}.Animal::speak",
+        None,
+    ),
+    ("CONTAINS", _pyq("class_inheritance.py"), f"{_pymod('class_inheritance.py')}.Dog", None),
+    (
+        "CONTAINS",
+        f"{_pymod('class_inheritance.py')}.Dog",
+        f"{_pymod('class_inheritance.py')}.Dog::speak",
+        None,
+    ),
+    (
+        "EXTENDS",
+        f"{_pymod('class_inheritance.py')}.Dog",
+        f"{_pymod('class_inheritance.py')}.Animal",
+        None,
+    ),
+]
+_M = "class_multiple_inheritance.py"
+_PY_MULTI_EDGE_SHAPES: list[EdgeShape] = [
+    ("CONTAINS", _pyq(_M), f"{_pymod(_M)}.ReadWriter", None),
+    ("CONTAINS", f"{_pymod(_M)}.ReadWriter", f"{_pymod(_M)}.ReadWriter::flush", None),
+    ("CONTAINS", _pyq(_M), f"{_pymod(_M)}.Readable", None),
+    ("CONTAINS", f"{_pymod(_M)}.Readable", f"{_pymod(_M)}.Readable::read", None),
+    ("CONTAINS", _pyq(_M), f"{_pymod(_M)}.Writable", None),
+    ("CONTAINS", f"{_pymod(_M)}.Writable", f"{_pymod(_M)}.Writable::write", None),
+    ("EXTENDS", f"{_pymod(_M)}.ReadWriter", f"{_pymod(_M)}.Readable", None),
+    ("EXTENDS", f"{_pymod(_M)}.ReadWriter", f"{_pymod(_M)}.Writable", None),
+]
+_PY_IMPORT_ALIAS_EDGE_SHAPES: list[EdgeShape] = [
+    (
+        "ALIASES",
+        f"{_pymod('import_alias.py')}.tm",
+        _pymod("resolve/target_mod.py"),
+        None,
+    ),
+    (
+        "ALIASES",
+        f"{_pymod('import_alias.py')}.help_fn",
+        f"{_pymod('resolve/target_mod.py')}.helper",
+        None,
+    ),
+    ("IMPORTS", _pyq("import_alias.py"), _pyq("resolve/target_mod.py"), None),
+    ("IMPORTS", _pyq("import_alias.py"), _pyq("resolve/target_mod.py"), None),
+]
+_PY_IMPORT_REL_EDGE_SHAPES: list[EdgeShape] = [
+    (
+        "IMPORTS",
+        _pyq("nest/deep/import_relative.py"),
+        _pyq("nest/deep/x.py"),
+        None,
+    ),
+    (
+        "IMPORTS",
+        _pyq("nest/deep/import_relative.py"),
+        _pyq("nest/pkg/__init__.py"),
+        None,
+    ),
+]
+_PY_CALL_METHOD_EDGE_SHAPES: list[EdgeShape] = [
+    ("CALLS", f"{_pymod('call_method.py')}.call_on", "hook", "HEURISTIC"),
+    (
+        "CALLS",
+        f"{_pymod('call_method.py')}.Child::hook",
+        f"{_pymod('call_method.py')}.Base::hook",
+        None,
+    ),
+    (
+        "CALLS",
+        f"{_pymod('call_method.py')}.Child::run",
+        f"{_pymod('call_method.py')}.Child::hook",
+        None,
+    ),
+    ("CONTAINS", _pyq("call_method.py"), f"{_pymod('call_method.py')}.Base", None),
+    (
+        "CONTAINS",
+        f"{_pymod('call_method.py')}.Base",
+        f"{_pymod('call_method.py')}.Base::hook",
+        None,
+    ),
+    ("CONTAINS", _pyq("call_method.py"), f"{_pymod('call_method.py')}.Child", None),
+    (
+        "CONTAINS",
+        f"{_pymod('call_method.py')}.Child",
+        f"{_pymod('call_method.py')}.Child::hook",
+        None,
+    ),
+    (
+        "CONTAINS",
+        f"{_pymod('call_method.py')}.Child",
+        f"{_pymod('call_method.py')}.Child::run",
+        None,
+    ),
+    ("CONTAINS", _pyq("call_method.py"), f"{_pymod('call_method.py')}.call_on", None),
+    (
+        "EXTENDS",
+        f"{_pymod('call_method.py')}.Child",
+        f"{_pymod('call_method.py')}.Base",
+        None,
+    ),
+]
+
+PY_CASES: dict[str, Case] = {
+    "module": Case(
+        "module.py",
+        {"Class": 1, "File": 1, "Function": 1, "Method": 1},
+        {"CALLS": 1, "CONTAINS": 3},
+        _PY_MODULE_EDGE_SHAPES,
+    ),
+    "package-init": Case(
+        "pkg/__init__.py",
+        {"File": 1, "Namespace": 1},
+        {"CONTAINS": 1},
+        _PY_PACKAGE_EDGE_SHAPES,
+    ),
+    "class-inheritance": Case(
+        "class_inheritance.py",
+        {"Class": 2, "File": 1, "Method": 2},
+        {"CONTAINS": 4, "EXTENDS": 1},
+        _PY_INHERIT_EDGE_SHAPES,
+    ),
+    "class-multiple-inheritance": Case(
+        "class_multiple_inheritance.py",
+        {"Class": 3, "File": 1, "Method": 3},
+        {"CONTAINS": 6, "EXTENDS": 2},
+        _PY_MULTI_EDGE_SHAPES,
+    ),
+    "method-kinds": Case(
+        "method_kinds.py",
+        {"Class": 1, "File": 1, "Method": 4},
+        {"CONTAINS": 5},
+    ),
+    "async-def": Case(
+        "async_def.py",
+        {"Class": 1, "File": 1, "Function": 1, "Method": 1},
+        {"CALLS": 1, "CONTAINS": 3},
+    ),
+    "nested-function": Case(
+        "nested_function.py",
+        {"File": 1, "Function": 2},
+        {"CALLS": 1, "CONTAINS": 2},
+    ),
+    "import-plain": Case(
+        "import_plain.py",
+        {"File": 1},
+        {"IMPORTS": 1},
+        [
+            ("IMPORTS", _pyq("import_plain.py"), _pyq("resolve/target_mod.py"), None),
+        ],
+    ),
+    "import-from": Case(
+        "import_from.py",
+        {"File": 1},
+        {"IMPORTS": 1},
+        [
+            ("IMPORTS", _pyq("import_from.py"), _pyq("resolve/target_mod.py"), None),
+        ],
+    ),
+    "import-alias": Case(
+        "import_alias.py",
+        {"File": 1},
+        {"ALIASES": 2, "IMPORTS": 2},
+        _PY_IMPORT_ALIAS_EDGE_SHAPES,
+    ),
+    "import-relative": Case(
+        "nest/deep/import_relative.py",
+        {"File": 1},
+        {"IMPORTS": 2},
+        _PY_IMPORT_REL_EDGE_SHAPES,
+    ),
+    "call-function": Case(
+        "call_function.py",
+        {"File": 1, "Function": 2},
+        {"CALLS": 1, "CONTAINS": 2},
+    ),
+    "call-method": Case(
+        "call_method.py",
+        {"Class": 2, "File": 1, "Function": 1, "Method": 3},
+        {"CALLS": 3, "CONTAINS": 6, "EXTENDS": 1},
+        _PY_CALL_METHOD_EDGE_SHAPES,
+    ),
+    "instantiation": Case(
+        "instantiation.py",
+        {"Class": 1, "File": 1, "Function": 1, "Method": 1},
+        {"CALLS": 1, "CONTAINS": 3},
+    ),
+    "module-const": Case(
+        "module_const.py",
+        {"Class": 1, "Const": 1, "File": 1, "Property": 1},
+        {"CONTAINS": 3},
+    ),
+    "syntax-error": Case("syntax_error.py", None, None),
+}
+
+PY_CONFORMANCE = AdapterConformance(
+    cli=PY_CLI,
+    named_inventory=PY_R62_CASES,
+    excluded_fixtures=frozenset(
+        {
+            "resolve/__init__.py",
+            "resolve/target_mod.py",
+            "nest/deep/__init__.py",
+            "nest/deep/x.py",
+            "nest/pkg/__init__.py",
+            "nest/pkg/y.py",
+        }
+    ),
+    cases=PY_CASES,
+)
+
+
 # ── registry ─────────────────────────────────────────────────────────────────────────────────────
 # Keyed by adapter directory name — a 2nd adapter is a new entry here + its fixtures.
 REGISTRY: dict[str, AdapterConformance] = {
     PHP_CONFORMANCE.cli.name: PHP_CONFORMANCE,
     TS_CONFORMANCE.cli.name: TS_CONFORMANCE,
     SQL_CONFORMANCE.cli.name: SQL_CONFORMANCE,
+    PY_CONFORMANCE.cli.name: PY_CONFORMANCE,
 }

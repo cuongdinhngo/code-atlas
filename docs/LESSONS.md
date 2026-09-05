@@ -90,6 +90,21 @@ this index — R6.7 listed 8 of 13 keys and R6.5 listed 5 of 10. P1 keeps the *c
 nothing kept the *rule's*, so the rule a reader consults under-reported its own recurrence. Both are
 now reconciled to this table.
 
+## 020 — ast.Module has no end_lineno; File spans must come from the source text
+
+CPython's `ast.Module` carries neither `lineno` nor `end_lineno`. Taking
+`getattr(tree, "end_lineno", None) or 1` leaves every File (and package Namespace) at
+`line_end: 1` while PHP/TS emit real ends. Conformance histograms do not catch it.
+Challenger round 1 found it; fix is `len(text.splitlines())` plus a pin.
+
+### 020-C1 — For a language whose module AST node has no end_lineno, File line_end must be derived from the source text, not from the root node
+- type: 2
+- status: proposed (awaiting human confirm)
+- evidence: challenger 020 round 1; `adapters/python/src/parse.py` before fix stuck at 1; pin `tests/python_adapter_cli.py::test_file_line_end_covers_source`
+- handle: `module-ast-span-from-text`
+- destination: stays in lessons_path
+- seen: 020
+
 ## 202 — The fixture is the finding, and the first two versions of it were wrong
 
 A build killed mid-write left an index answering `staleness: "current"` with an empty suggestion

@@ -46,6 +46,7 @@ from code_atlas.tools import (
 )
 from tests.adapter_cli import AdapterCli
 from tests.php_adapter_cli import CLI as PHP_CLI
+from tests.python_adapter_cli import CLI as PY_CLI
 from tests.sql_adapter_cli import CLI as SQL_CLI
 from tests.ts_adapter_cli import CLI as TS_CLI
 
@@ -407,10 +408,87 @@ SQL_PARITY = ToolParity(
     },
 )
 
+
+# ── Python (tier 1a) ────────────────────────────────────────────────────────────────────────────
+# Adapter #4 emits CONTAINS / CALLS / IMPORTS / EXTENDS and nothing else. Two consequences are
+# declared below rather than discovered: Python's only heritage is a base list (EXTENDS), and a
+# module dependency is always an import statement, never a textual include.
+PY_PARITY = ToolParity(
+    cli=PY_CLI,
+    globs=("*.py",),
+    adapter_cmd=(),
+    entry_points="src/module.py",
+    subjects={
+        "query": "Greeter",
+        "path": "src/module.py",
+        "class": "src.module.Greeter",
+        "method": "src.module.Greeter::greet",
+        "caller": "src.module.make_greeter",
+        # `Greeter()` is a call in tier 1a, so the class is what `make_greeter` reaches.
+        "callee": "src.module.Greeter",
+        "interface": "src.class_inheritance.Animal",
+        "subtree": "src",
+        "table": "src.module.Greeter",
+    },
+    tools={
+        **_answering(
+            get_index_status.NAME,
+            build_or_update_index.NAME,
+            search_symbol.NAME,
+            file_outline.NAME,
+            read_symbol.NAME,
+            find_callers.NAME,
+            impact.NAME,
+            impact_modules.NAME,
+            reachable_from.NAME,
+            find_orphans.NAME,
+            explain_path.NAME,
+            architecture_overview.NAME,
+            guided_tour.NAME,
+            trace_capability.NAME,
+            generate_onboarding.NAME,
+        ),
+        # Narrower than PHP's, and written down rather than assumed: each names a kind the adapter
+        # never emits, so the state is only green while that kind is genuinely absent (185).
+        find_references.NAME: Expect(
+            ANSWERS_WITHOUT,
+            kinds=("REFERENCES",),
+            because="Python has no bare type mention; a name in an annotation is not an edge",
+        ),
+        find_implementations.NAME: Expect(
+            ANSWERS_WITHOUT,
+            kinds=("IMPLEMENTS", "USES_TRAIT"),
+            because="Python has neither an interface nor a trait; a base list is EXTENDS alone",
+        ),
+        class_diagram.NAME: Expect(
+            ANSWERS_WITHOUT,
+            kinds=("IMPLEMENTS", "USES_TRAIT"),
+            because="no class carries an implements or trait row, so the box has EXTENDS only",
+        ),
+        include_graph.NAME: Expect(
+            EMPTY_RELATION_NOT_MODELLED,
+            kinds=("INCLUDES",),
+            because="Python has no textual include; `import` is a module dependency, so IMPORTS",
+            reason="relation_unmodelled_for_language",
+        ),
+        subtree_dependencies.NAME: Expect(
+            ANSWERS_WITHOUT,
+            kinds=("INCLUDES",),
+            because="crossings come from IMPORTS/CALLS; Python emits no INCLUDES to cross on",
+        ),
+        find_view_data.NAME: _VIEW_DATA,
+        check_architecture_rules.NAME: _ARCH_RULES,
+        check_column_defaults.NAME: _COLUMN_DEFAULTS_ABSENT,
+        diff_architecture.NAME: _DIFF_ARCH,
+    },
+)
+
+
 # ── the matrix ──────────────────────────────────────────────────────────────────────────────────
 # Keyed by adapter directory name, exactly as `adapter_registry.REGISTRY` is.
 PARITY: dict[str, ToolParity] = {
     PHP_PARITY.cli.name: PHP_PARITY,
     TS_PARITY.cli.name: TS_PARITY,
     SQL_PARITY.cli.name: SQL_PARITY,
+    PY_PARITY.cli.name: PY_PARITY,
 }

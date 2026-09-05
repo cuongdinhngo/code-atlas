@@ -32,6 +32,10 @@ include = ["code_atlas*", "onboarding_llm*"]
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+# Adapter #4 is the first written in this repo's own language, so its fixture corpus is the
+# first the core's linter can see. Those files are parser INPUT — unused imports, unsorted
+# blocks and one unparseable file are the cases under test, not defects (020).
+extend-exclude = ["tests/fixtures/python"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

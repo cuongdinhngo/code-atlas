@@ -119,8 +119,9 @@ def test_index_root_weight_before_after_recorded(tmp_path: Path) -> None:
     assert "index_root" in callers and "index_root" in search and "index_root" in status
     assert "db_path" not in callers and "db_path" not in search
     assert delta_callers > 0 and delta_search > 0
-    # Surfaced for Outcome / humans — path length dominates; soft ceiling after 071.
-    assert sizes["find_callers"] < 500
+    # Soft ceiling after 071; raised 500→560 for adapter #4 (python) — one more
+    # unconfigured_adapters row rides every find_callers payload (task 020 Gate 2).
+    assert sizes["find_callers"] < 560
     assert delta_callers == len(f',"index_root":{json.dumps(callers["index_root"])}')
     assert delta_search == len(f',"index_root":{json.dumps(search["index_root"])}')
     # Pin measured sizes for the working-doc 061 reconciliation.

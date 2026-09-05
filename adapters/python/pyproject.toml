@@ -1,0 +1,26 @@
+# Python adapter — code-atlas (task 020, tier 1a)
+#
+# Stdlib ``ast`` only. Zero runtime dependencies. Launched as a long-lived subprocess
+# via ``CA_PYTHON_CMD`` (CONVENTION §5).
+
+[project]
+name = "code-atlas-python-adapter"
+version = "0.1.0"
+description = "Python language adapter for code-atlas (tier 1a)"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+files = ["adapters/python/index.py", "adapters/python/src"]

@@ -21,6 +21,7 @@ condition, so the guard is still observable failing (R6.5).
 from __future__ import annotations
 
 import os
+import re
 import struct
 import subprocess
 import sys
@@ -32,6 +33,11 @@ CI = REPO / ".github" / "workflows" / "ci.yml"
 COMPILEALL = "compileall"
 CHECKED_HASH = "--invalidation-mode checked-hash"
 TARGETS = ("code_atlas", "onboarding_llm", "tests")
+# Task 020: adapter #4's fixtures are parser input, not modules — nothing imports them, and one
+# is unparseable on purpose. Both spellings of the same corpus: a compileall `-x` regex (which
+# sees an os-native separator) and ruff's directory exclude.
+FIXTURE_DIR = "tests/fixtures/python"
+FIXTURE_EXCLUDE = r"tests[/\\]fixtures[/\\]python[/\\]"
 
 # PEP 552 pyc header word 1: bit 0 = hash-based, bit 1 = check_source.
 _HASH_BASED = 0b01
@@ -188,3 +194,23 @@ def test_ac2_ci_carries_the_same_step_as_the_gate() -> None:
     text = CI.read_text(encoding="utf-8")
     assert COMPILEALL in text and CHECKED_HASH in text
     assert text.index(COMPILEALL) < text.index("pytest -q")
+
+
+def test_020_the_python_fixture_corpus_is_skipped_by_both_python_gates_and_nothing_else() -> None:
+    """The exclusion must cover the fixture corpus exactly — never a line of the authored suite.
+
+    Widened to ``tests``, compileall would stop converting the modules 146 exists to convert and
+    ruff would stop reading them, both silently: the false GREEN this file was written against.
+    """
+    for text in (GATE.read_text(encoding="utf-8"), CI.read_text(encoding="utf-8")):
+        assert f"-x '{FIXTURE_EXCLUDE}'" in text
+    pyproject = (REPO / "pyproject.toml").read_text(encoding="utf-8")
+    assert f'extend-exclude = ["{FIXTURE_DIR}"]' in pyproject
+
+    swept = sorted((REPO / "tests").rglob("*.py"))
+    rx = re.compile(FIXTURE_EXCLUDE)
+    skipped = [p for p in swept if rx.search(p.relative_to(REPO).as_posix())]
+    # The file that actually breaks the step: if it is not skipped, the exclusion is spelt wrong.
+    assert REPO / FIXTURE_DIR / "syntax_error.py" in skipped
+    assert all(p.relative_to(REPO).as_posix().startswith(f"{FIXTURE_DIR}/") for p in skipped)
+    assert len(swept) - len(skipped) > 150, "the exclusion swallowed the authored suite"

@@ -65,8 +65,8 @@ doing the reading, not a human in an IDE · you need the answer to be checkable,
 
 **It is not:** a faster `grep` (broad `grep` over a 19k-file tree runs in under nine seconds — if you
 want faster text search you do not need this) · a language server (an LSP stays for precise nav and
-edit) · an editor (it returns exact line ranges and never mutates code) · every language (Python and
-C# adapters are deferred).
+edit) · an editor (it returns exact line ranges and never mutates code) · every language (C#/.NET
+adapter is deferred).
 
 <details>
 <summary><b>Founding premise, refuted</b> — why the pitch above is narrower than the one this project started with</summary>
@@ -109,6 +109,9 @@ export CA_TYPESCRIPT_CMD="node /abs/path/to/code-atlas/adapters/typescript/index
 
 npm ci --prefix adapters/sql          # dev-only deps; the scanner itself has none
 export CA_SQL_CMD="node /abs/path/to/code-atlas/adapters/sql/index.js --server"
+
+# Python adapter — stdlib only; use the same interpreter that runs the core
+export CA_PYTHON_CMD="python /abs/path/to/code-atlas/adapters/python/index.py --server"
 ```
 
 Then **reload your MCP client** (in Claude Code: restart, or re-approve the project's `.mcp.json`)
@@ -158,7 +161,7 @@ exposes the MCP tools. Everything runs offline against local SQLite, with increm
 | PHP (8.5 grammar, 8.1+ runtime) | nikic/php-parser | **Available** — see [`adapters/php/`](adapters/php/) |
 | TypeScript / JavaScript (Node ≥ 18) | TypeScript compiler API | **Available** — see [`adapters/typescript/`](adapters/typescript/) |
 | T-SQL (Node ≥ 18) | purpose-built scanner, no production dependencies | **Available** — see [`adapters/sql/`](adapters/sql/) |
-| Python | `ast` + jedi | Deferred |
+| Python | stdlib `ast` (tier 1a; jedi deferred) | **Available** — see [`adapters/python/`](adapters/python/) |
 | C# / .NET | Roslyn | Deferred |
 
 ## What you can ask it
@@ -320,12 +323,12 @@ Contributing agents should start at [`AGENTS.md`](AGENTS.md).
   `architecture_overview`, `guided_tour` and `generate_onboarding` emit a committable **system map**
   under `docs/onboarding/`: responsibility layers, dependency matrix, hubs, a business-module table,
   mirror-subtree lookup, a bounded tour, and the zero-inbound population split.
-- **Phase 2 — More languages: TS/JS and T-SQL shipped; Python and C#/.NET deferred, not cancelled.**
+- **Phase 2 — More languages: TS/JS, T-SQL, and Python tier 1a shipped; C#/.NET deferred, not cancelled.**
   The second adapter was the contract's real test and it passed **without a version bump**. R1.2's
   condition is met, and the verdict was written down rather than assumed: still **one seam**, no
-  registry. T-SQL was then reordered ahead of Python and C#/.NET on **2026-08-30** — not on breadth
-  but on measured in-anchor demand, and because tier 1a cost zero new contract vocabulary
-  ([PLAN §19](docs/PLAN.md)). Python then C#/.NET keep their order behind it.
+  registry. T-SQL was reordered ahead of Python on **2026-08-30** on measured demand
+  ([PLAN §19](docs/PLAN.md)); Python tier 1a (stdlib `ast`, no jedi) then landed as adapter #4 (020).
+  C#/.NET stays deferred.
 
 **Design principles.** SOLID **at the boundaries** (the axis of change is *languages*, expressed
 through one versioned contract) + **YAGNI** (one seam only) + **standard over sample** (adapters

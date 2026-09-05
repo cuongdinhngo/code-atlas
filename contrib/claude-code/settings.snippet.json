@@ -7,7 +7,7 @@
           {
             "type": "command",
             "command": "code-atlas-poke",
-            "if": "Edit(*.php)|Write(*.php)|Edit(*.phtml)|Write(*.phtml)|Edit(*.sql)|Write(*.sql)|Edit(*.ts)|Write(*.ts)|Edit(*.tsx)|Write(*.tsx)|Edit(*.js)|Write(*.js)|Edit(*.jsx)|Write(*.jsx)|Edit(*.mjs)|Write(*.mjs)|Edit(*.cjs)|Write(*.cjs)",
+            "if": "Edit(*.php)|Write(*.php)|Edit(*.phtml)|Write(*.phtml)|Edit(*.py)|Write(*.py)|Edit(*.sql)|Write(*.sql)|Edit(*.ts)|Write(*.ts)|Edit(*.tsx)|Write(*.tsx)|Edit(*.js)|Write(*.js)|Edit(*.jsx)|Write(*.jsx)|Edit(*.mjs)|Write(*.mjs)|Edit(*.cjs)|Write(*.cjs)",
             "async": true,
             "timeout": 60
           }

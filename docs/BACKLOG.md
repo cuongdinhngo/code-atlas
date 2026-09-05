@@ -178,7 +178,7 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 | # | Task | Milestone | Status | Depends on |
 |---|---|---|---|---|
 | 019 | [typescript adapter](tasks/019_typescript-adapter.md) | M7 | done | 012, 011, 128 |
-| 020 | [Python adapter](tasks/020_python-adapter.md) | M8 | todo | 019 |
+| 020 | [Python adapter](tasks/020_python-adapter.md) | M8 | done | 019 |
 | 021 | [C#/.NET adapter](tasks/021_csharp-adapter.md) | M9 | deferred | 019 |
 | 022 | [sql schema adapter](tasks/022_sql-schema-adapter.md) | M9+ | done | 184 |
 | 184 | [tsql source adapter tier 1a](tasks/184_tsql-source-adapter-tier-1a.md) | M9+ | done | 019, 147, 183 |
