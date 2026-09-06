@@ -121,11 +121,20 @@ DOCS = REPO / "docs"
 # 2,200 is more than 25 % above that, which the test below calls slack. 218's figure had only
 # 14 tokens of margin against its own rule; 2,100 keeps ~10 open rows of headroom and 434 of
 # margin. Nothing is banked — the ceiling tracks the file.
+# 2,100 -> 2,450 on 2026-09-06 (226-230 filed): measured 2,399 with five open rows added to a
+# file already at 2,098 against 2,100 — the ceiling had no headroom left to absorb even one. Two
+# field builds over private Python repos produced five distinct defects (adapter linkage, receiver
+# typing, a SQL dialect the adapter reads nothing of, method locals published as class members, and
+# unreachable source roots); each is filed separately rather than bundled, which is 205-212's
+# precedent and is what costs the 350. R7.6 ran first and came back empty: no row here is
+# superseded — the near miss is 042's PSR-4 follow-up, which is 230's problem in the PHP adapter
+# and stays because 230 scopes other adapters out — and each finding lives in its task file, not in
+# its row. 51 of margin, ~2 open rows.
 BUDGETS = {
     "CLAUDE.md": 50,
     "AGENTS.md": 2_800,
     "PLAN.md": 23_000,
-    "BACKLOG.md": 2_100,
+    "BACKLOG.md": 2_450,
     "ENGINEERING_RULES.md": 5_700,
     "AGENT_BRIEF.md": 2_250,
     "CONVENTION.md": 6_600,

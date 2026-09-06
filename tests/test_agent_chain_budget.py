@@ -48,7 +48,14 @@ REPO = Path(__file__).resolve().parent.parent
 # (8,797 -> 1,826). The whole 6,971 is given back rather than held: it was never content, it was the
 # same ticket named a third time beside its task file and its ledger row. 410 of headroom, which the
 # doc-size test's 25 % slack rule keeps honest per file.
-TIER1_BUDGET = 19_400
+# 19,400 -> 19,800 on 2026-09-06 (tickets 226-230): measured 19,660. The whole 400 is BACKLOG's
+# five open rows — no other tier-1 file changed — and the per-file argument is in
+# tests/test_doc_size_budget.py. Five findings from two field builds over private Python repos,
+# filed separately rather than bundled (205-212's precedent), which is what costs the 400. R7.6
+# ran first and came back empty: no Follow-ups line is superseded — the closest, 042's PSR-4
+# autoload resolution, is the same class of problem as 230 in a different adapter and 230 scopes
+# other adapters out — and every `done` row left at 218, so there is no prose title to reclaim.
+TIER1_BUDGET = 19_800
 
 
 def _tokens(paths: list[Path]) -> int:
