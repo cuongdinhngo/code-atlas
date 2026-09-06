@@ -104,7 +104,8 @@ code-atlas/
 - **Qualified-name convention (identical across languages):** the **container** keeps its language-native
   separator (`\`, `.`, `/`); the **member** boundary is always `::` (`contract.MEMBER_SEPARATOR`).
   - PHP/namespaced: `\Ns\Class`, `\Ns\Class::method`, `\Ns\Class::$prop`, `\Ns\Class::CONST`, `\ns\func`.
-  - C#: `Namespace.Type::Member`. Python: `module.Class::method`.
+  - Python: dotted module path, `pkg.mod.Class::method`. C# (unshipped): `Namespace.Type::Member`.
+  - T-SQL: schema-qualified, **file-independent** — `dbo.Insert_Trans`.
   - JS/TS (no namespaces): module-path-anchored, e.g. `src/user.ts::User::save`, `src/util.ts::default`.
   - Files: **repo-relative** paths, always (even under Docker path mapping).
 - **Contract version:** `contract_version` in result meta; R3 governs when it bumps.
@@ -243,7 +244,7 @@ document without a stated boundary absorbs whatever its author had in mind that 
 describe what a file contains, not what its title suggests.
 
 **Tier** is what a session pays (task 133). **1** = on `AGENTS.md`'s *read before non-trivial work*
-list, charged to every session, under the 25,000-token cap; **2** = on its *consult when you need it*
+list, charged to every session, under the 19,400-token cap; **2** = on its *consult when you need it*
 list, reached by a pointer; **—** = neither, opened only by the reader in its *Reader* column. A new
 document lands in a tier on purpose, here, or it lands in tier 1 by accident.
 
@@ -267,7 +268,7 @@ document lands in a tier on purpose, here, or it lands in tier 1 by accident.
 | [`phase3-onboarding/ONBOARDING_MOCKUP.md`](phase3-onboarding/ONBOARDING_MOCKUP.md) | — | a reviewer of the system map | the design note the map was reshaped from (2026-08-19), and which parts are deterministic vs prose | not shipped behaviour (→ README, PLAN §14) |
 | [`runbooks/`](runbooks/)`*.md` | — | an operator reproducing a number | one protocol each, re-runnable, with the conditions the number holds under | never a summary — the caveat travels with the number |
 | [`benchmarks/`](benchmarks/)`*.md` | — | a reader checking one measurement | the raw result of one question class, cited from its ticket | not a claim about the product — README/PLAN quote these, never the reverse |
-| directory `README.md`s (`adapters/php/`, `onboarding_llm/`, `contrib/*/`, `phase3-onboarding/mockup/`) | — | someone working in that directory | how to run or launch what is in this directory | not repo-level anything |
+| directory `README.md`s (`adapters/*/`, `onboarding_llm/`, `contrib/*/`, `phase3-onboarding/mockup/`) | — | someone working in that directory | how to run or launch what is in this directory | not repo-level anything |
 | `.github/pull_request_template.md` | — | the author opening a PR | the sections and the self-check every PR fills | not the rule it checks (→ `ENGINEERING_RULES.md`, `AGENTS.md`) |
 
 ### 8.2 Tracking

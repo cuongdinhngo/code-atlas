@@ -26,7 +26,7 @@
 | `explain_path` | shortest control-flow path between two symbols |
 | `architecture_overview` | this repo's layers, their degrees and the crossings between them — plus the zero-inbound split, the capability table and the mirror panel ([detail](#architecture_overview--layers-crossings-and-the-populations-behind-a-zero)) (onboarding) |
 | `guided_tour` | a dependency-ordered reading list of files, cycle-safe and budget-bounded ([detail](#guided_tour--a-reading-order-that-expands)) (onboarding) |
-| `generate_onboarding` | writes the committable markdown and the self-contained `index.html` **system map** under `docs/onboarding/` — five files, no per-module page tree ([detail](#generate_onboarding--the-committable-system-map)) (onboarding) |
+| `generate_onboarding` | writes the committable markdown and the self-contained `index.html` **system map** under `docs/onboarding/` — four or five files depending on `audience`, no per-module page tree ([detail](#generate_onboarding--the-committable-system-map)) (onboarding) |
 | `check_architecture_rules` | confirmed vs candidate violations of declarative path-set dependency rules (`CA_ARCHITECTURE_RULES`) |
 | `diff_architecture` | architectural drift between two onboarding dataset / manifest snapshots |
 | `class_diagram` | mermaid class diagram for one type plus its ancestry, or every type in one file — inheritance from resolved edges; associations from declared types only |
@@ -65,9 +65,9 @@
 
 ### `generate_onboarding` — the committable system map
 
-- Writes **five files** under `docs/onboarding/` — `overview.md`, `tour.md`, `flows.md`,
-  `manifest.json` and a self-contained
-  `index.html` — offline, theme-aware, repo text escaped so a path cannot
+- Writes `overview.md` and `manifest.json` always, plus whatever the `audience` contract names —
+  `tour.md`, `flows.md` and a self-contained `index.html`, so `full` and `newcomer` get **five files**
+  and `maintainer` **four** (no tour). Offline, theme-aware, repo text escaped so a path cannot
   inject markup, with a `<noscript>` fallback. `overview.md` includes a mermaid layer flowchart
   (GitHub/VS Code render it; the HTML map stays fetch-free and does not bundle mermaid).
 - The map renders the onboarding dataset **alone**: sitemap treemap with drill-down, layer table with
@@ -178,7 +178,7 @@ both are offered rather than installed.
 
 Task 035 already reparses drifted files at query time. For eager updates after Claude Code
 `Edit`/`Write` on a file **any** installed adapter owns — the matcher is generated from each
-adapter's own declared suffixes, so adapter #4 is covered the day it lands (200) — install the
+adapter's own declared suffixes, so the next adapter is covered the day it lands (200) — install the
 PostToolUse hook under
 [`contrib/claude-code/`](../contrib/claude-code/) (`code-atlas-poke` console script + `"async": true`);
 opt-in git refresh after pull/checkout via [`contrib/git/`](../contrib/git/) (`code-atlas-refresh`,
@@ -257,6 +257,8 @@ tools = ["get_index_status", "build_or_update_index"]   # only names the server 
 [adapter_cmd]
 php = "docker compose exec -T php php /app/adapters/php/index.php --server"
 typescript = "node /abs/path/to/code-atlas/adapters/typescript/index.js --server"
+sql = "node /abs/path/to/code-atlas/adapters/sql/index.js --server"
+python = "python /abs/path/to/code-atlas/adapters/python/index.py --server"
 # or, where quoting bites (Windows paths), one word per entry:
 # php = ["C:\\php\\php.exe", "adapters/php/index.php", "--server"]
 ```

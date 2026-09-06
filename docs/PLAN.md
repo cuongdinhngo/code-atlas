@@ -1,19 +1,20 @@
 # Code-Atlas MCP — Build Plan
 
 > Status: **shipped and in daily use** — Phase 1 (core + PHP, M0–M6) and Phase 3 (onboarding,
-> M10–M12) are complete, 24 tools on the surface; Phase 2 (adapters #2–#4) is deferred (§19).
+> M10–M12) are complete, 24 tools on the surface; adapters #2–#4 (TS/JS, T-SQL, Python) have landed,
+> C#/.NET stays deferred (§19).
 > A local-first, multi-language code-intelligence MCP server.
 > Name: **`code-atlas`** (evolved: `php-code-graph` → `code-graph` → **`code-atlas`**; it's multi-language). GitHub repo: `code-atlas`.
 
 A local-first MCP server that indexes a codebase into SQLite and exposes **fast, resolved, token-efficient** search / read / navigation / impact tools — above all the **resolved relationships** between symbols, which text search cannot produce at any speed. (This line used to claim native tools and grep are weak at search on large repos; that premise was measured and refuted on 2026-08-08 — see §19.)
 
-**Language-agnostic core + per-language adapters.** PHP ships first; TypeScript/JavaScript, then Python, then C#/.NET follow behind the *same* contract. On top of the graph, a later phase adds an **Understand-Anything-style onboarding** feature.
+**Language-agnostic core + per-language adapters**, every one behind the *same* contract (order and status: §3). On top of the graph sits the **Understand-Anything-style onboarding** feature (§14).
 
 ---
 
 ## 0. Priorities (driving order)
 1. **Make the MCP work.** PHP end-to-end, daily-usable, before anything is generalized.
-2. **Extensible to other languages** (TypeScript/JavaScript next, then Python, then C#/.NET) **without touching the core.**
+2. **Extensible to other languages without touching the core** (§3).
 3. **Onboarding feature** (Understand-Anything style) as a Phase-3 consumer of the graph.
 
 These are in tension if mishandled — see the design principles (§2). The rule: architect for multi-language, but *implement* one language first; let language #2 harden the abstraction.
@@ -97,13 +98,13 @@ marker-mixin design is ISP in practice.
 Per-language, pick the best parser; do **not** force one across all languages. **Roll-out order and rationale:**
 
 | # | Language | Adapter parser | Why this parser / why this position |
-|---|---|---|---|
+|---|---|
 | 1 | PHP | **nikic/php-parser** (^5) | Only reliable **PHP 8.5** parse. `NameResolver` gives FQNs for PSR-4 *and* global code. Needs only the tokenizer ext. **First = a large PHP monorepo is the stress-test sample.** |
 | 2 | TypeScript/JavaScript | **TypeScript Compiler API** (via `ts-morph`, Node sidecar) | Official parser+**type checker**; parses JS too (`allowJs`); resolves ESM/CommonJS + `tsconfig` aliases + types. **Second = most popular AND best contract-hardener** — module-scoped symbols (no FQNs) + project-context resolution stress the abstraction hardest (§2, §4.4). Proves `semantic_types` early. |
-| 3 | Python | **`ast`** builtin + `jedi` | Zero-dependency parse; `jedi` for import/name resolution. Popular, cheap once the contract is hardened. |
+| 3 | Python | **`ast`** builtin; `jedi` unbought | Zero-dependency parse. **Shipped stdlib-only** (020 tier 1a · 217 tier 2): nothing so far needed import/name resolution, so `jedi` waits for a tier that does. |
 | 4 | C#/.NET | **Roslyn** (.NET sidecar) | Full **semantic model** → precise type/call/ref edges. Last: its namespace+FQN model resembles PHP's, so it *confirms* rather than reshapes the contract. |
 
-**A fifth capability — SQL / DB-schema awareness** (task 022, deferred, evidence-gated): schema/migration facts are *not* source symbols and need their own contract vocabulary (R3), so this sits behind 022's gate, **not** in the roll-out order above.
+**A fifth capability — SQL / DB-schema awareness** (**landed** as `adapters/sql/`, outside the order above): schema facts are *not* source symbols and needed their own vocabulary (R3), so it sat behind 022's evidence gate until measured demand discharged it (§19). 184 tier 1a · 022 tier 2 (`Table`, `Column`, `WRITES`, contract **v9**).
 
 Rejected globally:
 - **tree-sitter everywhere** — grammar lags releases (misparses PHP 8.5); forces hand-written resolution (the hard part) per language.
@@ -120,7 +121,7 @@ The single seam between core and every language. Two parts:
 ### 4.1 Subprocess protocol (streaming, language-neutral)
 Adapter runs as a long-lived process; core feeds newline-delimited requests, reads JSONL results. One process boot amortized across all files.
 ```
-← {"name":"php","extensions":[".php"],"capabilities":{},"contract_version":7}   # handshake, first line
+← {"name":"php","extensions":[".php",".phtml"],"capabilities":{},"contract_version":9}   # handshake, first line
 → {"path":"src/Models/User.php"}                              # stdin, one JSON/line
 ← {"path":"src/Models/User.php","ok":true,"nodes":[…],"edges":[…]}   # stdout JSONL
 ← {"path":"legacy/foo.php","ok":false,"error":"syntax error @12"}
@@ -489,26 +490,26 @@ tools (`impact_modules`, `trace_capability`, the architecture-rule and diagram t
 their task files and [`design/`](design/). A per-tool count kept in prose here went seven tools out
 of date, which is R6.7's case: derive it, never list it.
 
-| Tool | Key args | Answers |
-|---|---|---|
-| `get_index_status` | `detail_level?`, `offset?`, `sign?` | **call first (~100 tok).** `verbose` carries what must not ride the cheap path: capped `parse_failure_paths` (058), `collection` — the denominator for reconciling `files` against your own `git ls-files` without reading source (082) — and `edge_health_by_language`, stamped per build and omitted under two buckets (183) |
-| `build_or_update_index` | `full=false`, `detail_level?`, `allow_full_rebuild=false`, `repair_incomplete=true` | builds/refreshes; returns `wrote` (this run's writes) + timing, and at `standard` `graph`, so a delta isn't read as repo size (051/060). A concurrent writer returns `mode: "busy"`, `performed: false`, the loser's staleness (072); no usable adapter returns `mode: "refused"` and writes nothing — a payload, not a raise (064/079). An unbounded escalation refuses the same way and names its route: a vocabulary era behind (201), or an index a killed build left incomplete (202); the two flags run it in-band instead |
-| `search_symbol` | `query \| queries, kind?, namespace?, limit?, offset?` | FTS + name ranking; stub hits declare themselves (039); a zero hit may miss-repair the sole dirty file or report `index_stale` rather than answer a confident zero (073). **`queries` sweeps N subjects in one call** (101) |
-| `file_outline` | `path, limit?, offset?` | line ranges, never bodies — the read is a separate, priced call |
-| `read_symbol` | `qname, detail_level?` | docblock at `standard`, none at `minimal` (163); stubs declare themselves (039). A qname with >1 definition **refuses the body** and lists the candidates rather than picking one (070 → 078) |
-| `find_callers` | `qname, depth?, include_source?, arg_position?, arg_is?, limit?, offset?, sign?` | opt-in capped call-site source removes a round-trip (037); the argument filter counts what it could not judge in `args_unrecorded` rather than dropping it (049, depth 1 only). Depth 1 enumerates completely; deeper, `total_count` is a floor for that page |
-| `find_references` | `qname, include_source?, limit?, offset?, sign?` | CALLS/NEW plus `REFERENCES` (`Foo::class`, 094). An all-`DYNAMIC` page sets `authoritative: false` so it reads as a candidate list, not an enumeration |
-| `find_implementations` | `qname, limit?, offset?` | EXTENDS/IMPLEMENTS, resolver-linked only |
-| `find_view_data` | `qname \| key, limit?, offset?` | the `PROVIDES_VIEW_DATA` relation (062/063). With no `view_data` rules configured it says so, rather than reporting a modelled zero (069) |
-| `include_graph` | `path, direction` | the `include`/`require` graph; `unresolved_includes` on `imports`/`both` only — a counter that is structurally zero inbound is omitted rather than printed (065) |
-| `impact` | `paths \| qnames, depth?, sign?` | bounded best-score over resolver-linked IMPACT kinds; `seeds_dropped` (see below) |
-| `subtree_dependencies` | `subtree, counterpart?, limit?` | attributable and unattributable crossings are always paired, so neither can be read alone; dynamic bridges surfaced (120) |
-| `reachable_from` | `depth?` | what is reachable from `CA_ENTRY_POINTS` over RESOLVED IMPACT kinds; HEURISTIC/DYNAMIC neighbours are `unproven`, not reachable |
-| `find_orphans` | `depth?, limit?, offset?` | the complement, each row carrying its `why`; never an empty success when no roots are configured |
-| `explain_path` | `from_qname, to_qname, depth?` | shortest A→B over outgoing IMPACT kinds, with a five-value `status` so a bound hit is never conflated with "no route" |
-| `architecture_overview` | `detail_level?`, `offset?` | responsibility layers ordered by **net dependency direction**, which is a derived fact, not a naming convention |
-| `guided_tour` | `detail_level?`, `offset?` | a dependency-ordered reading list, seeded from zero-inbound entry points and cycle-safe via SCC condensation (087); seeds prefer out-degree > 0, capped at a quarter of the budget (106), ready-set ordered by reading-seed layer rank (131) |
-| `generate_onboarding` | `detail_level?` | the committable artifact, from the same graph (088/089/116). It removes only the pages its own last manifest recorded, and refuses a tree it does not own |
+| Tool | The decision this section settled |
+|---|---|
+| `get_index_status` | **call first (~100 tok).** `verbose` carries what must not ride the cheap path: capped `parse_failure_paths` (058), `collection` — the denominator for reconciling `files` against your own `git ls-files` without reading source (082) — and `edge_health_by_language`, stamped per build and omitted under two buckets (183) |
+| `build_or_update_index` | builds/refreshes; returns `wrote` (this run's writes) + timing, and at `standard` `graph`, so a delta isn't read as repo size (051/060). A concurrent writer returns `mode: "busy"`, `performed: false`, the loser's staleness (072); no usable adapter returns `mode: "refused"` and writes nothing — a payload, not a raise (064/079). An unbounded escalation refuses the same way and names its route: a vocabulary era behind (201), or an index a killed build left incomplete (202); the two flags run it in-band instead |
+| `search_symbol` | FTS + name ranking; stub hits declare themselves (039); a zero hit may miss-repair the sole dirty file or report `index_stale` rather than answer a confident zero (073). **`queries` sweeps N subjects in one call** (101) |
+| `file_outline` | line ranges, never bodies — the read is a separate, priced call |
+| `read_symbol` | docblock at `standard`, none at `minimal` (163); stubs declare themselves (039). A qname with >1 definition **refuses the body** and lists the candidates rather than picking one (070 → 078) |
+| `find_callers` | opt-in capped call-site source removes a round-trip (037); the argument filter counts what it could not judge in `args_unrecorded` rather than dropping it (049, depth 1 only). Depth 1 enumerates completely; deeper, `total_count` is a floor for that page |
+| `find_references` | CALLS/NEW plus `REFERENCES` (`Foo::class`, 094). An all-`DYNAMIC` page sets `authoritative: false` so it reads as a candidate list, not an enumeration |
+| `find_implementations` | EXTENDS/IMPLEMENTS, resolver-linked only |
+| `find_view_data` | the `PROVIDES_VIEW_DATA` relation (062/063). With no `view_data` rules configured it says so, rather than reporting a modelled zero (069) |
+| `include_graph` | the `include`/`require` graph; `unresolved_includes` on `imports`/`both` only — a counter that is structurally zero inbound is omitted rather than printed (065) |
+| `impact` | bounded best-score over resolver-linked IMPACT kinds; `seeds_dropped` (see below) |
+| `subtree_dependencies` | attributable and unattributable crossings are always paired, so neither can be read alone; dynamic bridges surfaced (120) |
+| `reachable_from` | what is reachable from `CA_ENTRY_POINTS` over RESOLVED IMPACT kinds; HEURISTIC/DYNAMIC neighbours are `unproven`, not reachable |
+| `find_orphans` | the complement, each row carrying its `why`; never an empty success when no roots are configured |
+| `explain_path` | shortest A→B over outgoing IMPACT kinds, with a five-value `status` so a bound hit is never conflated with "no route" |
+| `architecture_overview` | responsibility layers ordered by **net dependency direction**, which is a derived fact, not a naming convention |
+| `guided_tour` | a dependency-ordered reading list, seeded from zero-inbound entry points and cycle-safe via SCC condensation (087); seeds prefer out-degree > 0, capped at a quarter of the budget (106), ready-set ordered by reading-seed layer rank (131) |
+| `generate_onboarding` | the committable artifact, from the same graph (088/089/116). It removes only the pages its own last manifest recorded, and refuses a tree it does not own |
 
 *Considered and not planned:* `namespace_tree` — named as a task-013/014 consumer of `split_qname` and
 never built. `search_symbol` already takes a `namespace` filter, `architecture_overview` answers repo
@@ -605,8 +606,8 @@ It adds two things the graph lacks, and **both landed differently than this sect
 1. **Semantic layer.** Layers turned out to be **deterministic** — 110's ratified responsibility
    vocabulary names them, and 117 measured that 091's LLM rename seam fires on nothing. The LLM ended
    up owning **prose only** (layer descriptions, tour narratives, headline wording) behind three
-   opt-in seams in `onboarding_llm/`, off by default. The per-module **summary is still empty**: the
-   seam is fed read-through docblocks at build time (**118**, done).
+   opt-in seams in `onboarding_llm/`, off by default. 118 fed the summary seam real facts, and 205
+   then deleted the per-module page tree it wrote onto — summaries now ride tour modules only.
 2. **Presentation.** 116 replaced the imagined page dump with a **navigable system map** rendered from
    112's single compact dataset.
 
@@ -630,18 +631,17 @@ aid, not a reading order** (§19).
 - **M5** Incremental + git; staleness in status.
 - **M6** Impact engine + `impact` tool + prompts.
 
-**Phase 2 — More languages — deferred, §19, and reordered there 2026-08-30 to put T-SQL (184 tier 1a
-· 022 tier 2, both landed) ahead of Python and C#:**
+**Phase 2 — More languages** (T-SQL took M7's slot ahead of Python, §19):
 - **M7** **TypeScript/JavaScript adapter** (TS Compiler API, Node sidecar) behind the *unchanged* core — the real test of OCP/DIP. Landed (019) with no contract v2 and no core registry (§4.4, §19).
-- **M8** **Python adapter** (`ast` + `jedi`) — tier 1a first (020), then depth.
-- **M9** **C#/.NET adapter** (Roslyn sidecar) — confirms the contract holds for a second namespaced+semantic-model language.
+- **M8** **Python adapter** (stdlib `ast`) — tier 1a (020) and tier 2 (217) landed; the residual is type-inferred receivers (`semantic_types`), the same one TS/JS carries.
+- **M9** **C#/.NET adapter** (Roslyn sidecar) — deferred (§3, §19).
 
 **Phase 3 — Onboarding** (deterministic-first; LLM opt-in and out of core + CI). All three milestones
 are **complete**; the per-task breakdown, including the 108–117 reshape, is in
 [`phase3-onboarding/ROADMAP.md`](phase3-onboarding/ROADMAP.md).
 - **M10** `architecture_overview` + deterministic layers — 083 · 084 · 085 · 103 · 104 · 086. The 15th tool; 105 elects the dominant subtree by graph mass, proven on three pinned repos.
 - **M11** `guided_tour` (16th) · `generate_onboarding` (17th) · the viewer — **reshaped by 108–117 into the navigable system map**, rendered from 112's dataset alone. 116's AC4–AC6 are proven by running the page headlessly under `tests/viewer_dom_stub.js`, because a grep over the HTML sees zero rendered figures and would be a false green.
-- **M12** LLM enrichment, opt-in and outside the core — 090 · 091 · 117. The per-run call ceiling is **derived, not invented**: 6 headline families + 12 responsibility layers + 109's 15-step ceiling = **33 calls a build**, enforced per slot so a repo falling back to per-directory layers cannot starve the tour (measured at 18,929 files: 1,176 requested, 12 served, 1,164 refused).
+- **M12** LLM enrichment, opt-in and outside the core — 090 · 091 · 117. The prose ceiling is **derived, never listed** (R6.7): `prose.MAX_PROSE_CALLS` sums `SLOT_LIMITS`, so a new slot moves it and no doc goes stale. It is enforced **per slot**, so a repo falling back to per-directory layers cannot starve the tour (measured at 18,929 files: 1,176 requested, 12 served, 1,164 refused).
 
 ---
 
@@ -658,9 +658,7 @@ are **complete**; the per-task breakdown, including the 108–117 reshape, is in
 ## 17. Risks & mitigations
 | Risk | Mitigation |
 |---|---|
-| Over-abstraction before it works (fights priority #1) | One seam only (contract). **Retired** by adapter #2 (§19, R1.2). |
 | **Adapter tuned to a sample repo** (breaks "works on any repo") | "Standard over sample" (§2): adapter encodes only the language spec/PSRs; CI grep-gate bans repo/framework names in adapter source; cross-repo validation (§16). |
-| Wrong abstraction / file-at-a-time misfit guessed from one language | **Retired**: TS/JS (the most PHP-unlike, module-scoped, project-context) landed with no contract v2 and the v1 file-at-a-time protocol intact (§4.4). |
 | PHP process startup × 112k | Long-lived streaming adapter + N workers. |
 | Dynamic PHP (`$obj->$m()`, magic, variable include) | `DYNAMIC` tier, excluded from traversal; name-based `HEURISTIC` fallback. |
 | No type inference for PHP instance calls | **Closed by [137](tasks/137_php-local-type-table.md)**: the HEURISTIC share fell to **1.1 / 3.9 / 2.6 %** across the three pins, with no call site losing a target — [benchmark](benchmarks/137_type-table.md). What is left is the late binding 136 predicted, which is the LSP defer's ≤0.6 %, plus receivers whose declaring member is unindexed (136's `vendor/` cap, unchanged). C# gets it free via Roslyn capability. |
@@ -673,22 +671,17 @@ are **complete**; the per-task breakdown, including the 108–117 reshape, is in
 
 ## 18. Open questions for review
 
-Four of the original six are **closed** and recorded where they were decided: the language order and
-its deferral (§3, §19 pivot), the PHP validation repos (task 018 — public pins in
+Six of the original eight are **closed** and recorded where they were decided: the language order and
+its deferral (§3, §19 pivot), the PHP *and* TS/JS validation repos (018 · 150 — public pins in
 `scripts/cross_repo_samples.json` plus an operator-local monorepo via `CODE_ATLAS_SCALE_SAMPLE`), the
-ship point (M3, task 014 — shipped), and onboarding presentation (both: committed markdown *and* a
-viewer, §14). Still open:
+ship point (M3, task 014 — shipped), onboarding presentation (both: committed markdown *and* a
+viewer, §14), and schema-state awareness (**no, permanently** — §19, 2026-08-30). Still open:
 
 1. **PHP runtime** — both modes ship (§9); is a host PHP 8.5 CLI acceptable for indexing, or is
    Docker-only the standing answer?
 2. **LSP-tool coexistence** — keep a language server's PHP search tools on, or trim to nav/edit?
    §13 says they are not substitutes and the founding-premise benchmark could not make an agent
    choose, so this stays a per-installation preference, not a project decision.
-3. **TS/JS validation repos** — unresolved; only live at M7.
-4. ~~**Schema-state awareness** — should code-atlas answer DB schema/migration questions at all?~~
-   **Closed 2026-08-30: no, permanently.** R4 bars the core from a live database, and
-   `INFORMATION_SCHEMA` is what actually settled FIELD-959. The index answers *where the code writes a
-   column*; the database answers *what it currently holds*. Task 022 is that first half.
 
 ---
 
@@ -716,8 +709,8 @@ viewer, §14). Still open:
   longer describes the ticket. Its premise — nothing every user inherits — survives and is answered
   by proof: `Table`, `Column` and `WRITES` (**v9**) join **no** existing named subset, so a repo
   with no `.sql` is unchanged. §1's text stands; round 12's four tickets are demand, not a repo.
-- **Language order** (§3) — **PHP → TypeScript/JavaScript → Python → C#/.NET.** PHP first (large stress sample). TS/JS second: most popular (BE+FE) *and* the best contract-hardener (module-scoped, project-context, no FQNs → §4.4). Python cheap third. C# last (Roslyn semantic model; confirms the contract). **Revised 2026-08-04:** order retained, but **deferred** behind PHP agent-depth — see the pivot below.
-- **SOLID at the boundaries + YAGNI** (§2) — one seam (the contract); PHP built end-to-end first; language #2 (TS/JS) hardens the abstraction. Registry question now settled — see the R1.2 verdict below.
+- **Language order and its rationale** — §3's table. Ordered PHP → TS/JS → Python → C#/.NET, deferred behind PHP agent-depth 2026-08-04, T-SQL inserted ahead of Python 2026-08-30; #2–#4 have landed and only C#/.NET remains.
+- **SOLID at the boundaries + YAGNI** (§2) — one seam (the contract). The registry question is settled: see the R1.2 verdict below.
 - **Standard over sample** (§2) — adapters implement the language spec/PSRs only; sample repos drive test coverage & perf targets, never adapter semantics. CI grep-gate bans repo/framework names in adapter source.
 - **Priorities** (§0): make it work (PHP) → extend without touching core → onboarding feature.
 - **Onboarding** (§14) is **Phase 3**, a graph *consumer*; the core stays deterministic and the LLM
@@ -744,10 +737,10 @@ The consumer is an **AI coding agent in a terminal**, so the incumbent to beat i
   below ≈36 relation calls per session and loses above, a spread of only −234…+434 tokens over 1–100
   calls. No net win ⇒ R1.2 holds, reinforced by the unpriced cost of one muddier description. The A/B
   lives in `scripts/relation_surface_ab.py`; `find_relations` was never shipped.
-- **Depth over breadth — reversed for 020, 2026-09-04.** 019/020/021 were **deferred, not
-  cancelled** — finish the PHP agent-loop first; **human-ratified 2026-08-04**, a large private PHP
-  monorepo being the anchor for **testing *and* evaluation**. **020 un-deferred by maintainer
-  decision**, without the field-measured demand the T-SQL reorder above required; 021 stays deferred.
+- **Depth over breadth — reversed for 020, 2026-09-04.** 019/020/021 were deferred behind the PHP
+  agent-loop (human-ratified 2026-08-04, the private PHP monorepo being the anchor for testing *and*
+  evaluation). **020 un-deferred by maintainer decision**, without the field-measured demand the
+  T-SQL reorder above required; **021 stays deferred.**
 - **Editing permanently ceded** to the agent's native `Edit`/`Write` (§1). code-atlas serves exact line
   ranges; it never mutates code.
 - **Framework magic stays an enrichment layer** (§1 non-goal) — vendor stubs and indirection-as-data

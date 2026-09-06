@@ -26,11 +26,10 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
 - **R1.1 — Zero language branches in the core.** No `if language == "php"`, or any per-language
   switch, anywhere under `code_atlas/`. Such a branch means the contract leaked; fix the contract,
   not the core. *CI grep-gates this.*
-- **R1.2 — One seam only (YAGNI).** The adapter contract is the sole abstraction. No plugin
-  registry, base classes, factories or DI container until adapter #2 (TS/JS) exists and proves the
-  shape. Two implementations reveal the right abstraction; one invents the wrong one.
-  **Condition met — verdict: NO registry** (adapter #2 landed, 019; task 156): the 019 core diff was
-  empty, adapters being selected from data. Mechanism and evidence: PLAN §19.
+- **R1.2 — One seam only (YAGNI).** The adapter contract is the sole abstraction: no plugin
+  registry, base classes, factories or DI container. **Verdict: NO registry** (019, task 156) — the
+  019 core diff was empty, adapters being selected from data, and #3/#4 needed none either.
+  Mechanism and evidence: PLAN §19.
 - **R1.3 — Dependency direction is one-way.** The core depends on the **contract**, never on a
   concrete parser (`nikic`, Roslyn, ts-morph); adapters depend on nothing in the core. The genuine
   inversion boundary is the **JSON contract + subprocess protocol**, not a Python base class.
@@ -274,14 +273,15 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
 ## 8. Dependencies
 
 - **R8.1** — Each adapter is self-contained with its own runtime/manifest (`composer.json`,
-  `package.json`, `.csproj`) and documents how it is launched (`CA_<LANG>_CMD`). Adapter deps never
-  leak into the Python core.
+  `package.json`, `pyproject.toml`) and documents how it is launched (`CA_<LANG>_CMD`). Adapter
+  deps never leak into the Python core.
 - **R8.2** — Keep core dependencies minimal (FastMCP + stdlib-first). Add one only when it earns its
   place; prefer the standard library and SQLite features.
 - **R8.3 — An adapter's dependencies are pinned by a committed lock file** (`composer.lock`,
-  `package-lock.json`, `packages.lock.json`); only the resolved artifacts (`vendor/`,
-  `node_modules/`) are ignored. A floating range lets two machines resolve different parser builds
-  and emit different rows from the same file, which R4.2 forbids.
+  `package-lock.json`); only the resolved artifacts (`vendor/`, `node_modules/`) are ignored. A
+  floating range lets two machines resolve different parser builds and emit different rows from the
+  same file, which R4.2 forbids. A zero-dependency adapter commits no lock; it pins the
+  *grammar* instead, refusing to run on an older runtime (Python, 217).
 
 ---
 

@@ -18,22 +18,22 @@ discussion. One question at a time; record the first tool named; no retries, no 
 ## Protocol
 
 1. Point a fresh agent at a repo with a **built, current** index (`get_index_status` shows
-   `staleness: current`) and the standard 17-tool surface. Do **not** show it `which_tool` or the
+   `staleness: current`) and the standard 24-tool surface. Do **not** show it `which_tool` or the
    answer key below.
-2. **Before scoring**, record **resident descriptions**: how many of the 17 tool descriptions were
-   in context at scoring time (`K / 17`). This harness often defers MCP schemas — a name list is
+2. **Before scoring**, record **resident descriptions**: how many of the 24 tool descriptions were
+   in context at scoring time (`K / 24`). This harness often defers MCP schemas — a name list is
    not a description set.
 3. Ask each question in the set verbatim. For each, record:
    - the **first** tool the agent says it would call (or "none / unsure");
    - whether that answer was **name-only** or **description-backed** (the intended tool's schema
      was in context when the agent answered).
-4. Score **two rates**, never one undifferentiated 17/17:
-   - **name-inclusive** = `recognised / 17`. Label it as such. Round 5 reported the 14-tool
+4. Score **two rates**, never one undifferentiated 24/24:
+   - **name-inclusive** = `recognised / 24`. Label it as such. Round 5 reported the 14-tool
      equivalent, before `architecture_overview` joined the surface (086).
    - **description-backed** = `recognised among description-backed answers / D`, where `D` is the
      number of answers marked description-backed in step 3. This is the 081 proxy. `D` equals `K`
      only if residency held for the whole probe; when a schema loads mid-probe the step-3 markings
-     win — report `D` and re-record `K`. If `D = 0`, record 081 as `NOT OBSERVED`. If `K < 17`, do
+     win — report `D` and re-record `K`. If `D = 0`, record 081 as `NOT OBSERVED`. If `K < 24`, do
      **not** treat a name-inclusive full score as evidence that descriptions route.
 5. Report both rates with the per-question picks and markings, so a miss is inspectable. Do not
    average away a systematic confusion (e.g. `find_references` vs `find_callers`).
@@ -59,7 +59,7 @@ discussion. One question at a time; record the first tool named; no retries, no 
 | 15 | How does one symbol reach another through the call graph? | `explain_path` |
 | 16 | I have never opened this codebase. What are its top-level parts, and which depends on which? | `architecture_overview` |
 | 17 | I have never opened this codebase. What should I read first, in dependency order? | `guided_tour` |
-| 18 | Write the onboarding docs I can commit: overview, reading order, per-module pages, and a manifest. | `generate_onboarding` |
+| 18 | Write the onboarding docs I can commit: an overview, a reading order, the request flows and a manifest. | `generate_onboarding` |
 | 19 | Do the declared architecture dependency rules still hold? | `check_architecture_rules` |
 | 20 | What did the agent change about the architecture between two revisions? | `diff_architecture` |
 | 21 | Draw the class diagram for this type (or this file's types). | `class_diagram` |
@@ -82,11 +82,11 @@ round 5 already separated those off names.
 
 ## Reading the result
 
-- The set has **17 questions, one per tool** — the same 17 the `which_tool` map covers, so a full
-  miss on the map and a full miss here would agree.
+- The set has **one question per tool** — the same set the `which_tool` map covers, so a full
+  miss on the map and a full miss here would agree. It grows with the surface; keep it one-per-tool.
 - A **recognition-rate bar** for "the surface routes well enough" is a project call, not a mango
-  gate; judge the **description-backed** rate against the prior round. A name-inclusive 17/17 with
-  `K < 17` is saturated names, not a pass.
+  gate; judge the **description-backed** rate against the prior round. A name-inclusive full score
+  with `K` below the tool count is saturated names, not a pass.
 - Because the probe is blind and reproducible, a later round can **re-run it without contaminating
   itself**.
 - This file is a protocol, not a benchmark harness. 055 and 074 own measurement infrastructure.

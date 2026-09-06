@@ -332,11 +332,17 @@ autoloaded classes produce no `INCLUDES` edges (see the PSR-4 follow-up in
 
 ## 9. Generate the onboarding map — and check what your own declarations did to it
 
-Indexing gives an agent its tools; `generate_onboarding` gives a **human** the map. On the same
-~19k-file monorepo it takes **17 s** over the existing index and writes `docs/onboarding/`: a
-**950 KB** self-contained `index.html` (offline, theme-aware), `overview.md`, `tour.md`, and 500
-module pages at a **median 2,943 B**. Regenerating rewrites only the pages its own last
-`manifest.json` recorded, so a hand-authored file in that tree survives.
+Indexing gives an agent its tools; `generate_onboarding` gives a **human** the map. It writes
+`docs/onboarding/`: `overview.md` and `manifest.json` always, plus whatever the `audience` contract
+names — `tour.md`, `flows.md` and a self-contained `index.html` (offline, theme-aware). **There is
+no per-module page tree**; 205 removed it, and the first regeneration after 205 deletes the pages a
+pre-205 `manifest.json` recorded. Regenerating touches only what that manifest lists, so a
+hand-authored file in the tree survives. Narrow the walk with `working_roots` / `CA_WORKING_ROOTS`
+when the reader only works in part of the tree (206/216).
+
+**Dated figure (2026-08, pre-205):** on the ~19k-file monorepo the run took **17 s** over the
+existing index and the viewer was **950 KB**. The 500 module pages that measurement also counted no
+longer exist, so treat the total as an upper bound until it is re-measured on an anchor.
 
 Read the **Zero-inbound modules, by population** block first, and read it against your own config:
 

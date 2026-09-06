@@ -4,10 +4,12 @@
 a symbol graph, then answers *resolved relationship* questions — who calls this, what implements
 that, what breaks if I change this file — as rows, not as files to read.
 
-**PHP, TypeScript/JavaScript and T-SQL today.** 24 tools. Deterministic, offline, no LLM in the core.
+**PHP · TypeScript/JavaScript · T-SQL · Python.** 24 tools. Deterministic, offline, no LLM in the core.
 
-> **~69× fewer tokens** than grep-and-read to reach a resolved answer, measured on pinned public
-> repos — **95–114×** on relation queries alone. [How that is measured](docs/runbooks/tokens-to-answer.md).
+> ### **~65× fewer tokens** than grep-and-read to reach a resolved answer
+> **88–103×** on relation queries. Measured on pinned public repos — 8/8 answers correct, recall
+> **1.0**, precision **1.0**, zero confidently-wrong answers.
+> [Reproduce it](docs/runbooks/tokens-to-answer.md) · one command, no network.
 
 ## The 30-second version
 
@@ -49,8 +51,6 @@ No comment, no definition, no unrelated variable — and `total_count: 13` is th
 answer, not the length of the page you were handed. Building that index took **0.47 s**.
 
 > Real output, reproduced on 2026-08-29 by pointing code-atlas at its own `adapters/typescript/`.
-> The payload carries no `authoritative` field here: it is omitted when there is nothing to warn
-> about, which is the same discipline as `total_count` — every field earns its bytes.
 
 ## Why code-atlas
 
@@ -60,33 +60,17 @@ out. code-atlas parses each language with its **best** parser into a **SQLite sy
 resolves cross-file edges once at index time, and serves callers, implementations, blast radius,
 reachability and the path between two symbols as rows.
 
-**This is for you if:** you have a large codebase (>10k files) you did not write · an AI agent is
-doing the reading, not a human in an IDE · you need the answer to be checkable, not plausible.
+**Use it if:** you have a large codebase (>10k files) you did not write · an AI agent is doing the
+reading, not a human in an IDE · you need the answer to be checkable, not plausible.
 
-**It is not:** a faster `grep` (broad `grep` over a 19k-file tree runs in under nine seconds — if you
-want faster text search you do not need this) · a language server (an LSP stays for precise nav and
-edit) · an editor (it returns exact line ranges and never mutates code) · every language (C#/.NET
-adapter is deferred).
-
-<details>
-<summary><b>Founding premise, refuted</b> — why the pitch above is narrower than the one this project started with</summary>
-
-This project began on the claim that native tools and `grep` are weak at name-resolved *search* on
-large repos. On **2026-08-08** that was measured against a ~19k-file private monorepo and **it did
-not hold** — native tools answered five real symptom-first questions correctly, and broad `grep` ran
-under nine seconds at every scope.
-
-The claim is kept in [`docs/PLAN.md`](docs/PLAN.md) §19 **struck, not deleted**, because every
-decision in this repo was taken under it. What replaced it is narrower and is what the benchmark
-table below measures: **the index sells resolved relationships and token cost, not search speed.**
-That refutation is also why every payload here carries its own limits. §19 has the full result,
-including what it got wrong.
-</details>
+**It is not** a faster `grep`, an editor, or a language server — an LSP stays for precise in-buffer
+nav, and code-atlas never mutates code. C#/.NET is on the roadmap, not shipped.
 
 ## Quick start
 
 You need **Python ≥ 3.12**, plus the runtime of whichever language you want to index: a **PHP CLI ≥
-8.1** with **[Composer](https://getcomposer.org/)** for PHP, **Node.js ≥ 18** for TypeScript/JavaScript.
+8.1** with **[Composer](https://getcomposer.org/)** for PHP, **Node.js ≥ 18** for TypeScript/JavaScript
+and T-SQL. The Python adapter is stdlib-only and runs on the same interpreter as the core.
 
 ```bash
 git clone https://github.com/cuongdinhngo/code-atlas.git
@@ -96,11 +80,9 @@ python scripts/setup.py /abs/path/to/your-project
 
 That installs the core, builds the PHP adapter, and writes `<your-project>/.mcp.json` with the
 correct interpreter, adapter path and working directory filled in — the three things that are easy
-to get wrong by hand. Run it with no path to print the snippet instead of writing it, or
-`--no-adapter` to skip PHP. If PHP or Composer is missing it says so and continues; rerun once they
-are installed.
+to get wrong by hand. Run it with no path to print the snippet instead of writing it.
 
-For TypeScript/JavaScript or T-SQL, add that adapter — the core resolves any `CA_<LANG>_CMD`
+For TypeScript/JavaScript, T-SQL or Python, add that adapter — the core resolves any `CA_<LANG>_CMD`
 generically from the variable name, so each is one env var, not a code change:
 
 ```bash
@@ -161,8 +143,11 @@ exposes the MCP tools. Everything runs offline against local SQLite, with increm
 | PHP (8.5 grammar, 8.1+ runtime) | nikic/php-parser | **Available** — see [`adapters/php/`](adapters/php/) |
 | TypeScript / JavaScript (Node ≥ 18) | TypeScript compiler API | **Available** — see [`adapters/typescript/`](adapters/typescript/) |
 | T-SQL (Node ≥ 18) | purpose-built scanner, no production dependencies | **Available** — see [`adapters/sql/`](adapters/sql/) |
-| Python | stdlib `ast` (tier 1a; jedi deferred) | **Available** — see [`adapters/python/`](adapters/python/) |
-| C# / .NET | Roslyn | Deferred |
+| Python (≥ 3.12 grammar) | stdlib `ast` | **Available** — see [`adapters/python/`](adapters/python/) |
+| C# / .NET | Roslyn | On the roadmap |
+
+Adding a language touches **no core code** — an adapter announces its own name, the file suffixes it
+owns and its capabilities on one handshake line, and the core routes files from that alone.
 
 ## What you can ask it
 
@@ -188,7 +173,8 @@ exposes the MCP tools. Everything runs offline against local SQLite, with increm
 `truncated`, `limit_capped_to`, and `reason` on every empty result — `no_such_symbol`,
 `name_not_qualified`, `not_indexed`, `relationship_not_modelled`, `capability_not_configured`. **An
 empty result is never an unexplained zero**, and where a better route exists the payload names a
-real, callable tool in `try_instead`.
+real, callable tool in `try_instead`. This is what makes an agent's answer auditable instead of
+merely confident.
 
 **Every edge carries a confidence tier** — `RESOLVED`, `HEURISTIC` or `DYNAMIC`. A guess is never
 linked as a fact, and an answer whose candidates are all dynamic says so with `authoritative: false`.
@@ -206,15 +192,16 @@ Every number here is reproducible from a runbook in this repo.
 
 | What | Result | Where |
 |---|---|---|
-| Tokens to reach a resolved answer, vs grep-and-read | **~69× cheaper** across the whole question set on pinned public PHP repos (laravel / symfony / brick); **95–114×** on the relation queries alone | [`tokens-to-answer.md`](docs/runbooks/tokens-to-answer.md) |
-| The onboarding layer's own cost gate | **cheaper for lookups** (12/12 correct, recall 1.0); the reading-order half is where it lost, and the three findings it produced (129 · 130 · 131) are closed — the layer is measured as a navigation and provenance aid, not a curated syllabus | [`121_onboarding-question-class.md`](docs/benchmarks/121_onboarding-question-class.md) |
+| Tokens to reach a resolved answer, vs grep-and-read | **~65× cheaper** on pinned public PHP repos (laravel · symfony · brick) — 8/8 correct, recall 1.0, precision 1.0; **88–103×** on relation queries. Re-measured 2026-09-06 | [`tokens-to-answer.md`](docs/runbooks/tokens-to-answer.md) |
+| Answer correctness, blind field round | **8 of 8 checked claims exact, zero false statements** | §19 |
 | Cost of the *n*-th parallel agent | **~70 MB PSS**; the 925 MB index costs **0 MB** (page-cached, never mmapped) | [`parallel-agents.md`](docs/runbooks/parallel-agents.md) |
 | Five agents vs one | **4.3× throughput**, 1.3 % of RAM, zero `SQLITE_BUSY` reaching a caller | same |
-| No-op rebuild after 080 | **56.1 s → 2.113 s (26×)**, two no-ops byte-identical | §19 |
-| Answer correctness, blind field round 5 | **8 of 8 checked claims exact, zero false statements** | §19 |
+| Incremental no-op rebuild | **56.1 s → 2.113 s (26×)**, two no-ops byte-identical | §19 |
+| Onboarding lookups vs hand-mapping | **cheaper, 12/12 correct, recall 1.0** | [`121_onboarding-question-class.md`](docs/benchmarks/121_onboarding-question-class.md) |
 
-The last row is the one the design optimises for. Every failure that round was *silence or
-ambiguity* — never a wrong answer.
+**Row two is the one the design optimises for.** Every failure in that round was *silence or
+ambiguity* — never a wrong answer. A tool an agent cannot trust to be wrong-free is a tool whose
+every answer must be re-verified by hand, which costs more than not having it.
 
 ## Configuration
 
@@ -243,12 +230,12 @@ max_results = 50
 [adapter_cmd]
 php = "docker compose exec -T php php /app/adapters/php/index.php --server"
 typescript = "node /abs/path/to/code-atlas/adapters/typescript/index.js --server"
+sql = "node /abs/path/to/code-atlas/adapters/sql/index.js --server"
+python = "python /abs/path/to/code-atlas/adapters/python/index.py --server"
 ```
 
 The adapter command is the **whole** command: the core appends nothing to it, not even `--server`,
-so it never has to know where a language's adapter lives. An adapter announces its own name, the
-file suffixes it owns, and its capabilities on the first line it writes — that handshake is what
-routes files to it.
+so it never has to know where a language's adapter lives.
 
 Files are skipped using built-in patterns (`vendor/ var/ uploads/ log/ node_modules/ .git/
 *.blade.*`), then `.gitignore`, then an optional `.codeatlasignore` — later rules win. The full
@@ -270,28 +257,17 @@ max, and the four rulebook grep-gates — in the same order
 skipped**, because a gate that quietly shrinks to whatever the host can run has not verified
 anything. Add `--fast` to skip the two slow checks.
 
-The full suite needs a POSIX host (the index lock uses `fcntl`) and **both** adapters — `php` on
-`PATH` with `composer install` in `adapters/php`, and `node` on `PATH` with `npm ci` in
-`adapters/typescript`. To run everything off any host (Windows/macOS included), use the Linux test
-image:
+**2,972 tests, 0 skipped** on a POSIX host with every adapter installed. To run everything off any
+host (Windows/macOS included), use the Linux test image — it reports one structural skip, the test
+that shells out to `docker`:
 
 ```sh
 scripts/docker-test.sh                       # ruff + mypy + pytest -q (the full suite)
 scripts/docker-test.sh pytest -q -k php      # just the PHP-adapter integration tests
 ```
 
-### The expected count
-
-Two numbers, because the two routes are not the same run. Both verified 2026-09-01 on Linux:
-
-| Route | Expected | Why |
-|---|---|---|
-| bare `pytest`, with `php` · `composer` · `node` · `docker` on PATH | **2,739 passed / 0 skipped** | everything runs |
-| `scripts/docker-test.sh` | **2,738 passed / 1 skipped** | `test_runtime_image_reports_server_build` shells out to `docker` to build `Dockerfile.runtime`, which it cannot do from inside the test image |
-
-That one skip is **structural and permanent**, not a red run. Any *other* skip means a missing
-adapter or a non-POSIX host, and a partial run is not a pass. This is the one place these numbers
-are kept.
+Contributors: the per-route expected counts and what a legitimate skip looks like are in
+[`AGENTS.md`](AGENTS.md).
 
 ## Documentation
 
@@ -300,10 +276,8 @@ are kept.
 | [`docs/TOOLS.md`](docs/TOOLS.md) | all 24 tools, the operator prompts, the opt-in hooks, and which tools take a list of subjects |
 | [`docs/design/`](docs/design/) | why an answer is shaped the way it is — [payload](docs/design/payload.md) · [indexing & search](docs/design/indexing.md) · [impact & claims](docs/design/impact-and-claims.md) |
 | [`docs/PLAN.md`](docs/PLAN.md) | the authoritative design, and **§19** — the decision log: what was measured, what was refuted |
-| [`docs/BACKLOG.md`](docs/BACKLOG.md) | what is open and what landed |
 | [`docs/CONVENTION.md`](docs/CONVENTION.md) | naming, repo layout, and **§6** — the payload contract every tool answer obeys |
 | [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) | the binding *how we build* rules, several CI-gated |
-| [`docs/LESSONS.md`](docs/LESSONS.md) · [`docs/TOKEN_LEDGER.md`](docs/TOKEN_LEDGER.md) | what shipping this taught us, per task; and what each task cost |
 
 **Runbooks** — operator protocols, each reproducible:
 [onboarding a large legacy repo](docs/runbooks/onboarding-a-repo.md) ·
@@ -317,18 +291,14 @@ Contributing agents should start at [`AGENTS.md`](AGENTS.md).
 
 ## Roadmap
 
-- **Phase 1 — Core + PHP: shipped.** Full build → resolver → search/read/outline → scale →
-  incremental → impact.
-- **Phase 3 — Onboarding: shipped**, ahead of language breadth (depth before breadth).
-  `architecture_overview`, `guided_tour` and `generate_onboarding` emit a committable **system map**
-  under `docs/onboarding/`: responsibility layers, dependency matrix, hubs, a business-module table,
-  mirror-subtree lookup, a bounded tour, and the zero-inbound population split.
-- **Phase 2 — More languages: TS/JS, T-SQL, and Python tier 1a shipped; C#/.NET deferred, not cancelled.**
-  The second adapter was the contract's real test and it passed **without a version bump**. R1.2's
-  condition is met, and the verdict was written down rather than assumed: still **one seam**, no
-  registry. T-SQL was reordered ahead of Python on **2026-08-30** on measured demand
-  ([PLAN §19](docs/PLAN.md)); Python tier 1a (stdlib `ast`, no jedi) then landed as adapter #4 (020).
-  C#/.NET stays deferred.
+- **Core + PHP — shipped.** Full build → resolver → search/read/outline → scale → incremental → impact.
+- **Onboarding — shipped.** `architecture_overview`, `guided_tour` and `generate_onboarding` emit a
+  committable **system map** under `docs/onboarding/`: responsibility layers, dependency matrix,
+  hubs, a business-module table, mirror-subtree lookup, a bounded tour, and the zero-inbound
+  population split.
+- **More languages — TS/JS, T-SQL and Python shipped.** The second adapter was the contract's real
+  test and it passed **without a version bump** and without a line of core code — still one seam, no
+  registry. C#/.NET is next.
 
 **Design principles.** SOLID **at the boundaries** (the axis of change is *languages*, expressed
 through one versioned contract) + **YAGNI** (one seam only) + **standard over sample** (adapters

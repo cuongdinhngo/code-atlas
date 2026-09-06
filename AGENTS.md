@@ -17,9 +17,9 @@ outward action without a separate explicit approval per action; tracker writes g
 Validate with `/mango:doctor`. Run a ticket with `/mango:solve <KEY>`.
 <!-- /mango:standing-context -->
 
-**Read these before non-trivial work** — **tier 1**; every session pays for all of it, so it is capped at 25,000 tokens by `tests/test_agent_chain_budget.py`, measured by `scripts/agent_chain_cost.py`:
+**Read these before non-trivial work** — **tier 1**; every session pays for all of it, so it is capped at 19,400 tokens by `tests/test_agent_chain_budget.py`, measured by `scripts/agent_chain_cost.py`:
 - [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) — binding *how we build* rules (R1.1…). The pre-PR self-check at the bottom is your gate.
-- [`docs/AGENT_BRIEF.md`](docs/AGENT_BRIEF.md) — binding *how we run the lifecycle* rules (`P1`…`Pn`), each earned by a cited incident. Read them there; this file does not enumerate them, because the copy it used to keep went a rule out of date.
+- [`docs/AGENT_BRIEF.md`](docs/AGENT_BRIEF.md) — binding *how we run the lifecycle* rules (`P1`…`Pn`), each earned by a cited incident. Read them there; this file never copies them — a copy went a rule out of date.
 - [`docs/CONVENTION.md`](docs/CONVENTION.md) — naming, repo layout, the fixed contract vocabulary, style.
 - [`docs/BACKLOG.md`](docs/BACKLOG.md) — tasks (`docs/tasks/NNN_slug.md`); keep status in sync there **and** in each task's frontmatter.
 
@@ -37,13 +37,13 @@ the only place to state it — in [`docs/PLAN.md`](docs/PLAN.md) §1.
 
 A local-first **MCP server** that indexes a codebase into **SQLite** and exposes fast, name-resolved,
 token-efficient **search / read / navigation / impact** tools. **Language-agnostic core + per-language
-adapters**, joined by one versioned **JSON contract**. Roll-out order: **PHP → TS/JS → T-SQL →
-Python → C#/.NET** (§19, T-SQL reordered 2026-08-30). An Understand-Anything-style onboarding
+adapters**, joined by one versioned **JSON contract** (order and status: §3). An
+Understand-Anything-style onboarding
 layer is **Phase 3, and it has shipped** (M10-M12) — it emits a committable system map from the same
 graph, deterministic by default with LLM prose opt-in and out of the core.
 
 ```
-MCP client ──stdio──▶ core (Python/FastMCP) ──JSONL contract──▶ language adapter (PHP: nikic/php-parser)
+MCP client ──stdio──▶ core (Python/FastMCP) ──JSONL contract──▶ language adapter (php · typescript · sql · python)
                           │
                           ▼
                    SQLite .code-atlas/graph.db   (nodes · edges · files · fts5 · meta, WAL, incremental)
@@ -56,9 +56,9 @@ MCP client ──stdio──▶ core (Python/FastMCP) ──JSONL contract──
 
 ## Non-negotiable rules (summary — authoritative detail in ENGINEERING_RULES.md)
 - **Zero language branches in the core** — no `if language == …` under `code_atlas/`; a branch means the contract leaked (R1.1, CI-gated).
-- **One seam, YAGNI** — the adapter contract is the only abstraction; no registry/base-classes/DI until adapter #2 exists (R1.2).
+- **One seam, YAGNI** — the adapter contract is the only abstraction; **verdict: no registry**, settled once adapters #2-#4 landed needing none (R1.2).
 - **SRP boundaries** — adapters parse only; `store.py` owns SQLite; the two never import each other (R1.4).
-- **Standard over sample** — adapters encode the language spec/PSRs, never a repo's names or framework; samples drive tests/perf only (R2, CI-gated).
+- **Standard over sample** — adapters encode the language spec and its ecosystem standards, never a repo's names or framework; samples drive tests/perf only (R2, CI-gated).
 - **Contract is frozen & versioned** — change vocabulary/qname ⇒ bump `contract_version` + update conformance tests; `contract.py` is the single source of truth (R3).
 - **Deterministic core** — no LLM/network in the core; the onboarding LLM lives in `onboarding_llm/`,
   outside `code_atlas/`, injected through Protocol seams and off by default (R4/R4.1, CI-gated).
@@ -85,8 +85,9 @@ to keep in step, and it drifted. Only the boundaries that decide where your chan
 
 ## Indexing a real repo — from a shell
 `code-atlas-build` builds; `--status` reads a running build's live phase, which no MCP tool can.
-24.6k files: rebuild ~10 min, incremental ~1 min, no-op ~5 s; `workers` is **not** a throughput
-knob (1.07x, 1→6). Detail: [`runbooks/onboarding-a-repo.md`](docs/runbooks/onboarding-a-repo.md).
+24.6k files (203): full rebuild **29 min into an empty DB · 76 min over a populated one** — delete
+`graph.db` first for a free **2.6x**; incremental 63.8 s, no-op 5.5 s. `workers` is **not** a
+throughput knob (1.07x) — the wall is the per-file write as the index grows. Detail: [`runbooks/onboarding-a-repo.md`](docs/runbooks/onboarding-a-repo.md).
 
 ## Before a PR or a push — run `scripts/gate.sh`
 **GitHub Actions DO run** — so a local `GATE GREEN` is not the whole answer: read `gh pr checks
@@ -96,19 +97,26 @@ there. `scripts/gate.sh` mirrors every CI job in `ci.yml`'s order and names each
 **Only `GATE GREEN` counts — exit 2 means a check was skipped, which is not a pass (R6.5).** Keep it
 in step with `ci.yml`: a check in one and not the other means one of them is lying about what was
 verified.
+**The gate's tokens-to-answer ratio is the *fixture* tier and sits below 1 by design** (floor 0.63) —
+the product claim is the *sample* tier over the pinned repos (`--samples`, ~65x). Never quote one as
+the other.
 
-## Running the full test suite — use Docker, never report it as unrunnable
-The suite needs a **POSIX host** (the index lock imports `fcntl`) and the **PHP adapter**. On the
-maintainer's **Windows** dev host bare `pytest` is red for both reasons. **This is a platform
-limitation, not a regression** — do not conclude "the suite can't run" and do not ask how to run it.
-Run it in Docker: `scripts/docker-test.sh`. The commands and the **expected count** are in
-[README *Testing*](README.md#testing), which is the one place that number is kept.
+## Running the full test suite — never report it as unrunnable
+The suite needs a **POSIX host** (the index lock imports `fcntl`) and **every adapter**: `php` +
+`composer`, `node` for both the TS and SQL adapters, and a Python ≥ 3.12 interpreter. With all of
+them present bare `pytest` is green and is the fastest route. Missing either condition it goes red —
+**a platform limitation, not a regression** — so do not conclude "the suite can't run" and do not ask
+how to run it; run it in Docker instead: `scripts/docker-test.sh`. **Expected count, verified 2026-09-06 on Linux — this is
+the one place these numbers are kept:** bare `pytest` (with `php` · `composer` · `node` · `docker` on
+PATH) **2,972 passed / 0 skipped**; `scripts/docker-test.sh` **2,971 passed / 1 skipped**, that skip
+being `test_runtime_image_reports_server_build`, which shells out to `docker` and cannot from inside
+the test image.
 
-Prove **delta-green** before a PR, and name the host that produced it. A bare-`pytest` red on
-Windows is the known platform exclusion above — confirm green via Docker, then say so; don't leave
-it as "unverified". The container route ends on **one** structural skip (the test that shells out to
-`docker`); that is green, any other skip is not. To ship the server itself in a container, use
-`docker/Dockerfile.runtime` (stdio; mount the repo at `/workspace`) — see README *Quick start*.
+Prove **delta-green** before a PR, and name the host that produced it. A red run on a host missing an
+adapter is the exclusion above — confirm green via Docker, then say so; don't leave it as
+"unverified". The container route ends on **one** structural skip (the one named above); that is
+green, any other skip is not. To ship the server itself in a container, use
+`docker/Dockerfile.runtime` (stdio; mount the repo at `/workspace`).
 
 ## Maintainer workflow — single-maintainer repo; don't re-ask what's already authorized
 - **Finishing a task runs through to the PR without pausing to confirm:** commit in logical units →
@@ -125,9 +133,7 @@ it as "unverified". The container route ends on **one** structural skip (the tes
   each ✋ gate in-conversation so the maintainer can interject, but proceed on the standing approval
   rather than waiting.
 
-## Ship discipline (plan §15)
-M0 spike → M1 full build → M2 resolver+contract tests → **M3 search/read/outline = first daily release (task 014)** → M4 scale → M5 incremental → M6 impact.
-**Phase 3 onboarding shipped ahead of language breadth:** M10 (`architecture_overview` + layers) · M11
-(`guided_tour`, `generate_onboarding`, the navigable system map) · M12 (opt-in LLM prose behind three
-seams, out of the core) are **all complete** — 24 tools on the surface. **Adapters #2 (TS/JS, 019),
-#3 (T-SQL, 184 tier 1a + 022 tier 2), and #4 (Python tier 1a, 020) have landed**; C#/.NET stays deferred.
+## What has shipped (milestone detail: plan §15)
+Core + PHP (M0-M6) and Phase 3 onboarding (M10-M12) are **complete** — **24 tools** on the surface,
+plus the console scripts in `pyproject.toml`. **Adapters #2 (TS/JS, 019), #3 (T-SQL, 184 tier 1a +
+022 tier 2) and #4 (Python, 020 tier 1a + 217 tier 2) have landed**; C#/.NET is the only one left.

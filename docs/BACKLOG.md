@@ -24,6 +24,8 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099 |
+| 219 | [A full rebuild over a populated index costs 2.6x a fresh one — 203 measured it and left the fix unchosen](tasks/219_a-full-rebuild-pays-the-populated-db-tax-nobody-chose.md) | Cost | todo | 203, 201, 052 |
+| 220 | [`fcntl` at module scope means the core cannot import on native Windows, and no Windows measurement exists](tasks/220_no-windows-evidence-exists-and-the-core-cannot-import-there.md) | Adoption | todo | 203, 219, 053 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -34,19 +36,19 @@ M10–M12 have all landed; round narratives live in [`FEEDBACK.md`](FEEDBACK.md)
 
 **What still governs open work:**
 
-- **24 tools** on the MCP surface, plus four shell entry points
-  ([`ROADMAP.md`](phase3-onboarding/ROADMAP.md)).
+- **24 tools** on the MCP surface (`main.TOOL_NAMES`), plus the console scripts
+  `pyproject.toml`'s `[project.scripts]` lists.
 - **Every `deferred` ticket holds its own gate** — 074, 098 and 141 each state theirs, and 141 is at
   n = 0; do not queue one without reading it. Auto *reading orders* stay unscheduled
   ([121](benchmarks/121_onboarding-question-class.md)).
 - **Roll-out is the binding constraint and deliberately not a ticket here** — five rounds standing;
   this backlog accepts only code, so it goes to the consumer as a PR.
 
-## Phase 2 — More languages (§19 pivot, 2026-08-04; 020 reopened)
+## Phase 2 — More languages (§19 pivot, 2026-08-04)
 
-**020 un-deferred 2026-09-04** (§19); C#/.NET stays deferred (2026-08-04, §19); the language
-*order* is unchanged (§18.2). **019 was reopened 2026-08-25**, its remaining scope filed as
-**150–157**, all landed.
+**Adapters #2–#4 have all landed** — 019 (TS/JS, reopened 2026-08-25 and its 150–157 scope closed),
+184 · 022 (T-SQL), 020 · 217 (Python). C#/.NET stays deferred (2026-08-04, §19); the language
+*order* is unchanged (§18.2).
 
 | # | Task | Milestone | Status | Depends on |
 |---|---|---|---|---|
