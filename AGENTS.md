@@ -17,7 +17,7 @@ outward action without a separate explicit approval per action; tracker writes g
 Validate with `/mango:doctor`. Run a ticket with `/mango:solve <KEY>`.
 <!-- /mango:standing-context -->
 
-**Read these before non-trivial work** — **tier 1**; every session pays for all of it, so it is capped at 19,400 tokens by `tests/test_agent_chain_budget.py`, measured by `scripts/agent_chain_cost.py`:
+**Read these before non-trivial work** — **tier 1**; every session pays for all of it, so it is capped by `tests/test_agent_chain_budget.py`, measured by `scripts/agent_chain_cost.py`:
 - [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) — binding *how we build* rules (R1.1…). The pre-PR self-check at the bottom is your gate.
 - [`docs/AGENT_BRIEF.md`](docs/AGENT_BRIEF.md) — binding *how we run the lifecycle* rules (`P1`…`Pn`), each earned by a cited incident. Read them there; this file never copies them — a copy went a rule out of date.
 - [`docs/CONVENTION.md`](docs/CONVENTION.md) — naming, repo layout, the fixed contract vocabulary, style.
@@ -27,6 +27,7 @@ Validate with `/mango:doctor`. Run a ticket with `/mango:solve <KEY>`.
 - [`docs/PLAN.md`](docs/PLAN.md) — authoritative design; every `§`-ref below points here, and §19 is the decision log you open when a decision is questioned.
 - [`docs/TOKEN_LEDGER.md`](docs/TOKEN_LEDGER.md) — one spend row per ticket (R7.2).
 - [`docs/LESSONS.md`](docs/LESSONS.md) — the claim corpus promotion reads; its `seen:` counts are the only gate (P1).
+- [`docs/ADAPTER_PLAYBOOK.md`](docs/ADAPTER_PLAYBOOK.md) — the standard for building and judging an adapter: the two tiers, the optional-field decisions, the five gates, the traps already paid for. Read before touching `adapters/`.
 - [`docs/SKILL_GAP_CANDIDATES.md`](docs/SKILL_GAP_CANDIDATES.md) — type-3 signals for mango's maintainer; this repo never edits a skill.
 
 ## What this is
@@ -56,7 +57,7 @@ MCP client ──stdio──▶ core (Python/FastMCP) ──JSONL contract──
 
 ## Non-negotiable rules (summary — authoritative detail in ENGINEERING_RULES.md)
 - **Zero language branches in the core** — no `if language == …` under `code_atlas/`; a branch means the contract leaked (R1.1, CI-gated).
-- **One seam, YAGNI** — the adapter contract is the only abstraction; **verdict: no registry**, settled once adapters #2-#4 landed needing none (R1.2).
+- **One seam, YAGNI** — the adapter contract is the only abstraction; **verdict: no registry** (R1.2).
 - **SRP boundaries** — adapters parse only; `store.py` owns SQLite; the two never import each other (R1.4).
 - **Standard over sample** — adapters encode the language spec and its ecosystem standards, never a repo's names or framework; samples drive tests/perf only (R2, CI-gated).
 - **Contract is frozen & versioned** — change vocabulary/qname ⇒ bump `contract_version` + update conformance tests; `contract.py` is the single source of truth (R3).
@@ -65,7 +66,7 @@ MCP client ──stdio──▶ core (Python/FastMCP) ──JSONL contract──
   Identical input → identical rows (R4.2).
 - **Do NOT use the Claude Code Memory feature** for this project — decisions live in the plan (§19) and the repo.
 - **Commits** — no `Co-Authored-By` / AI-attribution trailer.
-- **Comments** — keep every code comment to **≤ 3 lines**; if it needs more, the code or a doc should carry it instead.
+- **Comments** — keep every code comment to **≤ 3 lines**; if it needs more, the code or a doc should carry it instead (R7.5).
 - **Docs before PR — prune as you add, cost included** — update every doc the change affects, and
   record the task's token spend in both its working-doc ledger and [`docs/TOKEN_LEDGER.md`](docs/TOKEN_LEDGER.md) (R7.2).
   **A change that adds to a standing doc removes what it supersedes in the same commit, and never
@@ -85,9 +86,8 @@ to keep in step, and it drifted. Only the boundaries that decide where your chan
 
 ## Indexing a real repo — from a shell
 `code-atlas-build` builds; `--status` reads a running build's live phase, which no MCP tool can.
-24.6k files (203): full rebuild **29 min into an empty DB · 76 min over a populated one** — delete
-`graph.db` first for a free **2.6x**; incremental 63.8 s, no-op 5.5 s. `workers` is **not** a
-throughput knob (1.07x) — the wall is the per-file write as the index grows. Detail: [`runbooks/onboarding-a-repo.md`](docs/runbooks/onboarding-a-repo.md).
+Delete `graph.db` before a full rebuild — a free **2.6x** (219); `workers` is not a throughput
+knob. Every timing and its conditions: [`runbooks/onboarding-a-repo.md`](docs/runbooks/onboarding-a-repo.md).
 
 ## Before a PR or a push — run `scripts/gate.sh`
 **GitHub Actions DO run** — so a local `GATE GREEN` is not the whole answer: read `gh pr checks
@@ -135,5 +135,5 @@ green, any other skip is not. To ship the server itself in a container, use
 
 ## What has shipped (milestone detail: plan §15)
 Core + PHP (M0-M6) and Phase 3 onboarding (M10-M12) are **complete** — **24 tools** on the surface,
-plus the console scripts in `pyproject.toml`. **Adapters #2 (TS/JS, 019), #3 (T-SQL, 184 tier 1a +
-022 tier 2) and #4 (Python, 020 tier 1a + 217 tier 2) have landed**; C#/.NET is the only one left.
+plus the console scripts in `pyproject.toml`. **Adapters #2-#4 have landed** — which ticket carried which tier is
+[`docs/ADAPTER_PLAYBOOK.md`](docs/ADAPTER_PLAYBOOK.md) §1; C#/.NET is the only one left.

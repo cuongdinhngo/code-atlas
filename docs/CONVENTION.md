@@ -241,9 +241,9 @@ document without a stated boundary absorbs whatever its author had in mind that 
 describe what a file contains, not what its title suggests.
 
 **Tier** is what a session pays (task 133). **1** = on `AGENTS.md`'s *read before non-trivial work*
-list, charged to every session, under the 19,400-token cap; **2** = on its *consult when you need it*
-list, reached by a pointer; **—** = neither, opened only by the reader in its *Reader* column. A new
-document lands in a tier on purpose, here, or it lands in tier 1 by accident.
+list, charged to every session and capped by `tests/test_agent_chain_budget.py`; **2** = on its
+*consult when you need it* list, reached by a pointer; **—** = neither, opened only by the reader in
+its *Reader* column. A new document lands in a tier on purpose, here, or in tier 1 by accident.
 
 | Doc | Tier | Reader | Answers | Is **NOT** |
 |---|---|---|---|---|
@@ -259,6 +259,7 @@ document lands in a tier on purpose, here, or it lands in tier 1 by accident.
 | [`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) | 1 | an agent about to write code | the binding *how we build* rules R1.1…, and the pre-PR self-check | not process (→ `AGENT_BRIEF.md`); not naming or style (→ this file); not evidence (→ `LESSONS.md`) |
 | [`AGENT_BRIEF.md`](AGENT_BRIEF.md) | 1 | an agent running the lifecycle | the binding *how we run it* rules P1…, each earned by a cited incident. **A `/mango:promote` destination** | never restates a code rule (it says so itself); not orientation; not a harness-gap log (→ `SKILL_GAP_CANDIDATES.md`) |
 | `CONVENTION.md` (this file) | 1 | an agent naming or placing something | repo layout, naming, the fixed contract **spelling** and per-kind semantics (§3), Python style, tool/payload conventions (§6), git, and this table | not the authoritative field set (→ `contract.py`); not design reasoning (→ `PLAN.md`) |
+| [`ADAPTER_PLAYBOOK.md`](ADAPTER_PLAYBOOK.md) | 2 | whoever adds or deepens a language adapter | the build sequence, the optional-field decisions, the five evaluation gates and the traps the four shipped adapters paid for | not a rule (→ `ENGINEERING_RULES.md`); not the contract vocabulary (→ `contract.py`, §3); not one adapter's design (→ its task file) |
 | [`LESSONS.md`](LESSONS.md) | 2 | an agent about to propose a rule | per-task claims with handles and `seen:` counts — the corpus rules are promoted from | not a rule (a claim is promoted, not applied); not a decision log |
 | [`SKILL_GAP_CANDIDATES.md`](SKILL_GAP_CANDIDATES.md) | 2 | the mango maintainer | type-3 signals: a phase that could have run a check and did not | never a change to a mango skill |
 | [`FEEDBACK.md`](FEEDBACK.md) | — | anyone auditing an outside claim | external review rounds 1–4, each repo-verified — **series closed** | not a decision (→ PLAN §19); not the field retros |
@@ -273,4 +274,3 @@ document lands in a tier on purpose, here, or it lands in tier 1 by accident.
 
 - Design decisions → the [build plan](PLAN.md).
 - Task status kept in sync in **both** [`BACKLOG.md`](BACKLOG.md) and the task file's frontmatter.
-- Do **not** use the Claude Code Memory feature for this project — decisions live in the repo.

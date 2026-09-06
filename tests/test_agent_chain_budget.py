@@ -55,7 +55,16 @@ REPO = Path(__file__).resolve().parent.parent
 # ran first and came back empty: no Follow-ups line is superseded — the closest, 042's PSR-4
 # autoload resolution, is the same class of problem as 230 in a different adapter and 230 scopes
 # other adapters out — and every `done` row left at 218, so there is no prose title to reclaim.
-TIER1_BUDGET = 19_800
+# 19,800 -> 19,850 on 2026-09-06 (tickets 231-233 + ADAPTER_PLAYBOOK.md): measured 19,817. The
+# playbook itself is tier 2 and costs this budget nothing; the 50 is a reversal. An earlier revision
+# of that change pruned AGENTS.md's `Comments <= 3 lines` non-negotiable, arguing R7.5 owns it — but
+# that section's header says every bullet in it summarises ENGINEERING_RULES by design, so the
+# argument would have deleted the whole section. Restored with its `(R7.5)` destination. R7.6 ran
+# first and paid most of it: BACKLOG's two follow-ups whose tickets exist (043 -> 220; 018's
+# construct gaps -> 007/025, both done), its adapter/tier mapping and AGENTS.md's copy of the R1.2
+# registry provenance now live in one place each; the stale 19,400 prose copies of this very number
+# went too (R6.7). Per-file arguments are in tests/test_doc_size_budget.py.
+TIER1_BUDGET = 19_850
 
 
 def _tokens(paths: list[Path]) -> int:

@@ -130,14 +130,49 @@ DOCS = REPO / "docs"
 # superseded — the near miss is 042's PSR-4 follow-up, which is 230's problem in the PHP adapter
 # and stays because 230 scopes other adapters out — and each finding lives in its task file, not in
 # its row. 51 of margin, ~2 open rows.
+# BACKLOG 2,450 -> 2,550 and CONVENTION 6,600 -> 6,700 on 2026-09-06 (tickets 231-233 plus the
+# adapter playbook), argued rather than assumed. **133's cap is untouched and still binds at 19,800;
+# the chain sits at 19,799** — both raises are paid for inside tier 1, not by widening it.
+#
+# BACKLOG measured 2,480: three open rows (231, 232, 233). R7.6 ran first and took three items, all
+# under this file's own convention that a ticketed follow-up leaves the list — 043's
+# duplicate-declaration gap (220 owns it), 018's construct gaps (007 and 025 are both `done`), and
+# the adapter/tier ticket mapping, which the playbook's §1 table now holds in one place.
+#
+# CONVENTION measured 6,650: one row in §8.1 for `ADAPTER_PLAYBOOK.md`. A new document class with no
+# row there is exactly the unbounded document the table exists to prevent — the same argument the
+# 6,450 -> 6,600 raise was granted for, and the row is the fix, not an extra. Pruned first: §8.2's
+# copy of the no-Memory rule, which AGENTS.md carries as an always-loaded rule, and the tier
+# legend's prose copy of the token cap. That number had gone stale at 19,400 in **both** tier-1
+# files that restated it, which R6.7 forbids; it now lives only in `test_agent_chain_budget.py`.
+#
+# The next addition prunes again or argues again; neither raise is headroom.
+#
+# 2026-09-06, same PR, second round (tickets 234-235 + the generated parity table): BACKLOG measured
+# 2,498 against the 2,550 already raised above, so **no further raise** — the two new rows were paid
+# for by pruning, which is what the line above asked of the next addition. Taken: the Follow-ups
+# entry that 205 owns (this file's own convention says a ticketed follow-up leaves the list), a
+# preamble paragraph restating the closed-ticket policy that the Conventions section at the foot of
+# the file already owns, and the five open rows trimmed to one clause each. The chain sits at 19,837
+# against 19,850.
+#
+# AGENTS.md 2,800 -> 2,850 on 2026-09-06, with 133's cap 19,800 -> 19,850 beside it — a reversal,
+# argued. An earlier revision of this PR pruned the `Comments <= 3 lines` non-negotiable from
+# AGENTS.md on the reasoning that R7.5 owns it. That reasoning does not hold: the section's own
+# header reads "summary — authoritative detail in ENGINEERING_RULES.md", so every bullet in it
+# duplicates a rule by design, and the argument applied consistently would delete the whole
+# section. The line is restored, now carrying its `(R7.5)` destination like its siblings. Paid for
+# in part by dropping AGENTS.md's copy of the R1.2 registry provenance — the third one, after
+# `ENGINEERING_RULES.md` R1.2 and PLAN §19, and provenance is §19's job per CONVENTION §8.1. The
+# remaining ~17 is the standing cost of an always-loaded rule, and is what these two numbers buy.
 BUDGETS = {
     "CLAUDE.md": 50,
-    "AGENTS.md": 2_800,
+    "AGENTS.md": 2_850,
     "PLAN.md": 23_000,
-    "BACKLOG.md": 2_450,
+    "BACKLOG.md": 2_550,
     "ENGINEERING_RULES.md": 5_700,
     "AGENT_BRIEF.md": 2_250,
-    "CONVENTION.md": 6_600,
+    "CONVENTION.md": 6_700,
 }
 
 

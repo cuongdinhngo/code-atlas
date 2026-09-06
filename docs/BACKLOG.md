@@ -6,10 +6,9 @@ and per-task lessons are in [`LESSONS.md`](LESSONS.md). This file tracks *what i
 landed*; each ticket's cost is one row in [`TOKEN_LEDGER.md`](TOKEN_LEDGER.md) (R7.2) — narrative
 rationale lives in those three.
 
-**A closed ticket leaves this file** (R7.6) — `tasks/NNN_*.md` and its
-[`TOKEN_LEDGER.md`](TOKEN_LEDGER.md) spend row already hold it, and every session paid for all
-three; `git log --follow -- docs/tasks` is the history. **208 tickets closed before 2026-09-05** and
-are not listed here. What stays is what you read to choose the next ticket: the finding, not the slug.
+**208 tickets closed before 2026-09-05** are not listed here — the Conventions below say why, and
+`git log --follow -- docs/tasks` is the history. What stays is what you read to choose the next
+ticket: the finding, not the slug.
 
 **Status legend:** `todo` · `in-progress` · `blocked` · `deferred` · `done`
 
@@ -35,6 +34,11 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 228 | [The `sql` adapter owns every `.sql` file but reads one dialect, publishing a table named `IF` and a column named `COLUMN`](tasks/228_the-sql-adapter-owns-every-sql-file-but-reads-one-dialect-and-says-nothing.md) | Coverage | todo | 022, 184, 224 |
 | 229 | [A method-local assignment becomes a class `Property` — a quarter of the graph's nodes are invented members](tasks/229_every-method-local-assignment-is-published-as-a-class-property.md) | Coverage | todo | 020, 217, 011 |
 | 230 | [An absolute import resolves only by climbing from the importer, so a `src/`-layout or layer source root never links](tasks/230_absolute-imports-resolve-only-by-climbing-from-the-importer.md) | Coverage | todo | 020, 226 |
+| 231 | [Five optional contract fields are filled by one or two adapters each, and nothing declares which](tasks/231_params-and-args-are-emitted-by-one-adapter-each-so-a-signature-is-a-php-feature.md) | Coverage | todo | 049, 063, 040, 020, 222 |
+| 232 | [A decorator is a `REFERENCES` edge in Python and inert `extra` in PHP and TS; one populated kind masks the never-emitted sibling](tasks/232_the-same-construct-is-a-references-edge-in-python-and-node-extra-in-php-and-ts.md) | Coverage | todo | 217, 019, 186, 094 |
+| 233 | [Python and SQL have no pinned public sample, so no change to either can be shown to move anything](tasks/233_python-and-sql-have-no-pinned-public-sample-so-no-change-to-either-can-be-shown-to-move-anything.md) | Measure | todo | 018, 150, 147, 228 |
+| 234 | [`ClassConst` is PHP-only; the `readonly` and `Final` signals that would fill it elsewhere are dropped](tasks/234_classconst-is-a-php-only-kind-and-the-two-signals-that-would-fill-it-elsewhere-are-discarded.md) | Coverage | todo | 229, 231, 020, 019 |
+| 235 | [The TS adapter has passed every gate that reads a fixture and none that reads a repo](tasks/235_the-typescript-adapter-has-never-been-asked-a-question-in-the-field.md) | Measure | todo | 019, 150, 018, 233 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -59,9 +63,9 @@ M10–M12 have all landed; round narratives live in [`FEEDBACK.md`](FEEDBACK.md)
 
 ## Phase 2 — More languages (§19 pivot, 2026-08-04)
 
-**Adapters #2–#4 have all landed** — 019 (TS/JS, reopened 2026-08-25 and its 150–157 scope closed),
-184 · 022 (T-SQL), 020 · 217 (Python). C#/.NET stays deferred (2026-08-04, §19); the language
-*order* is unchanged (§18.2).
+**Adapters #2–#4 have all landed**; which ticket carried which tier is
+[`ADAPTER_PLAYBOOK.md`](ADAPTER_PLAYBOOK.md) §1. C#/.NET stays deferred (2026-08-04, §19); the
+language *order* is unchanged (§18.2).
 
 | # | Task | Milestone | Status | Depends on |
 |---|---|---|---|---|
@@ -85,10 +89,6 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **Tokens-to-answer measures cost, not information** — 046 moved the ratio 0.02 % while doubling the distinct answers. Wants a second axis before it judges a retrieval change.
 - **`reachable_from` payload size at `standard`** — bounded by `impact_max_nodes` (500), ~160 KB of JSON. Worth a lower default or `minimal`-by-default; workaround in [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
 - **Parser-OOM size cap (optional)** — multi-MB generated files exhaust the PHP parser (already soft-failed/restarted in `indexer.py`); a byte-cap pre-skip (`CA_MAX_FILE_BYTES`) would avoid ~30 restart cycles. Log skips; no silent truncation.
-- **043's duplicate-declaration gap** — the surface is proven at the `_write`+store layer; a PHP-adapter fixture would only pin what the adapter already emits. Whatever remains here is a Windows question, and [220](tasks/220_no-windows-evidence-exists-and-the-core-cannot-import-there.md) owns it with a protocol.
-- **018 construct gaps** — cross-repo misses feed the (still empty) gap log in [`runbooks/cross-repo-validation.md`](runbooks/cross-repo-validation.md) and tasks 007 / 025.
-- **The onboarding tree's bulk is outside its Markdown** — `manifest.json` + `index.html` are ~2.5 MB
-  with no ceiling, and two smaller gaps sit beside it — [205](tasks/205_a-module-page-per-node-budget-slot.md).
 - **Docker images are never built by CI** — `docker/Dockerfile` can rot (`Dockerfile.runtime` is built inside `pytest`). Honest shape: one job building both. Survives the unbillable-Actions arrangement AGENTS.md records, which also means every gate is a human step.
 
 ## Conventions
