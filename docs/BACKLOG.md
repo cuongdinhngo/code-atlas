@@ -26,6 +26,9 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099 |
 | 219 | [A full rebuild over a populated index costs 2.6x a fresh one — 203 measured it and left the fix unchosen](tasks/219_a-full-rebuild-pays-the-populated-db-tax-nobody-chose.md) | Cost | todo | 203, 201, 052 |
 | 220 | [`fcntl` at module scope means the core cannot import on native Windows, and no Windows measurement exists](tasks/220_no-windows-evidence-exists-and-the-core-cannot-import-there.md) | Adoption | todo | 203, 219, 053 |
+| 221 | [`find_callers` answers `no_matches` on a proc with five live callers, because the predicate never asks whether the crossing is modelled](tasks/221_a-zero-is-modelled-when-every-caller-is-in-another-language.md) | Coverage | todo | 214, 204, 186, 160 |
+| 222 | [Six structural misses are one defect — the identifier is a string; `enrichment.py` already extracts it and only the target is hardcoded](tasks/222_the-cross-language-link-is-one-rule-target-away-from-machinery-that-exists.md) | Coverage | todo | 221, 063, 062, 040 |
+| 223 | [The sample ratio fell 69.06 → 65.48 on a byte-identical grep side, and no gate can see it](tasks/223_the-envelope-bills-every-answer-and-no-gate-noticed-it-growing.md) | Cost | todo | 042, 173, 160, 020 |
 
 ## Open work — Pillar 2 · Onboarding
 
