@@ -352,7 +352,8 @@ transaction** (`foreign_keys` is silently ignored inside one): `journal_mode=WAL
 `busy_timeout=5000`.
 
 **The DDL is not copied here.** It is one `DDL` string in `store.py`, which is the only module that
-may hold it; this section is the inventory and the reasoning. What the schema is, in shape:
+may hold it; this section is the inventory and the reasoning. A dated column/index snapshot and its
+rendered page are [`design/storage.md`](design/storage.md). What the schema is, in shape:
 
 - **`files`** — one row per indexed path: content hash, whitespace-normalised `fingerprint`
   (task 213), language, `parsed_ok`, `updated_at`. The hash is the fast incremental path (§8.3);

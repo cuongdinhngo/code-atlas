@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>graph.db — the storage schema</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --paper:#e9edf1; --surface:#ffffff; --surface-2:#f3f6f9; --sunk:#dfe5ec;
+  --ink:#12181f; --ink-2:#4a5663; --ink-3:#77838f;
+  --rule:#cdd6df; --rule-soft:#e0e6ed;
+  --blue:#2c5c8f; --blue-soft:#dce7f2;
+  --ochre:#8a6210; --ochre-soft:#f2e7cf;
+  --ok:#1a6547; --warn:#8a6206; --bad:#9c3324;
+  --shadow:0 1px 0 rgba(18,24,31,.05), 0 6px 22px -14px rgba(18,24,31,.35);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0f141a; --surface:#161d25; --surface-2:#1b232c; --sunk:#0b1015;
+    --ink:#e6ecf2; --ink-2:#a3b1bf; --ink-3:#77848f;
+    --rule:#2a343f; --rule-soft:#212a33;
+    --blue:#7fb0e0; --blue-soft:#1c2b3b;
+    --ochre:#d9ad57; --ochre-soft:#2e2716;
+    --ok:#61c39a; --warn:#d9ad57; --bad:#e08472;
+    --shadow:0 1px 0 rgba(0,0,0,.4), 0 8px 26px -16px rgba(0,0,0,.9);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0f141a; --surface:#161d25; --surface-2:#1b232c; --sunk:#0b1015;
+  --ink:#e6ecf2; --ink-2:#a3b1bf; --ink-3:#77848f;
+  --rule:#2a343f; --rule-soft:#212a33;
+  --blue:#7fb0e0; --blue-soft:#1c2b3b;
+  --ochre:#d9ad57; --ochre-soft:#2e2716;
+  --ok:#61c39a; --warn:#d9ad57; --bad:#e08472;
+  --shadow:0 1px 0 rgba(0,0,0,.4), 0 8px 26px -16px rgba(0,0,0,.9);
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:"Source Sans 3","Segoe UI",system-ui,sans-serif;
+  font-size:16px; line-height:1.6;
+}
+.wrap{max-width:1060px; margin:0 auto; padding:0 28px 96px}
+code,.mono{font-family:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace}
+h1,h2,h3{font-family:Archivo,"Archivo Narrow","Segoe UI",system-ui,sans-serif; text-wrap:balance; margin:0}
+a{color:var(--blue)}
+
+/* masthead */
+.mast{border-bottom:2px solid var(--ink); padding:56px 0 20px; margin-bottom:0}
+.eyebrow{font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--ink-3); margin-bottom:14px}
+h1{font-size:clamp(38px,6vw,62px); font-weight:800; letter-spacing:-.03em; line-height:1.02}
+h1 .dim{color:var(--ink-3); font-weight:500}
+.lede{max-width:62ch; color:var(--ink-2); font-size:18px; margin:16px 0 4px}
+
+.facts{display:flex; flex-wrap:wrap; gap:0; border-bottom:1px solid var(--rule); margin-bottom:44px}
+.fact{flex:1 1 150px; padding:14px 18px 16px; border-right:1px solid var(--rule-soft)}
+.fact:last-child{border-right:0}
+.fact dt{font-size:11px; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3);
+  font-family:"IBM Plex Mono",monospace}
+.fact dd{margin:3px 0 0; font-family:Archivo,sans-serif; font-weight:700; font-size:19px;
+  font-variant-numeric:tabular-nums}
+
+section{margin-top:56px; scroll-margin-top:20px}
+h2{font-size:13px; letter-spacing:.15em; text-transform:uppercase; color:var(--ink-2);
+  font-weight:700; padding-bottom:9px; border-bottom:1px solid var(--rule); margin-bottom:24px;
+  display:flex; align-items:baseline; gap:12px}
+h2 .n{font-family:"IBM Plex Mono",monospace; color:var(--ink-3); font-weight:500}
+h3{font-size:20px; font-weight:700; letter-spacing:-.01em; margin:0 0 6px}
+p{margin:0 0 14px; max-width:68ch}
+.note{color:var(--ink-2); font-size:15px}
+
+/* relation slabs */
+.rels{display:flex; flex-direction:column; gap:22px}
+.rel{background:var(--surface); border:1px solid var(--rule); border-radius:3px; box-shadow:var(--shadow); overflow:hidden}
+.rel > header{display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;
+  padding:13px 18px; background:var(--surface-2); border-bottom:1px solid var(--rule)}
+.rel > header .name{font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:17px; color:var(--ink)}
+.rel > header .role{color:var(--ink-2); font-size:14px}
+.rel > header .tag{margin-left:auto; font-family:"IBM Plex Mono",monospace; font-size:11px;
+  letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3)}
+.cols{width:100%; border-collapse:collapse; font-size:14.5px}
+.cols th{text-align:left; font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ink-3); font-weight:500; padding:9px 12px 7px; border-bottom:1px solid var(--rule-soft)}
+.cols td{padding:8px 12px; border-bottom:1px solid var(--rule-soft); vertical-align:top}
+.cols tr:last-child td{border-bottom:0}
+.cols td:first-child{font-family:"IBM Plex Mono",monospace; font-weight:500; white-space:nowrap}
+.cols td:nth-child(2){font-family:"IBM Plex Mono",monospace; color:var(--ink-3); white-space:nowrap; font-size:13px}
+.cols td:nth-child(3){white-space:nowrap; width:1%}
+.cols td:last-child{color:var(--ink-2)}
+.m{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:10px; font-weight:600;
+  letter-spacing:.07em; padding:1px 6px; border-radius:2px; border:1px solid transparent; white-space:nowrap}
+.m-pk{background:var(--ochre-soft); color:var(--ochre); border-color:var(--ochre)}
+.m-fk{background:var(--blue-soft); color:var(--blue); border-color:var(--blue)}
+.m-ix{background:transparent; color:var(--ink-3); border-color:var(--rule)}
+.m-uq{background:transparent; color:var(--ochre); border-color:var(--ochre)}
+.rel footer{padding:12px 18px 15px; border-top:1px solid var(--rule-soft); background:var(--sunk);
+  font-size:14.5px; color:var(--ink-2)}
+.rel footer strong{color:var(--ink)}
+
+/* decision callout */
+.dec{border-left:3px solid var(--ochre); background:var(--surface); padding:16px 20px;
+  margin:22px 0; border-radius:0 3px 3px 0; box-shadow:var(--shadow)}
+.dec h3{font-size:17px; margin-bottom:8px}
+.dec p:last-child{margin-bottom:0}
+
+figure{margin:0 0 26px}
+.diagram{background:var(--surface); border:1px solid var(--rule); border-radius:3px;
+  box-shadow:var(--shadow); overflow-x:auto; padding:6px}
+.diagram svg{display:block; min-width:760px; width:100%; height:auto}
+figcaption{font-size:13.5px; color:var(--ink-3); margin-top:10px; max-width:68ch}
+
+/* plain tables */
+.tbl-wrap{overflow-x:auto; background:var(--surface); border:1px solid var(--rule);
+  border-radius:3px; box-shadow:var(--shadow)}
+table.grid{width:100%; border-collapse:collapse; font-size:14.5px; min-width:520px}
+table.grid th{text-align:left; font-family:"IBM Plex Mono",monospace; font-size:10.5px;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3); font-weight:500;
+  padding:11px 14px; background:var(--surface-2); border-bottom:1px solid var(--rule)}
+table.grid td{padding:9px 14px; border-bottom:1px solid var(--rule-soft); vertical-align:top}
+table.grid tr:last-child td{border-bottom:0}
+table.grid td code{font-size:13px}
+.num{font-variant-numeric:tabular-nums}
+
+/* chips */
+.vocab{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:22px}
+.chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px}
+.chip{font-family:"IBM Plex Mono",monospace; font-size:12.5px; padding:3px 9px;
+  border:1px solid var(--rule); border-radius:2px; background:var(--surface); color:var(--ink-2)}
+.chip.new{border-color:var(--ochre); color:var(--ochre); background:var(--ochre-soft)}
+.tiers{display:flex; flex-direction:column; gap:8px; margin-top:10px}
+.tier{display:flex; gap:11px; align-items:baseline; font-size:14.5px}
+.tier b{font-family:"IBM Plex Mono",monospace; font-size:12.5px; padding:2px 8px; border-radius:2px;
+  border:1px solid currentColor; white-space:nowrap}
+.t-r{color:var(--ok)} .t-h{color:var(--warn)} .t-d{color:var(--bad)}
+
+/* version ladder — a real sequence, so it is numbered */
+.ladder{display:flex; flex-direction:column; border-left:1px solid var(--rule); margin-left:9px}
+.step{display:grid; grid-template-columns:auto 1fr; gap:18px; padding:0 0 22px 26px; position:relative}
+.step:last-child{padding-bottom:0}
+.step::before{content:""; position:absolute; left:-5px; top:7px; width:9px; height:9px;
+  border-radius:50%; background:var(--paper); border:2px solid var(--blue)}
+.step.now::before{background:var(--blue)}
+.step .v{font-family:Archivo,sans-serif; font-weight:800; font-size:26px; line-height:1;
+  color:var(--ink-3); font-variant-numeric:tabular-nums; min-width:2.2ch}
+.step.now .v{color:var(--blue)}
+.step .what{font-size:15px}
+.step .what b{font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:14px}
+.step .what span{display:block; color:var(--ink-3); font-size:13.5px}
+
+/* gaps */
+.gaps{display:flex; flex-direction:column; gap:0; border-top:1px solid var(--rule)}
+.gap{display:grid; grid-template-columns:minmax(0,1fr); gap:4px; padding:18px 0;
+  border-bottom:1px solid var(--rule-soft)}
+.gap .hd{display:flex; gap:12px; align-items:baseline; flex-wrap:wrap}
+.gap .hd h3{font-size:17px}
+.gap .st{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.08em;
+  text-transform:uppercase; padding:2px 8px; border:1px solid var(--rule); border-radius:2px; color:var(--ink-3)}
+.gap .st.by-design{border-color:var(--ok); color:var(--ok)}
+.gap .st.open{border-color:var(--warn); color:var(--warn)}
+.gap p{margin:2px 0 0}
+
+.src{margin-top:64px; padding:18px 20px; background:var(--sunk); border:1px solid var(--rule);
+  border-radius:3px; font-size:14.5px; color:var(--ink-2)}
+.src strong{color:var(--ink)}
+.src p:last-child{margin-bottom:0}
+
+@media (max-width:640px){
+  .wrap{padding:0 18px 64px}
+  .cols td:nth-child(2){white-space:normal}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="mast">
+  <div class="eyebrow">code-atlas · snapshot 2026-09-06</div>
+  <h1>graph.db <span class="dim">— the storage schema</span></h1>
+  <p class="lede">Five SQLite relations hold the whole symbol graph: one row per file, one per
+  symbol, one per relationship, one full-text index, and a bag of stamps written once per build.</p>
+</header>
+
+<dl class="facts">
+  <div class="fact"><dt>schema_version</dt><dd>5</dd></div>
+  <div class="fact"><dt>contract_version</dt><dd>9</dd></div>
+  <div class="fact"><dt>relations</dt><dd>5</dd></div>
+  <div class="fact"><dt>indexes</dt><dd>8</dd></div>
+  <div class="fact"><dt>enforced FKs</dt><dd>1</dd></div>
+  <div class="fact"><dt>journal</dt><dd>WAL</dd></div>
+</dl>
+
+<section>
+  <h2><span class="n">00</span> Scope — one database, one repository</h2>
+  <p><code>main.py</code> opens with the whole scope in one line: <em>“build an app for one repo,
+  then serve it over stdio.”</em> The database defaults to
+  <code>&lt;root&gt;/.code-atlas/graph.db</code>, resolved from the <code>root</code> handed to
+  <code>load_config(root)</code>.</p>
+  <div class="dec">
+    <h3>No table carries a project column</h3>
+    <p><code>nodes.file_path</code> is repo-relative and <code>qualified_name</code> carries no repo
+    prefix. Two repositories mean two server processes over two databases: nothing in one index can
+    be reached from the other, and no answer can mix them. Merging two trees into one graph would
+    collide on <code>UNIQUE(qualified_name, file_path)</code> the moment they share a namespace.</p>
+    <p class="note"><code>working_roots</code> is not a project mechanism — it narrows what the
+    onboarding surfaces <em>present</em> and leaves the graph whole.</p>
+  </div>
+  <p class="note">Connection state, set <strong>outside any transaction</strong> because
+  <code>foreign_keys</code> is silently ignored inside one:
+  <code>journal_mode=WAL</code> · <code>foreign_keys=ON</code> · <code>busy_timeout=5000</code>.</p>
+</section>
+
+<section>
+  <h2><span class="n">01</span> The five relations</h2>
+  <div class="rels">
+
+    <article class="rel">
+      <header><span class="name">files</span><span class="role">one row per indexed path</span>
+        <span class="tag">the incremental unit</span></header>
+      <table class="cols">
+        <thead><tr><th>column</th><th>type</th><th>key</th><th>note</th></tr></thead>
+        <tbody>
+          <tr><td>path</td><td>TEXT</td><td><span class="m m-pk">PK</span></td><td>repo-relative; also the qname of the <code>File</code> node</td></tr>
+          <tr><td>hash</td><td>TEXT</td><td></td><td>the fast incremental path</td></tr>
+          <tr><td>language</td><td>TEXT</td><td></td><td>declared by the adapter; the core never infers it from a suffix</td></tr>
+          <tr><td>parsed_ok</td><td>INT = 1</td><td></td><td>why no parallel parse-failure counter exists</td></tr>
+          <tr><td>updated_at</td><td>TEXT</td><td></td><td></td></tr>
+          <tr><td>fingerprint</td><td>TEXT</td><td></td><td>consulted only <em>after</em> a hash miss</td></tr>
+        </tbody>
+      </table>
+      <footer><strong>The fingerprint normalises line endings and trailing whitespace only.</strong>
+      Every newline survives: equating two files whose lines sit differently would strand the
+      <code>line_start</code> and <code>edges.line</code> the graph stores.</footer>
+    </article>
+
+    <article class="rel">
+      <header><span class="name">nodes</span><span class="role">the symbols</span>
+        <span class="tag">14 kinds</span></header>
+      <table class="cols">
+        <thead><tr><th>column</th><th>type</th><th>key</th><th>note</th></tr></thead>
+        <tbody>
+          <tr><td>id</td><td>INTEGER</td><td><span class="m m-pk">PK</span></td><td>the FTS <code>content_rowid</code></td></tr>
+          <tr><td>kind</td><td>TEXT</td><td><span class="m m-ix">IDX</span></td><td>one of 14</td></tr>
+          <tr><td>name</td><td>TEXT</td><td><span class="m m-ix">IDX</span></td><td>the bare name</td></tr>
+          <tr><td>qualified_name</td><td>TEXT</td><td><span class="m m-uq">UQ</span></td><td>FQN; a member joins on with <code>::</code></td></tr>
+          <tr><td>file_path</td><td>TEXT</td><td><span class="m m-fk">FK</span> <span class="m m-ix">IDX</span> <span class="m m-uq">UQ</span></td><td>→ <code>files(path)</code> — the only enforced foreign key in the schema</td></tr>
+          <tr><td>line_start</td><td>INT</td><td></td><td></td></tr>
+          <tr><td>line_end</td><td>INT</td><td></td><td></td></tr>
+          <tr><td>modifiers</td><td>TEXT</td><td></td><td>JSON</td></tr>
+          <tr><td>params</td><td>TEXT</td><td></td><td>also carried in the FTS index</td></tr>
+          <tr><td>is_test</td><td>INT = 0</td><td></td><td></td></tr>
+          <tr><td>extra</td><td>TEXT</td><td></td><td>JSON; T-SQL's <code>object_type</code> lives here</td></tr>
+        </tbody>
+      </table>
+      <footer><strong>UNIQUE(qualified_name, file_path)</strong> — unique per file, deliberately not
+      globally. Two files in one PHP namespace each emit a <code>Namespace</code> node with the same
+      qname, and <code>if (!function_exists(…))</code> polyfills do the same for functions. A global
+      <code>UNIQUE</code> would make the second insert an <code>IntegrityError</code>.</footer>
+    </article>
+
+    <article class="rel">
+      <header><span class="name">edges</span><span class="role">the relationships</span>
+        <span class="tag">12 kinds · 3 tiers</span></header>
+      <table class="cols">
+        <thead><tr><th>column</th><th>type</th><th>key</th><th>note</th></tr></thead>
+        <tbody>
+          <tr><td>id</td><td>INTEGER</td><td><span class="m m-pk">PK</span></td><td></td></tr>
+          <tr><td>kind</td><td>TEXT</td><td><span class="m m-ix">IDX</span></td><td>one of 12</td></tr>
+          <tr><td>source_qname</td><td>TEXT</td><td><span class="m m-ix">IDX</span></td><td>the symbol the call site sits in</td></tr>
+          <tr><td>target_qname</td><td>TEXT</td><td><span class="m m-ix">IDX</span></td><td><strong>NULL means unresolved</strong></td></tr>
+          <tr><td>target_raw</td><td>TEXT</td><td><span class="m m-ix">IDX</span></td><td>exactly what the adapter wrote, before the resolver</td></tr>
+          <tr><td>file_path</td><td>TEXT</td><td><span class="m m-ix">IDX</span></td><td>where the call site is — no FK constraint</td></tr>
+          <tr><td>line</td><td>INT</td><td></td><td>call order lives here</td></tr>
+          <tr><td>confidence_tier</td><td>TEXT = 'RESOLVED'</td><td><span class="m m-ix">IDX</span></td><td>RESOLVED · HEURISTIC · DYNAMIC</td></tr>
+          <tr><td>args</td><td>TEXT</td><td></td><td>records the argument <em>category</em>, never the value</td></tr>
+          <tr><td>arg_keys</td><td>TEXT</td><td></td><td>top-level string keys of an array literal</td></tr>
+        </tbody>
+      </table>
+      <footer><strong>Edges join by qname, never by node id.</strong> A qname declared in two files is
+      therefore <em>one</em> target, and “which declaring file” is not representable. That is what was
+      bought: before task 046 the resolver emitted one edge per declaring node, which on a monorepo
+      carrying two regional copies of one tree made <strong>38.8% of the graph</strong> rows identical
+      in every column but <code>id</code>.</footer>
+    </article>
+
+    <article class="rel">
+      <header><span class="name">nodes_fts</span><span class="role">the search index</span>
+        <span class="tag">fts5 · external content · trigram</span></header>
+      <table class="cols">
+        <thead><tr><th>part</th><th>value</th><th></th><th>note</th></tr></thead>
+        <tbody>
+          <tr><td>columns</td><td>name, qualified_name, file_path, params</td><td></td><td>four columns mirrored from <code>nodes</code></td></tr>
+          <tr><td>content</td><td>'nodes'</td><td></td><td>external-content: no second copy stored</td></tr>
+          <tr><td>content_rowid</td><td>'id'</td><td></td><td>the join back to <code>nodes.id</code></td></tr>
+          <tr><td>tokenize</td><td>'trigram'</td><td></td><td>schema 2 — what makes camelCase substrings match</td></tr>
+          <tr><td>nodes_ai / ad / au</td><td>TRIGGER</td><td></td><td>three triggers, after INSERT / DELETE / UPDATE</td></tr>
+        </tbody>
+      </table>
+      <footer><strong>The triggers are load-bearing, not an optimisation.</strong> Without them every
+      <code>MATCH</code> returns 0 rows while <code>SELECT count(*) FROM nodes_fts</code> still reports
+      the content table's size — a failure that reads as an empty repository. Trigram cannot match
+      terms shorter than three characters, so search falls back to a prefix <code>LIKE</code> and
+      <code>DB</code> · <code>Us</code> · <code>Go</code> stay findable.</footer>
+    </article>
+
+    <article class="rel">
+      <header><span class="name">meta</span><span class="role">build-time stamps</span>
+        <span class="tag">16 keys</span></header>
+      <table class="cols">
+        <thead><tr><th>column</th><th>type</th><th>key</th><th>note</th></tr></thead>
+        <tbody>
+          <tr><td>key</td><td>TEXT</td><td><span class="m m-pk">PK</span></td><td>the <code>*_KEY</code> constants in <code>store.py</code></td></tr>
+          <tr><td>value</td><td>TEXT</td><td></td><td>scalar or JSON</td></tr>
+        </tbody>
+      </table>
+      <footer>This is where an answer reads something stamped once at build time instead of scanning
+      the graph each time it is asked — the constraint every new predicate inherits, because a
+      full-graph scan costs about 3.2 seconds on the 2.19 M-edge anchor.</footer>
+    </article>
+
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">02</span> What holds them together</h2>
+  <figure>
+    <div class="diagram">
+      <svg viewBox="0 0 900 430" role="img" aria-label="How the five relations join: files to nodes by a real foreign key, nodes to edges by qname strings, nodes to nodes_fts by rowid, and meta joining nothing">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--blue)"></path>
+          </marker>
+          <marker id="ao" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--ochre)"></path>
+          </marker>
+        </defs>
+
+        <rect x="24" y="160" width="176" height="76" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"></rect>
+        <text x="42" y="190" font-family="IBM Plex Mono, monospace" font-size="16" font-weight="600" fill="var(--ink)">files</text>
+        <text x="42" y="212" font-family="IBM Plex Mono, monospace" font-size="12" fill="var(--ink-3)">path  PK</text>
+
+        <rect x="336" y="160" width="196" height="76" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"></rect>
+        <text x="354" y="190" font-family="IBM Plex Mono, monospace" font-size="16" font-weight="600" fill="var(--ink)">nodes</text>
+        <text x="354" y="212" font-family="IBM Plex Mono, monospace" font-size="12" fill="var(--ink-3)">id PK · qualified_name</text>
+
+        <rect x="664" y="42" width="212" height="76" rx="3" fill="var(--surface-2)" stroke="var(--ochre)" stroke-width="1.5"></rect>
+        <text x="682" y="72" font-family="IBM Plex Mono, monospace" font-size="16" font-weight="600" fill="var(--ink)">edges</text>
+        <text x="682" y="94" font-family="IBM Plex Mono, monospace" font-size="12" fill="var(--ink-3)">source_qname · target_qname</text>
+
+        <rect x="664" y="278" width="212" height="76" rx="3" fill="var(--surface-2)" stroke="var(--rule)" stroke-width="1"></rect>
+        <text x="682" y="308" font-family="IBM Plex Mono, monospace" font-size="16" font-weight="600" fill="var(--ink)">nodes_fts</text>
+        <text x="682" y="330" font-family="IBM Plex Mono, monospace" font-size="12" fill="var(--ink-3)">content_rowid = nodes.id</text>
+
+        <rect x="336" y="330" width="196" height="66" rx="3" fill="none" stroke="var(--rule)" stroke-width="1" stroke-dasharray="2 4"></rect>
+        <text x="354" y="358" font-family="IBM Plex Mono, monospace" font-size="15" font-weight="600" fill="var(--ink-2)">meta</text>
+        <text x="354" y="379" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--ink-3)">joins nothing</text>
+
+        <line x1="330" y1="198" x2="206" y2="198" stroke="var(--blue)" stroke-width="2" marker-end="url(#ar)"></line>
+        <text x="268" y="188" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11.5" font-weight="600" fill="var(--blue)">real FK</text>
+        <text x="268" y="222" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink-3)">nodes.file_path</text>
+
+        <path d="M534 184 C 590 184, 604 96, 658 82" fill="none" stroke="var(--ochre)" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#ao)"></path>
+        <path d="M534 214 C 596 214, 610 132, 658 112" fill="none" stroke="var(--ochre)" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#ao)"></path>
+        <text x="600" y="30" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11.5" font-weight="600" fill="var(--ochre)">joined by string — nothing enforces it</text>
+        <text x="558" y="160" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink-3)">= source_qname</text>
+        <text x="558" y="240" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink-3)">= target_qname (NULL = unresolved)</text>
+
+        <path d="M534 224 C 592 244, 606 296, 658 312" fill="none" stroke="var(--blue)" stroke-width="2" marker-end="url(#ar)"></path>
+        <text x="596" y="290" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink-3)">3 triggers</text>
+
+        <line x1="24" y1="290" x2="64" y2="290" stroke="var(--blue)" stroke-width="2"></line>
+        <text x="72" y="294" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--ink-2)">SQLite guarantees it</text>
+        <line x1="24" y1="316" x2="64" y2="316" stroke="var(--ochre)" stroke-width="2" stroke-dasharray="6 5"></line>
+        <text x="72" y="320" font-family="IBM Plex Mono, monospace" font-size="11.5" fill="var(--ink-2)">only the resolver does</text>
+      </svg>
+    </div>
+    <figcaption>Everything the graph is worth travels down those two dashed lines, and the database
+    enforces neither of them.</figcaption>
+  </figure>
+
+  <div class="dec">
+    <h3>A qname lookup may return more than one candidate</h3>
+    <p>Because <code>qualified_name</code> is unique only per file, a lookup returns <strong>one or
+    more</strong> nodes. That is a multi-candidate <code>HEURISTIC</code>, not a lost row. The
+    <em>same-file</em> case is different — one file may legally declare a qname twice (a
+    <code>function_exists</code> guard's two branches, a fixture carrying both <code>interface X</code>
+    and <code>class X</code>) and <em>would</em> trip the UNIQUE, so <code>replace_file_rows</code>
+    de-dupes <strong>keep-first in source order</strong> before insert. The file soft-succeeds with one
+    node per qname instead of aborting the build; NULL and anonymous qnames are never collapsed.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">03</span> Eight indexes — one per query direction</h2>
+  <div class="tbl-wrap">
+    <table class="grid">
+      <thead><tr><th>index</th><th>on</th><th>serves</th></tr></thead>
+      <tbody>
+        <tr><td><code>idx_nodes_name</code></td><td><code>nodes(name)</code></td><td>bare-name lookup</td></tr>
+        <tr><td><code>idx_nodes_kind</code></td><td><code>nodes(kind)</code></td><td>filter by kind</td></tr>
+        <tr><td><code>idx_nodes_file</code></td><td><code>nodes(file_path)</code></td><td>outline one file</td></tr>
+        <tr><td><code>idx_edges_src</code></td><td><code>edges(source_qname, kind)</code></td><td>outgoing — impact, reachability</td></tr>
+        <tr><td><code>idx_edges_tgt</code></td><td><code>edges(target_qname, kind)</code></td><td>incoming — find_callers</td></tr>
+        <tr><td><code>idx_edges_tier</code></td><td><code>edges(confidence_tier)</code></td><td>confidence census</td></tr>
+        <tr><td><code>idx_edges_raw</code></td><td><code>edges(target_raw, kind)</code></td><td>pre-resolver and never-resolvable cases</td></tr>
+        <tr><td><code>idx_edges_file</code></td><td><code>edges(file_path)</code></td><td><code>replace_file_rows</code> deletes by file, once per parsed file</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="dec">
+    <h3>The last index is the dearest line in the schema</h3>
+    <p>Unindexed, that delete is a full scan of the edge table per file:
+    <span class="num">189 ms × 24,569 files = 77 minutes</span> — of a 76-minute rebuild.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">04</span> The fixed vocabulary</h2>
+  <div class="vocab">
+    <div>
+      <h3>14 node kinds</h3>
+      <div class="chips">
+        <span class="chip">File</span><span class="chip">Namespace</span><span class="chip">Class</span>
+        <span class="chip">Interface</span><span class="chip">Trait</span><span class="chip">Enum</span>
+        <span class="chip">Function</span><span class="chip">Method</span><span class="chip">Property</span>
+        <span class="chip">ClassConst</span><span class="chip">Const</span>
+        <span class="chip new">Table</span><span class="chip new">Column</span>
+      </div>
+      <p class="note" style="margin-top:10px">The two ochre chips are contract v9. A table keeps its
+      native separator (<code>dbo.Trans</code>) and a column joins on with <code>::</code> exactly as a
+      property does — so the qname convention did not move, only the vocabulary.</p>
+    </div>
+    <div>
+      <h3>12 edge kinds</h3>
+      <div class="chips">
+        <span class="chip">CONTAINS</span><span class="chip">EXTENDS</span><span class="chip">IMPLEMENTS</span>
+        <span class="chip">USES_TRAIT</span><span class="chip">CALLS</span><span class="chip">NEW</span>
+        <span class="chip">IMPORTS</span><span class="chip">INCLUDES</span><span class="chip">REFERENCES</span>
+        <span class="chip">ALIASES</span><span class="chip">PROVIDES_VIEW_DATA</span>
+        <span class="chip new">WRITES</span>
+      </div>
+      <h3 style="margin-top:20px">3 confidence tiers</h3>
+      <div class="tiers">
+        <div class="tier t-r"><b>RESOLVED</b><span style="color:var(--ink-2)">the name resolved; the target points at a node</span></div>
+        <div class="tier t-h"><b>HEURISTIC</b><span style="color:var(--ink-2)">several candidates, or derived from a rule</span></div>
+        <div class="tier t-d"><b>DYNAMIC</b><span style="color:var(--ink-2)">the target is a variable, or built at run time</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">05</span> Five schema versions</h2>
+  <div class="ladder">
+    <div class="step"><div class="v">2</div><div class="what"><b>tokenize='trigram'</b>
+      <span>on <code>nodes_fts</code> — what makes <code>email</code> match inside <code>findByEmail</code>; unicode61 did not</span></div></div>
+    <div class="step"><div class="v">3</div><div class="what"><b>edges.args</b>
+      <span>per-call-site argument shapes, contract v3</span></div></div>
+    <div class="step"><div class="v">4</div><div class="what"><b>edges.arg_keys</b>
+      <span>array-literal string keys, contract v5</span></div></div>
+    <div class="step now"><div class="v">5</div><div class="what"><b>files.fingerprint</b>
+      <span>the line-preserving whitespace skip tier — the current version</span></div></div>
+  </div>
+  <div class="dec" style="margin-top:26px">
+    <h3>No migration runner, and a mismatch has a direction</h3>
+    <p>The database is a derived cache, so a version mismatch fails loud. The stamp is read
+    <em>before</em> the DDL runs, so a database this build cannot read is never written to.</p>
+    <p><strong>An index older than the server</strong> is a stale cache — the build deletes and rebuilds
+    it in-band. <strong>An index newer than the server</strong> means the <em>server process</em> is
+    the stale one: the index is current, and deleting it would destroy a good graph to write an older
+    one, so the build refuses and leaves the file untouched. The fix is restarting the client, not
+    rebuilding.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">06</span> Sixteen stamps in <code>meta</code></h2>
+  <div class="chips">
+    <span class="chip">schema_version</span><span class="chip">contract_version</span>
+    <span class="chip">last_commit</span><span class="chip">last_ref</span>
+    <span class="chip">built_at</span><span class="chip">build_complete</span>
+    <span class="chip">indexed_suffixes</span><span class="chip">covered_suffixes</span>
+    <span class="chip">covered_languages</span><span class="chip">collection_census</span>
+    <span class="chip">untracked_indexable</span><span class="chip">ignore_sources</span>
+    <span class="chip">skipped_suffix_counts</span><span class="chip">config_identity</span>
+    <span class="chip">edge_health_by_language</span><span class="chip">emitted_kinds_by_language</span>
+  </div>
+  <p class="note" style="margin-top:14px">This list once lived in the design document and drifted four
+  keys behind the code. That is why the copy in <code>PLAN.md</code> was removed, and why this page
+  states its own date.</p>
+</section>
+
+<section>
+  <h2><span class="n">07</span> What the schema cannot express</h2>
+  <div class="gaps">
+    <div class="gap">
+      <div class="hd"><h3>No project column</h3><span class="st by-design">by design</span></div>
+      <p>One database per repository. Several projects means several MCP processes, each with its own
+      <code>graph.db</code>.</p>
+    </div>
+    <div class="gap">
+      <div class="hd"><h3>No Table → Table edge</h3><span class="st open">open</span></div>
+      <p>The T-SQL adapter drops <code>FOREIGN KEY</code> on purpose — <code>foreign</code>,
+      <code>primary</code>, <code>key</code> and <code>constraint</code> sit in the
+      <code>NOT_A_COLUMN</code> set so they are not read as columns. <code>Table</code> and
+      <code>Column</code> nodes exist, but nothing relates them across tables, so no ER view is
+      derivable. Worth noting for whoever takes it: <code>REFERENCES</code> is <strong>already</strong>
+      in <code>EDGE_KINDS</code> and <code>FQN_EDGE_KINDS</code>, so a Column → Column link needs no
+      contract bump.</p>
+    </div>
+    <div class="gap">
+      <div class="hd"><h3>No <code>READS</code></h3><span class="st open">open</span></div>
+      <p><code>WRITES</code> has no counterpart: <code>SELECT … FROM</code> and <code>JOIN</code> emit
+      no edge. <em>Which routine writes this table</em> is answerable; <em>which routine reads it</em>
+      is not.</p>
+    </div>
+  </div>
+</section>
+
+<div class="src">
+  <p><strong>The source of truth is <code>code_atlas/store.py</code></strong> — the <code>DDL</code>
+  constant. This page is a snapshot taken 2026-09-06 so the shape can be read and shown; where it
+  disagrees with the code, the code is right.</p>
+  <p>The design document deliberately holds no listing of its own: the meta-key list it once carried
+  drifted four keys behind the code, and the “derive, don’t list” rule was written from that incident.
+  The prose beside this page is <code>docs/design/storage.md</code>.</p>
+</div>
+
+</div>
+</body>
+</html>

@@ -119,7 +119,8 @@ an empty DB and once over a populated one, wall and files/s for each.
 
 ## Notes
 
-`BACKLOG.md`'s follow-up list carries *"Adapter-subprocess test harness on Windows (bug) — `CA_*_CMD`
-uses POSIX quoting but splits with `posix=False`"*. That reads **already fixed**: `config.py:354` is
-`shlex.split(..., posix=os.name != "nt")`. Confirm and remove the row, or say what still bites — an
-open bug that is not open costs every reader who checks it.
+`BACKLOG.md`'s follow-up list carried *"Adapter-subprocess test harness on Windows (bug) —
+`CA_*_CMD` uses POSIX quoting but splits with `posix=False`"*. **Confirmed fixed, and the row is gone**
+(2026-09-06): `config.py:354` is `shlex.split(..., posix=os.name != "nt")`. Its *"fails ~56 adapter
+tests on Windows"* figure was never measurable from a Linux session either — E1 above is that same
+gap. Nothing here is re-asked; what remains is the protocol.

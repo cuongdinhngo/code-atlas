@@ -12,8 +12,7 @@ code-atlas/
 ├── pyproject.toml
 ├── .harness.json                     # mango lifecycle config (committed team config; no secrets)
 ├── .github/                          # workflows/ci.yml + pull_request_template.md
-├── AGENTS.md                         # agent guidance (points here + to ENGINEERING_RULES)
-├── CLAUDE.md                         # one line: `@AGENTS.md` — Claude Code's entry point, not a second copy
+├── AGENTS.md  CLAUDE.md              # session orientation; each doc's boundary is §8.1
 ├── README.md
 ├── code_atlas/                       # THE CORE — language-agnostic, no per-language branches
 │   ├── main.py                       # FastMCP server + entry point
@@ -40,9 +39,7 @@ code-atlas/
 │   ├── contract/                     # schema-conformance every adapter must pass
 │   ├── fixtures/<lang>/…             # spec-driven fixtures
 │   └── test_*.py
-└── docs/                             # each doc's audience, content and boundary: §8.1 below
-    ├── PLAN.md  TOOLS.md  ENGINEERING_RULES.md  CONVENTION.md  BACKLOG.md  AGENT_BRIEF.md
-    ├── LESSONS.md  TOKEN_LEDGER.md  SKILL_GAP_CANDIDATES.md  FEEDBACK.md
+└── docs/                             # every standing doc, its reader and its boundary: §8.1 below
     ├── design/  assets/  phase3-onboarding/  benchmarks/  runbooks/
     └── tasks/NNN_slug.md             # one file per task
 ```
@@ -252,7 +249,8 @@ document lands in a tier on purpose, here, or it lands in tier 1 by accident.
 |---|---|---|---|---|
 | [`README.md`](../README.md) | — | a stranger deciding in 60 s whether to install | what it does, one demo, how to install, the measured claims, where the rest is | not the tool reference (→ `TOOLS.md`); **not the design record** (→ `design/`); never the authority for a number |
 | [`TOOLS.md`](TOOLS.md) | — | someone choosing which tool to call | the agent-facing surface: every tool, the batching verdicts, prompts, hooks, config | not the field contract (→ §6); not why (→ `design/`) |
-| [`design/`](design/)`*.md` | — | anyone asking *why is an answer shaped like this* | one file per axis (payload · indexing · impact/claims); each section is a field incident | not a rule (→ `ENGINEERING_RULES.md`); not status (→ `BACKLOG.md`) |
+| [`design/`](design/)`*.md` | — | anyone asking *why is an answer shaped like this* | one file per axis (payload · indexing · impact/claims · storage); each section is a field incident | not a rule (→ `ENGINEERING_RULES.md`); not status (→ `BACKLOG.md`) |
+| [`assets/`](assets/) | — | a reader following a `design/` figure | one dated diagram or page per figure | never the source of a fact — it snapshots code that stays authoritative (R6.7) |
 | [`AGENTS.md`](../AGENTS.md) | 1 | an agent at session start | orientation: what this is, where things live, which docs bind, how the maintainer authorises finishing steps, how to run the gate and the suite | **not a rule origin** — every rule here is a summary with a destination; not a lifecycle rule book (→ `AGENT_BRIEF.md`) |
 | `CLAUDE.md` | 1 | the Claude Code harness | one line: `@AGENTS.md` | not content |
 | [`PLAN.md`](PLAN.md) | 2 | anyone asking *why is it shaped this way* | **§1 the two pillars (authoritative)**; the design and its reasoning; §19 the durable decision log — what was measured, what was refuted | not the vocabulary of record (→ `contract.py`, §3 above); not a schema listing (→ `store.py`); not task status (→ `BACKLOG.md`) |

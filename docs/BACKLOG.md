@@ -6,8 +6,8 @@ and per-task lessons are in [`LESSONS.md`](LESSONS.md). This file tracks *what i
 landed*; each ticket's cost is one row in [`TOKEN_LEDGER.md`](TOKEN_LEDGER.md) (R7.2) — narrative
 rationale lives in those three.
 
-**A closed ticket leaves this file.** Its row was a third naming of what `tasks/NNN_*.md` and its
-[`TOKEN_LEDGER.md`](TOKEN_LEDGER.md) spend row already hold (R7.6), and every session paid for all
+**A closed ticket leaves this file** (R7.6) — `tasks/NNN_*.md` and its
+[`TOKEN_LEDGER.md`](TOKEN_LEDGER.md) spend row already hold it, and every session paid for all
 three; `git log --follow -- docs/tasks` is the history. **208 tickets closed before 2026-09-05** and
 are not listed here. What stays is what you read to choose the next ticket: the finding, not the slug.
 
@@ -29,18 +29,23 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 221 | [`find_callers` answers `no_matches` on a proc with five live callers, because the predicate never asks whether the crossing is modelled](tasks/221_a-zero-is-modelled-when-every-caller-is-in-another-language.md) | Coverage | todo | 214, 204, 186, 160 |
 | 222 | [Six structural misses are one defect — the identifier is a string; `enrichment.py` already extracts it and only the target is hardcoded](tasks/222_the-cross-language-link-is-one-rule-target-away-from-machinery-that-exists.md) | Coverage | todo | 221, 063, 062, 040 |
 | 223 | [The sample ratio fell 69.06 → 65.48 on a byte-identical grep side, and no gate can see it](tasks/223_the-envelope-bills-every-answer-and-no-gate-noticed-it-growing.md) | Cost | todo | 042, 173, 160, 020 |
+| 224 | [`FOREIGN KEY` is discarded, so no table relates to any other — and `REFERENCES` already exists](tasks/224_foreign-key-is-discarded-by-the-column-reader-so-no-table-relates-to-any-other.md) | Coverage | todo | 022, 184, 144, 011 |
 
 ## Open work — Pillar 2 · Onboarding
 
 The rendering of what the code actually is, for a human supervising an agent or presenting the
-project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline. **Nothing open** —
+project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline.
 M10–M12 have all landed; round narratives live in [`FEEDBACK.md`](FEEDBACK.md),
 [PLAN §19](PLAN.md#19-project-context--decision-log), [`LESSONS.md`](LESSONS.md) and `benchmarks/`.
 
+| # | Task | Theme | Status | Depends on |
+|---|---|---|---|---|
+| 225 | [A sequence view would assert an order the walk never established](tasks/225_the-flow-walk-is-breadth-first-over-a-sorted-adjacency-so-it-is-not-a-sequence.md) | Coverage | todo | 197, 144, 112 |
+
 **What still governs open work:**
 
-- **24 tools** on the MCP surface (`main.TOOL_NAMES`), plus the console scripts
-  `pyproject.toml`'s `[project.scripts]` lists.
+- **24 tools** on the MCP surface (`main.TOOL_NAMES`), pinned by
+  `tests/test_documented_tool_count.py` — the count is duplicated on purpose and guarded.
 - **Every `deferred` ticket holds its own gate** — 074, 098 and 141 each state theirs, and 141 is at
   n = 0; do not queue one without reading it. Auto *reading orders* stay unscheduled
   ([121](benchmarks/121_onboarding-question-class.md)).
@@ -62,10 +67,9 @@ M10–M12 have all landed; round narratives live in [`FEEDBACK.md`](FEEDBACK.md)
 
 Phase 1 (core + PHP), Phase 1.5 (agent-first PHP depth) and Phase 1.5b (large-monorepo validation
 hardening) are closed. Two decisions from them still bind and are recorded in §19, not here: editing
-tools are permanently out, and tool *consolidation* was measured and rejected. One open note: the
-anchor repo's `CLAUDE.md` asserts `grep` "times out" and costs "~650× the tokens" — an
-**un-evidenced claim, not a code-atlas defect**; round 3 observed neither, so it needs evidence or
-removal.
+tools are permanently out, and tool *consolidation* was measured and rejected. One open note, **not a code-atlas
+defect**: the anchor repo's `CLAUDE.md` asserts `grep` "times out" and costs "~650×" — round 3
+observed neither, so it needs evidence or removal.
 
 ## Follow-ups (not yet ticketed)
 
@@ -76,8 +80,7 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **Tokens-to-answer measures cost, not information** — 046 moved the ratio 0.02 % while doubling the distinct answers. Wants a second axis before it judges a retrieval change.
 - **`reachable_from` payload size at `standard`** — bounded by `impact_max_nodes` (500), ~160 KB of JSON. Worth a lower default or `minimal`-by-default; workaround in [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
 - **Parser-OOM size cap (optional)** — multi-MB generated files exhaust the PHP parser (already soft-failed/restarted in `indexer.py`); a byte-cap pre-skip (`CA_MAX_FILE_BYTES`) would avoid ~30 restart cycles. Log skips; no silent truncation.
-- **Adapter-subprocess test harness on Windows (bug)** — `CA_*_CMD` uses POSIX quoting but splits with `posix=False`, so quoted paths reach `CreateProcess` verbatim → `WinError 2`. Fails ~56 adapter tests on Windows, green on Linux. Surfaced by [043](tasks/043_duplicate-decl-resilience.md).
-- **043's duplicate-declaration gap** — the end-to-end `full_build` test is blocked by the Windows bug above (the surface is proven at the `_write`+store layer); a PHP-adapter fixture would only pin what the adapter already emits.
+- **043's duplicate-declaration gap** — the surface is proven at the `_write`+store layer; a PHP-adapter fixture would only pin what the adapter already emits. Whatever remains here is a Windows question, and [220](tasks/220_no-windows-evidence-exists-and-the-core-cannot-import-there.md) owns it with a protocol.
 - **018 construct gaps** — cross-repo misses feed the (still empty) gap log in [`runbooks/cross-repo-validation.md`](runbooks/cross-repo-validation.md) and tasks 007 / 025.
 - **The onboarding tree's bulk is outside its Markdown** — `manifest.json` + `index.html` are ~2.5 MB
   with no ceiling, and two smaller gaps sit beside it — [205](tasks/205_a-module-page-per-node-budget-slot.md).
