@@ -31,8 +31,8 @@ def test_the_guard_has_something_to_check() -> None:
     # Guards the guard: an empty module list or an empty store would pass every check vacuously.
     # +1 each: coverage (160), cli (176), config_provenance (175), check_column_defaults (194),
     # trace_capability (199), onboarding scope (206), community (211), provenance (209),
-    # orientation (207), audience (210)
-    assert len(core_modules()) == 82
+    # orientation (207), audience (210), sequence_diagram (225)
+    assert len(core_modules()) == 83
     assert len((CORE / STORE).read_text(encoding="utf-8").splitlines()) > 50
 
 

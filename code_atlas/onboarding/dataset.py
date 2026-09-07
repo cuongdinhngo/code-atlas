@@ -53,8 +53,9 @@ from code_atlas.onboarding.reachability import ReachabilitySplit, classify_reach
 # a business module's worded name (198). 10: ``confidence_by_language`` — which language earned the
 # confidence figure, read from the 183 stamp (196). 11: per-bucket ``caveat`` and ``declaration``,
 # so a bucket whose declaration was never given says its 0 is a question nobody asked rather than a
-# measured absence (208). This is NOT ``contract_version``; the contract is untouched.
-DATASET_VERSION = 14
+# measured absence (208). 15: each flow step carries ``line`` — the call line, or None when the
+# order is unknown (225). This is NOT ``contract_version``; the contract is untouched.
+DATASET_VERSION = 15
 # A directory is kept in the tree only when its subtree holds at least this many symbols — the
 # mockup's prune, so a 40k-file repo yields a map of a few dozen rows, not thousands (AC3).
 DIR_SYMBOL_THRESHOLD = 400
@@ -519,7 +520,7 @@ def build_dataset(
     file_kind_counts: Sequence[tuple[str, str, int]] = (),
     commit: str = "",
     prose: ProseRun | None = None,
-    flow_edges: Sequence[tuple[str, str, str, str]] | None = None,
+    flow_edges: Sequence[tuple[str, str, str, str, int | None]] | None = None,
     flow_max: int = 0,
     flow_max_nodes: int = 0,
     confidence_by_language: Mapping[str, object] | None = None,

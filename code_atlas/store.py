@@ -900,12 +900,15 @@ class GraphStore:
         )
         return [(str(source), str(target), str(tier)) for source, target, tier in cursor]
 
-    def flow_edges(self, kinds: Sequence[str]) -> list[tuple[str, str, str, str]]:
-        """Distinct resolved pairs with their KIND and winning tier, filtered to ``kinds`` (197).
+    def flow_edges(self, kinds: Sequence[str]) -> list[tuple[str, str, str, str, int | None]]:
+        """Distinct pairs with KIND, winning tier and that tier's earliest ``line`` (197/225).
 
         ``dependency_edges_with_tier`` drops the kind, so a ``WRITES`` hop and a ``Table`` sink are
-        indistinguishable in it. Filtering in SQL keeps the pull bounded by the kind set rather than
-        by the whole edge table (R4.3); ``ORDER BY`` is stable (R4.2).
+        indistinguishable in it. The line is ``MIN(line)`` **within the winning tier**, not across
+        the whole group: a plain ``MIN(line)`` could hand a RESOLVED edge the call line of a losing
+        DYNAMIC row to the same target, and the caller attests order on that line (225). ``None``
+        when the winning tier has no line. Filtering in SQL bounds the pull (R4.3); ``ORDER BY`` is
+        stable (R4.2).
         """
         if not kinds:
             return []
@@ -915,15 +918,23 @@ class GraphStore:
             "SELECT source_qname, target_qname, kind, "
             "CASE WHEN SUM(CASE WHEN confidence_tier = ? THEN 1 ELSE 0 END) > 0 THEN ? "
             "WHEN SUM(CASE WHEN confidence_tier = ? THEN 1 ELSE 0 END) > 0 THEN ? "
-            "ELSE ? END "
+            "ELSE ? END, "
+            "COALESCE("
+            "MIN(CASE WHEN confidence_tier = ? THEN line END), "
+            "MIN(CASE WHEN confidence_tier = ? THEN line END), "
+            "MIN(CASE WHEN confidence_tier = ? THEN line END)) "
             "FROM edges "
             f"WHERE target_qname IS NOT NULL AND source_qname <> target_qname "
             f"AND kind IN ({placeholders}) "
             "GROUP BY source_qname, target_qname, kind "
             "ORDER BY source_qname, target_qname, kind",
-            (resolved, resolved, heuristic, heuristic, dynamic, *kinds),
+            (resolved, resolved, heuristic, heuristic, dynamic,
+             resolved, heuristic, dynamic, *kinds),
         )
-        return [(str(s), str(t), str(k), str(tier)) for s, t, k, tier in cursor]
+        return [
+            (str(s), str(t), str(k), str(tier), None if ln is None else int(ln))
+            for s, t, k, tier, ln in cursor
+        ]
 
     def node_universe(self) -> list[tuple[str, str]]:
         """Every ``(qualified_name, file_path)`` — the node set + qname→module map (task 083).

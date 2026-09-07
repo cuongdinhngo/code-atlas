@@ -83,6 +83,10 @@ def test_declared_working_roots_keep_the_tour_inside_the_roots(tmp_path: Path) -
     assert all(str(stop["file"]).startswith("app/") for stop in stops)  # type: ignore[index]
     flows = _read(tmp_path, "flows.md")
     assert "\\Legacy\\Gate" in flows
+    # 225 — the flowchart (197) stays and the sequence view rides beside it, asserted at the
+    # rendered consumer (R6.9), not only on the FlowStep field.
+    assert "flowchart LR" in flows
+    assert "sequenceDiagram" in flows
 
 
 def test_scope_lines_appear_only_when_roots_are_declared(tmp_path: Path) -> None:

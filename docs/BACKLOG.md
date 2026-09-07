@@ -46,9 +46,8 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 M10–M12 have all landed; round narratives live in [`FEEDBACK.md`](FEEDBACK.md),
 [PLAN §19](PLAN.md#19-project-context--decision-log), [`LESSONS.md`](LESSONS.md) and `benchmarks/`.
 
-| # | Task | Theme | Status | Depends on |
-|---|---|---|---|---|
-| 225 | [A sequence view would assert an order the walk never established](tasks/225_the-flow-walk-is-breadth-first-over-a-sorted-adjacency-so-it-is-not-a-sequence.md) | Coverage | todo | 197, 144, 112 |
+Nothing open — 225 (the sequence view) landed; its spend is one row in
+[`TOKEN_LEDGER.md`](TOKEN_LEDGER.md).
 
 **What still governs open work:**
 

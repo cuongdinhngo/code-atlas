@@ -83,6 +83,19 @@ now reconciled to this table.
 
 ## Live claims
 
+### 225-C1 — The line a GROUP BY row reports must be aggregated within the tier it reports, not across the whole group
+
+- type: 2 (code) · handle: `aggregate-the-line-with-the-tier-it-reports`
+- status: proposed (awaiting human confirm)
+- seen: 225
+- evidence: `store.flow_edges` collapsed each `(source, target, kind)` group to a winning tier via a
+  `CASE` and a bare `MIN(line)`. A RESOLVED edge and a DYNAMIC edge to the same target at different
+  lines produced `tier=RESOLVED` carrying the DYNAMIC row's lower line, so the sequence view (225)
+  attested call order on a line the winning edge never carried. Fixed by taking `MIN(line)` inside
+  the winning tier (`COALESCE` over RESOLVED→HEURISTIC→DYNAMIC). The ticket-blind challenger found it
+  untested; regression test `test_flow_edges_takes_the_line_of_the_winning_tier_not_the_lowest`. R5.5.
+- destination: stays in `lessons_path` (recurrence 1)
+
 ### 217-C1 — When an adapter starts emitting a kind that tool_parity listed as absent, update the parity row in the same change
 - type: 2
 - status: proposed (awaiting human confirm)

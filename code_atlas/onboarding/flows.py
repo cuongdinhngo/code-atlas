@@ -97,13 +97,19 @@ __all__ = [
 
 @dataclass(frozen=True)
 class FlowStep:
-    """One hop. ``tier`` is the confidence of the edge that REACHED this node, not of the node."""
+    """One hop. ``tier`` is the confidence of the edge that REACHED this node, not of the node.
+
+    ``line`` is the source line of the call that reached this node, or ``None`` when the order is
+    not known: the edge carried no line, this is the seed, or the call tied on a line with a
+    sibling out of the same source (225). A ``None`` line is a hop a sequence view may not order.
+    """
 
     qname: str
     file: str
     layer: str
     kind: str
     tier: str
+    line: int | None = None
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -112,6 +118,7 @@ class FlowStep:
             "layer": self.layer,
             "kind": self.kind,
             "tier": self.tier,
+            "line": self.line,
         }
 
 
@@ -235,13 +242,32 @@ def seed_files(
 
 
 def _adjacency(
-    edges: Sequence[tuple[str, str, str, str]],
-) -> dict[str, tuple[tuple[str, str, str], ...]]:
-    """``source -> ((target, kind, tier), ...)``, sorted so the walk is order-stable (R4.2)."""
-    out: dict[str, list[tuple[str, str, str]]] = {}
-    for source, target, kind, tier in edges:
-        out.setdefault(source, []).append((target, kind, tier))
-    return {source: tuple(sorted(set(rows))) for source, rows in out.items()}
+    edges: Sequence[tuple[str, str, str, str, int | None]],
+) -> dict[str, tuple[tuple[str, str, str, int | None], ...]]:
+    """``source -> ((target, kind, tier, line), ...)`` in CALL ORDER (225).
+
+    A source's hops are ordered by ``line`` first — the walk now follows call order within a frame,
+    not the alphabetical order it used to (R4.2 still holds: ``(target, kind, tier)`` breaks ties
+    and a missing line sorts last). A line shared by two hops out of the same source cannot order
+    them, so that hop's line is reported ``None`` — a sequence view discloses it rather than drawing
+    a confident arrow (R5.6).
+    """
+    out: dict[str, list[tuple[str, str, str, int | None]]] = {}
+    for source, target, kind, tier, line in edges:
+        out.setdefault(source, []).append((target, kind, tier, line))
+    result: dict[str, tuple[tuple[str, str, str, int | None], ...]] = {}
+    for source, rows in out.items():
+        ordered = sorted(set(rows), key=lambda r: (r[3] is None, r[3] or 0, r[0], r[1], r[2]))
+        seen: set[int] = set()
+        tied: set[int] = set()
+        for _t, _k, _tr, line in ordered:
+            if line is not None:
+                tied.add(line) if line in seen else seen.add(line)
+        result[source] = tuple(
+            (t, k, tr, None if (line is not None and line in tied) else line)
+            for t, k, tr, line in ordered
+        )
+    return result
 
 
 def _is_hard_sink(kind: str) -> bool:
@@ -251,21 +277,26 @@ def _is_hard_sink(kind: str) -> bool:
 
 def _trace(
     seed: str,
-    adjacency: Mapping[str, tuple[tuple[str, str, str], ...]],
+    adjacency: Mapping[str, tuple[tuple[str, str, str, int | None], ...]],
     file_of: Mapping[str, str],
     layer_of: Mapping[str, str],
     budget: int,
-) -> tuple[list[str], list[str], dict[str, tuple[str, str, str]], bool, bool]:
+) -> tuple[list[str], list[str], dict[str, tuple[str, str, str, int | None]], bool, bool]:
     """BFS from one seed. Returns (hard_sinks, soft_sinks, parents, hit_unproven, hit_budget).
 
-    Arriving in the domain layer is a SOFT sink: it does not stop the walk, because the write the
-    request came for usually sits one hop past the repository that performs it. It is used only when
-    the trace found no write and no view hand-off at all.
+    Neighbours are visited in call order now (``_adjacency`` sorts by line), so the path a frame
+    takes follows the earliest call first; 197's overall BFS shape and its termination rules are
+    untouched (225). BFS is kept over DFS deliberately: each flow renders as ONE linear seed->sink
+    path in both the flowchart and the sequence, so DFS would buy no ordering the chain lacks while
+    changing depth semantics and 197's termination guarantees (ticket Scope 2, R4.2).
+    Arriving in the domain layer is a SOFT sink: it does not stop the walk, because
+    the write the request came for usually sits one hop past the repository that performs it. It is
+    used only when the trace found no write and no view hand-off at all.
 
     Only RESOLVED expands the frontier — the rule ``store.reachable_from`` already holds. A
     HEURISTIC/DYNAMIC neighbour is recorded as an ending and never expanded (R5.2).
     """
-    parents: dict[str, tuple[str, str, str]] = {}
+    parents: dict[str, tuple[str, str, str, int | None]] = {}
     seen = {seed}
     frontier = [seed]
     hard: list[str] = []
@@ -277,11 +308,11 @@ def _trace(
             hit_budget = True
             break
         node = frontier.pop(0)
-        for target, kind, tier in adjacency.get(node, ()):
+        for target, kind, tier, line in adjacency.get(node, ()):
             if target in seen:
                 continue
             seen.add(target)
-            parents[target] = (node, kind, tier)
+            parents[target] = (node, kind, tier, line)
             layer = layer_of.get(file_of.get(target, ""), "")
             if _is_hard_sink(kind):
                 hard.append(target)
@@ -298,26 +329,26 @@ def _trace(
 def _path_to(
     seed: str,
     target: str,
-    parents: Mapping[str, tuple[str, str, str]],
+    parents: Mapping[str, tuple[str, str, str, int | None]],
     file_of: Mapping[str, str],
     layer_of: Mapping[str, str],
 ) -> tuple[FlowStep, ...]:
     """Walk the parent pointers back to the seed, then read the path forwards."""
-    chain: list[tuple[str, str, str]] = []
+    chain: list[tuple[str, str, str, int | None]] = []
     node = target
     while node != seed:
-        source, kind, tier = parents[node]
-        chain.append((node, kind, tier))
+        source, kind, tier, line = parents[node]
+        chain.append((node, kind, tier, line))
         node = source
     seed_file = file_of.get(seed, "")
     steps = [FlowStep(seed, seed_file, layer_of.get(seed_file, ""), "", RESOLVED)]
-    for qname, kind, tier in reversed(chain):
+    for qname, kind, tier, line in reversed(chain):
         file = file_of.get(qname, "")
-        steps.append(FlowStep(qname, file, layer_of.get(file, ""), kind, tier))
+        steps.append(FlowStep(qname, file, layer_of.get(file, ""), kind, tier, line))
     return tuple(steps)
 
 
-def _endpoint(parents: Mapping[str, tuple[str, str, str]]) -> str | None:
+def _endpoint(parents: Mapping[str, tuple[str, str, str, int | None]]) -> str | None:
     """One representative node a sinkless trace reached: the sorted-last discovered qname.
 
     Deliberately NOT "the furthest" — no depth is recorded, and inventing a depth to rank on would
@@ -328,7 +359,7 @@ def _endpoint(parents: Mapping[str, tuple[str, str, str]]) -> str | None:
 
 def build_flows(
     seeds: Sequence[tuple[str, str]],
-    edges: Sequence[tuple[str, str, str, str]],
+    edges: Sequence[tuple[str, str, str, str, int | None]],
     file_of: Mapping[str, str],
     layer_of: Mapping[str, str],
     owner_of_dir: Mapping[str, str],
@@ -398,7 +429,7 @@ def build_flows(
 
 def flows_from_graph(
     nodes: Sequence[tuple[str, str]],
-    flow_edges: Sequence[tuple[str, str, str, str]],
+    flow_edges: Sequence[tuple[str, str, str, str, int | None]],
     *,
     metrics: GraphMetrics,
     assignment: LayerAssignment,

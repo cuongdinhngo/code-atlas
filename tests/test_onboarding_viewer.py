@@ -631,8 +631,8 @@ def test_the_flows_section_renders_its_figures_from_the_dataset(tmp_path: Path) 
     flows = build_flows(
         [("\\Sym0", "vocabulary")],
         [
-            ("\\Sym0", "\\Sym1", "CALLS", "RESOLVED"),
-            ("\\Sym1", "\\Sym2", "CALLS", "RESOLVED"),
+            ("\\Sym0", "\\Sym1", "CALLS", "RESOLVED", 10),
+            ("\\Sym1", "\\Sym2", "CALLS", "RESOLVED", 20),
         ],
         file_of,
         layer_of,

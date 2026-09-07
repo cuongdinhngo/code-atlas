@@ -57,6 +57,7 @@ from code_atlas.onboarding.prose import ProseRun
 from code_atlas.onboarding.provenance import NONE, Provenance
 from code_atlas.onboarding.reachability import classify_reachability
 from code_atlas.onboarding.scope import scoped_paths
+from code_atlas.onboarding.sequence_diagram import render_sequence_diagram
 from code_atlas.onboarding.steps import TourStep, build_steps
 from code_atlas.onboarding.summary import NodeFacts, Summarizer, summarize_modules
 from code_atlas.onboarding.tour import TourStop, ordered_stops
@@ -863,6 +864,16 @@ def render_flows(
             label = f"|{flow.steps[position].kind}|" if flow.steps[position].kind else ""
             lines.append(f"  n{position - 1} {edge}{label} n{position}")
         lines += ["```", ""]
+        # 225 — the same trace as a sequence: solid = proven call order, dashed = order not known.
+        sequence = render_sequence_diagram(flow.steps, walk_truncated=flow.walk_truncated)
+        lines += [
+            "_Sequence — solid arrow = proven call order; dashed = order not established._",
+            "",
+            "```mermaid",
+            *sequence.rstrip("\n").split("\n"),
+            "```",
+            "",
+        ]
     return "\n".join(lines)
 
 

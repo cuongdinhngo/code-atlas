@@ -46,9 +46,9 @@ OWNERS = {"controllers": "invoicing", "services": "invoicing", "lib": "shared"}
 SEED = ("App\\InvoiceController::show", "vocabulary")
 
 CHAIN = [
-    ("App\\InvoiceController::show", "App\\InvoiceService::load", "CALLS", "RESOLVED"),
-    ("App\\InvoiceService::load", "App\\InvoiceRepository::find", "CALLS", "RESOLVED"),
-    ("App\\InvoiceRepository::find", "dbo.Invoice::Total", "WRITES", "RESOLVED"),
+    ("App\\InvoiceController::show", "App\\InvoiceService::load", "CALLS", "RESOLVED", 10),
+    ("App\\InvoiceService::load", "App\\InvoiceRepository::find", "CALLS", "RESOLVED", 20),
+    ("App\\InvoiceRepository::find", "dbo.Invoice::Total", "WRITES", "RESOLVED", 30),
 ]
 
 
@@ -81,7 +81,7 @@ def test_flow_from_entry_symbol_reaches_the_named_column() -> None:
 def test_a_write_that_names_no_column_targets_the_table_at_dynamic() -> None:
     """AC3's other half — 022's own split, not a guessed column list."""
     edges = CHAIN[:2] + [
-        ("App\\InvoiceRepository::find", "dbo.Invoice", "WRITES", "DYNAMIC"),
+        ("App\\InvoiceRepository::find", "dbo.Invoice", "WRITES", "DYNAMIC", 30),
     ]
     flow = _build([("App\\InvoiceController::show", "vocabulary")], edges).flows[0]
     assert flow.sink == "dbo.Invoice"
@@ -90,9 +90,8 @@ def test_a_write_that_names_no_column_targets_the_table_at_dynamic() -> None:
 
 def test_one_entry_symbol_per_flow_not_one_per_file() -> None:
     """W3 — a file with k entry symbols is k requests, never one combined walk."""
-    edges = CHAIN + [
-        ("App\\InvoiceController::destroy", "App\\InvoiceRepository::find", "CALLS", "RESOLVED"),
-    ]
+    dest, repo = "App\\InvoiceController::destroy", "App\\InvoiceRepository::find"
+    edges = CHAIN + [(dest, repo, "CALLS", "RESOLVED", 40)]
     file_of = dict(FILE_OF)
     file_of["App\\InvoiceController::destroy"] = "controllers/InvoiceController.php"
     seeds = seed_symbols(
@@ -110,7 +109,7 @@ def test_one_entry_symbol_per_flow_not_one_per_file() -> None:
 def test_one_flow_per_sink_when_a_seed_reaches_several() -> None:
     """W4 — k distinct sinks is k flows, each a path with exactly one end."""
     edges = CHAIN + [
-        ("App\\InvoiceRepository::find", "dbo.Invoice::Status", "WRITES", "RESOLVED"),
+        ("App\\InvoiceRepository::find", "dbo.Invoice::Status", "WRITES", "RESOLVED", 31),
     ]
     file_of = dict(FILE_OF)
     file_of["dbo.Invoice::Status"] = "db/invoice.sql"
@@ -134,8 +133,8 @@ def test_a_trace_that_reaches_no_sink_is_emitted_and_labelled() -> None:
 def test_a_dynamic_hop_terminates_the_trace_and_says_so() -> None:
     """C2 / R5.2 — an unprovable hop is reported, never bridged."""
     edges = [
-        ("App\\Dyn::call", "App\\Mystery::hop", "CALLS", "DYNAMIC"),
-        ("App\\Mystery::hop", "dbo.Invoice::Total", "WRITES", "RESOLVED"),
+        ("App\\Dyn::call", "App\\Mystery::hop", "CALLS", "DYNAMIC", 5),
+        ("App\\Mystery::hop", "dbo.Invoice::Total", "WRITES", "RESOLVED", 6),
     ]
     flow = _build([("App\\Dyn::call", "vocabulary")], edges).flows[0]
     assert flow.ended == END_UNPROVEN_HOP
@@ -168,7 +167,7 @@ def test_an_uncovered_seed_lands_in_an_explicit_unattributed_bucket() -> None:
 def test_the_cap_is_global_and_names_what_it_cut() -> None:
     """W1a + W1b — a global cap, and the cut is stated."""
     edges = CHAIN + [
-        ("App\\InvoiceRepository::find", "dbo.Invoice::Status", "WRITES", "RESOLVED"),
+        ("App\\InvoiceRepository::find", "dbo.Invoice::Status", "WRITES", "RESOLVED", 31),
     ]
     file_of = dict(FILE_OF)
     file_of["dbo.Invoice::Status"] = "db/invoice.sql"
@@ -227,6 +226,78 @@ def test_a_declared_entry_point_outranks_the_vocabulary_and_says_so() -> None:
     assert rows["controllers/A.php"] == "vocabulary"
 
 
+# AC1 (225) — a source with two RESOLVED hops to a shared node: the EARLIER-line hop (`Zebra`, line
+# 5) is ALPHABETICALLY later than the later-line hop (`Alpha`, line 50). Alphabetical order and call
+# order therefore disagree, so a green test proves which one the module actually uses.
+_ORDER_SEED = "App\\Ctrl::act"
+_ORDER_FILE = {
+    "App\\Ctrl::act": "controllers/Ctrl.php",
+    "App\\Zebra::z": "lib/Zebra.php",
+    "App\\Alpha::a": "lib/Alpha.php",
+    "App\\Repo::save": "repositories/Repo.php",
+    "dbo.T::C": "db/t.sql",
+}
+_ORDER_LAYER = {
+    "controllers/Ctrl.php": "HTTP / Entry",
+    "lib/Zebra.php": "Services",
+    "lib/Alpha.php": "Services",
+    "repositories/Repo.php": "Domain / Data",
+    "db/t.sql": "Domain / Data",
+}
+_ORDER_EDGES = [
+    ("App\\Ctrl::act", "App\\Zebra::z", "CALLS", "RESOLVED", 5),
+    ("App\\Ctrl::act", "App\\Alpha::a", "CALLS", "RESOLVED", 50),
+    ("App\\Zebra::z", "App\\Repo::save", "CALLS", "RESOLVED", 8),
+    ("App\\Alpha::a", "App\\Repo::save", "CALLS", "RESOLVED", 9),
+    ("App\\Repo::save", "dbo.T::C", "WRITES", "RESOLVED", 12),
+]
+
+
+def test_call_order_by_line_differs_from_alphabetical() -> None:
+    """AC1 (R6.5) — the proving test: the trace follows CALL order, not alphabetical order.
+
+    Pre-change `_adjacency` sorts a source's hops alphabetically, so it reaches the shared node
+    through `Alpha` (alphabetically first). Post-change it sorts by line, so it reaches it through
+    `Zebra` (called first, at line 5). This assertion fails on the old order and passes on the new.
+    """
+    result = build_flows(
+        [(_ORDER_SEED, "vocabulary")], _ORDER_EDGES, _ORDER_FILE, _ORDER_LAYER,
+        {"controllers": "web"}, max_flows=10, max_nodes=100,
+    )
+    flow = result.flows[0]
+    qnames = [step.qname for step in flow.steps]
+    assert flow.sink == "dbo.T::C"
+    assert "App\\Zebra::z" in qnames, "the earlier-LINE hop is on the path"
+    assert "App\\Alpha::a" not in qnames, "the alphabetically-first hop is NOT the call order"
+    # The line rides onto the step it reached (AC1's carry-through).
+    zebra = next(step for step in flow.steps if step.qname == "App\\Zebra::z")
+    assert zebra.line == 5
+
+
+def test_the_seed_step_and_a_carried_hop_expose_their_line() -> None:
+    """The line is None on the seed (nothing reached it) and the real call line on each hop."""
+    flow = _build([("App\\InvoiceController::show", "vocabulary")], CHAIN).flows[0]
+    assert flow.steps[0].line is None
+    assert [step.line for step in flow.steps[1:]] == [10, 20, 30]
+    assert flow.steps[1].as_dict()["line"] == 10
+
+
+def test_two_hops_sharing_a_line_report_an_unknown_order() -> None:
+    """R5 (225) — a same-line pair out of one source cannot be ordered, so the line is dropped."""
+    edges = [
+        ("App\\Ctrl::act", "App\\Zebra::z", "CALLS", "RESOLVED", 7),
+        ("App\\Ctrl::act", "App\\Alpha::a", "CALLS", "RESOLVED", 7),
+        ("App\\Alpha::a", "dbo.T::C", "WRITES", "RESOLVED", 9),
+    ]
+    result = build_flows(
+        [(_ORDER_SEED, "vocabulary")], edges, _ORDER_FILE, _ORDER_LAYER,
+        {"controllers": "web"}, max_flows=10, max_nodes=100,
+    )
+    flow = result.flows[0]
+    hop = next(step for step in flow.steps if step.qname in ("App\\Alpha::a", "App\\Zebra::z"))
+    assert hop.line is None, "a hop tied on a line with a sibling has no known order"
+
+
 def test_a_declared_stub_root_is_not_a_request_entry() -> None:
     """An operator who declares a tree vendored has said it is not their surface."""
     picked = dict(seed_files(["third_party/controllers/A.php"], [], ["third_party"]))
@@ -268,16 +339,45 @@ def test_flow_edges_returns_the_kind_and_the_winning_tier(tmp_path) -> None:
         writes = store.flow_edges(("WRITES",))
         both = store.flow_edges(("WRITES", "CALLS"))
 
-    assert writes == [("\\R::find", "T::C", "WRITES", "RESOLVED")], (
-        "one row per (source, target, kind); RESOLVED beats DYNAMIC; CALLS out"
+    assert writes == [("\\R::find", "T::C", "WRITES", "RESOLVED", 1)], (
+        "one row per (source, target, kind); RESOLVED beats DYNAMIC; CALLS out; MIN(line)=1"
     )
     assert len(both) == 2, "the kind filter widens with the kind set, and keeps kinds distinct"
     assert store_kinds(both) == {"CALLS", "WRITES"}
 
 
+def test_flow_edges_takes_the_line_of_the_winning_tier_not_the_lowest(tmp_path) -> None:
+    """225 — the reported line must belong to the winning tier.
+
+    A plain ``MIN(line)`` over the whole (source, target, kind) group would hand a RESOLVED edge the
+    call line of a losing DYNAMIC row to the same target, and the trace attests order on that line.
+    """
+    from code_atlas.store import GraphStore
+    from tests.test_nav_tools import db_config, edge, node, seed_file
+
+    with GraphStore(db_config(tmp_path).db_path) as store:
+        seed_file(
+            store,
+            "app/repo/R.aa",
+            [node("Method", "find", "\\R::find", "app/repo/R.aa")],
+            [
+                edge("WRITES", "\\R::find", "T::C", "app/repo/R.aa",
+                     target_qname="T::C", tier="DYNAMIC", line=5),
+                edge("WRITES", "\\R::find", "T::C", "app/repo/R.aa",
+                     target_qname="T::C", tier="RESOLVED", line=50),
+            ],
+            root=tmp_path,
+        )
+        rows = store.flow_edges(("WRITES",))
+
+    assert rows == [("\\R::find", "T::C", "WRITES", "RESOLVED", 50)], (
+        "the line is the RESOLVED row's (50), never the losing DYNAMIC row's (5)"
+    )
+
+
 def store_kinds(rows) -> set:
     """The distinct edge kinds in a flow_edges result."""
-    return {kind for _s, _t, kind, _tier in rows}
+    return {kind for _s, _t, kind, _tier, _line in rows}
 
 
 def test_flow_edges_is_empty_for_an_empty_kind_set(tmp_path) -> None:

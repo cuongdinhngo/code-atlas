@@ -617,7 +617,10 @@ presentation.** The LLM touches only the onboarding layer, is off by default, an
 `code_atlas/` (R4.1, CI-gated). Surface: `architecture_overview`, `guided_tour`,
 `generate_onboarding`, writing `docs/onboarding/` with a versioned `artifact.json`
 (`ARTIFACT_VERSION`, gitignored under `.code-atlas/onboarding/`). **What the phase is measured as, after 121: a navigation and provenance
-aid, not a reading order** (§19).
+aid, not a reading order** (§19). One surface follows a single capability *running* rather than
+aggregating — `flows.md` (197), one trace per capability; 225 renders each trace as a mermaid
+`sequenceDiagram` beside its `flowchart LR`, in call order (the trace now carries `edges.line`) and
+disclosing every hop whose order it cannot prove.
 
 ---
 
