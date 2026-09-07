@@ -180,6 +180,10 @@ def index_root(
 ) -> BuildReport:
     """Run ``full_build`` against ``root`` using the adapter command for ``language``."""
     db = db_path or (root / ".code-atlas" / "graph.db")
+    # A cached checkout keeps its graph.db, and a schema bump since then makes opening it a refusal
+    # rather than a rebuild. This harness only ever full-builds, so the stale file has no value.
+    for stale in (db, *(db.with_name(db.name + sfx) for sfx in ("-wal", "-shm"))):
+        stale.unlink(missing_ok=True)
     env = {k: v for k, v in os.environ.items() if k.startswith("CA_")}
     # Always rewrite: sample cwd would break a relative adapters/<lang> path.
     adapter = _ADAPTERS[language]

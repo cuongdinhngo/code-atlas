@@ -1,6 +1,6 @@
 # Cross-repo validation (task 018 / Plan §16 / R6.3)
 
-Prove the PHP adapter follows the language standard across **several varied repos**, not one
+Prove each adapter follows its language standard across **several varied repos**, not one
 sample. Per-PR CI stays fixture-only ([`ci.yml`](../../.github/workflows/ci.yml)); this path is
 **opt-in / scheduled** only.
 
@@ -10,11 +10,16 @@ Manifest: [`scripts/cross_repo_samples.json`](../../scripts/cross_repo_samples.j
 
 | Kind | Checkout | Role |
 |------|----------|------|
-| `laravel_app` | `laravel/laravel` @ pinned SHA | framework app |
-| `symfony_app` | `symfony/demo` @ pinned SHA | framework app |
-| `psr4_library` | `brick/math` @ pinned SHA | small PSR-4 library |
+| `laravel_app` | `laravel/laravel` @ pinned SHA | php — framework app |
+| `symfony_app` | `symfony/demo` @ pinned SHA | php — framework app |
+| `psr4_library` | `brick/math` @ pinned SHA | php — small PSR-4 library |
+| `ts_library` | `sindresorhus/ky` @ pinned SHA | typescript — small library |
+| `ts_js_mixed` | `mqttjs/MQTT.js` @ pinned SHA | typescript — mixed TS/JS |
+| `compiled_beside_source` | `socketio/socket.io` @ pinned SHA | typescript — build output beside source |
 
-Pins live **outside** `adapters/` so R2.2 never sees framework/repo names in adapter source.
+Pins live **outside** `adapters/` so R2.2 never sees framework/repo names in adapter source. Each
+row names its `language`; the harness resolves that adapter's command from `_ADAPTERS` — adding a
+language is a manifest row plus an `_ADAPTERS` row, never a branch.
 
 ## Run locally
 
@@ -22,17 +27,25 @@ Pins live **outside** `adapters/` so R2.2 never sees framework/repo names in ada
 # optional cache / report paths (defaults under artifacts/, gitignored)
 # export CODE_ATLAS_CROSS_REPO_CACHE=artifacts/cross-repo-cache
 # export CODE_ATLAS_CROSS_REPO_REPORT=artifacts/cross-repo-report.json
+# Every language in the manifest needs its adapter runnable. The TS adapter requires its own
+# runtime deps, or it exits before announcing itself:
+npm ci --prefix adapters/typescript
+
 # Prefer an absolute adapter path (sample builds use the sample as cwd).
 export CA_PHP_CMD="php $(pwd)/adapters/php/index.php --server"
+export CA_TYPESCRIPT_CMD="node $(pwd)/adapters/typescript/index.js --server"
 
 python3 scripts/cross_repo_validate.py
+# Re-run against existing checkouts, no network:
+python3 scripts/cross_repo_validate.py --public-only --skip-clone
 # GHA-equivalent (skip private scale fold-in):
 python3 scripts/cross_repo_validate.py --public-only
 ```
 
-The harness also rewrites a repo-relative `adapters/php/…` in `CA_PHP_CMD` to an absolute
-path under the code-atlas checkout, so a relative env value still works when you launch from
-this repo.
+Both vars have a working absolute default, so unset is fine when you launch from this repo; the
+harness also rewrites a repo-relative `adapters/<lang>/…` to an absolute path. Each sample's
+`graph.db` is deleted before its build — a cached checkout whose db predates a schema bump would
+otherwise be refused rather than rebuilt.
 
 ### Pass bar (A2 / A5)
 

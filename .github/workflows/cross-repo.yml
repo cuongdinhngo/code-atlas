@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   public-samples:
-    name: public PHP samples (pinned SHAs)
+    name: public samples (pinned SHAs)
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -38,6 +38,15 @@ jobs:
       - name: Composer (PHP adapter)
         run: composer install --no-interaction --no-progress --working-dir=adapters/php
 
+      # The manifest carries `typescript` samples too (task 150). The TS adapter requires
+      # `typescript` at startup, so without these it exits 1 before announcing itself.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: npm ci (TypeScript adapter)
+        run: npm ci --prefix adapters/typescript
+
       - name: Install code-atlas
         run: |
           python -m pip install --upgrade pip
@@ -45,8 +54,9 @@ jobs:
 
       - name: Cross-repo validate (public only)
         env:
-          # Absolute path: adapter subprocess cwd is the sample root, not this repo.
+          # Absolute paths: adapter subprocess cwd is the sample root, not this repo.
           CA_PHP_CMD: php ${{ github.workspace }}/adapters/php/index.php --server
+          CA_TYPESCRIPT_CMD: node ${{ github.workspace }}/adapters/typescript/index.js --server
         run: python scripts/cross_repo_validate.py --public-only
 
       - name: Upload report
