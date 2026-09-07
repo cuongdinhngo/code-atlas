@@ -66,6 +66,33 @@ def covered_languages(store: GraphStore) -> str | None:
     return store.get_meta(COVERED_LANGUAGES_KEY)
 
 
+def cross_language_relation_unmodelled(
+    store: GraphStore, *, file_path: str
+) -> dict[str, object] | None:
+    """The cross-language census when a zero into this file's language is unmeasured (task 221).
+
+    186 asks whether the subject's OWN language emits a kind; a stored proc needs the inverse — does
+    the index model any linked edge from ANOTHER language into this one? Returns the census block
+    (the low-confidence note) only then. ``None`` — a plain ``no_matches`` — whenever the index
+    cannot say: no stamp (R5.6), a single-language graph (no crossing is possible, so a genuine zero
+    stays honest — AC2), or a modelled ``*->L`` pair already exists.
+    """
+    language = store.language_of_file(file_path)
+    if language is None:
+        return None
+    census = store.stamped_cross_language_pairs()
+    if census is None:
+        return None
+    stamped = covered_languages(store)
+    covered = {name for name in (stamped or "").split(",") if name}
+    if not any(name != language for name in covered):
+        return None
+    pairs = census.get("pairs", {})
+    if isinstance(pairs, dict) and any(str(key).endswith(f"->{language}") for key in pairs):
+        return None
+    return census
+
+
 def unindexed_languages(config: Config, stamped: str | None) -> list[dict[str, str]]:
     """Configured languages the graph holds no files for — the switch is on, the build is missing.
 

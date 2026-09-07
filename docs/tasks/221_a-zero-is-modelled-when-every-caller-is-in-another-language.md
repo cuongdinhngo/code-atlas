@@ -4,7 +4,7 @@ slug: a-zero-is-modelled-when-every-caller-is-in-another-language
 title: '`find_callers` answers `reason=no_matches` on a stored proc with five live PHP callers, because 186''s predicate asks whether the relation is unmodelled *for the subject''s own language* and never whether the index models the crossing at all — `cross_language.linked: 0` in the same server''s status payload is the predicate it needed'
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [214, 204, 186, 160]
 ---
 

@@ -10,9 +10,14 @@ from code_atlas.config import Config, clamp_limit
 from code_atlas.contract import ARG_SELECTORS, CALLER_KINDS, CONFIDENCE_TIERS, split_qname
 from code_atlas.store import GraphStore
 from code_atlas.tools import call_site, claim
-from code_atlas.tools.coverage import attach_coverage_note, covered_languages
+from code_atlas.tools.coverage import (
+    attach_coverage_note,
+    covered_languages,
+    cross_language_relation_unmodelled,
+)
 from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
+    CAVEAT_CROSS_LANGUAGE_UNMODELLED,
     CAVEAT_SIBLING_DEFINITIONS,
     REASON_BARE_NAME_TRUNCATED,
     REASON_INDEX_STALE,
@@ -23,6 +28,7 @@ from code_atlas.tools.nav_result import (
     TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE,
     attach_ambiguous_definitions,
     attach_authoritative_caveats,
+    attach_cross_language_census,
     attach_limit_capped,
     attach_resolved_qname,
     attach_result_subtrees,
@@ -159,6 +165,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         covered: str | None = None
         unlinked_calls = 0
+        cross_lang_census: dict[str, object] | None = None
         with GraphStore(config.db_path) as store:
             covered = covered_languages(store)
             if sign:
@@ -293,11 +300,21 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 unlinked_calls = store.count_unlinked_by_target_raw(
                     (lookup, subject_name), kinds=CALLER_KINDS
                 )
+            if outcome.total_count == 0 and indexed and subject_file is not None:
+                # The caller may be in another language whose crossing the index never modelled
+                # (221) — read the build-time census, never a per-answer scan.
+                cross_lang_census = cross_language_relation_unmodelled(
+                    store, file_path=subject_file
+                )
         reason = relation_reason(hit_total=outcome.total_count, symbol_indexed=indexed)
         if outcome.total_count == 0 and indexed and unresolved_bare > 0:
             # Cap dropped this subject from bare-name linking — not "no callers exist".
             reason = REASON_BARE_NAME_TRUNCATED
         elif reason == REASON_NO_MATCHES and unlinked_calls > 0:
+            reason = REASON_RELATION_UNMODELLED_FOR_LANGUAGE
+        elif reason == REASON_NO_MATCHES and cross_lang_census is not None:
+            # No linked edge from any other language reaches this one — the zero is unmeasured,
+            # not empty (221). Carries authoritative:false + the census below.
             reason = REASON_RELATION_UNMODELLED_FOR_LANGUAGE
         result = nav_result(
             qname,
@@ -329,6 +346,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             attach_try_instead(
                 result, None, TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE
             )
+            # The cross-language case (221) rides the census + authoritative:false; the 214
+            # SQL-side path (unlinked_calls > 0) is left exactly as it was.
+            if unlinked_calls == 0 and cross_lang_census is not None:
+                attach_cross_language_census(result, cross_lang_census)
+                attach_authoritative_caveats(result, [CAVEAT_CROSS_LANGUAGE_UNMODELLED])
         return signed(attach_coverage_note(result, config, covered))
 
     return find_callers

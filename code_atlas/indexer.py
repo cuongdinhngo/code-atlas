@@ -46,6 +46,7 @@ from code_atlas.store import (
     CONTRACT_VERSION_KEY,
     COVERED_LANGUAGES_KEY,
     COVERED_SUFFIXES_KEY,
+    CROSS_LANGUAGE_PAIRS_KEY,
     EDGE_HEALTH_BY_LANGUAGE_KEY,
     EMITTED_KINDS_BY_LANGUAGE_KEY,
     IGNORE_SOURCES_KEY,
@@ -1199,6 +1200,12 @@ def _record_meta(
     languages = store.edge_language_census()
     store.set_meta(EDGE_HEALTH_BY_LANGUAGE_KEY, json.dumps(languages.health, sort_keys=True))
     store.set_meta(EMITTED_KINDS_BY_LANGUAGE_KEY, json.dumps(languages.kinds, sort_keys=True))
+    # The cross-language link census from the same one scan (task 221), so an empty cross-language
+    # answer reads "no other language links into mine" from meta, never from a per-answer scan.
+    store.set_meta(
+        CROSS_LANGUAGE_PAIRS_KEY,
+        json.dumps(languages.health["cross_language"], sort_keys=True),
+    )
     store.set_meta(COLLECTION_CENSUS_KEY, json.dumps(asdict(census)))
     store.set_meta(UNTRACKED_INDEXABLE_KEY, json.dumps(list(untracked)))
     sources = {key: count for key, count in dict(ignore_sources or {}).items() if count}

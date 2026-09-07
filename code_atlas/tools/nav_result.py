@@ -554,6 +554,10 @@ AUTHORITATIVE_CAVEATS = "authoritative_caveats"
 # tell an agent whether to widen the query or to distrust the tier (task 168 AC3).
 CAVEAT_ALL_HITS_DYNAMIC = "all_hits_dynamic"
 CAVEAT_SIBLING_DEFINITIONS = "sibling_definitions"
+# The caller is in another language whose crossing into the subject's language the index never
+# modelled — the zero is a partition, not the whole (task 221). Rides the cross-language census.
+CAVEAT_CROSS_LANGUAGE_UNMODELLED = "cross_language_relation_unmodelled"
+CROSS_LANGUAGE = "cross_language"
 
 
 # What the sibling order means. A caveat that fires on 83% of calls cannot be a signal to act on
@@ -668,6 +672,15 @@ def attach_authoritative_caveats(
         return payload
     payload[AUTHORITATIVE] = False
     payload[AUTHORITATIVE_CAVEATS] = sorted(set(caveats))
+    return payload
+
+
+def attach_cross_language_census(
+    payload: dict[str, object], census: dict[str, object] | None
+) -> dict[str, object]:
+    """Surface the cross-language census on the answer it invalidates (task 221). Omit-when-None."""
+    if census is not None:
+        payload[CROSS_LANGUAGE] = census
     return payload
 
 

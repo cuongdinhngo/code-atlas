@@ -83,6 +83,20 @@ now reconciled to this table.
 
 ## Live claims
 
+### 221-C1 — A callee reached from another language needs the cross-language census, not 186's within-language predicate
+
+- type: 2 (code) · handle: `cross-language-zero-needs-the-crossing-census`
+- status: proposed (awaiting human confirm)
+- seen: 221
+- evidence: `find_callers` returned `no_matches` on a stored proc whose only callers were PHP
+  `querySP('proc')` string calls. 186's `relation_unmodelled_for_language(file_path, CALLER_KINDS)`
+  could not catch it — it asks whether the subject's OWN language emits CALLS, and T-SQL emits plenty;
+  a language that emits a kind can still be the dark side of an unmodelled crossing. The honest signal
+  is the inverse, repo-level question: does any linked edge from another language reach this one?
+  Answered from a build-time `cross_language_pairs` stamp (the `_cross_language_edges` census), guarded
+  by "another language is indexed" so a single-language zero stays honest (AC2). R5.5/R5.6.
+- destination: stays in `lessons_path` (recurrence 1)
+
 ### 225-C1 — The line a GROUP BY row reports must be aggregated within the tier it reports, not across the whole group
 
 - type: 2 (code) · handle: `aggregate-the-line-with-the-tier-it-reports`
