@@ -39,7 +39,13 @@ TOKEN_SECTION = "Token usage"
 
 
 def task_files() -> dict[str, Path]:
-    return {path.name[:3]: path for path in sorted(TASKS.glob("[0-9][0-9][0-9]_*.md"))}
+    # A mango working doc is `NNN_slug.work.md` (config.work_dir = docs/tasks) — scratch with no
+    # `status:` frontmatter, not a task file; exclude it or every check here breaks on its presence.
+    return {
+        path.name[:3]: path
+        for path in sorted(TASKS.glob("[0-9][0-9][0-9]_*.md"))
+        if not path.name.endswith(".work.md")
+    }
 
 
 def frontmatter_status(path: Path) -> str:
