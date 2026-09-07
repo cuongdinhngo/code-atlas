@@ -107,18 +107,17 @@ fs, never `/mnt/*`.** Decided (task 220); evidence in README.
 The suite needs a **POSIX host** (the index lock imports `fcntl`) and **every adapter**: `php` +
 `composer`, `node` for both the TS and SQL adapters, and a Python ≥ 3.12 interpreter. With all of
 them present bare `pytest` is green and is the fastest route. Missing either condition it goes red —
-**a platform limitation, not a regression** — so do not conclude "the suite can't run" and do not ask
-how to run it; run it in Docker instead: `scripts/docker-test.sh`. **Expected count, verified 2026-09-06 on Linux — this is
+**a platform limitation, not a regression** — so don't conclude "the suite can't run"; run it in
+Docker instead: `scripts/docker-test.sh`. **Expected count, verified 2026-09-06 on Linux — this is
 the one place these numbers are kept:** bare `pytest` (with `php` · `composer` · `node` · `docker` on
 PATH) **2,972 passed / 0 skipped**; `scripts/docker-test.sh` **2,971 passed / 1 skipped**, that skip
-being `test_runtime_image_reports_server_build`, which shells out to `docker` and cannot from inside
-the test image.
+being `test_runtime_image_reports_server_build` (shells out to `docker`, impossible in-image).
 
-Prove **delta-green** before a PR, and name the host that produced it. A red run on a host missing an
-adapter is the exclusion above — confirm green via Docker, then say so; don't leave it as
-"unverified". The container route ends on **one** structural skip (the one named above); that is
-green, any other skip is not. To ship the server itself in a container, use
-`docker/Dockerfile.runtime` (stdio; mount the repo at `/workspace`).
+Prove **delta-green** before a PR and name the host: a red run on a host missing an adapter is the
+exclusion above — confirm green via Docker and say so, never "unverified"; only that named skip is
+green. Ship the server in a container via `docker/Dockerfile.runtime` (stdio; mount at `/workspace`).
+**Run Docker once, before the PR** — iterate on local `ruff`/`mypy`/`pytest`, batch fixes (review's
+included), then **one** `docker-test.sh`; CI re-verifies, re-running per edit wastes time.
 
 ## Maintainer workflow — single-maintainer repo; don't re-ask what's already authorized
 - **Finishing a task runs through to the PR without pausing to confirm:** commit in logical units →
