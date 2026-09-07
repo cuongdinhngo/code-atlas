@@ -68,6 +68,12 @@ nav, and code-atlas never mutates code. C#/.NET is on the roadmap, not shipped.
 
 ## Quick start
 
+**Platform: POSIX only (Linux, macOS, WSL2).** Native Windows is unsupported — the index lock imports
+`fcntl`, so every entry point raises `ModuleNotFoundError` at startup; run it under **WSL2** instead.
+On WSL, keep the repo *and* its `.code-atlas/` DB on the **Linux-native filesystem** (`~/…`), never on
+`/mnt/c` or `/mnt/d`: a repo on the Windows drive crosses the 9p boundary on every read and indexes
+~100× slower — [measured](docs/tasks/220_no-windows-evidence-exists-and-the-core-cannot-import-there.md).
+
 You need **Python ≥ 3.12**, plus the runtime of whichever language you want to index: a **PHP CLI ≥
 8.1** with **[Composer](https://getcomposer.org/)** for PHP, **Node.js ≥ 18** for TypeScript/JavaScript
 and T-SQL. The Python adapter is stdlib-only and runs on the same interpreter as the core.

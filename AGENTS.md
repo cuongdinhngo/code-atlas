@@ -102,6 +102,8 @@ the product claim is the *sample* tier over the pinned repos (`--samples`, ~65x)
 the other.
 
 ## Running the full test suite — never report it as unrunnable
+**Platform: POSIX-only — native Windows unsupported; run under WSL2 with the repo on the Linux-native
+fs, never `/mnt/*`.** Decided (task 220); evidence in README.
 The suite needs a **POSIX host** (the index lock imports `fcntl`) and **every adapter**: `php` +
 `composer`, `node` for both the TS and SQL adapters, and a Python ≥ 3.12 interpreter. With all of
 them present bare `pytest` is green and is the fastest route. Missing either condition it goes red —
