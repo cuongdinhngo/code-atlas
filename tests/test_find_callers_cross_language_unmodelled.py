@@ -21,7 +21,7 @@ from pathlib import Path
 from code_atlas.config import Config, load_config
 from code_atlas.store import (
     COVERED_LANGUAGES_KEY,
-    CROSS_LANGUAGE_PAIRS_KEY,
+    EDGE_HEALTH_BY_LANGUAGE_KEY,
     GraphStore,
 )
 from code_atlas.tools import find_callers
@@ -55,10 +55,14 @@ def _stamp_census(store: GraphStore) -> None:
     """Stamp the two build-time keys the predicate reads — the census and the covered languages."""
     census = store.edge_language_census()
     store.set_meta(COVERED_LANGUAGES_KEY, ",".join(store.indexed_languages()))
-    store.set_meta(
-        CROSS_LANGUAGE_PAIRS_KEY,
-        json.dumps(census.health["cross_language"], sort_keys=True),
-    )
+    store.set_meta(EDGE_HEALTH_BY_LANGUAGE_KEY, json.dumps(census.health, sort_keys=True))
+
+
+def _drop_census(store: GraphStore) -> None:
+    """Re-stamp edge health as a pre-204 build would: every row but the nested one."""
+    health = store.edge_language_census().health
+    health.pop("cross_language", None)
+    store.set_meta(EDGE_HEALTH_BY_LANGUAGE_KEY, json.dumps(health, sort_keys=True))
 
 
 def _config(root: Path, db_path: Path) -> Config:
@@ -131,7 +135,7 @@ def test_a_cross_language_zero_is_not_no_matches(tmp_path: Path) -> None:
 
     # R6.5 / AC4: without the stamp, the same call is the confident zero it is today.
     with GraphStore(config.db_path) as store:
-        store.delete_meta(CROSS_LANGUAGE_PAIRS_KEY)
+        _drop_census(store)
     today = find_callers.create(config)(qname=PROC_QNAME, sign=True)
     assert today["reason"] == REASON_NO_MATCHES
     assert "authoritative" not in today
@@ -143,7 +147,7 @@ def test_a_modelled_crossing_with_a_genuine_zero_is_still_no_matches(tmp_path: P
     config = _cross_language_repo(tmp_path, tmp_path / "graph.db", link_the_crossing=True)
 
     with GraphStore(config.db_path) as store:
-        census = store.stamped_cross_language_pairs()
+        census = store.stamped_cross_language_edges()
     assert census is not None and "php->sql" in census["pairs"], census
 
     payload = find_callers.create(config)(qname=PROC_QNAME)
@@ -202,11 +206,11 @@ def test_the_predicate_is_a_stamp_read_not_a_scan(
 
 
 def test_a_pre_221_index_says_nothing_rather_than_guessing(tmp_path: Path) -> None:
-    """AC4 / R5.6: no stamp → the reader says None → the answer is today's `no_matches`."""
+    """AC4 / R5.6: a pre-204 stamp → the reader says None → today's `no_matches`."""
     config = _cross_language_repo(tmp_path, tmp_path / "graph.db", link_the_crossing=False)
     with GraphStore(config.db_path) as store:
-        store.delete_meta(CROSS_LANGUAGE_PAIRS_KEY)
-        assert store.stamped_cross_language_pairs() is None
+        _drop_census(store)
+        assert store.stamped_cross_language_edges() is None
 
     payload = find_callers.create(config)(qname=PROC_QNAME)
     assert payload["reason"] == REASON_NO_MATCHES
@@ -247,6 +251,6 @@ def test_a_confident_answer_is_byte_identical(tmp_path: Path) -> None:
     assert "authoritative" not in with_stamp
 
     with GraphStore(config.db_path) as store:
-        store.delete_meta(CROSS_LANGUAGE_PAIRS_KEY)
+        _drop_census(store)
     without_stamp = find_callers.create(config)(qname=PROC_QNAME)
     assert with_stamp == without_stamp

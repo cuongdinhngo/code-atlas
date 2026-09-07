@@ -45,10 +45,6 @@ INDEXED_SUFFIXES_KEY = "indexed_suffixes"
 # build and read from meta, so a zero answer never pays a scan of ``files`` to know its own gaps.
 COVERED_SUFFIXES_KEY = "covered_suffixes"
 COVERED_LANGUAGES_KEY = "covered_languages"
-# The cross-language link census (JSON block from `_cross_language_edges`, task 221). Stamped here
-# beside the coverage keys so an empty answer can ask "does any other language link into mine?"
-# from a meta read, never the ~3.2 s whole-graph scan that produced it.
-CROSS_LANGUAGE_PAIRS_KEY = "cross_language_pairs"
 # The collect walk's by-cause tally (JSON), so verbose status can publish the denominator an
 # outsider reconciles ``files`` against without a second traversal (task 082).
 COLLECTION_CENSUS_KEY = "collection_census"
@@ -875,16 +871,15 @@ class GraphStore:
             return None
         return {str(name): [str(k) for k in kinds] for name, kinds in parsed.items()}
 
-    def stamped_cross_language_pairs(self) -> dict[str, object] | None:
-        """The cross-language link census from the last build, or ``None`` pre-221 (R5.6)."""
-        raw = self.get_meta(CROSS_LANGUAGE_PAIRS_KEY)
-        if not raw:
-            return None
-        try:
-            parsed = json.loads(raw)
-        except json.JSONDecodeError:
-            return None
-        return dict(parsed) if isinstance(parsed, dict) else None
+    def stamped_cross_language_edges(self) -> dict[str, object] | None:
+        """The cross-language link census from the last build, or ``None`` pre-204 (R5.6).
+
+        Nested inside the edge-health stamp since 204, so 221 reads it there rather than stamping a
+        second copy of one census that two keys could drift apart on.
+        """
+        stamped = self.stamped_edge_health_by_language()
+        block = (stamped or {}).get("cross_language")
+        return dict(block) if isinstance(block, dict) and "linked" in block else None
 
     def language_emits_none_of(self, language: str, kinds: Sequence[str]) -> bool | None:
         """Has this language emitted NONE of ``kinds`` in this index? ``None`` = cannot say (R5.6).

@@ -80,7 +80,7 @@ def cross_language_relation_unmodelled(
     language = store.language_of_file(file_path)
     if language is None:
         return None
-    census = store.stamped_cross_language_pairs()
+    census = store.stamped_cross_language_edges()
     if census is None:
         return None
     stamped = covered_languages(store)
