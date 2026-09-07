@@ -122,8 +122,8 @@ const EXEC_RE =
 
 const BATCH_RE = /^\s*go\s*(?:\d+\s*)?$/i;
 
-// Tier 2 (022). A trigger is a routine like any other — it is `Function` with an `object_type`, so
-// the vocabulary spend stays at Table + Column + WRITES.
+// Tier 2 (022) + FK edges (224). A trigger is a routine like any other — it is `Function` with an
+// `object_type`. Tables and columns stay the same kinds; `REFERENCES` is existing contract vocabulary.
 const TRIGGER_RE =
   /\b(?:create|alter)\s+(?:or\s+alter\s+)?trigger\s+((?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*)(?:\s*\.\s*(?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*))*)/i;
 const TABLE_RE = /\b(?:create|alter)\s+table\b/i;
@@ -198,8 +198,38 @@ function parseFile(qpath) {
   };
 
   /**
+   * One foreign-key fact as Column→Column RESOLVED edges, or one Column→Table HEURISTIC edge when
+   * the referenced column list is omitted (PK implied — same shape WRITES uses for an unnamed write).
+   * @param {string} fromTable
+   * @param {string[]} fromCols
+   * @param {string} toTableRaw
+   * @param {string[]|null} toCols
+   * @param {number} line
+   */
+  const references = (fromTable, fromCols, toTableRaw, toCols, line) => {
+    const toTable = splitName(toTableRaw);
+    if (!toTable || fromCols.length === 0) return;
+    if (toCols === null || toCols.length === 0) {
+      edges.push({
+        kind: "REFERENCES", source_qname: `${fromTable}::${fromCols[0]}`,
+        target_raw: toTable, file_path: qpath, line, confidence_tier: "HEURISTIC",
+      });
+      return;
+    }
+    const n = Math.min(fromCols.length, toCols.length);
+    for (let i = 0; i < n; i += 1) {
+      edges.push({
+        kind: "REFERENCES", source_qname: `${fromTable}::${fromCols[i]}`,
+        target_raw: `${toTable}::${toCols[i]}`,
+        file_path: qpath, line, confidence_tier: "RESOLVED",
+      });
+    }
+  };
+
+  /**
    * @param {string} tableQname
-   * @param {{name: string, dataType: string, dflt: string|null}} col
+   * @param {{name: string, dataType: string, dflt: string|null,
+   *   references?: {table: string, columns: string[]|null}|null}} col
    * @param {number} line
    */
   const column = (tableQname, col, line) => {
@@ -226,6 +256,9 @@ function parseFile(qpath) {
       kind: "CONTAINS", source_qname: tableQname, target_raw: qname,
       file_path: qpath, line, confidence_tier: "RESOLVED",
     });
+    if (col.references) {
+      references(tableQname, [col.name], col.references.table, col.references.columns, line);
+    }
   };
 
   /**
@@ -279,6 +312,9 @@ function parseFile(qpath) {
       const body = ddl.readParens(buf, target.next);
       if (body) {
         for (const col of ddl.readColumns(body.body)) column(qname, col, line);
+        for (const fk of ddl.readForeignKeys(body.body)) {
+          references(qname, fk.fromColumns, fk.toTable, fk.toColumns, line);
+        }
         return;
       }
       const added = /\badd\s+/i.exec(buf.slice(target.next));

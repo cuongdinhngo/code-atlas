@@ -115,8 +115,10 @@ function readParens(text, i) {
 
 /**
  * One column definition read out of a table body, or null when the entry is a table constraint.
+ * Inline ``REFERENCES T[(cols)]`` is captured on ``references``; table-level FK entries stay null.
  * @param {string} def
- * @returns {{name: string, dataType: string, dflt: string|null}|null}
+ * @returns {{name: string, dataType: string, dflt: string|null,
+ *   references: {table: string, columns: string[]|null}|null}|null}
  */
 function readColumnDef(def) {
   const first = readIdent(def, 0);
@@ -135,7 +137,104 @@ function readColumnDef(def) {
       cursor = sized.next;
     }
   }
-  return { name: first.name, dataType, dflt: readDefault(def.slice(cursor)) };
+  const rest = def.slice(cursor);
+  return {
+    name: first.name,
+    dataType,
+    dflt: readDefault(rest),
+    references: readInlineReferences(rest),
+  };
+}
+
+/**
+ * ``REFERENCES T`` or ``REFERENCES T (c1, c2)`` inside a column definition's trailing clauses.
+ * @param {string} rest
+ * @returns {{table: string, columns: string[]|null}|null}
+ */
+function readInlineReferences(rest) {
+  const m = /\breferences\b/i.exec(rest);
+  if (!m) return null;
+  return readReferencesClause(rest, m.index + m[0].length);
+}
+
+/**
+ * The target table and optional column list after the ``REFERENCES`` keyword.
+ * @param {string} text
+ * @param {number} i
+ * @returns {{table: string, columns: string[]|null}|null}
+ */
+function readReferencesClause(text, i) {
+  const target = readQualified(text, i);
+  if (!target) return null;
+  const list = readParens(text, target.next);
+  if (!list) return { table: target.name, columns: null };
+  const columns = [];
+  for (const part of splitTopLevel(list.body, ",")) {
+    const ident = readIdent(part, 0);
+    if (ident) columns.push(ident.name);
+  }
+  return { table: target.name, columns: columns.length > 0 ? columns : null };
+}
+
+/**
+ * Identifier list inside a parenthesised column list, in source order.
+ * @param {string} body
+ * @returns {string[]}
+ */
+function readIdentList(body) {
+  const out = [];
+  for (const part of splitTopLevel(body, ",")) {
+    const ident = readIdent(part, 0);
+    if (ident) out.push(ident.name);
+  }
+  return out;
+}
+
+/**
+ * One table-level ``FOREIGN KEY`` / ``CONSTRAINT … FOREIGN KEY`` entry, or null.
+ * @param {string} def
+ * @returns {{fromColumns: string[], toTable: string, toColumns: string[]|null}|null}
+ */
+function readForeignKeyDef(def) {
+  let j = 0;
+  const first = readIdent(def, 0);
+  if (!first) return null;
+  if (first.name.toLowerCase() === "constraint") {
+    const named = readIdent(def, first.next);
+    if (!named) return null;
+    j = named.next;
+  } else if (first.name.toLowerCase() === "foreign") {
+    j = 0;
+  } else {
+    return null;
+  }
+  const foreign = readIdent(def, j);
+  if (!foreign || foreign.name.toLowerCase() !== "foreign") return null;
+  const key = readIdent(def, foreign.next);
+  if (!key || key.name.toLowerCase() !== "key") return null;
+  const cols = readParens(def, key.next);
+  if (!cols) return null;
+  const fromColumns = readIdentList(cols.body);
+  if (fromColumns.length === 0) return null;
+  const refsKw = /\breferences\b/i.exec(def.slice(cols.next));
+  if (!refsKw) return null;
+  const target = readReferencesClause(def, cols.next + refsKw.index + refsKw[0].length);
+  if (!target) return null;
+  return { fromColumns, toTable: target.table, toColumns: target.columns };
+}
+
+/**
+ * Every table-level foreign key declared in a CREATE TABLE body, in source order.
+ * @param {string} body
+ * @returns {{fromColumns: string[], toTable: string, toColumns: string[]|null}[]}
+ */
+function readForeignKeys(body) {
+  const out = [];
+  for (const def of splitTopLevel(body, ",")) {
+    const fk = readForeignKeyDef(def);
+    if (fk) out.push(fk);
+  }
+  return out;
 }
 
 /**
@@ -265,5 +364,6 @@ function readNamedDefault(code) {
 
 module.exports = {
   readColumns, readColumnDef, readDefault, readInsert, readUpdate, readNamedDefault,
+  readForeignKeys, readForeignKeyDef, readInlineReferences,
   readIdent, readQualified, readParens, splitTopLevel,
 };

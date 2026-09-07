@@ -15,6 +15,7 @@ from code_atlas.onboarding.audience import (
     COMMUNITY,
     CROSSINGS,
     DIAGRAM,
+    ER_DIAGRAM,
     LAYERS,
     MIRRORS,
     MODULES,
@@ -27,6 +28,13 @@ from code_atlas.onboarding.audience import (
 )
 from code_atlas.onboarding.community import assign_communities
 from code_atlas.onboarding.dataset import OnboardingDataset
+from code_atlas.onboarding.er_diagram import (
+    DEFAULT_TABLE_CAP,
+    ErRef,
+    ErTable,
+    render_er_diagram,
+    validate_mermaid_er_diagram,
+)
 from code_atlas.onboarding.flows import COVERAGE_NOTE as FLOW_COVERAGE_NOTE
 from code_atlas.onboarding.flows import TRUNCATED_NOTE as FLOW_TRUNCATED_NOTE
 from code_atlas.onboarding.layer_diagram import (
@@ -70,6 +78,7 @@ H_MODULES = "## Business modules"
 H_REACHABILITY = "## Zero-inbound modules, by population"
 H_LAYERS = "## Layers"
 H_DIAGRAM = "## Layer graph"
+H_ER = "## Entity relationships"
 H_CROSSINGS = "## Cross-layer edges"
 H_COMMUNITY = "## Community / layer disagreement"
 H_ORIENTATION = "## Start here"
@@ -105,6 +114,7 @@ __all__ = [
     "VIEWER_NAME",
     "H_CROSSINGS",
     "H_DIAGRAM",
+    "H_ER",
     "H_LAYERS",
     "H_MIRRORS",
     "H_MODULES",
@@ -669,6 +679,9 @@ def render_overview(
     provenance: Provenance | None = None,
     orientation: Orientation | None = None,
     audience: str | None = None,
+    er_tables: Sequence[ErTable] = (),
+    er_refs: Sequence[ErRef] = (),
+    er_table_cap: int | None = None,
 ) -> str:
     """Committed overview markdown, holding exactly the sections this audience's contract names.
 
@@ -739,6 +752,17 @@ def render_overview(
         # AC5's check guards the committed artifact, not only the benchmark script.
         validate_mermaid_flowchart(diagram.mermaid)
         lines.extend(["", "```mermaid", diagram.mermaid.rstrip(), "```"])
+    if wants.wants(ER_DIAGRAM):
+        table_cap = er_table_cap if er_table_cap is not None else DEFAULT_TABLE_CAP
+        er_mermaid = render_er_diagram(er_tables, er_refs, table_cap=table_cap)
+        lines.extend(["", H_ER, ""])
+        lines.append(
+            f"- tables: {min(len(er_tables), table_cap)} shown of {len(er_tables)}"
+            + ("; the graph is capped" if len(er_tables) > table_cap else "")
+        )
+        lines.append(f"- REFERENCES edges in scope: {len(er_refs)}")
+        validate_mermaid_er_diagram(er_mermaid)
+        lines.extend(["", "```mermaid", er_mermaid.rstrip(), "```"])
     if wants.wants(CROSSINGS):
         lines.extend(["", H_CROSSINGS, ""])
         if artifact.crossings:
