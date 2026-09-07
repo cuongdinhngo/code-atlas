@@ -126,21 +126,30 @@ CREATE INDEX IF NOT EXISTS idx_edges_file ON edges(file_path);
 CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(
   name, qualified_name, file_path, params,
   content='nodes', content_rowid='id', tokenize='trigram');
+"""
 
-CREATE TRIGGER IF NOT EXISTS nodes_ai AFTER INSERT ON nodes BEGIN
+# The nodes→nodes_fts triggers, single-sourced so `truncate_graph` recreates the exact same set the
+# schema creates. Dropped around a bulk clear (they would otherwise fire once per deleted row) and
+# recreated statement-by-statement — never via executescript, whose implicit commit breaks a txn.
+_TRIGGER_NAMES: tuple[str, ...] = ("nodes_ai", "nodes_ad", "nodes_au")
+_TRIGGER_DDL: tuple[str, ...] = (
+    """CREATE TRIGGER IF NOT EXISTS nodes_ai AFTER INSERT ON nodes BEGIN
   INSERT INTO nodes_fts(rowid, name, qualified_name, file_path, params)
   VALUES (new.id, new.name, new.qualified_name, new.file_path, new.params);
-END;
-CREATE TRIGGER IF NOT EXISTS nodes_ad AFTER DELETE ON nodes BEGIN
+END;""",
+    """CREATE TRIGGER IF NOT EXISTS nodes_ad AFTER DELETE ON nodes BEGIN
   INSERT INTO nodes_fts(nodes_fts, rowid, name, qualified_name, file_path, params)
   VALUES ('delete', old.id, old.name, old.qualified_name, old.file_path, old.params);
-END;
-CREATE TRIGGER IF NOT EXISTS nodes_au AFTER UPDATE ON nodes BEGIN
+END;""",
+    """CREATE TRIGGER IF NOT EXISTS nodes_au AFTER UPDATE ON nodes BEGIN
   INSERT INTO nodes_fts(nodes_fts, rowid, name, qualified_name, file_path, params)
   VALUES ('delete', old.id, old.name, old.qualified_name, old.file_path, old.params);
   INSERT INTO nodes_fts(rowid, name, qualified_name, file_path, params)
   VALUES (new.id, new.name, new.qualified_name, new.file_path, new.params);
-END;
+END;""",
+)
+
+DDL = DDL + "\n" + "\n".join(_TRIGGER_DDL) + """
 
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
 """
@@ -558,6 +567,25 @@ class GraphStore:
     def _delete_rows(self, path: str) -> None:
         self._conn.execute("DELETE FROM edges WHERE file_path = ?", (path,))
         self._conn.execute("DELETE FROM nodes WHERE file_path = ?", (path,))
+
+    def truncate_graph(self) -> None:
+        """Clear all nodes/edges + the FTS index before a full rebuild, so each per-path
+        _delete_rows is a no-op (203's ~1.8x tax). One explicit txn wraps the trigger drop/recreate
+        (DDL commits eagerly otherwise) so a kill rolls back to a fully-triggered graph; the bulk
+        clear then never fires nodes_ad per row."""
+        self._conn.execute("BEGIN")
+        try:
+            for name in _TRIGGER_NAMES:
+                self._conn.execute(f"DROP TRIGGER IF EXISTS {name}")
+            self._conn.execute("DELETE FROM edges")
+            self._conn.execute("DELETE FROM nodes")
+            self._conn.execute("INSERT INTO nodes_fts(nodes_fts) VALUES ('delete-all')")
+            for statement in _TRIGGER_DDL:
+                self._conn.execute(statement)
+        except Exception:
+            self._conn.execute("ROLLBACK")
+            raise
+        self._conn.execute("COMMIT")
 
     def get_meta(self, key: str) -> str | None:
         row = self._conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()

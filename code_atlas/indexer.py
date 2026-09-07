@@ -205,6 +205,9 @@ def full_build(
     _require_configured_adapters(config)
     report = _Progress(progress)
     store.set_meta(BUILD_COMPLETE_KEY, BUILD_INCOMPLETE)
+    # A full build rewrites every row, so bulk-clear first (after the incomplete stamp, so a kill is
+    # still honest) rather than pay the redundant per-file delete on a populated index (task 219).
+    store.truncate_graph()
     watchdog = _Watchdog(config.adapter_timeout)
     watchdog.start()
     try:

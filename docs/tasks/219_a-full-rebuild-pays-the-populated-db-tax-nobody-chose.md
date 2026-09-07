@@ -4,7 +4,7 @@ slug: a-full-rebuild-pays-the-populated-db-tax-nobody-chose
 title: 'A full rebuild over an existing index costs 76 minutes against the same build''s 29 minutes into an empty one — 203 measured the 2.6x, named truncate-first and defer-FTS as the candidates, and stopped because choosing between them is an architecture decision an unattended run may not take'
 phase: 1.5b
 milestone: Freshness
-status: todo
+status: done
 depends_on: [203, 201, 052]
 ---
 

@@ -383,6 +383,34 @@ def test_rebuilding_the_search_index_keeps_the_same_hits(store: GraphStore) -> N
     assert store.search_nodes("UserRepo", limit=10) == before
 
 
+def test_truncate_graph_clears_rows_and_fts_and_keeps_triggers(
+    store: GraphStore, db_path: Path
+) -> None:
+    """Task 219: truncate_graph empties nodes/edges + the FTS index, leaves the FTS internally
+    consistent, and recreates the triggers so a following insert re-indexes as a fresh build."""
+    seeded(store)
+    seeded(store, "b.php")
+    assert store.counts()["nodes"] > 0
+
+    store.truncate_graph()
+
+    cleared = store.counts()
+    assert (cleared["nodes"], cleared["edges"]) == (0, 0)
+    assert store.search_nodes("UserRepo", limit=10) == []
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("INSERT INTO nodes_fts(nodes_fts) VALUES ('integrity-check')")
+        triggers = {
+            row[0]
+            for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'trigger'")
+        }
+    assert triggers == set(TRIGGERS)
+
+    seeded(store)
+    assert [row["qualified_name"] for row in store.search_nodes("save", limit=10)] == [
+        "\\App\\UserRepo::save"
+    ]
+
+
 def test_the_tokenizer_matches_camel_case_substrings(store: GraphStore) -> None:
     # schema_version 2: trigram FTS — ``email`` hits ``findByEmail`` (004 Q8 / task 014).
     store.upsert_file("c.php", "h", "php")

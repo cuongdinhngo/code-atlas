@@ -989,6 +989,19 @@ an empty core diff: adapters are selected from data — `CA_<LANG>_CMD` → `con
 is test-side (`tests/contract/adapter_registry.py`, 147). Reverses only if an adapter needs core-side
 per-language logic (its own ticket; see R1.2).
 
+**Decision — populated-rebuild tax: truncate-first, defer-FTS waits (task 219, 2026-09-07).** 203
+measured a full rebuild over a populated index at 2.6× a fresh one and named two candidates without
+choosing. 219 takes **truncate-first**: `GraphStore.truncate_graph` bulk-clears nodes/edges and the
+FTS index (triggers dropped around the clear, so it does not fire `nodes_ad` per row), called once at
+the top of `full_build`. The populated rebuild now starts from an empty index and rides the same
+growth curve as a fresh build, so the per-file `_delete_rows` redundancy is gone. Output stays
+byte-identical (R4.2) and 202's escalation is **not widened**: `BUILD_COMPLETE` is cleared and
+committed before the truncate, which never touches it, so a build abandoned mid-truncate reports
+incomplete exactly as before.
+**defer-FTS deferred:** it targets the size-decay term present in *both* runs, not the populated tax,
+and touches FTS correctness — its own ticket. The anchor timing pair is unmeasured on a checkout with
+`real_corpus_path: null` (E1); the mechanism is proven at fixture scale.
+
 **Reference material** (private, same folder): `understand-anything-how-it-works.md`, `code-review-graph-how-it-works.md`.
 
 **Primary validation sample:** a large private PHP 8.5 monorepo — PSR-4 `src/` + ~18k non-namespaced legacy + a ZF1 area, ~112k files, run via Docker (PHP not on host PATH). Used for scale/coverage testing **and (from 2026-08-04) as the agent-first evaluation anchor** (task 034) — always test/metrics only; no repo-specific behavior lives in the adapter (R2, §2 "standard over sample").

@@ -1358,6 +1358,9 @@ project-ground-truth · environment · handle: `the-anchors-incremental-is-cheap
 status: proposed · verified-at: 2026-09-02 · area: indexer / incremental cost · evidence: the task's
 CROSSOVER MEASUREMENT block carries every command · destination: stays in lessons_path; it rots when
 the resolver or the store's write path changes.*
+*(Update, 219, 2026-09-07: the write path changed — `full_build` now truncates before writing, so the
+**populated** full-build figure above no longer holds; re-measure the pair when `real_corpus_path` is
+configured.)*
 
 *Claim `085-C1` **eighth sighting** — `count-pin-in-blast-radius` again, and this session alone
 supplied three of the eight: 205 (a `pages=` keyword argument in a constructor call), 208 (a bare
