@@ -996,7 +996,8 @@ PY_CASES: dict[str, Case] = {
     ),
     "enum-class": Case(
         "enum_class.py",
-        {"Enum": 1, "File": 1, "Property": 2},
+        # 234: UPPER enum members are ClassConst under the scope-symmetric constant rule.
+        {"Enum": 1, "File": 1, "ClassConst": 2},
         {"CONTAINS": 3, "EXTENDS": 1, "IMPORTS": 1},
         _PY_ENUM_EDGE_SHAPES,
     ),

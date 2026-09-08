@@ -1002,6 +1002,13 @@ incomplete exactly as before.
 and touches FTS correctness — its own ticket. The anchor timing pair is unmeasured on a checkout with
 `real_corpus_path: null` (E1); the mechanism is proven at fixture scale.
 
+**Decision — ClassConst evidence (task 234, 2026-09-08).** What counts as a class/module constant
+under R2? **Both** a language-spec marker and the PEP 8 upper-case convention: `Final` (bare or
+subscripted), TypeScript `readonly` on a property, language `const`, and enum members — plus an
+identifier that is upper-case with at least one letter. Python applies that rule at **every** scope
+it claims: module → `Const`, class body → `ClassConst`. TypeScript keeps `EnumMember` → `ClassConst`
+deliberately (the kind is correctly occupied). No new node kind; no `contract_version` bump.
+
 **Reference material** (private, same folder): `understand-anything-how-it-works.md`, `code-review-graph-how-it-works.md`.
 
 **Primary validation sample:** a large private PHP 8.5 monorepo — PSR-4 `src/` + ~18k non-namespaced legacy + a ZF1 area, ~112k files, run via Docker (PHP not on host PATH). Used for scale/coverage testing **and (from 2026-08-04) as the agent-first evaluation anchor** (task 034) — always test/metrics only; no repo-specific behavior lives in the adapter (R2, §2 "standard over sample").

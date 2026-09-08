@@ -40,6 +40,8 @@ function nodeKindOf(node) {
       return "Method";
     case ts.SyntaxKind.PropertyDeclaration:
     case ts.SyntaxKind.PropertySignature:
+      // readonly is the language saying "constant" (234); EnumMember stays ClassConst.
+      if (hasModifier(node, ts.SyntaxKind.ReadonlyKeyword)) return "ClassConst";
       return "Property";
     case ts.SyntaxKind.EnumMember:
       return "ClassConst";
