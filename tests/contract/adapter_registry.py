@@ -74,6 +74,7 @@ _STATIC_VS_INSTANCE_EDGE_SHAPES: list[EdgeShape] = [
     ("CONTAINS", "\\App\\Calls\\Service", "\\App\\Calls\\Service::run", None),
     ("NEW", "\\App\\Calls\\Service::run", "\\App\\Calls\\Service", None),
     ("NEW", "\\App\\Calls\\Service::make", "\\self", None),
+    ("REFERENCES", "\\App\\Calls\\Service::make", "\\App\\Calls\\Service", None),
 ]
 
 PHP_CASES: dict[str, Case] = {
@@ -91,7 +92,7 @@ PHP_CASES: dict[str, Case] = {
             "Property": 1,
             "ClassConst": 2,
         },
-        {"CONTAINS": 14, "EXTENDS": 1, "IMPLEMENTS": 2, "IMPORTS": 1, "CALLS": 1, "NEW": 1},
+        {"CONTAINS": 14, "EXTENDS": 1, "IMPLEMENTS": 2, "IMPORTS": 1, "CALLS": 1, "NEW": 1, "REFERENCES": 2},
     ),
     "global": Case(
         "global.php",
@@ -125,7 +126,7 @@ PHP_CASES: dict[str, Case] = {
             "Property": 2,
             "ClassConst": 2,
         },
-        {"CONTAINS": 13, "NEW": 1},
+        {"CONTAINS": 13, "NEW": 1, "REFERENCES": 10},
     ),
     "closures-arrow": Case(
         "closures_arrow.php",
@@ -148,7 +149,7 @@ PHP_CASES: dict[str, Case] = {
     "static-vs-instance": Case(
         "static_vs_instance.php",
         {"File": 1, "Namespace": 1, "Class": 1, "Method": 2},
-        {"CONTAINS": 4, "CALLS": 5, "NEW": 2},
+        {"CONTAINS": 4, "CALLS": 5, "NEW": 2, "REFERENCES": 1},
         _STATIC_VS_INSTANCE_EDGE_SHAPES,
     ),
     "syntax-error": Case("syntax_error.php", None, None),
@@ -227,6 +228,7 @@ _TS_MODULE_EDGE_SHAPES: list[EdgeShape] = [
     ("IMPORTS", _tsq(_F_ESM), "./logger", None),
     ("NEW", _tsq(_F_ESM, "makeUser"), "Logger", None),
     ("NEW", _tsq(_F_ESM, "makeUser"), _tsq(_F_ESM, "User"), None),
+    ("REFERENCES", _tsq(_F_ESM, "makeUser"), _tsq(_F_ESM, "User"), None),
 ]
 
 # class-heritage: same-file supertypes resolve to their qname (Q3 — EXTENDS/IMPLEMENTS suffice).
@@ -250,6 +252,7 @@ _TS_TYPE_ALIAS_EDGE_SHAPES: list[EdgeShape] = [
     ("CONTAINS", _tsq(_F_ALIAS, "Point"), _tsq(_F_ALIAS, "Point::x"), None),
     ("CONTAINS", _tsq(_F_ALIAS, "Point"), _tsq(_F_ALIAS, "Point::y"), None),
     ("CONTAINS", _tsq(_F_ALIAS), _tsq(_F_ALIAS, "Vector"), None),
+    ("REFERENCES", _tsq(_F_ALIAS, "Vector"), _tsq(_F_ALIAS, "Point"), None),
 ]
 # enum-const-enum: both reuse Enum + ClassConst members; `const enum` differs only in node extra.
 _F_ENUM = "enum_const_enum.ts"
@@ -270,14 +273,18 @@ _TS_GENERICS_EDGE_SHAPES: list[EdgeShape] = [
     ("CONTAINS", _tsq(_F_GENERICS, "Box"), _tsq(_F_GENERICS, "Box::value"), None),
     ("CONTAINS", _tsq(_F_GENERICS), _tsq(_F_GENERICS, "identity"), None),
 ]
-# decorators: annotate a declaration → no edge (mirrors PHP attributes); the factory `@log()` is not
-# a CALLS. The imported decorator library is the only IMPORTS.
+# decorators: annotate a declaration → REFERENCES (232; agrees with Python). The factory `@log()`
+# is still not a CALLS. Bare decorator names: import binding is module-level, not a local qname.
 _F_DECO = "decorators.ts"
 _TS_DECORATORS_EDGE_SHAPES: list[EdgeShape] = [
     ("CONTAINS", _tsq(_F_DECO), _tsq(_F_DECO, "Widget"), None),
     ("CONTAINS", _tsq(_F_DECO, "Widget"), _tsq(_F_DECO, "Widget::render"), None),
     ("CONTAINS", _tsq(_F_DECO, "Widget"), _tsq(_F_DECO, "Widget::title"), None),
     ("IMPORTS", _tsq(_F_DECO), "./decorators-lib", None),
+    ("REFERENCES", _tsq(_F_DECO, "Widget"), "Component", None),
+    ("REFERENCES", _tsq(_F_DECO, "Widget::render"), "log", None),
+    ("REFERENCES", _tsq(_F_DECO, "Widget::title"), "readonly", None),
+    ("REFERENCES", _tsq(_F_DECO, "Widget"), "sealed", None),
 ]
 # arrow-closure: a name-bound arrow/function is a named Function; a field arrow stays a Property; an
 # inline callback gets no node (Q1).
@@ -324,6 +331,8 @@ _TS_JSDOC_EDGE_SHAPES: list[EdgeShape] = [
     ("CONTAINS", _tsq(_F_JSDOC), _tsq(_F_JSDOC, "Service"), None),
     ("CONTAINS", _tsq(_F_JSDOC, "Service"), _tsq(_F_JSDOC, "Service::handle"), None),
     ("CONTAINS", _tsq(_F_JSDOC), _tsq(_F_JSDOC, "run"), None),
+    ("REFERENCES", _tsq(_F_JSDOC, "run"), _tsq(_F_JSDOC, "Service"), None),
+    ("REFERENCES", _tsq(_F_JSDOC, "run"), _tsq(_F_JSDOC, "Service"), None),
 ]
 # re-export-barrel: a named re-export ALIASES to the *defining* module (Q2, load-bearing). An
 # `export *` cannot enumerate names file-at-a-time, so it emits only the module dep (IMPORTS).
@@ -350,7 +359,7 @@ TS_CASES: dict[str, Case] = {
     "module-esm": Case(
         "module_scoped.ts",
         {"File": 1, "Interface": 1, "Class": 1, "Property": 1, "Method": 3, "Function": 1},
-        {"IMPORTS": 1, "CONTAINS": 7, "IMPLEMENTS": 1, "CALLS": 3, "NEW": 2},
+        {"IMPORTS": 1, "CONTAINS": 7, "IMPLEMENTS": 1, "CALLS": 3, "NEW": 2, "REFERENCES": 1},
         _TS_MODULE_EDGE_SHAPES,
     ),
     "namespace-declare": Case(
@@ -368,7 +377,7 @@ TS_CASES: dict[str, Case] = {
     "interface-type-alias": Case(
         "interface_type_alias.ts",
         {"File": 1, "Interface": 3, "Property": 2},
-        {"CONTAINS": 5},
+        {"CONTAINS": 5, "REFERENCES": 1},
         _TS_TYPE_ALIAS_EDGE_SHAPES,
     ),
     "enum-const-enum": Case(
@@ -386,7 +395,7 @@ TS_CASES: dict[str, Case] = {
     "decorators": Case(
         "decorators.ts",
         {"File": 1, "Class": 1, "Property": 1, "Method": 1},
-        {"IMPORTS": 1, "CONTAINS": 3},
+        {"IMPORTS": 1, "CONTAINS": 3, "REFERENCES": 4},
         _TS_DECORATORS_EDGE_SHAPES,
     ),
     "arrow-closure": Case(
@@ -422,7 +431,7 @@ TS_CASES: dict[str, Case] = {
     "jsdoc-types": Case(
         "jsdoc_types.js",
         {"File": 1, "Class": 1, "Interface": 1, "Method": 1, "Function": 1},
-        {"CONTAINS": 4, "CALLS": 1},
+        {"CONTAINS": 4, "CALLS": 1, "REFERENCES": 2},
         _TS_JSDOC_EDGE_SHAPES,
     ),
     "re-export-barrel": Case(

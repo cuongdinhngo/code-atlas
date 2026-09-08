@@ -1002,6 +1002,18 @@ incomplete exactly as before.
 and touches FTS correctness — its own ticket. The anchor timing pair is unmeasured on a checkout with
 `real_corpus_path: null` (E1); the mechanism is proven at fixture scale.
 
+**Decision — annotation / decorator → REFERENCES for every adapter (task 232, 2026-09-08).** 019 put
+TS decorators and declared types on node `extra` (no edge), mirroring PHP attributes. 217 chose the
+opposite for Python — decorators and annotations → `REFERENCES` — citing product demand. The split
+made `find_references("User")` answer three different things for the same construct, and
+`language_emits_none_of` over `UNMODELLED_REFERENCE_KINDS` hid never-emitted `REFERENCES` behind
+emitted `IMPORTS`. **Locked: edges.** PHP and TS emit `REFERENCES` from named class types on
+params/returns/properties and from attributes/decorators; `Foo::class` stays `DYNAMIC` (094). Cost:
+graph growth of the kind 217 measured (928 annotation + 536 decorator first-party sites in one
+repo). Withdraw-Python rejected — Agent-trust treats a TS type-site zero as a false claim.
+Companion: `language_never_emits(language, kind)` so a never-emitted sibling is visible; `find_references`
+honest-zeros on `REFERENCES` alone.
+
 **Reference material** (private, same folder): `understand-anything-how-it-works.md`, `code-review-graph-how-it-works.md`.
 
 **Primary validation sample:** a large private PHP 8.5 monorepo — PSR-4 `src/` + ~18k non-namespaced legacy + a ZF1 area, ~112k files, run via Docker (PHP not on host PATH). Used for scale/coverage testing **and (from 2026-08-04) as the agent-first evaluation anchor** (task 034) — always test/metrics only; no repo-specific behavior lives in the adapter (R2, §2 "standard over sample").
