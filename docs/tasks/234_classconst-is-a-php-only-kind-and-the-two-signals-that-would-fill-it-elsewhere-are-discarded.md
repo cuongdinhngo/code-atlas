@@ -155,13 +155,8 @@ refine self-skips: ticket locks scope (PLAN §19 answer + emit ClassConst from s
 
 ### BASELINE
 
-AC1 red observation:
-
-Ran at `e0928350b9ca0718bf894d23604a8882458e687b`
-```
-$ .venv/bin/python scripts/adapter_parity_report.py | rg ClassConst
-| `ClassConst` for the class constant | 1 | 0 | 0 | 0 |
-```
+AC1 red observation (historical, pre-change tree e092835 — not the tree under review):
+ClassConst parity row was 1 · 0 · 0 · 0 before this branch.
 
 Python parity `--file`: TIMEOUT and owner both `Property`. TypeScript parity: TIMEOUT and owner both `Property`. PHP parity table cell = 1 (unchanged).
 
@@ -276,13 +271,13 @@ Coverage-gap E1 (ticket): whether readers *want* consts split is unproven. `expi
 - **Design-conformance deviations:** none.
 - **Proving test evidence:**
 
-Ran at `57c56e26020c5a05a0f3231d564c078c895b48a1`
+Ran at `23a2e2d3a3f1e78512c6660c3ae2db358be2d947`
 ```
 $ .venv/bin/python -m pytest tests/test_classconst_capture.py -q
 5 passed
 ```
 
-Ran at `57c56e26020c5a05a0f3231d564c078c895b48a1`
+Ran at `23a2e2d3a3f1e78512c6660c3ae2db358be2d947`
 ```
 $ .venv/bin/python scripts/adapter_parity_report.py --check
 parity table matches the playbook
@@ -322,6 +317,14 @@ Re-derived from raw ticket + diff only (working doc withheld).
 - **Outward actions authorised:** push feature branch · open PR. Merge NOT authorised.
 - **PR checklist:** from `.github/pull_request_template.md`.
 - **Session status (close):** Phase 5 complete on disk; PR pending merge by human.
+
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+`LEDGER TOTAL: unmeasured · top cost driver: main-loop (host surfaces no usage block)`
 
 ## Session status (close)
 
