@@ -67,6 +67,7 @@ EDGE_HEALTH_BY_LANGUAGE_KEY = "edge_health_by_language"
 # because "is this relation absent for this file's language?" is a data question the core may ask
 # without knowing what any language is (R1.1) — and a language name in the core is forbidden.
 EMITTED_KINDS_BY_LANGUAGE_KEY = "emitted_kinds_by_language"
+CAPABILITIES_BY_LANGUAGE_KEY = "capabilities_by_language"
 META_KEYS: tuple[str, ...] = (
     SCHEMA_VERSION_KEY,
     CONTRACT_VERSION_KEY,
@@ -870,6 +871,24 @@ class GraphStore:
         if not isinstance(parsed, dict):
             return None
         return {str(name): [str(k) for k in kinds] for name, kinds in parsed.items()}
+
+
+    def stamped_capabilities_by_language(self) -> dict[str, dict[str, bool]] | None:
+        """Per-language R1.6 capability flags from the last build, or ``None`` pre-231 (R5.6)."""
+        raw = self.get_meta(CAPABILITIES_BY_LANGUAGE_KEY)
+        if not raw:
+            return None
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(parsed, dict):
+            return None
+        out: dict[str, dict[str, bool]] = {}
+        for name, caps in parsed.items():
+            if isinstance(caps, dict):
+                out[str(name)] = {str(k): bool(v) for k, v in caps.items()}
+        return out
 
     def stamped_cross_language_edges(self) -> dict[str, object] | None:
         """The cross-language link census from the last build, or ``None`` pre-204 (R5.6).

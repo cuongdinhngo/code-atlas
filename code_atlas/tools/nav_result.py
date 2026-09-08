@@ -557,6 +557,7 @@ CAVEAT_SIBLING_DEFINITIONS = "sibling_definitions"
 # The caller is in another language whose crossing into the subject's language the index never
 # modelled — the zero is a partition, not the whole (task 221). Rides the cross-language census.
 CAVEAT_CROSS_LANGUAGE_UNMODELLED = "cross_language_relation_unmodelled"
+CAVEAT_ARGS_NOT_CAPTURED = "args_not_captured_by_adapter"
 CROSS_LANGUAGE = "cross_language"
 
 

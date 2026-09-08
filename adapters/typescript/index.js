@@ -12,7 +12,13 @@ const META = {
   extensions: [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"],
   // A local type table (src/types.js) infers a receiver's class from `new`, annotations and
   // assignments, so a member call resolves to `<Class>::method` — the one capability (task 153).
-  capabilities: { semantic_types: true },
+  capabilities: {
+    semantic_types: true,
+    params: true,
+    args: true,
+    modifiers: true,
+    declared_types: true,
+  },
   contract_version: 9,
 };
 

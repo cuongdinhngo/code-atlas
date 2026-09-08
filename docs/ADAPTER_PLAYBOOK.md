@@ -159,11 +159,11 @@ measurement, not a judgement — while **`0/1` means it was there and the adapte
 <!-- parity-table:start -->
 | probe | php | python | sql | typescript |
 |---|---|---|---|---|
-| `params` on a callable | 2/3 | 0/3 | 0/2 | 0/3 |
-| `extra.type` on a member | 4/4 | 0/5 | 0/0 | 4/5 |
-| `modifiers` on a member | 4/4 | 1/5 | 0/0 | 0/5 |
-| `args` on a call site | 1/1 | 0/1 | 0/1 | 1/1 |
-| `arg_keys` on a call site | 1/1 | 0/1 | 0/1 | 1/1 |
+| `params` on a callable | 2/3 | 2/3 | 1/2 | 2/3 |
+| `extra.type` on a member | 4/4 | 5/5 | 0/0 | 4/5 |
+| `modifiers` on a member | 4/4 | 1/5 | 0/0 | 3/5 |
+| `args` on a call site | 1/1 | 1/1 | 1/1 | 1/1 |
+| `arg_keys` on a call site | 1/1 | 1/1 | 1/1 | 1/1 |
 | `REFERENCES` edges from the annotations | 0 | 3 | 0 | 0 |
 | `ClassConst` for the class constant | 1 | 0 | 0 | 0 |
 <!-- parity-table:end -->

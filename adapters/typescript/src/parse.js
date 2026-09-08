@@ -80,6 +80,53 @@ function hasModifier(node, kind) {
   return !!mods && mods.some((m) => m.kind === kind);
 }
 
+
+function modifierNames(node) {
+  const mods = ts.canHaveModifiers(node) ? ts.getModifiers(node) : undefined;
+  if (!mods || mods.length === 0) return null;
+  const out = [];
+  for (const m of mods) {
+    switch (m.kind) {
+      case ts.SyntaxKind.PublicKeyword:
+        out.push("public");
+        break;
+      case ts.SyntaxKind.PrivateKeyword:
+        out.push("private");
+        break;
+      case ts.SyntaxKind.ProtectedKeyword:
+        out.push("protected");
+        break;
+      case ts.SyntaxKind.StaticKeyword:
+        out.push("static");
+        break;
+      case ts.SyntaxKind.ReadonlyKeyword:
+        out.push("readonly");
+        break;
+      case ts.SyntaxKind.AbstractKeyword:
+        out.push("abstract");
+        break;
+      case ts.SyntaxKind.AsyncKeyword:
+        out.push("async");
+        break;
+      default:
+        break;
+    }
+  }
+  return out.length ? out : null;
+}
+
+function callableParams(node, sf) {
+  const params = node.parameters || [];
+  return params.map((p) => {
+    let name = "$?";
+    if (p.name && ts.isIdentifier(p.name)) name = p.name.text;
+    else if (p.name) name = p.name.getText(sf);
+    const type = p.type ? p.type.getText(sf) : null;
+    return { name, type };
+  });
+}
+
+
 // Decorators are recorded on the node's `extra`, never as edges — mirrors how the PHP adapter keeps
 // attributes out of the edge set (they annotate a declaration, they don't call or construct it).
 function decoratorsOf(node, sf) {
@@ -251,7 +298,7 @@ function parseFile(path, declarationsOnly) {
     return null;
   };
 
-  const addNode = (kind, name, qname, node, extra) => {
+  const addNode = (kind, name, qname, node, extra, opts) => {
     const row = {
       kind,
       name,
@@ -261,6 +308,8 @@ function parseFile(path, declarationsOnly) {
       line_end: lineOf(node.getEnd()),
     };
     if (extra && Object.keys(extra).length > 0) row.extra = extra;
+    if (opts && opts.modifiers) row.modifiers = opts.modifiers;
+    if (opts && opts.params) row.params = opts.params;
     nodes.push(row);
   };
   const addEdge = (kind, sourceQname, targetRaw, pos, tier, call) => {
@@ -485,7 +534,11 @@ function parseFile(path, declarationsOnly) {
       const name = nameOf(node);
       if (name) {
         const qname = member(container, name);
-        addNode(kind, name, qname, node, nodeExtra(node, kind));
+        const opts = {};
+        const mods = modifierNames(node);
+        if (mods) opts.modifiers = mods;
+        if (CALLABLE.has(node.kind)) opts.params = callableParams(node, sf);
+        addNode(kind, name, qname, node, nodeExtra(node, kind), opts);
         addEdge("CONTAINS", container, qname, node.getStart(sf));
         childContainer = qname;
         if (SCOPE.has(node.kind)) childScope = qname;

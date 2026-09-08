@@ -11,7 +11,12 @@ const META = {
   name: "sql",
   extensions: [".sql"],
   // No `semantic_types`: tier 1a reads DDL headers and EXEC sites only, and infers no receiver type.
-  capabilities: {},
+  capabilities: {
+    params: true,
+    args: true,
+    modifiers: true,
+    declared_types: true,
+  },
   contract_version: 9,
 };
 

@@ -71,7 +71,7 @@ def test_a_ratio_cell_distinguishes_nothing_to_find_from_dropped() -> None:
     cells = measure("sql")
     assert cells is not None
     assert cells["`extra.type` on a member"] == "0/0", "SQL declares no Method/Property here"
-    assert cells["`params` on a callable"] == "0/2", "two procedures declare parameters"
+    assert cells["`params` on a callable"] == "1/2", "Tag declares params; Run has none"
 
 
 @needs_every_adapter

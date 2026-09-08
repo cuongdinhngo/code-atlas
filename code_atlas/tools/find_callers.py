@@ -18,8 +18,10 @@ from code_atlas.tools.coverage import (
 from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
     CAVEAT_CROSS_LANGUAGE_UNMODELLED,
+    CAVEAT_ARGS_NOT_CAPTURED,
     CAVEAT_SIBLING_DEFINITIONS,
     REASON_BARE_NAME_TRUNCATED,
+    REASON_CAPABILITY_NOT_CONFIGURED,
     REASON_INDEX_STALE,
     REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
@@ -166,6 +168,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         covered: str | None = None
         unlinked_calls = 0
         cross_lang_census: dict[str, object] | None = None
+        args_capture_absent = False
         with GraphStore(config.db_path) as store:
             covered = covered_languages(store)
             if sign:
@@ -306,13 +309,28 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 cross_lang_census = cross_language_relation_unmodelled(
                     store, file_path=subject_file
                 )
+            # Handshake stamp (231): read before the store closes. Null args is not "no capture".
+            args_capture_absent = False
+            if args_at is not None and subject_file is not None:
+                caps_stamp = store.stamped_capabilities_by_language()
+                lang = store.language_of_file(subject_file)
+                if caps_stamp is not None and lang is not None:
+                    lang_caps = caps_stamp.get(lang) or {}
+                    if not lang_caps.get("args", False):
+                        args_capture_absent = True
         reason = relation_reason(hit_total=outcome.total_count, symbol_indexed=indexed)
+        if args_capture_absent:
+            reason = REASON_CAPABILITY_NOT_CONFIGURED
         if outcome.total_count == 0 and indexed and unresolved_bare > 0:
             # Cap dropped this subject from bare-name linking — not "no callers exist".
             reason = REASON_BARE_NAME_TRUNCATED
-        elif reason == REASON_NO_MATCHES and unlinked_calls > 0:
+        elif not args_capture_absent and reason == REASON_NO_MATCHES and unlinked_calls > 0:
             reason = REASON_RELATION_UNMODELLED_FOR_LANGUAGE
-        elif reason == REASON_NO_MATCHES and cross_lang_census is not None:
+        elif (
+            not args_capture_absent
+            and reason == REASON_NO_MATCHES
+            and cross_lang_census is not None
+        ):
             # No linked edge from any other language reaches this one — the zero is unmeasured,
             # not empty (221). Carries authoritative:false + the census below.
             reason = REASON_RELATION_UNMODELLED_FOR_LANGUAGE
@@ -334,6 +352,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             result["unresolved_bare_calls"] = unresolved_bare
         if unrecorded is not None:
             result["args_unrecorded"] = unrecorded
+        if args_capture_absent:
+            attach_authoritative_caveats(result, [CAVEAT_ARGS_NOT_CAPTURED])
         attach_result_subtrees(result, subtrees)
         attach_ambiguous_definitions(result, definition_sites(subject_nodes))
         # A partition of the callers, not the whole — mark it non-authoritative (165, R5.5), name

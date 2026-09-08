@@ -62,6 +62,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             raise ValueError("pass exactly one of qname or path")
         if not config.db_path.is_file():
             return _empty(config, reason=REASON_NOT_INDEXED)
+        params_not_captured = False
         with GraphStore(config.db_path) as store:
             roots, sites = _roots(store, qname=qname, path=path)
             if not roots:
@@ -72,6 +73,19 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             boxes, inheritance, associations, hidden = _project(
                 store, qnames, member_cap=cap
             )
+            # 231: disclose only when the stamp says this language never fills params.
+            params_not_captured = False
+            caps = store.stamped_capabilities_by_language()
+            if caps is not None:
+                subject_lang = store.language_of_file(path) if path is not None else None
+                if subject_lang is None and roots:
+                    rows = store.nodes_by_qualified_name(roots[0], limit=1)
+                    if rows and rows[0].get("file_path"):
+                        subject_lang = store.language_of_file(str(rows[0]["file_path"]))
+                if subject_lang is not None and not (caps.get(subject_lang) or {}).get(
+                    "params", False
+                ):
+                    params_not_captured = True
         mermaid = render_class_diagram(
             boxes, inheritance, associations, member_cap=cap, hidden_associations=hidden
         )
@@ -90,6 +104,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             payload["association_note"] = NOTE_NO_ASSOCIATIONS
         if hidden:
             payload["associations_hidden_by_cap"] = hidden
+        if params_not_captured:
+            # Thin signature because capture was never declared — not when data was present (061).
+            payload["params_not_captured_by_adapter"] = True
         attach_ambiguous_definitions(payload, sites)
         attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
         return payload

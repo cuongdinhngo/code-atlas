@@ -16,7 +16,12 @@ from src.parse import parse_file  # noqa: E402
 META = {
     "name": "python",
     "extensions": [".py"],
-    "capabilities": {},
+    "capabilities": {
+        "params": True,
+        "args": True,
+        "modifiers": True,
+        "declared_types": True,
+    },
     "contract_version": 9,
 }
 

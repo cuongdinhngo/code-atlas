@@ -105,6 +105,84 @@ def _function_modifiers(node: ast.FunctionDef | ast.AsyncFunctionDef) -> list[st
     return ["async"] if isinstance(node, ast.AsyncFunctionDef) else []
 
 
+def _annotation_text(ann: ast.expr | None) -> str | None:
+    """Source spelling of a type annotation, or None when absent (R5.2 — never invent)."""
+    if ann is None:
+        return None
+    return ast.unparse(ann)
+
+
+def _callable_params(
+    node: ast.FunctionDef | ast.AsyncFunctionDef, *, skip_receiver: bool
+) -> list[dict[str, str | None]]:
+    """Contract ``params`` entries: name + declared type text (null when unannotated)."""
+    args = node.args
+    entries: list[ast.arg] = [*args.posonlyargs, *args.args, *args.kwonlyargs]
+    out: list[dict[str, str | None]] = []
+    for i, arg in enumerate(entries):
+        if skip_receiver and i == 0 and arg.arg in ("self", "cls"):
+            continue
+        out.append({"name": arg.arg, "type": _annotation_text(arg.annotation)})
+    if args.vararg is not None:
+        out.append({"name": f"*{args.vararg.arg}", "type": _annotation_text(args.vararg.annotation)})
+    if args.kwarg is not None:
+        out.append({"name": f"**{args.kwarg.arg}", "type": _annotation_text(args.kwarg.annotation)})
+    return out
+
+
+def _literal_kind(node: ast.expr) -> str | None:
+    """Contract ``args`` category for one call argument — shape, never value (049)."""
+    if isinstance(node, ast.Constant):
+        if node.value is None:
+            return "null"
+        if node.value is True:
+            return "true"
+        if node.value is False:
+            return "false"
+        if isinstance(node.value, (int, float, complex)):
+            return "number"
+        if isinstance(node.value, str):
+            return "string"
+        if isinstance(node.value, (bytes, bytearray)):
+            return "string"
+        return None
+    if isinstance(node, ast.JoinedStr):
+        return "string"
+    if isinstance(node, (ast.List, ast.Tuple, ast.Set, ast.Dict)):
+        return "array"
+    return None
+
+
+def _arg_literals(call: ast.Call) -> list[str | None] | None:
+    """One category per positional arg; starred args drop the whole list (unknown arity)."""
+    if any(isinstance(a, ast.Starred) for a in call.args):
+        return None
+    # Keyword-only calls still record positionals; keywords are not positional slots.
+    return [_literal_kind(a) for a in call.args]
+
+
+def _dict_string_keys(node: ast.Dict) -> list[str]:
+    keys: list[str] = []
+    for key in node.keys:
+        if isinstance(key, ast.Constant) and isinstance(key.value, str):
+            keys.append(key.value)
+    return keys
+
+
+def _arg_keys(call: ast.Call) -> list[list[str] | None]:
+    """Parallel to ``args``: string keys of a dict literal, else null (063)."""
+    out: list[list[str] | None] = []
+    for arg in call.args:
+        if isinstance(arg, ast.Dict):
+            out.append(_dict_string_keys(arg))
+        elif isinstance(arg, (ast.List, ast.Tuple, ast.Set)):
+            out.append([])
+        else:
+            out.append(None)
+    return out
+
+
+
 def _is_upper_const(name: str) -> bool:
     return name.isupper() and any(c.isalpha() for c in name)
 
@@ -360,6 +438,8 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
         node: ast.AST,
         *,
         modifiers: list[str] | None = None,
+        params: list[dict[str, str | None]] | None = None,
+        extra: dict[str, Any] | None = None,
     ) -> None:
         row: dict[str, Any] = {
             "kind": kind,
@@ -371,6 +451,10 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
         }
         if modifiers:
             row["modifiers"] = modifiers
+        if params is not None:
+            row["params"] = params
+        if extra:
+            row["extra"] = extra
         nodes.append(row)
 
     def add_edge(
@@ -379,6 +463,8 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
         target_raw: str,
         node: ast.AST,
         tier: str | None = None,
+        *,
+        call: ast.Call | None = None,
     ) -> None:
         row: dict[str, Any] = {
             "kind": kind,
@@ -389,6 +475,11 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
         }
         if tier:
             row["confidence_tier"] = tier
+        if call is not None and kind in ("CALLS", "NEW"):
+            args = _arg_literals(call)
+            if args is not None:
+                row["args"] = args
+                row["arg_keys"] = _arg_keys(call)
         edges.append(row)
 
     def decorator_target_raw(deco: ast.expr) -> str | None:
@@ -540,7 +631,7 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
             # ``super()`` alone is not a call edge; ``super().m()`` is handled via Attribute.
             if func.id == "super":
                 return
-            add_edge("CALLS", scope, resolve_name(func.id), node)
+            add_edge("CALLS", scope, resolve_name(func.id), node, call=node)
             return
         if isinstance(func, ast.Attribute):
             method = func.attr
@@ -553,9 +644,9 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
             ):
                 target = member(enclosing_class, method)
                 if target in method_qnames:
-                    add_edge("CALLS", scope, target, node)
+                    add_edge("CALLS", scope, target, node, call=node)
                 else:
-                    add_edge("CALLS", scope, method, node, "HEURISTIC")
+                    add_edge("CALLS", scope, method, node, "HEURISTIC", call=node)
                 return
             # super().m() — prefer a same-file base Method; else HEURISTIC bare name.
             if (
@@ -567,14 +658,14 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
                 for base in class_bases.get(enclosing_class, []):
                     target = member(base, method)
                     if target in method_qnames:
-                        add_edge("CALLS", scope, target, node)
+                        add_edge("CALLS", scope, target, node, call=node)
                         return
-                add_edge("CALLS", scope, method, node, "HEURISTIC")
+                add_edge("CALLS", scope, method, node, "HEURISTIC", call=node)
                 return
             # obj.m() — method name known, receiver not: HEURISTIC ceiling (emit-do-not-gate).
-            add_edge("CALLS", scope, method, node, "HEURISTIC")
+            add_edge("CALLS", scope, method, node, "HEURISTIC", call=node)
             return
-        add_edge("CALLS", scope, "(dynamic)", node, "DYNAMIC")
+        add_edge("CALLS", scope, "(dynamic)", node, "DYNAMIC", call=node)
 
     def walk_body(
         body: list[ast.stmt],
@@ -631,7 +722,18 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
                 kind = "Function"
                 qn = member(container, stmt.name)
                 mods = _function_modifiers(stmt)
-            add_node(kind, stmt.name, qn, stmt, modifiers=mods or None)
+            params = _callable_params(stmt, skip_receiver=kind == "Method")
+            ret = _annotation_text(stmt.returns)
+            extra = {"type": ret} if ret is not None else None
+            add_node(
+                kind,
+                stmt.name,
+                qn,
+                stmt,
+                modifiers=mods or None,
+                params=params,
+                extra=extra,
+            )
             add_edge("CONTAINS", container, qn, stmt)
             emit_decorator_refs(qn, stmt)
             emit_function_annotation_refs(qn, stmt)
@@ -651,12 +753,18 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
                     continue
                 if enclosing_class is not None:
                     qn = member(enclosing_class, target.id)
-                    add_node("Property", target.id, qn, stmt)
+                    ann = stmt.annotation if isinstance(stmt, ast.AnnAssign) else None
+                    typ = _annotation_text(ann)
+                    extra = {"type": typ} if typ is not None else None
+                    add_node("Property", target.id, qn, stmt, extra=extra)
                     add_edge("CONTAINS", enclosing_class, qn, stmt)
                     owner_for_ann = qn
                 elif container in (qpath, mod) and _is_upper_const(target.id):
                     qn = dotted(mod, target.id)
-                    add_node("Const", target.id, qn, stmt)
+                    ann = stmt.annotation if isinstance(stmt, ast.AnnAssign) else None
+                    typ = _annotation_text(ann)
+                    extra = {"type": typ} if typ is not None else None
+                    add_node("Const", target.id, qn, stmt, extra=extra)
                     add_edge("CONTAINS", container, qn, stmt)
                     owner_for_ann = qn
             if isinstance(stmt, ast.AnnAssign):

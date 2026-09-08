@@ -49,6 +49,8 @@ between listing edges and deriving them (R6.7).
 
 ## Scope
 
+**Blocked on [231](231_params-and-args-are-emitted-by-one-adapter-each-so-a-signature-is-a-php-feature.md) for Python:** the cross-language rule needs `args` capture from the calling language; without it every `key_from` mode bottoms out empty.
+
 1. **A rule entry kind that emits `CALLS` from an extracted string key**, reusing `_calls_for_setter`
    and `_keys_for_rule` unchanged. Shape, following `view_data`'s validated schema
    (`enrichment.py:376-390`): `{setter, key_arg, key_from, target_template}`.

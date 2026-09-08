@@ -249,7 +249,7 @@ def _keys_from_arg_keys(arg_keys: object, args: object, key_arg: int) -> list[st
 
     Absent field, null slot, and ``[]`` all yield no keys here — edge emission cannot
     distinguish them. AC4's "not captured" vs "none found" is enforced by schema refusal
-    of pre-v5 indexes; adapter #2 should advertise capture via an R1.6 capability.
+    of pre-v5 indexes; adapters advertise capture via the ``args`` R1.6 capability (231).
     """
     parsed_args = _parse_args(args)
     if parsed_args is None or key_arg < 1 or key_arg > len(parsed_args):

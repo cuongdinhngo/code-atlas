@@ -116,6 +116,78 @@ function stripToCode(line, state) {
 const CREATE_RE =
   /\b(?:create|alter)\s+(?:or\s+alter\s+)?(proc(?:edure)?|function)\s+((?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*)(?:\s*\.\s*(?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*))*)/i;
 
+
+// T-SQL procedure/function parameters: `@name type [ = default ]`, comma-separated before AS/BEGIN.
+const PROC_PARAM_RE =
+  /@([A-Za-z_][\w@#$]*)\s+([A-Za-z_][\w]*(?:\s*\([^)]*\))?)/gi;
+
+function procedureParams(line) {
+  const asAt = line.search(/\b(?:as|begin)\b/i);
+  const window = asAt >= 0 ? line.slice(0, asAt) : line;
+  const out = [];
+  PROC_PARAM_RE.lastIndex = 0;
+  let m;
+  while ((m = PROC_PARAM_RE.exec(window)) !== null) {
+    out.push({ name: "@" + m[1], type: m[2].replace(/\s+/g, "") });
+  }
+  return out;
+}
+
+function sqlLiteralKind(token) {
+  const t = token.trim();
+  if (/^N?'(?:[^']|'')*'$/i.test(t)) return "string";
+  if (/^0x[0-9A-Fa-f]+$/.test(t)) return "string";
+  if (/^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(t)) return "number";
+  if (/^(?:true|false)$/i.test(t)) return t.toLowerCase() === "true" ? "true" : "false";
+  if (/^null$/i.test(t)) return "null";
+  return null;
+}
+
+// Named EXEC args after the target: `@p = <literal>`, … — categories + @names as arg_keys.
+function execArgs(line, matchEnd) {
+  const rest = line.slice(matchEnd);
+  const named = [];
+  const re = /@([A-Za-z_][\w@#$]*)\s*=\s*([^,;]+)/g;
+  let m;
+  while ((m = re.exec(rest)) !== null) {
+    named.push({ key: "@" + m[1], value: m[2].trim() });
+  }
+  if (named.length === 0) {
+    // Positional: EXEC dbo.Tag 'name', 3 — rare; capture literal categories only.
+    const positional = [];
+    const pre = rest.replace(/^\s*/, "");
+    if (!pre || pre.startsWith("@")) return null; // no args, or only incomplete named form
+    // Split on commas not inside quotes — thin scanner; good enough for parity fixture.
+    let cur = "";
+    let inStr = false;
+    for (let i = 0; i < pre.length; i++) {
+      const ch = pre[i];
+      if (ch === "'" && !inStr) { inStr = true; cur += ch; continue; }
+      if (ch === "'" && inStr) { inStr = false; cur += ch; continue; }
+      if (ch === "," && !inStr) {
+        positional.push(cur.trim());
+        cur = "";
+        continue;
+      }
+      if (ch === ";" && !inStr) break;
+      cur += ch;
+    }
+    if (cur.trim()) positional.push(cur.trim());
+    if (positional.length === 0) return { args: [], arg_keys: [] };
+    return {
+      args: positional.map(sqlLiteralKind),
+      arg_keys: positional.map(() => null),
+    };
+  }
+  // Named EXEC args are still positional for `args` categories; `arg_keys` stays null per
+  // scalar slot — it means array/object literal keys (063), not T-SQL parameter names.
+  return {
+    args: named.map((n) => sqlLiteralKind(n.value)),
+    arg_keys: named.map(() => null),
+  };
+}
+
+
 // EXEC and EXECUTE are the same construct (019-C2). A parenthesised or variable target is dynamic.
 const EXEC_RE =
   /\b(exec(?:ute)?)\s+(?:@\w+\s*=\s*)?(\(|@\w+|(?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*)(?:\s*\.\s*(?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*))*)/gi;
@@ -340,7 +412,7 @@ function parseFile(qpath) {
           line_start: lineNo,
           line_end: lineNo,
           modifiers: [],
-          params: [],
+          params: procedureParams(code),
           is_test: false,
           extra: { object_type: created[1].toLowerCase().startsWith("proc") ? "procedure" : "function" },
         };
@@ -396,14 +468,23 @@ function parseFile(qpath) {
       const dynamicProc = qname !== null && DYNAMIC_PROCS.has(qname.toLowerCase());
       // A dynamic target is emitted, never dropped and never RESOLVED (AC7): the call site is a fact
       // even where the callee is not knowable, and the core decides what an unlinkable edge means.
-      edges.push({
+      /** @type {Record<string, unknown>} */
+      const edge = {
         kind: "CALLS",
         source_qname: source,
         target_raw: dynamic || qname === null || dynamicProc ? "(dynamic)" : qname,
         file_path: qpath,
         line: lineNo,
         confidence_tier: dynamic || qname === null || dynamicProc ? "DYNAMIC" : "RESOLVED",
-      });
+      };
+      if (!dynamic && qname !== null && !dynamicProc) {
+        const captured = execArgs(code, call.index + call[0].length);
+        if (captured) {
+          edge.args = captured.args;
+          edge.arg_keys = captured.arg_keys;
+        }
+      }
+      edges.push(edge);
     }
 
     const kind = TABLE_RE.test(code)

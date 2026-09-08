@@ -48,6 +48,7 @@ from code_atlas.store import (
     COVERED_SUFFIXES_KEY,
     EDGE_HEALTH_BY_LANGUAGE_KEY,
     EMITTED_KINDS_BY_LANGUAGE_KEY,
+    CAPABILITIES_BY_LANGUAGE_KEY,
     IGNORE_SOURCES_KEY,
     INDEXED_SUFFIXES_KEY,
     LAST_COMMIT_KEY,
@@ -232,6 +233,9 @@ def full_build(
             counts = _parse_all(
                 config, store, watchdog, announced, owners, kept, progress=report
             )
+            capabilities_by_language = {
+                adapter.name: dict(adapter.capabilities) for adapter in announced.values()
+            }
         finally:
             for adapter in announced.values():
                 adapter.stop()
@@ -245,7 +249,14 @@ def full_build(
     _count_late_writes(counts, config, store, rules, progress=report)
     report.phase("meta")
     _record_meta(
-        config, store, tuple(owners), census, untracked, ignore_sources, skipped_suffixes
+        config,
+        store,
+        tuple(owners),
+        census,
+        untracked,
+        ignore_sources,
+        skipped_suffixes,
+        capabilities_by_language=capabilities_by_language,
     )
     return BuildReport(files=len(kept), stubs=len(stubs), removed=removed, **counts)
 
@@ -458,6 +469,9 @@ def incremental_update(
                 else {"parsed": 0, "failed": 0, "nodes": 0, "edges": 0}
             )
             _phase_add(phase_times, "parse", mark)
+            capabilities_by_language = {
+                adapter.name: dict(adapter.capabilities) for adapter in announced.values()
+            }
         finally:
             for adapter in announced.values():
                 adapter.stop()
@@ -514,7 +528,14 @@ def incremental_update(
     mark = time.monotonic()
     report.phase("meta")
     _record_meta(
-        config, store, tuple(owners), census, untracked, ignore_sources, skipped_suffixes
+        config,
+        store,
+        tuple(owners),
+        census,
+        untracked,
+        ignore_sources,
+        skipped_suffixes,
+        capabilities_by_language=capabilities_by_language,
     )
     _phase_add(phase_times, "meta", mark)
     return BuildReport(
@@ -1174,6 +1195,7 @@ def _record_meta(
     untracked: tuple[str, ...] = (),
     ignore_sources: Mapping[str, int] | None = None,
     skipped_suffixes: Mapping[str, int] | None = None,
+    capabilities_by_language: Mapping[str, Mapping[str, bool]] | None = None,
 ) -> None:
     """Stamp the build (§8.1 step 4). Clear commit/ref when git cannot name them (077).
 
@@ -1199,6 +1221,14 @@ def _record_meta(
     languages = store.edge_language_census()
     store.set_meta(EDGE_HEALTH_BY_LANGUAGE_KEY, json.dumps(languages.health, sort_keys=True))
     store.set_meta(EMITTED_KINDS_BY_LANGUAGE_KEY, json.dumps(languages.kinds, sort_keys=True))
+    if capabilities_by_language is not None:
+        store.set_meta(
+            CAPABILITIES_BY_LANGUAGE_KEY,
+            json.dumps(
+                {name: dict(caps) for name, caps in sorted(capabilities_by_language.items())},
+                sort_keys=True,
+            ),
+        )
     store.set_meta(COLLECTION_CENSUS_KEY, json.dumps(asdict(census)))
     store.set_meta(UNTRACKED_INDEXABLE_KEY, json.dumps(list(untracked)))
     sources = {key: count for key, count in dict(ignore_sources or {}).items() if count}
