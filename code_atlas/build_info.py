@@ -171,10 +171,18 @@ def server_provenance() -> dict[str, object]:
     return prov
 
 
+def maybe_server_provenance(detail_level: str) -> dict[str, object]:
+    """Identity on ``standard``/``verbose``; ``minimal`` leaves it to status (223)."""
+    if detail_level == "minimal":
+        return {}
+    return server_provenance()
+
+
 __all__ = [
     "BUILD_ID_CHARS",
     "DIRTY_SUFFIX",
     "UNKNOWN_VERSION",
+    "maybe_server_provenance",
     "reset_identity_cache",
     "server_identity",
     "server_provenance",

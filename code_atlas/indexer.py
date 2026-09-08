@@ -32,6 +32,7 @@ from code_atlas.enrichment import (
     INDIRECTION_FILE,
     RulesPayload,
     apply_indirection_rules,
+    count_unresolved_keyed_calls,
     load_indirection_rules,
 )
 from code_atlas.ignore import BUILTIN_PATTERNS, IgnoreMatcher, compile_pattern, load_ignore
@@ -178,6 +179,8 @@ class BuildReport:
     edges: int
     stubs: int = 0
     fingerprint_skipped: int = 0
+    # keyed_calls rules whose every emitted edge stayed unlinked after resolve (task 222).
+    rules_unresolved: int = 0
 
 
 def full_build(
@@ -247,7 +250,13 @@ def full_build(
     _record_meta(
         config, store, tuple(owners), census, untracked, ignore_sources, skipped_suffixes
     )
-    return BuildReport(files=len(kept), stubs=len(stubs), removed=removed, **counts)
+    return BuildReport(
+        files=len(kept),
+        stubs=len(stubs),
+        removed=removed,
+        rules_unresolved=counts.pop("rules_unresolved", 0),
+        **counts,
+    )
 
 
 # The answer a caller gets when the stored vocabulary era lags: one name for the cause and one
@@ -522,6 +531,7 @@ def incremental_update(
         stubs=len(stub_set & set(to_parse)),
         removed=removed,
         fingerprint_skipped=fingerprint_skipped,
+        rules_unresolved=counts.pop("rules_unresolved", 0),
         **counts,
     )
 
@@ -581,6 +591,9 @@ def _count_late_writes(
     _phase_add(phase_times, "resolve", mark)
     counts["nodes"] += enriched.nodes
     counts["edges"] += enriched.edges + siblings
+    counts["rules_unresolved"] = count_unresolved_keyed_calls(
+        store, enriched.keyed_call_groups
+    )
 
 
 def reparse_file(config: Config, store: GraphStore, path: str) -> bool:

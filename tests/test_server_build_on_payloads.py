@@ -74,16 +74,22 @@ def test_subject_answer_does_not_repeat_the_build_per_subject() -> None:
 
 def test_two_builds_are_distinguishable_from_a_nav_payload() -> None:
     """AC1: two builds of the same version differ from any such payload alone."""
-    with patch.object(nr, "server_provenance", return_value={
-        "server_version": "0.1.0", "server_build": "aaaaaaa",
+    with patch.object(nr, "maybe_server_provenance", return_value={
+        "server_version": "0.1.0", "server_build": "aaaaaaa", "server_stale_process": False,
     }):
         first = nr.nav_result("Foo", [], detail_level="standard", index_root="/r", truncated=False)
-    with patch.object(nr, "server_provenance", return_value={
-        "server_version": "0.1.0", "server_build": "bbbbbbb",
+    with patch.object(nr, "maybe_server_provenance", return_value={
+        "server_version": "0.1.0", "server_build": "bbbbbbb", "server_stale_process": False,
     }):
         second = nr.nav_result("Foo", [], detail_level="standard", index_root="/r", truncated=False)
     assert first["server_build"] != second["server_build"]
     assert first["server_version"] == second["server_version"] == "0.1.0"
+
+
+def test_minimal_nav_omits_server_provenance() -> None:
+    """223: minimal nav leaves identity to get_index_status."""
+    payload = nr.nav_result("Foo", [], detail_level="minimal", index_root="/r", truncated=False)
+    assert not (_KEYS & set(payload))
 
 
 def test_build_stamp_needs_no_git_on_the_hot_path(tmp_path: Path) -> None:

@@ -92,6 +92,9 @@ def test_default_args_match_pre_pagination_shape(store: GraphStore, tmp_path: Pa
         for row in store.edges_by_target("\\Base", kinds=IMPL_KINDS, limit=2, offset=0)
     ]
     got = find_implementations.create(config)("\\Base", detail_level="minimal")
+    # 223 demoted the envelope off `minimal`: process identity (170) now rides
+    # `get_index_status`, and the coverage gap (192) rides standard/verbose. `standard` below
+    # is the tier that still carries both, so neither field is lost — only relocated.
     assert set(got) == {
         "indexed",
         "qname",
@@ -100,13 +103,14 @@ def test_default_args_match_pre_pagination_shape(store: GraphStore, tmp_path: Pa
         "reason",
         "total_count",
         "index_root",
+    }
+    standard = find_implementations.create(config)("\\Base", detail_level="standard")
+    assert {
         "server_version",
         "server_build",
-        # 170: the divergence verdict rides unconditionally, so silence is not a clean answer.
         "server_stale_process",
-        # 192: this fixture wires no adapter, so every answer — results or not — names the gap.
         "unconfigured_adapters",
-    }
+    } <= set(standard)
     assert got["qname"] == "\\Base"
     assert got["indexed"] is True
     assert got["truncated"] is True

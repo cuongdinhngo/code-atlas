@@ -1,10 +1,11 @@
 """``get_index_status`` — the cheap entry point a client calls first (§12).
 
-``minimal`` returns exactly the four parts §12 names: stats, ``last_commit``, staleness and
-``next_tool_suggestions``. ``standard`` adds provenance plus index-health (``edge_health``,
-``parse_failures``, ``dirty_indexed_files``). ``parse_failures`` mirrors ``failed`` (files with
-``parsed_ok = 0``) under the §12 name — same count, not a subset. ``verbose`` is ``standard`` plus
-a capped ``parse_failure_paths`` list (task 058) — never on the cheap path. Nothing here opens the
+``minimal`` returns stats, ``last_commit``, staleness, process identity (``server_version`` /
+``server_build`` / ``server_stale_process`` — 223), and ``next_tool_suggestions`` only when
+non-empty. ``standard`` adds provenance plus index-health (``edge_health``, ``parse_failures``,
+``dirty_indexed_files``). ``parse_failures`` mirrors ``failed`` (files with ``parsed_ok = 0``)
+under the §12 name — same count, not a subset. ``verbose`` is ``standard`` plus a capped
+``parse_failure_paths`` list (task 058) — never on the cheap path. Nothing here opens the
 database when there is none: a read tool must not create an index as a side effect.
 
 Staleness counts only files the index covers (047): editing a README leaves the graph correct, and
@@ -178,6 +179,15 @@ def _orphans_max_nodes_field(config: Config) -> dict[str, object]:
     }
 
 
+def _attach_suggestions(
+    status: dict[str, object], servable: Sequence[str], staleness: str, *, indexed: bool
+) -> None:
+    """Omit-when-empty (061 / 223): an empty array costs tokens and was never read."""
+    suggestions = _suggestions(servable, staleness, indexed=indexed)
+    if suggestions:
+        status["next_tool_suggestions"] = suggestions
+
+
 def _unbuilt(
     servable: Sequence[str], detail_level: DetailLevel, config: Config
 ) -> dict[str, object]:
@@ -196,13 +206,13 @@ def _unbuilt(
         "last_ref": None,
         "head_ref": None,
         "staleness": UNKNOWN,
-        "next_tool_suggestions": _suggestions(servable, UNKNOWN, indexed=False),
         "index_root": config.index_root,
+        **server_provenance(),
     }
+    _attach_suggestions(status, servable, UNKNOWN, indexed=False)
     if detail_level in ("standard", "verbose"):
         status["db_path"] = str(config.db_path)
         status["max_results"] = _max_results_field(config)
-        status.update(server_provenance())
         _attach_build_state(status, config, None)
         _attach_unconfigured_adapters(status, config)
     if detail_level == "verbose":
@@ -224,7 +234,7 @@ def _mismatched(
     """
     status = _unbuilt(servable, detail_level, config) | schema_guard.payload(mismatch)
     if mismatch.direction != SCHEMA_OLDER:
-        status["next_tool_suggestions"] = []
+        status.pop("next_tool_suggestions", None)
     return status
 
 
@@ -266,9 +276,10 @@ def _status(
         "indexed": indexed,
         **counts,
         **{k: v for k, v in revision.items() if k != "head_commit"},
-        "next_tool_suggestions": _suggestions(servable, staleness, indexed=indexed),
         "index_root": config.index_root,
+        **server_provenance(),
     }
+    _attach_suggestions(status, servable, staleness, indexed=indexed)
     if detail_level == "minimal":
         return signed(status)
     enriched = status | {
@@ -283,7 +294,6 @@ def _status(
         # The ceiling a caller sizes requests against, and its double duty (066).
         "max_results": _max_results_field(config),
         "orphans_max_nodes": _orphans_max_nodes_field(config),
-        **server_provenance(),
     }
     _attach_build_state(enriched, config, store)
     _attach_unconfigured_adapters(enriched, config)

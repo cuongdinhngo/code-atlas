@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS m_tenants (
+    tenant_id UUID PRIMARY KEY,
+    tenant_code VARCHAR(20) NOT NULL
+);
+ALTER TABLE m_tenants ADD COLUMN nickname VARCHAR(50);
+CREATE OR REPLACE FUNCTION gen_uuidv7() RETURNS uuid AS $$ BEGIN RETURN NULL; END; $$ LANGUAGE plpgsql;

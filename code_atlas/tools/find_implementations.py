@@ -99,7 +99,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         reason=REASON_NO_SUCH_SYMBOL,
                         total_count=0,
                     )
-                    return attach_coverage_note(shape_exact_miss(miss, resolution), config, covered)
+                    return attach_coverage_note(
+                        shape_exact_miss(miss, resolution),
+                        config,
+                        covered,
+                        detail_level=detail_level,
+                    )
                 lookup = repointed
                 total_count = store.count_edges_by_target(lookup, kinds=IMPL_KINDS)
                 indexed = bool(store.nodes_by_qualified_name(lookup, limit=1))
@@ -122,6 +127,6 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             result["subject_refreshed_only"] = True
         attach_limit_capped(result, cap=cap, clamped=limit_clamped)
         attach_resolved_qname(result, asked=asked, answered=lookup)
-        return attach_coverage_note(result, config, covered)
+        return attach_coverage_note(result, config, covered, detail_level=detail_level)
 
     return find_implementations

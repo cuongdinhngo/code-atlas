@@ -15,7 +15,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from typing import Literal, NamedTuple
 
-from code_atlas.build_info import server_provenance
+from code_atlas.build_info import maybe_server_provenance
 from code_atlas.config import Config
 from code_atlas.contract import CONFIDENCE_TIERS
 from code_atlas.onboarding.modules import (
@@ -122,7 +122,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         parts = subject_parts(paths, qnames)
         subject = ",".join(parts)
         if not config.db_path.is_file():
-            return _empty(config, subject, reason=REASON_NOT_INDEXED, depth=hops)
+            return _empty(
+                config, subject, reason=REASON_NOT_INDEXED, depth=hops, detail_level=detail_level
+            )
 
         with GraphStore(config.db_path) as store:
             plan = plan_seeds(
@@ -149,7 +151,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             "walk_truncated": truncated,
             "frontier_skipped_non_resolved": outcome.frontier_skipped_non_resolved,
             "seeds_dropped": outcome.seeds_dropped + plan.refused,
-            **server_provenance(),
+            **maybe_server_provenance(detail_level),
         }
         notes = [NOTE_UNDER_ESTIMATE] if truncated else []
         if table_truncated:
@@ -178,7 +180,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     return impact_modules
 
 
-def _empty(config: Config, subject: str, *, reason: str, depth: int) -> dict[str, object]:
+def _empty(
+    config: Config, subject: str, *, reason: str, depth: int, detail_level: str = "standard"
+) -> dict[str, object]:
     return {
         "depth": depth,
         "index_root": config.index_root,
@@ -190,7 +194,7 @@ def _empty(config: Config, subject: str, *, reason: str, depth: int) -> dict[str
         "subject": subject,
         "symbols_total": 0,
         "walk_truncated": False,
-        **server_provenance(),
+        **maybe_server_provenance(detail_level),
     }
 
 

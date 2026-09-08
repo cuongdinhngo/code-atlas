@@ -259,9 +259,14 @@ def test_missing_database_does_not_create_one(tmp_path: Path) -> None:
         "reason": "not_indexed",
         "total_count": 0,
         "index_root": str(config.root.resolve()),
-        **server_provenance(),
     }
+    assert "server_version" not in result  # 223: minimal leaves identity to status
     assert not config.db_path.is_file()
+    standard = find_callers.create(config)("\\X", detail_level="standard")
+    identity = ("server_version", "server_build", "server_stale_process")
+    assert {k: standard[k] for k in identity} == {
+        k: server_provenance()[k] for k in identity
+    }
 
 
 def test_exact_qname_does_not_expand_to_members(tmp_path: Path, store: GraphStore) -> None:
