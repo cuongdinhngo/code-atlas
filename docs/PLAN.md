@@ -990,24 +990,17 @@ is test-side (`tests/contract/adapter_registry.py`, 147). Reverses only if an ad
 per-language logic (its own ticket; see R1.2).
 
 **Decision — populated-rebuild tax: truncate-first, defer-FTS waits (task 219, 2026-09-07).** 203
-measured a full rebuild over a populated index at 2.6× a fresh one and named two candidates without
-choosing. 219 takes **truncate-first**: `GraphStore.truncate_graph` bulk-clears nodes/edges and the
-FTS index (triggers dropped around the clear, so it does not fire `nodes_ad` per row), called once at
-the top of `full_build`. The populated rebuild now starts from an empty index and rides the same
-growth curve as a fresh build, so the per-file `_delete_rows` redundancy is gone. Output stays
-byte-identical (R4.2) and 202's escalation is **not widened**: `BUILD_COMPLETE` is cleared and
-committed before the truncate, which never touches it, so a build abandoned mid-truncate reports
-incomplete exactly as before.
-**defer-FTS deferred:** it targets the size-decay term present in *both* runs, not the populated tax,
-and touches FTS correctness — its own ticket. The anchor timing pair is unmeasured on a checkout with
-`real_corpus_path: null` (E1); the mechanism is proven at fixture scale.
+measured 2.6× populated vs fresh; 219 takes **truncate-first** (`GraphStore.truncate_graph` once at
+`full_build` top, FTS triggers dropped around the clear). Populated rebuilds then match a fresh
+growth curve (no per-file `_delete_rows` redundancy). Output byte-identical (R4.2); 202's escalation
+**not widened** — `BUILD_COMPLETE` cleared before truncate, so a mid-truncate abandon stays incomplete.
+**defer-FTS deferred** (size-decay in both runs; FTS correctness — own ticket). Anchor timing
+unmeasured with `real_corpus_path: null` (E1); mechanism proven at fixture scale.
 
-**Decision — ClassConst evidence (task 234, 2026-09-08).** What counts as a class/module constant
-under R2? **Both** a language-spec marker and the PEP 8 upper-case convention: `Final` (bare or
-subscripted), TypeScript `readonly` on a property, language `const`, and enum members — plus an
-identifier that is upper-case with at least one letter. Python applies that rule at **every** scope
-it claims: module → `Const`, class body → `ClassConst`. TypeScript keeps `EnumMember` → `ClassConst`
-deliberately (the kind is correctly occupied). No new node kind; no `contract_version` bump.
+**Decision — ClassConst evidence (task 234, 2026-09-08).** Spec markers (`Final`, `readonly`,
+`const`, enum members) **and** PEP 8 upper-case count under R2. Python applies that at every scope
+(module=`Const`, class=`ClassConst`); TS keeps `EnumMember`→`ClassConst`. No new kind / no bump.
+Detail: [234](tasks/234_classconst-is-a-php-only-kind-and-the-two-signals-that-would-fill-it-elsewhere-are-discarded.md).
 
 **Reference material** (private, same folder): `understand-anything-how-it-works.md`, `code-review-graph-how-it-works.md`.
 

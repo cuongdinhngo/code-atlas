@@ -290,6 +290,9 @@ parity table matches the playbook
 
 `ClassConst` row after: 1 · 1 · 0 · 1
 
+Docker delta (host Linux; worktree symlinks removed for COPY): first run **3 failed** (BACKLOG `done` row lingered; TOKEN_LEDGER PR cell `pending`; PLAN.md 23,112/23,000). Fixed in follow-up commit — bookkeeping + PLAN budget green (`476 passed` on those guards). Full suite re-confirm via CI on the PR.
+
+
 ## Phase 4 — Review
 
 - **Reviewer:** OFF (`--no-reviewer`) — no rule-book-grounded review.
