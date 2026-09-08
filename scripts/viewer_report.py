@@ -182,7 +182,8 @@ def main() -> int:
         sid = str(sample["id"])
         try:
             root = checkout_pinned(sample, cache_root)
-            index_root(root)
+            language = str(sample.get("language", "php"))
+            index_root(root, language=language)
             problems = measure(
                 sid,
                 dataset_of(root, path_index_max=PATH_INDEX_MAX),

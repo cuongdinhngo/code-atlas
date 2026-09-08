@@ -7,6 +7,7 @@ import json
 import re
 import shlex
 import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -47,7 +48,7 @@ needs_php = pytest.mark.skipif(
 
 
 def test_manifest_covers_both_adapters_with_floors() -> None:
-    """AC4 shape: PHP set unchanged + a 3-shape TS/JS set, pinned with floors, outside adapters/."""
+    """AC4: PHP+TS unchanged; Python+SQL shapes pinned with floors (233)."""
     samples = load_manifest(MANIFEST)
     by_lang: dict[str, set[str]] = {}
     for s in samples:
@@ -57,6 +58,14 @@ def test_manifest_covers_both_adapters_with_floors() -> None:
     # TS/JS variety is the deliverable: a .ts-only lib, a mixed tree, a compiled-beside-source tree.
     assert {"ts_library", "ts_js_mixed", "compiled_beside_source"} <= by_lang["typescript"]
     assert sum(1 for s in samples if s.get("language") == "typescript") >= 3
+    # 233: three Python shapes + at least one SQL pin.
+    assert {
+        "python_library",
+        "python_src_layout",
+        "python_flat_package",
+    } <= by_lang["python"]
+    assert sum(1 for s in samples if s.get("language") == "sql") >= 1
+    assert "sql" in _harness._ADAPTERS
     assert not str(MANIFEST.resolve()).startswith(str(ADAPTERS.resolve()))
     for sample in samples:
         assert sample["sha"]
@@ -64,6 +73,38 @@ def test_manifest_covers_both_adapters_with_floors() -> None:
         assert int(sample["min_files"]) >= 1
         assert int(sample["min_nodes"]) >= 1
         assert int(sample["min_edges"]) >= 1
+
+
+def test_manifest_floor_bites_when_min_nodes_lowered() -> None:
+    """AC2 / R6.5: a floor nobody has seen fail is not a gate — lowering min_nodes must fail."""
+    samples = load_manifest(MANIFEST)
+    py = next(s for s in samples if s.get("language") == "python")
+    sql = next(s for s in samples if s.get("language") == "sql")
+    for sample in (py, sql):
+        floor = int(sample["min_nodes"])
+        weak = BuildReport(
+            files=max(int(sample["min_files"]), 1),
+            parsed=1,
+            failed=0,
+            removed=0,
+            nodes=max(floor - 1, 0),
+            edges=max(int(sample["min_edges"]), 1),
+        )
+        with pytest.raises(PlausibleCountsError, match="nodes"):
+            assert_plausible_counts(
+                weak,
+                label=str(sample["id"]),
+                min_files=int(sample["min_files"]),
+                min_nodes=floor,
+                min_edges=int(sample["min_edges"]),
+            )
+
+
+def test_adapters_dict_names_python_and_sql() -> None:
+    """R1: adding a language is a row in `_ADAPTERS`, never a code branch."""
+    assert set(_harness._ADAPTERS) >= {"php", "typescript", "python", "sql"}
+    assert _harness._ADAPTERS["sql"]["env"] == "CA_SQL_CMD"
+    assert _harness._ADAPTERS["python"]["env"] == "CA_PYTHON_CMD"
 
 
 def test_manifest_sample_names_absent_from_adapter_source() -> None:
@@ -155,3 +196,43 @@ def test_resolve_adapter_cmd_is_per_language(monkeypatch: pytest.MonkeyPatch) ->
     assert _harness.resolve_php_cmd() == php
     with pytest.raises(KeyError):
         resolve_adapter_cmd("cobol")
+
+
+def test_sparse_paths_materializes_nested_git_repo(tmp_path: Path) -> None:
+    """233: sparse_paths must not rely on a bare dir inside this worktree (parent git ls-files)."""
+    # Use an existing local git repo as the "remote" so the test stays offline.
+    remote = tmp_path / "remote"
+    remote.mkdir()
+    git = ["git", "-c", "advice.detachedHead=false"]
+    subprocess.run([*git, "init", str(remote)], check=True)
+    nested = remote / "schema"
+    nested.mkdir()
+    (nested / "t.sql").write_text("CREATE TABLE dbo.t (id INT);\n", encoding="utf-8")
+    (remote / "other.sql").write_text("CREATE TABLE dbo.other (id INT);\n", encoding="utf-8")
+    subprocess.run([*git, "-C", str(remote), "add", "-A"], check=True)
+    subprocess.run(
+        [
+            *git,
+            "-C",
+            str(remote),
+            "-c",
+            "user.email=t@t",
+            "-c",
+            "user.name=t",
+            "commit",
+            "-m",
+            "x",
+        ],
+        check=True,
+    )
+    sha = subprocess.check_output([*git, "-C", str(remote), "rev-parse", "HEAD"], text=True).strip()
+    sample = {
+        "id": "sparse_fixture",
+        "url": str(remote),
+        "sha": sha,
+        "sparse_paths": ["schema"],
+    }
+    root = _harness.checkout_pinned(sample, tmp_path / "cache")
+    assert (root / ".git").is_dir()
+    assert (root / "schema" / "t.sql").is_file()
+    assert not (root / "other.sql").exists()

@@ -47,6 +47,9 @@ jobs:
       - name: npm ci (TypeScript adapter)
         run: npm ci --prefix adapters/typescript
 
+      - name: npm ci (SQL adapter)
+        run: npm ci --prefix adapters/sql
+
       - name: Install code-atlas
         run: |
           python -m pip install --upgrade pip
@@ -58,6 +61,7 @@ jobs:
           CA_PHP_CMD: php ${{ github.workspace }}/adapters/php/index.php --server
           CA_TYPESCRIPT_CMD: node ${{ github.workspace }}/adapters/typescript/index.js --server
           CA_PYTHON_CMD: python ${{ github.workspace }}/adapters/python/index.py --server
+          CA_SQL_CMD: node ${{ github.workspace }}/adapters/sql/index.js --server
         run: python scripts/cross_repo_validate.py --public-only
 
       - name: Upload report

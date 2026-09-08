@@ -179,7 +179,7 @@ An adapter declares which fields it fills at handshake (`KNOWN_CAPABILITIES`); d
 cannot fill is the defect 231 removed, so a new adapter's flags must match its column here.
 
 **What this table cannot tell you** is whether an adapter is right about real code — that is gates 3
-and 4, whose state §4 records: pinned samples exist for `php` and `typescript` only
+and 4, whose state §4 records: pinned samples exist for `php`, `typescript`, `python`, and `sql`
 ([233](tasks/233_python-and-sql-have-no-pinned-public-sample-so-no-change-to-either-can-be-shown-to-move-anything.md)),
 and a field round has never been run for `typescript`
 ([235](tasks/235_the-typescript-adapter-has-never-been-asked-a-question-in-the-field.md)).
