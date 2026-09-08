@@ -164,17 +164,16 @@ measurement, not a judgement — while **`0/1` means it was there and the adapte
 | `modifiers` on a member | 4/4 | 1/5 | 0/1 | 3/5 |
 | `args` on a call site | 1/1 | 1/1 | 1/1 | 1/1 |
 | `arg_keys` on a call site | 1/1 | 1/1 | 1/1 | 1/1 |
-| `REFERENCES` edges from the annotations | 0 | 3 | 0 | 0 |
+| `REFERENCES` edges from the annotations | 3 | 3 | 0 | 3 |
 | `ClassConst` for the class constant | 1 | 0 | 0 | 0 |
 <!-- parity-table:end -->
 
 **Since 231 the five field rows are at each language's ceiling, not its shortfall** — a cell below
 its denominator now means the construct is unspellable there (Python has no visibility keyword;
 T-SQL has no modifier at all, which is why its handshake declares `modifiers: false`), so read a
-*fallen* cell as a regression and never a cell below 1/1 as a gap. The two remaining shortfalls are
-the `REFERENCES` row,
-[232](tasks/232_the-same-construct-is-a-references-edge-in-python-and-node-extra-in-php-and-ts.md),
-and the `ClassConst` row,
+*fallen* cell as a regression and never a cell below 1/1 as a gap. **232 filled the `REFERENCES`
+row** (php · python · typescript = 3; sql stays 0 — T-SQL has no annotation to read). The remaining
+shortfall is the `ClassConst` row,
 [234](tasks/234_classconst-is-a-php-only-kind-and-the-two-signals-that-would-fill-it-elsewhere-are-discarded.md).
 An adapter declares which fields it fills at handshake (`KNOWN_CAPABILITIES`); declaring one it
 cannot fill is the defect 231 removed, so a new adapter's flags must match its column here.
