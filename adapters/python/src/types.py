@@ -88,6 +88,67 @@ def class_prop_type_map(body: list[ast.stmt]) -> dict[str, str]:
     return out
 
 
+def _self_attr(target: ast.expr) -> str | None:
+    """``self.x`` / ``cls.x`` → ``"x"``; anything else → None."""
+    if (
+        isinstance(target, ast.Attribute)
+        and isinstance(target.value, ast.Name)
+        and target.value.id in ("self", "cls")
+    ):
+        return target.attr
+    return None
+
+
+def class_self_types(
+    body: list[ast.stmt], *, known_classes: set[str] | None = None
+) -> dict[str, str]:
+    """What the CLASS says its ``self.<attr>`` are — one map, read-only, order-independent.
+
+    Read in a single pass over the class body *and* every method in it, so a `self._x: Foo` in
+    `__init__` is known to a method declared above it. Two rules keep the answer a property of
+    the class rather than of the reading order:
+
+    * An annotation outranks an inferred ``self.x = Foo()`` — the annotation is the declaration.
+    * Within a rank, disagreement drops the attribute. Absence is honest; picking the
+      last-visited method's opinion is not (R5.2).
+    """
+    annotated: dict[str, str] = {}
+    inferred: dict[str, str] = {}
+    conflicting: set[str] = set()
+    forgotten: set[str] = set()
+
+    def note(target: ast.expr, ann: ast.expr | None, value: ast.expr | None) -> None:
+        attr = _self_attr(target)
+        if attr is None:
+            return
+        declared = type_ref_name(ann)
+        if declared:
+            if annotated.get(attr, declared) != declared:
+                conflicting.add(attr)
+            annotated[attr] = declared
+            return
+        guessed = new_expr_class(value, known_classes=known_classes) if value else None
+        if guessed:
+            if inferred.get(attr, guessed) != guessed:
+                conflicting.add(attr)
+            inferred[attr] = guessed
+        elif value is not None:
+            # An untyped write of something unrecognised: the class does not say what this is.
+            forgotten.add(attr)
+
+    for stmt in ast.walk(ast.Module(body=body, type_ignores=[])):
+        if isinstance(stmt, ast.AnnAssign) and stmt.target is not None:
+            note(stmt.target, stmt.annotation, stmt.value)
+        elif isinstance(stmt, ast.Assign):
+            for target in stmt.targets:
+                note(target, None, stmt.value)
+
+    out = {**{k: v for k, v in inferred.items() if k not in forgotten}, **annotated}
+    for attr in conflicting:
+        out.pop(attr, None)
+    return out
+
+
 def receiver_class(
     expr: ast.expr,
     locals_: dict[str, str],

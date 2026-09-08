@@ -36,6 +36,35 @@ function lastSegment(value, sep) {
 }
 
 /**
+ * True when the last segment of a raw dotted name was written delimited (`dbo.[Key]`).
+ *
+ * The CREATE_RE path reaches a name as a regex capture rather than through `readIdent`, so this
+ * is where that path recovers the one fact the reserved-word rule needs.
+ * @param {string} raw
+ * @returns {boolean}
+ */
+function lastSegmentDelimited(raw) {
+  const text = raw.trim();
+  let delimited = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (ch === "[" || ch === '"') {
+      const close = ch === "[" ? "]" : '"';
+      delimited = true;
+      i += 1;
+      while (i < text.length) {
+        // A doubled delimiter is an escaped one inside the name, not the end of it.
+        if (text[i] === close && text[i + 1] !== close) break;
+        i += text[i] === close ? 2 : 1;
+      }
+      continue;
+    }
+    if (ch === ".") delimited = false;
+  }
+  return delimited;
+}
+
+/**
  * @param {string} raw
  * @returns {string|null}
  */
@@ -182,10 +211,11 @@ function parseFile(qpath) {
    * @param {string} qname
    * @param {number} line
    * @param {boolean} isCreate  CREATE TABLE wins over ALTER for line_start (task 228).
+   * @param {boolean} delimited  The name was written `[Key]` / `"key"`, so no word is reserved.
    * @returns {Node|null}
    */
-  const table = (qname, line, isCreate) => {
-    if (ddl.isReservedObjectName(lastSegment(qname, "."))) {
+  const table = (qname, line, isCreate, delimited) => {
+    if (ddl.isReservedObjectName(lastSegment(qname, "."), delimited)) {
       refusedName = true;
       return null;
     }
@@ -245,12 +275,12 @@ function parseFile(qpath) {
 
   /**
    * @param {string} tableQname
-   * @param {{name: string, dataType: string, dflt: string|null,
+   * @param {{name: string, dataType: string, dflt: string|null, delimited?: boolean,
    *   references?: {table: string, columns: string[]|null}|null}} col
    * @param {number} line
    */
   const column = (tableQname, col, line) => {
-    if (ddl.isReservedObjectName(col.name)) {
+    if (ddl.isReservedObjectName(col.name, col.delimited === true)) {
       refusedName = true;
       return;
     }
@@ -331,10 +361,14 @@ function parseFile(qpath) {
       if (!target) return;
       const qname = splitName(target.name);
       if (!qname) return;
-      const tbl = table(qname, line, isCreate);
+      const tbl = table(qname, line, isCreate, target.delimited);
       if (!tbl) return;
       if (named) {
-        column(qname, { name: named.column, dataType: "", dflt: named.dflt }, line);
+        column(
+          qname,
+          { name: named.column, dataType: "", dflt: named.dflt, delimited: named.delimited },
+          line,
+        );
         return;
       }
       const body = ddl.readParens(buf, target.next);
@@ -398,7 +432,7 @@ function parseFile(qpath) {
     if (created) {
       closeCurrent(lineNo - 1);
       const qname = splitName(created[2]);
-      if (qname && ddl.isReservedObjectName(lastSegment(qname, "."))) {
+      if (qname && ddl.isReservedObjectName(lastSegment(qname, "."), lastSegmentDelimited(created[2]))) {
         refusedName = true;
         return;
       }

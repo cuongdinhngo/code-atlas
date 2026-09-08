@@ -630,6 +630,8 @@ SQL_CONFORMANCE = AdapterConformance(
             "postgres_common_spellings.sql",
             "reserved_word_unreadable.sql",
             "create_wins_line_over_alter.sql",
+            # Delimited reserved names — a proving fixture for the same rule, not an R6.2 case.
+            "delimited_reserved_names.sql",
         }
     ),
     cases=SQL_CASES,

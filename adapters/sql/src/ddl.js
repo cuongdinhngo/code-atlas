@@ -11,7 +11,9 @@ const NOT_A_COLUMN = new Set([
   "constraint", "primary", "unique", "foreign", "check", "index", "key", "period", "column",
 ]);
 
-// Object names no dialect uses for a Table/Column — refusing them is honest (R5.2); emitting them is not.
+// Bare words no dialect uses for a Table/Column — refusing them is honest (R5.2); emitting them
+// is not. Bare is the whole rule: `[Key]` / `"key"` IS how SQL names an object after a keyword,
+// so a delimited name is never reserved, however it is spelled.
 const RESERVED_OBJECT_NAMES = new Set([
   "if", "not", "exists", "column", "constraint", "table", "key",
 ]);
@@ -45,9 +47,13 @@ function splitTopLevel(text, sep) {
 
 /**
  * Read one possibly-delimited identifier starting at `i`, skipping leading space.
+ *
+ * `delimited` says the source wrapped this name in `[]` or `""`. The name itself is returned
+ * unwrapped, so this flag is the only thing left that separates a deliberate `[Key]` from a bare
+ * keyword the reader mistook for a name — callers refusing reserved words need it.
  * @param {string} text
  * @param {number} i
- * @returns {{name: string, next: number}|null}
+ * @returns {{name: string, next: number, delimited: boolean}|null}
  */
 function readIdent(text, i) {
   let j = i;
@@ -61,7 +67,7 @@ function readIdent(text, i) {
       if (text[j] === close) {
         if (text[j + 1] === close) { name += close; j += 2; continue; }
         j += 1;
-        return { name, next: j };
+        return { name, next: j, delimited: true };
       }
       name += text[j];
       j += 1;
@@ -71,29 +77,34 @@ function readIdent(text, i) {
   const rest = text.slice(j);
   const m = /^[A-Za-z_@#][\w@#$]*/.exec(rest);
   if (!m) return null;
-  return { name: m[0], next: j + m[0].length };
+  return { name: m[0], next: j + m[0].length, delimited: false };
 }
 
 /**
  * Read a dotted object name (`[dbo].[My Table]`) starting at `i`.
+ *
+ * `delimited` is the LAST segment's flag, because that is the segment a caller compares against
+ * the reserved list — `dbo.[Key]` is a delimited object in an undelimited schema.
  * @param {string} text
  * @param {number} i
- * @returns {{name: string, next: number}|null}
+ * @returns {{name: string, next: number, delimited: boolean}|null}
  */
 function readQualified(text, i) {
   const parts = [];
   let j = i;
+  let delimited = false;
   for (;;) {
     const part = readIdent(text, j);
     if (!part) break;
     parts.push(part.name);
+    delimited = part.delimited;
     j = part.next;
     const after = /^\s*\.\s*/.exec(text.slice(j));
     if (!after) break;
     j += after[0].length;
   }
   if (parts.length === 0) return null;
-  return { name: parts.join("."), next: j };
+  return { name: parts.join("."), next: j, delimited };
 }
 
 /**
@@ -123,13 +134,14 @@ function readParens(text, i) {
  * One column definition read out of a table body, or null when the entry is a table constraint.
  * Inline ``REFERENCES T[(cols)]`` is captured on ``references``; table-level FK entries stay null.
  * @param {string} def
- * @returns {{name: string, dataType: string, dflt: string|null,
+ * @returns {{name: string, dataType: string, dflt: string|null, delimited: boolean,
  *   references: {table: string, columns: string[]|null}|null}|null}
  */
 function readColumnDef(def) {
   const first = readIdent(def, 0);
   if (!first) return null;
-  if (NOT_A_COLUMN.has(first.name.toLowerCase())) return null;
+  // `[key] int` is a column; bare `KEY (...)` is the table-level entry NOT_A_COLUMN names.
+  if (!first.delimited && NOT_A_COLUMN.has(first.name.toLowerCase())) return null;
 
   const type = readIdent(def, first.next);
   let dataType = "";
@@ -148,6 +160,7 @@ function readColumnDef(def) {
     name: first.name,
     dataType,
     dflt: readDefault(rest),
+    delimited: first.delimited,
     references: readInlineReferences(rest),
   };
 }
@@ -340,7 +353,7 @@ function readUpdate(code) {
  * `ALTER TABLE t ADD CONSTRAINT n DEFAULT (expr) FOR col` — T-SQL's other way to declare a default,
  * and the one a migration usually takes. Returns the column it names and the expression.
  * @param {string} code
- * @returns {{column: string, dflt: string}|null}
+ * @returns {{column: string, dflt: string, delimited: boolean}|null}
  */
 function readNamedDefault(code) {
   const m = /\badd\s+constraint\s+/i.exec(code);
@@ -365,15 +378,22 @@ function readNamedDefault(code) {
   if (!forKw) return null;
   const column = readIdent(code, j + forKw[0].length);
   if (!column) return null;
-  return { column: column.name, dflt: expr };
+  return { column: column.name, dflt: expr, delimited: column.delimited };
 }
 
 /**
- * True when `name` (last segment of a qname) is a reserved word, never a real object.
+ * True when `name` (last segment of a qname) is a BARE reserved word, never a real object.
+ *
+ * `delimited` is required rather than optional: SQL's own escape hatch for naming an object after
+ * a keyword is to delimit it, so refusing `[Key]` would drop a legal table (and, when it is a
+ * file's only DDL, report the file unreadable). A caller that cannot say either way has not read
+ * the name yet.
  * @param {string} name
+ * @param {boolean} delimited
  * @returns {boolean}
  */
-function isReservedObjectName(name) {
+function isReservedObjectName(name, delimited) {
+  if (delimited) return false;
   return RESERVED_OBJECT_NAMES.has(name.toLowerCase());
 }
 

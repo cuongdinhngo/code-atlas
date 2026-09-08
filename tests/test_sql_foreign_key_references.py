@@ -74,12 +74,49 @@ EXPECTED_RESOLVED = {
 }
 EXPECTED_HEURISTIC = {("dbo.InlineRef::OrphanId", "dbo.Orphan")}
 
+# The same three spellings with every identifier delimited. A delimited name is how SQL names an
+# object after a keyword, so these are real columns and the FK readers must see through the
+# brackets — the reserved-word refusal only ever applied to BARE words.
+DELIMITED_SCHEMA = """\
+CREATE TABLE [dbo].[Key] (
+    [Table] int NOT NULL,
+    CONSTRAINT [PK_Key] PRIMARY KEY ([Table])
+);
+GO
+CREATE TABLE [dbo].[Constraint] (
+    [Column] int NOT NULL,
+    [Exists] int NOT NULL,
+    [Key] int NOT NULL REFERENCES [dbo].[Key] ([Table]),
+    CONSTRAINT [FK_C_Key] FOREIGN KEY ([Column]) REFERENCES [dbo].[Key] ([Table])
+);
+"""
+
+DELIMITED_EXPECTED = {
+    ("dbo.Constraint::Key", "dbo.Key::Table"),
+    ("dbo.Constraint::Column", "dbo.Key::Table"),
+}
+
 
 @pytest.fixture
 def indexed(tmp_path: Path) -> Iterator[tuple[GraphStore, Path]]:
     src = tmp_path / "db"
     src.mkdir()
     (src / "schema.sql").write_text(SCHEMA, encoding="utf-8")
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
+    config = load_config(tmp_path, {"CA_SQL_CMD": shlex.join([str(NODE), str(ENTRY), "--server"])})
+    with GraphStore(config.db_path) as store:
+        report = full_build(config, store)
+        assert report.failed == 0
+        yield store, tmp_path
+
+
+@pytest.fixture
+def indexed_delimited(tmp_path: Path) -> Iterator[tuple[GraphStore, Path]]:
+    """Same build, every identifier delimited (`[dbo].[Key]`)."""
+    src = tmp_path / "db"
+    src.mkdir()
+    (src / "schema.sql").write_text(DELIMITED_SCHEMA, encoding="utf-8")
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True, capture_output=True)
     subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
     config = load_config(tmp_path, {"CA_SQL_CMD": shlex.join([str(NODE), str(ENTRY), "--server"])})
@@ -156,3 +193,20 @@ def test_er_view_is_deterministic_and_states_its_cap() -> None:
     validate_mermaid_er_diagram(a)
     # Byte-identical on a second process-shaped call with the same inputs.
     assert json.dumps(a) == json.dumps(b)
+
+
+@needs_node
+def test_delimited_identifiers_still_yield_the_same_foreign_keys(indexed_delimited) -> None:
+    """228's refusal narrowed to BARE words, so a delimited schema keeps every FK it declares.
+
+    Red before that narrowing: `[Key]`, `[Table]` and `[Column]` were refused as reserved names,
+    so both tables vanished and the whole file came back `ok:false` — the fixture's own
+    `report.failed == 0` is where it shows, before any assertion here runs.
+    """
+    store, _ = indexed_delimited
+    edges = _ref_edges(store)
+    resolved = {(e["source"], e["target"]) for e in edges if e["tier"] == "RESOLVED"}
+
+    assert resolved == DELIMITED_EXPECTED
+    tables = {str(row["qualified_name"]) for row in store.nodes_by_kind("Table", limit=50)}
+    assert tables == {"dbo.Key", "dbo.Constraint"}

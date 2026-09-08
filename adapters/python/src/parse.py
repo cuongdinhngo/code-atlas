@@ -10,7 +10,7 @@ from src.imports import import_target_raw, resolve_import
 from src.types import (
     bound_class,
     class_prop_type_map,
-    new_expr_class,
+    class_self_types,
     param_type_map,
     receiver_class,
 )
@@ -675,7 +675,12 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
                 elif isinstance(node, ast.Attribute):
                     base_target = _attr_dotted(node)
                     add_edge(base_edge_kind(base, base_target), qn, base_target, base)
-            child_props = class_prop_type_map(stmt.body)
+            # One read-only table per class, built before any method is walked: what the class
+            # declares, not what the last-visited method happened to say (see class_self_types).
+            child_props = {
+                **class_prop_type_map(stmt.body),
+                **class_self_types(stmt.body, known_classes=known_class_names),
+            }
             walk_body(stmt.body, qn, qn, qn, {}, child_props)
             return
 
@@ -731,20 +736,6 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
                         owner_for_ann = qn
                     elif not declarations_only:
                         _bind_or_forget(locals_, target.id, ann, value)
-                elif (
-                    not declarations_only
-                    and isinstance(target, ast.Attribute)
-                    and isinstance(target.value, ast.Name)
-                    and target.value.id in ("self", "cls")
-                ):
-                    # ``self._x: T = …`` inside a method updates the class prop table.
-                    cls = bound_class(ann, value, known_classes=known_class_names)
-                    if cls:
-                        self_props[target.attr] = cls
-                    elif ann is None and value is not None and new_expr_class(
-                        value, known_classes=known_class_names
-                    ) is None:
-                        self_props.pop(target.attr, None)
             if isinstance(stmt, ast.AnnAssign):
                 # Class-body / annotated assign → REFERENCES from the Property/Const (or scope).
                 src = owner_for_ann or scope

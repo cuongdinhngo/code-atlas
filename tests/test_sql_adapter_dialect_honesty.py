@@ -87,3 +87,39 @@ def test_create_wins_over_earlier_alter_for_line_start() -> None:
     assert table["line_start"] == 2
     columns = {n["name"] for n in result["nodes"] if n["kind"] == "Column"}
     assert columns == {"c", "id"}
+
+
+DELIMITED = "tests/fixtures/sql/delimited_reserved_names.sql"
+
+
+@needs_node
+def test_a_delimited_reserved_word_is_a_real_name() -> None:
+    """R6.5 — red before the fix: `isReservedObjectName` saw the unwrapped name only, so every
+    object here was refused and the file reported `ok:false` with no nodes at all.
+
+    `[Key]`, `[Table]`, `"constraint"` and `[Exists]` are how SQL names an object after a
+    keyword; refusing them inverts the language rule 228 meant to enforce on BARE words.
+    """
+    result = parse_file(DELIMITED)
+    assert result["ok"] is True
+    nodes = result["nodes"]
+    tables = {n["name"]: n for n in nodes if n["kind"] == "Table"}
+    columns = {n["qualified_name"] for n in nodes if n["kind"] == "Column"}
+    functions = {n["name"] for n in nodes if n["kind"] == "Function"}
+
+    assert set(tables) == {"Key", "Constraint"}
+    assert tables["Key"]["qualified_name"] == "dbo.Key"
+    assert {"dbo.Key::Table", "dbo.Key::Column", "dbo.Key::constraint"} <= columns
+    assert "dbo.Key::plain_col" in columns
+    assert functions == {"Exists"}
+    # Nothing was refused, so the file is a complete read — no `parse` note (228 AC5).
+    file_node = next(n for n in nodes if n["kind"] == "File")
+    assert "parse" not in file_node["extra"]
+    assert file_node["extra"].get("dialect") == "tsql"
+
+
+@needs_node
+def test_a_bare_reserved_word_is_still_refused() -> None:
+    """The other side: narrowing the rule to bare words must not weaken it on bare words."""
+    result = parse_file(RESERVED)
+    assert result["ok"] is False
