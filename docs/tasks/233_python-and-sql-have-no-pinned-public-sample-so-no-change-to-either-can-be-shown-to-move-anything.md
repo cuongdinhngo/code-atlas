@@ -297,7 +297,7 @@ Input-shape-dependent AC1+AC3 proven on real pinned corpus (c=2).
 - **Verification sweep:** diff ⊆ approved list.
 - **Design-conformance deviations:** none.
 
-Ran at PENDING_SHA
+Ran at 2cd6bf2ad0af574b83bfb4a85fb82a41cc16e62c
 ```
 $ .venv/bin/python -m pytest tests/test_cross_repo_validation.py tests/test_cross_repo_workflow_installs_every_adapter.py -q
 18 passed, 1 skipped
