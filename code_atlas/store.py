@@ -1407,6 +1407,34 @@ class GraphStore:
         )
         return int(self._conn.execute(sql, (bare_name, qname)).fetchone()[0])
 
+    def count_source_root_hint_imports(self) -> int:
+        """Unlinked ``IMPORTS`` whose dotted ``target_raw`` matches an indexed file suffix (230).
+
+        Operator signal: a module name is in the index under some directory the climb cannot
+        reach — configure ``source_roots``. Path-shaped raws are skipped (already resolved).
+        """
+        files = self.file_paths()
+        if not files:
+            return 0
+        file_set = set(files)
+        sql = (
+            "SELECT target_raw FROM edges WHERE kind = 'IMPORTS' "
+            "AND (target_qname IS NULL OR target_qname = '')"
+        )
+        count = 0
+        for (raw,) in self._conn.execute(sql):
+            name = str(raw)
+            if not name or "/" in name or name.endswith(".py"):
+                continue
+            rel = "/".join(name.split("."))
+            candidates = (f"{rel}.py", f"{rel}/__init__.py")
+            if any(
+                cand in file_set or any(fp.endswith("/" + cand) for fp in files)
+                for cand in candidates
+            ):
+                count += 1
+        return count
+
     def count_unlinked_by_target_raw(
         self, raws: Sequence[str], *, kinds: Sequence[str]
     ) -> int:

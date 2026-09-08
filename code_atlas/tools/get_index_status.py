@@ -288,6 +288,9 @@ def _status(
     _attach_build_state(enriched, config, store)
     _attach_unconfigured_adapters(enriched, config)
     attach_config_provenance(enriched, config, store)
+    hint = store.count_source_root_hint_imports()
+    if hint:
+        enriched["source_root_hint_imports"] = hint
     if detail_level == "standard":
         return signed(enriched)
     paths = store.failed_paths(PARSE_FAILURE_PATHS_LIMIT, offset=offset)
