@@ -24,7 +24,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099 |
 | 232 | [A decorator is a `REFERENCES` edge in Python and inert `extra` in PHP and TS; one populated kind masks the never-emitted sibling](tasks/232_the-same-construct-is-a-references-edge-in-python-and-node-extra-in-php-and-ts.md) | Coverage | todo | 217, 019, 186, 094 |
-| 233 | [Python and SQL have no pinned public sample, so no change to either can be shown to move anything](tasks/233_python-and-sql-have-no-pinned-public-sample-so-no-change-to-either-can-be-shown-to-move-anything.md) | Measure | done | 018, 150, 147, 228 |
 | 234 | [`ClassConst` is PHP-only; the `readonly` and `Final` signals that would fill it elsewhere are dropped](tasks/234_classconst-is-a-php-only-kind-and-the-two-signals-that-would-fill-it-elsewhere-are-discarded.md) | Coverage | todo | 229, 231, 020, 019 |
 | 235 | [The TS adapter has passed every gate that reads a fixture and none that reads a repo](tasks/235_the-typescript-adapter-has-never-been-asked-a-question-in-the-field.md) | Measure | todo | 019, 150, 018, 233 |
 
