@@ -1014,6 +1014,12 @@ PY_CONFORMANCE = AdapterConformance(
             "nest/deep/x.py",
             "nest/pkg/__init__.py",
             "nest/pkg/y.py",
+            # 226 proving package — not an R6.2 inventory row
+            "cross_file_import/__init__.py",
+            "cross_file_import/entities.py",
+            "cross_file_import/user.py",
+            "cross_file_import/external.py",
+            "cross_file_import/relative_child.py",
         }
     ),
     cases=PY_CASES,

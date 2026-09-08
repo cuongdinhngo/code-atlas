@@ -136,13 +136,13 @@ def _unwrap_base(base: ast.expr) -> ast.expr:
 def _marker_from_base_expr(
     base: ast.expr,
     *,
-    import_aliases: dict[str, str],
+    import_markers: dict[str, str],
 ) -> str | None:
     """Return a classification marker (Protocol/ABC/Enum/…) for a base expression."""
     node = _unwrap_base(base)
     if isinstance(node, ast.Name):
         name = node.id
-        return import_aliases.get(name, name)
+        return import_markers.get(name, name)
     if isinstance(node, ast.Attribute):
         return _attr_dotted(node)
     return None
@@ -230,8 +230,10 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
     class_bases: dict[str, list[str]] = {}
     # Classification markers per class (Protocol/ABC/Enum / import aliases / bare names).
     class_base_markers: dict[str, list[str]] = {}
-    # Local import name → marker (Protocol/ABC/Enum) or imported symbol name.
-    import_aliases: dict[str, str] = {}
+    # Local name → Protocol/ABC/Enum marker only (classification; never a link target).
+    import_markers: dict[str, str] = {}
+    # Local name → in-repo qname when ``from … import`` resolves on disk (link targets).
+    import_bindings: dict[str, str] = {}
     class_kind: dict[str, str] = {}
     interface_qnames: set[str] = set()
 
@@ -241,31 +243,46 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
         else:
             declared[name] = qname
 
-    def note_import_alias(local: str, imported: str, module: str | None) -> None:
+    def note_import_alias(
+        local: str, imported: str, module: str | None, *, level: int
+    ) -> None:
         leaf = imported.rsplit(".", 1)[-1]
         if module in ("typing", "abc") and leaf in ("Protocol", "ABC"):
-            import_aliases[local] = f"{module}.{leaf}"
-        elif module == "enum" and leaf == "Enum":
-            import_aliases[local] = "enum.Enum"
-        elif leaf in ("Protocol", "ABC", "Enum"):
-            import_aliases[local] = leaf
-        else:
-            import_aliases[local] = imported
+            import_markers[local] = f"{module}.{leaf}"
+            return
+        if module == "enum" and leaf == "Enum":
+            import_markers[local] = "enum.Enum"
+            return
+        if leaf in ("Protocol", "ABC", "Enum"):
+            import_markers[local] = leaf
+            return
+        # Ordinary import — bind only when the filesystem resolves inside the repo (226).
+        if level > 0 and module is None:
+            resolved = resolve_import(
+                module=None, level=level, from_qpath=qpath, name=imported
+            )
+            if resolved:
+                import_bindings[local] = module_name(resolved)
+            return
+        resolved = resolve_import(module=module, level=level, from_qpath=qpath)
+        if resolved:
+            import_bindings[local] = dotted(module_name(resolved), imported)
 
     def collect_imports(stmt: ast.AST) -> None:
         if isinstance(stmt, ast.Import):
             for alias in stmt.names:
                 local = alias.asname or alias.name.split(".", 1)[0]
                 # ``import typing`` / ``import enum as e`` — Attribute bases use the module name.
-                import_aliases[local] = alias.name
+                import_markers[local] = alias.name
             return
         if isinstance(stmt, ast.ImportFrom):
             module = stmt.module
+            level = stmt.level or 0
             for alias in stmt.names:
                 if alias.name == "*":
                     continue
                 local = alias.asname or alias.name
-                note_import_alias(local, alias.name, module)
+                note_import_alias(local, alias.name, module, level=level)
 
     def collect(stmt: ast.AST, class_qname: str | None, func_qname: str | None) -> None:
         if isinstance(stmt, (ast.Import, ast.ImportFrom)):
@@ -281,7 +298,7 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
             bases: list[str] = []
             markers: list[str] = []
             for base in stmt.bases:
-                marker = _marker_from_base_expr(base, import_aliases=import_aliases)
+                marker = _marker_from_base_expr(base, import_markers=import_markers)
                 if marker is not None:
                     markers.append(marker)
                 node = _unwrap_base(base)
@@ -364,6 +381,9 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
             return local
         if name in declared:
             return name
+        bound = import_bindings.get(name)
+        if bound:
+            return bound
         return name
 
     def add_node(
@@ -483,7 +503,7 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
             emit_annotation_refs(owner_qname, args.kwarg.annotation, args.kwarg)
 
     def base_edge_kind(base: ast.expr, target_raw: str) -> str:
-        marker = _marker_from_base_expr(base, import_aliases=import_aliases)
+        marker = _marker_from_base_expr(base, import_markers=import_markers)
         if marker and _is_interface_marker(marker):
             return "IMPLEMENTS"
         if target_raw in interface_qnames:
@@ -494,7 +514,7 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
             if resolved in interface_qnames:
                 return "IMPLEMENTS"
             leaf = base.id
-            aliased = import_aliases.get(leaf)
+            aliased = import_markers.get(leaf)
             if aliased and _is_interface_marker(aliased):
                 return "IMPLEMENTS"
         return "EXTENDS"
