@@ -347,7 +347,7 @@ Ph3/4 proven by: `tests/test_optional_field_capture.py` 13 passed with parity; c
 
 The branch declared all four capabilities `true` for all four adapters, so the two disclosure
 surfaces it built could not fire on any index this repo produces — and two of the flags were false.
-Seven findings, all fixed on the branch before merge. Two handshake tests and two indexer guards were already red on the branch — CI had never run on it (see below) — so the diff had not been measured against the suite at all.
+Eight findings, all fixed on the branch before merge. Two handshake tests, two indexer guards and the SQL adapter's own R6.6 static analysis were already red on the branch — CI had never run on it (see below) — so the diff had not been measured against the suite at all.
 
 | # | Finding | Fix |
 |---|---|---|
@@ -357,7 +357,8 @@ Seven findings, all fixed on the branch before merge. Two handshake tests and tw
 | 4 | 227's local-type-table arm (`parse.py:708`) was added after this capture was written and emitted CALLS with no `args` — which is why AC4's own indirection test went red on merge | `call=node` threaded; guard asserts *every* CALLS edge carries `args`, not a list of tiers (R6.7) |
 | 5 | TS built the node for `const f = (…) => …` from the variable, whose `parameters` is undefined, so every name-bound callable's params were dropped | probe the initialiser when it is function-like |
 | 6 | The capability stamp was collected after `_parse_all` by re-reading `adapter.name`, so a dead adapter raised `AdapterError` out of `full_build` — `indexer.py:1036` already carries the comment warning against exactly this (*"an adapter that dies later can no longer say what it was"*). Caught by two existing guards, not by a new test | read the flags at handshake time (`_announced_capabilities`) |
-| 7 | `class_diagram`'s disclosure read `roots[0]`'s language alone, and shipped with no test at all | `_languages_of` covers every rendered box; two tests, one for the disclosure and one proving a capturing diagram grows no field (061) |
+| 7 | `tsc --checkJs --strict` (R6.6) was red on the SQL adapter: three new scanner functions with implicit-`any` parameters, and a CALLS edge widened to `Record<string, unknown>` to attach `args` | JSDoc on each, and `Edge` gains the optional `args`/`arg_keys` it now carries |
+| 8 | `class_diagram`'s disclosure read `roots[0]`'s language alone, and shipped with no test at all | `_languages_of` covers every rendered box; two tests, one for the disclosure and one proving a capturing diagram grows no field (061) |
 
 **No CI run existed for this branch.** `gh run list --branch feat/231-…` returned `[]`: the
 `pull_request` event never fired a workflow, so `lint · type · test` had never seen the diff. Two
