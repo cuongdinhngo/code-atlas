@@ -318,3 +318,24 @@ AC1: Python+SQL pins failed=0 with floors in contract_note. AC5: requests two-ru
 
 - Outward actions: push + open PR only. Merge NOT authorised.
 
+
+## Post-PR review — flask's lowered floor, verified (2026-09-08)
+
+Review asked why this ticket *lowers* flask's floors (1544n/8942e → 1406n/8635e) at an unchanged
+pin, since a floor that drops can hide a regression being pinned as the new baseline.
+
+Measured rather than argued. flask @ `d318b68` was built twice from a fresh clone:
+
+| code-atlas tree | files | parsed | failed | nodes | edges |
+|---|---:|---:|---:|---:|---:|
+| `2835273` (227's own merge commit, which recorded 1931n/11178e) | 83 | 83 | 0 | **1758** | **10794** |
+| `e092835` (main at the time of this PR) | 83 | 83 | 0 | **1758** | **10794** |
+
+Identical, node histograms included. **227's 1931n/11178e does not reproduce on the tree that
+recorded it**, so the old floor was slack over a figure nobody can rebuild — not a regression. The
+floors this ticket commits are the first reproducible ones for flask; the manifest's contract note
+now says so, so the next reader does not re-open the question.
+
+Bookkeeping: the BACKLOG row was flipped to `done` instead of leaving (R7.6), and the ledger row was
+written with two cells where the reader needs three, so `233` counted as a done task with no spend
+row. Both fixed.

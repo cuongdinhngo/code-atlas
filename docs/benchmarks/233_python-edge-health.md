@@ -13,6 +13,13 @@ python scripts/edge_health_report.py --only requests
 
 ## flask @ `d318b68` (decorator-heavy framework)
 
+Its manifest floors **drop** (1544n/8942e → 1406n/8635e). 227's note recorded the smoke at
+83f/1931n/11178e; that number does not reproduce. Re-built twice at the same pin — once against
+227's own merge commit `2835273`, once against `e092835` — and both give **83f/1758n/10794e**,
+byte-identical node histograms. The old floor was slack over an unreproducible figure, not a
+regression this ticket is pinning as the baseline.
+
+
 | metric | value |
 |---|---|
 | all edges | 10 794 |
