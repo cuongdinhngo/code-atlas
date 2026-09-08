@@ -16,7 +16,8 @@ const PENDING_CAP = 256 * 1024;
  *   line_start: number, line_end: number, modifiers: string[], params: unknown[],
  *   is_test: boolean, extra: Record<string, string>}} Node
  * @typedef {{kind: string, source_qname: string, target_raw: string, file_path: string,
- *   line: number, confidence_tier: string}} Edge
+ *   line: number, confidence_tier: string, args?: (string|null)[],
+ *   arg_keys?: (string[]|null)[]}} Edge
  * @typedef {{block: number, string: boolean, elided: boolean}} ScanState
  */
 
@@ -145,6 +146,95 @@ function stripToCode(line, state) {
 const CREATE_RE =
   /\b(?:create|alter)\s+(?:or\s+(?:alter|replace)\s+)?(proc(?:edure)?|function)\s+((?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*)(?:\s*\.\s*(?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*))*)/i;
 
+
+// A routine header ends at AS or BEGIN; everything before it is the parameter list.
+const HEADER_END_RE = /\b(?:as|begin)\b/i;
+
+// T-SQL procedure/function parameters: `@name type [ = default ]`, comma-separated before AS/BEGIN.
+const PROC_PARAM_RE =
+  /@([A-Za-z_][\w@#$]*)\s+([A-Za-z_][\w]*(?:\s*\([^)]*\))?)/gi;
+
+/**
+ * @param {string} line
+ * @returns {{name: string, type: string}[]}
+ */
+function procedureParams(line) {
+  const asAt = line.search(HEADER_END_RE);
+  const window = asAt >= 0 ? line.slice(0, asAt) : line;
+  const out = [];
+  PROC_PARAM_RE.lastIndex = 0;
+  let m;
+  while ((m = PROC_PARAM_RE.exec(window)) !== null) {
+    out.push({ name: "@" + m[1], type: m[2].replace(/\s+/g, "") });
+  }
+  return out;
+}
+
+/**
+ * @param {string} token
+ * @returns {string|null}
+ */
+function sqlLiteralKind(token) {
+  const t = token.trim();
+  if (/^N?'(?:[^']|'')*'$/i.test(t)) return "string";
+  if (/^0x[0-9A-Fa-f]+$/.test(t)) return "string";
+  if (/^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(t)) return "number";
+  if (/^(?:true|false)$/i.test(t)) return t.toLowerCase() === "true" ? "true" : "false";
+  if (/^null$/i.test(t)) return "null";
+  return null;
+}
+
+/**
+ * Named EXEC args after the target: `@p = <literal>`, … — one category per positional slot.
+ * @param {string} line
+ * @param {number} matchEnd
+ * @returns {{args: (string|null)[], arg_keys: (string[]|null)[]}|null}
+ */
+function execArgs(line, matchEnd) {
+  const rest = line.slice(matchEnd);
+  const named = [];
+  const re = /@([A-Za-z_][\w@#$]*)\s*=\s*([^,;]+)/g;
+  let m;
+  while ((m = re.exec(rest)) !== null) {
+    named.push({ key: "@" + m[1], value: m[2].trim() });
+  }
+  if (named.length === 0) {
+    // Positional: EXEC dbo.Tag 'name', 3 — rare; capture literal categories only.
+    const positional = [];
+    const pre = rest.replace(/^\s*/, "");
+    if (!pre || pre.startsWith("@")) return null; // no args, or only incomplete named form
+    // Split on commas not inside quotes. A nested call or a subquery in an argument is
+    // beyond a line scanner, and `sqlLiteralKind` returns null for it rather than guessing.
+    let cur = "";
+    let inStr = false;
+    for (let i = 0; i < pre.length; i++) {
+      const ch = pre[i];
+      if (ch === "'" && !inStr) { inStr = true; cur += ch; continue; }
+      if (ch === "'" && inStr) { inStr = false; cur += ch; continue; }
+      if (ch === "," && !inStr) {
+        positional.push(cur.trim());
+        cur = "";
+        continue;
+      }
+      if (ch === ";" && !inStr) break;
+      cur += ch;
+    }
+    if (cur.trim()) positional.push(cur.trim());
+    if (positional.length === 0) return { args: [], arg_keys: [] };
+    return {
+      args: positional.map(sqlLiteralKind),
+      arg_keys: positional.map(() => null),
+    };
+  }
+  // Named EXEC args are still positional for `args` categories; `arg_keys` stays null per
+  // scalar slot — it means array/object literal keys (063), not T-SQL parameter names.
+  return {
+    args: named.map((n) => sqlLiteralKind(n.value)),
+    arg_keys: named.map(() => null),
+  };
+}
+
+
 // EXEC and EXECUTE are the same construct (019-C2). A parenthesised or variable target is dynamic.
 const EXEC_RE =
   /\b(exec(?:ute)?)\s+(?:@\w+\s*=\s*)?(\(|@\w+|(?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*)(?:\s*\.\s*(?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*))*)/gi;
@@ -185,6 +275,8 @@ function parseFile(qpath) {
   const state = { block: 0, string: false, elided: false };
   /** @type {{qname: string, node: Node}|null} */
   let current = null;
+  /** @type {Node|null} */
+  let paramScan = null;
   let lineNo = 0;
   let lastLine = 0;
   /** @type {{kind: string, buf: string, line: number, depth: number, opened: boolean}|null} */
@@ -288,7 +380,12 @@ function parseFile(qpath) {
     const seen = columns.get(qname);
     /** @type {Record<string, string>} */
     const extra = {};
-    if (col.dataType !== "") extra["data_type"] = col.dataType;
+    if (col.dataType !== "") {
+      // `data_type` is SQL's spelling (CONVENTION §1); `type` is the cross-language key
+      // every consumer reads (class_diagram.py, module_facts.py) — same value, one source.
+      extra["data_type"] = col.dataType;
+      extra["type"] = col.dataType;
+    }
     if (col.dflt !== null) extra["default"] = col.dflt;
     if (seen) {
       // The other DEFAULT spelling arrives after the column itself; fill it in rather than
@@ -398,6 +495,7 @@ function parseFile(qpath) {
 
   /** @param {number} endLine */
   const closeCurrent = (endLine) => {
+    paramScan = null;
     if (current) {
       current.node.line_end = endLine;
       current = null;
@@ -410,6 +508,12 @@ function parseFile(qpath) {
     lastLine = lineNo;
     const code = stripToCode(line, state);
     if (code.trim() === "") return;
+
+    // A T-SQL parameter list may wrap across lines; the header ends at AS or BEGIN (231).
+    if (paramScan) {
+      paramScan.params.push(...procedureParams(code));
+      if (HEADER_END_RE.test(code)) paramScan = null;
+    }
 
     // A statement in progress absorbs the line unless a new one starts at paren depth 0.
     if (pending && pending.depth <= 0 && BOUNDARY_RE.test(code)) flush();
@@ -446,7 +550,7 @@ function parseFile(qpath) {
           line_start: lineNo,
           line_end: lineNo,
           modifiers: [],
-          params: [],
+          params: procedureParams(code),
           is_test: false,
           extra: { object_type: created[1].toLowerCase().startsWith("proc") ? "procedure" : "function" },
         };
@@ -460,6 +564,7 @@ function parseFile(qpath) {
           confidence_tier: "RESOLVED",
         });
         current = { qname, node };
+        paramScan = HEADER_END_RE.test(code) ? null : node;
       }
       return;
     }
@@ -502,14 +607,23 @@ function parseFile(qpath) {
       const dynamicProc = qname !== null && DYNAMIC_PROCS.has(qname.toLowerCase());
       // A dynamic target is emitted, never dropped and never RESOLVED (AC7): the call site is a fact
       // even where the callee is not knowable, and the core decides what an unlinkable edge means.
-      edges.push({
+      /** @type {Edge} */
+      const edge = {
         kind: "CALLS",
         source_qname: source,
         target_raw: dynamic || qname === null || dynamicProc ? "(dynamic)" : qname,
         file_path: qpath,
         line: lineNo,
         confidence_tier: dynamic || qname === null || dynamicProc ? "DYNAMIC" : "RESOLVED",
-      });
+      };
+      if (!dynamic && qname !== null && !dynamicProc) {
+        const captured = execArgs(code, call.index + call[0].length);
+        if (captured) {
+          edge.args = captured.args;
+          edge.arg_keys = captured.arg_keys;
+        }
+      }
+      edges.push(edge);
     }
 
     const kind = TABLE_RE.test(code)

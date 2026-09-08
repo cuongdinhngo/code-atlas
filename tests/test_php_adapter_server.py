@@ -72,9 +72,16 @@ def test_the_core_drives_the_real_php_adapter_end_to_end() -> None:
 
 @needs_php
 def test_the_handshake_announces_capabilities_as_an_object_not_an_empty_array() -> None:
-    # PHP's natural `[]` encodes as a JSON array, which validate_meta rejects loudly at startup.
+    # PHP's natural `[]` encodes as a JSON array, which validate_meta rejects loudly at startup;
+    # the `(object)` cast is what keeps it a map even if 231's flags are ever dropped again.
     with server() as adapter:
-        assert adapter.capabilities == {}
+        assert isinstance(adapter.capabilities, dict)
+        assert adapter.capabilities == {
+            "params": True,
+            "args": True,
+            "modifiers": True,
+            "declared_types": True,
+        }
 
 
 @needs_php

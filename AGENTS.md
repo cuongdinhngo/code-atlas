@@ -109,7 +109,7 @@ them present bare `pytest` is green and is the fastest route. Missing either con
 **a platform limitation, not a regression** — so don't conclude "the suite can't run"; run it in
 Docker instead: `scripts/docker-test.sh`. **Expected count, verified 2026-09-08 on Linux — this is
 the one place these numbers are kept:** bare `pytest` (with `php` · `composer` · `node` · `docker` on
-PATH) **3,090 passed / 0 skipped**; `scripts/docker-test.sh` **3,089 passed / 1 skipped**, that skip
+PATH) **3,222 passed / 0 skipped**; `scripts/docker-test.sh` **3,221 passed / 1 skipped**, that skip
 being `test_runtime_image_reports_server_build` (shells out to `docker`, impossible in-image).
 
 Prove **delta-green** before a PR and name the host: a red run on a host missing an adapter is the

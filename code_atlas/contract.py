@@ -182,7 +182,13 @@ REQUIRED_META_FIELDS: tuple[str, ...] = ("name", "extensions", "contract_version
 
 # Advertised, never required: an absent flag is legal and the core degrades without it (R1.6).
 Capabilities = dict[str, bool]
-KNOWN_CAPABILITIES: tuple[str, ...] = ("semantic_types",)
+KNOWN_CAPABILITIES: tuple[str, ...] = (
+    "semantic_types",
+    "params",
+    "args",
+    "modifiers",
+    "declared_types",
+)
 
 # ``extra`` / tool-payload key for declarations-only stub nodes (task 039). Not a contract bump.
 STUB_FLAG = "stub"

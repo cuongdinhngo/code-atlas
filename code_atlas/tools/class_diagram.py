@@ -72,6 +72,17 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             boxes, inheritance, associations, hidden = _project(
                 store, qnames, member_cap=cap
             )
+            # 231: disclose only when the stamp says a rendered language never fills params. Every
+            # box, not just the subject's — an inherited box may come from another language, and a
+            # signature missing there is missing from this diagram.
+            params_not_captured = False
+            caps = store.stamped_capabilities_by_language()
+            if caps is not None:
+                languages = _languages_of(store, boxes, path=path)
+                params_not_captured = any(
+                    not (caps.get(language) or {}).get("params", False)
+                    for language in languages
+                )
         mermaid = render_class_diagram(
             boxes, inheritance, associations, member_cap=cap, hidden_associations=hidden
         )
@@ -90,6 +101,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             payload["association_note"] = NOTE_NO_ASSOCIATIONS
         if hidden:
             payload["associations_hidden_by_cap"] = hidden
+        if params_not_captured:
+            # Thin signature because capture was never declared — not when data was present (061).
+            payload["params_not_captured_by_adapter"] = True
         attach_ambiguous_definitions(payload, sites)
         attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
         return payload
@@ -147,6 +161,18 @@ def _ancestry(store: GraphStore, roots: Sequence[str]) -> list[str]:
             known.add(target)
             pending.append(target)
     return seen
+
+
+def _languages_of(
+    store: GraphStore, boxes: Sequence[ClassBox], *, path: str | None
+) -> set[str]:
+    """Indexed languages the rendered boxes come from — bounded by the member cap."""
+    files: set[str] = {path} if path is not None else set()
+    rows = store.nodes_by_qualified_names([box.qname for box in boxes], limit=1)
+    for found in rows.values():
+        if found and found[0].get("file_path"):
+            files.add(str(found[0]["file_path"]))
+    return {language for file in files if (language := store.language_of_file(file))}
 
 
 def _project(

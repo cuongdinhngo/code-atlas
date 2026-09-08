@@ -42,6 +42,7 @@ from code_atlas.store import (
     BUILD_COMPLETE_KEY,
     BUILD_INCOMPLETE,
     BUILT_AT_KEY,
+    CAPABILITIES_BY_LANGUAGE_KEY,
     COLLECTION_CENSUS_KEY,
     CONFIG_IDENTITY_KEY,
     CONTRACT_VERSION_KEY,
@@ -217,6 +218,7 @@ def full_build(
         report.phase("announce")
         announced = _announce(config, watchdog)
         try:
+            capabilities_by_language = _announced_capabilities(announced)
             owners = _owners(announced)
             report.phase("tree_walk")
             paths, census, untracked, ignore_sources, skipped_suffixes = _collect_with_census(
@@ -248,7 +250,14 @@ def full_build(
     _count_late_writes(counts, config, store, rules, progress=report)
     report.phase("meta")
     _record_meta(
-        config, store, tuple(owners), census, untracked, ignore_sources, skipped_suffixes
+        config,
+        store,
+        tuple(owners),
+        census,
+        untracked,
+        ignore_sources,
+        skipped_suffixes,
+        capabilities_by_language=capabilities_by_language,
     )
     return BuildReport(
         files=len(kept),
@@ -388,6 +397,7 @@ def incremental_update(
         announced = _announce(config, watchdog)
         _phase_add(phase_times, "announce", mark)
         try:
+            capabilities_by_language = _announced_capabilities(announced)
             owners = _owners(announced)
             _require_unchanged_scope(store, owners)
             mark = time.monotonic()
@@ -523,7 +533,14 @@ def incremental_update(
     mark = time.monotonic()
     report.phase("meta")
     _record_meta(
-        config, store, tuple(owners), census, untracked, ignore_sources, skipped_suffixes
+        config,
+        store,
+        tuple(owners),
+        census,
+        untracked,
+        ignore_sources,
+        skipped_suffixes,
+        capabilities_by_language=capabilities_by_language,
     )
     _phase_add(phase_times, "meta", mark)
     return BuildReport(
@@ -1001,6 +1018,13 @@ def _reconcile(store: GraphStore, paths: Sequence[str]) -> int:
     return len(gone)
 
 
+def _announced_capabilities(
+    announced: Mapping[str, SubprocessAdapter],
+) -> dict[str, dict[str, bool]]:
+    """Read the handshake flags now (231): an adapter that dies later announces nothing."""
+    return {adapter.name: dict(adapter.capabilities) for adapter in announced.values()}
+
+
 def _parse_all(
     config: Config,
     store: GraphStore,
@@ -1191,6 +1215,7 @@ def _record_meta(
     untracked: tuple[str, ...] = (),
     ignore_sources: Mapping[str, int] | None = None,
     skipped_suffixes: Mapping[str, int] | None = None,
+    capabilities_by_language: Mapping[str, Mapping[str, bool]] | None = None,
 ) -> None:
     """Stamp the build (§8.1 step 4). Clear commit/ref when git cannot name them (077).
 
@@ -1216,6 +1241,14 @@ def _record_meta(
     languages = store.edge_language_census()
     store.set_meta(EDGE_HEALTH_BY_LANGUAGE_KEY, json.dumps(languages.health, sort_keys=True))
     store.set_meta(EMITTED_KINDS_BY_LANGUAGE_KEY, json.dumps(languages.kinds, sort_keys=True))
+    if capabilities_by_language is not None:
+        store.set_meta(
+            CAPABILITIES_BY_LANGUAGE_KEY,
+            json.dumps(
+                {name: dict(caps) for name, caps in sorted(capabilities_by_language.items())},
+                sort_keys=True,
+            ),
+        )
     store.set_meta(COLLECTION_CENSUS_KEY, json.dumps(asdict(census)))
     store.set_meta(UNTRACKED_INDEXABLE_KEY, json.dumps(list(untracked)))
     sources = {key: count for key, count in dict(ignore_sources or {}).items() if count}

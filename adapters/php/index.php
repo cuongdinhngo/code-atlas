@@ -25,7 +25,12 @@ function serve(Parser $parser): void
     emit([
         'name' => 'php',
         'extensions' => ['.php', '.phtml'],
-        'capabilities' => new stdClass(),
+        'capabilities' => (object) [
+            'params' => true,
+            'args' => true,
+            'modifiers' => true,
+            'declared_types' => true,
+        ],
         'contract_version' => 9,
     ]);
 
