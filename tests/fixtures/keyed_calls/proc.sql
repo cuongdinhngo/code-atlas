@@ -1,0 +1,6 @@
+CREATE PROCEDURE dbo.getUnplannedChange
+AS
+BEGIN
+    SELECT 1;
+END
+GO
