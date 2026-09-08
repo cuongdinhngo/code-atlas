@@ -643,7 +643,9 @@ def reparse_file(config: Config, store: GraphStore, path: str) -> bool:
             try:
                 with watchdog.guard(adapter):
                     result = adapter.parse(
-                        path, declarations_only=is_stub_path(path, config.stub_roots)
+                        path,
+                        declarations_only=is_stub_path(path, config.stub_roots),
+                        source_roots=config.source_roots,
                     )
             except AdapterError as error:
                 result = ParseResult(path=path, ok=False, error=str(error))
@@ -1147,7 +1149,9 @@ def _work(
             try:
                 with watchdog.guard(adapter):
                     result = adapter.parse(
-                        path, declarations_only=is_stub_path(path, config.stub_roots)
+                        path,
+                        declarations_only=is_stub_path(path, config.stub_roots),
+                        source_roots=config.source_roots,
                     )
             except AdapterError as error:
                 result = ParseResult(path=path, ok=False, error=str(error))

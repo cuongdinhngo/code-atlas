@@ -1426,6 +1426,45 @@ class GraphStore:
         )
         return int(self._conn.execute(sql, (bare_name, qname)).fetchone()[0])
 
+    def indexed_dotted_module_keys(self) -> set[str]:
+        """Every dotted name an indexed file could be imported as, naming no language (R1.1).
+
+        A path's own dotted form and its directory's — a package initialiser makes the
+        directory importable — each contributing every suffix, since a root may be any prefix.
+        """
+        keys: set[str] = set()
+        for path in self.file_paths():
+            segments = path.split("/")
+            stem = segments[-1].rsplit(".", 1)[0]
+            if not stem:
+                continue
+            own = [*segments[:-1], stem]
+            for parts in (own, own[:-1]):
+                for start in range(len(parts)):
+                    keys.add(".".join(parts[start:]))
+        keys.discard("")
+        return keys
+
+    def count_source_root_hint_imports(self) -> int:
+        """Unlinked dotted ``IMPORTS`` naming a module the index already holds (230).
+
+        Operator signal: the name is in the index under a directory the importer's climb
+        cannot reach — configure ``source_roots``. Path-shaped raws resolved already.
+        """
+        keys = self.indexed_dotted_module_keys()
+        if not keys:
+            return 0
+        sql = (
+            "SELECT target_raw FROM edges WHERE kind = 'IMPORTS' "
+            "AND (target_qname IS NULL OR target_qname = '')"
+        )
+        count = 0
+        for (raw,) in self._conn.execute(sql):
+            name = str(raw)
+            if name and "/" not in name and name in keys:
+                count += 1
+        return count
+
     def count_unlinked_by_target_raw(
         self, raws: Sequence[str], *, kinds: Sequence[str]
     ) -> int:

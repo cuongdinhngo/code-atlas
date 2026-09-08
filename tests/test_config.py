@@ -160,6 +160,15 @@ KNOBS = (
         lambda root: None,
     ),
     Knob(
+        "CA_SOURCE_ROOTS",
+        'source_roots = ["src"]',
+        "src,layers/packages",
+        lambda config: config.source_roots,
+        lambda root: ("src", "layers/packages"),
+        lambda root: ("src",),
+        lambda root: None,
+    ),
+    Knob(
         "CA_PROJECT_FILES",
         'project_files = ["composer.json"]',
         "Makefile,README.md",
@@ -263,7 +272,7 @@ def test_every_knob_has_a_precedence_case() -> None:
     # Guards the guard: dropping a knob from KNOBS would otherwise shrink AC1's coverage silently.
     covered = {knob.variable for knob in KNOBS}
     assert {env_name(key) for key in KNOB_KEYS} | {"CA_PHP_CMD"} == covered
-    assert len(KNOB_KEYS) == 20
+    assert len(KNOB_KEYS) == 21
 
 
 def test_env_name_is_derived_from_the_project_file_key() -> None:
@@ -281,6 +290,7 @@ def test_env_name_is_derived_from_the_project_file_key() -> None:
         "CA_ENTRY_POINTS",
         "CA_STUB_ROOTS",
         "CA_WORKING_ROOTS",
+        "CA_SOURCE_ROOTS",
         "CA_PROJECT_FILES",
         "CA_AUDIENCE",
         "CA_INDIRECTION_RULES",

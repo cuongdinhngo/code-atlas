@@ -55,7 +55,13 @@ class StubAdapter:
 
     def start(self) -> None: ...
 
-    def parse(self, path: str, *, declarations_only: bool = False) -> ParseResult:
+    def parse(
+        self,
+        path: str,
+        *,
+        declarations_only: bool = False,
+        source_roots: tuple[str, ...] | None = None,
+    ) -> ParseResult:
         return ParseResult(path=path, ok=True)
 
     def stop(self) -> None: ...

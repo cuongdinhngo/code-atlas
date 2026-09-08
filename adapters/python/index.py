@@ -47,7 +47,17 @@ def serve() -> None:
         if not isinstance(path, str):
             sys.stderr.write("code-atlas python adapter: skipped an unusable request line\n")
             continue
-        emit(parse_file(path, declarations_only=bool(request.get("declarations_only"))))
+        roots_raw = request.get("source_roots") if isinstance(request, dict) else None
+        roots: list[str] = []
+        if isinstance(roots_raw, list):
+            roots = [r for r in roots_raw if isinstance(r, str) and r.strip()]
+        emit(
+            parse_file(
+                path,
+                declarations_only=bool(request.get("declarations_only")),
+                source_roots=roots or None,
+            )
+        )
 
 
 def main(argv: list[str]) -> int:
