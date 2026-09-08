@@ -242,7 +242,7 @@ Add `source_roots` to `KNOB_KEYS`. Core passes it on the parse request when set.
 **H1 `prove-the-guard-fails`** — traced.
 
 ```
-Ran at 17e4ebe45209805fb2f60502ea64ea8bdc8a8093
+Ran at 64fea9516d8264084f4ea74dec6e1e23fe67b260
 $ .venv/bin/python -m pytest tests/test_python_source_roots.py::test_ac1_without_source_roots_import_stays_unlinked -q
 .
 ```
@@ -252,7 +252,7 @@ Folded: AC1 red-before in proving suite.
 **H2 `prefer-the-provable-fix`** — traced.
 
 ```
-Ran at 17e4ebe45209805fb2f60502ea64ea8bdc8a8093
+Ran at 64fea9516d8264084f4ea74dec6e1e23fe67b260
 $ rg -n 'E1|valance|2524' docs/tasks/230_*.md | head -3
 ```
 
@@ -307,7 +307,7 @@ No design deviations.
 ### Proving test evidence
 
 ```
-Ran at 17e4ebe45209805fb2f60502ea64ea8bdc8a8093
+Ran at 64fea9516d8264084f4ea74dec6e1e23fe67b260
 $ .venv/bin/python -m pytest tests/test_python_source_roots.py -q
 ......                                                                   [100%]
 6 passed
