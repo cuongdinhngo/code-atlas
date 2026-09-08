@@ -341,8 +341,9 @@ Ph3/4 proven by: `tests/test_references_construct_agreement.py` + relation_unmod
 
 `CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
 `RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
-`PROMOTION: 0 candidate(s) — none`
-`FALSIFY: 0 candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
 `LEDGER TOTAL: unmeasured (host surfaces no usage block) · top cost driver: main-loop execute`
 
 Outward actions authorised: push branch + open PR. Merge deferred.
