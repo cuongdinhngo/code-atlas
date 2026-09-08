@@ -364,7 +364,11 @@ change the branch had not followed through:
 Delta-green after the repair: bare `pytest` **3,228 passed / 0 skipped** on Linux with `php` ·
 `composer` · `node` on PATH; `scripts/gate.sh` **GATE GREEN**.
 
-**Open, not fixed here:** `GraphStore.language_never_emits` (approved change-list item 4) has no
-production caller — `find_references` reaches the same per-kind answer through
-`relation_unmodelled_for_language(..., kinds=("REFERENCES",))`. It is tested but unused, which R7.4
-calls a dead abstraction. Left for the maintainer: delete it, or route `find_references` through it.
+**Change-list item 4 withdrawn (R7.4).** `GraphStore.language_never_emits` had no production
+caller: the honest-zero rule lives once, in `coverage.py:relation_unmodelled_for_language`, which
+resolves the file's language and then asks the store — and it already answers the per-kind question
+with a one-element `kinds` (R1.8/186 keeps that rule central). A direct per-kind call from
+`find_references` would have had to re-resolve the language itself, so the method could only ever be
+the redundant second reader. Deleted; its six assertions now exercise
+`language_emits_none_of(lang, ("REFERENCES",))`, and AC4 still shows the set answering `False` where
+one kind answers `True`.

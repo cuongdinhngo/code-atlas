@@ -1006,8 +1006,8 @@ and touches FTS correctness — its own ticket. The anchor timing pair is unmeas
 TS decorators and declared types on `extra`; 217 chose edges for Python, so one construct answered
 `find_references` three ways. **Locked: edges** — PHP and TS emit `REFERENCES` from named class types
 (params/returns/properties) and from attributes/decorators; `Foo::class` stays `DYNAMIC` (094).
-Withdraw-Python rejected: a TS type-site zero is a false claim. Companion:
-`language_never_emits(language, kind)` makes a never-emitted sibling visible. Detail:
+Withdraw-Python rejected: a TS type-site zero is a false claim. `find_references` now asks
+`language_emits_none_of` for `REFERENCES` alone, so `IMPORTS` can no longer mask it. Detail:
 [232](tasks/232_the-same-construct-is-a-references-edge-in-python-and-node-extra-in-php-and-ts.md).
 
 **Reference material** (private, same folder): `understand-anything-how-it-works.md`, `code-review-graph-how-it-works.md`.

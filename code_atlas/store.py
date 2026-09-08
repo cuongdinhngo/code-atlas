@@ -913,17 +913,6 @@ class GraphStore:
         emitted = set(stamped[language])
         return not any(kind in emitted for kind in kinds)
 
-    def language_never_emits(self, language: str, kind: str) -> bool | None:
-        """Has this language never emitted ``kind`` in this index? ``None`` = cannot say (R5.6).
-
-        Per-kind sibling of :meth:`language_emits_none_of`: a peer kind in a set can no longer
-        hide a never-emitted sibling (task 232). Same R5.6 holes as the set-level reader.
-        """
-        stamped = self.stamped_emitted_kinds_by_language()
-        if stamped is None or language not in stamped:
-            return None
-        return kind not in stamped[language]
-
     def language_of_file(self, path: str) -> str | None:
         """The indexed language of one file, or ``None`` when the file is not indexed."""
         row = self._conn.execute(

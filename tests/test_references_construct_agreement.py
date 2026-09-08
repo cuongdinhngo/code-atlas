@@ -77,8 +77,12 @@ def test_ac2_adapters_agree_on_shared_fixture() -> None:
     assert py == php == ts == 2
 
 
-def test_ac4_per_kind_predicate_differs_from_set_level(tmp_path: Path) -> None:
-    """AC4 — IMPORTS populated + REFERENCES absent: set-level False, per-kind True."""
+def test_ac4_one_kind_differs_from_the_whole_set(tmp_path: Path) -> None:
+    """AC4 — IMPORTS populated + REFERENCES absent: the set answers False, `REFERENCES` alone True.
+
+    The same reader answers both: a one-kind `kinds` is the per-kind question (R7.4 — no second
+    method for a narrower argument).
+    """
     db = tmp_path / "graph.db"
     with GraphStore(db) as store:
         store.set_meta(
@@ -86,16 +90,16 @@ def test_ac4_per_kind_predicate_differs_from_set_level(tmp_path: Path) -> None:
             json.dumps({"typescript": ["IMPORTS", "CONTAINS", "CALLS"]}),
         )
         assert store.language_emits_none_of("typescript", UNMODELLED_REFERENCE_KINDS) is False
-        assert store.language_never_emits("typescript", "REFERENCES") is True
-        assert store.language_never_emits("typescript", "IMPORTS") is False
+        assert store.language_emits_none_of("typescript", ("REFERENCES",)) is True
+        assert store.language_emits_none_of("typescript", ("IMPORTS",)) is False
 
 
 def test_ac5_pre_stamp_index_says_nothing(tmp_path: Path) -> None:
     """AC5 / R5.6 — no stamp → None, never a guessed never-emitted."""
     db = tmp_path / "graph.db"
     with GraphStore(db) as store:
-        assert store.language_never_emits("typescript", "REFERENCES") is None
         assert store.language_emits_none_of("typescript", ("REFERENCES",)) is None
+        assert store.language_emits_none_of("typescript", UNMODELLED_REFERENCE_KINDS) is None
 
 
 @needs_node
@@ -111,7 +115,7 @@ def test_ac3_find_references_unmodelled_when_references_never_emitted(
         if "IMPORTS" not in kinds:
             kinds.append("IMPORTS")
         store.set_meta(EMITTED_KINDS_BY_LANGUAGE_KEY, json.dumps({"typescript": kinds}))
-        assert store.language_never_emits("typescript", "REFERENCES") is True
+        assert store.language_emits_none_of("typescript", ("REFERENCES",)) is True
         assert store.language_emits_none_of("typescript", UNMODELLED_REFERENCE_KINDS) is False
 
     payload = find_references.create(config)(qname="src/class_heritage.ts::Circle::draw")
@@ -127,7 +131,7 @@ def test_ac3_genuine_no_matches_when_language_emits_references(
     """AC3 — PHP emits REFERENCES; a subject with none still returns no_matches."""
     config = _index(tmp_path_factory.mktemp("php232"), PHP_CLI, ("*.php",))
     with GraphStore(config.db_path) as store:
-        assert store.language_never_emits("php", "REFERENCES") is False
+        assert store.language_emits_none_of("php", ("REFERENCES",)) is False
     payload = find_references.create(config)(qname="\\App\\Models\\User::save")
     if payload.get("total_count", 0) == 0:
         assert payload["reason"] == REASON_NO_MATCHES

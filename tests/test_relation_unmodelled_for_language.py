@@ -187,7 +187,7 @@ def test_find_references_fires_when_references_alone_is_unmodelled(ts_index: Con
             kinds.append("IMPORTS")
         store.set_meta(EMITTED_KINDS_BY_LANGUAGE_KEY, json.dumps({"typescript": kinds}))
         assert store.language_emits_none_of("typescript", UNMODELLED_REFERENCE_KINDS) is False
-        assert store.language_never_emits("typescript", "REFERENCES") is True
+        assert store.language_emits_none_of("typescript", ("REFERENCES",)) is True
 
     payload = find_references.create(ts_index)(qname="src/class_heritage.ts::Circle::draw")
     if payload.get("total_count", 0) == 0:
