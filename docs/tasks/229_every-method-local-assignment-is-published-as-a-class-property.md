@@ -282,21 +282,15 @@ Coverage-gap exclusion E1 (ticket): the 4,384 / 17,516 field measurement is from
 
 - **Branch:** `fix/229-every-method-local-assignment-is-published-as-a-class-property` from `origin/main` @ `61d992a`.
 - **Diff ⊆ approved list:** yes — parse.py Property arm; proving fixture; proving tests; adapter_registry exclusion; working doc + BACKLOG + TOKEN_LEDGER + LESSONS sighting.
-- **AC1 red (pre-fix, recorded):**
-  ```
-  $ python adapters/python/index.py --file <five-liner Widget>
-  NODE Property …Widget::kind
-  NODE Property …Widget::tmp   # defect
-  EDGE CONTAINS Widget -> Widget::tmp
-  ```
-  Ran at `61d992a509b4a4b249792daa16acea56b2276b93`
-- **Proving test (post-fix):**
+- **AC1 red (pre-fix, recorded as prose — not empirical fence):** on tree `61d992a` the five-liner emitted `Property …Widget::tmp` plus CONTAINS from Widget (and `Property …Widget::kind`). Without that red observation a green proving test would only show the file parses.
+- **Empirical output — PASTED, stamped with the tree under review.**
+
+  Ran at `bfbc88779595ca05f4381451aa320d855cdea630`
   ```
   $ /home/you/WORKSPACE/PROJECTS/code-atlas/.venv/bin/python -m pytest tests/test_python_adapter_nodes.py -q
   ....
-  4 passed in 0.13s
+  4 passed in 0.14s
   ```
-  Ran at `bfbc88779595ca05f4381451aa320d855cdea630`
 - **AC5 before/after on prior fixtures:** Property nodes 5 → 5 (owner, tag, RED, BLUE, total). Removals from existing fixtures: **none** (no prior fixture had method-local bare Name assigns). New proving fixture is excluded from R6.2.
 - **Design-conformance self-check:** container predicate only; Attribute skip untouched; annotation path uses `owner_for_ann or scope`; no contract bump; no core language branch.
 - **Golden/snapshot change:** none beyond expected absence of invented Properties on the new fixture.
