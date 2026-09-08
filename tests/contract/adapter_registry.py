@@ -752,7 +752,6 @@ _PY_IMPORT_REL_EDGE_SHAPES: list[EdgeShape] = [
     ),
 ]
 _PY_CALL_METHOD_EDGE_SHAPES: list[EdgeShape] = [
-    ("CALLS", f"{_pymod('call_method.py')}.call_on", "hook", "HEURISTIC"),
     (
         "CALLS",
         f"{_pymod('call_method.py')}.Child::hook",
@@ -762,6 +761,13 @@ _PY_CALL_METHOD_EDGE_SHAPES: list[EdgeShape] = [
     (
         "CALLS",
         f"{_pymod('call_method.py')}.Child::run",
+        f"{_pymod('call_method.py')}.Child::hook",
+        None,
+    ),
+    # 227: annotated receiver ``obj: Child`` promotes ``obj.hook()`` off HEURISTIC.
+    (
+        "CALLS",
+        f"{_pymod('call_method.py')}.call_on",
         f"{_pymod('call_method.py')}.Child::hook",
         None,
     ),

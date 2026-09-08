@@ -7,6 +7,13 @@ from pathlib import Path
 from typing import Any
 
 from src.imports import import_target_raw, resolve_import
+from src.types import (
+    bound_class,
+    class_prop_type_map,
+    new_expr_class,
+    param_type_map,
+    receiver_class,
+)
 
 MEMBER_SEP = "::"
 
@@ -345,6 +352,12 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
         if kind == "Interface":
             interface_qnames.add(qn)
 
+    known_class_names: set[str] = {
+        qn.rsplit(".", 1)[-1]
+        for qn, kind in class_kind.items()
+        if kind in ("Class", "Enum", "Interface")
+    }
+
     def resolve_name(name: str) -> str:
         local = declared.get(name)
         if local:
@@ -534,7 +547,13 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
                 real = alias.name
             add_edge("ALIASES", dotted(mod, alias.asname), real, node)
 
-    def emit_call(node: ast.Call, scope: str, enclosing_class: str | None) -> None:
+    def emit_call(
+        node: ast.Call,
+        scope: str,
+        enclosing_class: str | None,
+        locals_: dict[str, str],
+        self_props: dict[str, str],
+    ) -> None:
         func = node.func
         if isinstance(func, ast.Name):
             # ``super()`` alone is not a call edge; ``super().m()`` is handled via Attribute.
@@ -571,25 +590,47 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
                         return
                 add_edge("CALLS", scope, method, node, "HEURISTIC")
                 return
+            # Local type table (227): annotated / ``Foo()``-bound receiver → ``<Class>::method``.
+            cls = receiver_class(recv, locals_, self_props)
+            if cls:
+                add_edge("CALLS", scope, member(resolve_name(cls), method), node)
+                return
             # obj.m() — method name known, receiver not: HEURISTIC ceiling (emit-do-not-gate).
             add_edge("CALLS", scope, method, node, "HEURISTIC")
             return
         add_edge("CALLS", scope, "(dynamic)", node, "DYNAMIC")
+
+    def _bind_or_forget(
+        locals_: dict[str, str],
+        name: str,
+        ann: ast.expr | None,
+        value: ast.expr | None,
+    ) -> None:
+        # Flow-forgetful (137/153): a typed binding sticks; an unknown write re-opens the name.
+        bound = bound_class(ann, value, known_classes=known_class_names)
+        if bound:
+            locals_[name] = bound
+        else:
+            locals_.pop(name, None)
 
     def walk_body(
         body: list[ast.stmt],
         container: str,
         scope: str,
         enclosing_class: str | None,
+        locals_: dict[str, str],
+        self_props: dict[str, str],
     ) -> None:
         for stmt in body:
-            walk_stmt(stmt, container, scope, enclosing_class)
+            walk_stmt(stmt, container, scope, enclosing_class, locals_, self_props)
 
     def walk_stmt(
         stmt: ast.stmt,
         container: str,
         scope: str,
         enclosing_class: str | None,
+        locals_: dict[str, str],
+        self_props: dict[str, str],
     ) -> None:
         if isinstance(stmt, (ast.Import, ast.ImportFrom)):
             emit_imports(stmt)
@@ -614,7 +655,8 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
                 elif isinstance(node, ast.Attribute):
                     base_target = _attr_dotted(node)
                     add_edge(base_edge_kind(base, base_target), qn, base_target, base)
-            walk_body(stmt.body, qn, qn, qn)
+            child_props = class_prop_type_map(stmt.body)
+            walk_body(stmt.body, qn, qn, qn, {}, child_props)
             return
 
         if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -636,7 +678,14 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
             emit_decorator_refs(qn, stmt)
             emit_function_annotation_refs(qn, stmt)
             if not declarations_only:
-                walk_body(stmt.body, qn, qn, enclosing_class)
+                # Fresh locals at a module/class-level def; nested defs inherit (153).
+                nested = kind == "Function" and container not in (qpath, mod)
+                child_locals = (
+                    {**locals_, **param_type_map(stmt)}
+                    if nested
+                    else param_type_map(stmt)
+                )
+                walk_body(stmt.body, qn, qn, enclosing_class, child_locals, self_props)
             return
 
         if isinstance(stmt, (ast.Assign, ast.AnnAssign)):
@@ -646,43 +695,66 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
             elif stmt.target is not None:
                 targets = [stmt.target]
             owner_for_ann: str | None = None
+            value = stmt.value if isinstance(stmt, (ast.Assign, ast.AnnAssign)) else None
+            ann = stmt.annotation if isinstance(stmt, ast.AnnAssign) else None
             for target in targets:
-                if not isinstance(target, ast.Name):
-                    continue
-                if enclosing_class is not None:
-                    qn = member(enclosing_class, target.id)
-                    add_node("Property", target.id, qn, stmt)
-                    add_edge("CONTAINS", enclosing_class, qn, stmt)
-                    owner_for_ann = qn
-                elif container in (qpath, mod) and _is_upper_const(target.id):
-                    qn = dotted(mod, target.id)
-                    add_node("Const", target.id, qn, stmt)
-                    add_edge("CONTAINS", container, qn, stmt)
-                    owner_for_ann = qn
+                if isinstance(target, ast.Name):
+                    if enclosing_class is not None and container == enclosing_class:
+                        qn = member(enclosing_class, target.id)
+                        add_node("Property", target.id, qn, stmt)
+                        add_edge("CONTAINS", enclosing_class, qn, stmt)
+                        owner_for_ann = qn
+                    elif container in (qpath, mod) and _is_upper_const(target.id):
+                        qn = dotted(mod, target.id)
+                        add_node("Const", target.id, qn, stmt)
+                        add_edge("CONTAINS", container, qn, stmt)
+                        owner_for_ann = qn
+                    elif not declarations_only:
+                        _bind_or_forget(locals_, target.id, ann, value)
+                elif (
+                    not declarations_only
+                    and isinstance(target, ast.Attribute)
+                    and isinstance(target.value, ast.Name)
+                    and target.value.id in ("self", "cls")
+                ):
+                    # ``self._x: T = …`` inside a method updates the class prop table.
+                    cls = bound_class(ann, value, known_classes=known_class_names)
+                    if cls:
+                        self_props[target.attr] = cls
+                    elif ann is None and value is not None and new_expr_class(
+                        value, known_classes=known_class_names
+                    ) is None:
+                        self_props.pop(target.attr, None)
             if isinstance(stmt, ast.AnnAssign):
                 # Class-body / annotated assign → REFERENCES from the Property/Const (or scope).
                 src = owner_for_ann or scope
                 emit_annotation_refs(src, stmt.annotation, stmt)
             if not declarations_only and isinstance(stmt, ast.Assign) and stmt.value:
-                _walk_expr(stmt.value, scope, enclosing_class)
+                _walk_expr(stmt.value, scope, enclosing_class, locals_, self_props)
             elif not declarations_only and isinstance(stmt, ast.AnnAssign) and stmt.value:
-                _walk_expr(stmt.value, scope, enclosing_class)
+                _walk_expr(stmt.value, scope, enclosing_class, locals_, self_props)
             return
 
         if not declarations_only:
             for child in ast.iter_child_nodes(stmt):
                 if isinstance(child, ast.stmt):
-                    walk_stmt(child, container, scope, enclosing_class)
+                    walk_stmt(child, container, scope, enclosing_class, locals_, self_props)
                 else:
-                    _walk_expr(child, scope, enclosing_class)
+                    _walk_expr(child, scope, enclosing_class, locals_, self_props)
 
-    def _walk_expr(expr: ast.AST, scope: str, enclosing_class: str | None) -> None:
+    def _walk_expr(
+        expr: ast.AST,
+        scope: str,
+        enclosing_class: str | None,
+        locals_: dict[str, str],
+        self_props: dict[str, str],
+    ) -> None:
         if isinstance(expr, ast.Call):
-            emit_call(expr, scope, enclosing_class)
+            emit_call(expr, scope, enclosing_class, locals_, self_props)
         for child in ast.iter_child_nodes(expr):
-            _walk_expr(child, scope, enclosing_class)
+            _walk_expr(child, scope, enclosing_class, locals_, self_props)
 
     for stmt in tree.body:
-        walk_stmt(stmt, root_container, root_container, None)
+        walk_stmt(stmt, root_container, root_container, None, {}, {})
 
     return {"path": qpath, "ok": True, "nodes": nodes, "edges": edges}

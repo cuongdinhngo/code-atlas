@@ -25,6 +25,8 @@ MANIFEST = REPO / "scripts" / "cross_repo_samples.json"
 INSTALL_MARKERS = {
     "php": "--working-dir=adapters/php",
     "typescript": "npm ci --prefix adapters/typescript",
+    # Stdlib-only adapter (020/217/227): no package install — the launch env is the proof.
+    "python": "CA_PYTHON_CMD",
 }
 
 
