@@ -276,13 +276,13 @@ Coverage-gap E1 (ticket): whether readers *want* consts split is unproven. `expi
 - **Design-conformance deviations:** none.
 - **Proving test evidence:**
 
-Ran at `PLACEHOLDER_TREE`
+Ran at `57c56e26020c5a05a0f3231d564c078c895b48a1`
 ```
 $ .venv/bin/python -m pytest tests/test_classconst_capture.py -q
 5 passed
 ```
 
-Ran at `PLACEHOLDER_TREE`
+Ran at `57c56e26020c5a05a0f3231d564c078c895b48a1`
 ```
 $ .venv/bin/python scripts/adapter_parity_report.py --check
 parity table matches the playbook
