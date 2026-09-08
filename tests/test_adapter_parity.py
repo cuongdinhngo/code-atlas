@@ -61,16 +61,34 @@ def test_the_playbook_table_is_what_the_adapters_emit() -> None:
     )
 
 
-@needs_every_adapter
 def test_a_ratio_cell_distinguishes_nothing_to_find_from_dropped() -> None:
-    """The distinction the table is built on, pinned so a refactor cannot collapse it.
+    """The distinction the table is built on, probed directly so no live cell has to supply it.
 
-    ``0/0`` is a language without that construct; ``0/1`` is an adapter that dropped one. If both
-    rendered the same the table would read as a defect list for every language.
+    ``0/0`` is a language without that construct; ``0/1`` is an adapter that dropped one. Asserted
+    on rows built here because every fixture now supplies each construct — the earlier version read
+    the distinction off SQL's `extra.type` cell, which was `0/0` only because the probe did not
+    count `Column` (231).
+    """
+    absent = RATIO_PROBES["`modifiers` on a member"]([], [])
+    dropped = RATIO_PROBES["`modifiers` on a member"](
+        [{"kind": "Property", "qualified_name": "T::c", "modifiers": []}], []
+    )
+
+    assert absent == (0, 0)
+    assert dropped == (0, 1)
+
+
+@needs_every_adapter
+def test_sql_declares_a_typed_member_and_no_modifier() -> None:
+    """231 — a `Column` is a member: `Table CONTAINS Column` is `Class CONTAINS Property`.
+
+    The typed cell is what SQL's handshake claims (`declared_types`); the modifier cell is what it
+    declines to claim, and T-SQL spells no modifier for it to fill.
     """
     cells = measure("sql")
     assert cells is not None
-    assert cells["`extra.type` on a member"] == "0/0", "SQL declares no Method/Property here"
+    assert cells["`extra.type` on a member"] == "1/1", "dbo.Repo::Owner declares nvarchar(50)"
+    assert cells["`modifiers` on a member"] == "0/1", "no T-SQL modifier keyword to capture"
     assert cells["`params` on a callable"] == "1/2", "Tag declares params; Run has none"
 
 

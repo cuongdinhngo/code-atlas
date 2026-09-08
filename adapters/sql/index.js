@@ -14,7 +14,9 @@ const META = {
   capabilities: {
     params: true,
     args: true,
-    modifiers: true,
+    // T-SQL spells no visibility, static or readonly keyword on any object this adapter emits,
+    // so there is no modifier to capture — claiming capture would be a claim about the language.
+    modifiers: false,
     declared_types: true,
   },
   contract_version: 9,

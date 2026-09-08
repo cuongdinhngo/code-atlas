@@ -492,7 +492,10 @@ function parseFile(path, declarationsOnly) {
       const cls = classifyVariable(stmt, decl);
       if (cls && cls.kind === "Function") {
         const qname = member(container, cls.name);
-        addNode("Function", cls.name, qname, decl, extraOf(decl));
+        // `const f = (u: User) => …` declares its parameters on the initialiser, not on the
+        // variable the node is built from, so probing `decl` alone dropped every one of them.
+        const opts = init && ts.isFunctionLike(init) ? { params: callableParams(init, sf) } : {};
+        addNode("Function", cls.name, qname, decl, extraOf(decl), opts);
         addEdge("CONTAINS", container, qname, decl.getStart(sf));
         if (!declarationsOnly && init) walk(init, qname, qname, null, locals, selfProps);
       } else if (cls && cls.kind === "Const") {

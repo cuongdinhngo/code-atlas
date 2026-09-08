@@ -311,7 +311,6 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     store, file_path=subject_file
                 )
             # Handshake stamp (231): read before the store closes. Null args is not "no capture".
-            args_capture_absent = False
             if args_at is not None and subject_file is not None:
                 caps_stamp = store.stamped_capabilities_by_language()
                 lang = store.language_of_file(subject_file)
@@ -320,21 +319,19 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     if not lang_caps.get("args", False):
                         args_capture_absent = True
         reason = relation_reason(hit_total=outcome.total_count, symbol_indexed=indexed)
-        if args_capture_absent:
-            reason = REASON_CAPABILITY_NOT_CONFIGURED
         if outcome.total_count == 0 and indexed and unresolved_bare > 0:
             # Cap dropped this subject from bare-name linking — not "no callers exist".
             reason = REASON_BARE_NAME_TRUNCATED
-        elif not args_capture_absent and reason == REASON_NO_MATCHES and unlinked_calls > 0:
+        elif reason == REASON_NO_MATCHES and unlinked_calls > 0:
             reason = REASON_RELATION_UNMODELLED_FOR_LANGUAGE
-        elif (
-            not args_capture_absent
-            and reason == REASON_NO_MATCHES
-            and cross_lang_census is not None
-        ):
+        elif reason == REASON_NO_MATCHES and cross_lang_census is not None:
             # No linked edge from any other language reaches this one — the zero is unmeasured,
             # not empty (221). Carries authoritative:false + the census below.
             reason = REASON_RELATION_UNMODELLED_FOR_LANGUAGE
+        if args_capture_absent:
+            # The filter cannot judge one site in this language, so no count above is an answer
+            # about it — this outranks every reason the chain can reach (231).
+            reason = REASON_CAPABILITY_NOT_CONFIGURED
         result = nav_result(
             qname,
             outcome.results,

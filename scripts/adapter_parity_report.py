@@ -46,7 +46,10 @@ Probe = Callable[[Nodes, Edges], tuple[int, int]]
 
 
 def _members(nodes: Nodes) -> Nodes:
-    return [n for n in nodes if n.get("kind") in ("Method", "Property")]
+    # `Column` belongs here: a table CONTAINS it exactly as a class CONTAINS a Property, and it is
+    # where SQL writes a declared type. Leaving it out rendered SQL's typed member as `0/0` — the
+    # cell that means "nothing to find" — when the fixture declares one (231).
+    return [n for n in nodes if n.get("kind") in ("Method", "Property", "Column")]
 
 
 def _callables(nodes: Nodes) -> Nodes:

@@ -632,6 +632,8 @@ SQL_CONFORMANCE = AdapterConformance(
             "create_wins_line_over_alter.sql",
             # Delimited reserved names — a proving fixture for the same rule, not an R6.2 case.
             "delimited_reserved_names.sql",
+            # 231 proving fixture: a wrapped routine header, not an R6.2 construct case.
+            "wrapped_routine_header.sql",
         }
     ),
     cases=SQL_CASES,
@@ -1024,6 +1026,7 @@ PY_CONFORMANCE = AdapterConformance(
             "nest/pkg/__init__.py",
             "nest/pkg/y.py",
             "method_local_assign.py",  # 229 proving fixture; not an R6.2 construct case
+            "call_args_every_tier.py",  # 231 proving fixture; one call per resolution tier
             # 226 proving package — not an R6.2 inventory row
             "cross_file_import/__init__.py",
             "cross_file_import/entities.py",

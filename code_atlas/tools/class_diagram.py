@@ -62,7 +62,6 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             raise ValueError("pass exactly one of qname or path")
         if not config.db_path.is_file():
             return _empty(config, reason=REASON_NOT_INDEXED)
-        params_not_captured = False
         with GraphStore(config.db_path) as store:
             roots, sites = _roots(store, qname=qname, path=path)
             if not roots:
@@ -73,19 +72,17 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             boxes, inheritance, associations, hidden = _project(
                 store, qnames, member_cap=cap
             )
-            # 231: disclose only when the stamp says this language never fills params.
+            # 231: disclose only when the stamp says a rendered language never fills params. Every
+            # box, not just the subject's — an inherited box may come from another language, and a
+            # signature missing there is missing from this diagram.
             params_not_captured = False
             caps = store.stamped_capabilities_by_language()
             if caps is not None:
-                subject_lang = store.language_of_file(path) if path is not None else None
-                if subject_lang is None and roots:
-                    rows = store.nodes_by_qualified_name(roots[0], limit=1)
-                    if rows and rows[0].get("file_path"):
-                        subject_lang = store.language_of_file(str(rows[0]["file_path"]))
-                if subject_lang is not None and not (caps.get(subject_lang) or {}).get(
-                    "params", False
-                ):
-                    params_not_captured = True
+                languages = _languages_of(store, boxes, path=path)
+                params_not_captured = any(
+                    not (caps.get(language) or {}).get("params", False)
+                    for language in languages
+                )
         mermaid = render_class_diagram(
             boxes, inheritance, associations, member_cap=cap, hidden_associations=hidden
         )
@@ -164,6 +161,18 @@ def _ancestry(store: GraphStore, roots: Sequence[str]) -> list[str]:
             known.add(target)
             pending.append(target)
     return seen
+
+
+def _languages_of(
+    store: GraphStore, boxes: Sequence[ClassBox], *, path: str | None
+) -> set[str]:
+    """Indexed languages the rendered boxes come from — bounded by the member cap."""
+    files: set[str] = {path} if path is not None else set()
+    rows = store.nodes_by_qualified_names([box.qname for box in boxes], limit=1)
+    for found in rows.values():
+        if found and found[0].get("file_path"):
+            files.add(str(found[0]["file_path"]))
+    return {language for file in files if (language := store.language_of_file(file))}
 
 
 def _project(

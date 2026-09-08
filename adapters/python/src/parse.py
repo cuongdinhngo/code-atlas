@@ -705,7 +705,7 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
             # Local type table (227): annotated / ``Foo()``-bound receiver → ``<Class>::method``.
             cls = receiver_class(recv, locals_, self_props)
             if cls:
-                add_edge("CALLS", scope, member(resolve_name(cls), method), node)
+                add_edge("CALLS", scope, member(resolve_name(cls), method), node, call=node)
                 return
             # obj.m() — method name known, receiver not: HEURISTIC ceiling (emit-do-not-gate).
             add_edge("CALLS", scope, method, node, "HEURISTIC", call=node)

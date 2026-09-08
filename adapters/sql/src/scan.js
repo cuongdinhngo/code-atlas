@@ -146,12 +146,15 @@ const CREATE_RE =
   /\b(?:create|alter)\s+(?:or\s+(?:alter|replace)\s+)?(proc(?:edure)?|function)\s+((?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*)(?:\s*\.\s*(?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*))*)/i;
 
 
+// A routine header ends at AS or BEGIN; everything before it is the parameter list.
+const HEADER_END_RE = /\b(?:as|begin)\b/i;
+
 // T-SQL procedure/function parameters: `@name type [ = default ]`, comma-separated before AS/BEGIN.
 const PROC_PARAM_RE =
   /@([A-Za-z_][\w@#$]*)\s+([A-Za-z_][\w]*(?:\s*\([^)]*\))?)/gi;
 
 function procedureParams(line) {
-  const asAt = line.search(/\b(?:as|begin)\b/i);
+  const asAt = line.search(HEADER_END_RE);
   const window = asAt >= 0 ? line.slice(0, asAt) : line;
   const out = [];
   PROC_PARAM_RE.lastIndex = 0;
@@ -186,7 +189,8 @@ function execArgs(line, matchEnd) {
     const positional = [];
     const pre = rest.replace(/^\s*/, "");
     if (!pre || pre.startsWith("@")) return null; // no args, or only incomplete named form
-    // Split on commas not inside quotes — thin scanner; good enough for parity fixture.
+    // Split on commas not inside quotes. A nested call or a subquery in an argument is
+    // beyond a line scanner, and `sqlLiteralKind` returns null for it rather than guessing.
     let cur = "";
     let inStr = false;
     for (let i = 0; i < pre.length; i++) {
@@ -257,6 +261,8 @@ function parseFile(qpath) {
   const state = { block: 0, string: false, elided: false };
   /** @type {{qname: string, node: Node}|null} */
   let current = null;
+  /** @type {Node|null} */
+  let paramScan = null;
   let lineNo = 0;
   let lastLine = 0;
   /** @type {{kind: string, buf: string, line: number, depth: number, opened: boolean}|null} */
@@ -360,7 +366,12 @@ function parseFile(qpath) {
     const seen = columns.get(qname);
     /** @type {Record<string, string>} */
     const extra = {};
-    if (col.dataType !== "") extra["data_type"] = col.dataType;
+    if (col.dataType !== "") {
+      // `data_type` is SQL's spelling (CONVENTION §1); `type` is the cross-language key
+      // every consumer reads (class_diagram.py, module_facts.py) — same value, one source.
+      extra["data_type"] = col.dataType;
+      extra["type"] = col.dataType;
+    }
     if (col.dflt !== null) extra["default"] = col.dflt;
     if (seen) {
       // The other DEFAULT spelling arrives after the column itself; fill it in rather than
@@ -470,6 +481,7 @@ function parseFile(qpath) {
 
   /** @param {number} endLine */
   const closeCurrent = (endLine) => {
+    paramScan = null;
     if (current) {
       current.node.line_end = endLine;
       current = null;
@@ -482,6 +494,12 @@ function parseFile(qpath) {
     lastLine = lineNo;
     const code = stripToCode(line, state);
     if (code.trim() === "") return;
+
+    // A T-SQL parameter list may wrap across lines; the header ends at AS or BEGIN (231).
+    if (paramScan) {
+      paramScan.params.push(...procedureParams(code));
+      if (HEADER_END_RE.test(code)) paramScan = null;
+    }
 
     // A statement in progress absorbs the line unless a new one starts at paren depth 0.
     if (pending && pending.depth <= 0 && BOUNDARY_RE.test(code)) flush();
@@ -532,6 +550,7 @@ function parseFile(qpath) {
           confidence_tier: "RESOLVED",
         });
         current = { qname, node };
+        paramScan = HEADER_END_RE.test(code) ? null : node;
       }
       return;
     }

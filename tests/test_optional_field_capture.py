@@ -22,7 +22,7 @@ from code_atlas import contract
 from code_atlas.config import load_config
 from code_atlas.indexer import full_build
 from code_atlas.store import CAPABILITIES_BY_LANGUAGE_KEY, GraphStore
-from code_atlas.tools import find_callers
+from code_atlas.tools import class_diagram, find_callers
 from code_atlas.tools.nav_result import (
     AUTHORITATIVE,
     CAVEAT_ARGS_NOT_CAPTURED,
@@ -32,6 +32,9 @@ from code_atlas.tools.nav_result import (
 from tests.php_adapter_cli import needs_php
 from tests.python_adapter_cli import CLI as PY_CLI
 from tests.python_adapter_cli import needs_python
+from tests.sql_adapter_cli import CLI as SQL_CLI
+from tests.sql_adapter_cli import ENTRY as SQL_ENTRY
+from tests.sql_adapter_cli import NODE as SQL_ENTRY_NODE
 from tests.ts_adapter_cli import CLI as TS_CLI
 
 REPO = Path(__file__).resolve().parent.parent
@@ -194,3 +197,178 @@ def test_ac5_php_params_answer_byte_identical() -> None:
 def test_known_capabilities_include_capture_flags() -> None:
     for flag in ("params", "args", "modifiers", "declared_types"):
         assert flag in contract.KNOWN_CAPABILITIES
+
+
+TIERS_FIXTURE = "tests/fixtures/python/call_args_every_tier.py"
+
+
+@needs_python
+def test_every_resolution_tier_records_the_call_arguments() -> None:
+    """231 — `args` is threaded per emission site, so a new resolution arm silently drops it.
+
+    227's local type table added one after this capture was written: `bag.set("b", 2)` resolved to
+    `Bag::set` and recorded nothing. Asserted over every CALLS edge rather than a list of tiers, so
+    the next arm is covered without editing this test (R6.7).
+    """
+    payload = PY_CLI.parse_file(TIERS_FIXTURE)
+    calls = [e for e in payload["edges"] if e["kind"] == "CALLS"]
+
+    assert len(calls) >= 7, calls
+    missing = [e["target_raw"] for e in calls if "args" not in e]
+    assert missing == [], f"CALLS edges emitted with no args key: {missing}"
+    assert [e["target_raw"] for e in calls if e.get("args") == ["string", "number"]].count(
+        "tests.fixtures.python.call_args_every_tier.Bag::set"
+    ) == 2, "both the `Bag()`-bound and the annotated receiver resolve and record"
+
+
+WRAPPED = "tests/fixtures/sql/wrapped_routine_header.sql"
+
+
+@SQL_CLI.availability
+def test_a_wrapped_sql_parameter_list_is_still_captured() -> None:
+    """231 — the header ends at AS/BEGIN, not at the end of the CREATE line.
+
+    Reading only the CREATE line returned `params: []` for the ticket's own example
+    (`CREATE PROCEDURE dbo.Pay @amount int, @who nvarchar(50) = 'x'`) as soon as real T-SQL wraps
+    it, while the handshake claimed `params` capture.
+    """
+    payload = SQL_CLI.parse_file(WRAPPED)
+    routines = {n["qualified_name"]: n for n in payload["nodes"] if n["kind"] == "Function"}
+
+    assert routines["dbo.Pay"]["params"] == [
+        {"name": "@amount", "type": "int"},
+        {"name": "@who", "type": "nvarchar(50)"},
+    ]
+    assert routines["dbo.Settle"]["params"] == [
+        {"name": "@ref", "type": "uniqueidentifier"}
+    ]
+    # The body's own `@amount` must not be read as a third parameter of dbo.Pay.
+    assert len(routines["dbo.Pay"]["params"]) == 2
+
+
+@SQL_CLI.availability
+def test_a_sql_column_declares_its_type_under_the_key_consumers_read() -> None:
+    """231 — SQL wrote only `extra.data_type`; every consumer reads `extra.type`."""
+    payload = SQL_CLI.parse_file(WRAPPED)
+    column = next(n for n in payload["nodes"] if n["qualified_name"] == "dbo.Bill::Total")
+
+    assert column["extra"]["type"] == "decimal(10,2)"
+    assert column["extra"]["data_type"] == "decimal(10,2)"
+
+
+@SQL_CLI.availability
+def test_a_language_without_the_construct_declares_no_capture() -> None:
+    """231 — a capability is a claim about this adapter, so an unfillable one must read false.
+
+    T-SQL spells no visibility, static or readonly keyword on any object the adapter emits, and
+    `scan.js` hard-codes `modifiers: []` at every node site. Declaring `modifiers: true` there made
+    the handshake assert capture the graph never has, which is the defect 231 exists to remove.
+    """
+    handshake = subprocess.run(
+        [str(SQL_ENTRY_NODE), str(SQL_ENTRY), "--server"],
+        input="",
+        capture_output=True,
+        text=True,
+        timeout=60,
+        cwd=REPO,
+    )
+    meta = json.loads(handshake.stdout.splitlines()[0])
+
+    assert meta["capabilities"]["modifiers"] is False
+    assert meta["capabilities"]["params"] is True
+    assert meta["capabilities"]["declared_types"] is True
+    assert set(meta["capabilities"]) <= set(contract.KNOWN_CAPABILITIES)
+
+
+@TS_CLI.availability
+def test_a_name_bound_typescript_callable_records_its_parameters() -> None:
+    """231 — an arrow or function expression declares its parameters on the initialiser.
+
+    The node is built from the variable declaration, so probing that alone returned `params: []`
+    for every `export const f = (…) => …` while the handshake claimed `params` capture.
+    """
+    payload = TS_CLI.parse_file("tests/fixtures/typescript/arrow_closure.ts")
+    callables = {n["name"]: n for n in payload["nodes"] if n["kind"] == "Function"}
+
+    assert callables["greet"]["params"] == [{"name": "name", "type": "string"}]
+    assert callables["add"]["params"] == [
+        {"name": "a", "type": "number"},
+        {"name": "b", "type": "number"},
+    ]
+    assert callables["run"]["params"] == [], "a nullary function declares an empty list, not null"
+
+
+def _plant_two_language_index(db: Path, root: Path, *, caps: dict[str, object]) -> None:
+    """A Base in one language, a Derived in another, and a stamp saying who fills ``params``."""
+    for name in ("base.php", "derived.ts"):
+        (root / name).write_bytes(b"x")
+    with GraphStore(db) as planted:
+        planted.upsert_file("base.php", "h1", "php")
+        planted.upsert_file("derived.ts", "h2", "ts")
+        planted.replace_file_rows(
+            "base.php",
+            [
+                {
+                    "kind": "Class",
+                    "name": "Base",
+                    "qualified_name": "Base",
+                    "file_path": "base.php",
+                    "line_start": 1,
+                }
+            ],
+            [],
+        )
+        planted.replace_file_rows(
+            "derived.ts",
+            [
+                {
+                    "kind": "Class",
+                    "name": "Derived",
+                    "qualified_name": "Derived",
+                    "file_path": "derived.ts",
+                    "line_start": 1,
+                }
+            ],
+            [
+                {
+                    "kind": "EXTENDS",
+                    "source_qname": "Derived",
+                    "target_raw": "Base",
+                    "target_qname": "Base",
+                    "file_path": "derived.ts",
+                    "line": 1,
+                }
+            ],
+        )
+        planted.set_meta(CAPABILITIES_BY_LANGUAGE_KEY, json.dumps(caps))
+
+
+def test_a_diagram_discloses_a_language_it_renders_not_only_the_subject(tmp_path: Path) -> None:
+    """231 — the subject's language filling ``params`` does not make the diagram complete.
+
+    The disclosure read the language of ``roots[0]`` alone, so a `Derived` in a capturing language
+    rendered an inherited `Base` box from a language that captures nothing and said so nowhere.
+    """
+    db = tmp_path / "graph.db"
+    _plant_two_language_index(
+        db, tmp_path, caps={"ts": {"params": True}, "php": {"params": False}}
+    )
+    config = replace(load_config(tmp_path, {}), db_path=db)
+
+    payload = class_diagram.create(config)(qname="Derived")
+
+    assert {row["qname"] for row in payload["results"]} == {"Derived", "Base"}
+    assert payload["params_not_captured_by_adapter"] is True
+
+
+def test_a_diagram_whose_every_language_captures_grows_no_field(tmp_path: Path) -> None:
+    """061/AC5 — a confident answer must not grow a disclosure field."""
+    db = tmp_path / "graph.db"
+    _plant_two_language_index(
+        db, tmp_path, caps={"ts": {"params": True}, "php": {"params": True}}
+    )
+    config = replace(load_config(tmp_path, {}), db_path=db)
+
+    payload = class_diagram.create(config)(qname="Derived")
+
+    assert "params_not_captured_by_adapter" not in payload

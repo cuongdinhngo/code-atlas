@@ -343,6 +343,26 @@ Related regressions: 156 passed (call args, indirection, view_databag, conforman
 
 Ph3/4 proven by: `tests/test_optional_field_capture.py` 13 passed with parity; challenger LGTM.
 
+### Maintainer review at merge (the reviewer seat `--no-reviewer` waived)
+
+The branch declared all four capabilities `true` for all four adapters, so the two disclosure
+surfaces it built could not fire on any index this repo produces — and two of the flags were false.
+Six findings, all fixed on the branch before merge; each fix was proven red first.
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | `sql` declared `modifiers: true` while `scan.js` hard-codes `modifiers: []` at all six node sites | `modifiers: false` — T-SQL spells no modifier keyword, so there is nothing to capture (`test_a_language_without_the_construct_declares_no_capture`) |
+| 2 | `sql` declared `declared_types: true` but wrote only `extra.data_type`; every consumer reads `extra.type` (`class_diagram.py:227`) | `Column.extra` carries both — one value, SQL's spelling kept for `er_diagram.py` and CONVENTION §1 |
+| 3 | `procedureParams` read the `CREATE` line only, so the ticket's own `dbo.Pay @amount int, @who nvarchar(50) = 'x'` returned `params: []` the moment real T-SQL wraps it | header scan runs to `AS`/`BEGIN` across lines (`tests/fixtures/sql/wrapped_routine_header.sql`) |
+| 4 | 227's local-type-table arm (`parse.py:708`) was added after this capture was written and emitted CALLS with no `args` — which is why AC4's own indirection test went red on merge | `call=node` threaded; guard asserts *every* CALLS edge carries `args`, not a list of tiers (R6.7) |
+| 5 | TS built the node for `const f = (…) => …` from the variable, whose `parameters` is undefined, so every name-bound callable's params were dropped | probe the initialiser when it is function-like |
+| 6 | `class_diagram`'s disclosure read `roots[0]`'s language alone, and shipped with no test at all | `_languages_of` covers every rendered box; two tests, one for the disclosure and one proving a capturing diagram grows no field (061) |
+
+The parity probe counted only `Method`/`Property` as members, which rendered SQL's typed `Column`
+as `0/0` — the cell that means *nothing to find* — while the fixture declares one. `Column` now
+counts: SQL reads `1/1` typed and `0/1` modifiers, agreeing with its handshake. `§7`'s prose moved
+with it, since the five field rows are now each language's ceiling rather than its shortfall.
+
 ## Phase 5 — finalise
 
 `CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
