@@ -165,13 +165,24 @@ DOCS = REPO / "docs"
 # in part by dropping AGENTS.md's copy of the R1.2 registry provenance — the third one, after
 # `ENGINEERING_RULES.md` R1.2 and PLAN §19, and provenance is §19's job per CONVENTION §8.1. The
 # remaining ~17 is the standing cost of an always-loaded rule, and is what these two numbers buy.
+# PLAN 23,000 -> 23,150 on 2026-09-08 (232 + 234), argued rather than assumed. §19 gains two
+# permanent decision entries — annotations/decorators are edges in every adapter (232) and what
+# counts as ClassConst evidence (234) — and a decision entry is the structure this log exists to
+# hold, not narrative. R7.6 ran first and paid most of it: 232's entry was written at 252 tokens and
+# cut to 165 by moving the 019/217 provenance walk-through to its task file, 234's compacted the 219
+# populated-rebuild paragraph it sits beside (-253 for +252), and §8.2's `REFERENCES` bullet was
+# WIDENED to name the two new RESOLVED sources for 5 tokens fewer than it cost before. That leaves
+# 125, which is what these two verdicts cost. The 2026-09-01 lowering to 23,000 said the room it
+# freed must not be re-consumed by narrative; this is not narrative, and the next addition prunes
+# again or argues again rather than inheriting the 25 of margin.
 BUDGETS = {
     "CLAUDE.md": 50,
     "AGENTS.md": 2_850,
-    "PLAN.md": 23_000,
-    # 2,150 covers this window's six closing tickets: every one removes its row (R7.6), so
-    # the file shrinks and the anti-slack guard needs the ceiling to follow it down.
-    "BACKLOG.md": 2_150,
+    "PLAN.md": 23_150,
+    # 2,150 -> 1,800 on 2026-09-08, LOWERED: 232-235 all close in this window and each removes
+    # its row (R7.6), taking the file 1,737 -> 1,485. 2,150 is more than 25 % above 1,485, which
+    # the anti-slack guard below calls slack; 1,800 keeps ~315 of headroom, about five open rows.
+    "BACKLOG.md": 1_800,
     "ENGINEERING_RULES.md": 5_700,
     "AGENT_BRIEF.md": 2_250,
     "CONVENTION.md": 6_700,

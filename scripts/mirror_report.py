@@ -127,7 +127,8 @@ def main() -> int:
         print(f"\n### {sid} @ {str(sample['sha'])[:7]}")
         try:
             root = checkout_pinned(sample, cache_root)
-            index_root(root)
+            language = str(sample.get("language", "php"))
+            index_root(root, language=language)
             with GraphStore(root / ".code-atlas" / "graph.db") as store:
                 paths = list(store.file_paths())
             report = find_mirror_subtrees(paths, sample_limit=SAMPLE_LIMIT)

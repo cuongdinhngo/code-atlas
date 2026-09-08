@@ -157,7 +157,8 @@ def main() -> int:
     for sample in load_manifest():
         label = f"{sample['id']} @ {str(sample['sha'])[:7]}"
         root = checkout_pinned(sample, cache_root)
-        index_root(root)
+        language = str(sample.get("language", "php"))
+        index_root(root, language=language)
         with GraphStore(root / ".code-atlas" / "graph.db") as store:
             census = Census(
                 nodes=list(store.node_universe()),

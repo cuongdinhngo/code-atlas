@@ -195,6 +195,24 @@ def _is_upper_const(name: str) -> bool:
     return name.isupper() and any(c.isalpha() for c in name)
 
 
+def _is_final_annotation(ann: ast.expr | None) -> bool:
+    """True for ``Final`` / ``Final[...]`` / ``typing.Final`` (PEP 591)."""
+    if ann is None:
+        return False
+    if isinstance(ann, ast.Subscript):
+        return _is_final_annotation(ann.value)
+    if isinstance(ann, ast.Name):
+        return ann.id == "Final"
+    if isinstance(ann, ast.Attribute):
+        return ann.attr == "Final"
+    return False
+
+
+def _is_const_name(name: str, ann: ast.expr | None) -> bool:
+    """Constant under R2: PEP 8 upper-case and/or a Final annotation."""
+    return _is_final_annotation(ann) or _is_upper_const(name)
+
+
 def _attr_dotted(expr: ast.Attribute) -> str:
     parts: list[str] = []
     cur: ast.expr = expr
@@ -416,8 +434,10 @@ def parse_file(
                 if isinstance(target, ast.Name):
                     if class_qname is not None:
                         remember(target.id, member(class_qname, target.id))
-                    elif _is_upper_const(target.id):
-                        remember(target.id, dotted(mod, target.id))
+                    else:
+                        ann = stmt.annotation if isinstance(stmt, ast.AnnAssign) else None
+                        if _is_const_name(target.id, ann):
+                            remember(target.id, dotted(mod, target.id))
         elif isinstance(stmt, ast.If):
             for nested in (*stmt.body, *stmt.orelse):
                 collect(nested, class_qname, func_qname)
@@ -837,8 +857,13 @@ def parse_file(
                     if enclosing_class is not None and container == enclosing_class:
                         qn = member(enclosing_class, target.id)
                         typ = _annotation_text(ann)
+                        kind = (
+                            "ClassConst"
+                            if _is_const_name(target.id, ann)
+                            else "Property"
+                        )
                         add_node(
-                            "Property",
+                            kind,
                             target.id,
                             qn,
                             stmt,
@@ -846,7 +871,7 @@ def parse_file(
                         )
                         add_edge("CONTAINS", enclosing_class, qn, stmt)
                         owner_for_ann = qn
-                    elif container in (qpath, mod) and _is_upper_const(target.id):
+                    elif container in (qpath, mod) and _is_const_name(target.id, ann):
                         qn = dotted(mod, target.id)
                         typ = _annotation_text(ann)
                         add_node(

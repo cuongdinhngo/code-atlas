@@ -346,3 +346,16 @@ $ .venv/bin/python -m pytest tests/test_ts_field_round_recorded.py -q
 - **Current phase:** finalise
 - **Next action:** push + open PR
 - **Blocked on:** nothing
+
+## Post-PR CI repair (2026-09-08)
+
+`test_a_closed_ticket_leaves_the_backlog` failed: the row was flipped to `done` rather than removed,
+which is a third naming of the task file and its ledger row (R7.6). Row removed.
+
+Merging 232-234 beneath this branch also exposed one stale claim §4 kept. 233 rewrote the sentence
+about pinned samples in §7's tail but left §4's "Gate 3 exists for PHP and TS only, so gate 5 is
+impossible for Python and SQL" — which its own pins had just made false. §4 now reads that every gate
+has a state for all four adapters: gate 3 closed in 233, gate 4 in this ticket. The sentence 235's
+proving test asserts on is untouched.
+
+Delta-green: `scripts/gate.sh` **GATE GREEN** on Linux with `php` · `composer` · `node` on PATH.

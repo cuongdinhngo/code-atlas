@@ -17,6 +17,7 @@ import json
 import os
 import platform
 import shlex
+import shutil
 import subprocess
 import sys
 import time
@@ -44,12 +45,16 @@ _DEFAULT_TYPESCRIPT = shlex.join(
 _DEFAULT_PYTHON = shlex.join(
     [sys.executable, str(_REPO / "adapters" / "python" / "index.py"), "--server"]
 )
+_DEFAULT_SQL = shlex.join(
+    ["node", str(_REPO / "adapters" / "sql" / "index.js"), "--server"]
+)
 # Per-adapter argv is DATA, not a code branch (mirrors task 147): adding a language is a row here
 # plus a sample row, never an edit to the reporter body. `env` names the var `config` reads.
 _ADAPTERS: dict[str, dict[str, str]] = {
     "php": {"env": "CA_PHP_CMD", "default": _DEFAULT_PHP},
     "typescript": {"env": "CA_TYPESCRIPT_CMD", "default": _DEFAULT_TYPESCRIPT},
     "python": {"env": "CA_PYTHON_CMD", "default": _DEFAULT_PYTHON},
+    "sql": {"env": "CA_SQL_CMD", "default": _DEFAULT_SQL},
 }
 # Public pins: allow a little language-version drift, but catch mass-parse regressions.
 _PUBLIC_MAX_FAILURE_RATIO = 0.02
@@ -145,12 +150,21 @@ def resolve_php_cmd() -> str:
 
 
 def checkout_pinned(sample: dict[str, Any], cache_root: Path) -> Path:
-    """Fetch a pinned SHA into ``cache_root/<id>`` (shallow when possible)."""
+    """Fetch a pinned SHA into ``cache_root/<id>`` (shallow when possible).
+
+    Optional ``sparse_paths`` (list of repo-relative dirs/files) extracts only those
+    paths via ``git archive`` into a sibling non-git tree. The indexer discovers files
+    with ``git ls-files``, which lists sparse-excluded paths as tracked ghosts and then
+    fails them on disk — a non-git materialization forces the filesystem walk instead.
+    """
     dest = cache_root / str(sample["id"])
     url = str(sample["url"])
     sha = str(sample["sha"])
+    sparse_raw = sample.get("sparse_paths")
+    sparse_paths = [str(p) for p in sparse_raw] if isinstance(sparse_raw, list) else []
     dest.parent.mkdir(parents=True, exist_ok=True)
     git_base = ["git", "-c", "advice.detachedHead=false"]
+
     if (dest / ".git").is_dir():
         subprocess.run(
             [*git_base, "-C", str(dest), "fetch", "--depth", "1", "origin", sha],
@@ -160,23 +174,61 @@ def checkout_pinned(sample: dict[str, Any], cache_root: Path) -> Path:
             [*git_base, "-C", str(dest), "checkout", "--force", "FETCH_HEAD"],
             check=True,
         )
+    else:
+        dest.mkdir(parents=True, exist_ok=True)
+        subprocess.run([*git_base, "init", str(dest)], check=True)
+        subprocess.run(
+            [*git_base, "-C", str(dest), "remote", "add", "origin", url],
+            check=True,
+        )
+        subprocess.run(
+            [*git_base, "-C", str(dest), "fetch", "--depth", "1", "origin", sha],
+            check=True,
+        )
+        subprocess.run(
+            [*git_base, "-C", str(dest), "checkout", "--force", "FETCH_HEAD"],
+            check=True,
+        )
+
+    if not sparse_paths:
         return dest
 
-    dest.mkdir(parents=True, exist_ok=True)
-    subprocess.run([*git_base, "init", str(dest)], check=True)
-    subprocess.run(
-        [*git_base, "-C", str(dest), "remote", "add", "origin", url],
+    # Materialize only the requested paths into a nested git repo. A bare directory
+    # under this worktree still resolves to the parent via `git rev-parse`, so
+    # `git ls-files` returns the empty parent listing (not None) and collect keeps
+    # zero paths — init+commit makes ls-files answer for THIS tree only.
+    material = cache_root / f"{sample['id']}__work"
+    if material.exists():
+        shutil.rmtree(material)
+    material.mkdir(parents=True)
+    archive = subprocess.run(
+        [*git_base, "-C", str(dest), "archive", "HEAD", *sparse_paths],
         check=True,
+        capture_output=True,
     )
     subprocess.run(
-        [*git_base, "-C", str(dest), "fetch", "--depth", "1", "origin", sha],
+        ["tar", "-x", "-C", str(material)],
+        input=archive.stdout,
         check=True,
     )
+    subprocess.run([*git_base, "init", str(material)], check=True)
+    subprocess.run([*git_base, "-C", str(material), "add", "-A"], check=True)
     subprocess.run(
-        [*git_base, "-C", str(dest), "checkout", "--force", "FETCH_HEAD"],
+        [
+            *git_base,
+            "-C",
+            str(material),
+            "-c",
+            "user.email=pin@local",
+            "-c",
+            "user.name=code-atlas-pin",
+            "commit",
+            "-m",
+            "sparse pin",
+        ],
         check=True,
     )
-    return dest
+    return material
 
 
 def index_root(

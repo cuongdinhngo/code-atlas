@@ -90,9 +90,10 @@ and the class-constant kind is
 **Adding a row at gate 2 is data, never an edit to the harness body** (147/AC2) — the same rule holds
 for `_ADAPTERS` in `cross_repo_validate.py`.
 
-**The current state of these gates is the standard's own indictment.** Gates 1-2 are complete for all
-four. Gate 3 exists for PHP and TS only, so gate 5 is impossible for Python and SQL — that is
-[233](tasks/233_python-and-sql-have-no-pinned-public-sample-so-no-change-to-either-can-be-shown-to-move-anything.md).
+**Every gate now has a state for all four adapters.** Gates 1-2 were always complete. Gate 3 closed
+for Python and SQL in
+[233](tasks/233_python-and-sql-have-no-pinned-public-sample-so-no-change-to-either-can-be-shown-to-move-anything.md),
+which pinned public samples with measured floors, so gate 5 is reachable for every adapter.
 Gate 4 has run for PHP, SQL, Python, and TypeScript — TS measured 2026-09-08 in [235](tasks/235_the-typescript-adapter-has-never-been-asked-a-question-in-the-field.md) ([`docs/benchmarks/235_typescript_field_round.md`](benchmarks/235_typescript_field_round.md)); no new defect beyond the already-filed 232 / 234 observations.
 
 ## 5. The field round — the protocol that produced 221-230
@@ -160,26 +161,31 @@ measurement, not a judgement — while **`0/1` means it was there and the adapte
 | probe | php | python | sql | typescript |
 |---|---|---|---|---|
 | `params` on a callable | 2/3 | 2/3 | 1/2 | 2/3 |
-| `extra.type` on a member | 4/4 | 5/5 | 1/1 | 4/5 |
-| `modifiers` on a member | 4/4 | 1/5 | 0/1 | 3/5 |
+| `extra.type` on a member | 4/4 | 4/4 | 1/1 | 4/4 |
+| `modifiers` on a member | 4/4 | 1/4 | 0/1 | 2/4 |
 | `args` on a call site | 1/1 | 1/1 | 1/1 | 1/1 |
 | `arg_keys` on a call site | 1/1 | 1/1 | 1/1 | 1/1 |
-| `REFERENCES` edges from the annotations | 0 | 3 | 0 | 0 |
-| `ClassConst` for the class constant | 1 | 0 | 0 | 0 |
+| `REFERENCES` edges from the annotations | 3 | 3 | 0 | 3 |
+| `ClassConst` for the class constant | 1 | 1 | 0 | 1 |
 <!-- parity-table:end -->
 
 **Since 231 the five field rows are at each language's ceiling, not its shortfall** — a cell below
 its denominator now means the construct is unspellable there (Python has no visibility keyword;
 T-SQL has no modifier at all, which is why its handshake declares `modifiers: false`), so read a
-*fallen* cell as a regression and never a cell below 1/1 as a gap. The two remaining shortfalls are
-the `REFERENCES` row,
-[232](tasks/232_the-same-construct-is-a-references-edge-in-python-and-node-extra-in-php-and-ts.md),
-and the `ClassConst` row,
-[234](tasks/234_classconst-is-a-php-only-kind-and-the-two-signals-that-would-fill-it-elsewhere-are-discarded.md).
+*fallen* cell as a regression and never a cell below 1/1 as a gap. **The last two shortfalls closed
+together:** [232](tasks/232_the-same-construct-is-a-references-edge-in-python-and-node-extra-in-php-and-ts.md)
+filled the `REFERENCES` row and
+[234](tasks/234_classconst-is-a-php-only-kind-and-the-two-signals-that-would-fill-it-elsewhere-are-discarded.md)
+the `ClassConst` row, php · python · typescript each; `sql` stays 0 on both — T-SQL has neither an
+annotation to read nor a class constant to name, which is a measurement, not a gap.
+**234 also moved the two member denominators** (`_members` reads `Method`/`Property`/`Column`, so a
+constant reclassified out of `Property` leaves that population): python and TS `extra.type` read 4/4
+where they read 5/5 and 4/5, and TS `modifiers` 2/4 where it read 3/5. Those are the same members
+counted under a corrected kind — not the fallen cell this paragraph tells you to read as a regression.
 An adapter declares which fields it fills at handshake (`KNOWN_CAPABILITIES`); declaring one it
 cannot fill is the defect 231 removed, so a new adapter's flags must match its column here.
 
 **What this table cannot tell you** is whether an adapter is right about real code — that is gates 3
-and 4, whose state §4 records: pinned samples exist for `php` and `typescript` only
+and 4, whose state §4 records: pinned samples exist for `php`, `typescript`, `python`, and `sql`
 ([233](tasks/233_python-and-sql-have-no-pinned-public-sample-so-no-change-to-either-can-be-shown-to-move-anything.md)),
 and the TypeScript field round landed in [235](tasks/235_the-typescript-adapter-has-never-been-asked-a-question-in-the-field.md) ([benchmark](benchmarks/235_typescript_field_round.md)).
