@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Print + CHECK `assign_layers` for the pinned public PHP repos — the real-repo gate (105, 110).
+"""Print + CHECK `assign_layers` for pinned public samples — the real-repo gate (105, 110, 233).
 
 Authored fixtures have now hidden a path-shape layer defect five times (retro
 `fixture-shape-begs-the-question`; 084, 103, 104, 086, 105). This makes the real-repo check
@@ -41,6 +41,13 @@ _EXPECT: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "laravel_app": (frozenset({"HTTP / Entry", "Domain / Data"}), frozenset({"app"})),
     "symfony_demo": (frozenset({"HTTP / Entry", "Domain / Data", "Views"}), frozenset()),
     "brick_math": (frozenset({"Tests", "Uncategorised"}), frozenset()),
+    # 233: Python libraries — no HTTP/Domain roles; Tests + Uncategorised like brick_math.
+    "flask": (frozenset({"Tests", "Uncategorised"}), frozenset({"app"})),
+    "pydantic": (frozenset({"Tests", "Uncategorised"}), frozenset({"app"})),
+    "requests": (frozenset({"Tests", "Uncategorised"}), frozenset({"app"})),
+    # 233: SQL schema trees — no path-shape layers; Uncategorised is the honest signal.
+    "adventureworks_oltp": (frozenset({"isolated"}), frozenset({"app"})),
+    "wwi_dw": (frozenset({"Uncategorised"}), frozenset({"app"})),
 }
 
 
@@ -89,7 +96,8 @@ def main() -> int:
         print(f"\n### {sid} @ {str(sample['sha'])[:7]}")
         try:
             root = checkout_pinned(sample, cache_root)
-            index_root(root)
+            language = str(sample.get("language", "php"))
+            index_root(root, language=language)
             with GraphStore(root / ".code-atlas" / "graph.db") as store:
                 nodes = store.node_universe()
                 edges = store.dependency_edges()
