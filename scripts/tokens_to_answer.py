@@ -67,6 +67,10 @@ _DEFAULT_REPORT = _REPO / "artifacts" / "tokens-to-answer-report.json"
 _DEFAULT_LOCAL_REPORT = _REPO / "artifacts" / "tokens-to-answer-local-report.json"
 # CI finds its own PR comment by this marker and edits it, instead of posting a new one per push.
 COMMENT_MARKER = "<!-- tokens-to-answer-report -->"
+# Fixture-tier floor: the per-PR gate in ci.yml and scripts/gate.sh. Below 1 BY DESIGN — the
+# committed fixtures are toy repos where grep wins on volume, so this is a behaviour-lock, never
+# the product claim. `tests/test_ci_and_gate_agree.py` pins both spend sites to this number.
+FIXTURE_TIER_RATIO_FLOOR = 0.63
 # Sample-tier floor (223): recovered aggregate ~68.8 after demoting envelope off minimal.
 # Pin below the last-good 69.06 with room for path noise, but ABOVE the 65.48 regression.
 SAMPLE_TIER_RATIO_FLOOR = 66.0
