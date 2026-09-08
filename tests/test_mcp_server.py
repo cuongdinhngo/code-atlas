@@ -382,15 +382,17 @@ def test_the_suggestions_only_name_tools_this_server_serves(repo: Path) -> None:
     assert unbuilt["next_tool_suggestions"] == [BUILD]
 
     # With the build tool withheld, suggesting it would send the client at a tool it cannot call.
+    # Nothing to suggest means the key is absent, not an empty array (223 AC4).
     alone = build_server(served_config(repo, CA_TOOLS=STATUS))
-    assert call(alone, STATUS, {})["next_tool_suggestions"] == []
+    assert "next_tool_suggestions" not in call(alone, STATUS, {})
 
 
 def test_a_current_index_is_not_told_to_rebuild(repo: Path) -> None:
     config = served_config(repo)
     call(build_server(config), BUILD, {})
 
-    assert call(build_server(config), STATUS, {})["next_tool_suggestions"] == []
+    # Since 223 an empty suggestion list is omitted, so "not told to rebuild" is key-absent.
+    assert "next_tool_suggestions" not in call(build_server(config), STATUS, {})
 
 
 def test_a_behind_index_suggests_a_build(repo: Path) -> None:
@@ -504,14 +506,29 @@ def test_the_minimal_status_payload_stays_inside_its_budget(repo: Path) -> None:
 
 
 def test_every_part_section_12_names_is_in_the_minimal_payload(repo: Path) -> None:
-    # The budget above is only honest if the cheap payload still carries all four parts.
+    # The budget above is only honest if the cheap payload still carries all four parts. The
+    # fourth is the suggestion list, which 223 omits when empty — so prove it on an index that
+    # has something to suggest, and prove the identity fields minimal gained in the same ticket.
     config = served_config(repo)
     call(build_server(config), BUILD, {})
+    path = next(p for p in (repo / "src").rglob("*") if p.is_file())
+    path.write_text(path.read_text(encoding="utf-8") + "// dirty\n", encoding="utf-8")
 
     minimal = call(build_server(config), STATUS, {"detail_level": "minimal"})
 
-    for part in ("files", "nodes", "edges", "last_commit", "staleness", "next_tool_suggestions"):
+    for part in (
+        "files",
+        "nodes",
+        "edges",
+        "last_commit",
+        "staleness",
+        "next_tool_suggestions",
+        "server_version",
+        "server_build",
+        "server_stale_process",
+    ):
         assert part in minimal, part
+    assert minimal["next_tool_suggestions"] == [BUILD]
 
 
 # --- the thread rule the whole design turns on ---------------------------------------------------

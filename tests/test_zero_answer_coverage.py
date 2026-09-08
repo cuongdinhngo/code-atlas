@@ -155,7 +155,7 @@ def test_search_symbol_miss_names_the_coverage_gap(
     config = replace(
         load_config(tmp_path, {"CA_PHP_CMD": "php run"}), db_path=tmp_path / "graph.db"
     )
-    result = search_symbol.create(config)("iziToast", detail_level="minimal")
+    result = search_symbol.create(config)("iziToast", detail_level="standard")
     assert result["total_count"] == 0
     assert result["unconfigured_adapters"] == _TS_GAP
 
@@ -193,7 +193,7 @@ def test_substring_near_miss_is_labelled_and_carries_the_gap(
         [],
         root=tmp_path,
     )
-    result = search_symbol.create(config)("paginate", detail_level="minimal")
+    result = search_symbol.create(config)("paginate", detail_level="standard")
     assert result["total_count"] == 1
     assert result["reason"] == REASON_SUBSTRING_MATCH
     assert result["results"][0]["qname"] == "\\Ns\\Model::resetPaginate"
@@ -224,10 +224,10 @@ def test_exact_and_prefix_matches_stay_ok_and_now_carry_the_gap(
         [],
         root=tmp_path,
     )
-    exact = search_symbol.create(config)("paginate", detail_level="minimal")
+    exact = search_symbol.create(config)("paginate", detail_level="standard")
     assert exact["reason"] == "ok"
     assert exact["unconfigured_adapters"] == _TS_GAP
-    prefix = search_symbol.create(config)("paginateQ", detail_level="minimal")
+    prefix = search_symbol.create(config)("paginateQ", detail_level="standard")
     assert prefix["reason"] == "ok"
     assert prefix["unconfigured_adapters"] == _TS_GAP
 
@@ -280,3 +280,16 @@ def test_include_graph_imported_by_is_never_a_bare_zero(
     result = include_graph.create(config)("a.php", direction="imported_by")
     assert result["results"] == []
     assert result["reason"] == REASON_NO_MATCHES
+
+
+def test_minimal_omits_the_coverage_note(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """223: demote unconfigured_adapters off minimal — ask standard/verbose for the note."""
+    monkeypatch.setattr(adapter, "ADAPTERS_DIR", _plant_adapters(tmp_path, "php", "typescript"))
+    config = load_config(tmp_path, {"CA_PHP_CMD": "php run"})
+    payload = {"indexed": True, "results": [{"qname": "\\X"}], "reason": "ok", "total_count": 1}
+    coverage.attach_coverage_note(payload, config, detail_level="minimal")
+    assert "unconfigured_adapters" not in payload
+    coverage.attach_coverage_note(payload, config, detail_level="standard")
+    assert payload["unconfigured_adapters"] == _TS_GAP

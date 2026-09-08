@@ -148,13 +148,7 @@ def test_the_whole_batched_payload_is_pinned(indexed) -> None:
             },
         ],
         "index_root": str(Path(indexed.root).resolve()),
-        # A swept miss names the coverage gap on the envelope (160); this fixture wires no adapter.
-        "unconfigured_adapters": [
-            {"language": "php", "enable": "CA_PHP_CMD"},
-            {"language": "python", "enable": "CA_PYTHON_CMD"},
-            {"language": "sql", "enable": "CA_SQL_CMD"},
-            {"language": "typescript", "enable": "CA_TYPESCRIPT_CMD"},
-        ],
+        # 223: minimal demotes the coverage note; identity still rides the batch envelope.
         **server_provenance(),
     }
 
@@ -235,10 +229,9 @@ def test_the_default_bound_leaves_the_field_sweep_room(tmp_path: Path) -> None:
 
 
 def test_a_single_subject_payload_is_unchanged(indexed) -> None:
-    """AC3 (narrowed by D2) — dict-equal to the pre-101 shape, plus 192's coverage disclosure.
+    """AC3 (narrowed by D2) — dict-equal to the pre-101 shape; 223 demotes envelope off minimal.
 
-    The fixture wires no adapter, so the gap is real and the answer is genuinely partial with
-    respect to both shipped languages. 160 exempted a results-carrying answer; 192 does not.
+    Coverage disclosure and ``server_*`` return at ``standard``/``verbose`` (ask for them).
     """
     payload = sweep(indexed, query="getState", detail_level="minimal")
 
@@ -256,17 +249,15 @@ def test_a_single_subject_payload_is_unchanged(indexed) -> None:
         "reason": REASON_OK,
         "total_count": 1,
         "index_root": str(Path(indexed.root).resolve()),
-        "unconfigured_adapters": [
-            {"language": "php", "enable": "CA_PHP_CMD"},
-            {"language": "python", "enable": "CA_PYTHON_CMD"},
-            {"language": "sql", "enable": "CA_SQL_CMD"},
-            {"language": "typescript", "enable": "CA_TYPESCRIPT_CMD"},
-        ],
-        **server_provenance(),
     }
+    assert "unconfigured_adapters" not in payload
+    assert "server_version" not in payload
     # Positive control: the batched keys are absent from a single-subject answer.
     assert "subjects" not in payload
     assert "subject_count" not in payload
+    standard = sweep(indexed, query="getState", detail_level="standard")
+    assert "unconfigured_adapters" in standard
+    assert "server_version" in standard
 
 
 def test_a_single_subject_call_still_takes_its_query_positionally(indexed) -> None:

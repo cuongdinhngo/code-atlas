@@ -16,7 +16,6 @@ from code_atlas.config import load_config
 from code_atlas.tools import get_index_status, impact
 from code_atlas.tools.get_index_status import NAME as STATUS
 from tests.test_claim_signing import SUBJECT, configured, fields, indexed_repo
-from tests.test_get_index_status_health import _MINIMAL_KEYS
 
 REPO = Path(__file__).resolve().parent.parent
 RUNTIME_DOCKERFILE = REPO / "docker" / "Dockerfile.runtime"
@@ -37,10 +36,10 @@ def test_standard_status_reports_server_version_and_build(tmp_path: Path) -> Non
     assert re.fullmatch(r"[0-9a-f]{7}(\+dirty)?", str(status["server_build"]))
 
 
-def test_minimal_status_omits_server_provenance(
+def test_minimal_status_carries_server_provenance(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """AC3: the cheap path stays unchanged — server fields are standard/verbose only."""
+    """223 AC4: cheapest tier keeps identity fields; empty next_tool_suggestions is omitted."""
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.resolve()))
     db_path = tmp_path / ".code-atlas" / "graph.db"
     db_path.parent.mkdir(parents=True)
@@ -48,9 +47,10 @@ def test_minimal_status_omits_server_provenance(
     config = load_config(tmp_path, {"CA_DB_PATH": str(db_path)})
     minimal = get_index_status.create(config, (STATUS,))(detail_level="minimal")
 
-    assert set(minimal) == _MINIMAL_KEYS
-    assert "server_version" not in minimal
-    assert "server_build" not in minimal
+    assert "server_version" in minimal
+    assert "server_build" in minimal
+    assert "server_stale_process" in minimal
+    assert "next_tool_suggestions" not in minimal  # current+indexed → empty → omitted
 
 
 def test_server_identity_is_stable_across_calls() -> None:

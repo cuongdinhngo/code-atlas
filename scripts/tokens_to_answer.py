@@ -67,6 +67,13 @@ _DEFAULT_REPORT = _REPO / "artifacts" / "tokens-to-answer-report.json"
 _DEFAULT_LOCAL_REPORT = _REPO / "artifacts" / "tokens-to-answer-local-report.json"
 # CI finds its own PR comment by this marker and edits it, instead of posting a new one per push.
 COMMENT_MARKER = "<!-- tokens-to-answer-report -->"
+# Sample-tier floor (223): recovered aggregate ~68.8 after demoting envelope off minimal.
+# Pin below the last-good 69.06 with room for path noise, but ABOVE the 65.48 regression.
+SAMPLE_TIER_RATIO_FLOOR = 66.0
+# Frozen 65.48-state aggregate used by the R6.5 red-proof (grep byte-identical at 441650).
+SAMPLE_TIER_REGRESSION_RATIO = 65.478
+SAMPLE_TIER_LAST_GOOD_RATIO = 69.062
+
 _DEFAULT_PHP = shlex.join(["php", str(_REPO / "adapters" / "php" / "index.php"), "--server"])
 
 # The tools a recipe may call, bound per repo. get_index_status needs the servable names.

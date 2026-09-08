@@ -167,7 +167,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     )
                     return signed(
                         attach_coverage_note(
-                            shape_exact_miss(miss, resolution), config, covered
+                            shape_exact_miss(miss, resolution), config, covered,
+                            detail_level=detail_level,
                         )
                     )
                 lookup = repointed
@@ -249,7 +250,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         attach_authoritative_caveats(result, caveats)
         return signed(
             attach_coverage_note(
-                attach_try_instead(result, try_instead, try_instead_hint), config, covered
+                attach_try_instead(result, try_instead, try_instead_hint), config, covered,
+                detail_level=detail_level,
             )
         )
 

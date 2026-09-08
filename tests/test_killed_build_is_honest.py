@@ -166,7 +166,8 @@ def test_the_repair_leaves_an_index_that_reports_current(killed_index: Path) -> 
 
     assert status["staleness"] == CURRENT
     assert INDEX_COMPLETE not in status
-    assert status["next_tool_suggestions"] == []
+    # Nothing to suggest omits the key entirely since 223 AC4.
+    assert "next_tool_suggestions" not in status
 
 
 def test_a_completed_build_reports_exactly_as_before(tmp_path: Path) -> None:
@@ -179,7 +180,7 @@ def test_a_completed_build_reports_exactly_as_before(tmp_path: Path) -> None:
 
     assert status["staleness"] == CURRENT
     assert INDEX_COMPLETE not in status
-    assert status["next_tool_suggestions"] == []
+    assert "next_tool_suggestions" not in status
     assert payload["mode"] == "incremental"
     assert INCOMPLETE_INDEX not in payload
 
