@@ -344,6 +344,15 @@ Independence: procedural (working-doc portion withheld; path-restricted diff). R
 
 ## Phase 5 — finalise
 
-Outward actions authorised: push feature branch + open PR. Merge deferred.
+Durable lesson: reinforcing `prove-the-guard-fails` (already R6.5) — AC1 automated negative control. Seen-bump only; no new lesson entry; no promotion proposed.
+
+`LEDGER TOTAL: unmeasured · top cost driver: main-loop (host surfaces no usage block; challenger not separately metered this run)`
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+Outward actions authorised by handover: (1) push feature branch (2) open PR. Merge NOT authorised.
 
 
