@@ -205,7 +205,7 @@ refine self-skips: ticket is fully specified (5 scope items, 5 falsifiable ACs, 
   - §6 — R6.3 corpus + R6.5 floor bite (recalled `prove-the-guard-fails`).
   - §3 N/A — no contract vocabulary change. §7 ledger at finalise. §8 N/A no new dep.
 
-Ran at e0928350b9ca0718bf894d23604a8882458e687b
+Ran at d02ab64b13f9b0d7562e48d84c0ae4abce4d6f76
 ```
 $ .venv/bin/python -m pytest tests/test_cross_repo_validation.py tests/test_cross_repo_workflow_installs_every_adapter.py -q --tb=no
 .......s.......                                                          [100%]
@@ -260,7 +260,7 @@ $ .venv/bin/python -m pytest tests/test_cross_repo_validation.py tests/test_cros
 
 Handle-1 trace command output (design-time):
 
-Ran at e0928350b9ca0718bf894d23604a8882458e687b
+Ran at d02ab64b13f9b0d7562e48d84c0ae4abce4d6f76
 ```
 $ rg -n "assert_plausible_counts|min_nodes" tests/test_cross_repo_validation.py
 97:def test_assert_plausible_counts_respects_sample_floors() -> None:
@@ -311,7 +311,8 @@ AC1: Python+SQL pins failed=0 with floors in contract_note. AC5: requests two-ru
 
 - **Reviewer:** OFF (`--no-reviewer`).
 - **Challenger:** ON — ticket-blind.
-- **Gate 4 status:** pending challenger
+- **Challenger verdict:** 12/12 reconstructed requirements MET (ticket-blind; main-loop).
+- **Gate 4 status:** cleared (autorun — reviewer waived; challenger LGTM)
 
 ## Phase 5 — Finalise
 
