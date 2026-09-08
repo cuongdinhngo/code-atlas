@@ -624,7 +624,16 @@ SQL_CASES: dict[str, Case] = {
 SQL_CONFORMANCE = AdapterConformance(
     cli=SQL_CLI,
     named_inventory=SQL_R62_CASES,
-    excluded_fixtures=frozenset(),
+    excluded_fixtures=frozenset(
+        {
+            # 228 owns these; they are proving fixtures, never R6.2 conformance cases.
+            "postgres_common_spellings.sql",
+            "reserved_word_unreadable.sql",
+            "create_wins_line_over_alter.sql",
+            # Delimited reserved names — a proving fixture for the same rule, not an R6.2 case.
+            "delimited_reserved_names.sql",
+        }
+    ),
     cases=SQL_CASES,
 )
 
@@ -752,7 +761,6 @@ _PY_IMPORT_REL_EDGE_SHAPES: list[EdgeShape] = [
     ),
 ]
 _PY_CALL_METHOD_EDGE_SHAPES: list[EdgeShape] = [
-    ("CALLS", f"{_pymod('call_method.py')}.call_on", "hook", "HEURISTIC"),
     (
         "CALLS",
         f"{_pymod('call_method.py')}.Child::hook",
@@ -762,6 +770,13 @@ _PY_CALL_METHOD_EDGE_SHAPES: list[EdgeShape] = [
     (
         "CALLS",
         f"{_pymod('call_method.py')}.Child::run",
+        f"{_pymod('call_method.py')}.Child::hook",
+        None,
+    ),
+    # 227: annotated receiver ``obj: Child`` promotes ``obj.hook()`` off HEURISTIC.
+    (
+        "CALLS",
+        f"{_pymod('call_method.py')}.call_on",
         f"{_pymod('call_method.py')}.Child::hook",
         None,
     ),
@@ -1009,6 +1024,12 @@ PY_CONFORMANCE = AdapterConformance(
             "nest/pkg/__init__.py",
             "nest/pkg/y.py",
             "method_local_assign.py",  # 229 proving fixture; not an R6.2 construct case
+            # 226 proving package — not an R6.2 inventory row
+            "cross_file_import/__init__.py",
+            "cross_file_import/entities.py",
+            "cross_file_import/user.py",
+            "cross_file_import/external.py",
+            "cross_file_import/relative_child.py",
         }
     ),
     cases=PY_CASES,

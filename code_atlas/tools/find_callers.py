@@ -228,7 +228,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     attach_limit_capped(miss, cap=cap, clamped=limit_clamped)
                     return signed(
                         attach_coverage_note(
-                            shape_exact_miss(miss, resolution), config, covered
+                            shape_exact_miss(miss, resolution), config, covered,
+                            detail_level=detail_level,
                         )
                     )
                 lookup = repointed
@@ -351,7 +352,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             if unlinked_calls == 0 and cross_lang_census is not None:
                 attach_cross_language_census(result, cross_lang_census)
                 attach_authoritative_caveats(result, [CAVEAT_CROSS_LANGUAGE_UNMODELLED])
-        return signed(attach_coverage_note(result, config, covered))
+        return signed(attach_coverage_note(result, config, covered, detail_level=detail_level))
 
     return find_callers
 

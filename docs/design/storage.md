@@ -74,10 +74,9 @@ table per file: **189 ms × 24,569 files = 77 minutes** — of a 76-minute rebui
 ## What the schema cannot express
 
 - **No project column.** By design, above.
-- **No `Table` → `Table` edge.** The T-SQL adapter drops `FOREIGN KEY` on purpose:
-  `adapters/sql/src/ddl.js:9` puts `foreign` / `primary` / `key` / `constraint` in `NOT_A_COLUMN` so
-  they are not read as columns. `Table` and `Column` nodes exist (v9, task 022) but nothing relates
-  them across tables, so no ER view is derivable. For whoever takes it: `REFERENCES` is **already**
-  in `EDGE_KINDS` and `FQN_EDGE_KINDS`, so a Column → Column link needs no contract bump.
 - **No `READS`.** `WRITES` has no counterpart — `SELECT … FROM` and `JOIN` emit no edge. *Which
   routine writes this table* is answerable; *which routine reads it* is not.
+
+Declared foreign keys are modelled: the T-SQL adapter emits `REFERENCES` edges (Column → Column at
+`RESOLVED`, or Column → Table at `HEURISTIC` when the target column list is omitted). The overview's
+entity-relationship section renders them (task 224).

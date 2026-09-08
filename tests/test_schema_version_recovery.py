@@ -174,7 +174,8 @@ def test_the_status_tool_suggests_a_build_only_where_a_build_is_the_fix(tmp_path
     newer = get_index_status.create(indexed(tmp_path / "b", NEWER), servable)()
 
     assert older["next_tool_suggestions"] == ["build_or_update_index"]
-    assert newer["next_tool_suggestions"] == []
+    # A newer-schema index has no build to suggest, so the key is absent (223 AC4).
+    assert "next_tool_suggestions" not in newer
 
 
 # --- every served tool answers, and none of them rebuilds ----------------------------------------

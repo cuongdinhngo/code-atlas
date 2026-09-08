@@ -108,7 +108,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     if freshness == "repaired":
                         miss["subject_refreshed_only"] = True
                     attach_limit_capped(miss, cap=cap, clamped=limit_clamped)
-                    return attach_coverage_note(shape_exact_miss(miss, resolution), config, covered)
+                    return attach_coverage_note(
+                        shape_exact_miss(miss, resolution),
+                        config,
+                        covered,
+                        detail_level=detail_level,
+                    )
                 lookup = repointed
                 total = store.count_edges_by_source(lookup, kinds=_KIND)
                 indexed = bool(store.nodes_by_qualified_name(lookup, limit=1))
@@ -143,7 +148,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 result["subject_refreshed_only"] = True
             attach_limit_capped(result, cap=cap, clamped=limit_clamped)
             attach_resolved_qname(result, asked=asked, answered=lookup)
-            return attach_coverage_note(result, config, covered)
+            return attach_coverage_note(result, config, covered, detail_level=detail_level)
 
     return find_view_data
 

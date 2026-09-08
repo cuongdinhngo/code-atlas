@@ -6,7 +6,7 @@ that, what breaks if I change this file — as rows, not as files to read.
 
 **PHP · TypeScript/JavaScript · T-SQL · Python.** 24 tools. Deterministic, offline, no LLM in the core.
 
-> ### **~65× fewer tokens** than grep-and-read to reach a resolved answer
+> ### **~69× fewer tokens** than grep-and-read to reach a resolved answer
 > **88–103×** on relation queries. Measured on pinned public repos — 8/8 answers correct, recall
 > **1.0**, precision **1.0**, zero confidently-wrong answers.
 > [Reproduce it](docs/runbooks/tokens-to-answer.md) · one command, no network.
@@ -198,7 +198,7 @@ Every number here is reproducible from a runbook in this repo.
 
 | What | Result | Where |
 |---|---|---|
-| Tokens to reach a resolved answer, vs grep-and-read | **~65× cheaper** on pinned public PHP repos (laravel · symfony · brick) — 8/8 correct, recall 1.0, precision 1.0; **88–103×** on relation queries. Re-measured 2026-09-06 | [`tokens-to-answer.md`](docs/runbooks/tokens-to-answer.md) |
+| Tokens to reach a resolved answer, vs grep-and-read | **~69× cheaper** on pinned public PHP repos (laravel · symfony · brick) — 8/8 correct, recall 1.0, precision 1.0; **88–103×** on relation queries. Re-measured 2026-09-07 (task 223) | [`tokens-to-answer.md`](docs/runbooks/tokens-to-answer.md) |
 | Answer correctness, blind field round | **8 of 8 checked claims exact, zero false statements** | §19 |
 | Cost of the *n*-th parallel agent | **~70 MB PSS**; the 925 MB index costs **0 MB** (page-cached, never mmapped) | [`parallel-agents.md`](docs/runbooks/parallel-agents.md) |
 | Five agents vs one | **4.3× throughput**, 1.3 % of RAM, zero `SQLITE_BUSY` reaching a caller | same |

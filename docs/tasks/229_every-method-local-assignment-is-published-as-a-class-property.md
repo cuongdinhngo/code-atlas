@@ -295,6 +295,11 @@ Coverage-gap exclusion E1 (ticket): the 4,384 / 17,516 field measurement is from
 - **Design-conformance self-check:** container predicate only; Attribute skip untouched; annotation path uses `owner_for_ann or scope`; no contract bump; no core language branch.
 - **Golden/snapshot change:** none beyond expected absence of invented Properties on the new fixture.
 - **Design-invalidation / re-gate:** none.
+- **Merge reality (recorded at merge, not at execute).** Task 227's PR #293 carried the same
+  `container == enclosing_class` predicate and merged first, so the parse.py hunk was already
+  on `main` when this branch merged and was dropped as a duplicate. What 229 ships is the R6.5
+  proof #293 never carried — the fixture and its three tests, re-verified green against main's
+  implementation before the drop.
 
 ## Phase 4 — Review
 

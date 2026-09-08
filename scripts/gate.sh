@@ -1,10 +1,12 @@
 #!/usr/bin/env sh
 # Run the whole CI gate locally, in the order .github/workflows/ci.yml runs it.
 #
-# GitHub Actions cannot run for this repo (private, no Actions budget), so this script IS the gate.
-# It mirrors all three CI jobs — test · adapters · guardrails — and is the single step to perform
-# before a push. Keep it in step with ci.yml: a check here that ci.yml lacks, or the reverse, means
-# one of the two is lying about what was verified.
+# GitHub Actions DO run for this repo, so this script is the fast pre-push filter, NOT the whole
+# gate: after pushing, read `gh pr checks <n>` too — the shared runner is slower, and a wall-clock
+# assertion can pass here and fail there. It mirrors all three CI jobs — test · adapters ·
+# guardrails — and is the single step to perform before a push. Keep it in step with ci.yml: a
+# check here that ci.yml lacks, or the reverse, means one of the two is lying about what was
+# verified — `tests/test_ci_and_gate_agree.py` is what enforces that.
 #
 #   scripts/gate.sh            # every check
 #   scripts/gate.sh --fast     # skip pytest and the tokens benchmark (the two slow ones)
@@ -125,10 +127,21 @@ else
         _record SKIP "npm ci (adapters/typescript)" "npm not on PATH"
         _record SKIP "npm ci (adapters/sql)" "npm not on PATH"
     fi
+    # ci.yml's test job runs `composer install --no-dev` before pytest. Running it here would
+    # strip the dev tools phpstan needs below, so assert instead: without vendor/ the PHP adapter
+    # tests fail or skip and pytest's PHP coverage shrinks without saying so (R6.5).
+    if [ -f adapters/php/vendor/autoload.php ]; then
+        _record PASS "php adapter runtime deps present (pytest coverage)"
+    else
+        _record SKIP "php adapter runtime deps present (pytest coverage)" \
+            "run: composer install --working-dir=adapters/php"
+    fi
     _run "pytest -q" "$bin/pytest" -q
     if command -v php >/dev/null 2>&1; then
         CA_PHP_CMD="php $root/adapters/php/index.php --server"
         export CA_PHP_CMD
+        # 0.63 is FIXTURE_TIER_RATIO_FLOOR in scripts/tokens_to_answer.py; the test named in the
+        # header asserts ci.yml and this line both carry it, so the three cannot drift apart.
         _run "tokens-to-answer (ratio >= 0.63, recall 1.0, precision 1.0)" \
             "$py" scripts/tokens_to_answer.py --min-ratio 0.63 --min-recall 1.0 \
             --min-precision 1.0

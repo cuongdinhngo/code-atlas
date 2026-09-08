@@ -115,18 +115,24 @@ jobs:
       - name: Type-check (mypy — code_atlas + onboarding_llm, per pyproject `files`)
         run: mypy
 
+      # `!cancelled()` so a ruff or mypy failure above no longer hides every test result below it:
+      # the job still goes red, but one push shows all of it. #292 cost four round trips because a
+      # two-line E501 masked nine real payload-shape failures.
       - name: Tests (pytest — unit · contract · integration)
+        if: ${{ !cancelled() }}
         run: pytest -q
 
       # Tokens-to-answer gate (task 034 / 055): fails on a wrong answer, a ratio regression, or a
       # recall miss. The ratio floor is a behavior-lock; the recall floor is the correctness gate.
       # One interpreter is enough — a token count does not vary by Python version.
       - name: Tokens-to-answer benchmark (ratio + recall regression gate)
-        if: matrix.python-version == '3.13'
+        if: ${{ !cancelled() && matrix.python-version == '3.13' }}
         env:
           CA_PHP_CMD: php ${{ github.workspace }}/adapters/php/index.php --server
         run: |
           status=0
+          # 0.63 is FIXTURE_TIER_RATIO_FLOOR in scripts/tokens_to_answer.py; the fixture tier sits
+          # below 1 by design — the ~65x product claim is the SAMPLE tier (tokens-to-answer-sample.yml).
           python scripts/tokens_to_answer.py --min-ratio 0.63 --min-recall 1.0 \
             --min-precision 1.0 \
             --markdown "${RUNNER_TEMP}/tokens-to-answer.md" --notice || status=$?

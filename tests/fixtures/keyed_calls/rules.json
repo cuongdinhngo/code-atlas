@@ -1,0 +1,10 @@
+{
+  "keyed_calls": [
+    {
+      "setter": "querySP",
+      "key_arg": 1,
+      "key_from": "string",
+      "target_template": "dbo.{key}"
+    }
+  ]
+}

@@ -787,3 +787,30 @@ def test_verdict_and_notice_carry_precision() -> None:
     assert "| precision |" in markdown and "0.5" in markdown and "precision 1.0" in markdown
     notice = _h.notice_line(agg, min_ratio=0.5, min_precision=1.0, failure="boom")
     assert "precision=0.5" in notice and "unexpected=1" in notice
+
+
+def test_sample_tier_floor_fails_the_65_48_regression_state() -> None:
+    """223 AC3 / R6.5: floor at last-good 69.06 must go red against the measured 65.48 state."""
+    # Synthetic rows that reproduce the frozen aggregate (grep 441650 / atlas 6745 = 65.478).
+    rows = [
+        _row("a", atlas=6745, grep=441650),
+    ]
+    with pytest.raises(_h.BenchmarkRegressionError, match="below the floor 69.06"):
+        _h.assert_benchmark(rows, min_ratio=_h.SAMPLE_TIER_LAST_GOOD_RATIO)
+
+
+def test_sample_tier_workflow_pins_the_recorded_floor() -> None:
+    """223 AC3: the scheduled sample job gates on SAMPLE_TIER_RATIO_FLOOR, not the old 55."""
+    workflow = (REPO / ".github" / "workflows" / "tokens-to-answer-sample.yml").read_text(
+        encoding="utf-8"
+    )
+    assert f"--min-ratio {int(_h.SAMPLE_TIER_RATIO_FLOOR)}" in workflow
+    assert "--min-ratio 55" not in workflow
+
+
+def test_recovered_sample_ratio_clears_the_new_floor() -> None:
+    """223 AC2: the post-fix aggregate (~68.8) clears the intentional floor of 66."""
+    # grep/atlas pair matching the recovered measurement (6419 atlas → 68.804).
+    rows = [_row("a", atlas=6419, grep=441650)]
+    agg = _h.assert_benchmark(rows, min_ratio=_h.SAMPLE_TIER_RATIO_FLOOR)
+    assert agg["ratio"] >= _h.SAMPLE_TIER_RATIO_FLOOR

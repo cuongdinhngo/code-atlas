@@ -306,7 +306,7 @@ matches many files an agent must read whole while code-atlas returns the one res
 `19.3` (symfony/demo `Post::getId` callers) to `147.4` (brick/math `BigInteger` references). This is
 the number the fixtures cannot show (there the aggregate is 0.789, and grep still wins on volume
 on the named questions). Adding task 121's two onboarding questions moved this aggregate to
-**69.06** — not a regression, but an aggregate now spanning two question classes: an onboarding
+**69.06** (task 121; later **65.48** then recovered to ~**68.8** by task 223) — originally not a regression, but an aggregate spanning two question classes: an onboarding
 lookup that makes grep read five files cannot show the ~100× that a `find_references` over a
 40-file tree shows.
 
@@ -314,7 +314,7 @@ lookup that makes grep read five files cannot show the ~100× that a `find_refer
 
 ```bash
 export CA_PHP_CMD="php $(pwd)/adapters/php/index.php --server"   # absolute adapter path
-python scripts/tokens_to_answer.py --samples --min-ratio 78     # clones the pins, builds, gates
+python scripts/tokens_to_answer.py --samples --min-ratio 66     # clones the pins, builds, gates
 # reuse a warm clone cache and skip the network:
 python scripts/tokens_to_answer.py --samples --skip-clone --cache-dir artifacts/tokens-to-answer-samples
 ```
@@ -327,8 +327,8 @@ only — so the per-PR gate is untouched.
 ### Scheduled run
 
 [`.github/workflows/tokens-to-answer-sample.yml`](../../.github/workflows/tokens-to-answer-sample.yml)
-runs it on `workflow_dispatch` and weekly (Monday 06:30 UTC) with floor `55` (≈ `0.8 × observed`,
-recalibrate from the first Linux run as with the fixture floor). Not per-PR: it needs a clone + PHP
+runs it on `workflow_dispatch` and weekly (Monday 06:30 UTC) with floor `66` (task 223 —
+recovered ~68.8 after demoting envelope fields off `minimal`; the 65.48 regression fails this floor). Not per-PR: it needs a clone + PHP
 and is slower. On failure it opens/comments a `tokens-to-answer-sample` issue (scheduled logs are easy
 to miss).
 

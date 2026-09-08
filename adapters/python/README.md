@@ -1,7 +1,8 @@
 # Python adapter (tier 1a + tier 2 framework visibility)
 
 Parses Python into the code-atlas contract vocabulary with the **stdlib `ast` module only** —
-no `jedi`, no third-party runtime deps. Tasks 020 (tier 1a) and 217 (tier 2).
+no `jedi`, no third-party runtime deps. Tasks 020 (tier 1a), 217 (tier 2), and 227 (local type
+table / `semantic_types`).
 
 ## Runtime / grammar floor
 
@@ -37,7 +38,8 @@ CA_PYTHON_CMD="python /abs/path/adapters/python/index.py --server"
 | `async def` | `async` modifier |
 | nested `def` | Function CONTAINS inside parent |
 | `import` / `from` / `as` / relative | IMPORTS (+ ALIASES when names differ) |
-| `f()` / `C()` / `obj.m()` | CALLS (`C()` stays CALLS; HEURISTIC when the receiver is unknown) |
+| `f()` / `C()` / `obj.m()` | CALLS (`C()` stays CALLS; `obj.m()` is RESOLVED to `<Class>::m` when a local type table binding names the receiver — param/`AnnAssign` annotation or `x = Foo()`; else HEURISTIC) |
+| `self.x.m()` | `self.<attr>` types are read once per class, from the class body **and** every method in it, so method order never changes the answer; an annotation outranks an inferred `self.x = Foo()`, and disagreement drops the attribute |
 | module `UPPER = …` / class-body assign | Const / Property |
 | syntax error | `ok: false` |
 

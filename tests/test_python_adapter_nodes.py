@@ -88,3 +88,47 @@ def test_module_const_and_class_body_property_unchanged() -> None:
         if e["kind"] == "REFERENCES"
     }
     assert (f"{amod}.Repo::owner", f"{amod}.User") in refs
+ORDER = "tests/fixtures/python/resolve/self_attr_order.py"
+_ORDER_MOD = "tests.fixtures.python.resolve.self_attr_order"
+
+
+def _calls_from(result: dict, scope: str) -> set[tuple[str, str]]:
+    """``(target_raw, tier)`` for CALLS leaving one scope; an omitted tier is RESOLVED."""
+    return {
+        (str(e["target_raw"]), str(e.get("confidence_tier") or "RESOLVED"))
+        for e in result["edges"]
+        if e["kind"] == "CALLS" and e["source_qname"] == scope
+    }
+
+
+@needs_python
+def test_method_order_does_not_change_the_self_attribute_table() -> None:
+    """The finding: `self_props` was mutated per method and shared across siblings, so a class
+    whose `__init__` came last resolved differently from the identical class with it first.
+
+    Red before the fix: `InitFirst::call_it` resolved to `Service::run` while `InitLast::call_it`
+    — byte-identical but for method order — stayed a bare HEURISTIC `run`.
+    """
+    result = parse_file(ORDER)
+    assert result["ok"] is True
+    first = _calls_from(result, f"{_ORDER_MOD}.InitFirst::call_it")
+    last = _calls_from(result, f"{_ORDER_MOD}.InitLast::call_it")
+
+    assert first == last
+    assert first == {(f"{_ORDER_MOD}.Service::run", "RESOLVED")}
+
+
+@needs_python
+def test_an_annotation_outranks_an_untyped_write_in_a_sibling() -> None:
+    """A sibling's `self._svc = make()` must not un-type an attribute the class annotated."""
+    calls = _calls_from(
+        parse_file(ORDER), f"{_ORDER_MOD}.AnnotationSurvivesAnUntypedWrite::call_it"
+    )
+    assert calls == {(f"{_ORDER_MOD}.Service::run", "RESOLVED")}
+
+
+@needs_python
+def test_two_methods_disagreeing_drops_the_attribute() -> None:
+    """Absence is honest; picking the last-visited method's opinion is not (R5.2)."""
+    calls = _calls_from(parse_file(ORDER), f"{_ORDER_MOD}.TwoMethodsDisagree::call_it")
+    assert calls == {("run", "HEURISTIC")}

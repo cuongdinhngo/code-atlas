@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Literal
 
 from code_atlas import contract
-from code_atlas.build_info import server_provenance
+from code_atlas.build_info import maybe_server_provenance
 from code_atlas.config import Config
 from code_atlas.source_slice import declaration_slice
 from code_atlas.store import GraphStore
@@ -242,7 +242,7 @@ def _slice(path: Path, line_start: int, line_end: int, detail_level: str) -> str
 def _empty(
     qname: str, *, detail_level: str, db_path: str, index_root: str
 ) -> dict[str, object]:
-    del detail_level, db_path
+    del db_path
     return {
         "indexed": False,
         "qname": qname,
@@ -250,7 +250,7 @@ def _empty(
         "stale": False,
         "source": "",
         "index_root": index_root,
-        **server_provenance(),
+        **maybe_server_provenance(detail_level),
     }
 
 
@@ -269,7 +269,7 @@ def _result(
     line_end: int | None = None,
     stub: bool = False,
 ) -> dict[str, object]:
-    del detail_level, db_path
+    del db_path
     payload: dict[str, object] = {
         "indexed": True,
         "qname": qname,
@@ -287,5 +287,5 @@ def _result(
         payload["line_end"] = line_end
     if stub:
         payload[contract.STUB_FLAG] = True
-    payload.update(server_provenance())
+    payload.update(maybe_server_provenance(detail_level))
     return payload

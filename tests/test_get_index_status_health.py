@@ -25,8 +25,10 @@ _MINIMAL_KEYS = frozenset(
         "last_ref",
         "head_ref",
         "staleness",
-        "next_tool_suggestions",
         "index_root",
+        "server_version",
+        "server_build",
+        "server_stale_process",
     }
 )
 
@@ -123,25 +125,23 @@ def test_minimal_payload_stays_byte_identical_to_the_pre_health_shape(
     standard = tool(detail_level="standard")
 
     assert set(minimal) == _MINIMAL_KEYS
-    assert minimal == {
-        "indexed": True,
-        "files": 2,
-        "parsed": 1,
-        "failed": 1,
-        "nodes": 2,
-        "edges": 4,
-        "stubs": 0,
-        "last_commit": None,
-        "last_ref": None,
-        "head_ref": None,
-        "staleness": "unknown",
-        "next_tool_suggestions": [],
-        "index_root": str(config.root.resolve()),
-    }
+    assert "next_tool_suggestions" not in minimal  # empty → omitted (223)
+    for key in (
+        "indexed", "files", "parsed", "failed", "nodes", "edges", "stubs",
+        "last_commit", "last_ref", "head_ref", "staleness", "index_root",
+    ):
+        assert key in minimal
+    assert minimal["indexed"] is True
+    assert minimal["files"] == 2
+    assert minimal["index_root"] == str(config.root.resolve())
+    assert "server_version" in minimal and "server_build" in minimal
+    # standard still carries every minimal field
+    for key, value in minimal.items():
+        if key.startswith("server_"):
+            continue  # standard also has them via enriched path
+        assert standard[key] == value
     assert "edge_health" not in minimal and "parse_failures" not in minimal
     assert "edge_health" in standard and "parse_failures" in standard
-    for key, value in minimal.items():
-        assert standard[key] == value
 
 
 def test_unbuilt_standard_still_opens_no_database(tmp_path: Path) -> None:

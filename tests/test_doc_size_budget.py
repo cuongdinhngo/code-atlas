@@ -169,7 +169,9 @@ BUDGETS = {
     "CLAUDE.md": 50,
     "AGENTS.md": 2_850,
     "PLAN.md": 23_000,
-    "BACKLOG.md": 2_550,
+    # 2,150 covers this window's six closing tickets: every one removes its row (R7.6), so
+    # the file shrinks and the anti-slack guard needs the ceiling to follow it down.
+    "BACKLOG.md": 2_150,
     "ENGINEERING_RULES.md": 5_700,
     "AGENT_BRIEF.md": 2_250,
     "CONVENTION.md": 6_700,

@@ -62,7 +62,8 @@ def test_suggestions_vary_across_current_and_behind(tmp_path: Path) -> None:
     config = served_config(tmp_path)
     server = build_server(config)
     call(server, BUILD, {})
-    current = call(server, STATUS, {})["next_tool_suggestions"]
+    # Since 223 AC4 a current index omits the key rather than shipping an empty array.
+    current = call(server, STATUS, {}).get("next_tool_suggestions", [])
     path = tmp_path / "src" / "a.aa"
     path.write_text(path.read_text(encoding="utf-8") + "x\n", encoding="utf-8")
     behind = call(server, STATUS, {})["next_tool_suggestions"]
