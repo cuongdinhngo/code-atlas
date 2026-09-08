@@ -93,7 +93,7 @@ for `_ADAPTERS` in `cross_repo_validate.py`.
 **The current state of these gates is the standard's own indictment.** Gates 1-2 are complete for all
 four. Gate 3 exists for PHP and TS only, so gate 5 is impossible for Python and SQL — that is
 [233](tasks/233_python-and-sql-have-no-pinned-public-sample-so-no-change-to-either-can-be-shown-to-move-anything.md).
-Gate 4 has run for PHP, SQL and Python, and **never for TS**.
+Gate 4 has run for PHP, SQL, Python, and TypeScript — TS measured 2026-09-08 in [235](tasks/235_the-typescript-adapter-has-never-been-asked-a-question-in-the-field.md) ([`docs/benchmarks/235_typescript_field_round.md`](benchmarks/235_typescript_field_round.md)); no new defect beyond the already-filed 232 / 234 observations.
 
 ## 5. The field round — the protocol that produced 221-230
 
@@ -182,5 +182,4 @@ cannot fill is the defect 231 removed, so a new adapter's flags must match its c
 **What this table cannot tell you** is whether an adapter is right about real code — that is gates 3
 and 4, whose state §4 records: pinned samples exist for `php` and `typescript` only
 ([233](tasks/233_python-and-sql-have-no-pinned-public-sample-so-no-change-to-either-can-be-shown-to-move-anything.md)),
-and a field round has never been run for `typescript`
-([235](tasks/235_the-typescript-adapter-has-never-been-asked-a-question-in-the-field.md)).
+and the TypeScript field round landed in [235](tasks/235_the-typescript-adapter-has-never-been-asked-a-question-in-the-field.md) ([benchmark](benchmarks/235_typescript_field_round.md)).
