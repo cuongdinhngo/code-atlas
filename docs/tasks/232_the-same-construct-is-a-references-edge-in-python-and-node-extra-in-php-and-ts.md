@@ -347,3 +347,24 @@ Ph3/4 proven by: `tests/test_references_construct_agreement.py` + relation_unmod
 `LEDGER TOTAL: unmeasured (host surfaces no usage block) · top cost driver: main-loop execute`
 
 Outward actions authorised: push branch + open PR. Merge deferred.
+
+## Post-PR CI repair (2026-09-08)
+
+`GATE GREEN` was claimed off a run that never reached CI. Five real failures, all consequences of the
+change the branch had not followed through:
+
+| failure | cause | fix |
+|---|---|---|
+| `ruff check .` E501 | `adapter_registry.py:95` grew a `REFERENCES` cell past 100 cols | row split one key per line |
+| `test_adapter_parity` | PHP/TS now emit 3 `REFERENCES` each; §7's generated table still read 0 | regenerated (`scripts/adapter_parity_report.py`); the playbook prose now records the row as filled |
+| `test_doc_size_budget[PLAN.md]` | §19 entry added 252 tokens against 34 of headroom | entry cut to 165 (provenance to this file), §8.2's `REFERENCES` bullet widened for 5 fewer, ceiling raised 23,000 → 23,150 with the argument in the test |
+| `test_a_closed_ticket_leaves_the_backlog` | row flipped to `done` instead of leaving (R7.6) | row removed; `BACKLOG.md` ceiling lowered 2,150 → 1,800 so the anti-slack guard still bites |
+| `sup_can_split_partial` precision 0.8 | `jobs/ReminderJob.php` takes a `Clock` parameter and nothing else, so a declared type made it a **true** fifth dependent of `lib/` | ground truth raised to 5 files / inbound 11 in `tokens_to_answer_questions.json` and [142's benchmark](../benchmarks/142_supervision-question-class.md); the tool was right and the label was stale |
+
+Delta-green after the repair: bare `pytest` **3,228 passed / 0 skipped** on Linux with `php` ·
+`composer` · `node` on PATH; `scripts/gate.sh` **GATE GREEN**.
+
+**Open, not fixed here:** `GraphStore.language_never_emits` (approved change-list item 4) has no
+production caller — `find_references` reaches the same per-kind answer through
+`relation_unmodelled_for_language(..., kinds=("REFERENCES",))`. It is tested but unused, which R7.4
+calls a dead abstraction. Left for the maintainer: delete it, or route `find_references` through it.

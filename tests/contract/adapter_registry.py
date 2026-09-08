@@ -92,7 +92,15 @@ PHP_CASES: dict[str, Case] = {
             "Property": 1,
             "ClassConst": 2,
         },
-        {"CONTAINS": 14, "EXTENDS": 1, "IMPLEMENTS": 2, "IMPORTS": 1, "CALLS": 1, "NEW": 1, "REFERENCES": 2},
+        {
+            "CONTAINS": 14,
+            "EXTENDS": 1,
+            "IMPLEMENTS": 2,
+            "IMPORTS": 1,
+            "CALLS": 1,
+            "NEW": 1,
+            "REFERENCES": 2,
+        },
     ),
     "global": Case(
         "global.php",

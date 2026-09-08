@@ -304,7 +304,7 @@ Runs after all nodes exist:
 - `EXTENDS/IMPLEMENTS/USES_TRAIT/NEW/FuncCall`: `target_raw` is an FQN from the adapter → look up `nodes.qualified_name`, set `target_qname`, tier `RESOLVED`; leave NULL if external/vendor. A qname that appears in multiple files (§10) is linked **once**, still `RESOLVED` — the lookup is keyed by qname, so a hit means the name resolved, and an edge records a `target_qname`, never a node id, so "which declaring file" is not representable. **Revised by task 046:** this previously emitted one top-N `HEURISTIC` edge per declaring node, which produced rows identical in every column but `id` (38.8% of the graph on a monorepo carrying two regional copies of one tree) and downgraded 1.66M edges for a multiplicity that was never ambiguity. Every declaration remains a `nodes` row, so nothing is lost.
 - Instance `CALLS` with unknown receiver type: match by **method name** across the index → one candidate = `HEURISTIC`; many = record top-N `HEURISTIC`; dynamic (`$x->$m()`) = `DYNAMIC`, unlinked. *(Adapters with `semantic_types` capability — Roslyn — pre-resolve these to `RESOLVED`; the resolver just honors what's provided. This is how the same generic code serves both.)* PHP (task 029) emits FQN `target_raw` for lexically bound `$this` / `self` / `static` / `parent` when the enclosing class-like **declares** the method in-file (inherited / trait-mixin `$this->m` stays bare HEURISTIC so name-match still links). Tier convention: RESOLVED names the **declaration site** the file can prove (`$this`/`self`/`parent` at default tier); `static::` is late binding so it keeps the FQN but at `HEURISTIC`.
 - `ALIASES` (task 030): adapter emits alias FQN → real class FQN; resolver links the real target like other FQN kinds, then remaps later CALLS/NEW whose `target_raw` is an alias onto the real class (transitively through alias chains, cycle-safe) so `find_callers` / `find_references` / impact see Alias users under Real. A stored `meta.contract_version` that lags `CONTRACT_VERSION` forces a full rebuild on incremental (never mix vocabulary eras).
-- `REFERENCES` (task 094): a `Foo::class` mention (array value, argument, or assignment — the language construct, not a routing table) is a `DYNAMIC` FQN edge from the enclosing declaration to the named class. The resolver links it and **keeps** `DYNAMIC` (`_weaker_tier`). `skip_dynamic` still drops unlinkable `(dynamic)` CALLS/NEW/INCLUDES, but not `REFERENCES`. Variable-method dispatch stays unmodelled. Leftover unlinked `REFERENCES`/`IMPORTS` still feed `relationship_not_modelled` (065).
+- `REFERENCES` (094, widened by 232): a `Foo::class` mention is a `DYNAMIC` FQN edge; a named class type on a declaration and an attribute / decorator are `RESOLVED` ones. The resolver links both and **keeps** the incoming tier (`_weaker_tier`), so `skip_dynamic` still drops unlinkable `(dynamic)` CALLS/NEW/INCLUDES and never a `REFERENCES`. Variable-method dispatch stays unmodelled. Leftover unlinked `REFERENCES`/`IMPORTS` still feed `relationship_not_modelled` (065).
 - **Path-shaped kinds** (`contract.PATH_TARGET_BASIS` — `INCLUDES`, `IMPORTS`): the target is a **file**, so the lookup is over `File` qnames, never by FQN, and the two kinds are disjoint from `FQN_EDGE_KINDS` so no edge id is double-linked. The contract declares how `target_raw` names the file — `INCLUDES` is includer-relative, `IMPORTS` is the repo-relative path the adapter already resolved (155) — so the resolver reads a declaration instead of sniffing a string (R5.2). **The discriminator is the graph:** a raw naming no indexed file stays bare, which is what leaves a symbol-shaped `IMPORTS` (a class FQN) unlinked with no language branch, and leaves an unresolvable specifier as honest `relationship_not_modelled` evidence (task 188). Variable include = `DYNAMIC`. `IMPORTS` carries `INCLUDES`' impact weight — a module dependency is a file-level dependency — so impact / reachability / orphans finally cross a module boundary.
 - **top-N** is `CA_MAX_RESULTS` / `config.max_results` (default 50) — the same cap the search/nav tools use; no separate resolver knob.
 - Linked tier is the **weaker** of the adapter's incoming `confidence_tier` and the lookup outcome: an FQN hit is would-be `RESOLVED` regardless of how many files declare it (task 046), while a **method-name** match is would-be `HEURISTIC` because those candidates carry genuinely different qnames. A resolved name never upgrades a guess (R5.2).
@@ -1002,17 +1002,13 @@ incomplete exactly as before.
 and touches FTS correctness — its own ticket. The anchor timing pair is unmeasured on a checkout with
 `real_corpus_path: null` (E1); the mechanism is proven at fixture scale.
 
-**Decision — annotation / decorator → REFERENCES for every adapter (task 232, 2026-09-08).** 019 put
-TS decorators and declared types on node `extra` (no edge), mirroring PHP attributes. 217 chose the
-opposite for Python — decorators and annotations → `REFERENCES` — citing product demand. The split
-made `find_references("User")` answer three different things for the same construct, and
-`language_emits_none_of` over `UNMODELLED_REFERENCE_KINDS` hid never-emitted `REFERENCES` behind
-emitted `IMPORTS`. **Locked: edges.** PHP and TS emit `REFERENCES` from named class types on
-params/returns/properties and from attributes/decorators; `Foo::class` stays `DYNAMIC` (094). Cost:
-graph growth of the kind 217 measured (928 annotation + 536 decorator first-party sites in one
-repo). Withdraw-Python rejected — Agent-trust treats a TS type-site zero as a false claim.
-Companion: `language_never_emits(language, kind)` so a never-emitted sibling is visible; `find_references`
-honest-zeros on `REFERENCES` alone.
+**Decision — annotation / decorator → REFERENCES in every adapter (task 232, 2026-09-08).** 019 put
+TS decorators and declared types on `extra`; 217 chose edges for Python, so one construct answered
+`find_references` three ways. **Locked: edges** — PHP and TS emit `REFERENCES` from named class types
+(params/returns/properties) and from attributes/decorators; `Foo::class` stays `DYNAMIC` (094).
+Withdraw-Python rejected: a TS type-site zero is a false claim. Companion:
+`language_never_emits(language, kind)` makes a never-emitted sibling visible. Detail:
+[232](tasks/232_the-same-construct-is-a-references-edge-in-python-and-node-extra-in-php-and-ts.md).
 
 **Reference material** (private, same folder): `understand-anything-how-it-works.md`, `code-review-graph-how-it-works.md`.
 
