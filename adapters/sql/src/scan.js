@@ -16,7 +16,8 @@ const PENDING_CAP = 256 * 1024;
  *   line_start: number, line_end: number, modifiers: string[], params: unknown[],
  *   is_test: boolean, extra: Record<string, string>}} Node
  * @typedef {{kind: string, source_qname: string, target_raw: string, file_path: string,
- *   line: number, confidence_tier: string}} Edge
+ *   line: number, confidence_tier: string, args?: (string|null)[],
+ *   arg_keys?: (string[]|null)[]}} Edge
  * @typedef {{block: number, string: boolean, elided: boolean}} ScanState
  */
 
@@ -153,6 +154,10 @@ const HEADER_END_RE = /\b(?:as|begin)\b/i;
 const PROC_PARAM_RE =
   /@([A-Za-z_][\w@#$]*)\s+([A-Za-z_][\w]*(?:\s*\([^)]*\))?)/gi;
 
+/**
+ * @param {string} line
+ * @returns {{name: string, type: string}[]}
+ */
 function procedureParams(line) {
   const asAt = line.search(HEADER_END_RE);
   const window = asAt >= 0 ? line.slice(0, asAt) : line;
@@ -165,6 +170,10 @@ function procedureParams(line) {
   return out;
 }
 
+/**
+ * @param {string} token
+ * @returns {string|null}
+ */
 function sqlLiteralKind(token) {
   const t = token.trim();
   if (/^N?'(?:[^']|'')*'$/i.test(t)) return "string";
@@ -175,7 +184,12 @@ function sqlLiteralKind(token) {
   return null;
 }
 
-// Named EXEC args after the target: `@p = <literal>`, … — categories + @names as arg_keys.
+/**
+ * Named EXEC args after the target: `@p = <literal>`, … — one category per positional slot.
+ * @param {string} line
+ * @param {number} matchEnd
+ * @returns {{args: (string|null)[], arg_keys: (string[]|null)[]}|null}
+ */
 function execArgs(line, matchEnd) {
   const rest = line.slice(matchEnd);
   const named = [];
@@ -593,7 +607,7 @@ function parseFile(qpath) {
       const dynamicProc = qname !== null && DYNAMIC_PROCS.has(qname.toLowerCase());
       // A dynamic target is emitted, never dropped and never RESOLVED (AC7): the call site is a fact
       // even where the callee is not knowable, and the core decides what an unlinkable edge means.
-      /** @type {Record<string, unknown>} */
+      /** @type {Edge} */
       const edge = {
         kind: "CALLS",
         source_qname: source,
