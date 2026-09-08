@@ -205,7 +205,7 @@ refine self-skips: ticket is fully specified (5 scope items, 5 falsifiable ACs, 
   - §6 — R6.3 corpus + R6.5 floor bite (recalled `prove-the-guard-fails`).
   - §3 N/A — no contract vocabulary change. §7 ledger at finalise. §8 N/A no new dep.
 
-Ran at d02ab64b13f9b0d7562e48d84c0ae4abce4d6f76
+Ran at e6c5407813be02887f613a1aa7e8c743277c1a78
 ```
 $ .venv/bin/python -m pytest tests/test_cross_repo_validation.py tests/test_cross_repo_workflow_installs_every_adapter.py -q --tb=no
 .......s.......                                                          [100%]
@@ -260,7 +260,7 @@ $ .venv/bin/python -m pytest tests/test_cross_repo_validation.py tests/test_cros
 
 Handle-1 trace command output (design-time):
 
-Ran at d02ab64b13f9b0d7562e48d84c0ae4abce4d6f76
+Ran at e6c5407813be02887f613a1aa7e8c743277c1a78
 ```
 $ rg -n "assert_plausible_counts|min_nodes" tests/test_cross_repo_validation.py
 97:def test_assert_plausible_counts_respects_sample_floors() -> None:
@@ -297,7 +297,7 @@ Input-shape-dependent AC1+AC3 proven on real pinned corpus (c=2).
 - **Verification sweep:** diff ⊆ approved list.
 - **Design-conformance deviations:** none.
 
-Ran at 2cd6bf2ad0af574b83bfb4a85fb82a41cc16e62c
+Ran at e6c5407813be02887f613a1aa7e8c743277c1a78
 ```
 $ .venv/bin/python -m pytest tests/test_cross_repo_validation.py tests/test_cross_repo_workflow_installs_every_adapter.py -q
 18 passed, 1 skipped
