@@ -649,7 +649,7 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
             for target in targets:
                 if not isinstance(target, ast.Name):
                     continue
-                if enclosing_class is not None:
+                if enclosing_class is not None and container == enclosing_class:
                     qn = member(enclosing_class, target.id)
                     add_node("Property", target.id, qn, stmt)
                     add_edge("CONTAINS", enclosing_class, qn, stmt)

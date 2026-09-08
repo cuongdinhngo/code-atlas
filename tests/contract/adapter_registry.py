@@ -1008,6 +1008,7 @@ PY_CONFORMANCE = AdapterConformance(
             "nest/deep/x.py",
             "nest/pkg/__init__.py",
             "nest/pkg/y.py",
+            "method_local_assign.py",  # 229 proving fixture; not an R6.2 construct case
         }
     ),
     cases=PY_CASES,
