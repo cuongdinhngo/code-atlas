@@ -173,18 +173,26 @@ def test_unlinked_evidence_still_wins_over_the_language_verdict(tmp_path: Path) 
 
 
 @needs_node
-def test_find_references_does_not_fire_while_one_kind_is_modelled(ts_index: Config) -> None:
-    """AC1's boundary, and the precision of the rule: ANY modelled kind means a zero is a zero.
+def test_find_references_fires_when_references_alone_is_unmodelled(ts_index: Config) -> None:
+    """232 — IMPORTS in the set must not mask a never-emitted REFERENCES.
 
-    TS emits `IMPORTS` but not `REFERENCES`. `find_references` reads both, so its empty answer is a
-    real zero and must NOT be relabelled — a rule that fired on a *partly* modelled relation would
-    replace one false claim with another.
+    Rewrite the stamp so typescript keeps IMPORTS but drops REFERENCES; a zero answer then
+    carries relation_unmodelled_for_language (authoritative: false), not a genuine no_matches.
     """
     with GraphStore(ts_index.db_path) as store:
+        stamped = store.stamped_emitted_kinds_by_language()
+        assert stamped is not None
+        kinds = [k for k in stamped["typescript"] if k != "REFERENCES"]
+        if "IMPORTS" not in kinds:
+            kinds.append("IMPORTS")
+        store.set_meta(EMITTED_KINDS_BY_LANGUAGE_KEY, json.dumps({"typescript": kinds}))
         assert store.language_emits_none_of("typescript", UNMODELLED_REFERENCE_KINDS) is False
         assert store.language_emits_none_of("typescript", ("REFERENCES",)) is True
+
     payload = find_references.create(ts_index)(qname="src/class_heritage.ts::Circle::draw")
-    assert payload["reason"] != REASON_RELATION_UNMODELLED_FOR_LANGUAGE
+    if payload.get("total_count", 0) == 0:
+        assert payload["reason"] == REASON_RELATION_UNMODELLED_FOR_LANGUAGE
+        assert payload.get("authoritative") is False
 
 
 @needs_php

@@ -123,6 +123,13 @@ final class Visitor extends NodeVisitorAbstract
                 $this->open($node, 'Function', $node->name->toString(), self::fqn($node->namespacedName), [
                     'params' => $this->params($node->params),
                 ] + $this->extraFields($this->callableExtra($node->attrGroups, $node->returnType)));
+                $this->emitCallableReferences(
+                    $this->container(),
+                    $node->params,
+                    $node->returnType,
+                    $node->attrGroups,
+                    $node->getStartLine(),
+                );
             }
             if ($this->declarationsOnly) {
                 return NodeTraverser::DONT_TRAVERSE_CHILDREN;
@@ -139,6 +146,13 @@ final class Visitor extends NodeVisitorAbstract
                 'modifiers' => $this->methodModifiers($node),
                 'params' => $this->params($node->params),
             ] + $this->extraFields($this->callableExtra($node->attrGroups, $node->returnType)));
+            $this->emitCallableReferences(
+                $this->container(),
+                $node->params,
+                $node->returnType,
+                $node->attrGroups,
+                $node->getStartLine(),
+            );
             if ($this->declarationsOnly) {
                 return NodeTraverser::DONT_TRAVERSE_CHILDREN;
             }
@@ -325,6 +339,7 @@ final class Visitor extends NodeVisitorAbstract
         $this->open($node, self::CLASS_LIKE_KINDS[$node::class], $name, $qname, [
             'modifiers' => $this->classModifiers($node),
         ] + $this->extraFields($extra));
+        $this->emitAttributeReferences($qname, $node->attrGroups, $node->getStartLine());
 
         foreach ($this->parentsOf($node) as $parent) {
             $this->edge('EXTENDS', $qname, self::fqn($parent), $parent->getStartLine());
@@ -340,6 +355,7 @@ final class Visitor extends NodeVisitorAbstract
         $this->open($node, 'Class', '{class}', $qname, [
             'modifiers' => $this->classModifiers($node),
         ] + $this->extraFields($this->attributeExtra($node->attrGroups)));
+        $this->emitAttributeReferences($qname, $node->attrGroups, $node->getStartLine());
 
         foreach ($this->parentsOf($node) as $parent) {
             $this->edge('EXTENDS', $qname, self::fqn($parent), $parent->getStartLine());
@@ -368,6 +384,13 @@ final class Visitor extends NodeVisitorAbstract
         }
         $fields += $this->extraFields($this->callableExtra($attrGroups, $returnType));
         $this->open($node, 'Function', $name, $this->anonymousQname($node, $anchor), $fields);
+        $this->emitCallableReferences(
+            $this->container(),
+            $params,
+            $returnType,
+            $attrGroups,
+            $node->getStartLine(),
+        );
     }
 
     /**
@@ -402,9 +425,12 @@ final class Visitor extends NodeVisitorAbstract
         $extra += $this->attributeExtra($node->attrGroups);
         foreach ($node->props as $property) {
             $name = '$' . $property->name->toString();
-            $this->declare($property, 'Property', $name, $this->member($name), [
+            $qname = $this->member($name);
+            $this->declare($property, 'Property', $name, $qname, [
                 'modifiers' => $this->propertyModifiers($node),
             ] + $this->extraFields($extra));
+            $this->emitTypeReferences($qname, $node->type, $property->getStartLine());
+            $this->emitAttributeReferences($qname, $node->attrGroups, $property->getStartLine());
         }
     }
 
@@ -417,9 +443,12 @@ final class Visitor extends NodeVisitorAbstract
         $extra += $this->attributeExtra($node->attrGroups);
         foreach ($node->consts as $const) {
             $name = $const->name->toString();
-            $this->declare($const, 'ClassConst', $name, $this->member($name), [
+            $qname = $this->member($name);
+            $this->declare($const, 'ClassConst', $name, $qname, [
                 'modifiers' => $this->classConstModifiers($node),
             ] + $this->extraFields($extra));
+            $this->emitTypeReferences($qname, $node->type, $const->getStartLine());
+            $this->emitAttributeReferences($qname, $node->attrGroups, $const->getStartLine());
         }
     }
 
@@ -427,7 +456,9 @@ final class Visitor extends NodeVisitorAbstract
     {
         $extra = ['enum_case' => true] + $this->attributeExtra($node->attrGroups);
         $name = $node->name->toString();
-        $this->declare($node, 'ClassConst', $name, $this->member($name), $this->extraFields($extra));
+        $qname = $this->member($name);
+        $this->declare($node, 'ClassConst', $name, $qname, $this->extraFields($extra));
+        $this->emitAttributeReferences($qname, $node->attrGroups, $node->getStartLine());
     }
 
     private function enterGlobalConst(Node\Stmt\Const_ $node): void
@@ -827,14 +858,17 @@ final class Visitor extends NodeVisitorAbstract
                 continue;
             }
             $name = '$' . $variable->name;
+            $qname = $this->member($name);
             $extra = [];
             if (($type = self::typeName($param->type)) !== null) {
                 $extra['type'] = $type;
             }
             $extra += $this->attributeExtra($param->attrGroups);
-            $this->declare($param, 'Property', $name, $this->member($name), [
+            $this->declare($param, 'Property', $name, $qname, [
                 'modifiers' => $this->promotedModifiers($param->flags),
             ] + $this->extraFields($extra));
+            $this->emitTypeReferences($qname, $param->type, $param->getStartLine());
+            $this->emitAttributeReferences($qname, $param->attrGroups, $param->getStartLine());
         }
     }
 
@@ -893,6 +927,86 @@ final class Visitor extends NodeVisitorAbstract
             'line_start' => $node->getStartLine(),
             'line_end' => $node->getEndLine(),
         ] + $fields;
+    }
+
+    /**
+     * Named class types on a declaration → REFERENCES (task 232). Scalars emit nothing.
+     * Attributes stay in ``extra`` too; this only adds the graph edge Python already emits.
+     *
+     * @param Node\Param[]          $params
+     * @param Node\AttributeGroup[] $attrGroups
+     */
+    private function emitCallableReferences(
+        string $owner,
+        array $params,
+        ?Node $returnType,
+        array $attrGroups,
+        int $line,
+    ): void {
+        $this->emitTypeReferences($owner, $returnType, $line);
+        foreach ($params as $param) {
+            // Promoted ctor params own their Property REFERENCES; skip the Method duplicate.
+            if ($param->flags !== 0) {
+                continue;
+            }
+            $this->emitTypeReferences($owner, $param->type, $param->getStartLine());
+            $this->emitAttributeReferences($owner, $param->attrGroups, $param->getStartLine());
+        }
+        $this->emitAttributeReferences($owner, $attrGroups, $line);
+    }
+
+    private function emitTypeReferences(string $owner, ?Node $type, int $line): void
+    {
+        foreach ($this->typeReferenceTargets($type) as $target) {
+            $this->edge('REFERENCES', $owner, $target, $line);
+        }
+    }
+
+    /**
+     * @param Node\AttributeGroup[] $attrGroups
+     */
+    private function emitAttributeReferences(string $owner, array $attrGroups, int $line): void
+    {
+        foreach ($attrGroups as $group) {
+            foreach ($group->attrs as $attr) {
+                $this->edge('REFERENCES', $owner, self::fqn($attr->name), $line);
+            }
+        }
+    }
+
+    /**
+     * Class-like targets a declared type names, in source order. Mirrors TypeName::classAlternatives
+     * but walks the AST so ``self``/``static``/``parent`` resolve via mentionTarget.
+     *
+     * @return list<string>
+     */
+    private function typeReferenceTargets(?Node $type): array
+    {
+        if ($type === null) {
+            return [];
+        }
+        if ($type instanceof Node\NullableType) {
+            return $this->typeReferenceTargets($type->type);
+        }
+        if ($type instanceof Node\UnionType || $type instanceof Node\IntersectionType) {
+            $found = [];
+            foreach ($type->types as $part) {
+                foreach ($this->typeReferenceTargets($part) as $target) {
+                    if (!in_array($target, $found, true)) {
+                        $found[] = $target;
+                    }
+                }
+            }
+
+            return $found;
+        }
+        if ($type instanceof Node\Name) {
+            $target = $this->mentionTarget($type);
+
+            return $target === null ? [] : [$target];
+        }
+
+        return [];
     }
 
     private function edge(
