@@ -49,8 +49,12 @@ def climb(dir_path: str, levels: int) -> str | None:
     return current
 
 
-def resolve_absolute(dotted: str, from_qpath: str) -> str | None:
-    """Try each ancestor of the importer (and the repo root) as a sys.path-style root."""
+def resolve_absolute(
+    dotted: str,
+    from_qpath: str,
+    source_roots: tuple[str, ...] | list[str] | None = None,
+) -> str | None:
+    """Try repo root, importer ancestors, then configured source roots (task 230)."""
     hit = resolve_dotted_under("", dotted)
     if hit:
         return hit
@@ -64,6 +68,14 @@ def resolve_absolute(dotted: str, from_qpath: str) -> str | None:
         if directory in ("", "."):
             break
         directory = climb(directory, 1)
+    for root in source_roots or ():
+        cleaned = root.strip().strip("/")
+        if not cleaned or cleaned in seen:
+            continue
+        seen.add(cleaned)
+        hit = resolve_dotted_under(cleaned, dotted)
+        if hit:
+            return hit
     return None
 
 
@@ -73,6 +85,7 @@ def resolve_import(
     level: int,
     from_qpath: str,
     name: str | None = None,
+    source_roots: tuple[str, ...] | list[str] | None = None,
 ) -> str | None:
     """Resolve an ``import`` / ``from … import`` to a repo-relative path, or ``None``.
 
@@ -88,7 +101,7 @@ def resolve_import(
             return resolve_dotted_under(start, name)
         return None
     if module:
-        return resolve_absolute(module, from_qpath)
+        return resolve_absolute(module, from_qpath, source_roots=source_roots)
     return None
 
 
@@ -98,9 +111,16 @@ def import_target_raw(
     level: int,
     from_qpath: str,
     name: str | None = None,
+    source_roots: tuple[str, ...] | list[str] | None = None,
 ) -> str:
     """Resolved path when on disk; otherwise the dotted specifier the source wrote."""
-    resolved = resolve_import(module=module, level=level, from_qpath=from_qpath, name=name)
+    resolved = resolve_import(
+        module=module,
+        level=level,
+        from_qpath=from_qpath,
+        name=name,
+        source_roots=source_roots,
+    )
     if resolved:
         return resolved
     if level > 0:

@@ -40,6 +40,7 @@ KNOB_KEYS: tuple[str, ...] = (
     "entry_points",
     "stub_roots",
     "working_roots",
+    "source_roots",
     "project_files",
     "audience",
     "indirection_rules",
@@ -98,6 +99,7 @@ class Config:
     entry_points: tuple[str, ...] | None
     stub_roots: tuple[str, ...] | None
     working_roots: tuple[str, ...] | None
+    source_roots: tuple[str, ...] | None
     project_files: tuple[str, ...] | None
     audience: str
     indirection_rules: tuple[str, ...] | None
@@ -243,6 +245,7 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
         ),
         audience=_resolve("audience", _as_audience, DEFAULT_AUDIENCE, environ, file_values),
         working_roots=_resolve("working_roots", as_working_roots, None, environ, file_values),
+        source_roots=_resolve("source_roots", _as_source_roots, None, environ, file_values),
         indirection_rules=_resolve(
             "indirection_rules", _as_indirection_rules, None, environ, file_values
         ),
@@ -424,6 +427,13 @@ def as_working_roots(label: str, raw: object) -> tuple[str, ...] | None:
     """
     return _as_repo_relative_list(
         label, raw, item="directory", collection="working roots"
+    )
+
+
+def _as_source_roots(label: str, raw: object) -> tuple[str, ...] | None:
+    """Extra sys.path-style roots for absolute import resolution (task 230). Blank/unset = off."""
+    return _as_repo_relative_list(
+        label, raw, item="directory", collection="source roots"
     )
 
 

@@ -920,3 +920,23 @@ def test_count_search_nodes_matches_search_hits(store: GraphStore) -> None:
 def test_count_edges_by_target_rejects_empty_kinds(store: GraphStore) -> None:
     with pytest.raises(ValueError, match="kinds must be non-empty"):
         store.count_edges_by_target("\\x", kinds=())
+
+
+def test_indexed_dotted_module_keys_are_derived_from_paths_not_a_language(
+    store: GraphStore,
+) -> None:
+    """230 — a file contributes its own dotted suffixes and its directory's, whatever the
+    extension. The directory keys are what makes a package initialiser importable without the
+    core knowing which filename a language uses for one."""
+    for path, language in (
+        ("src/pkg/mod.py", "python"),
+        ("src/pkg/__init__.py", "python"),
+        ("app/Http/Kernel.php", "php"),
+    ):
+        store.upsert_file(path, "hash-1", language)
+
+    keys = store.indexed_dotted_module_keys()
+
+    assert {"pkg.mod", "src.pkg.mod", "mod", "pkg", "src.pkg"} <= keys
+    assert {"Http.Kernel", "app.Http.Kernel", "app.Http"} <= keys
+    assert "src/pkg/mod.py" not in keys and "" not in keys

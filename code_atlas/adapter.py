@@ -66,7 +66,13 @@ class LanguageAdapter(Protocol):
     def start(self) -> None:
         """Launch the adapter and read its handshake."""
 
-    def parse(self, path: str, *, declarations_only: bool = False) -> ParseResult:
+    def parse(
+        self,
+        path: str,
+        *,
+        declarations_only: bool = False,
+        source_roots: tuple[str, ...] | None = None,
+    ) -> ParseResult:
         """Parse one repo-relative path.
 
         ``declarations_only`` asks the adapter to skip call/NEW edges from bodies (task 039
@@ -74,6 +80,10 @@ class LanguageAdapter(Protocol):
         indexer strips ``CALLER_KINDS`` (CALLS/NEW) for stub roots as a language-agnostic
         backstop. Other body-level kinds (REFERENCES, IMPORTS) are *not* stripped — honouring
         the flag is the adapter's responsibility.
+
+        ``source_roots`` are optional repo-relative directories tried after the importer's
+        ancestors when resolving absolute imports (task 230). Adapters that ignore the field
+        keep today's behaviour.
         """
 
     def stop(self) -> None:
@@ -148,7 +158,13 @@ class SubprocessAdapter:
             ) from error
         self._meta = self._read_handshake()
 
-    def parse(self, path: str, *, declarations_only: bool = False) -> ParseResult:
+    def parse(
+        self,
+        path: str,
+        *,
+        declarations_only: bool = False,
+        source_roots: tuple[str, ...] | None = None,
+    ) -> ParseResult:
         """Parse one path. Wire may be remapped; the result always keeps the caller's path (§9)."""
         process = self._running()
         try:
@@ -156,7 +172,9 @@ class SubprocessAdapter:
         except ConfigError as error:
             # Bad absolute path under set roots — loud at the process boundary (R5.3).
             raise AdapterError(f"adapter {self._key!r}: {error}") from error
-        self._request(process, wire, declarations_only=declarations_only)
+        self._request(
+            process, wire, declarations_only=declarations_only, source_roots=source_roots
+        )
         try:
             line = self._read_line(process)
         except UnicodeDecodeError as error:
@@ -237,12 +255,19 @@ class SubprocessAdapter:
         return meta
 
     def _request(
-        self, process: subprocess.Popen[str], path: str, *, declarations_only: bool = False
+        self,
+        process: subprocess.Popen[str],
+        path: str,
+        *,
+        declarations_only: bool = False,
+        source_roots: tuple[str, ...] | None = None,
     ) -> None:
         assert process.stdin is not None
         payload: dict[str, object] = {"path": path}
         if declarations_only:
             payload["declarations_only"] = True
+        if source_roots:
+            payload["source_roots"] = list(source_roots)
         try:
             process.stdin.write(json.dumps(payload, separators=(",", ":")) + "\n")
             process.stdin.flush()

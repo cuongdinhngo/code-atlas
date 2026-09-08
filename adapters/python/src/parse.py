@@ -167,8 +167,13 @@ def _type_name_worthy(raw: str) -> bool:
     return bool(leaf) and leaf[0].isupper()
 
 
-def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
+def parse_file(
+    path: str,
+    declarations_only: bool = False,
+    source_roots: tuple[str, ...] | list[str] | None = None,
+) -> dict[str, Any]:
     qpath = to_posix(path)
+    roots = tuple(source_roots or ())
     try:
         text = Path(path).read_text(encoding="utf-8")
     except OSError as exc:
@@ -523,7 +528,7 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
         if isinstance(node, ast.Import):
             for alias in node.names:
                 target = import_target_raw(
-                    module=alias.name, level=0, from_qpath=qpath
+                    module=alias.name, level=0, from_qpath=qpath, source_roots=roots
                 )
                 add_edge("IMPORTS", qpath, target, node)
                 if alias.asname:
@@ -545,19 +550,21 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
                 if alias.name == "*":
                     continue
                 target = import_target_raw(
-                    module=None, level=level, from_qpath=qpath, name=alias.name
+                    module=None, level=level, from_qpath=qpath, name=alias.name, source_roots=roots
                 )
                 add_edge("IMPORTS", qpath, target, node)
                 if alias.asname:
                     add_edge("ALIASES", dotted(mod, alias.asname), target, node)
             return
-        target = import_target_raw(module=module, level=level, from_qpath=qpath)
+        target = import_target_raw(module=module, level=level, from_qpath=qpath, source_roots=roots)
         add_edge("IMPORTS", qpath, target, node)
         for alias in node.names:
             if alias.name == "*" or not alias.asname:
                 continue
             # `from a import b as y` — alias points at the imported name under the module.
-            resolved_mod = resolve_import(module=module, level=level, from_qpath=qpath)
+            resolved_mod = resolve_import(
+                module=module, level=level, from_qpath=qpath, source_roots=roots
+            )
             if resolved_mod:
                 # Prefer symbol qname under the defining module when we know the file.
                 real = dotted(module_name(resolved_mod), alias.name)

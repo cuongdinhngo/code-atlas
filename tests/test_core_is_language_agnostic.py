@@ -32,6 +32,11 @@ LANGUAGE_NAME = re.compile(r"\b(" + "|".join(LANGUAGE_NAMES) + r")\b", re.IGNORE
 # The CI gate's regex, verbatim (ci.yml) — run here so a red build is not the first time it is seen.
 LANGUAGE_BRANCH = re.compile(r"if[^\n]*\blanguage\b[^\n]*==|match[^\n]*\blanguage\b")
 
+# A language's module-file convention is the leak the name grep above cannot see (230): the core is
+# written in Python, so the token `python` proves nothing — the package initialiser and a bare `.py`
+# literal do. `build_info.py`'s `*.py` reads this package's own source, not an indexed repo's.
+MODULE_CONVENTION = re.compile(r"__init__\.py|['\"]\.py['\"]")
+
 
 def core_modules() -> list[Path]:
     return sorted(CORE.rglob("*.py"))
@@ -45,6 +50,7 @@ def test_the_guard_has_something_to_check() -> None:
     assert len(core_modules()) == 84
     assert len(LANGUAGE_NAMES) == 9
     assert LANGUAGE_NAME.search("a PHP file") and LANGUAGE_BRANCH.search('if language == "x":')
+    assert MODULE_CONVENTION.search('(f"{rel}.py", f"{rel}/__init__.py")')
 
 
 @pytest.mark.parametrize("module", core_modules(), ids=lambda path: path.name)
@@ -64,3 +70,16 @@ def test_no_core_module_branches_on_a_language(module: Path) -> None:
             f"{module.relative_to(CORE.parent)}:{number} trips the CI R1.1 gate — fix the "
             "contract, not the core"
         )
+
+
+@pytest.mark.parametrize("module", core_modules(), ids=lambda path: path.name)
+def test_no_core_module_spells_a_module_file_convention(module: Path) -> None:
+    """230 — the hint counter mapped a dotted name to `<rel>.py` / `<rel>/__init__.py`: one
+    language's layout rule applied to an indexed repo, invisible to the name grep above because
+    the core is written in that language. Derive keys from the indexed paths instead."""
+    found = MODULE_CONVENTION.findall(module.read_text(encoding="utf-8"))
+
+    assert not found, (
+        f"{module.relative_to(CORE.parent)} spells {sorted(set(found))} — how a module name maps "
+        "to a file is the adapter's rule, not the core's (R1.1)"
+    )
