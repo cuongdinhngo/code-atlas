@@ -340,6 +340,6 @@ Coverage-gap exclusion E1 (ticket): the 4,384 / 17,516 field measurement is from
 ## Session status (close)
 
 - **KEY:** 229 · **work_doc_mode:** embed · **Current phase:** finalise
-- **PR:** pending push
+- **PR:** https://github.com/cuongdinhngo/code-atlas/pull/294
 - **RECONCILE / DISCLOSURE:** written at close after push+PR
 
