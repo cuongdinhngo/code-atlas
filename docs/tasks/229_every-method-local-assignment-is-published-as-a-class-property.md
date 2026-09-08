@@ -296,7 +296,7 @@ Coverage-gap exclusion E1 (ticket): the 4,384 / 17,516 field measurement is from
   ....
   4 passed in 0.13s
   ```
-  Ran at `61d992a509b4a4b249792daa16acea56b2276b93` (fix present in worktree; commit SHA updated after commit)
+  Ran at `bfbc88779595ca05f4381451aa320d855cdea630`
 - **AC5 before/after on prior fixtures:** Property nodes 5 → 5 (owner, tag, RED, BLUE, total). Removals from existing fixtures: **none** (no prior fixture had method-local bare Name assigns). New proving fixture is excluded from R6.2.
 - **Design-conformance self-check:** container predicate only; Attribute skip untouched; annotation path uses `owner_for_ann or scope`; no contract bump; no core language branch.
 - **Golden/snapshot change:** none beyond expected absence of invented Properties on the new fixture.
@@ -316,7 +316,7 @@ Coverage-gap exclusion E1 (ticket): the 4,384 / 17,516 field measurement is from
 - **Scope reconciliation:** diff subset of approved list.
 - **Proving test:** GREEN; would fail without the change (AC1 red recorded).
 - **Clean?** reviewer waived · challenger LGTM · proving test green → yes.
-- **Reviewed at** `PENDING_COMMIT_SHA`
+- **Reviewed at** `bfbc88779595ca05f4381451aa320d855cdea630`
 
 ## Phase 5 — Finalise
 
