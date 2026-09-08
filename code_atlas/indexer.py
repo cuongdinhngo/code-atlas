@@ -218,6 +218,7 @@ def full_build(
         report.phase("announce")
         announced = _announce(config, watchdog)
         try:
+            capabilities_by_language = _announced_capabilities(announced)
             owners = _owners(announced)
             report.phase("tree_walk")
             paths, census, untracked, ignore_sources, skipped_suffixes = _collect_with_census(
@@ -236,9 +237,6 @@ def full_build(
             counts = _parse_all(
                 config, store, watchdog, announced, owners, kept, progress=report
             )
-            capabilities_by_language = {
-                adapter.name: dict(adapter.capabilities) for adapter in announced.values()
-            }
         finally:
             for adapter in announced.values():
                 adapter.stop()
@@ -399,6 +397,7 @@ def incremental_update(
         announced = _announce(config, watchdog)
         _phase_add(phase_times, "announce", mark)
         try:
+            capabilities_by_language = _announced_capabilities(announced)
             owners = _owners(announced)
             _require_unchanged_scope(store, owners)
             mark = time.monotonic()
@@ -478,9 +477,6 @@ def incremental_update(
                 else {"parsed": 0, "failed": 0, "nodes": 0, "edges": 0}
             )
             _phase_add(phase_times, "parse", mark)
-            capabilities_by_language = {
-                adapter.name: dict(adapter.capabilities) for adapter in announced.values()
-            }
         finally:
             for adapter in announced.values():
                 adapter.stop()
@@ -1020,6 +1016,13 @@ def _reconcile(store: GraphStore, paths: Sequence[str]) -> int:
     for path in gone:
         store.remove_file(path)
     return len(gone)
+
+
+def _announced_capabilities(
+    announced: Mapping[str, SubprocessAdapter],
+) -> dict[str, dict[str, bool]]:
+    """Read the handshake flags now (231): an adapter that dies later announces nothing."""
+    return {adapter.name: dict(adapter.capabilities) for adapter in announced.values()}
 
 
 def _parse_all(

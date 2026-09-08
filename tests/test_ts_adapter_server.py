@@ -58,9 +58,16 @@ def test_the_core_drives_the_real_ts_adapter_end_to_end() -> None:
 
 @needs_node
 def test_the_handshake_announces_capabilities_as_an_object() -> None:
-    # semantic_types is advertised now the local type table backs it (task 153).
+    # semantic_types is advertised now the local type table backs it (task 153); the four optional
+    # field flags joined it in 231, each one a claim this adapter has to keep filling.
     with server() as adapter:
-        assert adapter.capabilities == {"semantic_types": True}
+        assert adapter.capabilities == {
+            "semantic_types": True,
+            "params": True,
+            "args": True,
+            "modifiers": True,
+            "declared_types": True,
+        }
 
 
 @needs_node
