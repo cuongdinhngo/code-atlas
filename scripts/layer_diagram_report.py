@@ -53,7 +53,8 @@ def main() -> int:
             root = cache_root / sid
             if not cached:
                 root = checkout_pinned(sample, cache_root)
-                index_root(root)
+                language = str(sample.get("language", "php"))
+                index_root(root, language=language)
             db = root / ".code-atlas" / "graph.db"
             if not db.is_file():
                 raise FileNotFoundError(f"no index at {db}")

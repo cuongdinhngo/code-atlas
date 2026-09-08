@@ -27,6 +27,7 @@ INSTALL_MARKERS = {
     "typescript": "npm ci --prefix adapters/typescript",
     # Stdlib-only adapter (020/217/227): no package install — the launch env is the proof.
     "python": "CA_PYTHON_CMD",
+    "sql": "npm ci --prefix adapters/sql",
 }
 
 

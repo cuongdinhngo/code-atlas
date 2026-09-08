@@ -56,7 +56,8 @@ def _report(sid: str) -> tuple[str, bool]:
     cache_root = _REPO / "artifacts" / "cross-repo-cache"
     sample = next(s for s in load_manifest() if str(s["id"]) == sid)
     root = checkout_pinned(sample, cache_root)
-    index_root(root)
+    language = str(sample.get("language", "php"))
+    index_root(root, language=language)
     with GraphStore(root / ".code-atlas" / "graph.db") as store:
         nodes = store.node_universe()
         edges = store.dependency_edges()

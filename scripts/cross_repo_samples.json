@@ -1,5 +1,5 @@
 {
-  "contract_note": "Pinned public samples for R6.3 / tasks 018 (PHP) + 150 (TS/JS) + 227 (Python). Not under adapters/ (R2.2). Each sample names its `language`; the harness resolves that adapter's command from `_ADAPTERS` (data, not a code branch). Floors ≈80% of a known-good smoke at the pinned SHA — bump floors when bumping sha. TS floors from a 2026-08-27 Docker run (node adapter): ky 54f/543n/7781e, mqttjs 80f/725n/6208e, socketio 371f/3533n/60651e; all failed=0. Python flask floors from a 2026-09-07 worktree smoke at d318b68: 83f/1931n/11178e.",
+  "contract_note": "Pinned public samples for R6.3 / tasks 018 (PHP) + 150 (TS/JS) + 233 (Python+SQL). Not under adapters/ (R2.2). Each sample names its `language`; the harness resolves that adapter's command from `_ADAPTERS` (data, not a code branch). Optional `sparse_paths` extracts a subdirectory of a large monorepo via git archive into a nested pin repo. Floors \u224880% of a known-good smoke at the pinned SHA \u2014 bump floors when bumping sha. TS floors from a 2026-08-27 Docker run (node adapter): ky 54f/543n/7781e, mqttjs 80f/725n/6208e, socketio 371f/3533n/60651e; all failed=0. Python+SQL floors from a 2026-09-08 smoke on host dev-host (Python 3.13.14): flask 83f/1758n/10794e, pydantic 442f/17422n/90199e, requests 37f/946n/5220e, adventureworks_oltp 1f/590n/1301e, wwi_dw 73f/549n/1254e; all failed=0.",
   "samples": [
     {
       "id": "laravel_app",
@@ -82,8 +82,62 @@
       "sha": "d318b683471101618febed18996405ad26462110",
       "url": "https://github.com/pallets/flask.git",
       "min_files": 66,
-      "min_nodes": 1544,
-      "min_edges": 8942
+      "min_nodes": 1406,
+      "min_edges": 8635
+    },
+    {
+      "id": "pydantic",
+      "kind": "python_src_layout",
+      "language": "python",
+      "owner": "pydantic",
+      "repo": "pydantic",
+      "sha": "2261ae19e2e09f792f06613360c83fc829238111",
+      "url": "https://github.com/pydantic/pydantic.git",
+      "min_files": 353,
+      "min_nodes": 13937,
+      "min_edges": 72159
+    },
+    {
+      "id": "requests",
+      "kind": "python_flat_package",
+      "language": "python",
+      "owner": "psf",
+      "repo": "requests",
+      "sha": "dae7ef63b4df6eded86637f251fc4e3a06c3b479",
+      "url": "https://github.com/psf/requests.git",
+      "min_files": 29,
+      "min_nodes": 756,
+      "min_edges": 4176
+    },
+    {
+      "id": "adventureworks_oltp",
+      "kind": "tsql_oltp_schema",
+      "language": "sql",
+      "owner": "microsoft",
+      "repo": "sql-server-samples",
+      "sha": "fd84be9ed763069e4fdaf88f5983942c7d3a2821",
+      "url": "https://github.com/microsoft/sql-server-samples.git",
+      "sparse_paths": [
+        "samples/databases/adventure-works/oltp-install-script"
+      ],
+      "min_files": 1,
+      "min_nodes": 472,
+      "min_edges": 1040
+    },
+    {
+      "id": "wwi_dw",
+      "kind": "tsql_dw_tables",
+      "language": "sql",
+      "owner": "microsoft",
+      "repo": "sql-server-samples",
+      "sha": "fd84be9ed763069e4fdaf88f5983942c7d3a2821",
+      "url": "https://github.com/microsoft/sql-server-samples.git",
+      "sparse_paths": [
+        "samples/databases/wide-world-importers/wwi-dw-ssdt/wwi-dw-ssdt"
+      ],
+      "min_files": 58,
+      "min_nodes": 439,
+      "min_edges": 1003
     }
   ]
 }
