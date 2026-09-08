@@ -302,12 +302,8 @@ TS_PARITY = ToolParity(
             # 186 made this state observable in the payload rather than only in this matrix.
             reason="relation_unmodelled_for_language",
         ),
-        # Answers, but narrower than PHP's: the relation is missing a kind this adapter never emits.
-        find_references.NAME: Expect(
-            ANSWERS_WITHOUT,
-            kinds=("REFERENCES",),
-            because="no `Foo::class`-style bare type mention exists in TS/JS",
-        ),
+        # 232 — TS now emits REFERENCES from annotations/decorators (agrees with Python/PHP).
+        find_references.NAME: Expect(ANSWERS),
         find_implementations.NAME: Expect(
             ANSWERS_WITHOUT,
             kinds=("USES_TRAIT",),

@@ -1521,7 +1521,8 @@
       "expected": [
         "lib/Clock.php",
         "legacy/RetiredExporter.php",
-        "services/InvoiceService.php"
+        "services/InvoiceService.php",
+        "jobs/ReminderJob.php"
       ],
       "precision_scope": [
         "dependent_files"
@@ -1531,7 +1532,8 @@
         "legacy/RetiredExporter.php",
         "repositories/InvoiceRepository.php",
         "reports/InvoiceReport.php",
-        "services/InvoiceService.php"
+        "services/InvoiceService.php",
+        "jobs/ReminderJob.php"
       ]
     },
     {

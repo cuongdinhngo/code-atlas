@@ -332,3 +332,20 @@ Re-derived from raw ticket + diff only (working doc withheld).
 - **Branch:** `feat/234-classconst-is-a-php-only-kind`
 - **Reviewer:** off · **Challenger:** on · verdict MET 9/9
 
+
+## Post-PR CI repair (2026-09-08)
+
+One real failure, plus what merging 232 beneath it changed.
+
+`test_the_budgets_are_not_slack` — the BACKLOG row left correctly (R7.6), which took the file to
+1,672 against a 2,150 ceiling; a budget more than 25 % above the file it bounds is the slack that
+guard forbids. The ceiling now tracks the file at 1,800, lowered in 232's PR because all four
+tickets in this window close and each removes a row (1,737 → 1,485).
+
+Merging 232 also settled §7 twice over. Both remaining shortfalls now read filled — `REFERENCES`
+3 · 3 · 0 · 3 and `ClassConst` 1 · 1 · 0 · 1 — so the paragraph beneath the table says so once
+instead of each ticket claiming the other's row is still open. And **234 moved the two member
+denominators**: `_members` reads `Method`/`Property`/`Column`, so a constant reclassified out of
+`Property` leaves that population — python and TS `extra.type` read 4/4 (from 5/5 and 4/5), TS
+`modifiers` 2/4 (from 3/5). Recorded beside the table, because that paragraph tells a reader to treat
+a fallen cell as a regression and these fell for the opposite reason.

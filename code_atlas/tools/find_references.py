@@ -218,11 +218,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     try_instead = TRY_INSTEAD_SEARCH_SYMBOL
                     try_instead_hint = TRY_INSTEAD_HINT_METHOD_QNAME
                 elif relation_unmodelled_for_language(
-                    store, file_path=str(nodes[0]["file_path"]), kinds=UNMODELLED_REFERENCE_KINDS
+                    store, file_path=str(nodes[0]["file_path"]), kinds=("REFERENCES",)
                 ):
-                    # One rule, both vocabulary-gated tools (R1.8/186). It does NOT fire while any
-                    # one of the kinds is emitted for this language, which is why a TS subject still
-                    # gets a genuine zero: IMPORTS is modelled there, REFERENCES alone is not.
+                    # Per-kind (232): IMPORTS in the set must not mask a never-emitted REFERENCES.
+                    # language_emits_none_of(UNMODELLED_REFERENCE_KINDS) stays the set-level reader.
                     reason = REASON_RELATION_UNMODELLED_FOR_LANGUAGE
                     try_instead_hint = TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE
         truncated = offset + len(results) < total_count

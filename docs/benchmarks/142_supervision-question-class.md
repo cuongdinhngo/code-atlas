@@ -62,9 +62,12 @@ recall number (its answer is per-section deltas, not one claimed population); th
 - **`sup_modules_reached`** — changing `\Fx\Billing\Invoice::total` reaches **5 modules**: billing
   (2 symbols), catalog (2, one only HEURISTIC), loyalty (1), shipping (1), and one file no module
   owns (`unassigned`, 1). 7 symbols total.
-- **`sup_can_split_partial`** — `lib/` has **inbound 6, outbound 0** (all RESOLVED): four files depend
-  on it (`legacy/`, `repositories/`, `reports/`, `services/`), it depends on nothing. One-directional,
-  so no cycle blocks the split — but heavily depended-upon.
+- **`sup_can_split_partial`** — `lib/` has **inbound 11, outbound 0** (all RESOLVED): five files
+  depend on it (`legacy/`, `repositories/`, `reports/`, `services/`, `jobs/`), it depends on nothing.
+  One-directional, so no cycle blocks the split — but heavily depended-upon. Re-measured 2026-09-08:
+  task 232 made a declared class type a `REFERENCES` edge, which is what surfaced `jobs/ReminderJob.php`
+  — it takes a `Clock` parameter and nothing else — so the ground truth here moved up, not the tool's
+  precision down.
 
 ## The member no tool answers — recorded, not scored
 

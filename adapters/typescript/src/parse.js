@@ -8,7 +8,7 @@ const fs = require("node:fs");
 const ts = require("typescript");
 const { toPosix, member } = require("./qname");
 const { resolveSpecifier, requireSpecifier, importBindings } = require("./imports");
-const { boundClass, newExprClass, paramTypeMap, classPropTypeMap } = require("./types");
+const { boundClass, newExprClass, paramTypeMap, classPropTypeMap, typeNodeOf, typeRefTargets } = require("./types");
 
 function scriptKindFor(path) {
   if (path.endsWith(".tsx")) return ts.ScriptKind.TSX;
@@ -129,8 +129,8 @@ function callableParams(node, sf) {
 }
 
 
-// Decorators are recorded on the node's `extra`, never as edges — mirrors how the PHP adapter keeps
-// attributes out of the edge set (they annotate a declaration, they don't call or construct it).
+// Decorators land in node `extra` AND as REFERENCES edges (task 232 — agrees with Python;
+// PHP attributes do the same). The factory call `@log()` is still not a CALLS.
 function decoratorsOf(node, sf) {
   const decos = ts.canHaveDecorators(node) ? ts.getDecorators(node) : undefined;
   if (!decos || decos.length === 0) return null;
@@ -356,6 +356,44 @@ function parseFile(path, declarationsOnly) {
     }
   };
 
+  // Named type references on a declaration → REFERENCES (task 232). Primitives and the
+  // declaration's own type parameters emit nothing.
+  const emitTypeRefs = (owner, typeNode, pos, skipNames) => {
+    const skip = skipNames || new Set();
+    for (const name of typeRefTargets(typeNode)) {
+      if (skip.has(name)) continue;
+      addEdge("REFERENCES", owner, resolve(name), pos);
+    }
+  };
+
+  const typeParamNames = (node) => {
+    const out = new Set();
+    for (const p of (node && node.typeParameters) || []) {
+      if (p.name && ts.isIdentifier(p.name)) out.add(p.name.text);
+    }
+    return out;
+  };
+
+  const emitDecoratorRefs = (owner, node) => {
+    const decos = ts.canHaveDecorators(node) ? ts.getDecorators(node) : undefined;
+    if (!decos) return;
+    for (const d of decos) {
+      const e = d.expression;
+      const expr = ts.isCallExpression(e) ? e.expression : e;
+      const target = resolveExpr(expr);
+      if (target) addEdge("REFERENCES", owner, target, d.getStart(sf));
+    }
+  };
+
+  const emitAnnotationRefs = (owner, node, skip) => {
+    emitDecoratorRefs(owner, node);
+    const skipNames = new Set([...(skip || []), ...typeParamNames(node)]);
+    emitTypeRefs(owner, typeNodeOf(node) || ts.getJSDocReturnType(node), node.getStart(sf), skipNames);
+    for (const p of node.parameters || []) {
+      emitTypeRefs(owner, typeNodeOf(p), p.getStart(sf), skipNames);
+    }
+  };
+
   // `export { A as B } from "./x"` re-exports x's A as this module's B: an ALIASES edge names the
   // *defining* module, so a downstream import of B resolves through it (149's load-bearing case).
   const emitReExport = (node) => {
@@ -474,7 +512,7 @@ function parseFile(path, declarationsOnly) {
     }
   };
 
-  const walkVariables = (stmt, container, scope, enclosingClass, locals, selfProps) => {
+  const walkVariables = (stmt, container, scope, enclosingClass, locals, selfProps, typeParams) => {
     for (const decl of stmt.declarationList.declarations) {
       const init = decl.initializer;
       const spec = requireSpecifier(init, ts);
@@ -499,24 +537,25 @@ function parseFile(path, declarationsOnly) {
         const opts = init && ts.isFunctionLike(init) ? { params: callableParams(init, sf) } : {};
         addNode("Function", cls.name, qname, decl, extraOf(decl), opts);
         addEdge("CONTAINS", container, qname, decl.getStart(sf));
-        if (!declarationsOnly && init) walk(init, qname, qname, null, locals, selfProps);
+        if (init && ts.isFunctionLike(init)) emitAnnotationRefs(qname, init, typeParams);
+        if (!declarationsOnly && init) walk(init, qname, qname, null, locals, selfProps, typeParams);
       } else if (cls && cls.kind === "Const") {
         const qname = member(container, cls.name);
         addNode("Const", cls.name, qname, decl, extraOf(decl));
         addEdge("CONTAINS", container, qname, decl.getStart(sf));
-        if (!declarationsOnly && init) walk(init, container, scope, enclosingClass, locals, selfProps);
+        if (!declarationsOnly && init) walk(init, container, scope, enclosingClass, locals, selfProps, typeParams);
       } else if (!declarationsOnly && init) {
-        walk(init, container, scope, enclosingClass, locals, selfProps);
+        walk(init, container, scope, enclosingClass, locals, selfProps, typeParams);
       }
     }
   };
 
   // Main walk: nodes + CONTAINS, plus the edges each construct owns. `scope` is what a body edge is
   // sourced at, `enclosingClass` the qname a `this.method()` resolves against; body walking is
-  // skipped for declarations_only.
-  const walk = (node, container, scope, enclosingClass, locals, selfProps) => {
+  // skipped for declarations_only. `typeParams` names type parameters in scope (skip REFERENCES).
+  const walk = (node, container, scope, enclosingClass, locals, selfProps, typeParams) => {
     if (ts.isVariableStatement(node)) {
-      walkVariables(node, container, scope, enclosingClass, locals, selfProps);
+      walkVariables(node, container, scope, enclosingClass, locals, selfProps, typeParams);
       return;
     }
 
@@ -526,6 +565,7 @@ function parseFile(path, declarationsOnly) {
     let childClass = enclosingClass;
     let childLocals = locals;
     let childSelfProps = selfProps;
+    let childTypeParams = typeParams;
     let emittedCallable = false;
 
     // A function/method/ctor opens a fresh local scope seeded with its typed parameters; an arrow or
@@ -545,10 +585,14 @@ function parseFile(path, declarationsOnly) {
         if (CALLABLE.has(node.kind)) opts.params = callableParams(node, sf);
         addNode(kind, name, qname, node, nodeExtra(node, kind), opts);
         addEdge("CONTAINS", container, qname, node.getStart(sf));
+        emitAnnotationRefs(qname, node, typeParams);
         childContainer = qname;
         if (SCOPE.has(node.kind)) childScope = qname;
         if (kind === "Class" || kind === "Interface") childClass = qname;
         if (kind === "Class") childSelfProps = classPropTypeMap(node);
+        if (kind === "Class" || kind === "Interface" || CALLABLE.has(node.kind)) {
+          childTypeParams = new Set([...typeParams, ...typeParamNames(node)]);
+        }
         if (CALLABLE.has(node.kind)) emittedCallable = true;
         emitHeritage(node, qname);
         emitDefaultAlias(node, name, qname);
@@ -562,10 +606,12 @@ function parseFile(path, declarationsOnly) {
     if (emittedCallable && declarationsOnly) return;
     // Decorators annotate a declaration (captured in extra); their expressions are not body edges.
     node.forEachChild((child) => {
-      if (!ts.isDecorator(child)) walk(child, childContainer, childScope, childClass, childLocals, childSelfProps);
+      if (!ts.isDecorator(child)) {
+        walk(child, childContainer, childScope, childClass, childLocals, childSelfProps, childTypeParams);
+      }
     });
   };
-  walk(sf, qpath, qpath, null, new Map(), new Map());
+  walk(sf, qpath, qpath, null, new Map(), new Map(), new Set());
 
   return { path: qpath, ok: true, nodes, edges };
 }

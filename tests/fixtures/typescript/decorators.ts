@@ -1,5 +1,5 @@
-// R6.2 case `decorators`: `@decorator` on a class, property and method. Answers 128 Q3 — decorators
-// annotate a declaration, so they land in node extra and emit no edge (mirrors PHP attributes).
+// R6.2 case `decorators`: `@decorator` on a class, property and method. Task 232 — decorators
+// annotate a declaration in `extra` AND emit REFERENCES (agrees with Python; PHP attributes too).
 import { Component, sealed, readonly, log } from "./decorators-lib";
 
 @Component({ selector: "app" })

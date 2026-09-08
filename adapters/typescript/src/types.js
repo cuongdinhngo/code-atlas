@@ -13,13 +13,59 @@ function typeNodeOf(node) {
   return node.type || ts.getJSDocType(node) || null;
 }
 
-// The simple class name a type annotation names: `Foo` / `Foo<T>` -> "Foo". A qualified, union,
-// array or any other type names nothing this file can turn into one class.
+// The simple class name a type annotation names: `Foo` / `Foo<T>` -> "Foo". A union walks both
+// sides; primitives and arrays name nothing worth a REFERENCES edge (task 232).
 function typeRefName(typeNode) {
   if (typeNode && ts.isTypeReferenceNode(typeNode) && ts.isIdentifier(typeNode.typeName)) {
     return typeNode.typeName.text;
   }
   return null;
+}
+
+const _PRIMITIVE_TYPES = new Set([
+  "string",
+  "number",
+  "boolean",
+  "bigint",
+  "symbol",
+  "undefined",
+  "null",
+  "void",
+  "any",
+  "unknown",
+  "never",
+  "object",
+]);
+
+/** Class-like names a type annotation mentions, in source order (task 232). */
+function typeRefTargets(typeNode) {
+  const found = [];
+  const walk = (node) => {
+    if (!node) return;
+    if (ts.isTypeReferenceNode(node) && ts.isIdentifier(node.typeName)) {
+      const name = node.typeName.text;
+      if (!_PRIMITIVE_TYPES.has(name) && !found.includes(name)) found.push(name);
+      for (const arg of node.typeArguments || []) walk(arg);
+      return;
+    }
+    if (ts.isUnionTypeNode(node) || ts.isIntersectionTypeNode(node)) {
+      for (const part of node.types) walk(part);
+      return;
+    }
+    if (ts.isParenthesizedTypeNode(node) || ts.isTypeOperatorNode(node)) {
+      walk(node.type);
+      return;
+    }
+    if (ts.isArrayTypeNode(node)) {
+      walk(node.elementType);
+      return;
+    }
+    if (ts.isTupleTypeNode(node)) {
+      for (const el of node.elements) walk(el);
+    }
+  };
+  walk(typeNode);
+  return found;
 }
 
 // The class a `new Foo()` / `new Foo<T>()` initializer names, or null for anything else.
@@ -64,6 +110,7 @@ function classPropTypeMap(classNode) {
 module.exports = {
   typeNodeOf,
   typeRefName,
+  typeRefTargets,
   newExprClass,
   boundClass,
   paramTypeMap,
