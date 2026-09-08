@@ -11,7 +11,6 @@ from pathlib import Path
 
 import pytest
 
-from code_atlas.build_info import server_provenance
 from code_atlas.config import Config
 from code_atlas.store import GraphStore
 from code_atlas.tools import file_outline
@@ -126,8 +125,8 @@ def test_single_page_payload_unchanged(store: GraphStore, tmp_path: Path) -> Non
         "index_root": config.index_root,
         "reason": "ok",
         "total_count": 3,
-        **server_provenance(),
     }
+    assert "server_version" not in result  # 223: minimal omits identity
     assert "result_kinds" not in result
     assert "limit_capped_to" not in result
 

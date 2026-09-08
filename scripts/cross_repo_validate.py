@@ -41,11 +41,15 @@ _DEFAULT_PHP = shlex.join(
 _DEFAULT_TYPESCRIPT = shlex.join(
     ["node", str(_REPO / "adapters" / "typescript" / "index.js"), "--server"]
 )
+_DEFAULT_PYTHON = shlex.join(
+    [sys.executable, str(_REPO / "adapters" / "python" / "index.py"), "--server"]
+)
 # Per-adapter argv is DATA, not a code branch (mirrors task 147): adding a language is a row here
 # plus a sample row, never an edit to the reporter body. `env` names the var `config` reads.
 _ADAPTERS: dict[str, dict[str, str]] = {
     "php": {"env": "CA_PHP_CMD", "default": _DEFAULT_PHP},
     "typescript": {"env": "CA_TYPESCRIPT_CMD", "default": _DEFAULT_TYPESCRIPT},
+    "python": {"env": "CA_PYTHON_CMD", "default": _DEFAULT_PYTHON},
 }
 # Public pins: allow a little language-version drift, but catch mass-parse regressions.
 _PUBLIC_MAX_FAILURE_RATIO = 0.02

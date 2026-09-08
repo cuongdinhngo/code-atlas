@@ -155,6 +155,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 ),
                 config,
                 covered,
+                detail_level=detail_level,
             )
         answers = [
             _batch_answer(subject, hits) for subject, hits in zip(kept, found, strict=True)
@@ -170,7 +171,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             or a["reason"] == REASON_SUBSTRING_MATCH
             for a in answers
         ):
-            attach_coverage_gap(payload, config, covered)
+            attach_coverage_gap(payload, config, covered, detail_level=detail_level)
         return payload
 
     return search_symbol

@@ -32,6 +32,7 @@ from code_atlas.enrichment import (
     INDIRECTION_FILE,
     RulesPayload,
     apply_indirection_rules,
+    count_unresolved_keyed_calls,
     load_indirection_rules,
 )
 from code_atlas.ignore import BUILTIN_PATTERNS, IgnoreMatcher, compile_pattern, load_ignore
@@ -41,6 +42,7 @@ from code_atlas.store import (
     BUILD_COMPLETE_KEY,
     BUILD_INCOMPLETE,
     BUILT_AT_KEY,
+    CAPABILITIES_BY_LANGUAGE_KEY,
     COLLECTION_CENSUS_KEY,
     CONFIG_IDENTITY_KEY,
     CONTRACT_VERSION_KEY,
@@ -48,7 +50,6 @@ from code_atlas.store import (
     COVERED_SUFFIXES_KEY,
     EDGE_HEALTH_BY_LANGUAGE_KEY,
     EMITTED_KINDS_BY_LANGUAGE_KEY,
-    CAPABILITIES_BY_LANGUAGE_KEY,
     IGNORE_SOURCES_KEY,
     INDEXED_SUFFIXES_KEY,
     LAST_COMMIT_KEY,
@@ -179,6 +180,8 @@ class BuildReport:
     edges: int
     stubs: int = 0
     fingerprint_skipped: int = 0
+    # keyed_calls rules whose every emitted edge stayed unlinked after resolve (task 222).
+    rules_unresolved: int = 0
 
 
 def full_build(
@@ -258,7 +261,13 @@ def full_build(
         skipped_suffixes,
         capabilities_by_language=capabilities_by_language,
     )
-    return BuildReport(files=len(kept), stubs=len(stubs), removed=removed, **counts)
+    return BuildReport(
+        files=len(kept),
+        stubs=len(stubs),
+        removed=removed,
+        rules_unresolved=counts.pop("rules_unresolved", 0),
+        **counts,
+    )
 
 
 # The answer a caller gets when the stored vocabulary era lags: one name for the cause and one
@@ -543,6 +552,7 @@ def incremental_update(
         stubs=len(stub_set & set(to_parse)),
         removed=removed,
         fingerprint_skipped=fingerprint_skipped,
+        rules_unresolved=counts.pop("rules_unresolved", 0),
         **counts,
     )
 
@@ -602,6 +612,9 @@ def _count_late_writes(
     _phase_add(phase_times, "resolve", mark)
     counts["nodes"] += enriched.nodes
     counts["edges"] += enriched.edges + siblings
+    counts["rules_unresolved"] = count_unresolved_keyed_calls(
+        store, enriched.keyed_call_groups
+    )
 
 
 def reparse_file(config: Config, store: GraphStore, path: str) -> bool:

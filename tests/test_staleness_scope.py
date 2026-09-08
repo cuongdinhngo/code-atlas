@@ -60,7 +60,8 @@ def test_a_dirty_markdown_file_leaves_the_index_current(repo: Path) -> None:
 
     assert found["staleness"] == CURRENT
     assert found["dirty_indexed_files"] == 0
-    assert get_index_status.BUILD_TOOL not in found["next_tool_suggestions"]  # type: ignore[operator]
+    # An empty list is omitted (223 AC4), so "not suggested" covers both shapes.
+    assert get_index_status.BUILD_TOOL not in found.get("next_tool_suggestions", [])  # type: ignore[operator]
 
 
 def test_a_dirty_source_file_still_reports_behind(repo: Path) -> None:

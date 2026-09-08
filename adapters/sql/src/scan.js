@@ -36,6 +36,35 @@ function lastSegment(value, sep) {
 }
 
 /**
+ * True when the last segment of a raw dotted name was written delimited (`dbo.[Key]`).
+ *
+ * The CREATE_RE path reaches a name as a regex capture rather than through `readIdent`, so this
+ * is where that path recovers the one fact the reserved-word rule needs.
+ * @param {string} raw
+ * @returns {boolean}
+ */
+function lastSegmentDelimited(raw) {
+  const text = raw.trim();
+  let delimited = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (ch === "[" || ch === '"') {
+      const close = ch === "[" ? "]" : '"';
+      delimited = true;
+      i += 1;
+      while (i < text.length) {
+        // A doubled delimiter is an escaped one inside the name, not the end of it.
+        if (text[i] === close && text[i + 1] !== close) break;
+        i += text[i] === close ? 2 : 1;
+      }
+      continue;
+    }
+    if (ch === ".") delimited = false;
+  }
+  return delimited;
+}
+
+/**
  * @param {string} raw
  * @returns {string|null}
  */
@@ -111,10 +140,10 @@ function stripToCode(line, state) {
   return out;
 }
 
-// `CREATE`/`ALTER`/`CREATE OR ALTER` all declare the object; T-SQL spells the keyword both ways
-// (PROC/PROCEDURE) and both reach the same construct, so both are matched (claim 019-C2).
+// `CREATE`/`ALTER`/`CREATE OR ALTER`/`CREATE OR REPLACE` all declare the object. T-SQL spells
+// OR ALTER; PostgreSQL/MySQL spell OR REPLACE — both reach the same construct (task 228).
 const CREATE_RE =
-  /\b(?:create|alter)\s+(?:or\s+alter\s+)?(proc(?:edure)?|function)\s+((?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*)(?:\s*\.\s*(?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*))*)/i;
+  /\b(?:create|alter)\s+(?:or\s+(?:alter|replace)\s+)?(proc(?:edure)?|function)\s+((?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*)(?:\s*\.\s*(?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*))*)/i;
 
 
 // T-SQL procedure/function parameters: `@name type [ = default ]`, comma-separated before AS/BEGIN.
@@ -194,10 +223,10 @@ const EXEC_RE =
 
 const BATCH_RE = /^\s*go\s*(?:\d+\s*)?$/i;
 
-// Tier 2 (022). A trigger is a routine like any other — it is `Function` with an `object_type`, so
-// the vocabulary spend stays at Table + Column + WRITES.
+// Tier 2 (022) + FK edges (224). A trigger is a routine like any other — it is `Function` with an
+// `object_type`. Tables and columns stay the same kinds; `REFERENCES` is existing contract vocabulary.
 const TRIGGER_RE =
-  /\b(?:create|alter)\s+(?:or\s+alter\s+)?trigger\s+((?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*)(?:\s*\.\s*(?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*))*)/i;
+  /\b(?:create|alter)\s+(?:or\s+(?:alter|replace)\s+)?trigger\s+((?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*)(?:\s*\.\s*(?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*))*)/i;
 const TABLE_RE = /\b(?:create|alter)\s+table\b/i;
 const INSERT_RE = /\binsert\b/i;
 const UPDATE_RE = /\bupdate\b/i;
@@ -236,6 +265,9 @@ function parseFile(qpath) {
   const tables = new Map();
   /** @type {Map<string, Node>} */
   const columns = new Map();
+  /** @type {Set<string>} */
+  const createdTables = new Set();
+  let refusedName = false;
 
   /** @param {string} text */
   const depthOf = (text) => {
@@ -250,17 +282,32 @@ function parseFile(qpath) {
   /**
    * @param {string} qname
    * @param {number} line
-   * @returns {Node}
+   * @param {boolean} isCreate  CREATE TABLE wins over ALTER for line_start (task 228).
+   * @param {boolean} delimited  The name was written `[Key]` / `"key"`, so no word is reserved.
+   * @returns {Node|null}
    */
-  const table = (qname, line) => {
+  const table = (qname, line, isCreate, delimited) => {
+    if (ddl.isReservedObjectName(lastSegment(qname, "."), delimited)) {
+      refusedName = true;
+      return null;
+    }
     const seen = tables.get(qname);
-    if (seen) return seen;
+    if (seen) {
+      // Prefer the defining CREATE site over an earlier ALTER sighting.
+      if (isCreate && !createdTables.has(qname)) {
+        seen.line_start = line;
+        seen.line_end = line;
+        createdTables.add(qname);
+      }
+      return seen;
+    }
     /** @type {Node} */
     const node = {
       kind: "Table", name: lastSegment(qname, "."), qualified_name: qname, file_path: qpath,
       line_start: line, line_end: line, modifiers: [], params: [], is_test: false, extra: {},
     };
     tables.set(qname, node);
+    if (isCreate) createdTables.add(qname);
     nodes.push(node);
     edges.push({
       kind: "CONTAINS", source_qname: qpath, target_raw: qname,
@@ -270,11 +317,45 @@ function parseFile(qpath) {
   };
 
   /**
+   * One foreign-key fact as Column→Column RESOLVED edges, or one Column→Table HEURISTIC edge when
+   * the referenced column list is omitted (PK implied — same shape WRITES uses for an unnamed write).
+   * @param {string} fromTable
+   * @param {string[]} fromCols
+   * @param {string} toTableRaw
+   * @param {string[]|null} toCols
+   * @param {number} line
+   */
+  const references = (fromTable, fromCols, toTableRaw, toCols, line) => {
+    const toTable = splitName(toTableRaw);
+    if (!toTable || fromCols.length === 0) return;
+    if (toCols === null || toCols.length === 0) {
+      edges.push({
+        kind: "REFERENCES", source_qname: `${fromTable}::${fromCols[0]}`,
+        target_raw: toTable, file_path: qpath, line, confidence_tier: "HEURISTIC",
+      });
+      return;
+    }
+    const n = Math.min(fromCols.length, toCols.length);
+    for (let i = 0; i < n; i += 1) {
+      edges.push({
+        kind: "REFERENCES", source_qname: `${fromTable}::${fromCols[i]}`,
+        target_raw: `${toTable}::${toCols[i]}`,
+        file_path: qpath, line, confidence_tier: "RESOLVED",
+      });
+    }
+  };
+
+  /**
    * @param {string} tableQname
-   * @param {{name: string, dataType: string, dflt: string|null}} col
+   * @param {{name: string, dataType: string, dflt: string|null, delimited?: boolean,
+   *   references?: {table: string, columns: string[]|null}|null}} col
    * @param {number} line
    */
   const column = (tableQname, col, line) => {
+    if (ddl.isReservedObjectName(col.name, col.delimited === true)) {
+      refusedName = true;
+      return;
+    }
     const qname = `${tableQname}::${col.name}`;
     const seen = columns.get(qname);
     /** @type {Record<string, string>} */
@@ -298,6 +379,9 @@ function parseFile(qpath) {
       kind: "CONTAINS", source_qname: tableQname, target_raw: qname,
       file_path: qpath, line, confidence_tier: "RESOLVED",
     });
+    if (col.references) {
+      references(tableQname, [col.name], col.references.table, col.references.columns, line);
+    }
   };
 
   /**
@@ -339,23 +423,41 @@ function parseFile(qpath) {
     if (kind === "table") {
       const named = ddl.readNamedDefault(buf);
       const head = /\b(?:create|alter)\s+table\s+/i.exec(buf);
-      const target = head ? ddl.readQualified(buf, head.index + head[0].length) : null;
+      if (!head) return;
+      const isCreate = /^\s*create\b/i.test(head[0]);
+      let after = head.index + head[0].length;
+      // Skip the optional ANSI/PG/MySQL clause; T-SQL never writes it (task 228).
+      const ine = /^\s*if\s+not\s+exists\s+/i.exec(buf.slice(after));
+      if (ine) after += ine[0].length;
+      const target = ddl.readQualified(buf, after);
       if (!target) return;
       const qname = splitName(target.name);
       if (!qname) return;
-      table(qname, line);
+      const tbl = table(qname, line, isCreate, target.delimited);
+      if (!tbl) return;
       if (named) {
-        column(qname, { name: named.column, dataType: "", dflt: named.dflt }, line);
+        column(
+          qname,
+          { name: named.column, dataType: "", dflt: named.dflt, delimited: named.delimited },
+          line,
+        );
         return;
       }
       const body = ddl.readParens(buf, target.next);
       if (body) {
         for (const col of ddl.readColumns(body.body)) column(qname, col, line);
+        for (const fk of ddl.readForeignKeys(body.body)) {
+          references(qname, fk.fromColumns, fk.toTable, fk.toColumns, line);
+        }
         return;
       }
       const added = /\badd\s+/i.exec(buf.slice(target.next));
       if (added) {
-        const col = ddl.readColumnDef(buf.slice(target.next + added.index + added[0].length));
+        let rest = buf.slice(target.next + added.index + added[0].length);
+        // Optional ANSI `COLUMN` keyword after ADD (PG/MySQL/SQLite); T-SQL omits it.
+        const colKw = /^\s*column\s+/i.exec(rest);
+        if (colKw) rest = rest.slice(colKw[0].length);
+        const col = ddl.readColumnDef(rest);
         if (col) column(qname, col, line);
       }
       return;
@@ -402,6 +504,10 @@ function parseFile(qpath) {
     if (created) {
       closeCurrent(lineNo - 1);
       const qname = splitName(created[2]);
+      if (qname && ddl.isReservedObjectName(lastSegment(qname, "."), lastSegmentDelimited(created[2]))) {
+        refusedName = true;
+        return;
+      }
       if (qname) {
         /** @type {Node} */
         const node = {
@@ -518,6 +624,16 @@ function parseFile(qpath) {
   flush();
   closeCurrent(lastLine);
 
+  // Dialect rides File.extra — META_FIELDS is frozen (R3.1 / 217 precedent); a reader of any File
+  // node sees which dialect this adapter read, not a silent `name: "sql"`.
+  /** @type {Record<string, string>} */
+  const fileExtra = { dialect: "tsql" };
+  if (refusedName) {
+    // A reserved word was refused as an object name: absence is honest, but the file is not a
+    // complete successful read of its DDL — distinguish it from a fully-read T-SQL file (AC5).
+    fileExtra["parse"] = "refused_reserved_name";
+  }
+
   nodes.unshift({
     kind: "File",
     name: lastSegment(qpath, "/"),
@@ -528,8 +644,21 @@ function parseFile(qpath) {
     modifiers: [],
     params: [],
     is_test: false,
-    extra: {},
+    extra: fileExtra,
   });
+
+  // A file whose only DDL outcomes were refused reserved names is not a successful parse of what
+  // it claimed to declare — ok:false so parsed_ok cannot look like a complete read (AC5 / R5.2).
+  if (refusedName && tables.size === 0 && columns.size === 0) {
+    const functions = nodes.filter((n) => n.kind === "Function");
+    if (functions.length === 0) {
+      return {
+        path: qpath,
+        ok: false,
+        error: "refused reserved-word object name(s); dialect=tsql",
+      };
+    }
+  }
 
   return { path: qpath, ok: true, nodes, edges };
 }

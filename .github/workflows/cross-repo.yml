@@ -57,6 +57,7 @@ jobs:
           # Absolute paths: adapter subprocess cwd is the sample root, not this repo.
           CA_PHP_CMD: php ${{ github.workspace }}/adapters/php/index.php --server
           CA_TYPESCRIPT_CMD: node ${{ github.workspace }}/adapters/typescript/index.js --server
+          CA_PYTHON_CMD: python ${{ github.workspace }}/adapters/python/index.py --server
         run: python scripts/cross_repo_validate.py --public-only
 
       - name: Upload report

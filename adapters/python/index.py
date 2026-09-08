@@ -17,6 +17,7 @@ META = {
     "name": "python",
     "extensions": [".py"],
     "capabilities": {
+        "semantic_types": True,
         "params": True,
         "args": True,
         "modifiers": True,

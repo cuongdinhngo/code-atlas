@@ -9,7 +9,7 @@ from pathlib import PurePosixPath
 from typing import Any, Literal, NamedTuple
 
 from code_atlas import contract
-from code_atlas.build_info import server_provenance
+from code_atlas.build_info import maybe_server_provenance, server_provenance
 from code_atlas.contract import CONFIDENCE_TIERS
 from code_atlas.enrichment import is_rule_edge_kind, is_rule_edge_path
 from code_atlas.store import GraphStore, Row
@@ -196,7 +196,7 @@ def empty_nav(
     ``db_path`` is accepted for call-site stability but never attached (task 061).
     ``index_root`` is the source tree the server was configured with (task 071).
     """
-    del detail_level, db_path
+    del db_path
     return {
         "indexed": False,
         subject_key: subject,
@@ -205,7 +205,7 @@ def empty_nav(
         "reason": reason,
         "total_count": total_count,
         "index_root": index_root,
-        **server_provenance(),
+        **maybe_server_provenance(detail_level),
     }
 
 
@@ -226,8 +226,9 @@ def nav_result(
 
     ``db_path`` is accepted but never attached — use ``get_index_status`` (task 061).
     ``index_root`` always ships so a caller can compare against its own cwd (task 071).
+    ``minimal`` omits ``server_*`` — identity rides ``get_index_status`` (223).
     """
-    del detail_level, db_path
+    del db_path
     extra.pop("db_path", None)
     payload: dict[str, object] = {
         "indexed": True,
@@ -241,7 +242,7 @@ def nav_result(
         payload["reason"] = reason
     if total_count is not None:
         payload["total_count"] = total_count
-    payload.update(server_provenance())
+    payload.update(maybe_server_provenance(detail_level))
     return payload
 
 
@@ -257,7 +258,7 @@ def list_result(
     indexed: bool = True,
 ) -> dict[str, object]:
     """Search-style payload — same reason/total_count fields, no subject key."""
-    del detail_level, db_path
+    del db_path
     return {
         "indexed": indexed,
         "results": results,
@@ -265,7 +266,7 @@ def list_result(
         "reason": reason,
         "total_count": total_count,
         "index_root": index_root,
-        **server_provenance(),
+        **maybe_server_provenance(detail_level),
     }
 
 

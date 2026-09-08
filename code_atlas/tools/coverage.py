@@ -110,14 +110,20 @@ def unindexed_languages(config: Config, stamped: str | None) -> list[dict[str, s
 
 
 def attach_coverage_gap(
-    payload: dict[str, object], config: Config, covered: str | None = None
+    payload: dict[str, object],
+    config: Config,
+    covered: str | None = None,
+    *,
+    detail_level: str = "standard",
 ) -> dict[str, object]:
     """Attach the coverage gap when one exists — the caller has already judged the answer a zero.
 
     Omit-when-empty (061): a fully-wired, fully-indexed server adds nothing. Used by
     ``attach_coverage_note`` for a single answer, and directly on the batch envelope when a swept
-    subject came back empty.
+    subject came back empty. ``minimal`` omits the note — ask ``standard``/``verbose`` (223).
     """
+    if detail_level == "minimal":
+        return payload
     gap = coverage_gap(config)
     if gap:
         payload[COVERAGE_KEY] = gap
@@ -128,7 +134,11 @@ def attach_coverage_gap(
 
 
 def attach_coverage_note(
-    payload: dict[str, object], config: Config, covered: str | None = None
+    payload: dict[str, object],
+    config: Config,
+    covered: str | None = None,
+    *,
+    detail_level: str = "standard",
 ) -> dict[str, object]:
     """Name the coverage gap on an indexed *genuine-absence* answer, or a substring near-miss (167).
 
@@ -144,13 +154,16 @@ def attach_coverage_note(
     back, so the only question is whether one exists.
 
     Omit-when-empty (061) keeps this from becoming noise: a fully-wired, fully-indexed server is
-    still byte-identical, which is the no-false-alarm property AC2 pins.
+    still byte-identical, which is the no-false-alarm property AC2 pins. ``minimal`` demotes the
+    note to a ``detail_level`` that asks for it (223) — identity stays on ``get_index_status``.
     """
+    if detail_level == "minimal":
+        return payload
     if not payload.get("indexed"):
         return payload
     reason = payload.get("reason")
     if reason == REASON_SUBSTRING_MATCH or payload.get("results"):
-        return attach_coverage_gap(payload, config, covered)
+        return attach_coverage_gap(payload, config, covered, detail_level=detail_level)
     if reason not in (REASON_NO_MATCHES, REASON_NO_SUCH_SYMBOL):
         return payload
-    return attach_coverage_gap(payload, config, covered)
+    return attach_coverage_gap(payload, config, covered, detail_level=detail_level)

@@ -4,7 +4,7 @@ slug: foreign-key-is-discarded-by-the-column-reader-so-no-table-relates-to-any-o
 title: '`readColumnDef` returns null for every `FOREIGN KEY` entry and has no field to put an inline `REFERENCES` in, so a schema of 452 procedures and their tables carries not one relationship between two tables — while `REFERENCES` already sits in `EDGE_KINDS` and `FQN_EDGE_KINDS`'
 phase: 1.5b
 milestone: Comprehension
-status: todo
+status: done
 depends_on: [022, 184, 144, 011]
 ---
 
@@ -99,3 +99,127 @@ exactly that shape of project.
 **Ordering against 222.** Independent — 222 links a PHP call site to a procedure; this links a
 column to a column. They meet only in a later view that walks route → controller → procedure →
 table, which is worth stating as the destination but is not a dependency in either direction.
+
+---
+
+# 224 — working doc (embed)
+
+- **Ticket:** 224 · feat/224-foreign-key-is-discarded-by-the-column-reader
+- **Type:** enhancement · **SCOPE:** M · **STRUCTURE:** native · **TRACK:** backend · **TIER:** full
+- **BASELINE:** green — focused related suite 63 passed (sql FK / tier2 / audience / generate_onboarding / class+layer diagram) on untouched checkout prior to commit; full suite deferred to docker-test / CI
+- Run: `/mango:autorun 224 --no-reviewer` (challenger ON)
+- Contract: `.mango/run-contract-224.txt`
+
+## Phase 0 — refine
+
+`PREMISE: 8 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)`
+`RECALL: 2 claim(s) surfaced | 0 by symbol | 2 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`REFINE: 0 unresolved surfaced | 0 want-decision asked | 0 how-decision resolved+cited | 0 ASSUMED | skip: yes`
+
+refine skipped: 0 unresolved product-decisions — the ticket pins both FK spellings, Column→Column `REFERENCES` (existing vocabulary), HEURISTIC Table target for omitted PK columns, ER renderer+cap disclosure, and exclusions E1/E2. Handover authorisation covers approach choices (default `table_cap=40`, artifact overview section rather than a 25th MCP tool).
+
+**Recalled (advisory):** `prove-the-guard-fails` (R6.5) · `count-pin-in-blast-radius` (P5 — CONTRACT/SCHEMA pins).
+
+## Phase 1 — analysis
+
+`SECTIONS: 5 found (Why this exists · Scope · Acceptance criteria · Exclusions · Notes) | 5 decomposed | ROWS: C=2 R=4 G=1 AC=5`
+`CLARIFICATION: 2 raised | 2 self-resolved (cited) | 0 for human decision`
+`RULE SECTIONS: 7 applicable — 7 by change-type | 0 by recalled handle — §1 (change-type) ✅ · §2 (change-type) ✅ · §3 (change-type) ✅ · §4 (change-type) ✅ · §5 (change-type) ✅ · §6 (change-type) ✅ · §7 (change-type) ✅`
+
+§8 N/A because no new dependency. Rulebook carries no `handle:` field → recalled-handle source adds 0.
+
+| ID | Source | Verbatim (abbrev) | Ph2 | Status |
+|----|--------|-------------------|-----|--------|
+| C1 | Constraint | no CONTRACT/SCHEMA bump | change-list | ✅ |
+| C2 | Constraint | NOT_A_COLUMN stays; second reader | ddl/scan | ✅ |
+| R1 | Scope | read both FK spellings | ddl.js | ✅ |
+| R2 | Scope | emit REFERENCES Column→Column / HEURISTIC Table | scan.js | ✅ |
+| R3 | Scope | ER view + validate_mermaid + cap disclosure | er_diagram + artifact | ✅ |
+| R4 | Scope | say what the view omits | %% notes + overview bullets | ✅ |
+| G1 | Goal | table relationships in the graph | AC2 | ✅ |
+| AC1 | AC | fail-first zero REFERENCES before fix | proving test + ticket evidence | ✅ |
+| AC2 | AC | three spellings → same edge set; composite; heuristic | proving test | ✅ |
+| AC3 | AC | CONTRACT_VERSION + SCHEMA_VERSION unchanged | proving test | ✅ |
+| AC4 | AC | readColumns unchanged for existing fixtures | proving test + tier2 suite | ✅ |
+| AC5 | AC | ER deterministic + states cap | proving test | ✅ |
+
+**AC validation**
+
+| AC | Ticket | Computed | Match | Falsifiable |
+|----|--------|----------|-------|-------------|
+| AC1 | zero edges pre-change | ticket ddl.js:124 returns null for FK; pre-change graph had no REFERENCES from SQL | Y | measurable |
+| AC2 | same edge set / composite / heuristic | EXPECTED_RESOLVED + EXPECTED_HEURISTIC in proving test | Y | measurable |
+| AC3 | versions unchanged | CONTRACT_VERSION==9, SCHEMA_VERSION=="5" | Y | greppable |
+| AC4 | columns unchanged | Orders columns exclude CONSTRAINT/FOREIGN | Y | measurable |
+| AC5 | deterministic ER + cap | byte-identical render; cap note present | Y | measurable |
+
+Clarifications self-resolved: (1) default table_cap=40 from E2 + class/layer pattern — ticket E2; (2) no new MCP tool — ticket names artifact wiring, not TOOL_NAMES (avoids 24→25 doc blast).
+
+**Gate 1 status:** cleared (autorun handover; `j=0`)
+
+## Phase 2 — design
+
+`HANDLES: 2 recalled | 2 traced (command + result) | 0 does not apply (reason) | 0 unanswered`
+`EXCLUSIONS: 2 recorded | 2 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 2 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+| handle | verdict | command + result |
+|---|---|---|
+| `prove-the-guard-fails` | traced | ticket AC1 + `tests/test_sql_foreign_key_references.py` pins non-empty EXPECTED set the pre-change adapter could not emit |
+| `count-pin-in-blast-radius` | traced | `rg -n 'CONTRACT_VERSION\|SCHEMA_VERSION' tests/test_sql_foreign_key_references.py` → version pins in proving test |
+
+**Approach.** (1) `readForeignKeys` / inline `references` on `readColumnDef` in `ddl.js`. (2) `scan.js` emits `REFERENCES` edges. (3) `onboarding/er_diagram.py` renderer+validator+`project_er`. (4) `audience` ER section + `render_overview` + `generate_onboarding` projection. (5) Update `docs/design/storage.md` gap. (6) Proving tests.
+
+**Rejected alternatives.** (a) New MCP `er_diagram` tool — rejected: ticket asks artifact wiring; 25th tool would force five doc count updates without an AC. (b) CONTRACT bump for a new edge kind — rejected: REFERENCES already in EDGE_KINDS/FQN_EDGE_KINDS. (c) Soften NOT_A_COLUMN — rejected by ticket.
+
+**Assumptions:** mermaid `erDiagram` subset validated in Python — **verified** by validate_mermaid_er_diagram. Default cap 40 — **ASSUMED** under E2 until a real corpus (expiry: when `real_corpus_path` is set).
+
+**Coverage-gap exclusions**
+
+| # | gap | expiry |
+|---|-----|--------|
+| E1 | real-schema "no relationships" claim | when `real_corpus_path` names a CREATE TABLE tree |
+| E2 | default ER cap usefulness at 400 tables | same corpus; until then cap+disclosure are the product |
+
+**Change list**
+
+| # | Change | File | Blast | Ph2 |
+|---|--------|------|-------|-----|
+| 1 | FK readers | `adapters/sql/src/ddl.js` | SQL adapter tests | R1,C2,AC1-4 |
+| 2 | emit REFERENCES | `adapters/sql/src/scan.js` | resolver/FQN | R2,G1,AC2 |
+| 3 | ER renderer | `code_atlas/onboarding/er_diagram.py` (new) | none inbound | R3,R4,AC5 |
+| 4 | audience + overview | `audience.py`, `artifact.py` | overview goldens | R3,AC5 |
+| 5 | generate wiring | `tools/generate_onboarding.py` | onboarding write | R3 |
+| 6 | storage gap text | `docs/design/storage.md` | docs | R7 |
+| 7 | proving suite + bookkeeping | tests + BACKLOG/ledger/LESSONS/task | bookkeeping tests | AC1-5 |
+
+**Proving test:** `tests/test_sql_foreign_key_references.py` — `.venv/bin/python -m pytest tests/test_sql_foreign_key_references.py -q`
+
+**Gate 2 status:** cleared (autorun)
+
+## Phase 3 — execute
+
+Verification sweep: diff ⊆ approved list (adapter + onboarding ER + audience/artifact/generate + storage.md + proving test + bookkeeping). Design conformance: no MCP tool (as rejected); versions unchanged; NOT_A_COLUMN intact.
+
+```
+Ran at post-execute tree
+$ .venv/bin/python -m pytest tests/test_sql_foreign_key_references.py -q
+5 passed
+```
+
+## Phase 4 — Review
+
+**Reviewed at `e24d812d4295545d43abf98387efbead614d9556`** — challenger PASS; reviewer waived (`--no-reviewer`).
+
+Challenger (ticket-blind): re-derived AC1–AC5 from raw ticket + `git diff`; all MET. Independence: no working-doc reliance for requirement list.
+
+## Phase 5 — finalise
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 1 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 1 candidate(s) checked | 1 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 1 type-2 claim(s) with seen ≥ 2 | 1 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+
+- Claim: `prove-the-guard-fails` still-true; destination R6.5; seen gains 224.
+
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+`LEDGER TOTAL: unmeasured · top cost driver: challenger (main-loop unmeasured; reviewer waived)`

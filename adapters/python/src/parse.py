@@ -7,6 +7,13 @@ from pathlib import Path
 from typing import Any
 
 from src.imports import import_target_raw, resolve_import
+from src.types import (
+    bound_class,
+    class_prop_type_map,
+    class_self_types,
+    param_type_map,
+    receiver_class,
+)
 
 MEMBER_SEP = "::"
 
@@ -123,10 +130,11 @@ def _callable_params(
         if skip_receiver and i == 0 and arg.arg in ("self", "cls"):
             continue
         out.append({"name": arg.arg, "type": _annotation_text(arg.annotation)})
-    if args.vararg is not None:
-        out.append({"name": f"*{args.vararg.arg}", "type": _annotation_text(args.vararg.annotation)})
-    if args.kwarg is not None:
-        out.append({"name": f"**{args.kwarg.arg}", "type": _annotation_text(args.kwarg.annotation)})
+    for prefix, star in (("*", args.vararg), ("**", args.kwarg)):
+        if star is not None:
+            out.append(
+                {"name": f"{prefix}{star.arg}", "type": _annotation_text(star.annotation)}
+            )
     return out
 
 
@@ -207,13 +215,13 @@ def _unwrap_base(base: ast.expr) -> ast.expr:
 def _marker_from_base_expr(
     base: ast.expr,
     *,
-    import_aliases: dict[str, str],
+    import_markers: dict[str, str],
 ) -> str | None:
     """Return a classification marker (Protocol/ABC/Enum/…) for a base expression."""
     node = _unwrap_base(base)
     if isinstance(node, ast.Name):
         name = node.id
-        return import_aliases.get(name, name)
+        return import_markers.get(name, name)
     if isinstance(node, ast.Attribute):
         return _attr_dotted(node)
     return None
@@ -301,8 +309,10 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
     class_bases: dict[str, list[str]] = {}
     # Classification markers per class (Protocol/ABC/Enum / import aliases / bare names).
     class_base_markers: dict[str, list[str]] = {}
-    # Local import name → marker (Protocol/ABC/Enum) or imported symbol name.
-    import_aliases: dict[str, str] = {}
+    # Local name → Protocol/ABC/Enum marker only (classification; never a link target).
+    import_markers: dict[str, str] = {}
+    # Local name → in-repo qname when ``from … import`` resolves on disk (link targets).
+    import_bindings: dict[str, str] = {}
     class_kind: dict[str, str] = {}
     interface_qnames: set[str] = set()
 
@@ -312,31 +322,46 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
         else:
             declared[name] = qname
 
-    def note_import_alias(local: str, imported: str, module: str | None) -> None:
+    def note_import_alias(
+        local: str, imported: str, module: str | None, *, level: int
+    ) -> None:
         leaf = imported.rsplit(".", 1)[-1]
         if module in ("typing", "abc") and leaf in ("Protocol", "ABC"):
-            import_aliases[local] = f"{module}.{leaf}"
-        elif module == "enum" and leaf == "Enum":
-            import_aliases[local] = "enum.Enum"
-        elif leaf in ("Protocol", "ABC", "Enum"):
-            import_aliases[local] = leaf
-        else:
-            import_aliases[local] = imported
+            import_markers[local] = f"{module}.{leaf}"
+            return
+        if module == "enum" and leaf == "Enum":
+            import_markers[local] = "enum.Enum"
+            return
+        if leaf in ("Protocol", "ABC", "Enum"):
+            import_markers[local] = leaf
+            return
+        # Ordinary import — bind only when the filesystem resolves inside the repo (226).
+        if level > 0 and module is None:
+            resolved = resolve_import(
+                module=None, level=level, from_qpath=qpath, name=imported
+            )
+            if resolved:
+                import_bindings[local] = module_name(resolved)
+            return
+        resolved = resolve_import(module=module, level=level, from_qpath=qpath)
+        if resolved:
+            import_bindings[local] = dotted(module_name(resolved), imported)
 
     def collect_imports(stmt: ast.AST) -> None:
         if isinstance(stmt, ast.Import):
             for alias in stmt.names:
                 local = alias.asname or alias.name.split(".", 1)[0]
                 # ``import typing`` / ``import enum as e`` — Attribute bases use the module name.
-                import_aliases[local] = alias.name
+                import_markers[local] = alias.name
             return
         if isinstance(stmt, ast.ImportFrom):
             module = stmt.module
+            level = stmt.level or 0
             for alias in stmt.names:
                 if alias.name == "*":
                     continue
                 local = alias.asname or alias.name
-                note_import_alias(local, alias.name, module)
+                note_import_alias(local, alias.name, module, level=level)
 
     def collect(stmt: ast.AST, class_qname: str | None, func_qname: str | None) -> None:
         if isinstance(stmt, (ast.Import, ast.ImportFrom)):
@@ -352,7 +377,7 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
             bases: list[str] = []
             markers: list[str] = []
             for base in stmt.bases:
-                marker = _marker_from_base_expr(base, import_aliases=import_aliases)
+                marker = _marker_from_base_expr(base, import_markers=import_markers)
                 if marker is not None:
                     markers.append(marker)
                 node = _unwrap_base(base)
@@ -423,12 +448,21 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
         if kind == "Interface":
             interface_qnames.add(qn)
 
+    known_class_names: set[str] = {
+        qn.rsplit(".", 1)[-1]
+        for qn, kind in class_kind.items()
+        if kind in ("Class", "Enum", "Interface")
+    }
+
     def resolve_name(name: str) -> str:
         local = declared.get(name)
         if local:
             return local
         if name in declared:
             return name
+        bound = import_bindings.get(name)
+        if bound:
+            return bound
         return name
 
     def add_node(
@@ -561,7 +595,7 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
             emit_annotation_refs(owner_qname, args.kwarg.annotation, args.kwarg)
 
     def base_edge_kind(base: ast.expr, target_raw: str) -> str:
-        marker = _marker_from_base_expr(base, import_aliases=import_aliases)
+        marker = _marker_from_base_expr(base, import_markers=import_markers)
         if marker and _is_interface_marker(marker):
             return "IMPLEMENTS"
         if target_raw in interface_qnames:
@@ -572,7 +606,7 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
             if resolved in interface_qnames:
                 return "IMPLEMENTS"
             leaf = base.id
-            aliased = import_aliases.get(leaf)
+            aliased = import_markers.get(leaf)
             if aliased and _is_interface_marker(aliased):
                 return "IMPLEMENTS"
         return "EXTENDS"
@@ -625,7 +659,13 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
                 real = alias.name
             add_edge("ALIASES", dotted(mod, alias.asname), real, node)
 
-    def emit_call(node: ast.Call, scope: str, enclosing_class: str | None) -> None:
+    def emit_call(
+        node: ast.Call,
+        scope: str,
+        enclosing_class: str | None,
+        locals_: dict[str, str],
+        self_props: dict[str, str],
+    ) -> None:
         func = node.func
         if isinstance(func, ast.Name):
             # ``super()`` alone is not a call edge; ``super().m()`` is handled via Attribute.
@@ -662,25 +702,47 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
                         return
                 add_edge("CALLS", scope, method, node, "HEURISTIC", call=node)
                 return
+            # Local type table (227): annotated / ``Foo()``-bound receiver → ``<Class>::method``.
+            cls = receiver_class(recv, locals_, self_props)
+            if cls:
+                add_edge("CALLS", scope, member(resolve_name(cls), method), node)
+                return
             # obj.m() — method name known, receiver not: HEURISTIC ceiling (emit-do-not-gate).
             add_edge("CALLS", scope, method, node, "HEURISTIC", call=node)
             return
         add_edge("CALLS", scope, "(dynamic)", node, "DYNAMIC", call=node)
+
+    def _bind_or_forget(
+        locals_: dict[str, str],
+        name: str,
+        ann: ast.expr | None,
+        value: ast.expr | None,
+    ) -> None:
+        # Flow-forgetful (137/153): a typed binding sticks; an unknown write re-opens the name.
+        bound = bound_class(ann, value, known_classes=known_class_names)
+        if bound:
+            locals_[name] = bound
+        else:
+            locals_.pop(name, None)
 
     def walk_body(
         body: list[ast.stmt],
         container: str,
         scope: str,
         enclosing_class: str | None,
+        locals_: dict[str, str],
+        self_props: dict[str, str],
     ) -> None:
         for stmt in body:
-            walk_stmt(stmt, container, scope, enclosing_class)
+            walk_stmt(stmt, container, scope, enclosing_class, locals_, self_props)
 
     def walk_stmt(
         stmt: ast.stmt,
         container: str,
         scope: str,
         enclosing_class: str | None,
+        locals_: dict[str, str],
+        self_props: dict[str, str],
     ) -> None:
         if isinstance(stmt, (ast.Import, ast.ImportFrom)):
             emit_imports(stmt)
@@ -705,7 +767,13 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
                 elif isinstance(node, ast.Attribute):
                     base_target = _attr_dotted(node)
                     add_edge(base_edge_kind(base, base_target), qn, base_target, base)
-            walk_body(stmt.body, qn, qn, qn)
+            # One read-only table per class, built before any method is walked: what the class
+            # declares, not what the last-visited method happened to say (see class_self_types).
+            child_props = {
+                **class_prop_type_map(stmt.body),
+                **class_self_types(stmt.body, known_classes=known_class_names),
+            }
+            walk_body(stmt.body, qn, qn, qn, {}, child_props)
             return
 
         if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -738,7 +806,14 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
             emit_decorator_refs(qn, stmt)
             emit_function_annotation_refs(qn, stmt)
             if not declarations_only:
-                walk_body(stmt.body, qn, qn, enclosing_class)
+                # Fresh locals at a module/class-level def; nested defs inherit (153).
+                nested = kind == "Function" and container not in (qpath, mod)
+                child_locals = (
+                    {**locals_, **param_type_map(stmt)}
+                    if nested
+                    else param_type_map(stmt)
+                )
+                walk_body(stmt.body, qn, qn, enclosing_class, child_locals, self_props)
             return
 
         if isinstance(stmt, (ast.Assign, ast.AnnAssign)):
@@ -748,49 +823,66 @@ def parse_file(path: str, declarations_only: bool = False) -> dict[str, Any]:
             elif stmt.target is not None:
                 targets = [stmt.target]
             owner_for_ann: str | None = None
+            value = stmt.value if isinstance(stmt, (ast.Assign, ast.AnnAssign)) else None
+            ann = stmt.annotation if isinstance(stmt, ast.AnnAssign) else None
             for target in targets:
-                if not isinstance(target, ast.Name):
-                    continue
-                if enclosing_class is not None:
-                    qn = member(enclosing_class, target.id)
-                    ann = stmt.annotation if isinstance(stmt, ast.AnnAssign) else None
-                    typ = _annotation_text(ann)
-                    extra = {"type": typ} if typ is not None else None
-                    add_node("Property", target.id, qn, stmt, extra=extra)
-                    add_edge("CONTAINS", enclosing_class, qn, stmt)
-                    owner_for_ann = qn
-                elif container in (qpath, mod) and _is_upper_const(target.id):
-                    qn = dotted(mod, target.id)
-                    ann = stmt.annotation if isinstance(stmt, ast.AnnAssign) else None
-                    typ = _annotation_text(ann)
-                    extra = {"type": typ} if typ is not None else None
-                    add_node("Const", target.id, qn, stmt, extra=extra)
-                    add_edge("CONTAINS", container, qn, stmt)
-                    owner_for_ann = qn
+                if isinstance(target, ast.Name):
+                    if enclosing_class is not None and container == enclosing_class:
+                        qn = member(enclosing_class, target.id)
+                        typ = _annotation_text(ann)
+                        add_node(
+                            "Property",
+                            target.id,
+                            qn,
+                            stmt,
+                            extra={"type": typ} if typ is not None else None,
+                        )
+                        add_edge("CONTAINS", enclosing_class, qn, stmt)
+                        owner_for_ann = qn
+                    elif container in (qpath, mod) and _is_upper_const(target.id):
+                        qn = dotted(mod, target.id)
+                        typ = _annotation_text(ann)
+                        add_node(
+                            "Const",
+                            target.id,
+                            qn,
+                            stmt,
+                            extra={"type": typ} if typ is not None else None,
+                        )
+                        add_edge("CONTAINS", container, qn, stmt)
+                        owner_for_ann = qn
+                    elif not declarations_only:
+                        _bind_or_forget(locals_, target.id, ann, value)
             if isinstance(stmt, ast.AnnAssign):
                 # Class-body / annotated assign → REFERENCES from the Property/Const (or scope).
                 src = owner_for_ann or scope
                 emit_annotation_refs(src, stmt.annotation, stmt)
             if not declarations_only and isinstance(stmt, ast.Assign) and stmt.value:
-                _walk_expr(stmt.value, scope, enclosing_class)
+                _walk_expr(stmt.value, scope, enclosing_class, locals_, self_props)
             elif not declarations_only and isinstance(stmt, ast.AnnAssign) and stmt.value:
-                _walk_expr(stmt.value, scope, enclosing_class)
+                _walk_expr(stmt.value, scope, enclosing_class, locals_, self_props)
             return
 
         if not declarations_only:
             for child in ast.iter_child_nodes(stmt):
                 if isinstance(child, ast.stmt):
-                    walk_stmt(child, container, scope, enclosing_class)
+                    walk_stmt(child, container, scope, enclosing_class, locals_, self_props)
                 else:
-                    _walk_expr(child, scope, enclosing_class)
+                    _walk_expr(child, scope, enclosing_class, locals_, self_props)
 
-    def _walk_expr(expr: ast.AST, scope: str, enclosing_class: str | None) -> None:
+    def _walk_expr(
+        expr: ast.AST,
+        scope: str,
+        enclosing_class: str | None,
+        locals_: dict[str, str],
+        self_props: dict[str, str],
+    ) -> None:
         if isinstance(expr, ast.Call):
-            emit_call(expr, scope, enclosing_class)
+            emit_call(expr, scope, enclosing_class, locals_, self_props)
         for child in ast.iter_child_nodes(expr):
-            _walk_expr(child, scope, enclosing_class)
+            _walk_expr(child, scope, enclosing_class, locals_, self_props)
 
     for stmt in tree.body:
-        walk_stmt(stmt, root_container, root_container, None)
+        walk_stmt(stmt, root_container, root_container, None, {}, {})
 
     return {"path": qpath, "ok": True, "nodes": nodes, "edges": edges}

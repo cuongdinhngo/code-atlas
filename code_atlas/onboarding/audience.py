@@ -37,6 +37,7 @@ MODULES = "modules"
 REACHABILITY = "reachability"
 LAYERS = "layers"
 DIAGRAM = "diagram"
+ER_DIAGRAM = "er_diagram"
 CROSSINGS = "crossings"
 PROVENANCE = "provenance"
 
@@ -52,6 +53,7 @@ __all__ = [
     "CROSSINGS",
     "DEFAULT_AUDIENCE",
     "DIAGRAM",
+    "ER_DIAGRAM",
     "FLOWS_DOC",
     "FULL",
     "LAYERS",
@@ -113,6 +115,7 @@ _FULL = AudienceContract(
         REACHABILITY: "Zero-inbound modules by population, with what each count does not prove.",
         LAYERS: "Every layer, its rank and its fan.",
         DIAGRAM: "The layer x layer matrix as a flowchart (143).",
+        ER_DIAGRAM: "Declared table relationships as an erDiagram (224).",
         CROSSINGS: "Every cross-layer edge, one row each.",
         PROVENANCE: "Which implementation wrote the text (209).",
     },
@@ -162,6 +165,7 @@ _MAINTAINER = AudienceContract(
         REACHABILITY: "What is unreachable, and which counts are unasked questions (208).",
         LAYERS: "Every layer, its rank and its fan.",
         DIAGRAM: "The matrix as a flowchart — the coupling shape at a glance (143).",
+        ER_DIAGRAM: "Declared table relationships as an erDiagram (224).",
         CROSSINGS: "Every crossing, one row each; this is the coupling evidence.",
         PROVENANCE: "Which implementation wrote any prose they are about to quote (209).",
     },

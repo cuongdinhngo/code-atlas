@@ -94,9 +94,8 @@ knob. Every timing and its conditions: [`runbooks/onboarding-a-repo.md`](docs/ru
 <n>` too, because the shared runner is slower and a wall-clock assertion can pass here and fail
 there. `scripts/gate.sh` mirrors every CI job in `ci.yml`'s order and names each check as it runs
 (~100 s; `--fast` skips pytest and the benchmark for a quick loop).
-**Only `GATE GREEN` counts — exit 2 means a check was skipped, which is not a pass (R6.5).** Keep it
-in step with `ci.yml`: a check in one and not the other means one of them is lying about what was
-verified.
+**Only `GATE GREEN` counts — exit 2 means a check was skipped, which is not a pass (R6.5).**
+`tests/test_ci_and_gate_agree.py` keeps it in step with `ci.yml`, so that drift fails a test here.
 **The gate's tokens-to-answer ratio is the *fixture* tier and sits below 1 by design** (floor 0.63) —
 the product claim is the *sample* tier over the pinned repos (`--samples`, ~65x). Never quote one as
 the other.
@@ -108,9 +107,9 @@ The suite needs a **POSIX host** (the index lock imports `fcntl`) and **every ad
 `composer`, `node` for both the TS and SQL adapters, and a Python ≥ 3.12 interpreter. With all of
 them present bare `pytest` is green and is the fastest route. Missing either condition it goes red —
 **a platform limitation, not a regression** — so don't conclude "the suite can't run"; run it in
-Docker instead: `scripts/docker-test.sh`. **Expected count, verified 2026-09-06 on Linux — this is
+Docker instead: `scripts/docker-test.sh`. **Expected count, verified 2026-09-08 on Linux — this is
 the one place these numbers are kept:** bare `pytest` (with `php` · `composer` · `node` · `docker` on
-PATH) **2,972 passed / 0 skipped**; `scripts/docker-test.sh` **2,971 passed / 1 skipped**, that skip
+PATH) **3,090 passed / 0 skipped**; `scripts/docker-test.sh` **3,089 passed / 1 skipped**, that skip
 being `test_runtime_image_reports_server_build` (shells out to `docker`, impossible in-image).
 
 Prove **delta-green** before a PR and name the host: a red run on a host missing an adapter is the

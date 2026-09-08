@@ -86,6 +86,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     unmatched=unmatched_roots,
                     reached=0,
                     nodes_total=store.counts()["nodes"],
+                    detail_level=detail_level,
                 )
             outcome = store.find_orphans(
                 seeds,
@@ -110,6 +111,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     unmatched=unmatched_roots,
                     reached=outcome.reached,
                     nodes_total=outcome.nodes_total,
+                    detail_level=detail_level,
                 )
             health = store.edge_health() if detail_level == "standard" else None
             by_language = (

@@ -18,6 +18,7 @@ from pathlib import Path, PurePosixPath
 from typing import Literal
 
 from code_atlas.config import Config, as_working_roots
+from code_atlas.contract import split_qname
 from code_atlas.onboarding.artifact import (
     CACHE_DIR,
     CACHE_NAME,
@@ -39,6 +40,7 @@ from code_atlas.onboarding.artifact import (
 )
 from code_atlas.onboarding.audience import FLOWS_DOC, TOUR_DOC, VIEWER_DOC, contract_for
 from code_atlas.onboarding.dataset import OnboardingDataset, build_dataset
+from code_atlas.onboarding.er_diagram import DEFAULT_TABLE_CAP, project_er
 from code_atlas.onboarding.flows import FLOW_KINDS
 from code_atlas.onboarding.layers import IdentityLayerRefiner, LayerRefiner
 from code_atlas.onboarding.orientation import read_orientation
@@ -150,6 +152,16 @@ def create(
                 path: store.nodes_by_file_all(path)
                 for path in tour_files
             }
+            er_table_rows = store.nodes_by_kind("Table", limit=10_000)
+            er_columns: dict[str, list] = {
+                str(row["qualified_name"]): [] for row in er_table_rows
+            }
+            for col in store.nodes_by_kind("Column", limit=50_000):
+                container, _ = split_qname(str(col["qualified_name"]))
+                if container is not None and container in er_columns:
+                    er_columns[container].append(col)
+            er_ref_edges = store.edges_matching_kind("REFERENCES", limit=10_000)
+            er_tables, er_refs = project_er(er_table_rows, er_columns, er_ref_edges)
         artifact = build_artifact(
             nodes,
             edges,
@@ -224,6 +236,8 @@ def create(
             index_root=config.index_root,
             last_ref=last_ref,
             audience=wants.audience,
+            er_tables=er_tables,
+            er_refs=er_refs,
         )
         return _payload(
             config, artifact, written, detail_level, prose, wants.audience, roots
@@ -297,6 +311,8 @@ def _write(
     index_root: str = "",
     last_ref: str = "",
     audience: str | None = None,
+    er_tables: Sequence = (),
+    er_refs: Sequence = (),
 ) -> tuple[str, ...]:
     """Rewrite this tool's own onboarding files and artifact.json. Paths are POSIX.
 
@@ -318,6 +334,9 @@ def _write(
             provenance=dataset.provenance,
             orientation=dataset.orientation,
             audience=wants.audience,
+            er_tables=er_tables,
+            er_refs=er_refs,
+            er_table_cap=DEFAULT_TABLE_CAP,
         ),
         TOUR_NAME: render_tour(
             artifact,

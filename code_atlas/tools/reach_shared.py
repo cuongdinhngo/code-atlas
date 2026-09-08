@@ -6,7 +6,7 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Literal
 
-from code_atlas.build_info import server_provenance
+from code_atlas.build_info import maybe_server_provenance
 from code_atlas.config import Config
 from code_atlas.ignore import translate_path_pattern
 from code_atlas.store import GraphStore, Row
@@ -62,9 +62,8 @@ def no_roots(detail_level: DetailLevel, config: Config) -> dict[str, object]:
         "depth_exhausted": False,
         "message": "no roots configured — set CA_ENTRY_POINTS or entry_points in .code-atlas.toml",
         "index_root": config.index_root,
-        **server_provenance(),
+        **maybe_server_provenance(detail_level),
     }
-    del detail_level
     return payload
 
 
@@ -93,6 +92,7 @@ def refuse_reachability(
     unmatched: Sequence[str] = (),
     reached: int | None = None,
     nodes_total: int | None = None,
+    detail_level: DetailLevel = "standard",
 ) -> dict[str, object]:
     """A reachability refusal: what it CAN say, and no row list (task 182).
 
@@ -113,7 +113,7 @@ def refuse_reachability(
         "depth_exhausted": False,
         "message": message,
         "index_root": config.index_root,
-        **server_provenance(),
+        **maybe_server_provenance(detail_level),
     }
     if unmatched:
         payload["entry_points_unmatched"] = list(unmatched)

@@ -6,7 +6,7 @@ from collections.abc import Callable, Mapping
 from pathlib import Path, PurePosixPath
 from typing import Literal
 
-from code_atlas.build_info import server_provenance
+from code_atlas.build_info import maybe_server_provenance
 from code_atlas.config import Config, clamp_limit
 from code_atlas.store import GraphStore, Row
 from code_atlas.tools.freshness import FreshnessGuard
@@ -129,7 +129,7 @@ def _hit(row: Mapping[str, object] | Row) -> dict[str, object]:
 def _empty(
     path: str, *, detail_level: str, db_path: str, index_root: str
 ) -> dict[str, object]:
-    del detail_level, db_path
+    del db_path
     return {
         "indexed": False,
         "path": path,
@@ -137,7 +137,7 @@ def _empty(
         "results": [],
         "truncated": False,
         "index_root": index_root,
-        **server_provenance(),
+        **maybe_server_provenance(detail_level),
     }
 
 
@@ -153,7 +153,7 @@ def _result(
     reason: str | None = None,
     total_count: int | None = None,
 ) -> dict[str, object]:
-    del detail_level, db_path
+    del db_path
     payload: dict[str, object] = {
         "indexed": True,
         "path": path,
@@ -166,5 +166,5 @@ def _result(
         payload["reason"] = reason
     if total_count is not None:
         payload["total_count"] = total_count
-    payload.update(server_provenance())
+    payload.update(maybe_server_provenance(detail_level))
     return payload

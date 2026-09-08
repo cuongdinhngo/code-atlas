@@ -201,6 +201,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     ),
                     config,
                     covered,
+                    detail_level=detail_level,
                 )
             all_columns, columns, declarations = _columns_of(store, table)
             if column is not None:
@@ -213,6 +214,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     ),
                     config,
                     covered,
+                    detail_level=detail_level,
                 )
             # A writer reaching the table itself named no columns (022's discriminator), so it is
             # unmeasured for every column rather than an omitter of each.
@@ -247,6 +249,6 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 payload[WRITERS_PARTIAL_KEY] = True
                 payload[WRITERS_PARTIAL_HINT_KEY] = WRITERS_PARTIAL_HINT
             attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
-            return attach_coverage_note(payload, config, covered)
+            return attach_coverage_note(payload, config, covered, detail_level=detail_level)
 
     return check_column_defaults

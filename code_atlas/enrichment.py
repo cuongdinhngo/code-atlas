@@ -25,15 +25,18 @@ _HEURISTIC = contract.CONFIDENCE_TIERS[1]
 
 # One-line call sites only (v1): Nth quoted string literal on the CALLS line.
 _STRING_LIT = re.compile(r"""'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*\"""")
+# keyed_calls templates: exactly one named placeholder, `{key}` (task 222).
+_TEMPLATE_PLACEHOLDER = re.compile(r"\{([^{}]+)\}")
 
 
 @dataclass(frozen=True, slots=True)
 class RulesPayload:
-    """Validated aliases/calls/view_data plus a content digest (load before parse; apply after)."""
+    """Validated aliases/calls/view_data/keyed_calls plus a content digest (load before parse)."""
 
     aliases: tuple[tuple[str, str], ...]
     calls: tuple[tuple[str, str, int], ...]
     view_data: tuple[tuple[str, int, str], ...]
+    keyed_calls: tuple[tuple[str, int, str, str], ...]
     digest: str
 
 
@@ -50,6 +53,7 @@ def load_indirection_rules(config: Config) -> RulesPayload | None:
     aliases: list[tuple[str, str]] = []
     calls: list[tuple[str, str, int]] = []
     view_data: list[tuple[str, int, str]] = []
+    keyed_calls: list[tuple[str, int, str, str]] = []
     digester = hashlib.sha256()
     for relative in sorted(paths):
         full = config.root / relative
@@ -69,11 +73,13 @@ def load_indirection_rules(config: Config) -> RulesPayload | None:
         aliases.extend(parsed[0])
         calls.extend(parsed[1])
         view_data.extend(parsed[2])
+        keyed_calls.extend(parsed[3])
 
     return RulesPayload(
         aliases=tuple(aliases),
         calls=tuple(calls),
         view_data=tuple(view_data),
+        keyed_calls=tuple(keyed_calls),
         digest=digester.hexdigest(),
     )
 
@@ -83,9 +89,11 @@ class Enriched(NamedTuple):
 
     nodes: int
     edges: int
+    # Per keyed_calls rule: stamps it emitted — post-resolve census (task 222).
+    keyed_call_groups: tuple[tuple[tuple[str, str, int], ...], ...] = ()
 
 
-NOTHING = Enriched(nodes=0, edges=0)
+NOTHING = Enriched(nodes=0, edges=0, keyed_call_groups=())
 
 
 def apply_indirection_rules(
@@ -129,9 +137,11 @@ def apply_indirection_rules(
             }
         )
     edges.extend(_view_data_edges(config, store, loaded.view_data))
+    keyed_edges, keyed_groups = _keyed_calls_edges(config, store, loaded.keyed_calls)
+    edges.extend(keyed_edges)
 
     store.replace_file_rows(INDIRECTION_FILE, [], edges)
-    return Enriched(nodes=0, edges=len(edges))
+    return Enriched(nodes=0, edges=len(edges), keyed_call_groups=keyed_groups)
 
 
 def is_rule_edge_path(path: object) -> bool:
@@ -199,6 +209,86 @@ def _view_data_edges(
         )
     )
     return out
+
+
+def _keyed_calls_edges(
+    config: Config,
+    store: GraphStore,
+    rules: tuple[tuple[str, int, str, str], ...],
+) -> tuple[list[dict[str, object]], tuple[tuple[tuple[str, str, int], ...], ...]]:
+    """CALLS edges whose target is a string key substituted into ``target_template`` (task 222)."""
+    if not rules:
+        return [], ()
+    out: list[dict[str, object]] = []
+    groups: list[tuple[tuple[str, str, int], ...]] = []
+    seen: set[tuple[str, str, int]] = set()
+    line_cache: dict[tuple[str, int], str | None] = {}
+    for setter, key_arg, key_from, template in rules:
+        group: list[tuple[str, str, int]] = []
+        for edge in _calls_for_setter(store, setter):
+            if edge.get("file_path") == INDIRECTION_FILE:
+                continue
+            args = edge.get("args")
+            source = str(edge.get("source_qname") or "")
+            line = edge.get("line")
+            if not source or type(line) is not int:
+                continue
+            rel = edge.get("file_path")
+            if not isinstance(rel, str) or not rel:
+                continue
+            keys = _keys_for_rule(
+                config, edge, args, key_arg, key_from, rel, line, line_cache
+            )
+            for key in keys:
+                target = template.replace("{key}", key)
+                stamp = (source, target, line)
+                if stamp in seen:
+                    continue
+                seen.add(stamp)
+                group.append(stamp)
+                out.append(
+                    {
+                        "kind": "CALLS",
+                        "source_qname": source,
+                        "target_raw": target,
+                        "file_path": INDIRECTION_FILE,
+                        "line": line,
+                        "confidence_tier": _HEURISTIC,
+                    }
+                )
+        if group:
+            groups.append(tuple(group))
+    out.sort(
+        key=lambda row: (
+            str(row["source_qname"]),
+            str(row["target_raw"]),
+            int(row["line"]) if type(row["line"]) is int else 0,
+        )
+    )
+    return out, tuple(groups)
+
+
+def count_unresolved_keyed_calls(
+    store: GraphStore, groups: tuple[tuple[tuple[str, str, int], ...], ...]
+) -> int:
+    """Rules whose every emitted keyed_calls edge stayed unlinked after resolve (task 222 AC4)."""
+    unresolved = 0
+    for stamps in groups:
+        if not stamps:
+            continue
+        any_linked = False
+        for _source, target_raw, _line in stamps:
+            for row in store.calls_by_target_raw(target_raw):
+                if row.get("file_path") != INDIRECTION_FILE:
+                    continue
+                if row.get("target_qname"):
+                    any_linked = True
+                    break
+            if any_linked:
+                break
+        if not any_linked:
+            unresolved += 1
+    return unresolved
 
 
 def _calls_for_setter(store: GraphStore, setter: str) -> list[dict[str, object]]:
@@ -346,7 +436,10 @@ def _nth_string_literal(line: str, n: int) -> str | None:
 def _load_rules(
     label: str, raw_bytes: bytes
 ) -> tuple[
-    list[tuple[str, str]], list[tuple[str, str, int]], list[tuple[str, int, str]]
+    list[tuple[str, str]],
+    list[tuple[str, str, int]],
+    list[tuple[str, int, str]],
+    list[tuple[str, int, str, str]],
 ]:
     try:
         raw = json.loads(raw_bytes.decode("utf-8"))
@@ -390,7 +483,38 @@ def _load_rules(
             )
         view_data.append((setter, key_arg, key_from))
 
-    return aliases, calls, view_data
+    keyed_calls: list[tuple[str, int, str, str]] = []
+    for item in _as_list(raw.get("keyed_calls"), label, "keyed_calls"):
+        if not isinstance(item, dict):
+            raise ConfigError(f"indirection_rules: {label!r} keyed_calls entries must be objects")
+        setter = _as_qname(item.get("setter"), label, "keyed_calls.setter")
+        key_arg = item.get("key_arg")
+        if type(key_arg) is not int or key_arg < 1:
+            raise ConfigError(
+                f"indirection_rules: {label!r} keyed_calls.key_arg must be an int >= 1"
+            )
+        key_from = item.get("key_from", "string")
+        if key_from not in ("string", "array_keys"):
+            raise ConfigError(
+                f"indirection_rules: {label!r} keyed_calls.key_from must be "
+                f"'string' or 'array_keys'"
+            )
+        template = item.get("target_template")
+        if not isinstance(template, str) or not template.strip():
+            raise ConfigError(
+                f"indirection_rules: {label!r} keyed_calls.target_template must be "
+                f"a non-empty string"
+            )
+        template = template.strip()
+        names = _TEMPLATE_PLACEHOLDER.findall(template)
+        if names != ["key"]:
+            raise ConfigError(
+                f"indirection_rules: {label!r} keyed_calls.target_template must contain "
+                f"exactly the placeholder '{{key}}' (found {names!r})"
+            )
+        keyed_calls.append((setter, key_arg, key_from, template))
+
+    return aliases, calls, view_data, keyed_calls
 
 
 def _as_list(raw: object, label: str, field: str) -> list[Any]:
