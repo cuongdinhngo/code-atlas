@@ -288,7 +288,7 @@ No ❌. E1 recorded with checkable expiry. AC3 on real corpus.
 - **Proving test:**
 
 ```
-Ran at PLACEHOLDER_SHA
+Ran at 894a0cc99bb7e4362c15a3eaf693ba0a48735e15
 $ .venv/bin/python -m pytest tests/test_ts_field_round_recorded.py -q
 .. 2 passed
 ```
@@ -301,6 +301,7 @@ $ .venv/bin/python -m pytest tests/test_ts_field_round_recorded.py -q
 - **challenger (ticket-blind) result:** CHALLENGER: ON — reconstructed R1–R5 + AC1–AC5 + C1 from the raw ticket + `git diff --cached main` only (working doc withheld). **11/11 MET; LGTM**. No substantive finding.
 - **Scope reconciliation:** diff ⊆ approved list (benchmark, playbook §4/§7 footnote, proving test, backlog/ledger/task status).
 - **Clean?** reviewer waived · challenger LGTM · proving test green → yes.
+- **Reviewed at** 
 
 ## Phase 5 — Finalise
 
