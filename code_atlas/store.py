@@ -1407,16 +1407,34 @@ class GraphStore:
         )
         return int(self._conn.execute(sql, (bare_name, qname)).fetchone()[0])
 
-    def count_source_root_hint_imports(self) -> int:
-        """Unlinked ``IMPORTS`` whose dotted ``target_raw`` matches an indexed file suffix (230).
+    def indexed_dotted_module_keys(self) -> set[str]:
+        """Every dotted name an indexed file could be imported as, naming no language (R1.1).
 
-        Operator signal: a module name is in the index under some directory the climb cannot
-        reach — configure ``source_roots``. Path-shaped raws are skipped (already resolved).
+        A path's own dotted form and its directory's — a package initialiser makes the
+        directory importable — each contributing every suffix, since a root may be any prefix.
         """
-        files = self.file_paths()
-        if not files:
+        keys: set[str] = set()
+        for path in self.file_paths():
+            segments = path.split("/")
+            stem = segments[-1].rsplit(".", 1)[0]
+            if not stem:
+                continue
+            own = [*segments[:-1], stem]
+            for parts in (own, own[:-1]):
+                for start in range(len(parts)):
+                    keys.add(".".join(parts[start:]))
+        keys.discard("")
+        return keys
+
+    def count_source_root_hint_imports(self) -> int:
+        """Unlinked dotted ``IMPORTS`` naming a module the index already holds (230).
+
+        Operator signal: the name is in the index under a directory the importer's climb
+        cannot reach — configure ``source_roots``. Path-shaped raws resolved already.
+        """
+        keys = self.indexed_dotted_module_keys()
+        if not keys:
             return 0
-        file_set = set(files)
         sql = (
             "SELECT target_raw FROM edges WHERE kind = 'IMPORTS' "
             "AND (target_qname IS NULL OR target_qname = '')"
@@ -1424,14 +1442,7 @@ class GraphStore:
         count = 0
         for (raw,) in self._conn.execute(sql):
             name = str(raw)
-            if not name or "/" in name or name.endswith(".py"):
-                continue
-            rel = "/".join(name.split("."))
-            candidates = (f"{rel}.py", f"{rel}/__init__.py")
-            if any(
-                cand in file_set or any(fp.endswith("/" + cand) for fp in files)
-                for cand in candidates
-            ):
+            if name and "/" not in name and name in keys:
                 count += 1
         return count
 

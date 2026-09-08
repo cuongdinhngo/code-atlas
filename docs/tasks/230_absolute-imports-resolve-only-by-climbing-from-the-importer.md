@@ -342,6 +342,24 @@ Independence: procedural (working-doc portion withheld; path-restricted diff). R
 
 **Challenger verdict: PASS** — 10 met / 0 not-met / 0 can't-tell.
 
+### Maintainer review at merge (the reviewer seat `--no-reviewer` waived)
+
+Two findings, both in Scope 4's hint counter, both fixed on the branch before merge.
+
+1. **R1.1 — the core spelled Python's module-file convention.** `count_source_root_hint_imports`
+   turned a dotted name into `<rel>.py` and `<rel>/__init__.py`. The challenger read Scope 1 as met
+   on "no `language ==` in core", and `tests/test_core_is_language_agnostic.py` cannot see this
+   class at all — its own docstring records that `python` is not a usable token, because the core is
+   written in it. Fixed by deriving keys from the indexed paths (`indexed_dotted_module_keys`: a
+   file's dotted suffixes plus its directory's, extension stripped generically). New guard
+   `test_no_core_module_spells_a_module_file_convention` — red on the pre-fix `store.py` with
+   `['".py"', '__init__.py']`, green after (R6.5).
+2. **O(files × unlinked-imports) on every `get_index_status`.** The old body ran
+   `any(fp.endswith("/" + cand) for fp in files)` inside the per-edge loop, unconditionally at
+   `detail_level="standard"`. On this ticket's own census (1,209 files · 4,838 unlinked imports)
+   that is ~11.7 M `endswith` calls per status call. Now one O(files) key set, then a set lookup
+   per edge. Behaviour preserved: a bare single-segment name still counts, as it did before.
+
 ## Phase 5 — finalise
 
 Durable lesson: reinforcing `prove-the-guard-fails` (already R6.5) — AC1 automated negative control. Seen-bump only; no new lesson entry; no promotion proposed.
