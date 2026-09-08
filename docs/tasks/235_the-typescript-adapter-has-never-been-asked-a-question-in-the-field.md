@@ -307,8 +307,8 @@ $ .venv/bin/python -m pytest tests/test_ts_field_round_recorded.py -q
 
 - **PR draft:** from `.github/pull_request_template.md`.
 - **Planned outward actions:**
-  - [ ] push branch — handover authorisation
-  - [ ] open PR via gh — handover authorisation
+  - [x] push branch — handover authorisation
+  - [x] open PR via gh — handover authorisation
   - [ ] merge — NOT authorised
 - **Follow-up tickets:** none new (232, 234 already open).
 - **Durable lesson:** none new — field round confirmed already-filed gaps; AC5 path exercised.

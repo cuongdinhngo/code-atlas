@@ -22,7 +22,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 
 | # | Tokens | PR |
 |---|---|---|
-| 235 | 0 separate dispatch (ticket-blind challenger in main-loop; tokens unmeasured); `reviewer` waived by `--no-reviewer` so **no rule-book-grounded review exists**; challenger ON. `/mango:autorun`. TS gate-4 field round on typescript-eslint + jsdoc (pinned SHAs); determinism pass; no new finding beyond 232/234. Proving: `tests/test_ts_field_round_recorded.py`. | TBD |
+| 235 | 0 separate dispatch (ticket-blind challenger in main-loop; tokens unmeasured); `reviewer` waived by `--no-reviewer` so **no rule-book-grounded review exists**; challenger ON. `/mango:autorun`. TS gate-4 field round on typescript-eslint + jsdoc (pinned SHAs); determinism pass; no new finding beyond 232/234. Proving: `tests/test_ts_field_round_recorded.py`. | [#301](https://github.com/cuongdinhngo/code-atlas/pull/301) |
 | 228 | 0 separate dispatch (ticket-blind challenger in main-loop; tokens unmeasured); `reviewer` waived by `--no-reviewer` so **no rule-book-grounded review exists**; challenger ON — 9/9 reconstructed requirements MET. `/mango:autorun`. SQL adapter: skip IF NOT EXISTS / ADD COLUMN, accept OR REPLACE, refuse reserved names (R5.2), CREATE wins line_start, File.extra.dialect=tsql (META frozen). Delta-green: docker-test.sh **3053 passed / 1 structural skip**. | [#290](https://github.com/cuongdinhngo/code-atlas/pull/290) |
 | 001 | 113.6k dispatch (reviewer 70.9k + challenger 42.7k) | [#2](https://github.com/cuongdinhngo/code-atlas/pull/2) |
 | 002 | **689.2k fresh** (239.8k out) + 27.12M cache / 164 calls; 0 dispatch | [#4](https://github.com/cuongdinhngo/code-atlas/pull/4) |
