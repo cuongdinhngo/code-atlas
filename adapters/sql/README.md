@@ -1,7 +1,9 @@
 # T-SQL adapter (tier 1a + tier 2)
 
 Parses Transact-SQL into the code-atlas contract vocabulary. Self-contained: its runtime lives here
-and never reaches the Python core (R8.1). Tasks 184 (tier 1a) and 022 (tier 2).
+and never reaches the Python core (R8.1). Tasks 184 (tier 1a) and 022 (tier 2). Every `File` node
+carries `extra.dialect = "tsql"` so a reader of the index sees which dialect was read (task 228) —
+`META_FIELDS` is frozen, so the handshake stays `name: "sql"`.
 
 ## Runtime
 

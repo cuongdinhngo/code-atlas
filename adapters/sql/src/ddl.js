@@ -5,9 +5,15 @@
 // filesystem or the contract, so each one is testable on a string.
 
 // A table-level entry that is not a column. `KEY` covers the `PRIMARY KEY`/`FOREIGN KEY` spellings
-// once the leading word has been read, and `PERIOD` is the temporal-table entry.
+// once the leading word has been read, and `PERIOD` is the temporal-table entry. `COLUMN` is the
+// ANSI `ADD COLUMN` keyword — never a real column name (task 228).
 const NOT_A_COLUMN = new Set([
-  "constraint", "primary", "unique", "foreign", "check", "index", "key", "period",
+  "constraint", "primary", "unique", "foreign", "check", "index", "key", "period", "column",
+]);
+
+// Object names no dialect uses for a Table/Column — refusing them is honest (R5.2); emitting them is not.
+const RESERVED_OBJECT_NAMES = new Set([
+  "if", "not", "exists", "column", "constraint", "table", "key",
 ]);
 
 // What ends a DEFAULT expression inside a column definition. Everything up to one of these, at
@@ -362,8 +368,17 @@ function readNamedDefault(code) {
   return { column: column.name, dflt: expr };
 }
 
+/**
+ * True when `name` (last segment of a qname) is a reserved word, never a real object.
+ * @param {string} name
+ * @returns {boolean}
+ */
+function isReservedObjectName(name) {
+  return RESERVED_OBJECT_NAMES.has(name.toLowerCase());
+}
+
 module.exports = {
   readColumns, readColumnDef, readDefault, readInsert, readUpdate, readNamedDefault,
   readForeignKeys, readForeignKeyDef, readInlineReferences,
-  readIdent, readQualified, readParens, splitTopLevel,
+  readIdent, readQualified, readParens, splitTopLevel, isReservedObjectName, NOT_A_COLUMN,
 };

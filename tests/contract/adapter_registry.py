@@ -624,7 +624,14 @@ SQL_CASES: dict[str, Case] = {
 SQL_CONFORMANCE = AdapterConformance(
     cli=SQL_CLI,
     named_inventory=SQL_R62_CASES,
-    excluded_fixtures=frozenset(),
+    excluded_fixtures=frozenset(
+        {
+            # 228 owns these; they are proving fixtures, never R6.2 conformance cases.
+            "postgres_common_spellings.sql",
+            "reserved_word_unreadable.sql",
+            "create_wins_line_over_alter.sql",
+        }
+    ),
     cases=SQL_CASES,
 )
 
