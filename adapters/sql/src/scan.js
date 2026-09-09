@@ -366,6 +366,35 @@ function parseFile(qpath) {
   };
 
   /**
+   * A standalone foreign-key constraint as its own addressable node (236): the constraint is a
+   * schema object, not a second definition of the table it sits on, so it never re-emits a Table
+   * row. Child/referenced tables and the child columns ride `extra`, since NODE_FIELDS is frozen.
+   * @param {string} parentTable
+   * @param {{name: string|null, fromColumns: string[], toTable: string,
+   *   toColumns: string[]|null}} fk
+   * @param {number} line
+   */
+  const foreignKey = (parentTable, fk, line) => {
+    const referenced = splitName(fk.toTable) ?? fk.toTable;
+    const name = fk.name ?? `FK_${fk.fromColumns.join("_")}`;
+    const qname = `${parentTable}::${name}`;
+    nodes.push({
+      kind: "ForeignKey", name, qualified_name: qname, file_path: qpath,
+      line_start: line, line_end: line, modifiers: [], params: [], is_test: false,
+      extra: {
+        parent_table: parentTable, referenced_table: referenced,
+        columns: fk.fromColumns.join(", "),
+      },
+    });
+    // Owned by its table like a column is (the qname joins the table), even when the ALTER lives in
+    // another file — the file-independent qname is exactly what lets that CONTAINS link (R3.3).
+    edges.push({
+      kind: "CONTAINS", source_qname: parentTable, target_raw: qname,
+      file_path: qpath, line, confidence_tier: "RESOLVED",
+    });
+  };
+
+  /**
    * @param {string} tableQname
    * @param {{name: string, dataType: string, dflt: string|null, delimited?: boolean,
    *   references?: {table: string, columns: string[]|null}|null}} col
@@ -458,6 +487,19 @@ function parseFile(qpath) {
       if (!target) return;
       const qname = splitName(target.name);
       if (!qname) return;
+      // 236: a standalone `ALTER TABLE t ADD [CONSTRAINT n] FOREIGN KEY (...) REFERENCES ...` is a
+      // constraint object, not a (re)definition of t — emit a ForeignKey node, never a Table row.
+      // A DEFAULT constraint (`named`) and a plain ADD <column> still need t's node; only FK exits.
+      if (!isCreate && !named) {
+        const add = /\badd\s+/i.exec(buf.slice(target.next));
+        if (add) {
+          let tail = buf.slice(target.next + add.index + add[0].length);
+          const colKw = /^\s*column\s+/i.exec(tail);
+          if (colKw) tail = tail.slice(colKw[0].length);
+          const fk = ddl.readForeignKeyDef(tail);
+          if (fk) { foreignKey(qname, fk, line); return; }
+        }
+      }
       const tbl = table(qname, line, isCreate, target.delimited);
       if (!tbl) return;
       if (named) {

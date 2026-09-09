@@ -23,7 +23,7 @@ META = {
         "modifiers": True,
         "declared_types": True,
     },
-    "contract_version": 9,
+    "contract_version": 10,
 }
 
 

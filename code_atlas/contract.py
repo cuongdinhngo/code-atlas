@@ -22,7 +22,10 @@ from typing import Literal, get_args
 # trigger fires — kinds moved — so the bump is owed. The three words join no existing named subset
 # below, so a repo with no SQL adapter sees identical rows from every tool (`test_sql_tier2_
 # vocabulary_is_opt_in.py`); what it does pay is the one full rebuild any bump forces.
-CONTRACT_VERSION = 9
+# v10: `ForeignKey` (236). A foreign-key constraint is a schema object, not a second definition of
+# the table it sits on — a distinct kind lets `search_symbol` separate a table's DDL site from a
+# constraint on it (R5.6), so the correct FK answer is no longer re-derived. R3.1/R3.5 owe the bump.
+CONTRACT_VERSION = 10
 
 # Ordered Literal is the typing SSoT; NODE_KINDS is derived so schemas cannot drift (R3.2 / 056).
 NodeKind = Literal[
@@ -42,6 +45,10 @@ NodeKind = Literal[
     # does — so the qname convention did not move, only the vocabulary.
     "Table",
     "Column",
+    # v10 (236): a foreign-key constraint, addressable in its own right. Its qname joins the owning
+    # table like a member (`dbo.MemberType::FK_x`); the child/referenced tables and columns ride
+    # `extra`, since NODE_FIELDS is frozen.
+    "ForeignKey",
 ]
 NODE_KINDS: tuple[str, ...] = get_args(NodeKind)
 

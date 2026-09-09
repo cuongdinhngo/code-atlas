@@ -31,7 +31,7 @@ function serve(Parser $parser): void
             'modifiers' => true,
             'declared_types' => true,
         ],
-        'contract_version' => 9,
+        'contract_version' => 10,
     ]);
 
     while (($line = fgets(STDIN)) !== false) {
