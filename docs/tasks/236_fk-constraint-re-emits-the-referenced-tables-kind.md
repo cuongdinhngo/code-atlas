@@ -4,7 +4,7 @@ slug: fk-constraint-re-emits-the-referenced-tables-kind
 title: 'A foreign-key constraint is emitted as kind:"Table", so a correct FK answer reads as a duplicate location — and gets re-derived wrong'
 phase: 1.5b
 milestone: Agent-fit
-status: in-progress
+status: done
 depends_on: [022]
 ---
 
