@@ -218,3 +218,38 @@ vocabulary count 45→46, and `test_doc_size_budget.py` CONVENTION ceiling 6,700
 - **AC4** ✅ two-file repro: one DDL Table row + one `ForeignKey` row (red pre-fix).
 - **AC5** ✅ R1.1 grep-gate green in the full run; determinism holds (identical DDL → identical rows,
   R4.2).
+
+### Gate 4 — review (reviewer waived; challenger ran)
+
+Ticket-blind challenger verdict: **5/5 acceptance criteria MET, all constraints MET, 0 not-met, 0
+can't-tell.** It verified the core claim by live-executing the changed adapter on the two-file repro
+(one `Table` row + one `ForeignKey` row, no duplication). Two non-blocking notes, both addressed:
+
+- **`extra` sub-fields asserted in the unit test, not `tests/contract/`.** Consistent with the
+  project — `contract.validate` schema-checks no kind's `extra` (it is free-form by design); the
+  semantic fields are pinned by `test_sql_alter_foreign_key_node.py`. No change.
+- **Unnamed-FK qname collision (corner case).** Hardened: the synthesized fallback name now includes
+  the referenced table's last segment, so two unnamed FKs on one table pointing at different tables
+  stay distinct and deterministic (new test `test_unnamed_fk_names_are_deterministic_and_distinct`).
+  Final full run after the fix: **3245 passed, 1 skipped**.
+
+### Finalise — learning loop + ledger
+
+236 applied two already-promoted claims (`do-not-attest-past-the-payloads-resolution` → **R5.6**;
+`one-field-two-questions`, 022) and produced **no new durable lesson** — the fix is the textbook
+application of R5.6 (carry the distinction in the node kind), so nothing is promoted.
+
+CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified
+
+FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)
+
+RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)
+
+RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (n/a) | 0 left in lessons_path
+
+PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0
+
+LEDGER TOTAL: ~400k tokens estimated (proxy; host does not surface exact usage) · top cost driver: execute (Docker full-suite runs + analysis/challenger subagents)
+
+The `TOKEN_LEDGER.md` spend row and the BACKLOG row removal land when the ticket reaches `done`
+(after merge), per the BACKLOG convention — the autorun stops at the PR.
