@@ -92,3 +92,28 @@ def test_constraint_file_emits_no_table_row(indexed: GraphStore) -> None:
         if str(row["file_path"]).endswith("_fk_constraints.sql")
     ]
     assert from_constraints == []
+
+
+# An unnamed FK (no `CONSTRAINT n`) borrows a deterministic name from its columns and referenced
+# table, so two unnamed FKs on one table pointing at different tables do not collide on one qname.
+UNNAMED = """\
+ALTER TABLE [dbo].[Orders] ADD FOREIGN KEY ([CustomerId]) REFERENCES [dbo].[Customer] ([Id]);
+ALTER TABLE [dbo].[Orders] ADD FOREIGN KEY ([CustomerId]) REFERENCES [dbo].[Region] ([Id]);
+"""
+
+
+@needs_node
+def test_unnamed_fk_names_are_deterministic_and_distinct(tmp_path: Path) -> None:
+    src = tmp_path / "db"
+    src.mkdir()
+    (src / "unnamed_fks.sql").write_text(UNNAMED, encoding="utf-8")
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
+    config = load_config(tmp_path, {"CA_SQL_CMD": shlex.join([str(NODE), str(ENTRY), "--server"])})
+    with GraphStore(config.db_path) as store:
+        assert full_build(config, store).failed == 0
+        qnames = {str(row["qualified_name"]) for row in store.nodes_by_kind("ForeignKey", limit=50)}
+    assert qnames == {
+        "dbo.Orders::FK_CustomerId_Customer",
+        "dbo.Orders::FK_CustomerId_Region",
+    }

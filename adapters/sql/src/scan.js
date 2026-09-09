@@ -376,7 +376,9 @@ function parseFile(qpath) {
    */
   const foreignKey = (parentTable, fk, line) => {
     const referenced = splitName(fk.toTable) ?? fk.toTable;
-    const name = fk.name ?? `FK_${fk.fromColumns.join("_")}`;
+    // An unnamed FK borrows a deterministic name from its columns AND referenced table, so two on
+    // one table (different targets) do not collide on one qname; a named constraint keeps its name.
+    const name = fk.name ?? `FK_${fk.fromColumns.join("_")}_${lastSegment(referenced, ".")}`;
     const qname = `${parentTable}::${name}`;
     nodes.push({
       kind: "ForeignKey", name, qualified_name: qname, file_path: qpath,
