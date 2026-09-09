@@ -19,7 +19,7 @@ const META = {
     modifiers: true,
     declared_types: true,
   },
-  contract_version: 9,
+  contract_version: 10,
 };
 
 // One `\n`-framed JSON line straight to stdout so a lock-step reader never blocks (§4.1).

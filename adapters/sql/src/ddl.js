@@ -211,16 +211,20 @@ function readIdentList(body) {
 
 /**
  * One table-level ``FOREIGN KEY`` / ``CONSTRAINT … FOREIGN KEY`` entry, or null.
+ * ``name`` is the constraint's own name when written (``CONSTRAINT n``), else null.
  * @param {string} def
- * @returns {{fromColumns: string[], toTable: string, toColumns: string[]|null}|null}
+ * @returns {{name: string|null, fromColumns: string[], toTable: string,
+ *   toColumns: string[]|null}|null}
  */
 function readForeignKeyDef(def) {
   let j = 0;
+  let name = null;
   const first = readIdent(def, 0);
   if (!first) return null;
   if (first.name.toLowerCase() === "constraint") {
     const named = readIdent(def, first.next);
     if (!named) return null;
+    name = named.name;
     j = named.next;
   } else if (first.name.toLowerCase() === "foreign") {
     j = 0;
@@ -239,7 +243,7 @@ function readForeignKeyDef(def) {
   if (!refsKw) return null;
   const target = readReferencesClause(def, cols.next + refsKw.index + refsKw[0].length);
   if (!target) return null;
-  return { fromColumns, toTable: target.table, toColumns: target.columns };
+  return { name, fromColumns, toTable: target.table, toColumns: target.columns };
 }
 
 /**

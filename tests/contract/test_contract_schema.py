@@ -64,7 +64,7 @@ def good_result() -> dict[str, object]:
 # --- the vocabulary: exact spelling, exact order (CONVENTION §3) --------------------------------
 
 
-def test_node_kinds_are_the_thirteen_contract_kinds() -> None:
+def test_node_kinds_are_the_fourteen_contract_kinds() -> None:
     assert NODE_KINDS == (
         "File",
         "Namespace",
@@ -79,6 +79,7 @@ def test_node_kinds_are_the_thirteen_contract_kinds() -> None:
         "Const",
         "Table",
         "Column",
+        "ForeignKey",
     )
 
 
@@ -173,7 +174,7 @@ def test_target_qname_is_not_required_so_adapters_can_emit_bare_edges() -> None:
 
 
 def test_contract_version_is_exported() -> None:
-    assert CONTRACT_VERSION == 9
+    assert CONTRACT_VERSION == 10
 
 
 def test_known_capabilities_advertises_semantic_types() -> None:

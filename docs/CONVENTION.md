@@ -69,7 +69,7 @@ code-atlas/
 
 ## 3. The contract vocabulary (fixed spelling — do not vary)
 
-- **Node kinds:** `File Namespace Class Interface Trait Enum Function Method Property ClassConst Const Table Column`.
+- **Node kinds:** `File Namespace Class Interface Trait Enum Function Method Property ClassConst Const Table Column ForeignKey`.
 - **Edge kinds:** `CONTAINS EXTENDS IMPLEMENTS USES_TRAIT CALLS NEW IMPORTS INCLUDES REFERENCES ALIASES PROVIDES_VIEW_DATA WRITES`.
 - **`INCLUDES`:** `include`/`require` — `source_qname` is the **including file's path**, never the
   enclosing namespace or class (task 129) — the target resolves relative to that file's directory,
@@ -82,6 +82,9 @@ code-atlas/
 - **`WRITES`:** a routine assigns a column (v9, task 022). The **target kind** says whether the
   statement named its columns: a `Column` (`dbo.T::Col`) it did, the `Table` it did not — that is
   *unmeasured*, never *writes none*. `Column.extra`: `data_type`, `default`.
+- **`ForeignKey`:** a foreign-key constraint as its own node (v10, task 236), never a second `Table`
+  row for the table it sits on. qname joins the owning table (`dbo.T::FK_x`), `CONTAINS`-linked to it
+  like a column. `ForeignKey.extra`: `parent_table`, `referenced_table`, `columns` (comma-joined).
 - **`PROVIDES_VIEW_DATA`:** handler method → synthetic view-scope key. `target_raw` is
   `viewdata:<key>` (not an FQN; not in `FQN_EDGE_KINDS`). Emitted only by `CA_INDIRECTION_RULES`
   `view_data` setter rules (task 062); query with `find_view_data`.

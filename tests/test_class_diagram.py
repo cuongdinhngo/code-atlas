@@ -151,7 +151,7 @@ def test_ac3_no_declared_types_says_inheritance_only() -> None:
 
 
 def test_ac4_return_types_in_signature_and_contract_is_seven() -> None:
-    assert CONTRACT_VERSION == 9
+    assert CONTRACT_VERSION == 10
     member = Member(
         name="run",
         kind="Method",
