@@ -31,6 +31,11 @@ and building a whole-file tree over it is the failure mode the PHP adapter alrea
 | `INSERT` / `UPDATE` naming columns | `WRITES` edge per column | 2 |
 | `INSERT` / `UPDATE` naming none | one `WRITES` edge onto the **`Table`** | 2 |
 | `CREATE`/`ALTER`/`CREATE OR ALTER` `TRIGGER` | `Function` node, `extra.object_type = "trigger"` | 2 |
+| standalone `ALTER TABLE … ADD … FOREIGN KEY` | `ForeignKey` node, `CONTAINS`-owned by its table (`extra`: `parent_table`, `referenced_table`, `columns`) | 2 |
+
+A foreign key declared **inside a `CREATE TABLE` body** stays a `REFERENCES` edge (task 224); a
+**standalone `ALTER … ADD … FOREIGN KEY`** (the `_fk_constraints.sql` shape) is a `ForeignKey` node
+(task 236), so a table's DDL site and a constraint on it never collide as two `Table` rows.
 
 **Nothing else.** `CREATE VIEW`, `MERGE`, and the PHP↔SQL crossing are out of scope — see the task
 for the tier split and why each waits. A `MERGE` writes nothing the graph records; it is a feature
