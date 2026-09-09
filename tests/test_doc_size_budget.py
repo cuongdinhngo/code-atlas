@@ -185,7 +185,10 @@ BUDGETS = {
     "BACKLOG.md": 1_800,
     "ENGINEERING_RULES.md": 5_700,
     "AGENT_BRIEF.md": 2_250,
-    "CONVENTION.md": 6_700,
+    # 6,700 -> 6,800 on 2026-09-09 (236): the `ForeignKey` node kind joins the vocabulary of record
+    # (contract v10). The §3 bullet is the tightest statement of its qname and `extra` fields; there
+    # is no superseded line to prune, so the ceiling rises one step rather than displacing content.
+    "CONVENTION.md": 6_800,
 }
 
 

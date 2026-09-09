@@ -490,6 +490,9 @@ SQL_R62_CASES = frozenset(
         "insert-without-column-list",
         "update-set-list",
         "create-trigger",
+        # tier 2 (236) — a standalone foreign-key constraint is its own node, never a Table row for
+        # the table it sits on.
+        "alter-table-add-foreign-key",
     }
 )
 
@@ -547,6 +550,17 @@ _SQL_NO_COLS_EDGE_SHAPES: list[EdgeShape] = [
 _SQL_TRIGGER_EDGE_SHAPES: list[EdgeShape] = [
     ("CONTAINS", _F_TRIGGER, "dbo.TR_Ledger", "RESOLVED"),
     ("WRITES", "dbo.TR_Ledger", "dbo.Ledger::ChangeUser", "RESOLVED"),
+]
+# A standalone `ALTER … ADD CONSTRAINT … FOREIGN KEY` is a ForeignKey node owned by its table (the
+# qname joins it), never a second Table row — the incident behind task 236. No Table/Column here:
+# the table is defined in another file, exactly the `_fk_constraints.sql` shape.
+_SQL_FK_EDGE_SHAPES: list[EdgeShape] = [
+    (
+        "CONTAINS",
+        "dbo.MemberType",
+        "dbo.MemberType::FK_MemberType_MemberParentTypeID",
+        "RESOLVED",
+    ),
 ]
 
 SQL_CASES: dict[str, Case] = {
@@ -636,6 +650,12 @@ SQL_CASES: dict[str, Case] = {
         {"CONTAINS": 1, "WRITES": 1},
         _SQL_TRIGGER_EDGE_SHAPES,
     ),
+    "alter-table-add-foreign-key": Case(
+        "alter_table_add_foreign_key.sql",
+        {"File": 1, "ForeignKey": 1},
+        {"CONTAINS": 1},
+        _SQL_FK_EDGE_SHAPES,
+    ),
 }
 
 SQL_CONFORMANCE = AdapterConformance(
@@ -659,7 +679,8 @@ SQL_CONFORMANCE = AdapterConformance(
 
 # ── Python (task 020 tier 1a) ────────────────────────────────────────────────────────────────────
 # N=16 construct inventory ratified at Gate 1.
-# Zero new contract vocabulary; CONTRACT_VERSION stays 9.
+# Zero new contract vocabulary from Python — the version constant is owned by whatever last moved it
+# (contract.py), never restated here.
 PY_R62_CASES = frozenset(
     {
         "module",

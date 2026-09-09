@@ -141,7 +141,7 @@ def test_ac4_unconfigured_collision_stays_unlinked(tmp_path: Path) -> None:
 
 def test_ac5_contract_version_unchanged_and_no_language_branch() -> None:
     """Optional request field mirrors ``declarations_only`` — response vocabulary untouched."""
-    assert contract.CONTRACT_VERSION == 9
+    assert contract.CONTRACT_VERSION == 10
     hits: list[str] = []
     for path in (REPO / "code_atlas").rglob("*.py"):
         text = path.read_text(encoding="utf-8")
