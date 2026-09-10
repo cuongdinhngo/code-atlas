@@ -24,7 +24,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099 |
 | 237 | [Native Windows was declined on a Defender setting, not a platform limit — one POSIX-only import, and the decisive row was never measured](tasks/237_native-windows-was-declined-on-a-defender-setting-not-a-platform-limit.md) | Adoption | todo | 220, 072, 053, 219 |
-| 238 | [The honest-zero predicate is gated on the zero, so a `find_callers` answer with hits calls itself `ok` on an unmeasurable crossing](tasks/238_the-honest-zero-predicate-is-gated-on-the-zero.md) | Coverage | todo | 221, 222, 186, 223 |
 
 ## Open work — Pillar 2 · Onboarding
 

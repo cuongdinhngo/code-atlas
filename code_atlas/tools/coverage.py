@@ -69,13 +69,11 @@ def covered_languages(store: GraphStore) -> str | None:
 def cross_language_relation_unmodelled(
     store: GraphStore, *, file_path: str
 ) -> dict[str, object] | None:
-    """The cross-language census when a zero into this file's language is unmeasured (task 221).
+    """The census when this file's language has no modelled inbound crossing (221/238).
 
-    186 asks whether the subject's OWN language emits a kind; a stored proc needs the inverse — does
-    the index model any linked edge from ANOTHER language into this one? Returns the census block
-    (the low-confidence note) only then. ``None`` — a plain ``no_matches`` — whenever the index
-    cannot say: no stamp (R5.6), a single-language graph (no crossing is possible, so a genuine zero
-    stays honest — AC2), or a modelled ``*->L`` pair already exists.
+    Language-scope, not hit-count: an unmeasured crossing is unmeasured whether this answer
+    found in-language hits. ``None`` when the index cannot say — no stamp (R5.6), a
+    single-language graph, or a modelled ``*->L`` pair already exists.
     """
     language = store.language_of_file(file_path)
     if language is None:

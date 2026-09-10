@@ -125,6 +125,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         (schema-unqualified ``EXEC`` that could not resolve uniquely — task 214), an empty
         answer uses ``reason=relation_unmodelled_for_language`` instead of ``no_matches``.
 
+        When another language is indexed but no linked ``*->L`` pair reaches the subject's
+        language (221/238), the answer carries ``authoritative: false`` and the cross-language
+        census whether or not in-language hits exist; ``reason`` stays ``ok`` on a non-zero.
+
         ``subject_refreshed_only`` is present (and ``true``) only when read-through freshness
         reparsed the subject's file this call — neighbors were not re-verified (035 / 061).
         An untracked indexable file matching the subject is ``reason=not_indexed`` plus
@@ -304,9 +308,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 unlinked_calls = store.count_unlinked_by_target_raw(
                     (lookup, subject_name), kinds=CALLER_KINDS
                 )
-            if outcome.total_count == 0 and indexed and subject_file is not None:
-                # The caller may be in another language whose crossing the index never modelled
-                # (221) — read the build-time census, never a per-answer scan.
+            if indexed and subject_file is not None:
+                # Language-scope, not hit-count (221/238): an unmeasured crossing is unmeasured
+                # whether this answer found in-language hits. Build-time census, never a scan.
                 cross_lang_census = cross_language_relation_unmodelled(
                     store, file_path=subject_file
                 )
@@ -369,6 +373,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             if unlinked_calls == 0 and cross_lang_census is not None:
                 attach_cross_language_census(result, cross_lang_census)
                 attach_authoritative_caveats(result, [CAVEAT_CROSS_LANGUAGE_UNMODELLED])
+        elif cross_lang_census is not None:
+            # Hits whose *->L crossing the index cannot measure (238). reason stays ok.
+            attach_cross_language_census(result, cross_lang_census)
+            attach_authoritative_caveats(result, [CAVEAT_CROSS_LANGUAGE_UNMODELLED])
         return signed(attach_coverage_note(result, config, covered, detail_level=detail_level))
 
     return find_callers

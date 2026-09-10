@@ -498,7 +498,7 @@ of date, which is R6.7's case: derive it, never list it.
 | `search_symbol` | FTS + name ranking; stub hits declare themselves (039); a zero hit may miss-repair the sole dirty file or report `index_stale` rather than answer a confident zero (073). **`queries` sweeps N subjects in one call** (101) |
 | `file_outline` | line ranges, never bodies — the read is a separate, priced call |
 | `read_symbol` | docblock at `standard`, none at `minimal` (163); stubs declare themselves (039). A qname with >1 definition **refuses the body** and lists the candidates rather than picking one (070 → 078) |
-| `find_callers` | opt-in capped call-site source removes a round-trip (037); the argument filter counts what it could not judge in `args_unrecorded` rather than dropping it (049, depth 1 only). Depth 1 enumerates completely; deeper, `total_count` is a floor for that page |
+| `find_callers` | opt-in capped call-site source removes a round-trip (037); the argument filter counts what it could not judge in `args_unrecorded` rather than dropping it (049, depth 1 only). Depth 1 enumerates completely; deeper, `total_count` is a floor for that page. Unmodelled `*->L` ⇒ `authoritative: false` even with hits (238) |
 | `find_references` | CALLS/NEW plus `REFERENCES` (`Foo::class`, 094). An all-`DYNAMIC` page sets `authoritative: false` so it reads as a candidate list, not an enumeration |
 | `find_implementations` | EXTENDS/IMPLEMENTS, resolver-linked only |
 | `find_view_data` | the `PROVIDES_VIEW_DATA` relation (062/063). With no `view_data` rules configured it says so, rather than reporting a modelled zero (069) |
@@ -704,10 +704,7 @@ viewer, §14), and schema-state awareness (**no, permanently** — §19, 2026-08
   not read (§2.b), `decisive facts in-graph: 1.5 of 6`, `root causes found by a tool call: 0`. No
   other deferred adapter has field-measured demand attached *before* implementation. The asymmetry
   that settles it: **tier 1a costs zero contract vocabulary** — `Function` and `CALLS` both exist.
-  The honest counter-case is `n = 1` repo; what it does **not** rest on is "adapter #2 shipped for a language nobody asked about", which
-  the retros contradict (round 10 §0.g: three PHP↔JS questions, two critical-path; round 11 §0.g: two
-  more, both critical-path). Adapter #2's zero was **roll-out** — one absent env var (round 11 §11.e)
-  — not absent demand, and that is a different risk which this decision does not remove.
+  Honest counter-case: `n = 1`. Adapter #2's zero was **roll-out** (absent env var), not absent demand.
 - **Task 022's evidence gate: discharged, not widened — 2026-08-30.** §1 asked for a second
   independent repo, and is scoped to the *schema-state* question §18.4 closed permanently, so it no
   longer describes the ticket. Its premise — nothing every user inherits — survives and is answered
@@ -994,8 +991,7 @@ measured 2.6× populated vs fresh; 219 takes **truncate-first** (`GraphStore.tru
 `full_build` top, FTS triggers dropped around the clear). Populated rebuilds then match a fresh
 growth curve (no per-file `_delete_rows` redundancy). Output byte-identical (R4.2); 202's escalation
 **not widened** — `BUILD_COMPLETE` cleared before truncate, so a mid-truncate abandon stays incomplete.
-**defer-FTS deferred** (size-decay in both runs; FTS correctness — own ticket). Anchor timing
-unmeasured with `real_corpus_path: null` (E1); mechanism proven at fixture scale.
+**defer-FTS deferred** (size-decay in both runs; FTS correctness — own ticket).
 
 **Decision — ClassConst evidence (task 234, 2026-09-08).** Spec markers (`Final`, `readonly`,
 `const`, enum members) **and** PEP 8 upper-case count under R2. Python applies that at every scope
@@ -1009,6 +1005,12 @@ TS decorators and declared types on `extra`; 217 chose edges for Python, so one 
 Withdraw-Python rejected: a TS type-site zero is a false claim. `find_references` now asks
 `language_emits_none_of` for `REFERENCES` alone, so `IMPORTS` can no longer mask it. Detail:
 [232](tasks/232_the-same-construct-is-a-references-edge-in-python-and-node-extra-in-php-and-ts.md).
+
+**Decision — unmodelled `*->L` is a partition even with hits (task 238, 2026-09-10).** 221/AC5 kept
+a confident hit byte-identical; that is the dangerous shape. **Locked:** the census is language-scope
+— hits on an unmodelled crossing carry `authoritative: false`; `reason` stays `ok`. Modelled
+`*->L` / single-language / pre-stamp unchanged. Detail:
+[238](tasks/238_the-honest-zero-predicate-is-gated-on-the-zero.md).
 
 **Reference material** (private, same folder): `understand-anything-how-it-works.md`, `code-review-graph-how-it-works.md`.
 

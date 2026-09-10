@@ -30,6 +30,7 @@ rule** rather than adding a near-duplicate (P2), and one by finding the rule alr
 |---|---|---|---|
 | `derived-not-listed-invariant` | 22 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180, 187, 191, 184, 022 | **R6.7** |
 | `prove-the-guard-fails` | 34 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188, 189, 190, 187, 191, 184, 192, 022, 194, 195, 224, 228, 229, 230 | **R6.5** — 190 is the *other* side of it: not *was it seen failing?* but *did it fail for the thing it forbids?* |
+| `gate-the-disclosure-on-its-condition-not-the-row-count` | 2 | 192, 238 | **proposed** → `docs/ENGINEERING_RULES.md` (238; `/mango:promote`) |
 | `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
 | `fixture-shape-begs-the-question` | 11 | 084, 086, 103–106, 121, 183, 185, 190, 191 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
@@ -441,9 +442,10 @@ schema state, closed permanently in PLAN §18.4; the preamble was answered by
 *Claim `192-C1` — a disclosure gated on emptiness cannot describe a partial answer, and a partial
 answer is the one a reader trusts; gate the disclosure on the CONDITION it describes, never on the
 size of the result. type: 2 · handle: `gate-the-disclosure-on-its-condition-not-the-row-count` ·
-status: proposed · seen: 192 · evidence: `coverage.py` returned early on `results`; 8-A's 1-vs-281 and
-round 12's 6-C are the two measured sightings · destination: open — relates to [[186-C1]] and
-[[174-C1]].*
+status: proposed · seen: 192, 238 · evidence: `coverage.py` returned early on `results`; 8-A's 1-vs-281 and
+round 12's 6-C; 238's `find_callers.py` gated `cross_language_relation_unmodelled` on `total_count == 0`
+so a hits-bearing answer presented as `reason: ok` · destination: docs/ENGINEERING_RULES.md (proposed;
+human-unratified — `/mango:promote`).*
 
 *Claim `192-C2` — the widening shipped only once the old carve-out was restored and the new assertion
 shown to fail on it (`KeyError: 'unconfigured_adapters'`). type: 2 · handle: `prove-the-guard-fails` ·

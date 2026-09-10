@@ -20,13 +20,17 @@ from pathlib import Path
 
 from code_atlas.config import Config, load_config
 from code_atlas.store import (
+    CAPABILITIES_BY_LANGUAGE_KEY,
     COVERED_LANGUAGES_KEY,
     EDGE_HEALTH_BY_LANGUAGE_KEY,
     GraphStore,
 )
-from code_atlas.tools import find_callers
+from code_atlas.tools import find_callers, find_references
 from code_atlas.tools.nav_result import (
+    CAVEAT_ARGS_NOT_CAPTURED,
     CAVEAT_CROSS_LANGUAGE_UNMODELLED,
+    CAVEAT_SIBLING_DEFINITIONS,
+    REASON_CAPABILITY_NOT_CONFIGURED,
     REASON_NO_MATCHES,
     REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
     TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE,
@@ -218,9 +222,10 @@ def test_a_pre_221_index_says_nothing_rather_than_guessing(tmp_path: Path) -> No
 
 
 def test_a_confident_answer_is_byte_identical(tmp_path: Path) -> None:
-    """AC5 (061): the census + authoritative ride an EMPTY answer only — a hit answer is untouched.
+    """AC2/AC5 (061, narrowed by 238): a modelled *->L hit answer stays untouched.
 
-    The proof: the same hit answer with the stamp present and with it deleted is byte-identical.
+    The hit itself is a linked php->sql edge, so the census records the crossing as modelled
+    and the caveat does not fire. Proof: stamp present vs deleted is byte-identical.
     """
     db_path = tmp_path / "graph.db"
     with GraphStore(db_path) as store:
@@ -254,3 +259,288 @@ def test_a_confident_answer_is_byte_identical(tmp_path: Path) -> None:
         _drop_census(store)
     without_stamp = find_callers.create(config)(qname=PROC_QNAME)
     assert with_stamp == without_stamp
+
+
+# --- 238: the same predicate, now on a hits-bearing answer (round 15) ---
+# Language A has in-language callers; language B is indexed; no linked *->A pair.
+# Generic names: the fixture encodes the crossing, never the field repo (E1 / R2).
+
+A_FILE = "src/a.php"
+A_QNAME = "A\\Widget::ping"
+A_CALLER = "A\\WidgetTest::testPing"
+A_OTHER = "A\\Widget::other"
+B_FILE = "src/b.ts"
+B_QNAME = "src/b.ts::unrelated"
+
+
+def _hits_unmodelled_repo(
+    root: Path, db_path: Path, *, link_the_crossing: bool, second_language: bool
+) -> Config:
+    """A PHP method with a PHP caller; optionally a second language and a modelled *->php pair."""
+    with GraphStore(db_path) as store:
+        _seed(
+            store,
+            root,
+            A_FILE,
+            "php",
+            [
+                node("Method", "ping", A_QNAME, A_FILE),
+                node("Method", "testPing", A_CALLER, A_FILE),
+                node("Method", "other", A_OTHER, A_FILE),
+            ],
+            [
+                edge(
+                    "CALLS",
+                    A_CALLER,
+                    A_QNAME,
+                    A_FILE,
+                    target_qname=A_QNAME,
+                    tier="RESOLVED",
+                ),
+            ],
+        )
+        if second_language:
+            ts_edges = []
+            if link_the_crossing:
+                ts_edges.append(
+                    edge(
+                        "CALLS",
+                        B_QNAME,
+                        A_OTHER,
+                        B_FILE,
+                        target_qname=A_OTHER,
+                        tier="RESOLVED",
+                    )
+                )
+            _seed(
+                store,
+                root,
+                B_FILE,
+                "typescript",
+                [node("Function", "unrelated", B_QNAME, B_FILE)],
+                ts_edges,
+            )
+        _stamp_census(store)
+    return _config(root, db_path)
+
+
+def test_in_language_hits_on_an_unmodelled_crossing_are_not_authoritative(
+    tmp_path: Path,
+) -> None:
+    """AC1 (proving test): hits + no *->L → ok, authoritative:false, census, caveat on claim.
+
+    R6.5: on today's code (predicate gated on total_count==0) this call is reason=ok
+    with no authoritative key — the assertion below fails until the gate is dropped.
+    """
+    config = _hits_unmodelled_repo(
+        tmp_path, tmp_path / "graph.db", link_the_crossing=False, second_language=True
+    )
+
+    payload = find_callers.create(config)(qname=A_QNAME, sign=True)
+
+    assert payload["total_count"] == 1
+    assert payload["reason"] == "ok"
+    assert payload["authoritative"] is False
+    assert payload["authoritative_caveats"] == [CAVEAT_CROSS_LANGUAGE_UNMODELLED]
+    assert payload["cross_language"]["linked"] == 0
+    assert payload["cross_language"]["pairs"] == {}
+    claim = str(payload["claim"])
+    assert "authoritative=false" in claim
+
+
+def test_modelled_crossing_hits_stay_byte_identical(tmp_path: Path) -> None:
+    """AC2: a *->php pair is modelled, so in-language hits stay a confident answer."""
+    config = _hits_unmodelled_repo(
+        tmp_path, tmp_path / "graph.db", link_the_crossing=True, second_language=True
+    )
+    with GraphStore(config.db_path) as store:
+        census = store.stamped_cross_language_edges()
+    assert census is not None and "typescript->php" in census["pairs"], census
+
+    payload = find_callers.create(config)(qname=A_QNAME)
+    assert payload["total_count"] == 1
+    assert payload["reason"] == "ok"
+    assert "authoritative" not in payload
+    assert "cross_language" not in payload
+
+
+def test_single_language_hits_stay_byte_identical(tmp_path: Path) -> None:
+    """AC2's other half: no other language ⇒ the caveat is not the default on every hit."""
+    config = _hits_unmodelled_repo(
+        tmp_path, tmp_path / "graph.db", link_the_crossing=False, second_language=False
+    )
+    payload = find_callers.create(config)(qname=A_QNAME)
+    assert payload["total_count"] == 1
+    assert payload["reason"] == "ok"
+    assert "authoritative" not in payload
+    assert "cross_language" not in payload
+
+
+def test_zero_path_reason_is_unchanged(tmp_path: Path) -> None:
+    """AC3: the 221 zero still names relation_unmodelled_for_language; hits keep reason=ok."""
+    zero = _cross_language_repo(tmp_path, tmp_path / "graph.db", link_the_crossing=False)
+    payload = find_callers.create(zero)(qname=PROC_QNAME)
+    assert payload["total_count"] == 0
+    assert payload["reason"] == REASON_RELATION_UNMODELLED_FOR_LANGUAGE
+
+
+def test_pre_stamp_hits_say_nothing(tmp_path: Path) -> None:
+    """AC5 / R5.6: a pre-204 stamp on a hits-bearing answer is today's confident ok."""
+    config = _hits_unmodelled_repo(
+        tmp_path, tmp_path / "graph.db", link_the_crossing=False, second_language=True
+    )
+    with GraphStore(config.db_path) as store:
+        _drop_census(store)
+        assert store.stamped_cross_language_edges() is None
+
+    payload = find_callers.create(config)(qname=A_QNAME)
+    assert payload["reason"] == "ok"
+    assert payload["total_count"] == 1
+    assert "authoritative" not in payload
+    assert "cross_language" not in payload
+
+
+def test_the_hit_answer_is_a_stamp_read_not_a_scan(
+    tmp_path: Path, monkeypatch: object
+) -> None:
+    """C2: answering a HITS payload still reads meta — it never re-runs `_cross_language_edges`."""
+    import sqlite3
+
+    config = _hits_unmodelled_repo(
+        tmp_path, tmp_path / "graph.db", link_the_crossing=False, second_language=True
+    )
+
+    seen: list[str] = []
+    real_connect = sqlite3.connect
+
+    def _tracing_connect(*args: object, **kwargs: object) -> sqlite3.Connection:
+        conn = real_connect(*args, **kwargs)  # type: ignore[arg-type]
+        conn.set_trace_callback(seen.append)
+        return conn
+
+    monkeypatch.setattr(sqlite3, "connect", _tracing_connect)  # type: ignore[attr-defined]
+    payload = find_callers.create(config)(qname=A_QNAME)
+    assert payload["authoritative"] is False
+
+    offenders = [s for s in seen if "tgt.language" in s or "GROUP BY src.language" in s]
+    assert offenders == [], offenders
+
+
+def test_find_references_in_language_hits_on_an_unmodelled_crossing(
+    tmp_path: Path,
+) -> None:
+    """AC4: find_references — hits + no *->L → ok, authoritative:false, census."""
+    config = _hits_unmodelled_repo(
+        tmp_path, tmp_path / "graph.db", link_the_crossing=False, second_language=True
+    )
+    payload = find_references.create(config)(qname=A_QNAME, sign=True)
+    assert payload["total_count"] == 1
+    assert payload["reason"] == "ok"
+    assert payload["authoritative"] is False
+    assert CAVEAT_CROSS_LANGUAGE_UNMODELLED in payload["authoritative_caveats"]
+    assert payload["cross_language"]["linked"] == 0
+    assert "authoritative=false" in str(payload["claim"])
+
+
+def test_find_references_modelled_and_single_language_and_pre_stamp(
+    tmp_path: Path,
+) -> None:
+    """AC4/AC5: find_references — modelled, single-language, and pre-stamp stay today's ok."""
+    modelled = _hits_unmodelled_repo(
+        tmp_path / "modelled",
+        tmp_path / "modelled.db",
+        link_the_crossing=True,
+        second_language=True,
+    )
+    payload = find_references.create(modelled)(qname=A_QNAME)
+    assert payload["total_count"] == 1
+    assert payload["reason"] == "ok"
+    assert "cross_language" not in payload
+    assert CAVEAT_CROSS_LANGUAGE_UNMODELLED not in (payload.get("authoritative_caveats") or [])
+
+    single = _hits_unmodelled_repo(
+        tmp_path / "single",
+        tmp_path / "single.db",
+        link_the_crossing=False,
+        second_language=False,
+    )
+    payload = find_references.create(single)(qname=A_QNAME)
+    assert payload["total_count"] == 1
+    assert "cross_language" not in payload
+
+    prestamp = _hits_unmodelled_repo(
+        tmp_path / "pre",
+        tmp_path / "pre.db",
+        link_the_crossing=False,
+        second_language=True,
+    )
+    with GraphStore(prestamp.db_path) as store:
+        _drop_census(store)
+    payload = find_references.create(prestamp)(qname=A_QNAME)
+    assert payload["reason"] == "ok"
+    assert "cross_language" not in payload
+    assert "authoritative" not in payload
+
+
+# --- 238 review: the crossing caveat must ADD a reason, never replace one already named ---
+
+SIB_QNAME = "A\\Other::ping"
+
+
+def _hits_with_a_sibling(root: Path, db_path: Path, *, no_args_capture: bool) -> Config:
+    """The 238 hits shape plus a same-named definition under another qname — a 165 partition too."""
+    with GraphStore(db_path) as store:
+        _seed(
+            store,
+            root,
+            A_FILE,
+            "php",
+            [node("Method", "ping", A_QNAME, A_FILE),
+             node("Method", "testPing", A_CALLER, A_FILE),
+             node("Method", "ping", SIB_QNAME, A_FILE)],
+            [edge("CALLS", A_CALLER, A_QNAME, A_FILE, target_qname=A_QNAME, tier="RESOLVED")],
+        )
+        _seed(
+            store,
+            root,
+            B_FILE,
+            "typescript",
+            [node("Function", "unrelated", B_QNAME, B_FILE)],
+            [],
+        )
+        _stamp_census(store)
+        if no_args_capture:
+            store.set_meta(
+                CAPABILITIES_BY_LANGUAGE_KEY,
+                json.dumps({"php": {"args": False}, "typescript": {"args": False}}),
+            )
+    return _config(root, db_path)
+
+
+def test_the_crossing_caveat_does_not_erase_the_sibling_partition(tmp_path: Path) -> None:
+    """Both partitions are real, so the payload must name both (168).
+
+    Made to fail: restore the replacing ``attach_authoritative_caveats`` and
+    ``sibling_definitions`` rides the payload with nothing naming why.
+    """
+    config = _hits_with_a_sibling(tmp_path, tmp_path / "graph.db", no_args_capture=False)
+
+    payload = find_callers.create(config)(qname=A_QNAME)
+
+    assert payload["reason"] == "ok"
+    assert "sibling_definitions" in payload
+    assert payload["authoritative_caveats"] == [
+        CAVEAT_CROSS_LANGUAGE_UNMODELLED,
+        CAVEAT_SIBLING_DEFINITIONS,
+    ]
+
+
+def test_the_crossing_caveat_does_not_erase_the_args_partition(tmp_path: Path) -> None:
+    """231's caveat outranks every reason the chain can reach, so 238 must not drop it."""
+    config = _hits_with_a_sibling(tmp_path, tmp_path / "graph.db", no_args_capture=True)
+
+    payload = find_callers.create(config)(qname=A_QNAME, arg_position=1, arg_is="string")
+
+    assert payload["reason"] == REASON_CAPABILITY_NOT_CONFIGURED
+    assert CAVEAT_ARGS_NOT_CAPTURED in payload["authoritative_caveats"]
+    assert CAVEAT_CROSS_LANGUAGE_UNMODELLED in payload["authoritative_caveats"]

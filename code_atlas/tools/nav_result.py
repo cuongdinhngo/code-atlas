@@ -669,11 +669,17 @@ def attach_sibling_definitions(
 def attach_authoritative_caveats(
     payload: dict[str, object], caveats: list[str]
 ) -> dict[str, object]:
-    """Mark the answer a partition and name every reason it is one. Omit-when-empty (061)."""
+    """Mark the answer a partition and name every reason it is one. Omit-when-empty (061).
+
+    Merges (238): a second call names an additional reason. Replacing dropped a partition the
+    payload still carries — the one thing this field exists to prevent.
+    """
     if not caveats:
         return payload
+    named = payload.get(AUTHORITATIVE_CAVEATS)
+    already = {str(name) for name in named} if isinstance(named, list) else set()
     payload[AUTHORITATIVE] = False
-    payload[AUTHORITATIVE_CAVEATS] = sorted(set(caveats))
+    payload[AUTHORITATIVE_CAVEATS] = sorted(already | set(caveats))
     return payload
 
 
