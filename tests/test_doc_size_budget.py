@@ -178,7 +178,12 @@ DOCS = REPO / "docs"
 BUDGETS = {
     "CLAUDE.md": 50,
     "AGENTS.md": 2_850,
-    "PLAN.md": 23_150,
+    # 23,150 -> 23,250 on 2026-09-10 (237): two decision entries land in this window — 237
+    # superseding 220's `unsupported`, and 238 narrowing 221/AC5 — and a verdict is the structure
+    # this log exists to hold. R7.6 ran first and paid most of it: 237 cut the T-SQL entry's retro
+    # retelling to a pointer, and both new entries lost the mechanism and the AC list their task
+    # files already hold (-81 for +137). The next addition prunes again or argues again.
+    "PLAN.md": 23_250,
     # 2,150 -> 1,800 on 2026-09-08, LOWERED: 232-235 all close in this window and each removes
     # its row (R7.6), taking the file 1,737 -> 1,485. 2,150 is more than 25 % above 1,485, which
     # the anti-slack guard below calls slack; 1,800 keeps ~315 of headroom, about five open rows.

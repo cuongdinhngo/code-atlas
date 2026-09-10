@@ -82,11 +82,15 @@ def build(root: Path, *, full: bool = False) -> int:
     """Build this repo's index through the MCP route's own tool. Returns the process exit code."""
     try:
         from code_atlas.config import load_config
+        from code_atlas.preflight import check_environment
         from code_atlas.tools.build_or_update_index import create
 
         # The refusal exists because an MCP call cannot outlive its client; a shell has no
         # RPC deadline, and the refusal names THIS command as the route (201).
-        result = create(load_config(root))(full=full, allow_full_rebuild=True)
+        config = load_config(root)
+        for warning in check_environment(config.root, config.adapter_cmds):
+            _say(f"warning: {warning}")
+        result = create(config)(full=full, allow_full_rebuild=True)
     except Exception as error:  # noqa: BLE001 — a broken build is an exit code, never a traceback
         _say(f"failed: {type(error).__name__}: {error}")
         return FAILED

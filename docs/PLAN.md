@@ -699,18 +699,22 @@ viewer, §14), and schema-state awareness (**no, permanently** — §19, 2026-08
 **Decisions locked so far:**
 - **Architecture** — language-agnostic core + per-language adapters, each using the language's best parser, joined by one frozen/versioned JSON contract (§4). Engine lineage: code-review-graph.
 - **T-SQL ordered ahead of Python and C#/.NET — 2026-08-30, reversing the order below.** Not on
-  breadth, which is what ordered 019/020/021, but on **measured in-anchor demand**: field retro round
-  12 found the decisive fact of a critical-path ticket inside 378,790 lines of T-SQL the index does
-  not read (§2.b), `decisive facts in-graph: 1.5 of 6`, `root causes found by a tool call: 0`. No
-  other deferred adapter has field-measured demand attached *before* implementation. The asymmetry
-  that settles it: **tier 1a costs zero contract vocabulary** — `Function` and `CALLS` both exist.
-  Honest counter-case: `n = 1`. Adapter #2's zero was **roll-out** (absent env var), not absent demand.
+  breadth (which ordered 019/020/021) but on **measured in-anchor demand**: a field retro found the
+  decisive fact of a critical-path ticket inside 378,790 lines of T-SQL the index does not read, and
+  **tier 1a costs zero contract vocabulary** (`Function`/`CALLS` exist). Honest counter-case: `n = 1`
+  repo. The retros hold the round-by-round demand; adapter #2's zero was **roll-out** (an absent env
+  var), not absent demand.
 - **Task 022's evidence gate: discharged, not widened — 2026-08-30.** §1 asked for a second
   independent repo, and is scoped to the *schema-state* question §18.4 closed permanently, so it no
   longer describes the ticket. Its premise — nothing every user inherits — survives and is answered
   by proof: `Table`, `Column` and `WRITES` (**v9**) join **no** existing named subset, so a repo
   with no `.sql` is unchanged. §1's text stands; round 12's four tickets are demand, not a repo.
 - **Language order and its rationale** — §3's table. Ordered PHP → TS/JS → Python → C#/.NET, deferred behind PHP agent-depth 2026-08-04, T-SQL inserted ahead of Python 2026-08-30; #2–#4 have landed and only C#/.NET remains.
+- **Native Windows runtime taken — 2026-09-10, superseding 220's `unsupported`.** A
+  `sys.platform`-selected lock arm keeps POSIX byte-identical and 072's property. Tiered: native
+  runtime supported, WSL2-on-ext4 for heavy indexing, dev/test loop stays POSIX. 220 fused "cannot
+  import" (one `fcntl` import) with "slow" (Defender scan, not the
+  disk); detail + evidence in [237](tasks/237_native-windows-was-declined-on-a-defender-setting-not-a-platform-limit.md).
 - **SOLID at the boundaries + YAGNI** (§2) — one seam (the contract). The registry question is settled: see the R1.2 verdict below.
 - **Standard over sample** (§2) — adapters implement the language spec/PSRs only; sample repos drive test coverage & perf targets, never adapter semantics. CI grep-gate bans repo/framework names in adapter source.
 - **Priorities** (§0): make it work (PHP) → extend without touching core → onboarding feature.
@@ -1008,8 +1012,7 @@ Withdraw-Python rejected: a TS type-site zero is a false claim. `find_references
 
 **Decision — unmodelled `*->L` is a partition even with hits (task 238, 2026-09-10).** 221/AC5 kept
 a confident hit byte-identical; that is the dangerous shape. **Locked:** the census is language-scope
-— hits on an unmodelled crossing carry `authoritative: false`; `reason` stays `ok`. Modelled
-`*->L` / single-language / pre-stamp unchanged. Detail:
+— hits on an unmodelled crossing carry `authoritative: false`; `reason` stays `ok`. Detail:
 [238](tasks/238_the-honest-zero-predicate-is-gated-on-the-zero.md).
 
 **Reference material** (private, same folder): `understand-anything-how-it-works.md`, `code-review-graph-how-it-works.md`.

@@ -5,16 +5,21 @@ MCP server never both write. The loser skips cleanly (hook exit 0 / tool
 ``mode: busy``).
 
 The same file carries the running build's progress line (task 177). It is the only
-carrier whose claim cannot outlive the claimant: ``flock`` is released by the OS on
+carrier whose claim cannot outlive the claimant: the lock is released by the OS on
 process death, so a reader that finds the lock free reports *no build* however
 recently the line was written. A ``building: true`` flag in the DB or a status file
 survives ``kill -9`` and becomes a permanent lie — 072's own bug class.
+
+The lock primitive is platform-selected once at import (task 237). POSIX uses
+``fcntl.flock`` (advisory, per open file description). Windows uses ``LockFileEx``
+on a byte disjoint from the progress region, so the mandatory per-handle lock never
+covers the bytes ``publish``/``read`` touch — see the ``win32`` branch below.
 """
 
 from __future__ import annotations
 
-import fcntl
 import os
+import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -25,6 +30,71 @@ LOCK_NAME = "write.lock"
 _PROGRESS_WIDTH = 200
 
 
+# --- platform lock primitives (task 237) -----------------------------------
+#
+# Three primitives behind the five public functions. Each acquires non-blocking
+# and raises ``BlockingIOError`` when the lock is held — so the public functions'
+# ``except BlockingIOError`` / ``except OSError`` bodies are unchanged on both
+# platforms. ``BlockingIOError`` is an ``OSError``, so the shared probe's broad
+# ``except OSError`` catches it too.
+
+if sys.platform == "win32":
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
+    _kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    _LOCKFILE_FAIL_IMMEDIATELY = 0x1
+    _LOCKFILE_EXCLUSIVE_LOCK = 0x2
+    # Lock one byte past the 200-byte progress region. Locking past EOF is legal on
+    # Windows, so nothing pads the file; bytes [0, 200) stay lockless for publish/read.
+    _LOCK_OFFSET = 1 << 20
+
+    class _Overlapped(ctypes.Structure):
+        _fields_ = [
+            ("Internal", ctypes.c_void_p),
+            ("InternalHigh", ctypes.c_void_p),
+            ("Offset", wintypes.DWORD),
+            ("OffsetHigh", wintypes.DWORD),
+            ("hEvent", wintypes.HANDLE),
+        ]
+
+    def _overlapped() -> _Overlapped:
+        overlapped = _Overlapped()
+        overlapped.Offset = _LOCK_OFFSET & 0xFFFFFFFF
+        overlapped.OffsetHigh = (_LOCK_OFFSET >> 32) & 0xFFFFFFFF
+        return overlapped
+
+    def _win_lock(fileno: int, *, exclusive: bool) -> None:
+        handle = msvcrt.get_osfhandle(fileno)
+        flags = _LOCKFILE_FAIL_IMMEDIATELY | (_LOCKFILE_EXCLUSIVE_LOCK if exclusive else 0)
+        if not _kernel32.LockFileEx(handle, flags, 0, 1, 0, ctypes.byref(_overlapped())):
+            # Held by another handle: report it as flock's non-blocking failure does.
+            raise BlockingIOError(ctypes.get_last_error(), "index write lock is held")
+
+    def _lock_exclusive_nb(fileno: int) -> None:
+        _win_lock(fileno, exclusive=True)
+
+    def _lock_shared_nb(fileno: int) -> None:
+        _win_lock(fileno, exclusive=False)
+
+    def _unlock(fileno: int) -> None:
+        handle = msvcrt.get_osfhandle(fileno)
+        _kernel32.UnlockFileEx(handle, 0, 1, 0, ctypes.byref(_overlapped()))
+
+else:
+    import fcntl
+
+    def _lock_exclusive_nb(fileno: int) -> None:
+        fcntl.flock(fileno, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+    def _lock_shared_nb(fileno: int) -> None:
+        fcntl.flock(fileno, fcntl.LOCK_SH | fcntl.LOCK_NB)
+
+    def _unlock(fileno: int) -> None:
+        fcntl.flock(fileno, fcntl.LOCK_UN)
+
+
 @contextmanager
 def try_index_write_lock(db_path: Path) -> Iterator[bool]:
     """Yield ``True`` while holding the lock; ``False`` if another writer holds it."""
@@ -32,14 +102,14 @@ def try_index_write_lock(db_path: Path) -> Iterator[bool]:
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with lock_path.open("a+", encoding="utf-8") as lock_file:
         try:
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            _lock_exclusive_nb(lock_file.fileno())
         except BlockingIOError:
             yield False
             return
         try:
             yield True
         finally:
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+            _unlock(lock_file.fileno())
 
 
 def lock_path_for(db_path: Path) -> Path:
@@ -50,7 +120,7 @@ def lock_path_for(db_path: Path) -> Path:
 def build_in_progress(db_path: Path) -> bool:
     """Is a writer holding the lock right now? Read-only, non-blocking, creates nothing.
 
-    ``LOCK_SH`` rather than ``LOCK_EX``: a shared probe cannot make a real writer wait, and it
+    A shared probe rather than an exclusive one: it cannot make a real writer wait, and it
     fails exactly when a writer holds the exclusive lock. A missing file is *no build*, never
     unknown (077).
     """
@@ -60,11 +130,11 @@ def build_in_progress(db_path: Path) -> bool:
     except OSError:
         return False
     try:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_SH | fcntl.LOCK_NB)
+        _lock_shared_nb(handle.fileno())
     except OSError:
         return True
     else:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        _unlock(handle.fileno())
         return False
     finally:
         handle.close()
@@ -73,8 +143,9 @@ def build_in_progress(db_path: Path) -> bool:
 def publish_build_progress(db_path: Path, line: str) -> None:
     """Write the holder's progress line into the lock file. Best-effort: never raises.
 
-    Called only by the process holding the lock, on a second descriptor — ``flock`` is per open
-    file description, so this neither takes nor disturbs the lock it writes inside.
+    Called only by the process holding the lock, on a second descriptor. The lock covers a
+    byte past the progress region (or, on POSIX, is per open file description), so this neither
+    takes nor disturbs the lock it writes inside.
     """
     try:
         with lock_path_for(db_path).open("r+", encoding="utf-8") as handle:

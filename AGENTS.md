@@ -101,20 +101,21 @@ the product claim is the *sample* tier over the pinned repos (`--samples`, ~65x)
 the other.
 
 ## Running the full test suite — never report it as unrunnable
-**Platform: POSIX-only — native Windows unsupported; run under WSL2 with the repo on the Linux-native
-fs, never `/mnt/*`.** Decided (task 220); evidence in README.
-The suite needs a **POSIX host** (the index lock imports `fcntl`) and **every adapter**: `php` +
-`composer`, `node` for both the TS and SQL adapters, and a Python ≥ 3.12 interpreter. With all of
+**Runtime supported on native Windows (237, superseding 220); test suite + dev loop stay POSIX** —
+run under WSL2, repo on the Linux-native fs, never `/mnt/*`. Evidence in README.
+The suite needs a **POSIX host** (four tests import `fcntl`/`resource`; since 237 the lock does
+not) and **every adapter**: `php` + `composer`, `node` for both the TS and SQL adapters, and a
+Python ≥ 3.12 interpreter. With all of
 them present bare `pytest` is green and is the fastest route. Missing either condition it goes red —
 **a platform limitation, not a regression** — so don't conclude "the suite can't run"; run it in
-Docker instead: `scripts/docker-test.sh`. **Expected count, verified 2026-09-08 on Linux — this is
-the one place these numbers are kept:** bare `pytest` (with `php` · `composer` · `node` · `docker` on
-PATH) **3,222 passed / 0 skipped**; `scripts/docker-test.sh` **3,221 passed / 1 skipped**, that skip
-being `test_runtime_image_reports_server_build` (shells out to `docker`, impossible in-image).
+Docker instead: `scripts/docker-test.sh`. **Expected count, verified 2026-09-10 on Linux — the one
+place these numbers are kept:** bare `pytest` (with `php` · `composer` · `node` · `docker` on PATH)
+**3,277 passed / 3 skipped**; `scripts/docker-test.sh` **3,276 passed / 4 skipped**. Green skips: the
+Windows lock arm (3) and, in-image only, `test_runtime_image_reports_server_build`.
 
 Prove **delta-green** before a PR and name the host: a red run on a host missing an adapter is the
-exclusion above — confirm green via Docker and say so, never "unverified"; only that named skip is
-green. Ship the server in a container via `docker/Dockerfile.runtime` (stdio; mount at `/workspace`).
+exclusion above — confirm green via Docker and say so, never "unverified". Ship the server in a
+container via `docker/Dockerfile.runtime` (stdio; mount at `/workspace`).
 **Run Docker once, before the PR** — iterate on local `ruff`/`mypy`/`pytest`, batch fixes (review's
 included), then **one** `docker-test.sh`; CI re-verifies, re-running per edit wastes time.
 

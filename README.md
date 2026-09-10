@@ -68,11 +68,11 @@ nav, and code-atlas never mutates code. C#/.NET is on the roadmap, not shipped.
 
 ## Quick start
 
-**Platform: POSIX only (Linux, macOS, WSL2).** Native Windows is unsupported — the index lock imports
-`fcntl`, so every entry point raises `ModuleNotFoundError` at startup; run it under **WSL2** instead.
-On WSL, keep the repo *and* its `.code-atlas/` DB on the **Linux-native filesystem** (`~/…`), never on
-`/mnt/c` or `/mnt/d`: a repo on the Windows drive crosses the 9p boundary on every read and indexes
-~100× slower — [measured](docs/tasks/220_no-windows-evidence-exists-and-the-core-cannot-import-there.md).
+**Platform: runs on Linux, macOS, and native Windows.** For heavy indexing on Windows, WSL2 on the
+Linux-native filesystem is recommended: a repo under `/mnt/*` crosses the 9p boundary (~100× slower —
+[measured](docs/tasks/220_no-windows-evidence-exists-and-the-core-cannot-import-there.md)), and
+Defender's real-time scan adds a large cold-read cost — exclude the repo path or use a Dev Drive. The
+startup preflight warns about the `/mnt/*` case; the Defender cost it cannot see. The **test and dev loop is POSIX-only** — run it under WSL2 or Docker.
 
 You need **Python ≥ 3.12**, plus the runtime of whichever language you want to index: a **PHP CLI ≥
 8.1** with **[Composer](https://getcomposer.org/)** for PHP, **Node.js ≥ 18** for TypeScript/JavaScript
@@ -129,6 +129,37 @@ docker build -f docker/Dockerfile.runtime -t code-atlas-server .
 
 MCP speaks over stdio, so `-i` is required; the server indexes `/workspace`, so mount the repo
 there. Add `"--user", "1000:1000"` to keep `.code-atlas/` writes owned by you. See [`docker/`](docker/).
+</details>
+
+<details>
+<summary>On native Windows</summary>
+
+The runtime is fully supported; setup differs only in path/quoting and the checks the startup preflight
+surfaces at build time — long paths, `core.autocrlf`, and an adapter missing from `PATH`.
+
+- **Adapter command — prefer the list form in `.code-atlas.toml`**, so a Windows path's backslashes are
+  never eaten by POSIX quoting:
+
+  ```toml
+  [adapter_cmd]
+  typescript = ["node", "C:\\code-atlas\\adapters\\typescript\\index.js", "--server"]
+  python     = ["python", "C:\\code-atlas\\adapters\\python\\index.py", "--server"]
+  ```
+
+  Or set the env var in PowerShell: `$env:CA_TYPESCRIPT_CMD = 'node C:\code-atlas\adapters\typescript\index.js --server'`.
+- **Enable long paths** so deep `vendor/` / `node_modules/` trees don't hit the 260-char limit (admin,
+  then reboot): `Set-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' LongPathsEnabled 1`.
+- **Set `core.autocrlf=false`** for the indexed repo — otherwise a `graph.db` built elsewhere sees every
+  file as changed and reparses the world.
+- **Speed:** exclude the repo from Defender real-time scan (admin: `Add-MpPreference -ExclusionPath 'C:\path\to\repo'`)
+  or put it on a **Dev Drive** — the AV scan dominates cold reads. For very large repos, WSL2 on the
+  Linux-native filesystem is fastest.
+- **PHP repos** need `php` + `composer` on `PATH`, or the PHP files are skipped (the preflight says so) —
+  use WSL2 or the container if you can't install them natively.
+
+`code-atlas-build` warns for each of these it can detect — long paths, `core.autocrlf`, a missing
+adapter runtime, a `/mnt/*` repo on WSL. **Defender and Dev Drive it cannot detect**; those two are on
+you. A clean host prints nothing.
 </details>
 
 Onboarding a **large legacy repo** — where the first build takes minutes and one knob decides
