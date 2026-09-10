@@ -4,7 +4,7 @@ slug: native-windows-was-declined-on-a-defender-setting-not-a-platform-limit
 title: 'The only POSIX-only import in the core has a documented Windows equivalent that keeps 072''s property, and the "unusably slow" row was measured with Defender scanning every open — so 220 declined native Windows on a configuration, not a platform limit'
 phase: 1.5b
 milestone: Adoption
-status: in-progress
+status: done
 depends_on: [220, 072, 053, 219]
 ---
 
@@ -602,4 +602,4 @@ LEDGER TOTAL: 137,345 tokens measured (+2 dispatches stopped by the user, unmeas
 
 ### Session status
 
-- **KEY:** 237 · **work_doc_mode:** embed · **Current phase:** finalise complete — **PR [#308](https://github.com/cuongdinhngo/code-atlas/pull/308) open** · **Next action:** maintainer reviews + merges (merge withheld — irreversible). On merge: status→done, remove the BACKLOG row (ledger row carries it). Revert = close #308 / drop `feat/237-native-windows` (9 commits off 58b542c). No CI checks reported (Actions unbillable); local Docker at 7e88352 is the verification.
+- **KEY:** 237 · **work_doc_mode:** embed · **Current phase:** closed — **PR [#308](https://github.com/cuongdinhngo/code-atlas/pull/308) merged 2026-09-10** as `8787174`, status→done, BACKLOG row removed (the ledger row carries it). Rebased onto `main` before merge; review on the PR fixed four items (`/mnt/*` warned off-WSL; README claimed a Defender check the preflight has not got; AGENTS.md's stale `fcntl` reason and stale counts) and re-paid PLAN's budget for the 237+238 entry pair. Revert = `git revert 8787174`. No CI checks reported (Actions unbillable); bare `pytest` **3,277 / 3** and `docker-test.sh` **3,276 / 4** on the merged tree are the verification. Open follow-up: declare `argtypes`/`restype` on `LockFileEx`/`UnlockFileEx`, on a Windows host.
