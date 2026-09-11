@@ -243,6 +243,9 @@ def full_build(
     finally:
         watchdog.stop()
 
+    # 247: ALTER-file PK/nullability/identity sparse Columns fold onto the typed CREATE row.
+    store.fold_column_extras()
+
     # No FTS rebuild here: §10's triggers keep `nodes_fts` current through every replace, so a
     # rebuild per build would cost a full re-index and change nothing (deviation D1).
     # The late writers link every bare edge, so the graph is not finished until they return.
@@ -429,6 +432,10 @@ def incremental_update(
             affected.update(store.qnames_in_files(gone))
             affected.update(gone)
             dependents = set(store.file_paths_targeting(sorted(affected))) & wanted
+            # A key folded in from another file leaves no edge to follow, only the provenance the
+            # fold wrote — re-parse those files or the delta drops the key for good (247).
+            folded_sources = store.file_paths_contributing_column_extras(sorted(affected))
+            dependents |= set(folded_sources) & wanted
             removed = _reconcile(store, kept)
             _phase_add(phase_times, "reconcile", mark)
 
@@ -514,6 +521,9 @@ def incremental_update(
     # writers would only re-derive rows already present — full-graph work that was the ~56 s floor
     # and the 6,071-edge no-op number (task 080). Skip them; ``wrote.*`` then means the delta.
     if to_parse or removed:
+        # Scope the fold to what this delta touched — before and after the parse, since a
+        # newly added ALTER file's qnames were in neither the old graph nor `affected`.
+        store.fold_column_extras(sorted(affected | set(store.qnames_in_files(to_parse))))
         _count_late_writes(
             counts,
             config,

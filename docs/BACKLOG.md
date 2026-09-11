@@ -23,8 +23,8 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099 |
-| 247 | [The SQL column reader keeps type and DEFAULT and discards nullability, IDENTITY and PRIMARY KEY](tasks/247_the-column-reader-keeps-type-and-default-and-discards-nullability-identity-and-primary-key.md) | Coverage | todo | 022, 228, 239 |
 | 250 | [No call shows what a node actually holds, so an uncaptured fact is indistinguishable from an unexposed one](tasks/250_no-call-shows-what-a-node-actually-holds.md) | Honesty | todo | 247, 231, 244 |
+| 254 | [A column points at its table's CREATE line, not at itself](tasks/254_a-column-points-at-its-table-s-create-line-not-at-itself.md) | Coverage | todo | 247, 248 |
 
 ## Open work — Pillar 2 · Onboarding
 

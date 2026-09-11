@@ -550,6 +550,112 @@ class GraphStore:
             self._insert(EDGES, edge_groups)
         return deduped
 
+    def fold_column_extras(self, qnames: Sequence[str] | None = None) -> int:
+        """Merge sparse Column.extra enrichment onto the typed row of the same qname (247 AC3).
+
+        An ``ALTER … PRIMARY KEY`` in another file cannot reach the CREATE Column under
+        ``UNIQUE(qualified_name, file_path)``. Rows with no ``data_type``/``type`` that carry
+        ``nullable`` / ``identity`` / ``primary_key`` contribute those keys onto every typed
+        Column of that qname, then the sparse rows are deleted. True duplicate typed decls are
+        left alone. Returns the number of sparse rows removed.
+
+        Matching is case-insensitive: SQL identifiers are, so ``PRIMARY KEY (id)`` names the
+        column declared ``Id`` — folding by exact spelling would leave a typeless phantom column
+        behind and drop the key. ``qnames`` restricts the fold to those columns; the delta path
+        passes what it touched rather than rescanning every Column in the graph.
+
+        Each fold records its contributing files in ``extras_from`` on the typed row. That is the
+        only trace left once the sparse rows are gone, and it is what lets an incremental re-parse
+        of the CREATE file recover a key declared in another file (see
+        ``file_paths_contributing_column_extras``).
+        """
+        enrich_keys = ("nullable", "identity", "primary_key")
+        sql = "SELECT id, qualified_name, file_path, extra FROM nodes WHERE kind = ?"
+        params: list[object] = ["Column"]
+        wanted = {q.casefold() for q in qnames} if qnames is not None else None
+        rows = self._conn.execute(sql, params).fetchall()
+        by_qname: dict[str, list[tuple[int, str, str, dict[str, object], bool]]] = {}
+        for node_id, qname, file_path, raw in rows:
+            key = str(qname).casefold()
+            if wanted is not None and key not in wanted:
+                continue
+            try:
+                extra = json.loads(raw) if isinstance(raw, str) and raw else {}
+            except json.JSONDecodeError:
+                extra = {}
+            if not isinstance(extra, dict):
+                extra = {}
+            has_type = bool(extra.get("data_type") or extra.get("type"))
+            by_qname.setdefault(key, []).append(
+                (int(node_id), str(qname), str(file_path), extra, has_type)
+            )
+
+        deleted = 0
+        with self._conn:
+            for group in by_qname.values():
+                typed = [g for g in group if g[4]]
+                sparse = [g for g in group if not g[4]]
+                if not typed or not sparse:
+                    continue
+                enrich: dict[str, object] = {}
+                sources: set[str] = set()
+                for _, _, file_path, extra, _ in sparse:
+                    contributed = False
+                    for key in enrich_keys:
+                        if key in extra:
+                            enrich[key] = extra[key]
+                            contributed = True
+                    if contributed:
+                        sources.add(file_path)
+                if not enrich:
+                    continue
+                for node_id, _, file_path, extra, _ in typed:
+                    merged = dict(extra)
+                    merged.update(enrich)
+                    merged["extras_from"] = sorted(sources - {file_path})
+                    if not merged["extras_from"]:
+                        del merged["extras_from"]
+                    self._conn.execute(
+                        "UPDATE nodes SET extra = ? WHERE id = ?",
+                        (stored(merged), node_id),
+                    )
+                for node_id, qname, file_path, _, _ in sparse:
+                    # Drop any CONTAINS the sparse ALTER file may have emitted for this qname.
+                    self._conn.execute(
+                        "DELETE FROM edges WHERE kind = 'CONTAINS' AND file_path = ? "
+                        "AND (target_raw = ? OR target_qname = ?)",
+                        (file_path, qname, qname),
+                    )
+                    self._conn.execute("DELETE FROM nodes WHERE id = ?", (node_id,))
+                    deleted += 1
+        return deleted
+
+    def file_paths_contributing_column_extras(self, qnames: Sequence[str]) -> tuple[str, ...]:
+        """Files a previous fold consumed for these Column qnames (247).
+
+        The fold deletes the sparse rows it merges, so nothing in the graph would otherwise say
+        that an ``ALTER … PRIMARY KEY`` file contributes to a column declared elsewhere — and an
+        incremental that re-parses only the CREATE file would drop the key for good. The delta
+        re-parses these alongside it.
+        """
+        wanted = {q.casefold() for q in qnames}
+        if not wanted:
+            return ()
+        out: set[str] = set()
+        for (qname, raw) in self._conn.execute(
+            "SELECT qualified_name, extra FROM nodes WHERE kind = 'Column' AND extra LIKE ?",
+            ("%extras_from%",),
+        ):
+            if str(qname).casefold() not in wanted:
+                continue
+            try:
+                extra = json.loads(raw) if isinstance(raw, str) and raw else {}
+            except json.JSONDecodeError:
+                continue
+            if isinstance(extra, dict):
+                out.update(str(p) for p in extra.get("extras_from", []) if isinstance(p, str))
+        return tuple(sorted(out))
+
     def _insert(self, table: str, groups: dict[tuple[str, ...], list[tuple[object, ...]]]) -> None:
         """One statement per distinct field set, so a column §10 gives a DEFAULT keeps it."""
         for present, values in groups.items():

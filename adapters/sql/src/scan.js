@@ -14,7 +14,7 @@ const PENDING_CAP = 256 * 1024;
 /**
  * @typedef {{kind: string, name: string, qualified_name: string, file_path: string,
  *   line_start: number, line_end: number, modifiers: string[], params: unknown[],
- *   is_test: boolean, extra: Record<string, string>}} Node
+ *   is_test: boolean, extra: Record<string, unknown>}} Node
  * @typedef {{kind: string, source_qname: string, target_raw: string, file_path: string,
  *   line: number, confidence_tier: string, args?: (string|null)[],
  *   arg_keys?: (string[]|null)[]}} Edge
@@ -399,7 +399,9 @@ function parseFile(qpath) {
   /**
    * @param {string} tableQname
    * @param {{name: string, dataType: string, dflt: string|null, delimited?: boolean,
-   *   references?: {table: string, columns: string[]|null}|null}} col
+   *   references?: {table: string, columns: string[]|null}|null,
+   *   nullable?: boolean, identity?: {seed: number, increment: number},
+   *   primaryKey?: number}} col
    * @param {number} line
    */
   const column = (tableQname, col, line) => {
@@ -409,7 +411,7 @@ function parseFile(qpath) {
     }
     const qname = `${tableQname}::${col.name}`;
     const seen = columns.get(qname);
-    /** @type {Record<string, string>} */
+    /** @type {Record<string, unknown>} */
     const extra = {};
     if (col.dataType !== "") {
       // `data_type` is SQL's spelling (CONVENTION §1); `type` is the cross-language key
@@ -418,9 +420,12 @@ function parseFile(qpath) {
       extra["type"] = col.dataType;
     }
     if (col.dflt !== null) extra["default"] = col.dflt;
+    if (col.nullable !== undefined) extra["nullable"] = col.nullable;
+    if (col.identity !== undefined) extra["identity"] = col.identity;
+    if (col.primaryKey !== undefined) extra["primary_key"] = col.primaryKey;
     if (seen) {
       // The other DEFAULT spelling arrives after the column itself; fill it in rather than
-      // emitting a second node for the same column (022 AC5).
+      // emitting a second node for the same column (022 AC5). Same merge for PK/nullability.
       Object.assign(seen.extra, extra);
       return;
     }
@@ -431,13 +436,33 @@ function parseFile(qpath) {
     };
     columns.set(qname, node);
     nodes.push(node);
-    edges.push({
-      kind: "CONTAINS", source_qname: tableQname, target_raw: qname,
-      file_path: qpath, line, confidence_tier: "RESOLVED",
-    });
+    // Sparse PK/nullability enrichment from another file must not add a second CONTAINS —
+    // the typed CREATE row already owns the table→column edge (247 AC3 fold).
+    const enrichmentOnly =
+      col.dataType === "" && col.dflt === null && !col.references
+      && (col.primaryKey !== undefined || col.nullable !== undefined || col.identity !== undefined);
+    if (!enrichmentOnly) {
+      edges.push({
+        kind: "CONTAINS", source_qname: tableQname, target_raw: qname,
+        file_path: qpath, line, confidence_tier: "RESOLVED",
+      });
+    }
     if (col.references) {
       references(tableQname, [col.name], col.references.table, col.references.columns, line);
     }
+  };
+
+  /**
+   * Mark PK membership ordinals on the named columns (1-based). Sparse when the column was
+   * declared in another file — the indexer folds extras onto the typed row (247 AC3).
+   * @param {string} tableQname
+   * @param {string[]} pkColumns
+   * @param {number} line
+   */
+  const applyPrimaryKey = (tableQname, pkColumns, line) => {
+    pkColumns.forEach((name, i) => {
+      column(tableQname, { name, dataType: "", dflt: null, primaryKey: i + 1 }, line);
+    });
   };
 
   /**
@@ -491,7 +516,8 @@ function parseFile(qpath) {
       if (!qname) return;
       // 236: a standalone `ALTER TABLE t ADD [CONSTRAINT n] FOREIGN KEY (...) REFERENCES ...` is a
       // constraint object, not a (re)definition of t — emit a ForeignKey node, never a Table row.
-      // A DEFAULT constraint (`named`) and a plain ADD <column> still need t's node; only FK exits.
+      // 247: the same for `PRIMARY KEY (...)` — mark Column.extra, never a second Table row.
+      // A DEFAULT constraint (`named`) and a plain ADD <column> still need t's node; only FK/PK exit.
       if (!isCreate && !named) {
         const add = /\badd\s+/i.exec(buf.slice(target.next));
         if (add) {
@@ -499,7 +525,17 @@ function parseFile(qpath) {
           const colKw = /^\s*column\s+/i.exec(tail);
           if (colKw) tail = tail.slice(colKw[0].length);
           const fk = ddl.readForeignKeyDef(tail);
-          if (fk) { foreignKey(qname, fk, line); return; }
+          const pk = fk ? null : ddl.readPrimaryKeyDef(tail);
+          if (fk || pk) {
+            // Same reserved-name gate as `table()` — do not enrich a bare keyword as a host.
+            if (ddl.isReservedObjectName(lastSegment(qname, "."), target.delimited)) {
+              refusedName = true;
+              return;
+            }
+            if (fk) { foreignKey(qname, fk, line); return; }
+            if (pk) applyPrimaryKey(qname, pk.columns, line);
+            return;
+          }
         }
       }
       const tbl = table(qname, line, isCreate, target.delimited);
@@ -518,6 +554,9 @@ function parseFile(qpath) {
         for (const fk of ddl.readForeignKeys(body.body)) {
           references(qname, fk.fromColumns, fk.toTable, fk.toColumns, line);
         }
+        for (const pk of ddl.readPrimaryKeys(body.body)) {
+          applyPrimaryKey(qname, pk.columns, line);
+        }
         return;
       }
       const added = /\badd\s+/i.exec(buf.slice(target.next));
@@ -528,6 +567,10 @@ function parseFile(qpath) {
         if (colKw) rest = rest.slice(colKw[0].length);
         const col = ddl.readColumnDef(rest);
         if (col) column(qname, col, line);
+        else {
+          const pk = ddl.readPrimaryKeyDef(rest);
+          if (pk) applyPrimaryKey(qname, pk.columns, line);
+        }
       }
       return;
     }

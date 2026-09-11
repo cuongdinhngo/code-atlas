@@ -133,9 +133,12 @@ function readParens(text, i) {
 /**
  * One column definition read out of a table body, or null when the entry is a table constraint.
  * Inline ``REFERENCES T[(cols)]`` is captured on ``references``; table-level FK entries stay null.
+ * Nullability / IDENTITY / inline PRIMARY KEY ride optional fields (omit when the DDL is silent).
  * @param {string} def
  * @returns {{name: string, dataType: string, dflt: string|null, delimited: boolean,
- *   references: {table: string, columns: string[]|null}|null}|null}
+ *   references: {table: string, columns: string[]|null}|null,
+ *   nullable?: boolean, identity?: {seed: number, increment: number},
+ *   primaryKey?: number}|null}
  */
 function readColumnDef(def) {
   const first = readIdent(def, 0);
@@ -156,13 +159,90 @@ function readColumnDef(def) {
     }
   }
   const rest = def.slice(cursor);
-  return {
+  /** @type {{name: string, dataType: string, dflt: string|null, delimited: boolean,
+   *   references: {table: string, columns: string[]|null}|null,
+   *   nullable?: boolean, identity?: {seed: number, increment: number}, primaryKey?: number}} */
+  const out = {
     name: first.name,
     dataType,
     dflt: readDefault(rest),
     delimited: first.delimited,
     references: readInlineReferences(rest),
   };
+  const nullable = readNullability(rest);
+  if (nullable !== undefined) out.nullable = nullable;
+  const identity = readIdentity(rest);
+  if (identity !== undefined) out.identity = identity;
+  if (/\bprimary\s+key\b/i.test(rest)) out.primaryKey = 1;
+  return out;
+}
+
+/**
+ * Explicit ``NULL`` / ``NOT NULL`` in a column's trailing clauses, or undefined when neither.
+ * Session default nullability is unmeasured (R5.6) — never invent ``true``.
+ * ``DEFAULT (NULL)`` is a default expression, not a nullability clause — strip DEFAULT first.
+ * @param {string} rest
+ * @returns {boolean|undefined}
+ */
+function readNullability(rest) {
+  const withoutDefault = stripDefaultClause(rest);
+  if (/\bnot\s+null\b/i.test(withoutDefault)) return false;
+  // A bare NULL token as a column attribute (not inside another word).
+  if (/(?:^|[^\w])null(?:[^\w]|$)/i.test(withoutDefault)) return true;
+  return undefined;
+}
+
+/**
+ * Remove a ``DEFAULT …`` clause from trailing column text so later attribute scans do not
+ * mistake ``DEFAULT (NULL)`` for a nullability clause.
+ * @param {string} rest
+ * @returns {string}
+ */
+function stripDefaultClause(rest) {
+  const m = /\bdefault\b/i.exec(rest);
+  if (!m) return rest;
+  const start = m.index;
+  let j = m.index + m[0].length;
+  const parens = readParens(rest, j);
+  if (parens) {
+    return rest.slice(0, start) + " " + rest.slice(parens.next);
+  }
+  // Bare ``DEFAULT NULL`` — NULL is the *value*, not a nullability clause. Consume it first;
+  // AFTER_DEFAULT still ends later attributes (``DEFAULT getdate() NULL``).
+  const litNull = /^\s*null\b/i.exec(rest.slice(j));
+  if (litNull) {
+    j += litNull[0].length;
+    return rest.slice(0, start) + " " + rest.slice(j);
+  }
+  // Bare DEFAULT expr ends at the next attribute keyword (same set as AFTER_DEFAULT).
+  let depth = 0;
+  while (j < rest.length) {
+    const word = /^\s*([A-Za-z_][\w]*)/.exec(rest.slice(j));
+    if (word && depth === 0 && AFTER_DEFAULT.has((word[1] ?? "").toLowerCase())) break;
+    const ch = rest[j] ?? "";
+    if (ch === "(") depth += 1;
+    else if (ch === ")") depth -= 1;
+    j += 1;
+  }
+  return rest.slice(0, start) + " " + rest.slice(j);
+}
+
+/**
+ * T-SQL ``IDENTITY`` or ``IDENTITY(seed, increment)``. Bare IDENTITY uses the grammar default (1,1).
+ * Refuses Postgres ``GENERATED … AS IDENTITY`` — that is not this dialect (228).
+ * @param {string} rest
+ * @returns {{seed: number, increment: number}|undefined}
+ */
+function readIdentity(rest) {
+  // Require IDENTITY not preceded by AS (GENERATED … AS IDENTITY) within the preceding token run.
+  const m = /(?:^|[^\w])identity\b\s*(?:\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\))?/i.exec(rest);
+  if (!m) return undefined;
+  const before = rest.slice(0, m.index).trimEnd();
+  if (/\bas$/i.test(before)) return undefined;
+  if (m[1] !== undefined && m[2] !== undefined) {
+    return { seed: Number(m[1]), increment: Number(m[2]) };
+  }
+  return { seed: 1, increment: 1 };
 }
 
 /**
@@ -261,6 +341,59 @@ function readForeignKeys(body) {
 }
 
 /**
+ * One table-level ``PRIMARY KEY`` / ``CONSTRAINT … PRIMARY KEY`` entry, or null.
+ * ``NOT_A_COLUMN`` correctly refuses these as columns; this reader is the second pass.
+ * @param {string} def
+ * @returns {{name: string|null, columns: string[]}|null}
+ */
+function readPrimaryKeyDef(def) {
+  let j = 0;
+  let name = null;
+  const first = readIdent(def, 0);
+  if (!first) return null;
+  const word = first.name.toLowerCase();
+  if (word === "constraint") {
+    const named = readIdent(def, first.next);
+    if (!named) return null;
+    name = named.name;
+    j = named.next;
+  } else if (word === "primary") {
+    j = 0;
+  } else {
+    return null;
+  }
+  const primary = readIdent(def, j);
+  if (!primary || primary.name.toLowerCase() !== "primary") return null;
+  const key = readIdent(def, primary.next);
+  if (!key || key.name.toLowerCase() !== "key") return null;
+  let afterKey = key.next;
+  // Optional CLUSTERED / NONCLUSTERED between KEY and the column list (T-SQL table_constraint).
+  const clustered = readIdent(def, afterKey);
+  if (clustered && /^(?:non)?clustered$/i.test(clustered.name)) {
+    afterKey = clustered.next;
+  }
+  const cols = readParens(def, afterKey);
+  if (!cols) return null;
+  const columns = readIdentList(cols.body);
+  if (columns.length === 0) return null;
+  return { name, columns };
+}
+
+/**
+ * Every table-level primary key declared in a CREATE TABLE body, in source order.
+ * @param {string} body
+ * @returns {{columns: string[]}[]}
+ */
+function readPrimaryKeys(body) {
+  const out = [];
+  for (const def of splitTopLevel(body, ",")) {
+    const pk = readPrimaryKeyDef(def);
+    if (pk) out.push(pk);
+  }
+  return out;
+}
+
+/**
  * The DEFAULT expression as written in `rest`, or null when there is none.
  * @param {string} rest
  * @returns {string|null}
@@ -271,6 +404,10 @@ function readDefault(rest) {
   let j = m.index + m[0].length;
   const parens = readParens(rest, j);
   if (parens) return rest.slice(j, parens.next).trim();
+
+  // Bare ``DEFAULT NULL`` — NULL is the default *value*, not an AFTER_DEFAULT terminator.
+  const litNull = /^\s*(null)\b/i.exec(rest.slice(j));
+  if (litNull) return litNull[1];
 
   let depth = 0;
   let expr = "";
@@ -290,7 +427,7 @@ function readDefault(rest) {
 /**
  * The columns a table body declares, in source order.
  * @param {string} body
- * @returns {{name: string, dataType: string, dflt: string|null}[]}
+ * @returns {NonNullable<ReturnType<typeof readColumnDef>>[]}
  */
 function readColumns(body) {
   const out = [];
@@ -404,5 +541,6 @@ function isReservedObjectName(name, delimited) {
 module.exports = {
   readColumns, readColumnDef, readDefault, readInsert, readUpdate, readNamedDefault,
   readForeignKeys, readForeignKeyDef, readInlineReferences,
+  readPrimaryKeys, readPrimaryKeyDef, readNullability, readIdentity,
   readIdent, readQualified, readParens, splitTopLevel, isReservedObjectName, NOT_A_COLUMN,
 };
