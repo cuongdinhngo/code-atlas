@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from pathlib import Path
 from typing import Literal
 
 from code_atlas import contract
 from code_atlas.build_info import maybe_server_provenance
-from code_atlas.config import Config
+from code_atlas.config import Config, clamp_limit
 from code_atlas.onboarding.class_diagram import parse_json_field
 from code_atlas.source_slice import declaration_slice
 from code_atlas.store import GraphStore
@@ -29,14 +30,19 @@ from code_atlas.tools.nav_result import (
     TRY_INSTEAD_HINT_MEMBER_SEPARATOR,
     TRY_INSTEAD_SEARCH_SYMBOL,
     attach_ambiguous_definitions,
+    attach_limit_capped,
     attach_name_not_qualified,
     attach_next_tools,
+    attach_result_kinds,
     attach_try_instead,
     classify_missing_subject,
     definition_sites,
     is_stub,
     shape_exact_miss,
 )
+
+# One page of CONTAINS edges for a Table — not the answer page; paging is separate (248).
+_CONTAINS_WALK = 10_000
 
 NAME = "read_symbol"
 
@@ -46,7 +52,12 @@ DetailLevel = Literal["minimal", "standard"]
 def create(config: Config) -> Callable[..., dict[str, object]]:
     """Bind the tool to one repo's configuration."""
 
-    def read_symbol(qname: str, detail_level: DetailLevel = "standard") -> dict[str, object]:
+    def read_symbol(
+        qname: str,
+        detail_level: DetailLevel = "standard",
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> dict[str, object]:
         """Read just one symbol's source and its doc comment, without opening the whole file.
 
         ``standard`` returns ``line_start…line_end`` for ``qname`` plus the contiguous comment
@@ -55,7 +66,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         **callable** hit also carries ``params`` (name + declared type, adapter spelling) when the
         language's adapter stamps that capability; otherwise ``params_not_captured_by_adapter`` —
         never an empty list that reads as "takes no arguments" (242 / R5.6). ``minimal``, and every
-        non-callable kind, omit both (061). On
+        non-callable kind, omit both (061). A found **Table** at ``standard`` carries a paged
+        ``columns`` list (name + declared type + ``DEFAULT`` when present) from ``CONTAINS``, in
+        DDL order — never the CREATE header as the product; a table with no indexed columns says
+        so rather than returning an empty list (248 / 061). ``limit`` / ``offset`` page that list
+        only; other kinds ignore them. On
         hash drift, reparses that one file inline (035); returns ``stale: true`` and
         ``reason=index_stale`` when the file is missing, no adapter owns it, or repair fails.
         Stub-indexed nodes carry ``stub: true`` (039). A qname with more than one definition
@@ -65,6 +80,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``file_outline``. An untracked indexable file matching the subject is
         ``reason=not_indexed`` (092).
         """
+        if offset < 0:
+            raise ValueError(f"offset must be >= 0, got {offset}")
         if not config.db_path.is_file():
             return _empty(
                 qname,
@@ -175,10 +192,90 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             )
             if detail_level == "standard":
                 _attach_params(payload, store, node, rel)
+                _attach_columns(payload, store, node, config=config, limit=limit, offset=offset)
             attach_other_indexed_files_drifted(payload, guard)
             return attach_next_tools(payload, str(node["kind"]))
 
     return read_symbol
+
+
+def _attach_columns(
+    payload: dict[str, object],
+    store: GraphStore,
+    node: dict[str, object],
+    *,
+    config: Config,
+    limit: int | None,
+    offset: int,
+) -> None:
+    """Surface a Table's columns via CONTAINS; non-Table stays byte-identical (248 / 061)."""
+    if str(node["kind"]) != contract.TABLE_KIND:
+        return
+    # The CREATE header is a point, not the product — columns are the answer (AC1).
+    payload["source"] = ""
+    edges = store.edges_by_source(
+        str(node["qualified_name"]),
+        kinds=(contract.CONTAINS,),
+        limit=_CONTAINS_WALK,
+    )
+    if len(edges) >= _CONTAINS_WALK:
+        # Past one walk the column list and `total_count` are both short. Say so rather than let a
+        # capped scan read as the whole table (R5.6).
+        payload["columns_scan_capped_to"] = _CONTAINS_WALK
+    # `_EDGE_ORDER` alphabetises target_raw; edge id preserves DDL emission order (scan.js).
+    # Filter to Column before paging — Table also CONTAINS ForeignKey (scan.js / 236).
+    candidates: list[str] = []
+    seen: set[str] = set()
+    for edge in sorted(edges, key=lambda row: int(str(row["id"]))):
+        qname = str(edge.get("target_qname") or edge["target_raw"])
+        if qname in seen:
+            continue
+        seen.add(qname)
+        candidates.append(qname)
+    found_all = (
+        store.nodes_by_qualified_names(candidates, kind=contract.COLUMN_KIND, limit=1)
+        if candidates
+        else {}
+    )
+    ordered = [qname for qname in candidates if found_all.get(qname)]
+    if not ordered:
+        payload["no_indexed_columns"] = True
+        return
+    cap, clamped = clamp_limit(limit, config.max_results)
+    page_qnames = ordered[offset : offset + cap]
+    columns = [_column_row(found_all[qname][0]) for qname in page_qnames]
+    total = len(ordered)
+    payload["columns"] = columns
+    payload["total_count"] = total
+    payload["results_offset"] = offset
+    truncated = offset + len(page_qnames) < total
+    payload["truncated"] = truncated
+    attach_limit_capped(payload, cap=cap, clamped=clamped)
+    if truncated:
+        attach_result_kinds(payload, {contract.COLUMN_KIND: total})
+
+
+def _column_row(node: dict[str, object]) -> dict[str, object]:
+    """One column: name + declared type + DEFAULT when present. Never invent 247 fields (R5.6)."""
+    entry: dict[str, object] = {"name": str(node["name"])}
+    extra_raw = node.get("extra")
+    extra: dict[str, object] = {}
+    if isinstance(extra_raw, str) and extra_raw:
+        try:
+            parsed = json.loads(extra_raw)
+        except json.JSONDecodeError:
+            parsed = None
+        if isinstance(parsed, dict):
+            extra = parsed
+    elif isinstance(extra_raw, dict):
+        extra = extra_raw
+    typ = extra.get("type") or extra.get("data_type")
+    if isinstance(typ, str) and typ:
+        entry["type"] = typ
+    default = extra.get("default")
+    if isinstance(default, str):
+        entry["default"] = default
+    return entry
 
 
 def _attach_params(

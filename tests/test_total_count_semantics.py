@@ -21,6 +21,7 @@ from code_atlas.tools import (
     find_references,
     find_view_data,
     guided_tour,
+    read_symbol,
     search_symbol,
 )
 from tests.test_nav_tools import edge, node
@@ -149,6 +150,9 @@ def _call(name: str, config: Config) -> dict[str, object]:
         return find_orphans.create(config)(detail_level="minimal")
     if name == "check_column_defaults":
         return check_column_defaults.create(config)(table=TABLE, detail_level="minimal")
+    if name == "read_symbol":
+        # A Table pages its columns, and only at ``standard`` (248).
+        return read_symbol.create(config)(TABLE, detail_level="standard")
     raise AssertionError(name)
 
 
@@ -164,6 +168,7 @@ TOTAL_COUNT_TOOLS = [
     "architecture_overview",
     "find_orphans",
     "check_column_defaults",
+    "read_symbol",
 ]
 
 
@@ -177,7 +182,10 @@ def test_truncated_payload_reports_true_total_not_page_length(
     # The fixture seeds > CEILING rows for every arm, so a false ``truncated`` here means the
     # seed stopped covering that tool — the assertion below must never go vacuous.
     assert result["truncated"] is True, result
-    assert int(result["total_count"]) > len(result["results"])
+    # Most emitters name the page ``results``; ``read_symbol`` pages a Table's ``columns`` (248).
+    page = result.get("results", result.get("columns"))
+    assert isinstance(page, list), result
+    assert int(result["total_count"]) > len(page)
 
 
 # Helpers, not emitters: ``nav_result``/``claim``/``reach_shared`` shape or read the field for

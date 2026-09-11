@@ -101,6 +101,10 @@ IMPL_KINDS: tuple[str, ...] = ("EXTENDS", "IMPLEMENTS")
 INHERIT_KINDS: tuple[str, ...] = ("EXTENDS", "IMPLEMENTS", "USES_TRAIT")
 # Contained members a class box lists (144).
 CLASS_MEMBER_KINDS: tuple[str, ...] = ("Method", "Property", "ClassConst")
+# Schema container whose members ride CONTAINS — kind branch, never language (248 / R1.1).
+TABLE_KIND = "Table"
+COLUMN_KIND = "Column"
+CONTAINS = "CONTAINS"
 # find_references honesty evidence (065) — kinds that may still be bare after resolve.
 # REFERENCES is also FQN-linked (094); leftovers (or planted unlinked rows) still count.
 UNMODELLED_REFERENCE_KINDS: tuple[str, ...] = ("REFERENCES", "IMPORTS")

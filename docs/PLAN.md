@@ -494,7 +494,7 @@ their task files and [`design/`](design/). A per-tool count in prose here is R6.
 | `build_or_update_index` | builds/refreshes; returns `wrote` (this run's writes) + timing, and at `standard` `graph`, so a delta isn't read as repo size (051/060). Every refusal is a payload naming its route, never a raise: a concurrent writer is `mode: "busy"` with the loser's staleness (072), no usable adapter `mode: "refused"` (064/079), and an unbounded escalation — a vocabulary era behind (201), or an index a killed build left incomplete (202) — the same way, in-band |
 | `search_symbol` | FTS + name ranking; stub hits declare themselves (039); a zero hit may miss-repair the sole dirty file or report `index_stale` rather than answer a confident zero (073). **`queries` sweeps N subjects in one call** (101). At `standard`, a `Column` FK hit names its target from existing `REFERENCES` edges: `references` (resolved column) or `references_unresolved` (table only, R5.6) (239) |
 | `file_outline` | line ranges, never bodies — the read is a separate, priced call |
-| `read_symbol` | docblock at `standard`, none at `minimal` (163); stubs declare themselves (039). A qname with >1 definition **refuses the body** and lists the candidates rather than picking one (070 → 078). At `standard`, a **callable** hit carries `params` (name + declared type) when the language stamps capture — else `params_not_captured_by_adapter`, never a lying empty list; a non-callable kind carries neither (242) |
+| `read_symbol` | docblock at `standard`, none at `minimal` (163); stubs declare themselves (039). A qname with >1 definition **refuses the body** and lists the candidates rather than picking one (070 → 078). At `standard`, a **callable** hit carries `params` (name + declared type) when the language stamps capture — else `params_not_captured_by_adapter`, never a lying empty list; a non-callable kind carries neither (242). A **Table** pages `columns` from `CONTAINS` (248) |
 | `find_callers` | opt-in capped call-site source removes a round-trip (037); the argument filter counts what it could not judge in `args_unrecorded` rather than dropping it (049, depth 1 only). Depth 1 enumerates completely; deeper, `total_count` is a floor for that page. Unmodelled `*->L` ⇒ `authoritative: false` even with hits (238) |
 | `find_references` | CALLS/NEW plus `REFERENCES` (`Foo::class`, 094). An all-`DYNAMIC` page sets `authoritative: false` so it reads as a candidate list, not an enumeration |
 | `find_implementations` | EXTENDS/IMPLEMENTS, resolver-linked only |
@@ -957,9 +957,7 @@ design note.
 **Occurrence count** (operator-local; shape only). Clear view-publish sites — `->render` /
 `->display` / `->fetch` / `->setVar` / `$this->view->…=` with string keys, **excluding** the
 ORM-contaminated `->with(` (~3k sites, dominated by eager-load, not view publish) — number
-**100** sites in **35** handler files, key occurrences / distinct keys **296** / **84**. The consumer side is an
-order larger: most view-directory files and most Twig templates read such a key. Per-signal rows and
-the field-session qualitative are in 059.
+**100** sites in **35** handler files, key occurrences / distinct keys **296** / **84** — consumer side larger; detail in 059.
 
 **Why not option 3 (permanent non-goal), and why not option 2 (both sides) yet.** That census is
 common enough to justify a later contract bump, and two independent field sessions named the shape as

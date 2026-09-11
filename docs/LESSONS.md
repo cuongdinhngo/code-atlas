@@ -1509,3 +1509,13 @@ venv or the PHPStan tmpDir is rebuilt from a wrong-cased cwd.*
 | `093-C3` · `089-C1` | `prove-the-guard-fails` | R6.5 |
 | `093-C4` · `100-C1` · `100-C3` | `route-must-answer` | R5.4 |
 | `205-C4` | `wrong-case-venv-breaks-the-gate-launcher` | ? |
+
+## 248 — filter CONTAINS by member kind before paging
+
+- type: 2 (code) · handle: `filter-contains-by-member-kind-before-page`
+- status: proposed · seen: 248
+- evidence: Table CONTAINS both Column and ForeignKey (scan.js / 236). Paging all CONTAINS
+  targets inflated `total_count` and could fake empty column pages (challenger round 1). Filter
+  to `COLUMN_KIND` before `offset`/`cap`.
+- destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)
+
