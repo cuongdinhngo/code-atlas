@@ -3,10 +3,12 @@
 ``minimal`` returns stats, ``last_commit``, staleness, process identity (``server_version`` /
 ``server_build`` / ``server_stale_process`` — 223), and ``next_tool_suggestions`` only when
 non-empty. ``standard`` adds provenance plus index-health (``edge_health``, ``parse_failures``,
-``dirty_indexed_files``). ``parse_failures`` mirrors ``failed`` (files with ``parsed_ok = 0``)
-under the §12 name — same count, not a subset. ``verbose`` is ``standard`` plus a capped
-``parse_failure_paths`` list (task 058) — never on the cheap path. Nothing here opens the
-database when there is none: a read tool must not create an index as a side effect.
+``dirty_indexed_files``) and a bounded ``cross_language`` census (task 243 — ``linked`` /
+``unlinked`` / ``by_tier`` only; ``pairs`` stays inside verbose's ``edge_health_by_language``).
+``parse_failures`` mirrors ``failed`` (files with ``parsed_ok = 0``) under the §12 name — same
+count, not a subset. ``verbose`` is ``standard`` plus a capped ``parse_failure_paths`` list
+(task 058) — never on the cheap path. Nothing here opens the database when there is none: a
+read tool must not create an index as a side effect.
 
 Staleness counts only files the index covers (047): editing a README leaves the graph correct, and
 a signal that says otherwise costs its reader a rebuild that reindexes nothing.
@@ -48,6 +50,8 @@ NAME = "get_index_status"
 DetailLevel = Literal["minimal", "standard", "verbose"]
 # 183's field, named once. Same block the build stamped, so the payload adds no computation.
 EDGE_HEALTH_BY_LANGUAGE_FIELD = "edge_health_by_language"
+# 204's crossing census; 243 surfaces a bounded copy at standard (pairs stay verbose-nested).
+CROSS_LANGUAGE_FIELD = "cross_language"
 
 QUESTION = "indexed-files"
 
@@ -95,7 +99,10 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
         per-source counts that sum to ``skipped.ignore`` (095); omitted when empty or pre-095.
         ``standard``/``verbose`` carry ``unconfigured_adapters`` — adapters that ship in-repo but
         have no launch command, each with the ``CA_<LANG>_CMD`` that enables it; omitted when all
-        are wired (159).
+        are wired (159). On a multi-language index they also carry ``cross_language`` — the
+        build-stamped crossing census without ``pairs`` (243); omitted under two language buckets
+        and on a pre-204 stamp (R5.6 / 061). ``verbose`` still nests the full census (with
+        ``pairs``) inside ``edge_health_by_language``.
 
         ``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
         ``key=value`` line stating how many files this index covers and at which revision. An
@@ -301,6 +308,7 @@ def _status(
     hint = store.count_source_root_hint_imports()
     if hint:
         enriched["source_root_hint_imports"] = hint
+    _attach_cross_language_summary(enriched, store)
     if detail_level == "standard":
         return signed(enriched)
     paths = store.failed_paths(PARSE_FAILURE_PATHS_LIMIT, offset=offset)
@@ -315,6 +323,35 @@ def _status(
     return signed(verbose)
 
 
+def _language_bucket_count(stamped: dict[str, object]) -> int:
+    """How many language buckets the 183 stamp carries, counting ``unattributed`` (183 / 243)."""
+    by_language = stamped.get("by_language")
+    buckets = len(by_language) if isinstance(by_language, dict) else 0
+    if "unattributed" in stamped:
+        buckets += 1
+    return buckets
+
+
+def _attach_cross_language_summary(payload: dict[str, object], store: GraphStore) -> None:
+    """Bounded crossing census at ``standard`` (task 243), or nothing.
+
+    Silent when the stamp is absent (R5.6) and when a single-language graph adds nothing (061).
+    Drops ``pairs`` — that map grows with the square of the language count and stays nested under
+    verbose's ``edge_health_by_language``. One meta read; never a query-time scan (R4.2).
+    """
+    stamped = store.stamped_edge_health_by_language()
+    if stamped is None or _language_bucket_count(stamped) < 2:
+        return
+    census = store.stamped_cross_language_edges()
+    if census is None:
+        return
+    payload[CROSS_LANGUAGE_FIELD] = {
+        "by_tier": census["by_tier"],
+        "linked": census["linked"],
+        "unlinked": census["unlinked"],
+    }
+
+
 def _attach_edge_health_by_language(payload: dict[str, object], store: GraphStore) -> None:
     """The per-language tier mix at verbose, or nothing at all (task 183).
 
@@ -324,13 +361,7 @@ def _attach_edge_health_by_language(payload: dict[str, object], store: GraphStor
     incomplete has something to report even with one language.
     """
     stamped = store.stamped_edge_health_by_language()
-    if stamped is None:
-        return
-    by_language = stamped.get("by_language")
-    buckets = len(by_language) if isinstance(by_language, dict) else 0
-    if "unattributed" in stamped:
-        buckets += 1
-    if buckets < 2:
+    if stamped is None or _language_bucket_count(stamped) < 2:
         return
     payload[EDGE_HEALTH_BY_LANGUAGE_FIELD] = stamped
 

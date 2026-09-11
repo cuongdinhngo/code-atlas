@@ -23,7 +23,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099 |
-| 243 | [The crossing census 221 reads sits at `verbose`; the reader calls `standard`](tasks/243_the-capability-predicate-221-relies-on-is-attached-at-verbose-only.md) | Agent-trust | todo | 221, 238, 204, 183 |
 | 244 | [Honesty delivers in a response, so a non-caller never learns the fix shipped](tasks/244_no-channel-announces-a-capability-change.md) | Adoption | todo | 243, 221, 099, 100 |
 | 245 | [`substring_match` + `truncated` is the one search answer with no route](tasks/245_the-truncated-substring-answer-is-the-one-search-shape-with-no-route.md) | Agent-trust | todo | 167, 065, 093, 123 |
 | 246 | [`ensure_miss` refuses on the count of drifted files, not the subject](tasks/246_ensure-miss-refuses-on-the-count-of-drifted-files-not-on-the-subject.md) | Agent-fit | todo | 073, 166, 035, 057 |

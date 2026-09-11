@@ -95,6 +95,14 @@ now reconciled to this table.
   honesty predicate. R5.6.
 - destination: docs/ENGINEERING_RULES.md (already R5.6)
 
+### 243-C1 — A capability census that only rides `verbose` never reaches the agent that calls `get_index_status` at default `standard`
+- type: 2 (heuristic)
+- status: proposed (awaiting human confirm)
+- evidence: `get_index_status.py` attached `cross_language` only via `_attach_edge_health_by_language` after the standard early return; field retro round 17 called standard as tool #1 and never saw the census. Fix: `_attach_cross_language_summary` before that return (task 243).
+- handle: `capability-signal-on-the-first-call-channel`
+- destination: stays in lessons_path
+- seen: 243
+
 ### 221-C1 — A callee reached from another language needs the cross-language census, not 186's within-language predicate
 
 - type: 2 (code) · handle: `cross-language-zero-needs-the-crossing-census`

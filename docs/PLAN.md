@@ -490,7 +490,7 @@ their task files and [`design/`](design/). A per-tool count in prose here is R6.
 
 | Tool | The decision this section settled |
 |---|---|
-| `get_index_status` | **call first (~100 tok).** `verbose` carries what must not ride the cheap path: capped `parse_failure_paths` (058), `collection` — the denominator for reconciling `files` against your own `git ls-files` without reading source (082) — and `edge_health_by_language`, stamped per build and omitted under two buckets (183) |
+| `get_index_status` | **call first (~100 tok).** `standard` carries a bounded `cross_language` census (no `pairs` — 243) on a multi-language index; `verbose` adds what must not ride the cheap path: capped `parse_failure_paths` (058), `collection` — the denominator for reconciling `files` against your own `git ls-files` without reading source (082) — and the full `edge_health_by_language`, stamped per build and omitted under two buckets (183) |
 | `build_or_update_index` | builds/refreshes; returns `wrote` (this run's writes) + timing, and at `standard` `graph`, so a delta isn't read as repo size (051/060). Every refusal is a payload naming its route, never a raise: a concurrent writer is `mode: "busy"` with the loser's staleness (072), no usable adapter `mode: "refused"` (064/079), and an unbounded escalation — a vocabulary era behind (201), or an index a killed build left incomplete (202) — the same way, in-band |
 | `search_symbol` | FTS + name ranking; stub hits declare themselves (039); a zero hit may miss-repair the sole dirty file or report `index_stale` rather than answer a confident zero (073). **`queries` sweeps N subjects in one call** (101). At `standard`, a `Column` FK hit names its target from existing `REFERENCES` edges: `references` (resolved column) or `references_unresolved` (table only, R5.6) (239) |
 | `file_outline` | line ranges, never bodies — the read is a separate, priced call |
@@ -509,11 +509,10 @@ their task files and [`design/`](design/). A per-tool count in prose here is R6.
 | `guided_tour` | a dependency-ordered reading list, seeded from zero-inbound entry points and cycle-safe via SCC condensation (087); seeds prefer out-degree > 0, capped at a quarter of the budget (106), ready-set ordered by reading-seed layer rank (131) |
 | `generate_onboarding` | the committable artifact, from the same graph (088/089/116). It removes only the pages its own last manifest recorded, and refuses a tree it does not own |
 
-*Considered and not planned:* `namespace_tree` — named as a task-013/014 consumer of `split_qname` and
-never built. `search_symbol` already takes a `namespace` filter, `architecture_overview` answers repo
-shape, and §19's founding-premise benchmark found the gap is **demand and modelling, not capability**:
-the whole-graph tools it would have joined had already shipped and no real question needed one. A
-scanned tool surface has a budget (081), so re-propose it on a field question no shipped tool answers.
+*Considered and not planned:* `namespace_tree` (013/014, never built) — `search_symbol` already takes
+a `namespace` filter and `architecture_overview` answers repo shape; §19's founding-premise benchmark
+found the gap is **demand, not capability**. A scanned tool surface has a budget (081), so re-propose
+it on a field question no shipped tool answers.
 
 **Claim signing — `sign: true` on the five attesting tools (100).** An attestation that never reaches
 the artifact where the claim is made has, practically, not been produced: the round-5 session pasted
