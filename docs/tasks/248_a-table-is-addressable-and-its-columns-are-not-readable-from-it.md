@@ -8,7 +8,7 @@ status: done
 depends_on: [247, 242, 022]
 ---
 
-## Why this exists (field retro — anchor-repo, 2026-09-11, round 17)
+## Why this exists (field retro — the anchor repo, 2026-09-11, round 17)
 
 The retro's sharpest single observation, quoted: `read_symbol` on a table returned **one line** —
 the `CREATE TABLE [dbo].[…] (` header, `line_start: 13, line_end: 13` — while `get_index_status`

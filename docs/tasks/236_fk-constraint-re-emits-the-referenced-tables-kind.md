@@ -8,7 +8,7 @@ status: done
 depends_on: [022]
 ---
 
-## Why this exists (field retro — anchor-repo, 2026-09-09)
+## Why this exists (field retro — the anchor repo, 2026-09-09)
 
 The round's only CRITICAL, and code-atlas had already handed over the answer.
 `search_symbol(query:"MemberType", kind:"Table")` returned two rows for the same object:
@@ -87,7 +87,7 @@ agent that already holds the answer spends a call re-deriving it — badly.
 
 ## References
 
-Field retro — anchor-repo, 2026-09-09, §2 ("The miss that cost the session its only CRITICAL"), Ask 2.
+Field retro — the anchor repo, 2026-09-09, §2 ("The miss that cost the session its only CRITICAL"), Ask 2.
 `code_atlas/contract.py` (`CONTRACT_VERSION`, `NodeKind`/`NODE_KINDS`), `adapters/sql/`,
 `tests/contract/`. SQL tier-2 vocabulary origin: [022](022_sql-schema-adapter.md)-lineage note in
 `contract.py` (v9: `Table`, `Column`, `WRITES`). Discovery of the column-constraint tools is the sibling

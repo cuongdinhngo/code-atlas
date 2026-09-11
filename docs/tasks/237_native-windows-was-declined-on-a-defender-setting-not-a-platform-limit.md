@@ -195,7 +195,7 @@ shared probe and needs no `pywin32`.
 
 Run: `/mango:solve 237` (reviewer ON, challenger ON — no waiver flags). Host: **native Windows 11**,
 Python 3.12.10. **This session IS the maintainer's Windows host that 220's E1 lacked** — so AC7 (the
-Defender-excluded `fsprobe.py` row on `D:\work\anchor-repo`) and the Windows arm of AC2–AC4 are
+Defender-excluded `fsprobe.py` row on `<anchor repo>`) and the Windows arm of AC2–AC4 are
 reachable this run, not deferred to E1/E2. `pytest` on native Windows cannot import `fcntl`, so the
 POSIX-suite proving runs are Docker/WSL; the new Windows-arm tests run here natively.
 
@@ -300,7 +300,7 @@ RULE SECTIONS: 15 applicable — 15 by change-type | 0 by recalled handle — §
 | R1 | Scope 1 | Two private impls behind the 5-fn API, `sys.platform`-selected; POSIX unchanged | `LockFileEx` via `ctypes`; byte 1<<20 lock, bytes[0,200) unlocked | 5-fn API confirmed `index_lock.py:29-104` | ⬜ |
 | R2 | Scope 2 | Take 220's declined AC4 test | Kill holder → `build_in_progress` False, both platforms | precedent `test_killed_build_is_honest.py` (fcntl) | ⬜ |
 | R3 | Scope 3 | Startup preflight naming 3 footguns | New `preflight` module; loud/specific (R5.3); clean host silent | build path `cli.build`/`build_or_update_index.create` | ⬜ |
-| R4 | Scope 4 | Re-measure native D: with Defender exclusion | 220's `fsprobe.py`; 220 table shape; +Dev Drive if present; on `anchor-repo` | `fsprobe.py` present; host = this session | ⬜ |
+| R4 | Scope 4 | Re-measure native D: with Defender exclusion | 220's `fsprobe.py`; 220 table shape; +Dev Drive if present; on the anchor repo | `fsprobe.py` present; host = this session | ⬜ |
 | R5 | Scope 5 | Restate README:71-75 + AGENTS to a tier | Prohibition → "runtime supported; WSL2 recommended; dev loop POSIX" | README:71-75 = the prohibition | ⬜ |
 | R6 | Scope 6 | Supersede 220 in PLAN §19 | Decision-log entry citing both tickets | PLAN §19 is the log | ⬜ |
 | C1 | Constraint | 072's property not weakened either platform | No `building:true` carrier outlives its process | Windows byte-range lock released on handle close / process death | ⬜ |
@@ -314,7 +314,7 @@ RULE SECTIONS: 15 applicable — 15 by change-type | 0 by recalled handle — §
 | AC4 | AC | Kill holder → `build_in_progress` False (both) | must guard the race (no vacuous pass, R6.5) | Win + POSIX test | ⬜ |
 | AC5 | AC | Preflight reports 3 footguns w/ action; clean host silent | LongPathsEnabled off, core.autocrlf=true, repo under /mnt/* | preflight tests (N=3) | ⬜ |
 | AC6 | AC | README+AGENTS tiered, matches AC1 | grounded in AC1 (import); **ASSUMED bar below** | — | ⬜ |
-| AC7 | AC | Defender-excluded `fsprobe.py` row recorded w/ host+path, or E1 | producible this run (Windows host + anchor-repo) → produce | Docker up; native host | ⬜ |
+| AC7 | AC | Defender-excluded `fsprobe.py` row recorded w/ host+path, or E1 | producible this run (Windows host + the anchor repo) → produce | Docker up; native host | ⬜ |
 
 Status: ⬜ pending (design/execute prove). E1/E2 exclusions → design `EXCLUSIONS:` line.
 
@@ -356,7 +356,7 @@ Empirical findings, all run natively 2026-09-10:
 - Windows lock primitives present in **stdlib**: `msvcrt.get_osfhandle`, `kernel32.LockFileEx`/`UnlockFileEx`, `winreg` — no `pywin32` (C3 holds).
 - Adapter subprocess launch is Windows-safe: `adapter.py:144` `Popen(list, cwd=…, PIPE…)`, no `preexec_fn`/`start_new_session`/`shell`.
 - **Byte-range lock spike PASSED natively** (`scratchpad/winlock_spike.py`): excl lock acquired; publish+read `[0,200)` works *while* held; shared probe DENIED under holder (`err=33 ERROR_LOCK_VIOLATION`) → `build_in_progress` True; GRANTED after release → False.
-- **anchor-repo reality:** ~19,352 PHP files / 43,545 indexable; native host has **`node` v24 but NOT `php`/`composer`**. So the lock fix makes the *core* run natively, but a full **PHP-repo** native build additionally needs php+composer on PATH — else it runs and **loudly skips PHP** (R5.3). This is a real native-Windows build issue → surfaced by the preflight (a 4th check) and the docs, not hidden.
+- **Anchor-repo reality:** ~19,352 PHP files / 43,545 indexable; native host has **`node` v24 but NOT `php`/`composer`**. So the lock fix makes the *core* run natively, but a full **PHP-repo** native build additionally needs php+composer on PATH — else it runs and **loudly skips PHP** (R5.3). This is a real native-Windows build issue → surfaced by the preflight (a 4th check) and the docs, not hidden.
 
 **Approach.** Add a Windows arm to `index_lock.py`, selected once at import by `sys.platform`. Guard
 `import fcntl` (POSIX only); on `win32`, the three lock primitives (`_acquire_exclusive_nb`,
@@ -381,7 +381,7 @@ end-to-end native build** (node-adapter repo) to prove the pipeline runs. Restat
   **`verified` (spike, all 4 checks PASS, err=33)**.
 - `fcntl` is the sole core POSIX blocker → **`verified`** (grep empty above).
 - Adapter subprocess launch Windows-safe → **`verified`** (`adapter.py:144`).
-- anchor-repo native full build needs php+composer (absent) → **`verified`** (php/composer MISSING; node present) → surfaced, not assumed away.
+- the anchor repo native full build needs php+composer (absent) → **`verified`** (php/composer MISSING; node present) → surfaced, not assumed away.
 
 HANDLES: 2 recalled | 1 traced (command + result) | 1 does not apply (reason) | 0 unanswered
 
@@ -403,12 +403,12 @@ HANDLES: 2 recalled | 1 traced (command + result) | 1 does not apply (reason) | 
 | 1 | Windows lock arm behind the 5-fn API; guard `fcntl`; `sys.platform` switch; POSIX byte-identical | `code_atlas/index_lock.py` | the 4 entry modules importing it; 7 `fcntl` POSIX tests (must stay green in Docker); R4.3 single-writer invariant | R1,C1,C2,C3,C4,C5,AC1,AC2,AC3,AC4 | 10/10 |
 | 2 | New preflight (LongPaths via `winreg`, `core.autocrlf` via git, repo under `/mnt/*`, **+ adapter runtime php/composer absent**); wire into `cli.py` build/status | `code_atlas/preflight.py` (new), `cli.py` | cli stderr output; clean host silent (R5.3); no MCP payload change | R3,AC5 | 2/2 |
 | 3 | Tests: AC1 import-probe (fcntl blocked), AC2 serialise, AC3 progress-while-locked + byte-0 guard, AC4 kill both platforms, AC5 preflight | `tests/test_windows_lock.py`, `tests/test_preflight.py` (new) | CI POSIX arm gated; Windows arm manual-recorded (E2) | R2,AC1,AC2,AC3,AC4,AC5 | 5/5 |
-| 4 | Measurement: `fsprobe.py` on anchor-repo w/ Defender exclusion (+Dev Drive if present) **and a real native end-to-end build** proving the pipeline runs | this working doc (220 table shape) | none (evidence only); 220's raw output stays in 220 (R7.6) | R4,AC7 | 2/2 |
+| 4 | Measurement: `fsprobe.py` on the anchor repo w/ Defender exclusion (+Dev Drive if present) **and a real native end-to-end build** proving the pipeline runs | this working doc (220 table shape) | none (evidence only); 220's raw output stays in 220 (R7.6) | R4,AC7 | 2/2 |
 
 Proof approach (how-decision, handed back → chosen): (a) guaranteed node-adapter end-to-end native
-build (no install); (b) opportunistically install php+composer to build the **real anchor-repo** natively
+build (no install); (b) opportunistically install php+composer to build the **real anchor repo** natively
 for the strongest evidence — if impractical, php/composer is the surfaced preflight+docs prerequisite;
-(c) fsprobe measures anchor-repo regardless. Cited: user steer "build phải chạy được thật" + practicality.
+(c) fsprobe measures the anchor repo regardless. Cited: user steer "build phải chạy được thật" + practicality.
 | 5 | Docs: README:71-75 rewrite (prohibition→tier), AGENTS.md platform line, PLAN §19 supersession | `README.md`, `AGENTS.md`, `docs/PLAN.md` | tier-1 docs (charged every session); AGENTS test-count pin note | R5,R6,AC6 | 3/3 |
 | 6 | Token-ledger row | `docs/TOKEN_LEDGER.md` | R7.2 | — (R7.2) | 1/1 |
 
@@ -433,7 +433,7 @@ the arm preserves. §5.3 preflight fails loud, clean host silent. §6.5 no vacuo
 | AC7 | runtime (real disk/AV) | manual-recorded fsprobe row (host+path+tree) | n/a (measurement, not input-shape-dependent) | ✅ |
 
 No input-shape-dependent AC (none heuristic/ranking/grouping), so fixture provenance is `n/a`
-throughout. AC7 is measured **against** `D:\work\anchor-repo`, but that is a disk/AV measurement,
+throughout. AC7 is measured **against** `<anchor repo>`, but that is a disk/AV measurement,
 not a heuristic whose expected output depends on input shape — so it is `n/a`, not a corpus-proof.
 
 EXCLUSIONS: 2 recorded | 2 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus
@@ -477,14 +477,14 @@ deviations:
 - Windows arm behind the 5-fn API via `sys.platform` switch ✅ · `fcntl` guarded (else-branch only) ✅
   · `LockFileEx`/`UnlockFileEx` on byte `1<<20` ✅ · POSIX bodies byte-identical (same `fcntl.flock`
   flags) ✅ · preflight module wired into `cli.py` ✅ · docs restated grounded in the working build ✅
-  · real end-to-end native build ✅ (exceeded — self **and** anchor-repo).
+  · real end-to-end native build ✅ (exceeded — self **and** the anchor repo).
 - **Deviation D1 — AC7 Defender-*excluded* cold row NOT produced.** This session is not elevated
   (`IsInRole(Administrator)=False`), so `Add-MpPreference -ExclusionPath` cannot run. **E1 invoked** —
   the decisive cell needs the maintainer's elevated host. The AV-filter mechanism is nonetheless
   isolated (below). Surfaced to review.
 - **Deviation D2 (minor) — preflight's 4th check generalized.** Gate 2 said "adapter runtime
   php/composer absent"; implemented as the R5.3-generic "any *configured* adapter command not on
-  PATH", a superset. Note: anchor-repo's PHP was skipped because no `CA_PHP_CMD` was configured (a
+  PATH", a superset. Note: the anchor repo's PHP was skipped because no `CA_PHP_CMD` was configured (a
   different path from configured-but-missing) — documented in the tier.
 
 **Empirical output (trimmed, verbatim).**
@@ -500,19 +500,19 @@ OK code_atlas.cli · code_atlas.main · code_atlas.tools.build_or_update_index �
 ```
 # AC-"build works" — native code-atlas-build, this Windows host, Defender ON:
 self (python adapter):  full: 368 file(s), 6192 node(s), 45280 edge(s)   EXIT=0
-anchor-repo (TS+SQL, PHP skipped): full: 6339 file(s), 107728 node(s), 2788992 edge(s)  EXIT=0  (1.6 GB graph.db)
+the anchor repo (TS+SQL, PHP skipped): full: 6339 file(s), 107728 node(s), 2788992 edge(s)  EXIT=0  (1.6 GB graph.db)
 # preflight fired real warnings: LongPathsEnabled off; core.autocrlf=true; php not on PATH
 ```
 ```
 # AC7 — fsprobe.py (220's exact probe), native D:\, NTFS, Defender RealTimeProtection=True, 2026-09-10:
-anchor-repo     56,998 files (1057 MB)  stat 98,612 f/s   read ~21 f/s / 0.4 MB/s  (run1 2810s, run2 2713s — does NOT warm; >cache)
+the anchor repo     56,998 files (1057 MB)  stat 98,612 f/s   read ~21 f/s / 0.4 MB/s  (run1 2810s, run2 2713s — does NOT warm; >cache)
 code-atlas     881 files (9.7 MB)   stat 55,063 f/s   read    39 f/s / 0.4 MB/s  (reproduces 220's 37 f/s cold)
 # same SSD warm (220, files that fit cache): 13,339 f/s / 147.8 MB/s ; Linux control ext4: 47,370 f/s / 522 MB/s
 ```
 
 **AC7 verdict.** Read throughput **0.4 MB/s under Defender vs 147.8 MB/s warm on the same SSD** isolates
 the AV filter driver as the *entire* cold-read cost — 220's diagnosis, now reproduced on a second repo,
-and shown not to warm once the working set exceeds the cache (anchor-repo). This **confirms 220's slowness**
+and shown not to warm once the working set exceeds the cache (the anchor repo). This **confirms 220's slowness**
 and **refutes its verdict**: the cost is 100% a Defender configuration, the lock fix is cheap/correct,
 and the build runs. The cold-*with-exclusion* row (D1/E1) is the maintainer's elevated step; the
 mechanism does not hinge on it.

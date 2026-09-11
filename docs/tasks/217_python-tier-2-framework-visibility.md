@@ -120,7 +120,7 @@ how-decisions** — H3 and H4 — because R4.2 and 020's own W3 text settle them
 
 ## Demand measurement (C1) — 2026-09-05
 
-**Sample.** `valance-system/valance-backend`, a private AWS-Lambda Python service. Indexed at tier 1a
+**Sample.** the private Python sample, a private AWS-Lambda Python service. Indexed at tier 1a
 with `CA_PYTHON_CMD` alone: **1,173 first-party files · 17,304 nodes · 96,028 edges** (vendored
 `venv/ .build/ .aws-sam/ _layers/` excluded by the repo's own `.gitignore`). Mid-size, which is what
 W3 asked for; the DB was written outside the sample repo.

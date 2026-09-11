@@ -8,7 +8,7 @@ status: todo
 depends_on: [245, 168, 065]
 ---
 
-## Why this exists (field retro — anchor-repo, 2026-09-11, round 18)
+## Why this exists (field retro — the anchor repo, 2026-09-11, round 18)
 
 The consuming agent's first move on the photo bug was the obvious one — ask what references
 `MemberPhotoResolver`. Its account:

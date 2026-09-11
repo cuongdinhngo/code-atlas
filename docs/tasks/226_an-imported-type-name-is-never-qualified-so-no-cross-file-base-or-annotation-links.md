@@ -111,7 +111,7 @@ ticket's map for the cross-file half.
 ## Exclusions
 
 - **E1** The 893-edge recoverable count is measured on a **local, private checkout**
-  (`~/WORKSPACE/PROJECTS/1-REFERENCES/ai-hackathon`, master @ `2f996ca`) and is not reproducible from
+  (`<local Python sample>`, master @ `2f996ca`) and is not reproducible from
   this repo. The committed artifact is AC1's fixture plus the method: build the index, then for each
   unlinked edge test whether `target_raw` matches exactly one `nodes.name` among
   `Class`/`Interface`/`Enum`/`Function`. `cross_repo_samples.json` pins **no Python sample** — the

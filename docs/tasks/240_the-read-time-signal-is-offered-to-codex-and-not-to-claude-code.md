@@ -8,7 +8,7 @@ status: done
 depends_on: [099, 036, 200]
 ---
 
-## Why this exists (field corpus — rounds 5-16, anchor-repo)
+## Why this exists (field corpus — rounds 5-16, the anchor repo)
 
 **099 built exactly what the field asked for, and the field has never seen it.**
 
@@ -82,7 +82,7 @@ two adapter launches"* and built a generated filter plus a guard. The same drift
 ## Constraints
 
 - **R2, standard over sample** — the wiring encodes each host's documented hook contract and the
-  adapters' own declared suffixes; no anchor-repo name appears in a snippet.
+  adapters' own declared suffixes; no the anchor repo name appears in a snippet.
 - **R4.2, deterministic** — `gen_skill.py --write` is idempotent; the committed file equals the
   rendered one, which `scripts/gate.sh` already checks.
 - **200's stance, unchanged** — code-atlas emits a file; the host installs it. No new write path.

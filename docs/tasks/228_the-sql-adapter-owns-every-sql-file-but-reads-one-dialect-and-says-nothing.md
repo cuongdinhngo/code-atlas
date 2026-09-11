@@ -91,7 +91,7 @@ promise a second dialect.
 ## Exclusions
 
 - **E1** The 36-file / 127-node measurement is from a **local, private checkout**
-  (`~/WORKSPACE/PROJECTS/InCloud/valance-system/valance-backend`, `develop` @ `7ba652d4`) and is not
+  (`<private Python sample>`, `develop` @ `7ba652d4`) and is not
   reproducible from this repo. The committed artifact is AC1's fixture, which reproduces all three
   defects on six lines of standard PostgreSQL. `cross_repo_samples.json` pins no non-T-SQL sample.
 

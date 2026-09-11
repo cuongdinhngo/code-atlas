@@ -8,7 +8,7 @@ status: todo
 depends_on: [247, 231, 244]
 ---
 
-## Why this exists (field retro — anchor-repo, 2026-09-11, round 17, verification pass)
+## Why this exists (field retro — the anchor repo, 2026-09-11, round 17, verification pass)
 
 Round 17's retro asserted that column types were *"sitting right there in the index, with no way to
 get them out"*, and ranked opening that door as its top ask. The assertion was wrong — the adapter

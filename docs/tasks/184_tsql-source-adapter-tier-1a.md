@@ -59,7 +59,7 @@ Checked against `contract.py` **v8**. This is what makes tier 1a shippable indep
 **Tier 2 is the tier that detects the defect class**, and it belongs to
 [022](022_sql-schema-adapter.md), which is where the vocabulary spend is gated. Round 12 §15: the
 one-call query *"which writers of `LedgerTrans` omit `ChangeUser`, and what is that column's DEFAULT?"*
-is tier 2, and **FIELD-1020 · FIELD-1027 · FIELD-962 · FIELD-1026 are one defect class** — *a column whose
+is tier 2, and **TKT-1020 · TKT-1027 · TKT-962 · TKT-1026 are one defect class** — *a column whose
 value comes from a DEFAULT because every writer omits it* — mechanically detectable from it. That is a
 `check_architecture_rules`-shaped query, not a search.
 
@@ -82,7 +82,7 @@ the argument:
   *measured, in-anchor, critical-path defect* lived in it. **No other deferred adapter has that**, and
   no adapter in this project's history has had field-measured demand attached before implementation.
 - **The honest counter-case, stated at its strongest:** this is `n = 1` repo. One anchor's two
-  tickets (FIELD-959 for schema state, FIELD-1026 for proc structure) is demand from **one consumer**,
+  tickets (TKT-959 for schema state, TKT-1026 for proc structure) is demand from **one consumer**,
   and a general server that reorders its roadmap for one consumer is how R2 gets violated in spirit
   while passing its grep gate.
 - **Corrected 2026-08-30 — the sentence that used to sit here was false.** It read *"adapter #2
@@ -117,7 +117,7 @@ the argument:
 
 - Tiers 1b, 2 and 3 above. Tier 2 is [022](022_sql-schema-adapter.md).
 - Any live database connection. R4/R4.1: the core is deterministic and offline; `INFORMATION_SCHEMA`
-  is a runtime probe and 022 already records that it is what actually solved FIELD-959.
+  is a runtime probe and 022 already records that it is what actually solved TKT-959.
 - Dialect breadth. T-SQL only, encoded from the T-SQL specification (R2) — never from the anchor's
   proc names, which the R2.2 grep gate will check.
 
@@ -204,7 +204,7 @@ lifecycle, not a feature-suite needing a split gate.
 files, PLAN §3/§4.1/§18/§19, CONVENTION §3, R1.1/R2.2/R3.3/R4.1/R6.3/R6.6. **All three `depends_on`
 (019, 147, 183) are `done`**, as are 150, 156, 172, 173, 176, 177. Ambiguous, surfaced not blocking:
 the six anchor-repo names (`V0.1__baseline_schema.sql`, `Insert_AC_Trans_v1`, `Score_Calc`,
-`LedgerTranSummary`, `LedgerTrans.ChangeUser`, the `FIELD-*` ids) live in an external repo the ticket
+`LedgerTranSummary`, `LedgerTrans.ChangeUser`, the consumer ticket ids) live in an external repo the ticket
 declares as field observation. `adapters/sql/`, `CA_SQL_CMD` and `.sql` in the suffix set are
 to-be-created — never missing.
 
@@ -233,7 +233,7 @@ to-be-created — never missing.
 
 | # | HOW-decision | Resolution | Citation |
 |---|---|---|---|
-| H1 | Can 022 start now? | No — evidence-gate §1 ("a second independent repo") is unmet; round 12 is the same anchor as FIELD-959 | `022` *Evidence gate* §1 + *"the gate below is unchanged and still unmet"* |
+| H1 | Can 022 start now? | No — evidence-gate §1 ("a second independent repo") is unmet; round 12 is the same anchor as TKT-959 | `022` *Evidence gate* §1 + *"the gate below is unchanged and still unmet"* |
 | H2 | Contract cost of this ticket | Zero: `CALLS` is already in `FQN_EDGE_KINDS`; no bump, no `code_atlas/` diff | `184` Scope §5, AC3; `contract.py:65` |
 | H3 | Is 184 blocked on capability? | No — 019, 147, 183 all `done`; only the §19 ordering blocked it, and W1 settles that | `184` *What this needs… is not code*; frontmatter statuses |
 | H4 | Parser direction (not tool) | Stream; never build a whole-file AST — one ~240k-line file is the normal shape | `184` Constraints §1 |
@@ -664,7 +664,7 @@ it was split out (A6) rather than absorbed.
 Source: `today-i-learned/ai/code-atlas/Retros/` rounds 8–12, read in full at Gate 2.
 
 **1. Roll-out sits outside this repo — noted once, then set aside.** Round 12's own item 1 is a PR
-in anchor-repo (`.mcp.json` + a CI job). **176 *Explicitly not in scope* already ruled that out as
+in the anchor repo (`.mcp.json` + a CI job). **176 *Explicitly not in scope* already ruled that out as
 code-atlas work** — *"those belong to the consuming repo, deliberately not filed here"* — so it is
 not a ticket, not a dependency, and does not reorder anything here. Recorded and dropped.
 
@@ -704,8 +704,8 @@ neither a pair census nor per-subject unlinked evidence — it is **letting the 
 reach a partial answer, not only an empty one**. Language-agnostic, needs no new edges, no new
 vocabulary, and closes a finding carried since round 8.
 
-**4. `A1`'s premise is now corroborated outside the ticket.** Round 12 §15 verbatim: *"**FIELD-1020,
-FIELD-1027, FIELD-962 and FIELD-1026 are one defect class** — a column whose value comes from a DEFAULT
+**4. `A1`'s premise is now corroborated outside the ticket.** Round 12 §15 verbatim: *"**TKT-1020,
+TKT-1027, TKT-962 and TKT-1026 are one defect class** — a column whose value comes from a DEFAULT
 because every writer omits it — and it is mechanically detectable from tier 2."* A1 was resting on
 184's own text; it now has a retro behind it.
 

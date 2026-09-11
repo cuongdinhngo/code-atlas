@@ -197,7 +197,7 @@ rejected on the record), [200](200_the-recognition-map-is-a-prompt-no-agent-can-
 channel a model does see — this ticket is that finding aimed at operations),
 [201](201_a-forced-full-rebuild-is-silent-and-unroutable.md) (announced the escalation; owns the
 field evidence for parse 68 min / resolve 4.5 min).
-Field log: anchor monorepo `anchor-repo`, 2026-09-01 — full rebuild 12:45 → 14:16 Z, adapter-enable
+Field log: the anchor monorepo, 2026-09-01 — full rebuild 12:45 → 14:16 Z, adapter-enable
 config change, `config_identity c30ed5e → 2efae9c`.
 
 ## Session status

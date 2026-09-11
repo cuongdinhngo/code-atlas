@@ -194,7 +194,7 @@ Every in-repo reference resolved: `DEFAULT_IMPACT_MAX_NODES = 500` (`config.py:5
 (`artifact.py:720`), `tests/test_doc_size_budget.py`, `docs/TOOLS.md`, and all eight referenced
 tickets. The two ambiguous references are the anchor monorepo's emitted tree (a generated output, not
 a repo file) and *which* `.code-atlas/graph.db` the provenance note means — resolved by locating the
-anchor index at `/home/you/WORKSPACE/work/anchor-repo`, which is **pre-204** (built
+anchor index at `<anchor repo>`, which is **pre-204** (built
 2026-09-01T14:26Z; #250 merged 2026-09-02T05:13Z), exactly as the ticket's caveat says.
 
 **Re-measured on a post-204 anchor rebuild** (full build into a scratch DB, 24,569 files, 262,899

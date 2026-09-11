@@ -467,7 +467,7 @@ mappings — *"a section owns a caveat by owning a non-empty `caveat` key"*. So:
 | AC3 the viewer and dataset carry the same string | integration | the existing 127 guard (derives the caveat set, renders the viewer headlessly) | n/a | ✅ |
 | AC4 a fixture with an undeclared bucket fails pre-change | integration | integration + **recorded red run** | n/a | ✅ |
 | AC5 a repo where every bucket has a signal is byte-identical | integration | integration, plus a pre/post byte comparison on such a fixture | n/a | ✅ |
-| AC6 Scope 4's re-measurement recorded | runtime/3p (a real index) | **real-corpus run, recorded in Phase 1** with the command and its output | real-corpus (the anchor at `/home/you/WORKSPACE/work/anchor-repo`, post-204 scratch index) | ✅ |
+| AC6 Scope 4's re-measurement recorded | runtime/3p (a real index) | **real-corpus run, recorded in Phase 1** with the command and its output | real-corpus (the anchor at `<anchor repo>`, post-204 scratch index) | ✅ |
 | Assumption 5 — the 127 guard survives a bigger caveat set | integration | run it | n/a | ✅ |
 
 No `❌`, so no coverage-gap exclusion. `config.real_corpus_path` is `null`, so AC6's row names the

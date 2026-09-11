@@ -8,7 +8,7 @@ status: todo
 depends_on: [165, 168, 057]
 ---
 
-## Why this exists (field retro — anchor-repo, 2026-09-11, round 18)
+## Why this exists (field retro — the anchor repo, 2026-09-11, round 18)
 
 A consuming agent drove three BETA bug fixes with code-atlas as the primary instrument and scored the
 session 7.5/10. `find_callers` was named the highest-leverage tool of the session — the *absence* of

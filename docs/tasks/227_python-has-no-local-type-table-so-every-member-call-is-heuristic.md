@@ -82,7 +82,7 @@ whose class lives in another file needs that ticket's FQN, and same-file classes
   call. A receiver whose type comes from a function's return type (the fluent-chain residual 153
   recorded on TS) is the same file-at-a-time limit here, and is not a gap this ticket closes.
 - **E2** The 60.7% figure is from a **local, private checkout**
-  (`~/WORKSPACE/PROJECTS/1-REFERENCES/ai-hackathon`, master @ `2f996ca`, 162 files, 8,910 edges) and
+  (`<local Python sample>`, master @ `2f996ca`, 162 files, 8,910 edges) and
   is not reproducible from this repo — which is precisely why scope 6 adds a public pin. Until that
   pin lands, quote it as a field observation with its host named, never as a repo number.
 

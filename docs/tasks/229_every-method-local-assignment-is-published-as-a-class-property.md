@@ -105,7 +105,7 @@ container distinguishes them.
 ## Exclusions
 
 - **E1** The 4,384 / 17,516 measurement is from a **local, private checkout**
-  (`~/WORKSPACE/PROJECTS/InCloud/valance-system/valance-backend`, `develop` @ `7ba652d4`) and is not
+  (`<private Python sample>`, `develop` @ `7ba652d4`) and is not
   reproducible from this repo. The committed artifact is AC1's fixture; the re-run method is
   recorded above (join each `Property` node to its file's AST, classify by class-body vs method-body
   line). `cross_repo_samples.json` pins no Python sample — shared open item with 226/227.

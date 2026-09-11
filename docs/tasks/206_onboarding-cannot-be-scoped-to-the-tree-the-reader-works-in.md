@@ -322,7 +322,7 @@ N = 3 remaining consumers (pages = gone, 205):
 
 | id | What | Why | expiry: | seen: |
 |----|------|-----|---------|-------|
-| E1 | AC2 live-anchor regenerate (`src/`+`public/` on anchor-repo) | `real_corpus_path` is unset; doctor noted every input-shape-dependent AC is a gap | when `.harness.json` `real_corpus_path` points at a 204-corrected anchor index | 206 |
+| E1 | AC2 live-anchor regenerate (`src/`+`public/` on the anchor repo) | `real_corpus_path` is unset; doctor noted every input-shape-dependent AC is a gap | when `.harness.json` `real_corpus_path` points at a 204-corrected anchor index | 206 |
 
 ### Rule-section answers (not a bare ✅)
 

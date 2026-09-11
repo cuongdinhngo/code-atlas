@@ -8,7 +8,7 @@ status: todo
 depends_on: [221, 232, 186, 065]
 ---
 
-## Why this exists (field retro — anchor-repo, 2026-09-11, round 18, verified live)
+## Why this exists (field retro — the anchor repo, 2026-09-11, round 18, verified live)
 
 Round 18 recorded the session's one damaging answer and named it precisely:
 
@@ -23,7 +23,7 @@ Its ask was a caveat. **Measured against the anchor index read-only, the caveat 
 the size of the hazard is larger than the retro could see:**
 
 ```sql
--- .code-atlas/graph.db (anchor-repo, 2026-09-11), read-only
+-- .code-atlas/graph.db (the anchor repo, 2026-09-11), read-only
 select count(*) from nodes  where qualified_name = 'dbo.UserNotes';      -- 1
 select count(*) from edges  where target_qname   = 'dbo.UserNotes';      -- 0   <- the answer given
 select kind, count(*) from edges where target_raw like '%UserNotes%';

@@ -173,7 +173,7 @@ files 827 (9.2 MB)
 stat  0.02s  51,688 files/s
 read  22.30s     37 files/s    0.4 MB/s        # cold
 read   0.06s  13,339 files/s  147.8 MB/s        # warm (2nd run, same files)
-# independent cold samples (untouched repos): mdpilot 34 files/s · relay-router 36 files/s  → constant ~27 ms/file
+# independent cold samples (untouched repos): the TypeScript sample 34 files/s · a second TypeScript sample 36 files/s  → constant ~27 ms/file
 
 # WSL2  /mnt/d/PROJECTS/code-atlas  (9p drvfs)
 stat 1.17s  707 files/s   read 1.49s  556 files/s  6.2 MB/s    # run 1

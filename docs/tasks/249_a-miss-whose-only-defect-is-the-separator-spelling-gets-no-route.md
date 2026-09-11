@@ -8,7 +8,7 @@ status: done
 depends_on: [245, 224]
 ---
 
-## Why this exists (field retro — anchor-repo, 2026-09-11, round 17)
+## Why this exists (field retro — the anchor repo, 2026-09-11, round 17)
 
 A consuming agent guessed the qname form for a column as `IndividualSiteForms.ChangeDateTime` and
 swept seven subjects in that shape. All seven returned a clean `no_matches`. The real form is

@@ -42,7 +42,7 @@ def test_autocrlf_false_or_absent_is_silent(monkeypatch: pytest.MonkeyPatch) -> 
 def test_a_repo_under_wsl_mount_is_reported(monkeypatch: pytest.MonkeyPatch) -> None:
     """A repo under /mnt/* on WSL crosses the 9p boundary — the documented ~100x trap (220)."""
     monkeypatch.setenv("WSL_DISTRO_NAME", "Ubuntu")
-    warnings = preflight._repo_under_wsl_mount(Path("/mnt/d/work/anchor-repo"))
+    warnings = preflight._repo_under_wsl_mount(Path("/mnt/d/<org>/the anchor repo"))
     assert len(warnings) == 1
     assert "/mnt/" in warnings[0]
     assert "Linux-native" in warnings[0]

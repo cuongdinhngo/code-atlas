@@ -31,6 +31,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 255 | [The honesty predicate is keyed to two PHP-shaped edge kinds, so a Table's 34 unlinked WRITES read as a zero](tasks/255_the-honesty-predicate-is-keyed-to-two-php-shaped-edge-kinds.md) | Honesty | todo | 221, 232, 186, 065 |
 | 256 | [222's dispatch exclusion was decided before the evidence existed](tasks/256_the-dispatch-exclusion-was-decided-before-the-evidence-existed.md) | Coverage | todo | 222, 221, 063 |
 | 257 | [The index goes blind at the moment it is most wanted](tasks/257_the-index-goes-blind-at-the-moment-it-is-most-wanted.md) | Adoption | todo | 035, 182, 100 |
+| 258 | [The graph stores the cartesian product of call site x same-named symbol — 48.4% of the anchor graph](tasks/258_the-graph-stores-the-cartesian-product-of-call-site-and-same-named-symbol.md) | Honesty | todo | 251, 054, 066, 182 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -76,7 +77,6 @@ observe whole-tree `grep` timing out in the anchor repo; the "~650×" figure sti
 One line each, with the pointer that holds the detail. Nothing here is scheduled.
 
 - **PSR-4 / autoload-aware include resolution**, with PSR-0 duplicate-name disambiguation — [042](tasks/042_tokens-to-answer-sample-tier.md).
-- **`max_results` does two unrelated jobs** — returned rows *and* resolver candidate fan-out, so a query knob sets index size — [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4. Field instance and why it now costs answers: [251](tasks/251_the-resolved-caller-can-be-off-the-page.md).
 - **Tokens-to-answer measures cost, not information** — 046 moved the ratio 0.02 % while doubling the distinct answers. Wants a second axis before it judges a retrieval change.
 - **`reachable_from` payload size at `standard`** — bounded by `impact_max_nodes` (500), ~160 KB of JSON. Worth a lower default or `minimal`-by-default; workaround in [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
 - **Parser-OOM size cap (optional)** — multi-MB generated files exhaust the PHP parser (already soft-failed/restarted in `indexer.py`); a byte-cap pre-skip (`CA_MAX_FILE_BYTES`) would avoid ~30 restart cycles. Log skips; no silent truncation.

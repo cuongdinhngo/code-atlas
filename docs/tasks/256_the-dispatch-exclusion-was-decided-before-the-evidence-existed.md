@@ -8,7 +8,7 @@ status: todo
 depends_on: [222, 221, 063]
 ---
 
-## Why this exists (field retro — anchor-repo, 2026-09-11, rounds 18 and the BETA QA batch)
+## Why this exists (field retro — the anchor repo, 2026-09-11, rounds 18 and the BETA QA batch)
 
 222 built exactly the machinery this needs — find every call to a named setter, take the Nth string
 literal, emit a `HEURISTIC` edge to a templated target — and drew its boundary in E2:

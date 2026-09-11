@@ -21,7 +21,7 @@ The probe was a two-payload experiment, not an inference. A uniquely-named metho
 launched with the client's cwd set to the worktree:
 
 ```
-server /proc cwd: …/anchor-repo                       # not the worktree
+server /proc cwd: …/<anchor repo>                       # not the worktree
 search_symbol(atlasProbeWorktreeZq7) -> {"results":[],"reason":"no_matches","total_count":0}
 file_outline(src/System/RegionManager.php)
   names=[…, 'atlasProbeMainAb3', 'clearCache', 'dualRoutine']

@@ -8,7 +8,7 @@ status: done
 depends_on: [022, 228, 239]
 ---
 
-## Why this exists (field retro — anchor-repo, 2026-09-11, round 17)
+## Why this exists (field retro — the anchor repo, 2026-09-11, round 17)
 
 A consuming agent graded the round **6.5/10** and named one dimension as the whole of the gap:
 symbol questions were answered well and honestly, schema questions were not answered at all. The

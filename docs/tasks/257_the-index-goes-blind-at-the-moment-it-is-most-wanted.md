@@ -8,7 +8,7 @@ status: todo
 depends_on: [035, 182, 100]
 ---
 
-## Why this exists (field retros — anchor-repo, 2026-09-11, rounds 17 and 18)
+## Why this exists (field retros — the anchor repo, 2026-09-11, rounds 17 and 18)
 
 Two sessions, written independently, asked for the same thing and neither asked for it naively.
 

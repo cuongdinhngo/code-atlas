@@ -8,7 +8,7 @@ status: done
 depends_on: [224, 236, 022]
 ---
 
-## Why this exists (field retro — anchor-repo, 2026-09-11, round 16)
+## Why this exists (field retro — the anchor repo, 2026-09-11, round 16)
 
 The round's single highest-leverage call, and the round's twenty-minute detour, were the same call.
 
@@ -106,7 +106,7 @@ the row even though the edge is resolved and addressable.
 
 ## References
 
-Field retro — anchor-repo, 2026-09-11, round 16: §A (the call and the trap), §17 (the **D** grade), §19
+Field retro — the anchor repo, 2026-09-11, round 16: §A (the call and the trap), §17 (the **D** grade), §19
 Ask 1. Local file, maintainer-only — ticket keys and repo paths do not travel back here (R-7).
 `code_atlas/tools/search_symbol.py` (`_hit`), `code_atlas/store.py`, `code_atlas/contract.py`
 (v10 `ForeignKey`, `REFERENCES` in `EDGE_KINDS`/`FQN_EDGE_KINDS`).

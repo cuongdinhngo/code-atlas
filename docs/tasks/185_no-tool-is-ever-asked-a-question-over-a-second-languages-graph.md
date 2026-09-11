@@ -76,7 +76,7 @@ declaring an empty. Landing 184 without this matrix ships ~10 tools' worth of co
 
 - **R1.1** — the matrix is data keyed by the adapter's own handshake language string. A test may name
   a language (tests are not the core); the **core** must gain no branch from this work.
-- **R2 / R2.2** — fixtures encode each language's spec, never a repo's names. No anchor-repo shapes.
+- **R2 / R2.2** — fixtures encode each language's spec, never a repo's names. No the anchor repo shapes.
 - **R6.5** — an unrunnable column is `skipped`, and `0 skipped` is the evidence it ran; a matrix that
   silently skips TS reads as green while proving nothing. Use the `availability` marks
   `adapter_registry.py` already carries.

@@ -86,7 +86,7 @@ deliberately shaped so the others can use it.
 ## Exclusions
 
 - **E1** The 2,524 / 4,838 measurement is from a **local, private checkout**
-  (`~/WORKSPACE/PROJECTS/InCloud/valance-system/valance-backend`, `develop` @ `7ba652d4`) and is not
+  (`<private Python sample>`, `develop` @ `7ba652d4`) and is not
   reproducible from this repo. The committed artifact is AC1's fixture; the re-run method is to test
   each unlinked `IMPORTS` `target_raw` against every `(root, dotted-module)` pair the indexed file
   set can offer.
@@ -121,7 +121,7 @@ declared, or that half their import graph is dark because none was.
 `RECALL: 2 claim(s) surfaced | 0 by symbol | 2 by handle | 0 by area | 0 by finding | 1 retired skipped — advisory (blocks nothing)`
 `REFINE: 3 unresolved surfaced | 0 want-decision asked | 3 how-decision resolved+cited | 0 ASSUMED | skip: no`
 
-**PREMISE detail.** Present: `adapters/python/src/imports.py` (`resolve_absolute`), `adapters/python/index.py`, `code_atlas/config.py` (`KNOB_KEYS`, `stub_roots`, `working_roots`), `code_atlas/adapter.py` (`_request` / `declarations_only`). **Ambiguous (not blocking):** private valance-backend measurement path in Why/E1.
+**PREMISE detail.** Present: `adapters/python/src/imports.py` (`resolve_absolute`), `adapters/python/index.py`, `code_atlas/config.py` (`KNOB_KEYS`, `stub_roots`, `working_roots`), `code_atlas/adapter.py` (`_request` / `declarations_only`). **Ambiguous (not blocking):** private the private Python sample measurement path in Why/E1.
 
 **INPUT KIND:** ticket (not epic).
 
@@ -253,7 +253,7 @@ Folded: AC1 red-before in proving suite.
 
 ```
 Ran at 64fea9516d8264084f4ea74dec6e1e23fe67b260
-$ rg -n 'E1|valance|2524' docs/tasks/230_*.md | head -3
+$ rg -n 'E1|the private Python sample|2524' docs/tasks/230_*.md | head -3
 ```
 
 Folded: E1 exclusion; fixture is the committed artefact.
