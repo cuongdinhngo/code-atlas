@@ -23,8 +23,10 @@ from code_atlas.tools.nav_result import (
     REASON_NAME_NOT_QUALIFIED,
     REASON_NO_SUCH_SYMBOL,
     REASON_OK,
+    REASON_SEPARATOR_NORMALISED,
     REASON_SUBJECT_AMBIGUOUS,
     TRY_INSTEAD_FILE_OUTLINE,
+    TRY_INSTEAD_HINT_MEMBER_SEPARATOR,
     TRY_INSTEAD_SEARCH_SYMBOL,
     attach_ambiguous_definitions,
     attach_name_not_qualified,
@@ -94,6 +96,16 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 if status == "repaired":
                     rows = list(store.nodes_by_qualified_name(qname, limit=fetch_limit))
                 if not rows:
+                    normalised = _separator_normalised_hit(
+                        store,
+                        config,
+                        qname,
+                        detail_level=detail_level,
+                        fetch_limit=fetch_limit,
+                        guard=guard,
+                    )
+                    if normalised is not None:
+                        return normalised
                     qname, rows, miss = _resolve_miss(
                         store, config, qname, detail_level=detail_level, fetch_limit=fetch_limit
                     )
@@ -120,6 +132,16 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             if status == "repaired":
                 rows = list(store.nodes_by_qualified_name(qname, limit=fetch_limit))
                 if not rows:
+                    normalised = _separator_normalised_hit(
+                        store,
+                        config,
+                        qname,
+                        detail_level=detail_level,
+                        fetch_limit=fetch_limit,
+                        guard=guard,
+                    )
+                    if normalised is not None:
+                        return normalised
                     qname, rows, miss = _resolve_miss(
                         store, config, qname, detail_level=detail_level, fetch_limit=fetch_limit
                     )
@@ -217,6 +239,78 @@ def _refuse_ambiguous(
             sites,
         ),
         TRY_INSTEAD_SEARCH_SYMBOL,
+    )
+
+
+def _separator_normalised_hit(
+    store: GraphStore,
+    config: Config,
+    qname: str,
+    *,
+    detail_level: str,
+    fetch_limit: int,
+    guard: FreshnessGuard,
+) -> dict[str, object] | None:
+    """If the last separator spelled as MEMBER_SEPARATOR uniquely hits, return that near-miss (249).
+
+    Keeps the asked ``qname`` and sets ``reason=separator_normalised`` — never ``ok`` (R5.6).
+    """
+    alt = contract.member_separator_variant(qname)
+    if alt is None:
+        return None
+    rows = list(store.nodes_by_qualified_name(alt, limit=fetch_limit))
+    if len(rows) != 1:
+        return None
+    node = rows[0]
+    rel = str(node["file_path"])
+    status = guard.ensure(rel)
+    if status == "stale":
+        return attach_try_instead(
+            _result(
+                qname,
+                "",
+                detail_level=detail_level,
+                db_path=str(config.db_path),
+                index_root=config.index_root,
+                found=False,
+                stale=True,
+                reason=REASON_INDEX_STALE,
+            ),
+            TRY_INSTEAD_FILE_OUTLINE,
+        )
+    if status == "repaired":
+        rows = list(store.nodes_by_qualified_name(alt, limit=fetch_limit))
+        if len(rows) != 1:
+            return None
+        node = rows[0]
+        rel = str(node["file_path"])
+    path = config.root / rel
+    start_raw = node["line_start"]
+    if not isinstance(start_raw, int):
+        raise TypeError(f"line_start must be int, got {type(start_raw).__name__}")
+    start = start_raw
+    end_raw = node["line_end"]
+    end = end_raw if isinstance(end_raw, int) else start
+    source = _slice(path, start, end, detail_level)
+    payload = _result(
+        qname,
+        source,
+        detail_level=detail_level,
+        db_path=str(config.db_path),
+        index_root=config.index_root,
+        found=True,
+        stale=False,
+        reason=REASON_SEPARATOR_NORMALISED,
+        file=rel,
+        line_start=start,
+        line_end=end,
+        stub=is_stub(node.get("extra")),
+    )
+    if detail_level == "standard":
+        _attach_params(payload, store, node, rel)
+    attach_other_indexed_files_drifted(payload, guard)
+    return attach_try_instead(
+        payload, TRY_INSTEAD_FILE_OUTLINE, TRY_INSTEAD_HINT_MEMBER_SEPARATOR
     )
 
 

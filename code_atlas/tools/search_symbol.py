@@ -20,9 +20,11 @@ from code_atlas.tools.nav_result import (
     REASON_NO_MATCHES,
     REASON_NOT_INDEXED,
     REASON_OK,
+    REASON_SEPARATOR_NORMALISED,
     REASON_SUBJECT_FILE_CHECKED,
     REASON_SUBSTRING_MATCH,
     TRY_INSTEAD_FILE_OUTLINE,
+    TRY_INSTEAD_HINT_MEMBER_SEPARATOR,
     TRY_INSTEAD_HINT_NARROW_BY_QNAME,
     NavReason,
     attach_limit_capped,
@@ -247,6 +249,42 @@ def _search_one(
         reason = REASON_SUBSTRING_MATCH
     else:
         reason = REASON_OK
+    # Empty no_matches only: retry with last sep spelled as MEMBER_SEPARATOR (249).
+    if reason == REASON_NO_MATCHES and offset == 0:
+        alt = contract.member_separator_variant(query)
+        if alt is not None:
+            alt_rows = store.search_nodes(
+                alt, kind=kind, namespace=namespace, limit=cap + 1, offset=0
+            )
+            if alt_rows:
+                # The retry answers from the same graph, so it owes the same freshness verdict as
+                # the direct spelling — a misspelled separator must not out-answer a correct one.
+                alt_status = guard.ensure_paths([str(row["file_path"]) for row in alt_rows[:cap]])
+                if alt_status == "repaired":
+                    alt_rows = store.search_nodes(
+                        alt, kind=kind, namespace=namespace, limit=cap + 1, offset=0
+                    )
+                if alt_rows:
+                    truncated = len(alt_rows) > cap
+                    results = _suppress_redundant_file_hits(
+                        [
+                            _hit(row, store=store, detail_level=detail_level)
+                            for row in alt_rows[:cap]
+                        ]
+                    )
+                    if truncated:
+                        total_count = store.count_search_nodes(
+                            alt, kind=kind, namespace=namespace
+                        )
+                        truncated = len(results) < total_count
+                    else:
+                        total_count = len(results)
+                    alt_reason: NavReason = (
+                        REASON_INDEX_STALE
+                        if alt_status == "stale"
+                        else REASON_SEPARATOR_NORMALISED
+                    )
+                    return _Hits(results, truncated, alt_reason, total_count, residue)
     return _Hits(results, truncated, reason, total_count, residue)
 
 
@@ -279,7 +317,12 @@ def _single_payload(
         return attach_try_instead(payload, TRY_INSTEAD_FILE_OUTLINE)
     # Near-miss / truncated flood — name the narrower query (245); registry reuse (093).
     if _needs_narrowing_route(hits):
-        attach_try_instead(payload, TRY_INSTEAD_FILE_OUTLINE, TRY_INSTEAD_HINT_NARROW_BY_QNAME)
+        hint = (
+            TRY_INSTEAD_HINT_MEMBER_SEPARATOR
+            if hits.reason == REASON_SEPARATOR_NORMALISED
+            else TRY_INSTEAD_HINT_NARROW_BY_QNAME
+        )
+        attach_try_instead(payload, TRY_INSTEAD_FILE_OUTLINE, hint)
     attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
     if hits.other_indexed_files_drifted > 0:
         payload["other_indexed_files_drifted"] = hits.other_indexed_files_drifted
@@ -298,15 +341,20 @@ def _batch_answer(query: str, hits: _Hits) -> dict[str, object]:
     if hits.reason == REASON_INDEX_STALE and hits.total_count == 0:
         attach_try_instead(answer, TRY_INSTEAD_FILE_OUTLINE)
     elif _needs_narrowing_route(hits):
-        attach_try_instead(answer, TRY_INSTEAD_FILE_OUTLINE, TRY_INSTEAD_HINT_NARROW_BY_QNAME)
+        hint = (
+            TRY_INSTEAD_HINT_MEMBER_SEPARATOR
+            if hits.reason == REASON_SEPARATOR_NORMALISED
+            else TRY_INSTEAD_HINT_NARROW_BY_QNAME
+        )
+        attach_try_instead(answer, TRY_INSTEAD_FILE_OUTLINE, hint)
     if hits.other_indexed_files_drifted > 0:
         answer["other_indexed_files_drifted"] = hits.other_indexed_files_drifted
     return answer
 
 
 def _needs_narrowing_route(hits: _Hits) -> bool:
-    """True when the page is a near-miss or short of the full hit set (245)."""
-    if hits.reason == REASON_SUBSTRING_MATCH:
+    """True when the page is a near-miss or short of the full hit set (245/249)."""
+    if hits.reason in (REASON_SUBSTRING_MATCH, REASON_SEPARATOR_NORMALISED):
         return True
     return hits.truncated and hits.total_count > len(hits.results)
 

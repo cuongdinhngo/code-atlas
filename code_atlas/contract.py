@@ -250,6 +250,29 @@ def join_qname(container: str, member: str) -> str:
     return f"{container}{MEMBER_SEPARATOR}{member}"
 
 
+# Single-character separators containers use natively (CONVENTION §3). The member join is always
+# MEMBER_SEPARATOR; agents often guess the last join as one of these instead (249).
+_CONTAINER_SEPARATORS = frozenset({".", "\\", "/"})
+
+
+def member_separator_variant(query: str) -> str | None:
+    """Spell the last container separator as the member join, or None when no retry applies.
+
+    Only the last ``.`` / ``\\`` / ``/`` moves — the member is always the final segment. Already
+    carrying ``::`` as that last join, or having no separator at all, yields None (249).
+    """
+    i = len(query) - 1
+    while i >= 0:
+        ch = query[i]
+        if ch in _CONTAINER_SEPARATORS:
+            variant = f"{query[:i]}{MEMBER_SEPARATOR}{query[i + 1 :]}"
+            return variant if variant != query else None
+        if ch == ":" and i > 0 and query[i - 1] == ":":
+            return None
+        i -= 1
+    return None
+
+
 def validate(result: object) -> list[str]:
     """Check one adapter result against the contract; return error messages, empty when valid.
 

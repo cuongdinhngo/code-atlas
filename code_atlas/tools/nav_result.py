@@ -36,6 +36,7 @@ NavReason = Literal[
     "substring_match",
     "relation_unmodelled_for_language",
     "subject_file_checked",
+    "separator_normalised",
 ]
 
 REASON_OK: NavReason = "ok"
@@ -69,6 +70,9 @@ REASON_RELATION_UNMODELLED_FOR_LANGUAGE: NavReason = "relation_unmodelled_for_la
 # Miss after the subject's indexed file was checked (246): weaker than clean-tree absence;
 # ``other_indexed_files_drifted`` names how many unrelated indexed files also drifted.
 REASON_SUBJECT_FILE_CHECKED: NavReason = "subject_file_checked"
+# Primary miss; hit only after spelling the last separator as MEMBER_SEPARATOR (249). Near-miss —
+# never reason=ok: the agent asked for a name that is not in the graph (R5.6 / R5.2).
+REASON_SEPARATOR_NORMALISED: NavReason = "separator_normalised"
 
 NAV_REASONS: tuple[NavReason, ...] = (
     REASON_OK,
@@ -90,6 +94,7 @@ NAV_REASONS: tuple[NavReason, ...] = (
     REASON_SUBSTRING_MATCH,
     REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
     REASON_SUBJECT_FILE_CHECKED,
+    REASON_SEPARATOR_NORMALISED,
 )
 
 # Two registers, one naming rule (093): ``TRY_INSTEAD_*`` is a registered tool name the reader can
@@ -107,6 +112,12 @@ TRY_INSTEAD_HINT_METHOD_QNAME = (
 TRY_INSTEAD_HINT_NARROW_BY_QNAME = (
     "the page is substring near-misses, not hits — outline the file to read the exact qnames, "
     "then re-ask search_symbol with one of them"
+)
+# Separator spelling miss (249): different finding from substring flood, so a different hint —
+# the reuse rule bans a second spelling of the SAME advice, not a second advice (245 review).
+TRY_INSTEAD_HINT_MEMBER_SEPARATOR = (
+    "the member join is ::, not a container separator — outline the file for exact qnames, "
+    "or re-ask with :: before the last segment"
 )
 # Empty miss while multiple indexed files are dirty — path-named tools are stronger (073).
 TRY_INSTEAD_FILE_OUTLINE = "file_outline"

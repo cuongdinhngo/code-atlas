@@ -25,7 +25,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099 |
 | 247 | [The SQL column reader keeps type and DEFAULT and discards nullability, IDENTITY and PRIMARY KEY](tasks/247_the-column-reader-keeps-type-and-default-and-discards-nullability-identity-and-primary-key.md) | Coverage | todo | 022, 228, 239 |
 | 248 | [A Table is addressable and its columns are not readable from it](tasks/248_a-table-is-addressable-and-its-columns-are-not-readable-from-it.md) | Coverage | todo | 247, 242, 022 |
-| 249 | [A miss whose only defect is the separator spelling gets no route](tasks/249_a-miss-whose-only-defect-is-the-separator-spelling-gets-no-route.md) | Honesty | todo | 245, 224 |
 | 250 | [No call shows what a node actually holds, so an uncaptured fact is indistinguishable from an unexposed one](tasks/250_no-call-shows-what-a-node-actually-holds.md) | Honesty | todo | 247, 231, 244 |
 
 ## Open work — Pillar 2 · Onboarding
