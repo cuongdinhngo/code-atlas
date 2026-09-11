@@ -23,6 +23,10 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099 |
+| 247 | [The SQL column reader keeps type and DEFAULT and discards nullability, IDENTITY and PRIMARY KEY](tasks/247_the-column-reader-keeps-type-and-default-and-discards-nullability-identity-and-primary-key.md) | Coverage | todo | 022, 228, 239 |
+| 248 | [A Table is addressable and its columns are not readable from it](tasks/248_a-table-is-addressable-and-its-columns-are-not-readable-from-it.md) | Coverage | todo | 247, 242, 022 |
+| 249 | [A miss whose only defect is the separator spelling gets no route](tasks/249_a-miss-whose-only-defect-is-the-separator-spelling-gets-no-route.md) | Honesty | todo | 245, 224 |
+| 250 | [No call shows what a node actually holds, so an uncaptured fact is indistinguishable from an unexposed one](tasks/250_no-call-shows-what-a-node-actually-holds.md) | Honesty | todo | 247, 231, 244 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -69,7 +73,7 @@ observed neither, so it needs evidence or removal.
 One line each, with the pointer that holds the detail. Nothing here is scheduled.
 
 - **PSR-4 / autoload-aware include resolution**, with PSR-0 duplicate-name disambiguation — [042](tasks/042_tokens-to-answer-sample-tier.md).
-- **`max_results` does two unrelated jobs** — returned rows *and* resolver candidate fan-out, so a query knob sets index size — [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
+- **`max_results` does two unrelated jobs** — returned rows *and* resolver candidate fan-out, so a query knob sets index size — [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4. Round 17 is the field instance: the anchor repo pins `max_results = 10` in `.code-atlas.toml` to hold the graph at 2.6M heuristic edges instead of 4.8M, so every tool answer is capped at 10 rows to buy an index size — and `limit=100` is silently clamped.
 - **Tokens-to-answer measures cost, not information** — 046 moved the ratio 0.02 % while doubling the distinct answers. Wants a second axis before it judges a retrieval change.
 - **`reachable_from` payload size at `standard`** — bounded by `impact_max_nodes` (500), ~160 KB of JSON. Worth a lower default or `minimal`-by-default; workaround in [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
 - **Parser-OOM size cap (optional)** — multi-MB generated files exhaust the PHP parser (already soft-failed/restarted in `indexer.py`); a byte-cap pre-skip (`CA_MAX_FILE_BYTES`) would avoid ~30 restart cycles. Log skips; no silent truncation.

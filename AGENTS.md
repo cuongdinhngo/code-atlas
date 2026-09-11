@@ -89,11 +89,11 @@ to keep in step, and it drifted. Only the boundaries that decide where your chan
 A full rebuild bulk-clears (219); no need to delete `graph.db`. `workers` is not a throughput
 knob. Every timing and its conditions: [`runbooks/onboarding-a-repo.md`](docs/runbooks/onboarding-a-repo.md).
 
-## Before a PR or a push — run `scripts/gate.sh`
-**GitHub Actions DO run** — so a local `GATE GREEN` is not the whole answer: read `gh pr checks
-<n>` too, because the shared runner is slower and a wall-clock assertion can pass here and fail
-there. `scripts/gate.sh` mirrors every CI job in `ci.yml`'s order and names each check as it runs
-(~100 s; `--fast` skips pytest and the benchmark for a quick loop).
+## Before a PR or a push — run `scripts/gate.sh` **once, when the work is done**
+**Not per edit** — iterate on targeted `ruff`/`mypy`/`pytest`, batch every fix, then one gate run
+before the PR. It mirrors every `ci.yml` job in order, naming each check (~100 s).
+**Actions report `fail` in ~3 s without running** (0 steps, unbillable), so `gh pr checks` is not a
+second opinion — the local gate is the only gate, and every PR merges over four red checks.
 **Only `GATE GREEN` counts — exit 2 means a check was skipped, which is not a pass (R6.5).**
 `tests/test_ci_and_gate_agree.py` keeps it in step with `ci.yml`, so that drift fails a test here.
 **The gate's tokens-to-answer ratio is the *fixture* tier and sits below 1 by design** (floor 0.63) —
@@ -116,8 +116,8 @@ Windows lock arm (3) and, in-image only, `test_runtime_image_reports_server_buil
 Prove **delta-green** before a PR and name the host: a red run on a host missing an adapter is the
 exclusion above — confirm green via Docker and say so, never "unverified". Ship the server in a
 container via `docker/Dockerfile.runtime` (stdio; mount at `/workspace`).
-**Run Docker once, before the PR** — iterate on local `ruff`/`mypy`/`pytest`, batch fixes (review's
-included), then **one** `docker-test.sh`; CI re-verifies, re-running per edit wastes time.
+**Run Docker once, before the PR** — the gate rule above, applied to `docker-test.sh`: batch every
+fix (review's included) into one run; CI re-verifies.
 
 ## Maintainer workflow — single-maintainer repo; don't re-ask what's already authorized
 - **Finishing a task runs through to the PR without pausing to confirm:** commit in logical units →
