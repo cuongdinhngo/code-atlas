@@ -33,12 +33,12 @@ rule** rather than adding a near-duplicate (P2), and one by finding the rule alr
 | `gate-the-disclosure-on-its-condition-not-the-row-count` | 2 | 192, 238 | **proposed** → `docs/ENGINEERING_RULES.md` (238; `/mango:promote`) |
 | `do-not-attest-past-the-payloads-resolution` | 9 | 087–089, 100–102, 107, 239, 242 | **R5.6** — promoted 2026-08-27 (re-adjudicated); 239: FK indexed but Column search hit omitted it; 242: `params` indexed (231) but no nav tool returned them |
 | `fixture-shape-begs-the-question` | 11 | 084, 086, 103–106, 121, 183, 185, 190, 191 | **R6.3** — widened 2026-08-23, provisional |
-| `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
+| `try-instead-tool-name` | 6 | 092, 093, 100–102, 245 | **R5.4** |
 | `count-pin-in-blast-radius` | 11 | 085, 087–089, 175, 184, 022, 194, 196, 199, 237 | **AGENT_BRIEF P5** — promoted 2026-08-27; P5 needs the invariant, not the spelling (022) — 194 adds that a change can move MORE THAN ONE invariant, and 196 that a pin written as a bare LITERAL is invisible to a trace that greps the invariant's name; 237 is the *new-module* dimension — adding `code_atlas/preflight.py` moved the core-module count pinned in `test_core_is_language_agnostic.py` + `test_sql_confinement.py`, and the Gate-2 blast-radius trace did not grep for it |
 | `source-the-caveat-from-the-computation` | 6 | 100–102, 122, 127, 189 | **R5.5** |
 | `re-verify-the-assumption-on-a-new-path` | 3 | 102, 107, 122 | **AGENT_BRIEF P6** — promoted 2026-08-27 |
 | `re-run-the-sweep-after-the-last-edit` | 3 | 100–102 | **AGENT_BRIEF P4** |
-| `route-must-answer` | 4 | 093, 101, 102, 188 | folded into **R5.4**'s falsifier — 188 is the first sighting of its *other* direction: a route that became answerable |
+| `route-must-answer` | 5 | 093, 101, 102, 188, 245 | folded into **R5.4**'s falsifier — 188 is the first sighting of its *other* direction: a route that became answerable; 245 is shared-hint prose that must stay true at every attach site |
 | `rank-before-truncate` | 3 | 067, 126, 180 | **R5.8** — promoted 2026-08-30 |
 | `guard-asserts-rendered-not-shipped-bytes` | 2 | 116, 127 | **R6.9** — promoted 2026-08-30 |
 | `sibling-meta-non-int` | 3 | 092, 095, 174 | **R1.7** |
@@ -102,6 +102,20 @@ now reconciled to this table.
 - handle: `capability-signal-on-the-first-call-channel`
 - destination: stays in lessons_path
 - seen: 243
+### 245-C1 — A shared TRY_INSTEAD_HINT_* string must stay true at every tool that attaches it
+
+- type: 2 · handle: `route-must-answer`
+- status: proposed (awaiting human confirm)
+- seen: 093, 101, 102, 188, 245
+- evidence: challenger round 1 NOT CLEAN — attaching `TRY_INSTEAD_HINT_METHOD_QNAME` unchanged on
+  `search_symbol` still claimed "re-ask find_references / class-level reference is not modelled".
+  Widening the prose to cover both sites was the first answer and maintainer review rejected it:
+  it bought reuse by making the hint vaguer at the site that already had it, dropping the re-ask
+  tool and calling an unmodelled relation a near-miss. Two findings with two re-ask tools are two
+  advices, so the near-miss got `TRY_INSTEAD_HINT_NARROW_BY_QNAME`. 093 bans a second spelling of
+  the same advice, not a second advice. R5.4c.
+- destination: stays in `lessons_path` (folds into R5.4 falsifier; recurrence bump)
+
 
 ### 221-C1 — A callee reached from another language needs the cross-language census, not 186's within-language predicate
 

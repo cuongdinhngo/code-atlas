@@ -22,6 +22,7 @@ from code_atlas.tools.nav_result import (
     REASON_OK,
     REASON_SUBSTRING_MATCH,
     TRY_INSTEAD_FILE_OUTLINE,
+    TRY_INSTEAD_HINT_NARROW_BY_QNAME,
     NavReason,
     attach_limit_capped,
     attach_subjects_capped,
@@ -106,7 +107,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``minimal`` or non-``Column`` rows. When the first page holds only
         substring/trigram near-misses — no
         result exactly matches or prefixes the query — ``reason=substring_match`` marks the answer a
-        near-miss, not a hit, and carries the language-coverage note (167 / 160). On hash drift
+        near-miss, not a hit, and carries the language-coverage note (167 / 160). A
+        ``substring_match`` answer, or a page short of ``total_count``, also carries
+        ``try_instead=file_outline`` plus the narrow-by-qname hint, so the reader has a query to
+        make next instead of inventing one (245 / 093). On hash drift
         beyond the per-call reparse cap, returns hits with
         ``reason=index_stale`` and an honest ``total_count`` (never an empty proof of absence); a
         zero-hit first page may repair the sole dirty indexed file, and several dirty files yield
@@ -265,6 +269,9 @@ def _single_payload(
     # Empty + unverified (multi-dirty miss) — point at path-named tools (073).
     if hits.reason == REASON_INDEX_STALE and hits.total_count == 0:
         return attach_try_instead(payload, TRY_INSTEAD_FILE_OUTLINE)
+    # Near-miss / truncated flood — name the narrower query (245); registry reuse (093).
+    if _needs_narrowing_route(hits):
+        attach_try_instead(payload, TRY_INSTEAD_FILE_OUTLINE, TRY_INSTEAD_HINT_NARROW_BY_QNAME)
     attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
     return payload
 
@@ -280,7 +287,16 @@ def _batch_answer(query: str, hits: _Hits) -> dict[str, object]:
     )
     if hits.reason == REASON_INDEX_STALE and hits.total_count == 0:
         attach_try_instead(answer, TRY_INSTEAD_FILE_OUTLINE)
+    elif _needs_narrowing_route(hits):
+        attach_try_instead(answer, TRY_INSTEAD_FILE_OUTLINE, TRY_INSTEAD_HINT_NARROW_BY_QNAME)
     return answer
+
+
+def _needs_narrowing_route(hits: _Hits) -> bool:
+    """True when the page is a near-miss or short of the full hit set (245)."""
+    if hits.reason == REASON_SUBSTRING_MATCH:
+        return True
+    return hits.truncated and hits.total_count > len(hits.results)
 
 
 def _suppress_redundant_file_hits(

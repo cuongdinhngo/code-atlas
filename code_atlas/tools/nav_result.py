@@ -97,6 +97,12 @@ TRY_INSTEAD_HINT_METHOD_QNAME = (
     "list the class's methods, then re-ask find_references with a method qname "
     "(Class::method) — the class-level reference is not modelled"
 )
+# The near-miss sibling (245): a different finding and a different re-ask, so a different hint —
+# the reuse rule bans a second spelling of the SAME advice, not a second advice.
+TRY_INSTEAD_HINT_NARROW_BY_QNAME = (
+    "the page is substring near-misses, not hits — outline the file to read the exact qnames, "
+    "then re-ask search_symbol with one of them"
+)
 # Empty miss while multiple indexed files are dirty — path-named tools are stronger (073).
 TRY_INSTEAD_FILE_OUTLINE = "file_outline"
 # An under-qualified subject has candidates — search_symbol enumerates them (075/076).
