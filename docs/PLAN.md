@@ -480,24 +480,21 @@ Token-efficient: qualified names + `file:line`, not bodies, unless a read tool i
 `server_version`/`server_build`), the honesty fields (`reason`, `total_count`, `truncated`,
 `walk_truncated`, `try_instead`, `resolved_qname`, `result_kinds`, `limit_capped_to`,
 `result_subtrees`), and the batching rules — is specified once in
-[`CONVENTION.md`](CONVENTION.md) §6 and is **not** repeated per tool below. `get_index_status` (058)
-and `architecture_overview` (086) additionally accept `verbose`, in both cases for a capped extra
-list that must not ride the cheap path.
+[`CONVENTION.md`](CONVENTION.md) §6 and is **not** repeated per tool below.
 
 **The registered surface is [`TOOLS.md`](TOOLS.md), not this table** — it is the doc of record for
 what each tool returns, and it is the one that stays in step. This table keeps only the *key args*
 and the design decision behind each, for the tools whose shape a decision here settled; the later
 tools (`impact_modules`, `trace_capability`, the architecture-rule and diagram tools) carry theirs in
-their task files and [`design/`](design/). A per-tool count kept in prose here went seven tools out
-of date, which is R6.7's case: derive it, never list it.
+their task files and [`design/`](design/). A per-tool count in prose here is R6.7's case: derive it.
 
 | Tool | The decision this section settled |
 |---|---|
 | `get_index_status` | **call first (~100 tok).** `verbose` carries what must not ride the cheap path: capped `parse_failure_paths` (058), `collection` — the denominator for reconciling `files` against your own `git ls-files` without reading source (082) — and `edge_health_by_language`, stamped per build and omitted under two buckets (183) |
-| `build_or_update_index` | builds/refreshes; returns `wrote` (this run's writes) + timing, and at `standard` `graph`, so a delta isn't read as repo size (051/060). A concurrent writer returns `mode: "busy"`, `performed: false`, the loser's staleness (072); no usable adapter returns `mode: "refused"` and writes nothing — a payload, not a raise (064/079). An unbounded escalation refuses the same way and names its route: a vocabulary era behind (201), or an index a killed build left incomplete (202); the two flags run it in-band instead |
+| `build_or_update_index` | builds/refreshes; returns `wrote` (this run's writes) + timing, and at `standard` `graph`, so a delta isn't read as repo size (051/060). Every refusal is a payload naming its route, never a raise: a concurrent writer is `mode: "busy"` with the loser's staleness (072), no usable adapter `mode: "refused"` (064/079), and an unbounded escalation — a vocabulary era behind (201), or an index a killed build left incomplete (202) — the same way, in-band |
 | `search_symbol` | FTS + name ranking; stub hits declare themselves (039); a zero hit may miss-repair the sole dirty file or report `index_stale` rather than answer a confident zero (073). **`queries` sweeps N subjects in one call** (101). At `standard`, a `Column` FK hit names its target from existing `REFERENCES` edges: `references` (resolved column) or `references_unresolved` (table only, R5.6) (239) |
 | `file_outline` | line ranges, never bodies — the read is a separate, priced call |
-| `read_symbol` | docblock at `standard`, none at `minimal` (163); stubs declare themselves (039). A qname with >1 definition **refuses the body** and lists the candidates rather than picking one (070 → 078) |
+| `read_symbol` | docblock at `standard`, none at `minimal` (163); stubs declare themselves (039). A qname with >1 definition **refuses the body** and lists the candidates rather than picking one (070 → 078). At `standard`, a **callable** hit carries `params` (name + declared type) when the language stamps capture — else `params_not_captured_by_adapter`, never a lying empty list; a non-callable kind carries neither (242) |
 | `find_callers` | opt-in capped call-site source removes a round-trip (037); the argument filter counts what it could not judge in `args_unrecorded` rather than dropping it (049, depth 1 only). Depth 1 enumerates completely; deeper, `total_count` is a floor for that page. Unmodelled `*->L` ⇒ `authoritative: false` even with hits (238) |
 | `find_references` | CALLS/NEW plus `REFERENCES` (`Foo::class`, 094). An all-`DYNAMIC` page sets `authoritative: false` so it reads as a candidate list, not an enumeration |
 | `find_implementations` | EXTENDS/IMPLEMENTS, resolver-linked only |

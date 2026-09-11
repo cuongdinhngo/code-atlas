@@ -9,6 +9,7 @@ from typing import Literal
 from code_atlas import contract
 from code_atlas.build_info import maybe_server_provenance
 from code_atlas.config import Config
+from code_atlas.onboarding.class_diagram import parse_json_field
 from code_atlas.source_slice import declaration_slice
 from code_atlas.store import GraphStore
 from code_atlas.tools.freshness import FreshnessGuard
@@ -43,14 +44,19 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         ``standard`` returns ``line_start…line_end`` for ``qname`` plus the contiguous comment
         block above it; ``minimal`` returns the declaration range alone (no docblock), so ``source``
-        matches the returned ``line_start``/``line_end`` (163). On hash drift,
-        reparses that one file inline (035); returns ``stale: true`` and ``reason=index_stale`` when
-        the file is missing, no adapter owns it, or repair fails. Stub-indexed nodes carry
-        ``stub: true`` (039). A qname with more than one definition returns
-        ``reason=subject_ambiguous`` plus ``ambiguous_definitions`` and **no body** — empty
-        ``source``, no ``file``/``line_*`` — so one region's code cannot be read while ignoring the
-        list (070 warn; 078 refuse). ``try_instead`` points at ``search_symbol`` / ``file_outline``.
-        An untracked indexable file matching the subject is ``reason=not_indexed`` (092).
+        matches the returned ``line_start``/``line_end`` (163). At ``standard`` a found
+        **callable** hit also carries ``params`` (name + declared type, adapter spelling) when the
+        language's adapter stamps that capability; otherwise ``params_not_captured_by_adapter`` —
+        never an empty list that reads as "takes no arguments" (242 / R5.6). ``minimal``, and every
+        non-callable kind, omit both (061). On
+        hash drift, reparses that one file inline (035); returns ``stale: true`` and
+        ``reason=index_stale`` when the file is missing, no adapter owns it, or repair fails.
+        Stub-indexed nodes carry ``stub: true`` (039). A qname with more than one definition
+        returns ``reason=subject_ambiguous`` plus ``ambiguous_definitions`` and **no body** —
+        empty ``source``, no ``file``/``line_*`` — so one region's code cannot be read while
+        ignoring the list (070 warn; 078 refuse). ``try_instead`` points at ``search_symbol`` /
+        ``file_outline``. An untracked indexable file matching the subject is
+        ``reason=not_indexed`` (092).
         """
         if not config.db_path.is_file():
             return _empty(
@@ -140,9 +146,43 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 line_end=end,
                 stub=is_stub(node.get("extra")),
             )
+            if detail_level == "standard":
+                _attach_params(payload, store, node, rel)
             return attach_next_tools(payload, str(node["kind"]))
 
     return read_symbol
+
+
+def _attach_params(
+    payload: dict[str, object],
+    store: GraphStore,
+    node: dict[str, object],
+    file_path: str,
+) -> None:
+    """Surface ``params`` when the stamp says the adapter captures them; else disclose (242).
+
+    Callable kinds only: a Class has no parameter list, so both the field and its disclosure
+    would be a claim about a question the subject never asks (061 omit-when-empty, R5.6).
+    """
+    if str(node["kind"]) not in contract.CALLABLE_KINDS:
+        return
+    caps = store.stamped_capabilities_by_language()
+    language = store.language_of_file(file_path)
+    if caps is None or language is None or not (caps.get(language) or {}).get("params", False):
+        payload["params_not_captured_by_adapter"] = True
+        return
+    params_raw = parse_json_field(node.get("params"), [])
+    params: list[dict[str, object]] = []
+    if isinstance(params_raw, list):
+        for item in params_raw:
+            if not isinstance(item, dict) or not isinstance(item.get("name"), str):
+                continue
+            entry: dict[str, object] = {"name": item["name"]}
+            typ = item.get("type")
+            if isinstance(typ, str):
+                entry["type"] = typ
+            params.append(entry)
+    payload["params"] = params
 
 
 def _refuse_ambiguous(
