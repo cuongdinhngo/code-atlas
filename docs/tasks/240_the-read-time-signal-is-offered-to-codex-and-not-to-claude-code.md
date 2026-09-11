@@ -4,7 +4,7 @@ slug: the-read-time-signal-is-offered-to-codex-and-not-to-claude-code
 title: '`code-atlas-signal` is wired in `contrib/codex/hooks.json` and absent from `contrib/claude-code/settings.snippet.json`, so the one signal the field asked for has never fired on the host every field round runs — and the Codex README asserts the Claude Code snippet already uses it'
 phase: 1.5b
 milestone: Adoption
-status: in-progress
+status: done
 depends_on: [099, 036, 200]
 ---
 
