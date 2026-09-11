@@ -98,10 +98,10 @@ now reconciled to this table.
 ### 243-C1 — A capability census that only rides `verbose` never reaches the agent that calls `get_index_status` at default `standard`
 - type: 2 (heuristic)
 - status: proposed (awaiting human confirm)
-- evidence: `get_index_status.py` attached `cross_language` only via `_attach_edge_health_by_language` after the standard early return; field retro round 17 called standard as tool #1 and never saw the census. Fix: `_attach_cross_language_summary` before that return (task 243).
+- evidence: `get_index_status.py` attached `cross_language` only via `_attach_edge_health_by_language` after the standard early return; field retro round 17 called standard as tool #1 and never saw the census. Fix: `_attach_cross_language_summary` before that return (task 243). Recurrence (244): the same first-call channel also omitted the already-stamped `capabilities_by_language` map until `_attach_capabilities_by_language` at standard.
 - handle: `capability-signal-on-the-first-call-channel`
-- destination: stays in lessons_path
-- seen: 243
+- destination: docs/AGENT_BRIEF.md (proposed — capability signals belong on the first-call channel; awaiting `/mango:promote`)
+- seen: 243, 244
 ### 245-C1 — A shared TRY_INSTEAD_HINT_* string must stay true at every tool that attaches it
 
 - type: 2 · handle: `route-must-answer`

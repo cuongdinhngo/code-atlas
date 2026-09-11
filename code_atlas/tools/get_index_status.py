@@ -7,8 +7,9 @@ non-empty. ``standard`` adds provenance plus index-health (``edge_health``, ``pa
 ``unlinked`` / ``by_tier`` only; ``pairs`` stays inside verbose's ``edge_health_by_language``).
 ``parse_failures`` mirrors ``failed`` (files with ``parsed_ok = 0``) under the §12 name — same
 count, not a subset. ``verbose`` is ``standard`` plus a capped ``parse_failure_paths`` list
-(task 058) — never on the cheap path. Nothing here opens the database when there is none: a
-read tool must not create an index as a side effect.
+(task 058) — never on the cheap path. ``standard`` also carries ``capabilities_by_language``
+for the languages the index covers, when the build stamped one (231/244). Nothing here opens the
+database when there is none: a read tool must not create an index as a side effect.
 
 Staleness counts only files the index covers (047): editing a README leaves the graph correct, and
 a signal that says otherwise costs its reader a rebuild that reindexes nothing.
@@ -43,6 +44,7 @@ from code_atlas.store import (
 from code_atlas.tools import claim, schema_guard
 from code_atlas.tools.collection import collection_field
 from code_atlas.tools.config_provenance import attach_config_provenance
+from code_atlas.tools.coverage import covered_languages
 from code_atlas.tools.staleness import BEHIND, CURRENT, UNKNOWN, compute_staleness
 
 NAME = "get_index_status"
@@ -52,6 +54,8 @@ DetailLevel = Literal["minimal", "standard", "verbose"]
 EDGE_HEALTH_BY_LANGUAGE_FIELD = "edge_health_by_language"
 # 204's crossing census; 243 surfaces a bounded copy at standard (pairs stay verbose-nested).
 CROSS_LANGUAGE_FIELD = "cross_language"
+# 231's per-language R1.6 flags; 244 surfaces them on the first-call channel (standard).
+CAPABILITIES_BY_LANGUAGE_FIELD = "capabilities_by_language"
 
 QUESTION = "indexed-files"
 
@@ -101,8 +105,11 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
         have no launch command, each with the ``CA_<LANG>_CMD`` that enables it; omitted when all
         are wired (159). On a multi-language index they also carry ``cross_language`` — the
         build-stamped crossing census without ``pairs`` (243); omitted under two language buckets
-        and on a pre-204 stamp (R5.6 / 061). ``verbose`` still nests the full census (with
-        ``pairs``) inside ``edge_health_by_language``.
+        and on a pre-204 stamp (R5.6 / 061). ``standard``/``verbose`` also carry
+        ``capabilities_by_language`` — the build-stamped R1.6 flags, for the languages this
+        index holds files of (231/244/173); omitted when the stamp is absent or empty
+        (R5.6 / 061). ``verbose`` still nests the
+        full census (with ``pairs``) inside ``edge_health_by_language``.
 
         ``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
         ``key=value`` line stating how many files this index covers and at which revision. An
@@ -309,6 +316,7 @@ def _status(
     if hint:
         enriched["source_root_hint_imports"] = hint
     _attach_cross_language_summary(enriched, store)
+    _attach_capabilities_by_language(enriched, store)
     if detail_level == "standard":
         return signed(enriched)
     paths = store.failed_paths(PARSE_FAILURE_PATHS_LIMIT, offset=offset)
@@ -349,6 +357,34 @@ def _attach_cross_language_summary(payload: dict[str, object], store: GraphStore
         "by_tier": census["by_tier"],
         "linked": census["linked"],
         "unlinked": census["unlinked"],
+    }
+
+
+
+def _attach_capabilities_by_language(payload: dict[str, object], store: GraphStore) -> None:
+    """Per-language R1.6 flags at ``standard`` (task 244), or nothing.
+
+    The first-call channel is the only one that reaches a non-caller. The stamp already exists
+    (231); this is the one meta read that puts it where the session looks. Silent when absent,
+    empty, or every flag is false — nothing to disclose stays byte-identical (R5.6 / 061).
+    Never a query-time scan (R4.2).
+
+    Scoped to the languages this index covers (173's stamp): 231 stamps every adapter that
+    announced, so an unfiltered map answers for languages the graph holds no file of — cost on
+    the session's most expensive call, about an index that cannot answer either way (061).
+    """
+    stamped = store.stamped_capabilities_by_language()
+    if not stamped:
+        return
+    # No coverage stamp (pre-173) is not evidence of no coverage — do not filter on it (R5.6).
+    covered = covered_languages(store)
+    if covered is not None:
+        names = {name for name in covered.split(",") if name}
+        stamped = {name: caps for name, caps in stamped.items() if name in names}
+    if not any(any(caps.values()) for caps in stamped.values()):
+        return
+    payload[CAPABILITIES_BY_LANGUAGE_FIELD] = {
+        name: dict(caps) for name, caps in sorted(stamped.items())
     }
 
 
