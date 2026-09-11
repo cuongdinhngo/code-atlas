@@ -154,6 +154,39 @@ this is narrower than the original hypothesis: a second repository with the shap
 that path comparison provably cannot serve — drift detection between two files, or an asserted
 many-to-many mapping. Until then, correspondence lives beside the index, not in it.
 
+## Evidence from field retro round 17 (2026-09-11) — the drift half of the reopen condition, answered against a relation
+
+Round 17 produced exactly the demand the Verdict above named as the reopen condition's second half:
+its highest-value ticket's root cause was a **parameter-list difference between an object and its
+`_beta` twin**, and its top-ranked ask was a `diff_twin` primitive — *"highest value by a distance"*.
+115's path comparison provably cannot serve that, which is why the Verdict listed it.
+
+It is servable without a relation, and this was measured rather than argued. On the anchor monorepo
+at `contract_version: 10`, reading `nodes.params` and grouping by name:
+
+| Measure | Value |
+|---|--:|
+| `X` / `X_beta` stored-procedure twin pairs | 148 |
+| …whose parameter lists differ | **28** |
+| …including the session's own root cause | `UpdateRecursiveActivitiesUntil`, `@maxRecursions` absent from the `_beta` twin |
+
+No table, no edge kind, no `contract_version` bump, no declared source, no config — one column the
+graph already holds, plus a name convention applied at presentation time, which is where R2 requires
+a repository's naming to stay.
+
+**What this changes about the gate.** Gate item 1 is untouched and still unmet: round 17 is the
+anchor again, so `n` remains 1. What moves is the Verdict's *own* strongest remaining argument — that
+a path-based map cannot notice drift, and only a real relation could. At **signature** granularity it
+can, because the graph holds both sides at that granularity already. The reopen condition narrows
+accordingly: the live cases are now an **asserted many-to-many mapping**, and drift *below* the
+signature — two bodies that diverged while their parameter lists agree, which neither 115 nor
+`params` can see.
+
+The consequence is a ticket, and it is not this one:
+[242](242_params-is-stored-by-every-adapter-and-surfaced-by-one-tool-that-cannot-render-a-free-function.md)
+— the same measurement showed `params` is reachable by no nav tool, so the answer above is in the
+index and out of an agent's reach. **098 stays `deferred`; 242 is what the demand actually wanted.**
+
 ## Scope / Deliverables — only if the gate opens
 - **Design first, and expect the design to be most of the ticket.** Answer the four questions above
   with a written verdict each; a rejected alternative is a deliverable here, not a footnote.
