@@ -24,6 +24,7 @@ from code_atlas.tools.nav_result import (
     REASON_NO_SUCH_SYMBOL,
     REASON_OK,
     REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
+    REASON_SUBJECT_FILE_CHECKED,
     TRY_INSTEAD_FILE_OUTLINE,
 )
 from tests.test_read_through_freshness import config_for, write
@@ -73,8 +74,8 @@ def test_read_symbol_miss_repairs_committed_drift(tmp_path: Path) -> None:
     assert result["reason"] == REASON_OK
 
 
-def test_read_symbol_committed_multi_drift_is_index_stale_not_absent(tmp_path: Path) -> None:
-    """166 AC2: >1 committed-drifted file blocks a single repair → index_stale, not absence."""
+def test_read_symbol_committed_multi_drift_repairs_named_subject(tmp_path: Path) -> None:
+    """246 supersedes 166 AC2 for path-shaped subjects: repair the named file, not the count."""
     write(tmp_path, "src/Widget.aa", "class Widget {}\n")
     write(tmp_path, "src/Other.aa", "class Other {}\n")
     _git_init(tmp_path)
@@ -87,9 +88,10 @@ def test_read_symbol_committed_multi_drift_is_index_stale_not_absent(tmp_path: P
 
     subject = "src/Widget.aa::buildPaginatorQuery"
     result = read_symbol.create(config)(subject, detail_level="minimal")
-    assert result["reason"] == REASON_INDEX_STALE
-    assert result["stale"] is True
-    assert result["reason"] != REASON_NO_SUCH_SYMBOL
+    assert result["found"] is True, result
+    assert result["stale"] is False
+    assert result["reason"] == REASON_OK
+    assert result.get("other_indexed_files_drifted") == 1
 
 
 def test_search_miss_repairs_sole_dirty_indexed_file(tmp_path: Path) -> None:
@@ -136,7 +138,7 @@ def test_abc_multi_dirty_outline_then_search(tmp_path: Path) -> None:
 
 
 def test_six_consumers_share_ensure_qname_miss_path(tmp_path: Path) -> None:
-    """ensure_qname no-rows + search miss: all six consumers honour multi-dirty stale."""
+    """Path-shaped qname miss is subject-scoped (246); bare search stays count-gated (073)."""
     write(tmp_path, "src/a.aa", "class A {}\n")
     write(tmp_path, "src/b.aa", "class B {}\n")
     _git_init(tmp_path)
@@ -156,8 +158,10 @@ def test_six_consumers_share_ensure_qname_miss_path(tmp_path: Path) -> None:
     )
     for tool in qname_tools:
         result = tool(qname, detail_level="minimal")
-        assert result["reason"] == REASON_INDEX_STALE, tool
-        assert result["try_instead"] == TRY_INSTEAD_FILE_OUTLINE, tool
+        # Named subject file is repaired/checked — not a population refuse (246).
+        assert result["reason"] != REASON_INDEX_STALE, (tool, result)
+        assert result.get("other_indexed_files_drifted") == 1, (tool, result)
+        assert result["reason"] == REASON_SUBJECT_FILE_CHECKED, (tool, result)
 
     search = search_symbol.create(config)("NeverIndexed", detail_level="minimal")
     assert search["reason"] == REASON_INDEX_STALE

@@ -23,7 +23,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099 |
-| 246 | [`ensure_miss` refuses on the count of drifted files, not the subject](tasks/246_ensure-miss-refuses-on-the-count-of-drifted-files-not-on-the-subject.md) | Agent-fit | todo | 073, 166, 035, 057 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -42,8 +41,9 @@ Nothing open — 225 (the sequence view) landed; its spend is one row in
 - **Every `deferred` ticket holds its own gate** — 074, 098 and 141 each state theirs, and 141 is at
   n = 0; do not queue one without reading it. Auto *reading orders* stay unscheduled
   ([121](benchmarks/121_onboarding-question-class.md)).
-- **Roll-out is the binding constraint** — five rounds standing. The part with a code-shaped face is
-  244; the rest is not a ticket here and goes to the consumer as a PR.
+- **Roll-out is the binding constraint** — five rounds standing. 244 shipped the code-shaped face
+  of it; what remains is not a ticket here and goes to the consumer as a PR. 244's own re-check
+  left one instance open: a capability with no tool name (`find_mirror_subtrees`, 115).
 
 ## Phase 2 — More languages (§19 pivot, 2026-08-04)
 

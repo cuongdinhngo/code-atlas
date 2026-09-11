@@ -35,6 +35,7 @@ NavReason = Literal[
     "snapshot_not_found",
     "substring_match",
     "relation_unmodelled_for_language",
+    "subject_file_checked",
 ]
 
 REASON_OK: NavReason = "ok"
@@ -65,6 +66,9 @@ REASON_SUBSTRING_MATCH: NavReason = "substring_match"
 # index's own per-language stamp, never from a language name (R1.1, 186). Distinct from
 # relationship_not_modelled, which needs unlinked evidence a second language never produces.
 REASON_RELATION_UNMODELLED_FOR_LANGUAGE: NavReason = "relation_unmodelled_for_language"
+# Miss after the subject's indexed file was checked (246): weaker than clean-tree absence;
+# ``other_indexed_files_drifted`` names how many unrelated indexed files also drifted.
+REASON_SUBJECT_FILE_CHECKED: NavReason = "subject_file_checked"
 
 NAV_REASONS: tuple[NavReason, ...] = (
     REASON_OK,
@@ -85,6 +89,7 @@ NAV_REASONS: tuple[NavReason, ...] = (
     REASON_SNAPSHOT_NOT_FOUND,
     REASON_SUBSTRING_MATCH,
     REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
+    REASON_SUBJECT_FILE_CHECKED,
 )
 
 # Two registers, one naming rule (093): ``TRY_INSTEAD_*`` is a registered tool name the reader can

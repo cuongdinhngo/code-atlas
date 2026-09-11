@@ -10,7 +10,7 @@ from code_atlas.config import Config, clamp_limit
 from code_atlas.enrichment import view_data_key
 from code_atlas.store import GraphStore
 from code_atlas.tools.coverage import attach_coverage_note, covered_languages
-from code_atlas.tools.freshness import FreshnessGuard
+from code_atlas.tools.freshness import FreshnessGuard, finalize_subject_checked_miss
 from code_atlas.tools.nav_result import (
     REASON_CAPABILITY_NOT_CONFIGURED,
     REASON_INDEX_STALE,
@@ -108,8 +108,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     if freshness == "repaired":
                         miss["subject_refreshed_only"] = True
                     attach_limit_capped(miss, cap=cap, clamped=limit_clamped)
+                    shaped = shape_exact_miss(miss, resolution)
+                    finalize_subject_checked_miss(shaped, guard)
                     return attach_coverage_note(
-                        shape_exact_miss(miss, resolution),
+                        shaped,
                         config,
                         covered,
                         detail_level=detail_level,

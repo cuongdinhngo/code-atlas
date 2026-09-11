@@ -15,7 +15,7 @@ from code_atlas.tools.coverage import (
     covered_languages,
     cross_language_relation_unmodelled,
 )
-from code_atlas.tools.freshness import FreshnessGuard
+from code_atlas.tools.freshness import FreshnessGuard, finalize_subject_checked_miss
 from code_atlas.tools.nav_result import (
     CAVEAT_ARGS_NOT_CAPTURED,
     CAVEAT_CROSS_LANGUAGE_UNMODELLED,
@@ -233,9 +233,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     if unrecorded is not None:
                         miss["args_unrecorded"] = unrecorded
                     attach_limit_capped(miss, cap=cap, clamped=limit_clamped)
+                    shaped = shape_exact_miss(miss, resolution)
+                    finalize_subject_checked_miss(shaped, guard)
                     return signed(
                         attach_coverage_note(
-                            shape_exact_miss(miss, resolution), config, covered,
+                            shaped, config, covered,
                             detail_level=detail_level,
                         )
                     )

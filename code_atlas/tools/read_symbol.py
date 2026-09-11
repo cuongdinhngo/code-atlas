@@ -12,7 +12,12 @@ from code_atlas.config import Config
 from code_atlas.onboarding.class_diagram import parse_json_field
 from code_atlas.source_slice import declaration_slice
 from code_atlas.store import GraphStore
-from code_atlas.tools.freshness import FreshnessGuard
+from code_atlas.tools.freshness import (
+    FreshnessGuard,
+    attach_other_indexed_files_drifted,
+    finalize_subject_checked_miss,
+    nameable_subject_path,
+)
 from code_atlas.tools.nav_result import (
     REASON_INDEX_STALE,
     REASON_NAME_NOT_QUALIFIED,
@@ -71,7 +76,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             rows = list(store.nodes_by_qualified_name(qname, limit=fetch_limit))
             guard = FreshnessGuard(config, store)
             if not rows:
-                status = guard.ensure_miss()
+                status = guard.ensure_miss(nameable_subject_path(store, qname))
                 if status == "stale":
                     return attach_try_instead(
                         _result(
@@ -93,7 +98,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         store, config, qname, detail_level=detail_level, fetch_limit=fetch_limit
                     )
                     if miss is not None:
-                        return miss
+                        return finalize_subject_checked_miss(miss, guard)
             # Refuse before freshness — the list needs no file bytes (078 review).
             if len(rows) > 1:
                 return _refuse_ambiguous(qname, rows, detail_level=detail_level, config=config)
@@ -148,6 +153,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             )
             if detail_level == "standard":
                 _attach_params(payload, store, node, rel)
+            attach_other_indexed_files_drifted(payload, guard)
             return attach_next_tools(payload, str(node["kind"]))
 
     return read_symbol

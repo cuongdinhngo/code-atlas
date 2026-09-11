@@ -15,10 +15,10 @@ from code_atlas.tools.nav_result import (
     REASON_NAME_NOT_QUALIFIED,
     REASON_NO_MATCHES,
     REASON_OK,
-    REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
     REASON_RELATIONSHIP_NOT_MODELLED,
     REASON_RULE_MATCHED_NO_FILES,
     REASON_SUBJECT_AMBIGUOUS,
+    REASON_SUBJECT_FILE_CHECKED,
     REASON_SUBSTRING_MATCH,
     TRY_INSTEAD_HINT_METHOD_QNAME,
     TRY_INSTEAD_HINT_PATH_BASENAME,
@@ -213,4 +213,4 @@ def test_reason_vocabulary_pins_relationship_not_modelled() -> None:
     assert REASON_RULE_MATCHED_NO_FILES in NAV_REASONS
     # 167 appended substring_match; 186 appended relation_unmodelled_for_language after it.
     assert REASON_SUBSTRING_MATCH in NAV_REASONS
-    assert NAV_REASONS[-1] == REASON_RELATION_UNMODELLED_FOR_LANGUAGE
+    assert NAV_REASONS[-1] == REASON_SUBJECT_FILE_CHECKED

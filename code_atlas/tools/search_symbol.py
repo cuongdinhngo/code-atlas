@@ -14,12 +14,13 @@ from code_atlas.tools.coverage import (
     attach_coverage_note,
     covered_languages,
 )
-from code_atlas.tools.freshness import FreshnessGuard
+from code_atlas.tools.freshness import FreshnessGuard, nameable_subject_path
 from code_atlas.tools.nav_result import (
     REASON_INDEX_STALE,
     REASON_NO_MATCHES,
     REASON_NOT_INDEXED,
     REASON_OK,
+    REASON_SUBJECT_FILE_CHECKED,
     REASON_SUBSTRING_MATCH,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_HINT_NARROW_BY_QNAME,
@@ -48,6 +49,7 @@ class _Hits(NamedTuple):
     truncated: bool
     reason: NavReason
     total_count: int
+    other_indexed_files_drifted: int = 0
 
 
 def _require_kind(kind: contract.NodeKind | None) -> contract.NodeKind | None:
@@ -113,10 +115,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         make next instead of inventing one (245 / 093). On hash drift
         beyond the per-call reparse cap, returns hits with
         ``reason=index_stale`` and an honest ``total_count`` (never an empty proof of absence); a
-        zero-hit first page may repair the sole dirty indexed file, and several dirty files yield
-        empty ``index_stale`` plus ``try_instead`` (073). Stub-indexed nodes carry ``stub: true``
-        (039); a ``File`` hit that only restates a ``Class`` hit's declaring file in the same page
-        is suppressed — request File rows via ``kind`` (061).
+        zero-hit first page may repair a named subject file or the sole dirty indexed file; an
+        unnameable subject amid several dirty files yields empty ``index_stale`` (073/246). Stub-
+        indexed nodes carry ``stub: true`` (039); a ``File`` hit that only restates a ``Class``
+        hit's declaring file in the same page is suppressed — request File rows via ``kind`` (061).
         """
         subjects = _require_subjects(query, queries)
         batched = queries is not None
@@ -211,10 +213,14 @@ def _search_one(
     rows = store.search_nodes(query, kind=kind, namespace=namespace, limit=cap + 1, offset=offset)
     hit_paths = [str(row["file_path"]) for row in rows[:cap]]
     status = guard.ensure_paths(hit_paths)
-    # Zero hits never yield hit paths — miss-repair the sole dirty indexed file (073).
+    # Zero hits: miss-repair a named subject or the sole dirty file (073/246).
     # First page only: an empty page past the end is not an empty answer (057).
+    # Read the residue only where it was computed: one guard serves every subject of a sweep
+    # (101), so carrying it across subjects would put one subject's drift on another's answer.
+    residue = 0
     if not rows and offset == 0 and status == "ok":
-        status = guard.ensure_miss()
+        status = guard.ensure_miss(nameable_subject_path(store, query))
+        residue = guard.other_indexed_files_drifted
     # Re-query only when a repair may have changed FTS/rows.
     if status == "repaired" or (status == "stale" and guard.used > 0):
         rows = store.search_nodes(
@@ -233,13 +239,15 @@ def _search_one(
         reason: NavReason = REASON_INDEX_STALE
     elif total_count == 0:
         # Page emptiness ≠ answer emptiness once offset can walk past the end (057).
-        reason = REASON_NO_MATCHES
+        reason = (
+            REASON_SUBJECT_FILE_CHECKED if residue > 0 else REASON_NO_MATCHES
+        )
     elif offset == 0 and not any(_direct(query, row) for row in rows[:cap]):
         # First page holds only substring/trigram near-misses — not a confident hit (167).
         reason = REASON_SUBSTRING_MATCH
     else:
         reason = REASON_OK
-    return _Hits(results, truncated, reason, total_count)
+    return _Hits(results, truncated, reason, total_count, residue)
 
 
 def _direct(query: str, row: Mapping[str, object] | Row) -> bool:
@@ -273,6 +281,8 @@ def _single_payload(
     if _needs_narrowing_route(hits):
         attach_try_instead(payload, TRY_INSTEAD_FILE_OUTLINE, TRY_INSTEAD_HINT_NARROW_BY_QNAME)
     attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
+    if hits.other_indexed_files_drifted > 0:
+        payload["other_indexed_files_drifted"] = hits.other_indexed_files_drifted
     return payload
 
 
@@ -289,6 +299,8 @@ def _batch_answer(query: str, hits: _Hits) -> dict[str, object]:
         attach_try_instead(answer, TRY_INSTEAD_FILE_OUTLINE)
     elif _needs_narrowing_route(hits):
         attach_try_instead(answer, TRY_INSTEAD_FILE_OUTLINE, TRY_INSTEAD_HINT_NARROW_BY_QNAME)
+    if hits.other_indexed_files_drifted > 0:
+        answer["other_indexed_files_drifted"] = hits.other_indexed_files_drifted
     return answer
 
 

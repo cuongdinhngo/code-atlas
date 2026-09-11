@@ -1,4 +1,4 @@
-"""Query-time read-through freshness — repair drifted files before answering (035 / 073)."""
+"""Query-time read-through freshness — repair drifted files before answering (035 / 073 / 246)."""
 
 from __future__ import annotations
 
@@ -7,13 +7,36 @@ from typing import Literal
 
 from code_atlas import gitutil
 from code_atlas.config import Config
+from code_atlas.contract import MEMBER_SEPARATOR
 from code_atlas.indexer import file_is_current, indexable, reparse_file
 from code_atlas.store import INDEXED_SUFFIXES_KEY, LAST_COMMIT_KEY, GraphStore
+from code_atlas.tools.nav_result import REASON_SUBJECT_FILE_CHECKED
 
 # Cap reparses per tool call (WANT-1 / Goal: one adapter call). Overflow → index_stale.
+# 246 keeps this at 1: subject-scoped miss spends ≤1 reparse; raising with dirty-count
+# would reparse a branch on one call (measured: AC1 fixture, 3 unrelated drifts → 0 reparses).
 READ_THROUGH_CAP = 1
 
 EnsureResult = Literal["ok", "repaired", "stale"]
+
+
+def nameable_subject_path(store: GraphStore, qname: str) -> str | None:
+    """Return the indexed file path encoded in ``qname``, if any (246).
+
+    A path-shaped qname (``src/Foo.aa::bar``, ``src/user.ts::User::save``) names a ``files``
+    row. Namespace-shaped names (``\\App\\Foo::bar``) do not — mapping those would be a
+    language branch in the core (R1.1). Walk ``::`` prefixes; first ``files`` hit wins.
+    """
+    if not qname:
+        return None
+    if store.file_hash(qname) is not None:
+        return qname
+    parts = qname.split(MEMBER_SEPARATOR)
+    for i in range(1, len(parts)):
+        prefix = MEMBER_SEPARATOR.join(parts[:i])
+        if store.file_hash(prefix) is not None:
+            return prefix
+    return None
 
 
 @dataclass
@@ -21,14 +44,16 @@ class FreshnessGuard:
     """Per-call budget for inline reparses against one open store.
 
     Result-driven repair (035): paths already on the answer are hash-checked. Miss-driven
-    repair (073): a zero-hit query may spend the same cap on the sole dirty indexed file.
-    Multiple dirty indexed files cannot be chosen under the cap — callers get ``stale``.
+    repair (073/246): a zero-hit query may spend the same cap on a *named* subject's file,
+    or on the sole dirty indexed file when the subject cannot be named. Unrelated dirty
+    files no longer force ``stale`` when the subject file is known (246).
     """
 
     config: Config
     store: GraphStore
     cap: int = READ_THROUGH_CAP
     _used: int = field(default=0, init=False)
+    other_indexed_files_drifted: int = field(default=0, init=False)
 
     @property
     def used(self) -> int:
@@ -56,18 +81,25 @@ class FreshnessGuard:
         rows = self.store.nodes_by_qualified_name(qname, limit=1)
         if rows:
             return self.ensure(str(rows[0]["file_path"]))
-        return self.ensure_miss()
+        return self.ensure_miss(nameable_subject_path(self.store, qname))
 
-    def ensure_miss(self) -> EnsureResult:
-        """When a query matched nothing: repair the sole dirty indexed file, else signal.
+    def ensure_miss(self, subject_path: str | None = None) -> EnsureResult:
+        """When a query matched nothing: repair a named subject file, or the sole dirty file.
 
-        Zero dirty → ``ok`` (absence is as current as the index). Exactly one → ``ensure`` it.
-        Multiple → ``stale`` without spending the cap (no deterministic single subject under
-        ``READ_THROUGH_CAP``). Requires git ``dirty_paths``; outside a repo returns ``ok``.
+        Zero dirty → ``ok``. Named ``subject_path`` → decide on that file only; stash how many
+        *other* indexed files drifted (246 residue). Unnameable + multiple dirty → ``stale``
+        without spending the cap (073). Requires git ``dirty_paths``; outside a repo returns ``ok``.
         """
+        self.other_indexed_files_drifted = 0
         candidates = dirty_indexed_paths(self.store, self.config)
         if not candidates:
             return "ok"
+        if subject_path is not None:
+            others = [p for p in candidates if p != subject_path]
+            self.other_indexed_files_drifted = len(others)
+            if subject_path not in candidates:
+                return "ok"
+            return self.ensure(subject_path)
         if len(candidates) > 1:
             return "stale"
         return self.ensure(candidates[0])
@@ -86,6 +118,26 @@ class FreshnessGuard:
             if status == "repaired":
                 worst = "repaired"
         return worst
+
+
+def attach_other_indexed_files_drifted(
+    payload: dict[str, object], guard: FreshnessGuard
+) -> dict[str, object]:
+    """Omit-when-empty (061): name how many unrelated indexed files drifted (246)."""
+    n = guard.other_indexed_files_drifted
+    if n > 0:
+        payload["other_indexed_files_drifted"] = n
+    return payload
+
+
+def finalize_subject_checked_miss(
+    payload: dict[str, object], guard: FreshnessGuard
+) -> dict[str, object]:
+    """On a miss after a named subject check: weaker ``reason`` + residue count (246)."""
+    if guard.other_indexed_files_drifted > 0:
+        payload["reason"] = REASON_SUBJECT_FILE_CHECKED
+        payload["other_indexed_files_drifted"] = guard.other_indexed_files_drifted
+    return payload
 
 
 def dirty_indexed_paths(store: GraphStore, config: Config) -> list[str]:

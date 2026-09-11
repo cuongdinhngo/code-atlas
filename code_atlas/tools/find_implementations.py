@@ -9,7 +9,7 @@ from code_atlas.config import Config, clamp_limit
 from code_atlas.contract import IMPL_KINDS
 from code_atlas.store import GraphStore
 from code_atlas.tools.coverage import attach_coverage_note, covered_languages
-from code_atlas.tools.freshness import FreshnessGuard
+from code_atlas.tools.freshness import FreshnessGuard, finalize_subject_checked_miss
 from code_atlas.tools.nav_result import (
     REASON_INDEX_STALE,
     REASON_NO_SUCH_SYMBOL,
@@ -99,8 +99,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         reason=REASON_NO_SUCH_SYMBOL,
                         total_count=0,
                     )
+                    shaped = shape_exact_miss(miss, resolution)
+                    finalize_subject_checked_miss(shaped, guard)
                     return attach_coverage_note(
-                        shape_exact_miss(miss, resolution),
+                        shaped,
                         config,
                         covered,
                         detail_level=detail_level,
