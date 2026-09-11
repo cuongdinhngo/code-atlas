@@ -57,6 +57,13 @@ CREATE TABLE dbo.SelfRef (
     CONSTRAINT FK_SelfRef_Parent FOREIGN KEY (ParentId) REFERENCES dbo.SelfRef (Id)
 );
 GO
+CREATE TABLE dbo.ImpliedPK (
+    Id int NOT NULL,
+    RegionId int NOT NULL,
+    CONSTRAINT PK_ImpliedPK PRIMARY KEY (Id),
+    CONSTRAINT FK_ImpliedPK_Region FOREIGN KEY (RegionId) REFERENCES dbo.Region
+);
+GO
 CREATE TABLE dbo.Composite (
     A int NOT NULL,
     B int NOT NULL,
@@ -175,3 +182,19 @@ def test_payload_cost_of_the_addition_is_bounded(indexed) -> None:
     delta = std_bytes - mini_bytes
     # Two short target strings + key overhead — well under a kilobyte for this fixture.
     assert 0 < delta < 500, f"unexpected envelope delta {delta} (std={std_bytes} mini={mini_bytes})"
+
+
+@needs_node
+def test_table_only_fk_is_never_signed_as_a_resolved_column_target(indexed) -> None:
+    """R5.6: both states in one test — a resolved column target and a table-only one differ."""
+    _, root = indexed
+    resolved = _search(root, "RegionCode", kind="Column")
+    hit = next(h for h in resolved["results"] if h["qname"] == "dbo.Authen::RegionCode")
+    assert hit["references"] == ["dbo.Region::Code"]
+    assert "references_unresolved" not in hit
+
+    implied = _search(root, "RegionId", kind="Column")
+    table_only = next(h for h in implied["results"] if h["qname"] == "dbo.ImpliedPK::RegionId")
+    # The FK omits its column list, so only the table is known — never signed under `references`.
+    assert table_only["references_unresolved"] == ["dbo.Region"]
+    assert "references" not in table_only

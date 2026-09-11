@@ -7,6 +7,7 @@ from typing import Literal, NamedTuple
 
 from code_atlas import contract
 from code_atlas.config import Config, clamp_limit, clamp_subjects
+from code_atlas.contract import CONFIDENCE_TIERS
 from code_atlas.store import GraphStore, Row, is_direct_match
 from code_atlas.tools.coverage import (
     attach_coverage_gap,
@@ -31,6 +32,8 @@ from code_atlas.tools.nav_result import (
     list_result,
     subject_answer,
 )
+
+_RESOLVED = CONFIDENCE_TIERS[0]
 
 NAME = "search_symbol"
 
@@ -96,9 +99,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         queries under three characters), capped by ``limit`` or ``CA_MAX_RESULTS``; ``offset`` pages
         in search order (057). **Exact and prefix matches come first**, near-misses after, relevance
         as the tie-break inside each band — over the whole result set, not the page (180).
-        At ``standard``, a ``Column`` whose schema declares a foreign key also carries
-        ``references`` — the resolved target(s) from existing ``REFERENCES`` edges (239); omit when
-        empty, and never on ``minimal`` or non-``Column`` rows. When the first page holds only
+        At ``standard``, a ``Column`` whose schema declares a foreign key also carries its target(s)
+        from existing ``REFERENCES`` edges (239): resolved column targets under ``references``, and
+        a column-list-omitted FK — which names only its table — under ``references_unresolved``, so
+        the two are never signed alike (R5.6). Both are omitted when empty, and never appear on
+        ``minimal`` or non-``Column`` rows. When the first page holds only
         substring/trigram near-misses — no
         result exactly matches or prefixes the query — ``reason=substring_match`` marks the answer a
         near-miss, not a hit, and carries the language-coverage note (167 / 160). On hash drift
@@ -311,18 +316,26 @@ def _hit(
         and detail_level != "minimal"
         and row["kind"] == "Column"
     ):
-        targets = _column_reference_targets(store, str(row["qualified_name"]))
-        if targets:
-            hit["references"] = targets
+        resolved, unresolved = _column_reference_targets(store, str(row["qualified_name"]))
+        if resolved:
+            hit["references"] = resolved
+        if unresolved:
+            hit["references_unresolved"] = unresolved
     return hit
 
 
-def _column_reference_targets(store: GraphStore, qname: str) -> list[str]:
-    """Stable, deduped ``REFERENCES`` targets for a Column qname — empty when none (R5.6)."""
-    edges = store.edges_by_source(qname, kinds=("REFERENCES",), limit=32)
-    targets = {
-        str(edge["target_qname"] or edge["target_raw"])
-        for edge in edges
-        if edge.get("target_qname") or edge.get("target_raw")
-    }
-    return sorted(targets)
+def _column_reference_targets(store: GraphStore, qname: str) -> tuple[list[str], list[str]]:
+    """Stable, deduped ``REFERENCES`` targets split by tier — resolved columns, then table-only.
+
+    A column-list-omitted FK can only name the table, so signing it as a resolved target would
+    attest past what the payload can tell apart (R5.6).
+    """
+    resolved: set[str] = set()
+    unresolved: set[str] = set()
+    for edge in store.edges_by_source(qname, kinds=("REFERENCES",), limit=32):
+        target = edge["target_qname"] or edge["target_raw"]
+        if not target:
+            continue
+        bucket = resolved if edge["confidence_tier"] == _RESOLVED else unresolved
+        bucket.add(str(target))
+    return sorted(resolved), sorted(unresolved)
