@@ -96,7 +96,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         queries under three characters), capped by ``limit`` or ``CA_MAX_RESULTS``; ``offset`` pages
         in search order (057). **Exact and prefix matches come first**, near-misses after, relevance
         as the tie-break inside each band — over the whole result set, not the page (180).
-        When the first page holds only substring/trigram near-misses — no
+        At ``standard``, a ``Column`` whose schema declares a foreign key also carries
+        ``references`` — the resolved target(s) from existing ``REFERENCES`` edges (239); omit when
+        empty, and never on ``minimal`` or non-``Column`` rows. When the first page holds only
+        substring/trigram near-misses — no
         result exactly matches or prefixes the query — ``reason=substring_match`` marks the answer a
         near-miss, not a hit, and carries the language-coverage note (167 / 160). On hash drift
         beyond the per-call reparse cap, returns hits with
@@ -139,7 +142,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             guard = FreshnessGuard(config, store)
             found = [
                 _search_one(
-                    store, guard, subject, kind=kind, namespace=namespace, cap=cap, offset=offset
+                    store,
+                    guard,
+                    subject,
+                    kind=kind,
+                    namespace=namespace,
+                    cap=cap,
+                    offset=offset,
+                    detail_level=detail_level,
                 )
                 for subject in kept
             ]
@@ -186,6 +196,7 @@ def _search_one(
     namespace: str | None,
     cap: int,
     offset: int,
+    detail_level: DetailLevel,
 ) -> _Hits:
     """One subject's search, verdict included — the same path a single call has always taken."""
     rows = store.search_nodes(query, kind=kind, namespace=namespace, limit=cap + 1, offset=offset)
@@ -201,7 +212,9 @@ def _search_one(
             query, kind=kind, namespace=namespace, limit=cap + 1, offset=offset
         )
     truncated = len(rows) > cap
-    results = _suppress_redundant_file_hits([_hit(row) for row in rows[:cap]])
+    results = _suppress_redundant_file_hits(
+        [_hit(row, store=store, detail_level=detail_level) for row in rows[:cap]]
+    )
     if truncated or offset > 0:
         total_count = store.count_search_nodes(query, kind=kind, namespace=namespace)
         truncated = offset + len(results) < total_count
@@ -279,7 +292,12 @@ def _suppress_redundant_file_hits(
     ]
 
 
-def _hit(row: Mapping[str, object] | Row) -> dict[str, object]:
+def _hit(
+    row: Mapping[str, object] | Row,
+    *,
+    store: GraphStore | None = None,
+    detail_level: DetailLevel = "standard",
+) -> dict[str, object]:
     hit: dict[str, object] = {}
     hit["qname"] = row["qualified_name"]
     hit["kind"] = row["kind"]
@@ -287,4 +305,24 @@ def _hit(row: Mapping[str, object] | Row) -> dict[str, object]:
     hit["line"] = row["line_start"]
     if is_stub(row.get("extra")):
         hit[contract.STUB_FLAG] = True
+    # Kind-scoped (061): only Column at standard; read existing REFERENCES edges (239).
+    if (
+        store is not None
+        and detail_level != "minimal"
+        and row["kind"] == "Column"
+    ):
+        targets = _column_reference_targets(store, str(row["qualified_name"]))
+        if targets:
+            hit["references"] = targets
     return hit
+
+
+def _column_reference_targets(store: GraphStore, qname: str) -> list[str]:
+    """Stable, deduped ``REFERENCES`` targets for a Column qname — empty when none (R5.6)."""
+    edges = store.edges_by_source(qname, kinds=("REFERENCES",), limit=32)
+    targets = {
+        str(edge["target_qname"] or edge["target_raw"])
+        for edge in edges
+        if edge.get("target_qname") or edge.get("target_raw")
+    }
+    return sorted(targets)

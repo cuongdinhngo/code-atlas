@@ -25,7 +25,9 @@ from code_atlas.main import TOOL_NAMES  # noqa: E402
 from code_atlas.tools import prompts  # noqa: E402
 
 SKILL_PATH = REPO / "contrib" / "skill" / "SKILL.md"
-POKE_SNIPPET_PATH = REPO / "contrib" / "claude-code" / "settings.snippet.json"
+CLAUDE_CODE_SNIPPET_PATH = REPO / "contrib" / "claude-code" / "settings.snippet.json"
+# The name 240 found drifted: the file carries every Claude Code hook, not only the poke.
+POKE_SNIPPET_PATH = CLAUDE_CODE_SNIPPET_PATH
 
 # An adapter announces its suffixes in its entry file; the handshake sends this same literal.
 # Reading it statically is what lets a guard check coverage without starting a subprocess.
@@ -130,10 +132,19 @@ def render_skill() -> str:
     return "\n".join(lines)
 
 
-def render_poke_snippet() -> str:
-    """The Claude Code Edit/Write poke hook, filtered to every shipped adapter's suffixes."""
+def _suffix_filter(*tools: str) -> str:
+    """A hook `if` filter over every shipped adapter's declared suffixes, for the named tools."""
     suffixes = [suffix for _, group in sorted(declared_extensions().items()) for suffix in group]
-    matchers = "|".join(f"Edit(*{s})|Write(*{s})" for s in suffixes)
+    return "|".join(f"{tool}(*{s})" for s in suffixes for tool in tools)
+
+
+def render_claude_code_snippet() -> str:
+    """Every Claude Code hook code-atlas offers: the edit poke (036) and the signal (099).
+
+    099 shipped the signal wired for Codex only; 240 is the guard-less drift that let that stand.
+    `Read` belongs at PostToolUse (the line rides the result); `Write` at PreToolUse, because the
+    create-vs-edit test is whether the path exists yet — see `docs/TOOLS.md`.
+    """
     snippet: dict[str, Any] = {
         "hooks": {
             "PostToolUse": [
@@ -143,13 +154,37 @@ def render_poke_snippet() -> str:
                         {
                             "type": "command",
                             "command": "code-atlas-poke",
-                            "if": matchers,
+                            "if": _suffix_filter("Edit", "Write"),
                             "async": True,
                             "timeout": 60,
                         }
                     ],
+                },
+                {
+                    "matcher": "Read",
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": "code-atlas-signal",
+                            "if": _suffix_filter("Read"),
+                            "timeout": 10,
+                        }
+                    ],
+                },
+            ],
+            "PreToolUse": [
+                {
+                    "matcher": "Write",
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": "code-atlas-signal",
+                            "if": _suffix_filter("Write"),
+                            "timeout": 10,
+                        }
+                    ],
                 }
-            ]
+            ],
         }
     }
     return json.dumps(snippet, indent=2) + "\n"
@@ -157,7 +192,7 @@ def render_poke_snippet() -> str:
 
 GENERATED: dict[Path, Callable[[], str]] = {
     SKILL_PATH: render_skill,
-    POKE_SNIPPET_PATH: render_poke_snippet,
+    CLAUDE_CODE_SNIPPET_PATH: render_claude_code_snippet,
 }
 
 

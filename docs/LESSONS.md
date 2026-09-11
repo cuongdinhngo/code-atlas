@@ -31,7 +31,7 @@ rule** rather than adding a near-duplicate (P2), and one by finding the rule alr
 | `derived-not-listed-invariant` | 22 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180, 187, 191, 184, 022 | **R6.7** |
 | `prove-the-guard-fails` | 34 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188, 189, 190, 187, 191, 184, 192, 022, 194, 195, 224, 228, 229, 230 | **R6.5** — 190 is the *other* side of it: not *was it seen failing?* but *did it fail for the thing it forbids?* |
 | `gate-the-disclosure-on-its-condition-not-the-row-count` | 2 | 192, 238 | **proposed** → `docs/ENGINEERING_RULES.md` (238; `/mango:promote`) |
-| `do-not-attest-past-the-payloads-resolution` | 7 | 087–089, 100–102, 107 | **R5.6** — promoted 2026-08-27 (re-adjudicated) |
+| `do-not-attest-past-the-payloads-resolution` | 8 | 087–089, 100–102, 107, 239 | **R5.6** — promoted 2026-08-27 (re-adjudicated); 239: FK indexed but Column search hit omitted it |
 | `fixture-shape-begs-the-question` | 11 | 084, 086, 103–106, 121, 183, 185, 190, 191 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 5 | 092, 093, 100–102 | **R5.4** |
 | `count-pin-in-blast-radius` | 11 | 085, 087–089, 175, 184, 022, 194, 196, 199, 237 | **AGENT_BRIEF P5** — promoted 2026-08-27; P5 needs the invariant, not the spelling (022) — 194 adds that a change can move MORE THAN ONE invariant, and 196 that a pin written as a bare LITERAL is invisible to a trace that greps the invariant's name; 237 is the *new-module* dimension — adding `code_atlas/preflight.py` moved the core-module count pinned in `test_core_is_language_agnostic.py` + `test_sql_confinement.py`, and the Gate-2 blast-radius trace did not grep for it |

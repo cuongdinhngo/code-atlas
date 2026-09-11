@@ -1,19 +1,32 @@
-# Claude Code Edit/Write index poke (task 036)
+# Claude Code hooks — index poke, and the read/write signal (tasks 036, 099, 240)
 
-After Claude Code `Edit`/`Write` on a file an adapter owns, reparse that one file into
-`.code-atlas/graph.db` using `code_atlas.indexer.reparse_file` (same write path as a
-full/incremental build). Complements query-time read-through freshness (task 035): the
-index is often already fresh before the next tool call.
+Two commands, for the two moments an agent was never going to make a tool call.
+
+- **`code-atlas-poke`** (036) — after Claude Code `Edit`/`Write` on a file an adapter owns,
+  reparse that one file into `.code-atlas/graph.db` using `code_atlas.indexer.reparse_file`
+  (same write path as a full/incremental build). Complements query-time read-through
+  freshness (035): the index is often already fresh before the next tool call.
+- **`code-atlas-signal`** (099) — one line (~150 tokens, hard cap) riding along with a file
+  the agent is already opening. The field found three consequential decisions that wanted
+  exactly that and **none** that wanted a round-trip. Wired at **`Read`/PostToolUse** (the
+  line rides the result) and **`Write`/PreToolUse** — the create-vs-edit test is whether the
+  path exists yet, so a `PostToolUse` `Write` is silent by construction.
+
+  It shipped in 2026-08 wired for Codex only; **240** is the drift that left the host every
+  field round runs on without it, and the guard that now keeps the two offers in step.
 
 ## Install
 
 1. Install code-atlas into the environment Claude Code uses (`pip install -e /path/to/code-atlas`
    or your usual setup from the [README](../../README.md)). This provides the
-   **`code-atlas-poke`** console script on `PATH` (same interpreter as the install).
+   **`code-atlas-poke`** and **`code-atlas-signal`** console scripts on `PATH` (same
+   interpreter as the install).
 2. Merge [`settings.snippet.json`](settings.snippet.json) into the **project**
    `.claude/settings.json` (shareable) **or** `~/.claude/settings.json` (user-global). Keep
-   `"async": true` so the poke does not stall the Edit/Write round-trip. The `"if"` filter is
-   **generated** from every shipped adapter's own declared suffixes — never widened by hand.
+   `"async": true` on the poke so it does not stall the Edit/Write round-trip; the signal is
+   synchronous by design, because its line has to reach the result it rides on. Every `"if"`
+   filter is **generated** from each shipped adapter's own declared suffixes — never widened
+   by hand.
 3. Restart Claude Code (or reload hooks) so the settings take effect.
 
 No `CODE_ATLAS_ROOT` export is required — the console script is the stable entrypoint.

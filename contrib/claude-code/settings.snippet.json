@@ -12,6 +12,30 @@
             "timeout": 60
           }
         ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "code-atlas-signal",
+            "if": "Read(*.php)|Read(*.phtml)|Read(*.py)|Read(*.sql)|Read(*.ts)|Read(*.tsx)|Read(*.js)|Read(*.jsx)|Read(*.mjs)|Read(*.cjs)",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "code-atlas-signal",
+            "if": "Write(*.php)|Write(*.phtml)|Write(*.py)|Write(*.sql)|Write(*.ts)|Write(*.tsx)|Write(*.js)|Write(*.jsx)|Write(*.mjs)|Write(*.cjs)",
+            "timeout": 10
+          }
+        ]
       }
     ]
   }

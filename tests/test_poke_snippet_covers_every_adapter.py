@@ -19,8 +19,18 @@ import gen_skill  # noqa: E402
 
 
 def _filter_string() -> str:
-    snippet = json.loads(gen_skill.POKE_SNIPPET_PATH.read_text(encoding="utf-8"))
-    return snippet["hooks"]["PostToolUse"][0]["hooks"][0]["if"]
+    """The poke hook's filter, selected by command name — 240 added a second hook to this file,
+    so a positional lookup would silently start grading the wrong one."""
+    snippet = json.loads(gen_skill.CLAUDE_CODE_SNIPPET_PATH.read_text(encoding="utf-8"))
+    filters = [
+        hook["if"]
+        for entries in snippet["hooks"].values()
+        for entry in entries
+        for hook in entry["hooks"]
+        if hook["command"] == "code-atlas-poke"
+    ]
+    assert len(filters) == 1, f"expected exactly one poke hook, found {len(filters)}"
+    return filters[0]
 
 
 def uncovered_adapters(filter_string: str, adapters_dir: Path | None = None) -> list[str]:
