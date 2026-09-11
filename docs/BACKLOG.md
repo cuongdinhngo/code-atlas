@@ -24,6 +24,9 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099 |
 | 250 | [No call shows what a node actually holds, so an uncaptured fact is indistinguishable from an unexposed one](tasks/250_no-call-shows-what-a-node-actually-holds.md) | Honesty | todo | 247, 231, 244 |
+| 251 | [The RESOLVED caller can be off the page: `find_callers` pages alphabetically, tier is a label](tasks/251_the-resolved-caller-can-be-off-the-page.md) | Honesty | todo | 165, 168, 057 |
+| 252 | [A class-level reference question costs n+1 calls](tasks/252_a-class-reference-question-costs-n-plus-one-calls.md) | Adoption | todo | 245, 168, 065 |
+| 253 | [A zero-overlap guess gets no route, so absent and misnamed read alike](tasks/253_a-zero-overlap-guess-gets-no-route.md) | Honesty | todo | 245, 249, 065 |
 | 254 | [A column points at its table's CREATE line, not at itself](tasks/254_a-column-points-at-its-table-s-create-line-not-at-itself.md) | Coverage | todo | 247, 248 |
 
 ## Open work — Pillar 2 · Onboarding
@@ -33,13 +36,12 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 M10–M12 have all landed; round narratives live in [`FEEDBACK.md`](FEEDBACK.md),
 [PLAN §19](PLAN.md#19-project-context--decision-log), [`LESSONS.md`](LESSONS.md) and `benchmarks/`.
 
-Nothing open — 225 (the sequence view) landed; its spend is one row in
-[`TOKEN_LEDGER.md`](TOKEN_LEDGER.md).
+Nothing open — 225 (the sequence view) landed.
 
 **What still governs open work:**
 
 - **24 tools** on the MCP surface (`main.TOOL_NAMES`), pinned by
-  `tests/test_documented_tool_count.py` — the count is duplicated on purpose and guarded.
+  `tests/test_documented_tool_count.py`.
 - **Every `deferred` ticket holds its own gate** — 074, 098 and 141 each state theirs, and 141 is at
   n = 0; do not queue one without reading it. Auto *reading orders* stay unscheduled
   ([121](benchmarks/121_onboarding-question-class.md)).
@@ -62,16 +64,15 @@ language *order* is unchanged (§18.2).
 
 Phase 1 (core + PHP), Phase 1.5 (agent-first PHP depth) and Phase 1.5b (large-monorepo validation
 hardening) are closed. Two decisions from them still bind and are recorded in §19, not here: editing
-tools are permanently out, and tool *consolidation* was measured and rejected. One open note, **not a code-atlas
-defect**: the anchor repo's `CLAUDE.md` asserts `grep` "times out" and costs "~650×" — round 3
-observed neither, so it needs evidence or removal.
+tools are permanently out, and tool *consolidation* was measured and rejected. The round-3 open note is half closed: round 18 did
+observe whole-tree `grep` timing out in the anchor repo; the "~650×" figure still has no evidence.
 
 ## Follow-ups (not yet ticketed)
 
 One line each, with the pointer that holds the detail. Nothing here is scheduled.
 
 - **PSR-4 / autoload-aware include resolution**, with PSR-0 duplicate-name disambiguation — [042](tasks/042_tokens-to-answer-sample-tier.md).
-- **`max_results` does two unrelated jobs** — returned rows *and* resolver candidate fan-out, so a query knob sets index size — [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4. Round 17 is the field instance: the anchor repo pins `max_results = 10` in `.code-atlas.toml` to hold the graph at 2.6M heuristic edges instead of 4.8M, so every tool answer is capped at 10 rows to buy an index size — and `limit=100` is silently clamped.
+- **`max_results` does two unrelated jobs** — returned rows *and* resolver candidate fan-out, so a query knob sets index size — [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4. Field instance and why it now costs answers: [251](tasks/251_the-resolved-caller-can-be-off-the-page.md).
 - **Tokens-to-answer measures cost, not information** — 046 moved the ratio 0.02 % while doubling the distinct answers. Wants a second axis before it judges a retrieval change.
 - **`reachable_from` payload size at `standard`** — bounded by `impact_max_nodes` (500), ~160 KB of JSON. Worth a lower default or `minimal`-by-default; workaround in [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
 - **Parser-OOM size cap (optional)** — multi-MB generated files exhaust the PHP parser (already soft-failed/restarted in `indexer.py`); a byte-cap pre-skip (`CA_MAX_FILE_BYTES`) would avoid ~30 restart cycles. Log skips; no silent truncation.
