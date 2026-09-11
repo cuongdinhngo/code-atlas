@@ -187,7 +187,15 @@ BUDGETS = {
     # 2,150 -> 1,800 on 2026-09-08, LOWERED: 232-235 all close in this window and each removes
     # its row (R7.6), taking the file 1,737 -> 1,485. 2,150 is more than 25 % above 1,485, which
     # the anti-slack guard below calls slack; 1,800 keeps ~315 of headroom, about five open rows.
-    "BACKLOG.md": 1_800,
+    # 1,800 -> 1,950 on 2026-09-11 (251-256), argued rather than assumed. The 2026-09-08 number was
+    # sized for "about five open rows" and round 18's field batch files six in one day — open rows
+    # are the one thing this table exists to hold, and a ceiling that forces a real open ticket to
+    # go unlisted is measuring the wrong thing. R7.6 ran first and paid most of it across the two
+    # commits: the `max_results` follow-up's field instance moved into 251, the round-3 grep note
+    # left (it is the consumer repo's own doc, which AGENTS.md routes to the consumer as a PR), and
+    # three clauses retelling a convention, a named test and two §19 decisions were cut. The next
+    # addition prunes again or argues again; it does not inherit this raise as headroom.
+    "BACKLOG.md": 1_950,
     "ENGINEERING_RULES.md": 5_700,
     "AGENT_BRIEF.md": 2_250,
     # 6,700 -> 6,800 on 2026-09-09 (236): the `ForeignKey` node kind joins the vocabulary of record
