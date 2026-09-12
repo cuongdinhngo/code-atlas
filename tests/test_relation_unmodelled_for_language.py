@@ -177,12 +177,11 @@ def test_unlinked_evidence_still_wins_over_the_language_verdict(tmp_path: Path) 
 def test_find_references_fires_when_references_alone_is_unmodelled(ts_index: Config) -> None:
     """232 — IMPORTS in the set must not mask a never-emitted REFERENCES.
 
-    Rewrite the stamp so typescript keeps IMPORTS but drops REFERENCES. A zero answer must not
-    stay bare `no_matches`. When the subject also has unlinked inbound edges of other contract
-    kinds, 255's honesty arm outranks the language verdict (`relationship_not_modelled`);
-    otherwise the language arm still names `relation_unmodelled_for_language`.
+    Rewrite the stamp so typescript keeps IMPORTS but drops REFERENCES; a zero answer then
+    carries relation_unmodelled_for_language (authoritative: false), not a genuine no_matches.
+    The per-language census is a measured claim, so it outranks 255's widened evidence arm —
+    which is why that arm reads the qname only and runs after this one.
     """
-    qname = "src/class_heritage.ts::Circle::draw"
     with GraphStore(ts_index.db_path) as store:
         stamped = store.stamped_emitted_kinds_by_language()
         assert stamped is not None
@@ -192,21 +191,11 @@ def test_find_references_fires_when_references_alone_is_unmodelled(ts_index: Con
         store.set_meta(EMITTED_KINDS_BY_LANGUAGE_KEY, json.dumps({"typescript": kinds}))
         assert store.language_emits_none_of("typescript", UNMODELLED_REFERENCE_KINDS) is False
         assert store.language_emits_none_of("typescript", ("REFERENCES",)) is True
-        nodes = store.nodes_by_qualified_name(qname, limit=1)
-        assert nodes
-        name = str(nodes[0]["name"])
-        from code_atlas.contract import EDGE_KINDS
 
-        unlinked = store.count_unlinked_by_target_raw((qname, name), kinds=EDGE_KINDS)
-
-    payload = find_references.create(ts_index)(qname=qname)
+    payload = find_references.create(ts_index)(qname="src/class_heritage.ts::Circle::draw")
     if payload.get("total_count", 0) == 0:
-        assert payload["reason"] != REASON_NO_MATCHES
-        if unlinked > 0:
-            assert payload["reason"] == REASON_RELATIONSHIP_NOT_MODELLED
-        else:
-            assert payload["reason"] == REASON_RELATION_UNMODELLED_FOR_LANGUAGE
-            assert payload.get("authoritative") is False
+        assert payload["reason"] == REASON_RELATION_UNMODELLED_FOR_LANGUAGE
+        assert payload.get("authoritative") is False
 
 
 @needs_php

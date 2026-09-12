@@ -15,9 +15,13 @@ from pathlib import Path
 from code_atlas import contract
 
 TIER2_WORDS = frozenset({"Table", "Column", "WRITES"})
-# The three collections the new words legitimately join: the vocabulary itself, and the resolver's
-# opt-in for the one FQN-linked edge. Everything else must stay clear of them.
-JOINED_BY_DESIGN = frozenset({"NODE_KINDS", "EDGE_KINDS", "FQN_EDGE_KINDS"})
+# The collections the new words legitimately join: the vocabulary itself, the resolver's opt-in for
+# the one FQN-linked edge, and 255's evidence set — EDGE_KINDS less the containment spine, so it
+# inherits EDGE_KINDS' membership and a repo with no WRITES rows still answers identically.
+# Everything else must stay clear of them.
+JOINED_BY_DESIGN = frozenset(
+    {"NODE_KINDS", "EDGE_KINDS", "FQN_EDGE_KINDS", "UNLINKED_EVIDENCE_KINDS"}
+)
 CONVENTION = Path(contract.__file__).resolve().parents[1] / "docs" / "CONVENTION.md"
 
 

@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from code_atlas.contract import EDGE_KINDS, NODE_KINDS
+from code_atlas.contract import NODE_KINDS, UNLINKED_EVIDENCE_KINDS
 from code_atlas.store import GraphStore
 from code_atlas.tools import find_references
 from code_atlas.tools.nav_result import (
@@ -141,7 +141,7 @@ def test_untouched_table_stays_distinguishable_from_unlinked_writes(
 
 
 @pytest.mark.parametrize("subject_kind", list(NODE_KINDS))
-@pytest.mark.parametrize("edge_kind", list(EDGE_KINDS))
+@pytest.mark.parametrize("edge_kind", list(UNLINKED_EVIDENCE_KINDS))
 @pytest.mark.parametrize("language", list(_FIXTURE_LANGUAGES))
 def test_matrix_subject_relation_language_not_bare_zeros(
     tmp_path: Path,
@@ -150,7 +150,11 @@ def test_matrix_subject_relation_language_not_bare_zeros(
     edge_kind: str,
     language: str,
 ) -> None:
-    """AC4: subject kind × inbound relation × fixture language — Table×WRITES fails pre-fix."""
+    """AC4: subject kind × inbound relation × fixture language — Table×WRITES fails pre-fix.
+
+    CONTAINS is out of the sweep by UNLINKED_EVIDENCE_KINDS: it is stored unlinked for every
+    declared member, so it names every subject and proves nothing about an unmeasured relation.
+    """
     qname = f"{language}.{subject_kind}.{edge_kind}"
     path = f"{language}/{subject_kind}_{edge_kind}.src"
     _plant_subject_with_unlinked(

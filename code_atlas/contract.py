@@ -106,10 +106,15 @@ CLASS_MEMBER_KINDS: tuple[str, ...] = ("Method", "Property", "ClassConst")
 TABLE_KIND = "Table"
 COLUMN_KIND = "Column"
 CONTAINS = "CONTAINS"
-# find_references language-emits reader (186/232) — still the PHP/TS REFERENCES+IMPORTS pair for
-# "this language never emits that relation". Honesty over *unlinked* inbound edges uses the full
-# EDGE_KINDS vocabulary instead (255) so a Table with unlinked WRITES is not a bare no_matches.
+# find_references language-emits reader (186/232): the kinds "this language never emits that
+# relation" is asked over. Honesty across *unlinked* inbound edges uses the full EDGE_KINDS
+# vocabulary instead (255), so a Table with unlinked WRITES is not a bare no_matches.
 UNMODELLED_REFERENCE_KINDS: tuple[str, ...] = ("REFERENCES", "IMPORTS")
+
+# Evidence that an inbound relation exists but went unmeasured (255): every contract kind except
+# the containment spine. CONTAINS is stored unlinked for every declared member, so it names every
+# subject and can never separate a genuine zero from an unmeasured relation.
+UNLINKED_EVIDENCE_KINDS: tuple[str, ...] = tuple(k for k in EDGE_KINDS if k != CONTAINS)
 
 # Impact engine (§12 / M6) — incoming-edge walk weights (callers / subtypes / includers).
 IMPACT_KIND_WEIGHTS: dict[str, float] = {

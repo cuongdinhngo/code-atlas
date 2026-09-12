@@ -281,6 +281,23 @@ $ .venv/bin/python -m pytest tests/test_empty_answer_cannot_explain_itself.py te
 - D1: honesty `kinds=EDGE_KINDS` + `unlinked_edge_kinds` naming; hint split; contract comment; `store.unlinked_kinds_by_target_raw`.
 - D2: NODE_KINDS×EDGE_KINDS×{{sql,php}} matrix + 232 precedence assert.
 
+**Corrected on merge (2026-09-12, integration of #328-#334).** The branch's full-suite result was
+never observed — Actions reports `fail` in ~3s without running, and the branch run covered only its
+own test files. Three suites went red once merged: `tests/contract/test_tool_parity.py[sql:find_references]`
+and both `test_references_construct_agreement.py` AC3 cases. Two defects, both in D1:
+- The widened set kept the **bare-name** arm. Nearly every method has a same-named unlinked `CALLS`,
+  so `no_matches` became unreachable. The widened arm now matches the **qname only**; the
+  approximate bare-name arm stays on `UNMODELLED_REFERENCE_KINDS`, as before 255.
+- The widened set included **`CONTAINS`**, which is stored unlinked for every declared member (167
+  of 167 on the PHP fixture) and so names every subject. Evidence is now
+  `contract.UNLINKED_EVIDENCE_KINDS` = `EDGE_KINDS` less the containment spine; the AC4 matrix
+  sweeps that set, not `EDGE_KINDS`.
+
+Precedence also went back to 232's: the per-language census is a *measured* claim and outranks the
+widened arm, so the order is original pair → language census → widened evidence. The assert in
+`test_relation_unmodelled_for_language.py` that 255 loosened to accommodate the regression is
+restored. `docs/PLAN.md` is unchanged; 255 stated no precedence there.
+
 **Verification sweep**
 
 ```

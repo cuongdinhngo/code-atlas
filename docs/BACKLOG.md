@@ -60,7 +60,6 @@ language *order* is unchanged (§18.2).
 ## Landed phases — nothing open
 
 Phase 1 (core + PHP), Phase 1.5 (agent-first PHP depth) and Phase 1.5b (large-monorepo validation
-hardening) are closed. Two decisions from them still bind; both are in §19, not here.
 hardening) are closed. Two decisions from them still bind and are recorded in §19, not here: editing
 tools are permanently out, and tool *consolidation* was measured and rejected. The round-3 open note is half closed: round 18 did
 observe whole-tree `grep` timing out in the anchor repo; the "~650×" figure still has no evidence.
@@ -73,6 +72,7 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **Tokens-to-answer measures cost, not information** — 046 moved the ratio 0.02 % while doubling the distinct answers. Wants a second axis before it judges a retrieval change.
 - **`reachable_from` payload size at `standard`** — bounded by `impact_max_nodes` (500), ~160 KB of JSON. Worth a lower default or `minimal`-by-default; workaround in [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
 - **Parser-OOM size cap (optional)** — multi-MB generated files exhaust the PHP parser (already soft-failed/restarted in `indexer.py`); a byte-cap pre-skip (`CA_MAX_FILE_BYTES`) would avoid ~30 restart cycles. Log skips; no silent truncation.
+- **Class-level `find_references` pages after it materialises** — 252's `_member_caller_union` issues one `edges_by_target` per CONTAINS child and collects every hit before `cap`/`offset` apply, so cost scales with the class's total inbound edges, not the page. Noticed reviewing [#329](https://github.com/cuongdinhngo/code-atlas/pull/329); no measurement yet.
 - **Docker images are never built by CI** — `docker/Dockerfile` can rot (`Dockerfile.runtime` is built inside `pytest`). Honest shape: one job building both. Survives the unbillable-Actions arrangement AGENTS.md records, which also means every gate is a human step.
 
 ## Conventions

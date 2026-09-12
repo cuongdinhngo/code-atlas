@@ -152,6 +152,8 @@ def test_the_field_reported_payload_is_pinned_whole(tmp_path: Path, store: Graph
         "total_count": 0,
         "try_instead": nav_result.TRY_INSTEAD_SEARCH_SYMBOL,
         "try_instead_hint": nav_result.TRY_INSTEAD_HINT_METHOD_QNAME,
+        # 255: the empty answer names the relation it could not measure.
+        "unlinked_edge_kinds": ["REFERENCES"],
     }
     assert "server_version" not in payload  # 223: minimal omits identity
     assert payload["try_instead"] in TOOL_NAMES

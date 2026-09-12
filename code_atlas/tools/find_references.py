@@ -6,7 +6,12 @@ from collections.abc import Callable
 from typing import Literal
 
 from code_atlas.config import Config, clamp_limit
-from code_atlas.contract import CALLER_KINDS, EDGE_KINDS, TYPE_KINDS
+from code_atlas.contract import (
+    CALLER_KINDS,
+    TYPE_KINDS,
+    UNLINKED_EVIDENCE_KINDS,
+    UNMODELLED_REFERENCE_KINDS,
+)
 from code_atlas.store import GraphStore, Row
 from code_atlas.tools import call_site, claim
 from code_atlas.tools.coverage import (
@@ -287,14 +292,23 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             reason = relation_reason(hit_total=total_count, symbol_indexed=indexed)
             try_instead: str | None = None
             try_instead_hint: str | None = None
-            # Empty + any unlinked inbound edge of a contract kind ⇒ not a genuine zero (065/255).
-            # Keyed to EDGE_KINDS (the contract vocabulary), never the PHP-shaped REFERENCES/IMPORTS
-            # pair alone — a Table with unlinked WRITES must not read as no_matches (R1.1).
+            # Empty + an unlinked inbound edge ⇒ not a genuine zero (065/255). Three arms, in
+            # precedence order: the original pair (qname or bare name, 065/093); then the
+            # per-language census (232 AC3), which is the stronger measured claim; then every
+            # other evidence kind by qname, so a Table's unlinked WRITES is not a bare no_matches.
+            # The widened arm never takes the bare name — a same-named unlinked CALLS exists for
+            # nearly every method and would bury every genuine zero.
             if reason == REASON_NO_MATCHES and nodes:
                 name = str(nodes[0]["name"])
                 unlinked_edge_kinds = store.unlinked_kinds_by_target_raw(
-                    (lookup, name), kinds=EDGE_KINDS
+                    (lookup, name), kinds=UNMODELLED_REFERENCE_KINDS
                 )
+                if not unlinked_edge_kinds and not relation_unmodelled_for_language(
+                    store, file_path=str(nodes[0]["file_path"]), kinds=("REFERENCES",)
+                ):
+                    unlinked_edge_kinds = store.unlinked_kinds_by_target_raw(
+                        (lookup,), kinds=UNLINKED_EVIDENCE_KINDS
+                    )
                 if unlinked_edge_kinds:
                     union = _member_caller_union(
                         store,
