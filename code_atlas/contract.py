@@ -134,7 +134,11 @@ IMPACT_KINDS: tuple[str, ...] = tuple(IMPACT_KIND_WEIGHTS)
 # precedent below). A bare string is not a named subset, so tier 2 stays opt-in (022 AC3).
 WRITES = "WRITES"
 
-CONFIDENCE_TIERS: tuple[str, ...] = ("RESOLVED", "HEURISTIC", "DYNAMIC")
+# Ordered Literal is the typing SSoT, NODE_KINDS' rule applied to the tier a tool now takes as a
+# parameter (251): a bare `str` publishes no choice in the MCP input schema, so the vocabulary would
+# be discoverable only by triggering the error. Derived, never re-listed (R3.2).
+ConfidenceTier = Literal["RESOLVED", "HEURISTIC", "DYNAMIC"]
+CONFIDENCE_TIERS: tuple[str, ...] = get_args(ConfidenceTier)
 
 NODE_FIELDS: tuple[str, ...] = (
     "kind",

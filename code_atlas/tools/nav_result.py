@@ -603,6 +603,15 @@ CAVEAT_SIBLING_DEFINITIONS = "sibling_definitions"
 # The caller is in another language whose crossing into the subject's language the index never
 # modelled — the zero is a partition, not the whole (task 221). Rides the cross-language census.
 CAVEAT_CROSS_LANGUAGE_UNMODELLED = "cross_language_relation_unmodelled"
+# Operational cost of the caveat, in the reader's terms (task 251) — not only the relation name.
+CAVEAT_LIMIT_CROSS_LANGUAGE = (
+    "This answer is reachability within one language's call graph and does not "
+    "establish which entry point the front end invokes."
+)
+CAVEAT_LIMITS: dict[str, str] = {
+    CAVEAT_CROSS_LANGUAGE_UNMODELLED: CAVEAT_LIMIT_CROSS_LANGUAGE,
+}
+CAVEAT_LIMITS_KEY = "caveat_limits"
 CAVEAT_ARGS_NOT_CAPTURED = "args_not_captured_by_adapter"
 CROSS_LANGUAGE = "cross_language"
 
@@ -723,8 +732,22 @@ def attach_authoritative_caveats(
         return payload
     named = payload.get(AUTHORITATIVE_CAVEATS)
     already = {str(name) for name in named} if isinstance(named, list) else set()
+    merged = already | set(caveats)
     payload[AUTHORITATIVE] = False
-    payload[AUTHORITATIVE_CAVEATS] = sorted(already | set(caveats))
+    payload[AUTHORITATIVE_CAVEATS] = sorted(merged)
+    attach_caveat_limits(payload, sorted(merged))
+    return payload
+
+
+def attach_caveat_limits(
+    payload: dict[str, object], caveats: list[str]
+) -> dict[str, object]:
+    """Name what each caveat costs the reader (task 251). Omit-when-empty (061)."""
+    notes = {
+        name: CAVEAT_LIMITS[name] for name in caveats if name in CAVEAT_LIMITS
+    }
+    if notes:
+        payload[CAVEAT_LIMITS_KEY] = notes
     return payload
 
 

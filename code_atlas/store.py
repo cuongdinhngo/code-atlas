@@ -435,6 +435,31 @@ def _args_predicate(args_at: tuple[int, str] | None) -> _Predicate:
     return "args IS NOT NULL AND json_extract(args, ?) = ?", (at, selector)
 
 
+def _tier_predicate(confidence_tier: str | None) -> _Predicate:
+    """Narrow edges to one ``confidence_tier`` (task 251). Unknown spellings fail loud (R5.3)."""
+    if confidence_tier is None:
+        return None
+    if confidence_tier not in contract.CONFIDENCE_TIERS:
+        raise ValueError(
+            f"unknown confidence_tier {confidence_tier!r}: "
+            f"one of {', '.join(contract.CONFIDENCE_TIERS)}"
+        )
+    return "confidence_tier = ?", (confidence_tier,)
+
+
+def _combine_predicates(*preds: _Predicate) -> _Predicate:
+    """AND ready-made edge predicates so filters compose without a second WHERE builder."""
+    active = [pred for pred in preds if pred is not None]
+    if not active:
+        return None
+    if len(active) == 1:
+        return active[0]
+    return (
+        " AND ".join(pred[0] for pred in active),
+        tuple(value for pred in active for value in pred[1]),
+    )
+
+
 def stored(value: object) -> object:
     """Structured values become canonical JSON, so identical input stores identical bytes (R4.2)."""
     if value is None or isinstance(value, str | int | float):
@@ -1441,11 +1466,13 @@ class GraphStore:
         limit: int,
         offset: int = 0,
         args_at: tuple[int, str] | None = None,
+        confidence_tier: str | None = None,
     ) -> list[Row]:
         """Edges whose resolved ``target_qname`` is ``qname``.
 
         Optional ``kinds`` narrows the set (e.g. CALLER_KINDS); ``args_at`` narrows to call sites
         whose argument at a 1-based position has a given shape (task 049).
+        ``confidence_tier`` narrows to one tier in the store query (task 251) — not a post-filter.
         ``offset`` skips leading rows in ``_EDGE_ORDER`` (task 057).
         """
         return self._edges(
@@ -1454,7 +1481,9 @@ class GraphStore:
             kinds,
             limit,
             offset=offset,
-            extra=_args_predicate(args_at),
+            extra=_combine_predicates(
+                _args_predicate(args_at), _tier_predicate(confidence_tier)
+            ),
         )
 
     def count_edges_by_target(
@@ -1463,11 +1492,41 @@ class GraphStore:
         *,
         kinds: Sequence[str] | None = None,
         args_at: tuple[int, str] | None = None,
+        confidence_tier: str | None = None,
     ) -> int:
         """How many edges target ``qname`` (same filters as ``edges_by_target``)."""
         return self._count_edges(
-            "target_qname = ?", qname, kinds, extra=_args_predicate(args_at)
+            "target_qname = ?",
+            qname,
+            kinds,
+            extra=_combine_predicates(
+                _args_predicate(args_at), _tier_predicate(confidence_tier)
+            ),
         )
+
+    def tier_census_by_target(
+        self,
+        qname: str,
+        *,
+        kinds: Sequence[str] | None = None,
+        args_at: tuple[int, str] | None = None,
+    ) -> dict[str, int]:
+        """``confidence_tier`` → count over every edge targeting ``qname`` (task 251).
+
+        Same ``kinds`` / ``args_at`` filters as ``count_edges_by_target`` (no tier filter — the
+        census *is* the tier breakdown). Ordered by tier name so the dict is deterministic (R4.2).
+        """
+        clause, params = self._edge_where(
+            "target_qname = ?", kinds, _args_predicate(args_at)
+        )
+        sql = (
+            f"SELECT confidence_tier, COUNT(*) FROM edges WHERE {clause} "
+            "GROUP BY confidence_tier ORDER BY confidence_tier"
+        )
+        return {
+            str(tier): int(count)
+            for tier, count in self._conn.execute(sql, (qname, *params))
+        }
 
     def edge_subtrees_by_target(
         self,
@@ -1475,6 +1534,7 @@ class GraphStore:
         *,
         kinds: Sequence[str] | None = None,
         args_at: tuple[int, str] | None = None,
+        confidence_tier: str | None = None,
     ) -> dict[str, int]:
         """Top-level path segment → count over the full set targeting ``qname`` (task 067).
 
@@ -1484,7 +1544,11 @@ class GraphStore:
         never a repo name (R2); ``GROUP BY``/``ORDER BY`` keep the dict deterministic (R4.2).
         """
         clause, params = self._edge_where(
-            "target_qname = ?", kinds, _args_predicate(args_at)
+            "target_qname = ?",
+            kinds,
+            _combine_predicates(
+                _args_predicate(args_at), _tier_predicate(confidence_tier)
+            ),
         )
         segment = (
             "CASE WHEN instr(files.path, '/') > 0 "

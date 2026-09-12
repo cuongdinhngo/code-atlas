@@ -7,7 +7,13 @@ from collections.abc import Callable
 from typing import Literal, NamedTuple
 
 from code_atlas.config import Config, clamp_limit
-from code_atlas.contract import ARG_SELECTORS, CALLER_KINDS, CONFIDENCE_TIERS, split_qname
+from code_atlas.contract import (
+    ARG_SELECTORS,
+    CALLER_KINDS,
+    CONFIDENCE_TIERS,
+    ConfidenceTier,
+    split_qname,
+)
 from code_atlas.store import GraphStore
 from code_atlas.tools import call_site, claim
 from code_atlas.tools.coverage import (
@@ -64,6 +70,7 @@ CLAIM_CARRY = (
     "frontier_skipped_non_resolved",
     "unresolved_bare_calls",
     "args_unrecorded",
+    "tier_filter",
     "authoritative",
 )
 
@@ -92,6 +99,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         include_source: bool = False,
         arg_position: int | None = None,
         arg_is: str | None = None,
+        confidence_tier: ConfidenceTier | None = None,
         limit: int | None = None,
         offset: int = 0,
         sign: bool = False,
@@ -119,6 +127,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         call sites the filter could not judge — sites whose arguments were never recorded, which
         are never counted as matches. Depth 1 only.
 
+        ``confidence_tier`` (default off) keeps only callers at that tier — the predicate runs in
+        the store query next to ``kinds`` / ``args_at``, so a RESOLVED-only page is not a
+        post-filter over an alphabetically truncated page (task 251). ``total_count`` then counts
+        matches of that request, and ``tier_filter`` names the filter (R5.6). Without the filter,
+        ``tier_census`` reports the full hit set's tier breakdown when more than one tier is
+        present (omit-when-empty, 061). Depth 1 only.
+
         ``limit`` / ``offset`` page results (057). At depth 1 the store owns OFFSET; deeper walks
         apply offset to the BFS hit stream. Complete enumeration is guaranteed at depth 1.
 
@@ -134,6 +149,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         When another language is indexed but no linked ``*->L`` pair reaches the subject's
         language (221/238), the answer carries ``authoritative: false`` and the cross-language
         census whether or not in-language hits exist; ``reason`` stays ``ok`` on a non-zero.
+        ``caveat_limits`` states what that caveat costs the reader (251).
 
         ``subject_refreshed_only`` is present (and ``true``) only when read-through freshness
         reparsed the subject's file this call — neighbors were not re-verified (035 / 061).
@@ -161,6 +177,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
         args_at = _args_at(arg_position, arg_is, depth=depth)
+        tier = _confidence_tier(confidence_tier, depth=depth)
         if not config.db_path.is_file():
             return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path),
             index_root=config.index_root,
@@ -213,7 +230,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             asked = qname
             lookup = qname
             outcome = _callers(
-                store, lookup, hops=depth, limit=cap, offset=offset, args_at=args_at
+                store,
+                lookup,
+                hops=depth,
+                limit=cap,
+                offset=offset,
+                args_at=args_at,
+                confidence_tier=tier,
             )
             # Widen the existing indexed-check fetch to surface every definition site (task 070).
             subject_nodes = store.nodes_by_qualified_name(lookup, limit=config.max_results)
@@ -222,6 +245,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 store.count_edges_without_args(lookup, kinds=CALLER_KINDS)
                 if args_at is not None
                 else None
+            )
+            tier_census = _tier_census(
+                store, lookup, args_at=args_at, depth=depth, tier=tier, indexed=indexed
             )
             if outcome.total_count == 0 and not indexed:
                 resolution = classify_missing_subject(
@@ -258,7 +284,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     )
                 lookup = repointed
                 outcome = _callers(
-                    store, lookup, hops=depth, limit=cap, offset=offset, args_at=args_at
+                    store,
+                    lookup,
+                    hops=depth,
+                    limit=cap,
+                    offset=offset,
+                    args_at=args_at,
+                    confidence_tier=tier,
                 )
                 subject_nodes = store.nodes_by_qualified_name(
                     lookup, limit=config.max_results
@@ -268,6 +300,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     store.count_edges_without_args(lookup, kinds=CALLER_KINDS)
                     if args_at is not None
                     else None
+                )
+                tier_census = _tier_census(
+                    store, lookup, args_at=args_at, depth=depth, tier=tier, indexed=indexed
                 )
             container, bare_name = split_qname(lookup)
             unresolved_bare = 0
@@ -308,7 +343,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             # Skewed page 1 hides other subtrees — advertise the full spread (task 067).
             # Depth 1 only: the store spread is exact there; deeper total_count is a floor.
             subtrees = (
-                store.edge_subtrees_by_target(lookup, kinds=CALLER_KINDS, args_at=args_at)
+                store.edge_subtrees_by_target(
+                    lookup,
+                    kinds=CALLER_KINDS,
+                    args_at=args_at,
+                    confidence_tier=tier,
+                )
                 if depth == 1 and outcome.truncated
                 else {}
             )
@@ -371,6 +411,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             result["unresolved_bare_calls"] = unresolved_bare
         if unrecorded is not None:
             result["args_unrecorded"] = unrecorded
+        if tier is not None:
+            result["tier_filter"] = tier
+        if tier_census is not None:
+            result["tier_census"] = tier_census
         if args_capture_absent:
             attach_authoritative_caveats(result, [CAVEAT_ARGS_NOT_CAPTURED])
         attach_result_subtrees(result, subtrees)
@@ -423,6 +467,40 @@ def _args_at(
     return arg_position, arg_is
 
 
+def _tier_census(
+    store: GraphStore,
+    qname: str,
+    *,
+    args_at: tuple[int, str] | None,
+    depth: int,
+    tier: str | None,
+    indexed: bool,
+) -> dict[str, int] | None:
+    """The full hit set's tier breakdown, or None when it would add nothing (061)."""
+    if depth != 1 or tier is not None or not indexed:
+        return None
+    census = store.tier_census_by_target(qname, kinds=CALLER_KINDS, args_at=args_at)
+    if census and (len(census) > 1 or _RESOLVED not in census):
+        return census
+    return None
+
+
+def _confidence_tier(
+    confidence_tier: ConfidenceTier | None, *, depth: int
+) -> ConfidenceTier | None:
+    """Validate the tier filter loud and early — a typo must not read as "no matches" (R5.3)."""
+    if confidence_tier is None:
+        return None
+    if confidence_tier not in CONFIDENCE_TIERS:
+        raise ValueError(
+            f"unknown confidence_tier {confidence_tier!r}: "
+            f"one of {', '.join(CONFIDENCE_TIERS)}"
+        )
+    if depth != 1:
+        raise ValueError("a tier filter describes a direct call page, so it needs depth=1")
+    return confidence_tier
+
+
 def _callers(
     store: GraphStore,
     qname: str,
@@ -431,12 +509,20 @@ def _callers(
     limit: int,
     offset: int = 0,
     args_at: tuple[int, str] | None = None,
+    confidence_tier: str | None = None,
 ) -> _CallersOutcome:
     """BFS over CALLS/NEW into ``qname``; only RESOLVED edges expand the frontier (A3 / HOW-5)."""
     if hops == 1:
-        total = store.count_edges_by_target(qname, kinds=CALLER_KINDS, args_at=args_at)
+        total = store.count_edges_by_target(
+            qname, kinds=CALLER_KINDS, args_at=args_at, confidence_tier=confidence_tier
+        )
         edges = store.edges_by_target(
-            qname, kinds=CALLER_KINDS, limit=limit, offset=offset, args_at=args_at
+            qname,
+            kinds=CALLER_KINDS,
+            limit=limit,
+            offset=offset,
+            args_at=args_at,
+            confidence_tier=confidence_tier,
         )
         hits = [edge_hit(edge, depth=1) for edge in edges]
         return _CallersOutcome(

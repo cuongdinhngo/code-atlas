@@ -203,7 +203,13 @@ BUDGETS = {
     # 6,700 -> 6,800 on 2026-09-09 (236): the `ForeignKey` node kind joins the vocabulary of record
     # (contract v10). The §3 bullet is the tightest statement of its qname and `extra` fields; there
     # is no superseded line to prune, so the ceiling rises one step rather than displacing content.
-    "CONVENTION.md": 6_800,
+    # 6,800 -> 6,850 on 2026-09-12 (251), argued rather than assumed. §6's table is the
+    # cross-tool payload contract, so it grows exactly when the payload surface grows: 251
+    # adds `tier_filter`, `tier_census` and `caveat_limits`, all cross-tool honesty fields an
+    # undocumented reader would have to rediscover from source. Paid for first — the 170
+    # incident retold in two rows and PLAN's §19 entry that restated §12's own row were cut,
+    # ~100 tokens. The next addition prunes again or argues again; this is not headroom.
+    "CONVENTION.md": 6_850,
 }
 
 
