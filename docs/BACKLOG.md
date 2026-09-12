@@ -26,7 +26,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 251 | [The RESOLVED caller can be off the page: `find_callers` pages alphabetically, tier is a label](tasks/251_the-resolved-caller-can-be-off-the-page.md) | Honesty | todo | 165, 168, 057 |
 | 252 | [A class-level reference question costs n+1 calls](tasks/252_a-class-reference-question-costs-n-plus-one-calls.md) | Adoption | todo | 245, 168, 065 |
 | 253 | [A zero-overlap guess gets no route, so absent and misnamed read alike](tasks/253_a-zero-overlap-guess-gets-no-route.md) | Honesty | todo | 245, 249, 065 |
-| 254 | [A column points at its table's CREATE line, not at itself](tasks/254_a-column-points-at-its-table-s-create-line-not-at-itself.md) | Coverage | todo | 247, 248 |
 | 255 | [The honesty predicate is keyed to two PHP-shaped edge kinds, so a Table's 34 unlinked WRITES read as a zero](tasks/255_the-honesty-predicate-is-keyed-to-two-php-shaped-edge-kinds.md) | Honesty | todo | 221, 232, 186, 065 |
 | 256 | [222's dispatch exclusion was decided before the evidence existed](tasks/256_the-dispatch-exclusion-was-decided-before-the-evidence-existed.md) | Coverage | todo | 222, 221, 063 |
 | 257 | [The index goes blind at the moment it is most wanted](tasks/257_the-index-goes-blind-at-the-moment-it-is-most-wanted.md) | Adoption | todo | 035, 182, 100 |

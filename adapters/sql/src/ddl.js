@@ -27,22 +27,46 @@ const AFTER_DEFAULT = new Set([
 
 /**
  * Split `text` on `sep` at paren depth 0 — a comma inside `decimal(18, 2)` is not a separator.
+ * Pieces keep their start offset in `text` (after leading trim) for per-column lines (254).
+ * @param {string} text
+ * @param {string} sep
+ * @returns {{text: string, start: number}[]}
+ */
+function splitTopLevelPieces(text, sep) {
+  const raw = [];
+  let depth = 0;
+  let curStart = 0;
+  let cur = "";
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i] ?? "";
+    if (ch === "(") depth += 1;
+    else if (ch === ")") depth -= 1;
+    if (ch === sep && depth === 0) {
+      raw.push({ text: cur, start: curStart });
+      cur = "";
+      curStart = i + 1;
+      continue;
+    }
+    cur += ch;
+  }
+  raw.push({ text: cur, start: curStart });
+  const out = [];
+  for (const piece of raw) {
+    const trimmed = piece.text.trim();
+    if (trimmed === "") continue;
+    const lead = piece.text.length - piece.text.trimStart().length;
+    out.push({ text: trimmed, start: piece.start + lead });
+  }
+  return out;
+}
+
+/**
  * @param {string} text
  * @param {string} sep
  * @returns {string[]}
  */
 function splitTopLevel(text, sep) {
-  const out = [];
-  let depth = 0;
-  let cur = "";
-  for (const ch of text) {
-    if (ch === "(") depth += 1;
-    else if (ch === ")") depth -= 1;
-    if (ch === sep && depth === 0) { out.push(cur); cur = ""; continue; }
-    cur += ch;
-  }
-  out.push(cur);
-  return out.map((p) => p.trim()).filter((p) => p !== "");
+  return splitTopLevelPieces(text, sep).map((p) => p.text);
 }
 
 /**
@@ -108,10 +132,11 @@ function readQualified(text, i) {
 }
 
 /**
- * The balanced-parenthesis slice starting at the first `(` at or after `i`, inclusive.
+ * The balanced-parenthesis slice starting at the first `(` at or after `i`.
+ * ``openAt`` is the index of that `(` in ``text`` (254 — line map must count newlines before it).
  * @param {string} text
  * @param {number} i
- * @returns {{body: string, next: number}|null}
+ * @returns {{body: string, next: number, openAt: number}|null}
  */
 function readParens(text, i) {
   let j = i;
@@ -123,7 +148,9 @@ function readParens(text, i) {
     if (text[j] === "(") depth += 1;
     else if (text[j] === ")") {
       depth -= 1;
-      if (depth === 0) return { body: text.slice(start + 1, j), next: j + 1 };
+      if (depth === 0) {
+        return { body: text.slice(start + 1, j), next: j + 1, openAt: start };
+      }
     }
     j += 1;
   }
@@ -426,14 +453,16 @@ function readDefault(rest) {
 
 /**
  * The columns a table body declares, in source order.
+ * Each row carries ``bodyOffset`` — byte index of the definition's first non-space char in
+ * ``body`` — so the scanner can map it to a line without a second pass (254).
  * @param {string} body
- * @returns {NonNullable<ReturnType<typeof readColumnDef>>[]}
+ * @returns {(NonNullable<ReturnType<typeof readColumnDef>> & {bodyOffset: number})[]}
  */
 function readColumns(body) {
   const out = [];
-  for (const def of splitTopLevel(body, ",")) {
-    const col = readColumnDef(def);
-    if (col) out.push(col);
+  for (const piece of splitTopLevelPieces(body, ",")) {
+    const col = readColumnDef(piece.text);
+    if (col) out.push({ ...col, bodyOffset: piece.start });
   }
   return out;
 }
@@ -542,5 +571,6 @@ module.exports = {
   readColumns, readColumnDef, readDefault, readInsert, readUpdate, readNamedDefault,
   readForeignKeys, readForeignKeyDef, readInlineReferences,
   readPrimaryKeys, readPrimaryKeyDef, readNullability, readIdentity,
-  readIdent, readQualified, readParens, splitTopLevel, isReservedObjectName, NOT_A_COLUMN,
+  readIdent, readQualified, readParens, splitTopLevel, splitTopLevelPieces,
+  isReservedObjectName, NOT_A_COLUMN,
 };

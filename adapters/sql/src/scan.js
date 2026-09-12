@@ -550,7 +550,18 @@ function parseFile(qpath) {
       }
       const body = ddl.readParens(buf, target.next);
       if (body) {
-        for (const col of ddl.readColumns(body.body)) column(qname, col, line);
+        // Newlines before `(` (e.g. CREATE …\n() plus those inside the body (254).
+        let parenLine = line;
+        for (let i = 0; i < body.openAt; i++) {
+          if (buf[i] === "\n") parenLine += 1;
+        }
+        for (const col of ddl.readColumns(body.body)) {
+          let colLine = parenLine;
+          for (let i = 0; i < col.bodyOffset; i++) {
+            if (body.body[i] === "\n") colLine += 1;
+          }
+          column(qname, col, colLine);
+        }
         for (const fk of ddl.readForeignKeys(body.body)) {
           references(qname, fk.fromColumns, fk.toTable, fk.toColumns, line);
         }
@@ -594,7 +605,14 @@ function parseFile(qpath) {
     lineNo += 1;
     lastLine = lineNo;
     const code = stripToCode(line, state);
-    if (code.trim() === "") return;
+    // Blank lines still append to a pending CREATE so Column line math stays honest (254).
+    if (code.trim() === "") {
+      if (pending) {
+        pending.buf += "\n";
+        if (pending.buf.length > PENDING_CAP) flush();
+      }
+      return;
+    }
 
     // A T-SQL parameter list may wrap across lines; the header ends at AS or BEGIN (231).
     if (paramScan) {
@@ -605,7 +623,8 @@ function parseFile(qpath) {
     // A statement in progress absorbs the line unless a new one starts at paren depth 0.
     if (pending && pending.depth <= 0 && BOUNDARY_RE.test(code)) flush();
     if (pending) {
-      pending.buf += ` ${code}`;
+      // Keep newlines so Column line_start can count from the CREATE body's start (254).
+      pending.buf += `\n${code}`;
       pending.depth += depthOf(code);
       if (pending.depth > 0) pending.opened = true;
       if (pending.opened && pending.depth <= 0) flush();

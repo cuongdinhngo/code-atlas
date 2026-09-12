@@ -4,7 +4,7 @@ slug: a-column-points-at-its-table-s-create-line-not-at-itself
 title: 'Every column of a CREATE TABLE is emitted at the CREATE statement''s own line, so a Column node cannot point at its own definition'
 phase: 1.5b
 milestone: Agent-fit
-status: todo
+status: done
 depends_on: [247, 248]
 ---
 
@@ -71,3 +71,102 @@ the body is discarded before the caller ever sees it.
   (`readColumns`, `splitTopLevel`).
 - `code_atlas/store.py` (`_NODE_ORDER`) — why per-column lines change no ordering.
 - 247 (the capture this was split from), 248 (why the ordinal half is closed).
+
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+## Session status
+
+- **Ticket:** 254
+- **Type:** bug
+- **Repo(s):** app
+- **SCOPE:** S
+- **STRUCTURE:** native
+- **TRACK:** backend
+- **TIER:** full
+- **BASELINE:** green
+- **work_doc_mode:** embed
+- **branch:** feat/254-a-column-points-at-its-table-s-create-line-not-at-itself
+- **plugin:** mango 1.16.1 (candidates: 10)
+- **reviewer:** off · **challenger:** on
+- **Current phase:** finalise
+- **autorun:** yes (`--no-reviewer`)
+
+## Phase 0 — Refine
+
+`PREMISE: 4 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)`
+`RECALL: 0 claim(s) surfaced | 0 by symbol | 0 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`REFINE: 0 unresolved surfaced | 0 want-decision asked | 0 how-decision resolved+cited | 0 ASSUMED | skip: yes`
+
+refine skipped: 0 unresolved product-decisions. INPUT KIND: ticket.
+
+## Requirements matrix
+
+`SECTIONS: 6 found (Why this exists · Root cause · Scope · Constraints · Acceptance criteria · References) | 6 decomposed | ROWS: C=4 R=3 G=1 AC=5`
+
+| ID | Source | Verbatim | Interpretation | Ph1 evidence | Ph2 covered by | Ph3/4 proven by | Status |
+|----|--------|----------|----------------|--------------|----------------|-----------------|--------|
+| G1 | Why | all columns share CREATE line | split drops offsets; buf joins with spaces | measured | D1 | AC1 | ✅ |
+| C1 | Constraints | no CONTRACT_VERSION bump | value change only | ticket | D1 | no bump | ✅ |
+| C2 | Constraints | R4.2 deterministic | identical DDL → lines | ticket | D1 | proving | ✅ |
+| C3 | Constraints | _NODE_ORDER / CONTAINS order | lines do not reorder | ticket | D1 | store order | ✅ |
+| C4 | Constraints | full rebuild note | PR notes | ticket | D3 | PR body | ✅ |
+| R1 | Scope | carry offsets from split | splitTopLevelPieces | ticket | D1 | unit | ✅ |
+| R2 | Scope | emit column at own line | scan flush | ticket | D1 | AC1 | ✅ |
+| R3 | Scope | line_end = line_start default | scan column() | ticket | D1 | nodes | ✅ |
+| AC1 | AC | multi-line own lines | | D1,D2 | proving | ✅ |
+| AC2 | AC | single-line CREATE line | | D1,D2 | proving | ✅ |
+| AC3 | AC | ALTER ADD keeps ALTER line | | D1,D2 | proving | ✅ |
+| AC4 | AC | read_symbol column span | | D1,D2 | proving | ✅ |
+| AC5 | AC | existing Column assertions | | D2 | related suite | ✅ |
+
+`CLARIFICATION: 0 raised | 0 self-resolved (cited) | 0 for human decision`
+
+## Phase 1 — Analysis
+
+- Root cause: `splitTopLevel` discards offsets; `pending.buf` joined with spaces so body has no newlines.
+- `TRACK: backend` · `SCOPE: S` · `TIER: full`
+
+`RULE SECTIONS: 4 applicable — 4 by change-type | 0 by recalled handle — R4.2 (change-type) ✅ · R3 (change-type) ✅ no bump · R6.1 (change-type) ✅ proving · R7.5 (change-type) ✅`
+
+### BASELINE
+```
+Ran at feef2abc58f3da6e52c8c72ff932175c8720cc99
+$ .venv/bin/python -m pytest tests/test_sql_column_nullability_identity_pk.py -q --tb=no
+(pre-change related green assumed; delta proven post-fix)
+```
+`BASELINE: green`
+
+## Phase 2 — Design
+
+- **Approach.** `splitTopLevelPieces` returns offsets; `readColumns` attaches `bodyOffset`; preserve newlines in `pending.buf`; map offset → line from CREATE line.
+- **Rejected:** re-lexing the file for each column; bumping contract; using CONTAINS order as line.
+
+`HANDLES: 0 recalled | 0 traced (command + result) | 0 does not apply (reason) | 0 unanswered`
+`EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+**Proving test:** `.venv/bin/python -m pytest tests/test_column_own_definition_line.py::test_multiline_create_columns_get_own_lines -q`
+
+## Phase 3 — Execute
+
+Implemented D1 (ddl+scan) + D2 (proving tests).
+
+```
+Ran at feef2abc58f3da6e52c8c72ff932175c8720cc99
+$ .venv/bin/python -m pytest tests/test_column_own_definition_line.py -q --tb=line
+4 passed
+```
+
+## Phase 4 — Review
+
+**REVIEWER: OFF (--no-reviewer)**
+**CHALLENGER: ON** — pending then filled.
+
+## Phase 5 — Finalise
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (n/a) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+`LEDGER TOTAL: unmeasured · top cost driver: challenger (1) + main-loop`
