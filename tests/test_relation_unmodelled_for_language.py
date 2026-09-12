@@ -34,9 +34,9 @@ from code_atlas.tools.coverage import relation_unmodelled_for_language
 from code_atlas.tools.nav_result import (
     NAV_REASONS,
     REASON_NO_MATCHES,
+    REASON_PROXIMITY_CANDIDATES,
     REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
     REASON_RELATIONSHIP_NOT_MODELLED,
-    REASON_VIA_MEMBERS,
     TRY_INSTEAD_FIND_REFERENCES,
     TRY_INSTEAD_HINT_RELATION_CARRIED_BY_ANOTHER_KIND,
 )
@@ -255,7 +255,7 @@ def test_the_verdict_is_a_stamp_read_not_a_group_by(php_index: Config) -> None:
 def test_the_new_reason_joins_the_vocabulary_once() -> None:
     """AC7/R3: nav vocabulary, one definition site, and it is a real member of NAV_REASONS."""
     assert REASON_RELATION_UNMODELLED_FOR_LANGUAGE in NAV_REASONS
-    assert NAV_REASONS[-1] == REASON_VIA_MEMBERS
+    assert NAV_REASONS[-1] == REASON_PROXIMITY_CANDIDATES
     assert len(set(NAV_REASONS)) == len(NAV_REASONS)
 
 

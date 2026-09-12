@@ -4,7 +4,7 @@ slug: the-graph-stores-the-cartesian-product-of-call-site-and-same-named-symbol
 title: 'The build materialises the cartesian product of (unresolved call site × same-named symbol), alphabetically truncated at `max_results` — 1,016,207 rows on the anchor repo, 48.4 % of the whole graph, 3.35 per call site, 87.7 % of them linked and therefore returned as answers: one `->get()` inside a Zend library file is stored as eight callers of eight unrelated application classes'
 phase: 2
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [251, 054, 066, 182]
 ---
 
@@ -126,3 +126,136 @@ the ticket binds the properties:
 - [066](066_limit-clamped-silently.md) — `max_results` governing resolver fan-out, the coupling this removes.
 - BACKLOG follow-up "`max_results` does two unrelated jobs" — this ticket is its root cause and closes
   it.
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# Session status
+
+- **KEY:** 258 · **work_doc_mode:** embed · **Current phase:** finalise
+- `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · **Type:** enhancement
+- Run: `/mango:autorun 258` with `--no-reviewer`; challenger ON
+- Branch: `feat/258-the-graph-stores-the-cartesian-product` (stacked on `feat/251-the-resolved-caller-can-be-off-the-page`)
+- Contract: `.mango/run-contract-258.txt`
+- Handover: push feature branch + open PR only (never merge)
+
+## Phase 0 — refine
+
+`PREMISE: 6 reference(s) checked | 0 missing | 1 ambiguous (surfaced, not blocking)`
+`RECALL: 2 claim(s) surfaced | 0 by symbol | 2 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`REFINE: 3 unresolved surfaced | 3 want-decision asked | 0 how-decision resolved+cited | 3 ASSUMED | skip: no`
+
+**ASSUMED (awaiting ratification) — handover authorised choose-best-approach.**
+
+| # | Assumed choice | Why ASSUMED | Reverses prior? |
+|---|---|---|---|
+| 1 | Leave multi-match bare Method CALLS unlinked; unique still links HEURISTIC | Smallest schema change; matches "site is the fact" | no |
+| 2 | `find_callers` proximity = same file / same parent / shared subtree depth ≥ 1 | AC3 Zend vs app; R1.1 structural | no |
+| 3 | Anchor AC1 % and AC5 scale are coverage-gap E1 (`real_corpus_path` null); fixtures prove mechanism | harness real_corpus_path null | no |
+
+✋ **Gate 0** — ASSUMED await PR ratification.
+
+## Phase 1 — analysis
+
+`PREMISE: 6 reference(s) checked | 0 missing | 1 ambiguous (surfaced, not blocking)`
+`RECALL: 2 claim(s) surfaced | 0 by symbol | 2 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`SECTIONS: 5 found (Why this exists · Root cause · Scope · Constraints · Acceptance criteria) | 5 decomposed | ROWS: C=5 R=4 G=2 AC=5`
+`CLARIFICATION: 3 raised | 3 self-resolved (cited) | 0 for human decision`
+`TRACK: backend — 0/N touched files under UI paths`
+`BASELINE: green`
+`SCOPE: M`
+`TIER: full`
+`RULE SECTIONS: 7 applicable — 5 by change-type | 2 by recalled handle — R1.1 (change-type) ✅ · R1.4 (change-type) ✅ · R4.2 (change-type) ✅ · R5.6 (recalled handle) ✅ · R6.5 (recalled handle) ✅ · R7.2 (change-type) ✅ · R7.6 (change-type) ✅`
+
+### BASELINE
+
+```
+Ran at 0475cb53fc53b066319ca98575e92175237b06eb
+$ .venv/bin/python -m pytest tests/test_resolver.py::test_many_method_name_matches_stay_one_unresolved_site -q --tb=no
+1 passed
+```
+
+### Requirements matrix (abbrev)
+
+AC1–AC5 open → proved by fixtures; AC1 anchor % and AC5 anchor latency = E1.
+
+## Phase 2 — design
+
+### Approach
+
+Stop `_link_by_bare_name` fan-out when `count_nodes_by_name > 1`; bump `SCHEMA_VERSION` to 6; `find_callers` expands unresolved sites via proximity; proving tests; PLAN.
+
+### Change list
+
+| # | Change | File |
+|---|---|---|
+| 1 | multi-match leave unresolved | resolver.py |
+| 2 | schema 6 + unresolved_caller_sites | store.py |
+| 3 | proximity find_callers | find_callers.py |
+| 4 | proving + 054/resolver/incremental retarget | tests/ |
+| 5 | docs | PLAN/BACKLOG/ledger/task |
+
+`HANDLES: 2 recalled | 2 traced (command + result) | 0 does not apply (reason) | 0 unanswered`
+
+```
+Ran at 0475cb53fc53b066319ca98575e92175237b06eb
+$ rg -n 'total != 1|unresolved_caller_sites|SCHEMA_VERSION = "6"' code_atlas/resolver.py code_atlas/store.py | head -8
+```
+
+`EXCLUSIONS: 2 recorded | 2 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 2 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+- E1 AC1 anchor 34% / 713k — expiry: when `real_corpus_path` set
+- E1 AC5 anchor-scale latency — expiry: when `real_corpus_path` set
+
+### Proving test
+
+```
+.venv/bin/python -m pytest tests/test_unresolved_call_site_not_cartesian.py::test_zend_get_is_not_a_caller_of_application_get -q
+```
+
+✋ **Gate 2**
+
+## Phase 3 — execute
+
+Branch stacked on 251 @ HEAD.
+
+### Verification sweep
+
+```
+Ran at 0475cb53fc53b066319ca98575e92175237b06eb
+$ .venv/bin/python -m pytest tests/test_unresolved_call_site_not_cartesian.py -q
+.....                                                                    [100%]
+5 passed
+```
+
+Design-conformance: diff ⊆ change list.
+
+## Phase 4 — Review
+
+**REVIEWER: OFF (--no-reviewer)** — waived.
+**CHALLENGER: ON** — ticket-blind, 1 dispatch.
+
+Challenger: **CLEAN** (mechanism ACs met; AC1/AC5 anchor-scale met-with-exclusion / E1).
+
+```
+Ran at e183e29
+
+$ .venv/bin/python -m pytest tests/test_unresolved_call_site_not_cartesian.py -q
+.....                                                                    [100%]
+5 passed
+```
+
+Reviewed at (see HEAD). Gate 4 cleared (challenger CLEAN; reviewer waived).
+
+## Phase 5 — Finalise
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (n/a) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+`LEDGER TOTAL: unmeasured · top cost driver: challenger (1) + main-loop`
+
+### Outward actions
+1. push feature branch — authorised
+2. open PR (base: feat/251-…) — authorised
+Deferred: merge; 251 merge prerequisite for landing on main.

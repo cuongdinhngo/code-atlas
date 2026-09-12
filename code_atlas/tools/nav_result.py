@@ -40,6 +40,7 @@ NavReason = Literal[
     "separator_normalised",
     "token_candidates",
     "via_members",
+    "proximity_candidates",
 ]
 
 REASON_OK: NavReason = "ok"
@@ -85,6 +86,10 @@ REASON_TOKEN_CANDIDATES: NavReason = "token_candidates"
 # targeting the subject's CONTAINS children. Never reason=ok — the class-ref relation
 # is not in the graph (R5.6 / 252).
 REASON_VIA_MEMBERS: NavReason = "via_members"
+# Unresolved same-named CALL sites ranked by proximity (258). The rows are candidates the
+# resolver declined to link, not measured callers, so never reason=ok — the 252 rule applied
+# to the other query-time expansion (R5.6).
+REASON_PROXIMITY_CANDIDATES: NavReason = "proximity_candidates"
 
 NAV_REASONS: tuple[NavReason, ...] = (
     REASON_OK,
@@ -110,6 +115,7 @@ NAV_REASONS: tuple[NavReason, ...] = (
     REASON_SEPARATOR_NORMALISED,
     REASON_TOKEN_CANDIDATES,
     REASON_VIA_MEMBERS,
+    REASON_PROXIMITY_CANDIDATES,
 )
 
 # Two registers, one naming rule (093): ``TRY_INSTEAD_*`` is a registered tool name the reader can

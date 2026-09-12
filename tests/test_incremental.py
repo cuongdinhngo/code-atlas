@@ -197,8 +197,8 @@ def test_bad_last_commit_falls_back_to_full(tmp_path: Path) -> None:
     assert result["mode"] == "full"
 
 
-def test_heuristic_siblings_still_match_a_full_rebuild(tmp_path: Path) -> None:
-    """R4.2: dependents are reparsed so HEURISTIC top-N siblings match a full rebuild."""
+def test_heuristic_unresolved_sites_still_match_a_full_rebuild(tmp_path: Path) -> None:
+    """R4.2: dependents are reparsed so unresolved multi-match sites match a full rebuild (258)."""
     committed(
         tmp_path,
         {
@@ -211,7 +211,8 @@ def test_heuristic_siblings_still_match_a_full_rebuild(tmp_path: Path) -> None:
     with GraphStore(config.db_path) as store:
         full_build(config, store)
         linked = store.edges_by_source("dep/name_caller.aa::Thing", kinds=("CALLS",), limit=10)
-        assert len(linked) == 2
+        assert len(linked) == 1
+        assert linked[0]["target_qname"] is None
         last = store.get_meta(LAST_COMMIT_KEY)
         assert last is not None
 
@@ -223,7 +224,8 @@ def test_heuristic_siblings_still_match_a_full_rebuild(tmp_path: Path) -> None:
         incremental_update(config, store, changed)
         incremental = snapshot(store)
         linked = store.edges_by_source("dep/name_caller.aa::Thing", kinds=("CALLS",), limit=10)
-        assert len(linked) == 2
+        assert len(linked) == 1
+        assert linked[0]["target_qname"] is None
 
     fresh = config_for(tmp_path, "fresh.db")
     with GraphStore(fresh.db_path) as store:

@@ -25,7 +25,7 @@ from code_atlas.contract import CONFIDENCE_TIERS
 # (task 106: 8,477 entry points against a 500 budget left zero room and zero edges).
 _TOUR_SEED_BUDGET_DIVISOR = 4
 
-SCHEMA_VERSION = "5"
+SCHEMA_VERSION = "6"
 SCHEMA_VERSION_KEY = "schema_version"
 CONTRACT_VERSION_KEY = "contract_version"
 LAST_COMMIT_KEY = "last_commit"
@@ -1785,15 +1785,51 @@ class GraphStore:
         )
         return int(self._conn.execute(sql, (needle,)).fetchone()[0])
 
-    def count_nodes_by_name(self, name: str, *, kind: str | None = None) -> int:
-        """How many nodes share ``name`` (optional ``kind``), via ``idx_nodes_name``."""
-        if kind is None:
-            sql = "SELECT COUNT(*) FROM nodes WHERE name = ?"
-            params: tuple[object, ...] = (name,)
-        else:
-            sql = "SELECT COUNT(*) FROM nodes WHERE name = ? AND kind = ?"
-            params = (name, kind)
+    def count_nodes_by_name(
+        self, name: str, *, kind: str | None = None, language: str | None = None
+    ) -> int:
+        """How many nodes share ``name`` (optional kind/language), via ``idx_nodes_name``."""
+        clauses = ["name = ?"]
+        params: list[object] = [name]
+        if kind is not None:
+            clauses.append("kind = ?")
+            params.append(kind)
+        if language is not None:
+            clauses.append(
+                "file_path IN (SELECT path FROM files WHERE language = ?)"
+            )
+            params.append(language)
+        sql = f"SELECT COUNT(*) FROM nodes WHERE {' AND '.join(clauses)}"
         return int(self._conn.execute(sql, params).fetchone()[0])
+
+    def unresolved_caller_sites(
+        self,
+        bare_name: str,
+        *,
+        kinds: Sequence[str] | None = None,
+        language: str | None = None,
+    ) -> list[Row]:
+        """CALLS/NEW sites that still name ``bare_name`` with no linked target (task 258).
+
+        One row per unresolved site — the cartesian product is no longer materialised at build.
+        """
+        clauses = ["target_qname IS NULL", "target_raw = ?"]
+        params: list[object] = [bare_name]
+        if kinds is not None:
+            if not kinds:
+                raise ValueError("kinds must be non-empty")
+            clauses.append(f"kind IN ({', '.join('?' for _ in kinds)})")
+            params.extend(kinds)
+        if language is not None:
+            clauses.append(
+                "file_path IN (SELECT path FROM files WHERE language = ?)"
+            )
+            params.append(language)
+        sql = (
+            f"SELECT id, {_EDGE_COLUMNS} FROM edges WHERE {' AND '.join(clauses)} "
+            f"ORDER BY {_EDGE_ORDER}"
+        )
+        return self._rows(EDGE_ROW_KEYS, sql, params)
 
     def file_languages(self) -> dict[str, str]:
         """Map indexed path → its language, for files that carry one (task 204).

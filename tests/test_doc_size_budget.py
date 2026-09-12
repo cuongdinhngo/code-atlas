@@ -183,7 +183,14 @@ BUDGETS = {
     # this log exists to hold. R7.6 ran first and paid most of it: 237 cut the T-SQL entry's retro
     # retelling to a pointer, and both new entries lost the mechanism and the AC list their task
     # files already hold (-81 for +137). The next addition prunes again or argues again.
-    "PLAN.md": 23_250,
+    # 23,250 -> 23,350 on 2026-09-12 (258), argued rather than assumed. Two things this file
+    # owns land together: the `schema_version` bump that ends `max_results` governing graph
+    # content, and §12's row for a new nav reason — a reason with no row is a payload shape a
+    # reader can only find in source. R7.6 ran first and paid most of it (~180 tokens): the §10
+    # per-version enumeration became a task-pointer list, the aside correcting a mis-cited R7.4
+    # went (a decision-log note, not a section one), and 251's §19 entry that restated its own
+    # §12 row was cut. The next addition prunes again or argues again; this is not headroom.
+    "PLAN.md": 23_350,
     # 2,150 -> 1,800 on 2026-09-08, LOWERED: 232-235 all close in this window and each removes
     # its row (R7.6), taking the file 1,737 -> 1,485. 2,150 is more than 25 % above 1,485, which
     # the anti-slack guard below calls slack; 1,800 keeps ~315 of headroom, about five open rows.

@@ -1,9 +1,10 @@
 """Task 051: a build report must count every row the build wrote, not just the adapters' share.
 
-``_parse_all`` tallies while writing adapter output, and two later steps insert more rows —
-enrichment's synthetic ALIASES/CALLS and the resolver's sibling candidates. A report built from the
-parse tally alone described a graph smaller than the one just created; on the anchor repo, 949,808
-against 1,775,812 stored, while ``get_index_status`` reported the larger figure for the same graph.
+``_parse_all`` tallies while writing adapter output, and a later step inserts more rows —
+enrichment's synthetic ALIASES/CALLS. A report built from the parse tally alone described a graph
+smaller than the one just created; on the anchor repo, 949,808 against 1,775,812 stored, while
+``get_index_status`` reported the larger figure for the same graph. (The resolver's sibling
+candidates were the second such writer until 258 stopped materialising them.)
 
 The definition these tests pin is **"what this run wrote"**: a full build therefore agrees with the
 table, and an incremental run still reports its own delta rather than the whole graph.
@@ -25,9 +26,9 @@ from code_atlas.tools.get_index_status import NAME as STATUS
 from tests.test_incremental import committed, fake_env
 from tests.test_mcp_server import call
 
-# twin/* declare the same method name twice, dep/name_* calls it bare — one call site, two
-# candidates, so the resolver inserts exactly one sibling row per caller. lib/ + dep/plain are
-# untouched by an edit to twin/a, which is what makes an incremental delta smaller than the whole.
+# twin/* declare the same method name twice and dep/name_* calls it bare, so the call stays one
+# unresolved site (258). lib/ + dep/plain are untouched by an edit to twin/a, which is what makes
+# an incremental delta smaller than the whole.
 MULTI_CANDIDATE = {
     "twin/a.aa": "run a\n",
     "twin/b.aa": "run b\n",
@@ -54,25 +55,26 @@ def with_rules(root: Path) -> Config:
     return config_for(root, CA_INDIRECTION_RULES="rules/rules.json")
 
 
-def sibling_rows(store: GraphStore) -> int:
-    """Rows sharing a call site with another — what the parse tally could not have counted."""
-    stored, distinct = store._conn.execute(
-        "SELECT (SELECT COUNT(*) FROM edges),"
-        " (SELECT COUNT(*) FROM (SELECT DISTINCT source_qname, kind, target_raw, file_path, line"
-        " FROM edges))"
-    ).fetchone()
-    return int(stored) - int(distinct)
+def post_parse_rows(store: GraphStore) -> int:
+    """Edges no adapter emitted — what the parse tally could not have counted."""
+    return int(
+        store._conn.execute(
+            "SELECT COUNT(*) FROM edges WHERE file_path = ?", (INDIRECTION_FILE,)
+        ).fetchone()[0]
+    )
 
 
-def test_the_fixture_really_produces_siblings(tmp_path: Path) -> None:
-    """Guards the guard: with no sibling rows, every agreement test below passes vacuously."""
+def test_the_fixture_really_writes_after_the_parse(tmp_path: Path) -> None:
+    """Guards the guard: with nothing written after the parse, the agreement tests below
+    pass vacuously. 258 ended the resolver's sibling rows, so enrichment is the remaining
+    post-parse writer and the rules fixture is what keeps these tests honest."""
     committed(tmp_path, MULTI_CANDIDATE)
-    config = config_for(tmp_path)
+    config = with_rules(tmp_path)
 
     with GraphStore(config.db_path) as store:
         full_build(config, store)
 
-        assert sibling_rows(store) == 2
+        assert post_parse_rows(store) == len(RULES["aliases"]) + len(RULES["calls"])
 
 
 def test_a_full_build_reports_the_edges_the_table_holds(tmp_path: Path) -> None:

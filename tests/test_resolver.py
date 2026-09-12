@@ -202,7 +202,8 @@ def test_no_exact_duplicate_edge_rows_survive_a_resolve(store: GraphStore) -> No
     assert groups == 0
 
 
-def test_many_method_name_matches_respect_max_candidates(store: GraphStore) -> None:
+def test_many_method_name_matches_stay_one_unresolved_site(store: GraphStore) -> None:
+    """258: multi-match bare Method CALLS are not expanded into N HEURISTIC siblings."""
     seed_file(
         store,
         "a.x",
@@ -218,9 +219,10 @@ def test_many_method_name_matches_respect_max_candidates(store: GraphStore) -> N
     resolve_edges(store, max_candidates=2)
 
     linked = store.edges_by_source("\\A::save", kinds=("CALLS",), limit=10)
-    assert len(linked) == 2
-    assert [row["target_qname"] for row in linked] == ["\\A::put", "\\B::put"]
-    assert all(row["confidence_tier"] == "HEURISTIC" for row in linked)
+    assert len(linked) == 1
+    assert linked[0]["target_qname"] is None
+    assert linked[0]["target_raw"] == "put"
+    assert linked[0]["confidence_tier"] == "HEURISTIC"
 
 
 def test_dynamic_edges_stay_unlinked(store: GraphStore) -> None:
@@ -443,14 +445,14 @@ def test_batched_resolve_matches_golden_and_is_o1_selects(
     assert extends[0]["confidence_tier"] == "RESOLVED"
 
     puts = store.edges_by_source("\\A::save", kinds=("CALLS",), limit=50)
-    # 10 CALLS × 2 candidates each (primary + sibling) with identical target set order.
-    assert len(puts) == 20
+    # 258: 10 CALLS stay one unresolved site each — not 10 × 2 HEURISTIC siblings.
+    assert len(puts) == 10
     by_file = {}
     for row in puts:
         by_file.setdefault(row["file_path"], []).append(
-            (row["target_qname"], row["confidence_tier"])
+            (row["target_qname"], row["target_raw"], row["confidence_tier"])
         )
-    expected = [("\\A::put", "HEURISTIC"), ("\\B::put", "HEURISTIC")]
+    expected = [(None, "put", "HEURISTIC")]
     for i in range(10):
         assert by_file[f"call{i}.x"] == expected
 

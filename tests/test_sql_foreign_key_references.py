@@ -156,7 +156,7 @@ def test_three_spellings_share_the_edge_set(indexed) -> None:
 @needs_node
 def test_contract_and_schema_versions_unchanged() -> None:
     assert CONTRACT_VERSION == 10
-    assert str(SCHEMA_VERSION) == "5"
+    assert str(SCHEMA_VERSION) == "6"
 
 
 @needs_node

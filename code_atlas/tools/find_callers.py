@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import deque
 from collections.abc import Callable
+from pathlib import PurePosixPath
 from typing import Literal, NamedTuple
 
 from code_atlas.config import Config, clamp_limit
@@ -14,7 +15,7 @@ from code_atlas.contract import (
     ConfidenceTier,
     split_qname,
 )
-from code_atlas.store import GraphStore
+from code_atlas.store import GraphStore, Row
 from code_atlas.tools import call_site, claim
 from code_atlas.tools.coverage import (
     attach_coverage_note,
@@ -36,6 +37,7 @@ from code_atlas.tools.nav_result import (
     REASON_INDEX_STALE,
     REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
+    REASON_PROXIMITY_CANDIDATES,
     REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE,
@@ -134,6 +136,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``tier_census`` reports the full hit set's tier breakdown when more than one tier is
         present (omit-when-empty, 061). Depth 1 only.
 
+        A Method subject whose linked answer is empty may expand to the unresolved same-named
+        CALL sites near it, ranked by shared subtree (258). Those rows are candidates the
+        resolver declined to link, so the answer is ``proximity_candidates``, never ``ok``, and
+        each row names ``candidate_of``.
+
         ``limit`` / ``offset`` page results (057). At depth 1 the store owns OFFSET; deeper walks
         apply offset to the BFS hit stream. Complete enumeration is guaranteed at depth 1.
 
@@ -201,6 +208,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         unlinked_calls = 0
         cross_lang_census: dict[str, object] | None = None
         args_capture_absent = False
+        proximity_used = False
         behind_dirty: list[str] = []
         subject_file: str | None = None
         with GraphStore(config.db_path) as store:
@@ -316,6 +324,31 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             sibling_sites: list[dict[str, object]] = []
             # The subject's own file is what "near" is measured against (171).
             subject_file = str(subject_nodes[0]["file_path"]) if subject_nodes else None
+            # 258: unresolved same-named CALL sites — query-time proximity, not build fan-out.
+            if (
+                depth == 1
+                and indexed
+                and outcome.total_count == 0
+                and subject_file is not None
+                and args_at is None
+                and str(subject_nodes[0]["kind"]) == "Method"
+            ):
+                prox = _proximity_unresolved_callers(
+                    store,
+                    bare_name=str(subject_nodes[0]["name"]),
+                    language=store.language_of_file(subject_file),
+                    subject_file=subject_file,
+                    subject_qname=lookup,
+                    limit=cap,
+                    offset=offset,
+                    confidence_tier=tier,
+                )
+                if prox is not None and prox.total_count > 0:
+                    outcome = prox
+                    proximity_used = True
+                    if tier is None:
+                        # Linked census was empty; HEURISTIC sites are the answer.
+                        tier_census = {"HEURISTIC": prox.total_count}
             if indexed and str(subject_nodes[0]["kind"]) == "Function":
                 # Same bare name, other schema/qname — the AC2 visibility surface for SQL (214).
                 # Uses the node's `name` because dotted Function qnames are not `::`-split.
@@ -380,7 +413,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     if not lang_caps.get("args", False):
                         args_capture_absent = True
         reason = relation_reason(hit_total=outcome.total_count, symbol_indexed=indexed)
-        if outcome.total_count == 0 and indexed and unresolved_bare > 0:
+        if proximity_used:
+            # Candidates the resolver declined to link, ranked by proximity — never ok, the
+            # 252 rule for a query-time expansion (R5.6 / 258). Each row names `candidate_of`.
+            reason = REASON_PROXIMITY_CANDIDATES
+        elif outcome.total_count == 0 and indexed and unresolved_bare > 0:
             # Cap dropped this subject from bare-name linking — not "no callers exist".
             reason = REASON_BARE_NAME_TRUNCATED
         elif reason == REASON_NO_MATCHES and unlinked_calls > 0:
@@ -499,6 +536,73 @@ def _confidence_tier(
     if depth != 1:
         raise ValueError("a tier filter describes a direct call page, so it needs depth=1")
     return confidence_tier
+
+
+def _shared_subtree_depth(subject_file: str, site_file: str) -> int:
+    """How many leading directory components the two files share (258 proximity)."""
+    subject = PurePosixPath(subject_file).parent.parts
+    site = PurePosixPath(site_file).parent.parts
+    depth = 0
+    for left, right in zip(subject, site, strict=False):
+        if left != right:
+            break
+        depth += 1
+    return depth
+
+
+def _proximity_qualifies(subject_file: str, site_file: str) -> bool:
+    """Whether an unresolved site may count as a caller of this subject (258 AC3).
+
+    Same file or same parent directory, or a positive shared-subtree depth. A vendored
+    Zend path and an application controller share none of these.
+    """
+    if subject_file == site_file:
+        return True
+    if PurePosixPath(subject_file).parent == PurePosixPath(site_file).parent:
+        return True
+    return _shared_subtree_depth(subject_file, site_file) >= 1
+
+
+def _proximity_unresolved_callers(
+    store: GraphStore,
+    *,
+    bare_name: str,
+    language: str | None,
+    subject_file: str,
+    subject_qname: str,
+    limit: int,
+    offset: int,
+    confidence_tier: str | None,
+) -> _CallersOutcome | None:
+    """Query-time candidates for unresolved same-named CALL sites (task 258).
+
+    Ranked by shared-subtree depth (desc), then source_qname.
+    """
+    if confidence_tier is not None and confidence_tier != "HEURISTIC":
+        return None
+    sites = store.unresolved_caller_sites(
+        bare_name, kinds=CALLER_KINDS, language=language
+    )
+    ranked: list[tuple[int, str, Row]] = []
+    for site in sites:
+        site_file = str(site["file_path"])
+        if not _proximity_qualifies(subject_file, site_file):
+            continue
+        depth = _shared_subtree_depth(subject_file, site_file)
+        ranked.append((depth, str(site["source_qname"]), site))
+    ranked.sort(key=lambda row: (-row[0], row[1]))
+    total = len(ranked)
+    page = ranked[offset : offset + limit]
+    hits = [edge_hit(site, depth=1) for _, _, site in page]
+    for hit in hits:
+        hit["confidence_tier"] = "HEURISTIC"
+        hit["candidate_of"] = subject_qname
+    return _CallersOutcome(
+        results=hits,
+        truncated=offset + len(hits) < total,
+        total_count=total,
+        frontier_skipped_non_resolved=0,
+    )
 
 
 def _callers(

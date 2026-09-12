@@ -341,6 +341,14 @@ def _link_by_bare_name(
             language=language,
         )
         for edge, name in pairs:
+            # 258: multi-match same-named Methods stay one unresolved site — candidates are a
+            # query, not a build-time cartesian product. Count before the capped fetch so a
+            # max_results prefix cannot look like a unique hit.
+            total = store.count_nodes_by_name(
+                name, kind=_BARE_NAME_KIND, language=language
+            )
+            if total != 1:
+                continue
             methods = method_hits.get(name, [])
             if methods:
                 # Weaker than what the edge claimed, never stronger: the name matched, the

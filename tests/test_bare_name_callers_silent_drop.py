@@ -11,7 +11,11 @@ import pytest
 from code_atlas.resolver import resolve_edges
 from code_atlas.store import GraphStore
 from code_atlas.tools import find_callers
-from code_atlas.tools.nav_result import REASON_BARE_NAME_TRUNCATED, REASON_NO_MATCHES
+from code_atlas.tools.nav_result import (
+    REASON_BARE_NAME_TRUNCATED,
+    REASON_NO_MATCHES,
+    REASON_PROXIMITY_CANDIDATES,
+)
 from tests.test_nav_tools import db_config, edge, node, seed_file
 
 
@@ -22,10 +26,10 @@ def store(tmp_path: Path) -> Iterator[GraphStore]:
 
 
 def _plant_truncated_bare_calls(store: GraphStore, root: Path) -> None:
-    """Three ``put`` Methods; max_candidates=2 keeps A/B — ``\\C::put`` is outside the cap.
+    """Three ``put`` Methods; multi-match stays one unresolved site (258).
 
-    Same shape as ``test_many_method_name_matches_respect_max_candidates``; the call site is
-    HEURISTIC bare ``put``, so winners receive inbound edges and the outsider does not.
+    Part B still needs an outsider with zero *linked* inbound edges while a bare ``put``
+    CALL site exists — that is now the unresolved row, not a capped sibling list.
     """
     seed_file(
         store,
@@ -43,25 +47,50 @@ def _plant_truncated_bare_calls(store: GraphStore, root: Path) -> None:
 
 
 def _tool(tmp_path: Path, *, max_results: int = 2):
-    """Query-time cap must match resolve cap for truncation honesty (Part A conflation)."""
+    """Query-time cap for paging; no longer governs what the build stores (258)."""
     return find_callers.create(replace(db_config(tmp_path), max_results=max_results))
 
 
-def test_the_fixture_really_drops_the_outsider(store: GraphStore, tmp_path: Path) -> None:
-    """Guard cannot pass vacuously — outsider exists and is not among linked targets."""
+def test_the_fixture_really_leaves_multi_match_unlinked(
+    store: GraphStore, tmp_path: Path
+) -> None:
+    """Guard: multi-match bare CALLS stay unresolved — no cartesian inbound edges."""
     _plant_truncated_bare_calls(store, tmp_path)
     assert store.nodes_by_qualified_name("\\C::put", kind="Method", limit=1)
     linked = store.edges_by_source("\\A::save", kinds=("CALLS",), limit=10)
-    targets = {str(row["target_qname"]) for row in linked}
-    assert targets == {"\\A::put", "\\B::put"}
-    assert "\\C::put" not in targets
+    assert len(linked) == 1
+    assert linked[0]["target_qname"] is None
     assert store.count_edges_by_target("\\C::put", kinds=("CALLS",)) == 0
+    assert store.count_edges_by_target("\\A::put", kinds=("CALLS",)) == 0
 
 
 def test_find_callers_reports_truncated_bare_name_not_no_matches(
     store: GraphStore, tmp_path: Path
 ) -> None:
-    _plant_truncated_bare_calls(store, tmp_path)
+    """When proximity cannot attach the site, truncation honesty still fires for outsiders.
+
+    Force a subject file with no shared subtree vs the call site so query-time expansion
+    does not recover the caller (the 054 empty-page case).
+    """
+    seed_file(
+        store,
+        "legacy/a.x",
+        [
+            node("Method", "save", "\\A::save", "legacy/a.x"),
+            node("Method", "put", "\\A::put", "legacy/a.x"),
+            node("Method", "put", "\\B::put", "legacy/a.x"),
+        ],
+        [edge("CALLS", "\\A::save", "put", "legacy/a.x", tier="HEURISTIC")],
+        root=tmp_path,
+    )
+    seed_file(
+        store,
+        "other/c.x",
+        [node("Method", "put", "\\C::put", "other/c.x")],
+        [],
+        root=tmp_path,
+    )
+    resolve_edges(store, max_candidates=2)
     result = _tool(tmp_path)("\\C::put", detail_level="minimal")
     assert result["results"] == []
     assert result["total_count"] == 0
@@ -71,7 +100,25 @@ def test_find_callers_reports_truncated_bare_name_not_no_matches(
 
 
 def test_truncated_bare_count_is_deterministic(store: GraphStore, tmp_path: Path) -> None:
-    _plant_truncated_bare_calls(store, tmp_path)
+    seed_file(
+        store,
+        "legacy/a.x",
+        [
+            node("Method", "save", "\\A::save", "legacy/a.x"),
+            node("Method", "put", "\\A::put", "legacy/a.x"),
+            node("Method", "put", "\\B::put", "legacy/a.x"),
+        ],
+        [edge("CALLS", "\\A::save", "put", "legacy/a.x", tier="HEURISTIC")],
+        root=tmp_path,
+    )
+    seed_file(
+        store,
+        "other/c.x",
+        [node("Method", "put", "\\C::put", "other/c.x")],
+        [],
+        root=tmp_path,
+    )
+    resolve_edges(store, max_candidates=2)
     tool = _tool(tmp_path)
     first = tool("\\C::put", detail_level="minimal")
     second = tool("\\C::put", detail_level="minimal")
@@ -79,16 +126,17 @@ def test_truncated_bare_count_is_deterministic(store: GraphStore, tmp_path: Path
     assert first["reason"] == second["reason"] == REASON_BARE_NAME_TRUNCATED
 
 
-def test_winner_still_reports_callers_and_may_omit_unresolved(
+def test_same_subtree_recovers_unresolved_site_as_caller(
     store: GraphStore, tmp_path: Path
 ) -> None:
+    """258 query-time path: a same-subtree unresolved site is a HEURISTIC caller."""
     _plant_truncated_bare_calls(store, tmp_path)
-    result = _tool(tmp_path)("\\A::put", detail_level="minimal")
+    result = _tool(tmp_path, max_results=50)("\\A::put", detail_level="minimal")
     assert result["total_count"] >= 1
     assert result["results"]
-    assert result["reason"] == "ok"
-    # Every bare ``put`` site links to this winner, so the honesty field stays off.
-    assert "unresolved_bare_calls" not in result
+    # 258 rows are candidates, not measured callers — the label is the point (R5.6).
+    assert result["reason"] == REASON_PROXIMITY_CANDIDATES
+    assert str(result["results"][0]["qname"]) == "\\A::save"
 
 
 def test_unknown_qname_does_not_claim_bare_name_truncation(
@@ -134,13 +182,13 @@ def test_method_count_at_or_below_cap_skips_expensive_scan(
             node("Method", "put", "\\C::put", "a.x"),
         ],
         [
-            # Unlinked HEURISTIC bare call — would count if we scanned, but 2 Methods ≤ cap.
+            # Unlinked HEURISTIC bare call — 258 query-time proximity may still surface it.
             edge("CALLS", "\\A::save", "put", "a.x", tier="HEURISTIC", target_qname=None),
         ],
         root=tmp_path,
     )
     result = _tool(tmp_path, max_results=2)("\\C::put", detail_level="minimal")
-    assert result["reason"] == REASON_NO_MATCHES
+    assert result["reason"] != REASON_BARE_NAME_TRUNCATED
     assert "unresolved_bare_calls" not in result
 
 
@@ -163,7 +211,8 @@ def test_function_subject_does_not_claim_bare_name_truncation(
     )
     resolve_edges(store, max_candidates=2)
     result = _tool(tmp_path)("\\App\\put", detail_level="minimal")
-    assert result["reason"] == REASON_NO_MATCHES
+    # Function path may be no_matches or 214's unlinked-CALLS arm — never bare_name_truncated.
+    assert result["reason"] != REASON_BARE_NAME_TRUNCATED
     assert "unresolved_bare_calls" not in result
 
 

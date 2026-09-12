@@ -391,13 +391,11 @@ guard's two branches, an `interface X` + `class X` fixture), which **would** tri
 deterministic — R4.2) before insert, so a duplicate-declaration file soft-succeeds with one node per
 qname rather than aborting the build (R5.1, task 043). NULL/anonymous qnames are never collapsed.
 
-**`schema_version` is `"5"` and enforced loud.** On open, a database carrying a different value raises
-— the DB is a derived cache, so there is no migration runner (this section's decision; R7.4 is about
-dead abstractions and was cited here in error). Version **2** added
-`tokenize='trigram'` on `nodes_fts` (camelCase substring search); version **3** adds the `edges.args`
-column that carries contract v3's per-call-site argument shapes (task 049); version **4** adds
-`edges.arg_keys` for array-literal string keys (contract v5, task 063); version **5** adds
-`files.fingerprint` for the line-preserving whitespace skip tier (task 213).
+**`schema_version` is `"6"` and enforced loud.** On open, a database carrying a different value raises
+— the DB is a derived cache, so there is no migration runner. Each bump names the task that
+holds it: **2** `nodes_fts` trigram (camelCase substring search); **3** `edges.args` (049); **4**
+`edges.arg_keys` (063); **5** `files.fingerprint` (213); **6** one unresolved site per call in place
+of materialised Method-name siblings (258).
 
 **The mismatch has a direction, and the two directions need opposite actions (task 050).** The stamp
 is read *before* the DDL runs, so a database this build cannot read is never written to, and
@@ -495,7 +493,7 @@ their task files and [`design/`](design/). A per-tool count in prose here is R6.
 | `search_symbol` | FTS + name ranking; stub hits declare themselves (039); a zero hit may miss-repair the sole dirty file or report `index_stale` rather than answer a confident zero (073). **`queries` sweeps N subjects in one call** (101). At `standard`, a `Column` FK hit names its target from existing `REFERENCES` edges: `references` (resolved column) or `references_unresolved` (table only, R5.6) (239) |
 | `file_outline` | line ranges, never bodies — the read is a separate, priced call |
 | `read_symbol` | docblock at `standard`, none at `minimal` (163); stubs declare themselves (039). A qname with >1 definition **refuses the body** and lists the candidates rather than picking one (070 → 078). At `standard`, a **callable** hit carries `params` (name + declared type) when the language stamps capture — else `params_not_captured_by_adapter`, never a lying empty list; a non-callable kind carries neither (242). A **Table** pages `columns` from `CONTAINS` (248). `stored_fields` lists populated node/`extra` keys only; Column always lists both 239 FK lists (250) |
-| `find_callers` | opt-in capped call-site source (037); `args_unrecorded` on the argument filter (049, depth 1). Opt-in `confidence_tier` is a store predicate, never a post-page filter; default order unchanged (251). Depth 1 enumerates completely; deeper, `total_count` is a floor. Unmodelled `*->L` ⇒ `authoritative: false` even with hits (238) |
+| `find_callers` | opt-in capped call-site source (037); `args_unrecorded` on the argument filter (049, depth 1). Opt-in `confidence_tier` is a store predicate, never a post-page filter; default order unchanged (251). An empty linked answer may expand to proximity-ranked unresolved same-named sites — `reason=proximity_candidates`, never `ok`, each row naming `candidate_of` (258). Depth 1 enumerates completely; deeper, `total_count` is a floor. Unmodelled `*->L` ⇒ `authoritative: false` even with hits (238) |
 | `find_references` | CALLS/NEW plus `REFERENCES` (`Foo::class`, 094). All-`DYNAMIC` page ⇒ `authoritative: false`. A Class with unlinked refs and CONTAINS children returns member CALLS/NEW as `via_members` (never `ok`; 252) |
 | `find_implementations` | EXTENDS/IMPLEMENTS, resolver-linked only |
 | `find_view_data` | the `PROVIDES_VIEW_DATA` relation (062/063). With no `view_data` rules configured it says so, rather than reporting a modelled zero (069) |
@@ -1011,6 +1009,11 @@ a confident hit byte-identical; that is the dangerous shape. **Locked:** the cen
 `reason=index_behind` + revision on payload/rows/`claim` (never `ok`); drifted stay
 repair/`index_stale`; off ⇒ byte-identical. Detail:
 [257](tasks/257_the-index-goes-blind-at-the-moment-it-is-most-wanted.md).
+
+**Decision — unresolved CALL site once (258, 2026-09-12).** The site is the fact, the candidate
+set is a query: `max_results` stops governing graph content. AC1/AC5 are E1 — the anchor-scale
+figures the ticket binds were not measured.
+[258](tasks/258_the-graph-stores-the-cartesian-product-of-call-site-and-same-named-symbol.md).
 
 **Reference material** (private, same folder): `understand-anything-how-it-works.md`, `code-review-graph-how-it-works.md`.
 
