@@ -25,7 +25,7 @@ _HEURISTIC = contract.CONFIDENCE_TIERS[1]
 
 # One-line call sites only (v1): Nth quoted string literal on the CALLS line.
 _STRING_LIT = re.compile(r"""'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*\"""")
-# keyed_calls templates: exactly one named placeholder, `{key}` (task 222).
+# keyed_calls `{key}` only (222); value may be a symbol or File qname (256).
 _TEMPLATE_PLACEHOLDER = re.compile(r"\{([^{}]+)\}")
 
 

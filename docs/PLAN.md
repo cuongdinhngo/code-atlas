@@ -959,23 +959,23 @@ design note.
 ORM-contaminated `->with(` (~3k sites, dominated by eager-load, not view publish) — number
 **100** sites in **35** handler files, key occurrences / distinct keys **296** / **84** — consumer side larger; detail in 059.
 
-**Why not option 3 (permanent non-goal), and why not option 2 (both sides) yet.** That census is
-common enough to justify a later contract bump, and two independent field sessions named the shape as
-the reason the index got zero queries on a real defect — so declaring it grep's job forever would
-leave the exact gap the founding-premise redirect promoted 059 to close. Both
-sides at once is a separate large cost (a template reader for mixed Twig/Blade/PHP markup, reversing
-041's ignore reasons, and true pair linking with almost no path-literal pairs to go on). So: ship the
-producer, revisit the consumer if field retros still fail after 062.
+**Why not option 3 (permanent non-goal), and why not option 2 (both sides) yet.** Two field sessions
+named this shape as why the index got zero queries on a real defect, so grep-forever leaves the gap
+059 exists to close; both sides at once is a separate large cost (template reader, reversing 041's
+ignores, pair linking with no path literals). Ship the producer, revisit the consumer if field retros
+still fail after 062. Rationale in 059.
 
 **What a language server does *not* solve here.** LSP go-to-def / find-refs operate on *symbols*. The
 data-bag link is a **string key** — a literal in an array or setter on the handler side, a bare
 variable in markup on the template side. Neither end is a symbol the PHP language server binds, so
 Serena-class tools are as blind as today's graph. This is unclaimed ground, not an LSP race.
 
-**Nav answer after 062.** Given a handler method, list the view-scope keys it publishes and at which
-lines; the agent still `Read`s the template to confirm the consumer name — the half no current tool
-answers. Shipped as edge kind `PROVIDES_VIEW_DATA`, `viewdata:<key>` targets, `CA_INDIRECTION_RULES`
-`view_data` setters, and the tool `find_view_data`.
+**Nav answer after 062.** `PROVIDES_VIEW_DATA` / `find_view_data` — view-scope keys; agent `Read`s
+the template consumer name.
+
+**Decision — keyed_calls may target File qnames (task 256, 2026-09-12).** 222's E2 left dispatch
+routing to grep; field evidence contradicted that. **Locked:** `target_template` → indexed File qname
+links as HEURISTIC CALLS (exact path). Detail: [256](tasks/256_the-dispatch-exclusion-was-decided-before-the-evidence-existed.md).
 
 **Decision — R1.2 registry verdict: NO registry (task 156, 2026-08-27).** Adapter #2 landed (019) with
 an empty core diff: adapters are selected from data — `CA_<LANG>_CMD` → `config.adapter_cmds`
