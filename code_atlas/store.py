@@ -1590,6 +1590,23 @@ class GraphStore:
         )
         return int(self._conn.execute(sql, (*kinds, *cleaned)).fetchone()[0])
 
+    def unlinked_kinds_by_target_raw(
+        self, raws: Sequence[str], *, kinds: Sequence[str]
+    ) -> list[str]:
+        """Distinct unlinked edge kinds among ``kinds`` that name any of ``raws`` (255)."""
+        cleaned = tuple(raw for raw in raws if raw)
+        if not cleaned or not kinds:
+            return []
+        kind_marks = ",".join("?" * len(kinds))
+        raw_marks = ",".join("?" * len(cleaned))
+        sql = (
+            f"SELECT DISTINCT kind FROM edges WHERE kind IN ({kind_marks}) "
+            f"AND target_raw IN ({raw_marks}) "
+            "AND (target_qname IS NULL OR target_qname = '') "
+            "ORDER BY kind"
+        )
+        return [str(row[0]) for row in self._conn.execute(sql, (*kinds, *cleaned))]
+
     def has_unlinked_writes_relating_to(self, table: str) -> bool:
         """True when an unlinked ``WRITES`` still names ``table`` under casefold (task 215).
 

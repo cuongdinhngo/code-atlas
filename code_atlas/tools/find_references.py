@@ -6,7 +6,7 @@ from collections.abc import Callable
 from typing import Literal
 
 from code_atlas.config import Config, clamp_limit
-from code_atlas.contract import UNMODELLED_REFERENCE_KINDS
+from code_atlas.contract import EDGE_KINDS, TYPE_KINDS
 from code_atlas.store import GraphStore
 from code_atlas.tools import call_site, claim
 from code_atlas.tools.coverage import (
@@ -129,6 +129,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         covered: str | None = None
         cross_lang_census: dict[str, object] | None = None
+        unlinked_edge_kinds: list[str] = []
         with GraphStore(config.db_path) as store:
             covered = covered_languages(store)
             if sign:
@@ -217,20 +218,24 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             reason = relation_reason(hit_total=total_count, symbol_indexed=indexed)
             try_instead: str | None = None
             try_instead_hint: str | None = None
-            # Empty + unlinked REFERENCES/IMPORTS ⇒ relationship not modelled (not a genuine zero).
-            # The bare-name arm is approximate — an unqualified same-name target counts as
-            # evidence, erring toward "may be unmodelled" over a confident zero.
+            # Empty + any unlinked inbound edge of a contract kind ⇒ not a genuine zero (065/255).
+            # Keyed to EDGE_KINDS (the contract vocabulary), never the PHP-shaped REFERENCES/IMPORTS
+            # pair alone — a Table with unlinked WRITES must not read as no_matches (R1.1).
             if reason == REASON_NO_MATCHES and nodes:
                 name = str(nodes[0]["name"])
-                unlinked = store.count_unlinked_by_target_raw(
-                    (lookup, name), kinds=UNMODELLED_REFERENCE_KINDS
+                unlinked_edge_kinds = store.unlinked_kinds_by_target_raw(
+                    (lookup, name), kinds=EDGE_KINDS
                 )
-                if unlinked > 0:
+                if unlinked_edge_kinds:
                     reason = REASON_RELATIONSHIP_NOT_MODELLED
-                    # search_symbol enumerates the class's methods — the qnames the hint
-                    # asks for. Routing back to find_references would loop (093 review).
-                    try_instead = TRY_INSTEAD_SEARCH_SYMBOL
-                    try_instead_hint = TRY_INSTEAD_HINT_METHOD_QNAME
+                    # Type-shaped subjects still route to search_symbol for member qnames
+                    # (093). Other kinds get the relation hint, never a self-loop tool name.
+                    # TYPE_KINDS is imported, never re-listed here (R3.2).
+                    if str(nodes[0]["kind"]) in TYPE_KINDS:
+                        try_instead = TRY_INSTEAD_SEARCH_SYMBOL
+                        try_instead_hint = TRY_INSTEAD_HINT_METHOD_QNAME
+                    else:
+                        try_instead_hint = TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE
                 elif relation_unmodelled_for_language(
                     store, file_path=str(nodes[0]["file_path"]), kinds=("REFERENCES",)
                 ):
@@ -249,6 +254,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             reason=reason,
             total_count=total_count,
         )
+        if unlinked_edge_kinds:
+            # Names the unmeasured relation(s) — not hits (R5.6 / 255 AC1).
+            result["unlinked_edge_kinds"] = unlinked_edge_kinds
+
         if freshness == "repaired":
             result["subject_refreshed_only"] = True
         attach_result_subtrees(result, subtrees)

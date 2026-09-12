@@ -106,8 +106,9 @@ CLASS_MEMBER_KINDS: tuple[str, ...] = ("Method", "Property", "ClassConst")
 TABLE_KIND = "Table"
 COLUMN_KIND = "Column"
 CONTAINS = "CONTAINS"
-# find_references honesty evidence (065) — kinds that may still be bare after resolve.
-# REFERENCES is also FQN-linked (094); leftovers (or planted unlinked rows) still count.
+# find_references language-emits reader (186/232) — still the PHP/TS REFERENCES+IMPORTS pair for
+# "this language never emits that relation". Honesty over *unlinked* inbound edges uses the full
+# EDGE_KINDS vocabulary instead (255) so a Table with unlinked WRITES is not a bare no_matches.
 UNMODELLED_REFERENCE_KINDS: tuple[str, ...] = ("REFERENCES", "IMPORTS")
 
 # Impact engine (§12 / M6) — incoming-edge walk weights (callers / subtypes / includers).

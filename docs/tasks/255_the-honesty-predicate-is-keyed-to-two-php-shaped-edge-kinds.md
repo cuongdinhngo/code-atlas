@@ -4,7 +4,7 @@ slug: the-honesty-predicate-is-keyed-to-two-php-shaped-edge-kinds
 title: 'The predicate that decides whether an empty `find_references` is a genuine zero counts unlinked `REFERENCES`/`IMPORTS` only — the two kinds a PHP class subject has — so a T-SQL `Table` with 76 unlinked edges against it, 34 of them `WRITES`, returns a bare `no_matches`: the honesty layer is keyed to one language''s shape inside a core that forbids language branches'
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [221, 232, 186, 065]
 ---
 
@@ -106,3 +106,236 @@ Two parts, and the second is the one that stops this recurring:
 - [232](232_the-same-construct-is-a-references-edge-in-python-and-node-extra-in-php-and-ts.md) — widened
   the reader per kind and left the kind *set* unexamined.
 - [065](065_empty-answer-cannot-explain-itself.md) — the rule this violates, and the first of the six.
+
+
+## Session status
+
+- **Ticket:** 255
+- **Type:** bug
+- **Repo(s):** app
+- **SCOPE:** S
+- **STRUCTURE:** native
+- **TRACK:** backend
+- **TIER:** full
+- **BASELINE:** green
+- **work_doc_mode:** embed
+- **working-doc path:** docs/tasks/255_the-honesty-predicate-is-keyed-to-two-php-shaped-edge-kinds.md
+- **branch:** feat/255-honesty-predicate-not-php-shaped
+- **plugin:** mango 1.16.1 @ /home/you/.claude/plugins/cache/mango-plugins/mango/1.16.1 (candidates: 10)
+- **reviewer:** off · **challenger:** on
+- **Current phase:** finalise
+- **autorun:** yes (`--no-reviewer`)
+
+---
+
+## Phase 0 — Refine
+
+`PREMISE: 4 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)`
+`RECALL: 3 claim(s) surfaced | 0 by symbol | 3 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`REFINE: 1 unresolved surfaced | 1 want-decision asked | 0 how-decision resolved+cited | 1 ASSUMED | skip: no`
+
+**PREMISE detail.** Present: `find_references.py` honesty arm, `UNMODELLED_REFERENCE_KINDS`, tickets 065/186/221/232, UserNotes SQL counts in the ticket body.
+
+**INPUT KIND:** ticket (not epic).
+
+**ASSUMED under handover (want-bar decisions — recorded in DISCLOSURE):**
+1. Phase-2 choice: **widen honesty only** — do not surface unlinked `WRITES` as `results` hits; stop claiming bare `no_matches` over any unlinked `EDGE_KINDS` inbound edge (`relationship_not_modelled`).
+2. Hint routing: Class/Interface/Trait keep `try_instead=search_symbol` + METHOD hint (093); other kinds get relation hint only (no self-loop tool name).
+3. AC4 matrix scope: `Table` × every `EDGE_KINDS` cell (the failing subject); not a full subject-kind cartesian in this ticket.
+
+**Recalled claims (ADVISORY).**
+
+| # | Claim (id) | Type | Matched by | Relevant here? |
+|---|------------|------|------------|----------------|
+| 1 | `empty-answer-must-explain-itself` | 2 | handle | Yes — bare no_matches over unlinked edges |
+| 2 | `evidence-shaped-honesty-inverts-on-a-second-instance` | 2 | handle | Yes — PHP-shaped set fails on Table |
+| 3 | `do-not-attest-past-the-payloads-resolution` | 2 | handle | Yes — honesty ≠ returning unresolved as hits |
+
+**Exposure-checker:** skipped (ASSUMED decisions recorded; handover authorises).
+
+---
+
+## Requirements matrix
+
+`SECTIONS: 6 found (Why this exists · Root cause · Scope · Constraints · Acceptance criteria · References) | 6 decomposed | ROWS: C=5 R=2 G=1 AC=5`
+
+| ID | Source | Verbatim | Interpretation | Ph1 evidence | Ph2 covered by | Ph3/4 proven by | Status |
+|----|--------|----------|----------------|--------------|----------------|-----------------|--------|
+| G1 | Why/Root | Table+WRITES reads as bare no_matches | honesty keyed to REFERENCES/IMPORTS only | find_references honesty arm | D1 | proving AC1 | ⬜ |
+| C1 | Constraints | R1.1 no language-shaped constant | key to EDGE_KINDS | ticket | D1 | matrix + R1.1 suite | ⬜ |
+| C2 | Constraints | R5.6 derive from contract/index | no adapter-declared inbound map | ticket | D1 | EDGE_KINDS import | ⬜ |
+| C3 | Constraints | R4.2 / 061 hits unchanged | honesty only on empty path | ticket | D1 | AC5 | ⬜ |
+| C4 | Constraints | matrix fails pre-fix | R6.5 | ticket | D2 | AC4 | ⬜ |
+| C5 | Constraints | 022 AC3 hit payloads identical | | ticket | D1 | AC5 | ⬜ |
+| R1 | Scope | stop bare zero over unlinked inbound | relationship_not_modelled | Scope | D1 | AC1 | ⬜ |
+| R2 | Scope | conformance matrix | Table × EDGE_KINDS | Scope | D2 | AC4 | ⬜ |
+| AC1 | AC | Table+WRITES not bare no_matches | UserNotes shape | | D1,D2 | proving | ⬜ |
+| AC2 | AC | Function honest zero unchanged | no unlinked evidence | | D1 | proving | ⬜ |
+| AC3 | AC | untouched Table distinguishable | no_matches | | D1 | proving | ⬜ |
+| AC4 | AC | matrix fails pre-fix at Table×WRITES | parametrize EDGE_KINDS | | D2 | proving | ⬜ |
+| AC5 | AC | hits shape unchanged | linked edge still ok | | D1 | proving | ⬜ |
+
+## AC validation
+
+| AC ID | Ticket states | Independently computed | Match? | Falsifiable? | If mismatch → Gate-1 question |
+|-------|---------------|------------------------|--------|--------------|-------------------------------|
+| AC1 | not bare no_matches; names unmeasured relation | relationship_not_modelled | Y | greppable reason | — |
+| AC2 | Function path unchanged | no_matches when no unlinked | Y | assert | — |
+| AC3 | untouched Table ≠ AC1 | no_matches vs relationship_not_modelled | Y | assert | — |
+| AC4 | matrix fails pre-fix Table×WRITES | EDGE_KINDS parametrize | Y | assert != no_matches | — |
+| AC5 | hits unchanged | linked REFERENCES still ok | Y | assert | — |
+
+## Inventory (universal "all/every/no")
+
+- **Denominator / total N:** EDGE_KINDS length (12) for Table matrix cells.
+- Numbered list: (none beyond matrix)
+
+`CLARIFICATION: 1 raised | 1 self-resolved (cited) | 0 for human decision`
+
+Self-resolved: phase-2 return-hits vs honesty-only → ASSUMED honesty-only (Scope §; DISCLOSURE).
+
+---
+
+## Phase 1 — Analysis
+
+- Root cause (bug, `logic`): `count_unlinked_by_target_raw(..., kinds=UNMODELLED_REFERENCE_KINDS)` ignores WRITES/CALLS/CONTAINS inbound to Table subjects.
+- Handler / blast radius: `find_references` empty arm; `UNMODELLED_REFERENCE_KINDS` comment; 232 language-arm precedence when other unlinked kinds exist; related honesty tests.
+- `TRACK: backend — 0/0 touched files under UI paths`
+- `SCOPE: S`
+- `TIER: full`
+
+`RULE SECTIONS: 6 applicable — 5 by change-type | 1 by recalled handle — R1.1 (change-type) ✅ EDGE_KINDS not PHP pair · R4.2 (change-type) ✅ empty-path only · R5.6 (recalled handle) ✅ honesty ≠ hits · R5.2 (change-type) ✅ reason names unmeasured · R6.5 (change-type) ✅ matrix red-before · R7.5 (change-type) ✅ comments ≤3`
+
+### BASELINE
+
+Related suite on untouched checkout tip:
+
+```
+Ran at 8303edb00205ecd15ae88686cc14b263dd2fe4da
+$ .venv/bin/python -m pytest tests/test_empty_answer_cannot_explain_itself.py tests/test_relation_unmodelled_for_language.py -q --tb=no
+17 passed in 2.02s
+```
+
+`BASELINE: green` for the change-adjacent suite. No baseline exclusions.
+
+- Self-audit: sections 6=6; AC falsifiable; j=0; RULE SECTIONS named; TRACK/TIER/SCOPE declared.
+- **Gate 1 status:** cleared (autorun closes on artifacts) ✋
+
+---
+
+## Phase 2 — Design
+
+- **Approach.** Replace honesty `kinds=` with `EDGE_KINDS`. Keep `UNMODELLED_REFERENCE_KINDS` for the language-emits reader (186/232). Prefer honesty over the language arm when unlinked evidence of any contract kind exists. Class-shaped subjects keep search_symbol route; others get relation hint only. Prove with UserNotes-shaped fixture + Table×EDGE_KINDS matrix.
+
+- **Rejected alternatives.**
+  1. Return unlinked WRITES as `results` hits — rejected: phase-2 ASSUMED honesty-only; R5.6.
+  2. New per-kind inbound map in adapters — rejected: R5.6 / 231 class.
+  3. Second hardcoded tuple (WRITES/CALLS/CONTAINS) — rejected: R1.1 same defect.
+
+**Assumptions**
+
+| Assumption | verified / novel-untested | If novel-untested → spike / proving test |
+|------------|---------------------------|------------------------------------------|
+| count_unlinked_by_target_raw accepts EDGE_KINDS | verified | store API + proving |
+| Language arm still reachable when unlinked==0 | verified | 232 test branch |
+
+**Smallest change-list**
+
+| # | Change | File/area | Blast radius | Ph2 covered by | k/N |
+|---|--------|-----------|--------------|----------------|-----|
+| D1 | honesty EDGE_KINDS + unlinked_edge_kinds + hint split | `find_references.py`, `contract.py`, `store.py` | 232 empty-path precedence | G1,C1–C5,R1,AC1–AC3,AC5 | 3/3 |
+| D2 | proving + NODE_KINDS×EDGE_KINDS×lang matrix + 232 | `tests/test_find_references_honesty_not_php_shaped.py`, `tests/test_relation_unmodelled_for_language.py` | none beyond named | AC1–AC5,C4 | — |
+
+`HANDLES: 3 recalled | 3 traced (command + result) | 0 does not apply (reason) | 0 unanswered`
+
+| Handle | Answer | Command + result (trimmed) |
+|--------|--------|----------------------------|
+| empty-answer-must-explain-itself | traced | `rg -n 'kinds=EDGE_KINDS' code_atlas/tools/find_references.py` → honesty arm |
+| evidence-shaped-honesty-inverts-on-a-second-instance | traced | proving Table+WRITES → relationship_not_modelled |
+| do-not-attest-past-the-payloads-resolution | traced | results stay []; reason names unmeasured |
+
+`EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+**Verification plan**
+
+| AC | Proof layer | Named command / assertion | ❌? |
+|----|-------------|---------------------------|-----|
+| AC1 | unit | Table+WRITES → not no_matches | — |
+| AC2 | unit | Function untouched → no_matches | — |
+| AC3 | unit | orphan Table → no_matches | — |
+| AC4 | unit | Table × EDGE_KINDS matrix | — |
+| AC5 | unit | linked REFERENCES → ok | — |
+
+**Proving test (named, runnable):**
+`.venv/bin/python -m pytest tests/test_find_references_honesty_not_php_shaped.py::test_table_with_unlinked_writes_is_not_bare_no_matches -q`
+
+- **Gate 2 status:** cleared (autorun closes on artifacts) ✋
+
+---
+
+## Phase 3 — Execute
+
+**Branch:** `feat/255-honesty-predicate-not-php-shaped`
+
+**Implemented (approved list only):**
+- D1: honesty `kinds=EDGE_KINDS` + `unlinked_edge_kinds` naming; hint split; contract comment; `store.unlinked_kinds_by_target_raw`.
+- D2: NODE_KINDS×EDGE_KINDS×{{sql,php}} matrix + 232 precedence assert.
+
+**Verification sweep**
+
+```
+diff ⊆ approved list: code_atlas/contract.py, code_atlas/tools/find_references.py, code_atlas/store.py, tests/test_find_references_honesty_not_php_shaped.py, tests/test_relation_unmodelled_for_language.py, docs/tasks/255_*.md, docs/BACKLOG.md, docs/TOKEN_LEDGER.md
+Ran at b09378f6e3b1b2bedc343385419008d47ac376bf
+$ .venv/bin/python -m pytest tests/test_find_references_honesty_not_php_shaped.py -q --tb=line
+340 passed in 18.22s
+```
+
+**Design-conformance self-check:** matches D1–D2; no language branch; hits unchanged; WRITES not returned as results.
+
+- **Gate 3 status:** cleared (autorun) ✋
+
+---
+
+## Phase 4 — Review
+
+**REVIEWER: OFF (--no-reviewer)** — waived; no rule-book-grounded review ran.
+**CHALLENGER: ON** — ticket-blind, 2 dispatches (round-1 NOT CLEAN on AC1 naming + AC4 matrix axes; round-2 CLEAN after `unlinked_edge_kinds` + NODE_KINDS×EDGE_KINDS×{sql,php}).
+
+Challenger reconstructed 11 requirements from the raw ticket; **11 met / 0 not met / 0 can't tell**. Overall **CLEAN** (challenger only — REVIEWER OFF).
+
+Proving evidence on reviewed tree:
+```
+Ran at b09378f6e3b1b2bedc343385419008d47ac376bf
+$ .venv/bin/python -m pytest tests/test_find_references_honesty_not_php_shaped.py -q --tb=line
+340 passed in 18.22s
+```
+
+Reviewed at b09378f6e3b1b2bedc343385419008d47ac376bf
+
+- **Gate 4 status:** cleared (challenger CLEAN; reviewer waived)
+
+---
+
+## Phase 5 — Finalise
+
+Durable lesson: none beyond the ticket ACs — the PHP-shaped constant class is already the ticket vocabulary.
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (n/a) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+`LEDGER TOTAL: unmeasured · top cost driver: challenger (1) + main-loop`
+
+### Token usage (working doc)
+
+| Phase | Tokens |
+|---|---|
+| autorun main-loop | unmeasured (host surfaces no usage block) |
+| challenger ×1 | unmeasured |
+| reviewer | waived (--no-reviewer) |
+
+### Outward actions
+1. push feature branch — authorised by handover
+2. open PR — authorised by handover
+Deferred to morning: merge; tracker transitions beyond bookkeeping already on branch.
