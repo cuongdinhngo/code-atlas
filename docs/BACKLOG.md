@@ -24,7 +24,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099 |
 | 251 | [The RESOLVED caller can be off the page: `find_callers` pages alphabetically, tier is a label](tasks/251_the-resolved-caller-can-be-off-the-page.md) | Honesty | todo | 165, 168, 057 |
-| 257 | [The index goes blind at the moment it is most wanted](tasks/257_the-index-goes-blind-at-the-moment-it-is-most-wanted.md) | Adoption | todo | 035, 182, 100 |
 | 258 | [The graph stores the cartesian product of call site x same-named symbol — 48.4% of the anchor graph](tasks/258_the-graph-stores-the-cartesian-product-of-call-site-and-same-named-symbol.md) | Honesty | todo | 251, 054, 066, 182 |
 
 ## Open work — Pillar 2 · Onboarding

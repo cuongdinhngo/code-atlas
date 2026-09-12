@@ -985,11 +985,10 @@ is test-side (`tests/contract/adapter_registry.py`, 147). Reverses only if an ad
 per-language logic (its own ticket; see R1.2).
 
 **Decision — populated-rebuild tax: truncate-first, defer-FTS waits (task 219, 2026-09-07).** 203
-measured 2.6× populated vs fresh; 219 takes **truncate-first** (`GraphStore.truncate_graph` once at
-`full_build` top, FTS triggers dropped around the clear). Populated rebuilds then match a fresh
-growth curve (no per-file `_delete_rows` redundancy). Output byte-identical (R4.2); 202's escalation
-**not widened** — `BUILD_COMPLETE` cleared before truncate, so a mid-truncate abandon stays incomplete.
-**defer-FTS deferred** (size-decay in both runs; FTS correctness — own ticket).
+measured 2.6× populated vs fresh. **Locked: truncate-first** — `GraphStore.truncate_graph` once at
+`full_build` top, so a populated rebuild matches a fresh growth curve; output byte-identical (R4.2).
+**defer-FTS deferred** (its own ticket). Detail:
+[219](tasks/219_a-full-rebuild-pays-the-populated-db-tax-nobody-chose.md).
 
 **Decision — ClassConst evidence (task 234, 2026-09-08).** Spec markers (`Final`, `readonly`,
 `const`, enum members) **and** PEP 8 upper-case count under R2. Python applies that at every scope
@@ -1000,14 +999,18 @@ Detail: [234](tasks/234_classconst-is-a-php-only-kind-and-the-two-signals-that-w
 TS decorators and declared types on `extra`; 217 chose edges for Python, so one construct answered
 `find_references` three ways. **Locked: edges** — PHP and TS emit `REFERENCES` from named class types
 (params/returns/properties) and from attributes/decorators; `Foo::class` stays `DYNAMIC` (094).
-Withdraw-Python rejected: a TS type-site zero is a false claim. `find_references` now asks
-`language_emits_none_of` for `REFERENCES` alone, so `IMPORTS` can no longer mask it. Detail:
+Withdraw-Python rejected: a TS type-site zero is a false claim. Detail:
 [232](tasks/232_the-same-construct-is-a-references-edge-in-python-and-node-extra-in-php-and-ts.md).
 
 **Decision — unmodelled `*->L` is a partition even with hits (task 238, 2026-09-10).** 221/AC5 kept
 a confident hit byte-identical; that is the dangerous shape. **Locked:** the census is language-scope
 — hits on an unmodelled crossing carry `authoritative: false`; `reason` stays `ok`. Detail:
 [238](tasks/238_the-honest-zero-predicate-is-gated-on-the-zero.md).
+
+**Decision — serve_behind labelled reads (257, 2026-09-12).** Opt-in: behind + unchanged subject →
+`reason=index_behind` + revision on payload/rows/`claim` (never `ok`); drifted stay
+repair/`index_stale`; off ⇒ byte-identical. Detail:
+[257](tasks/257_the-index-goes-blind-at-the-moment-it-is-most-wanted.md).
 
 **Reference material** (private, same folder): `understand-anything-how-it-works.md`, `code-review-graph-how-it-works.md`.
 

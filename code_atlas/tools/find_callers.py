@@ -15,7 +15,12 @@ from code_atlas.tools.coverage import (
     covered_languages,
     cross_language_relation_unmodelled,
 )
-from code_atlas.tools.freshness import FreshnessGuard, finalize_subject_checked_miss
+from code_atlas.tools.freshness import (
+    FreshnessGuard,
+    dirty_indexed_paths,
+    finalize_subject_checked_miss,
+    label_serve_behind,
+)
 from code_atlas.tools.nav_result import (
     CAVEAT_ARGS_NOT_CAPTURED,
     CAVEAT_CROSS_LANGUAGE_UNMODELLED,
@@ -90,6 +95,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         limit: int | None = None,
         offset: int = 0,
         sign: bool = False,
+        serve_behind: bool = False,
     ) -> dict[str, object]:
         """Who calls this function or method? Every call site, with confidence and optional depth.
 
@@ -139,6 +145,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         The weakest tier present is named, so the line can never claim ``RESOLVED`` over a
         ``HEURISTIC`` hit. An answer with no index carries no line (task 100).
 
+        ``serve_behind`` (default off) labels an unchanged-subject answer when the index is
+        ``behind``: ``reason=index_behind``, ``last_commit``, and per-row ``index_revision``.
+        Drifted subjects still go through read-through repair / ``index_stale`` (257). Off keeps
+        today's payload (022 AC3).
+
         A leading-anchor difference from the stored qname is re-pointed and answered;
         ``resolved_qname`` names the stored form (075/122). An exact stored qname is unchanged.
         """
@@ -173,10 +184,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         unlinked_calls = 0
         cross_lang_census: dict[str, object] | None = None
         args_capture_absent = False
+        behind_dirty: list[str] = []
+        subject_file: str | None = None
         with GraphStore(config.db_path) as store:
             covered = covered_languages(store)
-            if sign:
+            if sign or serve_behind:
                 staleness = compute_staleness(store, config, include_dirty_count=True)
+            if serve_behind:
+                behind_dirty = dirty_indexed_paths(store, config)
             guard = FreshnessGuard(config, store)
             freshness = guard.ensure_qname(qname)
             if freshness == "stale":
@@ -379,7 +394,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             # Hits whose *->L crossing the index cannot measure (238). reason stays ok.
             attach_cross_language_census(result, cross_lang_census)
             attach_authoritative_caveats(result, [CAVEAT_CROSS_LANGUAGE_UNMODELLED])
-        return signed(attach_coverage_note(result, config, covered, detail_level=detail_level))
+        labelled = label_serve_behind(
+            result,
+            serve_behind=serve_behind,
+            subject_path=subject_file,
+            revision=staleness or None,
+            dirty_paths=behind_dirty,
+        )
+        return signed(attach_coverage_note(labelled, config, covered, detail_level=detail_level))
 
     return find_callers
 

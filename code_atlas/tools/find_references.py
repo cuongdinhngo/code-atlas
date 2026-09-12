@@ -15,7 +15,12 @@ from code_atlas.tools.coverage import (
     cross_language_relation_unmodelled,
     relation_unmodelled_for_language,
 )
-from code_atlas.tools.freshness import FreshnessGuard, finalize_subject_checked_miss
+from code_atlas.tools.freshness import (
+    FreshnessGuard,
+    dirty_indexed_paths,
+    finalize_subject_checked_miss,
+    label_serve_behind,
+)
 from code_atlas.tools.nav_result import (
     CAVEAT_ALL_HITS_DYNAMIC,
     CAVEAT_CROSS_LANGUAGE_UNMODELLED,
@@ -122,6 +127,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         limit: int | None = None,
         offset: int = 0,
         sign: bool = False,
+        serve_behind: bool = False,
     ) -> dict[str, object]:
         """Where is this symbol used across the codebase?
 
@@ -155,6 +161,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         carrying ``authoritative`` when every hit is ``DYNAMIC``. An answer with no index carries
         no line (task 100).
 
+        ``serve_behind`` (default off) labels an unchanged-subject answer when the index is
+        ``behind``: ``reason=index_behind``, ``last_commit``, and per-row ``index_revision`` (257).
+
         A leading-anchor difference from the stored qname (``Ns\\Sub\\Enum`` vs
         ``\\Ns\\Sub\\Enum``) is re-pointed and answered; ``resolved_qname`` names the
         stored form (075/122). An exact stored qname is unchanged.
@@ -186,10 +195,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         covered: str | None = None
         cross_lang_census: dict[str, object] | None = None
         unlinked_edge_kinds: list[str] = []
+        behind_dirty: list[str] = []
+        subject_file: str | None = None
         with GraphStore(config.db_path) as store:
             covered = covered_languages(store)
-            if sign:
+            if sign or serve_behind:
                 staleness = compute_staleness(store, config, include_dirty_count=True)
+            if serve_behind:
+                behind_dirty = dirty_indexed_paths(store, config)
             guard = FreshnessGuard(config, store)
             freshness = guard.ensure_qname(qname)
             if freshness == "stale":
@@ -343,9 +356,16 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             attach_cross_language_census(result, cross_lang_census)
             caveats.append(CAVEAT_CROSS_LANGUAGE_UNMODELLED)
         attach_authoritative_caveats(result, caveats)
+        labelled = label_serve_behind(
+            result,
+            serve_behind=serve_behind,
+            subject_path=subject_file,
+            revision=staleness or None,
+            dirty_paths=behind_dirty,
+        )
         return signed(
             attach_coverage_note(
-                attach_try_instead(result, try_instead, try_instead_hint), config, covered,
+                attach_try_instead(labelled, try_instead, try_instead_hint), config, covered,
                 detail_level=detail_level,
             )
         )

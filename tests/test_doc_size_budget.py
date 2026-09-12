@@ -195,7 +195,9 @@ BUDGETS = {
     # left (it is the consumer repo's own doc, which AGENTS.md routes to the consumer as a PR), and
     # three clauses retelling a convention, a named test and two §19 decisions were cut. The next
     # addition prunes again or argues again; it does not inherit this raise as headroom.
-    "BACKLOG.md": 1_950,
+    # 1,950 -> 1,850 on 2026-09-12: round 18 closed seven tickets (250, 252-257), so the open
+    # table shrank and the old ceiling became slack rather than a bound.
+    "BACKLOG.md": 1_850,
     "ENGINEERING_RULES.md": 5_700,
     "AGENT_BRIEF.md": 2_250,
     # 6,700 -> 6,800 on 2026-09-09 (236): the `ForeignKey` node kind joins the vocabulary of record

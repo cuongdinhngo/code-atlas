@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -10,7 +11,13 @@ from code_atlas.config import Config
 from code_atlas.contract import MEMBER_SEPARATOR
 from code_atlas.indexer import file_is_current, indexable, reparse_file
 from code_atlas.store import INDEXED_SUFFIXES_KEY, LAST_COMMIT_KEY, GraphStore
-from code_atlas.tools.nav_result import REASON_SUBJECT_FILE_CHECKED
+from code_atlas.tools.claim import REV_CHARS
+from code_atlas.tools.nav_result import (
+    REASON_INDEX_BEHIND,
+    REASON_OK,
+    REASON_SUBJECT_FILE_CHECKED,
+)
+from code_atlas.tools.staleness import BEHIND
 
 # Cap reparses per tool call (WANT-1 / Goal: one adapter call). Overflow → index_stale.
 # 246 keeps this at 1: subject-scoped miss spends ≤1 reparse; raising with dirty-count
@@ -161,3 +168,40 @@ def dirty_indexed_paths(store: GraphStore, config: Config) -> list[str]:
     if not suffixes:
         return []
     return list(indexable(paths, config.root, suffixes.split(",")))
+
+
+def label_serve_behind(
+    payload: dict[str, object],
+    *,
+    serve_behind: bool,
+    subject_path: str | None,
+    revision: Mapping[str, object] | None,
+    dirty_paths: Sequence[str],
+) -> dict[str, object]:
+    """When opt-in and the index is behind, label an unchanged-subject answer (257).
+
+    Read-through repair (035) stays first — callers only invoke this after a non-stale
+    freshness result. Drifted subjects that were repaired stay ``reason: ok`` (fresh).
+    Unchanged subjects on a behind index become ``index_behind`` and carry the revision.
+    """
+    if not serve_behind or revision is None:
+        return payload
+    if payload.get("reason") == "index_stale":
+        return payload
+    if revision.get("staleness") != BEHIND:
+        return payload
+    if subject_path is not None and subject_path in set(dirty_paths):
+        return payload
+    commit = revision.get("last_commit")
+    if not isinstance(commit, str) or not commit:
+        return payload
+    if payload.get("reason") == REASON_OK:
+        payload["reason"] = REASON_INDEX_BEHIND
+    payload["last_commit"] = commit
+    short = commit[:REV_CHARS]
+    results = payload.get("results")
+    if isinstance(results, list):
+        for row in results:
+            if isinstance(row, dict):
+                row["index_revision"] = short
+    return payload

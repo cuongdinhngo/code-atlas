@@ -22,6 +22,7 @@ NavReason = Literal[
     "no_such_symbol",
     "not_indexed",
     "index_stale",
+    "index_behind",
     "bare_name_truncated",
     "relationship_not_modelled",
     "capability_not_configured",
@@ -46,6 +47,8 @@ REASON_NO_MATCHES: NavReason = "no_matches"
 REASON_NO_SUCH_SYMBOL: NavReason = "no_such_symbol"
 REASON_NOT_INDEXED: NavReason = "not_indexed"
 REASON_INDEX_STALE: NavReason = "index_stale"  # vocabulary for 035; not emitted by 033
+# Opt-in labelled read from a behind index for unchanged subjects (257) — never reason=ok.
+REASON_INDEX_BEHIND: NavReason = "index_behind"
 REASON_BARE_NAME_TRUNCATED: NavReason = "bare_name_truncated"
 REASON_RELATIONSHIP_NOT_MODELLED: NavReason = "relationship_not_modelled"
 # The tool's capability needs config that is absent — inert, not a genuine zero (069).
@@ -89,6 +92,7 @@ NAV_REASONS: tuple[NavReason, ...] = (
     REASON_NO_SUCH_SYMBOL,
     REASON_NOT_INDEXED,
     REASON_INDEX_STALE,
+    REASON_INDEX_BEHIND,
     REASON_BARE_NAME_TRUNCATED,
     REASON_RELATIONSHIP_NOT_MODELLED,
     REASON_CAPABILITY_NOT_CONFIGURED,
