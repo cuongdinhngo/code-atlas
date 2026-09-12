@@ -18,6 +18,7 @@ from code_atlas.tools.nav_result import (
     REASON_NO_SUCH_SYMBOL,
     REASON_SUBJECT_FILE_CHECKED,
     REASON_SUBSTRING_MATCH,
+    REASON_TOKEN_CANDIDATES,
 )
 
 COVERAGE_KEY = "unconfigured_adapters"
@@ -163,6 +164,11 @@ def attach_coverage_note(
     reason = payload.get("reason")
     if reason == REASON_SUBSTRING_MATCH or payload.get("results"):
         return attach_coverage_gap(payload, config, covered, detail_level=detail_level)
-    if reason not in (REASON_NO_MATCHES, REASON_NO_SUCH_SYMBOL, REASON_SUBJECT_FILE_CHECKED):
+    if reason not in (
+        REASON_NO_MATCHES,
+        REASON_NO_SUCH_SYMBOL,
+        REASON_SUBJECT_FILE_CHECKED,
+        REASON_TOKEN_CANDIDATES,
+    ):
         return payload
     return attach_coverage_gap(payload, config, covered, detail_level=detail_level)

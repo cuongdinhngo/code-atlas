@@ -64,7 +64,7 @@ def test_a_configured_but_unindexed_language_still_carries_a_note(tmp_path: Path
     config = config_for(tmp_path, TWO_ADAPTERS)
     answer = search_tool(config)(query="NoSuchSymbol")
 
-    assert answer["reason"] == "no_matches"
+    assert answer["reason"] == "token_candidates"
     assert answer[coverage.UNINDEXED_KEY] == [
         {"language": "second", "rebuild": "build_or_update_index(full=true)"}
     ]

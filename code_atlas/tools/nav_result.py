@@ -37,6 +37,7 @@ NavReason = Literal[
     "relation_unmodelled_for_language",
     "subject_file_checked",
     "separator_normalised",
+    "token_candidates",
 ]
 
 REASON_OK: NavReason = "ok"
@@ -73,6 +74,9 @@ REASON_SUBJECT_FILE_CHECKED: NavReason = "subject_file_checked"
 # Primary miss; hit only after spelling the last separator as MEMBER_SEPARATOR (249). Near-miss —
 # never reason=ok: the agent asked for a name that is not in the graph (R5.6 / R5.2).
 REASON_SEPARATOR_NORMALISED: NavReason = "separator_normalised"
+# Zero-overlap miss: token decomposition ran over declared names (253). Candidates never enter
+# ``results`` / ``total_count`` (R5.6); empty ``candidates`` still means the search ran.
+REASON_TOKEN_CANDIDATES: NavReason = "token_candidates"
 
 NAV_REASONS: tuple[NavReason, ...] = (
     REASON_OK,
@@ -95,6 +99,7 @@ NAV_REASONS: tuple[NavReason, ...] = (
     REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
     REASON_SUBJECT_FILE_CHECKED,
     REASON_SEPARATOR_NORMALISED,
+    REASON_TOKEN_CANDIDATES,
 )
 
 # Two registers, one naming rule (093): ``TRY_INSTEAD_*`` is a registered tool name the reader can
@@ -115,6 +120,14 @@ TRY_INSTEAD_HINT_NARROW_BY_QNAME = (
 )
 # Separator spelling miss (249): different finding from substring flood, so a different hint —
 # the reuse rule bans a second spelling of the SAME advice, not a second advice (245 review).
+TRY_INSTEAD_HINT_TOKEN_CANDIDATES = (
+    "guessed name shared no substring with a declared symbol; candidates list name tokens that did "
+    "match — retry search_symbol with one of those qnames"
+)
+TRY_INSTEAD_HINT_TOKEN_CANDIDATES_NONE = (
+    "guessed name shared no substring with a declared symbol; token search over declared names "
+    "also found none — the concept may be absent under any declared name"
+)
 TRY_INSTEAD_HINT_MEMBER_SEPARATOR = (
     "the member join is ::, not a container separator — outline the file for exact qnames, "
     "or re-ask with :: before the last segment"

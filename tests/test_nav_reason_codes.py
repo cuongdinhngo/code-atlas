@@ -33,6 +33,7 @@ from code_atlas.tools.nav_result import (
     REASON_SUBJECT_AMBIGUOUS,
     REASON_SUBJECT_FILE_CHECKED,
     REASON_SUBSTRING_MATCH,
+    REASON_TOKEN_CANDIDATES,
 )
 from tests.test_nav_tools import db_config, edge, node, seed_file
 
@@ -153,9 +154,10 @@ def test_search_symbol_reasons_and_total_count(tmp_path: Path, store: GraphStore
     assert len(hits["results"]) == 2
 
     none = tool("ZzzNotHere", detail_level="minimal")
-    assert none["reason"] == REASON_NO_MATCHES
+    assert none["reason"] == REASON_TOKEN_CANDIDATES
     assert none["results"] == []
     assert none["total_count"] == 0
+    assert none["candidates"] == []
 
 
 def test_reason_vocabulary_includes_index_stale_unused() -> None:
@@ -181,6 +183,7 @@ def test_reason_vocabulary_includes_index_stale_unused() -> None:
         REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
         REASON_SUBJECT_FILE_CHECKED,
         REASON_SEPARATOR_NORMALISED,
+        REASON_TOKEN_CANDIDATES,
     )
 
 

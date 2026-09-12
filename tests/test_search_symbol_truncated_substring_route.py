@@ -15,8 +15,10 @@ from code_atlas.tools import search_symbol
 from code_atlas.tools.nav_result import (
     REASON_OK,
     REASON_SUBSTRING_MATCH,
+    REASON_TOKEN_CANDIDATES,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_HINT_NARROW_BY_QNAME,
+    TRY_INSTEAD_SEARCH_SYMBOL,
 )
 from tests.test_nav_tools import (  # noqa: F401 — store is a fixture
     db_config,
@@ -80,9 +82,11 @@ def test_batch_path_carries_route_per_subject_not_on_envelope(
     assert flooded["reason"] == REASON_SUBSTRING_MATCH
     assert flooded["try_instead"] == TRY_INSTEAD_FILE_OUTLINE
     assert flooded["try_instead_hint"] == TRY_INSTEAD_HINT_NARROW_BY_QNAME
-    # kind=Method filters out the Function — empty subject is not a near-miss flood.
-    assert by_q["alone"].get("total_count", 0) == 0
-    assert "try_instead" not in by_q["alone"]
+    # kind=Method filters out the Function — empty subject runs the 253 token arm.
+    alone = by_q["alone"]
+    assert alone.get("total_count", 0) == 0
+    assert alone["reason"] == REASON_TOKEN_CANDIDATES
+    assert alone["try_instead"] == TRY_INSTEAD_SEARCH_SYMBOL
 
 
 def test_complete_confident_answer_is_byte_identical(

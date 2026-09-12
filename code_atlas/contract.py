@@ -16,6 +16,7 @@ An adapter opens the stream by announcing itself once — the **handshake** of �
 :func:`validate_meta` — so the core never carries a table of who owns which file suffix.
 """
 
+import re
 from typing import Literal, get_args
 
 # v9: `Table`, `Column` and `WRITES` join the vocabulary for SQL tier 2 (022). R3.1's literal
@@ -275,6 +276,31 @@ def member_separator_variant(query: str) -> str | None:
             return None
         i -= 1
     return None
+
+
+# Naming-convention splitter for zero-overlap guesses (253). Camel / Pascal / snake / kebab — not a
+# language fact (R1.1 / R2). Short and ultra-common verb crumbs stay out so ``get`` cannot flood.
+_CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
+_NAME_SEP = re.compile(r"[_\-.\s:/\\]+")
+_TOKEN_STOP = frozenset({"get", "set", "new", "add", "the", "and", "for", "with", "from"})
+_TOKEN_MIN_LEN = 4
+TOKEN_CANDIDATE_K = 5
+
+
+def name_tokens(query: str) -> tuple[str, ...]:
+    """Lowercase identifier tokens from a guessed name; empty when nothing significant remains."""
+    if not query.strip():
+        return ()
+    spaced = _CAMEL_BOUNDARY.sub(" ", query.strip())
+    out: list[str] = []
+    seen: set[str] = set()
+    for part in _NAME_SEP.split(spaced):
+        token = part.strip().lower()
+        if len(token) < _TOKEN_MIN_LEN or token in _TOKEN_STOP or token in seen:
+            continue
+        seen.add(token)
+        out.append(token)
+    return tuple(out)
 
 
 def validate(result: object) -> list[str]:

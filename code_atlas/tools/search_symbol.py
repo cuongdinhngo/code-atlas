@@ -23,9 +23,13 @@ from code_atlas.tools.nav_result import (
     REASON_SEPARATOR_NORMALISED,
     REASON_SUBJECT_FILE_CHECKED,
     REASON_SUBSTRING_MATCH,
+    REASON_TOKEN_CANDIDATES,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_HINT_MEMBER_SEPARATOR,
     TRY_INSTEAD_HINT_NARROW_BY_QNAME,
+    TRY_INSTEAD_HINT_TOKEN_CANDIDATES,
+    TRY_INSTEAD_HINT_TOKEN_CANDIDATES_NONE,
+    TRY_INSTEAD_SEARCH_SYMBOL,
     NavReason,
     attach_limit_capped,
     attach_subjects_capped,
@@ -52,6 +56,7 @@ class _Hits(NamedTuple):
     reason: NavReason
     total_count: int
     other_indexed_files_drifted: int = 0
+    candidates: tuple[dict[str, object], ...] = ()
 
 
 def _require_kind(kind: contract.NodeKind | None) -> contract.NodeKind | None:
@@ -187,10 +192,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
         attach_subjects_capped(payload, cap=config.max_subjects, dropped=dropped)
         # A swept miss is the same 8-A shape as a single one: name the coverage gap once on the
-        # envelope (call-level, never per subject — 061) when any subject came back a genuine zero
-        # or a substring near-miss — the sweep path is the one 160's AC1e showed gets missed (167).
+        # envelope (call-level, never per subject — 061) when any subject came back a genuine zero,
+        # a token-candidate miss (253), or a substring near-miss — the sweep path is the one 160's
+        # AC1e showed gets missed (167).
         if any(
-            (not a["results"] and a["reason"] == REASON_NO_MATCHES)
+            (not a["results"] and a["reason"] in (REASON_NO_MATCHES, REASON_TOKEN_CANDIDATES))
             or a["reason"] == REASON_SUBSTRING_MATCH
             for a in answers
         ):
@@ -285,6 +291,21 @@ def _search_one(
                         else REASON_SEPARATOR_NORMALISED
                     )
                     return _Hits(results, truncated, alt_reason, total_count, residue)
+    # Zero-overlap miss: decompose the guess into name tokens and offer declared matches (253).
+    if reason == REASON_NO_MATCHES and offset == 0:
+        tokens = contract.name_tokens(query)
+        if tokens:
+            candidates = _token_candidates(
+                store, tokens, kind=kind, namespace=namespace
+            )
+            return _Hits(
+                [],
+                False,
+                REASON_TOKEN_CANDIDATES,
+                0,
+                residue,
+                tuple(candidates),
+            )
     return _Hits(results, truncated, reason, total_count, residue)
 
 
@@ -323,6 +344,16 @@ def _single_payload(
             else TRY_INSTEAD_HINT_NARROW_BY_QNAME
         )
         attach_try_instead(payload, TRY_INSTEAD_FILE_OUTLINE, hint)
+    elif hits.reason == REASON_TOKEN_CANDIDATES:
+        payload["candidates"] = list(hits.candidates)
+        if hits.candidates:
+            attach_try_instead(
+                payload, TRY_INSTEAD_SEARCH_SYMBOL, TRY_INSTEAD_HINT_TOKEN_CANDIDATES
+            )
+        else:
+            attach_try_instead(
+                payload, TRY_INSTEAD_SEARCH_SYMBOL, TRY_INSTEAD_HINT_TOKEN_CANDIDATES_NONE
+            )
     attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
     if hits.other_indexed_files_drifted > 0:
         payload["other_indexed_files_drifted"] = hits.other_indexed_files_drifted
@@ -347,6 +378,16 @@ def _batch_answer(query: str, hits: _Hits) -> dict[str, object]:
             else TRY_INSTEAD_HINT_NARROW_BY_QNAME
         )
         attach_try_instead(answer, TRY_INSTEAD_FILE_OUTLINE, hint)
+    elif hits.reason == REASON_TOKEN_CANDIDATES:
+        answer["candidates"] = list(hits.candidates)
+        if hits.candidates:
+            attach_try_instead(
+                answer, TRY_INSTEAD_SEARCH_SYMBOL, TRY_INSTEAD_HINT_TOKEN_CANDIDATES
+            )
+        else:
+            attach_try_instead(
+                answer, TRY_INSTEAD_SEARCH_SYMBOL, TRY_INSTEAD_HINT_TOKEN_CANDIDATES_NONE
+            )
     if hits.other_indexed_files_drifted > 0:
         answer["other_indexed_files_drifted"] = hits.other_indexed_files_drifted
     return answer
@@ -357,6 +398,52 @@ def _needs_narrowing_route(hits: _Hits) -> bool:
     if hits.reason in (REASON_SUBSTRING_MATCH, REASON_SEPARATOR_NORMALISED):
         return True
     return hits.truncated and hits.total_count > len(hits.results)
+
+
+def _token_candidates(
+    store: GraphStore,
+    tokens: tuple[str, ...],
+    *,
+    kind: contract.NodeKind | None,
+    namespace: str | None,
+) -> list[dict[str, object]]:
+    """Rank declared symbols by how many query tokens they carry; bound by TOKEN_CANDIDATE_K."""
+    # Over-fetch per token so a symbol carrying two tokens can outrank single-token noise.
+    per_token = contract.TOKEN_CANDIDATE_K * 2
+    scored: dict[str, tuple[int, str, str, str, str, tuple[str, ...]]] = {}
+    for token in tokens:
+        rows = store.search_nodes(
+            token, kind=kind, namespace=namespace, limit=per_token, offset=0
+        )
+        for row in rows:
+            if str(row["kind"]) == "File":
+                continue
+            qname = str(row["qualified_name"])
+            name = str(row["name"])
+            hay = f"{name} {qname}".casefold()
+            matched = tuple(t for t in tokens if t in hay)
+            if not matched:
+                continue
+            score = len(matched)
+            prev = scored.get(qname)
+            if prev is None or score > prev[0]:
+                scored[qname] = (
+                    score,
+                    name.casefold(),
+                    name,
+                    qname,
+                    str(row["kind"]),
+                    matched,
+                )
+    ordered = sorted(scored.values(), key=lambda row: (-row[0], row[1], row[3]))
+    out: list[dict[str, object]] = []
+    for _score, _sort, name, qname, kind_s, matched in ordered[: contract.TOKEN_CANDIDATE_K]:
+        # Keys assigned via subscript so the dict literal does not re-list NODE_FIELDS (R3.2).
+        cand: dict[str, object] = {"qname": qname, "matched_tokens": list(matched)}
+        cand["name"] = name
+        cand["kind"] = kind_s
+        out.append(cand)
+    return out
 
 
 def _suppress_redundant_file_hits(

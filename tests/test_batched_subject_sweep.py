@@ -28,9 +28,11 @@ from code_atlas.tokens import estimate_tokens
 from code_atlas.tools import search_symbol
 from code_atlas.tools.nav_result import (
     REASON_INDEX_STALE,
-    REASON_NO_MATCHES,
     REASON_NOT_INDEXED,
     REASON_OK,
+    REASON_TOKEN_CANDIDATES,
+    TRY_INSTEAD_HINT_TOKEN_CANDIDATES_NONE,
+    TRY_INSTEAD_SEARCH_SYMBOL,
 )
 from tests.test_mcp_server import committed_repo, served_config
 from tests.test_nav_tools import db_config, node, seed_file
@@ -143,8 +145,11 @@ def test_the_whole_batched_payload_is_pinned(indexed) -> None:
                 "query": "nosuchname",
                 "results": [],
                 "truncated": False,
-                "reason": REASON_NO_MATCHES,
+                "reason": REASON_TOKEN_CANDIDATES,
                 "total_count": 0,
+                "candidates": [],
+                "try_instead": TRY_INSTEAD_SEARCH_SYMBOL,
+                "try_instead_hint": TRY_INSTEAD_HINT_TOKEN_CANDIDATES_NONE,
             },
         ],
         "index_root": str(Path(indexed.root).resolve()),
@@ -180,7 +185,7 @@ def test_one_miss_in_a_batch_of_ten_does_not_colour_the_other_nine(indexed) -> N
     payload = sweep(indexed, queries=["nosuchname", *TAKEN])
 
     reasons = [entry["reason"] for entry in payload["subjects"]]
-    assert reasons == [REASON_NO_MATCHES, REASON_OK, REASON_OK]
+    assert reasons == [REASON_TOKEN_CANDIDATES, REASON_OK, REASON_OK]
     # Positive control: the batch does not carry a reason of its own to leak downward.
     assert "reason" not in payload
 

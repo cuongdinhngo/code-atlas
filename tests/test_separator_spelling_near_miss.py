@@ -19,8 +19,10 @@ from code_atlas.tools.nav_result import (
     REASON_NO_SUCH_SYMBOL,
     REASON_OK,
     REASON_SEPARATOR_NORMALISED,
+    REASON_TOKEN_CANDIDATES,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_HINT_MEMBER_SEPARATOR,
+    TRY_INSTEAD_SEARCH_SYMBOL,
 )
 from tests.test_nav_tools import (  # noqa: F401 — store is a fixture
     db_config,
@@ -103,16 +105,17 @@ def test_double_miss_stays_byte_identical_no_matches(
     tmp_path: Path,
     store,  # noqa: F811
 ) -> None:
-    """AC3: retry that finds nothing leaves the empty no_matches payload (no route keys)."""
+    """AC3 (249) + 253: separator retry empty then token arm labels the exhausted search."""
     _seed_column(store, tmp_path)
     tool = search_symbol.create(db_config(tmp_path))
     payload, n = _count_searches(tool, "dbo.Missing.col")
-    assert n == 2  # primary + separator retry
-    assert payload["reason"] == REASON_NO_MATCHES
+    assert n >= 2  # primary + separator retry (+ token searches when tokens remain)
+    assert payload["reason"] == REASON_TOKEN_CANDIDATES
     assert payload["results"] == []
     assert payload["total_count"] == 0
-    assert "try_instead" not in payload
-    assert "try_instead_hint" not in payload
+    assert payload["candidates"] == []
+    assert payload["try_instead"] == TRY_INSTEAD_SEARCH_SYMBOL
+    assert "try_instead_hint" in payload
 
 
 def test_no_separator_runs_exactly_one_lookup(
