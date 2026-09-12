@@ -34,6 +34,7 @@ from code_atlas.tools.nav_result import (
     REASON_SUBJECT_FILE_CHECKED,
     REASON_SUBSTRING_MATCH,
     REASON_TOKEN_CANDIDATES,
+    REASON_VIA_MEMBERS,
 )
 from tests.test_nav_tools import db_config, edge, node, seed_file
 
@@ -184,6 +185,7 @@ def test_reason_vocabulary_includes_index_stale_unused() -> None:
         REASON_SUBJECT_FILE_CHECKED,
         REASON_SEPARATOR_NORMALISED,
         REASON_TOKEN_CANDIDATES,
+        REASON_VIA_MEMBERS,
     )
 
 

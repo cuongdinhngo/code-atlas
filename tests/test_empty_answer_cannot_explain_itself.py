@@ -19,7 +19,7 @@ from code_atlas.tools.nav_result import (
     REASON_RULE_MATCHED_NO_FILES,
     REASON_SUBJECT_AMBIGUOUS,
     REASON_SUBSTRING_MATCH,
-    REASON_TOKEN_CANDIDATES,
+    REASON_VIA_MEMBERS,
     TRY_INSTEAD_HINT_METHOD_QNAME,
     TRY_INSTEAD_HINT_PATH_BASENAME,
     TRY_INSTEAD_SEARCH_SYMBOL,
@@ -213,4 +213,4 @@ def test_reason_vocabulary_pins_relationship_not_modelled() -> None:
     assert REASON_RULE_MATCHED_NO_FILES in NAV_REASONS
     # 167 appended substring_match; 186 appended relation_unmodelled_for_language after it.
     assert REASON_SUBSTRING_MATCH in NAV_REASONS
-    assert NAV_REASONS[-1] == REASON_TOKEN_CANDIDATES
+    assert NAV_REASONS[-1] == REASON_VIA_MEMBERS

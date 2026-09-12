@@ -6,8 +6,8 @@ from collections.abc import Callable
 from typing import Literal
 
 from code_atlas.config import Config, clamp_limit
-from code_atlas.contract import EDGE_KINDS, TYPE_KINDS
-from code_atlas.store import GraphStore
+from code_atlas.contract import CALLER_KINDS, EDGE_KINDS, TYPE_KINDS
+from code_atlas.store import GraphStore, Row
 from code_atlas.tools import call_site, claim
 from code_atlas.tools.coverage import (
     attach_coverage_note,
@@ -25,6 +25,7 @@ from code_atlas.tools.nav_result import (
     REASON_NO_SUCH_SYMBOL,
     REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
     REASON_RELATIONSHIP_NOT_MODELLED,
+    REASON_VIA_MEMBERS,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_HINT_METHOD_QNAME,
     TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE,
@@ -56,6 +57,59 @@ DetailLevel = Literal["minimal", "standard"]
 QUESTION = "references"
 # ``authoritative: false`` (every hit DYNAMIC) is the caveat this answer can lose to a bare count.
 CLAIM_CARRY = ("authoritative",)
+# CONTAINS walk for the class-level caller union (252). Same order of magnitude as Table CONTAINS.
+_MEMBER_WALK = 10_000
+_UNION_SUBJECT_KINDS = frozenset({"Class"})
+
+
+def _member_caller_union(
+    store: GraphStore,
+    class_qname: str,
+    subject_kind: str,
+    *,
+    cap: int,
+    offset: int,
+) -> tuple[list[dict[str, object]], int] | None:
+    """Page CALLS/NEW that target the class's declared CONTAINS children (252).
+
+    ``None`` means the union is not available — keep the 065/093 route. An empty
+    page with a count is an honest zero (``reason=via_members``), not unmodelled.
+    """
+    if subject_kind not in _UNION_SUBJECT_KINDS:
+        return None
+    contains = store.edges_by_source(
+        class_qname, kinds=("CONTAINS",), limit=_MEMBER_WALK
+    )
+    members: list[str] = []
+    seen: set[str] = set()
+    for edge in contains:
+        target = edge.get("target_qname")
+        if not target or target in seen:
+            continue
+        qn = str(target)
+        seen.add(qn)
+        members.append(qn)
+    if not members:
+        return None
+    hits: list[dict[str, object]] = []
+    for member in members:
+        inbound: list[Row] = store.edges_by_target(
+            member, kinds=CALLER_KINDS, limit=_MEMBER_WALK
+        )
+        for edge in inbound:
+            hit = edge_hit(edge)
+            hit["via_member"] = member
+            hits.append(hit)
+    hits.sort(
+        key=lambda h: (
+            str(h.get("via_member", "")),
+            str(h.get("qname", "")),
+            str(h.get("file", "")),
+            h.get("line") if isinstance(h.get("line"), int) else 0,
+        )
+    )
+    total = len(hits)
+    return hits[offset : offset + cap], total
 
 
 def create(config: Config) -> Callable[..., dict[str, object]]:
@@ -82,7 +136,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         bare. When unlinked ``REFERENCES``/``IMPORTS`` exist for an indexed subject and linked
         hits are zero, the
         payload uses ``reason=relationship_not_modelled``, ``try_instead=search_symbol`` (it
-        enumerates the class's methods) and a ``try_instead_hint`` naming the two-step (065/093).
+        enumerates the class's methods) and a ``try_instead_hint`` naming the two-step (065/093)
+        — unless the subject is a ``Class`` with ``CONTAINS`` children, in which case the same
+        call returns their inbound ``CALLS``/``NEW`` as ``reason=via_members`` (252; never ``ok``).
 
         ``include_source`` (default off, so the common case stays token-frugal) adds each site's
         own source line as ``source``, capped in length. A site whose file drifted since indexing
@@ -227,15 +283,29 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     (lookup, name), kinds=EDGE_KINDS
                 )
                 if unlinked_edge_kinds:
-                    reason = REASON_RELATIONSHIP_NOT_MODELLED
-                    # Type-shaped subjects still route to search_symbol for member qnames
-                    # (093). Other kinds get the relation hint, never a self-loop tool name.
-                    # TYPE_KINDS is imported, never re-listed here (R3.2).
-                    if str(nodes[0]["kind"]) in TYPE_KINDS:
-                        try_instead = TRY_INSTEAD_SEARCH_SYMBOL
-                        try_instead_hint = TRY_INSTEAD_HINT_METHOD_QNAME
+                    union = _member_caller_union(
+                        store,
+                        lookup,
+                        str(nodes[0]["kind"]),
+                        cap=cap,
+                        offset=offset,
+                    )
+                    if union is not None:
+                        results, total_count = union
+                        reason = REASON_VIA_MEMBERS
+                        subtrees = {}
+                        if include_source:
+                            call_site.annotate(config.root, store, results)
                     else:
-                        try_instead_hint = TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE
+                        reason = REASON_RELATIONSHIP_NOT_MODELLED
+                        # Type-shaped subjects still route to search_symbol for member qnames
+                        # (093). Other kinds get the relation hint, never a self-loop tool name.
+                        # TYPE_KINDS is imported, never re-listed here (R3.2).
+                        if str(nodes[0]["kind"]) in TYPE_KINDS:
+                            try_instead = TRY_INSTEAD_SEARCH_SYMBOL
+                            try_instead_hint = TRY_INSTEAD_HINT_METHOD_QNAME
+                        else:
+                            try_instead_hint = TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE
                 elif relation_unmodelled_for_language(
                     store, file_path=str(nodes[0]["file_path"]), kinds=("REFERENCES",)
                 ):

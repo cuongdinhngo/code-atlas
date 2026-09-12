@@ -38,6 +38,7 @@ NavReason = Literal[
     "subject_file_checked",
     "separator_normalised",
     "token_candidates",
+    "via_members",
 ]
 
 REASON_OK: NavReason = "ok"
@@ -77,6 +78,10 @@ REASON_SEPARATOR_NORMALISED: NavReason = "separator_normalised"
 # Zero-overlap miss: token decomposition ran over declared names (253). Candidates never enter
 # ``results`` / ``total_count`` (R5.6); empty ``candidates`` still means the search ran.
 REASON_TOKEN_CANDIDATES: NavReason = "token_candidates"
+# Class-level find_references with no modelled class REFERENCES: union of CALLS/NEW
+# targeting the subject's CONTAINS children. Never reason=ok — the class-ref relation
+# is not in the graph (R5.6 / 252).
+REASON_VIA_MEMBERS: NavReason = "via_members"
 
 NAV_REASONS: tuple[NavReason, ...] = (
     REASON_OK,
@@ -100,6 +105,7 @@ NAV_REASONS: tuple[NavReason, ...] = (
     REASON_SUBJECT_FILE_CHECKED,
     REASON_SEPARATOR_NORMALISED,
     REASON_TOKEN_CANDIDATES,
+    REASON_VIA_MEMBERS,
 )
 
 # Two registers, one naming rule (093): ``TRY_INSTEAD_*`` is a registered tool name the reader can
