@@ -29,9 +29,9 @@ rule** rather than adding a near-duplicate (P2), and one by finding the rule alr
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
 | `derived-not-listed-invariant` | 22 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180, 187, 191, 184, 022 | **R6.7** |
-| `prove-the-guard-fails` | 34 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188, 189, 190, 187, 191, 184, 192, 022, 194, 195, 224, 228, 229, 230 | **R6.5** — 190 is the *other* side of it: not *was it seen failing?* but *did it fail for the thing it forbids?* |
+| `prove-the-guard-fails` | 35 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188, 189, 190, 187, 191, 184, 192, 022, 194, 195, 224, 228, 229, 230, 250 | **R6.5** — 190 is the *other* side of it: not *was it seen failing?* but *did it fail for the thing it forbids?* |
 | `gate-the-disclosure-on-its-condition-not-the-row-count` | 2 | 192, 238 | **proposed** → `docs/ENGINEERING_RULES.md` (238; `/mango:promote`) |
-| `do-not-attest-past-the-payloads-resolution` | 10 | 087–089, 100–102, 107, 239, 242, 246 | **R5.6** — promoted 2026-08-27 (re-adjudicated); 239: FK indexed but Column search hit omitted it; 242: `params` indexed (231) but no nav tool returned them |
+| `do-not-attest-past-the-payloads-resolution` | 11 | 087–089, 100–102, 107, 239, 242, 246, 250 | **R5.6** — promoted 2026-08-27 (re-adjudicated); 239: FK indexed but Column search hit omitted it; 242: `params` indexed (231) but no nav tool returned them |
 | `fixture-shape-begs-the-question` | 11 | 084, 086, 103–106, 121, 183, 185, 190, 191 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 6 | 092, 093, 100–102, 245 | **R5.4** |
 | `count-pin-in-blast-radius` | 11 | 085, 087–089, 175, 184, 022, 194, 196, 199, 237 | **AGENT_BRIEF P5** — promoted 2026-08-27; P5 needs the invariant, not the spelling (022) — 194 adds that a change can move MORE THAN ONE invariant, and 196 that a pin written as a bare LITERAL is invisible to a trace that greps the invariant's name; 237 is the *new-module* dimension — adding `code_atlas/preflight.py` moved the core-module count pinned in `test_core_is_language_agnostic.py` + `test_sql_confinement.py`, and the Gate-2 blast-radius trace did not grep for it |
@@ -83,6 +83,16 @@ nothing kept the *rule's*, so the rule a reader consults under-reported its own 
 now reconciled to this table.
 
 ## Live claims
+
+### 250-C1 — An edge-attached hit key is not a stored extra key
+
+- type: 2 (code) · handle: `edge-attached-is-not-stored-extra`
+- status: proposed (awaiting human confirm)
+- seen: 250
+- evidence: `search_symbol._hit` attaches `references` / `references_unresolved` from stored
+  `REFERENCES` edges; Column.extra does not hold them. AC3 required always-present lists on the
+  raw-fields view so empty ≠ "tool does not return FKs".
+- destination: stays in lessons_path
 
 ### 246-C1 — A count of drifted files is not evidence about a named subject's absence
 

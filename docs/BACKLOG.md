@@ -23,7 +23,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099 |
-| 250 | [No call shows what a node actually holds, so an uncaptured fact is indistinguishable from an unexposed one](tasks/250_no-call-shows-what-a-node-actually-holds.md) | Honesty | todo | 247, 231, 244 |
 | 251 | [The RESOLVED caller can be off the page: `find_callers` pages alphabetically, tier is a label](tasks/251_the-resolved-caller-can-be-off-the-page.md) | Honesty | todo | 165, 168, 057 |
 | 252 | [A class-level reference question costs n+1 calls](tasks/252_a-class-reference-question-costs-n-plus-one-calls.md) | Adoption | todo | 245, 168, 065 |
 | 253 | [A zero-overlap guess gets no route, so absent and misnamed read alike](tasks/253_a-zero-overlap-guess-gets-no-route.md) | Honesty | todo | 245, 249, 065 |

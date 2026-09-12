@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Literal
 
@@ -40,6 +40,7 @@ from code_atlas.tools.nav_result import (
     is_stub,
     shape_exact_miss,
 )
+from code_atlas.tools.search_symbol import _column_reference_targets
 
 # One page of CONTAINS edges for a Table — not the answer page; paging is separate (248).
 _CONTAINS_WALK = 10_000
@@ -57,6 +58,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         detail_level: DetailLevel = "standard",
         limit: int | None = None,
         offset: int = 0,
+        stored_fields: bool = False,
     ) -> dict[str, object]:
         """Read just one symbol's source and its doc comment, without opening the whole file.
 
@@ -70,7 +72,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``columns`` list (name + declared type + ``DEFAULT`` when present) from ``CONTAINS``, in
         DDL order — never the CREATE header as the product; a table with no indexed columns says
         so rather than returning an empty list (248 / 061). ``limit`` / ``offset`` page that list
-        only; other kinds ignore them. On
+        only; other kinds ignore them. ``stored_fields=True`` adds which ``NODE_FIELDS`` are
+        populated and which ``extra`` keys the node carries — key names only, never extra
+        values (250). A ``Column`` also always lists ``references`` / ``references_unresolved``
+        (empty = no FK). Default off: existing payloads stay byte-identical (061). On
         hash drift, reparses that one file inline (035); returns ``stale: true`` and
         ``reason=index_stale`` when the file is missing, no adapter owns it, or repair fails.
         Stub-indexed nodes carry ``stub: true`` (039). A qname with more than one definition
@@ -120,6 +125,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         detail_level=detail_level,
                         fetch_limit=fetch_limit,
                         guard=guard,
+                        stored_fields=stored_fields,
                     )
                     if normalised is not None:
                         return normalised
@@ -135,7 +141,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             rel = str(node["file_path"])
             status = guard.ensure(rel)
             if status == "stale":
-                return _result(
+                stale = _result(
                     qname,
                     "",
                     detail_level=detail_level,
@@ -146,6 +152,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     reason=REASON_INDEX_STALE,
                     file=rel,
                 )
+                _attach_stored_fields(stale, store, node, stored_fields=stored_fields)
+                return stale
             if status == "repaired":
                 rows = list(store.nodes_by_qualified_name(qname, limit=fetch_limit))
                 if not rows:
@@ -156,6 +164,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         detail_level=detail_level,
                         fetch_limit=fetch_limit,
                         guard=guard,
+                        stored_fields=stored_fields,
                     )
                     if normalised is not None:
                         return normalised
@@ -193,10 +202,44 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             if detail_level == "standard":
                 _attach_params(payload, store, node, rel)
                 _attach_columns(payload, store, node, config=config, limit=limit, offset=offset)
+            _attach_stored_fields(payload, store, node, stored_fields=stored_fields)
             attach_other_indexed_files_drifted(payload, guard)
             return attach_next_tools(payload, str(node["kind"]))
 
     return read_symbol
+
+
+def _attach_stored_fields(
+    payload: dict[str, object],
+    store: GraphStore,
+    node: Mapping[str, object],
+    *,
+    stored_fields: bool,
+) -> None:
+    """List populated NODE_FIELDS + extra keys; Column also lists 239's REFERENCES pair (250)."""
+    if not stored_fields:
+        return
+    node_fields = [
+        field
+        for field in contract.NODE_FIELDS
+        if field != "extra" and _field_is_populated(node, field)
+    ]
+    extra = parse_json_field(node.get("extra"), {})
+    extra_keys = sorted(str(key) for key in extra) if isinstance(extra, dict) else []
+    block: dict[str, object] = {"node_fields": node_fields, "extra_keys": extra_keys}
+    if str(node["kind"]) == contract.COLUMN_KIND:
+        resolved, unresolved = _column_reference_targets(store, str(node["qualified_name"]))
+        block["references"] = resolved
+        block["references_unresolved"] = unresolved
+    payload["stored_fields"] = block
+
+
+def _field_is_populated(node: Mapping[str, object], field: str) -> bool:
+    try:
+        value = node[field]
+    except (KeyError, IndexError):
+        return False
+    return value is not None and value != ""
 
 
 def _attach_columns(
@@ -347,6 +390,7 @@ def _separator_normalised_hit(
     detail_level: str,
     fetch_limit: int,
     guard: FreshnessGuard,
+    stored_fields: bool = False,
 ) -> dict[str, object] | None:
     """If the last separator spelled as MEMBER_SEPARATOR uniquely hits, return that near-miss (249).
 
@@ -405,10 +449,9 @@ def _separator_normalised_hit(
     )
     if detail_level == "standard":
         _attach_params(payload, store, node, rel)
+    _attach_stored_fields(payload, store, node, stored_fields=stored_fields)
     attach_other_indexed_files_drifted(payload, guard)
-    return attach_try_instead(
-        payload, TRY_INSTEAD_FILE_OUTLINE, TRY_INSTEAD_HINT_MEMBER_SEPARATOR
-    )
+    return attach_try_instead(payload, TRY_INSTEAD_FILE_OUTLINE, TRY_INSTEAD_HINT_MEMBER_SEPARATOR)
 
 
 def _resolve_miss(
