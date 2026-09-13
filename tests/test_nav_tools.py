@@ -295,7 +295,7 @@ def test_nav_results_flag_truncation(tmp_path: Path, store: GraphStore) -> None:
         edge("CALLS", f"\\f{i}", "\\t", "a.x", target_qname="\\t") for i in range(5)
     ]
     seed_file(store, "a.x", nodes, edges, root=tmp_path)
-    config = replace(db_config(tmp_path), max_results=2)
+    config = replace(db_config(tmp_path), page_limit=2)
     result = find_callers.create(config)("\\t", detail_level="minimal")
     assert len(result["results"]) == 2
     assert result["truncated"] is True

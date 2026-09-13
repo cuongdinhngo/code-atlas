@@ -94,7 +94,7 @@ def read_signal(root: Path, rel: str, *, verbose: bool = False) -> str | None:
         if store.file_hash(rel) is None:
             _note(f"silent: {rel} is not indexed", verbose=verbose)
             return None
-        rows = store.nodes_by_file(rel, limit=config.max_results)
+        rows = store.nodes_by_file(rel, limit=config.page_limit)
         # Read-only: a drifted file still answers, it just says the index may be behind (C3).
         behind = not file_is_current(store, config.root, rel)
     symbols = [row for row in rows if str(row["kind"]) != "File"]

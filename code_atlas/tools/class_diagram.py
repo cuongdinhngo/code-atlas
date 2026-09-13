@@ -55,7 +55,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         come from declared property and parameter types — never from CALLS/NEW. ``limit`` caps
         members per type and is disclosed when it bites. Pass ``qname`` or ``path``, not both.
         """
-        cap, limit_clamped = clamp_limit(limit, config.max_results)
+        cap, limit_clamped = clamp_limit(limit, config.page_limit)
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
         if (qname is None) == (path is None):

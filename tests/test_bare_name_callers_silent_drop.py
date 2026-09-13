@@ -48,7 +48,7 @@ def _plant_truncated_bare_calls(store: GraphStore, root: Path) -> None:
 
 def _tool(tmp_path: Path, *, max_results: int = 2):
     """Query-time cap for paging; no longer governs what the build stores (258)."""
-    return find_callers.create(replace(db_config(tmp_path), max_results=max_results))
+    return find_callers.create(replace(db_config(tmp_path), page_limit=max_results))
 
 
 def test_the_fixture_really_leaves_multi_match_unlinked(

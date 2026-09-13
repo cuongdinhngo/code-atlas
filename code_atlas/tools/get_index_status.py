@@ -59,7 +59,7 @@ CAPABILITIES_BY_LANGUAGE_FIELD = "capabilities_by_language"
 
 QUESTION = "indexed-files"
 
-# Own cap for the verbose failure list — not ``CA_MAX_RESULTS`` (disk / nav / resolver knob).
+# Own cap for the verbose failure list — not ``CA_PAGE_LIMIT`` / ``CA_MAX_CANDIDATES`` (259).
 PARSE_FAILURE_PATHS_LIMIT = 50
 
 # Staleness vocabulary lives in ``staleness`` (shared with the build busy refusal, task 072);
@@ -93,9 +93,9 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
         Reports stats, health, last commit, staleness, and next-tool suggestions. ``verbose`` adds
         capped ``parse_failure_paths`` plus ``parse_failures_truncated``; pass ``offset`` to page
         further. ``minimal`` / ``standard`` omit the list (cheap path). ``standard``/``verbose``
-        also carry ``max_results`` — the effective ceiling a caller sizes requests against — and
-        its ``governs`` list: it caps both returned rows and the resolver's candidate fan-out, so
-        ``total_count`` is not the only cap (066). ``verbose`` also carries ``collection`` — the
+        also carry ``page_limit`` (query-time row ceiling) and ``max_candidates`` (build-time
+        resolver fan-out), each with its own ``governs`` list so the two caps are not conflated
+        (066/259). ``verbose`` also carries ``collection`` — the
         denominator to reconcile ``files`` against your own ``git ls-files``:
         ``collected - skipped.suffix - skipped.ignore == kept``, ``kept + stubs == files`` (082).
         ``skipped.untracked`` sits beside that identity: files git does not list, with an indexed
@@ -130,11 +130,19 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
     return get_index_status
 
 
-def _max_results_field(config: Config) -> dict[str, object]:
-    """The ceiling plus what it governs, so a caller sizes requests without a config read (066)."""
+def _page_limit_field(config: Config) -> dict[str, object]:
+    """Query-time page ceiling — never the build fan-out (066/259)."""
     return {
-        "value": config.max_results,
-        "governs": ["returned_rows", "resolver_candidate_fanout"],
+        "value": config.page_limit,
+        "governs": ["returned_rows"],
+    }
+
+
+def _max_candidates_field(config: Config) -> dict[str, object]:
+    """Build-time resolver fan-out — changing it requires a rebuild (259)."""
+    return {
+        "value": config.max_candidates,
+        "governs": ["resolver_candidate_fanout"],
     }
 
 
@@ -226,7 +234,8 @@ def _unbuilt(
     _attach_suggestions(status, servable, UNKNOWN, indexed=False)
     if detail_level in ("standard", "verbose"):
         status["db_path"] = str(config.db_path)
-        status["max_results"] = _max_results_field(config)
+        status["page_limit"] = _page_limit_field(config)
+        status["max_candidates"] = _max_candidates_field(config)
         _attach_build_state(status, config, None)
         _attach_unconfigured_adapters(status, config)
     if detail_level == "verbose":
@@ -305,8 +314,9 @@ def _status(
         "edge_health": store.edge_health(),
         "parse_failures": counts["failed"],
         "dirty_indexed_files": dirty_count,
-        # The ceiling a caller sizes requests against, and its double duty (066).
-        "max_results": _max_results_field(config),
+        # Query-time page vs build-time fan-out — separate keys, separate scopes (066/259).
+        "page_limit": _page_limit_field(config),
+        "max_candidates": _max_candidates_field(config),
         "orphans_max_nodes": _orphans_max_nodes_field(config),
     }
     _attach_build_state(enriched, config, store)

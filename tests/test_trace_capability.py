@@ -399,7 +399,7 @@ def test_a_globally_cut_flow_makes_the_answer_declare_itself_incomplete(tmp_path
     reported `truncated: false` there would be a silent partial — which is exactly what the
     one-line mutation `return False` produces, and what nothing else here would notice.
     """
-    config = replace(_two_request_repo(tmp_path), max_results=1)
+    config = replace(_two_request_repo(tmp_path), page_limit=1)
     tool = trace_capability.create(config)
 
     # The subject whose seed the cap DID trace still answers — and still says it may be partial.
@@ -445,21 +445,21 @@ def test_the_tool_and_the_map_agree_about_the_same_flows(fixture_index) -> None:
             node_kind_counts=store.node_kind_counts(),
             edge_kind_counts=store.edge_kind_counts(),
             confidence=store.edge_health()["by_tier"],  # type: ignore[arg-type]
-            hubs=store.module_hubs(limit=config.max_results),
-            classes=store.largest_classes(limit=config.max_results),
+            hubs=store.module_hubs(limit=config.page_limit),
+            classes=store.largest_classes(limit=config.page_limit),
             file_symbol_counts=store.file_symbol_counts(),
             file_paths=store.file_paths(),
             path_index_max=config.path_index_max,
             declared_entry_points=config.entry_points,
             declared_stub_roots=config.stub_roots,
             file_class_counts=store.file_class_counts(),
-            module_max=config.max_results,
+            module_max=config.page_limit,
             flow_edges=store.flow_edges(
                 __import__(
                     "code_atlas.onboarding.flows", fromlist=["FLOW_KINDS"]
                 ).FLOW_KINDS
             ),
-            flow_max=config.max_results,
+            flow_max=config.page_limit,
             flow_max_nodes=config.impact_max_nodes,
         )
     assert dataset.flows is not None

@@ -251,7 +251,8 @@ never a silent fallback.
 |---|---|---|---|
 | `CA_DB_PATH` | `db_path` | `.code-atlas/graph.db` | index location (relative to the repo root) |
 | `CA_WORKERS` | `workers` | `max(1, min(cpu-2, 8))` | adapter processes during a build |
-| `CA_MAX_RESULTS` | `max_results` | `50` | result cap for search/nav tools, and the resolver's candidate lookups. Since 258 it no longer sizes the index — a multi-match bare-name `Method` call stores one unresolved site, not N candidate edges |
+| `CA_PAGE_LIMIT` | `page_limit` | `50` | query-time row ceiling for search/nav tools (no rebuild). Pre-259 `CA_MAX_RESULTS` does **not** set this |
+| `CA_MAX_CANDIDATES` | `max_candidates` | `50` | build-time resolver fan-out (**rebuild** to apply). `CA_MAX_RESULTS` / project-file `max_results` still alias here (259) |
 | `CA_IMPACT_DEPTH` / `CA_IMPACT_MAX_NODES` | `impact_depth` / `impact_max_nodes` | `2` / `500` | hops and node budget for one impact query |
 | `CA_ENTRY_POINTS` | `entry_points` | unset | file globs that seed reachability. **`reachable_from` and `find_orphans` need this** — unset, they report *no roots configured* rather than guessing |
 | `CA_STUB_ROOTS` | `stub_roots` | unset | dependency roots (e.g. `vendor`) to index declarations-only, so third-party signatures resolve |
@@ -262,7 +263,8 @@ never a silent fallback.
 ```toml
 # .code-atlas.toml
 workers = 4
-max_results = 50
+page_limit = 50
+max_candidates = 50
 
 [adapter_cmd]
 php = "docker compose exec -T php php /app/adapters/php/index.php --server"

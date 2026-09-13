@@ -42,7 +42,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         """
         if not subtree.strip():
             raise ValueError("subtree must be non-empty")
-        cap, limit_clamped = clamp_limit(limit, config.max_results)
+        cap, limit_clamped = clamp_limit(limit, config.page_limit)
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
         normalized = _normalize_prefix(subtree)

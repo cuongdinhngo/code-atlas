@@ -30,9 +30,9 @@ def store(tmp_path: Path) -> Iterator[GraphStore]:
         yield opened
 
 
-def db_config(tmp_path: Path, *, max_results: int = 10) -> Config:
+def db_config(tmp_path: Path, *, page_limit: int = 10) -> Config:
     return replace(
-        load_config(tmp_path, {}), db_path=tmp_path / "graph.db", max_results=max_results
+        load_config(tmp_path, {}), db_path=tmp_path / "graph.db", page_limit=page_limit
     )
 
 

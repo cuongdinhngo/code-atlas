@@ -54,7 +54,7 @@ def test_total_count_is_orphan_population_not_page_length(
 ) -> None:
     """Proving test / AC4: ``total_count`` names the capped population, not the page."""
     order = _plant_many_orphans(store, tmp_path, n=12)
-    config = replace(config_for(tmp_path), max_results=10, orphans_max_nodes=500)
+    config = replace(config_for(tmp_path), page_limit=10, orphans_max_nodes=500)
     result = find_orphans.create(config)(detail_level="minimal")
     assert len(result["results"]) == 10
     assert result["total_count"] == 12
@@ -66,7 +66,7 @@ def test_total_count_is_orphan_population_not_page_length(
 def test_paged_walk_visits_each_orphan_once(store: GraphStore, tmp_path: Path) -> None:
     """AC2: 057 walk shape over the orphan list."""
     order = _plant_many_orphans(store, tmp_path, n=5)
-    config = replace(config_for(tmp_path), max_results=2, orphans_max_nodes=500)
+    config = replace(config_for(tmp_path), page_limit=2, orphans_max_nodes=500)
     tool = find_orphans.create(config)
 
     def walk() -> list[str]:
@@ -93,7 +93,7 @@ def test_known_orphan_on_page_two(store: GraphStore, tmp_path: Path) -> None:
     """AC6: the round-6 shim class is reachable only via ``offset``."""
     order = _plant_many_orphans(store, tmp_path, n=12)
     assert TARGET in order
-    config = replace(config_for(tmp_path), max_results=10, orphans_max_nodes=500)
+    config = replace(config_for(tmp_path), page_limit=10, orphans_max_nodes=500)
     tool = find_orphans.create(config)
     page1 = tool(detail_level="minimal")
     page2 = tool(detail_level="minimal", offset=10)
@@ -110,7 +110,7 @@ def test_orphans_budget_is_independent_of_impact_max_nodes(
     _plant_many_orphans(store, tmp_path, n=8)
     base = replace(
         config_for(tmp_path),
-        max_results=50,
+        page_limit=50,
         orphans_max_nodes=500,
     )
     low_impact = replace(base, impact_max_nodes=1)
@@ -132,7 +132,7 @@ def test_orphans_max_nodes_governs_the_walk(store: GraphStore, tmp_path: Path) -
         entry_points=("src/entry.php",),
         orphans_max_nodes=2,
         impact_max_nodes=999,
-        max_results=50,
+        page_limit=50,
     )
     tight = find_orphans.create(config)(detail_level="minimal")
     loose = find_orphans.create(replace(config, orphans_max_nodes=50))(
@@ -154,7 +154,7 @@ def test_orphans_max_nodes_governs_the_walk(store: GraphStore, tmp_path: Path) -
 def test_minimal_payload_stays_small_at_scale(store: GraphStore, tmp_path: Path) -> None:
     """AC1 (reduced scale): ``minimal`` stays under a transport-sized JSON envelope."""
     _plant_many_orphans(store, tmp_path, n=200)
-    config = replace(config_for(tmp_path), max_results=50, orphans_max_nodes=500)
+    config = replace(config_for(tmp_path), page_limit=50, orphans_max_nodes=500)
     payload = find_orphans.create(config)(detail_level="minimal")
     size = len(json.dumps(payload))
     assert size < 80_000
@@ -190,7 +190,7 @@ def test_a_budget_bound_walk_refuses_instead_of_paging(
     nothing worth paging, because the walk could not establish reachability at all.
     """
     _plant_many_orphans(store, tmp_path, n=12)
-    config = replace(config_for(tmp_path), max_results=50, orphans_max_nodes=1)
+    config = replace(config_for(tmp_path), page_limit=50, orphans_max_nodes=1)
     page = find_orphans.create(config)(detail_level="minimal", limit=50, offset=0)
 
     assert page["status"] == find_orphans.WALK_BUDGET_EXHAUSTED

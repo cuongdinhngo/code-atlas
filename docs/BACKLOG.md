@@ -23,7 +23,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260 |
-| 259 | [One knob sets both index size and page truthfulness](tasks/259_one-knob-sets-both-index-size-and-page-truthfulness.md) | Trust | todo | 251, 138 |
 | 260 | [Fit can only be benchmarked, never observed](tasks/260_the-fit-number-cannot-be-observed-only-benchmarked.md) | Adoption | todo | 081 |
 | 261 | [README lists four adapters as peers; the number that denies it is in `verbose`](tasks/261_the-readme-lists-four-adapters-as-peers-and-the-number-that-contradicts-it-is-in-verbose.md) | Trust | todo | 227, 153, 233 |
 | 262 | [The contract marks test code and no tool reads it](tasks/262_the-contract-marks-test-code-and-no-tool-reads-it.md) | Trust | todo | 130, 255 |

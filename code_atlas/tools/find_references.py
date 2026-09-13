@@ -175,7 +175,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
-        cap, limit_clamped = clamp_limit(limit, config.max_results)
+        cap, limit_clamped = clamp_limit(limit, config.page_limit)
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
         if not config.db_path.is_file():
@@ -228,12 +228,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             lookup = qname
             total_count = store.count_edges_by_target(lookup)
             # Widen the existing indexed-check fetch to surface every definition site (task 070).
-            nodes = store.nodes_by_qualified_name(lookup, limit=config.max_results)
+            nodes = store.nodes_by_qualified_name(lookup, limit=config.page_limit)
             indexed = bool(nodes)
             if total_count == 0 and not indexed:
                 # Under-qualified, untracked, or a genuine absence (075/076/092/122).
                 resolution = classify_missing_subject(
-                    store, asked, limit=config.max_results
+                    store, asked, limit=config.page_limit
                 )
                 repointed = unique_repoint(resolution)
                 if repointed is None:
@@ -257,7 +257,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     )
                 lookup = repointed
                 total_count = store.count_edges_by_target(lookup)
-                nodes = store.nodes_by_qualified_name(lookup, limit=config.max_results)
+                nodes = store.nodes_by_qualified_name(lookup, limit=config.page_limit)
                 indexed = bool(nodes)
             # A same-named definition under another qname makes this count a partition (168).
             # One bounded query, keyed on the subject's own kind — 054's rule, not a constant.
@@ -276,7 +276,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         bare_name=str(nodes[0]["name"]),
                         kind=str(nodes[0]["kind"]),
                         lookup=lookup,
-                        limit=config.max_results,
+                        limit=config.page_limit,
                     )
                 )
             edges = store.edges_by_target(lookup, limit=cap, offset=offset)

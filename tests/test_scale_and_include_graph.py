@@ -192,7 +192,7 @@ def test_include_graph_exact_fill_at_depth_one_is_not_truncated(tmp_path: Path) 
             ],
         )
     tool = include_graph.create(
-        replace(load_config(tmp_path, {}), db_path=db, max_results=3, root=tmp_path)
+        replace(load_config(tmp_path, {}), db_path=db, page_limit=3, root=tmp_path)
     )
     payload = tool("app.php", direction="imports", depth=1)
     assert len(payload["results"]) == 3

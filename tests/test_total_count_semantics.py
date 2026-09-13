@@ -37,7 +37,7 @@ def _config(tmp_path: Path) -> Config:
         load_config(tmp_path, {}),
         db_path=tmp_path / "graph.db",
         root=tmp_path,
-        max_results=CEILING,
+        page_limit=CEILING,
         impact_max_nodes=50,
         orphans_max_nodes=500,
         entry_points=(PATH,),

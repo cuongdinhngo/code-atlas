@@ -51,7 +51,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
-        cap, limit_clamped = clamp_limit(limit, config.max_results)
+        cap, limit_clamped = clamp_limit(limit, config.page_limit)
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
         if not config.db_path.is_file():

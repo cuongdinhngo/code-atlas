@@ -198,7 +198,7 @@ def test_guided_tour_offset_pages_the_rest_of_the_order(tmp_path: Path) -> None:
     """A page-capped tour is not a dead end — ``offset`` reaches the tail (086 convention)."""
     config = _cycle_repo(tmp_path)
     whole = _files(guided_tour.create(config)())
-    paged = guided_tour.create(replace(config, max_results=2))
+    paged = guided_tour.create(replace(config, page_limit=2))
     first, second = paged(), paged(offset=2)
 
     assert first["results_offset"] == 0 and first["truncated"] is True

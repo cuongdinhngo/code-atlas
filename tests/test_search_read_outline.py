@@ -75,7 +75,7 @@ def test_search_symbol_returns_ranked_fixture_hits(tmp_path: Path, store: GraphS
     assert result["indexed"] is True
     qnames = [hit["qname"] for hit in result["results"]]
     assert "\\App\\Models\\User" in qnames
-    assert len(result["results"]) <= config.max_results
+    assert len(result["results"]) <= config.page_limit
 
 
 @needs_php

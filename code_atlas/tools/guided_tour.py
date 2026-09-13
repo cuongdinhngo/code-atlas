@@ -103,7 +103,7 @@ def _payload(
     offset: int,
 ) -> dict[str, object]:
     """One page of the order. ``truncated`` covers both bounds; ``offset`` reaches the tail."""
-    limit = config.max_results
+    limit = config.page_limit
     page = stops[offset : offset + limit]
     return {
         "indexed": True,

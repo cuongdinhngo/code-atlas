@@ -172,7 +172,7 @@ def test_overview_read_through_is_bounded_to_the_page_it_renders(tmp_path: Path)
     graph loads at 30k files — to feed at most ``max_results`` rows, and billed it to
     ``minimal`` as well, which 061 designates the cheap path.
     """
-    config = replace(db_config(tmp_path), max_results=3)
+    config = replace(db_config(tmp_path), page_limit=3)
     _seed_many(config, tmp_path, 24)
     seen: list[str] = []
     real = GraphStore.nodes_by_file_all
@@ -195,7 +195,7 @@ def test_overview_read_through_is_bounded_to_the_page_it_renders(tmp_path: Path)
 
 def test_overview_feeds_the_seam_the_docblock_it_read(tmp_path: Path) -> None:
     """The bounded load still reaches the 085 seam with real facts, not empty strings."""
-    config = replace(db_config(tmp_path), max_results=3)
+    config = replace(db_config(tmp_path), page_limit=3)
     _seed_many(config, tmp_path, 8)
     captured: list[NodeFacts] = []
 

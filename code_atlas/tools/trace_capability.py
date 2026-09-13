@@ -174,7 +174,7 @@ def _build(store: GraphStore, config: Config) -> FlowSet:
         class_counts=dict(store.file_class_counts()),
         fan_in={metric.key: metric.fan_in for metric in metrics.modules},
         stub_roots=config.stub_roots or (),
-        limit=config.max_results,
+        limit=config.page_limit,
     )
     return flows_from_graph(
         nodes,
@@ -184,7 +184,7 @@ def _build(store: GraphStore, config: Config) -> FlowSet:
         modules=modules,
         declared_entry_points=config.entry_points or (),
         declared_stub_roots=config.stub_roots or (),
-        max_flows=config.max_results,
+        max_flows=config.page_limit,
         max_nodes=config.impact_max_nodes,
     )
 
@@ -239,7 +239,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 reason=REASON_NOT_INDEXED,
             )
         with GraphStore(config.db_path) as store:
-            if not _known(store, kind, subject, config.max_results):
+            if not _known(store, kind, subject, config.page_limit):
                 payload = _envelope(
                     config=config,
                     subject=subject,

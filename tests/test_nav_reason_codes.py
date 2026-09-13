@@ -95,7 +95,7 @@ def test_truncation_sets_total_count_above_limit(tmp_path: Path, store: GraphSto
     nodes.append(node("Function", "t", "\\t", "a.x"))
     edges = [edge("CALLS", f"\\f{i}", "\\t", "a.x", target_qname="\\t") for i in range(5)]
     seed_file(store, "a.x", nodes, edges, root=tmp_path)
-    config = replace(db_config(tmp_path), max_results=2)
+    config = replace(db_config(tmp_path), page_limit=2)
     result = find_callers.create(config)("\\t", detail_level="minimal")
     assert result["reason"] == REASON_OK
     assert len(result["results"]) == 2
@@ -147,7 +147,7 @@ def test_search_symbol_reasons_and_total_count(tmp_path: Path, store: GraphStore
         node("Function", f"Alpha{i}", f"\\Alpha{i}", "a.x") for i in range(4)
     ]
     seed_file(store, "a.x", nodes, [], root=tmp_path)
-    config = replace(db_config(tmp_path), max_results=2)
+    config = replace(db_config(tmp_path), page_limit=2)
     tool = search_symbol.create(config)
     hits = tool("Alpha", detail_level="minimal")
     assert hits["reason"] == REASON_OK

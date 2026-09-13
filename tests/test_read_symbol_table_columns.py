@@ -81,9 +81,9 @@ def _plant_table(
     store.replace_file_rows(path, nodes, edges)
 
 
-def _tool(tmp_path: Path, db: Path, *, max_results: int = 50):
+def _tool(tmp_path: Path, db: Path, *, page_limit: int = 50):
     return read_symbol.create(
-        replace(load_config(tmp_path, {}), db_path=db, max_results=max_results)
+        replace(load_config(tmp_path, {}), db_path=db, page_limit=page_limit)
     )
 
 
@@ -137,7 +137,7 @@ def test_wide_table_is_bounded_with_next_page(tmp_path: Path) -> None:
     cols = [(f"c{i:02d}", "int", None) for i in range(5)]
     with GraphStore(db) as store:
         _plant_table(store, tmp_path, path="s.sql", table="dbo.Wide", columns=cols)
-    tool = _tool(tmp_path, db, max_results=2)
+    tool = _tool(tmp_path, db, page_limit=2)
     page1 = tool("dbo.Wide")
     assert page1["truncated"] is True
     assert page1["total_count"] == 5
@@ -164,7 +164,7 @@ def test_no_columns_distinguishable_from_empty_page(tmp_path: Path) -> None:
             table="dbo.Full",
             columns=[("a", "int", None), ("b", "int", None)],
         )
-    tool = _tool(tmp_path, db, max_results=2)
+    tool = _tool(tmp_path, db, page_limit=2)
     empty = tool("dbo.Empty")
     assert empty.get("no_indexed_columns") is True
     assert "columns" not in empty
@@ -264,7 +264,7 @@ def test_foreign_key_contains_do_not_inflate_column_paging(tmp_path: Path) -> No
             },
         ]
         store.replace_file_rows(path, nodes, edges)
-    out = _tool(tmp_path, db, max_results=50)(table)
+    out = _tool(tmp_path, db, page_limit=50)(table)
     assert out["total_count"] == 1
     assert [c["name"] for c in out["columns"]] == ["id"]  # type: ignore[index]
     assert out["truncated"] is False

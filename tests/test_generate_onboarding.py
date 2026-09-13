@@ -433,7 +433,7 @@ def _wide_repo(root: Path) -> Config:
     from tests.test_nav_tools import edge, node, seed_file
 
     cap = 5
-    config = replace(db_config(root), max_results=cap, impact_max_nodes=500)
+    config = replace(db_config(root), page_limit=cap, impact_max_nodes=500)
     with GraphStore(config.db_path) as store:
         seed_file(
             store,

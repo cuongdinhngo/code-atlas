@@ -132,7 +132,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         kind = _require_kind(kind)
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
-        cap, limit_clamped = clamp_limit(limit, config.max_results)
+        cap, limit_clamped = clamp_limit(limit, config.page_limit)
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
         db_path = str(config.db_path)

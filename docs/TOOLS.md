@@ -226,7 +226,8 @@ a silent fallback.
 | `CA_DB_PATH` | `db_path` | `.code-atlas/graph.db` | index location (relative to the repo root) |
 | `CA_WORKERS` | `workers` | `max(1, min(cpu-2, 8))` | adapter processes during a build |
 | `CA_ADAPTER_TIMEOUT` | `adapter_timeout` | `30` | seconds an adapter may stay silent before a build kills it |
-| `CA_MAX_RESULTS` | `max_results` | `50` | result cap for search/nav tools; a request above the cap is honoured to the cap and says so in `limit_capped_to`. It still caps the resolver's candidate lookups, but **no longer sizes the graph**: since 258 a multi-match bare-name `Method` call stores one unresolved site instead of N candidate edges, and candidates are expanded at query time |
+| `CA_PAGE_LIMIT` | `page_limit` | `50` | query-time row ceiling for search/nav; a request above the cap is honoured to the cap and says so in `limit_capped_to`. Changing it does **not** require a rebuild (259) |
+| `CA_MAX_CANDIDATES` | `max_candidates` | `50` | build-time resolver fan-out; changing it **requires a rebuild**. `CA_MAX_RESULTS` / project-file `max_results` alias here only — they no longer set the page cap (259). Since 258 fan-out no longer multiplies unresolved bare-name `Method` calls into the graph |
 | `CA_MAX_SUBJECTS` | `max_subjects` | `25` | subjects one `search_symbol` sweep may take; a refused subject is named in `subjects_dropped`, never dropped silently |
 | `CA_IMPACT_DEPTH` | `impact_depth` | `2` | hops the impact engine traverses (with default decay/floor, depths above ~8 are a no-op) |
 | `CA_IMPACT_MAX_NODES` | `impact_max_nodes` | `500` | node budget for one impact query (seeds kept preferentially when over budget) |
@@ -249,7 +250,8 @@ a silent fallback.
 ```toml
 # .code-atlas.toml
 workers = 4
-max_results = 50
+page_limit = 50
+max_candidates = 50
 tools = ["get_index_status", "build_or_update_index"]   # only names the server serves; a typo is a loud error
 # Optional: only needed if something passes absolute host paths to the adapter.
 # host_root = "/home/you/project"

@@ -40,7 +40,7 @@ def test_view_data_finds_setter_past_former_10k_calls_prefix(
     config = replace(
         load_config(tmp_path, {"CA_INDIRECTION_RULES": "rules/rules.json"}),
         db_path=tmp_path / "graph.db",
-        max_results=50,
+        page_limit=50,
     )
 
     noise = [

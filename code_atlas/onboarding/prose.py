@@ -30,8 +30,8 @@ SLOT_MODULE = "module"
 # is DERIVED from a cap that already exists (110's vocabulary, 109's C4, the headline families) — a
 # pin test asserts each against its source rather than trusting this copy (R6.7).
 # 198's module slot is the one number here that is NOT derived: the business-module table is
-# capped by `config.max_results`, an operator setting, so deriving from it would make this ceiling a
-# function of configuration — a repo with max_results=500 would buy 500 calls. 12 is a ratified
+# capped by `config.page_limit`, an operator setting, so deriving from it would make this ceiling a
+# function of configuration — a repo with page_limit=500 would buy 500 calls. 12 is a ratified
 # budget constant instead, and the pin test asserts exactly that rather than a false derivation.
 MODULE_LABEL_BUDGET = 12
 SLOT_LIMITS: Mapping[str, int] = {

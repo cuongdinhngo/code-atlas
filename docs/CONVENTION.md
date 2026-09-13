@@ -52,7 +52,8 @@ code-atlas/
   names itself in its handshake (PLAN §4.1); a `PhpAdapter` in `code_atlas/` would break R1.1/R1.5.
 - **Tools:** `snake_case` verb-first, matching the MCP tool name exactly (`search_symbol`, `find_callers`,
   `read_symbol`, `build_or_update_index`). One tool per file under `code_atlas/tools/`.
-- **Env vars:** prefix **`CA_`** (`CA_DB_PATH`, `CA_WORKERS`, `CA_ADAPTER_TIMEOUT`, `CA_MAX_RESULTS`, `CA_IMPACT_DEPTH`,
+- **Env vars:** prefix **`CA_`** (`CA_DB_PATH`, `CA_WORKERS`, `CA_ADAPTER_TIMEOUT`, `CA_PAGE_LIMIT`, `CA_MAX_CANDIDATES`, `CA_IMPACT_DEPTH`,
+  …; `CA_MAX_RESULTS` is a legacy alias for `CA_MAX_CANDIDATES` only — 259)
   `CA_IMPACT_MAX_NODES`, `CA_ENTRY_POINTS`, `CA_STUB_ROOTS`, `CA_WORKING_ROOTS`, `CA_INDIRECTION_RULES`, `CA_TOOLS`, `CA_HOST_ROOT`, `CA_CONTAINER_ROOT`, per-adapter `CA_<LANG>_CMD` e.g. `CA_PHP_CMD`).
 - **On-disk artifacts:** project config `.code-atlas.toml` (repo root, committed — keys are the env
   names lower-cased without the `CA_` prefix, plus an `[adapter_cmd]` table whose values are a
@@ -171,7 +172,7 @@ what the payload already says (061). An answer must state what it is *not* telli
 | `last_ref` / `head_ref` | status + the busy-build refusal sharing its vocabulary | the revision the index was built on and the one HEAD is on now. `HEAD` when detached, `null` when non-git, **omitted** pre-077 so `null` is not read as "not under git". Nav payloads stay on `index_root` alone (077) |
 | `server_version` / `server_build` / `server_stale_process` | status at `standard`/`verbose`; `minimal` omits all three | the running package, a build id from git or package content (not the index schema), and whether the loaded code still matches the disk. `+dirty` on the id is the **worktree** axis, orthogonal to that process one. The verdict rides **unconditionally** (170); `server_repo_head` is divergence context and stays conditional. Signed claims add `server=`/`build=` (100/125) |
 | `config_build` / `config_stale_process` | status at `standard`/`verbose`; `build_or_update_index` at `standard` | which **config** answered — a hash of the project file plus the `CA_*` it reads, no timestamps — and whether the disk still matches it. The verdict is stated, never omitted (170). `index_config_build` names the config that built the index, only when it differs (061). **Not** on nav payloads: the code axis is already a standing cost there (175) |
-| `parse_failure_paths` | status at `verbose` | capped by `PARSE_FAILURE_PATHS_LIMIT`, not `CA_MAX_RESULTS`; optional `offset`; never on the cheap path (058) |
+| `parse_failure_paths` | status at `verbose` | capped by `PARSE_FAILURE_PATHS_LIMIT`, not `CA_PAGE_LIMIT`; optional `offset`; never on the cheap path (058) |
 | `skipped.*` breakdowns | `collection` | `collected − suffix − ignore == kept`; `untracked` sits **beside** it (092). Each breakdown leaves its parent int intact so 082 closes, and is omitted when empty (061): `ignore_sources` names each ignore-skip's composed source, verbose only (095); `suffix_top` names what `suffix` is made of by **extension** — top 10, count desc then suffix asc, `suffix_kinds` the true denominator, `(none)` for a suffix-less file. Extensions only: the core names no language; the reader joins `unconfigured_adapters` (174/R1.1) |
 | `not_indexed` | any payload with `indexed: true` | the subject maps to an untracked indexable file. Match on the file **stem**: a path-shaped qname's trailing ident is its extension, so `Missing.aa` must not match `aa.aa` (092) |
 | `resolved_qname` | nav answers | the stored qname actually queried, when a leading anchor made it differ from the typed subject; omitted on an exact hit (075/122) |
@@ -183,7 +184,7 @@ what the payload already says (061). An answer must state what it is *not* telli
 | `walk_truncated` | `impact_modules` | the walk hit `CA_IMPACT_MAX_NODES`, so every per-module count is an **under**-estimate — a module reached only beyond the bound is missing from the table entirely, not merely undercounted (140) |
 | `tier_filter` / `tier_census` | `find_callers` at depth 1 | the `confidence_tier` the store query ran, so `total_count` counts *that request*; the census is the **unfiltered** breakdown, omitted when all-RESOLVED or empty. Together: *none on this page* ≠ *none exists* (251/061) |
 | `caveat_limits` | any payload with `authoritative_caveats` | caveat name → what it costs the reader operationally, not the relation's name; omitted when no caveat states one (251/061) |
-| `module_table_truncated` | `impact_modules` | 114's module table was itself capped at `CA_MAX_RESULTS`, so rows counted under `unassigned` include files whose module exists and was cut — that bucket is an **over**-count, distinct from the walk bound (140) |
+| `module_table_truncated` | `impact_modules` | 114's module table was itself capped at `CA_PAGE_LIMIT`, so rows counted under `unassigned` include files whose module exists and was cut — that bucket is an **over**-count, distinct from the walk bound (140) |
 
 - **`try_instead` is two registers, each in its own field (093).** The value is always a
   **registered MCP tool name the reader can call**; the *how to re-ask* qualifier is prose in the

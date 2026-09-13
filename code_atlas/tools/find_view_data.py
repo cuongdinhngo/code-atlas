@@ -57,7 +57,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
-        cap, limit_clamped = clamp_limit(limit, config.max_results)
+        cap, limit_clamped = clamp_limit(limit, config.page_limit)
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
         if not config.db_path.is_file():
@@ -89,7 +89,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             indexed = bool(store.nodes_by_qualified_name(lookup, limit=1))
             if total == 0 and not indexed:
                 resolution = classify_missing_subject(
-                    store, asked, limit=config.max_results
+                    store, asked, limit=config.page_limit
                 )
                 repointed = unique_repoint(resolution)
                 if repointed is None:

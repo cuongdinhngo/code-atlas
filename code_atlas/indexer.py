@@ -614,7 +614,7 @@ def _count_late_writes(
         # Enrichment rewrites its rows *after* the parse under a synthetic path no delta lists,
         # so the bookmark is always in scope or its fresh edges would never resolve.
         delta = delta_scope(store, (*parsed, INDIRECTION_FILE), aliases=aliases_now)
-    siblings = resolve_edges(store, max_candidates=config.max_results, delta=delta)
+    siblings = resolve_edges(store, max_candidates=config.max_candidates, delta=delta)
     _phase_add(phase_times, "resolve", mark)
     counts["nodes"] += enriched.nodes
     counts["edges"] += enriched.edges + siblings
@@ -670,7 +670,7 @@ def reparse_file(config: Config, store: GraphStore, path: str) -> bool:
                     tally,
                     fingerprint=fingerprint,
                 )
-                resolve_edges(store, max_candidates=config.max_results, file_path=path)
+                resolve_edges(store, max_candidates=config.max_candidates, file_path=path)
             except Exception:
                 return False
         finally:

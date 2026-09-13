@@ -43,8 +43,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             return _not_indexed(from_qname, to_qname, depth, detail_level, config)
         with GraphStore(config.db_path) as store:
             # Re-point a uniquely-resolvable under-anchored endpoint; echo it (075/076).
-            from_qname = _resolve_endpoint(store, from_qname, config.max_results)
-            to_qname = _resolve_endpoint(store, to_qname, config.max_results)
+            from_qname = _resolve_endpoint(store, from_qname, config.page_limit)
+            to_qname = _resolve_endpoint(store, to_qname, config.page_limit)
             outcome = store.explain_path(
                 from_qname,
                 to_qname,

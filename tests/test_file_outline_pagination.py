@@ -17,8 +17,8 @@ from code_atlas.tools import file_outline
 from tests.test_nav_tools import db_config, node, seed_file
 
 
-def _config(tmp_path: Path, *, max_results: int = 10) -> Config:
-    return replace(db_config(tmp_path), root=tmp_path, max_results=max_results)
+def _config(tmp_path: Path, *, page_limit: int = 10) -> Config:
+    return replace(db_config(tmp_path), root=tmp_path, page_limit=page_limit)
 
 
 def _plant_symbols(
@@ -57,7 +57,7 @@ def test_total_count_is_the_file_symbol_count_not_the_page(
     """Proving test / AC1: ``total_count`` and ``truncated`` cannot contradict each other."""
     path = "src/Large.php"
     _plant_symbols(store, tmp_path, path, n=12)
-    config = _config(tmp_path, max_results=10)
+    config = _config(tmp_path, page_limit=10)
     result = file_outline.create(config)(path, detail_level="minimal")
     assert result["found"] is True
     assert len(result["results"]) == 10
@@ -70,7 +70,7 @@ def test_paged_walk_visits_each_symbol_once(store: GraphStore, tmp_path: Path) -
     """AC3: 057's walk shape — every symbol once, last page not truncated."""
     path = "src/Page.php"
     order = _plant_symbols(store, tmp_path, path, n=5)
-    config = _config(tmp_path, max_results=2)
+    config = _config(tmp_path, page_limit=2)
     tool = file_outline.create(config)
 
     def walk() -> list[str]:
@@ -98,7 +98,7 @@ def test_round6_regression_symbol_on_page_two(store: GraphStore, tmp_path: Path)
     path = "src/Repair.php"
     order = _plant_symbols(store, tmp_path, path, n=12, kinds=("Method", "Property"))
     missing = order[10]
-    config = _config(tmp_path, max_results=10)
+    config = _config(tmp_path, page_limit=10)
     tool = file_outline.create(config)
     page1 = tool(path, detail_level="minimal")
     page2 = tool(path, detail_level="minimal", offset=10)
@@ -114,7 +114,7 @@ def test_single_page_payload_unchanged(store: GraphStore, tmp_path: Path) -> Non
     """AC6: a file that fits in one page stays byte-identical to the pre-123 shape."""
     path = "src/Small.php"
     _plant_symbols(store, tmp_path, path, n=3)
-    config = _config(tmp_path, max_results=10)
+    config = _config(tmp_path, page_limit=10)
     result = file_outline.create(config)(path, detail_level="minimal")
     assert result == {
         "indexed": True,

@@ -95,7 +95,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 index_root=config.index_root,
             )
         # +1 so CA_MAX_RESULTS=1 cannot hide a second definition (078).
-        fetch_limit = config.max_results + 1
+        fetch_limit = config.page_limit + 1
         with GraphStore(config.db_path) as store:
             rows = list(store.nodes_by_qualified_name(qname, limit=fetch_limit))
             guard = FreshnessGuard(config, store)
@@ -284,7 +284,7 @@ def _attach_columns(
     if not ordered:
         payload["no_indexed_columns"] = True
         return
-    cap, clamped = clamp_limit(limit, config.max_results)
+    cap, clamped = clamp_limit(limit, config.page_limit)
     page_qnames = ordered[offset : offset + cap]
     columns = [_column_row(found_all[qname][0]) for qname in page_qnames]
     total = len(ordered)
@@ -467,7 +467,7 @@ def _resolve_miss(
     Returns ``(qname, rows, miss)`` — when ``rows`` is non-empty the caller reads on with the
     (possibly re-pointed) ``qname``; when ``miss`` is set the caller returns it verbatim.
     """
-    resolution = classify_missing_subject(store, qname, limit=config.max_results)
+    resolution = classify_missing_subject(store, qname, limit=config.page_limit)
     if resolution.status == "resolved_unique":
         rows = list(store.nodes_by_qualified_name(resolution.qname, limit=fetch_limit))
         if rows:

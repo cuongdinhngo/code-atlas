@@ -127,7 +127,7 @@ def test_ac2_a_truncated_module_table_says_the_unassigned_bucket_is_over_counted
     in the one bucket this tool promised never to guess into (113)."""
     import dataclasses
 
-    narrow = dataclasses.replace(repo, max_results=2)
+    narrow = dataclasses.replace(repo, page_limit=2)
     payload = impact_modules.create(narrow)(qnames=[SUBJECT])
     assert payload["module_table_truncated"] is True
     assert impact_modules.NOTE_TABLE_TRUNCATED in str(payload["note"])

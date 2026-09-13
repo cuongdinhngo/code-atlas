@@ -128,7 +128,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         with GraphStore(config.db_path) as store:
             plan = plan_seeds(
-                store, paths=paths or [], qnames=qnames or [], max_results=config.max_results
+                store, paths=paths or [], qnames=qnames or [], max_results=config.page_limit
             )
             outcome = store.impact_radius(
                 plan.walk_seeds, depth=hops, max_nodes=config.impact_max_nodes + 1
@@ -214,7 +214,7 @@ def _owners(store: GraphStore, config: Config) -> tuple[Mapping[str, str], bool]
         class_counts=dict(store.file_class_counts()),
         fan_in={},
         stub_roots=config.stub_roots,
-        limit=config.max_results,
+        limit=config.page_limit,
     )
     return directory_owners(table.modules), table.truncated
 

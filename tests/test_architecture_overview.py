@@ -215,7 +215,7 @@ def test_an_unbuilt_index_is_not_the_same_answer_as_an_empty_one(tmp_path: Path)
 
 def test_the_module_page_is_capped_and_offset_reaches_the_rest(tmp_path: Path) -> None:
     """The cap is honest AND escapable: no layer's modules are unreachable (057 paging idiom)."""
-    config = replace(_fixture_repo(tmp_path), max_results=2)
+    config = replace(_fixture_repo(tmp_path), page_limit=2)
     tool = architecture_overview.create(config)
 
     first = tool(detail_level="verbose")
@@ -224,7 +224,7 @@ def test_the_module_page_is_capped_and_offset_reaches_the_rest(tmp_path: Path) -
 
     # The two flags are independent: 4 layers fit under a cap of 4, the 5 modules do not — so a
     # cut module page must NOT be reported as a cut layer list (the pre-fix conflation).
-    roomy = architecture_overview.create(replace(_fixture_repo(tmp_path), max_results=4))
+    roomy = architecture_overview.create(replace(_fixture_repo(tmp_path), page_limit=4))
     page = roomy(detail_level="verbose")
     assert page["truncated"] is False and page["total_count"] == 4
     assert page["modules_truncated"] is True
@@ -245,7 +245,7 @@ def test_the_layer_list_and_the_crossings_are_capped_like_every_other_tool(
     tmp_path: Path,
 ) -> None:
     """A layer is a SUBdirectory of the dominant tree, so neither list is small by construction."""
-    config = replace(_fixture_repo(tmp_path), max_results=2)
+    config = replace(_fixture_repo(tmp_path), page_limit=2)
     standard = architecture_overview.create(config)(detail_level="standard")
 
     assert len(standard["results"]) == 2

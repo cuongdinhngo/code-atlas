@@ -254,7 +254,7 @@ def test_read_symbol_refuses_even_when_max_results_is_one(
 ) -> None:
     """078: CA_MAX_RESULTS=1 must not hide a second definition and ship one body."""
     _seed_two_defs(store, tmp_path)
-    config = replace(db_config(tmp_path), max_results=1)
+    config = replace(db_config(tmp_path), page_limit=1)
     result = read_symbol.create(config)("\\dup", detail_level="minimal")
     assert result["reason"] == REASON_SUBJECT_AMBIGUOUS
     assert result["source"] == ""

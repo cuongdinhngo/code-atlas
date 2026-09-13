@@ -30,7 +30,8 @@ KNOB_KEYS: tuple[str, ...] = (
     "db_path",
     "workers",
     "adapter_timeout",
-    "max_results",
+    "max_candidates",
+    "page_limit",
     "max_subjects",
     "impact_depth",
     "impact_max_nodes",
@@ -50,10 +51,21 @@ KNOB_KEYS: tuple[str, ...] = (
     "container_root",
 )
 
+# Query-time only: kept out of the ``CA_*`` slice of ``config_identity`` (259). The project file
+# is hashed as bytes, so setting one *there* still moves the id — the id is a provenance stamp,
+# never a rebuild trigger, and the page cap takes effect on the next call either way.
+QUERY_ONLY_KEYS: frozenset[str] = frozenset({"page_limit"})
+# Pre-259 name: still accepted as the build-time fan-out, never as the page cap (259).
+MAX_RESULTS_ALIAS_ENV = "CA_MAX_RESULTS"
+MAX_RESULTS_ALIAS_FILE = "max_results"
+
 DEFAULT_DB_PATH = Path(".code-atlas/graph.db")
 # Seconds one adapter may stay silent — booting or answering — before the build kills it (§8.1).
 DEFAULT_ADAPTER_TIMEOUT = 30
-DEFAULT_MAX_RESULTS = 50
+DEFAULT_MAX_CANDIDATES = 50
+DEFAULT_PAGE_LIMIT = 50
+# Pre-259 spelling kept for importers that still name the old constant.
+DEFAULT_MAX_RESULTS = DEFAULT_MAX_CANDIDATES
 # Subjects one batched call may carry (101). Ten is the field sweep; the headroom stops a batch
 # from becoming a query language, and the cap is disclosed rather than silently applied (066).
 DEFAULT_MAX_SUBJECTS = 25
@@ -89,7 +101,8 @@ class Config:
     db_path: Path
     workers: int
     adapter_timeout: int
-    max_results: int
+    max_candidates: int
+    page_limit: int
     max_subjects: int
     impact_depth: int
     impact_max_nodes: int
@@ -162,8 +175,9 @@ _NO_PROJECT_FILE = b"\0no-project-file\0"
 
 
 def _config_env_slice(env: Mapping[str, str]) -> tuple[tuple[str, str], ...]:
-    """Only the ``CA_*`` variables the config reads, sorted — nothing else can move the id."""
-    wanted = {env_name(key) for key in KNOB_KEYS}
+    """Build-deciding ``CA_*`` vars only — query-only knobs stay out of the id (259)."""
+    wanted = {env_name(key) for key in KNOB_KEYS if key not in QUERY_ONLY_KEYS}
+    wanted.add(MAX_RESULTS_ALIAS_ENV)  # legacy fan-out alias still moves identity
     return tuple(
         sorted(
             (name, value)
@@ -221,7 +235,10 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
         adapter_timeout=_resolve(
             "adapter_timeout", _as_int, DEFAULT_ADAPTER_TIMEOUT, environ, file_values
         ),
-        max_results=_resolve("max_results", _as_int, DEFAULT_MAX_RESULTS, environ, file_values),
+        max_candidates=_resolve_max_candidates(environ, file_values),
+        page_limit=_resolve(
+            "page_limit", _as_int, DEFAULT_PAGE_LIMIT, environ, file_values
+        ),
         max_subjects=_resolve(
             "max_subjects", _as_int, DEFAULT_MAX_SUBJECTS, environ, file_values
         ),
@@ -277,6 +294,24 @@ def _resolve[T](
     return default
 
 
+def _resolve_max_candidates(
+    env: Mapping[str, str], file_values: Mapping[str, object]
+) -> int:
+    """Fan-out from ``CA_MAX_CANDIDATES`` / file, else the pre-259 ``CA_MAX_RESULTS`` alias."""
+    primary = env_name("max_candidates")
+    if primary in env:
+        return _as_int(primary, env[primary])
+    if MAX_RESULTS_ALIAS_ENV in env:
+        return _as_int(MAX_RESULTS_ALIAS_ENV, env[MAX_RESULTS_ALIAS_ENV])
+    if "max_candidates" in file_values:
+        return _as_int(f"{PROJECT_FILE}:max_candidates", file_values["max_candidates"])
+    if MAX_RESULTS_ALIAS_FILE in file_values:
+        return _as_int(
+            f"{PROJECT_FILE}:{MAX_RESULTS_ALIAS_FILE}", file_values[MAX_RESULTS_ALIAS_FILE]
+        )
+    return DEFAULT_MAX_CANDIDATES
+
+
 def _resolve_optional_path(
     key: str, env: Mapping[str, str], file_values: Mapping[str, object]
 ) -> Path | None:
@@ -315,9 +350,11 @@ def _read_project_file(root: Path) -> Mapping[str, object]:
     except (tomllib.TOMLDecodeError, UnicodeDecodeError) as error:
         raise ConfigError(f"{path}: not valid TOML ({error})") from error
 
-    unknown = sorted(set(values) - set(KNOB_KEYS) - {ADAPTER_CMD_TABLE})
+    unknown = sorted(
+        set(values) - set(KNOB_KEYS) - {ADAPTER_CMD_TABLE, MAX_RESULTS_ALIAS_FILE}
+    )
     if unknown:
-        allowed = ", ".join((*KNOB_KEYS, f"[{ADAPTER_CMD_TABLE}]"))
+        allowed = ", ".join((*KNOB_KEYS, MAX_RESULTS_ALIAS_FILE, f"[{ADAPTER_CMD_TABLE}]"))
         raise ConfigError(
             f"{path}: unknown key(s) {', '.join(unknown)} (expected one of {allowed})"
         )
@@ -485,15 +522,16 @@ def _as_text(label: str, raw: object) -> str:
     return raw
 
 
-def clamp_limit(limit: int | None, max_results: int) -> tuple[int, bool]:
+def clamp_limit(limit: int | None, page_limit: int) -> tuple[int, bool]:
     """The one home for the paging cap: effective cap + whether a request was reduced (066).
 
-    ``clamped`` is True only when the caller asked for more than the ceiling, so a tool can
-    surface the reduction without a config read. ``limit is None`` (unset) is never a clamp.
+    ``page_limit`` is the query-time ceiling (``config.page_limit``); never the build fan-out (259).
+    ``clamped`` is True only when the caller asked for more than the ceiling. ``limit is None``
+    (unset) is never a clamp.
     """
     if limit is None:
-        return max_results, False
-    return min(limit, max_results), limit > max_results
+        return page_limit, False
+    return min(limit, page_limit), limit > page_limit
 
 
 def clamp_subjects(

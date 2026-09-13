@@ -197,7 +197,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         )
         with GraphStore(config.db_path) as store:
             plan = plan_seeds(
-                store, paths=paths or [], qnames=qnames or [], max_results=config.max_results
+                store, paths=paths or [], qnames=qnames or [], max_results=config.page_limit
             )
             outcome = store.impact_radius(
                 plan.walk_seeds, depth=hops, max_nodes=config.impact_max_nodes + 1

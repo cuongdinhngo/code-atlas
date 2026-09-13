@@ -75,7 +75,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 rel, detail_level=detail_level, db_path=str(config.db_path), subject_key="path",
                 index_root=config.index_root,
             )
-        limit = config.max_results
+        limit = config.page_limit
         reason = None
         try_instead: str | None = None
         try_instead_hint: str | None = None

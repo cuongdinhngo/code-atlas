@@ -114,7 +114,7 @@ def test_zend_get_is_not_a_caller_of_application_get(
     """AC3: Zend/get no longer appears as a caller of alphabetically early application gets."""
     _plant_zend_get(store, tmp_path)
     resolve_edges(store, max_candidates=10)
-    tool = find_callers.create(replace(db_config(tmp_path), root=tmp_path, max_results=50))
+    tool = find_callers.create(replace(db_config(tmp_path), root=tmp_path, page_limit=50))
     for subject in ("\\LedgerAPIController::get", "\\AbsenceLeaveAPIController::get"):
         payload = tool(subject, detail_level="minimal")
         callers = [str(hit["qname"]) for hit in payload["results"]]
@@ -140,7 +140,7 @@ def test_proximity_ranked_find_callers_reports_true_count(
             root=tmp_path,
         )
     resolve_edges(store, max_candidates=10)
-    tool = find_callers.create(replace(db_config(tmp_path), root=tmp_path, max_results=3))
+    tool = find_callers.create(replace(db_config(tmp_path), root=tmp_path, page_limit=3))
     # Local caller shares application/ with Extra* and CacheUser — proximity depth ≥ 1.
     page = tool("\\Extra00::get", detail_level="minimal", limit=3)
     assert page["total_count"] >= 1
@@ -173,7 +173,7 @@ def test_query_cost_saturating_name_is_one_scan_of_the_name(
             root=tmp_path,
         )
     resolve_edges(store, max_candidates=10)
-    tool = find_callers.create(replace(db_config(tmp_path), root=tmp_path, max_results=50))
+    tool = find_callers.create(replace(db_config(tmp_path), root=tmp_path, page_limit=50))
     scans = 0
     inner = GraphStore.unresolved_caller_sites
 
@@ -223,7 +223,7 @@ def test_a_linked_answer_never_pays_for_the_proximity_scan(
         return []
 
     monkeypatch.setattr(GraphStore, "unresolved_caller_sites", forbidden)
-    tool = find_callers.create(replace(db_config(tmp_path), root=tmp_path, max_results=50))
+    tool = find_callers.create(replace(db_config(tmp_path), root=tmp_path, page_limit=50))
     payload = tool("\\LedgerAPIController::get", detail_level="minimal")
     assert payload["total_count"] == 1
     assert payload["reason"] != REASON_PROXIMITY_CANDIDATES

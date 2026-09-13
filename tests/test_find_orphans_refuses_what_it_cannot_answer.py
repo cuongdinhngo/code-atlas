@@ -43,7 +43,7 @@ def config_for(tmp_path: Path, **over: object):
     defaults: dict[str, object] = {
         "db_path": tmp_path / "graph.db",
         "entry_points": (ENTRY,),
-        "max_results": 50,
+        "page_limit": 50,
     }
     return replace(load_config(tmp_path, {}), **(defaults | over))  # type: ignore[arg-type]
 

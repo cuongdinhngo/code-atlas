@@ -140,8 +140,8 @@ def create(
             confidence = store.edge_health()["by_tier"]
             # 196 — the stamp beside the blend it attributes, never a second fold (183/195, P7).
             confidence_by_language = store.stamped_edge_health_by_language()
-            hubs = store.module_hubs(limit=config.max_results)
-            classes = store.largest_classes(limit=config.max_results)
+            hubs = store.module_hubs(limit=config.page_limit)
+            classes = store.largest_classes(limit=config.page_limit)
             file_syms = store.file_symbol_counts()
             file_classes = store.file_class_counts()
             file_kinds = store.file_kind_counts()
@@ -171,7 +171,7 @@ def create(
             subgraph.truncated,
             seam,
             refiner,
-            max_results=config.max_results,
+            max_results=config.page_limit,
             declared_entry_points=config.entry_points,
             declared_stub_roots=config.stub_roots,
             working_roots=roots,
@@ -187,7 +187,7 @@ def create(
         # An IDENTITY, never a count: 117's AC2 forbids a dataset number that moves when the
         # seam turns on, and `prose_calls` stays in the discarded payload for that reason.
         orientation = read_orientation(
-            Path(config.root), config.project_files, max_facts=config.max_results
+            Path(config.root), config.project_files, max_facts=config.page_limit
         )
         provenance = Provenance(
             summarizer=implementation_name(seam),
@@ -211,15 +211,15 @@ def create(
             declared_entry_points=config.entry_points,
             declared_stub_roots=config.stub_roots,
             working_roots=roots,
-            reachability_sample_max=config.max_results,
+            reachability_sample_max=config.page_limit,
             file_class_counts=file_classes,
-            module_max=config.max_results,
-            mirror_sample_max=config.max_results,
+            module_max=config.page_limit,
+            mirror_sample_max=config.page_limit,
             file_kind_counts=file_kinds,
             commit=commit,
             prose=prose,
             flow_edges=flow_edge_rows,
-            flow_max=config.max_results,
+            flow_max=config.page_limit,
             flow_max_nodes=config.impact_max_nodes,
             confidence_by_language=confidence_by_language,
             provenance=provenance,
@@ -230,7 +230,7 @@ def create(
             Path(config.root),
             artifact,
             dataset,
-            config.max_results,
+            config.page_limit,
             file_paths=file_paths,
             working_roots=roots,
             index_root=config.index_root,
@@ -378,7 +378,7 @@ def _payload(
     working_roots: Sequence[str] | None,
 ) -> dict[str, object]:
     """``results`` is the committed path list, capped; ``truncated`` covers walk and page."""
-    limit = config.max_results
+    limit = config.page_limit
     wants = contract_for(audience)
     page = written[:limit]
     payload: dict[str, object] = {

@@ -88,7 +88,7 @@ def test_resolved_caller_off_page_one_recovered_by_tier_filter(
 ) -> None:
     """AC1 (proving): RESOLVED caller absent from unfiltered page 1; present under tier filter."""
     _plant_buried_resolved(store, tmp_path, noise=5)
-    config = replace(db_config(tmp_path), root=tmp_path, max_results=3)
+    config = replace(db_config(tmp_path), root=tmp_path, page_limit=3)
     tool = find_callers.create(config)
 
     page = tool(SUBJECT, detail_level="minimal", limit=3, offset=0)
@@ -112,7 +112,7 @@ def test_tier_filter_names_itself_and_counts_matches(
 ) -> None:
     """AC2: total_count under a tier request counts that request; payload names the filter."""
     _plant_buried_resolved(store, tmp_path, noise=4)
-    config = replace(db_config(tmp_path), root=tmp_path, max_results=50)
+    config = replace(db_config(tmp_path), root=tmp_path, page_limit=50)
     tool = find_callers.create(config)
     filtered = tool(SUBJECT, detail_level="minimal", confidence_tier="RESOLVED")
     assert filtered["tier_filter"] == "RESOLVED"
@@ -127,7 +127,7 @@ def test_unfiltered_tier_census_distinguishes_absent_from_off_page(
 ) -> None:
     """AC3: unfiltered page carries tier_census so off-page RESOLVED is visible without paging."""
     _plant_buried_resolved(store, tmp_path, noise=5)
-    config = replace(db_config(tmp_path), root=tmp_path, max_results=3)
+    config = replace(db_config(tmp_path), root=tmp_path, page_limit=3)
     tool = find_callers.create(config)
     page = tool(SUBJECT, detail_level="minimal", limit=3)
     assert RESOLVED_CALLER not in [str(hit["qname"]) for hit in page["results"]]
@@ -152,7 +152,7 @@ def test_all_resolved_omits_tier_census(store: GraphStore, tmp_path: Path) -> No
     ]
     seed_file(store, SUBJECT_FILE, nodes[:1], [], root=tmp_path)
     seed_file(store, "app/ZeeLast.php", [nodes[1]], edges, root=tmp_path)
-    config = replace(db_config(tmp_path), root=tmp_path, max_results=50)
+    config = replace(db_config(tmp_path), root=tmp_path, page_limit=50)
     payload = find_callers.create(config)(SUBJECT, detail_level="minimal")
     assert "tier_census" not in payload
     assert "tier_filter" not in payload
@@ -173,7 +173,7 @@ def test_cross_language_caveat_states_reader_limit(tmp_path: Path) -> None:
 def test_tier_control_off_is_byte_identical(store: GraphStore, tmp_path: Path) -> None:
     """AC5: omitting the tier control matches an explicit None (022 AC3 shape)."""
     _plant_buried_resolved(store, tmp_path, noise=2)
-    config = replace(db_config(tmp_path), root=tmp_path, max_results=50)
+    config = replace(db_config(tmp_path), root=tmp_path, page_limit=50)
     tool = find_callers.create(config)
     first = tool(SUBJECT, detail_level="minimal")
     second = tool(SUBJECT, detail_level="minimal")

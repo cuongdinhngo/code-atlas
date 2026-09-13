@@ -60,7 +60,7 @@ files, until `idx_edges_file` landed (`store.py`). The same rebuild went **75.8 
 ## 3. Read the parse failures — they are usually not your bug
 
 After the first build, call `get_index_status(detail_level="verbose")` and read
-`parse_failure_paths` (capped at 50 paths, independent of `CA_MAX_RESULTS`; use `offset` to walk
+`parse_failure_paths` (capped at 50 paths, independent of `CA_PAGE_LIMIT`; use `offset` to walk
 further pages when `parse_failures_truncated` is true). The count alone (`parse_failures` on
 `standard`) does not say whether the hole is vendored fixtures or controllers — listing them is how
 you catch a systematic failure (one directory, one encoding, one PHP version) at onboarding rather
@@ -102,56 +102,50 @@ unscoped `resolve_edges` hypothesis is confirmed and a follow-up fix ticket is w
 is spread across walk/reconcile/resolve, treat it as the honest price of that graph and keep hooks
 out of band.
 
-## 4. Tune four knobs, then rebuild once
+## 4. Tune the knobs, then rebuild when the *build* ones move
 
 Put them in a committed-or-not `.code-atlas.toml` at the repo root (see
 [Configuration](../../README.md#configuration) for the full table).
 
-| Knob | Why it matters at scale |
-|---|---|
-| `workers` | Leave CPUs for the writer. More than ~6 does not help (§2 above). |
-| `adapter_timeout` | Legacy page scripts run to thousands of lines; the 30 s default is tight when workers compete. 60 s is safer. |
-| `max_results` | Caps the rows a tool returns, and the resolver's candidate lookups. **It was the disk knob until 258** — see below. It does **not** size `parse_failure_paths` on `verbose` status (fixed page of 50 + `offset`). |
-| `entry_points` | Without it `reachable_from` / `find_orphans` return `no_roots_configured` and do nothing. A **stale** root is worse than none: declare only what a request can actually reach (§9). |
+| Knob | Rebuild? | Why it matters at scale |
+|---|---|---|
+| `workers` | yes | Leave CPUs for the writer. More than ~6 does not help (§2 above). |
+| `adapter_timeout` | yes | Legacy page scripts run to thousands of lines; the 30 s default is tight when workers compete. 60 s is safer. |
+| `max_candidates` (`CA_MAX_CANDIDATES`) | **yes** | Build-time resolver fan-out. Pre-259 name `max_results` / `CA_MAX_RESULTS` still means this (alias). |
+| `page_limit` (`CA_PAGE_LIMIT`) | **no** | Query-time row ceiling for search/nav pages. Default 50. Changing it never forces a rebuild (259). |
+| `entry_points` | yes | Without it `reachable_from` / `find_orphans` return `no_roots_configured` and do nothing. A **stale** root is worse than none: declare only what a request can actually reach (§9). |
 
-### `max_results` sized the graph — until 258
+**259 — two knobs, not one.** Until 259, `CA_MAX_RESULTS` capped both the page and the fan-out, so a
+repo that pinned `10` for disk reasons also got ten-row pages. On upgrade: `CA_MAX_RESULTS=10` (or
+`max_results = 10` in the project file) still sets **fan-out** to 10; **pages default to 50** with no
+rebuild. Prefer the new names going forward. `parse_failure_paths` on `verbose` status stays its own
+fixed page of 50 + `offset`.
 
-**Current behaviour (258, 2026-09-12):** a call the resolver cannot pin to one target now stores
-**one** unresolved site, and `find_callers` expands the candidates at query time as
-`reason=proximity_candidates`. The knob still caps pages and the other candidate lookups; it no
-longer multiplies rows into the graph. Everything below is the **pre-258 measurement**, kept because
-it is the evidence 258 was written from and the reason an old index is the size it is.
+### Fan-out history (258 ended cartesian edges; 259 split the knob)
 
-`full_build` passes it straight through as the resolver's candidate cap
-(`indexer.py:617` → `resolve_edges(store, max_candidates=config.max_results)`). For every call the
-resolver could not pin to one target, `_queue_candidates` (`resolver.py:648`) inserted **one extra
-edge per remaining candidate** — that is the multiplication 258 ended for bare-name `Method` calls. On a legacy codebase where most calls are `$obj->method()` with no type
-information, that fallback (`nodes_by_names(kind="Method", limit=max_candidates)`) is where the graph
-comes from.
+**258 (2026-09-12):** a call the resolver cannot pin to one target stores **one** unresolved site;
+`find_callers` expands candidates at query time as `reason=proximity_candidates`. Fan-out no longer
+multiplies rows into the graph for bare-name `Method` calls.
 
-Measured on the sample repo: **491,741 distinct heuristic call sites**, of which **33,300 saturated a
-cap of 50**. Holding the file set constant, the heuristic edge count by cap:
+**Pre-258 measurement** (why old indexes are the size they are): `full_build` passed the cap as
+`resolve_edges(..., max_candidates=…)`. At every unsaturated multi-match site the resolver inserted
+one edge per remaining candidate. On the sample repo (**491,741** heuristic call sites; **33,300**
+saturated at 50):
 
-| `max_results` | Heuristic edges | Share |
+| fan-out (then `max_results`) | Heuristic edges | Share |
 |---|---|---|
 | 1 | 491,741 | 10 % |
 | 5 | 1,737,848 | 36 % |
 | 10 | 2,601,514 | 54 % |
 | 50 | 4,764,465 | 99 % |
 
-The rows a high cap adds are "some method with this name, somewhere" guesses. A saturated site returns
-50 unrelated candidates, which is not an answer an agent can act on — and truncation is still reported
-honestly through `total_count`, so the cap costs signal only where there was none. Dropping 50 → 10 on
-the sample repo took the database from **2,115 MB to 1,133 MB**. (That figure also includes the
-`.codeatlasignore` change from §5; the isolated fan-out effect is the −46 % in the table above.)
-
-Budget roughly **1 GB of index per 20k legacy PHP files** at `max_results = 10` — a pre-258
-figure. **No post-258 anchor measurement exists yet** (258's AC1 shipped E1), so treat it as an
-upper bound: the fan-out it measures is the part that went away.
+Dropping 50 → 10 took the database from **2,115 MB to 1,133 MB** (also includes the `.codeatlasignore`
+change from §5). Budget roughly **1 GB per 20k legacy PHP files** at fan-out 10 — a pre-258 upper
+bound; 258's AC1 shipped E1 so no post-258 anchor measurement exists yet.
 
 ### If you set `entry_points`, also look at `impact_max_nodes` and `orphans_max_nodes`
 
-`reachable_from` is bounded by `impact_max_nodes` (default 500), **not** by `max_results`.
+`reachable_from` is bounded by `impact_max_nodes` (default 500), **not** by `page_limit`.
 `find_orphans` pages orphan rows via `limit`/`offset` (same as other list tools) and uses its own
 walk budget `orphans_max_nodes` (`CA_ORPHANS_MAX_NODES`, default 500) — changing `impact_max_nodes`
 does not change which orphans are returned. At `detail_level = "standard"` a 500-row reachability
@@ -372,7 +366,7 @@ Read the **Zero-inbound modules, by population** block first, and read it agains
 - [ ] Grammar version covers the repo's PHP target; Docker avoided if a host CLI exists
 - [ ] One measured build outside the client; elapsed, `parsed_ok`, DB size recorded
 - [ ] Parse failures triaged into "bundled library" vs "invalid PHP"
-- [ ] `max_results` chosen deliberately — it caps pages and candidate lookups; since 258 it no longer sizes the index
+- [ ] `max_candidates` / `page_limit` chosen deliberately — fan-out needs a rebuild; page cap does not (259)
 - [ ] `entry_points` set, or reachability tools knowingly left off
 - [ ] Tracked-vs-indexed file counts diffed; `.gitignore` negations checked
 - [ ] MCP server registered at local scope with a `cd` wrapper; shared `.mcp.json` untouched

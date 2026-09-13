@@ -70,10 +70,19 @@ KNOBS = (
         lambda root: 30,
     ),
     Knob(
-        "CA_MAX_RESULTS",
-        "max_results = 20",
+        "CA_MAX_CANDIDATES",
+        "max_candidates = 20",
         "99",
-        lambda config: config.max_results,
+        lambda config: config.max_candidates,
+        lambda root: 99,
+        lambda root: 20,
+        lambda root: 50,
+    ),
+    Knob(
+        "CA_PAGE_LIMIT",
+        "page_limit = 20",
+        "99",
+        lambda config: config.page_limit,
         lambda root: 99,
         lambda root: 20,
         lambda root: 50,
@@ -272,7 +281,7 @@ def test_every_knob_has_a_precedence_case() -> None:
     # Guards the guard: dropping a knob from KNOBS would otherwise shrink AC1's coverage silently.
     covered = {knob.variable for knob in KNOBS}
     assert {env_name(key) for key in KNOB_KEYS} | {"CA_PHP_CMD"} == covered
-    assert len(KNOB_KEYS) == 21
+    assert len(KNOB_KEYS) == 22
 
 
 def test_env_name_is_derived_from_the_project_file_key() -> None:
@@ -280,7 +289,8 @@ def test_env_name_is_derived_from_the_project_file_key() -> None:
         "CA_DB_PATH",
         "CA_WORKERS",
         "CA_ADAPTER_TIMEOUT",
-        "CA_MAX_RESULTS",
+        "CA_MAX_CANDIDATES",
+        "CA_PAGE_LIMIT",
         "CA_MAX_SUBJECTS",
         "CA_IMPACT_DEPTH",
         "CA_IMPACT_MAX_NODES",
@@ -461,3 +471,27 @@ def test_the_resolved_config_is_immutable(tmp_path: Path) -> None:
     config = load_config(tmp_path, {})
     with pytest.raises(AttributeError):
         config.workers = 99  # type: ignore[misc]
+
+def test_ca_max_results_alias_sets_fanout_not_page(tmp_path: Path) -> None:
+    """259 AC3: CA_MAX_RESULTS alone keeps build-time meaning; page stays at its default."""
+    config = load_config(tmp_path, {"CA_MAX_RESULTS": "10"})
+    assert config.max_candidates == 10
+    assert config.page_limit == 50
+
+
+def test_project_file_max_results_alias_sets_fanout(tmp_path: Path) -> None:
+    (tmp_path / PROJECT_FILE).write_text("max_results = 10\n", encoding="utf-8")
+    config = load_config(tmp_path, {})
+    assert config.max_candidates == 10
+    assert config.page_limit == 50
+
+
+def test_page_limit_env_does_not_move_identity(tmp_path: Path) -> None:
+    """259: changing the query-time page cap must not force a rebuild."""
+    from code_atlas.config import config_identity
+
+    base = config_identity(tmp_path, {"CA_WORKERS": "1"})
+    assert config_identity(tmp_path, {"CA_WORKERS": "1", "CA_PAGE_LIMIT": "10"}) == base
+    assert config_identity(tmp_path, {"CA_WORKERS": "1", "CA_MAX_CANDIDATES": "10"}) != base
+    assert config_identity(tmp_path, {"CA_WORKERS": "1", "CA_MAX_RESULTS": "10"}) != base
+

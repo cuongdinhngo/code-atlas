@@ -233,7 +233,7 @@ def _overview(
     construction; the cap holds regardless of grouping method.
     """
     rich = detail_level in ("standard", "verbose")
-    limit = config.max_results
+    limit = config.page_limit
     layers = _layer_rows(metrics, assignment, degrees=rich, described=described)
     payload: dict[str, object] = {
         "indexed": True,

@@ -37,7 +37,7 @@ def _config(tmp_path: Path) -> Config:
     return replace(
         load_config(tmp_path, {}),
         db_path=tmp_path / "graph.db",
-        max_results=CEILING,
+        page_limit=CEILING,
         entry_points=("entry.php",),
     )
 
@@ -153,16 +153,20 @@ def test_no_field_when_request_is_honoured(
     assert "limit_capped_to" not in result
 
 
-def test_status_reports_max_results_and_double_duty(tmp_path: Path) -> None:
-    """AC4: the ceiling and its double duty are discoverable from `get_index_status`."""
+def test_status_reports_page_limit_and_max_candidates_separately(tmp_path: Path) -> None:
+    """066/259: each ceiling is discoverable with its own scope — not one knob for both."""
     _seed(tmp_path)
     status = get_index_status.create(_config(tmp_path), TOOLS)(detail_level="standard")
-    assert status["max_results"] == {
+    assert status["page_limit"] == {
         "value": CEILING,
-        "governs": ["returned_rows", "resolver_candidate_fanout"],
+        "governs": ["returned_rows"],
+    }
+    assert status["max_candidates"] == {
+        "value": 50,  # default fan-out; _config only narrows page_limit
+        "governs": ["resolver_candidate_fanout"],
     }
     minimal = get_index_status.create(_config(tmp_path), TOOLS)(detail_level="minimal")
-    assert "max_results" not in minimal  # minimal stays the cheap path
+    assert "page_limit" not in minimal and "max_candidates" not in minimal
 
 
 def test_clamp_limit_helper_is_pure() -> None:

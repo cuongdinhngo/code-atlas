@@ -180,7 +180,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             raise ValueError(f"depth must be >= 1, got {depth}")
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
-        cap, limit_clamped = clamp_limit(limit, config.max_results)
+        cap, limit_clamped = clamp_limit(limit, config.page_limit)
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
         args_at = _args_at(arg_position, arg_is, depth=depth)
@@ -247,7 +247,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 confidence_tier=tier,
             )
             # Widen the existing indexed-check fetch to surface every definition site (task 070).
-            subject_nodes = store.nodes_by_qualified_name(lookup, limit=config.max_results)
+            subject_nodes = store.nodes_by_qualified_name(lookup, limit=config.page_limit)
             indexed = bool(subject_nodes)
             unrecorded = (
                 store.count_edges_without_args(lookup, kinds=CALLER_KINDS)
@@ -259,7 +259,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             )
             if outcome.total_count == 0 and not indexed:
                 resolution = classify_missing_subject(
-                    store, asked, limit=config.max_results
+                    store, asked, limit=config.page_limit
                 )
                 repointed = unique_repoint(resolution)
                 if repointed is None:
@@ -301,7 +301,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     confidence_tier=tier,
                 )
                 subject_nodes = store.nodes_by_qualified_name(
-                    lookup, limit=config.max_results
+                    lookup, limit=config.page_limit
                 )
                 indexed = bool(subject_nodes)
                 unrecorded = (
@@ -316,8 +316,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             unresolved_bare = 0
             if indexed and container is not None and outcome.total_count == 0:
                 # Method-shaped only — Function ``\App\put`` ≠ bare Method ``put``.
-                # Cap uses query-time max_results (index-time may differ — Part A).
-                if store.count_nodes_by_name(bare_name, kind="Method") > config.max_results:
+                # Cap uses query-time page_limit (build fan-out may differ — 259).
+                if store.count_nodes_by_name(bare_name, kind="Method") > config.page_limit:
                     unresolved_bare = store.count_bare_calls_not_targeting(
                         lookup, bare_name=bare_name
                     )
@@ -357,7 +357,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     bare_name=str(subject_nodes[0]["name"]),
                     kind="Function",
                     lookup=lookup,
-                    limit=config.max_results,
+                    limit=config.page_limit,
                 )
                 sibling_sites = definition_sites(siblings)
             elif indexed and container is not None:
@@ -368,7 +368,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     bare_name=bare_name,
                     kind="Method",
                     lookup=lookup,
-                    limit=config.max_results,
+                    limit=config.page_limit,
                 )
                 sibling_sites = definition_sites(siblings)
             if include_source:

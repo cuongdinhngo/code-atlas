@@ -35,7 +35,7 @@ def _plant_impls(store: GraphStore, root: Path, *, n: int) -> None:
 def test_paged_walk_visits_each_row_once_stable(store: GraphStore, tmp_path: Path) -> None:
     """Proving test: walk every page; two runs identical; no skip/repeat (R4.2)."""
     _plant_impls(store, tmp_path, n=5)
-    config = replace(db_config(tmp_path), root=tmp_path, max_results=2)
+    config = replace(db_config(tmp_path), root=tmp_path, page_limit=2)
     tool = find_implementations.create(config)
 
     def walk() -> list[str]:
@@ -61,7 +61,7 @@ def test_paged_walk_visits_each_row_once_stable(store: GraphStore, tmp_path: Pat
 
 def test_last_page_is_not_truncated(store: GraphStore, tmp_path: Path) -> None:
     _plant_impls(store, tmp_path, n=3)
-    config = replace(db_config(tmp_path), root=tmp_path, max_results=2)
+    config = replace(db_config(tmp_path), root=tmp_path, page_limit=2)
     tool = find_implementations.create(config)
     first = tool("\\Base", detail_level="minimal", limit=2, offset=0)
     last = tool("\\Base", detail_level="minimal", limit=2, offset=2)
@@ -72,7 +72,7 @@ def test_last_page_is_not_truncated(store: GraphStore, tmp_path: Path) -> None:
 
 def test_find_implementations_accepts_limit(store: GraphStore, tmp_path: Path) -> None:
     _plant_impls(store, tmp_path, n=3)
-    config = replace(db_config(tmp_path), root=tmp_path, max_results=50)
+    config = replace(db_config(tmp_path), root=tmp_path, page_limit=50)
     result = find_implementations.create(config)(
         "\\Base", detail_level="minimal", limit=1
     )
@@ -86,7 +86,7 @@ def test_default_args_match_pre_pagination_shape(store: GraphStore, tmp_path: Pa
     from code_atlas.contract import IMPL_KINDS
 
     _plant_impls(store, tmp_path, n=3)
-    config = replace(db_config(tmp_path), root=tmp_path, max_results=2)
+    config = replace(db_config(tmp_path), root=tmp_path, page_limit=2)
     expected_sources = [
         str(row["source_qname"])
         for row in store.edges_by_target("\\Base", kinds=IMPL_KINDS, limit=2, offset=0)
@@ -141,7 +141,7 @@ def test_find_callers_depth1_pages(store: GraphStore, tmp_path: Path) -> None:
         ),
     ]
     seed_file(store, "a.x", nodes, edges, root=tmp_path)
-    config = replace(db_config(tmp_path), root=tmp_path, max_results=2)
+    config = replace(db_config(tmp_path), root=tmp_path, page_limit=2)
     tool = find_callers.create(config)
     page0 = tool("\\T::put", detail_level="minimal", limit=2, offset=0)
     page1 = tool("\\T::put", detail_level="minimal", limit=2, offset=2)
@@ -155,7 +155,7 @@ def test_find_callers_depth1_pages(store: GraphStore, tmp_path: Path) -> None:
 def test_search_symbol_offset_pages(store: GraphStore, tmp_path: Path) -> None:
     nodes = [node("Class", f"Hit{i}", f"\\Hit{i}", "a.x") for i in range(4)]
     seed_file(store, "a.x", nodes, [], root=tmp_path)
-    config = replace(db_config(tmp_path), root=tmp_path, max_results=2)
+    config = replace(db_config(tmp_path), root=tmp_path, page_limit=2)
     tool = search_symbol.create(config)
     page0 = tool("Hit", detail_level="minimal", limit=2, offset=0)
     page1 = tool("Hit", detail_level="minimal", limit=2, offset=2)
@@ -186,7 +186,7 @@ def test_find_references_offset(store: GraphStore, tmp_path: Path) -> None:
         ),
     ]
     seed_file(store, "a.x", nodes, edges, root=tmp_path)
-    config = replace(db_config(tmp_path), root=tmp_path, max_results=1)
+    config = replace(db_config(tmp_path), root=tmp_path, page_limit=1)
     tool = find_references.create(config)
     first = tool("\\T::put", detail_level="minimal", limit=1, offset=0)
     second = tool("\\T::put", detail_level="minimal", limit=1, offset=1)
@@ -220,7 +220,7 @@ def test_find_callers_depth2_offset_pages_bfs_stream(
         ),
     ]
     seed_file(store, "a.x", nodes, edges, root=tmp_path)
-    config = replace(db_config(tmp_path), root=tmp_path, max_results=10)
+    config = replace(db_config(tmp_path), root=tmp_path, page_limit=10)
     tool = find_callers.create(config)
     page0 = tool("\\A::m", depth=2, detail_level="minimal", limit=1, offset=0)
     page1 = tool("\\A::m", depth=2, detail_level="minimal", limit=1, offset=1)
@@ -235,7 +235,7 @@ def test_search_offset_past_end_is_ok_not_no_matches(
     """Empty page with total_count > 0 must not read as proof of absence (PR #67)."""
     nodes = [node("Class", f"Hit{i}", f"\\Hit{i}", "a.x") for i in range(4)]
     seed_file(store, "a.x", nodes, [], root=tmp_path)
-    config = replace(db_config(tmp_path), root=tmp_path, max_results=2)
+    config = replace(db_config(tmp_path), root=tmp_path, page_limit=2)
     result = search_symbol.create(config)(
         "Hit", detail_level="minimal", limit=2, offset=99
     )
