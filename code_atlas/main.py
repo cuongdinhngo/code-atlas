@@ -28,6 +28,7 @@ from code_atlas.tools import (
     find_orphans,
     find_references,
     find_view_data,
+    fit,
     generate_onboarding,
     get_index_status,
     guided_tour,
@@ -92,66 +93,73 @@ def build_server(
     """
     names = allowed_tools(config.tools)
     server: FastMCP = FastMCP(SERVER_NAME)
+
+    def serve(name: str, tool: object) -> None:
+        """Register ``tool`` under ``name``, counting every return (task 260)."""
+        server.tool(fit.wrap(name, config, tool))  # type: ignore[arg-type]
+
     if get_index_status.NAME in names:
-        server.tool(get_index_status.create(config, names))
+        serve(get_index_status.NAME, get_index_status.create(config, names))
     if build_or_update_index.NAME in names:
-        server.tool(build_or_update_index.create(config))
+        serve(build_or_update_index.NAME, build_or_update_index.create(config))
     if search_symbol.NAME in names:
-        server.tool(guard(search_symbol.create(config)))
+        serve(search_symbol.NAME, guard(search_symbol.create(config)))
     if file_outline.NAME in names:
-        server.tool(guard(file_outline.create(config)))
+        serve(file_outline.NAME, guard(file_outline.create(config)))
     if read_symbol.NAME in names:
-        server.tool(guard(read_symbol.create(config)))
+        serve(read_symbol.NAME, guard(read_symbol.create(config)))
     if find_callers.NAME in names:
-        server.tool(guard(find_callers.create(config)))
+        serve(find_callers.NAME, guard(find_callers.create(config)))
     if find_references.NAME in names:
-        server.tool(guard(find_references.create(config)))
+        serve(find_references.NAME, guard(find_references.create(config)))
     if find_implementations.NAME in names:
-        server.tool(guard(find_implementations.create(config)))
+        serve(find_implementations.NAME, guard(find_implementations.create(config)))
     if find_view_data.NAME in names:
-        server.tool(guard(find_view_data.create(config)))
+        serve(find_view_data.NAME, guard(find_view_data.create(config)))
     if include_graph.NAME in names:
-        server.tool(guard(include_graph.create(config)))
+        serve(include_graph.NAME, guard(include_graph.create(config)))
     if impact.NAME in names:
-        server.tool(guard(impact.create(config)))
+        serve(impact.NAME, guard(impact.create(config)))
     if impact_modules.NAME in names:
-        server.tool(guard(impact_modules.create(config)))
+        serve(impact_modules.NAME, guard(impact_modules.create(config)))
     if subtree_dependencies.NAME in names:
-        server.tool(guard(subtree_dependencies.create(config)))
+        serve(subtree_dependencies.NAME, guard(subtree_dependencies.create(config)))
     if reachable_from.NAME in names:
-        server.tool(guard(reachable_from.create(config)))
+        serve(reachable_from.NAME, guard(reachable_from.create(config)))
     if find_orphans.NAME in names:
-        server.tool(guard(find_orphans.create(config)))
+        serve(find_orphans.NAME, guard(find_orphans.create(config)))
     if explain_path.NAME in names:
-        server.tool(guard(explain_path.create(config)))
+        serve(explain_path.NAME, guard(explain_path.create(config)))
     if architecture_overview.NAME in names:
-        server.tool(
+        serve(
+            architecture_overview.NAME,
             guard(
                 architecture_overview.create(
                     config, summarizer, layer_refiner, prose_writer
                 )
-            )
+            ),
         )
     if guided_tour.NAME in names:
-        server.tool(guard(guided_tour.create(config)))
+        serve(guided_tour.NAME, guard(guided_tour.create(config)))
     if generate_onboarding.NAME in names:
-        server.tool(
+        serve(
+            generate_onboarding.NAME,
             guard(
                 generate_onboarding.create(
                     config, summarizer, layer_refiner, prose_writer
                 )
-            )
+            ),
         )
     if check_architecture_rules.NAME in names:
-        server.tool(guard(check_architecture_rules.create(config)))
+        serve(check_architecture_rules.NAME, guard(check_architecture_rules.create(config)))
     if check_column_defaults.NAME in names:
-        server.tool(guard(check_column_defaults.create(config)))
+        serve(check_column_defaults.NAME, guard(check_column_defaults.create(config)))
     if diff_architecture.NAME in names:
-        server.tool(guard(diff_architecture.create(config)))
+        serve(diff_architecture.NAME, guard(diff_architecture.create(config)))
     if class_diagram.NAME in names:
-        server.tool(guard(class_diagram.create(config)))
+        serve(class_diagram.NAME, guard(class_diagram.create(config)))
     if trace_capability.NAME in names:
-        server.tool(guard(trace_capability.create(config)))
+        serve(trace_capability.NAME, guard(trace_capability.create(config)))
     prompts.register(server)
     return server
 

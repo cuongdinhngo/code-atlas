@@ -41,7 +41,7 @@ from code_atlas.store import (
     GraphStore,
     SchemaVersionError,
 )
-from code_atlas.tools import claim, schema_guard
+from code_atlas.tools import claim, fit, schema_guard
 from code_atlas.tools.collection import collection_field
 from code_atlas.tools.config_provenance import attach_config_provenance
 from code_atlas.tools.coverage import covered_languages
@@ -86,7 +86,10 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
     servable = tuple(registered)
 
     def get_index_status(
-        detail_level: DetailLevel = "standard", offset: int = 0, sign: bool = False
+        detail_level: DetailLevel = "standard",
+        offset: int = 0,
+        sign: bool = False,
+        reset_fit_counts: bool = False,
     ) -> dict[str, object]:
         """Is the index built, fresh, and healthy — and what should I call next? Call this first.
 
@@ -110,6 +113,9 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
         index holds files of (231/244/173); omitted when the stamp is absent or empty
         (R5.6 / 061). ``verbose`` still nests the
         full census (with ``pairs``) inside ``edge_health_by_language``.
+        ``verbose`` also carries ``fit_counts`` — local per-tool ask tallies (task 260); pass
+        ``reset_fit_counts=true`` to clear them first (documented reset; local counts are not
+        telemetry). See ``docs/design/fit.md`` for the fit definition before reading the numbers.
 
         ``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
         ``key=value`` line stating how many files this index covers and at which revision. An
@@ -119,6 +125,9 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
             raise ValueError(f"offset must be >= 0, got {offset}")
         if offset > 0 and detail_level != "verbose":
             raise ValueError("offset requires detail_level='verbose'")
+        if reset_fit_counts and config.db_path.is_file():
+            with GraphStore(config.db_path) as store:
+                store.clear_fit_counts()
         if not config.db_path.is_file():
             return _unbuilt(servable, detail_level, config)
         try:
@@ -338,6 +347,7 @@ def _status(
     if collection is not None:
         verbose["collection"] = collection
     _attach_edge_health_by_language(verbose, store)
+    verbose[fit.FIT_COUNTS_FIELD] = store.list_fit_counts()
     return signed(verbose)
 
 

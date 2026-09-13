@@ -11,8 +11,11 @@ order, and ``files.updated_at`` is wall-clock. The clock is injectable so a call
 determinism (R4.2) is asserted over row content ordered by a stable key, with the ids excluded.
 """
 
+import atexit
+import contextlib
 import json
 import sqlite3
+import threading
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
@@ -68,6 +71,8 @@ EDGE_HEALTH_BY_LANGUAGE_KEY = "edge_health_by_language"
 # without knowing what any language is (R1.1) — and a language name in the core is forbidden.
 EMITTED_KINDS_BY_LANGUAGE_KEY = "emitted_kinds_by_language"
 CAPABILITIES_BY_LANGUAGE_KEY = "capabilities_by_language"
+# Local fit counters (task 260): one meta row per (tool, reason, authoritative, truncated).
+FIT_KEY_PREFIX = "fit:"
 META_KEYS: tuple[str, ...] = (
     SCHEMA_VERSION_KEY,
     CONTRACT_VERSION_KEY,
@@ -467,6 +472,109 @@ def stored(value: object) -> object:
     return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
 
+def fit_meta_key(
+    tool: str,
+    reason: str,
+    *,
+    authoritative: bool,
+    truncated: bool,
+) -> str:
+    """Encode the fit tuple as a meta key — counts only, never subject values (task 260)."""
+    return (
+        f"{FIT_KEY_PREFIX}{tool}|{reason}|{int(authoritative)}|{int(truncated)}"
+    )
+
+
+def parse_fit_meta_key(
+    key: str,
+) -> tuple[str, str, bool, bool] | None:
+    """Decode a ``fit:`` meta key, or ``None`` when the shape is not ours."""
+    if not key.startswith(FIT_KEY_PREFIX):
+        return None
+    parts = key[len(FIT_KEY_PREFIX) :].split("|")
+    if len(parts) != 4:
+        return None
+    tool, reason, auth_s, trunc_s = parts
+    if auth_s not in ("0", "1") or trunc_s not in ("0", "1"):
+        return None
+    return tool, reason, auth_s == "1", trunc_s == "1"
+
+
+# One atomic read-free bump, shared by the open-store method and the per-call fast path (260).
+_FIT_BUMP_SQL = (
+    "INSERT INTO meta (key, value) VALUES (?, '1') "
+    "ON CONFLICT(key) DO UPDATE SET value = CAST(CAST(meta.value AS INTEGER) + 1 AS TEXT)"
+)
+
+# The fit counter rides **every** served call, so it reuses one handle per index. Measured: the
+# first write on a *fresh* connection costs 6.3 ms (WAL shared-memory setup), against 0.024 ms on
+# a kept one — the difference between a 0.4 ms nav answer and a 7 ms one (260).
+_FIT_CONNS: dict[Path, tuple[sqlite3.Connection, tuple[int, int]]] = {}
+_FIT_LOCK = threading.Lock()
+
+
+def _fit_conn(db_path: Path) -> sqlite3.Connection:
+    """The kept counter handle for ``db_path``, opened on first use. Held under ``_FIT_LOCK``.
+
+    Keyed on the file's identity, not its name: a rebuild that replaces the index leaves the old
+    handle writing to an unlinked inode, where SQLite reports no error and the counts vanish.
+    """
+    stat = db_path.stat()
+    ident = (stat.st_dev, stat.st_ino)
+    cached = _FIT_CONNS.get(db_path)
+    if cached is not None and cached[1] == ident:
+        return cached[0]
+    if cached is not None:
+        with contextlib.suppress(sqlite3.Error):
+            cached[0].close()
+    conn = sqlite3.connect(db_path, check_same_thread=False)
+    conn.execute("PRAGMA busy_timeout=5000")
+    # Durability the graph needs, a counter does not: no graph row is written here, and a
+    # counter that loses its last few increments to a power cut is still a counter.
+    conn.execute("PRAGMA synchronous=NORMAL")
+    _FIT_CONNS[db_path] = (conn, ident)
+    return conn
+
+
+def close_fit_connections() -> None:
+    """Drop every kept counter handle — server shutdown, and a test that replaces its index."""
+    with _FIT_LOCK:
+        while _FIT_CONNS:
+            _, (conn, _ident) = _FIT_CONNS.popitem()
+            with contextlib.suppress(sqlite3.Error):
+                conn.close()
+
+
+atexit.register(close_fit_connections)
+
+
+def bump_fit_count(
+    db_path: Path,
+    tool: str,
+    reason: str,
+    *,
+    authoritative: bool,
+    truncated: bool,
+) -> None:
+    """Fit bump on an existing index (task 260), counts only — never a qname, path or argument.
+
+    A file with no ``meta`` table, or one that vanished between the caller's check and this
+    write, is not an answer this counter may spoil: the handle is dropped and the count abandoned.
+    Counting must never raise into a caller's answer.
+    """
+    key = fit_meta_key(tool, reason, authoritative=authoritative, truncated=truncated)
+    with _FIT_LOCK:
+        try:
+            conn = _fit_conn(db_path)
+            with conn:
+                conn.execute(_FIT_BUMP_SQL, (key,))
+        except (sqlite3.Error, OSError):
+            cached = _FIT_CONNS.pop(db_path, None)
+            if cached is not None:
+                with contextlib.suppress(sqlite3.Error):
+                    cached[0].close()
+
+
 class GraphStore:
     """The graph in SQLite: schema creation, per-file writes, and every bounded read."""
 
@@ -740,6 +848,55 @@ class GraphStore:
         """Drop a meta row so a rebuild cannot inherit a stale stamp (077)."""
         with self._conn:
             self._conn.execute("DELETE FROM meta WHERE key = ?", (key,))
+
+    def increment_fit_count(
+        self,
+        tool: str,
+        reason: str,
+        *,
+        authoritative: bool,
+        truncated: bool,
+    ) -> None:
+        """Bump the local fit counter for one ``(tool, reason, authoritative, truncated)`` tuple.
+
+        Counts only — the key never carries qname, path, or argument values (task 260 / R4).
+        """
+        key = fit_meta_key(tool, reason, authoritative=authoritative, truncated=truncated)
+        with self._conn:
+            self._conn.execute(_FIT_BUMP_SQL, (key,))
+
+    def list_fit_counts(self) -> list[dict[str, object]]:
+        """Every ``fit:`` meta row as a stable sorted list of count tuples (task 260)."""
+        rows = self._conn.execute(
+            "SELECT key, value FROM meta WHERE key LIKE ? ESCAPE '!' ORDER BY key",
+            (FIT_KEY_PREFIX.replace("!", "!!") + "%",),
+        ).fetchall()
+        out: list[dict[str, object]] = []
+        for key, value in rows:
+            parsed = parse_fit_meta_key(str(key))
+            if parsed is None:
+                continue
+            tool, reason, authoritative, truncated = parsed
+            count = int(value) if str(value).isdigit() else 0
+            out.append(
+                {
+                    "tool": tool,
+                    "reason": reason,
+                    "authoritative": authoritative,
+                    "truncated": truncated,
+                    "count": count,
+                }
+            )
+        return out
+
+    def clear_fit_counts(self) -> int:
+        """Delete every ``fit:`` meta row; return how many were removed (task 260)."""
+        with self._conn:
+            cursor = self._conn.execute(
+                "DELETE FROM meta WHERE key LIKE ? ESCAPE '!'",
+                (FIT_KEY_PREFIX.replace("!", "!!") + "%",),
+            )
+            return int(cursor.rowcount)
 
     def rebuild_search_index(self) -> None:
         """Repair only: the triggers keep nodes_fts current, so this just recovers a stale index."""
