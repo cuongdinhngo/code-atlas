@@ -108,9 +108,9 @@ not) and **every adapter**: `php` + `composer`, `node` for both the TS and SQL a
 Python ≥ 3.12 interpreter —
 with all of them present, bare `pytest` is the fastest route. Missing either condition it goes red —
 **a platform limitation, not a regression** — so don't conclude "the suite can't run"; run it in
-Docker instead: `scripts/docker-test.sh`. **Expected count, verified 2026-09-12 on Linux — the one
+Docker instead: `scripts/docker-test.sh`. **Expected count, verified 2026-09-13 on Linux — the one
 place these numbers are kept:** bare `pytest` (with `php` · `composer` · `node` · `docker` on PATH)
-**3,742 passed / 3 skipped**; `scripts/docker-test.sh` **3,741 passed / 4 skipped**. Both measured
+**3,962 passed / 3 skipped**; `scripts/docker-test.sh` **3,961 passed / 4 skipped**. Both measured
 on the same tree; neither is derived from the other. Green skips: the
 Windows lock arm (3) and, in-image only, `test_runtime_image_reports_server_build`.
 

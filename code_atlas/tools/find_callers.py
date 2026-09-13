@@ -494,8 +494,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if unlinked_edge_kinds:
             # Names the unmeasured relation(s) — not hits (R5.6 / 255 AC1), as find_references does.
             result["unlinked_edge_kinds"] = unlinked_edge_kinds
-        if depth == 1:
-            # A depth-1 partition of a multi-hop total would not add up — omitted above 1 (262).
+        if depth == 1 and (production_count or test_count):
+            # A depth-1 partition of a multi-hop total would not add up, so it is omitted above 1;
+            # 0 + 0 would only restate `total_count`, so it is omitted there too (262/061).
             result["production_count"] = production_count
             result["test_count"] = test_count
             if test_role_label is not None:

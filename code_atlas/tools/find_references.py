@@ -386,10 +386,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if unlinked_edge_kinds:
             # Names the unmeasured relation(s) — not hits (R5.6 / 255 AC1).
             result["unlinked_edge_kinds"] = unlinked_edge_kinds
-        result["production_count"] = production_count
-        result["test_count"] = test_count
-        if test_role_label is not None:
-            result["test_role_source"] = test_role_label
+        if production_count or test_count:
+            # Nothing inbound: 0 + 0 would only restate `total_count` (061).
+            result["production_count"] = production_count
+            result["test_count"] = test_count
+            if test_role_label is not None:
+                result["test_role_source"] = test_role_label
 
         if freshness == "repaired":
             result["subject_refreshed_only"] = True
