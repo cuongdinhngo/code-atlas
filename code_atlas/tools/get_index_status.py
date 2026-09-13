@@ -3,13 +3,15 @@
 ``minimal`` returns stats, ``last_commit``, staleness, process identity (``server_version`` /
 ``server_build`` / ``server_stale_process`` — 223), and ``next_tool_suggestions`` only when
 non-empty. ``standard`` adds provenance plus index-health (``edge_health``, ``parse_failures``,
-``dirty_indexed_files``) and a bounded ``cross_language`` census (task 243 — ``linked`` /
-``unlinked`` / ``by_tier`` only; ``pairs`` stays inside verbose's ``edge_health_by_language``).
-``parse_failures`` mirrors ``failed`` (files with ``parsed_ok = 0``) under the §12 name — same
-count, not a subset. ``verbose`` is ``standard`` plus a capped ``parse_failure_paths`` list
-(task 058) — never on the cheap path. ``standard`` also carries ``capabilities_by_language``
-for the languages the index covers, when the build stamped one (231/244). Nothing here opens the
-database when there is none: a read tool must not create an index as a side effect.
+``dirty_indexed_files``), a bounded ``cross_language`` census (task 243 — ``linked`` /
+``unlinked`` / ``by_tier`` only), and a per-language edge-health verdict (task 261 —
+``unlinked`` / ``by_tier`` per language; ``pairs`` stays inside verbose's full
+``edge_health_by_language``). ``parse_failures`` mirrors ``failed`` (files with
+``parsed_ok = 0``) under the §12 name — same count, not a subset. ``verbose`` is ``standard``
+plus a capped ``parse_failure_paths`` list (task 058) — never on the cheap path. ``standard``
+also carries ``capabilities_by_language`` for the languages the index covers, when the build
+stamped one (231/244). Nothing here opens the database when there is none: a read tool must
+not create an index as a side effect.
 
 Staleness counts only files the index covers (047): editing a README leaves the graph correct, and
 a signal that says otherwise costs its reader a rebuild that reindexes nothing.
@@ -111,8 +113,9 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
         and on a pre-204 stamp (R5.6 / 061). ``standard``/``verbose`` also carry
         ``capabilities_by_language`` — the build-stamped R1.6 flags, for the languages this
         index holds files of (231/244/173); omitted when the stamp is absent or empty
-        (R5.6 / 061). ``verbose`` still nests the
-        full census (with ``pairs``) inside ``edge_health_by_language``.
+        (R5.6 / 061). ``standard``/``verbose`` also carry ``edge_health_by_language`` on a
+        multi-language index (261): ``standard`` is the verdict only (``unlinked`` /
+        ``by_tier`` per language); ``verbose`` nests the full census including ``pairs``.
         ``verbose`` also carries ``fit_counts`` — local per-tool ask tallies (task 260); pass
         ``reset_fit_counts=true`` to clear them first (documented reset; local counts are not
         telemetry). See ``docs/design/fit.md`` for the fit definition before reading the numbers.
@@ -336,6 +339,7 @@ def _status(
         enriched["source_root_hint_imports"] = hint
     _attach_cross_language_summary(enriched, store)
     _attach_capabilities_by_language(enriched, store)
+    _attach_edge_health_by_language_verdict(enriched, store)
     if detail_level == "standard":
         return signed(enriched)
     paths = store.failed_paths(PARSE_FAILURE_PATHS_LIMIT, offset=offset)
@@ -408,13 +412,56 @@ def _attach_capabilities_by_language(payload: dict[str, object], store: GraphSto
     }
 
 
+def _verdict_bucket(block: object) -> dict[str, object] | None:
+    """``unlinked`` / ``by_tier`` only — the standard verdict, never ``pairs`` (task 261)."""
+    if not isinstance(block, dict):
+        return None
+    by_tier = block.get("by_tier")
+    unlinked = block.get("unlinked")
+    if not isinstance(by_tier, dict) or not isinstance(unlinked, int):
+        return None
+    return {"unlinked": unlinked, "by_tier": dict(by_tier)}
+
+
+def _attach_edge_health_by_language_verdict(
+    payload: dict[str, object], store: GraphStore
+) -> None:
+    """Per-language ``unlinked`` / ``by_tier`` at ``standard`` (task 261), or nothing.
+
+    Same silence rules as the full attach (R5.6 / 061). One meta read; never a query-time scan
+    (R4.2). ``pairs`` and ``linked`` stay off this path — verbose replaces the field with the
+    full stamp.
+    """
+    stamped = store.stamped_edge_health_by_language()
+    if stamped is None or _language_bucket_count(stamped) < 2:
+        return
+    by_language = stamped.get("by_language")
+    if not isinstance(by_language, dict):
+        return
+    verdict: dict[str, object] = {
+        "by_language": {
+            name: bucket
+            for name, raw in sorted(by_language.items())
+            if (bucket := _verdict_bucket(raw)) is not None
+        }
+    }
+    if "unattributed" in stamped:
+        unattr = _verdict_bucket(stamped["unattributed"])
+        if unattr is not None:
+            verdict["unattributed"] = unattr
+    if not verdict["by_language"] and "unattributed" not in verdict:
+        return
+    payload[EDGE_HEALTH_BY_LANGUAGE_FIELD] = verdict
+
+
 def _attach_edge_health_by_language(payload: dict[str, object], store: GraphStore) -> None:
-    """The per-language tier mix at verbose, or nothing at all (task 183).
+    """The full per-language tier mix at verbose, or nothing at all (task 183).
 
     Silent on two counts. A pre-183 index has no stamp and says nothing rather than guessing (R5.6);
     and a single-bucket graph adds no answer the whole-graph ``edge_health`` does not already give,
     so it stays byte-identical (061). "Bucket" counts ``unattributed`` — a graph whose split is
-    incomplete has something to report even with one language.
+    incomplete has something to report even with one language. Replaces any standard verdict
+    already on the payload (261).
     """
     stamped = store.stamped_edge_health_by_language()
     if stamped is None or _language_bucket_count(stamped) < 2:

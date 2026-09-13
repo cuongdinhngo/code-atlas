@@ -147,17 +147,20 @@ def test_a_single_language_index_is_byte_identical(tmp_path: Path) -> None:
     assert payload["edge_health"]["by_tier"]["HEURISTIC"] > 0  # type: ignore[index]
 
 
-def test_the_breakdown_is_verbose_only(tmp_path: Path) -> None:
-    """AC3: absent from minimal and standard, present at verbose."""
+def test_the_breakdown_is_absent_from_minimal(tmp_path: Path) -> None:
+    """AC3 (261): absent from minimal; standard = verdict; verbose = full stamp."""
     seed_two_languages(tmp_path)
     config = build(tmp_path, TWO_ADAPTERS)
     tool = get_index_status.create(config, (get_index_status.NAME,))
 
     assert FIELD not in tool(detail_level="minimal")
     standard = tool(detail_level="standard")
-    assert FIELD not in standard
+    assert FIELD in standard
     assert "edge_health" in standard, "the whole-graph number stays where it was"
-    assert FIELD in tool(detail_level="verbose")
+    assert "pairs" not in json.dumps(standard[FIELD])
+    verbose = tool(detail_level="verbose")
+    assert FIELD in verbose
+    assert "pairs" in verbose[FIELD]["cross_language"]  # type: ignore[index]
 
 
 def test_a_pre_183_index_says_nothing_rather_than_guessing(tmp_path: Path) -> None:

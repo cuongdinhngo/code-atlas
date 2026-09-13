@@ -4,7 +4,20 @@
 a symbol graph, then answers *resolved relationship* questions — who calls this, what implements
 that, what breaks if I change this file — as rows, not as files to read.
 
-**PHP · TypeScript/JavaScript · T-SQL · Python.** 24 tools. Deterministic, offline, no LLM in the core.
+**Four adapters ship — they are not peers on CALLS resolution depth.** 24 tools. Deterministic,
+offline, no LLM in the core. Measured HEURISTIC `CALLS` share (via
+[`scripts/edge_health_report.py`](scripts/edge_health_report.py); figures quoted from that report's
+committed outputs, not retyped):
+
+| Adapter | HEURISTIC `CALLS` | Pinned sample | Measured |
+|---|---|---|---|
+| **PHP** (depth standard) | **1–4 %** | laravel · symfony · brick | 2026-08-24 · [137](docs/benchmarks/137_type-table.md) |
+| TypeScript/JavaScript | **54.1%** | `ky` | 2026-08-27 · after 153 · report `--only ky` |
+| Python | **82.2%** | `flask` | 2026-09-08 · after 227 · report `--only flask` |
+| T-SQL | not a CALLS-HEURISTIC depth metric | sql samples | [233](docs/benchmarks/233_sql-cross-repo.md) — floors / layer shape, not HEURISTIC share |
+
+PHP is the depth standard; TypeScript and Python are shallower on that axis, with the number above.
+This is surface honesty, not a commitment to deepen either adapter.
 
 > ### **~69× fewer tokens** than grep-and-read to reach a resolved answer
 > **88–103×** on relation queries. Measured on pinned public repos — 8/8 answers correct, recall
