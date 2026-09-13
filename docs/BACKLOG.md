@@ -23,6 +23,15 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099 |
+| 259 | [One knob sets both index size and page truthfulness](tasks/259_one-knob-sets-both-index-size-and-page-truthfulness.md) | Trust | todo | 251, 138 |
+| 260 | [Fit can only be benchmarked, never observed](tasks/260_the-fit-number-cannot-be-observed-only-benchmarked.md) | Adoption | todo | 200, 081 |
+| 261 | [README lists four adapters as peers; the number that denies it is in `verbose`](tasks/261_the-readme-lists-four-adapters-as-peers-and-the-number-that-contradicts-it-is-in-verbose.md) | Trust | todo | 227, 153, 233 |
+| 262 | [The contract marks test code and no tool reads it](tasks/262_the-contract-marks-test-code-and-no-tool-reads-it.md) | Trust | todo | 130, 255 |
+| 264 | [The honesty predicate is still one language's shape as a constant](tasks/264_the-honesty-predicate-is-still-one-language-s-shape-wearing-a-constant-s-name.md) | Trust | todo | 255, 232, 065 |
+| 265 | [The default page order is the alphabet](tasks/265_the-default-page-order-is-the-alphabet.md) | Trust | todo | 251, 252, 067, 259 |
+| 266 | [The artifact that would make an agent ask lives in our repo, not theirs](tasks/266_the-artifact-that-would-make-an-agent-ask-is-in-our-repo-not-theirs.md) | Adoption | todo | 200, 081, 036, 099, 244, 260 |
+| 267 | [The warning an autonomous agent cannot act on](tasks/267_the-warning-an-autonomous-agent-cannot-act-on.md) | Trust | todo | 257, 096, 035 |
+| 268 | [Six-tool preset, and the operational debt around it](tasks/268_twenty-four-descriptions-are-a-tax-paid-before-the-first-question.md) | Adoption | todo | 260, 071, 119 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -31,7 +40,10 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 M10–M12 have all landed; round narratives live in [`FEEDBACK.md`](FEEDBACK.md),
 [PLAN §19](PLAN.md#19-project-context--decision-log), [`LESSONS.md`](LESSONS.md) and `benchmarks/`.
 
-Nothing open — 225 (the sequence view) landed.
+| # | Task | Theme | Status | Depends on |
+|---|---|---|---|---|
+| 263 | [The question a newcomer asks most is the one table that is empty](tasks/263_the-question-a-newcomer-asks-most-is-the-one-table-that-is-empty.md) | Onboarding | todo | 114, 210 |
+| 269 | [Twelve graph nouns where a reader has seven questions](tasks/269_twelve-graph-nouns-where-a-reader-has-seven-questions.md) | Onboarding | todo | 263, 121, 210, 139 |
 
 **What still governs open work:**
 
@@ -40,9 +52,9 @@ Nothing open — 225 (the sequence view) landed.
 - **Every `deferred` ticket holds its own gate** — 074, 098 and 141 each state theirs, and 141 is at
   n = 0; do not queue one without reading it. Auto *reading orders* stay unscheduled
   ([121](benchmarks/121_onboarding-question-class.md)).
-- **Roll-out is the binding constraint** — five rounds standing. 244 shipped the code-shaped face
-  of it; what remains is not a ticket here and goes to the consumer as a PR. 244's own re-check
-  left one instance open: a capability with no tool name (`find_mirror_subtrees`, 115).
+- **Roll-out is the binding constraint** — five rounds standing. 244 shipped the code-shaped face;
+  [266](tasks/266_the-artifact-that-would-make-an-agent-ask-is-in-our-repo-not-theirs.md) now carries
+  the rest, and 244 left one instance open (`find_mirror_subtrees`, 115).
 
 ## Phase 2 — More languages (§19 pivot, 2026-08-04)
 
@@ -68,9 +80,7 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 
 - **PSR-4 / autoload-aware include resolution**, with PSR-0 duplicate-name disambiguation — [042](tasks/042_tokens-to-answer-sample-tier.md).
 - **Tokens-to-answer measures cost, not information** — 046 moved the ratio 0.02 % while doubling the distinct answers. Wants a second axis before it judges a retrieval change.
-- **`reachable_from` payload size at `standard`** — bounded by `impact_max_nodes` (500), ~160 KB of JSON. Worth a lower default or `minimal`-by-default; workaround in [`runbooks/onboarding-a-repo.md`](runbooks/onboarding-a-repo.md) §4.
 - **Parser-OOM size cap (optional)** — multi-MB generated files exhaust the PHP parser (already soft-failed/restarted in `indexer.py`); a byte-cap pre-skip (`CA_MAX_FILE_BYTES`) would avoid ~30 restart cycles. Log skips; no silent truncation.
-- **Class-level `find_references` pages after it materialises** — 252's `_member_caller_union` issues one `edges_by_target` per CONTAINS child and collects every hit before `cap`/`offset` apply, so cost scales with the class's total inbound edges, not the page. Noticed reviewing [#329](https://github.com/cuongdinhngo/code-atlas/pull/329); no measurement yet.
 - **258's anchor-scale figures were never taken** — AC1 (the edge-count drop on the anchor index) and AC5 (the query cost of the proximity expansion at that scale) shipped E1 on fixture evidence. The ticket makes the expensive case convert to **build-time ranking**, so that measurement is the decision, not a confirmation — [258](tasks/258_the-graph-stores-the-cartesian-product-of-call-site-and-same-named-symbol.md).
 - **Docker images are never built by CI** — `docker/Dockerfile` can rot (`Dockerfile.runtime` is built inside `pytest`). Honest shape: one job building both. Survives the unbillable-Actions arrangement AGENTS.md records, which also means every gate is a human step.
 

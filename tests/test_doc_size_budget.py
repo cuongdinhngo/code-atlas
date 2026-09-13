@@ -204,7 +204,15 @@ BUDGETS = {
     # addition prunes again or argues again; it does not inherit this raise as headroom.
     # 1,950 -> 1,850 on 2026-09-12: round 18 closed seven tickets (250, 252-257), so the open
     # table shrank and the old ceiling became slack rather than a bound.
-    "BACKLOG.md": 1_850,
+    # 1,850 -> 2,000 on 2026-09-13 (259-269), argued rather than assumed. Eleven tickets file at
+    # once off the feedback round, taking Pillar 1 from four open rows to thirteen and reopening
+    # Pillar 2 with two. Open rows are the one thing this table exists to hold, and the 2026-09-12
+    # number was sized for a table that had just emptied. R7.6 ran first and paid ~170: the two
+    # follow-ups now carried by 265 and 268 left the Follow-ups list (the convention already
+    # requires it), and the roll-out bullet's claim that the remaining work "is not a ticket here"
+    # was superseded by 266 and cut to a pointer. The next addition prunes again or argues again;
+    # this is not headroom.
+    "BACKLOG.md": 2_000,
     "ENGINEERING_RULES.md": 5_700,
     "AGENT_BRIEF.md": 2_250,
     # 6,700 -> 6,800 on 2026-09-09 (236): the `ForeignKey` node kind joins the vocabulary of record
