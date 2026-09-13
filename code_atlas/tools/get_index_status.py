@@ -47,6 +47,11 @@ from code_atlas.tools import claim, fit, schema_guard
 from code_atlas.tools.collection import collection_field
 from code_atlas.tools.config_provenance import attach_config_provenance
 from code_atlas.tools.coverage import covered_languages
+from code_atlas.tools.nominate_roots import (
+    entry_point_nominations,
+    filesystem_paths,
+    stub_root_nominations,
+)
 from code_atlas.tools.staleness import BEHIND, CURRENT, UNKNOWN, compute_staleness
 
 NAME = "get_index_status"
@@ -132,7 +137,9 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
             with GraphStore(config.db_path) as store:
                 store.clear_fit_counts()
         if not config.db_path.is_file():
-            return _unbuilt(servable, detail_level, config)
+            status = _unbuilt(servable, detail_level, config)
+            _attach_root_nominations(status, config, paths=None)
+            return status
         try:
             with GraphStore(config.db_path) as store:
                 return _status(store, config, servable, detail_level, offset=offset, sign=sign)
@@ -140,6 +147,26 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
             return _mismatched(mismatch, servable, detail_level, config)
 
     return get_index_status
+
+
+def _attach_root_nominations(
+    status: dict[str, object],
+    config: Config,
+    *,
+    paths: Sequence[str] | None,
+) -> None:
+    """Propose entry/stub globs when unset — never apply them (268 / 119).
+
+    Off the cheap path: ``minimal`` on a built index stays byte-identical (061), because the
+    first call of a session pays for it and the nomination does not change between calls.
+    """
+    if config.entry_points is not None and config.stub_roots is not None:
+        return
+    resolved = list(paths) if paths is not None else filesystem_paths(config.root)
+    if config.entry_points is None:
+        status["entry_point_candidates"] = entry_point_nominations(resolved)
+    if config.stub_roots is None:
+        status["stub_root_candidates"] = stub_root_nominations(resolved)
 
 
 def _page_limit_field(config: Config) -> dict[str, object]:
@@ -317,6 +344,7 @@ def _status(
     _attach_suggestions(status, servable, staleness, indexed=indexed)
     if detail_level == "minimal":
         return signed(status)
+    _attach_root_nominations(status, config, paths=store.file_paths() if indexed else None)
     enriched = status | {
         "head_commit": revision["head_commit"],
         "built_at": store.get_meta(BUILT_AT_KEY),

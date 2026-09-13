@@ -172,7 +172,7 @@ def test_reachable_from_matches_hand_traced_planted_graph(
     store: GraphStore, tmp_path: Path
 ) -> None:
     plant_graph(store)
-    payload = reachable_from_tool.create(config_for(tmp_path))()
+    payload = reachable_from_tool.create(config_for(tmp_path))(detail_level="standard")
     assert payload["status"] == "ok"
     assert payload["authoritative"] is False
     assert payload["depth_exhausted"] is False
@@ -195,7 +195,7 @@ def test_reachable_from_matches_hand_traced_planted_graph(
 
 def test_find_orphans_hand_traced(store: GraphStore, tmp_path: Path) -> None:
     plant_graph(store)
-    payload = find_orphans_tool.create(config_for(tmp_path))()
+    payload = find_orphans_tool.create(config_for(tmp_path))(detail_level="standard")
     assert payload["status"] == "ok"
     by_qname = {str(r["qname"]): r for r in payload["results"]}
     assert set(by_qname) == {DEAD, ORPHAN}
@@ -220,10 +220,10 @@ def test_heuristic_only_is_unproven_not_orphan(store: GraphStore, tmp_path: Path
     plant_graph(store)
     config = config_for(tmp_path)
     orphans = {
-        str(r["qname"]) for r in find_orphans_tool.create(config)()["results"]
+        str(r["qname"]) for r in find_orphans_tool.create(config)(detail_level="standard")["results"]
     }
     unproven = {
-        str(r["qname"]) for r in reachable_from_tool.create(config)()["unproven"]
+        str(r["qname"]) for r in reachable_from_tool.create(config)(detail_level="standard")["unproven"]
     }
     assert HEURISTIC in unproven
     assert HEURISTIC not in orphans
@@ -240,11 +240,11 @@ def test_default_closure_does_not_orphan_deep_chain(
         impact_max_nodes=50,
         orphans_max_nodes=50,
     )
-    orphans = find_orphans_tool.create(config)()
+    orphans = find_orphans_tool.create(config)(detail_level="standard")
     assert orphans["depth_exhausted"] is False
     assert orphans["truncated"] is False
     assert orphans["results"] == []
-    shallow = find_orphans_tool.create(config)(depth=2)
+    shallow = find_orphans_tool.create(config)(depth=2, detail_level="standard")
     assert shallow["depth_exhausted"] is True
     # The short walk is what stopped early; the page itself is complete (124).
     assert shallow["walk_truncated"] is True
@@ -259,7 +259,7 @@ def test_called_method_keeps_declaring_class_alive(
 ) -> None:
     plant_graph(store)
     orphans = {
-        str(r["qname"]) for r in find_orphans_tool.create(config_for(tmp_path))()["results"]
+        str(r["qname"]) for r in find_orphans_tool.create(config_for(tmp_path))(detail_level="standard")["results"]
     }
     assert SERVICE not in orphans
     assert METHOD not in orphans

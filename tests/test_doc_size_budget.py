@@ -207,7 +207,13 @@ BUDGETS = {
     # a shape a reader can only find in source. R7.6 ran first and paid ~125 of the 254 the entry
     # arrived with: it folded into 257's existing block instead of opening a second serve_behind
     # decision, so the restated 257 half is gone. The next addition prunes again or argues again.
-    "PLAN.md": 23_850,
+    # 23,850 -> 24,040 on 2026-09-13 (268), argued rather than assumed. Five things land under
+    # one ticket and three of them change a DEFAULT — the tool surface a preset may cut, the walk
+    # detail level, and what a linked worktree does with main's DB — which is exactly what §19 is
+    # for. R7.6 ran first and came back nearly empty: 071's worktree entry is not superseded (it
+    # stays; 268 adds the refusal), and the mechanism, the glob list and the preset's six names
+    # live in 268's task file and TOOLS.md. The next addition prunes again or argues again.
+    "PLAN.md": 24_040,
     # 2,150 -> 1,800 on 2026-09-08, LOWERED: 232-235 all close in this window and each removes
     # its row (R7.6), taking the file 1,737 -> 1,485. 2,150 is more than 25 % above 1,485, which
     # the anti-slack guard below calls slack; 1,800 keeps ~315 of headroom, about five open rows.
@@ -229,7 +235,10 @@ BUDGETS = {
     # requires it), and the roll-out bullet's claim that the remaining work "is not a ticket here"
     # was superseded by 266 and cut to a pointer. The next addition prunes again or argues again;
     # this is not headroom.
-    "BACKLOG.md": 2_000,
+    # 2,000 -> 1,900 on 2026-09-13, LOWERED: 261 and 265-268 all close in this window and each
+    # removes its row (R7.6), taking the file to 1,569. 2,000 is more than 25 % above that, which
+    # the anti-slack guard below calls slack; 1,900 keeps ~330, about eight open rows.
+    "BACKLOG.md": 1_900,
     "ENGINEERING_RULES.md": 5_700,
     "AGENT_BRIEF.md": 2_250,
     # 6,700 -> 6,800 on 2026-09-09 (236): the `ForeignKey` node kind joins the vocabulary of record

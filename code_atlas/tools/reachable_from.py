@@ -25,7 +25,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
     def reachable_from(
         depth: int | None = None,
-        detail_level: DetailLevel = "standard",
+        detail_level: DetailLevel = "minimal",
     ) -> dict[str, object]:
         """What is actually reachable from the app's entry points (and what is dead)?
 

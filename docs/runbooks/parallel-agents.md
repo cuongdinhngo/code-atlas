@@ -41,7 +41,7 @@ finding.
 
 | Option | What the agent gets | Cost |
 |---|---|---|
-| **Isolate (recommended)** — `CA_DB_PATH` per worktree, built once before dispatch | correct answers about its own tree | one incremental build, ~83 s on the anchor repo |
+| **Isolate (recommended)** — `CA_DB_PATH` per worktree, built once before dispatch (268: a linked worktree whose `CA_DB_PATH` points outside the worktree refuses with `index_root_mismatch` instead of serving main's rows as `ok`) | correct answers about its own tree | one incremental build, ~83 s on the anchor repo |
 | **Fail loud** — drop the `cd` so cwd decides | `indexed: false` / `reason: "not_indexed"`, every tool inert | zero; honest and useless |
 | **Share main's index** — keep `cd <main>` and compare `index_root` | answers about `main`; mismatch is visible (071) | zero; only safe when the agent's diff is tiny |
 

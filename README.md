@@ -24,6 +24,10 @@ This is surface honesty, not a commitment to deepen either adapter.
 > **1.0**, precision **1.0**, zero confidently-wrong answers.
 > [Reproduce it](docs/runbooks/tokens-to-answer.md) · one command, no network.
 
+**Six-tool preset (opt-in, 268):** set `CA_TOOLS=get_index_status,search_symbol,read_symbol,find_callers,find_references,impact` to cut the recognition tax; the default surface stays 24 tools.
+
+**One-line install:** `uvx --from git+https://github.com/cuongdinhngo/code-atlas.git code-atlas` or `pipx run --spec git+https://github.com/cuongdinhngo/code-atlas.git code-atlas` (adapters need their runtimes on PATH).
+
 ## The 30-second version
 
 Ask *"who calls `member()`?"* in this repo's own TypeScript adapter.

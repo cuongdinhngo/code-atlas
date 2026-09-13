@@ -31,6 +31,9 @@ RUN npm ci --prefix adapters/typescript
 # 2) The source, then an editable install so imports and console entry points resolve like CI.
 COPY . .
 RUN pip install --no-cache-dir -e ".[dev]"
+# 268: one-line install surface — the console script must resolve after install. Not `--help`:
+# `code-atlas` takes no arguments and would start the stdio server here.
+RUN command -v code-atlas >/dev/null
 
 # The adapter launch commands; tests pass their own via load_config, but these give parity with CI
 # and let `code-atlas` run against an adapter inside the container.

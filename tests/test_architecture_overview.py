@@ -102,7 +102,9 @@ def test_architecture_overview_reports_the_known_layer_split_of_a_fixture_repo(
     tmp_path: Path,
 ) -> None:
     """Proving test: the known split reaches the caller, ordered, counted and named."""
-    overview = architecture_overview.create(_fixture_repo(tmp_path))()
+    overview = architecture_overview.create(_fixture_repo(tmp_path))(
+        detail_level="standard"
+    )
 
     assert overview["indexed"] is True
     assert overview["reason"] == REASON_OK
@@ -205,7 +207,7 @@ def test_an_unbuilt_index_is_not_the_same_answer_as_an_empty_one(tmp_path: Path)
     config = db_config(tmp_path)
     with GraphStore(config.db_path):
         pass
-    empty = architecture_overview.create(config)()
+    empty = architecture_overview.create(config)(detail_level="standard")
     assert empty["indexed"] is True and empty["reason"] == REASON_NO_MATCHES
     assert empty["results"] == [] and empty["total_count"] == 0
 

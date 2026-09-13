@@ -29,7 +29,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
     def find_orphans(
         depth: int | None = None,
-        detail_level: DetailLevel = "standard",
+        detail_level: DetailLevel = "minimal",
         limit: int | None = None,
         offset: int = 0,
     ) -> dict[str, object]:

@@ -101,6 +101,19 @@ def working_tree_dirty(root: Path) -> bool | None:
     return None if found is None else bool(found)
 
 
+def is_inside_work_tree(root: Path) -> bool | None:
+    """True inside a git work tree, False when git says no, None when git cannot answer."""
+    found = _run(root, "rev-parse", "--is-inside-work-tree")
+    if found is None:
+        return None
+    text = found.strip()
+    if text == "true":
+        return True
+    if text == "false":
+        return False
+    return None
+
+
 def _run(root: Path, *arguments: str) -> str | None:
     """One read-only git command. Anything git cannot answer is None, never a partial answer."""
     try:

@@ -969,6 +969,10 @@ Serena-class tools are as blind as today's graph. This is unclaimed ground, not 
 **Nav answer after 062.** `PROVIDES_VIEW_DATA` / `find_view_data` — view-scope keys; agent `Read`s
 the template consumer name.
 
+**Decision — six-tool CA_TOOLS preset + worktree/nomination/minimal-walk ops (task 268, 2026-09-13).**
+
+**Locked:** document an opt-in field-18 six-tool `CA_TOOLS` preset; **default surface stays 24**. A linked git worktree whose `CA_DB_PATH` resolves outside the worktree refuses with `index_root_mismatch` (never main's rows under `reason: ok`). Status nominates entry/stub globs with `files_matched` and applies none — first run at any level, otherwise `standard`, never `minimal`. Large walks (`reachable_from`, `find_orphans`, `architecture_overview`) default to `minimal`. One-line install is exercised on the Docker test path. Detail: [268](tasks/268_twenty-four-descriptions-are-a-tax-paid-before-the-first-question.md).
+
 **Decision — consumer-repo agent brief is offered into the indexed tree (task 266, 2026-09-13).**
 
 [036](tasks/036_edit-index-hook.md) / [099](tasks/099_write-time-signal-seam.md) locked *offer, never install* for **editor settings**, and that still holds. **Locked separately:** a generated brief written into the **indexed repo's** `AGENTS.md` (marked, regenerable, behind a flag, never clobbering) is a different blast radius — it is the channel every agent on that repo already reads, and what [200](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) is blocked on. Detail: [266](tasks/266_the-artifact-that-would-make-an-agent-ask-is-in-our-repo-not-theirs.md).

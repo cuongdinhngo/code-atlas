@@ -4,7 +4,7 @@ slug: twenty-four-descriptions-are-a-tax-paid-before-the-first-question
 title: 'Ship the six-tool profile as an opt-in preset and pay down the operational debt that makes the server wrong by default in a worktree, silent on a first run, and expensive on a single walk — none of which needs a measurement first'
 phase: 1.5b
 milestone: Adoption
-status: todo
+status: done
 depends_on: [260, 071, 119]
 ---
 
@@ -43,3 +43,126 @@ Four operational defects ride along, each cheap and each observed:
 
 ## References
 [260](260_the-fit-number-cannot-be-observed-only-benchmarked.md), [119](119_reachability-signal-provenance.md), `code_atlas/main.py:160`, `docs/runbooks/parallel-agents.md`, `docs/runbooks/onboarding-a-repo.md` §4, field retro round 18 keep-list.
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 268 — six-tool preset and ops debt (working doc)
+
+- **Ticket:** 268
+- **Type:** enhancement
+- **SCOPE:** M
+- **STRUCTURE:** native
+- **TRACK:** backend — 0/0 touched files under UI paths
+- **TIER:** full
+- **BASELINE:** green
+
+---
+
+## Phase 0 — Refine
+
+`PREMISE: 5 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)`
+`RECALL: 0 claim(s) surfaced | 0 by symbol | 0 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`REFINE: 0 unresolved surfaced | 0 want-decision asked | 0 how-decision resolved+cited | 0 ASSUMED | skip: yes`
+
+**refine skipped:** ticket locks opt-in preset, worktree refuse, nominate-not-apply, minimal large walks, one-line install.
+**INPUT KIND:** ticket.
+
+---
+
+## Requirements matrix
+
+`SECTIONS: 5 found (Why this exists · Scope / Deliverables · Constraints · Acceptance criteria · References) | 5 decomposed | ROWS: C=3 R=5 G=1 AC=5`
+
+| ID | Source | Verbatim | Interpretation | Ph2 | Ph3/4 | Status |
+|----|--------|----------|----------------|-----|-------|--------|
+| G1 | Why | 24 descriptions are a tax | opt-in six-tool preset | D2 | AC1 | ✅ |
+| C1 | Constraints | do not change default tool set | FIELD18 opt-in only | D2 | AC1 | ✅ |
+| C2 | Constraints | nomination not inference | candidates only | D4 | AC3 | ✅ |
+| C3 | Constraints | no editor settings | — | — | — | ✅ |
+| R1 | Scope | documented CA_TOOLS preset | FIELD18_TOOLS | D2 | AC1 | ✅ |
+| R2 | Scope | worktree-correct DB | outside DB refuse | D3 | AC2 | ✅ |
+| R3 | Scope | nominate roots | status candidates | D4 | AC3 | ✅ |
+| R4 | Scope | minimal large walks | three tools | D5 | AC4 | ✅ |
+| R5 | Scope | one-line install | Docker RUN help | D6 | AC5 | ✅ |
+| AC1 | AC | preset + default 24 | proving | D2 | proving | ✅ |
+| AC2 | AC | worktree fixture | proving | D3 | proving | ✅ |
+| AC3 | AC | candidates no apply | proving | D4 | proving | ✅ |
+| AC4 | AC | minimal default | proving | D5 | proving | ✅ |
+| AC5 | AC | install in Docker | Dockerfile | D6 | proving | ✅ |
+
+`CLARIFICATION: 0 raised | 0 self-resolved (cited) | 0 for human decision`
+
+---
+
+## Phase 1 — Analysis
+
+- Root cause: recognition tax + worktree routing + silent first-run roots + fat walks + install friction.
+- TRACK: backend — 0/0 UI · SCOPE: M · TIER: full
+
+`RULE SECTIONS: 3 applicable — 3 by change-type | 0 by recalled handle — R1.1 ✅ · R2 ✅ · R7.6 ✅`
+
+### BASELINE
+
+```
+Ran at 307bd284aef1a9c859a76396c7ed404c362a3a92
+$ .venv/bin/python -m pytest tests/test_documented_tool_count.py -q --tb=no
+6 passed
+```
+
+`BASELINE: green`
+
+---
+
+## Phase 2 — Design
+
+- Approach: §19 first; FIELD18_TOOLS; worktree_guard via schema_guard; nominate_roots on status; minimal defaults; Docker help check.
+- Rejected: change default tool set (waits on 260); auto-apply globs (119).
+
+`HANDLES: 0 recalled | 0 traced (command + result) | 0 does not apply (reason) | 0 unanswered`
+`EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+**Proving test:** `.venv/bin/python -m pytest tests/test_six_tool_preset_and_ops.py::test_field18_preset_is_six_and_default_is_still_full -q`
+
+| # | Change | File |
+|---|--------|------|
+| D1 | section-19 | PLAN.md |
+| D2 | FIELD18_TOOLS | main.py |
+| D3 | worktree refuse | worktree_guard.py, schema_guard.py |
+| D4 | nominate | nominate_roots.py, get_index_status.py |
+| D5 | minimal defaults | reachable_from, find_orphans, architecture_overview |
+| D6 | install + docs | Dockerfile, TOOLS, README |
+
+---
+
+## Phase 3 — Execute
+
+**Branch:** feat/268-six-tool-preset-and-ops-debt
+**Implemented:** D1–D6.
+
+**Verification sweep**
+
+```
+Ran at b90f1f6d874a148db073c279e1a41d6b4c7fe345
+$ .venv/bin/python -m pytest tests/test_six_tool_preset_and_ops.py tests/test_architecture_overview.py -q --tb=no
+16 passed in 1.33s
+```
+
+---
+
+## Phase 4 — Review
+
+**REVIEWER: OFF (--no-reviewer)** — waived.
+**CHALLENGER: ON** — round-1 NOT CLEAN (AC4 size); round-2 CLEAN.
+
+---
+
+## Phase 5 — Finalise
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`LEDGER TOTAL: unmeasured · top cost driver: main-loop (challenger x1)`
+
+Outward: push + PR authorised. Deferred: merge. DISCLOSURE: gate.sh / local CI / remote CI skipped per operator waiver.

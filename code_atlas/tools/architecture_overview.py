@@ -65,7 +65,7 @@ def create(
     refiner: LayerRefiner = IdentityLayerRefiner() if layer_refiner is None else layer_refiner
 
     def architecture_overview(
-        detail_level: DetailLevel = "standard", offset: int = 0
+        detail_level: DetailLevel = "minimal", offset: int = 0
     ) -> dict[str, object]:
         """What are this codebase's top-level layers, and how do they depend on each other?
 

@@ -74,6 +74,16 @@ TOOL_NAMES: tuple[str, ...] = (
     class_diagram.NAME,
 )
 
+# Opt-in field-round-18 keep-list — set CA_TOOLS to this comma-join (268). Default stays TOOL_NAMES.
+FIELD18_TOOLS: tuple[str, ...] = (
+    get_index_status.NAME,
+    search_symbol.NAME,
+    read_symbol.NAME,
+    find_callers.NAME,
+    find_references.NAME,
+    impact.NAME,
+)
+
 
 def build_server(
     config: Config,
@@ -99,67 +109,84 @@ def build_server(
         server.tool(fit.wrap(name, config, tool))  # type: ignore[arg-type]
 
     if get_index_status.NAME in names:
-        serve(get_index_status.NAME, get_index_status.create(config, names))
+        serve(
+            get_index_status.NAME,
+            guard(get_index_status.create(config, names), config),
+        )
     if build_or_update_index.NAME in names:
         serve(build_or_update_index.NAME, build_or_update_index.create(config))
     if search_symbol.NAME in names:
-        serve(search_symbol.NAME, guard(search_symbol.create(config)))
+        serve(search_symbol.NAME, guard(search_symbol.create(config), config))
     if file_outline.NAME in names:
-        serve(file_outline.NAME, guard(file_outline.create(config)))
+        serve(file_outline.NAME, guard(file_outline.create(config), config))
     if read_symbol.NAME in names:
-        serve(read_symbol.NAME, guard(read_symbol.create(config)))
+        serve(read_symbol.NAME, guard(read_symbol.create(config), config))
     if find_callers.NAME in names:
-        serve(find_callers.NAME, guard(find_callers.create(config)))
+        serve(find_callers.NAME, guard(find_callers.create(config), config))
     if find_references.NAME in names:
-        serve(find_references.NAME, guard(find_references.create(config)))
+        serve(find_references.NAME, guard(find_references.create(config), config))
     if find_implementations.NAME in names:
-        serve(find_implementations.NAME, guard(find_implementations.create(config)))
+        serve(
+            find_implementations.NAME,
+            guard(find_implementations.create(config), config),
+        )
     if find_view_data.NAME in names:
-        serve(find_view_data.NAME, guard(find_view_data.create(config)))
+        serve(find_view_data.NAME, guard(find_view_data.create(config), config))
     if include_graph.NAME in names:
-        serve(include_graph.NAME, guard(include_graph.create(config)))
+        serve(include_graph.NAME, guard(include_graph.create(config), config))
     if impact.NAME in names:
-        serve(impact.NAME, guard(impact.create(config)))
+        serve(impact.NAME, guard(impact.create(config), config))
     if impact_modules.NAME in names:
-        serve(impact_modules.NAME, guard(impact_modules.create(config)))
+        serve(impact_modules.NAME, guard(impact_modules.create(config), config))
     if subtree_dependencies.NAME in names:
-        serve(subtree_dependencies.NAME, guard(subtree_dependencies.create(config)))
+        serve(
+            subtree_dependencies.NAME,
+            guard(subtree_dependencies.create(config), config),
+        )
     if reachable_from.NAME in names:
-        serve(reachable_from.NAME, guard(reachable_from.create(config)))
+        serve(reachable_from.NAME, guard(reachable_from.create(config), config))
     if find_orphans.NAME in names:
-        serve(find_orphans.NAME, guard(find_orphans.create(config)))
+        serve(find_orphans.NAME, guard(find_orphans.create(config), config))
     if explain_path.NAME in names:
-        serve(explain_path.NAME, guard(explain_path.create(config)))
+        serve(explain_path.NAME, guard(explain_path.create(config), config))
     if architecture_overview.NAME in names:
         serve(
             architecture_overview.NAME,
             guard(
                 architecture_overview.create(
                     config, summarizer, layer_refiner, prose_writer
-                )
+                ),
+                config,
             ),
         )
     if guided_tour.NAME in names:
-        serve(guided_tour.NAME, guard(guided_tour.create(config)))
+        serve(guided_tour.NAME, guard(guided_tour.create(config), config))
     if generate_onboarding.NAME in names:
         serve(
             generate_onboarding.NAME,
             guard(
                 generate_onboarding.create(
                     config, summarizer, layer_refiner, prose_writer
-                )
+                ),
+                config,
             ),
         )
     if check_architecture_rules.NAME in names:
-        serve(check_architecture_rules.NAME, guard(check_architecture_rules.create(config)))
+        serve(
+            check_architecture_rules.NAME,
+            guard(check_architecture_rules.create(config), config),
+        )
     if check_column_defaults.NAME in names:
-        serve(check_column_defaults.NAME, guard(check_column_defaults.create(config)))
+        serve(
+            check_column_defaults.NAME,
+            guard(check_column_defaults.create(config), config),
+        )
     if diff_architecture.NAME in names:
-        serve(diff_architecture.NAME, guard(diff_architecture.create(config)))
+        serve(diff_architecture.NAME, guard(diff_architecture.create(config), config))
     if class_diagram.NAME in names:
-        serve(class_diagram.NAME, guard(class_diagram.create(config)))
+        serve(class_diagram.NAME, guard(class_diagram.create(config), config))
     if trace_capability.NAME in names:
-        serve(trace_capability.NAME, guard(trace_capability.create(config)))
+        serve(trace_capability.NAME, guard(trace_capability.create(config), config))
     prompts.register(server)
     return server
 
