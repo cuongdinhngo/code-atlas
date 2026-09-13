@@ -13,6 +13,7 @@ from code_atlas.contract import (
     UNMODELLED_REFERENCE_KINDS,
 )
 from code_atlas.store import GraphStore, Row
+from code_atlas.symbol_role import aggregate_test_count_source, stored_test_source
 from code_atlas.tools import call_site, claim
 from code_atlas.tools.coverage import (
     attach_coverage_note,
@@ -70,6 +71,20 @@ CLAIM_CARRY = ("authoritative",)
 # CONTAINS walk for the class-level caller union (252). Same order of magnitude as Table CONTAINS.
 _MEMBER_WALK = 10_000
 _UNION_SUBJECT_KINDS = frozenset({"Class"})
+
+
+def _test_census(store: GraphStore, qname: str) -> tuple[int, int, str | None]:
+    """``(production, test, how the test rows were decided)`` over every inbound edge (262).
+
+    One grouped store read, shared by the first fetch and the re-pointed one.
+    """
+    rows = store.inbound_test_rows(qname)
+    production = sum(count for is_test, _path, count in rows if not is_test)
+    test = sum(count for is_test, _path, count in rows if is_test)
+    label = aggregate_test_count_source(
+        stored_test_source(is_test, path) for is_test, path, _count in rows
+    )
+    return production, test, label
 
 
 def _member_caller_union(
@@ -133,6 +148,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         offset: int = 0,
         sign: bool = False,
         serve_behind: bool = False,
+        exclude_tests: bool = False,
     ) -> dict[str, object]:
         """Where is this symbol used across the codebase?
 
@@ -202,6 +218,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         unlinked_edge_kinds: list[str] = []
         behind_dirty: list[str] = []
         subject_file: str | None = None
+        production_count = 0
+        test_count = 0
+        test_role_label: str | None = None
         with GraphStore(config.db_path) as store:
             covered = covered_languages(store)
             if sign or serve_behind:
@@ -226,7 +245,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 ))
             asked = qname
             lookup = qname
-            total_count = store.count_edges_by_target(lookup)
+            production_count, test_count, test_role_label = _test_census(store, lookup)
+            total_count = store.count_edges_by_target(
+                lookup, exclude_test_sources=exclude_tests
+            )
             # Widen the existing indexed-check fetch to surface every definition site (task 070).
             nodes = store.nodes_by_qualified_name(lookup, limit=config.page_limit)
             indexed = bool(nodes)
@@ -256,7 +278,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         )
                     )
                 lookup = repointed
-                total_count = store.count_edges_by_target(lookup)
+                production_count, test_count, test_role_label = _test_census(store, lookup)
+                total_count = store.count_edges_by_target(
+                    lookup, exclude_test_sources=exclude_tests
+                )
                 nodes = store.nodes_by_qualified_name(lookup, limit=config.page_limit)
                 indexed = bool(nodes)
             # A same-named definition under another qname makes this count a partition (168).
@@ -279,7 +304,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         limit=config.page_limit,
                     )
                 )
-            edges = store.edges_by_target(lookup, limit=cap, offset=offset)
+            edges = store.edges_by_target(
+                lookup, limit=cap, offset=offset, exclude_test_sources=exclude_tests
+            )
             results = [edge_hit(edge) for edge in edges]
             # Skewed page 1 hides other subtrees — advertise the full spread (task 067).
             subtrees = (
@@ -354,6 +381,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if unlinked_edge_kinds:
             # Names the unmeasured relation(s) — not hits (R5.6 / 255 AC1).
             result["unlinked_edge_kinds"] = unlinked_edge_kinds
+        result["production_count"] = production_count
+        result["test_count"] = test_count
+        if test_role_label is not None:
+            result["test_role_source"] = test_role_label
 
         if freshness == "repaired":
             result["subject_refreshed_only"] = True

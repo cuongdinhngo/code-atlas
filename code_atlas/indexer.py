@@ -59,6 +59,7 @@ from code_atlas.store import (
     WRITE_ERRORS,
     GraphStore,
 )
+from code_atlas.symbol_role import apply_test_role
 
 # How often the watchdog looks for an overrun call: small beside any sane timeout, cheap to poll.
 WATCHDOG_INTERVAL = 0.25
@@ -1200,6 +1201,9 @@ def _write(
     store.upsert_file(
         path, digest, language, parsed_ok=result.ok, fingerprint=fingerprint or None
     )
+    # Nodes are *decided* here, not in the store: an adapter that omits `is_test` gets the path
+    # convention filled in before the write, so a tool can read one field either way (262).
+    apply_test_role(result.nodes)
     try:
         deduped = store.replace_file_rows(path, result.nodes, result.edges)
     except WRITE_ERRORS:

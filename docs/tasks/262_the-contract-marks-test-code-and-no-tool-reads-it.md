@@ -4,7 +4,7 @@ slug: the-contract-marks-test-code-and-no-tool-reads-it
 title: '`is_test` is in the contract and in the `nodes` table, and not one tool consults it — so "three callers" and "three callers, all in the unit-test file" are the same answer, though the first blocks a deletion and the second permits it'
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [130, 255]
 ---
 

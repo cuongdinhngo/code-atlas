@@ -20,6 +20,7 @@ from code_atlas.build_info import server_provenance
 from code_atlas.config import Config, load_config
 from code_atlas.indexer import full_build
 from code_atlas.store import GraphStore
+from code_atlas.symbol_role import apply_test_role
 from code_atlas.tools import find_callers, find_implementations, find_references
 from code_atlas.tools.find_callers import _callers
 
@@ -55,6 +56,8 @@ def seed_file(
     target.write_bytes(body)
     digest = hashlib.sha256(body).hexdigest()
     store.upsert_file(path, digest, "lang")
+    # This helper stands in for the indexer, which is where the role is decided (262).
+    apply_test_role(nodes)
     store.replace_file_rows(path, nodes, edges)
 
 

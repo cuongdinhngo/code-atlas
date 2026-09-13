@@ -53,8 +53,7 @@ code-atlas/
 - **Tools:** `snake_case` verb-first, matching the MCP tool name exactly (`search_symbol`, `find_callers`,
   `read_symbol`, `build_or_update_index`). One tool per file under `code_atlas/tools/`.
 - **Env vars:** prefix **`CA_`** (`CA_DB_PATH`, `CA_WORKERS`, `CA_ADAPTER_TIMEOUT`, `CA_PAGE_LIMIT`, `CA_MAX_CANDIDATES`, `CA_IMPACT_DEPTH`,
-  …; `CA_MAX_RESULTS` is a legacy alias for `CA_MAX_CANDIDATES` only — 259)
-  `CA_IMPACT_MAX_NODES`, `CA_ENTRY_POINTS`, `CA_STUB_ROOTS`, `CA_WORKING_ROOTS`, `CA_INDIRECTION_RULES`, `CA_TOOLS`, `CA_HOST_ROOT`, `CA_CONTAINER_ROOT`, per-adapter `CA_<LANG>_CMD` e.g. `CA_PHP_CMD`).
+  `CA_IMPACT_MAX_NODES`, `CA_ENTRY_POINTS`, `CA_STUB_ROOTS`, `CA_WORKING_ROOTS`, `CA_INDIRECTION_RULES`, `CA_TOOLS`, `CA_HOST_ROOT`, `CA_CONTAINER_ROOT`, per-adapter `CA_<LANG>_CMD` e.g. `CA_PHP_CMD`). `CA_MAX_RESULTS` aliases `CA_MAX_CANDIDATES` alone (259).
 - **On-disk artifacts:** project config `.code-atlas.toml` (repo root, committed — keys are the env
   names lower-cased without the `CA_` prefix, plus an `[adapter_cmd]` table whose values are a
   complete argv, as a string or a list of words); DB at
@@ -183,6 +182,7 @@ what the payload already says (061). An answer must state what it is *not* telli
 | `walk_truncated` | `find_orphans` | the walk hit `CA_ORPHANS_MAX_NODES`, so the population is an over-estimate — unreached nodes look orphaned (124) |
 | `walk_truncated` | `impact_modules` | the walk hit `CA_IMPACT_MAX_NODES`, so every per-module count is an **under**-estimate — a module reached only beyond the bound is missing from the table entirely, not merely undercounted (140) |
 | `tier_filter` / `tier_census` | `find_callers` at depth 1 | the `confidence_tier` the store query ran, so `total_count` counts *that request*; the census is the **unfiltered** breakdown, omitted when all-RESOLVED or empty. Together: *none on this page* ≠ *none exists* (251/061) |
+| `production_count` / `test_count` / `test_role_source` | `find_callers` at depth 1, `find_references` | the inbound answer split by the **caller's** role — the difference between a count that blocks a deletion and one that permits it (262). They partition `total_count` unless `exclude_tests` filtered. `test_role_source` is `adapter` · `path_convention` · `mixed`, omitted when nothing was classed test (061) |
 | `caveat_limits` | any payload with `authoritative_caveats` | caveat name → what it costs the reader operationally, not the relation's name; omitted when no caveat states one (251/061) |
 | `module_table_truncated` | `impact_modules` | 114's module table was itself capped at `CA_PAGE_LIMIT`, so rows counted under `unassigned` include files whose module exists and was cut — that bucket is an **over**-count, distinct from the walk bound (140) |
 

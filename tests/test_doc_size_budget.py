@@ -224,7 +224,17 @@ BUDGETS = {
     # undocumented reader would have to rediscover from source. Paid for first — the 170
     # incident retold in two rows and PLAN's §19 entry that restated §12's own row were cut,
     # ~100 tokens. The next addition prunes again or argues again; this is not headroom.
-    "CONVENTION.md": 6_850,
+    # 6,850 -> 6,960 on 2026-09-13 (259 + 262), argued rather than assumed. Same reason as 251's
+    # raise above and no other: §6 is the cross-tool payload contract, and 262 puts three new
+    # fields on two nav tools — `production_count`, `test_count`, `test_role_source`. A payload
+    # field with no row here is a shape a reader can only find in source. 259 lands in the same
+    # window and costs the §1 env-var list two knob names where it had one. R7.6 ran first and
+    # came back almost empty: no row here is superseded by either ticket, and the narrative each
+    # could shed was already taken by the 251 pass. What it did pay: 262's row was rewritten
+    # twice, ~55 tokens shorter than first drafted, and 259's alias note was folded back into the
+    # env-var bullet it had been wedged inside — it closed the paren mid-list, so the rest of the
+    # list read as prose. 16 of margin; the next addition prunes or argues again.
+    "CONVENTION.md": 6_960,
 }
 
 

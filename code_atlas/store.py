@@ -430,14 +430,15 @@ def _args_predicate(args_at: tuple[int, str] | None) -> _Predicate:
     if selector not in contract.ARG_SELECTORS:
         raise ValueError(f"unknown argument selector {selector!r}: {contract.ARG_SELECTORS}")
     if selector == contract.ARG_ABSENT:
-        return "args IS NOT NULL AND json_array_length(args) < ?", (position,)
+        return "edges.args IS NOT NULL AND json_array_length(edges.args) < ?", (position,)
     at = f"$[{position - 1}]"
     if selector == contract.ARG_DYNAMIC:
         return (
-            "args IS NOT NULL AND json_array_length(args) >= ? AND json_extract(args, ?) IS NULL",
+            "edges.args IS NOT NULL AND json_array_length(edges.args) >= ? "
+            "AND json_extract(edges.args, ?) IS NULL",
             (position, at),
         )
-    return "args IS NOT NULL AND json_extract(args, ?) = ?", (at, selector)
+    return "edges.args IS NOT NULL AND json_extract(edges.args, ?) = ?", (at, selector)
 
 
 def _tier_predicate(confidence_tier: str | None) -> _Predicate:
@@ -449,7 +450,18 @@ def _tier_predicate(confidence_tier: str | None) -> _Predicate:
             f"unknown confidence_tier {confidence_tier!r}: "
             f"one of {', '.join(contract.CONFIDENCE_TIERS)}"
         )
-    return "confidence_tier = ?", (confidence_tier,)
+    return "edges.confidence_tier = ?", (confidence_tier,)
+
+
+def _exclude_test_sources_predicate(exclude_test_sources: bool) -> _Predicate:
+    """Drop inbound edges whose source symbol is stored as test (task 262)."""
+    if not exclude_test_sources:
+        return None
+    return (
+        "NOT EXISTS (SELECT 1 FROM nodes src WHERE src.qualified_name = edges.source_qname "
+        "AND COALESCE(src.is_test, 0) = 1)",
+        (),
+    )
 
 
 def _combine_predicates(*preds: _Predicate) -> _Predicate:
@@ -1583,17 +1595,17 @@ class GraphStore:
         limit: int,
         offset: int = 0,
     ) -> list[Row]:
-        return self._edges("source_qname = ?", qname, kinds, limit, offset=offset)
+        return self._edges("edges.source_qname = ?", qname, kinds, limit, offset=offset)
 
     def count_edges_by_source(
         self, qname: str, *, kinds: Sequence[str] | None = None
     ) -> int:
         """How many edges leave ``qname`` (same kind filter as ``edges_by_source``)."""
-        return self._count_edges("source_qname = ?", qname, kinds)
+        return self._count_edges("edges.source_qname = ?", qname, kinds)
 
     def edges_matching_kind(self, kind: str, *, limit: int) -> list[Row]:
         """Up to ``limit`` edges of ``kind`` in store order (enrichment scans — task 062)."""
-        return self._edges("kind = ?", kind, None, limit)
+        return self._edges("edges.kind = ?", kind, None, limit)
 
     def calls_by_target_raw(self, target_raw: str) -> list[Row]:
         """Every CALLS edge with exact ``target_raw`` (``idx_edges_raw``; no scan cap)."""
@@ -1624,6 +1636,7 @@ class GraphStore:
         offset: int = 0,
         args_at: tuple[int, str] | None = None,
         confidence_tier: str | None = None,
+        exclude_test_sources: bool = False,
     ) -> list[Row]:
         """Edges whose resolved ``target_qname`` is ``qname``.
 
@@ -1633,13 +1646,15 @@ class GraphStore:
         ``offset`` skips leading rows in ``_EDGE_ORDER`` (task 057).
         """
         return self._edges(
-            "target_qname = ?",
+            "edges.target_qname = ?",
             qname,
             kinds,
             limit,
             offset=offset,
             extra=_combine_predicates(
-                _args_predicate(args_at), _tier_predicate(confidence_tier)
+                _args_predicate(args_at),
+                _tier_predicate(confidence_tier),
+                _exclude_test_sources_predicate(exclude_test_sources),
             ),
         )
 
@@ -1650,16 +1665,51 @@ class GraphStore:
         kinds: Sequence[str] | None = None,
         args_at: tuple[int, str] | None = None,
         confidence_tier: str | None = None,
+        exclude_test_sources: bool = False,
     ) -> int:
         """How many edges target ``qname`` (same filters as ``edges_by_target``)."""
         return self._count_edges(
-            "target_qname = ?",
+            "edges.target_qname = ?",
             qname,
             kinds,
             extra=_combine_predicates(
-                _args_predicate(args_at), _tier_predicate(confidence_tier)
+                _args_predicate(args_at),
+                _tier_predicate(confidence_tier),
+                _exclude_test_sources_predicate(exclude_test_sources),
             ),
         )
+
+    def inbound_test_rows(
+        self,
+        qname: str,
+        *,
+        kinds: Sequence[str] | None = None,
+        args_at: tuple[int, str] | None = None,
+        confidence_tier: str | None = None,
+    ) -> list[tuple[int, str, int]]:
+        """``(is_test, source file_path, count)`` per inbound source group (task 262).
+
+        One grouped read serves both the production/test split and the ``test_role_source``
+        label. What ``is_test`` *means* is decided by ``symbol_role``, not here: the store
+        persists and queries, it does not classify (R1.4).
+        """
+        clause, params = self._edge_where(
+            "edges.target_qname = ?",
+            kinds,
+            _combine_predicates(
+                _args_predicate(args_at),
+                _tier_predicate(confidence_tier),
+            ),
+        )
+        sql = (
+            "SELECT COALESCE(src.is_test, 0), COALESCE(src.file_path, ''), COUNT(*) FROM edges "
+            "JOIN nodes src ON src.qualified_name = edges.source_qname "
+            f"WHERE {clause} GROUP BY 1, 2"
+        )
+        return [
+            (int(is_test), str(file_path), int(count))
+            for is_test, file_path, count in self._conn.execute(sql, (qname, *params))
+        ]
 
     def tier_census_by_target(
         self,
@@ -1701,7 +1751,7 @@ class GraphStore:
         never a repo name (R2); ``GROUP BY``/``ORDER BY`` keep the dict deterministic (R4.2).
         """
         clause, params = self._edge_where(
-            "target_qname = ?",
+            "edges.target_qname = ?",
             kinds,
             _combine_predicates(
                 _args_predicate(args_at), _tier_predicate(confidence_tier)
@@ -1729,7 +1779,9 @@ class GraphStore:
         Unknown is not absent: an ``args_at`` filter can say nothing about these, so a caller that
         reports a filtered count must report this one beside it (§19: no silent narrowing).
         """
-        return self._count_edges("target_qname = ?", qname, kinds, extra=("args IS NULL", ()))
+        return self._count_edges(
+            "edges.target_qname = ?", qname, kinds, extra=("edges.args IS NULL", ())
+        )
 
     def count_bare_calls_not_targeting(self, qname: str, *, bare_name: str) -> int:
         """Distinct HEURISTIC CALLS sites named ``bare_name`` that never resolve to ``qname``.
@@ -3551,13 +3603,18 @@ class GraphStore:
     def _edge_where(
         where: str, kinds: Sequence[str] | None, extra: _Predicate
     ) -> tuple[str, tuple[object, ...]]:
-        """One WHERE builder for both the row read and its count, so they cannot diverge."""
+        """One WHERE builder for both the row read and its count, so they cannot diverge.
+
+        Every column it emits is ``edges.``-qualified, and so is every ``where`` it is given: a
+        read that joins ``nodes`` shares column names with it, and an unqualified one is a
+        silent ambiguity rather than an error (262).
+        """
         clauses: list[str] = [where]
         params: list[object] = []
         if kinds is not None:
             if not kinds:
                 raise ValueError("kinds must be non-empty")
-            clauses.append(f"kind IN ({', '.join('?' for _ in kinds)})")
+            clauses.append(f"edges.kind IN ({', '.join('?' for _ in kinds)})")
             params.extend(kinds)
         if extra is not None:
             clauses.append(extra[0])

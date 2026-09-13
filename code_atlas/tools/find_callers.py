@@ -16,6 +16,10 @@ from code_atlas.contract import (
     split_qname,
 )
 from code_atlas.store import GraphStore, Row
+from code_atlas.symbol_role import (
+    aggregate_test_count_source,
+    stored_test_source,
+)
 from code_atlas.tools import call_site, claim
 from code_atlas.tools.coverage import (
     attach_coverage_note,
@@ -106,6 +110,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         offset: int = 0,
         sign: bool = False,
         serve_behind: bool = False,
+        exclude_tests: bool = False,
     ) -> dict[str, object]:
         """Who calls this function or method? Every call site, with confidence and optional depth.
 
@@ -183,6 +188,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         cap, limit_clamped = clamp_limit(limit, config.page_limit)
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
+        if exclude_tests and depth != 1:
+            raise ValueError("exclude_tests applies at depth 1 only")
         args_at = _args_at(arg_position, arg_is, depth=depth)
         tier = _confidence_tier(confidence_tier, depth=depth)
         if not config.db_path.is_file():
@@ -211,6 +218,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         proximity_used = False
         behind_dirty: list[str] = []
         subject_file: str | None = None
+        test_role_label: str | None = None
+        production_count = 0
+        test_count = 0
         with GraphStore(config.db_path) as store:
             covered = covered_languages(store)
             if sign or serve_behind:
@@ -245,10 +255,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 offset=offset,
                 args_at=args_at,
                 confidence_tier=tier,
+                exclude_test_sources=exclude_tests,
             )
             # Widen the existing indexed-check fetch to surface every definition site (task 070).
             subject_nodes = store.nodes_by_qualified_name(lookup, limit=config.page_limit)
             indexed = bool(subject_nodes)
+            production_count, test_count, test_role_label = _test_census(
+                store, lookup, depth=depth, args_at=args_at, confidence_tier=tier
+            )
             unrecorded = (
                 store.count_edges_without_args(lookup, kinds=CALLER_KINDS)
                 if args_at is not None
@@ -299,11 +313,15 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     offset=offset,
                     args_at=args_at,
                     confidence_tier=tier,
+                    exclude_test_sources=exclude_tests,
                 )
                 subject_nodes = store.nodes_by_qualified_name(
                     lookup, limit=config.page_limit
                 )
                 indexed = bool(subject_nodes)
+                production_count, test_count, test_role_label = _test_census(
+                    store, lookup, depth=depth, args_at=args_at, confidence_tier=tier
+                )
                 unrecorded = (
                     store.count_edges_without_args(lookup, kinds=CALLER_KINDS)
                     if args_at is not None
@@ -452,6 +470,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             result["tier_filter"] = tier
         if tier_census is not None:
             result["tier_census"] = tier_census
+        if depth == 1:
+            # A depth-1 partition of a multi-hop total would not add up — omitted above 1 (262).
+            result["production_count"] = production_count
+            result["test_count"] = test_count
+            if test_role_label is not None:
+                result["test_role_source"] = test_role_label
         if args_capture_absent:
             attach_authoritative_caveats(result, [CAVEAT_ARGS_NOT_CAPTURED])
         attach_result_subtrees(result, subtrees)
@@ -502,6 +526,32 @@ def _args_at(
     if depth != 1:
         raise ValueError("an argument filter describes a direct call, so it needs depth=1")
     return arg_position, arg_is
+
+
+def _test_census(
+    store: GraphStore,
+    qname: str,
+    *,
+    depth: int,
+    args_at: tuple[int, str] | None,
+    confidence_tier: str | None,
+) -> tuple[int, int, str | None]:
+    """``(production, test, how the test rows were decided)`` for the depth-1 inbound set (262).
+
+    One grouped store read for both fetch paths. Above depth 1 the answer is a BFS total this
+    partition could not add up to, so nothing is counted and nothing is reported.
+    """
+    if depth != 1:
+        return 0, 0, None
+    rows = store.inbound_test_rows(
+        qname, kinds=CALLER_KINDS, args_at=args_at, confidence_tier=confidence_tier
+    )
+    production = sum(count for is_test, _path, count in rows if not is_test)
+    test = sum(count for is_test, _path, count in rows if is_test)
+    label = aggregate_test_count_source(
+        stored_test_source(is_test, path) for is_test, path, _count in rows
+    )
+    return production, test, label
 
 
 def _tier_census(
@@ -614,11 +664,16 @@ def _callers(
     offset: int = 0,
     args_at: tuple[int, str] | None = None,
     confidence_tier: str | None = None,
+    exclude_test_sources: bool = False,
 ) -> _CallersOutcome:
     """BFS over CALLS/NEW into ``qname``; only RESOLVED edges expand the frontier (A3 / HOW-5)."""
     if hops == 1:
         total = store.count_edges_by_target(
-            qname, kinds=CALLER_KINDS, args_at=args_at, confidence_tier=confidence_tier
+            qname,
+            kinds=CALLER_KINDS,
+            args_at=args_at,
+            confidence_tier=confidence_tier,
+            exclude_test_sources=exclude_test_sources,
         )
         edges = store.edges_by_target(
             qname,
@@ -627,6 +682,7 @@ def _callers(
             offset=offset,
             args_at=args_at,
             confidence_tier=confidence_tier,
+            exclude_test_sources=exclude_test_sources,
         )
         hits = [edge_hit(edge, depth=1) for edge in edges]
         return _CallersOutcome(
