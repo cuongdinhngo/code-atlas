@@ -202,7 +202,12 @@ BUDGETS = {
     # what ships. R7.6 ran first and paid ~100 of the 212 the entry arrived with: the mechanism,
     # the flag name and the five occasions live in 266's task file, not here. The next addition
     # prunes again or argues again; this is not headroom.
-    "PLAN.md": 23_720,
+    # 23,720 -> 23,850 on 2026-09-13 (267), argued rather than assumed. 267 widens 257's
+    # serve_behind rule and supersedes one clause of it, and a payload reason with no §19 line is
+    # a shape a reader can only find in source. R7.6 ran first and paid ~125 of the 254 the entry
+    # arrived with: it folded into 257's existing block instead of opening a second serve_behind
+    # decision, so the restated 257 half is gone. The next addition prunes again or argues again.
+    "PLAN.md": 23_850,
     # 2,150 -> 1,800 on 2026-09-08, LOWERED: 232-235 all close in this window and each removes
     # its row (R7.6), taking the file 1,737 -> 1,485. 2,150 is more than 25 % above 1,485, which
     # the anti-slack guard below calls slack; 1,800 keeps ~315 of headroom, about five open rows.

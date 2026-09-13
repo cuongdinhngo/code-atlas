@@ -128,7 +128,12 @@ def test_serve_behind_drifted_subject_still_declines_or_repairs(
         "\\App\\Drift::run", detail_level="minimal", serve_behind=True
     )
     assert payload["reason"] != REASON_INDEX_BEHIND, payload
-    assert payload["reason"] in {REASON_OK, REASON_INDEX_STALE, "no_matches"}, payload
+    assert payload["reason"] in {
+        REASON_OK,
+        REASON_INDEX_STALE,
+        "no_matches",
+        "index_behind_subject_changed",
+    }, payload
 
 
 @needs_php

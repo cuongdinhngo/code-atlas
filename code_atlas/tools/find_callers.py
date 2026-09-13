@@ -31,6 +31,7 @@ from code_atlas.tools.freshness import (
     dirty_indexed_paths,
     finalize_subject_checked_miss,
     label_serve_behind,
+    unrepaired_subject_served,
 )
 from code_atlas.tools.nav_result import (
     CAVEAT_ARGS_NOT_CAPTURED,
@@ -175,10 +176,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         The weakest tier present is named, so the line can never claim ``RESOLVED`` over a
         ``HEURISTIC`` hit. An answer with no index carries no line (task 100).
 
-        ``serve_behind`` (default off) labels an unchanged-subject answer when the index is
-        ``behind``: ``reason=index_behind``, ``last_commit``, and per-row ``index_revision``.
-        Drifted subjects still go through read-through repair / ``index_stale`` (257). Off keeps
-        today's payload (022 AC3).
+        ``serve_behind`` (default off) labels a behind-index answer: unchanged subjects as
+        ``index_behind`` (257); unrepaired dirty subjects as ``index_behind_subject_changed``
+        (267). Off keeps today's refuse-when-stale default (022 AC3).
 
         A leading-anchor difference from the stored qname is re-pointed and answered;
         ``resolved_qname`` names the stored form (075/122). An exact stored qname is unchanged.
@@ -223,6 +223,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         proximity_used = False
         behind_dirty: list[str] = []
         subject_file: str | None = None
+        subject_unrepaired = False
         test_role_label: str | None = None
         production_count = 0
         test_count = 0
@@ -235,21 +236,25 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             guard = FreshnessGuard(config, store)
             freshness = guard.ensure_qname(qname)
             if freshness == "stale":
-                return signed(attach_try_instead(
-                    nav_result(
-                        qname,
-                        [],
-                        detail_level=detail_level,
-                        db_path=str(config.db_path),
-                        index_root=config.index_root,
-                        truncated=False,
-                        reason=REASON_INDEX_STALE,
-                        total_count=0,
-                        depth=depth,
-                        frontier_skipped_non_resolved=0,
-                    ),
-                    TRY_INSTEAD_FILE_OUTLINE,
-                ))
+                if not unrepaired_subject_served(
+                    store, qname, serve_behind=serve_behind, dirty_paths=behind_dirty
+                ):
+                    return signed(attach_try_instead(
+                        nav_result(
+                            qname,
+                            [],
+                            detail_level=detail_level,
+                            db_path=str(config.db_path),
+                            index_root=config.index_root,
+                            truncated=False,
+                            reason=REASON_INDEX_STALE,
+                            total_count=0,
+                            depth=depth,
+                            frontier_skipped_non_resolved=0,
+                        ),
+                        TRY_INSTEAD_FILE_OUTLINE,
+                    ))
+                subject_unrepaired = True
             asked = qname
             lookup = qname
             outcome = _callers(
@@ -547,6 +552,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             subject_path=subject_file,
             revision=staleness or None,
             dirty_paths=behind_dirty,
+            subject_unrepaired=subject_unrepaired,
         )
         return signed(attach_coverage_note(labelled, config, covered, detail_level=detail_level))
 

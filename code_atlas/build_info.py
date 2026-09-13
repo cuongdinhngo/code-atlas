@@ -22,6 +22,9 @@ from code_atlas import gitutil
 BUILD_ID_CHARS = 7
 DIRTY_SUFFIX = "+dirty"
 UNKNOWN_VERSION = "unknown"
+# Action a reader (including an autonomous agent) can take — never interactive `/mcp` (267).
+SERVER_STALE_ACTION = "restart_mcp_server_process"
+SERVER_STALE_DIFFERS = ("code_atlas_package_bytes_on_disk",)
 _PACKAGE_ROOT = Path(__file__).resolve().parent
 _PACKAGE_NAME = __name__.split(".")[0]
 
@@ -168,6 +171,9 @@ def server_provenance() -> dict[str, object]:
     }
     if ident.get("stale_process"):
         prov["server_repo_head"] = ident["repo_head"]
+        # Name a restart action + what differs — a warning without either is noise (267).
+        prov["server_stale_action"] = SERVER_STALE_ACTION
+        prov["server_stale_differs"] = list(SERVER_STALE_DIFFERS)
     return prov
 
 
@@ -181,6 +187,8 @@ def maybe_server_provenance(detail_level: str) -> dict[str, object]:
 __all__ = [
     "BUILD_ID_CHARS",
     "DIRTY_SUFFIX",
+    "SERVER_STALE_ACTION",
+    "SERVER_STALE_DIFFERS",
     "UNKNOWN_VERSION",
     "maybe_server_provenance",
     "reset_identity_cache",

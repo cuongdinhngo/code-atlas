@@ -14,6 +14,8 @@ from code_atlas.store import INDEXED_SUFFIXES_KEY, LAST_COMMIT_KEY, GraphStore
 from code_atlas.tools.claim import REV_CHARS
 from code_atlas.tools.nav_result import (
     REASON_INDEX_BEHIND,
+    REASON_INDEX_BEHIND_SUBJECT_CHANGED,
+    REASON_INDEX_STALE,
     REASON_OK,
     REASON_SUBJECT_FILE_CHECKED,
 )
@@ -170,6 +172,34 @@ def dirty_indexed_paths(store: GraphStore, config: Config) -> list[str]:
     return list(indexable(paths, config.root, suffixes.split(",")))
 
 
+def unrepaired_subject_served(
+    store: GraphStore,
+    qname: str,
+    *,
+    serve_behind: bool,
+    dirty_paths: Sequence[str],
+) -> bool:
+    """Whether a ``stale`` verdict may still be answered, labelled rather than refused (267).
+
+    True only when the caller opted in and the subject's own file is one of the dirty paths the
+    pre-call census named — the case 257 left refusing. Anything else keeps ``index_stale``.
+    """
+    if not serve_behind:
+        return False
+    rows = store.nodes_by_qualified_name(qname, limit=1)
+    subject = str(rows[0]["file_path"]) if rows else nameable_subject_path(store, qname)
+    return subject is not None and subject in set(dirty_paths)
+
+
+def _refuse_as_stale(payload: dict[str, object]) -> dict[str, object]:
+    """An unrepaired dirty subject with no revision to stamp is a refusal, not an answer (267)."""
+    payload["reason"] = REASON_INDEX_STALE
+    payload["results"] = []
+    payload["total_count"] = 0
+    payload.pop("last_commit", None)
+    return payload
+
+
 def label_serve_behind(
     payload: dict[str, object],
     *,
@@ -177,25 +207,38 @@ def label_serve_behind(
     subject_path: str | None,
     revision: Mapping[str, object] | None,
     dirty_paths: Sequence[str],
+    subject_unrepaired: bool = False,
 ) -> dict[str, object]:
-    """When opt-in and the index is behind, label an unchanged-subject answer (257).
+    """When opt-in and the index is behind, label a served answer (257 / 267).
 
-    Read-through repair (035) stays first — callers only invoke this after a non-stale
-    freshness result. Drifted subjects that were repaired stay ``reason: ok`` (fresh).
-    Unchanged subjects on a behind index become ``index_behind`` and carry the revision.
+    Read-through repair (035) stays first. Repaired subjects stay ``reason: ok``.
+    Unchanged subjects on a behind index → ``index_behind`` (257). When freshness
+    declined on a dirty subject and the caller continued under ``serve_behind``,
+    → ``index_behind_subject_changed`` (267). Never stamp without a revision; an
+    unrepaired dirty subject that cannot be stamped is refused as ``index_stale``.
     """
-    if not serve_behind or revision is None:
+    if not serve_behind:
         return payload
-    if payload.get("reason") == "index_stale":
+    subject_dirty = subject_path is not None and subject_path in set(dirty_paths)
+    unrepaired = subject_unrepaired and subject_dirty
+    commit = revision.get("last_commit") if revision is not None else None
+    stampable = (
+        revision is not None
+        and revision.get("staleness") == BEHIND
+        and isinstance(commit, str)
+        and bool(commit)
+    )
+    if not stampable:
+        return _refuse_as_stale(payload) if unrepaired else payload
+    assert isinstance(commit, str)  # narrowed by `stampable`
+    if payload.get("reason") == REASON_INDEX_STALE:
         return payload
-    if revision.get("staleness") != BEHIND:
+    if unrepaired:
+        payload["reason"] = REASON_INDEX_BEHIND_SUBJECT_CHANGED
+    elif subject_dirty:
+        # Still dirty in the pre-repair census but repaired this call — leave alone.
         return payload
-    if subject_path is not None and subject_path in set(dirty_paths):
-        return payload
-    commit = revision.get("last_commit")
-    if not isinstance(commit, str) or not commit:
-        return payload
-    if payload.get("reason") == REASON_OK:
+    elif payload.get("reason") == REASON_OK:
         payload["reason"] = REASON_INDEX_BEHIND
     payload["last_commit"] = commit
     short = commit[:REV_CHARS]

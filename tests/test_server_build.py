@@ -247,6 +247,8 @@ def test_stale_process_when_loaded_differs_from_disk(
     prov = build_info.server_provenance()
     assert prov["server_stale_process"] is True
     assert prov["server_repo_head"] == "abcdef1"
+    assert prov["server_stale_action"] == build_info.SERVER_STALE_ACTION
+    assert prov["server_stale_differs"] == list(build_info.SERVER_STALE_DIFFERS)
 
 
 def test_matching_process_carries_the_verdict_and_no_divergence_context(

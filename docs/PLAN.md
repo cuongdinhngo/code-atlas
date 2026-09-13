@@ -1011,10 +1011,15 @@ a confident hit byte-identical; that is the dangerous shape. **Locked:** the cen
 — hits on an unmodelled crossing carry `authoritative: false`; `reason` stays `ok`. Detail:
 [238](tasks/238_the-honest-zero-predicate-is-gated-on-the-zero.md).
 
-**Decision — serve_behind labelled reads (257, 2026-09-12).** Opt-in: behind + unchanged subject →
-`reason=index_behind` + revision on payload/rows/`claim` (never `ok`); drifted stay
-repair/`index_stale`; off ⇒ byte-identical. Detail:
-[257](tasks/257_the-index-goes-blind-at-the-moment-it-is-most-wanted.md).
+**Decision — serve_behind labelled reads (257, 2026-09-12; widened by 267, 2026-09-13).** Opt-in:
+behind + unchanged subject → `reason=index_behind` + revision on payload/rows/`claim` (never `ok`);
+off ⇒ byte-identical. **267 widens it:** an unrepaired *dirty* subject may be served too, labelled
+`index_behind_subject_changed`, and is refused rather than stamped when there is no revision — which
+supersedes 257's "drifted stay repair/`index_stale`", now true only with `serve_behind` off. Silent
+stale answers stay forbidden, and `server_stale_process: true` must name a restart action and what
+differs on disk, never only an interactive `/mcp` reconnect. Detail:
+[257](tasks/257_the-index-goes-blind-at-the-moment-it-is-most-wanted.md) ·
+[267](tasks/267_the-warning-an-autonomous-agent-cannot-act-on.md).
 
 **Decision — unresolved CALL site once (258, 2026-09-12).** The site is the fact, the candidate
 set is a query: `max_results` stops governing graph content. AC1/AC5 are E1 — the anchor-scale

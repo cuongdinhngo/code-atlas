@@ -198,6 +198,7 @@ NOT_PAGED_EMITTERS = {
     "reach_shared",
     "get_index_status",
     "generate_onboarding",
+    "freshness",  # labels/refuses an answer another tool paged (267); pages nothing itself
     "check_architecture_rules",  # paging proven in test_architecture_rules; not this fixture
     "diff_architecture",  # pair of snapshots; no limit/offset page (139)
     "class_diagram",  # limit caps members per type, not a result page (144)
