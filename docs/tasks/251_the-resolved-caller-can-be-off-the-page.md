@@ -337,6 +337,22 @@ Reviewed at e020c0584ccd285628cda34b733dbd0a30e89067
 
 - **Gate 4 status:** cleared (challenger CLEAN; reviewer waived)
 
+**Corrected on merge (2026-09-12, maintainer review of [#336](https://github.com/cuongdinhngo/code-atlas/pull/336)).**
+`--no-reviewer` waived the rule-book seat, so this was the first rule-book-grounded read of the diff.
+Four findings, all fixed before the squash:
+- `confidence_tier` shipped as a bare `str`, so the MCP input schema published **no choice** and the
+  three spellings were discoverable only by triggering the `ValueError`. `contract` now carries
+  `ConfidenceTier` as the typing SSoT with `CONFIDENCE_TIERS` derived from it — `NODE_KINDS`' own
+  idiom (R3.2), applied to a vocabulary that had become a tool *parameter*.
+- The census block was copied verbatim into both fetch paths. Extracted as `_tier_census`, which now
+  owns the omit-when-it-adds-nothing rule in one place (061/R6.7).
+- `tier_filter`, `tier_census` and `caveat_limits` had no `CONVENTION.md` §6 row. `caveat_limits`
+  rides **every** payload carrying `authoritative_caveats`, so it is cross-tool contract, not a
+  `find_callers` detail — §6 is where a reader who never opens this ticket finds it.
+- `docs/PLAN.md` was **over its ceiling on the branch** (23,360 vs 23,250) though the pre-PR
+  self-check reported `tests/test_doc_size_budget.py` green. Paid for with R7.6 prunes plus an
+  argued raise; see the comments in that test.
+
 ## Phase 5 — Finalise
 
 Durable lesson: none new — tier was already a label; 251 makes it a store predicate and names the cross-language caveat's operational cost.
@@ -359,5 +375,5 @@ Durable lesson: none new — tier was already a label; 251 makes it a store pred
 ### Outward actions
 1. push feature branch — authorised by handover
 2. open PR — authorised by handover
-Deferred to morning: merge; tracker transitions beyond bookkeeping already on branch.
+3. merge — authorised by the maintainer; merged 2026-09-12 — `d3e5c7f` ([#336](https://github.com/cuongdinhngo/code-atlas/pull/336)).
 

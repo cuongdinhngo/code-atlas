@@ -121,7 +121,7 @@ The single seam between core and every language. Two parts:
 ### 4.1 Subprocess protocol (streaming, language-neutral)
 Adapter runs as a long-lived process; core feeds newline-delimited requests, reads JSONL results. One process boot amortized across all files.
 ```
-← {"name":"php","extensions":[".php",".phtml"],"capabilities":{},"contract_version":9}   # handshake, first line
+← {"name":"php","extensions":[".php",".phtml"],"capabilities":{},"contract_version":10}   # handshake, first line
 → {"path":"src/Models/User.php"}                              # stdin, one JSON/line
 ← {"path":"src/Models/User.php","ok":true,"nodes":[…],"edges":[…]}   # stdout JSONL
 ← {"path":"legacy/foo.php","ok":false,"error":"syntax error @12"}
@@ -302,7 +302,7 @@ echo json_encode(['path'=>$path,'ok'=>true,'nodes'=>$v->nodes,'edges'=>$v->edges
 ### 8.2 Resolver (phase 2, generic — no language branches)
 Runs after all nodes exist:
 - `EXTENDS/IMPLEMENTS/USES_TRAIT/NEW/FuncCall`: `target_raw` is an FQN from the adapter → look up `nodes.qualified_name`, set `target_qname`, tier `RESOLVED`; leave NULL if external/vendor. A qname that appears in multiple files (§10) is linked **once**, still `RESOLVED` — the lookup is keyed by qname, so a hit means the name resolved, and an edge records a `target_qname`, never a node id, so "which declaring file" is not representable. **Revised by task 046:** this previously emitted one top-N `HEURISTIC` edge per declaring node, which produced rows identical in every column but `id` (38.8% of the graph on a monorepo carrying two regional copies of one tree) and downgraded 1.66M edges for a multiplicity that was never ambiguity. Every declaration remains a `nodes` row, so nothing is lost.
-- Instance `CALLS` with unknown receiver type: match by **method name** across the index → one candidate = `HEURISTIC`; many = record top-N `HEURISTIC`; dynamic (`$x->$m()`) = `DYNAMIC`, unlinked. *(Adapters with `semantic_types` capability — Roslyn — pre-resolve these to `RESOLVED`; the resolver just honors what's provided. This is how the same generic code serves both.)* PHP (task 029) emits FQN `target_raw` for lexically bound `$this` / `self` / `static` / `parent` when the enclosing class-like **declares** the method in-file (inherited / trait-mixin `$this->m` stays bare HEURISTIC so name-match still links). Tier convention: RESOLVED names the **declaration site** the file can prove (`$this`/`self`/`parent` at default tier); `static::` is late binding so it keeps the FQN but at `HEURISTIC`.
+- Instance `CALLS` with unknown receiver type: match by **method name** across the index → one candidate = `HEURISTIC`; many = **one unresolved site**, candidates expanded at query time (258); dynamic (`$x->$m()`) = `DYNAMIC`, unlinked. *(Adapters with `semantic_types` capability — Roslyn — pre-resolve these to `RESOLVED`; the resolver just honors what's provided. This is how the same generic code serves both.)* PHP (task 029) emits FQN `target_raw` for lexically bound `$this` / `self` / `static` / `parent` when the enclosing class-like **declares** the method in-file (inherited / trait-mixin `$this->m` stays bare HEURISTIC so name-match still links). Tier convention: RESOLVED names the **declaration site** the file can prove (`$this`/`self`/`parent` at default tier); `static::` is late binding so it keeps the FQN but at `HEURISTIC`.
 - `ALIASES` (task 030): adapter emits alias FQN → real class FQN; resolver links the real target like other FQN kinds, then remaps later CALLS/NEW whose `target_raw` is an alias onto the real class (transitively through alias chains, cycle-safe) so `find_callers` / `find_references` / impact see Alias users under Real. A stored `meta.contract_version` that lags `CONTRACT_VERSION` forces a full rebuild on incremental (never mix vocabulary eras).
 - `REFERENCES` (094, widened by 232): a `Foo::class` mention is a `DYNAMIC` FQN edge; a named class type on a declaration and an attribute / decorator are `RESOLVED` ones. The resolver links both and **keeps** the incoming tier (`_weaker_tier`), so `skip_dynamic` still drops unlinkable `(dynamic)` CALLS/NEW/INCLUDES and never a `REFERENCES`. Variable-method dispatch stays unmodelled. Leftover unlinked `REFERENCES`/`IMPORTS` still feed `relationship_not_modelled` (065).
 - **Path-shaped kinds** (`contract.PATH_TARGET_BASIS` — `INCLUDES`, `IMPORTS`): the target is a **file**, so the lookup is over `File` qnames, never by FQN, and the two kinds are disjoint from `FQN_EDGE_KINDS` so no edge id is double-linked. The contract declares how `target_raw` names the file — `INCLUDES` is includer-relative, `IMPORTS` is the repo-relative path the adapter already resolved (155) — so the resolver reads a declaration instead of sniffing a string (R5.2). **The discriminator is the graph:** a raw naming no indexed file stays bare, which is what leaves a symbol-shaped `IMPORTS` (a class FQN) unlinked with no language branch, and leaves an unresolvable specifier as honest `relationship_not_modelled` evidence (task 188). Variable include = `DYNAMIC`. `IMPORTS` carries `INCLUDES`' impact weight — a module dependency is a file-level dependency — so impact / reachability / orphans finally cross a module boundary.
@@ -310,7 +310,7 @@ Runs after all nodes exist:
 - Linked tier is the **weaker** of the adapter's incoming `confidence_tier` and the lookup outcome: an FQN hit is would-be `RESOLVED` regardless of how many files declare it (task 046), while a **method-name** match is would-be `HEURISTIC` because those candidates carry genuinely different qnames. A resolved name never upgrades a guess (R5.2).
 - **M4 scale:** per-edge `link_edge`/`insert_edge` commits and loading all unresolved edges into Python
   are addressed in task 015 — the resolver streams unresolved edges in batches and applies links in
-  one transaction per batch. Name-match fan-out remains capped by `CA_MAX_RESULTS`.
+  one transaction per batch. Multi-match name fan-out is gone (258); the remaining candidate lookups stay capped by `CA_MAX_RESULTS`.
 
 ### 8.3 Incremental (`indexer.incremental_update`)
 **Shipped (task 016).** Diff = `last_commit..HEAD` **∪** working-tree changes vs `HEAD` (so
@@ -430,9 +430,9 @@ are in [`CONVENTION.md`](CONVENTION.md) §2, and **every knob, its default and w
 [`TOOLS.md`](TOOLS.md) *Configuration reference*** — the copy this section used to keep went two
 knobs out of date, so it is not kept twice (R6.7).
 
-Three knob decisions are design rather than reference, and stay here. `CA_MAX_RESULTS` does **two**
-jobs — the rows a tool returns and the resolver's per-call-site candidate fan-out (§8.2), which sets
-index size; splitting them is an open follow-up in BACKLOG. `CA_ORPHANS_MAX_NODES` is deliberately
+Three knob decisions are design rather than reference, and stay here. `CA_MAX_RESULTS` caps both
+the rows a tool returns and the resolver's candidate lookups (§8.2); 258 ended the job that sized
+the graph. `CA_ORPHANS_MAX_NODES` is deliberately
 **not** the impact budget, so tuning one cannot change which orphans exist (124). And `CA_<LANG>_CMD`
 is resolved **generically from the variable name**, which is what keeps §9's launch mechanism from
 naming a language in the core (R1.1).

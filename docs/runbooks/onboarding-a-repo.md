@@ -111,15 +111,21 @@ Put them in a committed-or-not `.code-atlas.toml` at the repo root (see
 |---|---|
 | `workers` | Leave CPUs for the writer. More than ~6 does not help (§2 above). |
 | `adapter_timeout` | Legacy page scripts run to thousands of lines; the 30 s default is tight when workers compete. 60 s is safer. |
-| `max_results` | **Also caps resolver fan-out.** See below — this is the disk knob. It does **not** size `parse_failure_paths` on `verbose` status (fixed page of 50 + `offset`). |
+| `max_results` | Caps the rows a tool returns, and the resolver's candidate lookups. **It was the disk knob until 258** — see below. It does **not** size `parse_failure_paths` on `verbose` status (fixed page of 50 + `offset`). |
 | `entry_points` | Without it `reachable_from` / `find_orphans` return `no_roots_configured` and do nothing. A **stale** root is worse than none: declare only what a request can actually reach (§9). |
 
-### `max_results` is doing two jobs
+### `max_results` sized the graph — until 258
+
+**Current behaviour (258, 2026-09-12):** a call the resolver cannot pin to one target now stores
+**one** unresolved site, and `find_callers` expands the candidates at query time as
+`reason=proximity_candidates`. The knob still caps pages and the other candidate lookups; it no
+longer multiplies rows into the graph. Everything below is the **pre-258 measurement**, kept because
+it is the evidence 258 was written from and the reason an old index is the size it is.
 
 `full_build` passes it straight through as the resolver's candidate cap
-(`indexer.py:118` → `resolve_edges(store, max_candidates=config.max_results)`). For every call the
-resolver cannot pin to one target, `_queue_candidates` (`resolver.py:129`) inserts **one extra edge
-per remaining candidate**. On a legacy codebase where most calls are `$obj->method()` with no type
+(`indexer.py:617` → `resolve_edges(store, max_candidates=config.max_results)`). For every call the
+resolver could not pin to one target, `_queue_candidates` (`resolver.py:648`) inserted **one extra
+edge per remaining candidate** — that is the multiplication 258 ended for bare-name `Method` calls. On a legacy codebase where most calls are `$obj->method()` with no type
 information, that fallback (`nodes_by_names(kind="Method", limit=max_candidates)`) is where the graph
 comes from.
 
@@ -139,7 +145,9 @@ honestly through `total_count`, so the cap costs signal only where there was non
 the sample repo took the database from **2,115 MB to 1,133 MB**. (That figure also includes the
 `.codeatlasignore` change from §5; the isolated fan-out effect is the −46 % in the table above.)
 
-Budget roughly **1 GB of index per 20k legacy PHP files** at `max_results = 10`.
+Budget roughly **1 GB of index per 20k legacy PHP files** at `max_results = 10` — a pre-258
+figure. **No post-258 anchor measurement exists yet** (258's AC1 shipped E1), so treat it as an
+upper bound: the fan-out it measures is the part that went away.
 
 ### If you set `entry_points`, also look at `impact_max_nodes` and `orphans_max_nodes`
 
@@ -364,7 +372,7 @@ Read the **Zero-inbound modules, by population** block first, and read it agains
 - [ ] Grammar version covers the repo's PHP target; Docker avoided if a host CLI exists
 - [ ] One measured build outside the client; elapsed, `parsed_ok`, DB size recorded
 - [ ] Parse failures triaged into "bundled library" vs "invalid PHP"
-- [ ] `max_results` chosen deliberately, knowing it caps resolver fan-out
+- [ ] `max_results` chosen deliberately — it caps pages and candidate lookups; since 258 it no longer sizes the index
 - [ ] `entry_points` set, or reachability tools knowingly left off
 - [ ] Tracked-vs-indexed file counts diffed; `.gitignore` negations checked
 - [ ] MCP server registered at local scope with a `cd` wrapper; shared `.mcp.json` untouched

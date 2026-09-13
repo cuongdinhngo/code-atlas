@@ -335,4 +335,4 @@ Durable lesson: none new — 222's engine already admitted File qnames; this tic
 ### Outward actions
 1. push feature branch — authorised by handover
 2. open PR — authorised by handover
-Deferred to morning: merge; tracker transitions beyond bookkeeping already on branch.
+3. merge — authorised by the maintainer; merged 2026-09-12 — `62dd1fc` ([#333](https://github.com/cuongdinhngo/code-atlas/pull/333)).

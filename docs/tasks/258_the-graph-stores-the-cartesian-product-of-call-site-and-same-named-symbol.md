@@ -246,6 +246,30 @@ $ .venv/bin/python -m pytest tests/test_unresolved_call_site_not_cartesian.py -q
 
 Reviewed at (see HEAD). Gate 4 cleared (challenger CLEAN; reviewer waived).
 
+**Corrected on merge (2026-09-12, maintainer review of [#337](https://github.com/cuongdinhngo/code-atlas/pull/337)).**
+`--no-reviewer` waived the rule-book seat, so this was the first rule-book-grounded read of the diff.
+Six findings, all fixed before the squash; three of them were shipping red:
+- **`mypy` failed on the branch** — `ranked` held the site rows as `object`, so `edge_hit(site)` was
+  a type error under the gate's own check (`find_callers.py`, now `Row`).
+- **The proximity scan ran for every `Method` subject** at depth 1 and was discarded unless the
+  linked answer was empty — so a saturating name, the case this ticket exists for, paid an unbounded
+  scan on *every* call. `outcome.total_count == 0` moved **into** the guard, and
+  `test_a_linked_answer_never_pays_for_the_proximity_scan` asserts a linked answer never reaches
+  `unresolved_caller_sites` at all (R6.5).
+- **The candidates were returned under `reason: ok`.** They are rows the resolver declined to link,
+  which is the 252 shape exactly, so they take 252's answer: `proximity_candidates`, never `ok`
+  (R5.6). AC2 keeps the rows in `results` with a true `total_count` as the ticket binds — what was
+  missing was the label, not the shape. Three `NAV_REASONS` guard sites and
+  `test_bare_name_callers_silent_drop`'s `reason == "ok"` assertion moved with it.
+- `unresolved_caller_sites` grew a `language` parameter **no caller passed**; the call site now
+  passes the subject file's language, so a blended graph cannot answer across adapters.
+- AC5's microbench asserted wall-clock `< 100 ms` **and** `elapsed_ms >= 0.0` — one flaky on a
+  contended host, the other unable to fail. It now counts store reads: the expansion is one scan of
+  the name, not one per candidate.
+- `tests/test_build_report_counts.py::test_the_fixture_really_produces_siblings` **shipped red**
+  (`assert 0 == 2`): 258 ended the resolver's sibling rows, which were that file's vacuity guard.
+  Repointed at enrichment, the remaining post-parse writer.
+
 ## Phase 5 — Finalise
 
 `CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
@@ -258,4 +282,4 @@ Reviewed at (see HEAD). Gate 4 cleared (challenger CLEAN; reviewer waived).
 ### Outward actions
 1. push feature branch — authorised
 2. open PR (base: feat/251-…) — authorised
-Deferred: merge; 251 merge prerequisite for landing on main.
+3. merge — authorised by the maintainer after 251 landed; merged 2026-09-12 — `9949e9a` ([#337](https://github.com/cuongdinhngo/code-atlas/pull/337)).

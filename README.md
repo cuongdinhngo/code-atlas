@@ -162,8 +162,8 @@ adapter runtime, a `/mnt/*` repo on WSL. **Defender and Dev Drive it cannot dete
 you. A clean host prints nothing.
 </details>
 
-Onboarding a **large legacy repo** — where the first build takes minutes and one knob decides
-whether the database is 1 GB or 2 GB — is covered step by step in
+Onboarding a **large legacy repo** — where the first build takes minutes and what you exclude
+decides whether the database is 1 GB or 2 GB — is covered step by step in
 [`docs/runbooks/onboarding-a-repo.md`](docs/runbooks/onboarding-a-repo.md).
 
 ## Architecture
@@ -251,7 +251,7 @@ never a silent fallback.
 |---|---|---|---|
 | `CA_DB_PATH` | `db_path` | `.code-atlas/graph.db` | index location (relative to the repo root) |
 | `CA_WORKERS` | `workers` | `max(1, min(cpu-2, 8))` | adapter processes during a build |
-| `CA_MAX_RESULTS` | `max_results` | `50` | result cap for search/nav tools — **and** the resolver's per-call-site candidate fan-out, which sets index size |
+| `CA_MAX_RESULTS` | `max_results` | `50` | result cap for search/nav tools, and the resolver's candidate lookups. Since 258 it no longer sizes the index — a multi-match bare-name `Method` call stores one unresolved site, not N candidate edges |
 | `CA_IMPACT_DEPTH` / `CA_IMPACT_MAX_NODES` | `impact_depth` / `impact_max_nodes` | `2` / `500` | hops and node budget for one impact query |
 | `CA_ENTRY_POINTS` | `entry_points` | unset | file globs that seed reachability. **`reachable_from` and `find_orphans` need this** — unset, they report *no roots configured* rather than guessing |
 | `CA_STUB_ROOTS` | `stub_roots` | unset | dependency roots (e.g. `vendor`) to index declarations-only, so third-party signatures resolve |

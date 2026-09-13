@@ -170,3 +170,8 @@ $ .venv/bin/python -m pytest tests/test_column_own_definition_line.py -q --tb=li
 `RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (n/a) | 0 left in lessons_path`
 `PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
 `LEDGER TOTAL: unmeasured · top cost driver: challenger (1) + main-loop`
+
+### Outward actions
+push feature branch · open PR · merge — all authorised; merged 2026-09-12 as `594be4e`
+([#331](https://github.com/cuongdinhngo/code-atlas/pull/331)). Phase 4 above was never filled in
+beyond "pending": this ticket carries **no recorded challenger verdict**, unlike its siblings.

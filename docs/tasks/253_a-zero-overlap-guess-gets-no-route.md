@@ -341,4 +341,4 @@ Durable lesson: none beyond the ticket ACs — recalled handles already cover th
 ### Outward actions
 1. push feature branch — authorised by handover
 2. open PR — authorised by handover
-Deferred to morning: merge; tracker transitions beyond bookkeeping already on branch.
+3. merge — authorised by the maintainer; merged 2026-09-12 — `67e7e42` ([#330](https://github.com/cuongdinhngo/code-atlas/pull/330)).

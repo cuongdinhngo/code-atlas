@@ -355,4 +355,4 @@ Durable lesson: none beyond the ticket ACs — the PHP-shaped constant class is 
 ### Outward actions
 1. push feature branch — authorised by handover
 2. open PR — authorised by handover
-Deferred to morning: merge; tracker transitions beyond bookkeeping already on branch.
+3. merge — authorised by the maintainer; merged 2026-09-12 — `edb53f2` ([#332](https://github.com/cuongdinhngo/code-atlas/pull/332)) then `11ff01d` ([#335](https://github.com/cuongdinhngo/code-atlas/pull/335)).

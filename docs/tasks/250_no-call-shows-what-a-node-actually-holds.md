@@ -428,7 +428,7 @@ Working-doc path (stale-review exempt): `docs/tasks/250_no-call-shows-what-a-nod
 
 **Gate:** `scripts/gate.sh` GATE GREEN — 20 passed · 0 failed · 0 skipped (Linux host; second run after PLAN.md R7.6 prune).
 
-**Outward actions (handover-authorised):** (1) push feature branch (2) open PR. Merge not authorised.
+**Outward actions (handover-authorised):** (1) push feature branch (2) open PR. Merge later authorised; merged 2026-09-12 — `eb5da72` ([#328](https://github.com/cuongdinhngo/code-atlas/pull/328)).
 
 **Token-usage (working doc).** 2 challenger dispatches unmeasured; reviewer off; main-loop unmeasured. See `docs/TOKEN_LEDGER.md` row 250.
 

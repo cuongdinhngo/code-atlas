@@ -341,4 +341,4 @@ Durable lesson: none new — behind indexes already answered unchanged subjects;
 ### Outward actions
 1. push feature branch — authorised by handover
 2. open PR — authorised by handover
-Deferred to morning: merge; tracker transitions beyond bookkeeping already on branch.
+3. merge — authorised by the maintainer; merged 2026-09-12 — `0720cab` ([#334](https://github.com/cuongdinhngo/code-atlas/pull/334)).

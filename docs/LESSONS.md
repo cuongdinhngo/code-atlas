@@ -31,7 +31,8 @@ rule** rather than adding a near-duplicate (P2), and one by finding the rule alr
 | `derived-not-listed-invariant` | 22 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180, 187, 191, 184, 022 | **R6.7** |
 | `prove-the-guard-fails` | 35 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188, 189, 190, 187, 191, 184, 192, 022, 194, 195, 224, 228, 229, 230, 250 | **R6.5** — 190 is the *other* side of it: not *was it seen failing?* but *did it fail for the thing it forbids?* |
 | `gate-the-disclosure-on-its-condition-not-the-row-count` | 2 | 192, 238 | **proposed** → `docs/ENGINEERING_RULES.md` (238; `/mango:promote`) |
-| `do-not-attest-past-the-payloads-resolution` | 12 | 087–089, 100–102, 107, 239, 242, 246, 250, 252 | **R5.6** — promoted 2026-08-27 (re-adjudicated); 239: FK indexed but Column search hit omitted it; 242: `params` indexed (231) but no nav tool returned them |
+| `do-not-attest-past-the-payloads-resolution` | 13 | 087–089, 100–102, 107, 239, 242, 246, 250, 252, 258 | **R5.6** — promoted 2026-08-27 (re-adjudicated); 239: FK indexed but Column search hit omitted it; 242: `params` indexed (231) but no nav tool returned them |
+| `sweep-scope-cannot-attest-the-gate` | 3 | 255, 251, 258 | **proposed** → `docs/AGENT_BRIEF.md` (2026-09-12; three sightings in one merge round, each a pre-PR self-check attesting a check the sweep never ran) |
 | `fixture-shape-begs-the-question` | 11 | 084, 086, 103–106, 121, 183, 185, 190, 191 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 7 | 092, 093, 100–102, 245, 252 | **R5.4** |
 | `count-pin-in-blast-radius` | 11 | 085, 087–089, 175, 184, 022, 194, 196, 199, 237 | **AGENT_BRIEF P5** — promoted 2026-08-27; P5 needs the invariant, not the spelling (022) — 194 adds that a change can move MORE THAN ONE invariant, and 196 that a pin written as a bare LITERAL is invisible to a trace that greps the invariant's name; 237 is the *new-module* dimension — adding `code_atlas/preflight.py` moved the core-module count pinned in `test_core_is_language_agnostic.py` + `test_sql_confinement.py`, and the Gate-2 blast-radius trace did not grep for it |
@@ -83,6 +84,43 @@ nothing kept the *rule's*, so the rule a reader consults under-reported its own 
 now reconciled to this table.
 
 ## Live claims
+
+### 251-C1 · 255-C1 · 258-C1 — A verification sweep scoped to the ticket's own tests cannot attest a repo-wide check
+
+- type: 2 (process) · handle: `sweep-scope-cannot-attest-the-gate`
+- status: proposed (awaiting human confirm) — **recurrence 3**, all in the 2026-09-12 merge round
+- seen: 255, 251, 258
+- sharpens `stamp-evidence-with-the-tree-under-review` rather than superseding it: 200/201 learned
+  *which tree* the evidence describes; this is *which scope* — the right tree, the wrong breadth.
+- evidence: each branch's sweep ran its own proving test file, and each pre-PR self-check then
+  reported the repo-wide checks green. 255/#332 merged with three suites red
+  (`tests/contract/test_tool_parity.py[sql:find_references]`, two `test_references_construct_agreement.py`
+  AC3 cases); 251/#336 shipped `PLAN.md` over its ceiling with `test_doc_size_budget.py` claimed
+  green; 258/#337 shipped `mypy` red and `test_build_report_counts.py` red. Actions reports `fail`
+  in ~3 s without running, so nothing downstream catches it either (AGENTS.md, *Before a PR*).
+- destination: `agent_brief_path` — the sweep names the checks it ran, and a self-check attests only those.
+
+### 251-C2 — A vocabulary that becomes a tool parameter needs a `Literal`, not a tuple beside a `str`
+
+- type: 2 (code) · handle: `literal-publishes-the-choice`
+- status: proposed (awaiting human confirm)
+- seen: 251
+- evidence: `confidence_tier` shipped typed `str | None` with `CONFIDENCE_TIERS` a hand-written
+  tuple, so the MCP input schema published no choice and the three spellings were discoverable only
+  by triggering the `ValueError`. `contract.ConfidenceTier` is now the typing SSoT and the tuple is
+  `get_args` of it — what `NodeKind`/`NODE_KINDS` (056) and `detail_level` already do.
+- destination: stays in lessons_path (recurrence 1; R3.2 carries the derivation half already)
+
+### 258-C2 — Rows the resolver declined to link are candidates, whatever they cost to find
+
+- type: 2 (code) · handle: `do-not-attest-past-the-payloads-resolution`
+- status: proposed (recurrence of R5.6 — bump `seen:` only; rule already carries the class)
+- seen: 258
+- evidence: the proximity expansion returned unresolved same-named CALL sites in `results` under
+  `reason: ok`. Same shape as 252's member union, so it takes 252's answer: `proximity_candidates`,
+  never `ok`, each row naming `candidate_of`. The ticket's AC2 binds the rows and the true
+  `total_count`; only the label was missing.
+- destination: docs/ENGINEERING_RULES.md (already R5.6)
 
 ### 250-C1 — An edge-attached hit key is not a stored extra key
 
@@ -533,8 +571,11 @@ rebase of this branch onto a main carrying 184 · destination: open.*
 *Claim `192-C4` — a gitignored build artefact survives `git checkout`, so a branch can be tested
 against a directory that is not in it: `adapters/sql/node_modules` left over from 184 made
 `shipped_adapters` report a third adapter on a branch that has none. Check the tree matches the branch
-before trusting a payload pin. type: 5 · handle: `ignored-artefact-outlives-the-branch` · status:
-confirmed · seen: 192 · area: process · destination: stays in lessons_path.*
+before trusting a payload pin. **Second sighting, other axis (258):** the `graph-N.db` files
+`tokens_to_answer.py` leaves in `artifacts/` outlived the `schema_version` 258 bumped, so the gate
+read a refused open as a ratio regression — an artefact outlives a schema era the same way it
+outlives a branch. type: 5 · handle: `ignored-artefact-outlives-the-branch` · status:
+confirmed · seen: 192, 258 · area: process · destination: stays in lessons_path.*
 
 *Claim `184-C1` — an AC that names a growth axis must name the axis the defect lives on; where a
 protocol imposes growth of its own, measure the other axis and pin the imposed one as bounded rather

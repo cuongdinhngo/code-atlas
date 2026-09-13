@@ -876,7 +876,14 @@ def prepare_fixture_root(src: Path, workdir: Path) -> Path:
 
 
 def build_index(root: Path, db_path: Path, php_cmd: str) -> Config:
-    """full_build ``root`` with the PHP adapter; bind the resulting index for the tools."""
+    """full_build ``root`` with the PHP adapter; bind the resulting index for the tools.
+
+    Every caller wants a fresh build, so a database this script left behind is removed first:
+    kept, one from an older ``schema_version`` refuses to open and the gate reads that as a
+    tokens-to-answer regression (258 bumped the schema; the artifact outlived the era).
+    """
+    for stale in (db_path, *(db_path.with_name(db_path.name + s) for s in ("-wal", "-shm"))):
+        stale.unlink(missing_ok=True)
     env = {k: v for k, v in os.environ.items() if k.startswith("CA_")}
     env["CA_PHP_CMD"] = php_cmd
     config = replace(load_config(root, env), db_path=db_path, root=root)

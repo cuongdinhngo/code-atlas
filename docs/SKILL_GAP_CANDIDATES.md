@@ -291,3 +291,22 @@ Two sightings, one year apart in ticket numbers and one session apart in time, i
 turns a curiosity into a fix worth making: the parser reads an enumerated tail from the line's last
 backtick, so any reason that names a file cannot say so in the repo's own convention for naming
 files. Type-3 signal only — no mango file was edited.
+
+## The pre-PR self-check attests checks the verification sweep never ran (seen: 255, 251, 258)
+
+Three branches in the 2026-09-12 merge round each ran a sweep over their own proving test file, then
+filed a self-check reporting the repo-wide checks green. All three were wrong in a different place:
+255/#332 merged with three suites red, 251/#336 shipped `docs/PLAN.md` over its ceiling with
+`tests/test_doc_size_budget.py` claimed green, and 258/#337 shipped `mypy` red plus a red
+`tests/test_build_report_counts.py`. Nothing downstream catches it — this repo's Actions report
+`fail` in ~3 s without running, which `AGENTS.md` records — so the self-check is the only gate before
+a human reads the diff.
+
+**What the phase does.** `execute` step 5 records a verification sweep; the PR template's self-check
+is then filled in from the ticket's own scope.
+
+**A doable check the phase could name.** Have the sweep emit the *command it ran* beside its result,
+and have the self-check accept only lines it can match to one — an unmatched claim renders as
+`not run`, not as a tick. That is bookkeeping over what is already on the page, not new tooling.
+Type-3 signal only — no mango file was edited. The repo-side half is `sweep-scope-cannot-attest-the-gate`
+in [`LESSONS.md`](LESSONS.md).

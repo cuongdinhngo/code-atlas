@@ -372,7 +372,7 @@ Working-doc path (stale-review exempt): `docs/tasks/252_a-class-reference-questi
 
 **Gate:** `scripts/gate.sh` GATE GREEN — 20 passed · 0 failed · 0 skipped (Linux host).
 
-**Outward actions (handover-authorised):** (1) push feature branch (2) open PR. Merge not authorised.
+**Outward actions (handover-authorised):** (1) push feature branch (2) open PR. Merge later authorised; merged 2026-09-12 — `9fdcdc1` ([#329](https://github.com/cuongdinhngo/code-atlas/pull/329)).
 
 **Token-usage (working doc).** 2 challenger dispatches unmeasured; reviewer off; main-loop unmeasured. See `docs/TOKEN_LEDGER.md` row 252.
 

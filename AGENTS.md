@@ -93,7 +93,7 @@ knob. Every timing and its conditions: [`runbooks/onboarding-a-repo.md`](docs/ru
 **Not per edit** — iterate on targeted `ruff`/`mypy`/`pytest`, batch every fix, then one gate run
 before the PR. It mirrors every `ci.yml` job in order, naming each check (~100 s).
 **Actions report `fail` in ~3 s without running** (0 steps, unbillable), so `gh pr checks` is not a
-second opinion — the local gate is the only gate, and every PR merges over four red checks.
+second opinion — the local gate is the only gate.
 **Only `GATE GREEN` counts — exit 2 means a check was skipped, which is not a pass (R6.5).**
 `tests/test_ci_and_gate_agree.py` keeps it in step with `ci.yml`, so that drift fails a test here.
 **The gate's tokens-to-answer ratio is the *fixture* tier and sits below 1 by design** (floor 0.63) —
@@ -102,15 +102,16 @@ the other.
 
 ## Running the full test suite — never report it as unrunnable
 **Runtime supported on native Windows (237, superseding 220); test suite + dev loop stay POSIX** —
-run under WSL2, repo on the Linux-native fs, never `/mnt/*`. Evidence in README.
+run under WSL2, never `/mnt/*`; the rest is in README.
 The suite needs a **POSIX host** (four tests import `fcntl`/`resource`; since 237 the lock does
 not) and **every adapter**: `php` + `composer`, `node` for both the TS and SQL adapters, and a
-Python ≥ 3.12 interpreter. With all of
-them present bare `pytest` is green and is the fastest route. Missing either condition it goes red —
+Python ≥ 3.12 interpreter —
+with all of them present, bare `pytest` is the fastest route. Missing either condition it goes red —
 **a platform limitation, not a regression** — so don't conclude "the suite can't run"; run it in
-Docker instead: `scripts/docker-test.sh`. **Expected count, verified 2026-09-11 on Linux — the one
+Docker instead: `scripts/docker-test.sh`. **Expected count, verified 2026-09-12 on Linux — the one
 place these numbers are kept:** bare `pytest` (with `php` · `composer` · `node` · `docker` on PATH)
-**3,291 passed / 3 skipped**; `scripts/docker-test.sh` **3,290 passed / 4 skipped**. Green skips: the
+**3,742 passed / 3 skipped**; `scripts/docker-test.sh` **3,741 passed / 4 skipped**. Both measured
+on the same tree; neither is derived from the other. Green skips: the
 Windows lock arm (3) and, in-image only, `test_runtime_image_reports_server_build`.
 
 Prove **delta-green** before a PR and name the host: a red run on a host missing an adapter is the

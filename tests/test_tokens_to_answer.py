@@ -16,6 +16,8 @@ from pathlib import Path
 
 import pytest
 
+from code_atlas.store import SCHEMA_VERSION
+
 REPO = Path(__file__).resolve().parent.parent
 HARNESS = REPO / "scripts" / "tokens_to_answer.py"
 QUESTIONS = REPO / "scripts" / "tokens_to_answer_questions.json"
@@ -814,3 +816,27 @@ def test_recovered_sample_ratio_clears_the_new_floor() -> None:
     rows = [_row("a", atlas=6419, grep=441650)]
     agg = _h.assert_benchmark(rows, min_ratio=_h.SAMPLE_TIER_RATIO_FLOOR)
     assert agg["ratio"] >= _h.SAMPLE_TIER_RATIO_FLOOR
+
+
+def test_build_index_discards_a_database_from_an_older_schema_era(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A `graph-N.db` this script left behind must not outlive the schema era it was built in.
+
+    258 bumped `schema_version`; the artifacts sat in `artifacts/tokens-to-answer/` from before it,
+    `GraphStore` refused to open one, and the gate reported that as a tokens-to-answer regression.
+    """
+    db = tmp_path / "graph-0.db"
+    with _h.GraphStore(db) as store:
+        store._conn.execute("UPDATE meta SET value = '5' WHERE key = 'schema_version'")
+        store._conn.commit()
+    # Guarding the guard (R6.5): the fixture is only evidence if the stale file really refuses.
+    with pytest.raises(Exception, match="schema version"):
+        with _h.GraphStore(db):
+            pass
+
+    monkeypatch.setattr(_h, "full_build", lambda config, store: None)
+    _h.build_index(tmp_path, db, "php --server")
+
+    with _h.GraphStore(db) as store:
+        assert store.get_meta("schema_version") == SCHEMA_VERSION
