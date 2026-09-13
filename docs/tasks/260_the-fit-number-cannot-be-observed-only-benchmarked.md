@@ -5,19 +5,21 @@ title: 'Fit — the binding constraint on this product — is a number that only
 phase: 1.5b
 milestone: Adoption
 status: todo
-depends_on: [200, 081]
+depends_on: [081]
 ---
 
 ## Why this exists
 
 PLAN §19 records the founding benchmark's adoption figure: the agent reached for the index in **22 of 117 tool calls (19%)**. Every subsequent decision about the tool surface — keep 24, cut to six, write a better skill — is argued against that one number, taken once, on one session, on one repo.
 
-Two live decisions are blocked on it:
+Two live decisions wait on it:
 
-- [200](200_the-recognition-map-is-a-prompt-no-agent-can-read.md) is `blocked` on a recognition probe that costs a human session.
+- [200](200_the-recognition-map-is-a-prompt-no-agent-can-read.md) is `blocked` on AC5, a blind recognition round that costs a human session.
 - Several feedback notes propose cutting the offered surface to six tools. `CA_TOOLS` already exists (`main.py:160`), so *offering* a preset is nearly free — but **changing the default** without a number repeats the mistake the notes spend pages refusing.
 
 A local counter turns fit from a benchmark someone must re-run into a number that accrues while the server is used normally.
+
+**This ticket does not wait on 200; 200 waits on it** (dependency inverted 2026-09-13). 200's code has landed and it is open on AC5 alone. The counter does **not** satisfy AC5 — that round is blind and before/after, this is passive and one-armed — but it removes the hand-tally of 117 calls that made the round expensive, so the round is cheaper after this lands than before.
 
 ## Scope / Deliverables
 

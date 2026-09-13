@@ -5,7 +5,7 @@ title: 'The recognition map is an operator prompt no model can read, and the one
 phase: 1.5b
 milestone: Adoption
 status: blocked
-depends_on: [081, 097, 036, 099]
+depends_on: [081, 097, 036, 099, 260]
 ---
 
 ## Why this exists
@@ -111,6 +111,7 @@ source of the skill-plus-hook shape, taken here without its installer.
 ## Session status
 
 - **KEY:** 200 · **work_doc_mode:** embed · **Current phase:** 5 finalise — complete on disk. PR [#243](https://github.com/cuongdinhngo/code-atlas/pull/243) open. **Next action:** merge #243, then run the blind probe round (E1) to close AC5. **Revert path:** `git revert` the four commits on `feat/200-…`, or close #243 unmerged.
+- **2026-09-13 — `depends_on` gains [260](260_the-fit-number-cannot-be-observed-only-benchmarked.md).** AC5's round is a hand-tally of every tool call in a session; 260's local counter accrues that tally while the server is used normally. It does **not** satisfy AC5 — blind and before/after is not passive and one-armed — so the round still runs. It runs cheaper, and after 260.
 - `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · **Type:** enhancement.
 - Run arg: *"with skipper reviewer"* = **reviewer seat only** (AGENTS.md *Honor the run's args*); the
   ticket-blind challenger keeps its seat.
