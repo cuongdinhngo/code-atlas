@@ -969,6 +969,10 @@ Serena-class tools are as blind as today's graph. This is unclaimed ground, not 
 **Nav answer after 062.** `PROVIDES_VIEW_DATA` / `find_view_data` — view-scope keys; agent `Read`s
 the template consumer name.
 
+**Decision — consumer-repo agent brief is offered into the indexed tree (task 266, 2026-09-13).**
+
+[036](tasks/036_edit-index-hook.md) / [099](tasks/099_write-time-signal-seam.md) locked *offer, never install* for **editor settings**, and that still holds. **Locked separately:** a generated brief written into the **indexed repo's** `AGENTS.md` (marked, regenerable, behind a flag, never clobbering) is a different blast radius — it is the channel every agent on that repo already reads, and what [200](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) is blocked on. Detail: [266](tasks/266_the-artifact-that-would-make-an-agent-ask-is-in-our-repo-not-theirs.md).
+
 **Decision — default inbound page order is tier-first (task 265, 2026-09-13).**
 
 Page 1 was alphabetical, so a correct page could be 100 % of the wrong tree (067) and the sole `RESOLVED` caller sat on page 12 (251). **Locked: tier-first default order** — `RESOLVED` → `HEURISTIC` → `DYNAMIC`, then today's stable keys — in the store query before truncation (R4.2). `confidence_tier` stays an opt-in *filter*: default *order* changes, default *set* does not. A tier partition is `authoritative: false` with a census, and an empty one stays `no_matches`, never `ok` (264). [074](tasks/074_does-the-index-harm-mechanism-questions.md) stays `deferred` until re-measured after this ships. Detail: [265](tasks/265_the-default-page-order-is-the-alphabet.md).

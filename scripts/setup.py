@@ -117,6 +117,11 @@ def main() -> int:
         action="store_true",
         help="skip adapter setup (nothing is indexable until an adapter is set up)",
     )
+    ap.add_argument(
+        "--write-agent-brief",
+        action="store_true",
+        help="offer the five-occasion code-atlas brief into PROJECT/AGENTS.md (task 266)",
+    )
     args = ap.parse_args()
 
     print("code-atlas setup\n================")
@@ -170,10 +175,19 @@ def main() -> int:
             print(f"  wrote {dest}")
         else:
             print(json.dumps({"mcpServers": {"code-atlas": entry}}, indent=2))
+        if args.write_agent_brief:
+            sys.path.insert(0, str(ROOT / "scripts"))
+            import gen_skill  # noqa: E402
+
+            brief = gen_skill.write_agent_brief(proj)
+            print(f"  wrote agent brief section in {brief}")
     else:
         entry["cwd"] = "/abs/path/to/your-project"
         print("  Add this to your project's .mcp.json (set cwd to the repo you index):\n")
         print(json.dumps({"mcpServers": {"code-atlas": entry}}, indent=2))
+        if args.write_agent_brief:
+            print("  ! --write-agent-brief needs a PROJECT path.")
+            return 1
 
     wired = ", ".join(sorted(k[3:-4].lower() for k in adapter_commands()))
     print(f"\nAdapters wired into the config: {wired}")

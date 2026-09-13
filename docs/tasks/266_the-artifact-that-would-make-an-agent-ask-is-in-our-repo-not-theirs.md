@@ -4,7 +4,7 @@ slug: the-artifact-that-would-make-an-agent-ask-is-in-our-repo-not-theirs
 title: 'Fit is the binding constraint, and the file that would fix it ships in `contrib/` — a place no agent working in a consumer repo ever reads; generate a five-occasion brief into the tree being indexed, where every agent on that repo already looks'
 phase: 1.5b
 milestone: Adoption
-status: todo
+status: done
 depends_on: [200, 081, 036, 099, 244, 260]
 ---
 
@@ -39,3 +39,124 @@ Good news for cost: the generator, the recognition-map source and the suffix cov
 
 ## References
 `scripts/gen_skill.py`, `code_atlas/tools/prompts.py` (`which_tool`), [200](200_the-recognition-map-is-a-prompt-no-agent-can-read.md), [244](244_no-channel-announces-a-capability-change.md), [036](036_edit-index-hook.md), [099](099_write-time-signal-seam.md), PLAN §19 (22/117).
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 266 — agent brief in indexed repo (working doc)
+
+- **Ticket:** 266
+- **Type:** enhancement
+- **SCOPE:** M
+- **STRUCTURE:** native
+- **TRACK:** backend — 0/0 touched files under UI paths
+- **TIER:** full
+- **BASELINE:** green
+
+---
+
+## Phase 0 — Refine
+
+`PREMISE: 5 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)`
+`RECALL: 0 claim(s) surfaced | 0 by symbol | 0 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`REFINE: 0 unresolved surfaced | 0 want-decision asked | 0 how-decision resolved+cited | 0 ASSUMED | skip: yes`
+
+**refine skipped:** ticket locks AGENTS.md destination, five occasions from which_tool, section-19-first, offered flag.
+**INPUT KIND:** ticket.
+**Note:** depends_on includes blocked 200; 200 is blocked on this location/shape gap — 266 proceeds and does not close 200 AC5 field probe.
+
+---
+
+## Requirements matrix
+
+`SECTIONS: 5 found (Why this exists · Scope / Deliverables · Constraints · Acceptance criteria · References) | 5 decomposed | ROWS: C=3 R=5 G=1 AC=4`
+
+| ID | Source | Verbatim | Interpretation | Ph2 | Ph3/4 | Status |
+|----|--------|----------|----------------|-----|-------|--------|
+| G1 | Why | skill in contrib never reaches consumer agent | write into indexed tree | D2 | proving | ✅ |
+| C1 | Constraints | never write editor settings | 036/099 unchanged | D1 | section-19 | ✅ |
+| C2 | Constraints | R6.7 no hand-kept roster | from which_tool | D2 | drift | ✅ |
+| C3 | Constraints | no 25th tool | — | — | — | ✅ |
+| R1 | Scope | brief into indexed repo | AGENTS.md section | D2 | AC1 | ✅ |
+| R2 | Scope | five occasions from which_tool | OCCASIONS | D2 | AC1 | ✅ |
+| R3 | Scope | section-19 boundary first | PLAN | D1 | commit order | ✅ |
+| R4 | Scope | offered flag; no clobber | --write-agent-brief | D3 | AC2 | ✅ |
+| R5 | Scope | hook snippets cover suffixes | existing + AC4 | D2 | AC4 | ✅ |
+| AC1 | AC | fixture + drift guard | | D2 | proving | ✅ |
+| AC2 | AC | preserve + idempotent | | D2 | AC2 | ✅ |
+| AC3 | AC | section-19 before code | | D1 | c7c2313 | ✅ |
+| AC4 | AC | suffixes from shipped_adapters | | D2 | AC4 | ✅ |
+
+`CLARIFICATION: 0 raised | 0 self-resolved (cited) | 0 for human decision`
+
+---
+
+## Phase 1 — Analysis
+
+- Root cause: skill lives in contrib/; consumer agents never see it; 24-tool roster is the wrong shape.
+- TRACK: backend — 0/0 UI · SCOPE: M · TIER: full
+
+`RULE SECTIONS: 3 applicable — 3 by change-type | 0 by recalled handle — R6.7 ✅ · R7.6 ✅ · R4 (no network) ✅`
+
+### BASELINE
+
+```
+Ran at a5fb9a568e5e1e22dede328df47bdc39e34f7713
+$ .venv/bin/python -m pytest tests/test_poke_snippet_covers_every_adapter.py -q --tb=no
+4 passed
+```
+
+`BASELINE: green`
+
+---
+
+## Phase 2 — Design
+
+- Approach: section-19 first; render_agent_brief from OCCASIONS×recognition_map; write_agent_brief into AGENTS.md with markers; setup --write-agent-brief.
+- Rejected: write editor settings (036/099); hand-kept occasion lines (R6.7).
+
+`HANDLES: 0 recalled | 0 traced (command + result) | 0 does not apply (reason) | 0 unanswered`
+`EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+**Proving test:** `.venv/bin/python -m pytest tests/test_agent_brief_in_indexed_repo.py::test_fixture_repo_gets_five_occasion_brief_from_which_tool -q`
+
+| # | Change | File |
+|---|--------|------|
+| D1 | section-19 | PLAN.md |
+| D2 | render + write + OCCASIONS | gen_skill.py |
+| D3 | setup flag | setup.py |
+| D4 | proving | tests |
+
+---
+
+## Phase 3 — Execute
+
+**Branch:** feat/266-agent-brief-in-indexed-repo
+**Implemented:** D1–D4.
+
+**Verification sweep**
+
+```
+Ran at 1517cb629b401145121e81f92560dc98c2dc7a56
+$ .venv/bin/python -m pytest tests/test_agent_brief_in_indexed_repo.py tests/test_poke_snippet_covers_every_adapter.py tests/test_contrib_snippets.py -q --tb=no
+26 passed
+```
+
+---
+
+## Phase 4 — Review
+
+**REVIEWER: OFF (--no-reviewer)** — waived.
+**CHALLENGER: ON** — round-1 NOT CLEAN (committed drift); round-2 CLEAN after contrib/agent-brief.md golden.
+
+---
+
+## Phase 5 — Finalise
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`LEDGER TOTAL: unmeasured · top cost driver: main-loop (challenger x1)`
+
+Outward: push + PR authorised. Deferred: merge. DISCLOSURE: 200 remains blocked on AC5 field probe.

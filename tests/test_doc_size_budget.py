@@ -196,7 +196,13 @@ BUDGETS = {
     # the 074 re-measure paragraph folded into one clause, §12's cell stopped repeating §19's
     # tier order, and a superseded field-report walk-through went in 261. The next addition
     # prunes again or argues again; this is not headroom.
-    "PLAN.md": 23_550,
+    # 23,550 -> 23,720 on 2026-09-13 (266), argued rather than assumed. 036/099 locked *offer,
+    # never install* for editor settings; writing into the indexed repo's own AGENTS.md is a
+    # different blast radius, and a reader who finds only the 036 entry concludes the opposite of
+    # what ships. R7.6 ran first and paid ~100 of the 212 the entry arrived with: the mechanism,
+    # the flag name and the five occasions live in 266's task file, not here. The next addition
+    # prunes again or argues again; this is not headroom.
+    "PLAN.md": 23_720,
     # 2,150 -> 1,800 on 2026-09-08, LOWERED: 232-235 all close in this window and each removes
     # its row (R7.6), taking the file 1,737 -> 1,485. 2,150 is more than 25 % above 1,485, which
     # the anti-slack guard below calls slack; 1,800 keeps ~315 of headroom, about five open rows.
