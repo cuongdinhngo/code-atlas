@@ -169,7 +169,7 @@ what the payload already says (061). An answer must state what it is *not* telli
 | `index_root` | **every** payload, every detail level | the configured source tree — identity of the tree, not the database file (071) |
 | `db_path` | `get_index_status` / `build_or_update_index` at `standard` | nowhere else after 061 |
 | `last_ref` / `head_ref` | status + the busy-build refusal sharing its vocabulary | the revision the index was built on and the one HEAD is on now. `HEAD` when detached, `null` when non-git, **omitted** pre-077 so `null` is not read as "not under git". Nav payloads stay on `index_root` alone (077) |
-| `server_version` / `server_build` / `server_stale_process` | status at `standard`/`verbose`; `minimal` omits all three | the running package, a build id from git or package content (not the index schema), and whether the loaded code still matches the disk. `+dirty` on the id is the **worktree** axis, orthogonal to that process one. The verdict rides **unconditionally** (170); `server_repo_head` is divergence context and stays conditional. Signed claims add `server=`/`build=` (100/125) |
+| `server_version` / `server_build` / `server_stale_process` (+ `server_stale_action` / `server_stale_differs` when it fires — 267) | status at `standard`/`verbose`; `minimal` omits all three | the running package, a build id from git or package content (not the index schema), and whether the loaded code still matches the disk. `+dirty` on the id is the **worktree** axis, orthogonal to that process one. The verdict rides **unconditionally** (170); `server_repo_head` is divergence context and stays conditional. Signed claims add `server=`/`build=` (100/125) |
 | `config_build` / `config_stale_process` | status at `standard`/`verbose`; `build_or_update_index` at `standard` | which **config** answered — a hash of the project file plus the `CA_*` it reads, no timestamps — and whether the disk still matches it. The verdict is stated, never omitted (170). `index_config_build` names the config that built the index, only when it differs (061). **Not** on nav payloads: the code axis is already a standing cost there (175) |
 | `parse_failure_paths` | status at `verbose` | capped by `PARSE_FAILURE_PATHS_LIMIT`, not `CA_PAGE_LIMIT`; optional `offset`; never on the cheap path (058) |
 | `skipped.*` breakdowns | `collection` | `collected − suffix − ignore == kept`; `untracked` sits **beside** it (092). Each breakdown leaves its parent int intact so 082 closes, and is omitted when empty (061): `ignore_sources` names each ignore-skip's composed source, verbose only (095); `suffix_top` names what `suffix` is made of by **extension** — top 10, count desc then suffix asc, `suffix_kinds` the true denominator, `(none)` for a suffix-less file. Extensions only: the core names no language; the reader joins `unconfigured_adapters` (174/R1.1) |
@@ -181,9 +181,10 @@ what the payload already says (061). An answer must state what it is *not* telli
 | `truncated` | paged answers | describes **the page alone**, so a pager terminates (057/124) |
 | `walk_truncated` | `find_orphans` | the walk hit `CA_ORPHANS_MAX_NODES`, so the population is an over-estimate — unreached nodes look orphaned (124) |
 | `walk_truncated` | `impact_modules` | the walk hit `CA_IMPACT_MAX_NODES`, so every per-module count is an **under**-estimate — a module reached only beyond the bound is missing from the table entirely, not merely undercounted (140) |
-| `tier_filter` / `tier_census` | `find_callers` at depth 1 | the `confidence_tier` the store query ran, so `total_count` counts *that request*; the census is the **unfiltered** breakdown, omitted when all-RESOLVED or empty. Together: *none on this page* ≠ *none exists* (251/061) |
+| `tier_filter` / `tier_census` | `find_callers` at depth 1 | the `confidence_tier` the store query ran, so `total_count` counts *that request*; the census is the **unfiltered** breakdown, omitted when all-RESOLVED or empty, and kept on a filtered page that came back empty so the zero stays `no_matches` with the removed tiers named beside it. Together: *none on this page* ≠ *none exists* (251/265/061) |
 | `production_count` / `test_count` / `test_role_source` | `find_callers` at depth 1, `find_references` | the inbound answer split by the **caller's** role — the difference between a count that blocks a deletion and one that permits it (262). They partition `total_count` unless `exclude_tests` filtered. `test_role_source` is `adapter` · `path_convention` · `mixed`, omitted when nothing was classed test, and the pair is omitted when nothing is inbound at all (061) |
 | `caveat_limits` | any payload with `authoritative_caveats` | caveat name → what it costs the reader operationally, not the relation's name; omitted when no caveat states one (251/061) |
+| `entry_point_candidates` / `stub_root_candidates` | status, when `entry_points` / `stub_roots` are unset — unbuilt at any level, otherwise `standard` | proposed globs with `files_matched`, zeros kept; the tool never applies one, and neither rides `minimal` on a built index, because the first-call payload is priced (268/119/061) |
 | `module_table_truncated` | `impact_modules` | 114's module table was itself capped at `CA_PAGE_LIMIT`, so rows counted under `unassigned` include files whose module exists and was cut — that bucket is an **over**-count, distinct from the walk bound (140) |
 
 - **`try_instead` is two registers, each in its own field (093).** The value is always a
@@ -196,10 +197,8 @@ what the payload already says (061). An answer must state what it is *not* telli
   class routes to `search_symbol`, which enumerates the method qnames the hint asks for). And it
   must be **able to answer**: where no registered tool can, emit the **hint alone, no
   `try_instead`**, since naming a tool that cannot answer buys a confident wrong answer (075/076).
-  Two live cases, both `include_graph`: its **unlinked-inbound** miss stays route-less because the
-  evidence is include text in `edges.target_raw`, which `nodes_fts` does not index; its **language**
-  miss had no route either until 188 linked `IMPORTS`, and now names `find_references` — emitted on
-  positive evidence that the language emits the carrying kind, never on the index's silence (186/188).
+  A route is emitted on positive evidence that the relation is carried, never on the index's
+  silence; the worked cases are in [`design/payload.md`](design/payload.md) (186/188).
   **Known boundary, not closed:** callability is checked against the full `main.TOOL_NAMES` while
   `CA_TOOLS` may serve a subset — `nav_result` has no `Config`, so a restricted deployment can be
   offered a route it does not expose (also true of `file_outline`).

@@ -24,10 +24,6 @@ This is surface honesty, not a commitment to deepen either adapter.
 > **1.0**, precision **1.0**, zero confidently-wrong answers.
 > [Reproduce it](docs/runbooks/tokens-to-answer.md) · one command, no network.
 
-**Six-tool preset (opt-in, 268):** set `CA_TOOLS=get_index_status,search_symbol,read_symbol,find_callers,find_references,impact` to cut the recognition tax; the default surface stays 24 tools.
-
-**One-line install:** `uvx --from git+https://github.com/cuongdinhngo/code-atlas.git code-atlas` or `pipx run --spec git+https://github.com/cuongdinhngo/code-atlas.git code-atlas` (adapters need their runtimes on PATH).
-
 ## The 30-second version
 
 Ask *"who calls `member()`?"* in this repo's own TypeScript adapter.
@@ -100,6 +96,10 @@ git clone https://github.com/cuongdinhngo/code-atlas.git
 cd code-atlas
 python scripts/setup.py /abs/path/to/your-project
 ```
+
+To run the server without a checkout: `uvx --from git+https://github.com/cuongdinhngo/code-atlas.git
+code-atlas`, or `pipx run --spec git+https://github.com/cuongdinhngo/code-atlas.git code-atlas` —
+the adapters still need their own runtimes on `PATH`.
 
 That installs the core, builds the PHP adapter, and writes `<your-project>/.mcp.json` with the
 correct interpreter, adapter path and working directory filled in — the three things that are easy
@@ -232,6 +232,8 @@ merely confident.
 
 **Every edge carries a confidence tier** — `RESOLVED`, `HEURISTIC` or `DYNAMIC`. A guess is never
 linked as a fact, and an answer whose candidates are all dynamic says so with `authoritative: false`.
+Inbound answers are **ordered by that tier before the page is cut**, so page 1 leads with what was
+resolved rather than with whatever sorts first alphabetically.
 
 **An answer can be signed.** Pass `sign: true` to five tools and the payload gains a one-line
 `claim` you can paste into a PR body — a claim a text search cannot make, in a form a reviewer can
@@ -271,10 +273,11 @@ never a silent fallback.
 | `CA_PAGE_LIMIT` | `page_limit` | `50` | query-time row ceiling for search/nav tools (no rebuild). Pre-259 `CA_MAX_RESULTS` does **not** set this |
 | `CA_MAX_CANDIDATES` | `max_candidates` | `50` | build-time resolver fan-out (**rebuild** to apply). `CA_MAX_RESULTS` / project-file `max_results` still alias here (259) |
 | `CA_IMPACT_DEPTH` / `CA_IMPACT_MAX_NODES` | `impact_depth` / `impact_max_nodes` | `2` / `500` | hops and node budget for one impact query |
-| `CA_ENTRY_POINTS` | `entry_points` | unset | file globs that seed reachability. **`reachable_from` and `find_orphans` need this** — unset, they report *no roots configured* rather than guessing |
+| `CA_ENTRY_POINTS` | `entry_points` | unset | file globs that seed reachability. **`reachable_from` and `find_orphans` need this** — unset, they report *no roots configured* rather than guessing, and `get_index_status` nominates candidate globs with a file count for you to choose from |
 | `CA_STUB_ROOTS` | `stub_roots` | unset | dependency roots (e.g. `vendor`) to index declarations-only, so third-party signatures resolve |
 | `CA_INDIRECTION_RULES` | `indirection_rules` | unset | JSON rule files mapping framework indirection to edges. **`find_view_data` needs this** |
 | `CA_ARCHITECTURE_RULES` | `architecture_rules` | unset | JSON rule files of path-set dependency constraints. **`check_architecture_rules` needs this** |
+| `CA_TOOLS` | `tools` | all 24 | comma-separated tool allow-list — see the six-tool preset below |
 | `CA_<LANG>_CMD` | `[adapter_cmd].<lang>` | — | the **complete argv** that launches one adapter in server mode |
 
 ```toml
@@ -292,6 +295,10 @@ python = "python /abs/path/to/code-atlas/adapters/python/index.py --server"
 
 The adapter command is the **whole** command: the core appends nothing to it, not even `--server`,
 so it never has to know where a language's adapter lives.
+
+**Trimming the tool surface.** Twenty-four tool descriptions are read before the first question is
+asked. `CA_TOOLS=get_index_status,search_symbol,read_symbol,find_callers,find_references,impact` is
+the opt-in six-tool preset that covers the relationship questions; the default stays all 24.
 
 Files are skipped using built-in patterns (`vendor/ var/ uploads/ log/ node_modules/ .git/
 *.blade.*`), then `.gitignore`, then an optional `.codeatlasignore` — later rules win. The full
@@ -313,17 +320,16 @@ max, and the four rulebook grep-gates — in the same order
 skipped**, because a gate that quietly shrinks to whatever the host can run has not verified
 anything. Add `--fast` to skip the two slow checks.
 
-**2,972 tests, 0 skipped** on a POSIX host with every adapter installed. To run everything off any
-host (Windows/macOS included), use the Linux test image — it reports one structural skip, the test
-that shells out to `docker`:
+The suite needs a POSIX host with every adapter installed. To run everything off any host
+(Windows/macOS included), use the Linux test image:
 
 ```sh
 scripts/docker-test.sh                       # ruff + mypy + pytest -q (the full suite)
 scripts/docker-test.sh pytest -q -k php      # just the PHP-adapter integration tests
 ```
 
-Contributors: the per-route expected counts and what a legitimate skip looks like are in
-[`AGENTS.md`](AGENTS.md).
+Contributors: the expected pass/skip count for each route — the one place those numbers are
+kept — and what a legitimate skip looks like are in [`AGENTS.md`](AGENTS.md).
 
 ## Documentation
 

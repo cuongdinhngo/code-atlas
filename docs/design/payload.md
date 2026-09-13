@@ -49,7 +49,7 @@ Both now carry the same three fields, and each is omitted when there is nothing 
 |---|---|
 | `sibling_definitions` | the same-named definitions under other qnames, as `{file, line, kind}` sites |
 | `authoritative: false` | this count is a partition — widen before you act on it |
-| `authoritative_caveats` | **why**: `sibling_definitions`, `all_hits_dynamic`, or both |
+| `authoritative_caveats` | **why**, one name per reason and merged, never replaced: `sibling_definitions`, `all_hits_dynamic`, `args_not_captured_by_adapter` (231), `cross_language_relation_unmodelled` (221), `tier_partition` (265) |
 | `sibling_definitions_ranked` | **whether** position means anything here — a boolean verdict, always present at ≥ 2 sites |
 | `sibling_definitions_ranked_by` | **what** the order was decided by — rides only when there is a basis to name |
 
@@ -118,7 +118,10 @@ graph. They are linked now, and `find_references` on a module's `File` qname lis
 
 `server_build` names the commit the running process imported. `server_stale_process` makes that
 verdict **live**: it fires when a loaded module's own content has moved on, so a build swapped under
-a long-lived server is reportable rather than invisible.
+a long-lived server is reportable rather than invisible. When it fires it also names the action and
+the axis — `server_stale_action: restart_mcp_server_process` and `server_stale_differs` — because a
+warning an autonomous caller cannot act on is noise, and the interactive `/mcp` reconnect it used to
+imply is not a step an agent can take (267).
 
 Config is stamped the same way, because config decides what the index even contains — the field
 episode edited `.code-atlas.toml` to add an adapter, built, and got a cheerful `wrote.files: 0`

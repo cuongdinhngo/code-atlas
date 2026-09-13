@@ -149,9 +149,11 @@ bound; 258's AC1 shipped E1 so no post-258 anchor measurement exists yet.
 `find_orphans` pages orphan rows via `limit`/`offset` (same as other list tools) and uses its own
 walk budget `orphans_max_nodes` (`CA_ORPHANS_MAX_NODES`, default 500) — changing `impact_max_nodes`
 does not change which orphans are returned. At `detail_level = "standard"` a 500-row reachability
-answer is ~160 KB of JSON — tens of thousands of tokens, which defeats the point. For orphans at
-scale, prefer `detail_level = "minimal"` (omits `unproven` rows; carries `unproven_total`), pass a
-smaller `limit`, or lower the relevant walk budget for interactive use.
+answer is ~160 KB of JSON — tens of thousands of tokens, which defeats the point. **That is why
+`reachable_from`, `find_orphans` and `architecture_overview` default to `minimal` since 268**
+(`minimal` omits the `unproven` rows and keeps `unproven_total`): ask for `standard` deliberately,
+on a repo whose walk you have already bounded. At scale also pass a smaller `limit` or lower the
+relevant walk budget for interactive use.
 
 For a **blast radius** specifically, the shrink is no longer a workaround: `impact_modules` answers
 the same walk rolled up to business modules, which is bounded by the module count rather than the

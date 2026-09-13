@@ -260,7 +260,13 @@ BUDGETS = {
     # twice, ~55 tokens shorter than first drafted, and 259's alias note was folded back into the
     # env-var bullet it had been wedged inside — it closed the paren mid-list, so the rest of the
     # list read as prose. 16 of margin; the next addition prunes or argues again.
-    "CONVENTION.md": 6_960,
+    # 6,960 -> 7,050 on 2026-09-13 (261/265/267/268), argued rather than assumed. §6 is the
+    # payload contract, so a shipped field with no row here is a shape a reader can only find in
+    # source — and four tickets shipped five: the two root-nomination lists, the stale-process
+    # action pair, and the census rule that keeps an empty filtered page honest. R7.6 ran first and
+    # paid 56: §6's `try_instead` bullet retold the 186/188 cases that design/payload.md holds in
+    # full, so it points there instead. The next addition prunes again or argues again.
+    "CONVENTION.md": 7_050,
 }
 
 
