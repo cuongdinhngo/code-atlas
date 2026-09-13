@@ -45,6 +45,7 @@ from code_atlas.tools.nav_result import (
     REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE,
+    apply_empty_inbound_honesty,
     attach_ambiguous_definitions,
     attach_authoritative_caveats,
     attach_cross_language_census,
@@ -213,6 +214,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         covered: str | None = None
         unlinked_calls = 0
+        shared_unlinked: list[str] = []
+        shared_honesty_reason = REASON_NO_MATCHES
+        unlinked_edge_kinds: list[str] = []
         cross_lang_census: dict[str, object] | None = None
         args_capture_absent = False
         proximity_used = False
@@ -416,6 +420,20 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 unlinked_calls = store.count_unlinked_by_target_raw(
                     (lookup, subject_name), kinds=CALLER_KINDS
                 )
+            if (
+                outcome.total_count == 0
+                and indexed
+                and unresolved_bare == 0
+                and subject_nodes
+            ):
+                # Shared predicate (264) while the store is open.
+                shared_honesty_reason, shared_unlinked = apply_empty_inbound_honesty(
+                    REASON_NO_MATCHES,
+                    store,
+                    subject_kind=str(subject_nodes[0]["kind"]),
+                    raws=(lookup,),
+                )
+
             if indexed and subject_file is not None:
                 # Language-scope, not hit-count (221/238): an unmeasured crossing is unmeasured
                 # whether this answer found in-language hits. Build-time census, never a scan.
@@ -444,6 +462,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             # No linked edge from any other language reaches this one — the zero is unmeasured,
             # not empty (221). Carries authoritative:false + the census below.
             reason = REASON_RELATION_UNMODELLED_FOR_LANGUAGE
+        elif reason == REASON_NO_MATCHES and shared_unlinked:
+            reason = shared_honesty_reason
+            unlinked_edge_kinds = shared_unlinked
         if args_capture_absent:
             # The filter cannot judge one site in this language, so no count above is an answer
             # about it — this outranks every reason the chain can reach (231).
@@ -470,6 +491,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             result["tier_filter"] = tier
         if tier_census is not None:
             result["tier_census"] = tier_census
+        if unlinked_edge_kinds:
+            # Names the unmeasured relation(s) — not hits (R5.6 / 255 AC1), as find_references does.
+            result["unlinked_edge_kinds"] = unlinked_edge_kinds
         if depth == 1:
             # A depth-1 partition of a multi-hop total would not add up — omitted above 1 (262).
             result["production_count"] = production_count

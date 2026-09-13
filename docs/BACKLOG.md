@@ -24,7 +24,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260 |
 | 261 | [README lists four adapters as peers; the number that denies it is in `verbose`](tasks/261_the-readme-lists-four-adapters-as-peers-and-the-number-that-contradicts-it-is-in-verbose.md) | Trust | todo | 227, 153, 233 |
-| 264 | [The honesty predicate is still one language's shape as a constant](tasks/264_the-honesty-predicate-is-still-one-language-s-shape-wearing-a-constant-s-name.md) | Trust | todo | 255, 232, 065 |
 | 265 | [The default page order is the alphabet](tasks/265_the-default-page-order-is-the-alphabet.md) | Trust | todo | 251, 252, 067, 259 |
 | 266 | [The artifact that would make an agent ask lives in our repo, not theirs](tasks/266_the-artifact-that-would-make-an-agent-ask-is-in-our-repo-not-theirs.md) | Adoption | todo | 200, 081, 036, 099, 244, 260 |
 | 267 | [The warning an autonomous agent cannot act on](tasks/267_the-warning-an-autonomous-agent-cannot-act-on.md) | Trust | todo | 257, 096, 035 |

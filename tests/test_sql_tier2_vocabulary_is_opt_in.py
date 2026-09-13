@@ -20,7 +20,13 @@ TIER2_WORDS = frozenset({"Table", "Column", "WRITES"})
 # inherits EDGE_KINDS' membership and a repo with no WRITES rows still answers identically.
 # Everything else must stay clear of them.
 JOINED_BY_DESIGN = frozenset(
-    {"NODE_KINDS", "EDGE_KINDS", "FQN_EDGE_KINDS", "UNLINKED_EVIDENCE_KINDS"}
+    {
+        "NODE_KINDS",
+        "EDGE_KINDS",
+        "FQN_EDGE_KINDS",
+        "UNLINKED_EVIDENCE_KINDS",
+        "INBOUND_KINDS_BY_SUBJECT",
+    }
 )
 CONVENTION = Path(contract.__file__).resolve().parents[1] / "docs" / "CONVENTION.md"
 

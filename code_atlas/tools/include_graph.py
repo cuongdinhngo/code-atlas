@@ -18,6 +18,7 @@ from code_atlas.tools.nav_result import (
     TRY_INSTEAD_HINT_PATH_BASENAME,
     TRY_INSTEAD_HINT_RELATION_CARRIED_BY_ANOTHER_KIND,
     TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE,
+    apply_empty_inbound_honesty,
     attach_try_instead,
     edge_hit,
     edge_id,
@@ -102,7 +103,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         # No carrying kind either: hint, and NO route (R5.4c, 186's original case).
                         try_instead_hint = TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE
                 else:
-                    reason = REASON_NO_MATCHES
+                    # Shared predicate (264) before a bare no_matches — File subject, path qname.
+                    reason, _unlinked = apply_empty_inbound_honesty(
+                        REASON_NO_MATCHES,
+                        store,
+                        subject_kind="File",
+                        raws=(rel,),
+                    )
         payload = nav_result(
             rel,
             outcome.results,

@@ -398,6 +398,44 @@ def relation_reason(*, hit_total: int, symbol_indexed: bool) -> NavReason:
     return REASON_NO_MATCHES
 
 
+def unmeasured_inbound_for_subject(
+    store: GraphStore,
+    *,
+    subject_kind: str,
+    raws: Sequence[str],
+    kinds: Sequence[str] | None = None,
+) -> list[str]:
+    """Unlinked inbound kinds for ``subject_kind`` against ``raws`` (264).
+
+    Default ``kinds`` come from ``inbound_kinds_for``. Callers may pass a narrower set
+    (e.g. REFERENCES/IMPORTS with a bare-name raw) for a tool-specific earlier arm.
+    """
+    use = tuple(kinds) if kinds is not None else contract.inbound_kinds_for(subject_kind)
+    cleaned = tuple(raw for raw in raws if raw)
+    if not use or not cleaned:
+        return []
+    return store.unlinked_kinds_by_target_raw(cleaned, kinds=use)
+
+
+def apply_empty_inbound_honesty(
+    reason: NavReason,
+    store: GraphStore,
+    *,
+    subject_kind: str,
+    raws: Sequence[str],
+    kinds: Sequence[str] | None = None,
+) -> tuple[NavReason, list[str]]:
+    """Shared empty-answer predicate (264). Upgrades bare ``no_matches`` on unlinked inbound."""
+    if reason != REASON_NO_MATCHES:
+        return reason, []
+    unlinked = unmeasured_inbound_for_subject(
+        store, subject_kind=subject_kind, raws=raws, kinds=kinds
+    )
+    if unlinked:
+        return REASON_RELATIONSHIP_NOT_MODELLED, unlinked
+    return reason, []
+
+
 # Generic identifier lexis — NOT a language branch (no `if language`); the same tolerance the
 # read_symbol comment regex already relies on. A qname component is a run of these chars.
 _IDENT_TRAILING = re.compile(r"[A-Za-z0-9_]+$")

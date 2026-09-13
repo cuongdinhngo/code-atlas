@@ -108,10 +108,10 @@ def test_find_references_genuine_zero_stays_no_matches(
     assert "try_instead" not in result
 
 
-def test_find_implementations_empty_stays_modelled_zero(
+def test_find_implementations_empty_routes_through_shared_inbound_predicate(
     tmp_path: Path, store: GraphStore
 ) -> None:
-    """IMPL kinds are linked — unlinked REFERENCES must not flip implementations empty."""
+    """264 supersedes 065's IMPL-only zero: unlinked REFERENCES falsifies bare no_matches."""
     seed_file(
         store,
         "a.php",
@@ -127,7 +127,8 @@ def test_find_implementations_empty_stays_modelled_zero(
         root=tmp_path,
     )
     result = find_implementations.create(db_config(tmp_path))("\\Base", detail_level="minimal")
-    assert result["reason"] == REASON_NO_MATCHES
+    assert result["reason"] == REASON_RELATIONSHIP_NOT_MODELLED
+    assert "REFERENCES" in result.get("unlinked_edge_kinds", [])
     assert "try_instead" not in result
 
 

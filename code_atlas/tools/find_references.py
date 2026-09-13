@@ -9,7 +9,6 @@ from code_atlas.config import Config, clamp_limit
 from code_atlas.contract import (
     CALLER_KINDS,
     TYPE_KINDS,
-    UNLINKED_EVIDENCE_KINDS,
     UNMODELLED_REFERENCE_KINDS,
 )
 from code_atlas.store import GraphStore, Row
@@ -35,12 +34,12 @@ from code_atlas.tools.nav_result import (
     REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
     REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
-    REASON_RELATIONSHIP_NOT_MODELLED,
     REASON_VIA_MEMBERS,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_HINT_METHOD_QNAME,
     TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE,
     TRY_INSTEAD_SEARCH_SYMBOL,
+    apply_empty_inbound_honesty,
     attach_ambiguous_definitions,
     attach_authoritative_caveats,
     attach_cross_language_census,
@@ -319,28 +318,37 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             reason = relation_reason(hit_total=total_count, symbol_indexed=indexed)
             try_instead: str | None = None
             try_instead_hint: str | None = None
-            # Empty + an unlinked inbound edge ⇒ not a genuine zero (065/255). Three arms, in
-            # precedence order: the original pair (qname or bare name, 065/093); then the
-            # per-language census (232 AC3), which is the stronger measured claim; then every
-            # other evidence kind by qname, so a Table's unlinked WRITES is not a bare no_matches.
-            # The widened arm never takes the bare name — a same-named unlinked CALLS exists for
-            # nearly every method and would bury every genuine zero.
+            # Empty + unlinked inbound ⇒ not a genuine zero (065/255/264). Arms in order:
+            # REFERENCES/IMPORTS with bare name (065); language census (232); then the shared
+            # predicate over INBOUND_KINDS_BY_SUBJECT at qname only (255/264). Every upgrade to
+            # relationship_not_modelled goes through apply_empty_inbound_honesty.
             if reason == REASON_NO_MATCHES and nodes:
                 name = str(nodes[0]["name"])
-                unlinked_edge_kinds = store.unlinked_kinds_by_target_raw(
-                    (lookup, name), kinds=UNMODELLED_REFERENCE_KINDS
+                subject_kind = str(nodes[0]["kind"])
+                reason, unlinked_edge_kinds = apply_empty_inbound_honesty(
+                    reason,
+                    store,
+                    subject_kind=subject_kind,
+                    raws=(lookup, name),
+                    kinds=UNMODELLED_REFERENCE_KINDS,
                 )
-                if not unlinked_edge_kinds and not relation_unmodelled_for_language(
-                    store, file_path=str(nodes[0]["file_path"]), kinds=("REFERENCES",)
+                if (
+                    reason == REASON_NO_MATCHES
+                    and not relation_unmodelled_for_language(
+                        store, file_path=str(nodes[0]["file_path"]), kinds=("REFERENCES",)
+                    )
                 ):
-                    unlinked_edge_kinds = store.unlinked_kinds_by_target_raw(
-                        (lookup,), kinds=UNLINKED_EVIDENCE_KINDS
+                    reason, unlinked_edge_kinds = apply_empty_inbound_honesty(
+                        reason,
+                        store,
+                        subject_kind=subject_kind,
+                        raws=(lookup,),
                     )
                 if unlinked_edge_kinds:
                     union = _member_caller_union(
                         store,
                         lookup,
-                        str(nodes[0]["kind"]),
+                        subject_kind,
                         cap=cap,
                         offset=offset,
                     )
@@ -351,11 +359,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         if include_source:
                             call_site.annotate(config.root, store, results)
                     else:
-                        reason = REASON_RELATIONSHIP_NOT_MODELLED
                         # Type-shaped subjects still route to search_symbol for member qnames
                         # (093). Other kinds get the relation hint, never a self-loop tool name.
-                        # TYPE_KINDS is imported, never re-listed here (R3.2).
-                        if str(nodes[0]["kind"]) in TYPE_KINDS:
+                        if subject_kind in TYPE_KINDS:
                             try_instead = TRY_INSTEAD_SEARCH_SYMBOL
                             try_instead_hint = TRY_INSTEAD_HINT_METHOD_QNAME
                         else:
@@ -364,7 +370,6 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     store, file_path=str(nodes[0]["file_path"]), kinds=("REFERENCES",)
                 ):
                     # Per-kind (232): IMPORTS in the set must not mask a never-emitted REFERENCES.
-                    # language_emits_none_of(UNMODELLED_REFERENCE_KINDS) stays the set-level reader.
                     reason = REASON_RELATION_UNMODELLED_FOR_LANGUAGE
                     try_instead_hint = TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE
         truncated = offset + len(results) < total_count

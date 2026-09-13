@@ -116,6 +116,18 @@ UNMODELLED_REFERENCE_KINDS: tuple[str, ...] = ("REFERENCES", "IMPORTS")
 # subject and can never separate a genuine zero from an unmeasured relation.
 UNLINKED_EVIDENCE_KINDS: tuple[str, ...] = tuple(k for k in EDGE_KINDS if k != CONTAINS)
 
+# Subject kind → inbound evidence kinds (264). Derived from NODE_KINDS × UNLINKED_EVIDENCE_KINDS —
+# not a hand-kept table (R6.7). Uniform today because the contract encodes no per-subject target
+# set; a new NODE_KIND auto-joins. contract_version does not bump (named subset of existing words).
+INBOUND_KINDS_BY_SUBJECT: dict[str, tuple[str, ...]] = {
+    kind: UNLINKED_EVIDENCE_KINDS for kind in NODE_KINDS
+}
+
+
+def inbound_kinds_for(subject_kind: str) -> tuple[str, ...]:
+    """Inbound edge kinds that can falsify a genuine empty answer for ``subject_kind`` (264)."""
+    return INBOUND_KINDS_BY_SUBJECT.get(subject_kind, ())
+
 # Impact engine (§12 / M6) — incoming-edge walk weights (callers / subtypes / includers).
 IMPACT_KIND_WEIGHTS: dict[str, float] = {
     "CALLS": 1.0,
