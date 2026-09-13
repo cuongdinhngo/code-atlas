@@ -219,12 +219,10 @@ def test_unset_entry_points_is_no_roots(tmp_path: Path) -> None:
 def test_heuristic_only_is_unproven_not_orphan(store: GraphStore, tmp_path: Path) -> None:
     plant_graph(store)
     config = config_for(tmp_path)
-    orphans = {
-        str(r["qname"]) for r in find_orphans_tool.create(config)(detail_level="standard")["results"]
-    }
-    unproven = {
-        str(r["qname"]) for r in reachable_from_tool.create(config)(detail_level="standard")["unproven"]
-    }
+    found = find_orphans_tool.create(config)(detail_level="standard")["results"]
+    walked = reachable_from_tool.create(config)(detail_level="standard")["unproven"]
+    orphans = {str(r["qname"]) for r in found}
+    unproven = {str(r["qname"]) for r in walked}
     assert HEURISTIC in unproven
     assert HEURISTIC not in orphans
 
@@ -258,9 +256,8 @@ def test_called_method_keeps_declaring_class_alive(
     store: GraphStore, tmp_path: Path
 ) -> None:
     plant_graph(store)
-    orphans = {
-        str(r["qname"]) for r in find_orphans_tool.create(config_for(tmp_path))(detail_level="standard")["results"]
-    }
+    found = find_orphans_tool.create(config_for(tmp_path))(detail_level="standard")
+    orphans = {str(r["qname"]) for r in found["results"]}
     assert SERVICE not in orphans
     assert METHOD not in orphans
 

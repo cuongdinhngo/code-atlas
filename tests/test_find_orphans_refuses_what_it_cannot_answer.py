@@ -64,7 +64,9 @@ def test_a_budget_bound_walk_refuses_and_returns_no_rows(
     Fails on today's code: it returns the rows with `walk_truncated: true` beside them.
     """
     plant_islands(store, count=30)
-    payload = find_orphans.create(config_for(tmp_path, orphans_max_nodes=1))(detail_level="standard")
+    payload = find_orphans.create(config_for(tmp_path, orphans_max_nodes=1))(
+        detail_level="standard"
+    )
 
     assert payload["status"] == find_orphans.WALK_BUDGET_EXHAUSTED
     assert payload["results"] == [], "no row list — that is the point"
@@ -102,7 +104,9 @@ def test_the_two_numbers_that_separate_dead_code_from_wrong_roots(
     *the roots are wrong*, not *the code is dead*. Nothing in the payload said this before.
     """
     plant_islands(store, count=40)
-    payload = find_orphans.create(config_for(tmp_path, orphans_max_nodes=2))(detail_level="standard")
+    payload = find_orphans.create(config_for(tmp_path, orphans_max_nodes=2))(
+        detail_level="standard"
+    )
 
     reached = int(payload["roots_reached"])
     total = int(payload["nodes_total"])
@@ -120,7 +124,9 @@ def test_a_deliberately_shallow_walk_still_gets_its_rows(
     question. Only the **budget** half becomes a refusal; a requested depth bound stays a caveat.
     """
     plant_chain(store, hops=4)
-    payload = find_orphans.create(config_for(tmp_path, orphans_max_nodes=50))(depth=2, detail_level="standard")
+    payload = find_orphans.create(config_for(tmp_path, orphans_max_nodes=50))(
+        depth=2, detail_level="standard"
+    )
 
     assert payload["status"] == "ok", "the caller asked for a shallow walk and gets an answer"
     assert payload["results"], "the rows a depth-bounded question is for"
@@ -133,7 +139,9 @@ def test_a_complete_plausible_answer_is_byte_identical(
 ) -> None:
     """AC3/061: a walk that finishes inside its budget with every root matched gains nothing."""
     plant_islands(store, count=5)
-    payload = find_orphans.create(config_for(tmp_path, orphans_max_nodes=500))(detail_level="standard")
+    payload = find_orphans.create(config_for(tmp_path, orphans_max_nodes=500))(
+        detail_level="standard"
+    )
 
     assert payload["status"] == "ok"
     assert payload["results"], "the islands are genuinely orphaned"
@@ -152,13 +160,17 @@ def test_nothing_orphaned_stays_distinguishable_from_cannot_tell(
 ) -> None:
     """AC4 / 102: *nothing is orphaned* is a real, useful answer and must not read as a refusal."""
     seed_file(store, ENTRY, [node("Method", "main", "\\Entry::main", ENTRY)], [])
-    clean = find_orphans.create(config_for(tmp_path, orphans_max_nodes=500))(detail_level="standard")
+    clean = find_orphans.create(config_for(tmp_path, orphans_max_nodes=500))(
+        detail_level="standard"
+    )
     assert clean["status"] == "ok"
     assert clean["results"] == []
     assert clean["total_count"] == 0, "an empty answer with a zero population is the real zero"
 
     plant_islands(store, count=30)
-    refused = find_orphans.create(config_for(tmp_path, orphans_max_nodes=1))(detail_level="standard")
+    refused = find_orphans.create(config_for(tmp_path, orphans_max_nodes=1))(
+        detail_level="standard"
+    )
     assert refused["status"] == find_orphans.WALK_BUDGET_EXHAUSTED
     assert refused["results"] == []
     # Same empty list, different status — which is exactly what 102 asks for.
@@ -168,7 +180,9 @@ def test_nothing_orphaned_stays_distinguishable_from_cannot_tell(
 def test_unset_roots_keep_their_own_status(store: GraphStore, tmp_path: Path) -> None:  # noqa: F811
     """Three distinct failures, three names: unset, matched-nothing, budget-exhausted."""
     plant_islands(store, count=3)
-    payload = find_orphans.create(replace(config_for(tmp_path), entry_points=None))(detail_level="standard")
+    payload = find_orphans.create(replace(config_for(tmp_path), entry_points=None))(
+        detail_level="standard"
+    )
 
     assert payload["status"] == NO_ROOTS
     assert payload["status"] not in (
@@ -194,7 +208,9 @@ def test_an_unmatched_root_is_named_even_on_a_complete_answer(
 def test_reachable_from_is_untouched(store: GraphStore, tmp_path: Path) -> None:  # noqa: F811
     """Out of scope, and pinned as such: only `find_orphans` returns the complement."""
     plant_islands(store, count=30)
-    payload = reachable_from.create(config_for(tmp_path, orphans_max_nodes=1))(detail_level="standard")
+    payload = reachable_from.create(config_for(tmp_path, orphans_max_nodes=1))(
+        detail_level="standard"
+    )
 
     assert payload["status"] == "ok"
     assert "roots_reached" not in payload

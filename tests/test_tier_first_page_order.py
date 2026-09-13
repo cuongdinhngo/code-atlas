@@ -3,8 +3,8 @@
 Proving shape: the sole RESOLVED caller sorts last alphabetically among HEURISTIC noise;
 page 1 of the unfiltered answer still carries it because the store orders by tier before
 truncation. Companion ACs: ordering is in SQL (not a post-filter), a filtered-empty page
-may return zero rows with ``authoritative: false`` + census (still ``no_matches``), and class-level ``via_members``
-pages in one ``IN`` read.
+may return zero rows with ``authoritative: false`` + census (still ``no_matches``), and
+class-level ``via_members`` pages in one ``IN`` read.
 """
 
 from __future__ import annotations
