@@ -190,7 +190,13 @@ BUDGETS = {
     # per-version enumeration became a task-pointer list, the aside correcting a mis-cited R7.4
     # went (a decision-log note, not a section one), and 251's §19 entry that restated its own
     # §12 row was cut. The next addition prunes again or argues again; this is not headroom.
-    "PLAN.md": 23_350,
+    # 23,350 -> 23,550 on 2026-09-13 (265), argued rather than assumed. Default page ORDER is a
+    # §19 decision and nothing else records it: a reader who does not know page 1 is tier-ranked
+    # reads position as spelling. R7.6 ran first and paid ~110 of the 304 the entry arrived with —
+    # the 074 re-measure paragraph folded into one clause, §12's cell stopped repeating §19's
+    # tier order, and a superseded field-report walk-through went in 261. The next addition
+    # prunes again or argues again; this is not headroom.
+    "PLAN.md": 23_550,
     # 2,150 -> 1,800 on 2026-09-08, LOWERED: 232-235 all close in this window and each removes
     # its row (R7.6), taking the file 1,737 -> 1,485. 2,150 is more than 25 % above 1,485, which
     # the anti-slack guard below calls slack; 1,800 keeps ~315 of headroom, about five open rows.

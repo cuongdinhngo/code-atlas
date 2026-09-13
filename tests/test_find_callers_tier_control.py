@@ -86,7 +86,7 @@ def _plant_buried_resolved(store: GraphStore, root: Path, *, noise: int) -> None
 def test_resolved_caller_off_page_one_recovered_by_tier_filter(
     store: GraphStore, tmp_path: Path
 ) -> None:
-    """AC1 (proving): RESOLVED caller absent from unfiltered page 1; present under tier filter."""
+    """AC1 (251): tier filter still isolates RESOLVED; 265 puts it on unfiltered page 1 too."""
     _plant_buried_resolved(store, tmp_path, noise=5)
     config = replace(db_config(tmp_path), root=tmp_path, page_limit=3)
     tool = find_callers.create(config)
@@ -95,8 +95,9 @@ def test_resolved_caller_off_page_one_recovered_by_tier_filter(
     assert page["total_count"] == 6
     assert page["truncated"] is True
     page_qnames = [str(hit["qname"]) for hit in page["results"]]
-    assert RESOLVED_CALLER not in page_qnames
-    assert all(hit["confidence_tier"] == "HEURISTIC" for hit in page["results"])
+    # 265: tier-first default order — RESOLVED leads page 1 even when it sorts last by name.
+    assert RESOLVED_CALLER in page_qnames
+    assert page["results"][0]["confidence_tier"] == "RESOLVED"
 
     filtered = tool(
         SUBJECT, detail_level="minimal", limit=3, offset=0, confidence_tier="RESOLVED"
@@ -125,12 +126,12 @@ def test_tier_filter_names_itself_and_counts_matches(
 def test_unfiltered_tier_census_distinguishes_absent_from_off_page(
     store: GraphStore, tmp_path: Path
 ) -> None:
-    """AC3: unfiltered page carries tier_census so off-page RESOLVED is visible without paging."""
+    """AC3: unfiltered page carries tier_census when the hit set spans more than one tier."""
     _plant_buried_resolved(store, tmp_path, noise=5)
     config = replace(db_config(tmp_path), root=tmp_path, page_limit=3)
     tool = find_callers.create(config)
     page = tool(SUBJECT, detail_level="minimal", limit=3)
-    assert RESOLVED_CALLER not in [str(hit["qname"]) for hit in page["results"]]
+    assert RESOLVED_CALLER in [str(hit["qname"]) for hit in page["results"]]
     assert page["tier_census"] == {"HEURISTIC": 5, "RESOLVED": 1}
 
 

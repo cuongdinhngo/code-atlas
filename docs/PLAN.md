@@ -493,7 +493,7 @@ their task files and [`design/`](design/). A per-tool count in prose here is R6.
 | `search_symbol` | FTS + name ranking; stub hits declare themselves (039); a zero hit may miss-repair the sole dirty file or report `index_stale` rather than answer a confident zero (073). **`queries` sweeps N subjects in one call** (101). At `standard`, a `Column` FK hit names its target from existing `REFERENCES` edges: `references` (resolved column) or `references_unresolved` (table only, R5.6) (239) |
 | `file_outline` | line ranges, never bodies — the read is a separate, priced call |
 | `read_symbol` | docblock at `standard`, none at `minimal` (163); stubs declare themselves (039). A qname with >1 definition **refuses the body** and lists the candidates rather than picking one (070 → 078). At `standard`, a **callable** hit carries `params` (name + declared type) when the language stamps capture — else `params_not_captured_by_adapter`, never a lying empty list; a non-callable kind carries neither (242). A **Table** pages `columns` from `CONTAINS` (248). `stored_fields` lists populated node/`extra` keys only; Column always lists both 239 FK lists (250) |
-| `find_callers` | opt-in capped call-site source (037); `args_unrecorded` on the argument filter (049, depth 1). Opt-in `confidence_tier` is a store predicate, never a post-page filter; default order unchanged (251). An empty linked answer may expand to proximity-ranked unresolved same-named sites — `reason=proximity_candidates`, never `ok`, each row naming `candidate_of` (258). Depth 1 enumerates completely; deeper, `total_count` is a floor. Unmodelled `*->L` ⇒ `authoritative: false` even with hits (238) |
+| `find_callers` | opt-in capped call-site source (037); `args_unrecorded` on the argument filter (049, depth 1). Opt-in `confidence_tier` is a store predicate, never a post-page filter; the default inbound order is tier-first (§19, 265). An empty linked answer may expand to proximity-ranked unresolved same-named sites — `reason=proximity_candidates`, never `ok`, each row naming `candidate_of` (258). Depth 1 enumerates completely; deeper, `total_count` is a floor. Unmodelled `*->L` ⇒ `authoritative: false` even with hits (238) |
 | `find_references` | CALLS/NEW plus `REFERENCES` (`Foo::class`, 094). All-`DYNAMIC` page ⇒ `authoritative: false`. A Class with unlinked refs and CONTAINS children returns member CALLS/NEW as `via_members` (never `ok`; 252) |
 | `find_implementations` | EXTENDS/IMPLEMENTS, resolver-linked only |
 | `find_view_data` | the `PROVIDES_VIEW_DATA` relation (062/063). With no `view_data` rules configured it says so, rather than reporting a modelled zero (069) |
@@ -968,6 +968,10 @@ Serena-class tools are as blind as today's graph. This is unclaimed ground, not 
 
 **Nav answer after 062.** `PROVIDES_VIEW_DATA` / `find_view_data` — view-scope keys; agent `Read`s
 the template consumer name.
+
+**Decision — default inbound page order is tier-first (task 265, 2026-09-13).**
+
+Page 1 was alphabetical, so a correct page could be 100 % of the wrong tree (067) and the sole `RESOLVED` caller sat on page 12 (251). **Locked: tier-first default order** — `RESOLVED` → `HEURISTIC` → `DYNAMIC`, then today's stable keys — in the store query before truncation (R4.2). `confidence_tier` stays an opt-in *filter*: default *order* changes, default *set* does not. A tier partition is `authoritative: false` with a census, and an empty one stays `no_matches`, never `ok` (264). [074](tasks/074_does-the-index-harm-mechanism-questions.md) stays `deferred` until re-measured after this ships. Detail: [265](tasks/265_the-default-page-order-is-the-alphabet.md).
 
 **Decision — keyed_calls may target File qnames (task 256, 2026-09-12).** 222's E2 left dispatch
 routing to grep; field evidence contradicted that. **Locked:** `target_template` → indexed File qname

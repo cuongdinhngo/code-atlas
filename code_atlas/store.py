@@ -173,6 +173,12 @@ EDGES = "edges"
 # Full orderings, so equal-ranking rows cannot reorder between runs (R4.2).
 _NODE_ORDER = "qualified_name, file_path, line_start, id"
 _EDGE_ORDER = "source_qname, kind, target_raw, file_path, line, id"
+# Inbound pages: RESOLVED before HEURISTIC before DYNAMIC, then today's stable keys (265).
+_EDGE_TIER_RANK = (
+    "CASE edges.confidence_tier "
+    "WHEN 'RESOLVED' THEN 0 WHEN 'HEURISTIC' THEN 1 WHEN 'DYNAMIC' THEN 2 ELSE 3 END"
+)
+_EDGE_ORDER_TIER_FIRST = f"{_EDGE_TIER_RANK}, {_EDGE_ORDER}"
 _SEARCH_ORDER = "nodes_fts.rank, nodes.qualified_name, nodes.file_path, nodes.id"
 # Exactness outranks BM25 (task 180): a shorter document scores better, so a near-miss in a small
 # file beat six exact matches. The band calls the ONE predicate `reason` is decided by (R6.7).
@@ -1643,7 +1649,7 @@ class GraphStore:
         Optional ``kinds`` narrows the set (e.g. CALLER_KINDS); ``args_at`` narrows to call sites
         whose argument at a 1-based position has a given shape (task 049).
         ``confidence_tier`` narrows to one tier in the store query (task 251) — not a post-filter.
-        ``offset`` skips leading rows in ``_EDGE_ORDER`` (task 057).
+        ``offset`` skips leading rows in tier-first order (tasks 057 / 265).
         """
         return self._edges(
             "edges.target_qname = ?",
@@ -1656,7 +1662,65 @@ class GraphStore:
                 _tier_predicate(confidence_tier),
                 _exclude_test_sources_predicate(exclude_test_sources),
             ),
+            order=_EDGE_ORDER_TIER_FIRST,
         )
+
+    def edges_by_targets(
+        self,
+        qnames: Sequence[str],
+        *,
+        kinds: Sequence[str] | None = None,
+        limit: int,
+        offset: int = 0,
+        confidence_tier: str | None = None,
+        exclude_test_sources: bool = False,
+    ) -> list[Row]:
+        """Inbound edges whose ``target_qname`` is any of ``qnames``, tier-first paged (265).
+
+        One statement for the class-level ``via_members`` union so cost scales with the page,
+        not with each member's whole inbound set.
+        """
+        if offset < 0:
+            raise ValueError(f"offset must be >= 0, got {offset}")
+        if limit < 1:
+            raise ValueError(f"limit must be >= 1, got {limit}")
+        if not qnames:
+            return []
+        placeholders = ", ".join("?" for _ in qnames)
+        where = f"edges.target_qname IN ({placeholders})"
+        extra = _combine_predicates(
+            _tier_predicate(confidence_tier),
+            _exclude_test_sources_predicate(exclude_test_sources),
+        )
+        clause, params = self._edge_where(where, kinds, extra)
+        sql = (
+            f"SELECT id, {_EDGE_COLUMNS} FROM edges WHERE {clause} "
+            f"ORDER BY {_EDGE_ORDER_TIER_FIRST} LIMIT ? OFFSET ?"
+        )
+        return self._rows(
+            EDGE_ROW_KEYS, sql, (*qnames, *params, limit, offset)
+        )
+
+    def count_edges_by_targets(
+        self,
+        qnames: Sequence[str],
+        *,
+        kinds: Sequence[str] | None = None,
+        confidence_tier: str | None = None,
+        exclude_test_sources: bool = False,
+    ) -> int:
+        """Count inbound edges for any of qnames (same filters as edges_by_targets)."""
+        if not qnames:
+            return 0
+        placeholders = ", ".join("?" for _ in qnames)
+        where = f"edges.target_qname IN ({placeholders})"
+        extra = _combine_predicates(
+            _tier_predicate(confidence_tier),
+            _exclude_test_sources_predicate(exclude_test_sources),
+        )
+        clause, params = self._edge_where(where, kinds, extra)
+        sql = f"SELECT COUNT(*) FROM edges WHERE {clause}"
+        return int(self._conn.execute(sql, (*qnames, *params)).fetchone()[0])
 
     def count_edges_by_target(
         self,
@@ -3575,6 +3639,7 @@ class GraphStore:
         *,
         offset: int = 0,
         extra: _Predicate = None,
+        order: str = _EDGE_ORDER,
     ) -> list[Row]:
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
@@ -3583,7 +3648,7 @@ class GraphStore:
         clause, params = self._edge_where(where, kinds, extra)
         sql = (
             f"SELECT id, {_EDGE_COLUMNS} FROM edges WHERE {clause} "
-            f"ORDER BY {_EDGE_ORDER} LIMIT ? OFFSET ?"
+            f"ORDER BY {order} LIMIT ? OFFSET ?"
         )
         return self._rows(EDGE_ROW_KEYS, sql, (value, *params, limit, offset))
 

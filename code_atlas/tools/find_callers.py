@@ -36,6 +36,7 @@ from code_atlas.tools.nav_result import (
     CAVEAT_ARGS_NOT_CAPTURED,
     CAVEAT_CROSS_LANGUAGE_UNMODELLED,
     CAVEAT_SIBLING_DEFINITIONS,
+    CAVEAT_TIER_PARTITION,
     REASON_BARE_NAME_TRUNCATED,
     REASON_CAPABILITY_NOT_CONFIGURED,
     REASON_INDEX_STALE,
@@ -273,7 +274,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 else None
             )
             tier_census = _tier_census(
-                store, lookup, args_at=args_at, depth=depth, tier=tier, indexed=indexed
+                store,
+                lookup,
+                args_at=args_at,
+                depth=depth,
+                tier=tier,
+                indexed=indexed,
+                hit_total=outcome.total_count,
             )
             if outcome.total_count == 0 and not indexed:
                 resolution = classify_missing_subject(
@@ -332,7 +339,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     else None
                 )
                 tier_census = _tier_census(
-                    store, lookup, args_at=args_at, depth=depth, tier=tier, indexed=indexed
+                    store,
+                    lookup,
+                    args_at=args_at,
+                    depth=depth,
+                    tier=tier,
+                    indexed=indexed,
+                    hit_total=outcome.total_count,
                 )
             container, bare_name = split_qname(lookup)
             unresolved_bare = 0
@@ -491,6 +504,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             result["tier_filter"] = tier
         if tier_census is not None:
             result["tier_census"] = tier_census
+            if tier is not None or len(tier_census) > 1:
+                # A filter ran, or the hit set spans tiers this page orders — either way the
+                # page is a partition of it (251/265), even when it has no rows.
+                attach_authoritative_caveats(result, [CAVEAT_TIER_PARTITION])
         if unlinked_edge_kinds:
             # Names the unmeasured relation(s) — not hits (R5.6 / 255 AC1), as find_references does.
             result["unlinked_edge_kinds"] = unlinked_edge_kinds
@@ -587,12 +604,21 @@ def _tier_census(
     depth: int,
     tier: str | None,
     indexed: bool,
+    hit_total: int,
 ) -> dict[str, int] | None:
-    """The full hit set's tier breakdown, or None when it would add nothing (061)."""
-    if depth != 1 or tier is not None or not indexed:
+    """The full hit set's tier breakdown, or None when it would add nothing (061).
+
+    A tier filter normally suppresses it (251). The exception is a filtered page with no
+    rows: there the census is the only thing that says which tiers the filter removed (265).
+    """
+    if depth != 1 or not indexed:
         return None
     census = store.tier_census_by_target(qname, kinds=CALLER_KINDS, args_at=args_at)
-    if census and (len(census) > 1 or _RESOLVED not in census):
+    if not census:
+        return None
+    if tier is not None:
+        return census if hit_total == 0 else None
+    if len(census) > 1 or _RESOLVED not in census:
         return census
     return None
 

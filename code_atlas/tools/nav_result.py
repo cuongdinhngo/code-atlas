@@ -647,6 +647,8 @@ CAVEAT_SIBLING_DEFINITIONS = "sibling_definitions"
 # The caller is in another language whose crossing into the subject's language the index never
 # modelled — the zero is a partition, not the whole (task 221). Rides the cross-language census.
 CAVEAT_CROSS_LANGUAGE_UNMODELLED = "cross_language_relation_unmodelled"
+# Page shows one tier of a multi-tier hit set (or none of the filtered tier) — 251/265.
+CAVEAT_TIER_PARTITION = "tier_partition"
 # Operational cost of the caveat, in the reader's terms (task 251) — not only the relation name.
 CAVEAT_LIMIT_CROSS_LANGUAGE = (
     "This answer is reachability within one language's call graph and does not "

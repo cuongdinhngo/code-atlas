@@ -11,7 +11,7 @@ from code_atlas.contract import (
     TYPE_KINDS,
     UNMODELLED_REFERENCE_KINDS,
 )
-from code_atlas.store import GraphStore, Row
+from code_atlas.store import GraphStore
 from code_atlas.symbol_role import aggregate_test_count_source, stored_test_source
 from code_atlas.tools import call_site, claim
 from code_atlas.tools.coverage import (
@@ -94,10 +94,11 @@ def _member_caller_union(
     cap: int,
     offset: int,
 ) -> tuple[list[dict[str, object]], int] | None:
-    """Page CALLS/NEW that target the class's declared CONTAINS children (252).
+    """Page CALLS/NEW that target the class's declared CONTAINS children (252 / 265).
 
     ``None`` means the union is not available — keep the 065/093 route. An empty
     page with a count is an honest zero (``reason=via_members``), not unmodelled.
+    Cost scales with the page: one ``IN`` read, never one walk per member.
     """
     if subject_kind not in _UNION_SUBJECT_KINDS:
         return None
@@ -115,25 +116,16 @@ def _member_caller_union(
         members.append(qn)
     if not members:
         return None
-    hits: list[dict[str, object]] = []
-    for member in members:
-        inbound: list[Row] = store.edges_by_target(
-            member, kinds=CALLER_KINDS, limit=_MEMBER_WALK
-        )
-        for edge in inbound:
-            hit = edge_hit(edge)
-            hit["via_member"] = member
-            hits.append(hit)
-    hits.sort(
-        key=lambda h: (
-            str(h.get("via_member", "")),
-            str(h.get("qname", "")),
-            str(h.get("file", "")),
-            h.get("line") if isinstance(h.get("line"), int) else 0,
-        )
+    total = store.count_edges_by_targets(members, kinds=CALLER_KINDS)
+    inbound = store.edges_by_targets(
+        members, kinds=CALLER_KINDS, limit=cap, offset=offset
     )
-    total = len(hits)
-    return hits[offset : offset + cap], total
+    hits: list[dict[str, object]] = []
+    for edge in inbound:
+        hit = edge_hit(edge)
+        hit["via_member"] = str(edge.get("target_qname") or "")
+        hits.append(hit)
+    return hits, total
 
 
 def create(config: Config) -> Callable[..., dict[str, object]]:
