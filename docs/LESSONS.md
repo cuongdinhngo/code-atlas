@@ -1579,3 +1579,13 @@ venv or the PHPStan tmpDir is rebuilt from a wrong-cased cwd.*
   to `COLUMN_KIND` before `offset`/`cap`.
 - destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)
 
+
+## 271 — a captured-pipe subprocess with a timeout is not bounded on Windows
+
+- type: 2 (code) · handle: `bound-the-drain-and-kill-the-tree-on-a-captured-pipe`
+- status: proposed · seen: 271
+- evidence: `subprocess.run(capture_output, timeout)` on Windows, on `TimeoutExpired`, does an
+  UNBOUNDED `communicate()` after `kill()` (`Lib/subprocess.py`, `if _mswindows:`), so a grandchild
+  holding the pipe wedges the reader past the timeout; POSIX takes `wait()` and does not. Bound with
+  a tree kill (`taskkill /F /T`) + a bounded post-kill drain; the tree kill must itself not raise/hang.
+- destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)

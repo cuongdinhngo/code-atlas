@@ -6,10 +6,17 @@ an absent ``last_commit``), not a configuration error.
 """
 
 import subprocess
+import sys
 from pathlib import Path
 
-# Long enough for a huge index on a cold cache, short enough that a wedged git is not forever.
-GIT_TIMEOUT = 120.0
+# Metadata ops (rev-parse/ls-files/diff --name-only) are sub-second even on huge repos; 30s covers a
+# cold FS. The tree-kill + bounded drain below is the real backstop, so the ceiling stays tight.
+GIT_TIMEOUT = 30.0
+
+# Headless native Windows wedges git three ways; each guard below is a no-op off Windows (task 271).
+# stdin=DEVNULL stops the inherited-console-handle block; CREATE_NO_WINDOW stops a new console;
+# tree-kill on timeout frees the capture pipe a grandchild still holds while the reader blocks.
+_CREATE_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
 
 
 def ls_files(root: Path) -> tuple[str, ...] | None:
@@ -114,18 +121,55 @@ def is_inside_work_tree(root: Path) -> bool | None:
     return None
 
 
+def _kill_tree(proc: "subprocess.Popen[str]") -> None:
+    """Kill ``proc``: the whole tree via ``taskkill /T`` on Windows (where a grandchild can hold the
+    capture pipe open), just the process elsewhere. Must never itself raise or hang, or a stuck kill
+    reintroduces the wedge ``_run`` bounds."""
+    if proc.poll() is not None:
+        return
+    if sys.platform == "win32":
+        try:
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                creationflags=_CREATE_NO_WINDOW,
+                timeout=5,
+            )
+        except (OSError, subprocess.SubprocessError):
+            proc.kill()
+    else:
+        proc.kill()
+
+
 def _run(root: Path, *arguments: str) -> str | None:
     """One read-only git command. Anything git cannot answer is None, never a partial answer."""
     try:
-        completed = subprocess.run(
+        proc = subprocess.Popen(
             ["git", *arguments],
             cwd=root,
-            capture_output=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
             encoding="utf-8",
             errors="surrogateescape",
-            timeout=GIT_TIMEOUT,
+            creationflags=_CREATE_NO_WINDOW,
         )
-    except (OSError, subprocess.SubprocessError):
+    except OSError:
         return None
-    return None if completed.returncode != 0 else completed.stdout
+    try:
+        stdout, _ = proc.communicate(timeout=GIT_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        # A wedged git (or a grandchild holding the pipe) never yielded EOF. Kill the tree, then
+        # drain briefly so communicate() returns rather than blocking on the now-dead pipe.
+        _kill_tree(proc)
+        try:
+            proc.communicate(timeout=5)
+        except (subprocess.SubprocessError, OSError, ValueError):
+            pass
+        return None
+    except (OSError, ValueError):
+        _kill_tree(proc)
+        return None
+    return None if proc.returncode != 0 else stdout
