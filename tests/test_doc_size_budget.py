@@ -238,7 +238,14 @@ BUDGETS = {
     # 2,000 -> 1,900 on 2026-09-13, LOWERED: 261 and 265-268 all close in this window and each
     # removes its row (R7.6), taking the file to 1,569. 2,000 is more than 25 % above that, which
     # the anti-slack guard below calls slack; 1,900 keeps ~330, about eight open rows.
-    "BACKLOG.md": 1_900,
+    # 1,900 -> 1,950 on 2026-09-14 (272-280), argued rather than assumed. Five field retros
+    # (rounds 19-23) land nine tickets at once — more than the ~330 was sized for by one row. A row
+    # here is what a reader chooses the next ticket from, and the ninth (280) is the one finding
+    # with a recorded instance of the trap already costing a session, so dropping it to keep the
+    # ceiling would trade the evidence for the number. R7.6 ran first and came back empty: no open
+    # row is superseded by any of the nine, no `done` row is left to remove, and the round-3
+    # `~650x` note is this repo's only record of that claim. The next addition prunes or argues.
+    "BACKLOG.md": 1_950,
     "ENGINEERING_RULES.md": 5_700,
     "AGENT_BRIEF.md": 2_250,
     # 6,700 -> 6,800 on 2026-09-09 (236): the `ForeignKey` node kind joins the vocabulary of record
