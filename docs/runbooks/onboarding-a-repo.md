@@ -256,6 +256,20 @@ line. Read the direction before acting:
 so following the message is safe — but a session that reads "mismatch" as "corrupt" and falls back to
 `grep` pays the whole trial for a client restart.
 
+### Optional: agent brief (266 / 270)
+
+Offer the five-occasion brief into the indexed repo's `AGENTS.md` (when to ask the graph — not the
+24-tool roster):
+
+```bash
+python /abs/path/to/code-atlas/scripts/setup.py /abs/path/to/target-repo --write-agent-brief
+# or: python /abs/path/to/code-atlas/scripts/gen_skill.py --write-agent-brief /abs/path/to/target-repo
+```
+
+**Claude Code load:** that host's memory list is only `CLAUDE.md` / `CLAUDE.local.md`. If
+`CLAUDE.md` lacks `@AGENTS.md`, the writer prints the one line to add and never writes
+`CLAUDE.md`. Cursor reads `AGENTS.md` directly.
+
 ### Optional: eager freshness
 
 Four mechanisms keep an index current — none of them alone covers a `git pull`:

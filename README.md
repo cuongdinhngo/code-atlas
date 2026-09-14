@@ -183,6 +183,20 @@ Onboarding a **large legacy repo** — where the first build takes minutes and w
 decides whether the database is 1 GB or 2 GB — is covered step by step in
 [`docs/runbooks/onboarding-a-repo.md`](docs/runbooks/onboarding-a-repo.md).
 
+### Agent brief (optional)
+
+After the first index, offer a **five-occasion** brief into the repo's `AGENTS.md` — when to ask
+the graph, not the full tool roster (generated from `which_tool`; do not hand-edit):
+
+```bash
+python scripts/setup.py /abs/path/to/your-project --write-agent-brief
+# or: python scripts/gen_skill.py --write-agent-brief /abs/path/to/your-project
+```
+
+**Load requirement per host:** Cursor reads `AGENTS.md` directly. Claude Code reads only
+`CLAUDE.md` / `CLAUDE.local.md` — if `CLAUDE.md` lacks `@AGENTS.md`, the writer **prints** that
+one line to add and never edits `CLAUDE.md`.
+
 ## Architecture
 
 <img src="docs/assets/architecture.svg" alt="MCP client talks stdio to the language-agnostic core, which drives per-language adapters over a versioned JSONL contract, stores a symbol graph in SQLite, and feeds a deterministic onboarding layer with an opt-in LLM package behind three seams." width="100%">

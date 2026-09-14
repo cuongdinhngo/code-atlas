@@ -195,6 +195,12 @@ def main() -> int:
         print("Install the core (see above), then reload your MCP client.")
         return 1
     print("Done. Reload your MCP client, then call get_index_status -> build_or_update_index.")
+    # Closing screen every installer reads (270): name the flag when a PROJECT was given without it.
+    if args.project and not args.write_agent_brief:
+        print(
+            "  Tip: re-run with --write-agent-brief to offer the five-occasion "
+            "agent brief into PROJECT/AGENTS.md."
+        )
     return 0
 
 

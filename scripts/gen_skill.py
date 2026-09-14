@@ -212,6 +212,13 @@ OCCASIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
 BRIEF_BEGIN = "<!-- code-atlas:agent-brief -->"
 BRIEF_END = "<!-- /code-atlas:agent-brief -->"
 BRIEF_HEADING = "## code-atlas — when to ask the graph"
+# Claude Code's project-memory list is CLAUDE.md / CLAUDE.local.md only (270) — never write those.
+AGENTS_IMPORT_LINE = "@AGENTS.md"
+CLAUDE_MEMORY_FILES = ("CLAUDE.md", "CLAUDE.local.md")
+CLAUDE_IMPORT_OFFER = (
+    "Claude Code loads CLAUDE.md / CLAUDE.local.md only — add this one line to CLAUDE.md "
+    f"(or CLAUDE.local.md): {AGENTS_IMPORT_LINE}"
+)
 
 
 def recognition_lines_by_tool() -> dict[str, str]:
@@ -266,8 +273,21 @@ def render_agent_brief() -> str:
 GENERATED[AGENT_BRIEF_PATH] = render_agent_brief
 
 
+def claude_md_lacks_agents_import(repo_root: Path) -> bool:
+    """True when CLAUDE.md exists and neither memory file already imports AGENTS.md (270)."""
+    root = repo_root.resolve()
+    if not (root / "CLAUDE.md").is_file():
+        return False
+    # The offer names either file, so either one satisfying it must silence the offer.
+    return not any(
+        (root / name).is_file()
+        and AGENTS_IMPORT_LINE in (root / name).read_text(encoding="utf-8")
+        for name in CLAUDE_MEMORY_FILES
+    )
+
+
 def write_agent_brief(repo_root: Path) -> Path:
-    """Install the brief into repo_root/AGENTS.md idempotently (266)."""
+    """Install the brief into repo_root/AGENTS.md idempotently (266); offer Claude import (270)."""
     root = repo_root.resolve()
     path = root / "AGENTS.md"
     body = render_agent_brief().rstrip() + "\n"
@@ -284,6 +304,9 @@ def write_agent_brief(repo_root: Path) -> Path:
     else:
         text = block
     path.write_text(text, encoding="utf-8")
+    # Print, never write CLAUDE.md (PLAN §19 / 270).
+    if claude_md_lacks_agents_import(root):
+        print(CLAUDE_IMPORT_OFFER)
     return path
 
 
