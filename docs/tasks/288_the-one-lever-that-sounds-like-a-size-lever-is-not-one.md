@@ -33,6 +33,28 @@ The retro proposes both fixes and prefers the second, for a reason worth keeping
 > the signature, and say `body_elided: true, line_count: 720, use file_outline or a line range`. The
 > second is better, because it turns the failure into a routing hint rather than a truncation."*
 
+## The counter-evidence, which bounds the fix
+
+A second round the same day read a **508-line** method whole and calls it the decisive call of its
+session:
+
+> *"Seeing that needs the whole method at once. Any `sed`-a-range or `grep -A20` approach reads one of
+> the three sites and misses the interaction … precisely how the previous two attempts at this ticket
+> shipped an incomplete fix."*
+
+It priced it honestly — *"roughly 8k tokens in one response … for a method that size it bought a
+correct diagnosis that two prior sessions missed, so it paid"* — and named the guarantee that makes it
+worth paying for: symbol boundaries come from the parse, not from `sed` arithmetic.
+
+So the two rounds do not disagree about the threshold; they disagree about what happens at it. **The
+failure is that the caller has no choice, in either direction.** One session paid 11k tokens it did not
+want; the other needed the whole body and would have been wrong without it. A degradation that removes
+the whole-body read trades this ticket's cost for the other round's defect.
+
+That round also names the missing half: *"I wanted lines 1040–1100 of a method I had already read; the
+only options were all of it again or fall back to `sed`."* A line-range read **within** a symbol is the
+same fix from the other side, and it is what makes an elided answer actionable rather than merely honest.
+
 ## Scope / Deliverables
 
 - **A body above a threshold degrades instead of shipping whole**, carrying the count and a route
@@ -40,6 +62,12 @@ The retro proposes both fixes and prefers the second, for a reason worth keeping
   unable to tell an elided body from a short one.
 - **Name the threshold where the reader can see it** — in the tool description, not only in source, so
   the degradation is predictable rather than surprising.
+- **The whole body stays reachable, always.** The route must name how to get it, and a caller that
+  asks for it gets it — the degradation is a default, never a ceiling. A large body is expensive, not
+  wrong: one round's decisive call was a 508-line method read whole.
+- **A line range within a symbol.** Let a caller read `line_start…line_end` of a resolved subject
+  without re-reading it whole and without falling back to `sed` — the read that makes an elided answer
+  actionable, and the one a session asked for by name.
 - **Decide `max_lines` in design, not here.** An explicit caller-set cap is a reasonable addition
   beside the automatic route; it is not a substitute for it, because the caller who needs it is the one
   who did not know the subject was large.
@@ -55,7 +83,9 @@ The retro proposes both fixes and prefers the second, for a reason worth keeping
 
 ## Acceptance criteria
 
-- A subject above the threshold returns no full body, carries its line count, and names a route.
+- A subject above the threshold returns no full body by default, carries its line count, and names a route.
+- The same subject's full body is still obtainable in one call by a caller that asks for it.
+- A line range inside a resolved symbol returns exactly those lines, with boundaries from the parse.
 - A subject below it is byte-identical to today at both detail levels.
 - An elided answer is distinguishable from a complete one by a field, not by inspecting the source.
 - The threshold is stated in the tool description and defined once.
@@ -66,4 +96,5 @@ The retro proposes both fixes and prefers the second, for a reason worth keeping
 [163](163_read-symbol-minimal-is-byte-identical-to-standard.md),
 [061](061_payload-weight.md),
 [245](245_the-truncated-substring-answer-is-the-one-search-shape-with-no-route.md).
-Origin: field retro round 25 §4 / §8.1, 2026-09-15 — the round's top-priority ask.
+Origin: field retro round 25 §4 / §8.1, 2026-09-15 — the round's top-priority ask; bounded by the
+round-16 retro of the same date (§1.3), which reads a 508-line body whole and calls it decisive.
