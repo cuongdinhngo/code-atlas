@@ -8,8 +8,12 @@ from typing import Literal
 from code_atlas.config import Config, clamp_limit
 from code_atlas.contract import (
     CALLER_KINDS,
+    COLUMN_KIND,
+    CONTAINS,
+    TABLE_KIND,
     TYPE_KINDS,
     UNMODELLED_REFERENCE_KINDS,
+    WRITES,
     inbound_kinds_for,
 )
 from code_atlas.store import GraphStore
@@ -33,6 +37,7 @@ from code_atlas.tools.nav_result import (
     CAVEAT_ALL_HITS_DYNAMIC,
     CAVEAT_CROSS_LANGUAGE_UNMODELLED,
     CAVEAT_SIBLING_DEFINITIONS,
+    CAVEAT_WRITES_SQL_HALF,
     REASON_INDEX_STALE,
     REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
@@ -75,6 +80,41 @@ CLAIM_CARRY = ("authoritative",)
 # CONTAINS walk for the class-level caller union (252). Same order of magnitude as Table CONTAINS.
 _MEMBER_WALK = 10_000
 _UNION_SUBJECT_KINDS = frozenset({"Class"})
+UNLINKED_WRITES_COUNT = "unlinked_writes_count"
+# Table → Column CONTAINS walk for the writer-set union (248/278); same ballpark as read_symbol.
+_WRITES_CONTAINS_WALK = 10_000
+
+
+def _writes_answer_is_partial(covered: str | None) -> bool:
+    """True when the index covers ≥2 languages — the WRITES answer is the SQL half (278)."""
+    if not covered:
+        return False
+    return len([name for name in covered.split(",") if name]) >= 2
+
+
+def _writes_targets(store: GraphStore, lookup: str, subject_kind: str) -> list[str]:
+    """Targets whose inbound WRITES form the writer set (278).
+
+    Column: itself. Table: the table plus every Column under CONTAINS — named-column
+    WRITES never target the Table qname (SQL adapter), so the union is the wider set.
+    """
+    if subject_kind != TABLE_KIND:
+        return [lookup]
+    targets = [lookup]
+    seen = {lookup}
+    raws: list[str] = []
+    for edge in store.edges_by_source(
+        lookup, kinds=(CONTAINS,), limit=_WRITES_CONTAINS_WALK
+    ):
+        raw = str(edge.get("target_raw") or "")
+        if raw and raw not in seen:
+            seen.add(raw)
+            raws.append(raw)
+    if not raws:
+        return targets
+    found = store.nodes_by_qualified_names(raws, kind=COLUMN_KIND, limit=1)
+    targets.extend(qname for qname in raws if found.get(qname))
+    return targets
 
 
 def _test_census(store: GraphStore, qname: str) -> tuple[int, int, str | None]:
@@ -82,11 +122,28 @@ def _test_census(store: GraphStore, qname: str) -> tuple[int, int, str | None]:
 
     One grouped store read, shared by the first fetch and the re-pointed one.
     """
-    rows = store.inbound_test_rows(qname)
-    production = sum(count for is_test, _path, count in rows if not is_test)
-    test = sum(count for is_test, _path, count in rows if is_test)
+    return _test_census_for(
+        store, [qname], kinds=None
+    )
+
+
+def _test_census_for(
+    store: GraphStore,
+    targets: list[str],
+    *,
+    kinds: tuple[str, ...] | None,
+) -> tuple[int, int, str | None]:
+    """Same 262 census over one or more targets (Table∪columns WRITES union — 278)."""
+    production = 0
+    test = 0
+    role_bits: list[tuple[int, str]] = []
+    for target in targets:
+        rows = store.inbound_test_rows(target, kinds=kinds)
+        production += sum(count for is_test, _path, count in rows if not is_test)
+        test += sum(count for is_test, _path, count in rows if is_test)
+        role_bits.extend((is_test, path) for is_test, path, _count in rows)
     label = aggregate_test_count_source(
-        stored_test_source(is_test, path) for is_test, path, _count in rows
+        stored_test_source(is_test, path) for is_test, path in role_bits
     )
     return production, test, label
 
@@ -149,7 +206,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         """Where is this symbol used across the codebase?
 
         Resolved edges whose ``target_qname`` is ``qname``, with confidence tiers.
-        ``REFERENCES`` (a ``Foo::class`` mention) is FQN-linked at ``DYNAMIC`` — a candidate
+        A **Table** or **Column** subject returns linked ``WRITES`` only (278). A Table
+        unions writers of the table and of its CONTAINS columns (named-column sites
+        never target the Table qname); a Column is the narrower set. When the graph
+        still holds unlinked writers, ``unlinked_writes_count`` names them. On a
+        multi-language index the answer carries ``writes_sql_adapter_only`` —
+        host-language string writes are out of scope (§19). ``REFERENCES`` (a
+        ``Foo::class`` mention) is FQN-linked at ``DYNAMIC`` — a candidate
         list, not a proven use. When every returned hit is ``DYNAMIC``, the payload sets
         ``authoritative: false``. When another language is indexed but no linked ``*->L``
         pair reaches the subject's language (238/276), a hits-bearing answer is
@@ -222,6 +285,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         production_count = 0
         test_count = 0
         test_role_label: str | None = None
+        unlinked_writes_count = 0
+        writes_subject = False
+        writes_kinds: tuple[str, ...] | None = None
+        writes_targets: list[str] | None = None
         unlinked_same_name_sites = 0
         with GraphStore(config.db_path) as store:
             covered = covered_languages(store)
@@ -258,6 +325,26 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             # Widen the existing indexed-check fetch to surface every definition site (task 070).
             nodes = store.nodes_by_qualified_name(lookup, limit=config.page_limit)
             indexed = bool(nodes)
+            if indexed and str(nodes[0]["kind"]) in (TABLE_KIND, COLUMN_KIND):
+                # Writer set — WRITES only; Table unions CONTAINS columns (278).
+                writes_subject = True
+                writes_kinds = (WRITES,)
+                subject_kind = str(nodes[0]["kind"])
+                writes_targets = _writes_targets(store, lookup, subject_kind)
+                total_count = store.count_edges_by_targets(
+                    writes_targets,
+                    kinds=writes_kinds,
+                    exclude_test_sources=exclude_tests,
+                )
+                production_count, test_count, test_role_label = _test_census_for(
+                    store, writes_targets, kinds=writes_kinds
+                )
+                table_key = (
+                    lookup.rsplit("::", 1)[0]
+                    if subject_kind == COLUMN_KIND and "::" in lookup
+                    else lookup
+                )
+                unlinked_writes_count = store.count_unlinked_writes_relating_to(table_key)
             if total_count == 0 and not indexed:
                 # Under-qualified, untracked, or a genuine absence (075/076/092/122).
                 resolution = classify_missing_subject(
@@ -285,11 +372,36 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     )
                 lookup = repointed
                 production_count, test_count, test_role_label = _test_census(store, lookup)
-                total_count = store.count_edges_by_target(
-                    lookup, exclude_test_sources=exclude_tests
-                )
                 nodes = store.nodes_by_qualified_name(lookup, limit=config.page_limit)
                 indexed = bool(nodes)
+                if indexed and str(nodes[0]["kind"]) in (TABLE_KIND, COLUMN_KIND):
+                    writes_subject = True
+                    writes_kinds = (WRITES,)
+                    subject_kind = str(nodes[0]["kind"])
+                    writes_targets = _writes_targets(store, lookup, subject_kind)
+                    table_key = (
+                        lookup.rsplit("::", 1)[0]
+                        if subject_kind == COLUMN_KIND and "::" in lookup
+                        else lookup
+                    )
+                    unlinked_writes_count = store.count_unlinked_writes_relating_to(
+                        table_key
+                    )
+                    production_count, test_count, test_role_label = _test_census_for(
+                        store, writes_targets, kinds=writes_kinds
+                    )
+                if writes_targets is not None:
+                    total_count = store.count_edges_by_targets(
+                        writes_targets,
+                        kinds=writes_kinds,
+                        exclude_test_sources=exclude_tests,
+                    )
+                else:
+                    total_count = store.count_edges_by_target(
+                        lookup,
+                        kinds=writes_kinds,
+                        exclude_test_sources=exclude_tests,
+                    )
             # A same-named definition under another qname makes this count a partition (168).
             # One bounded query, keyed on the subject's own kind — 054's rule, not a constant.
             sibling_sites: list[dict[str, object]] = []
@@ -310,14 +422,27 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         limit=config.page_limit,
                     )
                 )
-            edges = store.edges_by_target(
-                lookup, limit=cap, offset=offset, exclude_test_sources=exclude_tests
-            )
+            if writes_targets is not None:
+                edges = store.edges_by_targets(
+                    writes_targets,
+                    kinds=writes_kinds,
+                    limit=cap,
+                    offset=offset,
+                    exclude_test_sources=exclude_tests,
+                )
+            else:
+                edges = store.edges_by_target(
+                    lookup,
+                    kinds=writes_kinds,
+                    limit=cap,
+                    offset=offset,
+                    exclude_test_sources=exclude_tests,
+                )
             results = [edge_hit(edge) for edge in edges]
             # Skewed page 1 hides other subtrees — advertise the full spread (task 067).
             subtrees = (
                 store.edge_subtrees_by_target(lookup)
-                if offset + len(results) < total_count
+                if writes_targets is None and offset + len(results) < total_count
                 else {}
             )
             if include_source:
@@ -409,6 +534,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if unlinked_edge_kinds:
             # Names the unmeasured relation(s) — not hits (R5.6 / 255 AC1).
             result["unlinked_edge_kinds"] = unlinked_edge_kinds
+        if writes_subject and unlinked_writes_count:
+            # Bounded incompleteness the graph can name (215/278) — a count, not a buried bool.
+            result["unlinked_writes_count"] = unlinked_writes_count
         if production_count or test_count:
             # Nothing inbound: 0 + 0 would only restate `total_count` (061).
             result["production_count"] = production_count
@@ -437,6 +565,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             # 238 hit-path caveat, narrowed by 276: empty census stays on status, not every hit.
             attach_cross_language_census(result, cross_lang_census)
             caveats.append(CAVEAT_CROSS_LANGUAGE_UNMODELLED)
+        if writes_subject and _writes_answer_is_partial(covered):
+            # SQL half only — host-language string writes stay out of scope (§19 / 278).
+            caveats.append(CAVEAT_WRITES_SQL_HALF)
         attach_authoritative_caveats(result, caveats)
         labelled = label_serve_behind(
             result,

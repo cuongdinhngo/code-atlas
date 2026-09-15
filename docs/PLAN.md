@@ -1027,6 +1027,11 @@ unstampable. **274:** behind status names `behind_serves` / `behind_refuses` / `
 [267](tasks/267_the-warning-an-autonomous-agent-cannot-act-on.md) ·
 [274](tasks/274_behind-prints-one-route-and-it-is-a-ninety-minute-rebuild.md).
 
+**Decision — Table/Column writers via find_references (278, 2026-09-15).** Linked `WRITES`
+only; Table = table ∪ CONTAINS columns; `unlinked_writes_count` when >0; multi-lang →
+`writes_sql_adapter_only`. **Host-language string writes out of scope** (tool description).
+[278](tasks/278_the-writer-set-is-computed-for-one-check-and-addressable-from-nothing.md).
+
 **Decision — unresolved CALL site once (258, 2026-09-12).** The site is the fact, the candidate
 set is a query: `max_results` stops governing graph content. AC1/AC5 are E1 — the anchor-scale
 figures the ticket binds were not measured.

@@ -1999,20 +1999,27 @@ class GraphStore:
         The tool cannot see writers that never emitted an edge; this is the incompleteness it
         *can* know — a write site that reached the graph but never linked.
         """
+        return self.count_unlinked_writes_relating_to(table) > 0
+
+    def count_unlinked_writes_relating_to(self, table: str) -> int:
+        """How many unlinked ``WRITES`` still name ``table`` under casefold (215/278).
+
+        Bounded by ``_WALK_UNLINKED`` — the same cap as the boolean probe (R4.3).
+        """
         if not table:
-            return False
+            return 0
         folded = table.casefold()
         bare = folded.rsplit(".", 1)[-1]
-        # idx_edges_raw is exact; a casefold scan is bounded by kind + unlinked predicate.
         sql = (
             "SELECT target_raw FROM edges WHERE kind = 'WRITES' "
             "AND (target_qname IS NULL OR target_qname = '') "
             f"ORDER BY {_EDGE_ORDER} LIMIT ?"
         )
-        for (raw,) in self._conn.execute(sql, (_WALK_UNLINKED,)):
-            if _writes_raw_relates_to(str(raw), folded, bare):
-                return True
-        return False
+        return sum(
+            1
+            for (raw,) in self._conn.execute(sql, (_WALK_UNLINKED,))
+            if _writes_raw_relates_to(str(raw), folded, bare)
+        )
 
     def nodes_by_qualified_names_casefold(
         self, qnames: Sequence[str], *, kind: str | None = None, limit: int
