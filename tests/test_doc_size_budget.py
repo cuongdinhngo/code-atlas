@@ -213,8 +213,8 @@ BUDGETS = {
     # for. R7.6 ran first and came back nearly empty: 071's worktree entry is not superseded (it
     # stays; 268 adds the refusal), and the mechanism, the glob list and the preset's six names
     # live in 268's task file and TOOLS.md. The next addition prunes again or argues again.
-    # 24,040 -> 24,100 on 2026-09-15 (276-280), argued rather than assumed. §19 decisions land across
-    # this field batch — 278 (Table/Column writers), 279 (unmodelled-resolution stamp), 280
+    # 24,040 -> 24,100 on 2026-09-15 (276-280), argued rather than assumed. §19 decisions land
+    # across this field batch — 278 (Table/Column writers), 279 (unmodelled-resolution stamp), 280
     # (parse_failures floor), plus the 274/276 clauses folded into the serve_behind and unmodelled
     # `*->L` blocks — each a verdict a reader could otherwise only reconstruct from source. R7.6 ran
     # first and paid ~99 tokens: the field-name lists, the "Cost/Evidence" tails and restated detail
