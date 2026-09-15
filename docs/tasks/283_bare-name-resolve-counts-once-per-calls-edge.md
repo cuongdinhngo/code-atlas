@@ -4,7 +4,7 @@ slug: bare-name-resolve-counts-once-per-calls-edge
 title: 'The bare-name resolve pass runs one `count_nodes_by_name` per CALLS edge — O(edges) SQLite COUNTs (each with a correlated language sub-select) where the batched fetch two lines above already proves uniqueness, so `resolve` on a large PHP repo went from ~15 min to never finishing; 258 traded a cartesian-product storage blowup for a per-edge query blowup that is worse'
 phase: 1.5b
 milestone: Graph
-status: todo
+status: done
 depends_on: [258, 214, 027]
 ---
 
@@ -100,3 +100,122 @@ concern 258 raised). `_link_by_unique_function` hard-codes `limit=2` for this re
 - A benchmark row shows `resolve` on a large PHP index dropping from the pre-fix time to minutes, with
   identical resolved/unlinked edge counts (proving behaviour, not just speed, held).
 - If removed, `count_nodes_by_name` has no remaining callers and its tests go with it.
+
+---
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 283 — bare-name resolve O(names) not O(edges) (working doc)
+
+- **TIER:** full · **TRACK:** backend — 0/0 UI · **SCOPE:** M · **BASELINE:** green · **INPUT KIND:** ticket
+
+## Phase 0 — Refine
+
+`PREMISE: 6 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)`
+`RECALL: 0 claim(s) surfaced | 0 by symbol | 0 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`REFINE: 2 unresolved surfaced | 0 want-decision asked | 2 how-decision resolved+cited | 0 ASSUMED | skip: no`
+
+HOW: (1) keep count_nodes_by_name — find_callers still calls it (Scope retire-if-only-caller). (2) large PHP anchor-repo bench unavailable (real_corpus_path null) — record AC3 as coverage-gap exclusion; spy-based O(names) test is the proving test. Citation: ticket Scope bullet 2; harness real_corpus_path; Constraints behaviour-preserving.
+
+## Requirements matrix
+
+`SECTIONS: 5 found (Why this exists · Scope / Deliverables · Constraints · Acceptance criteria · References) | 5 decomposed | ROWS: C=5 R=3 G=1 AC=4`
+
+| ID | Source | Verbatim | Interpretation | Ph2 | Ph3/4 | Status |
+|----|--------|----------|----------------|-----|-------|--------|
+| G1 | Why | per-edge COUNT regression from 258 | uniqueness from batched fetch | D1 | AC1 | ✅ |
+| C1 | Constraints | behaviour-preserving 258 | proving at max_candidates 2 and 1 | D2 | AC2 | ✅ |
+| C2 | Constraints | no cartesian product | at most one candidate queued | D1 | AC2 | ✅ |
+| C3 | Constraints | R4.2 / R1.4 / 204 / 027 | fetch stays in store; language filter | D1 | — | ✅ |
+| R1 | Scope | delete per-edge count; limit=max(mc,2) | _link_by_bare_name | D1 | AC1–2 | ✅ |
+| R2 | Scope | retire count if sole caller | keep — find_callers uses it | D1 | AC4 | ✅ |
+| R3 | Scope | O(names) regression test | spy proving test | D2 | AC1 | ✅ |
+| AC1 | AC | no count; scales with names | proving | D2 | proving | ✅ |
+| AC2 | AC | unique links; multi stays unresolved at mc=2 and 1 | proving | D2 | proving | ✅ |
+| AC3 | AC | large PHP resolve bench | EXCLUDED — no corpus | — | gap | ⬜ |
+| AC4 | AC | count retired iff no callers | kept for find_callers | D1 | AC4 | ✅ |
+
+`CLARIFICATION: 2 raised | 2 self-resolved (cited) | 0 for human decision`
+
+## Phase 1 — Analysis
+
+- Root cause: 258 added per-edge count_nodes_by_name while nodes_by_names already answers uniqueness when probe_limit >= 2.
+- TRACK: backend — 0/0 UI
+
+`RULE SECTIONS: 3 applicable — 3 by change-type | 0 by recalled handle — R4.2 ✅ · R1.4 ✅ · R7.6 ✅`
+
+Ran at 59098518f62936d3f2a0982ad4c35af0b385e4ab
+
+```
+$ .venv/bin/python -m pytest tests/test_bare_name_resolve_query_budget.py tests/test_resolver.py::test_many_method_name_matches_stay_one_unresolved_site -q --tb=no
+...                                                                      [100%]
+3 passed in 0.35s
+```
+
+`BASELINE: green`
+
+## Phase 2 — Design
+
+- Approach: probe_limit = max(max_candidates, 2); link iff len(method_hits[name]) == 1; keep count_nodes_by_name for find_callers; spy regression test; exclude large-corpus AC3.
+- Rejected: retire count_nodes_by_name (still used); invent anchor-repo numbers (never invent).
+
+`HANDLES: 0 recalled | 0 traced (command + result) | 0 does not apply (reason) | 0 unanswered`
+`EXCLUSIONS: 1 recorded | 1 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 1 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+Exclusion: AC3 large-PHP resolve wall-time — no real_corpus_path / anchor-repo checkout on this host; expiry: 2026-10-15 or when config.real_corpus_path is set.
+
+**Proving test:** `.venv/bin/python -m pytest tests/test_bare_name_resolve_query_budget.py -q`
+
+| # | Change | File | Blast | k/N |
+|---|--------|------|-------|-----|
+| D1 | uniqueness from batched fetch | resolver.py | bare-name resolve | 1/1 |
+| D2 | O(names) spy + max_candidates=1 | tests/test_bare_name_resolve_query_budget.py | — | 1/1 |
+
+## Phase 3 — Execute
+
+**Branch:** feat/283-bare-name-resolve-o-names-not-o-edges
+**Axis 1:** resolver · proving tests.
+**Axis 2:** implemented-as-approved.
+
+**Verification sweep**
+
+Ran at 59098518f62936d3f2a0982ad4c35af0b385e4ab
+
+```
+$ .venv/bin/python -m pytest tests/test_bare_name_resolve_query_budget.py tests/test_resolver.py::test_many_method_name_matches_stay_one_unresolved_site -q --tb=no
+...                                                                      [100%]
+3 passed in 0.35s
+```
+
+`DIFF ⊆ approved list: yes`
+`DESIGN-CONFORMANCE: self-check passed`
+
+## Phase 4 — Review
+
+REVIEWER: off (waived --no-reviewer)
+
+CHALLENGER: on — round-1 NOT CLEAN (1 can't tell: AC3 large-PHP bench); reconciled against Gate-2 exclusion (real_corpus_path null / no anchor-repo); no code fix without inventing numbers. agent aa496e71-2dea-4cb3-85a8-5c1a9551b57b
+`SCOPE ≡ approved list: yes`
+`DIFF ⊆ approved list: yes`
+`PROVING TEST: tests/test_bare_name_resolve_query_budget.py — 2 passed`
+`DESIGN-CONFORMANCE: self-check passed`
+`REVIEW: CLEAN`
+
+## Phase 5 — Finalise
+
+Outward actions (approved by handover): push feature branch; open PR. Never merge.
+Gate: GATE GREEN (.mango/gate-283.log)
+PR: https://github.com/cuongdinhngo/code-atlas/pull/374
+
+## Cost ledger
+
+| Phase | Notes |
+|-------|-------|
+| autorun | reviewer off; challenger on (1 can't tell → exclusion); main-loop unmeasured |
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`LEDGER TOTAL: unmeasured · top cost driver: main-loop (challenger x1)`

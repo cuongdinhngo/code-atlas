@@ -334,26 +334,22 @@ def _link_by_bare_name(
         language = file_languages.get(str(edge["file_path"]))
         grouped.setdefault(language, []).append((edge, name))
     for language, pairs in grouped.items():
+        # Uniqueness from the batched fetch (283) — never one COUNT per edge. Probe at least
+        # 2 so max_candidates=1 cannot treat a truncated prefix as a unique hit (258).
+        probe_limit = max(max_candidates, 2)
         method_hits = store.nodes_by_names(
             [name for _, name in pairs],
             kind=_BARE_NAME_KIND,
-            limit=max_candidates,
+            limit=probe_limit,
             language=language,
         )
         for edge, name in pairs:
-            # 258: multi-match same-named Methods stay one unresolved site — candidates are a
-            # query, not a build-time cartesian product. Count before the capped fetch so a
-            # max_results prefix cannot look like a unique hit.
-            total = store.count_nodes_by_name(
-                name, kind=_BARE_NAME_KIND, language=language
-            )
-            if total != 1:
-                continue
             methods = method_hits.get(name, [])
-            if methods:
-                # Weaker than what the edge claimed, never stronger: the name matched, the
-                # receiver did not (R5.2).
-                _queue_candidates(edge, methods, "HEURISTIC", links, siblings)
+            if len(methods) != 1:
+                continue
+            # Weaker than what the edge claimed, never stronger: the name matched, the
+            # receiver did not (R5.2).
+            _queue_candidates(edge, methods, "HEURISTIC", links, siblings)
 
 
 class _Chain:
