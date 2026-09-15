@@ -220,7 +220,13 @@ BUDGETS = {
     # first and paid ~99 tokens: the field-name lists, the "Cost/Evidence" tails and restated detail
     # were cut to the verdict + task link (mechanics live in CONVENTION §6 and each task file). The
     # next addition prunes again or argues again; it does not inherit this raise as headroom.
-    "PLAN.md": 24_100,
+    # 24,100 -> 24,120 on 2026-09-15 (281), argued rather than assumed. 281 changed a verdict this
+    # log already carried — the WRITES caveat keys on which languages emit it, not on language
+    # count — so the 278 block states the wrong rule until it is folded in, and a decision log that
+    # is wrong is worse than one that is long. R7.6 ran first inside the same block: the superseded
+    # "multi-lang caveat when only SQL emits" clause is replaced, not kept, and the mechanism stays
+    # in 281's task file. The next addition prunes again or argues again.
+    "PLAN.md": 24_120,
     # 2,150 -> 1,800 on 2026-09-08, LOWERED: 232-235 all close in this window and each removes
     # its row (R7.6), taking the file 1,737 -> 1,485. 2,150 is more than 25 % above 1,485, which
     # the anti-slack guard below calls slack; 1,800 keeps ~315 of headroom, about five open rows.
