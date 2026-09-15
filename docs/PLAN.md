@@ -1008,37 +1008,27 @@ upper-case under R2. Python every scope; TS `EnumMember`→`ClassConst`. No new 
 
 **Decision — unmodelled `*->L` partition on hits (238; 276, 2026-09-15).** Hits on an unmodelled
 crossing carry `authoritative: false` (`reason` stays `ok`). **276:** hit caveat needs
-`linked+unlinked > 0` (empty census → status, 243); zeros keep 221. Cost: empty-census hits drop
-caveat+`caveat_limits`. Evidence: round 20 §5.
-[238](tasks/238_the-honest-zero-predicate-is-gated-on-the-zero.md) ·
-[276](tasks/276_the-caveat-that-fires-on-every-answer.md).
+`linked+unlinked > 0`; empty census → status (243). [238](tasks/238_the-honest-zero-predicate-is-gated-on-the-zero.md) · [276](tasks/276_the-caveat-that-fires-on-every-answer.md).
 
-**Decision — serve_behind labelled reads (257, 2026-09-12; 267, 2026-09-13; status routes 274,
-2026-09-15).** Opt-in: behind + unchanged → `index_behind` + revision (never `ok`); off ⇒
-byte-identical. **267:** unrepaired dirty subject → `index_behind_subject_changed`, else refuse when
-unstampable. **274:** behind status names `behind_serves` / `behind_refuses` / `serve_behind_opt_in` /
-`changed_indexed_between` (+ `changed_indexed_files` at standard); suggestions are not rebuild-only;
-`index_stale` caller refusals name the opt-in. Detail:
-[257](tasks/257_the-index-goes-blind-at-the-moment-it-is-most-wanted.md) ·
-[267](tasks/267_the-warning-an-autonomous-agent-cannot-act-on.md) ·
-[274](tasks/274_behind-prints-one-route-and-it-is-a-ninety-minute-rebuild.md).
+**Decision — serve_behind labelled reads (257, 2026-09-12; 267, 2026-09-13; 274, 2026-09-15).**
+Opt-in: behind + unchanged → `index_behind` + revision (never `ok`); off ⇒ byte-identical. **267:**
+unrepaired dirty subject → `index_behind_subject_changed`, else refuse. **274:** behind status names
+served/refused families + opt-in + `changed_indexed_between`; suggestions not rebuild-only. [257](tasks/257_the-index-goes-blind-at-the-moment-it-is-most-wanted.md) · [267](tasks/267_the-warning-an-autonomous-agent-cannot-act-on.md) · [274](tasks/274_behind-prints-one-route-and-it-is-a-ninety-minute-rebuild.md).
 
-**Decision — Table/Column writers via find_references (278, 2026-09-15).** Linked `WRITES`
-only; Table = table ∪ CONTAINS columns; `unlinked_writes_count` when >0; multi-lang →
-`writes_sql_adapter_only`. **Host-language string writes out of scope** (tool description).
+**Decision — Table/Column writers via find_references (278, 2026-09-15).** Linked `WRITES` only;
+Table = table ∪ its columns; `unlinked_writes_count` when >0; multi-lang caveat when only SQL emits.
+**Host-language string writes out of scope.**
 [278](tasks/278_the-writer-set-is-computed-for-one-check-and-addressable-from-nothing.md).
 
-**Decision — unresolved CALL site once (258, 2026-09-12).** The site is the fact, the candidate
-set is a query: `max_results` stops governing graph content. AC1/AC5 are E1 — the anchor-scale
-figures the ticket binds were not measured.
-[258](tasks/258_the-graph-stores-the-cartesian-product-of-call-site-and-same-named-symbol.md).
+**Decision — unresolved CALL site once (258, 2026-09-12).** The site is the fact, candidates are a
+query; `max_results` stops governing graph content. AC1/AC5 E1. [258](tasks/258_the-graph-stores-the-cartesian-product-of-call-site-and-same-named-symbol.md).
 
-**Decision — parse_failures floor (280, 2026-09-15).** `parse_failures_note` beside the count;
-route to the language runtime's compiler/linter. [280](tasks/280_a-parser-accepts-what-the-runtime-rejects.md).
+**Decision — parse_failures floor (280, 2026-09-15).** `parse_failures_note` beside the count — a
+floor, not a fatal surface. [280](tasks/280_a-parser-accepts-what-the-runtime-rejects.md).
 
-**Decision — unmodelled resolution stamp (279, 2026-09-15).** `File.extra.unmodelled_resolution`
-→ `meta.unmodelled_resolution_by_language`; `find_orphans` → `resolution_unmodelled` (no bare
-orphan list). No inferred edges. [279](tasks/279_an-autoloaded-repo-answers-unreachable-and-means-unmeasured.md).
+**Decision — unmodelled resolution stamp (279, 2026-09-15).** Autoload stamps
+`File.extra.unmodelled_resolution` → meta; `find_orphans` refuses `resolution_unmodelled` (no bare
+orphan list). [279](tasks/279_an-autoloaded-repo-answers-unreachable-and-means-unmeasured.md).
 
 **Reference material** (private, same folder): `understand-anything-how-it-works.md`, `code-review-graph-how-it-works.md`.
 
