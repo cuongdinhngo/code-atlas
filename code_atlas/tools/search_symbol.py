@@ -61,6 +61,7 @@ class _Hits(NamedTuple):
     total_count: int
     other_indexed_files_drifted: int = 0
     candidates: tuple[dict[str, object], ...] = ()
+    search_order: str | None = None
     kind_excluded: tuple[str, ...] = ()
 
 
@@ -322,7 +323,10 @@ def _search_one(
                 residue,
                 tuple(candidates),
             )
-    return _Hits(results, truncated, reason, total_count, residue)
+    from code_atlas.mirror_search import decorate_mirror_hits, load_mirror_search_stamp
+
+    order = decorate_mirror_hits(results, load_mirror_search_stamp(store))
+    return _Hits(results, truncated, reason, total_count, residue, (), order)
 
 
 def _direct(query: str, row: Mapping[str, object] | Row) -> bool:
@@ -376,6 +380,10 @@ def _single_payload(
     attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
     if hits.other_indexed_files_drifted > 0:
         payload["other_indexed_files_drifted"] = hits.other_indexed_files_drifted
+    if hits.search_order is not None:
+        from code_atlas.mirror_search import SEARCH_ORDER_FIELD
+
+        payload[SEARCH_ORDER_FIELD] = hits.search_order
     return payload
 
 
@@ -413,6 +421,10 @@ def _batch_answer(query: str, hits: _Hits) -> dict[str, object]:
             )
     if hits.other_indexed_files_drifted > 0:
         answer["other_indexed_files_drifted"] = hits.other_indexed_files_drifted
+    if hits.search_order is not None:
+        from code_atlas.mirror_search import SEARCH_ORDER_FIELD
+
+        answer[SEARCH_ORDER_FIELD] = hits.search_order
     return answer
 
 

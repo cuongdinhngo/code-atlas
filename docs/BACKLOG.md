@@ -25,7 +25,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260 |
 | 272 | [A partition that is all tests answers `ok`](tasks/272_a-partition-that-is-all-tests-answers-ok.md) | Honesty | todo | 262, 255, 264 |
 | 273 | [The partition counts edges and the total counts callers](tasks/273_the-partition-counts-edges-and-the-total-counts-callers.md) | Honesty | todo | 262, 258 |
-| 277 | [Page one ranks the tree that cannot run](tasks/277_page-one-ranks-the-tree-that-cannot-run.md) | Coverage | todo | 115, 180, 265 |
 | 278 | [The writer set is computed for one check and addressable from nothing](tasks/278_the-writer-set-is-computed-for-one-check-and-addressable-from-nothing.md) | Coverage | todo | 022, 215, 255, 248 |
 | 279 | [An autoloaded repo answers unreachable and means unmeasured](tasks/279_an-autoloaded-repo-answers-unreachable-and-means-unmeasured.md) | Honesty | todo | 031, 255, 264 |
 | 280 | [A parser accepts what the runtime rejects](tasks/280_a-parser-accepts-what-the-runtime-rejects.md) | Honesty | todo | 058 |

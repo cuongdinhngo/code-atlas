@@ -1273,6 +1273,15 @@ def _record_meta(
     # What `skipped_suffix` is made of — its own key, not inside the int-casting census (R1.7).
     by_suffix = {key: count for key, count in dict(skipped_suffixes or {}).items() if count}
     store.set_meta(SKIPPED_SUFFIX_COUNTS_KEY, json.dumps(dict(sorted(by_suffix.items()))))
+    # Mirror pairs for name-search ordering — same 115 computation, once per build (277 / R4.3).
+    from code_atlas.mirror_search import MIRROR_SEARCH_KEY, build_mirror_search_stamp
+
+    stamp = build_mirror_search_stamp(store)
+    if stamp.get("pairs"):
+        store.set_meta(MIRROR_SEARCH_KEY, json.dumps(stamp, sort_keys=True))
+    else:
+        store.delete_meta(MIRROR_SEARCH_KEY)
+    store.reload_mirror_search_stamp()
     commit, ref = gitutil.head_commit_and_ref(config.root)
     if commit is not None:
         store.set_meta(LAST_COMMIT_KEY, commit)

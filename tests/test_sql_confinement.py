@@ -33,7 +33,7 @@ def test_the_guard_has_something_to_check() -> None:
     # trace_capability (199), onboarding scope (206), community (211), provenance (209),
     # orientation (207), audience (210), sequence_diagram (225), er_diagram (224), preflight (237),
     # fit (260), symbol_role (262), worktree_guard + nominate_roots (268)
-    assert len(core_modules()) == 89
+    assert len(core_modules()) == 90
     assert len((CORE / STORE).read_text(encoding="utf-8").splitlines()) > 50
 
 

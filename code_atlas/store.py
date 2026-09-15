@@ -184,6 +184,9 @@ _SEARCH_ORDER = "nodes_fts.rank, nodes.qualified_name, nodes.file_path, nodes.id
 # file beat six exact matches. The band calls the ONE predicate `reason` is decided by (R6.7).
 DIRECT_MATCH_SQL_FN = "ca_direct_match"
 _SEARCH_BAND = f"{DIRECT_MATCH_SQL_FN}(?, nodes.name, nodes.qualified_name) DESC"
+# Within a band: outside mirrors, then higher external-inbound side (277). No-op when stamp absent.
+MIRROR_PREFER_SQL_FN = "ca_mirror_prefer"
+_SEARCH_MIRROR = f"{MIRROR_PREFER_SQL_FN}(nodes.file_path) ASC"
 
 Row = dict[str, object]
 
@@ -602,12 +605,29 @@ class GraphStore:
         if str(db_path) != MEMORY_DB:
             db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(db_path)
+        self._mirror_stamp: dict[str, object] | None = None
         self._conn.create_function(
             DIRECT_MATCH_SQL_FN, 3, _direct_match_udf, deterministic=True
+        )
+        self._conn.create_function(
+            MIRROR_PREFER_SQL_FN, 1, self._mirror_prefer_udf, deterministic=True
         )
         for pragma in PRAGMAS:
             self._conn.execute(f"PRAGMA {pragma}")
         self._create_schema()
+        self.reload_mirror_search_stamp()
+
+    def _mirror_prefer_udf(self, path: object) -> int:
+        """SQLite ORDER BY helper — prefers non-mirror paths, then external-inbound (277)."""
+        from code_atlas.mirror_search import mirror_prefer_key
+
+        return mirror_prefer_key(str(path or ""), self._mirror_stamp)
+
+    def reload_mirror_search_stamp(self) -> None:
+        """Refresh the in-memory mirror-search stamp from meta (after build or open)."""
+        from code_atlas.mirror_search import load_mirror_search_stamp
+
+        self._mirror_stamp = load_mirror_search_stamp(self)
 
     def close(self) -> None:
         self._conn.close()
@@ -927,6 +947,16 @@ class GraphStore:
         """Every indexed path, sorted — what a build reconciles its collection against (§8.1)."""
         cursor = self._conn.execute("SELECT path FROM files ORDER BY path")
         return tuple(str(row[0]) for row in cursor)
+
+    def resolved_edge_file_pairs(self) -> list[tuple[str, str]]:
+        """``(source_file, target_file)`` for resolved edges — mirror inbound stamp (277)."""
+        cursor = self._conn.execute(
+            "SELECT e.file_path, n.file_path FROM edges e "
+            "JOIN nodes n ON n.qualified_name = e.target_qname "
+            "WHERE e.target_qname IS NOT NULL "
+            "ORDER BY e.file_path, n.file_path"
+        )
+        return [(str(src or ""), str(tgt or "")) for src, tgt in cursor]
 
     def counts(self) -> dict[str, int]:
         """Row totals for the status tool: counted in SQL, never by loading the graph (R4.3)."""
@@ -2403,7 +2433,8 @@ class GraphStore:
         sql = (
             f"SELECT nodes.id, {_NODE_COLUMNS_JOINED} FROM nodes "
             f"JOIN nodes_fts ON nodes_fts.rowid = nodes.id "
-            f"WHERE {where} ORDER BY {_SEARCH_BAND}, {_SEARCH_ORDER} LIMIT ? OFFSET ?"
+            f"WHERE {where} ORDER BY {_SEARCH_BAND}, {_SEARCH_MIRROR}, "
+            f"{_SEARCH_ORDER} LIMIT ? OFFSET ?"
         )
         return self._rows(NODE_ROW_KEYS, sql, (*params, query, limit, offset))
 
