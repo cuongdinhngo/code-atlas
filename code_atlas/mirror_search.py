@@ -7,7 +7,7 @@ the pair (measurable, no directory names — R2). Empty stamp ⇒ search order u
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Container, Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
 from code_atlas.onboarding.mirrors import (
@@ -35,6 +35,7 @@ __all__ = [
     "mirror_prefer_key",
     "load_mirror_search_stamp",
     "attach_mirror_search_fields",
+    "decorate_mirror_hits",
 ]
 
 
@@ -107,46 +108,37 @@ def mirror_prefer_key(path: str, stamp: Mapping[str, object] | None) -> int:
 
 
 def attach_mirror_search_fields(
-    payload: dict[str, object],
     results: Sequence[Mapping[str, Any]],
     stamp: Mapping[str, object] | None,
-) -> None:
-    """Name the order rule and put each mirrored hit's counterpart on the row (277)."""
-    order = decorate_mirror_hits(results, stamp)
-    if order is not None:
-        payload[SEARCH_ORDER_FIELD] = order
+    indexed: Container[str],
+) -> str | None:
+    """Mutate hits with indexed-only counterparts; return the order rule or ``None`` (277/282)."""
+    return decorate_mirror_hits(results, stamp, indexed)
 
 
 def decorate_mirror_hits(
     results: Sequence[Mapping[str, Any]],
     stamp: Mapping[str, object] | None,
+    indexed: Container[str],
 ) -> str | None:
-    """Mutate hit dicts with counterparts; return the order rule name or ``None`` (061)."""
+    """Mutate hit dicts with counterparts that exist in ``indexed``; return order or ``None``.
+
+    Synthesized sibling paths that are not indexed are never named (282) — that is
+    ``NO_COUNTERPART``, not a confident ``mirror_counterpart``.
+    """
     if not stamp or not stamp.get("pairs"):
         return None
     pairs = _pairs_from_stamp(stamp)
-    known = {str(hit.get("file", "")) for hit in results if hit.get("file")}
     for hit in results:
         path = hit.get("file")
         if not isinstance(path, str):
             continue
-        answer = resolve_counterpart(path, pairs, known | _counterpart_candidates(path, pairs))
+        answer = resolve_counterpart(path, pairs, indexed)
         if answer.status == COUNTERPART and answer.path:
             # Mapping may be a plain dict from _hit.
             if isinstance(hit, dict):
                 hit[MIRROR_COUNTERPART_FIELD] = answer.path
     return SEARCH_ORDER_MIRROR
-
-
-def _counterpart_candidates(path: str, pairs: Sequence[MirrorPair]) -> set[str]:
-    """Paths that would be counterparts even if they did not appear on this page."""
-    out: set[str] = set()
-    for pair in pairs:
-        for source, target in ((pair.left, pair.right), (pair.right, pair.left)):
-            prefix = f"{source}/"
-            if path.startswith(prefix):
-                out.add(f"{target}/{path[len(prefix):]}")
-    return out
 
 
 def _pairs_from_stamp(stamp: Mapping[str, object]) -> tuple[MirrorPair, ...]:

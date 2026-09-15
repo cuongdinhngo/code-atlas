@@ -166,6 +166,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             # One guard for the call: scaling the repair budget with the subject count is the
             # unbounded fan-out the batch bound exists to prevent (101).
             guard = FreshnessGuard(config, store)
+            mirrors = _mirror_context(store)
             found = [
                 _search_one(
                     store,
@@ -176,6 +177,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     cap=cap,
                     offset=offset,
                     detail_level=detail_level,
+                    mirrors=mirrors,
                 )
                 for subject in kept
             ]
@@ -215,6 +217,19 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     return search_symbol
 
 
+def _mirror_context(store: GraphStore) -> tuple[Mapping[str, object] | None, frozenset[str]]:
+    """The mirror stamp and the indexed path set, read once per call — not once per subject.
+
+    Without pairs no hit can carry a counterpart, so the path scan is never paid (277/282).
+    """
+    from code_atlas.mirror_search import load_mirror_search_stamp
+
+    stamp = load_mirror_search_stamp(store)
+    if not stamp or not stamp.get("pairs"):
+        return None, frozenset()
+    return stamp, frozenset(store.file_paths())
+
+
 def _search_one(
     store: GraphStore,
     guard: FreshnessGuard,
@@ -225,6 +240,7 @@ def _search_one(
     cap: int,
     offset: int,
     detail_level: DetailLevel,
+    mirrors: tuple[Mapping[str, object] | None, frozenset[str]] = (None, frozenset()),
 ) -> _Hits:
     """One subject's search, verdict included — the same path a single call has always taken."""
     rows = store.search_nodes(query, kind=kind, namespace=namespace, limit=cap + 1, offset=offset)
@@ -324,9 +340,10 @@ def _search_one(
                 residue,
                 tuple(candidates),
             )
-    from code_atlas.mirror_search import decorate_mirror_hits, load_mirror_search_stamp
+    from code_atlas.mirror_search import attach_mirror_search_fields
 
-    order = decorate_mirror_hits(results, load_mirror_search_stamp(store))
+    stamp, indexed = mirrors
+    order = attach_mirror_search_fields(results, stamp, indexed)
     return _Hits(results, truncated, reason, total_count, residue, (), order)
 
 

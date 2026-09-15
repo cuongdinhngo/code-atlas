@@ -118,3 +118,97 @@ def test_search_order_rule_is_named(tmp_path: Path, store: GraphStore) -> None:
         query="SharedName", kind="Class"
     )
     assert payload[SEARCH_ORDER_FIELD] == SEARCH_ORDER_MIRROR
+
+
+def test_absent_sibling_gets_no_counterpart(tmp_path: Path, store: GraphStore) -> None:
+    """282 — synthesized sibling not in the index ⇒ no mirror_counterpart field."""
+    seed_file(
+        store,
+        "alpha/Lone.php",
+        [node("Class", "LoneName", "A\\LoneName", "alpha/Lone.php")],
+        [],
+        root=tmp_path,
+    )
+    seed_file(
+        store,
+        "beta/Shared.php",
+        [node("Class", "SharedName", "B\\SharedName", "beta/Shared.php")],
+        [],
+        root=tmp_path,
+    )
+    seed_file(
+        store,
+        "alpha/Shared.php",
+        [node("Class", "SharedName", "A\\SharedName", "alpha/Shared.php")],
+        [],
+        root=tmp_path,
+    )
+    _stamp_for_test(store)
+    # Lone exists only on alpha; synthesized beta/Lone.php is not indexed.
+    payload = search_symbol.create(db_config(tmp_path))(
+        query="LoneName", kind="Class"
+    )
+    assert payload["results"]
+    hit = payload["results"][0]  # type: ignore[index]
+    assert str(hit["file"]) == "alpha/Lone.php"
+    assert MIRROR_COUNTERPART_FIELD not in hit
+    # Shared still names its indexed sibling (AC2 unchanged).
+    shared = search_symbol.create(db_config(tmp_path))(
+        query="SharedName", kind="Class"
+    )
+    by_file = {str(h["file"]): h for h in shared["results"]}  # type: ignore[misc]
+    assert by_file["alpha/Shared.php"][MIRROR_COUNTERPART_FIELD] == "beta/Shared.php"
+    assert by_file["beta/Shared.php"][MIRROR_COUNTERPART_FIELD] == "alpha/Shared.php"
+
+
+def test_path_scan_is_once_per_call_not_per_subject(
+    tmp_path: Path, store: GraphStore, monkeypatch
+) -> None:
+    """282 — the indexed path set backs every subject of a sweep, read once."""
+    for side in ("alpha", "beta"):
+        for name in ("Shared", "Second"):
+            seed_file(
+                store,
+                f"{side}/{name}.php",
+                [node("Class", f"{name}Name", f"{side}\\{name}Name", f"{side}/{name}.php")],
+                [],
+                root=tmp_path,
+            )
+    _stamp_for_test(store)
+    calls = {"n": 0}
+    real = GraphStore.file_paths
+
+    def spy(self: GraphStore) -> tuple[str, ...]:
+        calls["n"] += 1
+        return real(self)
+
+    monkeypatch.setattr(GraphStore, "file_paths", spy)
+    payload = search_symbol.create(db_config(tmp_path))(
+        queries=["SharedName", "SecondName"], kind="Class"
+    )
+    assert payload["subject_count"] == 2
+    assert calls["n"] == 1
+
+
+def test_no_pairs_never_scans_the_path_set(
+    tmp_path: Path, store: GraphStore, monkeypatch
+) -> None:
+    """282 — without mirror pairs no hit can carry a counterpart; skip the scan."""
+    seed_file(
+        store,
+        "src/Only.php",
+        [node("Class", "OnlyOne", "App\\OnlyOne", "src/Only.php")],
+        [],
+        root=tmp_path,
+    )
+    calls = {"n": 0}
+    real = GraphStore.file_paths
+
+    def spy(self: GraphStore) -> tuple[str, ...]:
+        calls["n"] += 1
+        return real(self)
+
+    monkeypatch.setattr(GraphStore, "file_paths", spy)
+    payload = search_symbol.create(db_config(tmp_path))(query="OnlyOne", kind="Class")
+    assert payload["results"]
+    assert calls["n"] == 0
