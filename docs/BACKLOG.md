@@ -25,6 +25,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260 |
 | 281 | [The `WRITES` SQL-half caveat keys on language count, not the emitting adapter](tasks/281_the-writes-sql-half-caveat-keys-on-language-count-not-the-emitting-adapter.md) | Honesty | todo | 278, 255, 264 |
 | 282 | [A mirror hit names a counterpart that is not in the index](tasks/282_a-mirror-hit-names-a-counterpart-that-is-not-in-the-index.md) | Honesty | todo | 277, 115 |
+| 283 | [Bare-name resolve counts once per CALLS edge — O(edges) COUNTs the batched fetch already answers (258 regression)](tasks/283_bare-name-resolve-counts-once-per-calls-edge.md) | Speed | todo | 258, 214, 027 |
 ## Open work — Pillar 2 · Onboarding
 
 The rendering of what the code actually is, for a human supervising an agent or presenting the
