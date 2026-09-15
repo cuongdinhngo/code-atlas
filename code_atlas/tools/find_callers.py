@@ -13,6 +13,7 @@ from code_atlas.contract import (
     CALLER_KINDS,
     CONFIDENCE_TIERS,
     ConfidenceTier,
+    inbound_kinds_for,
     split_qname,
 )
 from code_atlas.store import GraphStore, Row
@@ -61,6 +62,7 @@ from code_atlas.tools.nav_result import (
     edge_hit,
     edge_id,
     empty_nav,
+    escalate_zero_production,
     nav_result,
     relation_reason,
     shape_exact_miss,
@@ -160,6 +162,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         When a Function subject still has unlinked CALLS targeting its short name
         (schema-unqualified ``EXEC`` that could not resolve uniquely — task 214), an empty
         answer uses ``reason=relation_unmodelled_for_language`` instead of ``no_matches``.
+        The same unmeasured route fires when ``production_count`` is 0 on a depth-1 indexed
+        subject with surviving test callers: ``reason`` is not ``ok``, and
+        ``unlinked_same_name_sites`` counts the unlinked inbound that name it (272).
 
         When another language is indexed but no linked ``*->L`` pair reaches the subject's
         language (221/238), the answer carries ``authoritative: false`` and the cross-language
@@ -215,6 +220,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         covered: str | None = None
         unlinked_calls = 0
+        unlinked_same_name_sites = 0
         shared_unlinked: list[str] = []
         shared_honesty_reason = REASON_NO_MATCHES
         unlinked_edge_kinds: list[str] = []
@@ -354,7 +360,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 )
             container, bare_name = split_qname(lookup)
             unresolved_bare = 0
-            if indexed and container is not None and outcome.total_count == 0:
+            if (
+                indexed
+                and container is not None
+                and (outcome.total_count == 0 or (depth == 1 and production_count == 0))
+            ):
                 # Method-shaped only — Function ``\App\put`` ≠ bare Method ``put``.
                 # Cap uses query-time page_limit (build fan-out may differ — 259).
                 if store.count_nodes_by_name(bare_name, kind="Method") > config.page_limit:
@@ -438,8 +448,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 unlinked_calls = store.count_unlinked_by_target_raw(
                     (lookup, subject_name), kinds=CALLER_KINDS
                 )
+            if depth == 1 and production_count == 0 and indexed and subject_nodes:
+                subject_name = str(subject_nodes[0]["name"])
+                kinds = inbound_kinds_for(str(subject_nodes[0]["kind"]))
+                unlinked_same_name_sites = store.count_unlinked_by_target_raw(
+                    (lookup, subject_name), kinds=kinds
+                )
             if (
-                outcome.total_count == 0
+                (outcome.total_count == 0 or (depth == 1 and production_count == 0))
                 and indexed
                 and unresolved_bare == 0
                 and subject_nodes
@@ -483,6 +499,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         elif reason == REASON_NO_MATCHES and shared_unlinked:
             reason = shared_honesty_reason
             unlinked_edge_kinds = shared_unlinked
+        reason = escalate_zero_production(
+            reason,
+            production_count=production_count,
+            unlinked_same_name_sites=unlinked_same_name_sites,
+            unresolved_bare=unresolved_bare,
+            shared_honesty_reason=shared_honesty_reason if shared_unlinked else None,
+        )
         if args_capture_absent:
             # The filter cannot judge one site in this language, so no count above is an answer
             # about it — this outranks every reason the chain can reach (231).
@@ -523,6 +546,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             result["test_count"] = test_count
             if test_role_label is not None:
                 result["test_role_source"] = test_role_label
+        if unlinked_same_name_sites and test_count:
+            result["unlinked_same_name_sites"] = unlinked_same_name_sites
         if args_capture_absent:
             attach_authoritative_caveats(result, [CAVEAT_ARGS_NOT_CAPTURED])
         attach_result_subtrees(result, subtrees)

@@ -439,6 +439,26 @@ def apply_empty_inbound_honesty(
     return reason, []
 
 
+def escalate_zero_production(
+    reason: NavReason,
+    *,
+    production_count: int,
+    unlinked_same_name_sites: int,
+    unresolved_bare: int = 0,
+    shared_honesty_reason: NavReason | None = None,
+) -> NavReason:
+    """A test-only partition is unmeasured when stored evidence falsifies the zero (272)."""
+    if reason != REASON_OK or production_count != 0:
+        return reason
+    if unlinked_same_name_sites > 0:
+        return REASON_RELATION_UNMODELLED_FOR_LANGUAGE
+    if unresolved_bare > 0:
+        return REASON_BARE_NAME_TRUNCATED
+    if shared_honesty_reason not in (None, REASON_OK, REASON_NO_MATCHES):
+        return shared_honesty_reason
+    return reason
+
+
 # Generic identifier lexis — NOT a language branch (no `if language`); the same tolerance the
 # read_symbol comment regex already relies on. A qname component is a run of these chars.
 _IDENT_TRAILING = re.compile(r"[A-Za-z0-9_]+$")

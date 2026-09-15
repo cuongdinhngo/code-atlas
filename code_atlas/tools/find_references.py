@@ -10,6 +10,7 @@ from code_atlas.contract import (
     CALLER_KINDS,
     TYPE_KINDS,
     UNMODELLED_REFERENCE_KINDS,
+    inbound_kinds_for,
 )
 from code_atlas.store import GraphStore
 from code_atlas.symbol_role import aggregate_test_count_source, stored_test_source
@@ -53,6 +54,7 @@ from code_atlas.tools.nav_result import (
     definition_sites,
     edge_hit,
     empty_nav,
+    escalate_zero_production,
     nav_result,
     relation_reason,
     shape_exact_miss,
@@ -158,6 +160,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         enumerates the class's methods) and a ``try_instead_hint`` naming the two-step (065/093)
         — unless the subject is a ``Class`` with ``CONTAINS`` children, in which case the same
         call returns their inbound ``CALLS``/``NEW`` as ``reason=via_members`` (252; never ``ok``).
+        When ``production_count`` is 0 but test hits remain, the same unmeasured route runs
+        and ``unlinked_same_name_sites`` counts the unlinked inbound that name the subject (272).
 
         ``include_source`` (default off, so the common case stays token-frugal) adds each site's
         own source line as ``source``, capped in length. A site whose file drifted since indexing
@@ -215,6 +219,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         production_count = 0
         test_count = 0
         test_role_label: str | None = None
+        unlinked_same_name_sites = 0
         with GraphStore(config.db_path) as store:
             covered = covered_languages(store)
             if sign or serve_behind:
@@ -371,6 +376,22 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     # Per-kind (232): IMPORTS in the set must not mask a never-emitted REFERENCES.
                     reason = REASON_RELATION_UNMODELLED_FOR_LANGUAGE
                     try_instead_hint = TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE
+            if production_count == 0 and indexed and nodes:
+                name = str(nodes[0]["name"])
+                subject_kind = str(nodes[0]["kind"])
+                unlinked_same_name_sites = store.count_unlinked_by_target_raw(
+                    (lookup, name), kinds=inbound_kinds_for(subject_kind)
+                )
+                reason = escalate_zero_production(
+                    reason,
+                    production_count=production_count,
+                    unlinked_same_name_sites=unlinked_same_name_sites,
+                )
+                if (
+                    reason == REASON_RELATION_UNMODELLED_FOR_LANGUAGE
+                    and try_instead_hint is None
+                ):
+                    try_instead_hint = TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE
         truncated = offset + len(results) < total_count
         result = nav_result(
             qname,
@@ -391,6 +412,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             result["test_count"] = test_count
             if test_role_label is not None:
                 result["test_role_source"] = test_role_label
+        if unlinked_same_name_sites and test_count:
+            result["unlinked_same_name_sites"] = unlinked_same_name_sites
 
         if freshness == "repaired":
             result["subject_refreshed_only"] = True

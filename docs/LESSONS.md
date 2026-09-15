@@ -115,7 +115,7 @@ now reconciled to this table.
 
 - type: 2 (code) · handle: `do-not-attest-past-the-payloads-resolution`
 - status: proposed (recurrence of R5.6 — bump `seen:` only; rule already carries the class)
-- seen: 258
+- seen: 258, 272
 - evidence: the proximity expansion returned unresolved same-named CALL sites in `results` under
   `reason: ok`. Same shape as 252's member union, so it takes 252's answer: `proximity_candidates`,
   never `ok`, each row naming `candidate_of`. The ticket's AC2 binds the rows and the true
@@ -419,7 +419,7 @@ because the guard's FILE NAME contains the field name · destination: R6.7.*
 
 *Claim `196-C1` — gate a disclosure on the invariant it depends on, not on the presence of its
 source: a source that exists can still be wrong, and presence-gating renders it anyway. type: 2 ·
-handle: `gate-on-the-invariant-not-on-presence` · status: proposed · seen: 196 · evidence:
+handle: `gate-on-the-invariant-not-on-presence` · status: proposed · seen: 196, 272 · evidence:
 `stamped_edge_health_by_language()` returns a dict for a stale, thin or empty stamp;
 `_confidence_split` refuses all three on the tier sum · destination: open — recurrence 1.*
 
@@ -740,7 +740,7 @@ type: 2 · seen: 1 · handle: `link-on-the-graph-not-on-the-string` · tickets: 
 - type: 2 generalisable-heuristic
 - handle: evidence-shaped-honesty-inverts-on-a-second-instance
 - status: proposed (awaiting human confirm)
-- seen: 186
+- seen: 186, 272
 - evidence: `relationship_not_modelled` fires on unlinked `INCLUDES`; the TS adapter emits no
   `INCLUDES`, so the arm is structurally unreachable and the fall-through is a confident zero. No code
   changed for this to become wrong. When adding producer #2 (adapter, tenant, source), ask of every
