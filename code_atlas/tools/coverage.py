@@ -8,7 +8,7 @@ byte-identical (061 / AC3).
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from code_atlas.adapter import unconfigured_adapters
 from code_atlas.config import Config
@@ -91,6 +91,19 @@ def cross_language_relation_unmodelled(
     if isinstance(pairs, dict) and any(str(key).endswith(f"->{language}") for key in pairs):
         return None
     return census
+
+
+def cross_language_census_has_edges(census: Mapping[str, object]) -> bool:
+    """True when the stamped census counted at least one cross-language edge (276).
+
+    An empty census is a standing repo fact (on ``get_index_status``), not a per-answer
+    partition — firing ``authoritative: false`` on every hit then partitions nothing.
+    """
+    linked = census.get("linked")
+    unlinked = census.get("unlinked")
+    linked_n = linked if isinstance(linked, int) else 0
+    unlinked_n = unlinked if isinstance(unlinked, int) else 0
+    return linked_n + unlinked_n > 0
 
 
 def unindexed_languages(config: Config, stamped: str | None) -> list[dict[str, str]]:

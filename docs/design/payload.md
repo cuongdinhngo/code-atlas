@@ -49,7 +49,7 @@ Both now carry the same three fields, and each is omitted when there is nothing 
 |---|---|
 | `sibling_definitions` | the same-named definitions under other qnames, as `{file, line, kind}` sites |
 | `authoritative: false` | this count is a partition — widen before you act on it |
-| `authoritative_caveats` | **why**, one name per reason and merged, never replaced: `sibling_definitions`, `all_hits_dynamic`, `args_not_captured_by_adapter` (231), `cross_language_relation_unmodelled` (221), `tier_partition` (265) |
+| `authoritative_caveats` | **why**, one name per reason and merged, never replaced: `sibling_definitions`, `all_hits_dynamic`, `args_not_captured_by_adapter` (231), `cross_language_relation_unmodelled` (221/238; hit-path only when the stamped census has edges — 276), `tier_partition` (265) |
 | `sibling_definitions_ranked` | **whether** position means anything here — a boolean verdict, always present at ≥ 2 sites |
 | `sibling_definitions_ranked_by` | **what** the order was decided by — rides only when there is a basis to name |
 

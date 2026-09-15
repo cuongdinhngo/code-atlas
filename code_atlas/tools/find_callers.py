@@ -25,6 +25,7 @@ from code_atlas.tools import call_site, claim
 from code_atlas.tools.coverage import (
     attach_coverage_note,
     covered_languages,
+    cross_language_census_has_edges,
     cross_language_relation_unmodelled,
 )
 from code_atlas.tools.freshness import (
@@ -168,9 +169,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``unlinked_same_name_sites`` counts the unlinked inbound that name it (272).
 
         When another language is indexed but no linked ``*->L`` pair reaches the subject's
-        language (221/238), the answer carries ``authoritative: false`` and the cross-language
-        census whether or not in-language hits exist; ``reason`` stays ``ok`` on a non-zero.
-        ``caveat_limits`` states what that caveat costs the reader (251).
+        language (221/238), an empty answer upgrades to ``relation_unmodelled_for_language``.
+        Hits carry ``authoritative: false`` only when the stamped census has cross-language
+        edges (276); an empty census is status-only. ``caveat_limits`` states the cost (251).
 
         ``subject_refreshed_only`` is present (and ``true``) only when read-through freshness
         reparsed the subject's file this call — neighbors were not re-verified (035 / 061).
@@ -569,8 +570,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             if unlinked_calls == 0 and cross_lang_census is not None:
                 attach_cross_language_census(result, cross_lang_census)
                 attach_authoritative_caveats(result, [CAVEAT_CROSS_LANGUAGE_UNMODELLED])
-        elif cross_lang_census is not None:
-            # Hits whose *->L crossing the index cannot measure (238). reason stays ok.
+        elif cross_lang_census is not None and cross_language_census_has_edges(
+            cross_lang_census
+        ):
+            # Hits whose *->L crossing the index cannot measure (238), and only when the
+            # census counted a cross-language edge (276) — an empty census is status, not a
+            # per-answer partition.
             attach_cross_language_census(result, cross_lang_census)
             attach_authoritative_caveats(result, [CAVEAT_CROSS_LANGUAGE_UNMODELLED])
         labelled = label_serve_behind(

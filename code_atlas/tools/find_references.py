@@ -18,6 +18,7 @@ from code_atlas.tools import call_site, claim
 from code_atlas.tools.coverage import (
     attach_coverage_note,
     covered_languages,
+    cross_language_census_has_edges,
     cross_language_relation_unmodelled,
     relation_unmodelled_for_language,
 )
@@ -151,8 +152,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``REFERENCES`` (a ``Foo::class`` mention) is FQN-linked at ``DYNAMIC`` — a candidate
         list, not a proven use. When every returned hit is ``DYNAMIC``, the payload sets
         ``authoritative: false``. When another language is indexed but no linked ``*->L``
-        pair reaches the subject's language (238), a hits-bearing answer is also
-        ``authoritative: false`` and carries the cross-language census; ``reason`` stays ``ok``.
+        pair reaches the subject's language (238/276), a hits-bearing answer is
+        ``authoritative: false`` only when the stamped census has cross-language edges;
+        an empty census is status-only. ``reason`` stays ``ok``.
         An ``IMPORTS`` naming an indexed file is linked since 188, so a
         **File** subject lists its importers; one naming a symbol or an unresolvable specifier stays
         bare. When unlinked ``REFERENCES``/``IMPORTS`` exist for an indexed subject and linked
@@ -427,7 +429,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             caveats.append(CAVEAT_ALL_HITS_DYNAMIC)
         if attach_sibling_definitions(result, sibling_sites, subject_file=subject_file):
             caveats.append(CAVEAT_SIBLING_DEFINITIONS)
-        if cross_lang_census is not None and total_count > 0:
+        if (
+            cross_lang_census is not None
+            and total_count > 0
+            and cross_language_census_has_edges(cross_lang_census)
+        ):
+            # 238 hit-path caveat, narrowed by 276: empty census stays on status, not every hit.
             attach_cross_language_census(result, cross_lang_census)
             caveats.append(CAVEAT_CROSS_LANGUAGE_UNMODELLED)
         attach_authoritative_caveats(result, caveats)

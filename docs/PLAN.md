@@ -493,7 +493,7 @@ their task files and [`design/`](design/). A per-tool count in prose here is R6.
 | `search_symbol` | FTS + name ranking; stub hits declare themselves (039); a zero hit may miss-repair the sole dirty file or report `index_stale` rather than answer a confident zero (073). **`queries` sweeps N subjects in one call** (101). At `standard`, a `Column` FK hit names its target from existing `REFERENCES` edges: `references` (resolved column) or `references_unresolved` (table only, R5.6) (239) |
 | `file_outline` | line ranges, never bodies — the read is a separate, priced call |
 | `read_symbol` | docblock at `standard`, none at `minimal` (163); stubs declare themselves (039). A qname with >1 definition **refuses the body** and lists the candidates rather than picking one (070 → 078). At `standard`, a **callable** hit carries `params` (name + declared type) when the language stamps capture — else `params_not_captured_by_adapter`, never a lying empty list; a non-callable kind carries neither (242). A **Table** pages `columns` from `CONTAINS` (248). `stored_fields` lists populated node/`extra` keys only; Column always lists both 239 FK lists (250) |
-| `find_callers` | opt-in capped call-site source (037); `args_unrecorded` on the argument filter (049, depth 1). Opt-in `confidence_tier` is a store predicate, never a post-page filter; the default inbound order is tier-first (§19, 265). An empty linked answer may expand to proximity-ranked unresolved same-named sites — `reason=proximity_candidates`, never `ok`, each row naming `candidate_of` (258). Depth 1 enumerates completely; deeper, `total_count` is a floor. Unmodelled `*->L` ⇒ `authoritative: false` even with hits (238) |
+| `find_callers` | opt-in capped call-site source (037); `args_unrecorded` on the argument filter (049, depth 1). Opt-in `confidence_tier` is a store predicate, never a post-page filter; the default inbound order is tier-first (§19, 265). An empty linked answer may expand to proximity-ranked unresolved same-named sites — `reason=proximity_candidates`, never `ok`, each row naming `candidate_of` (258). Depth 1 enumerates completely; deeper, `total_count` is a floor. Unmodelled `*->L` hit caveat needs census edges (238/276) |
 | `find_references` | CALLS/NEW plus `REFERENCES` (`Foo::class`, 094). All-`DYNAMIC` page ⇒ `authoritative: false`. A Class with unlinked refs and CONTAINS children returns member CALLS/NEW as `via_members` (never `ok`; 252) |
 | `find_implementations` | EXTENDS/IMPLEMENTS, resolver-linked only |
 | `find_view_data` | the `PROVIDES_VIEW_DATA` relation (062/063). With no `view_data` rules configured it says so, rather than reporting a modelled zero (069) |
@@ -1010,10 +1010,12 @@ TS decorators and declared types on `extra`; 217 chose edges for Python, so one 
 Withdraw-Python rejected: a TS type-site zero is a false claim. Detail:
 [232](tasks/232_the-same-construct-is-a-references-edge-in-python-and-node-extra-in-php-and-ts.md).
 
-**Decision — unmodelled `*->L` is a partition even with hits (task 238, 2026-09-10).** 221/AC5 kept
-a confident hit byte-identical; that is the dangerous shape. **Locked:** the census is language-scope
-— hits on an unmodelled crossing carry `authoritative: false`; `reason` stays `ok`. Detail:
-[238](tasks/238_the-honest-zero-predicate-is-gated-on-the-zero.md).
+**Decision — unmodelled `*->L` partition on hits (238; 276, 2026-09-15).** Hits on an unmodelled
+crossing carry `authoritative: false` (`reason` stays `ok`). **276:** hit caveat needs
+`linked+unlinked > 0` (empty census → status, 243); zeros keep 221. Cost: empty-census hits drop
+caveat+`caveat_limits`. Evidence: round 20 §5.
+[238](tasks/238_the-honest-zero-predicate-is-gated-on-the-zero.md) ·
+[276](tasks/276_the-caveat-that-fires-on-every-answer.md).
 
 **Decision — serve_behind labelled reads (257, 2026-09-12; 267, 2026-09-13; status routes 274,
 2026-09-15).** Opt-in: behind + unchanged → `index_behind` + revision (never `ok`); off ⇒

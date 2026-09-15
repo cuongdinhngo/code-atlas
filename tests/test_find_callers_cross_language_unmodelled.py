@@ -327,10 +327,10 @@ def _hits_unmodelled_repo(
 def test_in_language_hits_on_an_unmodelled_crossing_are_not_authoritative(
     tmp_path: Path,
 ) -> None:
-    """AC1 (proving test): hits + no *->L → ok, authoritative:false, census, caveat on claim.
+    """238 hit-path, narrowed by 276: empty census + hits → confident ok (no caveat).
 
-    R6.5: on today's code (predicate gated on total_count==0) this call is reason=ok
-    with no authoritative key — the assertion below fails until the gate is dropped.
+    A multi-language index with linked+unlinked == 0 no longer raises authoritative:false
+    on every in-language hit — that standing fact lives on get_index_status (243/276).
     """
     config = _hits_unmodelled_repo(
         tmp_path, tmp_path / "graph.db", link_the_crossing=False, second_language=True
@@ -340,12 +340,9 @@ def test_in_language_hits_on_an_unmodelled_crossing_are_not_authoritative(
 
     assert payload["total_count"] == 1
     assert payload["reason"] == "ok"
-    assert payload["authoritative"] is False
-    assert payload["authoritative_caveats"] == [CAVEAT_CROSS_LANGUAGE_UNMODELLED]
-    assert payload["cross_language"]["linked"] == 0
-    assert payload["cross_language"]["pairs"] == {}
-    claim = str(payload["claim"])
-    assert "authoritative=false" in claim
+    assert "authoritative" not in payload
+    assert "cross_language" not in payload
+    assert "authoritative=false" not in str(payload.get("claim", ""))
 
 
 def test_modelled_crossing_hits_stay_byte_identical(tmp_path: Path) -> None:
@@ -420,7 +417,8 @@ def test_the_hit_answer_is_a_stamp_read_not_a_scan(
 
     monkeypatch.setattr(sqlite3, "connect", _tracing_connect)  # type: ignore[attr-defined]
     payload = find_callers.create(config)(qname=A_QNAME)
-    assert payload["authoritative"] is False
+    assert payload["reason"] == "ok"
+    assert payload["total_count"] == 1
 
     offenders = [s for s in seen if "tgt.language" in s or "GROUP BY src.language" in s]
     assert offenders == [], offenders
@@ -429,17 +427,15 @@ def test_the_hit_answer_is_a_stamp_read_not_a_scan(
 def test_find_references_in_language_hits_on_an_unmodelled_crossing(
     tmp_path: Path,
 ) -> None:
-    """AC4: find_references — hits + no *->L → ok, authoritative:false, census."""
+    """find_references: empty census + hits → no cross_language caveat (276)."""
     config = _hits_unmodelled_repo(
         tmp_path, tmp_path / "graph.db", link_the_crossing=False, second_language=True
     )
     payload = find_references.create(config)(qname=A_QNAME, sign=True)
     assert payload["total_count"] == 1
     assert payload["reason"] == "ok"
-    assert payload["authoritative"] is False
-    assert CAVEAT_CROSS_LANGUAGE_UNMODELLED in payload["authoritative_caveats"]
-    assert payload["cross_language"]["linked"] == 0
-    assert "authoritative=false" in str(payload["claim"])
+    assert "authoritative" not in payload
+    assert "cross_language" not in payload
 
 
 def test_find_references_modelled_and_single_language_and_pre_stamp(
@@ -518,29 +514,25 @@ def _hits_with_a_sibling(root: Path, db_path: Path, *, no_args_capture: bool) ->
 
 
 def test_the_crossing_caveat_does_not_erase_the_sibling_partition(tmp_path: Path) -> None:
-    """Both partitions are real, so the payload must name both (168).
-
-    Made to fail: restore the replacing ``attach_authoritative_caveats`` and
-    ``sibling_definitions`` rides the payload with nothing naming why.
-    """
+    """Sibling partition is named; empty census no longer adds the crossing caveat (276)."""
     config = _hits_with_a_sibling(tmp_path, tmp_path / "graph.db", no_args_capture=False)
 
     payload = find_callers.create(config)(qname=A_QNAME)
 
     assert payload["reason"] == "ok"
     assert "sibling_definitions" in payload
-    assert payload["authoritative_caveats"] == [
-        CAVEAT_CROSS_LANGUAGE_UNMODELLED,
-        CAVEAT_SIBLING_DEFINITIONS,
-    ]
+    assert payload["authoritative_caveats"] == [CAVEAT_SIBLING_DEFINITIONS]
+    assert CAVEAT_CROSS_LANGUAGE_UNMODELLED not in payload["authoritative_caveats"]
 
 
 def test_the_crossing_caveat_does_not_erase_the_args_partition(tmp_path: Path) -> None:
-    """231's caveat outranks every reason the chain can reach, so 238 must not drop it."""
+    """231's caveat outranks every reason; empty census does not add a crossing caveat (276)."""
     config = _hits_with_a_sibling(tmp_path, tmp_path / "graph.db", no_args_capture=True)
 
     payload = find_callers.create(config)(qname=A_QNAME, arg_position=1, arg_is="string")
 
     assert payload["reason"] == REASON_CAPABILITY_NOT_CONFIGURED
     assert CAVEAT_ARGS_NOT_CAPTURED in payload["authoritative_caveats"]
-    assert CAVEAT_CROSS_LANGUAGE_UNMODELLED in payload["authoritative_caveats"]
+    assert CAVEAT_CROSS_LANGUAGE_UNMODELLED not in (
+        payload.get("authoritative_caveats") or []
+    )
