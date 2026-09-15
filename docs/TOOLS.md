@@ -115,7 +115,11 @@ a sweep exists to be complete, so a silent truncation is worse than ten honest c
 One caveat the shape imposes: a sweep shares **one** read-through repair budget across every subject,
 because scaling it per subject is the unbounded fan-out the bound exists to prevent. A subject whose
 file drifted may therefore answer `index_stale` where a single call would have repaired it — the
-answer says so rather than reporting a quieter `no_matches`.
+answer says so rather than reporting a quieter `no_matches`. When a sweep mixes `ok` with
+`index_stale`, the envelope names `index_stale_subjects`, `repair_budget_shared`, and
+`repair_budget_order: "queries"` (275); a fully-`ok` sweep stays unchanged. Each stale entry carries
+`retry_as: "query"` so the single-subject call can spend the whole budget. A `kind=` filter that
+drops an exact-name hit of another kind answers `kind_excluded` (with those kinds), not absence.
 
 #### Tools that take one subject at a time
 

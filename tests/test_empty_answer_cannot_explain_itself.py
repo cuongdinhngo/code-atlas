@@ -12,6 +12,7 @@ from code_atlas.tools import find_implementations, find_references, include_grap
 from code_atlas.tools.nav_result import (
     NAV_REASONS,
     REASON_CAPABILITY_NOT_CONFIGURED,
+    REASON_KIND_EXCLUDED,
     REASON_NAME_NOT_QUALIFIED,
     REASON_NO_MATCHES,
     REASON_OK,
@@ -214,4 +215,6 @@ def test_reason_vocabulary_pins_relationship_not_modelled() -> None:
     assert REASON_RULE_MATCHED_NO_FILES in NAV_REASONS
     # 167 appended substring_match; 186 appended relation_unmodelled_for_language after it.
     assert REASON_SUBSTRING_MATCH in NAV_REASONS
-    assert NAV_REASONS[-1] == REASON_PROXIMITY_CANDIDATES
+    # 275 appended kind_excluded after proximity_candidates (newest-last).
+    assert REASON_PROXIMITY_CANDIDATES in NAV_REASONS
+    assert NAV_REASONS[-1] == REASON_KIND_EXCLUDED

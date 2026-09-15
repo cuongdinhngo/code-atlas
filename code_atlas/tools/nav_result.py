@@ -42,6 +42,7 @@ NavReason = Literal[
     "token_candidates",
     "via_members",
     "proximity_candidates",
+    "kind_excluded",
 ]
 
 REASON_OK: NavReason = "ok"
@@ -92,6 +93,8 @@ REASON_VIA_MEMBERS: NavReason = "via_members"
 # resolver declined to link, not measured callers, so never reason=ok — the 252 rule applied
 # to the other query-time expansion (R5.6).
 REASON_PROXIMITY_CANDIDATES: NavReason = "proximity_candidates"
+# search_symbol kind= filter excluded an exact-name hit of another kind (275) — not absence.
+REASON_KIND_EXCLUDED: NavReason = "kind_excluded"
 
 NAV_REASONS: tuple[NavReason, ...] = (
     REASON_OK,
@@ -119,6 +122,7 @@ NAV_REASONS: tuple[NavReason, ...] = (
     REASON_TOKEN_CANDIDATES,
     REASON_VIA_MEMBERS,
     REASON_PROXIMITY_CANDIDATES,
+    REASON_KIND_EXCLUDED,
 )
 
 # Two registers, one naming rule (093): ``TRY_INSTEAD_*`` is a registered tool name the reader can
@@ -180,6 +184,12 @@ TRY_INSTEAD_HINT_RELATION_CARRIED_BY_ANOTHER_KIND = (
 # Untracked indexable file — rebuild after git add (092). Real tool name; hint is sibling.
 TRY_INSTEAD_BUILD_OR_UPDATE_INDEX = "build_or_update_index"
 TRY_INSTEAD_HINT_UNTRACKED = "git add the untracked file, then rebuild"
+# Sweep stale under a shared repair budget: retry alone so this subject gets the whole cap (275).
+TRY_INSTEAD_HINT_SINGLE_SUBJECT_REPAIR = (
+    "retry as query=<this subject> alone to spend the full repair budget on it"
+)
+RETRY_AS_QUERY = "query"
+RETRY_AS_FIELD = "retry_as"
 # Caller stale refusal: progress is the opt-in param, not another tool (274 / R5.4).
 SERVE_BEHIND_OPT_IN = "serve_behind"
 SERVE_BEHIND_OPT_IN_FIELD = "serve_behind_opt_in"

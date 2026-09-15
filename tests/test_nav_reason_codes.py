@@ -21,6 +21,7 @@ from code_atlas.tools.nav_result import (
     REASON_INDEX_BEHIND_SUBJECT_CHANGED,
     REASON_INDEX_ROOT_MISMATCH,
     REASON_INDEX_STALE,
+    REASON_KIND_EXCLUDED,
     REASON_NAME_NOT_QUALIFIED,
     REASON_NO_ARCHITECTURAL_CHANGE,
     REASON_NO_MATCHES,
@@ -192,6 +193,7 @@ def test_reason_vocabulary_includes_index_stale_unused() -> None:
         REASON_TOKEN_CANDIDATES,
         REASON_VIA_MEMBERS,
         REASON_PROXIMITY_CANDIDATES,
+        REASON_KIND_EXCLUDED,
     )
 
 

@@ -17,6 +17,7 @@ from code_atlas.tools.coverage import (
 from code_atlas.tools.freshness import FreshnessGuard, nameable_subject_path
 from code_atlas.tools.nav_result import (
     REASON_INDEX_STALE,
+    REASON_KIND_EXCLUDED,
     REASON_NO_MATCHES,
     REASON_NOT_INDEXED,
     REASON_OK,
@@ -24,9 +25,12 @@ from code_atlas.tools.nav_result import (
     REASON_SUBJECT_FILE_CHECKED,
     REASON_SUBSTRING_MATCH,
     REASON_TOKEN_CANDIDATES,
+    RETRY_AS_FIELD,
+    RETRY_AS_QUERY,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_HINT_MEMBER_SEPARATOR,
     TRY_INSTEAD_HINT_NARROW_BY_QNAME,
+    TRY_INSTEAD_HINT_SINGLE_SUBJECT_REPAIR,
     TRY_INSTEAD_HINT_TOKEN_CANDIDATES,
     TRY_INSTEAD_HINT_TOKEN_CANDIDATES_NONE,
     TRY_INSTEAD_SEARCH_SYMBOL,
@@ -57,6 +61,7 @@ class _Hits(NamedTuple):
     total_count: int
     other_indexed_files_drifted: int = 0
     candidates: tuple[dict[str, object], ...] = ()
+    kind_excluded: tuple[str, ...] = ()
 
 
 def _require_kind(kind: contract.NodeKind | None) -> contract.NodeKind | None:
@@ -103,7 +108,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         and ``total_count``, so one miss never colours the rest. At most ``max_subjects`` are
         accepted; the rest are named in ``subjects_dropped`` beside ``subjects_capped_to``.
         A sweep shares **one** read-through repair budget across every subject, so a subject whose
-        file drifted may answer ``index_stale`` where a single call would have repaired it.
+        file drifted may answer ``index_stale`` where a single call would have repaired it. When a
+        sweep mixes ``ok`` with ``index_stale``, the envelope names the refused subjects and states
+        that the shared budget decided (275) — a fully-``ok`` sweep stays unchanged (061).
 
         Returns ``{qname, kind, file, line}`` rows (FTS trigram, or a name/qname prefix scan for
         queries under three characters), capped by ``limit`` or ``CA_MAX_RESULTS``; ``offset`` pages
@@ -191,6 +198,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         payload = batch_result(answers, index_root=index_root)
         attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
         attach_subjects_capped(payload, cap=config.max_subjects, dropped=dropped)
+        _attach_mixed_repair_budget(payload, answers)
         # A swept miss is the same 8-A shape as a single one: name the coverage gap once on the
         # envelope (call-level, never per subject — 061) when any subject came back a genuine zero,
         # a token-candidate miss (253), or a substring near-miss — the sweep path is the one 160's
@@ -291,8 +299,16 @@ def _search_one(
                         else REASON_SEPARATOR_NORMALISED
                     )
                     return _Hits(results, truncated, alt_reason, total_count, residue)
-    # Zero-overlap miss: decompose the guess into name tokens and offer declared matches (253).
+    # Zero-overlap miss: kind filter first (275), then token decomposition (253).
     if reason == REASON_NO_MATCHES and offset == 0:
+        if kind is not None:
+            excluded = _kind_excluded_hits(
+                store, query, kind=kind, namespace=namespace, cap=cap
+            )
+            if excluded:
+                return _Hits(
+                    [], False, REASON_KIND_EXCLUDED, 0, residue, (), tuple(excluded)
+                )
         tokens = contract.name_tokens(query)
         if tokens:
             candidates = _token_candidates(
@@ -336,6 +352,9 @@ def _single_payload(
     # Empty + unverified (multi-dirty miss) — point at path-named tools (073).
     if hits.reason == REASON_INDEX_STALE and hits.total_count == 0:
         return attach_try_instead(payload, TRY_INSTEAD_FILE_OUTLINE)
+    if hits.reason == REASON_KIND_EXCLUDED:
+        payload["kind_excluded"] = list(hits.kind_excluded)
+        return payload
     # Near-miss / truncated flood — name the narrower query (245); registry reuse (093).
     if _needs_narrowing_route(hits):
         hint = (
@@ -369,8 +388,12 @@ def _batch_answer(query: str, hits: _Hits) -> dict[str, object]:
         reason=hits.reason,
         total_count=hits.total_count,
     )
-    if hits.reason == REASON_INDEX_STALE and hits.total_count == 0:
-        attach_try_instead(answer, TRY_INSTEAD_FILE_OUTLINE)
+    if hits.reason == REASON_INDEX_STALE:
+        # Shared-budget refuse: single-subject retry is the progress route (275 / R5.4).
+        answer[RETRY_AS_FIELD] = RETRY_AS_QUERY
+        attach_try_instead(answer, None, TRY_INSTEAD_HINT_SINGLE_SUBJECT_REPAIR)
+    elif hits.reason == REASON_KIND_EXCLUDED:
+        answer["kind_excluded"] = list(hits.kind_excluded)
     elif _needs_narrowing_route(hits):
         hint = (
             TRY_INSTEAD_HINT_MEMBER_SEPARATOR
@@ -391,6 +414,45 @@ def _batch_answer(query: str, hits: _Hits) -> dict[str, object]:
     if hits.other_indexed_files_drifted > 0:
         answer["other_indexed_files_drifted"] = hits.other_indexed_files_drifted
     return answer
+
+
+def _attach_mixed_repair_budget(
+    payload: dict[str, object], answers: list[dict[str, object]]
+) -> None:
+    """Flag a sweep that mixed ok with index_stale under one repair budget (275 / 061)."""
+    stale = [
+        str(a["query"])
+        for a in answers
+        if a.get("reason") == REASON_INDEX_STALE
+    ]
+    if not stale:
+        return
+    if not any(a.get("reason") == REASON_OK for a in answers):
+        return
+    payload["repair_budget_shared"] = True
+    payload["index_stale_subjects"] = stale
+    # queries order decides who spends the one reparse (stated, not silent).
+    payload["repair_budget_order"] = "queries"
+
+
+def _kind_excluded_hits(
+    store: GraphStore,
+    query: str,
+    *,
+    kind: contract.NodeKind,
+    namespace: str | None,
+    cap: int,
+) -> list[str]:
+    """Exact-name kinds present without the filter that the kind= filter dropped (275)."""
+    rows = store.search_nodes(
+        query, kind=None, namespace=namespace, limit=cap + 1, offset=0
+    )
+    found = {
+        str(row["kind"])
+        for row in rows
+        if _direct(query, row) and str(row["kind"]) != kind
+    }
+    return sorted(found)
 
 
 def _needs_narrowing_route(hits: _Hits) -> bool:
