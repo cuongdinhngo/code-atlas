@@ -23,8 +23,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260 |
-| 272 | [A partition that is all tests answers `ok`](tasks/272_a-partition-that-is-all-tests-answers-ok.md) | Honesty | todo | 262, 255, 264 |
-| 273 | [The partition counts edges and the total counts callers](tasks/273_the-partition-counts-edges-and-the-total-counts-callers.md) | Honesty | todo | 262, 258 |
 | 281 | [The `WRITES` SQL-half caveat keys on language count, not the emitting adapter](tasks/281_the-writes-sql-half-caveat-keys-on-language-count-not-the-emitting-adapter.md) | Honesty | todo | 278, 255, 264 |
 | 282 | [A mirror hit names a counterpart that is not in the index](tasks/282_a-mirror-hit-names-a-counterpart-that-is-not-in-the-index.md) | Honesty | todo | 277, 115 |
 ## Open work — Pillar 2 · Onboarding
