@@ -68,7 +68,10 @@ def test_suggestions_vary_across_current_and_behind(tmp_path: Path) -> None:
     path.write_text(path.read_text(encoding="utf-8") + "x\n", encoding="utf-8")
     behind = call(server, STATUS, {})["next_tool_suggestions"]
     assert current == []
-    assert behind == [BUILD]
+    assert BUILD in behind
+    assert behind != [BUILD]
+    assert "search_symbol" in behind
+    assert "read_symbol" in behind
     assert current != behind
 
 

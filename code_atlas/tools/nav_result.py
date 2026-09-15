@@ -180,6 +180,12 @@ TRY_INSTEAD_HINT_RELATION_CARRIED_BY_ANOTHER_KIND = (
 # Untracked indexable file — rebuild after git add (092). Real tool name; hint is sibling.
 TRY_INSTEAD_BUILD_OR_UPDATE_INDEX = "build_or_update_index"
 TRY_INSTEAD_HINT_UNTRACKED = "git add the untracked file, then rebuild"
+# Caller stale refusal: progress is the opt-in param, not another tool (274 / R5.4).
+SERVE_BEHIND_OPT_IN = "serve_behind"
+SERVE_BEHIND_OPT_IN_FIELD = "serve_behind_opt_in"
+TRY_INSTEAD_HINT_SERVE_BEHIND = (
+    "pass serve_behind=true to answer from the built revision (labelled, not ok)"
+)
 # A twinned path seed is refused, not answered — but a refusal with no route is the carve-out this
 # repo keeps re-learning about (065, 171). The qname seed is the half 161 already made safe.
 TRY_INSTEAD_HINT_IMPACT_BY_QNAME = (
@@ -569,6 +575,15 @@ def attach_try_instead(
     if hint:
         payload["try_instead_hint"] = hint
     return payload
+
+
+def attach_serve_behind_route(payload: dict[str, object]) -> dict[str, object]:
+    """Name the caller opt-in on an ``index_stale`` refusal (274).
+
+    ``serve_behind`` is a parameter, not a registered tool — hint only, no ``try_instead`` (R5.4).
+    """
+    payload[SERVE_BEHIND_OPT_IN_FIELD] = SERVE_BEHIND_OPT_IN
+    return attach_try_instead(payload, None, TRY_INSTEAD_HINT_SERVE_BEHIND)
 
 
 def attach_next_tools(payload: dict[str, object], kind: str) -> dict[str, object]:

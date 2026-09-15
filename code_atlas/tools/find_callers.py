@@ -55,6 +55,7 @@ from code_atlas.tools.nav_result import (
     attach_limit_capped,
     attach_resolved_qname,
     attach_result_subtrees,
+    attach_serve_behind_route,
     attach_sibling_definitions,
     attach_try_instead,
     classify_missing_subject,
@@ -245,21 +246,22 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 if not unrepaired_subject_served(
                     store, qname, serve_behind=serve_behind, dirty_paths=behind_dirty
                 ):
-                    return signed(attach_try_instead(
-                        nav_result(
-                            qname,
-                            [],
-                            detail_level=detail_level,
-                            db_path=str(config.db_path),
-                            index_root=config.index_root,
-                            truncated=False,
-                            reason=REASON_INDEX_STALE,
-                            total_count=0,
-                            depth=depth,
-                            frontier_skipped_non_resolved=0,
-                        ),
-                        TRY_INSTEAD_FILE_OUTLINE,
-                    ))
+                    refused = nav_result(
+                        qname,
+                        [],
+                        detail_level=detail_level,
+                        db_path=str(config.db_path),
+                        index_root=config.index_root,
+                        truncated=False,
+                        reason=REASON_INDEX_STALE,
+                        total_count=0,
+                        depth=depth,
+                        frontier_skipped_non_resolved=0,
+                    )
+                    # 274: name the opt-in that answers; file_outline cannot fix a stale subject.
+                    if not serve_behind:
+                        return signed(attach_serve_behind_route(refused))
+                    return signed(attach_try_instead(refused, TRY_INSTEAD_FILE_OUTLINE))
                 subject_unrepaired = True
             asked = qname
             lookup = qname

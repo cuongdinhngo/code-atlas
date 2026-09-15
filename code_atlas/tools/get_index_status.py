@@ -47,6 +47,7 @@ from code_atlas.tools import claim, fit, schema_guard
 from code_atlas.tools.collection import collection_field
 from code_atlas.tools.config_provenance import attach_config_provenance
 from code_atlas.tools.coverage import covered_languages
+from code_atlas.tools.freshness import dirty_indexed_paths
 from code_atlas.tools.nominate_roots import (
     entry_point_nominations,
     filesystem_paths,
@@ -74,6 +75,21 @@ PARSE_FAILURE_PATHS_LIMIT = 50
 __all__ = ["NAME", "create", "CURRENT", "BEHIND", "UNKNOWN"]
 
 BUILD_TOOL = "build_or_update_index"
+# Families that still answer on a behind index without opt-in (274) — search/read via read-through.
+SEARCH_TOOL = "search_symbol"
+READ_TOOL = "read_symbol"
+# Caller family that refuses on behind unless ``serve_behind`` (257/267 / 274).
+CALLERS_TOOL = "find_callers"
+REFERENCES_TOOL = "find_references"
+# Opt-in param on find_callers / find_references (257/267); named beside suggestions (274 / R5.4).
+SERVE_BEHIND_OPT_IN = "serve_behind"
+SERVE_BEHIND_OPT_IN_FIELD = "serve_behind_opt_in"
+BEHIND_SERVES_FIELD = "behind_serves"
+BEHIND_REFUSES_FIELD = "behind_refuses"
+CHANGED_INDEXED_FILES_FIELD = "changed_indexed_files"
+# Payload field names that bound the drifted set — the route that narrows a subject (274).
+CHANGED_INDEXED_BETWEEN_FIELD = "changed_indexed_between"
+CHANGED_INDEXED_BETWEEN = ("last_commit", "head_commit")
 
 # Two axes the revision axis deliberately does not answer (task 178). `staleness` says WHICH
 # REVISION this index describes — 072's busy refusal and 077 both read it that way — so "is a build
@@ -249,6 +265,30 @@ def _attach_suggestions(
         status["next_tool_suggestions"] = suggestions
 
 
+def _attach_behind_routes(
+    status: dict[str, object],
+    *,
+    staleness: str,
+    detail_level: DetailLevel,
+    store: GraphStore | None = None,
+    config: Config | None = None,
+) -> None:
+    """On ``behind`` only: name what still serves and the caller opt-in (274).
+
+    No fields on ``current`` (061). ``changed_indexed_files`` needs a commit-range git read, so it
+    stays off ``minimal`` (no new git spawn there) and off unbuilt (no store).
+    """
+    if staleness != BEHIND:
+        return
+    status[BEHIND_SERVES_FIELD] = [SEARCH_TOOL, READ_TOOL]
+    status[BEHIND_REFUSES_FIELD] = [CALLERS_TOOL, REFERENCES_TOOL]
+    status[SERVE_BEHIND_OPT_IN_FIELD] = SERVE_BEHIND_OPT_IN
+    status[CHANGED_INDEXED_BETWEEN_FIELD] = list(CHANGED_INDEXED_BETWEEN)
+    if detail_level == "minimal" or store is None or config is None:
+        return
+    status[CHANGED_INDEXED_FILES_FIELD] = len(dirty_indexed_paths(store, config))
+
+
 def _unbuilt(
     servable: Sequence[str], detail_level: DetailLevel, config: Config
 ) -> dict[str, object]:
@@ -271,6 +311,7 @@ def _unbuilt(
         **server_provenance(),
     }
     _attach_suggestions(status, servable, UNKNOWN, indexed=False)
+    # Unbuilt is never behind — no behind disclosure, no git spawn (077 / 274).
     if detail_level in ("standard", "verbose"):
         status["db_path"] = str(config.db_path)
         status["page_limit"] = _page_limit_field(config)
@@ -343,7 +384,11 @@ def _status(
     }
     _attach_suggestions(status, servable, staleness, indexed=indexed)
     if detail_level == "minimal":
+        _attach_behind_routes(status, staleness=staleness, detail_level="minimal")
         return signed(status)
+    _attach_behind_routes(
+        status, staleness=staleness, detail_level=detail_level, store=store, config=config
+    )
     _attach_root_nominations(status, config, paths=store.file_paths() if indexed else None)
     enriched = status | {
         "head_commit": revision["head_commit"],
@@ -500,9 +545,17 @@ def _attach_edge_health_by_language(payload: dict[str, object], store: GraphStor
 def _suggestions(servable: Sequence[str], staleness: str, *, indexed: bool) -> list[str]:
     """State-reactive hints — never the full tool list (task 061).
 
-    No index / stale or dirty index → suggest a build. A current index → empty (the
-    client already knows the servable tools).
+    Unbuilt / incomplete / unknown → suggest a build. A behind index still serves search/read
+    (274), so those join the rebuild route rather than implying rebuild-before-anything. A
+    current index → empty (the client already knows the servable tools).
     """
-    if not indexed or staleness != CURRENT:
+    if not indexed or staleness == UNKNOWN:
+        return [name for name in (BUILD_TOOL,) if name in servable]
+    if staleness == BEHIND:
+        return [
+            name for name in (SEARCH_TOOL, READ_TOOL, BUILD_TOOL) if name in servable
+        ]
+    if staleness != CURRENT:
+        # incomplete (202) and any future non-current state: rebuild is the route.
         return [name for name in (BUILD_TOOL,) if name in servable]
     return []

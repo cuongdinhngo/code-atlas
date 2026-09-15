@@ -395,13 +395,18 @@ def test_a_current_index_is_not_told_to_rebuild(repo: Path) -> None:
     assert "next_tool_suggestions" not in call(build_server(config), STATUS, {})
 
 
-def test_a_behind_index_suggests_a_build(repo: Path) -> None:
+def test_a_behind_index_suggests_more_than_a_build(repo: Path) -> None:
+    """274: behind still serves search/read; suggestions are not only rebuild."""
     config = served_config(repo)
     call(build_server(config), BUILD, {})
     # Mutate an indexed file so staleness is behind without a new commit (047 / 061).
     path = next(p for p in (repo / "src").rglob("*") if p.is_file())
     path.write_text(path.read_text(encoding="utf-8") + "// dirty\n", encoding="utf-8")
-    assert call(build_server(config), STATUS, {})["next_tool_suggestions"] == [BUILD]
+    suggestions = call(build_server(config), STATUS, {})["next_tool_suggestions"]
+    assert BUILD in suggestions
+    assert suggestions != [BUILD]
+    assert "search_symbol" in suggestions
+    assert "read_symbol" in suggestions
 
 
 # --- R5 · detail_level on every tool -------------------------------------------------------------
@@ -528,7 +533,8 @@ def test_every_part_section_12_names_is_in_the_minimal_payload(repo: Path) -> No
         "server_stale_process",
     ):
         assert part in minimal, part
-    assert minimal["next_tool_suggestions"] == [BUILD]
+    assert BUILD in minimal["next_tool_suggestions"]
+    assert minimal["next_tool_suggestions"] != [BUILD]
 
 
 # --- the thread rule the whole design turns on ---------------------------------------------------

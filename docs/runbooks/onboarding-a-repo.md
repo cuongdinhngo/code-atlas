@@ -341,7 +341,12 @@ HEURISTIC, 2,933 DYNAMIC**, with 490,922 edges `unlinked`.
   covers move this signal (task 047) — editing docs leaves it `current`, and `dirty_indexed_files` on
   `standard` says how many indexed files are actually dirty. An index built before 047 has no suffix
   stamp: it falls back to the whole tracked tree and reports `dirty_indexed_files: null`, so rebuild
-  once to get the scoped signal.
+  once to get the scoped signal. **Behind does not mean "rebuild before asking anything"** (274):
+  `search_symbol` / `read_symbol` still serve (read-through repair); `find_callers` /
+  `find_references` refuse unless you pass `serve_behind=true` (named on the status as
+  `behind_refuses` + `serve_behind_opt_in`). Narrow a subject with the commits in
+  `changed_indexed_between` (`last_commit`..`head_commit`) — `changed_indexed_files` is that set's
+  size — before treating every answer as drifted.
 
 `include_graph` is worth a specific check. On a Composer/PSR-4 codebase it is close to empty, because
 autoloaded classes produce no `INCLUDES` edges (see the PSR-4 follow-up in
