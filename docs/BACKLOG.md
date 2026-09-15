@@ -23,6 +23,12 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260 |
+| 284 | [The stale-process warning names a divergence and never an effect](tasks/284_the-stale-process-warning-names-a-divergence-and-never-an-effect.md) | Honesty | todo | 267, 170, 164 |
+| 285 | [A `Class` hit omits the one fact that decides whether its callers typecheck](tasks/285_a-class-hit-omits-the-one-fact-that-decides-whether-its-callers-typecheck.md) | Coverage | todo | 242, 248, 158 |
+| 286 | [The mirror pairs are stamped and the tool that forms the belief never reads them](tasks/286_the-mirror-pairs-are-stamped-and-the-tool-that-forms-the-belief-never-reads-them.md) | Honesty | todo | 277, 282, 276 |
+| 287 | [The spelling every stack trace uses is a near-miss](tasks/287_the-spelling-every-stack-trace-uses-is-a-near-miss.md) | Agent-fit | todo | 249, 167, 253 |
+| 288 | [The one lever that sounds like a size lever is not one](tasks/288_the-one-lever-that-sounds-like-a-size-lever-is-not-one.md) | Cost | todo | 163, 061, 245 |
+| 289 | [The shell build line drops the two counts that answer "did it do the right thing"](tasks/289_the-shell-build-line-drops-the-two-counts-that-answer-did-it-do-the-right-thing.md) | Agent-fit | todo | 177, 201, 051 |
 ## Open work — Pillar 2 · Onboarding
 
 The rendering of what the code actually is, for a human supervising an agent or presenting the
