@@ -697,21 +697,21 @@ CAVEAT_SIBLING_DEFINITIONS = "sibling_definitions"
 CAVEAT_CROSS_LANGUAGE_UNMODELLED = "cross_language_relation_unmodelled"
 # Page shows one tier of a multi-tier hit set (or none of the filtered tier) — 251/265.
 CAVEAT_TIER_PARTITION = "tier_partition"
-# Table/Column writer answer is the SQL adapter's WRITES half only (278) — host-language
-# string writes are out of scope (§19).
-CAVEAT_WRITES_SQL_HALF = "writes_sql_adapter_only"
+# Table/Column writer answer is only languages that emit WRITES (278/281) — covered
+# languages that emit none leave host-language writes unmeasured (§19).
+CAVEAT_WRITES_EMITTERS_ONLY = "writes_emitters_only"
 # Operational cost of the caveat, in the reader's terms (task 251) — not only the relation name.
 CAVEAT_LIMIT_CROSS_LANGUAGE = (
     "This answer is reachability within one language's call graph and does not "
     "establish which entry point the front end invokes."
 )
-CAVEAT_LIMIT_WRITES_SQL_HALF = (
-    "This answer lists SQL-adapter WRITES only; host-language string writes are "
-    "unmeasured and out of scope"
+CAVEAT_LIMIT_WRITES_EMITTERS_ONLY = (
+    "This answer lists WRITES from emitting adapters only; covered languages that "
+    "do not emit WRITES leave host-language writes unmeasured and out of scope"
 )
 CAVEAT_LIMITS: dict[str, str] = {
     CAVEAT_CROSS_LANGUAGE_UNMODELLED: CAVEAT_LIMIT_CROSS_LANGUAGE,
-    CAVEAT_WRITES_SQL_HALF: CAVEAT_LIMIT_WRITES_SQL_HALF,
+    CAVEAT_WRITES_EMITTERS_ONLY: CAVEAT_LIMIT_WRITES_EMITTERS_ONLY,
 }
 CAVEAT_LIMITS_KEY = "caveat_limits"
 CAVEAT_ARGS_NOT_CAPTURED = "args_not_captured_by_adapter"

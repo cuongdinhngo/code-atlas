@@ -9,7 +9,7 @@ from pathlib import Path
 from code_atlas.store import COVERED_LANGUAGES_KEY, EMITTED_KINDS_BY_LANGUAGE_KEY, GraphStore
 from code_atlas.tools import find_references
 from code_atlas.tools.nav_result import (
-    CAVEAT_WRITES_SQL_HALF,
+    CAVEAT_WRITES_EMITTERS_ONLY,
     REASON_OK,
     REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
     REASON_RELATIONSHIP_NOT_MODELLED,
@@ -40,9 +40,14 @@ def _seed(
     graph.replace_file_rows(path, nodes, edges)
 
 
-def _stamp_langs(graph: GraphStore, *languages: str) -> None:
+def _stamp_langs(
+    graph: GraphStore,
+    *languages: str,
+    writers: frozenset[str] | None = None,
+) -> None:
     graph.set_meta(COVERED_LANGUAGES_KEY, ",".join(languages))
-    kinds = {name: (["WRITES"] if name == "sql" else []) for name in languages}
+    emit = writers if writers is not None else frozenset({"sql"})
+    kinds = {name: (["WRITES"] if name in emit else []) for name in languages}
     graph.set_meta(EMITTED_KINDS_BY_LANGUAGE_KEY, json.dumps(kinds, sort_keys=True))
 
 
@@ -113,7 +118,71 @@ def test_multi_lang_index_marks_sql_half(tmp_path: Path, store: GraphStore) -> N
     payload = find_references.create(db_config(tmp_path))(TABLE)
     assert payload["reason"] == REASON_OK
     assert payload["authoritative"] is False
-    assert CAVEAT_WRITES_SQL_HALF in payload["authoritative_caveats"]
+    assert CAVEAT_WRITES_EMITTERS_ONLY in payload["authoritative_caveats"]
+
+
+def test_unstamped_index_keeps_the_caveat(tmp_path: Path, store: GraphStore) -> None:
+    """281 — no EMITTED_KINDS stamp is not evidence every covered language writes (R5.6)."""
+    _seed(
+        store,
+        tmp_path,
+        "schema.sql",
+        [
+            node("Table", "UserNotes", TABLE, "schema.sql"),
+            node("Function", "usp_UpdateUserNotes", WRITER, "schema.sql"),
+        ],
+        [
+            edge("WRITES", WRITER, TABLE, "schema.sql", target_qname=TABLE, tier="RESOLVED"),
+        ],
+        language="sql",
+    )
+    _seed(
+        store,
+        tmp_path,
+        "app.php",
+        [node("Function", "save", "App\\save", "app.php")],
+        [],
+        language="php",
+    )
+    store.set_meta(COVERED_LANGUAGES_KEY, "sql,php")
+    payload = find_references.create(db_config(tmp_path))(TABLE)
+    assert payload["reason"] == REASON_OK
+    assert CAVEAT_WRITES_EMITTERS_ONLY in payload["authoritative_caveats"]
+
+
+def test_all_covered_writers_emit_no_partial_caveat(
+    tmp_path: Path, store: GraphStore
+) -> None:
+    """281 — second WRITES-emitting language already in the answer ⇒ no caveat."""
+    other = "dbo.usp_FromHost"
+    _seed(
+        store,
+        tmp_path,
+        "schema.sql",
+        [
+            node("Table", "UserNotes", TABLE, "schema.sql"),
+            node("Function", "usp_UpdateUserNotes", WRITER, "schema.sql"),
+        ],
+        [
+            edge("WRITES", WRITER, TABLE, "schema.sql", target_qname=TABLE, tier="RESOLVED"),
+        ],
+        language="sql",
+    )
+    _seed(
+        store,
+        tmp_path,
+        "writer.php",
+        [node("Function", "save", other, "writer.php")],
+        [
+            edge("WRITES", other, TABLE, "writer.php", target_qname=TABLE, tier="HEURISTIC"),
+        ],
+        language="php",
+    )
+    _stamp_langs(store, "sql", "php", writers=frozenset({"sql", "php"}))
+    payload = find_references.create(db_config(tmp_path))(TABLE)
+    assert payload["reason"] == REASON_OK
+    assert payload["total_count"] == 2
+    assert CAVEAT_WRITES_EMITTERS_ONLY not in (payload.get("authoritative_caveats") or [])
 
 
 def test_unlinked_writes_count_on_answer(tmp_path: Path, store: GraphStore) -> None:

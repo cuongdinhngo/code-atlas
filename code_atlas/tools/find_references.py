@@ -37,7 +37,7 @@ from code_atlas.tools.nav_result import (
     CAVEAT_ALL_HITS_DYNAMIC,
     CAVEAT_CROSS_LANGUAGE_UNMODELLED,
     CAVEAT_SIBLING_DEFINITIONS,
-    CAVEAT_WRITES_SQL_HALF,
+    CAVEAT_WRITES_EMITTERS_ONLY,
     REASON_INDEX_STALE,
     REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
@@ -85,11 +85,26 @@ UNLINKED_WRITES_COUNT = "unlinked_writes_count"
 _WRITES_CONTAINS_WALK = 10_000
 
 
-def _writes_answer_is_partial(covered: str | None) -> bool:
-    """True when the index covers ≥2 languages — the WRITES answer is the SQL half (278)."""
+def _writes_answer_is_partial(
+    covered: str | None,
+    emitted: dict[str, list[str]] | None,
+) -> bool:
+    """True when a covered language emits no WRITES — that half is unmeasured (281).
+
+    Keys on ``EMITTED_KINDS_BY_LANGUAGE``, never language count: every covered language
+    emitting ``WRITES`` means the answer can hold every writer the index models.
+    """
     if not covered:
         return False
-    return len([name for name in covered.split(",") if name]) >= 2
+    langs = [name for name in covered.split(",") if name]
+    if not langs:
+        return False
+    if emitted is None:
+        # Unstamped index (pre-186) never measured itself, which is not evidence that every
+        # covered language emits WRITES — keep 278's conservative caveat (R5.6).
+        return len(langs) >= 2
+    writers = [lang for lang in langs if "WRITES" in emitted.get(lang, [])]
+    return len(writers) < len(langs)
 
 
 def _writes_targets(store: GraphStore, lookup: str, subject_kind: str) -> list[str]:
@@ -210,8 +225,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         unions writers of the table and of its CONTAINS columns (named-column sites
         never target the Table qname); a Column is the narrower set. When the graph
         still holds unlinked writers, ``unlinked_writes_count`` names them. On a
-        multi-language index the answer carries ``writes_sql_adapter_only`` —
-        host-language string writes are out of scope (§19). ``REFERENCES`` (a
+        multi-language index the answer carries ``writes_emitters_only`` when a
+        covered language emits no ``WRITES`` — host-language string writes are out
+        of scope (§19 / 281). ``REFERENCES`` (a
         ``Foo::class`` mention) is FQN-linked at ``DYNAMIC`` — a candidate
         list, not a proven use. When every returned hit is ``DYNAMIC``, the payload sets
         ``authoritative: false``. When another language is indexed but no linked ``*->L``
@@ -277,6 +293,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             )
 
         covered: str | None = None
+        emitted_kinds: dict[str, list[str]] | None = None
         cross_lang_census: dict[str, object] | None = None
         unlinked_edge_kinds: list[str] = []
         behind_dirty: list[str] = []
@@ -292,6 +309,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         unlinked_same_name_sites = 0
         with GraphStore(config.db_path) as store:
             covered = covered_languages(store)
+            emitted_kinds = store.stamped_emitted_kinds_by_language()
             if sign or serve_behind:
                 staleness = compute_staleness(store, config, include_dirty_count=True)
             if serve_behind:
@@ -565,9 +583,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             # 238 hit-path caveat, narrowed by 276: empty census stays on status, not every hit.
             attach_cross_language_census(result, cross_lang_census)
             caveats.append(CAVEAT_CROSS_LANGUAGE_UNMODELLED)
-        if writes_subject and _writes_answer_is_partial(covered):
-            # SQL half only — host-language string writes stay out of scope (§19 / 278).
-            caveats.append(CAVEAT_WRITES_SQL_HALF)
+        if writes_subject and _writes_answer_is_partial(covered, emitted_kinds):
+            # Emitters-only half — non-emitting covered languages stay unmeasured (§19 / 281).
+            caveats.append(CAVEAT_WRITES_EMITTERS_ONLY)
         attach_authoritative_caveats(result, caveats)
         labelled = label_serve_behind(
             result,
