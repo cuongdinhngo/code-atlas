@@ -1643,6 +1643,7 @@ class GraphStore:
         args_at: tuple[int, str] | None = None,
         confidence_tier: str | None = None,
         exclude_test_sources: bool = False,
+        distinct_sources: bool = False,
     ) -> list[Row]:
         """Edges whose resolved ``target_qname`` is ``qname``.
 
@@ -1650,6 +1651,7 @@ class GraphStore:
         whose argument at a 1-based position has a given shape (task 049).
         ``confidence_tier`` narrows to one tier in the store query (task 251) — not a post-filter.
         ``offset`` skips leading rows in tier-first order (tasks 057 / 265).
+        ``distinct_sources`` keeps one edge per ``source_qname`` (273).
         """
         return self._edges(
             "edges.target_qname = ?",
@@ -1663,6 +1665,7 @@ class GraphStore:
                 _exclude_test_sources_predicate(exclude_test_sources),
             ),
             order=_EDGE_ORDER_TIER_FIRST,
+            distinct_sources=distinct_sources,
         )
 
     def edges_by_targets(
@@ -1730,8 +1733,9 @@ class GraphStore:
         args_at: tuple[int, str] | None = None,
         confidence_tier: str | None = None,
         exclude_test_sources: bool = False,
+        distinct_sources: bool = False,
     ) -> int:
-        """How many edges target ``qname`` (same filters as ``edges_by_target``)."""
+        """How many edges (or distinct sources) target ``qname`` (same filters as the list)."""
         return self._count_edges(
             "edges.target_qname = ?",
             qname,
@@ -1741,6 +1745,7 @@ class GraphStore:
                 _tier_predicate(confidence_tier),
                 _exclude_test_sources_predicate(exclude_test_sources),
             ),
+            distinct_sources=distinct_sources,
         )
 
     def inbound_test_rows(
@@ -1750,12 +1755,12 @@ class GraphStore:
         kinds: Sequence[str] | None = None,
         args_at: tuple[int, str] | None = None,
         confidence_tier: str | None = None,
+        distinct_sources: bool = False,
     ) -> list[tuple[int, str, int]]:
-        """``(is_test, source file_path, count)`` per inbound source group (task 262).
+        """``(is_test, source file_path, count)`` per inbound group (262). One grouped read.
 
-        One grouped read serves both the production/test split and the ``test_role_source``
-        label. What ``is_test`` *means* is decided by ``symbol_role``, not here: the store
-        persists and queries, it does not classify (R1.4).
+        ``distinct_sources`` counts each ``source_qname`` once so callers match the BFS set (273).
+        One node per qname — a second definition must not multiply the count (258).
         """
         clause, params = self._edge_where(
             "edges.target_qname = ?",
@@ -1765,11 +1770,25 @@ class GraphStore:
                 _tier_predicate(confidence_tier),
             ),
         )
-        sql = (
-            "SELECT COALESCE(src.is_test, 0), COALESCE(src.file_path, ''), COUNT(*) FROM edges "
-            "JOIN nodes src ON src.qualified_name = edges.source_qname "
-            f"WHERE {clause} GROUP BY 1, 2"
+        one_src = (
+            "JOIN nodes src ON src.rowid = ("
+            "SELECT n.rowid FROM nodes n WHERE n.qualified_name = edges.source_qname "
+            "ORDER BY n.file_path LIMIT 1)"
         )
+        if distinct_sources:
+            from_sql = (
+                "FROM (SELECT source_qname FROM edges "
+                f"WHERE {clause} GROUP BY source_qname) edges {one_src}"
+            )
+            sql = (
+                "SELECT COALESCE(src.is_test, 0), COALESCE(src.file_path, ''), COUNT(*) "
+                f"{from_sql} GROUP BY 1, 2"
+            )
+        else:
+            sql = (
+                "SELECT COALESCE(src.is_test, 0), COALESCE(src.file_path, ''), COUNT(*) "
+                f"FROM edges {one_src} WHERE {clause} GROUP BY 1, 2"
+            )
         return [
             (int(is_test), str(file_path), int(count))
             for is_test, file_path, count in self._conn.execute(sql, (qname, *params))
@@ -3640,16 +3659,24 @@ class GraphStore:
         offset: int = 0,
         extra: _Predicate = None,
         order: str = _EDGE_ORDER,
+        distinct_sources: bool = False,
     ) -> list[Row]:
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
         if limit < 1:
             raise ValueError(f"limit must be >= 1, got {limit}")
         clause, params = self._edge_where(where, kinds, extra)
-        sql = (
-            f"SELECT id, {_EDGE_COLUMNS} FROM edges WHERE {clause} "
-            f"ORDER BY {order} LIMIT ? OFFSET ?"
-        )
+        if distinct_sources:
+            sql = (
+                f"SELECT id, {_EDGE_COLUMNS} FROM edges WHERE id IN ("
+                f"SELECT MIN(id) FROM edges WHERE {clause} GROUP BY source_qname"
+                f") ORDER BY {order} LIMIT ? OFFSET ?"
+            )
+        else:
+            sql = (
+                f"SELECT id, {_EDGE_COLUMNS} FROM edges WHERE {clause} "
+                f"ORDER BY {order} LIMIT ? OFFSET ?"
+            )
         return self._rows(EDGE_ROW_KEYS, sql, (value, *params, limit, offset))
 
     def _count_edges(
@@ -3659,9 +3686,11 @@ class GraphStore:
         kinds: Sequence[str] | None,
         *,
         extra: _Predicate = None,
+        distinct_sources: bool = False,
     ) -> int:
         clause, params = self._edge_where(where, kinds, extra)
-        sql = f"SELECT COUNT(*) FROM edges WHERE {clause}"
+        expr = "COUNT(DISTINCT edges.source_qname)" if distinct_sources else "COUNT(*)"
+        sql = f"SELECT {expr} FROM edges WHERE {clause}"
         return int(self._conn.execute(sql, (value, *params)).fetchone()[0])
 
     @staticmethod

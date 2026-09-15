@@ -12,6 +12,12 @@ from code_atlas.tools.nav_result import REASON_NO_MATCHES, REASON_OK
 from tests.test_nav_tools import db_config, edge, node, seed_file
 
 
+def _assert_partition(payload: dict[str, object]) -> None:
+    prod = int(payload.get("production_count") or 0)
+    test = int(payload.get("test_count") or 0)
+    assert prod + test == payload["total_count"]
+
+
 @pytest.fixture
 def store(tmp_path: Path):
     with GraphStore(tmp_path / "graph.db") as opened:
@@ -44,6 +50,7 @@ def test_all_test_callers_not_no_matches(store: GraphStore, tmp_path: Path) -> N
     assert payload["test_count"] == 1
     assert payload["reason"] != REASON_NO_MATCHES
     assert payload["total_count"] == 1
+    _assert_partition(payload)
 
 
 def test_exclude_tests_pages_filtered_set(store: GraphStore, tmp_path: Path) -> None:
@@ -121,6 +128,7 @@ def test_find_references_carries_census(store: GraphStore, tmp_path: Path) -> No
     assert payload["test_count"] == 1
     assert payload["production_count"] == 0
     assert payload["reason"] == REASON_OK
+    _assert_partition(payload)
 
 
 def test_excluding_every_caller_is_not_an_ok_answer(
@@ -156,7 +164,9 @@ def test_census_is_omitted_above_depth_one(store: GraphStore, tmp_path: Path) ->
         root=root,
     )
     tool = find_callers.create(db_config(tmp_path))
-    assert tool("App", depth=1)["production_count"] == 1
+    shallow = tool("App", depth=1)
+    assert shallow["production_count"] == 1
+    _assert_partition(shallow)
     deep = tool("App", depth=2)
     assert "production_count" not in deep
     assert "test_count" not in deep
@@ -177,3 +187,4 @@ def test_test_role_source_names_the_path_convention(
     )
     payload = find_callers.create(db_config(tmp_path))("App", depth=1)
     assert payload["test_role_source"] == "path_convention"
+    _assert_partition(payload)

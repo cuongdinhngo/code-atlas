@@ -617,7 +617,11 @@ def _test_census(
     if depth != 1:
         return 0, 0, None
     rows = store.inbound_test_rows(
-        qname, kinds=CALLER_KINDS, args_at=args_at, confidence_tier=confidence_tier
+        qname,
+        kinds=CALLER_KINDS,
+        args_at=args_at,
+        confidence_tier=confidence_tier,
+        distinct_sources=True,
     )
     production = sum(count for is_test, _path, count in rows if not is_test)
     test = sum(count for is_test, _path, count in rows if is_test)
@@ -756,6 +760,7 @@ def _callers(
             args_at=args_at,
             confidence_tier=confidence_tier,
             exclude_test_sources=exclude_test_sources,
+            distinct_sources=True,
         )
         edges = store.edges_by_target(
             qname,
@@ -765,6 +770,7 @@ def _callers(
             args_at=args_at,
             confidence_tier=confidence_tier,
             exclude_test_sources=exclude_test_sources,
+            distinct_sources=True,
         )
         hits = [edge_hit(edge, depth=1) for edge in edges]
         return _CallersOutcome(
