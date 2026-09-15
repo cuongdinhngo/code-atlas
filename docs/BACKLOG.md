@@ -25,7 +25,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260 |
 | 272 | [A partition that is all tests answers `ok`](tasks/272_a-partition-that-is-all-tests-answers-ok.md) | Honesty | todo | 262, 255, 264 |
 | 273 | [The partition counts edges and the total counts callers](tasks/273_the-partition-counts-edges-and-the-total-counts-callers.md) | Honesty | todo | 262, 258 |
-| 280 | [A parser accepts what the runtime rejects](tasks/280_a-parser-accepts-what-the-runtime-rejects.md) | Honesty | todo | 058 |
 ## Open work — Pillar 2 · Onboarding
 
 The rendering of what the code actually is, for a human supervising an agent or presenting the

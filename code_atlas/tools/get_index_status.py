@@ -7,7 +7,9 @@ non-empty. ``standard`` adds provenance plus index-health (``edge_health``, ``pa
 ``unlinked`` / ``by_tier`` only), and a per-language edge-health verdict (task 261 —
 ``unlinked`` / ``by_tier`` per language; ``pairs`` stays inside verbose's full
 ``edge_health_by_language``). ``parse_failures`` mirrors ``failed`` (files with
-``parsed_ok = 0``) under the §12 name — same count, not a subset. ``verbose`` is ``standard``
+``parsed_ok = 0``) under the §12 name — same count, not a subset — and carries
+``parse_failures_note`` (280): adapter parse inability is a floor, not a fatal surface.
+``verbose`` is ``standard``
 plus a capped ``parse_failure_paths`` list (task 058) — never on the cheap path. ``standard``
 also carries ``capabilities_by_language`` for the languages the index covers, when the build
 stamped one (231/244). Nothing here opens the database when there is none: a read tool must
@@ -69,6 +71,13 @@ QUESTION = "indexed-files"
 
 # Own cap for the verbose failure list — not ``CA_PAGE_LIMIT`` / ``CA_MAX_CANDIDATES`` (259).
 PARSE_FAILURE_PATHS_LIMIT = 50
+# Served beside ``parse_failures`` at standard/verbose (280) — floor on parse inability, not fatals.
+PARSE_FAILURES_NOTE_KEY = "parse_failures_note"
+PARSE_FAILURES_NOTE = (
+    "Files the adapter could not parse — a floor on brokenness, not a fatal surface; "
+    "compile-stage errors the parser accepts are undetected. Use the language runtime's "
+    "own compiler or linter for that question."
+)
 
 # Staleness vocabulary lives in ``staleness`` (shared with the build busy refusal, task 072);
 # re-exported here so callers importing it from this module keep working.
@@ -116,12 +125,15 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
     ) -> dict[str, object]:
         """Is the index built, fresh, and healthy — and what should I call next? Call this first.
 
-        Reports stats, health, last commit, staleness, and next-tool suggestions. ``verbose`` adds
-        capped ``parse_failure_paths`` plus ``parse_failures_truncated``; pass ``offset`` to page
-        further. ``minimal`` / ``standard`` omit the list (cheap path). ``standard``/``verbose``
-        also carry ``page_limit`` (query-time row ceiling) and ``max_candidates`` (build-time
-        resolver fan-out), each with its own ``governs`` list so the two caps are not conflated
-        (066/259). ``verbose`` also carries ``collection`` — the
+        Reports stats, health, last commit, staleness, and next-tool suggestions. ``parse_failures``
+        (``standard``/``verbose``) counts files the adapter could not parse — a floor on
+        brokenness, not a fatal surface; see ``parse_failures_note`` (language runtime
+        compiler/linter). ``verbose`` adds capped ``parse_failure_paths`` plus
+        ``parse_failures_truncated``; pass ``offset`` to page further. ``minimal`` / ``standard``
+        omit the list (cheap path). ``standard``/``verbose`` also carry ``page_limit``
+        (query-time row ceiling) and ``max_candidates`` (build-time resolver fan-out), each with
+        its own ``governs`` list so the two caps are not conflated (066/259). ``verbose`` also
+        carries ``collection`` — the
         denominator to reconcile ``files`` against your own ``git ls-files``:
         ``collected - skipped.suffix - skipped.ignore == kept``, ``kept + stubs == files`` (082).
         ``skipped.untracked`` sits beside that identity: files git does not list, with an indexed
@@ -398,6 +410,7 @@ def _status(
         "db_path": str(config.db_path),
         "edge_health": store.edge_health(),
         "parse_failures": counts["failed"],
+        PARSE_FAILURES_NOTE_KEY: PARSE_FAILURES_NOTE,
         "dirty_indexed_files": dirty_count,
         # Query-time page vs build-time fan-out — separate keys, separate scopes (066/259).
         "page_limit": _page_limit_field(config),

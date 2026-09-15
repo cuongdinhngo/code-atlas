@@ -4,7 +4,7 @@ slug: a-parser-accepts-what-the-runtime-rejects
 title: 'A parse-failure count answers "what could not be parsed", a reader uses it as "what cannot run", and the two differ by every compile-stage error a parser accepts by construction — a handoff built a PHP-8 upgrade argument on 2 when `php -l` found 10, including a live fatal the count was being used to rule out'
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [058]
 ---
 
@@ -65,3 +65,74 @@ session had already fallen into it and the next nearly inherited the conclusion:
 `code_atlas/tools/get_index_status.py` (`parse_failures`, `parse_failure_paths`),
 field retro round 19 §4 / §6.3 / §8 (fatal-surface dimension, 3/10),
 [058](058_list-parse-failures.md).
+
+---
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 280 — parse_failures floor (working doc)
+
+- **TIER:** full · **TRACK:** backend — 0/0 UI · **SCOPE:** S · **BASELINE:** green · **INPUT KIND:** ticket
+
+## Phase 0 — Refine
+
+`PREMISE: 2 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)`
+`RECALL: 0 claim(s) surfaced | 0 by symbol | 0 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`REFINE: 0 unresolved surfaced | 0 want-decision asked | 0 how-decision resolved+cited | 0 ASSUMED | skip: yes`
+
+## Requirements matrix
+
+`SECTIONS: 5 found (Why this exists · Scope / Deliverables · Constraints · Acceptance criteria · References) | 5 decomposed | ROWS: C=3 R=3 G=1 AC=4`
+
+| ID | Source | Verbatim | Interpretation | Ph2 | Ph3/4 | Status |
+|----|--------|----------|----------------|-----|-------|--------|
+| G1 | Why | count invites fatal reading | note + route | D1 | AC1 | ✅ |
+| C1 | Constraints | R4 no runtime exec | wording only | D1 | — | ✅ |
+| C2 | Constraints | R1.1 no language name | agnostic note | D1 | AC3 | ✅ |
+| C3 | Constraints | 061 no minimal weight | standard+ only | D1 | AC1 | ✅ |
+| R1 | Scope | one sentence where count is | parse_failures_note | D1 | AC1 | ✅ |
+| R2 | Scope | route to runtime checker | note text | D1 | AC1 | ✅ |
+| R3 | Scope | docs pointer once | CONVENTION/TOOLS | D2 | AC2 | ✅ |
+| AC1 | AC | disclaimer pinned | proving | D1 | proving | ✅ |
+| AC2 | AC | tool desc + CONVENTION | docs | D2 | docs | ✅ |
+| AC3 | AC | no language name in core | proving | D1 | proving | ✅ |
+| AC4 | AC | zero count still honest | proving | D1 | proving | ✅ |
+
+`CLARIFICATION: 0 raised | 0 self-resolved (cited) | 0 for human decision`
+
+## Phase 1 — Analysis
+
+`RULE SECTIONS: 3 applicable — 3 by change-type | 0 by recalled handle — R1.1 ✅ · R4 ✅ · R7.6 ✅`
+`BASELINE: green`
+
+## Phase 2 — Design
+
+- Approach: `parse_failures_note` constant beside count at standard/verbose; CONVENTION/TOOLS/§19 pointer.
+- Rejected: running a language linter from the core.
+
+`HANDLES: 0 recalled | 0 traced (command + result) | 0 does not apply (reason) | 0 unanswered`
+`EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+**Proving test:** `.venv/bin/python -m pytest tests/test_parse_failures_floor_not_fatal.py -q`
+
+## Phase 3 — Execute
+
+`DIFF ⊆ approved list: yes`
+`DESIGN-CONFORMANCE: self-check passed`
+
+## Phase 4 — Review
+
+REVIEWER: off (waived --no-reviewer)
+CHALLENGER: on — CLEAN (12 met); agent 94caaafb-fda4-4517-bcfa-d513291b4899
+`REVIEW: CLEAN`
+
+## Phase 5 — Finalise
+
+Outward: push + PR.
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`LEDGER TOTAL: unmeasured · top cost driver: main-loop (challenger x1)`

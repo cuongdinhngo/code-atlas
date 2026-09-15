@@ -488,7 +488,7 @@ their task files and [`design/`](design/). A per-tool count in prose here is R6.
 
 | Tool | The decision this section settled |
 |---|---|
-| `get_index_status` | **call first (~100 tok).** `standard` carries a bounded `cross_language` census (no `pairs` — 243) on a multi-language index, `capabilities_by_language` for the languages it covers (231/244; omit when absent/empty), and the per-language `edge_health_by_language` verdict (`unlinked` / `by_tier` only — 261); `verbose` adds what must not ride the cheap path: capped `parse_failure_paths` (058), `collection` — the denominator for reconciling `files` against your own `git ls-files` without reading source (082) — and replaces that verdict with the full `edge_health_by_language` census including `pairs`, stamped per build and omitted under two buckets (183) |
+| `get_index_status` | **call first (~100 tok).** `standard` carries a bounded `cross_language` census (no `pairs` — 243) on a multi-language index, `capabilities_by_language` for the languages it covers (231/244; omit when absent/empty), and the per-language `edge_health_by_language` verdict (`unlinked` / `by_tier` only — 261); `parse_failures`/`parse_failures_note` = adapter parse floor, not fatal surface (280); `verbose` adds what must not ride the cheap path: capped `parse_failure_paths` (058), `collection` — the denominator for reconciling `files` against your own `git ls-files` without reading source (082) — and replaces that verdict with the full `edge_health_by_language` census including `pairs`, stamped per build and omitted under two buckets (183) |
 | `build_or_update_index` | builds/refreshes; returns `wrote` (this run's writes) + timing, and at `standard` `graph`, so a delta isn't read as repo size (051/060). Every refusal is a payload naming its route, never a raise: a concurrent writer is `mode: "busy"` with the loser's staleness (072), no usable adapter `mode: "refused"` (064/079), and an unbounded escalation — a vocabulary era behind (201), or an index a killed build left incomplete (202) — the same way, in-band |
 | `search_symbol` | FTS + name ranking; stub hits declare themselves (039); a zero hit may miss-repair the sole dirty file or report `index_stale` rather than answer a confident zero (073). **`queries` sweeps N subjects in one call** (101). At `standard`, a `Column` FK hit names its target from existing `REFERENCES` edges: `references` (resolved column) or `references_unresolved` (table only, R5.6) (239) |
 | `file_outline` | line ranges, never bodies — the read is a separate, priced call |
@@ -998,10 +998,9 @@ measured 2.6× populated vs fresh. **Locked: truncate-first** — `GraphStore.tr
 **defer-FTS deferred** (its own ticket). Detail:
 [219](tasks/219_a-full-rebuild-pays-the-populated-db-tax-nobody-chose.md).
 
-**Decision — ClassConst evidence (task 234, 2026-09-08).** Spec markers (`Final`, `readonly`,
-`const`, enum members) **and** PEP 8 upper-case count under R2. Python applies that at every scope
-(module=`Const`, class=`ClassConst`); TS keeps `EnumMember`→`ClassConst`. No new kind / no bump.
-Detail: [234](tasks/234_classconst-is-a-php-only-kind-and-the-two-signals-that-would-fill-it-elsewhere-are-discarded.md).
+**Decision — ClassConst evidence (task 234, 2026-09-08).** Spec markers **and** PEP 8
+upper-case under R2. Python every scope; TS `EnumMember`→`ClassConst`. No new kind.
+[234](tasks/234_classconst-is-a-php-only-kind-and-the-two-signals-that-would-fill-it-elsewhere-are-discarded.md).
 
 **Decision — annotation / decorator → REFERENCES in every adapter (task 232, 2026-09-08).**
 **Locked: edges** — PHP/TS emit `REFERENCES` from named class types and attributes/decorators;
@@ -1033,6 +1032,9 @@ only; Table = table ∪ CONTAINS columns; `unlinked_writes_count` when >0; multi
 set is a query: `max_results` stops governing graph content. AC1/AC5 are E1 — the anchor-scale
 figures the ticket binds were not measured.
 [258](tasks/258_the-graph-stores-the-cartesian-product-of-call-site-and-same-named-symbol.md).
+
+**Decision — parse_failures floor (280, 2026-09-15).** `parse_failures_note` beside the count;
+route to the language runtime's compiler/linter. [280](tasks/280_a-parser-accepts-what-the-runtime-rejects.md).
 
 **Decision — unmodelled resolution stamp (279, 2026-09-15).** `File.extra.unmodelled_resolution`
 → `meta.unmodelled_resolution_by_language`; `find_orphans` → `resolution_unmodelled` (no bare
