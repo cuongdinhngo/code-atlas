@@ -308,7 +308,8 @@ def _search_one(
             )
             if excluded:
                 return _Hits(
-                    [], False, REASON_KIND_EXCLUDED, 0, residue, (), tuple(excluded)
+                    [], False, REASON_KIND_EXCLUDED, 0, residue,
+                    kind_excluded=tuple(excluded),
                 )
         tokens = contract.name_tokens(query)
         if tokens:
