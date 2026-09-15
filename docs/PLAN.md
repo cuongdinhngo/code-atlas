@@ -1003,12 +1003,9 @@ measured 2.6× populated vs fresh. **Locked: truncate-first** — `GraphStore.tr
 (module=`Const`, class=`ClassConst`); TS keeps `EnumMember`→`ClassConst`. No new kind / no bump.
 Detail: [234](tasks/234_classconst-is-a-php-only-kind-and-the-two-signals-that-would-fill-it-elsewhere-are-discarded.md).
 
-**Decision — annotation / decorator → REFERENCES in every adapter (task 232, 2026-09-08).** 019 put
-TS decorators and declared types on `extra`; 217 chose edges for Python, so one construct answered
-`find_references` three ways. **Locked: edges** — PHP and TS emit `REFERENCES` from named class types
-(params/returns/properties) and from attributes/decorators; `Foo::class` stays `DYNAMIC` (094).
-Withdraw-Python rejected: a TS type-site zero is a false claim. Detail:
-[232](tasks/232_the-same-construct-is-a-references-edge-in-python-and-node-extra-in-php-and-ts.md).
+**Decision — annotation / decorator → REFERENCES in every adapter (task 232, 2026-09-08).**
+**Locked: edges** — PHP/TS emit `REFERENCES` from named class types and attributes/decorators;
+`Foo::class` stays `DYNAMIC` (094). [232](tasks/232_the-same-construct-is-a-references-edge-in-python-and-node-extra-in-php-and-ts.md).
 
 **Decision — unmodelled `*->L` partition on hits (238; 276, 2026-09-15).** Hits on an unmodelled
 crossing carry `authoritative: false` (`reason` stays `ok`). **276:** hit caveat needs
@@ -1036,6 +1033,10 @@ only; Table = table ∪ CONTAINS columns; `unlinked_writes_count` when >0; multi
 set is a query: `max_results` stops governing graph content. AC1/AC5 are E1 — the anchor-scale
 figures the ticket binds were not measured.
 [258](tasks/258_the-graph-stores-the-cartesian-product-of-call-site-and-same-named-symbol.md).
+
+**Decision — unmodelled resolution stamp (279, 2026-09-15).** `File.extra.unmodelled_resolution`
+→ `meta.unmodelled_resolution_by_language`; `find_orphans` → `resolution_unmodelled` (no bare
+orphan list). No inferred edges. [279](tasks/279_an-autoloaded-repo-answers-unreachable-and-means-unmeasured.md).
 
 **Reference material** (private, same folder): `understand-anything-how-it-works.md`, `code-review-graph-how-it-works.md`.
 

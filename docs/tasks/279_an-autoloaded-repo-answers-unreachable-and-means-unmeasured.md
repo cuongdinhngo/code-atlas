@@ -4,7 +4,7 @@ slug: an-autoloaded-repo-answers-unreachable-and-means-unmeasured
 title: 'A repo that loads classes through a registered autoloader emits no include edge for any of them, so "not reached by an include" is close to "a file" — and the tools that answer reachability say `no_inbound` / `unreachable_from_roots` in the same shape and with the same confidence as a real one, though the indexer parsed the autoloader registration and could have said the resolution strategy is unmodelled'
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [031, 255, 264]
 ---
 
@@ -75,3 +75,85 @@ field retro round 19 §2.4 / §2.5 / §6.1 / §6.2, [031](031_reachability-orpha
 [255](255_the-honesty-predicate-is-keyed-to-two-php-shaped-edge-kinds.md),
 [264](264_the-honesty-predicate-is-still-one-language-s-shape-wearing-a-constant-s-name.md),
 BACKLOG follow-up *PSR-4 / autoload-aware include resolution*.
+
+---
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 279 — unmodelled resolution stamp (working doc)
+
+- **TIER:** full · **TRACK:** backend — 0/0 UI · **SCOPE:** M · **BASELINE:** green · **INPUT KIND:** ticket
+
+## Phase 0 — Refine
+
+`PREMISE: 4 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)`
+`RECALL: 0 claim(s) surfaced | 0 by symbol | 0 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`REFINE: 0 unresolved surfaced | 0 want-decision asked | 0 how-decision resolved+cited | 0 ASSUMED | skip: yes`
+
+## Requirements matrix
+
+`SECTIONS: 5 found (Why this exists · Scope / Deliverables · Constraints · Acceptance criteria · References) | 5 decomposed | ROWS: C=4 R=4 G=1 AC=4`
+
+| ID | Source | Verbatim | Interpretation | Ph2 | Ph3/4 | Status |
+|----|--------|----------|----------------|-----|-------|--------|
+| G1 | Why | autoload silence reads as dead | stamp + refuse orphans | D1 | AC2 | ✅ |
+| C1 | Constraints | R5.6 unmeasured not reachable | refuse not invent | D2 | AC2 | ✅ |
+| C2 | Constraints | R2 language standard | spl_autoload_register | D1 | AC1 | ✅ |
+| C3 | Constraints | R1.1 core reads stamp | meta key | D2 | — | ✅ |
+| C4 | Constraints | 061 unstamped identical | no stamp omit | D2 | AC2 | ✅ |
+| R1 | Scope | build-time stamp | File.extra → meta | D1 | AC1 | ✅ |
+| R2 | Scope | find_orphans reads stamp | resolution_unmodelled | D2 | AC2 | ✅ |
+| R3 | Scope | meta + runbook | runbook sentence | D3 | AC3 | ✅ |
+| R4 | Scope | INCLUDES nullable note | CONVENTION | D3 | AC4 | ✅ |
+| AC1 | AC | fixture stamps | proving | D1 | proving | ✅ |
+| AC2 | AC | orphans refuse / unstamped ok | proving | D2 | proving | ✅ |
+| AC3 | AC | meta + runbook | docs | D3 | docs | ✅ |
+| AC4 | AC | INCLUDES nullable note | CONVENTION | D3 | docs | ✅ |
+
+`CLARIFICATION: 0 raised | 0 self-resolved (cited) | 0 for human decision`
+
+## Phase 1 — Analysis
+
+`RULE SECTIONS: 4 applicable — 4 by change-type | 0 by recalled handle — R1.1 ✅ · R2 ✅ · R5.6 ✅ · R7.6 ✅`
+`BASELINE: green`
+
+## Phase 2 — Design
+
+- Approach: File.extra.unmodelled_resolution from spl_autoload_register; indexer unions meta; find_orphans refuses.
+- Rejected: inventing INCLUDES edges; Composer parse for AC.
+
+`HANDLES: 0 recalled | 0 traced (command + result) | 0 does not apply (reason) | 0 unanswered`
+`EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+**Proving test:** `.venv/bin/python -m pytest tests/test_unmodelled_resolution_stamp.py -q`
+
+| # | Change | File | Blast | k/N |
+|---|--------|------|-------|-----|
+| D1 | PHP stamp + contract key | Visitor · contract | parse | 2/2 |
+| D2 | meta + find_orphans refuse | store · indexer · orphans · reach_shared | orphans | 4/4 |
+| D3 | runbook · CONVENTION · PLAN · TOOLS | docs | — | 4/4 |
+
+## Phase 3 — Execute
+
+**Branch:** feat/279-an-autoloaded-repo-answers-unreachable-and-means-unmeasured
+`DIFF ⊆ approved list: yes`
+`DESIGN-CONFORMANCE: self-check passed`
+
+## Phase 4 — Review
+
+REVIEWER: off (waived --no-reviewer)
+CHALLENGER: on — CLEAN (11 met); agent 8a78b123-09cc-472e-a8a7-fbea03b25ccb
+`REVIEW: CLEAN`
+
+## Phase 5 — Finalise
+
+Outward: push + PR. Never merge.
+
+## Cost ledger
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`LEDGER TOTAL: unmeasured · top cost driver: main-loop (challenger x1)`

@@ -70,6 +70,8 @@ EDGE_HEALTH_BY_LANGUAGE_KEY = "edge_health_by_language"
 # because "is this relation absent for this file's language?" is a data question the core may ask
 # without knowing what any language is (R1.1) — and a language name in the core is forbidden.
 EMITTED_KINDS_BY_LANGUAGE_KEY = "emitted_kinds_by_language"
+# Resolution strategies File.extra named as unmodelled, unioned per language (JSON, task 279).
+UNMODELLED_RESOLUTION_BY_LANGUAGE_KEY = "unmodelled_resolution_by_language"
 CAPABILITIES_BY_LANGUAGE_KEY = "capabilities_by_language"
 # Local fit counters (task 260): one meta row per (tool, reason, authoritative, truncated).
 FIT_KEY_PREFIX = "fit:"
@@ -1207,6 +1209,52 @@ class GraphStore:
         if not isinstance(parsed, dict):
             return None
         return {str(name): [str(k) for k in kinds] for name, kinds in parsed.items()}
+
+    def unmodelled_resolution_by_language(self) -> dict[str, list[str]]:
+        """Union File.extra unmodelled_resolution strategies per files.language (279).
+
+        Empty dict when no File carries the key — callers omit the meta stamp (061).
+        """
+        from code_atlas.contract import UNMODELLED_RESOLUTION
+
+        by_lang: dict[str, set[str]] = {}
+        for language, raw in self._conn.execute(
+            "SELECT files.language, nodes.extra FROM nodes "
+            "JOIN files ON files.path = nodes.file_path "
+            "WHERE nodes.kind = 'File' AND nodes.extra IS NOT NULL AND nodes.extra != ''"
+        ):
+            try:
+                extra = json.loads(raw) if isinstance(raw, str) else {}
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(extra, dict):
+                continue
+            strategies = extra.get(UNMODELLED_RESOLUTION)
+            if not isinstance(strategies, list) or not strategies:
+                continue
+            key = str(language) if language else ""
+            bucket = by_lang.setdefault(key, set())
+            for item in strategies:
+                if isinstance(item, str) and item:
+                    bucket.add(item)
+        return {name: sorted(items) for name, items in sorted(by_lang.items()) if items}
+
+    def stamped_unmodelled_resolution_by_language(self) -> dict[str, list[str]] | None:
+        """Per-language unmodelled resolution strategies from the last build, or ``None`` (279)."""
+        raw = self.get_meta(UNMODELLED_RESOLUTION_BY_LANGUAGE_KEY)
+        if not raw:
+            return None
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(parsed, dict) or not parsed:
+            return None
+        out: dict[str, list[str]] = {}
+        for name, strategies in parsed.items():
+            if isinstance(strategies, list) and strategies:
+                out[str(name)] = [str(s) for s in strategies if isinstance(s, str)]
+        return out or None
 
 
     def stamped_capabilities_by_language(self) -> dict[str, dict[str, bool]] | None:

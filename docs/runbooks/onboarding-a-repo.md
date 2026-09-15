@@ -351,7 +351,10 @@ HEURISTIC, 2,933 DYNAMIC**, with 490,922 edges `unlinked`.
 `include_graph` is worth a specific check. On a Composer/PSR-4 codebase it is close to empty, because
 autoloaded classes produce no `INCLUDES` edges (see the PSR-4 follow-up in
 [`BACKLOG.md`](../BACKLOG.md)). A repo with a large `require`-based legacy area still gets real value —
-4,640 resolved `INCLUDES` edges on the sample repo, all from the legacy side.
+4,640 resolved `INCLUDES` edges on the sample repo, all from the legacy side. When the indexer sees a
+registered language-standard autoloader, it stamps `meta.unmodelled_resolution_by_language` and
+`find_orphans` refuses a bare orphan list (`status=resolution_unmodelled`) rather than treating
+include-based silence as dead code (279).
 
 ## 9. Generate the onboarding map — and check what your own declarations did to it
 

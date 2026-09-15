@@ -228,6 +228,10 @@ KNOWN_CAPABILITIES: tuple[str, ...] = (
 STUB_FLAG = "stub"
 # Tool-payload key for edges emitted from CA_INDIRECTION_RULES (task 040). Not a contract bump.
 RULE_FLAG = "rule"
+# File.extra key: resolution strategies the graph does not model (279). Not a contract bump.
+UNMODELLED_RESOLUTION = "unmodelled_resolution"
+# Strategy token under UNMODELLED_RESOLUTION — registered class autoload (language-standard API).
+RESOLUTION_AUTOLOAD = "autoload"
 
 # Synthetic target_raw for PROVIDES_VIEW_DATA (task 062) — not an FQN; never resolved.
 VIEW_DATA_PREFIX = "viewdata:"

@@ -18,6 +18,8 @@ NO_ROOTS = "no_roots_configured"
 # one — either way the honest answer is a named refusal, not 215,177 rows flagged unreliable.
 ROOTS_MATCHED_NOTHING = "roots_matched_nothing"
 WALK_BUDGET_EXHAUSTED = "walk_budget_exhausted"
+# A stamped unmodelled resolution strategy makes "no inbound" unmeasured, not dead (279).
+RESOLUTION_UNMODELLED = "resolution_unmodelled"
 DetailLevel = Literal["minimal", "standard"]
 
 
@@ -93,6 +95,8 @@ def refuse_reachability(
     reached: int | None = None,
     nodes_total: int | None = None,
     detail_level: DetailLevel = "standard",
+    try_instead_hint: str | None = None,
+    unmodelled_resolution_by_language: object | None = None,
 ) -> dict[str, object]:
     """A reachability refusal: what it CAN say, and no row list (task 182).
 
@@ -121,6 +125,10 @@ def refuse_reachability(
         payload["roots_reached"] = reached
     if nodes_total is not None:
         payload["nodes_total"] = nodes_total
+    if try_instead_hint is not None:
+        payload["try_instead_hint"] = try_instead_hint
+    if unmodelled_resolution_by_language is not None:
+        payload["unmodelled_resolution_by_language"] = unmodelled_resolution_by_language
     return payload
 
 

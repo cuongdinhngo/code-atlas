@@ -592,6 +592,9 @@ final class Visitor extends NodeVisitorAbstract
             $this->enterClassAlias($node);
         } elseif ($fn === 'call_user_func') {
             $this->enterCallUserFunc($node);
+        } elseif ($fn === 'spl_autoload_register') {
+            // Class loading via a registered autoloader emits no INCLUDES — stamp, do not invent edges (279).
+            $this->markUnmodelledResolution('autoload');
         }
         $this->enterNamedCall($node, self::fqn($name));
     }
@@ -1330,9 +1333,25 @@ final class Visitor extends NodeVisitorAbstract
 
     private function appendFileImport(string $fqn, ?string $alias, string $type): void
     {
-        // Imports are the only `extra` the File node ever carries, so this rewrites rather than merges.
         $this->imports[] = ['fqn' => $fqn, 'alias' => $alias, 'type' => $type];
-        $this->nodes[0]['extra'] = ['imports' => $this->imports];
+        $current = $this->nodes[0]['extra'] ?? [];
+        $extra = is_array($current) ? $current : [];
+        $extra['imports'] = $this->imports;
+        $this->nodes[0]['extra'] = $extra;
+    }
+
+    private function markUnmodelledResolution(string $strategy): void
+    {
+        $current = $this->nodes[0]['extra'] ?? [];
+        $extra = is_array($current) ? $current : [];
+        $existing = $extra['unmodelled_resolution'] ?? [];
+        $list = is_array($existing) ? $existing : [];
+        if (!in_array($strategy, $list, true)) {
+            $list[] = $strategy;
+            sort($list);
+        }
+        $extra['unmodelled_resolution'] = $list;
+        $this->nodes[0]['extra'] = $extra;
     }
 
     /** @param list<array<string, mixed>> $items */

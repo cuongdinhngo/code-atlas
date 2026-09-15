@@ -74,7 +74,8 @@ code-atlas/
 - **`INCLUDES`:** `include`/`require` — `source_qname` is the **including file's path**, never the
   enclosing namespace or class (task 129) — the target resolves relative to that file's directory,
   so both ends are paths. `target_raw` is the literal as written (`'../helpers.php'`) or `(dynamic)`
-  at `DYNAMIC` for a non-literal expression.
+  at `DYNAMIC` for a non-literal expression. `target_qname` may be NULL; the literal stays in
+  `target_raw` (raw-SQL readers must coalesce).
 - **`REFERENCES`:** a textual class mention (`Foo::class` — task 094). FQN-linked at `DYNAMIC`;
   not a `CALLS` and not a `NEW`. `self`/`static`/`parent` name the enclosing class-like (as
   `CALLS` does), never a literal `\self`. Leftover unlinked rows still feed
@@ -203,18 +204,11 @@ what the payload already says (061). An answer must state what it is *not* telli
   **Known boundary, not closed:** callability is checked against the full `main.TOOL_NAMES` while
   `CA_TOOLS` may serve a subset — `nav_result` has no `Config`, so a restricted deployment can be
   offered a route it does not expose (also true of `file_outline`).
-- **A batched answer keys on position and states the envelope once (101).** A tool taking a list of
-  subjects (`search_symbol`'s `queries`) returns `subjects`: entry *i* answers subject *i*, in the
-  caller's order, never deduped, never merged. An entry carries only what varies — `query`,
-  `results`, `truncated`, `reason`, `total_count`, its own `try_instead` — while `indexed`,
-  `index_root` and `subject_count` sit once on the envelope (061). The envelope carries **no
-  `reason`**: a batch-level verdict would colour subjects it knows nothing about. The fan-out bound
-  is `max_subjects`, disclosed as `subjects_capped_to` plus `subjects_dropped` naming every refused
-  subject, both omitted when nothing was dropped (066/061). A missing index answers the **call**
-  (`indexed: false`, `reason: not_indexed`, no `subjects` list), like `schema_guard.payload`
-  shipping no empty `results` — N identical empty answers read as N proofs of absence. Where a
-  subject has two spellings (`query` or `queries`), neither is schema-`required` and passing both
-  raises (R5.3).
+- **A batched answer keys on position and states the envelope once (101).** List tools return
+  `subjects` in caller order (never deduped/merged); envelope holds shared fields once, no batch
+  `reason`. Cap via `max_subjects` / `subjects_capped_to` / `subjects_dropped` (066/061). A missing
+  index answers the call (`indexed: false`), not N empty subjects. Passing both `query` and
+  `queries` raises (R5.3).
 - **Module layout.** One module per tool at `code_atlas/tools/<tool_name>.py`, named exactly as the
   MCP tool, exposing `NAME` and a `create(...)` returning the registered function: **its signature
   is the MCP signature and its docstring is the tool description**, so configuration flows in

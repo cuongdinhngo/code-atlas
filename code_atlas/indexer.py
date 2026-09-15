@@ -55,6 +55,7 @@ from code_atlas.store import (
     LAST_COMMIT_KEY,
     LAST_REF_KEY,
     SKIPPED_SUFFIX_COUNTS_KEY,
+    UNMODELLED_RESOLUTION_BY_LANGUAGE_KEY,
     UNTRACKED_INDEXABLE_KEY,
     WRITE_ERRORS,
     GraphStore,
@@ -1255,6 +1256,15 @@ def _record_meta(
     languages = store.edge_language_census()
     store.set_meta(EDGE_HEALTH_BY_LANGUAGE_KEY, json.dumps(languages.health, sort_keys=True))
     store.set_meta(EMITTED_KINDS_BY_LANGUAGE_KEY, json.dumps(languages.kinds, sort_keys=True))
+    # Unmodelled resolution — clear when empty so rebuild cannot keep a stale refuse (061/279).
+    resolution = store.unmodelled_resolution_by_language()
+    if resolution:
+        store.set_meta(
+            UNMODELLED_RESOLUTION_BY_LANGUAGE_KEY,
+            json.dumps(resolution, sort_keys=True),
+        )
+    else:
+        store.delete_meta(UNMODELLED_RESOLUTION_BY_LANGUAGE_KEY)
     if capabilities_by_language is not None:
         store.set_meta(
             CAPABILITIES_BY_LANGUAGE_KEY,

@@ -9,6 +9,7 @@ from code_atlas.store import GraphStore
 from code_atlas.tools.nav_result import attach_limit_capped, empty_nav
 from code_atlas.tools.reach_shared import (
     NO_ROOTS,
+    RESOLUTION_UNMODELLED,
     ROOTS_MATCHED_NOTHING,
     WALK_BUDGET_EXHAUSTED,
     DetailLevel,
@@ -22,6 +23,16 @@ from code_atlas.tools.reach_shared import (
 )
 
 NAME = "find_orphans"
+# Re-export refuse statuses for tests that pin the vocabulary (182 / 279).
+RESOLUTION_UNMODELLED = RESOLUTION_UNMODELLED
+ROOTS_MATCHED_NOTHING = ROOTS_MATCHED_NOTHING
+WALK_BUDGET_EXHAUSTED = WALK_BUDGET_EXHAUSTED
+
+_HINT_RESOLUTION_UNMODELLED = (
+    "a registered resolution strategy leaves include-based reachability unmeasured — "
+    "treat a large no_inbound population as unmeasured, not as zero; use the language "
+    "runtime's own loader diagnostics, not this orphan list"
+)
 
 
 def create(config: Config) -> Callable[..., dict[str, object]]:
@@ -46,11 +57,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         count — at ``minimal`` the rows themselves are omitted so large repos stay transport-safe,
         at ``standard`` they are capped to one page.
 
-        **Two refusals, and neither returns rows** (182). Roots that match no file give
+        **Three refusals, and none return rows** (182 / 279). Roots that match no file give
         ``status=roots_matched_nothing``; a walk that hit ``CA_ORPHANS_MAX_NODES`` gives
-        ``status=walk_budget_exhausted`` — unreached nodes look orphaned, so a truncated walk cannot
-        support the claim at all. Both carry ``roots_reached`` and ``nodes_total``, the two numbers
-        that separate *dead code* from *the wrong roots*. ``status=ok`` with no rows still means
+        ``status=walk_budget_exhausted``; an index stamped with an unmodelled resolution strategy
+        (registered class autoload, …) gives ``status=resolution_unmodelled`` — include-based
+        orphan counts are unmeasured there, not dead code. ``status=ok`` with no rows still means
         nothing is orphaned, which is a real answer (102).
         """
         if depth is not None and depth < 0:
@@ -68,6 +79,21 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             index_root=config.index_root,
         )
         with GraphStore(config.db_path) as store:
+            stamped = store.stamped_unmodelled_resolution_by_language()
+            if stamped:
+                # R5.6: stamp says unmeasured — never invent reachability or a bare orphan list.
+                return refuse_reachability(
+                    RESOLUTION_UNMODELLED,
+                    roots,
+                    config=config,
+                    message=(
+                        "indexed languages stamp unmodelled resolution strategies; "
+                        "include-based orphan populations are unmeasured, not zero"
+                    ),
+                    detail_level=detail_level,
+                    try_instead_hint=_HINT_RESOLUTION_UNMODELLED,
+                    unmodelled_resolution_by_language=stamped,
+                )
             # One fetch of the path list, shared by the walk's seeds and the unmatched-root report.
             indexed_paths = store.file_paths()
             seeds = entry_seeds(store, roots, indexed_paths)
