@@ -1,6 +1,6 @@
 """Generic cross-file edge linking — FQN / name / path → node, no language branches (§8.2)."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import PurePosixPath
 
 from code_atlas import contract
@@ -89,6 +89,7 @@ def resolve_edges(
     max_candidates: int,
     file_path: str | None = None,
     delta: DeltaScope | None = None,
+    on_batch: Callable[[], None] | None = None,
 ) -> int:
     """Link bare edges after every node exists; ``max_candidates`` caps multi-match HEURISTIC.
 
@@ -98,6 +99,9 @@ def resolve_edges(
     ``delta`` narrows the FQN-resolved kinds to the edges an incremental could have changed the
     answer for (096). It is equivalent to a full pass only while the alias map is unchanged —
     the caller owns that check, because only it can snapshot the map before the parse.
+
+    ``on_batch`` fires once per streamed batch after it is applied (290). Coarse throttle is the
+    batch itself (``_RESOLVE_BATCH``); the sink does not time-throttle when ``total`` is unset.
 
     Returns the number of **sibling rows inserted**. They are rows this run wrote, and the build
     report has to count them or it reports a graph smaller than the one it just made (task 051).
@@ -196,6 +200,8 @@ def resolve_edges(
         # One txn: kill between link and sibling insert must not leave under-linked parents.
         store.apply_resolution(links, siblings)
         inserted += len(siblings)
+        if on_batch is not None:
+            on_batch()
     return inserted
 
 

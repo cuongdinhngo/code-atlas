@@ -44,7 +44,10 @@ Exit `0` while a build is running, `3` when none is. Two properties are delibera
 
 - **The phase, not just a counter.** A file counter reaches 100 % and then sits in `enrichment`
   and `resolve` — the whole-graph link phase — for an unbounded share of the wall time. A build
-  stuck at `100 %` reads as a wedge one screen later; `phase=resolve` does not.
+  stuck at `100 %` reads as a wedge one screen later; `phase=resolve done=N` advances once per
+  unresolved-edge batch (no wall-time throttle when `total` is unset — 290), so a `done` that
+  climbs across batches is work. A line that never gains `done` across multiple batches is the
+  hang signal; a single long batch can still look quiet until it finishes (cost: never per-edge).
 - **The claim cannot outlive the build.** Liveness is the live `flock`, not a written flag: the OS
   drops the lock when the process dies, so a `kill -9`'d build reports *no build running* on the
   very next call, even though its last line is still on disk. A `building: true` row in the

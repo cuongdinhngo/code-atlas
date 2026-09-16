@@ -609,6 +609,7 @@ def _count_late_writes(
     _phase_add(phase_times, "enrichment", mark)
     mark = time.monotonic()
     if progress is not None:
+        # total=0: honest — batch count is unknown up front; done advances per batch (290).
         progress.phase("resolve")
     delta = None
     aliases_now = store.alias_targets()
@@ -616,7 +617,12 @@ def _count_late_writes(
         # Enrichment rewrites its rows *after* the parse under a synthetic path no delta lists,
         # so the bookmark is always in scope or its fresh edges would never resolve.
         delta = delta_scope(store, (*parsed, INDIRECTION_FILE), aliases=aliases_now)
-    siblings = resolve_edges(store, max_candidates=config.max_candidates, delta=delta)
+    siblings = resolve_edges(
+        store,
+        max_candidates=config.max_candidates,
+        delta=delta,
+        on_batch=progress.tick if progress is not None else None,
+    )
     _phase_add(phase_times, "resolve", mark)
     counts["nodes"] += enriched.nodes
     counts["edges"] += enriched.edges + siblings

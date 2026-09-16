@@ -255,10 +255,18 @@ def _progress_sink(config: Config) -> Callable[[str, int, int], None]:
     def publish(phase: str, done: int, total: int) -> None:
         nonlocal last_phase, last_at
         now = time.monotonic()
-        if phase == last_phase and now - last_at < PROGRESS_INTERVAL:
+        # Time-throttle only when a known total makes rapid ticks (parse). Resolve uses total=0
+        # and must publish every batch tick or a fast pass looks frozen (290 / AC1).
+        if phase == last_phase and total and now - last_at < PROGRESS_INTERVAL:
             return
         last_phase, last_at = phase, now
-        counted = f" done={done} total={total}" if total else ""
+        # total=0 still publishes done so a frozen resolve line is a wedge (290).
+        if total:
+            counted = f" done={done} total={total}"
+        elif done:
+            counted = f" done={done}"
+        else:
+            counted = ""
         publish_build_progress(
             config.db_path, f"phase={phase}{counted} pid={os.getpid()} at={time.time():.0f}"
         )
