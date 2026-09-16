@@ -23,6 +23,12 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The recognition map is a prompt no model can read; the snippet that reaches one is PHP-only](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260 |
+| 293 | [A member query spelled with a dot is a near-miss](tasks/293_the-dot-spelling-is-a-near-miss-in-every-language-that-is-not-php.md) | Agent-fit | todo | 287, 249, 253 |
+| 294 | [A TypeScript runtime import leaves no stamp](tasks/294_a-typescript-repo-that-imports-at-runtime-answers-unreachable-and-means-unmeasured.md) | Honesty | todo | 279, 019, 255 |
+| 295 | [A Python runtime import leaves no stamp](tasks/295_a-python-repo-that-imports-at-runtime-answers-unreachable-and-means-unmeasured.md) | Honesty | todo | 279, 020, 255 |
+| 296 | [The SQL adapter names the dynamic procs and stamps nothing](tasks/296_the-sql-adapter-names-the-dynamic-procs-and-stamps-nothing.md) | Honesty | todo | 279, 184, 255 |
+| 297 | [The member demote is keyed to one kind](tasks/297_the-member-demote-is-keyed-to-one-kind-so-a-class-still-buries-itself.md) | Agent-fit | todo | 292, 265, 245 |
+| 298 | [The SQL adapter answers `false` to a question it never asked](tasks/298_the-sql-adapter-answers-false-to-a-question-it-never-asked.md) | Honesty | todo | 262, 130, 231 |
 ## Open work — Pillar 2 · Onboarding
 
 The rendering of what the code actually is, for a human supervising an agent or presenting the
