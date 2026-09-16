@@ -5,13 +5,18 @@ from __future__ import annotations
 import json
 from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import Literal
+from typing import Literal, NamedTuple
 
 from code_atlas import contract
 from code_atlas.build_info import maybe_server_provenance
 from code_atlas.config import Config, clamp_limit
 from code_atlas.onboarding.class_diagram import parse_json_field
-from code_atlas.source_slice import declaration_slice
+from code_atlas.source_slice import (
+    BODY_LINE_THRESHOLD,
+    clamp_line_range,
+    declaration_line_count,
+    declaration_slice,
+)
 from code_atlas.store import GraphStore
 from code_atlas.tools.freshness import (
     FreshnessGuard,
@@ -44,12 +49,32 @@ from code_atlas.tools.nav_result import (
 )
 from code_atlas.tools.search_symbol import _column_reference_targets
 
+# Built from the one threshold site (288 / R6.7) — never a second numeric literal.
+
+
+def _body_elided_hint(decl_start: int, decl_end: int) -> str:
+    return (
+        f"body elided above {BODY_LINE_THRESHOLD} lines "
+        f"(declaration {decl_start}–{decl_end}); pass full_body=true for the whole "
+        "declaration, or line_start/line_end for a range within the symbol"
+    )
+
+
 # One page of CONTAINS edges for a Table — not the answer page; paging is separate (248).
 _CONTAINS_WALK = 10_000
 
 NAME = "read_symbol"
 
 DetailLevel = Literal["minimal", "standard"]
+
+
+class _BodyOpts(NamedTuple):
+    """Caller body policy for 288 — defaults keep below-threshold payloads byte-identical (061)."""
+
+    full_body: bool = False
+    max_lines: int | None = None
+    range_start: int | None = None
+    range_end: int | None = None
 
 
 def create(config: Config) -> Callable[..., dict[str, object]]:
@@ -61,6 +86,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         limit: int | None = None,
         offset: int = 0,
         stored_fields: bool = False,
+        full_body: bool = False,
+        max_lines: int | None = None,
+        line_start: int | None = None,
+        line_end: int | None = None,
     ) -> dict[str, object]:
         """Read just one symbol's source and its doc comment, without opening the whole file.
 
@@ -90,9 +119,29 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ignoring the list (070 warn; 078 refuse). ``try_instead`` points at ``search_symbol`` /
         ``file_outline``. An untracked indexable file matching the subject is
         ``reason=not_indexed`` (092).
+
+        Bodies above BODY_LINE_THRESHOLD (600 lines — one site in ``source_slice``) elide by
+        default: ``source`` is the signature line only, with ``body_elided: true``, ``line_count``,
+        and a route to ``file_outline`` or a line range — never a silent mid-body cut (288). Pass
+        ``full_body=true`` (or a ``max_lines`` at/above the span) for the whole declaration;
+        ``line_start``/``line_end`` return exactly that clamped range inside the symbol.
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
+        if max_lines is not None and max_lines < 1:
+            raise ValueError(f"max_lines must be >= 1, got {max_lines}")
+        if (line_start is None) ^ (line_end is None):
+            raise ValueError("line_start and line_end must be passed together")
+        if line_start is not None and line_start < 1:
+            raise ValueError(f"line_start must be >= 1, got {line_start}")
+        if line_end is not None and line_end < 1:
+            raise ValueError(f"line_end must be >= 1, got {line_end}")
+        body_opts = _BodyOpts(
+            full_body=full_body,
+            max_lines=max_lines,
+            range_start=line_start,
+            range_end=line_end,
+        )
         if not config.db_path.is_file():
             return _empty(
                 qname,
@@ -132,6 +181,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         fetch_limit=fetch_limit,
                         guard=guard,
                         stored_fields=stored_fields,
+                        body_opts=body_opts,
                     )
                     if normalised is not None:
                         return normalised
@@ -171,6 +221,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         fetch_limit=fetch_limit,
                         guard=guard,
                         stored_fields=stored_fields,
+                        body_opts=body_opts,
                     )
                     if normalised is not None:
                         return normalised
@@ -190,20 +241,18 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             start = start_raw
             end_raw = node["line_end"]
             end = end_raw if isinstance(end_raw, int) else start
-            source = _slice(path, start, end, detail_level)
-            payload = _result(
+            payload = _found_body_payload(
                 qname,
-                source,
+                path,
+                rel,
+                start,
+                end,
                 detail_level=detail_level,
                 db_path=str(config.db_path),
                 index_root=config.index_root,
-                found=True,
-                stale=False,
                 reason=REASON_OK,
-                file=rel,
-                line_start=start,
-                line_end=end,
                 stub=is_stub(node.get("extra")),
+                body_opts=body_opts,
             )
             if detail_level == "standard":
                 _attach_params(payload, store, node, rel)
@@ -215,6 +264,93 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             return attach_next_tools(payload, str(node["kind"]))
 
     return read_symbol
+
+
+def _effective_body_cap(opts: _BodyOpts) -> int | None:
+    """None = unlimited; otherwise the inclusive line ceiling before elision."""
+    if opts.full_body:
+        return None
+    if opts.max_lines is not None:
+        return opts.max_lines
+    return BODY_LINE_THRESHOLD
+
+
+def _found_body_payload(
+    qname: str,
+    path: Path,
+    rel: str,
+    decl_start: int,
+    decl_end: int,
+    *,
+    detail_level: str,
+    db_path: str,
+    index_root: str,
+    reason: str,
+    stub: bool,
+    body_opts: _BodyOpts,
+) -> dict[str, object]:
+    """Build a found-hit payload, applying range / elision / full-body policy (288)."""
+    span = declaration_line_count(decl_start, decl_end)
+    if body_opts.range_start is not None and body_opts.range_end is not None:
+        start, end = clamp_line_range(
+            decl_start,
+            decl_end,
+            from_line=body_opts.range_start,
+            to_line=body_opts.range_end,
+        )
+        source = declaration_slice(path, start, end, include_comments=False)
+        return _result(
+            qname,
+            source,
+            detail_level=detail_level,
+            db_path=db_path,
+            index_root=index_root,
+            found=True,
+            stale=False,
+            reason=reason,
+            file=rel,
+            line_start=start,
+            line_end=end,
+            stub=stub,
+        )
+    cap = _effective_body_cap(body_opts)
+    if cap is not None and span > cap:
+        # Signature only — line_start/line_end match source (163); full span is line_count + hint.
+        signature = declaration_slice(path, decl_start, decl_start, include_comments=False)
+        payload = _result(
+            qname,
+            signature,
+            detail_level=detail_level,
+            db_path=db_path,
+            index_root=index_root,
+            found=True,
+            stale=False,
+            reason=reason,
+            file=rel,
+            line_start=decl_start,
+            line_end=decl_start,
+            stub=stub,
+        )
+        payload["body_elided"] = True
+        payload["line_count"] = span
+        return attach_try_instead(
+            payload, TRY_INSTEAD_FILE_OUTLINE, _body_elided_hint(decl_start, decl_end)
+        )
+    source = _slice(path, decl_start, decl_end, detail_level)
+    return _result(
+        qname,
+        source,
+        detail_level=detail_level,
+        db_path=db_path,
+        index_root=index_root,
+        found=True,
+        stale=False,
+        reason=reason,
+        file=rel,
+        line_start=decl_start,
+        line_end=decl_end,
+        stub=stub,
+    )
 
 
 def _attach_stored_fields(
@@ -264,6 +400,10 @@ def _attach_columns(
         return
     # The CREATE header is a point, not the product — columns are the answer (AC1).
     payload["source"] = ""
+    payload.pop("body_elided", None)
+    payload.pop("line_count", None)
+    payload.pop("try_instead", None)
+    payload.pop("try_instead_hint", None)
     edges = store.edges_by_source(
         str(node["qualified_name"]),
         kinds=(contract.CONTAINS,),
@@ -458,11 +598,13 @@ def _separator_normalised_hit(
     fetch_limit: int,
     guard: FreshnessGuard,
     stored_fields: bool = False,
+    body_opts: _BodyOpts | None = None,
 ) -> dict[str, object] | None:
     """If the last separator spelled as MEMBER_SEPARATOR uniquely hits, return that near-miss (249).
 
     Keeps the asked ``qname`` and sets ``reason=separator_normalised`` — never ``ok`` (R5.6).
     """
+    opts = body_opts if body_opts is not None else _BodyOpts()
     alt = contract.member_separator_variant(qname)
     if alt is None:
         return None
@@ -499,25 +641,26 @@ def _separator_normalised_hit(
     start = start_raw
     end_raw = node["line_end"]
     end = end_raw if isinstance(end_raw, int) else start
-    source = _slice(path, start, end, detail_level)
-    payload = _result(
+    payload = _found_body_payload(
         qname,
-        source,
+        path,
+        rel,
+        start,
+        end,
         detail_level=detail_level,
         db_path=str(config.db_path),
         index_root=config.index_root,
-        found=True,
-        stale=False,
         reason=REASON_SEPARATOR_NORMALISED,
-        file=rel,
-        line_start=start,
-        line_end=end,
         stub=is_stub(node.get("extra")),
+        body_opts=opts,
     )
     if detail_level == "standard":
         _attach_params(payload, store, node, rel)
     _attach_stored_fields(payload, store, node, stored_fields=stored_fields)
     attach_other_indexed_files_drifted(payload, guard)
+    # Prefer the member-separator hint; keep an elision route if the body was also elided.
+    if payload.get("body_elided") is True:
+        return payload
     return attach_try_instead(payload, TRY_INSTEAD_FILE_OUTLINE, TRY_INSTEAD_HINT_MEMBER_SEPARATOR)
 
 
@@ -540,23 +683,37 @@ def _resolve_miss(
         if rows:
             return resolution.qname, rows, None
     if resolution.status == "ambiguous":
-        return qname, [], attach_name_not_qualified(
-            _miss_result(qname, detail_level=detail_level, config=config,
-                         reason=REASON_NAME_NOT_QUALIFIED),
-            resolution.candidate_count,
+        return (
+            qname,
+            [],
+            attach_name_not_qualified(
+                _miss_result(
+                    qname,
+                    detail_level=detail_level,
+                    config=config,
+                    reason=REASON_NAME_NOT_QUALIFIED,
+                ),
+                resolution.candidate_count,
+            ),
         )
     if resolution.status == "untracked":
-        return qname, [], shape_exact_miss(
-            _miss_result(
-                qname,
-                detail_level=detail_level,
-                config=config,
-                reason=REASON_NO_SUCH_SYMBOL,
+        return (
+            qname,
+            [],
+            shape_exact_miss(
+                _miss_result(
+                    qname,
+                    detail_level=detail_level,
+                    config=config,
+                    reason=REASON_NO_SUCH_SYMBOL,
+                ),
+                resolution,
             ),
-            resolution,
         )
-    return qname, [], _miss_result(
-        qname, detail_level=detail_level, config=config, reason=REASON_NO_SUCH_SYMBOL
+    return (
+        qname,
+        [],
+        _miss_result(qname, detail_level=detail_level, config=config, reason=REASON_NO_SUCH_SYMBOL),
     )
 
 
@@ -581,14 +738,10 @@ def _slice(path: Path, line_start: int, line_end: int, detail_level: str) -> str
     ``minimal``'s slice matches its own ``line_start``/``line_end``, closing the 8-H mismatch where
     ``source`` silently carried the comment block the range did not name.
     """
-    return declaration_slice(
-        path, line_start, line_end, include_comments=detail_level != "minimal"
-    )
+    return declaration_slice(path, line_start, line_end, include_comments=detail_level != "minimal")
 
 
-def _empty(
-    qname: str, *, detail_level: str, db_path: str, index_root: str
-) -> dict[str, object]:
+def _empty(qname: str, *, detail_level: str, db_path: str, index_root: str) -> dict[str, object]:
     del db_path
     return {
         "indexed": False,

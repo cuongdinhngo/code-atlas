@@ -10,7 +10,29 @@ import re
 from collections.abc import Sequence
 from pathlib import Path
 
+# One site for the body-size default (288 / R6.7). Above this, ``read_symbol`` elides by default.
+# 600 keeps the field's decisive 508-line read whole and degrades the wasteful 720-line case.
+BODY_LINE_THRESHOLD = 600
+
 _COMMENT = re.compile(r"^\s*(#|//|/\*|\*|\*/)")
+
+
+def declaration_line_count(line_start: int, line_end: int) -> int:
+    """Inclusive span of a node's declaration range (1-based)."""
+    if line_end < line_start:
+        return 0
+    return line_end - line_start + 1
+
+
+def clamp_line_range(
+    line_start: int, line_end: int, *, from_line: int, to_line: int
+) -> tuple[int, int]:
+    """Clamp a caller range to the node's parse bounds (288)."""
+    lo = max(line_start, min(from_line, to_line))
+    hi = min(line_end, max(from_line, to_line))
+    if hi < lo:
+        return line_start, line_start
+    return lo, hi
 
 
 def comment_block(path: Path, line_start: int) -> str:

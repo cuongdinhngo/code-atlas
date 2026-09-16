@@ -33,6 +33,12 @@ kind in the file with its count, so a capped symbol map cannot read as complete)
 `find_callers` page spanning several top-level subtrees adds **`result_subtrees`**, because page 1 of
 a store-ordered answer clusters into whichever subtree sorts first.
 
+`read_symbol` has the same honesty for a different unit of size: a declaration above
+`BODY_LINE_THRESHOLD` (600 — one site in `source_slice`) returns the signature with
+`body_elided: true` and `line_count`, plus a route, instead of shipping tens of thousands of tokens
+by default. `full_body=true` or a `line_start`/`line_end` range inside the symbol still reach the
+bytes; under the threshold the payload stays byte-identical (288 / 061).
+
 Every answer also carries **`index_root`** — the source tree it describes — so an agent in a worktree
 can spot a server pointed at the main checkout. Full field reference:
 [`docs/CONVENTION.md`](../CONVENTION.md) §6.
