@@ -52,9 +52,17 @@ def exit_code(result: Mapping[str, object]) -> int:
         return FAILED
     wrote = _wrote(result)
     files = wrote.get("files", 0)
-    _say(
+    line = (
         f"{mode}: {files} file(s), {wrote.get('nodes', 0)} node(s), {wrote.get('edges', 0)} edge(s)"
     )
+    # Only when non-zero — zero keeps today's line byte-identical (289 / 061).
+    removed = wrote.get("removed", 0)
+    failed = wrote.get("failed", 0)
+    if removed:
+        line += f", {removed} removed"
+    if failed:
+        line += f", {failed} failed"
+    _say(line)
     return OK if files else NOTHING_TO_DO
 
 
