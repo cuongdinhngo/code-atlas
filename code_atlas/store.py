@@ -380,15 +380,26 @@ def is_direct_match(query: str, name: str, qualified_name: str) -> bool:
     """True when ``query`` exactly matches or prefixes ``name`` or ``qualified_name`` (task 167).
 
     Case-insensitive and language-agnostic (R1.1) — a run of the query against the symbol, no SQL.
-    Everything else is a substring / trigram near-miss. One definition site (R6.7): it decides
-    both ``search_symbol``'s ``reason`` and the ordering's exactness band, so the two cannot drift.
+    A ``Class::method`` query that is a separator-boundary suffix of the qname is also direct
+    (287) — stack-trace spelling, not trigram soup. One definition site (R6.7): it decides both
+    ``search_symbol``'s ``reason`` and the ordering's exactness band, so the two cannot drift.
     """
     q = query.casefold()
     folded = name.casefold()
     if folded == q or folded.startswith(q):
         return True
     folded = qualified_name.casefold()
-    return folded == q or folded.startswith(q)
+    if folded == q or folded.startswith(q):
+        return True
+    # Member-separator suffix on a component boundary — not any substring ending the qname (287).
+    if contract.MEMBER_SEPARATOR.casefold() not in q:
+        return False
+    if not folded.endswith(q):
+        return False
+    if len(folded) == len(q):
+        return True
+    # Namespace/path separators only — `_` is an identifier char, not a component boundary.
+    return folded[-len(q) - 1] in "\\/."
 
 
 def _direct_match_udf(query: object, name: object, qualified_name: object) -> int:
