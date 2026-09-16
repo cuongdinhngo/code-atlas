@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING, Any
 
 from code_atlas.onboarding.mirrors import (
     COUNTERPART,
+    NO_COUNTERPART,
+    OUTSIDE_MIRROR,
     MirrorPair,
     find_mirror_subtrees,
     resolve_counterpart,
@@ -25,9 +27,12 @@ MIRROR_SEARCH_KEY = "mirror_search"
 SEARCH_ORDER_MIRROR = "exact_band_then_outside_mirror_then_external_inbound"
 SEARCH_ORDER_FIELD = "search_order"
 MIRROR_COUNTERPART_FIELD = "mirror_counterpart"
+# Honest negative when the path sits on a stamped pair but the sibling is not indexed (286 / 282).
+MIRROR_NO_COUNTERPART_FIELD = "mirror_no_counterpart"
 
 __all__ = [
     "MIRROR_COUNTERPART_FIELD",
+    "MIRROR_NO_COUNTERPART_FIELD",
     "MIRROR_SEARCH_KEY",
     "SEARCH_ORDER_FIELD",
     "SEARCH_ORDER_MIRROR",
@@ -35,6 +40,7 @@ __all__ = [
     "mirror_prefer_key",
     "load_mirror_search_stamp",
     "attach_mirror_search_fields",
+    "attach_mirror_read_fields",
     "decorate_mirror_hits",
 ]
 
@@ -114,6 +120,30 @@ def attach_mirror_search_fields(
 ) -> str | None:
     """Mutate hits with indexed-only counterparts; return the order rule or ``None`` (277/282)."""
     return decorate_mirror_hits(results, stamp, indexed)
+
+
+def attach_mirror_read_fields(
+    payload: dict[str, object],
+    file_path: str,
+    stamp: Mapping[str, object] | None,
+    indexed: Container[str],
+) -> bool:
+    """Name an indexed twin on a ``read_symbol`` hit, or the honest negative (286).
+
+    Returns True when the file sits on a stamped pair (so the caller can attach the
+    dispatch-boundary caveat). No stamp / outside a pair → False and no new fields (061).
+    Never asserts which twin a request reaches.
+    """
+    if not stamp or not stamp.get("pairs"):
+        return False
+    answer = resolve_counterpart(file_path, _pairs_from_stamp(stamp), indexed)
+    if answer.status == OUTSIDE_MIRROR:
+        return False
+    if answer.status == COUNTERPART and answer.path:
+        payload[MIRROR_COUNTERPART_FIELD] = answer.path
+    elif answer.status == NO_COUNTERPART:
+        payload[MIRROR_NO_COUNTERPART_FIELD] = True
+    return True
 
 
 def decorate_mirror_hits(

@@ -4,7 +4,7 @@ slug: the-mirror-pairs-are-stamped-and-the-tool-that-forms-the-belief-never-read
 title: '277 stamps the mirrored subtree pairs and only `search_symbol` reads them, so `read_symbol` returns a perfect body for a port that no request reaches and says nothing about the twin that serves it — the caveat naming that exact limit is printed on `find_callers`, which is not where an agent forms the belief "this is the code that runs"'
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [277, 282, 276]
 ---
 
@@ -69,3 +69,134 @@ shape exactly, and 278 is the ask the field ranked first the round before.
 [282](282_a-mirror-hit-names-a-counterpart-that-is-not-in-the-index.md),
 [278](278_the-writer-set-is-computed-for-one-check-and-addressable-from-nothing.md).
 Origin: field retro round 24 §4, 2026-09-15 — "the most useful thing in this retro".
+
+---
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 286 — read_symbol names mirror twin (working doc)
+
+- **TIER:** full · **TRACK:** backend — 0/0 UI · **SCOPE:** M · **BASELINE:** green · **INPUT KIND:** ticket
+
+## Phase 0 — Refine
+
+`PREMISE: 6 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)`
+`RECALL: 0 claim(s) surfaced | 0 by symbol | 0 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`REFINE: 2 unresolved surfaced | 0 want-decision asked | 2 how-decision resolved+cited | 0 ASSUMED | skip: no`
+
+HOW: (1) signal on every kind on a stamped pair — Class and Method both form "code that runs"; filtering CALLABLE would miss the incident Class. Cite ticket Scope + Why. (2) `mirror_no_counterpart` + `caveat mirror_twin` boundary text — never a live-side verdict. Cite ticket Scope bullet 2 + AC4.
+
+## Requirements matrix
+
+`SECTIONS: 5 found (Why this exists · Scope / Deliverables · Constraints · Acceptance criteria · References) | 5 decomposed | ROWS: C=5 R=3 G=1 AC=5`
+
+| ID | Source | Verbatim | Interpretation | Ph2 | Ph3/4 | Status |
+|----|--------|----------|----------------|-----|-------|--------|
+| G1 | Why | twin invisible on read_symbol | attach mirror fields on found hit | D1 | AC1 | ✅ |
+| C1 | Constraints | R1.1/R2 stamped pairs | load_mirror_search_stamp | D1 | — | ✅ |
+| C2 | Constraints | 061 no pairs | early return | D1 | AC3 | ✅ |
+| C3 | Constraints | R5.6 indexed only | resolve_counterpart 282 | D1 | AC2 | ✅ |
+| C4 | Constraints | subject_ambiguous unchanged | no attach on ambiguous | D1 | — | ✅ |
+| C5 | Constraints | R4.2 | deterministic stamp | D1 | — | ✅ |
+| R1 | Scope | name indexed counterpart | mirror_counterpart | D1 | AC1 | ✅ |
+| R2 | Scope | no dispatch claim | CAVEAT_MIRROR_TWIN | D1 | AC4 | ✅ |
+| R3 | Scope | scope once | every kind on pair | D1 | — | ✅ |
+| AC1 | AC | names indexed twin | proving | D2 | proving | ✅ |
+| AC2 | AC | honest negative | proving | D2 | proving | ✅ |
+| AC3 | AC | no stamp identical | proving | D2 | proving | ✅ |
+| AC4 | AC | no live-side claim | caveat text | D1 | proving | ✅ |
+| AC5 | AC | 277/282 still pass | proving | D2 | proving | ✅ |
+
+`CLARIFICATION: 2 raised | 2 self-resolved (cited) | 0 for human decision`
+
+## Phase 1 — Analysis
+
+- Root cause: mirror stamp read only by search_symbol; read_symbol forms the "runs" belief without twin.
+- TRACK: backend — 0/0 UI
+
+`RULE SECTIONS: 3 applicable — 3 by change-type | 0 by recalled handle — R1.1 ✅ · R5.6 ✅ · R7.6 ✅`
+
+Ran at 02f4bab7e1ecbe39e6740cd7865ecbe1a2a0bf7f
+
+```
+$ .venv/bin/python -m pytest tests/test_mirror_aware_search_order.py -q --tb=no
+......                                                                   [100%]
+6 passed in 1.91s
+```
+
+`BASELINE: green`
+
+## Phase 2 — Design
+
+- Approach: `attach_mirror_read_fields` + CAVEAT_MIRROR_TWIN on found read_symbol; reuse resolve_counterpart.
+- Rejected: CALLABLE-only (misses Class incident); synthesizing paths (282).
+
+`HANDLES: 0 recalled | 0 traced (command + result) | 0 does not apply (reason) | 0 unanswered`
+`EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+**Proving test:** `.venv/bin/python -m pytest tests/test_read_symbol_mirror_twin.py -q`
+
+| # | Change | File | Blast | k/N |
+|---|--------|------|-------|-----|
+| D1 | mirror read attach + caveat | mirror_search.py, read_symbol.py, nav_result.py | mirrored reads | 1/1 |
+| D2 | proving | tests/test_read_symbol_mirror_twin.py | — | 1/1 |
+
+## Phase 3 — Execute
+
+**Branch:** feat/286-read-symbol-names-mirror-counterpart
+**Axis 1:** mirror_search · read_symbol · nav_result · tests.
+**Axis 2:** implemented-as-approved.
+
+**Verification sweep**
+
+Ran at 02f4bab7e1ecbe39e6740cd7865ecbe1a2a0bf7f
+
+```
+$ .venv/bin/python -m pytest tests/test_read_symbol_mirror_twin.py -q --tb=no
+....                                                                     [100%]
+4 passed in 0.56s
+```
+
+`DIFF ⊆ approved list: yes`
+`DESIGN-CONFORMANCE: self-check passed`
+
+## Phase 4 — Review
+
+REVIEWER: off (waived --no-reviewer)
+
+CHALLENGER: on — round-1 NOT CLEAN (1 can't tell: AC5 277/282 suites); verify-only — ran tests/test_mirror_aware_search_order.py + proving (10 passed). agent b7a9950a-6194-48fc-9e11-aa27b51f2c87
+
+Verify-only:
+
+Ran at 02f4bab7e1ecbe39e6740cd7865ecbe1a2a0bf7f
+
+```
+$ .venv/bin/python -m pytest tests/test_mirror_aware_search_order.py tests/test_read_symbol_mirror_twin.py -q --tb=no
+..........                                                               [100%]
+10 passed in 1.32s
+```
+
+`SCOPE ≡ approved list: yes`
+`DIFF ⊆ approved list: yes`
+`PROVING TEST: tests/test_read_symbol_mirror_twin.py — 4 passed`
+`DESIGN-CONFORMANCE: self-check passed`
+`REVIEW: CLEAN`
+
+## Phase 5 — Finalise
+
+Outward actions (approved by handover): push feature branch; open PR. Never merge.
+Gate: GATE GREEN (.mango/gate-286.log)
+PR: https://github.com/cuongdinhngo/code-atlas/pull/380
+
+## Cost ledger
+
+| Phase | Notes |
+|-------|-------|
+| autorun | reviewer off; challenger on; main-loop unmeasured |
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`LEDGER TOTAL: unmeasured · top cost driver: main-loop (challenger x1)`

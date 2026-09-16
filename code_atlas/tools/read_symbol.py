@@ -20,6 +20,7 @@ from code_atlas.tools.freshness import (
     nameable_subject_path,
 )
 from code_atlas.tools.nav_result import (
+    CAVEAT_MIRROR_TWIN,
     REASON_INDEX_STALE,
     REASON_NAME_NOT_QUALIFIED,
     REASON_NO_SUCH_SYMBOL,
@@ -30,6 +31,7 @@ from code_atlas.tools.nav_result import (
     TRY_INSTEAD_HINT_MEMBER_SEPARATOR,
     TRY_INSTEAD_SEARCH_SYMBOL,
     attach_ambiguous_definitions,
+    attach_authoritative_caveats,
     attach_limit_capped,
     attach_name_not_qualified,
     attach_next_tools,
@@ -208,6 +210,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 _attach_columns(payload, store, node, config=config, limit=limit, offset=offset)
                 _attach_supertypes(payload, store, node, rel)
             _attach_stored_fields(payload, store, node, stored_fields=stored_fields)
+            _attach_mirror_twin(payload, store, rel)
             attach_other_indexed_files_drifted(payload, guard)
             return attach_next_tools(payload, str(node["kind"]))
 
@@ -397,6 +400,24 @@ def _attach_supertypes(
             entry["unresolved"] = True
         rows.append(entry)
     payload["supertypes"] = rows
+
+
+def _attach_mirror_twin(
+    payload: dict[str, object], store: GraphStore, file_path: str
+) -> None:
+    """Name an indexed mirror twin on a found hit, or the honest negative (286).
+
+    Every kind on a stamped pair — the belief "this is the code that runs" forms on Class
+    and Method alike (ticket Scope). No stamp ⇒ no cost (061).
+    """
+    from code_atlas.mirror_search import attach_mirror_read_fields, load_mirror_search_stamp
+
+    stamp = load_mirror_search_stamp(store)
+    if not stamp or not stamp.get("pairs"):
+        return
+    indexed = frozenset(store.file_paths())
+    if attach_mirror_read_fields(payload, file_path, stamp, indexed):
+        attach_authoritative_caveats(payload, [CAVEAT_MIRROR_TWIN])
 
 
 def _refuse_ambiguous(
