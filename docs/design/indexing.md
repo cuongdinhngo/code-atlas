@@ -103,6 +103,17 @@ payload told the caller to page. Exactness now bands the result set, with BM25 a
 meaning — no direct match on page 1 — and can no longer stay silent while exact matches sit at
 rank 40.
 
+### A container outranks its CONTAINS members (task 292)
+
+An exact-name search for a Table or Procedure put the real definitions on the page and then
+filled the rest with Columns whose qnames merely *prefixed* the same string — forty
+`Table::col_*` rows, same exactness band, ranked on BM25 alone. The graph already stored
+`CONTAINS`; the order ignored it. Within the exactness band, a `Column` that is the target of a
+`CONTAINS` edge from a parent that itself direct-matches the query **and is also a hit under the
+same filters** now ranks after every non-member hit. Kind + `CONTAINS` only (R1.1) — Class members
+are untouched; a hit set with no such pair stays byte-identical (061). Mirror prefer (277) still
+runs after this key.
+
 ### `find_orphans` refuses rather than dumping what it has flagged (task 182)
 
 A field round returned **215,177 orphans of 216,664 nodes — 99.31 %** — with `walk_truncated: true`

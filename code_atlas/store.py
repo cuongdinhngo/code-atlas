@@ -407,6 +407,34 @@ def _direct_match_udf(query: object, name: object, qualified_name: object) -> in
     return int(is_direct_match(str(query), str(name or ""), str(qualified_name or "")))
 
 
+def _search_contains_demote(
+    query: str, *, kind: str | None, namespace: str | None
+) -> tuple[str, tuple[object, ...]]:
+    """ORDER BY key: demote Columns whose CONTAINS parent is also a hit for this query (292).
+
+    Parent must satisfy the same FTS/kind/namespace filters as the outer search so a hit set
+    with no container/member pair stays byte-identical (061).
+    """
+    parent_where, parent_params = _narrow(
+        "nodes_fts MATCH ?", fts_term(query), kind, "p.kind = ?"
+    )
+    parent_where, parent_params = _with_namespace(
+        parent_where, parent_params, namespace, qname_column="p.qualified_name"
+    )
+    sql = (
+        f"(CASE WHEN nodes.kind = '{contract.COLUMN_KIND}' AND EXISTS ("
+        f"SELECT 1 FROM edges AS e "
+        f"JOIN nodes AS p ON p.qualified_name = e.source_qname "
+        f"JOIN nodes_fts ON nodes_fts.rowid = p.id "
+        f"WHERE e.kind = '{contract.CONTAINS}' "
+        f"AND (e.target_qname = nodes.qualified_name OR e.target_raw = nodes.qualified_name) "
+        f"AND {DIRECT_MATCH_SQL_FN}(?, p.name, p.qualified_name) "
+        f"AND {parent_where}"
+        f") THEN 1 ELSE 0 END)"
+    )
+    return sql, (query, *parent_params)
+
+
 def _like_literal(value: str) -> str:
     """Escape ``!``, ``%``, and ``_`` for a ``LIKE … ESCAPE '!'`` pattern (``\\`` stays literal)."""
     return value.replace("!", "!!").replace("%", "!%").replace("_", "!_")
@@ -2486,6 +2514,7 @@ class GraphStore:
 
         Exact/prefix matches come first, near-misses after, BM25 rank as the tie-break inside each
         band (task 180) — banding the whole result set, not the page, so ``offset`` walks it.
+        Within a band, Columns CONTAINED by a direct-match parent rank after non-members (292).
         """
         if len(query) < 3:
             return self._search_short(
@@ -2496,13 +2525,18 @@ class GraphStore:
         if limit < 1:
             raise ValueError(f"limit must be >= 1, got {limit}")
         where, params = self._fts_search_clause(query, kind=kind, namespace=namespace)
+        contains_sql, contains_params = _search_contains_demote(
+            query, kind=kind, namespace=namespace
+        )
         sql = (
             f"SELECT nodes.id, {_NODE_COLUMNS_JOINED} FROM nodes "
             f"JOIN nodes_fts ON nodes_fts.rowid = nodes.id "
-            f"WHERE {where} ORDER BY {_SEARCH_BAND}, {_SEARCH_MIRROR}, "
-            f"{_SEARCH_ORDER} LIMIT ? OFFSET ?"
+            f"WHERE {where} ORDER BY {_SEARCH_BAND}, {contains_sql} ASC, "
+            f"{_SEARCH_MIRROR}, {_SEARCH_ORDER} LIMIT ? OFFSET ?"
         )
-        return self._rows(NODE_ROW_KEYS, sql, (*params, query, limit, offset))
+        return self._rows(
+            NODE_ROW_KEYS, sql, (*params, query, *contains_params, limit, offset)
+        )
 
     def count_search_nodes(
         self,
