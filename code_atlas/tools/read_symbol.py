@@ -71,7 +71,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         non-callable kind, omit both (061). A found **Table** at ``standard`` carries a paged
         ``columns`` list (name + declared type + ``DEFAULT`` when present) from ``CONTAINS``, in
         DDL order — never the CREATE header as the product; a table with no indexed columns says
-        so rather than returning an empty list (248 / 061). ``limit`` / ``offset`` page that list
+        so rather than returning an empty list (248 / 061). A found **Class** / **Interface** at
+        ``standard`` carries ``supertypes`` (``EXTENDS`` / ``IMPLEMENTS`` in declaration order —
+        resolved qname when linked, raw name + ``unresolved`` when not); an adapter that does not
+        stamp ``inheritance`` discloses ``supertypes_not_captured_by_adapter`` (285 / R5.6); a type
+        that declares none omits the field (061). ``limit`` / ``offset`` page that list
         only; other kinds ignore them. ``stored_fields=True`` adds which ``NODE_FIELDS`` are
         populated and which ``extra`` keys the node carries — key names only, never extra
         values (250). A ``Column`` also always lists ``references`` / ``references_unresolved``
@@ -202,6 +206,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             if detail_level == "standard":
                 _attach_params(payload, store, node, rel)
                 _attach_columns(payload, store, node, config=config, limit=limit, offset=offset)
+                _attach_supertypes(payload, store, node, rel)
             _attach_stored_fields(payload, store, node, stored_fields=stored_fields)
             attach_other_indexed_files_drifted(payload, guard)
             return attach_next_tools(payload, str(node["kind"]))
@@ -351,6 +356,47 @@ def _attach_params(
                 entry["type"] = typ
             params.append(entry)
     payload["params"] = params
+
+
+def _attach_supertypes(
+    payload: dict[str, object],
+    store: GraphStore,
+    node: dict[str, object],
+    file_path: str,
+) -> None:
+    """Surface EXTENDS/IMPLEMENTS for Class/Interface; disclose when adapter omits them (285)."""
+    if str(node["kind"]) not in contract.SUPERTYPE_SUBJECT_KINDS:
+        return
+    caps = store.stamped_capabilities_by_language()
+    language = store.language_of_file(file_path)
+    if (
+        caps is None
+        or language is None
+        or not (caps.get(language) or {}).get("inheritance", False)
+    ):
+        payload["supertypes_not_captured_by_adapter"] = True
+        return
+    edges = store.edges_by_source(
+        str(node["qualified_name"]),
+        kinds=contract.IMPL_KINDS,
+        limit=_CONTAINS_WALK,
+    )
+    if not edges:
+        return  # Declares none — omit, never an empty list (061 / R5.6).
+    # Edge id preserves declaration order (same rule as Table columns / 248).
+    ordered = sorted(edges, key=lambda row: int(str(row["id"])))
+    rows: list[dict[str, object]] = []
+    for edge in ordered:
+        kind = str(edge["kind"])
+        linked = edge.get("target_qname")
+        entry: dict[str, object] = {"kind": kind}
+        if isinstance(linked, str) and linked:
+            entry["qname"] = linked
+        else:
+            entry["name"] = str(edge["target_raw"])
+            entry["unresolved"] = True
+        rows.append(entry)
+    payload["supertypes"] = rows
 
 
 def _refuse_ambiguous(

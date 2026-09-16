@@ -30,6 +30,7 @@ function serve(Parser $parser): void
             'args' => true,
             'modifiers' => true,
             'declared_types' => true,
+            'inheritance' => true,
         ],
         'contract_version' => 10,
     ]);

@@ -102,6 +102,8 @@ IMPL_KINDS: tuple[str, ...] = ("EXTENDS", "IMPLEMENTS")
 INHERIT_KINDS: tuple[str, ...] = ("EXTENDS", "IMPLEMENTS", "USES_TRAIT")
 # Contained members a class box lists (144).
 CLASS_MEMBER_KINDS: tuple[str, ...] = ("Method", "Property", "ClassConst")
+# Class / Interface — subjects that emit EXTENDS/IMPLEMENTS (285 / IMPL_KINDS).
+SUPERTYPE_SUBJECT_KINDS: tuple[str, ...] = ("Class", "Interface")
 # Schema container whose members ride CONTAINS — kind branch, never language (248 / R1.1).
 TABLE_KIND = "Table"
 COLUMN_KIND = "Column"
@@ -222,6 +224,7 @@ KNOWN_CAPABILITIES: tuple[str, ...] = (
     "args",
     "modifiers",
     "declared_types",
+    "inheritance",
 )
 
 # ``extra`` / tool-payload key for declarations-only stub nodes (task 039). Not a contract bump.

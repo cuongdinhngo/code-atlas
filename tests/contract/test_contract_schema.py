@@ -179,7 +179,7 @@ def test_contract_version_is_exported() -> None:
 
 def test_known_capabilities_advertises_semantic_types() -> None:
     assert "semantic_types" in KNOWN_CAPABILITIES
-    for flag in ("params", "args", "modifiers", "declared_types"):
+    for flag in ("params", "args", "modifiers", "declared_types", "inheritance"):
         assert flag in KNOWN_CAPABILITIES
 
 

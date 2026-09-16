@@ -81,6 +81,7 @@ def test_the_handshake_announces_capabilities_as_an_object_not_an_empty_array() 
             "args": True,
             "modifiers": True,
             "declared_types": True,
+            "inheritance": True,
         }
 
 

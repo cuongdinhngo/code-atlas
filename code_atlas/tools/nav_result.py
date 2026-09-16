@@ -207,6 +207,8 @@ TRY_INSTEAD_HINT_IMPACT_BY_QNAME = (
 # (158): who calls it, what breaks if it changes. Registered tool names (093), asserted callable by
 # the invariant test. Literals, not imports: the tool modules import THIS module (no cycle).
 NEXT_TOOLS_FOR_CALLABLE: tuple[str, ...] = ("find_callers", "impact")
+# Class / Interface — the roster step the round-26 retro walked past (285 / 158).
+NEXT_TOOLS_FOR_TYPE: tuple[str, ...] = ("find_implementations",)
 
 
 def edge_id(edge: Mapping[str, Any] | Row) -> int:
@@ -597,13 +599,15 @@ def attach_serve_behind_route(payload: dict[str, object]) -> dict[str, object]:
 
 
 def attach_next_tools(payload: dict[str, object], kind: str) -> dict[str, object]:
-    """On a successful callable-symbol answer, name the next mechanism step (158).
+    """On a successful answer, name the next mechanism step keyed on node kind (158 / 285).
 
-    Keyed on node kind (contract vocabulary, never language — R1.1). A non-callable kind earns no
-    field, so a Class/Const/Interface read stays byte-identical (061 / AC4).
+    Contract vocabulary only — never language (R1.1). Callables keep find_callers/impact;
+    Class/Interface name find_implementations; every other kind earns no field (061).
     """
     if kind in contract.CALLABLE_KINDS:
         payload["next_tool_suggestions"] = list(NEXT_TOOLS_FOR_CALLABLE)
+    elif kind in contract.SUPERTYPE_SUBJECT_KINDS:
+        payload["next_tool_suggestions"] = list(NEXT_TOOLS_FOR_TYPE)
     return payload
 
 

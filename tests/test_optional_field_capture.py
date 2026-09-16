@@ -195,7 +195,7 @@ def test_ac5_php_params_answer_byte_identical() -> None:
 
 
 def test_known_capabilities_include_capture_flags() -> None:
-    for flag in ("params", "args", "modifiers", "declared_types"):
+    for flag in ("params", "args", "modifiers", "declared_types", "inheritance"):
         assert flag in contract.KNOWN_CAPABILITIES
 
 

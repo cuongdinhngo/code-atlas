@@ -12,7 +12,7 @@ from pathlib import Path
 
 from code_atlas.main import TOOL_NAMES
 from code_atlas.tools import read_symbol
-from code_atlas.tools.nav_result import NEXT_TOOLS_FOR_CALLABLE
+from code_atlas.tools.nav_result import NEXT_TOOLS_FOR_CALLABLE, NEXT_TOOLS_FOR_TYPE
 from tests.test_nav_tools import (  # noqa: F401 — store is a fixture
     db_config,
     node,
@@ -42,17 +42,23 @@ def test_read_symbol_of_a_function_also_earns_the_suggestion(
     assert result["next_tool_suggestions"] == ["find_callers", "impact"]
 
 
-def test_read_symbol_of_a_class_has_no_suggestion(tmp_path: Path, store) -> None:  # noqa: F811
-    """AC1 / AC4: a non-callable node earns nothing — the field is not universal."""
+def test_read_symbol_of_a_class_suggests_find_implementations(
+    tmp_path: Path, store  # noqa: F811
+) -> None:
+    """285: a Class hit names find_implementations; Const still earns nothing."""
     seed_file(store, "a.php", [node("Class", "Doc", "\\App\\Doc", "a.php")], [], root=tmp_path)
     result = read_symbol.create(db_config(tmp_path))("\\App\\Doc")
     assert result["found"] is True
-    assert "next_tool_suggestions" not in result
+    assert result["next_tool_suggestions"] == ["find_implementations"]
+
+    seed_file(store, "b.php", [node("Const", "X", "\\App\\X", "b.php")], [], root=tmp_path)
+    const = read_symbol.create(db_config(tmp_path))("\\App\\X")
+    assert "next_tool_suggestions" not in const
 
 
 def test_the_suggested_tools_are_registered_callable_names(tmp_path: Path) -> None:
     """AC2: every suggested name is a real tool the client can call (093), not a string literal."""
-    for name in NEXT_TOOLS_FOR_CALLABLE:
+    for name in (*NEXT_TOOLS_FOR_CALLABLE, *NEXT_TOOLS_FOR_TYPE):
         assert name in TOOL_NAMES
 
 
