@@ -226,7 +226,13 @@ BUDGETS = {
     # is wrong is worse than one that is long. R7.6 ran first inside the same block: the superseded
     # "multi-lang caveat when only SQL emits" clause is replaced, not kept, and the mechanism stays
     # in 281's task file. The next addition prunes again or argues again.
-    "PLAN.md": 24_120,
+    # 24,120 -> 24,150 on 2026-09-16 (285), argued rather than assumed. 285 shipped `supertypes`
+    # on the read_symbol row, the sibling that 242 (`params`) and 248 (`columns`) already enumerate
+    # there; leaving it off states the row is exhaustive when it is not. R7.6 ran first: the clause
+    # is the terse verdict + task link (edge kinds, qname/unresolved and the `inheritance` stamp
+    # stay in 285's task file), and no superseded line exists to reclaim. The next addition prunes
+    # again or argues again; it does not inherit this raise as headroom.
+    "PLAN.md": 24_150,
     # 2,150 -> 1,800 on 2026-09-08, LOWERED: 232-235 all close in this window and each removes
     # its row (R7.6), taking the file 1,737 -> 1,485. 2,150 is more than 25 % above 1,485, which
     # the anti-slack guard below calls slack; 1,800 keeps ~315 of headroom, about five open rows.
