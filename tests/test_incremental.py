@@ -171,7 +171,7 @@ def test_build_tool_runs_incremental_then_clears_staleness(tmp_path: Path) -> No
     config = config_for(tmp_path)
     server = build_server(config)
 
-    first = call(server, BUILD, {"full": True})
+    first = call(server, BUILD, {"full": True, "allow_full_rebuild": True})
     assert first["mode"] == "full"
     assert call(server, STATUS, {})["staleness"] == "current"
 
@@ -315,7 +315,7 @@ def test_uncommitted_edit_is_indexed_and_marks_status_behind(tmp_path: Path) -> 
     committed(tmp_path, {"src/a.aa": "one\n"})
     config = config_for(tmp_path)
     server = build_server(config)
-    call(server, BUILD, {"full": True})
+    call(server, BUILD, {"full": True, "allow_full_rebuild": True})
     assert call(server, STATUS, {})["staleness"] == "current"
 
     write(tmp_path, "src/a.aa", "dirty\n")

@@ -25,6 +25,8 @@ from code_atlas.indexer import (
     COVERAGE_LOSS_HINT,
     COVERAGE_LOSS_IN_BAND,
     FULL_REBUILD_ROUTE,
+    FULL_REBUILD_USE_SHELL,
+    FULL_REBUILD_USE_SHELL_HINT,
     IN_BAND_FULL_REBUILD,
     INCOMPLETE_INDEX,
     INCOMPLETE_INDEX_ROUTE,
@@ -98,7 +100,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         rebuild inside a call that cannot outlive its client, ``full=false`` returns
         ``mode: refused`` with ``reason: contract_rebuild_required`` and the route that
         can serve it. ``allow_full_rebuild=true`` runs that rebuild in-band anyway,
-        accepting the wait (201).
+        accepting the wait (201). The same refusal shape answers an explicit
+        ``full=true`` on an index that already exists — MCP cannot outlive its client,
+        and a timed-out "failed" does not stop the server-side build (291).
         """
         started = time.monotonic()
         with try_index_write_lock(config.db_path) as held:
@@ -210,6 +214,15 @@ def _build(
         rebuilt_schema = True
         store = GraphStore(config.db_path)
     try:
+        if (
+            full
+            and not allow_full_rebuild
+            and not rebuilt_schema
+            and store.get_meta(LAST_COMMIT_KEY)
+        ):
+            # Existing index + explicit full over MCP: refuse (291). First build / schema
+            # recovery / allow_full_rebuild still run; the shell always opts in.
+            return _full_mcp_refused(config, full=full, started=started)
         if not (full or rebuilt_schema or allow_full_rebuild) and contract_rebuild_required(
             store
         ):
@@ -342,6 +355,22 @@ def _contract_refused(
         "contract_version": contract.CONTRACT_VERSION,
         "route": FULL_REBUILD_ROUTE,
         "in_band_option": IN_BAND_FULL_REBUILD,
+        "index_root": config.index_root,
+        "db_path": str(config.db_path),
+        "seconds": round(time.monotonic() - started, 3),
+    }
+
+
+def _full_mcp_refused(config: Config, *, full: bool, started: float) -> dict[str, object]:
+    """Explicit full over MCP on an existing index — answer, do not attempt (291)."""
+    return {
+        "mode": REFUSED,
+        "requested_full": full,
+        "performed": False,
+        "reason": FULL_REBUILD_USE_SHELL,
+        "route": FULL_REBUILD_ROUTE,
+        "in_band_option": IN_BAND_FULL_REBUILD,
+        "hint": FULL_REBUILD_USE_SHELL_HINT,
         "index_root": config.index_root,
         "db_path": str(config.db_path),
         "seconds": round(time.monotonic() - started, 3),

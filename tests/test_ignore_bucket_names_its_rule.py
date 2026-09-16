@@ -67,7 +67,11 @@ def test_two_ignore_sources_report_per_source_counts_that_sum_to_ignore(tmp_path
     standard = get_index_status.create(config, (STATUS, BUILD))(detail_level="standard")
     assert "collection" not in standard
 
-    built = call(build_server(config), BUILD, {"full": True, "detail_level": "standard"})
+    built = call(
+        build_server(config),
+        BUILD,
+        {"full": True, "allow_full_rebuild": True, "detail_level": "standard"},
+    )
     assert "ignore_sources" not in built["collection"]["skipped"]
     _082_closes(built["collection"])
 

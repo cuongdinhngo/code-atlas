@@ -45,7 +45,11 @@ def test_untracked_indexable_file_is_visible_not_absent(tmp_path: Path) -> None:
     config = config_for(tmp_path)
     server = build_server(config)
 
-    built = call(server, BUILD, {"full": True, "detail_level": "standard"})
+    built = call(
+        server,
+        BUILD,
+        {"full": True, "allow_full_rebuild": True, "detail_level": "standard"},
+    )
     status = call(server, STATUS, {"detail_level": "verbose"})
 
     assert built["collection"]["skipped"]["untracked"] == 1
@@ -90,7 +94,11 @@ def test_untracked_indexable_file_is_visible_not_absent(tmp_path: Path) -> None:
 
     git(tmp_path, "add", UNTRACKED)
     git(tmp_path, "commit", "-qm", "add controller")
-    rebuilt = call(server, BUILD, {"full": True, "detail_level": "standard"})
+    rebuilt = call(
+        server,
+        BUILD,
+        {"full": True, "allow_full_rebuild": True, "detail_level": "standard"},
+    )
     assert rebuilt["collection"]["skipped"]["untracked"] == 0
 
     after = call(server, CALLERS, {"qname": SUBJECT})
@@ -109,7 +117,11 @@ def test_untracked_match_is_the_stem_not_the_extension(tmp_path: Path) -> None:
     committed(tmp_path, {"src/x.aa": "class X {}\n"})
     write(tmp_path, "src/aa.aa", "class Aa {}\n")
     server = build_server(config_for(tmp_path))
-    call(server, BUILD, {"full": True, "detail_level": "standard"})
+    call(
+        server,
+        BUILD,
+        {"full": True, "allow_full_rebuild": True, "detail_level": "standard"},
+    )
 
     missed = call(server, CALLERS, {"qname": "src/Missing.aa::Thing"})
     assert missed["reason"] == REASON_NO_SUCH_SYMBOL

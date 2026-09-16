@@ -34,7 +34,11 @@ def test_incremental_tool_payload_cannot_be_read_as_graph_size(tmp_path: Path) -
     config = config_for(tmp_path)
     server = build_server(config)
 
-    full = call(server, BUILD, {"full": True, "detail_level": "standard"})
+    full = call(
+        server,
+        BUILD,
+        {"full": True, "allow_full_rebuild": True, "detail_level": "standard"},
+    )
     assert full["mode"] == "full"
     assert set(full["wrote"]) >= _REPORT_KEYS
     assert set(full["graph"]) >= _GRAPH_KEYS
@@ -67,7 +71,11 @@ def test_minimal_omits_graph_and_keeps_wrote_nesting(tmp_path: Path) -> None:
     config = config_for(tmp_path)
     server = build_server(config)
 
-    minimal = call(server, BUILD, {"full": True, "detail_level": "minimal"})
+    minimal = call(
+        server,
+        BUILD,
+        {"full": True, "allow_full_rebuild": True, "detail_level": "minimal"},
+    )
 
     assert "wrote" in minimal
     assert "graph" not in minimal

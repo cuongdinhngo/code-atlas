@@ -156,7 +156,7 @@ def test_rules_bookmark_does_not_inflate_source_file_counts(tmp_path: Path) -> N
 
     server = build_server(config)
     status = call(server, STATUS, {})
-    built = call(server, BUILD, {"full": True})
+    built = call(server, BUILD, {"full": True, "allow_full_rebuild": True})
     assert status["files"] == built["wrote"]["files"] == report.files
     assert status["parsed"] == built["wrote"]["parsed"] == report.parsed
 

@@ -278,6 +278,13 @@ def full_build(
 CONTRACT_REBUILD_REQUIRED = "contract_rebuild_required"
 FULL_REBUILD_ROUTE = "code-atlas-build --full"
 IN_BAND_FULL_REBUILD = "allow_full_rebuild=true"
+# Explicit full over MCP on an existing index — refuse rather than outlive the client (291).
+FULL_REBUILD_USE_SHELL = "full_rebuild_use_shell"
+FULL_REBUILD_USE_SHELL_HINT = (
+    "a full rebuild over MCP can outlive the client; the server keeps going after a timeout. "
+    "Use `code-atlas-build --full`, watch with `code-atlas-build --status`, and check "
+    "`last_commit` on get_index_status when it finishes"
+)
 
 
 COVERAGE_LOSS = "coverage_loss"
