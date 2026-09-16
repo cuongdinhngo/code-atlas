@@ -4,9 +4,13 @@ The id names the code the **process loaded**, not the checkout it sits in (164).
 the ``code_atlas`` tree is frozen at import (``_LOADED_BUILD_ID`` ≈ what was loaded); when the disk
 still matches it we report the git commit as identity (byte-identical to a plain checkout), and when
 the disk has moved under a running server we report the loaded id plus ``stale_process`` and the
-repo HEAD as context. So a retro can never quote a commit that did not answer (R4.2 — no timestamps,
-identical artifact → identical id). The orthogonal ``+dirty`` axis still marks a worktree that
-differs from its commit.
+checkout HEAD as context (``server_repo_head`` — the worktree tip, never the running process). So a
+retro can never quote a commit that did not answer (R4.2 — no timestamps, identical artifact →
+identical id). The orthogonal ``+dirty`` axis still marks a worktree that differs from its commit.
+
+When the process is stale, the payload also says whether the drift is answer-affecting (284):
+``server_stale_impact`` compares the frozen tool-contract surface to disk, and ``server_build_kind``
+marks a content-hash ``server_build`` as not-a-commit so a reader does not ``git log`` it.
 """
 
 from __future__ import annotations
@@ -25,6 +29,10 @@ UNKNOWN_VERSION = "unknown"
 # Action a reader (including an autonomous agent) can take — never interactive `/mcp` (267).
 SERVER_STALE_ACTION = "restart_mcp_server_process"
 SERVER_STALE_DIFFERS = ("code_atlas_package_bytes_on_disk",)
+# Impact verdicts — only on the stale path; matching payloads stay byte-identical (061 / 284).
+STALE_IMPACT_UNCHANGED = "tool_contract_unchanged"
+STALE_IMPACT_CHANGED = "tool_contract_changed"
+BUILD_KIND_CONTENT_HASH = "content_hash"
 _PACKAGE_ROOT = Path(__file__).resolve().parent
 _PACKAGE_NAME = __name__.split(".")[0]
 
@@ -56,15 +64,33 @@ def _git_build_id() -> str | None:
     return f"{build}{DIRTY_SUFFIX}" if gitutil.working_tree_dirty(root) else build
 
 
-def _content_build_id() -> str:
+def _hash_paths(paths: list[Path]) -> str:
     digest = hashlib.sha256()
-    for path in sorted(_PACKAGE_ROOT.rglob("*.py")):
+    for path in paths:
         rel = path.relative_to(_PACKAGE_ROOT).as_posix().encode()
         digest.update(rel)
         digest.update(b"\0")
         digest.update(path.read_bytes())
         digest.update(b"\0")
     return digest.hexdigest()[:BUILD_ID_CHARS]
+
+
+def _content_build_id() -> str:
+    return _hash_paths(sorted(_PACKAGE_ROOT.rglob("*.py")))
+
+
+def _tool_surface_paths() -> list[Path]:
+    """Contract vocabulary + build provenance + every tool module (284)."""
+    paths: list[Path] = [_PACKAGE_ROOT / "contract.py", _PACKAGE_ROOT / "build_info.py"]
+    tools = _PACKAGE_ROOT / "tools"
+    if tools.is_dir():
+        paths.extend(sorted(tools.rglob("*.py")))
+    return [p for p in paths if p.is_file()]
+
+
+def _tool_surface_id() -> str:
+    """Content hash of the tool-contract surface — stored evidence for ``server_stale_impact``."""
+    return _hash_paths(_tool_surface_paths())
 
 
 def _capture_loaded_build_id() -> str:
@@ -76,7 +102,15 @@ def _capture_loaded_build_id() -> str:
         return UNKNOWN_VERSION
 
 
+def _capture_loaded_tool_surface_id() -> str:
+    try:
+        return _tool_surface_id()
+    except OSError:
+        return UNKNOWN_VERSION
+
+
 _LOADED_BUILD_ID = _capture_loaded_build_id()
+_LOADED_TOOL_SURFACE_ID = _capture_loaded_tool_surface_id()
 
 # `(mtime_ns, size)` per already-loaded module. The probe's state, never part of any id, so R4.2
 # holds: an identical artifact yields an identical build id on a host whose mtimes differ.
@@ -123,11 +157,21 @@ def _compute_identity() -> dict[str, object]:
         # matching" byte-identical to "never checked" — round 11 §12.c could not tell them apart.
         return {"version": version, "build": build, "stale_process": False}
     commit = gitutil.head_commit(root) if root is not None else None
+    # Impact only when diverged — same gate as the content re-hash (170 / 284 cost constraint).
+    surface_now = _tool_surface_id()
+    impact = (
+        STALE_IMPACT_UNCHANGED
+        if surface_now == _LOADED_TOOL_SURFACE_ID
+        else STALE_IMPACT_CHANGED
+    )
     return {
         "version": version,
         "build": _LOADED_BUILD_ID,
         "stale_process": True,
+        # Checkout HEAD (worktree tip), not the running process — documented at emit site too (284).
         "repo_head": commit[:BUILD_ID_CHARS] if commit else _LOADED_BUILD_ID,
+        "stale_impact": impact,
+        "build_kind": BUILD_KIND_CONTENT_HASH,
     }
 
 
@@ -156,12 +200,13 @@ def reset_identity_cache() -> None:
 
 
 def server_provenance() -> dict[str, object]:
-    """The ``server_*`` payload fields — one spelling for every tool (125 / 162 / 164).
+    """The ``server_*`` payload fields — one spelling for every tool (125 / 162 / 164 / 284).
 
     Cheap after warm-up: the identity is memoised per on-disk fingerprint, so a payload pays one
     stat per loaded module and touches git only when the disk actually moved (170). A process that
     matches its disk carries ``server_stale_process: false`` — the verdict, so silence cannot be
-    mistaken for a clean answer; a stale one flips it and adds ``server_repo_head``.
+    mistaken for a clean answer; a stale one flips it and adds ``server_repo_head`` (the
+    **checkout's** HEAD, not the process), ``server_stale_impact``, and ``server_build_kind``.
     """
     ident = server_identity()
     prov: dict[str, object] = {
@@ -170,10 +215,14 @@ def server_provenance() -> dict[str, object]:
         "server_stale_process": bool(ident.get("stale_process")),
     }
     if ident.get("stale_process"):
+        # Checkout HEAD — worktree tip under the process, never "which code answered".
         prov["server_repo_head"] = ident["repo_head"]
         # Name a restart action + what differs — a warning without either is noise (267).
         prov["server_stale_action"] = SERVER_STALE_ACTION
         prov["server_stale_differs"] = list(SERVER_STALE_DIFFERS)
+        prov["server_stale_impact"] = ident["stale_impact"]
+        # Content-hash build: not a git object — do not `git log` it (284).
+        prov["server_build_kind"] = ident["build_kind"]
     return prov
 
 
@@ -186,9 +235,12 @@ def maybe_server_provenance(detail_level: str) -> dict[str, object]:
 
 __all__ = [
     "BUILD_ID_CHARS",
+    "BUILD_KIND_CONTENT_HASH",
     "DIRTY_SUFFIX",
     "SERVER_STALE_ACTION",
     "SERVER_STALE_DIFFERS",
+    "STALE_IMPACT_CHANGED",
+    "STALE_IMPACT_UNCHANGED",
     "UNKNOWN_VERSION",
     "maybe_server_provenance",
     "reset_identity_cache",

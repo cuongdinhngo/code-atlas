@@ -249,6 +249,11 @@ def test_stale_process_when_loaded_differs_from_disk(
     assert prov["server_repo_head"] == "abcdef1"
     assert prov["server_stale_action"] == build_info.SERVER_STALE_ACTION
     assert prov["server_stale_differs"] == list(build_info.SERVER_STALE_DIFFERS)
+    assert prov["server_stale_impact"] in (
+        build_info.STALE_IMPACT_UNCHANGED,
+        build_info.STALE_IMPACT_CHANGED,
+    )
+    assert prov["server_build_kind"] == build_info.BUILD_KIND_CONTENT_HASH
 
 
 def test_matching_process_carries_the_verdict_and_no_divergence_context(

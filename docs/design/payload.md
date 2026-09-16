@@ -116,12 +116,17 @@ graph. They are linked now, and `find_references` on a module's `File` qname lis
 
 ### Which code answered, and which config (tasks 170, 175)
 
-`server_build` names the commit the running process imported. `server_stale_process` makes that
-verdict **live**: it fires when a loaded module's own content has moved on, so a build swapped under
-a long-lived server is reportable rather than invisible. When it fires it also names the action and
-the axis — `server_stale_action: restart_mcp_server_process` and `server_stale_differs` — because a
-warning an autonomous caller cannot act on is noise, and the interactive `/mcp` reconnect it used to
-imply is not a step an agent can take (267).
+`server_build` names the commit the running process imported when the disk still matches; on a
+stale process it is the loaded content hash and rides `server_build_kind: content_hash` so a reader
+does not treat it as a git object (284). `server_stale_process` makes that verdict **live**: it
+fires when a loaded module's own content has moved on, so a build swapped under a long-lived server
+is reportable rather than invisible. When it fires it also names the action and the axis —
+`server_stale_action: restart_mcp_server_process` and `server_stale_differs` — because a warning an
+autonomous caller cannot act on is noise, and the interactive `/mcp` reconnect it used to imply is
+not a step an agent can take (267). `server_stale_impact` then says whether the tool-contract
+surface moved with the disk (`tool_contract_unchanged` / `tool_contract_changed`), and
+`server_repo_head` is the checkout's HEAD — context for the worktree tip, never "which code
+answered".
 
 Config is stamped the same way, because config decides what the index even contains — the field
 episode edited `.code-atlas.toml` to add an adapter, built, and got a cheerful `wrote.files: 0`
