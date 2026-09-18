@@ -1,11 +1,11 @@
 ---
 id: 200
 slug: the-recognition-map-is-a-prompt-no-agent-can-read
-title: 'The recognition map is an operator prompt no model can read, and the one channel a model does see is wired for one agent and one language'
+title: 'AC5 is the remaining recognition measurement — score today''s channels (24-tool surface + consumer brief), not the 2026-08 skill-shaped gap'
 phase: 1.5b
 milestone: Adoption
 status: blocked
-depends_on: [081, 097, 036, 099, 260]
+depends_on: [081, 097, 036, 099, 260, 266, 268]
 ---
 
 ## Why this exists
@@ -27,43 +27,48 @@ session that never triggers it, and is read by any agent supporting the format. 
 file; the host decides. That is the same posture the hooks already take — *"code-atlas does not wire
 itself into anyone's editor"* (`TOOLS.md`, 036/099) — and this ticket does not change it.
 
-**The second defect is rot in the one channel that does reach a model.**
-`contrib/claude-code/settings.snippet.json` filters on `"if": "Edit(*.php)|Write(*.php)"`. That was
-right at [036](036_edit-index-hook.md), when PHP was the only adapter. Adapter #2 (TS/JS, 019) and
-adapter #3 (T-SQL, 184 + 022) have landed since, and `adapter.shipped_adapters()` now returns three
-directories: **a TypeScript edit drifts the index and nothing pokes it.** The same file is also the
-only snippet in `contrib/` — a Codex or OpenCode user is offered nothing, though both have a
-documented session-hook surface.
+**The second defect (historical — shipped).** The poke snippet was frozen on `*.php` at 036. Adapter
+#2 and #3 had landed; a TypeScript edit drifted the index and nothing poked it. Codex/OpenCode had
+no snippet. AC2/AC3 closed that.
 
-Neither defect is a payload defect, so none of the Agent-trust work reaches either. Both are
-**recognition** defects — and recognition is the one thing this repo already knows how to measure:
-[097](097_recognition-probe-measures-names-not-recall.md) taught the blind probe to separate a
-name-only answer from a description-backed one, so it can score whether any of this moved anything.
+**ACs 1–4 and 6 shipped** (generated `contrib/skill/SKILL.md`, poke snippet covers every shipped
+adapter, Codex/OpenCode offers, `code_atlas/` untouched). **AC5 did not:** no blind probe round was
+recorded. This ticket stays `blocked` on that measurement alone.
+
+What the remaining run must evaluate is **the product as of 2026-09**, not the gap this ticket
+opened with:
+
+- Tool descriptions on the **default 24-tool** surface ([268](268_twenty-four-descriptions-are-a-tax-paid-before-the-first-question.md)
+  six-tool preset is opt-in — if used, it is a second arm, not a substitute).
+- The five-occasion brief in the **indexed repo's** `AGENTS.md`
+  ([266](266_the-artifact-that-would-make-an-agent-ask-is-in-our-repo-not-theirs.md) / [270](270_the-brief-is-announced-nowhere-and-loaded-by-nobody.md))
+  — this is the channel an agent on a consumer repo actually reads. The skill in `contrib/` still
+  requires a hand install; a probe that only installs the skill measures a path most sessions skip.
+- [260](260_the-fit-number-cannot-be-observed-only-benchmarked.md) `fit_counts` **accrues during the
+  round**; it does not replace a blind probe (one-armed, not before/after).
+
+Field rounds 16–30 (after the skill shipped) show the miss is often **wrong occasion**, not unknown
+name: `find_callers` is used, then skipped on the method whose *return contract* changed. The brief's
+first occasion is still "Before renaming a symbol". The probe's occasion set must be able to fail
+that way.
 
 ## Scope
 
-1. A generated `SKILL.md` — the `which_tool` map plus the tool table — emitted from the **same
-   source those already come from**, so the skill cannot describe a surface the server does not
-   serve. Drift guarded by a test, in the shape `test_documented_tool_count.py` already uses.
-2. The Claude Code poke snippet covers **every shipped adapter**, not a filter frozen at 036.
-   `adapter.shipped_adapters()` is the static list and `adapter.py`'s handshake is the suffix
-   source; the snippet is checked against one of them, never re-typed beside them.
-3. Session-hook snippets for **Codex** (`hooks.json`, `[features].hooks = true`) and **OpenCode**
-   (managed plugin) beside the Claude Code one, carrying the same `code-atlas-poke` /
-   `code-atlas-signal` commands. Snippets and a README — offered, never installed.
-4. A blind recognition-probe round before and after.
+1. ~~Generated `SKILL.md` from `which_tool`, drift-guarded.~~ **Shipped.**
+2. ~~Poke snippet covers every `shipped_adapters()` suffix.~~ **Shipped.**
+3. ~~Codex and OpenCode hook snippets, offered never installed.~~ **Shipped.**
+4. **Open — AC5.** A blind recognition-probe round on the **current** channels, per
+   [`runbooks/tool-recognition-probe.md`](../runbooks/tool-recognition-probe.md). There is no honest
+   paired "before" of the skill on this tree (it already shipped). Score **after vs the last recorded
+   baseline** (round 5: name-inclusive 14/14 with descriptions unloaded; 081 `NOT OBSERVED` when
+   `D = 0`) **and** the occasion-fit set in that runbook. A flat round is a result, not a failed run.
 
 ### Explicitly not in scope
 
-- **An installer, a `setup` command, or anything that writes to a user's agent settings.** 036 and
-  099 both settled this and `TOOLS.md` states it. The external principle this ticket borrows asks
-  for a setup command; this repo's answer is stricter and stays stricter.
-- **Rewriting tool descriptions.** That is 069's surface and routing lives there. The skill carries
-  the map, not a second set of descriptions that can disagree with the first.
-- **Output format.** TOON, exit codes and a shell surface are a separate question with a separate
-  gate; nothing here changes a payload byte.
-- **Publishing the skill anywhere.** Generating and committing it is this ticket; distribution is a
-  maintainer decision taken after the probe reports.
+- Re-implementing AC1–4, rewriting tool descriptions (069), a 25th tool, publishing the skill, or
+  writing editor settings (036/099).
+- Treating `fit_counts` as AC5. 260 makes the probe cheaper to tally; it is not blind and not
+  two-armed.
 
 ## Constraints
 
@@ -87,12 +92,12 @@ name-only answer from a description-backed one, so it can score whether any of t
 3. Codex and OpenCode snippets exist, each naming the file it belongs in, each installable by hand
    from the README, and no code-atlas command writes to any of them.
 4. `code_atlas/` is byte-unchanged; R4.1's grep-gate is still green.
-5. A blind probe round is recorded **before and after**, per
-   [`runbooks/tool-recognition-probe.md`](../runbooks/tool-recognition-probe.md) and 097's
-   name-only / description-backed split. **A round that does not move is a result, not a failed run
-   to be repeated** — if the skill changes no score, this ticket says so in writing and the skill is
-   reconsidered rather than kept for its own sake.
-6. Nothing in `contrib/` claims a language this repo cannot index.
+5. A blind probe round is recorded per
+   [`runbooks/tool-recognition-probe.md`](../runbooks/tool-recognition-probe.md) (097 two-rate split
+   **and** the occasion-fit set). Record `K / 24`, consumer-brief present/absent, skill
+   installed/not, `CA_TOOLS` default vs FIELD18. **A round that does not move vs round 5 is a
+   result**, not a failed run — write it down; do not keep the skill or the brief "for its own sake".
+6. Nothing in `contrib/` claims a language this repo cannot index. **Shipped.**
 
 ## References
 
@@ -101,12 +106,23 @@ surface), [097](097_recognition-probe-measures-names-not-recall.md) (the probe t
 [036](036_edit-index-hook.md) (the snippet, and the never-installed stance),
 [099](099_write-time-signal-seam.md) (the read-time signal, and the field evidence that the
 decisions that most needed code-atlas wanted one line and no tool call),
-[159](159_get-index-status-does-not-name-available-but-unconfigured-adapters.md) (the Adoption
-theme, and `adapter.shipped_adapters()`).
+[266](266_the-artifact-that-would-make-an-agent-ask-is-in-our-repo-not-theirs.md) (consumer brief —
+the channel AC5 must score), [268](268_twenty-four-descriptions-are-a-tax-paid-before-the-first-question.md)
+(default 24; six-tool is a second arm), [260](260_the-fit-number-cannot-be-observed-only-benchmarked.md)
+(tally, not a substitute).
 External: principle 7 of the AXI skill, [kunchenguid/axi](https://github.com/kunchenguid/axi) — the
 source of the skill-plus-hook shape, taken here without its installer.
 
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+## Session status — protocol refresh 2026-09-18
+- **Still `blocked` on AC5.** ACs 1–4 and 6 remain shipped. PR #243 merged; the "merge then probe"
+  next-action is stale. The remaining run uses the **2026-09 probe** (24-Q surface + occasion-fit,
+  consumer brief recorded) — there is no paired pre-skill "before" left on this tree.
+- **2026-09-13 — `depends_on` includes [260](260_the-fit-number-cannot-be-observed-only-benchmarked.md).**
+  260 does **not** satisfy AC5. **2026-09-18 — also [266](266_the-artifact-that-would-make-an-agent-ask-is-in-our-repo-not-theirs.md)
+  and [268](268_twenty-four-descriptions-are-a-tax-paid-before-the-first-question.md)** so the probe
+  scores the channels that actually reach a consumer agent.
 
 ## Session status
 

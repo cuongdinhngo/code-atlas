@@ -1,13 +1,32 @@
 # 074 — Does the index harm mechanism (control-flow) questions? — pre-registered protocol
 
-**Status:** **CLOSED 2026-08-27 — run attempted, aborted, no verdict.** The pre-registration below is
-left verbatim, including the key it falsified; the run record is at the bottom. **Ticket:**
+**Status:** **protocol refreshed 2026-09-18 — still no verdict.** The 2026-08-27 abort (below) stands.
+A new run must measure the **post-265 product** (this file's "Product under test"). Pre-registered
+consequences are unchanged. **Ticket:**
 [`../tasks/074_does-the-index-harm-mechanism-questions.md`](../tasks/074_does-the-index-harm-mechanism-questions.md).
 
 This file is committed **before any run** so the result cannot be argued after the fact. It measures
 **agent behaviour**, not server determinism — a granted-vs-denied difference here is not an R4 defect
 (say so in the write-up). Nothing repo-identifying from the anchor repo enters this file: question
 *shape*, verdicts, and aggregate counts only.
+
+## Product under test (2026-09-18)
+
+The August payload is gone. A cell that does not record the following is not comparable to this
+ticket:
+
+| Must be true / recorded | Why |
+|---|---|
+| Tool **schemas** loaded (not deferred names). 0 index calls ⇒ cell is `void` | 2026-08-27 abort: 0/68 |
+| `get_index_status`: `staleness: current`, `dirty_indexed_files: 0`; copy `server_build` | answers must be this binary |
+| Default **24-tool** surface (`CA_TOOLS` unset). Six-tool preset is opt-in — if used, say so | [268](../tasks/268_twenty-four-descriptions-are-a-tax-paid-before-the-first-question.md) |
+| Indexed-repo five-occasion brief **present or absent** (266). Experimenter still does not hint | the brief is product, not coaching |
+| Ground-truth cause **probed dynamically**, not asserted as absence | the aborted key was falsified |
+
+Shipped since the abort that can change a mechanism cell (do not assume 067 still dominates):
+tier-first inbound pages (265), honesty empty-inbound (264), `production_count` / `exclude_tests`
+(262), test-only partition not `ok` (272), `behind_refuses` (274), Table `WRITES` via
+`find_references` (278).
 
 ## The question
 
@@ -21,7 +40,7 @@ before any session runs.
 
 | Arm | Configuration |
 |---|---|
-| **granted** | code-atlas MCP server registered and reachable (the indexed arm's config, server allowed). |
+| **granted** | code-atlas MCP server registered, **schemas callable**, index current — today's install (see Product under test). |
 | **denied**  | native tools only — code-atlas absent (server not registered, or `CA_TOOLS=""`). |
 
 No resident-LSP arm: it scored 0 invocations in 84 calls in the original run — there is no
@@ -29,11 +48,12 @@ answer-quality comparison to be had.
 
 ## Protocol (R1)
 
-1. Write the ground-truth cause by hand (one paragraph), before running. Freeze it.
+1. Write the ground-truth cause by hand (one paragraph), before running. Freeze it. If the key
+   asserts *absence*, probe it dynamically (runtime / live path), not only by reading guards.
 2. For **each arm**, run **n ≥ 3** cells. Each cell is a **fresh headless session**, **identical
-   prompt**, **no coaching**, no reuse of a prior session's context.
+   prompt**, **no experimenter coaching**, no reuse of a prior session's context.
 3. Keep the index fresh for the granted arm exactly as a normal session would (build once before
-   dispatch; do not hand-feed tool calls).
+   dispatch; do not hand-feed tool calls). Prove schemas are loaded before the first granted cell.
 4. Record per cell: the answer's **stated cause**, the **verdict** (rubric below), token count
    (secondary), and — for every wrong/partial **granted** cell — the **mechanism capture** below.
 5. Extend to a **second** mechanism-shaped question **only if the first replicates** (R5). One
@@ -58,9 +78,18 @@ For each such cell, record:
 - **Preceding tool call:** the code-atlas call that immediately preceded the wrong turn (tool + the
   answer's shape, not repo-identifying content).
 - **Payload classification (pick one):**
-  - `correct-but-unrepresentative` — the 067 shape: a correct but partial answer (e.g. page 1 =
-    100 % of one subtree) that terminated the reasoning which would have reached the truth.
-  - `confidently-empty` — the 065 shape: an empty/`no_matches` answer read as proof of absence.
+  - `correct-but-unrepresentative` — the 067 shape: a correct but partial page that terminated the
+    reasoning which would have reached the truth. *Less likely after 265; still legal.*
+  - `confidently-empty` — the 065 shape: empty / `no_matches` / `ok` with `production_count: 0`
+    read as proof of absence.
+  - `false-zero-ok` — `reason: ok`, some callers (often tests), live production callers dropped
+    (untyped dispatch). Field 20.
+  - `wrong-chain` — resolved callers of a *related* path; the cause lives on an unmodelled path
+    (e.g. SQL proc/trigger while PHP `generate` looked perfect).
+  - `correct-code-wrong-inference` — the index proved the code is fine; the agent inferred the
+    wrong non-code cause (seed, data, "must be the other region").
+  - `dispatch-mismatch` — `read_symbol` (or callers) of a symbol that is not what the URL/runtime
+    actually runs (legacy twin, include order).
   - `ignored` — the payload was correct and the agent did not use it.
   - `other` — describe.
 - Or, explicitly: **"mechanism not identified"** — a verdict without a mechanism is not actionable,

@@ -5,7 +5,7 @@ title: 'The one repeated benchmark cell says the index may make control-flow ans
 phase: 1.5b
 milestone: Measure
 status: deferred
-depends_on: [055, 067, 045]
+depends_on: [055, 067, 045, 265, 266]
 ---
 
 ## Goal
@@ -16,6 +16,11 @@ threat to validity and left unresolved at n = 1. It is the only datapoint in the
 index does not merely fail to pay for itself but **actively costs accuracy**, and it sits on the
 question type the replacement claim is supposed to serve. Resolve it, and be willing to act on a bad
 answer.
+
+**This ticket measures the product as of 2026-09, not 2026-08.** [265](265_the-default-page-order-is-the-alphabet.md)
+deferred the remeasure until tier-first shipped; that, the honesty table, and the consumer brief are
+now in the binary. A run against the August payload cannot close this ticket. Protocol:
+[`benchmarks/074_mechanism-question.md`](../benchmarks/074_mechanism-question.md).
 
 ## Why this is not just noise
 A mechanism is available, and it is already documented from a different field session.
@@ -37,14 +42,21 @@ being denied the tool made the answer **better**, which low adoption cannot prod
 
 ## Scope / Deliverables
 - **Re-run the mechanism question at n ≥ 3 per arm**, two arms only: server **granted** vs server
-  **denied**, identical prompt, identical fresh headless session per cell, no coaching. Ground truth
-  established by hand before the runs, as in the original protocol.
+  **denied**, identical prompt, identical fresh headless session per cell, no experimenter coaching.
+  Ground truth established by hand *and probed dynamically* before the runs (the 2026-08-27 key that
+  asserted absence was falsified by its first cell).
+- **Granted arm is today's install**, not the August surface. Before a cell counts: tool schemas are
+  loaded (a granted cell with 0 index calls is `void` — the abort's finding); `get_index_status`
+  shows `staleness: current`; record `server_build`, `contract_version`, and whether the indexed
+  repo's five-occasion `AGENTS.md` brief ([266](266_the-artifact-that-would-make-an-agent-ask-is-in-our-repo-not-theirs.md))
+  is present. Default surface is 24 tools ([268](268_twenty-four-descriptions-are-a-tax-paid-before-the-first-question.md)
+  preset stays opt-in). The shipped brief is product, not coaching.
 - **Score cause-correctness, not tokens.** Tokens are secondary here and must not decide the verdict —
   055 already established that the cost metric cannot see the worst failures.
 - **Record the mechanism when the granted arm is wrong.** For each wrong answer, capture *which tool
-  call preceded the wrong turn* and whether the payload was correct-but-unrepresentative (the 067
-  shape), confidently empty (the [065](065_empty-answer-cannot-explain-itself.md) shape), or simply
-  ignored. A verdict without a mechanism is not actionable.
+  call preceded the wrong turn* and classify the payload (see protocol — 067 and 065 are two classes,
+  not the set). A verdict without a mechanism is not actionable. Do **not** assume 067 is still the
+  dominant class: 265 changed default page order.
 - **Pre-register what each outcome causes**, before running, so the result cannot be argued after the
   fact:
   - *granted ≈ denied* → the original cell was session variance; delete the threat from §19 and stop
@@ -82,6 +94,7 @@ being denied the tool made the answer **better**, which low adoption cannot prod
 |---|---|---|---|
 | Field retro 4 (2026-08-10) | review + orchestration, ~3 h | **2 of 6** — every control-flow and mechanism shape absent | No datapoint. A lead about *applicability*, not harm |
 | Field retro 5 (2026-08-14) | legacy→unified **port**, ~5 h | **3 of 6** — first round to satisfy the "prefer a session with mechanism questions" rule | **n = 1: helped, narrowly** — *downgraded from "decisively" the same day; see the retraction below* |
+| Field 16–30 (2026-09-14…18) | ship / decide on a PHP+SQL monolith, post-265 payload | New classes, still not n≥3: `wrong-chain`, `correct-code-wrong-inference`, `dispatch-mismatch`, `false-zero-ok` (protocol table). Honesty of zeros improved; mechanism harm did not go away | **Hypothesis, not a substitute run.** Capture classes exist so a 2026-09 cell can name them |
 
 **Retraction, from the round-5 interview (§6.5), applied here because this ticket's whole value is
 that its cells are honest.** The retro claimed the graph prevented a latent fatal: a ported method had
@@ -110,16 +123,23 @@ remaining arm of this benchmark should carry the same interview tail, and the pa
 spots).
 
 ## References
-`docs/PLAN.md` §19 — *Founding-premise benchmark (2026-08-08)*, the "Threats, recorded rather than
-hidden" paragraph (the repeat and its opposite verdicts) and the 22/117 adoption figure. Related:
-[055](055_recall-benchmark.md) (why the cost metric cannot see this),
-[067](067_first-page-not-representative.md) (an independent instance of correct-but-harmful),
-[065](065_empty-answer-cannot-explain-itself.md) (confident emptiness as a candidate mechanism),
-[045](045_tokens-to-answer-local-repo.md) (the local-tier harness).
+`docs/PLAN.md` §19 — *Founding-premise benchmark (2026-08-08)* threat paragraph; 265's remeasure-after
+lock. Related: [055](055_recall-benchmark.md), [067](067_first-page-not-representative.md),
+[065](065_empty-answer-cannot-explain-itself.md), [045](045_tokens-to-answer-local-repo.md),
+[265](265_the-default-page-order-is-the-alphabet.md),
+[266](266_the-artifact-that-would-make-an-agent-ask-is-in-our-repo-not-theirs.md),
+[`benchmarks/074_mechanism-question.md`](../benchmarks/074_mechanism-question.md).
 
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
 
 # Working doc — 074
+
+## Session status — protocol refresh 2026-09-18
+- **Status stays `deferred`.** This is not a resumption of the 2026-08-27 abort and invents no
+  verdict. The raw ticket + benchmark protocol now name the **post-265 product** as the thing under
+  test (callable schemas, tier-first pages, 266 brief recorded, expanded payload classes).
+- ACs AC1-back / AC2 / AC3 / AC4 still need the maintainer's n≥3 run. Re-open = that run, not more
+  ticket prose.
 
 ## Session status
 - **Phase:** 1 analysis — complete; **STOPPED at Gate 1**, awaiting approval.

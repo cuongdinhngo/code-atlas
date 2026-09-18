@@ -5,10 +5,13 @@ title: '`importlib.import_module` and `__import__` are the stdlib way a Python c
 phase: 1.5b
 milestone: Agent-trust
 status: todo
-depends_on: [279, 020, 255]
+depends_on: [279, 020, 255, 299]
 ---
 
 ## Why this exists (cross-adapter audit of the 272-292 window, 2026-09-16)
+
+**Blocked on [299](299_a-confident-hit-list-does-not-say-the-index-never-saw-this-extension.md).**
+This stamp cannot see an extension the adapter never parsed. Run 299 first.
 
 Same gap as [294](294_a-typescript-repo-that-imports-at-runtime-answers-unreachable-and-means-unmeasured.md),
 different language standard. 279 shipped the core mechanism language-agnostically — the per-language

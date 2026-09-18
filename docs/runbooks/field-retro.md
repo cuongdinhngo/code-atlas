@@ -32,13 +32,16 @@ Run [`tool-recognition-probe.md`](tool-recognition-probe.md) **before** the agen
 
 Record, or the §0.5 score is void:
 
-- **Resident descriptions:** `K / 14` tool schemas in context at scoring time.
+- **Resident descriptions:** `K / 24` tool schemas in context at scoring time.
 - **Per answer:** the first tool named, and `name-only` | `description-backed`.
-- **Two rates:** name-inclusive (`recognised / 14`, labelled) and description-backed
+- **Two rates:** name-inclusive (`recognised / 24`, labelled) and description-backed
   (`recognised among description-backed / D`, `D` = answers marked description-backed). The second
   is the 081 proxy; `D` equals `K` only if no schema loaded mid-probe.
-- If `D = 0`, write `081: NOT OBSERVED`. If `K < 14`, do not treat a name-inclusive 14/14 as
+- If `D = 0`, write `081: NOT OBSERVED`. If `K < 24`, do not treat a name-inclusive 24/24 as
   evidence that descriptions route.
+- **Channels (200):** consumer brief present/absent; skill installed/not; `CA_TOOLS` default or
+  FIELD18. **Occasion-fit** `/ 6` from the probe runbook. A surface hit with an O6 miss is still a
+  result.
 
 Also record the host-repo caveat when it applies: an agent guide that pre-routes tool names
 verbatim is routing priming from outside code-atlas and biases the name-inclusive rate up.

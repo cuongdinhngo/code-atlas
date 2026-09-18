@@ -5,10 +5,13 @@ title: '279 made an unmodelled resolution strategy visible so `find_orphans` can
 phase: 1.5b
 milestone: Agent-trust
 status: todo
-depends_on: [279, 019, 255]
+depends_on: [279, 019, 255, 299]
 ---
 
 ## Why this exists (cross-adapter audit of the 272-292 window, 2026-09-16)
+
+**Blocked on [299](299_a-confident-hit-list-does-not-say-the-index-never-saw-this-extension.md).**
+This stamp cannot see a `.js` the adapter never parsed. Run 299 first.
 
 279's core half is language-agnostic and shipped that way: `File.extra.unmodelled_resolution` is
 unioned per language (`store.py:1252`), stamped into `meta` (`indexer.py:1273`), and read by

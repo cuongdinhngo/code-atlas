@@ -5,10 +5,13 @@ title: 'The T-SQL adapter already holds the set of procedures that execute a str
 phase: 1.5b
 milestone: Agent-trust
 status: todo
-depends_on: [279, 184, 255]
+depends_on: [279, 184, 255, 299]
 ---
 
 ## Why this exists (cross-adapter audit of the 272-292 window, 2026-09-16)
+
+**Blocked on [299](299_a-confident-hit-list-does-not-say-the-index-never-saw-this-extension.md).**
+This stamp cannot see an extension the adapter never parsed. Run 299 first.
 
 Of the three ports in this group this is the cheapest, because the detection already exists.
 `DYNAMIC_PROCS` at `adapters/sql/src/scan.js:255` names `sp_executesql` and its siblings, and the
