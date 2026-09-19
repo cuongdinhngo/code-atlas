@@ -24,6 +24,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
 | 301 | [TypeScript return types do not resolve the next call](tasks/301_typescript-return-types-do-not-resolve-the-next-call.md) | Agent-trust | todo | 153 |
 | 302 | [Python return annotations do not resolve the next call](tasks/302_python-return-annotations-do-not-resolve-the-next-call.md) | Agent-trust | todo | 226, 227 |
+| 311 | [`semantic_types` answers two different questions](tasks/311_semantic-types-means-two-different-things-across-adapters.md) | Agent-trust | todo | 137, 153, 227, 231 |
 
 ## Open work — Pillar 2 · Onboarding
 

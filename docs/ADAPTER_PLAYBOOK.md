@@ -31,6 +31,24 @@ agent can see how the code in front of it is wired, not when its edge-kind censu
 was reopened on 2026-08-25, and carried a 150-157 follow-on scope to close; SQL and Python were filed
 as pairs and needed no reopening.
 
+### 1.1 Depth mechanisms — a PHP improvement is not done until this table says where the other three stand
+
+PHP is the depth standard (README's HEURISTIC `CALLS` table), so each mechanism it grew was ported,
+not copied — same shape, own parser (R1.1/R2). Deepening work starts here, and lands by updating the
+row it closed. `n/a` is a measurement: the language has no such construct.
+
+| mechanism | php | typescript | python | sql |
+|---|---|---|---|---|
+| local type table — annotations, properties, `new X` | 137 | 153 | 227 | n/a |
+| lexical receiver (`$this`/`self` · `this` · `self`/`cls`) | 029 | 019 | 020 | n/a |
+| member return type resolves the **next** call (`()` chain) | 137 | [301](tasks/301_typescript-return-types-do-not-resolve-the-next-call.md) | [302](tasks/302_python-return-annotations-do-not-resolve-the-next-call.md) | n/a |
+| inherited method via hierarchy walk | 137 | free | free | n/a |
+| runtime-load stamp (`unmodelled_resolution`) | 279 | 294 | 295 | 296 |
+
+**"free" is the point of the seam:** the hierarchy walk lives in `resolver.py`, so any adapter that
+emits inheritance edges gets it without a line of its own. Before filing a port, check whether the
+mechanism is adapter-side at all — three of the five rows above are, and two are not.
+
 ## 2. The three passes every source adapter converged on
 
 | pass | job | why it cannot merge with the next |
