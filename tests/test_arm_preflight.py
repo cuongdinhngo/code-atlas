@@ -11,6 +11,7 @@ Nothing repo-identifying is involved: these are tool-call sequences, which is al
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -20,6 +21,7 @@ from scripts.arm_preflight import (
     EXIT_VOID,
     classify,
     parse_transcript,
+    probe_argv,
     status_from_transcript,
 )
 
@@ -116,3 +118,14 @@ def test_uncoached_resident_schemas_report_how_the_arm_was_reached() -> None:
     """`REACHABLE with resident schemas` and `REACHABLE via ToolSearch` are different findings."""
     _, verdict = classify([ATLAS, "Read"], "granted", coached=False)
     assert "with resident schemas" in verdict
+
+
+def test_append_system_prompt_is_opt_in_and_leaves_default_uncoached_argv_alone() -> None:
+    """Harness contrast must not rewrite the default reachability probe into a coached one."""
+    cfg = Path("granted.json")
+    plain = probe_argv(cfg, model=None, uncoached=True)
+    assert "--append-system-prompt" not in plain
+    with_brief = probe_argv(cfg, model=None, uncoached=True, append_system_prompt="brief body")
+    assert with_brief[with_brief.index("--append-system-prompt") + 1] == "brief body"
+    # Same REACH_PROMPT either way — the flag adds context, it does not rename the tool.
+    assert plain[2] == with_brief[2]

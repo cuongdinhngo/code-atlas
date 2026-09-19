@@ -256,10 +256,11 @@ line. Read the direction before acting:
 so following the message is safe — but a session that reads "mismatch" as "corrupt" and falls back to
 `grep` pays the whole trial for a client restart.
 
-### Optional: agent brief (266 / 270)
+### Optional: agent brief (266 / 270 / 300)
 
-Offer the five-occasion brief into the indexed repo's `AGENTS.md` (when to ask the graph — not the
-24-tool roster):
+Offer the occasions brief into the indexed repo's `AGENTS.md` (when to ask the graph — not the
+24-tool roster). 300 added a sixth occasion for request-routing questions (`trace_capability`);
+without it, uncoached navigation stays on `Grep`/`Read` even when all tools are registered:
 
 ```bash
 python /abs/path/to/code-atlas/scripts/setup.py /abs/path/to/target-repo --write-agent-brief

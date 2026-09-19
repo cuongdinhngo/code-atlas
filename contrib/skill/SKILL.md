@@ -34,12 +34,13 @@ disagreement.
 - How does one symbol reach another -> explain_path.
 - What are this codebase's layers, and how do they depend on each other -> architecture_overview.
 - What should I read first, in dependency order -> guided_tour.
+- How does this codebase route an incoming request to the code that produces the response -> trace_capability.
+- What happens when a user does X — one request from entry to the data -> trace_capability.
 - Write committable onboarding docs (overview, tour, per-module, manifest) -> generate_onboarding.
 - Do the declared architecture dependency rules still hold -> check_architecture_rules.
 - What did the agent change about the architecture between two revisions -> diff_architecture.
 - Render a class diagram for one type (plus ancestry) or one file -> class_diagram.
 - Which writers of this table omit a column that has a DEFAULT -> check_column_defaults.
-- What happens when a user does X — one request from entry to the data -> trace_capability.
 
 Call `get_index_status` first whenever you are unsure the index is current.
 

@@ -82,6 +82,10 @@ def register(server: FastMCP) -> None:
             "- What are this codebase's layers, and how do they depend on each other "
             "-> architecture_overview.\n"
             "- What should I read first, in dependency order -> guided_tour.\n"
+            "- How does this codebase route an incoming request to the code that produces "
+            "the response -> trace_capability.\n"
+            "- What happens when a user does X — one request from entry to the data "
+            "-> trace_capability.\n"
             "- Write committable onboarding docs (overview, tour, per-module, manifest) "
             "-> generate_onboarding.\n"
             "- Do the declared architecture dependency rules still hold "
@@ -92,8 +96,6 @@ def register(server: FastMCP) -> None:
             "-> class_diagram.\n"
             "- Which writers of this table omit a column that has a DEFAULT "
             "-> check_column_defaults.\n"
-            "- What happens when a user does X — one request from entry to the data "
-            "-> trace_capability.\n"
             "Then call get_index_status first if unsure the index is current."
         )
 

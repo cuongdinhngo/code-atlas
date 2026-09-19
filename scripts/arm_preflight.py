@@ -186,14 +186,13 @@ def render(
     return code, "\n".join(lines)
 
 
-def run_probe(
+def probe_argv(
     mcp_config: Path,
-    repo: Path,
     model: str | None,
-    save: Path | None,
     uncoached: bool = False,
-) -> tuple[int, str]:
-    """One throwaway session — the cheapest thing that can say whether the arm exists at all."""
+    append_system_prompt: str | None = None,
+) -> list[str]:
+    """Build the `claude -p` argv so harness contrasts stay testable without a live call."""
     argv = [
         "claude", "-p", REACH_PROMPT if uncoached else PROBE_PROMPT,
         "--output-format", "stream-json", "--verbose",
@@ -204,6 +203,22 @@ def run_probe(
     ]
     if model:
         argv += ["--model", model]
+    # Brief-append measures session-context (interactive proxy), never coaches the REACH_PROMPT.
+    if append_system_prompt:
+        argv += ["--append-system-prompt", append_system_prompt]
+    return argv
+
+
+def run_probe(
+    mcp_config: Path,
+    repo: Path,
+    model: str | None,
+    save: Path | None,
+    uncoached: bool = False,
+    append_system_prompt: str | None = None,
+) -> tuple[int, str]:
+    """One throwaway session — the cheapest thing that can say whether the arm exists at all."""
+    argv = probe_argv(mcp_config, model, uncoached, append_system_prompt)
     proc = subprocess.run(argv, cwd=repo, capture_output=True, text=True)
     if save:
         save.write_text(proc.stdout, encoding="utf-8")
@@ -216,6 +231,8 @@ def run_probe(
         coached=not uncoached,
     )
     kind = "reachability probe (uncoached)" if uncoached else "probe"
+    if append_system_prompt:
+        kind += " +append-system-prompt"
     return code, f"{kind} against {mcp_config} in {repo}\n{report}"
 
 
@@ -233,6 +250,15 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="ask an ordinary navigation question instead: does the arm get reached unprompted?",
     )
+    probe.add_argument(
+        "--append-system-prompt-file",
+        type=Path,
+        default=None,
+        help=(
+            "optional session-context file (e.g. the 266 agent-brief) appended via "
+            "claude --append-system-prompt — harness contrast, not coaching"
+        ),
+    )
 
     audit = sub.add_parser("audit", help="apply the arm rules to a counted cell's transcript")
     audit.add_argument("transcript", type=Path)
@@ -240,8 +266,16 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     if args.mode == "probe":
+        brief = None
+        if args.append_system_prompt_file is not None:
+            brief = args.append_system_prompt_file.read_text(encoding="utf-8")
         code, report = run_probe(
-            args.mcp_config, args.repo, args.model, args.save, args.uncoached
+            args.mcp_config,
+            args.repo,
+            args.model,
+            args.save,
+            args.uncoached,
+            append_system_prompt=brief,
         )
     else:
         raw = args.transcript.read_text(encoding="utf-8")

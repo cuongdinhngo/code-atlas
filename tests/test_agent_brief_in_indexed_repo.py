@@ -21,6 +21,8 @@ def test_fixture_repo_gets_five_occasion_brief_from_which_tool(tmp_path: Path) -
     assert "First session on this repo" in text
     assert "A name that exists in two languages" in text
     assert "Writing the PR claim" in text
+    assert "Explaining how a request moves through the system" in text
+    assert "trace_capability" in text
     # Every occasion tool line comes from which_tool / recognition_map.
     map_lines = set(gen_skill.recognition_map())
     for line in text.splitlines():

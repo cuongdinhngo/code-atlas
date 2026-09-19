@@ -208,17 +208,18 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         module: str | None = None,
         detail_level: DetailLevel = "standard",
     ) -> dict[str, object]:
-        """What happens when a user does X — the capability flows one subject takes part in.
+        """How this codebase routes an incoming request — the capability flows one subject is in.
 
-        Answers *"what does this request touch, from the entry point to the data it writes?"* for
-        **one** subject: an entry symbol (``qname``), a file (``path``), or a business module
-        (``module``). Supply exactly one; naming none or several answers
-        ``reason: name_not_qualified``. Each result is one flow — its seed, its ordered ``steps``
-        (``qname`` · ``file`` · ``layer`` · ``kind`` · ``tier``), how it ``ended`` and its ``sink``.
-        A subject the index does not hold answers ``no_such_symbol``; one it holds that joins no
-        traced flow answers ``no_matches`` and routes to ``architecture_overview`` — never an empty
-        ``results`` presented as an answer. Carries no layer table, matrix, hub list or capability
-        table: for the whole picture call ``architecture_overview`` instead.
+        Prefer this over Grep/Glob when the question is *"how does a request reach the code that
+        produces the response?"* or *"what happens when a user does X?"*. Answers for **one**
+        subject: an entry symbol (``qname``), a file (``path``), or a business module (``module``).
+        Supply exactly one; naming none or several answers ``reason: name_not_qualified``. Each
+        result is one flow — its seed, its ordered ``steps`` (``qname`` · ``file`` · ``layer`` ·
+        ``kind`` · ``tier``), how it ``ended`` and its ``sink``. A subject the index does not hold
+        answers ``no_such_symbol``; one it holds that joins no traced flow answers ``no_matches``
+        and routes to ``architecture_overview`` — never an empty ``results`` presented as an answer.
+        Carries no layer table, matrix, hub list or capability table: for the whole picture call
+        ``architecture_overview`` instead.
         """
         chosen = _subject_of(qname, path, module)
         if chosen is None:

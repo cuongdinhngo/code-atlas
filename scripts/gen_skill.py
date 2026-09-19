@@ -196,7 +196,7 @@ GENERATED: dict[Path, Callable[[], str]] = {
     CLAUDE_CODE_SNIPPET_PATH: render_claude_code_snippet,
 }
 
-# Five occasions that earn their keep in the field (266) — tools must appear in which_tool.
+# Occasions that earn their keep in the field (266 + 300) — tools must appear in which_tool.
 # Titles are the occasions; tool names select lines from recognition_map() (R6.7).
 OCCASIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Before renaming a symbol", ("find_references", "find_callers", "impact")),
@@ -207,6 +207,10 @@ OCCASIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
         ("search_symbol", "get_index_status"),
     ),
     ("Writing the PR claim", ("find_callers", "impact", "get_index_status")),
+    (
+        "Explaining how a request moves through the system",
+        ("get_index_status", "trace_capability", "architecture_overview"),
+    ),
 )
 
 BRIEF_BEGIN = "<!-- code-atlas:agent-brief -->"
@@ -234,7 +238,7 @@ def recognition_lines_by_tool() -> dict[str, str]:
 
 
 def render_agent_brief() -> str:
-    """Five-occasion brief selected from the live ``which_tool`` map (task 266)."""
+    """Agent brief selected from the live ``which_tool`` map (tasks 266 / 300)."""
     lines_by_tool = recognition_lines_by_tool()
     missing = [
         tool

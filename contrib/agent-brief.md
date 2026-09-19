@@ -33,6 +33,12 @@ Do not edit by hand — regenerate with
 - What breaks if I change this -> impact.
 - Is the index built/fresh/healthy, what next? -> get_index_status (call first).
 
+### Explaining how a request moves through the system
+
+- Is the index built/fresh/healthy, what next? -> get_index_status (call first).
+- How does this codebase route an incoming request to the code that produces the response -> trace_capability.
+- What are this codebase's layers, and how do they depend on each other -> architecture_overview.
+
 Call `get_index_status` first whenever you are unsure the index is current.
 
 Hook snippets (edit poke / write-time signal) stay **offered** under

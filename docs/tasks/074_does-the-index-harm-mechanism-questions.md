@@ -156,11 +156,13 @@ lock. Related: [055](055_recall-benchmark.md), [067](067_first-page-not-represen
   and a second round then found the sharper fact: an **uncoached** session made 0 index calls while
   the session header listed every code-atlas tool as present and denied nothing. The blocker is
   selection, not delivery. Re-run on the anchor, where the question fits, it was 0 in 25 — n = 3
-  across two repos and two clients, with every tool available every time. **The n≥3 run cannot be
-  bought under this harness**: three granted cells would be three native-tools cells. Recorded in
-  the protocol under *Preflight findings*; the cause hunt and the untested interactive-vs-headless
-  question are [300](300_the-index-is-registered-permitted-and-never-chosen.md), and 074 resumes
-  when 300 lifts the blocker.
+  across two repos and two clients, with every tool available every time. **[300](300_the-index-is-registered-permitted-and-never-chosen.md)
+  named the cause (2026-09-19):** REACH_PROMPT had no matching brief occasion; dilution and
+  description-alone were ruled out; a sixth occasion mapping the routing question →
+  `trace_capability` flips uncoached uptake to REACHABLE **when that brief is in session context**.
+  **074's n≥3 run may resume for cells whose granted arm loads the updated consumer brief** (266
+  `--write-agent-brief` + Claude `@AGENTS.md` load). Bare MCP registration without the brief remains
+  a native-tools cell and stays void under the arm rules.
 - **ACs unchanged and still open:** AC1-back / AC2 / AC3 / AC4 all need the maintainer's n≥3 run.
   What this turn removes is the reason that run could not be trusted, not the run.
 

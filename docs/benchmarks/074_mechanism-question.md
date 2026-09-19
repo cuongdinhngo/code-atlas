@@ -267,7 +267,8 @@ code-atlas calls in 25 tool calls** (4 `Glob`, 10 `Grep`, 11 `Read`), `ToolSearc
 26 turns, $1.73. Header: 52 resident tools of which 24 code-atlas, server `connected`, `ToolSearch`
 resident, `permission_denials: []`. The poor-fit objection round 2 had to carry does not apply here.
 
-**Verdict for this protocol: there is no granted arm to buy, and delivery is not why.**
+**Verdict for this protocol (pre-300): there is no granted arm to buy under bare registration, and
+delivery is not why.**
 
 | Session | Repo | Client | Tool calls | code-atlas calls |
 |---|---|---|---|---|
@@ -275,17 +276,22 @@ resident, `permission_denials: []`. The poor-fit objection round 2 had to carry 
 | 2026-09-19 `--uncoached` | this repo | 2.1.278 | 10 | 0 |
 | 2026-09-19 `--uncoached` | anchor | 2.1.278 | 25 | 0 |
 
-n = 3, two repos, two clients, full availability every time. Buying six cells under this harness
-would buy six native-tools sessions and label three of them an arm — the abort's mistake, repeated
-with a bigger bill. **074 stays blocked**, and the blocker is now a measured fact with an instrument
-attached rather than an inference from one aborted cell.
+n = 3, two repos, two clients, full availability every time. Buying six cells under *bare*
+registration would buy six native-tools sessions and label three of them an arm — the abort's
+mistake, repeated with a bigger bill.
 
-**The boundary this evidence does not cross.** All three are **headless one-shot** sessions, which
-is what this protocol's cells are — so for *the benchmark* the finding is conclusive. For the
-*product* it is not: the August field round reached 22 index calls in 117 (19 %) in an *interactive*
-session. Whether the harness or the surface owns the 19 % → 0 % gap is untested, and that question,
-with the rest of the cause hunt, is [300](../tasks/300_the-index-is-registered-permitted-and-never-chosen.md).
-074 resumes if and when 300 lifts the blocker.
+**300 (2026-09-19) moved the blocker without lifting it.** Its ablation rules out 24-tool dilution,
+brief-presence-alone and description-alone, and with a sixth brief occasion `probe --uncoached`
+reaches the index on both repos (this: 1/14; anchor: 5/21). But every arm asked the one question
+whose sentence the occasion was written from: a held-out mechanism question, same brief and config,
+drew **0 index calls in 11**. **074 does not resume.** A counted cell asks a frozen question the fix
+never saw, which is the held-out case, so a granted cell would still be void — at $5.58. Instrument
+addition: `probe --append-system-prompt-file`. Full tables, both rounds:
+[300](../tasks/300_the-index-is-registered-permitted-and-never-chosen.md).
+
+**The boundary this evidence does not cross.** All cells are **headless one-shot**. The August
+interactive 19 % (22/117) is not a controlled comparison — different questions, different session
+mode — so whether the harness or the surface owns that gap is still open, in 300.
 
 ## Run record — 2026-08-27, aborted after 1 of 6 cells; ticket closed `deferred`
 
