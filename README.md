@@ -314,6 +314,11 @@ so it never has to know where a language's adapter lives.
 asked. `CA_TOOLS=get_index_status,search_symbol,read_symbol,find_callers,find_references,impact` is
 the opt-in six-tool preset that covers the relationship questions; the default stays all 24.
 
+**Routing ships with the server.** Its MCP `instructions` reach the model's system prompt and carry
+this repo's live index state, the question -> tool map, and the load step a client needs when it
+delivers MCP tools as deferred names. Nothing has to be installed in your repo for an agent to learn
+that the index exists.
+
 Files are skipped using built-in patterns (`vendor/ var/ uploads/ log/ node_modules/ .git/
 *.blade.*`), then `.gitignore`, then an optional `.codeatlasignore` — later rules win. The full
 knob table, including the LLM-enrichment switches, is in

@@ -10,6 +10,7 @@ from pathlib import Path
 
 from fastmcp import FastMCP
 
+from code_atlas import instructions
 from code_atlas.config import Config, ConfigError, load_config
 from code_atlas.onboarding.layers import LayerRefiner
 from code_atlas.onboarding.prose import ProseWriter
@@ -102,7 +103,8 @@ def build_server(
     ``code_atlas/`` (``onboarding_llm``).
     """
     names = allowed_tools(config.tools)
-    server: FastMCP = FastMCP(SERVER_NAME)
+    # `instructions` reaches the model's system prompt; tool descriptions alone did not (300).
+    server: FastMCP = FastMCP(SERVER_NAME, instructions=instructions.render(config, names))
 
     def serve(name: str, tool: object) -> None:
         """Register ``tool`` under ``name``, counting every return (task 260)."""

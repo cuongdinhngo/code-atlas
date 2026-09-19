@@ -558,8 +558,11 @@ def test_the_tools_run_off_the_thread_that_built_the_server(
         seen.append(threading.get_ident())
         return original(self)
 
+    # Built before the patch: 300's server instructions read the index once on this thread, and
+    # the rule under test is about the tool call, which must still open its own store.
+    server = build_server(config)
     monkeypatch.setattr(GraphStore, "counts", recording)
-    call(build_server(config), STATUS, {})
+    call(server, STATUS, {})
 
     assert seen and threading.get_ident() not in seen
 

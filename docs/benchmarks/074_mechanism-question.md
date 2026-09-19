@@ -75,6 +75,9 @@ python scripts/arm_preflight.py probe --mcp-config granted.json --repo <anchor> 
 # the one that gates the spend — an ordinary question, no coaching
 python scripts/arm_preflight.py probe --uncoached --mcp-config granted.json --repo <anchor> --save reach.jsonl
 
+# a held-out question — the same uncoached run, in wording the product has not seen (300)
+python scripts/arm_preflight.py probe --question-file q.txt --mcp-config granted.json --repo <anchor>
+
 # after every counted cell, both arms
 python scripts/arm_preflight.py audit cell-N.jsonl --arm granted
 ```
@@ -95,6 +98,13 @@ Run the coached probe first: it is cheap and it separates "cannot be called" fro
 **`--uncoached` is the one that gates the spend**, because a cell is uncoached by definition. A
 coached exit 1 is a fact to record, not by itself a reason to stop — 2026-09-19 found a host where
 coached probes reported deferred delivery while the session header listed every tool as present.
+
+**`--question-file` is `--uncoached` on a question of your choosing**, reporting the question's
+sha256 and never its text, so it stays outside the tree. Use it: REACH_PROMPT's sentence is now a
+`which_tool` line, so passing *it* no longer separates "the brief covers this shape" from "the brief
+contains this string" ([300](../tasks/300_the-index-is-registered-permitted-and-never-chosen.md) holds
+the register). The 074 frozen question is itself a held-out question — point `--question-file` at the
+private notes file and no text enters this repo.
 
 `audit` applies the two arm rules to a counted cell's saved transcript:
 
@@ -280,14 +290,22 @@ n = 3, two repos, two clients, full availability every time. Buying six cells un
 registration would buy six native-tools sessions and label three of them an arm — the abort's
 mistake, repeated with a bigger bill.
 
-**300 (2026-09-19) moved the blocker without lifting it.** Its ablation rules out 24-tool dilution,
-brief-presence-alone and description-alone, and with a sixth brief occasion `probe --uncoached`
-reaches the index on both repos (this: 1/14; anchor: 5/21). But every arm asked the one question
-whose sentence the occasion was written from: a held-out mechanism question, same brief and config,
-drew **0 index calls in 11**. **074 does not resume.** A counted cell asks a frozen question the fix
-never saw, which is the held-out case, so a granted cell would still be void — at $5.58. Instrument
-addition: `probe --append-system-prompt-file`. Full tables, both rounds:
+**300 closed (2026-09-19) with the blocker named, not lifted.** Every code-atlas tool reaches
+Claude Code 2.1.278 as a **deferred name with no schema** — at 24 tools and at the six-tool preset
+alike — while `Grep` is resident, so an index call costs a deliberate step the alternative does not.
+The server now ships MCP `instructions` (index state + the map + that load step), which is the one
+channel 081 missed. Across six held-out cells it deepened use where it had started (anchor H4,
+2 → 12 calls in 43) and started none: H3 and H5 stayed at 0 on the anchor, and all three stayed at 0
+on this 592-file repo. **Uptake tracks whether `Grep` hurts, not what the tools say.** Instrument
+additions: `probe --append-system-prompt-file`, `probe --question-file`. Tables:
 [300](../tasks/300_the-index-is-registered-permitted-and-never-chosen.md).
+
+**So 074 resumes per question, never per repo.** The granted arm exists only where the frozen
+question actually reaches the index. Precondition, before any cell is bought: run
+`probe --question-file` on the frozen question against the anchor **twice**; buy cells only if both
+are exit 0. That is ~$3.50 against $5.58 per cell and it is the whole difference between a granted
+arm and a native-tools session wearing its label. On the current evidence a routing-shaped frozen
+question on a 23k-file tree is the case most likely to clear it.
 
 **The boundary this evidence does not cross.** All cells are **headless one-shot**. The August
 interactive 19 % (22/117) is not a controlled comparison — different questions, different session

@@ -157,12 +157,15 @@ lock. Related: [055](055_recall-benchmark.md), [067](067_first-page-not-represen
   the session header listed every code-atlas tool as present and denied nothing. The blocker is
   selection, not delivery. Re-run on the anchor, where the question fits, it was 0 in 25 — n = 3
   across two repos and two clients, with every tool available every time. **[300](300_the-index-is-registered-permitted-and-never-chosen.md)
-  named the cause (2026-09-19):** REACH_PROMPT had no matching brief occasion; dilution and
-  description-alone were ruled out; a sixth occasion mapping the routing question →
-  `trace_capability` flips uncoached uptake to REACHABLE **when that brief is in session context**.
-  **074's n≥3 run may resume for cells whose granted arm loads the updated consumer brief** (266
-  `--write-agent-brief` + Claude `@AGENTS.md` load). Bare MCP registration without the brief remains
-  a native-tools cell and stays void under the arm rules.
+  closed the cause hunt (2026-09-19):** every code-atlas tool reaches Claude Code 2.1.278 as a
+  **deferred name with no schema**, at 24 tools and at the six-tool preset alike, while `Grep` is
+  resident — so an index call costs a deliberate step the alternative does not. The server now ships
+  MCP `instructions` carrying the index state, the map and that load step; across six held-out cells
+  it deepened use where use had started (anchor, 2 → 12 calls in 43) and started none. Uptake tracks
+  whether `Grep` hurts. **So the arm is per question, not per repo: before buying cells, run
+  `arm_preflight.py probe --question-file` on the frozen question against the anchor twice and
+  proceed only on two exit 0s** (~$3.50 against $5.58 a cell). A question that fails that gate would
+  buy a native-tools session wearing the arm's label.
 - **ACs unchanged and still open:** AC1-back / AC2 / AC3 / AC4 all need the maintainer's n≥3 run.
   What this turn removes is the reason that run could not be trusted, not the run.
 

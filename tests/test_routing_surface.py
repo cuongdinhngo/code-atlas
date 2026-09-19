@@ -8,6 +8,8 @@ descriptions (069). These tests pin the reconciliation:
 - `docs/TOOLS.md` documents every prompt and labels the section operator-facing (the category fix);
 - the ``which_tool`` recognition map stays current with the tool surface;
 - 069's ``capability_not_configured`` branch still fires on an index with no view_data rule.
+
+300 adds the channel 081 did not test: the server's MCP ``instructions``, which do reach the model.
 """
 
 from __future__ import annotations
@@ -40,9 +42,11 @@ def test_the_tool_reference_documents_all_prompts_as_operator_facing() -> None:
         assert f"`{name}`" in surface, f"docs/TOOLS.md does not document prompt {name}"
     assert "Operator prompts" in surface
     assert "human-invoked" in surface
-    # The plan carries the same operator-facing framing (AC3: README *and* the plan).
+    # The plan carries the same operator-facing framing (AC3: README *and* the plan), and since
+    # 300 it also names the channel that is agent-facing: the server's own `instructions`.
     plan = (REPO / "docs" / "PLAN.md").read_text(encoding="utf-8")
-    assert "Operator prompts, not agent routing" in plan
+    assert "Operator prompts are not agent routing" in plan
+    assert "reach the model's system prompt" in plan
 
 
 def _which_tool_text(config_root: Path) -> str:

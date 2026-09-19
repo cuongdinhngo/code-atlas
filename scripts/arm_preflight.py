@@ -11,6 +11,8 @@ Two modes, both cheap:
     python scripts/arm_preflight.py probe --mcp-config granted.json --repo /path/to/anchor
     python scripts/arm_preflight.py audit cell1.jsonl --arm granted
 
+    python scripts/arm_preflight.py probe --question-file q.txt --mcp-config granted.json
+
 `probe` runs one throwaway coached session against the granted config and reports whether a
 code-atlas tool was reachable at all, and whether it took a `ToolSearch` to reach it. It is a
 DELIVERY test, not a cell: the coaching is deliberate and it is never scored. `audit` reads a
@@ -23,6 +25,7 @@ Protocol: `docs/benchmarks/074_mechanism-question.md`.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 from collections import Counter
@@ -50,6 +53,9 @@ REACH_PROMPT = (
     "Name the mechanism and cite file:line for each step. Do not modify anything."
 )
 
+# A held-out question (`--question-file`) is REACH_PROMPT's job asked in wording the product has
+# never seen. Its text stays outside the tree so a later fix cannot be written to it; the repo
+# records only its sha256 (300, held-out register).
 READ_ONLY_TOOLS = ("Read", "Grep", "Glob", "ToolSearch", "mcp__code-atlas")
 
 EXIT_OK = 0
@@ -191,15 +197,17 @@ def probe_argv(
     model: str | None,
     uncoached: bool = False,
     append_system_prompt: str | None = None,
+    question: str | None = None,
 ) -> list[str]:
     """Build the `claude -p` argv so harness contrasts stay testable without a live call."""
+    unprompted = uncoached or question is not None
     argv = [
-        "claude", "-p", REACH_PROMPT if uncoached else PROBE_PROMPT,
+        "claude", "-p", question or (REACH_PROMPT if unprompted else PROBE_PROMPT),
         "--output-format", "stream-json", "--verbose",
         "--mcp-config", str(mcp_config), "--strict-mcp-config",
-        "--allowed-tools", *(READ_ONLY_TOOLS if uncoached else (STATUS_TOOL, TOOL_SEARCH)),
+        "--allowed-tools", *(READ_ONLY_TOOLS if unprompted else (STATUS_TOOL, TOOL_SEARCH)),
         "--disallowed-tools", "Edit", "Write", "Bash",
-        "--max-turns", "30" if uncoached else "6",
+        "--max-turns", "30" if unprompted else "6",
     ]
     if model:
         argv += ["--model", model]
@@ -216,9 +224,10 @@ def run_probe(
     save: Path | None,
     uncoached: bool = False,
     append_system_prompt: str | None = None,
+    question: str | None = None,
 ) -> tuple[int, str]:
     """One throwaway session — the cheapest thing that can say whether the arm exists at all."""
-    argv = probe_argv(mcp_config, model, uncoached, append_system_prompt)
+    argv = probe_argv(mcp_config, model, uncoached, append_system_prompt, question)
     proc = subprocess.run(argv, cwd=repo, capture_output=True, text=True)
     if save:
         save.write_text(proc.stdout, encoding="utf-8")
@@ -228,9 +237,13 @@ def run_probe(
         parse_transcript(proc.stdout),
         "granted",
         status_from_transcript(proc.stdout),
-        coached=not uncoached,
+        coached=not (uncoached or question is not None),
     )
-    kind = "reachability probe (uncoached)" if uncoached else "probe"
+    if question is not None:
+        digest = hashlib.sha256(question.encode("utf-8")).hexdigest()
+        kind = f"held-out question sha256:{digest[:12]} (text outside the tree)"
+    else:
+        kind = "reachability probe (uncoached)" if uncoached else "probe"
     if append_system_prompt:
         kind += " +append-system-prompt"
     return code, f"{kind} against {mcp_config} in {repo}\n{report}"
@@ -251,6 +264,15 @@ def main(argv: list[str] | None = None) -> int:
         help="ask an ordinary navigation question instead: does the arm get reached unprompted?",
     )
     probe.add_argument(
+        "--question-file",
+        type=Path,
+        default=None,
+        help=(
+            "run a held-out mechanism question from this file instead of REACH_PROMPT; "
+            "implies --uncoached and reports the question's sha256, never its text"
+        ),
+    )
+    probe.add_argument(
         "--append-system-prompt-file",
         type=Path,
         default=None,
@@ -269,6 +291,9 @@ def main(argv: list[str] | None = None) -> int:
         brief = None
         if args.append_system_prompt_file is not None:
             brief = args.append_system_prompt_file.read_text(encoding="utf-8")
+        question = None
+        if args.question_file is not None:
+            question = args.question_file.read_text(encoding="utf-8").strip()
         code, report = run_probe(
             args.mcp_config,
             args.repo,
@@ -276,6 +301,7 @@ def main(argv: list[str] | None = None) -> int:
             args.save,
             args.uncoached,
             append_system_prompt=brief,
+            question=question,
         )
     else:
         raw = args.transcript.read_text(encoding="utf-8")

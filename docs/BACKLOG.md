@@ -28,7 +28,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 296 | [The SQL adapter names the dynamic procs and stamps nothing](tasks/296_the-sql-adapter-names-the-dynamic-procs-and-stamps-nothing.md) | Honesty | todo | 279, 184, 255, 299 |
 | 297 | [The member demote is keyed to one kind](tasks/297_the-member-demote-is-keyed-to-one-kind-so-a-class-still-buries-itself.md) | Agent-fit | todo | 292, 265, 245 |
 | 298 | [The SQL adapter answers `false` to a question it never asked](tasks/298_the-sql-adapter-answers-false-to-a-question-it-never-asked.md) | Honesty | todo | 262, 130, 231 |
-| 300 | [The index is registered, permitted and never chosen](tasks/300_the-index-is-registered-permitted-and-never-chosen.md) | Adoption | in-progress | 074, 200, 266, 268 |
 ## Open work — Pillar 2 · Onboarding
 
 The rendering of what the code actually is, for a human supervising an agent or presenting the
@@ -78,6 +77,10 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **Tokens-to-answer measures cost, not information** — 046 moved the ratio 0.02 % while doubling the distinct answers. Wants a second axis before it judges a retrieval change.
 - **Parser-OOM size cap (optional)** — multi-MB generated files exhaust the PHP parser (already soft-failed/restarted in `indexer.py`); a byte-cap pre-skip (`CA_MAX_FILE_BYTES`) would avoid ~30 restart cycles. Log skips; no silent truncation.
 - **258's anchor-scale figures were never taken** — AC1 (the edge-count drop on the anchor index) and AC5 (the query cost of the proximity expansion at that scale) shipped E1 on fixture evidence. The ticket makes the expensive case convert to **build-time ranking**, so that measurement is the decision, not a confirmation — [258](tasks/258_the-graph-stores-the-cartesian-product-of-call-site-and-same-named-symbol.md).
+- **Uptake is gated by the client, not by our text** — every MCP tool reaches Claude Code 2.1.278 as
+  a deferred name needing a `ToolSearch` load, at any surface size, while `Grep` is resident; across
+  six held-out cells the index was chosen only where `Grep` was expensive (anchor H4, 12/43) and
+  never on a 592-file tree. Server `instructions` now carry the load step — [300](tasks/300_the-index-is-registered-permitted-and-never-chosen.md).
 - **Docker images are never built by CI** — `docker/Dockerfile` can rot (`Dockerfile.runtime` is built inside `pytest`). Honest shape: one job building both. Survives the unbillable-Actions arrangement AGENTS.md records, which also means every gate is a human step.
 
 ## Conventions

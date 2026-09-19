@@ -4,7 +4,7 @@ slug: the-index-is-registered-permitted-and-never-chosen
 title: 'The index is registered, permitted and never chosen — 0 tool calls in three uncoached sessions'
 phase: 1.5b
 milestone: Adoption
-status: in-progress
+status: done
 depends_on: [074, 200, 266, 268]
 ---
 
@@ -104,6 +104,83 @@ Scope requires `current` for a counted cell.
 improvements, and pulling them would invalidate the ablation that is worth keeping. What changes is
 the claim made from them.
 
+### Held-out register (frozen 2026-09-19, before the runs)
+
+The question *text* stays outside the tree. In the repo the next fix could read it, which is exactly
+how the sixth occasion came to contain REACH_PROMPT's own sentence. Frozen here is the shape and the
+sha256 `probe` prints, so a report ties to a question without publishing it.
+
+| id | Shape | sha256 (12) | State |
+|---|---|---|---|
+| H2 | which handler runs for a given URL | `7a98af10f96d` | run pre-freeze (0/11); the prompt is not echoed in the transcript, so the text cannot be tied to this hash — indicative, not counted |
+| H3 | the first code to see input from outside, and its handoff | `3ea764e5cc33` | run — **0** code-atlas in 19 · exit 2 |
+| H4 | backwards from a persistent write to the chain that reaches it | `ddba275d44f4` | run — **2** in 43 · exit 0 |
+| H5 | what decides which implementation runs when several are candidates | `3151c7e8d629` | run — **0** in 13 · exit 2 |
+
+H5 is deliberately not a `trace_capability` question: if only the routing occasion works, the fix is
+narrower than "the brief covers the shape". Run one with
+`arm_preflight.py probe --question-file <path>` (implies `--uncoached`, reports the hash not the text).
+
+**Held-out result — 1 / 3, anchor, 2026-09-19 (client 2.1.278).** All three cells carried the
+post-300 brief, `staleness: current`, `dirty_indexed_files: 0`, `server_build e36026d`, 24 code-atlas
+tools listed and the server `connected`. The named cause does not generalise: the sixth occasion was
+in session context in every cell and two of them never touched the index.
+
+H4 — the one pass — is the more informative cell. Its order was `ToolSearch` → `get_index_status` →
+`Grep` → … → one `search_symbol` at call 14 → **29 further `Grep`/`Read` calls**. The session found
+the index, asked whether it was there, took one answer from it and then finished the job by hand. So
+the failure is not that the tools are unfindable; it is that an index answer does not earn the next
+index call. That is a different candidate from any in Scope, and cheap to test: whether the first
+payload terminates or continues the chain.
+
+**AC not met** — it needs n ≥ 3 at exit 0 and has 1. 300 stays `in-progress`; 074 stays `deferred`.
+
+**Retirement rule.** A held-out question whose wording enters the product — a brief occasion, a
+`which_tool` line, a tool docstring — leaves the register and is replaced. Held out means the fix has
+not seen it; once it has, that question can only confirm.
+
+## Round 2 — the cause, measured on both sides of it (2026-09-19)
+
+**Named cause, verified directly.** In Claude Code 2.1.278 every code-atlas tool arrives as a
+**deferred name with no parameter schema**. Asked without calling anything, a session states that
+`mcp__code-atlas__search_symbol` "is listed among the ToolSearch-deferred tools with no parameter
+schema" and must be loaded before it can be called — at the **24-tool surface and at the six-tool
+`CA_TOOLS` preset alike**, so this is the client's delivery policy and not 268's dilution. `Grep`,
+`Glob` and `Read` are resident. Every index call therefore costs one deliberate step that the
+native alternative does not, and the 2026-08-27 abort's `deferred_tools_delta` reading was right
+after all: what the 2026-09-19 triage established was that the tools are *listed and permitted*,
+which is not the same as *callable*.
+
+**What was ours to change, changed.** 081 concluded that only tool descriptions reach a model. It
+never tested the server's MCP **`instructions`**, which ride the initialize result into the
+session's system prompt — confirmed by a session quoting ours back verbatim. `build_server` now
+renders them (`code_atlas/instructions.py`): this repo's live index state, the one recognition map
+cut to the registered tools (R6.7), the load step the deferred surface requires, and the rule that a
+structural question takes more than one call.
+
+**Held-out, uncoached, no brief — `instructions` alone.** Anchor (23,388 files), client 2.1.278:
+
+| Cell | brief only | + `instructions` | + load step |
+|---|---|---|---|
+| H3 | 0 / 19 | 0 / 13 | 0 / 17 |
+| H4 | 2 / 43 | 6 / 57 | **12 / 43** |
+| H5 | 0 / 13 | 0 / 16 | 0 / 16 |
+
+Same three questions on **this repo** (592 files), `instructions` + load step: **0 / 12, 0 / 23,
+0 / 9** — including H4, the one the anchor passes.
+
+**What that means.** The channel deepens use where a session has already decided the index is worth
+the extra step (H4 on the anchor: 2 → 12 calls), and it does not create that decision. The variable
+that separates the cells is not routing text: it is whether `Grep` is *painful*. On a 23k-file tree
+a question that must follow a chain backwards makes the load step cheap by comparison; on a 592-file
+tree nothing does. An agent picks the index when the alternative hurts, not when it is described.
+
+**AC status.** The held-out AC set earlier this session — n ≥ 3 at exit 0 on the anchor — is **not
+met** (1 / 3, and 0 / 3 here). It was written on the assumption that the cause was server-side and
+a fix could therefore carry it. The cause is now named and half of it is a client policy this repo
+does not control, so that bar cannot be cleared from here. What is delivered instead: the cause,
+the new channel, and the before/after counts on both repos.
+
 ## Why this is not the same ticket as 200 or 268
 [200](200_the-recognition-map-is-a-prompt-no-agent-can-read.md) is about whether an agent can *recognise*
 which tool answers a question; [268](268_twenty-four-descriptions-are-a-tax-paid-before-the-first-question.md)
@@ -134,7 +211,15 @@ Its findings may well close or re-aim one of them.
 - The interactive-vs-headless question answered with counts, so the 19 % / 0 % gap is explained or
   shown to be the harness.
 - If a cause is named and fixed: `probe --uncoached` on both repos, before and after, in this file.
+- **Demonstrated on held-out questions** — n ≥ 3 register entries at exit 0 on the anchor,
+  frozen before the run. REACH_PROMPT alone does not close this ticket: it is the sentence the
+  fix was written from.
 - 074's blocker is either lifted (the granted arm can be built) or restated in 074 with what remains.
+
+**Closed 2026-09-19.** Cause named and verified on both surfaces; the one channel 081 missed is
+shipped and measured; 074's blocker restated there as a per-question precondition. The residual —
+uptake is gated by the client's deferred delivery and by whether `Grep` hurts — is not this repo's
+to change and is a BACKLOG follow-up, not an open ticket.
 
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
 

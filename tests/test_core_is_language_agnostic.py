@@ -47,8 +47,8 @@ def test_the_guard_has_something_to_check() -> None:
     # +1 each: coverage (160), cli (176), config_provenance (175), check_column_defaults (194),
     # trace_capability (199), onboarding scope (206), community (211), provenance (209),
     # orientation (207), audience (210), sequence_diagram (225), er_diagram (224), preflight (237),
-    # fit (260), symbol_role (262), worktree_guard + nominate_roots (268)
-    assert len(core_modules()) == 90
+    # fit (260), symbol_role (262), worktree_guard + nominate_roots (268), instructions (300)
+    assert len(core_modules()) == 91
     assert len(LANGUAGE_NAMES) == 9
     assert LANGUAGE_NAME.search("a PHP file") and LANGUAGE_BRANCH.search('if language == "x":')
     assert MODULE_CONVENTION.search('(f"{rel}.py", f"{rel}/__init__.py")')

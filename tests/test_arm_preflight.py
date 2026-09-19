@@ -129,3 +129,20 @@ def test_append_system_prompt_is_opt_in_and_leaves_default_uncoached_argv_alone(
     assert with_brief[with_brief.index("--append-system-prompt") + 1] == "brief body"
     # Same REACH_PROMPT either way — the flag adds context, it does not rename the tool.
     assert plain[2] == with_brief[2]
+
+
+def test_a_held_out_question_replaces_the_prompt_and_runs_the_uncoached_harness() -> None:
+    """#392's flaw: the only question asked was the sentence the fix copied into the brief."""
+    cfg = Path("granted.json")
+    argv = probe_argv(cfg, model=None, question="Which code decides what runs for a given job?")
+    assert argv[2] == "Which code decides what runs for a given job?"
+    # Held-out implies uncoached: read-only tools and the 30-turn budget, not the coached pair.
+    assert argv[argv.index("--max-turns") + 1] == "30"
+    assert "Grep" in argv and STATUS not in argv
+
+
+def test_the_coached_delivery_probe_is_unchanged_when_no_question_is_given() -> None:
+    """The delivery test still names its tool — held-out mode must not rewrite that arm."""
+    argv = probe_argv(Path("granted.json"), model=None)
+    assert "get_index_status" in argv[2]
+    assert argv[argv.index("--max-turns") + 1] == "6"

@@ -553,13 +553,13 @@ cannot be expected to know it needs.
 **Descriptions are question-first (069).** Each tool's inner-fn docstring *is* the description a client
 reads (CONVENTION §6), opening with the question the tool answers, not its mechanism. The blind
 recognition probe that scores whether they route is
-[`runbooks/tool-recognition-probe.md`](runbooks/tool-recognition-probe.md) (081, 097). **The bound
-(099):** no description reaches an agent that never opens the tool list.
+[`runbooks/tool-recognition-probe.md`](runbooks/tool-recognition-probe.md) (081, 097).
 
-**Operator prompts, not agent routing (081).** An agent's client surfaces only *tools* to the model,
-so a prompt is a human-invoked recipe and routing for agents lives in the descriptions above. Counting
-a human-facing channel as agent-facing was a category error, not a bug — which is why 200 had to
-*generate* `which_tool`'s map into a channel a model does read, rather than improve the prompt.
+**Operator prompts are not agent routing; the server's `instructions` are (081, 300).** An MCP
+*prompt* is a human-invoked entry, so counting it as agent-facing was a category error (200).
+The server's `instructions`, by contrast, reach the model's system prompt, so `build_server`
+renders that one map there (`tools/prompts.RECOGNITION_MAP`, R6.7) over a sentence of live index
+state, lifting 099's bound for the fact that has to arrive first: this repo has an index.
 
 **Serving (010).** `main.build_server(config)` registers the allowed tools on one FastMCP app and
 `main()` serves it over stdio; the entry point is `code-atlas` (or `python -m code_atlas.main`).
