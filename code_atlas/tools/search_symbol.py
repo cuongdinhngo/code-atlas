@@ -12,7 +12,9 @@ from code_atlas.store import GraphStore, Row, is_direct_match, is_exact_or_prefi
 from code_atlas.tools.coverage import (
     attach_coverage_gap,
     attach_coverage_note,
+    attach_unindexed_same_basename,
     covered_languages,
+    held_suffixes,
 )
 from code_atlas.tools.freshness import FreshnessGuard, nameable_subject_path
 from code_atlas.tools.nav_result import (
@@ -161,8 +163,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             )
         kept, dropped = clamp_subjects(subjects, config.max_subjects)
         covered: str | None = None
+        indexed: frozenset[str] | None = None
         with GraphStore(config.db_path) as store:
             covered = covered_languages(store)
+            indexed = held_suffixes(store)
             # One guard for the call: scaling the repair budget with the subject count is the
             # unbounded fan-out the batch bound exists to prevent (101).
             guard = FreshnessGuard(config, store)
@@ -182,7 +186,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 for subject in kept
             ]
         if not batched:
-            return attach_coverage_note(
+            single = attach_coverage_note(
                 _single_payload(
                     found[0],
                     detail_level=detail_level,
@@ -193,6 +197,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 ),
                 config,
                 covered,
+                detail_level=detail_level,
+            )
+            return attach_unindexed_same_basename(
+                single,
+                root=config.root,
+                indexed_suffixes=indexed,
+                results=found[0].results,
+                subjects=kept,
                 detail_level=detail_level,
             )
         answers = [
@@ -212,7 +224,20 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             for a in answers
         ):
             attach_coverage_gap(payload, config, covered, detail_level=detail_level)
-        return payload
+        # 299: same-stem unindexed twins on the envelope when any subject carried hits (061).
+        hit_rows: list[dict[str, object]] = []
+        for answer in answers:
+            rows = answer["results"]
+            if isinstance(rows, list):
+                hit_rows.extend(row for row in rows if isinstance(row, dict))
+        return attach_unindexed_same_basename(
+            payload,
+            root=config.root,
+            indexed_suffixes=indexed,
+            results=hit_rows,
+            subjects=kept,
+            detail_level=detail_level,
+        )
 
     return search_symbol
 

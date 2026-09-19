@@ -1,18 +1,26 @@
-"""Zero-answer language-coverage note (160), reusing 159's shipped-adapter source of truth.
+"""Language- and suffix-coverage notes (160/173/192/299), from stamps — never guessed languages.
 
-A miss on an index that covers only some languages reads as absence unless the answer says what the
-index does not cover. The note names the shipped-but-unwired adapters (159) — never the subject's
-own language (160, out of scope). It rides a low-confidence answer only, so a confident answer is
-byte-identical (061 / AC3).
+A miss on a partial-language index reads as absence unless the answer names the gap. The note lists
+shipped-but-unwired adapters (159) and configured-but-unheld languages (173). Task 192 widened it
+onto partial hit lists; 299 adds a same-stem unindexed-suffix field on non-empty ``search_symbol``
+pages so a ``.ts`` hit list cannot hide a twin ``.js`` that was never a candidate (061 omit-empty).
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from pathlib import Path, PurePosixPath
 
+from code_atlas import gitutil
 from code_atlas.adapter import unconfigured_adapters
 from code_atlas.config import Config
-from code_atlas.store import COVERED_LANGUAGES_KEY, GraphStore
+from code_atlas.ignore import IgnoreMatcher, load_ignore
+from code_atlas.store import (
+    COVERED_LANGUAGES_KEY,
+    COVERED_SUFFIXES_KEY,
+    INDEXED_SUFFIXES_KEY,
+    GraphStore,
+)
 from code_atlas.tools.nav_result import (
     REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
@@ -26,6 +34,8 @@ COVERAGE_KEY = "unconfigured_adapters"
 # flipping the switch emptied the note while the graph still held zero files of that language, so
 # the zero went back to reading as absence. This key asks whether the graph HOLDS the language.
 UNINDEXED_KEY = "unindexed_languages"
+# Hit-path twin of the gap: same stem as a hit/query, suffix outside 173's held set (task 299).
+SAME_BASENAME_KEY = "unindexed_same_basename"
 
 
 def relation_unmodelled_for_language(
@@ -185,3 +195,104 @@ def attach_coverage_note(
     ):
         return payload
     return attach_coverage_gap(payload, config, covered, detail_level=detail_level)
+
+
+def held_suffixes(store: GraphStore) -> frozenset[str] | None:
+    """173's held suffix set — what the graph HOLDS, never what was configured (R5.6 if absent)."""
+    covered = store.get_meta(COVERED_SUFFIXES_KEY)
+    if covered is not None:
+        return frozenset(part for part in covered.split(",") if part)
+    claimed = store.get_meta(INDEXED_SUFFIXES_KEY)
+    if claimed is None:
+        return None
+    return frozenset(part for part in claimed.split(",") if part)
+
+
+def attach_unindexed_same_basename(
+    payload: dict[str, object],
+    *,
+    root: Path,
+    indexed_suffixes: frozenset[str] | None,
+    results: Sequence[Mapping[str, object]],
+    subjects: Sequence[str],
+    detail_level: str = "standard",
+) -> dict[str, object]:
+    """Name unindexed same-stem files beside a non-empty hit page (task 299).
+
+    Omit-when-empty (061). Never guesses a language or a symbol in those files (R5.6).
+    ``reason`` is untouched — hits stay ``ok``. ``minimal`` omits the field (223).
+    """
+    if detail_level == "minimal" or not payload.get("indexed") or not results:
+        return payload
+    if indexed_suffixes is None:
+        return payload
+    stems = _stems_for_same_basename(results, subjects)
+    if not stems:
+        return payload
+    suffixes, count = _unindexed_same_stem_census(root, stems, indexed_suffixes)
+    if count == 0:
+        return payload
+    payload[SAME_BASENAME_KEY] = {"suffixes": list(suffixes), "count": count}
+    return payload
+
+
+def _stems_for_same_basename(
+    results: Sequence[Mapping[str, object]], subjects: Sequence[str]
+) -> frozenset[str]:
+    """Hit-file stems plus bare query stems — paths contribute their filename stem only."""
+    stems: set[str] = set()
+    for row in results:
+        file_path = row.get("file")
+        if isinstance(file_path, str) and file_path:
+            stems.add(PurePosixPath(file_path).stem.casefold())
+    for subject in subjects:
+        if not subject:
+            continue
+        if "/" in subject or "\\" in subject:
+            stems.add(PurePosixPath(subject.replace("\\", "/")).stem.casefold())
+        else:
+            stems.add(subject.casefold())
+    return frozenset(stems)
+
+
+def _unindexed_same_stem_census(
+    root: Path, stems: frozenset[str], indexed_suffixes: frozenset[str]
+) -> tuple[tuple[str, ...], int]:
+    """Path-only census: matching stems whose suffix is outside the held set (no body read).
+
+    Suffix and stem are decided on the basename before ``is_ignored``, which walks every rule:
+    on a 52k-file tree that ordering is 24 ms instead of 4.8 s, for the same answer.
+    """
+    matcher = load_ignore(root)
+    tracked = gitutil.ls_files(root)
+    paths = tracked if tracked is not None else _walk_all_paths(root, matcher)
+    found: set[str] = set()
+    count = 0
+    for path in paths:
+        base = path.rsplit("/", 1)[-1]
+        dot = base.rfind(".")
+        if dot <= 0:
+            continue
+        suffix = base[dot:].lower()
+        if suffix in indexed_suffixes or base[:dot].casefold() not in stems:
+            continue
+        if matcher.is_ignored(path):
+            continue
+        found.add(suffix)
+        count += 1
+    return tuple(sorted(found)), count
+
+
+def _walk_all_paths(root: Path, matcher: IgnoreMatcher) -> tuple[str, ...]:
+    """Non-git fallback: every non-ignored file path under ``root`` (suffix-agnostic)."""
+    found: list[str] = []
+    stack = [root]
+    while stack:
+        for entry in sorted(stack.pop().iterdir()):
+            relative = entry.relative_to(root).as_posix()
+            if entry.is_dir():
+                if not matcher.is_ignored(relative, is_dir=True):
+                    stack.append(entry)
+            elif not matcher.is_ignored(relative):
+                found.append(relative)
+    return tuple(found)

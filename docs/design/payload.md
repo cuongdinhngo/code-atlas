@@ -90,11 +90,15 @@ are reported, because flipping a switch is not the same as running a build:
 |---|---|---|
 | `unconfigured_adapters` | an adapter ships in-repo with no launch command | the switch — set `CA_<LANG>_CMD` |
 | `unindexed_languages` | the adapter is configured, the graph holds no files of it | the build — `build_or_update_index(full=true)` |
+| `unindexed_same_basename` | a non-empty `search_symbol` page whose hits (or query) share a stem with a tree file whose suffix is outside 173's held set | that suffix was never a candidate — count + suffixes, never a guessed language (299) |
 
 Before this, wiring an adapter emptied the note *and* moved `indexed_suffixes` onto the new
 language — while the graph still held zero files of it. So `collection` now names both sides:
 `indexed_suffixes` is what the graph **holds** files for, and `claimed_suffixes` appears beside it,
 only when the two differ, for what the build was configured to index.
+
+Task 299 shrinks 160's AC3 carve-out on hit lists: a confident non-empty page is byte-identical
+only when no same-stem unindexed twin exists. ``reason`` stays the hit band; the field is the note.
 
 A skipped total also says what it is *made of* — `skipped.suffix_top` ranks the suffixes behind it,
 `skipped.suffix_kinds` is the denominator (174). *"An adapter exists"* is a fact about the product
