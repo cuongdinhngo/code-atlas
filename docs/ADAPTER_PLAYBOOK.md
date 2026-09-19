@@ -66,6 +66,7 @@ the consumer cannot tell "the code has no annotation" from "this adapter never l
 | `confidence_tier` | leave **NULL** on a structural edge | nothing — NULL folds into `RESOLVED` (`store.py:704-709`). SQL stamping it explicitly is equivalent, not better; do not file it as a defect |
 | `capabilities` | declare what you capture | this is the honesty channel and it is nearly unused: `KNOWN_CAPABILITIES` (`contract.py:185`) still holds one entry |
 | `is_test` | emit only when decided | omit when undecided so 130's path convention fills via `symbol_role`; a constant `false` opts out of the fallback by accident (262/298) |
+| `File.extra.unmodelled_resolution` | stamp every idiom your language resolves at runtime | `find_orphans` — unstamped, unmeasured silence is reported as dead code. All four adapters stamp one: autoload (279), non-literal `import()`/`require()` (294), `importlib`/`__import__` (295), dynamic `EXEC`/`sp_executesql` (296) |
 
 **Do not answer any row of this table from memory or from reading another adapter — measure it.**
 `scripts/adapter_parity_report.py` runs every registered adapter over `tests/fixtures/parity/` and

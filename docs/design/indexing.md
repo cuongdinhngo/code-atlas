@@ -103,18 +103,19 @@ payload told the caller to page. Exactness now bands the result set, with BM25 a
 meaning — no direct match on page 1 — and can no longer stay silent while exact matches sit at
 rank 40.
 
-### A container outranks its CONTAINS members (task 292)
+### A container outranks its CONTAINS members (tasks 292, 297)
 
 An exact-name search for a Table or Procedure put the real definitions on the page and then
 filled the rest with Columns whose qnames merely *prefixed* the same string — forty
 `Table::col_*` rows, same exactness band, ranked on BM25 alone. The graph already stored
-`CONTAINS`; the order ignored it. Within the exactness band, a `Column` that is the target of a
+`CONTAINS`; the order ignored it. Within the exactness band, **any** hit that is the target of a
 `CONTAINS` edge from a parent that itself direct-matches the query **and is also a hit under the
-same filters** now ranks after every non-member hit. Kind + `CONTAINS` only (R1.1) — Class members
-are untouched; a hit set with no such pair stays byte-identical (061). Mirror prefer (277) still
-runs after this key.
+same filters** now ranks after every non-member hit. 292 keyed that rule to `Column` and a class
+therefore still buried itself under its own methods; 297 dropped the kind, so the key is
+`CONTAINS` alone (R1.1) and every language gets the same order. A hit set with no such pair stays
+byte-identical (061). Mirror prefer (277) still runs after this key.
 
-### `find_orphans` refuses rather than dumping what it has flagged (task 182)
+### `find_orphans` refuses rather than dumping what it has flagged (tasks 182, 279)
 
 A field round returned **215,177 orphans of 216,664 nodes — 99.31 %** — with `walk_truncated: true`
 and `authoritative: false` beside them. The tool flagged its own answer unreliable and handed over
@@ -129,3 +130,11 @@ deliberately not one of them: *"what is unreachable within two hops?"* is a real
 answers. `status: "ok"` with zero rows still means nothing is orphaned, which is an answer, not a
 refusal. The roots stay **configured** rather than derived — a `chdir()` is not a fact the graph
 holds — so `entry_points_unmatched` is named even on a complete answer.
+
+A third refusal, `status: "resolution_unmodelled"`, answers the same way for a resolution strategy
+the graph does not model. Each adapter stamps `File.extra.unmodelled_resolution` where the language
+loads code by a name the file does not spell — PHP autoload (279), a non-literal `import()` /
+`require()` in TypeScript (294), `importlib` / `__import__` in Python (295), T-SQL dynamic `EXEC` /
+`sp_executesql` (296) — and the build unions those into
+`meta.unmodelled_resolution_by_language`. The adapter never invents the edge it cannot name; the
+stamp is what lets the tool say *unmeasured* instead of *dead*.

@@ -1029,9 +1029,9 @@ query; `max_results` stops governing graph content. AC1/AC5 E1. [258](tasks/258_
 **Decision — parse_failures floor (280, 2026-09-15).** `parse_failures_note` beside the count — a
 floor, not a fatal surface. [280](tasks/280_a-parser-accepts-what-the-runtime-rejects.md).
 
-**Decision — unmodelled resolution stamp (279, 2026-09-15).** Autoload stamps
-`File.extra.unmodelled_resolution` → meta; `find_orphans` refuses `resolution_unmodelled` (no bare
-orphan list). [279](tasks/279_an-autoloaded-repo-answers-unreachable-and-means-unmeasured.md).
+**Decision — unmodelled resolution stamp (279, 2026-09-15; 294-296, 2026-09-19).** Every adapter
+stamps its runtime-load idiom into `File.extra.unmodelled_resolution`; `find_orphans` refuses
+`resolution_unmodelled`. [279](tasks/279_an-autoloaded-repo-answers-unreachable-and-means-unmeasured.md).
 
 **Reference material** (private, same folder): `understand-anything-how-it-works.md`, `code-review-graph-how-it-works.md`.
 

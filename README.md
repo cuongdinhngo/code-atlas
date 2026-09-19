@@ -37,33 +37,36 @@ $ grep -rn 'member' adapters/typescript/src/ | wc -l
 $ grep -rn 'member' adapters/typescript/src/ | head -3
 adapters/typescript/src/qname.js:4:// §4.4 Q1). The root container is the repo-relative posix
 adapters/typescript/src/qname.js:12:function member(container, name) {
-adapters/typescript/src/types.js:55:  for (const member of classNode.members || []) {
+adapters/typescript/src/qname.js:16:module.exports = { SEP, toPosix, member };
 ```
 
-A comment, the definition itself, and an unrelated loop variable. The agent has to open and read
-every one of the 26 to sort them out. **That reading is the cost**, and it is paid in context.
+A comment, the definition itself, and an export line — not one of the three is a call. The agent
+has to open and read every one of the 26 to sort them out. **That reading is the cost**, and it is
+paid in context.
 
-**code-atlas — 13 call sites, each resolved, with the tier it was resolved at:**
+**code-atlas — the 9 functions that call it, each resolved, with the tier it was resolved at:**
 
 ```jsonc
 // MCP tool call, not a shell command
-find_callers(qname: "adapters/typescript/src/qname.js::member")
+find_callers(qname: "src/qname.js::member")
 
-reason: "ok"   total_count: 13   truncated: false   depth: 1
+reason: "ok"   total_count: 9   truncated: false   depth: 1
 
-RESOLVED  parseFile::collect               adapters/typescript/src/parse.js:216
-RESOLVED  parseFile::collect               adapters/typescript/src/parse.js:222
-RESOLVED  parseFile::emitBodyEdges         adapters/typescript/src/parse.js:397
-RESOLVED  parseFile::emitBodyEdges         adapters/typescript/src/parse.js:410
-RESOLVED  parseFile::emitDefaultAlias      adapters/typescript/src/parse.js:326
-RESOLVED  parseFile::emitJsDocDeclarations adapters/typescript/src/parse.js:337
+RESOLVED  parseFile::collect               src/parse.js:278
+RESOLVED  parseFile::emitBodyEdges         src/parse.js:508
+RESOLVED  parseFile::emitDefaultAlias      src/parse.js:428
+RESOLVED  parseFile::emitJsDocDeclarations src/parse.js:439
+RESOLVED  parseFile::emitReExport          src/parse.js:419
+RESOLVED  parseFile::resolve               src/parse.js:301
 …
 ```
 
-No comment, no definition, no unrelated variable — and `total_count: 13` is the true size of the
-answer, not the length of the page you were handed. Building that index took **0.47 s**.
+No comment, no definition, no export line — and `total_count: 9` is the true size of the answer
+(distinct callers; the graph holds all 13 call sites behind them), not the length of the page you
+were handed. Building that index took **0.79 s**.
 
-> Real output, reproduced on 2026-08-29 by pointing code-atlas at its own `adapters/typescript/`.
+> Real output, reproduced on 2026-09-19 by pointing code-atlas at its own `adapters/typescript/`
+> (`code-atlas-build` there, 5 files).
 
 ## Why code-atlas
 
@@ -244,8 +247,11 @@ owns and its capabilities on one handshake line, and the core routes files from 
 `truncated`, `limit_capped_to`, and `reason` on every empty result — `no_such_symbol`,
 `name_not_qualified`, `not_indexed`, `relationship_not_modelled`, `capability_not_configured`. **An
 empty result is never an unexplained zero**, and where a better route exists the payload names a
-real, callable tool in `try_instead`. This is what makes an agent's answer auditable instead of
-merely confident.
+real, callable tool in `try_instead`. Where a language loads code by a name the file never spells —
+PHP autoload, a non-literal `import()`/`require()`, Python's `importlib`, T-SQL dynamic `EXEC` —
+the adapter stamps the file, and `find_orphans` answers `resolution_unmodelled` instead of calling
+unmeasured silence dead code. This is what makes an agent's answer auditable instead of merely
+confident.
 
 **Every edge carries a confidence tier** — `RESOLVED`, `HEURISTIC` or `DYNAMIC`. A guess is never
 linked as a fact, and an answer whose candidates are all dynamic says so with `authoritative: false`.
