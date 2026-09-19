@@ -22,6 +22,9 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
+| 301 | [TypeScript return types do not resolve the next call](tasks/301_typescript-return-types-do-not-resolve-the-next-call.md) | Agent-trust | todo | 153 |
+| 302 | [Python return annotations do not resolve the next call](tasks/302_python-return-annotations-do-not-resolve-the-next-call.md) | Agent-trust | todo | 226, 227 |
+
 ## Open work — Pillar 2 · Onboarding
 
 The rendering of what the code actually is, for a human supervising an agent or presenting the
@@ -33,17 +36,20 @@ M10–M12 have all landed; round narratives live in [`FEEDBACK.md`](FEEDBACK.md)
 |---|---|---|---|---|
 | 263 | [The question a newcomer asks most is the one table that is empty](tasks/263_the-question-a-newcomer-asks-most-is-the-one-table-that-is-empty.md) | Onboarding | todo | 114, 210 |
 | 269 | [Twelve graph nouns where a reader has seven questions](tasks/269_twelve-graph-nouns-where-a-reader-has-seven-questions.md) | Onboarding | todo | 263, 121, 210, 139 |
+| 303 | [Pre-PR evidence is scattered across tools](tasks/303_pre-pr-evidence-is-scattered-across-tools.md) | Supervision | todo | 100, 138, 139, 257 |
+| 304 | [EPIC — make every important change carry graph-derived evidence](tasks/304_change-assurance-makes-every-important-change-carry-evidence.md) | Change Assurance | todo | 100, 138, 139, 257, 260, 266 |
+| 305 | [Versioned Change Assurance evidence bundle](tasks/305_versioned-change-assurance-evidence-bundle.md) | Change Assurance | todo | 303 |
+| 306 | [Agent change brief from explicit graph seeds](tasks/306_agent-change-brief-from-explicit-graph-seeds.md) | Change Assurance | todo | 100, 266, 303 |
+| 307 | [Human-authored architecture drift budgets](tasks/307_human-authored-architecture-drift-budgets.md) | Change Assurance | todo | 138, 139, 303 |
+| 308 | [Changed code to candidate test files — report only](tasks/308_changed-code-to-candidate-test-files-report.md) | Change Assurance | todo | 262, 273, 303 |
+| 309 | [Test-impact recall before selective runs](tasks/309_test-impact-recall-before-selective-runs.md) | Change Assurance | todo | 142, 308 |
+| 310 | [Four-week Change Assurance adoption gate](tasks/310_four-week-change-assurance-adoption-gate.md) | Change Assurance | todo | 260, 300, 305, 306, 307, 309 |
 
-**What still governs open work:**
-
-- **24 tools** on the MCP surface (`main.TOOL_NAMES`), pinned by
-  `tests/test_documented_tool_count.py`.
+**What still governs open work:** the surface has **24 tools** (`main.TOOL_NAMES`), count-pinned by
+tests.
 - **Every `deferred` ticket holds its own gate** — 098 and 141 each state theirs, and 141 is at
   n = 0; do not queue one without reading it. Auto *reading orders* stay unscheduled
   ([121](benchmarks/121_onboarding-question-class.md)).
-- **Roll-out is the binding constraint** — five rounds standing. 244 shipped the code-shaped face;
-  [266](tasks/266_the-artifact-that-would-make-an-agent-ask-is-in-our-repo-not-theirs.md) now carries
-  the rest, and 244 left one instance open (`find_mirror_subtrees`, 115).
 
 ## Phase 2 — More languages (§19 pivot, 2026-08-04)
 
@@ -58,10 +64,8 @@ language *order* is unchanged (§18.2).
 
 ## Landed phases — nothing open
 
-Phase 1 (core + PHP), Phase 1.5 (agent-first PHP depth) and Phase 1.5b (large-monorepo validation
-hardening) are closed. Two decisions from them still bind and are recorded in §19, not here: editing
-tools are permanently out, and tool *consolidation* was measured and rejected. The round-3 open note is half closed: round 18 did
-observe whole-tree `grep` timing out in the anchor repo; the "~650×" figure still has no evidence.
+Phase 1, 1.5 and 1.5b are closed. Editing tools remain out and tool consolidation remains rejected
+([PLAN §19](PLAN.md#19-project-context--decision-log)).
 
 ## Follow-ups (not yet ticketed)
 
@@ -71,10 +75,7 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **Tokens-to-answer measures cost, not information** — 046 moved the ratio 0.02 % while doubling the distinct answers. Wants a second axis before it judges a retrieval change.
 - **Parser-OOM size cap (optional)** — multi-MB generated files exhaust the PHP parser (already soft-failed/restarted in `indexer.py`); a byte-cap pre-skip (`CA_MAX_FILE_BYTES`) would avoid ~30 restart cycles. Log skips; no silent truncation.
 - **258's anchor-scale figures were never taken** — AC1 (the edge-count drop on the anchor index) and AC5 (the query cost of the proximity expansion at that scale) shipped E1 on fixture evidence. The ticket makes the expensive case convert to **build-time ranking**, so that measurement is the decision, not a confirmation — [258](tasks/258_the-graph-stores-the-cartesian-product-of-call-site-and-same-named-symbol.md).
-- **Uptake is gated by the client, not by our text** — every MCP tool reaches Claude Code 2.1.278 as
-  a deferred name needing a `ToolSearch` load, at any surface size, while `Grep` is resident; across
-  six held-out cells the index was chosen only where `Grep` was expensive (anchor H4, 12/43) and
-  never on a 592-file tree. Server `instructions` now carry the load step — [300](tasks/300_the-index-is-registered-permitted-and-never-chosen.md).
+- **Uptake is gated by deferred delivery and whether `Grep` hurts** — [300](tasks/300_the-index-is-registered-permitted-and-never-chosen.md).
 - **Docker images are never built by CI** — `docker/Dockerfile` can rot (`Dockerfile.runtime` is built inside `pytest`). Honest shape: one job building both. Survives the unbillable-Actions arrangement AGENTS.md records, which also means every gate is a human step.
 
 ## Conventions

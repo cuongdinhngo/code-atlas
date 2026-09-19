@@ -1589,3 +1589,13 @@ venv or the PHPStan tmpDir is rebuilt from a wrong-cased cwd.*
   holding the pipe wedges the reader past the timeout; POSIX takes `wait()` and does not. Bound with
   a tree kill (`taskkill /F /T`) + a bounded post-kill drain; the tree kill must itself not raise/hang.
 - destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)
+
+## 304 — Change Assurance epic split
+
+- type: 2 (product/process) · handle: `separate-capability-proof-and-adoption`
+- status: proposed · seen: 304
+- evidence: the ratified split keeps orchestration (303), portable evidence (305), agent consumption
+  (306), policy (307), candidate prediction (308), proof threshold (309) and adoption outcome (310)
+  as separate deliverables. Combining them would let a green implementation stand in for measured
+  safety or repeated use; tasks 301/302 remain graph-trust work outside the epic.
+- destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)
