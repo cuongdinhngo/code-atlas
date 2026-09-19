@@ -18,6 +18,7 @@ import sqlite3
 import threading
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from datetime import UTC, datetime
+from functools import lru_cache
 from pathlib import Path
 from typing import NamedTuple
 
@@ -376,31 +377,55 @@ def fts_term(query: str) -> str:
     return '"' + query.replace('"', '""') + '"*'
 
 
+def is_exact_or_prefix_match(query: str, name: str, qualified_name: str) -> bool:
+    """167's exact/prefix arm alone, without 287/293's separator-suffix arms.
+
+    Its own definition site (R6.7) because ``search_symbol`` bands ``separator_normalised`` on
+    exactly this half; a second copy there would drift the moment 167's arm changes.
+    """
+    q = query.casefold()
+    for candidate in (name.casefold(), qualified_name.casefold()):
+        if candidate == q or candidate.startswith(q):
+            return True
+    return False
+
+
 def is_direct_match(query: str, name: str, qualified_name: str) -> bool:
     """True when ``query`` exactly matches or prefixes ``name`` or ``qualified_name`` (task 167).
 
     Case-insensitive and language-agnostic (R1.1) — a run of the query against the symbol, no SQL.
     A ``Class::method`` query that is a separator-boundary suffix of the qname is also direct
-    (287) — stack-trace spelling, not trigram soup. One definition site (R6.7): it decides both
+    (287), and so is the container-separator spelling ``Class.method`` via
+    ``member_separator_variant`` (293). One definition site (R6.7): it decides both
     ``search_symbol``'s ``reason`` and the ordering's exactness band, so the two cannot drift.
     """
-    q = query.casefold()
-    folded = name.casefold()
-    if folded == q or folded.startswith(q):
+    if is_exact_or_prefix_match(query, name, qualified_name):
         return True
     folded = qualified_name.casefold()
-    if folded == q or folded.startswith(q):
-        return True
-    # Member-separator suffix on a component boundary — not any substring ending the qname (287).
-    if contract.MEMBER_SEPARATOR.casefold() not in q:
-        return False
-    if not folded.endswith(q):
-        return False
-    if len(folded) == len(q):
-        return True
-    # Namespace/path separators only — `_` is an identifier char, not a component boundary.
-    return folded[-len(q) - 1] in "\\/."
+    # Member-separator suffix on a component boundary — not any substring (287/293).
+    for cand, allow_colon in _member_boundary_candidates(query):
+        if not folded.endswith(cand):
+            continue
+        if len(folded) == len(cand):
+            return True
+        # Native ``::`` keeps 287's charset; variant arm also allows ``:`` (file::Class::method).
+        seps = "\\/.:" if allow_colon else "\\/."
+        if folded[-len(cand) - 1] in seps:
+            return True
+    return False
 
+
+@lru_cache(maxsize=64)
+def _member_boundary_candidates(query: str) -> tuple[tuple[str, bool], ...]:
+    """Pairs of (:: form, allow_colon) — variant once per query; :: stays 287-shaped."""
+    folded = query.casefold()
+    sep = contract.MEMBER_SEPARATOR.casefold()
+    if sep in folded:
+        return ((folded, False),)
+    variant = contract.member_separator_variant(query)
+    if variant is None:
+        return ()
+    return ((variant.casefold(), True),)
 
 def _direct_match_udf(query: object, name: object, qualified_name: object) -> int:
     """``is_direct_match`` as a SQLite scalar, so ORDER BY bands on the predicate, not a copy."""

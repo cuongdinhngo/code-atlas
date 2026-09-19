@@ -23,7 +23,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
-| 293 | [A member query spelled with a dot is a near-miss](tasks/293_the-dot-spelling-is-a-near-miss-in-every-language-that-is-not-php.md) | Agent-fit | todo | 287, 249, 253 |
 | 294 | [A TypeScript runtime import leaves no stamp](tasks/294_a-typescript-repo-that-imports-at-runtime-answers-unreachable-and-means-unmeasured.md) | Honesty | todo | 279, 019, 255, 299 |
 | 295 | [A Python runtime import leaves no stamp](tasks/295_a-python-repo-that-imports-at-runtime-answers-unreachable-and-means-unmeasured.md) | Honesty | todo | 279, 020, 255, 299 |
 | 296 | [The SQL adapter names the dynamic procs and stamps nothing](tasks/296_the-sql-adapter-names-the-dynamic-procs-and-stamps-nothing.md) | Honesty | todo | 279, 184, 255, 299 |

@@ -8,7 +8,7 @@ from typing import Literal, NamedTuple
 from code_atlas import contract
 from code_atlas.config import Config, clamp_limit, clamp_subjects
 from code_atlas.contract import CONFIDENCE_TIERS
-from code_atlas.store import GraphStore, Row, is_direct_match
+from code_atlas.store import GraphStore, Row, is_direct_match, is_exact_or_prefix_match
 from code_atlas.tools.coverage import (
     attach_coverage_gap,
     attach_coverage_note,
@@ -278,6 +278,15 @@ def _search_one(
     elif offset == 0 and not any(_direct(query, row) for row in rows[:cap]):
         # First page holds only substring/trigram near-misses — not a confident hit (167).
         reason = REASON_SUBSTRING_MATCH
+    elif offset == 0 and any(_exact_or_prefix(query, row) for row in rows[:cap]):
+        reason = REASON_OK
+    elif (
+        offset == 0
+        and contract.MEMBER_SEPARATOR not in query
+        and contract.member_separator_variant(query) is not None
+    ):
+        # Direct only via Class.method → Class::method (293); keep 249's near-miss vocabulary.
+        reason = REASON_SEPARATOR_NORMALISED
     else:
         reason = REASON_OK
     # Empty no_matches only: retry with last sep spelled as MEMBER_SEPARATOR (249).
@@ -350,6 +359,11 @@ def _search_one(
 def _direct(query: str, row: Mapping[str, object] | Row) -> bool:
     """``store.is_direct_match`` over a row — the predicate the search ordering bands on (R6.7)."""
     return is_direct_match(query, str(row["name"]), str(row["qualified_name"]))
+
+
+def _exact_or_prefix(query: str, row: Mapping[str, object] | Row) -> bool:
+    """167's exact/prefix arm for one row — the predicate itself lives in ``store`` (R6.7)."""
+    return is_exact_or_prefix_match(query, str(row["name"]), str(row["qualified_name"]))
 
 
 def _single_payload(
