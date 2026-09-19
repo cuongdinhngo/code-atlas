@@ -287,6 +287,8 @@ function parseFile(qpath) {
   const columns = new Map();
   /** @type {Set<string>} */
   const createdTables = new Set();
+  // File-level stamp when EXEC is dynamic or targets DYNAMIC_PROCS (296).
+  let sawUnmodelledDynamicSql = false;
   let refusedName = false;
 
   /** @param {string} text */
@@ -711,6 +713,9 @@ function parseFile(qpath) {
       const dynamic = target === "(" || target.startsWith("@");
       const qname = dynamic ? null : splitName(target);
       const dynamicProc = qname !== null && DYNAMIC_PROCS.has(qname.toLowerCase());
+      if (dynamic || dynamicProc) {
+        sawUnmodelledDynamicSql = true;
+      }
       // A dynamic target is emitted, never dropped and never RESOLVED (AC7): the call site is a fact
       // even where the callee is not knowable, and the core decides what an unlinkable edge means.
       /** @type {Edge} */
@@ -765,12 +770,16 @@ function parseFile(qpath) {
 
   // Dialect rides File.extra — META_FIELDS is frozen (R3.1 / 217 precedent); a reader of any File
   // node sees which dialect this adapter read, not a silent `name: "sql"`.
-  /** @type {Record<string, string>} */
+  /** @type {Record<string, unknown>} */
   const fileExtra = { dialect: "tsql" };
   if (refusedName) {
     // A reserved word was refused as an object name: absence is honest, but the file is not a
     // complete successful read of its DDL — distinguish it from a fully-read T-SQL file (AC5).
     fileExtra["parse"] = "refused_reserved_name";
+  }
+  if (sawUnmodelledDynamicSql) {
+    // Stamp, never invent CALLS targets (279/296).
+    fileExtra["unmodelled_resolution"] = ["dynamic_sql"];
   }
 
   nodes.unshift({

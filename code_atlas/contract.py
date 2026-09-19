@@ -238,6 +238,8 @@ RESOLUTION_AUTOLOAD = "autoload"
 # Strategy token — runtime module load the graph cannot name: non-literal `import()`/`require()`,
 # `importlib`/`__import__` (294/295).
 RESOLUTION_DYNAMIC_IMPORT = "dynamic_import"
+# Strategy token — string-executed SQL (sp_executesql / EXEC @var) (296).
+RESOLUTION_DYNAMIC_SQL = "dynamic_sql"
 
 # Synthetic target_raw for PROVIDES_VIEW_DATA (task 062) — not an FQN; never resolved.
 VIEW_DATA_PREFIX = "viewdata:"

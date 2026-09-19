@@ -22,6 +22,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 
 | # | Tokens | PR |
 |---|---|---|
+| 296 | 1 dispatch: ticket-blind `challenger` CLEAN (11 met); `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun`. SQL `EXEC`/@var/`sp_executesql` stamps `dynamic_sql`. Proving: `tests/test_sql_dynamic_sql_unmodelled_stamp.py`. | [#397](https://github.com/cuongdinhngo/code-atlas/pull/397) |
 | 295 | 1 dispatch: ticket-blind `challenger` CLEAN (11 met); `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun`. Python `importlib`/`__import__`/`spec_from_file_location` stamps `dynamic_import`. Depends: 294 #395 open (shared token). Proving: `tests/test_py_dynamic_import_unmodelled_stamp.py`. | [#396](https://github.com/cuongdinhngo/code-atlas/pull/396) |
 | 294 | 1 dispatch: ticket-blind `challenger` CLEAN (10 met / 1 can't-tell unstamped byte-identity); `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun`. TS non-literal `import()`/`require()` stamps `File.extra.unmodelled_resolution`=`dynamic_import`. Proving: `tests/test_ts_dynamic_import_unmodelled_stamp.py`. | [#395](https://github.com/cuongdinhngo/code-atlas/pull/395) |
 | 297 | 1 dispatch: ticket-blind `challenger` CLEAN (9 met); `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun`. CONTAINS demote no longer keyed to COLUMN_KIND. Proving: `tests/test_container_member_search_order.py`. | [#398](https://github.com/cuongdinhngo/code-atlas/pull/398) |

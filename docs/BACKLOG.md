@@ -22,7 +22,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
-| 296 | [The SQL adapter names the dynamic procs and stamps nothing](tasks/296_the-sql-adapter-names-the-dynamic-procs-and-stamps-nothing.md) | Honesty | todo | 279, 184, 255, 299 |
 | 298 | [The SQL adapter answers `false` to a question it never asked](tasks/298_the-sql-adapter-answers-false-to-a-question-it-never-asked.md) | Honesty | todo | 262, 130, 231 |
 ## Open work — Pillar 2 · Onboarding
 

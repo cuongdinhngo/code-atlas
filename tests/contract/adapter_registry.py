@@ -498,7 +498,7 @@ SQL_R62_CASES = frozenset(
 
 _F_BATCH = "tests/fixtures/sql/batch_separator.sql"
 _F_DELIM = "tests/fixtures/sql/delimited_identifier.sql"
-_F_DYN = "tests/fixtures/sql/exec_dynamic.sql"
+_F_DYN = "tests/fixtures/sql/unmodelled_resolution/exec_dynamic.sql"
 _F_STRING = "tests/fixtures/sql/string_literal_keyword.sql"
 _F_COMMENT = "tests/fixtures/sql/comment_forms.sql"
 _F_NAMED_DEFAULT = "tests/fixtures/sql/column_default_named_constraint.sql"
@@ -583,7 +583,7 @@ SQL_CASES: dict[str, Case] = {
         "exec_with_params.sql", {"File": 1, "Function": 1}, {"CONTAINS": 1, "CALLS": 1}
     ),
     "exec-dynamic": Case(
-        "exec_dynamic.sql",
+        "unmodelled_resolution/exec_dynamic.sql",
         {"File": 1, "Function": 1},
         {"CONTAINS": 1, "CALLS": 3},
         _SQL_DYNAMIC_EDGE_SHAPES,
