@@ -4,7 +4,7 @@ slug: does-the-index-harm-mechanism-questions
 title: 'The one repeated benchmark cell says the index may make control-flow answers worse — resolve it at n ≥ 3'
 phase: 1.5b
 milestone: Measure
-status: deferred
+status: done
 depends_on: [055, 067, 045, 265, 266]
 ---
 
@@ -133,6 +133,43 @@ lock. Related: [055](055_recall-benchmark.md), [067](067_first-page-not-represen
 <!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
 
 # Working doc — 074
+
+## Session status — CLOSED `done` 2026-09-19: the decision half shipped, the measurement half retired
+
+**What closed it.** The arm gate this ticket's own protocol requires was executed on the anchor, twice,
+on two frozen wordings of one mechanism question with a drafted presence key behind them. Both returned
+**exit 2 — 0 index calls** (17 and 20 tool calls). Register, wordings' hashes and the reasoning:
+[`benchmarks/074_*`](../benchmarks/074_mechanism-question.md) §Results. The second wording is the
+finding: it copies H4's idiom — the one held-out question that ever moved this anchor — and changes only
+that it pins the target to a scoreable key, and uptake returns to zero. **A question a key can score is
+a question grep can serve.** The two halves of a granted cell do not co-exist here, so no n buys one.
+
+**AC disposition, stated rather than implied.**
+- **AC1 (n ≥ 3 per arm) — not met, and not meetable at this price.** Not a shortfall of budget: the
+  granted arm cannot be constituted for a question this ticket can score. Six cells would have bought six
+  native-tools sessions and labelled three of them an arm — the 2026-08-27 mistake with a bigger bill.
+- **AC2 (mechanism per wrong granted cell) — vacuous.** No granted answer exists to attribute one to.
+- **AC3 (§19's threat deleted or replaced) — met.** Replaced, not deleted: the threat is now recorded as
+  *unresolvable* with the reason, plus the scope statement in writing (PLAN §19).
+- **AC4 (README + PLAN match the outcome) — met**, same commit: the README's *It is not* now names what
+  an agent does not reach for unprompted.
+- **R5 (a second question) — not warranted**, and the reason is not "the first did not replicate": the
+  first never ran. Recorded so a later reader does not mistake silence for a negative.
+
+**None of the three pre-registered consequences fired**, and none was stretched to fit. All three
+presuppose cells. The consequence actually applied is a scope statement about *reach*, which the
+pre-registration did not foresee — recorded as an unforeseen fourth outcome rather than dressed as
+"granted worse, no mechanism".
+
+**Two instrument defects this run found and fixed**, both of which would have silently spoiled a paid
+run: a denied arm built from `CA_TOOLS=""` serves **all 24 tools** (blank means unrestricted), and a
+counted cell needs `--max-turns` past the probe's 30 or the harness voids its own cell. Both are in the
+protocol now; the second shipped as code (PR #394).
+
+**What is left is not this ticket's.** Uptake is gated by the client — every code-atlas tool arrives as a
+deferred name with no schema while `Grep` is resident (300). If that changes, the gate is one probe pair
+away from re-testing, and the key is banked outside the tree. Until then the honest record is a closed
+ticket with a narrowed claim, not an open one nobody intends to buy.
 
 ## Session status — arm + key prep 2026-09-19
 

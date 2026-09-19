@@ -198,16 +198,20 @@ def probe_argv(
     uncoached: bool = False,
     append_system_prompt: str | None = None,
     question: str | None = None,
+    max_turns: int | None = None,
 ) -> list[str]:
     """Build the `claude -p` argv so harness contrasts stay testable without a live call."""
     unprompted = uncoached or question is not None
+    # A counted cell is not a probe: the 2026-08-27 cell took 68 tool calls, so the probe's 30-turn
+    # budget would truncate it into a `void` that is an artefact of the harness.
+    turns = max_turns if max_turns is not None else (30 if unprompted else 6)
     argv = [
         "claude", "-p", question or (REACH_PROMPT if unprompted else PROBE_PROMPT),
         "--output-format", "stream-json", "--verbose",
         "--mcp-config", str(mcp_config), "--strict-mcp-config",
         "--allowed-tools", *(READ_ONLY_TOOLS if unprompted else (STATUS_TOOL, TOOL_SEARCH)),
         "--disallowed-tools", "Edit", "Write", "Bash",
-        "--max-turns", "30" if unprompted else "6",
+        "--max-turns", str(turns),
     ]
     if model:
         argv += ["--model", model]
@@ -225,9 +229,10 @@ def run_probe(
     uncoached: bool = False,
     append_system_prompt: str | None = None,
     question: str | None = None,
+    max_turns: int | None = None,
 ) -> tuple[int, str]:
     """One throwaway session — the cheapest thing that can say whether the arm exists at all."""
-    argv = probe_argv(mcp_config, model, uncoached, append_system_prompt, question)
+    argv = probe_argv(mcp_config, model, uncoached, append_system_prompt, question, max_turns)
     proc = subprocess.run(argv, cwd=repo, capture_output=True, text=True)
     if save:
         save.write_text(proc.stdout, encoding="utf-8")
@@ -273,6 +278,12 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     probe.add_argument(
+        "--max-turns",
+        type=int,
+        default=None,
+        help="turn budget (default 30 uncoached, 6 coached); a counted cell needs more",
+    )
+    probe.add_argument(
         "--append-system-prompt-file",
         type=Path,
         default=None,
@@ -302,6 +313,7 @@ def main(argv: list[str] | None = None) -> int:
             args.uncoached,
             append_system_prompt=brief,
             question=question,
+            max_turns=args.max_turns,
         )
     else:
         raw = args.transcript.read_text(encoding="utf-8")

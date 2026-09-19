@@ -146,3 +146,11 @@ def test_the_coached_delivery_probe_is_unchanged_when_no_question_is_given() -> 
     argv = probe_argv(Path("granted.json"), model=None)
     assert "get_index_status" in argv[2]
     assert argv[argv.index("--max-turns") + 1] == "6"
+
+
+def test_a_counted_cell_can_outlive_the_probe_turn_budget() -> None:
+    """The 2026-08-27 cell took 68 tool calls; a 30-turn cap would void it as a harness artefact."""
+    cfg = Path("granted.json")
+    assert probe_argv(cfg, model=None, question="q")[-1] == "30"
+    argv = probe_argv(cfg, model=None, question="q", max_turns=90)
+    assert argv[argv.index("--max-turns") + 1] == "90"

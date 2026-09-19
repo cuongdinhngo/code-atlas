@@ -928,9 +928,8 @@ Consequences, all adopted:
   tier. Text search cannot produce an independent second count at all. This is the replacement claim.
 - **Fit, not accuracy, is the binding constraint.** Given the index, the agent reached for it in **22 of
   117 tool calls (19 %)**, and on two of five questions essentially not at all; the LSP arm's 0 % is the
-  same finding at its limit. The whole-graph tools this argues for — `impact` (017),
-  `find_orphans`/`reachable_from` (031), `explain_path` (038) — **already shipped**, and no real question
-  needed one. So the gap is demand and modelling, not capability, and building more tools does not close it.
+  same finding at its limit. The whole-graph tools this argues for **already shipped** and no real
+  question needed one, so the gap is demand and modelling, not capability: building more does not close it.
 - **Redirect (see [`BACKLOG.md`](BACKLOG.md) tiers).** 059 — the unmodelled handler → template data-bag
   edge — moves to the head of tier 1: two independent field sessions produced it, it is a relation rather
   than a location, and neither grep nor a language server answers it. 061 (payload weight) is demoted.
@@ -938,10 +937,12 @@ Consequences, all adopted:
   benchmark could not even make an agent choose between them.
 - **Threats, recorded rather than hidden.** n = 1 per cell; question selection was not blind (all five
   drawn from work already done); the one accidental repeat — the mechanism question run with the server
-  denied and then granted — produced **opposite verdicts**, and whether that is session variance or the
-  index steering the agent off a control-flow defect is **unresolved by decision**: 074 closed
-  `deferred` (2026-08-27), replication aborted at one cell on an arm with 0 index calls in 68
-  (`benchmarks/074_*`). The refutation rests on the aggregate, not any single cell.
+  denied and then granted — produced **opposite verdicts**. That repeat is **unresolvable, not merely
+  unresolved** (074, 2026-09-19): replicating it needs a granted cell — an uncoached session that
+  reaches the index — and five held-out mechanism questions on the 23k-file anchor drew **0 index
+  calls each**. A question a key can score is one grep can serve, so arm and key cannot
+  both hold (`benchmarks/074_*`). **Scope:** the index is for resolved structure, and an agent does not
+  reach for it where grep serves. The refutation rests on the aggregate, not any single cell.
 
 **Decision — Handler → template data-bag edge (task 059, 2026-08-08). Option 1 — producer side only.**
 
@@ -979,7 +980,7 @@ the template consumer name.
 
 **Decision — default inbound page order is tier-first (task 265, 2026-09-13).**
 
-Page 1 was alphabetical, so a correct page could be 100 % of the wrong tree (067) and the sole `RESOLVED` caller sat on page 12 (251). **Locked: tier-first default order** — `RESOLVED` → `HEURISTIC` → `DYNAMIC`, then today's stable keys — in the store query before truncation (R4.2). `confidence_tier` stays an opt-in *filter*: default *order* changes, default *set* does not. A tier partition is `authoritative: false` with a census, and an empty one stays `no_matches`, never `ok` (264). [074](tasks/074_does-the-index-harm-mechanism-questions.md) stays `deferred` until re-measured after this ships. Detail: [265](tasks/265_the-default-page-order-is-the-alphabet.md).
+Page 1 was alphabetical, so a correct page could be 100 % of the wrong tree (067) and the sole `RESOLVED` caller sat on page 12 (251). **Locked: tier-first default order** — `RESOLVED` → `HEURISTIC` → `DYNAMIC`, then today's stable keys — in the store query before truncation (R4.2). `confidence_tier` stays an opt-in *filter*: default *order* changes, default *set* does not. A tier partition is `authoritative: false` with a census, and an empty one stays `no_matches`, never `ok` (264). Detail: [265](tasks/265_the-default-page-order-is-the-alphabet.md).
 
 **Decision — keyed_calls may target File qnames (task 256, 2026-09-12).** 222's E2 left dispatch
 routing to grep; field evidence contradicted that. **Locked:** `target_template` → indexed File qname

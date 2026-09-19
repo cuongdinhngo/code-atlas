@@ -1,7 +1,8 @@
 # 074 — Does the index harm mechanism (control-flow) questions? — pre-registered protocol
 
-**Status:** **protocol refreshed 2026-09-19 — still no verdict.** The 2026-08-27 abort (below)
-stands. A new run must measure the **post-265 product** (this file's "Product under test"), and the
+**Status:** **2026-09-19 — no verdict, and no longer one a run can buy.** The question gate was
+executed twice and failed twice ([Results](#results--2026-09-19-no-cell-was-bought-and-that-is-the-result));
+the 2026-08-27 abort (below) stands. A new run must measure the **post-265 product** (this file's "Product under test"), and the
 two rules that abort earned are now executable rather than advisory: `scripts/arm_preflight.py`
 ([Arm preflight](#arm-preflight--the-granted-arm-is-proven-not-assumed-r1--abort-finding-3)) and the
 [key freeze procedure](#the-key--freeze-procedure-r1-step-2--abort-finding-2). Pre-registered
@@ -44,7 +45,7 @@ before any session runs.
 | Arm | Configuration |
 |---|---|
 | **granted** | code-atlas MCP server registered, **schemas callable**, index current — today's install (see Product under test). |
-| **denied**  | native tools only — code-atlas absent (server not registered, or `CA_TOOLS=""`). |
+| **denied**  | native tools only — the server **absent from the config** (`{"mcpServers":{}}` with `--strict-mcp-config`). **Not `CA_TOOLS=""`**: blank means unrestricted (`config.py::_as_tools`), so that config serves all 24 tools and the arms leak. |
 
 No resident-LSP arm: it scored 0 invocations in 84 calls in the original run — there is no
 answer-quality comparison to be had.
@@ -77,6 +78,10 @@ python scripts/arm_preflight.py probe --uncoached --mcp-config granted.json --re
 
 # a held-out question — the same uncoached run, in wording the product has not seen (300)
 python scripts/arm_preflight.py probe --question-file q.txt --mcp-config granted.json --repo <anchor>
+
+# a counted cell — the frozen question, and a budget the probe's 30 turns would truncate
+python scripts/arm_preflight.py probe --question-file key-question.txt --max-turns 120 \
+    --mcp-config granted.json --repo <anchor> --save cell-N.jsonl
 
 # after every counted cell, both arms
 python scripts/arm_preflight.py audit cell-N.jsonl --arm granted
@@ -215,32 +220,41 @@ For each such cell, record:
 the denied arm across the n cells; "≈" means the arms' verdict distributions do not differ in a way
 that survives n ≥ 3 (no consistent granted disadvantage on cause-correctness).
 
-## Results — to be filled from the maintainer's runs (paste back, then I score)
+## Results — 2026-09-19: no cell was bought, and that is the result
 
-Ground-truth cause (frozen before runs): _<one paragraph, non-identifying>_
+**Zero cells. The six rows below stay empty and the tally stays unwritten**, because the granted arm
+failed its own precondition twice (register above). Spend: three uncoached probes, ~$5.25, against
+the ~$33.5 six cells would have cost — which is what the gate is for.
 
-Key card (filled at freeze time, per [The key](#the-key--freeze-procedure-r1-step-2--abort-finding-2)): _<class · sha256 · probe · observed · anchor sha>_
+**Key register.** A frozen question needs a key; this one has a *drafted* one, banked outside every
+repo (C1) so a later run inherits it instead of re-deriving it:
+
+| Field | Value |
+|---|---|
+| Key class | `presence` — three layers with an arbiter, not an assertion of absence |
+| `sha256` (key text) | `a2f21071789a` |
+| `sha256` (question A · B) | `b0de10471f25` · `37ecb150a226` |
+| Dynamic probe (step 3) | **not run** — the run never started, and this session's host denied the DB access it needs |
+| Anchor tree | `8c45f98631` |
+
+It is therefore **drafted, not frozen**: step 3 is not optional, and a card without it is the shape
+the 2026-08-27 falsification earned the procedure for. Nothing was scored against it.
 
 | Cell | Arm | `audit` | Verdict | Stated cause (shape) | Preceding tool call | Payload class | Tokens |
 |---|---|---|---|---|---|---|---|
-| 1 | granted | | | | | | |
-| 2 | granted | | | | | | |
-| 3 | granted | | | | | | |
-| 4 | denied | | | | | | |
-| 5 | denied | | | | | | |
-| 6 | denied | | | | | | |
+| 1-3 | granted | — | — | — | — | — | — |
+| 4-6 | denied | — | — | — | — | — | — |
 
-The `audit` column is `scripts/arm_preflight.py audit`'s verdict for that cell. A `void` or
-`CONTAMINATED` cell does not enter the tally and does not count toward n.
+**Arm tallies:** none. **Selected outcome:** none of the three — see the gate register for why the
+pre-registered table does not apply. **Mechanism:** not applicable; there was no granted answer to
+attribute one to.
 
-**Arm tallies:** granted `_c / _p / _w` · denied `_c / _p / _w`.
-**Selected outcome (from the pre-registered table):** _<one of the three>_.
-**Mechanism (if granted worse):** _<named, or "not identified">_.
-
-Once these rows are filled, the analysis turn applies the selected pre-registered consequence: edits
-PLAN §19 (delete the threat, or replace it with the resolved mechanism / a scope statement) and the
-README value claim **in the same change** (AC3/AC4), and records whether R5's second question is
-warranted. **This never happened — see below.**
+**Instrument corrections this run earned**, both cheap and both load-bearing:
+- the denied arm is the server **absent from the config**, never `CA_TOOLS=""` — blank means
+  *unrestricted*, so the config staged for this run would have served all 24 tools to the arm whose
+  whole definition is having none (Arms table above);
+- a counted cell needs `--max-turns` well past the probe's 30 (the 2026-08-27 cell took 68 calls),
+  or the harness truncates a cell into a `void` of its own making.
 
 ## Preflight findings — 2026-09-19. Delivery is not the blocker; selection is
 
@@ -300,12 +314,26 @@ on this 592-file repo. **Uptake tracks whether `Grep` hurts, not what the tools 
 additions: `probe --append-system-prompt-file`, `probe --question-file`. Tables:
 [300](../tasks/300_the-index-is-registered-permitted-and-never-chosen.md).
 
-**So 074 resumes per question, never per repo.** The granted arm exists only where the frozen
-question actually reaches the index. Precondition, before any cell is bought: run
-`probe --question-file` on the frozen question against the anchor **twice**; buy cells only if both
-are exit 0. That is ~$3.50 against $5.58 per cell and it is the whole difference between a granted
-arm and a native-tools session wearing its label. On the current evidence a routing-shaped frozen
-question on a 23k-file tree is the case most likely to clear it.
+**So 074 resumes per question, never per repo — and on 2026-09-19 the gate was run, twice, and the
+question class failed it.** Two frozen wordings of one mechanism question, uncoached on the anchor,
+266 brief present, index `current`, `server_build 9a22d94` (300's `instructions` shipped):
+
+| Q | Wording shape | sha256 (stripped text) | Tool calls | code-atlas calls |
+|---|---|---|---|---|
+| A | "what actually sets X, and what decides whether it gets set at all" | `b0de10471f25` | 17 (12 Grep · 5 Read) | **0** |
+| B | the same cause in H4's idiom — "pick the point where … and work backwards: what chain reaches it" | `37ecb150a226` | 20 (10 Grep · 9 Read · 1 Glob) | **0** |
+
+**B is the finding, not A.** H4 — the one held-out question that ever moved the anchor (2 → 12 index
+calls in 43) — let the session **choose** its target ("pick a representative write"). B keeps that
+idiom and changes one thing: it pins the target to the frozen key. Uptake went back to zero. So H4's
+uptake was never the phrasing; it was the absence of a target to grep for. **A question a key can
+score is a question grep can serve**, and a granted cell needs both halves at once. On this anchor
+they do not co-exist: n = 5 mechanism-shaped questions (H2, H3, H5, A, B), 0 index calls each, every
+tool registered and permitted every time.
+
+That is not one of the three pre-registered outcomes, and it is not scored as one. All three
+presuppose cells; this says the cells cannot be bought at any n — not that the arms tied. The
+consequence recorded below is therefore a **scope statement about reach**, not about harm.
 
 **The boundary this evidence does not cross.** All cells are **headless one-shot**. The August
 interactive 19 % (22/117) is not a controlled comparison — different questions, different session

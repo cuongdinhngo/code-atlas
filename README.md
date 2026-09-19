@@ -77,7 +77,10 @@ reachability and the path between two symbols as rows.
 reading, not a human in an IDE · you need the answer to be checkable, not plausible.
 
 **It is not** a faster `grep`, an editor, or a language server — an LSP stays for precise in-buffer
-nav, and code-atlas never mutates code. C#/.NET is on the roadmap, not shipped.
+nav, and code-atlas never mutates code. It is also **not what an agent reaches for unprompted on a
+control-flow question `grep` can serve**: five held-out mechanism questions on a 23k-file tree drew
+0 index calls each, with every tool registered and permitted
+([074](docs/benchmarks/074_mechanism-question.md)). C#/.NET is on the roadmap, not shipped.
 
 ## Quick start
 
