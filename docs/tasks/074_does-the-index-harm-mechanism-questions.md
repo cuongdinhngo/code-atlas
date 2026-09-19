@@ -134,6 +134,36 @@ lock. Related: [055](055_recall-benchmark.md), [067](067_first-page-not-represen
 
 # Working doc — 074
 
+## Session status — arm + key prep 2026-09-19
+
+- **Status stays `deferred`.** This is prep, not a re-opening and not a verdict. The maintainer
+  asked for the two blockers the 2026-08-27 abort named, and only those.
+- **Blocker 1 (abort finding 3) — the granted arm is now testable for cents.**
+  `scripts/arm_preflight.py` `probe` proves a code-atlas tool is callable from a config before a
+  cell is bought; `audit` rules on a counted cell's transcript — a granted cell with 0 index calls
+  is `void`, a denied cell with any index call is contaminated. It also lifts `server_build` /
+  `staleness` out of the cell's own payload, which is where the Product-under-test rows come from.
+  Held by `tests/test_arm_preflight.py` (10 tests).
+- **Blocker 2 (abort finding 2) — the key has a freeze procedure**, in the protocol: classify
+  presence vs absence, dynamically probe an absence key at runtime, commit a shape-only card with a
+  `sha256` of the private key text and the anchor commit sha, re-freeze if the tree moves. Plus the
+  rule the abort lacked — **if a cell names a reproducing mechanism the key does not contain, the
+  key is wrong, not the cell**; the run stops and cells scored against the old key are `void`.
+- **Live finding, not a datapoint:** the first probe ran against *this* repo's `.mcp.json` and
+  returned exit 1 — 41 deferred tools, `ToolSearch` before the single index call. Delivery is
+  unchanged since the abort, so the granted arm is still not fit. The triage that followed
+  ruled out all three candidates — the server's surface, the probe's allow-list and the client build —
+  and a second round then found the sharper fact: an **uncoached** session made 0 index calls while
+  the session header listed every code-atlas tool as present and denied nothing. The blocker is
+  selection, not delivery. Re-run on the anchor, where the question fits, it was 0 in 25 — n = 3
+  across two repos and two clients, with every tool available every time. **The n≥3 run cannot be
+  bought under this harness**: three granted cells would be three native-tools cells. Recorded in
+  the protocol under *Preflight findings*; the cause hunt and the untested interactive-vs-headless
+  question are [300](300_the-index-is-registered-permitted-and-never-chosen.md), and 074 resumes
+  when 300 lifts the blocker.
+- **ACs unchanged and still open:** AC1-back / AC2 / AC3 / AC4 all need the maintainer's n≥3 run.
+  What this turn removes is the reason that run could not be trusted, not the run.
+
 ## Session status — protocol refresh 2026-09-18
 - **Status stays `deferred`.** This is not a resumption of the 2026-08-27 abort and invents no
   verdict. The raw ticket + benchmark protocol now name the **post-265 product** as the thing under

@@ -30,6 +30,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 297 | [The member demote is keyed to one kind](tasks/297_the-member-demote-is-keyed-to-one-kind-so-a-class-still-buries-itself.md) | Agent-fit | todo | 292, 265, 245 |
 | 298 | [The SQL adapter answers `false` to a question it never asked](tasks/298_the-sql-adapter-answers-false-to-a-question-it-never-asked.md) | Honesty | todo | 262, 130, 231 |
 | 299 | [A confident hit list does not say the index never saw this extension](tasks/299_a-confident-hit-list-does-not-say-the-index-never-saw-this-extension.md) | Honesty | todo | 160, 173, 255 |
+| 300 | [The index is registered, permitted and never chosen](tasks/300_the-index-is-registered-permitted-and-never-chosen.md) | Adoption | todo | 074, 200, 266, 268 |
 ## Open work — Pillar 2 · Onboarding
 
 The rendering of what the code actually is, for a human supervising an agent or presenting the
