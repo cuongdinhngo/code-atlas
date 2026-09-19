@@ -199,3 +199,24 @@ def test_demote_term_has_no_column_kind_literal() -> None:
     assert contract.COLUMN_KIND not in sql
     assert "nodes.kind =" not in sql
 
+
+
+def test_demote_key_is_evaluated_once_per_search(tmp_path: Path, store: GraphStore) -> None:
+    """297 follow-up — the demote set is derived once, not re-derived for every hit.
+
+    Correlated to `nodes.qualified_name`, the parent scan (an fts5 MATCH) re-ran per row: 0.31 ->
+    9.4 ms/call on SQLite 3.40, where the planner does not hoist it, while 3.53 hid the cost. The
+    plan is the version-proof witness — `CORRELATED` means per-row.
+    """
+    for i in range(40):
+        path = f"m{i:02d}.sql"
+        seed_file(
+            store, path, [node("Function", "loadReport", f"Ns{i}.loadReport", path)], [], root=tmp_path
+        )
+    traced: list[str] = []
+    store._conn.set_trace_callback(traced.append)
+    store.search_nodes("loadReport", limit=20)
+    store._conn.set_trace_callback(None)
+    statement = next(sql for sql in traced if not sql.startswith("--"))
+    plan = [str(row[3]) for row in store._conn.execute("EXPLAIN QUERY PLAN " + statement)]
+    assert not [step for step in plan if "CORRELATED" in step], plan

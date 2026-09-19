@@ -446,18 +446,25 @@ def _search_contains_demote(
     parent_where, parent_params = _with_namespace(
         parent_where, parent_params, namespace, qname_column="p.qualified_name"
     )
-    sql = (
-        f"(CASE WHEN EXISTS ("
-        f"SELECT 1 FROM edges AS e "
+    # Uncorrelated on purpose: the member set is computed ONCE, not re-derived per outer row.
+    # Correlating it made the subquery re-scan fts5 for every hit — 30x on SQLite 3.40 (297).
+    members = (
+        f"SELECT e.target_qname AS member FROM edges AS e "
         f"JOIN nodes AS p ON p.qualified_name = e.source_qname "
         f"JOIN nodes_fts ON nodes_fts.rowid = p.id "
         f"WHERE e.kind = '{contract.CONTAINS}' "
-        f"AND (e.target_qname = nodes.qualified_name OR e.target_raw = nodes.qualified_name) "
+        f"AND {DIRECT_MATCH_SQL_FN}(?, p.name, p.qualified_name) "
+        f"AND {parent_where} "
+        f"UNION ALL "
+        f"SELECT e.target_raw AS member FROM edges AS e "
+        f"JOIN nodes AS p ON p.qualified_name = e.source_qname "
+        f"JOIN nodes_fts ON nodes_fts.rowid = p.id "
+        f"WHERE e.kind = '{contract.CONTAINS}' "
         f"AND {DIRECT_MATCH_SQL_FN}(?, p.name, p.qualified_name) "
         f"AND {parent_where}"
-        f") THEN 1 ELSE 0 END)"
     )
-    return sql, (query, *parent_params)
+    sql = f"(CASE WHEN nodes.qualified_name IN ({members}) THEN 1 ELSE 0 END)"
+    return sql, (query, *parent_params, query, *parent_params)
 
 
 def _like_literal(value: str) -> str:
