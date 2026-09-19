@@ -300,6 +300,39 @@ def parse_file(
         }
     )
 
+    def mark_unmodelled_resolution(strategy: str) -> None:
+        # File.extra stamp — never invent IMPORTS (279/295).
+        file_node = nodes[0]
+        extra = dict(file_node.get("extra") or {})
+        existing = extra.get("unmodelled_resolution")
+        lst = list(existing) if isinstance(existing, list) else []
+        if strategy not in lst:
+            lst.append(strategy)
+            lst.sort()
+        extra["unmodelled_resolution"] = lst
+        file_node["extra"] = extra
+
+    def _call_attr_path(func: ast.AST) -> str | None:
+        parts: list[str] = []
+        cur: ast.AST | None = func
+        while isinstance(cur, ast.Attribute):
+            parts.append(cur.attr)
+            cur = cur.value
+        if isinstance(cur, ast.Name):
+            parts.append(cur.id)
+            parts.reverse()
+            return ".".join(parts)
+        return None
+
+    def maybe_stamp_dynamic_import(node: ast.Call) -> None:
+        path = _call_attr_path(node.func)
+        if path in (
+            "importlib.import_module",
+            "__import__",
+            "importlib.util.spec_from_file_location",
+        ):
+            mark_unmodelled_resolution("dynamic_import")
+
     # Graph container for module-level symbols: Namespace for a package __init__, else the File.
     root_container = qpath
     if is_package_init and mod:
@@ -693,6 +726,7 @@ def parse_file(
         locals_: dict[str, str],
         self_props: dict[str, str],
     ) -> None:
+        maybe_stamp_dynamic_import(node)
         func = node.func
         if isinstance(func, ast.Name):
             # ``super()`` alone is not a call edge; ``super().m()`` is handled via Attribute.
