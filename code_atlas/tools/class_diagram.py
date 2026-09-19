@@ -276,7 +276,7 @@ def _visibility(modifiers: object) -> str:
 
 
 def _test_path(path: str) -> bool:
-    """Path-segment test role (130) — ``is_test`` is unused by adapters today."""
+    """Path-segment test role (130) via ``symbol_role``; adapters may omit ``is_test``."""
     return any(
         responsibility_of_segment(segment) == LAYER_TESTS for segment in path.split("/")[:-1]
     )

@@ -14,7 +14,7 @@ const PENDING_CAP = 256 * 1024;
 /**
  * @typedef {{kind: string, name: string, qualified_name: string, file_path: string,
  *   line_start: number, line_end: number, modifiers: string[], params: unknown[],
- *   is_test: boolean, extra: Record<string, unknown>}} Node
+ *   extra: Record<string, unknown>}} Node
  * @typedef {{kind: string, source_qname: string, target_raw: string, file_path: string,
  *   line: number, confidence_tier: string, args?: (string|null)[],
  *   arg_keys?: (string[]|null)[]}} Edge
@@ -326,7 +326,7 @@ function parseFile(qpath) {
     /** @type {Node} */
     const node = {
       kind: "Table", name: lastSegment(qname, "."), qualified_name: qname, file_path: qpath,
-      line_start: line, line_end: line, modifiers: [], params: [], is_test: false, extra: {},
+      line_start: line, line_end: line, modifiers: [], params: [], extra: {},
     };
     tables.set(qname, node);
     if (isCreate) createdTables.add(qname);
@@ -384,7 +384,7 @@ function parseFile(qpath) {
     const qname = `${parentTable}::${name}`;
     nodes.push({
       kind: "ForeignKey", name, qualified_name: qname, file_path: qpath,
-      line_start: line, line_end: line, modifiers: [], params: [], is_test: false,
+      line_start: line, line_end: line, modifiers: [], params: [],
       extra: {
         parent_table: parentTable, referenced_table: referenced,
         columns: fk.fromColumns.join(", "),
@@ -434,7 +434,7 @@ function parseFile(qpath) {
     /** @type {Node} */
     const node = {
       kind: "Column", name: col.name, qualified_name: qname, file_path: qpath,
-      line_start: line, line_end: line, modifiers: [], params: [], is_test: false, extra,
+      line_start: line, line_end: line, modifiers: [], params: [], extra,
     };
     columns.set(qname, node);
     nodes.push(node);
@@ -659,7 +659,6 @@ function parseFile(qpath) {
           line_end: lineNo,
           modifiers: [],
           params: procedureParams(code),
-          is_test: false,
           extra: { object_type: created[1].toLowerCase().startsWith("proc") ? "procedure" : "function" },
         };
         nodes.push(node);
@@ -693,7 +692,7 @@ function parseFile(qpath) {
         /** @type {Node} */
         const node = {
           kind: "Function", name: lastSegment(qname, "."), qualified_name: qname, file_path: qpath,
-          line_start: lineNo, line_end: lineNo, modifiers: [], params: [], is_test: false, extra,
+          line_start: lineNo, line_end: lineNo, modifiers: [], params: [], extra,
         };
         nodes.push(node);
         edges.push({
@@ -791,7 +790,6 @@ function parseFile(qpath) {
     line_end: Math.max(lastLine, 1),
     modifiers: [],
     params: [],
-    is_test: false,
     extra: fileExtra,
   });
 

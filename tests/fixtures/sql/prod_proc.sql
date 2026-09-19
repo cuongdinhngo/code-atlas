@@ -1,0 +1,5 @@
+CREATE PROCEDURE dbo.ProdProc
+AS
+BEGIN
+    SELECT 1;
+END

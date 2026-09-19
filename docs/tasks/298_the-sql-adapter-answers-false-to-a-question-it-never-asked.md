@@ -4,7 +4,7 @@ slug: the-sql-adapter-answers-false-to-a-question-it-never-asked
 title: '262 made `is_test` a read field with the path convention as its fallback, and wrote the fallback to yield to any adapter that emits the flag — but the T-SQL adapter writes `is_test: false` on every node it builds, which is not a decision, so the fallback never runs for SQL and a procedure whose only callers are test scripts is counted as production in the one census 262 exists to provide'
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [262, 130, 231]
 ---
 
@@ -71,3 +71,121 @@ the node payload instead of the handshake.
 [`ADAPTER_PLAYBOOK.md`](../ADAPTER_PLAYBOOK.md) §3,
 [262](262_the-contract-marks-test-code-and-no-tool-reads-it.md),
 [130](130_web-entry-bucket-counts-test-controllers.md).
+
+---
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 298 — SQL omits undecided is_test (working doc)
+
+- **TIER:** full · **TRACK:** backend — 0/0 UI · **SCOPE:** S · **BASELINE:** green · **INPUT KIND:** ticket
+
+## Phase 0 — Refine
+
+`PREMISE: 4 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)`
+`RECALL: 0 claim(s) surfaced | 0 by symbol | 0 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`REFINE: 1 unresolved surfaced | 0 want-decision asked | 1 how-decision resolved+cited | 0 ASSUMED | skip: no`
+
+HOW: remove all `is_test: false` from scan.js so path convention fills; correct playbook + class_diagram comment — cites ticket Scope + Constraints (do not invert precedence).
+
+## Requirements matrix
+
+`SECTIONS: 5 found (Why this exists · Scope / Deliverables · Constraints · Acceptance criteria · References) | 5 decomposed | ROWS: C=4 R=3 G=1 AC=4`
+
+| ID | Source | Verbatim | Interpretation | Ph2 | Ph3/4 | Status |
+|----|--------|----------|----------------|-----|-------|--------|
+| G1 | Why | constant false opts out | omit field | D1 | AC1 | ✅ |
+| C1 | Constraints | keep precedence | omit only | D1 | AC1 | ✅ |
+| C2 | Constraints | R2 no path list in adapter | core only | D1 | — | ✅ |
+| C3 | Constraints | 061 no-test-path identical | omit only | D1 | — | ✅ |
+| C4 | Constraints | class_diagram comment | fix stale | D3 | AC3 | ✅ |
+| R1 | Scope | stop emitting is_test | scan.js | D1 | AC2 | ✅ |
+| R2 | Scope | playbook row | ADAPTER_PLAYBOOK | D2 | AC3 | ✅ |
+| R3 | Scope | pin rule for any adapter | proving | D3 | proving | ✅ |
+| AC1 | AC | test path + production_count 0 | proving | D3 | proving | ✅ |
+| AC2 | AC | no is_test in scan.js | proving | D3 | proving | ✅ |
+| AC3 | AC | playbook + comment | docs | D2 | AC3 | ✅ |
+| AC4 | AC | 262 tests pass | proving | D3 | proving | ✅ |
+
+`CLARIFICATION: 1 raised | 1 self-resolved (cited) | 0 for human decision`
+
+## Phase 1 — Analysis
+
+- Root cause: SQL emits is_test:false constantly, defeating path fallback.
+- TRACK: backend — 0/0 UI
+
+`RULE SECTIONS: 3 applicable — 3 by change-type | 0 by recalled handle — R2 (change-type) ✅ · R5.6 (change-type) ✅ · R7.6 (change-type) ✅`
+
+Ran at 8c8d5ab5acd143f178fbd90407b6260dd5711b0d
+
+```
+$ .venv/bin/python -m pytest tests/test_sql_omit_is_test_constant.py tests/test_callers_test_role_census.py -q --tb=no
+..........                                                               [100%]
+10 passed in 1.80s
+```
+
+`BASELINE: green`
+
+## Phase 2 — Design
+
+- Approach: delete is_test from all SQL node builds; update playbook + class_diagram docstring; proving tests.
+- Rejected: invert precedence; add test-dir list to SQL adapter.
+
+`HANDLES: 0 recalled | 0 traced (command + result) | 0 does not apply (reason) | 0 unanswered`
+`EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+**Proving test:** `.venv/bin/python -m pytest tests/test_sql_omit_is_test_constant.py -q`
+
+| # | Change | File | Blast | k/N |
+|---|--------|------|-------|-----|
+| D1 | omit is_test | adapters/sql/src/scan.js | parse nodes | 1/1 |
+| D2 | playbook row | docs/ADAPTER_PLAYBOOK.md | docs | 1/1 |
+| D3 | comment + proving | class_diagram.py · test_sql_omit_is_test_constant.py | — | 1/1 |
+
+## Phase 3 — Execute
+
+**Branch:** feat/298-sql-omit-is-test-constant
+
+**Verification sweep**
+
+Ran at 8c8d5ab5acd143f178fbd90407b6260dd5711b0d
+
+```
+$ .venv/bin/python -m pytest tests/test_sql_omit_is_test_constant.py tests/test_callers_test_role_census.py -q --tb=no
+..........                                                               [100%]
+10 passed in 1.80s
+```
+
+`DIFF ⊆ approved list: yes`
+`DESIGN-CONFORMANCE: self-check passed`
+
+## Phase 4 — Review
+
+REVIEWER: off (waived --no-reviewer)
+CHALLENGER: on — round-1 NOT CLEAN (AC1); fixed; round-2 CLEAN (4/4 AC met)
+agents d84de181-aa12-4ba2-9ebd-441d49b3d5f7 · d907f7ee-6a85-4e29-af16-5d7cc7f9a979
+
+Ran at a5d35df72abe6a4dbdc77e17cb60205205253b35
+
+```
+$ .venv/bin/python -m pytest tests/test_sql_omit_is_test_constant.py tests/test_callers_test_role_census.py -q --tb=no
+...........                                                              [100%]
+11 passed in 0.72s
+```
+
+`REVIEW: CLEAN`
+`SCOPE ≡ approved list: yes`
+`DIFF ⊆ approved list: yes`
+
+## Phase 5 — Finalise
+
+Outward: push + PR. Never merge.
+
+## Cost ledger
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`LEDGER TOTAL: unmeasured · top cost driver: main-loop (challenger x1)`

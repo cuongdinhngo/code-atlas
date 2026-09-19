@@ -65,7 +65,7 @@ the consumer cannot tell "the code has no annotation" from "this adapter never l
 | `args` · `arg_keys` | fill at every `CALLS`/`NEW` site — the literal **category**, never the value | `find_callers`'s argument filter (049/063) **and every `CA_INDIRECTION_RULES` edge** (`enrichment.py`), so a repo in your language gets no cross-language link |
 | `confidence_tier` | leave **NULL** on a structural edge | nothing — NULL folds into `RESOLVED` (`store.py:704-709`). SQL stamping it explicitly is equivalent, not better; do not file it as a defect |
 | `capabilities` | declare what you capture | this is the honesty channel and it is nearly unused: `KNOWN_CAPABILITIES` (`contract.py:185`) still holds one entry |
-| `is_test` | skip | nothing reads it; `class_diagram.py:253` derives the role from the path |
+| `is_test` | emit only when decided | omit when undecided so 130's path convention fills via `symbol_role`; a constant `false` opts out of the fallback by accident (262/298) |
 
 **Do not answer any row of this table from memory or from reading another adapter — measure it.**
 `scripts/adapter_parity_report.py` runs every registered adapter over `tests/fixtures/parity/` and
