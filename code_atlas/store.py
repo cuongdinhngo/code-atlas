@@ -435,7 +435,7 @@ def _direct_match_udf(query: object, name: object, qualified_name: object) -> in
 def _search_contains_demote(
     query: str, *, kind: str | None, namespace: str | None
 ) -> tuple[str, tuple[object, ...]]:
-    """ORDER BY key: demote Columns whose CONTAINS parent is also a hit for this query (292).
+    """ORDER BY key: demote hits whose CONTAINS parent is also a hit for this query (292/297).
 
     Parent must satisfy the same FTS/kind/namespace filters as the outer search so a hit set
     with no container/member pair stays byte-identical (061).
@@ -447,7 +447,7 @@ def _search_contains_demote(
         parent_where, parent_params, namespace, qname_column="p.qualified_name"
     )
     sql = (
-        f"(CASE WHEN nodes.kind = '{contract.COLUMN_KIND}' AND EXISTS ("
+        f"(CASE WHEN EXISTS ("
         f"SELECT 1 FROM edges AS e "
         f"JOIN nodes AS p ON p.qualified_name = e.source_qname "
         f"JOIN nodes_fts ON nodes_fts.rowid = p.id "
@@ -2539,7 +2539,7 @@ class GraphStore:
 
         Exact/prefix matches come first, near-misses after, BM25 rank as the tie-break inside each
         band (task 180) — banding the whole result set, not the page, so ``offset`` walks it.
-        Within a band, Columns CONTAINED by a direct-match parent rank after non-members (292).
+        Within a band, hits CONTAINED by a direct-match parent rank after non-members (292/297).
         """
         if len(query) < 3:
             return self._search_short(

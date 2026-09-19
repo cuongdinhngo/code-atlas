@@ -134,3 +134,68 @@ def test_search_symbol_page_keeps_container_definitions(
     assert "Column" not in kinds
     assert kinds.count("Table") == 6 and kinds.count("Function") == 1
 
+
+def _plant_class_with_methods(
+    store: GraphStore, root: Path, *, class_qname: str, path: str
+) -> None:
+    """Class + many Methods sharing a CONTAINS parent — the 297 band-collision shape."""
+    methods = [
+        node("Method", f"m_{i:02d}", f"{class_qname}::m_{i:02d}", path) for i in range(20)
+    ]
+    contains = [
+        edge(
+            "CONTAINS",
+            class_qname,
+            m["qualified_name"],
+            path,
+            target_qname=str(m["qualified_name"]),
+        )
+        for m in methods
+    ]
+    bare = class_qname.rsplit("\\", 1)[-1].rsplit("::", 1)[-1]
+    seed_file(
+        store,
+        path,
+        [node("Class", bare, class_qname, path), *methods],
+        contains,
+        root=root,
+    )
+
+
+def test_php_class_outranks_its_methods(tmp_path: Path, store: GraphStore) -> None:
+    """297 AC1 — qualified Class query ranks Class above its Methods."""
+    qn = "App\\UserService"
+    _plant_class_with_methods(store, tmp_path, class_qname=qn, path="UserService.php")
+    page = store.search_nodes(qn, limit=10)
+    assert str(page[0]["qualified_name"]) == qn
+    assert str(page[0]["kind"]) == "Class"
+    assert all(r["kind"] != "Class" or r["qualified_name"] == qn for r in page[1:])
+
+
+def test_ts_class_outranks_its_methods(tmp_path: Path, store: GraphStore) -> None:
+    """297 AC1 — TypeScript Class::Method qnames demote the same way."""
+    qn = "src/user.ts::UserService"
+    _plant_class_with_methods(store, tmp_path, class_qname=qn, path="src/user.ts")
+    page = store.search_nodes(qn, limit=10)
+    assert str(page[0]["qualified_name"]) == qn
+    assert str(page[0]["kind"]) == "Class"
+
+
+def test_python_class_outranks_its_methods(tmp_path: Path, store: GraphStore) -> None:
+    """297 AC1 — Python Class qname ranks above Methods."""
+    qn = "pkg.user::UserService"
+    _plant_class_with_methods(store, tmp_path, class_qname=qn, path="pkg/user.py")
+    page = store.search_nodes(qn, limit=10)
+    assert str(page[0]["qualified_name"]) == qn
+    assert str(page[0]["kind"]) == "Class"
+
+
+def test_demote_term_has_no_column_kind_literal() -> None:
+    """297 AC3 — demote is containment-keyed, not COLUMN_KIND."""
+    from code_atlas import contract
+    from code_atlas.store import _search_contains_demote
+
+    sql, _ = _search_contains_demote("Orders", kind=None, namespace=None)
+    assert contract.COLUMN_KIND not in sql
+    assert "nodes.kind =" not in sql
+

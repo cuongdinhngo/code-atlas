@@ -25,7 +25,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 294 | [A TypeScript runtime import leaves no stamp](tasks/294_a-typescript-repo-that-imports-at-runtime-answers-unreachable-and-means-unmeasured.md) | Honesty | todo | 279, 019, 255, 299 |
 | 295 | [A Python runtime import leaves no stamp](tasks/295_a-python-repo-that-imports-at-runtime-answers-unreachable-and-means-unmeasured.md) | Honesty | todo | 279, 020, 255, 299 |
 | 296 | [The SQL adapter names the dynamic procs and stamps nothing](tasks/296_the-sql-adapter-names-the-dynamic-procs-and-stamps-nothing.md) | Honesty | todo | 279, 184, 255, 299 |
-| 297 | [The member demote is keyed to one kind](tasks/297_the-member-demote-is-keyed-to-one-kind-so-a-class-still-buries-itself.md) | Agent-fit | todo | 292, 265, 245 |
 | 298 | [The SQL adapter answers `false` to a question it never asked](tasks/298_the-sql-adapter-answers-false-to-a-question-it-never-asked.md) | Honesty | todo | 262, 130, 231 |
 ## Open work — Pillar 2 · Onboarding
 
