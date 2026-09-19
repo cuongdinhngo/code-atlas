@@ -210,9 +210,8 @@ def test_demote_key_is_evaluated_once_per_search(tmp_path: Path, store: GraphSto
     """
     for i in range(40):
         path = f"m{i:02d}.sql"
-        seed_file(
-            store, path, [node("Function", "loadReport", f"Ns{i}.loadReport", path)], [], root=tmp_path
-        )
+        rows = [node("Function", "loadReport", f"Ns{i}.loadReport", path)]
+        seed_file(store, path, rows, [], root=tmp_path)
     traced: list[str] = []
     store._conn.set_trace_callback(traced.append)
     store.search_nodes("loadReport", limit=20)
