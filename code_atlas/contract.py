@@ -235,6 +235,8 @@ RULE_FLAG = "rule"
 UNMODELLED_RESOLUTION = "unmodelled_resolution"
 # Strategy token under UNMODELLED_RESOLUTION — registered class autoload (language-standard API).
 RESOLUTION_AUTOLOAD = "autoload"
+# Strategy token — runtime module load via non-literal import()/require() (294).
+RESOLUTION_DYNAMIC_IMPORT = "dynamic_import"
 
 # Synthetic target_raw for PROVIDES_VIEW_DATA (task 062) — not an FQN; never resolved.
 VIEW_DATA_PREFIX = "viewdata:"

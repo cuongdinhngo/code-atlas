@@ -250,6 +250,19 @@ function parseFile(path, declarationsOnly) {
     line_end: lineOf(sf.getEnd()),
   });
 
+  // File.extra.unmodelled_resolution — stamp, never invent IMPORTS (279/294).
+  const markUnmodelledResolution = (strategy) => {
+    const file = nodes[0];
+    const extra = file.extra && typeof file.extra === "object" ? { ...file.extra } : {};
+    const list = Array.isArray(extra.unmodelled_resolution) ? [...extra.unmodelled_resolution] : [];
+    if (!list.includes(strategy)) {
+      list.push(strategy);
+      list.sort();
+    }
+    extra.unmodelled_resolution = list;
+    file.extra = extra;
+  };
+
   // Pre-pass: name -> qname for same-file resolution. A name declared twice is ambiguous and falls
   // back to bare, so the core resolver decides rather than the adapter guessing.
   const declared = new Map();
@@ -459,6 +472,15 @@ function parseFile(path, declarationsOnly) {
       const spec = requireSpecifier(node, ts);
       addEdge("IMPORTS", qpath, resolveSpec(spec) || spec, node.getStart(sf));
       return; // a require is an import, never a CALLS
+    } else if (
+      ts.isCallExpression(node) &&
+      node.arguments.length >= 1 &&
+      !ts.isStringLiteral(node.arguments[0]) &&
+      (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+        (ts.isIdentifier(node.expression) && node.expression.text === "require"))
+    ) {
+      // Non-literal import()/require() — graph cannot name the module (294).
+      markUnmodelledResolution("dynamic_import");
     }
     if (declarationsOnly) return;
     // Flow-sensitive, forgetful (137): `x = new Foo()` binds x; `x = <anything else>` re-opens it,
