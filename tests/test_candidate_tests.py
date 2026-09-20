@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
-from code_atlas import check
 from code_atlas.candidate_tests import (
     DEFAULT_MAX_DEPTH,
     FULL_SUITE_STATEMENT,
@@ -22,6 +22,7 @@ from code_atlas.candidate_tests import (
     build_candidate_test_report,
     render_candidate_tests_json,
     render_candidate_tests_text,
+    report_as_dict,
 )
 from code_atlas.store import LAST_COMMIT_KEY, LAST_REF_KEY, GraphStore
 from tests.test_nav_tools import db_config, edge, node, seed_file
@@ -207,19 +208,13 @@ def test_stale_index_emits_unmeasured_and_current_does_not(tmp_path: Path) -> No
     assert UNMEASURED_STALE in behind.unmeasured
 
 
-def test_check_carries_the_report_as_report_only(tmp_path: Path) -> None:
-    """Scope 5 — Change Assurance embeds the section, and it never gates the run."""
-    from tests.test_check_cli import _prepare
-
-    _prepare(tmp_path)
-    code, result = check.run_check(tmp_path, base_override="main", skip_build=True)
-    assert code == check.OK
-    section = result["candidate_tests"]
+def test_the_embeddable_section_is_report_only(tmp_path: Path) -> None:
+    """Scope 5 — any consumer embedding this section gets report-only wording, never a gate."""
+    config = _plant_two_hop(tmp_path)
+    section = report_as_dict(build_candidate_test_report(config, changed_indexed=[PROD]))
     assert section["mode"] == "report_only"
     assert section["statement"] == FULL_SUITE_STATEMENT
-    text = check.render_text(result)
-    assert "candidate_tests:" in text
-    assert_no_selective_language(text)
+    assert_no_selective_language(json.dumps(section))
 
 
 def _plant_two_hop(tmp_path: Path) -> object:
@@ -387,17 +382,13 @@ def test_beyond_depth_bound_emits_unmeasured_and_omits_test(tmp_path: Path) -> N
     assert UNMEASURED_DEPTH_BOUND in report.unmeasured
 
 
-def test_hop_distance_in_check_render(tmp_path: Path) -> None:
-    """AC3 — 303 text surface carries hop= via report_as_dict (R6.9 consumer)."""
-    from code_atlas.candidate_tests import report_as_dict
-
+def test_hop_distance_reaches_every_consumer(tmp_path: Path) -> None:
+    """AC3 — the embeddable section and the text surface both carry the hop distance."""
     config = _plant_two_hop(tmp_path)
     report = build_candidate_test_report(config, changed_indexed=[PROD])
     section = report_as_dict(report)
     assert all("hop_distance" in row for row in section["candidates"])  # type: ignore[union-attr]
-    text = check.render_text({"ok": True, "candidate_tests": section})
-    assert "hop=2" in text
-    assert_no_selective_language(text)
+    assert "hop=2" in render_candidate_tests_text(report)
 
 
 def test_depth_one_reproduces_the_308_walk(tmp_path: Path) -> None:

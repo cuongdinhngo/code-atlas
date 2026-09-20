@@ -96,3 +96,11 @@ Execute: change_brief + check flags + evidence_bundle section + tests + module c
 `PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
 `FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
 `LEDGER TOTAL: unmeasured · top cost driver: main-loop`
+
+## Outcome — removed 2026-09-20
+
+Shipped, then deleted in the same week under the epic's closing review
+([304](304_change-assurance-makes-every-important-change-carry-evidence.md)): the module had no
+caller outside `check.py`, `code-atlas-check` was invoked by nothing, and none of it reached the
+MCP surface an agent actually uses. The code and its tests are in git history; nothing here is
+superseded by a replacement.

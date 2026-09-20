@@ -106,3 +106,11 @@ Diff ⊆ list: evidence_bundle.py, check flags, tests, runbook note, module-coun
 
 ## Phase 5 — Finalise
 Outward: push + open PR. Depends on #408 (303).
+
+## Outcome — removed 2026-09-20
+
+Shipped, then deleted in the same week under the epic's closing review
+([304](304_change-assurance-makes-every-important-change-carry-evidence.md)): the module had no
+caller outside `check.py`, `code-atlas-check` was invoked by nothing, and none of it reached the
+MCP surface an agent actually uses. The code and its tests are in git history; nothing here is
+superseded by a replacement.

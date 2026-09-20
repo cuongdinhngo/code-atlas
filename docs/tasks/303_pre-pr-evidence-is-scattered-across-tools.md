@@ -268,3 +268,11 @@ F1 fixed: confirmed gate uses rules `total_count` only; truncation stays in cave
 
 Outward actions authorised: (1) push feature branch (2) open PR.
 
+
+## Outcome — removed 2026-09-20
+
+Shipped, then deleted in the same week under the epic's closing review
+([304](304_change-assurance-makes-every-important-change-carry-evidence.md)): the module had no
+caller outside `check.py`, `code-atlas-check` was invoked by nothing, and none of it reached the
+MCP surface an agent actually uses. The code and its tests are in git history; nothing here is
+superseded by a replacement.

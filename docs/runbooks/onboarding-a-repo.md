@@ -402,15 +402,3 @@ Read the **Zero-inbound modules, by population** block first, and read it agains
 - [ ] `generate_onboarding` run once; the map opened and read as a newcomer would
 - [ ] Every `entry_points` glob checked against the deployment, not the tree
 
-## Change Assurance evidence bundle (305)
-
-After `code-atlas-check`, retain a portable proof with an **explicit** path (stdout remains the
-default; nothing is written unless asked):
-
-```bash
-code-atlas-check --base main --bundle-json /tmp/ca-evidence.json --bundle-md /tmp/ca-evidence.md
-```
-
-Validate offline (same `index_root` as the current repo) in Python via
-`code_atlas.evidence_bundle.validate_bundle` / `load_bundle`. Paste the Markdown into a PR
-description when useful; keep the JSON as a CI artifact. No provider API is called.

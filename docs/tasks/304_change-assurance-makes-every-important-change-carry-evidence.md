@@ -4,177 +4,65 @@ slug: change-assurance-makes-every-important-change-carry-evidence
 title: "EPIC — make every important change carry graph-derived evidence before review"
 phase: 3
 milestone: Change-Assurance
-status: todo
+status: done
 depends_on: [100, 138, 139, 257, 260, 266]
 kind: epic
 children: [303, 305, 306, 307, 308, 309, 310, 312]
 ---
 
-## Why this exists
+## Why this existed
 
-code-atlas can answer relationship, impact, architecture-rule and architecture-drift questions, but
-those answers remain optional calls. A team can open a risky PR without asking any of them, and the
-reviewer receives prose rather than reproducible evidence. A must-have product is not one with more
-tools; it is one whose absence makes the change workflow observably less safe.
+code-atlas answers relationship, impact, architecture-rule and drift questions, but those answers
+were optional calls. The epic's bet was that packaging them — `change → verify → evidence bundle →
+brief / policy / test candidates → review` — would make the change workflow observably safer.
 
-This epic turns the existing graph into a **Change Assurance layer**:
+## Outcome — closed 2026-09-20, the bet did not pay
 
-```text
-change → verify → evidence bundle → agent brief / policy / test candidates → review
-```
+**The packaging half was removed in the same week it shipped.** 303, 305, 306 and 307 landed, were
+never called by anything, and were deleted: 1,776 production lines and 1,233 test lines. The
+measurement half (308 + 309 + 312) is kept.
 
-Every stage reads the same local graph. Nothing edits source, uploads code, invents certainty or
-runs a second analysis pipeline.
+Three facts decided it, each checkable from the tree at the removal commit:
 
-## North star
+1. **Nothing consumed the layer.** `evidence_bundle`, `change_brief` and `architecture_policy` had
+   exactly one importer between them — `check.py` — and `code-atlas-check` was invoked by no
+   script, no `gate.sh` check and no `ci.yml` job. A closed loop of four modules feeding one
+   command nobody ran.
+2. **None of it reached an agent.** The whole layer was CLI-only; the MCP surface stayed at 24
+   tools and none of them came from this epic. MCP is the only surface an agent on an anchor repo
+   touches, so the layer was unreachable from the work it was built to make safer.
+3. **No child but 309 produced a number.** 303, 305, 306 and 307 shipped tests and zero evidence
+   that a review went differently because they existed. 310 was to supply that evidence end-to-end
+   and was dropped before it ran (see its ticket).
 
-For teams using AI on large repositories, over one four-week field window:
+**What the anchor retros say instead.** Thirty-one rounds of real sessions on a 23,380-file repo
+rank the tools by use — `find_callers` 393, `read_symbol` 358, `find_references` 319,
+`search_symbol` 312, `impact` 257 — and score `impact` **5/10 twice**, for two named reasons:
+`subject_ambiguous` on the repo's most defect-dense file category, and unranked output that buries
+ten production callers under sixty rows of legacy twins and tests. The fix asked for is the
+production/test and `src/`-vs-`legacy/` split `find_callers.py:633` already computes and
+`impact.py` does not mention once. **Building packaging on top of a 5/10 engine cannot exceed
+5/10** — the epic spent its budget one layer above its bottleneck.
 
-- at least **80% of code-changing PRs** run Change Assurance; and
-- at least **50% of reviews** use at least one emitted evidence item.
+## What survives
 
-The final field gate may conclude that the capability is useful but not must-have. The metric is a
-decision rule, not a number the implementation is allowed to manufacture.
+- **308 `candidate_tests.py`** — changed code → candidate test files, report-only. Kept because it
+  is the one child with a measurement attached and a question an agent actually asks. It has no
+  MCP surface either; it earns one or it follows the rest out.
+- **309 + 312 — the measurement method.** `scripts/test_impact_recall.py` and
+  [`benchmarks/309_test-impact-recall.md`](../benchmarks/309_test-impact-recall.md): ground truth
+  from upstream maintainers' own test edits, a committed re-runnable reporter, a bar ratified
+  before the run. It measured recall **0.9412** and caught the walk stopping one hop early. This is
+  reusable for any future claim about the graph and is the epic's real product.
+- **The honesty discipline**, which predates the epic and was confirmed by it: round 29 quotes
+  `sign: true` returning `index=behind` mid-session — *"it says so instead of pretending. That is
+  the right behaviour and it is worth keeping."*
 
-## Settled product decisions
+## Settled decisions that outlive the epic
 
-1. Evidence is deterministic **JSON plus Markdown**, stored as a CI artifact or pasted into a PR.
-   It is not committed or posted to a provider automatically by default.
-2. Verification reports by default. Only explicit policy turns confirmed `RESOLVED` violations
-   into a failing exit; HEURISTIC candidates never fail a gate.
-3. Test impact begins as candidate reporting only. The full suite stays authoritative until recall
-   is proven on a real corpus and a later acceptance bar is ratified.
-4. The core stays local-first, deterministic and language-agnostic. No child may add an LLM,
-   network call, source mutation, provider-specific write or second graph pipeline.
-
-## Epic architecture
-
-- **303 — Verify command:** one shell orchestration result over changed paths, signed impact,
-  architecture rules, drift and honesty fields.
-- **305 — Evidence bundle:** a versioned portable wrapper, validator and Markdown rendering over
-  303's result.
-- **306 — Agent change brief:** bounded graph context from explicit paths/qnames or a base revision.
-- **307 — Architecture budgets:** human-authored policy over confirmed rules and measured drift.
-- **308 — Test candidates:** report-only changed-code → candidate-test relationships.
-- **309 — Test recall gate:** pinned-corpus evidence before any selective-test proposal.
-- **312 — Widen the candidate walk:** 309 measured every miss at inbound depth 2, so the walk
-  moves past direct callers and re-runs 309's reporter against its already-registered bar.
-- **310 — Adoption gate:** the four-week 80%/50% field decision and removal-cost interview.
-  **Blocked, and the epic cannot close without it:** the protocol and its counter are frozen
-  and committed, but 300 closed with *full availability, zero uptake* at n = 3, so there is no
-  cohort to observe. The verdict is unmeasured, not pending a rewrite of the bar.
-
-Dependency order:
-
-```text
-303 → 305
-  ├→ 306
-  ├→ 307
-  └→ 308 → 309 → 312
-305 + 306 + 307 + 309 → 310
-```
-
-Tasks 301 and 302 remain graph-trust improvements outside this epic. Better language resolution
-helps assurance, but the epic must remain useful and honestly caveated at today's coverage.
-
-## Epic acceptance criteria
-
-- Every child ships its own tests, evidence and lifecycle; the epic itself ships no product code.
-- 303–309 produce no claim stronger than their payload can distinguish.
-- JSON and Markdown are renderings of graph-derived facts with revision, freshness, confidence and
-  truncation preserved.
-- No child silently narrows the project's normal test command.
-- 310 records the north-star denominators and numerators and applies the predeclared verdict even
-  when the result is negative.
-
-## Breakdown
-
-`BREAKDOWN: 7 tickets proposed | 7 INVEST self-checks emitted (6 letters each) | 0 tickets flagged for re-split`
-
-### 303 — Verify command
-
-- **I:** composes landed capabilities; bundle persistence is outside it.
-- **N:** command naming and base discovery remain design choices within locked behaviour.
-- **V:** gives humans, agents and CI one repeatable pre-PR answer.
-- **E:** existing CLI and tool factories make the boundary estimable.
-- **S:** one shell command and one result object.
-- **T:** parity, exit-policy, determinism and operational-reason tests are specified.
-
-### 305 — Evidence bundle contract
-
-- **I:** consumes 303 output without changing graph analysis.
-- **N:** schema fields and Markdown layout can be designed independently.
-- **V:** makes evidence portable, reviewable and re-validatable.
-- **E:** existing artifact and dataset versioning are precedents.
-- **S:** one schema, writer, validator and renderer.
-- **T:** conformance, round-trip, provenance and byte-stability tests.
-
-### 306 — Agent change brief
-
-- **I:** consumes explicit seeds and impact APIs; no policy dependency.
-- **N:** ranking and size ceilings remain design choices.
-- **V:** gives an agent bounded context before grep/read work.
-- **E:** seed planning and signed impact already exist.
-- **S:** one deterministic brief; no MCP tool or LLM seam.
-- **T:** relevance, caveat-preservation and token-ceiling tests.
-
-### 307 — Architecture budgets
-
-- **I:** evaluates 138/139 outputs independently of briefs and test impact.
-- **N:** projects author policy values; the server does not choose thresholds.
-- **V:** turns architectural drift into an executable review contract.
-- **E:** confirmed/candidate partitions and snapshot diff already exist.
-- **S:** one generic policy vocabulary and evaluator.
-- **T:** confirmed breach, candidate-only, missing-baseline and determinism tests.
-
-### 308 — Test-impact candidates
-
-- **I:** reports graph candidates without changing a test runner.
-- **N:** ranking can evolve behind a report-only contract.
-- **V:** shortens test investigation while preserving the full suite.
-- **E:** `is_test`, inbound partitions and changed paths already exist.
-- **S:** one reporter; no skip mode or runner argv.
-- **T:** planted callers, candidate wording, caveat and never-skip guards.
-
-### 309 — Test-impact recall gate
-
-- **I:** measures 308 and changes no product behaviour.
-- **N:** corpus and recall floor are ratified during that ticket's refinement.
-- **V:** prevents selective-test claims from shipping on fixture confidence.
-- **E:** cross-repo reporters and supervision benchmarks are precedents.
-- **S:** one pinned corpus, labelled changes and committed reporter.
-- **T:** repeatable recall/precision output and a falsifiable promotion verdict.
-
-### 310 — Must-have adoption field gate
-
-- **I:** observes completed surfaces without implementing them.
-- **N:** protocol details may adapt while the 80%/50% bars stay fixed.
-- **V:** decides whether workflow changed rather than counting capabilities.
-- **E:** local fit counters and field protocols already exist.
-- **S:** one four-week cohort protocol and decision record.
-- **T:** counted denominators, provenance and removal-cost interviews.
-
-## Refine record
-
-`PREMISE: 13 reference(s) checked | 0 missing | 1 ambiguous (surfaced, not blocking)`
-
-`RECALL: 5 claim(s) surfaced | 0 by symbol | 4 by handle | 1 by area | 0 by finding | 2 retired skipped — advisory (blocks nothing)`
-
-`REFINE: 8 unresolved surfaced | 4 want-decisions asked | 4 how-decisions resolved+cited | 0 ASSUMED | skip: no`
-
-The ambiguous reference was “must-have”, a product outcome rather than a resolvable identifier. The
-four settled wants are epic-first delivery, artifact destination, test-impact safety and the
-80%/50% adoption bar. Architecture and ticket boundaries were derived from tasks 100, 138, 139,
-257, 260, 266 and 303 plus PLAN §1.
-
-## Scaffold gate
-
-The split was ratified in conversation before these stubs were authored.
-
-`EPIC LESSON: 1 lesson written to docs/LESSONS.md`
-
-`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
-
-No child executes until this scaffold is committed on a shared ref from a dedicated docs branch.
-Breakdown re-ratification is **Experimental**: adding/removing a child or reversing a settled product
-decision requires a counted delta and explicit human re-approval.
+1. Test impact stays **report-only**; the full suite remains authoritative. No child ever shipped a
+   skip list and none may.
+2. The core stays local-first, deterministic and language-agnostic — no LLM, network call, source
+   mutation or second pipeline entered it.
+3. **A capability with no caller and no number is not shipped, it is stored.** Recorded as the
+   epic's lesson: reach the surface the user is on before building a layer above it.

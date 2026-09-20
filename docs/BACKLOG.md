@@ -34,8 +34,7 @@ M10–M12 have all landed; round narratives live in [`FEEDBACK.md`](FEEDBACK.md)
 |---|---|---|---|---|
 | 263 | [The question a newcomer asks most is the one table that is empty](tasks/263_the-question-a-newcomer-asks-most-is-the-one-table-that-is-empty.md) | Onboarding | todo | 114, 210 |
 | 269 | [Twelve graph nouns where a reader has seven questions](tasks/269_twelve-graph-nouns-where-a-reader-has-seven-questions.md) | Onboarding | todo | 263, 121, 210, 139 |
-| 304 | [EPIC — make every important change carry graph-derived evidence](tasks/304_change-assurance-makes-every-important-change-carry-evidence.md) | Change Assurance | todo | 100, 138, 139, 257, 260, 266 |
-| 310 | [Four-week Change Assurance adoption gate](tasks/310_four-week-change-assurance-adoption-gate.md) | Change Assurance | blocked | 260, 300, 305, 306, 307, 309 |
+| 310 | [Change Assurance value gate — dropped unmeasured](tasks/310_four-week-change-assurance-adoption-gate.md) | Change Assurance | deferred | 260, 300, 309, 312 |
 
 **What still governs open work:** the surface has **24 tools** (`main.TOOL_NAMES`), count-pinned by
 tests.

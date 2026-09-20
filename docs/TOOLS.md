@@ -246,7 +246,6 @@ a silent fallback.
 | `CA_AUDIENCE` | `audience` | `full` | who the WRITTEN onboarding tree is for: `full` (every section), `newcomer` (orientation, a four-line summary, the layer vocabulary, the tour and the flows) or `maintainer` (every aggregate, no tour, no orientation). An unrecognised value falls back to `full` and the artifact states which audience it actually used |
 | `CA_INDIRECTION_RULES` | `indirection_rules` | unset | JSON rule files mapping framework indirection to edges. **`find_view_data` needs this** — without `view_data` setters it answers `capability_not_configured`, not a zero |
 | `CA_ARCHITECTURE_RULES` | `architecture_rules` | unset | JSON rule files of path-set dependency constraints. **`check_architecture_rules` needs this** — unset → `capability_not_configured` |
-| `CA_ARCHITECTURE_POLICY` | `architecture_policy` | unset | one JSON policy file of human-authored budgets over confirmed rule violations and measured drift (`code-atlas-check --policy-gate`). Unset → no policy section |
 | `CA_TOOLS` | `tools` | all tools | comma-separated tool allow-list. Opt-in field-18 six-tool preset (268): `get_index_status,search_symbol,read_symbol,find_callers,find_references,impact` (`code_atlas.main.FIELD18_TOOLS`). Default surface stays 24. |
 | `CA_HOST_ROOT` | `host_root` | unset | absolute-path rewrite only (pair with `CA_CONTAINER_ROOT`; unused by the relative-path build) |
 | `CA_CONTAINER_ROOT` | `container_root` | unset | absolute-path rewrite only (pair with `CA_HOST_ROOT`) |

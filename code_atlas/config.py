@@ -46,7 +46,6 @@ KNOB_KEYS: tuple[str, ...] = (
     "audience",
     "indirection_rules",
     "architecture_rules",
-    "architecture_policy",
     "tools",
     "host_root",
     "container_root",
@@ -118,7 +117,6 @@ class Config:
     audience: str
     indirection_rules: tuple[str, ...] | None
     architecture_rules: tuple[str, ...] | None
-    architecture_policy: str | None
     tools: tuple[str, ...] | None
     host_root: Path | None
     container_root: Path | None
@@ -270,9 +268,6 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
         ),
         architecture_rules=_resolve(
             "architecture_rules", _as_architecture_rules, None, environ, file_values
-        ),
-        architecture_policy=_resolve(
-            "architecture_policy", _as_architecture_policy, None, environ, file_values
         ),
         tools=_resolve("tools", _as_tools, None, environ, file_values),
         host_root=host_root,
@@ -491,22 +486,6 @@ def _as_architecture_rules(label: str, raw: object) -> tuple[str, ...] | None:
     return _as_repo_relative_list(
         label, raw, item="file path", collection="rule file paths"
     )
-
-
-def _as_architecture_policy(label: str, raw: object) -> str | None:
-    """One repo-relative JSON policy path for architecture budgets (task 307). Blank = off."""
-    text = _as_text(label, raw).strip().replace("\\", "/").strip("/")
-    if not text:
-        return None
-    parts = text.split("/")
-    if str(raw).strip().startswith(("/", "\\")) or any(
-        part in ("", ".", "..") for part in parts
-    ):
-        raise ConfigError(
-            f"{label}: {raw!r} must be a repo-relative file path "
-            f"(no absolute path, '.', or '..')"
-        )
-    return text
 
 
 def _as_repo_relative_list(

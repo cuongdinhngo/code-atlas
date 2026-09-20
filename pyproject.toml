@@ -21,7 +21,6 @@ llm = ["anthropic>=0.69"]
 [project.scripts]
 code-atlas = "code_atlas.main:main"
 code-atlas-build = "code_atlas.cli:main"
-code-atlas-check = "code_atlas.check:main"
 code-atlas-llm = "onboarding_llm.server:run"
 code-atlas-poke = "code_atlas.hooks.poke:main"
 code-atlas-refresh = "code_atlas.hooks.refresh:main"
