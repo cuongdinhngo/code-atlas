@@ -34,7 +34,6 @@ M10–M12 have all landed; round narratives live in [`FEEDBACK.md`](FEEDBACK.md)
 |---|---|---|---|---|
 | 263 | [The question a newcomer asks most is the one table that is empty](tasks/263_the-question-a-newcomer-asks-most-is-the-one-table-that-is-empty.md) | Onboarding | todo | 114, 210 |
 | 269 | [Twelve graph nouns where a reader has seven questions](tasks/269_twelve-graph-nouns-where-a-reader-has-seven-questions.md) | Onboarding | todo | 263, 121, 210, 139 |
-| 303 | [Pre-PR evidence is scattered across tools](tasks/303_pre-pr-evidence-is-scattered-across-tools.md) | Supervision | todo | 100, 138, 139, 257 |
 | 304 | [EPIC — make every important change carry graph-derived evidence](tasks/304_change-assurance-makes-every-important-change-carry-evidence.md) | Change Assurance | todo | 100, 138, 139, 257, 260, 266 |
 | 305 | [Versioned Change Assurance evidence bundle](tasks/305_versioned-change-assurance-evidence-bundle.md) | Change Assurance | todo | 303 |
 | 306 | [Agent change brief from explicit graph seeds](tasks/306_agent-change-brief-from-explicit-graph-seeds.md) | Change Assurance | todo | 100, 266, 303 |

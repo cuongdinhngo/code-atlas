@@ -13,7 +13,7 @@ manifest recorded, and nothing else (R5.7).
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path, PurePosixPath
 from typing import Literal
 
@@ -32,6 +32,7 @@ from code_atlas.onboarding.artifact import (
     OnboardingArtifact,
     build_artifact,
     cache_json,
+    manifest_dict,
     manifest_json,
     recorded_pages,
     render_flows,
@@ -61,7 +62,159 @@ NAME = "generate_onboarding"
 
 DetailLevel = Literal["minimal", "standard"]
 
-__all__ = ["NAME", "create"]
+__all__ = ["NAME", "assemble_onboarding_snapshot", "create", "manifest_dict_for"]
+
+
+def assemble_onboarding_snapshot(
+    config: Config,
+    *,
+    summarizer: Summarizer | None = None,
+    layer_refiner: LayerRefiner | None = None,
+    prose_writer: ProseWriter | None = None,
+    audience: str | None = None,
+    working_roots: list[str] | None = None,
+) -> dict[str, object] | None:
+    """Build the in-memory onboarding manifest this tool would commit — no filesystem write (303).
+
+    Returns ``None`` when the index is absent or holds no module (same outcomes as the write path's
+    empty envelopes). Callers that need a portable JSON file write the returned dict themselves.
+    """
+    if not config.db_path.is_file():
+        return None
+    seam: Summarizer = StructuralSummarizer() if summarizer is None else summarizer
+    refiner: LayerRefiner = IdentityLayerRefiner() if layer_refiner is None else layer_refiner
+    # Explicit argument wins over env/config; None keeps today's CA_WORKING_ROOTS default (216).
+    roots = (
+        config.working_roots
+        if working_roots is None
+        else as_working_roots("working_roots", list(working_roots))
+    )
+    wants = contract_for(audience if audience is not None else config.audience)
+    # One budget for the whole write: the artifact and the dataset build the same layer table,
+    # so a shared run pays for each layer description once and caps the build as a whole (117).
+    prose = ProseRun(prose_writer)
+    with GraphStore(config.db_path) as store:
+        nodes = store.node_universe()
+        edge_tiers = store.dependency_edges_with_tier()
+        flow_edge_rows = store.flow_edges(FLOW_KINDS)
+        edges = [(source, target) for source, target, _tier in edge_tiers]
+        file_paths = store.file_paths()
+        scoped = scoped_paths(file_paths, roots) if roots else None
+        subgraph = store.tour_subgraph(max_nodes=config.impact_max_nodes, files=scoped)
+        counts = store.counts()
+        node_kinds = store.node_kind_counts()
+        edge_kinds = store.edge_kind_counts()
+        confidence = store.edge_health()["by_tier"]
+        # 196 — the stamp beside the blend it attributes, never a second fold (183/195, P7).
+        confidence_by_language = store.stamped_edge_health_by_language()
+        hubs = store.module_hubs(limit=config.page_limit)
+        classes = store.largest_classes(limit=config.page_limit)
+        file_syms = store.file_symbol_counts()
+        file_classes = store.file_class_counts()
+        file_kinds = store.file_kind_counts()
+        commit = store.get_meta(LAST_COMMIT_KEY) or ""
+        last_ref = store.get_meta(LAST_REF_KEY) or commit
+        tour_files = subgraph.files
+        file_nodes = {path: store.nodes_by_file_all(path) for path in tour_files}
+        er_table_rows = store.nodes_by_kind("Table", limit=10_000)
+        er_columns: dict[str, list] = {
+            str(row["qualified_name"]): [] for row in er_table_rows
+        }
+        for col in store.nodes_by_kind("Column", limit=50_000):
+            container, _ = split_qname(str(col["qualified_name"]))
+            if container is not None and container in er_columns:
+                er_columns[container].append(col)
+        er_ref_edges = store.edges_matching_kind("REFERENCES", limit=10_000)
+        er_tables, er_refs = project_er(er_table_rows, er_columns, er_ref_edges)
+    artifact = build_artifact(
+        nodes,
+        edges,
+        tour_files,
+        subgraph.edges,
+        subgraph.entry_points,
+        subgraph.truncated,
+        seam,
+        refiner,
+        max_results=config.page_limit,
+        declared_entry_points=config.entry_points,
+        declared_stub_roots=config.stub_roots,
+        working_roots=roots,
+        file_paths=file_paths,
+        file_class_counts=file_classes,
+        prose=prose,
+        root=Path(config.root),
+        file_nodes=file_nodes,
+        edge_tiers=edge_tiers,
+    )
+    if artifact is None:
+        return None
+    # An IDENTITY, never a count: 117's AC2 forbids a dataset number that moves when the
+    # seam turns on, and `prose_calls` stays in the discarded payload for that reason.
+    orientation = read_orientation(
+        Path(config.root), config.project_files, max_facts=config.page_limit
+    )
+    provenance = Provenance(
+        summarizer=implementation_name(seam),
+        prose=implementation_name(prose.writer),
+        layers=implementation_name(refiner),
+    )
+    dataset = build_dataset(
+        nodes,
+        edges,
+        files=counts["files"],
+        parsed=counts["parsed"],
+        node_kind_counts=node_kinds,
+        edge_kind_counts=edge_kinds,
+        confidence=confidence,  # type: ignore[arg-type]
+        hubs=hubs,
+        classes=classes,
+        file_symbol_counts=file_syms,
+        file_paths=file_paths,
+        path_index_max=config.path_index_max,
+        layer_refiner=refiner,
+        declared_entry_points=config.entry_points,
+        declared_stub_roots=config.stub_roots,
+        working_roots=roots,
+        reachability_sample_max=config.page_limit,
+        file_class_counts=file_classes,
+        module_max=config.page_limit,
+        mirror_sample_max=config.page_limit,
+        file_kind_counts=file_kinds,
+        commit=commit,
+        prose=prose,
+        flow_edges=flow_edge_rows,
+        flow_max=config.page_limit,
+        flow_max_nodes=config.impact_max_nodes,
+        confidence_by_language=confidence_by_language,
+        provenance=provenance,
+        orientation=orientation,
+        audience=wants.audience,
+    )
+    return {
+        "artifact": artifact,
+        "dataset": dataset,
+        "prose": prose,
+        "roots": roots,
+        "audience": wants.audience,
+        "file_paths": file_paths,
+        "last_ref": last_ref,
+        "er_tables": er_tables,
+        "er_refs": er_refs,
+    }
+
+
+def manifest_dict_for(assembled: Mapping[str, object], config: Config) -> dict[str, object]:
+    """The comparable manifest dict from an :func:`assemble_onboarding_snapshot` result."""
+    artifact = assembled["artifact"]
+    dataset = assembled["dataset"]
+    assert isinstance(artifact, OnboardingArtifact)
+    assert isinstance(dataset, OnboardingDataset)
+    return manifest_dict(
+        artifact,
+        dataset,
+        index_root=config.index_root,
+        last_ref=str(assembled.get("last_ref") or ""),
+    )
 
 
 def create(
@@ -114,133 +267,41 @@ def create(
         """
         if not config.db_path.is_file():
             return _unbuilt(config)
-        # Explicit argument wins over env/config; None keeps today's CA_WORKING_ROOTS default (216).
-        roots = (
-            config.working_roots
-            if working_roots is None
-            else as_working_roots("working_roots", list(working_roots))
-        )
-        # One budget for the whole write: the artifact and the dataset build the same layer table,
-        # so a shared run pays for each layer description once and caps the build as a whole (117).
-        wants = contract_for(audience if audience is not None else config.audience)
-        prose = ProseRun(prose_writer)
-        with GraphStore(config.db_path) as store:
-            nodes = store.node_universe()
-            edge_tiers = store.dependency_edges_with_tier()
-            flow_edge_rows = store.flow_edges(FLOW_KINDS)
-            edges = [(source, target) for source, target, _tier in edge_tiers]
-            file_paths = store.file_paths()
-            scoped = scoped_paths(file_paths, roots) if roots else None
-            subgraph = store.tour_subgraph(
-                max_nodes=config.impact_max_nodes, files=scoped
-            )
-            counts = store.counts()
-            node_kinds = store.node_kind_counts()
-            edge_kinds = store.edge_kind_counts()
-            confidence = store.edge_health()["by_tier"]
-            # 196 — the stamp beside the blend it attributes, never a second fold (183/195, P7).
-            confidence_by_language = store.stamped_edge_health_by_language()
-            hubs = store.module_hubs(limit=config.page_limit)
-            classes = store.largest_classes(limit=config.page_limit)
-            file_syms = store.file_symbol_counts()
-            file_classes = store.file_class_counts()
-            file_kinds = store.file_kind_counts()
-            commit = store.get_meta(LAST_COMMIT_KEY) or ""
-            last_ref = store.get_meta(LAST_REF_KEY) or commit
-            tour_files = subgraph.files
-            file_nodes = {
-                path: store.nodes_by_file_all(path)
-                for path in tour_files
-            }
-            er_table_rows = store.nodes_by_kind("Table", limit=10_000)
-            er_columns: dict[str, list] = {
-                str(row["qualified_name"]): [] for row in er_table_rows
-            }
-            for col in store.nodes_by_kind("Column", limit=50_000):
-                container, _ = split_qname(str(col["qualified_name"]))
-                if container is not None and container in er_columns:
-                    er_columns[container].append(col)
-            er_ref_edges = store.edges_matching_kind("REFERENCES", limit=10_000)
-            er_tables, er_refs = project_er(er_table_rows, er_columns, er_ref_edges)
-        artifact = build_artifact(
-            nodes,
-            edges,
-            tour_files,
-            subgraph.edges,
-            subgraph.entry_points,
-            subgraph.truncated,
-            seam,
-            refiner,
-            max_results=config.page_limit,
-            declared_entry_points=config.entry_points,
-            declared_stub_roots=config.stub_roots,
-            working_roots=roots,
-            file_paths=file_paths,
-            file_class_counts=file_classes,
-            prose=prose,
-            root=Path(config.root),
-            file_nodes=file_nodes,
-            edge_tiers=edge_tiers,
-        )
-        if artifact is None:
-            return _empty(config)
-        # An IDENTITY, never a count: 117's AC2 forbids a dataset number that moves when the
-        # seam turns on, and `prose_calls` stays in the discarded payload for that reason.
-        orientation = read_orientation(
-            Path(config.root), config.project_files, max_facts=config.page_limit
-        )
-        provenance = Provenance(
-            summarizer=implementation_name(seam),
-            prose=implementation_name(prose.writer),
-            layers=implementation_name(refiner),
-        )
-        dataset = build_dataset(
-            nodes,
-            edges,
-            files=counts["files"],
-            parsed=counts["parsed"],
-            node_kind_counts=node_kinds,
-            edge_kind_counts=edge_kinds,
-            confidence=confidence,  # type: ignore[arg-type]
-            hubs=hubs,
-            classes=classes,
-            file_symbol_counts=file_syms,
-            file_paths=file_paths,
-            path_index_max=config.path_index_max,
+        assembled = assemble_onboarding_snapshot(
+            config,
+            summarizer=seam,
             layer_refiner=refiner,
-            declared_entry_points=config.entry_points,
-            declared_stub_roots=config.stub_roots,
-            working_roots=roots,
-            reachability_sample_max=config.page_limit,
-            file_class_counts=file_classes,
-            module_max=config.page_limit,
-            mirror_sample_max=config.page_limit,
-            file_kind_counts=file_kinds,
-            commit=commit,
-            prose=prose,
-            flow_edges=flow_edge_rows,
-            flow_max=config.page_limit,
-            flow_max_nodes=config.impact_max_nodes,
-            confidence_by_language=confidence_by_language,
-            provenance=provenance,
-            orientation=orientation,
-            audience=wants.audience,
+            prose_writer=prose_writer,
+            audience=audience,
+            working_roots=working_roots,
         )
+        if assembled is None:
+            return _empty(config)
+        artifact = assembled["artifact"]
+        dataset = assembled["dataset"]
+        prose = assembled["prose"]
+        roots = assembled["roots"]
+        wants_audience = str(assembled["audience"])
+        assert isinstance(artifact, OnboardingArtifact)
+        assert isinstance(dataset, OnboardingDataset)
+        assert isinstance(prose, ProseRun)
+        file_paths = assembled["file_paths"]
+        assert isinstance(file_paths, (list, tuple))
         written = _write(
             Path(config.root),
             artifact,
             dataset,
             config.page_limit,
             file_paths=file_paths,
-            working_roots=roots,
+            working_roots=roots,  # type: ignore[arg-type]
             index_root=config.index_root,
-            last_ref=last_ref,
-            audience=wants.audience,
-            er_tables=er_tables,
-            er_refs=er_refs,
+            last_ref=str(assembled["last_ref"]),
+            audience=wants_audience,
+            er_tables=assembled["er_tables"],  # type: ignore[arg-type]
+            er_refs=assembled["er_refs"],  # type: ignore[arg-type]
         )
         return _payload(
-            config, artifact, written, detail_level, prose, wants.audience, roots
+            config, artifact, written, detail_level, prose, wants_audience, roots  # type: ignore[arg-type]
         )
 
     return generate_onboarding
