@@ -1,0 +1,295 @@
+{
+  "corpus_note": "Task 309's labelled real-change corpus. Every scenario is an UPSTREAM commit in a repo already pinned by scripts/cross_repo_samples.json (R6.3's qualifying corpus). Nothing here is authored: the change and its tests were written by that project's maintainers, so the labels are ground truth independent of code-atlas. scripts/test_impact_recall.py re-derives every path list from git and refuses a scenario whose committed labels no longer match the commit.",
+  "ground_truth": {
+    "collection_method": "upstream co-change: for commit HEAD, the production files are the modified non-test source files of the sample's language and the expected test files are the modified test-directory source files of the same commit",
+    "independent_of": "code-atlas \u2014 the labels are the upstream authors' own edits, not a graph query",
+    "labels_exhaustive": false,
+    "why_not_exhaustive": "a commit's authors touch the tests they judged necessary, never every test that exercises the change, so an unlabelled test file is not evidence of a false positive \u2014 precision is therefore not computed (309 scope item 3)",
+    "verification": "each commit's diff was read and kept only where the test edit demonstrably exercises the production edit; the per-scenario hand_verification field records that reading"
+  },
+  "selection_rule": "walking each sample's history back from its pinned sha, take commits that MODIFY at least one non-test and at least one test source file of the sample's language, with at most 4 production and at most 3 test files, in reverse-chronological order, keeping the first that survive hand verification. Every rejection is recorded below so the order cannot be cherry-picked silently.",
+  "rejected": [
+    {
+      "sample_id": "brick_math",
+      "sha": "b53f4a407b5b2cccbb04f227515dda666fafa965",
+      "reason": "the only non-test file it modifies is root-level random-tests.php, a manual fuzz script, not production source"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "flask@89992954ec71",
+      "sample_id": "flask",
+      "language": "python",
+      "url": "https://github.com/pallets/flask.git",
+      "base": "3596b1ab61cea85edb8970e83ff61daa073facf8",
+      "head": "89992954ec71b594b1b911f98977cdc8ad46a057",
+      "head_subject": "add app.query route decorator",
+      "head_committed": "2026-08-11T13:15:18-07:00",
+      "changed_production_paths": [
+        "src/flask/sansio/scaffold.py"
+      ],
+      "expected_test_files": [
+        "tests/test_basic.py"
+      ],
+      "labels_exhaustive": false,
+      "hand_verification": "scaffold.py adds the `query` route decorator; test_basic.py extends test_method_route over the new decorator."
+    },
+    {
+      "id": "flask@7203feabf723",
+      "sample_id": "flask",
+      "language": "python",
+      "url": "https://github.com/pallets/flask.git",
+      "base": "de8429ffda8cfb54db175529e2bae72a24e1fa7e",
+      "head": "7203feabf723edae0286ae5dc64fec8ac4c91735",
+      "head_subject": "Fix IPv6 server name parsing",
+      "head_committed": "2026-08-11T12:44:45-07:00",
+      "changed_production_paths": [
+        "src/flask/app.py"
+      ],
+      "expected_test_files": [
+        "tests/test_basic.py"
+      ],
+      "labels_exhaustive": false,
+      "hand_verification": "app.py rewrites IPv6 SERVER_NAME parsing; test_basic.py extends test_run_server_port for the bracketed host."
+    },
+    {
+      "id": "flask@de8429ffda8c",
+      "sample_id": "flask",
+      "language": "python",
+      "url": "https://github.com/pallets/flask.git",
+      "base": "514fc6b3e8402e4c646d5284e97a4f0ab50a7c4b",
+      "head": "de8429ffda8cfb54db175529e2bae72a24e1fa7e",
+      "head_subject": "Fix IPv6 session transactions",
+      "head_committed": "2026-08-11T12:44:45-07:00",
+      "changed_production_paths": [
+        "src/flask/testing.py"
+      ],
+      "expected_test_files": [
+        "tests/test_testing.py"
+      ],
+      "labels_exhaustive": false,
+      "hand_verification": "testing.py fixes the IPv6 host used by session_transaction; test_testing.py adds test_session_transaction_ipv6."
+    },
+    {
+      "id": "flask@06ea505ce2b2",
+      "sample_id": "flask",
+      "language": "python",
+      "url": "https://github.com/pallets/flask.git",
+      "base": "2ac89889f4cc330eabd50f295dcef02828522c69",
+      "head": "06ea505ce2b2042af26e96d35ebf159af7c0869d",
+      "head_subject": "separate copy per call",
+      "head_committed": "2026-05-01T20:31:50-07:00",
+      "changed_production_paths": [
+        "src/flask/ctx.py"
+      ],
+      "expected_test_files": [
+        "tests/test_reqctx.py"
+      ],
+      "labels_exhaustive": false,
+      "hand_verification": "ctx.py makes copy() per-call; test_reqctx.py rewrites the copy/thread tests around it."
+    },
+    {
+      "id": "requests@6f66281a1d63",
+      "sample_id": "requests",
+      "language": "python",
+      "url": "https://github.com/psf/requests.git",
+      "base": "6f205ff422bccd5e4c4fc0b64c5f3e7df5181db6",
+      "head": "6f66281a1d6326b1b9c4ac09ca30de0fc4e6ef43",
+      "head_subject": "Add hasattr checks for remaining protocol isinstance checks (#7505)",
+      "head_committed": "2026-06-09T08:45:59-07:00",
+      "changed_production_paths": [
+        "src/requests/_types.py",
+        "src/requests/models.py"
+      ],
+      "expected_test_files": [
+        "tests/test_requests.py"
+      ],
+      "labels_exhaustive": false,
+      "hand_verification": "_types.py/models.py swap isinstance protocol checks for hasattr; test_requests.py adds a wrapper-object case."
+    },
+    {
+      "id": "requests@6f205ff422bc",
+      "sample_id": "requests",
+      "language": "python",
+      "url": "https://github.com/psf/requests.git",
+      "base": "661970d171d9c3e12e4c789c4768db647d8c4da0",
+      "head": "6f205ff422bccd5e4c4fc0b64c5f3e7df5181db6",
+      "head_subject": "Fix `_encode_files` detection for `__getattr__`-based file wrappers (#7502)",
+      "head_committed": "2026-06-08T13:52:51-07:00",
+      "changed_production_paths": [
+        "src/requests/models.py"
+      ],
+      "expected_test_files": [
+        "tests/test_requests.py"
+      ],
+      "labels_exhaustive": false,
+      "hand_verification": "models.py fixes _encode_files detection; test_requests.py adds a __getattr__-based file wrapper case."
+    },
+    {
+      "id": "requests@6404f345e562",
+      "sample_id": "requests",
+      "language": "python",
+      "url": "https://github.com/psf/requests.git",
+      "base": "0b401c76b6e80a4eecf3c690085b2553f6e261ca",
+      "head": "6404f345e562d962abe6700a1c357ec1e7e18232",
+      "head_subject": "Fix `prepare_body` stream detection for `__getattr__`-based file wrappers (#7433)",
+      "head_committed": "2026-05-12T10:51:01-07:00",
+      "changed_production_paths": [
+        "src/requests/models.py"
+      ],
+      "expected_test_files": [
+        "tests/test_requests.py"
+      ],
+      "labels_exhaustive": false,
+      "hand_verification": "models.py fixes prepare_body stream detection; test_requests.py adds the matching wrapper case."
+    },
+    {
+      "id": "requests@a4f9a5999bdb",
+      "sample_id": "requests",
+      "language": "python",
+      "url": "https://github.com/psf/requests.git",
+      "base": "3816cfa1abd42dca21b9e837f26c59b246016aaf",
+      "head": "a4f9a5999bdb9bf2d6e7c8aa973b28cacb17134f",
+      "head_subject": "Port bpo-39057 to Requests (#7427)",
+      "head_committed": "2026-05-11T12:24:21-07:00",
+      "changed_production_paths": [
+        "src/requests/utils.py"
+      ],
+      "expected_test_files": [
+        "tests/test_utils.py"
+      ],
+      "labels_exhaustive": false,
+      "hand_verification": "utils.py ports bpo-39057 no_proxy handling; test_utils.py extends test_should_bypass_proxies_no_proxy."
+    },
+    {
+      "id": "brick_math@7d1678e93ab2",
+      "sample_id": "brick_math",
+      "language": "php",
+      "url": "https://github.com/brick/math.git",
+      "base": "ef94abb06ddde459c5c200b4574f396fb711b7c1",
+      "head": "7d1678e93ab258c7c45141c48690572f2b7445ea",
+      "head_subject": "Fix character case in BigInteger::fromBase() exception message",
+      "head_committed": "2026-06-13T08:47:46+02:00",
+      "changed_production_paths": [
+        "src/BigInteger.php"
+      ],
+      "expected_test_files": [
+        "tests/BigIntegerTest.php"
+      ],
+      "labels_exhaustive": false,
+      "hand_verification": "BigInteger::fromBase() exception message case fix; BigIntegerTest asserts the new message."
+    },
+    {
+      "id": "brick_math@4d606566ae5e",
+      "sample_id": "brick_math",
+      "language": "php",
+      "url": "https://github.com/brick/math.git",
+      "base": "a8507be87f5cd70147eed9cf93356f0327f9be89",
+      "head": "4d606566ae5e4ec221c745bdee6fe5a8697a116a",
+      "head_subject": "Fix exception message for BigDecimal::nthRoot() with scale 1",
+      "head_committed": "2026-05-24T12:24:04+02:00",
+      "changed_production_paths": [
+        "src/BigDecimal.php"
+      ],
+      "expected_test_files": [
+        "tests/BigDecimalTest.php"
+      ],
+      "labels_exhaustive": false,
+      "hand_verification": "BigDecimal::nthRoot() scale-1 exception message; BigDecimalTest asserts it."
+    },
+    {
+      "id": "brick_math@a7a2a73742be",
+      "sample_id": "brick_math",
+      "language": "php",
+      "url": "https://github.com/brick/math.git",
+      "base": "3ff00327064d056cd65910fdc91f9170b0d536f2",
+      "head": "a7a2a73742beb04160241003510b0ec00cea0d73",
+      "head_subject": "Fix BigInteger::nthRoot() Half* rounding for n >= 3",
+      "head_committed": "2026-05-08T11:20:55+02:00",
+      "changed_production_paths": [
+        "src/BigInteger.php"
+      ],
+      "expected_test_files": [
+        "tests/BigDecimalTest.php",
+        "tests/BigIntegerTest.php"
+      ],
+      "labels_exhaustive": false,
+      "hand_verification": "BigInteger::nthRoot() Half* rounding for n>=3; both test classes cover the rounding table."
+    },
+    {
+      "id": "brick_math@391597d65cfa",
+      "sample_id": "brick_math",
+      "language": "php",
+      "url": "https://github.com/brick/math.git",
+      "base": "a62af7ab2e3cee9f9bf4cf77a5d1e6ba408a44ee",
+      "head": "391597d65cfa02066b067211a733775126b09422",
+      "head_subject": "Better BigRational::toFloat() approximations",
+      "head_committed": "2026-04-15T18:11:39+02:00",
+      "changed_production_paths": [
+        "src/BigRational.php"
+      ],
+      "expected_test_files": [
+        "tests/BigDecimalTest.php"
+      ],
+      "labels_exhaustive": false,
+      "hand_verification": "BigRational::toFloat() approximation; BigDecimalTest adds a test calling toBigRational()->toFloat() (cross-class label)."
+    },
+    {
+      "id": "ky@0bda554d448c",
+      "sample_id": "ky",
+      "language": "typescript",
+      "url": "https://github.com/sindresorhus/ky.git",
+      "base": "294fe63be57d73bda18194b7e23ab7225c054643",
+      "head": "0bda554d448c1b57c17a5c18114432c02465d467",
+      "head_subject": "Fix `signal` replacement when extending instances (#880)",
+      "head_committed": "2026-08-26T14:19:52-04:00",
+      "changed_production_paths": [
+        "source/types/ky.ts",
+        "source/utils/merge.ts"
+      ],
+      "expected_test_files": [
+        "test/main.ts"
+      ],
+      "labels_exhaustive": false,
+      "hand_verification": "merge.ts/types fix `signal` replacement on extend; test/main.ts adds the extend+signal cases."
+    },
+    {
+      "id": "ky@294fe63be57d",
+      "sample_id": "ky",
+      "language": "typescript",
+      "url": "https://github.com/sindresorhus/ky.git",
+      "base": "c426f19597777ba0c060250ba55f166422e8832b",
+      "head": "294fe63be57d73bda18194b7e23ab7225c054643",
+      "head_subject": "Allow `parseJson` to handle empty bodies (#877)",
+      "head_committed": "2026-08-25T21:23:12+02:00",
+      "changed_production_paths": [
+        "source/core/Ky.ts",
+        "source/types/ResponsePromise.ts"
+      ],
+      "expected_test_files": [
+        "test/main.ts",
+        "test/retry.ts"
+      ],
+      "labels_exhaustive": false,
+      "hand_verification": "Ky.ts lets parseJson handle empty bodies; test/main.ts and test/retry.ts rewrite the empty-body expectations."
+    },
+    {
+      "id": "ky@be60db582496",
+      "sample_id": "ky",
+      "language": "typescript",
+      "url": "https://github.com/sindresorhus/ky.git",
+      "base": "3419113b48e034fdcf8fa6bd3be3da7b3d0d758f",
+      "head": "be60db582496ce4a662a4e55df3d07d4b9aac5d5",
+      "head_subject": "Reject malformed HTTP URLs with `baseUrl`",
+      "head_committed": "2026-08-25T19:20:37+02:00",
+      "changed_production_paths": [
+        "source/core/Ky.ts"
+      ],
+      "expected_test_files": [
+        "test/base-url.ts"
+      ],
+      "labels_exhaustive": false,
+      "hand_verification": "Ky.ts rejects malformed HTTP URLs with baseUrl; test/base-url.ts adds the rejection cases."
+    }
+  ]
+}

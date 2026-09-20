@@ -35,7 +35,6 @@ M10–M12 have all landed; round narratives live in [`FEEDBACK.md`](FEEDBACK.md)
 | 263 | [The question a newcomer asks most is the one table that is empty](tasks/263_the-question-a-newcomer-asks-most-is-the-one-table-that-is-empty.md) | Onboarding | todo | 114, 210 |
 | 269 | [Twelve graph nouns where a reader has seven questions](tasks/269_twelve-graph-nouns-where-a-reader-has-seven-questions.md) | Onboarding | todo | 263, 121, 210, 139 |
 | 304 | [EPIC — make every important change carry graph-derived evidence](tasks/304_change-assurance-makes-every-important-change-carry-evidence.md) | Change Assurance | todo | 100, 138, 139, 257, 260, 266 |
-| 309 | [Test-impact recall before selective runs](tasks/309_test-impact-recall-before-selective-runs.md) | Change Assurance | todo | 142, 308 |
 | 310 | [Four-week Change Assurance adoption gate](tasks/310_four-week-change-assurance-adoption-gate.md) | Change Assurance | todo | 260, 300, 305, 306, 307, 309 |
 
 **What still governs open work:** the surface has **24 tools** (`main.TOOL_NAMES`), count-pinned by
@@ -69,6 +68,10 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **Parser-OOM size cap (optional)** — multi-MB generated files exhaust the PHP parser (already soft-failed/restarted in `indexer.py`); a byte-cap pre-skip (`CA_MAX_FILE_BYTES`) would avoid ~30 restart cycles. Log skips; no silent truncation.
 - **258's anchor-scale figures were never taken** — AC1 (the edge-count drop on the anchor index) and AC5 (the query cost of the proximity expansion at that scale) shipped E1 on fixture evidence. The ticket makes the expensive case convert to **build-time ranking**, so that measurement is the decision, not a confirmation — [258](tasks/258_the-graph-stores-the-cartesian-product-of-call-site-and-same-named-symbol.md).
 - **Uptake is gated by deferred delivery and whether `Grep` hurts** — [300](tasks/300_the-index-is-registered-permitted-and-never-chosen.md).
+- **Candidate-test recall is bounded by a depth-1 inbound walk** — 309 measured 0.824 against
+  its 0.90 promotion bar and put *every* miss at inbound depth 2, so widening 308's walk past
+  direct callers is the named next step; moving the metric was out of 309's own scope —
+  [309 benchmark](benchmarks/309_test-impact-recall.md).
 - **Docker images are never built by CI** — `docker/Dockerfile` can rot (`Dockerfile.runtime` is built inside `pytest`). Honest shape: one job building both. Survives the unbillable-Actions arrangement AGENTS.md records, which also means every gate is a human step.
 
 ## Conventions

@@ -1599,3 +1599,15 @@ venv or the PHPStan tmpDir is rebuilt from a wrong-cased cwd.*
   as separate deliverables. Combining them would let a green implementation stand in for measured
   safety or repeated use; tasks 301/302 remain graph-trust work outside the epic.
 - destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)
+
+## 309 — a standing "act autonomously" mandate is delegation, not ratification
+
+- type: 2 (process) · handle: `delegation-is-not-ratification`
+- status: proposed · seen: 309
+- evidence: 309's AC1 wanted a bar that is human-ratified AND committed before the first counted
+  run. A blanket mandate was read as answering the ticket's reserved want-decisions; the ticket-blind
+  challenger rejected it, and the ratification taken afterwards could not close the AC because the
+  maintainer had by then seen the result. A ratification that is not blind is not pre-registration,
+  even when the value does not move, and re-running to restore the git order would manufacture a
+  timeline. Ask for a reserved value BEFORE the measurement, or record the criterion unmet.
+- destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)
