@@ -22,6 +22,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 
 | # | Tokens | PR |
 |---|---|---|
+| 301 | 2 dispatch: ticket-blind `challenger` round1 NOT CLEAN → fix assigned-form census → round2 CLEAN; `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun`. AC1 evidence gate on pinned `ky` @ 0bda554: flow-sensitive explicit-return indexed ceiling **0/4170** → closed with census + measurement, no callable-return promotion machinery. Proving: `tests/test_edge_health_report.py`. | [#405](https://github.com/cuongdinhngo/code-atlas/pull/405) |
 | 311 | 1 dispatch: ticket-blind `challenger` CLEAN; `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun`. Chose (a): `semantic_types` = local type table; PHP declares it; playbook §3 updated. Proving: `tests/test_semantic_types_capability_meaning.py`. | [#407](https://github.com/cuongdinhngo/code-atlas/pull/407) |
 | 298 | 2 dispatch: ticket-blind `challenger` round-1 NOT CLEAN (AC1) then CLEAN; `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun`. SQL omits undecided `is_test`; path convention fills. Proving: `tests/test_sql_omit_is_test_constant.py`. | [#399](https://github.com/cuongdinhngo/code-atlas/pull/399) |
 | 296 | 1 dispatch: ticket-blind `challenger` CLEAN (11 met); `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun`. SQL `EXEC`/@var/`sp_executesql` stamps `dynamic_sql`. Proving: `tests/test_sql_dynamic_sql_unmodelled_stamp.py`. | [#397](https://github.com/cuongdinhngo/code-atlas/pull/397) |

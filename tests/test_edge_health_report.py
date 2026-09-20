@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from code_atlas.store import GraphStore
+from tests.ts_adapter_cli import needs_node
 
 REPO = Path(__file__).resolve().parent.parent
 REPORTER = REPO / "scripts" / "edge_health_report.py"
@@ -200,3 +201,77 @@ def test_every_named_cause_says_whether_the_spec_can_settle_it() -> None:
     for cause, (settleable, why) in _r.CAUSES.items():
         assert isinstance(settleable, bool), cause
         assert len(why) > 40, f"{cause} has no explanation a reader could check"
+
+
+def test_bare_heuristic_calls_drops_qualified_and_non_calls(store: GraphStore) -> None:
+    """Task 301 census input is bare HEURISTIC CALLS only."""
+    _seed(
+        store,
+        [_node("Class", "\\App\\Svc"), _node("Method", "\\App\\Svc::run")],
+        [
+            _edge("CALLS", "\\App\\Svc::run", "fetch"),
+            _edge("CALLS", "\\App\\Svc::run", "\\App\\Svc::run"),
+            _edge("NEW", "\\App\\Svc::run", "Svc"),
+            {**_edge("CALLS", "\\App\\Svc::run", "kept"), "confidence_tier": "RESOLVED"},
+        ],
+    )
+    assert _r.bare_heuristic_calls(_r.heuristic_edges(store)) == [
+        {"file": PATH, "line": 7, "method": "fetch"}
+    ]
+
+
+def test_ts_receiver_census_format_names_zero_ceiling() -> None:
+    """AC1 close path: a ZERO ceiling is printable and greppable from the committed reporter."""
+    text = _r.format_ts_receiver_census(
+        {
+            "total": 10,
+            "explicit_return_indexed_ceiling": 0,
+            "counts": {"identifier_receiver": 10},
+        }
+    )
+    assert "explicit-return, indexed-target ceiling: 0/10" in text
+    assert "ZERO" in text
+
+
+@needs_node
+def test_ts_receiver_census_counts_same_file_explicit_return(tmp_path: Path) -> None:
+    """The node census sees makeClient().send() as explicit_return_indexed on a tiny fixture."""
+    import json
+    import os
+    import shutil
+    import subprocess
+    import tempfile
+
+    src = REPO / "tests" / "fixtures" / "typescript" / "census" / "factory.ts"
+    root = tmp_path / "repo"
+    (root / "src").mkdir(parents=True)
+    shutil.copy(src, root / "src" / "factory.ts")
+    # Direct makeClient().send() (L11) and assigned const c = makeClient(); c.send() (L13).
+    edges = [
+        {"file": "src/factory.ts", "line": 11, "method": "send"},
+        {"file": "src/factory.ts", "line": 13, "method": "send"},
+    ]
+    qnames = [
+        "src/factory.ts::Client",
+        "src/factory.ts::Client::send",
+        "src/factory.ts::makeClient",
+        "src/factory.ts::run",
+    ]
+    payload = {"root": str(root), "edges": edges, "qnames": qnames}
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
+        json.dump(payload, tmp)
+        path = tmp.name
+    try:
+        node = os.environ.get("CA_NODE", "node")
+        proc = subprocess.run(
+            [node, str(_r._TS_CENSUS), "--json", path],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        out = json.loads(proc.stdout)
+    finally:
+        Path(path).unlink(missing_ok=True)
+    assert out["explicit_return_indexed_ceiling"] == 2
+    assert out["counts"].get("explicit_return_indexed") == 2

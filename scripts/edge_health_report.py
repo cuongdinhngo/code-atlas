@@ -18,9 +18,14 @@ store order is `source_qname, kind, target_raw, file_path, line, id`). Needs php
 from __future__ import annotations
 
 import argparse
+import json
+import os
+import subprocess
 import sys
+import tempfile
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 _REPO = Path(__file__).resolve().parents[1]
 if str(_REPO) not in sys.path:
@@ -33,6 +38,8 @@ from scripts.cross_repo_validate import (  # noqa: E402
     index_root,
     load_manifest,
 )
+
+_TS_CENSUS = _REPO / "adapters" / "typescript" / "src" / "receiver_census.js"
 
 _HEURISTIC = "HEURISTIC"
 _SCAN_LIMIT = 200_000  # a pinned sample is ~10^3–10^4 edges; this is a runaway guard, not a page
@@ -206,6 +213,81 @@ def check(labelled: list[tuple[str, Row]], heuristic: int) -> list[str]:
     return problems
 
 
+def bare_heuristic_calls(edges: list[Row]) -> list[dict[str, Any]]:
+    """HEURISTIC CALLS whose target is a bare method name — the receiver-shape census input."""
+    out: list[dict[str, Any]] = []
+    for edge in edges:
+        if str(edge.get("kind")) != "CALLS":
+            continue
+        if str(edge.get("confidence_tier")) != _HEURISTIC:
+            continue
+        raw = str(edge["target_raw"])
+        if "::" in raw:
+            continue
+        out.append(
+            {
+                "file": str(edge["file_path"]),
+                "line": int(edge["line"]),  # type: ignore[arg-type]
+                "method": raw,
+            }
+        )
+    return out
+
+
+def indexed_qnames(store: GraphStore) -> list[str]:
+    """Short list of Class/Interface/Function/Method qnames the census uses for INDEXED checks."""
+    names: list[str] = []
+    for kind in ("Class", "Interface", "Function", "Method"):
+        for node in store.nodes_by_kind(kind, limit=_SCAN_LIMIT):
+            names.append(str(node["qualified_name"]))
+    return names
+
+
+def run_ts_receiver_census(root: Path, store: GraphStore, edges: list[Row]) -> dict[str, Any]:
+    """Invoke the TS adapter's AST census (task 301) — node + typescript, file-at-a-time."""
+    payload = {
+        "root": str(root),
+        "edges": bare_heuristic_calls(edges),
+        "qnames": indexed_qnames(store),
+    }
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
+        json.dump(payload, tmp)
+        tmp_path = tmp.name
+    try:
+        node = os.environ.get("CA_NODE", "node")
+        proc = subprocess.run(
+            [node, str(_TS_CENSUS), "--json", tmp_path],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        return json.loads(proc.stdout)
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
+
+
+def format_ts_receiver_census(result: dict[str, Any]) -> str:
+    """The task-301 additive section: receiver shapes + the explicit-return indexed ceiling."""
+    total = int(result.get("total", 0))
+    ceiling = int(result.get("explicit_return_indexed_ceiling", 0))
+    counts: dict[str, int] = dict(result.get("counts") or {})
+    lines = [
+        "  TypeScript receiver-shape census (task 301) — bare HEURISTIC CALLS only:",
+        f"  bare HEURISTIC CALLS={total}",
+        "  shape                              count    share",
+    ]
+    for shape, count in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])):
+        share = 100 * count / total if total else 0.0
+        lines.append(f"  {shape:<32} {count:>6}  {share:>5.1f}%")
+    lines.append(
+        f"  → explicit-return, indexed-target ceiling: {ceiling}/{total} "
+        f"({'non-zero' if ceiling else 'ZERO'} — "
+        f"{'promote candidates exist' if ceiling else 'close without return-type machinery'})"
+    )
+    return "\n".join(lines)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--only", help="run just the sample with this id (faster focused run)")
@@ -226,6 +308,8 @@ def main(argv: list[str] | None = None) -> int:
                 edges = heuristic_edges(store)
                 labelled = classify(store, edges)
                 print(format_report(store, labelled))
+                if language == "typescript":
+                    print(format_ts_receiver_census(run_ts_receiver_census(root, store, edges)))
                 problems = check(labelled, len(edges))
             if problems:
                 failures += 1
