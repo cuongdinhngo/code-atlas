@@ -60,6 +60,9 @@ decision rule, not a number the implementation is allowed to manufacture.
 - **312 — Widen the candidate walk:** 309 measured every miss at inbound depth 2, so the walk
   moves past direct callers and re-runs 309's reporter against its already-registered bar.
 - **310 — Adoption gate:** the four-week 80%/50% field decision and removal-cost interview.
+  **Blocked, and the epic cannot close without it:** the protocol and its counter are frozen
+  and committed, but 300 closed with *full availability, zero uptake* at n = 3, so there is no
+  cohort to observe. The verdict is unmeasured, not pending a rewrite of the bar.
 
 Dependency order:
 

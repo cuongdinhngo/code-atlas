@@ -225,6 +225,14 @@ the checkout it is standing in. **A guarantee that depends on a prompt holding i
 and hand-filtering shifts the failure from structural to silent: on 197 the leak was disclosed by
 the leaking grep, here it was disclosed only because the agent volunteered it.
 
+**Third sighting, 310 — the leak is now load-bearing enough to change a verdict.** The challenger
+was told to read only above the separator. `git diff` on the ticket file returned the whole file,
+including the self-graded AC table, and it said so up front. It then disagreed with one of those
+gradings (AC6, which the doc under-claimed), which is the one outcome that shows the leak did not
+simply capture it — but a guarantee that survives only because the reviewer chose to disagree is
+still not a guarantee. Three sightings, three different failure shapes: structural leak (197),
+silent prompt-mitigation failure (199), unavoidable whole-file diff (310).
+
 **Signal, not a fix.** Options a maintainer might weigh: hand the challenger a diff with the ticket
 file's below-separator hunks stripped; write the working doc to a separate path during review even
 under `embed`; run the challenger against a checkout that does not contain the narrative docs at

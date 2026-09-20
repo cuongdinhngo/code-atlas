@@ -404,6 +404,14 @@ just as defensible. Disclose the range; do not tune the input to widen the margi
 evidence: challenger's sweep over four patterns, 0.604 / 0.630 / 0.630 / 0.830 · destination: open —
 recurrence 1.*
 
+*Claim `310-C1` — third sighting: under `work_doc_mode: embed` a `git diff` of the ticket file
+returns the working doc whole, so ticket-blindness cannot be instructed into existence. The
+challenger disclosed it and still dissented from a grading it had seen, which is evidence the leak
+did not capture it — not evidence the guarantee held. type: 3 · handle:
+`embed-mode-leaks-the-working-doc-into-the-diff` · seen: 197, 199, 310 · evidence: the challenger's
+own independence note · destination: `skill_gap_path` — already carried there; third sighting
+appended rather than re-filed.*
+
 *Claim `199-C8` — second sighting: `work_doc_mode: embed` makes challenger blindness a MANUAL
 construction, and the mitigation leaked again — this run's challenger reported reading
 `LESSONS.md` and `TOKEN_LEDGER.md` after being told not to. A guarantee that depends on the prompt

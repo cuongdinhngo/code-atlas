@@ -1,0 +1,39 @@
+{
+  "protocol_version": 1,
+  "frozen_at": "2026-09-20",
+  "cohort": {
+    "teams": [],
+    "repository_size_floor_files": 2000
+  },
+  "weeks": [],
+  "removal_cost_probe": {
+    "kind": "",
+    "recorded": false
+  },
+  "aggregate_declared": {
+    "code_changing_prs": 0,
+    "assurance_runs_attempted": 0,
+    "reviews": 0,
+    "reviews_citing_evidence": 0
+  },
+  "week_shape": {
+    "week": 1,
+    "code_changing_prs": 0,
+    "assurance_runs": {
+      "ok": 0,
+      "failed": 0,
+      "invalid": 0
+    },
+    "failure_classifications": [],
+    "reviews": 0,
+    "reviews_citing_evidence": 0,
+    "exclusions": [],
+    "provenance": {
+      "host_build": "",
+      "client_build": "",
+      "server_build": "",
+      "config_build": "",
+      "repository_revision": ""
+    }
+  }
+}
