@@ -218,6 +218,9 @@ REQUIRED_META_FIELDS: tuple[str, ...] = ("name", "extensions", "contract_version
 
 # Advertised, never required: an absent flag is legal and the core degrades without it (R1.6).
 Capabilities = dict[str, bool]
+# semantic_types (task 311): a file-at-a-time local type table backs member-call receivers
+# (annotations / `new X` / assignments — not an external checker). Adapters that ship that table
+# declare it; adapters that do not must not.
 KNOWN_CAPABILITIES: tuple[str, ...] = (
     "semantic_types",
     "params",

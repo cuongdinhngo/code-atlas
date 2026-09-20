@@ -26,6 +26,9 @@ function serve(Parser $parser): void
         'name' => 'php',
         'extensions' => ['.php', '.phtml'],
         'capabilities' => (object) [
+            // Local type table (137) backs member-call receivers — same meaning TS/Python declare
+            // under semantic_types (311); not PHPStan.
+            'semantic_types' => true,
             'params' => true,
             'args' => true,
             'modifiers' => true,

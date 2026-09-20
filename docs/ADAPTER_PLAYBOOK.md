@@ -82,7 +82,7 @@ the consumer cannot tell "the code has no annotation" from "this adapter never l
 | `modifiers` | fill for every member the language gives a visibility or a `static`/`readonly`/`final` keyword | `class_diagram.py` — the UML `+`/`-`/`#` marker. TS spells all of them and emits none |
 | `args` · `arg_keys` | fill at every `CALLS`/`NEW` site — the literal **category**, never the value | `find_callers`'s argument filter (049/063) **and every `CA_INDIRECTION_RULES` edge** (`enrichment.py`), so a repo in your language gets no cross-language link |
 | `confidence_tier` | leave **NULL** on a structural edge | nothing — NULL folds into `RESOLVED` (`store.py:704-709`). SQL stamping it explicitly is equivalent, not better; do not file it as a defect |
-| `capabilities` | declare what you capture | this is the honesty channel and it is nearly unused: `KNOWN_CAPABILITIES` (`contract.py:185`) still holds one entry |
+| `capabilities` | declare what you capture | honesty channel (R1.6). `semantic_types` means *a file-at-a-time local type table backs member-call receivers* (`contract.py` / task 311) — PHP · TS · Python declare it; SQL does not. The other known flags (`params`, `args`, `modifiers`, `declared_types`, `inheritance`) name optional field capture |
 | `is_test` | emit only when decided | omit when undecided so 130's path convention fills via `symbol_role`; a constant `false` opts out of the fallback by accident (262/298) |
 | `File.extra.unmodelled_resolution` | stamp every idiom your language resolves at runtime | `find_orphans` — unstamped, unmeasured silence is reported as dead code. All four adapters stamp one: autoload (279), non-literal `import()`/`require()` (294), `importlib`/`__import__` (295), dynamic `EXEC`/`sp_executesql` (296) |
 

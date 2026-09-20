@@ -22,6 +22,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 
 | # | Tokens | PR |
 |---|---|---|
+| 311 | 1 dispatch: ticket-blind `challenger` CLEAN; `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun`. Chose (a): `semantic_types` = local type table; PHP declares it; playbook §3 updated. Proving: `tests/test_semantic_types_capability_meaning.py`. | [#407](https://github.com/cuongdinhngo/code-atlas/pull/407) |
 | 298 | 2 dispatch: ticket-blind `challenger` round-1 NOT CLEAN (AC1) then CLEAN; `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun`. SQL omits undecided `is_test`; path convention fills. Proving: `tests/test_sql_omit_is_test_constant.py`. | [#399](https://github.com/cuongdinhngo/code-atlas/pull/399) |
 | 296 | 1 dispatch: ticket-blind `challenger` CLEAN (11 met); `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun`. SQL `EXEC`/@var/`sp_executesql` stamps `dynamic_sql`. Proving: `tests/test_sql_dynamic_sql_unmodelled_stamp.py`. | [#397](https://github.com/cuongdinhngo/code-atlas/pull/397) |
 | 295 | 1 dispatch: ticket-blind `challenger` CLEAN (11 met); `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun`. Python `importlib`/`__import__`/`spec_from_file_location` stamps `dynamic_import`. Depends: 294 #395 open (shared token). Proving: `tests/test_py_dynamic_import_unmodelled_stamp.py`. | [#396](https://github.com/cuongdinhngo/code-atlas/pull/396) |

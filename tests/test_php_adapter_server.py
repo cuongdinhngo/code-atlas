@@ -77,6 +77,7 @@ def test_the_handshake_announces_capabilities_as_an_object_not_an_empty_array() 
     with server() as adapter:
         assert isinstance(adapter.capabilities, dict)
         assert adapter.capabilities == {
+            "semantic_types": True,
             "params": True,
             "args": True,
             "modifiers": True,
