@@ -264,7 +264,10 @@ BUDGETS = {
     # ceiling would trade the evidence for the number. R7.6 ran first and came back empty: no open
     # row is superseded by any of the nine, no `done` row is left to remove, and the round-3
     # `~650x` note is this repo's only record of that claim. The next addition prunes or argues.
-    "BACKLOG.md": 1_950,
+    # 1,950 -> 1,800 on 2026-09-20 (308): 307 and 308 closed and their rows left the table, so the
+    # old ceiling stopped biting and `test_the_budgets_are_not_slack` said so. Lowered to the
+    # measured size plus headroom, which is what that guard asks for.
+    "BACKLOG.md": 1_800,
     "ENGINEERING_RULES.md": 5_700,
     "AGENT_BRIEF.md": 2_250,
     # 6,700 -> 6,800 on 2026-09-09 (236): the `ForeignKey` node kind joins the vocabulary of record

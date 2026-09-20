@@ -24,6 +24,7 @@ from code_atlas.architecture_policy import (
     load_architecture_policy,
     outcomes_as_dicts,
 )
+from code_atlas.candidate_tests import build_candidate_test_report, report_as_dict
 from code_atlas.change_brief import build_brief_sections, render_brief
 from code_atlas.config import Config, ConfigError, load_config
 from code_atlas.evidence_bundle import wrap_check_result, write_bundle
@@ -368,6 +369,7 @@ def run_check(
         "mode": mode,
         "reason": REASON_REPORT_ONLY if mode == "report_only" else REASON_OK,
     }
+    _attach_candidate_tests(result, config)
     if _attach_policy(result, config, rules_payload, diff_payload):
         result["reason"] = OUTCOME_INVALID_POLICY
         return OPERATIONAL, result
@@ -381,6 +383,19 @@ def run_check(
             return CONFIRMED_VIOLATIONS, result
     return OK, result
 
+
+def _attach_candidate_tests(result: dict[str, object], config: Config) -> None:
+    """Always-on report_only section — never a gate (308)."""
+    indexed = result.get("changed_indexed")
+    unindexed = result.get("dirty_unindexed")
+    report = build_candidate_test_report(
+        config,
+        changed_indexed=[str(path) for path in indexed] if isinstance(indexed, list) else [],
+        dirty_unindexed=(
+            [str(path) for path in unindexed] if isinstance(unindexed, list) else []
+        ),
+    )
+    result["candidate_tests"] = report_as_dict(report)
 
 def _attach_policy(
     result: dict[str, object],
@@ -509,6 +524,18 @@ def render_text(result: Mapping[str, object]) -> str:
                     f"CANDIDATE {row.get('rule_id')}: "
                     f"{row.get('source_file')} -> {row.get('forbidden_file')}"
                 )
+    candidate_tests = result.get("candidate_tests")
+    if isinstance(candidate_tests, Mapping):
+        lines.append(f"candidate_tests: {candidate_tests.get('statement')}")
+        for row in candidate_tests.get("candidates") or []:
+            if isinstance(row, Mapping):
+                lines.append(
+                    f"CANDIDATE_TEST {row.get('test_path')} "
+                    f"{row.get('edge_kind')}/{row.get('confidence_tier')} "
+                    f"role={row.get('test_role_source')}"
+                )
+        for reason in candidate_tests.get("unmeasured") or []:
+            lines.append(f"candidate_unmeasured: {reason}")
     policy = result.get("architecture_policy")
     if isinstance(policy, Mapping):
         if policy.get("reason") == OUTCOME_INVALID_POLICY:
