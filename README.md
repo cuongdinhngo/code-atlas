@@ -191,8 +191,10 @@ decides whether the database is 1 GB or 2 GB — is covered step by step in
 
 ### Agent brief (optional)
 
-After the first index, offer a **five-occasion** brief into the repo's `AGENTS.md` — when to ask
-the graph, not the full tool roster (generated from `which_tool`; do not hand-edit):
+After the first index, offer the **agent brief** into the repo's `AGENTS.md` — six occasions that
+name a tool, plus how to spend the calls, how to read an answer's honesty fields, what the index
+**cannot** answer, and two traps. Not the full tool roster (generated from `which_tool`; do not
+hand-edit):
 
 ```bash
 python scripts/setup.py /abs/path/to/your-project --write-agent-brief
@@ -238,6 +240,7 @@ owns and its capabilities on one handshake line, and the core routes files from 
 | What happens when a user does X — entry to data? | `trace_capability`, one entry, file or module per call |
 | Draw me this type and its ancestry | `class_diagram` |
 | Which writers of this table omit a defaulted column? | `check_column_defaults` (T-SQL) |
+| Is something *missing* here — an unchecked call site, an untested symbol? | **none of them** — use `grep`, and see [what it cannot answer](docs/TOOLS.md#what-it-cannot-answer--reach-for-grep-instead) |
 
 **All 24 tools, what each returns, and which take a list of subjects: [`docs/TOOLS.md`](docs/TOOLS.md).**
 

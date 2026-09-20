@@ -57,6 +57,24 @@ handful and spend your attention elsewhere. What *did* cost an hour was a missin
 per-file `DELETE FROM edges WHERE file_path = ?` scanned the whole edge table, 189 ms x 24,569
 files, until `idx_edges_file` landed (`store.py`). The same rebuild went **75.8 min → 9.9 min**.
 
+## 2b. Watch a long build — it is not a hang
+
+The caller that started the build is blocked inside it, so progress is unreadable from there and
+from every MCP tool. One shell command reads it:
+
+```bash
+code-atlas-build --status      # the live phase, or "no build is running"
+```
+
+`resolve` is the phase that outlasts `parse` on a large repo, and since 290 it **ticks per batch**
+instead of publishing one line with `total=0` — a slow resolve now looks slow rather than stuck.
+`total` stays `0` there on purpose: the batch count is not knowable up front, and a fabricated
+denominator would be worse than none.
+
+**The timings in §2 predate 283**, which removed one SQLite `COUNT` per bare-name `CALLS` edge from
+`resolve` — on a million-edge tree that was the dominant term. Treat the numbers above as an upper
+bound until you re-measure your own; the *method* is unchanged.
+
 ## 3. Read the parse failures — they are usually not your bug
 
 After the first build, call `get_index_status(detail_level="verbose")` and read

@@ -32,6 +32,16 @@ KEEP_GOING = (
     "(search_symbol -> read_symbol, find_callers -> impact) the way you would follow a grep hit."
 )
 
+# The field retros' standing verdict: the index answers who/what/where, never "is something
+# missing". Stating the boundary here is cheaper than the confident wrong answer it prevents.
+LIMITS = (
+    "Two things to read on every answer: a `reason` other than ok, and the coverage fields "
+    "(unconfigured_adapters / unindexed_languages / unindexed_same_basename) that mean this index "
+    "never looked rather than looked and found nothing. The graph cannot answer an ABSENCE — "
+    "whether some call site forgets a check, whether anything still uses an old constant — so ask "
+    "the positive form here and use Grep for the absence."
+)
+
 
 def _state(config: Config) -> str:
     """One sentence of ground truth, so the first move knows this repo has an index."""
@@ -49,4 +59,4 @@ def _state(config: Config) -> str:
 def render(config: Config, names: tuple[str, ...]) -> str:
     """Server instructions for the tools actually registered (``CA_TOOLS`` may cut the surface)."""
     lines = prompts.recognition_lines(frozenset(names))
-    return "\n".join([_state(config), "", WHY, "", LOAD, "", *lines, "", KEEP_GOING])
+    return "\n".join([_state(config), "", WHY, "", LOAD, "", *lines, "", KEEP_GOING, "", LIMITS])

@@ -23,7 +23,7 @@ discussion. One question at a time; record the first tool named; no retries, no 
    | Record or the round is void | Values |
    |---|---|
    | Surface | default 24 (`CA_TOOLS` unset) or FIELD18 six-tool — say which. Default is 24. |
-   | Consumer brief (266) | `AGENTS.md` five-occasion section present / absent |
+   | Consumer brief (266) | `AGENTS.md` code-atlas brief section present / absent |
    | Skill (`contrib/skill`) | installed in the agent / not |
    | Resident descriptions | `K / 24` schemas in context (a name list is not this) |
 

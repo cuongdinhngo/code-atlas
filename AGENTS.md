@@ -97,7 +97,7 @@ second opinion — the local gate is the only gate.
 **Only `GATE GREEN` counts — exit 2 means a check was skipped, which is not a pass (R6.5).**
 `tests/test_ci_and_gate_agree.py` keeps it in step with `ci.yml`, so that drift fails a test here.
 **The gate's tokens-to-answer ratio is the *fixture* tier and sits below 1 by design** (floor 0.63) —
-the product claim is the *sample* tier over the pinned repos (`--samples`, ~65x). Never quote one as
+the product claim is the *sample* tier over the pinned repos (`--samples`, ~69x). Never quote one as
 the other.
 
 ## Running the full test suite — never report it as unrunnable
@@ -108,9 +108,9 @@ not) and **every adapter**: `php` + `composer`, `node` for both the TS and SQL a
 Python ≥ 3.12 interpreter —
 with all of them present, bare `pytest` is the fastest route. Missing either condition it goes red —
 **a platform limitation, not a regression** — so don't conclude "the suite can't run"; run it in
-Docker instead: `scripts/docker-test.sh`. **Expected count, verified 2026-09-15 on Linux — the one
+Docker instead: `scripts/docker-test.sh`. **Expected count, verified 2026-09-20 on Linux — the one
 place these numbers are kept:** bare `pytest` (with `php` · `composer` · `node` · `docker` on PATH)
-**4,084 passed / 4 skipped**; `scripts/docker-test.sh` **4,083 passed / 5 skipped**. Both on the
+**4,289 passed / 4 skipped**; `scripts/docker-test.sh` **4,288 passed / 5 skipped**. Both on the
 same tree; neither is derived from the other. Green skips: the Windows lock arm (3) and the
 `gitutil` wedge; in-image also `test_runtime_image_reports_server_build`.
 

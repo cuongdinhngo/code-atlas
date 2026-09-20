@@ -295,7 +295,15 @@ BUDGETS = {
     # action pair, and the census rule that keeps an empty filtered page honest. R7.6 ran first and
     # paid 56: §6's `try_instead` bullet retold the 186/188 cases that design/payload.md holds in
     # full, so it points there instead. The next addition prunes again or argues again.
-    "CONVENTION.md": 7_050,
+    # 7,050 -> 7,150 on 2026-09-20, argued rather than assumed. §6 is the payload contract, and
+    # three shipped field groups had no row: the coverage pair 159/160/173 fires on partial
+    # answers as well as empty ones, 299 puts `unindexed_same_basename` on a NON-empty page,
+    # and 286 extends the mirror fields from search to read. A field a reader can only find in
+    # source is the shape this table exists to stop. R7.6 ran first and paid 93 of the 147 the
+    # rows arrived with: they were rewritten ~76 tokens shorter than first drafted, and the
+    # `server_*` row shed the per-field narrative design/payload.md holds in full, keeping the
+    # rule and pointing there. 43 of margin; the next addition prunes again or argues again.
+    "CONVENTION.md": 7_150,
 }
 
 

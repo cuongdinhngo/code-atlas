@@ -1,4 +1,4 @@
-"""Task 266 — five-occasion agent brief written into the indexed repo's AGENTS.md."""
+"""Task 266 — the code-atlas agent brief written into the indexed repo's AGENTS.md."""
 
 from __future__ import annotations
 

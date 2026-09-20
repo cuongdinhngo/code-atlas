@@ -39,7 +39,27 @@ Do not edit by hand — regenerate with
 - How does this codebase route an incoming request to the code that produces the response -> trace_capability.
 - What are this codebase's layers, and how do they depend on each other -> architecture_overview.
 
-Call `get_index_status` first whenever you are unsure the index is current.
+### How to spend the calls
+
+- **Ask the index first, then follow through.** Structural questions take more than one call: `search_symbol` → `read_symbol`, `find_callers` → `impact`. One lookup followed by a grep sweep is the failure mode this brief exists to stop.
+- **Call `get_index_status` when you are unsure the index is current** — and read `staleness`. A `behind` index still serves `search_symbol` and `read_symbol`; the inbound tools need `serve_behind: true` and then label the answer.
+- **Prefer one call over a sweep of ten.** `search_symbol` takes a list of `queries`.
+
+### Read what the answer says about itself
+
+- `total_count` is the population, `truncated` describes the page alone — page 1 of `find_callers` is tier-ordered (RESOLVED first), not a ranking of importance.
+- `production_count` / `test_count` split inbound answers by the caller's role. *Three callers* and *three callers, all in one test* are different answers; `exclude_tests=true` filters before paging, so page 1 is production.
+- `confidence_tier` is per edge: `RESOLVED` is a linked definition, `HEURISTIC` and `DYNAMIC` are candidates. Never quote a candidate as a fact.
+- **`unconfigured_adapters`, `unindexed_languages` and `unindexed_same_basename` mean the index never looked** — not that nothing is there. They are omitted when empty, so seeing one is the signal, and `detail_level: "minimal"` hides all three.
+
+### What it cannot answer — use grep instead
+
+The index holds what the adapters parsed, so a question whose answer is an **absence** cannot be settled here: *is there a call site that forgets the check*, *does anything still use the old constant*, *which of these has no test*. Ask the positive form (`find_callers`, `find_references`), then subtract — and keep grep for literal text in strings, comments and config.
+
+### Two traps that cost real time
+
+- **A name defined in more than one tree** (`src/` beside a `legacy/` copy) makes `impact` and `read_symbol` answer `reason: subject_ambiguous` with no rows — and the payload carries `ambiguous_definitions`. Re-ask with the qname from the definition you mean; do not read the empty result as no impact.
+- **Mirrored trees inflate a result set.** A hit carries `mirror_counterpart` when an indexed twin exists; read it before concluding a symbol has many call sites.
 
 Hook snippets (edit poke / write-time signal) stay **offered** under
 `contrib/claude-code/` — the server never writes editor settings (036/099).

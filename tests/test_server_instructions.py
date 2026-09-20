@@ -84,3 +84,15 @@ def test_the_instructions_name_the_load_step_the_deferred_surface_requires(tmp_p
     """Verified 2026-09-19: the tools arrive as deferred names; a map alone names the uncallable."""
     text = instructions.render(config_for(tmp_path), ALL_TOOLS)
     assert "deferred names" in text and "ToolSearch" in text
+
+
+def test_the_instructions_name_the_boundary_and_the_coverage_fields(tmp_path: Path) -> None:
+    """The field retros' standing verdict: who/what/where yes, "is something missing" never.
+
+    A session that asks the graph an absence question gets a confident wrong answer, and the
+    coverage fields are the only signal that a zero means *this index never looked*.
+    """
+    text = instructions.render(config_for(tmp_path), ALL_TOOLS)
+    assert "ABSENCE" in text and "Grep for the absence" in text
+    for field in ("unconfigured_adapters", "unindexed_languages", "unindexed_same_basename"):
+        assert field in text

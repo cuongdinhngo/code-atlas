@@ -120,7 +120,7 @@ def main() -> int:
     ap.add_argument(
         "--write-agent-brief",
         action="store_true",
-        help="offer the five-occasion code-atlas brief into PROJECT/AGENTS.md (task 266)",
+        help="offer the code-atlas agent brief into PROJECT/AGENTS.md (task 266)",
     )
     args = ap.parse_args()
 
@@ -198,7 +198,7 @@ def main() -> int:
     # Closing screen every installer reads (270): name the flag when a PROJECT was given without it.
     if args.project and not args.write_agent_brief:
         print(
-            "  Tip: re-run with --write-agent-brief to offer the five-occasion "
+            "  Tip: re-run with --write-agent-brief to offer the code-atlas "
             "agent brief into PROJECT/AGENTS.md."
         )
     return 0
