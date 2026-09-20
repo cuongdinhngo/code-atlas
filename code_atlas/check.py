@@ -18,6 +18,7 @@ from typing import Any
 
 from code_atlas import gitutil
 from code_atlas.config import ConfigError, load_config
+from code_atlas.evidence_bundle import wrap_check_result, write_bundle
 from code_atlas.indexer import indexable
 from code_atlas.onboarding.artifact import MANIFEST_NAME, OUTPUT_DIR
 from code_atlas.store import INDEXED_SUFFIXES_KEY, GraphStore
@@ -485,14 +486,25 @@ def main(argv: list[str] | None = None) -> int:
         help="emit the result object as deterministic JSON on stdout",
     )
     parser.add_argument(
+        "--bundle-json",
+        metavar="PATH",
+        help="write a versioned evidence bundle JSON to PATH (305; no default write)",
+    )
+    parser.add_argument(
+        "--bundle-md",
+        metavar="PATH",
+        help="write the evidence-bundle Markdown view to PATH (305)",
+    )
+    parser.add_argument(
         "--skip-build",
         action="store_true",
         help=argparse.SUPPRESS,  # tests only — production always refreshes
     )
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
+    root = _project_root()
     try:
         code, result = run_check(
-            _project_root(),
+            root,
             base_override=args.base,
             fail_on_confirmed=args.fail_on_confirmed,
             skip_build=args.skip_build,
@@ -500,6 +512,16 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as error:  # noqa: BLE001
         _say(f"failed: {type(error).__name__}: {error}")
         return OPERATIONAL
+    if args.bundle_json or args.bundle_md:
+        try:
+            write_bundle(
+                wrap_check_result(result, load_config(root)),
+                json_path=Path(args.bundle_json) if args.bundle_json else None,
+                markdown_path=Path(args.bundle_md) if args.bundle_md else None,
+            )
+        except Exception as error:  # noqa: BLE001 — a failed write is operational, not a crash
+            _say(f"failed: {type(error).__name__}: {error}")
+            return OPERATIONAL
     text = render_json(result) if args.json else render_text(result)
     sys.stdout.write(text)
     if code == OPERATIONAL:
