@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from code_atlas import gitutil
+from code_atlas.change_brief import build_brief_sections, render_brief
 from code_atlas.config import ConfigError, load_config
 from code_atlas.evidence_bundle import wrap_check_result, write_bundle
 from code_atlas.indexer import indexable
@@ -496,6 +497,16 @@ def main(argv: list[str] | None = None) -> int:
         help="write the evidence-bundle Markdown view to PATH (305)",
     )
     parser.add_argument(
+        "--brief",
+        action="store_true",
+        help="emit the bounded agent change brief (306) on stdout instead of the check report",
+    )
+    parser.add_argument(
+        "--brief-out",
+        metavar="PATH",
+        help="write the agent change brief Markdown to PATH (306; no default write)",
+    )
+    parser.add_argument(
         "--skip-build",
         action="store_true",
         help=argparse.SUPPRESS,  # tests only — production always refreshes
@@ -512,18 +523,39 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as error:  # noqa: BLE001
         _say(f"failed: {type(error).__name__}: {error}")
         return OPERATIONAL
-    if args.bundle_json or args.bundle_md:
-        try:
+    wants_bundle = bool(args.bundle_json or args.bundle_md)
+    brief_text: str | None = None
+    # The brief is the bundle's 306 section too, so either flag family asks for it.
+    try:
+        if args.brief or args.brief_out or wants_bundle:
+            config = load_config(root)
+            seeds = result.get("changed_indexed")
+            sections = build_brief_sections(
+                config,
+                paths=[str(path) for path in seeds] if isinstance(seeds, list) else None,
+                base=str(result.get("base")) if result.get("base") else None,
+                head=str(result.get("head")) if result.get("head") else None,
+            )
+            brief_text = render_brief(sections)
+            result = {**result, "agent_brief": brief_text}
+            if args.brief_out:
+                out = Path(args.brief_out)
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_text(brief_text, encoding="utf-8", newline="\n")
+        if wants_bundle:
             write_bundle(
                 wrap_check_result(result, load_config(root)),
                 json_path=Path(args.bundle_json) if args.bundle_json else None,
                 markdown_path=Path(args.bundle_md) if args.bundle_md else None,
             )
-        except Exception as error:  # noqa: BLE001 — a failed write is operational, not a crash
-            _say(f"failed: {type(error).__name__}: {error}")
-            return OPERATIONAL
-    text = render_json(result) if args.json else render_text(result)
-    sys.stdout.write(text)
+    except Exception as error:  # noqa: BLE001 — a failed artifact write is operational, not a crash
+        _say(f"failed: {type(error).__name__}: {error}")
+        return OPERATIONAL
+    if args.brief and brief_text is not None:
+        sys.stdout.write(brief_text)
+    else:
+        text = render_json(result) if args.json else render_text(result)
+        sys.stdout.write(text)
     if code == OPERATIONAL:
         _say(f"operational: {result.get('reason')}")
     elif code == CONFIRMED_VIOLATIONS:

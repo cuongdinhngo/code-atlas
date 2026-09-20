@@ -164,6 +164,12 @@ def render_markdown(bundle: Mapping[str, object]) -> str:
     lines.append("")
     check = bundle.get("check")
     if isinstance(check, Mapping):
+        brief = check.get("agent_brief")
+        if isinstance(brief, str) and brief.strip():
+            lines.append("## Agent change brief")
+            lines.append("")
+            lines.append(brief.rstrip())
+            lines.append("")
         lines.append("## Check summary")
         lines.append("")
         indexed = check.get("changed_indexed")
