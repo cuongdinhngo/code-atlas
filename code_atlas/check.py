@@ -17,8 +17,15 @@ from pathlib import Path
 from typing import Any
 
 from code_atlas import gitutil
+from code_atlas.architecture_policy import (
+    OUTCOME_INVALID_POLICY,
+    blocking_breaches,
+    evaluate_architecture_policy,
+    load_architecture_policy,
+    outcomes_as_dicts,
+)
 from code_atlas.change_brief import build_brief_sections, render_brief
-from code_atlas.config import ConfigError, load_config
+from code_atlas.config import Config, ConfigError, load_config
 from code_atlas.evidence_bundle import wrap_check_result, write_bundle
 from code_atlas.indexer import indexable
 from code_atlas.onboarding.artifact import MANIFEST_NAME, OUTPUT_DIR
@@ -47,6 +54,7 @@ REASON_BUILD_BUSY = "build_busy"
 REASON_INCOMPLETE_INDEX = "incomplete_index"
 REASON_SCHEMA_MISMATCH = "schema_mismatch"
 REASON_REPORT_ONLY = "report_only"
+REASON_POLICY_BREACH = "policy_breach"
 
 _DEFAULT_BASE_CANDIDATES = ("main", "master", "origin/main", "origin/master")
 
@@ -167,11 +175,19 @@ def run_check(
     *,
     base_override: str | None = None,
     fail_on_confirmed: bool = False,
+    policy_gate: bool = False,
     skip_build: bool = False,
 ) -> tuple[int, dict[str, object]]:
     """Execute the check. Returns ``(exit_code, result)``."""
     config = load_config(root)
-    mode = "fail_on_confirmed" if fail_on_confirmed else "report_only"
+    if fail_on_confirmed and policy_gate:
+        mode = "fail_on_confirmed+policy_gate"
+    elif fail_on_confirmed:
+        mode = "fail_on_confirmed"
+    elif policy_gate:
+        mode = "policy_gate"
+    else:
+        mode = "report_only"
     head_commit, head_ref = gitutil.head_commit_and_ref(root)
 
     if not skip_build:
@@ -291,7 +307,7 @@ def run_check(
     diff_payload = _architecture_diff_payload(config, baseline, after_dict)
     diff_reason = str(diff_payload.get("reason") or "")
     if diff_reason == REASON_SNAPSHOT_NOT_FOUND:
-        return OPERATIONAL, _operational(
+        operational = _operational(
             mode,
             REASON_SNAPSHOT_NOT_FOUND,
             base=base,
@@ -307,8 +323,10 @@ def run_check(
                 "architecture_diff": diff_payload,
             },
         )
+        _attach_policy(operational, config, rules_payload, diff_payload)
+        return OPERATIONAL, operational
     if diff_reason in {"schema_mismatch", "incomplete_snapshot", "index_root_mismatch"}:
-        return OPERATIONAL, _operational(
+        operational = _operational(
             mode,
             REASON_SCHEMA_MISMATCH if diff_reason == "schema_mismatch" else diff_reason,
             base=base,
@@ -324,6 +342,8 @@ def run_check(
                 "architecture_diff": diff_payload,
             },
         )
+        _attach_policy(operational, config, rules_payload, diff_payload)
+        return OPERATIONAL, operational
 
     confirmed_raw = rules_payload.get("total_count")
     candidate_raw = rules_payload.get("candidate_count")
@@ -346,12 +366,52 @@ def run_check(
         "head_ref": head_ref,
         "impact": impact_payload,
         "mode": mode,
-        "reason": REASON_REPORT_ONLY if not fail_on_confirmed else REASON_OK,
+        "reason": REASON_REPORT_ONLY if mode == "report_only" else REASON_OK,
     }
+    if _attach_policy(result, config, rules_payload, diff_payload):
+        result["reason"] = OUTCOME_INVALID_POLICY
+        return OPERATIONAL, result
     if fail_on_confirmed and confirmed > 0:
         result["reason"] = "confirmed_violations"
         return CONFIRMED_VIOLATIONS, result
+    if policy_gate:
+        breaches = result.get("policy_blocking_breaches")
+        if isinstance(breaches, list) and breaches:
+            result["reason"] = REASON_POLICY_BREACH
+            return CONFIRMED_VIOLATIONS, result
     return OK, result
+
+
+def _attach_policy(
+    result: dict[str, object],
+    config: Config,
+    rules_payload: Mapping[str, object] | None,
+    diff_payload: Mapping[str, object] | None,
+) -> bool:
+    """Evaluate configured budgets in place. Returns True when the policy file is unusable."""
+    try:
+        policies = load_architecture_policy(config)
+    except ConfigError as error:
+        result["architecture_policy"] = {
+            "blocking_breach_count": 0,
+            "message": str(error),
+            "outcomes": [],
+            "reason": OUTCOME_INVALID_POLICY,
+        }
+        result["policy_blocking_breaches"] = []
+        return True
+    if policies is None:
+        return False
+    outcomes = evaluate_architecture_policy(
+        policies, rules_payload=rules_payload, diff_payload=diff_payload
+    )
+    breaches = blocking_breaches(outcomes)
+    result["architecture_policy"] = {
+        "blocking_breach_count": len(breaches),
+        "outcomes": outcomes_as_dicts(outcomes),
+    }
+    result["policy_blocking_breaches"] = [row.policy_id for row in breaches]
+    return False
 
 
 def _collect_caveats(
@@ -449,6 +509,17 @@ def render_text(result: Mapping[str, object]) -> str:
                     f"CANDIDATE {row.get('rule_id')}: "
                     f"{row.get('source_file')} -> {row.get('forbidden_file')}"
                 )
+    policy = result.get("architecture_policy")
+    if isinstance(policy, Mapping):
+        if policy.get("reason") == OUTCOME_INVALID_POLICY:
+            lines.append(f"POLICY invalid: {policy.get('message')}")
+        for row in policy.get("outcomes") or []:
+            if isinstance(row, Mapping):
+                lines.append(
+                    f"POLICY {row.get('policy_id')}: {row.get('outcome')} "
+                    f"kind={row.get('kind')} measured={row.get('measured')} "
+                    f"budget={row.get('budget')} blocking={row.get('blocking')}"
+                )
     if isinstance(caveats, list):
         for caveat in caveats:
             lines.append(f"caveat: {caveat}")
@@ -480,6 +551,14 @@ def main(argv: list[str] | None = None) -> int:
         "--fail-on-confirmed",
         action="store_true",
         help="exit non-zero when at least one confirmed RESOLVED architecture violation exists",
+    )
+    parser.add_argument(
+        "--policy-gate",
+        action="store_true",
+        help=(
+            "exit non-zero when a configured architecture policy reports a blocking "
+            "confirmed_breach (307); report mode stays green"
+        ),
     )
     parser.add_argument(
         "--json",
@@ -518,6 +597,7 @@ def main(argv: list[str] | None = None) -> int:
             root,
             base_override=args.base,
             fail_on_confirmed=args.fail_on_confirmed,
+            policy_gate=args.policy_gate,
             skip_build=args.skip_build,
         )
     except Exception as error:  # noqa: BLE001
@@ -559,7 +639,10 @@ def main(argv: list[str] | None = None) -> int:
     if code == OPERATIONAL:
         _say(f"operational: {result.get('reason')}")
     elif code == CONFIRMED_VIOLATIONS:
-        _say(f"confirmed violations: {result.get('confirmed_count')}")
+        if result.get("reason") == REASON_POLICY_BREACH:
+            _say(f"policy breach: {result.get('policy_blocking_breaches')}")
+        else:
+            _say(f"confirmed violations: {result.get('confirmed_count')}")
     return code
 
 

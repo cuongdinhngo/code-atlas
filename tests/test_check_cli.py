@@ -59,15 +59,28 @@ def _write_baseline(config) -> None:
     )
 
 
-def _prepare(tmp_path: Path, *, heuristic_last: bool = False):
+def _prepare(
+    tmp_path: Path,
+    *,
+    heuristic_last: bool = False,
+    policies: list[dict] | None = None,
+):
+    """The shared Change Assurance fixture; ``policies`` also plants a 307 budget file."""
     config = _transitive_repo(tmp_path, heuristic_last=heuristic_last)
     # run_check loads config from disk — plant the project file and default db location.
     db_default = tmp_path / ".code-atlas" / "graph.db"
     db_default.parent.mkdir(parents=True, exist_ok=True)
     if config.db_path.resolve() != db_default.resolve():
         shutil.move(str(config.db_path), str(db_default))
+    policy_line = ""
+    if policies is not None:
+        policy_line = 'architecture_policy = "policy.json"\n'
+        (tmp_path / "policy.json").write_text(
+            json.dumps({"version": 1, "policies": policies}, indent=2) + "\n",
+            encoding="utf-8",
+        )
     (tmp_path / ".code-atlas.toml").write_text(
-        'architecture_rules = ["rules.json"]\n',
+        'architecture_rules = ["rules.json"]\n' + policy_line,
         encoding="utf-8",
     )
     with GraphStore(db_default) as store:

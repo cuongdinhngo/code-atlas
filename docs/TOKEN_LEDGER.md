@@ -22,6 +22,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 
 | # | Tokens | PR |
 |---|---|---|
+| 307 | 1 dispatch: ticket-blind `challenger` CLEAN; `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun`. Pure evaluator over 138/139 payloads + `--policy-gate`. Proving: `tests/test_architecture_policy.py`. Gate: scripts/gate.sh adapters/guardrails green; pytest re-run after unrelated `test_the_progress_write_is_bounded` timing flake → 4309 passed / 4 skipped. | [#411](https://github.com/cuongdinhngo/code-atlas/pull/411) |
 | 306 | 1 dispatch: ticket-blind `challenger` CLEAN; `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun`. Builds on 303 (#408) and 305 (#409). Proving: `tests/test_change_brief.py`. | [#410](https://github.com/cuongdinhngo/code-atlas/pull/410) |
 | 305 | 2 dispatch: ticket-blind `challenger` round1 NOT CLEAN → schema fields + 303-fixture round-trip → round2 CLEAN; `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun`. Builds on 303 (#408). Proving: `tests/test_evidence_bundle.py`. | [#409](https://github.com/cuongdinhngo/code-atlas/pull/409) |
 | 303 | 2 dispatch: explore composition + ticket-blind `challenger` round1 NOT CLEAN → truncation-gate fix → round2 CLEAN; `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun`. `code-atlas-check` composes build + signed impact + architecture rules + drift; proving `tests/test_check_cli.py`. | [#408](https://github.com/cuongdinhngo/code-atlas/pull/408) |
