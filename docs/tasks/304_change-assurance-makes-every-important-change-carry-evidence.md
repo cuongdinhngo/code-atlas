@@ -7,7 +7,7 @@ milestone: Change-Assurance
 status: todo
 depends_on: [100, 138, 139, 257, 260, 266]
 kind: epic
-children: [303, 305, 306, 307, 308, 309, 310]
+children: [303, 305, 306, 307, 308, 309, 310, 312]
 ---
 
 ## Why this exists
@@ -57,6 +57,8 @@ decision rule, not a number the implementation is allowed to manufacture.
 - **307 — Architecture budgets:** human-authored policy over confirmed rules and measured drift.
 - **308 — Test candidates:** report-only changed-code → candidate-test relationships.
 - **309 — Test recall gate:** pinned-corpus evidence before any selective-test proposal.
+- **312 — Widen the candidate walk:** 309 measured every miss at inbound depth 2, so the walk
+  moves past direct callers and re-runs 309's reporter against its already-registered bar.
 - **310 — Adoption gate:** the four-week 80%/50% field decision and removal-cost interview.
 
 Dependency order:
@@ -65,7 +67,7 @@ Dependency order:
 303 → 305
   ├→ 306
   ├→ 307
-  └→ 308 → 309
+  └→ 308 → 309 → 312
 305 + 306 + 307 + 309 → 310
 ```
 
