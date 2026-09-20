@@ -34,7 +34,7 @@ M10–M12 have all landed; round narratives live in [`FEEDBACK.md`](FEEDBACK.md)
 |---|---|---|---|---|
 | 263 | [The question a newcomer asks most is the one table that is empty](tasks/263_the-question-a-newcomer-asks-most-is-the-one-table-that-is-empty.md) | Onboarding | todo | 114, 210 |
 | 269 | [Twelve graph nouns where a reader has seven questions](tasks/269_twelve-graph-nouns-where-a-reader-has-seven-questions.md) | Onboarding | todo | 263, 121, 210, 139 |
-| 310 | [Change Assurance value gate — dropped unmeasured](tasks/310_four-week-change-assurance-adoption-gate.md) | Change Assurance | deferred | 260, 300, 309, 312 |
+| 313 | [`impact` buries ten production callers under tests and mirror twins](tasks/313_impact-buries-the-answer-under-tests-and-mirror-twins.md) | Agent-fit | todo | 262, 265, 277, 282, 298 |
 
 **What still governs open work:** the surface has **24 tools** (`main.TOOL_NAMES`), count-pinned by
 tests.
