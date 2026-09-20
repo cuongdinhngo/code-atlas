@@ -24,6 +24,7 @@ import subprocess
 import sys
 import tempfile
 from collections import Counter
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +41,7 @@ from scripts.cross_repo_validate import (  # noqa: E402
 )
 
 _TS_CENSUS = _REPO / "adapters" / "typescript" / "src" / "receiver_census.js"
+_PY_CENSUS = _REPO / "adapters" / "python" / "src" / "receiver_census.py"
 
 _HEURISTIC = "HEURISTIC"
 _SCAN_LIMIT = 200_000  # a pinned sample is ~10^3–10^4 edges; this is a runaway guard, not a page
@@ -243,20 +245,21 @@ def indexed_qnames(store: GraphStore) -> list[str]:
     return names
 
 
-def run_ts_receiver_census(root: Path, store: GraphStore, edges: list[Row]) -> dict[str, Any]:
-    """Invoke the TS adapter's AST census (task 301) — node + typescript, file-at-a-time."""
-    payload = {
+def _census_payload(root: Path, store: GraphStore, edges: list[Row]) -> dict[str, Any]:
+    return {
         "root": str(root),
         "edges": bare_heuristic_calls(edges),
         "qnames": indexed_qnames(store),
     }
+
+
+def _run_census(argv: list[str], payload: dict[str, Any]) -> dict[str, Any]:
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
         json.dump(payload, tmp)
         tmp_path = tmp.name
     try:
-        node = os.environ.get("CA_NODE", "node")
         proc = subprocess.run(
-            [node, str(_TS_CENSUS), "--json", tmp_path],
+            [*argv, "--json", tmp_path],
             check=True,
             capture_output=True,
             text=True,
@@ -267,13 +270,24 @@ def run_ts_receiver_census(root: Path, store: GraphStore, edges: list[Row]) -> d
         Path(tmp_path).unlink(missing_ok=True)
 
 
-def format_ts_receiver_census(result: dict[str, Any]) -> str:
-    """The task-301 additive section: receiver shapes + the explicit-return indexed ceiling."""
+def run_ts_receiver_census(root: Path, store: GraphStore, edges: list[Row]) -> dict[str, Any]:
+    """Invoke the TS adapter's AST census (task 301) — node + typescript, file-at-a-time."""
+    node = os.environ.get("CA_NODE", "node")
+    return _run_census([node, str(_TS_CENSUS)], _census_payload(root, store, edges))
+
+
+def run_py_receiver_census(root: Path, store: GraphStore, edges: list[Row]) -> dict[str, Any]:
+    """Invoke the Python adapter's AST census (task 302) — stdlib ast, file-at-a-time."""
+    return _run_census([sys.executable, str(_PY_CENSUS)], _census_payload(root, store, edges))
+
+
+def format_receiver_census(result: dict[str, Any], *, label: str, ticket: int) -> str:
+    """The additive census section: receiver shapes + the explicit-return indexed ceiling."""
     total = int(result.get("total", 0))
     ceiling = int(result.get("explicit_return_indexed_ceiling", 0))
     counts: dict[str, int] = dict(result.get("counts") or {})
     lines = [
-        "  TypeScript receiver-shape census (task 301) — bare HEURISTIC CALLS only:",
+        f"  {label} receiver-shape census (task {ticket}) — bare HEURISTIC CALLS only:",
         f"  bare HEURISTIC CALLS={total}",
         "  shape                              count    share",
     ]
@@ -286,6 +300,14 @@ def format_ts_receiver_census(result: dict[str, Any]) -> str:
         f"{'promote candidates exist' if ceiling else 'close without return-type machinery'})"
     )
     return "\n".join(lines)
+
+
+# Which languages have a receiver-shape census, and the ticket that measured it (301 · 302). Data,
+# so a third language is a row here, not a branch in main().
+_RECEIVER_CENSUS: dict[str, tuple[str, int, Callable[..., dict[str, Any]]]] = {
+    "typescript": ("TypeScript", 301, run_ts_receiver_census),
+    "python": ("Python", 302, run_py_receiver_census),
+}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -308,8 +330,14 @@ def main(argv: list[str] | None = None) -> int:
                 edges = heuristic_edges(store)
                 labelled = classify(store, edges)
                 print(format_report(store, labelled))
-                if language == "typescript":
-                    print(format_ts_receiver_census(run_ts_receiver_census(root, store, edges)))
+                census = _RECEIVER_CENSUS.get(language)
+                if census is not None:
+                    label, ticket, runner = census
+                    print(
+                        format_receiver_census(
+                            runner(root, store, edges), label=label, ticket=ticket
+                        )
+                    )
                 problems = check(labelled, len(edges))
             if problems:
                 failures += 1

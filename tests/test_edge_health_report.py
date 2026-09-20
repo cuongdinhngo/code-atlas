@@ -222,12 +222,14 @@ def test_bare_heuristic_calls_drops_qualified_and_non_calls(store: GraphStore) -
 
 def test_ts_receiver_census_format_names_zero_ceiling() -> None:
     """AC1 close path: a ZERO ceiling is printable and greppable from the committed reporter."""
-    text = _r.format_ts_receiver_census(
+    text = _r.format_receiver_census(
         {
             "total": 10,
             "explicit_return_indexed_ceiling": 0,
             "counts": {"identifier_receiver": 10},
-        }
+        },
+        label="TypeScript",
+        ticket=301,
     )
     assert "explicit-return, indexed-target ceiling: 0/10" in text
     assert "ZERO" in text
@@ -265,6 +267,62 @@ def test_ts_receiver_census_counts_same_file_explicit_return(tmp_path: Path) -> 
         node = os.environ.get("CA_NODE", "node")
         proc = subprocess.run(
             [node, str(_r._TS_CENSUS), "--json", path],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        out = json.loads(proc.stdout)
+    finally:
+        Path(path).unlink(missing_ok=True)
+    assert out["explicit_return_indexed_ceiling"] == 2
+    assert out["counts"].get("explicit_return_indexed") == 2
+
+
+def test_py_receiver_census_format_names_zero_ceiling() -> None:
+    """AC1 close path: a ZERO ceiling is printable from the committed reporter."""
+    text = _r.format_receiver_census(
+        {
+            "total": 10,
+            "explicit_return_indexed_ceiling": 0,
+            "counts": {"identifier_receiver": 10},
+        },
+        label="Python",
+        ticket=302,
+    )
+    assert "explicit-return, indexed-target ceiling: 0/10" in text
+    assert "ZERO" in text
+
+
+def test_py_receiver_census_counts_same_file_explicit_return(tmp_path: Path) -> None:
+    """Census sees make_client().send() and assigned c.send() as explicit_return_indexed."""
+    import json
+    import shutil
+    import subprocess
+    import sys
+    import tempfile
+
+    src = REPO / "tests" / "fixtures" / "python" / "census" / "factory.py"
+    root = tmp_path / "repo"
+    (root / "src").mkdir(parents=True)
+    shutil.copy(src, root / "src" / "factory.py")
+    edges = [
+        {"file": "src/factory.py", "line": 14, "method": "send"},
+        {"file": "src/factory.py", "line": 16, "method": "send"},
+    ]
+    qnames = [
+        "src/factory.py::Client",
+        "src/factory.py::Client::send",
+        "src/factory.py::make_client",
+        "src/factory.py::run",
+    ]
+    payload = {"root": str(root), "edges": edges, "qnames": qnames}
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
+        json.dump(payload, tmp)
+        path = tmp.name
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(_r._PY_CENSUS), "--json", path],
             check=True,
             capture_output=True,
             text=True,
