@@ -10,7 +10,9 @@ import pytest
 
 from code_atlas import check
 from code_atlas.candidate_tests import (
+    DEFAULT_MAX_DEPTH,
     FULL_SUITE_STATEMENT,
+    UNMEASURED_DEPTH_BOUND,
     UNMEASURED_NO_RUNNER,
     UNMEASURED_STALE,
     UNMEASURED_TRUNCATED,
@@ -91,6 +93,7 @@ def test_planted_test_caller_listed_with_edge_evidence(tmp_path: Path) -> None:
     assert row.confidence_tier == "RESOLVED"
     assert row.source_qname == "\\Tests\\test_run"
     assert row.target_qname == "\\App\\run"
+    assert row.hop_distance == 1
     assert FULL_SUITE_STATEMENT in report.statement
     assert UNMEASURED_NO_RUNNER in report.unmeasured
 
@@ -217,3 +220,199 @@ def test_check_carries_the_report_as_report_only(tmp_path: Path) -> None:
     text = check.render_text(result)
     assert "candidate_tests:" in text
     assert_no_selective_language(text)
+
+
+def _plant_two_hop(tmp_path: Path) -> object:
+    """Changed ← façade (prod) ← test — the 309 miss shape at inbound depth 2."""
+    config = replace(db_config(tmp_path), root=tmp_path)
+    facade = "src/Facade.aa"
+    with GraphStore(config.db_path) as store:
+        seed_file(
+            store,
+            PROD,
+            [node("Function", "run", "\\App\\run", PROD)],
+            [],
+            root=tmp_path,
+        )
+        seed_file(
+            store,
+            facade,
+            [node("Function", "wrap", "\\App\\wrap", facade)],
+            [
+                edge(
+                    "CALLS",
+                    "\\App\\wrap",
+                    "\\App\\run",
+                    facade,
+                    target_qname="\\App\\run",
+                    tier="RESOLVED",
+                )
+            ],
+            root=tmp_path,
+        )
+        seed_file(
+            store,
+            TEST,
+            [node("Function", "test_wrap", "\\Tests\\test_wrap", TEST)],
+            [
+                edge(
+                    "CALLS",
+                    "\\Tests\\test_wrap",
+                    "\\App\\wrap",
+                    TEST,
+                    target_qname="\\App\\wrap",
+                    tier="RESOLVED",
+                )
+            ],
+            root=tmp_path,
+        )
+        store._conn.execute(
+            "UPDATE nodes SET is_test = 1 WHERE file_path = ?", (TEST,)
+        )
+        store._conn.commit()
+    return config
+
+
+def _plant_three_hop(tmp_path: Path) -> object:
+    """Changed ← mid1 ← mid2 ← test — beyond DEFAULT_MAX_DEPTH=2."""
+    config = replace(db_config(tmp_path), root=tmp_path)
+    mid1, mid2 = "src/Mid1.aa", "src/Mid2.aa"
+    with GraphStore(config.db_path) as store:
+        seed_file(
+            store,
+            PROD,
+            [node("Function", "run", "\\App\\run", PROD)],
+            [],
+            root=tmp_path,
+        )
+        seed_file(
+            store,
+            mid1,
+            [node("Function", "m1", "\\App\\m1", mid1)],
+            [
+                edge(
+                    "CALLS",
+                    "\\App\\m1",
+                    "\\App\\run",
+                    mid1,
+                    target_qname="\\App\\run",
+                    tier="RESOLVED",
+                )
+            ],
+            root=tmp_path,
+        )
+        seed_file(
+            store,
+            mid2,
+            [node("Function", "m2", "\\App\\m2", mid2)],
+            [
+                edge(
+                    "CALLS",
+                    "\\App\\m2",
+                    "\\App\\m1",
+                    mid2,
+                    target_qname="\\App\\m1",
+                    tier="RESOLVED",
+                )
+            ],
+            root=tmp_path,
+        )
+        seed_file(
+            store,
+            TEST,
+            [node("Function", "test_far", "\\Tests\\test_far", TEST)],
+            [
+                edge(
+                    "CALLS",
+                    "\\Tests\\test_far",
+                    "\\App\\m2",
+                    TEST,
+                    target_qname="\\App\\m2",
+                    tier="RESOLVED",
+                )
+            ],
+            root=tmp_path,
+        )
+        store._conn.execute(
+            "UPDATE nodes SET is_test = 1 WHERE file_path = ?", (TEST,)
+        )
+        store._conn.commit()
+    return config
+
+
+def test_two_hop_test_listed_below_direct_caller(tmp_path: Path) -> None:
+    """AC1 — hop=2 candidate listed and ranked below every direct caller."""
+    config = _plant_two_hop(tmp_path)
+    # Also plant a direct RESOLVED caller so ranking is observable.
+    with GraphStore(config.db_path) as store:
+        direct = "tests/DirectTest.aa"
+        seed_file(
+            store,
+            direct,
+            [node("Function", "test_direct", "\\Tests\\test_direct", direct)],
+            [
+                edge(
+                    "CALLS",
+                    "\\Tests\\test_direct",
+                    "\\App\\run",
+                    direct,
+                    target_qname="\\App\\run",
+                    tier="RESOLVED",
+                )
+            ],
+            root=tmp_path,
+        )
+        store._conn.execute(
+            "UPDATE nodes SET is_test = 1 WHERE file_path = ?", (direct,)
+        )
+        store._conn.commit()
+    report = build_candidate_test_report(config, changed_indexed=[PROD])
+    assert len(report.candidates) == 2
+    assert report.candidates[0].hop_distance == 1
+    assert report.candidates[0].test_path == "tests/DirectTest.aa"
+    assert report.candidates[1].hop_distance == 2
+    assert report.candidates[1].test_path == TEST
+    assert report.candidates[1].target_qname == "\\App\\run"
+    text = render_candidate_tests_text(report)
+    assert "hop=2" in text
+    payload = render_candidate_tests_json(report)
+    assert '"hop_distance": 2' in payload
+
+
+def test_beyond_depth_bound_emits_unmeasured_and_omits_test(tmp_path: Path) -> None:
+    """AC2 — a hop-3 test is absent and depth_bound is disclosed (R6.8)."""
+    config = _plant_three_hop(tmp_path)
+    report = build_candidate_test_report(config, changed_indexed=[PROD])
+    assert all(row.test_path != TEST for row in report.candidates)
+    assert UNMEASURED_DEPTH_BOUND in report.unmeasured
+
+
+def test_hop_distance_in_check_render(tmp_path: Path) -> None:
+    """AC3 — 303 text surface carries hop= via report_as_dict (R6.9 consumer)."""
+    from code_atlas.candidate_tests import report_as_dict
+
+    config = _plant_two_hop(tmp_path)
+    report = build_candidate_test_report(config, changed_indexed=[PROD])
+    section = report_as_dict(report)
+    assert all("hop_distance" in row for row in section["candidates"])  # type: ignore[union-attr]
+    text = check.render_text({"ok": True, "candidate_tests": section})
+    assert "hop=2" in text
+    assert_no_selective_language(text)
+
+
+def test_depth_one_reproduces_the_308_walk(tmp_path: Path) -> None:
+    """AC1 boundary — max_depth=1 lists only direct callers and still discloses the bound."""
+    config = _plant_two_hop(tmp_path)
+    report = build_candidate_test_report(config, changed_indexed=[PROD], max_depth=1)
+    assert [row.hop_distance for row in report.candidates] == []
+    assert UNMEASURED_DEPTH_BOUND in report.unmeasured
+    widened = build_candidate_test_report(config, changed_indexed=[PROD])
+    assert [row.test_path for row in widened.candidates] == [TEST]
+
+
+def test_max_depth_below_one_is_rejected(tmp_path: Path) -> None:
+    """A zero/negative bound would silently return an empty report instead of failing."""
+    config = _plant_two_hop(tmp_path)
+    with pytest.raises(ValueError):
+        build_candidate_test_report(config, changed_indexed=[PROD], max_depth=0)
+    assert DEFAULT_MAX_DEPTH == 2

@@ -529,10 +529,12 @@ def render_text(result: Mapping[str, object]) -> str:
         lines.append(f"candidate_tests: {candidate_tests.get('statement')}")
         for row in candidate_tests.get("candidates") or []:
             if isinstance(row, Mapping):
+                hop = row.get("hop_distance")
+                hop_part = f" hop={hop}" if hop is not None else ""
                 lines.append(
                     f"CANDIDATE_TEST {row.get('test_path')} "
-                    f"{row.get('edge_kind')}/{row.get('confidence_tier')} "
-                    f"role={row.get('test_role_source')}"
+                    f"{row.get('edge_kind')}/{row.get('confidence_tier')}"
+                    f"{hop_part} role={row.get('test_role_source')}"
                 )
         for reason in candidate_tests.get("unmeasured") or []:
             lines.append(f"candidate_unmeasured: {reason}")

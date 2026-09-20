@@ -89,9 +89,16 @@ construction (`aggregate()` raises otherwise). The cascade, in order:
 
 ## Results
 
-Counted run on the commit after the pre-registration commit. Re-run with
-`.venv/bin/python scripts/test_impact_recall.py`; the full run costs about 40 s and rebuilds an
-index per scenario, so it is re-runnable rather than a session transcript (R6.3).
+### 309 baseline (depth-1 walk) — historical
+
+The first counted run (308's direct-inbound walk) recorded **recall_micro 0.8235** /
+`report_only_retained`, with 14/17 matched and all 3 misses at inbound depth 2. That figure is the
+baseline 312 compares against; it is not recomputed here.
+
+### 312 re-run (depth-2 walk) — current
+
+Reporter and corpus **unmodified**. Re-run with `.venv/bin/python scripts/test_impact_recall.py`
+(~35 s). The walk under test is `code_atlas.candidate_tests` at `DEFAULT_MAX_DEPTH = 2`.
 
 ```json
 {
@@ -101,21 +108,21 @@ index per scenario, so it is re-runnable rather than a session transcript (R6.3)
     "python",
     "typescript"
   ],
-  "matched": 14,
+  "matched": 16,
   "miss_causes": {
     "missing_test_role_classification": 0,
     "reporter_defect": 0,
     "runner_only_discovery": 0,
     "stale_or_incomplete_index": 0,
-    "traversal_or_page_bound": 3,
+    "traversal_or_page_bound": 1,
     "unclassified": 0,
     "unmodelled_dynamic_relationship": 0
   },
-  "missed": 3,
+  "missed": 1,
   "precision": null,
   "precision_not_computed_because": "the labels are a commit's own test edits, never the exhaustive set of tests that exercise it, so an unlabelled candidate is not a false positive (309 scope item 3)",
-  "recall_macro": 0.8333,
-  "recall_micro": 0.8235,
+  "recall_macro": 0.9333,
+  "recall_micro": 0.9412,
   "repos": [
     "brick_math",
     "flask",
@@ -124,8 +131,8 @@ index per scenario, so it is re-runnable rather than a session transcript (R6.3)
   ],
   "scenarios": 15,
   "statement": "Candidates only — the project's normal full suite remains authoritative. Unlisted tests are not safe to skip.",
-  "verdict": "report_only_retained",
-  "verdict_reason": "recall 0.824 >= 0.6"
+  "verdict": "eligible_for_opt_in_selective_run_ticket",
+  "verdict_reason": "recall 0.941 >= 0.9"
 }
 ```
 
@@ -141,39 +148,74 @@ index per scenario, so it is re-runnable rather than a session transcript (R6.3)
 | `requests@a4f9a5999bdb` | python | 1 / 1 | — |
 | `brick_math@7d1678e93ab2` | php | 1 / 1 | — |
 | `brick_math@4d606566ae5e` | php | 1 / 1 | — |
-| `brick_math@a7a2a73742be` | php | 1 / 2 | `traversal_or_page_bound` |
+| `brick_math@a7a2a73742be` | php | 2 / 2 | — |
 | `brick_math@391597d65cfa` | php | 1 / 1 | — |
 | `ky@0bda554d448c` | typescript | 1 / 1 | — |
 | `ky@294fe63be57d` | typescript | 2 / 2 | — |
-| `ky@be60db582496` | typescript | 0 / 1 | `traversal_or_page_bound` |
+| `ky@be60db582496` | typescript | 1 / 1 | — |
 
-**Provenance.** code-atlas `cd3a018b769e` · contract v10 ·
-Python 3.13.14 · Linux-7.0.0-31-generic-x86_64-with-glibc2.39 · host `dev-host`. Each scenario's index revision
-is its own `head`, recorded per row in `artifacts/309-test-impact-recall.json`; the index is rebuilt
-from scratch at that revision, never reused across scenarios. Two consecutive runs produced a
-byte-identical aggregate (R4.2).
+**Candidate-count growth (unique test paths, same indexes, `max_depth` 1 → 2).**
 
-## Verdict — `report_only_retained`
+| Scenario | d1 candidates | d2 candidates | Δ | Matched / labelled (d2) |
+|---|---:|---:|---:|---|
+| `flask@89992954ec71` | 3 | 4 | +1 | 0 / 1 |
+| `flask@7203feabf723` | 22 | 22 | 0 | 1 / 1 |
+| `flask@de8429ffda8c` | 4 | 19 | +15 | 1 / 1 |
+| `flask@06ea505ce2b2` | 6 | 17 | +11 | 1 / 1 |
+| `requests@6f66281a1d63` | 2 | 5 | +3 | 1 / 1 |
+| `requests@6f205ff422bc` | 2 | 5 | +3 | 1 / 1 |
+| `requests@6404f345e562` | 2 | 5 | +3 | 1 / 1 |
+| `requests@a4f9a5999bdb` | 1 | 4 | +3 | 1 / 1 |
+| `brick_math@7d1678e93ab2` | 4 | 5 | +1 | 1 / 1 |
+| `brick_math@4d606566ae5e` | 3 | 5 | +2 | 1 / 1 |
+| `brick_math@a7a2a73742be` | 4 | 5 | +1 | 2 / 2 |
+| `brick_math@391597d65cfa` | 4 | 4 | 0 | 1 / 1 |
+| `ky@0bda554d448c` | 2 | 15 | +13 | 1 / 1 |
+| `ky@294fe63be57d` | 6 | 15 | +9 | 2 / 2 |
+| `ky@be60db582496` | 6 | 15 | +9 | 1 / 1 |
+| **Total** | **71** | **145** | **+74** | **16 / 17** |
 
-Recall **0.8235** clears the 0.60 retain line and misses the 0.90 promotion line, so
-the pre-registered bar **blocks** an opt-in selective-run ticket. That is the bar doing its job: a
-measurement taken to justify skipping work came back saying the evidence is not there yet, and the
-verdict follows the number rather than the intent (309 AC5).
+The two recovered labels (`brick_math@a7a2a73742be`, `ky@be60db582496`) each added only +1
+path — cheap. Several already-green scenarios roughly doubled their candidate set with no recall
+gain (`flask@de8429ffda8c` +15, `ky@0bda554d448c` +13, `flask@06ea505ce2b2` +11) — that is the cost
+of the 0.824 → 0.941 lift, reported as the trade rather than as an unqualified improvement
+(312 AC5).
 
-**Every miss has the same cause, and it is not noise.** All 3 missed labels sit at
-**inbound depth 2**: the test file references the package entry point or a sibling façade, which in
-turn reaches the changed symbol. 308 walks *direct* inbound edges only, so a test one hop further
-out is invisible to it — in `ky@be60db582496` that is `test/base-url.ts` importing `source/index.ts`
-rather than `source/core/Ky.ts`, and in `brick_math@a7a2a73742be` it is `BigDecimalTest.php`
-reaching `BigInteger::nthRoot()` through `BigDecimal`. No scenario truncated, none was stale, and
-nothing was misclassified as production: the one bound that matters here is traversal depth.
+**What the run itself declares unmeasured — read this before the number.** Every one of the 15
+scenarios reports `depth_bound`: the walk stopped at hop 2 with production symbols still carrying
+unexplored callers, so 0.9412 is a floor for this walk and says nothing about hop 3. Three scenarios
+additionally report `truncated_page` — `flask@7203feabf723`, `brick_math@7d1678e93ab2` and
+`brick_math@a7a2a73742be` — where the edge budget (`max(impact_max_nodes, page_limit)`, shared by the
+whole BFS rather than per seed) ran out and the walk stopped early; 309's depth-1 run truncated on
+none. All three still matched every label they carry, but their candidate sets are lower bounds. The
+per-scenario `unmeasured` lists in `artifacts/309-test-impact-recall.json` are the record.
 
-**What this licenses.** Nothing in the runner. The report stays `mode: report_only`, the full suite
-stays authoritative, and no flag, path or sentence added by this ticket proposes otherwise
-(`tests/test_impact_recall.py` fails if one does). The named follow-up this measurement earns is a
-*separate* ticket to widen the walk beyond depth 1 and re-run this reporter — improving the metric
-is out of 309's scope by its own *Out of scope* section, and re-running a bar to make it pass is
-what pre-registration exists to prevent.
+**Provenance.** code-atlas `8a0c4d9f1e2c` · contract v10 ·
+Python 3.13.14 · Linux-7.0.0-31-generic-x86_64-with-glibc2.39 · host `dev-host`. Each scenario's
+index revision is its own `head` in `artifacts/309-test-impact-recall.json` (that path is
+`.gitignore`d — the figures are reproduced by re-running, never read from the repo). Two consecutive
+runs produced a byte-identical aggregate (R4.2).
+
+## Verdict — `eligible_for_opt_in_selective_run_ticket`
+
+Recall **0.9412** clears the pre-registered 0.90 promotion line (and the 0.60 retain line). Compared
+with the 309 baseline **0.824**, the delta is attributable to widening the walk to depth 2 — the bar
+was not moved (312 Constraints / AC6). The verdict follows the number: an opt-in selective-run
+ticket is now *eligible to be proposed*, not implemented here.
+
+**What recovered, what did not.** `ky@be60db582496` and `brick_math@a7a2a73742be` — the two façade /
+package-entry misses 309 named — now match. `flask@89992954ec71` remains a single
+`traversal_or_page_bound` miss reported at diagnostic inbound depth 2, and that pairing is not a
+contradiction: the diagnostic (`scripts/test_impact_recall.py:145`) walks *files* — reaching a file
+promotes every symbol in it to the next frontier — while the candidate walk follows *symbols*, so a
+file-level hop 2 can be a symbol-level hop 3 or further. The change set truncated on nothing and
+produced 4 candidates, none of them `tests/test_basic.py`; the residual is depth, measured on a
+finer graph than the diagnostic uses.
+
+**What this licenses.** Still nothing in the runner. The report stays `mode: report_only`, the full
+suite stays authoritative, and no flag, path or sentence proposes skipping an unlisted test
+(`tests/test_impact_recall.py` fails if one does). Selective execution remains a separately proposed
+ticket.
 
 ## Pre-registration for the NEXT count — ratified blind, 2026-09-20
 
