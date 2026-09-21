@@ -14,6 +14,7 @@ from tests.test_store import an_edge, nodes_for
 # Frozen minimal key set — task 071 adds ``index_root`` on every status detail level.
 _MINIMAL_KEYS = frozenset(
     {
+        "summary",
         "indexed",
         "files",
         "parsed",
