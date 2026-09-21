@@ -64,6 +64,7 @@ The index holds what the adapters parsed, so a question whose answer is an **abs
 ### Filters, writers, and what the index will not name (313)
 
 - **Narrow a large `search_symbol` page with `kind:` or `namespace`.** A common token across File/Class/Method rows is not a reason to eyeball hundreds of hits — pass `kind` (a contract node kind) or `namespace` and re-ask.
+- **Scope a `search_symbol` / `find_references` page to a subtree with `path_prefix`.** An index-root-relative plain prefix (`src/`); a hit outside it answers `path_excluded`, not absence (315).
 - **`find_references` on a Table or Column returns its writers** — linked `WRITES` only (278). Prefer that over asking who calls a nearby method when the question is *what writes this column*.
 - **A dynamic-SQL / `EXEC`-created object is not a symbol.** Grep the SQL text; the index reads as absence. `find_orphans` then says `status=resolution_unmodelled` when a language stamped `dynamic_sql` (296).
 - **`find_orphans` has no path scope** — it walks the whole index from `CA_ENTRY_POINTS`. Do not expect a directory filter.
