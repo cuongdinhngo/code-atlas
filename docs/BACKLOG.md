@@ -22,6 +22,11 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
+| 313 | [Agent brief's usage rules are prose tied to nothing — kind:/namespace, writer set (278), dynamic-SQL refusal (296) all untaught](tasks/313_the-agent-brief-teaches-prose-tied-to-nothing.md) | Adoption | todo | 266, 270, 278, 296 |
+| 314 | [A zero at a coverage edge dies silent — no try_instead, no grep target — so the chain ends](tasks/314_a-zero-at-a-coverage-edge-dies-silent.md) | Agent-trust | todo | 065, 093, 296 |
+| 315 | [search_symbol filters by kind but not by path, so a common token buries the src/ hit](tasks/315_search-symbol-filters-by-kind-but-not-by-path.md) | Agent-trust | todo | 056 |
+| 316 | [get_index_status has no one-line summary a reader can lift](tasks/316_index-status-has-no-one-line-summary.md) | Agent-trust | todo | 077 |
+| 317 | [Nav results do not name the ref they answered about — a worktree read can silently describe main](tasks/317_nav-results-do-not-name-the-ref-they-answered-about.md) | Agent-trust | todo | 071, 077 |
 
 ## Open work — Pillar 2 · Onboarding
 
