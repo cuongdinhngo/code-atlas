@@ -155,6 +155,8 @@ answer says so rather than reporting a quieter `no_matches`. When a sweep mixes 
 `repair_budget_order: "queries"` (275); a fully-`ok` sweep stays unchanged. Each stale entry carries
 `retry_as: "query"` so the single-subject call can spend the whole budget. A `kind=` filter that
 drops an exact-name hit of another kind answers `kind_excluded` (with those kinds), not absence.
+A `path_prefix=` filter that drops an exact-name hit outside the subtree answers `path_excluded`
+(with those file paths), not absence (315).
 
 #### Tools that take one subject at a time
 

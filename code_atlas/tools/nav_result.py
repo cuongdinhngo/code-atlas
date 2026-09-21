@@ -43,6 +43,7 @@ NavReason = Literal[
     "via_members",
     "proximity_candidates",
     "kind_excluded",
+    "path_excluded",
 ]
 
 REASON_OK: NavReason = "ok"
@@ -95,6 +96,8 @@ REASON_VIA_MEMBERS: NavReason = "via_members"
 REASON_PROXIMITY_CANDIDATES: NavReason = "proximity_candidates"
 # search_symbol kind= filter excluded an exact-name hit of another kind (275) — not absence.
 REASON_KIND_EXCLUDED: NavReason = "kind_excluded"
+# search_symbol path_prefix= filter excluded an exact-name hit outside the subtree (315).
+REASON_PATH_EXCLUDED: NavReason = "path_excluded"
 
 NAV_REASONS: tuple[NavReason, ...] = (
     REASON_OK,
@@ -123,7 +126,30 @@ NAV_REASONS: tuple[NavReason, ...] = (
     REASON_VIA_MEMBERS,
     REASON_PROXIMITY_CANDIDATES,
     REASON_KIND_EXCLUDED,
+    REASON_PATH_EXCLUDED,
 )
+
+def require_path_prefix(path_prefix: str | None) -> str | None:
+    """Reject malformed ``path_prefix`` before any SQL (R5.3 / 056 / 315).
+
+    Accepted form: non-empty, index-root-relative, POSIX (``/`` separators), no ``.`` or ``..``
+    segments. ``None`` means no filter.
+    """
+    if path_prefix is None:
+        return None
+    if path_prefix == "" or "\0" in path_prefix:
+        raise ValueError(
+            "path_prefix must be a non-empty index-root-relative POSIX path"
+        )
+    if "\\" in path_prefix:
+        raise ValueError("path_prefix must be POSIX (use '/', not '\\')")
+    if path_prefix.startswith("/"):
+        raise ValueError("path_prefix must be index-root-relative (not absolute)")
+    parts = [part for part in path_prefix.split("/") if part != ""]
+    if any(part in (".", "..") for part in parts):
+        raise ValueError("path_prefix must not contain '.' or '..' segments")
+    return path_prefix
+
 
 # Two registers, one naming rule (093): ``TRY_INSTEAD_*`` is a registered tool name the reader can
 # call, ``TRY_INSTEAD_HINT_*`` is prose naming the qualifier. Neither holds the other's kind — prose

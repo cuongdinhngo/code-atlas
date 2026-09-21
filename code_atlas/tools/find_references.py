@@ -64,6 +64,7 @@ from code_atlas.tools.nav_result import (
     escalate_zero_production,
     nav_result,
     relation_reason,
+    require_path_prefix,
     shape_exact_miss,
     sibling_definition_rows,
     unique_repoint,
@@ -170,6 +171,7 @@ def _member_caller_union(
     *,
     cap: int,
     offset: int,
+    path_prefix: str | None = None,
 ) -> tuple[list[dict[str, object]], int] | None:
     """Page CALLS/NEW that target the class's declared CONTAINS children (252 / 265).
 
@@ -193,9 +195,15 @@ def _member_caller_union(
         members.append(qn)
     if not members:
         return None
-    total = store.count_edges_by_targets(members, kinds=CALLER_KINDS)
+    total = store.count_edges_by_targets(
+        members, kinds=CALLER_KINDS, path_prefix=path_prefix
+    )
     inbound = store.edges_by_targets(
-        members, kinds=CALLER_KINDS, limit=cap, offset=offset
+        members,
+        kinds=CALLER_KINDS,
+        limit=cap,
+        offset=offset,
+        path_prefix=path_prefix,
     )
     hits: list[dict[str, object]] = []
     for edge in inbound:
@@ -217,6 +225,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         sign: bool = False,
         serve_behind: bool = False,
         exclude_tests: bool = False,
+        path_prefix: str | None = None,
     ) -> dict[str, object]:
         """Where is this symbol used across the codebase?
 
@@ -250,7 +259,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         is never quoted: those hits carry ``source_stale`` instead.
 
         ``limit`` / ``offset`` page in store edge order (057); default limit is
-        ``CA_MAX_RESULTS``.
+        ``CA_MAX_RESULTS``. Optional ``path_prefix`` narrows to edges whose stored file
+        path is under that index-root-relative POSIX prefix (315).
 
         ``subject_refreshed_only`` is present (and ``true``) only when read-through freshness
         reparsed the subject's file this call — neighbors were not re-verified (035 / 061).
@@ -270,6 +280,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
+        path_prefix = require_path_prefix(path_prefix)
         cap, limit_clamped = clamp_limit(limit, config.page_limit)
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
@@ -338,8 +349,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             lookup = qname
             production_count, test_count, test_role_label = _test_census(store, lookup)
             total_count = store.count_edges_by_target(
-                lookup, exclude_test_sources=exclude_tests
-            )
+                lookup, exclude_test_sources=exclude_tests, path_prefix=path_prefix)
             # Widen the existing indexed-check fetch to surface every definition site (task 070).
             nodes = store.nodes_by_qualified_name(lookup, limit=config.page_limit)
             indexed = bool(nodes)
@@ -352,8 +362,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 total_count = store.count_edges_by_targets(
                     writes_targets,
                     kinds=writes_kinds,
-                    exclude_test_sources=exclude_tests,
-                )
+                    exclude_test_sources=exclude_tests, path_prefix=path_prefix)
                 production_count, test_count, test_role_label = _test_census_for(
                     store, writes_targets, kinds=writes_kinds
                 )
@@ -412,14 +421,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     total_count = store.count_edges_by_targets(
                         writes_targets,
                         kinds=writes_kinds,
-                        exclude_test_sources=exclude_tests,
-                    )
+                        exclude_test_sources=exclude_tests, path_prefix=path_prefix)
                 else:
                     total_count = store.count_edges_by_target(
                         lookup,
                         kinds=writes_kinds,
-                        exclude_test_sources=exclude_tests,
-                    )
+                        exclude_test_sources=exclude_tests, path_prefix=path_prefix)
             # A same-named definition under another qname makes this count a partition (168).
             # One bounded query, keyed on the subject's own kind — 054's rule, not a constant.
             sibling_sites: list[dict[str, object]] = []
@@ -446,20 +453,18 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     kinds=writes_kinds,
                     limit=cap,
                     offset=offset,
-                    exclude_test_sources=exclude_tests,
-                )
+                    exclude_test_sources=exclude_tests, path_prefix=path_prefix)
             else:
                 edges = store.edges_by_target(
                     lookup,
                     kinds=writes_kinds,
                     limit=cap,
                     offset=offset,
-                    exclude_test_sources=exclude_tests,
-                )
+                    exclude_test_sources=exclude_tests, path_prefix=path_prefix)
             results = [edge_hit(edge) for edge in edges]
             # Skewed page 1 hides other subtrees — advertise the full spread (task 067).
             subtrees = (
-                store.edge_subtrees_by_target(lookup)
+                store.edge_subtrees_by_target(lookup, path_prefix=path_prefix)
                 if writes_targets is None and offset + len(results) < total_count
                 else {}
             )
@@ -501,6 +506,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         subject_kind,
                         cap=cap,
                         offset=offset,
+                        path_prefix=path_prefix,
                     )
                     if union is not None:
                         results, total_count = union

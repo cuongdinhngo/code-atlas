@@ -433,11 +433,15 @@ def _direct_match_udf(query: object, name: object, qualified_name: object) -> in
 
 
 def _search_contains_demote(
-    query: str, *, kind: str | None, namespace: str | None
+    query: str,
+    *,
+    kind: str | None,
+    namespace: str | None,
+    path_prefix: str | None = None,
 ) -> tuple[str, tuple[object, ...]]:
     """ORDER BY key: demote hits whose CONTAINS parent is also a hit for this query (292/297).
 
-    Parent must satisfy the same FTS/kind/namespace filters as the outer search so a hit set
+    Parent must satisfy the same FTS/kind/namespace/path filters as the outer search so a hit set
     with no container/member pair stays byte-identical (061).
     """
     parent_where, parent_params = _narrow(
@@ -445,6 +449,9 @@ def _search_contains_demote(
     )
     parent_where, parent_params = _with_namespace(
         parent_where, parent_params, namespace, qname_column="p.qualified_name"
+    )
+    parent_where, parent_params = _with_path_prefix(
+        parent_where, parent_params, path_prefix, column="p.file_path"
     )
     # Uncorrelated on purpose: the member set is computed ONCE, not re-derived per outer row.
     # Correlating it made the subquery re-scan fts5 for every hit — 30x on SQLite 3.40 (297).
@@ -1793,6 +1800,7 @@ class GraphStore:
         confidence_tier: str | None = None,
         exclude_test_sources: bool = False,
         distinct_sources: bool = False,
+        path_prefix: str | None = None,
     ) -> list[Row]:
         """Edges whose resolved ``target_qname`` is ``qname``.
 
@@ -1801,6 +1809,7 @@ class GraphStore:
         ``confidence_tier`` narrows to one tier in the store query (task 251) — not a post-filter.
         ``offset`` skips leading rows in tier-first order (tasks 057 / 265).
         ``distinct_sources`` keeps one edge per ``source_qname`` (273).
+        ``path_prefix`` narrows to edges whose ``file_path`` is under that prefix (315).
         """
         return self._edges(
             "edges.target_qname = ?",
@@ -1812,6 +1821,7 @@ class GraphStore:
                 _args_predicate(args_at),
                 _tier_predicate(confidence_tier),
                 _exclude_test_sources_predicate(exclude_test_sources),
+                _path_prefix_predicate(path_prefix),
             ),
             order=_EDGE_ORDER_TIER_FIRST,
             distinct_sources=distinct_sources,
@@ -1826,6 +1836,7 @@ class GraphStore:
         offset: int = 0,
         confidence_tier: str | None = None,
         exclude_test_sources: bool = False,
+        path_prefix: str | None = None,
     ) -> list[Row]:
         """Inbound edges whose ``target_qname`` is any of ``qnames``, tier-first paged (265).
 
@@ -1843,6 +1854,7 @@ class GraphStore:
         extra = _combine_predicates(
             _tier_predicate(confidence_tier),
             _exclude_test_sources_predicate(exclude_test_sources),
+            _path_prefix_predicate(path_prefix),
         )
         clause, params = self._edge_where(where, kinds, extra)
         sql = (
@@ -1860,6 +1872,7 @@ class GraphStore:
         kinds: Sequence[str] | None = None,
         confidence_tier: str | None = None,
         exclude_test_sources: bool = False,
+        path_prefix: str | None = None,
     ) -> int:
         """Count inbound edges for any of qnames (same filters as edges_by_targets)."""
         if not qnames:
@@ -1869,6 +1882,7 @@ class GraphStore:
         extra = _combine_predicates(
             _tier_predicate(confidence_tier),
             _exclude_test_sources_predicate(exclude_test_sources),
+            _path_prefix_predicate(path_prefix),
         )
         clause, params = self._edge_where(where, kinds, extra)
         sql = f"SELECT COUNT(*) FROM edges WHERE {clause}"
@@ -1883,6 +1897,7 @@ class GraphStore:
         confidence_tier: str | None = None,
         exclude_test_sources: bool = False,
         distinct_sources: bool = False,
+        path_prefix: str | None = None,
     ) -> int:
         """How many edges (or distinct sources) target ``qname`` (same filters as the list)."""
         return self._count_edges(
@@ -1893,10 +1908,10 @@ class GraphStore:
                 _args_predicate(args_at),
                 _tier_predicate(confidence_tier),
                 _exclude_test_sources_predicate(exclude_test_sources),
+                _path_prefix_predicate(path_prefix),
             ),
             distinct_sources=distinct_sources,
         )
-
     def inbound_test_rows(
         self,
         qname: str,
@@ -1974,6 +1989,7 @@ class GraphStore:
         kinds: Sequence[str] | None = None,
         args_at: tuple[int, str] | None = None,
         confidence_tier: str | None = None,
+        path_prefix: str | None = None,
     ) -> dict[str, int]:
         """Top-level path segment → count over the full set targeting ``qname`` (task 067).
 
@@ -1986,7 +2002,9 @@ class GraphStore:
             "edges.target_qname = ?",
             kinds,
             _combine_predicates(
-                _args_predicate(args_at), _tier_predicate(confidence_tier)
+                _args_predicate(args_at),
+                _tier_predicate(confidence_tier),
+                _path_prefix_predicate(path_prefix),
             ),
         )
         segment = (
@@ -2533,6 +2551,7 @@ class GraphStore:
         *,
         kind: str | None = None,
         namespace: str | None = None,
+        path_prefix: str | None = None,
         limit: int,
         offset: int = 0,
     ) -> list[Row]:
@@ -2542,7 +2561,8 @@ class GraphStore:
         ``name``/``qualified_name`` prefix ``LIKE`` instead (restores ``DB`` / ``Us`` / ``Go``).
 
         Optional ``namespace`` is matched case-insensitively: exact or continues
-        with ``\\``, ``.``, or ``::``. ``offset`` pages in search order (task 057).
+        with ``\\``, ``.``, or ``::``. Optional ``path_prefix`` narrows to the stored
+        POSIX file path under that prefix (315). ``offset`` pages in search order (task 057).
 
         Exact/prefix matches come first, near-misses after, BM25 rank as the tie-break inside each
         band (task 180) — banding the whole result set, not the page, so ``offset`` walks it.
@@ -2550,15 +2570,22 @@ class GraphStore:
         """
         if len(query) < 3:
             return self._search_short(
-                query, kind=kind, namespace=namespace, limit=limit, offset=offset
+                query,
+                kind=kind,
+                namespace=namespace,
+                path_prefix=path_prefix,
+                limit=limit,
+                offset=offset,
             )
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
         if limit < 1:
             raise ValueError(f"limit must be >= 1, got {limit}")
-        where, params = self._fts_search_clause(query, kind=kind, namespace=namespace)
+        where, params = self._fts_search_clause(
+            query, kind=kind, namespace=namespace, path_prefix=path_prefix
+        )
         contains_sql, contains_params = _search_contains_demote(
-            query, kind=kind, namespace=namespace
+            query, kind=kind, namespace=namespace, path_prefix=path_prefix
         )
         sql = (
             f"SELECT nodes.id, {_NODE_COLUMNS_JOINED} FROM nodes "
@@ -2576,11 +2603,16 @@ class GraphStore:
         *,
         kind: str | None = None,
         namespace: str | None = None,
+        path_prefix: str | None = None,
     ) -> int:
         """Exact hit count for ``search_nodes`` filters (no LIMIT)."""
         if len(query) < 3:
-            return self._count_search_short(query, kind=kind, namespace=namespace)
-        where, params = self._fts_search_clause(query, kind=kind, namespace=namespace)
+            return self._count_search_short(
+                query, kind=kind, namespace=namespace, path_prefix=path_prefix
+            )
+        where, params = self._fts_search_clause(
+            query, kind=kind, namespace=namespace, path_prefix=path_prefix
+        )
         sql = (
             f"SELECT COUNT(*) FROM nodes "
             f"JOIN nodes_fts ON nodes_fts.rowid = nodes.id "
@@ -2594,10 +2626,13 @@ class GraphStore:
         *,
         kind: str | None,
         namespace: str | None,
+        path_prefix: str | None = None,
     ) -> tuple[str, tuple[object, ...]]:
         where, params = _narrow("nodes_fts MATCH ?", fts_term(query), kind, "nodes.kind = ?")
-        return _with_namespace(where, params, namespace, qname_column="nodes.qualified_name")
-
+        where, params = _with_namespace(
+            where, params, namespace, qname_column="nodes.qualified_name"
+        )
+        return _with_path_prefix(where, params, path_prefix, column="nodes.file_path")
     def impact_radius(
         self,
         seeds: Sequence[str],
@@ -3737,6 +3772,7 @@ class GraphStore:
         *,
         kind: str | None,
         namespace: str | None,
+        path_prefix: str | None = None,
         limit: int,
         offset: int = 0,
     ) -> list[Row]:
@@ -3752,12 +3788,12 @@ class GraphStore:
             where = f"{where} AND kind = ?"
             params = (*params, kind)
         where, params = _with_namespace(where, params, namespace, qname_column="qualified_name")
+        where, params = _with_path_prefix(where, params, path_prefix, column="file_path")
         sql = (
             f"SELECT id, {_NODE_COLUMNS} FROM nodes WHERE {where} "
             f"ORDER BY {_NODE_ORDER} LIMIT ? OFFSET ?"
         )
         return self._rows(NODE_ROW_KEYS, sql, (*params, limit, offset))
-
     def _nodes(self, where: str, value: str, kind: str | None, limit: int) -> list[Row]:
         clause, params = _narrow(where, value, kind, "kind = ?")
         sql = f"SELECT id, {_NODE_COLUMNS} FROM nodes WHERE {clause} ORDER BY {_NODE_ORDER} LIMIT ?"
@@ -3884,6 +3920,7 @@ class GraphStore:
         *,
         kind: str | None,
         namespace: str | None,
+        path_prefix: str | None = None,
     ) -> int:
         pattern = f"{_like_literal(query.lower())}%"
         where = "(LOWER(name) LIKE ? ESCAPE '!' OR LOWER(qualified_name) LIKE ? ESCAPE '!')"
@@ -3892,9 +3929,9 @@ class GraphStore:
             where = f"{where} AND kind = ?"
             params = (*params, kind)
         where, params = _with_namespace(where, params, namespace, qname_column="qualified_name")
+        where, params = _with_path_prefix(where, params, path_prefix, column="file_path")
         sql = f"SELECT COUNT(*) FROM nodes WHERE {where}"
         return int(self._conn.execute(sql, params).fetchone()[0])
-
     def _rows(self, keys: tuple[str, ...], sql: str, params: Sequence[object]) -> list[Row]:
         cursor = self._conn.execute(sql, params)
         return [dict(zip(keys, row, strict=True)) for row in cursor]
@@ -3943,7 +3980,10 @@ def _path_under(prefix: str, column: str) -> tuple[str, tuple[str, str]]:
     """SQL predicate: ``column`` is the prefix or a path beneath it (task 120)."""
     normalized = prefix if prefix.endswith("/") else f"{prefix}/"
     bare = normalized.rstrip("/")
-    return f"({column} LIKE ? OR {column} = ?)", (f"{normalized}%", bare)
+    return (
+        f"({column} LIKE ? ESCAPE '!' OR {column} = ?)",
+        (f"{_like_literal(normalized)}%", bare),
+    )
 
 
 def _narrow(
@@ -3980,3 +4020,25 @@ def _with_namespace(
         f"{escaped}.%",
         f"{escaped}::%",
     )
+
+
+def _with_path_prefix(
+    where: str,
+    params: tuple[object, ...],
+    path_prefix: str | None,
+    *,
+    column: str,
+) -> tuple[str, tuple[object, ...]]:
+    """AND a path-under predicate; ``None`` leaves the clause unchanged (315)."""
+    if path_prefix is None:
+        return where, params
+    clause, extras = _path_under(path_prefix, column)
+    return f"({where}) AND {clause}", (*params, *extras)
+
+
+def _path_prefix_predicate(path_prefix: str | None) -> _Predicate:
+    """Edge-source path filter for find_references (315); reuses ``_path_under``."""
+    if path_prefix is None:
+        return None
+    clause, extras = _path_under(path_prefix, "edges.file_path")
+    return clause, extras
