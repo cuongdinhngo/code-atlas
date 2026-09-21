@@ -47,6 +47,7 @@ from code_atlas.tools.nav_result import (
     TRY_INSTEAD_HINT_METHOD_QNAME,
     TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE,
     TRY_INSTEAD_SEARCH_SYMBOL,
+    answered_about_ref_for,
     apply_empty_inbound_honesty,
     attach_ambiguous_definitions,
     attach_authoritative_caveats,
@@ -285,9 +286,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
         if not config.db_path.is_file():
-            return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path),
-            index_root=config.index_root,
-        )
+            return empty_nav(
+                qname,
+                detail_level=detail_level,
+                db_path=str(config.db_path),
+                index_root=config.index_root,
+                answered_about_ref=None,
+            )
         staleness: dict[str, object] = {}
 
         def signed(payload: dict[str, object]) -> dict[str, object]:
@@ -318,9 +323,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         writes_kinds: tuple[str, ...] | None = None
         writes_targets: list[str] | None = None
         unlinked_same_name_sites = 0
+        about_ref: str | None = None
         with GraphStore(config.db_path) as store:
             covered = covered_languages(store)
             emitted_kinds = store.stamped_emitted_kinds_by_language()
+            about_ref = answered_about_ref_for(store)
             if sign or serve_behind:
                 staleness = compute_staleness(store, config, include_dirty_count=True)
             if serve_behind:
@@ -340,6 +347,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         truncated=False,
                         reason=REASON_INDEX_STALE,
                         total_count=0,
+                        answered_about_ref=about_ref,
                     )
                     if not serve_behind:
                         return signed(attach_serve_behind_route(refused))
@@ -388,6 +396,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         truncated=False,
                         reason=REASON_NO_SUCH_SYMBOL,
                         total_count=0,
+                        answered_about_ref=about_ref,
                     )
                     shaped = shape_exact_miss(miss, resolution)
                     finalize_subject_checked_miss(shaped, guard)
@@ -554,6 +563,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             truncated=truncated,
             reason=reason,
             total_count=total_count,
+            answered_about_ref=about_ref,
         )
         if unlinked_edge_kinds:
             # Names the unmeasured relation(s) — not hits (R5.6 / 255 AC1).

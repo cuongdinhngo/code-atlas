@@ -279,6 +279,29 @@ def edge_hit(
     return hit
 
 
+ANSWERED_ABOUT_REF_FIELD = "answered_about_ref"
+
+
+def attach_answered_about_ref(
+    payload: dict[str, object], answered_about_ref: str | None
+) -> dict[str, object]:
+    """Stamp the index's built-on ref on every nav envelope (317). Single attach site (R6.7)."""
+    payload[ANSWERED_ABOUT_REF_FIELD] = answered_about_ref
+    return payload
+
+
+def answered_about_ref_for(store: GraphStore | None) -> str | None:
+    """``last_ref`` the index holds (077), or ``None`` when unbuilt / pre-077 omit."""
+    if store is None:
+        return None
+    from code_atlas.tools.staleness import OMIT, last_ref_for_payload
+
+    ref = last_ref_for_payload(store)
+    if ref is OMIT or ref is None:
+        return None
+    return str(ref)
+
+
 def empty_nav(
     subject: str,
     *,
@@ -288,23 +311,28 @@ def empty_nav(
     subject_key: str = "qname",
     reason: NavReason = REASON_NOT_INDEXED,
     total_count: int = 0,
+    answered_about_ref: str | None = None,
 ) -> dict[str, object]:
     """No database yet — read tools must not create one.
 
     ``db_path`` is accepted for call-site stability but never attached (task 061).
     ``index_root`` is the source tree the server was configured with (task 071).
+    ``answered_about_ref`` names the index's built-on ref when known (317 / 077).
     """
     del db_path
-    return {
-        "indexed": False,
-        subject_key: subject,
-        "results": [],
-        "truncated": False,
-        "reason": reason,
-        "total_count": total_count,
-        "index_root": index_root,
-        **maybe_server_provenance(detail_level),
-    }
+    return attach_answered_about_ref(
+        {
+            "indexed": False,
+            subject_key: subject,
+            "results": [],
+            "truncated": False,
+            "reason": reason,
+            "total_count": total_count,
+            "index_root": index_root,
+            **maybe_server_provenance(detail_level),
+        },
+        answered_about_ref,
+    )
 
 
 def nav_result(
@@ -318,6 +346,7 @@ def nav_result(
     reason: NavReason | None = None,
     total_count: int | None = None,
     subject_key: str = "qname",
+    answered_about_ref: str | None = None,
     **extra: object,
 ) -> dict[str, object]:
     """Shape a nav payload; omit ``reason`` / ``total_count`` unless explicitly set.
@@ -328,6 +357,7 @@ def nav_result(
     """
     del db_path
     extra.pop("db_path", None)
+    extra.pop("answered_about_ref", None)
     payload: dict[str, object] = {
         "indexed": True,
         subject_key: subject,
@@ -341,7 +371,7 @@ def nav_result(
     if total_count is not None:
         payload["total_count"] = total_count
     payload.update(maybe_server_provenance(detail_level))
-    return payload
+    return attach_answered_about_ref(payload, answered_about_ref)
 
 
 def list_result(
@@ -354,18 +384,22 @@ def list_result(
     reason: NavReason,
     total_count: int,
     indexed: bool = True,
+    answered_about_ref: str | None = None,
 ) -> dict[str, object]:
     """Search-style payload — same reason/total_count fields, no subject key."""
     del db_path
-    return {
-        "indexed": indexed,
-        "results": results,
-        "truncated": truncated,
-        "reason": reason,
-        "total_count": total_count,
-        "index_root": index_root,
-        **maybe_server_provenance(detail_level),
-    }
+    return attach_answered_about_ref(
+        {
+            "indexed": indexed,
+            "results": results,
+            "truncated": truncated,
+            "reason": reason,
+            "total_count": total_count,
+            "index_root": index_root,
+            **maybe_server_provenance(detail_level),
+        },
+        answered_about_ref,
+    )
 
 
 def subject_answer(
@@ -392,7 +426,10 @@ def subject_answer(
 
 
 def batch_result(
-    answers: list[dict[str, object]], *, index_root: str
+    answers: list[dict[str, object]],
+    *,
+    index_root: str,
+    answered_about_ref: str | None = None,
 ) -> dict[str, object]:
     """The batch envelope — what is true of the whole call, stated once (task 101; 061).
 
@@ -405,10 +442,12 @@ def batch_result(
     payload["subjects"] = answers
     payload["index_root"] = index_root
     payload.update(server_provenance())
-    return payload
+    return attach_answered_about_ref(payload, answered_about_ref)
 
 
-def batch_not_indexed(index_root: str) -> dict[str, object]:
+def batch_not_indexed(
+    index_root: str, *, answered_about_ref: str | None = None
+) -> dict[str, object]:
     """No index yet, answered once for the whole sweep (task 101).
 
     Ships no ``subjects`` list on purpose — the same reason ``schema_guard.payload`` ships no
@@ -419,7 +458,7 @@ def batch_not_indexed(index_root: str) -> dict[str, object]:
     payload["reason"] = REASON_NOT_INDEXED
     payload["index_root"] = index_root
     payload.update(server_provenance())
-    return payload
+    return attach_answered_about_ref(payload, answered_about_ref)
 
 
 def attach_subjects_capped(

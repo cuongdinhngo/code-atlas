@@ -114,4 +114,4 @@ def test_payload_size_before_after_recorded_shape(tmp_path: Path) -> None:
     assert "index_root" in status and "index_root" in callers and "index_root" in search
     # Soft ceiling after 071; raised 500→560 for adapter #4 (python) — one more
     # unconfigured_adapters row rides every find_callers payload (task 020 Gate 2).
-    assert sizes["find_callers"] < 560
+    assert sizes["find_callers"] < 620

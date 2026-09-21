@@ -49,6 +49,7 @@ from code_atlas.tools.nav_result import (
     REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE,
+    answered_about_ref_for,
     apply_empty_inbound_honesty,
     attach_ambiguous_definitions,
     attach_authoritative_caveats,
@@ -202,9 +203,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         args_at = _args_at(arg_position, arg_is, depth=depth)
         tier = _confidence_tier(confidence_tier, depth=depth)
         if not config.db_path.is_file():
-            return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path),
-            index_root=config.index_root,
-        )
+            return empty_nav(
+                qname,
+                detail_level=detail_level,
+                db_path=str(config.db_path),
+                index_root=config.index_root,
+                answered_about_ref=None,
+            )
         staleness: dict[str, object] = {}
 
         def signed(payload: dict[str, object]) -> dict[str, object]:
@@ -235,8 +240,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         test_role_label: str | None = None
         production_count = 0
         test_count = 0
+        about_ref: str | None = None
         with GraphStore(config.db_path) as store:
             covered = covered_languages(store)
+            about_ref = answered_about_ref_for(store)
             if sign or serve_behind:
                 staleness = compute_staleness(store, config, include_dirty_count=True)
             if serve_behind:
@@ -258,6 +265,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         total_count=0,
                         depth=depth,
                         frontier_skipped_non_resolved=0,
+                        answered_about_ref=about_ref,
                     )
                     # 274: name the opt-in that answers; file_outline cannot fix a stale subject.
                     if not serve_behind:
@@ -313,6 +321,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         total_count=0,
                         depth=depth,
                         frontier_skipped_non_resolved=0,
+                        answered_about_ref=about_ref,
                     )
                     # A miss still names what the guard repaired (073) and what it could not judge
                     # (049) — the 092 shortcut must not drop signals the fall-through carried.
@@ -524,6 +533,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             total_count=outcome.total_count,
             depth=depth,
             frontier_skipped_non_resolved=outcome.frontier_skipped_non_resolved,
+            answered_about_ref=about_ref,
         )
         if freshness == "repaired":
             result["subject_refreshed_only"] = True

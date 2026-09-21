@@ -18,6 +18,7 @@ from code_atlas.tools.nav_result import (
     TRY_INSTEAD_HINT_PATH_BASENAME,
     TRY_INSTEAD_HINT_RELATION_CARRIED_BY_ANOTHER_KIND,
     TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE,
+    answered_about_ref_for,
     apply_empty_inbound_honesty,
     attach_try_instead,
     edge_hit,
@@ -75,12 +76,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             return empty_nav(
                 rel, detail_level=detail_level, db_path=str(config.db_path), subject_key="path",
                 index_root=config.index_root,
-            )
+            answered_about_ref=None)
         limit = config.page_limit
         reason = None
         try_instead: str | None = None
         try_instead_hint: str | None = None
         with GraphStore(config.db_path) as store:
+            about_ref = answered_about_ref_for(store)
             outcome = _graph(store, rel, direction=direction, hops=depth, limit=limit)
             if direction in ("imported_by", "both") and not outcome.results:
                 # Never a bare inbound zero (9-B, 160). Unlinked text that mentions this file ⇒ the
@@ -121,7 +123,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             reason=reason,
             direction=direction,
             depth=depth,
-        )
+            answered_about_ref=about_ref)
         if outcome.unresolved_includes is not None:
             payload["unresolved_includes"] = outcome.unresolved_includes
         return attach_try_instead(payload, try_instead, try_instead_hint)

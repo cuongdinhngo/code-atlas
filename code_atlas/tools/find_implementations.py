@@ -15,6 +15,7 @@ from code_atlas.tools.nav_result import (
     REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
     TRY_INSTEAD_FILE_OUTLINE,
+    answered_about_ref_for,
     apply_empty_inbound_honesty,
     attach_limit_capped,
     attach_resolved_qname,
@@ -61,7 +62,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if not config.db_path.is_file():
             return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path),
             index_root=config.index_root,
-        )
+            answered_about_ref=None)
         covered: str | None = None
         freshness = "ok"
         asked = qname
@@ -71,6 +72,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         reason = REASON_NO_SUCH_SYMBOL
         unlinked_edge_kinds: list[str] = []
         with GraphStore(config.db_path) as store:
+            about_ref = answered_about_ref_for(store)
             covered = covered_languages(store)
             guard = FreshnessGuard(config, store)
             freshness = guard.ensure_qname(qname)
@@ -85,7 +87,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         truncated=False,
                         reason=REASON_INDEX_STALE,
                         total_count=0,
-                    ),
+            answered_about_ref=about_ref),
                     TRY_INSTEAD_FILE_OUTLINE,
                 )
             total_count = store.count_edges_by_target(lookup, kinds=IMPL_KINDS)
@@ -107,7 +109,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         truncated=False,
                         reason=REASON_NO_SUCH_SYMBOL,
                         total_count=0,
-                    )
+            answered_about_ref=about_ref)
                     shaped = shape_exact_miss(miss, resolution)
                     finalize_subject_checked_miss(shaped, guard)
                     return attach_coverage_note(
@@ -143,7 +145,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             truncated=truncated,
             reason=reason,
             total_count=total_count,
-        )
+            answered_about_ref=about_ref)
         if unlinked_edge_kinds:
             result["unlinked_edge_kinds"] = unlinked_edge_kinds
         if freshness == "repaired":

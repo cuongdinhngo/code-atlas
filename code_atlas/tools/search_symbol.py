@@ -38,6 +38,7 @@ from code_atlas.tools.nav_result import (
     TRY_INSTEAD_HINT_TOKEN_CANDIDATES_NONE,
     TRY_INSTEAD_SEARCH_SYMBOL,
     NavReason,
+    answered_about_ref_for,
     attach_limit_capped,
     attach_subjects_capped,
     attach_try_instead,
@@ -155,7 +156,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if not config.db_path.is_file():
             # No index is a fact about the server, not about any one subject (101).
             if batched:
-                return batch_not_indexed(index_root)
+                return batch_not_indexed(index_root, answered_about_ref=None)
             return list_result(
                 [],
                 detail_level=detail_level,
@@ -165,6 +166,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 reason=REASON_NOT_INDEXED,
                 total_count=0,
                 indexed=False,
+                answered_about_ref=None,
             )
         kept, dropped = clamp_subjects(subjects, config.max_subjects)
         covered: str | None = None
@@ -172,6 +174,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         with GraphStore(config.db_path) as store:
             covered = covered_languages(store)
             indexed = held_suffixes(store)
+            about_ref = answered_about_ref_for(store)
             # One guard for the call: scaling the repair budget with the subject count is the
             # unbounded fan-out the batch bound exists to prevent (101).
             guard = FreshnessGuard(config, store)
@@ -200,6 +203,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     index_root=index_root,
                     cap=cap,
                     limit_clamped=limit_clamped,
+                    answered_about_ref=about_ref,
                 ),
                 config,
                 covered,
@@ -216,7 +220,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         answers = [
             _batch_answer(subject, hits) for subject, hits in zip(kept, found, strict=True)
         ]
-        payload = batch_result(answers, index_root=index_root)
+        payload = batch_result(
+            answers, index_root=index_root, answered_about_ref=about_ref
+        )
         attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
         attach_subjects_capped(payload, cap=config.max_subjects, dropped=dropped)
         _attach_mixed_repair_budget(payload, answers)
@@ -452,6 +458,7 @@ def _single_payload(
     index_root: str,
     cap: int,
     limit_clamped: bool,
+    answered_about_ref: str | None = None,
 ) -> dict[str, object]:
     """The one-subject answer, unchanged by 101 — pinned byte-for-byte by its own test."""
     payload = list_result(
@@ -462,6 +469,7 @@ def _single_payload(
         truncated=hits.truncated,
         reason=hits.reason,
         total_count=hits.total_count,
+        answered_about_ref=answered_about_ref,
     )
     # Empty + unverified (multi-dirty miss) — point at path-named tools (073).
     if hits.reason == REASON_INDEX_STALE and hits.total_count == 0:

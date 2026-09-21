@@ -15,6 +15,7 @@ from code_atlas.tools.nav_result import (
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_HINT_IMPACT_BY_QNAME,
     SubjectResolution,
+    answered_about_ref_for,
     attach_ambiguous_definitions,
     attach_authoritative_caveats,
     attach_sibling_definitions,
@@ -194,8 +195,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if not config.db_path.is_file():
             return empty_nav(subject, detail_level=detail_level, db_path=str(config.db_path),
             index_root=config.index_root,
-        )
+            answered_about_ref=None)
         with GraphStore(config.db_path) as store:
+            about_ref = answered_about_ref_for(store)
             plan = plan_seeds(
                 store, paths=paths or [], qnames=qnames or [], max_results=config.page_limit
             )
@@ -217,7 +219,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             depth=hops,
             frontier_skipped_non_resolved=outcome.frontier_skipped_non_resolved,
             seeds_dropped=outcome.seeds_dropped + plan.refused,
-        )
+            answered_about_ref=about_ref)
         _attach_freshness(result, staleness)
         attach_seed_expansion(result, plan, paths)
         attach_seed_refusals(result, plan)

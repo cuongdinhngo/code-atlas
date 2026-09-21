@@ -13,6 +13,8 @@ from code_atlas.tools.freshness import FreshnessGuard
 from code_atlas.tools.nav_result import (
     REASON_INDEX_STALE,
     REASON_OK,
+    answered_about_ref_for,
+    attach_answered_about_ref,
     attach_limit_capped,
     attach_result_kinds,
 )
@@ -58,6 +60,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             )
         rel = _repo_relative(config.root, path)
         with GraphStore(config.db_path) as store:
+            about_ref = answered_about_ref_for(store)
             if store.file_hash(rel) is None:
                 return _result(
                     rel,
@@ -67,6 +70,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     index_root=config.index_root,
                     truncated=False,
                     found=False,
+                    answered_about_ref=about_ref,
                 )
             guard = FreshnessGuard(config, store)
             if guard.ensure(rel) == "stale":
@@ -80,6 +84,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     found=True,
                     reason=REASON_INDEX_STALE,
                     total_count=0,
+                    answered_about_ref=about_ref,
                 )
             total_count = store.count_nodes_by_file(rel)
             rows = store.nodes_by_file(rel, limit=cap, offset=offset)
@@ -96,6 +101,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             found=True,
             reason=REASON_OK,
             total_count=total_count,
+            answered_about_ref=about_ref,
         )
         if truncated and kind_spread is not None:
             attach_result_kinds(payload, kind_spread)
@@ -127,18 +133,26 @@ def _hit(row: Mapping[str, object] | Row) -> dict[str, object]:
 
 
 def _empty(
-    path: str, *, detail_level: str, db_path: str, index_root: str
+    path: str,
+    *,
+    detail_level: str,
+    db_path: str,
+    index_root: str,
+    answered_about_ref: str | None = None,
 ) -> dict[str, object]:
     del db_path
-    return {
-        "indexed": False,
-        "path": path,
-        "found": False,
-        "results": [],
-        "truncated": False,
-        "index_root": index_root,
-        **maybe_server_provenance(detail_level),
-    }
+    return attach_answered_about_ref(
+        {
+            "indexed": False,
+            "path": path,
+            "found": False,
+            "results": [],
+            "truncated": False,
+            "index_root": index_root,
+            **maybe_server_provenance(detail_level),
+        },
+        answered_about_ref,
+    )
 
 
 def _result(
@@ -152,6 +166,7 @@ def _result(
     found: bool,
     reason: str | None = None,
     total_count: int | None = None,
+    answered_about_ref: str | None = None,
 ) -> dict[str, object]:
     del db_path
     payload: dict[str, object] = {
@@ -167,4 +182,4 @@ def _result(
     if total_count is not None:
         payload["total_count"] = total_count
     payload.update(maybe_server_provenance(detail_level))
-    return payload
+    return attach_answered_about_ref(payload, answered_about_ref)

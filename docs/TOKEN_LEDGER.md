@@ -22,6 +22,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 
 | # | Tokens | PR |
 |---|---|---|
+| 317 | 3 dispatch: ticket-blind `challenger` round1–2 NOT CLEAN → round3 CLEAN (read_symbol typo; other nav + reach refuse stamps); `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun`. Proving: `tests/test_answered_about_ref.py`. | [#423](https://github.com/cuongdinhngo/code-atlas/pull/423) |
 | 316 | 2 dispatch: ticket-blind `challenger` round1 NOT CLEAN (AC1 triad) → compose fix → round2 CLEAN; `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun`. Proving: `tests/test_index_status_summary.py`. | [#422](https://github.com/cuongdinhngo/code-atlas/pull/422) |
 | 315 | 2 dispatch: ticket-blind `challenger` round1 NOT CLEAN (AC3 result_subtrees) → path_prefix on edge_subtrees_by_target → round2 CLEAN; `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun`. Proving: `tests/test_search_symbol_path_prefix.py`. | [#421](https://github.com/cuongdinhngo/code-atlas/pull/421) |
 | 304 | 0 dispatch: epic closing review, main-loop only and unmeasured on this host. No lifecycle run — the decision was read off the tree (four modules, one importer, zero invocations, zero MCP surface) and off 31 rounds of anchor retros scoring `impact` 5/10 twice. Removes 1,776 production and 1,233 test lines across 303/305/306/307; keeps 308/309/312. Proving: `tests/test_backlog_bookkeeping.py`, `tests/test_config.py`. | [#417](https://github.com/cuongdinhngo/code-atlas/pull/417) |

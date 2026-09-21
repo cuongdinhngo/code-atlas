@@ -262,6 +262,7 @@ def test_missing_database_does_not_create_one(tmp_path: Path) -> None:
         "reason": "not_indexed",
         "total_count": 0,
         "index_root": str(config.root.resolve()),
+        "answered_about_ref": None,
     }
     assert "server_version" not in result  # 223: minimal leaves identity to status
     assert not config.db_path.is_file()

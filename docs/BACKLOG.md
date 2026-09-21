@@ -24,7 +24,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
 | 313 | [Agent brief's usage rules are prose tied to nothing — kind:/namespace, writer set (278), dynamic-SQL refusal (296) all untaught](tasks/313_the-agent-brief-teaches-prose-tied-to-nothing.md) | Adoption | todo | 266, 270, 278, 296 |
 | 314 | [A zero at a coverage edge dies silent — no try_instead, no grep target — so the chain ends](tasks/314_a-zero-at-a-coverage-edge-dies-silent.md) | Agent-trust | todo | 065, 093, 296 |
-| 317 | [Nav results do not name the ref they answered about — a worktree read can silently describe main](tasks/317_nav-results-do-not-name-the-ref-they-answered-about.md) | Agent-trust | todo | 071, 077 |
 
 ## Open work — Pillar 2 · Onboarding
 

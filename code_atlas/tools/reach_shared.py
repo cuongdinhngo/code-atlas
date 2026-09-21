@@ -10,7 +10,11 @@ from code_atlas.build_info import maybe_server_provenance
 from code_atlas.config import Config
 from code_atlas.ignore import translate_path_pattern
 from code_atlas.store import GraphStore, Row
-from code_atlas.tools.nav_result import nav_result
+from code_atlas.tools.nav_result import (
+    answered_about_ref_for,
+    attach_answered_about_ref,
+    nav_result,
+)
 
 NO_ROOTS = "no_roots_configured"
 # Two refusals, both sourced from the computation rather than from a threshold (task 182 / R5.2).
@@ -52,6 +56,10 @@ def entry_seeds(
 
 def no_roots(detail_level: DetailLevel, config: Config) -> dict[str, object]:
     """Explicit failure when entry points are unset — never an empty orphan/reachable list."""
+    about_ref: str | None = None
+    if config.db_path.is_file():
+        with GraphStore(config.db_path) as store:
+            about_ref = answered_about_ref_for(store)
     payload: dict[str, object] = {
         "indexed": config.db_path.is_file(),
         "qname": "",
@@ -66,7 +74,7 @@ def no_roots(detail_level: DetailLevel, config: Config) -> dict[str, object]:
         "index_root": config.index_root,
         **maybe_server_provenance(detail_level),
     }
-    return payload
+    return attach_answered_about_ref(payload, about_ref)
 
 
 def unmatched_entry_patterns(
@@ -97,6 +105,7 @@ def refuse_reachability(
     detail_level: DetailLevel = "standard",
     try_instead_hint: str | None = None,
     unmodelled_resolution_by_language: object | None = None,
+    answered_about_ref: str | None = None,
 ) -> dict[str, object]:
     """A reachability refusal: what it CAN say, and no row list (task 182).
 
@@ -129,7 +138,7 @@ def refuse_reachability(
         payload["try_instead_hint"] = try_instead_hint
     if unmodelled_resolution_by_language is not None:
         payload["unmodelled_resolution_by_language"] = unmodelled_resolution_by_language
-    return payload
+    return attach_answered_about_ref(payload, answered_about_ref)
 
 
 def shape_hit(
@@ -162,6 +171,7 @@ def reach_payload(
     edge_health_by_language: object | None = None,
     frontier_skipped_non_resolved: int | None = None,
     total_count: int | None = None,
+    answered_about_ref: str | None = None,
 ) -> dict[str, object]:
     """Shared nav_result shape for both reachability tools."""
     payload = nav_result(
@@ -178,6 +188,7 @@ def reach_payload(
         authoritative=False,
         depth_exhausted=depth_exhausted,
         total_count=total_count,
+        answered_about_ref=answered_about_ref,
     )
     if edge_health is not None:
         payload["edge_health"] = edge_health

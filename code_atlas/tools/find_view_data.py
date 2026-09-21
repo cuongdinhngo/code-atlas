@@ -17,6 +17,7 @@ from code_atlas.tools.nav_result import (
     REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
     TRY_INSTEAD_FILE_OUTLINE,
+    answered_about_ref_for,
     attach_limit_capped,
     attach_resolved_qname,
     attach_try_instead,
@@ -63,9 +64,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if not config.db_path.is_file():
             return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path),
             index_root=config.index_root,
-        )
+            answered_about_ref=None)
         covered: str | None = None
         with GraphStore(config.db_path) as store:
+            about_ref = answered_about_ref_for(store)
             covered = covered_languages(store)
             guard = FreshnessGuard(config, store)
             freshness = guard.ensure_qname(qname)
@@ -80,7 +82,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         truncated=False,
                         reason=REASON_INDEX_STALE,
                         total_count=0,
-                    ),
+            answered_about_ref=about_ref),
                     TRY_INSTEAD_FILE_OUTLINE,
                 )
             asked = qname
@@ -102,7 +104,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         truncated=False,
                         reason=REASON_NO_SUCH_SYMBOL,
                         total_count=0,
-                    )
+            answered_about_ref=about_ref)
                     # A miss still names what the guard repaired (073) — the 092 shortcut must not
                     # drop a signal the fall-through carried.
                     if freshness == "repaired":
@@ -145,7 +147,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 truncated=truncated,
                 reason=reason,
                 total_count=total,
-            )
+            answered_about_ref=about_ref)
             if freshness == "repaired":
                 result["subject_refreshed_only"] = True
             attach_limit_capped(result, cap=cap, clamped=limit_clamped)

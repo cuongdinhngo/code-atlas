@@ -148,6 +148,7 @@ def test_the_field_reported_payload_is_pinned_whole(tmp_path: Path, store: Graph
         "results": [],
         "truncated": False,
         "index_root": str(tmp_path),
+        "answered_about_ref": None,
         "reason": nav_result.REASON_RELATIONSHIP_NOT_MODELLED,
         "total_count": 0,
         "try_instead": nav_result.TRY_INSTEAD_SEARCH_SYMBOL,
