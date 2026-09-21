@@ -13,6 +13,7 @@ from code_atlas.tools.coverage import (
     attach_coverage_gap,
     attach_coverage_note,
     attach_unindexed_same_basename,
+    coverage_gap,
     covered_languages,
     held_suffixes,
 )
@@ -39,6 +40,7 @@ from code_atlas.tools.nav_result import (
     TRY_INSTEAD_SEARCH_SYMBOL,
     NavReason,
     answered_about_ref_for,
+    attach_coverage_edge_route,
     attach_limit_capped,
     attach_subjects_capped,
     attach_try_instead,
@@ -174,6 +176,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         with GraphStore(config.db_path) as store:
             covered = covered_languages(store)
             indexed = held_suffixes(store)
+            stamped = store.stamped_unmodelled_resolution_by_language()
             about_ref = answered_about_ref_for(store)
             # One guard for the call: scaling the repair budget with the subject count is the
             # unbounded fan-out the batch bound exists to prevent (101).
@@ -209,6 +212,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 covered,
                 detail_level=detail_level,
             )
+            attach_coverage_edge_route(
+                single,
+                stamped,
+                has_coverage_gap=bool(coverage_gap(config)),
+                detail_level=detail_level,
+            )
             return attach_unindexed_same_basename(
                 single,
                 root=config.root,
@@ -220,6 +229,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         answers = [
             _batch_answer(subject, hits) for subject, hits in zip(kept, found, strict=True)
         ]
+        gap = bool(coverage_gap(config))
+        for answer in answers:
+            attach_coverage_edge_route(
+                answer,
+                stamped,
+                has_coverage_gap=gap,
+                detail_level=detail_level,
+            )
         payload = batch_result(
             answers, index_root=index_root, answered_about_ref=about_ref
         )

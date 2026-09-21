@@ -195,9 +195,24 @@ TRY_INSTEAD_HINT_PATH_BASENAME = (
 # No route ON PURPOSE (R5.4 clause c, measured in 186): where the subject's language emits none
 # of the kinds a tool reads, no registered tool enumerates the relation either — find_references
 # on such a file answers relationship_not_modelled with zero rows. Naming it would be worse.
+# 314: name a concrete Grep/loader fallback so honesty is actionable (AC3).
 TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE = (
     "this file's language records the dependency under a different edge kind, and no indexed tool "
-    "enumerates it — treat the empty answer as unmeasured, not as zero"
+    "enumerates it — treat the empty answer as unmeasured, not as zero; Grep the subject as text "
+    "outside the index, or use the runtime's own loader"
+)
+# Coverage-edge zeros (314): stamp / gap present — Grep, never a synthetic symbol (R5.2 / 093).
+TRY_INSTEAD_HINT_DYNAMIC_SQL = (
+    "indexed files stamp dynamic_sql — the name may exist only inside EXEC/sp_executesql text; "
+    "Grep the query as literal text outside the index"
+)
+TRY_INSTEAD_HINT_RESOLUTION_UNMODELLED = (
+    "indexed languages stamp unmodelled resolution strategies — Grep the subject as text "
+    "outside the index, or use the runtime's own loader"
+)
+TRY_INSTEAD_HINT_OUTSIDE_COVERAGE = (
+    "the index does not cover every configured language — Grep the subject as text outside "
+    "the index for sites in an unindexed language"
 )
 # 188 made a route exist where 186 measured none: the resolver now links a module `IMPORTS` to the
 # file it names, so `find_references` enumerates from the File qname `include_graph` already holds.
@@ -652,6 +667,53 @@ def attach_try_instead(
     if hint:
         payload["try_instead_hint"] = hint
     return payload
+
+
+def coverage_edge_hint(
+    stamped: Mapping[str, Sequence[str]] | None,
+    *,
+    has_coverage_gap: bool = False,
+) -> str | None:
+    """Hint for a coverage-edge zero — stamp preferred, then language gap; else None (061 / 314)."""
+    if stamped:
+        strategies = {str(s) for langs in stamped.values() for s in langs}
+        if contract.RESOLUTION_DYNAMIC_SQL in strategies:
+            return TRY_INSTEAD_HINT_DYNAMIC_SQL
+        return TRY_INSTEAD_HINT_RESOLUTION_UNMODELLED
+    if has_coverage_gap:
+        return TRY_INSTEAD_HINT_OUTSIDE_COVERAGE
+    return None
+
+
+def attach_coverage_edge_route(
+    payload: dict[str, object],
+    stamped: Mapping[str, Sequence[str]] | None,
+    *,
+    has_coverage_gap: bool = False,
+    detail_level: str = "standard",
+) -> dict[str, object]:
+    """Hint-only Grep handoff on a real coverage-edge *zero*; no-op otherwise (314 / 093 / 061)."""
+    if detail_level == "minimal":
+        return payload
+    reason = payload.get("reason")
+    results = payload.get("results")
+    empty = isinstance(results, list) and len(results) == 0
+    if reason not in (
+        REASON_NO_MATCHES,
+        REASON_NO_SUCH_SYMBOL,
+        REASON_TOKEN_CANDIDATES,
+    ) or not empty:
+        return payload
+    hint = coverage_edge_hint(stamped, has_coverage_gap=has_coverage_gap)
+    if hint is None:
+        return payload
+    if stamped:
+        # Stamp is the coverage edge — Grep is not a registered tool (093).
+        payload.pop("try_instead", None)
+        return attach_try_instead(payload, None, hint)
+    if payload.get("try_instead") or payload.get("try_instead_hint"):
+        return payload
+    return attach_try_instead(payload, None, hint)
 
 
 def attach_serve_behind_route(payload: dict[str, object]) -> dict[str, object]:

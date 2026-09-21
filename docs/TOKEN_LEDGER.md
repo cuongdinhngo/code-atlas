@@ -22,6 +22,7 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 
 | # | Tokens | PR |
 |---|---|---|
+| 314 | 2 dispatch: ticket-blind `challenger` round1 NOT CLEAN (ok-path Grep) → round2 CLEAN; `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun`. Proving: `tests/test_coverage_edge_zero_handoff.py`. | [#424](https://github.com/cuongdinhngo/code-atlas/pull/424) |
 | 317 | 3 dispatch: ticket-blind `challenger` round1–2 NOT CLEAN → round3 CLEAN (read_symbol typo; other nav + reach refuse stamps); `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun`. Proving: `tests/test_answered_about_ref.py`. | [#423](https://github.com/cuongdinhngo/code-atlas/pull/423) |
 | 316 | 2 dispatch: ticket-blind `challenger` round1 NOT CLEAN (AC1 triad) → compose fix → round2 CLEAN; `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun`. Proving: `tests/test_index_status_summary.py`. | [#422](https://github.com/cuongdinhngo/code-atlas/pull/422) |
 | 315 | 2 dispatch: ticket-blind `challenger` round1 NOT CLEAN (AC3 result_subtrees) → path_prefix on edge_subtrees_by_target → round2 CLEAN; `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun`. Proving: `tests/test_search_symbol_path_prefix.py`. | [#421](https://github.com/cuongdinhngo/code-atlas/pull/421) |

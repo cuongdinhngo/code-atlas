@@ -4,7 +4,7 @@ slug: a-zero-at-a-coverage-edge-dies-silent
 title: "A tool that returns zero at a coverage edge attaches no try_instead and names no grep target, so the code-atlas chain ends on a bare no_matches and the session falls back to a grep it never returns from"
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [065, 093, 296]
 ---
 
@@ -101,3 +101,79 @@ coverage it does not have.
 [093](093_try-instead-is-not-a-callable-tool-name.md),
 [296](296_the-sql-adapter-names-the-dynamic-procs-and-stamps-nothing.md),
 ENGINEERING_RULES R1.1, R4.2, R5.2, R5.6, R6.8.
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 314 — coverage-edge zero handoff (working doc)
+- **TIER:** full · **TRACK:** backend · **SCOPE:** S · **BASELINE:** green
+- **Depends on:** 065, 093, 296 (done)
+- **reviewer:** off · **challenger:** on
+- **Branch:** `feat/314-coverage-edge-zero-handoff`
+- **work_doc_mode:** embed
+
+## Session status
+- **Current phase:** finalise
+
+## Phase 0
+`PREMISE: 5 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)`
+`RECALL: 0 claim(s) surfaced | 0 by symbol | 0 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`REFINE: 2 unresolved surfaced | 0 want-decision asked | 2 how-decision resolved+cited | 0 ASSUMED | skip: no`
+| # | HOW-decision | Resolution | Citation |
+|---|--------------|------------|----------|
+| 1 | Signal for dynamic-SQL gap | Index meta `stamped_unmodelled_resolution_by_language` (296), never synthesize symbols | ticket Scope §1; R5.2; explore e21faf8f |
+| 2 | Redirect shape | Hint-only Grep (PATH_BASENAME pattern); `try_instead` omitted (093) | nav_result PATH_BASENAME; Constraints 093 |
+`CLARIFICATION: 2 raised | 2 self-resolved (cited) | 0 for human decision`
+
+## Phase 1 — Analysis
+`SECTIONS: 5 found (Goal · Scope / Deliverables · Constraints · Acceptance criteria · Out of scope) | 5 decomposed | ROWS: C=4 R=4 G=1 AC=5`
+`RULE SECTIONS: 5 applicable — 5 by change-type | 0 by recalled handle — R1.1 (change-type) ✅ · R4.2 (change-type) ✅ · R5.2 (change-type) ✅ · R5.6 (change-type) ✅ · R7.2 (change-type) ✅`
+`BASELINE: green`
+
+| ID | Source | Interpretation | Status |
+|----|--------|----------------|--------|
+| C1 | R5.2/R5.6 | stamp + coverage fields only | ✅ |
+| C2 | R1.1 | strategy tokens, no language == | ✅ |
+| C3 | 061 | no fire without stamp/gap | ✅ |
+| C4 | 093 | Grep is hint, not tool | ✅ |
+| R1–R4 | Scope 1–4 | helpers + wire three tools + hint rewrite | ✅ |
+| G1 | deliberate handoff | AC1–AC3 | ✅ |
+| AC1–AC5 | proving + AC5 probe note | ✅ | ✅ |
+
+## AC validation
+| AC | Match? | Falsifiable? |
+|----|--------|--------------|
+| AC1 | Y | stamped search miss greps dynamic_sql |
+| AC2 | Y | gap vs covered byte-id pair |
+| AC3 | Y | Grep in unmeasured hints |
+| AC4 | Y | no new language == |
+| AC5 | Y | recorded as probe, not fixture |
+
+## Phase 2 — Design
+**Approach:** `coverage_edge_hint` / `attach_coverage_edge_route` in nav_result; wire search_symbol / find_callers / find_references; rewrite RELATION_UNMODELLED + orphans hints.
+**Rejected:** (a) per-file subject↔EXEC correlation — no store API, R5.2; (b) fake try_instead=grep tool — 093.
+`HANDLES: 0 recalled | 0 traced | 0 does not apply | 0 unanswered`
+`EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
+**APPROVED CHANGE LIST:**
+1. `code_atlas/tools/nav_result.py` — hints + attach_coverage_edge_route
+2. `code_atlas/tools/search_symbol.py` / `find_callers.py` / `find_references.py` / `find_orphans.py` — wire / hint
+3. `tests/test_coverage_edge_zero_handoff.py` — proving
+4. working doc / BACKLOG / TOKEN_LEDGER
+**PROVING TEST:** `.venv/bin/python -m pytest tests/test_coverage_edge_zero_handoff.py -q`
+**TREE_PATHS:** `code_atlas/tools/nav_result.py code_atlas/tools/search_symbol.py code_atlas/tools/find_callers.py code_atlas/tools/find_references.py code_atlas/tools/find_orphans.py tests/test_coverage_edge_zero_handoff.py docs/tasks/314_a-zero-at-a-coverage-edge-dies-silent.md docs/BACKLOG.md docs/TOKEN_LEDGER.md`
+**Gate 2 status:** cleared (autorun)
+
+## Phase 3 — Execute
+Implemented. Proving green.
+`PROVING TEST:` `.venv/bin/python -m pytest tests/test_coverage_edge_zero_handoff.py -q` → 6 passed.
+
+## Phase 4 — Review
+`REVIEWER: OFF` — waived by `--no-reviewer`.
+`CHALLENGER: ON` — round1 NOT CLEAN (ok-path Grep rider) → round2 CLEAN (agent 0d31889a). Gate 4: challenger CLEAN; reviewer waived.
+
+## Phase 5 — Finalise
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`LEDGER TOTAL: unmeasured · top cost driver: main-loop`

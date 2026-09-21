@@ -119,9 +119,9 @@ def test_index_root_weight_before_after_recorded(tmp_path: Path) -> None:
     assert "index_root" in callers and "index_root" in search and "index_root" in status
     assert "db_path" not in callers and "db_path" not in search
     assert delta_callers > 0 and delta_search > 0
-    # Soft ceiling after 071; raised 500→560 for adapter #4 (python); 560→620 for
-    # answered_about_ref on every nav envelope (317).
-    assert sizes["find_callers"] < 620
+    # Soft ceiling after 071; 500→560 adapter #4 (python); 620 answered_about_ref (317) and
+    # 720 coverage-edge unconfigured_adapters row (314) stack to ~755 → 800 on every payload.
+    assert sizes["find_callers"] < 800
     assert delta_callers == len(f',"index_root":{json.dumps(callers["index_root"])}')
     assert delta_search == len(f',"index_root":{json.dumps(search["index_root"])}')
     # Pin measured sizes for the working-doc 061 reconciliation.

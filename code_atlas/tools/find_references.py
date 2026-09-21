@@ -21,6 +21,7 @@ from code_atlas.symbol_role import aggregate_test_count_source, stored_test_sour
 from code_atlas.tools import call_site, claim
 from code_atlas.tools.coverage import (
     attach_coverage_note,
+    coverage_gap,
     covered_languages,
     cross_language_census_has_edges,
     cross_language_relation_unmodelled,
@@ -51,6 +52,7 @@ from code_atlas.tools.nav_result import (
     apply_empty_inbound_honesty,
     attach_ambiguous_definitions,
     attach_authoritative_caveats,
+    attach_coverage_edge_route,
     attach_cross_language_census,
     attach_limit_capped,
     attach_resolved_qname,
@@ -326,6 +328,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         about_ref: str | None = None
         with GraphStore(config.db_path) as store:
             covered = covered_languages(store)
+            stamped = store.stamped_unmodelled_resolution_by_language()
             emitted_kinds = store.stamped_emitted_kinds_by_language()
             about_ref = answered_about_ref_for(store)
             if sign or serve_behind:
@@ -400,6 +403,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     )
                     shaped = shape_exact_miss(miss, resolution)
                     finalize_subject_checked_miss(shaped, guard)
+                    attach_coverage_edge_route(
+                        shaped,
+                        stamped,
+                        has_coverage_gap=bool(coverage_gap(config)),
+                        detail_level=detail_level,
+                    )
                     return signed(
                         attach_coverage_note(
                             shaped, config, covered,
@@ -611,11 +620,15 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             dirty_paths=behind_dirty,
             subject_unrepaired=subject_unrepaired,
         )
+        labelled = attach_try_instead(labelled, try_instead, try_instead_hint)
+        attach_coverage_edge_route(
+            labelled,
+            stamped,
+            has_coverage_gap=bool(coverage_gap(config)),
+            detail_level=detail_level,
+        )
         return signed(
-            attach_coverage_note(
-                attach_try_instead(labelled, try_instead, try_instead_hint), config, covered,
-                detail_level=detail_level,
-            )
+            attach_coverage_note(labelled, config, covered, detail_level=detail_level)
         )
 
     return find_references

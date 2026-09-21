@@ -30,8 +30,9 @@ WALK_BUDGET_EXHAUSTED = WALK_BUDGET_EXHAUSTED
 
 _HINT_RESOLUTION_UNMODELLED = (
     "a registered resolution strategy leaves include-based reachability unmeasured — "
-    "treat a large no_inbound population as unmeasured, not as zero; use the language "
-    "runtime's own loader diagnostics, not this orphan list"
+    "treat a large no_inbound population as unmeasured, not as zero; Grep entry-point "
+    "names as text outside the index, or use the language runtime's own loader diagnostics, "
+    "not this orphan list"
 )
 
 
