@@ -4,7 +4,7 @@ slug: the-agent-brief-teaches-prose-tied-to-nothing
 title: "The agent brief's usage rules are hand-authored prose tied to nothing in the shipped surface, so a param or capability lands green while the brief stays silent — kind:/namespace, the Table/Column writer set (278) and the dynamic-SQL refusal (296) are all untaught"
 phase: 1.5b
 milestone: Adoption
-status: todo
+status: done
 depends_on: [266, 270, 278, 296]
 ---
 
@@ -94,3 +94,131 @@ agent brief either teaching it or waiving it out loud — and backfill the four 
 [296](296_the-sql-adapter-names-the-dynamic-procs-and-stamps-nothing.md),
 [081](081_routing-prompts-are-not-in-the-agents-surface.md),
 [097](097_recognition-probe-measures-names-not-recall.md), ENGINEERING_RULES R6.3, R6.7, R7.6.
+
+---
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 313 — agent brief usage completeness gate (working doc)
+
+- **Ticket:** 313 · local
+- **Type:** enhancement
+- **Repo(s) / Porting:** app
+- **SCOPE:** M
+- **STRUCTURE:** native
+- **TRACK:** backend
+- **TIER:** full
+- **BASELINE:** green
+- **INPUT KIND:** ticket
+- **work_doc_mode:** embed · path: docs/tasks/313_the-agent-brief-teaches-prose-tied-to-nothing.md
+- **Current phase:** finalise
+
+## Phase 0 — Refine
+
+`PREMISE: 6 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)`
+`RECALL: 0 claim(s) surfaced | 0 by symbol | 0 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`REFINE: 0 unresolved surfaced | 0 want-decision asked | 0 how-decision resolved+cited | 0 ASSUMED | skip: yes`
+
+refine skipped: 0 unresolved product-decisions — ticket names the four gaps, the gate shape, and the out-of-scope boundaries.
+
+## Requirements matrix
+
+`SECTIONS: 5 found (Why this exists · Scope / Deliverables · Constraints · Acceptance criteria · References) | 5 decomposed | ROWS: C=4 R=3 G=1 AC=4`
+
+| ID | Source | Verbatim | Interpretation | Ph2 | Ph3/4 | Status |
+|----|--------|----------|----------------|-----|-------|--------|
+| G1 | Goal | impossible to ship untaught param/capability/refusal | completeness gate + backfill | D1–D2 | AC1–AC3 | ✅ |
+| C1 | Constraints | R6.7 routing stays map-sourced | touch USAGE_RULES + gate only | D2 | AC4 | ✅ |
+| C2 | Constraints | no new first-call adoption claim | usage rules only | — | — | ✅ |
+| C3 | Constraints | R7.6 add not retell | new section; no stale delete | D2 | docs | ✅ |
+| C4 | Constraints | gate reads shipped surface | AST params + module constants | D1 | AC2 | ✅ |
+| R1 | Scope | completeness gate beside brief tests | tests/test_agent_brief_usage_completeness.py | D1 | AC1–AC2 | ✅ |
+| R2 | Scope | backfill four measured gaps | USAGE_RULES + regenerate golden | D2 | AC3 | ✅ |
+| R3 | Scope | honest waiver set | PARAM_WAIVERS / REFUSAL_WAIVERS with why | D1 | AC1 | ✅ |
+| AC1 | AC | gate passes; delete rule → red naming item | proving | D1 | proving | ✅ |
+| AC2 | AC | new param without mention/waiver fails | monkeypatch fixture | D1 | proving | ✅ |
+| AC3 | AC | golden teaches all four | greppable golden | D2 | proving | ✅ |
+| AC4 | AC | routing drift guards unchanged | existing tests | — | adjacent | ✅ |
+
+`CLARIFICATION: 0 raised | 0 self-resolved (cited) | 0 for human decision`
+
+## Phase 1 — Analysis
+
+- Root cause: USAGE_RULES are hand prose with only golden-bytes drift guard — no pin to tool params / capabilities / refusal tokens.
+- TRACK: backend — 0/0 UI
+
+`RULE SECTIONS: 4 applicable — 4 by change-type | 0 by recalled handle — R6.7 (change-type) ✅ · R6.3 (change-type) ✅ · R7.6 (change-type) ✅ · R7.2 (change-type) ✅`
+
+Ran at 96ef956986ecdfc12e99452a860aa4fa6bf5a8c3
+
+```
+$ .venv/bin/python -m pytest tests/test_agent_brief_in_indexed_repo.py tests/test_routing_surface.py -q --tb=no
+.......                                                                  [100%]
+7 passed in 0.69s
+```
+
+`BASELINE: green`
+
+## Phase 2 — Design
+
+- Approach: AST-enumerate OCCASIONS tool params; discover writer capability via `_writes_targets`; discover refusal tokens from `reach_shared` + `RESOLUTION_DYNAMIC_SQL`; require brief mention or commented waiver; backfill four USAGE_RULES; regenerate `contrib/agent-brief.md`.
+- Rejected: hand-copied param roster (same drift one level up); changing RECOGNITION_MAP/OCCASIONS (out of scope).
+
+`HANDLES: 0 recalled | 0 traced (command + result) | 0 does not apply (reason) | 0 unanswered`
+`EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+**Proving test:** `.venv/bin/python -m pytest tests/test_agent_brief_usage_completeness.py -q`
+
+| # | Change | File | Blast | k/N |
+|---|--------|------|-------|-----|
+| D1 | completeness gate + waivers | tests/test_agent_brief_usage_completeness.py | tests | 1/1 |
+| D2 | USAGE_RULES backfill + golden | scripts/gen_skill.py · contrib/agent-brief.md | brief | 1/1 |
+| D3 | bookkeeping | docs/tasks/313_… · BACKLOG · TOKEN_LEDGER | docs | 1/1 |
+
+## Phase 3 — Execute
+
+**Branch:** feat/313-agent-brief-usage-completeness-gate
+
+**Verification sweep**
+
+Ran at 96ef956986ecdfc12e99452a860aa4fa6bf5a8c3
+
+```
+$ .venv/bin/python -m pytest tests/test_agent_brief_usage_completeness.py -q --tb=no
+.....                                                                    [100%]
+5 passed in 0.51s
+```
+
+`DIFF ⊆ approved list: yes`
+`DESIGN-CONFORMANCE: self-check passed`
+
+## Phase 4 — Review
+
+REVIEWER: off (waived --no-reviewer)
+CHALLENGER: on — round-1 NOT CLEAN → fix → round-2 CLEAN (19 met / 0 not met / 0 can't-tell)
+agent 0c3ef8f5-360b-419d-852a-0a79c58ecf6a
+
+`REVIEW: CLEAN`
+`SCOPE ≡ approved list: yes`
+`DIFF ⊆ approved list: yes`
+
+Ran at 96ef956986ecdfc12e99452a860aa4fa6bf5a8c3
+
+```
+$ .venv/bin/python -m pytest tests/test_agent_brief_usage_completeness.py -q --tb=no
+.....                                                                    [100%]
+5 passed in 0.58s
+```
+
+## Phase 5 — Finalise
+
+Outward: push + PR. Never merge.
+
+## Cost ledger
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`LEDGER TOTAL: unmeasured · top cost driver: main-loop (challenger x1)`
