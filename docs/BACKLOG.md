@@ -33,7 +33,6 @@ M10–M12 have all landed; round narratives live in [`FEEDBACK.md`](FEEDBACK.md)
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
-| 263 | [The question a newcomer asks most is the one table that is empty](tasks/263_the-question-a-newcomer-asks-most-is-the-one-table-that-is-empty.md) | Onboarding | todo | 114, 210 |
 | 269 | [Twelve graph nouns where a reader has seven questions](tasks/269_twelve-graph-nouns-where-a-reader-has-seven-questions.md) | Onboarding | todo | 263, 121, 210, 139 |
 | 310 | [Change Assurance value gate — dropped unmeasured](tasks/310_four-week-change-assurance-adoption-gate.md) | Change Assurance | deferred | 260, 300, 309, 312 |
 

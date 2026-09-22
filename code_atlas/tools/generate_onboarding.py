@@ -189,6 +189,7 @@ def assemble_onboarding_snapshot(
         provenance=provenance,
         orientation=orientation,
         audience=wants.audience,
+        repo_root=Path(config.root),
     )
     return {
         "artifact": artifact,

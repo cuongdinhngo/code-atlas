@@ -101,7 +101,8 @@ CACHE_NAME = "artifact.json"
 # 1 -> 2 (205): the `pages` and `isolated` keys are gone with the module-page tree.
 # 2 -> 3 (208): every reachability bucket gains `caveat` and `declaration`.
 # 3 -> 4 (211): summary gains `community_crossings`.
-ARTIFACT_VERSION = 4
+# 4 -> 5 (263): business_modules gains `source` (toml/structural/entry/empty_explained).
+ARTIFACT_VERSION = 5
 
 __all__ = [
     "ARTIFACT_VERSION",
@@ -578,10 +579,11 @@ def _provenance_lines(provenance: Provenance | None) -> list[str]:
 
 
 def _module_lines(modules: object) -> list[str]:
-    """The capability table with the coverage it does NOT claim (task 114).
+    """The capability table with the coverage it does NOT claim (task 114 / 263).
 
     Coverage is printed before the rows, so a reader cannot take the table for the whole repo; a
     container refused for grouping by role is named with its reason instead of vanishing (AC5).
+    Source (263) is always stated; an empty table is never silent.
     """
     if not isinstance(modules, dict):
         return []
@@ -589,6 +591,7 @@ def _module_lines(modules: object) -> list[str]:
     lines = [
         H_MODULES,
         "",
+        f"- source: `{modules.get('source', 'structural')}`",
         f"- coverage: {cover.get('covered', 0)} of {cover.get('total', 0)} indexed files "
         f"({cover.get('percent', 0.0)} %); {cover.get('excluded', 0)} excluded "
         "as vendored or test code",
@@ -597,8 +600,6 @@ def _module_lines(modules: object) -> list[str]:
     rows = modules.get("modules")
     for row in rows if isinstance(rows, list) else []:
         flag = " — **only tree**" if row.get("single_tree") else ""
-        # 198: the label is what a reader sees; the directory stays beside it, because a renamed
-        # capability a reader cannot grep for would be worse than the bare path it replaced.
         label = row.get("label") or row["module"]
         named = (
             f"**{label}** (`{row['module']}`)" if label != row["module"]
@@ -611,7 +612,16 @@ def _module_lines(modules: object) -> list[str]:
         if row.get("hub"):
             lines.append(f"  - busiest file: `{row['hub']}` (fan_in {row['hub_fan_in']})")
     if not rows:
-        lines.append("- (no capability layout found)")
+        reason = modules.get("empty_reason")
+        if isinstance(reason, str) and reason:
+            lines.append(f"- **{reason}**")
+            for entry in modules.get("candidate_globs") or []:
+                if isinstance(entry, dict):
+                    lines.append(
+                        f"  - `{entry.get('glob')}`: files_matched {entry.get('files_matched', 0)}"
+                    )
+        else:
+            lines.append("- (no capability layout found)")
     refused = modules.get("refused")
     for entry in refused if isinstance(refused, list) else []:
         lines.append(f"- refused `{entry['container']}`: {entry['reason']}")
