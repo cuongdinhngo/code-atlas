@@ -23,7 +23,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
 | 318 | [313's refusal gate reads a hand-list, so sibling tokens dynamic_import/autoload ship untaught](tasks/318_refusal-gate-misses-sibling-resolution-statuses.md) | Agent-trust | todo | 313, 296 |
-| 319 | [_state() recomputes the one-liner 316's summary already lifts, so two ground-truths can disagree](tasks/319_state-recomputes-the-summary-316-already-lifts.md) | Agent-trust | todo | 316, 300 |
 
 ## Open work — Pillar 2 · Onboarding
 
