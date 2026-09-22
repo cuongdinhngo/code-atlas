@@ -78,15 +78,18 @@ def test_the_audience_changes_which_sections_the_written_tree_holds(tmp_path: Pa
     """AC1 — provably, on the emitted markdown, not in the discarded response."""
     config = _repo(tmp_path)
     shapes = {}
+    bodies = {}
     for audience in AUDIENCES:
         generate_onboarding.create(config)(audience=audience)  # type: ignore[arg-type]
-        shapes[audience] = _headings(_overview(tmp_path))
+        bodies[audience] = _overview(tmp_path)
+        shapes[audience] = _headings(bodies[audience])
 
     assert shapes[NEWCOMER] != shapes[MAINTAINER], "one shape for both readers is the defect"
-    assert "Start here" in shapes[NEWCOMER]
-    assert "Start here" not in shapes[MAINTAINER], "the auditor knows how to run it"
-    assert "Cross-layer edges" in shapes[MAINTAINER]
-    assert "Cross-layer edges" not in shapes[NEWCOMER], "a 99-row table is noise on day one"
+    # 269: orientation is the doors question; appendix census uses ### under Appendix.
+    assert "Where do I start reading?" in shapes[NEWCOMER]
+    assert "Where do I start reading?" not in shapes[MAINTAINER], "the auditor knows how to run it"
+    assert "### Cross-layer edges" in bodies[MAINTAINER]
+    assert "### Cross-layer edges" not in bodies[NEWCOMER], "a 99-row table is noise on day one"
     # Neither is the other minus a few sections: that would be a flag wearing a bigger name (R7.4).
     newcomer, maintainer = set(shapes[NEWCOMER]), set(shapes[MAINTAINER])
     assert not newcomer <= maintainer and not maintainer <= newcomer
@@ -108,7 +111,7 @@ def test_the_artifact_states_its_audience(tmp_path: Path) -> None:
     config = _repo(tmp_path)
     generate_onboarding.create(config)(audience=MAINTAINER)  # type: ignore[arg-type]
     overview = _overview(tmp_path)
-    assert "## Who this was written for" in overview
+    assert "### Who this was written for" in overview
     assert f"- audience: `{MAINTAINER}`" in overview
     manifest = json.loads(
         (tmp_path / OUTPUT_DIR / MANIFEST_NAME).read_text(encoding="utf-8")
@@ -120,8 +123,9 @@ def test_the_artifact_states_its_audience(tmp_path: Path) -> None:
 
 
 def test_regenerating_with_the_same_audience_is_byte_identical(tmp_path: Path) -> None:
-    """AC3's other half — the audience is a resolved setting, never inferred (R4.2)."""
+    """AC3's other half — the audience is a resolved setting, never inferred (R4.2 / 269 Q6)."""
     config = _repo(tmp_path)
+    generate_onboarding.create(config)(audience=NEWCOMER)  # type: ignore[arg-type]
     generate_onboarding.create(config)(audience=NEWCOMER)  # type: ignore[arg-type]
     first = _overview(tmp_path)
     generate_onboarding.create(config)(audience=NEWCOMER)  # type: ignore[arg-type]
@@ -132,6 +136,7 @@ def test_the_default_audience_is_todays_artifact(tmp_path: Path) -> None:
     """`full` is kept as an explicit third audience so a pre-210 tree is still describable."""
     config = _repo(tmp_path)
     generate_onboarding.create(config)()  # type: ignore[arg-type]
+    generate_onboarding.create(config)()  # type: ignore[arg-type]  # seed prior for Q6
     default = _overview(tmp_path)
     generate_onboarding.create(config)(audience=FULL)  # type: ignore[arg-type]
     assert _overview(tmp_path) == default
@@ -230,6 +235,6 @@ def test_a_sections_presence_never_depends_on_another_sections(tmp_path: Path) -
     finally:
         module.contract_for = original  # type: ignore[assignment]
 
-    assert "## Layers" not in rendered
-    assert "## Layer graph" in rendered, "the diagram vanished with a section it does not depend on"
-    assert "## Cross-layer edges" in rendered
+    assert "### Layers" not in rendered
+    assert "### Layer graph" in rendered, "diagram must survive without Layers"
+    assert "### Cross-layer edges" in rendered

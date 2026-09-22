@@ -266,4 +266,4 @@ def test_community_crossing_is_ranked_and_rendered(tmp_path: Path) -> None:
     assert crossings
     layers = set(crossings[0]["layers"])
     assert {"Domain / Data", "HTTP / Entry"} <= layers
-    assert "## Community / layer disagreement" in overview
+    assert "### Community / layer disagreement" in overview

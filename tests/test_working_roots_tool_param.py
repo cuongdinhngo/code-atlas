@@ -40,6 +40,7 @@ def test_argument_scopes_the_tour_when_config_is_unset(tmp_path: Path) -> None:
 def test_unset_argument_preserves_env_default(tmp_path: Path) -> None:
     """AC2 — omitting the argument keeps CA_WORKING_ROOTS / config behaviour byte-identical."""
     config = replace(_scoped_repo(tmp_path), working_roots=("app",))
+    generate_onboarding.create(config)()  # seed prior for 269 Q6
     via_config = generate_onboarding.create(config)()
     docs = {
         name: (_out(tmp_path) / name).read_bytes()

@@ -267,7 +267,7 @@ BUDGETS = {
     # 1,950 -> 1,800 on 2026-09-20 (308): 307 and 308 closed and their rows left the table, so the
     # old ceiling stopped biting and `test_the_budgets_are_not_slack` said so. Lowered to the
     # measured size plus headroom, which is what that guard asks for.
-    "BACKLOG.md": 1_800,
+    "BACKLOG.md": 1_700,
     "ENGINEERING_RULES.md": 5_700,
     "AGENT_BRIEF.md": 2_250,
     # 6,700 -> 6,800 on 2026-09-09 (236): the `ForeignKey` node kind joins the vocabulary of record

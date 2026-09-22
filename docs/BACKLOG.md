@@ -33,7 +33,6 @@ M10–M12 have all landed; round narratives live in [`FEEDBACK.md`](FEEDBACK.md)
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
-| 269 | [Twelve graph nouns where a reader has seven questions](tasks/269_twelve-graph-nouns-where-a-reader-has-seven-questions.md) | Onboarding | todo | 263, 121, 210, 139 |
 | 310 | [Change Assurance value gate — dropped unmeasured](tasks/310_four-week-change-assurance-adoption-gate.md) | Change Assurance | deferred | 260, 300, 309, 312 |
 
 **What still governs open work:** the surface has **24 tools** (`main.TOOL_NAMES`), count-pinned by

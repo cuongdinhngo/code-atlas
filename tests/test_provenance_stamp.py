@@ -60,7 +60,7 @@ def test_the_default_run_names_every_seam_in_the_committed_overview(tmp_path: Pa
     """AC1, markdown half — the emitted overview attributes all three seams."""
     generate_onboarding.create(_seed(tmp_path))()  # type: ignore[arg-type]
     overview = (_out(tmp_path) / OVERVIEW_NAME).read_text(encoding="utf-8")
-    assert "## How this was written" in overview
+    assert "### How this was written" in overview
     assert "- module summaries (085): `StructuralSummarizer`" in overview
     assert "- map prose (117): the deterministic default" in overview
     assert "- layer names (091): `IdentityLayerRefiner`" in overview
@@ -99,8 +99,9 @@ def test_a_different_summarizer_changes_the_stamp_and_nothing_else_moves(
 
 
 def test_the_same_summarizer_twice_is_byte_identical(tmp_path: Path) -> None:
-    """AC4's other half — the stamp is a function of the configuration, not the clock (R4.2)."""
+    """AC4's other half — stamp is a function of config, not the clock (R4.2 / 269)."""
     config = _seed(tmp_path)
+    generate_onboarding.create(config, summarizer=_ShoutySummarizer())()  # type: ignore[arg-type]
     generate_onboarding.create(config, summarizer=_ShoutySummarizer())()  # type: ignore[arg-type]
     first = [
         (name, (_out(tmp_path) / name).read_text(encoding="utf-8"))

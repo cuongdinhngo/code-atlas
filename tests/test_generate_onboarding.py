@@ -98,7 +98,12 @@ def test_generate_onboarding_writes_structured_markdown_in_dependency_order(
 
     second = tool()
     assert payload == second
-    assert (out / "overview.md").read_text(encoding="utf-8") == overview
+    # 269 Q6: second run diffs the first's manifest; R4.2 holds once a prior exists.
+    overview2 = (out / "overview.md").read_text(encoding="utf-8")
+    assert "DiffRefusal" not in overview2 or "No architectural change" in overview2
+    third = tool()
+    assert second == third
+    assert (out / "overview.md").read_text(encoding="utf-8") == overview2
     assert (out / "tour.md").read_text(encoding="utf-8") == tour
     assert (out / "manifest.json").read_text(encoding="utf-8") == json.dumps(
         manifest, sort_keys=True, ensure_ascii=False, indent=2
@@ -106,7 +111,9 @@ def test_generate_onboarding_writes_structured_markdown_in_dependency_order(
 
 
 def test_generate_onboarding_is_byte_stable_across_two_runs(tmp_path: Path) -> None:
+    """R4.2 — once a prior manifest exists, identical input yields identical overview (269 Q6)."""
     config = _cycle_repo(tmp_path)
+    generate_onboarding.create(config)()  # seeds prior manifest
     first = generate_onboarding.create(config)()
     overview = (_out(tmp_path) / "overview.md").read_bytes()
     tour = (_out(tmp_path) / "tour.md").read_bytes()
@@ -251,8 +258,9 @@ def test_the_overview_no_longer_counts_pages_or_isolated_modules(tmp_path: Path)
 
 
 def test_generate_onboarding_composition_is_byte_stable(tmp_path: Path) -> None:
-    """The emitted composition must stay deterministic (R4.2)."""
+    """The emitted composition must stay deterministic once a prior exists (R4.2 / 269 Q6)."""
     config = _sparse_repo(tmp_path)
+    generate_onboarding.create(config)()  # seeds prior manifest
     first = generate_onboarding.create(config)()
     manifest = (_out(tmp_path) / "manifest.json").read_bytes()
     overview = (_out(tmp_path) / "overview.md").read_bytes()
