@@ -132,7 +132,7 @@ MOD_RE = re.compile(r"(?:^|/)(?:application|modules|Application)/([A-Za-z][A-Za-
 SKIP = {"common", "include", "includes", "system", "lib", "libs", "controller", "model", "view",
         "views", "config", "core", "shared", "util", "utils", "helper", "helpers", "test", "tests",
         # region containers, not business modules
-        "alpha", "beta", "anz", "region", "regions",
+        "alpha", "beta", "ab", "region", "regions",
         # vendored libraries that happen to sit under a modules/ directory
         "phpexcel", "phpword", "saml", "simplesamlphp", "tcpdf", "mpdf", "adodb", "smarty",
         "log4php", "zend", "fpdf", "dompdf", "phpqrcode", "vendor"}

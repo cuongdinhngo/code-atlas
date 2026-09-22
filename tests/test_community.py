@@ -93,7 +93,8 @@ def test_two_communities_sharing_a_stem_keep_distinct_labels() -> None:
     """A mirrored tree gives two communities the same representative stem; labels must still differ.
 
     One label for both would merge unrelated bands in the tour and union their layers in the
-    crossings finding — the two `Db.php` hubs below are exactly 211's `legacy/alpha`/`legacy/beta` case.
+    crossings finding — the two `Db.php` hubs below are exactly 211's
+    `legacy/alpha`/`legacy/beta` case.
     """
     files = [
         "legacy/alpha/Db.php",
@@ -102,7 +103,10 @@ def test_two_communities_sharing_a_stem_keep_distinct_labels() -> None:
         "legacy/beta/Order.php",
     ]
     edges = _tiers(
-        [("legacy/alpha/Db.php", "legacy/alpha/Order.php"), ("legacy/beta/Db.php", "legacy/beta/Order.php")]
+        [
+            ("legacy/alpha/Db.php", "legacy/alpha/Order.php"),
+            ("legacy/beta/Db.php", "legacy/beta/Order.php"),
+        ]
     )
     result = assign_communities(files, edges)
     alpha, beta = result["legacy/alpha/Db.php"], result["legacy/beta/Db.php"]

@@ -53,12 +53,12 @@ def _seed_upload(graph: GraphStore, root: Path) -> None:
 def test_name_tokens_split_camel_and_snake() -> None:
     assert contract.name_tokens("uploadMemberPhoto") == (
         "upload",
-        "resident",
+        "member",
         "photo",
     )
     assert contract.name_tokens("upload_member_photo") == (
         "upload",
-        "resident",
+        "member",
         "photo",
     )
     assert contract.name_tokens("get") == ()

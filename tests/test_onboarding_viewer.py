@@ -547,9 +547,9 @@ def test_palette_page_one_represents_every_subtree(tmp_path: Path) -> None:
     067's finding, one layer out: ``find_callers`` page 1 clustered into whichever subtree came
     first, and the palette sits beside the mirror panel that exists to prevent exactly that.
     """
-    paths = _mirror_paths("resident", 60)
-    report = _report(tmp_path, render_viewer(_dataset(paths), 50), "resident")
-    found = report["search"]["resident"]
+    paths = _mirror_paths("member", 60)
+    report = _report(tmp_path, render_viewer(_dataset(paths), 50), "member")
+    found = report["search"]["member"]
 
     assert found["paths"] == 121 and found["cut"] > 0, found
     shown = [item for item in found["items"] if "/" in item]
@@ -559,21 +559,21 @@ def test_palette_page_one_represents_every_subtree(tmp_path: Path) -> None:
 @needs_node
 def test_palette_ranks_a_basename_match_above_a_path_match(tmp_path: Path) -> None:
     """126 AC1: score before truncating — a name hit outranks a directory hit."""
-    paths = [f"resident/deep/File{index:04d}.aa" for index in range(60)]
-    paths.append("other/resident.aa")
-    report = _report(tmp_path, render_viewer(_dataset(paths), 50), "resident")
-    shown = [item for item in report["search"]["resident"]["items"] if "/" in item]
+    paths = [f"member/deep/File{index:04d}.aa" for index in range(60)]
+    paths.append("other/member.aa")
+    report = _report(tmp_path, render_viewer(_dataset(paths), 50), "member")
+    shown = [item for item in report["search"]["member"]["items"] if "/" in item]
 
-    assert shown[0] == "other/resident.aa", shown[:3]
+    assert shown[0] == "other/member.aa", shown[:3]
 
 
 @needs_node
 def test_palette_discloses_the_subtrees_a_truncated_page_spans(tmp_path: Path) -> None:
     """126 AC2: the artifact-layer ``result_subtrees`` — present iff truncated across subtrees."""
     spanning = _report(
-        tmp_path, render_viewer(_dataset(_mirror_paths("resident", 60)), 50), "resident"
+        tmp_path, render_viewer(_dataset(_mirror_paths("member", 60)), 50), "member"
     )
-    hint = spanning["search"]["resident"]["hint"]
+    hint = spanning["search"]["member"]["hint"]
     assert "3 top-level subtrees" in hint, hint
     for tree in ("alpha", "beta", "src"):
         assert tree in hint, hint
@@ -582,30 +582,30 @@ def test_palette_discloses_the_subtrees_a_truncated_page_spans(tmp_path: Path) -
     single = _report(
         tmp_path,
         render_viewer(
-            _dataset([f"alpha/mod/resident_{index:04d}.aa" for index in range(60)]), 50
+            _dataset([f"alpha/mod/member_{index:04d}.aa" for index in range(60)]), 50
         ),
-        "resident",
+        "member",
     )
-    assert "top-level subtrees" not in single["search"]["resident"]["hint"]
+    assert "top-level subtrees" not in single["search"]["member"]["hint"]
 
     # Untruncated: nothing to disclose either, across however many subtrees.
     small = _report(
-        tmp_path, render_viewer(_dataset(_mirror_paths("resident", 5)), 50), "resident"
+        tmp_path, render_viewer(_dataset(_mirror_paths("member", 5)), 50), "member"
     )
-    assert small["search"]["resident"]["cut"] == 0
-    assert "top-level subtrees" not in small["search"]["resident"]["hint"]
+    assert small["search"]["member"]["cut"] == 0
+    assert "top-level subtrees" not in small["search"]["member"]["hint"]
 
 
 @needs_node
 def test_palette_order_does_not_depend_on_dataset_order(tmp_path: Path) -> None:
     """126 AC3: the ranking is a total order, so the displayed page is input-order independent."""
-    paths = _mirror_paths("resident", 60)
-    forward = _report(tmp_path, render_viewer(_dataset(paths), 50), "resident")
+    paths = _mirror_paths("member", 60)
+    forward = _report(tmp_path, render_viewer(_dataset(paths), 50), "member")
     reversed_ = _report(
-        tmp_path, render_viewer(_dataset(list(reversed(paths))), 50), "resident"
+        tmp_path, render_viewer(_dataset(list(reversed(paths))), 50), "member"
     )
 
-    assert forward["search"]["resident"]["items"] == reversed_["search"]["resident"]["items"]
+    assert forward["search"]["member"]["items"] == reversed_["search"]["member"]["items"]
 
 
 # --------------------------------------------------------------------------- 197: flows render

@@ -34,7 +34,7 @@ the source.** And the candidates they enumerate are chosen alphabetically:
 
 ```
 Zend/Cache/Cache/Backend/Memcached.php:133   ->   'get'   (8 stored edges)
-   \LedgerAPIController::get · \LedgerAPIModel::get · \AbsenceLeaveAPIController::get
+   \LedgerAPIController::get · \LedgerAPIModel::get · \LeaveAPIController::get
    \AbsenceLeaveAPIModel::get · \AbstractRateDetail::get · \AccessGroupsAPIController::get
    \ActiveMembersAPIController::get · \AdditionalContactsAPIController::get
 ```

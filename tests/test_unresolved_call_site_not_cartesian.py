@@ -16,7 +16,7 @@ from tests.test_nav_tools import db_config, edge, node, seed_file
 
 ZEND_FILE = "vendor/Zend/Cache/Backend/Memcached.php"
 APP_A = "application/LedgerAPIController.php"
-APP_B = "application/AbsenceLeaveAPIController.php"
+APP_B = "application/LeaveAPIController.php"
 LOCAL_CALLER = "application/services/CacheUser.php"
 
 
@@ -45,7 +45,7 @@ def _plant_zend_get(store: GraphStore, root: Path) -> None:
     seed_file(
         store,
         APP_B,
-        [node("Method", "get", "\\AbsenceLeaveAPIController::get", APP_B)],
+        [node("Method", "get", "\\LeaveAPIController::get", APP_B)],
         [],
         root=root,
     )
@@ -115,7 +115,7 @@ def test_zend_get_is_not_a_caller_of_application_get(
     _plant_zend_get(store, tmp_path)
     resolve_edges(store, max_candidates=10)
     tool = find_callers.create(replace(db_config(tmp_path), root=tmp_path, page_limit=50))
-    for subject in ("\\LedgerAPIController::get", "\\AbsenceLeaveAPIController::get"):
+    for subject in ("\\LedgerAPIController::get", "\\LeaveAPIController::get"):
         payload = tool(subject, detail_level="minimal")
         callers = [str(hit["qname"]) for hit in payload["results"]]
         assert f"{ZEND_FILE}::load" not in callers

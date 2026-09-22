@@ -93,7 +93,7 @@ the page failed them.
 ### The prototype cannot be ported — it is R2-tainted in four separate ways
 `docs/phase3-onboarding/mockup/extract.py:131-139` derives modules with:
 1. a container regex naming `application|modules|Application`,
-2. a `SKIP` set holding **region names** (`alpha`, `beta`, `anz`),
+2. a `SKIP` set holding **region names** (`alpha`, `beta`, `ab`),
 3. the same set holding **library names** (`tcpdf`, `mpdf`, `adodb`, `smarty`, `zend`, `saml`,
    `phpexcel`, `phpword`, `log4php`, `fpdf`, `dompdf`, `phpqrcode`),
 4. hardcoded tree prefixes `legacy/alpha/`, `legacy/beta/`, `src/`.

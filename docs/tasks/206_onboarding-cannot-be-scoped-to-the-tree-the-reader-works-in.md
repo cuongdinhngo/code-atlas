@@ -48,9 +48,9 @@ Step 8, labelled **`Middleware / Auth`** — *"Request middleware, filters, auth
 sessions"*:
 
 ```
-legacy/alpha/web/include/pdf/pdf/filters/FilterASCII85.php
-legacy/alpha/web/include/pdf/pdf/filters/FilterLZW.php
-legacy/alpha/web/include/adodb/session/adodb-encrypt-mcrypt.php
+legacy/alpha/web/vendor/pdf/FilterASCII85.php
+legacy/alpha/web/vendor/pdf/FilterLZW.php
+legacy/alpha/web/vendor/db/session/adodb-encrypt-mcrypt.php
 ```
 
 A vendored PDF library's ASCII85 stream filter and adodb's session encryption, presented to a new
@@ -429,7 +429,7 @@ No novel-untested third-party/runtime assumption.
 | AC | risk layer | proof artifact | fixture provenance | layer-match? |
 |---|---|---|---|---|
 | AC1 declared scope changes tour / flow seeds / busiest-file; project file + env | integration | integration (`generate_onboarding` on a two-tree fixture + `load_config` env/file) | authored | ✅ |
-| AC2 anchor `src/`+`public/`: src PHP on the tour; no Auth step from vendored PDF/DB | integration (real repo rank) | authored fixture proves the mechanism (in-scope PHP in, `include/pdf` out of an Auth-labelled step). Live-anchor = **E1** | authored + exclusion | ❌ covered by E1 |
+| AC2 anchor `src/`+`public/`: src PHP on the tour; no Auth step from vendored PDF/DB | integration (real repo rank) | authored fixture proves the mechanism (in-scope PHP in, `include/vendor/pdf` out of an Auth-labelled step). Live-anchor = **E1** | authored + exclusion | ❌ covered by E1 |
 | AC3 scoped section states scope + N of M; overview aggregates unchanged | integration | integration: string present iff roots set; aggregate lines byte-equal | n/a | ✅ |
 | AC4 no scope → byte-identical | integration | two runs, one with roots unset, byte-compare the five emitted files | n/a | ✅ |
 | AC5 cross-scope edge still in the neighbour list | logic | unit: scoped stop lists the out-of-scope neighbour | authored | ✅ |
