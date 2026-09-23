@@ -188,7 +188,7 @@ def test_ac1_the_page_is_self_contained_and_opens_from_the_filesystem() -> None:
     denied = re.compile(
         r"laravel|symfony|wordpress|drupal|magento|nikic|roslyn"
         r"|\bphp\b|javascript|typescript|csharp|phpunit|psr-4"
-        r"|legacy/|\baus\b|\bnz\b|webapp|databasewrapper|tcpdf|mpdf|assessments|wsdl"
+        r"|legacy/|\balpha\b|\bbeta\b|webapp|databasewrapper|tcpdf|mpdf|assessments|wsdl"
         r"|\bzend\b|simplesaml|log4php",
         re.I,
     )

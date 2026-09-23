@@ -56,7 +56,7 @@ no characters at all.
 ## Scope
 
 A candidate route for a zero-overlap miss: when a query matches nothing, decompose it into name
-tokens (`uploadMemberPhoto` → `upload` / `resident` / `photo`) and offer declared symbols matching
+tokens (`uploadMemberPhoto` → `upload` / `member` / `photo`) and offer declared symbols matching
 the tokens as **explicitly labelled candidates**.
 
 What this must establish, and the reason it is worth a ticket rather than a nicety: on the evidence
