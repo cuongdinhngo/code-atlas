@@ -1,10 +1,10 @@
 ---
 id: 310
 slug: four-week-change-assurance-adoption-gate
-title: "Change Assurance value gate — dropped unmeasured"
+title: "Change Assurance value gate — closed unmeasured, never ran"
 phase: 3
 milestone: Change-Assurance
-status: deferred
+status: done
 depends_on: [260, 300, 303, 305, 306, 307, 309, 312]
 ---
 
@@ -18,6 +18,10 @@ Its first form — a four-week cohort running Change Assurance on a real team �
 n = 3), which put half the cause outside this repo. Its second form was a blind two-arm study:
 one arm reads the diff, one reads the diff plus the bundle, marginal recall scored against the
 upstream authors' own test edits, the 0.50 / 0.20 thresholds ratified before any machinery existed.
+
+**Closed 2026-09-20 and off the backlog.** `done` here means the ticket is finished with, not
+that it delivered: the verdict below is `not_measured`. From here it is carried by its
+[TOKEN_LEDGER](../TOKEN_LEDGER.md) row alone (R7.6).
 
 ## Why it was dropped — 2026-09-20
 
