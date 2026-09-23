@@ -13,7 +13,7 @@ depends_on: [022]
 Tier 2 puts column write-sites in the graph. This ticket is the **question that spends them**, and the
 retro names it verbatim:
 
-> The query that would have solved TKT-1026 in one call:
+> The query that would have solved FIELD-1026 in one call:
 > **"Which writers of `LedgerTrans` omit `ChangeUser`, and what is that column's DEFAULT?"**
 > Answer: *all 20 `Insert_*_Trans*` procs omit it; `DEFAULT (user_name())`.*
 > I needed four grep passes, a purpose-built `dbsweep.php` that maps each `INSERT` to its enclosing
@@ -21,7 +21,7 @@ retro names it verbatim:
 
 And the class, also verbatim:
 
-> **TKT-1020, TKT-1027, TKT-962 and TKT-1026 are one defect class** — *a column whose value comes
+> **FIELD-1020, FIELD-1027, FIELD-962 and FIELD-1026 are one defect class** — *a column whose value comes
 > from a DEFAULT because every writer omits it* — and it is mechanically detectable from tier 2. That
 > is a `check_architecture_rules`-shaped query, not a search.
 
@@ -93,7 +93,7 @@ ticket text or the code.
 
 Resolved: `code_atlas/architecture_rules.py:109` (`check_architecture_rules`), tasks 022 and 184,
 rules R4, R4.2, R5.6, R6.3, R6.7, R1.2, R1.8, the contract words `Table`/`Column`/`WRITES`, and
-`code_atlas/main.py`'s `TOOL_NAMES`. Ambiguous, surfaced: the four anchor tickets (TKT-1020, 1027,
+`code_atlas/main.py`'s `TOOL_NAMES`. Ambiguous, surfaced: the four anchor tickets (FIELD-1020, 1027,
 962, 1026) are named as evidence from a repo outside this checkout.
 
 `RECALL: 8 claim(s) surfaced | 0 by symbol | 7 by handle | 1 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
@@ -112,7 +112,7 @@ Sections: *Why this exists* · *Scope* (with *Explicitly not in scope*) · *Cons
 
 | ID | Source | Verbatim (abridged) | Interpretation | Status |
 |---|---|---|---|---|
-| G1 | round 12 §15 | *"the query that would have solved TKT-1026 in one call"* | one call replaces four greps, a `dbsweep.php` and two `sqlcmd` round-trips | open |
+| G1 | round 12 §15 | *"the query that would have solved FIELD-1026 in one call"* | one call replaces four greps, a `dbsweep.php` and two `sqlcmd` round-trips | open |
 | C1 | Constraints | R4/R4.2 — deterministic | identical graph ⇒ identical rows, in a fixed order | open |
 | C2 | Constraints | R5.6 — silence is not evidence | a table with no recorded writers is *unmeasured* | open |
 | C3 | Constraints | R6.3 — a committed re-runnable reporter | the judgement ships as a test, not a session run | open |
