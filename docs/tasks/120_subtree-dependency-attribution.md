@@ -42,7 +42,7 @@ than one file** and **6,426 in more than one tree** (the same 62 % mirror overla
   graph alone**. Not a smaller blocker list and not a safe one: an unknown.
 
 Concentration is the useful shape: the blockers are infrastructure, not features —
-`web/system/Reference.php` (800 edges), `include/Builder.php` (528), `include/pdf` (340),
+`web/system/Reference.php` (800 edges), `include/Builder.php` (528), `include/vendor/pdf` (340),
 `Form` (244), `Config` (185), `Database` (156).
 
 ## Scope (if the gate opens)

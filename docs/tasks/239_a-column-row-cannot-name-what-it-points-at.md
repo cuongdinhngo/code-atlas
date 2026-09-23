@@ -17,7 +17,7 @@ A QA re-open asked which column carries a staff member's region. One sweep answe
 ```
 search_symbol queries=["RegionCode","RegionID"] kind="Column"
 → dbo.Authen::RegionCode · dbo.Authen::RegionID · dbo.CommunityMemberDetails::RegionCode
-  dbo.Facility::RegionId · dbo.SiteGroup::RegionId · dbo.PostCodes::RegionID
+  dbo.Site::RegionId · dbo.SiteGroup::RegionId · dbo.PostCodes::RegionID
   dbo.RegionAccess::RegionID · dbo.Depot::RegionID · dbo.PayerContract::RegionID
 ```
 

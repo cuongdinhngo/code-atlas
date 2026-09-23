@@ -1434,7 +1434,7 @@ asks for the red run but not for which branch produced it.*
 
 *Claim `208-C5` — on the anchor monorepo, the `stub_roots` roots its own config file proposes
 (`vendor`, `lib/saml/vendor`) match **0** of its 24,535 indexed files: its third-party code lives
-under `Zend/`, `legacy/alpha/web/include/pdf/` and `.../adodb/`. Declaring them changes no
+under `Zend/`, `legacy/alpha/web/vendor/pdf/` and `.../adodb/`. Declaring them changes no
 count, no bucket and no tour file. type: 5 project-ground-truth · descriptive · handle:
 `the-anchors-vendor-code-is-not-under-vendor` · status: proposed · verified-at: 2026-09-02 · area:
 onboarding / reachability · evidence: the two-way measurement recorded in

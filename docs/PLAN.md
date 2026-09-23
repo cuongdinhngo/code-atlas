@@ -688,7 +688,7 @@ viewer, §14), and schema-state awareness (**no, permanently** — §19, 2026-08
 
 **What & why.** Build a local-first, multi-language code-intelligence MCP (`code-atlas`) ~~because native Claude Code tools and grep are weak at language-specific, name-resolved search on large repos~~. It indexes into SQLite and serves fast, token-efficient search/read/nav/impact tools.
 
-> **The struck clause was the founding premise and it was measured false on 2026-08-08.** It is kept, struck, as the historical motivation rather than deleted, because every decision below was taken under it. What replaces it is narrower: **the index sells resolved relationships, not search speed.** See *Founding-premise benchmark* at the end of this list.
+> **The struck clause was the founding premise and it was measured false on 2026-08-08.** It is kept, struck, as the historical motivation rather than deleted, because every decision below was taken under it. What replaces it is narrower: **the index sells resolved relationships, not search speed.** See *Founding-premise benchmark* at the end of this list; [`benchmarks/324`](benchmarks/324_field-claim-ledger.md) measures it in the field (7 confirmed · 1 struck).
 
 **Decisions locked so far:**
 - **Architecture** — language-agnostic core + per-language adapters, each using the language's best parser, joined by one frozen/versioned JSON contract (§4). Engine lineage: code-review-graph.
@@ -930,9 +930,8 @@ Consequences, all adopted:
   117 tool calls (19 %)**, and on two of five questions essentially not at all; the LSP arm's 0 % is the
   same finding at its limit. The whole-graph tools this argues for **already shipped** and no real
   question needed one, so the gap is demand and modelling, not capability: building more does not close it.
-- **Redirect (see [`BACKLOG.md`](BACKLOG.md) tiers).** 059 — the unmodelled handler → template data-bag
-  edge — moves to the head of tier 1: two independent field sessions produced it, it is a relation rather
-  than a location, and neither grep nor a language server answers it. 061 (payload weight) is demoted.
+- **Redirect.** 059 (handler → template data-bag edge) went to the head of the queue and shipped —
+  its own entry is below; **061 (payload weight) is demoted** and stays so.
 - **§13 is unchanged and now has evidence.** code-atlas and a language server are not substitutes; the
   benchmark could not even make an agent choose between them.
 - **Threats, recorded rather than hidden.** n = 1 per cell; question selection was not blind (all five

@@ -159,7 +159,7 @@ Two items are flagged rather than assumed, because they touch **R2.2 (standard o
    the reason stated** rather than reported as a misleading zero.
 
 3. **Business-module detection.** The prototype derives modules with a container regex naming
-   `application|modules`, a `SKIP` set holding **region names** (`alpha`, `beta`, `anz`) *and* **library
+   `application|modules`, a `SKIP` set holding **region names** (`alpha`, `beta`, `ab`) *and* **library
    names** (`tcpdf`, `mpdf`, `adodb`, `smarty`, `zend`, …), plus hardcoded tree prefixes
    (`legacy/alpha/`, `legacy/beta/`, `src/`) — four separate R2.2 violations, so it is not portable.
    **Resolved in task 114 (landed) by deriving the level instead of naming it:** the container is the
