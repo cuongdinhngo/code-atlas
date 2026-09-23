@@ -153,6 +153,7 @@ def test_the_whole_batched_payload_is_pinned(indexed) -> None:
             },
         ],
         "index_root": str(Path(indexed.root).resolve()),
+        "answered_about_ref": None,
         # 223: minimal demotes the coverage note; identity still rides the batch envelope.
         **server_provenance(),
     }
@@ -254,6 +255,7 @@ def test_a_single_subject_payload_is_unchanged(indexed) -> None:
         "reason": REASON_OK,
         "total_count": 1,
         "index_root": str(Path(indexed.root).resolve()),
+    "answered_about_ref": None,
     }
     assert "unconfigured_adapters" not in payload
     assert "server_version" not in payload

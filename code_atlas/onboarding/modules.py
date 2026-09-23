@@ -100,6 +100,10 @@ class ModuleMap:
     total: int
     excluded: int
     truncated: bool
+    # 263 — which of the three sources answered; empty_explained carries nominations.
+    source: str = "structural"
+    empty_reason: str | None = None
+    candidate_globs: tuple[tuple[str, int], ...] = ()
 
     @property
     def percent(self) -> float:
@@ -108,7 +112,7 @@ class ModuleMap:
 
     def as_dict(self) -> dict[str, object]:
         """Order-stable dict view; coverage rides with the rows so no renderer can drop it."""
-        return {
+        payload: dict[str, object] = {
             "containers": list(self.containers),
             "coverage": {
                 "covered": self.covered,
@@ -119,8 +123,17 @@ class ModuleMap:
             },
             "modules": [module.as_dict() for module in self.modules],
             "refused": [{"container": path, "reason": reason} for path, reason in self.refused],
+            "source": self.source,
             "truncated": self.truncated,
         }
+        if self.empty_reason is not None:
+            payload["empty_reason"] = self.empty_reason
+        if self.candidate_globs:
+            payload["candidate_globs"] = [
+                {"glob": pattern, "files_matched": count}
+                for pattern, count in self.candidate_globs
+            ]
+        return payload
 
 
 def _candidates(

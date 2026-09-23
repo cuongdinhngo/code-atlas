@@ -60,7 +60,8 @@ FAKE = REPO / "tests" / "fixtures" / "adapter" / "fake_adapter.py"
 MAIN = REPO / "code_atlas" / "main.py"
 
 # The ~100-token budget of §12's "call first" tool, pinned to characters at ~4 chars per token.
-MINIMAL_BUDGET = 400
+# §12 ~100-token entry point; 316's leading ``summary`` adds ~50–60 chars on a small fixture.
+MINIMAL_BUDGET = 500
 
 # Long enough for a cold interpreter start on a loaded CI runner, short enough to fail a hang fast.
 STDIO_TIMEOUT = 90.0

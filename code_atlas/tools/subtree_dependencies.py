@@ -9,7 +9,12 @@ from code_atlas.build_info import maybe_server_provenance
 from code_atlas.config import Config, clamp_limit
 from code_atlas.onboarding.mirrors import find_mirror_subtrees
 from code_atlas.store import GraphStore, SubtreeDependencyResult, SubtreeTierAttribution
-from code_atlas.tools.nav_result import attach_limit_capped, empty_nav
+from code_atlas.tools.nav_result import (
+    answered_about_ref_for,
+    attach_answered_about_ref,
+    attach_limit_capped,
+    empty_nav,
+)
 
 NAME = "subtree_dependencies"
 
@@ -55,8 +60,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 detail_level=detail_level,
                 db_path=str(config.db_path),
                 index_root=config.index_root,
+                answered_about_ref=None,
             )
         with GraphStore(config.db_path) as store:
+            about_ref = answered_about_ref_for(store)
             report = store.subtree_dependency_report(
                 normalized, counterpart=cp, max_list=cap
             )
@@ -75,6 +82,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             detail_level=detail_level,
             db_path=str(config.db_path),
             index_root=config.index_root,
+            answered_about_ref=about_ref,
         )
         attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
         return payload
@@ -147,6 +155,7 @@ def _shape_payload(
     detail_level: DetailLevel,
     db_path: str,
     index_root: str,
+    answered_about_ref: str | None = None,
 ) -> dict[str, object]:
     in_attr, in_unattr = _totals(report.inbound.by_tier)
     out_attr, out_unattr = _totals(report.outbound.by_tier)
@@ -190,7 +199,7 @@ def _shape_payload(
         payload.pop("depended_on_paths", None)
         payload.pop("dynamic_bridges", None)
     payload.update(maybe_server_provenance(detail_level))
-    return payload
+    return attach_answered_about_ref(payload, answered_about_ref)
 
 
 __all__ = ["NAME", "create"]

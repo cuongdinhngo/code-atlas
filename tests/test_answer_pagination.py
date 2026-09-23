@@ -103,6 +103,7 @@ def test_default_args_match_pre_pagination_shape(store: GraphStore, tmp_path: Pa
         "reason",
         "total_count",
         "index_root",
+        "answered_about_ref",
     }
     standard = find_implementations.create(config)("\\Base", detail_level="standard")
     assert {

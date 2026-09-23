@@ -13,6 +13,7 @@ from code_atlas.tools.coverage import (
     attach_coverage_gap,
     attach_coverage_note,
     attach_unindexed_same_basename,
+    coverage_gap,
     covered_languages,
     held_suffixes,
 )
@@ -23,6 +24,7 @@ from code_atlas.tools.nav_result import (
     REASON_NO_MATCHES,
     REASON_NOT_INDEXED,
     REASON_OK,
+    REASON_PATH_EXCLUDED,
     REASON_SEPARATOR_NORMALISED,
     REASON_SUBJECT_FILE_CHECKED,
     REASON_SUBSTRING_MATCH,
@@ -37,6 +39,8 @@ from code_atlas.tools.nav_result import (
     TRY_INSTEAD_HINT_TOKEN_CANDIDATES_NONE,
     TRY_INSTEAD_SEARCH_SYMBOL,
     NavReason,
+    answered_about_ref_for,
+    attach_coverage_edge_route,
     attach_limit_capped,
     attach_subjects_capped,
     attach_try_instead,
@@ -44,6 +48,7 @@ from code_atlas.tools.nav_result import (
     batch_result,
     is_stub,
     list_result,
+    require_path_prefix,
     subject_answer,
 )
 
@@ -65,6 +70,7 @@ class _Hits(NamedTuple):
     candidates: tuple[dict[str, object], ...] = ()
     search_order: str | None = None
     kind_excluded: tuple[str, ...] = ()
+    path_excluded: tuple[str, ...] = ()
 
 
 def _require_kind(kind: contract.NodeKind | None) -> contract.NodeKind | None:
@@ -98,6 +104,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         query: str | None = None,
         kind: contract.NodeKind | None = None,
         namespace: str | None = None,
+        path_prefix: str | None = None,
         limit: int | None = None,
         detail_level: DetailLevel = "standard",
         offset: int = 0,
@@ -140,6 +147,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         subjects = _require_subjects(query, queries)
         batched = queries is not None
         kind = _require_kind(kind)
+        path_prefix = require_path_prefix(path_prefix)
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
         cap, limit_clamped = clamp_limit(limit, config.page_limit)
@@ -150,7 +158,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if not config.db_path.is_file():
             # No index is a fact about the server, not about any one subject (101).
             if batched:
-                return batch_not_indexed(index_root)
+                return batch_not_indexed(index_root, answered_about_ref=None)
             return list_result(
                 [],
                 detail_level=detail_level,
@@ -160,6 +168,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 reason=REASON_NOT_INDEXED,
                 total_count=0,
                 indexed=False,
+                answered_about_ref=None,
             )
         kept, dropped = clamp_subjects(subjects, config.max_subjects)
         covered: str | None = None
@@ -167,6 +176,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         with GraphStore(config.db_path) as store:
             covered = covered_languages(store)
             indexed = held_suffixes(store)
+            stamped = store.stamped_unmodelled_resolution_by_language()
+            about_ref = answered_about_ref_for(store)
             # One guard for the call: scaling the repair budget with the subject count is the
             # unbounded fan-out the batch bound exists to prevent (101).
             guard = FreshnessGuard(config, store)
@@ -178,6 +189,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     subject,
                     kind=kind,
                     namespace=namespace,
+                    path_prefix=path_prefix,
                     cap=cap,
                     offset=offset,
                     detail_level=detail_level,
@@ -194,9 +206,16 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     index_root=index_root,
                     cap=cap,
                     limit_clamped=limit_clamped,
+                    answered_about_ref=about_ref,
                 ),
                 config,
                 covered,
+                detail_level=detail_level,
+            )
+            attach_coverage_edge_route(
+                single,
+                stamped,
+                has_coverage_gap=bool(coverage_gap(config)),
                 detail_level=detail_level,
             )
             return attach_unindexed_same_basename(
@@ -210,7 +229,17 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         answers = [
             _batch_answer(subject, hits) for subject, hits in zip(kept, found, strict=True)
         ]
-        payload = batch_result(answers, index_root=index_root)
+        gap = bool(coverage_gap(config))
+        for answer in answers:
+            attach_coverage_edge_route(
+                answer,
+                stamped,
+                has_coverage_gap=gap,
+                detail_level=detail_level,
+            )
+        payload = batch_result(
+            answers, index_root=index_root, answered_about_ref=about_ref
+        )
         attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
         attach_subjects_capped(payload, cap=config.max_subjects, dropped=dropped)
         _attach_mixed_repair_budget(payload, answers)
@@ -262,13 +291,17 @@ def _search_one(
     *,
     kind: contract.NodeKind | None,
     namespace: str | None,
+    path_prefix: str | None,
     cap: int,
     offset: int,
     detail_level: DetailLevel,
     mirrors: tuple[Mapping[str, object] | None, frozenset[str]] = (None, frozenset()),
 ) -> _Hits:
     """One subject's search, verdict included — the same path a single call has always taken."""
-    rows = store.search_nodes(query, kind=kind, namespace=namespace, limit=cap + 1, offset=offset)
+    rows = store.search_nodes(
+        query, kind=kind, namespace=namespace, path_prefix=path_prefix,
+        limit=cap + 1, offset=offset,
+    )
     hit_paths = [str(row["file_path"]) for row in rows[:cap]]
     status = guard.ensure_paths(hit_paths)
     # Zero hits: miss-repair a named subject or the sole dirty file (073/246).
@@ -282,14 +315,21 @@ def _search_one(
     # Re-query only when a repair may have changed FTS/rows.
     if status == "repaired" or (status == "stale" and guard.used > 0):
         rows = store.search_nodes(
-            query, kind=kind, namespace=namespace, limit=cap + 1, offset=offset
+            query,
+            kind=kind,
+            namespace=namespace,
+            path_prefix=path_prefix,
+            limit=cap + 1,
+            offset=offset,
         )
     truncated = len(rows) > cap
     results = _suppress_redundant_file_hits(
         [_hit(row, store=store, detail_level=detail_level) for row in rows[:cap]]
     )
     if truncated or offset > 0:
-        total_count = store.count_search_nodes(query, kind=kind, namespace=namespace)
+        total_count = store.count_search_nodes(
+            query, kind=kind, namespace=namespace, path_prefix=path_prefix
+        )
         truncated = offset + len(results) < total_count
     else:
         total_count = len(results)
@@ -319,7 +359,12 @@ def _search_one(
         alt = contract.member_separator_variant(query)
         if alt is not None:
             alt_rows = store.search_nodes(
-                alt, kind=kind, namespace=namespace, limit=cap + 1, offset=0
+                alt,
+                kind=kind,
+                namespace=namespace,
+                path_prefix=path_prefix,
+                limit=cap + 1,
+                offset=0,
             )
             if alt_rows:
                 # The retry answers from the same graph, so it owes the same freshness verdict as
@@ -327,7 +372,12 @@ def _search_one(
                 alt_status = guard.ensure_paths([str(row["file_path"]) for row in alt_rows[:cap]])
                 if alt_status == "repaired":
                     alt_rows = store.search_nodes(
-                        alt, kind=kind, namespace=namespace, limit=cap + 1, offset=0
+                        alt,
+                        kind=kind,
+                        namespace=namespace,
+                        path_prefix=path_prefix,
+                        limit=cap + 1,
+                        offset=0,
                     )
                 if alt_rows:
                     truncated = len(alt_rows) > cap
@@ -339,7 +389,10 @@ def _search_one(
                     )
                     if truncated:
                         total_count = store.count_search_nodes(
-                            alt, kind=kind, namespace=namespace
+                            alt,
+                            kind=kind,
+                            namespace=namespace,
+                            path_prefix=path_prefix,
                         )
                         truncated = len(results) < total_count
                     else:
@@ -350,21 +403,44 @@ def _search_one(
                         else REASON_SEPARATOR_NORMALISED
                     )
                     return _Hits(results, truncated, alt_reason, total_count, residue)
-    # Zero-overlap miss: kind filter first (275), then token decomposition (253).
+    # Zero-overlap miss: kind filter first (275), then path filter (315), then tokens (253).
     if reason == REASON_NO_MATCHES and offset == 0:
         if kind is not None:
             excluded = _kind_excluded_hits(
-                store, query, kind=kind, namespace=namespace, cap=cap
+                store,
+                query,
+                kind=kind,
+                namespace=namespace,
+                path_prefix=path_prefix,
+                cap=cap,
             )
             if excluded:
                 return _Hits(
                     [], False, REASON_KIND_EXCLUDED, 0, residue,
                     kind_excluded=tuple(excluded),
                 )
+        if path_prefix is not None:
+            excluded_paths = _path_excluded_hits(
+                store,
+                query,
+                kind=kind,
+                namespace=namespace,
+                path_prefix=path_prefix,
+                cap=cap,
+            )
+            if excluded_paths:
+                return _Hits(
+                    [],
+                    False,
+                    REASON_PATH_EXCLUDED,
+                    0,
+                    residue,
+                    path_excluded=tuple(excluded_paths),
+                )
         tokens = contract.name_tokens(query)
         if tokens:
             candidates = _token_candidates(
-                store, tokens, kind=kind, namespace=namespace
+                store, tokens, kind=kind, namespace=namespace, path_prefix=path_prefix
             )
             return _Hits(
                 [],
@@ -399,6 +475,7 @@ def _single_payload(
     index_root: str,
     cap: int,
     limit_clamped: bool,
+    answered_about_ref: str | None = None,
 ) -> dict[str, object]:
     """The one-subject answer, unchanged by 101 — pinned byte-for-byte by its own test."""
     payload = list_result(
@@ -409,12 +486,16 @@ def _single_payload(
         truncated=hits.truncated,
         reason=hits.reason,
         total_count=hits.total_count,
+        answered_about_ref=answered_about_ref,
     )
     # Empty + unverified (multi-dirty miss) — point at path-named tools (073).
     if hits.reason == REASON_INDEX_STALE and hits.total_count == 0:
         return attach_try_instead(payload, TRY_INSTEAD_FILE_OUTLINE)
     if hits.reason == REASON_KIND_EXCLUDED:
         payload["kind_excluded"] = list(hits.kind_excluded)
+        return payload
+    if hits.reason == REASON_PATH_EXCLUDED:
+        payload["path_excluded"] = list(hits.path_excluded)
         return payload
     # Near-miss / truncated flood — name the narrower query (245); registry reuse (093).
     if _needs_narrowing_route(hits):
@@ -459,6 +540,8 @@ def _batch_answer(query: str, hits: _Hits) -> dict[str, object]:
         attach_try_instead(answer, None, TRY_INSTEAD_HINT_SINGLE_SUBJECT_REPAIR)
     elif hits.reason == REASON_KIND_EXCLUDED:
         answer["kind_excluded"] = list(hits.kind_excluded)
+    elif hits.reason == REASON_PATH_EXCLUDED:
+        answer["path_excluded"] = list(hits.path_excluded)
     elif _needs_narrowing_route(hits):
         hint = (
             TRY_INSTEAD_HINT_MEMBER_SEPARATOR
@@ -510,16 +593,49 @@ def _kind_excluded_hits(
     *,
     kind: contract.NodeKind,
     namespace: str | None,
+    path_prefix: str | None,
     cap: int,
 ) -> list[str]:
     """Exact-name kinds present without the filter that the kind= filter dropped (275)."""
     rows = store.search_nodes(
-        query, kind=None, namespace=namespace, limit=cap + 1, offset=0
+        query,
+        kind=None,
+        namespace=namespace,
+        path_prefix=path_prefix,
+        limit=cap + 1,
+        offset=0,
     )
     found = {
         str(row["kind"])
         for row in rows
         if _direct(query, row) and str(row["kind"]) != kind
+    }
+    return sorted(found)
+
+
+def _path_excluded_hits(
+    store: GraphStore,
+    query: str,
+    *,
+    kind: contract.NodeKind | None,
+    namespace: str | None,
+    path_prefix: str,
+    cap: int,
+) -> list[str]:
+    """Exact-name file paths present without path_prefix that the filter dropped (315)."""
+    rows = store.search_nodes(
+        query, kind=kind, namespace=namespace, path_prefix=None, limit=cap + 1, offset=0
+    )
+    normalized = path_prefix if path_prefix.endswith("/") else f"{path_prefix}/"
+    bare = normalized.rstrip("/")
+
+    def under(path: str) -> bool:
+        return path == bare or path.startswith(normalized)
+
+    found = {
+        str(row["file_path"])
+        for row in rows
+        if _direct(query, row) and not under(str(row["file_path"]))
     }
     return sorted(found)
 
@@ -537,6 +653,7 @@ def _token_candidates(
     *,
     kind: contract.NodeKind | None,
     namespace: str | None,
+    path_prefix: str | None,
 ) -> list[dict[str, object]]:
     """Rank declared symbols by how many query tokens they carry; bound by TOKEN_CANDIDATE_K."""
     # Over-fetch per token so a symbol carrying two tokens can outrank single-token noise.
@@ -544,7 +661,12 @@ def _token_candidates(
     scored: dict[str, tuple[int, str, str, str, str, tuple[str, ...]]] = {}
     for token in tokens:
         rows = store.search_nodes(
-            token, kind=kind, namespace=namespace, limit=per_token, offset=0
+            token,
+            kind=kind,
+            namespace=namespace,
+            path_prefix=path_prefix,
+            limit=per_token,
+            offset=0,
         )
         for row in rows:
             if str(row["kind"]) == "File":

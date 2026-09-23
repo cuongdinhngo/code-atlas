@@ -17,8 +17,10 @@ import json
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 
 from code_atlas.onboarding.audience import DEFAULT_AUDIENCE, contract_for
+from code_atlas.onboarding.capabilities import resolve_capability_map
 from code_atlas.onboarding.flows import FlowSet, flows_from_graph
 from code_atlas.onboarding.headlines import Headline, headline_candidates
 from code_atlas.onboarding.layers import (
@@ -36,7 +38,6 @@ from code_atlas.onboarding.mirrors import MirrorReport, find_mirror_subtrees
 from code_atlas.onboarding.modules import (
     COVERAGE_NOTE,
     ModuleMap,
-    find_business_modules,
 )
 from code_atlas.onboarding.orientation import Orientation
 from code_atlas.onboarding.prose import ProseRun
@@ -54,8 +55,9 @@ from code_atlas.onboarding.reachability import ReachabilitySplit, classify_reach
 # confidence figure, read from the 183 stamp (196). 11: per-bucket ``caveat`` and ``declaration``,
 # so a bucket whose declaration was never given says its 0 is a question nobody asked rather than a
 # measured absence (208). 15: each flow step carries ``line`` — the call line, or None when the
-# order is unknown (225). This is NOT ``contract_version``; the contract is untouched.
-DATASET_VERSION = 15
+# order is unknown (225). 16: ``modules.source`` + never-empty capability table (263). This is NOT
+# ``contract_version``; the contract is untouched.
+DATASET_VERSION = 16
 # A directory is kept in the tree only when its subtree holds at least this many symbols — the
 # mockup's prune, so a 40k-file repo yields a map of a few dozen rows, not thousands (AC3).
 DIR_SYMBOL_THRESHOLD = 400
@@ -527,6 +529,7 @@ def build_dataset(
     provenance: Provenance | None = None,
     orientation: Orientation | None = None,
     audience: str = DEFAULT_AUDIENCE,
+    repo_root: Path | None = None,
 ) -> OnboardingDataset:
     """Assemble the aggregate dataset from bounded ``store.py`` rows (see module docstring).
 
@@ -549,13 +552,19 @@ def build_dataset(
         stub_roots=declared_stub_roots,
         sample_limit=reachability_sample_max,
     )
-    business = find_business_modules(
+    fan_in = {metric.key: metric.fan_in for metric in metrics.modules}
+    outbound = _file_outbound(module_edges(nodes, edges))
+    business = resolve_capability_map(
         file_paths,
         class_counts=dict(file_class_counts),
-        fan_in={metric.key: metric.fan_in for metric in metrics.modules},
+        fan_in=fan_in,
         stub_roots=declared_stub_roots,
         working_roots=working_roots,
         limit=module_max,
+        declared_entry_points=declared_entry_points,
+        graph_entry_files=metrics.module_entry_points,
+        repo_root=repo_root,
+        outbound=outbound,
         prose=prose,
     )
     mirrors = find_mirror_subtrees(
@@ -672,6 +681,7 @@ def render_dataset_overview(dataset: OnboardingDataset) -> str:
         lines.append("- (none)")
     lines.extend(["", "## Business modules", ""])
     mods = dataset.modules
+    lines.append(f"- source: `{mods.source}`")
     lines.append(
         f"- coverage: {mods.covered} of {mods.total} indexed files ({mods.percent} %); "
         f"{mods.excluded} excluded as vendored or test code"
@@ -684,6 +694,12 @@ def render_dataset_overview(dataset: OnboardingDataset) -> str:
                 f"- `{mod.module}`: {mod.files} files, {mod.classes} classes, "
                 f"trees {', '.join(mod.trees)}{flag}"
             )
+            if mods.source == "entry_points" and mod.hub:
+                lines.append(f"  - entry file: `{mod.hub}`")
+    elif mods.empty_reason:
+        lines.append(f"- **{mods.empty_reason}**")
+        for pattern, count in mods.candidate_globs:
+            lines.append(f"  - `{pattern}`: files_matched {count}")
     else:
         lines.append("- (no capability layout found)")
     for container, reason in mods.refused:
@@ -724,3 +740,13 @@ def render_dataset_overview(dataset: OnboardingDataset) -> str:
     else:
         lines.append("- (none)")
     return "\n".join(lines) + "\n"
+
+
+def _file_outbound(
+    pairs: Sequence[tuple[str, str]],
+) -> dict[str, tuple[str, ...]]:
+    """1-hop outbound file targets per source file — entry-row trees (263)."""
+    out: dict[str, set[str]] = {}
+    for source, target in pairs:
+        out.setdefault(source, set()).add(target)
+    return {path: tuple(sorted(targets)) for path, targets in out.items()}

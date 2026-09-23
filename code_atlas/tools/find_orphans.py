@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 from code_atlas.config import Config, clamp_limit
 from code_atlas.store import GraphStore
-from code_atlas.tools.nav_result import attach_limit_capped, empty_nav
+from code_atlas.tools.nav_result import answered_about_ref_for, attach_limit_capped, empty_nav
 from code_atlas.tools.reach_shared import (
     NO_ROOTS,
     RESOLUTION_UNMODELLED,
@@ -30,8 +30,9 @@ WALK_BUDGET_EXHAUSTED = WALK_BUDGET_EXHAUSTED
 
 _HINT_RESOLUTION_UNMODELLED = (
     "a registered resolution strategy leaves include-based reachability unmeasured — "
-    "treat a large no_inbound population as unmeasured, not as zero; use the language "
-    "runtime's own loader diagnostics, not this orphan list"
+    "treat a large no_inbound population as unmeasured, not as zero; Grep entry-point "
+    "names as text outside the index, or use the language runtime's own loader diagnostics, "
+    "not this orphan list"
 )
 
 
@@ -75,10 +76,15 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if not roots:
             return no_roots(detail_level, config)
         if not config.db_path.is_file():
-            return empty_nav("", detail_level=detail_level, db_path=str(config.db_path),
-            index_root=config.index_root,
-        )
+            return empty_nav(
+                "",
+                detail_level=detail_level,
+                db_path=str(config.db_path),
+                index_root=config.index_root,
+                answered_about_ref=None,
+            )
         with GraphStore(config.db_path) as store:
+            about_ref = answered_about_ref_for(store)
             stamped = store.stamped_unmodelled_resolution_by_language()
             if stamped:
                 # R5.6: stamp says unmeasured — never invent reachability or a bare orphan list.
@@ -93,7 +99,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     detail_level=detail_level,
                     try_instead_hint=_HINT_RESOLUTION_UNMODELLED,
                     unmodelled_resolution_by_language=stamped,
-                )
+                    answered_about_ref=about_ref)
             # One fetch of the path list, shared by the walk's seeds and the unmatched-root report.
             indexed_paths = store.file_paths()
             seeds = entry_seeds(store, roots, indexed_paths)
@@ -113,7 +119,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     reached=0,
                     nodes_total=store.counts()["nodes"],
                     detail_level=detail_level,
-                )
+                    answered_about_ref=about_ref)
             outcome = store.find_orphans(
                 seeds,
                 depth=depth,
@@ -138,7 +144,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     reached=outcome.reached,
                     nodes_total=outcome.nodes_total,
                     detail_level=detail_level,
-                )
+                    answered_about_ref=about_ref)
             health = store.edge_health() if detail_level == "standard" else None
             by_language = (
                 store.stamped_edge_health_by_language() if detail_level == "standard" else None
@@ -163,6 +169,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             edge_health=health,
             edge_health_by_language=by_language,
             total_count=outcome.orphan_total,
+            answered_about_ref=about_ref,
         )
         # One name for one fact. Omitted only where the rows themselves already state it (061).
         if detail_level == "minimal" or len(unproven_rows) > len(unproven_payload):

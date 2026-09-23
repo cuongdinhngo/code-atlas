@@ -86,7 +86,8 @@ def test_the_overview_opens_with_the_orientation_section(tmp_path: Path) -> None
     generate_onboarding.create(config)()  # type: ignore[arg-type]
     overview = _overview(tmp_path)
     assert H_ORIENTATION in overview
-    assert overview.index(H_ORIENTATION) < overview.index("## Summary"), "not above the aggregates"
+    sixty = "## What is this repo — 60 seconds"
+    assert overview.index(sixty) < overview.index(H_ORIENTATION)
     assert "Acme Demo is the ordering service" in overview
     assert "`README.md:3`" in overview
 
@@ -151,7 +152,7 @@ def test_every_orientation_line_resolves_to_a_source_or_is_a_stated_gap(tmp_path
     )
     generate_onboarding.create(config)()  # type: ignore[arg-type]
     overview = _overview(tmp_path)
-    section = overview.split(H_ORIENTATION, 1)[1].split("## Summary", 1)[0]
+    section = overview.split(H_ORIENTATION, 1)[1].split("## I was told to change X", 1)[0]
     gaps = ("no declared", "no README", "read:", "not valid", "shallow reader", "more, not shown")
     for line in section.splitlines():
         if not line.startswith("- "):
@@ -161,18 +162,22 @@ def test_every_orientation_line_resolves_to_a_source_or_is_a_stated_gap(tmp_path
         assert re.search(r"— `[^`]+`$", line), f"uncited orientation line: {line!r}"
 
 
-def test_a_repo_with_no_declared_project_files_omits_the_section(tmp_path: Path) -> None:
-    """AC6 — the section is omitted, not emitted empty, and nothing else moves."""
+def test_a_repo_with_no_declared_project_files_still_names_the_doors_question(
+    tmp_path: Path,
+) -> None:
+    """269 never-empty: Q3 stays, with an explicit gap — not a silent omission."""
     config = _repo(tmp_path)
     generate_onboarding.create(config)()  # type: ignore[arg-type]
     with_none = _overview(tmp_path)
-    assert H_ORIENTATION not in with_none
-    assert with_none.startswith("# Architecture overview\n\n## Summary")
+    assert H_ORIENTATION in with_none
+    assert "## What is this repo — 60 seconds" in with_none
+    assert "CA_ENTRY_POINTS" in with_none or "doors" in with_none
 
 
 def test_two_runs_over_one_tree_are_byte_identical(tmp_path: Path) -> None:
-    """R4.2 — file order and excerpt boundaries are a function of the bytes on disk."""
+    """R4.2 — once a prior manifest exists, orientation + overview stay byte-stable (269 Q6)."""
     config = _repo(tmp_path, {"composer.json": COMPOSER, "Makefile": MAKEFILE, "README.md": README})
+    generate_onboarding.create(config)()  # type: ignore[arg-type]
     generate_onboarding.create(config)()  # type: ignore[arg-type]
     first = _overview(tmp_path)
     generate_onboarding.create(config)()  # type: ignore[arg-type]
@@ -279,10 +284,20 @@ def test_the_orientation_path_changes_nothing_outside_its_own_section(tmp_path: 
 
     assert with_section != without, "the section did not render at all"
     prefix = "# Architecture overview\n\n"
-    assert without.startswith(prefix + "## Summary"), "the no-orientation overview moved"
-    assert with_section.startswith(prefix)
-    section, marker, remainder = with_section[len(prefix) :].partition("## Summary")
-    assert marker == "## Summary"
-    assert section.startswith(H_ORIENTATION), "something other than the section was inserted"
-    # Excising exactly the inserted section must give back the untouched document, byte for byte.
-    assert prefix + marker + remainder == without
+    sixty = "## What is this repo — 60 seconds"
+    assert without.startswith(prefix + sixty), "the no-orientation overview moved"
+    assert with_section.startswith(prefix + sixty)
+    # 269: orientation is Q3 (doors), after the 60-second answer.
+    assert without.index(sixty) < without.index(H_ORIENTATION)
+    assert with_section.index(sixty) < with_section.index(H_ORIENTATION)
+    # Excising Q3 from both docs must leave the same surrounding document.
+    def without_q3(text: str) -> str:
+        before, _, rest = text.partition(H_ORIENTATION)
+        # Drop through the next top-level question heading (## I was told…).
+        nxt = rest.find("\n## I was told to change X")
+        if nxt < 0:
+            nxt = rest.find("\n## What is the spine")
+        assert nxt >= 0
+        return before + rest[nxt + 1 :]
+
+    assert without_q3(without) == without_q3(with_section)

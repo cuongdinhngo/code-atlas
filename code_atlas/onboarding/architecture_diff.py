@@ -20,7 +20,7 @@ from code_atlas.onboarding.reachability import BUCKETS
 # Operational keys ``generate_onboarding`` adds beside the dataset — stripped on load.
 # ``pages`` stays although 205 stopped writing it: a pre-205 snapshot still carries the key, and a
 # diff against one must strip it rather than read 500 page paths as architectural drift.
-_MANIFEST_KEYS: frozenset[str] = frozenset(
+MANIFEST_KEYS: frozenset[str] = frozenset(
     {"overview", "pages", "tour", "truncated", "viewer"}
 )
 
@@ -46,6 +46,7 @@ _REQUIRED: frozenset[str] = frozenset(
 __all__ = [
     "ArchitectureDiff",
     "DiffRefusal",
+    "MANIFEST_KEYS",
     "REFUSALS",
     "REFUSAL_INCOMPLETE",
     "REFUSAL_INDEX_ROOT_MISMATCH",
@@ -114,7 +115,7 @@ def load_architecture_snapshot(path: Path | str) -> dict[str, Any]:
     raw = json.loads(text)
     if not isinstance(raw, dict):
         raise ValueError(f"architecture snapshot must be a JSON object, got {type(raw).__name__}")
-    return {key: value for key, value in raw.items() if key not in _MANIFEST_KEYS}
+    return {key: value for key, value in raw.items() if key not in MANIFEST_KEYS}
 
 
 def diff_architecture(

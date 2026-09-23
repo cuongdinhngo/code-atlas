@@ -7,8 +7,9 @@ headings, lists, and a JSON manifest. No SQL, no LLM, no language branch (R1.1/R
 from __future__ import annotations
 
 import json
+from collections import Counter
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 
 from code_atlas.onboarding.audience import (
@@ -55,6 +56,7 @@ from code_atlas.onboarding.layers import (
     layer_description,
     layer_descriptions,
     refine_layers,
+    responsibility_of_segment,
 )
 from code_atlas.onboarding.metrics import GraphMetrics, NodeMetric, compute_metrics, module_edges
 from code_atlas.onboarding.mirrors import find_mirror_subtrees
@@ -72,18 +74,24 @@ from code_atlas.onboarding.tour import TourStop, ordered_stops
 from code_atlas.store import Row
 
 H_OVERVIEW = "# Architecture overview"
-H_SUMMARY = "## Summary"
-H_MIRRORS = "## Mirror subtrees"
-H_MODULES = "## Business modules"
-H_REACHABILITY = "## Zero-inbound modules, by population"
-H_LAYERS = "## Layers"
-H_DIAGRAM = "## Layer graph"
-H_ER = "## Entity relationships"
-H_CROSSINGS = "## Cross-layer edges"
-H_COMMUNITY = "## Community / layer disagreement"
-H_ORIENTATION = "## Start here"
-H_PROVENANCE = "## How this was written"
-H_AUDIENCE = "## Who this was written for"
+# 269 — question-shaped headings (reader questions first; census moves to appendix).
+H_SUMMARY = "## What is this repo — 60 seconds"
+H_LANDMINES = "## Where will I step on a landmine?"
+H_ORIENTATION = "## Where do I start reading?"
+H_MODULES = "## I was told to change X — which file?"
+H_SPINE = "## What is the spine of this repo?"
+H_ARCH_DIFF = "## What changed architecturally since the last generate?"
+H_TRUST = "## What should I not trust here?"
+H_APPENDIX = "## Appendix"
+H_MIRRORS = "### Mirror subtrees"
+H_REACHABILITY = "### Zero-inbound modules, by population"
+H_LAYERS = "### Layers"
+H_DIAGRAM = "### Layer graph"
+H_ER = "### Entity relationships"
+H_CROSSINGS = "### Cross-layer edges"
+H_COMMUNITY = "### Community / layer disagreement"
+H_PROVENANCE = "### How this was written"
+H_AUDIENCE = "### Who this was written for"
 H_TOUR = "# Guided tour"
 H_ORDER = "## Reading order"
 OUTPUT_DIR = "docs/onboarding"
@@ -101,36 +109,47 @@ CACHE_NAME = "artifact.json"
 # 1 -> 2 (205): the `pages` and `isolated` keys are gone with the module-page tree.
 # 2 -> 3 (208): every reachability bucket gains `caveat` and `declaration`.
 # 3 -> 4 (211): summary gains `community_crossings`.
-ARTIFACT_VERSION = 4
+# 4 -> 5 (263): business_modules gains `source` (toml/structural/entry/empty_explained).
+ARTIFACT_VERSION = 5
+# Soft ceiling for overview.md — appendix is trimmed with an explicit note when exceeded (269).
+OVERVIEW_CHAR_CEILING = 80_000
 
 __all__ = [
     "ARTIFACT_VERSION",
     "CACHE_DIR",
     "CACHE_NAME",
+    "FLOWS_NAME",
     "MANIFEST_NAME",
+    "OUTPUT_DIR",
     "OVERVIEW_NAME",
     "PAGES_DIR",
     "TOUR_NAME",
     "VIEWER_NAME",
+    "H_APPENDIX",
+    "H_ARCH_DIFF",
     "H_CROSSINGS",
     "H_DIAGRAM",
     "H_ER",
+    "H_LANDMINES",
     "H_LAYERS",
     "H_MIRRORS",
     "H_MODULES",
     "H_ORDER",
     "H_OVERVIEW",
     "H_REACHABILITY",
+    "H_SPINE",
     "H_SUMMARY",
     "H_TOUR",
+    "H_TRUST",
     "LayerRow",
     "OnboardingArtifact",
-    "OUTPUT_DIR",
     "build_artifact",
-    "FLOWS_NAME",
+    "cache_json",
+    "enrich_overview_from_dataset",
     "manifest_dict",
-    "render_flows",
+    "manifest_json",
     "recorded_pages",
+    "render_flows",
     "render_overview",
     "render_tour",
 ]
@@ -464,16 +483,18 @@ def _mirror_lines(mirrors: object) -> list[str]:
             "on one side only"
         )
     if not pairs:
-        lines.append("- (no mirrored sibling subtrees detected)")
+        lines.append("- single-tree repo, normal — no mirrored sibling subtrees")
     lines.append("")
     return lines
 
 
 def _community_crossing_lines(crossings: object) -> list[str]:
-    """Communities that straddle two named layers — omitted when the list is empty (211)."""
-    if not isinstance(crossings, list) or not crossings:
-        return []
+    """Communities that straddle two named layers — never a silent omission (269)."""
     lines = [H_COMMUNITY, ""]
+    if not isinstance(crossings, list) or not crossings:
+        lines.append("- (no community/layer disagreement on this index)")
+        lines.append("")
+        return lines
     for row in crossings:
         if not isinstance(row, dict):
             continue
@@ -506,14 +527,16 @@ def _fact_line(fact: Fact) -> str:
 
 
 def _orientation_lines(orientation: Orientation | None, *, cap: int) -> list[str]:
-    """The day-one answers, above the aggregates (AC1). Omitted entirely when nothing is declared.
-
-    Every emitted line either carries a `path`/`path:line` citation or is an explicit gap sentence;
-    nothing here is generated from anything but a quoted or key-extracted value (AC5).
-    """
-    if orientation is None or not orientation.declared:
-        return []
+    """Q3 — doors to start reading (269); never a reading-order syllabus (121)."""
     lines = [H_ORIENTATION, ""]
+    if orientation is None or not orientation.declared:
+        lines.append(
+            "- no declared project files answered this yet — set `CA_ENTRY_POINTS` "
+            "(or entry_points in `.code-atlas.toml`) for doors; this section lists doors, "
+            "not a reading order"
+        )
+        lines.append("")
+        return lines
     for kind, heading in _FACT_HEADINGS:
         rows = [fact for fact in orientation.facts if fact.kind == kind]
         if not rows:
@@ -578,10 +601,11 @@ def _provenance_lines(provenance: Provenance | None) -> list[str]:
 
 
 def _module_lines(modules: object) -> list[str]:
-    """The capability table with the coverage it does NOT claim (task 114).
+    """The capability table with the coverage it does NOT claim (task 114 / 263).
 
     Coverage is printed before the rows, so a reader cannot take the table for the whole repo; a
     container refused for grouping by role is named with its reason instead of vanishing (AC5).
+    Source (263) is always stated; an empty table is never silent.
     """
     if not isinstance(modules, dict):
         return []
@@ -589,6 +613,7 @@ def _module_lines(modules: object) -> list[str]:
     lines = [
         H_MODULES,
         "",
+        f"- source: `{modules.get('source', 'structural')}`",
         f"- coverage: {cover.get('covered', 0)} of {cover.get('total', 0)} indexed files "
         f"({cover.get('percent', 0.0)} %); {cover.get('excluded', 0)} excluded "
         "as vendored or test code",
@@ -597,8 +622,6 @@ def _module_lines(modules: object) -> list[str]:
     rows = modules.get("modules")
     for row in rows if isinstance(rows, list) else []:
         flag = " — **only tree**" if row.get("single_tree") else ""
-        # 198: the label is what a reader sees; the directory stays beside it, because a renamed
-        # capability a reader cannot grep for would be worse than the bare path it replaced.
         label = row.get("label") or row["module"]
         named = (
             f"**{label}** (`{row['module']}`)" if label != row["module"]
@@ -611,7 +634,16 @@ def _module_lines(modules: object) -> list[str]:
         if row.get("hub"):
             lines.append(f"  - busiest file: `{row['hub']}` (fan_in {row['hub_fan_in']})")
     if not rows:
-        lines.append("- (no capability layout found)")
+        reason = modules.get("empty_reason")
+        if isinstance(reason, str) and reason:
+            lines.append(f"- **{reason}**")
+            for entry in modules.get("candidate_globs") or []:
+                if isinstance(entry, dict):
+                    lines.append(
+                        f"  - `{entry.get('glob')}`: files_matched {entry.get('files_matched', 0)}"
+                    )
+        else:
+            lines.append("- (no capability layout found)")
     refused = modules.get("refused")
     for entry in refused if isinstance(refused, list) else []:
         lines.append(f"- refused `{entry['container']}`: {entry['reason']}")
@@ -670,6 +702,185 @@ def _reachability_lines(split: object) -> list[str]:
     return lines
 
 
+
+# Per-family action for the landmine table (269) — derived from HEADLINE_FAMILIES keys.
+_HEADLINE_ACTIONS: Mapping[str, str] = {
+    "duplication": "diff both subtrees before editing either side",
+    "concentration": "list callers of the hub before changing it",
+    "abstraction": "confirm the kind mix matches the layer you expect",
+    "confidence": "open HEURISTIC call sites before trusting them",
+    "reachability": "decide whether zero-inbound files are dead or entry-adjacent",
+    "coverage": "open the capability hub named above before changing that area",
+}
+
+
+def enrich_overview_from_dataset(
+    artifact: OnboardingArtifact, dataset: OnboardingDataset
+) -> OnboardingArtifact:
+    """269: overview questions read the same aggregates the dataset already derived (263 / 112).
+
+    ``build_artifact`` keeps its legacy summary shape for the quality gate; the overview path
+    overlays hubs, headlines, confidence and the capability map so Q2–Q7 are not empty silence.
+    """
+    summary = dict(artifact.summary)
+    summary["business_modules"] = dataset.modules.as_dict()
+    summary["hubs"] = [
+        {"file": h.file, "layer": h.layer, "fan_in": h.fan_in, "fan_out": h.fan_out}
+        for h in dataset.hubs
+    ]
+    summary["headlines"] = [
+        {
+            "family": row.key,
+            "key": row.key,
+            "label": row.label,
+            "text": row.text,
+            "action": _HEADLINE_ACTIONS.get(row.key, "inspect before editing"),
+        }
+        for row in dataset.headlines
+    ]
+    summary["confidence"] = {row.kind: row.count for row in dataset.confidence}
+    summary["uncategorised_segments"] = _uncategorised_segment_worklist(dataset)
+    return replace(artifact, summary=summary)
+
+
+def _uncategorised_segment_worklist(dataset: OnboardingDataset) -> list[dict[str, object]]:
+    """Path segments under Uncategorised dirs that matched no responsibility keyword (269)."""
+    counts: Counter[str] = Counter()
+    for row in dataset.tree:
+        if row.layer != UNCATEGORISED:
+            continue
+        for segment in PurePosixPath(row.path).parts:
+            if not segment or segment in {".", ".."}:
+                continue
+            if responsibility_of_segment(segment) is None:
+                counts[segment] += 1
+    return [{"segment": name, "dirs": n} for name, n in counts.most_common(20)]
+
+
+def _landmine_lines(headlines: object) -> list[str]:
+    """Q2 — answer first, then the action table (269)."""
+    lines = [H_LANDMINES, ""]
+    rows = headlines if isinstance(headlines, (list, tuple)) else ()
+    if not rows:
+        lines.append(
+            "- (no headline families fired on this index — nothing flagged yet; "
+            "re-run after the index covers entry points and mirrors)"
+        )
+        lines.append("")
+        return lines
+    lines.append(
+        f"- {len(rows)} landmine family(ies) fired — skim the finding, then take the action "
+        "before you edit the cited paths."
+    )
+    lines.append("")
+    lines.append("| Finding | Action |")
+    lines.append("|---|---|")
+    for row in rows:
+        if isinstance(row, dict):
+            finding = str(row.get("text") or row.get("family") or row)
+            family = str(row.get("family") or row.get("key") or "")
+            action = str(
+                row.get("action")
+                or _HEADLINE_ACTIONS.get(family)
+                or "inspect before editing"
+            )
+        else:
+            finding = str(getattr(row, "text", row))
+            family = str(getattr(row, "key", ""))
+            action = _HEADLINE_ACTIONS.get(family, "inspect before editing")
+        finding = finding.replace("|", "\\|")
+        lines.append(f"| {finding} | {action} |")
+    lines.append("")
+    return lines
+
+
+def _spine_lines(hubs: object) -> list[str]:
+    """Q5 — hubs with why; warn when a hub looks like test bootstrap."""
+    lines = [H_SPINE, ""]
+    rows = hubs if isinstance(hubs, (list, tuple)) else ()
+    if not rows:
+        lines.append("- (no hubs ranked yet — the index has no fan-in leaders)")
+        lines.append("")
+        return lines
+    for row in rows:
+        if isinstance(row, dict):
+            path = str(row.get("file") or row.get("path") or "")
+            fan_in = row.get("fan_in", "?")
+            layer = row.get("layer", "")
+        else:
+            path = str(getattr(row, "file", getattr(row, "path", "")))
+            fan_in = getattr(row, "fan_in", "?")
+            layer = getattr(row, "layer", "")
+        why = f"fan_in {fan_in}" + (f", layer `{layer}`" if layer else "")
+        warn = ""
+        low = path.lower()
+        if any(tok in low for tok in ("/test", "tests/", "spec/", "phpunit", "pytest")):
+            warn = " — **warning: looks like test bootstrap, not product spine**"
+        lines.append(f"- `{path}` ({why}){warn}")
+    lines.append("")
+    return lines
+
+
+def _arch_diff_lines(markdown: str | None) -> list[str]:
+    """Q6 — prior generate diff, or DiffRefusal prose on first run."""
+    lines = [H_ARCH_DIFF, ""]
+    if markdown and markdown.strip():
+        body = "\n".join(
+            ln for ln in markdown.splitlines() if not ln.startswith("# Architecture")
+        ).strip()
+        lines.extend(body.splitlines() if body else ["- (diff report was empty)"])
+    else:
+        lines.append(
+            "- no previous generate to compare — commit `docs/onboarding/manifest.json` "
+            "and re-run to see architectural drift (DiffRefusal: first run)"
+        )
+    lines.append("")
+    return lines
+
+
+def _trust_lines(artifact: OnboardingArtifact) -> list[str]:
+    """Q7 — HEURISTIC share, Uncategorised mode, unmodelled notes."""
+    lines = [H_TRUST, ""]
+    conf = artifact.summary.get("confidence") if isinstance(artifact.summary, dict) else None
+    if isinstance(conf, dict) and conf:
+        total = sum(int(v) for v in conf.values() if isinstance(v, (int, float))) or 1
+        heur = int(conf.get("HEURISTIC", 0) or 0)
+        # Dataset may use EXACT as the resolved tier name (headlines.EXACT_TIER).
+        if heur == 0 and "EXACT" in conf:
+            heur = total - int(conf.get("EXACT", 0) or 0)
+        pct = 100.0 * heur / total
+        lines.append(f"- HEURISTIC / non-exact edges: {heur} of {total} ({pct:.1f} %)")
+    else:
+        lines.append(
+            "- HEURISTIC share: not stamped on this artifact summary — rebuild the onboarding "
+            "dataset so confidence tiers are present"
+        )
+    uncat = [row for row in artifact.layers if row.layer == UNCATEGORISED]
+    if uncat and uncat[0].modules == max((r.modules for r in artifact.layers), default=0):
+        lines.append(
+            f"- `{UNCATEGORISED}` is the mode ({uncat[0].modules} modules) — "
+            "vocabulary worklist of unmatched path segments (not a real layer):"
+        )
+        segments = artifact.summary.get("uncategorised_segments") if isinstance(
+            artifact.summary, dict
+        ) else None
+        if isinstance(segments, list) and segments:
+            for row in segments:
+                if isinstance(row, dict):
+                    lines.append(
+                        f"  - `{row.get('segment')}` (in {row.get('dirs', 0)} Uncategorised dirs)"
+                    )
+        else:
+            lines.append(
+                "  - (no unmatched directory segments sampled — path vocabulary may be empty)"
+            )
+    else:
+        lines.append(f"- `{UNCATEGORISED}` is not the modal layer on this index")
+    lines.append("- what is unmodelled: see reachability stamps and adapter coverage notes")
+    lines.append("")
+    return lines
+
+
 def render_overview(
     artifact: OnboardingArtifact,
     node_cap: int | None = None,
@@ -682,8 +893,9 @@ def render_overview(
     er_tables: Sequence[ErTable] = (),
     er_refs: Sequence[ErRef] = (),
     er_table_cap: int | None = None,
+    arch_diff_markdown: str | None = None,
 ) -> str:
-    """Committed overview markdown, holding exactly the sections this audience's contract names.
+    """Committed overview markdown — question headings first, census in the appendix (269).
 
     The contract is read, never re-derived: which sections an audience gets is decided once, in
     ``onboarding.audience`` (R1.8 / 127's lesson). Unset is ``full`` — today's document.
@@ -697,8 +909,7 @@ def render_overview(
         omitted_dynamic=artifact.omitted_dynamic,
     )
     lines = [H_OVERVIEW, ""]
-    if wants.wants(ORIENTATION):
-        lines.extend(_orientation_lines(orientation, cap=cap))
+    # --- seven reader questions (answer before any appendix census) ---
     if wants.wants(SUMMARY):
         lines.extend(
             [
@@ -706,25 +917,32 @@ def render_overview(
                 "",
                 *_scope_bullets(file_paths, working_roots),
                 f"- method: {artifact.method}",
-                f"- layers: {artifact.summary['layers']}",
-                f"- modules: {artifact.summary['modules']}",
-                f"- symbols: {artifact.summary['symbols']}",
-                f"- cross-layer edges: {artifact.summary['cross_layer_edges']}",
+                f"- layers: {artifact.summary['layers']} _(dataset.layers)_",
+                f"- modules: {artifact.summary['modules']} _(dataset.modules)_",
+                f"- symbols: {artifact.summary['symbols']} _(dataset.node_counts)_",
+                f"- cross-layer edges: {artifact.summary['cross_layer_edges']} _(dataset.matrix)_",
                 f"- truncated: {'true' if artifact.truncated else 'false'}",
+                f"- size ceiling: {OVERVIEW_CHAR_CEILING} characters (appendix trims past this)",
                 "",
             ]
         )
-    if wants.wants(MIRRORS):
-        lines.extend(_mirror_lines(artifact.summary.get("mirrors")))
-    if wants.wants(COMMUNITY):
-        lines.extend(_community_crossing_lines(artifact.summary.get("community_crossings")))
+        if wants.wants(DIAGRAM):
+            validate_mermaid_flowchart(diagram.mermaid)
+            lines.extend(["```mermaid", diagram.mermaid.rstrip(), "```", ""])
+    lines.extend(_landmine_lines(artifact.summary.get("headlines")))
+    if wants.wants(ORIENTATION):
+        lines.extend(_orientation_lines(orientation, cap=cap))
     if wants.wants(MODULES):
         lines.extend(_module_lines(artifact.summary.get("business_modules")))
+    lines.extend(_spine_lines(artifact.summary.get("hubs")))
+    lines.extend(_arch_diff_lines(arch_diff_markdown))
+    lines.extend(_trust_lines(artifact))
+    # --- appendix: relocated census (tests stay green on content; headings demoted) ---
+    lines.extend([H_APPENDIX, ""])
+    if wants.wants(MIRRORS):
+        lines.extend(_mirror_lines(artifact.summary.get("mirrors")))
     if wants.wants(REACHABILITY):
         lines.extend(_reachability_lines(artifact.summary.get("reachability")))
-    # Each section gates on its OWN contract entry. An early return here would couple one
-    # section's presence to another's, so a later audience wanting the diagram but not the layer
-    # list would silently lose it — control flow deciding what a contract already decided.
     if wants.wants(LAYERS):
         lines.extend([H_LAYERS, ""])
         for row in artifact.layers:
@@ -734,8 +952,9 @@ def render_overview(
                 f"{row.entry_points} entry points)"
             )
             lines.append(f"  - {row.description}")
+        lines.append("")
     if wants.wants(DIAGRAM):
-        lines.extend(["", H_DIAGRAM, ""])
+        lines.extend([H_DIAGRAM, ""])
         lines.append(
             f"- layers: {diagram.shown_layers} shown of {diagram.total_layers}"
             + ("; the graph is capped" if diagram.truncated else "")
@@ -749,39 +968,62 @@ def render_overview(
                 f"- crossings with no arrow because their layer is outside the cap: "
                 f"{diagram.omitted_capped} — the table below still lists them"
             )
-        # AC5's check guards the committed artifact, not only the benchmark script.
-        validate_mermaid_flowchart(diagram.mermaid)
-        lines.extend(["", "```mermaid", diagram.mermaid.rstrip(), "```"])
+        lines.append("")
     if wants.wants(ER_DIAGRAM):
         table_cap = er_table_cap if er_table_cap is not None else DEFAULT_TABLE_CAP
         er_mermaid = render_er_diagram(er_tables, er_refs, table_cap=table_cap)
-        lines.extend(["", H_ER, ""])
+        lines.extend([H_ER, ""])
         lines.append(
             f"- tables: {min(len(er_tables), table_cap)} shown of {len(er_tables)}"
             + ("; the graph is capped" if len(er_tables) > table_cap else "")
         )
         lines.append(f"- REFERENCES edges in scope: {len(er_refs)}")
         validate_mermaid_er_diagram(er_mermaid)
-        lines.extend(["", "```mermaid", er_mermaid.rstrip(), "```"])
+        lines.extend(["", "```mermaid", er_mermaid.rstrip(), "```", ""])
     if wants.wants(CROSSINGS):
-        lines.extend(["", H_CROSSINGS, ""])
+        lines.extend([H_CROSSINGS, ""])
         if artifact.crossings:
             for source, target, count in artifact.crossings:
                 lines.append(f"- `{source}` → `{target}` ({count})")
         else:
-            lines.append("- (none)")
+            lines.append("- (none — no cross-layer edges in this index)")
         lines.append("")
+    if wants.wants(COMMUNITY):
+        lines.extend(_community_crossing_lines(artifact.summary.get("community_crossings")))
     return _finish(lines, wants, provenance)
 
 
 def _finish(
     lines: list[str], wants: AudienceContract, provenance: Provenance | None
 ) -> str:
-    """Close the document with the audience line and, when contracted, the provenance stamp."""
+    """Close the document with the audience line and, when contracted, the provenance stamp.
+
+    Past the ceiling the appendix is trimmed, never the footer: an overview that dropped its
+    provenance stamp to fit would be the one document unable to say how it was written.
+    """
+    footer: list[str] = []
     if wants.wants(PROVENANCE):
-        lines.extend(_provenance_lines(provenance))
-    lines.extend(_audience_lines(wants))
-    return "\n".join(lines) + "\n"
+        footer.extend(_provenance_lines(provenance))
+    footer.extend(_audience_lines(wants))
+    text = "\n".join(lines + footer) + "\n"
+    if len(text) <= OVERVIEW_CHAR_CEILING:
+        return text
+    foot = ("\n".join(footer) + "\n") if footer else ""
+    body = "\n".join(lines) + "\n"
+    # Prefer keeping the seven questions; trim from the appendix onward.
+    head, sep, _tail = body.partition("\n" + H_APPENDIX + "\n")
+    if sep:
+        note = (
+            f"- appendix truncated to stay under {OVERVIEW_CHAR_CEILING} characters — "
+            "narrow the audience or lower `CA_MAX_RESULTS`.\n\n"
+        )
+        return head + sep + note + foot
+    note = (
+        f"\n- overview truncated to stay under {OVERVIEW_CHAR_CEILING} characters — "
+        "regenerate with a smaller `CA_MAX_RESULTS` / audience contract.\n\n"
+    )
+    budget = max(0, OVERVIEW_CHAR_CEILING - len(note) - len(foot))
+    return body[:budget] + note + foot
 
 
 def render_tour(

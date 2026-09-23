@@ -131,7 +131,7 @@ ticket changes *which* matches survive the page, never how many paths are embedd
 - Docs: BACKLOG row + this frontmatter, token ledger.
 
 **Proving test.** `test_palette_page_one_represents_every_subtree` — the AC1 fixture: 60 `alpha/`, 60
-`beta/` and 1 `src/` path all matching `resident`, `alpha/` first in dataset order. Red before the
+`beta/` and 1 `src/` path all matching `member`, `alpha/` first in dataset order. Red before the
 change (all 40 displayed rows are `alpha/`), green after.
 
 **Rule compliance.** R1.1 n/a (no core language branch) · R2.2 subtree names derived (AC4) · R4.2

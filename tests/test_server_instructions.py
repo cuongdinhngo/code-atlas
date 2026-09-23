@@ -35,14 +35,18 @@ def config_for(root: Path, **extra: str):
 
 
 def test_an_unindexed_repo_says_so_and_names_the_one_tool_that_fixes_it(tmp_path: Path) -> None:
-    """The first move has to know the state of this repo — a map alone does not establish it."""
+    """The first move has to know the state of this repo — a map alone does not establish it.
+
+    Since 319 the lead sentence is get_index_status's own `summary`; the unbuilt summary says
+    `not indexed` and carries the one tool that fixes it (AC3: the CTA is preserved).
+    """
     text = instructions.render(config_for(tmp_path), ALL_TOOLS)
-    assert text.startswith("This repository is not indexed yet")
-    assert "build_or_update_index" in text
+    assert text.startswith("unknown ")
+    assert "not indexed — run build_or_update_index" in text
 
 
 def test_an_indexed_repo_carries_its_own_counts(tmp_path: Path) -> None:
-    """`indexed and current: N files` is the claim grep cannot make, so it is worth the tokens."""
+    """`current … N files` is the claim grep cannot make (the summary leads since 319)."""
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "a.aa").write_text("# symbol: alpha\n", encoding="utf-8")
     for command in (
@@ -57,7 +61,8 @@ def test_an_indexed_repo_carries_its_own_counts(tmp_path: Path) -> None:
     build_tool(config)(full=True)
 
     text = instructions.render(config, ALL_TOOLS)
-    assert text.startswith("This repository is indexed and current: 1 files, ")
+    assert text.startswith("current")
+    assert "1 files" in text
 
 
 def test_the_map_is_cut_to_the_tools_actually_registered(tmp_path: Path) -> None:
@@ -96,3 +101,30 @@ def test_the_instructions_name_the_boundary_and_the_coverage_fields(tmp_path: Pa
     assert "ABSENCE" in text and "Grep for the absence" in text
     for field in ("unconfigured_adapters", "unindexed_languages", "unindexed_same_basename"):
         assert field in text
+
+
+def test_state_single_sources_on_the_index_status_summary(tmp_path, monkeypatch) -> None:
+    """319/AC2: the lead sentence is get_index_status's `summary`, lifted — not a second recompose.
+
+    A sentinel the recompose path could never produce must appear verbatim, and must TRACK when the
+    field changes — proof of one composition site (R6.7), not two that can drift.
+    """
+    summary = "SENTINEL current @ deadbee · 7 files · 9 symbols · healthy"
+    payload: dict[str, object] = {
+        "indexed": True,
+        "files": 7,
+        "nodes": 9,
+        "staleness": "current",
+        "summary": summary,
+    }
+    monkeypatch.setattr(
+        instructions.get_index_status, "create", lambda config, names: (lambda: payload)
+    )
+    text = instructions.render(config_for(tmp_path), ALL_TOOLS)
+    assert text.startswith(summary)
+
+    moved = "behind @ deadbee · 7 files · 9 symbols — run build_or_update_index"
+    payload["summary"] = moved
+    tracked = instructions.render(config_for(tmp_path), ALL_TOOLS)
+    assert tracked.startswith(moved)
+    assert "SENTINEL" not in tracked

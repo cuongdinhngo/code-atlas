@@ -22,6 +22,12 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
+| 313 | [`impact` buries ten production callers under tests and mirror twins](tasks/313_impact-buries-the-answer-under-tests-and-mirror-twins.md) | Agent-fit | todo | 262, 265, 277, 282, 298 |
+| 318 | [313's refusal gate reads a hand-list, so sibling tokens dynamic_import/autoload ship untaught](tasks/318_refusal-gate-misses-sibling-resolution-statuses.md) | Agent-trust | todo | 313, 296 |
+| 320 | [A bare table name dead-ends in check_column_defaults — the 165-C1 partition, second sighting](tasks/320_column-defaults-dead-ends-on-an-unqualified-table.md) | Agent-trust | todo | 194, 022 |
+| 321 | [A migration altering a table via sp_executesql leaves no trace on it, so duplicates ship](tasks/321_dynamic-ddl-in-migrations-leaves-no-trace.md) | Coverage | todo | 022, 184, 296 |
+| 322 | [The state line rides initialize once, so a long session re-asks for what get_index_status already routes to](tasks/322_the-state-line-is-delivered-once-and-never-again.md) | Adoption | todo | 300, 099, 316, 319 |
+| 323 | [The only gate needs four runtimes on PATH and has no container route, so a host missing one cannot pass it](tasks/323_the-only-gate-cannot-run-where-it-is-needed.md) | Measure | todo | 268 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -30,11 +36,8 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 M10–M12 have all landed; round narratives live in [`FEEDBACK.md`](FEEDBACK.md),
 [PLAN §19](PLAN.md#19-project-context--decision-log), [`LESSONS.md`](LESSONS.md) and `benchmarks/`.
 
-| # | Task | Theme | Status | Depends on |
-|---|---|---|---|---|
-| 263 | [The question a newcomer asks most is the one table that is empty](tasks/263_the-question-a-newcomer-asks-most-is-the-one-table-that-is-empty.md) | Onboarding | todo | 114, 210 |
-| 269 | [Twelve graph nouns where a reader has seven questions](tasks/269_twelve-graph-nouns-where-a-reader-has-seven-questions.md) | Onboarding | todo | 263, 121, 210, 139 |
-| 313 | [`impact` buries ten production callers under tests and mirror twins](tasks/313_impact-buries-the-answer-under-tests-and-mirror-twins.md) | Agent-fit | todo | 262, 265, 277, 282, 298 |
+*Nothing open.* M10-M12 shipped; **310** closed unmeasured — its ticket and its
+[`TOKEN_LEDGER.md`](TOKEN_LEDGER.md) row carry why, and no row here restates it (R7.6).
 
 **What still governs open work:** the surface has **24 tools** (`main.TOOL_NAMES`), count-pinned by
 tests.

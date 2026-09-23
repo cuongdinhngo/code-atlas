@@ -24,6 +24,7 @@ from code_atlas.symbol_role import (
 from code_atlas.tools import call_site, claim
 from code_atlas.tools.coverage import (
     attach_coverage_note,
+    coverage_gap,
     covered_languages,
     cross_language_census_has_edges,
     cross_language_relation_unmodelled,
@@ -49,9 +50,11 @@ from code_atlas.tools.nav_result import (
     REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE,
+    answered_about_ref_for,
     apply_empty_inbound_honesty,
     attach_ambiguous_definitions,
     attach_authoritative_caveats,
+    attach_coverage_edge_route,
     attach_cross_language_census,
     attach_limit_capped,
     attach_resolved_qname,
@@ -202,9 +205,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         args_at = _args_at(arg_position, arg_is, depth=depth)
         tier = _confidence_tier(confidence_tier, depth=depth)
         if not config.db_path.is_file():
-            return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path),
-            index_root=config.index_root,
-        )
+            return empty_nav(
+                qname,
+                detail_level=detail_level,
+                db_path=str(config.db_path),
+                index_root=config.index_root,
+                answered_about_ref=None,
+            )
         staleness: dict[str, object] = {}
 
         def signed(payload: dict[str, object]) -> dict[str, object]:
@@ -235,8 +242,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         test_role_label: str | None = None
         production_count = 0
         test_count = 0
+        about_ref: str | None = None
         with GraphStore(config.db_path) as store:
             covered = covered_languages(store)
+            stamped = store.stamped_unmodelled_resolution_by_language()
+            about_ref = answered_about_ref_for(store)
             if sign or serve_behind:
                 staleness = compute_staleness(store, config, include_dirty_count=True)
             if serve_behind:
@@ -258,6 +268,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         total_count=0,
                         depth=depth,
                         frontier_skipped_non_resolved=0,
+                        answered_about_ref=about_ref,
                     )
                     # 274: name the opt-in that answers; file_outline cannot fix a stale subject.
                     if not serve_behind:
@@ -313,6 +324,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         total_count=0,
                         depth=depth,
                         frontier_skipped_non_resolved=0,
+                        answered_about_ref=about_ref,
                     )
                     # A miss still names what the guard repaired (073) and what it could not judge
                     # (049) — the 092 shortcut must not drop signals the fall-through carried.
@@ -323,6 +335,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     attach_limit_capped(miss, cap=cap, clamped=limit_clamped)
                     shaped = shape_exact_miss(miss, resolution)
                     finalize_subject_checked_miss(shaped, guard)
+                    attach_coverage_edge_route(
+                        shaped,
+                        stamped,
+                        has_coverage_gap=bool(coverage_gap(config)),
+                        detail_level=detail_level,
+                    )
                     return signed(
                         attach_coverage_note(
                             shaped, config, covered,
@@ -524,6 +542,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             total_count=outcome.total_count,
             depth=depth,
             frontier_skipped_non_resolved=outcome.frontier_skipped_non_resolved,
+            answered_about_ref=about_ref,
         )
         if freshness == "repaired":
             result["subject_refreshed_only"] = True
@@ -585,6 +604,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             revision=staleness or None,
             dirty_paths=behind_dirty,
             subject_unrepaired=subject_unrepaired,
+        )
+        attach_coverage_edge_route(
+            labelled,
+            stamped,
+            has_coverage_gap=bool(coverage_gap(config)),
+            detail_level=detail_level,
         )
         return signed(attach_coverage_note(labelled, config, covered, detail_level=detail_level))
 

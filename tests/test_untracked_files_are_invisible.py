@@ -71,6 +71,7 @@ def test_untracked_indexable_file_is_visible_not_absent(tmp_path: Path) -> None:
         "reason": REASON_NOT_INDEXED,
         "total_count": 0,
         "index_root": config.index_root,
+        "answered_about_ref": "master",
         "depth": 1,
         "frontier_skipped_non_resolved": 0,
         "try_instead": TRY_INSTEAD_BUILD_OR_UPDATE_INDEX,

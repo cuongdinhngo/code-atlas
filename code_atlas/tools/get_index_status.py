@@ -301,6 +301,48 @@ def _attach_behind_routes(
     status[CHANGED_INDEXED_FILES_FIELD] = len(dirty_indexed_paths(store, config))
 
 
+def _short_rev(value: object) -> str | None:
+    """First 7 hex chars of a commit SHA when present — never invent a revision."""
+    if not isinstance(value, str) or not value:
+        return None
+    return value[:7]
+
+
+def _compose_summary(payload: dict[str, object]) -> str:
+    """One lifted sentence from the structured fields already on ``payload`` (316 / R4.2).
+
+    Pure function of the dict it precedes — no store, no git, no second source of truth.
+    Always names freshness, revision (when known), and scale (AC1).
+    """
+    files_raw = payload.get("files")
+    nodes_raw = payload.get("nodes")
+    files = files_raw if isinstance(files_raw, int) else 0
+    nodes = nodes_raw if isinstance(nodes_raw, int) else 0
+    scale = f"{files:,} files · {nodes:,} symbols"
+    rev = _short_rev(payload.get("last_commit"))
+    at = f" @ {rev}" if rev else ""
+    if payload.get("error") == "schema_version_mismatch":
+        return f"unknown{at} · {scale} — schema mismatch — not indexed — run build_or_update_index"
+    if not payload.get("indexed"):
+        return f"unknown{at} · {scale} — not indexed — run build_or_update_index"
+    staleness = str(payload.get("staleness") or UNKNOWN)
+    if staleness == BEHIND:
+        serves = " (read tools still serve)" if payload.get(BEHIND_SERVES_FIELD) else ""
+        return f"behind{at} · {scale}{serves} — run build_or_update_index"
+    if staleness == CURRENT:
+        health = ""
+        edge = payload.get("edge_health")
+        if isinstance(edge, dict) and int(edge.get("unlinked") or 0) == 0:
+            health = " · healthy"
+        return f"current{at} · {scale}{health}"
+    return f"{staleness}{at} · {scale}"
+
+
+def _with_summary(payload: dict[str, object]) -> dict[str, object]:
+    """Put ``summary`` first so a reader can lift it without scanning the dict (316)."""
+    return {"summary": _compose_summary(payload), **payload}
+
+
 def _unbuilt(
     servable: Sequence[str], detail_level: DetailLevel, config: Config
 ) -> dict[str, object]:
@@ -333,7 +375,7 @@ def _unbuilt(
     if detail_level == "verbose":
         status["parse_failure_paths"] = []
         status["parse_failures_truncated"] = False
-    return status
+    return _with_summary(status)
 
 
 def _mismatched(
@@ -350,7 +392,9 @@ def _mismatched(
     status = _unbuilt(servable, detail_level, config) | schema_guard.payload(mismatch)
     if mismatch.direction != SCHEMA_OLDER:
         status.pop("next_tool_suggestions", None)
-    return status
+    # Re-compose after the schema merge so summary tracks ``error`` (316).
+    status.pop("summary", None)
+    return _with_summary(status)
 
 
 def _status(
@@ -397,7 +441,7 @@ def _status(
     _attach_suggestions(status, servable, staleness, indexed=indexed)
     if detail_level == "minimal":
         _attach_behind_routes(status, staleness=staleness, detail_level="minimal")
-        return signed(status)
+        return signed(_with_summary(status))
     _attach_behind_routes(
         status, staleness=staleness, detail_level=detail_level, store=store, config=config
     )
@@ -427,7 +471,7 @@ def _status(
     _attach_capabilities_by_language(enriched, store)
     _attach_edge_health_by_language_verdict(enriched, store)
     if detail_level == "standard":
-        return signed(enriched)
+        return signed(_with_summary(enriched))
     paths = store.failed_paths(PARSE_FAILURE_PATHS_LIMIT, offset=offset)
     verbose = enriched | {
         "parse_failure_paths": list(paths),
@@ -438,7 +482,7 @@ def _status(
         verbose["collection"] = collection
     _attach_edge_health_by_language(verbose, store)
     verbose[fit.FIT_COUNTS_FIELD] = store.list_fit_counts()
-    return signed(verbose)
+    return signed(_with_summary(verbose))
 
 
 def _language_bucket_count(stamped: dict[str, object]) -> int:

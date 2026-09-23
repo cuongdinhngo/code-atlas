@@ -108,7 +108,9 @@ def test_scope_lines_appear_only_when_roots_are_declared(tmp_path: Path) -> None
 
 
 def test_unset_working_roots_leave_the_emitted_tree_byte_identical(tmp_path: Path) -> None:
+    """R4.2 / 269 Q6 — once a prior manifest exists, identical input stays byte-stable."""
     config = _scoped_repo(tmp_path)
+    generate_onboarding.create(config)()  # seed prior for arch-diff
     first = generate_onboarding.create(config)()
     first_docs = {
         name: (_out(tmp_path) / name).read_bytes()

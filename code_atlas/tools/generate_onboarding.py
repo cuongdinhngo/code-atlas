@@ -19,6 +19,12 @@ from typing import Literal
 
 from code_atlas.config import Config, as_working_roots
 from code_atlas.contract import split_qname
+from code_atlas.onboarding.architecture_diff import (
+    MANIFEST_KEYS,
+    diff_architecture,
+    load_architecture_snapshot,
+    render_architecture_diff,
+)
 from code_atlas.onboarding.artifact import (
     CACHE_DIR,
     CACHE_NAME,
@@ -32,6 +38,7 @@ from code_atlas.onboarding.artifact import (
     OnboardingArtifact,
     build_artifact,
     cache_json,
+    enrich_overview_from_dataset,
     manifest_dict,
     manifest_json,
     recorded_pages,
@@ -189,6 +196,7 @@ def assemble_onboarding_snapshot(
         provenance=provenance,
         orientation=orientation,
         audience=wants.audience,
+        repo_root=Path(config.root),
     )
     return {
         "artifact": artifact,
@@ -361,6 +369,21 @@ def _remove_recorded_pages(out: Path) -> None:
             path.rmdir()
 
 
+def _arch_diff_markdown_for(
+    prior_manifest: Path, after: Mapping[str, object]
+) -> str | None:
+    """Q6 wiring (269): diff the committed prior manifest against this run's snapshot.
+
+    Returns ``None`` when no prior file exists — ``render_overview`` emits DiffRefusal prose.
+    """
+    if not prior_manifest.is_file():
+        return None
+    # The one set ``load_architecture_snapshot`` strips, so the two sides cannot drift apart.
+    after_clean = {k: v for k, v in after.items() if k not in MANIFEST_KEYS}
+    report = diff_architecture(load_architecture_snapshot(prior_manifest), after_clean)
+    return render_architecture_diff(report)
+
+
 def _write(
     root: Path,
     artifact: OnboardingArtifact,
@@ -386,9 +409,14 @@ def _write(
     _remove_recorded_pages(out)
     out.mkdir(parents=True, exist_ok=True)
     written: list[str] = []
+    after_snap = manifest_dict(
+        artifact, dataset, index_root=index_root, last_ref=last_ref
+    )
+    arch_md = _arch_diff_markdown_for(out / MANIFEST_NAME, after_snap)
+    overview_artifact = enrich_overview_from_dataset(artifact, dataset)
     files = {
         OVERVIEW_NAME: render_overview(
-            artifact,
+            overview_artifact,
             node_cap=max_results,
             file_paths=file_paths,
             working_roots=working_roots,
@@ -398,6 +426,7 @@ def _write(
             er_tables=er_tables,
             er_refs=er_refs,
             er_table_cap=DEFAULT_TABLE_CAP,
+            arch_diff_markdown=arch_md,
         ),
         TOUR_NAME: render_tour(
             artifact,

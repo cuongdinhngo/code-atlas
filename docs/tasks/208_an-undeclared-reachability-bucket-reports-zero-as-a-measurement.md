@@ -21,7 +21,7 @@ depends_on: [113, 119, 130, 182, 186]
 The same artifact, in the same run:
 
 - gave **47** module pages to files under `Zend/`;
-- opened tour step 8, labelled **`Middleware / Auth`**, with `pdf/pdf/filters/FilterLZW.php`
+- opened tour step 8, labelled **`Middleware / Auth`**, with `vendor/pdf/filters/FilterLZW.php`
   and `adodb/session/adodb-encrypt-mcrypt.php`;
 - gave tour steps 12 and 13 to `qunit-1.15.0.js` and `MPDF61/tests/mPDFTest.php`;
 - ranked `tinymce.d.ts` the busiest file in the `js` module at `fan_in 1791`.
@@ -306,7 +306,7 @@ tour files containing 'Zend/': 15 · 'MPDF': 11 · 'adodb': 5 · under either st
 **Declaring `stub_roots` changes nothing at all** — not the bucket, not one other count, not the
 tour. And the reason is sharper than *"the tour does not move"*: **the two roots the anchor's own
 config file proposes match 0 of its 24,535 indexed files.** The anchor's third-party code lives in
-`Zend/`, `legacy/alpha/web/include/pdf/` and `.../adodb/` — not under a `vendor/` directory. So:
+`Zend/`, `legacy/alpha/web/vendor/pdf/` and `.../adodb/` — not under a `vendor/` directory. So:
 
 1. **The remedy pointer must promise that the question gets ASKED, never that the count moves.** A
    declaration can be given and still match nothing, and 119's `PatternClaim` already prints exactly

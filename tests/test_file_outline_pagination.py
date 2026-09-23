@@ -123,6 +123,7 @@ def test_single_page_payload_unchanged(store: GraphStore, tmp_path: Path) -> Non
         "results": result["results"],
         "truncated": False,
         "index_root": config.index_root,
+        "answered_about_ref": None,
         "reason": "ok",
         "total_count": 3,
     }

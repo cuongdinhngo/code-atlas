@@ -44,16 +44,12 @@ LIMITS = (
 
 
 def _state(config: Config) -> str:
-    """One sentence of ground truth, so the first move knows this repo has an index."""
-    status = get_index_status.create(config, ())()
-    if not status.get("indexed"):
-        return "This repository is not indexed yet — call build_or_update_index before asking."
-    files, nodes = status.get("files"), status.get("nodes")
-    staleness = status.get("staleness")
-    where = f"{files} files, {nodes} symbols"
-    if staleness == "current":
-        return f"This repository is indexed and current: {where}."
-    return f"This repository is indexed ({where}) but {staleness} — call build_or_update_index."
+    """One sentence of ground truth — the summary get_index_status already single-sources (316/319).
+
+    Lifted, never recomposed: one composition site (R6.7), and the CTA for each state (not
+    indexed / behind / current) rides the summary rather than a second sentence here.
+    """
+    return str(get_index_status.create(config, ())()["summary"])
 
 
 def render(config: Config, names: tuple[str, ...]) -> str:

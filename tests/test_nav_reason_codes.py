@@ -28,6 +28,7 @@ from code_atlas.tools.nav_result import (
     REASON_NO_SUCH_SYMBOL,
     REASON_NOT_INDEXED,
     REASON_OK,
+    REASON_PATH_EXCLUDED,
     REASON_PROXIMITY_CANDIDATES,
     REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
     REASON_RELATIONSHIP_NOT_MODELLED,
@@ -194,6 +195,7 @@ def test_reason_vocabulary_includes_index_stale_unused() -> None:
         REASON_VIA_MEMBERS,
         REASON_PROXIMITY_CANDIDATES,
         REASON_KIND_EXCLUDED,
+        REASON_PATH_EXCLUDED,
     )
 
 

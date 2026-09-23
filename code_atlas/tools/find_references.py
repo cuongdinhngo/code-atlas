@@ -21,6 +21,7 @@ from code_atlas.symbol_role import aggregate_test_count_source, stored_test_sour
 from code_atlas.tools import call_site, claim
 from code_atlas.tools.coverage import (
     attach_coverage_note,
+    coverage_gap,
     covered_languages,
     cross_language_census_has_edges,
     cross_language_relation_unmodelled,
@@ -47,9 +48,11 @@ from code_atlas.tools.nav_result import (
     TRY_INSTEAD_HINT_METHOD_QNAME,
     TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE,
     TRY_INSTEAD_SEARCH_SYMBOL,
+    answered_about_ref_for,
     apply_empty_inbound_honesty,
     attach_ambiguous_definitions,
     attach_authoritative_caveats,
+    attach_coverage_edge_route,
     attach_cross_language_census,
     attach_limit_capped,
     attach_resolved_qname,
@@ -64,6 +67,7 @@ from code_atlas.tools.nav_result import (
     escalate_zero_production,
     nav_result,
     relation_reason,
+    require_path_prefix,
     shape_exact_miss,
     sibling_definition_rows,
     unique_repoint,
@@ -170,6 +174,7 @@ def _member_caller_union(
     *,
     cap: int,
     offset: int,
+    path_prefix: str | None = None,
 ) -> tuple[list[dict[str, object]], int] | None:
     """Page CALLS/NEW that target the class's declared CONTAINS children (252 / 265).
 
@@ -193,9 +198,15 @@ def _member_caller_union(
         members.append(qn)
     if not members:
         return None
-    total = store.count_edges_by_targets(members, kinds=CALLER_KINDS)
+    total = store.count_edges_by_targets(
+        members, kinds=CALLER_KINDS, path_prefix=path_prefix
+    )
     inbound = store.edges_by_targets(
-        members, kinds=CALLER_KINDS, limit=cap, offset=offset
+        members,
+        kinds=CALLER_KINDS,
+        limit=cap,
+        offset=offset,
+        path_prefix=path_prefix,
     )
     hits: list[dict[str, object]] = []
     for edge in inbound:
@@ -217,6 +228,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         sign: bool = False,
         serve_behind: bool = False,
         exclude_tests: bool = False,
+        path_prefix: str | None = None,
     ) -> dict[str, object]:
         """Where is this symbol used across the codebase?
 
@@ -250,7 +262,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         is never quoted: those hits carry ``source_stale`` instead.
 
         ``limit`` / ``offset`` page in store edge order (057); default limit is
-        ``CA_MAX_RESULTS``.
+        ``CA_MAX_RESULTS``. Optional ``path_prefix`` narrows to edges whose stored file
+        path is under that index-root-relative POSIX prefix (315).
 
         ``subject_refreshed_only`` is present (and ``true``) only when read-through freshness
         reparsed the subject's file this call — neighbors were not re-verified (035 / 061).
@@ -270,13 +283,18 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
+        path_prefix = require_path_prefix(path_prefix)
         cap, limit_clamped = clamp_limit(limit, config.page_limit)
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
         if not config.db_path.is_file():
-            return empty_nav(qname, detail_level=detail_level, db_path=str(config.db_path),
-            index_root=config.index_root,
-        )
+            return empty_nav(
+                qname,
+                detail_level=detail_level,
+                db_path=str(config.db_path),
+                index_root=config.index_root,
+                answered_about_ref=None,
+            )
         staleness: dict[str, object] = {}
 
         def signed(payload: dict[str, object]) -> dict[str, object]:
@@ -307,9 +325,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         writes_kinds: tuple[str, ...] | None = None
         writes_targets: list[str] | None = None
         unlinked_same_name_sites = 0
+        about_ref: str | None = None
         with GraphStore(config.db_path) as store:
             covered = covered_languages(store)
+            stamped = store.stamped_unmodelled_resolution_by_language()
             emitted_kinds = store.stamped_emitted_kinds_by_language()
+            about_ref = answered_about_ref_for(store)
             if sign or serve_behind:
                 staleness = compute_staleness(store, config, include_dirty_count=True)
             if serve_behind:
@@ -329,6 +350,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         truncated=False,
                         reason=REASON_INDEX_STALE,
                         total_count=0,
+                        answered_about_ref=about_ref,
                     )
                     if not serve_behind:
                         return signed(attach_serve_behind_route(refused))
@@ -338,8 +360,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             lookup = qname
             production_count, test_count, test_role_label = _test_census(store, lookup)
             total_count = store.count_edges_by_target(
-                lookup, exclude_test_sources=exclude_tests
-            )
+                lookup, exclude_test_sources=exclude_tests, path_prefix=path_prefix)
             # Widen the existing indexed-check fetch to surface every definition site (task 070).
             nodes = store.nodes_by_qualified_name(lookup, limit=config.page_limit)
             indexed = bool(nodes)
@@ -352,8 +373,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 total_count = store.count_edges_by_targets(
                     writes_targets,
                     kinds=writes_kinds,
-                    exclude_test_sources=exclude_tests,
-                )
+                    exclude_test_sources=exclude_tests, path_prefix=path_prefix)
                 production_count, test_count, test_role_label = _test_census_for(
                     store, writes_targets, kinds=writes_kinds
                 )
@@ -379,9 +399,16 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         truncated=False,
                         reason=REASON_NO_SUCH_SYMBOL,
                         total_count=0,
+                        answered_about_ref=about_ref,
                     )
                     shaped = shape_exact_miss(miss, resolution)
                     finalize_subject_checked_miss(shaped, guard)
+                    attach_coverage_edge_route(
+                        shaped,
+                        stamped,
+                        has_coverage_gap=bool(coverage_gap(config)),
+                        detail_level=detail_level,
+                    )
                     return signed(
                         attach_coverage_note(
                             shaped, config, covered,
@@ -412,14 +439,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     total_count = store.count_edges_by_targets(
                         writes_targets,
                         kinds=writes_kinds,
-                        exclude_test_sources=exclude_tests,
-                    )
+                        exclude_test_sources=exclude_tests, path_prefix=path_prefix)
                 else:
                     total_count = store.count_edges_by_target(
                         lookup,
                         kinds=writes_kinds,
-                        exclude_test_sources=exclude_tests,
-                    )
+                        exclude_test_sources=exclude_tests, path_prefix=path_prefix)
             # A same-named definition under another qname makes this count a partition (168).
             # One bounded query, keyed on the subject's own kind — 054's rule, not a constant.
             sibling_sites: list[dict[str, object]] = []
@@ -446,20 +471,18 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     kinds=writes_kinds,
                     limit=cap,
                     offset=offset,
-                    exclude_test_sources=exclude_tests,
-                )
+                    exclude_test_sources=exclude_tests, path_prefix=path_prefix)
             else:
                 edges = store.edges_by_target(
                     lookup,
                     kinds=writes_kinds,
                     limit=cap,
                     offset=offset,
-                    exclude_test_sources=exclude_tests,
-                )
+                    exclude_test_sources=exclude_tests, path_prefix=path_prefix)
             results = [edge_hit(edge) for edge in edges]
             # Skewed page 1 hides other subtrees — advertise the full spread (task 067).
             subtrees = (
-                store.edge_subtrees_by_target(lookup)
+                store.edge_subtrees_by_target(lookup, path_prefix=path_prefix)
                 if writes_targets is None and offset + len(results) < total_count
                 else {}
             )
@@ -501,6 +524,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         subject_kind,
                         cap=cap,
                         offset=offset,
+                        path_prefix=path_prefix,
                     )
                     if union is not None:
                         results, total_count = union
@@ -548,6 +572,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             truncated=truncated,
             reason=reason,
             total_count=total_count,
+            answered_about_ref=about_ref,
         )
         if unlinked_edge_kinds:
             # Names the unmeasured relation(s) — not hits (R5.6 / 255 AC1).
@@ -595,11 +620,15 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             dirty_paths=behind_dirty,
             subject_unrepaired=subject_unrepaired,
         )
+        labelled = attach_try_instead(labelled, try_instead, try_instead_hint)
+        attach_coverage_edge_route(
+            labelled,
+            stamped,
+            has_coverage_gap=bool(coverage_gap(config)),
+            detail_level=detail_level,
+        )
         return signed(
-            attach_coverage_note(
-                attach_try_instead(labelled, try_instead, try_instead_hint), config, covered,
-                detail_level=detail_level,
-            )
+            attach_coverage_note(labelled, config, covered, detail_level=detail_level)
         )
 
     return find_references

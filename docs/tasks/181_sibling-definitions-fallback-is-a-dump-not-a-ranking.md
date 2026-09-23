@@ -27,7 +27,7 @@ excellent and the fallback is a dump — and both arrive in the same field, with
 ```
 1. legacy/alpha/web/application/interimPlan/model/index.php:57   Method
 2. legacy/alpha/web/model/entity/EntityMember.php:662          Method
-…  legacy/alpha/web/include/adodb/adodb-active-record.inc.php:121    Method
+…  legacy/alpha/web/vendor/db/adodb-active-record.inc.php:121    Method
 ```
 
 **93 entries. 42 (45 %) are real `ModelMember` twins; 51 (55 %) share only a method name** — `adodb`

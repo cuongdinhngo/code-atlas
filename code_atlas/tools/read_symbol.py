@@ -35,6 +35,7 @@ from code_atlas.tools.nav_result import (
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_HINT_MEMBER_SEPARATOR,
     TRY_INSTEAD_SEARCH_SYMBOL,
+    answered_about_ref_for,
     attach_ambiguous_definitions,
     attach_authoritative_caveats,
     attach_limit_capped,
@@ -79,6 +80,8 @@ class _BodyOpts(NamedTuple):
 
 def create(config: Config) -> Callable[..., dict[str, object]]:
     """Bind the tool to one repo's configuration."""
+    empty_fn = _empty
+    result_fn = _result
 
     def read_symbol(
         qname: str,
@@ -143,7 +146,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             range_end=line_end,
         )
         if not config.db_path.is_file():
-            return _empty(
+            return empty_fn(
                 qname,
                 detail_level=detail_level,
                 db_path=str(config.db_path),
@@ -152,13 +155,25 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         # +1 so CA_MAX_RESULTS=1 cannot hide a second definition (078).
         fetch_limit = config.page_limit + 1
         with GraphStore(config.db_path) as store:
+
+            about_ref = answered_about_ref_for(store)
+
+            def stamped_result(*a, **k):
+                k.setdefault("answered_about_ref", about_ref)
+                return result_fn(*a, **k)
+
+            def _stamp(payload: dict[str, object]) -> dict[str, object]:
+                from code_atlas.tools.nav_result import attach_answered_about_ref
+
+                return attach_answered_about_ref(payload, about_ref)
+
             rows = list(store.nodes_by_qualified_name(qname, limit=fetch_limit))
             guard = FreshnessGuard(config, store)
             if not rows:
                 status = guard.ensure_miss(nameable_subject_path(store, qname))
                 if status == "stale":
                     return attach_try_instead(
-                        _result(
+                        stamped_result(
                             qname,
                             "",
                             detail_level=detail_level,
@@ -184,20 +199,22 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         body_opts=body_opts,
                     )
                     if normalised is not None:
-                        return normalised
+                        return _stamp(normalised)
                     qname, rows, miss = _resolve_miss(
                         store, config, qname, detail_level=detail_level, fetch_limit=fetch_limit
                     )
                     if miss is not None:
-                        return finalize_subject_checked_miss(miss, guard)
+                        return finalize_subject_checked_miss(_stamp(miss), guard)
             # Refuse before freshness — the list needs no file bytes (078 review).
             if len(rows) > 1:
-                return _refuse_ambiguous(qname, rows, detail_level=detail_level, config=config)
+                return _stamp(
+                    _refuse_ambiguous(qname, rows, detail_level=detail_level, config=config)
+                )
             node = rows[0]
             rel = str(node["file_path"])
             status = guard.ensure(rel)
             if status == "stale":
-                stale = _result(
+                stale = stamped_result(
                     qname,
                     "",
                     detail_level=detail_level,
@@ -224,14 +241,16 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         body_opts=body_opts,
                     )
                     if normalised is not None:
-                        return normalised
+                        return _stamp(normalised)
                     qname, rows, miss = _resolve_miss(
                         store, config, qname, detail_level=detail_level, fetch_limit=fetch_limit
                     )
                     if miss is not None:
-                        return miss
+                        return _stamp(miss)
                 if len(rows) > 1:
-                    return _refuse_ambiguous(qname, rows, detail_level=detail_level, config=config)
+                    return _stamp(
+                        _refuse_ambiguous(qname, rows, detail_level=detail_level, config=config)
+                    )
                 node = rows[0]
                 rel = str(node["file_path"])
             path = config.root / rel
@@ -241,18 +260,20 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             start = start_raw
             end_raw = node["line_end"]
             end = end_raw if isinstance(end_raw, int) else start
-            payload = _found_body_payload(
-                qname,
-                path,
-                rel,
-                start,
-                end,
-                detail_level=detail_level,
-                db_path=str(config.db_path),
-                index_root=config.index_root,
-                reason=REASON_OK,
-                stub=is_stub(node.get("extra")),
-                body_opts=body_opts,
+            payload = _stamp(
+                _found_body_payload(
+                    qname,
+                    path,
+                    rel,
+                    start,
+                    end,
+                    detail_level=detail_level,
+                    db_path=str(config.db_path),
+                    index_root=config.index_root,
+                    reason=REASON_OK,
+                    stub=is_stub(node.get("extra")),
+                    body_opts=body_opts,
+                )
             )
             if detail_level == "standard":
                 _attach_params(payload, store, node, rel)
@@ -741,17 +762,29 @@ def _slice(path: Path, line_start: int, line_end: int, detail_level: str) -> str
     return declaration_slice(path, line_start, line_end, include_comments=detail_level != "minimal")
 
 
-def _empty(qname: str, *, detail_level: str, db_path: str, index_root: str) -> dict[str, object]:
+def _empty(
+    qname: str,
+    *,
+    detail_level: str,
+    db_path: str,
+    index_root: str,
+    answered_about_ref: str | None = None,
+) -> dict[str, object]:
     del db_path
-    return {
-        "indexed": False,
-        "qname": qname,
-        "found": False,
-        "stale": False,
-        "source": "",
-        "index_root": index_root,
-        **maybe_server_provenance(detail_level),
-    }
+    from code_atlas.tools.nav_result import attach_answered_about_ref
+
+    return attach_answered_about_ref(
+        {
+            "indexed": False,
+            "qname": qname,
+            "found": False,
+            "stale": False,
+            "source": "",
+            "index_root": index_root,
+            **maybe_server_provenance(detail_level),
+        },
+        answered_about_ref,
+    )
 
 
 def _result(
@@ -768,8 +801,11 @@ def _result(
     line_start: int | None = None,
     line_end: int | None = None,
     stub: bool = False,
+    answered_about_ref: str | None = None,
 ) -> dict[str, object]:
     del db_path
+    from code_atlas.tools.nav_result import attach_answered_about_ref
+
     payload: dict[str, object] = {
         "indexed": True,
         "qname": qname,
@@ -788,4 +824,4 @@ def _result(
     if stub:
         payload[contract.STUB_FLAG] = True
     payload.update(maybe_server_provenance(detail_level))
-    return payload
+    return attach_answered_about_ref(payload, answered_about_ref)

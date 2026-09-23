@@ -43,6 +43,7 @@ NavReason = Literal[
     "via_members",
     "proximity_candidates",
     "kind_excluded",
+    "path_excluded",
 ]
 
 REASON_OK: NavReason = "ok"
@@ -95,6 +96,8 @@ REASON_VIA_MEMBERS: NavReason = "via_members"
 REASON_PROXIMITY_CANDIDATES: NavReason = "proximity_candidates"
 # search_symbol kind= filter excluded an exact-name hit of another kind (275) — not absence.
 REASON_KIND_EXCLUDED: NavReason = "kind_excluded"
+# search_symbol path_prefix= filter excluded an exact-name hit outside the subtree (315).
+REASON_PATH_EXCLUDED: NavReason = "path_excluded"
 
 NAV_REASONS: tuple[NavReason, ...] = (
     REASON_OK,
@@ -123,7 +126,30 @@ NAV_REASONS: tuple[NavReason, ...] = (
     REASON_VIA_MEMBERS,
     REASON_PROXIMITY_CANDIDATES,
     REASON_KIND_EXCLUDED,
+    REASON_PATH_EXCLUDED,
 )
+
+def require_path_prefix(path_prefix: str | None) -> str | None:
+    """Reject malformed ``path_prefix`` before any SQL (R5.3 / 056 / 315).
+
+    Accepted form: non-empty, index-root-relative, POSIX (``/`` separators), no ``.`` or ``..``
+    segments. ``None`` means no filter.
+    """
+    if path_prefix is None:
+        return None
+    if path_prefix == "" or "\0" in path_prefix:
+        raise ValueError(
+            "path_prefix must be a non-empty index-root-relative POSIX path"
+        )
+    if "\\" in path_prefix:
+        raise ValueError("path_prefix must be POSIX (use '/', not '\\')")
+    if path_prefix.startswith("/"):
+        raise ValueError("path_prefix must be index-root-relative (not absolute)")
+    parts = [part for part in path_prefix.split("/") if part != ""]
+    if any(part in (".", "..") for part in parts):
+        raise ValueError("path_prefix must not contain '.' or '..' segments")
+    return path_prefix
+
 
 # Two registers, one naming rule (093): ``TRY_INSTEAD_*`` is a registered tool name the reader can
 # call, ``TRY_INSTEAD_HINT_*`` is prose naming the qualifier. Neither holds the other's kind — prose
@@ -169,9 +195,24 @@ TRY_INSTEAD_HINT_PATH_BASENAME = (
 # No route ON PURPOSE (R5.4 clause c, measured in 186): where the subject's language emits none
 # of the kinds a tool reads, no registered tool enumerates the relation either — find_references
 # on such a file answers relationship_not_modelled with zero rows. Naming it would be worse.
+# 314: name a concrete Grep/loader fallback so honesty is actionable (AC3).
 TRY_INSTEAD_HINT_RELATION_UNMODELLED_FOR_LANGUAGE = (
     "this file's language records the dependency under a different edge kind, and no indexed tool "
-    "enumerates it — treat the empty answer as unmeasured, not as zero"
+    "enumerates it — treat the empty answer as unmeasured, not as zero; Grep the subject as text "
+    "outside the index, or use the runtime's own loader"
+)
+# Coverage-edge zeros (314): stamp / gap present — Grep, never a synthetic symbol (R5.2 / 093).
+TRY_INSTEAD_HINT_DYNAMIC_SQL = (
+    "indexed files stamp dynamic_sql — the name may exist only inside EXEC/sp_executesql text; "
+    "Grep the query as literal text outside the index"
+)
+TRY_INSTEAD_HINT_RESOLUTION_UNMODELLED = (
+    "indexed languages stamp unmodelled resolution strategies — Grep the subject as text "
+    "outside the index, or use the runtime's own loader"
+)
+TRY_INSTEAD_HINT_OUTSIDE_COVERAGE = (
+    "the index does not cover every configured language — Grep the subject as text outside "
+    "the index for sites in an unindexed language"
 )
 # 188 made a route exist where 186 measured none: the resolver now links a module `IMPORTS` to the
 # file it names, so `find_references` enumerates from the File qname `include_graph` already holds.
@@ -253,6 +294,29 @@ def edge_hit(
     return hit
 
 
+ANSWERED_ABOUT_REF_FIELD = "answered_about_ref"
+
+
+def attach_answered_about_ref(
+    payload: dict[str, object], answered_about_ref: str | None
+) -> dict[str, object]:
+    """Stamp the index's built-on ref on every nav envelope (317). Single attach site (R6.7)."""
+    payload[ANSWERED_ABOUT_REF_FIELD] = answered_about_ref
+    return payload
+
+
+def answered_about_ref_for(store: GraphStore | None) -> str | None:
+    """``last_ref`` the index holds (077), or ``None`` when unbuilt / pre-077 omit."""
+    if store is None:
+        return None
+    from code_atlas.tools.staleness import OMIT, last_ref_for_payload
+
+    ref = last_ref_for_payload(store)
+    if ref is OMIT or ref is None:
+        return None
+    return str(ref)
+
+
 def empty_nav(
     subject: str,
     *,
@@ -262,23 +326,28 @@ def empty_nav(
     subject_key: str = "qname",
     reason: NavReason = REASON_NOT_INDEXED,
     total_count: int = 0,
+    answered_about_ref: str | None = None,
 ) -> dict[str, object]:
     """No database yet — read tools must not create one.
 
     ``db_path`` is accepted for call-site stability but never attached (task 061).
     ``index_root`` is the source tree the server was configured with (task 071).
+    ``answered_about_ref`` names the index's built-on ref when known (317 / 077).
     """
     del db_path
-    return {
-        "indexed": False,
-        subject_key: subject,
-        "results": [],
-        "truncated": False,
-        "reason": reason,
-        "total_count": total_count,
-        "index_root": index_root,
-        **maybe_server_provenance(detail_level),
-    }
+    return attach_answered_about_ref(
+        {
+            "indexed": False,
+            subject_key: subject,
+            "results": [],
+            "truncated": False,
+            "reason": reason,
+            "total_count": total_count,
+            "index_root": index_root,
+            **maybe_server_provenance(detail_level),
+        },
+        answered_about_ref,
+    )
 
 
 def nav_result(
@@ -292,6 +361,7 @@ def nav_result(
     reason: NavReason | None = None,
     total_count: int | None = None,
     subject_key: str = "qname",
+    answered_about_ref: str | None = None,
     **extra: object,
 ) -> dict[str, object]:
     """Shape a nav payload; omit ``reason`` / ``total_count`` unless explicitly set.
@@ -302,6 +372,7 @@ def nav_result(
     """
     del db_path
     extra.pop("db_path", None)
+    extra.pop("answered_about_ref", None)
     payload: dict[str, object] = {
         "indexed": True,
         subject_key: subject,
@@ -315,7 +386,7 @@ def nav_result(
     if total_count is not None:
         payload["total_count"] = total_count
     payload.update(maybe_server_provenance(detail_level))
-    return payload
+    return attach_answered_about_ref(payload, answered_about_ref)
 
 
 def list_result(
@@ -328,18 +399,22 @@ def list_result(
     reason: NavReason,
     total_count: int,
     indexed: bool = True,
+    answered_about_ref: str | None = None,
 ) -> dict[str, object]:
     """Search-style payload — same reason/total_count fields, no subject key."""
     del db_path
-    return {
-        "indexed": indexed,
-        "results": results,
-        "truncated": truncated,
-        "reason": reason,
-        "total_count": total_count,
-        "index_root": index_root,
-        **maybe_server_provenance(detail_level),
-    }
+    return attach_answered_about_ref(
+        {
+            "indexed": indexed,
+            "results": results,
+            "truncated": truncated,
+            "reason": reason,
+            "total_count": total_count,
+            "index_root": index_root,
+            **maybe_server_provenance(detail_level),
+        },
+        answered_about_ref,
+    )
 
 
 def subject_answer(
@@ -366,7 +441,10 @@ def subject_answer(
 
 
 def batch_result(
-    answers: list[dict[str, object]], *, index_root: str
+    answers: list[dict[str, object]],
+    *,
+    index_root: str,
+    answered_about_ref: str | None = None,
 ) -> dict[str, object]:
     """The batch envelope — what is true of the whole call, stated once (task 101; 061).
 
@@ -379,10 +457,12 @@ def batch_result(
     payload["subjects"] = answers
     payload["index_root"] = index_root
     payload.update(server_provenance())
-    return payload
+    return attach_answered_about_ref(payload, answered_about_ref)
 
 
-def batch_not_indexed(index_root: str) -> dict[str, object]:
+def batch_not_indexed(
+    index_root: str, *, answered_about_ref: str | None = None
+) -> dict[str, object]:
     """No index yet, answered once for the whole sweep (task 101).
 
     Ships no ``subjects`` list on purpose — the same reason ``schema_guard.payload`` ships no
@@ -393,7 +473,7 @@ def batch_not_indexed(index_root: str) -> dict[str, object]:
     payload["reason"] = REASON_NOT_INDEXED
     payload["index_root"] = index_root
     payload.update(server_provenance())
-    return payload
+    return attach_answered_about_ref(payload, answered_about_ref)
 
 
 def attach_subjects_capped(
@@ -587,6 +667,53 @@ def attach_try_instead(
     if hint:
         payload["try_instead_hint"] = hint
     return payload
+
+
+def coverage_edge_hint(
+    stamped: Mapping[str, Sequence[str]] | None,
+    *,
+    has_coverage_gap: bool = False,
+) -> str | None:
+    """Hint for a coverage-edge zero — stamp preferred, then language gap; else None (061 / 314)."""
+    if stamped:
+        strategies = {str(s) for langs in stamped.values() for s in langs}
+        if contract.RESOLUTION_DYNAMIC_SQL in strategies:
+            return TRY_INSTEAD_HINT_DYNAMIC_SQL
+        return TRY_INSTEAD_HINT_RESOLUTION_UNMODELLED
+    if has_coverage_gap:
+        return TRY_INSTEAD_HINT_OUTSIDE_COVERAGE
+    return None
+
+
+def attach_coverage_edge_route(
+    payload: dict[str, object],
+    stamped: Mapping[str, Sequence[str]] | None,
+    *,
+    has_coverage_gap: bool = False,
+    detail_level: str = "standard",
+) -> dict[str, object]:
+    """Hint-only Grep handoff on a real coverage-edge *zero*; no-op otherwise (314 / 093 / 061)."""
+    if detail_level == "minimal":
+        return payload
+    reason = payload.get("reason")
+    results = payload.get("results")
+    empty = isinstance(results, list) and len(results) == 0
+    if reason not in (
+        REASON_NO_MATCHES,
+        REASON_NO_SUCH_SYMBOL,
+        REASON_TOKEN_CANDIDATES,
+    ) or not empty:
+        return payload
+    hint = coverage_edge_hint(stamped, has_coverage_gap=has_coverage_gap)
+    if hint is None:
+        return payload
+    if stamped:
+        # Stamp is the coverage edge — Grep is not a registered tool (093).
+        payload.pop("try_instead", None)
+        return attach_try_instead(payload, None, hint)
+    if payload.get("try_instead") or payload.get("try_instead_hint"):
+        return payload
+    return attach_try_instead(payload, None, hint)
 
 
 def attach_serve_behind_route(payload: dict[str, object]) -> dict[str, object]:

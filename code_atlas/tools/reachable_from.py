@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 from code_atlas.config import Config
 from code_atlas.store import GraphStore
-from code_atlas.tools.nav_result import empty_nav
+from code_atlas.tools.nav_result import answered_about_ref_for, empty_nav
 from code_atlas.tools.reach_shared import (
     NO_ROOTS,
     DetailLevel,
@@ -44,10 +44,15 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if not roots:
             return no_roots(detail_level, config)
         if not config.db_path.is_file():
-            return empty_nav("", detail_level=detail_level, db_path=str(config.db_path),
-            index_root=config.index_root,
-        )
+            return empty_nav(
+                "",
+                detail_level=detail_level,
+                db_path=str(config.db_path),
+                index_root=config.index_root,
+                answered_about_ref=None,
+            )
         with GraphStore(config.db_path) as store:
+            about_ref = answered_about_ref_for(store)
             seeds = entry_seeds(store, roots)
             outcome = store.reachable_from(
                 seeds, depth=depth, max_nodes=config.impact_max_nodes
@@ -72,6 +77,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             edge_health=health,
             edge_health_by_language=by_language,
             frontier_skipped_non_resolved=outcome.frontier_skipped_non_resolved,
+            answered_about_ref=about_ref,
         )
 
     return reachable_from
