@@ -3881,6 +3881,25 @@ class GraphStore:
         )
         return self._rows(NODE_ROW_KEYS, sql, (path,))
 
+    def names_defined_in_files(
+        self, file_paths: Sequence[str], names: Sequence[str]
+    ) -> frozenset[tuple[str, str]]:
+        """``(file_path, name)`` pairs that have ≥1 node — one DISTINCT query (331)."""
+        files = list(dict.fromkeys(p for p in file_paths if p))
+        name_list = list(dict.fromkeys(n for n in names if n))
+        if not files or not name_list:
+            return frozenset()
+        placeholders_f = ",".join("?" * len(files))
+        placeholders_n = ",".join("?" * len(name_list))
+        sql = (
+            f"SELECT DISTINCT file_path, name FROM nodes "
+            f"WHERE file_path IN ({placeholders_f}) AND name IN ({placeholders_n})"
+        )
+        return frozenset(
+            (str(path), str(name))
+            for path, name in self._conn.execute(sql, (*files, *name_list))
+        )
+
     def _impact_node_loc(self, qname: str) -> tuple[str, int]:
         """Pick one node's file/line for ``qname`` (same order as merge_sql subqueries)."""
         rows = self.nodes_by_qualified_name(qname, limit=1)

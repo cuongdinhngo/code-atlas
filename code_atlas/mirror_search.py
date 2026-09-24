@@ -29,10 +29,16 @@ SEARCH_ORDER_FIELD = "search_order"
 MIRROR_COUNTERPART_FIELD = "mirror_counterpart"
 # Honest negative when the path sits on a stamped pair but the sibling is not indexed (286 / 282).
 MIRROR_NO_COUNTERPART_FIELD = "mirror_no_counterpart"
+# Twin file indexed but the hit's name segment is not defined there (331).
+MIRROR_COUNTERPART_FILE_FIELD = "mirror_counterpart_file"
+MIRROR_SYMBOL_ABSENT_FIELD = "mirror_symbol_absent"
+_FILE_KIND = "File"
 
 __all__ = [
     "MIRROR_COUNTERPART_FIELD",
+    "MIRROR_COUNTERPART_FILE_FIELD",
     "MIRROR_NO_COUNTERPART_FIELD",
+    "MIRROR_SYMBOL_ABSENT_FIELD",
     "MIRROR_SEARCH_KEY",
     "SEARCH_ORDER_FIELD",
     "SEARCH_ORDER_MIRROR",
@@ -118,9 +124,11 @@ def attach_mirror_search_fields(
     results: Sequence[Mapping[str, Any]],
     stamp: Mapping[str, object] | None,
     indexed: Container[str],
+    *,
+    store: GraphStore | None = None,
 ) -> str | None:
     """Mutate hits with indexed-only counterparts; return the order rule or ``None`` (277/282)."""
-    return decorate_mirror_hits(results, stamp, indexed)
+    return decorate_mirror_hits(results, stamp, indexed, store=store)
 
 
 def attach_mirror_read_fields(
@@ -128,8 +136,12 @@ def attach_mirror_read_fields(
     file_path: str,
     stamp: Mapping[str, object] | None,
     indexed: Container[str],
+    *,
+    kind: str | None = None,
+    name: str | None = None,
+    store: GraphStore | None = None,
 ) -> bool:
-    """Name an indexed twin on a ``read_symbol`` hit, or the honest negative (286).
+    """Name an indexed twin on a ``read_symbol`` hit, or the honest negative (286/331).
 
     Returns True when the file sits on a stamped pair (so the caller can attach the
     dispatch-boundary caveat). No stamp / outside a pair → False and no new fields (061).
@@ -137,11 +149,23 @@ def attach_mirror_read_fields(
     """
     if not stamp or not stamp.get("pairs"):
         return False
-    answer = resolve_counterpart(file_path, _pairs_from_stamp(stamp), indexed)
+    pairs = _pairs_from_stamp(stamp)
+    answer = resolve_counterpart(file_path, pairs, indexed)
     if answer.status == OUTSIDE_MIRROR:
         return False
     if answer.status == COUNTERPART and answer.path:
-        payload[MIRROR_COUNTERPART_FIELD] = answer.path
+        _attach_twin_fields(
+            payload,
+            twin=answer.path,
+            kind=kind,
+            name=name,
+            presence=_presence_for_hits(
+                store,
+                [{"file": file_path, "kind": kind, "name": name}],
+                pairs,
+                indexed,
+            ),
+        )
     elif answer.status == NO_COUNTERPART:
         payload[MIRROR_NO_COUNTERPART_FIELD] = True
     return True
@@ -151,24 +175,31 @@ def decorate_mirror_hits(
     results: Sequence[Mapping[str, Any]],
     stamp: Mapping[str, object] | None,
     indexed: Container[str],
+    *,
+    store: GraphStore | None = None,
 ) -> str | None:
     """Mutate hit dicts with counterparts that exist in ``indexed``; return order or ``None``.
 
-    Synthesized sibling paths that are not indexed are never named (282) — that is
-    ``NO_COUNTERPART``, not a confident ``mirror_counterpart``.
+    Synthesized sibling paths that are not indexed are never named (282). On a non-File
+    hit, ``mirror_counterpart`` requires the twin file to define the same name (331).
     """
     if not stamp or not stamp.get("pairs"):
         return None
     pairs = _pairs_from_stamp(stamp)
+    presence = _presence_for_hits(store, results, pairs, indexed)
+    identity = _identity_for_hits(store, results)
     for hit in results:
+        if not isinstance(hit, dict):
+            continue
         path = hit.get("file")
         if not isinstance(path, str):
             continue
         answer = resolve_counterpart(path, pairs, indexed)
         if answer.status == COUNTERPART and answer.path:
-            # Mapping may be a plain dict from _hit.
-            if isinstance(hit, dict):
-                hit[MIRROR_COUNTERPART_FIELD] = answer.path
+            kind, name = _hit_kind_name(hit, identity)
+            _attach_twin_fields(
+                hit, twin=answer.path, kind=kind, name=name, presence=presence
+            )
     return SEARCH_ORDER_MIRROR
 
 
@@ -176,23 +207,115 @@ def label_mirror_rows(
     rows: Sequence[dict[str, object]],
     stamp: Mapping[str, object] | None,
     indexed: Container[str],
+    *,
+    store: GraphStore | None = None,
 ) -> None:
-    """Name each row's indexed twin, or the honest negative, as ``read_symbol`` does (286/313).
+    """Name each row's indexed twin, or the honest negative, as ``read_symbol`` does (286/313/331).
 
     Rows off every stamped pair — and every row when there is no stamp — gain nothing (061).
     """
     if not stamp or not stamp.get("pairs"):
         return
     pairs = _pairs_from_stamp(stamp)
+    presence = _presence_for_hits(store, rows, pairs, indexed)
+    identity = _identity_for_hits(store, rows)
     for row in rows:
         path = row.get("file")
         if not isinstance(path, str):
             continue
         answer = resolve_counterpart(path, pairs, indexed)
         if answer.status == COUNTERPART and answer.path:
-            row[MIRROR_COUNTERPART_FIELD] = answer.path
+            kind, name = _hit_kind_name(row, identity)
+            _attach_twin_fields(
+                row, twin=answer.path, kind=kind, name=name, presence=presence
+            )
         elif answer.status == NO_COUNTERPART:
             row[MIRROR_NO_COUNTERPART_FIELD] = True
+
+
+def _attach_twin_fields(
+    target: dict[str, object],
+    *,
+    twin: str,
+    kind: str | None,
+    name: str | None,
+    presence: frozenset[tuple[str, str]] | None,
+) -> None:
+    """File hits keep today's path claim; symbols require presence when it was computed (331)."""
+    if kind == _FILE_KIND or not name or presence is None:
+        target[MIRROR_COUNTERPART_FIELD] = twin
+        return
+    if (twin, name) in presence:
+        target[MIRROR_COUNTERPART_FIELD] = twin
+        return
+    target[MIRROR_COUNTERPART_FILE_FIELD] = twin
+    target[MIRROR_SYMBOL_ABSENT_FIELD] = True
+
+
+def _identity_for_hits(
+    store: GraphStore | None, hits: Sequence[Mapping[str, Any]]
+) -> dict[str, tuple[str, str]]:
+    """qname → ``(name, kind)`` for hits that omit either — one batch when ``store`` is present."""
+    if store is None:
+        return {}
+    need: list[str] = []
+    for hit in hits:
+        has_name = isinstance(hit.get("name"), str) and bool(hit["name"])
+        has_kind = isinstance(hit.get("kind"), str) and bool(hit["kind"])
+        if has_name and has_kind:
+            continue
+        qname = hit.get("qname")
+        if isinstance(qname, str) and qname:
+            need.append(qname)
+    if not need:
+        return {}
+    found = store.nodes_by_qualified_names(need, limit=1)
+    return {
+        qname: (str(rows[0]["name"]), str(rows[0]["kind"]))
+        for qname, rows in found.items()
+        if rows
+    }
+
+
+def _hit_kind_name(
+    hit: Mapping[str, Any], identity: Mapping[str, tuple[str, str]]
+) -> tuple[str | None, str | None]:
+    kind = hit.get("kind") if isinstance(hit.get("kind"), str) else None
+    name = hit.get("name") if isinstance(hit.get("name"), str) else None
+    if (not kind or not name) and isinstance(hit.get("qname"), str):
+        found = identity.get(str(hit["qname"]))
+        if found:
+            if not name:
+                name = found[0]
+            if not kind:
+                kind = found[1]
+    return kind, name
+
+
+def _presence_for_hits(
+    store: GraphStore | None,
+    hits: Sequence[Mapping[str, Any]],
+    pairs: tuple[MirrorPair, ...],
+    indexed: Container[str],
+) -> frozenset[tuple[str, str]] | None:
+    """One page-level presence set, or ``None`` when no store (legacy file-level claim)."""
+    if store is None:
+        return None
+    identity = _identity_for_hits(store, hits)
+    twin_paths: list[str] = []
+    name_list: list[str] = []
+    for hit in hits:
+        path = hit.get("file")
+        if not isinstance(path, str):
+            continue
+        kind, name = _hit_kind_name(hit, identity)
+        if kind == _FILE_KIND or not name:
+            continue
+        answer = resolve_counterpart(path, pairs, indexed)
+        if answer.status == COUNTERPART and answer.path:
+            twin_paths.append(answer.path)
+            name_list.append(name)
+    return store.names_defined_in_files(twin_paths, name_list)
 
 
 def _pairs_from_stamp(stamp: Mapping[str, object]) -> tuple[MirrorPair, ...]:
