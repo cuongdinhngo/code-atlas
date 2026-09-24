@@ -4,7 +4,7 @@ slug: the-state-line-is-delivered-once-and-never-again
 title: "The index state line rides `initialize` once and is never restated, so a long autonomous session files feature requests for capabilities get_index_status already routes to"
 phase: 1.5b
 milestone: Adoption
-status: todo
+status: done
 depends_on: [300, 099, 316, 319]
 ---
 
