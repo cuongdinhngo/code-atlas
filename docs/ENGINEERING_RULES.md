@@ -11,10 +11,11 @@ costs a rewrite at adapter #2.
 A rule's closing italic line names its **handle** and the `LESSONS.md` claims it was promoted from —
 the two things `/mango:promote` greps to know the class is already carried — plus its status:
 `Ratified <date>` once a human has confirmed the wording, or `Provisional` while it binds and awaits
-that. Every rule below was ratified 2026-08-30; each had recurrence ≥ 2 in the class index, which is
-the condition the brief states. **Sightings stay in `LESSONS.md`'s class index only.** A second
-copy here has no reader, and the one time it was kept it drifted from the index it was copied from
-(132).
+that. Every rule below was ratified 2026-08-30 at recurrence ≥ 2 in the class index, the condition
+the brief states — except **R2.4**, which is `Provisional`: one incident, no second sighting, and it
+binds meanwhile because the cost of its second sighting is a disclosure. **Sightings stay in
+`LESSONS.md`'s class index only** — a second copy here has no reader, and the once it was kept it
+drifted from the index it came from (132).
 
 ---
 
@@ -76,6 +77,12 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
 - **R2.3** — Sample repos drive **test coverage and performance targets only**, never adapter
   semantics. If a fact about a repo would change adapter behaviour, it belongs in the language spec
   or nowhere.
+- **R2.4 — No private repo's identifiers in any tracked file**, `docs/` and fixtures included,
+  where R2.2's source-only scope let them collect. Use a shape-preserving stand-in, never the real
+  name. Gated by `tests/test_no_client_identifiers.py`, which matches the vocabulary **by digest** —
+  a plaintext denylist of a client's names is itself the disclosure — and states what it cannot
+  catch. *Falsifier:* a client's name in any tracked file, or a denylist that spells one out.
+  *Provisional 2026-09-23 · `de-identification-is-tree-wide` (325).*
 
 ## 3. The contract is a frozen, versioned artifact
 
@@ -193,7 +200,7 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   *Ratified 2026-08-30 · `fixture-shape-begs-the-question` (`105-C2`).*
 - **R6.4 — Guardrail tests are real tests.** The three grep-gates (R1.1 no language branches in
   core; R2.2 no repo/framework names in adapters or core; R4.1 no prompt/model id/LLM import in
-  core) run in CI and fail the build.
+  core) run in CI and fail the build. R2.4 is pytest-only — a digest match is not a grep.
 - **R6.5 — A guard ships only once it has been observed failing, and a sweep is guarded against
   emptying itself.** Every grep-gate or file sweep excludes vendored trees (`vendor/`,
   `node_modules/`), and **the exclusion needs its own test asserting the sweep is still non-empty** —

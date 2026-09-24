@@ -13,7 +13,7 @@ depends_on: [184]
 Two consecutive retro rounds on the anchor PHP monorepo decided a ticket the index could not touch,
 because its root cause lived in **database schema state**, not in any source symbol:
 
-> TKT-959 — a missing BETA column — was settled by `INFORMATION_SCHEMA` queries across three databases
+> FIELD-959 — a missing BETA column — was settled by `INFORMATION_SCHEMA` queries across three databases
 > plus reading a migration's `CREATE TABLE` interior at `V0.1__baseline:41357`. *"A migration's
 > `CREATE TABLE` interior is not a queryable fact"* (retro §2). Both rounds list **"DB schema state"**
 > among the question types to keep a symbol index out of.
@@ -46,7 +46,7 @@ separated two capabilities this ticket had held as one:
 | Vocabulary cost | tables · columns · migration lineage ⇒ **bump (R3)** | procs → `Function`, `EXEC` → `CALLS` ⇒ **none** |
 | Gated by | **the evidence gate below** | a PLAN §19 ordering decision, argued in that ticket |
 
-**The gate below is unchanged and still unmet** — round 12 is the same anchor as TKT-959, so the
+**The gate below is unchanged and still unmet** — round 12 is the same anchor as FIELD-959, so the
 demand is two tickets in **one** repo, not two repos. What round 12 changes is only that the *free*
 half no longer waits behind the *paid* half: 184 spends no vocabulary any future user inherits, so it
 is not this gate's business. Tier 2 there — table/column write-sites, the tier that mechanically
@@ -59,11 +59,11 @@ Mirrors the 098 gate — a general server does not spend contract vocabulary eve
 `n = 1`:
 
 1. **A second independent repo** whose real work turns on a schema-state question a symbol index
-   cannot answer (TKT-959 is `n = 1`).
+   cannot answer (FIELD-959 is `n = 1`).
 2. **Zero cost when undeclared** — a repo with no SQL layer configured pays nothing (no new required
    field, no build-time work).
 3. **A cheaper alternative rejected in writing** — specifically: why a runtime `INFORMATION_SCHEMA`
-   probe (which is what actually solved TKT-959) is not sufficient, given R4's determinism rule bars
+   probe (which is what actually solved FIELD-959) is not sufficient, given R4's determinism rule bars
    the core from querying a live database at all.
 
 ## Scope / Deliverables (only if the gate opens)
@@ -83,7 +83,7 @@ Mirrors the 098 gate — a general server does not spend contract vocabulary eve
 
 ## References
 
-Field retro rounds 8–9 (TKT-959; "DB schema state" keep-out list). Plan §3 (roll-out order), §18
+Field retro rounds 8–9 (FIELD-959; "DB schema state" keep-out list). Plan §3 (roll-out order), §18
 (open questions), §19 (decision log). Gate pattern from [098](098_correspondence-relation-seam.md).
 Sibling deferred adapters: [020](020_python-adapter.md), [021](021_csharp-adapter.md).
 
@@ -114,7 +114,7 @@ adapter + contract and that one is a tool over the resulting graph.
 
 **Declined, and it closes PLAN §18.4.** The schema-state half — *"does column X exist? which
 migration created it?"* — is answered **no**, permanently. R4 bars the core from a live database,
-`INFORMATION_SCHEMA` is what actually solved TKT-959, and a static index that guesses at current
+`INFORMATION_SCHEMA` is what actually solved FIELD-959, and a static index that guesses at current
 schema state is worse than the probe that knows. The index answers *where the code writes a column*;
 the database answers *what it currently holds*. This satisfies gate condition 3 ("a cheaper
 alternative rejected in writing") for the surviving half by **accepting** it for this one.
@@ -122,7 +122,7 @@ alternative rejected in writing") for the surviving half by **accepting** it for
 **The three ASSUMED items this ticket must ratify at its own Gate 1** (detail in 184's Phase 0):
 
 - **A1** — widening gate §1 to admit a measured defect class of ≥3 tickets in one repo in place of a
-  second repo. Round 12 supplies four (TKT-1020 · 1027 · 962 · 1026). **This widens a gate to admit
+  second repo. Round 12 supplies four (FIELD-1020 · 1027 · 962 · 1026). **This widens a gate to admit
   the case standing in front of it, which is the failure mode the gate exists to prevent.** It is the
   maintainer's call and nothing here should read as it having been made.
 - **A2** — the contract shape: `Table` + `Column` nodes on the existing `CONTAINS`, plus a new
@@ -218,7 +218,7 @@ recorded in DISCLOSURE rather than claimed away.
 
 - **Gate §1 is NOT widened.** The refine-phase A1 proposed replacing *"a second independent repo"*
   with *"…or a measured defect class of ≥3 tickets in one repo"*. **Rejected.** Round 12's four
-  tickets (TKT-1020 · 1027 · 962 · 1026) are one repo, and one repo's four tickets can share one
+  tickets (FIELD-1020 · 1027 · 962 · 1026) are one repo, and one repo's four tickets can share one
   team's single idiom — which is precisely what the word *independent* was guarding. Amending a gate
   to admit the case standing in front of it is the failure mode the gate exists to prevent, and it
   would leave the bar permanently lowered for every ticket after this one. **§1's text is unchanged.**

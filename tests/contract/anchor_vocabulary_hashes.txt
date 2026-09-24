@@ -1,0 +1,115 @@
+# R2.4 anchor-vocabulary denylist — SHA-256/16 of each banned token, lowercased (task 325).
+#
+# WHY HASHES AND NOT NAMES. The sibling file `framework_denylist.txt` lists `laravel`, `react` in
+# the clear because those are public names. This list is the opposite: it holds the identifiers of
+# a private client codebase, so writing them here would publish exactly what the guard exists to
+# keep out. A plaintext denylist of secrets is the leak.
+#
+# THIS IS OBFUSCATION, NOT SECRECY — stated plainly so no one relies on more than it gives. The
+# entries are short, unsalted digests of real words; anyone who already suspects a term can confirm
+# it by hashing their guess. What this buys is that the repo never *hands over* the vocabulary, and
+# that a reader who does not already know it cannot learn it here. Salting would break CI, which
+# must reproduce the digests from this file alone.
+#
+# THE PLAINTEXT MAPPING IS NOT IN THIS REPO, by design. It lives with the maintainer. When the
+# guard fires it prints the digest, not the word; look the digest up in that local map.
+#
+# TO ADD A TERM (do this in a shell, never by pasting the word into a tracked file):
+#     python3 -c "import hashlib,sys;print(hashlib.sha256(sys.argv[1].lower().encode()).hexdigest()[:16])" 'TheTerm'
+#
+# Only whole, distinctive tokens belong here. A term that is also ordinary English — `resident`,
+# `aus`, `nz` — must NOT be added: it would fire on every honest use. Those were handled by
+# replacement instead, and the structural patterns in `tests/test_no_client_identifiers.py` cover
+# the shapes (tracker keys, corporate domains, host paths) that no word list can.
+#
+# Consumers derive their check from this file alone: ci.yml, scripts/gate.sh, and
+# tests/test_no_client_identifiers.py. Lives under tests/ so `tests/` being unswept by R2.2 (R2.3)
+# cannot make it self-match.
+0052e5bda7a4b632
+0296bf707756b2c8
+053e565bfab7fb86
+055fea57d32536fb
+0694f1ee6ba7dce2
+0835c09a38584542
+08fee694454bd10b
+0c14ac8c81124733
+0e2ba5d6f86d4fa2
+0ecd75e671d73119
+16b7211be55a9a60
+1b9a74a64f0e8578
+1f9c44476815452a
+23dafe2b717be5e5
+28170add45757097
+28291d7abff23717
+2e50178e8eaa0a3c
+2eaeb7f9800efd21
+328dfa47b07492cf
+3d677ee27b538550
+4030ded6250d9923
+42aac576a1fb646e
+4864d36efee799ec
+494d21826bca4408
+4d6487c8af43f47f
+4e71fd06ec351347
+578fc5b49faaa776
+59b03a09e1e353c6
+5b5b96ef2afc4eef
+631b90e73498ba6f
+6778ef4ad086c374
+6a671d0f24fed667
+6c6280d8b75d3172
+6d3326b3855993b4
+6d988d4925d7125e
+6ed25b852fa45858
+701cf57fa503c6d1
+721ba363d1b86e13
+75d4a3bbcf51ee97
+770941192e285c32
+7a0b8c972a0b102c
+7a5a76a26ba57d7f
+7eaeb93041af1a95
+81a02c97ae2e6ec2
+81a3b2dbd19f0daa
+81fcd0b7c383819b
+90a0beed25d6044e
+910c1b921be29320
+9335eb096efca167
+976ace6c1f659a6f
+98382a8d5cab3ed0
+98d076fe1b5d23cd
+98d9cbe6b76bbd79
+a1ad48715acc4691
+ac8f2cf527106bdc
+af35ed311de6da04
+b21523b7101aec49
+b40bf1f2bfbb7ad9
+b61e593ea07e4658
+b6c2b8bc9542b0ce
+b75118874d5d91c8
+ba094a6a30909f9e
+baeab4a89a905746
+bb17b267be7da6da
+bb80a81435ac98a1
+bb8871c396f309c7
+bbbd39741f0698e1
+c07f48a2adbf15b7
+c4169dded6f1ae2b
+c9500fcc5edeeca0
+cd3e0c3e07348ab4
+cf2193378686d80b
+cfc47686f88ece20
+d1f0560a209d75af
+dac73b430947420c
+dbe3910d6a005e53
+dcf3ca67f8fe89ad
+e04bae590bda995c
+e0dcba976cf5722e
+e624d3afe4791556
+f034b78690f13944
+f168fdba0ea1f22c
+f1882a4447b0956d
+f45db37b6c8268c2
+f650848a71404f21
+f7359bc037cf1808
+f7c703061fae1932
+f8649b950ef5686c

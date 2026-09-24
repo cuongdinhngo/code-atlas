@@ -268,7 +268,15 @@ BUDGETS = {
     # old ceiling stopped biting and `test_the_budgets_are_not_slack` said so. Lowered to the
     # measured size plus headroom, which is what that guard asks for.
     "BACKLOG.md": 1_700,
-    "ENGINEERING_RULES.md": 5_700,
+    # 5,700 -> 5,880 on 2026-09-23 (325), argued rather than assumed. R2.4 is a new rule, and a
+    # rule that is not written down is not binding on the next agent. R7.6 ran first and came back
+    # empty: every rule here is one clause per falsifier, the sightings live in LESSONS.md by the
+    # preamble's own instruction, and nothing is superseded by a disclosure rule. What the pass did
+    # pay: R2.4 was rewritten three times, from 190 tokens to 85, with the mechanism moved to the
+    # test's docstring where a reader of the guard will meet it. The preamble's "every rule below
+    # was ratified 2026-08-30" was corrected in the same commit — R2.4 is Provisional, and leaving
+    # that sentence would have made the doc lie. 11 of margin; the next addition prunes or argues.
+    "ENGINEERING_RULES.md": 5_880,
     "AGENT_BRIEF.md": 2_250,
     # 6,700 -> 6,800 on 2026-09-09 (236): the `ForeignKey` node kind joins the vocabulary of record
     # (contract v10). The §3 bullet is the tightest statement of its qname and `extra` fields; there
