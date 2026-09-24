@@ -114,7 +114,7 @@ exist".
 - **INPUT KIND:** ticket
 - **work_doc_mode:** embed · path: docs/tasks/320_column-defaults-dead-ends-on-an-unqualified-table.md
 - **REVIEWER:** OFF (--no-reviewer) · **CHALLENGER:** ON
-- **Current phase:** review
+- **Current phase:** finalise — next: push branch, open PR
 
 ## Phase 0 — Refine
 
@@ -245,3 +245,38 @@ Success: no issues found in 93 source files
 `DIFF ⊆ approved list: yes`
 `DESIGN-CONFORMANCE: self-check passed — A1–A5 implemented-as-approved`
 
+## Phase 4 — Review
+
+REVIEWER: OFF (--no-reviewer)
+CHALLENGER: ON — round-1 CLEAN (22 of 22 met, 0 not met, 0 can't tell). Observation, no verdict: a qname defined in two files would list both sites — accurate (two definition sites), not changed.
+
+Verdict: `clean (challenger only — REVIEWER: OFF)`
+
+`REVIEW: CLEAN`
+`SCOPE ≡ approved list: yes`
+`DIFF ⊆ approved list: yes`
+
+`Reviewed at 475f754de4fcb5b74f771fbda2b0303749dbc1a2` · reviewed files: code_atlas/tools/check_column_defaults.py, tests/test_column_defaults_bare_table.py, docs/LESSONS.md, docs/TOOLS.md, docs/BACKLOG.md · working doc (embedded, staleness-exempt): docs/tasks/320_column-defaults-dead-ends-on-an-unqualified-table.md
+
+## Phase 5 — Finalise
+
+Outward (handover-authorised only): push `fix/320-column-defaults-bare-table`, open the PR. Never merge.
+
+Durable lesson: `165-C1` (`disclose-a-partition-as-a-partition`) seen 165, 320 → a recurring type-2 code claim. Proposed destination: `docs/ENGINEERING_RULES.md` via codify's provisional→ratify — **not written**; ratification is the maintainer's, and `/mango:promote` is the cross-ticket pass. Falsification: still true — `nav_result.attach_sibling_definitions` and `test_find_callers_discloses_sibling_definitions_on_a_twin` exist; both sightings carry a test.
+
+Follow-up (not ticketed): T-SQL resolves names case-insensitively; the fallback matches the stored name exactly.
+
+Revert: revert the PR.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|-------|----------|-------|--------|
+| review | challenger | 1 | 79,985 |
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 1 recurring | 0 superseded (0 retired) | 1 promotion candidate(s)`
+`FALSIFY: 1 candidate(s) checked | 1 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 1 type-2 claim(s) with seen ≥ 2 | 1 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 1 proposed | 0 human-ratified | destinations: docs/ENGINEERING_RULES.md | mango files written: 0`
+`LEDGER TOTAL: 79,985 (subagent dispatch only) · top cost driver: review/challenger round 1`
