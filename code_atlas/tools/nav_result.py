@@ -151,6 +151,12 @@ def require_path_prefix(path_prefix: str | None) -> str | None:
     return path_prefix
 
 
+def is_under_path_prefix(file_path: str, path_prefix: str) -> bool:
+    """The one Python under-prefix predicate (315 / 327); SQL twin is ``store._path_under``."""
+    normalized = path_prefix if path_prefix.endswith("/") else f"{path_prefix}/"
+    return file_path == normalized.rstrip("/") or file_path.startswith(normalized)
+
+
 # Two registers, one naming rule (093): ``TRY_INSTEAD_*`` is a registered tool name the reader can
 # call, ``TRY_INSTEAD_HINT_*`` is prose naming the qualifier. Neither holds the other's kind — prose
 # in the identifier slot makes every value ambiguous. Pinned by the invariant test.
@@ -166,6 +172,12 @@ TRY_INSTEAD_HINT_METHOD_QNAME = (
 TRY_INSTEAD_HINT_NARROW_BY_QNAME = (
     "the page is substring near-misses, not hits — outline the file to read the exact qnames, "
     "then re-ask search_symbol with one of them"
+)
+# Truncated page that still holds a direct hit (326): different finding from near-miss, so a
+# different hint — the flood is real but the page is not "not hits" (245's same-finding rule).
+TRY_INSTEAD_HINT_NARROW_BY_FILTER = (
+    "the page holds hits but is truncated — re-ask search_symbol with kind= or path_prefix= "
+    "to shrink the set before paging"
 )
 # Separator spelling miss (249): different finding from substring flood, so a different hint —
 # the reuse rule bans a second spelling of the SAME advice, not a second advice (245 review).
@@ -185,6 +197,12 @@ TRY_INSTEAD_HINT_MEMBER_SEPARATOR = (
 TRY_INSTEAD_FILE_OUTLINE = "file_outline"
 # An under-qualified subject has candidates — search_symbol enumerates them (075/076).
 TRY_INSTEAD_SEARCH_SYMBOL = "search_symbol"
+# Ambiguous read — progress is the same tool with path_prefix, not search_symbol (327 / R5.4).
+TRY_INSTEAD_READ_SYMBOL = "read_symbol"
+TRY_INSTEAD_HINT_PATH_PREFIX = (
+    "several definitions share this qname — re-ask read_symbol with path_prefix= naming "
+    "one site from ambiguous_definitions"
+)
 # No route on purpose: the evidence is unlinked include TEXT (edges.target_raw) and no registered
 # tool reads it — nodes_fts covers name/qname/file_path/params only. A route here would answer
 # reason=ok with symbols declared IN the file, silently omitting the includer (075/076).

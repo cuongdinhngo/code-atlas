@@ -283,8 +283,8 @@ USAGE_RULES: tuple[str, ...] = (
     "",
     "- **A name defined in more than one tree** (`src/` beside a `legacy/` copy) makes `impact`"
     " and `read_symbol` answer `reason: subject_ambiguous` with no rows — and the payload"
-    " carries `ambiguous_definitions`. Re-ask with the qname from the definition you mean;"
-    " do not read the empty result as no impact.",
+    " carries `ambiguous_definitions`. Re-ask `read_symbol` with `path_prefix` naming one"
+    " site from that list (327); do not read the empty result as no impact.",
     "- **Mirrored trees inflate a result set.** A hit carries `mirror_counterpart` when an"
     " indexed twin exists; read it before concluding a symbol has many call sites.",
     "",
@@ -293,9 +293,10 @@ USAGE_RULES: tuple[str, ...] = (
     "- **Narrow a large `search_symbol` page with `kind:` or `namespace`.** A common token"
     " across File/Class/Method rows is not a reason to eyeball hundreds of hits — pass"
     " `kind` (a contract node kind) or `namespace` and re-ask.",
-    "- **Scope a `search_symbol` / `find_references` page to a subtree with `path_prefix`.**"
-    " An index-root-relative plain prefix (`src/`); a hit outside it answers `path_excluded`,"
-    " not absence (315).",
+    "- **Scope a `search_symbol` / `find_references` / `read_symbol` page to a subtree with"
+    " `path_prefix`.** An index-root-relative plain prefix (`src/`); a hit outside it answers"
+    " `path_excluded` (search/refs) or `no_such_symbol` naming the filter (read) — not a silent"
+    " wrong body (315/327).",
     "- **`find_references` on a Table or Column returns its writers** — linked `WRITES` only"
     " (278). Prefer that over asking who calls a nearby method when the question is"
     " *what writes this column*.",
