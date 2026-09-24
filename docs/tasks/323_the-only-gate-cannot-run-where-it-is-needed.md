@@ -4,7 +4,7 @@ slug: the-only-gate-cannot-run-where-it-is-needed
 title: "The gate is the only gate, yet it needs four runtimes on PATH and has no container route — so on any host missing one it returns exit 2 and there is nothing else to fall back to"
 phase: 1.5b
 milestone: Measure
-status: todo
+status: done
 depends_on: [268]
 ---
 
@@ -129,7 +129,7 @@ and *"Running the full test suite"*; ENGINEERING_RULES R6.5.
 - **INPUT KIND:** ticket
 - **work_doc_mode:** embed · path: docs/tasks/323_the-only-gate-cannot-run-where-it-is-needed.md
 - **REVIEWER:** OFF (--no-reviewer) · **CHALLENGER:** ON
-- **Current phase:** design
+- **Current phase:** finalise — next: push branch, open PR
 
 ## Phase 0 — Refine
 
@@ -225,3 +225,92 @@ Rollback: revert the branch; the image rebuilds from the previous Dockerfile. Po
 
 `SCOPE: M` (unchanged)
 
+## Phase 3 — Execute
+
+**Branch:** chore/323-gate-docker-route
+
+Pre-change record — tree `660281a` plus the uncommitted proving test (historical): `.venv/bin/python -m pytest tests/test_gate_docker_route.py -q` → `5 failed in 121.54s` (old `gate.sh` ignored the flags and ran the whole gate; the runs were killed).
+
+Baseline container record — tree `660281a` (historical): `scripts/docker-test.sh` → `7 failed, 4368 passed, 5 skipped`; all 7 in `tests/test_no_client_identifiers.py` (`git ls-files -z` exit 128 — no `.git` in the image). So `main`'s image was already red; keeping `.git` is what turns it green.
+
+**Verification sweep (e2e, AC1–AC6)** — every run below is on tree `34ef2e37392d072a2716147bc9300d65b7f5e71b` (the working tree was clean; AC2's probe file was untracked and removed after).
+
+Ran at 34ef2e37392d072a2716147bc9300d65b7f5e71b
+
+```
+$ PATH=<every /usr/bin tool except php* composer node npm npx> sh scripts/gate.sh --docker
+  PASS npm ci (adapters/sql)
+  PASS pytest -q
+  PASS phpstan level max (R6.6)
+  PASS tsc --checkJs --strict (R6.6, SQL adapter)
+  PASS R7.3 no AI-attribution trailer  — 2 commit(s)
+== summary ==
+  20 passed · 0 failed · 0 skipped
+GATE GREEN — all 20 checks passed (container gate)
+exit 0
+```
+
+Ran at 34ef2e37392d072a2716147bc9300d65b7f5e71b
+
+```
+$ printf 'import os\n' > code_atlas/_ac2_probe.py; PATH=<same> sh scripts/gate.sh --docker --fast; rm code_atlas/_ac2_probe.py
+  FAIL ruff check .
+      F401 [*] `os` imported but unused
+       --> code_atlas/_ac2_probe.py:1:8
+  14 passed · 1 failed · 2 skipped
+GATE RED — 1 check(s) failed (container gate)
+exit 1
+```
+
+Ran at 34ef2e37392d072a2716147bc9300d65b7f5e71b
+
+```
+$ scripts/gate.sh
+== summary ==
+  20 passed · 0 failed · 0 skipped
+GATE GREEN — all 20 checks passed
+exit 0
+```
+
+AC6: the host summary is byte-identical to 313's host run on the pre-323 script (`20 passed · 0 failed · 0 skipped` / `GATE GREEN — all 20 checks passed`). `tests/test_ci_and_gate_agree.py` + `tests/test_gate_docker_route.py`: `27 passed`, and the host gate's `pytest -q` PASS includes both.
+
+Files: `scripts/gate.sh`, `docker/Dockerfile`, `.dockerignore`, `tests/test_gate_docker_route.py`, `tests/test_ci_and_gate_agree.py`, `AGENTS.md`, this ticket — all on D1–D5.
+
+`DIFF ⊆ approved list: yes`
+`DESIGN-CONFORMANCE: self-check passed — A1–A6 implemented-as-approved`
+
+## Phase 4 — Review
+
+REVIEWER: OFF (--no-reviewer)
+CHALLENGER: ON — round-1 17 met / 0 not met / 1 can't tell. The can't-tell is Scope 2's written rejection of the bind-mount option, which lives in this working doc (Phase 2 "Rejected"), deliberately withheld from the challenger; confirmed present by inspection, no re-dispatch.
+
+Verdict: `clean (challenger only — REVIEWER: OFF)`
+
+Post-review docs: AGENTS.md's pinned suite counts updated from the two runs below (file already in the reviewed set). Container: `scripts/docker-test.sh` on 34ef2e3 → `4380 passed, 5 skipped in 345.27s` (main's image was `7 failed, 4368 passed, 5 skipped`). Host: `pytest -q` → `1 failed, 4380 passed, 4 skipped`, the one failure being the bookkeeping test that reads this PR's link (lands with the ledger link).
+
+`REVIEW: CLEAN`
+`SCOPE ≡ approved list: yes (+ docs/LESSONS.md bookkeeping)`
+`DIFF ⊆ approved list: yes`
+
+`Reviewed at 34ef2e37392d072a2716147bc9300d65b7f5e71b` · reviewed files: scripts/gate.sh, docker/Dockerfile, .dockerignore, tests/test_gate_docker_route.py, tests/test_ci_and_gate_agree.py, AGENTS.md · working doc (embedded, staleness-exempt): docs/tasks/323_the-only-gate-cannot-run-where-it-is-needed.md
+
+## Phase 5 — Finalise
+
+Outward (handover-authorised only): push `chore/323-gate-docker-route`, open the PR. Never merge.
+
+Durable lesson: `a-test-that-shells-out-to-git-needs-the-repo-everywhere` → docs/LESSONS.md. BACKLOG's "Docker images are never built by CI" follow-up now says the gate runs through the image.
+
+Revert: revert the PR; `.dockerignore` regains `.git` and the image its `--no-dev`.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|-------|----------|-------|--------|
+| review | challenger | 1 | 80,863 |
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+`LEDGER TOTAL: 80,863 (subagent dispatch only) · top cost driver: review/challenger round 1`

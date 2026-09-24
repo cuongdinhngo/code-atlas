@@ -27,7 +27,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 320 | [A bare table name dead-ends in check_column_defaults — the 165-C1 partition, second sighting](tasks/320_column-defaults-dead-ends-on-an-unqualified-table.md) | Agent-trust | todo | 194, 022 |
 | 321 | [A migration altering a table via sp_executesql leaves no trace on it, so duplicates ship](tasks/321_dynamic-ddl-in-migrations-leaves-no-trace.md) | Coverage | todo | 022, 184, 296 |
 | 322 | [The state line rides initialize once, so a long session re-asks for what get_index_status already routes to](tasks/322_the-state-line-is-delivered-once-and-never-again.md) | Adoption | todo | 300, 099, 316, 319 |
-| 323 | [The only gate needs four runtimes on PATH and has no container route, so a host missing one cannot pass it](tasks/323_the-only-gate-cannot-run-where-it-is-needed.md) | Measure | todo | 268 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -70,7 +69,7 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **Parser-OOM size cap (optional)** — multi-MB generated files exhaust the PHP parser (already soft-failed/restarted in `indexer.py`); a byte-cap pre-skip (`CA_MAX_FILE_BYTES`) would avoid ~30 restart cycles. Log skips; no silent truncation.
 - **258's anchor-scale figures were never taken** — AC1 (the edge-count drop on the anchor index) and AC5 (the query cost of the proximity expansion at that scale) shipped E1 on fixture evidence. The ticket makes the expensive case convert to **build-time ranking**, so that measurement is the decision, not a confirmation — [258](tasks/258_the-graph-stores-the-cartesian-product-of-call-site-and-same-named-symbol.md).
 - **Uptake is gated by deferred delivery and whether `Grep` hurts** — [300](tasks/300_the-index-is-registered-permitted-and-never-chosen.md).
-- **Docker images are never built by CI** — `docker/Dockerfile` can rot (`Dockerfile.runtime` is built inside `pytest`). Honest shape: one job building both. Survives the unbillable-Actions arrangement AGENTS.md records, which also means every gate is a human step.
+- **Docker images are never built by CI** — `docker/Dockerfile` can rot, and since 323 `gate.sh --docker` runs through it (it was red on `main` for 325's git-dependent test) (`Dockerfile.runtime` is built inside `pytest`). Honest shape: one job building both. Survives the unbillable-Actions arrangement AGENTS.md records, which also means every gate is a human step.
 
 ## Conventions
 - Keep an **open** task's `status` in this table **and** in its frontmatter in sync.

@@ -1619,3 +1619,13 @@ venv or the PHPStan tmpDir is rebuilt from a wrong-cased cwd.*
   even when the value does not move, and re-running to restore the git order would manufacture a
   timeline. Ask for a reserved value BEFORE the measurement, or record the criterion unmet.
 - destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)
+
+## 323 — the test image was red on `main` and nothing ran it
+
+- type: 2 (code) · handle: `a-test-that-shells-out-to-git-needs-the-repo-everywhere`
+- status: proposed · seen: 323
+- evidence: 325 added `tests/test_no_client_identifiers.py`, which runs `git ls-files -z`; the test
+  image excluded `.git` (`.dockerignore:3`), so `scripts/docker-test.sh` on `660281a` read
+  `7 failed, 4368 passed, 5 skipped` — and no CI job builds the image, so nobody saw it. A test that
+  needs the repository must run wherever the suite is claimed to run; 323's `.git` decision fixed it.
+- destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)
