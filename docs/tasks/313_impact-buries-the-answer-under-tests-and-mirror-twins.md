@@ -171,10 +171,9 @@ Out of scope (recorded, no rows needed beyond fencing): `subject_ambiguous` seed
 
 `RULE SECTIONS: 7 applicable — 7 by change-type | 0 by recalled handle — R1.1 (change-type) ✅ predicate is kind-free SQL in store.py, no language test · R1.4 (change-type) ✅ the only SQL is in store.py; tools call methods · R2 (change-type) ✅ mirror side from the stamp, test role from is_test/path segments, no repo names · R4.2 (change-type) ✅ walk ORDER BY untouched; labels iterate rows in order · R5.5 (change-type) ✅ no count above depth 1 — AC4 asserts absence · R6.8 (change-type) ✅ AC2 fixture makes filter-after-paging fail · R7.2 (change-type) ✅ ledger row + BACKLOG removal in this PR`
 
-Ran at 660281a140e52a4ccd0a71f1e43bfd9b639c79bc
+Baseline record — pre-change tree `660281a140e52a4ccd0a71f1e43bfd9b639c79bc` (historical: not proof for the tree under review; re-run in Phase 4). Command `.venv/bin/python -m pytest -q --tb=line -p no:cacheprovider`, output tail:
 
 ```
-$ .venv/bin/python -m pytest -q --tb=line -p no:cacheprovider
 .......sss..................................................             [100%]
 4376 passed, 4 skipped in 362.21s (0:06:02)
 ```
@@ -228,10 +227,9 @@ Rollback: revert the branch's commits; no schema, no migration, no stored data. 
 
 **Branch:** feat/313-impact-row-roles
 
-Pre-change (proving test red, before any source edit):
+Pre-change record — tree `660281a` plus the uncommitted proving test, before any source edit (historical). Command `.venv/bin/python -m pytest tests/test_impact_row_roles.py -q --tb=line`:
 
 ```
-$ .venv/bin/python -m pytest tests/test_impact_row_roles.py -q --tb=line
 E   TypeError: create.<locals>.impact() got an unexpected keyword argument 'exclude_tests'
 7 failed in 1.18s
 ```
