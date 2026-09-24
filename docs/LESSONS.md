@@ -606,7 +606,9 @@ stays in lessons_path.*
 
 *Claim `184-C6` — R6.2 was re-listing in prose three construct inventories `adapter_registry.py`
 already holds as data; that copy was itself the drift R6.7 forbids. type: 2 · handle:
-`derived-not-listed-invariant` · seen: 184 · destination: R6.7.*
+`derived-not-listed-invariant` · seen: 184, 318 · evidence (318): 313's gate read each refusal
+constant's live value but kept the membership by hand, so two sibling strategy tokens escaped it;
+now derived from `contract.UNMODELLED_RESOLUTION_STRATEGIES` · destination: R6.7.*
 
 ### 191-C1 — Count what a repaired guard was hiding before believing the ticket's cause
 - type: 2 generalisable-heuristic

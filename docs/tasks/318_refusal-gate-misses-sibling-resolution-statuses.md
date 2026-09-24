@@ -4,7 +4,7 @@ slug: refusal-gate-misses-sibling-resolution-statuses
 title: "313's usage-completeness gate reads refusal statuses from a hand-list, so the sibling unmodelled-resolution tokens dynamic_import and autoload ship untaught and unwaived"
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [313, 296]
 ---
 
