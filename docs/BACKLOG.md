@@ -20,7 +20,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
 | 328 | [A DELETE leaves no edge on its table](tasks/328_a-delete-leaves-no-edge-on-the-table-it-empties.md) | Coverage | todo | 022, 278, 321 |
-| 331 | [mirror_counterpart for a symbol the twin lacks](tasks/331_a-mirror-counterpart-is-named-for-a-symbol-it-lacks.md) | Agent-trust | in-progress | 277, 282, 286 |
 | 332 | [exclude_tests: depth 1 only, not on search](tasks/332_exclude-tests-stops-at-depth-one-and-never-reaches-search.md) | Agent-trust | todo | 262, 313, 315 |
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |

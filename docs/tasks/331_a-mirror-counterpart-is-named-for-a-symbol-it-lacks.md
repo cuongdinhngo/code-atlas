@@ -4,7 +4,7 @@ slug: a-mirror-counterpart-is-named-for-a-symbol-it-lacks
 title: "mirror_counterpart names the twin FILE on a function hit, so it reads as 'the other region has this function' when it does not — on the exact cross-region question the field asks daily"
 phase: 1.5b
 milestone: Agent-trust
-status: in-progress
+status: done
 depends_on: [277, 282, 286]
 ---
 
