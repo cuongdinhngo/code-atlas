@@ -116,7 +116,7 @@ paging rather than after.
 - **INPUT KIND:** ticket
 - **work_doc_mode:** embed · path: docs/tasks/313_impact-buries-the-answer-under-tests-and-mirror-twins.md
 - **REVIEWER:** OFF (--no-reviewer) · **CHALLENGER:** ON
-- **Current phase:** review
+- **Current phase:** finalise — next: push branch, open PR
 
 ## Phase 0 — Refine
 
@@ -236,10 +236,9 @@ E   TypeError: create.<locals>.impact() got an unexpected keyword argument 'excl
 
 **Verification sweep**
 
-Ran at 4ef68a36d1867678f44c3430265a932caf960701
+Sweep record — tree `4ef68a36d1867678f44c3430265a932caf960701` (historical: superseded by the Phase 4 gate run on the reviewed tree). Commands `git diff --name-only main..HEAD`, the proving test, ruff + mypy:
 
 ```
-$ git diff --name-only main..HEAD
 code_atlas/mirror_search.py
 code_atlas/store.py
 code_atlas/tools/impact.py
@@ -248,10 +247,8 @@ docs/BACKLOG.md
 docs/TOOLS.md
 docs/tasks/313_impact-buries-the-answer-under-tests-and-mirror-twins.md
 tests/test_impact_row_roles.py
-$ .venv/bin/python -m pytest tests/test_impact_row_roles.py -q --tb=no
 .......                                                                  [100%]
 7 passed in 1.37s
-$ .venv/bin/ruff check code_atlas -q && .venv/bin/mypy code_atlas
 Success: no issues found in 93 source files
 ```
 
@@ -262,3 +259,56 @@ Deviation (behaviour axis, recorded for review): A2 approved a new `store.test_n
 `DIFF ⊆ approved list: yes`
 `DESIGN-CONFORMANCE: self-check passed — A1 implemented-as-approved · A2 deviated (recorded above) · A3 implemented-as-approved · A4 implemented-as-approved · A5 implemented-as-approved`
 
+## Phase 4 — Review
+
+REVIEWER: OFF (--no-reviewer)
+CHALLENGER: ON — round-1 CLEAN (all rebuilt requirements met; one doc gap flagged: CONVENTION §6 did not list the per-row `test_role_source`) → CONVENTION edit → round-2 NOT CLEAN (the budget trim attached the clause to `unlinked_same_name_sites`) → fix re-attaches it to `test_role_source` → round-3 verify-only in the main loop (fix inside the named finding, in a file round 2 already reviewed).
+
+Verdict: `clean (challenger only — REVIEWER: OFF)`
+
+Deviation adjudicated: A2 (existing `nodes_by_qualified_names(limit=1)` instead of a new store method) — accepted, smaller than approved, same rows.
+
+Ran at 34d1e9de7d2b5cfd4bdc1e0a91cee8f5a259ac27
+
+```
+$ scripts/gate.sh
+  PASS pytest -q
+  PASS R7.3 no AI-attribution trailer  — 8 commit(s)
+== summary ==
+  20 passed · 0 failed · 0 skipped
+GATE GREEN — all 20 checks passed
+$ .venv/bin/python -m pytest tests/test_impact_row_roles.py -q --tb=no
+7 passed in 1.30s
+```
+
+Would it fail without the change? Yes — 7 failed pre-change (Phase 3 record). Delta vs baseline: baseline green, gate green.
+
+`REVIEW: CLEAN`
+`SCOPE ≡ approved list: yes (+ docs/CONVENTION.md from challenger round 1, docs/LESSONS.md + docs/SKILL_GAP_CANDIDATES.md bookkeeping)`
+`DIFF ⊆ approved list: yes`
+
+`Reviewed at 34d1e9de7d2b5cfd4bdc1e0a91cee8f5a259ac27` · reviewed files: code_atlas/store.py, code_atlas/tools/impact.py, code_atlas/mirror_search.py, code_atlas/tools/search_symbol.py, tests/test_impact_row_roles.py, docs/TOOLS.md, docs/CONVENTION.md, docs/BACKLOG.md · working doc (embedded, staleness-exempt): docs/tasks/313_impact-buries-the-answer-under-tests-and-mirror-twins.md
+
+## Phase 5 — Finalise
+
+Outward (handover-authorised only): push `feat/313-impact-row-roles`, open the PR. Never merge.
+
+Durable lesson: `a-ticket-key-is-checked-free-on-disk` → docs/LESSONS.md; the 022 baseline-provenance signal seen again → docs/SKILL_GAP_CANDIDATES.md.
+
+Follow-ups (not ticketed): the agent brief still waives `exclude_tests` as "taught under production_count / test_count prose", which now undersells `impact`'s use of it.
+
+Revert: revert the PR's merge commit; no schema, no stored data.
+
+## Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|-------|----------|-------|--------|
+| review | challenger | 1 | 129,784 |
+| review | challenger | 2 | 74,484 |
+
+`CLAIMS: 2 claim(s) from 2 lesson entr(ies) | T1=0 T2=1 T3=1 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 1 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md, docs/SKILL_GAP_CANDIDATES.md | mango files written: 0`
+`LEDGER TOTAL: 204,268 (subagent dispatch only) · top cost driver: review/challenger round 1`
