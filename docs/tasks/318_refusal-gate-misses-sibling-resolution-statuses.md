@@ -202,6 +202,21 @@ CHALLENGER: ON — round-1 CLEAN (11 met, 0 not met, 0 can't tell). Probes: the 
 
 Verdict: `clean (challenger only — REVIEWER: OFF)`
 
+Ran at b66544e731facfa3b2c4db7d9cf76911111ee138
+
+```
+$ scripts/gate.sh
+== summary ==
+  20 passed · 0 failed · 0 skipped
+GATE GREEN — all 20 checks passed
+```
+
+`REVIEW: CLEAN`
+`SCOPE ≡ approved list: yes`
+`DIFF ⊆ approved list: yes`
+
+`Reviewed at b66544e731facfa3b2c4db7d9cf76911111ee138` · reviewed files: code_atlas/contract.py, scripts/gen_skill.py, contrib/agent-brief.md, tests/test_agent_brief_usage_completeness.py, tests/test_refusal_gate_strategy_registry.py, docs/LESSONS.md, docs/BACKLOG.md · working doc (embedded, staleness-exempt): docs/tasks/318_refusal-gate-misses-sibling-resolution-statuses.md
+
 ## Phase 5 — Finalise
 
 Outward (handover-authorised only): pushed `fix/318-refusal-gate-registry`, opened [#441](https://github.com/cuongdinhngo/code-atlas/pull/441). Never merge.
