@@ -24,9 +24,12 @@ WORKDIR /app
 # 1) Adapter deps first, keyed on each lock file so source edits don't re-resolve them (layer cache).
 #    node_modules is .dockerignore'd, so `COPY . .` below never clobbers this clean install.
 COPY adapters/php/composer.json adapters/php/composer.lock adapters/php/
-RUN composer install --no-dev --no-interaction --no-progress --working-dir=adapters/php
+# Dev deps too: `scripts/gate.sh --docker` runs phpstan from here (323).
+RUN composer install --no-interaction --no-progress --working-dir=adapters/php
 COPY adapters/typescript/package.json adapters/typescript/package-lock.json adapters/typescript/
 RUN npm ci --prefix adapters/typescript
+COPY adapters/sql/package.json adapters/sql/package-lock.json adapters/sql/
+RUN npm ci --prefix adapters/sql
 
 # 2) The source, then an editable install so imports and console entry points resolve like CI.
 COPY . .

@@ -1,9 +1,8 @@
 """`scripts/gate.sh` and `.github/workflows/ci.yml` must verify the same things (AGENTS.md).
 
 AGENTS.md says "keep it in step with `ci.yml`: a check in one and not the other means one of them
-is lying about what was verified" — and nothing enforced it. `gate.sh` also carried a header
-claiming GitHub Actions could not run for this repo, which was false and told a reader the local
-script was the whole gate.
+is lying about what was verified" — and nothing enforced it. `gate.sh`'s header has since been
+wrong in both directions about whether Actions run; it now says what AGENTS.md says (323).
 
 The table below is the enforcement. Each row is one check that must be spent in BOTH files, matched
 on the command each actually runs rather than on prose, so a check added to CI without a local
