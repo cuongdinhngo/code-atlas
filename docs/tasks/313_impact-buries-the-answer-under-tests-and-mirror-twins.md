@@ -116,7 +116,7 @@ paging rather than after.
 - **INPUT KIND:** ticket
 - **work_doc_mode:** embed · path: docs/tasks/313_impact-buries-the-answer-under-tests-and-mirror-twins.md
 - **REVIEWER:** OFF (--no-reviewer) · **CHALLENGER:** ON
-- **Current phase:** design
+- **Current phase:** review
 
 ## Phase 0 — Refine
 
@@ -223,4 +223,44 @@ Rule compliance: R1.1/R1.4/R2/R4.2/R5.5 as Phase 1; CONVENTION §6 (minimal subs
 Rollback: revert the branch's commits; no schema, no migration, no stored data. Porting: single repo.
 
 `SCOPE: M` (unchanged)
+
+## Phase 3 — Execute
+
+**Branch:** feat/313-impact-row-roles
+
+Pre-change (proving test red, before any source edit):
+
+```
+$ .venv/bin/python -m pytest tests/test_impact_row_roles.py -q --tb=line
+E   TypeError: create.<locals>.impact() got an unexpected keyword argument 'exclude_tests'
+7 failed in 1.18s
+```
+
+**Verification sweep**
+
+Ran at 4ef68a36d1867678f44c3430265a932caf960701
+
+```
+$ git diff --name-only main..HEAD
+code_atlas/mirror_search.py
+code_atlas/store.py
+code_atlas/tools/impact.py
+code_atlas/tools/search_symbol.py
+docs/BACKLOG.md
+docs/TOOLS.md
+docs/tasks/313_impact-buries-the-answer-under-tests-and-mirror-twins.md
+tests/test_impact_row_roles.py
+$ .venv/bin/python -m pytest tests/test_impact_row_roles.py -q --tb=no
+.......                                                                  [100%]
+7 passed in 1.37s
+$ .venv/bin/ruff check code_atlas -q && .venv/bin/mypy code_atlas
+Success: no issues found in 93 source files
+```
+
+Every file is on the D1–D6 list (`docs/TOKEN_LEDGER.md` lands at finalise with the dispatch count).
+
+Deviation (behaviour axis, recorded for review): A2 approved a new `store.test_node_keys`; implemented instead with the existing `store.nodes_by_qualified_names(qnames, limit=1)` — `_NODE_ORDER` makes `limit=1` the same node the walk took `file`/`line` from, so no new store method and no new SQL. Smaller than approved; same behaviour.
+
+`DIFF ⊆ approved list: yes`
+`DESIGN-CONFORMANCE: self-check passed — A1 implemented-as-approved · A2 deviated (recorded above) · A3 implemented-as-approved · A4 implemented-as-approved · A5 implemented-as-approved`
 
