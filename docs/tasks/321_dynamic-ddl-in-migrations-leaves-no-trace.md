@@ -126,7 +126,7 @@ instead of a discipline question.
 - **INPUT KIND:** ticket
 - **work_doc_mode:** embed · path: docs/tasks/321_dynamic-ddl-in-migrations-leaves-no-trace.md
 - **REVIEWER:** OFF (--no-reviewer) · **CHALLENGER:** ON
-- **Current phase:** review
+- **Current phase:** finalise — PR #440 open; never merge
 
 ## Phase 0 — Refine
 
@@ -259,9 +259,30 @@ Deviation: the two AC tests over the `UserNotes` fixture expect **two** `Table` 
 REVIEWER: OFF (--no-reviewer)
 CHALLENGER: ON — round 1 FINDINGS (20 met, 2 not met, 0 can't tell). Not met: Scope 3 / AC6 — emission was gated file-wide, so `PRINT 'ALTER TABLE dbo.NeverTouched …'` in a file that also ran an unrelated `sp_executesql` emitted a DYNAMIC `ALTERS` (reproduced on the adapter). Fixed in `33a140d`: per-literal runner tracking; the challenger's input and a DDL variable no `EXEC` runs are now tests (`mixed.sql`), plus a `+`-continued statement run by `EXEC (@v)` (`continued.sql`).
 
+Round 2 (same agent, resumed): Scope 3 and AC6 re-judged **met**, after nine adversarial runner shapes reproduced on the adapter (cursor, `EXEC (N'…')`, `sp_executesql N'…'`, `DECLARE … = N'…'` + `EXEC (@v)`, `EXEC @v`, `@stmt = @v`, two variables with one executed, an unexecuted variable). A full-suite run surfaced `tests/test_php_adapter_grammar.py::test_ac4_contract_vocabulary_pins_current_kinds`, a pin `d640cba` missed (R3 "same commit"), fixed in `d6bf6a6`; the other red was this row's missing ledger entry. Residual, within Scope 3's "no control flow": a variable reassigned before its `EXEC` keeps its first value's claim.
+
+Verdict: `findings landed (challenger only — REVIEWER: OFF)`
+
 ## Phase 5 — Finalise
+
+Outward (handover-authorised only): pushed `feat/321-dynamic-ddl-alters`, opened [#440](https://github.com/cuongdinhngo/code-atlas/pull/440). Never merge.
+
+Durable lesson: `197-C3` (`the-consumer-owns-its-kind-set`) seen 197, 321 → recurring type-2 claim; proposed destination `docs/ENGINEERING_RULES.md` R3.2 via `/mango:promote` — **not written**. Falsification: still true — `test_the_new_kinds_join_no_existing_named_subset` fails on a contract subset holding `WRITES` (observed this run before the move).
+
+Follow-up (BACKLOG): the duplicate-`Table`-row ambiguity in the 215 retry.
+
+Revert: revert the PR (the index rebuilds once, back to v10).
 
 ## Cost ledger
 
 | Phase | Dispatch | Round | Tokens |
 |-------|----------|-------|--------|
+| review | challenger | 1 | 103,950 |
+| review | challenger | 2 | 48,657 (152,607 cumulative on the resumed agent) |
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 1 recurring | 0 superseded (0 retired) | 1 promotion candidate(s)`
+`FALSIFY: 1 candidate(s) checked | 1 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 1 type-2 claim(s) with seen ≥ 2 | 1 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 1 proposed | 0 human-ratified | destinations: docs/ENGINEERING_RULES.md | mango files written: 0`
+`LEDGER TOTAL: 152,607 (subagent dispatch only) · top cost driver: review/challenger round 1`
