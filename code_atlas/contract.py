@@ -243,6 +243,13 @@ RESOLUTION_AUTOLOAD = "autoload"
 RESOLUTION_DYNAMIC_IMPORT = "dynamic_import"
 # Strategy token — string-executed SQL (sp_executesql / EXEC @var) (296).
 RESOLUTION_DYNAMIC_SQL = "dynamic_sql"
+# Every strategy token, one registry (318): the brief's refusal gate reads it; a stamp an adapter
+# emits outside it is a test failure. Grouping shipped tokens — not a contract bump.
+UNMODELLED_RESOLUTION_STRATEGIES: tuple[str, ...] = (
+    RESOLUTION_AUTOLOAD,
+    RESOLUTION_DYNAMIC_IMPORT,
+    RESOLUTION_DYNAMIC_SQL,
+)
 
 # Synthetic target_raw for PROVIDES_VIEW_DATA (task 062) — not an FQN; never resolved.
 VIEW_DATA_PREFIX = "viewdata:"

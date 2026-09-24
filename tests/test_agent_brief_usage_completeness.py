@@ -100,7 +100,7 @@ def _advertised_capabilities() -> frozenset[str]:
 
 
 def _refusal_reason_codes() -> frozenset[str]:
-    """Refusal / stamp tokens — read from shipped constants, not a hand list."""
+    """Refusal / stamp tokens — reach statuses plus every strategy in the shipped registry (318)."""
     from code_atlas import contract
     from code_atlas.tools import reach_shared
 
@@ -110,7 +110,7 @@ def _refusal_reason_codes() -> frozenset[str]:
             reach_shared.ROOTS_MATCHED_NOTHING,
             reach_shared.WALK_BUDGET_EXHAUSTED,
             reach_shared.NO_ROOTS,
-            contract.RESOLUTION_DYNAMIC_SQL,
+            *contract.UNMODELLED_RESOLUTION_STRATEGIES,
         }
     )
 
@@ -129,7 +129,8 @@ def _refusal_needles(code: str) -> tuple[str, ...]:
         return ("dynamic_sql", "EXEC")
     if code == "resolution_unmodelled":
         return ("resolution_unmodelled",)
-    return (code,)
+    # Backticked: a bare `autoload` would match any prose mentioning PSR-4 autoloading (318).
+    return (f"`{code}`",)
 
 
 def _param_needles(param: str) -> tuple[str, ...]:
