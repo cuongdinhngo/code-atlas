@@ -263,6 +263,21 @@ Round 2 (same agent, resumed): Scope 3 and AC6 re-judged **met**, after nine adv
 
 Verdict: `findings landed (challenger only — REVIEWER: OFF)`
 
+Ran at b5b88361635b5e3da410f3428162c5f624a0efab
+
+```
+$ scripts/gate.sh
+== summary ==
+  20 passed · 0 failed · 0 skipped
+GATE GREEN — all 20 checks passed
+```
+
+`REVIEW: CLEAN`
+`SCOPE ≡ approved list: yes`
+`DIFF ⊆ approved list: yes`
+
+`Reviewed at b5b88361635b5e3da410f3428162c5f624a0efab` · reviewed files: adapters/sql/src/scan.js, code_atlas/contract.py, code_atlas/resolver.py, code_atlas/store.py, code_atlas/tools/search_symbol.py, tests/test_alters_dynamic_ddl.py, tests/contract/adapter_registry.py, docs/CONVENTION.md, docs/TOOLS.md · working doc (embedded, staleness-exempt): docs/tasks/321_dynamic-ddl-in-migrations-leaves-no-trace.md
+
 ## Phase 5 — Finalise
 
 Outward (handover-authorised only): pushed `feat/321-dynamic-ddl-alters`, opened [#440](https://github.com/cuongdinhngo/code-atlas/pull/440). Never merge.
