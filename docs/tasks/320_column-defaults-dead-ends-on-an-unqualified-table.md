@@ -114,7 +114,7 @@ exist".
 - **INPUT KIND:** ticket
 - **work_doc_mode:** embed · path: docs/tasks/320_column-defaults-dead-ends-on-an-unqualified-table.md
 - **REVIEWER:** OFF (--no-reviewer) · **CHALLENGER:** ON
-- **Current phase:** design
+- **Current phase:** review
 
 ## Phase 0 — Refine
 
@@ -182,10 +182,9 @@ Baseline record — tree `660281a140e52a4ccd0a71f1e43bfd9b639c79bc` (historical,
 |--------|--------|
 | `disclose-a-partition-as-a-partition` | traced — see below |
 
-Ran at 660281a140e52a4ccd0a71f1e43bfd9b639c79bc
+Trace record — pre-change tree `660281a140e52a4ccd0a71f1e43bfd9b639c79bc` (historical: a design trace must read the code before the change). Command `grep -n "nodes_by_qualified_name(table\|_columns_of(store, table)\|has_unlinked_writes_relating_to(table)\|{table}::{column}\|_sources(store, table)" code_atlas/tools/check_column_defaults.py`:
 
 ```
-$ grep -n "nodes_by_qualified_name(table\|_columns_of(store, table)\|has_unlinked_writes_relating_to(table)\|{table}::{column}\|_sources(store, table)" code_atlas/tools/check_column_defaults.py
 197:            if not store.nodes_by_qualified_name(table, kind="Table", limit=1):
 206:            all_columns, columns, declarations = _columns_of(store, table)
 208:                wanted = column if "::" in column else f"{table}::{column}"
@@ -218,4 +217,31 @@ All five consumers of the table qname are in the change list (D1): the partition
 Rollback: revert the branch. Porting: single repo.
 
 `SCOPE: S` (unchanged)
+
+## Phase 3 — Execute
+
+**Branch:** fix/320-column-defaults-bare-table
+
+Pre-change record — tree `660281a` plus the uncommitted proving test (historical): `.venv/bin/python -m pytest tests/test_column_defaults_bare_table.py -q` → `5 failed, 1 passed` (the pass is AC4, the regression that must hold both sides).
+
+Ran at 56372584b7233db16d36fe5dd0572d813d01295b
+
+```
+$ git diff --name-only main..HEAD
+code_atlas/tools/check_column_defaults.py
+docs/BACKLOG.md
+docs/LESSONS.md
+docs/TOOLS.md
+docs/tasks/320_column-defaults-dead-ends-on-an-unqualified-table.md
+tests/test_column_defaults_bare_table.py
+$ .venv/bin/python -m pytest tests/test_column_defaults_bare_table.py tests/test_check_column_defaults.py -q --tb=no
+13 passed in 2.55s
+$ .venv/bin/mypy code_atlas
+Success: no issues found in 93 source files
+```
+
+`ruff format` was not run over `check_column_defaults.py` wholesale: it would also rewrap pre-existing line 208, which this change does not touch.
+
+`DIFF ⊆ approved list: yes`
+`DESIGN-CONFORMANCE: self-check passed — A1–A5 implemented-as-approved`
 
