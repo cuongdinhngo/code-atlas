@@ -598,7 +598,11 @@ function parseFile(qpath) {
     }
   };
 
-  /** Row-removal onto a Table — never a Column list (328 / check_column_defaults). */
+  /**
+   * Row-removal onto a Table — never a Column list (328 / check_column_defaults).
+   * @param {string} target
+   * @param {number} line
+   */
   const deletes = (target, line, tier = "RESOLVED") => {
     const source = current ? current.qname : qpath;
     edges.push({
