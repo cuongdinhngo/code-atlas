@@ -30,7 +30,7 @@
 | `check_architecture_rules` | confirmed vs candidate violations of declarative path-set dependency rules (`CA_ARCHITECTURE_RULES`) |
 | `diff_architecture` | architectural drift between two onboarding dataset / manifest snapshots |
 | `class_diagram` | mermaid class diagram for one type plus its ancestry, or every type in one file — inheritance from resolved edges; associations from declared types only |
-| `check_column_defaults` | which writers of a table omit a column that declares a `DEFAULT`, against the total that write it — a writer naming no columns is *unmeasured*, never an omitter (SQL tier 2) |
+| `check_column_defaults` | which writers of a table omit a column that declares a `DEFAULT`, against the total that write it — a writer naming no columns is *unmeasured*, never an omitter; a bare table name resolves to its one schema-qualified table or is refused with the candidates (SQL tier 2, 320) |
 | `trace_capability` | the capability flows ONE subject takes part in — an entry symbol (`qname`), a file (`path`) or a business module (`module`); each result is a traced path with its hops (`qname` · `file` · `layer` · `kind` · `tier`), how it `ended` and its `sink`. Carries no layer table, matrix or hub list: for the whole picture call `architecture_overview`. A subject the index does not hold answers `no_such_symbol`; one that joins no flow answers `no_matches` (199) |
 
 ### `architecture_overview` — layers, crossings, and the populations behind a zero

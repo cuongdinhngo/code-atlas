@@ -23,7 +23,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
 | 318 | [313's refusal gate reads a hand-list, so sibling tokens dynamic_import/autoload ship untaught](tasks/318_refusal-gate-misses-sibling-resolution-statuses.md) | Agent-trust | todo | 313, 296 |
-| 320 | [A bare table name dead-ends in check_column_defaults — the 165-C1 partition, second sighting](tasks/320_column-defaults-dead-ends-on-an-unqualified-table.md) | Agent-trust | todo | 194, 022 |
 | 321 | [A migration altering a table via sp_executesql leaves no trace on it, so duplicates ship](tasks/321_dynamic-ddl-in-migrations-leaves-no-trace.md) | Coverage | todo | 022, 184, 296 |
 | 322 | [The state line rides initialize once, so a long session re-asks for what get_index_status already routes to](tasks/322_the-state-line-is-delivered-once-and-never-again.md) | Adoption | todo | 300, 099, 316, 319 |
 

@@ -807,9 +807,11 @@ destination: open — folds into a convention if it recurs (relates to 073, 047)
 *Claim `165-C1` — a tool answer scoped to one qname is a *partition* when the subject shares its
 identity slot (trailing name) with definitions under other qnames; disclose the siblings and mark the
 answer `authoritative: false` rather than presenting the partition as the whole. type: 2 · handle:
-`disclose-a-partition-as-a-partition` · status: proposed · seen: 165 · evidence:
+`disclose-a-partition-as-a-partition` · status: proposed · seen: 165, 320 · evidence:
 `find_callers.py:255` disclosed only exact-qname twins (`nodes_by_qualified_name`); closed by a
 `nodes_by_name` sibling query + `test_find_callers_discloses_sibling_definitions_on_a_twin` ·
+320: `check_column_defaults` answered a bare table name `no_such_symbol`; closed the same way +
+`test_a_bare_name_two_schemas_hold_is_refused_with_both_candidates` ·
 destination: open — folds into a convention if it recurs (relates to [[161]], 070, R5.5).*
 
 *Claim `164-C1` — a build/provenance stamp for a long-lived process must be derived from the code the
