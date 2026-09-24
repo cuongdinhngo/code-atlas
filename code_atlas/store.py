@@ -1867,6 +1867,135 @@ class GraphStore:
             EDGE_ROW_KEYS, sql, (*qnames, *params, limit, offset)
         )
 
+    def count_write_statements_by_targets(
+        self,
+        qnames: Sequence[str],
+        *,
+        kinds: Sequence[str] | None = None,
+        exclude_test_sources: bool = False,
+        path_prefix: str | None = None,
+    ) -> int:
+        """Count distinct writing statements ``(source, file, line)`` across targets (329)."""
+        if not qnames:
+            return 0
+        placeholders = ", ".join("?" for _ in qnames)
+        where = f"edges.target_qname IN ({placeholders})"
+        extra = _combine_predicates(
+            _exclude_test_sources_predicate(exclude_test_sources),
+            _path_prefix_predicate(path_prefix),
+        )
+        clause, params = self._edge_where(where, kinds, extra)
+        sql = (
+            "SELECT COUNT(*) FROM ("
+            f"SELECT 1 FROM edges WHERE {clause} "
+            "GROUP BY source_qname, file_path, line"
+            ")"
+        )
+        return int(self._conn.execute(sql, (*qnames, *params)).fetchone()[0])
+
+    def write_statements_by_targets(
+        self,
+        qnames: Sequence[str],
+        *,
+        kinds: Sequence[str] | None = None,
+        limit: int,
+        offset: int = 0,
+        exclude_test_sources: bool = False,
+        path_prefix: str | None = None,
+    ) -> list[Row]:
+        """Page distinct writing statements; fold named columns into each row (329).
+
+        One SQL page — never a Python pass over an unbounded fetch (R1.4). Column names
+        from Column targets are sorted deterministically (R4.2). Table-target edges add
+        no column name (column-less write).
+        """
+        if offset < 0:
+            raise ValueError(f"offset must be >= 0, got {offset}")
+        if limit < 1:
+            raise ValueError(f"limit must be >= 1, got {limit}")
+        if not qnames:
+            return []
+        placeholders = ", ".join("?" for _ in qnames)
+        where = f"edges.target_qname IN ({placeholders})"
+        extra = _combine_predicates(
+            _exclude_test_sources_predicate(exclude_test_sources),
+            _path_prefix_predicate(path_prefix),
+        )
+        clause, params = self._edge_where(where, kinds, extra)
+        # Best tier in the group (RESOLVED first) — same rank expression as list order.
+        sql = (
+            "SELECT MIN(id) AS id, source_qname, kind, "
+            "GROUP_CONCAT(DISTINCT target_qname) AS target_qnames, "
+            "file_path, line, "
+            f"MIN({_EDGE_TIER_RANK}) AS tier_rank "
+            f"FROM edges WHERE {clause} "
+            "GROUP BY source_qname, file_path, line "
+            "ORDER BY tier_rank, source_qname, file_path, line "
+            "LIMIT ? OFFSET ?"
+        )
+        raw = self._conn.execute(
+            sql, (*qnames, *params, limit, offset)
+        ).fetchall()
+        # Raw execute returns tuples — index by position, not Row keys.
+        # cols: id, source_qname, kind, target_qnames, file_path, line, tier_rank
+        _tier_by_rank = {0: "RESOLVED", 1: "HEURISTIC", 2: "DYNAMIC"}
+        rows: list[Row] = []
+        for row in raw:
+            targets = [
+                t for t in str(row[3] or "").split(",") if t
+            ]
+            columns = sorted(
+                {
+                    t.rsplit("::", 1)[-1]
+                    for t in targets
+                    if "::" in t
+                }
+            )
+            hit: Row = {
+                "id": row[0],
+                "source_qname": row[1],
+                "kind": row[2],
+                "target_raw": "",
+                "target_qname": "",
+                "file_path": row[4],
+                "line": row[5],
+                "confidence_tier": _tier_by_rank.get(int(row[6]), "RESOLVED"),
+                "columns": columns,
+            }
+            rows.append(hit)
+        return rows
+
+    def inbound_write_statement_test_rows(
+        self,
+        qnames: Sequence[str],
+        *,
+        kinds: Sequence[str] | None = None,
+    ) -> list[tuple[int, str, int]]:
+        """``(is_test, source file_path, statement_count)`` for Table writer census (329)."""
+        if not qnames:
+            return []
+        placeholders = ", ".join("?" for _ in qnames)
+        where = f"edges.target_qname IN ({placeholders})"
+        clause, params = self._edge_where(where, kinds, None)
+        one_src = (
+            "JOIN nodes src ON src.rowid = ("
+            "SELECT n.rowid FROM nodes n WHERE n.qualified_name = edges.source_qname "
+            "ORDER BY n.file_path LIMIT 1)"
+        )
+        sql = (
+            "SELECT COALESCE(src.is_test, 0), COALESCE(src.file_path, ''), COUNT(*) "
+            "FROM ("
+            f"SELECT source_qname, file_path, line FROM edges WHERE {clause} "
+            "GROUP BY source_qname, file_path, line"
+            f") edges {one_src} GROUP BY 1, 2"
+        )
+        return [
+            (int(is_test), str(path), int(count))
+            for is_test, path, count in self._conn.execute(
+                sql, (*qnames, *params)
+            ).fetchall()
+        ]
+
     def count_edges_by_targets(
         self,
         qnames: Sequence[str],
