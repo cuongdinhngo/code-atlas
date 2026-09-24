@@ -70,7 +70,7 @@ code-atlas/
 ## 3. The contract vocabulary (fixed spelling — do not vary)
 
 - **Node kinds:** `File Namespace Class Interface Trait Enum Function Method Property ClassConst Const Table Column ForeignKey`.
-- **Edge kinds:** `CONTAINS EXTENDS IMPLEMENTS USES_TRAIT CALLS NEW IMPORTS INCLUDES REFERENCES ALIASES PROVIDES_VIEW_DATA WRITES`.
+- **Edge kinds:** `CONTAINS EXTENDS IMPLEMENTS USES_TRAIT CALLS NEW IMPORTS INCLUDES REFERENCES ALIASES PROVIDES_VIEW_DATA WRITES ALTERS`.
 - **`INCLUDES`:** `include`/`require` — `source_qname` is the **including file's path**, never the
   enclosing namespace or class (task 129) — the target resolves relative to that file's directory,
   so both ends are paths. `target_raw` is the literal as written (`'../helpers.php'`) or `(dynamic)`
@@ -83,6 +83,9 @@ code-atlas/
 - **`WRITES`:** a routine assigns a column (v9, task 022). The **target kind** says whether the
   statement named its columns: a `Column` (`dbo.T::Col`) it did, the `Table` it did not — that is
   *unmeasured*, never *writes none*. `Column.extra`: `data_type`, `default`.
+- **`ALTERS`:** a file's DDL changes a `Table`/`Function` (v11, task 321) — `RESOLVED` for a literal
+  `ALTER TABLE`, `DYNAMIC` for a name read out of a string the file runs. Never a writer.
+  Read back as `search_symbol`'s `altered_by` / `altered_by_dynamic`, never one list (R5.6).
 - **`ForeignKey`:** a foreign-key constraint as its own node (v10, task 236), never a second `Table`
   row for the table it sits on. qname joins the owning table (`dbo.T::FK_x`), `CONTAINS`-linked to it
   like a column. `ForeignKey.extra`: `parent_table`, `referenced_table`, `columns` (comma-joined).
@@ -92,13 +95,11 @@ code-atlas/
 - **Confidence tiers:** `RESOLVED | HEURISTIC | DYNAMIC`.
 - **Node fields:** `kind, name, qualified_name, file_path, line_start, line_end, modifiers, params, is_test, extra`.
 - **`extra['type']` (contract v7):** declared type on `Property` / `ClassConst`, and declared **return
-  type** on `Method` / `Function` (including closures). Same key; a pre-v7 index is rebuilt on bump
-  (task 144).
+  type** on `Method` / `Function` (including closures), one key (task 144).
 - **Edge fields:** `kind, source_qname, target_qname?, target_raw, file_path, line, confidence_tier, args?, arg_keys?`.
 - **`arg_keys` (contract v5):** optional list parallel to `args`. For an `"array"` arg, a list of
   top-level string keys from the array literal (empty list = captured, none found). `null` for
-  non-array args. Absent field = keys not captured (pre-v5). Used by `view_data` rules with
-  `key_from: "array_keys"` (task 063).
+  non-array args. Absent = not captured (pre-v5); read by `view_data`'s `key_from: "array_keys"` (063).
 - **Argument literals (`args` entries):** `null true false number string array` — the literal's
   *category*, never its value; a JSON `null` entry means "not a literal". Omitting `args` means the
   arguments are unknown, which is never the same as "no arguments".
@@ -109,7 +110,7 @@ code-atlas/
   - T-SQL: schema-qualified, **file-independent** — `dbo.Insert_Trans`.
   - JS/TS (no namespaces): module-path-anchored, e.g. `src/user.ts::User::save`, `src/util.ts::default`.
   - Files: **repo-relative** paths, always (even under Docker path mapping).
-- **Contract version:** `contract_version` in result meta; R3 governs when it bumps.
+- **Contract version:** `contract_version` in result meta; R3 governs the bump.
 - **Onboarding `artifact.json` (145):** top-level `version` (`ARTIFACT_VERSION` in `artifact.py`). Not
   the adapter contract and not `DATASET_VERSION`. Bump when `OnboardingArtifact.as_dict` keys change.
 
@@ -121,12 +122,11 @@ code-atlas/
 - Docstrings: one line saying *what* + *why* for non-obvious modules/functions; skip the obvious.
 - Imports: stdlib, third-party, local — grouped; no wildcard imports.
 - SQL lives in `store.py`; no raw SQL strings scattered across tools/indexer.
-  Host SQLite must be **≥ 3.25** (window functions). Large `IN (...)` lists are chunked at
-  `_IN_CHUNK` so hosts below 3.32's higher `SQLITE_MAX_VARIABLE_NUMBER` still work.
-- **Node/edge column lists are derived from `contract.py`**, never re-typed in a consumer: build them
-  with `", ".join(contract.NODE_FIELDS)` and rebuild result rows with
-  `dict(zip(("id", *contract.NODE_FIELDS), row, strict=True))`. Binding on `indexer.py`, `resolver.py`
-  and `tools/` too; `tests/test_contract_sole_source.py` fails a consumer that re-declares one (R3.2).
+  Host SQLite **≥ 3.25** (window functions); `IN (...)` lists chunk at `_IN_CHUNK` for pre-3.32
+  variable limits.
+- **Node/edge column lists are derived from `contract.py`** (`NODE_FIELDS` / `EDGE_FIELDS`), never
+  re-typed in a consumer — `indexer.py`, `resolver.py` and `tools/` included;
+  `tests/test_contract_sole_source.py` fails one that re-declares (R3.2).
 
 ## 5. Adapter conventions
 
@@ -134,7 +134,7 @@ code-atlas/
   `--file <path>` mode for spiking/debugging.
 - **Each adapter ships a static analyser and CI runs it at its strictest clean setting** (R6.6) — the
   language's answer to the core's `mypy`. PHP: PHPStan `level: max` via `adapters/php/phpstan.neon`.
-  Suppression (baseline, `@phpstan-ignore`, inline `@var`) is not how a finding is closed.
+  Suppression (baseline, `@phpstan-ignore`, inline `@var`) never closes a finding.
 - **Announces itself first.** The first stdout line is the handshake —
   `{"name", "extensions", "capabilities", "contract_version"}` — before any result. The suffix list in it
   is what routes files to this adapter; nothing in the core knows them otherwise.
@@ -171,7 +171,7 @@ what the payload already says (061). An answer must state what it is *not* telli
 | `db_path` | `get_index_status` / `build_or_update_index` at `standard` | nowhere else after 061 |
 | `last_ref` / `head_ref` | status + the busy-build refusal sharing its vocabulary | the revision the index was built on and the one HEAD is on now. `HEAD` when detached, `null` when non-git, **omitted** pre-077 so `null` is not read as "not under git". Nav answers name the built-on ref as `answered_about_ref` (every envelope, every level, the `last_ref` value or `null`, single-sourced — 317); the pair itself stays status-only (077) |
 | `server_version` / `server_build` / `server_stale_process` (+ `server_stale_action` / `server_stale_differs` / `server_stale_impact` / `server_build_kind` / `server_repo_head` when it fires — 267/284) | status at `standard`/`verbose`; `minimal` omits all three | running package + build id + whether loaded code matches disk; `+dirty` is the worktree axis, the verdict is unconditional (170) and claims add `server=`/`build=` (100/125). Per-field semantics: [design/payload.md](design/payload.md#which-code-answered-and-which-config-tasks-170-175) |
-| `config_build` / `config_stale_process` | status at `standard`/`verbose`; `build_or_update_index` at `standard` | which **config** answered — a hash of the project file plus the `CA_*` it reads, no timestamps — and whether the disk still matches it. The verdict is stated, never omitted (170). `index_config_build` names the config that built the index, only when it differs (061). **Not** on nav payloads: the code axis is already a standing cost there (175) |
+| `config_build` / `config_stale_process` | status at `standard`/`verbose`; `build_or_update_index` at `standard` | which **config** answered — a hash of the project file plus the `CA_*` it reads, no timestamps — and whether the disk still matches it. The verdict is stated, never omitted (170); `index_config_build` and why nav payloads skip it: [design/payload.md](design/payload.md#which-code-answered-and-which-config-tasks-170-175) |
 | `parse_failures` / `parse_failures_note` | status at `standard`+ | adapter `parsed_ok=0` count — a **floor**, not a fatal surface; note routes to the language runtime's own compiler/linter (058/280). Paths only at `verbose` |
 | `parse_failure_paths` | status at `verbose` | capped by `PARSE_FAILURE_PATHS_LIMIT`; optional `offset`; never on the cheap path (058) |
 | `skipped.*` breakdowns | `collection` | `collected − suffix − ignore == kept`; `untracked` beside it (092). Empty omitted (061). `ignore_sources` / `suffix_top` on verbose (095/174); core names no language |

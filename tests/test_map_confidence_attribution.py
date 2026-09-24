@@ -178,7 +178,7 @@ def test_ac4_the_adapter_contract_is_untouched() -> None:
     from code_atlas import contract
 
     assert "confidence_by_language" not in dir(contract)
-    assert contract.CONTRACT_VERSION == 10
+    assert contract.CONTRACT_VERSION == 11
 
 
 # ------------------------------------------- F1 — the stamp is READ, never recomputed on the spot

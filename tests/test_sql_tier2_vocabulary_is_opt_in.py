@@ -70,7 +70,7 @@ def test_the_new_words_are_in_the_vocabulary_they_were_bumped_for() -> None:
     assert {"Table", "Column"} <= set(contract.NODE_KINDS)
     assert "WRITES" in contract.EDGE_KINDS
     assert "WRITES" in contract.FQN_EDGE_KINDS
-    assert contract.CONTRACT_VERSION == 10
+    assert contract.CONTRACT_VERSION == 11
 
 
 def _listed(label: str) -> tuple[str, ...]:

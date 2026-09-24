@@ -65,7 +65,7 @@ def _seed(
 
 def test_contract_version_unchanged() -> None:
     """AC: derive-do-not-extend — vocabulary bump is forbidden for this ticket."""
-    assert CONTRACT_VERSION == 10
+    assert CONTRACT_VERSION == 11
 
 
 def test_inbound_mapping_is_derived_from_node_and_evidence_kinds() -> None:

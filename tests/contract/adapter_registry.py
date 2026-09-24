@@ -493,6 +493,9 @@ SQL_R62_CASES = frozenset(
         # tier 2 (236) — a standalone foreign-key constraint is its own node, never a Table row for
         # the table it sits on.
         "alter-table-add-foreign-key",
+        # v11 (321) — DDL changing an object: literal ALTER at RESOLVED (the three ALTER cases
+        # above), and a name read out of an executed string at DYNAMIC.
+        "alter-table-dynamic",
     }
 )
 
@@ -504,6 +507,8 @@ _F_COMMENT = "tests/fixtures/sql/comment_forms.sql"
 _F_NAMED_DEFAULT = "tests/fixtures/sql/column_default_named_constraint.sql"
 _F_NO_COLS = "tests/fixtures/sql/insert_without_column_list.sql"
 _F_TRIGGER = "tests/fixtures/sql/create_trigger.sql"
+_F_FK = "tests/fixtures/sql/alter_table_add_foreign_key.sql"
+_F_ALTER_DYNAMIC = "tests/fixtures/sql/unmodelled_resolution/alter_table_dynamic.sql"
 
 # A SQL object's qname is schema-qualified and file-independent — the database, not the file, is its
 # container — which is what lets an EXEC in one file link to a proc declared in another.
@@ -537,6 +542,7 @@ _SQL_COMMENT_EDGE_SHAPES: list[EdgeShape] = [
 # The second DEFAULT spelling fills the column the CREATE already declared — one Column node with a
 # default, never a second node for the same column (022 AC5).
 _SQL_NAMED_DEFAULT_EDGE_SHAPES: list[EdgeShape] = [
+    ("ALTERS", _F_NAMED_DEFAULT, "dbo.Stamped", "RESOLVED"),
     ("CONTAINS", _F_NAMED_DEFAULT, "dbo.Stamped", "RESOLVED"),
     ("CONTAINS", "dbo.Stamped", "dbo.Stamped::CreatedAt", "RESOLVED"),
 ]
@@ -555,12 +561,21 @@ _SQL_TRIGGER_EDGE_SHAPES: list[EdgeShape] = [
 # qname joins it), never a second Table row — the incident behind task 236. No Table/Column here:
 # the table is defined in another file, exactly the `_fk_constraints.sql` shape.
 _SQL_FK_EDGE_SHAPES: list[EdgeShape] = [
+    ("ALTERS", _F_FK, "dbo.MemberType", "RESOLVED"),
     (
         "CONTAINS",
         "dbo.MemberType",
         "dbo.MemberType::FK_MemberType_MemberParentTypeID",
         "RESOLVED",
     ),
+]
+
+# One DYNAMIC claim per string-built DDL statement, from the file; the SELECT in a string is a
+# mention, not an alteration (321 AC6). The CALLS pair is the existing dynamic-EXEC shape.
+_SQL_ALTER_DYNAMIC_EDGE_SHAPES: list[EdgeShape] = [
+    ("ALTERS", _F_ALTER_DYNAMIC, "dbo.Stamped", "DYNAMIC"),
+    ("CALLS", _F_ALTER_DYNAMIC, "(dynamic)", "DYNAMIC"),
+    ("CALLS", _F_ALTER_DYNAMIC, "(dynamic)", "DYNAMIC"),
 ]
 
 SQL_CASES: dict[str, Case] = {
@@ -621,11 +636,13 @@ SQL_CASES: dict[str, Case] = {
     "column-default-named-constraint": Case(
         "column_default_named_constraint.sql",
         {"File": 1, "Table": 1, "Column": 1},
-        {"CONTAINS": 2},
+        {"ALTERS": 1, "CONTAINS": 2},
         _SQL_NAMED_DEFAULT_EDGE_SHAPES,
     ),
     "alter-table-add-column": Case(
-        "alter_table_add_column.sql", {"File": 1, "Table": 1, "Column": 1}, {"CONTAINS": 2}
+        "alter_table_add_column.sql",
+        {"File": 1, "Table": 1, "Column": 1},
+        {"ALTERS": 1, "CONTAINS": 2},
     ),
     "insert-with-column-list": Case(
         "insert_with_column_list.sql",
@@ -653,8 +670,14 @@ SQL_CASES: dict[str, Case] = {
     "alter-table-add-foreign-key": Case(
         "alter_table_add_foreign_key.sql",
         {"File": 1, "ForeignKey": 1},
-        {"CONTAINS": 1},
+        {"ALTERS": 1, "CONTAINS": 1},
         _SQL_FK_EDGE_SHAPES,
+    ),
+    "alter-table-dynamic": Case(
+        "unmodelled_resolution/alter_table_dynamic.sql",
+        {"File": 1},
+        {"ALTERS": 1, "CALLS": 2},
+        _SQL_ALTER_DYNAMIC_EDGE_SHAPES,
     ),
 }
 

@@ -83,7 +83,7 @@ def test_node_kinds_are_the_fourteen_contract_kinds() -> None:
     )
 
 
-def test_edge_kinds_are_the_twelve_contract_kinds() -> None:
+def test_edge_kinds_are_the_thirteen_contract_kinds() -> None:
     assert EDGE_KINDS == (
         "CONTAINS",
         "EXTENDS",
@@ -97,14 +97,26 @@ def test_edge_kinds_are_the_twelve_contract_kinds() -> None:
         "ALIASES",
         "PROVIDES_VIEW_DATA",
         "WRITES",
+        "ALTERS",
     )
 
 
 def test_fqn_edge_kinds_opt_in_from_edge_kinds() -> None:
     assert FQN_EDGE_KINDS <= frozenset(EDGE_KINDS)
     assert FQN_EDGE_KINDS == frozenset(
-        {"EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS", "NEW", "ALIASES", "REFERENCES", "WRITES"}
+        {
+            "EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS", "NEW", "ALIASES", "REFERENCES",
+            "WRITES", "ALTERS",
+        }
     )
+
+
+def test_alters_is_a_dynamic_row_the_resolver_still_links() -> None:
+    # 321: a DDL name read out of an executed string is still a name, as a REFERENCES target is.
+    from code_atlas.contract import DYNAMIC_LINKED_KINDS
+
+    assert "ALTERS" in DYNAMIC_LINKED_KINDS and "REFERENCES" in DYNAMIC_LINKED_KINDS
+    assert frozenset(DYNAMIC_LINKED_KINDS) <= FQN_EDGE_KINDS
 
 
 def test_caller_and_impl_kinds_are_named_fqn_subsets() -> None:
@@ -174,7 +186,7 @@ def test_target_qname_is_not_required_so_adapters_can_emit_bare_edges() -> None:
 
 
 def test_contract_version_is_exported() -> None:
-    assert CONTRACT_VERSION == 10
+    assert CONTRACT_VERSION == 11
 
 
 def test_known_capabilities_advertises_semantic_types() -> None:
