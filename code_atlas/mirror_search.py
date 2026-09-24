@@ -186,8 +186,8 @@ def decorate_mirror_hits(
     if not stamp or not stamp.get("pairs"):
         return None
     pairs = _pairs_from_stamp(stamp)
-    presence = _presence_for_hits(store, results, pairs, indexed)
     identity = _identity_for_hits(store, results)
+    presence = _presence_for_hits(store, results, pairs, indexed, identity)
     for hit in results:
         if not isinstance(hit, dict):
             continue
@@ -217,8 +217,8 @@ def label_mirror_rows(
     if not stamp or not stamp.get("pairs"):
         return
     pairs = _pairs_from_stamp(stamp)
-    presence = _presence_for_hits(store, rows, pairs, indexed)
     identity = _identity_for_hits(store, rows)
+    presence = _presence_for_hits(store, rows, pairs, indexed, identity)
     for row in rows:
         path = row.get("file")
         if not isinstance(path, str):
@@ -297,11 +297,13 @@ def _presence_for_hits(
     hits: Sequence[Mapping[str, Any]],
     pairs: tuple[MirrorPair, ...],
     indexed: Container[str],
+    identity: Mapping[str, tuple[str, str]] | None = None,
 ) -> frozenset[tuple[str, str]] | None:
     """One page-level presence set, or ``None`` when no store (legacy file-level claim)."""
     if store is None:
         return None
-    identity = _identity_for_hits(store, hits)
+    if identity is None:
+        identity = _identity_for_hits(store, hits)
     twin_paths: list[str] = []
     name_list: list[str] = []
     for hit in hits:
