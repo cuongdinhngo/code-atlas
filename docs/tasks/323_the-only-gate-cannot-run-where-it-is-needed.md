@@ -111,3 +111,117 @@ runtime-gated SKIP arms), `:180` (phpstan), `:199` (SQL tsc), `:274` (R7.3 needs
 `docker/Dockerfile:27` (`--no-dev`), `:29` (typescript-only `npm ci`); `.dockerignore:3` (`.git`);
 `scripts/docker-test.sh`; `tests/test_ci_and_gate_agree.py`; AGENTS.md — *"Before a PR or a push"*
 and *"Running the full test suite"*; ENGINEERING_RULES R6.5.
+
+---
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+# 323 — gate.sh --docker (working doc)
+
+- **Ticket:** 323 · local
+- **Type:** enhancement (tooling)
+- **Repo(s) / Porting:** app
+- **SCOPE:** M
+- **STRUCTURE:** native
+- **TRACK:** backend
+- **TIER:** full
+- **BASELINE:** green
+- **INPUT KIND:** ticket
+- **work_doc_mode:** embed · path: docs/tasks/323_the-only-gate-cannot-run-where-it-is-needed.md
+- **REVIEWER:** OFF (--no-reviewer) · **CHALLENGER:** ON
+- **Current phase:** design
+
+## Phase 0 — Refine
+
+`PREMISE: 8 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)`
+`RECALL: 0 claim(s) surfaced | 0 by symbol | 0 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`REFINE: 0 unresolved surfaced | 0 want-decision asked | 0 how-decision resolved+cited | 0 ASSUMED | skip: yes`
+
+refine skipped: 0 unresolved product-decisions — the ticket hands the `.git` question to design (Scope 2) and fixes every other shape.
+
+## Requirements matrix
+
+`SECTIONS: 7 found (Why this exists · Goal · Scope / Deliverables · Constraints · Acceptance criteria · Out of scope · References) | 7 decomposed | ROWS: C=5 R=6 G=1 AC=6`
+
+| ID | Source | Verbatim | Interpretation | Ph2 | Ph3/4 | Status |
+|----|--------|----------|----------------|-----|-------|--------|
+| G1 | Goal | one command, same twenty-check verdict on any host with Docker | `gate.sh --docker` | D1–D3 | AC1 | ✅ |
+| R1 | Scope 1 | `--docker` builds the image and re-runs the same gate inside it | outer branch → `docker build` + `docker run … scripts/gate.sh --in-container` | D1 | AC1 proving | ✅ |
+| R2 | Scope 2 | decide the `.git` question with the rejected option written | stop excluding `.git` (Phase 2) | D2 | AC3 | ✅ |
+| R3 | Scope 3 | composer with dev deps; `npm ci --prefix adapters/sql` | Dockerfile edits | D3 | AC4 | ✅ |
+| R4 | Scope 4 | recursion guard on an argv flag | `--in-container` + `--docker` refused | D1 | AC5 | ✅ |
+| R5 | Scope 5 | summary names host vs container | container summary suffixed; host unchanged (AC6) | D1 | AC1 AC6 | ✅ |
+| R6 | Scope 6 | resolve the stale header | header follows AGENTS.md (Actions: 0 steps) | D1 D4 | review | ✅ |
+| C1 | Constraints | R6.5 — container skip still exit 2 | same `_record`/exit logic runs inside | D1 | AC1 AC2 | ✅ |
+| C2 | Constraints | `test_ci_and_gate_agree.py` green | shared-check commands untouched | D1 | AC6 | ✅ |
+| C3 | Constraints | test/dev image only; runtime out of scope | Dockerfile.runtime untouched (explicit COPYs) | D2 D3 | sweep | ✅ |
+| C4 | Constraints | no-flag path byte-identical summary | arg parse only; summary text untouched on host | D1 | AC6 | ✅ |
+| C5 | Constraints | comments ≤ 3 lines | R7.5 | D1–D3 | review | ✅ |
+| AC1 | AC | no php/composer/node on PATH → GATE GREEN 20/0/0 | stripped-PATH e2e run | D1–D3 | e2e record | ✅ |
+| AC2 | AC | real failure → non-zero, names the check | injected ruff error | D1 | e2e record | ✅ |
+| AC3 | AC | R7.3 runs inside, not SKIP | from AC1 log | D2 | e2e record | ✅ |
+| AC4 | AC | phpstan + SQL tsc PASS inside | from AC1 log | D3 | e2e record | ✅ |
+| AC5 | AC | inner `--docker` refused | `--in-container --docker` exits 64 | D1 | proving | ✅ |
+| AC6 | AC | no-flag summary unchanged; agree test green | host gate summary vs 313's host run | D1 | e2e + test | ✅ |
+
+`CLARIFICATION: 1 raised | 1 self-resolved (cited) | 0 for human decision`
+
+- Q1 (self-resolved): Scope 5 (summary names the host) vs Constraint "byte-identical summary" on the no-flag path → the host summary stays exactly as today (Constraints bullet 4, AC6) and only the container run carries the label; absence of the label is the host gate.
+
+## Phase 1 — Analysis
+
+- Gap: `grep -n docker scripts/gate.sh` → 0 matches; `docker/Dockerfile:27` `--no-dev` (no phpstan → `gate.sh` phpstan SKIP); `:29` only the TS `npm ci` (SQL tsc SKIP); `.dockerignore:3` `.git` (R7.3 SKIP: no `origin/main`); `gate.sh:4-6` claims Actions run, while `gh run view 35948207877` shows every job `failure steps=0` (AGENTS.md is right).
+- Blast radius: `docker/Dockerfile` is also `scripts/docker-test.sh`'s image — `.git` in context changes that image (ruff now honours `.gitignore`; git-aware tests see a repo); `Dockerfile.runtime` COPYs explicit paths, so its image is unchanged though its context grows by `.git` (25M). `tests/test_ci_and_gate_agree.py` matches command substrings in `gate.sh`. AGENTS.md "Before a PR" names `gate.sh`.
+
+`TRACK: backend — 0/6 touched files under UI paths`
+
+`RULE SECTIONS: 3 applicable — 3 by change-type | 0 by recalled handle — R6.5 (change-type) ✅ the inner run is the same gate and docker run returns its exit status (skip is still 2) · R7.5 (change-type) ✅ new comments ≤ 3 lines · R7.2 (change-type) ✅ ledger row + BACKLOG removal`
+
+Baseline record — tree `660281a140e52a4ccd0a71f1e43bfd9b639c79bc` (historical, shared with 313's run; re-run on the reviewed tree in Phase 4). Command `.venv/bin/python -m pytest -q --tb=line -p no:cacheprovider`, output tail:
+
+```
+4376 passed, 4 skipped in 362.21s (0:06:02)
+```
+
+`BASELINE: green`
+
+## Phase 2 — Design
+
+- Approach:
+  - A1 `gate.sh` parses `--fast` / `--docker` / `--in-container` from any position. `--docker` without `--in-container`: needs `docker` on PATH (else a named refusal, exit 2), builds `docker/Dockerfile` as `code-atlas-test`, then `exec docker run --rm code-atlas-test sh scripts/gate.sh --in-container [--fast]` — the image never holds its own check list.
+  - A2 `--in-container` with `--docker` → refused before any check, exit 64. Guard is argv, never env.
+  - A3 `--in-container` suffixes the two verdict lines with `(container gate)`; the no-flag path prints today's bytes.
+  - A4 `.git` is no longer excluded from the build context, so the copied tree carries `origin/main` and R7.3 runs; `.mango` stays excluded, comment updated.
+  - A5 Dockerfile: `composer install` with dev deps; `npm ci --prefix adapters/sql` beside the TS one, keyed on its lock file.
+  - A6 header lines 4-6 say what AGENTS.md says: Actions report `fail` with 0 steps, so this script is the only gate; `test_ci_and_gate_agree.py`'s docstring stops calling that claim false.
+- Rejected: **bind-mounting the working tree** (`-v "$root:/repo"`) — the inner gate's `compileall -f`, `pytest` and `npm ci` then write root-owned `.pyc` and `node_modules` into the host tree, and the host venv's interpreter symlink does not resolve inside the image; self-contained copy is cheaper to reason about. An env-var recursion guard — rejected by the ticket (leaks into children).
+
+**Assumptions:** the copied `.git` resolves `origin/main` inside the image — novel-untested → proven by AC3 (the e2e run shows R7.3 PASS with a commit count, not SKIP). `docker run`'s exit status is the inner gate's — verified (docker propagates the container's exit code).
+
+`HANDLES: 0 recalled | 0 traced (command + result) | 0 does not apply (reason) | 0 unanswered`
+
+| # | Change | File | Blast radius | Ph2 covered by | k/N |
+|---|--------|------|--------------|----------------|-----|
+| D1 | arg parse, `--docker` route, recursion guard, container label, header | scripts/gate.sh | `test_ci_and_gate_agree.py` substrings; AGENTS.md gate section | R1 R4 R5 R6 C1 C2 C4 | 1/1 |
+| D2 | keep `.git` in the context | .dockerignore | docker-test.sh image; Dockerfile.runtime context size | R2 C3 | 1/1 |
+| D3 | dev composer deps; SQL `npm ci` | docker/Dockerfile | docker-test.sh image and its pinned counts | R3 | 1/1 |
+| D4 | proving test; agree-test docstring | tests/test_gate_docker_route.py · tests/test_ci_and_gate_agree.py | new file; docstring only | AC5 R6 | 1/1 |
+| D5 | AGENTS.md gate line; ticket; BACKLOG; TOKEN_LEDGER | AGENTS.md · docs/tasks/323_… · docs/BACKLOG.md · docs/TOKEN_LEDGER.md | agent chain budget; doc budget; bookkeeping test | R7.2 | 1/1 |
+
+| AC | risk layer | proof artifact | fixture provenance | layer-match? |
+|----|-----------|----------------|--------------------|--------------|
+| AC1 | e2e | e2e (recorded `gate.sh --docker` run, php/composer/node stripped from PATH) | n/a | ✅ |
+| AC2 | e2e | e2e (recorded run with an injected ruff error) | n/a | ✅ |
+| AC3 | e2e | e2e (R7.3 line of the AC1 run) | n/a | ✅ |
+| AC4 | e2e | e2e (phpstan + SQL tsc lines of the AC1 run) | n/a | ✅ |
+| AC5 | integration | integration (subprocess `sh scripts/gate.sh`) | n/a | ✅ |
+| AC6 | e2e | e2e (host gate summary) + integration (`test_ci_and_gate_agree.py`) | n/a | ✅ |
+
+`EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+**Proving test:** `.venv/bin/python -m pytest tests/test_gate_docker_route.py -q` (AC5 + the route, with a stub `docker` on PATH); AC1–AC4/AC6 are the recorded e2e runs in Phase 3/4.
+
+Rollback: revert the branch; the image rebuilds from the previous Dockerfile. Porting: single repo.
+
+`SCOPE: M` (unchanged)
+
