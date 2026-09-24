@@ -20,7 +20,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
 | 328 | [A DELETE leaves no edge on its table](tasks/328_a-delete-leaves-no-edge-on-the-table-it-empties.md) | Coverage | todo | 022, 278, 321 |
-| 329 | [Table writers repeat per named column](tasks/329_a-table-writer-list-repeats-each-statement-per-column.md) | Agent-trust | todo | 278 |
 | 330 | [impact signs a zero unlinked sites contradict](tasks/330_impact-signs-a-zero-its-own-unlinked-sites-contradict.md) | Agent-trust | todo | 065, 272, 314 |
 | 331 | [mirror_counterpart for a symbol the twin lacks](tasks/331_a-mirror-counterpart-is-named-for-a-symbol-it-lacks.md) | Agent-trust | todo | 277, 282, 286 |
 | 332 | [exclude_tests: depth 1 only, not on search](tasks/332_exclude-tests-stops-at-depth-one-and-never-reaches-search.md) | Agent-trust | todo | 262, 313, 315 |

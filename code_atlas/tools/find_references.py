@@ -151,16 +151,26 @@ def _test_census_for(
     targets: list[str],
     *,
     kinds: tuple[str, ...] | None,
+    by_statement: bool = False,
 ) -> tuple[int, int, str | None]:
-    """Same 262 census over one or more targets (Table∪columns WRITES union — 278)."""
+    """Same 262 census over one or more targets (Table∪columns WRITES union — 278).
+
+    ``by_statement`` counts distinct ``(source, file, line)`` for Table subjects (329).
+    """
     production = 0
     test = 0
     role_bits: list[tuple[int, str]] = []
-    for target in targets:
-        rows = store.inbound_test_rows(target, kinds=kinds)
-        production += sum(count for is_test, _path, count in rows if not is_test)
-        test += sum(count for is_test, _path, count in rows if is_test)
+    if by_statement:
+        rows = store.inbound_write_statement_test_rows(targets, kinds=kinds)
+        production = sum(count for is_test, _path, count in rows if not is_test)
+        test = sum(count for is_test, _path, count in rows if is_test)
         role_bits.extend((is_test, path) for is_test, path, _count in rows)
+    else:
+        for target in targets:
+            rows = store.inbound_test_rows(target, kinds=kinds)
+            production += sum(count for is_test, _path, count in rows if not is_test)
+            test += sum(count for is_test, _path, count in rows if is_test)
+            role_bits.extend((is_test, path) for is_test, path, _count in rows)
     label = aggregate_test_count_source(
         stored_test_source(is_test, path) for is_test, path in role_bits
     )
@@ -235,8 +245,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         Resolved edges whose ``target_qname`` is ``qname``, with confidence tiers.
         A **Table** or **Column** subject returns linked ``WRITES`` only (278). A Table
         unions writers of the table and of its CONTAINS columns (named-column sites
-        never target the Table qname); a Column is the narrower set. When the graph
-        still holds unlinked writers, ``unlinked_writes_count`` names them. On a
+        never target the Table qname); each writing statement is one row with the
+        named columns folded in (329). A Column is the narrower per-edge set. When the
+        graph still holds unlinked writers, ``unlinked_writes_count`` names them. On a
         multi-language index the answer carries ``writes_emitters_only`` when a
         covered language emits no ``WRITES`` — host-language string writes are out
         of scope (§19 / 281). ``REFERENCES`` (a
@@ -324,6 +335,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         writes_subject = False
         writes_kinds: tuple[str, ...] | None = None
         writes_targets: list[str] | None = None
+        group_table_writes = False
         unlinked_same_name_sites = 0
         about_ref: str | None = None
         with GraphStore(config.db_path) as store:
@@ -370,13 +382,25 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 writes_kinds = (WRITES,)
                 subject_kind = str(nodes[0]["kind"])
                 writes_targets = _writes_targets(store, lookup, subject_kind)
-                total_count = store.count_edges_by_targets(
-                    writes_targets,
-                    kinds=writes_kinds,
-                    exclude_test_sources=exclude_tests, path_prefix=path_prefix)
-                production_count, test_count, test_role_label = _test_census_for(
-                    store, writes_targets, kinds=writes_kinds
-                )
+                group_table_writes = subject_kind == TABLE_KIND
+                if group_table_writes:
+                    total_count = store.count_write_statements_by_targets(
+                        writes_targets,
+                        kinds=writes_kinds,
+                        exclude_test_sources=exclude_tests,
+                        path_prefix=path_prefix,
+                    )
+                    production_count, test_count, test_role_label = _test_census_for(
+                        store, writes_targets, kinds=writes_kinds, by_statement=True
+                    )
+                else:
+                    total_count = store.count_edges_by_targets(
+                        writes_targets,
+                        kinds=writes_kinds,
+                        exclude_test_sources=exclude_tests, path_prefix=path_prefix)
+                    production_count, test_count, test_role_label = _test_census_for(
+                        store, writes_targets, kinds=writes_kinds
+                    )
                 table_key = (
                     lookup.rsplit("::", 1)[0]
                     if subject_kind == COLUMN_KIND and "::" in lookup
@@ -424,6 +448,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     writes_kinds = (WRITES,)
                     subject_kind = str(nodes[0]["kind"])
                     writes_targets = _writes_targets(store, lookup, subject_kind)
+                    group_table_writes = subject_kind == TABLE_KIND
                     table_key = (
                         lookup.rsplit("::", 1)[0]
                         if subject_kind == COLUMN_KIND and "::" in lookup
@@ -433,13 +458,24 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         table_key
                     )
                     production_count, test_count, test_role_label = _test_census_for(
-                        store, writes_targets, kinds=writes_kinds
-                    )
-                if writes_targets is not None:
-                    total_count = store.count_edges_by_targets(
+                        store,
                         writes_targets,
                         kinds=writes_kinds,
-                        exclude_test_sources=exclude_tests, path_prefix=path_prefix)
+                        by_statement=group_table_writes,
+                    )
+                if writes_targets is not None:
+                    if group_table_writes:
+                        total_count = store.count_write_statements_by_targets(
+                            writes_targets,
+                            kinds=writes_kinds,
+                            exclude_test_sources=exclude_tests,
+                            path_prefix=path_prefix,
+                        )
+                    else:
+                        total_count = store.count_edges_by_targets(
+                            writes_targets,
+                            kinds=writes_kinds,
+                            exclude_test_sources=exclude_tests, path_prefix=path_prefix)
                 else:
                     total_count = store.count_edges_by_target(
                         lookup,
@@ -466,12 +502,22 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     )
                 )
             if writes_targets is not None:
-                edges = store.edges_by_targets(
-                    writes_targets,
-                    kinds=writes_kinds,
-                    limit=cap,
-                    offset=offset,
-                    exclude_test_sources=exclude_tests, path_prefix=path_prefix)
+                if group_table_writes:
+                    edges = store.write_statements_by_targets(
+                        writes_targets,
+                        kinds=writes_kinds,
+                        limit=cap,
+                        offset=offset,
+                        exclude_test_sources=exclude_tests,
+                        path_prefix=path_prefix,
+                    )
+                else:
+                    edges = store.edges_by_targets(
+                        writes_targets,
+                        kinds=writes_kinds,
+                        limit=cap,
+                        offset=offset,
+                        exclude_test_sources=exclude_tests, path_prefix=path_prefix)
             else:
                 edges = store.edges_by_target(
                     lookup,
@@ -479,7 +525,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     limit=cap,
                     offset=offset,
                     exclude_test_sources=exclude_tests, path_prefix=path_prefix)
-            results = [edge_hit(edge) for edge in edges]
+            results = []
+            for edge in edges:
+                hit = edge_hit(edge)
+                cols = edge.get("columns") if group_table_writes else None
+                if isinstance(cols, list) and cols:
+                    hit["columns"] = cols
+                results.append(hit)
             # Skewed page 1 hides other subtrees — advertise the full spread (task 067).
             subtrees = (
                 store.edge_subtrees_by_target(lookup, path_prefix=path_prefix)
