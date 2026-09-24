@@ -194,7 +194,7 @@ every gate above it; this evidence is REFUSED"* — and **exit 2, so the gate do
 Both are right about their own case. A baseline written in the shipped `$ <command>` shape therefore
 fails the run it was mandated by, and the only way out is to stop writing the baseline in that shape
 — which costs the machine-checkable provenance the shape exists to give. 022 took that way out and
-said so in the doc.
+said so in the doc. 313 (2026-09-24) took the same way out.
 
 **Signal, not a fix.** A record kind that says *this is the pre-change tree, and here is its SHA*
 would let the guard check a baseline's provenance instead of refusing it.

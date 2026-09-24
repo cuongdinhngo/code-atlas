@@ -1619,3 +1619,14 @@ venv or the PHPStan tmpDir is rebuilt from a wrong-cased cwd.*
   even when the value does not move, and re-running to restore the git order would manufacture a
   timeline. Ask for a reserved value BEFORE the measurement, or record the criterion unmet.
 - destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)
+
+## 313 — two tickets carried the key 313, and nothing noticed
+
+- type: 2 (process) · handle: `a-ticket-key-is-checked-free-on-disk`
+- status: proposed · seen: 313
+- evidence: `313_impact-buries-…` was filed 2026-09-20 (3c399e9); `313_the-agent-brief-teaches-…`
+  took the same key on 2026-09-21 (c3138b7) and shipped as #425 with the ledger row `| 313 |`.
+  `tests/test_backlog_bookkeeping.py` keys task files by id, so the second silently shadowed the
+  first; the run contract's `LEDGER-ROW` condition reported HOLDING at t0 for work not yet done.
+  Before filing, list `docs/tasks/NNN_*` — "next free NNN" means free on disk, not in BACKLOG.
+- destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)
