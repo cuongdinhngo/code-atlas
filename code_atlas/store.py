@@ -1933,38 +1933,20 @@ class GraphStore:
             "ORDER BY tier_rank, source_qname, file_path, line "
             "LIMIT ? OFFSET ?"
         )
-        raw = self._conn.execute(
-            sql, (*qnames, *params, limit, offset)
-        ).fetchall()
-        # Raw execute returns tuples: id, source, kind, targets, file, line, tier_rank.
-        # Build via EDGE_ROW_KEYS so field names are not re-declared literals (R3.2).
-        _tier_by_rank = {0: "RESOLVED", 1: "HEURISTIC", 2: "DYNAMIC"}
+        cursor = self._conn.execute(sql, (*qnames, *params, limit, offset))
+        names = [column[0] for column in cursor.description]
         rows: list[Row] = []
-        for row in raw:
-            targets = [
-                t for t in str(row[3] or "").split(",") if t
-            ]
-            columns = sorted(
-                {
-                    t.rsplit("::", 1)[-1]
-                    for t in targets
-                    if "::" in t
-                }
+        for values in cursor.fetchall():
+            record = dict(zip(names, values, strict=True))
+            # _EDGE_TIER_RANK enumerates CONFIDENCE_TIERS in order; ELSE rank has no tier.
+            rank = int(record.pop("tier_rank"))
+            targets = str(record.pop("target_qnames") or "").split(",")
+            hit: Row = dict.fromkeys(EDGE_ROW_KEYS)
+            hit.update(record)
+            hit["confidence_tier"] = (
+                CONFIDENCE_TIERS[rank] if rank < len(CONFIDENCE_TIERS) else None
             )
-            values = (
-                row[0],
-                row[2],
-                row[1],
-                "",
-                "",
-                row[4],
-                row[5],
-                _tier_by_rank.get(int(row[6]), "RESOLVED"),
-                None,
-                None,
-            )
-            hit: Row = dict(zip(EDGE_ROW_KEYS, values, strict=True))
-            hit["columns"] = columns
+            hit["columns"] = sorted({t.rsplit("::", 1)[-1] for t in targets if "::" in t})
             rows.append(hit)
         return rows
 
