@@ -275,6 +275,23 @@ CHALLENGER: ON — round-1 CLEAN (9 met, 0 not met, 2 can't tell). The can't-tel
 
 Verdict: `clean (challenger only — REVIEWER: OFF)`
 
+First gate (at `eb85ded`) was `19 passed · 1 failed` — the two core-module count pins (D6); fixed test-only in `012d0f7`, after the challenger's round, which therefore did not see those two lines.
+
+Ran at 012d0f7a9e2c28acb0226d4706b63bce75f5c4b5
+
+```
+$ scripts/gate.sh
+== summary ==
+  20 passed · 0 failed · 0 skipped
+GATE GREEN — all 20 checks passed
+```
+
+`REVIEW: CLEAN`
+`SCOPE ≡ approved list: yes`
+`DIFF ⊆ approved list: yes`
+
+`Reviewed at 012d0f7a9e2c28acb0226d4706b63bce75f5c4b5` · reviewed files: code_atlas/hooks/state.py, tests/test_session_state_hook.py, scripts/gen_skill.py, contrib/claude-code/settings.snippet.json, pyproject.toml, docs/TOOLS.md, tests/test_core_is_language_agnostic.py, tests/test_sql_confinement.py · working doc (embedded, staleness-exempt): docs/tasks/322_the-state-line-is-delivered-once-and-never-again.md
+
 ## Phase 5 — Finalise
 
 Outward (handover-authorised only): pushed `feat/322-state-hook`, opened [#442](https://github.com/cuongdinhngo/code-atlas/pull/442). Never merge. Also spent: two headless `claude -p` probes (about $0.18).
