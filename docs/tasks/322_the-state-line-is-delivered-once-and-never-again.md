@@ -136,7 +136,7 @@ precedent, read 2026-09-22).
 - **INPUT KIND:** ticket
 - **work_doc_mode:** embed · path: docs/tasks/322_the-state-line-is-delivered-once-and-never-again.md
 - **REVIEWER:** OFF (--no-reviewer) · **CHALLENGER:** ON
-- **Current phase:** review
+- **Current phase:** finalise — PR #442 open; never merge
 
 ## Phase 0 — Refine
 
@@ -270,10 +270,27 @@ Success: no issues found in 94 source files
 ## Phase 4 — Review
 
 REVIEWER: OFF (--no-reviewer)
+CHALLENGER: ON — round-1 CLEAN (9 met, 0 not met, 2 can't tell). The can't-tells are AC6 (its record is here, outside the challenger's input) and one row it could not exercise without the working doc. Probes: summary identity with `instructions._state()`, a live no-index run, four excluded occasions, no write-path import, the tool surface still 24.
+
+Verdict: `clean (challenger only — REVIEWER: OFF)`
 
 ## Phase 5 — Finalise
+
+Outward (handover-authorised only): pushed `feat/322-state-hook`, opened [#442](https://github.com/cuongdinhngo/code-atlas/pull/442). Never merge. Also spent: two headless `claude -p` probes (about $0.18).
+
+Durable lesson: none new — `093-C3` (`prove-the-guard-fails`) applied as written; no claim moved.
+
+Revert: revert the PR; a host that wired the command sees "command not found" at those two events.
 
 ## Cost ledger
 
 | Phase | Dispatch | Round | Tokens |
 |-------|----------|-------|--------|
+| review | challenger | 1 | 82,068 |
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+`LEDGER TOTAL: 82,068 (subagent dispatch only) · top cost driver: review/challenger round 1`
