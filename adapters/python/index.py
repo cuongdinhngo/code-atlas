@@ -24,7 +24,7 @@ META = {
         "declared_types": True,
         "inheritance": True,
     },
-    "contract_version": 11,
+    "contract_version": 12,
 }
 
 

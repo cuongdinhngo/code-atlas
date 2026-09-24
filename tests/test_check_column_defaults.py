@@ -150,4 +150,4 @@ def test_an_unknown_table_and_an_undefaulted_column_answer_differently(indexed: 
 
 def test_the_answer_costs_no_further_contract_vocabulary() -> None:
     """AC4 — everything this reads was already spent by 022."""
-    assert CONTRACT_VERSION == 11
+    assert CONTRACT_VERSION == 12

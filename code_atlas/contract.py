@@ -28,7 +28,9 @@ from typing import Literal, get_args
 # constraint on it (R5.6), so the correct FK answer is no longer re-derived. R3.1/R3.5 owe the bump.
 # v11: `ALTERS` (321). A file's DDL changing an object is not a write to its columns, so it is a
 # word of its own rather than a `WRITES` that would enrol every migration as a writer.
-CONTRACT_VERSION = 11
+# v12: `DELETES` (328). A statement that removes rows is not a writer of those columns — same
+# trap 321 met for DDL — so it is a word of its own rather than a `WRITES` enroling every deleter.
+CONTRACT_VERSION = 12
 
 # Ordered Literal is the typing SSoT; NODE_KINDS is derived so schemas cannot drift (R3.2 / 056).
 NodeKind = Literal[
@@ -80,13 +82,16 @@ EDGE_KINDS: tuple[str, ...] = (
     # v11 (321): a file's DDL changes a Table or Function. RESOLVED when the statement is literal;
     # DYNAMIC when the name was read out of a string the file executes — a claim, never a fact.
     "ALTERS",
+    # v12 (328): a routine removes rows from a Table. Never a Column list — the statement names
+    # none to write — so check_column_defaults keeps reading WRITES only.
+    "DELETES",
 )
 
 # Resolver (§8.2) looks these up by FQN; new EDGE_KINDS must opt in here (not silently join).
 FQN_EDGE_KINDS: frozenset[str] = frozenset(
     {
         "EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS", "NEW", "ALIASES", "REFERENCES", "WRITES",
-        "ALTERS",
+        "ALTERS", "DELETES",
     }
 )
 # DYNAMIC rows the resolver still links: their target is a name the adapter read, not an unknown
@@ -159,6 +164,7 @@ IMPACT_KINDS: tuple[str, ...] = tuple(IMPACT_KIND_WEIGHTS)
 # precedent below). A bare string is not a named subset, so tier 2 stays opt-in (022 AC3).
 WRITES = "WRITES"
 ALTERS = "ALTERS"
+DELETES = "DELETES"
 
 # Ordered Literal is the typing SSoT, NODE_KINDS' rule applied to the tier a tool now takes as a
 # parameter (251): a bare `str` publishes no choice in the MCP input schema, so the vocabulary would
