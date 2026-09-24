@@ -349,7 +349,8 @@ imports it.
 max, and the four rulebook grep-gates — in the same order
 [`ci.yml`](.github/workflows/ci.yml) runs them. It exits non-zero if a check **failed or was
 skipped**, because a gate that quietly shrinks to whatever the host can run has not verified
-anything. Add `--fast` to skip the two slow checks.
+anything. Add `--fast` to skip the two slow checks, or `--docker` to run the same gate inside the
+test image when the host lacks a runtime (323).
 
 The suite needs a POSIX host with every adapter installed. To run everything off any host
 (Windows/macOS included), use the Linux test image:

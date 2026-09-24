@@ -20,7 +20,7 @@ All four landed in the same two steps, whether or not they were filed as two tic
 | contains | declarations, containment, calls, imports, inheritance | the constructs a framework in that language actually wires itself with |
 | php | 007 · 025 | 137 (local type table) |
 | typescript | 019 | 153 (type table), 154 (JSDoc) |
-| sql | 184 | 022 (`Table` · `Column` · `WRITES`) |
+| sql | 184 | 022 (`Table` · `Column` · `WRITES`), 321 (`ALTERS`) |
 | python | 020 | 217 (decorator/annotation `REFERENCES`, `Protocol`/ABC → `Interface`, `Enum`) |
 
 **Where the tier-2 bar sits is a question with a settled answer,** and 217's W2 row is the one to

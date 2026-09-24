@@ -25,7 +25,7 @@ code-atlas/
 │   ├── resolver.py                   # phase-2 edge linking (generic, no language branches)
 │   ├── cli.py  gitutil.py  ignore.py  index_lock.py  tokens.py   # cli.py: code-atlas-build (176)
 │   ├── onboarding/                   # Phase-3 enrichment, deterministic — one module per concern
-│   ├── hooks/                        # opt-in editor/checkout hooks (036, 053)
+│   ├── hooks/                        # opt-in hooks (036, 053, 322)
 │   └── tools/                        # one module per MCP tool
 ├── onboarding_llm/                   # the LLM implementers, OUTSIDE the core by R4.1 (CI grep-gated)
 ├── scripts/                          # operator reports & benchmarks (never imported by the server)
