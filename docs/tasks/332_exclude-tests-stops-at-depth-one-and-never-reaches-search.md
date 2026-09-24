@@ -143,7 +143,7 @@ HOW (prune vs hide on depth>1): prune test-role sources inside the walk, same as
 
 **Branch:** feat/332-exclude-tests-multi-hop-and-search
 
-Ran at PLACEHOLDER
+Ran at 1ef17b056e62feaf868b4b8b19dda383bcab1062
 
 ```
 $ .venv/bin/python -m pytest tests/test_exclude_tests_multi_hop_and_search.py -q
