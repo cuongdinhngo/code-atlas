@@ -542,12 +542,14 @@ def _tier_predicate(confidence_tier: str | None) -> _Predicate:
     return "edges.confidence_tier = ?", (confidence_tier,)
 
 
-def _exclude_test_sources_predicate(exclude_test_sources: bool) -> _Predicate:
-    """Drop inbound edges whose source symbol is stored as test (task 262)."""
+def _exclude_test_sources_predicate(
+    exclude_test_sources: bool, *, edges: str = "edges"
+) -> _Predicate:
+    """Drop inbound edges whose source is stored as test (262); ``edges`` names the alias."""
     if not exclude_test_sources:
         return None
     return (
-        "NOT EXISTS (SELECT 1 FROM nodes src WHERE src.qualified_name = edges.source_qname "
+        f"NOT EXISTS (SELECT 1 FROM nodes src WHERE src.qualified_name = {edges}.source_qname "
         "AND COALESCE(src.is_test, 0) = 1)",
         (),
     )
@@ -2640,6 +2642,7 @@ class GraphStore:
         depth: int,
         max_nodes: int,
         kinds: Sequence[str] | None = None,
+        exclude_test_sources: bool = False,
     ) -> ImpactResult:
         """Bounded best-score blast radius via iterative SQL waves (§12).
 
@@ -2648,6 +2651,8 @@ class GraphStore:
         Seeds outrank discovered nodes under the ``max_nodes`` prune. Temp tables live
         in a ``try/finally`` so a mid-wave error cannot leak them onto a long-lived store.
         ``kinds`` defaults to every IMPACT kind; a subset is for architecture rules (138).
+        ``exclude_test_sources`` drops test sources inside the wave, so they never spend the node
+        budget or expand — filtered before the prune, not after the page (313).
         """
         if depth < 0:
             raise ValueError(f"depth must be >= 0, got {depth}")
@@ -2715,6 +2720,9 @@ class GraphStore:
                 "WHERE e.target_qname IS NOT NULL "
                 "AND f.score * w.weight * ? >= ?"
             )
+            test_filter = _exclude_test_sources_predicate(exclude_test_sources, edges="e")
+            if test_filter is not None:
+                expand_sql += f" AND {test_filter[0]}"
             # Depth must come from a max-score row — never MIN(depth) across all paths (R4.2).
             merge_sql = (
                 "INSERT INTO temp.impact_best "
