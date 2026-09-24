@@ -2669,6 +2669,7 @@ class GraphStore:
         kind: str | None = None,
         namespace: str | None = None,
         path_prefix: str | None = None,
+        exclude_test_sources: bool = False,
         limit: int,
         offset: int = 0,
     ) -> list[Row]:
@@ -2679,7 +2680,8 @@ class GraphStore:
 
         Optional ``namespace`` is matched case-insensitively: exact or continues
         with ``\\``, ``.``, or ``::``. Optional ``path_prefix`` narrows to the stored
-        POSIX file path under that prefix (315). ``offset`` pages in search order (task 057).
+        POSIX file path under that prefix (315). ``exclude_test_sources`` drops test-role
+        nodes before paging (332). ``offset`` pages in search order (task 057).
 
         Exact/prefix matches come first, near-misses after, BM25 rank as the tie-break inside each
         band (task 180) — banding the whole result set, not the page, so ``offset`` walks it.
@@ -2691,6 +2693,7 @@ class GraphStore:
                 kind=kind,
                 namespace=namespace,
                 path_prefix=path_prefix,
+                exclude_test_sources=exclude_test_sources,
                 limit=limit,
                 offset=offset,
             )
@@ -2699,7 +2702,11 @@ class GraphStore:
         if limit < 1:
             raise ValueError(f"limit must be >= 1, got {limit}")
         where, params = self._fts_search_clause(
-            query, kind=kind, namespace=namespace, path_prefix=path_prefix
+            query,
+            kind=kind,
+            namespace=namespace,
+            path_prefix=path_prefix,
+            exclude_test_sources=exclude_test_sources,
         )
         contains_sql, contains_params = _search_contains_demote(
             query, kind=kind, namespace=namespace, path_prefix=path_prefix
@@ -2721,14 +2728,23 @@ class GraphStore:
         kind: str | None = None,
         namespace: str | None = None,
         path_prefix: str | None = None,
+        exclude_test_sources: bool = False,
     ) -> int:
         """Exact hit count for ``search_nodes`` filters (no LIMIT)."""
         if len(query) < 3:
             return self._count_search_short(
-                query, kind=kind, namespace=namespace, path_prefix=path_prefix
+                query,
+                kind=kind,
+                namespace=namespace,
+                path_prefix=path_prefix,
+                exclude_test_sources=exclude_test_sources,
             )
         where, params = self._fts_search_clause(
-            query, kind=kind, namespace=namespace, path_prefix=path_prefix
+            query,
+            kind=kind,
+            namespace=namespace,
+            path_prefix=path_prefix,
+            exclude_test_sources=exclude_test_sources,
         )
         sql = (
             f"SELECT COUNT(*) FROM nodes "
@@ -2744,12 +2760,15 @@ class GraphStore:
         kind: str | None,
         namespace: str | None,
         path_prefix: str | None = None,
+        exclude_test_sources: bool = False,
     ) -> tuple[str, tuple[object, ...]]:
         where, params = _narrow("nodes_fts MATCH ?", fts_term(query), kind, "nodes.kind = ?")
         where, params = _with_namespace(
             where, params, namespace, qname_column="nodes.qualified_name"
         )
-        return _with_path_prefix(where, params, path_prefix, column="nodes.file_path")
+        where, params = _with_path_prefix(where, params, path_prefix, column="nodes.file_path")
+        return _with_exclude_test_nodes(where, params, exclude_test_sources)
+
     def impact_radius(
         self,
         seeds: Sequence[str],
@@ -3896,6 +3915,7 @@ class GraphStore:
         kind: str | None,
         namespace: str | None,
         path_prefix: str | None = None,
+        exclude_test_sources: bool = False,
         limit: int,
         offset: int = 0,
     ) -> list[Row]:
@@ -3912,6 +3932,9 @@ class GraphStore:
             params = (*params, kind)
         where, params = _with_namespace(where, params, namespace, qname_column="qualified_name")
         where, params = _with_path_prefix(where, params, path_prefix, column="file_path")
+        where, params = _with_exclude_test_nodes(
+            where, params, exclude_test_sources, column="is_test"
+        )
         sql = (
             f"SELECT id, {_NODE_COLUMNS} FROM nodes WHERE {where} "
             f"ORDER BY {_NODE_ORDER} LIMIT ? OFFSET ?"
@@ -4044,6 +4067,7 @@ class GraphStore:
         kind: str | None,
         namespace: str | None,
         path_prefix: str | None = None,
+        exclude_test_sources: bool = False,
     ) -> int:
         pattern = f"{_like_literal(query.lower())}%"
         where = "(LOWER(name) LIKE ? ESCAPE '!' OR LOWER(qualified_name) LIKE ? ESCAPE '!')"
@@ -4053,6 +4077,9 @@ class GraphStore:
             params = (*params, kind)
         where, params = _with_namespace(where, params, namespace, qname_column="qualified_name")
         where, params = _with_path_prefix(where, params, path_prefix, column="file_path")
+        where, params = _with_exclude_test_nodes(
+            where, params, exclude_test_sources, column="is_test"
+        )
         sql = f"SELECT COUNT(*) FROM nodes WHERE {where}"
         return int(self._conn.execute(sql, params).fetchone()[0])
     def _rows(self, keys: tuple[str, ...], sql: str, params: Sequence[object]) -> list[Row]:
@@ -4157,6 +4184,19 @@ def _with_path_prefix(
         return where, params
     clause, extras = _path_under(path_prefix, column)
     return f"({where}) AND {clause}", (*params, *extras)
+
+
+def _with_exclude_test_nodes(
+    where: str,
+    params: tuple[object, ...],
+    exclude_test_sources: bool,
+    *,
+    column: str = "nodes.is_test",
+) -> tuple[str, tuple[object, ...]]:
+    """AND ``is_test = 0`` when filtering; default leaves the clause unchanged (332)."""
+    if not exclude_test_sources:
+        return where, params
+    return f"({where}) AND COALESCE({column}, 0) = 0", params
 
 
 def _path_prefix_predicate(path_prefix: str | None) -> _Predicate:

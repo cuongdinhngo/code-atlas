@@ -111,6 +111,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         kind: contract.NodeKind | None = None,
         namespace: str | None = None,
         path_prefix: str | None = None,
+        exclude_tests: bool = False,
         limit: int | None = None,
         detail_level: DetailLevel = "standard",
         offset: int = 0,
@@ -151,6 +152,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         unnameable subject amid several dirty files yields empty ``index_stale`` (073/246). Stub-
         indexed nodes carry ``stub: true`` (039); a ``File`` hit that only restates a ``Class``
         hit's declaring file in the same page is suppressed — request File rows via ``kind`` (061).
+        ``exclude_tests`` (default off) drops test-role nodes in SQL before paging (332);
+        ``total_count`` then counts the filtered set. Off is byte-identical (061).
         """
         subjects = _require_subjects(query, queries)
         batched = queries is not None
@@ -198,6 +201,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     kind=kind,
                     namespace=namespace,
                     path_prefix=path_prefix,
+                    exclude_tests=exclude_tests,
                     cap=cap,
                     offset=offset,
                     detail_level=detail_level,
@@ -300,6 +304,7 @@ def _search_one(
     kind: contract.NodeKind | None,
     namespace: str | None,
     path_prefix: str | None,
+    exclude_tests: bool = False,
     cap: int,
     offset: int,
     detail_level: DetailLevel,
@@ -307,8 +312,13 @@ def _search_one(
 ) -> _Hits:
     """One subject's search, verdict included — the same path a single call has always taken."""
     rows = store.search_nodes(
-        query, kind=kind, namespace=namespace, path_prefix=path_prefix,
-        limit=cap + 1, offset=offset,
+        query,
+        kind=kind,
+        namespace=namespace,
+        path_prefix=path_prefix,
+        exclude_test_sources=exclude_tests,
+        limit=cap + 1,
+        offset=offset,
     )
     hit_paths = [str(row["file_path"]) for row in rows[:cap]]
     status = guard.ensure_paths(hit_paths)
@@ -327,6 +337,7 @@ def _search_one(
             kind=kind,
             namespace=namespace,
             path_prefix=path_prefix,
+            exclude_test_sources=exclude_tests,
             limit=cap + 1,
             offset=offset,
         )
@@ -336,7 +347,11 @@ def _search_one(
     )
     if truncated or offset > 0:
         total_count = store.count_search_nodes(
-            query, kind=kind, namespace=namespace, path_prefix=path_prefix
+            query,
+            kind=kind,
+            namespace=namespace,
+            path_prefix=path_prefix,
+            exclude_test_sources=exclude_tests,
         )
         truncated = offset + len(results) < total_count
     else:
@@ -371,6 +386,7 @@ def _search_one(
                 kind=kind,
                 namespace=namespace,
                 path_prefix=path_prefix,
+                exclude_test_sources=exclude_tests,
                 limit=cap + 1,
                 offset=0,
             )
@@ -384,6 +400,7 @@ def _search_one(
                         kind=kind,
                         namespace=namespace,
                         path_prefix=path_prefix,
+                        exclude_test_sources=exclude_tests,
                         limit=cap + 1,
                         offset=0,
                     )
@@ -401,6 +418,7 @@ def _search_one(
                             kind=kind,
                             namespace=namespace,
                             path_prefix=path_prefix,
+                            exclude_test_sources=exclude_tests,
                         )
                         truncated = len(results) < total_count
                     else:
