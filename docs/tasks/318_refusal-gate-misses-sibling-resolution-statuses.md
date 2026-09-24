@@ -85,7 +85,7 @@ single shipped source, so adding a fourth token cannot ship untaught, and teach 
 - **INPUT KIND:** ticket
 - **work_doc_mode:** embed · path: docs/tasks/318_refusal-gate-misses-sibling-resolution-statuses.md
 - **REVIEWER:** OFF (--no-reviewer) · **CHALLENGER:** ON
-- **Current phase:** review
+- **Current phase:** finalise — PR #441 open; never merge
 
 ## Phase 0 — Refine
 
@@ -198,10 +198,27 @@ Success: no issues found in 93 source files
 ## Phase 4 — Review
 
 REVIEWER: OFF (--no-reviewer)
+CHALLENGER: ON — round-1 CLEAN (11 met, 0 not met, 0 can't tell). Probes: the AST invariant, the PSR-4 incidental-mention loophole (closed by backticked needles), an independent AC3 replay, no adapter or version change, and `find_orphans`' claim read in code (`find_orphans.py:88-100`).
+
+Verdict: `clean (challenger only — REVIEWER: OFF)`
 
 ## Phase 5 — Finalise
+
+Outward (handover-authorised only): pushed `fix/318-refusal-gate-registry`, opened [#441](https://github.com/cuongdinhngo/code-atlas/pull/441). Never merge.
+
+Durable lesson: `184-C6` (`derived-not-listed-invariant`) seen 184, 318 → recurring type-2 claim; destination R6.7 already cites it — proposed as `/mango:promote` evidence, **not written**. Falsification: still true — the AST test fails if a strategy constant is hand-named again.
+
+Revert: revert the PR.
 
 ## Cost ledger
 
 | Phase | Dispatch | Round | Tokens |
 |-------|----------|-------|--------|
+| review | challenger | 1 | 73,084 |
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 1 recurring | 0 superseded (0 retired) | 1 promotion candidate(s)`
+`FALSIFY: 1 candidate(s) checked | 1 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 1 type-2 claim(s) with seen ≥ 2 | 1 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 1 proposed | 0 human-ratified | destinations: docs/ENGINEERING_RULES.md | mango files written: 0`
+`LEDGER TOTAL: 73,084 (subagent dispatch only) · top cost driver: review/challenger round 1`
