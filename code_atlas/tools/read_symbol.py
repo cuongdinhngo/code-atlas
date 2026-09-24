@@ -47,6 +47,7 @@ from code_atlas.tools.nav_result import (
     classify_missing_subject,
     definition_sites,
     is_stub,
+    is_under_path_prefix,
     require_path_prefix,
     shape_exact_miss,
 )
@@ -211,8 +212,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         return finalize_subject_checked_miss(_stamp(miss), guard)
             # Refuse before freshness — the list needs no file bytes (078 review).
             # path_prefix filters definition rows before the multiplicity test (327).
-            rows, prefix_miss = _apply_path_prefix(rows, path_prefix, qname=qname,
-                                                   detail_level=detail_level, config=config)
+            rows, prefix_miss = _apply_path_prefix(
+                rows, path_prefix, qname=qname, detail_level=detail_level, config=config
+            )
             if prefix_miss is not None:
                 return _stamp(prefix_miss)
             if len(rows) > 1:
@@ -598,13 +600,6 @@ def _attach_mirror_twin(
         attach_authoritative_caveats(payload, [CAVEAT_MIRROR_TWIN])
 
 
-def _under_path_prefix(file_path: str, path_prefix: str) -> bool:
-    """Same under-prefix predicate search_symbol / find_references use (315 / R6.7)."""
-    normalized = path_prefix if path_prefix.endswith("/") else f"{path_prefix}/"
-    bare = normalized.rstrip("/")
-    return file_path == bare or file_path.startswith(normalized)
-
-
 def _apply_path_prefix(
     rows: list[dict[str, object]],
     path_prefix: str | None,
@@ -616,7 +611,7 @@ def _apply_path_prefix(
     """Filter definition rows by path_prefix; empty ⇒ no_such_symbol naming the filter (327)."""
     if path_prefix is None:
         return rows, None
-    kept = [row for row in rows if _under_path_prefix(str(row["file_path"]), path_prefix)]
+    kept = [row for row in rows if is_under_path_prefix(str(row["file_path"]), path_prefix)]
     if kept:
         return kept, None
     miss = _miss_result(

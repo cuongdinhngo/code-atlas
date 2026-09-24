@@ -48,6 +48,7 @@ from code_atlas.tools.nav_result import (
     batch_not_indexed,
     batch_result,
     is_stub,
+    is_under_path_prefix,
     list_result,
     require_path_prefix,
     subject_answer,
@@ -632,16 +633,10 @@ def _path_excluded_hits(
     rows = store.search_nodes(
         query, kind=kind, namespace=namespace, path_prefix=None, limit=cap + 1, offset=0
     )
-    normalized = path_prefix if path_prefix.endswith("/") else f"{path_prefix}/"
-    bare = normalized.rstrip("/")
-
-    def under(path: str) -> bool:
-        return path == bare or path.startswith(normalized)
-
     found = {
         str(row["file_path"])
         for row in rows
-        if _direct(query, row) and not under(str(row["file_path"]))
+        if _direct(query, row) and not is_under_path_prefix(str(row["file_path"]), path_prefix)
     }
     return sorted(found)
 

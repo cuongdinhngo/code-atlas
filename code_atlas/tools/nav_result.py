@@ -151,6 +151,12 @@ def require_path_prefix(path_prefix: str | None) -> str | None:
     return path_prefix
 
 
+def is_under_path_prefix(file_path: str, path_prefix: str) -> bool:
+    """The one Python under-prefix predicate (315 / 327); SQL twin is ``store._path_under``."""
+    normalized = path_prefix if path_prefix.endswith("/") else f"{path_prefix}/"
+    return file_path == normalized.rstrip("/") or file_path.startswith(normalized)
+
+
 # Two registers, one naming rule (093): ``TRY_INSTEAD_*`` is a registered tool name the reader can
 # call, ``TRY_INSTEAD_HINT_*`` is prose naming the qualifier. Neither holds the other's kind — prose
 # in the identifier slot makes every value ambiguous. Pinned by the invariant test.
