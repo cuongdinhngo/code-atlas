@@ -185,6 +185,12 @@ TRY_INSTEAD_HINT_MEMBER_SEPARATOR = (
 TRY_INSTEAD_FILE_OUTLINE = "file_outline"
 # An under-qualified subject has candidates — search_symbol enumerates them (075/076).
 TRY_INSTEAD_SEARCH_SYMBOL = "search_symbol"
+# Impact zero with unlinked same-name sites — find_callers names them (330 / 314).
+TRY_INSTEAD_FIND_CALLERS = "find_callers"
+TRY_INSTEAD_HINT_UNLINKED_CALLS = (
+    "unlinked same-name CALLS exist outside the resolver-linked impact walk — "
+    "re-ask find_callers on the seed, or Grep the method name as text"
+)
 # No route on purpose: the evidence is unlinked include TEXT (edges.target_raw) and no registered
 # tool reads it — nodes_fts covers name/qname/file_path/params only. A route here would answer
 # reason=ok with symbols declared IN the file, silently omitting the includer (075/076).
@@ -833,6 +839,8 @@ CAVEAT_TIER_PARTITION = "tier_partition"
 CAVEAT_WRITES_EMITTERS_ONLY = "writes_emitters_only"
 # Mirror twin on read_symbol — boundary, never a dispatch verdict (286).
 CAVEAT_MIRROR_TWIN = "mirror_twin"
+# Impact modelled zero with unlinked same-name inbound on a method seed (330).
+CAVEAT_UNLINKED_SAME_NAME_SITES = "unlinked_same_name_sites"
 CAVEAT_LIMIT_CROSS_LANGUAGE = (
     "This answer is reachability within one language's call graph and does not "
     "establish which entry point the front end invokes."
@@ -845,10 +853,15 @@ CAVEAT_LIMIT_MIRROR_TWIN = (
     "A mirrored counterpart is named (or honestly absent); this tool cannot say "
     "which side a request reaches."
 )
+CAVEAT_LIMIT_UNLINKED_SAME_NAME_SITES = (
+    "Resolver-linked impact is empty but unlinked same-name CALLS remain — not a closed zero; "
+    "re-ask find_callers or Grep the method name as text."
+)
 CAVEAT_LIMITS: dict[str, str] = {
     CAVEAT_CROSS_LANGUAGE_UNMODELLED: CAVEAT_LIMIT_CROSS_LANGUAGE,
     CAVEAT_WRITES_EMITTERS_ONLY: CAVEAT_LIMIT_WRITES_EMITTERS_ONLY,
     CAVEAT_MIRROR_TWIN: CAVEAT_LIMIT_MIRROR_TWIN,
+    CAVEAT_UNLINKED_SAME_NAME_SITES: CAVEAT_LIMIT_UNLINKED_SAME_NAME_SITES,
 }
 CAVEAT_LIMITS_KEY = "caveat_limits"
 CAVEAT_ARGS_NOT_CAPTURED = "args_not_captured_by_adapter"
