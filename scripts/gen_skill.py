@@ -140,7 +140,8 @@ def _suffix_filter(*tools: str) -> str:
 
 
 def render_claude_code_snippet() -> str:
-    """Every Claude Code hook code-atlas offers: the edit poke (036) and the signal (099).
+    """Every Claude Code hook code-atlas offers: the edit poke (036), the signal (099) and the
+    session-boundary state line (322) — `SessionStart` covers the post-compaction delivery.
 
     099 shipped the signal wired for Codex only; 240 is the guard-less drift that let that stand.
     `Read` belongs at PostToolUse (the line rides the result); `Write` at PreToolUse, because the
@@ -185,6 +186,12 @@ def render_claude_code_snippet() -> str:
                         }
                     ],
                 }
+            ],
+            "SessionStart": [
+                {"hooks": [{"type": "command", "command": "code-atlas-state", "timeout": 10}]}
+            ],
+            "PreCompact": [
+                {"hooks": [{"type": "command", "command": "code-atlas-state", "timeout": 10}]}
             ],
         }
     }
@@ -295,6 +302,10 @@ USAGE_RULES: tuple[str, ...] = (
     "- **A dynamic-SQL / `EXEC`-created object is not a symbol.** Grep the SQL text; the"
     " index reads as absence. `find_orphans` then says `status=resolution_unmodelled` when"
     " a language stamped `dynamic_sql` (296).",
+    "- **A runtime-loaded module is not an edge either.** A non-literal `import()` / `require()`"
+    " / `importlib` stamps `dynamic_import`, a registered class autoloader stamps `autoload`:"
+    " the target is never linked, so a missing importer is not proof of none — Grep the loader"
+    " call. `find_orphans` answers `status=resolution_unmodelled` for either (279/294/295).",
     "- **`find_orphans` has no path scope** — it walks the whole index from"
     " `CA_ENTRY_POINTS`. Do not expect a directory filter.",
     "",
