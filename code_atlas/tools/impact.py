@@ -6,16 +6,20 @@ from collections.abc import Callable, Sequence
 from typing import Literal, NamedTuple
 
 from code_atlas.config import Config
+from code_atlas.contract import CALLER_KINDS
 from code_atlas.mirror_search import label_mirror_rows, load_mirror_search_stamp
 from code_atlas.store import GraphStore
 from code_atlas.symbol_role import stored_test_source
 from code_atlas.tools import claim
 from code_atlas.tools.nav_result import (
     CAVEAT_SIBLING_DEFINITIONS,
+    CAVEAT_UNLINKED_SAME_NAME_SITES,
     REASON_NO_SUCH_SYMBOL,
     REASON_SUBJECT_AMBIGUOUS,
     TRY_INSTEAD_FILE_OUTLINE,
+    TRY_INSTEAD_FIND_CALLERS,
     TRY_INSTEAD_HINT_IMPACT_BY_QNAME,
+    TRY_INSTEAD_HINT_UNLINKED_CALLS,
     SubjectResolution,
     answered_about_ref_for,
     attach_ambiguous_definitions,
@@ -39,8 +43,8 @@ NAME = "impact"
 DetailLevel = Literal["minimal", "standard"]
 
 QUESTION = "blast-radius"
-# The two counts that make an empty answer a MODELLED zero rather than a failed query (065).
-CLAIM_CARRY = ("seeds_dropped", "frontier_skipped_non_resolved")
+# Empty modelled zero vs failed query (065); unlinked same-name sites spoil a closed zero (330).
+CLAIM_CARRY = ("seeds_dropped", "frontier_skipped_non_resolved", "unlinked_same_name_sites")
 
 
 class SeedSet(NamedTuple):
@@ -168,7 +172,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         frontier. Missing seeds and a missing database yield an empty successful result.
 
         Walks resolver-linked IMPACT kinds only — an empty answer is a modelled zero for those
-        kinds, not ``relationship_not_modelled`` (task 065; see ``find_references``).
+        kinds, not ``relationship_not_modelled`` (task 065; see ``find_references``). When a
+        Method seed still has unlinked same-name CALLS, ``unlinked_same_name_sites`` names them
+        and the answer is not authoritative (330).
 
         ``seeds_dropped`` counts every requested subject that produced no seed — a qname that is
         absent or resolves to many, a path with no indexed node — plus any seed the node budget
@@ -223,6 +229,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             # A blast radius is acted on destructively, so it names the revision in-band, not only
             # behind sign (8-E). One git HEAD read on this low-frequency, high-stakes tool.
             staleness = compute_staleness(store, config, include_dirty_count=True)
+            unlinked_same_name_sites = _method_seed_unlinked_sites(store, plan.walk_seeds)
         truncated = len(outcome.rows) > config.impact_max_nodes
         result = nav_result(
             subject,
@@ -238,6 +245,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         _attach_freshness(result, staleness)
         attach_seed_expansion(result, plan, paths)
         attach_seed_refusals(result, plan)
+        if unlinked_same_name_sites:
+            result["unlinked_same_name_sites"] = unlinked_same_name_sites
+            attach_authoritative_caveats(result, [CAVEAT_UNLINKED_SAME_NAME_SITES])
+            attach_try_instead(
+                result, TRY_INSTEAD_FIND_CALLERS, TRY_INSTEAD_HINT_UNLINKED_CALLS
+            )
         # A question no seed answered gets no line: it would be signed ``answer=0`` for a subject
         # the index never held. The payload names the loss in ``seeds_dropped`` (tasks 100, 102).
         # An all-ambiguous call walked nothing, so it is not signed either.
@@ -254,6 +267,20 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         )
 
     return impact
+
+
+def _method_seed_unlinked_sites(store: GraphStore, seeds: Sequence[str]) -> int:
+    """Sum unlinked same-name CALLS/NEW for Method seeds (272's query; 330)."""
+    total = 0
+    for qname in seeds:
+        rows = list(store.nodes_by_qualified_name(qname, limit=1))
+        if not rows or str(rows[0]["kind"]) != "Method":
+            continue
+        name = str(rows[0]["name"])
+        total += store.count_unlinked_by_target_raw(
+            (qname, name), kinds=CALLER_KINDS
+        )
+    return total
 
 
 def _split_ambiguous(
