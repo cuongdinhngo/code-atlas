@@ -6,7 +6,9 @@ from collections.abc import Callable, Sequence
 from typing import Literal, NamedTuple
 
 from code_atlas.config import Config
+from code_atlas.mirror_search import label_mirror_rows, load_mirror_search_stamp
 from code_atlas.store import GraphStore
+from code_atlas.symbol_role import stored_test_source
 from code_atlas.tools import claim
 from code_atlas.tools.nav_result import (
     CAVEAT_SIBLING_DEFINITIONS,
@@ -155,6 +157,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         depth: int | None = None,
         detail_level: DetailLevel = "standard",
         sign: bool = False,
+        exclude_tests: bool = False,
     ) -> dict[str, object]:
         """What could break if I change this file or symbol — the blast radius?
 
@@ -180,6 +183,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         The default payload names the revision it describes — ``staleness`` plus ``last_commit`` —
         so a blast radius acted on destructively is never silently undated (8-E).
 
+        At ``standard`` a row whose symbol is stored as test carries ``test_role_source``
+        (``adapter`` / ``path_convention``, how it was decided); a row without it is production.
+        A row on a stamped mirror pair carries ``mirror_counterpart`` (its indexed twin) or
+        ``mirror_no_counterpart: true``. These are row properties — no count splits the radius.
+        ``exclude_tests`` drops test sources inside the walk, before the node budget and the page,
+        so page one holds production rows rather than those a page of tests left over.
+
         ``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
         ``key=value`` line naming subject, question, answer and the revision the index describes,
         with ``seeds`` beside ``answer`` (``answer == seeds`` is the modelled zero: nothing beyond
@@ -202,13 +212,18 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 store, paths=paths or [], qnames=qnames or [], max_results=config.page_limit
             )
             outcome = store.impact_radius(
-                plan.walk_seeds, depth=hops, max_nodes=config.impact_max_nodes + 1
+                plan.walk_seeds,
+                depth=hops,
+                max_nodes=config.impact_max_nodes + 1,
+                exclude_test_sources=exclude_tests,
             )
+            results = outcome.rows[: config.impact_max_nodes]
+            if detail_level != "minimal":
+                _label_rows(store, results)
             # A blast radius is acted on destructively, so it names the revision in-band, not only
             # behind sign (8-E). One git HEAD read on this low-frequency, high-stakes tool.
             staleness = compute_staleness(store, config, include_dirty_count=True)
         truncated = len(outcome.rows) > config.impact_max_nodes
-        results = outcome.rows[: config.impact_max_nodes]
         result = nav_result(
             subject,
             results,
@@ -290,6 +305,22 @@ def _split_twinned(
         else:
             walk.append(qname)
     return walk, twinned
+
+
+def _label_rows(store: GraphStore, rows: list[dict[str, object]]) -> None:
+    """Test role and mirror twin per row — stored facts, read once per call (262/277/313)."""
+    qnames = [str(row["qname"]) for row in rows]
+    # limit=1 in ``_NODE_ORDER`` is the node the walk took the row's file and line from.
+    nodes = store.nodes_by_qualified_names(qnames, limit=1)
+    for row in rows:
+        found = nodes.get(str(row["qname"]))
+        if found:
+            source = stored_test_source(1 if found[0].get("is_test") else 0, str(row["file"]))
+            if source is not None:
+                row["test_role_source"] = source
+    stamp = load_mirror_search_stamp(store)
+    if stamp and stamp.get("pairs"):
+        label_mirror_rows(rows, stamp, frozenset(store.file_paths()))
 
 
 def _attach_freshness(result: dict[str, object], staleness: dict[str, object]) -> None:

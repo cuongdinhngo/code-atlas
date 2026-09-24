@@ -42,6 +42,7 @@ __all__ = [
     "attach_mirror_search_fields",
     "attach_mirror_read_fields",
     "decorate_mirror_hits",
+    "label_mirror_rows",
 ]
 
 
@@ -169,6 +170,29 @@ def decorate_mirror_hits(
             if isinstance(hit, dict):
                 hit[MIRROR_COUNTERPART_FIELD] = answer.path
     return SEARCH_ORDER_MIRROR
+
+
+def label_mirror_rows(
+    rows: Sequence[dict[str, object]],
+    stamp: Mapping[str, object] | None,
+    indexed: Container[str],
+) -> None:
+    """Name each row's indexed twin, or the honest negative, as ``read_symbol`` does (286/313).
+
+    Rows off every stamped pair — and every row when there is no stamp — gain nothing (061).
+    """
+    if not stamp or not stamp.get("pairs"):
+        return
+    pairs = _pairs_from_stamp(stamp)
+    for row in rows:
+        path = row.get("file")
+        if not isinstance(path, str):
+            continue
+        answer = resolve_counterpart(path, pairs, indexed)
+        if answer.status == COUNTERPART and answer.path:
+            row[MIRROR_COUNTERPART_FIELD] = answer.path
+        elif answer.status == NO_COUNTERPART:
+            row[MIRROR_NO_COUNTERPART_FIELD] = True
 
 
 def _pairs_from_stamp(stamp: Mapping[str, object]) -> tuple[MirrorPair, ...]:

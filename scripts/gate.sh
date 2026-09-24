@@ -1,15 +1,15 @@
 #!/usr/bin/env sh
 # Run the whole CI gate locally, in the order .github/workflows/ci.yml runs it.
 #
-# GitHub Actions DO run for this repo, so this script is the fast pre-push filter, NOT the whole
-# gate: after pushing, read `gh pr checks <n>` too — the shared runner is slower, and a wall-clock
-# assertion can pass here and fail there. It mirrors all three CI jobs — test · adapters ·
-# guardrails — and is the single step to perform before a push. Keep it in step with ci.yml: a
-# check here that ci.yml lacks, or the reverse, means one of the two is lying about what was
-# verified — `tests/test_ci_and_gate_agree.py` is what enforces that.
+# This is the only gate: the repo's Actions report `fail` in ~3 s with 0 steps (unbillable), so
+# `gh pr checks <n>` is not a second opinion (AGENTS.md). It mirrors all three CI jobs — test ·
+# adapters · guardrails — and is the single step to perform before a push. Keep it in step with
+# ci.yml: a check here that ci.yml lacks, or the reverse, means one of the two is lying about what
+# was verified — `tests/test_ci_and_gate_agree.py` is what enforces that.
 #
 #   scripts/gate.sh            # every check
 #   scripts/gate.sh --fast     # skip pytest and the tokens benchmark (the two slow ones)
+#   scripts/gate.sh --docker   # the same gate inside docker/Dockerfile, for a host missing a runtime
 #
 # Exit status is 0 only when every check that ran passed AND nothing was skipped for a missing
 # tool — a gate that quietly shrinks to the checks your machine can do is the 0/0 vacuity R6.5
@@ -20,7 +20,35 @@ root=$(CDPATH= cd "$(dirname "$0")/.." && pwd)
 cd "$root"
 
 fast=0
-[ "${1:-}" = "--fast" ] && fast=1
+docker=0
+inner=0
+for arg in "$@"; do
+    case $arg in
+        --fast) fast=1 ;;
+        --docker) docker=1 ;;
+        --in-container) inner=1 ;;
+    esac
+done
+
+# The recursion guard is an argv flag the outer run passes, never an env var that leaks (323).
+if [ "$docker" -eq 1 ] && [ "$inner" -eq 1 ]; then
+    echo "gate.sh: --docker inside the container gate would recurse; refused" >&2
+    exit 64
+fi
+if [ "$docker" -eq 1 ]; then
+    if ! command -v docker >/dev/null 2>&1; then
+        echo "GATE INCOMPLETE — docker not on PATH; --docker ran no check" >&2
+        exit 2
+    fi
+    # The image holds no check list of its own: it runs this file, so a skip inside is still exit 2.
+    docker build -f "$root/docker/Dockerfile" -t code-atlas-test "$root"
+    if [ "$fast" -eq 1 ]; then
+        exec docker run --rm code-atlas-test sh scripts/gate.sh --in-container --fast
+    fi
+    exec docker run --rm code-atlas-test sh scripts/gate.sh --in-container
+fi
+where=""
+[ "$inner" -eq 1 ] && where=" (container gate)"
 
 # Prefer the project venv, fall back to PATH.
 py=$root/.venv/bin/python
@@ -291,12 +319,12 @@ done
 echo "  $passed passed · $failed failed · $skipped skipped"
 
 if [ "$failed" -gt 0 ]; then
-    echo "GATE RED — $failed check(s) failed"
+    echo "GATE RED — $failed check(s) failed$where"
     exit 1
 fi
 if [ "$skipped" -gt 0 ]; then
     # A gate that shrank to what this machine can run has not verified the tree (R6.5).
-    echo "GATE INCOMPLETE — $skipped check(s) skipped; this is not a green gate"
+    echo "GATE INCOMPLETE — $skipped check(s) skipped; this is not a green gate$where"
     exit 2
 fi
-echo "GATE GREEN — all $passed checks passed"
+echo "GATE GREEN — all $passed checks passed$where"

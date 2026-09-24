@@ -1621,3 +1621,24 @@ venv or the PHPStan tmpDir is rebuilt from a wrong-cased cwd.*
   even when the value does not move, and re-running to restore the git order would manufacture a
   timeline. Ask for a reserved value BEFORE the measurement, or record the criterion unmet.
 - destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)
+
+## 313 — two tickets carried the key 313, and nothing noticed
+
+- type: 2 (process) · handle: `a-ticket-key-is-checked-free-on-disk`
+- status: proposed · seen: 313
+- evidence: `313_impact-buries-…` was filed 2026-09-20 (3c399e9); `313_the-agent-brief-teaches-…`
+  took the same key on 2026-09-21 (c3138b7) and shipped as #425 with the ledger row `| 313 |`.
+  `tests/test_backlog_bookkeeping.py` keys task files by id, so the second silently shadowed the
+  first; the run contract's `LEDGER-ROW` condition reported HOLDING at t0 for work not yet done.
+  Before filing, list `docs/tasks/NNN_*` — "next free NNN" means free on disk, not in BACKLOG.
+- destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)
+
+## 323 — the test image was red on `main` and nothing ran it
+
+- type: 2 (code) · handle: `a-test-that-shells-out-to-git-needs-the-repo-everywhere`
+- status: proposed · seen: 323
+- evidence: 325 added `tests/test_no_client_identifiers.py`, which runs `git ls-files -z`; the test
+  image excluded `.git` (`.dockerignore:3`), so `scripts/docker-test.sh` on `660281a` read
+  `7 failed, 4368 passed, 5 skipped` — and no CI job builds the image, so nobody saw it. A test that
+  needs the repository must run wherever the suite is claimed to run; 323's `.git` decision fixed it.
+- destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)

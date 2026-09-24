@@ -9,6 +9,7 @@ from code_atlas import contract
 from code_atlas.config import Config, clamp_limit, clamp_subjects
 from code_atlas.contract import CONFIDENCE_TIERS
 from code_atlas.store import GraphStore, Row, is_direct_match, is_exact_or_prefix_match
+from code_atlas.symbol_role import stored_test_source
 from code_atlas.tools.coverage import (
     attach_coverage_gap,
     attach_coverage_note,
@@ -726,6 +727,11 @@ def _hit(
     hit["line"] = row["line_start"]
     if is_stub(row.get("extra")):
         hit[contract.STUB_FLAG] = True
+    if detail_level != "minimal":
+        # The role `impact` rows carry, from the same stored field (313); absent = production.
+        source = stored_test_source(1 if row.get("is_test") else 0, str(row["file_path"]))
+        if source is not None:
+            hit["test_role_source"] = source
     # Kind-scoped (061): only Column at standard; read existing REFERENCES edges (239).
     if (
         store is not None
