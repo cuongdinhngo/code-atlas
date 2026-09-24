@@ -136,7 +136,7 @@ refine skipped: 0 unresolved product-decisions.
 
 **Branch:** feat/329-table-writer-statements
 
-Ran at d9f99d8df066f167e8728ead4dbe53d40d299702
+Ran at 8a40317d724ffa410da3ff1478a6dcc0273c597b
 
 ```
 $ .venv/bin/python -m pytest tests/test_table_writer_statements.py tests/test_table_writer_set_via_find_references.py -q
@@ -153,7 +153,7 @@ CHALLENGER: ON — round-1 CLEAN, 9 met / 0 not met / 0 can't tell.
 
 Verdict: `clean (challenger only — REVIEWER: OFF)`
 
-Ran at d9f99d8df066f167e8728ead4dbe53d40d299702
+Ran at 8a40317d724ffa410da3ff1478a6dcc0273c597b
 
 ```
 $ .venv/bin/python -m pytest tests/test_table_writer_statements.py tests/test_table_writer_set_via_find_references.py -q
@@ -164,7 +164,7 @@ $ .venv/bin/python -m pytest tests/test_table_writer_statements.py tests/test_ta
 `SCOPE ≡ approved list: yes`
 `DIFF ⊆ approved list: yes`
 
-`Reviewed at d9f99d8df066f167e8728ead4dbe53d40d299702`
+`Reviewed at 8a40317d724ffa410da3ff1478a6dcc0273c597b`
 
 ## Phase 5 — Finalise
 
