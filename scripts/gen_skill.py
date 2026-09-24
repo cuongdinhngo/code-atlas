@@ -140,7 +140,8 @@ def _suffix_filter(*tools: str) -> str:
 
 
 def render_claude_code_snippet() -> str:
-    """Every Claude Code hook code-atlas offers: the edit poke (036) and the signal (099).
+    """Every Claude Code hook code-atlas offers: the edit poke (036), the signal (099) and the
+    session-boundary state line (322) — `SessionStart` covers the post-compaction delivery.
 
     099 shipped the signal wired for Codex only; 240 is the guard-less drift that let that stand.
     `Read` belongs at PostToolUse (the line rides the result); `Write` at PreToolUse, because the
@@ -185,6 +186,12 @@ def render_claude_code_snippet() -> str:
                         }
                     ],
                 }
+            ],
+            "SessionStart": [
+                {"hooks": [{"type": "command", "command": "code-atlas-state", "timeout": 10}]}
+            ],
+            "PreCompact": [
+                {"hooks": [{"type": "command", "command": "code-atlas-state", "timeout": 10}]}
             ],
         }
     }
