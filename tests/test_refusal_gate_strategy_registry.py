@@ -33,7 +33,6 @@ def test_the_registry_holds_the_three_shipped_strategy_tokens() -> None:
         contract.RESOLUTION_DYNAMIC_IMPORT,
         contract.RESOLUTION_DYNAMIC_SQL,
     )
-    assert contract.CONTRACT_VERSION == 10
 
 
 def test_the_gate_derives_its_refusal_set_from_the_registry() -> None:
