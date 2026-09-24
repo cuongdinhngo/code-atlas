@@ -4,7 +4,7 @@ slug: exclude-tests-stops-at-depth-one-and-never-reaches-search
 title: "exclude_tests is refused past depth 1 on find_callers and absent from search_symbol — the two places three field sessions wanted it"
 phase: 1.5b
 milestone: Agent-trust
-status: in-progress
+status: done
 depends_on: [262, 313, 315]
 ---
 
