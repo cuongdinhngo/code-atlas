@@ -80,16 +80,14 @@ code-atlas/
   not a `CALLS` and not a `NEW`. `self`/`static`/`parent` name the enclosing class-like (as
   `CALLS` does), never a literal `\self`. Leftover unlinked rows still feed
   `relationship_not_modelled`.
-- **`WRITES`:** a routine assigns a column (v9, task 022). The **target kind** says whether the
-  statement named its columns: a `Column` (`dbo.T::Col`) it did, the `Table` it did not — that is
-  *unmeasured*, never *writes none*. `Column.extra`: `data_type`, `default`.
-- **`ALTERS`:** a file's DDL changes a `Table`/`Function` (v11, task 321) — `RESOLVED` for a literal
-  `ALTER TABLE`, `DYNAMIC` for a name read out of a string the file runs. Never a writer.
-  Read back as `search_symbol`'s `altered_by` / `altered_by_dynamic`, never one list (R5.6).
-- **`DELETES`:** a statement removes rows from a `Table` (v12, task 328) — `DELETE` / `TRUNCATE` /
-  `MERGE…WHEN…DELETE`. Targets the Table only, never a Column list; never a writer. Read back
-  with `find_references` alongside `WRITES`.
-- **`ForeignKey`:** a foreign-key constraint as its own node (v10, task 236), never a second `Table`
+- **`WRITES`:** a routine assigns a column (v9, 022). Target kind says whether columns were
+  named: `Column` (`dbo.T::Col`) yes, `Table` no — *unmeasured*, never *writes none*.
+  `Column.extra`: `data_type`, `default`.
+- **`ALTERS`:** a file's DDL changes a `Table`/`Function` (v11, 321) — `RESOLVED` literal /
+  `DYNAMIC` string-run name. Never a writer. Read as `altered_by` / `altered_by_dynamic` (R5.6).
+- **`DELETES`:** row-removal onto a `Table` (v12, 328) — `DELETE`/`TRUNCATE`/`MERGE…DELETE`;
+  never a Column or a writer (`find_references`).
+- **`ForeignKey`:** a foreign-key constraint as its own node (v10, 236), never a second `Table`
   row for the table it sits on. qname joins the owning table (`dbo.T::FK_x`), `CONTAINS`-linked to it
   like a column. `ForeignKey.extra`: `parent_table`, `referenced_table`, `columns` (comma-joined).
 - **`PROVIDES_VIEW_DATA`:** handler method → synthetic view-scope key. `target_raw` is
