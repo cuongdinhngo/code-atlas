@@ -25,6 +25,7 @@ code-atlas-llm = "onboarding_llm.server:run"
 code-atlas-poke = "code_atlas.hooks.poke:main"
 code-atlas-refresh = "code_atlas.hooks.refresh:main"
 code-atlas-signal = "code_atlas.hooks.signal:main"
+code-atlas-state = "code_atlas.hooks.state:main"
 
 [tool.setuptools.packages.find]
 include = ["code_atlas*", "onboarding_llm*"]

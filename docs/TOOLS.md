@@ -262,6 +262,17 @@ three invocations.
 command is offered and the host decides — there is no installer and nothing is written to your
 settings.
 
+### The session-boundary state line — the index state, restated when the first copy decayed (opt-in)
+
+MCP `instructions` deliver the index state once, on `initialize`; a long session outlives it and a
+compaction drops it, so agents that started a multi-minute build filed its progress signal as missing
+([322](tasks/322_the-state-line-is-delivered-once-and-never-again.md)). `code-atlas-state` restates
+`get_index_status`'s own `summary` — lifted, never recomposed — at `SessionStart` (its `compact`
+source is the post-compaction delivery) and `PreCompact`. While a build holds the lock it appends the
+live phase and names `code-atlas-build --status`. **Silent** when there is no index, or when the index
+is current and no build runs; ≤ 90 tokens; always exits 0; never builds, reparses or takes the build
+lock. Wiring: the generated [`contrib/claude-code/settings.snippet.json`](../contrib/claude-code/).
+
 ## Configuration reference
 
 Every knob resolves **environment → project file → default**. The project file is
