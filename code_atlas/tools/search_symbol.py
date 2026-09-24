@@ -34,6 +34,7 @@ from code_atlas.tools.nav_result import (
     RETRY_AS_QUERY,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_HINT_MEMBER_SEPARATOR,
+    TRY_INSTEAD_HINT_NARROW_BY_FILTER,
     TRY_INSTEAD_HINT_NARROW_BY_QNAME,
     TRY_INSTEAD_HINT_SINGLE_SUBJECT_REPAIR,
     TRY_INSTEAD_HINT_TOKEN_CANDIDATES,
@@ -504,14 +505,21 @@ def _single_payload(
     if hits.reason == REASON_PATH_EXCLUDED:
         payload["path_excluded"] = list(hits.path_excluded)
         return payload
-    # Near-miss / truncated flood — name the narrower query (245); registry reuse (093).
-    if _needs_narrowing_route(hits):
+    # Near-miss (245) vs truncated-but-hit (326) — different findings, different hints.
+    # Other truncated reasons keep today's NARROW_BY_QNAME attach (061).
+    if _is_near_miss_page(hits):
         hint = (
             TRY_INSTEAD_HINT_MEMBER_SEPARATOR
             if hits.reason == REASON_SEPARATOR_NORMALISED
             else TRY_INSTEAD_HINT_NARROW_BY_QNAME
         )
         attach_try_instead(payload, TRY_INSTEAD_FILE_OUTLINE, hint)
+    elif _is_truncated_direct_page(hits):
+        attach_try_instead(payload, TRY_INSTEAD_SEARCH_SYMBOL, TRY_INSTEAD_HINT_NARROW_BY_FILTER)
+    elif hits.truncated and hits.total_count > len(hits.results):
+        attach_try_instead(
+            payload, TRY_INSTEAD_FILE_OUTLINE, TRY_INSTEAD_HINT_NARROW_BY_QNAME
+        )
     elif hits.reason == REASON_TOKEN_CANDIDATES:
         payload["candidates"] = list(hits.candidates)
         if hits.candidates:
@@ -549,13 +557,19 @@ def _batch_answer(query: str, hits: _Hits) -> dict[str, object]:
         answer["kind_excluded"] = list(hits.kind_excluded)
     elif hits.reason == REASON_PATH_EXCLUDED:
         answer["path_excluded"] = list(hits.path_excluded)
-    elif _needs_narrowing_route(hits):
+    elif _is_near_miss_page(hits):
         hint = (
             TRY_INSTEAD_HINT_MEMBER_SEPARATOR
             if hits.reason == REASON_SEPARATOR_NORMALISED
             else TRY_INSTEAD_HINT_NARROW_BY_QNAME
         )
         attach_try_instead(answer, TRY_INSTEAD_FILE_OUTLINE, hint)
+    elif _is_truncated_direct_page(hits):
+        attach_try_instead(answer, TRY_INSTEAD_SEARCH_SYMBOL, TRY_INSTEAD_HINT_NARROW_BY_FILTER)
+    elif hits.truncated and hits.total_count > len(hits.results):
+        attach_try_instead(
+            answer, TRY_INSTEAD_FILE_OUTLINE, TRY_INSTEAD_HINT_NARROW_BY_QNAME
+        )
     elif hits.reason == REASON_TOKEN_CANDIDATES:
         answer["candidates"] = list(hits.candidates)
         if hits.candidates:
@@ -641,11 +655,18 @@ def _path_excluded_hits(
     return sorted(found)
 
 
-def _needs_narrowing_route(hits: _Hits) -> bool:
-    """True when the page is a near-miss or short of the full hit set (245/249)."""
-    if hits.reason in (REASON_SUBSTRING_MATCH, REASON_SEPARATOR_NORMALISED):
-        return True
-    return hits.truncated and hits.total_count > len(hits.results)
+def _is_near_miss_page(hits: _Hits) -> bool:
+    """True when reason itself is a near-miss (245/249) — not merely truncated."""
+    return hits.reason in (REASON_SUBSTRING_MATCH, REASON_SEPARATOR_NORMALISED)
+
+
+def _is_truncated_direct_page(hits: _Hits) -> bool:
+    """True when a direct-hit page still overflows the cap (326) — not a near-miss."""
+    return (
+        hits.reason == REASON_OK
+        and hits.truncated
+        and hits.total_count > len(hits.results)
+    )
 
 
 def _token_candidates(

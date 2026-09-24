@@ -173,6 +173,12 @@ TRY_INSTEAD_HINT_NARROW_BY_QNAME = (
     "the page is substring near-misses, not hits — outline the file to read the exact qnames, "
     "then re-ask search_symbol with one of them"
 )
+# Truncated page that still holds a direct hit (326): different finding from near-miss, so a
+# different hint — the flood is real but the page is not "not hits" (245's same-finding rule).
+TRY_INSTEAD_HINT_NARROW_BY_FILTER = (
+    "the page holds hits but is truncated — re-ask search_symbol with kind= or path_prefix= "
+    "to shrink the set before paging"
+)
 # Separator spelling miss (249): different finding from substring flood, so a different hint —
 # the reuse rule bans a second spelling of the SAME advice, not a second advice (245 review).
 TRY_INSTEAD_HINT_TOKEN_CANDIDATES = (
