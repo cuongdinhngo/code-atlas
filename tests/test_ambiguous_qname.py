@@ -25,7 +25,7 @@ from code_atlas.tools import find_callers, find_references, read_symbol, search_
 from code_atlas.tools.nav_result import (
     AMBIGUOUS_DEFINITIONS,
     REASON_SUBJECT_AMBIGUOUS,
-    TRY_INSTEAD_SEARCH_SYMBOL,
+    TRY_INSTEAD_READ_SYMBOL,
 )
 from tests.test_nav_tools import PHP, PHP_ENTRY, db_config, edge, needs_php, node, seed_file
 
@@ -243,7 +243,7 @@ def test_read_symbol_refuses_body_when_ambiguous(
     assert result["found"] is False
     assert result["reason"] == REASON_SUBJECT_AMBIGUOUS
     assert result["source"] == ""
-    assert result["try_instead"] == TRY_INSTEAD_SEARCH_SYMBOL
+    assert result["try_instead"] == TRY_INSTEAD_READ_SYMBOL
     assert "file" not in result
     assert "line_start" not in result and "line_end" not in result
     assert {str(s["file"]) for s in result[AMBIGUOUS_DEFINITIONS]} == {"a.php", "b.php"}

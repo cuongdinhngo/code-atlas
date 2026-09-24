@@ -19,10 +19,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
-| 326 | [Near-miss hint on a page that leads with the hit](tasks/326_the-near-miss-hint-fires-on-a-page-that-leads-with-the-hit.md) | Agent-trust | todo | 167, 245, 249 |
-| 327 | [Ambiguous read_symbol has no way out](tasks/327_an-ambiguous-read-has-no-way-out.md) | Agent-trust | todo | 070, 078, 315, 049 |
 | 328 | [A DELETE leaves no edge on its table](tasks/328_a-delete-leaves-no-edge-on-the-table-it-empties.md) | Coverage | todo | 022, 278, 321 |
-| 329 | [Table writers repeat per named column](tasks/329_a-table-writer-list-repeats-each-statement-per-column.md) | Agent-trust | todo | 278 |
 | 331 | [mirror_counterpart for a symbol the twin lacks](tasks/331_a-mirror-counterpart-is-named-for-a-symbol-it-lacks.md) | Agent-trust | todo | 277, 282, 286 |
 | 332 | [exclude_tests: depth 1 only, not on search](tasks/332_exclude-tests-stops-at-depth-one-and-never-reaches-search.md) | Agent-trust | todo | 262, 313, 315 |
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
