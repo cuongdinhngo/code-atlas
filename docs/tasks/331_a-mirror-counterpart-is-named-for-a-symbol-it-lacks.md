@@ -4,7 +4,7 @@ slug: a-mirror-counterpart-is-named-for-a-symbol-it-lacks
 title: "mirror_counterpart names the twin FILE on a function hit, so it reads as 'the other region has this function' when it does not — on the exact cross-region question the field asks daily"
 phase: 1.5b
 milestone: Agent-trust
-status: done
+status: in-progress
 depends_on: [277, 282, 286]
 ---
 
@@ -154,6 +154,8 @@ Rejected alternatives: synthesise twin qname via path rewrite (R1.1/language); m
 
 Implemented D1–D4: `names_defined_in_files`, symbol-aware decorate/label/read, store threaded at search/read/impact callers, proving tests.
 
+Ran at 087bb74197e91f635d81e5d903f568198a32ef7d
+
 ```
 $ .venv/bin/python -m pytest tests/test_mirror_counterpart_symbol_honesty.py -q
 ...
@@ -167,3 +169,23 @@ $ .venv/bin/python -m pytest tests/test_mirror_counterpart_symbol_honesty.py -q
 REVIEWER: OFF (--no-reviewer) — waived at handover.
 CHALLENGER: ON — CLEAN 10/0/0 (ticket-blind).
 REVIEWER: OFF — waived.
+
+
+## Phase 5 — Finalise (learning loop)
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+`LEDGER TOTAL: unmeasured (subagent dispatch only; host surfaces no usage) · top cost driver: review/challenger round 1`
+
+## Gate evidence
+
+Ran at 087bb74197e91f635d81e5d903f568198a32ef7d
+
+```
+$ .venv/bin/python -m pytest tests/test_mirror_counterpart_symbol_honesty.py -q
+...
+3 passed
+```
