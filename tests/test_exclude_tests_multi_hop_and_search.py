@@ -62,7 +62,7 @@ def test_find_callers_depth_two_exclude_tests(
 def test_search_symbol_exclude_tests_filters_total(
     tmp_path: Path, store: GraphStore
 ) -> None:
-    """AC2 — class + three test methods; exclude_tests returns the class and counts without tests."""
+    """AC2 — class + three tests; exclude_tests keeps the class and drops tests from total."""
     seed_file(
         store,
         "src/Widget.php",
