@@ -185,6 +185,12 @@ TRY_INSTEAD_HINT_MEMBER_SEPARATOR = (
 TRY_INSTEAD_FILE_OUTLINE = "file_outline"
 # An under-qualified subject has candidates — search_symbol enumerates them (075/076).
 TRY_INSTEAD_SEARCH_SYMBOL = "search_symbol"
+# Ambiguous read — progress is the same tool with path_prefix, not search_symbol (327 / R5.4).
+TRY_INSTEAD_READ_SYMBOL = "read_symbol"
+TRY_INSTEAD_HINT_PATH_PREFIX = (
+    "several definitions share this qname — re-ask read_symbol with path_prefix= naming "
+    "one site from ambiguous_definitions"
+)
 # No route on purpose: the evidence is unlinked include TEXT (edges.target_raw) and no registered
 # tool reads it — nodes_fts covers name/qname/file_path/params only. A route here would answer
 # reason=ok with symbols declared IN the file, silently omitting the includer (075/076).
