@@ -4,7 +4,7 @@ slug: dynamic-ddl-in-migrations-leaves-no-trace
 title: "A migration that alters a table through sp_executesql leaves no trace on that table, so \"has this object already been migrated?\" is unanswerable and duplicate migrations ship"
 phase: 2
 milestone: Coverage
-status: todo
+status: done
 depends_on: [022, 184, 296]
 ---
 

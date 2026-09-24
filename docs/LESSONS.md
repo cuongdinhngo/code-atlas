@@ -474,9 +474,10 @@ ticket rather than silently unmet · destination: open — recurrence 1.*
 
 *Claim `197-C3` — a named subset exported by the contract is a spend every consumer inherits; the
 kind set a consumer walks belongs to the consumer. type: 2 · handle:
-`the-consumer-owns-its-kind-set` · seen: 197 · evidence: `FLOW_KINDS` in `contract.py` tripped 022
-AC3's named-subset sweep; moved to `flows.py`, mirroring 138's `rule.kinds` · destination: open —
-recurrence 1.*
+`the-consumer-owns-its-kind-set` · seen: 197, 321 · evidence: `FLOW_KINDS` in `contract.py` tripped 022
+AC3's named-subset sweep; moved to `flows.py`, mirroring 138's `rule.kinds`. 321: the resolver's
+WRITES/ALTERS retry set tripped it the same way; moved to `resolver.py` · destination: open —
+recurrence 2, promotion candidate.*
 
 *Claim `197-C4` — under `work_doc_mode: embed` the ticket-blind guarantee cannot hold for a change
 that touches its own ticket: the working doc ships inside the diff, and a separator stops an honest
