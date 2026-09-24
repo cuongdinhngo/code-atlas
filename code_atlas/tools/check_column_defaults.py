@@ -15,11 +15,17 @@ from code_atlas.config import Config, clamp_limit
 from code_atlas.store import GraphStore
 from code_atlas.tools.coverage import attach_coverage_note, covered_languages
 from code_atlas.tools.nav_result import (
+    AMBIGUOUS_DEFINITIONS,
     REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
     REASON_NOT_INDEXED,
     REASON_OK,
+    REASON_SUBJECT_AMBIGUOUS,
+    TRY_INSTEAD_SEARCH_SYMBOL,
     attach_limit_capped,
+    attach_resolved_qname,
+    attach_try_instead,
+    definition_sites,
 )
 
 NAME = "check_column_defaults"
@@ -38,6 +44,12 @@ WRITERS_PARTIAL_HINT = (
     "or forms that emit no edge: dynamic SQL / CREATE-inside-string)."
 )
 
+# A missed table name routes to the search that lists the schema-qualified tables (320).
+TRY_INSTEAD_HINT_TABLE = (
+    'search_symbol(query=<table name>, kind="Table") lists the schema-qualified tables; '
+    "pass one of those qnames as `table`."
+)
+
 _WRITES = ("WRITES",)
 _CONTAINS = ("CONTAINS",)
 # One page of the graph's own edges, not of the answer: the arithmetic needs every writer, and the
@@ -51,6 +63,7 @@ __all__ = [
     "WRITERS_PARTIAL_KEY",
     "WRITERS_PARTIAL_HINT_KEY",
     "WRITERS_PARTIAL_HINT",
+    "TRY_INSTEAD_HINT_TABLE",
     "create",
 ]
 
@@ -181,6 +194,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``CONTAINS`` declarations collapse to one row with ``declarations`` when N>1. Needs a
         SQL-layer index (task 022); ``column`` takes the full member qname
         (``dbo.Trans::ChangeUser``) or the bare column name.
+
+        ``table`` may be bare (``Trans``): one indexed Table of that name is measured and named in
+        ``resolved_qname``; several (one per schema) answer ``reason: subject_ambiguous`` with no
+        rows and each qualified candidate in ``ambiguous_definitions``; none answers
+        ``no_such_symbol`` with ``try_instead: search_symbol`` (320).
         """
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
@@ -194,23 +212,26 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         with GraphStore(config.db_path) as store:
             covered = covered_languages(store)
+            asked = table
             if not store.nodes_by_qualified_name(table, kind="Table", limit=1):
-                return attach_coverage_note(
-                    _envelope(
-                        table=table, config=config, indexed=True, reason=REASON_NO_SUCH_SYMBOL
-                    ),
-                    config,
-                    covered,
-                    detail_level=detail_level,
-                )
+                resolved, reason, extra = _resolve_bare_table(store, table, limit=config.page_limit)
+                if resolved is None:
+                    refused = _envelope(table=table, config=config, indexed=True, reason=reason)
+                    refused.update(extra)
+                    return attach_coverage_note(refused, config, covered, detail_level=detail_level)
+                table = resolved
             all_columns, columns, declarations = _columns_of(store, table)
             if column is not None:
                 wanted = column if "::" in column else f"{table}::{column}"
                 columns = [pair for pair in columns if pair[0] == wanted]
             if not columns:
                 return attach_coverage_note(
-                    _envelope(
-                        table=table, config=config, indexed=True, reason=REASON_NO_MATCHES
+                    attach_resolved_qname(
+                        _envelope(
+                            table=asked, config=config, indexed=True, reason=REASON_NO_MATCHES
+                        ),
+                        asked=asked,
+                        answered=table,
                     ),
                     config,
                     covered,
@@ -236,7 +257,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             ]
             page = rows[offset : offset + cap]
             payload = _envelope(
-                table=table,
+                table=asked,
                 config=config,
                 indexed=True,
                 reason=REASON_OK,
@@ -249,6 +270,32 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 payload[WRITERS_PARTIAL_KEY] = True
                 payload[WRITERS_PARTIAL_HINT_KEY] = WRITERS_PARTIAL_HINT
             attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
+            # Only on the fallback arm: the answer is about a qname the caller did not type (R5.6).
+            attach_resolved_qname(payload, asked=asked, answered=table)
             return attach_coverage_note(payload, config, covered, detail_level=detail_level)
 
     return check_column_defaults
+
+
+def _resolve_bare_table(
+    store: GraphStore, name: str, *, limit: int
+) -> tuple[str | None, str, dict[str, object]]:
+    """``(qname, reason, extra)`` for a table name with no exact qname hit (320, 165-C1).
+
+    One Table of that bare name is the subject. Several are a partition: refuse and name each
+    qualified candidate rather than measure one schema's table. None keeps ``no_such_symbol``.
+    """
+    rows = store.nodes_by_name(name, kind="Table", limit=limit)
+    qnames = list(dict.fromkeys(str(row["qualified_name"]) for row in rows))
+    if len(qnames) == 1:
+        return qnames[0], REASON_OK, {}
+    if qnames:
+        sites = definition_sites(rows)
+        for site, row in zip(sites, rows, strict=True):
+            site["qname"] = row["qualified_name"]
+        return None, REASON_SUBJECT_AMBIGUOUS, {AMBIGUOUS_DEFINITIONS: sites}
+    return (
+        None,
+        REASON_NO_SUCH_SYMBOL,
+        attach_try_instead({}, TRY_INSTEAD_SEARCH_SYMBOL, TRY_INSTEAD_HINT_TABLE),
+    )
