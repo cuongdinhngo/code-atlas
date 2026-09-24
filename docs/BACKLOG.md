@@ -19,6 +19,13 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
+| 326 | [Near-miss hint on a page that leads with the hit](tasks/326_the-near-miss-hint-fires-on-a-page-that-leads-with-the-hit.md) | Agent-trust | todo | 167, 245, 249 |
+| 327 | [Ambiguous read_symbol has no way out](tasks/327_an-ambiguous-read-has-no-way-out.md) | Agent-trust | todo | 070, 078, 315, 049 |
+| 328 | [A DELETE leaves no edge on its table](tasks/328_a-delete-leaves-no-edge-on-the-table-it-empties.md) | Coverage | todo | 022, 278, 321 |
+| 329 | [Table writers repeat per named column](tasks/329_a-table-writer-list-repeats-each-statement-per-column.md) | Agent-trust | todo | 278 |
+| 330 | [impact signs a zero unlinked sites contradict](tasks/330_impact-signs-a-zero-its-own-unlinked-sites-contradict.md) | Agent-trust | todo | 065, 272, 314 |
+| 331 | [mirror_counterpart for a symbol the twin lacks](tasks/331_a-mirror-counterpart-is-named-for-a-symbol-it-lacks.md) | Agent-trust | todo | 277, 282, 286 |
+| 332 | [exclude_tests: depth 1 only, not on search](tasks/332_exclude-tests-stops-at-depth-one-and-never-reaches-search.md) | Agent-trust | todo | 262, 313, 315 |
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
@@ -30,7 +37,7 @@ project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline
 M10–M12 have all landed; round narratives live in [`FEEDBACK.md`](FEEDBACK.md),
 [PLAN §19](PLAN.md#19-project-context--decision-log), [`LESSONS.md`](LESSONS.md) and `benchmarks/`.
 
-*Nothing open.* M10-M12 shipped; **310** closed unmeasured — its ticket and its
+*Nothing open.* **310** closed unmeasured — its ticket and its
 [`TOKEN_LEDGER.md`](TOKEN_LEDGER.md) row carry why, and no row here restates it (R7.6).
 
 **What still governs open work:** the surface has **24 tools** (`main.TOOL_NAMES`), count-pinned by
@@ -65,7 +72,7 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **258's anchor-scale figures were never taken** — AC1 (the edge-count drop on the anchor index) and AC5 (the query cost of the proximity expansion at that scale) shipped E1 on fixture evidence. The ticket makes the expensive case convert to **build-time ranking**, so that measurement is the decision, not a confirmation — [258](tasks/258_the-graph-stores-the-cartesian-product-of-call-site-and-same-named-symbol.md).
 - **Uptake is gated by deferred delivery and whether `Grep` hurts** — [300](tasks/300_the-index-is-registered-permitted-and-never-chosen.md).
 - **A table ALTERed in another file is two `Table` rows under one qname**, so the unqualified-name retry (215) counts them as two candidates and leaves `WRITES` / `ALTERS` unlinked; it should count distinct qnames — [321](tasks/321_dynamic-ddl-in-migrations-leaves-no-trace.md).
-- **Docker images are never built by CI** — `docker/Dockerfile` can rot, and since 323 `gate.sh --docker` runs through it (it was red on `main` for 325's git-dependent test) (`Dockerfile.runtime` is built inside `pytest`). Honest shape: one job building both. Survives the unbillable-Actions arrangement AGENTS.md records, which also means every gate is a human step.
+- **Docker images are never built by CI** — `docker/Dockerfile` can rot, and since 323 `gate.sh --docker` runs through it (`Dockerfile.runtime` is built inside `pytest`). Honest shape: one job building both. Survives the unbillable-Actions arrangement AGENTS.md records, which also means every gate is a human step.
 
 ## Conventions
 - Keep an **open** task's `status` in this table **and** in its frontmatter in sync.
