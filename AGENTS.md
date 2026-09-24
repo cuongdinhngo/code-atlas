@@ -90,12 +90,12 @@ A full rebuild bulk-clears (219); no need to delete `graph.db`. `workers` is not
 knob. Every timing and its conditions: [`runbooks/onboarding-a-repo.md`](docs/runbooks/onboarding-a-repo.md).
 
 ## Before a PR or a push — run `scripts/gate.sh` **once, when the work is done**
-**Not per edit** — iterate on targeted `ruff`/`mypy`/`pytest`, batch every fix, then one gate run
-before the PR. It mirrors every `ci.yml` job in order, naming each check (~100 s).
+**Not per edit** — iterate on targeted `ruff`/`mypy`/`pytest`, batch every fix, then one gate run. It mirrors every `ci.yml` job in order.
 **Actions report `fail` in ~3 s without running** (0 steps, unbillable), so `gh pr checks` is not a
-second opinion — the local gate is the only gate.
+second opinion — the local gate is the only one.
 **Only `GATE GREEN` counts — exit 2 means a check was skipped, which is not a pass (R6.5).**
-`tests/test_ci_and_gate_agree.py` keeps it in step with `ci.yml`, so that drift fails a test here.
+A runtime missing? `scripts/gate.sh --docker` runs it in the test image.
+`tests/test_ci_and_gate_agree.py` keeps it in step with `ci.yml`.
 **The gate's tokens-to-answer ratio is the *fixture* tier and sits below 1 by design** (floor 0.63) —
 the product claim is the *sample* tier over the pinned repos (`--samples`, ~69x). Never quote one as
 the other.
@@ -108,9 +108,9 @@ not) and **every adapter**: `php` + `composer`, `node` for both the TS and SQL a
 Python ≥ 3.12 interpreter —
 with all of them present, bare `pytest` is the fastest route. Missing either condition it goes red —
 **a platform limitation, not a regression** — so don't conclude "the suite can't run"; run it in
-Docker instead: `scripts/docker-test.sh`. **Expected count, verified 2026-09-20 on Linux — the one
+Docker instead: `scripts/docker-test.sh`. **Expected count, verified 2026-09-24 on Linux — the one
 place these numbers are kept:** bare `pytest` (with `php` · `composer` · `node` · `docker` on PATH)
-**4,289 passed / 4 skipped**; `scripts/docker-test.sh` **4,288 passed / 5 skipped**. Both on the
+**4,381 passed / 4 skipped**; `scripts/docker-test.sh` **4,380 passed / 5 skipped**. Both on the
 same tree; neither is derived from the other. Green skips: the Windows lock arm (3) and the
 `gitutil` wedge; in-image also `test_runtime_image_reports_server_build`.
 

@@ -1,9 +1,8 @@
 # Keep the build context small and the image reproducible: nothing host-, editor-, or
 # artifact-specific, and never the resolved dependency trees (rebuilt inside the image).
-.git
 .claude
-# Local lifecycle scratch. `.git` is excluded above, so ruff in the image has no gitignore to
-# honour and would lint whatever git-ignored files reach the context.
+# `.git` is kept: the container gate's R7.3 check needs `origin/main` (323). Local lifecycle
+# scratch stays out anyway — it is git-ignored and only makes the context bigger.
 .mango
 
 # Python caches / build outputs
