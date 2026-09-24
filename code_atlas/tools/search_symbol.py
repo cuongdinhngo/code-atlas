@@ -505,6 +505,7 @@ def _single_payload(
         payload["path_excluded"] = list(hits.path_excluded)
         return payload
     # Near-miss (245) vs truncated-but-hit (326) — different findings, different hints.
+    # Other truncated reasons keep today's NARROW_BY_QNAME attach (061).
     if _is_near_miss_page(hits):
         hint = (
             TRY_INSTEAD_HINT_MEMBER_SEPARATOR
@@ -514,6 +515,10 @@ def _single_payload(
         attach_try_instead(payload, TRY_INSTEAD_FILE_OUTLINE, hint)
     elif _is_truncated_direct_page(hits):
         attach_try_instead(payload, TRY_INSTEAD_SEARCH_SYMBOL, TRY_INSTEAD_HINT_NARROW_BY_FILTER)
+    elif hits.truncated and hits.total_count > len(hits.results):
+        attach_try_instead(
+            payload, TRY_INSTEAD_FILE_OUTLINE, TRY_INSTEAD_HINT_NARROW_BY_QNAME
+        )
     elif hits.reason == REASON_TOKEN_CANDIDATES:
         payload["candidates"] = list(hits.candidates)
         if hits.candidates:
@@ -560,6 +565,10 @@ def _batch_answer(query: str, hits: _Hits) -> dict[str, object]:
         attach_try_instead(answer, TRY_INSTEAD_FILE_OUTLINE, hint)
     elif _is_truncated_direct_page(hits):
         attach_try_instead(answer, TRY_INSTEAD_SEARCH_SYMBOL, TRY_INSTEAD_HINT_NARROW_BY_FILTER)
+    elif hits.truncated and hits.total_count > len(hits.results):
+        attach_try_instead(
+            answer, TRY_INSTEAD_FILE_OUTLINE, TRY_INSTEAD_HINT_NARROW_BY_QNAME
+        )
     elif hits.reason == REASON_TOKEN_CANDIDATES:
         answer["candidates"] = list(hits.candidates)
         if hits.candidates:
