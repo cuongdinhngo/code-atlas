@@ -75,8 +75,9 @@ tickets 022, 194, 222, 278, 321.
 
 - **Ticket:** 328 · local · **SCOPE:** S · **TIER:** full · **TRACK:** backend
 - **REVIEWER:** OFF · **CHALLENGER:** ON
-- **Current phase:** finalise — next: push branch, open PR
-- **Session status:** review clean → finalise
+- **Current phase:** finalise complete — PR open
+- **Session status:** done
+- **Reviewed at:** `51df1e7729fb4499cdad7738dece7f563378fd4e` (challenger round-2 after gate fixes)
 
 ## Phase 0 — Refine
 
@@ -149,7 +150,7 @@ $ .venv/bin/python -m pytest tests/test_deletes_edge_kind.py -q
 
 ## Phase 4 — Review
 
-REVIEWER: OFF · CHALLENGER: ON — CLEAN 12/0/0.
+REVIEWER: OFF · CHALLENGER: ON — round-1 CLEAN 12/0/0 at `200f26b`; stale after gate fixes → round-2 CLEAN 12/0/0 at `51df1e7729fb4499cdad7738dece7f563378fd4e`.
 
 ## Phase 5 — Finalise (learning loop)
 
@@ -158,4 +159,4 @@ REVIEWER: OFF · CHALLENGER: ON — CLEAN 12/0/0.
 `FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
 `RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
 `PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
-`LEDGER TOTAL: unmeasured (subagent dispatch only; host surfaces no usage) · top cost driver: review/challenger round 1`
+`LEDGER TOTAL: unmeasured (subagent dispatch only; host surfaces no usage) · top cost driver: review/challenger ×2 + gate re-runs`
