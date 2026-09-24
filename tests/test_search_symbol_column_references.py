@@ -163,7 +163,7 @@ def test_trap_sweep_distinguishes_same_prefix_columns(indexed) -> None:
 @needs_node
 def test_contract_version_unchanged_and_r1_1_surface() -> None:
     """AC5: no contract bump; enrichment keys off kind + REFERENCES, not a language branch."""
-    assert CONTRACT_VERSION == 10
+    assert CONTRACT_VERSION == 11
     src = Path(__file__).resolve().parent.parent / "code_atlas" / "tools" / "search_symbol.py"
     text = src.read_text(encoding="utf-8")
     assert 'if language ==' not in text

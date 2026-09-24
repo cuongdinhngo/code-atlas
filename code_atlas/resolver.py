@@ -21,6 +21,9 @@ _BARE_NAME_KIND = "Method"
 _UNIQUE_FUNCTION_KIND = "Function"
 # WRITES CI targets (215). One name each — never a multi-kind vocab literal (R3.2).
 _TABLE_KIND = "Table"
+# Kinds whose exact-FQN miss retries T-SQL's case-insensitive, default-schema rule (215 / 321).
+# The resolver's own set, not a contract subset: 022 AC3 keeps tier-2 words out of those (197-C3).
+_SCHEMA_OBJECT_KINDS: tuple[str, ...] = (contract.WRITES, contract.ALTERS)
 _COLUMN_KIND = "Column"
 
 # ``\A::m()::b()::c`` is m's type, then b on that, then c on that — the separator between steps.
@@ -159,7 +162,7 @@ def resolve_edges(
                     edge, hits, _weaker_tier(incoming, "RESOLVED"), links, siblings
                 )
                 continue
-            if edge["kind"] == "WRITES":
+            if edge["kind"] in _SCHEMA_OBJECT_KINDS:
                 # Case / schema mismatch: exact FQN missed; unique CI link is T-SQL's rule (215).
                 writes_misses.append(edge)
                 continue
@@ -211,7 +214,7 @@ def _link_writes_casefold(
     links: list[tuple[int, str, str]],
     siblings: list[dict[str, object]],
 ) -> None:
-    """Link WRITES whose exact FQN missed via unique case-insensitive / unqualified match (215).
+    """Link WRITES / ALTERS whose exact FQN missed via a unique case-insensitive match (215/321).
 
     Zero or two-or-more candidates leave the edge unlinked — ambiguity must not pick a twin.
     Uses Table/Column kinds only (contract vocabulary); never a language branch (R1.1).

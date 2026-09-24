@@ -54,6 +54,9 @@ from code_atlas.tools.nav_result import (
 )
 
 _RESOLVED = CONFIDENCE_TIERS[0]
+# The kinds DDL changes (321): only their hits pay the ALTERS read.
+_ALTERED_KINDS: tuple[str, ...] = (contract.TABLE_KIND, "Function")
+_ALTERED_BY_CAP = 32
 
 NAME = "search_symbol"
 
@@ -131,8 +134,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         from existing ``REFERENCES`` edges (239): resolved column targets under ``references``, and
         a column-list-omitted FK — which names only its table — under ``references_unresolved``, so
         the two are never signed alike (R5.6). Both are omitted when empty, and never appear on
-        ``minimal`` or non-``Column`` rows. When the first page holds only
-        substring/trigram near-misses — no
+        ``minimal`` or non-``Column`` rows. A ``Table`` / ``Function`` row names the files whose DDL
+        changes it (321): a literal ``ALTER`` under ``altered_by``, a name read out of an executed
+        string under ``altered_by_dynamic`` — a claim, never signed as resolved. When the first
+        page holds only substring/trigram near-misses — no
         result exactly matches or prefixes the query — ``reason=substring_match`` marks the answer a
         near-miss, not a hit, and carries the language-coverage note (167 / 160). A
         ``substring_match`` answer, or a page short of ``total_count``, also carries
@@ -743,7 +748,30 @@ def _hit(
             hit["references"] = resolved
         if unresolved:
             hit["references_unresolved"] = unresolved
+    if store is not None and detail_level != "minimal" and row["kind"] in _ALTERED_KINDS:
+        hit.update(_altered_by(store, str(row["qualified_name"])))
     return hit
+
+
+def _altered_by(store: GraphStore, qname: str) -> dict[str, object]:
+    """Files whose DDL changes ``qname``, one field per tier — ``altered_by`` is RESOLVED (321).
+
+    A name read out of an executed string is ``altered_by_dynamic``: never signed like a literal
+    ``ALTER`` (R5.6). Omitted when empty (061); a capped walk says so rather than stopping short.
+    """
+    rows = store.edges_by_target(qname, kinds=(contract.ALTERS,), limit=_ALTERED_BY_CAP + 1)
+    by_tier: dict[str, set[tuple[str, int]]] = {}
+    for edge in rows[:_ALTERED_BY_CAP]:
+        site = (str(edge["file_path"]), int(str(edge["line"])))
+        by_tier.setdefault(str(edge["confidence_tier"]), set()).add(site)
+    fields: dict[str, object] = {}
+    for tier in contract.CONFIDENCE_TIERS:
+        if tier in by_tier:
+            key = "altered_by" if tier == _RESOLVED else f"altered_by_{tier.lower()}"
+            fields[key] = [{"file": f, "line": n} for f, n in sorted(by_tier[tier])]
+    if len(rows) > _ALTERED_BY_CAP:
+        fields["altered_by_truncated"] = True
+    return fields
 
 
 def _column_reference_targets(store: GraphStore, qname: str) -> tuple[list[str], list[str]]:

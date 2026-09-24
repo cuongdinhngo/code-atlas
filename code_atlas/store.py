@@ -2380,8 +2380,8 @@ class GraphStore:
         """Stream unresolved edges in ``id`` order so a large graph need not load at once (§8.2 M4).
 
         ``batch_size`` is validated immediately (not deferred to first ``next()``).
-        ``skip_dynamic`` omits unlinkable ``DYNAMIC`` rows (not ``REFERENCES`` — those
-        carry an FQN and must still resolve, task 094).
+        ``skip_dynamic`` omits unlinkable ``DYNAMIC`` rows (not ``DYNAMIC_LINKED_KINDS`` — those
+        carry an FQN and must still resolve, tasks 094 / 321).
         ``file_path`` scopes to edges emitted by one file (read-through reparse).
         ``delta`` narrows the key-resolved kinds to what one incremental could have changed
         the answer for; every other kind streams unscoped (task 096). The caller owns the
@@ -2402,8 +2402,9 @@ class GraphStore:
         delta: DeltaScope | None = None,
     ) -> Iterator[list[Row]]:
         last_id = 0
+        linked = ", ".join(f"'{kind}'" for kind in contract.DYNAMIC_LINKED_KINDS)
         dynamic_clause = (
-            " AND (confidence_tier != 'DYNAMIC' OR kind = 'REFERENCES')"
+            f" AND (confidence_tier != 'DYNAMIC' OR kind IN ({linked}))"
             if skip_dynamic
             else ""
         )

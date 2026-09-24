@@ -26,7 +26,9 @@ from typing import Literal, get_args
 # v10: `ForeignKey` (236). A foreign-key constraint is a schema object, not a second definition of
 # the table it sits on — a distinct kind lets `search_symbol` separate a table's DDL site from a
 # constraint on it (R5.6), so the correct FK answer is no longer re-derived. R3.1/R3.5 owe the bump.
-CONTRACT_VERSION = 10
+# v11: `ALTERS` (321). A file's DDL changing an object is not a write to its columns, so it is a
+# word of its own rather than a `WRITES` that would enrol every migration as a writer.
+CONTRACT_VERSION = 11
 
 # Ordered Literal is the typing SSoT; NODE_KINDS is derived so schemas cannot drift (R3.2 / 056).
 NodeKind = Literal[
@@ -75,12 +77,21 @@ EDGE_KINDS: tuple[str, ...] = (
     # the Table at DYNAMIC when it writes columns it does not name — the writer is a fact even where
     # the column list is not, and a guessed list would be worse than an honest one (R5.6).
     "WRITES",
+    # v11 (321): a file's DDL changes a Table or Function. RESOLVED when the statement is literal;
+    # DYNAMIC when the name was read out of a string the file executes — a claim, never a fact.
+    "ALTERS",
 )
 
 # Resolver (§8.2) looks these up by FQN; new EDGE_KINDS must opt in here (not silently join).
 FQN_EDGE_KINDS: frozenset[str] = frozenset(
-    {"EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS", "NEW", "ALIASES", "REFERENCES", "WRITES"}
+    {
+        "EXTENDS", "IMPLEMENTS", "USES_TRAIT", "CALLS", "NEW", "ALIASES", "REFERENCES", "WRITES",
+        "ALTERS",
+    }
 )
+# DYNAMIC rows the resolver still links: their target is a name the adapter read, not an unknown
+# callee (094 / 321). Every other DYNAMIC row names nothing linkable and is skipped.
+DYNAMIC_LINKED_KINDS: tuple[str, ...] = ("REFERENCES", "ALTERS")
 
 # Path-shaped edges: the target is a FILE, so the resolver looks it up among File qnames instead of
 # by FQN. The kinds differ only in how ``target_raw`` names that file, and the contract states which
@@ -147,6 +158,7 @@ IMPACT_KINDS: tuple[str, ...] = tuple(IMPACT_KIND_WEIGHTS)
 # The one write edge, named once so consumers spell it in a single place (PROVIDES_VIEW_DATA
 # precedent below). A bare string is not a named subset, so tier 2 stays opt-in (022 AC3).
 WRITES = "WRITES"
+ALTERS = "ALTERS"
 
 # Ordered Literal is the typing SSoT, NODE_KINDS' rule applied to the tier a tool now takes as a
 # parameter (251): a bare `str` publishes no choice in the MCP input schema, so the vocabulary would
