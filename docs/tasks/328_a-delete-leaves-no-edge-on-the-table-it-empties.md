@@ -4,7 +4,7 @@ slug: a-delete-leaves-no-edge-on-the-table-it-empties
 title: "The SQL adapter emits WRITES for INSERT and UPDATE only — a DELETE, MERGE or TRUNCATE leaves no edge, so 'what removes rows from this table' has no answer in any language"
 phase: 1.5b
 milestone: Coverage
-status: in-progress
+status: done
 depends_on: [022, 278, 321]
 ---
 
