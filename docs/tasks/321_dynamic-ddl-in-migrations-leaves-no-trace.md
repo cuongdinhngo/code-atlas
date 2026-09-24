@@ -137,7 +137,7 @@ instead of a discipline question.
 Recalled: `197-C3` (`the-consumer-owns-its-kind-set`, `LESSONS.md`) — a contract subset holding a tier-2 word trips 022 AC3's sweep; the resolver's retry set is the consumer's.
 
 - H1 (how, cited Goal "From a `Table` / `Function` node"): the target is the object after `ALTER TABLE` or `[CREATE OR] ALTER <proc|function|trigger>`; `ADD`/`DROP CONSTRAINT` are clauses of that `ALTER TABLE`, and a constraint name alone names no `Table`/`Function`.
-- H2 (how, cited Scope 3 "Inside an `EXEC` / `sp_executesql` string argument" + AC1 "built into a variable"): the field shape puts the string in `SET @sql = N'…'`, not in the `EXEC`; a string-to-`EXEC` dataflow is out of a line scanner's reach, so the claim is gated on the file executing strings at all (the 296 stamp) — AC6's "not mentioned near" plus a printed-DDL arm.
+- H2 (how, cited Scope 3 "Inside an `EXEC` / `sp_executesql` string argument" + AC1 "built into a variable"): the field shape puts the string in `SET @sql = N'…'`, not in the `EXEC`, so each literal records what runs it — `EXEC (…)` / `sp_executesql` directly, or the `@variable` it is assigned to (across `+` continuations) — and counts only if an `EXEC` runs that variable. Round 1 shipped a file-wide gate (the 296 stamp); the challenger broke it (Phase 4).
 
 ## Requirements matrix
 
@@ -184,7 +184,7 @@ Baseline record — tree `14cae92` (historical: the base the branch forked from)
 ## Phase 2 — Design
 
 - A1 contract: `ALTERS` joins `EDGE_KINDS` and `FQN_EDGE_KINDS`, not `IMPACT_KIND_WEIGHTS`; `DYNAMIC_LINKED_KINDS = (REFERENCES, ALTERS)` replaces the store's hard-coded `'REFERENCES'`.
-- A2 adapter: literal bodies accumulate in `ScanState.body` (cap `LITERAL_CAP`, tail kept on overflow); on close, `DDL_IN_STRING_RE` + `readQualified` record `{target, literal line}`; emitted at `DYNAMIC` only when the file set the 296 stamp. The literal `ALTER TABLE` flush emits one `RESOLVED` edge from the file.
+- A2 adapter: literal bodies accumulate in `ScanState.body` (cap `LITERAL_CAP`, tail kept on overflow); on close, `DDL_IN_STRING_RE` + `readQualified` record `{target, literal line, runner}`; emitted at `DYNAMIC` only when the runner is a direct `EXEC` or a variable a dynamic `EXEC` runs. The literal `ALTER TABLE` flush emits one `RESOLVED` edge from the file.
 - A3 resolver: `ALTERS` shares `WRITES`' case-insensitive default-schema retry (215) through a resolver-owned `_SCHEMA_OBJECT_KINDS` (197-C3).
 - A4 read-back: `search_symbol` `Table`/`Function` hits at `standard` get `altered_by` (RESOLVED) and `altered_by_<tier>` per other tier, `{file, line}` deduped, capped at 32 with `altered_by_truncated`; omitted when empty (061).
 - Rejected: emitting from the enclosing routine (the ticket asks which *files*); a new tool (Out of scope, R1.2); `ALTERS` in `IMPACT_KINDS` (changes every `impact` answer over SQL — not asked); fixing the duplicate-`Table`-row ambiguity in the 215 retry (pre-existing, recorded as a BACKLOG follow-up).
@@ -257,6 +257,7 @@ Deviation: the two AC tests over the `UserNotes` fixture expect **two** `Table` 
 ## Phase 4 — Review
 
 REVIEWER: OFF (--no-reviewer)
+CHALLENGER: ON — round 1 FINDINGS (20 met, 2 not met, 0 can't tell). Not met: Scope 3 / AC6 — emission was gated file-wide, so `PRINT 'ALTER TABLE dbo.NeverTouched …'` in a file that also ran an unrelated `sp_executesql` emitted a DYNAMIC `ALTERS` (reproduced on the adapter). Fixed in `33a140d`: per-literal runner tracking; the challenger's input and a DDL variable no `EXEC` runs are now tests (`mixed.sql`), plus a `+`-continued statement run by `EXEC (@v)` (`continued.sql`).
 
 ## Phase 5 — Finalise
 
