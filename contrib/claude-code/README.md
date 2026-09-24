@@ -1,6 +1,6 @@
-# Claude Code hooks — index poke, and the read/write signal (tasks 036, 099, 240)
+# Claude Code hooks — index poke, read/write signal, session state (tasks 036, 099, 240, 322)
 
-Two commands, for the two moments an agent was never going to make a tool call.
+Three commands, for the moments an agent was never going to make a tool call.
 
 - **`code-atlas-poke`** (036) — after Claude Code `Edit`/`Write` on a file an adapter owns,
   reparse that one file into `.code-atlas/graph.db` using `code_atlas.indexer.reparse_file`
@@ -14,12 +14,16 @@ Two commands, for the two moments an agent was never going to make a tool call.
 
   It shipped in 2026-08 wired for Codex only; **240** is the drift that left the host every
   field round runs on without it, and the guard that now keeps the two offers in step.
+- **`code-atlas-state`** (322) — restates `get_index_status`'s `summary` at **`SessionStart`**
+  and **`PreCompact`**, because the `initialize` copy decays in a long or compacted session.
+  Silent when the index is current and no build runs; ≤ 90 tokens; always exits 0
+  ([TOOLS.md](../../docs/TOOLS.md#the-session-boundary-state-line--the-index-state-restated-when-the-first-copy-decayed-opt-in)).
 
 ## Install
 
 1. Install code-atlas into the environment Claude Code uses (`pip install -e /path/to/code-atlas`
    or your usual setup from the [README](../../README.md)). This provides the
-   **`code-atlas-poke`** and **`code-atlas-signal`** console scripts on `PATH` (same
+   **`code-atlas-poke`**, **`code-atlas-signal`** and **`code-atlas-state`** console scripts on `PATH` (same
    interpreter as the install).
 2. Merge [`settings.snippet.json`](settings.snippet.json) into the **project**
    `.claude/settings.json` (shareable) **or** `~/.claude/settings.json` (user-global). Keep

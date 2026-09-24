@@ -104,7 +104,7 @@ Per-language, pick the best parser; do **not** force one across all languages. *
 | 3 | Python | **`ast`** builtin; `jedi` unbought | Zero-dependency parse. **Shipped stdlib-only** (020 tier 1a · 217 tier 2): nothing so far needed import/name resolution, so `jedi` waits for a tier that does. |
 | 4 | C#/.NET | **Roslyn** (.NET sidecar) | Full **semantic model** → precise type/call/ref edges. Last: its namespace+FQN model resembles PHP's, so it *confirms* rather than reshapes the contract. |
 
-**A fifth capability — SQL / DB-schema awareness** (**landed** as `adapters/sql/`, outside the order above): schema facts are *not* source symbols and needed their own vocabulary (R3), so it sat behind 022's evidence gate until measured demand discharged it (§19). 184 tier 1a · 022 tier 2 (`Table`, `Column`, `WRITES`, contract **v9**).
+**A fifth capability — SQL / DB-schema awareness** (**landed** as `adapters/sql/`, outside the order above): schema facts are *not* source symbols and needed their own vocabulary (R3), so it sat behind 022's evidence gate until measured demand discharged it (§19). 184 tier 1a · 022 tier 2 (`Table`, `Column`, `WRITES`, contract **v9**); 321 `ALTERS` (**v11**).
 
 Rejected globally:
 - **tree-sitter everywhere** — grammar lags releases (misparses PHP 8.5); forces hand-written resolution (the hard part) per language.

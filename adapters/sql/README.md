@@ -31,6 +31,8 @@ and building a whole-file tree over it is the failure mode the PHP adapter alrea
 | `INSERT` / `UPDATE` naming columns | `WRITES` edge per column | 2 |
 | `INSERT` / `UPDATE` naming none | one `WRITES` edge onto the **`Table`** | 2 |
 | `CREATE`/`ALTER`/`CREATE OR ALTER` `TRIGGER` | `Function` node, `extra.object_type = "trigger"` | 2 |
+| literal `ALTER TABLE` | `ALTERS` edge from the file onto the `Table` at `RESOLVED` (321) | 2 |
+| `ALTER TABLE` or `(CREATE OR) ALTER PROC`/`FUNCTION`/`TRIGGER` inside a string an `EXEC` / `sp_executesql` runs | `ALTERS` edge at **`DYNAMIC`** — a name read from a string, a claim, never a fact (321) | 2 |
 | standalone `ALTER TABLE … ADD … FOREIGN KEY` | `ForeignKey` node, `CONTAINS`-owned by its table (`extra`: `parent_table`, `referenced_table`, `columns`) | 2 |
 
 A foreign key declared **inside a `CREATE TABLE` body** stays a `REFERENCES` edge (task 224); a
