@@ -507,7 +507,9 @@ status: confirmed · seen: 195 · area: docs · destination: stays in lessons_pa
 *Claim `194-C1` — a blast-radius trace is complete only once the invariants the change MOVES are
 enumerated; grepping one invariant well still misses the others. This change moved two — the tool
 surface and the core-module count — and the trace named one, so 5 of 11 authored touchpoints were
-predicted. type: 2 · handle: `count-pin-in-blast-radius` · seen: 184, 022, 194 · destination:
+predicted. type: 2 · handle: `count-pin-in-blast-radius` · seen: 184, 022, 194, 322 · evidence
+(322): a new `code_atlas/hooks/` module moved the core-module pin in two guard tests; the design's
+blast radius named the console-script check and missed it, and the gate caught it · destination:
 AGENT_BRIEF P5.*
 
 *Claim `194-C2` — a ratio's denominator is the whole population, not the subset the query filtered

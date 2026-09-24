@@ -224,6 +224,7 @@ Trace record — tree `e79f5e9947b26cf679cdff794ceb53e25187bdfa`. Command `grep 
 | D3 | console script | pyproject.toml | gate console-script check | R1 | 1/1 |
 | D4 | proving tests | tests/test_session_state_hook.py | new | AC1–AC5 | 1/1 |
 | D5 | TOOLS section, BACKLOG, ticket, ledger, probe record | docs/* | doc budgets | AC6 R7.2 | 1/1 |
+| D6 | core-module count pins 93 → 94 (added at the first gate — the blast radius above missed them) | tests/test_core_is_language_agnostic.py · tests/test_sql_confinement.py | guard-the-guard pins | R6.5 | 1/1 |
 
 | AC | risk layer | proof artifact | fixture provenance | layer-match? |
 |----|-----------|----------------|--------------------|--------------|
@@ -278,7 +279,7 @@ Verdict: `clean (challenger only — REVIEWER: OFF)`
 
 Outward (handover-authorised only): pushed `feat/322-state-hook`, opened [#442](https://github.com/cuongdinhngo/code-atlas/pull/442). Never merge. Also spent: two headless `claude -p` probes (about $0.18).
 
-Durable lesson: none new — `093-C3` (`prove-the-guard-fails`) applied as written; no claim moved.
+Durable lesson: `194-C1` (`count-pin-in-blast-radius`) seen 184, 022, 194, 322 — the first gate went red (`19 passed · 1 failed`: two module-count pins, 93 vs 94) because the blast radius named the console-script check and not the core-module census. Already routed to AGENT_BRIEF P5; recorded as evidence for `/mango:promote`, **nothing written** there. Falsification: still true — the gate failed exactly this way.
 
 Revert: revert the PR; a host that wired the command sees "command not found" at those two events.
 
@@ -288,9 +289,9 @@ Revert: revert the PR; a host that wired the command sees "command not found" at
 |-------|----------|-------|--------|
 | review | challenger | 1 | 82,068 |
 
-`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
-`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
-`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
-`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
-`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 1 recurring | 0 superseded (0 retired) | 1 promotion candidate(s)`
+`FALSIFY: 1 candidate(s) checked | 1 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 1 type-2 claim(s) with seen ≥ 2 | 1 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 1 proposed | 0 human-ratified | destinations: docs/AGENT_BRIEF.md | mango files written: 0`
 `LEDGER TOTAL: 82,068 (subagent dispatch only) · top cost driver: review/challenger round 1`
