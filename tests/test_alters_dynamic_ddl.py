@@ -61,6 +61,21 @@ STATIC_MIGRATION = "ALTER TABLE dbo.UserNotes ADD Archived bit NULL;\n"
 PRINTED_DDL = "PRINT 'ALTER TABLE dbo.UserNotes needs a new DEFAULT';\n"
 MENTION_ONLY = "EXEC (N'SELECT * FROM dbo.UserNotes');\n"
 ROUTINE_DDL = "EXEC (N'CREATE OR ALTER PROCEDURE dbo.Insert_Note AS SELECT 1');\n"
+# The file runs dynamic SQL, but not these strings: a printed DDL line, and a DDL variable no EXEC
+# runs (the challenger's shape). Only `@run` executes, and it holds no DDL.
+MIXED = """\
+PRINT 'ALTER TABLE dbo.UserNotes needs a new DEFAULT';
+DECLARE @ddl nvarchar(max) = N'ALTER TABLE dbo.UserNotes ADD Unused bit NULL';
+DECLARE @run nvarchar(max) = N'UPDATE dbo.UserNotes SET ChangeUser = NULL';
+EXEC sp_executesql @run;
+"""
+# A statement built across lines, then run through `EXEC (@v)`.
+CONTINUED = """\
+DECLARE @sql nvarchar(max);
+SET @sql = N'PRINT 1;'
+    + N'ALTER TABLE dbo.UserNotes ADD Continued bit NULL';
+EXEC (@sql);
+"""
 UNQUALIFIED_DDL = "EXEC sp_executesql N'ALTER TABLE UserNotes ADD Flag bit NULL';\n"
 
 FILES = {
@@ -70,6 +85,8 @@ FILES = {
     "db/scripts/print_ddl.sql": PRINTED_DDL,
     "db/scripts/report.sql": MENTION_ONLY,
     "db/scripts/redefine.sql": ROUTINE_DDL,
+    "db/scripts/mixed.sql": MIXED,
+    "db/scripts/continued.sql": CONTINUED,
 }
 V128 = "db/migrations/V128__notes_author.sql"
 
@@ -130,6 +147,7 @@ def test_asking_about_the_table_names_the_migration_apart_from_resolved_ones(
         assert hit["altered_by_dynamic"] == [
             {"file": "db/migrations/V128__notes_author.sql", "line": 8},
             {"file": "db/migrations/V128__notes_author.sql", "line": 14},
+            {"file": "db/scripts/continued.sql", "line": 3},
         ]
     minimal = search_symbol.create(indexed)(query="UserNotes", kind="Table", detail_level="minimal")
     assert not any(key.startswith("altered_by") for hit in minimal["results"] for key in hit)
@@ -165,6 +183,14 @@ def test_a_mention_or_an_unexecuted_string_alters_nothing(indexed: Config) -> No
     files = {row[0] for row in _alters_into(indexed, "dbo.UserNotes")}
     assert "db/scripts/report.sql" not in files
     assert "db/scripts/print_ddl.sql" not in files
+    assert "db/scripts/mixed.sql" not in files
+
+
+@needs_node
+def test_a_string_assigned_to_a_variable_an_exec_runs_alters(indexed: Config) -> None:
+    """The claim follows the string to the EXEC that runs it, across a `+` continuation."""
+    rows = _alters_into(indexed, "dbo.UserNotes")
+    assert ("db/scripts/continued.sql", 3, "DYNAMIC") in rows
 
 
 @needs_node

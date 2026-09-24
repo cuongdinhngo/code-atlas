@@ -23,8 +23,8 @@ const LITERAL_KEEP = 512;
  *   line: number, confidence_tier: string, args?: (string|null)[],
  *   arg_keys?: (string[]|null)[]}} Edge
  * @typedef {{block: number, string: boolean, elided: boolean, line: number, body: string,
- *   bodyLine: number, onLiteral: ((body: string, line: number, final: boolean) => string)|null}}
- *   ScanState
+ *   bodyLine: number, bodyPrefix: string,
+ *   onLiteral: ((body: string, line: number, final: boolean) => string)|null}} ScanState
  */
 
 // T-SQL delimits identifiers with [brackets] or "quotes"; a bracketed ] is escaped by doubling it.
@@ -158,6 +158,7 @@ function stripToCode(line, state) {
       state.elided = false;
       state.body = "";
       state.bodyLine = state.line;
+      state.bodyPrefix = out;
       out += ch;
       i += 1;
       continue;
@@ -282,6 +283,14 @@ const BOUNDARY_RE =
 const DYNAMIC_PROCS = new Set(["sp_executesql", "sp_execute", "dbo.sp_executesql"]);
 // DDL that changes an existing object, read inside a string literal (321). The name after it is
 // the whole claim: no concatenation is followed, and a constraint clause names no object of its own.
+// A literal run where it stands: `EXEC (N'…'` / `EXEC sp_executesql N'…'` (optionally `@stmt =`).
+const DIRECT_EXEC_RE =
+  /\bexec(?:ute)?\s*\(\s*N?\s*$|\bsp_executesql\s+(?:@\w+\s*=\s*)?N?\s*$/i;
+// `SET @v = N'…'` / `DECLARE @v nvarchar(max) = N'…'` / `SET @v += N'…'` — the variable is @v.
+const ASSIGN_RE = /\b(?:set|declare)\s+(@[A-Za-z_][\w@#$]*)\b[^=;]*[+]?=/i;
+// The variable a dynamic EXEC runs: `EXEC (@v)`, `EXEC @v`, `EXEC sp_executesql [@stmt =] @v`.
+const EXECUTED_VAR_RE =
+  /^exec(?:ute)?\s*(?:\(\s*|sp_executesql\s+(?:@stmt\s*=\s*)?|dbo\.sp_executesql\s+)?(@[A-Za-z_][\w@#$]*)/i;
 const DDL_IN_STRING_RE =
   /\b(?:alter\s+table|(?:create\s+or\s+)?alter\s+(?:proc(?:edure)?|function|trigger))\s+/gi;
 
@@ -305,7 +314,8 @@ function parseFile(qpath) {
   const edges = [];
   /** @type {ScanState} */
   const state = {
-    block: 0, string: false, elided: false, line: 0, body: "", bodyLine: 0, onLiteral: null,
+    block: 0, string: false, elided: false, line: 0, body: "", bodyLine: 0, bodyPrefix: "",
+    onLiteral: null,
   };
   /** @type {{qname: string, node: Node}|null} */
   let current = null;
@@ -324,9 +334,27 @@ function parseFile(qpath) {
   // File-level stamp when EXEC is dynamic or targets DYNAMIC_PROCS (296).
   let sawUnmodelledDynamicSql = false;
   let refusedName = false;
-  // Objects named by DDL inside string literals; emitted only if the file executes strings (321).
-  /** @type {Map<string, {target: string, line: number}>} */
+  // Objects named by DDL inside string literals, with what runs the string (321): the EXEC itself
+  // (`via` null), or the variable it was assigned to — kept only if an EXEC later runs that variable.
+  /** @type {Map<string, {target: string, line: number, via: string|null}>} */
   const stringDdl = new Map();
+  /** @type {Set<string>} */
+  const executedVars = new Set();
+  // The variable the current statement assigns, for a literal on a `+ N'…'` continuation line.
+  let assigning = /** @type {string|null} */ (null);
+
+  /**
+   * What runs a literal, read from the code before its opening quote: `EXEC (` / `sp_executesql`
+   * run it directly (""), `SET|DECLARE @v … =` stores it in `@v`, anything else runs nothing (null).
+   * @param {string} prefix
+   * @returns {string|null}
+   */
+  const runnerOf = (prefix) => {
+    if (DIRECT_EXEC_RE.test(prefix)) return "";
+    const assigned = ASSIGN_RE.exec(prefix);
+    if (assigned) return assigned[1].toLowerCase();
+    return /^\s*\+/.test(prefix) && assigning !== null ? assigning : null;
+  };
 
   /**
    * Record every DDL target in a literal body. A non-final body keeps its tail, so a verb cut by
@@ -338,6 +366,8 @@ function parseFile(qpath) {
    */
   state.onLiteral = (body, line, final) => {
     const cut = final ? body.length : body.length - LITERAL_KEEP;
+    const runner = runnerOf(state.bodyPrefix);
+    if (runner === null) return final ? "" : body.slice(cut);
     DDL_IN_STRING_RE.lastIndex = 0;
     let m;
     while ((m = DDL_IN_STRING_RE.exec(body)) !== null && m.index < cut) {
@@ -345,7 +375,7 @@ function parseFile(qpath) {
       const qname = named ? splitName(named.name) : null;
       if (!named || !qname || /^[@#]/.test(qname)) continue;
       if (ddl.isReservedObjectName(lastSegment(qname, "."), named.delimited)) continue;
-      stringDdl.set(`${qname}\u0000${line}`, { target: qname, line });
+      stringDdl.set(`${qname}\u0000${line}`, { target: qname, line, via: runner || null });
     }
     return final ? "" : body.slice(cut);
   };
@@ -681,6 +711,9 @@ function parseFile(qpath) {
     lineNo += 1;
     lastLine = lineNo;
     state.line = lineNo;
+    const opensAssignment = state.string ? null : ASSIGN_RE.exec(line.split("'")[0] ?? "");
+    if (opensAssignment) assigning = opensAssignment[1].toLowerCase();
+    else if (!state.string && !/^\s*\+/.test(line)) assigning = null;
     const code = stripToCode(line, state);
     // Blank lines still append to a pending CREATE so Column line math stays honest (254).
     if (code.trim() === "") {
@@ -789,6 +822,8 @@ function parseFile(qpath) {
       const dynamicProc = qname !== null && DYNAMIC_PROCS.has(qname.toLowerCase());
       if (dynamic || dynamicProc) {
         sawUnmodelledDynamicSql = true;
+        const ran = EXECUTED_VAR_RE.exec(code.slice(call.index));
+        if (ran) executedVars.add(ran[1].toLowerCase());
       }
       // A dynamic target is emitted, never dropped and never RESOLVED (AC7): the call site is a fact
       // even where the callee is not knowable, and the core decides what an unlinkable edge means.
@@ -841,14 +876,13 @@ function parseFile(qpath) {
   }
   flush();
   closeCurrent(lastLine);
-  // A DDL verb in a string the file never executes is a message, not a migration (321 AC6).
-  if (sawUnmodelledDynamicSql) {
-    for (const { target, line } of stringDdl.values()) {
-      edges.push({
-        kind: "ALTERS", source_qname: qpath, target_raw: target,
-        file_path: qpath, line, confidence_tier: "DYNAMIC",
-      });
-    }
+  // A DDL verb in a string nothing executes is a message, not a migration (321 AC6).
+  for (const { target, line, via } of stringDdl.values()) {
+    if (via !== null && !executedVars.has(via)) continue;
+    edges.push({
+      kind: "ALTERS", source_qname: qpath, target_raw: target,
+      file_path: qpath, line, confidence_tier: "DYNAMIC",
+    });
   }
 
   // Dialect rides File.extra — META_FIELDS is frozen (R3.1 / 217 precedent); a reader of any File
