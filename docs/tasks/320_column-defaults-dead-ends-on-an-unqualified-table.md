@@ -224,19 +224,16 @@ Rollback: revert the branch. Porting: single repo.
 
 Pre-change record — tree `660281a` plus the uncommitted proving test (historical): `.venv/bin/python -m pytest tests/test_column_defaults_bare_table.py -q` → `5 failed, 1 passed` (the pass is AC4, the regression that must hold both sides).
 
-Ran at 56372584b7233db16d36fe5dd0572d813d01295b
+Sweep record — tree `56372584b7233db16d36fe5dd0572d813d01295b` (historical: superseded by the Phase 4 gate run). Commands `git diff --name-only main..HEAD`, the two test files, mypy:
 
 ```
-$ git diff --name-only main..HEAD
 code_atlas/tools/check_column_defaults.py
 docs/BACKLOG.md
 docs/LESSONS.md
 docs/TOOLS.md
 docs/tasks/320_column-defaults-dead-ends-on-an-unqualified-table.md
 tests/test_column_defaults_bare_table.py
-$ .venv/bin/python -m pytest tests/test_column_defaults_bare_table.py tests/test_check_column_defaults.py -q --tb=no
 13 passed in 2.55s
-$ .venv/bin/mypy code_atlas
 Success: no issues found in 93 source files
 ```
 
@@ -251,6 +248,17 @@ REVIEWER: OFF (--no-reviewer)
 CHALLENGER: ON — round-1 CLEAN (22 of 22 met, 0 not met, 0 can't tell). Observation, no verdict: a qname defined in two files would list both sites — accurate (two definition sites), not changed.
 
 Verdict: `clean (challenger only — REVIEWER: OFF)`
+
+Ran at 5177220efd19954d16643e6a056a177a39ec2b56
+
+```
+$ scripts/gate.sh
+== summary ==
+  20 passed · 0 failed · 0 skipped
+GATE GREEN — all 20 checks passed
+```
+
+The first gate run (at `475f754`) was `19 passed · 1 failed`: `test_backlog_bookkeeping` wanted this ticket's ledger row, which needs the PR link. Code is unchanged between the two runs.
 
 `REVIEW: CLEAN`
 `SCOPE ≡ approved list: yes`
