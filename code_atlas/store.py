@@ -1936,8 +1936,8 @@ class GraphStore:
         raw = self._conn.execute(
             sql, (*qnames, *params, limit, offset)
         ).fetchall()
-        # Raw execute returns tuples — index by position, not Row keys.
-        # cols: id, source_qname, kind, target_qnames, file_path, line, tier_rank
+        # Raw execute returns tuples: id, source, kind, targets, file, line, tier_rank.
+        # Build via EDGE_ROW_KEYS so field names are not re-declared literals (R3.2).
         _tier_by_rank = {0: "RESOLVED", 1: "HEURISTIC", 2: "DYNAMIC"}
         rows: list[Row] = []
         for row in raw:
@@ -1951,17 +1951,20 @@ class GraphStore:
                     if "::" in t
                 }
             )
-            hit: Row = {
-                "id": row[0],
-                "source_qname": row[1],
-                "kind": row[2],
-                "target_raw": "",
-                "target_qname": "",
-                "file_path": row[4],
-                "line": row[5],
-                "confidence_tier": _tier_by_rank.get(int(row[6]), "RESOLVED"),
-                "columns": columns,
-            }
+            values = (
+                row[0],
+                row[2],
+                row[1],
+                "",
+                "",
+                row[4],
+                row[5],
+                _tier_by_rank.get(int(row[6]), "RESOLVED"),
+                None,
+                None,
+            )
+            hit: Row = dict(zip(EDGE_ROW_KEYS, values, strict=True))
+            hit["columns"] = columns
             rows.append(hit)
         return rows
 
