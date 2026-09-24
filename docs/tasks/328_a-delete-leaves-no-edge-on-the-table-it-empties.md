@@ -140,7 +140,7 @@ HOW2: MERGE emits DELETES only when a WHEN…DELETE action is present; insert/up
 
 **Branch:** feat/328-deletes-edge-kind
 
-Ran at PLACEHOLDER
+Ran at 200f26b13bee66e1132b380f9a6257188151fcae
 
 ```
 $ .venv/bin/python -m pytest tests/test_deletes_edge_kind.py -q
