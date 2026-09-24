@@ -34,7 +34,8 @@ from code_atlas.tools.nav_result import (
     REASON_SUBJECT_AMBIGUOUS,
     TRY_INSTEAD_FILE_OUTLINE,
     TRY_INSTEAD_HINT_MEMBER_SEPARATOR,
-    TRY_INSTEAD_SEARCH_SYMBOL,
+    TRY_INSTEAD_HINT_PATH_PREFIX,
+    TRY_INSTEAD_READ_SYMBOL,
     answered_about_ref_for,
     attach_ambiguous_definitions,
     attach_authoritative_caveats,
@@ -46,6 +47,8 @@ from code_atlas.tools.nav_result import (
     classify_missing_subject,
     definition_sites,
     is_stub,
+    is_under_path_prefix,
+    require_path_prefix,
     shape_exact_miss,
 )
 from code_atlas.tools.search_symbol import _column_reference_targets
@@ -93,6 +96,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         max_lines: int | None = None,
         line_start: int | None = None,
         line_end: int | None = None,
+        path_prefix: str | None = None,
     ) -> dict[str, object]:
         """Read just one symbol's source and its doc comment, without opening the whole file.
 
@@ -119,9 +123,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         Stub-indexed nodes carry ``stub: true`` (039). A qname with more than one definition
         returns ``reason=subject_ambiguous`` plus ``ambiguous_definitions`` and **no body** —
         empty ``source``, no ``file``/``line_*`` — so one region's code cannot be read while
-        ignoring the list (070 warn; 078 refuse). ``try_instead`` points at ``search_symbol`` /
-        ``file_outline``. An untracked indexable file matching the subject is
-        ``reason=not_indexed`` (092).
+        ignoring the list (070 warn; 078 refuse). ``try_instead`` points at ``read_symbol`` with
+        ``path_prefix`` (327); ``path_prefix`` filters definition rows first (315's validator).
+        An untracked indexable file matching the subject is ``reason=not_indexed`` (092).
 
         Bodies above BODY_LINE_THRESHOLD (600 lines — one site in ``source_slice``) elide by
         default: ``source`` is the signature line only, with ``body_elided: true``, ``line_count``,
@@ -139,6 +143,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             raise ValueError(f"line_start must be >= 1, got {line_start}")
         if line_end is not None and line_end < 1:
             raise ValueError(f"line_end must be >= 1, got {line_end}")
+        path_prefix = require_path_prefix(path_prefix)
         body_opts = _BodyOpts(
             full_body=full_body,
             max_lines=max_lines,
@@ -206,6 +211,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     if miss is not None:
                         return finalize_subject_checked_miss(_stamp(miss), guard)
             # Refuse before freshness — the list needs no file bytes (078 review).
+            # path_prefix filters definition rows before the multiplicity test (327).
+            rows, prefix_miss = _apply_path_prefix(
+                rows, path_prefix, qname=qname, detail_level=detail_level, config=config
+            )
+            if prefix_miss is not None:
+                return _stamp(prefix_miss)
             if len(rows) > 1:
                 return _stamp(
                     _refuse_ambiguous(qname, rows, detail_level=detail_level, config=config)
@@ -247,9 +258,17 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     )
                     if miss is not None:
                         return _stamp(miss)
+                rows, prefix_miss = _apply_path_prefix(
+                    rows, path_prefix, qname=qname,
+                    detail_level=detail_level, config=config,
+                )
+                if prefix_miss is not None:
+                    return _stamp(prefix_miss)
                 if len(rows) > 1:
                     return _stamp(
-                        _refuse_ambiguous(qname, rows, detail_level=detail_level, config=config)
+                        _refuse_ambiguous(
+                            qname, rows, detail_level=detail_level, config=config
+                        )
                     )
                 node = rows[0]
                 rel = str(node["file_path"])
@@ -581,6 +600,27 @@ def _attach_mirror_twin(
         attach_authoritative_caveats(payload, [CAVEAT_MIRROR_TWIN])
 
 
+def _apply_path_prefix(
+    rows: list[dict[str, object]],
+    path_prefix: str | None,
+    *,
+    qname: str,
+    detail_level: str,
+    config: Config,
+) -> tuple[list[dict[str, object]], dict[str, object] | None]:
+    """Filter definition rows by path_prefix; empty ⇒ no_such_symbol naming the filter (327)."""
+    if path_prefix is None:
+        return rows, None
+    kept = [row for row in rows if is_under_path_prefix(str(row["file_path"]), path_prefix)]
+    if kept:
+        return kept, None
+    miss = _miss_result(
+        qname, detail_level=detail_level, config=config, reason=REASON_NO_SUCH_SYMBOL
+    )
+    miss["path_prefix"] = path_prefix
+    return [], miss
+
+
 def _refuse_ambiguous(
     qname: str,
     rows: list[dict[str, object]],
@@ -606,7 +646,8 @@ def _refuse_ambiguous(
             ),
             sites,
         ),
-        TRY_INSTEAD_SEARCH_SYMBOL,
+        TRY_INSTEAD_READ_SYMBOL,
+        TRY_INSTEAD_HINT_PATH_PREFIX,
     )
 
 

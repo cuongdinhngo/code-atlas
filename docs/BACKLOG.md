@@ -19,7 +19,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 
 | # | Task | Theme | Status | Depends on |
 |---|---|---|---|---|
-| 327 | [Ambiguous read_symbol has no way out](tasks/327_an-ambiguous-read-has-no-way-out.md) | Agent-trust | todo | 070, 078, 315, 049 |
 | 328 | [A DELETE leaves no edge on its table](tasks/328_a-delete-leaves-no-edge-on-the-table-it-empties.md) | Coverage | todo | 022, 278, 321 |
 | 329 | [Table writers repeat per named column](tasks/329_a-table-writer-list-repeats-each-statement-per-column.md) | Agent-trust | todo | 278 |
 | 330 | [impact signs a zero unlinked sites contradict](tasks/330_impact-signs-a-zero-its-own-unlinked-sites-contradict.md) | Agent-trust | todo | 065, 272, 314 |
