@@ -461,7 +461,7 @@ def _search_one(
     from code_atlas.mirror_search import attach_mirror_search_fields
 
     stamp, indexed = mirrors
-    order = attach_mirror_search_fields(results, stamp, indexed)
+    order = attach_mirror_search_fields(results, stamp, indexed, store=store)
     return _Hits(results, truncated, reason, total_count, residue, (), order)
 
 

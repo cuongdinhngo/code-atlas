@@ -299,7 +299,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 _attach_columns(payload, store, node, config=config, limit=limit, offset=offset)
                 _attach_supertypes(payload, store, node, rel)
             _attach_stored_fields(payload, store, node, stored_fields=stored_fields)
-            _attach_mirror_twin(payload, store, rel)
+            _attach_mirror_twin(
+                payload,
+                store,
+                rel,
+                kind=str(node["kind"]),
+                name=str(node["name"]),
+            )
             attach_other_indexed_files_drifted(payload, guard)
             return attach_next_tools(payload, str(node["kind"]))
 
@@ -583,9 +589,14 @@ def _attach_supertypes(
 
 
 def _attach_mirror_twin(
-    payload: dict[str, object], store: GraphStore, file_path: str
+    payload: dict[str, object],
+    store: GraphStore,
+    file_path: str,
+    *,
+    kind: str,
+    name: str,
 ) -> None:
-    """Name an indexed mirror twin on a found hit, or the honest negative (286).
+    """Name an indexed mirror twin on a found hit, or the honest negative (286/331).
 
     Every kind on a stamped pair — the belief "this is the code that runs" forms on Class
     and Method alike (ticket Scope). No stamp ⇒ no cost (061).
@@ -596,7 +607,15 @@ def _attach_mirror_twin(
     if not stamp or not stamp.get("pairs"):
         return
     indexed = frozenset(store.file_paths())
-    if attach_mirror_read_fields(payload, file_path, stamp, indexed):
+    if attach_mirror_read_fields(
+        payload,
+        file_path,
+        stamp,
+        indexed,
+        kind=kind,
+        name=name,
+        store=store,
+    ):
         attach_authoritative_caveats(payload, [CAVEAT_MIRROR_TWIN])
 
 
