@@ -161,12 +161,20 @@ target — HOW2; a SQL parser in the PHP adapter — R1.4.
 
 **Branch:** fix/335-sql-in-a-php-string-emits-edges
 
-Ran at eea87956909b70ef58521c01d30c1bae9aae1120
+Ran at 644a03c7543bbe0f56c695c6d6c8a9fb6496067c
 
 ```
 $ .venv/bin/python -m pytest tests/test_sql_in_a_php_string.py -q
-4 passed
+5 passed
+$ scripts/gate.sh
+GATE GREEN — all 20 checks passed
+$ scripts/docker-test.sh
+4588 passed, 5 skipped
 ```
+
+`644a03c` is the reviewed source (`f82330a`) with 334/336 merged in and bookkeeping; later commits
+are docs only. The first gate run there was RED on phpstan alone — its shared cache (`/tmp/phpstan`)
+still named the deleted scratch worktree's phar; the 590 stale entries were removed and the gate re-run.
 
 Red arm on `main` (`54dafed` visitor, `SqlLiteral` absent): 4 of 4 fail — AC3/AC4 are pinned in the
 same line set as the positive sites, so they fail with them. `phpstan level max`: no errors. A 23-case
