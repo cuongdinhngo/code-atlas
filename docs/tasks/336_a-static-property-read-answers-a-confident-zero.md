@@ -4,7 +4,7 @@ slug: a-static-property-read-answers-a-confident-zero
 title: "find_references on a PHP static property answers a bare no_matches — the adapter emits no edge for Class::$prop, and the honesty check is per language, so the zero passes as measured"
 phase: 1.5b
 milestone: Agent-trust
-status: in-progress
+status: done
 depends_on: [186, 232]
 ---
 
@@ -66,9 +66,9 @@ not claim a zero.
 
 - **Ticket:** 336 · local · **SCOPE:** S · **TIER:** full · **TRACK:** backend
 - **REVIEWER:** OFF (`--no-reviewer`) · **CHALLENGER:** ON
-- **Current phase:** execute
-- **Session status:** in-progress — autorun
-- **Reviewed at:** —
+- **Current phase:** finalise
+- **Session status:** done — autorun, PR open (stacked on 334)
+- **Reviewed at:** `bf15c68` (challenger round 1, CLEAN) · reviewed: adapters/php/src/Visitor.php · tests/test_static_property_fetch_references.py · tests/fixtures/php/static_property_fetch.php · working doc: this file. Rebased onto 334 as `869fd03`, patch-id identical (`4a7dde97`).
 
 ## Phase 0 — Refine
 
@@ -155,4 +155,26 @@ Red arm on `main` (`54dafed`): AC1 and AC2 fail, AC3 passes (nothing emitted bef
 qname, `static::` → HEURISTIC, `$cls::$flag` / `Cfg::$$n` → nothing.
 
 Design conformance: D1–D3 implemented-as-approved.
+
+## Phase 4 — Review
+
+REVIEWER: OFF (`--no-reviewer`) · CHALLENGER: ON — round 1 on `bf15c68`: **CLEAN 7 met / 0 not met /
+1 can't tell**. Verdict: `clean (challenger only — REVIEWER: OFF)`. Probed beyond the ACs: writes
+(`Cfg::$x = 1`, `[]=`, `++`, `isset`), a trait's `self::$tp`, an aliased class (`use … as Y; Y::$p`)
+— all emit onto the declaring qname; 518 PHP-tagged tests green.
+
+| # | Note | Disposition |
+|---|---|---|
+| 1 | Scope 2's "decided before code" is not provable from the diff — the BACKLOG follow-up landed in the docs commit after the code commit | true, disclosed: the decision (HOW1) was taken before the arm was written but recorded afterwards |
+
+## Phase 5 — Finalise (learning loop)
+
+Lesson: `docs/LESSONS.md` § 336 (`an-unvisited-node-type-is-a-zero-the-honesty-check-cannot-see`, first sighting).
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+`LEDGER TOTAL: 66866 · top cost driver: review/challenger ×1 (1 dispatch; main-loop unmeasured)`
 

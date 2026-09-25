@@ -1658,3 +1658,13 @@ venv or the PHPStan tmpDir is rebuilt from a wrong-cased cwd.*
   can be spent on one qname's twins and hide a second qname. Rank qnames inside the query.
 - destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)
 
+## 336 — a node type no visitor arm handles is a zero the honesty check cannot see
+
+- type: 2 (code) · handle: `an-unvisited-node-type-is-a-zero-the-honesty-check-cannot-see`
+- status: proposed · seen: 336
+- evidence: `find_references \App\Cfg::$flag` answered a bare `no_matches` because the PHP visitor
+  had no `StaticPropertyFetch` arm; the per-language check (`coverage.py:41`) saw PHP emit
+  `REFERENCES` from type hints and accepted the zero. "The language emits this kind" is not "every
+  construct that means this relation emits it" — the residual is named per construct (BACKLOG).
+- destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)
+
