@@ -51,6 +51,9 @@ final class SqlLiteral
         $verb = str_starts_with($verb, 'exec') ? 'exec' : $verb;
         $name = '/\G' . self::NAME_PART . '(?:\s*\.\s*' . self::NAME_PART . ')*/';
         $start = strlen($m[0]);
+        if ($verb === 'exec' && preg_match('/\G@[A-Za-z_]\w*\s*=\s*/', $text, $rc, 0, $start) === 1) {
+            $start += strlen($rc[0]);  // `EXEC @rc = dbo.P …` — the return-code capture form
+        }
         if (preg_match($name, $text, $n, 0, $start) !== 1) {
             return null;
         }
@@ -75,8 +78,8 @@ final class SqlLiteral
         if (!$qualified || ($verb !== 'delete' && $verb !== 'exec')) {
             return false;
         }
-        // The name must end inside the literal — at its close, or before whitespace or `;`.
-        return ($closed && $rest === '') || preg_match('/\A[\s;]/', $rest) === 1;
+        // The statement ends: at the literal's close, or `;`, or only whitespace before an open end.
+        return $rest === '' ? $closed : preg_match('/\A\s*(?:;|\z)/', $rest) === 1;
     }
 
     /** @return list<string> the dotted name's parts, delimiters removed */

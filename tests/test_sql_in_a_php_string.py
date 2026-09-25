@@ -16,11 +16,13 @@ from code_atlas.config import Config, load_config
 from code_atlas.indexer import full_build
 from code_atlas.store import GraphStore
 from code_atlas.tools import find_callers, find_references
-from tests.php_adapter_cli import ENTRY, FIXTURES, PHP, ROOT, needs_php, parse_file
+from tests.php_adapter_cli import ENTRY, PHP, ROOT, needs_php, parse_file
 from tests.sql_adapter_cli import CLI as SQL_CLI
 from tests.sql_adapter_cli import needs_node
 
-FIXTURE = FIXTURES.relative_to(ROOT) / "sql_in_string.php"
+# Outside tests/fixtures/php/: the parity corpus globs that directory and expects no PHP WRITES.
+FIXTURE_PATH = ROOT / "tests" / "fixtures" / "php_sql_literal" / "repo.php"
+FIXTURE = FIXTURE_PATH.relative_to(ROOT)
 SOURCE = "\\App\\Repo::save"
 SQL = (
     "CREATE TABLE dbo.T (a INT)\nGO\nCREATE TABLE dbo.S (a INT)\nGO\n"
@@ -41,7 +43,7 @@ def _sql_edges() -> set[tuple[str, str, int, str | None]]:
 
 def _index(root: Path) -> Config:
     (root / "src").mkdir()
-    shutil.copy(FIXTURES / "sql_in_string.php", root / "src" / "repo.php")
+    shutil.copy(FIXTURE_PATH, root / "src" / "repo.php")
     (root / "db").mkdir()
     (root / "db" / "schema.sql").write_text(SQL, encoding="utf-8")
     argv = ", ".join(f"'{part}'" for part in (*SQL_CLI.entry_argv, "--server"))
@@ -89,7 +91,13 @@ def test_each_statement_shape_emits_its_kind() -> None:
     assert ("WRITES", "dbo.T", 17, "HEURISTIC") in edges
 
 
+def test_the_return_code_exec_form_is_a_call() -> None:
+    """AC2 — ``EXEC @rc = dbo.Gen …`` captures a return code; it still calls ``dbo.Gen``."""
+    assert ("CALLS", "dbo.Gen", 26, "HEURISTIC") in _sql_edges()
+
+
 def test_what_is_not_a_statement_emits_nothing() -> None:
-    """AC3 / AC4 — an interpolated target, a mention, prose, and a name a concatenation extends."""
+    """AC3 / AC4 — an interpolated target, a mention, prose (also after a real qualified name),
+    and a name a concatenation extends."""
     lines = {line for _, _, line, _ in _sql_edges()}
-    assert lines == {9, 10, 13, 17}, "lines 11, 12, 14, 15 must emit nothing"
+    assert lines == {9, 10, 13, 17, 26}, "lines 11, 12, 14, 15, 27 must emit nothing"

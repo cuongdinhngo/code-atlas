@@ -20,4 +20,10 @@ class Repo
             SQL;
         return $sql . $q;
     }
+
+    public function more($db)
+    {
+        $db->run('EXEC @rc = dbo.Gen @x = 1');
+        $db->run('Delete from dbo.T after archiving');
+    }
 }
