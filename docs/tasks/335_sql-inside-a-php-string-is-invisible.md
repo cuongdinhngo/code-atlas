@@ -66,7 +66,7 @@ names, at a tier that says it was read from text.
 
 - **Ticket:** 335 · local · **SCOPE:** M · **TIER:** full · **TRACK:** backend
 - **REVIEWER:** OFF (`--no-reviewer`) · **CHALLENGER:** ON
-- **Current phase:** execute
+- **Current phase:** review
 - **Session status:** in-progress — autorun
 - **Reviewed at:** —
 
@@ -173,4 +173,29 @@ same line set as the positive sites, so they fail with them. `phpstan level max`
 probe of `SqlLiteral::read` (prose, temp tables, `EXEC('…')`, open literals) matches HOW1–3.
 
 Design conformance: D1–D4 implemented-as-approved.
+
+## Phase 4 — Review
+
+REVIEWER: OFF (`--no-reviewer`) · CHALLENGER: ON.
+
+**Round 1** on `8ed0376` (pre-rebase; same patch as `c380e76`): **NOT-CLEAN 13 met / 1 not met / 0
+can't tell.** The same tree's full suite also showed two failures the challenger did not name. All are
+fixed in `f82330a`:
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | HIGH — the fixture sat in `tests/fixtures/php/`, which the tool-parity corpus globs; `test_tool_parity[php:check_column_defaults]` expects PHP to emit no `WRITES` | fixture moved to `tests/fixtures/php_sql_literal/repo.php` |
+| 2 | MEDIUM — `EXEC @rc = dbo.P …` (return-code capture) emitted nothing | `SqlLiteral` skips an `@name =` after EXEC; arm `test_the_return_code_exec_form_is_a_call` |
+| 3 | LOW-MED — `"Delete from dbo.Orders after archiving"` emitted `DELETES` | a qualified DELETE/EXEC ends only at the literal's close or `;` (whitespace alone before an open end); arm in the emit-nothing line set |
+| 4 | LOW — temp tables / table variables skipped | kept: no persistent node to link |
+| 5 | LOW — can a `DELETES`/`CALLS` link a PHP symbol? | traced: `DELETES` links by exact FQN only (not in `_SCHEMA_OBJECT_KINDS`); a qualified `CALLS` miss reaches the bare-name Method fallback as `dbo.P`, which no PHP method name can equal |
+| suite | `test_no_core_module_names_a_language[find_references.py]` — the description named "PHP" (R1.1) | reworded language-neutral |
+| suite | `test_a_standing_doc_stays_under_its_budget[PLAN.md]` — `main` sat 1 token under | §19 entry rewritten to cost what it replaced (24,149 / 24,150) |
+
+**Round 2 — verify-only, main loop** (every fix inside a named finding and the approved file set —
+review's re-dispatch trigger did not fire): each fix present as described; the affected proofs
+re-run — `tests/test_sql_in_a_php_string.py`, `tests/contract/test_tool_parity.py`,
+`tests/test_core_is_language_agnostic.py`, `tests/test_doc_size_budget.py` → 498 passed; regression
+scan = the full suite (Phase 3). Verdict: `clean (challenger only — REVIEWER: OFF)`, the round-2
+confirmation made by the implementer, not the challenger.
 
