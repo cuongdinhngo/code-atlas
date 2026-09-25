@@ -22,7 +22,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
-| 334 | [A name declared twice counts as two candidates — a bare EXEC links nowhere, and a partial caller list answers ok](tasks/334_a-name-declared-twice-is-counted-as-two-candidates.md) | Agent-trust | todo | 214, 215, 321 |
+| 334 | [A name declared twice counts as two candidates — a bare EXEC links nowhere, and a partial caller list answers ok](tasks/334_a-name-declared-twice-is-counted-as-two-candidates.md) | Agent-trust | in-progress | 214, 215, 321 |
 | 335 | [SQL inside a PHP string emits no edge](tasks/335_sql-inside-a-php-string-is-invisible.md) | Coverage | todo | 222, 328 |
 | 336 | [A static property read answers a confident zero](tasks/336_a-static-property-read-answers-a-confident-zero.md) | Agent-trust | todo | 186, 232 |
 | 337 | [The elision hint names the default, not the cap that fired](tasks/337_the-elision-hint-names-the-default-not-the-cap-that-fired.md) | Agent-trust | todo | 288 |
