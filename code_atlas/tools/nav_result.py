@@ -857,7 +857,8 @@ CAVEAT_TIER_PARTITION = "tier_partition"
 CAVEAT_WRITES_EMITTERS_ONLY = "writes_emitters_only"
 # Mirror twin on read_symbol — boundary, never a dispatch verdict (286).
 CAVEAT_MIRROR_TWIN = "mirror_twin"
-# Impact modelled zero with unlinked same-name inbound on a method seed (330).
+# Unlinked same-name inbound remain beside the answer: impact's method seed (330), a Function's
+# callers (334).
 CAVEAT_UNLINKED_SAME_NAME_SITES = "unlinked_same_name_sites"
 CAVEAT_LIMIT_CROSS_LANGUAGE = (
     "This answer is reachability within one language's call graph and does not "
@@ -872,8 +873,8 @@ CAVEAT_LIMIT_MIRROR_TWIN = (
     "which side a request reaches."
 )
 CAVEAT_LIMIT_UNLINKED_SAME_NAME_SITES = (
-    "Resolver-linked impact is empty but unlinked same-name CALLS remain — not a closed zero; "
-    "re-ask find_callers or Grep the method name as text."
+    "Unlinked same-name CALLS remain beside the resolver-linked answer — not a closed list; "
+    "Grep the name as text."
 )
 CAVEAT_LIMITS: dict[str, str] = {
     CAVEAT_CROSS_LANGUAGE_UNMODELLED: CAVEAT_LIMIT_CROSS_LANGUAGE,
