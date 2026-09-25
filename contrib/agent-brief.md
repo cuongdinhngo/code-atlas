@@ -65,7 +65,7 @@ The index holds what the adapters parsed, so a question whose answer is an **abs
 
 - **Narrow a large `search_symbol` page with `kind:` or `namespace`.** A common token across File/Class/Method rows is not a reason to eyeball hundreds of hits — pass `kind` (a contract node kind) or `namespace` and re-ask.
 - **Scope a `search_symbol` / `find_references` / `read_symbol` page to a subtree with `path_prefix`.** An index-root-relative plain prefix (`src/`); a hit outside it answers `path_excluded` (search/refs) or `no_such_symbol` naming the filter (read) — not a silent wrong body (315/327).
-- **`find_references` on a Table or Column returns its writers** — linked `WRITES` only (278). Prefer that over asking who calls a nearby method when the question is *what writes this column*.
+- **`find_references` on a Table or Column returns its writers** — linked `WRITES`, plus `DELETES` on the Table (278/328). Prefer that over asking who calls a nearby method when the question is *what writes this column*.
 - **A dynamic-SQL / `EXEC`-created object is not a symbol.** Grep the SQL text; the index reads as absence. `find_orphans` then says `status=resolution_unmodelled` when a language stamped `dynamic_sql` (296).
 - **A runtime-loaded module is not an edge either.** A non-literal `import()` / `require()` / `importlib` stamps `dynamic_import`, a registered class autoloader stamps `autoload`: the target is never linked, so a missing importer is not proof of none — Grep the loader call. `find_orphans` answers `status=resolution_unmodelled` for either (279/294/295).
 - **`find_orphans` has no path scope** — it walks the whole index from `CA_ENTRY_POINTS`. Do not expect a directory filter.

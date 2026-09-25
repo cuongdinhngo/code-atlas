@@ -574,11 +574,37 @@ function isReservedObjectName(name, delimited) {
  * @returns {{table: string}|null}
  */
 function readDelete(code) {
-  const m = /\bdelete\s+(?:top\s*\([^)]*\)\s*)?(?:from\s+)?/i.exec(code);
-  if (!m) return null;
-  const target = readQualified(code, m.index + m[0].length);
-  if (!target) return null;
-  return { table: target.name };
+  const re = /\bdelete\s+(?:top\s*\([^)]*\)\s*(?:percent\s+)?)?(?:from\s+)?/gi;
+  for (let m = re.exec(code); m; m = re.exec(code)) {
+    // `FOR` / `AFTER` / `INSTEAD OF` / `ON DELETE` name a trigger or FK event, not a statement.
+    if (/(?:\bfor|\bafter|\bof|\bon|,)\s*$/i.test(code.slice(0, m.index))) continue;
+    const target = readQualified(code, m.index + m[0].length);
+    if (!target || target.name.toLowerCase() === "as") continue;
+    if (isReservedObjectName(target.name, target.delimited)) continue;
+    return { table: deleteAliasTable(code, target) ?? target.name };
+  }
+  return null;
+}
+
+/**
+ * `DELETE c FROM dbo.T c JOIN …` names an alias first; the table is the FROM source it aliases.
+ * @param {string} code
+ * @param {{name: string, next: number}} target
+ * @returns {string|null}
+ */
+function deleteAliasTable(code, target) {
+  const tail = code.slice(target.next);
+  if (!/^\s*from\b/i.test(tail)) return null;
+  const alias = target.name.toLowerCase();
+  const source = /\b(?:from|join)\s+/gi;
+  for (let m = source.exec(tail); m; m = source.exec(tail)) {
+    const table = readQualified(tail, m.index + m[0].length);
+    if (!table) continue;
+    const named = /^\s+(?:as\s+)?/i.exec(tail.slice(table.next));
+    const next = named ? readIdent(tail, table.next + named[0].length) : null;
+    if (next && next.name.toLowerCase() === alias) return table.name;
+  }
+  return null;
 }
 
 /**

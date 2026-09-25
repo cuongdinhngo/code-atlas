@@ -131,3 +131,27 @@ def test_deletes_is_contract_v12_vocabulary() -> None:
     assert "DELETES" in contract.EDGE_KINDS
     assert "DELETES" in contract.FQN_EDGE_KINDS
     assert "DELETES" not in contract.IMPACT_KINDS
+
+
+TRIGGER_AND_ALIAS = """\
+CREATE TRIGGER dbo.trg_T ON dbo.T
+FOR DELETE
+AS
+    SELECT 1;
+GO
+CREATE PROCEDURE dbo.Alias_Clear_T
+AS
+    DELETE t FROM dbo.T t JOIN dbo.T o ON o.Id = t.Id;
+GO
+"""
+
+
+@needs_node
+def test_trigger_event_and_alias_do_not_mislabel_the_table(tmp_path: Path) -> None:
+    """`FOR DELETE` is an event, not a statement; `DELETE t FROM dbo.T t` deletes from dbo.T."""
+    cfg = _index(tmp_path, TRIGGER_AND_ALIAS)
+    with GraphStore(cfg.db_path) as store:
+        linked = store.edges_by_target("dbo.T", kinds=("DELETES",), limit=64)
+        every = store.edges_by_source("dbo.trg_T", limit=64)
+    assert {str(r["source_qname"]) for r in linked} == {"dbo.Alias_Clear_T"}
+    assert not [r for r in every if r["kind"] == "DELETES"]
