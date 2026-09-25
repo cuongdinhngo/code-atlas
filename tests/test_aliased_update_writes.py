@@ -66,6 +66,11 @@ CREATE PROCEDURE dbo.Orphan_Upd
 AS
     UPDATE q SET X = 1 FROM dbo.T c;
 GO
+CREATE PROCEDURE dbo.Unterminated_Upd
+AS
+    UPDATE q SET X = 1 FROM dbo.T t WHERE t.Id > 0
+    SELECT * FROM dbo.U q
+GO
 """
 
 
@@ -131,12 +136,18 @@ def test_unmatched_alias_keeps_the_named_target(tmp_path: Path) -> None:
     """Scope 2 — no FROM source carries the alias, so no table is guessed."""
     cfg = _index(tmp_path, UNRESOLVED)
     assert [raw for raw, _, _ in _writes(cfg, "dbo.Orphan_Upd")] == ["q::X"]
+    assert [raw for raw, _, _ in _writes(cfg, "dbo.Unterminated_Upd")] == ["q::X"]
 
 
 DERIVED_DELETE = """\
 CREATE PROCEDURE dbo.Derived_Del
 AS
     DELETE c FROM (SELECT Id FROM dbo.U c) sub JOIN dbo.T c ON c.Id = sub.Id;
+GO
+CREATE PROCEDURE dbo.Unterminated_Del
+AS
+    DELETE q FROM dbo.T t WHERE t.Id > 0
+    SELECT * FROM dbo.U q
 GO
 """
 
@@ -147,4 +158,6 @@ def test_the_shared_resolver_scopes_a_derived_delete_alias_too(tmp_path: Path) -
     cfg = _index(tmp_path, DERIVED_DELETE)
     with GraphStore(cfg.db_path) as store:
         rows = store.edges_by_source("dbo.Derived_Del", limit=64)
+        tail = store.edges_by_source("dbo.Unterminated_Del", limit=64)
     assert [str(r["target_qname"]) for r in rows if r["kind"] == "DELETES"] == ["dbo.T"]
+    assert "dbo.U" not in {str(r["target_qname"]) for r in tail if r["kind"] == "DELETES"}
