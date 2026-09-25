@@ -516,7 +516,8 @@ function readUpdate(code) {
     const name = dotted ? (dotted.name.split(".").pop() ?? ident.name) : ident.name;
     columns.push(name);
   }
-  return { table: target.name, columns };
+  // `UPDATE c SET … FROM dbo.T c` names an alias; its table is the FROM source (333).
+  return { table: aliasSourceTable(code, target.next + set.index, target) ?? target.name, columns };
 }
 
 /**
@@ -581,23 +582,35 @@ function readDelete(code) {
     const target = readQualified(code, m.index + m[0].length);
     if (!target || target.name.toLowerCase() === "as") continue;
     if (isReservedObjectName(target.name, target.delimited)) continue;
-    return { table: deleteAliasTable(code, target) ?? target.name };
+    const from = /^\s*from\b/i.test(code.slice(target.next)) ? target.next : -1;
+    return { table: (from < 0 ? null : aliasSourceTable(code, from, target)) ?? target.name };
   }
   return null;
 }
 
 /**
- * `DELETE c FROM dbo.T c JOIN …` names an alias first; the table is the FROM source it aliases.
+ * The top-level FROM / JOIN source that `target` aliases, scanning `code` from offset `from` — the
+ * one alias resolver for `DELETE c FROM dbo.T c` (328) and `UPDATE c SET … FROM dbo.T c` (333).
+ * A source inside parentheses scopes its own alias and is skipped; a bare top-level statement
+ * keyword ends the statement (T-SQL needs no `;`); a delimited `[Select]` is a name, not one (333).
  * @param {string} code
- * @param {{name: string, next: number}} target
+ * @param {number} from
+ * @param {{name: string}} target
  * @returns {string|null}
  */
-function deleteAliasTable(code, target) {
-  const tail = code.slice(target.next);
-  if (!/^\s*from\b/i.test(tail)) return null;
+function aliasSourceTable(code, from, target) {
+  const tail = code.slice(from);
   const alias = target.name.toLowerCase();
-  const source = /\b(?:from|join)\s+/gi;
+  const source = /\b(?:(?:from|join)\s+|(?<![["])(select|insert|update|delete|merge|exec|execute)\b(?![\]"]))/gi;
+  let depth = 0;
+  let seen = 0;
   for (let m = source.exec(tail); m; m = source.exec(tail)) {
+    for (; seen < m.index; seen++) {
+      if (tail[seen] === "(") depth += 1;
+      else if (tail[seen] === ")") depth -= 1;
+    }
+    if (depth !== 0) continue;
+    if (m[1]) break;
     const table = readQualified(tail, m.index + m[0].length);
     if (!table) continue;
     const named = /^\s+(?:as\s+)?/i.exec(tail.slice(table.next));
