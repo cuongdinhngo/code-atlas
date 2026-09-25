@@ -154,6 +154,11 @@ Red arm on `main` (`54dafed`): AC1 and AC2 fail, AC3 passes (nothing emitted bef
 `phpstan level max`: no errors. Probe: `self::` → `\App\Cfg::$flag`, `parent::` → the parent's
 qname, `static::` → HEURISTIC, `$cls::$flag` / `Cfg::$$n` → nothing.
 
+Full verification at `69cd3ec` (rebased onto 334; source = the reviewed patch plus 334): `scripts/gate.sh`
+→ `GATE GREEN — all 20 checks passed`; `scripts/docker-test.sh` → `4583 passed, 5 skipped` (Linux host,
+Docker). The worktree run's one failure (`test_setup_script` pip-less arm) was its `PYTHONPATH`
+leaking into the pip-less interpreter; it passes in both runs above. Later commits are docs only.
+
 Design conformance: D1–D3 implemented-as-approved.
 
 ## Phase 4 — Review
