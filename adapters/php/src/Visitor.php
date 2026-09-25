@@ -67,6 +67,13 @@ final class Visitor extends NodeVisitorAbstract
     /** @var list<array<string, string>> */
     private array $stringLocalsStack = [];
 
+    /**
+     * Literals a concatenation continues, by ``spl_object_id``: their end does not end the SQL (335).
+     *
+     * @var array<int, true>
+     */
+    private array $continuedLiterals = [];
+
     /** Declared member types for the class-likes in THIS file; empty when nothing collected them. */
     private readonly MemberTypes $members;
 
@@ -290,6 +297,20 @@ final class Visitor extends NodeVisitorAbstract
             $this->enterClassConstFetch($node);
         } elseif ($node instanceof Node\Expr\StaticPropertyFetch) {
             $this->enterStaticPropertyFetch($node);
+        } elseif ($node instanceof Node\Expr\BinaryOp\Concat) {
+            // Parents are entered before children, so the left literal is marked before it is read.
+            $left = $node->left;
+            while ($left instanceof Node\Expr\BinaryOp\Concat) {
+                $left = $left->right;
+            }
+            $this->continuedLiterals[spl_object_id($left)] = true;
+        } elseif ($node instanceof Node\Scalar\String_) {
+            $this->enterSqlLiteral($node, $node->value, !isset($this->continuedLiterals[spl_object_id($node)]));
+        } elseif ($node instanceof Node\Scalar\InterpolatedString
+            && ($node->parts[0] ?? null) instanceof Node\InterpolatedStringPart
+        ) {
+            // Only the literal before the first interpolation is text; a name cut by it is no name.
+            $this->enterSqlLiteral($node, $node->parts[0]->value, false);
         }
     }
 
@@ -312,6 +333,20 @@ final class Visitor extends NodeVisitorAbstract
             $node->getStartLine(),
             $tier,
         );
+    }
+
+    /** A literal that begins a T-SQL write or EXEC emits that edge, read from text (335). */
+    private function enterSqlLiteral(Node\Scalar $node, string $text, bool $closed): void
+    {
+        $statement = SqlLiteral::read($text, $closed);
+        if ($statement === null) {
+            return;
+        }
+        $doc = [Node\Scalar\String_::KIND_HEREDOC, Node\Scalar\String_::KIND_NOWDOC];
+        $heredoc = in_array($node->getAttribute('kind'), $doc, true);
+        $line = $node->getStartLine() + ($heredoc ? 1 : 0)
+            + substr_count(substr($text, 0, $statement['offset']), "\n");
+        $this->edge($statement['kind'], $this->container(), $statement['target'], $line, 'HEURISTIC');
     }
 
     /** ``Foo::class`` is a textual class mention — not a call and not ``new`` (task 094). */

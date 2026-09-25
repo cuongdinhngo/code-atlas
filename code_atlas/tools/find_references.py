@@ -251,8 +251,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         per-edge set. ``DELETES`` target the Table only. When the graph still holds
         unlinked writers, ``unlinked_writes_count`` names them. On a multi-language
         index the answer carries ``writes_emitters_only`` when a covered language
-        emits no ``WRITES`` — host-language string writes are out of scope
-        (§19 / 281). ``REFERENCES`` (a ``Foo::class`` mention) is FQN-linked at
+        emits no ``WRITES``. A PHP literal that begins a T-SQL write or ``EXEC`` is read
+        at ``HEURISTIC``; SQL assembled at runtime is not (§19 / 281 / 335). ``REFERENCES`` (a ``Foo::class`` mention) is FQN-linked at
         ``DYNAMIC`` — a candidate list, not a proven use. When every returned hit
         is ``DYNAMIC``, the payload sets ``authoritative: false``. When another
         language is indexed but no linked ``*->L`` pair reaches the subject's

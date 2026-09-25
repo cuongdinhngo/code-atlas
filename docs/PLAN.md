@@ -1018,7 +1018,9 @@ served/refused families + opt-in + `changed_indexed_between`; suggestions not re
 **Decision — Table/Column writers via find_references (278; 281, 2026-09-15).** Linked `WRITES`
 only; Table = table ∪ its columns; `unlinked_writes_count` when >0. **281:** the caveat
 (`writes_emitters_only`) keys on which languages emit `WRITES`, never their count.
-**Host-language string writes out of scope.**
+**335 (2026-09-25):** a PHP literal that *begins* a T-SQL write or `EXEC` (keyword, one name, the
+clause T-SQL requires) emits `WRITES`/`DELETES`/`CALLS` at `HEURISTIC`; SQL assembled at runtime
+stays unread. [335](tasks/335_sql-inside-a-php-string-is-invisible.md).
 [278](tasks/278_the-writer-set-is-computed-for-one-check-and-addressable-from-nothing.md) ·
 [281](tasks/281_the-writes-sql-half-caveat-keys-on-language-count-not-the-emitting-adapter.md).
 
