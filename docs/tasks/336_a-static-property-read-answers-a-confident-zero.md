@@ -4,7 +4,7 @@ slug: a-static-property-read-answers-a-confident-zero
 title: "find_references on a PHP static property answers a bare no_matches — the adapter emits no edge for Class::$prop, and the honesty check is per language, so the zero passes as measured"
 phase: 1.5b
 milestone: Agent-trust
-status: done
+status: in-progress
 depends_on: [186, 232]
 ---
 
