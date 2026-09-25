@@ -501,6 +501,21 @@ def _chunks(values: Sequence[str], size: int) -> Iterator[Sequence[str]]:
         yield values[start : start + size]
 
 
+def _rank_window(partition: str, qname: str, distinct_qnames: bool) -> tuple[str, str]:
+    """The per-key ``rn`` column and the extra WHERE prefix that keeps a row.
+
+    Distinct mode ranks qnames, not rows: one row per qname (``dup = 1``), ``rn`` its qname's rank
+    within the key — several files declaring one qname are one candidate (334).
+    """
+    if not distinct_qnames:
+        return f"ROW_NUMBER() OVER (PARTITION BY {partition} ORDER BY {_NODE_ORDER}) AS rn", ""
+    return (
+        f"ROW_NUMBER() OVER (PARTITION BY {partition}, {qname} ORDER BY {_NODE_ORDER}) AS dup, "
+        f"DENSE_RANK() OVER (PARTITION BY {partition} ORDER BY {qname}) AS rn",
+        "dup = 1 AND ",
+    )
+
+
 # A ready-made SQL fragment plus its parameters, appended to an edge WHERE clause.
 _Predicate = tuple[str, tuple[object, ...]] | None
 
@@ -1683,15 +1698,22 @@ class GraphStore:
         kind: str | None = None,
         limit: int,
         language: str | None = None,
+        distinct_qnames: bool = False,
     ) -> dict[str, list[Row]]:
         """Per-name top-``limit`` nodes (``_NODE_ORDER`` within each name).
 
         ``language`` restricts candidates to nodes declared in files of that language, inside the
         statement that truncates — so ``limit`` selects from the legal set rather than being spent
-        on candidates a caller would then discard (R5.8, task 204).
+        on candidates a caller would then discard (R5.8, task 204). ``distinct_qnames`` counts
+        ``limit`` in qnames, one row each, so one qname's twins cannot hide another (334).
         """
         return self._nodes_batched(
-            key_column="name", keys=names, kind=kind, limit=limit, language=language
+            key_column="name",
+            keys=names,
+            kind=kind,
+            limit=limit,
+            language=language,
+            distinct_qnames=distinct_qnames,
         )
 
     def nodes_by_qualified_names(
@@ -2275,7 +2297,12 @@ class GraphStore:
         )
 
     def nodes_by_qualified_names_casefold(
-        self, qnames: Sequence[str], *, kind: str | None = None, limit: int
+        self,
+        qnames: Sequence[str],
+        *,
+        kind: str | None = None,
+        limit: int,
+        distinct_qnames: bool = False,
     ) -> dict[str, list[Row]]:
         """Per-qname top-``limit`` nodes matched case-insensitively (task 215 WRITES).
 
@@ -2292,17 +2319,15 @@ class GraphStore:
         for key in ordered:
             by_fold.setdefault(key.casefold(), []).append(key)
         kind_sql = " AND kind = ?" if kind is not None else ""
+        rank, keep = _rank_window("LOWER(qualified_name)", "qualified_name", distinct_qnames)
         for chunk in _chunks(list(by_fold), _IN_CHUNK):
             placeholders = ", ".join("?" for _ in chunk)
             sql = (
                 f"SELECT id, {_NODE_COLUMNS} FROM ("
-                f"  SELECT id, {_NODE_COLUMNS}, "
-                f"    ROW_NUMBER() OVER ("
-                f"      PARTITION BY LOWER(qualified_name) ORDER BY {_NODE_ORDER}"
-                f"    ) AS rn "
+                f"  SELECT id, {_NODE_COLUMNS}, {rank} "
                 f"  FROM nodes WHERE LOWER(qualified_name) IN ({placeholders})"
                 f"{kind_sql}"
-                f") WHERE rn <= ? "
+                f") WHERE {keep}rn <= ? "
                 f"ORDER BY {_NODE_ORDER}"
             )
             params: list[object] = [*chunk]
@@ -2316,7 +2341,12 @@ class GraphStore:
         return grouped
 
     def nodes_by_names_casefold(
-        self, names: Sequence[str], *, kind: str | None = None, limit: int
+        self,
+        names: Sequence[str],
+        *,
+        kind: str | None = None,
+        limit: int,
+        distinct_qnames: bool = False,
     ) -> dict[str, list[Row]]:
         """Per-name top-``limit`` nodes matched case-insensitively (task 215 WRITES)."""
         if limit < 1:
@@ -2329,17 +2359,15 @@ class GraphStore:
         for key in ordered:
             by_fold.setdefault(key.casefold(), []).append(key)
         kind_sql = " AND kind = ?" if kind is not None else ""
+        rank, keep = _rank_window("LOWER(name)", "qualified_name", distinct_qnames)
         for chunk in _chunks(list(by_fold), _IN_CHUNK):
             placeholders = ", ".join("?" for _ in chunk)
             sql = (
                 f"SELECT id, {_NODE_COLUMNS} FROM ("
-                f"  SELECT id, {_NODE_COLUMNS}, "
-                f"    ROW_NUMBER() OVER ("
-                f"      PARTITION BY LOWER(name) ORDER BY {_NODE_ORDER}"
-                f"    ) AS rn "
+                f"  SELECT id, {_NODE_COLUMNS}, {rank} "
                 f"  FROM nodes WHERE LOWER(name) IN ({placeholders})"
                 f"{kind_sql}"
-                f") WHERE rn <= ? "
+                f") WHERE {keep}rn <= ? "
                 f"ORDER BY {_NODE_ORDER}"
             )
             params: list[object] = [*chunk]
@@ -3972,6 +4000,7 @@ class GraphStore:
         kind: str | None,
         limit: int,
         language: str | None = None,
+        distinct_qnames: bool = False,
     ) -> dict[str, list[Row]]:
         """Per-key top-N via ``ROW_NUMBER``; keys chunked under ``_IN_CHUNK`` (host max-vars)."""
         if limit < 1:
@@ -3990,17 +4019,15 @@ class GraphStore:
         grouped: dict[str, list[Row]] = {key: [] for key in ordered_keys}
         # Full `_NODE_ORDER` inside the partition — required for `name` keys where
         # `qualified_name` still varies within the partition (R4.2 / AC1).
+        rank, keep = _rank_window(f"nodes.{key_column}", "nodes.qualified_name", distinct_qnames)
         for chunk in _chunks(ordered_keys, _IN_CHUNK):
             placeholders = ", ".join("?" for _ in chunk)
             sql = (
                 f"SELECT id, {_NODE_COLUMNS} FROM ("
-                f"  SELECT nodes.id, {_NODE_COLUMNS_JOINED}, "
-                f"    ROW_NUMBER() OVER ("
-                f"      PARTITION BY nodes.{key_column} ORDER BY {_NODE_ORDER}"
-                f"    ) AS rn "
+                f"  SELECT nodes.id, {_NODE_COLUMNS_JOINED}, {rank} "
                 f"  FROM {source} WHERE nodes.{key_column} IN ({placeholders})"
                 f"{kind_sql}{language_sql}"
-                f") WHERE rn <= ? "
+                f") WHERE {keep}rn <= ? "
                 f"ORDER BY {_NODE_ORDER}"
             )
             params: list[object] = [*chunk]

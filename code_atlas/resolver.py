@@ -216,14 +216,15 @@ def _link_writes_casefold(
 ) -> None:
     """Link WRITES / ALTERS whose exact FQN missed via a unique case-insensitive match (215/321).
 
-    Zero or two-or-more candidates leave the edge unlinked — ambiguity must not pick a twin.
+    Unique means one qname, however many files declare it (334). Zero or two-or-more qnames
+    leave the edge unlinked — ambiguity must not pick a twin.
     Uses Table/Column kinds only (contract vocabulary); never a language branch (R1.1).
     """
     if not writes_misses:
         return
     raws = [str(edge["target_raw"]) for edge in writes_misses]
     # Pass 1: unique casefold of the whole target_raw (schema.table or schema.table::col).
-    ci_hits = store.nodes_by_qualified_names_casefold(raws, limit=2)
+    ci_hits = store.nodes_by_qualified_names_casefold(raws, limit=2, distinct_qnames=True)
     remaining: list[dict[str, object]] = []
     for edge, raw in zip(writes_misses, raws, strict=True):
         hits = ci_hits.get(raw, [])
@@ -246,7 +247,9 @@ def _link_writes_casefold(
             bare = container.rsplit(".", 1)[-1]
             containers.append(bare)
             members.append(member)
-    table_hits = store.nodes_by_names_casefold(containers, kind=_TABLE_KIND, limit=2)
+    table_hits = store.nodes_by_names_casefold(
+        containers, kind=_TABLE_KIND, limit=2, distinct_qnames=True
+    )
     column_lookups: list[str] = []
     column_owners: list[tuple[dict[str, object], str]] = []
     for edge, bare, col in zip(remaining, containers, members, strict=True):
@@ -265,18 +268,20 @@ def _link_writes_casefold(
     # Prefer exact declared column qname under the unique table; fall back to CI on that join.
     exact = store.nodes_by_qualified_names(column_lookups, kind=_COLUMN_KIND, limit=2)
     need_ci = [
-        qname for qname in column_lookups if len(exact.get(qname, [])) != 1
+        qname for qname in column_lookups if len(_distinct_qnames(exact.get(qname, []))) != 1
     ]
     ci_cols = (
-        store.nodes_by_qualified_names_casefold(need_ci, kind=_COLUMN_KIND, limit=2)
+        store.nodes_by_qualified_names_casefold(
+            need_ci, kind=_COLUMN_KIND, limit=2, distinct_qnames=True
+        )
         if need_ci
         else {}
     )
     for (edge, _), qname in zip(column_owners, column_lookups, strict=True):
         hits = exact.get(qname, [])
-        if len(hits) != 1:
+        if len(_distinct_qnames(hits)) != 1:
             hits = ci_cols.get(qname, [])
-        if len(hits) != 1:
+        if len(_distinct_qnames(hits)) != 1:
             continue
         tier = _weaker_tier(str(edge["confidence_tier"]), "RESOLVED")
         _queue_candidates(edge, hits, tier, links, siblings)
@@ -289,9 +294,9 @@ def _link_by_unique_function(
     links: list[tuple[int, str, str]],
     siblings: list[dict[str, object]],
 ) -> list[tuple[dict[str, object], str, str]]:
-    """Link a bare CALLS to the sole same-language Function of that name (214).
+    """Link a bare CALLS to the sole same-language Function qname of that name (214/334).
 
-    Zero or two-or-more candidates leave the edge unlinked — ambiguity must not pick a twin.
+    Zero or two-or-more qnames leave the edge unlinked — ambiguity must not pick a twin.
     Returns every edge this pass did not claim, for the HEURISTIC Method fallback.
     """
     # HEURISTIC bare calls belong to the Method fallback (054/204); only a claimed (non-guess)
@@ -305,7 +310,7 @@ def _link_by_unique_function(
         return list(bare_calls)
     hits_by_language = {
         language: store.nodes_by_names(
-            names, kind=_UNIQUE_FUNCTION_KIND, limit=2, language=language
+            names, kind=_UNIQUE_FUNCTION_KIND, limit=2, language=language, distinct_qnames=True
         )
         for language, names in grouped.items()
     }
@@ -351,6 +356,7 @@ def _link_by_bare_name(
             kind=_BARE_NAME_KIND,
             limit=probe_limit,
             language=language,
+            distinct_qnames=True,
         )
         for edge, name in pairs:
             methods = method_hits.get(name, [])

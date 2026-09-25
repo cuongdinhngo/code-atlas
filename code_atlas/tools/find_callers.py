@@ -41,6 +41,7 @@ from code_atlas.tools.nav_result import (
     CAVEAT_CROSS_LANGUAGE_UNMODELLED,
     CAVEAT_SIBLING_DEFINITIONS,
     CAVEAT_TIER_PARTITION,
+    CAVEAT_UNLINKED_SAME_NAME_SITES,
     REASON_BARE_NAME_TRUNCATED,
     REASON_CAPABILITY_NOT_CONFIGURED,
     REASON_INDEX_STALE,
@@ -169,7 +170,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         answer uses ``reason=relation_unmodelled_for_language`` instead of ``no_matches``.
         The same unmeasured route fires when ``production_count`` is 0 on a depth-1 indexed
         subject with surviving test callers: ``reason`` is not ``ok``, and
-        ``unlinked_same_name_sites`` counts the unlinked inbound that name it (272).
+        ``unlinked_same_name_sites`` counts the unlinked inbound that name it (272). A Function
+        answer with hits carries the same count, ``authoritative: false`` and the
+        ``unlinked_same_name_sites`` caveat when such CALLS remain beside them (334).
 
         When another language is indexed but no linked ``*->L`` pair reaches the subject's
         language (221/238), an empty answer upgrades to ``relation_unmodelled_for_language``.
@@ -231,6 +234,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         covered: str | None = None
         unlinked_calls = 0
         unlinked_same_name_sites = 0
+        unlinked_beside_hits = 0
         shared_unlinked: list[str] = []
         shared_honesty_reason = REASON_NO_MATCHES
         unlinked_edge_kinds: list[str] = []
@@ -470,6 +474,16 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 unlinked_calls = store.count_unlinked_by_target_raw(
                     (lookup, subject_name), kinds=CALLER_KINDS
                 )
+            if (
+                outcome.total_count > 0
+                and indexed
+                and str(subject_nodes[0]["kind"]) == "Function"
+            ):
+                # Hits do not close the list: a same-name call left unlinked may be another
+                # caller (334). Function-only — the predicate the empty path above uses (214).
+                unlinked_beside_hits = store.count_unlinked_by_target_raw(
+                    (lookup, str(subject_nodes[0]["name"])), kinds=CALLER_KINDS
+                )
             if depth == 1 and production_count == 0 and indexed and subject_nodes:
                 subject_name = str(subject_nodes[0]["name"])
                 kinds = inbound_kinds_for(str(subject_nodes[0]["kind"]))
@@ -571,6 +585,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 result["test_role_source"] = test_role_label
         if unlinked_same_name_sites and test_count:
             result["unlinked_same_name_sites"] = unlinked_same_name_sites
+        if unlinked_beside_hits:
+            result.setdefault("unlinked_same_name_sites", unlinked_beside_hits)
+            attach_authoritative_caveats(result, [CAVEAT_UNLINKED_SAME_NAME_SITES])
         if args_capture_absent:
             attach_authoritative_caveats(result, [CAVEAT_ARGS_NOT_CAPTURED])
         attach_result_subtrees(result, subtrees)
