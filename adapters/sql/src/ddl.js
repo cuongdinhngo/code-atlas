@@ -592,7 +592,7 @@ function readDelete(code) {
  * The top-level FROM / JOIN source that `target` aliases, scanning `code` from offset `from` — the
  * one alias resolver for `DELETE c FROM dbo.T c` (328) and `UPDATE c SET … FROM dbo.T c` (333).
  * A source inside parentheses scopes its own alias and is skipped; a bare top-level statement
- * keyword ends the statement, since T-SQL needs no `;` before the next one (333).
+ * keyword ends the statement (T-SQL needs no `;`); a delimited `[Select]` is a name, not one (333).
  * @param {string} code
  * @param {number} from
  * @param {{name: string}} target
@@ -601,7 +601,7 @@ function readDelete(code) {
 function aliasSourceTable(code, from, target) {
   const tail = code.slice(from);
   const alias = target.name.toLowerCase();
-  const source = /\b(?:(?:from|join)\s+|(select|insert|update|delete|merge|exec|execute)\b)/gi;
+  const source = /\b(?:(?:from|join)\s+|(?<![["])(select|insert|update|delete|merge|exec|execute)\b(?![\]"]))/gi;
   let depth = 0;
   let seen = 0;
   for (let m = source.exec(tail); m; m = source.exec(tail)) {

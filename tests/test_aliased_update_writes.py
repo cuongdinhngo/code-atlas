@@ -52,6 +52,10 @@ CREATE PROCEDURE dbo.Derived_Upd
 AS
     UPDATE c SET X = 1 FROM (SELECT Id FROM dbo.U c) sub JOIN dbo.T c ON c.Id = sub.Id;
 GO
+CREATE PROCEDURE dbo.Delimited_Upd
+AS
+    UPDATE c SET [Select] = 1 FROM dbo.U p JOIN dbo.T c ON c.[Delete] = p.Id;
+GO
 """
 
 PLAIN = """\
@@ -122,6 +126,7 @@ def test_a_subquery_alias_never_shadows_the_outer_source(tmp_path: Path) -> None
     cfg = _index(tmp_path, NESTED)
     assert _writes(cfg, "dbo.Nested_Upd") == [("dbo.T::X", "dbo.T::X", "RESOLVED")]
     assert _writes(cfg, "dbo.Derived_Upd") == [("dbo.T::X", "dbo.T::X", "RESOLVED")]
+    assert [raw for raw, _, _ in _writes(cfg, "dbo.Delimited_Upd")] == ["dbo.T::Select"]
 
 
 @needs_node
