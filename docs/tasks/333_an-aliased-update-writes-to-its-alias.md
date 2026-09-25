@@ -4,7 +4,7 @@ slug: an-aliased-update-writes-to-its-alias
 title: "UPDATE c SET … FROM dbo.T c emits WRITES onto the alias c, not dbo.T — the table's writer list and check_column_defaults lose every aliased update"
 phase: 1.5b
 milestone: Agent-trust
-status: todo
+status: done
 depends_on: [278, 328]
 ---
 
@@ -66,8 +66,9 @@ statement flush; tickets 278, 328.
 
 - **Ticket:** 333 · local · **SCOPE:** S · **TIER:** full · **TRACK:** backend
 - **REVIEWER:** OFF · **CHALLENGER:** ON
-- **Current phase:** review — round-3 fix unreviewed
-- **Session status:** stopped — Gate 4 red after three challenger rounds (autorun abort list)
+- **Current phase:** finalise complete — PR open
+- **Session status:** done — autorun stopped after round 3 (abort list); maintainer ordered round 4
+- **Reviewed at:** `94217c50005a0c25f37ffd4c40964bb09d689f47` (challenger round 4, CLEAN)
 
 ## Phase 0 — Refine
 
@@ -154,5 +155,15 @@ shared resolver mis-scanned, each fixed with a proving arm:
 | 1 | `8477bab` | a subquery / derived table reusing the alias shadowed the outer source (UPDATE and DELETE) | depth-0 FROM/JOIN only (`3960290`) |
 | 2 | `3960290` | an unterminated statement bled into the next `SELECT`'s FROM | stop at a depth-0 statement keyword (`6def398`) |
 | 3 | `6def398` | a delimited `[Select]` read as that stop keyword | keywords inside `[]` / `""` skipped (`94217c5`) |
+| 4 | `94217c5` | CLEAN 10/0/0 — one minor: a keyword mid-way through a multi-word delimited name (`[Foo Select Bar]`) still stops the scan, falling back to the alias (never a wrong table) | recorded, not fixed |
 
 Informational, out of scope and unchanged from `main`: `APPLY` sources and CTE names are not resolved.
+
+## Phase 5 — Finalise (learning loop)
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+`LEDGER TOTAL: unmeasured (subagent dispatch only; host surfaces no usage) · top cost driver: review/challenger ×4`
