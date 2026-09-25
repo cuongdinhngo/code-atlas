@@ -1668,3 +1668,14 @@ venv or the PHPStan tmpDir is rebuilt from a wrong-cased cwd.*
   construct that means this relation emits it" — the residual is named per construct (BACKLOG).
 - destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)
 
+## 335 — a keyword is not a statement until the clause T-SQL requires follows it
+
+- type: 2 (code) · handle: `a-keyword-is-not-a-statement-until-its-clause-follows`
+- status: proposed · seen: 335
+- evidence: reading SQL out of PHP strings by leading keyword alone makes UI copy a writer —
+  "Update settings", "Insert into cart", "Delete from dbo.Orders after archiving". Requiring the
+  clause after the object name (`SET`, `VALUES`/`(`, `USING`, `WHERE`, a parameter, or the
+  statement's end on a qualified name) separated them with no parse (R1.4). Separately, a fixture
+  dropped into `tests/fixtures/php/` joined the tool-parity corpus and broke an unrelated arm.
+- destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)
+

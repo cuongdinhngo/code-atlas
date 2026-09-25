@@ -1015,10 +1015,10 @@ Opt-in: behind + unchanged → `index_behind` + revision (never `ok`); off ⇒ b
 unrepaired dirty subject → `index_behind_subject_changed`, else refuse. **274:** behind status names
 served/refused families + opt-in + `changed_indexed_between`; suggestions not rebuild-only. [257](tasks/257_the-index-goes-blind-at-the-moment-it-is-most-wanted.md) · [267](tasks/267_the-warning-an-autonomous-agent-cannot-act-on.md) · [274](tasks/274_behind-prints-one-route-and-it-is-a-ninety-minute-rebuild.md).
 
-**Decision — Table/Column writers via find_references (278; 281, 2026-09-15).** Linked `WRITES`
-only; Table = table ∪ its columns; `unlinked_writes_count` when >0. **281:** the caveat
-(`writes_emitters_only`) keys on which languages emit `WRITES`, never their count.
-**Host-language string writes out of scope.**
+**Decision — Table/Column writers via find_references (278; 281, 2026-09-15).** Linked writers;
+Table ∪ its columns; `unlinked_writes_count` when >0. **281:** the caveat
+(`writes_emitters_only`) keys on which languages emit `WRITES`. **335:** a PHP literal that begins
+a T-SQL write or `EXEC` → `HEURISTIC` edge.
 [278](tasks/278_the-writer-set-is-computed-for-one-check-and-addressable-from-nothing.md) ·
 [281](tasks/281_the-writes-sql-half-caveat-keys-on-language-count-not-the-emitting-adapter.md).
 
