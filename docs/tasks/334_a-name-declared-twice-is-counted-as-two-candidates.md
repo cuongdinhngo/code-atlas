@@ -178,6 +178,10 @@ the distinct-lookup arm; AC2 passes on `main` only because `limit=2` happened to
 rows (the arm pins it). Baseline at `54dafed`: `4575 passed, 4 skipped`; delta = the 6 new tests.
 `ruff check .` and `mypy` clean.
 
+Full verification at `c278f5c` (the reviewed source plus bookkeeping): `scripts/gate.sh` →
+`GATE GREEN — all 20 checks passed`; `scripts/docker-test.sh` → `4580 passed, 5 skipped` (Linux host,
+Docker). Later commits are docs only.
+
 Design conformance: D1–D4 implemented-as-approved. One deviation, recorded: the R1 inventory grew
 from 6 to 7 — the column path re-tests uniqueness after its casefold fallback, which the design's
 line list missed; the inventory test went red on it and D2 covers it.
