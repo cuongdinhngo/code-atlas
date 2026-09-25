@@ -299,8 +299,8 @@ USAGE_RULES: tuple[str, ...] = (
     " `path_excluded` (search/refs) or `no_such_symbol` naming the filter (read) — not a silent"
     " wrong body (315/327).",
     "- **`find_references` on a Table or Column returns its writers** — linked `WRITES`, plus"
-    " `DELETES` on the Table (278/328). Prefer that over asking who calls a nearby method when the question is"
-    " *what writes this column*.",
+    " `DELETES` on the Table (278/328). Prefer that over asking who calls a nearby method"
+    " when the question is *what writes this column*.",
     "- **A dynamic-SQL / `EXEC`-created object is not a symbol.** Grep the SQL text; the"
     " index reads as absence. `find_orphans` then says `status=resolution_unmodelled` when"
     " a language stamped `dynamic_sql` (296).",
