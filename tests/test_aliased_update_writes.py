@@ -43,6 +43,17 @@ AS
 GO
 """
 
+NESTED = """\
+CREATE PROCEDURE dbo.Nested_Upd
+AS
+    UPDATE c SET X = (SELECT TOP 1 Id FROM dbo.U c WHERE c.Id > 0) FROM dbo.T c;
+GO
+CREATE PROCEDURE dbo.Derived_Upd
+AS
+    UPDATE c SET X = 1 FROM (SELECT Id FROM dbo.U c) sub JOIN dbo.T c ON c.Id = sub.Id;
+GO
+"""
+
 PLAIN = """\
 CREATE PROCEDURE dbo.Plain_Upd
 AS
@@ -101,6 +112,14 @@ def test_explicit_as_alias_resolves_the_same(tmp_path: Path) -> None:
 
 
 @needs_node
+def test_a_subquery_alias_never_shadows_the_outer_source(tmp_path: Path) -> None:
+    """A subquery or derived table reusing the alias scopes its own; the outer FROM source wins."""
+    cfg = _index(tmp_path, NESTED)
+    assert _writes(cfg, "dbo.Nested_Upd") == [("dbo.T::X", "dbo.T::X", "RESOLVED")]
+    assert _writes(cfg, "dbo.Derived_Upd") == [("dbo.T::X", "dbo.T::X", "RESOLVED")]
+
+
+@needs_node
 def test_plain_update_is_unchanged(tmp_path: Path) -> None:
     """AC3 — a non-aliased UPDATE still writes its named table."""
     cfg = _index(tmp_path, PLAIN)
@@ -112,3 +131,20 @@ def test_unmatched_alias_keeps_the_named_target(tmp_path: Path) -> None:
     """Scope 2 — no FROM source carries the alias, so no table is guessed."""
     cfg = _index(tmp_path, UNRESOLVED)
     assert [raw for raw, _, _ in _writes(cfg, "dbo.Orphan_Upd")] == ["q::X"]
+
+
+DERIVED_DELETE = """\
+CREATE PROCEDURE dbo.Derived_Del
+AS
+    DELETE c FROM (SELECT Id FROM dbo.U c) sub JOIN dbo.T c ON c.Id = sub.Id;
+GO
+"""
+
+
+@needs_node
+def test_the_shared_resolver_scopes_a_derived_delete_alias_too(tmp_path: Path) -> None:
+    """R6.7 — DELETE shares the resolver, so its derived-table alias no longer shadows dbo.T."""
+    cfg = _index(tmp_path, DERIVED_DELETE)
+    with GraphStore(cfg.db_path) as store:
+        rows = store.edges_by_source("dbo.Derived_Del", limit=64)
+    assert [str(r["target_qname"]) for r in rows if r["kind"] == "DELETES"] == ["dbo.T"]

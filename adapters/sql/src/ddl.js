@@ -517,9 +517,7 @@ function readUpdate(code) {
     columns.push(name);
   }
   // `UPDATE c SET … FROM dbo.T c` names an alias; its table is the FROM source (333).
-  const from = /\bfrom\b/i.exec(code.slice(target.next + set.index));
-  const aliased = from ? aliasSourceTable(code, target.next + set.index + from.index, target) : null;
-  return { table: aliased ?? target.name, columns };
+  return { table: aliasSourceTable(code, target.next + set.index, target) ?? target.name, columns };
 }
 
 /**
@@ -591,8 +589,9 @@ function readDelete(code) {
 }
 
 /**
- * The FROM / JOIN source that `target` aliases, scanning `code` from offset `from` — the one alias
- * resolver for `DELETE c FROM dbo.T c` (328) and `UPDATE c SET … FROM dbo.T c` (333).
+ * The top-level FROM / JOIN source that `target` aliases, scanning `code` from offset `from` — the
+ * one alias resolver for `DELETE c FROM dbo.T c` (328) and `UPDATE c SET … FROM dbo.T c` (333).
+ * A source inside parentheses (a subquery or derived table) scopes its own alias and is skipped.
  * @param {string} code
  * @param {number} from
  * @param {{name: string}} target
@@ -602,7 +601,14 @@ function aliasSourceTable(code, from, target) {
   const tail = code.slice(from);
   const alias = target.name.toLowerCase();
   const source = /\b(?:from|join)\s+/gi;
+  let depth = 0;
+  let seen = 0;
   for (let m = source.exec(tail); m; m = source.exec(tail)) {
+    for (; seen < m.index; seen++) {
+      if (tail[seen] === "(") depth += 1;
+      else if (tail[seen] === ")") depth -= 1;
+    }
+    if (depth !== 0) continue;
     const table = readQualified(tail, m.index + m[0].length);
     if (!table) continue;
     const named = /^\s+(?:as\s+)?/i.exec(tail.slice(table.next));
