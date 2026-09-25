@@ -1647,3 +1647,14 @@ venv or the PHPStan tmpDir is rebuilt from a wrong-cased cwd.*
   `7 failed, 4368 passed, 5 skipped` — and no CI job builds the image, so nobody saw it. A test that
   needs the repository must run wherever the suite is claimed to run; 323's `.git` decision fixed it.
 - destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)
+
+## 334 — one qname declared in two files read as two candidates
+
+- type: 2 (code) · handle: `a-uniqueness-test-counts-qnames-not-rows`
+- status: proposed · seen: 334
+- evidence: every "unique candidate" check in `resolver.py` was `len(rows) == 1` over nodes fetched
+  at `limit=2`, so a proc in a snapshot and a migration, or a table CREATEd in one file and ALTERed
+  in another, never linked from a bare name. Deduping after the fetch is not enough: a node limit
+  can be spent on one qname's twins and hide a second qname. Rank qnames inside the query.
+- destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)
+

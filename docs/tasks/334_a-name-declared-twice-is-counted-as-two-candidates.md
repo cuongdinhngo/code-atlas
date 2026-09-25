@@ -4,7 +4,7 @@ slug: a-name-declared-twice-is-counted-as-two-candidates
 title: "A bare EXEC to a proc declared in two files (a snapshot and a migration) links to nothing, because the uniqueness test counts nodes, not qnames — and a partial caller list then answers ok"
 phase: 1.5b
 milestone: Agent-trust
-status: in-progress
+status: done
 depends_on: [214, 215, 321]
 ---
 
@@ -76,9 +76,9 @@ tickets 214, 215, 321, 327.
 
 - **Ticket:** 334 · local · **SCOPE:** M · **TIER:** full · **TRACK:** backend
 - **REVIEWER:** OFF (`--no-reviewer`) · **CHALLENGER:** ON
-- **Current phase:** review
-- **Session status:** in-progress — autorun
-- **Reviewed at:** —
+- **Current phase:** finalise
+- **Session status:** done — autorun, PR open
+- **Reviewed at:** `e272eb3` (challenger round 1, CLEAN) · reviewed: code_atlas/{store,resolver}.py · code_atlas/tools/{find_callers,nav_result}.py · tests/test_name_declared_twice_links.py · working doc: this file
 
 ## Phase 0 — Refine
 
@@ -183,3 +183,25 @@ from 6 to 7 — the column path re-tests uniqueness after its casefold fallback,
 line list missed; the inventory test went red on it and D2 covers it.
 Caveat-limit text for `unlinked_same_name_sites` changed from impact-only wording to tool-neutral
 (HOW3); no test pinned it.
+
+## Phase 4 — Review
+
+REVIEWER: OFF (`--no-reviewer`) · CHALLENGER: ON — round 1 on `e272eb3`: **CLEAN 10 met / 0 not met /
+1 can't tell** (R3: the 321 follow-up line was already gone from `main`, removed with the ticket in
+#455). Verdict: `clean (challenger only — REVIEWER: OFF)`. Two low notes, neither blocking:
+
+| # | Note | Disposition |
+|---|---|---|
+| 1 | the bare-name Method fallback also counts qnames — beyond the three passes the scope names | kept: the Goal says uniqueness is one qname; R1's inventory lists it, the inventory test proves it |
+| 2 | a Function with only test callers and unlinked sites keeps 272's count (all inbound kinds) over this ticket's CALLS/NEW count (`setdefault`) | recorded: both are true counts of unlinked sites naming the subject; the caveat attaches either way |
+
+## Phase 5 — Finalise (learning loop)
+
+Lesson: `docs/LESSONS.md` § 334 (`a-uniqueness-test-counts-qnames-not-rows`, first sighting).
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+`LEDGER TOTAL: 91161 · top cost driver: review/challenger ×1 (1 dispatch; main-loop unmeasured)`
