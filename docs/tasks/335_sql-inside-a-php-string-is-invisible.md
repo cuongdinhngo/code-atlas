@@ -4,7 +4,7 @@ slug: sql-inside-a-php-string-is-invisible
 title: "SQL inside a PHP string literal emits no edge — 'who writes this table' and 'who EXECs this proc' still fall back to grep, the most-repeated gap across field retros"
 phase: 1.5b
 milestone: Coverage
-status: in-progress
+status: done
 depends_on: [222, 328]
 ---
 
@@ -66,9 +66,9 @@ names, at a tier that says it was read from text.
 
 - **Ticket:** 335 · local · **SCOPE:** M · **TIER:** full · **TRACK:** backend
 - **REVIEWER:** OFF (`--no-reviewer`) · **CHALLENGER:** ON
-- **Current phase:** review
-- **Session status:** in-progress — autorun
-- **Reviewed at:** —
+- **Current phase:** finalise
+- **Session status:** done — autorun, PR open (stacked on 336)
+- **Reviewed at:** `f82330a` (round 2, verify-only after challenger round 1) · reviewed: adapters/php/src/{SqlLiteral,Visitor}.php · code_atlas/tools/find_references.py · tests/test_sql_in_a_php_string.py · tests/fixtures/php_sql_literal/repo.php · working doc: this file
 
 ## Phase 0 — Refine
 
@@ -198,4 +198,15 @@ re-run — `tests/test_sql_in_a_php_string.py`, `tests/contract/test_tool_parity
 `tests/test_core_is_language_agnostic.py`, `tests/test_doc_size_budget.py` → 498 passed; regression
 scan = the full suite (Phase 3). Verdict: `clean (challenger only — REVIEWER: OFF)`, the round-2
 confirmation made by the implementer, not the challenger.
+
+## Phase 5 — Finalise (learning loop)
+
+Lesson: `docs/LESSONS.md` § 335 (`a-keyword-is-not-a-statement-until-its-clause-follows`, first sighting).
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+`LEDGER TOTAL: 97059 · top cost driver: review/challenger ×1 (1 dispatch; round 2 main-loop; main-loop unmeasured)`
 
