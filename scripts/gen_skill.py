@@ -298,8 +298,8 @@ USAGE_RULES: tuple[str, ...] = (
     " `path_prefix`.** An index-root-relative plain prefix (`src/`); a hit outside it answers"
     " `path_excluded` (search/refs) or `no_such_symbol` naming the filter (read) — not a silent"
     " wrong body (315/327).",
-    "- **`find_references` on a Table or Column returns its writers** — linked `WRITES` only"
-    " (278). Prefer that over asking who calls a nearby method when the question is"
+    "- **`find_references` on a Table or Column returns its writers** — linked `WRITES`, plus"
+    " `DELETES` on the Table (278/328). Prefer that over asking who calls a nearby method when the question is"
     " *what writes this column*.",
     "- **A dynamic-SQL / `EXEC`-created object is not a symbol.** Grep the SQL text; the"
     " index reads as absence. `find_orphans` then says `status=resolution_unmodelled` when"

@@ -276,10 +276,13 @@ const TRIGGER_RE =
 const TABLE_RE = /\b(?:create|alter)\s+table\b/i;
 const INSERT_RE = /\binsert\b/i;
 const UPDATE_RE = /\bupdate\b/i;
+const DELETE_RE = /\bdelete\b/i;
+const TRUNCATE_RE = /\btruncate\b/i;
+const MERGE_RE = /\bmerge\b/i;
 // A statement ends where the next one starts. Only tested at paren depth 0, so a keyword inside a
 // table body or a column list never splits the statement that contains it.
 const BOUNDARY_RE =
-  /^\s*(go|create|alter|insert|update|delete|if|while|begin|end|return|declare|exec|execute)\b|^\s*;/i;
+  /^\s*(go|create|alter|insert|update|delete|truncate|merge|if|while|begin|end|return|declare|exec|execute)\b|^\s*;/i;
 const DYNAMIC_PROCS = new Set(["sp_executesql", "sp_execute", "dbo.sp_executesql"]);
 // DDL that changes an existing object, read inside a string literal (321). The name after it is
 // the whole claim: no concatenation is followed, and a constraint clause names no object of its own.
@@ -595,15 +598,37 @@ function parseFile(qpath) {
     }
   };
 
+  /**
+   * Row-removal onto a Table — never a Column list (328 / check_column_defaults).
+   * @param {string} target
+   * @param {number} line
+   */
+  const deletes = (target, line, tier = "RESOLVED") => {
+    const source = current ? current.qname : qpath;
+    edges.push({
+      kind: "DELETES", source_qname: source, target_raw: target,
+      file_path: qpath, line, confidence_tier: tier,
+    });
+  };
+
   const flush = () => {
     if (!pending) return;
     const { kind, buf, line } = pending;
     pending = null;
     if (buf.length > PENDING_CAP) {
-      const guess = kind === "table" ? null : (ddl.readInsert(buf) ?? ddl.readUpdate(buf));
+      let guess = null;
+      if (kind === "insert") guess = ddl.readInsert(buf);
+      else if (kind === "update") guess = ddl.readUpdate(buf);
+      else if (kind === "delete") guess = ddl.readDelete(buf);
+      else if (kind === "truncate") guess = ddl.readTruncate(buf);
+      else if (kind === "merge") guess = ddl.readMergeDeletes(buf);
       if (guess) guess.table = splitName(guess.table) ?? guess.table;
       // Truncated: the statement was never read to its end, so the target is what we saw of it.
-      if (guess) writes(guess.table, null, line, "DYNAMIC");
+      if (guess && (kind === "delete" || kind === "truncate" || kind === "merge")) {
+        deletes(guess.table, line, "DYNAMIC");
+      } else if (guess) {
+        writes(guess.table, null, line, "DYNAMIC");
+      }
       return;
     }
     if (kind === "table") {
@@ -689,6 +714,17 @@ function parseFile(qpath) {
           if (pk) applyPrimaryKey(qname, pk.columns, line);
         }
       }
+      return;
+    }
+    if (kind === "delete" || kind === "truncate" || kind === "merge") {
+      const stmt = kind === "delete"
+        ? ddl.readDelete(buf)
+        : kind === "truncate"
+          ? ddl.readTruncate(buf)
+          : ddl.readMergeDeletes(buf);
+      if (!stmt) return;
+      const qname = splitName(stmt.table);
+      if (qname) deletes(qname, line);
       return;
     }
     const stmt = kind === "insert" ? ddl.readInsert(buf) : ddl.readUpdate(buf);
@@ -852,7 +888,13 @@ function parseFile(qpath) {
         ? "insert"
         : UPDATE_RE.test(code)
           ? "update"
-          : null;
+          : DELETE_RE.test(code)
+            ? "delete"
+            : TRUNCATE_RE.test(code)
+              ? "truncate"
+              : MERGE_RE.test(code)
+                ? "merge"
+                : null;
     if (kind === null) return;
     const depth = depthOf(code);
     pending = { kind, buf: code, line: lineNo, depth, opened: depth > 0 };

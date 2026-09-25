@@ -10,6 +10,7 @@ from code_atlas.contract import (
     CALLER_KINDS,
     COLUMN_KIND,
     CONTAINS,
+    DELETES,
     TABLE_KIND,
     TYPE_KINDS,
     UNMODELLED_REFERENCE_KINDS,
@@ -243,18 +244,19 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         """Where is this symbol used across the codebase?
 
         Resolved edges whose ``target_qname`` is ``qname``, with confidence tiers.
-        A **Table** or **Column** subject returns linked ``WRITES`` only (278). A Table
-        unions writers of the table and of its CONTAINS columns (named-column sites
-        never target the Table qname); each writing statement is one row with the
-        named columns folded in (329). A Column is the narrower per-edge set. When the
-        graph still holds unlinked writers, ``unlinked_writes_count`` names them. On a
-        multi-language index the answer carries ``writes_emitters_only`` when a
-        covered language emits no ``WRITES`` — host-language string writes are out
-        of scope (§19 / 281). ``REFERENCES`` (a
-        ``Foo::class`` mention) is FQN-linked at ``DYNAMIC`` — a candidate
-        list, not a proven use. When every returned hit is ``DYNAMIC``, the payload sets
-        ``authoritative: false``. When another language is indexed but no linked ``*->L``
-        pair reaches the subject's language (238/276), a hits-bearing answer is
+        A **Table** or **Column** subject returns linked ``WRITES`` and ``DELETES``
+        (278/328). A Table unions writers of the table and of its CONTAINS columns
+        (named-column sites never target the Table qname); each writing statement is
+        one row with the named columns folded in (329). A Column is the narrower
+        per-edge set. ``DELETES`` target the Table only. When the graph still holds
+        unlinked writers, ``unlinked_writes_count`` names them. On a multi-language
+        index the answer carries ``writes_emitters_only`` when a covered language
+        emits no ``WRITES`` — host-language string writes are out of scope
+        (§19 / 281). ``REFERENCES`` (a ``Foo::class`` mention) is FQN-linked at
+        ``DYNAMIC`` — a candidate list, not a proven use. When every returned hit
+        is ``DYNAMIC``, the payload sets ``authoritative: false``. When another
+        language is indexed but no linked ``*->L`` pair reaches the subject's
+        language (238/276), a hits-bearing answer is
         ``authoritative: false`` only when the stamped census has cross-language edges;
         an empty census is status-only. ``reason`` stays ``ok``.
         An ``IMPORTS`` naming an indexed file is linked since 188, so a
@@ -377,9 +379,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             nodes = store.nodes_by_qualified_name(lookup, limit=config.page_limit)
             indexed = bool(nodes)
             if indexed and str(nodes[0]["kind"]) in (TABLE_KIND, COLUMN_KIND):
-                # Writer set — WRITES only; Table unions CONTAINS columns (278).
+                # Mutation set — WRITES + DELETES; Table unions CONTAINS columns (278/328).
                 writes_subject = True
-                writes_kinds = (WRITES,)
+                writes_kinds = (WRITES, DELETES)
                 subject_kind = str(nodes[0]["kind"])
                 writes_targets = _writes_targets(store, lookup, subject_kind)
                 group_table_writes = subject_kind == TABLE_KIND
@@ -445,7 +447,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 indexed = bool(nodes)
                 if indexed and str(nodes[0]["kind"]) in (TABLE_KIND, COLUMN_KIND):
                     writes_subject = True
-                    writes_kinds = (WRITES,)
+                    writes_kinds = (WRITES, DELETES)
                     subject_kind = str(nodes[0]["kind"])
                     writes_targets = _writes_targets(store, lookup, subject_kind)
                     group_table_writes = subject_kind == TABLE_KIND

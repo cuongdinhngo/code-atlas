@@ -567,8 +567,77 @@ function isReservedObjectName(name, delimited) {
   return RESERVED_OBJECT_NAMES.has(name.toLowerCase());
 }
 
+
+/**
+ * DELETE FROM t — table only; never a column list (328).
+ * @param {string} code
+ * @returns {{table: string}|null}
+ */
+function readDelete(code) {
+  const re = /\bdelete\s+(?:top\s*\([^)]*\)\s*(?:percent\s+)?)?(?:from\s+)?/gi;
+  for (let m = re.exec(code); m; m = re.exec(code)) {
+    // `FOR` / `AFTER` / `INSTEAD OF` / `ON DELETE` name a trigger or FK event, not a statement.
+    if (/(?:\bfor|\bafter|\bof|\bon|,)\s*$/i.test(code.slice(0, m.index))) continue;
+    const target = readQualified(code, m.index + m[0].length);
+    if (!target || target.name.toLowerCase() === "as") continue;
+    if (isReservedObjectName(target.name, target.delimited)) continue;
+    return { table: deleteAliasTable(code, target) ?? target.name };
+  }
+  return null;
+}
+
+/**
+ * `DELETE c FROM dbo.T c JOIN …` names an alias first; the table is the FROM source it aliases.
+ * @param {string} code
+ * @param {{name: string, next: number}} target
+ * @returns {string|null}
+ */
+function deleteAliasTable(code, target) {
+  const tail = code.slice(target.next);
+  if (!/^\s*from\b/i.test(tail)) return null;
+  const alias = target.name.toLowerCase();
+  const source = /\b(?:from|join)\s+/gi;
+  for (let m = source.exec(tail); m; m = source.exec(tail)) {
+    const table = readQualified(tail, m.index + m[0].length);
+    if (!table) continue;
+    const named = /^\s+(?:as\s+)?/i.exec(tail.slice(table.next));
+    const next = named ? readIdent(tail, table.next + named[0].length) : null;
+    if (next && next.name.toLowerCase() === alias) return table.name;
+  }
+  return null;
+}
+
+/**
+ * TRUNCATE TABLE t (328).
+ * @param {string} code
+ * @returns {{table: string}|null}
+ */
+function readTruncate(code) {
+  const m = /\btruncate\s+(?:table\s+)?/i.exec(code);
+  if (!m) return null;
+  const target = readQualified(code, m.index + m[0].length);
+  if (!target) return null;
+  return { table: target.name };
+}
+
+/**
+ * MERGE … WHEN … DELETE — the target table of a merge that can remove rows (328).
+ * Insert/update-only MERGE returns null here (WRITES path may still apply separately).
+ * @param {string} code
+ * @returns {{table: string}|null}
+ */
+function readMergeDeletes(code) {
+  if (!/\bmerge\b/i.test(code)) return null;
+  if (!/\bwhen\b[\s\S]*?\bdelete\b/i.test(code)) return null;
+  const m = /\bmerge\s+(?:top\s*\([^)]*\)\s*)?(?:into\s+)?/i.exec(code);
+  if (!m) return null;
+  const target = readQualified(code, m.index + m[0].length);
+  if (!target) return null;
+  return { table: target.name };
+}
+
 module.exports = {
-  readColumns, readColumnDef, readDefault, readInsert, readUpdate, readNamedDefault,
+  readColumns, readColumnDef, readDefault, readInsert, readUpdate, readDelete, readTruncate, readMergeDeletes, readNamedDefault,
   readForeignKeys, readForeignKeyDef, readInlineReferences,
   readPrimaryKeys, readPrimaryKeyDef, readNullability, readIdentity,
   readIdent, readQualified, readParens, splitTopLevel, splitTopLevelPieces,

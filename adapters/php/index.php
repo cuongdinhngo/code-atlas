@@ -35,7 +35,7 @@ function serve(Parser $parser): void
             'declared_types' => true,
             'inheritance' => true,
         ],
-        'contract_version' => 11,
+        'contract_version' => 12,
     ]);
 
     while (($line = fgets(STDIN)) !== false) {
