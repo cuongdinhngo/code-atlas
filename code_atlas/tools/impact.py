@@ -347,7 +347,7 @@ def _label_rows(store: GraphStore, rows: list[dict[str, object]]) -> None:
                 row["test_role_source"] = source
     stamp = load_mirror_search_stamp(store)
     if stamp and stamp.get("pairs"):
-        label_mirror_rows(rows, stamp, frozenset(store.file_paths()))
+        label_mirror_rows(rows, stamp, frozenset(store.file_paths()), store=store)
 
 
 def _attach_freshness(result: dict[str, object], staleness: dict[str, object]) -> None:
