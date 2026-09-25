@@ -48,7 +48,7 @@ Do not edit by hand — regenerate with
 ### Read what the answer says about itself
 
 - `total_count` is the population, `truncated` describes the page alone — page 1 of `find_callers` is tier-ordered (RESOLVED first), not a ranking of importance.
-- `production_count` / `test_count` split inbound answers by the caller's role. *Three callers* and *three callers, all in one test* are different answers; `exclude_tests=true` filters before paging, so page 1 is production.
+- `production_count` / `test_count` split inbound answers by the caller's role. *Three callers* and *three callers, all in one test* are different answers; `exclude_tests=true` filters before paging on `find_callers` (any depth — test nodes are pruned from the walk) and on `search_symbol` / `impact`, so page 1 is production.
 - `confidence_tier` is per edge: `RESOLVED` is a linked definition, `HEURISTIC` and `DYNAMIC` are candidates. Never quote a candidate as a fact.
 - **`unconfigured_adapters`, `unindexed_languages` and `unindexed_same_basename` mean the index never looked** — not that nothing is there. They are omitted when empty, so seeing one is the signal, and `detail_level: "minimal"` hides all three.
 

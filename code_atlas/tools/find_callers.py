@@ -186,6 +186,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         The weakest tier present is named, so the line can never claim ``RESOLVED`` over a
         ``HEURISTIC`` hit. An answer with no index carries no line (task 100).
 
+        ``exclude_tests`` (default off) drops test-role callers in SQL; at depth > 1
+        they are pruned from the walk so they never expand (313 shape; 332).
         ``serve_behind`` (default off) labels a behind-index answer: unchanged subjects as
         ``index_behind`` (257); unrepaired dirty subjects as ``index_behind_subject_changed``
         (267). Off keeps today's refuse-when-stale default (022 AC3).
@@ -200,8 +202,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         cap, limit_clamped = clamp_limit(limit, config.page_limit)
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
-        if exclude_tests and depth != 1:
-            raise ValueError("exclude_tests applies at depth 1 only")
+        # exclude_tests at any depth: prune test-role sources inside the walk (313 shape; 332).
         args_at = _args_at(arg_position, arg_is, depth=depth)
         tier = _confidence_tier(confidence_tier, depth=depth)
         if not config.db_path.is_file():
@@ -827,7 +828,12 @@ def _callers(
         if hop >= hops:
             continue
         remaining = count_budget - total_count
-        for edge in store.edges_by_target(target, kinds=CALLER_KINDS, limit=remaining):
+        for edge in store.edges_by_target(
+            target,
+            kinds=CALLER_KINDS,
+            limit=remaining,
+            exclude_test_sources=exclude_test_sources,
+        ):
             eid = edge_id(edge)
             if eid in seen_edge_ids:
                 continue
