@@ -288,7 +288,30 @@ final class Visitor extends NodeVisitorAbstract
             $this->enterInclude($node);
         } elseif ($node instanceof Node\Expr\ClassConstFetch) {
             $this->enterClassConstFetch($node);
+        } elseif ($node instanceof Node\Expr\StaticPropertyFetch) {
+            $this->enterStaticPropertyFetch($node);
         }
+    }
+
+    /** ``Foo::$bar`` — read or write — uses that property; a dynamic class or name emits nothing (336). */
+    private function enterStaticPropertyFetch(Node\Expr\StaticPropertyFetch $node): void
+    {
+        if (!($node->class instanceof Node\Name) || !($node->name instanceof Node\VarLikeIdentifier)) {
+            return;
+        }
+        $owner = $this->mentionTarget($node->class);
+        if ($owner === null) {
+            return;
+        }
+        // static:: binds late, so a subclass may redeclare it — HEURISTIC, as enterStaticCall does.
+        $tier = strcasecmp($node->class->toString(), 'static') === 0 ? 'HEURISTIC' : null;
+        $this->edge(
+            'REFERENCES',
+            $this->container(),
+            $owner . '::$' . $node->name->toString(),
+            $node->getStartLine(),
+            $tier,
+        );
     }
 
     /** ``Foo::class`` is a textual class mention — not a call and not ``new`` (task 094). */
