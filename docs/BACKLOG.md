@@ -24,7 +24,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
 | 337 | [The elision hint names the default, not the cap that fired](tasks/337_the-elision-hint-names-the-default-not-the-cap-that-fired.md) | Agent-trust | todo | 288 |
 | 338 | [A caller row hides its second call site](tasks/338_a-caller-row-hides-its-second-call-site.md) | Agent-trust | todo | 037, 273 |
-| 339 | [A path_prefix that matches nothing reads as no_such_symbol](tasks/339_a-path-prefix-that-matches-nothing-reads-as-no-such-symbol.md) | Agent-trust | todo | 315, 327 |
+| 339 | [A path_prefix that matches nothing reads as no_such_symbol](tasks/339_a-path-prefix-that-matches-nothing-reads-as-no-such-symbol.md) | Agent-trust | in-progress | 315, 327 |
 
 ## Open work — Pillar 2 · Onboarding
 
