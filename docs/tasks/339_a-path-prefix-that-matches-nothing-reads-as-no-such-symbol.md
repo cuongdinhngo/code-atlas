@@ -4,7 +4,7 @@ slug: a-path-prefix-that-matches-nothing-reads-as-no-such-symbol
 title: "read_symbol with a path_prefix that excludes every definition answers no_such_symbol — the symbol exists; search_symbol says path_excluded for the same miss"
 phase: 1.5b
 milestone: Agent-trust
-status: in-progress
+status: done
 depends_on: [315, 327]
 ---
 
@@ -52,8 +52,9 @@ A symbol excluded by the filter says so and names where it is.
 
 - **Ticket:** 339 · local · **SCOPE:** S · **TIER:** full · **TRACK:** backend
 - **REVIEWER:** OFF (`--no-reviewer`) · **CHALLENGER:** ON
-- **Current phase:** execute
-- **Session status:** autorun — through execute
+- **Current phase:** finalise
+- **Session status:** done — autorun, PR open
+- **Reviewed at:** `736e7c3` (challenger round 1, CLEAN) · reviewed: code_atlas/tools/read_symbol.py · tests/test_path_prefix_miss_is_path_excluded.py · tests/test_read_symbol_path_prefix.py · docs/TOOLS.md
 
 ## Phase 0 — Refine
 
@@ -138,3 +139,28 @@ Red arm on `main` (`833564c`): AC1 and the cross-tool shape test fail; AC2 passe
 clean; 101 neighbouring tests (read_symbol, path_prefix, nav reasons, descriptions) green.
 
 Design conformance: D1–D3 implemented-as-approved.
+
+## Phase 4 — Review
+
+REVIEWER: OFF (`--no-reviewer`) · CHALLENGER: ON — round 1 on `736e7c3`: **CLEAN 6/0/0**. Verdict:
+`clean (challenger only — REVIEWER: OFF)`. Probed beyond the ACs: a prefix matching one of two
+definitions still reads that one; the ambiguous-neither case lists both files; the post-repair
+re-read shares `_apply_path_prefix`, so it answers the same way.
+
+| # | Note | Disposition |
+|---|---|---|
+| 1 | a separator-normalised hit (`\Foo\bar` → `Foo::bar`) returns a body from a file `path_prefix` excluded | pre-existing, outside Scope 1 (which names `_apply_path_prefix`) — BACKLOG follow-up |
+| 2 | `find_references` with a prefix excluding every reference answers `no_matches`, naming no `path_excluded` | honest (not `no_such_symbol`), outside scope — same follow-up line |
+| 3 | read_symbol's miss also echoes `path_prefix`, which search_symbol's does not | kept: 327 already emitted it, and dropping a field breaks 061 |
+
+## Phase 5 — Finalise (learning loop)
+
+Lesson: `docs/LESSONS.md` § 339 — a sighting of `do-not-attest-past-the-payloads-resolution` (R5.6);
+class index bumped to 14.
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 1 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 1 type-2 claim(s) with seen ≥ 2 | 1 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+`LEDGER TOTAL: 126350 · top cost driver: review/challenger ×1 (1 dispatch; main-loop unmeasured)`
