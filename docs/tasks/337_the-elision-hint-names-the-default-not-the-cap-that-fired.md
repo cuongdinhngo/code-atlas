@@ -4,7 +4,7 @@ slug: the-elision-hint-names-the-default-not-the-cap-that-fired
 title: "read_symbol with max_lines says 'body elided above 600 lines' for a 62-line method — the hint names the default threshold, not the cap that elided the body"
 phase: 1.5b
 milestone: Agent-trust
-status: in-progress
+status: done
 depends_on: [288]
 ---
 
@@ -46,8 +46,9 @@ The hint names the cap that elided the body.
 
 - **Ticket:** 337 · local · **SCOPE:** S · **TIER:** full · **TRACK:** backend
 - **REVIEWER:** OFF (`--no-reviewer`) · **CHALLENGER:** ON
-- **Current phase:** execute
-- **Session status:** autorun — through execute
+- **Current phase:** finalise
+- **Session status:** done — autorun, PR open
+- **Reviewed at:** `d5b1af9` (challenger round 1, CLEAN) · reviewed: code_atlas/tools/read_symbol.py · tests/test_elision_hint_names_the_cap.py · docs/TOOLS.md
 
 ## Phase 0 — Refine
 
@@ -128,3 +129,22 @@ Red arm on `main` (`833564c`): AC1 fails (hint names 600), AC2 passes. `ruff` + 
 `tests/test_read_symbol_body_elision.py` 6 passed unchanged.
 
 Design conformance: D1–D3 implemented-as-approved.
+
+## Phase 4 — Review
+
+REVIEWER: OFF (`--no-reviewer`) · CHALLENGER: ON — round 1: **CLEAN 6/0/0**. Verdict:
+`clean (challenger only — REVIEWER: OFF)`. Probed beyond the ACs: `max_lines=600` names
+`max_lines=600`; `full_body` with `max_lines` never reaches the hint; `max_lines` equal to the span
+does not elide; the en dash in the declaration range is unchanged.
+
+## Phase 5 — Finalise (learning loop)
+
+Lesson: `docs/LESSONS.md` § 337 — a sighting of `source-the-caveat-from-the-computation` (R5.5);
+class index bumped to 7.
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 1 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 1 type-2 claim(s) with seen ≥ 2 | 1 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+`LEDGER TOTAL: 56826 · top cost driver: review/challenger ×1 (1 dispatch; main-loop unmeasured)`
