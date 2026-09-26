@@ -57,9 +57,11 @@ from code_atlas.tools.search_symbol import _column_reference_targets
 # Built from the one threshold site (288 / R6.7) — never a second numeric literal.
 
 
-def _body_elided_hint(decl_start: int, decl_end: int) -> str:
+def _body_elided_hint(decl_start: int, decl_end: int, *, max_lines: int | None) -> str:
+    # Name the cap that fired: the caller's max_lines, else the default threshold (337).
+    cap = BODY_LINE_THRESHOLD if max_lines is None else f"max_lines={max_lines}"
     return (
-        f"body elided above {BODY_LINE_THRESHOLD} lines "
+        f"body elided above {cap} lines "
         f"(declaration {decl_start}–{decl_end}); pass full_body=true for the whole "
         "declaration, or line_start/line_end for a range within the symbol"
     )
@@ -382,7 +384,9 @@ def _found_body_payload(
         payload["body_elided"] = True
         payload["line_count"] = span
         return attach_try_instead(
-            payload, TRY_INSTEAD_FILE_OUTLINE, _body_elided_hint(decl_start, decl_end)
+            payload,
+            TRY_INSTEAD_FILE_OUTLINE,
+            _body_elided_hint(decl_start, decl_end, max_lines=body_opts.max_lines),
         )
     source = _slice(path, decl_start, decl_end, detail_level)
     return _result(

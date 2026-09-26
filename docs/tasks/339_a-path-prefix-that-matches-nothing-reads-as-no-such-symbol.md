@@ -160,7 +160,7 @@ re-read shares `_apply_path_prefix`, so it answers the same way.
 ## Phase 5 — Finalise (learning loop)
 
 Lesson: `docs/LESSONS.md` § 339 — a sighting of `do-not-attest-past-the-payloads-resolution` (R5.6);
-class index bumped to 14.
+class index bumped to 15 (338 and 339 both sighted it).
 
 `CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
 `RECURRENCE: 1 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
