@@ -31,12 +31,23 @@ def annotate(
         raise ValueError(f"max_chars must be >= 1, got {max_chars}")
     for rel, group in _by_file(hits).items():
         wanted = {line for _, line in group if line is not None}
+        for hit, _ in group:
+            wanted.update(_call_lines(hit))
         lines = _read_lines(root, store, rel, wanted)
         for hit, line in group:
-            if lines is None or line is None or line not in lines:
+            extra = _call_lines(hit)
+            if lines is None or line is None or not {line, *extra} <= lines.keys():
                 hit["source_stale"] = True
                 continue
             hit["source"] = _clip(lines[line], max_chars)
+            if extra:
+                # Every site a multi-site caller names is quoted, in call_lines order (338).
+                hit["call_sources"] = [_clip(lines[n], max_chars) for n in extra]
+
+
+def _call_lines(hit: dict[str, object]) -> list[int]:
+    raw = hit.get("call_lines")
+    return [n for n in raw if isinstance(n, int)] if isinstance(raw, list) else []
 
 
 def _by_file(

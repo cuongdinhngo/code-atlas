@@ -31,7 +31,7 @@ rule** rather than adding a near-duplicate (P2), and one by finding the rule alr
 | `derived-not-listed-invariant` | 22 | 087–088, 093, 095–097, 099–102, 121, 122, 127, 132, 147, 148, 128, 180, 187, 191, 184, 022 | **R6.7** |
 | `prove-the-guard-fails` | 35 | 087–089, 093, 096, 099–101, 121, 122, 132, 147, 148, 128, 019, 185, 186, 174, 170, 175, 181, 182, 188, 189, 190, 187, 191, 184, 192, 022, 194, 195, 224, 228, 229, 230, 250 | **R6.5** — 190 is the *other* side of it: not *was it seen failing?* but *did it fail for the thing it forbids?* |
 | `gate-the-disclosure-on-its-condition-not-the-row-count` | 2 | 192, 238 | **proposed** → `docs/ENGINEERING_RULES.md` (238; `/mango:promote`) |
-| `do-not-attest-past-the-payloads-resolution` | 13 | 087–089, 100–102, 107, 239, 242, 246, 250, 252, 258 | **R5.6** — promoted 2026-08-27 (re-adjudicated); 239: FK indexed but Column search hit omitted it; 242: `params` indexed (231) but no nav tool returned them |
+| `do-not-attest-past-the-payloads-resolution` | 14 | 087–089, 100–102, 107, 239, 242, 246, 250, 252, 258, 338 | **R5.6** — promoted 2026-08-27 (re-adjudicated); 239: FK indexed but Column search hit omitted it; 242: `params` indexed (231) but no nav tool returned them |
 | `sweep-scope-cannot-attest-the-gate` | 3 | 255, 251, 258 | **proposed** → `docs/AGENT_BRIEF.md` (2026-09-12; three sightings in one merge round, each a pre-PR self-check attesting a check the sweep never ran) |
 | `fixture-shape-begs-the-question` | 11 | 084, 086, 103–106, 121, 183, 185, 190, 191 | **R6.3** — widened 2026-08-23, provisional |
 | `try-instead-tool-name` | 7 | 092, 093, 100–102, 245, 252 | **R5.4** |
@@ -1686,3 +1686,11 @@ venv or the PHPStan tmpDir is rebuilt from a wrong-cased cwd.*
   decided with the caller's `max_lines`, so `max_lines=3` said "above 600 lines". The hint now takes
   the value the decision used. Bump, not a new claim — R5.5 already names the class.
 - destination: docs/LESSONS.md (class index row bumped; R5.5 unchanged)
+
+## 338 — one caller row read as one call site
+
+- type: 2 (code) · handle: `do-not-attest-past-the-payloads-resolution` (R5.6) · status: sighting of a binding rule · seen: 338
+- evidence: 273 collapsed a caller's edges to one row (right for the count), but `line` could not
+  tell "calls it once" from "first of several", and a retro nearly patched one of two sites. The row
+  now carries `call_lines` when there are more; the count is untouched. Bump, not a new claim.
+- destination: docs/LESSONS.md (class index row bumped; R5.6 unchanged)
