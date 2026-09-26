@@ -118,12 +118,16 @@ Rejected alternatives: passing the resolved cap integer alone (loses *which* cap
 
 **Branch:** fix/337-elision-hint-names-the-cap
 
-Ran at 9a4ced1bd714ee5c9339e707eecce23ca9272a38
+Ran at cf4463ac986669379c1618d57e8c3b9d70a53107
 
 ```
 $ .venv/bin/python -m pytest tests/test_elision_hint_names_the_cap.py -q
 2 passed
 ```
+
+Full verification at `cf4463a` (the reviewed source `9a4ced1` plus docs only): `scripts/gate.sh` →
+`GATE GREEN — all 20 checks passed`; `scripts/docker-test.sh` → `4590 passed, 5 skipped` (Linux
+host, Docker). Later commits touch this working doc only.
 
 Red arm on `main` (`833564c`): AC1 fails (hint names 600), AC2 passes. `ruff` + `mypy` clean;
 `tests/test_read_symbol_body_elision.py` 6 passed unchanged.
