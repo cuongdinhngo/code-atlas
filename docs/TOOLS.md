@@ -163,7 +163,7 @@ answer says so rather than reporting a quieter `no_matches`. When a sweep mixes 
 `retry_as: "query"` so the single-subject call can spend the whole budget. A `kind=` filter that
 drops an exact-name hit of another kind answers `kind_excluded` (with those kinds), not absence.
 A `path_prefix=` filter that drops an exact-name hit outside the subtree answers `path_excluded`
-(with those file paths), not absence (315). `exclude_tests=true` drops test-role nodes in SQL
+(with those file paths), not absence (315); `read_symbol` answers the same miss the same way (339). `exclude_tests=true` drops test-role nodes in SQL
 before paging, and `total_count` counts the filtered set (332).
 
 #### Tools that take one subject at a time

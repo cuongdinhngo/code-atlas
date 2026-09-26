@@ -13,8 +13,8 @@ from code_atlas.store import GraphStore
 from code_atlas.tools import read_symbol
 from code_atlas.tools.nav_result import (
     AMBIGUOUS_DEFINITIONS,
-    REASON_NO_SUCH_SYMBOL,
     REASON_OK,
+    REASON_PATH_EXCLUDED,
     REASON_SUBJECT_AMBIGUOUS,
     TRY_INSTEAD_HINT_PATH_PREFIX,
     TRY_INSTEAD_READ_SYMBOL,
@@ -76,13 +76,14 @@ def test_path_prefix_matching_both_still_refuses(tmp_path: Path, store) -> None:
 def test_path_prefix_matching_neither_names_the_filter(
     tmp_path: Path, store  # noqa: F811
 ) -> None:
-    """AC3: path_prefix matching neither → no_such_symbol naming the filter, not a body."""
+    """AC3: path_prefix matching neither → path_excluded naming the filter, not a body (339)."""
     _seed_two_trees(store, tmp_path)
     result = read_symbol.create(db_config(tmp_path))(
         "\\dup", detail_level="minimal", path_prefix="other/"
     )
     assert result["found"] is False
-    assert result["reason"] == REASON_NO_SUCH_SYMBOL
+    assert result["reason"] == REASON_PATH_EXCLUDED
+    assert result["path_excluded"] == ["region/a.php", "region/b.php"]
     assert result["source"] == ""
     assert result["path_prefix"] == "other/"
     assert "file" not in result

@@ -30,6 +30,7 @@ from code_atlas.tools.nav_result import (
     REASON_NAME_NOT_QUALIFIED,
     REASON_NO_SUCH_SYMBOL,
     REASON_OK,
+    REASON_PATH_EXCLUDED,
     REASON_SEPARATOR_NORMALISED,
     REASON_SUBJECT_AMBIGUOUS,
     TRY_INSTEAD_FILE_OUTLINE,
@@ -124,7 +125,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         returns ``reason=subject_ambiguous`` plus ``ambiguous_definitions`` and **no body** —
         empty ``source``, no ``file``/``line_*`` — so one region's code cannot be read while
         ignoring the list (070 warn; 078 refuse). ``try_instead`` points at ``read_symbol`` with
-        ``path_prefix`` (327); ``path_prefix`` filters definition rows first (315's validator).
+        ``path_prefix`` (327); ``path_prefix`` filters definition rows first (315's validator),
+        and one that drops every definition answers ``path_excluded`` with their files (339).
         An untracked indexable file matching the subject is ``reason=not_indexed`` (092).
 
         Bodies above BODY_LINE_THRESHOLD (600 lines — one site in ``source_slice``) elide by
@@ -627,15 +629,17 @@ def _apply_path_prefix(
     detail_level: str,
     config: Config,
 ) -> tuple[list[dict[str, object]], dict[str, object] | None]:
-    """Filter definition rows by path_prefix; empty ⇒ no_such_symbol naming the filter (327)."""
+    """Filter definition rows by path_prefix; empty ⇒ path_excluded naming where it is (327/339)."""
     if path_prefix is None:
         return rows, None
     kept = [row for row in rows if is_under_path_prefix(str(row["file_path"]), path_prefix)]
     if kept:
         return kept, None
+    # The symbol is indexed, only outside the filter — search_symbol's shape for that miss (315).
     miss = _miss_result(
-        qname, detail_level=detail_level, config=config, reason=REASON_NO_SUCH_SYMBOL
+        qname, detail_level=detail_level, config=config, reason=REASON_PATH_EXCLUDED
     )
+    miss["path_excluded"] = sorted({str(row["file_path"]) for row in rows})
     miss["path_prefix"] = path_prefix
     return [], miss
 
