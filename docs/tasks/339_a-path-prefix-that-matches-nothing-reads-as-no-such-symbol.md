@@ -128,7 +128,7 @@ hint (would widen 315's semantics, which C1 fixes).
 
 **Branch:** fix/339-path-prefix-miss-is-path-excluded
 
-Ran at 736e7c3b8af577bcfc8dc49bcf121b98ce886eaf
+Ran at 73bad8148a52607d899831c4ecab71678cdf8fe4
 
 ```
 $ .venv/bin/python -m pytest tests/test_path_prefix_miss_is_path_excluded.py tests/test_read_symbol_path_prefix.py -q
@@ -137,6 +137,10 @@ $ .venv/bin/python -m pytest tests/test_path_prefix_miss_is_path_excluded.py tes
 
 Red arm on `main` (`833564c`): AC1 and the cross-tool shape test fail; AC2 passes. `ruff` + `mypy`
 clean; 101 neighbouring tests (read_symbol, path_prefix, nav reasons, descriptions) green.
+
+Full verification at `73bad81` (the reviewed source `736e7c3` plus docs only): `scripts/gate.sh` →
+`GATE GREEN — all 20 checks passed`; `scripts/docker-test.sh` → `4591 passed, 5 skipped` (Linux
+host, Docker). Later commits touch this working doc only.
 
 Design conformance: D1–D3 implemented-as-approved.
 
