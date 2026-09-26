@@ -4,7 +4,7 @@ slug: a-caller-row-hides-its-second-call-site
 title: "find_callers returns one row per caller with the first line only — a method that calls the subject twice shows one site, and a fix applied there is a half-fix"
 phase: 1.5b
 milestone: Agent-trust
-status: in-progress
+status: done
 depends_on: [037, 273]
 ---
 
@@ -53,8 +53,9 @@ A caller row names every line it calls the subject from, without changing what i
 
 - **Ticket:** 338 · local · **SCOPE:** S · **TIER:** full · **TRACK:** backend
 - **REVIEWER:** OFF (`--no-reviewer`) · **CHALLENGER:** ON
-- **Current phase:** execute
-- **Session status:** autorun — through execute
+- **Current phase:** finalise
+- **Session status:** done — autorun, PR open
+- **Reviewed at:** `962d034` (challenger round 1, CLEAN) · reviewed: code_atlas/store.py · code_atlas/tools/find_callers.py · code_atlas/tools/call_site.py · tests/test_caller_row_names_every_call_line.py · docs/TOOLS.md
 
 ## Phase 0 — Refine
 
@@ -147,3 +148,28 @@ Red arm on `main` (`833564c`): AC1 and the `include_source` test fail; AC2 and t
 payload weight) → 114 passed.
 
 Design conformance: D1–D5 implemented-as-approved.
+
+## Phase 4 — Review
+
+REVIEWER: OFF (`--no-reviewer`) · CHALLENGER: ON — round 1 on `962d034`: **CLEAN 10/0/0**. Verdict:
+`clean (challenger only — REVIEWER: OFF)`. Probed beyond the ACs: `confidence_tier`, `exclude_tests`
+and `arg_position` narrow `call_lines` with the page (a filter leaving one site drops the field);
+two calls on one line dedupe to one; CALLS + NEW onto one qname aggregate; a `limit=2, offset=2`
+page issues one `call_lines_by_source` read for its two callers; depth 2 never carries the field.
+
+| # | Note | Disposition |
+|---|---|---|
+| 1 | a dirty tracked file re-indexed by the freshness guard moves `line` and `call_lines` together | pre-existing guard behaviour; both read `edges.line`, so they stay consistent |
+| 2 | "red on today's code" not re-run by the challenger (it was told not to use the main checkout) | the red arm is in Phase 3, run by stashing `code_atlas/` in the worktree |
+
+## Phase 5 — Finalise (learning loop)
+
+Lesson: `docs/LESSONS.md` § 338 — a sighting of `do-not-attest-past-the-payloads-resolution` (R5.6);
+class index bumped to 14.
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 1 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 1 type-2 claim(s) with seen ≥ 2 | 1 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: docs/LESSONS.md | mango files written: 0`
+`LEDGER TOTAL: 133920 · top cost driver: review/challenger ×1 (1 dispatch; main-loop unmeasured)`
