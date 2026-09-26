@@ -2050,6 +2050,44 @@ class GraphStore:
             ),
             distinct_sources=distinct_sources,
         )
+    def call_lines_by_source(
+        self,
+        qname: str,
+        sources: Sequence[str],
+        *,
+        kinds: Sequence[str] | None = None,
+        args_at: tuple[int, str] | None = None,
+        confidence_tier: str | None = None,
+        exclude_test_sources: bool = False,
+    ) -> dict[tuple[str, str], list[int]]:
+        """Sorted distinct lines per ``(source_qname, file_path)`` into ``qname`` (338).
+
+        One statement for a whole page of ``sources``, under the same filters as the page read.
+        """
+        if not sources:
+            return {}
+        clause, params = self._edge_where(
+            "edges.target_qname = ?",
+            kinds,
+            _combine_predicates(
+                _args_predicate(args_at),
+                _tier_predicate(confidence_tier),
+                _exclude_test_sources_predicate(exclude_test_sources),
+                (
+                    f"edges.source_qname IN ({', '.join('?' for _ in sources)})",
+                    tuple(sources),
+                ),
+            ),
+        )
+        sql = (
+            "SELECT DISTINCT source_qname, file_path, line FROM edges "
+            f"WHERE {clause} AND line IS NOT NULL ORDER BY source_qname, file_path, line"
+        )
+        found: dict[tuple[str, str], list[int]] = {}
+        for source, file_path, line in self._conn.execute(sql, (qname, *params)):
+            found.setdefault((str(source), str(file_path)), []).append(int(line))
+        return found
+
     def inbound_test_rows(
         self,
         qname: str,

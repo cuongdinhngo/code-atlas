@@ -136,7 +136,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``include_source`` (default off, so the common case stays token-frugal) adds each call
         site's own source line as ``source``, capped in length — answering "show me" without a
         second call. A site whose file drifted since indexing is never quoted: those hits carry
-        ``source_stale`` instead.
+        ``source_stale`` instead. At depth 1 a caller that calls the subject from two or more
+        lines carries them all as ``call_lines`` (``line`` stays the first), quoted as
+        ``call_sources`` under ``include_source``; it is still one caller in ``total_count``.
 
         ``arg_position`` (1-based) with ``arg_is`` keeps only call sites whose argument there has
         that shape: a literal category (``null``, ``true``, ``false``, ``number``, ``string``,
@@ -791,6 +793,33 @@ def _proximity_unresolved_callers(
     )
 
 
+def _attach_call_lines(
+    store: GraphStore,
+    qname: str,
+    hits: list[dict[str, object]],
+    *,
+    args_at: tuple[int, str] | None,
+    confidence_tier: str | None,
+    exclude_test_sources: bool,
+) -> None:
+    """A row whose caller calls ``qname`` from two or more lines names them all (338).
+
+    One read for the page; one line keeps the row byte-identical (061).
+    """
+    lines = store.call_lines_by_source(
+        qname,
+        sorted({str(hit["qname"]) for hit in hits if isinstance(hit.get("file"), str)}),
+        kinds=CALLER_KINDS,
+        args_at=args_at,
+        confidence_tier=confidence_tier,
+        exclude_test_sources=exclude_test_sources,
+    )
+    for hit in hits:
+        found = lines.get((str(hit["qname"]), str(hit.get("file"))), [])
+        if len(found) > 1:
+            hit["call_lines"] = found
+
+
 def _callers(
     store: GraphStore,
     qname: str,
@@ -823,6 +852,14 @@ def _callers(
             distinct_sources=True,
         )
         hits = [edge_hit(edge, depth=1) for edge in edges]
+        _attach_call_lines(
+            store,
+            qname,
+            hits,
+            args_at=args_at,
+            confidence_tier=confidence_tier,
+            exclude_test_sources=exclude_test_sources,
+        )
         return _CallersOutcome(
             results=hits,
             truncated=offset + len(hits) < total,
