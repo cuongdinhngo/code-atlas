@@ -136,7 +136,7 @@ Python (pages by edge, breaking 273's caller paging).
 
 **Branch:** fix/338-caller-row-names-every-call-line
 
-Ran at 962d034edff1d1b27a5b98a856e06d9a6c128046
+Ran at fdd26e3a132dc9a1729935f4189b1895c28c87c4
 
 ```
 $ .venv/bin/python -m pytest tests/test_caller_row_names_every_call_line.py tests/test_partition_counts_callers.py -q
@@ -146,6 +146,11 @@ $ .venv/bin/python -m pytest tests/test_caller_row_names_every_call_line.py test
 Red arm on `main` (`833564c`): AC1 and the `include_source` test fail; AC2 and the count test pass.
 `ruff` + `mypy` clean; 15 neighbouring test files (callers, call sites, nav tools, descriptions,
 payload weight) → 114 passed.
+
+Full verification at `fdd26e3` (the reviewed source `962d034` plus docs only): `scripts/gate.sh` →
+`GATE GREEN — all 20 checks passed`; `scripts/docker-test.sh` → `4592 passed, 5 skipped` (Linux
+host, Docker). The proving test above ran green on that tree inside both. Later commits touch this
+working doc only.
 
 Design conformance: D1–D5 implemented-as-approved.
 
