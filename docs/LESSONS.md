@@ -1702,3 +1702,13 @@ venv or the PHPStan tmpDir is rebuilt from a wrong-cased cwd.*
   "absent" and "outside the filter" read the same — the retro's "worst failure for an agent".
   `search_symbol` already separated them (315); the fix reuses its `path_excluded` shape.
 - destination: docs/LESSONS.md (class index row bumped; R5.6 unchanged)
+
+## 342 — a class fix covered the sites its ticket listed, not the class
+
+- type: 2 (code) · handle: `a-class-fix-enumerates-its-sites-by-grep`
+- status: proposed · seen: 342
+- evidence: the ticket named five read/write sites from an audit; the challenger's grep of
+  `read_text|read_bytes|open` under `code_atlas/` found four more reads and an untracked listing
+  that followed the same committed link. When the defect is a class, derive the site list from a
+  grep of the primitive, and cite it, before trusting the ticket's list.
+- destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)
