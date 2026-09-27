@@ -168,7 +168,7 @@ REVIEWER: OFF (`--no-reviewer`) · CHALLENGER: ON — round 1 on `b812b00`: **FI
 
 | # | Finding | Disposition |
 |---|---|---|
-| 1 | the planted merge-bot address kept `1+bot@users.noreply` inside one literal, which the tree sweep's email arm reads as an out-of-allowlist address — `test_no_email_outside_the_allowed_domains` red | fixed in `32fd3cd` (split at the `@`); the named proving command re-run green, 40 passed |
+| 1 | the planted merge-bot address kept the local part, the `@` and the first domain label inside one literal, which the tree sweep's email arm reads as an out-of-allowlist address — `test_no_email_outside_the_allowed_domains` red | fixed in `32fd3cd` (split at the `@`); the named proving command re-run green, 40 passed |
 
 Verdict: `clean after fix (challenger only — REVIEWER: OFF)`; no round 2 was dispatched for a
 one-literal fix whose failing test is in the proving command.
