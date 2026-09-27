@@ -727,11 +727,12 @@ repo — hence `index_root` on every payload and `CA_DB_PATH` for isolation
 
 **What phase 1's field rounds established** (retro rounds 2–6 and the round-5 interview; protocol
 [`runbooks/field-retro.md`](runbooks/field-retro.md)). Every failure they found was silence or
-ambiguity, never a wrong answer. The findings that outlive their tickets:
+ambiguity, never a wrong answer — round 5 (2026-08-14, the first with mechanism questions) checked
+**8 of 8 claims exact, zero false statements**. The findings that outlive their tickets:
 
 - **Cost shapes behaviour, not just the bill** — with a ~60 s cliff between zero changed files and
   one, an agent stopped querying while writing code; late resolution is scoped on what a delta
-  *declares* (096).
+  *declares* (096), and a no-op rebuild fell **56.1 s → 2.113 s** on the anchor index (080).
 - **Recognition ≠ recall.** Descriptions can name an occasion; they cannot make an agent notice it
   (097). Adoption is a *position* problem: the signal an agent wanted was one line inside a `Read`
   already happening, so it lives in the **host's hook surface**, never on a payload rider (099).
