@@ -4,10 +4,8 @@
 > adapters (PHP · TS/JS · T-SQL · Python; C#/.NET deferred, §19), the onboarding layer, 24 tools.
 > What it delivered is §15. **Phase 2** improves and extends it in the public repo; open work is
 > [`BACKLOG.md`](BACKLOG.md).
-> A local-first, multi-language code-intelligence MCP server.
-> Name: **`code-atlas`** (evolved: `php-code-graph` → `code-graph` → **`code-atlas`**; it's multi-language). GitHub repo: `code-atlas`.
 
-A local-first MCP server that indexes a codebase into SQLite and exposes **fast, resolved, token-efficient** search / read / navigation / impact tools — above all the **resolved relationships** between symbols, which text search cannot produce at any speed. (This line used to claim native tools and grep are weak at search on large repos; that premise was measured and refuted on 2026-08-08 — see §19.)
+A local-first MCP server that indexes a codebase into SQLite and exposes **fast, resolved, token-efficient** search / read / navigation / impact tools — above all the **resolved relationships** between symbols, which text search cannot produce at any speed (§19, founding-premise benchmark).
 
 **Language-agnostic core + per-language adapters**, every one behind the *same* contract (order and status: §3). On top of the graph sits the **Understand-Anything-style onboarding** feature (§14).
 
@@ -297,21 +295,19 @@ echo json_encode(['path'=>$path,'ok'=>true,'nodes'=>$v->nodes,'edges'=>$v->edges
 4. Store `meta.last_commit`, `meta.last_ref` (077 — branch/ref name, or `HEAD` when detached),
    `contract_version`, `built_at`. `last_commit` / `last_ref` are **cleared** when git cannot name
    them (no repo, no commit yet) rather than left inheriting a prior build's stamp.
-5. Run **resolver** (§8.2), then report. **`BuildReport` counts what the run *wrote*, not what the graph holds** (task 051). Steps 3–4 tally adapter output, but enrichment (§13) and the resolver both insert rows afterwards — synthetic ALIASES/CALLS, and one sibling per extra candidate at a multi-match call site — so a report taken from the parse tally alone understates the graph it just built: 949,808 against 1,775,812 stored on the anchor repo, and 3,481 against 4,373 on a public PSR-4 library. Both writers now return what they wrote and the report folds it in, so a full build agrees with `store.counts()` (what `get_index_status` reports) while an incremental run still reports its own delta. The MCP tool nests those under `wrote` so a delta cannot be mistaken for a repo size; `standard` also carries `store.counts()` as `graph` (task 060 — not on `minimal`, which stays cheap). Rule edges keep a synthetic `file_path` bookmark with no `files` row and no File node (task 068), so `files`/`parsed` stay aligned with `BuildReport`.
+5. Run **resolver** (§8.2), then report. **`BuildReport` counts what the run *wrote*, not what the graph holds** (051). Enrichment and the resolver insert rows after the parse, so both writers return what they wrote and the report folds it in: a full build agrees with `store.counts()`, an incremental run reports its own delta. The MCP tool nests those under `wrote` so a delta cannot be mistaken for a repo size; `standard` also carries `store.counts()` as `graph` (060). Rule edges keep a synthetic `file_path` bookmark with no `files` row and no File node (068), so `files`/`parsed` stay aligned with `BuildReport`.
 6. `nodes_fts` needs **no rebuild**: §10's triggers keep it current through every per-file replace, so a rebuild per build would cost a full re-index and change nothing. `GraphStore.rebuild_search_index` stays as the repair tool for a stale index.
 
 ### 8.2 Resolver (phase 2, generic — no language branches)
 Runs after all nodes exist:
-- `EXTENDS/IMPLEMENTS/USES_TRAIT/NEW/FuncCall`: `target_raw` is an FQN from the adapter → look up `nodes.qualified_name`, set `target_qname`, tier `RESOLVED`; leave NULL if external/vendor. A qname that appears in multiple files (§10) is linked **once**, still `RESOLVED` — the lookup is keyed by qname, so a hit means the name resolved, and an edge records a `target_qname`, never a node id, so "which declaring file" is not representable. **Revised by task 046:** this previously emitted one top-N `HEURISTIC` edge per declaring node, which produced rows identical in every column but `id` (38.8% of the graph on a monorepo carrying two regional copies of one tree) and downgraded 1.66M edges for a multiplicity that was never ambiguity. Every declaration remains a `nodes` row, so nothing is lost.
+- `EXTENDS/IMPLEMENTS/USES_TRAIT/NEW/FuncCall`: `target_raw` is an FQN from the adapter → look up `nodes.qualified_name`, set `target_qname`, tier `RESOLVED`; leave NULL if external/vendor. A qname that appears in multiple files (§10) is linked **once**, still `RESOLVED` — the lookup is keyed by qname, so a hit means the name resolved, and an edge records a `target_qname`, never a node id, so "which declaring file" is not representable. (046 — one edge per declaring node had made rows identical in every column but `id`; every declaration remains a `nodes` row, so nothing is lost.)
 - Instance `CALLS` with unknown receiver type: match by **method name** across the index → one candidate = `HEURISTIC`; many = **one unresolved site**, candidates expanded at query time (258); dynamic (`$x->$m()`) = `DYNAMIC`, unlinked. *(Adapters with `semantic_types` capability — Roslyn — pre-resolve these to `RESOLVED`; the resolver just honors what's provided. This is how the same generic code serves both.)* PHP (task 029) emits FQN `target_raw` for lexically bound `$this` / `self` / `static` / `parent` when the enclosing class-like **declares** the method in-file (inherited / trait-mixin `$this->m` stays bare HEURISTIC so name-match still links). Tier convention: RESOLVED names the **declaration site** the file can prove (`$this`/`self`/`parent` at default tier); `static::` is late binding so it keeps the FQN but at `HEURISTIC`.
 - `ALIASES` (task 030): adapter emits alias FQN → real class FQN; resolver links the real target like other FQN kinds, then remaps later CALLS/NEW whose `target_raw` is an alias onto the real class (transitively through alias chains, cycle-safe) so `find_callers` / `find_references` / impact see Alias users under Real. A stored `meta.contract_version` that lags `CONTRACT_VERSION` forces a full rebuild on incremental (never mix vocabulary eras).
 - `REFERENCES` (094, widened by 232): a `Foo::class` mention is a `DYNAMIC` FQN edge; a named class type on a declaration and an attribute / decorator are `RESOLVED` ones. The resolver links both and **keeps** the incoming tier (`_weaker_tier`), so `skip_dynamic` still drops unlinkable `(dynamic)` CALLS/NEW/INCLUDES and never a `REFERENCES`. Variable-method dispatch stays unmodelled. Leftover unlinked `REFERENCES`/`IMPORTS` still feed `relationship_not_modelled` (065).
 - **Path-shaped kinds** (`contract.PATH_TARGET_BASIS` — `INCLUDES`, `IMPORTS`): the target is a **file**, so the lookup is over `File` qnames, never by FQN, and the two kinds are disjoint from `FQN_EDGE_KINDS` so no edge id is double-linked. The contract declares how `target_raw` names the file — `INCLUDES` is includer-relative, `IMPORTS` is the repo-relative path the adapter already resolved (155) — so the resolver reads a declaration instead of sniffing a string (R5.2). **The discriminator is the graph:** a raw naming no indexed file stays bare, which is what leaves a symbol-shaped `IMPORTS` (a class FQN) unlinked with no language branch, and leaves an unresolvable specifier as honest `relationship_not_modelled` evidence (task 188). Variable include = `DYNAMIC`. `IMPORTS` carries `INCLUDES`' impact weight — a module dependency is a file-level dependency — so impact / reachability / orphans finally cross a module boundary.
 - **Fan-out** is `CA_MAX_CANDIDATES` / `config.max_candidates` (default 50; `CA_MAX_RESULTS` aliases here). **Page length** is `CA_PAGE_LIMIT` / `config.page_limit` (default 50, query-only — 259).
 - Linked tier is the **weaker** of the adapter's incoming `confidence_tier` and the lookup outcome: an FQN hit is would-be `RESOLVED` regardless of how many files declare it (task 046), while a **method-name** match is would-be `HEURISTIC` because those candidates carry genuinely different qnames. A resolved name never upgrades a guess (R5.2).
-- **M4 scale:** per-edge `link_edge`/`insert_edge` commits and loading all unresolved edges into Python
-  are addressed in task 015 — the resolver streams unresolved edges in batches and applies links in
-  one transaction per batch. Multi-match name fan-out is gone (258); remaining candidate lookups stay capped by `CA_MAX_CANDIDATES`.
+- **Scale:** the resolver streams unresolved edges in batches and applies links in one transaction per batch (015); remaining candidate lookups stay capped by `CA_MAX_CANDIDATES`.
 
 ### 8.3 Incremental (`indexer.incremental_update`)
 **Shipped (task 016).** Diff = `last_commit..HEAD` **∪** working-tree changes vs `HEAD` (so
@@ -323,16 +319,12 @@ always reparsed so adapter tiers and duplicate keys stay intact); `resolve_edges
 are usable; otherwise it escalates to a full build and reports the mode that actually ran — or,
 where that escalation is unbounded, answers with the route instead of starting it (201/202).
 Staleness is `current | behind | incomplete | unknown` (commit equality; `behind` when the worktree
-is dirty; `incomplete` outranks both after a build died mid-write, 202). Tests use hermetic throwaway repos so CI can keep a shallow checkout. Field retros saw
-~62 s flat fee for no-op and small incrementals on a large index (task 052) — profile phases with
-`scripts/profile_incremental.py --root …` (optional `phase_times` on `incremental_update`; not on
-the MCP payload). **No-op short-circuit (task 080):** when the delta is empty (`to_parse` and
-`removed` both empty), the late writers (`apply_indirection_rules` + full-graph `resolve_edges`) are
-skipped — their output is already in the store and idempotent — so a true no-op costs only
-collect+diff+hash and reports an honest `wrote:{files:0,parsed:0,nodes:0,edges:0}` instead of
-re-derived siblings (the field's `edges:6071` at ~56 s). A *non-empty* delta still runs them
-(correctness unchanged). The general small-delta case (a few files still pay a full-graph resolve)
-would need delta-scoped resolver state (a schema change) and is a separate follow-up.
+is dirty; `incomplete` outranks both after a build died mid-write, 202). Tests use hermetic throwaway repos so CI can keep a shallow checkout. Profile phases with
+`scripts/profile_incremental.py --root …` (optional `phase_times`; not on the MCP payload).
+**No-op short-circuit (080):** an empty delta skips the late writers (`apply_indirection_rules` +
+full-graph `resolve_edges`), whose output is already stored and idempotent, and reports an honest
+`wrote:{files:0,…}`. A small non-empty delta still pays a full-graph resolve; fixing that needs
+delta-scoped resolver state (a schema change).
 
 ---
 
@@ -513,8 +505,7 @@ found the gap is **demand, not capability**. A scanned tool surface has a budget
 it on a field question no shipped tool answers.
 
 **Claim signing — `sign: true` on the five attesting tools (100).** An attestation that never reaches
-the artifact where the claim is made has, practically, not been produced: the round-5 session pasted
-nine kinds of counted evidence into its PR and **zero** code-atlas output. `impact`, `impact_modules`, `find_callers`,
+the artifact where the claim is made has not been produced (§19). `impact`, `impact_modules`, `find_callers`,
 `find_references` and `get_index_status` therefore take `sign: bool = False`, adding one `claim` key —
 a single `key=value` line naming tool, subject, question, answer, the revision the index describes and
 the running server. `claim.py` is a **pure formatter** over an already-computed payload, so R1.4/R4.1
@@ -533,10 +524,9 @@ exists to make and text search cannot. When *every* named subject was lost the a
 `reason` through the same `shape_exact_miss` machinery as 075/076/092; a merged multi-subject radius
 states only the base class it can prove for every subject, because it has no per-subject reason channel.
 
-**Sweeps — one call for a list of subjects (101).** *"Are any of these ten names already taken?"* was
-ten calls, so the round-5 session ran `grep -rn` instead. Cost was not the complaint: **ten calls is
-the wrong granularity for one question**, and any tool answering *"is this name taken"* loses to a
-shell loop until it takes a list. `search_symbol` accepts **`queries`** beside `query` (never both) and
+**Sweeps — one call for a list of subjects (101).** **Ten calls is the wrong granularity for one
+question**, and any tool answering *"is this name taken"* loses to a shell loop until it takes a
+list. `search_symbol` accepts **`queries`** beside `query` (never both) and
 answers `subjects`, one entry per subject in the caller's order — never a merged set, which is 070's
 defect at batch scale. Fan-out is bounded by **`CA_MAX_SUBJECTS` (default 25)** and disclosed: a sweep
 exists to be complete, so a silent truncation is worse than ten honest calls. Two costs are stated
@@ -544,8 +534,8 @@ rather than hidden — the subject is no longer schema-`required` (two spellings
 a sweep shares **one** read-through repair budget. The measured token win tracks `index_root`'s length
 and so does not generalise; **the argument is shape, not cost.** Only `search_symbol` batches (R1.2).
 
-**Ambiguous qnames — warn, never scope (070); refuse the body (078).** A qname is not unique: on the
-anchor index 22,261 qnames have more than one definition. Nav tools merge their callers and disclose
+**Ambiguous qnames — warn, never scope (070); refuse the body (078).** A qname is not unique (22,261
+have more than one definition on the anchor index). Nav tools merge their callers and disclose
 `ambiguous_definitions`; `read_symbol` refuses to return a body at all, because a warning field beside
 a body is ignorable and the agent reads the body. Scoping by file was rejected as a surface the caller
 cannot be expected to know it needs.
@@ -596,15 +586,12 @@ built**, which is the substrate UA spends its whole pipeline producing, at highe
 tree-sitter, and multi-language for free. Full detail in
 [`phase3-onboarding/ROADMAP.md`](phase3-onboarding/ROADMAP.md).
 
-It adds two things the graph lacks, and **both landed differently than this section first assumed:**
+It adds two things the graph lacks:
 
-1. **Semantic layer.** Layers turned out to be **deterministic** — 110's ratified responsibility
-   vocabulary names them, and 117 measured that 091's LLM rename seam fires on nothing. The LLM ended
-   up owning **prose only** (layer descriptions, tour narratives, headline wording) behind three
-   opt-in seams in `onboarding_llm/`, off by default. 118 fed the summary seam real facts, and 205
-   then deleted the per-module page tree it wrote onto — summaries now ride tour modules only.
-2. **Presentation.** 116 replaced the imagined page dump with a **navigable system map** rendered from
-   112's single compact dataset.
+1. **Semantic layer.** Layers are **deterministic** — a ratified responsibility vocabulary names them
+   (110). The LLM owns **prose only** (layer descriptions, tour narratives, headline wording) behind
+   three opt-in seams in `onboarding_llm/`, off by default; summaries ride tour modules only (205).
+2. **Presentation.** A **navigable system map** rendered from one compact dataset (112 · 116).
 
 The discipline held throughout: **deterministic graph (core) → LLM enrichment (onboarding) →
 presentation.** The LLM touches only the onboarding layer, is off by default, and lives outside
@@ -634,26 +621,11 @@ were archived out of the repo; its decisions stay in §19. It delivered:
 - **Pre-public hardening** — a commit-identity guard (340), opt-in trust before an indexed repo's own
   adapter command runs (341), and no symlink read or write outside the indexed repo (342).
 
-**Core + PHP — make it work (M0–M6):**
-- **M0** Adapter spike: PHP `--file` parses a namespaced *and* a global/underscore(PSR-0) file → valid contract JSON.
-- **M1** Full build: streaming adapter + N workers + SQLite; `get_index_status`.
-- **M2** Resolver + contract tests; `find_callers`/`find_references` correct on a known symbol.
-- **M3** Read/search/outline + FTS. **← ship for daily use here.**
-- **M4** Full-language coverage + scale: global-namespace & PSR-0 resolution, `include_graph`, the 112k-file sample end-to-end.
-- **M5** Incremental + git; staleness in status.
-- **M6** Impact engine + `impact` tool + prompts.
-
-**More languages (M7–M9)** (T-SQL took M7's slot ahead of Python, §19):
-- **M7** **TypeScript/JavaScript adapter** (TS Compiler API, Node sidecar) behind the *unchanged* core — the real test of OCP/DIP. Landed (019) with no contract v2 and no core registry (§4.4, §19).
-- **M8** **Python adapter** (stdlib `ast`) — tier 1a (020) and tier 2 (217) landed; the residual is type-inferred receivers (`semantic_types`), the same one TS/JS carries.
-- **M9** **C#/.NET adapter** (Roslyn sidecar) — deferred (§3, §19).
-
-**Onboarding — "Phase 3" in code and `phase3-onboarding/` (M10–M12)** (deterministic-first; LLM opt-in and out of core + CI). All three milestones
-are **complete**; the per-task breakdown, including the 108–117 reshape, is in
-[`phase3-onboarding/ROADMAP.md`](phase3-onboarding/ROADMAP.md).
-- **M10** `architecture_overview` + deterministic layers — 083 · 084 · 085 · 103 · 104 · 086. The 15th tool; 105 elects the dominant subtree by graph mass, proven on three pinned repos.
-- **M11** `guided_tour` (16th) · `generate_onboarding` (17th) · the viewer — **reshaped by 108–117 into the navigable system map**, rendered from 112's dataset alone. 116's AC4–AC6 are proven by running the page headlessly under `tests/viewer_dom_stub.js`, because a grep over the HTML sees zero rendered figures and would be a false green.
-- **M12** LLM enrichment, opt-in and outside the core — 090 · 091 · 117. The prose ceiling is **derived, never listed** (R6.7): `prose.MAX_PROSE_CALLS` sums `SLOT_LIMITS`, so a new slot moves it and no doc goes stale. It is enforced **per slot**, so a repo falling back to per-directory layers cannot starve the tour (measured at 18,929 files: 1,176 requested, 12 served, 1,164 refused).
+| Milestones | What landed |
+|---|---|
+| **Core + PHP (M0–M6)** | adapter spike → full build → resolver → read/search/outline + FTS (**M3, the daily-use ship point**) → full PHP 8.5 coverage at 112k-file scale → incremental + git → impact |
+| **More languages (M7–M9)** | TS/JS (019) behind an unchanged core — no contract v2, no registry (§4.4); T-SQL took M7's slot ahead of Python (§19); Python (020 · 217). **C#/.NET deferred** (§3) |
+| **Onboarding (M10–M12)** — "Phase 3" in code and [`phase3-onboarding/`](phase3-onboarding/ROADMAP.md) | `architecture_overview` with deterministic layers; `guided_tour`, `generate_onboarding` and the navigable system map; opt-in LLM prose outside the core, its ceiling derived per slot (`prose.MAX_PROSE_CALLS`, R6.7) |
 
 ---
 
@@ -683,11 +655,9 @@ are **complete**; the per-task breakdown, including the 108–117 reshape, is in
 
 ## 18. Open questions for review
 
-Six of the original eight are **closed** and recorded where they were decided: the language order and
-its deferral (§3, §19 pivot), the PHP *and* TS/JS validation repos (018 · 150 — public pins in
-`scripts/cross_repo_samples.json` plus an operator-local monorepo via `CODE_ATLAS_SCALE_SAMPLE`), the
-ship point (M3, task 014 — shipped), onboarding presentation (both: committed markdown *and* a
-viewer, §14), and schema-state awareness (**no, permanently** — §19, 2026-08-30). Still open:
+The rest of the original eight closed in phase 1 (language order, validation repos — public pins in
+`scripts/cross_repo_samples.json` plus an operator-local monorepo via `CODE_ATLAS_SCALE_SAMPLE` —,
+the ship point, onboarding presentation, and schema-state awareness: **no, permanently**). Still open:
 
 1. **PHP runtime** — both modes ship (§9); is a host PHP 8.5 CLI acceptable for indexing, or is
    Docker-only the standing answer?
@@ -700,23 +670,14 @@ viewer, §14), and schema-state awareness (**no, permanently** — §19, 2026-08
 ## 19. Project context & decision log
 > This is the durable record — kept **in this plan**, not in any external memory store. Do not use the Claude Code Memory feature for this project; decisions live here and in the repo.
 
-**What & why.** Build a local-first, multi-language code-intelligence MCP (`code-atlas`) ~~because native Claude Code tools and grep are weak at language-specific, name-resolved search on large repos~~. It indexes into SQLite and serves fast, token-efficient search/read/nav/impact tools.
-
-> **The struck clause was the founding premise and it was measured false on 2026-08-08.** It is kept, struck, as the historical motivation rather than deleted, because every decision below was taken under it. What replaces it is narrower: **the index sells resolved relationships, not search speed.** See *Founding-premise benchmark* at the end of this list; [`benchmarks/324`](benchmarks/324_field-claim-ledger.md) measures it in the field (7 confirmed · 1 struck).
+**What & why.** A local-first, multi-language code-intelligence MCP (`code-atlas`) that indexes into SQLite and serves fast, token-efficient search/read/nav/impact tools. It was founded on the premise that native tools and grep are weak at name-resolved search on large repos; that premise was **measured false on 2026-08-08**, and what replaces it is narrower: **the index sells resolved relationships, not search speed** (*Founding-premise benchmark* below; [`benchmarks/324`](benchmarks/324_field-claim-ledger.md) measures it in the field — 7 confirmed · 1 struck).
 
 **Decisions locked so far:**
 - **Architecture** — language-agnostic core + per-language adapters, each using the language's best parser, joined by one frozen/versioned JSON contract (§4). Engine lineage: code-review-graph.
-- **T-SQL ordered ahead of Python and C#/.NET — 2026-08-30, reversing the order below.** Not on
-  breadth (which ordered 019/020/021) but on **measured in-anchor demand**: a field retro found the
-  decisive fact of a critical-path ticket inside 378,790 lines of T-SQL the index does not read, and
-  **tier 1a costs zero contract vocabulary** (`Function`/`CALLS` exist). Honest counter-case: `n = 1`
-  repo. The retros hold the round-by-round demand; adapter #2's zero was **roll-out** (an absent env
-  var), not absent demand.
-- **Task 022's evidence gate: discharged, not widened — 2026-08-30.** §1 asked for a second
-  independent repo, and is scoped to the *schema-state* question §18.4 closed permanently, so it no
-  longer describes the ticket. Its premise — nothing every user inherits — survives and is answered
-  by proof: `Table`, `Column` and `WRITES` (**v9**) join **no** existing named subset, so a repo
-  with no `.sql` is unchanged. §1's text stands; round 12's four tickets are demand, not a repo.
+- **T-SQL ordered ahead of Python and C#/.NET — 2026-08-30.** On **measured in-anchor demand**
+  (the decisive fact of a critical-path ticket sat in 378,790 lines of unread T-SQL), and because
+  tier 1a cost zero vocabulary. Its tier-2 vocabulary (`Table`, `Column`, `WRITES`, **v9**) joins no
+  existing named subset, so a repo with no `.sql` is unchanged. Honest counter-case: `n = 1` repo.
 - **Language order and its rationale** — §3's table. Ordered PHP → TS/JS → Python → C#/.NET, deferred behind PHP agent-depth 2026-08-04, T-SQL inserted ahead of Python 2026-08-30; #2–#4 have landed and only C#/.NET remains.
 - **Native Windows runtime taken — 2026-09-10, superseding 220's `unsupported`.** A
   `sys.platform`-selected lock arm keeps POSIX byte-identical and 072's property. Tiered: native
@@ -730,7 +691,7 @@ viewer, §14), and schema-state awareness (**no, permanently** — §19, 2026-08
   needs `CA_TRUST_PROJECT_FILE=1`, a flag outside the config identity.
 - **LSP-tool coexistence** (§13) — code-atlas is the indexed search/impact layer; a language server stays for LSP nav/edit.
 
-**Decision — Agent-first PHP-depth pivot (adopted 2026-08-04; source: [`FEEDBACK.md`](FEEDBACK.md)).**
+**Decision — Agent-first PHP-depth pivot (adopted 2026-08-04, from phase 1's external review rounds 1–4).**
 The consumer is an **AI coding agent in a terminal**, so the incumbent to beat is
 `grep + Read + context`, not a language server.
 
@@ -738,313 +699,132 @@ The consumer is an **AI coding agent in a terminal**, so the incumbent to beat i
   set — not precision-vs-LSP. The harness comes before any accuracy claim (034).
 - **Machine-trustable responses first.** Empty ≠ unknown: every `find_*`/`search` answer carries a
   reason code and `total_count`, and a subject the index has no exact node for is **classified before
-  it is answered** rather than returned as a confident zero (033 · 065 · 075/076 · 092 · 122 — the
-  vocabulary and the full payload contract live in [`CONVENTION.md`](CONVENTION.md) §6). Freshness is
-  **enforced, not surfaced**: inline reparse on hash drift with a per-call cap (035), zero-hit
-  miss-repair (073), and opt-in host hooks for edit and checkout (036 · 053), never auto-installed.
-- **Fewer round-trips beats fewer rows.** `find_callers`/`find_references` take an opt-in
-  `include_source` riding each site's own source line — **180 vs 251 tokens (−28 %)** for the identical
-  answer with one round-trip removed, and **107 vs 176 (−39 %)** counting relation calls alone (037).
-  **Consolidation was measured and rejected — on smallness, not on a loss:** one
-  `find_relations(qname, relation)` saves 241 schema tokens once and costs 6.75 per call, so it wins
-  below ≈36 relation calls per session and loses above, a spread of only −234…+434 tokens over 1–100
-  calls. No net win ⇒ R1.2 holds, reinforced by the unpriced cost of one muddier description. The A/B
-  lives in `scripts/relation_surface_ab.py`; `find_relations` was never shipped.
-- **Depth over breadth — reversed for 020, 2026-09-04.** 019/020/021 were deferred behind the PHP
-  agent-loop (human-ratified 2026-08-04, the private PHP monorepo being the anchor for testing *and*
-  evaluation). **020 un-deferred by maintainer decision**, without the field-measured demand the
-  T-SQL reorder above required; **021 stays deferred.**
-- **Editing permanently ceded** to the agent's native `Edit`/`Write` (§1). code-atlas serves exact line
-  ranges; it never mutates code.
+  it is answered** rather than returned as a confident zero (the vocabulary and the full payload
+  contract live in [`CONVENTION.md`](CONVENTION.md) §6). Freshness is **enforced, not surfaced**:
+  inline reparse on hash drift with a per-call cap, zero-hit miss-repair, and opt-in host hooks for
+  edit and checkout, never auto-installed.
+- **Fewer round-trips beats fewer rows.** `include_source` rides each call site's own line (−28 % for
+  the identical answer). **Consolidating the relation tools was measured and rejected** — one
+  `find_relations` wins below ≈36 relation calls per session and loses above, a spread too small to
+  pay for one muddier description, so R1.2 holds (`scripts/relation_surface_ab.py`).
+- **Depth over breadth**, reversed for Python (020) by maintainer decision on 2026-09-04;
+  **C#/.NET (021) stays deferred.**
+- **Editing permanently ceded** to the agent's native `Edit`/`Write` (§1).
 - **Framework magic stays an enrichment layer** (§1 non-goal) — vendor stubs and indirection-as-data
   (039 · 040), sequenced *below* the response-shape work: an agent can verify a shallow edge by reading
   one file, but cannot recover from an empty array it misread as proof.
 - **Open risk (recorded, not resolved).** At the limit this resembles a language server, and a better
   PHP language-server backend might reach further. We still go depth-first — live LSP indexing of tens
-  of thousands of files is the founding complaint and no backend fixes an architecture — but the
-  objection is acknowledged, and 034 is what keeps us honest about it.
-- **Cheap unblocker (done):** resolve the license — an unlicensed MCP server does not get installed (032).
-- **Field-report validation (2026-08-05; [`FEEDBACK.md`](FEEDBACK.md) Round 4).** A parallel agent
-  fan-out over worktrees OOM'd on resident-LSP servers (~5.6 GB each, pointed at `main`). code-atlas
-  does **not** reproduce the *memory* half — no resident server, SQLite opened per call. It **does**
-  reproduce the *routing* half; both halves are measured in the next entry.
+  of thousands of files is the founding complaint — and the tokens-to-answer harness keeps us honest.
 
-- **Memory & concurrency field run (2026-08-09, `869dcc6`; 16-core / 27.8 GB Linux).** N = 1/2/3/5
-  servers, 4,500 calls at N = 5. **The memory thesis holds with room to spare:** the n-th agent costs
-  **~70 MB PSS** and the 925 MB index costs **0 MB** — `graph.db` is never mmapped and no descriptor
-  outlives a call, so it is resident once in the page cache, shared and reclaimable. Five agents =
-  1.3 % of RAM at **4.3×** single-agent throughput; 452 drift events, zero `index_stale` soft-fails,
-  zero `SQLITE_BUSY` reaching a caller. **Correction to the entry above:** a `cwd`-relative `db_path`
-  does **not** give a worktree agent its own index — the dispatched registration bakes `cd <main repo>`
-  into the server command, and a two-marker probe showed a worktree agent asking about its own path and
-  receiving the main checkout's symbol with `reason: "ok"`. Shipped 071 (`index_root` on every
-  payload); `CA_DB_PATH` remains the recommended isolation. Recipe:
-  [`runbooks/parallel-agents.md`](runbooks/parallel-agents.md).
+**Decision — memory and concurrency under parallel agents (2026-08-09, measured).** A resident-LSP
+fan-out over worktrees OOM'd at ~5.6 GB per agent; code-atlas does not: the n-th agent costs **~70 MB
+PSS** and the 925 MB index **0 MB** (never mmapped, no descriptor outlives a call). Five agents = 1.3 %
+of RAM at 4.3× single-agent throughput, zero `SQLITE_BUSY` reaching a caller. A worktree agent does
+**not** get its own index from a `cwd`-relative `db_path` when the registration bakes in the main
+repo — hence `index_root` on every payload and `CA_DB_PATH` for isolation
+([`runbooks/parallel-agents.md`](runbooks/parallel-agents.md)).
 
-- **Field retro round 4 — the first verification round (2026-08-10, `e8f56d0`).** Eleven fixes from
-  rounds 2–3 were in the binary and none had been seen by an agent doing real work: **7 verified
-  fixed**, 2 improved, 1 reproduced (054), 2 not exercisable — under three recorded caveats that void
-  its recognition test. **The two findings that mattered came from outside the verification section**,
-  which is a regression harness and cannot surface anything new: 075 and 077. The round's caveats,
-  both findings and its self-corrections are in those task files and
-  [`BACKLOG.md`](BACKLOG.md#where-these-tickets-came-from).
+**What phase 1's field rounds established** (retro rounds 2–6 and the round-5 interview; protocol
+[`runbooks/field-retro.md`](runbooks/field-retro.md)). Every failure they found was silence or
+ambiguity, never a wrong answer. The findings that outlive their tickets:
 
-- **Qname-subject honesty — 075 + 076 shipped together (2026-08-11; one shared design).** A
-  **malformed** subject and an **under-qualified** one were one defect class: both read as *absence*.
-  One language-agnostic classifier (`nav_result.classify_missing_subject`) serves all seven qname
-  tools, keying off the generic identifier class rather than any language's separator (R1.1).
-  **Decision: no adapter `contract_version` bump** — nav `reason` codes are tool-output vocabulary
-  (`nav_result.NAV_REASONS`), not the adapter JSONL contract, and bumping it for a tool string would
-  force every user to reindex for nothing.
+- **Cost shapes behaviour, not just the bill** — with a ~60 s cliff between zero changed files and
+  one, an agent stopped querying while writing code; late resolution is scoped on what a delta
+  *declares* (096).
+- **Recognition ≠ recall.** Descriptions can name an occasion; they cannot make an agent notice it
+  (097). Adoption is a *position* problem: the signal an agent wanted was one line inside a `Read`
+  already happening, so it lives in the **host's hook surface**, never on a payload rider (099).
+- **Evidence has to reach the artifact** — a PR pasted nine kinds of counted evidence and zero graph
+  payloads, hence `sign: true` (100); a ten-name check went to a shell loop, hence sweeps (101).
+- **A sibling surface is closed by an enumerating test over the shared caller**, not by a prose
+  verdict (122); **once rows page, `truncated` describes the page alone** (`walk_truncated`, 124).
+- **A retro cannot audit itself** — a same-session interview retracted its headline.
+- **One generic correspondence relation** (legacy↔unified, region↔region) is adopted in principle
+  and deferred under the evidence gate below — [098](tasks/098_correspondence-relation-seam.md).
 
-- **Field retro round 5 (2026-08-14, `348a8a7`) — the first round with mechanism questions, and the
-  first where cost changed what was asked.** **8 of 8 checked claims exact, zero false statements:**
-  every failure was silence or ambiguity, never a wrong answer, which is why §10's carve-outs are
-  narrow. Three things no earlier round could establish:
-  - **Cost shapes behaviour, not just the bill.** Under 1 % of session tokens but **181.7 s** of
-    in-work build time, the cliff entirely between zero files and one (0 → 2.1 s, 2 → 59.25 s). The
-    evaluator batched 8 calls at the start, 7 at the end, **1 in three hours of writing code** →
-    **096**, which scopes late resolution on what the delta *declares*, not on which files it touched.
-  - **Recognition ≠ recall, and the probe only measured recognition.** It scored 14/14 while 7 of 14
-    descriptions were never loaded, so 081's mechanism was never exercised → **097** split the probe
-    into name-only and description-backed rates. **Descriptions can name an occasion; they cannot make
-    an agent notice it.**
-  - **Two independent nothings were indistinguishable** (**092**): untracked new classes were invisible
-    to `collect()`'s `git ls-files` walk, `dirty_indexed_files: 0` was literally true and actively
-    misleading, and the lookup said `no_such_symbol` for a class on disk while the vocabulary already
-    owned `not_indexed`. Shipped with 093, 094, 095.
+**Decision — Pillar 2 is for the human, and it is a navigation aid (2026-08-20 / 2026-08-23).** A human
+read M11's artifact and it was unusable (43 MB, 99.96 % flat path lists), which forced an **audience
+split: the MCP tools are the product for an AI, the onboarding artifact for a human** — the reshape
+into the system map ([`ONBOARDING_MOCKUP.md`](phase3-onboarding/ONBOARDING_MOCKUP.md)). The phase's
+own cost gate then scored 12/12 on onboarding lookups and was **wrong on reading orders**
+([`benchmarks/121`](benchmarks/121_onboarding-question-class.md)). **Binding:** the onboarding layer is
+a **navigation and provenance aid, not a curated syllabus**; auto-generated documentation stays behind
+that line. The gate scores recall and cost, never precision — a complete, correct `Uncategorised`
+layer scores 1.0.
 
-  **Open, not ticketed:** nothing searches unlinked include text, so *who includes this file* stays
-  unanswerable when the path is dynamic.
-
-- **Field interview — "the questions you did not ask" (2026-08-14, same session).** Six questions about
-  the moments the evaluator **did not** call the tool. **Weight it as one observer, not two** — the
-  interviewee authored the retro an hour earlier and declares itself contaminated; it survives because
-  it inventories *non-events*, which no retro asked about. Three durable results:
-  - **A retro cannot audit itself.** It retracted the round's headline (a story resting on PHP method
-    names being case-sensitive; they are not). A same-session interview is the cheapest instrument
-    that can catch that.
-  - **Adoption is a *position* problem, not a speed problem.** All three decisions made without the
-    graph wanted **one line inside a `Read` already happening**, none wanted a tool call. Shipped
-    (099), and the verdict is a position statement: the signal lives in the **host's hook surface**,
-    never on a payload rider — `next_tool_suggestions` reaches the agent *after it asks* and the core
-    cannot observe a `Read`, so that channel is **structurally** incapable of carrying this, not
-    merely too expensive (061). code-atlas offers the command and wires nothing. The ceiling this
-    records on 069/081-style routing work: *no description reaches an agent that never opens the tool
-    list* — which is why 097 and 099 are one finding from two sides.
-  - **The evidence-layer thesis has behavioural proof, against the evaluator's own interest:** the PR
-    body pasted nine kinds of counted evidence and zero graph payloads (→ **100**), and a ten-subject
-    sweep went to a shell loop because the graph took one subject per call (→ **101**).
-
-  **The one judgement the interview cannot make for us:** the anchor's dominant chore is porting a
-  legacy file into the unified tree without breaking the other region, and the graph holds **neither**
-  relation that chore is made of. Its proposal — seed the first from a ~4,300-entry mapping the repo
-  maintains — is **adopted in principle, rejected as proposed**: ingesting a repo's own mapping file is
-  sample-over-standard (R2). What the core may learn is one **generic correspondence relation**,
-  config-fed and adapter-blind, under which legacy↔unified and region-A↔region-B are the same
-  primitive → [098](tasks/098_correspondence-relation-seam.md), deferred behind the evidence gate below.
-
-- **Phase-3 reshape (2026-08-20; tasks 108–117) — a human read the emitted artifact and it was
-  unusable.** M11 passed every test and failed its reader: 43 MB, a median module page of 82,218 bytes
-  that was 99.96 % flat path lists, `Summary: (none)` on 500/500 pages. **The decision it forced is an
-  audience split: the MCP tools are the product for an AI, the onboarding artifact is the product for
-  a human.** 116 measured that 108 had already removed ~97 % of the size, so *"data dump, not a map"*
-  was the whole of the complaint. Two R2.2 judgments settled: a generic architectural vocabulary **is**
-  a standard (110, maintainer-ratified), and 113 needed no separate vendor signal because that
-  vocabulary already carries `vendor`. Mockup and waves:
-  [`ONBOARDING_MOCKUP.md`](phase3-onboarding/ONBOARDING_MOCKUP.md) ·
-  [`ROADMAP.md`](phase3-onboarding/ROADMAP.md).
-
-- **Field measurement on the anchor (2026-08-21) — two things the shipped map could not say.**
-  Regenerating on 18,972 modules / 135,649 symbols took 17 s for a 950 KB map, 500 pages at a median
-  2,943 B (against 82,218 B before 108). **118** — the `Summary: (none)` cause was a **contract gap,
-  not a seam gap**: the graph had nowhere to carry a docblock, so the deterministic summarizer was
-  starved on *every* repo and the opt-in LLM implementer with it. **119** — a stale `CA_ENTRY_POINTS`
-  glob put 560 unreachable files in *Web entry points* and nothing in the output could expose it;
-  correcting the knob moved the bucket 901 → 341. *Classification changed; no fact did* — which is the
-  argument for provenance beside a count.
-
-- **Field retro round 6 (2026-08-21) — four findings, all payload honesty, none a graph defect.** Its
-  own closing line is the finding: *"the graph knew everything I asked it; the failures were the tool
-  knowing and not saying how much it was not telling me, and the tool knowing and declining over
-  punctuation."* Two lessons outlive the tickets. **A sibling surface is closed by an enumerating test
-  over the shared caller, not by a prose verdict** — 075's verdict left four `find_*` tools still
-  discarding its resolved qname inside `shape_exact_miss` (122). **Once rows page, `truncated` must
-  describe the page alone**, so a walk's own bound is `walk_truncated` (124). 123 and 124 are recorded
-  exclusions meeting their first field evidence (057, 066), not oversights; 125 is the most
-  self-implicating — no payload named the server build, so every retro in this series had been told
-  its own subject by an operator.
-
-- **Phase 3's own cost gate ran (2026-08-23; task 121) — a split verdict, and the losing half narrows
-  the phase.** Three milestones shipped while `ROADMAP.md` §5's gating question-class held **zero**
-  onboarding questions; it now holds twelve, ground truth hand-read before the tools ran. Numbers:
-  [`benchmarks/121_onboarding-question-class.md`](benchmarks/121_onboarding-question-class.md).
-  **Won:** 12/12 correct, recall 1.0, `confidently_wrong` 0, fixture aggregate **0.29 → 0.789**. Nine
-  of the twelve have no fair baseline and say so in a `ratio_note` rather than inventing one that
-  would flatter the comparison. **Lost, and it is the more useful half:** where the question is a
-  **reading order** the map was wrong (129, 130, 131 — all closed).
-  **The narrowing, binding:** the onboarding layer is a **navigation and provenance aid, not a
-  curated syllabus** — `guided_tour`'s walk still is not the hand kernel/entity order. Auto-generated
-  documentation and diagrams stay behind that line; the founding-premise mistake was building on an
-  unmeasured premise, and one measurement saying *"cheap and correct for lookups, wrong for
-  orderings"* licenses neither.
-  **What the gate cannot see, recorded rather than implied:** it scores recall and cost, never
-  **precision**, and never whether a human would act on the answer — on `symfony/demo` the largest
-  layer is `Uncategorised` (18 of 51 modules), a complete, correct, low-information answer that
-  scores 1.0. The **mirror** shape, the anchor's most valuable one, no committed tier can measure, so
-  it ships as a local-tier template in
-  [`runbooks/tokens-to-answer.md`](runbooks/tokens-to-answer.md).
-
-**Decision — how one user's evidence is weighed (2026-08-14, prompted by the round-5 interview).**
-The anchor repo is the project's **first production user**: a real adopter with real work, and the
-source of every field finding this project has acted on since round 1. It is **not** the roadmap. A
-general MCP server is installed by repositories that share none of its shape, and a relation, field or
-tool added for one adopter is paid for by all of them. So field evidence is filtered, not obeyed:
+**Decision — how one user's evidence is weighed (2026-08-14).**
+The anchor repo is the project's **first production user** and the source of every field finding
+acted on. It is **not** the roadmap: a relation, field or tool added for one adopter is paid for by
+all of them. So field evidence is filtered, not obeyed:
 
 - **A finding whose subject is the *agent* generalises by default** — how an agent frames a task, when
-  it is receptive to information, what it will paste into a PR, what interface shape it reaches for.
-  These hold wherever an agent works, and the next round can falsify them cheaply. Tickets
-  099, 100,
-  101 are all of this kind.
-- **A finding whose subject is the *repository* does not** — its migration lane, its regional split, its
-  mapping file, its dispatch idiom. Such a finding is recorded and gated: it needs a **second,
-  independent repository**, a stated cost to users who declare nothing, and a written rejection of the
-  cheaper alternative before it may spend schema or surface. [098](tasks/098_correspondence-relation-seam.md)
-  is the first ticket to carry that gate, and it is deferred under it.
+  it is receptive to information, what it pastes into a PR, what interface shape it reaches for.
+- **A finding whose subject is the *repository* does not** — its migration lane, regional split,
+  mapping file, dispatch idiom. It needs a **second, independent repository**, a stated cost to users
+  who declare nothing, and a written rejection of the cheaper alternative before it may spend schema
+  or surface. [098](tasks/098_correspondence-relation-seam.md) is deferred under this gate.
 - **A finding about the *language* is neither** — it belongs to the adapter and is settled by the
   language spec, never by a repo's usage (**R2**, already CI-gated).
 
-This is R2's rule applied one level up, to evidence rather than to code: **standard over sample holds
-for what we learn as well as for what we encode.** The reflex to guard against is the flattering one —
-a detailed, well-argued field report from the only user we have reads like a product spec, and the
-better the report, the stronger the pull.
+This is R2 applied to evidence: **standard over sample holds for what we learn as well as for what we
+encode.** The better a report from the only user we have, the stronger the pull to obey it.
 
 **Decision — Founding-premise benchmark (2026-08-08). The premise is refuted; the claim that replaces it is narrower.**
-Five symptom-first questions on the anchor monorepo — none naming a file, class or method — with ground
-truth established by hand beforehand, one fresh headless session per (question × arm), no coaching.
-Results, and every one of them cuts against the premise:
+Five symptom-first questions on the anchor monorepo, hand-built ground truth, one fresh headless
+session per (question × arm), no coaching:
 
-- **Native tools only: 5/5 correct**, zero confidently-wrong answers, no index, no cold start; four of
-  the five answered in 46–164 s. On one question it *beat* the operator's own hand-written ground truth.
-- **code-atlas: 3 correct · 1 partial · 1 wrong cause**, at **1.85×** the native arm's tokens across all
-  five (0.84× excluding one outlier question — both numbers are true and neither stands alone).
-- **A third arm with a resident-LSP code-intelligence MCP server available scored 4 correct · 1 partial
-  while invoking that server zero times in 84 tool calls.** It measured adoption, not capability.
-- Separately, broad `grep` over the same tree was timed at **0.07–8.7 s at every scope**, against a
-  standing claim in that repo's own agent instructions that it "routinely times out". Not reproducible.
+- **Native tools only: 5/5 correct**, zero confidently-wrong answers, no index, no cold start.
+- **code-atlas: 3 correct · 1 partial · 1 wrong cause**, at **1.85×** the native arm's tokens (0.84×
+  excluding one outlier question — neither number stands alone).
+- **A resident-LSP MCP arm scored 4 · 1 while invoking that server zero times in 84 tool calls** — it
+  measured adoption, not capability. Broad `grep` timed at 0.07–8.7 s at every scope.
 
 Consequences, all adopted:
 
-- **Search speed is not the product.** Drop any work aimed at beating grep on per-symbol lookup or on
-  counting; two of the five questions measured that race and it is neither winnable nor worth winning.
-- **What survives is relationships, not locations.** The one cell code-atlas won outright: `find_callers`
-  returned resolved-edge counts that the agent cross-checked against grep's raw counts and reconciled by
-  tier. Text search cannot produce an independent second count at all. This is the replacement claim.
-- **Fit, not accuracy, is the binding constraint.** Given the index, the agent reached for it in **22 of
-  117 tool calls (19 %)**, and on two of five questions essentially not at all; the LSP arm's 0 % is the
-  same finding at its limit. The whole-graph tools this argues for **already shipped** and no real
-  question needed one, so the gap is demand and modelling, not capability: building more does not close it.
-- **Redirect.** 059 (handler → template data-bag edge) went to the head of the queue and shipped —
-  its own entry is below; **061 (payload weight) is demoted** and stays so.
-- **§13 is unchanged and now has evidence.** code-atlas and a language server are not substitutes; the
-  benchmark could not even make an agent choose between them.
-- **Threats, recorded rather than hidden.** n = 1 per cell; question selection was not blind (all five
-  drawn from work already done); the one accidental repeat — the mechanism question run with the server
-  denied and then granted — produced **opposite verdicts**. That repeat is **unresolvable, not merely
-  unresolved** (074, 2026-09-19): replicating it needs a granted cell — an uncoached session that
-  reaches the index — and five held-out mechanism questions on the 23k-file anchor drew **0 index
-  calls each**. A question a key can score is one grep can serve, so arm and key cannot
-  both hold (`benchmarks/074_*`). **Scope:** the index is for resolved structure, and an agent does not
-  reach for it where grep serves. The refutation rests on the aggregate, not any single cell.
+- **Search speed is not the product.** Drop work aimed at beating grep on per-symbol lookup or counting.
+- **What survives is relationships, not locations.** The cell code-atlas won outright: `find_callers`
+  returned resolved-edge counts the agent reconciled against grep's raw counts by tier. Text search
+  cannot produce an independent second count at all. This is the replacement claim.
+- **Fit, not accuracy, is the binding constraint.** Given the index, the agent reached for it in 19 %
+  of tool calls; the gap is demand and modelling, not capability.
+- **§13 is unchanged and now has evidence** — code-atlas and a language server are not substitutes.
+- **Threats, recorded.** n = 1 per cell; question selection was not blind; the one accidental repeat
+  gave opposite verdicts and is **unresolvable, not merely unresolved** (074): a question a key can
+  score is one grep can serve, so arm and key cannot both hold. The refutation rests on the aggregate.
 
 **Decision — Handler → template data-bag edge (task 059, 2026-08-08). Option 1 — producer side only.**
+View data-bag edges belong in the graph **on the producer side only**, as opt-in rules data outside
+`adapters/` applied by `enrichment.py` (the 040 channel) — not as adapter code (R2); shipped as 062.
+Occurrence count (operator-local; shape only): clear view-publish sites with string keys,
+**excluding** ORM-contaminated `->with(` (~3k, dominated by eager-load), number
+**100** sites in **35** handler files, key occurrences / distinct keys **296** / **84**. Both sides at
+once (a template reader, reversing 041's ignores) is a separate large cost, revisited only if field
+retros still fail. **What a language server does *not* solve here:** the link is a **string key** — a
+literal on the handler side, a bare variable in markup — and neither end is a symbol an LSP binds.
+Nav answer: `PROVIDES_VIEW_DATA` / `find_view_data`.
 
-Do framework-shaped *view data-bag* edges belong in the graph? **Yes, on the producer side only**, as
-opt-in rules data outside `adapters/` applied by `enrichment.py` (the 040 channel) — not as adapter
-code (R2). Implementation is follow-up 062; this entry is the
-design note.
-
-**Occurrence count** (operator-local; shape only). Clear view-publish sites — `->render` /
-`->display` / `->fetch` / `->setVar` / `$this->view->…=` with string keys, **excluding** the
-ORM-contaminated `->with(` (~3k sites, dominated by eager-load, not view publish) — number
-**100** sites in **35** handler files, key occurrences / distinct keys **296** / **84** — consumer side larger; detail in 059.
-
-**Why not option 3 (permanent non-goal), and why not option 2 (both sides) yet.** Two field sessions
-named this shape as why the index got zero queries on a real defect, so grep-forever leaves the gap
-059 exists to close; both sides at once is a separate large cost (template reader, reversing 041's
-ignores, pair linking with no path literals). Ship the producer, revisit the consumer if field retros
-still fail after 062. Rationale in 059.
-
-**What a language server does *not* solve here.** LSP go-to-def / find-refs operate on *symbols*. The
-data-bag link is a **string key** — a literal in an array or setter on the handler side, a bare
-variable in markup on the template side. Neither end is a symbol the PHP language server binds, so
-Serena-class tools are as blind as today's graph. This is unclaimed ground, not an LSP race.
-
-**Nav answer after 062.** `PROVIDES_VIEW_DATA` / `find_view_data` — view-scope keys; agent `Read`s
-the template consumer name.
-
-**Decision — six-tool CA_TOOLS preset + worktree/nomination/minimal-walk ops (task 268, 2026-09-13).**
-
-**Locked:** document an opt-in field-18 six-tool `CA_TOOLS` preset; **default surface stays 24**. A linked git worktree whose `CA_DB_PATH` resolves outside the worktree refuses with `index_root_mismatch` (never main's rows under `reason: ok`). Status nominates entry/stub globs with `files_matched` and applies none — first run at any level, otherwise `standard`, never `minimal`. Large walks (`reachable_from`, `find_orphans`, `architecture_overview`) default to `minimal`. One-line install is exercised on the Docker test path. Detail: 268.
-
-**Decision — consumer-repo agent brief is offered into the indexed tree (tasks 266 · 270, 2026-09-13).**
-
-036/099 still lock *offer, never install* for **editor settings**. **Locked separately (266):** write a generated brief into the indexed repo's `AGENTS.md` (marked, regenerable, flagged, never clobbering). **Locked separately (270):** when that repo's `CLAUDE.md` lacks `@AGENTS.md`, **print** the one-line import — never write `CLAUDE.md` (Claude Code's memory list is only `CLAUDE.md` / `CLAUDE.local.md`). Detail: 266, 270.
-
-**Decision — default inbound page order is tier-first (task 265, 2026-09-13).**
-
-Page 1 was alphabetical, so a correct page could be 100 % of the wrong tree (067) and the sole `RESOLVED` caller sat on page 12 (251). **Locked: tier-first default order** — `RESOLVED` → `HEURISTIC` → `DYNAMIC`, then today's stable keys — in the store query before truncation (R4.2). `confidence_tier` stays an opt-in *filter*: default *order* changes, default *set* does not. A tier partition is `authoritative: false` with a census, and an empty one stays `no_matches`, never `ok` (264). Detail: 265.
-
-**Decision — keyed_calls may target File qnames (task 256, 2026-09-12).** 222's E2 left dispatch
-routing to grep; field evidence contradicted that. **Locked:** `target_template` → indexed File qname
-links as HEURISTIC CALLS (exact path). Detail: 256.
-
-**Decision — R1.2 registry verdict: NO registry (task 156, 2026-08-27).** Adapter #2 landed (019) with
-an empty core diff: adapters are selected from data — `CA_<LANG>_CMD` → `config.adapter_cmds`
-(`config.py:87`), `indexer._announce` (`indexer.py:576`) loops them, and `extension_index`
-(`adapter.py:289`) builds the extension→owner map from what each announces. The only per-adapter table
-is test-side (`tests/contract/adapter_registry.py`, 147). Reverses only if an adapter needs core-side
-per-language logic (its own ticket; see R1.2).
-
-**Decision — populated-rebuild tax: truncate-first, defer-FTS waits (task 219, 2026-09-07).** 203
-measured 2.6× populated vs fresh. **Locked: truncate-first** — `GraphStore.truncate_graph` once at
-`full_build` top, so a populated rebuild matches a fresh growth curve; output byte-identical (R4.2).
-**defer-FTS deferred** (its own ticket). Detail:
-219.
-
-**Decision — ClassConst evidence (task 234, 2026-09-08).** Spec markers **and** PEP 8
-upper-case under R2. Python every scope; TS `EnumMember`→`ClassConst`. No new kind.
-234.
-
-**Decision — annotation / decorator → REFERENCES in every adapter (task 232, 2026-09-08).**
-**Locked: edges** — PHP/TS emit `REFERENCES` from named class types and attributes/decorators;
-`Foo::class` stays `DYNAMIC` (094). 232.
-
-**Decision — unmodelled `*->L` partition on hits (238; 276, 2026-09-15).** Hits on an unmodelled
-crossing carry `authoritative: false` (`reason` stays `ok`). **276:** hit caveat needs
-`linked+unlinked > 0`; empty census → status (243). 238 · 276.
-
-**Decision — serve_behind labelled reads (257, 2026-09-12; 267, 2026-09-13; 274, 2026-09-15).**
-Opt-in: behind + unchanged → `index_behind` + revision (never `ok`); off ⇒ byte-identical. **267:**
-unrepaired dirty subject → `index_behind_subject_changed`, else refuse. **274:** behind status names
-served/refused families + opt-in + `changed_indexed_between`; suggestions not rebuild-only. 257 · 267 · 274.
-
-**Decision — Table/Column writers via find_references (278; 281, 2026-09-15).** Linked writers;
-Table ∪ its columns; `unlinked_writes_count` when >0. **281:** the caveat
-(`writes_emitters_only`) keys on which languages emit `WRITES`. **335:** a PHP literal that begins
-a T-SQL write or `EXEC` → `HEURISTIC` edge.
-278 ·
-281.
-
-**Decision — unresolved CALL site once (258, 2026-09-12).** The site is the fact, candidates are a
-query; `max_results` stops governing graph content. AC1/AC5 E1. 258.
-
-**Decision — parse_failures floor (280, 2026-09-15).** `parse_failures_note` beside the count — a
-floor, not a fatal surface. 280.
-
-**Decision — unmodelled resolution stamp (279, 2026-09-15; 294-296, 2026-09-19).** Every adapter
-stamps its runtime-load idiom into `File.extra.unmodelled_resolution`; `find_orphans` refuses
-`resolution_unmodelled`. 279.
+**Smaller locked decisions** (detail in the phase-1 archive under each task number):
+- **No registry — R1.2's verdict (156).** Adapters are selected from data (`CA_<LANG>_CMD` →
+  `config.adapter_cmds`, the handshake's `extension_index`); reverses only if an adapter needs
+  core-side per-language logic.
+- **Tier-first default inbound order (265).** `RESOLVED` → `HEURISTIC` → `DYNAMIC`, then stable keys,
+  in the store query before truncation; `confidence_tier` stays an opt-in *filter*.
+- **Unresolved CALL site stored once (258)** — the site is the fact, candidates are a query.
+- **Populated rebuild truncates first (219)**; deferring FTS is its own ticket.
+- **Opt-in six-tool `CA_TOOLS` preset; default surface stays 24 (268).** A worktree whose `CA_DB_PATH`
+  resolves outside it refuses with `index_root_mismatch`.
+- **Consumer-repo brief (266 · 270)** — written into the indexed repo's `AGENTS.md` (marked,
+  regenerable); a missing `@AGENTS.md` import in `CLAUDE.md` is printed, never written.
+- **Every adapter stamps its runtime-load idiom (279, 294–296)** into
+  `File.extra.unmodelled_resolution`; `find_orphans` refuses `resolution_unmodelled`.
+- **Annotations and decorators emit `REFERENCES` (232)**; `Foo::class` stays `DYNAMIC`. Class constants
+  by spec markers and PEP 8 upper-case (234) — no new kind.
+- **`serve_behind` labelled reads (257 · 267 · 274)** — opt-in; behind + unchanged → `index_behind`,
+  never `ok`; off ⇒ byte-identical.
+- **Table/Column writers via `find_references` (278 · 281 · 335)**; a PHP literal beginning a T-SQL
+  write → `HEURISTIC` edge. **`keyed_calls` may target File qnames (256).** **`parse_failures` is a
+  floor, not a fatal surface (280).** **Unmodelled `*->L` hits are `authoritative: false` (238 · 276).**
 
 **Reference material** (private, same folder): `understand-anything-how-it-works.md`, `code-review-graph-how-it-works.md`.
 

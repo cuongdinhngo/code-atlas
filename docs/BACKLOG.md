@@ -29,7 +29,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 
 The rendering of what the code actually is, for a human supervising an agent or presenting the
 project ([PLAN §1](PLAN.md#1-goals--non-goals)). Same graph, no second pipeline.
-M10–M12 have all landed; round narratives live in [`FEEDBACK.md`](FEEDBACK.md),
+M10–M12 have all landed; their decisions live in
 [PLAN §19](PLAN.md#19-project-context--decision-log) and `benchmarks/`.
 
 *Nothing open.*

@@ -1,9 +1,9 @@
 # Adapter playbook — how a language adapter is built, and how it is judged
 
 **Reader:** whoever adds adapter #5, or deepens one of the four that landed.
-**This file is the standard**, derived from the four that shipped — PHP (007 · 025 · 137), TS/JS
-(019 · 150 · 153), T-SQL (184 · 022), Python (020 · 217) — and from the findings each field build
-produced. It holds the **sequence, the decisions and the gates**. It is not a rule
+**This file is the standard**, derived from the four that shipped in phase 1 — PHP, TS/JS, T-SQL,
+Python — and from the findings each field build produced. Numbers in it are phase-1 tickets (the
+phase-1 archive holds them). It holds the **sequence, the decisions and the gates**. It is not a rule
 (→ [`ENGINEERING_RULES.md`](ENGINEERING_RULES.md)), not the contract vocabulary
 (→ `contract.py`, [`CONVENTION.md`](CONVENTION.md) §3) and not a design record (→ [`PLAN.md`](PLAN.md)).
 
@@ -27,9 +27,8 @@ All four landed in the same two steps, whether or not they were filed as two tic
 reuse: *"framework visibility — not edge-kind parity, not the full 12."* An adapter is done when an
 agent can see how the code in front of it is wired, not when its edge-kind census matches PHP's.
 
-**Split the two into separate tickets unless the language is small.** 019 shipped TS as one ticket,
-was reopened on 2026-08-25, and carried a 150-157 follow-on scope to close; SQL and Python were filed
-as pairs and needed no reopening.
+**Split the two into separate tickets unless the language is small.** TS shipped as one ticket and
+was reopened for a follow-on scope; SQL and Python were filed as pairs and needed no reopening.
 
 ### 1.1 Depth mechanisms — a PHP improvement is not done until this table says where the other three stand
 
@@ -58,8 +57,7 @@ mechanism is adapter-side at all — three of the five rows above are, and two a
 | 3 — visitor | nodes and **bare** edges (`target_raw` only; the resolver fills `target_qname`) | — |
 
 PHP is the reference — `MemberTypes.php`, `TypeTable.php`, `Visitor.php` — and `types.js:3-6` records
-TS as a deliberate port of it (153). SQL needs no pass 2. **Python has no pass 2 at all**, which is
-227.
+TS as a deliberate port of it (153), and Python's `types.py` a later one (227). SQL needs no pass 2.
 
 Two constraints on pass 2, both learned the expensive way:
 
@@ -89,12 +87,7 @@ the consumer cannot tell "the code has no annotation" from "this adapter never l
 **Do not answer any row of this table from memory or from reading another adapter — measure it.**
 `scripts/adapter_parity_report.py` runs every registered adapter over `tests/fixtures/parity/` and
 prints §7; a cell you did not measure is a cell you guessed, which is how three of them were wrong
-before the generator existed. Closing the gaps §7 shows is
-231,
-the construct three adapters answer three ways is
-232,
-and the class-constant kind is
-234.
+before the generator existed.
 
 ## 4. Five gates, in order — each catches what the one before it cannot
 
@@ -103,19 +96,18 @@ and the class-constant kind is
 | 1 | the adapter's own grammar fixtures | construct correctness, one language feature at a time | anything about real code |
 | 2 | a row in `tests/contract/adapter_registry.py` | schema conformance, kind histogram, and edge **shape including its source** — a body edge sourced at the class is a wrong answer no histogram sees (019) | recall: what the file contained and the adapter never emitted |
 | 3 | pinned public samples + floors in `scripts/cross_repo_samples.json` | that it survives real code, and does not regress | whether an *answer* built on it is honest |
-| 4 | a field round on a real repo (§5) | recall and honesty — **every finding 221-230 came from here and nowhere else**; 231 and 232 came from the cheaper sibling of this gate, reading the four adapters side by side | the size of a fix |
+| 4 | a field round on a real repo (§5) | recall and honesty — phase 1's recall findings came from here and nowhere else; its cheaper sibling is reading the adapters side by side | the size of a fix |
 | 5 | before/after over the pinned corpus (`scripts/edge_health_report.py`) | how much a change moved, e.g. 137's 36.3 % → 2.6 % | — |
 
 **Adding a row at gate 2 is data, never an edit to the harness body** (147/AC2) — the same rule holds
 for `_ADAPTERS` in `cross_repo_validate.py`.
 
-**Every gate now has a state for all four adapters.** Gates 1-2 were always complete. Gate 3 closed
-for Python and SQL in
-233,
-which pinned public samples with measured floors, so gate 5 is reachable for every adapter.
-Gate 4 has run for PHP, SQL, Python, and TypeScript — TS measured 2026-09-08 in 235 ([`docs/benchmarks/235_typescript_field_round.md`](benchmarks/235_typescript_field_round.md)); no new defect beyond the already-filed 232 / 234 observations.
+**Every gate has a state for all four adapters:** pinned public samples with measured floors exist
+for each, so gate 5 is reachable for every adapter.
+Gate 4 has run for PHP, SQL, Python, and TypeScript — the TS round is
+[`235_typescript_field_round.md`](benchmarks/235_typescript_field_round.md).
 
-## 5. The field round — the protocol that produced 221-230
+## 5. The field round — the protocol
 
 Run against a repo you did not write, in the language under test, and record the numbers as you go.
 
@@ -129,16 +121,13 @@ Run against a repo you did not write, in the language under test, and record the
    found, with a quarter of the graph's nodes turning out to be method locals.
 4. **Split the unlinked-edge ratio per kind into expected and recoverable.** A stdlib or third-party
    target that is genuinely not in the repo is *correct* and must be subtracted before any claim.
-   226 and 230 are what survived that subtraction.
 5. **Ask each nav tool a question you already know the answer to by `grep`.** A confident zero is the
-   finding, not an absence of one. 221 and 226 are both this step.
+   finding, not an absence of one.
 6. **Read the cross-language census** (`get_index_status` at `verbose`). `linked: 0` in a repo whose
-   layers call each other by name explains every structural miss at once (221).
+   layers call each other by name explains every structural miss at once.
 7. **For each finding, run a minimal fixture through the adapter's own `--file` mode before writing
    the ticket.** This is the rule, not a nicety: a finding reasoned from source alone is a
-   hypothesis. 230's Notes carry the case for it — the obvious fix for its import resolution was
-   refuted by a counterexample from the same repo, and the ticket had to be written so it could not
-   be implemented as a directory scan.
+   hypothesis: one obvious import-resolution fix was refuted by a counterexample from the same repo.
 
 ## 6. Traps already paid for — read before you re-derive one
 
@@ -188,23 +177,11 @@ measurement, not a judgement — while **`0/1` means it was there and the adapte
 | `ClassConst` for the class constant | 1 | 1 | 0 | 1 |
 <!-- parity-table:end -->
 
-**Since 231 the five field rows are at each language's ceiling, not its shortfall** — a cell below
-its denominator now means the construct is unspellable there (Python has no visibility keyword;
-T-SQL has no modifier at all, which is why its handshake declares `modifiers: false`), so read a
-*fallen* cell as a regression and never a cell below 1/1 as a gap. **The last two shortfalls closed
-together:** 232
-filled the `REFERENCES` row and
-234
-the `ClassConst` row, php · python · typescript each; `sql` stays 0 on both — T-SQL has neither an
-annotation to read nor a class constant to name, which is a measurement, not a gap.
-**234 also moved the two member denominators** (`_members` reads `Method`/`Property`/`Column`, so a
-constant reclassified out of `Property` leaves that population): python and TS `extra.type` read 4/4
-where they read 5/5 and 4/5, and TS `modifiers` 2/4 where it read 3/5. Those are the same members
-counted under a corrected kind — not the fallen cell this paragraph tells you to read as a regression.
-An adapter declares which fields it fills at handshake (`KNOWN_CAPABILITIES`); declaring one it
-cannot fill is the defect 231 removed, so a new adapter's flags must match its column here.
+**The field rows are at each language's ceiling** — a cell below its denominator means the construct
+is unspellable there (Python has no visibility keyword; T-SQL has no modifier, class constant or
+annotation), so read a *fallen* cell as a regression and never a cell below 1/1 as a gap. An adapter
+declares which fields it fills at handshake (`KNOWN_CAPABILITIES`); a new adapter's flags must match
+its column here.
 
 **What this table cannot tell you** is whether an adapter is right about real code — that is gates 3
-and 4, whose state §4 records: pinned samples exist for `php`, `typescript`, `python`, and `sql`
-(233),
-and the TypeScript field round landed in 235 ([benchmark](benchmarks/235_typescript_field_round.md)).
+and 4 (§4).

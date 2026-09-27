@@ -232,7 +232,9 @@ BUDGETS = {
     # is the terse verdict + task link (edge kinds, qname/unresolved and the `inheritance` stamp
     # stay in 285's task file), and no superseded line exists to reclaim. The next addition prunes
     # again or argues again; it does not inherit this raise as headroom.
-    "PLAN.md": 24_150,
+    # 24,150 -> 20,000 on 2026-09-27, LOWERED: phase 1 closed and its narrative left §8/§12/§15/§19
+    # for the archive (decisions kept), taking the file 24,047 -> 19,167.
+    "PLAN.md": 20_000,
     # 2,150 -> 1,800 on 2026-09-08, LOWERED: 232-235 all close in this window and each removes
     # its row (R7.6), taking the file 1,737 -> 1,485. 2,150 is more than 25 % above 1,485, which
     # the anti-slack guard below calls slack; 1,800 keeps ~315 of headroom, about five open rows.
@@ -277,7 +279,8 @@ BUDGETS = {
     # was ratified 2026-08-30" was corrected in the same commit — R2.4 is Provisional, and leaving
     # that sentence would have made the doc lie. 11 of margin; the next addition prunes or argues.
     "ENGINEERING_RULES.md": 5_880,
-    "AGENT_BRIEF.md": 2_250,
+    # 2,250 -> 1,900 on 2026-09-27, LOWERED: phase-1 incident retellings cut to one line (1,683).
+    "AGENT_BRIEF.md": 1_900,
     # 6,700 -> 6,800 on 2026-09-09 (236): the `ForeignKey` node kind joins the vocabulary of record
     # (contract v10). The §3 bullet is the tightest statement of its qname and `extra` fields; there
     # is no superseded line to prune, so the ceiling rises one step rather than displacing content.
