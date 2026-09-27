@@ -54,6 +54,7 @@ def _index(root: Path) -> Config:
     config = load_config(
         root,
         {
+            "CA_TRUST_PROJECT_FILE": "1",
             "CA_WORKERS": "1",
             "CA_DB_PATH": str(db_path),
             "CA_PHP_CMD": shlex.join([str(PHP), str(ENTRY), "--server"]),

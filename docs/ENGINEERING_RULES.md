@@ -79,10 +79,10 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   or nowhere.
 - **R2.4 — No private repo's identifiers in any tracked file**, `docs/` and fixtures included,
   where R2.2's source-only scope let them collect. Use a shape-preserving stand-in, never the real
-  name. Gated by `tests/test_no_client_identifiers.py`, which matches the vocabulary **by digest** —
-  a plaintext denylist of a client's names is itself the disclosure — and states what it cannot
-  catch. *Falsifier:* a client's name in any tracked file, or a denylist that spells one out.
-  *Provisional 2026-09-23 · `de-identification-is-tree-wide` (325).*
+  name. Gated by `tests/test_no_client_identifiers.py`, matching vocabulary **by digest** (a
+  plaintext denylist is the disclosure); commit identities by `scripts/identity_markers.py` (340).
+  *Falsifier:* a client's name in any tracked file or commit identity, or a denylist that spells
+  one out. *Provisional 2026-09-23 · `de-identification-is-tree-wide` (325).*
 
 ## 3. The contract is a frozen, versioned artifact
 

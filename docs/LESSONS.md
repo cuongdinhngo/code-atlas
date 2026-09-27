@@ -1703,6 +1703,26 @@ venv or the PHPStan tmpDir is rebuilt from a wrong-cased cwd.*
   `search_symbol` already separated them (315); the fix reuses its `path_excluded` shape.
 - destination: docs/LESSONS.md (class index row bumped; R5.6 unchanged)
 
+## 340 — a tracked-file sweep could not see the file that broke it
+
+- type: 2 (process) · handle: `a-tracked-file-sweep-is-blind-until-commit`
+- status: proposed · seen: 340
+- evidence: the de-identification sweep reads `git ls-files`, so running it before the first commit
+  checked the tree *without* the new test file, and passed. The file's planted address tripped the
+  sweep only once committed; the challenger caught it at `b812b00`. Re-run a tracked-file guard
+  after `git add`, never only before it.
+- destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)
+
+## 341 — a new variable fell inside an existing pattern's namespace
+
+- type: 2 (code) · handle: `a-pattern-namespace-claims-every-name-of-its-shape`
+- status: proposed · seen: 341
+- evidence: the ticket's first draft named the trust flag `CA_TRUST_PROJECT_CMD`; `ADAPTER_CMD_ENV`
+  (`^CA_(…)_CMD$`) would have read it as an adapter called `trust_project` with the command `1`.
+  Caught at design by reading the regex, pinned by a test. Before naming a variable, match it
+  against every pattern that reads that namespace.
+- destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)
+
 ## 342 — a class fix covered the sites its ticket listed, not the class
 
 - type: 2 (code) · handle: `a-class-fix-enumerates-its-sites-by-grep`

@@ -84,6 +84,7 @@ def _build(root: Path, column: ToolParity) -> tuple[Config, frozenset[str]]:
     config = load_config(
         root,
         {
+            "CA_TRUST_PROJECT_FILE": "1",
             "CA_WORKERS": "1",
             "CA_DB_PATH": str(db_path),
             "CA_ENTRY_POINTS": column.entry_points,
