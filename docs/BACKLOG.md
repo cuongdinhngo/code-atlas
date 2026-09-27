@@ -71,6 +71,9 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **`host_root` / `container_root` from the project file are unchecked paths** — harmless today
   (`to_adapter_path` only maps repo-relative strings) but ungated, unlike 341's two knobs —
   [341](tasks/341_an-indexed-repo-can-choose-the-command-code-atlas-runs.md).
+- **Two symlink residuals 342 left out of scope** — a stub root's files (`collect_stubs`, `os.walk`)
+  and the index directory (`.code-atlas/` committed as a link aims SQLite writes) are not yet contained
+  — [342](tasks/342_a-symlink-in-the-indexed-repo-reaches-outside-it.md).
 
 ## Conventions
 - Keep an **open** task's `status` in this table **and** in its frontmatter in sync.

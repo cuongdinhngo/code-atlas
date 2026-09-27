@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import shutil
 from pathlib import Path
 
 from code_atlas.onboarding.architecture_diff import (
@@ -103,9 +104,12 @@ def test_ac5_byte_identical_ordering() -> None:
 def test_tool_surfaces_markdown_and_reason(tmp_path: Path) -> None:
     config = db_config(tmp_path)
     fn = tool.create(config)
+    # Absolute paths are still accepted when they resolve inside the indexed tree (342).
+    for name in ("before.json", "after_same.json"):
+        shutil.copy(FIXTURE / name, tmp_path / name)
     payload = fn(
-        before=str((FIXTURE / "before.json").resolve()),
-        after=str((FIXTURE / "after_same.json").resolve()),
+        before=str((tmp_path / "before.json").resolve()),
+        after=str((tmp_path / "after_same.json").resolve()),
     )
     assert payload["reason"] == REASON_NO_ARCHITECTURAL_CHANGE
     assert payload["unchanged"] is True

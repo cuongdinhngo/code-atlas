@@ -17,6 +17,7 @@ from code_atlas.tools.nav_result import (
     REASON_NO_MATCHES,
     REASON_OK,
     REASON_PATH_EXCLUDED,
+    REASON_PATH_OUTSIDE_ROOT,
     REASON_PROXIMITY_CANDIDATES,
     REASON_RELATIONSHIP_NOT_MODELLED,
     REASON_RULE_MATCHED_NO_FILES,
@@ -217,7 +218,8 @@ def test_reason_vocabulary_pins_relationship_not_modelled() -> None:
     # 167 appended substring_match; 186 appended relation_unmodelled_for_language after it.
     assert REASON_SUBSTRING_MATCH in NAV_REASONS
     # 275 appended kind_excluded after proximity_candidates (newest-last).
-    # 315 appended path_excluded after kind_excluded.
+    # 315 appended path_excluded after kind_excluded; 342 appended path_outside_root after it.
     assert REASON_PROXIMITY_CANDIDATES in NAV_REASONS
     assert REASON_KIND_EXCLUDED in NAV_REASONS
-    assert NAV_REASONS[-1] == REASON_PATH_EXCLUDED
+    assert REASON_PATH_EXCLUDED in NAV_REASONS
+    assert NAV_REASONS[-1] == REASON_PATH_OUTSIDE_ROOT

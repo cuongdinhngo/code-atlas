@@ -17,7 +17,8 @@ def collection_field(
     """The reconciliation block, or ``None`` for a pre-082 index (task 082).
 
     Lets an outsider reconcile ``files`` end to end without reading source:
-    ``collected - skipped.suffix - skipped.ignore == kept``, and ``kept + stubs == files``.
+    ``collected - skipped.suffix - skipped.ignore - skipped.escape == kept``, and ``kept + stubs ==
+    files``; ``escape`` (a symlink out of the repo, 342) appears only when non-zero.
     ``skipped.untracked`` is beside that partition (task 092) — not in ``collected``.
     ``skipped.ignore_sources`` is verbose-only (task 095); ``ignore`` stays the int so 082 closes.
 
@@ -35,6 +36,8 @@ def collection_field(
         "ignore": census["skipped_ignore"],
         "untracked": census.get("skipped_untracked", 0),
     }
+    if census.get("skipped_escape", 0):
+        skipped["escape"] = census["skipped_escape"]
     _attach_skipped_suffixes(skipped, store)
     if ignore_sources:
         sources = store.ignore_source_counts()
