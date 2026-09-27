@@ -236,7 +236,7 @@ Safe no-op when `.code-atlas/graph.db` is missing; does not stall the tool round
 
 ### The read-time signal — a line that rides along with a file you are already opening (opt-in)
 
-Field evidence (task [099](tasks/099_write-time-signal-seam.md)): the three most consequential
+Field evidence (task 099): the three most consequential
 decisions an agent made *without* calling code-atlas all wanted **one line at the moment of a `Read`
 or a `Write`** — and none of them wanted a tool call. An MCP tool answers when asked; this fires
 when the agent was never going to ask, so it is a **hook**, not a tool.
@@ -267,7 +267,7 @@ settings.
 
 MCP `instructions` deliver the index state once, on `initialize`; a long session outlives it and a
 compaction drops it, so agents that started a multi-minute build filed its progress signal as missing
-([322](tasks/322_the-state-line-is-delivered-once-and-never-again.md)). `code-atlas-state` restates
+(322). `code-atlas-state` restates
 `get_index_status`'s own `summary` — lifted, never recomposed — at `SessionStart` (its `compact`
 source is the post-compaction delivery) and `PreCompact`. While a build holds the lock it appends the
 live phase and names `code-atlas-build --status`. **Silent** when there is no index, or when the index

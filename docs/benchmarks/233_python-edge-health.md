@@ -1,7 +1,7 @@
 # 233 — Python edge-health baseline (before further type-table work)
 
 **Status:** run, pinned public Python samples, 2026-09-08 (Linux host `dev-host`).
-**Ticket:** [`../tasks/233_python-and-sql-have-no-pinned-public-sample-so-no-change-to-either-can-be-shown-to-move-anything.md`](../tasks/233_python-and-sql-have-no-pinned-public-sample-so-no-change-to-either-can-be-shown-to-move-anything.md).
+**Ticket:** task 233 (phase-1 archive).
 **Protocol:** same columns as [137](137_type-table.md) / `scripts/edge_health_report.py --only <id>`.
 **Verdict:** this is the **before** 227/229/230 measure against. Flask already carries 227's local type table; pydantic and requests are the shapes those tickets cannot move without this pin.
 

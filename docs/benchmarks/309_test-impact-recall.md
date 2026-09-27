@@ -1,6 +1,6 @@
 # 309 — Candidate-test recall on real changes
 
-**What this measures.** Whether [308](../tasks/308_changed-code-to-candidate-test-files-report.md)'s
+**What this measures.** Whether 308's
 report finds the test files that actually exercise a change, on changes nobody here wrote. It
 produces a promotion verdict and nothing else: no selective execution, no runner arguments, no
 gate. Candidates only — the project's normal full suite remains authoritative.

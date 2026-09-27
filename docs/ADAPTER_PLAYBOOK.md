@@ -41,7 +41,7 @@ row it closed. `n/a` is a measurement: the language has no such construct.
 |---|---|---|---|---|
 | local type table — annotations, properties, `new X` | 137 | 153 | 227 | n/a |
 | lexical receiver (`$this`/`self` · `this` · `self`/`cls`) | 029 | 019 | 020 | n/a |
-| member return type resolves the **next** call (`()` chain) | 137 | [301](tasks/301_typescript-return-types-do-not-resolve-the-next-call.md) | [302](tasks/302_python-return-annotations-do-not-resolve-the-next-call.md) | n/a |
+| member return type resolves the **next** call (`()` chain) | 137 | 301 | 302 | n/a |
 | inherited method via hierarchy walk | 137 | free | free | n/a |
 | runtime-load stamp (`unmodelled_resolution`) | 279 | 294 | 295 | 296 |
 
@@ -59,7 +59,7 @@ mechanism is adapter-side at all — three of the five rows above are, and two a
 
 PHP is the reference — `MemberTypes.php`, `TypeTable.php`, `Visitor.php` — and `types.js:3-6` records
 TS as a deliberate port of it (153). SQL needs no pass 2. **Python has no pass 2 at all**, which is
-[227](tasks/227_python-has-no-local-type-table-so-every-member-call-is-heuristic.md).
+227.
 
 Two constraints on pass 2, both learned the expensive way:
 
@@ -90,11 +90,11 @@ the consumer cannot tell "the code has no annotation" from "this adapter never l
 `scripts/adapter_parity_report.py` runs every registered adapter over `tests/fixtures/parity/` and
 prints §7; a cell you did not measure is a cell you guessed, which is how three of them were wrong
 before the generator existed. Closing the gaps §7 shows is
-[231](tasks/231_params-and-args-are-emitted-by-one-adapter-each-so-a-signature-is-a-php-feature.md),
+231,
 the construct three adapters answer three ways is
-[232](tasks/232_the-same-construct-is-a-references-edge-in-python-and-node-extra-in-php-and-ts.md),
+232,
 and the class-constant kind is
-[234](tasks/234_classconst-is-a-php-only-kind-and-the-two-signals-that-would-fill-it-elsewhere-are-discarded.md).
+234.
 
 ## 4. Five gates, in order — each catches what the one before it cannot
 
@@ -111,9 +111,9 @@ for `_ADAPTERS` in `cross_repo_validate.py`.
 
 **Every gate now has a state for all four adapters.** Gates 1-2 were always complete. Gate 3 closed
 for Python and SQL in
-[233](tasks/233_python-and-sql-have-no-pinned-public-sample-so-no-change-to-either-can-be-shown-to-move-anything.md),
+233,
 which pinned public samples with measured floors, so gate 5 is reachable for every adapter.
-Gate 4 has run for PHP, SQL, Python, and TypeScript — TS measured 2026-09-08 in [235](tasks/235_the-typescript-adapter-has-never-been-asked-a-question-in-the-field.md) ([`docs/benchmarks/235_typescript_field_round.md`](benchmarks/235_typescript_field_round.md)); no new defect beyond the already-filed 232 / 234 observations.
+Gate 4 has run for PHP, SQL, Python, and TypeScript — TS measured 2026-09-08 in 235 ([`docs/benchmarks/235_typescript_field_round.md`](benchmarks/235_typescript_field_round.md)); no new defect beyond the already-filed 232 / 234 observations.
 
 ## 5. The field round — the protocol that produced 221-230
 
@@ -192,9 +192,9 @@ measurement, not a judgement — while **`0/1` means it was there and the adapte
 its denominator now means the construct is unspellable there (Python has no visibility keyword;
 T-SQL has no modifier at all, which is why its handshake declares `modifiers: false`), so read a
 *fallen* cell as a regression and never a cell below 1/1 as a gap. **The last two shortfalls closed
-together:** [232](tasks/232_the-same-construct-is-a-references-edge-in-python-and-node-extra-in-php-and-ts.md)
+together:** 232
 filled the `REFERENCES` row and
-[234](tasks/234_classconst-is-a-php-only-kind-and-the-two-signals-that-would-fill-it-elsewhere-are-discarded.md)
+234
 the `ClassConst` row, php · python · typescript each; `sql` stays 0 on both — T-SQL has neither an
 annotation to read nor a class constant to name, which is a measurement, not a gap.
 **234 also moved the two member denominators** (`_members` reads `Method`/`Property`/`Column`, so a
@@ -206,5 +206,5 @@ cannot fill is the defect 231 removed, so a new adapter's flags must match its c
 
 **What this table cannot tell you** is whether an adapter is right about real code — that is gates 3
 and 4, whose state §4 records: pinned samples exist for `php`, `typescript`, `python`, and `sql`
-([233](tasks/233_python-and-sql-have-no-pinned-public-sample-so-no-change-to-either-can-be-shown-to-move-anything.md)),
-and the TypeScript field round landed in [235](tasks/235_the-typescript-adapter-has-never-been-asked-a-question-in-the-field.md) ([benchmark](benchmarks/235_typescript_field_round.md)).
+(233),
+and the TypeScript field round landed in 235 ([benchmark](benchmarks/235_typescript_field_round.md)).

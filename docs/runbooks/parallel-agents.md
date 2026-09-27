@@ -30,7 +30,7 @@ Proven with a two-marker probe — a uniquely named method injected into the *sa
 the worktree agent asked `file_outline` about **its own path** and was handed the **main checkout's**
 symbol, while its own symbol was reported absent. The payload said `reason: "ok"`. Since task 061
 removed `db_path` from nav payloads, **no field in any read tool named the tree** until
-([071](../tasks/071_answers-do-not-name-their-tree.md)) landed `index_root`.
+(071) landed `index_root`.
 
 This is the same defect the resident-LSP server had (it hardcoded `--project <main repo>`). code-atlas
 does not avoid it — it reproduces it identically. For that tool the memory verdict was "switch it off",
@@ -49,7 +49,7 @@ finding.
 per worktree, run one `build_or_update_index` before dispatch, and leave the shared main index alone.
 Task 071 makes option 3 legible — every read payload carries `index_root` — but it does **not** make
 sharing correct. If you share anyway, compare `index_root` to the agent's cwd before trusting a hit.
-Task [077](../tasks/077_index-cannot-name-the-revision-it-describes.md) extends the same idea one
+Task 077 extends the same idea one
 level up: `get_index_status` (and a busy build refusal) also carry `last_ref`/`head_ref`, so a
 mid-session branch switch is visible even when `staleness` still says `current`. The **directory**
 mismatch is still revealed by `index_root`; the **revision** mismatch by comparing those refs (or
@@ -59,7 +59,7 @@ your remembered branch) to `head_ref`.
 
 - **Refresh the index once, before dispatch — never from inside an agent.** Two concurrent
   `build_or_update_index` calls are mutually excluded correctly by `write.lock`; the loser returns
-  `mode: "busy"`, `performed: false`. Since [072](../tasks/072_busy-build-hides-staleness.md) that
+  `mode: "busy"`, `performed: false`. Since 072 that
   refusal also carries the staleness of the index it would have read
   (`staleness`/`last_commit`/`head_commit`/`last_ref`/`head_ref`, the `get_index_status` vocabulary),
   so an agent whose plan
@@ -125,6 +125,6 @@ event. Pinned by `tests/test_git_refresh_hook.py::test_build_tool_returns_busy_w
 
 - **A symbol you just wrote may be reported absent.** Read-through freshness repairs only the paths of
   rows a query already matched, so a *new* symbol matches nothing, triggers no reparse, and comes back
-  `no_matches` ([073](../tasks/073_freshness-cannot-find-what-is-not-indexed.md)). During an edit-heavy
+  `no_matches` (073). During an edit-heavy
   fan-out this is every symbol the agent has added. Path-named tools (`file_outline`) do repair, so two
   tools can disagree about the same file.

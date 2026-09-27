@@ -213,16 +213,16 @@ is the reshape; Wave 3 is enrichment and the new viewer.
 
 | Wave | # | Task | Why now | Depends on |
 |---|---|---|---|---|
-| 1 | 108 | [Module page neighbour lists are unbounded](../tasks/108_module-page-neighbour-list-is-unbounded.md) | 82 KB pages, and the only place in the repo that ignores `CA_MAX_RESULTS` | 088, 107 |
-| 1 | 109 | [Onboarding artifact quality gate](../tasks/109_onboarding-artifact-quality-gate.md) | the gate that would have stopped 106 and 107 from shipping | 088, 108 |
-| 2 | 110 | [Layers named by responsibility, deepest segment wins](../tasks/110_layers-named-by-responsibility.md) | directory names are not architecture; needs the R2.2 judgment | 084, 105, 109 |
-| 2 | 111 | [The tour is 5–15 narrative steps, not one stop per module](../tasks/111_tour-is-narrative-steps.md) | biggest single value change: 500 stops → a readable reading order | 087, 110 |
-| 2 | 112 | [One compact onboarding dataset, aggregates in `store.py`](../tasks/112_onboarding-dataset-contract.md) | the contract both renderers consume; keeps SQL in `store.py` (R1.4) | 083, 086, 110 |
-| 2 | 113 | [Zero-inbound is four populations, not one number](../tasks/113_reachability-split.md) | **done** — retracts the "45 % entry points" claim; five buckets from 110's ratified vocabulary + structure | 083, 112 |
-| 3 | 114 | [Business modules from directory structure](../tasks/114_business-module-table.md) | **done** — the bridge from "fix screen X" to a file; container level derived, coverage stated | 112 |
-| 3 | 115 | [Mirror-subtree detection — evidence for 098](../tasks/115_mirror-subtree-detection.md) | **done** — the trap as a lookup; its measured absence on 3 public repos keeps 098 deferred | 112 (feeds 098) |
-| 3 | 116 | [Dashboard viewer: sitemap, matrix, search](../tasks/116_dashboard-viewer.md) | **done** — the map itself, rendered from the 112 dataset alone; `DATASET_VERSION` 5 | 112, 114, 115 |
-| 3 | 117 | [LLM prose for layer descriptions and tour steps](../tasks/117_llm-prose-for-map.md) | **done** — one `ProseWriter` seam over three prose slots; headlines derived, worded through it; `DATASET_VERSION` 6 | 110, 111, 090, 091 |
+| 1 | 108 | Module page neighbour lists are unbounded | 82 KB pages, and the only place in the repo that ignores `CA_MAX_RESULTS` | 088, 107 |
+| 1 | 109 | Onboarding artifact quality gate | the gate that would have stopped 106 and 107 from shipping | 088, 108 |
+| 2 | 110 | Layers named by responsibility, deepest segment wins | directory names are not architecture; needs the R2.2 judgment | 084, 105, 109 |
+| 2 | 111 | The tour is 5–15 narrative steps, not one stop per module | biggest single value change: 500 stops → a readable reading order | 087, 110 |
+| 2 | 112 | One compact onboarding dataset, aggregates in `store.py` | the contract both renderers consume; keeps SQL in `store.py` (R1.4) | 083, 086, 110 |
+| 2 | 113 | Zero-inbound is four populations, not one number | **done** — retracts the "45 % entry points" claim; five buckets from 110's ratified vocabulary + structure | 083, 112 |
+| 3 | 114 | Business modules from directory structure | **done** — the bridge from "fix screen X" to a file; container level derived, coverage stated | 112 |
+| 3 | 115 | Mirror-subtree detection — evidence for 098 | **done** — the trap as a lookup; its measured absence on 3 public repos keeps 098 deferred | 112 (feeds 098) |
+| 3 | 116 | Dashboard viewer: sitemap, matrix, search | **done** — the map itself, rendered from the 112 dataset alone; `DATASET_VERSION` 5 | 112, 114, 115 |
+| 3 | 117 | LLM prose for layer descriptions and tour steps | **done** — one `ProseWriter` seam over three prose slots; headlines derived, worded through it; `DATASET_VERSION` 6 | 110, 111, 090, 091 |
 
 **Not in scope, deliberately:** run-the-app / environment / deployment documentation (§2); symbol-grain
 pages (§6); a second-repo generalisation pass, which should follow 116 rather than gate it.

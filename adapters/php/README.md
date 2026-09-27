@@ -120,7 +120,7 @@ defences above. **Language coverage is still the task 006 spike's** — all four
 emitted, but the constructs that hang off them are not: `use <Trait>` inside a class body, enum cases,
 backed enums, anonymous classes, closures, arrow functions, first-class callables, attributes,
 group-use, import aliases, nullsafe calls, property hooks, global `const`, and promoted constructor
-parameters. These land in [task 025](../../docs/tasks/025_php-adapter-grammar.md), which carries the
+parameters. These land in task 025, which carries the
 full 42-construct inventory.
 
 A trait used by a class currently produces **no** `USES_TRAIT` edge, silently — task 025 closes that.

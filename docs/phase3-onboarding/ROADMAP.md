@@ -155,9 +155,9 @@ path is proven and measured.
 > five open on controllers and include `public/index.php`. ~~The
 > `web_entry` count calls 8 files the web surface when 4 are test controllers.~~ **130 closed.**
 > Tickets
-> [131](../tasks/131_tour-ranks-configuration-ahead-of-the-front-controller.md),
-> [130](../tasks/130_web-entry-bucket-counts-test-controllers.md), and
-> [129](../tasks/129_include_graph_imports-is-a-silent-zero-for-a-namespaced-file.md) (a silent zero
+> 131,
+> 130, and
+> 129 (a silent zero
 > found while establishing ground truth).
 >
 > **Scope narrowed accordingly**, per this section's own instruction: the onboarding layer is measured
@@ -165,7 +165,7 @@ path is proven and measured.
 > declaration claimed that count — not as a curated syllabus.** A dependency walk still is not the
 > hand reading order (kernel / entity / repository). **143** put a mermaid layer graph in the
 > committed markdown (a lookup); auto-generated *syllabi* stay behind that line. Class diagrams are
-> [144](../tasks/144_class-diagram-is-a-projection-minus-the-return-type.md).
+> 144.
 
 Gate the phase on the harness, not on vibes. Add an **onboarding question-class** to the
 tokens-to-answer harness (034/045) and the recall gate (055). Baseline = `grep`+`Read` with an agent

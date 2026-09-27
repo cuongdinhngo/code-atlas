@@ -93,9 +93,3 @@ def test_onboarding_names_the_file_outline_occasion() -> None:
     text = (REPO / "docs" / "runbooks" / "onboarding-a-repo.md").read_text(encoding="utf-8")
     assert "Before you read or port a large file, call `file_outline`" in text
 
-
-def test_074_n_counter_is_not_reset() -> None:
-    text = (
-        REPO / "docs" / "tasks" / "074_does-the-index-harm-mechanism-questions.md"
-    ).read_text(encoding="utf-8")
-    assert "097 does not reset this n" in text

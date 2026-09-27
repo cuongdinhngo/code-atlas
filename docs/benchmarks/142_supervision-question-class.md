@@ -1,7 +1,7 @@
 # 142 — the supervision question-class, measured
 
 **Status:** run, fixture tier, 2026-08-25. **Ticket:**
-[`../tasks/142_supervision-question-class-has-no-baseline.md`](../tasks/142_supervision-question-class-has-no-baseline.md).
+task 142 (phase-1 archive).
 **Verdict:** the class is **cheap and correct where a tool answers it, and one member of the class is
 answered by no tool at all** — the minimum acyclic cut-edge set (141, deferred). Both are recorded
 below; the second is labelled, not scored as a miss.

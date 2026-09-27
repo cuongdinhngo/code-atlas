@@ -230,7 +230,7 @@ per call** for its extra `relation` argument. Break-even ≈ **36 relation calls
 tool is cheaper below that, three tools above, and the whole spread is only −234…+434 tokens across
 1–100 calls. Read the break-even from `call_delta_per_call`, **never** from the aggregate `call_delta`
 (that mistake inflated it 4× in review). Verdict and full tables:
-[`docs/tasks/037_compound-nav-responses.md`](../tasks/037_compound-nav-responses.md). Re-run it
+task 037 (phase-1 archive). Re-run it
 whenever a relation tool's docstring changes materially — the schema term is prose-sensitive (editing
 one docstring during 037 moved the break-even from 11.4 to 8.9).
 

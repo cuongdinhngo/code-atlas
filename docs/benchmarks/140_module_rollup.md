@@ -1,6 +1,6 @@
 # 140 — what the module rollup costs, against the symbol answer it summarises
 
-**Status:** run 2026-08-24 (Linux, PHP 8.3.6). **Ticket:** [`../tasks/140_impact-answers-in-symbols-not-modules.md`](../tasks/140_impact-answers-in-symbols-not-modules.md).
+**Status:** run 2026-08-24 (Linux, PHP 8.3.6). **Ticket:** task 140 (phase-1 archive).
 **AC4 wants a number, not a claim.** Here it is, and so is the case where the saving is smallest.
 
 Measured with `code_atlas.tokens.estimate_tokens` over `json.dumps` of each payload at

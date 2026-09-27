@@ -1,7 +1,7 @@
 # 137 — what the PHP local type table moved
 
 **Status:** run, three pinned public repos, 2026-08-24 (Linux, PHP 8.3.6).
-**Ticket:** [`../tasks/137_php-local-type-table.md`](../tasks/137_php-local-type-table.md).
+**Ticket:** task 137 (phase-1 archive).
 **Baseline:** [136](136_heuristic-causes.md), reproduced on this host before any change.
 **Verdict:** the HEURISTIC share is **not** two thirds of the graph, and it never was two thirds
 because of missing type information. It is **1–4 %**, and what remains is the late binding 136
@@ -44,7 +44,7 @@ mostly that shape. 136 could not see this: it classified by *cause*, and the cau
 
 136 set the ceiling at "settleable **and** already linked": 92.5 % for `brick/math`. The result is
 98.9 %. The ceiling was not wrong — it was a ceiling on a **type table alone**. The chain walk is
-not a type table; it reads declared types the adapter had already recorded on nodes ([144](../tasks/144_class-diagram-is-a-projection-minus-the-return-type.md)'s
+not a type table; it reads declared types the adapter had already recorded on nodes (144's
 return types), so it settles receivers no single file could.
 
 ## Recall, proved rather than assumed
@@ -102,5 +102,5 @@ missing members back is the effect.
 - **`unknown_receiver`** is down to 4–5 per repo, from 87–1 035.
 
 `laravel/laravel` is still bounded at zero linkable, exactly as 136 said: every remaining receiver
-points into `vendor/`. Turning [039](../tasks/039_vendor-stub-index.md)'s stub roots on is still the
+points into `vendor/`. Turning 039's stub roots on is still the
 separate decision it always was, and this page is still the evidence for it.

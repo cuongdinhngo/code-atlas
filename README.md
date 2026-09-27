@@ -12,8 +12,8 @@ committed outputs, not retyped):
 | Adapter | HEURISTIC `CALLS` | Pinned sample | Measured |
 |---|---|---|---|
 | **PHP** (depth standard) | **1–4 %** | laravel · symfony · brick | 2026-08-24 · [137](docs/benchmarks/137_type-table.md) |
-| TypeScript/JavaScript | **54.1%** | `ky` | 2026-08-27 · after 153 · report `--only ky` |
-| Python | **82.2%** | `flask` | 2026-09-08 · after 227 · report `--only flask` |
+| TypeScript/JavaScript | **54.1%** | `ky` | 2026-08-27 · [153](docs/benchmarks/153_227_heuristic-share-ts-python.md) |
+| Python | **82.2%** | `flask` | 2026-09-08 · [227](docs/benchmarks/153_227_heuristic-share-ts-python.md) |
 | T-SQL | not a CALLS-HEURISTIC depth metric | sql samples | [233](docs/benchmarks/233_sql-cross-repo.md) — floors / layer shape, not HEURISTIC share |
 
 PHP is the depth standard; TypeScript and Python are shallower on that axis, with the number above.
@@ -89,7 +89,7 @@ control-flow question `grep` can serve**: five held-out mechanism questions on a
 
 **Platform: runs on Linux, macOS, and native Windows.** For heavy indexing on Windows, WSL2 on the
 Linux-native filesystem is recommended: a repo under `/mnt/*` crosses the 9p boundary (~100× slower —
-[measured](docs/tasks/220_no-windows-evidence-exists-and-the-core-cannot-import-there.md)), and
+measured), and
 Defender's real-time scan adds a large cold-read cost — exclude the repo path or use a Dev Drive. The
 startup preflight warns about the `/mnt/*` case; the Defender cost it cannot see. The **test and dev loop is POSIX-only** — run it under WSL2 or Docker.
 

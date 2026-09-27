@@ -6,9 +6,9 @@ and per-task lessons are in [`LESSONS.md`](LESSONS.md). This file tracks *what i
 landed*; each ticket's cost is one row in [`TOKEN_LEDGER.md`](TOKEN_LEDGER.md) (R7.2) — narrative
 rationale lives in those three.
 
-**208 tickets closed before 2026-09-05** are not listed here — the Conventions below say why, and
-`git log --follow -- docs/tasks` is the history. What stays is what you read to choose the next
-ticket: the finding, not the slug.
+**Phase 1 (tasks 001–342) closed 2026-09-27**; its done task files were archived out of the
+repo, so a task number cited in these docs may have no file here. What stays is what you read to
+choose the next ticket: the finding, not the slug.
 
 **Status legend:** `todo` · `in-progress` · `blocked` · `deferred` · `done`
 
@@ -59,21 +59,21 @@ Phase 1, 1.5 and 1.5b are closed. Editing tools remain out and tool consolidatio
 
 One line each, with the pointer that holds the detail. Nothing here is scheduled.
 
-- **PSR-4 / autoload-aware include resolution**, with PSR-0 duplicate-name disambiguation — [042](tasks/042_tokens-to-answer-sample-tier.md).
+- **PSR-4 / autoload-aware include resolution**, with PSR-0 duplicate-name disambiguation — 042.
 - **Tokens-to-answer measures cost, not information** — 046 moved the ratio 0.02 % while doubling the distinct answers. Wants a second axis before it judges a retrieval change.
 - **Parser-OOM size cap (optional)** — multi-MB generated files exhaust the PHP parser (already soft-failed/restarted in `indexer.py`); a byte-cap pre-skip (`CA_MAX_FILE_BYTES`) would avoid ~30 restart cycles. Log skips; no silent truncation.
-- **258's anchor-scale figures were never taken** — AC1 (the edge-count drop on the anchor index) and AC5 (the query cost of the proximity expansion at that scale) shipped E1 on fixture evidence. The ticket makes the expensive case convert to **build-time ranking**, so that measurement is the decision, not a confirmation — [258](tasks/258_the-graph-stores-the-cartesian-product-of-call-site-and-same-named-symbol.md).
-- **Uptake is gated by deferred delivery and whether `Grep` hurts** — [300](tasks/300_the-index-is-registered-permitted-and-never-chosen.md).
-- **A PHP property is referenced only by a static fetch naming its declaring class** — `$this->x`, `$obj->x` and `self::$x` on an inherited property emit no edge onto it, so `find_references` on it can still answer a confident zero — [336](tasks/336_a-static-property-read-answers-a-confident-zero.md).
-- **A separator-normalised `read_symbol` hit ignores `path_prefix`** — `\Foo\bar` re-read as `Foo::bar` returns the body from a file the filter excluded; `find_references`' prefix zero names no `path_excluded` either — [339](tasks/339_a-path-prefix-that-matches-nothing-reads-as-no-such-symbol.md).
+- **258's anchor-scale figures were never taken** — AC1 (the edge-count drop on the anchor index) and AC5 (the query cost of the proximity expansion at that scale) shipped E1 on fixture evidence. The ticket makes the expensive case convert to **build-time ranking**, so that measurement is the decision, not a confirmation — 258.
+- **Uptake is gated by deferred delivery and whether `Grep` hurts** — 300.
+- **A PHP property is referenced only by a static fetch naming its declaring class** — `$this->x`, `$obj->x` and `self::$x` on an inherited property emit no edge onto it, so `find_references` on it can still answer a confident zero — 336.
+- **A separator-normalised `read_symbol` hit ignores `path_prefix`** — `\Foo\bar` re-read as `Foo::bar` returns the body from a file the filter excluded; `find_references`' prefix zero names no `path_excluded` either — 339.
 - **Docker images are never built by CI** — `docker/Dockerfile` can rot, and since 323 `gate.sh --docker` runs through it (`Dockerfile.runtime` is built inside `pytest`). Honest shape: one job building both. Survives the unbillable-Actions arrangement AGENTS.md records, which also means every gate is a human step.
 
 - **`host_root` / `container_root` from the project file are unchecked paths** — harmless today
   (`to_adapter_path` only maps repo-relative strings) but ungated, unlike 341's two knobs —
-  [341](tasks/341_an-indexed-repo-can-choose-the-command-code-atlas-runs.md).
+  341.
 - **Two symlink residuals 342 left out of scope** — a stub root's files (`collect_stubs`, `os.walk`)
   and the index directory (`.code-atlas/` committed as a link aims SQLite writes) are not yet contained
-  — [342](tasks/342_a-symlink-in-the-indexed-repo-reaches-outside-it.md).
+  — 342.
 
 ## Conventions
 - Keep an **open** task's `status` in this table **and** in its frontmatter in sync.

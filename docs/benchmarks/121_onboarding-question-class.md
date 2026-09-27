@@ -1,7 +1,7 @@
 # 121 — the onboarding question-class, measured
 
 **Status:** run, both committed tiers, 2026-08-23. **Ticket:**
-[`../tasks/121_onboarding-question-class-never-measured.md`](../tasks/121_onboarding-question-class-never-measured.md).
+task 121 (phase-1 archive).
 **Verdict:** the class is **cheaper than hand-mapping where the question is a lookup, and wrong where
 the question is a reading order.** Both halves are below, with the numbers that produced them.
 
@@ -83,7 +83,7 @@ over a 40-file tree shows. The scheduled floor moves 78 → 55 (`0.8 × observed
 
 ## Where the map loses — established by hand, on `symfony/demo`
 
-**1. ~~The reading order is not a reading order.~~ Closed by [131](../tasks/131_tour-ranks-configuration-ahead-of-the-front-controller.md), 2026-08-24.**
+**1. ~~The reading order is not a reading order.~~ Closed by 131, 2026-08-24.**
 Re-measured on `symfony/demo` @ `03fe25671b720b15103a2ff26934e94c87bd4d82`, first five stops:
 
 ```
@@ -99,7 +99,7 @@ The front controller is in the first five (AC1). Lint and bootstrap config no lo
 kernel / entity / repository sequence is still not reproduced — the tour remains a dependency walk,
 not a curated syllabus.
 
-**2. ~~Half the "web surface" is tests.~~ Closed by [130](../tasks/130_web-entry-bucket-counts-test-controllers.md), 2026-08-24.**
+**2. ~~Half the "web surface" is tests.~~ Closed by 130, 2026-08-24.**
 Reachability now checks every directory segment for a test role before the request-handling
 vocabulary, so `tests/Controller/*Test.php` lands in `test`, not `web_entry`.
 
@@ -108,7 +108,7 @@ INCLUDES edge is anchored on the file's *namespace* node, so `direction: imports
 `results: []` **with `unresolved_includes: 0`** — a silent zero — for every namespaced file, which in a
 PSR-4 repo is all of them. `imported_by` works, and reports the includer's namespace qname in a field
 named `path`. The pre-existing fixture has no namespace, which is why the suite never saw it. Filed as
-[`129`](../tasks/129_include_graph_imports-is-a-silent-zero-for-a-namespaced-file.md). The class routes
+`129`. The class routes
 around it: `onb_request_entry` and `onb_depends_on_shared_module` both ask `imported_by`.
 
 ## What this measurement cannot see

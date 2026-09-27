@@ -1,7 +1,7 @@
 # 233 — SQL cross-repo floors (137-shaped before table)
 
 **Status:** run, pinned public SQL samples via `sparse_paths`, 2026-09-08 (Linux host `dev-host`).
-**Ticket:** [`../tasks/233_python-and-sql-have-no-pinned-public-sample-so-no-change-to-either-can-be-shown-to-move-anything.md`](../tasks/233_python-and-sql-have-no-pinned-public-sample-so-no-change-to-either-can-be-shown-to-move-anything.md).
+**Ticket:** task 233 (phase-1 archive).
 **Depends on:** 228 dialect honesty (merged) — floors measured after refuse-reserved / `File.extra.dialect=tsql`.
 **Protocol:** `python scripts/cross_repo_validate.py --public-only` (or the smoke driver over the two SQL ids).
 

@@ -31,8 +31,9 @@ README = REPO / "README.md"
 # Report outputs the README must quote (R6.7) — produced by scripts/edge_health_report.py.
 REPORT_SOURCES = {
     "1–4 %": REPO / "docs/benchmarks/137_type-table.md",
-    "54.1%": REPO / "docs/TOKEN_LEDGER.md",  # 153 row: edge_health_report --only ky
-    "82.2%": REPO / "docs/TOKEN_LEDGER.md",  # 227 row: edge_health_report --only flask
+    # edge_health_report --only ky / --only flask
+    "54.1%": REPO / "docs/benchmarks/153_227_heuristic-share-ts-python.md",
+    "82.2%": REPO / "docs/benchmarks/153_227_heuristic-share-ts-python.md",
 }
 
 

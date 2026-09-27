@@ -60,7 +60,7 @@ being built. Where another document states the value of this project, it states 
 
 ### Non-goals (core, v1)
 - No rename/refactor/edit — **permanently ceded to the agent's native `Edit`/`Write`** (the consumer is an agent, not an IDE; §19). code-atlas returns exact symbol line ranges those edits act on; it never mutates code.
-- No type inference **in the core** (adapters may supply it where free — Roslyn's semantic model, the PHP local type table [137](tasks/137_php-local-type-table.md) **shipped**, opt-in PHPStan `semantic_types`; §19). The core still resolves *across* files, because a declared type the adapter recorded is graph data, not inference.
+- No type inference **in the core** (adapters may supply it where free — Roslyn's semantic model, the PHP local type table 137 **shipped**, opt-in PHPStan `semantic_types`; §19). The core still resolves *across* files, because a declared type the adapter recorded is graph data, not inference.
 - **Framework-magic as adapter code** (hard-coded facades/DI/`__call` in adapters) stays forbidden (R2.2).
   Opt-in **indirection rules as data** (`CA_INDIRECTION_RULES`, task 040) are an in-core enrichment
   pass on the standard-language graph — off by default. ORM/`__call` heuristics remain future/out-of-band.
@@ -658,7 +658,7 @@ are **complete**; the per-task breakdown, including the 108–117 reshape, is in
 | **Adapter tuned to a sample repo** (breaks "works on any repo") | "Standard over sample" (§2): adapter encodes only the language spec/PSRs; CI grep-gate bans repo/framework names in adapter source; cross-repo validation (§16). |
 | PHP process startup × 112k | Long-lived streaming adapter + N workers. |
 | Dynamic PHP (`$obj->$m()`, magic, variable include) | `DYNAMIC` tier, excluded from traversal; name-based `HEURISTIC` fallback. |
-| No type inference for PHP instance calls | **Closed by [137](tasks/137_php-local-type-table.md)**: the HEURISTIC share fell to **1.1 / 3.9 / 2.6 %** across the three pins, with no call site losing a target — [benchmark](benchmarks/137_type-table.md). What is left is the late binding 136 predicted, which is the LSP defer's ≤0.6 %, plus receivers whose declaring member is unindexed (136's `vendor/` cap, unchanged). C# gets it free via Roslyn capability. |
+| No type inference for PHP instance calls | **Closed by 137**: the HEURISTIC share fell to **1.1 / 3.9 / 2.6 %** across the three pins, with no call site losing a target — [benchmark](benchmarks/137_type-table.md). What is left is the late binding 136 predicted, which is the LSP defer's ≤0.6 %, plus receivers whose declaring member is unindexed (136's `vendor/` cap, unchanged). C# gets it free via Roslyn capability. |
 | PHP 8.5 edge cases | nikic ^5 latest; collecting handler flags `parsed_ok=0`. |
 | Host PHP absent | Docker-exec mode (§9-B) or tokenizer-only PHP CLI. |
 | 100k-file DB/memory | SQLite WAL, serial writer, indexed queries, caps; traverse in SQL, never load whole graph. |
@@ -705,7 +705,7 @@ viewer, §14), and schema-state awareness (**no, permanently** — §19, 2026-08
 - **Language order and its rationale** — §3's table. Ordered PHP → TS/JS → Python → C#/.NET, deferred behind PHP agent-depth 2026-08-04, T-SQL inserted ahead of Python 2026-08-30; #2–#4 have landed and only C#/.NET remains.
 - **Native Windows runtime taken — 2026-09-10, superseding 220's `unsupported`.** A
   `sys.platform`-selected lock arm keeps POSIX byte-identical and 072's property. Tiered: native
-  runtime supported, WSL2-on-ext4 for heavy indexing, dev/test loop stays POSIX; evidence in [237](tasks/237_native-windows-was-declined-on-a-defender-setting-not-a-platform-limit.md).
+  runtime supported, WSL2-on-ext4 for heavy indexing, dev/test loop stays POSIX; evidence in 237.
 - **SOLID at the boundaries + YAGNI** (§2) — one seam (the contract). The registry question is settled: see the R1.2 verdict below.
 - **Standard over sample** (§2) — adapters implement the language spec/PSRs only; sample repos drive test coverage & perf targets, never adapter semantics. CI grep-gate bans repo/framework names in adapter source.
 - **Priorities** (§0): make it work (PHP) → extend without touching core → onboarding feature.
@@ -889,8 +889,8 @@ tool added for one adopter is paid for by all of them. So field evidence is filt
 - **A finding whose subject is the *agent* generalises by default** — how an agent frames a task, when
   it is receptive to information, what it will paste into a PR, what interface shape it reaches for.
   These hold wherever an agent works, and the next round can falsify them cheaply. Tickets
-  [099](tasks/099_write-time-signal-seam.md), [100](tasks/100_claim-signing-output-mode.md),
-  [101](tasks/101_nav-tools-take-one-subject-at-a-time.md) are all of this kind.
+  099, 100,
+  101 are all of this kind.
 - **A finding whose subject is the *repository* does not** — its migration lane, its regional split, its
   mapping file, its dispatch idiom. Such a finding is recorded and gated: it needs a **second,
   independent repository**, a stated cost to users who declare nothing, and a written rejection of the
@@ -946,7 +946,7 @@ Consequences, all adopted:
 
 Do framework-shaped *view data-bag* edges belong in the graph? **Yes, on the producer side only**, as
 opt-in rules data outside `adapters/` applied by `enrichment.py` (the 040 channel) — not as adapter
-code (R2). Implementation is follow-up [062](tasks/062_view-databag-producer.md); this entry is the
+code (R2). Implementation is follow-up 062; this entry is the
 design note.
 
 **Occurrence count** (operator-local; shape only). Clear view-publish sites — `->render` /
@@ -970,19 +970,19 @@ the template consumer name.
 
 **Decision — six-tool CA_TOOLS preset + worktree/nomination/minimal-walk ops (task 268, 2026-09-13).**
 
-**Locked:** document an opt-in field-18 six-tool `CA_TOOLS` preset; **default surface stays 24**. A linked git worktree whose `CA_DB_PATH` resolves outside the worktree refuses with `index_root_mismatch` (never main's rows under `reason: ok`). Status nominates entry/stub globs with `files_matched` and applies none — first run at any level, otherwise `standard`, never `minimal`. Large walks (`reachable_from`, `find_orphans`, `architecture_overview`) default to `minimal`. One-line install is exercised on the Docker test path. Detail: [268](tasks/268_twenty-four-descriptions-are-a-tax-paid-before-the-first-question.md).
+**Locked:** document an opt-in field-18 six-tool `CA_TOOLS` preset; **default surface stays 24**. A linked git worktree whose `CA_DB_PATH` resolves outside the worktree refuses with `index_root_mismatch` (never main's rows under `reason: ok`). Status nominates entry/stub globs with `files_matched` and applies none — first run at any level, otherwise `standard`, never `minimal`. Large walks (`reachable_from`, `find_orphans`, `architecture_overview`) default to `minimal`. One-line install is exercised on the Docker test path. Detail: 268.
 
 **Decision — consumer-repo agent brief is offered into the indexed tree (tasks 266 · 270, 2026-09-13).**
 
-036/099 still lock *offer, never install* for **editor settings**. **Locked separately (266):** write a generated brief into the indexed repo's `AGENTS.md` (marked, regenerable, flagged, never clobbering). **Locked separately (270):** when that repo's `CLAUDE.md` lacks `@AGENTS.md`, **print** the one-line import — never write `CLAUDE.md` (Claude Code's memory list is only `CLAUDE.md` / `CLAUDE.local.md`). Detail: [266](tasks/266_the-artifact-that-would-make-an-agent-ask-is-in-our-repo-not-theirs.md), [270](tasks/270_the-brief-is-announced-nowhere-and-loaded-by-nobody.md).
+036/099 still lock *offer, never install* for **editor settings**. **Locked separately (266):** write a generated brief into the indexed repo's `AGENTS.md` (marked, regenerable, flagged, never clobbering). **Locked separately (270):** when that repo's `CLAUDE.md` lacks `@AGENTS.md`, **print** the one-line import — never write `CLAUDE.md` (Claude Code's memory list is only `CLAUDE.md` / `CLAUDE.local.md`). Detail: 266, 270.
 
 **Decision — default inbound page order is tier-first (task 265, 2026-09-13).**
 
-Page 1 was alphabetical, so a correct page could be 100 % of the wrong tree (067) and the sole `RESOLVED` caller sat on page 12 (251). **Locked: tier-first default order** — `RESOLVED` → `HEURISTIC` → `DYNAMIC`, then today's stable keys — in the store query before truncation (R4.2). `confidence_tier` stays an opt-in *filter*: default *order* changes, default *set* does not. A tier partition is `authoritative: false` with a census, and an empty one stays `no_matches`, never `ok` (264). Detail: [265](tasks/265_the-default-page-order-is-the-alphabet.md).
+Page 1 was alphabetical, so a correct page could be 100 % of the wrong tree (067) and the sole `RESOLVED` caller sat on page 12 (251). **Locked: tier-first default order** — `RESOLVED` → `HEURISTIC` → `DYNAMIC`, then today's stable keys — in the store query before truncation (R4.2). `confidence_tier` stays an opt-in *filter*: default *order* changes, default *set* does not. A tier partition is `authoritative: false` with a census, and an empty one stays `no_matches`, never `ok` (264). Detail: 265.
 
 **Decision — keyed_calls may target File qnames (task 256, 2026-09-12).** 222's E2 left dispatch
 routing to grep; field evidence contradicted that. **Locked:** `target_template` → indexed File qname
-links as HEURISTIC CALLS (exact path). Detail: [256](tasks/256_the-dispatch-exclusion-was-decided-before-the-evidence-existed.md).
+links as HEURISTIC CALLS (exact path). Detail: 256.
 
 **Decision — R1.2 registry verdict: NO registry (task 156, 2026-08-27).** Adapter #2 landed (019) with
 an empty core diff: adapters are selected from data — `CA_<LANG>_CMD` → `config.adapter_cmds`
@@ -995,41 +995,41 @@ per-language logic (its own ticket; see R1.2).
 measured 2.6× populated vs fresh. **Locked: truncate-first** — `GraphStore.truncate_graph` once at
 `full_build` top, so a populated rebuild matches a fresh growth curve; output byte-identical (R4.2).
 **defer-FTS deferred** (its own ticket). Detail:
-[219](tasks/219_a-full-rebuild-pays-the-populated-db-tax-nobody-chose.md).
+219.
 
 **Decision — ClassConst evidence (task 234, 2026-09-08).** Spec markers **and** PEP 8
 upper-case under R2. Python every scope; TS `EnumMember`→`ClassConst`. No new kind.
-[234](tasks/234_classconst-is-a-php-only-kind-and-the-two-signals-that-would-fill-it-elsewhere-are-discarded.md).
+234.
 
 **Decision — annotation / decorator → REFERENCES in every adapter (task 232, 2026-09-08).**
 **Locked: edges** — PHP/TS emit `REFERENCES` from named class types and attributes/decorators;
-`Foo::class` stays `DYNAMIC` (094). [232](tasks/232_the-same-construct-is-a-references-edge-in-python-and-node-extra-in-php-and-ts.md).
+`Foo::class` stays `DYNAMIC` (094). 232.
 
 **Decision — unmodelled `*->L` partition on hits (238; 276, 2026-09-15).** Hits on an unmodelled
 crossing carry `authoritative: false` (`reason` stays `ok`). **276:** hit caveat needs
-`linked+unlinked > 0`; empty census → status (243). [238](tasks/238_the-honest-zero-predicate-is-gated-on-the-zero.md) · [276](tasks/276_the-caveat-that-fires-on-every-answer.md).
+`linked+unlinked > 0`; empty census → status (243). 238 · 276.
 
 **Decision — serve_behind labelled reads (257, 2026-09-12; 267, 2026-09-13; 274, 2026-09-15).**
 Opt-in: behind + unchanged → `index_behind` + revision (never `ok`); off ⇒ byte-identical. **267:**
 unrepaired dirty subject → `index_behind_subject_changed`, else refuse. **274:** behind status names
-served/refused families + opt-in + `changed_indexed_between`; suggestions not rebuild-only. [257](tasks/257_the-index-goes-blind-at-the-moment-it-is-most-wanted.md) · [267](tasks/267_the-warning-an-autonomous-agent-cannot-act-on.md) · [274](tasks/274_behind-prints-one-route-and-it-is-a-ninety-minute-rebuild.md).
+served/refused families + opt-in + `changed_indexed_between`; suggestions not rebuild-only. 257 · 267 · 274.
 
 **Decision — Table/Column writers via find_references (278; 281, 2026-09-15).** Linked writers;
 Table ∪ its columns; `unlinked_writes_count` when >0. **281:** the caveat
 (`writes_emitters_only`) keys on which languages emit `WRITES`. **335:** a PHP literal that begins
 a T-SQL write or `EXEC` → `HEURISTIC` edge.
-[278](tasks/278_the-writer-set-is-computed-for-one-check-and-addressable-from-nothing.md) ·
-[281](tasks/281_the-writes-sql-half-caveat-keys-on-language-count-not-the-emitting-adapter.md).
+278 ·
+281.
 
 **Decision — unresolved CALL site once (258, 2026-09-12).** The site is the fact, candidates are a
-query; `max_results` stops governing graph content. AC1/AC5 E1. [258](tasks/258_the-graph-stores-the-cartesian-product-of-call-site-and-same-named-symbol.md).
+query; `max_results` stops governing graph content. AC1/AC5 E1. 258.
 
 **Decision — parse_failures floor (280, 2026-09-15).** `parse_failures_note` beside the count — a
-floor, not a fatal surface. [280](tasks/280_a-parser-accepts-what-the-runtime-rejects.md).
+floor, not a fatal surface. 280.
 
 **Decision — unmodelled resolution stamp (279, 2026-09-15; 294-296, 2026-09-19).** Every adapter
 stamps its runtime-load idiom into `File.extra.unmodelled_resolution`; `find_orphans` refuses
-`resolution_unmodelled`. [279](tasks/279_an-autoloaded-repo-answers-unreachable-and-means-unmeasured.md).
+`resolution_unmodelled`. 279.
 
 **Reference material** (private, same folder): `understand-anything-how-it-works.md`, `code-review-graph-how-it-works.md`.
 

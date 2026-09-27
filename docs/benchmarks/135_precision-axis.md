@@ -1,7 +1,7 @@
 # 135 — precision, measured for the first time
 
 **Status:** run, both committed tiers, 2026-08-23 (Linux, PHP 8.3.6).
-**Ticket:** [`../tasks/135_harness-scores-recall-but-never-precision.md`](../tasks/135_harness-scores-recall-but-never-precision.md).
+**Ticket:** task 135 (phase-1 archive).
 **Verdict:** the gate could not see a wrong answer. On the pinned `symfony/demo` the same answer that
 scores **recall 1.0** scores **precision 0.5** — half of what it claims is not true. Reproduce with:
 
@@ -24,7 +24,7 @@ tests/Controller/Admin/BlogControllerTest.php, tests/Controller/BlogControllerTe
 tests/Controller/DefaultControllerTest.php, tests/Controller/UserControllerTest.php
 ```
 
-That is defect [130](../tasks/130_web-entry-bucket-counts-test-controllers.md) reaching a gate for the
+That is defect 130 reaching a gate for the
 first time. It was found by hand while running 121; nothing mechanical could see it until now.
 
 ## Why the denominator is declared, not derived

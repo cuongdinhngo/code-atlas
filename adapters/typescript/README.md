@@ -97,7 +97,7 @@ type-checker's soundness checks subsume. Rejected: ESLint.
 **The one strict flag held off: `noImplicitAny`.** The adapter's *own* source is deliberately untyped,
 so full `noImplicitAny` reports ~72 implicit-`any` parameters that only per-parameter JSDoc on the
 adapter's own functions would close. Typing the adapter's source to turn the flag on is a separate
-concern (a future extension of [task 150](../../docs/tasks/150_ts-adapter-has-no-gate-but-its-own-fixtures.md)'s
+concern (a future extension of task 150's
 gate), **not** task 154 — 154 reads JSDoc off the *indexed* code, it does not type this repo. This is a
 scoped setting, **not** a suppression: there is no baseline file, no `@ts-nocheck`, no `eslint-disable`.
 Every other strict check (`strictNullChecks`, `noUnusedLocals`, `noImplicitReturns`, …) is on and clean.

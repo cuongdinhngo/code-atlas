@@ -7,7 +7,7 @@ two rules that abort earned are now executable rather than advisory: `scripts/ar
 ([Arm preflight](#arm-preflight--the-granted-arm-is-proven-not-assumed-r1--abort-finding-3)) and the
 [key freeze procedure](#the-key--freeze-procedure-r1-step-2--abort-finding-2). Pre-registered
 consequences are unchanged. **Ticket:**
-[`../tasks/074_does-the-index-harm-mechanism-questions.md`](../tasks/074_does-the-index-harm-mechanism-questions.md).
+task 074 (phase-1 archive).
 
 This file is committed **before any run** so the result cannot be argued after the fact. It measures
 **agent behaviour**, not server determinism — a granted-vs-denied difference here is not an R4 defect
@@ -23,7 +23,7 @@ ticket:
 |---|---|
 | Arm preflight passes — see [Arm preflight](#arm-preflight--the-granted-arm-is-proven-not-assumed-r1--abort-finding-3) | 2026-08-27 abort: 0 index calls in 68 |
 | `staleness: current`, `dirty_indexed_files: 0`, `server_build` — `arm_preflight.py audit` prints all three from the cell | answers must be this binary |
-| Default **24-tool** surface (`CA_TOOLS` unset). Six-tool preset is opt-in — if used, say so | [268](../tasks/268_twenty-four-descriptions-are-a-tax-paid-before-the-first-question.md) |
+| Default **24-tool** surface (`CA_TOOLS` unset). Six-tool preset is opt-in — if used, say so | 268 |
 | Indexed-repo five-occasion brief **present or absent** (266). Experimenter still does not hint | the brief is product, not coaching |
 | Key frozen per [The key](#the-key--freeze-procedure-r1-step-2--abort-finding-2) — dynamically probed, hashed, git-timestamped | the aborted key was falsified |
 
@@ -107,7 +107,7 @@ coached probes reported deferred delivery while the session header listed every 
 **`--question-file` is `--uncoached` on a question of your choosing**, reporting the question's
 sha256 and never its text, so it stays outside the tree. Use it: REACH_PROMPT's sentence is now a
 `which_tool` line, so passing *it* no longer separates "the brief covers this shape" from "the brief
-contains this string" ([300](../tasks/300_the-index-is-registered-permitted-and-never-chosen.md) holds
+contains this string" (300 holds
 the register). The 074 frozen question is itself a held-out question — point `--question-file` at the
 private notes file and no text enters this repo.
 
@@ -129,7 +129,7 @@ costs a fraction of one cell. Record the exit code for each; a negative result i
 | # | Hypothesis | Probe variant |
 |---|---|---|
 | 1 | Deferral is driven by the **session's total** tool count, not code-atlas's 24 — the 2026-09-19 probe saw `total_deferred_tools: 41` against a 24-tool server | re-probe with `--allowed-tools` cut to `mcp__code-atlas__get_index_status` alone (no `ToolSearch`): if a code-atlas call lands, the surface was never the cause |
-| 2 | The 24-tool surface is itself over the threshold | set `CA_TOOLS` to the six-name [268](../tasks/268_twenty-four-descriptions-are-a-tax-paid-before-the-first-question.md) keep-list (`main.FIELD18_TOOLS`) in the granted config's `env`, re-probe |
+| 2 | The 24-tool surface is itself over the threshold | set `CA_TOOLS` to the six-name 268 keep-list (`main.FIELD18_TOOLS`) in the granted config's `env`, re-probe |
 | 3 | Delivery is a client-version behaviour | re-probe on a different CLI build, same config |
 
 **Candidate 2 changes what the ticket measures, and that is not a free move.** Scope pins the granted
@@ -312,7 +312,7 @@ channel 081 missed. Across six held-out cells it deepened use where it had start
 2 → 12 calls in 43) and started none: H3 and H5 stayed at 0 on the anchor, and all three stayed at 0
 on this 592-file repo. **Uptake tracks whether `Grep` hurts, not what the tools say.** Instrument
 additions: `probe --append-system-prompt-file`, `probe --question-file`. Tables:
-[300](../tasks/300_the-index-is-registered-permitted-and-never-chosen.md).
+300.
 
 **So 074 resumes per question, never per repo — and on 2026-09-19 the gate was run, twice, and the
 question class failed it.** Two frozen wordings of one mechanism question, uncoached on the anchor,

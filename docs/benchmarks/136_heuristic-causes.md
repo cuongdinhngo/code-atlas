@@ -1,7 +1,7 @@
 # 136 — what the HEURISTIC share is actually made of
 
 **Status:** run, three pinned public repos, 2026-08-23 (Linux, PHP 8.3.6).
-**Ticket:** [`../tasks/136_heuristic-share-has-no-owner.md`](../tasks/136_heuristic-share-has-no-owner.md).
+**Ticket:** task 136 (phase-1 archive).
 **Verdict:** **PLAN §17 was wrong about the cause and PLAN §1 was right about the mechanism — but
 both missed the cap.** Local type information is the cause of **≥99 %** of the HEURISTIC share on
 every pin. What a type table can actually *promote* is bounded by `vendor/` coverage, and on the
@@ -52,7 +52,7 @@ rewrites `fetch` into `\Vendor\Foo::fetch` — which still misses if `\Vendor\Fo
 share a type table can move is *settleable **and** already linked*:
 
 - `laravel/laravel`: **0 of 87**. Every HEURISTIC edge points into `vendor/`, unindexed by default
-  ([039](../tasks/039_vendor-stub-index.md) ships stub roots, off). A type table would make the
+  (039 ships stub roots, off). A type table would make the
   claims *precise* — `\Illuminate\…::method` instead of a bare name, which is what you need to know
   what to stub — but would not move the tier by one edge.
 - `symfony/demo`: **128 of 568 (22.5 %)**.
@@ -66,7 +66,7 @@ local types settle the cause, `vendor/` stubs decide whether settling it changes
 - **PLAN §17** claimed the mitigation was "name-match HEURISTIC; defer precise cases to an LSP". The
   defer is right for ≤0.6 % and wrong for the rest. Rewritten to say so, with the cap.
 - **PLAN §1** promised "a planned PHP local type table". The promise is sound; it now names its
-  owner, [137](../tasks/137_php-local-type-table.md), and its measured target instead of "planned".
+  owner, 137, and its measured target instead of "planned".
 - The tracked share is a **target where the repo is self-contained and a floor where it is not** —
   which is a property of the repository, not of the adapter, and cannot be one global number.
 

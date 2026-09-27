@@ -47,7 +47,7 @@ ambient merges) and under-count (methods, exported consts). Read as a sanity che
 | Function | 1955 | 4323 `function` lines | methods + overloads inflate grep |
 | Method | 1242 | — | |
 | Enum | 68 | — | |
-| ClassConst | 430 | — | **all 430** sit under an `Enum` qname — EnumMember emitted as `ClassConst` ([234](../tasks/234_classconst-is-a-php-only-kind-and-the-two-signals-that-would-fill-it-elsewhere-are-discarded.md)) |
+| ClassConst | 430 | — | **all 430** sit under an `Enum` qname — EnumMember emitted as `ClassConst` (234) |
 | Property | 3013 | — | |
 | File | 2638 | — | |
 
@@ -76,7 +76,7 @@ ambient merges) and under-count (methods, exported consts). Read as a sanity che
 | NEW | 695 | 597 (85.9 %) | |
 | EXTENDS | 438 | 57 (13.0 %) | |
 | IMPLEMENTS | 24 | 17 (70.8 %) | many targets outside the indexed tree |
-| REFERENCES | **0** | — | **known gap [232](../tasks/232_the-same-construct-is-a-references-edge-in-python-and-node-extra-in-php-and-ts.md)** — adapter emits none |
+| REFERENCES | **0** | — | **known gap 232** — adapter emits none |
 
 ### jsdoc
 
@@ -99,7 +99,7 @@ Including hits (AC3). `payload_count` is the page length; `total_count` when pre
 |---|---|---|---|---|
 | `find_implementations` | `…Rule.ts::RuleModule` | `implements RuleModule` → 0 line hits (implementations use other spellings / type aliases) | **1** (`reason=ok`, total=1) | **hit** — tool answered; grep spelling under-counts |
 | `find_callers` | `…RuleContext::report` | `\.report\s*\(` → 353 | **50** page / **total=349** (`ok`) | **hit** |
-| `find_references` | `…Rule.ts::RuleModule` | `\bRuleModule\b` → 68 | **2** (`ok`) | **shortfall** — consistent with zero `REFERENCES` edges ([232](../tasks/232_the-same-construct-is-a-references-edge-in-python-and-node-extra-in-php-and-ts.md)); residual 2 come from other edge kinds |
+| `find_references` | `…Rule.ts::RuleModule` | `\bRuleModule\b` → 68 | **2** (`ok`) | **shortfall** — consistent with zero `REFERENCES` edges (232); residual 2 come from other edge kinds |
 
 ### jsdoc
 
@@ -113,8 +113,8 @@ Including hits (AC3). `payload_count` is the page length; `total_count` when pre
 
 | observation | disposition |
 |---|---|
-| `REFERENCES` edges = 0 on both corpora; `find_references` under-counts vs grep | **Already ticketed** — [232](../tasks/232_the-same-construct-is-a-references-edge-in-python-and-node-extra-in-php-and-ts.md). Not re-filed. |
-| 430 `ClassConst` nodes, all EnumMembers (`extra.enum_case`) | **Already ticketed** — [234](../tasks/234_classconst-is-a-php-only-kind-and-the-two-signals-that-would-fill-it-elsewhere-are-discarded.md). `--file` probe confirms `enum Color { Red }` → `ClassConst`. Not re-filed. |
+| `REFERENCES` edges = 0 on both corpora; `find_references` under-counts vs grep | **Already ticketed** — 232. Not re-filed. |
+| 430 `ClassConst` nodes, all EnumMembers (`extra.enum_case`) | **Already ticketed** — 234. `--file` probe confirms `enum Color { Red }` → `ClassConst`. Not re-filed. |
 | 70 parse failures | **Dropped** — all `_error_` fixtures; reproducible outside the repo as intentional invalid input, not an adapter bug. |
 | New adapter defect beyond 232/234 | **None.** AC5: a round that finds nothing new is a valid green close. |
 

@@ -100,11 +100,11 @@ A `parsed_ok` of 99.8 % on a repo this old is the expected shape. Investigate a 
 
 052 measured **~62 s** for `build_or_update_index(full=false)` on an ~19k-file / ~1.8M-edge index
 whether **0** or **21** files changed, and called it a flat fee. **That shape no longer holds** —
-[096](../tasks/096_edit-then-ask-tax-two-files-cost-a-minute.md)'s delta-scoped resolve closed the
+096's delta-scoped resolve closed the
 no-op. Measured on the 24.6k-file anchor, 2026-09-01: **0 files changed = 5.5 s**, 3 files =
 **63.8 s**. So the fee is a step, not a flat rate: a no-op costs seconds and the first real change
 costs about a minute. Budget for the change, not for the poll; do not put that call on a synchronous
-git hook ([053](../tasks/053_refresh-on-checkout-hook.md) is gated on the number).
+git hook (053 is gated on the number).
 
 Confirm where the minute goes with the local-tier profiler (reuses the on-disk index; report stays
 outside this repo by default):
