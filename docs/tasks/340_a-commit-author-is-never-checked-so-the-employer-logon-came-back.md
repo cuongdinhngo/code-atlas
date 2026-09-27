@@ -159,6 +159,10 @@ Red arms: with the logon arm removed from `STRUCTURAL`, AC1 and the CLI exit tes
 `python3 scripts/identity_markers.py 2c184a4~40..2c184a4` exits 1 naming exactly the six commits of
 2026-09-24, author and committer each — the check finds the incident it was written for.
 
+Full verification at `2b5a6a6` (source final; later commits touch this working doc only):
+`scripts/gate.sh` → `GATE GREEN — all 21 checks passed`; `scripts/docker-test.sh` → `4606 passed,
+5 skipped` (Linux host, Docker).
+
 Design conformance: D1–D3 implemented-as-approved; D1b also routes the tree sweep's email arm through
 the shared `email_allowed` (R1.8), and R2.4's gate sentence was trimmed to hold the 5,880 ceiling.
 
