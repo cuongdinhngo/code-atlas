@@ -68,6 +68,10 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **A separator-normalised `read_symbol` hit ignores `path_prefix`** — `\Foo\bar` re-read as `Foo::bar` returns the body from a file the filter excluded; `find_references`' prefix zero names no `path_excluded` either — [339](tasks/339_a-path-prefix-that-matches-nothing-reads-as-no-such-symbol.md).
 - **Docker images are never built by CI** — `docker/Dockerfile` can rot, and since 323 `gate.sh --docker` runs through it (`Dockerfile.runtime` is built inside `pytest`). Honest shape: one job building both. Survives the unbillable-Actions arrangement AGENTS.md records, which also means every gate is a human step.
 
+- **`host_root` / `container_root` from the project file are unchecked paths** — harmless today
+  (`to_adapter_path` only maps repo-relative strings) but ungated, unlike 341's two knobs —
+  [341](tasks/341_an-indexed-repo-can-choose-the-command-code-atlas-runs.md).
+
 ## Conventions
 - Keep an **open** task's `status` in this table **and** in its frontmatter in sync.
 - New task: next free `NNN`, add file + a row here. Record cross-task deps in `depends_on`.

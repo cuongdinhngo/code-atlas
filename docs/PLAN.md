@@ -718,6 +718,7 @@ viewer, §14), and schema-state awareness (**no, permanently** — §19, 2026-08
 - **An indexed repo cannot choose what code-atlas executes — 2026-09-27 (341).** Its own
   `[adapter_cmd]` needs the user's `CA_TRUST_PROJECT_FILE=1`, the workspace-trust shape VS Code,
   `direnv` and `mise` share; a silent ignore was rejected because it reads as "adapter missing".
+  The flag stays out of the config identity: it gates whether a build runs, never what it indexes.
 - **LSP-tool coexistence** (§13) — code-atlas is the indexed search/impact layer; a language server stays for LSP nav/edit.
 
 **Decision — Agent-first PHP-depth pivot (adopted 2026-08-04; source: [`FEEDBACK.md`](FEEDBACK.md)).**
