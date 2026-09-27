@@ -15,6 +15,7 @@ from hashlib import sha256
 from typing import Any
 
 from code_atlas.config import Config, ConfigError
+from code_atlas.containment import resolves_inside
 from code_atlas.contract import IMPACT_KINDS
 from code_atlas.ignore import translate_path_pattern
 from code_atlas.store import GraphStore
@@ -94,6 +95,8 @@ def load_architecture_rules(config: Config) -> tuple[ArchitectureRule, ...] | No
             raise ConfigError(
                 f"architecture_rules: {relative!r} is not a file under {config.root}"
             )
+        if not resolves_inside(config.root, path):
+            raise ConfigError(f"architecture_rules: {relative!r} resolves outside {config.root}")
         try:
             text = path.read_text(encoding="utf-8")
         except OSError as error:

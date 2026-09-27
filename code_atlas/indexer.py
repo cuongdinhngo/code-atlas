@@ -821,10 +821,11 @@ def _indexable_untracked(
     found = gitutil.ls_untracked(root)
     if found is None:
         return ()
+    inside = _containment(root)
     return tuple(
         path
         for path in found
-        if _suffix(path) in wanted and not matcher.is_ignored(path)
+        if _suffix(path) in wanted and not matcher.is_ignored(path) and inside(path)
     )
 
 

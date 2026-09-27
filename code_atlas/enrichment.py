@@ -15,6 +15,7 @@ from typing import Any, NamedTuple
 
 from code_atlas import contract
 from code_atlas.config import Config, ConfigError
+from code_atlas.containment import resolves_inside
 from code_atlas.store import GraphStore
 
 # Synthetic path holding rule-emitted edges; replaced each build, dropped when rules are off.
@@ -59,6 +60,8 @@ def load_indirection_rules(config: Config) -> RulesPayload | None:
         full = config.root / relative
         if not full.is_file():
             raise ConfigError(f"indirection_rules: {relative!r} is not a file under {config.root}")
+        if not resolves_inside(config.root, full):
+            raise ConfigError(f"indirection_rules: {relative!r} resolves outside {config.root}")
         try:
             raw_bytes = full.read_bytes()
         except OSError as error:

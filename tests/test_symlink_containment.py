@@ -13,9 +13,11 @@ from pathlib import Path
 
 import pytest
 
-from code_atlas.config import load_config
+from code_atlas.architecture_rules import load_architecture_rules
+from code_atlas.config import ConfigError, load_config
 from code_atlas.containment import resolves_inside
-from code_atlas.ignore import load_ignore
+from code_atlas.enrichment import load_indirection_rules
+from code_atlas.ignore import ATLAS_IGNORE_FILE, load_ignore
 from code_atlas.indexer import _collect_with_census, _walk, collect, full_build, indexable
 from code_atlas.onboarding.artifact import MANIFEST_NAME, OUTPUT_DIR, OVERVIEW_NAME
 from code_atlas.store import GraphStore
@@ -127,3 +129,34 @@ def test_containment_treats_a_loop_and_an_escape_as_outside(tmp_path: Path) -> N
     assert not resolves_inside(tmp_path, tmp_path / "a")
     assert not resolves_inside(tmp_path / "sub", tmp_path)
     assert resolves_inside(tmp_path, tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("variable", "loader"),
+    [
+        ("CA_INDIRECTION_RULES", load_indirection_rules),
+        ("CA_ARCHITECTURE_RULES", load_architecture_rules),
+    ],
+)
+def test_a_rules_file_linked_out_of_the_repo_is_a_config_error(
+    tmp_path: Path, variable: str, loader: object
+) -> None:
+    """Challenger round 1: configured rule files were read through a committed link."""
+    root, outside = tmp_path / "root", tmp_path / "outside"
+    root.mkdir()
+    outside.mkdir()
+    (outside / "rules.json").write_text("[]", encoding="utf-8")
+    (root / "rules.json").symlink_to(outside / "rules.json")
+    config = load_config(root, {variable: "rules.json"})
+    with pytest.raises(ConfigError, match="resolves outside"):
+        loader(config)  # type: ignore[operator]
+
+
+def test_an_ignore_file_or_untracked_path_linked_out_is_not_read(tmp_path: Path) -> None:
+    root, outside = _repo(tmp_path)
+    (outside / "ignore").write_text("src/real.py\n", encoding="utf-8")
+    (root / ATLAS_IGNORE_FILE).symlink_to(outside / "ignore")
+    (root / "src" / "late.py").symlink_to(outside / "secret.py")
+    kept, _, untracked, *_ = _collect_with_census(root, [".py"])
+    assert "src/real.py" in kept, "an ignore file outside the repo must not shape the index"
+    assert "src/late.py" not in untracked

@@ -13,6 +13,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+from code_atlas.containment import resolves_inside
 from code_atlas.ignore import translate_path_pattern
 from code_atlas.onboarding.layers import READING_SEED_LAYER_RANK, reading_seed_rank
 from code_atlas.onboarding.modules import (
@@ -174,6 +175,8 @@ def _from_toml(
     path = repo_root / CAPABILITIES_TOML
     if not path.is_file():
         return (), 0, False, ()
+    if not resolves_inside(repo_root, path):
+        return (), 0, False, ((str(CAPABILITIES_TOML), "resolves outside the repo; not read"),)
     try:
         caps = _parse_toml(path)
     except (tomllib.TOMLDecodeError, OSError, UnicodeDecodeError) as exc:
