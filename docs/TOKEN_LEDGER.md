@@ -7,13 +7,13 @@ somebody asks what a ticket cost, and is never read to learn a rule — yet in B
 to every session, 4,773 tokens of the chain's 49,572 (task 133). Append-only by rule, so it carries
 no size ceiling; `tests/test_backlog_bookkeeping.py` reads the table below by heading.
 
+**Reset for phase 2 (2026-09-27).** Phase 1's rows (335 tickets) were archived with its task files; they
+linked PRs of the pre-public repository, whose numbers this one reuses. Rows below are phase 2's.
+
 **Is NOT** the per-phase breakdown (→ each task's `tasks/NNN_slug.md` working-doc ledger); not task
 status (→ [`BACKLOG.md`](BACKLOG.md)); not rationale (→ [PLAN §19](PLAN.md#19-project-context--decision-log)).
 
 ## Token usage
-
-Phase 1's rows (tasks 001–342, 2026-09-27) left the repo with its task files; they name PRs
-of the pre-public repository, whose numbers this one reuses.
 
 Token spend per task, recorded before its PR is opened
 ([`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) R7.2); the per-phase breakdown lives in each

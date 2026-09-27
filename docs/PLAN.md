@@ -1,8 +1,9 @@
 # Code-Atlas MCP — Build Plan
 
-> Status: **shipped and in daily use** — Phase 1 (core + PHP, M0–M6) and Phase 3 (onboarding,
-> M10–M12) are complete, 24 tools on the surface; adapters #2–#4 (TS/JS, T-SQL, Python) have landed,
-> C#/.NET stays deferred (§19).
+> Status: **Phase 1 — the pre-public build — closed 2026-09-27** (335 tickets): the core, four
+> adapters (PHP · TS/JS · T-SQL · Python; C#/.NET deferred, §19), the onboarding layer, 24 tools.
+> What it delivered is §15. **Phase 2** improves and extends it in the public repo; open work is
+> [`BACKLOG.md`](BACKLOG.md).
 > A local-first, multi-language code-intelligence MCP server.
 > Name: **`code-atlas`** (evolved: `php-code-graph` → `code-graph` → **`code-atlas`**; it's multi-language). GitHub repo: `code-atlas`.
 
@@ -617,9 +618,23 @@ disclosing every hop whose order it cannot prove.
 
 ---
 
-## 15. Milestones
+## 15. Milestones — what phase 1 delivered
 
-**Phase 1 — Core + PHP (make it work):**
+Phase 1 ran from the M0 spike to the public release (tasks 001–342). Its task files and token ledger
+were archived out of the repo; its decisions stay in §19. It delivered:
+- **The graph** — a language-agnostic core over SQLite: full and incremental build, a generic
+  resolver with confidence tiers, and answers that name why they are empty — 24 MCP tools.
+- **Four adapters on one frozen contract** — PHP as the depth standard, then TS/JS, T-SQL and
+  Python; each language's edge health is published in the README.
+- **The onboarding layer** — deterministic layers, the guided tour and the navigable system map;
+  LLM prose opt-in and outside the core (§14).
+- **The measured claim** — the index sells resolved relationships, not search speed (§19);
+  tokens-to-answer on the pinned samples is in [the runbook](runbooks/tokens-to-answer.md).
+- **Delivery** — a stdio runtime image, a native Windows runtime (237), client setups in `contrib/`.
+- **Pre-public hardening** — a commit-identity guard (340), opt-in trust before an indexed repo's own
+  adapter command runs (341), and no symlink read or write outside the indexed repo (342).
+
+**Core + PHP — make it work (M0–M6):**
 - **M0** Adapter spike: PHP `--file` parses a namespaced *and* a global/underscore(PSR-0) file → valid contract JSON.
 - **M1** Full build: streaming adapter + N workers + SQLite; `get_index_status`.
 - **M2** Resolver + contract tests; `find_callers`/`find_references` correct on a known symbol.
@@ -628,12 +643,12 @@ disclosing every hop whose order it cannot prove.
 - **M5** Incremental + git; staleness in status.
 - **M6** Impact engine + `impact` tool + prompts.
 
-**Phase 2 — More languages** (T-SQL took M7's slot ahead of Python, §19):
+**More languages (M7–M9)** (T-SQL took M7's slot ahead of Python, §19):
 - **M7** **TypeScript/JavaScript adapter** (TS Compiler API, Node sidecar) behind the *unchanged* core — the real test of OCP/DIP. Landed (019) with no contract v2 and no core registry (§4.4, §19).
 - **M8** **Python adapter** (stdlib `ast`) — tier 1a (020) and tier 2 (217) landed; the residual is type-inferred receivers (`semantic_types`), the same one TS/JS carries.
 - **M9** **C#/.NET adapter** (Roslyn sidecar) — deferred (§3, §19).
 
-**Phase 3 — Onboarding** (deterministic-first; LLM opt-in and out of core + CI). All three milestones
+**Onboarding — "Phase 3" in code and `phase3-onboarding/` (M10–M12)** (deterministic-first; LLM opt-in and out of core + CI). All three milestones
 are **complete**; the per-task breakdown, including the 108–117 reshape, is in
 [`phase3-onboarding/ROADMAP.md`](phase3-onboarding/ROADMAP.md).
 - **M10** `architecture_overview` + deterministic layers — 083 · 084 · 085 · 103 · 104 · 086. The 15th tool; 105 elects the dominant subtree by graph mass, proven on three pinned repos.

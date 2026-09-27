@@ -160,14 +160,3 @@ def test_an_exactly_qualified_call_is_byte_identical(indexed: Config) -> None:
     assert sorted(standard) == _PRE_320_EXACT_STANDARD_KEYS
     assert standard["results"] == _PRE_320_EXACT_STANDARD_ROWS
     assert standard["reason"] == REASON_OK
-
-
-def test_claim_165_c1_records_this_second_sighting() -> None:
-    """AC5 — the P1 gate reads `seen:`; this incident is on it."""
-    lessons = (Path(__file__).resolve().parent.parent / "docs" / "LESSONS.md").read_text(
-        encoding="utf-8"
-    )
-    start = lessons.index("*Claim `165-C1`")
-    block = lessons[start : lessons.index("\n\n", start)]
-    seen = next(line for line in block.splitlines() if "seen" in line)
-    assert "320" in seen, seen

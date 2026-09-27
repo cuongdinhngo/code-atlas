@@ -135,7 +135,8 @@ fix (review's included) into one run; CI re-verifies.
   each ✋ gate in-conversation so the maintainer can interject, but proceed on the standing approval
   rather than waiting.
 
-## What has shipped (milestone detail: plan §15)
-Core + PHP (M0-M6) and Phase 3 onboarding (M10-M12) are **complete** — **24 tools** on the surface,
-plus the console scripts in `pyproject.toml`. **Adapters #2-#4 have landed** — which ticket carried which tier is
-[`docs/ADAPTER_PLAYBOOK.md`](docs/ADAPTER_PLAYBOOK.md) §1; C#/.NET is the only one left.
+## What has shipped — phase 1, closed 2026-09-27 (plan §15)
+Core + PHP (M0-M6) and Phase 3 onboarding (M10-M12) are **complete** — **24 tools**, plus the
+console scripts in `pyproject.toml`. **Adapters #2-#4 have landed**
+([`docs/ADAPTER_PLAYBOOK.md`](docs/ADAPTER_PLAYBOOK.md) §1); C#/.NET is the only one left.
+Phase 2 work is [`docs/BACKLOG.md`](docs/BACKLOG.md).

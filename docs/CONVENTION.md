@@ -41,7 +41,7 @@ code-atlas/
 │   └── test_*.py
 └── docs/                             # every standing doc, its reader and its boundary: §8.1 below
     ├── design/  assets/  phase3-onboarding/  benchmarks/  runbooks/
-    └── tasks/NNN_slug.md             # one file per task
+    └── tasks/NNN_slug.md             # one file per open task
 ```
 
 ## 2. Naming
@@ -259,7 +259,7 @@ its *Reader* column. A new document lands in a tier on purpose, here, or in tier
 | [`AGENTS.md`](../AGENTS.md) | 1 | an agent at session start | orientation: what this is, where things live, which docs bind, how the maintainer authorises finishing steps, how to run the gate and the suite | **not a rule origin** — every rule here is a summary with a destination; not a lifecycle rule book (→ `AGENT_BRIEF.md`) |
 | `CLAUDE.md` | 1 | the Claude Code harness | one line: `@AGENTS.md` | not content |
 | [`PLAN.md`](PLAN.md) | 2 | anyone asking *why is it shaped this way* | **§1 the two pillars (authoritative)**; the design and its reasoning; §19 the durable decision log — what was measured, what was refuted | not the vocabulary of record (→ `contract.py`, §3 above); not a schema listing (→ `store.py`); not task status (→ `BACKLOG.md`) |
-| [`BACKLOG.md`](BACKLOG.md) | 1 | anyone asking *what is open and what landed* | the ticket tables by pillar and the shipped record by phase | not rationale (→ PLAN §19); not lessons (→ `LESSONS.md`); not cost (→ `TOKEN_LEDGER.md`); not a rule origin |
+| [`BACKLOG.md`](BACKLOG.md) | 1 | anyone asking *what is open* | the open ticket tables by pillar; phase 1's record is PLAN §15 | not rationale (→ PLAN §19); not lessons (→ `LESSONS.md`); not cost (→ `TOKEN_LEDGER.md`); not a rule origin |
 | [`TOKEN_LEDGER.md`](TOKEN_LEDGER.md) | 2 | anyone asking what a ticket cost | one spend row per ticket, required before its PR (R7.2) | not the per-phase breakdown (→ the task's working doc); not status; append-only, so no size ceiling |
 | [`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) | 1 | an agent about to write code | the binding *how we build* rules R1.1…, and the pre-PR self-check | not process (→ `AGENT_BRIEF.md`); not naming or style (→ this file); not evidence (→ `LESSONS.md`) |
 | [`AGENT_BRIEF.md`](AGENT_BRIEF.md) | 1 | an agent running the lifecycle | the binding *how we run it* rules P1…, each earned by a cited incident. **A `/mango:promote` destination** | never restates a code rule (it says so itself); not orientation; not a harness-gap log (→ `SKILL_GAP_CANDIDATES.md`) |
