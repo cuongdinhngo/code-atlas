@@ -65,7 +65,9 @@ def _index(root: Path, cli, patterns: tuple[str, ...]) -> Config:
     for git in (["git", "init", "-q"], ["git", "add", "-A"]):
         subprocess.run(git, cwd=root, check=True, capture_output=True)
     db_path = root / ".code-atlas" / "graph.db"
-    config = load_config(root, {"CA_WORKERS": "1", "CA_DB_PATH": str(db_path)})
+    config = load_config(
+        root, {"CA_TRUST_PROJECT_FILE": "1", "CA_WORKERS": "1", "CA_DB_PATH": str(db_path)}
+    )
     with GraphStore(db_path) as store:
         assert full_build(config, store).nodes > 0
     return config

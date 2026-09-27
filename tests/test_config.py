@@ -16,6 +16,7 @@ from code_atlas.config import (
     ADAPTER_CMD_TABLE,
     KNOB_KEYS,
     PROJECT_FILE,
+    TRUST_PROJECT_FILE_ENV,
     Config,
     ConfigError,
     env_name,
@@ -39,7 +40,11 @@ class Knob:
     from_file: Callable[[Path], object]
     from_default: Callable[[Path], object]
     companion_env: dict[str, str] = field(default_factory=dict)
+    # Env that only lets the file layer be read — the adapter table needs the trust flag (341).
+    file_env: dict[str, str] = field(default_factory=dict)
 
+
+TRUSTED = {TRUST_PROJECT_FILE_ENV: "1"}
 
 KNOBS = (
     Knob(
@@ -230,6 +235,7 @@ KNOBS = (
         lambda root: ("runtime", "from-env", "--server"),
         lambda root: ("runtime", "from-file", "--server"),
         lambda root: None,
+        file_env=TRUSTED,
     ),
     Knob(
         "CA_HOST_ROOT",
@@ -265,13 +271,13 @@ def test_env_beats_project_file_beats_default(
     knob: Knob, tmp_path: Path, fixed_cpus: None
 ) -> None:
     project_file = tmp_path / PROJECT_FILE
-    env_only = {knob.variable: knob.env_value, **knob.companion_env}
+    env_only = {knob.variable: knob.env_value, **knob.companion_env, **knob.file_env}
 
     assert knob.read(load_config(tmp_path, env_only)) == knob.from_env(tmp_path)
 
     project_file.write_text(knob.file_body, encoding="utf-8")
     assert knob.read(load_config(tmp_path, env_only)) == knob.from_env(tmp_path)
-    assert knob.read(load_config(tmp_path, {})) == knob.from_file(tmp_path)
+    assert knob.read(load_config(tmp_path, knob.file_env)) == knob.from_file(tmp_path)
 
     project_file.unlink()
     assert knob.read(load_config(tmp_path, {})) == knob.from_default(tmp_path)
@@ -350,7 +356,7 @@ def test_a_launch_command_may_be_given_word_by_word(tmp_path: Path) -> None:
         f'[{ADAPTER_CMD_TABLE}]\nex = ["C:\\\\bin\\\\tool.exe", "app", "--server"]\n',
         encoding="utf-8",
     )
-    assert load_config(tmp_path, {}).adapter_cmd("ex") == (
+    assert load_config(tmp_path, TRUSTED).adapter_cmd("ex") == (
         "C:\\bin\\tool.exe",
         "app",
         "--server",
@@ -394,10 +400,10 @@ def test_the_tool_allow_list_parses(tmp_path: Path, raw: str, expected: tuple[st
         ({"CA_DB_PATH": ""}, "", "CA_DB_PATH"),
         ({}, "worker = 3", "unknown key(s) worker"),
         ({}, "workers = ", "not valid TOML"),
-        ({}, f"[{ADAPTER_CMD_TABLE}]\nphp = 3", f"{ADAPTER_CMD_TABLE}.php"),
+        (TRUSTED, f"[{ADAPTER_CMD_TABLE}]\nphp = 3", f"{ADAPTER_CMD_TABLE}.php"),
         ({}, f'{ADAPTER_CMD_TABLE} = "php"', ADAPTER_CMD_TABLE),
-        ({}, f"[{ADAPTER_CMD_TABLE}]\nphp = []", f"{ADAPTER_CMD_TABLE}.php"),
-        ({}, f'[{ADAPTER_CMD_TABLE}]\nphp = ["", "x"]', f"{ADAPTER_CMD_TABLE}.php[0]"),
+        (TRUSTED, f"[{ADAPTER_CMD_TABLE}]\nphp = []", f"{ADAPTER_CMD_TABLE}.php"),
+        (TRUSTED, f'[{ADAPTER_CMD_TABLE}]\nphp = ["", "x"]', f"{ADAPTER_CMD_TABLE}.php[0]"),
         ({"CA_PHP_CMD": "   "}, "", "CA_PHP_CMD"),
         ({}, "tools = 4", "tools"),
         ({"CA_HOST_ROOT": "/only/host"}, "", "must be set together"),
@@ -463,7 +469,7 @@ def test_identical_input_resolves_identically(tmp_path: Path, fixed_cpus: None) 
         f'workers = 2\ntools = ["read_symbol"]\n[{ADAPTER_CMD_TABLE}]\nphp = "php"\n',
         encoding="utf-8",
     )
-    env = {"CA_MAX_RESULTS": "10"}
+    env = {"CA_MAX_RESULTS": "10", TRUST_PROJECT_FILE_ENV: "1"}
     assert load_config(tmp_path, env) == load_config(tmp_path, env)
 
 

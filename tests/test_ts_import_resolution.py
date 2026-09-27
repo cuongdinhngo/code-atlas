@@ -35,7 +35,9 @@ def test_cross_file_new_resolves_to_the_defining_module(tmp_path: Path) -> None:
     subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
 
     db_path = tmp_path / ".code-atlas" / "graph.db"
-    config = load_config(tmp_path, {"CA_WORKERS": "1", "CA_DB_PATH": str(db_path)})
+    config = load_config(
+        tmp_path, {"CA_TRUST_PROJECT_FILE": "1", "CA_WORKERS": "1", "CA_DB_PATH": str(db_path)}
+    )
     with GraphStore(db_path) as store:
         report = full_build(config, store)
         assert report.failed == 0
@@ -95,7 +97,9 @@ def _build_alias_tree(tmp_path: Path, tsconfigs: dict[str, str]) -> GraphStore:
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True, capture_output=True)
     subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
     db_path = tmp_path / ".code-atlas" / "graph.db"
-    config = load_config(tmp_path, {"CA_WORKERS": "1", "CA_DB_PATH": str(db_path)})
+    config = load_config(
+        tmp_path, {"CA_TRUST_PROJECT_FILE": "1", "CA_WORKERS": "1", "CA_DB_PATH": str(db_path)}
+    )
     store = GraphStore(db_path)
     report = full_build(config, store)
     assert report.failed == 0

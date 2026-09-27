@@ -161,7 +161,7 @@ The runtime is fully supported; setup differs only in path/quoting and the check
 surfaces at build time — long paths, `core.autocrlf`, and an adapter missing from `PATH`.
 
 - **Adapter command — prefer the list form in `.code-atlas.toml`**, so a Windows path's backslashes are
-  never eaten by POSIX quoting:
+  never eaten by POSIX quoting (the table needs `$env:CA_TRUST_PROJECT_FILE = '1'` — see the config table):
 
   ```toml
   [adapter_cmd]
@@ -294,7 +294,7 @@ never a silent fallback.
 
 | Environment | `.code-atlas.toml` | Default | Meaning |
 |---|---|---|---|
-| `CA_DB_PATH` | `db_path` | `.code-atlas/graph.db` | index location (relative to the repo root) |
+| `CA_DB_PATH` | `db_path` | `.code-atlas/graph.db` | index location (relative to the repo root). The file value must stay inside the repo; only the env var may point outside (341) |
 | `CA_WORKERS` | `workers` | `max(1, min(cpu-2, 8))` | adapter processes during a build |
 | `CA_PAGE_LIMIT` | `page_limit` | `50` | query-time row ceiling for search/nav tools (no rebuild). Pre-259 `CA_MAX_RESULTS` does **not** set this |
 | `CA_MAX_CANDIDATES` | `max_candidates` | `50` | build-time resolver fan-out (**rebuild** to apply). `CA_MAX_RESULTS` / project-file `max_results` still alias here (259) |
@@ -304,10 +304,11 @@ never a silent fallback.
 | `CA_INDIRECTION_RULES` | `indirection_rules` | unset | JSON rule files mapping framework indirection to edges. **`find_view_data` needs this** |
 | `CA_ARCHITECTURE_RULES` | `architecture_rules` | unset | JSON rule files of path-set dependency constraints. **`check_architecture_rules` needs this** |
 | `CA_TOOLS` | `tools` | all 24 | comma-separated tool allow-list — see the six-tool preset below |
-| `CA_<LANG>_CMD` | `[adapter_cmd].<lang>` | — | the **complete argv** that launches one adapter in server mode |
+| `CA_<LANG>_CMD` | `[adapter_cmd].<lang>` | — | the **complete argv** that launches one adapter in server mode . The file table is honoured only with `CA_TRUST_PROJECT_FILE=1` (341) |
+| `CA_TRUST_PROJECT_FILE` | — (env only) | unset | `1` lets the repo's own `[adapter_cmd]` choose the argv. Unset, a table there is a loud error: a repo you index must not pick the command code-atlas runs (341) |
 
 ```toml
-# .code-atlas.toml
+# .code-atlas.toml — [adapter_cmd] is honoured only with CA_TRUST_PROJECT_FILE=1 (341)
 workers = 4
 page_limit = 50
 max_candidates = 50

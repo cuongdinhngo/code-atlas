@@ -25,6 +25,9 @@ from code_atlas.onboarding.audience import DEFAULT_AUDIENCE, resolve_audience
 PROJECT_FILE = ".code-atlas.toml"
 ADAPTER_CMD_TABLE = "adapter_cmd"
 ADAPTER_CMD_ENV = re.compile(r"^CA_([A-Z0-9_]+)_CMD$")
+# The indexed repo is untrusted: its file may name an argv only once the user opts in, from a place
+# the repo does not control (341). Not `*_CMD`, or ADAPTER_CMD_ENV would read it as a language.
+TRUST_PROJECT_FILE_ENV = "CA_TRUST_PROJECT_FILE"
 
 KNOB_KEYS: tuple[str, ...] = (
     "db_path",
@@ -230,7 +233,7 @@ def load_config(root: Path, env: Mapping[str, str] | None = None) -> Config:
     _validate_root_pair(host_root, container_root)
     return Config(
         root=root,
-        db_path=root / _resolve("db_path", _as_path, DEFAULT_DB_PATH, environ, file_values),
+        db_path=root / _resolve_db_path(environ, file_values),
         workers=_resolve("workers", _as_int, _default_workers(), environ, file_values),
         adapter_timeout=_resolve(
             "adapter_timeout", _as_int, DEFAULT_ADAPTER_TIMEOUT, environ, file_values
@@ -361,6 +364,21 @@ def _read_project_file(root: Path) -> Mapping[str, object]:
     return values
 
 
+def _resolve_db_path(env: Mapping[str, str], file_values: Mapping[str, object]) -> Path:
+    """``CA_DB_PATH`` may point anywhere; the repo's own file may not aim writes outside (341)."""
+    variable = env_name("db_path")
+    if variable in env or "db_path" not in file_values:
+        return _resolve("db_path", _as_path, DEFAULT_DB_PATH, env, file_values)
+    label = f"{PROJECT_FILE}:db_path"
+    raw = _as_text(label, file_values["db_path"])
+    if not _is_repo_relative(raw):
+        raise ConfigError(
+            f"{label}: {raw!r} must be a repo-relative path (no absolute path, '.', or '..'); "
+            f"set {variable} to put the index outside the repo"
+        )
+    return Path(raw)
+
+
 def _adapter_cmds(
     env: Mapping[str, str], file_values: Mapping[str, object]
 ) -> Mapping[str, tuple[str, ...]]:
@@ -369,6 +387,13 @@ def _adapter_cmds(
     if not isinstance(table, dict):
         raise ConfigError(
             f"{PROJECT_FILE}:{ADAPTER_CMD_TABLE}: expected a table of <lang> = <command>"
+        )
+    if table and env.get(TRUST_PROJECT_FILE_ENV) != "1":
+        langs = ", ".join(sorted(str(key) for key in table))
+        raise ConfigError(
+            f"{PROJECT_FILE}:[{ADAPTER_CMD_TABLE}] sets the command code-atlas runs for {langs}, "
+            f"and a repo's own file is not trusted to choose it. Set CA_<LANG>_CMD in your MCP "
+            f"client or shell instead, or {TRUST_PROJECT_FILE_ENV}=1 if you trust this repo"
         )
 
     cmds: dict[str, tuple[str, ...]] = {}
@@ -503,16 +528,24 @@ def _as_repo_relative_list(
         cleaned = name.strip().replace("\\", "/").strip("/")
         if not cleaned:
             continue
-        parts = cleaned.split("/")
-        if name.strip().startswith(("/", "\\")) or any(
-            part in ("", ".", "..") for part in parts
-        ):
+        if not _is_repo_relative(name):
             raise ConfigError(
                 f"{label}: {name!r} must be a repo-relative {item} "
                 f"(no absolute path, '.', or '..')"
             )
         kept.append(cleaned)
     return tuple(dict.fromkeys(kept)) or None
+
+
+def _is_repo_relative(name: str) -> bool:
+    """No absolute path, drive, ``.`` or ``..`` segment — the rule every repo-relative knob uses."""
+    stripped = name.strip()
+    parts = stripped.replace("\\", "/").strip("/").split("/")
+    return not (
+        stripped.startswith(("/", "\\"))
+        or re.match(r"^[A-Za-z]:", stripped)
+        or any(part in ("", ".", "..") for part in parts)
+    )
 
 
 def _as_text(label: str, raw: object) -> str:
