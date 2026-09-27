@@ -193,7 +193,10 @@ C4 — collection cost, `_collect_with_census` over this repo (1,047 kept files,
 so roughly +0.23 s per collect on a 19k-file repo. Recorded, not optimised: git's `120000` mode
 would be free but is blind to the fallback walk.
 
-Design conformance: D1–D4 as approved, plus the review round's five sites (below). The PLAN §19 row
+Design conformance: D1–D4 as approved, plus the review round's five sites (below). The first gate
+run went red on five pins this change moves — the core-module count (94 → 95, two files), the
+newest-last reason (`path_outside_root`, two files) and one `diff_architecture` test that passed an
+absolute fixture path from outside its tree (now copied in); updated, none weakened. The PLAN §19 row
 first drafted was reverted — PLAN had one token of headroom, and the ticket holds the decision.
 
 ## Phase 4 — Review
