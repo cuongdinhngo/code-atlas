@@ -1702,3 +1702,13 @@ venv or the PHPStan tmpDir is rebuilt from a wrong-cased cwd.*
   "absent" and "outside the filter" read the same — the retro's "worst failure for an agent".
   `search_symbol` already separated them (315); the fix reuses its `path_excluded` shape.
 - destination: docs/LESSONS.md (class index row bumped; R5.6 unchanged)
+
+## 340 — a tracked-file sweep could not see the file that broke it
+
+- type: 2 (process) · handle: `a-tracked-file-sweep-is-blind-until-commit`
+- status: proposed · seen: 340
+- evidence: the de-identification sweep reads `git ls-files`, so running it before the first commit
+  checked the tree *without* the new test file, and passed. The file's planted address tripped the
+  sweep only once committed; the challenger caught it at `b812b00`. Re-run a tracked-file guard
+  after `git add`, never only before it.
+- destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)

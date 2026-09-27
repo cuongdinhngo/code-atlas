@@ -25,19 +25,26 @@ were handled by replacement, and a fresh paste of one would pass here.
 
 from __future__ import annotations
 
-import hashlib
 import re
 import subprocess
 from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parent.parent
-HASHES = REPO / "tests" / "contract" / "anchor_vocabulary_hashes.txt"
+from scripts.identity_markers import (
+    CORPORATE_TLD,
+    EMAIL,
+    HASHES,
+    HOME_DIR,
+    STRUCTURAL,
+    TOKEN,
+    WINDOWS_LOGON,
+    banned_digests,
+    email_allowed,
+)
+from scripts.identity_markers import digest as _digest
 
-# Tokens are matched whole and lowercased; a hyphenated run is also checked in one piece, because
-# `rac`-style repo slugs are hyphen-joined and neither half is distinctive on its own.
-TOKEN = re.compile(r"[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)*")
+REPO = Path(__file__).resolve().parent.parent
 
 # Prefixes that look like a tracker key but are standards or this repo's own de-identified
 # stand-in. Anything else with this shape is a real ticket in someone's tracker.
@@ -49,41 +56,12 @@ ALLOWED_KEY_PREFIXES = frozenset(
 # range, and both are this repo's own notation, not anyone's ticket.
 TRACKER_KEY = re.compile(r"\b([A-Z]{2,10})-\d{2,6}\b")
 
-# Emails that are placeholders, the maintainer's public identity, or a vendor's bot.
-ALLOWED_EMAIL_DOMAINS = frozenset(
-    {"example.com", "example.org", "gmail.com", "cursor.com", "github.com", "noreply.github.com"}
-)
-EMAIL = re.compile(r"\b[A-Za-z0-9._%+-]+@([A-Za-z0-9.-]+\.[A-Za-z]{2,})\b")
-
-# A corporate second-level TLD names an employer; a home directory names a person; an uppercase
-# token, a backslash and a username is a Windows logon and names both. None of these has to know
-# *which* company to be a leak — which is why they outlive any word list.
-CORPORATE_TLD = re.compile(r"\b[a-z0-9-]+\.(?:com|net|org|co)\.[a-z]{2}\b", re.IGNORECASE)
-HOME_DIR = re.compile(r"/home/(?!you/|user/|dev/|runner/|ubuntu/)[a-z0-9_.-]+/")
-# Not preceded by a separator or drive letter: `D:\PROJECTS\code-atlas` is a path, not a logon.
-WINDOWS_LOGON = re.compile(r"(?<![\\:/\w])[A-Z]{4,}\\[a-z][a-z0-9._-]+\b")
-
-STRUCTURAL: dict[str, re.Pattern[str]] = {
-    "corporate domain": CORPORATE_TLD,
-    "a real account's home directory": HOME_DIR,
-    "a Windows domain logon": WINDOWS_LOGON,
-}
-
 # Binary and generated paths carry no prose; `.git` is not tracked. Nothing else is exempt —
 # the point of this gate is that no directory is out of scope.
 SKIP_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif", ".ico", ".pdf", ".zip", ".db", ".woff", ".woff2")
 
 
-def _digest(token: str) -> str:
-    return hashlib.sha256(token.lower().encode()).hexdigest()[:16]
-
-
-def _banned_digests() -> frozenset[str]:
-    lines = HASHES.read_text(encoding="utf-8").splitlines()
-    return frozenset(ln.strip() for ln in lines if ln.strip() and not ln.lstrip().startswith("#"))
-
-
-BANNED = _banned_digests()
+BANNED = banned_digests()
 
 
 def _tracked_files() -> list[Path]:
@@ -180,8 +158,7 @@ def test_no_email_outside_the_allowed_domains() -> None:
         if text is None:
             continue
         for match in EMAIL.finditer(text):
-            domain = match.group(1).lower()
-            if domain in ALLOWED_EMAIL_DOMAINS or domain.endswith(".noreply.github.com"):
+            if email_allowed(match.group(1)):
                 continue
             line = text.count("\n", 0, match.start()) + 1
             offences.append(f"{path.relative_to(REPO)}:{line} {match.group(0)}")

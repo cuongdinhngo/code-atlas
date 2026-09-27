@@ -58,6 +58,7 @@ SHARED_CHECKS: dict[str, tuple[str, str]] = {
     ),
     "R4.1 no LLM in core": ("anthropic|onboarding_llm", "anthropic|onboarding_llm"),
     "R7.3 no AI-attribution trailer": ("co-authored-by:", "co-authored-by:"),
+    "R2.4 commit identity (340)": ("identity_markers.py", "identity_markers.py"),
 }
 
 
@@ -66,7 +67,7 @@ def test_both_files_exist_and_are_substantial() -> None:
     assert CI.is_file() and GATE.is_file()
     assert len(CI.read_text(encoding="utf-8").splitlines()) > 100
     assert len(GATE.read_text(encoding="utf-8").splitlines()) > 100
-    assert len(SHARED_CHECKS) >= 19, "the table shrank — did a check get dropped instead of fixed?"
+    assert len(SHARED_CHECKS) >= 20, "the table shrank — did a check get dropped instead of fixed?"
 
 
 @pytest.mark.parametrize("name", sorted(SHARED_CHECKS))
