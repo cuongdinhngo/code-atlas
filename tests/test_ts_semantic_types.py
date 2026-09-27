@@ -46,7 +46,9 @@ def test_local_type_table_promotes_member_call_to_resolved(tmp_path: Path) -> No
     subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
 
     db_path = tmp_path / ".code-atlas" / "graph.db"
-    config = load_config(tmp_path, {"CA_WORKERS": "1", "CA_DB_PATH": str(db_path)})
+    config = load_config(
+        tmp_path, {"CA_TRUST_PROJECT_FILE": "1", "CA_WORKERS": "1", "CA_DB_PATH": str(db_path)}
+    )
     with GraphStore(db_path) as store:
         report = full_build(config, store)
         assert report.failed == 0

@@ -67,7 +67,14 @@ def seed(root: Path, *paths: str) -> None:
 
 
 def configured(root: Path):
-    return load_config(root, {"CA_WORKERS": "1", "CA_DB_PATH": str(root / ".ca" / "graph.db")})
+    return load_config(
+        root,
+        {
+            "CA_TRUST_PROJECT_FILE": "1",
+            "CA_WORKERS": "1",
+            "CA_DB_PATH": str(root / ".ca" / "graph.db"),
+        },
+    )
 
 
 def test_a_config_edited_after_load_is_reported_by_the_next_build(tmp_path: Path) -> None:
