@@ -199,6 +199,11 @@ newest-last reason (`path_outside_root`, two files) and one `diff_architecture` 
 absolute fixture path from outside its tree (now copied in); updated, none weakened. The PLAN §19 row
 first drafted was reverted — PLAN had one token of headroom, and the ticket holds the decision.
 
+Full verification at `6d3f32c` (source final; later commits touch this working doc only):
+`scripts/gate.sh` → `GATE GREEN — all 20 checks passed`; `scripts/docker-test.sh` from a plain
+clone → `4613 passed, 5 skipped` (Linux host). A first Docker run from the git worktree failed 7 tests
+that shell out to git — a worktree's `.git` is a file naming a host path the image cannot see.
+
 ## Phase 4 — Review
 
 REVIEWER: OFF (`--no-reviewer`) · CHALLENGER: ON — round 1 on `5e1d826`: **FINDINGS 5/2/1**.
