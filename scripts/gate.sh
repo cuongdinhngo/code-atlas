@@ -302,12 +302,11 @@ if ! git rev-parse --verify -q origin/main >/dev/null 2>&1; then
     _record SKIP "R7.3 no AI-attribution trailer" "no origin/main to compare against"
 elif [ "$(git rev-list --count "$range")" -eq 0 ]; then
     _record PASS "R7.3 no AI-attribution trailer" "nothing unpushed to check"
-elif git log --format='%B' "$range" | grep -Ein 'co-authored-by:|generated with|🤖' >"$log" 2>&1; then
+elif python3 scripts/attribution_markers.py "$range" >"$log" 2>&1; then
+    _record PASS "R7.3 no AI-attribution trailer" "$(git rev-list --count "$range") commit(s)"
+else
     _record FAIL "R7.3 no AI-attribution trailer"
     sed 's/^/      /' "$log" | head -10
-else
-    _record PASS "R7.3 no AI-attribution trailer" \
-        "$(git rev-list --count "$range") commit(s)"
 fi
 
 # Same range as R7.3; the script owns the empty-range refusal CI relies on (340).
