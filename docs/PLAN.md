@@ -714,6 +714,9 @@ viewer, §14), and schema-state awareness (**no, permanently** — §19, 2026-08
 - **Priorities** (§0): make it work (PHP) → extend without touching core → onboarding feature.
 - **Onboarding** (§14) is **Phase 3**, a graph *consumer*; the core stays deterministic and the LLM
   prose seams live outside it (R4.1). Shipped M10–M12.
+- **A symlink in the indexed repo stays inside it — 2026-09-27 (342).** Collection drops a tracked
+  path resolving outside (`skipped.escape`), onboarding refuses to write through any link, and
+  `diff_architecture` reads only in-tree paths; one rule, `code_atlas/containment.py`.
 - **LSP-tool coexistence** (§13) — code-atlas is the indexed search/impact layer; a language server stays for LSP nav/edit.
 
 **Decision — Agent-first PHP-depth pivot (adopted 2026-08-04; source: [`FEEDBACK.md`](FEEDBACK.md)).**
