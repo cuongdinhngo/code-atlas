@@ -390,7 +390,8 @@ kept — and what a legitimate skip looks like are in [`AGENTS.md`](AGENTS.md).
 [field retro](docs/runbooks/field-retro.md) ·
 [tool-recognition probe](docs/runbooks/tool-recognition-probe.md).
 
-Contributing agents should start at [`AGENTS.md`](AGENTS.md).
+Contributors start at [`CONTRIBUTING.md`](CONTRIBUTING.md), agents at [`AGENTS.md`](AGENTS.md);
+vulnerabilities go through [`SECURITY.md`](SECURITY.md).
 
 ## Roadmap
 
