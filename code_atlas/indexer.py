@@ -28,6 +28,7 @@ from pathlib import Path, PurePosixPath
 from code_atlas import contract, gitutil
 from code_atlas.adapter import AdapterError, ParseResult, SubprocessAdapter, extension_index
 from code_atlas.config import Config, ConfigError
+from code_atlas.containment import resolves_inside
 from code_atlas.enrichment import (
     INDIRECTION_FILE,
     RulesPayload,
@@ -744,9 +745,9 @@ def _whitespace_fingerprint(path: Path) -> str:
 class CollectionCensus:
     """The collect walk's own tally so an outsider can reconcile ``files`` (task 082).
 
-    A partition of the walked set: ``collected - skipped_suffix - skipped_ignore == kept`` by
-    construction. On a git repo ``collected == len(git ls-files)``. ``skipped_untracked`` sits
-    beside that partition (task 092) — untracked files are never in ``collected``.
+    A partition of the walked set: ``collected - skipped_suffix - skipped_ignore - skipped_escape
+    == kept`` by construction. On a git repo ``collected == len(git ls-files)``.
+    ``skipped_untracked`` sits beside that partition (task 092) — never in ``collected``.
     """
 
     collected: int
@@ -754,6 +755,8 @@ class CollectionCensus:
     skipped_ignore: int
     kept: int
     skipped_untracked: int = 0
+    # A tracked path whose symlinks resolve outside the repo — never read (342). In the partition.
+    skipped_escape: int = 0
 
 
 def collect(root: Path, suffixes: Sequence[str]) -> tuple[str, ...]:
@@ -782,9 +785,10 @@ def _collect_with_census(
     tracked = gitutil.ls_files(root)
     found = _walk(root, matcher, wanted) if tracked is None else tracked
     kept: list[str] = []
-    skipped_suffix = skipped_ignore = 0
+    skipped_suffix = skipped_ignore = skipped_escape = 0
     ignore_sources: Counter[str] = Counter()
     skipped_suffixes: Counter[str] = Counter()
+    inside = _containment(root)
     for path in found:
         if (suffix := _suffix(path)) not in wanted:
             skipped_suffix += 1
@@ -793,11 +797,13 @@ def _collect_with_census(
         elif (source := matcher.ignore_source(path)) is not None:
             skipped_ignore += 1
             ignore_sources[source] += 1
+        elif not inside(path):
+            skipped_escape += 1
         else:
             kept.append(path)
     untracked = _indexable_untracked(root, wanted, matcher) if tracked is not None else ()
     census = CollectionCensus(
-        len(found), skipped_suffix, skipped_ignore, len(kept), len(untracked)
+        len(found), skipped_suffix, skipped_ignore, len(kept), len(untracked), skipped_escape
     )
     return (
         tuple(sorted(kept)),
@@ -823,15 +829,18 @@ def _indexable_untracked(
 
 
 def indexable(paths: Iterable[str], root: Path, suffixes: Sequence[str]) -> tuple[str, ...]:
-    """The subset of ``paths`` this index covers: claimed suffix, not ignored (§8.1, §11).
+    """The subset of ``paths`` this index covers: claimed suffix, not ignored, contained (342).
 
     The one definition of "indexable", so a caller asking *would this file be in the graph* can
     never drift from what :func:`collect` actually walks (047). Order follows ``paths``.
     """
     matcher = load_ignore(root)
     wanted = {suffix.lower() for suffix in suffixes}
+    inside = _containment(root)
     return tuple(
-        path for path in paths if _suffix(path) in wanted and not matcher.is_ignored(path)
+        path
+        for path in paths
+        if _suffix(path) in wanted and not matcher.is_ignored(path) and inside(path)
     )
 
 
@@ -1015,6 +1024,19 @@ def _owners(announced: Mapping[str, SubprocessAdapter]) -> dict[str, str]:
     return {suffix: key_of[id(adapter)] for suffix, adapter in index.items()}
 
 
+def _containment(root: Path) -> Callable[[str], bool]:
+    """``path -> resolves inside root``: one resolve per directory, one lstat per file (342)."""
+    parents: dict[Path, bool] = {}
+
+    def inside(path: str) -> bool:
+        full = root / path
+        if full.parent not in parents:
+            parents[full.parent] = resolves_inside(root, full.parent)
+        return parents[full.parent] and (not full.is_symlink() or resolves_inside(root, full))
+
+    return inside
+
+
 def _walk(root: Path, matcher: IgnoreMatcher, wanted: set[str]) -> list[str]:
     """The fallback when there is no git index: walk the tree, pruning ignored directories."""
     found: list[str] = []
@@ -1022,6 +1044,8 @@ def _walk(root: Path, matcher: IgnoreMatcher, wanted: set[str]) -> list[str]:
     while stack:
         for entry in sorted(stack.pop().iterdir()):
             relative = entry.relative_to(root).as_posix()
+            if entry.is_symlink() and entry.is_dir():
+                continue  # a loop never ends and a link to / walks the host (342)
             if entry.is_dir():
                 if not matcher.is_ignored(relative, is_dir=True):
                     stack.append(entry)

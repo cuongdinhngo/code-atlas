@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Literal
 
 from code_atlas.config import Config
+from code_atlas.containment import resolves_inside
 from code_atlas.onboarding.architecture_diff import (
     ArchitectureDiff,
     DiffRefusal,
@@ -19,6 +20,7 @@ from code_atlas.onboarding.architecture_diff import (
 from code_atlas.tools.nav_result import (
     REASON_NO_ARCHITECTURAL_CHANGE,
     REASON_OK,
+    REASON_PATH_OUTSIDE_ROOT,
     REASON_SNAPSHOT_NOT_FOUND,
 )
 
@@ -42,10 +44,25 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         Both sides must name the same ``index_root`` and the same dataset ``version``; a mismatch
         is refused with a direction-aware reason rather than rendered. Identical architecture
         yields an explicit *no architectural change* statement — never an empty artifact.
-        Paths are relative to the indexed tree unless absolute.
+        Paths are relative to the indexed tree; an absolute one must still resolve inside it.
         """
         before_path = _resolve(config, before)
         after_path = _resolve(config, after)
+        outside = [
+            label
+            for label, path in (("before", before_path), ("after", after_path))
+            if not resolves_inside(Path(config.root), path)
+        ]
+        if outside:
+            return {
+                "index_root": config.index_root,
+                "indexed": config.db_path.is_file(),
+                "reason": REASON_PATH_OUTSIDE_ROOT,
+                "message": f"not read — resolves outside the indexed tree: {', '.join(outside)}",
+                "results": [],
+                "total_count": 0,
+                "truncated": False,
+            }
         missing = [
             label
             for label, path in (("before", before_path), ("after", after_path))

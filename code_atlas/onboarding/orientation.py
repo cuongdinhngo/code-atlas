@@ -27,6 +27,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from code_atlas.containment import resolves_inside
+
 # The ecosystem manifests R2.1 already licenses the project to know, plus the two file *categories*
 # every repo publishes for a human reader: a root README, and an agent brief. These are
 # cross-ecosystem conventions, never one repo's habits (R2.2) — and all of it is overridable by the
@@ -153,6 +155,8 @@ def _read_text(root: Path, name: str) -> tuple[str, str]:
     try:
         if not target.is_file():
             return "", ""
+        if not resolves_inside(root, target):
+            return "", "resolves outside the repo; not read"
         if target.stat().st_size > MAX_FILE_BYTES:
             return "", f"larger than {MAX_FILE_BYTES} bytes; not read"
         return target.read_text(encoding="utf-8", errors="replace"), ""

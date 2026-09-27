@@ -18,6 +18,7 @@ from pathlib import Path, PurePosixPath
 from typing import Literal
 
 from code_atlas.config import Config, as_working_roots
+from code_atlas.containment import require_writable
 from code_atlas.contract import split_qname
 from code_atlas.onboarding.architecture_diff import (
     MANIFEST_KEYS,
@@ -349,7 +350,7 @@ def _refuse_foreign_tree(out: Path) -> None:
             )
 
 
-def _remove_recorded_pages(out: Path) -> None:
+def _remove_recorded_pages(root: Path, out: Path) -> None:
     """Delete exactly the pages the last manifest recorded, then directories left empty.
 
     A page this tool never wrote — a hand-authored file under ``modules/`` — is not ours to
@@ -360,9 +361,11 @@ def _remove_recorded_pages(out: Path) -> None:
     if not manifest.is_file():
         return
     for rel in recorded_pages(manifest.read_text(encoding="utf-8")):
-        (out / Path(*PurePosixPath(rel).parts)).unlink(missing_ok=True)
+        page = out / Path(*PurePosixPath(rel).parts)
+        require_writable(root, page.parent)
+        page.unlink(missing_ok=True)
     pages = out / PAGES_DIR
-    if not pages.is_dir():
+    if not pages.is_dir() or pages.is_symlink():
         return
     for path in sorted(pages.rglob("*"), key=lambda item: len(item.parts), reverse=True):
         if path.is_dir() and not any(path.iterdir()):
@@ -405,8 +408,10 @@ def _write(
     """
     wants = contract_for(audience)
     out = root / OUTPUT_DIR
+    for level in (out.parent, out):
+        require_writable(root, level)
     _refuse_foreign_tree(out)
-    _remove_recorded_pages(out)
+    _remove_recorded_pages(root, out)
     out.mkdir(parents=True, exist_ok=True)
     written: list[str] = []
     after_snap = manifest_dict(
@@ -450,11 +455,15 @@ def _write(
         if document is not None and not wants.wants_document(document):
             (out / name).unlink(missing_ok=True)
             continue
-        (out / name).write_text(text, encoding="utf-8", newline="\n")
+        require_writable(root, out / name).write_text(text, encoding="utf-8", newline="\n")
         written.append(f"{OUTPUT_DIR}/{name}")
     cache = root / CACHE_DIR
+    for level in (cache.parent, cache):
+        require_writable(root, level)
     cache.mkdir(parents=True, exist_ok=True)
-    (cache / CACHE_NAME).write_text(cache_json(artifact), encoding="utf-8", newline="\n")
+    require_writable(root, cache / CACHE_NAME).write_text(
+        cache_json(artifact), encoding="utf-8", newline="\n"
+    )
     return tuple(sorted(written))
 
 

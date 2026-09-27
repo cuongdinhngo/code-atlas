@@ -44,6 +44,7 @@ NavReason = Literal[
     "proximity_candidates",
     "kind_excluded",
     "path_excluded",
+    "path_outside_root",
 ]
 
 REASON_OK: NavReason = "ok"
@@ -98,6 +99,8 @@ REASON_PROXIMITY_CANDIDATES: NavReason = "proximity_candidates"
 REASON_KIND_EXCLUDED: NavReason = "kind_excluded"
 # search_symbol path_prefix= filter excluded an exact-name hit outside the subtree (315).
 REASON_PATH_EXCLUDED: NavReason = "path_excluded"
+# A path argument resolves outside the indexed tree (symlinks followed) and was not read (342).
+REASON_PATH_OUTSIDE_ROOT: NavReason = "path_outside_root"
 
 NAV_REASONS: tuple[NavReason, ...] = (
     REASON_OK,
@@ -127,6 +130,7 @@ NAV_REASONS: tuple[NavReason, ...] = (
     REASON_PROXIMITY_CANDIDATES,
     REASON_KIND_EXCLUDED,
     REASON_PATH_EXCLUDED,
+    REASON_PATH_OUTSIDE_ROOT,
 )
 
 def require_path_prefix(path_prefix: str | None) -> str | None:
