@@ -425,7 +425,8 @@ defaults. A field present as `None` is stored as an explicit NULL.
 **Resolution order: env `CA_*` → project file `.code-atlas.toml` → default.** The file lives at the
 repo root, is meant to be committed, and is read with stdlib `tomllib`; its keys are the env names
 lower-cased without the prefix, plus an `[adapter_cmd]` table holding one complete argv per language
-(§9). A malformed value or an unknown key **fails loud** (R5.3) — it never falls back. Naming rules
+(§9). **The indexed repo is untrusted:** that table is honoured only with `CA_TRUST_PROJECT_FILE=1`
+in the environment, and a file `db_path` must stay inside the repo (341). A malformed value or an unknown key **fails loud** (R5.3) — it never falls back. Naming rules
 are in [`CONVENTION.md`](CONVENTION.md) §2, and **every knob, its default and what it governs is in
 [`TOOLS.md`](TOOLS.md) *Configuration reference*** — the copy this section used to keep went two
 knobs out of date, so it is not kept twice (R6.7).
@@ -714,6 +715,9 @@ viewer, §14), and schema-state awareness (**no, permanently** — §19, 2026-08
 - **Priorities** (§0): make it work (PHP) → extend without touching core → onboarding feature.
 - **Onboarding** (§14) is **Phase 3**, a graph *consumer*; the core stays deterministic and the LLM
   prose seams live outside it (R4.1). Shipped M10–M12.
+- **An indexed repo cannot choose what code-atlas executes — 2026-09-27 (341).** Its own
+  `[adapter_cmd]` needs the user's `CA_TRUST_PROJECT_FILE=1`, the workspace-trust shape VS Code,
+  `direnv` and `mise` share; a silent ignore was rejected because it reads as "adapter missing".
 - **LSP-tool coexistence** (§13) — code-atlas is the indexed search/impact layer; a language server stays for LSP nav/edit.
 
 **Decision — Agent-first PHP-depth pivot (adopted 2026-08-04; source: [`FEEDBACK.md`](FEEDBACK.md)).**
