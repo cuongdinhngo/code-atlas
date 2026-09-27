@@ -1,9 +1,9 @@
 #!/usr/bin/env sh
 # Run the whole CI gate locally, in the order .github/workflows/ci.yml runs it.
 #
-# This is the only gate: the repo's Actions report `fail` in ~3 s with 0 steps (unbillable), so
-# `gh pr checks <n>` is not a second opinion (AGENTS.md). It mirrors all three CI jobs — test ·
-# adapters · guardrails — and is the single step to perform before a push. Keep it in step with
+# This is the only gate before a push: while the repo is private its Actions fail in ~3 s unrun,
+# and public they run after the push, so `gh pr checks <n>` is no substitute (AGENTS.md). It
+# mirrors all three CI jobs — test · adapters · guardrails. Keep it in step with
 # ci.yml: a check here that ci.yml lacks, or the reverse, means one of the two is lying about what
 # was verified — `tests/test_ci_and_gate_agree.py` is what enforces that.
 #

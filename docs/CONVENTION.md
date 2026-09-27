@@ -13,7 +13,7 @@ code-atlas/
 ├── .harness.json                     # mango lifecycle config (committed team config; no secrets)
 ├── .github/                          # workflows/ci.yml + pull_request_template.md
 ├── AGENTS.md  CLAUDE.md              # session orientation; each doc's boundary is §8.1
-├── README.md
+├── README.md  CONTRIBUTING.md  SECURITY.md
 ├── code_atlas/                       # THE CORE — language-agnostic, no per-language branches
 │   ├── main.py                       # FastMCP server + entry point
 │   ├── config.py                     # CA_* env/config resolution
@@ -253,6 +253,7 @@ its *Reader* column. A new document lands in a tier on purpose, here, or in tier
 | Doc | Tier | Reader | Answers | Is **NOT** |
 |---|---|---|---|---|
 | [`README.md`](../README.md) | — | a stranger deciding in 60 s whether to install | what it does, one demo, how to install, the measured claims, where the rest is | not the tool reference (→ `TOOLS.md`); **not the design record** (→ `design/`); never the authority for a number |
+| `CONTRIBUTING.md` · `SECURITY.md` | — | a contributor; a reporter | setup, the gate, reporting; the threat model | not a rule origin |
 | [`TOOLS.md`](TOOLS.md) | — | someone choosing which tool to call | the agent-facing surface: every tool, the batching verdicts, prompts, hooks, config | not the field contract (→ §6); not why (→ `design/`) |
 | [`design/`](design/)`*.md` | — | anyone asking *why is an answer shaped like this* | one file per axis (payload · indexing · impact/claims · storage); each section is a field incident | not a rule (→ `ENGINEERING_RULES.md`); not status (→ `BACKLOG.md`) |
 | [`assets/`](assets/) | — | a reader following a `design/` figure | one dated diagram or page per figure | never the source of a fact — it snapshots code that stays authoritative (R6.7) |

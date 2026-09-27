@@ -62,7 +62,7 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **Uptake is gated by deferred delivery and whether `Grep` hurts** — 300.
 - **A PHP property is referenced only by a static fetch naming its declaring class** — `$this->x`, `$obj->x` and `self::$x` on an inherited property emit no edge onto it, so `find_references` on it can still answer a confident zero — 336.
 - **A separator-normalised `read_symbol` hit ignores `path_prefix`** — `\Foo\bar` re-read as `Foo::bar` returns the body from a file the filter excluded; `find_references`' prefix zero names no `path_excluded` either — 339.
-- **Docker images are never built by CI** — `docker/Dockerfile` can rot, and since 323 `gate.sh --docker` runs through it (`Dockerfile.runtime` is built inside `pytest`). Honest shape: one job building both. Survives the unbillable-Actions arrangement AGENTS.md records, which also means every gate is a human step.
+- **Docker images are never built by CI** — `docker/Dockerfile` can rot, and since 323 `gate.sh --docker` runs through it (`Dockerfile.runtime` is built inside `pytest`). Honest shape: one job building both. Needed either way: a private repo's Actions do not run (AGENTS.md), and a public one's run only after the push.
 - **`host_root` / `container_root` from the project file are unchecked paths** — harmless today
   (`to_adapter_path` only maps repo-relative strings) but ungated, unlike 341's two knobs —
   341.

@@ -91,8 +91,8 @@ knob. Every timing and its conditions: [`runbooks/onboarding-a-repo.md`](docs/ru
 
 ## Before a PR or a push — run `scripts/gate.sh` **once, when the work is done**
 **Not per edit** — iterate on targeted `ruff`/`mypy`/`pytest`, batch every fix, then one gate run. It mirrors every `ci.yml` job in order.
-**Actions report `fail` in ~3 s without running** (0 steps, unbillable), so `gh pr checks` is not a
-second opinion — the local gate is the only one.
+**`gh pr checks` is not the gate:** private, Actions fail in ~3 s unrun (unbillable); public,
+they run after the push; the local gate runs before it.
 **Only `GATE GREEN` counts — exit 2 means a check was skipped, which is not a pass (R6.5).**
 A runtime missing? `scripts/gate.sh --docker` runs it in the test image.
 `tests/test_ci_and_gate_agree.py` keeps it in step with `ci.yml`.
