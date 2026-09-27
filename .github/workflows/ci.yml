@@ -329,3 +329,10 @@ jobs:
             exit 1
           fi
           echo "R7.3 ok over $count commit(s)"
+
+      # 340: GitHub serves author/committer identity raw; 325's tree sweep never reads it.
+      - name: R2.4 — no employer or client marker in a commit identity
+        if: github.event_name == 'pull_request'
+        env:
+          RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+        run: python3 scripts/identity_markers.py "$RANGE"
