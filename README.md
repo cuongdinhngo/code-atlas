@@ -4,35 +4,28 @@
 a symbol graph, then answers *resolved relationship* questions — who calls this, what implements
 that, what breaks if I change this file — as rows, not as files to read.
 
-**Four adapters ship — they are not peers on CALLS resolution depth.** 24 tools. Deterministic,
-offline, no LLM in the core. Measured HEURISTIC `CALLS` share (via
-[`scripts/edge_health_report.py`](scripts/edge_health_report.py); figures quoted from that report's
-committed outputs, not retyped):
-
-| Adapter | HEURISTIC `CALLS` | Pinned sample | Measured |
-|---|---|---|---|
-| **PHP** (depth standard) | **1–4 %** | laravel · symfony · brick | 2026-08-24 · [137](docs/benchmarks/137_type-table.md) |
-| TypeScript/JavaScript | **54.1%** | `ky` | 2026-08-27 · [153](docs/benchmarks/153_227_heuristic-share-ts-python.md) |
-| Python | **82.2%** | `flask` | 2026-09-08 · [227](docs/benchmarks/153_227_heuristic-share-ts-python.md) |
-| T-SQL | not a CALLS-HEURISTIC depth metric | sql samples | [233](docs/benchmarks/233_sql-cross-repo.md) — floors / layer shape, not HEURISTIC share |
-
-PHP is the depth standard; TypeScript and Python are shallower on that axis, with the number above.
-This is surface honesty, not a commitment to deepen either adapter.
+**PHP · TypeScript/JavaScript · Python · T-SQL. 24 tools.** Deterministic, offline, no LLM in the
+core. Every edge says how it was resolved, and the adapters differ in how deep they resolve —
+[measured per language](#languages).
 
 > ### **~69× fewer tokens** than grep-and-read to reach a resolved answer
-> **88–103×** on relation queries. Measured on pinned public repos — 8/8 answers correct, recall
-> **1.0**, precision **1.0**, zero confidently-wrong answers.
-> [Reproduce it](docs/runbooks/tokens-to-answer.md) · one command, no network.
+> Measured on two pinned public PHP repos (symfony/demo · brick/math): 8/8 answers correct, recall
+> **1.0**, precision **1.0**, zero confidently-wrong answers. Relation questions range from **18×** on a small tree to
+> **117×** on a wide one; the one scored onboarding lookup is **4.5×**.
+> The baseline is a fixed recipe — grep the name, then `Read` every matching file whole — not a
+> live model, so the comparison is deterministic.
+> [Reproduce it](docs/runbooks/tokens-to-answer.md#sample-tier-pinned-public-repos--the-real-value-claim-task-042)
+> · needs PHP and a one-time clone of the pinned repos.
 
 ## The 30-second version
 
 Ask *"who calls `member()`?"* in this repo's own TypeScript adapter.
 
-**`grep` — 26 hits, and it cannot tell you which are calls:**
+**`grep` — 28 hits, and it cannot tell you which are calls:**
 
 ```console
 $ grep -rn 'member' adapters/typescript/src/ | wc -l
-26
+28
 
 $ grep -rn 'member' adapters/typescript/src/ | head -3
 adapters/typescript/src/qname.js:4:// §4.4 Q1). The root container is the repo-relative posix
@@ -41,7 +34,7 @@ adapters/typescript/src/qname.js:16:module.exports = { SEP, toPosix, member };
 ```
 
 A comment, the definition itself, and an export line — not one of the three is a call. The agent
-has to open and read every one of the 26 to sort them out. **That reading is the cost**, and it is
+has to open and read every one of the 28 to sort them out. **That reading is the cost**, and it is
 paid in context.
 
 **code-atlas — the 9 functions that call it, each resolved, with the tier it was resolved at:**
@@ -63,10 +56,10 @@ RESOLVED  parseFile::resolve               src/parse.js:301
 
 No comment, no definition, no export line — and `total_count: 9` is the true size of the answer
 (distinct callers; the graph holds all 13 call sites behind them), not the length of the page you
-were handed. Building that index took **0.79 s**.
+were handed. Building that index took **0.54 s**.
 
-> Real output, reproduced on 2026-09-19 by pointing code-atlas at its own `adapters/typescript/`
-> (`code-atlas-build` there, 5 files).
+> Real output, reproduced on 2026-09-27 by pointing code-atlas at its own `adapters/typescript/`
+> (`code-atlas-build` there, 6 files).
 
 ## Why code-atlas
 
@@ -80,10 +73,12 @@ reachability and the path between two symbols as rows.
 reading, not a human in an IDE · you need the answer to be checkable, not plausible.
 
 **It is not** a faster `grep`, an editor, or a language server — an LSP stays for precise in-buffer
-nav, and code-atlas never mutates code. It is also **not what an agent reaches for unprompted on a
-control-flow question `grep` can serve**: five held-out mechanism questions on a 23k-file tree drew
-0 index calls each, with every tool registered and permitted
-([074](docs/benchmarks/074_mechanism-question.md)). C#/.NET is on the roadmap, not shipped.
+nav, and code-atlas never mutates code.
+
+**Agents do not reach for it on their own when `grep` can serve the question** — on a 23k-file tree,
+five control-flow questions drew no index calls with every tool available
+([074](docs/benchmarks/074_mechanism-question.md)). It pays off on relationship questions, and an
+agent is far likelier to use it once told when to: install the [agent brief](#agent-brief-optional).
 
 ## Quick start
 
@@ -93,23 +88,23 @@ measured), and
 Defender's real-time scan adds a large cold-read cost — exclude the repo path or use a Dev Drive. The
 startup preflight warns about the `/mnt/*` case; the Defender cost it cannot see. The **test and dev loop is POSIX-only** — run it under WSL2 or Docker.
 
-You need **Python ≥ 3.12**, plus the runtime of whichever language you want to index: a **PHP CLI ≥
+You need **Python ≥ 3.12** with SQLite ≥ 3.25 and FTS5 (a standard CPython build has both), plus the runtime of whichever language you want to index: a **PHP CLI ≥
 8.1** with **[Composer](https://getcomposer.org/)** for PHP, **Node.js ≥ 18** for TypeScript/JavaScript
 and T-SQL. The Python adapter is stdlib-only and runs on the same interpreter as the core.
 
 ```bash
 git clone https://github.com/cuongdinhngo/code-atlas.git
 cd code-atlas
-python scripts/setup.py /abs/path/to/your-project
+python3 scripts/setup.py /abs/path/to/your-project
 ```
-
-To run the server without a checkout: `uvx --from git+https://github.com/cuongdinhngo/code-atlas.git
-code-atlas`, or `pipx run --spec git+https://github.com/cuongdinhngo/code-atlas.git code-atlas` —
-the adapters still need their own runtimes on `PATH`.
 
 That installs the core, builds the PHP adapter, and writes `<your-project>/.mcp.json` with the
 correct interpreter, adapter path and working directory filled in — the three things that are easy
 to get wrong by hand. Run it with no path to print the snippet instead of writing it.
+
+To run the server without a checkout: `uvx --from git+https://github.com/cuongdinhngo/code-atlas.git
+code-atlas`, or `pipx run --spec git+https://github.com/cuongdinhngo/code-atlas.git code-atlas` —
+the adapters still need their own runtimes on `PATH`, and a checkout to launch them from.
 
 For TypeScript/JavaScript, T-SQL or Python, add that adapter — the core resolves any `CA_<LANG>_CMD`
 generically from the variable name, so each is one env var, not a code change:
@@ -122,7 +117,7 @@ npm ci --prefix adapters/sql          # dev-only deps; the scanner itself has no
 export CA_SQL_CMD="node /abs/path/to/code-atlas/adapters/sql/index.js --server"
 
 # Python adapter — stdlib only; use the same interpreter that runs the core
-export CA_PYTHON_CMD="python /abs/path/to/code-atlas/adapters/python/index.py --server"
+export CA_PYTHON_CMD="python3 /abs/path/to/code-atlas/adapters/python/index.py --server"
 ```
 
 Then **reload your MCP client** (in Claude Code: restart, or re-approve the project's `.mcp.json`)
@@ -133,7 +128,7 @@ there is an index, how stale it is, and what to call next. Then `build_or_update
 <summary>Wiring it by hand, or running the server from a container</summary>
 
 **By hand:** `pip install -e .`, then `composer install --working-dir=adapters/php`, then point an
-`.mcp.json` at your repo — `command` = `code-atlas` (or `python -m code_atlas.main`), `cwd` = the
+`.mcp.json` at your repo — `command` = `code-atlas` (or `python3 -m code_atlas.main`), `cwd` = the
 repo to index, `env.CA_PHP_CMD` = `php /abs/path/to/code-atlas/adapters/php/index.php --server`. The
 adapter lives in this checkout, so `CA_PHP_CMD` must be an **absolute** path. Details in
 [`adapters/php/README.md`](adapters/php/README.md).
@@ -197,8 +192,8 @@ name a tool, plus how to spend the calls, how to read an answer's honesty fields
 hand-edit):
 
 ```bash
-python scripts/setup.py /abs/path/to/your-project --write-agent-brief
-# or: python scripts/gen_skill.py --write-agent-brief /abs/path/to/your-project
+python3 scripts/setup.py /abs/path/to/your-project --write-agent-brief
+# or: python3 scripts/gen_skill.py --write-agent-brief /abs/path/to/your-project
 ```
 
 **Load requirement per host:** Cursor reads `AGENTS.md` directly. Claude Code reads only
@@ -212,7 +207,9 @@ one line to add and never edits `CLAUDE.md`.
 The core is language-agnostic — **no per-language branches, CI-gated**. Adapters parse files and
 emit a common `{nodes, edges}` vocabulary; the core stores them, resolves cross-file edges, and
 exposes the MCP tools. Everything runs offline against local SQLite, with incremental updates via
-`git diff`. Requires **SQLite ≥ 3.25**.
+`git diff`.
+
+### Languages
 
 | Language | Parser | Status |
 |---|---|---|
@@ -221,6 +218,17 @@ exposes the MCP tools. Everything runs offline against local SQLite, with increm
 | T-SQL (Node ≥ 18) | purpose-built scanner, no production dependencies | **Available** — see [`adapters/sql/`](adapters/sql/) |
 | Python (≥ 3.12 grammar) | stdlib `ast` | **Available** — see [`adapters/python/`](adapters/python/) |
 | C# / .NET | Roslyn | On the roadmap |
+
+**Resolution depth differs by adapter.** A `CALLS` edge the adapter could not pin to one
+definition is stamped `HEURISTIC` rather than guessed, and the share of those is the depth measure
+([`scripts/edge_health_report.py`](scripts/edge_health_report.py)); PHP is the depth standard:
+
+| Adapter | `HEURISTIC` share of `CALLS` | Pinned sample | Report |
+|---|---|---|---|
+| PHP | **1–4 %** | symfony/demo · brick/math · laravel | [137](docs/benchmarks/137_type-table.md) |
+| TypeScript/JavaScript | 54.1% | `ky` | [153](docs/benchmarks/153_227_heuristic-share-ts-python.md) |
+| Python | 82.2% | `flask` | [227](docs/benchmarks/153_227_heuristic-share-ts-python.md) |
+| T-SQL | not measured this way — floors and layer shape instead | SQL samples | [233](docs/benchmarks/233_sql-cross-repo.md) |
 
 Adding a language touches **no core code** — an adapter announces its own name, the file suffixes it
 owns and its capabilities on one handshake line, and the core routes files from that alone.
@@ -274,11 +282,11 @@ Every number here is reproducible from a runbook in this repo.
 
 | What | Result | Where |
 |---|---|---|
-| Tokens to reach a resolved answer, vs grep-and-read | **~69× cheaper** on pinned public PHP repos (laravel · symfony · brick) — 8/8 correct, recall 1.0, precision 1.0; **88–103×** on relation queries. Re-measured 2026-09-07 (task 223) | [`tokens-to-answer.md`](docs/runbooks/tokens-to-answer.md) |
-| Answer correctness, blind field round | **8 of 8 checked claims exact, zero false statements** | §19 |
+| Tokens to reach a resolved answer, vs grep-and-read | **~69× cheaper** on pinned public PHP repos (symfony/demo · brick/math) — 8/8 correct, recall 1.0, precision 1.0; 18×–117× per relation question, 4.5× on an onboarding lookup. Re-measured 2026-09-27: 70.2× | [`tokens-to-answer.md`](docs/runbooks/tokens-to-answer.md#sample-tier-pinned-public-repos--the-real-value-claim-task-042) |
+| Answer correctness, blind field round | **8 of 8 checked claims exact, zero false statements** | [PLAN §19](docs/PLAN.md#19-project-context--decision-log) |
 | Cost of the *n*-th parallel agent | **~70 MB PSS**; the 925 MB index costs **0 MB** (page-cached, never mmapped) | [`parallel-agents.md`](docs/runbooks/parallel-agents.md) |
 | Five agents vs one | **4.3× throughput**, 1.3 % of RAM, zero `SQLITE_BUSY` reaching a caller | same |
-| Incremental no-op rebuild | **56.1 s → 2.113 s (26×)**, two no-ops byte-identical | §19 |
+| Incremental no-op rebuild, large index | **56.1 s → 2.113 s (26×)** | [PLAN §19](docs/PLAN.md#19-project-context--decision-log) |
 | Onboarding lookups vs hand-mapping | **cheaper, 12/12 correct, recall 1.0** | [`121_onboarding-question-class.md`](docs/benchmarks/121_onboarding-question-class.md) |
 
 **Row two is the one the design optimises for.** Every failure in that round was *silence or
@@ -294,21 +302,21 @@ never a silent fallback.
 
 | Environment | `.code-atlas.toml` | Default | Meaning |
 |---|---|---|---|
-| `CA_DB_PATH` | `db_path` | `.code-atlas/graph.db` | index location (relative to the repo root). The file value must stay inside the repo; only the env var may point outside (341) |
+| `CA_DB_PATH` | `db_path` | `.code-atlas/graph.db` | index location (relative to the repo root). The file value must stay inside the repo; only the env var may point outside |
 | `CA_WORKERS` | `workers` | `max(1, min(cpu-2, 8))` | adapter processes during a build |
 | `CA_PAGE_LIMIT` | `page_limit` | `50` | query-time row ceiling for search/nav tools (no rebuild). Pre-259 `CA_MAX_RESULTS` does **not** set this |
-| `CA_MAX_CANDIDATES` | `max_candidates` | `50` | build-time resolver fan-out (**rebuild** to apply). `CA_MAX_RESULTS` / project-file `max_results` still alias here (259) |
+| `CA_MAX_CANDIDATES` | `max_candidates` | `50` | build-time resolver fan-out (**rebuild** to apply). `CA_MAX_RESULTS` / project-file `max_results` still alias here |
 | `CA_IMPACT_DEPTH` / `CA_IMPACT_MAX_NODES` | `impact_depth` / `impact_max_nodes` | `2` / `500` | hops and node budget for one impact query |
 | `CA_ENTRY_POINTS` | `entry_points` | unset | file globs that seed reachability. **`reachable_from` and `find_orphans` need this** — unset, they report *no roots configured* rather than guessing, and `get_index_status` nominates candidate globs with a file count for you to choose from |
 | `CA_STUB_ROOTS` | `stub_roots` | unset | dependency roots (e.g. `vendor`) to index declarations-only, so third-party signatures resolve |
 | `CA_INDIRECTION_RULES` | `indirection_rules` | unset | JSON rule files mapping framework indirection to edges. **`find_view_data` needs this** |
 | `CA_ARCHITECTURE_RULES` | `architecture_rules` | unset | JSON rule files of path-set dependency constraints. **`check_architecture_rules` needs this** |
 | `CA_TOOLS` | `tools` | all 24 | comma-separated tool allow-list — see the six-tool preset below |
-| `CA_<LANG>_CMD` | `[adapter_cmd].<lang>` | — | the **complete argv** that launches one adapter in server mode . The file table is honoured only with `CA_TRUST_PROJECT_FILE=1` (341) |
-| `CA_TRUST_PROJECT_FILE` | — (env only) | unset | `1` lets the repo's own `[adapter_cmd]` choose the argv. Unset, a table there is a loud error: a repo you index must not pick the command code-atlas runs (341) |
+| `CA_<LANG>_CMD` | `[adapter_cmd].<lang>` | — | the **complete argv** that launches one adapter in server mode. The file table is honoured only with `CA_TRUST_PROJECT_FILE=1` |
+| `CA_TRUST_PROJECT_FILE` | — (env only) | unset | `1` lets the repo's own `[adapter_cmd]` choose the argv. Unset, a table there is a loud error: a repo you index must not pick the command code-atlas runs |
 
 ```toml
-# .code-atlas.toml — [adapter_cmd] is honoured only with CA_TRUST_PROJECT_FILE=1 (341)
+# .code-atlas.toml — [adapter_cmd] is honoured only with CA_TRUST_PROJECT_FILE=1
 workers = 4
 page_limit = 50
 max_candidates = 50
@@ -317,7 +325,7 @@ max_candidates = 50
 php = "docker compose exec -T php php /app/adapters/php/index.php --server"
 typescript = "node /abs/path/to/code-atlas/adapters/typescript/index.js --server"
 sql = "node /abs/path/to/code-atlas/adapters/sql/index.js --server"
-python = "python /abs/path/to/code-atlas/adapters/python/index.py --server"
+python = "python3 /abs/path/to/code-atlas/adapters/python/index.py --server"
 ```
 
 The adapter command is the **whole** command: the core appends nothing to it, not even `--server`,
@@ -351,7 +359,7 @@ max, and the four rulebook grep-gates — in the same order
 [`ci.yml`](.github/workflows/ci.yml) runs them. It exits non-zero if a check **failed or was
 skipped**, because a gate that quietly shrinks to whatever the host can run has not verified
 anything. Add `--fast` to skip the two slow checks, or `--docker` to run the same gate inside the
-test image when the host lacks a runtime (323).
+test image when the host lacks a runtime.
 
 The suite needs a POSIX host with every adapter installed. To run everything off any host
 (Windows/macOS included), use the Linux test image:
