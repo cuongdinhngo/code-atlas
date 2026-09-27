@@ -193,6 +193,11 @@ their existing env, and none was rewritten to drop the table.
 Design conformance: D1–D3 implemented-as-approved; `_is_repo_relative` also refuses a drive-letter
 prefix, which tightens the existing list knobs the same way.
 
+Full verification at `06b0e7a` (source final; later commits touch this working doc only):
+`scripts/gate.sh` → `GATE GREEN — all 20 checks passed`; `scripts/docker-test.sh` from a plain
+clone → `4615 passed, 5 skipped` (Linux host). A first Docker run from the git worktree failed 7 tests
+that shell out to git — a worktree's `.git` is a file naming a host path the image cannot see.
+
 ## Phase 4 — Review
 
 REVIEWER: OFF (`--no-reviewer`) · CHALLENGER: ON — round 1 on `c82711e`: **CLEAN 13/0/0**.
