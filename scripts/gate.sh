@@ -310,6 +310,18 @@ else
         "$(git rev-list --count "$range") commit(s)"
 fi
 
+# Same range as R7.3; the script owns the empty-range refusal CI relies on (340).
+if ! git rev-parse --verify -q origin/main >/dev/null 2>&1; then
+    _record SKIP "R2.4 commit identity" "no origin/main to compare against"
+elif [ "$(git rev-list --count "$range")" -eq 0 ]; then
+    _record PASS "R2.4 commit identity" "nothing unpushed to check"
+elif python3 scripts/identity_markers.py "$range" >"$log" 2>&1; then
+    _record PASS "R2.4 commit identity" "$(git rev-list --count "$range") commit(s)"
+else
+    _record FAIL "R2.4 commit identity"
+    sed 's/^/      /' "$log" | head -10
+fi
+
 echo
 echo "== summary =="
 printf '%s' "$report" | while IFS='|' read -r status name detail; do
