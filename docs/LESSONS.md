@@ -1702,3 +1702,13 @@ venv or the PHPStan tmpDir is rebuilt from a wrong-cased cwd.*
   "absent" and "outside the filter" read the same — the retro's "worst failure for an agent".
   `search_symbol` already separated them (315); the fix reuses its `path_excluded` shape.
 - destination: docs/LESSONS.md (class index row bumped; R5.6 unchanged)
+
+## 341 — a new variable fell inside an existing pattern's namespace
+
+- type: 2 (code) · handle: `a-pattern-namespace-claims-every-name-of-its-shape`
+- status: proposed · seen: 341
+- evidence: the ticket's first draft named the trust flag `CA_TRUST_PROJECT_CMD`; `ADAPTER_CMD_ENV`
+  (`^CA_(…)_CMD$`) would have read it as an adapter called `trust_project` with the command `1`.
+  Caught at design by reading the regex, pinned by a test. Before naming a variable, match it
+  against every pattern that reads that namespace.
+- destination: docs/LESSONS.md (first sighting; promote when seen ≥ 2)

@@ -425,11 +425,9 @@ defaults. A field present as `None` is stored as an explicit NULL.
 **Resolution order: env `CA_*` → project file `.code-atlas.toml` → default.** The file lives at the
 repo root, is meant to be committed, and is read with stdlib `tomllib`; its keys are the env names
 lower-cased without the prefix, plus an `[adapter_cmd]` table holding one complete argv per language
-(§9). **The indexed repo is untrusted:** that table is honoured only with `CA_TRUST_PROJECT_FILE=1`
-in the environment, and a file `db_path` must stay inside the repo (341). A malformed value or an unknown key **fails loud** (R5.3) — it never falls back. Naming rules
+(§9). A malformed value or an unknown key **fails loud** (R5.3) — it never falls back. Naming rules
 are in [`CONVENTION.md`](CONVENTION.md) §2, and **every knob, its default and what it governs is in
-[`TOOLS.md`](TOOLS.md) *Configuration reference*** — the copy this section used to keep went two
-knobs out of date, so it is not kept twice (R6.7).
+[`TOOLS.md`](TOOLS.md) *Configuration reference*** — not kept twice (R6.7).
 
 Three knob decisions are design rather than reference, and stay here. `CA_MAX_RESULTS` caps both
 the rows a tool returns and the resolver's candidate lookups (§8.2); 258 ended the job that sized
@@ -707,18 +705,14 @@ viewer, §14), and schema-state awareness (**no, permanently** — §19, 2026-08
 - **Language order and its rationale** — §3's table. Ordered PHP → TS/JS → Python → C#/.NET, deferred behind PHP agent-depth 2026-08-04, T-SQL inserted ahead of Python 2026-08-30; #2–#4 have landed and only C#/.NET remains.
 - **Native Windows runtime taken — 2026-09-10, superseding 220's `unsupported`.** A
   `sys.platform`-selected lock arm keeps POSIX byte-identical and 072's property. Tiered: native
-  runtime supported, WSL2-on-ext4 for heavy indexing, dev/test loop stays POSIX. 220 fused "cannot
-  import" (one `fcntl` import) with "slow" (Defender scan, not the
-  disk); detail + evidence in [237](tasks/237_native-windows-was-declined-on-a-defender-setting-not-a-platform-limit.md).
+  runtime supported, WSL2-on-ext4 for heavy indexing, dev/test loop stays POSIX; evidence in [237](tasks/237_native-windows-was-declined-on-a-defender-setting-not-a-platform-limit.md).
 - **SOLID at the boundaries + YAGNI** (§2) — one seam (the contract). The registry question is settled: see the R1.2 verdict below.
 - **Standard over sample** (§2) — adapters implement the language spec/PSRs only; sample repos drive test coverage & perf targets, never adapter semantics. CI grep-gate bans repo/framework names in adapter source.
 - **Priorities** (§0): make it work (PHP) → extend without touching core → onboarding feature.
 - **Onboarding** (§14) is **Phase 3**, a graph *consumer*; the core stays deterministic and the LLM
   prose seams live outside it (R4.1). Shipped M10–M12.
-- **An indexed repo cannot choose what code-atlas executes — 2026-09-27 (341).** Its own
-  `[adapter_cmd]` needs the user's `CA_TRUST_PROJECT_FILE=1`, the workspace-trust shape VS Code,
-  `direnv` and `mise` share; a silent ignore was rejected because it reads as "adapter missing".
-  The flag stays out of the config identity: it gates whether a build runs, never what it indexes.
+- **An indexed repo cannot choose what code-atlas runs — 2026-09-27 (341):** its `[adapter_cmd]`
+  needs `CA_TRUST_PROJECT_FILE=1`, a flag outside the config identity.
 - **LSP-tool coexistence** (§13) — code-atlas is the indexed search/impact layer; a language server stays for LSP nav/edit.
 
 **Decision — Agent-first PHP-depth pivot (adopted 2026-08-04; source: [`FEEDBACK.md`](FEEDBACK.md)).**
