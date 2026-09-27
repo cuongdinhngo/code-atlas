@@ -57,7 +57,7 @@ SHARED_CHECKS: dict[str, tuple[str, str]] = {
         "tests/contract/framework_denylist.txt",
     ),
     "R4.1 no LLM in core": ("anthropic|onboarding_llm", "anthropic|onboarding_llm"),
-    "R7.3 no AI-attribution trailer": ("co-authored-by:", "co-authored-by:"),
+    "R7.3 no AI-attribution trailer": ("attribution_markers.py", "attribution_markers.py"),
     "R2.4 commit identity (340)": ("identity_markers.py", "identity_markers.py"),
 }
 
