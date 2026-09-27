@@ -65,7 +65,7 @@ def test_a_corporate_committer_email_is_named_by_commit(repo: Path) -> None:
 def test_clean_commits_and_the_merge_bot_pass(repo: Path) -> None:
     """AC3 — the maintainer's public identity and GitHub's merge identity are not offences."""
     _commit(repo, CLEAN, MERGE_BOT)
-    _commit(repo, ("Bot", "1+bot@users.noreply" + ".github.com"), CLEAN)
+    _commit(repo, ("Bot", "1+bot@" + "users.noreply.github.com"), CLEAN)
     count, offences = commit_identity_offences("HEAD~2..HEAD", repo)
     assert (count, offences) == (2, [])
 
