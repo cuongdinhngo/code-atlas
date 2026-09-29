@@ -24,7 +24,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
-| 343 | [Claude Code cuts the server instructions at ~2,048 characters — KEEP_GOING and LIMITS never arrive](tasks/343_server-instructions-truncated-at-2048-chars.md) | Adoption | todo | 300 |
 | 344 | [Ship code-atlas as a Claude Code plugin — server, hooks and skill in one install](tasks/344_claude-code-plugin.md) | Adoption | todo | 036, 099, 322 |
 | 345 | [A grep for a symbol gets one "ask code-atlas first" line — right after it, from adapter-declared shapes](tasks/345_grep-time-symbol-nudge.md) | Adoption | todo | 344 |
 
