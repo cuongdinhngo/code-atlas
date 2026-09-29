@@ -80,7 +80,7 @@ Only the plugin packaging depends on 344; the contract field and the script can 
 
 ## Session status
 
-- **KEY:** 345 · **work_doc_mode:** embed · **Current phase:** 3 execute · **Next action:** review.
+- **KEY:** 345 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** maintainer merges #7, then PR [#8](https://github.com/cuongdinhngo/code-atlas/pull/8) (retargets to `main`); ratify W1–W2; rebuild every index (v13). **Revert path:** `git revert` the branch's commits (v13 → v12 is one more full rebuild), or close #8 unmerged.
 - `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · Run mode: `autorun`; *"with
   skipped reviewer"* = `--no-reviewer` only, the challenger keeps its seat.
 - Branch `feat/345-symbol-search-nudge` (renamed from `…-grep-symbol-nudge`: the contract validator reads `grep` in a branch name as a content grep — SG-1). Stacked on `feat/344-claude-code-plugin` (PR #7): the nudge ships in 344's plugin. Contract
@@ -300,3 +300,64 @@ the PHP README handshake example (v12 → v13), and `docs/SKILL_GAP_CANDIDATES.m
 (bookkeeping).
 
 **Sweep — axis 2.** Approach 1–7 implemented as approved.
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`
+
+**Challenger (ticket-blind, round 1, on `7ddf1111`)**: 16 met · 1 partly met · 1 can't tell (a live
+session — settled in Phase 3). The partial is AC1's "the same shapes unscoped": the SQL `EXEC` shape was
+`scoped`. It is now unscoped (`43a25276`) and pinned by
+`test_the_same_shapes_fire_unscoped_except_a_bare_name`. The bare-name shape stays `scoped`: unscoped, a
+proc name is indistinguishable from the config key the same AC says never fires (W1). Its other notes
+(`-t python` misses, a shared state file) are misses in the safe direction, not firings. Fixed inside
+the named finding, so the verify-only round ran in the main loop, with no re-dispatch.
+
+**Gate — first run RED on `f95f8196`** (4 checks; my targeted runs had skipped `ruff` over `adapters/`):
+a language word in `nudge.py`'s docstring (R1.1 guard), the core-module count pin (95 → 96), a
+tracker-key lookalike in this doc, a stale venv missing the new entry point, and two long lines in the
+Python adapter. All fixed in `108231de`. Re-run:
+
+Ran at 108231de
+
+```
+$ scripts/gate.sh
+  21 passed · 0 failed · 0 skipped
+GATE GREEN — all 21 checks passed
+```
+
+`Ph3/4 proven by`: G1, R1–R7, AC1–AC4 — 12/12; inventory N = 4 adapters, 4/4 live handshakes.
+
+Verdict: **clean (challenger only — REVIEWER: OFF)**.
+
+Reviewed at 108231de — the diff `feat/344-claude-code-plugin..108231de` minus this doc. Working doc:
+`docs/tasks/345_grep-time-symbol-nudge.md` (embedded).
+
+## Phase 5 — finalise
+
+Stale-review guard: after `108231de` only this doc and `docs/TOKEN_LEDGER.md` change — exempt.
+
+`CLAIMS: 3 claim(s) from 1 lesson entr(ies) | T1=0 T2=0 T3=2 T4=0 T5=1 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+`345-C1` (type 5, stdout vs `additionalContext`) is in `docs/LESSONS.md`. The two type-3 signals, SG-1
+(the branch-name grep) and SG-2 (the baseline refusal, from 344), are in `docs/SKILL_GAP_CANDIDATES.md`.
+No mango file was written.
+
+### Outward actions
+
+1. push `feat/345-symbol-search-nudge` — pre-authorised. 2. open PR #8, base
+`feat/344-claude-code-plugin` — pre-authorised. Deferred: the merges (#7, then #8).
+
+### Cost ledger
+
+| # | Phase | Dispatch | Tokens |
+|---|---|---|---|
+| 1 | refine | exposure-checker (`challenger`) | 44,332 fresh |
+| 2 | review | `challenger`, round 1 | 65,558 fresh |
+| — | main loop | — | unmeasured |
+
+`LEDGER TOTAL: 109,890 · top cost driver: review/challenger`
