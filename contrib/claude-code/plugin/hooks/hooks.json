@@ -2,14 +2,242 @@
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Edit|Write",
+        "matcher": "Edit",
         "hooks": [
           {
             "type": "command",
             "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-poke",
-            "if": "Edit(*.php)|Write(*.php)|Edit(*.phtml)|Write(*.phtml)|Edit(*.py)|Write(*.py)|Edit(*.sql)|Write(*.sql)|Edit(*.ts)|Write(*.ts)|Edit(*.tsx)|Write(*.tsx)|Edit(*.js)|Write(*.js)|Edit(*.jsx)|Write(*.jsx)|Edit(*.mjs)|Write(*.mjs)|Edit(*.cjs)|Write(*.cjs)",
             "async": true,
-            "timeout": 60
+            "timeout": 60,
+            "if": "Edit(*.php)"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-poke",
+            "async": true,
+            "timeout": 60,
+            "if": "Write(*.php)"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-poke",
+            "async": true,
+            "timeout": 60,
+            "if": "Edit(*.phtml)"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-poke",
+            "async": true,
+            "timeout": 60,
+            "if": "Write(*.phtml)"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-poke",
+            "async": true,
+            "timeout": 60,
+            "if": "Edit(*.py)"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-poke",
+            "async": true,
+            "timeout": 60,
+            "if": "Write(*.py)"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-poke",
+            "async": true,
+            "timeout": 60,
+            "if": "Edit(*.sql)"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-poke",
+            "async": true,
+            "timeout": 60,
+            "if": "Write(*.sql)"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-poke",
+            "async": true,
+            "timeout": 60,
+            "if": "Edit(*.ts)"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-poke",
+            "async": true,
+            "timeout": 60,
+            "if": "Write(*.ts)"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-poke",
+            "async": true,
+            "timeout": 60,
+            "if": "Edit(*.tsx)"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-poke",
+            "async": true,
+            "timeout": 60,
+            "if": "Write(*.tsx)"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-poke",
+            "async": true,
+            "timeout": 60,
+            "if": "Edit(*.js)"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-poke",
+            "async": true,
+            "timeout": 60,
+            "if": "Write(*.js)"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-poke",
+            "async": true,
+            "timeout": 60,
+            "if": "Edit(*.jsx)"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-poke",
+            "async": true,
+            "timeout": 60,
+            "if": "Write(*.jsx)"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-poke",
+            "async": true,
+            "timeout": 60,
+            "if": "Edit(*.mjs)"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-poke",
+            "async": true,
+            "timeout": 60,
+            "if": "Write(*.mjs)"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-poke",
+            "async": true,
+            "timeout": 60,
+            "if": "Edit(*.cjs)"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-poke",
+            "async": true,
+            "timeout": 60,
+            "if": "Write(*.cjs)"
           }
         ]
       },
@@ -19,8 +247,107 @@
           {
             "type": "command",
             "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-signal",
-            "if": "Read(*.php)|Read(*.phtml)|Read(*.py)|Read(*.sql)|Read(*.ts)|Read(*.tsx)|Read(*.js)|Read(*.jsx)|Read(*.mjs)|Read(*.cjs)",
-            "timeout": 10
+            "timeout": 10,
+            "if": "Read(*.php)"
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-signal",
+            "timeout": 10,
+            "if": "Read(*.phtml)"
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-signal",
+            "timeout": 10,
+            "if": "Read(*.py)"
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-signal",
+            "timeout": 10,
+            "if": "Read(*.sql)"
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-signal",
+            "timeout": 10,
+            "if": "Read(*.ts)"
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-signal",
+            "timeout": 10,
+            "if": "Read(*.tsx)"
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-signal",
+            "timeout": 10,
+            "if": "Read(*.js)"
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-signal",
+            "timeout": 10,
+            "if": "Read(*.jsx)"
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-signal",
+            "timeout": 10,
+            "if": "Read(*.mjs)"
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-signal",
+            "timeout": 10,
+            "if": "Read(*.cjs)"
           }
         ]
       }
@@ -32,8 +359,107 @@
           {
             "type": "command",
             "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-signal",
-            "if": "Write(*.php)|Write(*.phtml)|Write(*.py)|Write(*.sql)|Write(*.ts)|Write(*.tsx)|Write(*.js)|Write(*.jsx)|Write(*.mjs)|Write(*.cjs)",
-            "timeout": 10
+            "timeout": 10,
+            "if": "Write(*.php)"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-signal",
+            "timeout": 10,
+            "if": "Write(*.phtml)"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-signal",
+            "timeout": 10,
+            "if": "Write(*.py)"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-signal",
+            "timeout": 10,
+            "if": "Write(*.sql)"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-signal",
+            "timeout": 10,
+            "if": "Write(*.ts)"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-signal",
+            "timeout": 10,
+            "if": "Write(*.tsx)"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-signal",
+            "timeout": 10,
+            "if": "Write(*.js)"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-signal",
+            "timeout": 10,
+            "if": "Write(*.jsx)"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-signal",
+            "timeout": 10,
+            "if": "Write(*.mjs)"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-signal",
+            "timeout": 10,
+            "if": "Write(*.cjs)"
           }
         ]
       }

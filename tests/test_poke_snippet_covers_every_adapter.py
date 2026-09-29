@@ -19,8 +19,9 @@ import gen_skill  # noqa: E402
 
 
 def _filter_string() -> str:
-    """The poke hook's filter, selected by command name — 240 added a second hook to this file,
-    so a positional lookup would silently start grading the wrong one."""
+    """The poke hooks' filters, selected by command name — 240 added a second hook to this file,
+    so a positional lookup would silently start grading the wrong one. Since 344 there is one
+    poke entry per suffix (a `|`-joined `if` never matched), so the filters are joined here."""
     snippet = json.loads(gen_skill.CLAUDE_CODE_SNIPPET_PATH.read_text(encoding="utf-8"))
     filters = [
         hook["if"]
@@ -29,8 +30,8 @@ def _filter_string() -> str:
         for hook in entry["hooks"]
         if hook["command"] == "code-atlas-poke"
     ]
-    assert len(filters) == 1, f"expected exactly one poke hook, found {len(filters)}"
-    return filters[0]
+    assert filters and all("|" not in f for f in filters), f"poke filters: {filters}"
+    return "|".join(filters)
 
 
 def uncovered_adapters(filter_string: str, adapters_dir: Path | None = None) -> list[str]:

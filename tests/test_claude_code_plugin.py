@@ -9,6 +9,7 @@ from __future__ import annotations
 import copy
 import json
 import os
+import re
 import subprocess
 import sys
 import tomllib
@@ -124,3 +125,14 @@ def test_the_server_is_launched_by_its_console_script_name() -> None:
     """W1: no interpreter path anywhere in the plugin — the console script is on PATH."""
     server = _load(gen_skill.PLUGIN_MCP_PATH)["mcpServers"]["code-atlas"]
     assert server == {"command": "code-atlas"}
+
+
+@pytest.mark.parametrize(
+    "path", [gen_skill.CLAUDE_CODE_SNIPPET_PATH, gen_skill.PLUGIN_HOOKS_PATH], ids=lambda p: p.name
+)
+def test_every_if_filter_is_a_single_rule(path: Path) -> None:
+    """Claude Code 2.1.284 never matched a `|`-joined `if` (344): poke and signal never fired."""
+    hooks = _load(path)["hooks"]
+    every = [h for entries in hooks.values() for e in entries for h in e["hooks"]]
+    filters = [h["if"] for h in every if "if" in h]
+    assert filters and all(re.fullmatch(r"(Edit|Write|Read)\(\*\.\w+\)", f) for f in filters)

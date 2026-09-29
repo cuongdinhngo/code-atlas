@@ -145,10 +145,18 @@ def render_skill() -> str:
     return "\n".join(lines)
 
 
-def _suffix_filter(*tools: str) -> str:
-    """A hook `if` filter over every shipped adapter's declared suffixes, for the named tools."""
+def _per_suffix(tools: tuple[str, ...], hook: dict[str, Any]) -> list[dict[str, Any]]:
+    """One hook entry per (tool, shipped suffix), each gated by a single-rule `if` filter.
+
+    Claude Code 2.1.284 never matches an `if` that joins rules with `|` — measured in 344 — so
+    each rule gets its own entry. Suffixes come from each adapter's own declaration (R6.7).
+    """
     suffixes = [suffix for _, group in sorted(declared_extensions().items()) for suffix in group]
-    return "|".join(f"{tool}(*{s})" for s in suffixes for tool in tools)
+    return [
+        {"matcher": tool, "hooks": [{**hook, "if": f"{tool}(*{s})"}]}
+        for s in suffixes
+        for tool in tools
+    ]
 
 
 def render_claude_code_snippet() -> str:
@@ -164,45 +172,11 @@ def render_claude_code_snippet() -> str:
 
 def _claude_code_hooks(command: Callable[[str], str]) -> dict[str, Any]:
     """The one hook table: the snippet names each console script, the plugin gates it (344)."""
+    poke = {"type": "command", "command": command("code-atlas-poke"), "async": True, "timeout": 60}
+    signal = {"type": "command", "command": command("code-atlas-signal"), "timeout": 10}
     return {
-        "PostToolUse": [
-            {
-                "matcher": "Edit|Write",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": command("code-atlas-poke"),
-                        "if": _suffix_filter("Edit", "Write"),
-                        "async": True,
-                        "timeout": 60,
-                    }
-                ],
-            },
-            {
-                "matcher": "Read",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": command("code-atlas-signal"),
-                        "if": _suffix_filter("Read"),
-                        "timeout": 10,
-                    }
-                ],
-            },
-        ],
-        "PreToolUse": [
-            {
-                "matcher": "Write",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": command("code-atlas-signal"),
-                        "if": _suffix_filter("Write"),
-                        "timeout": 10,
-                    }
-                ],
-            }
-        ],
+        "PostToolUse": _per_suffix(("Edit", "Write"), poke) + _per_suffix(("Read",), signal),
+        "PreToolUse": _per_suffix(("Write",), signal),
         "SessionStart": [
             {"hooks": [{"type": "command", "command": command("code-atlas-state"), "timeout": 10}]}
         ],
