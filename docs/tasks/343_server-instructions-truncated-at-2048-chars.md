@@ -79,7 +79,7 @@ The cap was observed, not read from Claude Code's docs. AC1 measures it rather t
 
 ## Session status
 
-- **KEY:** 343 · **work_doc_mode:** embed · **Current phase:** 3 execute · **Next action:** review.
+- **KEY:** 343 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** maintainer reviews and merges PR [#6](https://github.com/cuongdinhngo/code-atlas/pull/6). **Revert path:** `git revert` the five commits on `fix/343-server-instructions-cap`, or close #6 unmerged.
 - `TRACK: backend` · `TIER: full` · `SCOPE: S` · `STRUCTURE: native` · Run mode: `autorun` (unattended, stops at the PR). Run arg *"with skipped
   reviewer"* = `--no-reviewer` only; the ticket-blind challenger keeps its seat.
 - Contract `.mango/run-contract-343.txt`. RECONCILE t0: 5 declared | 3 re-run | 0 holding | 3 BROKEN
@@ -237,15 +237,20 @@ no error path changes · §8 because no dependency is added. R7.5 (comments ≤ 
 | 5 | replace the "carries the map" sentences | `README.md`, `docs/PLAN.md` | docs only (R7.6) | R3 | 2/2 |
 | 6 | status + ledger rows | `docs/BACKLOG.md`, `docs/TOKEN_LEDGER.md`, this file | bookkeeping tests | R7.2 | — |
 
-Test blast radius, traced. Ran at e58d8c13
+Test blast radius, traced. The design-time run was on `e58d8c13`; re-run on the tree under review
+it names every producer and consumer, each on the new signature. Ran at ac927994
 
 ```
 $ grep -rn "RECOGNITION_MAP\|recognition_lines\|instructions.render" code_atlas scripts tests --include=*.py
-code_atlas/tools/prompts.py:23  RECOGNITION_MAP: tuple[tuple[str, str, str], ...] = (
-code_atlas/tools/prompts.py:80  for question, tool, note in RECOGNITION_MAP
-code_atlas/instructions.py:57   lines = prompts.recognition_lines(frozenset(names))
-code_atlas/main.py:107          instructions=instructions.render(config, names)
-tests/test_server_instructions.py:23  ALL_TOOLS = tuple(tool for _q, tool, _n in prompts.RECOGNITION_MAP)
+code_atlas/instructions.py:71:    lines = prompts.recognition_lines(frozenset(names), core_only=True)
+code_atlas/tools/prompts.py:24:RECOGNITION_MAP: tuple[tuple[str, str, str, bool], ...] = (
+code_atlas/tools/prompts.py:97:        for question, tool, note, core in RECOGNITION_MAP
+code_atlas/tools/prompts.py:145:            + "\n".join(recognition_lines())
+code_atlas/main.py:108:        SERVER_NAME, instructions=instructions.render(config, names, FIELD18_TOOLS)
+scripts/gen_skill.py:235:def recognition_lines_by_tool() -> dict[str, str]:
+tests/test_agent_brief_in_indexed_repo.py:61:    map_tools = set(gen_skill.recognition_lines_by_tool())
+tests/test_agent_brief_announce_and_claude_load.py:37:    mapped = set(gen_skill.recognition_lines_by_tool())
+tests/test_server_instructions.py — 22 matches, every render() call passing FIELD18_TOOLS
 ```
 
 `scripts/gen_skill.py` parses the rendered `which_tool` text (`gen_skill.py:58-62`), not the tuple —
@@ -294,7 +299,7 @@ PLAN), `39eb5bd6` (review fix: the `which_tool` string restored, LOAD's fallback
 (`AttributeError: CLIENT_CAP`); the length red is the Phase-1 measurement, 3,094 > 1,848 on the
 untouched render. After:
 
-Ran at 39eb5bd6
+Ran at ac927994
 
 ```
 $ .venv/bin/python -m pytest -q tests/test_server_instructions.py -k fit_under_the_client_cap
@@ -304,23 +309,22 @@ $ .venv/bin/python -m pytest -q tests/test_server_instructions.py -k fit_under_t
 **AC4 — the consumer.** A fresh `claude -p --strict-mcp-config` session on Claude Code 2.1.284,
 pointed at this branch's server, asked to quote the tail of the code-atlas instructions:
 
-Ran at c6f80671
+Ran at ac927994
 
 ```
 if I change this -> impact.
 - How does one symbol reach another -> explain_path.
-WHOLE. The block has no truncation marker and ends on the `explain_path` routing line.
+WHOLE
 ```
 
-`c6f80671` → `39eb5bd6` changed only a `which_tool` line layout and a test — the rendered
-instructions are byte-identical, so the probe stands for the tree under review.
+(First run at `c6f80671` gave the same tail; re-run on the tree under review.)
 
 **Sweep — axis 1, file set.**
 
-Ran at 39eb5bd6
+Ran at ac927994
 
 ```
-$ git diff --stat main..HEAD
+$ git diff --stat main..HEAD -- . ':!docs/tasks' ':!docs/BACKLOG.md' ':!docs/TOKEN_LEDGER.md'
  README.md                         |  8 ++--
  code_atlas/instructions.py        | 65 +++++++++++++++----------
  code_atlas/main.py                |  4 +-
@@ -341,3 +345,76 @@ test lambda); all four were reverted — the format-scope rule.
 **Sweep — axis 2, design conformance.** Approach 1–7: implemented-as-approved. One note, not a
 deviation: LOAD's empty-working-set fallback (Approach 4) had no test until the challenger named it;
 added in `39eb5bd6`.
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`
+
+**Challenger (ticket-blind, round 1)** — raw ticket as merged on `main` (`e58d8c13`) plus the branch
+only. 8 met, AC3c met via the ticket's own fallback clause, AC1 and AC4 "can't tell" — both need a
+live Claude Code, and both are settled by the probes in Phase 1 and Phase 3, which it could not see.
+Two findings acted on: a `which_tool` string reflowed by the formatter (reverted, `39eb5bd6`) and
+LOAD's empty-working-set fallback untested (test added, `39eb5bd6`). No requirement not met.
+
+**Scope reconciliation.** File axis: 6 files, all on the change list, after the four format reverts.
+Behaviour axis: Approach 1–7 implemented as approved; AC3c's fallback was the design, not a
+deviation.
+
+**Regression check.** `which_tool` still renders the full map (`prompts.py:145`); `gen_skill.py`
+parses that body and its tests pass; `main.build_server` is the one production caller of `render`.
+
+**Proving test + gate** — green against the green baseline:
+
+Ran at ac927994
+
+```
+$ scripts/gate.sh
+  PASS pytest -q
+  21 passed · 0 failed · 0 skipped
+GATE GREEN — all 21 checks passed
+```
+
+The first gate run on `4fc2df26` was red on one check only —
+`test_a_finished_task_records_what_it_cost[343]`, the ledger's PR-link placeholder — with
+`1 failed, 3988 passed, 4 skipped`; the link landed in `ac927994` and the re-run above is green.
+
+`Ph3/4 proven by`: G1, R1–R5, AC1–AC4 (incl. 3b/3c/3d) — 12/12; C1 by the cap guard; universal
+inventory N = 5 states, 5/5 in `test_instructions_fit_under_the_client_cap_on_every_state`.
+
+Verdict: **clean (challenger only — REVIEWER: OFF)**.
+
+Reviewed at ac927994 — reviewed files: `README.md`, `code_atlas/instructions.py`, `code_atlas/main.py`,
+`code_atlas/tools/prompts.py`, `docs/PLAN.md`, `tests/test_server_instructions.py`. Working doc:
+`docs/tasks/343_server-instructions-truncated-at-2048-chars.md` (embedded).
+
+## Phase 5 — finalise
+
+Stale-review guard: `git diff --name-only ac927994..HEAD` touches only this working doc,
+`docs/LESSONS.md` and `docs/TOKEN_LEDGER.md` — bookkeeping, exempt. Not stale.
+
+### Durable lesson
+
+`CLAIMS: 2 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=1 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+`343-C1` (type 5, the 2,048 cap) and `343-C2` (type 2, `formatter-rewrites-untouched-lines`) are
+recorded in `docs/LESSONS.md`, both first sightings and both `proposed (awaiting human confirm)`.
+
+### Outward actions
+
+1. push `fix/343-server-instructions-cap` — pre-authorised (handover).
+2. open PR #6 from `.github/pull_request_template.md` — pre-authorised (handover).
+
+No tracker write: the tracker is GitHub, and the PR is the only record this repo keeps.
+
+### Cost ledger
+
+| # | Phase | Dispatch | Tokens |
+|---|---|---|---|
+| 1 | review | `challenger`, round 1 | 55,473 fresh |
+| — | main loop | — | unmeasured (host surfaces no main-loop usage) |
+
+`LEDGER TOTAL: 55,473 · top cost driver: review/challenger`
