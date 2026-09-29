@@ -185,8 +185,6 @@ def _claude_code_hooks(command: Callable[[str], str]) -> dict[str, Any]:
     }
 
 
-
-
 def render_plugin_hooks() -> str:
     """The snippet's hooks, each gated on the index, plus a background refresh at start (344)."""
     hooks = _claude_code_hooks(lambda name: PLUGIN_GATE + name)
