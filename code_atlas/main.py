@@ -104,7 +104,9 @@ def build_server(
     """
     names = allowed_tools(config.tools)
     # `instructions` reaches the model's system prompt; tool descriptions alone did not (300).
-    server: FastMCP = FastMCP(SERVER_NAME, instructions=instructions.render(config, names))
+    server: FastMCP = FastMCP(
+        SERVER_NAME, instructions=instructions.render(config, names, FIELD18_TOOLS)
+    )
 
     def serve(name: str, tool: object) -> None:
         """Register ``tool`` under ``name``, counting every return (task 260)."""

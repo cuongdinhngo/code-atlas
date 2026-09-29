@@ -72,6 +72,24 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
 
 *None yet.*
 
+### 343-C1 — Claude Code keeps only a 2,048-character prefix of an MCP server's `instructions`
+
+- type: 5 (environment) · area: `routing surface / server instructions` · verified-at: 2026-09-29, Claude Code 2.1.284
+- status: proposed · seen: 343
+- evidence: a padded probe server (`%08d|` cells) via `claude -p --strict-mcp-config` returned
+  `…00002043|00002… [truncated]` — cell 2,043 plus 5 chars. The cut counts characters, not bytes.
+  `instructions.CLIENT_CAP` carries the figure; re-measure on a new Claude Code major.
+- destination: first sighting.
+
+### 343-C2 — `ruff format` on a file you edit rewrites lines you did not
+
+- type: 2 (code) · handle: `formatter-rewrites-untouched-lines`
+- status: proposed · seen: 343
+- evidence: formatting four edited files reflowed four untouched spots (two `main.py` calls, the
+  `which_tool` string, a test lambda); the challenger caught one I had missed. The gate runs
+  `ruff check` only, so the drift is silent. Format, then revert every hunk the change does not own.
+- destination: first sighting.
+
 ## Retired — the rule carries the class now
 
 `RECALL:` skips these. The rule named is the one that cites the id.

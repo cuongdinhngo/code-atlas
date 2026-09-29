@@ -349,9 +349,11 @@ asked. `CA_TOOLS=get_index_status,search_symbol,read_symbol,find_callers,find_re
 the opt-in six-tool preset that covers the relationship questions; the default stays all 24.
 
 **Routing ships with the server.** Its MCP `instructions` reach the model's system prompt and carry
-this repo's live index state, the question -> tool map, and the load step a client needs when it
-delivers MCP tools as deferred names. Nothing has to be installed in your repo for an agent to learn
-that the index exists.
+this repo's live index state, the load step a client needs when it delivers MCP tools as deferred
+names, where the graph stops, and the eight core rows of the question -> tool map. Claude Code keeps
+only the first 2,048 characters, so they render in that order and fit under it; the full map is the
+`which_tool` prompt and [`contrib/skill/`](contrib/skill/). Nothing has to be installed in your repo
+for an agent to learn that the index exists.
 
 Files are skipped using built-in patterns (`vendor/ var/ uploads/ log/ node_modules/ .git/
 *.blade.*`), then `.gitignore`, then an optional `.codeatlasignore` — later rules win. The full
