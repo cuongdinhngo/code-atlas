@@ -187,7 +187,7 @@ def test_target_qname_is_not_required_so_adapters_can_emit_bare_edges() -> None:
 
 
 def test_contract_version_is_exported() -> None:
-    assert CONTRACT_VERSION == 12
+    assert CONTRACT_VERSION == 13
 
 
 def test_known_capabilities_advertises_semantic_types() -> None:
@@ -351,8 +351,10 @@ def test_validate_never_raises_on_malformed_input() -> None:
 # --- validate_meta(): the handshake every adapter opens its stream with (§4.1) -------------------
 
 
-def test_meta_fields_are_the_four_handshake_fields() -> None:
-    assert META_FIELDS == ("name", "extensions", "capabilities", "contract_version")
+def test_meta_fields_are_the_five_handshake_fields() -> None:
+    # v13 (345) added `symbol_shapes` — optional, so an adapter that omits it still validates.
+    handshake = ("name", "extensions", "capabilities", "contract_version", "symbol_shapes")
+    assert META_FIELDS == handshake
 
 
 def test_validate_meta_accepts_a_known_good_handshake() -> None:

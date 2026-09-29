@@ -20,7 +20,16 @@ const META = {
     declared_types: true,
     inheritance: true,
   },
-  contract_version: 12,
+  contract_version: 13,
+  // What a grep for a TS/JS symbol looks like (345): a declaration, a member call or import, a bare call.
+  symbol_shapes: [
+    {
+      kind: "declaration",
+      pattern: String.raw`\b(function\*?|class|interface|enum|type|namespace)\s+\w+`,
+    },
+    { kind: "reference", pattern: String.raw`\.\s*\w+\s*\\?\(|\bnew\s+\w+|\bimport\b.*\bfrom\b` },
+    { kind: "call", pattern: String.raw`^\w+\\?\($` },
+  ],
 };
 
 // One `\n`-framed JSON line straight to stdout so a lock-step reader never blocks (§4.1).

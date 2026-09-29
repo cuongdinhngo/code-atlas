@@ -46,6 +46,20 @@ class AdapterCli:
     availability: pytest.MarkDecorator
     root: Path
 
+    def handshake(self) -> dict[str, Any]:
+        """The `--server` meta line an adapter opens with, stdin closed at once (345)."""
+        completed = subprocess.run(
+            [*self.entry_argv, "--server"],
+            cwd=self.root,
+            input="",
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=60,
+        )
+        assert completed.returncode == 0, completed.stderr
+        return dict(json.loads(completed.stdout.splitlines()[0]))
+
     def parse_file(self, repo_relative: str | Path) -> dict[str, Any]:
         """Positive path: assert clean rc + one line of stdout, return the parsed result."""
         completed = run_adapter_file(self.entry_argv, repo_relative, cwd=self.root)

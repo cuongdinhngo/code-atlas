@@ -134,6 +134,12 @@ class SubprocessAdapter:
         announced = self._announced().get("capabilities")
         return dict(announced) if isinstance(announced, dict) else {}
 
+    @property
+    def symbol_shapes(self) -> list[dict[str, object]]:
+        """What a grep for this adapter's symbols looks like (345); empty when it declares none."""
+        announced = self._announced().get("symbol_shapes")
+        return [dict(shape) for shape in announced] if isinstance(announced, list) else []
+
     def start(self) -> None:
         """Launch the adapter and read the handshake it opens the stream with. Idempotent."""
         if self._process is not None:

@@ -19,7 +19,17 @@ const META = {
     modifiers: false,
     declared_types: true,
   },
-  contract_version: 12,
+  contract_version: 13,
+  // What a grep for a T-SQL object looks like (345). EXEC and a bare name read as symbols only when
+  // the grep is scoped to .sql — in host-language source they are string literals.
+  symbol_shapes: [
+    {
+      kind: "declaration",
+      pattern: String.raw`(?i)\bcreate\s+(or\s+(alter|replace)\s+)?(proc(edure)?|function|table|view|trigger)\s+[\w.\[\]"]+`,
+    },
+    { kind: "reference", pattern: String.raw`(?i)\bexec(ute)?\s+[\w.\[\]]+`, scoped: true },
+    { kind: "name", pattern: String.raw`^[\w.\[\]]+$`, scoped: true },
+  ],
 };
 
 // One `\n`-framed JSON line straight to stdout so a lock-step reader never blocks (§4.1).

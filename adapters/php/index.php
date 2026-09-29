@@ -35,7 +35,14 @@ function serve(Parser $parser): void
             'declared_types' => true,
             'inheritance' => true,
         ],
-        'contract_version' => 12,
+        'contract_version' => 13,
+        // What a grep for a PHP symbol looks like (345): a declaration, a member or static call,
+        // `new`, or a bare call — the shapes the language spells, never a project's names.
+        'symbol_shapes' => [
+            ['kind' => 'declaration', 'pattern' => '\\bfunction\\s+&?\\w+|\\b(class|interface|trait|enum)\\s+\\w+'],
+            ['kind' => 'reference', 'pattern' => '(->|::)\\s*\\w+\\s*\\\\?\\(|\\bnew\\s+\\\\?\\w'],
+            ['kind' => 'call', 'pattern' => '^\\w+\\\\?\\($'],
+        ],
     ]);
 
     while (($line = fgets(STDIN)) !== false) {

@@ -56,6 +56,7 @@ from code_atlas.store import (
     LAST_COMMIT_KEY,
     LAST_REF_KEY,
     SKIPPED_SUFFIX_COUNTS_KEY,
+    SYMBOL_SHAPES_BY_LANGUAGE_KEY,
     UNMODELLED_RESOLUTION_BY_LANGUAGE_KEY,
     UNTRACKED_INDEXABLE_KEY,
     WRITE_ERRORS,
@@ -222,6 +223,7 @@ def full_build(
         announced = _announce(config, watchdog)
         try:
             capabilities_by_language = _announced_capabilities(announced)
+            shapes_by_language = _announced_symbol_shapes(announced)
             owners = _owners(announced)
             report.phase("tree_walk")
             paths, census, untracked, ignore_sources, skipped_suffixes = _collect_with_census(
@@ -264,6 +266,7 @@ def full_build(
         ignore_sources,
         skipped_suffixes,
         capabilities_by_language=capabilities_by_language,
+        shapes_by_language=shapes_by_language,
     )
     return BuildReport(
         files=len(kept),
@@ -411,6 +414,7 @@ def incremental_update(
         _phase_add(phase_times, "announce", mark)
         try:
             capabilities_by_language = _announced_capabilities(announced)
+            shapes_by_language = _announced_symbol_shapes(announced)
             owners = _owners(announced)
             _require_unchanged_scope(store, owners)
             mark = time.monotonic()
@@ -561,6 +565,7 @@ def incremental_update(
         ignore_sources,
         skipped_suffixes,
         capabilities_by_language=capabilities_by_language,
+        shapes_by_language=shapes_by_language,
     )
     _phase_add(phase_times, "meta", mark)
     return BuildReport(
@@ -1075,6 +1080,14 @@ def _announced_capabilities(
     return {adapter.name: dict(adapter.capabilities) for adapter in announced.values()}
 
 
+def _announced_symbol_shapes(announced: Mapping[str, SubprocessAdapter]) -> dict[str, object]:
+    """Each adapter's suffixes and grep shapes, read at the handshake like the flags (345)."""
+    return {
+        adapter.name: {"extensions": list(adapter.extensions), "shapes": adapter.symbol_shapes}
+        for adapter in announced.values()
+    }
+
+
 def _parse_all(
     config: Config,
     store: GraphStore,
@@ -1269,6 +1282,7 @@ def _record_meta(
     ignore_sources: Mapping[str, int] | None = None,
     skipped_suffixes: Mapping[str, int] | None = None,
     capabilities_by_language: Mapping[str, Mapping[str, bool]] | None = None,
+    shapes_by_language: Mapping[str, object] | None = None,
 ) -> None:
     """Stamp the build (§8.1 step 4). Clear commit/ref when git cannot name them (077).
 
@@ -1311,6 +1325,10 @@ def _record_meta(
                 sort_keys=True,
             ),
         )
+    if shapes_by_language is not None:
+        # Read by the grep-time nudge, which must not spawn an adapter per grep (345).
+        shapes = json.dumps(shapes_by_language, sort_keys=True)
+        store.set_meta(SYMBOL_SHAPES_BY_LANGUAGE_KEY, shapes)
     store.set_meta(COLLECTION_CENSUS_KEY, json.dumps(asdict(census)))
     store.set_meta(UNTRACKED_INDEXABLE_KEY, json.dumps(list(untracked)))
     sources = {key: count for key, count in dict(ignore_sources or {}).items() if count}

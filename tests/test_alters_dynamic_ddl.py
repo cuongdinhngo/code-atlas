@@ -171,7 +171,7 @@ def test_ddl_never_counts_as_a_writer(indexed: Config) -> None:
 
 def test_alters_is_contract_vocabulary_at_version_eleven() -> None:
     """AC5 — a new word is an R3 bump, and the resolver looks it up by FQN."""
-    assert contract.CONTRACT_VERSION == 12
+    assert contract.CONTRACT_VERSION == 13
     assert "ALTERS" in contract.EDGE_KINDS
     assert "ALTERS" in contract.FQN_EDGE_KINDS
     assert "ALTERS" not in contract.IMPACT_KINDS
