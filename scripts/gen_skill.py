@@ -12,6 +12,7 @@ import argparse
 import json
 import re
 import sys
+import tomllib
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -29,6 +30,16 @@ CLAUDE_CODE_SNIPPET_PATH = REPO / "contrib" / "claude-code" / "settings.snippet.
 AGENT_BRIEF_PATH = REPO / "contrib" / "agent-brief.md"
 # The name 240 found drifted: the file carries every Claude Code hook, not only the poke.
 POKE_SNIPPET_PATH = CLAUDE_CODE_SNIPPET_PATH
+# 344: the same hooks, the server and the skill as one Claude Code plugin, plus its marketplace.
+PLUGIN_DIR = REPO / "contrib" / "claude-code" / "plugin"
+PLUGIN_MANIFEST_PATH = PLUGIN_DIR / ".claude-plugin" / "plugin.json"
+PLUGIN_HOOKS_PATH = PLUGIN_DIR / "hooks" / "hooks.json"
+PLUGIN_SKILL_PATH = PLUGIN_DIR / "skills" / "code-atlas" / "SKILL.md"
+MARKETPLACE_PATH = REPO / ".claude-plugin" / "marketplace.json"
+REPOSITORY_URL = "https://github.com/cuongdinhngo/code-atlas"
+# A user-scope plugin fires in every project: the shell test spares a repo with no index the
+# Python spawn, so each hook is silent there (344 Scope 3).
+PLUGIN_GATE = '[ -d "${CLAUDE_PROJECT_DIR:-.}/.code-atlas" ] || exit 0; exec '
 
 # An adapter announces its suffixes in its entry file; the handshake sends this same literal.
 # Reading it statically is what lets a guard check coverage without starting a subprocess.
@@ -133,10 +144,18 @@ def render_skill() -> str:
     return "\n".join(lines)
 
 
-def _suffix_filter(*tools: str) -> str:
-    """A hook `if` filter over every shipped adapter's declared suffixes, for the named tools."""
+def _per_suffix(tools: tuple[str, ...], hook: dict[str, Any]) -> list[dict[str, Any]]:
+    """One hook entry per (tool, shipped suffix), each gated by a single-rule `if` filter.
+
+    Claude Code 2.1.284 never matches an `if` that joins rules with `|` — measured in 344 — so
+    each rule gets its own entry. Suffixes come from each adapter's own declaration (R6.7).
+    """
     suffixes = [suffix for _, group in sorted(declared_extensions().items()) for suffix in group]
-    return "|".join(f"{tool}(*{s})" for s in suffixes for tool in tools)
+    return [
+        {"matcher": tool, "hooks": [{**hook, "if": f"{tool}(*{s})"}]}
+        for s in suffixes
+        for tool in tools
+    ]
 
 
 def render_claude_code_snippet() -> str:
@@ -147,60 +166,80 @@ def render_claude_code_snippet() -> str:
     `Read` belongs at PostToolUse (the line rides the result); `Write` at PreToolUse, because the
     create-vs-edit test is whether the path exists yet — see `docs/TOOLS.md`.
     """
-    snippet: dict[str, Any] = {
-        "hooks": {
-            "PostToolUse": [
-                {
-                    "matcher": "Edit|Write",
-                    "hooks": [
-                        {
-                            "type": "command",
-                            "command": "code-atlas-poke",
-                            "if": _suffix_filter("Edit", "Write"),
-                            "async": True,
-                            "timeout": 60,
-                        }
-                    ],
-                },
-                {
-                    "matcher": "Read",
-                    "hooks": [
-                        {
-                            "type": "command",
-                            "command": "code-atlas-signal",
-                            "if": _suffix_filter("Read"),
-                            "timeout": 10,
-                        }
-                    ],
-                },
-            ],
-            "PreToolUse": [
-                {
-                    "matcher": "Write",
-                    "hooks": [
-                        {
-                            "type": "command",
-                            "command": "code-atlas-signal",
-                            "if": _suffix_filter("Write"),
-                            "timeout": 10,
-                        }
-                    ],
-                }
-            ],
-            "SessionStart": [
-                {"hooks": [{"type": "command", "command": "code-atlas-state", "timeout": 10}]}
-            ],
-            "PreCompact": [
-                {"hooks": [{"type": "command", "command": "code-atlas-state", "timeout": 10}]}
-            ],
-        }
+    return json.dumps({"hooks": _claude_code_hooks(lambda name: name)}, indent=2) + "\n"
+
+
+def _claude_code_hooks(command: Callable[[str], str]) -> dict[str, Any]:
+    """The one hook table: the snippet names each console script, the plugin gates it (344)."""
+    poke = {"type": "command", "command": command("code-atlas-poke"), "async": True, "timeout": 60}
+    signal = {"type": "command", "command": command("code-atlas-signal"), "timeout": 10}
+    return {
+        "PostToolUse": _per_suffix(("Edit", "Write"), poke) + _per_suffix(("Read",), signal),
+        "PreToolUse": _per_suffix(("Write",), signal),
+        "SessionStart": [
+            {"hooks": [{"type": "command", "command": command("code-atlas-state"), "timeout": 10}]}
+        ],
+        "PreCompact": [
+            {"hooks": [{"type": "command", "command": command("code-atlas-state"), "timeout": 10}]}
+        ],
     }
-    return json.dumps(snippet, indent=2) + "\n"
+
+
+def render_plugin_hooks() -> str:
+    """The snippet's hooks, each gated on the index, plus a background refresh at start (344)."""
+    hooks = _claude_code_hooks(lambda name: PLUGIN_GATE + name)
+    refresh = {"type": "command", "command": PLUGIN_GATE + "code-atlas-refresh"}
+    hooks["SessionStart"].append({"hooks": [{**refresh, "async": True, "timeout": 600}]})
+    return json.dumps({"hooks": hooks}, indent=2) + "\n"
+
+
+def _package() -> dict[str, Any]:
+    project: dict[str, Any] = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))
+    return dict(project["project"])
+
+
+def render_plugin_manifest() -> str:
+    """Name, version and description from the package (R6.7); the server by its script name."""
+    package = _package()
+    manifest = {
+        "name": package["name"],
+        "version": package["version"],
+        "description": package["description"],
+        "author": {"name": "cuongdinhngo"},
+        "homepage": REPOSITORY_URL,
+        "repository": REPOSITORY_URL,
+        "license": package["license"]["text"],
+        # Inline, not a plugin `.mcp.json`: this repo's .gitignore drops every `.mcp.json` (344).
+        "mcpServers": {"code-atlas": {"command": "code-atlas"}},
+    }
+    return json.dumps(manifest, indent=2) + "\n"
+
+
+def render_marketplace() -> str:
+    """This repo as a one-plugin marketplace: `/plugin marketplace add cuongdinhngo/code-atlas`."""
+    package = _package()
+    plugin = {
+        "name": package["name"],
+        "source": "./" + PLUGIN_DIR.relative_to(REPO).as_posix(),
+        "description": package["description"],
+        "version": package["version"],
+    }
+    market = {
+        "name": package["name"],
+        "owner": {"name": "cuongdinhngo"},
+        "metadata": {"description": "code-atlas as a Claude Code plugin: server, hooks and skill."},
+        "plugins": [plugin],
+    }
+    return json.dumps(market, indent=2) + "\n"
 
 
 GENERATED: dict[Path, Callable[[], str]] = {
     SKILL_PATH: render_skill,
     CLAUDE_CODE_SNIPPET_PATH: render_claude_code_snippet,
+    PLUGIN_MANIFEST_PATH: render_plugin_manifest,
+    PLUGIN_HOOKS_PATH: render_plugin_hooks,
+    PLUGIN_SKILL_PATH: render_skill,
+    MARKETPLACE_PATH: render_marketplace,
 }
 
 # Occasions that earn their keep in the field (266 + 300) — tools must appear in which_tool.

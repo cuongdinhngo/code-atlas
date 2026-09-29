@@ -146,3 +146,20 @@ def test_contrib_readme_says_manual_install() -> None:
     text = (REPO / "contrib" / "git" / "README.md").read_text(encoding="utf-8")
     assert "not installed automatically" in text.lower()
     assert "code-atlas-refresh" in text
+
+
+@pytest.mark.parametrize("route", [None, "build_or_update_index(full=true)"])
+def test_a_refusal_prints_one_line_and_a_route_only_when_there_is_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], route
+) -> None:
+    """344: coverage_loss refuses with no tool to route to — the line read `run None`."""
+    (tmp_path / ".code-atlas").mkdir()
+    (tmp_path / ".code-atlas" / "graph.db").write_bytes(b"")
+    import code_atlas.tools.build_or_update_index as build_mod
+
+    refused = {"mode": "refused", "reason": "coverage_loss", "route": route}
+    monkeypatch.setattr(build_mod, "create", lambda config: lambda **_k: refused)
+    assert refresh_mod.refresh(tmp_path) == 0
+    err = capsys.readouterr().err
+    assert err.count("\n") == 1 and "None" not in err
+    assert ("— run " in err) is (route is not None)

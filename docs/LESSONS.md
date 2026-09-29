@@ -41,6 +41,37 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
 
 ## Live claims
 
+### 344-C1 — Claude Code runs a hook's `if` only when it is ONE permission rule
+
+- type: 5 (environment) · area: `claude-code hooks / if filter` · verified-at: 2026-09-29, Claude Code 2.1.284
+- status: proposed · seen: 344
+- evidence: `Read(*.py)` ran on `app.py` and skipped `notes.txt`; `Read(*.php)|Read(*.py)`,
+  `Read(*.{php,py,ts})` and `Read(*.php) Read(*.py)` all logged `Skipping hook due to if condition`
+  on `app.py`. The shipped snippet's `|`-joined filters had never fired; `gen_skill._per_suffix`
+  now emits one entry per rule.
+- destination: first sighting.
+
+### 344-C2 — a plugin's `userConfig` reaches its MCP server, never its hooks
+
+- type: 5 (environment) · area: `claude-code plugins / userConfig` · verified-at: 2026-09-29, Claude Code 2.1.284
+- status: proposed · seen: 344
+- evidence: `${user_config.python}` expanded in `mcpServers.env`; a hook saw no
+  `CLAUDE_PLUGIN_OPTION_PYTHON`, and an exec-form hook with the option in `args` did not run. Both
+  the server and the hooks get `CLAUDE_PROJECT_DIR` and run with the project as cwd — the docs
+  research said the server runs from the plugin root.
+- destination: first sighting.
+
+### 344-C3 — a directory-marketplace install reads the working tree, so it hides an uncommitted file
+
+- type: 2 (process) · handle: `verify-the-shipped-artifact-not-the-working-tree`
+- status: proposed · seen: 344
+- evidence: `.gitignore`'s `.mcp.json` dropped the plugin's server file; the live install from the
+  checkout connected anyway. Only a clone of the branch shows what a user gets. The challenger found it
+  independently. Guard: `tests/test_claude_code_plugin.py::test_every_generated_file_is_committable`.
+- destination: first sighting.
+
+*None yet.*
+
 ### 343-C1 — Claude Code keeps only a 2,048-character prefix of an MCP server's `instructions`
 
 - type: 5 (environment) · area: `routing surface / server instructions` · verified-at: 2026-09-29, Claude Code 2.1.284
