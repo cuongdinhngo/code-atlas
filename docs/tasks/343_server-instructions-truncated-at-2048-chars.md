@@ -5,7 +5,7 @@ title: 'Claude Code cuts the server instructions at ~2,048 characters — KEEP_G
 phase: 2
 milestone: Adoption
 status: todo
-depends_on: [300, 200]
+depends_on: [300]
 ---
 
 ## Why this exists
@@ -29,6 +29,7 @@ channel that needs nothing installed in the consumer repo. On Claude Code that c
 - The state line is frozen at `initialize`: the session showed `incomplete @ e3f4427` for its whole
   length, long after the build finished. 322's `code-atlas-state` hook covers this, but only where
   someone installed it (see 344).
+- 200 is `blocked` on its own measurement; this fix has its own evidence and does not wait on it.
 
 The cap was observed, not read from Claude Code's docs. AC1 measures it rather than assuming 2,048.
 
@@ -37,11 +38,13 @@ The cap was observed, not read from Claude Code's docs. AC1 measures it rather t
 1. **Priority order, not document order.** Render in this order: state line → LOAD → one sentence
    that fuses WHY and LIMITS (index for resolved who/what/where, Grep for literal text **and for
    absence**) → KEEP_GOING → the recognition map. Whatever the cap cuts is then the least important
-   part.
+   part. The fusion drops LIMITS' first half (read a non-ok `reason` and the coverage fields); that
+   half already rides every tool result, so it moves nowhere — say so in the module docstring.
 2. **Shrink the map for this channel.** Keep the full map in the skill (`gen_skill.py`) and put a
-   top-N subset here, chosen by the questions the field actually asks (callers, references, read,
-   impact, search, outline, include_graph, explain_path). R6.7 still holds: the subset is a *slice* of
-   `RECOGNITION_MAP`, never a second copy.
+   subset here: the rows flagged `core` on `RECOGNITION_MAP` itself (callers, references, read,
+   impact, search, outline, include_graph, explain_path). R6.7 still holds: the subset is a filter
+   over that tuple, never a second copy. Until 344 installs the skill, a session without it loses the
+   unflagged rows — accepted, since the `core` rows are the questions the field asks.
 3. **LOAD names the working set.** Today it tells the client to load two tools, so the first
    `find_callers` costs a second ToolSearch round. Name the core set (`get_index_status`,
    `search_symbol`, `read_symbol`, `find_callers`, `find_references`, `impact`) in the one `select:`
@@ -52,10 +55,12 @@ The cap was observed, not read from Claude Code's docs. AC1 measures it rather t
 - **AC1:** The client cap is measured on a running Claude Code (long padded `instructions`, then
   read back where the cut lands) and recorded as a named constant along with the version it was
   measured on.
-- **AC2:** The rendered `instructions` fit under that constant on every index state (unindexed,
-  behind, current, incomplete) and with `CA_TOOLS` unset. A test pins it.
+- **AC2:** The rendered `instructions` fit under that constant minus a 200-character margin (the
+  state line varies with sha and counts) on every index state (unindexed, behind, current,
+  incomplete) and with `CA_TOOLS` unset. A test pins it.
 - **AC3:** A test asserts the order: the LIMITS/absence sentence and KEEP_GOING come before the first
   map line.
+- **AC3b:** A test asserts every map line in `instructions` is a `core` row of `RECOGNITION_MAP`.
 - **AC4:** A fresh Claude Code session on the anchor repo shows the whole `instructions` block with
   no `[truncated]` marker.
 
