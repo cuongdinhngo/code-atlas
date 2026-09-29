@@ -20,14 +20,14 @@ const META = {
     declared_types: true,
   },
   contract_version: 13,
-  // What a grep for a T-SQL object looks like (345). EXEC and a bare name read as symbols only when
-  // the grep is scoped to .sql — in host-language source they are string literals.
+  // What a grep for a T-SQL object looks like (345). A bare name reads as a symbol only when the grep
+  // is scoped to .sql — unscoped it is indistinguishable from any literal word.
   symbol_shapes: [
     {
       kind: "declaration",
       pattern: String.raw`(?i)\bcreate\s+(or\s+(alter|replace)\s+)?(proc(edure)?|function|table|view|trigger)\s+[\w.\[\]"]+`,
     },
-    { kind: "reference", pattern: String.raw`(?i)\bexec(ute)?\s+[\w.\[\]]+`, scoped: true },
+    { kind: "reference", pattern: String.raw`(?i)\bexec(ute)?\s+[\w.\[\]]+` },
     { kind: "name", pattern: String.raw`^[\w.\[\]]+$`, scoped: true },
   ],
 };

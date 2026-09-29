@@ -59,6 +59,15 @@ def test_anchor_shapes_fire_once_per_kind(tmp_path: Path) -> None:
     assert nudge.nudge(root, *_bash('grep -rn -- "->findUser(" src/'), "s2")
 
 
+def test_the_same_shapes_fire_unscoped_except_a_bare_name(tmp_path: Path) -> None:
+    """AC1 "the same shapes unscoped": they fire — but a bare proc name alone is any literal word,
+    so the literal-text clause wins and it stays silent unless scoped to .sql (W1)."""
+    root = _indexed(tmp_path)
+    assert "(reference)" in (nudge.nudge(root, *_bash('grep -rn "EXEC usp_GetUser" .'), "u") or "")
+    assert "(declaration)" in (nudge.nudge(root, *_grep("CREATE PROCEDURE usp_GetUser"), "v") or "")
+    assert nudge.nudge(root, *_bash("rg -n usp_GetUser"), "w") is None
+
+
 @pytest.mark.parametrize(
     "call",
     [
