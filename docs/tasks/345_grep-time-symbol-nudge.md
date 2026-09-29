@@ -4,7 +4,7 @@ slug: grep-time-symbol-nudge
 title: 'A grep for a symbol gets one "ask code-atlas first" line — right after it, from adapter-declared shapes'
 phase: 2
 milestone: Adoption
-status: todo
+status: done
 depends_on: [344]
 ---
 
@@ -75,3 +75,289 @@ question. Of the channels in 344's table, only a PostToolUse hook on `Bash|Grep`
 - A PreToolUse block on Grep.
 
 Only the plugin packaging depends on 344; the contract field and the script can land first.
+
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
+## Session status
+
+- **KEY:** 345 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** maintainer merges #7, then PR [#8](https://github.com/cuongdinhngo/code-atlas/pull/8) (retargets to `main`); ratify W1–W2; rebuild every index (v13). **Revert path:** `git revert` the branch's commits (v13 → v12 is one more full rebuild), or close #8 unmerged.
+- `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · Run mode: `autorun`; *"with
+  skipped reviewer"* = `--no-reviewer` only, the challenger keeps its seat.
+- Branch `feat/345-symbol-search-nudge` (renamed from `…-grep-symbol-nudge`: the contract validator reads `grep` in a branch name as a content grep — SG-1). Stacked on `feat/344-claude-code-plugin` (PR #7): the nudge ships in 344's plugin. Contract
+  `.mango/run-contract-345.txt`, base `feat/344-claude-code-plugin`. RECONCILE t0: 5 declared |
+  3 re-run | 0 holding | 3 BROKEN | 2 UNBOUND | 0 could-not-run.
+
+## Phase 0 — refine
+
+`PREMISE: 8 reference(s) checked | 0 missing | 1 ambiguous (surfaced, not blocking)`
+`RECALL: 2 claim(s) surfaced | 0 by symbol | 2 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`REFINE: 10 unresolved surfaced | 2 want-decision asked | 8 how-decision resolved+cited | 2 ASSUMED | skip: no`
+
+Premise: `contract.py` `validate_meta`/`META_FIELDS`, `test_poke_snippet_covers_every_adapter.py`,
+344's plugin hook table (`gen_skill._claude_code_hooks`), 200's poke-filter rule, R1.1/R2/R3 — resolve.
+Ambiguous: the anchor's `.claude/hooks/code-atlas-symbol-nudge.sh` lives in another repo.
+Recall: `343-C2` (`formatter-rewrites-untouched-lines`) and `344-C3`
+(`verify-the-shipped-artifact-not-the-working-tree`) by handle — this change adds a shared contract
+field and a shipped hook. Advisory.
+
+**Spike (Claude Code 2.1.284, `--plugin-dir`, PostToolUse on Read).** A hook's **plain stdout never
+reached the model** (asked to quote a marker: `NONE`); the same marker as
+`hookSpecificOutput.additionalContext` JSON did (the JSON marker quoted back verbatim). So the nudge emits JSON. It also
+means `code-atlas-signal`'s plain `print` has never reached a model — filed as ticket 346, not fixed
+here (outside this change list).
+
+**Want-decisions — handed back by the maintainer, so `ASSUMED (awaiting ratification)`:**
+
+| # | The want | ASSUMED answer |
+|---|---|---|
+| W1 | The contract shape of the new field | `symbol_shapes`: a list of `{kind, pattern, scoped?}`; `kind` ∈ `declaration · reference · call · name`; `pattern` a regex over the grep pattern text; `scoped: true` fires only when the grep is scoped to that adapter's suffixes (a bare SQL proc name is ambiguous alone). Optional in the contract, required in this repo (AC2). |
+| W2 | The signal hook's plain-stdout defect | Filed as 346; this PR does not touch `signal.py`. |
+
+**How-decisions — resolved and cited** (the exposure-checker, 1 dispatch, 44,332 fresh, raised 8):
+
+| # | Decision | Resolution | Citation |
+|---|---|---|---|
+| H1 | "per kind" | the shape's `kind`; `->x(` (reference) and `x(` (call) are two kinds | ticket AC1 *"once per kind"* |
+| H2 | the log | `.code-atlas/nudge.log`, one TSV line (time · session · adapter · kind) per firing | ticket Scope 2 *"the index's log"*; `.code-atlas/` is code-atlas's own dir (`tests/test_contrib_snippets.py` `OWN`) |
+| H3 | wording | one line: `code-atlas: this grep looks like a symbol search (<kinds>) — ask the index first (search_symbol / find_callers / find_references); keep Grep as the cross-check.` | ticket Evidence (the anchor line) |
+| H4 | symbol vs literal | the adapter's shapes are the whole rule; the core adds none | ticket Scope 2 *"Patterns come only from adapter meta"* |
+| H5 | `type` → suffix | `-t X` / Grep `type: X` means suffix `.X`; an unknown type scopes to no adapter → silent | R1.1 (a generic rule, no table) |
+| H6 | several adapters match | one line naming every new kind; each kind rate-limited once | ticket Scope 2 |
+| H7 | no `session_id` | key `""` — once per kind per state file | ticket Scope 2 *"never blocks"* |
+| H8 | a stale index | the gate is presence of an index, as every hook's is | ticket Scope 2 *"silent with no index"*; 344 `PLUGIN_GATE` |
+| H9 | how the nudge gets the shapes | the build stamps them into `graph.db` meta (as `capabilities_by_language`); the nudge reads that. A tool install ships no `adapters/`, and a spawn per grep would cost more than the grep | `indexer._record_meta`, `store.stamped_capabilities_by_language` |
+| H10 | wiring | the shared hook table gains `PostToolUse` entries: `Grep` (no `if`) and `Bash` with `Bash(grep *)`, `Bash(rg *)`, `Bash(git grep *)` — one rule each (344-C1) | `docs/LESSONS.md` 344-C1 |
+
+## Phase 1 — analysis
+
+`PREMISE: 8 reference(s) checked | 0 missing | 1 ambiguous (surfaced, not blocking)`
+`RECALL: 2 claim(s) surfaced | 0 by symbol | 2 by handle | 0 by area | 0 by finding | 0 retired skipped — advisory (blocks nothing)`
+`SECTIONS: 5 found (Why this exists, Evidence, Scope, Acceptance criteria, Out of scope) | 5 decomposed | ROWS: C=4 R=7 G=1 AC=4`
+`CLARIFICATION: 4 raised | 4 self-resolved (cited) | 0 for human decision`
+`TRACK: backend — 0/18 touched files under UI paths`
+`BASELINE: green`
+`SCOPE: M`
+`TIER: full`
+
+Carried forward from Phase 0: the two lines above `SECTIONS:`.
+
+### BASELINE
+
+The branch point is `af879142`+ (344's head), whose full gate ran green — `scripts/gate.sh`:
+`GATE GREEN — all 21 checks passed` (344 Phase 4). Not re-run.
+
+### Requirements matrix
+
+| ID | Source | Verbatim | Interpretation | Status |
+|---|---|---|---|---|
+| G1 | Why | "only a PostToolUse hook on `Bash\|Grep` sees that moment" | a hook that speaks right after a symbol-shaped grep | open |
+| C1 | Evidence | "Adapter `meta` declares … no symbol shape" | the field is new; `META_FIELDS` is closed → R3 bump | open |
+| C2 | Out of scope | sed/awk slices | not here | constraint |
+| C3 | Out of scope | a PreToolUse block | never blocks | constraint |
+| C4 | Scope trailer | "Only the plugin packaging depends on 344" | stacked on 344 | met |
+| R1 | Scope 1 | "A new optional `meta` field … Bump `contract_version` … extend the conformance suite" | `symbol_shapes`, v13 | open |
+| R2 | Scope 1 | "each adapter encodes its language standard" | 4 adapters declare shapes | open |
+| R3 | Scope 2 | "`code-atlas-nudge` console script … shipped in 344's plugin" | script + hook table | open |
+| R4 | Scope 2 | "Parse surface, closed" | Grep fields; first `grep`/`rg`/`git grep` in Bash | open |
+| R5 | Scope 2 | "Scope rule" | unscoped or overlapping suffixes fire | open |
+| R6 | Scope 2 | "Rate-limited to once per kind per session … never blocks, always exits 0, silent with no index" | state file + gate | open |
+| R7 | Scope 2 | "Each firing appends one line to the index's log" | H2 | open |
+| AC1 | AC | replay table | unit + live | open |
+| AC2 | AC | "fails when an in-tree adapter ships without symbol shapes" | live handshake per registered adapter | open |
+| AC3 | AC | "The README tells a project … to remove it" | README line | open |
+| AC4 | AC | "each firing writes its log line (kind, adapter, session)" | unit | open |
+
+### AC validation
+
+AC1–AC4 are falsifiable as written (replay inputs → fired/silent; a handshake without the field →
+red; a README sentence; a log line). No value to recompute.
+
+### Clarifications — 4, all self-resolved
+
+1. Which shapes per adapter → each adapter's language standard (R2): declarations and qualified/bare
+   calls of its own grammar. 2. How AC2 reads an adapter's shapes → its live `--server` handshake,
+   per `tests/contract/adapter_registry.REGISTRY` (derived, R6.7). 3. v13's cost → one full rebuild
+   per index, the price every bump pays (`contract.py` header). 4. Windows → the nudge is Python; the
+   hook one-liner is 344's, with 344's exclusion.
+
+### Universal inventory — N = 4 adapters (AC2)
+
+php · python · sql · typescript — `gen_skill.shipped_adapters()`. Review confirms each.
+
+### Blast radius
+
+`contract.py` (`META_FIELDS`, `validate_meta`, `CONTRACT_VERSION`), `adapter.py` (a property),
+`indexer.py` (two build paths pass the stamp), `store.py` (a meta key + reader), 4 adapter
+handshakes, 6 tests pinning `CONTRACT_VERSION == 12`, `gen_skill.py` hook table (snippet + plugin),
+`pyproject.toml` scripts. Docs: TOOLS.md hooks, contrib README, CONVENTION §3 vocabulary.
+
+### Rule sections
+
+`RULE SECTIONS: 8 applicable — 8 by change-type | 0 by recalled handle — §R1.1 (change-type) ✅ the scope rule is generic and names no language, §R1.4 (change-type) ✅ the nudge reads graph.db through GraphStore only, §R2.1 (change-type) ✅ each adapter declares its own grammar's shapes and no repo name, §R3.1 (change-type) ✅ contract_version 12 to 13 with the conformance suite extended, §R3.5 (change-type) ✅ the new meta key bumps contract_version which is the handshake's document, §R6.5 (change-type) ✅ the AC2 guard is seen red on an adapter without shapes, §R6.7 (change-type) ✅ the adapter set is derived from REGISTRY and shipped_adapters, §R7.6 (change-type) ✅ docs replaced where the snippet's hooks are described`
+
+N/A: §4 because the build output rows do not change (a meta stamp only) · §8 because no dependency.
+
+## Phase 2 — design
+
+### Approach
+
+1. **Contract v13.** `META_FIELDS` += `symbol_shapes`; `_check_symbol_shapes` validates W1 (kind in
+   `SHAPE_KINDS`, `pattern` compiles, `scoped` a bool). `CONTRACT_VERSION = 13`.
+2. **Adapters** declare shapes from their grammar and speak v13.
+3. **Stamp.** `LanguageAdapter.symbol_shapes`; both build paths stamp
+   `symbol_shapes_by_language` = `{name: {extensions, shapes}}` (sorted); `GraphStore.stamped_symbol_shapes()`.
+4. **`code_atlas/hooks/nudge.py`** + `code-atlas-nudge`: parse (R4), scope (R5), match, rate-limit and
+   log (R6/R7), emit `additionalContext` JSON. Exit 0 always.
+5. **Wiring**: H10 in the shared hook table → snippet and plugin (344's drift test still holds).
+6. **Tests**: contract validation + v13 pins; AC2 live-handshake guard per `REGISTRY` with a red
+   control; nudge replay (AC1), rate limit, log (AC4), no index, never blocks.
+7. **Docs**: TOOLS.md hook section, `contrib/claude-code/README.md` (AC3), CONVENTION vocabulary line.
+
+### Rejected alternatives
+
+- **Read shapes from the adapter entry files at hook time.** A tool install has no `adapters/` dir, and a regex over source is a text sweep (R6.7).
+- **Spawn the adapter for its handshake per grep.** That means a PHP or Node start on every grep.
+- **Core-side default shapes.** These would be a language table in the core (R1.1).
+
+### Assumptions
+
+| # | Assumption | Tag |
+|---|---|---|
+| A1 | PostToolUse `additionalContext` JSON reaches the model | verified — spike (the JSON marker quoted back verbatim) |
+| A2 | `Bash(grep *)` as a single-rule `if` matches a Bash call starting `grep` | novel-untested → the live replay (AC1) is shaped to fail if false |
+| A3 | Grep tool input carries `pattern` / `path` / `glob` / `type` | novel-untested → the live replay logs the payload |
+
+### Smallest change list
+
+| # | Change | File | Blast radius | Ph2 covered by | k/N |
+|---|---|---|---|---|---|
+| 1 | v13 field + validation | `code_atlas/contract.py` | every handshake; 6 version pins | R1, C1 | 1/1 |
+| 2 | property + stamp + reader | `code_atlas/adapter.py`, `code_atlas/indexer.py`, `code_atlas/store.py` | both build paths | R3 (H9) | 3/3 |
+| 3 | shapes + v13 | `adapters/{php/index.php,python/index.py,sql/index.js,typescript/index.js}` | conformance suite | R2 | 4/4 |
+| 4 | the nudge | `code_atlas/hooks/nudge.py`, `pyproject.toml` | new | R3–R7 | 2/2 |
+| 5 | hook entries | `scripts/gen_skill.py` → snippet, plugin `hooks.json` | 344's plugin tests | R3, H10 | 3/3 |
+| 6 | tests | `tests/test_symbol_shapes_contract.py`, `tests/test_grep_nudge.py`, `tests/adapter_cli.py` (a handshake helper), the 6 v12 pins | proof collateral | AC1, AC2, AC4 | — |
+| 7 | docs | `docs/TOOLS.md`, `contrib/claude-code/README.md`, `docs/CONVENTION.md`, `docs/BACKLOG.md` (346), `docs/tasks/346_*.md` | doc budgets | AC3, W2 | — |
+
+`HANDLES: 2 recalled | 0 traced (command + result) | 2 does not apply (reason) | 0 unanswered`
+
+`formatter-rewrites-untouched-lines` does not apply because it names no producer to trace; it is
+honoured at execute. `verify-the-shipped-artifact-not-the-working-tree` does not apply because it is a
+verification step, not a producer or consumer; it is honoured by the live replay from a clone.
+
+### Verification plan
+
+| AC | risk layer | proof artifact | fixture provenance | layer-match? |
+|---|---|---|---|---|
+| AC1 | runtime/3p | unit replay over the parse/scope rules + a live `claude -p` session that greps and quotes the nudge | authored | ✅ |
+| AC2 | integration | live `--server` handshake of every registered adapter | n/a | ✅ |
+| AC3 | logic | README sentence | n/a | ✅ |
+| AC4 | logic | unit — log line fields | n/a | ✅ |
+
+`EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+### Proving test
+
+`.venv/bin/python -m pytest -q tests/test_grep_nudge.py -k anchor_shapes_fire_once_per_kind` — fails
+before (no module), passes after.
+
+### Rollback
+
+`git revert`; v13 → v12 is one more full rebuild. One repo.
+
+`SCOPE: M`.
+
+## Phase 3 — execute
+
+Commits on `feat/345-symbol-search-nudge`: `04b20074` (contract v13, adapters, stamp, conformance),
+`4c79540b` (the nudge + wiring + tests), `5c7aed9c` (docs, ticket 346), `7ddf1111` (PHP README).
+
+**Live, from a clone of `5c7aed9c`** — `uv tool install` from the clone, an isolated
+`CLAUDE_CONFIG_DIR` (credentials copied, then deleted), `/plugin install` from the clone's
+marketplace, a fresh repo indexed with the Python adapter. A `Grep` for `def helper`; the model, asked
+to quote any hook line:
+
+```
+code-atlas: this grep looks like a symbol search (declaration) — ask the index first (search_symbol / find_callers / find_references); keep Grep as the cross-check.
+```
+
+`.code-atlas/nudge.log`: `2026-09-29T13:06:48Z	9bf9510e-…	python	declaration`. A second session ran
+`grep -rn -e 'helper(' . --include=*.py` through Bash (A2): the model quoted the `(call)` line, and
+the log gained `…	python	call`.
+
+**Unit and integration.** `tests/test_grep_nudge.py` has 13 tests: the AC1 replay, 7 never-fire
+cases, the parse surface, the AC4 log, the no-index case, the exit-0 JSON contract, and a real build
+that stamps the shapes the nudge then reads. `tests/contract/test_symbol_shapes.py` has 13 tests,
+including a live handshake per registered adapter (AC2) and its red control.
+
+**Two corrections made while testing, not deviations.** The parser first read a `grep` anywhere in a
+command, so `cat x | grep …` fired. It now requires the command to *start* with a search, the same
+test the hook's `if` makes. `--` (end of options) is also honoured: `grep -rn "->x("` is itself a
+grep error, so real sessions write `-e`/`--`.
+
+**Deviations** — none against the Gate-2 change list. Additions inside the list's "docs" item:
+the PHP README handshake example (v12 → v13), and `docs/SKILL_GAP_CANDIDATES.md` SG-1/SG-2
+(bookkeeping).
+
+**Sweep — axis 2.** Approach 1–7 implemented as approved.
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`
+
+**Challenger (ticket-blind, round 1, on `7ddf1111`)**: 16 met · 1 partly met · 1 can't tell (a live
+session — settled in Phase 3). The partial is AC1's "the same shapes unscoped": the SQL `EXEC` shape was
+`scoped`. It is now unscoped (`43a25276`) and pinned by
+`test_the_same_shapes_fire_unscoped_except_a_bare_name`. The bare-name shape stays `scoped`: unscoped, a
+proc name is indistinguishable from the config key the same AC says never fires (W1). Its other notes
+(`-t python` misses, a shared state file) are misses in the safe direction, not firings. Fixed inside
+the named finding, so the verify-only round ran in the main loop, with no re-dispatch.
+
+**Gate — first run RED on `f95f8196`** (4 checks; my targeted runs had skipped `ruff` over `adapters/`):
+a language word in `nudge.py`'s docstring (R1.1 guard), the core-module count pin (95 → 96), a
+tracker-key lookalike in this doc, a stale venv missing the new entry point, and two long lines in the
+Python adapter. All fixed in `108231de`. Re-run:
+
+Ran at 108231de
+
+```
+$ scripts/gate.sh
+  21 passed · 0 failed · 0 skipped
+GATE GREEN — all 21 checks passed
+```
+
+`Ph3/4 proven by`: G1, R1–R7, AC1–AC4 — 12/12; inventory N = 4 adapters, 4/4 live handshakes.
+
+Verdict: **clean (challenger only — REVIEWER: OFF)**.
+
+Reviewed at 108231de — the diff `feat/344-claude-code-plugin..108231de` minus this doc. Working doc:
+`docs/tasks/345_grep-time-symbol-nudge.md` (embedded).
+
+## Phase 5 — finalise
+
+Stale-review guard: after `108231de` only this doc and `docs/TOKEN_LEDGER.md` change — exempt.
+
+`CLAIMS: 3 claim(s) from 1 lesson entr(ies) | T1=0 T2=0 T3=2 T4=0 T5=1 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+`345-C1` (type 5, stdout vs `additionalContext`) is in `docs/LESSONS.md`. The two type-3 signals, SG-1
+(the branch-name grep) and SG-2 (the baseline refusal, from 344), are in `docs/SKILL_GAP_CANDIDATES.md`.
+No mango file was written.
+
+### Outward actions
+
+1. push `feat/345-symbol-search-nudge` — pre-authorised. 2. open PR #8, base
+`feat/344-claude-code-plugin` — pre-authorised. Deferred: the merges (#7, then #8).
+
+### Cost ledger
+
+| # | Phase | Dispatch | Tokens |
+|---|---|---|---|
+| 1 | refine | exposure-checker (`challenger`) | 44,332 fresh |
+| 2 | review | `challenger`, round 1 | 65,558 fresh |
+| — | main loop | — | unmeasured |
+
+`LEDGER TOTAL: 109,890 · top cost driver: review/challenger`

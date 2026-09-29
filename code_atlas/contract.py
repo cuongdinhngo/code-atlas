@@ -30,7 +30,9 @@ from typing import Literal, get_args
 # word of its own rather than a `WRITES` that would enrol every migration as a writer.
 # v12: `DELETES` (328). A statement that removes rows is not a writer of those columns — same
 # trap 321 met for DDL — so it is a word of its own rather than a `WRITES` enroling every deleter.
-CONTRACT_VERSION = 12
+# v13: `symbol_shapes` on the handshake (345). An adapter says what a grep for one of its symbols
+# looks like, so the grep-time nudge reads a language standard instead of a core table (R1.1).
+CONTRACT_VERSION = 13
 
 # Ordered Literal is the typing SSoT; NODE_KINDS is derived so schemas cannot drift (R3.2 / 056).
 NodeKind = Literal[
@@ -213,7 +215,19 @@ ARG_SELECTORS: tuple[str, ...] = (*ARG_LITERALS, ARG_ABSENT, ARG_DYNAMIC)
 RESULT_FIELDS: tuple[str, ...] = ("path", "ok", "nodes", "edges", "error")
 
 # The handshake an adapter announces itself with, before any result (§4.1).
-META_FIELDS: tuple[str, ...] = ("name", "extensions", "capabilities", "contract_version")
+META_FIELDS: tuple[str, ...] = (
+    "name",
+    "extensions",
+    "capabilities",
+    "contract_version",
+    "symbol_shapes",
+)
+
+# What a grep for one of an adapter's symbols looks like (345). `scoped` shapes fire only when the
+# grep is limited to that adapter's own suffixes — a bare name alone could be any text.
+SHAPE_KINDS: tuple[str, ...] = ("declaration", "reference", "call", "name")
+SHAPE_FIELDS: tuple[str, ...] = ("kind", "pattern", "scoped")
+REQUIRED_SHAPE_FIELDS: tuple[str, ...] = ("kind", "pattern")
 
 # The optional ones carry a default or stay NULL in the store (PLAN §10; target_qname per §8.2).
 REQUIRED_NODE_FIELDS: tuple[str, ...] = (
@@ -413,6 +427,8 @@ def validate_meta(meta: object) -> list[str]:
         errors += _check_extensions(meta["extensions"])
     if "capabilities" in meta:
         errors += _check_capabilities(meta["capabilities"])
+    if "symbol_shapes" in meta:
+        errors += _check_symbol_shapes(meta["symbol_shapes"])
     version = meta.get("contract_version")
     if "contract_version" in meta and (isinstance(version, bool) or not isinstance(version, int)):
         errors.append(_wrong_type("meta.contract_version", version, "an integer"))
@@ -439,6 +455,36 @@ def _check_capabilities(capabilities: object) -> list[str]:
         for flag, value in capabilities.items()
         if not isinstance(value, bool)
     ]
+
+
+def _check_symbol_shapes(shapes: object) -> list[str]:
+    """Each shape names a kind from the vocabulary and a pattern that compiles (345)."""
+    if not isinstance(shapes, list) or not shapes:
+        return [_wrong_type("meta.symbol_shapes", shapes, "a non-empty list of shape objects")]
+    errors: list[str] = []
+    for index, shape in enumerate(shapes):
+        path = f"meta.symbol_shapes[{index}]"
+        if not isinstance(shape, dict):
+            errors.append(_wrong_type(path, shape, "an object"))
+            continue
+        errors += _check_keys(path, shape, SHAPE_FIELDS, REQUIRED_SHAPE_FIELDS)
+        if "kind" in shape and shape["kind"] not in SHAPE_KINDS:
+            errors.append(_wrong_type(f"{path}.kind", shape["kind"], f"one of {SHAPE_KINDS}"))
+        if "scoped" in shape and not isinstance(shape["scoped"], bool):
+            errors.append(_wrong_type(f"{path}.scoped", shape["scoped"], "a boolean"))
+        if "pattern" in shape and not _compiles(shape["pattern"]):
+            errors.append(_wrong_type(f"{path}.pattern", shape["pattern"], "a regular expression"))
+    return errors
+
+
+def _compiles(pattern: object) -> bool:
+    if not isinstance(pattern, str):
+        return False
+    try:
+        re.compile(pattern)
+    except re.error:
+        return False
+    return True
 
 
 def _check_failed_result(result: dict[str, object]) -> list[str]:

@@ -173,8 +173,16 @@ def _claude_code_hooks(command: Callable[[str], str]) -> dict[str, Any]:
     """The one hook table: the snippet names each console script, the plugin gates it (344)."""
     poke = {"type": "command", "command": command("code-atlas-poke"), "async": True, "timeout": 60}
     signal = {"type": "command", "command": command("code-atlas-signal"), "timeout": 10}
+    nudge = {"type": "command", "command": command("code-atlas-nudge"), "timeout": 10}
+    # 345: the grep-time nudge — the Grep tool, and a Bash call that starts with a search command.
+    searches = [{"matcher": "Grep", "hooks": [nudge]}] + [
+        {"matcher": "Bash", "hooks": [{**nudge, "if": f"Bash({cmd} *)"}]}
+        for cmd in ("grep", "rg", "git grep")
+    ]
     return {
-        "PostToolUse": _per_suffix(("Edit", "Write"), poke) + _per_suffix(("Read",), signal),
+        "PostToolUse": _per_suffix(("Edit", "Write"), poke)
+        + _per_suffix(("Read",), signal)
+        + searches,
         "PreToolUse": _per_suffix(("Write",), signal),
         "SessionStart": [
             {"hooks": [{"type": "command", "command": command("code-atlas-state"), "timeout": 10}]}

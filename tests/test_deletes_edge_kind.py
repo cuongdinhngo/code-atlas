@@ -127,7 +127,7 @@ def test_find_references_lists_deletes_with_kind(tmp_path: Path) -> None:
 
 @needs_node
 def test_deletes_is_contract_v12_vocabulary() -> None:
-    assert contract.CONTRACT_VERSION == 12
+    assert contract.CONTRACT_VERSION == 13
     assert "DELETES" in contract.EDGE_KINDS
     assert "DELETES" in contract.FQN_EDGE_KINDS
     assert "DELETES" not in contract.IMPACT_KINDS

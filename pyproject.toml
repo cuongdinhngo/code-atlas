@@ -22,6 +22,7 @@ llm = ["anthropic>=0.69"]
 code-atlas = "code_atlas.main:main"
 code-atlas-build = "code_atlas.cli:main"
 code-atlas-llm = "onboarding_llm.server:run"
+code-atlas-nudge = "code_atlas.hooks.nudge:main"
 code-atlas-poke = "code_atlas.hooks.poke:main"
 code-atlas-refresh = "code_atlas.hooks.refresh:main"
 code-atlas-signal = "code_atlas.hooks.signal:main"

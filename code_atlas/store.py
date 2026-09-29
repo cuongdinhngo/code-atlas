@@ -74,6 +74,8 @@ EMITTED_KINDS_BY_LANGUAGE_KEY = "emitted_kinds_by_language"
 # Resolution strategies File.extra named as unmodelled, unioned per language (JSON, task 279).
 UNMODELLED_RESOLUTION_BY_LANGUAGE_KEY = "unmodelled_resolution_by_language"
 CAPABILITIES_BY_LANGUAGE_KEY = "capabilities_by_language"
+# Each adapter's suffixes and grep shapes from the last build, for the grep-time nudge (345).
+SYMBOL_SHAPES_BY_LANGUAGE_KEY = "symbol_shapes_by_language"
 # Local fit counters (task 260): one meta row per (tool, reason, authoritative, truncated).
 FIT_KEY_PREFIX = "fit:"
 META_KEYS: tuple[str, ...] = (
@@ -1351,6 +1353,17 @@ class GraphStore:
                 out[str(name)] = [str(s) for s in strategies if isinstance(s, str)]
         return out or None
 
+
+    def stamped_symbol_shapes(self) -> dict[str, dict[str, object]]:
+        """Per-language suffixes and grep shapes from the last build; empty before v13 (345)."""
+        raw = self.get_meta(SYMBOL_SHAPES_BY_LANGUAGE_KEY)
+        try:
+            parsed = json.loads(raw) if raw else {}
+        except json.JSONDecodeError:
+            return {}
+        if not isinstance(parsed, dict):
+            return {}
+        return {str(name): dict(entry) for name, entry in parsed.items() if isinstance(entry, dict)}
 
     def stamped_capabilities_by_language(self) -> dict[str, dict[str, bool]] | None:
         """Per-language R1.6 capability flags from the last build, or ``None`` pre-231 (R5.6)."""

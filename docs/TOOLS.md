@@ -274,6 +274,16 @@ live phase and names `code-atlas-build --status`. **Silent** when there is no in
 is current and no build runs; ≤ 90 tokens; always exits 0; never builds, reparses or takes the build
 lock. Wiring: the generated [`contrib/claude-code/settings.snippet.json`](../contrib/claude-code/).
 
+### The grep-time nudge — one line right after a grep for a symbol (opt-in, 345)
+
+`code-atlas-nudge` runs at `PostToolUse` on `Grep` and on a `Bash` call that starts with `grep`, `rg`
+or `git grep`. When the pattern matches a shape an adapter declared in its v13 handshake
+(`symbol_shapes`, stamped into the index at build time), it injects one line through
+`additionalContext` — *ask the index first, keep Grep as the cross-check*. A shape fires when the grep
+is unscoped or scoped to that adapter's suffixes, and a `scoped` shape only in the latter. Once per
+kind per session; firings append to `.code-atlas/nudge.log`. Silent with no index; never blocks;
+always exits 0.
+
 ## Configuration reference
 
 Every knob resolves **environment → project file → default**. The project file is
