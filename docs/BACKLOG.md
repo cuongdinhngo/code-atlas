@@ -9,7 +9,7 @@ truth for scope is [`PLAN.md`](PLAN.md); the durable decision log is
 **Phase 1 — the pre-public build, tasks 001–342 — closed 2026-09-27.** What it delivered is
 [PLAN §15](PLAN.md#15-milestones--what-phase-1-delivered). Its done task files, token ledger and
 lessons were archived out of the repo, so a task number cited in these docs may have no file here;
-the five open tasks below carried over, and new tasks continue from **346**. What stays is what you
+the five open tasks below carried over, and new tasks continue from **347**. What stays is what you
 read to choose the next ticket: the finding, not the slug.
 
 **Status legend:** `todo` · `in-progress` · `blocked` · `deferred` · `done`
@@ -26,6 +26,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
 | 343 | [Claude Code cuts the server instructions at ~2,048 characters — KEEP_GOING and LIMITS never arrive](tasks/343_server-instructions-truncated-at-2048-chars.md) | Adoption | todo | 300 |
 | 345 | [A grep for a symbol gets one "ask code-atlas first" line — right after it, from adapter-declared shapes](tasks/345_grep-time-symbol-nudge.md) | Adoption | todo | 344 |
+| 346 | [The read-time signal prints plain stdout, which Claude Code never shows the model](tasks/346_signal-line-never-reaches-the-model.md) | Adoption | todo | 099, 344 |
 
 ## Open work — Pillar 2 · Onboarding
 

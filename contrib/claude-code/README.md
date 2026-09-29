@@ -29,6 +29,10 @@ Three commands, for the moments an agent was never going to make a tool call.
 [`plugin/`](plugin/) is generated from the same table as the snippet below, and each command is gated
 on `${CLAUDE_PROJECT_DIR}/.code-atlas`, so a repo with no index pays one shell test (~1.5 ms) and
 spawns no Python. A fourth hook, `code-atlas-refresh`, runs in the background at `SessionStart`.
+A fifth, **`code-atlas-nudge`** (345), speaks right after a `Grep` or a `grep`/`rg`/`git grep` whose
+pattern matches a shape an adapter declared — one "ask the index first" line, once per kind per
+session. **Already running a project-local grep-nudge hook?** Remove it when you install this, or
+each grep is nudged twice.
 Coming from a hand install? Remove the merged snippet and any `claude mcp add` entry first.
 
 ## Install by hand

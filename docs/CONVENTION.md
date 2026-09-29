@@ -137,7 +137,8 @@ code-atlas/
   language's answer to the core's `mypy`. PHP: PHPStan `level: max` via `adapters/php/phpstan.neon`.
   Suppression (baseline, `@phpstan-ignore`, inline `@var`) never closes a finding.
 - **Announces itself first.** The first stdout line is the handshake —
-  `{"name", "extensions", "capabilities", "contract_version"}` — before any result. The suffix list in it
+  `{"name", "extensions", "capabilities", "contract_version", "symbol_shapes"?}` (345) — before any
+  result. The suffix list in it
   is what routes files to this adapter; nothing in the core knows them otherwise.
 - Emits **bare** edges (targets as FQNs/names); never resolves cross-file — that's the core resolver.
 - **stdout carries the protocol and nothing else.** Diagnostics go to stderr, which the core sends to
