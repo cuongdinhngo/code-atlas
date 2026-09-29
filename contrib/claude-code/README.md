@@ -42,7 +42,7 @@ Coming from a hand install? Remove the merged snippet and any `claude mcp add` e
    `"async": true` on the poke so it does not stall the Edit/Write round-trip; the signal is
    synchronous by design, because its line has to reach the result it rides on. Every `"if"`
    filter is **generated** from each shipped adapter's own declared suffixes — never widened
-   by hand.
+   by hand — one rule per entry: Claude Code never matched a `|`-joined `if` (344).
 3. Restart Claude Code (or reload hooks) so the settings take effect.
 
 No `CODE_ATLAS_ROOT` export is required — the console script is the stable entrypoint.

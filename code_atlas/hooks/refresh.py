@@ -51,11 +51,9 @@ def refresh(root: Path, *, verbose: bool = False) -> int:
         if result.get("mode") == "busy":
             _note("skipped: another build is running", verbose=verbose)
         elif result.get("mode") == "refused":
-            print(
-                f"code-atlas refresh skipped: {result.get('reason')} — "
-                f"run {result.get('route')}",
-                file=sys.stderr,
-            )
+            # A refusal with no tool to route to (coverage_loss) ends at the reason (344).
+            route = f" — run {result['route']}" if result.get("route") else ""
+            print(f"code-atlas refresh skipped: {result.get('reason')}{route}", file=sys.stderr)
         else:
             _note("refreshed", verbose=verbose)
     except Exception as error:
