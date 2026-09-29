@@ -141,9 +141,7 @@ def register(server: FastMCP) -> None:
         """Which code-atlas tool answers a given question? A recognition map for all 21 tools."""
         asked = f" You asked: {question}." if question.strip() else ""
         return (
-            "Pick the code-atlas tool whose answer matches your question."
-            + asked
-            + " Map:\n"
+            "Pick the code-atlas tool whose answer matches your question." + asked + " Map:\n"
             + "\n".join(recognition_lines())
             + "\n"
             "Then call get_index_status first if unsure the index is current."

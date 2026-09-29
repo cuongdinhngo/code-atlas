@@ -200,3 +200,6 @@ def test_load_names_only_registered_working_set_tools(tmp_path: Path) -> None:
     text = instructions.render(config_for(tmp_path), cut, FIELD18_TOOLS)
     assert "mcp__code-atlas__find_callers" not in text
     assert "mcp__code-atlas__find_references" in text
+    # No working-set tool registered: LOAD falls back to the registered surface, never to nothing.
+    only = instructions.render(config_for(tmp_path), ("build_or_update_index",), FIELD18_TOOLS)
+    assert '"select:mcp__code-atlas__build_or_update_index"' in only
