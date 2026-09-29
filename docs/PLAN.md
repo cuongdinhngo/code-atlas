@@ -548,8 +548,10 @@ recognition probe that scores whether they route is
 **Operator prompts are not agent routing; the server's `instructions` are (081, 300).** An MCP
 *prompt* is a human-invoked entry, so counting it as agent-facing was a category error (200).
 The server's `instructions`, by contrast, reach the model's system prompt, so `build_server`
-renders that one map there (`tools/prompts.RECOGNITION_MAP`, R6.7) over a sentence of live index
-state, lifting 099's bound for the fact that has to arrive first: this repo has an index.
+renders the `core` rows of that one map there (`tools/prompts.RECOGNITION_MAP`, R6.7) under a
+sentence of live index state, lifting 099's bound for the fact that has to arrive first: this repo
+has an index. Claude Code keeps a 2,048-character prefix (343), so the text runs in priority order
+under `instructions.CLIENT_CAP`.
 
 **Serving (010).** `main.build_server(config)` registers the allowed tools on one FastMCP app and
 `main()` serves it over stdio; the entry point is `code-atlas` (or `python -m code_atlas.main`).
