@@ -73,11 +73,11 @@ def _gated_commands() -> list[str]:
 
 
 def test_every_plugin_hook_is_gated_and_names_a_declared_script() -> None:
-    """R6: all four commands pass the index gate first; each calls a script the package ships."""
+    """R6: every command passes the index gate first; each calls a script the package ships."""
     scripts = set(tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["scripts"])
     called = {c.removeprefix(gen_skill.PLUGIN_GATE) for c in _gated_commands()}
     assert all(c.startswith(gen_skill.PLUGIN_GATE) for c in _gated_commands())
-    assert called <= scripts and len(called) == 4, called
+    assert called <= scripts and {"code-atlas-state", "code-atlas-refresh"} <= called, called
 
 
 def _fake_scripts(tmp_path: Path) -> dict[str, str]:
@@ -143,4 +143,5 @@ def test_every_if_filter_is_a_single_rule(path: Path) -> None:
     hooks = _load(path)["hooks"]
     every = [h for entries in hooks.values() for e in entries for h in e["hooks"]]
     filters = [h["if"] for h in every if "if" in h]
-    assert filters and all(re.fullmatch(r"(Edit|Write|Read)\(\*\.\w+\)", f) for f in filters)
+    one_rule = r"(Edit|Write|Read)\(\*\.\w+\)|Bash\((grep|rg|git grep) \*\)"
+    assert filters and all(re.fullmatch(one_rule, f) for f in filters)

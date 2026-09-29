@@ -350,6 +350,49 @@
             "if": "Read(*.cjs)"
           }
         ]
+      },
+      {
+        "matcher": "Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "code-atlas-nudge",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "code-atlas-nudge",
+            "timeout": 10,
+            "if": "Bash(grep *)"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "code-atlas-nudge",
+            "timeout": 10,
+            "if": "Bash(rg *)"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "code-atlas-nudge",
+            "timeout": 10,
+            "if": "Bash(git grep *)"
+          }
+        ]
       }
     ],
     "PreToolUse": [
