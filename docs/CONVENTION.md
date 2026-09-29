@@ -31,7 +31,7 @@ code-atlas/
 ├── scripts/                          # operator reports & benchmarks (never imported by the server)
 ├── docker/                           # test image, runtime image, compose
 ├── contrib/                          # offered, never installed: skill/ (generated Agent Skill,
-│                                     #   200) claude-code/ codex/ opencode/ git/
+│                                     #   200) claude-code/ (+plugin/, 344) codex/ opencode/ git/
 ├── adapters/
 │   ├── php/                          # self-contained: composer.json, index.php, src/{Parser,Visitor}.php
 │   ├── typescript/ sql/ python/      # landed; csharp/ deferred (PLAN §19)

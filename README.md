@@ -106,6 +106,19 @@ To run the server without a checkout: `uvx --from git+https://github.com/cuongdi
 code-atlas`, or `pipx run --spec git+https://github.com/cuongdinhngo/code-atlas.git code-atlas` —
 the adapters still need their own runtimes on `PATH`, and a checkout to launch them from.
 
+**In Claude Code, install it as a plugin** — the server, the hooks and the skill in one step, for every
+project. The plugin launches the console scripts by name, so put them on `PATH` with a tool install:
+
+```bash
+uv tool install git+https://github.com/cuongdinhngo/code-atlas.git   # or: pipx install git+…
+claude plugin marketplace add cuongdinhngo/code-atlas
+claude plugin install code-atlas@code-atlas
+```
+
+Its hooks stay silent in a repo with no `.code-atlas/`. Adapter `CA_<LANG>_CMD` variables stay per
+machine, as below. Already wired `.mcp.json` or the hook snippet by hand? Remove those, or each event
+fires twice ([`contrib/claude-code/`](contrib/claude-code/)).
+
 For TypeScript/JavaScript, T-SQL or Python, add that adapter — the core resolves any `CA_<LANG>_CMD`
 generically from the variable name, so each is one env var, not a code change:
 

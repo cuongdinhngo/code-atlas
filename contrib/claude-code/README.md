@@ -19,7 +19,19 @@ Three commands, for the moments an agent was never going to make a tool call.
   Silent when the index is current and no build runs; ≤ 90 tokens; always exits 0
   ([TOOLS.md](../../docs/TOOLS.md#the-session-boundary-state-line--the-index-state-restated-when-the-first-copy-decayed-opt-in)).
 
-## Install
+## Install as a plugin (344) — the server, these hooks and the skill, for every project
+
+1. Put the console scripts on `PATH`: `uv tool install git+https://github.com/cuongdinhngo/code-atlas.git`
+   (or `pipx install …`). The plugin names them, and a venv's scripts are not on `PATH`.
+2. `claude plugin marketplace add cuongdinhngo/code-atlas`, then
+   `claude plugin install code-atlas@code-atlas` (or `/plugin` inside a session).
+
+[`plugin/`](plugin/) is generated from the same table as the snippet below, and each command is gated
+on `${CLAUDE_PROJECT_DIR}/.code-atlas`, so a repo with no index pays one shell test (~1.5 ms) and
+spawns no Python. A fourth hook, `code-atlas-refresh`, runs in the background at `SessionStart`.
+Coming from a hand install? Remove the merged snippet and any `claude mcp add` entry first.
+
+## Install by hand
 
 1. Install code-atlas into the environment Claude Code uses (`pip install -e /path/to/code-atlas`
    or your usual setup from the [README](../../README.md)). This provides the
