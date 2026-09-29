@@ -7,5 +7,10 @@
   },
   "homepage": "https://github.com/cuongdinhngo/code-atlas",
   "repository": "https://github.com/cuongdinhngo/code-atlas",
-  "license": "MIT"
+  "license": "MIT",
+  "mcpServers": {
+    "code-atlas": {
+      "command": "code-atlas"
+    }
+  }
 }

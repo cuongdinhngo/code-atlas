@@ -33,7 +33,6 @@ POKE_SNIPPET_PATH = CLAUDE_CODE_SNIPPET_PATH
 # 344: the same hooks, the server and the skill as one Claude Code plugin, plus its marketplace.
 PLUGIN_DIR = REPO / "contrib" / "claude-code" / "plugin"
 PLUGIN_MANIFEST_PATH = PLUGIN_DIR / ".claude-plugin" / "plugin.json"
-PLUGIN_MCP_PATH = PLUGIN_DIR / ".mcp.json"
 PLUGIN_HOOKS_PATH = PLUGIN_DIR / "hooks" / "hooks.json"
 PLUGIN_SKILL_PATH = PLUGIN_DIR / "skills" / "code-atlas" / "SKILL.md"
 MARKETPLACE_PATH = REPO / ".claude-plugin" / "marketplace.json"
@@ -202,7 +201,7 @@ def _package() -> dict[str, Any]:
 
 
 def render_plugin_manifest() -> str:
-    """Name, version and description from the package, so the plugin never lags it (R6.7)."""
+    """Name, version and description from the package (R6.7); the server by its script name."""
     package = _package()
     manifest = {
         "name": package["name"],
@@ -212,13 +211,10 @@ def render_plugin_manifest() -> str:
         "homepage": REPOSITORY_URL,
         "repository": REPOSITORY_URL,
         "license": package["license"]["text"],
+        # Inline, not a plugin `.mcp.json`: this repo's .gitignore drops every `.mcp.json` (344).
+        "mcpServers": {"code-atlas": {"command": "code-atlas"}},
     }
     return json.dumps(manifest, indent=2) + "\n"
-
-
-def render_plugin_mcp() -> str:
-    """The server by its console-script name; Claude Code starts it in the project dir (344)."""
-    return json.dumps({"mcpServers": {"code-atlas": {"command": "code-atlas"}}}, indent=2) + "\n"
 
 
 def render_marketplace() -> str:
@@ -243,7 +239,6 @@ GENERATED: dict[Path, Callable[[], str]] = {
     SKILL_PATH: render_skill,
     CLAUDE_CODE_SNIPPET_PATH: render_claude_code_snippet,
     PLUGIN_MANIFEST_PATH: render_plugin_manifest,
-    PLUGIN_MCP_PATH: render_plugin_mcp,
     PLUGIN_HOOKS_PATH: render_plugin_hooks,
     PLUGIN_SKILL_PATH: render_skill,
     MARKETPLACE_PATH: render_marketplace,

@@ -123,8 +123,16 @@ def test_the_manifest_and_marketplace_carry_the_package_version() -> None:
 
 def test_the_server_is_launched_by_its_console_script_name() -> None:
     """W1: no interpreter path anywhere in the plugin — the console script is on PATH."""
-    server = _load(gen_skill.PLUGIN_MCP_PATH)["mcpServers"]["code-atlas"]
+    server = _load(gen_skill.PLUGIN_MANIFEST_PATH)["mcpServers"]["code-atlas"]
     assert server == {"command": "code-atlas"}
+
+
+@pytest.mark.parametrize("path", sorted(gen_skill.GENERATED), ids=lambda p: p.name)
+def test_every_generated_file_is_committable(path: Path) -> None:
+    """344: `.gitignore` dropped the plugin's `.mcp.json`; a working-tree install hid it."""
+    rel = path.relative_to(REPO).as_posix()
+    ignored = subprocess.run(["git", "check-ignore", "-q", rel], cwd=REPO, check=False)
+    assert ignored.returncode == 1, f"{rel} is gitignored — it would never reach the marketplace"
 
 
 @pytest.mark.parametrize(
