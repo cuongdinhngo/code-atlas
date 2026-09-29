@@ -44,10 +44,11 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
 ### 345-C1 — a PostToolUse hook's plain stdout never reaches the model; `additionalContext` does
 
 - type: 5 (environment) · area: `claude-code hooks / output channel` · verified-at: 2026-09-29, Claude Code 2.1.284
-- status: proposed · seen: 345
+- status: proposed · seen: 345, 346
 - evidence: a Read hook printing a marker as plain text — the model, asked to quote it, said `NONE`;
   the same marker as `hookSpecificOutput.additionalContext` JSON came back verbatim. `code-atlas-nudge`
-  emits JSON and was quoted live; `code-atlas-signal` prints plain text (ticket 346).
+  emits JSON and was quoted live; `code-atlas-signal` did the same once 346 moved it to JSON, on
+  `PreToolUse` too.
 - destination: first sighting.
 
 ### 344-C1 — Claude Code runs a hook's `if` only when it is ONE permission rule

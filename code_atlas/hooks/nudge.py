@@ -19,6 +19,8 @@ import time
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from code_atlas.hooks import additional_context
+
 INDEX_DIR = ".code-atlas"
 STATE_FILE = "nudge.json"
 LOG_FILE = "nudge.log"
@@ -250,8 +252,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if line:
         # Plain stdout never reaches the model from PostToolUse; additionalContext does (345 spike).
-        context = {"hookEventName": "PostToolUse", "additionalContext": line}
-        print(json.dumps({"hookSpecificOutput": context}))
+        print(additional_context("PostToolUse", line))
     return 0
 
 

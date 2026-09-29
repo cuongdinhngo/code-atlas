@@ -13,6 +13,10 @@ so when that index is behind. Always exits 0 so a hook cannot break the editor r
 line *inside the read result*. ``Write`` wants **PreToolUse**: the create-vs-edit test is whether
 the path exists yet, and after a write it always does, so a PostToolUse ``Write`` is silent by
 construction. Wiring both events at one command is the host's job; see the README.
+
+**How the line reaches the model (346).** A hook's plain stdout never does (345-C1), so a hook
+payload gets the line as ``additionalContext`` for the event it ran on. A shell call with arguments
+prints the bare line, for the human who typed it.
 """
 
 from __future__ import annotations
@@ -22,6 +26,7 @@ import os
 import sys
 from pathlib import Path
 
+from code_atlas.hooks import additional_context
 from code_atlas.tokens import estimate_tokens
 
 # 061: the cap IS the design. The field: ~150 tokens lands, "past ~500 I would treat it as chrome".
@@ -33,6 +38,8 @@ MIN_SYMBOLS = 5
 # The only two occasions that earn a line (R1.2 — the field explicitly refused to name a third).
 READ_TOOL = "Read"
 WRITE_TOOL = "Write"
+# The event each tool is wired at (above), for a payload that does not name its own.
+DEFAULT_EVENT = {READ_TOOL: "PostToolUse", WRITE_TOOL: "PreToolUse"}
 
 
 def _verbose(argv: list[str]) -> bool:
@@ -153,6 +160,13 @@ def signal(root: Path, tool: str, raw_path: str, *, verbose: bool = False) -> st
     return None
 
 
+def _event(payload: dict[str, object], tool: str) -> str:
+    named = payload.get("hook_event_name")
+    if isinstance(named, str) and named.strip():
+        return named.strip()
+    return DEFAULT_EVENT.get(tool, "PostToolUse")
+
+
 def _payload_fields(payload: dict[str, object]) -> tuple[str | None, str | None]:
     tool = payload.get("tool_name")
     tool_input = payload.get("tool_input")
@@ -171,6 +185,7 @@ def main(argv: list[str] | None = None) -> int:
     verbose = _verbose(args)
     rest = [arg for arg in args if arg not in {"--verbose", "-v"}]
     root = _project_root()
+    event: str | None = None
     try:
         tool: str | None
         raw_path: str | None
@@ -182,6 +197,8 @@ def main(argv: list[str] | None = None) -> int:
                 _note("silent: stdin JSON is not an object", verbose=verbose)
                 return 0
             tool, raw_path = _payload_fields(payload)
+            if tool is not None:
+                event = _event(payload, tool)
         if tool is None or raw_path is None:
             _note("silent: no tool_name / tool_input.file_path", verbose=verbose)
             return 0
@@ -194,7 +211,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"code-atlas signal skipped: {type(error).__name__}: {error}", file=sys.stderr)
         return 0
     if line:
-        print(line)
+        print(additional_context(event, line) if event else line)
     return 0
 
 
