@@ -25,3 +25,4 @@ lifecycle. Fresh = input + output + cache-creation; cache reads are billed diffe
 
 | # | Tokens | PR |
 |---|---|---|
+| 343 | 1 dispatch: ticket-blind `challenger` round-1 **CLEAN** (55,473 fresh); `reviewer` waived by `--no-reviewer`; main-loop unmeasured. `/mango:autorun 343 --no-reviewer`. Claude Code keeps a 2,048-char prefix (probe, 2.1.284); instructions render in priority order at 1,686. Proving: `tests/test_server_instructions.py::test_instructions_fit_under_the_client_cap_on_every_state`. GATE GREEN (21/21 checks, Linux, bare pytest). | [#6](https://github.com/cuongdinhngo/code-atlas/pull/6) |
