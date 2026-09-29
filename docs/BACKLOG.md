@@ -9,7 +9,7 @@ truth for scope is [`PLAN.md`](PLAN.md); the durable decision log is
 **Phase 1 — the pre-public build, tasks 001–342 — closed 2026-09-27.** What it delivered is
 [PLAN §15](PLAN.md#15-milestones--what-phase-1-delivered). Its done task files, token ledger and
 lessons were archived out of the repo, so a task number cited in these docs may have no file here;
-the five open tasks below carried over, and new tasks continue from **347**. What stays is what you
+the five open tasks below carried over, and new tasks continue from **349**. What stays is what you
 read to choose the next ticket: the finding, not the slug.
 
 **Status legend:** `todo` · `in-progress` · `blocked` · `deferred` · `done`
@@ -25,6 +25,8 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
 | 346 | [The read-time signal prints plain stdout, which Claude Code never shows the model](tasks/346_signal-line-never-reaches-the-model.md) | Adoption | todo | 099, 344 |
+| 347 | [An index from an older contract reads as behind or current, never as rebuild-required](tasks/347_older-contract-index-never-says-rebuild.md) | Adoption | todo | 201, 316, 322 |
+| 348 | [An installed code-atlas has no version to compare against, so an anchor project never learns it is outdated](tasks/348_installed-copy-cannot-tell-it-is-outdated.md) | Adoption | todo | 344, 347 |
 
 ## Open work — Pillar 2 · Onboarding
 
