@@ -4,7 +4,7 @@ slug: claude-code-plugin
 title: 'Ship code-atlas as a Claude Code plugin — server, hooks and skill in one install'
 phase: 2
 milestone: Adoption
-status: todo
+status: done
 depends_on: [036, 099, 322]
 ---
 
@@ -95,7 +95,7 @@ takes its own explicit approval at finalise, separate from the PR.
 
 ## Session status
 
-- **KEY:** 344 · **work_doc_mode:** embed · **Current phase:** 2 design · **Next action:** execute.
+- **KEY:** 344 · **work_doc_mode:** embed · **Current phase:** 3 execute · **Next action:** review.
 - `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · Run mode: `autorun` (unattended, stops at the PR). Run arg *"with skipped
   reviewer"* = `--no-reviewer` only; the ticket-blind challenger keeps its seat.
 - Contract `.mango/run-contract-344.txt`. RECONCILE t0: 5 declared | 3 re-run | 0 holding | 3 BROKEN
@@ -343,3 +343,62 @@ fails before (no plugin file), passes after.
 `/plugin uninstall code-atlas`. One repo; nothing to port.
 
 `SCOPE: M` — unchanged.
+
+## Phase 3 — execute
+
+Branch `feat/344-claude-code-plugin`: `da6930f6` (plugin + generator + tests), `98147178` (docs),
+`95c79c9b` (single-rule `if`), `ea9985eb` (refresh line), `07fbfb86` (server inline), `e956ec14`
+(blank line).
+
+### Design invalidation — re-gated, the approach revised
+
+The first live session from the installed plugin logged `Skipping hook due to if condition
+"Read(*.php)|…|Read(*.py)|…" not matching` on a Read of `app.py`. Probing `if` forms one at a time on
+Claude Code 2.1.284: `Read(*.py)` runs on `app.py` and skips `notes.txt`; the `|`-joined,
+brace-glob and space-separated forms are all skipped. Design Approach 2 reused "the snippet's hooks",
+and that premise was false: the snippet's poke and signal had never fired. **Revised Approach 2:**
+the one hook table emits one entry per (tool, shipped suffix), each with a single-rule `if`, for the
+snippet and the plugin alike. The assumptions are re-checked below and the verification plan gains one
+row (`test_every_if_filter_is_a_single_rule`, red on `main`'s snippet). The fix is a HOW, not a product
+decision, so the run continues.
+
+### Deviations — recorded for review
+
+| # | Deviation | Traces to | Why |
+|---|---|---|---|
+| D1 | `settings.snippet.json` changes shape (40 single-rule entries); `test_poke_snippet_covers_every_adapter.py` joins the per-entry filters | revised Approach 2 | the old shape was inert on 2.1.284 — keeping the snippet's bytes would have kept the bug |
+| D2 | `code_atlas/hooks/refresh.py`: a refusal with no route ends at its reason; a test in `tests/test_git_refresh_hook.py` | Scope 2 (*"skips with one line"*) | the live skip line read `code-atlas refresh skipped: coverage_loss — run None` |
+| D3 | `mcpServers` inline in `plugin.json`, no plugin `.mcp.json`; a guard that no generated file is gitignored | Approach 1 | `.gitignore:8` drops every `.mcp.json`, so the file never reached a commit |
+
+### Evidence
+
+AC1, live, from a **clone** of the branch (only committed files), with an isolated `CLAUDE_CONFIG_DIR`,
+`code-atlas` tool-installed by `uv tool install` into a scratch bin dir, and a PATH carrying only that
+dir plus `/usr/bin:/bin` — the repo's venv is not on it (`which code-atlas` printed nothing
+beforehand). Clone at `07fbfb86`:
+
+```
+✔ Successfully added marketplace: code-atlas (declared in user settings)
+✔ Successfully installed plugin: code-atlas@code-atlas (scope: user)
+plugin:code-atlas:code-atlas: code-atlas  - ✔ Connected
+"Hook SessionStart:startup (SessionStart) success:\ncode-atlas: current @ 3420212 · 1 files · 3 symbols · a build is running …
+"Hook SessionStart:startup (SessionStart) success:\nstderr:\ncode-atlas refresh: refreshed"
+"Hook PostToolUse:Read (PostToolUse) success:\nstderr:\ncode-atlas signal: silent: app.py holds 2 symbols"
+"Hook PostToolUse:Edit (PostToolUse) success:\nstderr:\ncode-atlas poke: skipped: current app.py"
+```
+
+The one documented step is `uv tool install git+…` (README). No `claude mcp add-json`, no settings
+merge, no interpreter path. The copied credentials and the isolated config were deleted afterwards.
+
+AC2, live, in a git repo with no `.code-atlas/`: the session read and edited `m.py`; no hook logged
+any output, and no `.code-atlas/` was created. Per-hook cost, POSIX, 200 calls each, no index:
+`state` 1,556 µs · `poke` 1,534 µs · `signal` 1,562 µs · `refresh` 1,589 µs — a shell test, no
+Python (an ungated `code-atlas-state` spawn costs ~16 ms). **Windows: not measured** — the recorded
+exclusion.
+
+Guards seen red: the single-rule guard on `main`'s snippet (`False`); the committable guard via
+`git check-ignore -q contrib/claude-code/plugin/.mcp.json` → exit 0 (ignored); the refusal-line test
+failed on the unfixed `refresh.py` (`1 failed, 1 passed`); the proving test errors with no plugin files.
+
+**Sweep — axis 2.** Approach 1, 3, 4, 5: implemented as approved. Approach 2: re-gated and
+implemented as revised. D1–D3 are recorded above.
