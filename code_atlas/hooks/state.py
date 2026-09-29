@@ -17,7 +17,7 @@ No other occasion earns a line (R1.2 — 099 refused a third on the same ground)
 minute — a running build's live phase and the route to it.
 
 **Silent unless it changes something:** no index, or an index that is ``current`` with no build
-running, prints nothing.
+running and no full rebuild pending, prints nothing.
 
 **Cardinal rule:** always exits 0 and never builds, reparses or takes the build lock; any error,
 broken stdin or unreadable index is silence. The host is never blocked.
@@ -75,7 +75,7 @@ def state_line(root: Path, *, verbose: bool = False) -> str | None:
     from code_atlas.config import load_config
     from code_atlas.index_lock import build_in_progress, read_build_progress
     from code_atlas.tools import get_index_status
-    from code_atlas.tools.get_index_status import BUILD_IN_PROGRESS, CURRENT
+    from code_atlas.tools.get_index_status import BUILD_IN_PROGRESS, CURRENT, FULL_REBUILD_REQUIRED
 
     config = load_config(root)
     db = config.db_path
@@ -87,7 +87,8 @@ def state_line(root: Path, *, verbose: bool = False) -> str | None:
     summary = str(payload["summary"])
     building = bool(payload.get(BUILD_IN_PROGRESS)) or build_in_progress(db)
     if not building:
-        if payload.get("staleness") == CURRENT:
+        # An older-era index at an unmoved HEAD still reads `current` — that one must speak (347).
+        if payload.get("staleness") == CURRENT and FULL_REBUILD_REQUIRED not in payload:
             _note("silent: index current, no build running", verbose=verbose)
             return None
         return PREFIX + summary

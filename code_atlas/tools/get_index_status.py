@@ -25,6 +25,7 @@ from typing import Literal
 from code_atlas.adapter import unconfigured_adapters
 from code_atlas.build_info import server_provenance
 from code_atlas.config import Config
+from code_atlas.contract import CONTRACT_VERSION
 from code_atlas.index_lock import build_in_progress
 from code_atlas.indexer import (
     CONTRACT_REBUILD_REQUIRED,
@@ -213,6 +214,21 @@ def _max_candidates_field(config: Config) -> dict[str, object]:
     }
 
 
+def _attach_rebuild_pending(status: dict[str, object], store: GraphStore) -> None:
+    """Name the hour-long rebuild waiting behind the next incremental, or nothing (201, 347).
+
+    Attached at every detail level: the summary names it, and the summary is on every payload.
+    """
+    if contract_rebuild_required(store):
+        status[FULL_REBUILD_REQUIRED] = {
+            "reason": CONTRACT_REBUILD_REQUIRED,
+            "route": FULL_REBUILD_ROUTE,
+            "in_band_option": IN_BAND_FULL_REBUILD,
+            "stored_contract": store.get_meta(CONTRACT_VERSION_KEY),
+            "server_contract": str(CONTRACT_VERSION),
+        }
+
+
 def _attach_build_state(
     status: dict[str, object], config: Config, store: GraphStore | None
 ) -> None:
@@ -233,14 +249,7 @@ def _attach_build_state(
     # An absent key is an index written before the key existed: unknowable, so say nothing.
     if build_incomplete(store):
         status[INDEX_COMPLETE] = False
-    # "Call this first" is only worth following if it names the hour-long rebuild waiting
-    # behind the next incremental. Omitted when none is pending, like 159 (201).
-    if contract_rebuild_required(store):
-        status[FULL_REBUILD_REQUIRED] = {
-            "reason": CONTRACT_REBUILD_REQUIRED,
-            "route": FULL_REBUILD_ROUTE,
-            "in_band_option": IN_BAND_FULL_REBUILD,
-        }
+    _attach_rebuild_pending(status, store)
     # A build here would REFUSE rather than serve, so the caller needs to know before it calls.
     # Hint and no route: no registered tool configures an adapter (R5.4c, 203).
     lost = coverage_loss(store, config.adapter_cmds)
@@ -325,6 +334,15 @@ def _compose_summary(payload: dict[str, object]) -> str:
         return f"unknown{at} · {scale} — schema mismatch — not indexed — run build_or_update_index"
     if not payload.get("indexed"):
         return f"unknown{at} · {scale} — not indexed — run build_or_update_index"
+    pending = payload.get(FULL_REBUILD_REQUIRED)
+    if isinstance(pending, dict):
+        # Ahead of staleness: an incremental refuses here, so "run build_or_update_index" is wrong.
+        stored, server = pending.get("stored_contract"), pending.get("server_contract")
+        era = f"index contract v{stored}, server v{server}"
+        return (
+            f"rebuild required{at} · {scale} — {era} — run `{pending.get('route')}` "
+            f"(or build_or_update_index {pending.get('in_band_option')})"
+        )
     staleness = str(payload.get("staleness") or UNKNOWN)
     if staleness == BEHIND:
         serves = " (read tools still serve)" if payload.get(BEHIND_SERVES_FIELD) else ""
@@ -441,6 +459,7 @@ def _status(
     _attach_suggestions(status, servable, staleness, indexed=indexed)
     if detail_level == "minimal":
         _attach_behind_routes(status, staleness=staleness, detail_level="minimal")
+        _attach_rebuild_pending(status, store)
         return signed(_with_summary(status))
     _attach_behind_routes(
         status, staleness=staleness, detail_level=detail_level, store=store, config=config

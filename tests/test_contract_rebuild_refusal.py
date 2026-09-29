@@ -173,6 +173,32 @@ def test_get_index_status_names_the_pending_rebuild(tmp_path: Path) -> None:
     assert pending["route"] == FULL_REBUILD_ROUTE
 
 
+@pytest.mark.parametrize("detail_level", ["minimal", "standard"])
+def test_the_summary_names_the_pending_rebuild_at_an_unmoved_head(
+    tmp_path: Path, detail_level: str
+) -> None:
+    """347 AC1: HEAD has not moved, so staleness reads current — the summary must still say it."""
+    seeded(tmp_path)
+    stored = lag_the_stored_era(tmp_path)
+
+    status = status_tool(config_for(tmp_path), (STATUS_NAME,))(detail_level=detail_level)
+
+    assert status["staleness"] == "current"
+    summary = str(status["summary"])
+    assert summary.startswith("rebuild required")
+    assert f"index contract v{stored}, server v{contract.CONTRACT_VERSION}" in summary
+    assert f"`{FULL_REBUILD_ROUTE}`" in summary and "allow_full_rebuild=true" in summary
+    assert "healthy" not in summary
+
+
+def test_minimal_says_nothing_when_no_rebuild_is_pending(tmp_path: Path) -> None:
+    """347 AC4: omit-when-empty at every level, so a same-era payload is unchanged."""
+    seeded(tmp_path)
+    status = status_tool(config_for(tmp_path), (STATUS_NAME,))(detail_level="minimal")
+    assert FULL_REBUILD_REQUIRED not in status
+    assert str(status["summary"]).startswith("current")
+
+
 def test_get_index_status_says_nothing_when_no_rebuild_is_pending(tmp_path: Path) -> None:
     """AC5's other half, and R6.5: the field is observed absent, not assumed to omit itself."""
     seeded(tmp_path)

@@ -62,6 +62,21 @@ def _event(name: str) -> str:
     return json.dumps({"hook_event_name": name, "source": "compact"})
 
 
+def test_an_older_era_index_speaks_at_an_unmoved_head(
+    project: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """347 AC2: `current` by revision, an older contract by era — SessionStart must say so."""
+    from code_atlas import contract
+    from code_atlas.store import CONTRACT_VERSION_KEY
+
+    with GraphStore(config_for(project).db_path) as store:
+        store.set_meta(CONTRACT_VERSION_KEY, str(contract.CONTRACT_VERSION - 1))
+    code, out = _run(monkeypatch, capsys, _event("SessionStart"))
+    assert code == 0
+    assert out.startswith(state.PREFIX + "rebuild required")
+    assert out.strip() == state.PREFIX + _summary(project)
+
+
 def test_a_running_build_is_named_with_its_live_phase_and_route(project: Path) -> None:
     """AC1 — the lock is held: the line carries the phase and `code-atlas-build --status`."""
     db = config_for(project).db_path
