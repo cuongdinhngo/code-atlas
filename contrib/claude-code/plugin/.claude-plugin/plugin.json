@@ -1,0 +1,11 @@
+{
+  "name": "code-atlas",
+  "version": "0.1.0",
+  "description": "Local-first MCP server that indexes a codebase into SQLite and exposes token-efficient search/read/navigation/impact tools.",
+  "author": {
+    "name": "cuongdinhngo"
+  },
+  "homepage": "https://github.com/cuongdinhngo/code-atlas",
+  "repository": "https://github.com/cuongdinhngo/code-atlas",
+  "license": "MIT"
+}

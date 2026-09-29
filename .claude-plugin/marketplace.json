@@ -1,0 +1,17 @@
+{
+  "name": "code-atlas",
+  "owner": {
+    "name": "cuongdinhngo"
+  },
+  "metadata": {
+    "description": "code-atlas as a Claude Code plugin: server, hooks and skill."
+  },
+  "plugins": [
+    {
+      "name": "code-atlas",
+      "source": "./contrib/claude-code/plugin",
+      "description": "Local-first MCP server that indexes a codebase into SQLite and exposes token-efficient search/read/navigation/impact tools.",
+      "version": "0.1.0"
+    }
+  ]
+}

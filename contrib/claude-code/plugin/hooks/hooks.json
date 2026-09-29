@@ -1,0 +1,74 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-poke",
+            "if": "Edit(*.php)|Write(*.php)|Edit(*.phtml)|Write(*.phtml)|Edit(*.py)|Write(*.py)|Edit(*.sql)|Write(*.sql)|Edit(*.ts)|Write(*.ts)|Edit(*.tsx)|Write(*.tsx)|Edit(*.js)|Write(*.js)|Edit(*.jsx)|Write(*.jsx)|Edit(*.mjs)|Write(*.mjs)|Edit(*.cjs)|Write(*.cjs)",
+            "async": true,
+            "timeout": 60
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-signal",
+            "if": "Read(*.php)|Read(*.phtml)|Read(*.py)|Read(*.sql)|Read(*.ts)|Read(*.tsx)|Read(*.js)|Read(*.jsx)|Read(*.mjs)|Read(*.cjs)",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-signal",
+            "if": "Write(*.php)|Write(*.phtml)|Write(*.py)|Write(*.sql)|Write(*.ts)|Write(*.tsx)|Write(*.js)|Write(*.jsx)|Write(*.mjs)|Write(*.cjs)",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-state",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-refresh",
+            "async": true,
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-state",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
