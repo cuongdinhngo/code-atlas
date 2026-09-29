@@ -95,7 +95,7 @@ takes its own explicit approval at finalise, separate from the PR.
 
 ## Session status
 
-- **KEY:** 344 · **work_doc_mode:** embed · **Current phase:** 3 execute · **Next action:** review.
+- **KEY:** 344 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** maintainer reviews PR [#7](https://github.com/cuongdinhngo/code-atlas/pull/7), ratifies W1–W4, merges. **Revert path:** `git revert` the branch's commits, or close #7 unmerged; a user runs `/plugin uninstall code-atlas`.
 - `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · Run mode: `autorun` (unattended, stops at the PR). Run arg *"with skipped
   reviewer"* = `--no-reviewer` only; the ticket-blind challenger keeps its seat.
 - Contract `.mango/run-contract-344.txt`. RECONCILE t0: 5 declared | 3 re-run | 0 holding | 3 BROKEN
@@ -178,11 +178,10 @@ Both lines above `SECTIONS:` are carried forward from Phase 0.
 
 ### BASELINE — `config.test_command` on the untouched checkout
 
-The branch point is `e58d8c13`, the tree 343's baseline ran on, so the run is not repeated.
-Ran at e58d8c13
+The branch point is `e58d8c13`, the tree 343's baseline ran on, so the run is not repeated —
+`.venv/bin/python -m pytest -q -p no:cacheprovider` in a clean worktree of `e58d8c13`:
 
 ```
-$ .venv/bin/python -m pytest -q -p no:cacheprovider
 3984 passed, 4 skipped in 379.03s (0:06:19)
 ```
 
@@ -294,7 +293,7 @@ no dependency is added. R7.5 is checked at execute.
 | 4 | install docs | `README.md`, `contrib/claude-code/README.md`, `docs/CONVENTION.md` | `test_contrib_snippets.py` README checks; doc size budget | G1, W4 | 3/3 |
 | 5 | bookkeeping | `docs/BACKLOG.md`, `docs/TOKEN_LEDGER.md`, `docs/LESSONS.md`, this file | bookkeeping tests | R7.2 | — |
 
-Trace — the consumers of the snippet path and the generator. Ran at e58d8c13
+Trace — the consumers of the snippet path and the generator. Designed on `e58d8c13`; re-run on the tree under review, where it also finds the new plugin test. Ran at af879142
 
 ```
 $ grep -rln "CLAUDE_CODE_SNIPPET_PATH\|POKE_SNIPPET_PATH\|render_claude_code_snippet\|GENERATED\|settings.snippet.json" scripts tests code_atlas --include=*.py
@@ -304,6 +303,7 @@ tests/test_agent_brief_in_indexed_repo.py
 tests/test_poke_snippet_covers_every_adapter.py
 tests/test_skill_drift.py
 tests/test_session_state_hook.py
+tests/test_claude_code_plugin.py
 ```
 
 `test_sql_column_nullability_identity_pk.py` matches the SQL word `GENERATED`, not the generator.
@@ -402,3 +402,82 @@ failed on the unfixed `refresh.py` (`1 failed, 1 passed`); the proving test erro
 
 **Sweep — axis 2.** Approach 1, 3, 4, 5: implemented as approved. Approach 2: re-gated and
 implemented as revised. D1–D3 are recorded above.
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`
+
+**Challenger (ticket-blind, round 1, on `ea9985eb`)**: 9 met · AC2a partly met (Windows) · Scope 1a
+**not met** (the plugin's `.mcp.json` gitignored, so no committed server) · AC0 and AC1 can't tell
+(AC0 lives in this doc, which it may not read; AC1 needs a live install). Its blocking finding is the
+one D3 fixed in `07fbfb86`, found independently and landed before its report arrived. **Verify-only
+round** in the main loop: the fix is exactly the named finding; the clone-based live install (Phase 3)
+shows `✔ Connected`; `test_every_generated_file_is_committable` guards the class. Its minor note (a
+stray blank line) landed in `e956ec14`. No re-dispatch — no fix changed scope.
+
+AC2a Windows is the recorded coverage-gap exclusion (design), not an unmet requirement.
+
+**Scope reconciliation.** File axis: 13 files — the change list plus D1–D3 (the snippet,
+`test_poke_snippet_covers_every_adapter.py`, `refresh.py`, `test_git_refresh_hook.py`). Behaviour
+axis: Approach 2 re-gated; everything else as approved.
+
+**Regression check.** The snippet's consumers (`test_session_state_hook.py`,
+`test_agent_brief_in_indexed_repo.py`, the poke coverage test) pass on the new shape; a hand
+installer who re-merges gets hooks that fire for the first time.
+
+**Gate** — green against the green baseline:
+
+Ran at af879142
+
+```
+$ scripts/gate.sh
+  21 passed · 0 failed · 0 skipped
+GATE GREEN — all 21 checks passed
+```
+
+`Ph3/4 proven by`: G1, R1–R6, AC0–AC3 — 11/11 except AC2's Windows half (excluded, expiry recorded);
+inventory N = 4 hook commands, 4/4 in `test_each_hook_is_silent_in_a_repo_with_no_index` and live.
+
+Verdict: **clean (challenger only — REVIEWER: OFF)**.
+
+Reviewed at af879142 — reviewed files: `.claude-plugin/marketplace.json`, `README.md`,
+`code_atlas/hooks/refresh.py`, `contrib/claude-code/README.md`,
+`contrib/claude-code/plugin/.claude-plugin/plugin.json`, `contrib/claude-code/plugin/hooks/hooks.json`,
+`contrib/claude-code/plugin/skills/code-atlas/SKILL.md`, `contrib/claude-code/settings.snippet.json`,
+`docs/CONVENTION.md`, `scripts/gen_skill.py`, `tests/test_claude_code_plugin.py`,
+`tests/test_git_refresh_hook.py`, `tests/test_poke_snippet_covers_every_adapter.py`. Working doc:
+`docs/tasks/344_claude-code-plugin.md` (embedded).
+
+## Phase 5 — finalise
+
+Stale-review guard: after `af879142` only this working doc and `docs/TOKEN_LEDGER.md` change —
+bookkeeping, exempt. Not stale.
+
+### Durable lesson
+
+`CLAIMS: 3 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=2 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+`344-C1`, `344-C2` (type 5) and `344-C3` (type 2, `verify-the-shipped-artifact-not-the-working-tree`)
+are in `docs/LESSONS.md`, first sightings, `proposed (awaiting human confirm)`.
+
+### Outward actions
+
+1. push `feat/344-claude-code-plugin` — pre-authorised (handover).
+2. open PR #7 — pre-authorised (handover).
+3. **Deferred:** publishing the marketplace (merging `.claude-plugin/` to `main`) is the maintainer's
+   merge decision; autorun never merges.
+
+### Cost ledger
+
+| # | Phase | Dispatch | Tokens |
+|---|---|---|---|
+| 1 | refine | plugin-format docs research (`claude-code-guide`) | 80,923 fresh |
+| 2 | refine | exposure-checker (`challenger`) | 43,020 fresh |
+| 3 | review | `challenger`, round 1 | 56,095 fresh |
+| — | main loop | — | unmeasured (host surfaces no main-loop usage) |
+
+`LEDGER TOTAL: 180,038 · top cost driver: refine/docs research`
