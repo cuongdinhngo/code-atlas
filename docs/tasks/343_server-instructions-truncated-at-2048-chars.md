@@ -39,7 +39,8 @@ The cap was observed, not read from Claude Code's docs. AC1 measures it rather t
    that fuses WHY and LIMITS (index for resolved who/what/where, Grep for literal text **and for
    absence**) → KEEP_GOING → the recognition map. Whatever the cap cuts is then the least important
    part. The fusion drops LIMITS' first half (read a non-ok `reason` and the coverage fields); that
-   half already rides every tool result, so it moves nowhere — say so in the module docstring.
+   half is claimed to ride every tool result already (`tools/coverage.py`, `tools/collection.py`);
+   AC3c proves that before the sentence is dropped, and the module docstring says where it went.
 2. **Shrink the map for this channel.** Keep the full map in the skill (`gen_skill.py`) and put a
    subset here: the rows flagged `core` on `RECOGNITION_MAP` itself (callers, references, read,
    impact, search, outline, include_graph, explain_path). R6.7 still holds: the subset is a filter
@@ -48,7 +49,8 @@ The cap was observed, not read from Claude Code's docs. AC1 measures it rather t
 3. **LOAD names the working set.** Today it tells the client to load two tools, so the first
    `find_callers` costs a second ToolSearch round. Name the core set (`get_index_status`,
    `search_symbol`, `read_symbol`, `find_callers`, `find_references`, `impact`) in the one `select:`
-   string.
+   string, filtered by the registered `names` exactly as the map is: a `CA_TOOLS` that drops a tool
+   drops it from LOAD too, since a name the session cannot call is worse than none.
 
 ## Acceptance criteria
 
@@ -61,8 +63,11 @@ The cap was observed, not read from Claude Code's docs. AC1 measures it rather t
 - **AC3:** A test asserts the order: the LIMITS/absence sentence and KEEP_GOING come before the first
   map line.
 - **AC3b:** A test asserts every map line in `instructions` is a `core` row of `RECOGNITION_MAP`.
+- **AC3c:** A test asserts every tool result carries `reason` and the coverage fields that LIMITS'
+  dropped half names; if any tool lacks them, that half stays in `instructions`.
+- **AC3d:** With `CA_TOOLS` cutting a core tool, a test asserts LOAD's `select:` string omits it.
 - **AC4:** A fresh Claude Code session on the anchor repo shows the whole `instructions` block with
-  no `[truncated]` marker.
+  no `[truncated]` marker, on the Claude Code version AC1 recorded.
 
 ## Out of scope
 

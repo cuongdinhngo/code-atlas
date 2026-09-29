@@ -5,7 +5,7 @@ title: 'Ship code-atlas as a Claude Code plugin — server, hooks and skill in o
 phase: 2
 milestone: Adoption
 status: todo
-depends_on: [036, 099, 322, 343]
+depends_on: [036, 099, 322]
 ---
 
 ## Why this exists
@@ -43,22 +43,26 @@ ticket makes the fourth a one-step install; 345 adds the hook that speaks at the
      Edit/Write, async), `code-atlas-signal` (PostToolUse Read, PreToolUse Write) — the existing
      snippet, generated from the same source so the two cannot drift;
    - **skill**: the generated `contrib/skill/SKILL.md`, which holds the full recognition map that 343
-     takes out of `instructions`.
+     takes out of `instructions`. The two are independent: the skill ships the full map either way.
 
    This keeps the 036/099 rule: code-atlas writes to no settings file. The user's one install is
    the opt-in.
 2. **Refresh on a `behind` index at SessionStart** by spawning `code-atlas-refresh` in the
-   background — no new flag or second refresh path. It skips with one line when an adapter command
+   background, as its own SessionStart entry beside `code-atlas-state` — no new flag or second
+   refresh path. It skips with one line when an adapter command
    is unset (the `coverage_loss_pending` case).
 3. **Every hook gates itself on the repo.** A user-scope plugin fires in *every* project, so each
    command is a silent no-op when the cwd has no `.code-atlas/`.
 
 ## Acceptance criteria
 
+- **AC0:** Both open questions below are decided at Gate 2 and recorded in this ticket before any
+  code lands; AC1 then names the launch step it verifies.
 - **AC1:** On a clean machine with code-atlas pip-installed **into a venv not on PATH**,
-  `/plugin install` plus the one documented step from the open question gives a connected server
-  and all four hooks. There is no `claude mcp add-json` and no settings merge. This is verified on
-  a running Claude Code (not from docs, per 200's A-4 discipline).
+  `/plugin install` plus at most one documented step gives a connected server and all four hook
+  commands (`code-atlas-state`, `-poke`, `-signal`, `-refresh`). There is no `claude mcp add-json`,
+  no settings merge and no hand-typed interpreter path. This is verified on a running Claude Code
+  (not from docs, per 200's A-4 discipline).
 - **AC2:** In a repo with no index, no hook prints anything and each exits 0. A test covers each
   command, and the per-hook cost in a non-indexed repo is measured and recorded (Windows and
   POSIX) — a Python entry point pays interpreter startup, so the number is measured, not promised.
@@ -74,6 +78,11 @@ ticket makes the fourth a one-step install; 345 adds the hook that speaks at the
   install, and `CA_<LANG>_CMD` is still per-machine. Decide whether the plugin defaults `CA_*_CMD` to
   `${CLAUDE_PLUGIN_ROOT}/adapters/...` with a first-run install step, or stays server-and-hooks only
   and leaves adapters to the README.
+
+## Outward actions
+
+Publishing the marketplace (the public repo's `.claude-plugin/` on `main`) is an outward action: it
+takes its own explicit approval at finalise, separate from the PR.
 
 ## Out of scope — follow-up
 
