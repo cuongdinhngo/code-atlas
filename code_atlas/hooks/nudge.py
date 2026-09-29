@@ -75,7 +75,7 @@ def _suffix_of(text: str) -> str | None:
 
 
 def _scope_from(kind: str, value: str) -> str | None:
-    """A glob `*.php` or a path names a suffix; a type `php` means `.php` — one rule, no table."""
+    """A glob `*.x` or a path names a suffix; a type `x` means `.x` — one rule, no table."""
     if kind == "type":
         return "." + value.lower().lstrip(".")
     return _suffix_of(value)

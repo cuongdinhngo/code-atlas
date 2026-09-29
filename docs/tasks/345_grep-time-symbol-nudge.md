@@ -102,7 +102,7 @@ field and a shipped hook. Advisory.
 
 **Spike (Claude Code 2.1.284, `--plugin-dir`, PostToolUse on Read).** A hook's **plain stdout never
 reached the model** (asked to quote a marker: `NONE`); the same marker as
-`hookSpecificOutput.additionalContext` JSON did (`JSON-MARKER-5519`). So the nudge emits JSON. It also
+`hookSpecificOutput.additionalContext` JSON did (the JSON marker quoted back verbatim). So the nudge emits JSON. It also
 means `code-atlas-signal`'s plain `print` has never reached a model — filed as ticket 346, not fixed
 here (outside this change list).
 
@@ -223,7 +223,7 @@ N/A: §4 because the build output rows do not change (a meta stamp only) · §8 
 
 | # | Assumption | Tag |
 |---|---|---|
-| A1 | PostToolUse `additionalContext` JSON reaches the model | verified — spike (`JSON-MARKER-5519`) |
+| A1 | PostToolUse `additionalContext` JSON reaches the model | verified — spike (the JSON marker quoted back verbatim) |
 | A2 | `Bash(grep *)` as a single-rule `if` matches a Bash call starting `grep` | novel-untested → the live replay (AC1) is shaped to fail if false |
 | A3 | Grep tool input carries `pattern` / `path` / `glob` / `type` | novel-untested → the live replay logs the payload |
 
