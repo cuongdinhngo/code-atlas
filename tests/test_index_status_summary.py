@@ -47,6 +47,25 @@ def test_summary_is_pure_function_of_structured_fields() -> None:
     )
 
 
+def test_a_pending_rebuild_leads_the_summary_whatever_the_staleness() -> None:
+    """347 AC1: an incremental refuses on an older era, so the route must be the full one."""
+    pending = {
+        "reason": "contract_rebuild_required",
+        "route": "code-atlas-build --full",
+        "in_band_option": "allow_full_rebuild=true",
+        "stored_contract": "10",
+        "server_contract": "13",
+    }
+    base = {"indexed": True, "files": 10, "nodes": 100, "last_commit": "abcdef0123456789"}
+    expected = (
+        "rebuild required @ abcdef0 · 10 files · 100 symbols — index contract v10, server v13 — "
+        "run `code-atlas-build --full` (or build_or_update_index allow_full_rebuild=true)"
+    )
+    for staleness in ("current", "behind"):
+        payload = {**base, "staleness": staleness, "full_rebuild_required": pending}
+        assert _compose_summary(payload) == expected
+
+
 def test_built_minimal_summary_and_claim_unchanged(tmp_path: Path) -> None:
     """AC1/AC4 — built minimal has summary; sign=True still appends claim last."""
     db = tmp_path / ".code-atlas" / "graph.db"

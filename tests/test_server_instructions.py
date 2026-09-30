@@ -134,7 +134,7 @@ def test_state_single_sources_on_the_index_status_summary(tmp_path, monkeypatch)
 
 
 def _render_on_every_state(tmp_path: Path, monkeypatch) -> dict[str, str]:
-    """AC2's N = 5: one render per branch of `_compose_summary`, all 24 tools registered."""
+    """AC2's N = 6: one render per branch of `_compose_summary` (347 added one), all 24 tools."""
     config = config_for(tmp_path)
     SERVES = get_index_status.BEHIND_SERVES_FIELD
     rendered = {"unindexed": instructions.render(config, ALL_TOOLS, FIELD18_TOOLS)}
@@ -150,6 +150,17 @@ def _render_on_every_state(tmp_path: Path, monkeypatch) -> dict[str, str]:
             "edge_health": {"unlinked": 0},
         },
         "incomplete": {**base, "indexed": True, "staleness": "incomplete"},
+        "rebuild_required": {
+            **base,
+            "indexed": True,
+            "staleness": "current",
+            get_index_status.FULL_REBUILD_REQUIRED: {
+                "route": "code-atlas-build --full",
+                "in_band_option": "allow_full_rebuild=true",
+                "stored_contract": "9999",
+                "server_contract": "9999",
+            },
+        },
     }
     for name, payload in states.items():
         summary = get_index_status._compose_summary(payload)
@@ -163,7 +174,7 @@ def test_instructions_fit_under_the_client_cap_on_every_state(tmp_path: Path, mo
     """343/AC2: Claude Code keeps a 2,048-char prefix; KEEP_GOING and LIMITS sat past it."""
     budget = instructions.CLIENT_CAP - instructions.CAP_MARGIN
     rendered = _render_on_every_state(tmp_path, monkeypatch)
-    assert len(rendered) == 5 and len(set(rendered.values())) == 5
+    assert len(rendered) == 6 and len(set(rendered.values())) == 6
     for state, text in rendered.items():
         assert len(text) <= budget, f"{state}: {len(text)} > {budget}"
 
