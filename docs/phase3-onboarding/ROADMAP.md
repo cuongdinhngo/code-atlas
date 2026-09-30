@@ -24,8 +24,8 @@
   layers" is exactly the relationship question `grep` cannot answer. Onboarding is where that value
   should finally pay off.
 - **Not a fork of Understand-Anything** — a *consumer* of the graph you already have, at higher
-  fidelity than tree-sitter. Multi-language "for free" later; validated on **PHP now** (the only
-  adapter today).
+  fidelity than tree-sitter. Multi-language "for free" later; validated on PHP first, and it now
+  runs over all four shipped adapters.
 - **Done means:** onboarding tools + committable markdown + a viewer work on a real PHP repo; the core
   stays deterministic (LLM out of core **and** CI, proven by a stub); no PHP-specific logic; and the
   onboarding question-class beats hand-mapping on tokens-to-answer — or we narrow the scope in writing
@@ -50,7 +50,7 @@ alone with zero LLM.
 
 | Rule | How Phase 3 honours it |
 |---|---|
-| **R4 / R4.1** — core deterministic, no LLM/network | Deterministic enrichment (`metrics`, `layers`, structural `summary`) may live under `code_atlas/onboarding/` — same precedent as `enrichment.py` (optional, off by default, no LLM). The **LLM** summarizer is a separate impl injected through one `Summarizer` Protocol seam and lives **outside** `code_atlas/` (proposed `onboarding_llm/`, mirroring `adapters/`). CI stubs the seam. |
+| **R4 / R4.1** — core deterministic, no LLM/network | Deterministic enrichment (`metrics`, `layers`, structural `summary`) may live under `code_atlas/onboarding/` — same precedent as `enrichment.py` (optional, off by default, no LLM). The **LLM** summarizer is a separate impl injected through one `Summarizer` Protocol seam and lives **outside** `code_atlas/` (`onboarding_llm/`, mirroring `adapters/`; 117 added a third seam, `ProseWriter`). CI stubs the seam. |
 | **R1.1** — zero language branches | No `if language == …`; layering is driven by graph shape + generic namespace/dir strings. The existing CI grep-gate (`tests/test_core_is_language_agnostic.py`) already covers any new file under `code_atlas/`. |
 | **R1.2** — one seam, YAGNI | Two enrichment seams, each forced by the same hard rule (R4.1 pushes the LLM out of core), not speculation: the `Summarizer` Protocol (085/090) and the `LayerRefiner` Protocol (091). Each has a deterministic in-core default (structural summarizer; identity refiner) **and** an LLM implementer shipping with it, so neither is a dead abstraction (R7.4); no registry — the entry point injects them with one `if opted-in` each. |
 | **R1.4 / SQL confinement** | All SQL stays in `store.py` (guarded by `tests/test_sql_confinement.py`); onboarding modules call the store's read API, never embed SQL, never parse, never write. |
@@ -104,10 +104,10 @@ A dependency-ordered walk and committable onboarding docs, plus a small offline 
   dependency order respected, deterministic given a fixed stub); coherence = a recorded manual check,
   not a gate.
 
-### M12 — LLM enrichment (opt-in, deferred)
+### M12 — LLM enrichment (opt-in, delivered)
 
 Real prose summaries and layer-name refinement behind the M10 seam — deferred until the deterministic
-path is proven and measured.
+path was proven and measured, then shipped.
 
 | ID | Task |
 |----|------|
@@ -116,10 +116,9 @@ path is proven and measured.
 | 117 | LLM prose for the map — layer descriptions, tour-step narratives and the wording of the headline facts. **Shipped:** one `ProseWriter` seam (`code_atlas/onboarding/prose.py`) with one method for all three slots, `LLMProseWriter` behind it in `onboarding_llm/` (opt-in `CA_ONBOARDING_PROSE`); headline *candidates* derived in `onboarding/headlines.py` so enrichment words the map and never changes it; filler refused by 109's C1, a failure degrades to the structural sentence, and spend is capped per slot at 33 calls a build. `DATASET_VERSION` 6. |
 
 **Decision points — all resolved as built:**
-- **Provider / model — Claude, one tier.** `claude-sonnet-5` is the default for every slot
-  (`CA_ONBOARDING_LLM_MODEL` / `_LAYER_MODEL` / `_PROSE_MODEL` override per seam). The "top tier for the
-  layer pass" half of the recommendation was dropped with the pass itself: 117 measured that 091's
-  rename seam fires on nothing once 110 names layers by responsibility.
+- **Provider / model — Claude.** `claude-sonnet-5` for summaries, `claude-opus-5` for the layer and
+  prose slots (`CA_ONBOARDING_LLM_MODEL` / `_LAYER_MODEL` / `_PROSE_MODEL` override per seam). 117
+  measured that 091's rename seam fires on nothing once 110 names layers by responsibility.
 - **Determinism & cost — as proposed, and bounded by construction.** Content-hash caches per seam,
   committable, sorted-key JSON, no timestamps; on demand, never in the per-PR gate; the ceiling is
   derived (6 headline families + 12 layers + 15 tour steps = **33 calls a build**) and enforced per slot.
@@ -189,7 +188,7 @@ named business screen on a tree nobody can hold in their head — ship as a **lo
 | Layering on flat-namespace legacy PHP (the anchor repo is the hard case) | Dependency-direction fallback when namespaces are uninformative; consider LLM refinement (091) before trusting layer names. |
 | LLM cost & nondeterminism (fights R4) | Deterministic-first; content-hash cache; never in the per-PR gate. |
 | SCC is whole-graph vs R4.3 | Node-budgeted traversal in the tour (087), the pattern impact/reach already use. |
-| "Multi-language for free" but only PHP exists | Onboarding ships on PHP; enforce language-agnostic by design (no PHP strings, CI grep-gate) even with one adapter. |
+| "Multi-language for free" while only PHP existed | Enforced language-agnostic by design (no PHP strings, CI grep-gate); it now runs over all four adapters. |
 | Sequencing vs the Phase 1.5 tail (074–082) | M10 is read-only over the graph → can run **in parallel**. Recommend closing 074 (does the index harm mechanism answers) and 077 (name the revision) first, since narratives inherit any graph-trust defect. |
 
 ## 7. Task breakdown
@@ -208,9 +207,5 @@ named business screen on a tree nobody can hold in their head — ship as a **lo
 
 ## 8. Next steps
 
-1. **Brainstorm the M11 and M12 decision points** (§4) — M10 is locked. *(still open)*
-2. ~~**Fold this roadmap into [`PLAN.md`](../PLAN.md) §14/§15** and add 083–091 to
-   [`BACKLOG.md`](../BACKLOG.md) once ratified (R7.2).~~ **Done 2026-08-12** — PLAN §14/§15 folded,
-   BACKLOG rows 083–091 registered (022/023 removed). The stub tasks in [`docs/tasks/`](../tasks/)
-   carry `status: todo` and this proposal is their source.
-3. **Then** run each ticket through the mango lifecycle (`/mango:solve 083` …), M10 first.
+All done: the M11/M12 decision points are resolved in §4, the roadmap was folded into
+[`PLAN.md`](../PLAN.md) §14/§15 on 2026-08-12, and tasks 083–091 and 108–117 shipped (phase 1).

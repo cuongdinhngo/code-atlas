@@ -357,8 +357,8 @@ USAGE_RULES: tuple[str, ...] = (
     "- **`find_orphans` has no path scope** — it walks the whole index from"
     " `CA_ENTRY_POINTS`. Do not expect a directory filter.",
     "",
-    "Hook snippets (edit poke / write-time signal) stay **offered** under",
-    "`contrib/claude-code/` — the server never writes editor settings (036/099).",
+    "Hooks (edit poke, read/write signal, session state, grep nudge) are opt-in: the Claude Code",
+    "plugin or the snippet under `contrib/claude-code/` — the server never writes editor settings.",
     "",
 )
 

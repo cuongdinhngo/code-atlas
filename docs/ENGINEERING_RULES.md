@@ -5,8 +5,7 @@ The **how we build** rules, binding for humans and AI agents. Companions:
 [`LESSONS.md`](LESSONS.md), which holds the evidence, the recurrence count and the ticket sightings
 behind every rule here.
 
-When a rule and a deadline conflict, raise it — don't quietly break the rule. A broken boundary here
-costs a rewrite at adapter #2.
+When a rule and a deadline conflict, raise it — don't quietly break the rule.
 
 A rule's closing italic line names its **handle** and the `LESSONS.md` claims it was promoted from —
 the two things `/mango:promote` greps to know the class is already carried — plus its status:
@@ -14,8 +13,7 @@ the two things `/mango:promote` greps to know the class is already carried — p
 that. Every rule below was ratified 2026-08-30 at recurrence ≥ 2 in the class index, the condition
 the brief states — except **R2.4**, which is `Provisional`: one incident, no second sighting, and it
 binds meanwhile because the cost of its second sighting is a disclosure. **Sightings stay in
-`LESSONS.md`'s class index only** — a second copy here has no reader, and the once it was kept it
-drifted from the index it came from (132).
+`LESSONS.md`'s class index only** (132).
 
 ---
 
@@ -87,7 +85,9 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
 ## 3. The contract is a frozen, versioned artifact
 
 - **R3.1** — A change to node/edge vocabulary, fields, or the qname convention requires a
-  `contract_version` bump and a conformance-test update in the same change.
+  `contract_version` bump and a conformance-test update in the same change; that bump, or a
+  `SCHEMA_VERSION` one, cuts a release — version plus a CHANGELOG entry flagging the rebuild
+  (`tests/test_release_discipline.py`).
 - **R3.2** — `contract.py` is the single source of truth for the schema. Store, indexer and tools
   import from it; they never re-declare field lists.
 - **R3.3** — Adapters emit **bare** edges (targets as raw FQNs/names); cross-file linking is the
@@ -109,8 +109,7 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
 - **R4.1 — No LLM or network calls in the core.** Ever. LLM enrichment lives only in the Phase-3
   onboarding layer: *deterministic graph → LLM enrichment → presentation.* In practice that means
   **outside `code_atlas/`** — the implementers live in `onboarding_llm/`, are injected through
-  Protocol seams, and are off by default. *CI grep-gates this* — no prompt text, model id or LLM
-  import under `code_atlas/`.
+  Protocol seams, and are off by default. *CI grep-gated* (R6.4).
 - **R4.2 — Identical input → identical output.** The same repo state produces identical rows: no
   wall-clock, randomness or set-ordering leaking into stored data. An incremental update for a state
   must equal a full rebuild of that state.
@@ -200,7 +199,8 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   *Ratified 2026-08-30 · `fixture-shape-begs-the-question` (`105-C2`).*
 - **R6.4 — Guardrail tests are real tests.** The three grep-gates (R1.1 no language branches in
   core; R2.2 no repo/framework names in adapters or core; R4.1 no prompt/model id/LLM import in
-  core) run in CI and fail the build. R2.4 is pytest-only — a digest match is not a grep.
+  core) run in CI and fail the build, beside two commit-range scripts: R7.3 attribution and R2.4
+  commit identity (`scripts/{attribution,identity}_markers.py`). R2.4's tree sweep stays pytest.
 - **R6.5 — A guard ships only once it has been observed failing, and a sweep is guarded against
   emptying itself.** Every grep-gate or file sweep excludes vendored trees (`vendor/`,
   `node_modules/`), and **the exclusion needs its own test asserting the sweep is still non-empty** —

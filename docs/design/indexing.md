@@ -89,8 +89,8 @@ it has moved, the build escalates to a full one and **names why**:
 "scope_change": {"added": [".ts", ".tsx"], "removed": [], "escalated_to": "full"}
 ```
 
-This is the same answer the existing `contract_version` check already gives for the same class of
-change. A build whose scope did not change is byte-identical, and pays one meta read it already made.
+This is the same escalation `incremental_update` makes on a `contract_version` change (over MCP that
+one is refused first and routed to a full rebuild — 201/347). A build whose scope did not change is byte-identical, and pays one meta read it already made.
 
 ### Exact matches band ahead of near-misses (task 180)
 

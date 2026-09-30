@@ -98,8 +98,9 @@ cd code-atlas
 python3 scripts/setup.py /abs/path/to/your-project
 ```
 
-That installs the core, builds the PHP adapter, and writes `<your-project>/.mcp.json` with the
-correct interpreter, adapter path and working directory filled in — the three things that are easy
+That installs the core, sets up every adapter whose runtime is on `PATH` (PHP via Composer, TS/JS
+and T-SQL via npm, Python needs nothing), and writes `<your-project>/.mcp.json` with the correct
+interpreter, each `CA_<LANG>_CMD` and the working directory filled in — the three things that are easy
 to get wrong by hand. Run it with no path to print the snippet instead of writing it.
 
 To run the server without a checkout: `uvx --from git+https://github.com/cuongdinhngo/code-atlas.git
@@ -119,7 +120,7 @@ Its hooks stay silent in a repo with no `.code-atlas/`. Adapter `CA_<LANG>_CMD` 
 machine, as below. Already wired `.mcp.json` or the hook snippet by hand? Remove those, or each event
 fires twice ([`contrib/claude-code/`](contrib/claude-code/)).
 
-For TypeScript/JavaScript, T-SQL or Python, add that adapter — the core resolves any `CA_<LANG>_CMD`
+Installed with uvx/pipx, the plugin or by hand? Add each adapter yourself — the core resolves any `CA_<LANG>_CMD`
 generically from the variable name, so each is one env var, not a code change:
 
 ```bash
@@ -397,7 +398,8 @@ imports it.
 
 `scripts/gate.sh` runs the whole gate in one step — bytecode invalidation, entry points, `ruff`,
 `mypy`, `pytest`, the tokens-to-answer benchmark, `composer validate`, `php -l`, phpstan at level
-max, and the four rulebook grep-gates — in the same order
+max, `tsc --checkJs --strict` on both Node adapters, `ruff` and `mypy --strict` on the Python
+adapter, and the rulebook guardrails (R1.1, R2.2, R4.1, R7.3, R2.4) — in the same order
 [`ci.yml`](.github/workflows/ci.yml) runs them. It exits non-zero if a check **failed or was
 skipped**, because a gate that quietly shrinks to whatever the host can run has not verified
 anything. Add `--fast` to skip the two slow checks, or `--docker` to run the same gate inside the

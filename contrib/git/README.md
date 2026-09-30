@@ -34,6 +34,7 @@ version-controlled, and this project never writes into a user's `.git` for them.
 | Another build holds `.code-atlas/write.lock` (hook or MCP) | Exit 0; verbose: `skipped: another build is running` |
 | `post-checkout` with git's 3rd arg ≠ `1` (file checkout) | Hook exits 0 immediately; no refresh |
 | Install/config error | Exit 0; **always** one stderr line `code-atlas refresh skipped: …` (hooks keep stderr) |
+| Build refused (a full rebuild is required, or coverage would be lost) | Exit 0; **always** one stderr line with the reason and the route to run |
 
 **Why background?** A no-op / small incremental on a large index can cost on the
 order of a minute (task 052). A hook that blocks `git pull` for that long gets

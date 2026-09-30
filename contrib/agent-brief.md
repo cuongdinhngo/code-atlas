@@ -70,5 +70,5 @@ The index holds what the adapters parsed, so a question whose answer is an **abs
 - **A runtime-loaded module is not an edge either.** A non-literal `import()` / `require()` / `importlib` stamps `dynamic_import`, a registered class autoloader stamps `autoload`: the target is never linked, so a missing importer is not proof of none — Grep the loader call. `find_orphans` answers `status=resolution_unmodelled` for either (279/294/295).
 - **`find_orphans` has no path scope** — it walks the whole index from `CA_ENTRY_POINTS`. Do not expect a directory filter.
 
-Hook snippets (edit poke / write-time signal) stay **offered** under
-`contrib/claude-code/` — the server never writes editor settings (036/099).
+Hooks (edit poke, read/write signal, session state, grep nudge) are opt-in: the Claude Code
+plugin or the snippet under `contrib/claude-code/` — the server never writes editor settings.

@@ -1,6 +1,6 @@
 # Onboarding mockup — a system map for humans (design note, 2026-08-19)
 
-**Status:** design accepted by the maintainer; tasks 108–117 filed from it.
+**Status:** design accepted by the maintainer; tasks 108–117 filed from it and delivered (M11/M12).
 **Prototype:** [`mockup/`](mockup/) — regenerates the reviewed artifact from any indexed repo.
 **Reviewed artifact:** `artifacts/onboarding-mockup/index.html` (gitignored; rebuild with `mockup/build.sh`).
 
@@ -127,8 +127,8 @@ reachability split; the module table; and **every number interpolated into the t
 prototype has a regression assertion that no such number is hard-coded).
 
 **Written by a human in the mockup — in the shipped version this is the LLM's job:** the one-line
-description per layer, the wording of the six headline facts, and the 12 tour paragraphs. These go
-through the existing 085 `Summarizer` / 091 `LayerRefiner` seams (090/091), not a new abstraction.
+description per layer, the wording of the six headline facts, and the 12 tour paragraphs. They shipped
+through a new `ProseWriter` seam (117); 091's rename seam turned out to be unreachable.
 
 This split is what makes the design implementable under R4: the deterministic core produces the whole
 map, and enrichment only replaces prose.
@@ -213,11 +213,11 @@ is the reshape; Wave 3 is enrichment and the new viewer.
 
 | Wave | # | Task | Why now | Depends on |
 |---|---|---|---|---|
-| 1 | 108 | Module page neighbour lists are unbounded | 82 KB pages, and the only place in the repo that ignores `CA_MAX_RESULTS` | 088, 107 |
-| 1 | 109 | Onboarding artifact quality gate | the gate that would have stopped 106 and 107 from shipping | 088, 108 |
-| 2 | 110 | Layers named by responsibility, deepest segment wins | directory names are not architecture; needs the R2.2 judgment | 084, 105, 109 |
-| 2 | 111 | The tour is 5–15 narrative steps, not one stop per module | biggest single value change: 500 stops → a readable reading order | 087, 110 |
-| 2 | 112 | One compact onboarding dataset, aggregates in `store.py` | the contract both renderers consume; keeps SQL in `store.py` (R1.4) | 083, 086, 110 |
+| 1 | 108 | Module page neighbour lists are unbounded | **done** — 82 KB pages, and the only place in the repo that ignores `CA_MAX_RESULTS` | 088, 107 |
+| 1 | 109 | Onboarding artifact quality gate | **done** — the gate that would have stopped 106 and 107 from shipping | 088, 108 |
+| 2 | 110 | Layers named by responsibility, deepest segment wins | **done** — directory names are not architecture; needs the R2.2 judgment | 084, 105, 109 |
+| 2 | 111 | The tour is 5–15 narrative steps, not one stop per module | **done** — biggest single value change: 500 stops → a readable reading order | 087, 110 |
+| 2 | 112 | One compact onboarding dataset, aggregates in `store.py` | **done** — the contract both renderers consume; keeps SQL in `store.py` (R1.4) | 083, 086, 110 |
 | 2 | 113 | Zero-inbound is four populations, not one number | **done** — retracts the "45 % entry points" claim; five buckets from 110's ratified vocabulary + structure | 083, 112 |
 | 3 | 114 | Business modules from directory structure | **done** — the bridge from "fix screen X" to a file; container level derived, coverage stated | 112 |
 | 3 | 115 | Mirror-subtree detection — evidence for 098 | **done** — the trap as a lookup; its measured absence on 3 public repos keeps 098 deferred | 112 (feeds 098) |

@@ -1,6 +1,9 @@
-# Claude Code hooks — index poke, read/write signal, session state (tasks 036, 099, 240, 322)
+# Claude Code hooks — index poke, read/write signal, session state, grep nudge (036, 099, 240, 322, 345)
 
-Three commands, for the moments an agent was never going to make a tool call.
+Four commands, for the moments an agent was never going to make a tool call (`code-atlas-nudge` is
+described under the plugin install below). A tool-event hook answers as
+`hookSpecificOutput.additionalContext` JSON: Claude Code never shows the model a PostToolUse or
+PreToolUse hook's plain stdout (346).
 
 - **`code-atlas-poke`** (036) — after Claude Code `Edit`/`Write` on a file an adapter owns,
   reparse that one file into `.code-atlas/graph.db` using `code_atlas.indexer.reparse_file`
@@ -41,8 +44,9 @@ Coming from a hand install? Remove the merged snippet and any `claude mcp add` e
 
 1. Install code-atlas into the environment Claude Code uses (`pip install -e /path/to/code-atlas`
    or your usual setup from the [README](../../README.md)). This provides the
-   **`code-atlas-poke`**, **`code-atlas-signal`** and **`code-atlas-state`** console scripts on `PATH` (same
-   interpreter as the install).
+   **`code-atlas-poke`**, **`code-atlas-signal`**, **`code-atlas-state`** and **`code-atlas-nudge`**
+   console scripts on `PATH` (same interpreter as the install). The snippet wires all four;
+   `code-atlas-refresh` at `SessionStart` is plugin-only.
 2. Merge [`settings.snippet.json`](settings.snippet.json) into the **project**
    `.claude/settings.json` (shareable) **or** `~/.claude/settings.json` (user-global). Keep
    `"async": true` on the poke so it does not stall the Edit/Write round-trip; the signal is

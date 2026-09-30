@@ -89,7 +89,7 @@ Sort the `parsed_ok = 0` list into two piles:
 - **Bundled legacy libraries.** Vendored PDF/spreadsheet trees (TCPDF, dompdf, MPDF, FPDF, PHPExcel)
   account for most failures on old PHP codebases. Multi-MB generated font/CID tables can also exhaust
   the parser's memory and kill the adapter process; the indexer soft-fails that file and restarts the
-  adapter (`indexer.py:565-573`), so the build survives — it just costs a restart cycle each time.
+  adapter (`indexer.py`), so the build survives — it just costs a restart cycle each time.
 - **Genuinely invalid PHP.** Confirm with the language itself: `php -l <file>`. On the sample repo 5 of
   29 failures were files `php -l` also rejects — dead legacy fragments that cannot execute. That is a
   finding to hand back to the repo's owners, not a code-atlas defect.
@@ -182,7 +182,7 @@ bites, so a shortened walk is never read as a smaller blast radius.
 ## 5. Ignore hygiene: check for `.gitignore` negations that re-include vendor trees
 
 code-atlas layers built-ins → `.gitignore` → `.codeatlasignore`, and **the last matching rule wins**
-(`ignore.py:57-65`). That makes `.codeatlasignore` the final word, and it makes one pattern in a host
+(`ignore.py`). That makes `.codeatlasignore` the final word, and it makes one pattern in a host
 repo's `.gitignore` a trap:
 
 ```gitignore
@@ -215,14 +215,14 @@ Then exclude them again in `.codeatlasignore`. Two more things worth a line in t
 - **Committed vendored libraries under non-`vendor/` paths** — these index by design; only you know
   they are dependencies.
 
-Only git-**tracked** files are collected (`indexer.py:264` uses `git ls-files`). Untracked work in
+Only git-**tracked** files are collected (`indexer.py` uses `git ls-files`). Untracked work in
 progress is invisible to a build; stage it first.
 
 ### Round 2: index dependencies as declarations instead of dropping them
 
 Once the first build is clean, `stub_roots` re-adds dependency trees **declarations-only** (task 039),
 so calls into them resolve without paying for their bodies. A stub root must not overlap what the
-normal walk already collects — `_reject_stub_source_overlap` (`indexer.py:329`) fails loud — so each
+normal walk already collects — `indexer._reject_stub_source_overlap` fails loud — so each
 stub root has to be excluded in `.codeatlasignore` first. Expect the multi-MB generated files from §3
 to cost adapter restarts here.
 
@@ -241,7 +241,7 @@ claude mcp add code-atlas --scope local \
 Two details that bite:
 
 - **The `cd` wrapper is not decoration.** `main()` resolves the repo from `Path.cwd()`
-  (`main.py:104`), and an MCP server inherits the client's working directory. Without the wrapper,
+  (`main.py`), and an MCP server inherits the client's working directory. Without the wrapper,
   launching the client from a subdirectory silently indexes that subdirectory. The wrapper pins the
   root wherever the client starts.
 - **Use an absolute interpreter path.** In a `uv`-managed checkout the console scripts live in
@@ -269,6 +269,7 @@ line. Read the direction before acting:
 | `direction: index_older_than_server` | The index predates the upgrade. | `build_or_update_index` — it deletes and rebuilds in-band. |
 | `direction: index_newer_than_server` | The **server process** predates the upgrade. The index is current. | Restart the MCP client. Do not rebuild — you would spend a full build replacing a good index with an older one. |
 | `direction: index_version_unrecognised` | The stamp is not a version this build can compare. | Inspect by hand; delete only if the index is disposable. |
+| `rebuild required` / `contract_rebuild_required` | The index predates this server's **contract** (347). | `code-atlas-build --full`, or `build_or_update_index(allow_full_rebuild=true)` in band. |
 
 `build_or_update_index` refuses the second and third cases and leaves the file untouched (task 050),
 so following the message is safe — but a session that reads "mismatch" as "corrupt" and falls back to

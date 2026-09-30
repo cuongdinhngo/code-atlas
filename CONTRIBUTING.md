@@ -53,7 +53,8 @@ self-check is the checklist in the PR template. The rules most likely to bite ar
 - **Adapters encode the language standard, never a sample repo's names or framework.** A fix that
   only makes one project's output look right will not be merged.
 - **The adapter contract is versioned.** A change to its vocabulary or qname shape bumps
-  `contract_version` and updates `tests/contract/`.
+  `contract_version`, updates `tests/contract/`, and cuts a release: the package version plus a
+  CHANGELOG entry flagging the full rebuild (`tests/test_release_discipline.py` enforces it).
 - **The core is deterministic.** No network or LLM call under `code_atlas/`. The optional LLM
   package lives in `onboarding_llm/`.
 - **Every fix carries a test that fails without it.**
@@ -67,6 +68,8 @@ Naming, layout and the payload contract are in [`docs/CONVENTION.md`](docs/CONVE
 - **Commit subject:** `type(scope): imperative subject`. The body explains *why* when that is not
   obvious.
 - **No `Co-authored-by:` or AI-attribution trailer.** CI rejects them (`scripts/attribution_markers.py`).
+- **Commit identity:** author and committer email must be a personal or GitHub noreply address; CI
+  rejects a corporate domain (`scripts/identity_markers.py`).
 - **PR body:** fill in every section of [the PR template](.github/pull_request_template.md), and
   update any doc your change makes stale in the same PR.
 

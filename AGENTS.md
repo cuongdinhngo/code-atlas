@@ -60,7 +60,7 @@ MCP client ──stdio──▶ core (Python/FastMCP) ──JSONL contract──
 - **One seam, YAGNI** — the adapter contract is the only abstraction; **verdict: no registry** (R1.2).
 - **SRP boundaries** — adapters parse only; `store.py` owns SQLite; the two never import each other (R1.4).
 - **Standard over sample** — adapters encode the language spec and its ecosystem standards, never a repo's names or framework; samples drive tests/perf only (R2, CI-gated).
-- **Contract is frozen & versioned** — change vocabulary/qname ⇒ bump `contract_version` + update conformance tests; `contract.py` is the single source of truth (R3).
+- **Contract is frozen & versioned** — change vocabulary/qname ⇒ bump `contract_version` + conformance tests + cut a release; `contract.py` is the single source of truth (R3).
 - **Deterministic core** — no LLM/network in the core; the onboarding LLM lives in `onboarding_llm/`,
   outside `code_atlas/`, injected through Protocol seams and off by default (R4/R4.1, CI-gated).
   Identical input → identical rows (R4.2).
@@ -108,8 +108,8 @@ Python ≥ 3.12 interpreter —
 with all of them present, bare `pytest` is the fastest route. Missing either condition it goes red —
 **a platform limitation, not a regression** — so don't conclude "the suite can't run"; run it in
 Docker instead: `scripts/docker-test.sh`. **Expected count — the one place these numbers are
-kept:** `scripts/docker-test.sh` **3,968 passed / 5 skipped** (2026-09-27, phase 1 archived).
-Bare `pytest` on Linux (`php` · `composer` · `node` · `docker` on PATH) was 3,969 / 4 on the same
+kept:** `scripts/docker-test.sh` **4,081 passed / 5 skipped** (2026-09-30, after 351).
+Bare `pytest` on Linux (`php` · `composer` · `node` · `docker` on PATH) was 4,084 / 4 on the same
 tree — re-measure on POSIX, never derive. Green skips: the Windows lock arm (3) and the
 `gitutil` wedge; in-image also `test_runtime_image_reports_server_build`.
 
@@ -134,8 +134,8 @@ fix (review's included) into one run; CI re-verifies.
   each ✋ gate in-conversation so the maintainer can interject, but proceed on the standing approval
   rather than waiting.
 
-## What has shipped — phase 1, closed 2026-09-27 (plan §15)
-Core + PHP (M0-M6) and Phase 3 onboarding (M10-M12) are **complete** — **24 tools**, plus the
-console scripts in `pyproject.toml`. **Adapters #2-#4 have landed**
-([`docs/ADAPTER_PLAYBOOK.md`](docs/ADAPTER_PLAYBOOK.md) §1); C#/.NET is the only one left.
-Phase 2 work is [`docs/BACKLOG.md`](docs/BACKLOG.md).
+## What has shipped
+**Phase 1** (closed 2026-09-27, plan §15): core, onboarding and four adapters — **24 tools**, plus the
+console scripts in `pyproject.toml`; C#/.NET is the only adapter left. **Phase 2 so far:** release
+0.2.0 ([`CHANGELOG.md`](CHANGELOG.md)) and the Claude Code plugin (`contrib/claude-code/plugin/`).
+Open work: [`docs/BACKLOG.md`](docs/BACKLOG.md).

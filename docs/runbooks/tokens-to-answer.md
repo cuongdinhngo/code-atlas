@@ -249,7 +249,7 @@ characters deeper, and **0.236** at ~110 characters. A floor calibrated on one p
 retrieval regression on another. `normalize_env_paths` now substitutes a fixed-width placeholder for
 `index_root` / `db_path` **in the counted blob only** — a field's presence is still paid for, so adding
 one still moves the number, while moving the repo does not. Post-fix the fixture tier is **0.336**
-(1426 atlas tokens), identical across all three workdirs, and the floor is **0.27**. Figures before
+(1426 atlas tokens), identical across all three workdirs, and the floor was then **0.27** (0.63 today — `FIXTURE_TIER_RATIO_FLOOR`). Figures before
 this paragraph were counted with verbatim paths and are not strictly comparable to it.
 
 ## Adding a question
@@ -259,7 +259,7 @@ Each entry is one agent question with a **known** correct answer plus the recipe
 | Field | Meaning |
 |---|---|
 | `id` | unique slug |
-| `source` | `fixture` (committed dir, needs PHP) or `sample` (pinned public repo) |
+| `source` | `fixture` (committed dir, needs PHP), `sample` (pinned public repo) or `local` (an absolute `root`, `--local`) |
 | `root` | fixture directory, repo-relative (for `source: fixture`) |
 | `atlas_path` | ordered `{tool, args}` calls a competent agent would make |
 | `grep` | baseline search: `{pattern, globs?, max_read_files?}` |
@@ -268,7 +268,7 @@ Each entry is one agent question with a **known** correct answer plus the recipe
 | `expected_set` | the **complete** ground-truth set, so 055's recall gate scores the answer |
 | `precision_scope` | path into the answering payload holding what the answer claims: a string indexes a key, `{"field": value}` picks one list element. Required with `expected_set` unless `precision_note` says why (135) |
 | `precision_note` | **required** when a shape has no claimable population — a ranked page, a body, a question that narrows the tool's population in prose |
-| `tier` | question class — `named` (default), `whole_graph`, `symptom`, `onboarding` |
+| `tier` | question class — `named` (default), `whole_graph`, `symptom`, `onboarding`, `supervision` |
 | `ratio_eligible` | `false` when no fair grep baseline exists |
 | `ratio_note` | **required** whenever the question is out of the ratio: why, in one sentence. It reaches the report row, so the artifact carries the reason too |
 
@@ -277,10 +277,10 @@ plausible". Prefer symbols already asserted by other tests so the ground truth s
 
 ## Onboarding class (task 121)
 
-`ROADMAP.md` §5 gated the whole onboarding phase on an onboarding question-class here plus the
-recall gate, and for three milestones the file held **zero** of them. The class now exists: twelve
-questions tagged `tier: onboarding`, ten on the committed fixture `tests/fixtures/php/onboarding` and
-two on the pinned `symfony/demo`. It covers a newcomer's shapes — layers and their crossings, a reading
+The phase 3 roadmap gated the whole onboarding phase on an onboarding question-class here plus the
+recall gate, and for three milestones the file held **zero** of them. The class now exists: eighteen
+questions tagged `tier: onboarding` (2026-09-30), fifteen on the committed fixture `tests/fixtures/php/onboarding` and three on
+pinned samples (121 opened it with twelve). It covers a newcomer's shapes — layers and their crossings, a reading
 order, what depends on a hub, what a change breaks, is this file dead, which files implement a feature,
 where a page is pulled in, which declaration produced a count, write me a committable map, and which
 paths name no responsibility at all.
@@ -336,7 +336,7 @@ to miss).
 
 - **Query kinds covered:** `find_implementations` (BigNumber subclasses), `find_references`
   (BigInteger, Tag), `find_callers` (BigNumber::isZero, Post::getId) — the kinds where grep over-reads.
-- **`include_graph` ("who includes X") is intentionally not sampled here.** All three pinned repos are
+- **`include_graph` ("who includes X") is intentionally not sampled here.** All three pinned PHP repos are
   PSR-4 / Composer-autoloaded, so their `INCLUDES` edges are dynamic bootstrap `require`s with no
   resolved target — there is no verifiable "who includes X" answer to assert. The fixture tier already
   covers `include_graph` end to end.
