@@ -241,7 +241,9 @@ decisions an agent made *without* calling code-atlas all wanted **one line at th
 or a `Write`** — and none of them wanted a tool call. An MCP tool answers when asked; this fires
 when the agent was never going to ask, so it is a **hook**, not a tool.
 
-`code-atlas-signal` prints at most one line (~150 tokens, hard cap) and exits 0:
+`code-atlas-signal` emits at most one line (~150 tokens, hard cap) and exits 0. Called as a hook it
+prints the line as `hookSpecificOutput.additionalContext` for the payload's event, because a hook's
+plain stdout never reaches the model (346); called with arguments from a shell it prints the bare line:
 
 - **`Read`** an indexed file with ≥ 5 symbols → `code-atlas: <path> defines N symbols — name:line, …`
 - **`Write`** creating a new path under the indexed tree → `code-atlas: <path> is untracked — symbol

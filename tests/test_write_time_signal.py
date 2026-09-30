@@ -14,6 +14,8 @@ import sys
 import time
 from pathlib import Path
 
+import pytest
+
 from code_atlas.hooks.signal import MIN_SYMBOLS, TOKEN_BUDGET, main, signal
 from code_atlas.indexer import full_build
 from code_atlas.store import GraphStore
@@ -117,19 +119,17 @@ def test_a_drifted_file_still_answers_and_says_the_index_may_be_behind(tmp_path:
     assert "index may be behind" in line
 
 
-def test_hook_stdin_payload_and_always_exit_zero(tmp_path: Path) -> None:
-    """The host calls it as a hook: tool_name + tool_input.file_path on stdin, exit 0 always."""
-    _indexed(tmp_path, {"src/a.aa": WIDE})
+def _hook(tmp_path: Path, payload: dict[str, object]) -> subprocess.CompletedProcess[str]:
+    """Run the signal the way a host does: the payload on stdin, the project in the env."""
     script = (
         "import json,sys;"
         "from code_atlas.hooks.signal import main;"
         "sys.exit(main([]))"
     )
-    payload = json.dumps({"tool_name": "Read", "tool_input": {"file_path": "src/a.aa"}})
-    done = subprocess.run(
+    return subprocess.run(
         [sys.executable, "-c", script],
         cwd=tmp_path,
-        input=payload,
+        input=json.dumps(payload),
         capture_output=True,
         text=True,
         timeout=60,
@@ -137,8 +137,64 @@ def test_hook_stdin_payload_and_always_exit_zero(tmp_path: Path) -> None:
             Path(__file__).resolve().parent.parent
         )},
     )
+
+
+def _context(done: subprocess.CompletedProcess[str]) -> dict[str, object]:
     assert done.returncode == 0
-    assert "src/a.aa defines" in done.stdout
+    return dict(json.loads(done.stdout)["hookSpecificOutput"])
+
+
+def test_hook_stdin_payload_and_always_exit_zero(tmp_path: Path) -> None:
+    """346 AC1: plain stdout never reaches the model (345-C1); the line rides additionalContext."""
+    _indexed(tmp_path, {"src/a.aa": WIDE})
+    payload = {
+        "hook_event_name": "PostToolUse",
+        "tool_name": "Read",
+        "tool_input": {"file_path": "src/a.aa"},
+    }
+    out = _context(_hook(tmp_path, payload))
+    assert out["hookEventName"] == "PostToolUse"
+    assert str(out["additionalContext"]).startswith("code-atlas: src/a.aa defines")
+    assert estimate_tokens(str(out["additionalContext"])) <= TOKEN_BUDGET
+
+
+def test_a_write_payload_names_the_pre_tool_use_event(tmp_path: Path) -> None:
+    """346 AC1: the event is the payload's own, so the Write line answers as PreToolUse."""
+    _indexed(tmp_path, {"src/a.aa": WIDE})
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Write",
+        "tool_input": {"file_path": "src/fresh.aa"},
+    }
+    out = _context(_hook(tmp_path, payload))
+    assert out["hookEventName"] == "PreToolUse"
+    assert "src/fresh.aa is untracked" in str(out["additionalContext"])
+
+
+def test_a_payload_without_its_event_takes_the_one_the_tool_is_wired_at(tmp_path: Path) -> None:
+    _indexed(tmp_path, {"src/a.aa": WIDE})
+    read = {"tool_name": "Read", "tool_input": {"file_path": "src/a.aa"}}
+    write = {"tool_name": "Write", "tool_input": {"file_path": "src/fresh.aa"}}
+    assert _context(_hook(tmp_path, read))["hookEventName"] == "PostToolUse"
+    assert _context(_hook(tmp_path, write))["hookEventName"] == "PreToolUse"
+
+
+def test_a_silent_hook_prints_nothing_at_all(tmp_path: Path) -> None:
+    """Silence stays silence: no empty JSON envelope for the host to parse."""
+    _indexed(tmp_path, {"src/a.aa": NARROW})
+    payload = {"tool_name": "Read", "tool_input": {"file_path": "src/a.aa"}}
+    done = _hook(tmp_path, payload)
+    assert (done.returncode, done.stdout) == (0, "")
+
+
+def test_a_shell_call_prints_the_bare_line(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The argument form is for a human at a shell, so it keeps the readable line."""
+    _indexed(tmp_path, {"src/a.aa": WIDE})
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path))
+    assert main(["Read", "src/a.aa"]) == 0
+    assert capsys.readouterr().out.startswith("code-atlas: src/a.aa defines")
 
 
 def test_malformed_stdin_is_silent_and_still_exits_zero(tmp_path: Path) -> None:
