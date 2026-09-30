@@ -1,0 +1,10 @@
+#!/bin/sh
+# Opt-in code-atlas incremental refresh after a rebase (task 355).
+# Not installed automatically — copy into .git/hooks/ yourself (see README.md).
+# Git passes $1=amend or rebase. An amend already ran post-commit, so only a rebase refreshes.
+# Keep stderr so missing PATH / ConfigError stay visible (R5.3).
+[ "$1" = "rebase" ] || exit 0
+(
+  code-atlas-refresh >/dev/null
+) &
+exit 0

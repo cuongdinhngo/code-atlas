@@ -1,0 +1,9 @@
+#!/bin/sh
+# Opt-in code-atlas incremental refresh after a commit or an amend (task 355).
+# Not installed automatically — copy into .git/hooks/ yourself (see README.md).
+# Always exit 0; run out of band so an incremental never blocks the commit.
+# Keep stderr so missing PATH / ConfigError stay visible (R5.3).
+(
+  code-atlas-refresh >/dev/null
+) &
+exit 0

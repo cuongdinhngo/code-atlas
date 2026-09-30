@@ -1,6 +1,6 @@
-# Git post-merge / post-checkout index refresh (task 053)
+# Git hooks that refresh the index (tasks 053, 355)
 
-After `git pull` / `git merge` / a **branch** checkout, run an incremental
+After `git pull` / `git merge`, a **branch** checkout, a commit or amend, or a rebase, run an incremental
 `build_or_update_index(full=false)` against `.code-atlas/graph.db` when the index
 already exists. Complements the Claude Code Edit/Write poke
 ([`contrib/claude-code/`](../claude-code/)) and query-time read-through freshness
@@ -17,8 +17,9 @@ version-controlled, and this project never writes into a user's `.git` for them.
 2. Copy the hook scripts into the repo's `.git/hooks/` (names must match exactly):
 
    ```bash
-   cp contrib/git/post-merge contrib/git/post-checkout /path/to/repo/.git/hooks/
-   chmod +x /path/to/repo/.git/hooks/post-merge /path/to/repo/.git/hooks/post-checkout
+   cp contrib/git/post-merge contrib/git/post-checkout contrib/git/post-commit \
+      contrib/git/post-rewrite /path/to/repo/.git/hooks/
+   chmod +x /path/to/repo/.git/hooks/post-{merge,checkout,commit,rewrite}
    ```
 
 3. Confirm with a pull or branch switch; with `CA_REFRESH_VERBOSE=1` on PATH's
@@ -33,6 +34,8 @@ version-controlled, and this project never writes into a user's `.git` for them.
 | Index present | Background incremental; verbose: `refreshed` |
 | Another build holds `.code-atlas/write.lock` (hook or MCP) | Exit 0; verbose: `skipped: another build is running` |
 | `post-checkout` with git's 3rd arg ≠ `1` (file checkout) | Hook exits 0 immediately; no refresh |
+| `git commit` / `git commit --amend` | `post-commit` refreshes once; `post-rewrite` skips `amend` so an amend is not counted twice |
+| `git rebase` | `post-commit` fires per pick (overlapping runs skip on the lock), then `post-rewrite rebase` refreshes once more at the final HEAD |
 | Install/config error | Exit 0; **always** one stderr line `code-atlas refresh skipped: …` (hooks keep stderr) |
 | Build refused (a full rebuild is required, or coverage would be lost) | Exit 0; **always** one stderr line with the reason and the route to run |
 
