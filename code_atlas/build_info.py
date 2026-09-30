@@ -37,7 +37,7 @@ _PACKAGE_ROOT = Path(__file__).resolve().parent
 _PACKAGE_NAME = __name__.split(".")[0]
 
 
-def _package_version() -> str:
+def package_version() -> str:
     """The declared version, or ``unknown`` — naming the build must never raise (cf. gitutil)."""
     try:
         return importlib.metadata.version("code-atlas")
@@ -148,7 +148,7 @@ def _loaded_modules_changed() -> bool:
 
 def _compute_identity() -> dict[str, object]:
     """The identity for the disk as it is right now — the expensive half, run only when it moved."""
-    version = _package_version()
+    version = package_version()
     root = _git_root()
     diverged = _content_build_id() != _LOADED_BUILD_ID
     if not diverged:
@@ -243,6 +243,7 @@ __all__ = [
     "STALE_IMPACT_UNCHANGED",
     "UNKNOWN_VERSION",
     "maybe_server_provenance",
+    "package_version",
     "reset_identity_cache",
     "server_identity",
     "server_provenance",

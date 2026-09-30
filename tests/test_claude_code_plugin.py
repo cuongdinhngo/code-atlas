@@ -75,7 +75,7 @@ def _gated_commands() -> list[str]:
 def test_every_plugin_hook_is_gated_and_names_a_declared_script() -> None:
     """R6: every command passes the index gate first; each calls a script the package ships."""
     scripts = set(tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["scripts"])
-    called = {c.removeprefix(gen_skill.PLUGIN_GATE) for c in _gated_commands()}
+    called = {c.removeprefix(gen_skill.PLUGIN_GATE).split()[0] for c in _gated_commands()}
     assert all(c.startswith(gen_skill.PLUGIN_GATE) for c in _gated_commands())
     assert called <= scripts and {"code-atlas-state", "code-atlas-refresh"} <= called, called
 
@@ -85,7 +85,7 @@ def _fake_scripts(tmp_path: Path) -> dict[str, str]:
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     for command in _gated_commands():
-        name = command.removeprefix(gen_skill.PLUGIN_GATE)
+        name = command.removeprefix(gen_skill.PLUGIN_GATE).split()[0]
         stub = bin_dir / name
         stub.write_text(f"#!/bin/sh\necho SPAWNED {name}\n", encoding="utf-8")
         stub.chmod(0o755)

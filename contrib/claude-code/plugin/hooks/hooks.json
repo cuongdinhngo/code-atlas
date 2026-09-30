@@ -512,7 +512,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-state",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-state --expect-version 0.2.0",
             "timeout": 10
           }
         ]
@@ -533,7 +533,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-state",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; exec code-atlas-state --expect-version 0.2.0",
             "timeout": 10
           }
         ]
