@@ -23,6 +23,10 @@ from code_atlas.tools.nav_result import (
     REASON_CAPABILITY_NOT_CONFIGURED,
     REASON_INDEX_STALE,
     REASON_NO_MATCHES,
+    REASON_NO_SUCH_SYMBOL,
+    REASON_SUBJECT_FILE_CHECKED,
+    SubjectResolution,
+    shape_exact_miss,
 )
 from code_atlas.tools.trace_capability import ENTRY_POINTS_ROUTE
 from tests.sql_adapter_cli import CLI, needs_node
@@ -131,7 +135,9 @@ def test_a_qualification_miss_on_a_behind_index_names_the_stored_candidate(
     }
 
     for tool, answer in answers.items():
-        assert answer["reason"] != REASON_INDEX_STALE, f"{tool} still refused as stale"
+        # 246's weaker miss: the candidate's file was checked, and the drift elsewhere is counted.
+        assert answer["reason"] == REASON_SUBJECT_FILE_CHECKED, f"{tool}: {answer}"
+        assert answer["other_indexed_files_drifted"] == 2, f"{tool}: {answer}"
         assert answer["candidates"] == ["Orders"], f"{tool}: {answer}"
 
 
@@ -160,3 +166,16 @@ def test_a_true_miss_on_a_behind_index_still_answers_index_stale(tmp_path: Path)
 
     assert answer["reason"] == REASON_INDEX_STALE
     assert "candidates" not in answer
+
+
+def test_the_shared_shaper_names_a_shorter_stored_qname_and_never_repoints() -> None:
+    """Every tool that shapes a miss through ``shape_exact_miss`` gets the same answer (R6.7)."""
+    shaped = shape_exact_miss(
+        {"qname": "dbo.Orders", "results": []},
+        SubjectResolution("stored_shorter", "dbo.Orders", 0, stored_shorter=("Orders",)),
+    )
+
+    assert shaped["reason"] == REASON_NO_SUCH_SYMBOL
+    assert shaped["candidates"] == ["Orders"]
+    assert "try_instead_hint" in shaped
+    assert "resolved_qname" not in shaped and "candidate_count" not in shaped

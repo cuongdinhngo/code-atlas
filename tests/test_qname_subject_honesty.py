@@ -203,7 +203,9 @@ def _classifier_caller_modules() -> list[str]:
     for path in sorted(_TOOLS_DIR.glob("*.py")):
         if path.name == "nav_result.py":
             continue
-        if "classify_missing_subject(" in path.read_text(encoding="utf-8"):
+        text = path.read_text(encoding="utf-8")
+        # A helper with no tool factory (freshness names a miss's file, 354) answers nothing.
+        if "classify_missing_subject(" in text and "def create(" in text:
             names.append(path.stem)
     return names
 
