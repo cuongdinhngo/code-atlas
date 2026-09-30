@@ -7,7 +7,7 @@ and are not retold here (R7.6).
 
 This file holds the three things neither of those does: the **scope** answer (how many repositories
 one database serves), a **dated column-and-index snapshot** so a reader can see the shape without
-opening 3,181 lines, and the **gaps** — what the schema cannot currently express.
+opening `store.py`, and the **gaps** — what the schema cannot currently express.
 
 Rendered companion: [`../assets/storage-schema.html`](../assets/storage-schema.html) — the same
 snapshot as a standalone page, restating enough of PLAN §10 to be readable on its own.
@@ -20,7 +20,7 @@ snapshot as a standalone page, restating enough of PLAN §10 to be readable on i
 ## One database per repository
 
 `main.py` opens with the whole scope in one line: *"build an app for one repo, then serve it over
-stdio"*. `db_path` defaults to `<root>/.code-atlas/graph.db` (`config.py:52`), resolved from the
+stdio"*. `db_path` defaults to `<root>/.code-atlas/graph.db` (`config.DEFAULT_DB_PATH`), resolved from the
 `root` handed to `load_config(root)`.
 
 **No table carries a project column, and that is the answer, not an omission.** `nodes.file_path` is

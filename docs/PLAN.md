@@ -53,7 +53,7 @@ being built. Where another document states the value of this project, it states 
 - Replace "grep + read whole file" with **symbol-level, name-resolved** queries.
 - **Primary consumer is an AI coding agent in a terminal**, not a human in an IDE — so optimize for *tokens-to-correct-answer against a grep+`Read` baseline*, and for **machine-trustable responses**: calibrated confidence tiers, honest empties/truncation, enforced freshness (§19 agent-first pivot, 2026-08-04).
 - **Work on ANY repo of a supported language.** Adapters implement the **language standard** (full grammar + the language's standards/PSRs), never a specific repo's conventions. Specific repos are *validation samples*, not design inputs (see §2 "Standard over sample" and §6).
-- **One core, many languages**: each language uses its *best* parser (PHP→nikic, TS/JS→TypeScript Compiler API, Python→`ast`+jedi, C#→Roslyn), all speaking one JSON contract. Roll-out order: **PHP → TypeScript/JavaScript → Python → C#/.NET** (§3).
+- **One core, many languages**: each language uses its *best* parser (PHP→nikic, TS/JS→TypeScript Compiler API, Python→`ast`, C#→Roslyn), all speaking one JSON contract. Roll-out order: **PHP → TypeScript/JavaScript → Python → C#/.NET** (§3).
 - Complement LSP-based tools, not duplicate them (§13).
 - Deterministic, offline, token-efficient. LLM used only in the onboarding layer (§14), never in the core.
 
@@ -103,7 +103,7 @@ Per-language, pick the best parser; do **not** force one across all languages. *
 | 3 | Python | **`ast`** builtin; `jedi` unbought | Zero-dependency parse. **Shipped stdlib-only** (020 tier 1a · 217 tier 2): nothing so far needed import/name resolution, so `jedi` waits for a tier that does. |
 | 4 | C#/.NET | **Roslyn** (.NET sidecar) | Full **semantic model** → precise type/call/ref edges. Last: its namespace+FQN model resembles PHP's, so it *confirms* rather than reshapes the contract. |
 
-**A fifth capability — SQL / DB-schema awareness** (**landed** as `adapters/sql/`, outside the order above): schema facts are *not* source symbols and needed their own vocabulary (R3), so it sat behind 022's evidence gate until measured demand discharged it (§19). 184 tier 1a · 022 tier 2 (`Table`, `Column`, `WRITES`, contract **v9**); 321 `ALTERS` (**v11**).
+**A fifth capability — SQL / DB-schema awareness** (**landed** as `adapters/sql/`, outside the order above): schema facts are *not* source symbols and needed their own vocabulary (R3), so it sat behind 022's evidence gate until measured demand discharged it (§19). 184 tier 1a · 022 tier 2 (`Table`, `Column`, `WRITES`, contract **v9**); 321 `ALTERS` (**v11**); 328 `DELETES` (**v12**).
 
 Rejected globally:
 - **tree-sitter everywhere** — grammar lags releases (misparses PHP 8.5); forces hand-written resolution (the hard part) per language.
@@ -120,13 +120,15 @@ The single seam between core and every language. Two parts:
 ### 4.1 Subprocess protocol (streaming, language-neutral)
 Adapter runs as a long-lived process; core feeds newline-delimited requests, reads JSONL results. One process boot amortized across all files.
 ```
-← {"name":"php","extensions":[".php",".phtml"],"capabilities":{},"contract_version":11}   # handshake, first line
+← {"name":"php","extensions":[".php",".phtml"],"capabilities":{},"symbol_shapes":[…],"contract_version":13}   # handshake
 → {"path":"src/Models/User.php"}                              # stdin, one JSON/line
 ← {"path":"src/Models/User.php","ok":true,"nodes":[…],"edges":[…]}   # stdout JSONL
 ← {"path":"legacy/foo.php","ok":false,"error":"syntax error @12"}
 ```
 
-**The handshake is how the core stays language-agnostic.** An adapter announces itself on one unprompted line before any result: its name, the **file suffixes it owns**, and its capability flags. That is the *only* source of the extension→adapter mapping, so the core never carries a table of who parses what (R1.1), and it is the channel capability flags need to exist at all (R1.6). A handshake that is malformed or declares a different `contract_version` is a **loud startup failure** (R5.3). Validated by `contract.validate_meta`.
+**The handshake is how the core stays language-agnostic.** An adapter announces itself on one unprompted line before any result: its name, the **file suffixes it owns**, its capability flags and, since v13 (345), its
+`symbol_shapes` — what a grep for one of its symbols looks like, so the grep-time nudge reads a
+language standard rather than a core table. That is the *only* source of the extension→adapter mapping, so the core never carries a table of who parses what (R1.1), and it is the channel capability flags need to exist at all (R1.6). A handshake that is malformed or declares a different `contract_version` is a **loud startup failure** (R5.3). Validated by `contract.validate_meta`.
 
 **Wire rules the protocol depends on:**
 - **Lock-step.** One request, one reply, correlated by `path`. Concurrency is N *processes* (§8.1), never several requests in flight on one pipe. A reply for a path that was not asked is a **desync** — loud, because it would otherwise misattribute every later result.
@@ -213,9 +215,9 @@ Claude Code / any MCP client
         │ MCP (stdio)
  ┌──────▼────────────┐   contract (JSONL over stdin/stdout)   ┌──────────────────────────┐
  │  Core (Python /    │ ─────────────────────────────────────►│  Language adapter          │
- │  FastMCP)          │                                        │  PHP:  nikic/php-parser     │
- │  store · indexer   │ ◄───────────────────────────────────  │  (later) C#: Roslyn         │
- │  resolver · tools  │        {nodes, edges}                  │          Py: ast + jedi     │
+ │  FastMCP)          │                                        │  PHP: nikic · TS/JS: tsc    │
+ │  store · indexer   │ ◄───────────────────────────────────  │  T-SQL · Python: ast        │
+ │  resolver · tools  │        {nodes, edges}                  │  (deferred) C#: Roslyn      │
  └──────┬────────────┘                                        └──────────────────────────┘
         │
  ┌──────▼───────────────────────────┐
@@ -422,9 +424,9 @@ lower-cased without the prefix, plus an `[adapter_cmd]` table holding one comple
 are in [`CONVENTION.md`](CONVENTION.md) §2, and **every knob, its default and what it governs is in
 [`TOOLS.md`](TOOLS.md) *Configuration reference*** — not kept twice (R6.7).
 
-Three knob decisions are design rather than reference, and stay here. `CA_MAX_RESULTS` caps both
-the rows a tool returns and the resolver's candidate lookups (§8.2); 258 ended the job that sized
-the graph. `CA_ORPHANS_MAX_NODES` is deliberately
+Three knob decisions are design rather than reference, and stay here. `CA_MAX_CANDIDATES` (alias
+`CA_MAX_RESULTS`) is the build-time resolver fan-out and needs a rebuild; `CA_PAGE_LIMIT` is the
+query-only page cap (259). `CA_ORPHANS_MAX_NODES` is deliberately
 **not** the impact budget, so tuning one cannot change which orphans exist (124). And `CA_<LANG>_CMD`
 is resolved **generically from the variable name**, which is what keeps §9's launch mechanism from
 naming a language in the core (R1.1).
@@ -557,6 +559,12 @@ under `instructions.CLIENT_CAP`.
 `main()` serves it over stdio; the entry point is `code-atlas` (or `python -m code_atlas.main`).
 `CA_TOOLS` gates the surface. Each call opens its own `GraphStore` — see CONVENTION §6 for why.
 
+**Delivery and hooks (344–347).** The Claude Code plugin (`contrib/claude-code/plugin/`, marketplace
+`cuongdinhngo/code-atlas`) installs the server, the hooks and the skill in one step. A tool-event
+hook speaks through `hookSpecificOutput.additionalContext`, the one stdout shape Claude Code shows
+the model (346); the grep-time nudge fires on a `Grep`/`Bash` grep for an adapter-declared symbol
+shape (345). An index from an older contract says `rebuild required` on every channel (347).
+
 
 ### Impact engine
 code-review-graph's **bounded best-score relaxation in SQLite**: seed = changed qnames; per-edge-kind weight/direction policy (`CALLS/NEW`→callers, `EXTENDS/IMPLEMENTS`→subtypes, `INCLUDES` follows requires, `CONTAINS` not traversed); one best score/node, decay per hop, floor, bounded by depth & max_nodes; `DYNAMIC` edges excluded by default.
@@ -635,7 +643,7 @@ were archived out of the repo; its decisions stay in §19. It delivered:
 - **Contract-conformance** (`tests/contract/`): every adapter must pass — fixtures per language asserting the emitted JSON matches the schema and known node/edge counts. This is the LSP-substitutability guarantee.
 - **PHP language coverage** (spec-driven, not repo-driven): namespaced / global / underscore(PSR-0) / trait+conflict-resolution / enum / attributes / closures & arrow-fns / first-class-callable / include / static-vs-instance-call / syntax-error fixtures.
 - **Core integration**: build over fixtures, assert a resolved caller chain; assert **zero language branches** in `code_atlas/` (grep gate in CI).
-- **Cross-repo validation** (proves "works on any repo"): run the adapter against *several varied* PHP repos — a Laravel app, a Symfony app, a small PSR-4 library, and a large PHP monorepo — asserting no crashes and sane node/edge counts. The large monorepo is one sample among several, not the definition of correct.
+- **Cross-repo validation** (proves "works on any repo"): pinned public samples per language (`scripts/cross_repo_samples.json`, run weekly by `cross-repo.yml`, outside the gate — AGENT_BRIEF P8) plus the operator-local monorepo, asserting no crashes and sane node/edge counts. The large monorepo is one sample among several, not the definition of correct.
 - **Correctness**: known class → `find_callers` vs a manual baseline (accounting for dynamic calls).
 - **Scale/perf & determinism**: time full build on the 112k sample; identical rows for identical input.
 
@@ -713,7 +721,7 @@ The consumer is an **AI coding agent in a terminal**, so the incumbent to beat i
   it is answered** rather than returned as a confident zero (the vocabulary and the full payload
   contract live in [`CONVENTION.md`](CONVENTION.md) §6). Freshness is **enforced, not surfaced**:
   inline reparse on hash drift with a per-call cap, zero-hit miss-repair, and opt-in host hooks for
-  edit and checkout, never auto-installed.
+  edit, checkout, read and grep — one install as the Claude Code plugin (344), or merged by hand.
 - **Fewer round-trips beats fewer rows.** `include_source` rides each call site's own line (−28 % for
   the identical answer). **Consolidating the relation tools was measured and rejected** — one
   `find_relations` wins below ≈36 relation calls per session and loses above, a spread too small to
@@ -837,7 +845,5 @@ Nav answer: `PROVIDES_VIEW_DATA` / `find_view_data`.
 - **Table/Column writers via `find_references` (278 · 281 · 335)**; a PHP literal beginning a T-SQL
   write → `HEURISTIC` edge. **`keyed_calls` may target File qnames (256).** **`parse_failures` is a
   floor, not a fatal surface (280).** **Unmodelled `*->L` hits are `authoritative: false` (238 · 276).**
-
-**Reference material** (private, same folder): `understand-anything-how-it-works.md`, `code-review-graph-how-it-works.md`.
 
 **Primary validation sample:** a large private PHP 8.5 monorepo — PSR-4 `src/` + ~18k non-namespaced legacy + a ZF1 area, ~112k files, run via Docker (PHP not on host PATH). Used for scale/coverage testing **and (from 2026-08-04) as the agent-first evaluation anchor** (task 034) — always test/metrics only; no repo-specific behavior lives in the adapter (R2, §2 "standard over sample").

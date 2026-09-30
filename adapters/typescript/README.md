@@ -1,8 +1,8 @@
 # TypeScript/JavaScript adapter
 
 Parses TypeScript/JavaScript into the code-atlas contract vocabulary. Self-contained: its runtime and
-dependencies live here and never reach the Python core (R8.1). Started as the task 128 M0 spike; task
-019 is growing it into the full M7 adapter (in slices — see the task for what has landed).
+dependencies live here and never reach the Python core (R8.1). Started as the task 128 M0 spike;
+completed as the M7 adapter in task 019.
 
 ## Runtime
 
@@ -50,10 +50,10 @@ CA_TYPESCRIPT_CMD="node /abs/path/adapters/typescript/index.js --server"
 | unnamed `export default …` | (its kind) | qnamed `::default` so a default-import resolves |
 | named `export default class Foo` | (its kind) | keeps `Foo`; an `ALIASES` from `::default` reaches it |
 
-Decorators and declared types ride on a node's `extra` (`decorators`, `type`) — a decorator annotates
-a declaration, so like a PHP attribute it emits **no** edge.
+Decorators and declared types ride on a node's `extra` (`decorators`, `type`); a decorator and a
+named type reference also emit a `REFERENCES` edge (232) — a decorator-factory call is not a `CALLS`.
 
-**Edges:** `CONTAINS`, `EXTENDS`, `IMPLEMENTS`, `CALLS`, `NEW`, `IMPORTS`, `ALIASES` (named
+**Edges:** `CONTAINS`, `EXTENDS`, `IMPLEMENTS`, `CALLS`, `NEW`, `IMPORTS`, `REFERENCES`, `ALIASES` (named
 re-exports, and a named default export). Qnames are module-path-anchored and join every member
 with `::`.
 
@@ -67,7 +67,7 @@ with `::`.
 
 `HEURISTIC` there is load-bearing, not a label: the core's name-only fallback for a member call only
 runs on an edge that claims it, and the claim caps the edge so a unique name is never promoted to
-`RESOLVED` (R5.2). An inferred-receiver type table would promote these — still out of scope.
+`RESOLVED` (R5.2). The receiver type table below (153) names the receiver where it can.
 
 A body edge is **sourced at the scope that wrote it** — a call in a method is sourced at the method,
 not at its class — the same stack the PHP adapter pushes (namespaces, class-likes and callables open

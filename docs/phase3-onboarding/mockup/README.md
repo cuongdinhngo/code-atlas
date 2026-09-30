@@ -2,8 +2,8 @@
 
 Reference implementation for the design in [`../ONBOARDING_MOCKUP.md`](../ONBOARDING_MOCKUP.md).
 **Not shipped code** — it reads `graph.db` directly and would violate R1.4 (only `store.py` owns SQL)
-if it lived under `code_atlas/`. It exists so the design note's numbers stay reproducible until tasks
-108–117 land the real thing.
+if it lived under `code_atlas/`. It exists so the design note's numbers stay reproducible; the shipped map
+is `generate_onboarding`'s output (tasks 108–117).
 
 ```bash
 ./build.sh /path/to/an/indexed/repo          # → artifacts/onboarding-mockup/index.html

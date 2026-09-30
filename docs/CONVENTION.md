@@ -11,9 +11,10 @@ as if one person wrote it. For the *why/how we build*, see [`ENGINEERING_RULES.m
 code-atlas/
 ├── pyproject.toml
 ├── .harness.json                     # mango lifecycle config (committed team config; no secrets)
-├── .github/                          # workflows/ci.yml + pull_request_template.md
+├── .github/                          # CI + weekly workflows, PR template
+├── .claude-plugin/                   # marketplace.json → contrib/claude-code/plugin (344)
 ├── AGENTS.md  CLAUDE.md              # session orientation; each doc's boundary is §8.1
-├── README.md  CONTRIBUTING.md  SECURITY.md
+├── README.md  CONTRIBUTING.md  SECURITY.md  CHANGELOG.md  LICENSE
 ├── code_atlas/                       # THE CORE — language-agnostic, no per-language branches
 │   ├── main.py                       # FastMCP server + entry point
 │   ├── config.py                     # CA_* env/config resolution
@@ -23,9 +24,9 @@ code-atlas/
 │   ├── indexer.py                    # full_build / incremental_update
 │   ├── enrichment.py                 # optional CA_INDIRECTION_RULES → HEURISTIC edges (task 040)
 │   ├── resolver.py                   # phase-2 edge linking (generic, no language branches)
-│   ├── cli.py  gitutil.py  ignore.py  index_lock.py  tokens.py   # cli.py: code-atlas-build (176)
+│   ├── cli.py  instructions.py  build_info.py  …   # code-atlas-build; MCP instructions; version
 │   ├── onboarding/                   # Phase-3 enrichment, deterministic — one module per concern
-│   ├── hooks/                        # opt-in hooks (036, 053, 322)
+│   ├── hooks/                        # opt-in: poke refresh signal state nudge
 │   └── tools/                        # one module per MCP tool
 ├── onboarding_llm/                   # the LLM implementers, OUTSIDE the core by R4.1 (CI grep-gated)
 ├── scripts/                          # operator reports & benchmarks (never imported by the server)
@@ -158,11 +159,12 @@ This section is the mechanical rule; the reasoning behind each one is in its tas
   `find_callers`/`find_references` (037): default **off**, at most **one capped line** per hit,
   never a body, and never quoted from a file whose indexed hash drifted (those hits carry
   `source_stale`).
-- **`detail_level`.** Every tool takes `detail_level ∈ {minimal, standard}`, typed as a `Literal`
-  so the protocol validates it and publishes the choice in the input schema. Default **`standard`**;
+- **`detail_level`.** Every tool takes `detail_level ∈ {minimal, standard}` as a `Literal`, so the
+  input schema publishes it. Default **`standard`**, except
+  `reachable_from`, `find_orphans` and `architecture_overview`, which default to `minimal` (268);
   `minimal` is always a **subset**, never a superset, and for nav/search/read/outline/reach/explain
-  the two may share the same top-level keys. `get_index_status` alone also accepts `verbose` (058);
-  every other tool stays `{minimal, standard}`.
+  the two may share the same top-level keys. `get_index_status` (058) and `architecture_overview`
+  also accept `verbose`.
 
 **Provenance and honesty fields.** One name per fact; each is omitted where it would only restate
 what the payload already says (061). An answer must state what it is *not* telling you.
@@ -197,19 +199,16 @@ what the payload already says (061). An answer must state what it is *not* telli
 
 - **`try_instead` is two registers, each in its own field (093).** The value is always a
   **registered MCP tool name the reader can call**; the *how to re-ask* qualifier is prose in the
-  sibling `try_instead_hint`, attached only alongside a route (061 omit when empty). The source
-  carries the split — `TRY_INSTEAD_*` is a tool name, `TRY_INSTEAD_HINT_*` is prose, neither holds
-  the other's kind — and `tests/test_try_instead_is_a_callable_tool_name.py` derives both sets from
-  the module namespace and `main.TOOL_NAMES` rather than a hand-kept list (R1.1). Callable is not
+  sibling `try_instead_hint`, attached only alongside a route (061 omit when empty). `tests/test_try_instead_is_a_callable_tool_name.py`
+  derives both sets from the module namespace and `main.TOOL_NAMES` (R1.1). Callable is not
   sufficient. A route must also **make progress**: no tool routes to itself (`find_references` on a
   class routes to `search_symbol`, which enumerates the method qnames the hint asks for). And it
   must be **able to answer**: where no registered tool can, emit the **hint alone, no
   `try_instead`**, since naming a tool that cannot answer buys a confident wrong answer (075/076).
-  A route is emitted on positive evidence that the relation is carried, never on the index's
-  silence; the worked cases are in [`design/payload.md`](design/payload.md) (186/188).
-  **Known boundary, not closed:** callability is checked against the full `main.TOOL_NAMES` while
-  `CA_TOOLS` may serve a subset — `nav_result` has no `Config`, so a restricted deployment can be
-  offered a route it does not expose (also true of `file_outline`).
+  A route needs positive evidence the relation is carried
+  ([`design/payload.md`](design/payload.md), 186/188).
+  **Known boundary, not closed:** callability is checked against the full `main.TOOL_NAMES`, so a
+  `CA_TOOLS` subset can be offered a route it does not serve (`nav_result` has no `Config`).
 - **A batched answer keys on position and states the envelope once (101).** List tools return
   `subjects` in caller order (never deduped/merged); envelope holds shared fields once, no batch
   `reason`. Cap via `max_subjects` / `subjects_capped_to` / `subjects_dropped` (066/061). A missing
@@ -219,8 +218,8 @@ what the payload already says (061). An answer must state what it is *not* telli
   MCP tool, exposing `NAME` and a `create(...)` returning the registered function: **its signature
   is the MCP signature and its docstring is the tool description**, so configuration flows in
   through the closure, not global state. Logic two tools share lives in its own helper module beside
-  them (`nav_result`, `staleness`, `reach_shared`, `collection`); a tool module never imports
-  another tool module.
+  them (`nav_result`, `staleness`, `reach_shared`, `collection`); a tool module never imports another
+  except a refinement (`impact_modules` → `impact`, `read_symbol` → `search_symbol`).
 - **Surface and runtime.** `get_index_status` is the cheap entry point (~100 tok) and suggests next
   tools — **only tools the server actually registered**. `CA_TOOLS` gates availability; an unserved
   name is a loud `ConfigError`, checked in `main.py` (the only place that knows the tool names). A
@@ -243,18 +242,18 @@ what the payload already says (061). An answer must state what it is *not* telli
 
 The **UPPER_SNAKE standing documents are a closed set.** One may be merged or deleted; a new one
 needs an argument in the ticket that proposes it. The *Is NOT* column is the load-bearing one: a
-document without a stated boundary absorbs whatever its author had in mind that day, and rows
-describe what a file contains, not what its title suggests.
+document without a stated boundary absorbs whatever its author had in mind that day.
 
-**Tier** is what a session pays (task 133). **1** = on `AGENTS.md`'s *read before non-trivial work*
+**Tier** is what a session pays. **1** = on `AGENTS.md`'s *read before non-trivial work*
 list, charged to every session and capped by `tests/test_agent_chain_budget.py`; **2** = on its
 *consult when you need it* list, reached by a pointer; **—** = neither, opened only by the reader in
 its *Reader* column. A new document lands in a tier on purpose, here, or in tier 1 by accident.
 
 | Doc | Tier | Reader | Answers | Is **NOT** |
 |---|---|---|---|---|
-| [`README.md`](../README.md) | — | a stranger deciding in 60 s whether to install | what it does, one demo, how to install, the measured claims, where the rest is | not the tool reference (→ `TOOLS.md`); **not the design record** (→ `design/`); never the authority for a number |
+| [`README.md`](../README.md) | — | a stranger deciding in 60 s whether to install | what it does, a demo, install, the measured claims | not the tool reference (→ `TOOLS.md`); **not the design record** (→ `design/`); never the authority for a number |
 | `CONTRIBUTING.md` · `SECURITY.md` | — | a contributor; a reporter | setup, the gate, reporting; the threat model | not a rule origin |
+| [`CHANGELOG.md`](../CHANGELOG.md) | — | someone upgrading an install | per release: contract and schema versions, the rebuild and adapter-update flags | not the decision log (→ PLAN §19); not task status |
 | [`TOOLS.md`](TOOLS.md) | — | someone choosing which tool to call | the agent-facing surface: every tool, the batching verdicts, prompts, hooks, config | not the field contract (→ §6); not why (→ `design/`) |
 | [`design/`](design/)`*.md` | — | anyone asking *why is an answer shaped like this* | one file per axis (payload · indexing · impact/claims · storage); each section is a field incident | not a rule (→ `ENGINEERING_RULES.md`); not status (→ `BACKLOG.md`) |
 | [`assets/`](assets/) | — | a reader following a `design/` figure | one dated diagram or page per figure | never the source of a fact — it snapshots code that stays authoritative (R6.7) |
@@ -270,7 +269,7 @@ its *Reader* column. A new document lands in a tier on purpose, here, or in tier
 | [`LESSONS.md`](LESSONS.md) | 2 | an agent about to propose a rule | per-task claims with handles and `seen:` counts — the corpus rules are promoted from | not a rule (a claim is promoted, not applied); not a decision log |
 | [`SKILL_GAP_CANDIDATES.md`](SKILL_GAP_CANDIDATES.md) | 2 | the mango maintainer | type-3 signals: a phase that could have run a check and did not | never a change to a mango skill |
 | [`phase3-onboarding/ROADMAP.md`](phase3-onboarding/ROADMAP.md) | — | anyone asking how Pillar 2 was decided | the delivered M10–M12 roadmap and the deterministic/LLM split | not current status (→ `BACKLOG.md`); its §7 table is a historical copy |
-| [`phase3-onboarding/ONBOARDING_MOCKUP.md`](phase3-onboarding/ONBOARDING_MOCKUP.md) | — | a reviewer of the system map | the design note the map was reshaped from (2026-08-19), and which parts are deterministic vs prose | not shipped behaviour (→ README, PLAN §14) |
+| [`phase3-onboarding/ONBOARDING_MOCKUP.md`](phase3-onboarding/ONBOARDING_MOCKUP.md) | — | a reviewer of the system map | the design note the shipped map was reshaped from (2026-08-19) | not shipped behaviour (→ README, PLAN §14) |
 | [`runbooks/`](runbooks/)`*.md` | — | an operator reproducing a number | one protocol each, re-runnable, with the conditions the number holds under | never a summary — the caveat travels with the number |
 | [`benchmarks/`](benchmarks/)`*.md` | — | a reader checking one measurement | the raw result of one question class, cited from its ticket | not a claim about the product — README/PLAN quote these, never the reverse |
 | directory `README.md`s (`adapters/*/`, `onboarding_llm/`, `contrib/*/`, `phase3-onboarding/mockup/`) | — | someone working in that directory | how to run or launch what is in this directory | not repo-level anything |

@@ -69,7 +69,7 @@ Two constraints on pass 2, both learned the expensive way:
 
 ## 3. The optional-field decisions — make each one explicitly
 
-`NODE_FIELDS` and `EDGE_FIELDS` (`contract.py:121-144`) are mostly optional, and R1.6 says the core
+`NODE_FIELDS` and `EDGE_FIELDS` (`contract.py`) are mostly optional, and R1.6 says the core
 degrades without them. **An adapter must still decide each one on purpose and declare it**, because
 the consumer cannot tell "the code has no annotation" from "this adapter never looks".
 
@@ -79,8 +79,9 @@ the consumer cannot tell "the code has no annotation" from "this adapter never l
 | `extra.type` | fill for a callable's return and a typed property | signature display; your own pass 2 |
 | `modifiers` | fill for every member the language gives a visibility or a `static`/`readonly`/`final` keyword | `class_diagram.py` — the UML `+`/`-`/`#` marker. TS spells all of them and emits none |
 | `args` · `arg_keys` | fill at every `CALLS`/`NEW` site — the literal **category**, never the value | `find_callers`'s argument filter (049/063) **and every `CA_INDIRECTION_RULES` edge** (`enrichment.py`), so a repo in your language gets no cross-language link |
-| `confidence_tier` | leave **NULL** on a structural edge | nothing — NULL folds into `RESOLVED` (`store.py:704-709`). SQL stamping it explicitly is equivalent, not better; do not file it as a defect |
+| `confidence_tier` | leave **NULL** on a structural edge | nothing — NULL folds into `RESOLVED` (the `confidence_tier` column's DDL default). SQL stamping it explicitly is equivalent, not better; do not file it as a defect |
 | `capabilities` | declare what you capture | honesty channel (R1.6). `semantic_types` means *a file-at-a-time local type table backs member-call receivers* (`contract.py` / task 311) — PHP · TS · Python declare it; SQL does not. The other known flags (`params`, `args`, `modifiers`, `declared_types`, `inheritance`) name optional field capture |
+| `symbol_shapes` (handshake) | declare the grep shapes of your symbols — `declaration` · `reference` · `call` · `name`, optionally `scoped` (v13, 345) | the grep-time nudge stays silent for your language |
 | `is_test` | emit only when decided | omit when undecided so 130's path convention fills via `symbol_role`; a constant `false` opts out of the fallback by accident (262/298) |
 | `File.extra.unmodelled_resolution` | stamp every idiom your language resolves at runtime | `find_orphans` — unstamped, unmeasured silence is reported as dead code. All four adapters stamp one: autoload (279), non-literal `import()`/`require()` (294), `importlib`/`__import__` (295), dynamic `EXEC`/`sp_executesql` (296) |
 
@@ -114,8 +115,7 @@ Run against a repo you did not write, in the language under test, and record the
 1. **Build full.** Record wall clock, file / node / edge counts, and `parsed_ok` vs total. Anything
    below 100 % parsed is the first finding.
 2. **Prove determinism.** Two clean builds, hash the ordered nodes + edges; the two hashes must be
-   equal (R4.2). Delete `graph.db` between them — a rebuild over a populated one is a different
-   measurement (219).
+   equal (R4.2). Each `--full` build bulk-clears first (219), so no `graph.db` needs deleting between them.
 3. **Check node recall per kind.** Count declarations with `grep`, compare to the node census. Both
    directions matter: a shortfall is a miss, **a surplus is an invention** — that is how 229 was
    found, with a quarter of the graph's nodes turning out to be method locals.
@@ -132,8 +132,8 @@ Run against a repo you did not write, in the language under test, and record the
 ## 6. Traps already paid for — read before you re-derive one
 
 - **A bare name has a fallback for `CALLS` and none for inheritance.** `_link_by_bare_name`
-  (`resolver.py:316-329`) rescues an unqualified `CALLS` at `HEURISTIC` and is deliberately
-  call-only. So a failure to qualify a name costs a tier for a call and a whole edge for an
+  (`resolver.py`) rescues an unqualified `CALLS` at `HEURISTIC` only on a unique same-language
+  match — a multi-match stays one unresolved edge (258) — and is deliberately call-only. So a failure to qualify a name costs a tier for a call and a whole edge for an
   `EXTENDS` (226). Qualify at emission; do not rely on the resolver.
 - **Test the *container*, not the enclosure,** before publishing a member. Threading "the class we
   are inside" into a method body and asking only that question publishes every local as a property
@@ -144,7 +144,7 @@ Run against a repo you did not write, in the language under test, and record the
   finds neither a `src/` layout nor a layer root (230) — and the naive fix is worse: a directory scan
   resolves `import requests` to a repo's own `models/requests.py`.
 - **One populated kind in a set masks a never-emitted sibling.** `language_emits_none_of` is
-  `not any(...)` over the whole set (`store.py:857`), so an adapter that emits `IMPORTS` and no
+  `not any(...)` over the whole set (`store.py`), so an adapter that emits `IMPORTS` and no
   `REFERENCES` never triggers the honest-zero reason (232).
 - **A parity claim you typed is a parity claim you guessed.** The first version of §7 was hand-written
   from source reading and had three wrong cells, including `n/a` for a T-SQL procedure's parameters —

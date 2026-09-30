@@ -11,7 +11,8 @@ was written from code reading and got its most important claim backwards; see *C
 ## The short version
 
 Memory is not the constraint, and it is not close. The **n-th concurrent agent costs ~70 MB PSS**, of
-which the index is **0 MB**: `graph.db` is never mmapped and no descriptor outlives a call, so the file
+which the index is **0 MB**: `graph.db` is never mmapped and, apart from one fit-counter handle per index kept since 260, no
+descriptor outlives a call, so the file
 is resident **once**, in the OS page cache (93.7 % of it), shared by every process and reclaimable.
 Five agents running 4,500 tool calls cost **355 MB PSS total** — 1.3 % of RAM — and returned **4.3×**
 the single-agent throughput at 15.7 % higher per-agent wall time.
@@ -108,14 +109,14 @@ event. Pinned by `tests/test_git_refresh_hook.py::test_build_tool_returns_busy_w
 
 ## Don't worry about
 
-- **Steady-state query memory.** Tools open and close the store per call; nothing holds the graph in
-  RAM. 20 repeated `find_callers` calls moved PSS by **+0.1 MB**, latency flat at ~3 ms. The three
+- **Steady-state query memory.** Tools open and close the store per call (one small fit-counter handle per
+  index stays open since 260); nothing holds the graph in RAM. 20 repeated `find_callers` calls moved PSS by **+0.1 MB**, latency flat at ~3 ms. The three
   heaviest tools in the API (`find_orphans`, `reachable_from` depth 3, `impact` depth 3) together added
   **+6.2 MB**.
 - **Write contention.** Three servers querying continuously while a writer rewrote two indexed files
   every 0.4 s: **452 drift events, zero `index_stale` soft-fails, zero `SQLITE_BUSY` reaching a
   caller.** The 5 s `busy_timeout` was never approached — the slowest contended call was 1.28 s. WAL
-  peaked at 121 MB and checkpointed itself away completely, because no reader holds the DB open.
+  peaked at 121 MB and checkpointed itself away completely, because no reader held the DB open (measured before 260's fit-counter handle).
 - **Lingering processes.** No resident server to leak. Finished background agents kept their server
   alive for ~1 hour before being reaped, then went cleanly — a delayed reap, not a leak. Killing an
   agent takes its server with it.

@@ -11,6 +11,9 @@ session that never triggers it.
 
 code-atlas does not write to your agent's settings — not here, not anywhere (tasks 036, 099).
 
+Claude Code users: the plugin ([`contrib/claude-code/`](../claude-code/)) already ships this skill —
+copying it as well loads it twice. Copy by hand only for another agent or a non-plugin setup.
+
 1. Copy `SKILL.md` into your agent's skills directory as its own folder, e.g.
    `~/.claude/skills/code-atlas/SKILL.md`.
 2. Restart the agent (or reload skills).

@@ -46,7 +46,7 @@ A real example. This prose shipped in a PR:
 A reader cannot check it. The payload that could have signed it was already on screen:
 
 ```
-code-atlas/1 tool=impact subject="app/Http/A.php,app/B.php,+2" question=blast-radius answer=25 tier=RESOLVED seeds=4 seeds_dropped=0 frontier_skipped_non_resolved=0 rev=a1b2c3d ref=main index=current
+code-atlas/1 tool=impact subject="app/Http/A.php,app/B.php,+2" question=blast-radius answer=25 tier=RESOLVED seeds=4 seeds_dropped=0 frontier_skipped_non_resolved=0 rev=a1b2c3d ref=main index=current server=0.2.0 build=<sha>
 ```
 
 `answer=25 seeds=4` says twenty-one things depend on the four changed paths; `answer=4 seeds=4`

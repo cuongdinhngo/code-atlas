@@ -39,13 +39,13 @@ independent.
 | Env var | Default | Purpose |
 |---|---|---|
 | `CA_ONBOARDING_SUMMARIZER` | *(unset)* | `llm`/`claude` enables LLM summaries; anything else = deterministic default |
-| `CA_ONBOARDING_LLM_MODEL` | `claude-sonnet-5` | Summary model — a mid tier for per-module summaries (PHASE3 §4 M12) |
+| `CA_ONBOARDING_LLM_MODEL` | `claude-sonnet-5` | Summary model — a mid tier for per-module summaries ([ROADMAP §4](../docs/phase3-onboarding/ROADMAP.md)) |
 | `CA_ONBOARDING_LLM_CACHE` | `.code-atlas/onboarding-llm-cache.json` | Summary content-hash cache path |
 | `CA_ONBOARDING_LAYER_REFINER` | *(unset)* | `llm`/`claude` enables layer-name refinement; anything else = 084 heuristic |
-| `CA_ONBOARDING_LLM_LAYER_MODEL` | `claude-opus-5` | Layer model — a top tier for the refinement pass (PHASE3 §4 M12) |
+| `CA_ONBOARDING_LLM_LAYER_MODEL` | `claude-opus-5` | Layer model — a top tier for the refinement pass ([ROADMAP §4](../docs/phase3-onboarding/ROADMAP.md)) |
 | `CA_ONBOARDING_LLM_LAYER_CACHE` | `.code-atlas/onboarding-llm-layers.json` | Layer content-hash cache path |
 | `CA_ONBOARDING_PROSE` | *(unset)* | `llm`/`claude` enables the 117 prose seam; anything else = structural defaults |
-| `CA_ONBOARDING_LLM_PROSE_MODEL` | `claude-opus-5` | Prose model — a top tier, the highest-judgment slot (PHASE3 §4 M12) |
+| `CA_ONBOARDING_LLM_PROSE_MODEL` | `claude-opus-5` | Prose model — a top tier, the highest-judgment slot ([ROADMAP §4](../docs/phase3-onboarding/ROADMAP.md)) |
 | `CA_ONBOARDING_LLM_PROSE_CACHE` | `.code-atlas/onboarding-llm-prose.json` | Prose content-hash cache path |
 
 ### What the prose seam writes, and what it cannot

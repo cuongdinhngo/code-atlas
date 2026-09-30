@@ -13,17 +13,18 @@ now says instead.
 ### Reading an answer — every payload says what it is not telling you
 
 An answer that is silently partial is worse than no answer, so the payload carries its own limits.
-Nine list-returning tools take **`limit` / `offset`** and page in a stable order, and every one of
+The list-returning tools take **`limit` / `offset`** and page in a stable order, and every one of
 them reports:
 
 - **`total_count`** — the true size of the answer, never the length of the page you were handed.
 - **`truncated`** — whether *this page* is the whole set. It describes the page alone, so a pager
   terminates; a walk that stopped on its own node budget says so separately in `walk_truncated`.
-- **`limit_capped_to`** — present only when your `limit` exceeded `CA_MAX_RESULTS`. The server
+- **`limit_capped_to`** — present only when your `limit` exceeded the page cap (`CA_PAGE_LIMIT`). The server
   honoured fewer rows than you asked for, and says so rather than letting `truncated` imply it.
 - **`reason`** — why an answer is empty. `no_such_symbol`, `name_not_qualified` (with
   `candidate_count`), `not_indexed` (the file is on disk but untracked), `relationship_not_modelled`,
-  `capability_not_configured`. **An empty result is never an unexplained zero**, and where a better
+  `capability_not_configured`. `find_callers` may instead answer an empty linked result with
+  `proximity_candidates` rows, each naming its `candidate_of` (258). **An empty result is never an unexplained zero**, and where a better
   route exists the payload names a real, callable tool in `try_instead`.
 - **`resolved_qname`** — when you typed `Foo\Bar` and the index stores `\Foo\Bar`, the tool answers
   about the stored name and tells you which one it used.

@@ -100,7 +100,9 @@ records, under every runtime-invocation mode.
 ## What it emits
 
 Nodes `File · Namespace · Class · Interface · Trait · Enum · Method · Property · ClassConst ·
-Function`, and **bare** edges `CONTAINS · EXTENDS · IMPLEMENTS · IMPORTS · CALLS · NEW · INCLUDES` —
+Const · Function`, and **bare** edges `CONTAINS · EXTENDS · IMPLEMENTS · USES_TRAIT · IMPORTS ·
+CALLS · NEW · INCLUDES · REFERENCES · ALIASES`, plus `WRITES`/`DELETES` from a string literal that
+begins a T-SQL write (335) —
 `target_raw` only, because a single file cannot know all targets. Cross-file linking is the core
 resolver's job (R3.3).
 
@@ -110,17 +112,13 @@ anchored at the global namespace: `\Ns\Class`, `\Ns\Class::method`, `\Ns\Class::
 is a name like any other, not a special case. `NameResolver` supplies the FQN without a leading
 separator; this adapter adds it.
 
-An instance method call cannot reveal its receiver's type from one file, so it is emitted
-`HEURISTIC` and never dressed up as `RESOLVED` (R5.2).
+An instance method call whose receiver the local type table (137, `semantic_types`) can name is
+emitted `Class::method`; otherwise it is the bare name at `HEURISTIC`, never dressed up as
+`RESOLVED` (R5.2).
 
 ## Scope
 
 Task 007 delivered the protocol: `--server`, `ErrorHandler\Collecting`, and the two `php.ini`
-defences above. **Language coverage is still the task 006 spike's** — all four class-like kinds are
-emitted, but the constructs that hang off them are not: `use <Trait>` inside a class body, enum cases,
-backed enums, anonymous classes, closures, arrow functions, first-class callables, attributes,
-group-use, import aliases, nullsafe calls, property hooks, global `const`, and promoted constructor
-parameters. These land in task 025, which carries the
-full 42-construct inventory.
-
-A trait used by a class currently produces **no** `USES_TRAIT` edge, silently — task 025 closes that.
+defences above. Task 025 delivered the language coverage — traits, enums and backed enums,
+closures and arrow functions, attributes, property hooks, nullsafe calls and the rest of its
+42-construct inventory, which lives in the tests (`tests/contract/`, `tests/fixtures/php/`).

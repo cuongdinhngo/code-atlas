@@ -219,9 +219,13 @@ name-only answers from description-backed ones — is
 
 ## Hooks (opt-in)
 
-code-atlas answers when asked. Two hooks cover the moments an agent was never going to ask — an edit
-that drifts the index, and a `Read` that could have carried one line of context. Both are opt-in, and
-both are offered rather than installed.
+code-atlas answers when asked. Five hooks cover the moments an agent was never going to ask — an
+edit or a pull that drifts the index, a `Read`/`Write` that could carry one line of context, a session
+boundary, and a grep for a symbol. All are opt-in and code-atlas never edits your settings itself:
+install the Claude Code plugin (344, `claude plugin install code-atlas@code-atlas`), which wires all
+five, or merge the generated [`settings.snippet.json`](../contrib/claude-code/) by hand. Poke,
+refresh, signal and state take `--verbose` (or `CA_<HOOK>_VERBOSE=1`) as an install check; an
+install failure always prints one stderr line.
 
 ### Keep the index fresh while Claude edits (opt-in)
 
@@ -231,7 +235,7 @@ adapter's own declared suffixes, so the next adapter is covered the day it lands
 PostToolUse hook under
 [`contrib/claude-code/`](../contrib/claude-code/) (`code-atlas-poke` console script + `"async": true`);
 opt-in git refresh after pull/checkout via [`contrib/git/`](../contrib/git/) (`code-atlas-refresh`,
-background — never auto-installed into `.git/hooks`).
+background — never auto-installed into `.git/hooks`); the plugin also runs it async at `SessionStart`.
 Safe no-op when `.code-atlas/graph.db` is missing; does not stall the tool round-trip.
 
 ### The read-time signal — a line that rides along with a file you are already opening (opt-in)
@@ -261,22 +265,18 @@ on writes to files that already exist, on files below the symbol floor, and when
 That silence rule is the design, not a default: a line that fires on every read is chrome within
 three invocations.
 
-**code-atlas does not wire itself into anyone's editor.** As with the poke and refresh hooks, the
-command is offered and the host decides — there is no installer and nothing is written to your
-settings.
-
 ### The session-boundary state line — the index state, restated when the first copy decayed (opt-in)
 
 MCP `instructions` deliver the index state once, on `initialize`; a long session outlives it and a
 compaction drops it, so agents that started a multi-minute build filed its progress signal as missing
 (322). `code-atlas-state` restates
 `get_index_status`'s own `summary` — lifted, never recomposed — at `SessionStart` (its `compact`
-source is the post-compaction delivery) and `PreCompact`. While a build holds the lock it appends the
+source is the post-compaction delivery), `PreCompact`, and `PostCompact` where a host names it. While a build holds the lock it appends the
 live phase and names `code-atlas-build --status`. **Silent** when there is no index, or when the index
 is current, no build runs and no full rebuild is pending; ≤ 90 tokens. The generated hook passes
-`--expect-version <release>`; when the installed package differs, a second line names both versions
-and the upgrade for the side that lags (348); always exits 0; never builds, reparses or takes the build
-lock. Wiring: the generated [`contrib/claude-code/settings.snippet.json`](../contrib/claude-code/).
+`--expect-version <release>`; when the installed package differs, a skew line naming both versions
+and the upgrade for the side that lags prints first, even on a current index (348); always exits 0; never builds, reparses or takes the build
+lock.
 
 ### The grep-time nudge — one line right after a grep for a symbol (opt-in, 345)
 

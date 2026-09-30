@@ -16,7 +16,8 @@ before publishing.
 
 ## Supported versions
 
-There are no tagged releases yet. Fixes land on `main` only.
+Releases are tagged `vX.Y.Z` and listed in [`CHANGELOG.md`](CHANGELOG.md). Only the latest release
+is supported: fixes land on `main` and ship in the next release.
 
 ## Threat model
 
@@ -42,7 +43,7 @@ untrusted input**. It aims to hold these guarantees:
   and a `.code-atlas/` directory that is itself committed as a symlink. Both are tracked in
   [`docs/BACKLOG.md`](docs/BACKLOG.md).
 - **The indexed repo's own git config applies.** code-atlas runs read-only `git` commands
-  (`rev-parse`, `ls-files`, `diff --name-only`) inside the indexed repo, so that repo's
+  (`rev-parse`, `ls-files`, `diff --name-only`, `config --get`) inside the indexed repo, so that repo's
   `.git/config` applies, exactly as it would if you ran `git` there yourself. Do not index a working
   copy whose `.git` directory you did not create, such as one unpacked from an archive, outside a
   container.
