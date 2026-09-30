@@ -4,7 +4,7 @@ slug: empty-answers-that-name-the-wrong-cause
 title: 'Two empty answers name the wrong cause: an unconfigured trace says no_matches, a misqualified name says index_stale'
 phase: 2
 milestone: Honesty
-status: todo
+status: done
 depends_on: [073, 199, 246]
 ---
 
@@ -43,7 +43,7 @@ Both answers are empty, and both send the agent the wrong way. Field retro, 2026
 
 ## Session status
 
-- **KEY:** 354 · **work_doc_mode:** embed · **Current phase:** 2 design · **Next action:** commit, gate, challenger.
+- **KEY:** 354 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer reviews and merges the PR, and ratifies ASSUMED A1. **Revert path:** `git revert` the branch's commits.
 - `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · Run mode: `autorun`, batch 356 → 354 → 355;
   *"with skipped reviewer"* = `--no-reviewer` only, the challenger keeps its seat.
 - Branch `fix/354-empty-answers-that-name-the-wrong-cause` off `main` (`5b4f1667`). Contract `.mango/run-contract-354.txt`.
@@ -214,3 +214,124 @@ both AC3 tests fail and AC2/AC4 pass (guards); all five pass after the change.
 ### Rollback
 
 `git revert`. No index or contract change.
+
+## Phase 3 — execute
+
+Commits on `fix/354-empty-answers-that-name-the-wrong-cause`: `27f7e9a9` (the change), `b7080c7f`
+(the gate's red and the challenger's findings, below).
+
+**Proving test, red on the pre-change tree** (`5b4f1667`, run before any source edit):
+
+    E       AssertionError: assert 'no_matches' == 'capability_not_configured'
+    E           assert 'index_stale' != 'index_stale'
+    FAILED tests/test_empty_answers_name_the_cause.py::test_a_trace_with_no_flow_seed_says_not_configured
+    FAILED tests/test_empty_answers_name_the_cause.py::test_a_qualification_miss_on_a_behind_index_names_the_stored_candidate
+    FAILED tests/test_empty_answers_name_the_cause.py::test_a_qualification_miss_on_a_current_index_names_the_candidate_too
+    3 failed, 2 passed in 0.88s
+
+**Sweep.**
+- **Axis 1 — the file set.** The diff is the change list plus one proof-collateral test (D1).
+- **Axis 2 — design conformance.** Approach bullets 1–3 were implemented as approved.
+- **Handle `formatter-rewrites-untouched-lines`.** `ruff format --diff` over the edited files was
+  traced. Exactly one hunk sat on a changed line (`read_symbol.py`, the `ensure_miss` call); that
+  one was applied, the rest were left alone.
+
+| # | Approved | Implemented instead | `path:line` | Surfaced |
+|---|---|---|---|---|
+| D1 | — | `tests/test_qname_subject_honesty.py`: its derived scan of "every tools/*.py calling the classifier" picked up `freshness.py`, a helper with no tool factory; it now keys on `def create(` too. The first gate on `27f7e9a9` was RED on exactly this (2 tests) | `_classifier_caller_modules` | yes |
+
+Ran at b7080c7f
+
+```
+$ scripts/gate.sh
+  PASS bytecode invalidation (checked-hash, 146)
+  PASS entry points (derived from [project.scripts])  — code_atlas.egg-info
+  PASS ruff check .
+  PASS mypy (code_atlas + onboarding_llm)
+  PASS npm ci (adapters/typescript)
+  PASS npm ci (adapters/sql)
+  PASS php adapter runtime deps present (pytest coverage)
+  PASS pytest -q
+  PASS tokens-to-answer (ratio >= 0.63, recall 1.0, precision 1.0)
+  PASS composer validate --strict (R8.3)
+  PASS php -l (authored source)  — 8 file(s)
+  PASS phpstan level max (R6.6)
+  PASS tsc --checkJs --strict (R6.6, TS adapter)
+  PASS tsc --checkJs --strict (R6.6, SQL adapter)
+  PASS ruff check (R6.6, Python adapter)
+  PASS mypy --strict (R6.6, Python adapter)
+  PASS R1.1 no language branch in core
+  PASS R2.2 no repo/framework name
+  PASS R4.1 no LLM in core
+  PASS R7.3 no AI-attribution trailer  — 2 commit(s)
+  PASS R2.4 commit identity  — 2 commit(s)
+  21 passed · 0 failed · 0 skipped
+GATE GREEN — all 21 checks passed
+```
+
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`
+
+**Challenger (ticket-blind, round 1, on `27f7e9a9`, 71,336 tokens): 8 met · 0 not met · 0 can't
+tell.** It ran the 5 proving tests read-only in place. Its findings:
+
+1. **D1: the route names only the entry-point knob, not `EMPTY_REASON`'s.** Accepted as designed
+   (H2): a TOML seeds no flow (`flows.py:213`), so quoting it would be the wrong cause again.
+2. **D2: a variant's clean file skips 073's `stale` on a behind index.** Accepted and pinned. The
+   answer is 246's weaker miss, not a confident one: `subject_file_checked` with
+   `other_indexed_files_drifted`. AC3 now asserts both on all three tools, and `payload.md` no
+   longer overstates it.
+3. **D3: a forward variant now re-points on a behind index.** Accepted: the ticket asks for it ("if a
+   variant exists in a clean file, that is the answer"). Hits keep
+   `other_indexed_files_drifted` (`read_symbol.py:313`).
+4. **D4: declared entry points that seed nothing keep `no_matches`.** Accepted: that index is
+   configured (A1). It is left for a follow-up if the field hits it.
+5. **D5: the other classifier tools gain `candidates` untested.** **Fixed:** a direct test of the
+   shared shaper.
+
+The fixes stay in the approved files plus D1, so the round-1 verify ran in the main loop: 24 tests
+passed, then the gate below on `b7080c7f`.
+
+`Ph3/4 proven by`: G1, C1–C2, R1–R3, AC1–AC4 — 10/10.
+
+Verdict: **clean (challenger only — REVIEWER: OFF)**.
+
+Reviewed at b7080c7f — the diff `main..b7080c7f`. Working doc:
+`docs/tasks/354_empty-answers-that-name-the-wrong-cause.md` (embedded).
+
+## Phase 5 — finalise
+
+Stale-review guard: after `b7080c7f` only this doc, `docs/BACKLOG.md` and `docs/TOKEN_LEDGER.md`
+changed, and all three are exempt.
+
+**Durable lesson: none.** The scan miss (D1) was caught by the gate as designed, and its fix is local.
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+### Outward actions
+
+1. Push `fix/354-empty-answers-that-name-the-wrong-cause` — pre-authorised.
+2. Open the PR — pre-authorised.
+
+Deferred to the maintainer:
+- the merge — `docs/TOKEN_LEDGER.md` will conflict trivially with #17 (both append after row 351;
+  keep both rows);
+- ratifying ASSUMED A1.
+
+### Cost ledger
+
+| # | Phase | Dispatch | Tokens |
+|---|---|---|---|
+| 1 | refine | exposure-checker (`challenger`) | 42,764 |
+| 2 | review | `challenger`, round 1 | 71,336 |
+| — | main loop | — | unmeasured |
+
+`LEDGER TOTAL: 114,100 · top cost driver: review/challenger`
+
+**Revert path:** `git revert` the branch commits; no index or contract change.
