@@ -246,7 +246,37 @@ red and the challenger's D1 wording).
 |---|---|---|---|---|
 | D1 | README rebase row "refreshes once more at the final HEAD" | the row now says a refresh that finds the lock held skips, so the index can stop at a pick's HEAD; the gap is a BACKLOG follow-up | `contrib/git/README.md`, `docs/BACKLOG.md` | yes |
 
-GATE_BLOCK
+Ran at f401dd89
+
+```
+$ scripts/gate.sh
+  PASS bytecode invalidation (checked-hash, 146)
+  PASS entry points (derived from [project.scripts])  — code_atlas.egg-info
+  PASS ruff check .
+  PASS mypy (code_atlas + onboarding_llm)
+  PASS npm ci (adapters/typescript)
+  PASS npm ci (adapters/sql)
+  PASS php adapter runtime deps present (pytest coverage)
+  PASS pytest -q
+  PASS tokens-to-answer (ratio >= 0.63, recall 1.0, precision 1.0)
+  PASS composer validate --strict (R8.3)
+  PASS php -l (authored source)  — 8 file(s)
+  PASS phpstan level max (R6.6)
+  PASS tsc --checkJs --strict (R6.6, TS adapter)
+  PASS tsc --checkJs --strict (R6.6, SQL adapter)
+  PASS ruff check (R6.6, Python adapter)
+  PASS mypy --strict (R6.6, Python adapter)
+  PASS R1.1 no language branch in core
+  PASS R2.2 no repo/framework name
+  PASS R4.1 no LLM in core
+  PASS R7.3 no AI-attribution trailer  — 3 commit(s)
+  PASS R2.4 commit identity  — 3 commit(s)
+  21 passed · 0 failed · 0 skipped
+GATE GREEN — all 21 checks passed
+```
+
+The tree is `ec2a4b39`'s code plus the exempt bookkeeping commit `f401dd89`; the first gate, on `eff45eb9`, was RED on `ruff check .` (E501 in the new test).
+
 
 ## Phase 4 — review
 
