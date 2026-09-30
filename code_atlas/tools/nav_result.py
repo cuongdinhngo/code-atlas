@@ -253,6 +253,9 @@ TRY_INSTEAD_HINT_RELATION_CARRIED_BY_ANOTHER_KIND = (
 # Untracked indexable file — rebuild after git add (092). Real tool name; hint is sibling.
 TRY_INSTEAD_BUILD_OR_UPDATE_INDEX = "build_or_update_index"
 TRY_INSTEAD_HINT_UNTRACKED = "git add the untracked file, then rebuild"
+TRY_INSTEAD_HINT_STORED_SHORTER = (
+    "the index stores this symbol under a shorter qualified name — re-ask with one of candidates"
+)
 # Sweep stale under a shared repair budget: retry alone so this subject gets the whole cap (275).
 TRY_INSTEAD_HINT_SINGLE_SUBJECT_REPAIR = (
     "retry as query=<this subject> alone to spend the full repair budget on it"
@@ -594,10 +597,11 @@ _IDENT_CHAR = re.compile(r"[A-Za-z0-9_]")
 class SubjectResolution(NamedTuple):
     """How a subject qname the index has no exact node for classifies (miss path only)."""
 
-    status: str  # "absent" | "resolved_unique" | "ambiguous" | "untracked"
+    status: str  # "absent" | "resolved_unique" | "ambiguous" | "untracked" | "stored_shorter"
     qname: str  # the stored qname to use downstream when resolved_unique; else the input
     candidate_count: int  # boundary-suffix candidate floor (0 when absent)
     untracked_paths: tuple[str, ...] = ()
+    stored_shorter: tuple[str, ...] = ()  # stored qnames the subject ends with (354)
 
 
 def classify_missing_subject(
@@ -626,7 +630,23 @@ def classify_missing_subject(
     untracked = _matching_untracked(store.untracked_indexable_paths(), qname)
     if untracked:
         return SubjectResolution("untracked", qname, 0, untracked)
+    shorter = _stored_shorter(store, qname)
+    if shorter is not None:
+        return SubjectResolution("stored_shorter", qname, 0, stored_shorter=(shorter,))
     return SubjectResolution("absent", qname, 0)
+
+
+def _stored_shorter(store: GraphStore, qname: str) -> str | None:
+    """The longest stored qname ``qname`` ends with at a component boundary (354).
+
+    The reverse of the suffix match above: ``dbo.Orders`` asked of a table stored as ``Orders``.
+    It is offered, never re-pointed onto — the extra qualifier may name a different symbol.
+    """
+    for start in range(1, len(qname)):
+        if _IDENT_CHAR.match(qname[start - 1]) is None and _IDENT_CHAR.match(qname[start]):
+            if store.nodes_by_qualified_name(qname[start:], limit=1):
+                return qname[start:]
+    return None
 
 
 def _matching_untracked(paths: Sequence[str], qname: str) -> tuple[str, ...]:
@@ -797,6 +817,9 @@ def shape_exact_miss(
         miss["reason"] = REASON_NAME_NOT_QUALIFIED
         return attach_name_not_qualified(miss, resolution.candidate_count)
     miss["reason"] = REASON_NO_SUCH_SYMBOL
+    if resolution.stored_shorter:
+        miss["candidates"] = list(resolution.stored_shorter)
+        attach_try_instead(miss, None, TRY_INSTEAD_HINT_STORED_SHORTER)
     return miss
 
 
