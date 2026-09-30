@@ -29,6 +29,7 @@ from code_atlas.indexer import (
     IN_BAND_FULL_REBUILD,
     INCOMPLETE_INDEX,
     INCOMPLETE_INDEX_ROUTE,
+    PUBLISH_PHASE,
     BuildReport,
     CoverageLossError,
     build_incomplete,
@@ -242,6 +243,7 @@ def _build(
             # `full=False` request can take as well as an explicit `--full` (203).
             return _coverage_refused(store, config, loss.lost, full=full, started=started)
         if store.is_shadow:
+            _progress_sink(config)(PUBLISH_PHASE, 0, 0)
             store.publish()
             store = GraphStore(config.db_path)
         result = _result(

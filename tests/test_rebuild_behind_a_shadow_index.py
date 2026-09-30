@@ -15,6 +15,7 @@ import signal
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -145,6 +146,40 @@ def test_reads_answer_from_the_last_good_index_at_every_build_phase(tmp_path: Pa
     rebuild(config, probe)
 
     assert {"announce", "parse", "meta", "publish"} <= set(phases)
+
+
+def test_a_reader_thread_never_misses_across_the_swap(tmp_path: Path) -> None:
+    """AC1 under real concurrency: a reader on its own thread and connection, looping through a
+    whole rebuild including the backup, never gets a not-found for a symbol both builds hold."""
+    config = repo(tmp_path)
+    build_tool(config)(full=True)
+    read = read_symbol_tool(config)
+    answers: list[bool] = []
+    done = threading.Event()
+
+    def reader() -> None:
+        while not done.is_set():
+            answers.append(read(qname=CORE)["found"] is True)
+
+    thread = threading.Thread(target=reader)
+    thread.start()
+    try:
+        for _ in range(3):
+            assert build_tool(config)(full=True)["mode"] == "full"
+    finally:
+        done.set()
+        thread.join()
+    assert answers and all(answers), f"{answers.count(False)} of {len(answers)} reads missed"
+
+
+def test_an_incomplete_shadow_is_never_published(tmp_path: Path) -> None:
+    """Scope 1: publish only a shadow its build stamped complete."""
+    live = tmp_path / "graph.db"
+    shadow = GraphStore.open_shadow(live)
+    with pytest.raises(ValueError, match="never stamped complete"):
+        shadow.publish()
+    shadow.discard()
+    assert not live.exists()
 
 
 def test_a_build_that_dies_at_any_phase_leaves_the_live_index_untouched(tmp_path: Path) -> None:
@@ -344,6 +379,7 @@ def test_the_shadow_takes_the_live_page_size(tmp_path: Path) -> None:
 
     shadow = GraphStore.open_shadow(live)
     assert shadow._conn.execute("PRAGMA page_size").fetchone()[0] == 1024
+    shadow.set_meta(BUILD_COMPLETE_KEY, BUILD_COMPLETE)
     shadow.publish()
     with GraphStore(live) as published:
         assert published.get_meta("schema_version") is not None

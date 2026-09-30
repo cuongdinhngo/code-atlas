@@ -63,9 +63,9 @@ snapshot, so it sees the old graph or the new one, never a mix; the live path an
 change, which is why there is no rename (it fails over an open file on native Windows). A killed
 or failed build leaves the live index byte-identical, and the next build drops the leftover shadow.
 
-- **Cost:** up to about three times the index on disk while it publishes (live, shadow, WAL), and
-  the publish holds the write lock for about 0.5 s per 200 MB (measured on a 211 MB index), which a
-  fit-counter write or a read-through repair waits out inside `busy_timeout`.
+- **Cost, measured on a 211 MB, 1,736-file index:** peak disk 3.09x the index while it publishes
+  (live, shadow, WAL); the publish held the write lock 0.66 s, and 545 reads during it peaked at
+  3.6 ms. A fit-counter write or a read-through repair waits that out inside `busy_timeout`.
 - **Kept:** fit counters written during the build are carried into the shadow. A read-through
   repair made mid-build is not; the next read sees the file's hash drift and repairs it again.
 - **Every guarded answer says so:** `build_in_progress: true` and `build_phase` while a writer holds

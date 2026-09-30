@@ -111,6 +111,7 @@ PRAGMAS: tuple[str, ...] = ("journal_mode=WAL", "foreign_keys=ON", "busy_timeout
 
 # A full rebuild fills this file, then publishes it over the live index in one transaction (356).
 SHADOW_SUFFIX = ".shadow"
+PUBLISH_BUSY_TIMEOUT_MS = 60_000
 
 
 def shadow_db_path(db_path: Path) -> Path:
@@ -804,9 +805,13 @@ class GraphStore:
         """
         if self._publish_to is None:
             raise ValueError("publish() needs a store from open_shadow()")
+        if self.get_meta(BUILD_COMPLETE_KEY) != BUILD_COMPLETE:
+            raise ValueError("refusing to publish a shadow its build never stamped complete")
         live = sqlite3.connect(self._publish_to)
         try:
-            live.execute("PRAGMA busy_timeout=5000")
+            # Past the readers' 5 s: the build already holds write.lock, so only a short writer
+            # (a fit bump, a read-through repair) can be ahead, and losing the build costs more.
+            live.execute(f"PRAGMA busy_timeout={PUBLISH_BUSY_TIMEOUT_MS}")
             self._carry_fit_counts(live)
             self._conn.backup(live)
             # Best effort: a reader still on the old snapshot only delays the truncate.
