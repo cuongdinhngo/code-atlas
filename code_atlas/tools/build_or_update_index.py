@@ -12,7 +12,6 @@ import os
 import time
 from collections.abc import Callable
 from dataclasses import asdict
-from pathlib import Path
 from typing import Literal
 
 from code_atlas import contract, gitutil
@@ -210,9 +209,9 @@ def _build(
     except SchemaVersionError as mismatch:
         if mismatch.direction != SCHEMA_OLDER:
             return _refused(config, mismatch, full)
-        _unlink_index(config.db_path)
+        # Readers keep the mismatch answer until the rebuilt index is published over it (356).
         rebuilt_schema = True
-        store = GraphStore(config.db_path)
+        store = GraphStore.open_shadow(config.db_path)
     try:
         if (
             full
@@ -242,6 +241,9 @@ def _build(
             # Raised by `full_build` before it writes, so this covers the escalation paths a
             # `full=False` request can take as well as an explicit `--full` (203).
             return _coverage_refused(store, config, loss.lost, full=full, started=started)
+        if store.is_shadow:
+            store.publish()
+            store = GraphStore(config.db_path)
         result = _result(
             store, config, report, full, mode, detail_level,
             rebuilt_schema=rebuilt_schema,
@@ -252,7 +254,10 @@ def _build(
         result["seconds"] = round(time.monotonic() - started, 3)
         return result
     finally:
-        store.close()
+        if store.is_shadow:
+            store.discard()
+        else:
+            store.close()
 
 
 def _progress_sink(config: Config) -> Callable[[str, int, int], None]:
@@ -329,12 +334,6 @@ def _run(
         allow_coverage_loss=allow_coverage_loss,
     )
     return (FULL if scope else INCREMENTAL), report
-
-
-def _unlink_index(path: Path) -> None:
-    """Remove a foreign-schema DB (and WAL siblings) so the next open creates schema current."""
-    for sibling in (path, Path(str(path) + "-wal"), Path(str(path) + "-shm")):
-        sibling.unlink(missing_ok=True)
 
 
 def _contract_refused(

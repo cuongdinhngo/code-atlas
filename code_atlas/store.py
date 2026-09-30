@@ -109,6 +109,35 @@ WRITE_ERRORS: tuple[type[Exception], ...] = (sqlite3.Error,)
 # Set outside any transaction: foreign_keys is silently ignored inside one.
 PRAGMAS: tuple[str, ...] = ("journal_mode=WAL", "foreign_keys=ON", "busy_timeout=5000")
 
+# A full rebuild fills this file, then publishes it over the live index in one transaction (356).
+SHADOW_SUFFIX = ".shadow"
+
+
+def shadow_db_path(db_path: Path) -> Path:
+    """Where a full rebuild writes before it publishes — the one definition site (356, R6.7)."""
+    return db_path.with_name(db_path.name + SHADOW_SUFFIX)
+
+
+def _remove_db_files(path: Path) -> None:
+    """Delete a SQLite file and its WAL siblings."""
+    for sibling in (path, Path(f"{path}-wal"), Path(f"{path}-shm")):
+        sibling.unlink(missing_ok=True)
+
+
+def _page_size(db_path: Path) -> int | None:
+    """The page size of the database at ``db_path``, or ``None`` when none is readable there."""
+    if not db_path.is_file():
+        return None
+    try:
+        conn = sqlite3.connect(db_path)
+        try:
+            return int(conn.execute("PRAGMA page_size").fetchone()[0])
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        return None
+
+
 DDL = """
 CREATE TABLE IF NOT EXISTS files (
   path TEXT PRIMARY KEY, hash TEXT, language TEXT, parsed_ok INT DEFAULT 1, updated_at TEXT,
@@ -701,6 +730,7 @@ class GraphStore:
     def __init__(self, db_path: Path, *, now: Callable[[], str] | None = None) -> None:
         self._now = utc_now if now is None else now
         self._db_path = db_path
+        self._publish_to: Path | None = None
         if str(db_path) != MEMORY_DB:
             db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(db_path)
@@ -730,6 +760,81 @@ class GraphStore:
 
     def close(self) -> None:
         self._conn.close()
+
+    @classmethod
+    def open_shadow(cls, db_path: Path) -> "GraphStore":
+        """A fresh store a full rebuild fills; :meth:`publish` copies it over ``db_path`` (356).
+
+        A leftover from a killed build is dropped first. The page size is the live file's: a
+        backup into a WAL database refuses a different one.
+        """
+        shadow = shadow_db_path(db_path)
+        _remove_db_files(shadow)
+        shadow.parent.mkdir(parents=True, exist_ok=True)
+        size = _page_size(db_path)
+        if size is not None:
+            conn = sqlite3.connect(shadow)
+            try:
+                conn.execute(f"PRAGMA page_size={size}")
+                conn.execute("PRAGMA journal_mode=WAL")
+            finally:
+                conn.close()
+        store = cls(shadow)
+        store._publish_to = db_path
+        return store
+
+    @property
+    def db_path(self) -> Path:
+        return self._db_path
+
+    @property
+    def in_memory(self) -> bool:
+        return str(self._db_path) == MEMORY_DB
+
+    @property
+    def is_shadow(self) -> bool:
+        return self._publish_to is not None
+
+    def publish(self) -> None:
+        """Copy this shadow over the live index in one destination transaction, then delete it.
+
+        A reader is a WAL snapshot: one in flight finishes on the old graph, the next opens the new
+        one, and the live path and inode never change (356). The live index's fit counters are
+        carried in first, so only a bump inside the copy window itself can be lost.
+        """
+        if self._publish_to is None:
+            raise ValueError("publish() needs a store from open_shadow()")
+        live = sqlite3.connect(self._publish_to)
+        try:
+            live.execute("PRAGMA busy_timeout=5000")
+            self._carry_fit_counts(live)
+            self._conn.backup(live)
+            # Best effort: a reader still on the old snapshot only delays the truncate.
+            with contextlib.suppress(sqlite3.Error):
+                live.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        finally:
+            live.close()
+        self.discard()
+
+    def discard(self) -> None:
+        """Close this store and delete its file with the WAL siblings — a shadow never published."""
+        self.close()
+        _remove_db_files(self._db_path)
+
+    def _carry_fit_counts(self, live: sqlite3.Connection) -> None:
+        """Copy the live index's ``fit:`` rows into this shadow before it replaces them (260)."""
+        try:
+            rows = live.execute(
+                "SELECT key, value FROM meta WHERE key LIKE ?", (f"{FIT_KEY_PREFIX}%",)
+            ).fetchall()
+        except sqlite3.Error:
+            return  # no meta table: a first build writes over an empty file
+        with self._conn:
+            self._conn.executemany(
+                "INSERT INTO meta (key, value) VALUES (?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                rows,
+            )
 
     def __enter__(self) -> "GraphStore":
         return self

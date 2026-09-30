@@ -53,6 +53,24 @@ Exit `0` while a build is running, `3` when none is. Two properties are delibera
   very next call, even though its last line is still on disk. A `building: true` row in the
   database would have survived and become permanent.
 
+### A full rebuild keeps serving the last good index (task 356)
+
+A full build used to stamp the live index incomplete and truncate it, so for the minutes the build
+ran every read answered from a partial graph — a symbol not yet re-parsed came back as a confident
+not-found. It now fills `graph.db.shadow` and, once that graph is stamped complete, copies it over
+the live file with the SQLite backup API in one destination transaction. A reader is a WAL
+snapshot, so it sees the old graph or the new one, never a mix; the live path and inode never
+change, which is why there is no rename (it fails over an open file on native Windows). A killed
+or failed build leaves the live index byte-identical, and the next build drops the leftover shadow.
+
+- **Cost:** up to about three times the index on disk while it publishes (live, shadow, WAL), and
+  the publish holds the write lock for about 0.5 s per 200 MB (measured on a 211 MB index), which a
+  fit-counter write or a read-through repair waits out inside `busy_timeout`.
+- **Kept:** fit counters written during the build are carried into the shadow. A read-through
+  repair made mid-build is not; the next read sees the file's hash drift and repairs it again.
+- **Every guarded answer says so:** `build_in_progress: true` and `build_phase` while a writer holds
+  the lock, omitted otherwise. The incremental path still writes in place and keeps 202's stamp.
+
 ### Two things `staleness` deliberately does not tell you (task 178)
 
 `staleness` answers **which revision** this index describes, and nothing else — 072's busy refusal
@@ -61,7 +79,7 @@ there is nothing to say:
 
 | Field | When it appears | What it means |
 |---|---|---|
-| `build_in_progress: true` | a writer holds `write.lock` right now | someone is building; these numbers are moving |
+| `build_in_progress: true` | a writer holds `write.lock` right now | someone is building; an incremental's numbers are moving, a full rebuild's are the last good index's (356) |
 | `index_complete: false` | the last build never finished linking | the graph holds parsed rows whose edges were never linked |
 
 `build_in_progress` is the same live-`flock` probe `--status` uses, so it cannot outlive the

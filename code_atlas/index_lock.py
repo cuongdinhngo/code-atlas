@@ -173,3 +173,14 @@ def read_build_progress(db_path: Path) -> str | None:
         return None
     line = raw.strip()
     return line or None
+
+
+def build_phase(db_path: Path) -> str | None:
+    """The live build's phase name (``parse``, ``publish`` …), or ``None`` when none is readable."""
+    line = read_build_progress(db_path)
+    if line is None:
+        return None
+    for token in line.split():
+        if token.startswith("phase="):
+            return token[len("phase=") :] or None
+    return None

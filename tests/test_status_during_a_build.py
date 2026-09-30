@@ -111,12 +111,13 @@ def test_an_unfinished_link_phase_does_not_present_as_a_finished_index(tmp_path:
     finally:
         indexer_mod._count_late_writes = original  # type: ignore[assignment]
 
+    # Since 356 the build died in its shadow: the live index was never written, so nothing
+    # claims a graph it never published. The in-place stamp is killed_build_is_honest's (202).
     with GraphStore(config.db_path) as store:
-        assert store.get_meta(BUILD_COMPLETE_KEY) == "0"
+        assert store.get_meta(BUILD_COMPLETE_KEY) is None
 
     status = status_of(tmp_path)
-    assert status[INDEX_COMPLETE] is False
-    # And the premature stamp is gone: nothing claims this graph was built.
+    assert INDEX_COMPLETE not in status
     assert status["built_at"] is None
     assert status["staleness"] != "current"
 

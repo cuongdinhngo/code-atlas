@@ -41,7 +41,9 @@ by default. `full_body=true` or a `line_start`/`line_end` range inside the symbo
 bytes; under the threshold the payload stays byte-identical (288 / 061).
 
 Every answer also carries **`index_root`** — the source tree it describes — so an agent in a worktree
-can spot a server pointed at the main checkout. Full field reference:
+can spot a server pointed at the main checkout. While a build holds the write lock it also carries
+**`build_in_progress: true`** and **`build_phase`** — a full rebuild answers from the last good
+index until it publishes ([356](indexing.md#a-full-rebuild-keeps-serving-the-last-good-index-task-356)). Full field reference:
 [`docs/CONVENTION.md`](../CONVENTION.md) §6.
 
 ### When an answer is a partition, both nav tools say so (task 168)

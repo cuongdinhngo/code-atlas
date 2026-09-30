@@ -59,6 +59,13 @@ def config_for(root: Path):
     return load_config(root, env_for(root))
 
 
+def child_env(root: Path) -> dict[str, str]:
+    """The child sees the parent's one adapter: an inherited `CA_<LANG>_CMD` widens its scope, and
+    the build then escalates to a full one instead of the incremental this file kills (172, 356)."""
+    inherited = {key: value for key, value in os.environ.items() if not key.startswith("CA_")}
+    return {**inherited, **env_for(root)}
+
+
 def big_repo(root: Path) -> None:
     src = root / "src"
     src.mkdir(parents=True, exist_ok=True)
@@ -93,7 +100,7 @@ def kill_an_incremental_mid_write(root: Path) -> None:
     )
     child = subprocess.Popen(
         [sys.executable, "-c", script],
-        env={**os.environ, **env_for(root), "CA_ROOT": str(root)},
+        env={**child_env(root), "CA_ROOT": str(root)},
         cwd=root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
     db = config_for(root).db_path
@@ -196,7 +203,7 @@ def test_the_refresh_hook_reports_and_does_not_rebuild(killed_index: Path) -> No
     """The ratified want: 053 says this hook never builds, and a killed repair would loop."""
     completed = subprocess.run(
         [sys.executable, "-m", "code_atlas.hooks.refresh", "--verbose"],
-        env={**os.environ, **env_for(killed_index), "CLAUDE_PROJECT_DIR": str(killed_index)},
+        env={**child_env(killed_index), "CLAUDE_PROJECT_DIR": str(killed_index)},
         cwd=killed_index, capture_output=True, text=True,
     )
 

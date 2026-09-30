@@ -19,7 +19,7 @@ from code_atlas.index_lock import (
     publish_build_progress,
     read_build_progress,
 )
-from code_atlas.indexer import INCREMENTAL_PHASES, full_build
+from code_atlas.indexer import BUILD_PHASES, full_build
 from code_atlas.store import GraphStore
 from code_atlas.tools.build_or_update_index import create
 
@@ -54,7 +54,7 @@ def test_progress_names_the_phase_not_only_a_file_counter(tmp_path: Path) -> Non
         full_build(config, store, progress=lambda *row: seen.append(row))
 
     phases = [phase for phase, _done, _total in seen]
-    assert set(phases) <= set(INCREMENTAL_PHASES), f"phase outside 052's vocabulary: {set(phases)}"
+    assert set(phases) <= set(BUILD_PHASES), f"phase outside the build's vocabulary: {set(phases)}"
     # The parse counter reaches its total, and work is still reported after it does.
     assert ("parse", 4, 4) in seen
     after_parse = phases[phases.index("parse") + phases.count("parse") :]

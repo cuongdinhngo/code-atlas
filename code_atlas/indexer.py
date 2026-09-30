@@ -22,7 +22,7 @@ import time
 from collections import Counter
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path, PurePosixPath
 
 from code_atlas import contract, gitutil
@@ -79,7 +79,11 @@ INCREMENTAL_PHASES = (
     "resolve",
 )
 
-# A running build's only outward signal (task 177). ``phase`` comes from INCREMENTAL_PHASES above,
+# A full build's last phase: copying the finished shadow over the live index (356).
+PUBLISH_PHASE = "publish"
+BUILD_PHASES = (*INCREMENTAL_PHASES, PUBLISH_PHASE)
+
+# A running build's only outward signal (task 177). ``phase`` comes from BUILD_PHASES above,
 # never a second list (R6.7); ``done``/``total`` are file counts and are 0/0 outside the parse.
 ProgressSink = Callable[[str, int, int], None]
 
@@ -200,6 +204,10 @@ def full_build(
     Adapters emit bare edges; ``resolve_edges`` links them after every node exists. Every collected
     path leaves a ``files`` row, parsed or not. When ``stub_roots`` is set, dependency trees are
     walked outside the normal ignore matcher and parsed declarations-only (task 039).
+
+    A file-backed ``store`` is rebuilt in a shadow and published only once the new graph is
+    stamped complete, so readers keep the last good index for the whole build and a killed or
+    failed build leaves it untouched (356). A ``:memory:`` store or a shadow is filled in place.
     """
     # Before ANY write, and here rather than in the caller: `full_build` is reached from five
     # places, two of them escalations inside `incremental_update` — one of which fires precisely
@@ -211,6 +219,31 @@ def full_build(
     # Validate rules before any parse so a bad file fails loud without a half-built index (R5.3).
     rules = load_indirection_rules(config)
     _require_configured_adapters(config)
+    if store.in_memory or store.is_shadow:
+        return _fill(config, store, rules, progress=progress)
+    shadow = type(store).open_shadow(store.db_path)
+    try:
+        report = _fill(config, shadow, rules, progress=progress)
+        # The shadow starts empty, so what vanished is measured against the live index.
+        removed = len(set(store.file_paths()) - set(shadow.file_paths()))
+        if progress is not None:
+            progress(PUBLISH_PHASE, 0, 0)
+        shadow.publish()
+    except BaseException:
+        shadow.discard()
+        raise
+    store.reload_mirror_search_stamp()
+    return replace(report, removed=removed)
+
+
+def _fill(
+    config: Config,
+    store: GraphStore,
+    rules: RulesPayload | None,
+    *,
+    progress: ProgressSink | None,
+) -> BuildReport:
+    """Write a whole graph into ``store`` in place: the body of :func:`full_build`."""
     report = _Progress(progress)
     store.set_meta(BUILD_COMPLETE_KEY, BUILD_INCOMPLETE)
     # A full build rewrites every row, so bulk-clear first (after the incomplete stamp, so a kill is
@@ -403,7 +436,6 @@ def incremental_update(
     # the alias map is fixed, and the parse is what can change it (task 096).
     aliases_before = store.alias_targets()
     report = _Progress(progress)
-    store.set_meta(BUILD_COMPLETE_KEY, BUILD_INCOMPLETE)
     watchdog = _Watchdog(config.adapter_timeout)
     watchdog.start()
     fingerprint_skipped = 0
@@ -450,7 +482,6 @@ def incremental_update(
             # fold wrote — re-parse those files or the delta drops the key for good (247).
             folded_sources = store.file_paths_contributing_column_extras(sorted(affected))
             dependents |= set(folded_sources) & wanted
-            removed = _reconcile(store, kept)
             _phase_add(phase_times, "reconcile", mark)
 
             mark = time.monotonic()
@@ -489,6 +520,12 @@ def incremental_update(
             crossover = config.full_build_crossover
             if crossover > 0 and len(to_parse) >= crossover:
                 raise _TooLarge(len(to_parse), len(changed_set), crossover)
+            # The first write, below every escalation: a delta that escalates reaches the shadowed
+            # full build with the live index untouched (356).
+            store.set_meta(BUILD_COMPLETE_KEY, BUILD_INCOMPLETE)
+            mark = time.monotonic()
+            removed = _reconcile(store, kept)
+            _phase_add(phase_times, "reconcile", mark)
 
             mark = time.monotonic()
             report.phase("parse", total=len(to_parse))

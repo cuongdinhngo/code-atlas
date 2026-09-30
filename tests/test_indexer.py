@@ -99,13 +99,12 @@ def store(tmp_path: Path) -> Iterator[GraphStore]:
 
 
 class RecordingStore(GraphStore):
-    """A store that remembers which threads mutated it — R4.3's single writer, made observable."""
+    """A store that remembers which threads mutated it — R4.3's single writer, made observable.
 
-    def __init__(self, db_path: Path) -> None:
-        # Set first: creating the schema already writes, and the recorder must survive that.
-        self.writers: set[int] = set()
-        super().__init__(db_path)
-        self.writers.clear()
+    One set for every instance: since 356 a full build writes a shadow of the store it was given.
+    """
+
+    writers: set[int] = set()
 
     def upsert_file(self, *args: object, **kwargs: object) -> None:
         self.writers.add(threading.get_ident())
@@ -342,6 +341,7 @@ def test_every_write_happens_on_the_single_writer_thread(tmp_path: Path) -> None
     """AC2a/R4.3. Also structurally true: the database driver binds a connection to its maker."""
     tree(tmp_path, *[f"src/f{index}.aa" for index in range(12)])
     with RecordingStore(tmp_path / ".code-atlas" / "graph.db") as recording:
+        RecordingStore.writers.clear()  # creating the schema already wrote
         report = full_build(indexed_config(tmp_path, workers=4, command=fake_command()), recording)
 
         assert report.parsed == 12, "a build that wrote nothing would satisfy any writer claim"
