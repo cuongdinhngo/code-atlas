@@ -81,7 +81,7 @@ def test_a_commit_and_an_amend_each_trigger_one_refresh(tmp_path: Path) -> None:
 
 
 def test_a_rebase_refreshes_after_its_last_pick(tmp_path: Path) -> None:
-    """post-rewrite's own case: once more after the rebase, on top of post-commit's per-pick calls."""
+    """post-rewrite's own case: one more after the rebase, beside post-commit's per-pick calls."""
     root = tmp_path / "repo"
     root.mkdir()
     env, log = hooked_repo(root)
@@ -125,7 +125,7 @@ def coverage_loss_index(root: Path) -> dict[str, str]:
 
 
 def test_a_pending_coverage_loss_is_in_the_summary_with_its_route(tmp_path: Path) -> None:
-    """AC2: the summary names the refusal and the fix, so the one line a session reads carries it."""
+    """AC2: the summary names the refusal and the fix — the one line a session reads carries it."""
     env = coverage_loss_index(tmp_path)
     status = get_index_status.create(load_config(tmp_path, env), ())()
 
@@ -153,4 +153,5 @@ def test_no_pending_loss_leaves_the_summary_byte_identical() -> None:
         "files": 3, "nodes": 7, "last_commit": "a" * 40, "indexed": True,
         "staleness": "current", "edge_health": {"unlinked": 0},
     }
-    assert get_index_status._compose_summary(payload) == "current @ aaaaaaa · 3 files · 7 symbols · healthy"
+    expected = "current @ aaaaaaa · 3 files · 7 symbols · healthy"
+    assert get_index_status._compose_summary(payload) == expected

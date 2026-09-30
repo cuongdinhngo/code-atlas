@@ -35,7 +35,7 @@ version-controlled, and this project never writes into a user's `.git` for them.
 | Another build holds `.code-atlas/write.lock` (hook or MCP) | Exit 0; verbose: `skipped: another build is running` |
 | `post-checkout` with git's 3rd arg ≠ `1` (file checkout) | Hook exits 0 immediately; no refresh |
 | `git commit` / `git commit --amend` | `post-commit` refreshes once; `post-rewrite` skips `amend` so an amend is not counted twice |
-| `git rebase` | `post-commit` fires per pick (overlapping runs skip on the lock), then `post-rewrite rebase` refreshes once more at the final HEAD |
+| `git rebase` | `post-commit` fires per pick and `post-rewrite rebase` once more at the end; a run that finds a pick's refresh still holding the lock skips, so the index can stop at a pick's HEAD until the next refresh — read-through freshness still repairs what a query touches |
 | Install/config error | Exit 0; **always** one stderr line `code-atlas refresh skipped: …` (hooks keep stderr) |
 | Build refused (a full rebuild is required, or coverage would be lost) | Exit 0; **always** one stderr line with the reason and the route to run |
 
