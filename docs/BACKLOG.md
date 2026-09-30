@@ -28,6 +28,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 353 | [An include built as constant + literal path reads as dynamic](tasks/353_include-path-concatenation.md) | Coverage | todo | 065, 279 |
 | 354 | [Two empty answers name the wrong cause](tasks/354_empty-answers-that-name-the-wrong-cause.md) | Honesty | todo | 073, 199, 246 |
 | 355 | [A commit never refreshes; a refused refresh never reaches the state line](tasks/355_silent-refresh-failures.md) | Adoption | todo | 053, 322, 344 |
+| 356 | [A full rebuild empties the live index first; reads wait or answer a false empty](tasks/356_rebuild-behind-a-shadow-index.md) | Adoption | todo | 202, 219 |
 
 ## Open work — Pillar 2 · Onboarding
 
