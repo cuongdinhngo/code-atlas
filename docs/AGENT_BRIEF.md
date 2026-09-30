@@ -117,6 +117,21 @@ silently became a blend when a second language arrived.
 
 **Falsifier.** A change adding producer #2 whose change list carries no aggregate enumeration.
 
+## P8 — A change that moves graph counts re-runs cross-repo and re-floors in the same PR
+
+`Ratified 2026-09-30` by the maintainer on one incident — handle `ungated-floor-drifts-silently`.
+
+When a resolver, indexer or adapter change moves what a build emits, run
+`scripts/cross_repo_validate.py --public-only` before the PR. A floor moved **by design** is
+re-measured at ≈80% of the new build in the same PR, old→new counts in the manifest's
+`contract_note`; a floor moved **by accident** is a regression.
+
+**Why it costs.** The job is weekly and outside the gate: 258 cut socketio's edges by design, and
+the stale floors failed 16 days later (issue #4), which took a bisect to tell apart (349).
+
+**Falsifier.** A merged change after which `cross_repo_validate.py --public-only` fails on a floor
+the change moved.
+
 ---
 
 ## Not in scope here

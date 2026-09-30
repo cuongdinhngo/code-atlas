@@ -41,16 +41,6 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
 
 ## Live claims
 
-### 349-C1 — a change that moves edge counts goes stale against the cross-repo floors, unseen by the gate
-
-- type: 2 (process) · handle: `ungated-floor-drifts-silently`
-- status: proposed · seen: 349
-- evidence: 258 (`6e6f577`, 2026-09-12) cut socketio's edges 53,299 → 28,050 by design. The cross-repo
-  job is weekly and outside `scripts/gate.sh`, so the stale floors failed 16 days later as issue #4
-  and needed a bisect to tell design from regression. A resolver change should re-run
-  `cross_repo_validate.py --public-only` and re-floor in the same PR.
-- destination: first sighting.
-
 ### 348-C1 — an installed plugin moves only when its `version` does, and only on `claude plugin update`
 
 - type: 5 (environment) · area: `claude-code plugins / update` · verified-at: 2026-09-30, Claude Code 2.1.284
@@ -126,3 +116,4 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
 
 | claim | handle | rule |
 |---|---|---|
+| 349-C1 | `ungated-floor-drifts-silently` | AGENT_BRIEF P8 |

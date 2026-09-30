@@ -90,21 +90,20 @@ A full rebuild bulk-clears (219); no need to delete `graph.db`. `workers` is not
 knob. Every timing and its conditions: [`runbooks/onboarding-a-repo.md`](docs/runbooks/onboarding-a-repo.md).
 
 ## Before a PR or a push — run `scripts/gate.sh` **once, when the work is done**
-**Not per edit** — iterate on targeted `ruff`/`mypy`/`pytest`, batch every fix, then one gate run. It mirrors every `ci.yml` job in order.
-**`gh pr checks` is not the gate:** private, Actions fail in ~3 s unrun (unbillable); public,
-they run after the push; the local gate runs before it.
+**Not per edit** — iterate on targeted `ruff`/`mypy`/`pytest`, batch every fix, then one gate run.
+**`gh pr checks` is not the gate:** Actions run after the push; the local gate runs before it.
 **Only `GATE GREEN` counts — exit 2 means a check was skipped, which is not a pass (R6.5).**
+**Cross-repo is outside the gate:** a change moving graph counts runs `cross_repo_validate.py` and re-floors (P8).
+The gate mirrors every `ci.yml` job (`tests/test_ci_and_gate_agree.py`).
 A runtime missing? `scripts/gate.sh --docker` runs it in the test image.
-`tests/test_ci_and_gate_agree.py` keeps it in step with `ci.yml`.
 **The gate's tokens-to-answer ratio is the *fixture* tier and sits below 1 by design** (floor 0.63) —
 the product claim is the *sample* tier over the pinned repos (`--samples`, ~69x). Never quote one as
 the other.
 
 ## Running the full test suite — never report it as unrunnable
-**Runtime supported on native Windows (237, superseding 220); test suite + dev loop stay POSIX** —
+**Runtime supported on native Windows; test suite + dev loop stay POSIX** —
 run under WSL2, never `/mnt/*`; the rest is in README.
-The suite needs a **POSIX host** (four tests import `fcntl`/`resource`; since 237 the lock does
-not) and **every adapter**: `php` + `composer`, `node` for both the TS and SQL adapters, and a
+The suite needs a **POSIX host** (four tests import `fcntl`/`resource`) and **every adapter**: `php` + `composer`, `node` for both the TS and SQL adapters, and a
 Python ≥ 3.12 interpreter —
 with all of them present, bare `pytest` is the fastest route. Missing either condition it goes red —
 **a platform limitation, not a regression** — so don't conclude "the suite can't run"; run it in

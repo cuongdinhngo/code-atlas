@@ -10,12 +10,19 @@ Manifest: [`scripts/cross_repo_samples.json`](../../scripts/cross_repo_samples.j
 
 | Kind | Checkout | Role |
 |------|----------|------|
-| `laravel_app` | `laravel/laravel` @ pinned SHA | php — framework app |
-| `symfony_app` | `symfony/demo` @ pinned SHA | php — framework app |
-| `psr4_library` | `brick/math` @ pinned SHA | php — small PSR-4 library |
-| `ts_library` | `sindresorhus/ky` @ pinned SHA | typescript — small library |
-| `ts_js_mixed` | `mqttjs/MQTT.js` @ pinned SHA | typescript — mixed TS/JS |
-| `compiled_beside_source` | `socketio/socket.io` @ pinned SHA | typescript — build output beside source |
+| `laravel_app` | `laravel/laravel` | php — framework app |
+| `symfony_app` | `symfony/demo` | php — framework app |
+| `psr4_library` | `brick/math` | php — small PSR-4 library |
+| `ts_library` | `sindresorhus/ky` | typescript — small library |
+| `ts_js_mixed` | `mqttjs/MQTT.js` | typescript — mixed TS/JS |
+| `compiled_beside_source` | `socketio/socket.io` | typescript — build output beside source |
+| `python_library` | `pallets/flask` | python — decorator-heavy framework |
+| `python_src_layout` | `pydantic/pydantic` | python — `src/` layout |
+| `python_flat_package` | `psf/requests` | python — flat package |
+| `tsql_oltp_schema` | `microsoft/sql-server-samples` (sparse) | sql — one OLTP install script |
+| `tsql_dw_tables` | `microsoft/sql-server-samples` (sparse) | sql — SSDT warehouse tables |
+
+Every row is pinned to a SHA in the manifest; the manifest is the source of truth for the list.
 
 Pins live **outside** `adapters/` so R2.2 never sees framework/repo names in adapter source. Each
 row names its `language`; the harness resolves that adapter's command from `_ADAPTERS` — adding a
@@ -30,10 +37,13 @@ language is a manifest row plus an `_ADAPTERS` row, never a branch.
 # Every language in the manifest needs its adapter runnable. The TS adapter requires its own
 # runtime deps, or it exits before announcing itself:
 npm ci --prefix adapters/typescript
+npm ci --prefix adapters/sql
 
 # Prefer an absolute adapter path (sample builds use the sample as cwd).
 export CA_PHP_CMD="php $(pwd)/adapters/php/index.php --server"
 export CA_TYPESCRIPT_CMD="node $(pwd)/adapters/typescript/index.js --server"
+export CA_PYTHON_CMD="python3 $(pwd)/adapters/python/index.py --server"
+export CA_SQL_CMD="node $(pwd)/adapters/sql/index.js --server"
 
 python3 scripts/cross_repo_validate.py
 # Re-run against existing checkouts, no network:
@@ -51,7 +61,8 @@ otherwise be refused rather than rebuilt.
 
 - Build **completes without crash** for each public sample.
 - Per-sample floors in the manifest (`min_files` / `min_nodes` / `min_edges`, ≈80% of a
-  known-good smoke at that SHA). Bump floors when bumping a pin.
+  known-good smoke at that SHA). Bump floors when bumping a pin, and re-floor in the same PR
+  when a change moves the counts by design ([AGENT_BRIEF P8](../AGENT_BRIEF.md)).
 - Parse failure ratio `failed/files <= 0.02` on public samples (catches mass-parse regressions
   without requiring `failed == 0`). Isolation “one bad file does not abort the build” is proven in
   per-PR fixtures and the harness mini-repo test.
@@ -79,6 +90,10 @@ public GHA and for laptops without the private checkout (A4, ratified for shippi
 - public samples only (`--public-only`)
 - on failure: opens/comments a `cross-repo-validation` GitHub issue (Actions tab is otherwise easy
   to miss for scheduled jobs)
+
+**Outside the gate:** neither `ci.yml` nor `scripts/gate.sh` runs it, so a count a change moves
+surfaces only here, up to a week later. The first GitHub run was 2026-09-28 (the repo went public
+2026-09-27); it failed on floors that predated 258 — issue #4, re-floored by 349.
 
 **Note:** GitHub disables `schedule` triggers after **60 days of repository inactivity**. A quiet
 repo silently stops validating — re-run via `workflow_dispatch` or push to re-enable.
