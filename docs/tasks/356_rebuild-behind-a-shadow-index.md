@@ -4,7 +4,7 @@ slug: rebuild-behind-a-shadow-index
 title: 'A full rebuild empties the live index first, so every read waits minutes or answers a false empty'
 phase: 2
 milestone: Adoption
-status: todo
+status: done
 depends_on: [202, 219]
 ---
 
@@ -70,7 +70,7 @@ Build into a shadow file beside `config.db_path`, then publish with the SQLite b
 
 ## Session status
 
-- **KEY:** 356 · **work_doc_mode:** embed · **Current phase:** 2 design · **Next action:** implement the change list on `feat/356-rebuild-behind-a-shadow-index`.
+- **KEY:** 356 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer reviews and merges the PR, and ratifies ASSUMED A1–A4. **Revert path:** `git revert` the branch's commits.
 - `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · Run mode: `autorun`, batch 356 → 354 → 355;
   *"with skipped reviewer"* = `--no-reviewer` only, the challenger keeps its seat.
 - Branch `feat/356-rebuild-behind-a-shadow-index` off `main` (`5b4f1667`). Contract `.mango/run-contract-356.txt`.
@@ -285,3 +285,159 @@ after the change.
 
 `git revert` the branch commits. No index needs deleting: a published shadow is an ordinary
 `graph.db`, and a leftover `graph.db.shadow` is inert to the old code.
+
+## Phase 3 — execute
+
+Commits on `feat/356-rebuild-behind-a-shadow-index`: `5970568f` (the change), `b38cdd5a` (the
+challenger's round-1 findings, below).
+
+**Sweep.**
+- Axis 1 — file set. The diff is the change list plus three proof-collateral test files the
+  blast-radius trace missed, each a test that pinned the old write order (deviations D2–D4).
+- Axis 2 — design conformance. Approach bullets 1–6 implemented as approved, with one addition
+  (D1). `ruff check` and `mypy` are clean.
+- Handle `formatter-rewrites-untouched-lines`, traced. `ruff format --diff` over the edited files
+  proposes many hunks. Only one sat on a changed line (a missing blank line before `DDL`, `store.py`),
+  and that one was applied. The rest are on untouched lines and were left alone.
+
+| # | Approved | Implemented instead | `path:line` | Surfaced |
+|---|---|---|---|---|
+| D1 | bullet 2: publish after `_record_meta` | also a `publish` phase (`PUBLISH_PHASE`, `BUILD_PHASES` derived from `INCREMENTAL_PHASES`) and `removed` measured against the live index, because an empty shadow reads 0 | `code_atlas/indexer.py` `full_build` | yes |
+| D2 | — | `tests/test_killed_build_is_honest.py`: the child inherited the host's `CA_<LANG>_CMD`, so on this host its "incremental" escalated to a full build (`scope_change`). Before 356 the test passed by killing that escalated in-place full build; `child_env()` now gives the child the parent's one adapter | `child_env` | yes |
+| D3 | — | `tests/test_indexer.py`: `RecordingStore.writers` became one set shared by all instances, because the build writes a shadow of the store it was handed | `RecordingStore` | yes |
+| D4 | — | `tests/test_status_during_a_build.py`, `tests/test_build_progress.py`: 178's killed-link test now asserts that the live index was never stamped; the phase vocabulary is `BUILD_PHASES` | — | yes |
+
+**Proving test, red on the pre-change tree.** On `5b4f1667` the new test file does not import
+(`shadow_db_path`, `BUILD_PHASE`). A probe script shows the old behaviour directly:
+
+Ran at 5b4f1667
+
+    reads per phase (phase, live nodes, found): [('announce', 0, False), ('tree_walk', 0, False), ('reconcile', 0, False), ('parse', 0, False), ('enrichment', 3, True), ('resolve', 3, True), ('meta', 3, True)]
+    after a death at parse: build_complete = 0 nodes = 0
+
+**AC5 and Scope 2, measured.** These ran on a copy of the cached `wwi_dw` checkout (1,736 files,
+22,362 nodes, 327,734 edges, 4 adapters) at `5970568f`'s tree:
+`scratchpad/ac5.py` and `scratchpad/r2.py`. Each run used a reader thread looping `read_symbol`,
+plus a 20 ms disk poller.
+
+    rebuild: full 60.7 s | publish 0.656 s
+    peak disk: 649.2 MiB = 3.09 x the index
+    reads during build: 39601 p50 1.19 ms max 777.79 ms | not found: 0
+    reads during publish: 545 p50 1.14 ms max 3.64 ms
+    after: ['graph.db', 'write.lock']
+    incremental of 100 files: incremental 11.96 s | wrote 107 | reads 7504 max 782.1 ms | not found 0
+
+- The ~780 ms maximum on both runs comes from the build and the reader sharing one process (GIL);
+  the maximum during publish is 3.6 ms.
+- **R2 decision:** the incremental stays in place. A per-file replace is one transaction, and no
+  read missed during a 100-file delta. A delta large enough to matter escalates to the shadowed
+  full build through `full_build_crossover` (212).
+
+Ran at b38cdd5a
+
+```
+$ scripts/gate.sh
+  PASS bytecode invalidation (checked-hash, 146)
+  PASS entry points (derived from [project.scripts])  — code_atlas.egg-info
+  PASS ruff check .
+  PASS mypy (code_atlas + onboarding_llm)
+  PASS npm ci (adapters/typescript)
+  PASS npm ci (adapters/sql)
+  PASS php adapter runtime deps present (pytest coverage)
+  PASS pytest -q
+  PASS tokens-to-answer (ratio >= 0.63, recall 1.0, precision 1.0)
+  PASS composer validate --strict (R8.3)
+  PASS php -l (authored source)  — 8 file(s)
+  PASS phpstan level max (R6.6)
+  PASS tsc --checkJs --strict (R6.6, TS adapter)
+  PASS tsc --checkJs --strict (R6.6, SQL adapter)
+  PASS ruff check (R6.6, Python adapter)
+  PASS mypy --strict (R6.6, Python adapter)
+  PASS R1.1 no language branch in core
+  PASS R2.2 no repo/framework name
+  PASS R4.1 no LLM in core
+  PASS R7.3 no AI-attribution trailer  — 2 commit(s)
+  PASS R2.4 commit identity  — 2 commit(s)
+  21 passed · 0 failed · 0 skipped
+GATE GREEN — all 21 checks passed
+```
+
+The earlier bare `pytest` on the working tree of `5970568f` read `4104 passed, 4 skipped in 468.56s`.
+
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`
+
+**Challenger (ticket-blind, round 1, on `5970568f`, 76,233 tokens): 11 met · 0 not met · 3 can't
+tell.** It ran 36 targeted tests read-only in place. The three it could not judge:
+
+- S1c. `publish()` never read the stamp. Fixed in `b38cdd5a`: it now refuses an unstamped shadow,
+  with a test.
+- S2's measurement and AC5's numbers. These live in this working doc, which it may not read, so
+  the repo itself carries no evidence for them. `design/indexing.md` now carries the measured
+  cost.
+
+Its findings, and what happened to each:
+
+1. A 5 s `busy_timeout` could lose a finished build to a stray writer. **Fixed:** 60 s on the
+   publish connection (`PUBLISH_BUSY_TIMEOUT_MS`).
+2. The window between the carry and the backup can overwrite a bump or a repair. **Accepted and
+   documented** (H1).
+3. The schema-older path never reported the `publish` phase. **Fixed.** Its `removed` stays 0 —
+   an outgrown index cannot be read, as before.
+4. No reader crossed the real swap. **Fixed:** `test_a_reader_thread_never_misses_across_the_swap`
+   runs three real rebuilds. A kill during the backup itself stays untested; it rests on SQLite's
+   transaction atomicity.
+5. The AGENTS.md test count is not updated. **Left:** that line is a dated measurement ("after
+   351"), and re-measuring the Docker count is outside this ticket.
+6. Scope: nothing beyond the ticket.
+
+The fixes stay inside the approved files, so the round-1 verify ran in the main loop with no
+re-dispatch: 64 tests passed, then the gate below on `b38cdd5a`.
+
+`Ph3/4 proven by`: G1, C1–C3, R1–R5, AC1–AC4 — 13/13; AC5 manual-recorded, with the anchor run and
+the Windows arm excluded (A3, A4).
+
+Verdict: **clean (challenger only — REVIEWER: OFF)**.
+
+Reviewed at b38cdd5a — the diff `main..b38cdd5a`. Working doc:
+`docs/tasks/356_rebuild-behind-a-shadow-index.md` (embedded).
+
+## Phase 5 — finalise
+
+Stale-review guard: after `b38cdd5a` only bookkeeping changed, and all of it is exempt — this doc,
+`docs/BACKLOG.md` (the row closed), `docs/TOKEN_LEDGER.md` and `docs/LESSONS.md`.
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+`356-C1` is type 2 (code), handle `child-build-inherits-adapter-env`: a child build inherits the
+host's `CA_<LANG>_CMD`. It is recorded in `docs/LESSONS.md` as a first sighting.
+
+### Outward actions
+
+1. Push `feat/356-rebuild-behind-a-shadow-index` — pre-authorised.
+2. Open the PR — pre-authorised.
+
+Deferred to the maintainer:
+- the merge;
+- ratifying ASSUMED A1–A4;
+- the anchor-size run (A3);
+- a Windows run (A4).
+
+### Cost ledger
+
+| # | Phase | Dispatch | Tokens |
+|---|---|---|---|
+| 1 | refine | exposure-checker (`challenger`) | 37,046 |
+| 2 | review | `challenger`, round 1 | 76,233 |
+| — | main loop | — | unmeasured |
+
+`LEDGER TOTAL: 113,279 · top cost driver: review/challenger`
+
+**Revert path.** `git revert` the branch commits. A published index is an ordinary `graph.db`, and
+a leftover `graph.db.shadow` is inert to the old code.
