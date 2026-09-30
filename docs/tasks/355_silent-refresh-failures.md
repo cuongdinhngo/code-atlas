@@ -4,7 +4,7 @@ slug: silent-refresh-failures
 title: 'A commit never refreshes the index, and a refused refresh never reaches the state line'
 phase: 2
 milestone: Adoption
-status: todo
+status: done
 depends_on: [053, 322, 344]
 ---
 
@@ -41,7 +41,7 @@ Field retro, 2026-09-30: "a broken setup looks exactly like a working one." Two 
 
 ## Session status
 
-- **KEY:** 355 · **work_doc_mode:** embed · **Current phase:** 2 design · **Next action:** commit, gate, challenger.
+- **KEY:** 355 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer reviews and merges the PR, and ratifies ASSUMED A1–A2. **Revert path:** `git revert` the branch's commits.
 - `TRACK: backend` · `TIER: full` · `SCOPE: S` · `STRUCTURE: native` · Run mode: `autorun`, batch 356 → 354 → 355;
   *"with skipped reviewer"* = `--no-reviewer` only, the challenger keeps its seat.
 - Branch `feat/355-silent-refresh-failures` off `main` (`5b4f1667`). Contract `.mango/run-contract-355.txt`.
@@ -218,3 +218,91 @@ guard. All five pass after.
 ### Rollback
 
 `git revert`. The hooks are never installed by the project, so nothing on an adopter's machine moves.
+
+## Phase 3 — execute
+
+Commits on `feat/355-silent-refresh-failures`: `eff45eb9` (the change), `ec2a4b39` (the gate's lint
+red and the challenger's D1 wording).
+
+**Proving test, red on the pre-change tree** (`5b4f1667`, before any source edit):
+
+    E           FileNotFoundError: [Errno 2] No such file or directory: '.../contrib/git/post-commit'
+    E       assert ('fake' in 'current @ a82c002 · 1 files · 1 symbols · healthy')
+    E       assert ('fake' in '')
+    4 failed, 1 passed in 0.48s
+
+**Sweep.**
+- **Axis 1 — file set.** The diff is the change list, plus a BACKLOG follow-up line (D1).
+- **Axis 2 — design conformance.** Approach bullets 1–3 were implemented as approved.
+- **Handle `formatter-rewrites-untouched-lines`, traced.** `ruff format --diff` proposes hunks only on
+  untouched lines (`get_index_status.py:544/583/639`, `test_server_instructions.py:121/176`), and none
+  was applied. The new test file's three over-long lines were a `ruff check` (E501) red on the first
+  gate, and were fixed by hand.
+- **Handle `verify-the-shipped-artifact-not-the-working-tree`, traced.**
+  `git ls-files -s contrib/git/post-commit contrib/git/post-rewrite` shows `100755` for both: the
+  committed files are executable, which is what `cp` into `.git/hooks/` ships.
+
+| # | Approved | Implemented instead | `path:line` | Surfaced |
+|---|---|---|---|---|
+| D1 | README rebase row "refreshes once more at the final HEAD" | the row now says a refresh that finds the lock held skips, so the index can stop at a pick's HEAD; the gap is a BACKLOG follow-up | `contrib/git/README.md`, `docs/BACKLOG.md` | yes |
+
+GATE_BLOCK
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`
+
+**Challenger (ticket-blind, round 1, on `eff45eb9`, 54,081 tokens): 11 met · 0 not met · 0 can't
+tell.** It ran 18 tests read-only in place. What happened to its findings:
+
+1. **A rebase can strand the index at a pick's HEAD.** Wording fixed (D1) and the gap recorded as a
+   follow-up. Nothing waits for the lock, by 053's never-block rule.
+2. **A rebase of N picks spawns N+1 refreshes.** Accepted: the overlapping ones skip cheaply on the
+   lock.
+3. **The summary leaves out `allow_coverage_loss=true`.** Accepted as designed (A2).
+4. **The state hook speaks on every occasion while the loss holds.** Accepted as asked (H1).
+
+The fixes are docs plus the lint of the new test, so the round-1 verify ran in the main loop with no
+re-dispatch.
+
+`Ph3/4 proven by`: G1, C1–C2, R1–R3, AC1–AC4 — 10/10.
+
+Verdict: **clean (challenger only — REVIEWER: OFF)**.
+
+Reviewed at ec2a4b39 — the diff `main..ec2a4b39`. Working doc: `docs/tasks/355_silent-refresh-failures.md`
+(embedded).
+
+## Phase 5 — finalise
+
+Stale-review guard: after `ec2a4b39` only this doc, `docs/BACKLOG.md` (the row closed, the follow-up)
+and `docs/TOKEN_LEDGER.md` changed; all are exempt.
+
+**Durable lesson: none.** The spike measured which hook git fires, and it is recorded above.
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+### Outward actions
+
+1. Push `feat/355-silent-refresh-failures` — pre-authorised.
+2. Open the PR — pre-authorised.
+
+Deferred to the maintainer:
+- the merge. `docs/TOKEN_LEDGER.md` conflicts trivially with #17 and #18, which all append after
+  row 351, and `docs/BACKLOG.md`'s follow-up list may too;
+- ratifying ASSUMED A1–A2.
+
+### Cost ledger
+
+| # | Phase | Dispatch | Tokens |
+|---|---|---|---|
+| 1 | refine | exposure-checker (`challenger`) | 45,065 |
+| 2 | review | `challenger`, round 1 | 54,081 |
+| — | main loop | — | unmeasured |
+
+`LEDGER TOTAL: 99,146 · top cost driver: review/challenger`
+
+**Revert path:** `git revert` the branch commits. The hooks were never installed by the project.
