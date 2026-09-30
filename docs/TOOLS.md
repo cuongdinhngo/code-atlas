@@ -273,7 +273,9 @@ compaction drops it, so agents that started a multi-minute build filed its progr
 `get_index_status`'s own `summary` — lifted, never recomposed — at `SessionStart` (its `compact`
 source is the post-compaction delivery) and `PreCompact`. While a build holds the lock it appends the
 live phase and names `code-atlas-build --status`. **Silent** when there is no index, or when the index
-is current, no build runs and no full rebuild is pending; ≤ 90 tokens; always exits 0; never builds, reparses or takes the build
+is current, no build runs and no full rebuild is pending; ≤ 90 tokens. The generated hook passes
+`--expect-version <release>`; when the installed package differs, a second line names both versions
+and the upgrade for the side that lags (348); always exits 0; never builds, reparses or takes the build
 lock. Wiring: the generated [`contrib/claude-code/settings.snippet.json`](../contrib/claude-code/).
 
 ### The grep-time nudge — one line right after a grep for a symbol (opt-in, 345)

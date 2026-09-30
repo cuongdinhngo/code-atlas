@@ -16,7 +16,9 @@ Three commands, for the moments an agent was never going to make a tool call.
   field round runs on without it, and the guard that now keeps the two offers in step.
 - **`code-atlas-state`** (322) — restates `get_index_status`'s `summary` at **`SessionStart`**
   and **`PreCompact`**, because the `initialize` copy decays in a long or compacted session.
-  Silent when the index is current and no build runs; ≤ 90 tokens; always exits 0
+  It is silent when the index is current, no build runs and no rebuild is pending. Given
+  `--expect-version` (the generated snippet passes it), it also names a skew between these hooks
+  and the installed package (348). ≤ 90 tokens; always exits 0
   ([TOOLS.md](../../docs/TOOLS.md#the-session-boundary-state-line--the-index-state-restated-when-the-first-copy-decayed-opt-in)).
 
 ## Install as a plugin (344) — the server, these hooks and the skill, for every project

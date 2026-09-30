@@ -19,6 +19,10 @@ minute — a running build's live phase and the route to it.
 **Silent unless it changes something:** no index, or an index that is ``current`` with no build
 running and no full rebuild pending, prints nothing.
 
+**Version skew (348).** The hook table passes ``--expect-version`` — the version it was generated
+from. When the installed package differs, one more line names both and the command that closes the
+gap, so a plugin and the tool install it launches cannot drift apart unnoticed.
+
 **Cardinal rule:** always exits 0 and never builds, reparses or takes the build lock; any error,
 broken stdin or unreadable index is silence. The host is never blocked.
 """
@@ -37,6 +41,12 @@ TOKEN_BUDGET = 90
 
 OCCASIONS = frozenset({"SessionStart", "PreCompact", "PostCompact"})
 PREFIX = "code-atlas: "
+EXPECT_FLAG = "--expect-version"
+TOOL_UPGRADE = "`uv tool upgrade code-atlas` (or `pipx upgrade code-atlas`)"
+HOOKS_UPGRADE = (
+    "`claude plugin marketplace update code-atlas && claude plugin update code-atlas@code-atlas` "
+    "(or re-copy the hook snippet)"
+)
 
 
 def _verbose(argv: list[str]) -> bool:
@@ -62,12 +72,48 @@ def _build_clause(phase: str | None) -> str:
     return f" · a build is running{live} — `{BUILD_PROGRESS_ROUTE}` reads its live phase"
 
 
+def _release(version: str) -> tuple[int, ...] | None:
+    try:
+        return tuple(int(part) for part in version.split("."))
+    except ValueError:
+        return None
+
+
+def skew_line(expected: str | None) -> str | None:
+    """One line when the hooks and the installed package are different releases, else ``None``."""
+    from code_atlas.build_info import UNKNOWN_VERSION, package_version
+
+    installed = package_version()
+    if not expected or installed in (expected, UNKNOWN_VERSION):
+        return None
+    ahead, behind = _release(installed), _release(expected)
+    # The older side is the one to move; an unparseable version names both routes.
+    fix = HOOKS_UPGRADE if ahead and behind and ahead > behind else TOOL_UPGRADE
+    if not (ahead and behind):
+        fix = f"{TOOL_UPGRADE}, or {HOOKS_UPGRADE}"
+    return f"{PREFIX}hooks expect code-atlas {expected} but {installed} is installed — run {fix}"
+
+
+def _expected(args: list[str]) -> str | None:
+    if EXPECT_FLAG in args:
+        index = args.index(EXPECT_FLAG)
+        return args[index + 1] if index + 1 < len(args) else None
+    return None
+
+
 def _fit(summary: str, phase: str | None) -> str:
     """The summary is never cut; a phase too long for the budget is dropped, the route kept."""
     line = PREFIX + summary + _build_clause(phase)
     if phase and estimate_tokens(line) > TOKEN_BUDGET:
         line = PREFIX + summary + _build_clause(None)
     return line
+
+
+def _indexed(root: Path) -> bool:
+    from code_atlas.config import load_config
+
+    db = load_config(root).db_path
+    return db.is_file() and db.stat().st_size > 0
 
 
 def state_line(root: Path, *, verbose: bool = False) -> str | None:
@@ -102,19 +148,24 @@ def main(argv: list[str] | None = None) -> int:
         print(__doc__.strip(), file=sys.stderr)
         return 0
     verbose = _verbose(args)
+    expected = _expected(args)
+    skew: str | None = None
     try:
         payload = json.load(sys.stdin)
         event = payload.get("hook_event_name") if isinstance(payload, dict) else None
         if event not in OCCASIONS:
             _note(f"silent: {event!r} is not a state occasion", verbose=verbose)
             return 0
-        line = state_line(_project_root(), verbose=verbose)
+        root = _project_root()
+        skew = skew_line(expected) if _indexed(root) else None
+        line = state_line(root, verbose=verbose)
     except Exception as error:
         # A broken state line must never break the session boundary it rides on.
         print(f"code-atlas state skipped: {type(error).__name__}: {error}", file=sys.stderr)
-        return 0
-    if line:
-        print(line)
+        line = None
+    for text in (skew, line):
+        if text:
+            print(text)
     return 0
 
 

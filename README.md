@@ -197,6 +197,33 @@ Onboarding a **large legacy repo** — where the first build takes minutes and w
 decides whether the database is 1 GB or 2 GB — is covered step by step in
 [`docs/runbooks/onboarding-a-repo.md`](docs/runbooks/onboarding-a-repo.md).
 
+### Upgrading
+
+Every release is an entry in [`CHANGELOG.md`](CHANGELOG.md). An entry can flag two extra steps:
+**full rebuild required** and **adapter checkout must be updated**. Upgrade by the route you
+installed with:
+
+| Installed with | Upgrade |
+|---|---|
+| `uv tool install git+…` / `pipx install git+…` | `uv tool upgrade code-atlas` / `pipx upgrade code-atlas` |
+| a checkout and `scripts/setup.py` | `git pull`, then re-run `python3 scripts/setup.py /abs/path/to/your-project` |
+| the Claude Code plugin | `claude plugin marketplace update code-atlas`, then `claude plugin update code-atlas@code-atlas`, then restart. Also upgrade the tool install that puts the scripts on `PATH` |
+
+**The plugin updates only when its `version` moves.** Measured on Claude Code 2.1.284:
+- A content change under an unchanged version answers `already at the latest version`.
+- `marketplace update` alone leaves the installed version where it was.
+- `plugin update` moves it.
+
+Whether a session start auto-updates a third-party marketplace was not measured, so run the two
+commands yourself. If the plugin and the tool install disagree, the `SessionStart` hook says so,
+names both versions, and names the command for the side that lags.
+
+**After an upgrade**, check two things:
+- **The index.** If the changelog flags a full rebuild, run `code-atlas-build --full`. Until then
+  `get_index_status` and the state line lead with `rebuild required`.
+- **The adapters.** If `CA_<LANG>_CMD` points into a checkout, pull that checkout and reinstall its
+  dependencies when the entry says so. An adapter on an older contract fails the handshake.
+
 ### Agent brief (optional)
 
 After the first index, offer the **agent brief** into the repo's `AGENTS.md` — six occasions that

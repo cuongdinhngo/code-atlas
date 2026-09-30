@@ -217,7 +217,7 @@ def test_missing_package_metadata_does_not_break_signing(
         raise build_info.importlib.metadata.PackageNotFoundError(name)
 
     monkeypatch.setattr(build_info.importlib.metadata, "version", absent)
-    assert build_info._package_version() == build_info.UNKNOWN_VERSION
+    assert build_info.package_version() == build_info.UNKNOWN_VERSION
 
 
 def test_stale_process_when_loaded_differs_from_disk(

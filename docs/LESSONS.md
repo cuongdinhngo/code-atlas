@@ -41,6 +41,16 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
 
 ## Live claims
 
+### 348-C1 — an installed plugin moves only when its `version` does, and only on `claude plugin update`
+
+- type: 5 (environment) · area: `claude-code plugins / update` · verified-at: 2026-09-30, Claude Code 2.1.284
+- status: proposed · seen: 348
+- evidence: a directory marketplace. With the version unchanged, a content change answered
+  `already at the latest version (0.1.0)`. After a bump to 0.2.0, `claude plugin marketplace update`
+  left 0.1.0 installed, and `claude plugin update code-atlas@code-atlas` moved it to 0.2.0 (restart
+  to apply). Whether a session start auto-updates a third-party marketplace is unmeasured.
+- destination: first sighting.
+
 ### 345-C1 — a PostToolUse hook's plain stdout never reaches the model; `additionalContext` does
 
 - type: 5 (environment) · area: `claude-code hooks / output channel` · verified-at: 2026-09-29, Claude Code 2.1.284

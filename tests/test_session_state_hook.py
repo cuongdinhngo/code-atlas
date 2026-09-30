@@ -199,4 +199,5 @@ def test_the_command_is_shipped_and_offered_opt_in() -> None:
     snippet = json.loads((REPO / "contrib" / "claude-code" / "settings.snippet.json").read_text())
     for event in ("SessionStart", "PreCompact"):
         commands = [h["command"] for entry in snippet["hooks"][event] for h in entry["hooks"]]
-        assert commands == ["code-atlas-state"], event
+        # 348: the command carries the release it was generated from, for the skew line.
+        assert [c.split()[0] for c in commands] == ["code-atlas-state"], event
