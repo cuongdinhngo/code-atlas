@@ -322,4 +322,6 @@ Deferred to the maintainer: the merge.
 
 `LEDGER TOTAL: 103,802 · top cost driver: review/challenger`
 
+**Gate.** `scripts/gate.sh` on `de561af6` (the bookkeeping tip): `GATE GREEN — all 21 checks passed` (Linux, bare pytest, every adapter present; the R2.2 grep gate included, AC7). Only this doc and the ledger's gate note changed after it.
+
 **Revert path.** `git revert` the branch commits.
