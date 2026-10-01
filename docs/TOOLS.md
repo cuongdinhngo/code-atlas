@@ -234,7 +234,7 @@ Task 035 already reparses drifted files at query time. For eager updates after C
 adapter's own declared suffixes, so the next adapter is covered the day it lands (200) — install the
 PostToolUse hook under
 [`contrib/claude-code/`](../contrib/claude-code/) (`code-atlas-poke` console script + `"async": true`);
-opt-in git refresh after pull/checkout via [`contrib/git/`](../contrib/git/) (`code-atlas-refresh`,
+opt-in git refresh after pull, checkout, commit and rebase via [`contrib/git/`](../contrib/git/) (`code-atlas-refresh`,
 background — never auto-installed into `.git/hooks`); the plugin also runs it async at `SessionStart`.
 Safe no-op when `.code-atlas/graph.db` is missing; does not stall the tool round-trip.
 

@@ -305,7 +305,7 @@ What each does **not** cover: read-through stops after one file and returns `ind
 the poke never sees a pull/checkout/IDE edit; the MCP incremental only runs when an agent
 (or operator) invokes it; a full rebuild is never a hook's job.
 
-**Opt-in git hooks (053)** close the pull/checkout hole: copy
+**Opt-in git hooks (053, 355)** close the pull, checkout, commit and rebase holes: copy
 [`contrib/git/`](../../contrib/git/) into `.git/hooks/` (manual — never auto-installed). They
 spawn `code-atlas-refresh` in the background so a large-index incremental cannot block `git`.
 

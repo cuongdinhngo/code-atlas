@@ -321,8 +321,19 @@ def _compose_summary(payload: dict[str, object]) -> str:
     """One lifted sentence from the structured fields already on ``payload`` (316 / R4.2).
 
     Pure function of the dict it precedes — no store, no git, no second source of truth.
-    Always names freshness, revision (when known), and scale (AC1).
+    Always names freshness, revision (when known), and scale (AC1). A pending coverage loss
+    rides on the end of any indexed sentence, because every refresh refuses until it is fixed (355).
     """
+    sentence = _compose_state(payload)
+    loss = payload.get(COVERAGE_LOSS_PENDING)
+    if payload.get("indexed") and isinstance(loss, dict):
+        lost = ", ".join(str(name) for name in loss.get("lost_languages") or ())
+        sentence += f" — {loss.get('reason')}: {lost} — {loss.get('hint')}"
+    return sentence
+
+
+def _compose_state(payload: dict[str, object]) -> str:
+    """The freshness, revision and scale half of the summary."""
     files_raw = payload.get("files")
     nodes_raw = payload.get("nodes")
     files = files_raw if isinstance(files_raw, int) else 0

@@ -134,7 +134,7 @@ def test_state_single_sources_on_the_index_status_summary(tmp_path, monkeypatch)
 
 
 def _render_on_every_state(tmp_path: Path, monkeypatch) -> dict[str, str]:
-    """AC2's N = 6: one render per branch of `_compose_summary` (347 added one), all 24 tools."""
+    """AC2's N = 7: one render per branch of `_compose_summary` (347, 355 added one each)."""
     config = config_for(tmp_path)
     SERVES = get_index_status.BEHIND_SERVES_FIELD
     rendered = {"unindexed": instructions.render(config, ALL_TOOLS, FIELD18_TOOLS)}
@@ -150,6 +150,18 @@ def _render_on_every_state(tmp_path: Path, monkeypatch) -> dict[str, str]:
             "edge_health": {"unlinked": 0},
         },
         "incomplete": {**base, "indexed": True, "staleness": "incomplete"},
+        # 355: the widest refusal a four-adapter index can carry, riding a `current` sentence.
+        "coverage_loss": {
+            **base,
+            "indexed": True,
+            "staleness": "current",
+            "edge_health": {"unlinked": 0},
+            get_index_status.COVERAGE_LOSS_PENDING: {
+                "reason": "coverage_loss",
+                "lost_languages": ["php", "python", "sql", "typescript"],
+                "hint": get_index_status.COVERAGE_LOSS_HINT,
+            },
+        },
         "rebuild_required": {
             **base,
             "indexed": True,
@@ -174,7 +186,7 @@ def test_instructions_fit_under_the_client_cap_on_every_state(tmp_path: Path, mo
     """343/AC2: Claude Code keeps a 2,048-char prefix; KEEP_GOING and LIMITS sat past it."""
     budget = instructions.CLIENT_CAP - instructions.CAP_MARGIN
     rendered = _render_on_every_state(tmp_path, monkeypatch)
-    assert len(rendered) == 6 and len(set(rendered.values())) == 6
+    assert len(rendered) == 7 and len(set(rendered.values())) == 7
     for state, text in rendered.items():
         assert len(text) <= budget, f"{state}: {len(text)} > {budget}"
 
