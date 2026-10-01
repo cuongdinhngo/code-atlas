@@ -31,6 +31,8 @@ _CHAIN_STEP = contract.TYPE_OF_SUFFIX + contract.MEMBER_SEPARATOR
 # How many member types one receiver may be walked through. Real chains are a handful long; the
 # bound is what stops a pathological or cyclic one from costing a round per element.
 _MAX_CHAIN_STEPS = 8
+# Same-basename files one path tail is checked against; past it the tail is left unlinked (353).
+_MAX_SUFFIX_CANDIDATES = 256
 # How wide a subtype fan-out may go before the answer stops being worth the rows it costs.
 _MAX_SUBTYPES = 64
 
@@ -135,12 +137,16 @@ def resolve_edges(
         file_hits = store.nodes_by_qualified_names(
             path_keys, kind="File", limit=2
         )
+        tails: list[dict[str, object]] = []
         for edge, path in zip(paths, path_keys, strict=True):
             hits = file_hits.get(path, [])
             if len(hits) != 1:
+                if edge["confidence_tier"] == "HEURISTIC":
+                    tails.append(edge)
                 continue
             tier = _weaker_tier(str(edge["confidence_tier"]), "RESOLVED")
             links.append((int(str(edge["id"])), str(hits[0]["qualified_name"]), tier))
+        _link_by_path_suffix(store, tails, links)
 
         lookup_raws = [
             _lookup_raw(str(edge["target_raw"]), edge["kind"], alias_map)
@@ -206,6 +212,39 @@ def resolve_edges(
         if on_batch is not None:
             on_batch()
     return inserted
+
+
+def _link_by_path_suffix(
+    store: GraphStore,
+    tails: Sequence[dict[str, object]],
+    links: list[tuple[int, str, str]],
+) -> None:
+    """Link a HEURISTIC path edge to the one indexed file its ``/…`` tail ends (353).
+
+    The adapter knows the tail and not the root it hangs from (a constant, a variable). Zero or
+    two-or-more files ending with it leave the edge unlinked — never a pick (R5.6).
+    """
+    suffixes = {str(edge["target_raw"]) for edge in tails}
+    suffixes = {raw for raw in suffixes if raw.startswith("/") and len(raw) > 1}
+    if not suffixes:
+        return
+    # A File node is named by its basename, so one indexed lookup finds every candidate.
+    basenames = sorted({PurePosixPath(raw).name for raw in suffixes})
+    files = store.nodes_by_names(basenames, kind="File", limit=_MAX_SUFFIX_CANDIDATES)
+    for edge in tails:
+        raw = str(edge["target_raw"])
+        if raw not in suffixes:
+            continue
+        candidates = files.get(PurePosixPath(raw).name, [])
+        if len(candidates) >= _MAX_SUFFIX_CANDIDATES:
+            continue  # the lookup was cut short, so a single match could hide a twin
+        found = {
+            str(node["qualified_name"])
+            for node in candidates
+            if f"/{node['qualified_name']}".endswith(raw)
+        }
+        if len(found) == 1:
+            links.append((int(str(edge["id"])), found.pop(), "HEURISTIC"))
 
 
 def _link_writes_casefold(

@@ -104,7 +104,8 @@ DYNAMIC_LINKED_KINDS: tuple[str, ...] = ("REFERENCES", "ALTERS")
 # by FQN. The kinds differ only in how ``target_raw`` names that file, and the contract states which
 # — the resolver reads a declaration, never the shape of a string (188 / R5.2).
 PATH_TARGET_BASIS: dict[str, str] = {
-    # A textual include names a file relative to the including file's own directory.
+    # A textual include names a file relative to the including file's own directory. A HEURISTIC
+    # `/…` tail (an unknown root plus a literal) names it by its end instead (353).
     "INCLUDES": "includer-relative",
     # A module specifier the adapter already resolved against the filesystem (155). Where it names
     # nothing indexed — an unresolvable specifier, or a symbol import like `use A\\B\\C` — the

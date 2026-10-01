@@ -955,14 +955,83 @@ final class Visitor extends NodeVisitorAbstract
     {
         // Anchored on the file, never the enclosing container: an include splices a file in, and
         // the target is already resolved relative to this file's directory, not to a namespace.
-        $literal = $node->expr instanceof Node\Scalar\String_ ? $node->expr->value : null;
-        $this->edge(
-            'INCLUDES',
-            $this->path,
-            $literal ?? '(dynamic)',
-            $node->getStartLine(),
-            $literal === null ? 'DYNAMIC' : null
-        );
+        [$target, $tier] = self::includeTarget($node->expr);
+        $this->edge('INCLUDES', $this->path, $target, $node->getStartLine(), $tier);
+    }
+
+    /**
+     * An include's target and tier (353). A literal, or `__DIR__` / `dirname(__DIR__, n)` plus a
+     * literal, is includer-relative and exact (the magic constants are language spec). Any other
+     * head plus a literal `/…` tail is that tail at HEURISTIC: the core links it by a unique path
+     * suffix. Anything else is dynamic.
+     *
+     * @return array{0: string, 1: string|null}
+     */
+    private static function includeTarget(Node\Expr $expr): array
+    {
+        $parts = self::concatParts($expr);
+        $tail = '';
+        while ($parts !== []) {
+            $last = $parts[count($parts) - 1];
+            if (!$last instanceof Node\Scalar\String_) {
+                break;
+            }
+            array_pop($parts);
+            $tail = $last->value . $tail;
+        }
+        if ($parts === [] && $tail !== '') {
+            return [$tail, null];
+        }
+        if ($parts === [] || strlen($tail) < 2 || $tail[0] !== '/') {
+            return ['(dynamic)', 'DYNAMIC'];
+        }
+        $levels = count($parts) === 1 ? self::levelsAboveIncluder($parts[0]) : null;
+        if ($levels !== null) {
+            return [str_repeat('../', $levels) . substr($tail, 1), null];
+        }
+
+        return [$tail, 'HEURISTIC'];
+    }
+
+    /** @return list<Node\Expr> the operands of a `.` chain, left to right */
+    private static function concatParts(Node\Expr $expr): array
+    {
+        if ($expr instanceof Node\Expr\BinaryOp\Concat) {
+            return [...self::concatParts($expr->left), ...self::concatParts($expr->right)];
+        }
+
+        return [$expr];
+    }
+
+    /** Directories above the includer that `__DIR__`, `dirname(__FILE__)` or `dirname(…, n)` name. */
+    private static function levelsAboveIncluder(Node\Expr $head): ?int
+    {
+        if ($head instanceof Node\Scalar\MagicConst\Dir) {
+            return 0;
+        }
+        if (!$head instanceof Node\Expr\FuncCall || !$head->name instanceof Node\Name
+            || $head->isFirstClassCallable() || strtolower($head->name->getLast()) !== 'dirname') {
+            return null;
+        }
+        $args = $head->getArgs();
+        if ($args === [] || count($args) > 2 || $args[0]->unpack || $args[0]->name !== null) {
+            return null;
+        }
+        $up = 1;
+        if (isset($args[1])) {
+            $count = $args[1]->value;
+            if (!$count instanceof Node\Scalar\Int_ || $count->value < 1 || $args[1]->name !== null) {
+                return null;
+            }
+            $up = $count->value;
+        }
+        $inner = $args[0]->value;
+        if ($inner instanceof Node\Scalar\MagicConst\File) {
+            return $up - 1;
+        }
+        $below = self::levelsAboveIncluder($inner);
+
+        return $below === null ? null : $below + $up;
     }
 
     /**
