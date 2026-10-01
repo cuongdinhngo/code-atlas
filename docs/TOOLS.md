@@ -399,8 +399,11 @@ checked, which is not a pass.
   met was RESOLVED, else a **candidate** with `unresolved_outgoing` (edges met that were unlinked,
   HEURISTIC or DYNAMIC). No `kind` means every node in the files; a source that is itself a target
   passes; a required qname the index lacks is named in `targets_missing`.
+  Reaching a target is a pass even if the walk also met an unresolved edge on the way.
 - **`expect`** calibrates a required rule with qnames known to violate or pass; one it misses names
-  itself in `expected_missed` and the rule reads `calibration_failed`, rows still returned.
+  itself in `expected_missed` and the rule reads `calibration_failed`, rows still returned. Only a
+  **confirmed** row meets a `violating` entry, and a candidate or an unmatched qname misses a
+  `passing` one. A rule that matched no source or target reads `rule_matched_no_files` first.
 
 ### Optional LLM enrichment (opt-in, off by default)
 

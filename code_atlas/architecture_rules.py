@@ -237,6 +237,8 @@ def check_architecture_rules(
         reports.append(report)
         required_confirmed.extend(hits)
         required_candidates.extend(maybe)
+    required_confirmed.sort(key=lambda row: (row.rule_id, row.source_file, row.source_qname))
+    required_candidates.sort(key=lambda row: (row.rule_id, row.source_file, row.source_qname))
     hashed: dict[str, object] = {
         "candidates": [asdict(row) for row in candidates_sorted],
         "confirmed": [asdict(row) for row in confirmed_sorted],
