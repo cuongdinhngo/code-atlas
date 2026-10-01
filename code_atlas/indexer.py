@@ -34,6 +34,7 @@ from code_atlas.enrichment import (
     RulesPayload,
     apply_indirection_rules,
     count_unresolved_keyed_calls,
+    count_unresolved_keyed_sites,
     load_indirection_rules,
 )
 from code_atlas.ignore import BUILTIN_PATTERNS, IgnoreMatcher, compile_pattern, load_ignore
@@ -190,6 +191,8 @@ class BuildReport:
     fingerprint_skipped: int = 0
     # keyed_calls rules whose every emitted edge stayed unlinked after resolve (task 222).
     rules_unresolved: int = 0
+    # keyed_calls call sites whose string key linked under no rule (task 352).
+    rule_keys_unresolved: int = 0
 
 
 def full_build(
@@ -306,6 +309,7 @@ def _fill(
         stubs=len(stubs),
         removed=removed,
         rules_unresolved=counts.pop("rules_unresolved", 0),
+        rule_keys_unresolved=counts.pop("rule_keys_unresolved", 0),
         **counts,
     )
 
@@ -611,6 +615,7 @@ def incremental_update(
         removed=removed,
         fingerprint_skipped=fingerprint_skipped,
         rules_unresolved=counts.pop("rules_unresolved", 0),
+        rule_keys_unresolved=counts.pop("rule_keys_unresolved", 0),
         **counts,
     )
 
@@ -678,6 +683,9 @@ def _count_late_writes(
     counts["edges"] += enriched.edges + siblings
     counts["rules_unresolved"] = count_unresolved_keyed_calls(
         store, enriched.keyed_call_groups
+    )
+    counts["rule_keys_unresolved"] = count_unresolved_keyed_sites(
+        store, enriched.keyed_call_sites
     )
 
 

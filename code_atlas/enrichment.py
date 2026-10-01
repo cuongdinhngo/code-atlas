@@ -94,9 +94,11 @@ class Enriched(NamedTuple):
     edges: int
     # Per keyed_calls rule: stamps it emitted — post-resolve census (task 222).
     keyed_call_groups: tuple[tuple[tuple[str, str, int], ...], ...] = ()
+    # Per call site and string key: the stamps every keyed_calls rule emitted for it (352).
+    keyed_call_sites: tuple[tuple[tuple[str, str, int], ...], ...] = ()
 
 
-NOTHING = Enriched(nodes=0, edges=0, keyed_call_groups=())
+NOTHING = Enriched(nodes=0, edges=0)
 
 
 def apply_indirection_rules(
@@ -140,11 +142,16 @@ def apply_indirection_rules(
             }
         )
     edges.extend(_view_data_edges(config, store, loaded.view_data))
-    keyed_edges, keyed_groups = _keyed_calls_edges(config, store, loaded.keyed_calls)
+    keyed_edges, keyed_groups, keyed_sites = _keyed_calls_edges(config, store, loaded.keyed_calls)
     edges.extend(keyed_edges)
 
     store.replace_file_rows(INDIRECTION_FILE, [], edges)
-    return Enriched(nodes=0, edges=len(edges), keyed_call_groups=keyed_groups)
+    return Enriched(
+        nodes=0,
+        edges=len(edges),
+        keyed_call_groups=keyed_groups,
+        keyed_call_sites=keyed_sites,
+    )
 
 
 def is_rule_edge_path(path: object) -> bool:
@@ -218,12 +225,20 @@ def _keyed_calls_edges(
     config: Config,
     store: GraphStore,
     rules: tuple[tuple[str, int, str, str], ...],
-) -> tuple[list[dict[str, object]], tuple[tuple[tuple[str, str, int], ...], ...]]:
-    """CALLS edges whose target is a string key substituted into ``target_template`` (task 222)."""
+) -> tuple[
+    list[dict[str, object]],
+    tuple[tuple[tuple[str, str, int], ...], ...],
+    tuple[tuple[tuple[str, str, int], ...], ...],
+]:
+    """CALLS edges whose target is a string key substituted into ``target_template`` (task 222).
+
+    Also returns, per (source, line, key) site, the stamps every rule emitted for it (352).
+    """
     if not rules:
-        return [], ()
+        return [], (), ()
     out: list[dict[str, object]] = []
     groups: list[tuple[tuple[str, str, int], ...]] = []
+    sites: dict[tuple[str, int, str], list[tuple[str, str, int]]] = {}
     seen: set[tuple[str, str, int]] = set()
     line_cache: dict[tuple[str, int], str | None] = {}
     for setter, key_arg, key_from, template in rules:
@@ -245,6 +260,9 @@ def _keyed_calls_edges(
             for key in keys:
                 target = template.replace("{key}", key)
                 stamp = (source, target, line)
+                site = sites.setdefault((source, line, key), [])
+                if stamp not in site:
+                    site.append(stamp)
                 if stamp in seen:
                     continue
                 seen.add(stamp)
@@ -268,7 +286,7 @@ def _keyed_calls_edges(
             int(row["line"]) if type(row["line"]) is int else 0,
         )
     )
-    return out, tuple(groups)
+    return out, tuple(groups), tuple(tuple(sites[site]) for site in sorted(sites))
 
 
 def count_unresolved_keyed_calls(
@@ -292,6 +310,21 @@ def count_unresolved_keyed_calls(
         if not any_linked:
             unresolved += 1
     return unresolved
+
+
+def count_unresolved_keyed_sites(
+    store: GraphStore, sites: tuple[tuple[tuple[str, str, int], ...], ...]
+) -> int:
+    """Call sites whose string key linked under no keyed_calls rule (352).
+
+    A literal naming nothing is counted once, however many rules tried it; one target query each.
+    """
+    linked: set[tuple[str, str, int]] = set()
+    for target_raw in sorted({stamp[1] for stamps in sites for stamp in stamps}):
+        for row in store.calls_by_target_raw(target_raw):
+            if row.get("file_path") == INDIRECTION_FILE and row.get("target_qname"):
+                linked.add((str(row.get("source_qname")), target_raw, int(str(row.get("line")))))
+    return sum(1 for stamps in sites if not any(stamp in linked for stamp in stamps))
 
 
 def _calls_for_setter(store: GraphStore, setter: str) -> list[dict[str, object]]:
