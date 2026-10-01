@@ -134,3 +134,14 @@ def test_an_uncommitted_edit_during_the_build_reaches_the_next_incremental(
 
     assert _indexed(config, ADDED)
     assert _last_commit(config) == git(repo, "rev-parse", "HEAD")
+
+
+def test_a_never_indexed_path_in_a_clean_repo_still_answers_not_found(repo: Path) -> None:
+    """The AC4 read-through repairs only a changed path; an unknown one answers as before."""
+    config = config_for(repo)
+    create(config)()
+
+    outline = file_outline.create(config)("src/Missing.aa", detail_level="minimal")
+
+    assert outline["found"] is False
+    assert outline["results"] == []
