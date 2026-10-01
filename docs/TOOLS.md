@@ -360,8 +360,9 @@ carry `rule: true`.
 - **`target_template`** must spell the **stored** qname — a PHP class carries its leading `\`, a SQL
   proc its schema — and may name a File (256). Several rules may share a setter; a literal links
   under whichever one names a real symbol.
-- **Nothing is invented:** a variable or concatenated argument emits nothing, and a literal that names
-  no indexed symbol stays unlinked. The build report counts both misses: `rule_keys_unresolved`
+- **Nothing is invented:** only an argument that is one whole literal names a key — a variable or a
+  concatenation emits nothing, and a line calling the setter twice is skipped. A literal that names
+  no indexed symbol (an interpolated `"x$v"` included) stays unlinked. The build report counts both misses: `rule_keys_unresolved`
   (call sites linked under no rule) and `rules_unresolved` (rules that linked nothing at all).
 - `aliases`, `calls` and `view_data` entries share the file; PLAN §11 holds their limits.
 

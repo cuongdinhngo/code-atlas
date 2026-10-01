@@ -28,6 +28,9 @@ _HEURISTIC = contract.CONFIDENCE_TIERS[1]
 _STRING_LIT = re.compile(r"""'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*\"""")
 # keyed_calls `{key}` only (222); value may be a symbol or File qname (256).
 _TEMPLATE_PLACEHOLDER = re.compile(r"\{([^{}]+)\}")
+# The callee's own name, the last identifier of its qname: where its argument list starts (352).
+_IDENTIFIER = re.compile(r"[A-Za-z_$][\w$]*")
+_OPENERS = {"(": ")", "[": "]", "{": "}"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -360,14 +363,48 @@ def _keys_for_rule(
     if not _arg_is_string(args, key_arg):
         return []
     text = _line_text(config.root, rel, line, line_cache)
-    if text is None:
+    argument = _call_argument(text, edge.get("target_raw"), key_arg) if text is not None else None
+    if argument is None or _STRING_LIT.fullmatch(argument) is None:
+        # Only an argument that is one whole literal names a key; `'a' . $b` names none.
         return []
-    parsed = _parse_args(args)
-    if parsed is None:
-        return []
-    ordinal = sum(1 for entry in parsed[:key_arg] if entry == "string")
-    key = _nth_string_literal(text, ordinal)
+    key = _nth_string_literal(argument, 1)
     return [key] if key is not None else []
+
+
+def _call_argument(line: str, target_raw: object, position: int) -> str | None:
+    """The source text of argument ``position`` of the one ``<callee>(`` call on ``line``.
+
+    Split at top-level commas, so a literal before the call (a receiver's ``get('db')``) or inside
+    an earlier argument is never read as the key. Two calls of one name on a line: ``None`` (352).
+    """
+    names = _IDENTIFIER.findall(str(target_raw or ""))
+    if not names:
+        return None
+    opens = list(re.finditer(rf"(?<![\w$]){re.escape(names[-1])}\s*\(", line))
+    if len(opens) != 1:
+        return None
+    arguments: list[str] = []
+    closers: list[str] = []
+    start = index = opens[0].end()
+    while index < len(line):
+        char = line[index]
+        if char in "'\"":
+            quoted = _STRING_LIT.match(line, index)
+            if quoted is None:
+                return None
+            index = quoted.end()
+            continue
+        if char in _OPENERS:
+            closers.append(_OPENERS[char])
+        elif closers and char == closers[-1]:
+            closers.pop()
+        elif not closers and char in ",)":
+            arguments.append(line[start:index].strip())
+            if char == ")":
+                return arguments[position - 1] if position <= len(arguments) else None
+            start = index + 1
+        index += 1
+    return None
 
 
 def _keys_from_arg_keys(arg_keys: object, args: object, key_arg: int) -> list[str]:

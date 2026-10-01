@@ -12,5 +12,6 @@ class Page
         Widget::make('Nowhere');
         Widget::make($dyn);
         Widget::make('Save' . $dyn);
+        Widget::lookup('Nowhere')->make('SaveButton');
     }
 }

@@ -20,7 +20,7 @@ import pytest
 
 from code_atlas import contract
 from code_atlas.config import load_config
-from code_atlas.enrichment import INDIRECTION_FILE
+from code_atlas.enrichment import INDIRECTION_FILE, _call_argument
 from code_atlas.indexer import full_build
 from code_atlas.store import GraphStore
 from code_atlas.tools import find_callers
@@ -29,8 +29,9 @@ from tests.php_adapter_cli import ENTRY, PHP, needs_php
 REPO = Path(__file__).resolve().parent.parent
 FIXTURES = REPO / "tests" / "fixtures" / "string_arg_symbol"
 RENDER = "\\App\\Widgets\\SaveButton::render"
-# page.php: a short literal, a fully-qualified one, a name nothing declares, a variable, a concat.
-SHORT, QUALIFIED, NOWHERE, VARIABLE, CONCAT = 10, 11, 12, 13, 14
+# page.php: a short literal, a fully-qualified one, a name nothing declares, a variable, a concat,
+# and a receiver whose own call holds a literal before `make(` does.
+SHORT, QUALIFIED, NOWHERE, VARIABLE, CONCAT, RECEIVER = 10, 11, 12, 13, 14, 15
 
 
 @pytest.fixture
@@ -73,7 +74,7 @@ def test_a_class_named_by_a_string_reaches_its_method_callers(built: tuple) -> N
     mechanism, already green before 352; pinned so the class shape cannot regress."""
     config, store, _ = built
 
-    assert rule_lines(store, linked=True) == {SHORT, QUALIFIED}
+    assert rule_lines(store, linked=True) == {SHORT, QUALIFIED, RECEIVER}
     payload = find_callers.create(config)(RENDER)
     assert payload["reason"] == "ok", payload
     hits = payload["results"]
@@ -98,4 +99,17 @@ def test_a_non_literal_argument_contributes_nothing(built: tuple) -> None:
 
     emitted = rule_lines(store, linked=True) | rule_lines(store, linked=False)
     assert VARIABLE not in emitted and CONCAT not in emitted
-    assert emitted == {SHORT, QUALIFIED, NOWHERE}
+    assert emitted == {SHORT, QUALIFIED, NOWHERE, RECEIVER}
+
+
+def test_the_key_is_read_from_its_own_argument_never_a_neighbouring_literal() -> None:
+    """AC4: the argument is split out of ``<callee>(`` at top-level commas, so a literal in the
+    receiver or inside an earlier argument is never taken for the key (the challenger's D2)."""
+    make = "\\App\\Widgets\\Widget::make"
+    assert _call_argument("$c->get('db')->make('X');", make, 1) == "'X'"
+    assert _call_argument("make('Save' . $dyn, 'Other');", make, 1) == "'Save' . $dyn"
+    assert _call_argument("make('Save' . $dyn, 'Other');", make, 2) == "'Other'"
+    assert _call_argument("make(f('a, b'), [1, 2], 'K')", make, 3) == "'K'"
+    assert _call_argument("make('a'); make('b');", make, 1) is None
+    assert _call_argument("remake('a');", make, 1) is None
+    assert _call_argument("make('a',", make, 1) is None
