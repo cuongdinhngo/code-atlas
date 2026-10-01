@@ -3355,6 +3355,9 @@ class GraphStore:
         as strong as the walk that looked for it.
         """
         wanted = set(targets)
+        if seed in wanted:
+            # A seed is reached at hop 0, as in reachable_from: the gate itself needs no path.
+            return RequiredWalk(True, 0, False)
         walk_kinds = list(dict.fromkeys(kinds))
         seen = {seed}
         frontier = [seed]

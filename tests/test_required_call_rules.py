@@ -289,3 +289,27 @@ def test_both_rule_modes_share_one_answer(tmp_path: Path) -> None:
         "no-guard-from-lib",
         "writes-check-access",
     ]
+
+
+def test_a_gate_inside_the_sources_is_not_its_own_violation(tmp_path: Path) -> None:
+    """A source that is itself a required target is reached at hop 0, like a reachable_from seed."""
+    config = _repo(tmp_path, {"\\H::save": []}, rules=[_rule(sources=["**"])])
+
+    payload = tool.create(config)()
+
+    assert _sources(payload["results"]) == ["\\H::save"]
+
+
+def test_a_partly_missing_target_list_names_what_it_lacks(tmp_path: Path) -> None:
+    """One gate present, one misspelt: the rule runs on the one, and names the other."""
+    gates = [GATE, "\\Guard\\Acess::check"]
+    config = _repo(
+        tmp_path,
+        {"\\H::save": [_call("\\H::save", GATE, HANDLERS)]},
+        rules=[_rule(required=gates)],
+    )
+
+    report = tool.create(config)()["rules"][0]
+
+    assert report["targets_matched"] == 1
+    assert report["targets_missing"] == ["\\Guard\\Acess::check"]

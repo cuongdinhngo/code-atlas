@@ -117,6 +117,8 @@ class RequiredRuleReport:
     status: str
     expected_found: int
     expected_missed: tuple[str, ...]
+    # A required qname the index lacks: a typo or a deleted gate, named rather than skipped.
+    targets_missing: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -265,11 +267,12 @@ def _check_required(
     """Walk each source symbol; no target reached is confirmed only over an all-RESOLVED walk."""
     sources = _required_sources(store, files, rule)
     targets = [q for q in rule.required if store.nodes_by_qualified_name(q, limit=1)]
+    missing = tuple(q for q in rule.required if q not in targets)
     # Either side empty proves nothing, the forbidden rule's answer for the same shape (138).
     if not sources or not targets:
         missed = tuple(sorted({*rule.expect_violating, *rule.expect_passing}))
         report = RequiredRuleReport(
-            rule.id, len(sources), len(targets), STATUS_MATCHED_NO_FILES, 0, missed
+            rule.id, len(sources), len(targets), STATUS_MATCHED_NO_FILES, 0, missed, missing
         )
         return report, [], []
     confirmed: list[RequiredViolation] = []
@@ -294,7 +297,7 @@ def _check_required(
     expected = len(set(rule.expect_violating) | set(rule.expect_passing))
     status = STATUS_CALIBRATION_FAILED if missed else STATUS_CHECKED
     report = RequiredRuleReport(
-        rule.id, len(sources), len(targets), status, expected - len(missed), missed
+        rule.id, len(sources), len(targets), status, expected - len(missed), missed, missing
     )
     return report, confirmed, candidates
 

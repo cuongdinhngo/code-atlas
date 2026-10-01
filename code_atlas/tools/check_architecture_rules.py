@@ -177,6 +177,7 @@ def _shape_rule(report: RuleReport | RequiredRuleReport) -> dict[str, object]:
             "sources_matched": report.sources_matched,
             "status": report.status,
             "targets_matched": report.targets_matched,
+            "targets_missing": list(report.targets_missing),
         }
     return {
         "forbidden_matched": report.forbidden_matched,

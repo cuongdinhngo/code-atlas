@@ -396,7 +396,9 @@ checked, which is not a pass.
 - **`required`** (359): every symbol in a `sources` file — narrowed by node `kind` and a `name` regex
   — must reach one of the `required` qnames within `depth` hops of `kinds` edges. Only RESOLVED
   edges count as reaching; a source that reaches none is **confirmed** only when every edge the walk
-  met was RESOLVED, else a **candidate** with `unresolved_outgoing`.
+  met was RESOLVED, else a **candidate** with `unresolved_outgoing` (edges met that were unlinked,
+  HEURISTIC or DYNAMIC). No `kind` means every node in the files; a source that is itself a target
+  passes; a required qname the index lacks is named in `targets_missing`.
 - **`expect`** calibrates a required rule with qnames known to violate or pass; one it misses names
   itself in `expected_missed` and the rule reads `calibration_failed`, rows still returned.
 
