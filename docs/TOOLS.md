@@ -314,7 +314,7 @@ a silent fallback.
 | `CA_SOURCE_ROOTS` | `source_roots` | unset | extra repo-relative directories tried (in order) after the repo root and the importer's ancestors when resolving absolute imports. Needed for a `src/` layout or a mounted layer/package tree; unset keeps today's climb-only behaviour |
 | `CA_PROJECT_FILES` | `project_files` | the ecosystem manifests, a root `README*` and an agent brief | repo-relative files the onboarding *Start here* section quotes and cites. Values are lifted from declared keys and reproduced verbatim, never summarised; a file that cannot be parsed becomes a stated gap and never fails the build |
 | `CA_AUDIENCE` | `audience` | `full` | who the WRITTEN onboarding tree is for: `full` (every section), `newcomer` (orientation, a four-line summary, the layer vocabulary, the tour and the flows) or `maintainer` (every aggregate, no tour, no orientation). An unrecognised value falls back to `full` and the artifact states which audience it actually used |
-| `CA_INDIRECTION_RULES` | `indirection_rules` | unset | JSON rule files mapping framework indirection to edges. **`find_view_data` needs this** — without `view_data` setters it answers `capability_not_configured`, not a zero |
+| `CA_INDIRECTION_RULES` | `indirection_rules` | unset | JSON rule files mapping framework indirection to edges ([format](#indirection-rule-files)). **`find_view_data` needs this** — without `view_data` setters it answers `capability_not_configured`, not a zero |
 | `CA_ARCHITECTURE_RULES` | `architecture_rules` | unset | JSON rule files of path-set dependency constraints. **`check_architecture_rules` needs this** — unset → `capability_not_configured` |
 | `CA_TOOLS` | `tools` | all tools | comma-separated tool allow-list. Opt-in field-18 six-tool preset (268): `get_index_status,search_symbol,read_symbol,find_callers,find_references,impact` (`code_atlas.main.FIELD18_TOOLS`). Default surface stays 24. |
 | `CA_HOST_ROOT` | `host_root` | unset | absolute-path rewrite only (pair with `CA_CONTAINER_ROOT`; unused by the relative-path build) |
@@ -340,6 +340,31 @@ python = "python /abs/path/to/code-atlas/adapters/python/index.py --server"
 # or, where quoting bites (Windows paths), one word per entry:
 # php = ["C:\\php\\php.exe", "adapters/php/index.php", "--server"]
 ```
+
+### Indirection rule files
+
+A call whose target is a **string argument** — `Widget::make('SaveButton')`, `$db->runProc('Insert_Order')`
+— has no edge to that target, so `find_callers` on it answers zero or `relation_unmodelled_for_language`.
+A `keyed_calls` rule models it: every call to `setter` whose argument `key_arg` is a one-line string
+literal gets a HEURISTIC `CALLS` edge to `target_template` with `{key}` replaced by the literal. Hits
+carry `rule: true`.
+
+```json
+{"keyed_calls": [
+  {"setter": "make",    "key_arg": 1, "target_template": "\\App\\Widgets\\{key}::render"},
+  {"setter": "runProc", "key_arg": 1, "target_template": "dbo.{key}"}
+]}
+```
+
+- **`setter`** is an exact callee qname, or a bare method name matching any `::<name>`.
+- **`target_template`** must spell the **stored** qname — a PHP class carries its leading `\`, a SQL
+  proc its schema — and may name a File (256). Several rules may share a setter; a literal links
+  under whichever one names a real symbol.
+- **Nothing is invented:** only an argument that is one whole literal names a key — a variable or a
+  concatenation emits nothing, and a line calling the setter twice is skipped. A literal that names
+  no indexed symbol (an interpolated `"x$v"` included) stays unlinked. The build report counts both misses: `rule_keys_unresolved`
+  (call sites linked under no rule) and `rules_unresolved` (rules that linked nothing at all).
+- `aliases`, `calls` and `view_data` entries share the file; PLAN §11 holds their limits.
 
 The adapter command is the **whole** command: the core appends nothing to it, not even `--server`, so
 it never has to know where a language's adapter lives. An adapter announces its own name, the file

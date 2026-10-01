@@ -1,0 +1,16 @@
+{
+  "keyed_calls": [
+    {
+      "setter": "make",
+      "key_arg": 1,
+      "key_from": "string",
+      "target_template": "\\App\\Widgets\\{key}::render"
+    },
+    {
+      "setter": "make",
+      "key_arg": 1,
+      "key_from": "string",
+      "target_template": "\\{key}::render"
+    }
+  ]
+}

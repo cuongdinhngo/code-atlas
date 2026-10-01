@@ -24,7 +24,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
-| 352 | [A string argument that names a class or proc links to nothing](tasks/352_string-arg-names-a-symbol-rule.md) | Coverage | todo | 040, 062, 335 |
 | 353 | [An include built as constant + literal path reads as dynamic](tasks/353_include-path-concatenation.md) | Coverage | todo | 065, 279 |
 | 357 | [A refresh that finds the write lock held is dropped](tasks/357_a-refresh-that-finds-the-lock-held-is-lost.md) | Freshness | todo | 053, 355 |
 | 358 | [CI never builds the test image `docker/Dockerfile`](tasks/358_ci-never-builds-the-test-image.md) | Tooling | todo | 323 |
