@@ -121,5 +121,8 @@ def test_the_test_image_job_builds_in_parallel_from_the_gha_cache() -> None:
     job = ci.split("\n  test-image:\n")[1].split("\n  guardrails:\n")[0]
     assert "needs:" not in job and "needs: test-image" not in ci
     assert "run:" not in job, "build only — the suite already runs in the test job"
-    assert "push: false" in job
+    assert "file: docker/Dockerfile" in job and "context: ." in job
+    assert "push: false" in job and "pull: true" in job
     assert "cache-from: type=gha" in job and "cache-to: type=gha" in job
+    # A fork PR's read-only token cannot write the cache; that must not fail the build check.
+    assert "ignore-error=true" in job

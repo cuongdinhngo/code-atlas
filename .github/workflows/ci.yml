@@ -258,14 +258,17 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
+      # `pull` re-fetches the floating base, so a new base digest rebuilds every layer above it —
+      # apt and composer included — where a warm cache alone would replay last week's layers.
       - name: Build docker/Dockerfile (no push, no run)
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/Dockerfile
+          pull: true
           push: false
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=max,ignore-error=true
 
   guardrails:
     name: rulebook grep-gates
