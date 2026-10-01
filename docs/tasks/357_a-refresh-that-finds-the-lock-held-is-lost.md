@@ -4,7 +4,7 @@ slug: a-refresh-that-finds-the-lock-held-is-lost
 title: 'A refresh that finds the write lock held is dropped, so the index can stop short of HEAD'
 phase: 2
 milestone: Freshness
-status: todo
+status: done
 depends_on: [053, 355, 360]
 ---
 
