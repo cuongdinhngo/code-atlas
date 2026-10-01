@@ -27,7 +27,7 @@ One line on stderr per run, and four exit codes a CI job can branch on:
 |---|---|
 | `0` | built — the run wrote files |
 | `3` | nothing to do — the build ran and wrote nothing |
-| `4` | another build is running (the shared `write.lock`) — a clean skip, not a failure |
+| `4` | another build is running (the shared `write.lock`) — a clean skip; the request is left for that build to serve (357) |
 | `1` | failed — no usable adapter, a refused schema, or a broken config |
 
 ### Is it building, or is it wedged? — `code-atlas-build --status` (task 177)

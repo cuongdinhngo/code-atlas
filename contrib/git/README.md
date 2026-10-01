@@ -32,10 +32,10 @@ version-controlled, and this project never writes into a user's `.git` for them.
 |-----------|--------|
 | No `.code-atlas/graph.db` under cwd / `$CLAUDE_PROJECT_DIR` | Exit 0; verbose: `skipped: no index` (never full-builds) |
 | Index present | Background incremental; verbose: `refreshed` |
-| Another build holds `.code-atlas/write.lock` (hook or MCP) | Exit 0; verbose: `skipped: another build is running` |
+| Another build holds `.code-atlas/write.lock` (hook or MCP) | Exit 0; verbose: `skipped: another build is running`. The request is left as `.code-atlas/write.pending`, and the holder runs one more incremental after its own build (357) |
 | `post-checkout` with git's 3rd arg ≠ `1` (file checkout) | Hook exits 0 immediately; no refresh |
 | `git commit` / `git commit --amend` | `post-commit` refreshes once; `post-rewrite` skips `amend` so an amend is not counted twice |
-| `git rebase` | `post-commit` fires per pick and `post-rewrite rebase` once more at the end; a run that finds a pick's refresh still holding the lock skips, so the index can stop at a pick's HEAD until the next refresh — read-through freshness still repairs what a query touches |
+| `git rebase` | `post-commit` fires per pick and `post-rewrite rebase` once more at the end; the picks that find a refresh running leave one pending request, which that refresh serves before it exits, so the index ends at the rebase's HEAD |
 | Install/config error | Exit 0; **always** one stderr line `code-atlas refresh skipped: …` (hooks keep stderr) |
 | Build refused (a full rebuild is required, or coverage would be lost) | Exit 0; **always** one stderr line with the reason and the route to run |
 

@@ -102,8 +102,9 @@ The loser returns — never a 0.0 s "done":
 }
 ```
 
-`performed: false` is the load-bearing field: your refresh did **not** run, so do not read the reply as
-a completed refresh. `code-atlas-refresh` prints `skipped: another build is running` for the same
+`performed: false` is the load-bearing field: your refresh did **not** run yet, so do not read the reply
+as a completed refresh. It left `write.pending`, and the winner runs one more incremental before it
+exits (357). `code-atlas-refresh` prints `skipped: another build is running` for the same
 event. Pinned by `tests/test_git_refresh_hook.py::test_build_tool_returns_busy_when_lock_held` and
 `tests/test_busy_build_staleness.py`.
 
