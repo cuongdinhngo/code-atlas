@@ -4,7 +4,7 @@ slug: required-call-rules
 title: 'A rule can forbid an edge but not require one, so a missing-check audit is rebuilt outside the index'
 phase: 2
 milestone: Coverage
-status: todo
+status: done
 depends_on: [138]
 ---
 
