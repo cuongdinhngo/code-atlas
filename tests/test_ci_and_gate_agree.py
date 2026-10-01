@@ -59,6 +59,11 @@ SHARED_CHECKS: dict[str, tuple[str, str]] = {
     "R4.1 no LLM in core": ("anthropic|onboarding_llm", "anthropic|onboarding_llm"),
     "R7.3 no AI-attribution trailer": ("attribution_markers.py", "attribution_markers.py"),
     "R2.4 commit identity (340)": ("identity_markers.py", "identity_markers.py"),
+    # The one row a plain run does not spend: only `--docker` builds the image (358).
+    "test image builds (358)": (
+        "file: docker/Dockerfile",
+        'docker build -f "$root/docker/Dockerfile"',
+    ),
 }
 
 
@@ -105,3 +110,16 @@ def test_a_lint_failure_does_not_hide_the_test_results() -> None:
         "the pytest step must run even after ruff/mypy fail, or a formatting slip hides every "
         "behavioural failure behind it"
     )
+
+
+def test_the_test_image_job_builds_in_parallel_from_the_gha_cache() -> None:
+    """358 AC3 and Scope 1/3: build only, beside the other jobs, reusing unchanged layers.
+
+    Made to fail: add `needs:` to the job, a `run:` step to it, or drop either cache line.
+    """
+    ci = CI.read_text(encoding="utf-8")
+    job = ci.split("\n  test-image:\n")[1].split("\n  guardrails:\n")[0]
+    assert "needs:" not in job and "needs: test-image" not in ci
+    assert "run:" not in job, "build only — the suite already runs in the test job"
+    assert "push: false" in job
+    assert "cache-from: type=gha" in job and "cache-to: type=gha" in job
