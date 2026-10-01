@@ -6,3 +6,4 @@ require_once ROOT_DIR . '/src/partials/select.php';
 require_once ROOT_DIR . '/dup/x.php';
 require_once $path;
 require_once ROOT_DIR . '/partials/' . $name . '.php';
+require_once ROOT_DIR . '/p/' . $name . '/select.php';

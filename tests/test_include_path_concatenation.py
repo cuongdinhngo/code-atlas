@@ -83,15 +83,17 @@ def test_a_tail_two_files_end_with_stays_unlinked_and_counted(built: tuple) -> N
 
     assert includes(store)[6] == ("/dup/x.php", None, "HEURISTIC")
     answer = include_graph.create(config)(HOME, direction="imports")
-    # The ambiguous tail, `$path`, and a tail with a variable in it are the three unresolved.
-    assert answer["unresolved_includes"] == 3, answer
+    # The ambiguous tail, `$path`, and the two paths with a variable in them are unresolved.
+    assert answer["unresolved_includes"] == 4, answer
 
 
 @needs_php
 def test_a_fully_dynamic_include_is_unchanged(built: tuple) -> None:
-    """AC4: ``$path``, and a tail broken by a variable, stay ``(dynamic)``."""
+    """AC4: ``$path``, and a path with a variable in it, stay ``(dynamic)``."""
     _, store = built
     edges = includes(store)
 
     assert edges[7] == ("(dynamic)", None, "DYNAMIC")
     assert edges[8] == ("(dynamic)", None, "DYNAMIC")
+    # A variable mid-path would leave `/select.php`, a bare basename match (the challenger's F2).
+    assert edges[9] == ("(dynamic)", None, "DYNAMIC")

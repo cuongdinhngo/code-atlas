@@ -961,7 +961,7 @@ final class Visitor extends NodeVisitorAbstract
 
     /**
      * An include's target and tier (353). A literal, or `__DIR__` / `dirname(__DIR__, n)` plus a
-     * literal, is includer-relative and exact (the magic constants are language spec). Any other
+     * literal, is includer-relative and exact (the magic constants are language spec). One other
      * head plus a literal `/…` tail is that tail at HEURISTIC: the core links it by a unique path
      * suffix. Anything else is dynamic.
      *
@@ -985,7 +985,11 @@ final class Visitor extends NodeVisitorAbstract
         if ($parts === [] || strlen($tail) < 2 || $tail[0] !== '/') {
             return ['(dynamic)', 'DYNAMIC'];
         }
-        $levels = count($parts) === 1 ? self::levelsAboveIncluder($parts[0]) : null;
+        if (count($parts) !== 1) {
+            // A variable between the root and the tail leaves the directory unknown, not just the root.
+            return ['(dynamic)', 'DYNAMIC'];
+        }
+        $levels = self::levelsAboveIncluder($parts[0]);
         if ($levels !== null) {
             return [str_repeat('../', $levels) . substr($tail, 1), null];
         }
