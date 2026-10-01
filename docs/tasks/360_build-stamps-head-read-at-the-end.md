@@ -329,4 +329,6 @@ Deferred to the maintainer: the merge; cutting a release for the `Unreleased` CH
 
 `LEDGER TOTAL: 100,601 · top cost driver: review/challenger`
 
+**Gate.** `scripts/gate.sh` on `c1b8cd23` (the bookkeeping tip): `GATE GREEN — all 21 checks passed` (Linux, bare pytest, every adapter present). Only this doc and the ledger row's gate note changed after it.
+
 **Revert path.** `git revert` the branch commits. No index changes shape.
