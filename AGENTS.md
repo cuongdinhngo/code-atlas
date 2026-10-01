@@ -86,7 +86,7 @@ to keep in step, and it drifted. Only the boundaries that decide where your chan
 
 ## Indexing a real repo — from a shell
 `code-atlas-build` builds; `--status` reads a running build's live phase, which no MCP tool can.
-A full rebuild bulk-clears (219); no need to delete `graph.db`. `workers` is not a throughput
+A full rebuild serves the old index until it publishes (356); never delete `graph.db`. `workers` is not a throughput
 knob. Every timing and its conditions: [`runbooks/onboarding-a-repo.md`](docs/runbooks/onboarding-a-repo.md).
 
 ## Before a PR or a push — run `scripts/gate.sh` **once, when the work is done**

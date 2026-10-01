@@ -831,7 +831,9 @@ Nav answer: `PROVIDES_VIEW_DATA` / `find_view_data`.
 - **Tier-first default inbound order (265).** `RESOLVED` → `HEURISTIC` → `DYNAMIC`, then stable keys,
   in the store query before truncation; `confidence_tier` stays an opt-in *filter*.
 - **Unresolved CALL site stored once (258)** — the site is the fact, candidates are a query.
-- **Populated rebuild truncates first (219)**; deferring FTS is its own ticket.
+- **A full rebuild serves the last good index (356)** — it fills `graph.db.shadow` and publishes it
+  with one SQLite backup; a killed build leaves the live index untouched. This reverses 219's
+  reader-visible truncate; 202's incomplete stamp stays for in-place incrementals.
 - **Opt-in six-tool `CA_TOOLS` preset; default surface stays 24 (268).** A worktree whose `CA_DB_PATH`
   resolves outside it refuses with `index_root_mismatch`.
 - **Consumer-repo brief (266 · 270)** — written into the indexed repo's `AGENTS.md` (marked,

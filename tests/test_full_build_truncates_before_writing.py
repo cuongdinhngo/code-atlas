@@ -82,15 +82,16 @@ def test_a_full_rebuild_clears_the_index_before_the_first_file_write(
     full_build(config, store)
     assert store.counts()["nodes"] > 0
 
-    original = store.replace_file_rows
+    # On the class: since 356 the rebuild writes a shadow store, not the live one it was handed.
+    original = GraphStore.replace_file_rows
     seen: list[int] = []
 
-    def spy(path: str, nodes: object, edges: object) -> int:
+    def spy(self: GraphStore, path: str, nodes: object, edges: object) -> int:
         if not seen:
-            seen.append(store.counts()["nodes"])
-        return original(path, nodes, edges)  # type: ignore[arg-type]
+            seen.append(self.counts()["nodes"])
+        return original(self, path, nodes, edges)  # type: ignore[arg-type]
 
-    monkeypatch.setattr(store, "replace_file_rows", spy)
+    monkeypatch.setattr(GraphStore, "replace_file_rows", spy)
     full_build(config, store)
 
     assert seen == [0], "the first per-file write on a populated rebuild must see a truncated graph"
