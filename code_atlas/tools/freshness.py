@@ -18,6 +18,7 @@ from code_atlas.tools.nav_result import (
     REASON_INDEX_STALE,
     REASON_OK,
     REASON_SUBJECT_FILE_CHECKED,
+    classify_missing_subject,
 )
 from code_atlas.tools.staleness import BEHIND
 
@@ -46,6 +47,26 @@ def nameable_subject_path(store: GraphStore, qname: str) -> str | None:
         if store.file_hash(prefix) is not None:
             return prefix
     return None
+
+
+def miss_subject_path(store: GraphStore, qname: str, *, limit: int) -> str | None:
+    """The file a zero-hit ``qname`` is about: its own path, else its one name variant's (354).
+
+    Without the variant a misqualified name is unnameable, so several dirty files refuse it as
+    ``index_stale`` before the miss path could name the symbol it meant.
+    """
+    named = nameable_subject_path(store, qname)
+    if named is not None:
+        return named
+    resolution = classify_missing_subject(store, qname, limit=limit)
+    if resolution.status == "resolved_unique":
+        variant = resolution.qname
+    elif resolution.stored_shorter:
+        variant = resolution.stored_shorter[0]
+    else:
+        return None
+    rows = store.nodes_by_qualified_name(variant, limit=1)
+    return str(rows[0]["file_path"]) if rows else None
 
 
 @dataclass
@@ -90,7 +111,7 @@ class FreshnessGuard:
         rows = self.store.nodes_by_qualified_name(qname, limit=1)
         if rows:
             return self.ensure(str(rows[0]["file_path"]))
-        return self.ensure_miss(nameable_subject_path(self.store, qname))
+        return self.ensure_miss(miss_subject_path(self.store, qname, limit=self.config.page_limit))
 
     def ensure_miss(self, subject_path: str | None = None) -> EnsureResult:
         """When a query matched nothing: repair a named subject file, or the sole dirty file.

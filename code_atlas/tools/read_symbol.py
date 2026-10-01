@@ -22,7 +22,7 @@ from code_atlas.tools.freshness import (
     FreshnessGuard,
     attach_other_indexed_files_drifted,
     finalize_subject_checked_miss,
-    nameable_subject_path,
+    miss_subject_path,
 )
 from code_atlas.tools.nav_result import (
     CAVEAT_MIRROR_TWIN,
@@ -179,7 +179,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             rows = list(store.nodes_by_qualified_name(qname, limit=fetch_limit))
             guard = FreshnessGuard(config, store)
             if not rows:
-                status = guard.ensure_miss(nameable_subject_path(store, qname))
+                status = guard.ensure_miss(miss_subject_path(store, qname, limit=config.page_limit))
                 if status == "stale":
                     return attach_try_instead(
                         stamped_result(
@@ -802,7 +802,12 @@ def _resolve_miss(
     return (
         qname,
         [],
-        _miss_result(qname, detail_level=detail_level, config=config, reason=REASON_NO_SUCH_SYMBOL),
+        shape_exact_miss(
+            _miss_result(
+                qname, detail_level=detail_level, config=config, reason=REASON_NO_SUCH_SYMBOL
+            ),
+            resolution,
+        ),
     )
 
 

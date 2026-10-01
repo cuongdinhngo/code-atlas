@@ -27,7 +27,11 @@ them reports:
   `proximity_candidates` rows, each naming its `candidate_of` (258). **An empty result is never an unexplained zero**, and where a better
   route exists the payload names a real, callable tool in `try_instead`.
 - **`resolved_qname`** — when you typed `Foo\Bar` and the index stores `\Foo\Bar`, the tool answers
-  about the stored name and tells you which one it used.
+  about the stored name and tells you which one it used. The reverse — `dbo.Orders` asked of a table stored as
+  `Orders` — is never answered on your behalf: the miss names the stored qname in **`candidates`**,
+  because the extra qualifier may name a different symbol (354). On a behind index the guard checks that
+  variant's file and the miss says how many other files drifted (`subject_file_checked`, 246),
+  rather than refusing it as `index_stale`.
 
 Two more fire when a page could mislead: a truncated `file_outline` adds **`result_kinds`** (every
 kind in the file with its count, so a capped symbol map cannot read as complete), and a truncated

@@ -31,15 +31,18 @@ SOURCE_EMPTY = "empty_explained"
 CAPABILITIES_TOML = Path("docs/onboarding/capabilities.toml")
 _HTTP_RANK = READING_SEED_LAYER_RANK["HTTP / Entry"]
 
+# The entry-point knob, named once for every answer that routes a reader to it (354, R6.7).
+ENTRY_POINTS_KNOB = "CA_ENTRY_POINTS (or entry_points in .code-atlas.toml)"
 EMPTY_REASON = (
     "no capabilities.toml, no structural capability layout, and no entry-point rows — "
-    "set docs/onboarding/capabilities.toml and/or CA_ENTRY_POINTS (or entry_points in "
-    ".code-atlas.toml); candidate globs below show files_matched on this index"
+    f"set docs/onboarding/capabilities.toml and/or {ENTRY_POINTS_KNOB}; "
+    "candidate globs below show files_matched on this index"
 )
 
 __all__ = [
     "CAPABILITIES_TOML",
     "EMPTY_REASON",
+    "ENTRY_POINTS_KNOB",
     "SOURCE_EMPTY",
     "SOURCE_ENTRY",
     "SOURCE_STRUCTURAL",
