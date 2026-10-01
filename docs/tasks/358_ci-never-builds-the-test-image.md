@@ -44,7 +44,7 @@ with `test_ci_and_gate_agree` taught that one exception.
 
 ## Session status
 
-- **KEY:** 358 · **work_doc_mode:** embed · **Current phase:** 3 execute · **Next action:** review. **Revert path:** `git revert` the branch's commits.
+- **KEY:** 358 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer reviews and merges the PR, and ratifies ASSUMED W1, X1, X2. **Revert path:** `git revert` the branch's commits.
 - `TRACK: backend` · `TIER: full` · `SCOPE: S` · `STRUCTURE: native` · Run mode: `autorun`, batch 360 → 357 → 358 → 359;
   *"with skipped reviewer"* = `--no-reviewer` only, the challenger keeps its seat.
 - Branch `chore/358-ci-never-builds-the-test-image` off `main` (`41ba7996`). Contract `.mango/run-contract-358.txt`,
@@ -202,7 +202,8 @@ Coverage-gap exclusions (human hand-back):
 ## Phase 3 — execute
 
 Commits on `chore/358-ci-never-builds-the-test-image`: `ecd210c8` (the job, the row, the header,
-AGENTS.md), `23abcc75` (`pull: true`, `ignore-error=true`, the context pins — X1, X4, X6).
+AGENTS.md), `23abcc75` (`pull: true`, `ignore-error=true`, the context pins — X1, X4, X6),
+`862e5740` (the challenger's findings 1–4).
 
 **Sweep.**
 - Axis 1 — file set: the change list exactly.
@@ -213,3 +214,68 @@ AGENTS.md), `23abcc75` (`pull: true`, `ignore-error=true`, the context pins — 
   `php-no-such-package-358` added to the apt line: exit 1 (`apt-get` exit 100).
 - `AGENTS.md` first went 2,859 tokens over its 2,850 budget; two gate lines were merged into two
   shorter ones to fit.
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`
+
+**Challenger (ticket-blind, round 1, on `23abcc75`, 49,900 tokens): 7 met · 0 not met · 0 can't
+tell.** It confirmed a failed build fails the job (no `continue-on-error`; `ignore-error` covers
+only the cache export) and that no `needs` ties the job to another. Its findings:
+
+1. The agreement row matched the build line anywhere in `gate.sh`, so the `--docker`-only
+   exception was a comment, not a check. **Fixed:** `test_only_the_docker_gate_builds_the_test_image`
+   pins the build inside the `--docker` branch (red when the line is moved out), and the module
+   docstring names the exception.
+2. A warm cache replays the apt and composer layers without running them, and `pull: true` only
+   rebuilds them when the base digest moves. My comment claimed more. **Fixed:** the comment says
+   what it hides. The limit stands under ASSUMED X1 (no `--no-cache` schedule).
+3. Default gha scope. **Fixed:** `scope=test-image` on both cache lines.
+4. String-presence brittleness. **Fixed:** the shape test asserts the job exists first and ignores
+   comment lines.
+5. AGENTS.md wording accurate — no action.
+
+The fixes stay inside the reviewed files, so the verify ran in the main loop with no re-dispatch:
+26 passed (`tests/test_ci_and_gate_agree.py`) on `862e5740`.
+
+`Ph3/4 proven by`: G1, C1, R1–R4, AC2, AC3 — 7/7 proven; AC1 proven locally, its live PR run
+excluded (expiry above). 8/9 rows plus one recorded exclusion.
+
+Verdict: **clean (challenger only — REVIEWER: OFF)**.
+
+Reviewed at 862e5740 — the diff `main..862e5740`. Working doc:
+`docs/tasks/358_ci-never-builds-the-test-image.md` (embedded).
+
+## Phase 5 — finalise
+
+Stale-review guard: after `862e5740` only bookkeeping changed — this doc, `docs/BACKLOG.md` and
+`docs/TOKEN_LEDGER.md`, all exempt.
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+No durable lesson: the one miss (overclaiming `pull: true`) is the change's own comment, fixed in
+the same PR, and recurs nowhere yet.
+
+### Outward actions
+
+1. Push `chore/358-ci-never-builds-the-test-image` — pre-authorised.
+2. Open the PR — pre-authorised.
+
+Deferred to the maintainer: the merge; ratifying W1, X1, X2; making `test-image` a required check
+(X2); the live red-on-PR proof of AC1 (the exclusion).
+
+### Cost ledger
+
+| # | Phase | Dispatch | Tokens |
+|---|---|---|---|
+| 1 | refine | exposure-checker (`challenger`) | 41,726 |
+| 2 | review | `challenger`, round 1 | 49,900 |
+| — | main loop | — | unmeasured |
+
+`LEDGER TOTAL: 91,626 · top cost driver: review/challenger`
+
+**Revert path.** `git revert` the branch commits.
