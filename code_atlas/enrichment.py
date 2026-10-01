@@ -28,6 +28,9 @@ _HEURISTIC = contract.CONFIDENCE_TIERS[1]
 _STRING_LIT = re.compile(r"""'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*\"""")
 # keyed_calls `{key}` only (222); value may be a symbol or File qname (256).
 _TEMPLATE_PLACEHOLDER = re.compile(r"\{([^{}]+)\}")
+# The callee's own name, the last identifier of its qname: where its argument list starts (352).
+_IDENTIFIER = re.compile(r"[A-Za-z_$][\w$]*")
+_OPENERS = {"(": ")", "[": "]", "{": "}"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,9 +97,11 @@ class Enriched(NamedTuple):
     edges: int
     # Per keyed_calls rule: stamps it emitted — post-resolve census (task 222).
     keyed_call_groups: tuple[tuple[tuple[str, str, int], ...], ...] = ()
+    # Per call site and string key: the stamps every keyed_calls rule emitted for it (352).
+    keyed_call_sites: tuple[tuple[tuple[str, str, int], ...], ...] = ()
 
 
-NOTHING = Enriched(nodes=0, edges=0, keyed_call_groups=())
+NOTHING = Enriched(nodes=0, edges=0)
 
 
 def apply_indirection_rules(
@@ -140,11 +145,16 @@ def apply_indirection_rules(
             }
         )
     edges.extend(_view_data_edges(config, store, loaded.view_data))
-    keyed_edges, keyed_groups = _keyed_calls_edges(config, store, loaded.keyed_calls)
+    keyed_edges, keyed_groups, keyed_sites = _keyed_calls_edges(config, store, loaded.keyed_calls)
     edges.extend(keyed_edges)
 
     store.replace_file_rows(INDIRECTION_FILE, [], edges)
-    return Enriched(nodes=0, edges=len(edges), keyed_call_groups=keyed_groups)
+    return Enriched(
+        nodes=0,
+        edges=len(edges),
+        keyed_call_groups=keyed_groups,
+        keyed_call_sites=keyed_sites,
+    )
 
 
 def is_rule_edge_path(path: object) -> bool:
@@ -218,12 +228,20 @@ def _keyed_calls_edges(
     config: Config,
     store: GraphStore,
     rules: tuple[tuple[str, int, str, str], ...],
-) -> tuple[list[dict[str, object]], tuple[tuple[tuple[str, str, int], ...], ...]]:
-    """CALLS edges whose target is a string key substituted into ``target_template`` (task 222)."""
+) -> tuple[
+    list[dict[str, object]],
+    tuple[tuple[tuple[str, str, int], ...], ...],
+    tuple[tuple[tuple[str, str, int], ...], ...],
+]:
+    """CALLS edges whose target is a string key substituted into ``target_template`` (task 222).
+
+    Also returns, per (source, line, key) site, the stamps every rule emitted for it (352).
+    """
     if not rules:
-        return [], ()
+        return [], (), ()
     out: list[dict[str, object]] = []
     groups: list[tuple[tuple[str, str, int], ...]] = []
+    sites: dict[tuple[str, int, str], list[tuple[str, str, int]]] = {}
     seen: set[tuple[str, str, int]] = set()
     line_cache: dict[tuple[str, int], str | None] = {}
     for setter, key_arg, key_from, template in rules:
@@ -245,6 +263,9 @@ def _keyed_calls_edges(
             for key in keys:
                 target = template.replace("{key}", key)
                 stamp = (source, target, line)
+                site = sites.setdefault((source, line, key), [])
+                if stamp not in site:
+                    site.append(stamp)
                 if stamp in seen:
                     continue
                 seen.add(stamp)
@@ -268,7 +289,7 @@ def _keyed_calls_edges(
             int(row["line"]) if type(row["line"]) is int else 0,
         )
     )
-    return out, tuple(groups)
+    return out, tuple(groups), tuple(tuple(sites[site]) for site in sorted(sites))
 
 
 def count_unresolved_keyed_calls(
@@ -292,6 +313,21 @@ def count_unresolved_keyed_calls(
         if not any_linked:
             unresolved += 1
     return unresolved
+
+
+def count_unresolved_keyed_sites(
+    store: GraphStore, sites: tuple[tuple[tuple[str, str, int], ...], ...]
+) -> int:
+    """Call sites whose string key linked under no keyed_calls rule (352).
+
+    A literal naming nothing is counted once, however many rules tried it; one target query each.
+    """
+    linked: set[tuple[str, str, int]] = set()
+    for target_raw in sorted({stamp[1] for stamps in sites for stamp in stamps}):
+        for row in store.calls_by_target_raw(target_raw):
+            if row.get("file_path") == INDIRECTION_FILE and row.get("target_qname"):
+                linked.add((str(row.get("source_qname")), target_raw, int(str(row.get("line")))))
+    return sum(1 for stamps in sites if not any(stamp in linked for stamp in stamps))
 
 
 def _calls_for_setter(store: GraphStore, setter: str) -> list[dict[str, object]]:
@@ -327,14 +363,48 @@ def _keys_for_rule(
     if not _arg_is_string(args, key_arg):
         return []
     text = _line_text(config.root, rel, line, line_cache)
-    if text is None:
+    argument = _call_argument(text, edge.get("target_raw"), key_arg) if text is not None else None
+    if argument is None or _STRING_LIT.fullmatch(argument) is None:
+        # Only an argument that is one whole literal names a key; `'a' . $b` names none.
         return []
-    parsed = _parse_args(args)
-    if parsed is None:
-        return []
-    ordinal = sum(1 for entry in parsed[:key_arg] if entry == "string")
-    key = _nth_string_literal(text, ordinal)
+    key = _nth_string_literal(argument, 1)
     return [key] if key is not None else []
+
+
+def _call_argument(line: str, target_raw: object, position: int) -> str | None:
+    """The source text of argument ``position`` of the one ``<callee>(`` call on ``line``.
+
+    Split at top-level commas, so a literal before the call (a receiver's ``get('db')``) or inside
+    an earlier argument is never read as the key. Two calls of one name on a line: ``None`` (352).
+    """
+    names = _IDENTIFIER.findall(str(target_raw or ""))
+    if not names:
+        return None
+    opens = list(re.finditer(rf"(?<![\w$]){re.escape(names[-1])}\s*\(", line))
+    if len(opens) != 1:
+        return None
+    arguments: list[str] = []
+    closers: list[str] = []
+    start = index = opens[0].end()
+    while index < len(line):
+        char = line[index]
+        if char in "'\"":
+            quoted = _STRING_LIT.match(line, index)
+            if quoted is None:
+                return None
+            index = quoted.end()
+            continue
+        if char in _OPENERS:
+            closers.append(_OPENERS[char])
+        elif closers and char == closers[-1]:
+            closers.pop()
+        elif not closers and char in ",)":
+            arguments.append(line[start:index].strip())
+            if char == ")":
+                return arguments[position - 1] if position <= len(arguments) else None
+            start = index + 1
+        index += 1
+    return None
 
 
 def _keys_from_arg_keys(arg_keys: object, args: object, key_arg: int) -> list[str]:

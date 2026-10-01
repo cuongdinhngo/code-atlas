@@ -453,13 +453,15 @@ path, so `vendor/` can be indexed without weakening directory exclusion. Those f
 is missing, not a directory, or overlapping git-collected source fails loud (R5.3). `BuildReport.stubs`
 counts them so a zero is visible.
 
-**Indirection rules (040 / 062 / 063).** `CA_INDIRECTION_RULES` names repo-relative JSON files
-**outside** `adapters/` (R2.2), each listing `aliases`, `calls` and/or `view_data` entries that become
-HEURISTIC `ALIASES` / `CALLS` / `PROVIDES_VIEW_DATA` edges. Applied after parse, before
+**Indirection rules (040 / 062 / 063 / 222).** `CA_INDIRECTION_RULES` names repo-relative JSON files
+**outside** `adapters/` (R2.2), each listing `aliases`, `calls`, `view_data` and/or `keyed_calls`
+entries that become HEURISTIC `ALIASES` / `CALLS` / `PROVIDES_VIEW_DATA` edges. `keyed_calls` is the
+string-argument case — a class or proc named by a literal (352); the file format is in
+[`TOOLS.md`](TOOLS.md#indirection-rule-files). Applied after parse, before
 `resolve_edges`; off by default, so no rules ⇒ graph unchanged, and a missing or invalid rule file
 fails loud **before** parse (R5.3). Rule edges live on a synthetic bookmark path with **no** `files`
 row and no File node (068); nav hits carry `rule: true`. **v1 limits:** exact qname pairs for `calls`;
-exact `target_raw` or `::<method>` suffix for `view_data` setters; one-line string-arg extraction only;
+exact `target_raw` or `::<method>` suffix for `view_data` / `keyed_calls` setters; one-line string-arg extraction only;
 top-level literal string array keys only — `self::K`, `"$k"`, spread, nested arrays and
 integer-like keys contribute nothing.
 

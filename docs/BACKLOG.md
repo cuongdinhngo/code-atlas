@@ -24,7 +24,8 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
-| 352 | [A string argument that names a class or proc links to nothing](tasks/352_string-arg-names-a-symbol-rule.md) | Coverage | todo | 040, 062, 335 |
+| 357 | [A refresh that finds the write lock held is dropped](tasks/357_a-refresh-that-finds-the-lock-held-is-lost.md) | Freshness | todo | 053, 355 |
+| 358 | [CI never builds the test image `docker/Dockerfile`](tasks/358_ci-never-builds-the-test-image.md) | Tooling | todo | 323 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -63,12 +64,9 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **Whether the grep-time nudge changes what an agent does is unmeasured** — 344 and 345 shipped the delivery and the hook; no field run has counted grep-then-index against grep-only since — 300.
 - **A PHP property is referenced only by a static fetch naming its declaring class** — `$this->x`, `$obj->x` and `self::$x` on an inherited property emit no edge onto it, so `find_references` on it can still answer a confident zero — 336.
 - **A separator-normalised `read_symbol` hit ignores `path_prefix`** — `\Foo\bar` re-read as `Foo::bar` returns the body from a file the filter excluded; `find_references`' prefix zero names no `path_excluded` either — 339.
-- **Docker images are never built by CI** — `docker/Dockerfile` can rot, and since 323 `gate.sh --docker` runs through it (`Dockerfile.runtime` is built inside `pytest`). Honest shape: one job building both. Needed because Actions run only after the push.
 - **`host_root` / `container_root` from the project file are unchecked paths** — harmless today
   (`to_adapter_path` only maps repo-relative strings) but ungated, unlike 341's two knobs —
   341.
-- **A rebase can leave the index at a pick's HEAD** — `post-rewrite`'s refresh skips when a per-pick
-  `post-commit` refresh still holds the lock; nothing waits for it — 355.
 - **Two symlink residuals 342 left out of scope** — a stub root's files (`collect_stubs`, `os.walk`)
   and the index directory (`.code-atlas/` committed as a link aims SQLite writes) are not yet contained
   — 342.
