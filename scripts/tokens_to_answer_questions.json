@@ -447,12 +447,13 @@
         "\\Lib\\Impl::x",
         "\\Lib\\Service",
         "\\Lib\\Service::run",
-        "entry.php"
+        "entry.php",
+        "lib.php"
       ],
       "grep_evidence": [
         "function main"
       ],
-      "expected_set_note": "Grew with 137. `$h = new \\Lib\\Helper(); $h->go()` used to be a bare-name guess, and reachability only walks RESOLVED edges — so the traversal stopped AT Helper and never entered go(). Child/Impl/IFace are in the fixture to be reached through it. \\Lib\\Maybe and \\Dead\\Unused are still unreached, which is what this question exists to check."
+      "expected_set_note": "Grew with 137. `$h = new \\Lib\\Helper(); $h->go()` used to be a bare-name guess, and reachability only walks RESOLVED edges — so the traversal stopped AT Helper and never entered go(). Child/Impl/IFace are in the fixture to be reached through it. \\Lib\\Maybe and \\Dead\\Unused are still unreached, which is what this question exists to check. Grew again with 353: `require_once __DIR__ . '/lib.php'` now links RESOLVED, so the include reaches `lib.php` itself."
     },
     {
       "id": "orphans_dead_unused",
