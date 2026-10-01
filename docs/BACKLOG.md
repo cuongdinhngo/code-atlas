@@ -28,6 +28,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 353 | [An include built as constant + literal path reads as dynamic](tasks/353_include-path-concatenation.md) | Coverage | todo | 065, 279 |
 | 357 | [A refresh that finds the write lock held is dropped](tasks/357_a-refresh-that-finds-the-lock-held-is-lost.md) | Freshness | todo | 053, 355 |
 | 358 | [CI never builds the test image `docker/Dockerfile`](tasks/358_ci-never-builds-the-test-image.md) | Tooling | todo | 323 |
+| 359 | [A rule can forbid an edge but not require one](tasks/359_required-call-rules.md) | Coverage | todo | 138 |
 
 ## Open work — Pillar 2 · Onboarding
 
