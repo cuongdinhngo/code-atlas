@@ -4,7 +4,7 @@ slug: ci-never-builds-the-test-image
 title: 'CI never builds the test image docker/Dockerfile, so gate.sh --docker can break unseen'
 phase: 2
 milestone: Tooling
-status: todo
+status: done
 depends_on: [323]
 ---
 
