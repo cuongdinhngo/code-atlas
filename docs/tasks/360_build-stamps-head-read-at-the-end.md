@@ -4,7 +4,7 @@ slug: build-stamps-head-read-at-the-end
 title: 'A build stamps the HEAD it reads at the end, so a HEAD move mid-build leaves an index that says current but is not'
 phase: 2
 milestone: Freshness
-status: todo
+status: done
 depends_on: [053, 166]
 ---
 
