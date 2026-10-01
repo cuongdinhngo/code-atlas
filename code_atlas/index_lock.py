@@ -132,14 +132,14 @@ def mark_pending(db_path: Path) -> None:
         return
 
 
-def take_pending(db_path: Path) -> bool:
-    """Clear the request flag; True when one was set. The caller is about to serve it."""
+def clear_pending(db_path: Path) -> bool:
+    """Clear the request flag before serving it; False only when it is set and cannot be removed."""
     try:
         pending_path_for(db_path).unlink()
     except FileNotFoundError:
-        return False
-    except OSError:
         return True
+    except OSError:
+        return False
     return True
 
 

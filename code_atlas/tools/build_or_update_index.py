@@ -18,10 +18,10 @@ from code_atlas import contract, gitutil
 from code_atlas.adapter import AdapterError
 from code_atlas.config import Config
 from code_atlas.index_lock import (
+    clear_pending,
     is_pending,
     mark_pending,
     publish_build_progress,
-    take_pending,
     try_index_write_lock,
 )
 from code_atlas.indexer import (
@@ -113,11 +113,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         started = time.monotonic()
         first: dict[str, object] | None = None
         marked = False
+        cleared = True
         while True:
             with try_index_write_lock(config.db_path) as held:
                 if held:
                     # This build reads the tree after now, so it serves every earlier request.
-                    take_pending(config.db_path)
+                    cleared = clear_pending(config.db_path)
                     answer = _locked_build(
                         config,
                         full=full and first is None,
@@ -129,7 +130,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     )
                     first = answer if first is None else first
             # Checked after the unlock, so a request landing at any point before it still runs.
-            if held and is_pending(config.db_path):
+            # A marker that cannot be removed would re-run forever: stop at one build instead.
+            if held and cleared and is_pending(config.db_path):
                 continue
             if first is not None:
                 # Done, or a new holder owns the lock and serves the request after its own build.

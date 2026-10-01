@@ -162,6 +162,61 @@ def test_a_marker_left_by_a_dead_holder_is_consumed_by_the_next_writer(
     assert not is_pending(config.db_path)
 
 
+def test_a_holder_killed_with_a_marker_pending_strands_nothing(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """AC3 with a real kill: SIGKILL drops the lock, the marker stays, the next writer clears it."""
+    config = config_for(repo)
+    config.db_path.parent.mkdir(parents=True, exist_ok=True)
+    holder = subprocess.Popen(
+        [sys.executable, "-c", _HOLD.format(db=str(config.db_path))],
+        env={**os.environ, "PYTHONPATH": str(REPO)},
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+    assert holder.stdout is not None and holder.stdout.readline().strip() == "held"
+    assert build_in_progress(config.db_path) and is_pending(config.db_path)
+    holder.kill()
+    holder.wait(timeout=10)
+    builds = Builds(monkeypatch)
+    builds.release.set()
+
+    create(config)()
+
+    assert not build_in_progress(config.db_path)
+    assert builds.calls == [False]
+    assert not is_pending(config.db_path)
+
+
+_HOLD = """
+import time
+from pathlib import Path
+from code_atlas.index_lock import mark_pending, try_index_write_lock
+db = Path({db!r})
+with try_index_write_lock(db) as held:
+    assert held
+    mark_pending(db)
+    print("held", flush=True)
+    time.sleep(60)
+"""
+
+
+def test_a_marker_that_cannot_be_removed_costs_one_build_not_a_loop(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A read-only or foreign marker must not turn the post-unlock look into an endless re-run."""
+    config = config_for(repo)
+    config.db_path.parent.mkdir(parents=True, exist_ok=True)
+    pending_path_for(config.db_path).touch()
+    monkeypatch.setattr(build_or_update_index, "clear_pending", lambda db_path: False)
+    builds = Builds(monkeypatch)
+    builds.release.set()
+
+    create(config)()
+
+    assert builds.calls == [False]
+
+
 def _hook_env(root: Path, bin_dir: Path) -> dict[str, str]:
     """Hooks run the tree under test, with one slow-starting adapter so a refresh holds the lock.
 
