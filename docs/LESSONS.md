@@ -41,6 +41,17 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
 
 ## Live claims
 
+### 356-C1 — a test's child build inherits the host's `CA_<LANG>_CMD`, so its scope is not the parent's
+
+- type: 2 (code) · handle: `child-build-inherits-adapter-env`
+- status: proposed · seen: 356
+- evidence: `tests/test_killed_build_is_honest.py` spawned its "incremental" with `os.environ`. On a
+  host exporting `CA_PHP_CMD`/`CA_SQL_CMD`/`CA_TYPESCRIPT_CMD` the child announced more suffixes
+  than the parent's index, escalated to a full build (`scope_change`), and the test passed by
+  killing that in-place full build instead. 356 made full builds shadowed, which exposed it;
+  `child_env()` now strips `CA_*`. Any test that spawns a build inherits the same trap.
+- destination: first sighting.
+
 ### 348-C1 — an installed plugin moves only when its `version` does, and only on `claude plugin update`
 
 - type: 5 (environment) · area: `claude-code plugins / update` · verified-at: 2026-09-30, Claude Code 2.1.284
