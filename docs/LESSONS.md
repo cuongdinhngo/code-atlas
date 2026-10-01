@@ -41,6 +41,16 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
 
 ## Live claims
 
+### 357-C1 — a loop driven by "while the flag file exists" spins if the flag cannot be removed
+
+- type: 2 (code) · handle: `a-flag-loop-needs-a-clearable-flag`
+- status: proposed · seen: 357
+- evidence: the lock holder re-ran while `write.pending` existed and cleared it on each pass; an
+  unlink that failed with a non-`FileNotFoundError` `OSError` still counted as cleared, so a
+  read-only marker re-ran builds forever. The challenger found it; `clear_pending` now reports
+  whether the flag is gone, and the loop continues only when it is.
+- destination: first sighting.
+
 ### 360-C1 — a ticket that names why a repair path fails assumes the path runs
 
 - type: 2 (process) · handle: `confirm-the-blocked-path-runs`
@@ -54,7 +64,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
 ### 356-C1 — a test's child build inherits the host's `CA_<LANG>_CMD`, so its scope is not the parent's
 
 - type: 2 (code) · handle: `child-build-inherits-adapter-env`
-- status: proposed · seen: 356
+- status: proposed · seen: 356, 357
 - evidence: `tests/test_killed_build_is_honest.py` spawned its "incremental" with `os.environ`. On a
   host exporting `CA_PHP_CMD`/`CA_SQL_CMD`/`CA_TYPESCRIPT_CMD` the child announced more suffixes
   than the parent's index, escalated to a full build (`scope_change`), and the test passed by
@@ -125,7 +135,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
 ### 343-C2 — `ruff format` on a file you edit rewrites lines you did not
 
 - type: 2 (code) · handle: `formatter-rewrites-untouched-lines`
-- status: proposed · seen: 343, 360
+- status: proposed · seen: 343, 360, 357
 - evidence: formatting four edited files reflowed four untouched spots (two `main.py` calls, the
   `which_tool` string, a test lambda); the challenger caught one I had missed. The gate runs
   `ruff check` only, so the drift is silent. Format, then revert every hunk the change does not own.

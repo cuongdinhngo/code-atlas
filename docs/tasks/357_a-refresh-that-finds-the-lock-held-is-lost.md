@@ -61,7 +61,7 @@ leave the index falsely `current` (360). The re-run in Scope 1 would then diff a
 
 ## Session status
 
-- **KEY:** 357 · **work_doc_mode:** embed · **Current phase:** 3 execute · **Next action:** review. **Revert path:** `git revert` the branch's commits.
+- **KEY:** 357 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer reviews and merges PR #27, then this PR. **Revert path:** `git revert` the branch's commits.
 - `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · Run mode: `autorun`, batch 360 → 357 → 358 → 359;
   *"with skipped reviewer"* = `--no-reviewer` only, the challenger keeps its seat.
 - Branch `fix/357-a-refresh-that-finds-the-lock-held-is-lost`, stacked on `fix/360-build-stamps-head-read-at-the-end`
@@ -235,7 +235,8 @@ The base is `d555d158`, the tip of PR #27, whose `scripts/gate.sh` ran GATE GREE
 
 ## Phase 3 — execute
 
-Commit on `fix/357-a-refresh-that-finds-the-lock-held-is-lost`: `208c66f1` (rebased onto `d555d158`).
+Commits on `fix/357-a-refresh-that-finds-the-lock-held-is-lost`: `208c66f1` (the change, rebased onto
+`d555d158`), `c3bd069d` (the challenger's findings 1 and 3, and a real-kill AC3 test).
 
 **Proving test, red first.** AC1 alone, copied onto a worktree of the 360 tree (the marker helpers
 stubbed so the file imports): 3 runs, 3 failed (`assert stamped_at_head()`, 64 s each — the poll
@@ -247,3 +248,73 @@ timed out at a pick's HEAD). After the change: 3 runs of the whole file, 6 passe
   `mypy code_atlas` clean.
 - Lock-path suites (12 files: busy, cli, payload, progress, refresh hook, state hook, status, Windows
   lock, silent refresh, shadow rebuild, killed build): 98 passed, 3 skipped (the Windows arm).
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`
+
+**Challenger (ticket-blind, round 1, on `208c66f1`, 57,470 tokens): 10 met · 0 not met · 0 can't
+tell** (AC3 "met, with weak proof"). It reverted only the build tool in a throwaway copy: all 6 new
+tests failed there, AC1 on its 60 s timeout — red without the change, not passing by timing. It
+traced three-writer interleavings and found no lost request and no endless loop, except finding 1.
+
+1. **A marker that cannot be removed spins the holder** (`take_pending` returned True on any
+   `OSError`, and `is_pending` stayed true). **Fixed** in `c3bd069d`: `clear_pending` reports whether
+   the marker is gone, and the holder re-runs only when it is. Test: one build, not a loop — it hung
+   (killed at 20 s) with the guard removed.
+2. A later pass's non-adapter exception discards the first answer. **Left:** it propagates as any
+   build error does (R5.3), and requests made during it stay marked for the next writer.
+3. A busy `code-atlas-build --full` is served as an incremental. **Fixed:** the exit-`4` row says so.
+4. AC1's settle wait. **Left:** it bounds the one slow test; the window tests are deterministic.
+5. Scope: no creep.
+
+AC3's weak proof is **upgraded** in `c3bd069d`: a real child process takes the lock, writes the
+marker and is SIGKILLed; the next writer runs once and leaves no marker.
+
+The fixes stay inside the approved files, so the verify ran in the main loop with no re-dispatch:
+13 passed (`tests/test_a_refused_refresh_is_served.py`, `tests/test_busy_build_staleness.py`) on
+`c3bd069d`.
+
+`Ph3/4 proven by`: G1, C1, C2, R1–R5, AC1–AC5 — 13/13.
+
+Verdict: **clean (challenger only — REVIEWER: OFF)**.
+
+Reviewed at c3bd069d — the diff `fix/360-build-stamps-head-read-at-the-end..c3bd069d`. Working doc:
+`docs/tasks/357_a-refresh-that-finds-the-lock-held-is-lost.md` (embedded).
+
+## Phase 5 — finalise
+
+Stale-review guard: after `c3bd069d` only bookkeeping changed — this doc, `docs/BACKLOG.md`,
+`docs/TOKEN_LEDGER.md` and `docs/LESSONS.md`, all exempt.
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+`357-C1` is type 2 (code), handle `a-flag-loop-needs-a-clearable-flag`: a loop driven by "while
+the flag file exists" spins when the flag cannot be removed; serve it only after a removal that
+worked. Recorded in `docs/LESSONS.md` as a first sighting. Per P1, `343-C2` and `356-C1` gain 357
+(both handles traced). Their `seen ≥ 2` now makes them promotion candidates for
+`/mango:promote`, which this run does not invoke (cross-ticket, human-ratified).
+
+### Outward actions
+
+1. Push `fix/357-a-refresh-that-finds-the-lock-held-is-lost` — pre-authorised.
+2. Open the PR, based on `fix/360-build-stamps-head-read-at-the-end` — pre-authorised.
+
+Deferred to the maintainer: the merge (after #27); `/mango:promote` on the two handles now at
+`seen ≥ 2`.
+
+### Cost ledger
+
+| # | Phase | Dispatch | Tokens |
+|---|---|---|---|
+| 1 | refine | exposure-checker (`challenger`) | 46,332 |
+| 2 | review | `challenger`, round 1 | 57,470 |
+| — | main loop | — | unmeasured |
+
+`LEDGER TOTAL: 103,802 · top cost driver: review/challenger`
+
+**Revert path.** `git revert` the branch commits. A leftover `write.pending` is inert to the old code.
