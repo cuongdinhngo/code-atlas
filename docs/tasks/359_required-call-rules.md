@@ -77,7 +77,7 @@ form, and no rule can say it today.
 
 ## Session status
 
-- **KEY:** 359 · **work_doc_mode:** embed · **Current phase:** 3 execute · **Next action:** review. **Revert path:** `git revert` the branch's commits.
+- **KEY:** 359 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer reviews and merges the PR. **Revert path:** `git revert` the branch's commits.
 - `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · Run mode: `autorun`, batch 360 → 357 → 358 → 359;
   *"with skipped reviewer"* = `--no-reviewer` only, the challenger keeps its seat.
 - Branch `feat/359-required-call-rules` off `main` (`41ba7996`). Contract `.mango/run-contract-359.txt`, written
@@ -248,7 +248,8 @@ labelled X1, X3 and X6 "want"; each is answered by the ticket or the code, cited
 
 ## Phase 3 — execute
 
-Commits on `feat/359-required-call-rules`: `ca5ced8e` (the change), `e7e83140` (X1, X2).
+Commits on `feat/359-required-call-rules`: `ca5ced8e` (the change), `e7e83140` (X1, X2), `cb2dda7a`
+(the challenger's findings 1–4).
 
 **Sweep.**
 - Axis 1 — file set: the change list exactly.
@@ -260,3 +261,65 @@ Commits on `feat/359-required-call-rules`: `ca5ced8e` (the change), `e7e83140` (
 - The TOOLS.md example loads as one `ArchitectureRule` and one `RequiredRule`.
 - **Red first.** The test file copied onto a worktree of `41ba7996`: 20 failed, 1 passed — the one is
   AC5's forbidden digest pin, which holds there by construction.
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`
+
+**Challenger (ticket-blind, round 1, on `e7e83140`, 57,888 tokens): 12 met · 0 not met · 1 can't
+tell.** The can't-tell is AC1. It assumed the test skipped with the adapter tests, but the test seeds
+its index directly: `test_one_handler_of_three_skips_the_gate` passed in the main loop on
+`cb2dda7a`. It found no off-by-one in depth, cycles are safe, and truncation forces a candidate.
+Findings:
+
+1. Scope 2's "never clean while the walk met an unresolved call" against AC8's pass. The code follows
+   AC8, the more specific clause. **Fixed in docs:** a reached target is a pass.
+2. Calibration is stricter than the ticket's words: only confirmed rows meet a `violating` entry.
+   **Fixed in docs** (H7 is the decision).
+3. `rule_matched_no_files` outranks `calibration_failed`. **Fixed in docs.**
+4. Required rows are not canonically sorted. **Fixed:** they are sorted by `(rule_id, source_file,
+   source_qname)` before the digest.
+5. A forbidden rule ignores stray required-only keys. **Left:** rejecting them would touch the
+   forbidden path, which AC5 pins.
+
+The fixes stay inside the reviewed files, so the verify ran in the main loop with no re-dispatch:
+40 passed (the required, architecture and doc-budget tests) on `cb2dda7a`.
+
+`Ph3/4 proven by`: G1, C1–C3, R1–R5, AC1–AC8 — 17/17.
+
+Verdict: **clean (challenger only — REVIEWER: OFF)**.
+
+Reviewed at cb2dda7a — the diff `main..cb2dda7a`. Working doc: `docs/tasks/359_required-call-rules.md` (embedded).
+
+## Phase 5 — finalise
+
+Stale-review guard: after `cb2dda7a` only bookkeeping changed — this doc, `docs/BACKLOG.md`,
+`docs/TOKEN_LEDGER.md` and `docs/LESSONS.md`, all exempt.
+
+`CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+No new lesson: the review's findings were wording and ordering, none a recurring class. Per P1,
+`343-C2` gains 359 (the formatter handle was traced).
+
+### Outward actions
+
+1. Push `feat/359-required-call-rules` — pre-authorised.
+2. Open the PR — pre-authorised.
+
+Deferred to the maintainer: the merge.
+
+### Cost ledger
+
+| # | Phase | Dispatch | Tokens |
+|---|---|---|---|
+| 1 | refine | exposure-checker (`challenger`) | 45,914 |
+| 2 | review | `challenger`, round 1 | 57,888 |
+| — | main loop | — | unmeasured |
+
+`LEDGER TOTAL: 103,802 · top cost driver: review/challenger`
+
+**Revert path.** `git revert` the branch commits.
