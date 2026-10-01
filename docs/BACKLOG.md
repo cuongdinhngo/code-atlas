@@ -24,7 +24,7 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
-| 357 | [A refresh that finds the write lock held is dropped](tasks/357_a-refresh-that-finds-the-lock-held-is-lost.md) | Freshness | todo | 053, 355 |
+| 357 | [A refresh that finds the write lock held is dropped](tasks/357_a-refresh-that-finds-the-lock-held-is-lost.md) | Freshness | todo | 053, 355, 360 |
 | 358 | [CI never builds the test image `docker/Dockerfile`](tasks/358_ci-never-builds-the-test-image.md) | Tooling | todo | 323 |
 | 359 | [A rule can forbid an edge but not require one](tasks/359_required-call-rules.md) | Coverage | todo | 138 |
 | 360 | [A build stamps the HEAD it reads at the end, so a mid-build HEAD move says `current` falsely](tasks/360_build-stamps-head-read-at-the-end.md) | Freshness | todo | 053, 166 |

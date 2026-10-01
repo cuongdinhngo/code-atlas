@@ -5,7 +5,7 @@ title: 'A refresh that finds the write lock held is dropped, so the index can st
 phase: 2
 milestone: Freshness
 status: todo
-depends_on: [053, 355]
+depends_on: [053, 355, 360]
 ---
 
 ## Why this exists
@@ -20,9 +20,13 @@ common:
   The index stops at a pick's HEAD.
 - Two commits a minute apart, or a `git pull` (`post-merge`) right after a commit.
 
-Answers stay honest — the state line says `behind`, and 035's read-through repairs the files a query
-touches — but the index the hooks were installed to keep current is not current until the next
-refresh. `contrib/git/README.md` documents the gap (355).
+Once 360 lands, answers stay honest: the state line says `behind`, and 035's read-through repairs
+the files a query touches. Even then, the index the hooks were installed to keep current is not
+current until the next refresh. `contrib/git/README.md` documents the gap (355).
+
+**Land 360 first.** Today the build stamps the HEAD it reads at the end, so a dropped refresh can
+leave the index falsely `current` (360). The re-run in Scope 1 would then diff an empty
+`last_commit..HEAD` and parse nothing, and AC1 would pass on `last_commit` alone.
 
 ## Scope
 
@@ -42,7 +46,9 @@ refresh. `contrib/git/README.md` documents the gap (355).
 ## Acceptance criteria
 
 - **AC1 (proving test):** a real `git rebase` of two picks with the hooks installed and a real
-  index ends with the index's `last_commit` equal to HEAD.
+  index ends with the index's `last_commit` equal to HEAD, and with its file and symbol counts
+  equal to a fresh full build at HEAD. `last_commit` alone cannot prove it, because before 360 it
+  equals HEAD by construction.
 - **AC2:** two refreshes requested while one runs cost exactly one extra incremental, not two.
 - **AC3:** a holder killed with a marker pending leaves no claim that outlives it (177): the next
   writer starts clean and the marker is consumed or ignored, never a permanent "pending".
