@@ -25,6 +25,14 @@ break surfaces only when the maintainer runs Docker before a PR.
 1. One CI job that builds `docker/Dockerfile` (build only — the suite already runs in the pytest
    job; running it twice buys nothing).
 2. `scripts/gate.sh` mirrors the job, kept in step by `tests/test_ci_and_gate_agree.py`.
+3. The job uses buildx's GitHub Actions cache (`type=gha`), so an unchanged image is not rebuilt
+   from scratch on every PR.
+
+**Open decision (resolve at design):** `gate.sh --docker` already builds `docker/Dockerfile`
+(`scripts/gate.sh:44`), but a plain run does not. Mirroring the job in a plain run means either
+every local gate builds the image (slow, needs Docker), or it records a SKIP without Docker, which
+is exit 2 and never `GATE GREEN` (R6.5). The other choice is to mirror it only under `--docker`,
+with `test_ci_and_gate_agree` taught that one exception.
 
 ## Acceptance criteria
 

@@ -27,16 +27,22 @@ form, and no rule can say it today.
    - `sources` selects symbols with path globs, plus an optional name regex and node kind.
    - `required` names target qnames.
    - A source with no edge of `kinds` to any target within `depth` is a violation.
-2. **Absence is tiered from the source's outgoing edges.** A violation is confirmed only when every
-   outgoing edge of `kinds` from that source is `RESOLVED`. Otherwise it is a candidate, with an
-   `unresolved_outgoing` count. A rule never reports a source as clean while it has an unresolved
-   call.
+2. **Absence is tiered over everything the walk explores.** A violation is confirmed only when
+   every edge of `kinds` met within `depth` is `RESOLVED`: the source's own edges and those of
+   every intermediate symbol. Otherwise it is a candidate, with an `unresolved_outgoing` count
+   over the whole explored frontier. In handler → helper → (unresolved), the handler is a
+   candidate, not confirmed. A rule never reports a source as clean while the walk met an
+   unresolved call.
 3. **Calibration as data.** A rule may list `expect` with qnames known to violate and qnames known
    to pass, for example the fixed sites of past tickets. The per-rule report gives
    `expected_found` and `expected_missed`. A rule that misses one reads `calibration_failed`, and
    its rows are still returned.
 4. Language-specific gate and sink names live only in the rule file. The core gains no names
    (R1.1, R2.2).
+5. **This is a new evaluation path, not a flag on today's.** `architecture_rules.py` matches at file
+   granularity: `ArchitectureRule.forbidden` holds globs, and `Violation` carries `source_file` and
+   `forbidden_file`. `required` selects symbols and targets qnames, so it needs its own rule type,
+   walk and report row. `forbidden` keeps its code path untouched, which is what AC5 pins.
 
 **Out of scope:**
 - Tracking tickets or a taxonomy.
@@ -57,7 +63,12 @@ form, and no rule can say it today.
   `calibration_failed`.
 - **AC5:** With no `required` rule, the `forbidden` rule output stays byte-identical (R4.2). An
   invalid `required` rule fails loudly at load (R5.3).
-- **AC6:** If `sources` matches zero symbols, the rule says so, in the
-  `rule_matched_no_files` family, rather than reporting zero violations.
+- **AC6:** If `sources` matches zero symbols, the rule says so rather than reporting zero
+  violations. Design decides between reusing `rule_matched_no_files` and adding a reason to the
+  `NavReason` vocabulary (`code_atlas/tools/nav_result.py`). If it adds one, check whether that
+  vocabulary is contract-frozen (R3) and, if so, bump and cut a release.
+- **AC8:** handler → helper → gate, where helper also has an unresolved call: with `depth` 2 the
+  handler passes (the gate is reached). In handler → helper → (unresolved only), the handler is a
+  candidate, never confirmed.
 - **AC7:** No repo or framework names appear under `code_atlas/` (R2.2 gate). Fixtures use
   stand-in names (R2.4).

@@ -33,6 +33,11 @@ refresh. `contrib/git/README.md` documents the gap (355).
    not only the git hooks — it is the lock's contract, not a hook's.
 3. A full rebuild in progress is not repeated: a marker left during one is served by one
    incremental after it publishes.
+4. **No lost wake-up.** A marker written after the holder's last check but before its unlock must
+   still land. So the holder releases, re-checks the marker, and if it is set tries the lock again,
+   looping until the marker is clear. Checking only before release leaves a window AC1 can fail in.
+5. The marker is a stateless "dirty" flag (one overwritable file, no PID, no owner). Nothing has to
+   be reclaimed when a holder dies: the next writer reads it, clears it and runs (AC3, 177).
 
 ## Acceptance criteria
 
@@ -42,3 +47,6 @@ refresh. `contrib/git/README.md` documents the gap (355).
 - **AC3:** a holder killed with a marker pending leaves no claim that outlives it (177): the next
   writer starts clean and the marker is consumed or ignored, never a permanent "pending".
 - **AC4:** `contrib/git/README.md`'s rebase row no longer carries the gap.
+- **AC5:** a unit test drives two writers deterministically through the window between the
+  holder's last check and its unlock, and the late request still runs. AC1's real rebase is slow
+  and timing-dependent, so it cannot be the only proof of Scope 4.
