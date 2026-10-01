@@ -278,4 +278,6 @@ Deferred to the maintainer: the merge; ratifying W1, X1, X2; making `test-image`
 
 `LEDGER TOTAL: 91,626 · top cost driver: review/challenger`
 
+**Gate.** `scripts/gate.sh` on `ea7ed619` (the bookkeeping tip): `GATE GREEN — all 21 checks passed` (Linux, bare pytest). PR #29's CI run 36891274373 on `ea7ed619`: `test-image` passed in 1m59s, in parallel with the 5m25s py3.13 test job (AC3 measured). Only this doc and the ledger's gate note changed after it.
+
 **Revert path.** `git revert` the branch commits.
