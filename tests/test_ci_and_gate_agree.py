@@ -6,7 +6,8 @@ wrong in both directions about whether Actions run; it now says what AGENTS.md s
 
 The table below is the enforcement. Each row is one check that must be spent in BOTH files, matched
 on the command each actually runs rather than on prose, so a check added to CI without a local
-counterpart (or the reverse) fails here instead of being discovered on a red PR.
+counterpart (or the reverse) fails here instead of being discovered on a red PR. One row is spent
+only by `gate.sh --docker` — the image build (358) — and a test below pins it to that branch.
 """
 
 from __future__ import annotations
@@ -118,7 +119,9 @@ def test_the_test_image_job_builds_in_parallel_from_the_gha_cache() -> None:
     Made to fail: add `needs:` to the job, a `run:` step to it, or drop either cache line.
     """
     ci = CI.read_text(encoding="utf-8")
-    job = ci.split("\n  test-image:\n")[1].split("\n  guardrails:\n")[0]
+    assert "\n  test-image:\n" in ci, "the test-image job is gone or renamed"
+    body = ci.split("\n  test-image:\n")[1].split("\n  guardrails:\n")[0]
+    job = "\n".join(line for line in body.splitlines() if not line.lstrip().startswith("#"))
     assert "needs:" not in job and "needs: test-image" not in ci
     assert "run:" not in job, "build only — the suite already runs in the test job"
     assert "file: docker/Dockerfile" in job and "context: ." in job
@@ -126,3 +129,15 @@ def test_the_test_image_job_builds_in_parallel_from_the_gha_cache() -> None:
     assert "cache-from: type=gha" in job and "cache-to: type=gha" in job
     # A fork PR's read-only token cannot write the cache; that must not fail the build check.
     assert "ignore-error=true" in job
+
+
+def test_only_the_docker_gate_builds_the_test_image() -> None:
+    """The one `SHARED_CHECKS` row a plain run skips: the build sits in `--docker`'s branch.
+
+    Made to fail: move the `docker build` line above `if [ "$docker" -eq 1 ]`, or past its `exec`.
+    """
+    gate = GATE.read_text(encoding="utf-8")
+    branch = gate.split('if [ "$docker" -eq 1 ]; then\n    if ! command -v docker')[1]
+    branch = branch.split("\nfi\n")[0]
+    assert 'docker build -f "$root/docker/Dockerfile"' in branch
+    assert gate.count('docker build -f "$root/docker/Dockerfile"') == 1
