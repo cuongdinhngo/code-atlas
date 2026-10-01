@@ -309,6 +309,9 @@ def _run(
     to do (task 172).
     """
     progress = _progress_sink(config)
+    # The one HEAD read, before the diff and the tree walk: the stamp names this commit, so a
+    # commit landing mid-build leaves the index `behind`, never falsely `current` (360).
+    head = gitutil.head_commit_and_ref(config.root)
     # BEFORE any write, on EVERY path. `full_build` raises this too, but by then an escalating
     # incremental has already stamped `build_complete = 0`, so the refusal would not be free.
     # A narrowed adapter set has no safe outcome: escalate and discard, or leave rows nothing can
@@ -319,21 +322,26 @@ def _run(
             raise CoverageLossError(lost)
     if full:
         return FULL, full_build(
-            config, store, progress=progress, allow_coverage_loss=allow_coverage_loss
+            config, store, progress=progress, allow_coverage_loss=allow_coverage_loss, head=head
         )
     last = store.get_meta(LAST_COMMIT_KEY)
-    if last is None or gitutil.head_commit(config.root) is None:
+    if last is None or head[0] is None:
         return FULL, full_build(
-            config, store, progress=progress, allow_coverage_loss=allow_coverage_loss
+            config, store, progress=progress, allow_coverage_loss=allow_coverage_loss, head=head
         )
     changed = gitutil.changed_paths(config.root, last)
     if changed is None:
         return FULL, full_build(
-            config, store, progress=progress, allow_coverage_loss=allow_coverage_loss
+            config, store, progress=progress, allow_coverage_loss=allow_coverage_loss, head=head
         )
     report = incremental_update(
-        config, store, changed, progress=progress, scope=scope,
+        config,
+        store,
+        changed,
+        progress=progress,
+        scope=scope,
         allow_coverage_loss=allow_coverage_loss,
+        head=head,
     )
     return (FULL if scope else INCREMENTAL), report
 

@@ -312,8 +312,9 @@ Runs after all nodes exist:
 - **Scale:** the resolver streams unresolved edges in batches and applies links in one transaction per batch (015); remaining candidate lookups stay capped by `CA_MAX_CANDIDATES`.
 
 ### 8.3 Incremental (`indexer.incremental_update`)
-**Shipped (task 016).** Diff = `last_commit..HEAD` **∪** working-tree changes vs `HEAD` (so
-uncommitted edits are visible to `full=false`). Add single-hop **dependents** (files with edges
+**Shipped (task 016).** Diff = `git diff <last_commit>`, the working tree against the indexed
+commit (so uncommitted edits are visible to `full=false`). HEAD is read once, before the diff and
+the tree walk, and that SHA is the stamp, so a commit landing mid-build leaves `behind` (360). Add single-hop **dependents** (files with edges
 into changed or departing symbols — including rename sources that git only reports as the new
 path); reparse `changed ∪ dependents` (hash-skip only unchanged *changed* paths — dependents are
 always reparsed so adapter tiers and duplicate keys stay intact); `resolve_edges`; bump
