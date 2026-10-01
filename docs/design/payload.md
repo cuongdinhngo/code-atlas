@@ -27,7 +27,11 @@ them reports:
   `proximity_candidates` rows, each naming its `candidate_of` (258). **An empty result is never an unexplained zero**, and where a better
   route exists the payload names a real, callable tool in `try_instead`.
 - **`resolved_qname`** — when you typed `Foo\Bar` and the index stores `\Foo\Bar`, the tool answers
-  about the stored name and tells you which one it used.
+  about the stored name and tells you which one it used. The reverse — `dbo.Orders` asked of a table stored as
+  `Orders` — is never answered on your behalf: the miss names the stored qname in **`candidates`**,
+  because the extra qualifier may name a different symbol (354). On a behind index the guard checks that
+  variant's file and the miss says how many other files drifted (`subject_file_checked`, 246),
+  rather than refusing it as `index_stale`.
 
 Two more fire when a page could mislead: a truncated `file_outline` adds **`result_kinds`** (every
 kind in the file with its count, so a capped symbol map cannot read as complete), and a truncated
@@ -41,7 +45,9 @@ by default. `full_body=true` or a `line_start`/`line_end` range inside the symbo
 bytes; under the threshold the payload stays byte-identical (288 / 061).
 
 Every answer also carries **`index_root`** — the source tree it describes — so an agent in a worktree
-can spot a server pointed at the main checkout. Full field reference:
+can spot a server pointed at the main checkout. While a build holds the write lock it also carries
+**`build_in_progress: true`** and **`build_phase`** — a full rebuild answers from the last good
+index until it publishes ([356](indexing.md#a-full-rebuild-keeps-serving-the-last-good-index-task-356)). Full field reference:
 [`docs/CONVENTION.md`](../CONVENTION.md) §6.
 
 ### When an answer is a partition, both nav tools say so (task 168)

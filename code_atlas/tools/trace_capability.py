@@ -13,6 +13,7 @@ from collections.abc import Callable
 from typing import Literal
 
 from code_atlas.config import Config
+from code_atlas.onboarding.capabilities import ENTRY_POINTS_KNOB
 from code_atlas.onboarding.flows import FLOW_KINDS, Flow, FlowSet, flows_from_graph
 from code_atlas.onboarding.layers import (
     IdentityLayerRefiner,
@@ -23,12 +24,14 @@ from code_atlas.onboarding.metrics import compute_metrics
 from code_atlas.onboarding.modules import find_business_modules
 from code_atlas.store import GraphStore
 from code_atlas.tools.nav_result import (
+    REASON_CAPABILITY_NOT_CONFIGURED,
     REASON_NAME_NOT_QUALIFIED,
     REASON_NO_MATCHES,
     REASON_NO_SUCH_SYMBOL,
     REASON_NOT_INDEXED,
     REASON_OK,
     TRY_INSTEAD_SEARCH_SYMBOL,
+    attach_try_instead,
 )
 
 NAME = "trace_capability"
@@ -42,6 +45,13 @@ SUBJECT_MODULE = "module"
 # A subject that IS indexed but joins no traced flow. `architecture_overview` names the flows that
 # exist, so the route makes progress rather than pointing back here (R5.4).
 TRY_INSTEAD_OVERVIEW = "architecture_overview"
+# No flow could be seeded: a flow starts at a declared entry point or an entry-named path, never
+# at capabilities.toml, so the route names the knob that seeds one (354). Status nominates globs.
+TRY_INSTEAD_INDEX_STATUS = "get_index_status"
+ENTRY_POINTS_ROUTE = (
+    f"no flow could be seeded — set {ENTRY_POINTS_KNOB} to the files a request enters "
+    "through; get_index_status nominates candidate globs"
+)
 
 __all__ = [
     "NAME",
@@ -218,6 +228,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``kind`` · ``tier``), how it ``ended`` and its ``sink``. A subject the index does not hold
         answers ``no_such_symbol``; one it holds that joins no traced flow answers ``no_matches``
         and routes to ``architecture_overview`` — never an empty ``results`` presented as an answer.
+        An index where no flow could be seeded (no declared entry point, no entry-named path)
+        answers ``capability_not_configured`` for every subject and routes to ``get_index_status``,
+        which nominates entry-point globs.
         Carries no layer table, matrix, hub list or capability table: for the whole picture call
         ``architecture_overview`` instead.
         """
@@ -251,6 +264,16 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 payload["try_instead"] = TRY_INSTEAD_SEARCH_SYMBOL
                 return payload
             built = _build(store, config)
+        if not built.flows and not config.entry_points:
+            unseeded = _envelope(
+                config=config,
+                subject=subject,
+                subject_kind=kind,
+                indexed=True,
+                reason=REASON_CAPABILITY_NOT_CONFIGURED,
+                truncated=_incomplete(built),
+            )
+            return attach_try_instead(unseeded, TRY_INSTEAD_INDEX_STATUS, ENTRY_POINTS_ROUTE)
         matched = [flow for flow in built.flows if _participates(flow, kind, subject)]
         matched, subsumed = _drop_subsumed(matched)
         if not matched:

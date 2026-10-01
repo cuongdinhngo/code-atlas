@@ -10,10 +10,15 @@ from collections.abc import Callable
 from typing import Any
 
 from code_atlas.config import Config
+from code_atlas.index_lock import build_in_progress, build_phase
 from code_atlas.store import SchemaVersionError
 from code_atlas.worktree_guard import worktree_db_refusal
 
 SCHEMA_MISMATCH = "schema_version_mismatch"
+# A writer holds `write.lock` (178) and its live phase (177). A full rebuild serves the last good
+# index until it publishes, so these say "a newer graph is coming", not "this one is partial" (356).
+BUILD_IN_PROGRESS = "build_in_progress"
+BUILD_PHASE = "build_phase"
 
 
 def payload(mismatch: SchemaVersionError) -> dict[str, object]:
@@ -39,7 +44,8 @@ def guard(
 
     With ``config``, a linked-worktree DB outside the worktree refuses first (268). That verdict
     is read once here, not per call: deciding it asks git, and a subprocess on every answer is
-    the cost 260 measured against a 0.4 ms nav read.
+    the cost 260 measured against a 0.4 ms nav read. Every answer also names a build in flight
+    and its phase — one lock probe per call, omitted when no writer holds the lock (356).
     """
     refusal = None if config is None else worktree_db_refusal(config)
 
@@ -48,8 +54,21 @@ def guard(
         if refusal is not None:
             return dict(refusal)
         try:
-            return tool(*args, **kwargs)
+            answer = tool(*args, **kwargs)
         except SchemaVersionError as mismatch:
-            return payload(mismatch)
+            answer = payload(mismatch)
+        if config is not None:
+            attach_build_state(answer, config)
+        return answer
 
     return guarded
+
+
+def attach_build_state(answer: dict[str, object], config: Config) -> dict[str, object]:
+    """Name a build in flight and its phase on ``answer``; add nothing when none is (061, 356)."""
+    if isinstance(answer, dict) and build_in_progress(config.db_path):
+        answer[BUILD_IN_PROGRESS] = True
+        phase = build_phase(config.db_path)
+        if phase is not None:
+            answer[BUILD_PHASE] = phase
+    return answer

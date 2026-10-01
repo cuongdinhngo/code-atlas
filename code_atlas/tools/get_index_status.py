@@ -56,6 +56,7 @@ from code_atlas.tools.nominate_roots import (
     filesystem_paths,
     stub_root_nominations,
 )
+from code_atlas.tools.schema_guard import BUILD_IN_PROGRESS
 from code_atlas.tools.staleness import BEHIND, CURRENT, UNKNOWN, compute_staleness
 
 NAME = "get_index_status"
@@ -104,7 +105,6 @@ CHANGED_INDEXED_BETWEEN = ("last_commit", "head_commit")
 # Two axes the revision axis deliberately does not answer (task 178). `staleness` says WHICH
 # REVISION this index describes — 072's busy refusal and 077 both read it that way — so "is a build
 # running" and "did the last build finish linking" get their own names rather than overloading it.
-BUILD_IN_PROGRESS = "build_in_progress"
 INDEX_COMPLETE = "index_complete"
 FULL_REBUILD_REQUIRED = "full_rebuild_required"
 COVERAGE_LOSS_PENDING = "coverage_loss_pending"
