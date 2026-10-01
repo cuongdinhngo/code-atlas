@@ -262,6 +262,14 @@ class ReachabilityResult(NamedTuple):
     budget_exhausted: bool = False
 
 
+class RequiredWalk(NamedTuple):
+    """Did a seed reach a required target, and how much of the walk could not be followed (359)."""
+
+    reached: bool
+    unresolved_outgoing: int
+    truncated: bool
+
+
 class OrphanResult(NamedTuple):
     """Complement of reachability: orphans with why, plus unproven (task 031)."""
 
@@ -3330,6 +3338,54 @@ class GraphStore:
         finally:
             if not retain_temps:
                 self._reach_drop_temps()
+
+    def required_walk(
+        self,
+        seed: str,
+        targets: Sequence[str],
+        *,
+        kinds: Sequence[str],
+        depth: int,
+        max_nodes: int,
+    ) -> RequiredWalk:
+        """Does ``seed`` reach a target within ``depth`` hops of ``kinds`` edges? (task 359)
+
+        Only RESOLVED edges expand and only they can reach a target, as in :meth:`reachable_from`;
+        every other edge met — unlinked, HEURISTIC, DYNAMIC — is counted, so an absence is only
+        as strong as the walk that looked for it.
+        """
+        wanted = set(targets)
+        walk_kinds = list(dict.fromkeys(kinds))
+        seen = {seed}
+        frontier = [seed]
+        unresolved = 0
+        truncated = False
+        for _hop in range(depth):
+            if not frontier:
+                break
+            following: list[str] = []
+            for chunk in _chunks(frontier, _IN_CHUNK):
+                marks = ",".join("?" * len(chunk))
+                kind_marks = ",".join("?" * len(walk_kinds))
+                cursor = self._conn.execute(
+                    "SELECT target_qname, COALESCE(confidence_tier, ?) FROM edges "
+                    f"WHERE source_qname IN ({marks}) AND kind IN ({kind_marks}) "
+                    "ORDER BY source_qname, id",
+                    (_RESOLVED, *chunk, *walk_kinds),
+                )
+                for target, tier in cursor:
+                    if target is None or tier != _RESOLVED:
+                        unresolved += 1
+                    elif target in wanted:
+                        return RequiredWalk(True, unresolved, False)
+                    elif target not in seen:
+                        if len(seen) >= max_nodes:
+                            truncated = True
+                            continue
+                        seen.add(str(target))
+                        following.append(str(target))
+            frontier = following
+        return RequiredWalk(False, unresolved, truncated)
 
     def find_orphans(
         self,
