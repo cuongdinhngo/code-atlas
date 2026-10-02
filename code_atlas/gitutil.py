@@ -13,6 +13,9 @@ from pathlib import Path
 # cold FS. The tree-kill + bounded drain below is the real backstop, so the ceiling stays tight.
 GIT_TIMEOUT = 30.0
 
+# (commit, ref) from one HEAD read; either is None when git cannot name it (077).
+GitHead = tuple[str | None, str | None]
+
 # Headless native Windows wedges git three ways; each guard below is a no-op off Windows (task 271).
 # stdin=DEVNULL stops the inherited-console-handle block; CREATE_NO_WINDOW stops a new console;
 # tree-kill on timeout frees the capture pipe a grandchild still holds while the reader blocks.
@@ -55,7 +58,7 @@ def head_ref(root: Path) -> str | None:
     return ref
 
 
-def head_commit_and_ref(root: Path) -> tuple[str | None, str | None]:
+def head_commit_and_ref(root: Path) -> GitHead:
     """SHA and abbrev-ref from one ``rev-parse`` — one HEAD read, no mid-call drift (077).
 
     Detached checkouts report the literal ``HEAD`` as the ref (a value, not an omission — 061).
@@ -74,19 +77,16 @@ def head_commit_and_ref(root: Path) -> tuple[str | None, str | None]:
 def changed_paths(root: Path, since: str) -> tuple[str, ...] | None:
     """Paths that differ from ``since`` on disk, or None when git cannot answer (§8.3).
 
-    Unions ``since..HEAD`` with the working tree vs ``HEAD`` (staged and unstaged), so an
-    uncommitted edit is visible to ``full=false`` the same way a full build would see it. Renames
+    One ``git diff <since>`` — ``since`` against the working tree, staged and unstaged — so an
+    uncommitted edit is visible to ``full=false`` the same way a full build would see it, and HEAD
+    is never read: a commit landing mid-build cannot slip between two reads (360). Renames
     contribute the new path; the old path drops out of ``collect`` and must be folded into
     affected qnames by the indexer before reconcile.
     """
-    committed = _run(root, "diff", "--name-only", "-z", f"{since}..HEAD")
-    if committed is None:
+    found = _run(root, "diff", "--name-only", "-z", since, "--")
+    if found is None:
         return None
-    paths = {path for path in committed.split("\0") if path}
-    dirty = _run(root, "diff", "--name-only", "-z", "HEAD")
-    if dirty is not None:
-        paths.update(path for path in dirty.split("\0") if path)
-    return tuple(sorted(paths))
+    return tuple(sorted({path for path in found.split("\0") if path}))
 
 
 def dirty_paths(root: Path) -> tuple[str, ...] | None:

@@ -26,7 +26,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
 | 357 | [A refresh that finds the write lock held is dropped](tasks/357_a-refresh-that-finds-the-lock-held-is-lost.md) | Freshness | todo | 053, 355, 360 |
 | 359 | [A rule can forbid an edge but not require one](tasks/359_required-call-rules.md) | Coverage | todo | 138 |
-| 360 | [A build stamps the HEAD it reads at the end, so a mid-build HEAD move says `current` falsely](tasks/360_build-stamps-head-read-at-the-end.md) | Freshness | todo | 053, 166 |
 
 ## Open work — Pillar 2 · Onboarding
 
