@@ -135,7 +135,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
 ### 343-C2 — `ruff format` on a file you edit rewrites lines you did not
 
 - type: 2 (code) · handle: `formatter-rewrites-untouched-lines`
-- status: proposed · seen: 343, 360, 357
+- status: proposed · seen: 343, 360, 359, 357
 - evidence: formatting four edited files reflowed four untouched spots (two `main.py` calls, the
   `which_tool` string, a test lambda); the challenger caught one I had missed. The gate runs
   `ruff check` only, so the drift is silent. Format, then revert every hunk the change does not own.

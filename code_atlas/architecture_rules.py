@@ -1,8 +1,10 @@
-"""Declarative architecture dependency rules checked against the graph (task 138).
+"""Declarative architecture dependency rules checked against the graph (tasks 138, 359).
 
 Rules are data the operator hands the server — path sets, edge kinds, direction, transitive —
 never framework or product names inside ``code_atlas/`` (R2.2). Off when unset. Confirmed
 violations need a RESOLVED walk; HEURISTIC-only evidence is a candidate, never a gate failure.
+A ``forbidden`` rule finds an edge that is present; a ``required`` rule (359) finds one that is
+absent, so its confirmed population needs every edge the walk met to be RESOLVED.
 """
 
 from __future__ import annotations
@@ -16,7 +18,7 @@ from typing import Any
 
 from code_atlas.config import Config, ConfigError
 from code_atlas.containment import resolves_inside
-from code_atlas.contract import IMPACT_KINDS
+from code_atlas.contract import IMPACT_KINDS, NODE_KINDS
 from code_atlas.ignore import translate_path_pattern
 from code_atlas.store import GraphStore
 
@@ -26,11 +28,17 @@ DIRECTIONS: tuple[str, ...] = ("outgoing", "incoming")
 # stay in ``tools/nav_result.py`` — the core never imports a tool.
 STATUS_CHECKED = "checked"
 STATUS_MATCHED_NO_FILES = "rule_matched_no_files"
+# A required rule whose `expect` list named a qname the walk judged otherwise (359).
+STATUS_CALIBRATION_FAILED = "calibration_failed"
 
 __all__ = [
     "ArchitectureRule",
     "CheckOutcome",
     "DIRECTIONS",
+    "RequiredRule",
+    "RequiredRuleReport",
+    "RequiredViolation",
+    "STATUS_CALIBRATION_FAILED",
     "STATUS_CHECKED",
     "STATUS_MATCHED_NO_FILES",
     "RuleReport",
@@ -74,21 +82,65 @@ class RuleReport:
 
 
 @dataclass(frozen=True, slots=True)
+class RequiredRule:
+    """Every selected source symbol must reach one of the required qnames (359)."""
+
+    id: str
+    sources: tuple[str, ...]
+    name: str | None
+    kind: str | None
+    required: tuple[str, ...]
+    kinds: tuple[str, ...]
+    depth: int
+    expect_violating: tuple[str, ...] = ()
+    expect_passing: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class RequiredViolation:
+    """One source symbol that reaches no required target within the rule's depth."""
+
+    rule_id: str
+    source_qname: str
+    source_file: str
+    unresolved_outgoing: int
+    truncated: bool
+
+
+@dataclass(frozen=True, slots=True)
+class RequiredRuleReport:
+    """Per-rule honesty for a required rule, calibration included."""
+
+    rule_id: str
+    sources_matched: int
+    targets_matched: int
+    status: str
+    expected_found: int
+    expected_missed: tuple[str, ...]
+    # A required qname the index lacks: a typo or a deleted gate, named rather than skipped.
+    targets_missing: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class CheckOutcome:
     """Confirmed vs candidate populations, plus per-rule status (R4.2 order)."""
 
     confirmed: tuple[Violation, ...]
     candidates: tuple[Violation, ...]
-    rules: tuple[RuleReport, ...]
+    rules: tuple[RuleReport | RequiredRuleReport, ...]
     digest: str
+    required_confirmed: tuple[RequiredViolation, ...] = ()
+    required_candidates: tuple[RequiredViolation, ...] = ()
 
 
-def load_architecture_rules(config: Config) -> tuple[ArchitectureRule, ...] | None:
+def load_architecture_rules(
+    config: Config,
+) -> tuple[ArchitectureRule | RequiredRule, ...] | None:
     """Load and merge every configured rule file; ``None`` when the knob is off."""
     paths = config.architecture_rules
     if not paths:
         return None
-    rules: list[ArchitectureRule] = []
+    rules: list[ArchitectureRule | RequiredRule] = []
     for relative in sorted(paths):
         path = config.root / relative
         if not path.is_file():
@@ -111,7 +163,7 @@ def load_architecture_rules(config: Config) -> tuple[ArchitectureRule, ...] | No
 
 def check_architecture_rules(
     store: GraphStore,
-    rules: Sequence[ArchitectureRule],
+    rules: Sequence[ArchitectureRule | RequiredRule],
     *,
     max_nodes: int,
 ) -> CheckOutcome:
@@ -119,8 +171,10 @@ def check_architecture_rules(
     files = tuple(store.file_paths())
     confirmed: list[Violation] = []
     candidates: list[Violation] = []
-    reports: list[RuleReport] = []
-    for rule in rules:
+    reports: list[RuleReport | RequiredRuleReport] = []
+    forbidden_rules = [rule for rule in rules if isinstance(rule, ArchitectureRule)]
+    required_rules = [rule for rule in rules if isinstance(rule, RequiredRule)]
+    for rule in forbidden_rules:
         source_files = _matching_files(files, rule.sources)
         forbidden_files = set(_matching_files(files, rule.forbidden))
         # Either side empty and the rule proved nothing — 130's family, an honest signal over a
@@ -176,17 +230,99 @@ def check_architecture_rules(
             key=lambda row: (row.rule_id, row.source_file, row.forbidden_file, row.via_qname),
         )
     )
-    digest = sha256(
-        json.dumps(
-            {
-                "candidates": [asdict(row) for row in candidates_sorted],
-                "confirmed": [asdict(row) for row in confirmed_sorted],
-                "rules": [asdict(row) for row in reports],
-            },
-            sort_keys=True,
-        ).encode("utf-8")
-    ).hexdigest()
-    return CheckOutcome(confirmed_sorted, candidates_sorted, tuple(reports), digest)
+    required_confirmed: list[RequiredViolation] = []
+    required_candidates: list[RequiredViolation] = []
+    for required_rule in required_rules:
+        report, hits, maybe = _check_required(store, files, required_rule, max_nodes=max_nodes)
+        reports.append(report)
+        required_confirmed.extend(hits)
+        required_candidates.extend(maybe)
+    required_confirmed.sort(key=lambda row: (row.rule_id, row.source_file, row.source_qname))
+    required_candidates.sort(key=lambda row: (row.rule_id, row.source_file, row.source_qname))
+    hashed: dict[str, object] = {
+        "candidates": [asdict(row) for row in candidates_sorted],
+        "confirmed": [asdict(row) for row in confirmed_sorted],
+        "rules": [asdict(row) for row in reports],
+    }
+    # Only a required rule adds keys, so a forbidden-only digest is unchanged (359 AC5).
+    if required_rules:
+        hashed["required_candidates"] = [asdict(row) for row in required_candidates]
+        hashed["required_confirmed"] = [asdict(row) for row in required_confirmed]
+    digest = sha256(json.dumps(hashed, sort_keys=True).encode("utf-8")).hexdigest()
+    return CheckOutcome(
+        confirmed_sorted,
+        candidates_sorted,
+        tuple(reports),
+        digest,
+        tuple(required_confirmed),
+        tuple(required_candidates),
+    )
+
+
+def _check_required(
+    store: GraphStore,
+    files: Sequence[str],
+    rule: RequiredRule,
+    *,
+    max_nodes: int,
+) -> tuple[RequiredRuleReport, list[RequiredViolation], list[RequiredViolation]]:
+    """Walk each source symbol; no target reached is confirmed only over an all-RESOLVED walk."""
+    sources = _required_sources(store, files, rule)
+    targets = [q for q in rule.required if store.nodes_by_qualified_name(q, limit=1)]
+    missing = tuple(q for q in rule.required if q not in targets)
+    # Either side empty proves nothing, the forbidden rule's answer for the same shape (138).
+    if not sources or not targets:
+        missed = tuple(sorted({*rule.expect_violating, *rule.expect_passing}))
+        report = RequiredRuleReport(
+            rule.id, len(sources), len(targets), STATUS_MATCHED_NO_FILES, 0, missed, missing
+        )
+        return report, [], []
+    confirmed: list[RequiredViolation] = []
+    candidates: list[RequiredViolation] = []
+    for qname, path in sources:
+        walk = store.required_walk(
+            qname, targets, kinds=rule.kinds, depth=rule.depth, max_nodes=max_nodes
+        )
+        if walk.reached:
+            continue
+        row = RequiredViolation(rule.id, qname, path, walk.unresolved_outgoing, walk.truncated)
+        sure = walk.unresolved_outgoing == 0 and not walk.truncated
+        (confirmed if sure else candidates).append(row)
+    flagged = {row.source_qname for row in confirmed}
+    unsure = {row.source_qname for row in candidates}
+    matched = {qname for qname, _ in sources}
+    missed_list = [q for q in rule.expect_violating if q not in flagged]
+    missed_list += [
+        q for q in rule.expect_passing if q not in matched or q in flagged or q in unsure
+    ]
+    missed = tuple(sorted(set(missed_list)))
+    expected = len(set(rule.expect_violating) | set(rule.expect_passing))
+    status = STATUS_CALIBRATION_FAILED if missed else STATUS_CHECKED
+    report = RequiredRuleReport(
+        rule.id, len(sources), len(targets), status, expected - len(missed), missed, missing
+    )
+    return report, confirmed, candidates
+
+
+def _required_sources(
+    store: GraphStore, files: Sequence[str], rule: RequiredRule
+) -> list[tuple[str, str]]:
+    """``(qname, file)`` per selected symbol, file then node order, each qname once."""
+    pattern = re.compile(rule.name) if rule.name is not None else None
+    found: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for path in _matching_files(files, rule.sources):
+        for row in store.nodes_by_file_all(path):
+            qname = str(row["qualified_name"])
+            if qname in seen:
+                continue
+            if rule.kind is not None and row["kind"] != rule.kind:
+                continue
+            if pattern is not None and not pattern.search(str(row["name"])):
+                continue
+            seen.add(qname)
+            found.append((qname, path))
+    return found
 
 
 def _matching_files(files: Sequence[str], patterns: Sequence[str]) -> tuple[str, ...]:
@@ -280,7 +416,7 @@ def _dedupe_module_pairs(
     return [best[key] for key in sorted(best)]
 
 
-def _load_rules(label: str, text: str) -> list[ArchitectureRule]:
+def _load_rules(label: str, text: str) -> list[ArchitectureRule | RequiredRule]:
     try:
         payload: Any = json.loads(text)
     except json.JSONDecodeError as error:
@@ -290,7 +426,7 @@ def _load_rules(label: str, text: str) -> list[ArchitectureRule]:
     raw_rules = payload.get("rules")
     if not isinstance(raw_rules, list) or not raw_rules:
         raise ConfigError(f"architecture_rules: {label!r} rules must be a non-empty list")
-    rules: list[ArchitectureRule] = []
+    rules: list[ArchitectureRule | RequiredRule] = []
     seen_ids: set[str] = set()
     for index, entry in enumerate(raw_rules):
         if not isinstance(entry, dict):
@@ -299,6 +435,9 @@ def _load_rules(label: str, text: str) -> list[ArchitectureRule]:
         if rule_id in seen_ids:
             raise ConfigError(f"architecture_rules: {label!r} duplicate rule id {rule_id!r}")
         seen_ids.add(rule_id)
+        if "required" in entry:
+            rules.append(_load_required_rule(label, rule_id, entry))
+            continue
         sources = _required_patterns(label, entry, "sources")
         forbidden = _required_patterns(label, entry, "forbidden")
         kinds = _optional_kinds(label, entry)
@@ -321,6 +460,50 @@ def _load_rules(label: str, text: str) -> list[ArchitectureRule]:
             )
         )
     return rules
+
+
+def _load_required_rule(label: str, rule_id: str, entry: Mapping[str, Any]) -> RequiredRule:
+    """A required rule, or a ConfigError naming the field — never a half-read rule (R5.3)."""
+    where = f"architecture_rules: {label!r} rule {rule_id!r}"
+    misplaced = sorted({"forbidden", "direction", "transitive"} & set(entry))
+    if misplaced:
+        raise ConfigError(f"{where}: {', '.join(misplaced)} do not apply to a required rule")
+    name = entry.get("name")
+    if name is not None:
+        if not isinstance(name, str) or not name:
+            raise ConfigError(f"{where}: name must be a non-empty regex string")
+        try:
+            re.compile(name)
+        except re.error as error:
+            raise ConfigError(f"{where}: name is not a valid regex ({error})") from error
+    kind = entry.get("kind")
+    if kind is not None and kind not in NODE_KINDS:
+        raise ConfigError(f"{where}: kind must be one of {', '.join(NODE_KINDS)}")
+    depth = entry.get("depth")
+    if not isinstance(depth, int) or isinstance(depth, bool) or depth < 1:
+        raise ConfigError(f"{where}: depth must be an integer >= 1")
+    expect = entry.get("expect", {})
+    if not isinstance(expect, dict) or set(expect) - {"violating", "passing"}:
+        raise ConfigError(f"{where}: expect must be an object with violating / passing lists")
+    return RequiredRule(
+        id=rule_id,
+        sources=_required_patterns(label, entry, "sources"),
+        name=name,
+        kind=kind,
+        required=_qnames(where, entry.get("required"), "required", allow_empty=False),
+        kinds=_optional_kinds(label, entry),
+        depth=depth,
+        expect_violating=_qnames(where, expect.get("violating", []), "expect.violating"),
+        expect_passing=_qnames(where, expect.get("passing", []), "expect.passing"),
+    )
+
+
+def _qnames(where: str, raw: object, field: str, *, allow_empty: bool = True) -> tuple[str, ...]:
+    if not isinstance(raw, list) or (not raw and not allow_empty):
+        raise ConfigError(f"{where}: {field} must be a {'' if allow_empty else 'non-empty '}list")
+    if not all(isinstance(item, str) and item.strip() for item in raw):
+        raise ConfigError(f"{where}: {field} entries must be non-empty qname strings")
+    return tuple(dict.fromkeys(item.strip() for item in raw))
 
 
 def _required_str(label: str, entry: Mapping[str, Any], field: str) -> str:
