@@ -201,6 +201,7 @@ def full_build(
     *,
     progress: ProgressSink | None = None,
     allow_coverage_loss: bool = False,
+    head: gitutil.GitHead | None = None,
 ) -> BuildReport:
     """Index every collectable file under ``config.root`` into ``store`` (§8.1 steps 1-5).
 
@@ -211,7 +212,11 @@ def full_build(
     A file-backed ``store`` is rebuilt in a shadow and published only once the new graph is
     stamped complete, so readers keep the last good index for the whole build and a killed or
     failed build leaves it untouched (356). A ``:memory:`` store or a shadow is filled in place.
+
+    ``head`` is the HEAD read before the tree; ``None`` reads it here, still before (360).
     """
+    if head is None:
+        head = gitutil.head_commit_and_ref(config.root)
     # Before ANY write, and here rather than in the caller: `full_build` is reached from five
     # places, two of them escalations inside `incremental_update` — one of which fires precisely
     # BECAUSE the adapter set narrowed (203, R1.8).
@@ -223,10 +228,10 @@ def full_build(
     rules = load_indirection_rules(config)
     _require_configured_adapters(config)
     if store.in_memory or store.is_shadow:
-        return _fill(config, store, rules, progress=progress)
+        return _fill(config, store, rules, progress=progress, head=head)
     shadow = type(store).open_shadow(store.db_path)
     try:
-        report = _fill(config, shadow, rules, progress=progress)
+        report = _fill(config, shadow, rules, progress=progress, head=head)
         # The shadow starts empty, so what vanished is measured against the live index.
         removed = len(set(store.file_paths()) - set(shadow.file_paths()))
         if progress is not None:
@@ -245,6 +250,7 @@ def _fill(
     rules: RulesPayload | None,
     *,
     progress: ProgressSink | None,
+    head: gitutil.GitHead,
 ) -> BuildReport:
     """Write a whole graph into ``store`` in place: the body of :func:`full_build`."""
     report = _Progress(progress)
@@ -303,6 +309,7 @@ def _fill(
         skipped_suffixes,
         capabilities_by_language=capabilities_by_language,
         shapes_by_language=shapes_by_language,
+        head=head,
     )
     return BuildReport(
         files=len(kept),
@@ -401,6 +408,7 @@ def incremental_update(
     progress: ProgressSink | None = None,
     scope: dict[str, object] | None = None,
     allow_coverage_loss: bool = False,
+    head: gitutil.GitHead | None = None,
 ) -> BuildReport:
     """Re-index ``changed ∪ dependents`` and re-link into affected qnames (§8.3).
 
@@ -411,7 +419,11 @@ def incremental_update(
     When ``phase_times`` is set (profiler only — task 052), records per-phase wall seconds in place.
     When ``scope`` is set and the announced suffix set has moved, the escalation to a full build is
     recorded in place, so the report can name why it was not a no-op (task 172).
+
+    ``head`` must be read before ``changed`` was diffed; ``None`` reads it here (360).
     """
+    if head is None:
+        head = gitutil.head_commit_and_ref(config.root)
     # Two independent reasons an incremental cannot extend this graph. Both are recorded when both
     # hold — disjoint keys, so neither has to win a precedence argument the caller cannot see.
     incomplete, era_moved = build_incomplete(store), contract_rebuild_required(store)
@@ -431,7 +443,7 @@ def incremental_update(
         }
     if incomplete or era_moved:
         return full_build(
-            config, store, progress=progress, allow_coverage_loss=allow_coverage_loss
+            config, store, progress=progress, allow_coverage_loss=allow_coverage_loss, head=head
         )
 
     rules = load_indirection_rules(config)
@@ -555,7 +567,7 @@ def incremental_update(
                 "route": DELTA_TOO_LARGE_ROUTE,
             }
         return full_build(
-            config, store, progress=progress, allow_coverage_loss=allow_coverage_loss
+            config, store, progress=progress, allow_coverage_loss=allow_coverage_loss, head=head
         )
     except _ScopeChanged as moved:
         # The same class of change as a `contract_version` bump above, and the same answer: a
@@ -567,7 +579,7 @@ def incremental_update(
                 "escalated_to": "full",
             }
         return full_build(
-            config, store, progress=progress, allow_coverage_loss=allow_coverage_loss
+            config, store, progress=progress, allow_coverage_loss=allow_coverage_loss, head=head
         )
     finally:
         watchdog.stop()
@@ -607,6 +619,7 @@ def incremental_update(
         skipped_suffixes,
         capabilities_by_language=capabilities_by_language,
         shapes_by_language=shapes_by_language,
+        head=head,
     )
     _phase_add(phase_times, "meta", mark)
     return BuildReport(
@@ -1328,6 +1341,8 @@ def _record_meta(
     skipped_suffixes: Mapping[str, int] | None = None,
     capabilities_by_language: Mapping[str, Mapping[str, bool]] | None = None,
     shapes_by_language: Mapping[str, object] | None = None,
+    *,
+    head: gitutil.GitHead,
 ) -> None:
     """Stamp the build (§8.1 step 4). Clear commit/ref when git cannot name them (077).
 
@@ -1393,7 +1408,8 @@ def _record_meta(
     else:
         store.delete_meta(MIRROR_SEARCH_KEY)
     store.reload_mirror_search_stamp()
-    commit, ref = gitutil.head_commit_and_ref(config.root)
+    # The HEAD read before the tree, never one read now: stamp old, never new (360).
+    commit, ref = head
     if commit is not None:
         store.set_meta(LAST_COMMIT_KEY, commit)
     else:

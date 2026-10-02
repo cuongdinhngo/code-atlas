@@ -13,6 +13,13 @@ Each entry flags the two costs an upgrade can carry:
 
 How to upgrade each install route is in the README, under *Upgrading*.
 
+## Unreleased
+
+- A build stamps the HEAD it read before parsing, so a commit landing mid-build leaves the index
+  `behind` instead of falsely `current` (360). An index built across such a move cannot be told
+  apart: if `get_index_status` says `current` but a file committed then is missing, run
+  `code-atlas-build --full` once.
+
 ## 0.2.0 — 2026-09-30 · contract 13 · schema 6
 
 The first versioned release. `0.1.0` was never bumped while the contract moved from v10 to v13, so
