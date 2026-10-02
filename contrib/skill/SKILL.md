@@ -37,7 +37,7 @@ disagreement.
 - How does this codebase route an incoming request to the code that produces the response -> trace_capability.
 - What happens when a user does X — one request from entry to the data -> trace_capability.
 - Write committable onboarding docs (overview, tour, per-module, manifest) -> generate_onboarding.
-- Do the declared architecture dependency rules still hold -> check_architecture_rules.
+- Do the declared architecture rules hold — no forbidden edge, every required call made -> check_architecture_rules.
 - What did the agent change about the architecture between two revisions -> diff_architecture.
 - Render a class diagram for one type (plus ancestry) or one file -> class_diagram.
 - Which writers of this table omit a column that has a DEFAULT -> check_column_defaults.
