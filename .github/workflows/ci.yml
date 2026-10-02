@@ -244,6 +244,32 @@ jobs:
       - name: Static analysis (mypy --strict) — the Python adapter (R6.6)
         run: mypy --config-file adapters/python/pyproject.toml
 
+  # 358: the image behind `scripts/docker-test.sh` and `gate.sh --docker` rests on a floating base,
+  # apt's PHP and composer's installer; build it here so a drift fails a PR, not the next local run.
+  # Build only: the suite already runs in the test job. No `needs`, so it runs beside the others.
+  test-image:
+    name: test image builds (docker/Dockerfile)
+    runs-on: ubuntu-latest
+    # Least privilege: read the tree; the gha cache is written through the runtime token.
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # A warm cache replays the apt and composer layers without running them. `pull` re-fetches
+      # the floating base, so its next digest rebuilds them; between digests, that drift waits.
+      - name: Build docker/Dockerfile (no push, no run)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          pull: true
+          push: false
+          cache-from: type=gha,scope=test-image
+          cache-to: type=gha,scope=test-image,mode=max,ignore-error=true
+
   guardrails:
     name: rulebook grep-gates
     runs-on: ubuntu-latest

@@ -3,7 +3,8 @@
 #
 # This is the only gate before a push: while the repo is private its Actions fail in ~3 s unrun,
 # and public they run after the push, so `gh pr checks <n>` is no substitute (AGENTS.md). It
-# mirrors all three CI jobs — test · adapters · guardrails. Keep it in step with
+# mirrors CI's test · adapters · guardrails jobs; the fourth, test-image, only under --docker,
+# whose first step builds that image (358). Keep it in step with
 # ci.yml: a check here that ci.yml lacks, or the reverse, means one of the two is lying about what
 # was verified — `tests/test_ci_and_gate_agree.py` is what enforces that.
 #

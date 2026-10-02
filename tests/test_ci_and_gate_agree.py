@@ -6,7 +6,8 @@ wrong in both directions about whether Actions run; it now says what AGENTS.md s
 
 The table below is the enforcement. Each row is one check that must be spent in BOTH files, matched
 on the command each actually runs rather than on prose, so a check added to CI without a local
-counterpart (or the reverse) fails here instead of being discovered on a red PR.
+counterpart (or the reverse) fails here instead of being discovered on a red PR. One row is spent
+only by `gate.sh --docker` — the image build (358) — and a test below pins it to that branch.
 """
 
 from __future__ import annotations
@@ -59,6 +60,11 @@ SHARED_CHECKS: dict[str, tuple[str, str]] = {
     "R4.1 no LLM in core": ("anthropic|onboarding_llm", "anthropic|onboarding_llm"),
     "R7.3 no AI-attribution trailer": ("attribution_markers.py", "attribution_markers.py"),
     "R2.4 commit identity (340)": ("identity_markers.py", "identity_markers.py"),
+    # The one row a plain run does not spend: only `--docker` builds the image (358).
+    "test image builds (358)": (
+        "file: docker/Dockerfile",
+        'docker build -f "$root/docker/Dockerfile"',
+    ),
 }
 
 
@@ -105,3 +111,33 @@ def test_a_lint_failure_does_not_hide_the_test_results() -> None:
         "the pytest step must run even after ruff/mypy fail, or a formatting slip hides every "
         "behavioural failure behind it"
     )
+
+
+def test_the_test_image_job_builds_in_parallel_from_the_gha_cache() -> None:
+    """358 AC3 and Scope 1/3: build only, beside the other jobs, reusing unchanged layers.
+
+    Made to fail: add `needs:` to the job, a `run:` step to it, or drop either cache line.
+    """
+    ci = CI.read_text(encoding="utf-8")
+    assert "\n  test-image:\n" in ci, "the test-image job is gone or renamed"
+    body = ci.split("\n  test-image:\n")[1].split("\n  guardrails:\n")[0]
+    job = "\n".join(line for line in body.splitlines() if not line.lstrip().startswith("#"))
+    assert "needs:" not in job and "needs: test-image" not in ci
+    assert "run:" not in job, "build only — the suite already runs in the test job"
+    assert "file: docker/Dockerfile" in job and "context: ." in job
+    assert "push: false" in job and "pull: true" in job
+    assert "cache-from: type=gha" in job and "cache-to: type=gha" in job
+    # A fork PR's read-only token cannot write the cache; that must not fail the build check.
+    assert "ignore-error=true" in job
+
+
+def test_only_the_docker_gate_builds_the_test_image() -> None:
+    """The one `SHARED_CHECKS` row a plain run skips: the build sits in `--docker`'s branch.
+
+    Made to fail: move the `docker build` line above `if [ "$docker" -eq 1 ]`, or past its `exec`.
+    """
+    gate = GATE.read_text(encoding="utf-8")
+    branch = gate.split('if [ "$docker" -eq 1 ]; then\n    if ! command -v docker')[1]
+    branch = branch.split("\nfi\n")[0]
+    assert 'docker build -f "$root/docker/Dockerfile"' in branch
+    assert gate.count('docker build -f "$root/docker/Dockerfile"') == 1

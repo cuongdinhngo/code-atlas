@@ -61,7 +61,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         rel = _repo_relative(config.root, path)
         with GraphStore(config.db_path) as store:
             about_ref = answered_about_ref_for(store)
-            if store.file_hash(rel) is None:
+            guard = FreshnessGuard(config, store)
+            # A path committed since the indexed commit is a named miss subject: repair it (360).
+            if store.file_hash(rel) is None and guard.ensure_miss(rel) != "repaired":
                 return _result(
                     rel,
                     [],
@@ -72,7 +74,6 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     found=False,
                     answered_about_ref=about_ref,
                 )
-            guard = FreshnessGuard(config, store)
             if guard.ensure(rel) == "stale":
                 return _result(
                     rel,
