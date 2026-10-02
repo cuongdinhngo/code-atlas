@@ -2,7 +2,7 @@
 
 Shared by ``code-atlas-refresh`` and ``build_or_update_index`` so a hook and the
 MCP server never both write. The loser skips cleanly (hook exit 0 / tool
-``mode: busy``).
+``mode: busy``) and leaves ``write.pending``, which the holder serves before it exits (357).
 
 The same file carries the running build's progress line (task 177). It is the only
 carrier whose claim cannot outlive the claimant: the lock is released by the OS on
@@ -25,6 +25,8 @@ from contextlib import contextmanager
 from pathlib import Path
 
 LOCK_NAME = "write.lock"
+# A request that found the lock held (357): a dirty flag, no owner, so nothing outlives a death.
+PENDING_NAME = "write.pending"
 
 # One line, rewritten in place: the file never grows, and a reader never scans.
 _PROGRESS_WIDTH = 200
@@ -115,6 +117,35 @@ def try_index_write_lock(db_path: Path) -> Iterator[bool]:
 def lock_path_for(db_path: Path) -> Path:
     """Where the write lock lives for this index — the one definition site (R6.7)."""
     return db_path.parent / LOCK_NAME
+
+
+def pending_path_for(db_path: Path) -> Path:
+    """Where a refused writer leaves its request for the holder — the one definition site."""
+    return db_path.parent / PENDING_NAME
+
+
+def mark_pending(db_path: Path) -> None:
+    """Leave a request for the lock holder to serve. Best-effort: never raises."""
+    try:
+        pending_path_for(db_path).touch()
+    except OSError:
+        return
+
+
+def clear_pending(db_path: Path) -> bool:
+    """Clear the request flag before serving it; False only when it is set and cannot be removed."""
+    try:
+        pending_path_for(db_path).unlink()
+    except FileNotFoundError:
+        return True
+    except OSError:
+        return False
+    return True
+
+
+def is_pending(db_path: Path) -> bool:
+    """Is a request waiting for the next build?"""
+    return pending_path_for(db_path).exists()
 
 
 def build_in_progress(db_path: Path) -> bool:

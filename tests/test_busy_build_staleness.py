@@ -150,7 +150,7 @@ def test_two_concurrent_builds_run_exactly_one_and_the_loser_carries_staleness(
         release.set()
         thread.join(timeout=5)
 
-    assert runs == 1  # exactly one build ran
+    assert runs == 2  # never two at once: the loser's request runs after the winner (357)
     assert loser["mode"] == "busy"
     assert loser["performed"] is False
     assert loser["staleness"] in {CURRENT, BEHIND}

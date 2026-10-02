@@ -17,7 +17,13 @@ from typing import Literal
 from code_atlas import contract, gitutil
 from code_atlas.adapter import AdapterError
 from code_atlas.config import Config
-from code_atlas.index_lock import publish_build_progress, try_index_write_lock
+from code_atlas.index_lock import (
+    clear_pending,
+    is_pending,
+    mark_pending,
+    publish_build_progress,
+    try_index_write_lock,
+)
 from code_atlas.indexer import (
     CONTRACT_REBUILD_REQUIRED,
     COVERAGE_LOSS,
@@ -105,23 +111,64 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         and a timed-out "failed" does not stop the server-side build (291).
         """
         started = time.monotonic()
-        with try_index_write_lock(config.db_path) as held:
-            if not held:
+        first: dict[str, object] | None = None
+        marked = False
+        cleared = True
+        while True:
+            with try_index_write_lock(config.db_path) as held:
+                if held:
+                    # This build reads the tree after now, so it serves every earlier request.
+                    cleared = clear_pending(config.db_path)
+                    answer = _locked_build(
+                        config,
+                        full=full and first is None,
+                        detail_level=detail_level,
+                        started=started,
+                        allow_full_rebuild=allow_full_rebuild,
+                        repair_incomplete=repair_incomplete,
+                        allow_coverage_loss=allow_coverage_loss,
+                    )
+                    first = answer if first is None else first
+            # Checked after the unlock, so a request landing at any point before it still runs.
+            # A marker that cannot be removed would re-run forever: stop at one build instead.
+            if held and cleared and is_pending(config.db_path):
+                continue
+            if first is not None:
+                # Done, or a new holder owns the lock and serves the request after its own build.
+                return first
+            if marked:
                 return _busy(config, full=full, started=started)
-            try:
-                return _build(
-                    config,
-                    full=full,
-                    detail_level=detail_level,
-                    started=started,
-                    allow_full_rebuild=allow_full_rebuild,
-                    repair_incomplete=repair_incomplete,
-                    allow_coverage_loss=allow_coverage_loss,
-                )
-            except AdapterError as broken:
-                return _adapter_refused(config, broken, full=full, started=started)
+            # Leave the request, then try once more: the holder may have unlocked and looked
+            # for a request before this one landed (357).
+            mark_pending(config.db_path)
+            marked = True
 
     return build_or_update_index
+
+
+def _locked_build(
+    config: Config,
+    *,
+    full: bool,
+    detail_level: DetailLevel,
+    started: float,
+    allow_full_rebuild: bool,
+    repair_incomplete: bool,
+    allow_coverage_loss: bool,
+) -> dict[str, object]:
+    """One build under the write lock, an adapter failure answered as a payload."""
+    try:
+        return _build(
+            config,
+            full=full,
+            detail_level=detail_level,
+            started=started,
+            allow_full_rebuild=allow_full_rebuild,
+            repair_incomplete=repair_incomplete,
+            allow_coverage_loss=allow_coverage_loss,
+        )
+    except AdapterError as broken:
+        return _adapter_refused(config, broken, full=full, started=started)
 
 
 def _adapter_refused(
