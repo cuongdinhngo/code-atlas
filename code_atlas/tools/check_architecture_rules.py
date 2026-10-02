@@ -7,6 +7,9 @@ from typing import Literal
 
 from code_atlas.architecture_rules import (
     STATUS_MATCHED_NO_FILES,
+    RequiredRuleReport,
+    RequiredViolation,
+    RuleReport,
     Violation,
     load_architecture_rules,
 )
@@ -45,6 +48,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         Reads ``CA_ARCHITECTURE_RULES`` (JSON files of path-set constraints). Each confirmed
         violation is a RESOLVED walk from a source path set into a forbidden path set;
         HEURISTIC-only evidence is listed under ``candidates`` and never counts as confirmed.
+        A ``required`` rule flags each source symbol that reaches none of its target qnames;
+        it is confirmed only when every edge its walk met was RESOLVED.
         ``total_count`` is the confirmed population; page with ``limit``/``offset`` until
         ``truncated`` is false. Empty answers name the cause: not indexed, rules unset,
         no source file matched a rule, or no violation.
@@ -98,7 +103,15 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 total_count=0,
                 candidate_count=0,
             )
-        confirmed = outcome.confirmed
+        # Required rows follow the forbidden ones, so a forbidden-only page is unchanged (359).
+        confirmed: tuple[Violation | RequiredViolation, ...] = (
+            *outcome.confirmed,
+            *outcome.required_confirmed,
+        )
+        candidates: tuple[Violation | RequiredViolation, ...] = (
+            *outcome.candidates,
+            *outcome.required_candidates,
+        )
         page = confirmed[offset : offset + cap]
         payload = _envelope(
             indexed=True,
@@ -107,17 +120,15 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             results=[_shape_violation(row, detail_level) for row in page],
             truncated=offset + len(page) < len(confirmed),
             total_count=len(confirmed),
-            candidate_count=len(outcome.candidates),
+            candidate_count=len(candidates),
             rules=_shape_rules(outcome.rules, detail_level),
         )
         if detail_level == "standard":
-            candidate_page = outcome.candidates[offset : offset + cap]
+            candidate_page = candidates[offset : offset + cap]
             payload["candidates"] = [
                 _shape_violation(row, detail_level) for row in candidate_page
             ]
-            payload["candidates_truncated"] = offset + len(candidate_page) < len(
-                outcome.candidates
-            )
+            payload["candidates_truncated"] = offset + len(candidate_page) < len(candidates)
             payload["digest"] = outcome.digest
         attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
         return payload
@@ -125,7 +136,19 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     return check_architecture_rules
 
 
-def _shape_violation(row: Violation, detail_level: DetailLevel) -> dict[str, object]:
+def _shape_violation(
+    row: Violation | RequiredViolation, detail_level: DetailLevel
+) -> dict[str, object]:
+    if isinstance(row, RequiredViolation):
+        missing: dict[str, object] = {
+            "rule_id": row.rule_id,
+            "source_qname": row.source_qname,
+            "source_file": row.source_file,
+        }
+        if detail_level == "standard":
+            missing["unresolved_outgoing"] = row.unresolved_outgoing
+            missing["walk_truncated"] = row.truncated
+        return missing
     hit: dict[str, object] = {
         "rule_id": row.rule_id,
         "source_file": row.source_file,
@@ -137,18 +160,31 @@ def _shape_violation(row: Violation, detail_level: DetailLevel) -> dict[str, obj
     return hit
 
 
-def _shape_rules(reports: tuple, detail_level: DetailLevel) -> list[dict[str, object]]:
+def _shape_rules(
+    reports: tuple[RuleReport | RequiredRuleReport, ...], detail_level: DetailLevel
+) -> list[dict[str, object]]:
     if detail_level == "minimal":
         return [{"rule_id": report.rule_id, "status": report.status} for report in reports]
-    return [
-        {
-            "forbidden_matched": report.forbidden_matched,
+    return [_shape_rule(report) for report in reports]
+
+
+def _shape_rule(report: RuleReport | RequiredRuleReport) -> dict[str, object]:
+    if isinstance(report, RequiredRuleReport):
+        return {
+            "expected_found": report.expected_found,
+            "expected_missed": list(report.expected_missed),
             "rule_id": report.rule_id,
             "sources_matched": report.sources_matched,
             "status": report.status,
+            "targets_matched": report.targets_matched,
+            "targets_missing": list(report.targets_missing),
         }
-        for report in reports
-    ]
+    return {
+        "forbidden_matched": report.forbidden_matched,
+        "rule_id": report.rule_id,
+        "sources_matched": report.sources_matched,
+        "status": report.status,
+    }
 
 
 def _envelope(

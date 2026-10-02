@@ -27,7 +27,7 @@
 | `architecture_overview` | this repo's layers, their degrees and the crossings between them — default `detail_level` is **`minimal`** (268) — plus the zero-inbound split, the capability table and the mirror panel ([detail](#architecture_overview--layers-crossings-and-the-populations-behind-a-zero)) (onboarding) |
 | `guided_tour` | a dependency-ordered reading list of files, cycle-safe and budget-bounded ([detail](#guided_tour--a-reading-order-that-expands)) (onboarding) |
 | `generate_onboarding` | writes the committable markdown and the self-contained `index.html` **system map** under `docs/onboarding/` — four or five files depending on `audience`, no per-module page tree ([detail](#generate_onboarding--the-committable-system-map)) (onboarding) |
-| `check_architecture_rules` | confirmed vs candidate violations of declarative path-set dependency rules (`CA_ARCHITECTURE_RULES`) |
+| `check_architecture_rules` | confirmed vs candidate violations of declarative rules (`CA_ARCHITECTURE_RULES`): a path set that must not reach another, or symbols that must reach a gate ([rule files](#architecture-rule-files)) |
 | `diff_architecture` | architectural drift between two onboarding dataset / manifest snapshots; a path resolving outside the indexed tree answers `path_outside_root`, unread (342) |
 | `class_diagram` | mermaid class diagram for one type plus its ancestry, or every type in one file — inheritance from resolved edges; associations from declared types only |
 | `check_column_defaults` | which writers of a table omit a column that declares a `DEFAULT`, against the total that write it — a writer naming no columns is *unmeasured*, never an omitter; a bare table name resolves to its one schema-qualified table or is refused with the candidates (SQL tier 2, 320) |
@@ -375,6 +375,35 @@ Files are skipped using built-in patterns (`vendor/ var/ uploads/ log/ node_modu
 *.blade.*`), then `.gitignore`, then an optional `.codeatlasignore` — later rules win, so
 `.codeatlasignore` can re-include what an earlier source excluded. A path below an excluded
 *directory* stays excluded, which is what lets the walk prune a subtree.
+
+### Architecture rule files
+
+`CA_ARCHITECTURE_RULES` names JSON files of `{"rules": [...]}`; each rule has an `id` and one of two
+modes. A rule's `status` reads `rule_matched_no_files` when one side matched nothing — nothing was
+checked, which is not a pass.
+
+```json
+{"rules": [
+  {"id": "domain-stays-pure", "sources": ["domain/**"], "forbidden": ["http/**"]},
+  {"id": "writes-check-access", "sources": ["handlers/**"], "kind": "Method", "name": "^save",
+   "required": ["\\Guard\\Access::check"], "kinds": ["CALLS"], "depth": 2,
+   "expect": {"violating": ["\\H::legacySave"], "passing": ["\\H::saveOrder"]}}
+]}
+```
+
+- **`forbidden`** (138): a RESOLVED walk from a `sources` file into a `forbidden` file is a confirmed
+  violation; `kinds`, `direction` and `transitive` shape the walk.
+- **`required`** (359): every symbol in a `sources` file — narrowed by node `kind` and a `name` regex
+  — must reach one of the `required` qnames within `depth` hops of `kinds` edges. Only RESOLVED
+  edges count as reaching; a source that reaches none is **confirmed** only when every edge the walk
+  met was RESOLVED, else a **candidate** with `unresolved_outgoing` (edges met that were unlinked,
+  HEURISTIC or DYNAMIC). No `kind` means every node in the files; a source that is itself a target
+  passes; a required qname the index lacks is named in `targets_missing`.
+  Reaching a target is a pass even if the walk also met an unresolved edge on the way.
+- **`expect`** calibrates a required rule with qnames known to violate or pass; one it misses names
+  itself in `expected_missed` and the rule reads `calibration_failed`, rows still returned. Only a
+  **confirmed** row meets a `violating` entry, and a candidate or an unmatched qname misses a
+  `passing` one. A rule that matched no source or target reads `rule_matched_no_files` first.
 
 ### Optional LLM enrichment (opt-in, off by default)
 
