@@ -94,8 +94,8 @@ knob. Every timing and its conditions: [`runbooks/onboarding-a-repo.md`](docs/ru
 **`gh pr checks` is not the gate:** Actions run after the push; the local gate runs before it.
 **Only `GATE GREEN` counts — exit 2 means a check was skipped, which is not a pass (R6.5).**
 **Cross-repo is outside the gate:** a change moving graph counts runs `cross_repo_validate.py` and re-floors (P8).
-The gate mirrors every `ci.yml` job (`tests/test_ci_and_gate_agree.py`).
-A runtime missing? `scripts/gate.sh --docker` runs it in the test image.
+The gate mirrors `ci.yml` (`tests/test_ci_and_gate_agree.py`); `--docker` adds the image build and
+covers a missing runtime.
 **The gate's tokens-to-answer ratio is the *fixture* tier and sits below 1 by design** (floor 0.63) —
 the product claim is the *sample* tier over the pinned repos (`--samples`, ~69x). Never quote one as
 the other.
