@@ -69,7 +69,7 @@ RECOGNITION_MAP: tuple[tuple[str, str, str, bool], ...] = (
         False,
     ),
     (
-        "Do the declared architecture dependency rules still hold",
+        "Do the declared architecture rules hold — no forbidden edge, every required call made",
         "check_architecture_rules",
         "",
         False,

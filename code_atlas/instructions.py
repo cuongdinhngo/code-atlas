@@ -26,8 +26,9 @@ SERVER_PREFIX = "mcp__code-atlas__"
 SCOPE = (
     "The graph resolves names: which definition a call reaches, what overrides what, which modules "
     "a change touches, how a request flows. Ask the index first for who/what/where; keep Grep for "
-    "literal text and for an ABSENCE (whether a call site forgets a check, whether anything still "
-    "uses an old constant) — the graph cannot answer one, so use Grep for the absence."
+    "literal text and for an ABSENCE (whether anything still uses an old constant) — the graph "
+    "cannot answer one, so use Grep for the absence — unless a `required` architecture rule covers "
+    "it."
 )
 
 COVERAGE = (

@@ -19,6 +19,13 @@ How to upgrade each install route is in the README, under *Upgrading*.
   `behind` instead of falsely `current` (360). An index built across such a move cannot be told
   apart: if `get_index_status` says `current` but a file committed then is missing, run
   `code-atlas-build --full` once.
+- A refresh that finds the write lock held is no longer dropped: it leaves `write.pending`, and the
+  running build serves it with one more incremental before it exits (357). A rebase's last refresh
+  now lands at its HEAD.
+- `check_architecture_rules` gains a `required` rule mode: every selected symbol must reach a gate
+  qname within `depth` hops; a miss is confirmed only over an all-RESOLVED walk (359). The rule
+  file format is documented in `docs/TOOLS.md`, *Architecture rule files*.
+- CI builds the test image `docker/Dockerfile` (358).
 
 ## 0.2.0 — 2026-09-30 · contract 13 · schema 6
 

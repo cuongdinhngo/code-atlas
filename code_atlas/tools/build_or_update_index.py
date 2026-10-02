@@ -98,8 +98,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         recover without a shell; a *newer* one is refused untouched — that index is current and this
         server is the stale one (050). Concurrent writers share ``write.lock`` (053); a held lock
         returns ``mode: busy`` carrying the staleness of the index the loser is about to query,
-        read-only (072). To *see* a busy refusal on purpose, follow the ``code-atlas-refresh`` race
-        recipe in ``docs/runbooks/parallel-agents.md`` (082).
+        read-only (072); the request is queued, and the running build serves it with one more
+        incremental before it exits (357), so do not retry in a loop. To *see* a busy refusal on
+        purpose, follow the ``code-atlas-refresh`` race recipe in
+        ``docs/runbooks/parallel-agents.md`` (082).
 
         An index written under an older *vocabulary* era cannot be extended
         incrementally either (030 AC1). Rather than silently starting an hour-long
