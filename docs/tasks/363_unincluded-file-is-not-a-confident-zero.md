@@ -274,4 +274,6 @@ Deferred to the maintainer: the merge; ratifying X1–X4.
 
 `LEDGER TOTAL: 109,807 · top cost driver: review/challenger`
 
+**Gate.** `scripts/gate.sh` on `f56c2dfd`: `GATE GREEN — all 21 checks passed` (Linux, bare pytest).
+
 **Revert path.** `git revert` the branch commits.
