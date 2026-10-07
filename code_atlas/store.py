@@ -2560,6 +2560,14 @@ class GraphStore:
         )
         return self._rows(EDGE_ROW_KEYS, sql, (needle, limit))
 
+    def count_dynamic_includes(self) -> int:
+        """Unlinked ``INCLUDES`` at ``DYNAMIC`` — a path the index cannot name at all (363)."""
+        sql = (
+            "SELECT COUNT(*) FROM edges WHERE kind = 'INCLUDES' AND confidence_tier = ? "
+            "AND (target_qname IS NULL OR target_qname = '')"
+        )
+        return int(self._conn.execute(sql, (CONFIDENCE_TIERS[2],)).fetchone()[0])
+
     def included_files_named(self, basename: str) -> list[str]:
         """Indexed files called ``basename`` that some linked ``INCLUDES`` reaches (363)."""
         sql = (

@@ -120,3 +120,43 @@ def test_a_cut_listing_or_an_unindexed_subject_is_never_a_positive_zero(tmp_path
     assert "authoritative" not in answer
     ghost = include_graph.create(config)("app/ghost/screen.php", direction="imported_by")
     assert "authoritative" not in ghost
+
+
+def test_a_fully_dynamic_include_anywhere_keeps_the_zero_unattested(tmp_path: Path) -> None:
+    """Challenger F4 — `include "$d/x.php"` is stored as `(dynamic)`: it names no file, so it could
+    be this one. The zero stands (`no_matches`, the copy named) but is not authoritative."""
+    files = dict(BASE)
+    files["app/cron/any.php"] = '<?php\ninclude "$dir/legacy/screen.php";\n'
+    config = _build(tmp_path, files)
+    answer = include_graph.create(config)(UNUSED, direction="imported_by")
+    assert answer["reason"] == REASON_NO_MATCHES
+    assert answer["authoritative"] is False
+    assert answer["dynamic_includes_unchecked"] == 1
+    assert answer["same_basename_included"] == [USED]
+
+
+def test_a_zero_with_no_same_named_copy_is_still_attested(tmp_path: Path) -> None:
+    """Challenger F1 — only `old_screen.php` mentions the name: nothing could include this file."""
+    config = _build(
+        tmp_path,
+        {
+            "lib/screen.php": "<?php\necho 1;\n",
+            "lib/old_screen.php": "<?php\necho 2;\n",
+            "lib/main.php": "<?php\ninclude 'old_screen.php';\n",
+        },
+    )
+    answer = include_graph.create(config)("lib/screen.php", direction="imported_by")
+    assert answer["reason"] == REASON_NO_MATCHES
+    assert answer["authoritative"] is True
+    assert "same_basename_included" not in answer
+
+
+def test_a_cut_listing_with_nothing_fitting_stays_unmodelled(tmp_path: Path) -> None:
+    """Challenger F2 — a fitting row may sit past the cut, so the answer says it was cut."""
+    files = dict(BASE)
+    files["app/a.php"] = "<?php\ninclude '../nowhere/screen.php';\n"
+    config = _build(tmp_path, files)
+    narrow = dataclasses.replace(config, page_limit=1)
+    answer = include_graph.create(narrow)(UNUSED, direction="imported_by")
+    assert answer["reason"] == REASON_RELATIONSHIP_NOT_MODELLED
+    assert answer["unlinked_includes_truncated"] is True

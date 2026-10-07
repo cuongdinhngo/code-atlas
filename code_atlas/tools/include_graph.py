@@ -39,6 +39,8 @@ UNLINKED_INCLUDES = "unlinked_includes"
 UNLINKED_INCLUDES_TRUNCATED = "unlinked_includes_truncated"
 # Same-named files that are included, named beside a positive inbound zero (363).
 SAME_BASENAME_INCLUDED = "same_basename_included"
+# Fully dynamic includes in the index: none names a file, so a zero cannot rule them out (363).
+DYNAMIC_INCLUDES_UNCHECKED = "dynamic_includes_unchecked"
 _QUOTED = re.compile(r"'([^']*)'|\"([^\"]*)\"")
 
 _INCLUDE = ("INCLUDES",)
@@ -70,9 +72,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         confident zero — 065). An empty inbound answer with unlinked includes whose path tail
         could be this file returns ``reason=relationship_not_modelled``, lists them in
         ``unlinked_includes``, and adds a ``try_instead_hint`` but deliberately NO ``try_instead`` —
-        no registered tool reads unlinked include text (093). When none could, and another file of
-        the same name is included, the zero is positive: ``no_matches``, ``authoritative: true``,
-        ``same_basename_included`` (363).
+        no registered tool reads unlinked include text (093); a listing cut at the page limit says
+        ``unlinked_includes_truncated``. When none could, an indexed file's zero is attested:
+        ``no_matches`` naming any included same-named file in ``same_basename_included``, and
+        ``authoritative: true`` unless ``dynamic_includes_unchecked`` counts includes naming no
+        file at all (363).
         An empty inbound answer on a file whose **language** emits no ``INCLUDES`` at all returns
         ``reason=relation_unmodelled_for_language`` instead of a confident zero: the relation is
         carried under another edge kind here (186). Where that kind is ``IMPORTS``, which 188 links,
@@ -95,6 +99,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         try_instead_hint: str | None = None
         could_name: list[dict[str, object]] = []
         listing_cut = False
+        attested = False
+        dynamic_unchecked = 0
         alternatives: list[str] = []
         with GraphStore(config.db_path) as store:
             about_ref = answered_about_ref_for(store)
@@ -112,7 +118,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     for row in mentions[:limit]
                     if _tail_fits(str(row["target_raw"]), rel)
                 ]
-                if could_name:
+                if could_name or listing_cut:
+                    # A cut listing may hold a fitting row past the cut: never a zero (R5.6).
                     reason = REASON_RELATIONSHIP_NOT_MODELLED
                     try_instead_hint = TRY_INSTEAD_HINT_PATH_BASENAME
                 elif relation_unmodelled_for_language(store, file_path=rel, kinds=_INCLUDE):
@@ -136,12 +143,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         subject_kind="File",
                         raws=(rel,),
                     )
-                    # Never attest past the read: a cut listing or an unindexed subject is no proof.
-                    if reason == REASON_NO_MATCHES and not listing_cut and store.file_hash(rel):
-                        # A positive zero: every include of this name reached another copy (363).
+                    # A positive zero for an indexed file: no include of its name reaches it (363).
+                    if reason == REASON_NO_MATCHES and store.file_hash(rel):
+                        attested = True
                         alternatives = [
                             path for path in store.included_files_named(basename) if path != rel
                         ]
+                        # `(dynamic)` names no file, so it could be any: say how many went unread.
+                        dynamic_unchecked = store.count_dynamic_includes()
         payload = nav_result(
             rel,
             outcome.results,
@@ -158,11 +167,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             payload["unresolved_includes"] = outcome.unresolved_includes
         if could_name:
             payload[UNLINKED_INCLUDES] = could_name
-            if listing_cut:
-                payload[UNLINKED_INCLUDES_TRUNCATED] = True
-        if alternatives:
-            payload[AUTHORITATIVE] = True
-            payload[SAME_BASENAME_INCLUDED] = alternatives
+        if listing_cut:
+            payload[UNLINKED_INCLUDES_TRUNCATED] = True
+        if attested:
+            payload[AUTHORITATIVE] = dynamic_unchecked == 0
+            if dynamic_unchecked:
+                payload[DYNAMIC_INCLUDES_UNCHECKED] = dynamic_unchecked
+            if alternatives:
+                payload[SAME_BASENAME_INCLUDED] = alternatives
         return attach_try_instead(payload, try_instead, try_instead_hint)
 
     return include_graph
