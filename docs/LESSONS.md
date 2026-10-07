@@ -41,6 +41,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
 
 ## Live claims
 
+### 362-C1 — a widened target must widen every query behind the same answer
+
+- type: 2 (code) · handle: `widen-every-query-that-shares-the-page`
+- status: proposed · seen: 362
+- evidence: a constructor's answer took its class's `NEW` rows through `also_targets` on the page,
+  count, census and call lines, but not the subtree spread, so a truncated page's spread counted 1
+  of 3 callers. The challenger found it; enumerate every store read the tool's payload is built from.
+- destination: first sighting.
+
 ### 357-C1 — a loop driven by "while the flag file exists" spins if the flag cannot be removed
 
 - type: 2 (code) · handle: `a-flag-loop-needs-a-clearable-flag`
@@ -135,7 +144,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
 ### 343-C2 — `ruff format` on a file you edit rewrites lines you did not
 
 - type: 2 (code) · handle: `formatter-rewrites-untouched-lines`
-- status: proposed · seen: 343, 360, 359, 357
+- status: proposed · seen: 343, 360, 359, 357, 362
 - evidence: formatting four edited files reflowed four untouched spots (two `main.py` calls, the
   `which_tool` string, a test lambda); the challenger caught one I had missed. The gate runs
   `ruff check` only, so the drift is silent. Format, then revert every hunk the change does not own.

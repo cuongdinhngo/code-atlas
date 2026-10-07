@@ -25,7 +25,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
 | 361 | [JS route strings link to nothing](tasks/361_js-route-strings-link-to-nothing.md) | Coverage | todo | 352, 221 |
-| 362 | [Untyped-receiver and constructor calls unlinked](tasks/362_untyped-receiver-and-constructor-calls-unlinked.md) | Coverage | todo | 258, 336 |
 | 363 | [An unincluded file is not a confident zero](tasks/363_unincluded-file-is-not-a-confident-zero.md) | Coverage | todo | 353 |
 | 364 | [A PHP table-name string writes nothing](tasks/364_php-table-name-string-writes-nothing.md) | Coverage | todo | 352, 278, 328 |
 | 365 | [Reads refuse while a refresh runs](tasks/365_reads-refuse-while-a-refresh-runs.md) | Adoption | todo | 356, 357, 274 |
