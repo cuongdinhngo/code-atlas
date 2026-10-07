@@ -359,4 +359,7 @@ Deferred to the maintainer: the merge; `/mango:promote` on `343-C2` and `360-C1`
 
 `LEDGER TOTAL: 130,467 · top cost driver: review/challenger`
 
+**Gate.** `scripts/gate.sh` on `10751dc1` (the bookkeeping tip): `GATE GREEN — all 21 checks passed`
+(Linux, bare pytest, every adapter present). Only this doc and the ledger row's gate note changed after it.
+
 **Revert path.** `git revert` the branch commits; nothing persistent changes.
