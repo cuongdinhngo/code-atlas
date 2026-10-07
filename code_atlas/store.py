@@ -2313,6 +2313,7 @@ class GraphStore:
         args_at: tuple[int, str] | None = None,
         confidence_tier: str | None = None,
         path_prefix: str | None = None,
+        also_targets: Sequence[str] = (),
     ) -> dict[str, int]:
         """Top-level path segment → count over the full set targeting ``qname`` (task 067).
 
@@ -2321,8 +2322,9 @@ class GraphStore:
         source subtrees. The segment is the path text before the first ``/`` — structural,
         never a repo name (R2); ``GROUP BY``/``ORDER BY`` keep the dict deterministic (R4.2).
         """
+        where, values = _target_where(qname, also_targets)
         clause, params = self._edge_where(
-            "edges.target_qname = ?",
+            where,
             kinds,
             _combine_predicates(
                 _args_predicate(args_at),
@@ -2341,7 +2343,7 @@ class GraphStore:
         )
         return {
             str(seg): int(count)
-            for seg, count in self._conn.execute(sql, (qname, *params))
+            for seg, count in self._conn.execute(sql, (*values, *params))
         }
 
     def count_edges_without_args(

@@ -140,3 +140,13 @@ def test_a_twin_naming_its_method_in_another_case_stays_unlinked(config: Config)
     conn.close()
     assert unlinked == [("\\NzWidget::validate", None)]
 
+
+
+def test_a_truncated_constructor_page_spreads_over_every_caller(config: Config) -> None:
+    """Challenger F2 — the subtree spread reads the same targets as the rows and the count."""
+    answer = find_callers.create(config)("\\FormBuilder::__construct", limit=1)
+    assert answer["truncated"] is True
+    assert answer["total_count"] == 2
+    spread = answer["result_subtrees"]
+    assert sum(spread.values()) == 3  # Child's parent::__construct + the two `new` lines
+    assert set(spread) == {"forms", "lib"}

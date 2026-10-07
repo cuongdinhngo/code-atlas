@@ -75,7 +75,8 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
   and the index directory (`.code-atlas/` committed as a link aims SQLite writes) are not yet contained
   — 342.
 - **PHP members are case-insensitive, the resolver is not** (`validate()` onto `Validate()` stays
-  unlinked); and only PHP flags its constructor (`extra.constructor`) — 362.
+  unlinked — a fixture cause, not matched to the field); only PHP flags a constructor, and an
+  inherited one misses its subclass's `new` sites — 362.
 
 ## Conventions
 - Keep an **open** task's `status` in this table **and** in its frontmatter in sync.

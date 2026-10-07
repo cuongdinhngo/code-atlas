@@ -478,6 +478,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     kinds=CALLER_KINDS,
                     args_at=args_at,
                     confidence_tier=tier,
+                    also_targets=also,
                 )
                 if depth == 1 and outcome.truncated
                 else {}
