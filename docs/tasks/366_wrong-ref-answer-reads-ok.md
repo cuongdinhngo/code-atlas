@@ -261,12 +261,7 @@ The "not met" is Scope 2's "or a refresh" (F10 below). Dispositions:
 Verify-only (main loop, no re-dispatch — every fix is inside the approved files, plus one
 `store.py` helper the F2 fix needs, recorded here as a change-list addition):
 
-Ran at f8b28e71:
-```
-$ .venv/bin/python -m pytest -q tests/test_ref_mismatch.py
-9 passed in 3.03s
-```
-Related suites plus doc tests on the same tree: `243 passed in 18.71s`.
+On `f8b28e71` the file gave `9 passed in 3.03s`; related suites plus doc tests `243 passed`.
 
 **Gate red once — a P5 miss.** `scripts/gate.sh` on the first bookkeeping tip failed four count-pins
 the blast radius did not list: `len(core_modules()) == 96` (`tests/test_core_is_language_agnostic.py`,
@@ -275,15 +270,28 @@ REASON_PATH_OUTSIDE_ROOT` (`tests/test_empty_answer_cannot_explain_itself.py`,
 `tests/test_relation_unmodelled_for_language.py`). Each moved to the new value; recorded as a
 change-list deviation. AGENT_BRIEF P5 already names this class, so no new claim.
 
+**Round 2** (re-dispatched: the pin fix touched tests outside the reviewed set; on `1121f5d7`,
+66,088 tokens): **5 met · 0 not met · 1 can't tell** (AC3 — the cap test was not in
+its run list; the gate runs it). Every round-1 fix confirmed. Its findings: the "or a refresh" route
+(F10 again — left, X7); the R5.4 text (left, R7.6); an `error` payload stamped `ref_mismatch` —
+**fixed** in `1a963e84`, an error answer is left as it is; an untested hang guard and an unbounded
+checkout cache — left (low; a timed-out session reads as no roots).
+
+Ran at 1a963e84:
+```
+$ .venv/bin/python -m pytest -q tests/test_ref_mismatch.py
+9 passed in 2.92s
+```
+
 `Ph3/4 proven by`: G1, C1, R1–R3, AC1–AC3 — 8/8.
 
 Verdict: **clean (challenger only — REVIEWER: OFF)**.
 
-Reviewed at f8b28e71 — the diff `main..f8b28e71`. Working doc: `docs/tasks/366_wrong-ref-answer-reads-ok.md` (embedded).
+Reviewed at 1a963e84 — the diff `main..1a963e84`. Working doc: `docs/tasks/366_wrong-ref-answer-reads-ok.md` (embedded).
 
 ## Phase 5 — finalise
 
-Stale-review guard: after `f8b28e71` only bookkeeping changes — this doc, `docs/BACKLOG.md`,
+Stale-review guard: after `1a963e84` only bookkeeping changes — this doc, `docs/BACKLOG.md`,
 `docs/TOKEN_LEDGER.md` and `docs/LESSONS.md`, all exempt.
 
 `CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=1 T6=0 | 0 unclassified`
@@ -310,8 +318,9 @@ Deferred to the maintainer: the merge; ratifying X1–X4, X8, X9.
 |---|---|---|---|
 | 1 | refine | exposure-checker (`challenger`) | 48,402 |
 | 2 | review | `challenger`, round 1 | 68,160 |
+| 3 | review | `challenger`, round 2 | 66,088 |
 | — | main loop | — | unmeasured |
 
-`LEDGER TOTAL: 116,562 · top cost driver: review/challenger`
+`LEDGER TOTAL: 182,650 · top cost driver: review/challenger`
 
 **Revert path.** `git revert` the branch commits; nothing persistent changes.
