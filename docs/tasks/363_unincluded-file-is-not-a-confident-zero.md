@@ -10,12 +10,12 @@ depends_on: [353]
 
 ## Why this exists
 
-This comes from field feedback on evaran-care/rac-anz, written after 353 landed (2026-10-06).
+This comes from the anchor project's field retro, written after 353 landed (2026-10-06).
 
-- #3079: `include_graph` named `tabs.php:1650` as the only includer of one `financial_screen.php`.
-  On the unused copy, it answered `relationship_not_modelled`, not zero.
-- #3077: the same answer on `Aus/Financial/ResidentFinancial/View/financial_screen.php`.
-- #3103: `include_graph` on a vendored `dompdfnew/autoload.inc.php` answered
+- F1 (1 PR): `include_graph` named one `tabs.php` line as the only includer of one copy of a
+  `screen.php`. On the unused copy, it answered `relationship_not_modelled`, not zero.
+- F2 (1 PR): the same answer on a second, regional copy of that `screen.php`.
+- F3 (1 PR): `include_graph` on a vendored PDF library's `autoload.inc.php` answered
   `relationship_not_modelled`. Proving "this `vendor/` tree is unreachable" fell back to Grep over
   four roots.
 
@@ -25,9 +25,9 @@ such row the answer is already `no_matches`. So in each case above, some unlinke
 
 ## Scope
 
-1. Reproduce first: on #3079/#3077/#3103, list the unlinked rows that matched and classify them
-   (substring false positive such as `old_financial_screen.php`, a concatenation whose literal tail
-   rules this path out, or a truly dynamic include). For #3103, first confirm that the subject was
+1. Reproduce first: on F1–F3, list the unlinked rows that matched and classify them
+   (substring false positive such as `old_screen.php`, a concatenation whose literal tail
+   rules this path out, or a truly dynamic include). For F3, first confirm that the subject was
    indexed at all, since `vendor/` is excluded by default.
 2. Count only the unlinked rows that *could* name the subject: the basename matches at a path
    boundary, and any literal path tail is compatible with the subject's path. If none remain,

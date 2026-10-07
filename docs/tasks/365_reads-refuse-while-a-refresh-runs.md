@@ -10,15 +10,15 @@ depends_on: [356, 357, 274]
 
 ## Why this exists
 
-356 keeps a full rebuild behind a shadow index. Field feedback from evaran-care/rac-anz shows that
-the incremental path still refuses. This is the most frequent reason the agent fell back to Grep
-(the 7 PRs below), and it still happens after 356 landed.
+356 keeps a full rebuild behind a shadow index. The anchor project's field retro shows that the
+incremental path still refuses. This is the most frequent reason the agent fell back to Grep (the
+7 PRs below), and it still happens after 356 landed.
 
-- #3136, #3135 (2026-10-07): `find_references` on a table → `index_stale` "during the background
+- F1 (2 PRs, 2026-10-07): `find_references` on a table → `index_stale` "during the background
   build".
-- #3012: index `behind`, and `read_symbol` on `CareControllerIndex` → `index_stale`.
-- #2772, #2840, #2839: `read_symbol` → `index_stale` while a build ran.
-- #2906: `read_symbol dbo.WoundsTran` → `subject_ambiguous` mid-rebuild.
+- F2 (1 PR): index `behind`, and `read_symbol` on a controller class → `index_stale`.
+- F3 (3 PRs): `read_symbol` → `index_stale` while a build ran.
+- F4 (1 PR): `read_symbol` on a table → `subject_ambiguous` mid-rebuild.
 
 **Reproduced (2026-10-07, real PHP adapter, scratch repo).** Build, commit an edit to `A.php`, then
 hold `write.lock` and a SQLite write transaction the way an incremental refresh does:
@@ -57,9 +57,9 @@ cure, a refresh, is already running. `read_symbol` has no `serve_behind` and no 
    `reparse_file` into a parse half and a write half; the store is untouched (R1.4). It serves the
    current bytes and span, labelled as read through this call. If the parse fails, it refuses as
    today, but with a route and with `refresh_in_progress`.
-4. `get_index_status` says that a refresh is running and the served graph is usable (#2927).
-5. Out of reach of this repro, and still to reproduce: #3135/#3136 ran during a 356 *full*
-   rebuild, which writes the shadow and leaves the live DB unlocked. #2906 is `subject_ambiguous`.
+4. `get_index_status` says that a refresh is running and the served graph is usable.
+5. Out of reach of this repro, and still to reproduce: F1 ran during a 356 *full* rebuild, which
+   writes the shadow and leaves the live DB unlocked. F4 is `subject_ambiguous`.
    Fix them here only if they share this cause; otherwise file them.
 
 ## Acceptance criteria

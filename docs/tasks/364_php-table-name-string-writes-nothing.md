@@ -10,15 +10,14 @@ depends_on: [352, 278, 328]
 
 ## Why this exists
 
-This comes from field feedback on evaran-care/rac-anz.
+This comes from the anchor project's field retro.
 
-- #2825: `find_references dbo.Beds` listed only the SQL writers (`authoritative: false`). The
-  page's `HmDatabase::SQL_INSERT` on `'Beds'` and `BedAPIModel`'s `insert('Beds')` were found with
-  Grep.
-- #2906: the `WoundsTran` insert writers came back at `HEURISTIC` only and needed `git grep`.
+- F1 (1 PR): `find_references dbo.Items` listed only the SQL writers (`authoritative: false`). A
+  page's `Db::insertRow` on `'Items'` and an API model's `insert('Items')` were found with Grep.
+- F2 (1 PR): another table's insert writers came back at `HEURISTIC` only and needed `git grep`.
 
 278/281 read a PHP string that *begins* a T-SQL write. A wrapper call whose only argument naming
-the table is the bare table name does not have that shape: `queryInsert('Beds', $row)`,
+the table is the bare table name does not have that shape: `queryInsert('Items', $row)`,
 `queryUpdate`, `queryDelete`. And 352 shipped as `keyed_calls` (222), which emits only `CALLS`,
 never `WRITES` or `DELETES`.
 
@@ -32,7 +31,7 @@ never `WRITES` or `DELETES`.
 
 ## Acceptance criteria
 
-- **AC1:** With a rule `queryInsert arg 0 → WRITES`, `find_references dbo.Beds` lists the PHP call
+- **AC1:** With a rule `queryInsert arg 0 → WRITES`, `find_references dbo.Items` lists the PHP call
   site beside the SQL writers.
 - **AC2:** `check_column_defaults` keeps reading only writers that carry a column list. A rule edge
   without a column list is not reported as omitting every column.

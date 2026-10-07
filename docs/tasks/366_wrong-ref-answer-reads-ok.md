@@ -10,11 +10,11 @@ depends_on: [354, 360]
 
 ## Why this exists
 
-This comes from field feedback on evaran-care/rac-anz.
+This comes from the anchor project's field retro.
 
-- #3102: after a branch switch, `find_callers` answered for an `answered_about_ref` on another
+- F1 (1 PR): after a branch switch, `find_callers` answered for an `answered_about_ref` on another
   branch, and one hit came back `source_stale`. Only a metadata field showed the mismatch.
-- #3085, #2758, #2748: a second developer did not use code-atlas at all, because "the index in a
+- F2 (3 PRs): a second developer did not use code-atlas at all, because "the index in a
   worktree answers about `main`" while still reporting `reason: ok`. The anchor project's agent
   guide lists this as a standing trap.
 
@@ -24,7 +24,7 @@ server rooted at main while the agent works in a worktree. A stdio server's root
 so it cannot see the caller's checkout unless the client reports it: the MCP `roots` capability is
 the only route.
 
-#3102 is a different case: a branch switch in the same tree. Per-subject staleness answers `ok`
+F1 is a different case: a branch switch in the same tree. Per-subject staleness answers `ok`
 for a subject unchanged between the two revisions, by 257's design. Reproduce it before deciding
 whether it is a defect.
 
