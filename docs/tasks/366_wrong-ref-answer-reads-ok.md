@@ -323,4 +323,7 @@ Deferred to the maintainer: the merge; ratifying X1–X4, X8, X9.
 
 `LEDGER TOTAL: 182,650 · top cost driver: review/challenger`
 
+**Gate.** `scripts/gate.sh` on `ae121a7e`: `GATE GREEN — all 21 checks passed` (Linux, bare pytest).
+Only this doc and the ledger row's gate note changed after it.
+
 **Revert path.** `git revert` the branch commits; nothing persistent changes.
