@@ -20,22 +20,53 @@ the incremental path still refuses. This is the most frequent reason the agent f
 - #2772, #2840, #2839: `read_symbol` → `index_stale` while a build ran.
 - #2906: `read_symbol dbo.WoundsTran` → `subject_ambiguous` mid-rebuild.
 
+**Reproduced (2026-10-07, real PHP adapter, scratch repo).** Build, commit an edit to `A.php`, then
+hold `write.lock` and a SQLite write transaction the way an incremental refresh does:
+
+| Call while the lock is held | Answer | Wall |
+|---|---|---|
+| `read_symbol` / `find_callers` / `find_references`, subject **unchanged** | `ok` | 0.0 s |
+| `read_symbol A::m`, subject **changed** | `index_stale`, no route | 5.0 s |
+| `find_callers A::m`, subject changed | `index_stale` | 5.0 s |
+| `find_callers` / `find_references A::m`, `serve_behind=true` | `index_behind_subject_changed`, 1 hit | 5.0 s |
+| Any of the above, lock released | `ok` | 0.0 s |
+
+So an unchanged subject already answers. The refusal hits only the subject the commit just changed,
+which is exactly the file an agent asks about next. Read-through repair (035) calls
+`reparse_file`, which writes to the live DB, waits out `busy_timeout=5000` behind the refresh's
+transaction, fails, and the guard answers `index_stale`. The caller cannot cure that refusal: the
+cure, a refresh, is already running. `read_symbol` has no `serve_behind` and no route at all.
+
+**Decision.** Treat a held lock as "repair is in progress", not as a repair failure. This narrows
+257's opt-in (PLAN §19) to one condition instead of reversing it, so it needs a one-line §19 entry.
+
+- *Rejected: serve unchanged subjects labelled.* The table shows they already answer `ok`, so this
+  would change nothing.
+- *Rejected: flip the `serve_behind` default.* It changes every behind answer to fix one condition.
+- *Rejected: wait for the refresh.* An incremental costs about a minute on a large index (052, 357).
+
 ## Scope
 
-1. Reproduce first. A commit triggers the post-commit refresh (355), and a read arrives while that
-   refresh holds the lock. Record which tool answers what, with the built revision.
-2. A read whose subject has not changed since the built revision answers from the built graph,
-   labelled the way 257/267 label it (`index_behind`). A drifted subject keeps its current
-   repair-or-refuse behaviour. `read_symbol` has no `serve_behind` today, so it gains this path.
-3. **Open want-decision, for the maintainer:** PLAN §19 records `serve_behind` as opt-in, "off ⇒
-   byte-identical" (257 · 267 · 274). Either (a) answer labelled *only while the refresh lock is
-   held*, which keeps that default for every other case, or (b) flip the default, which needs a
-   §19 entry that reverses 257. This ticket assumes (a) until the maintainer decides.
-4. `get_index_status` says that the served graph is usable while the refresh runs (#2927).
+1. Read-through repair probes `write.lock` without blocking (`index_lock.try_index_write_lock`)
+   before it writes. When the lock is held, skip the write and the 5 s wait.
+2. With the lock held, `find_callers`, `find_references` and `impact` on a changed subject answer
+   from the built graph as 267's `index_behind_subject_changed`, with the built revision, without
+   `serve_behind`. Add `refresh_in_progress: true`. Inbound edges come from other files, which a
+   per-file staleness check vouches for.
+3. With the lock held, `read_symbol` on a changed subject parses the file *without writing*. Split
+   `reparse_file` into a parse half and a write half; the store is untouched (R1.4). It serves the
+   current bytes and span, labelled as read through this call. If the parse fails, it refuses as
+   today, but with a route and with `refresh_in_progress`.
+4. `get_index_status` says that a refresh is running and the served graph is usable (#2927).
+5. Out of reach of this repro, and still to reproduce: #3135/#3136 ran during a 356 *full*
+   rebuild, which writes the shadow and leaves the live DB unlocked. #2906 is `subject_ambiguous`.
+   Fix them here only if they share this cause; otherwise file them.
 
 ## Acceptance criteria
 
-- **AC1:** A test holds the refresh lock and calls `read_symbol` and `find_references` on an
-  unchanged subject. Both answer, labelled, with the built revision.
-- **AC2:** The same calls on a subject changed since the build give the answer they give today.
-- **AC3:** With no refresh running, every answer is byte-identical.
+- **AC1:** With the lock held, `find_callers` and `find_references` on a subject changed since the
+  build answer `index_behind_subject_changed` with the built revision and `refresh_in_progress`,
+  in under 1 s.
+- **AC2:** With the lock held, `read_symbol` on that subject returns its current source, in under
+  1 s, and the store is byte-identical afterwards.
+- **AC3:** Unchanged subjects, and every call with no lock held, are byte-identical to today.
