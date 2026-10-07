@@ -7,6 +7,7 @@ unlinked include now blocks the zero only when its path tail could be this file'
 
 from __future__ import annotations
 
+import dataclasses
 import shlex
 import subprocess
 from pathlib import Path
@@ -106,3 +107,16 @@ def test_only_a_tail_that_could_be_this_path_fits(target_raw: str, fits: bool) -
     from code_atlas.tools.include_graph import _tail_fits
 
     assert _tail_fits(target_raw, UNUSED) is fits
+
+
+def test_a_cut_listing_or_an_unindexed_subject_is_never_a_positive_zero(tmp_path: Path) -> None:
+    """R5.6 — a zero is attested only for an indexed file over a listing that was read whole."""
+    files = dict(BASE)
+    files["app/a.php"] = "<?php\ninclude '../nowhere/screen.php';\n"
+    files["app/b.php"] = "<?php\ninclude '../elsewhere/screen.php';\n"
+    config = _build(tmp_path, files)
+    narrow = dataclasses.replace(config, page_limit=1)
+    answer = include_graph.create(narrow)(UNUSED, direction="imported_by")
+    assert "authoritative" not in answer
+    ghost = include_graph.create(config)("app/ghost/screen.php", direction="imported_by")
+    assert "authoritative" not in ghost

@@ -36,6 +36,7 @@ Direction = Literal["imports", "imported_by", "both"]
 
 # Unlinked includes that could still be this file's includer, listed on a not-modelled zero (363).
 UNLINKED_INCLUDES = "unlinked_includes"
+UNLINKED_INCLUDES_TRUNCATED = "unlinked_includes_truncated"
 # Same-named files that are included, named beside a positive inbound zero (363).
 SAME_BASENAME_INCLUDED = "same_basename_included"
 _QUOTED = re.compile(r"'([^']*)'|\"([^\"]*)\"")
@@ -93,6 +94,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         try_instead: str | None = None
         try_instead_hint: str | None = None
         could_name: list[dict[str, object]] = []
+        listing_cut = False
         alternatives: list[str] = []
         with GraphStore(config.db_path) as store:
             about_ref = answered_about_ref_for(store)
@@ -103,9 +105,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 # zero named no_matches — not "not modelled" (065 keeps that distinction).
                 # Only an unlinked include whose path tail fits this file could include it (363).
                 basename = PurePosixPath(rel).name
+                mentions = store.unlinked_includes_mentioning(basename, limit=limit + 1)
+                listing_cut = len(mentions) > limit
                 could_name = [
                     {"file": row["file_path"], "line": row["line"], "target_raw": row["target_raw"]}
-                    for row in store.unlinked_includes_mentioning(basename, limit=limit)
+                    for row in mentions[:limit]
                     if _tail_fits(str(row["target_raw"]), rel)
                 ]
                 if could_name:
@@ -132,7 +136,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         subject_kind="File",
                         raws=(rel,),
                     )
-                    if reason == REASON_NO_MATCHES:
+                    # Never attest past the read: a cut listing or an unindexed subject is no proof.
+                    if reason == REASON_NO_MATCHES and not listing_cut and store.file_hash(rel):
                         # A positive zero: every include of this name reached another copy (363).
                         alternatives = [
                             path for path in store.included_files_named(basename) if path != rel
@@ -153,6 +158,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             payload["unresolved_includes"] = outcome.unresolved_includes
         if could_name:
             payload[UNLINKED_INCLUDES] = could_name
+            if listing_cut:
+                payload[UNLINKED_INCLUDES_TRUNCATED] = True
         if alternatives:
             payload[AUTHORITATIVE] = True
             payload[SAME_BASENAME_INCLUDED] = alternatives
