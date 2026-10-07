@@ -173,7 +173,7 @@ what the payload already says (061). An answer must state what it is *not* telli
 |---|---|---|
 | `index_root` | **every** payload, every detail level | the configured source tree — identity of the tree, not the database file (071) |
 | `db_path` | `get_index_status` / `build_or_update_index` at `standard` | nowhere else after 061 |
-| `last_ref` / `head_ref` | status + the busy-build refusal sharing its vocabulary | the revision the index was built on and the one HEAD is on now. `HEAD` when detached, `null` when non-git, **omitted** pre-077 so `null` is not read as "not under git". Nav answers name the built-on ref as `answered_about_ref` (every envelope, every level, the `last_ref` value or `null`, single-sourced — 317); the pair itself stays status-only (077) |
+| `last_ref` / `head_ref` | status + the busy-build refusal sharing its vocabulary | the revision the index was built on and the one HEAD is on now. `HEAD` when detached, `null` when non-git, **omitted** pre-077 so `null` is not read as "not under git". Nav answers name the built-on ref as `answered_about_ref` (every envelope, every level, the `last_ref` value or `null`, single-sourced — 317); the pair itself stays status-only (077). MCP `roots` in another checkout at another commit → `ref_mismatch`, `index_commit`/`caller_commit`/`caller_root`/`reason_at_index` (366) |
 | `server_version` / `server_build` / `server_stale_process` (+ `server_stale_action` / `server_stale_differs` / `server_stale_impact` / `server_build_kind` / `server_repo_head` when it fires — 267/284) | status at `standard`/`verbose`; `minimal` omits all three | running package + build id + whether loaded code matches disk; `+dirty` is the worktree axis, the verdict is unconditional (170) and claims add `server=`/`build=` (100/125). Per-field semantics: [design/payload.md](design/payload.md#which-code-answered-and-which-config-tasks-170-175) |
 | `config_build` / `config_stale_process` | status at `standard`/`verbose`; `build_or_update_index` at `standard` | which **config** answered — a hash of the project file plus the `CA_*` it reads, no timestamps — and whether the disk still matches it. The verdict is stated, never omitted (170); `index_config_build` and why nav payloads skip it: [design/payload.md](design/payload.md#which-code-answered-and-which-config-tasks-170-175) |
 | `parse_failures` / `parse_failures_note` | status at `standard`+ | adapter `parsed_ok=0` count — a **floor**, not a fatal surface; note routes to the language runtime's own compiler/linter (058/280). Paths only at `verbose` |
@@ -201,10 +201,8 @@ what the payload already says (061). An answer must state what it is *not* telli
   **registered MCP tool name the reader can call**; the *how to re-ask* qualifier is prose in the
   sibling `try_instead_hint`, attached only alongside a route (061 omit when empty). `tests/test_try_instead_is_a_callable_tool_name.py`
   derives both sets from the module namespace and `main.TOOL_NAMES` (R1.1). Callable is not
-  sufficient. A route must also **make progress**: no tool routes to itself (`find_references` on a
-  class routes to `search_symbol`, which enumerates the method qnames the hint asks for). And it
-  must be **able to answer**: where no registered tool can, emit the **hint alone, no
-  `try_instead`**, since naming a tool that cannot answer buys a confident wrong answer (075/076).
+  sufficient: R5.4 (b) no self-route (`find_references` on a class routes to `search_symbol`) and
+  (c) **hint alone** where no registered tool can answer (075/076).
   A route needs positive evidence the relation is carried
   ([`design/payload.md`](design/payload.md), 186/188).
   **Known boundary, not closed:** callability is checked against the full `main.TOOL_NAMES`, so a

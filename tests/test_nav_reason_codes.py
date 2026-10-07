@@ -31,6 +31,7 @@ from code_atlas.tools.nav_result import (
     REASON_PATH_EXCLUDED,
     REASON_PATH_OUTSIDE_ROOT,
     REASON_PROXIMITY_CANDIDATES,
+    REASON_REF_MISMATCH,
     REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
     REASON_RELATIONSHIP_NOT_MODELLED,
     REASON_RULE_MATCHED_NO_FILES,
@@ -198,6 +199,7 @@ def test_reason_vocabulary_includes_index_stale_unused() -> None:
         REASON_KIND_EXCLUDED,
         REASON_PATH_EXCLUDED,
         REASON_PATH_OUTSIDE_ROOT,
+        REASON_REF_MISMATCH,
     )
 
 
