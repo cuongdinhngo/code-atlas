@@ -702,13 +702,12 @@ def _count_late_writes(
     )
 
 
-def reparse_file(config: Config, store: GraphStore, path: str) -> bool:
-    """Parse one relative path into ``store`` and re-link (read-through freshness, task 035).
+def parse_file(config: Config, path: str) -> tuple[str, ParseResult] | None:
+    """Parse one relative path with its owning adapter and store nothing (365).
 
-    Returns ``False`` when no adapter owns the suffix, announce/parse/write fails, or the DB is
-    locked — callers treat that as ``index_stale`` instead of crashing the read tool.
-    Uses the same ``_write`` path as a full/incremental build so rows stay deterministic (R4).
-    Soft-fails on any exception so a broken adapter never escapes a read tool (PR #41).
+    Returns ``(language, result)``, or ``None`` when no adapter owns the suffix or the adapter
+    cannot be announced. The read half of :func:`reparse_file`; ``read_symbol`` uses it alone
+    while a writer holds the index.
     """
     watchdog = _Watchdog(config.adapter_timeout)
     watchdog.start()
@@ -716,15 +715,13 @@ def reparse_file(config: Config, store: GraphStore, path: str) -> bool:
         try:
             announced = _announce(config, watchdog)
         except AdapterError:
-            return False
+            return None
         try:
             owners = _owners(announced)
             suffix = _suffix(path)
             if suffix not in owners:
-                return False
-            key = owners[suffix]
-            adapter = announced[key]
-            language = adapter.name
+                return None
+            adapter = announced[owners[suffix]]
             try:
                 with watchdog.guard(adapter):
                     result = adapter.parse(
@@ -736,29 +733,45 @@ def reparse_file(config: Config, store: GraphStore, path: str) -> bool:
                 result = ParseResult(path=path, ok=False, error=str(error))
             if is_stub_path(path, config.stub_roots) and result.ok:
                 result = as_stub_result(result)
-            tally = {"parsed": 0, "failed": 0, "nodes": 0, "edges": 0}
-            try:
-                digest = _digest(config.root / path)
-                fingerprint = _whitespace_fingerprint(config.root / path)
-                _write(
-                    store,
-                    path,
-                    digest,
-                    language,
-                    result,
-                    tally,
-                    fingerprint=fingerprint,
-                )
-                resolve_edges(store, max_candidates=config.max_candidates, file_path=path)
-            except Exception:
-                return False
+            return adapter.name, result
         finally:
             for adapter in announced.values():
                 adapter.stop()
-    except (OSError, TimeoutError):
-        return False
     finally:
         watchdog.stop()
+
+
+def reparse_file(config: Config, store: GraphStore, path: str) -> bool:
+    """Parse one relative path into ``store`` and re-link (read-through freshness, task 035).
+
+    Returns ``False`` when no adapter owns the suffix, announce/parse/write fails, or the DB is
+    locked — callers treat that as ``index_stale`` instead of crashing the read tool.
+    Uses the same ``_write`` path as a full/incremental build so rows stay deterministic (R4).
+    Soft-fails on any exception so a broken adapter never escapes a read tool (PR #41).
+    """
+    try:
+        parsed = parse_file(config, path)
+    except (OSError, TimeoutError):
+        return False
+    if parsed is None:
+        return False
+    language, result = parsed
+    tally = {"parsed": 0, "failed": 0, "nodes": 0, "edges": 0}
+    try:
+        digest = _digest(config.root / path)
+        fingerprint = _whitespace_fingerprint(config.root / path)
+        _write(
+            store,
+            path,
+            digest,
+            language,
+            result,
+            tally,
+            fingerprint=fingerprint,
+        )
+        resolve_edges(store, max_candidates=config.max_candidates, file_path=path)
+    except Exception:
+        return False
     return True
 
 

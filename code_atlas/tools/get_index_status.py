@@ -301,9 +301,13 @@ def _attach_behind_routes(
     """
     if staleness != BEHIND:
         return
-    status[BEHIND_SERVES_FIELD] = [SEARCH_TOOL, READ_TOOL]
-    status[BEHIND_REFUSES_FIELD] = [CALLERS_TOOL, REFERENCES_TOOL]
-    status[SERVE_BEHIND_OPT_IN_FIELD] = SERVE_BEHIND_OPT_IN
+    if status.get(BUILD_IN_PROGRESS):
+        # 365: a writer holds the index, so callers/references label the built graph unasked.
+        status[BEHIND_SERVES_FIELD] = [SEARCH_TOOL, READ_TOOL, CALLERS_TOOL, REFERENCES_TOOL]
+    else:
+        status[BEHIND_SERVES_FIELD] = [SEARCH_TOOL, READ_TOOL]
+        status[BEHIND_REFUSES_FIELD] = [CALLERS_TOOL, REFERENCES_TOOL]
+        status[SERVE_BEHIND_OPT_IN_FIELD] = SERVE_BEHIND_OPT_IN
     status[CHANGED_INDEXED_BETWEEN_FIELD] = list(CHANGED_INDEXED_BETWEEN)
     if detail_level == "minimal" or store is None or config is None:
         return
@@ -356,6 +360,9 @@ def _compose_state(payload: dict[str, object]) -> str:
         )
     staleness = str(payload.get("staleness") or UNKNOWN)
     if staleness == BEHIND:
+        if payload.get(BUILD_IN_PROGRESS):
+            # The state hook adds "a build is running"; asking for another build would be busy.
+            return f"behind{at} · {scale} — the last built graph answers until the build lands"
         serves = " (read tools still serve)" if payload.get(BEHIND_SERVES_FIELD) else ""
         return f"behind{at} · {scale}{serves} — run build_or_update_index"
     if staleness == CURRENT:
@@ -467,6 +474,8 @@ def _status(
         "index_root": config.index_root,
         **server_provenance(),
     }
+    if build_in_progress(config.db_path):
+        status[BUILD_IN_PROGRESS] = True
     _attach_suggestions(status, servable, staleness, indexed=indexed)
     if detail_level == "minimal":
         _attach_behind_routes(status, staleness=staleness, detail_level="minimal")

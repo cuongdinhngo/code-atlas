@@ -84,6 +84,8 @@ class FreshnessGuard:
     cap: int = READ_THROUGH_CAP
     _used: int = field(default=0, init=False)
     other_indexed_files_drifted: int = field(default=0, init=False)
+    # A writer held the DB when a repair was due: the refresh is the repair (365).
+    build_held: bool = field(default=False, init=False)
 
     @property
     def used(self) -> int:
@@ -100,6 +102,9 @@ class FreshnessGuard:
         if file_is_current(self.store, self.config.root, path):
             return "ok"
         if self._used >= self.cap:
+            return "stale"
+        if self.store.write_locked():
+            self.build_held = True
             return "stale"
         if not reparse_file(self.config, self.store, path):
             return "stale"

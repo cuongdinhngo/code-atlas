@@ -847,9 +847,9 @@ Nav answer: `PROVIDES_VIEW_DATA` / `find_view_data`.
 - **Annotations and decorators emit `REFERENCES` (232)**; `Foo::class` stays `DYNAMIC`. Class constants
   by spec markers and PEP 8 upper-case (234) — no new kind.
 - **`serve_behind` labelled reads (257 · 267 · 274)** — opt-in; behind + unchanged → `index_behind`,
-  never `ok`; off ⇒ byte-identical. **Narrowed by 365 (2026-10-07):** while a refresh holds
-  `write.lock`, a changed subject is served as `index_behind_subject_changed` without the opt-in —
-  the cure a refusal points to is already running, so refusing only sends the agent to Grep.
+  never `ok`; off ⇒ byte-identical. **Narrowed by 365 (2026-10-07):** while a writer holds the
+  live DB (probed with a zero-wait `BEGIN IMMEDIATE`, so a shadowed full rebuild still repairs), a
+  changed subject is served as `index_behind_subject_changed` without the opt-in — the cure is running.
 - **Table/Column writers via `find_references` (278 · 281 · 335)**; a PHP literal beginning a T-SQL
   write → `HEURISTIC` edge. **`keyed_calls` may target File qnames (256).** **`parse_failures` is a
   floor, not a fatal surface (280).** **Unmodelled `*->L` hits are `authoritative: false` (238 · 276).**

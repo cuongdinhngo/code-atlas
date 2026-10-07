@@ -106,8 +106,14 @@ MEMORY_DB = ":memory:"
 # sqlite3, so SQLite stays confined to this module (R1.4 / tests/test_sql_confinement.py).
 WRITE_ERRORS: tuple[type[Exception], ...] = (sqlite3.Error,)
 
+# How long a write waits behind another writer; write_locked() restores it after probing (365).
+BUSY_TIMEOUT_MS = 5000
 # Set outside any transaction: foreign_keys is silently ignored inside one.
-PRAGMAS: tuple[str, ...] = ("journal_mode=WAL", "foreign_keys=ON", "busy_timeout=5000")
+PRAGMAS: tuple[str, ...] = (
+    "journal_mode=WAL",
+    "foreign_keys=ON",
+    f"busy_timeout={BUSY_TIMEOUT_MS}",
+)
 
 # A full rebuild fills this file, then publishes it over the live index in one transaction (356).
 SHADOW_SUFFIX = ".shadow"
@@ -769,6 +775,26 @@ class GraphStore:
 
     def close(self) -> None:
         self._conn.close()
+
+    def write_locked(self) -> bool:
+        """Does another connection hold this database's write lock right now? (365)
+
+        A zero-wait ``BEGIN IMMEDIATE`` that is rolled back at once, so read-through repair can
+        decline before it spends ``BUSY_TIMEOUT_MS`` behind an in-place build. Writes nothing and
+        never touches ``write.lock``; inside an open transaction it cannot probe and answers False.
+        """
+        if self._conn.in_transaction:
+            return False
+        self._conn.execute("PRAGMA busy_timeout=0")
+        try:
+            self._conn.execute("BEGIN IMMEDIATE")
+        except sqlite3.OperationalError:
+            return True
+        else:
+            self._conn.execute("ROLLBACK")
+            return False
+        finally:
+            self._conn.execute(f"PRAGMA busy_timeout={BUSY_TIMEOUT_MS}")
 
     @classmethod
     def open_shadow(cls, db_path: Path) -> "GraphStore":
