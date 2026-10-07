@@ -225,22 +225,26 @@ It saw four line numbers of this doc through a grep and says it did not open it.
 
 Verify-only (main loop — every fix is inside the approved files):
 
-Ran at 3b82d9e7:
+**Gate red once — R3.2.** The first gate run failed `test_contract_sole_source` on
+`include_graph.py`: the listing spelled `line` and `target_raw` as literals. In `74389226` the sites are
+built with the shared `edge_hit` (R1.8) plus `target_raw` — inside the approved file, verified here.
+
+Ran at 74389226:
 ```
 $ .venv/bin/python -m pytest -q tests/test_unincluded_file_zero.py
-16 passed in 3.26s
+16 passed in 3.20s
 ```
-Every include / not-modelled test on the same tree: `371 passed in 46.98s`.
+Every include / not-modelled test on `3b82d9e7`: `371 passed in 46.98s`.
 
 `Ph3/4 proven by`: G1, C1, R1, R2, AC1–AC3 — 7/7.
 
 Verdict: **clean (challenger only — REVIEWER: OFF)**.
 
-Reviewed at 3b82d9e7 — the diff `main..3b82d9e7`. Working doc: `docs/tasks/363_unincluded-file-is-not-a-confident-zero.md` (embedded).
+Reviewed at 74389226 — the diff `main..74389226`. Working doc: `docs/tasks/363_unincluded-file-is-not-a-confident-zero.md` (embedded).
 
 ## Phase 5 — finalise
 
-Stale-review guard: after `3b82d9e7` only bookkeeping changes — this doc, `docs/BACKLOG.md`,
+Stale-review guard: after `74389226` only bookkeeping changes — this doc, `docs/BACKLOG.md`,
 `docs/TOKEN_LEDGER.md` and `docs/LESSONS.md`, all exempt.
 
 `CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
