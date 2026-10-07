@@ -114,7 +114,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 mentions = store.unlinked_includes_mentioning(basename, limit=limit + 1)
                 listing_cut = len(mentions) > limit
                 could_name = [
-                    {"file": row["file_path"], "line": row["line"], "target_raw": row["target_raw"]}
+                    edge_hit(row) | {"target_raw": row["target_raw"]}
                     for row in mentions[:limit]
                     if _tail_fits(str(row["target_raw"]), rel)
                 ]

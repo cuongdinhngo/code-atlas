@@ -67,9 +67,12 @@ def test_a_dynamic_include_of_the_basename_reverts_the_zero(tmp_path: Path) -> N
     config = _build(tmp_path, files)
     answer = include_graph.create(config)(UNUSED, direction="imported_by")
     assert answer["reason"] == REASON_RELATIONSHIP_NOT_MODELLED
-    assert answer["unlinked_includes"] == [
-        {"file": "app/cron/job.php", "line": 2, "target_raw": "/screen.php"}
-    ]
+    [site] = answer["unlinked_includes"]
+    assert (site["file"], site["line"], site["target_raw"]) == (
+        "app/cron/job.php",
+        2,
+        "/screen.php",
+    )
 
 
 def test_a_relative_tail_that_fits_this_file_still_blocks_the_zero(tmp_path: Path) -> None:
