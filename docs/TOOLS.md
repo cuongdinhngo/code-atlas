@@ -367,7 +367,8 @@ carry `rule: true`.
 - **A table named by a string (364).** `kind: "WRITES"` or `"DELETES"` emits that edge instead of a
   `CALLS`, onto the `Table` the template spells (`"dbo.{key}"` — a `::` member is refused): a writer
   with no column list, so `check_column_defaults` reads it as unmeasured. A `WRITES` key links
-  case-insensitively like any writer (215); a `DELETES` key must spell the stored qname.
+  case-insensitively like any writer (215); a `DELETES` key must spell the stored qname, and a miss of
+  either kind is counted in `rule_keys_unresolved` (a key naming a member writes nothing).
 - **`target_template`** must spell the **stored** qname — a PHP class carries its leading `\`, a SQL
   proc its schema — and may name a File (256). Several rules may share a setter; a literal links
   under whichever one names a real symbol.

@@ -39,6 +39,10 @@ _IDENTIFIER = re.compile(r"[A-Za-z_$][\w$]*")
 _OPENERS = {"(": ")", "[": "]", "{": "}"}
 
 
+# One keyed_calls edge as the census sees it: (source, target_raw, line, kind) — 222/352/364.
+Stamp = tuple[str, str, int, str]
+
+
 class KeyedCall(NamedTuple):
     """One ``keyed_calls`` rule: where the key comes from and the template it fills (222/361)."""
 
@@ -115,9 +119,9 @@ class Enriched(NamedTuple):
     nodes: int
     edges: int
     # Per keyed_calls rule: stamps it emitted — post-resolve census (task 222).
-    keyed_call_groups: tuple[tuple[tuple[str, str, int], ...], ...] = ()
+    keyed_call_groups: tuple[tuple[Stamp, ...], ...] = ()
     # Per call site and string key: the stamps every keyed_calls rule emitted for it (352).
-    keyed_call_sites: tuple[tuple[tuple[str, str, int], ...], ...] = ()
+    keyed_call_sites: tuple[tuple[Stamp, ...], ...] = ()
 
 
 NOTHING = Enriched(nodes=0, edges=0)
@@ -126,7 +130,7 @@ NOTHING = Enriched(nodes=0, edges=0)
 def apply_indirection_rules(
     config: Config, store: GraphStore, *, payload: RulesPayload | None = None
 ) -> Enriched:
-    """Replace synthetic ALIASES/CALLS/PROVIDES_VIEW_DATA rows, or clear when off.
+    """Replace synthetic ALIASES/CALLS/WRITES/DELETES/PROVIDES_VIEW_DATA rows, or clear when off.
 
     Edges keep ``file_path=INDIRECTION_FILE``; there is no ``files`` row and no File node
     (task 068 — counters and source-file tools must not treat the bookmark as source).
@@ -249,8 +253,8 @@ def _keyed_calls_edges(
     rules: tuple[KeyedCall, ...],
 ) -> tuple[
     list[dict[str, object]],
-    tuple[tuple[tuple[str, str, int], ...], ...],
-    tuple[tuple[tuple[str, str, int], ...], ...],
+    tuple[tuple[Stamp, ...], ...],
+    tuple[tuple[Stamp, ...], ...],
 ]:
     """CALLS edges whose target is a call's string key filled into ``target_template`` (222/361).
 
@@ -260,12 +264,12 @@ def _keyed_calls_edges(
     if not rules:
         return [], (), ()
     out: list[dict[str, object]] = []
-    groups: list[tuple[tuple[str, str, int], ...]] = []
-    sites: dict[tuple[str, int, str], list[tuple[str, str, int]]] = {}
-    seen: set[tuple[str, tuple[str, str, int]]] = set()
+    groups: list[tuple[Stamp, ...]] = []
+    sites: dict[tuple[str, int, str], list[Stamp]] = {}
+    seen: set[Stamp] = set()
     line_cache: dict[tuple[str, int], str | None] = {}
     for rule in rules:
-        group: list[tuple[str, str, int]] = []
+        group: list[Stamp] = []
         for edge in _calls_for_setter(store, rule.setter):
             if edge.get("file_path") == INDIRECTION_FILE:
                 continue
@@ -276,13 +280,15 @@ def _keyed_calls_edges(
                 continue
             for literal, values in _keyed_values(config, edge, rule, rel, line, line_cache):
                 target = _fill(rule.template, values)
-                stamp = (source, target, line)
+                if rule.kind != "CALLS" and contract.MEMBER_SEPARATOR in target:
+                    continue  # a key that names a member: a table rule never writes a column
+                stamp = (source, target, line, rule.kind)
                 site = sites.setdefault((source, line, literal), [])
                 if stamp not in site:
                     site.append(stamp)
-                if (rule.kind, stamp) in seen:
+                if stamp in seen:
                     continue
-                seen.add((rule.kind, stamp))
+                seen.add(stamp)
                 group.append(stamp)
                 out.append(
                     {
@@ -410,42 +416,30 @@ def _top_level_entries(body: str) -> list[str]:
     return entries
 
 
-def count_unresolved_keyed_calls(
-    store: GraphStore, groups: tuple[tuple[tuple[str, str, int], ...], ...]
-) -> int:
+def count_unresolved_keyed_calls(store: GraphStore, groups: tuple[tuple[Stamp, ...], ...]) -> int:
     """Rules whose every emitted keyed_calls edge stayed unlinked after resolve (task 222 AC4)."""
-    unresolved = 0
-    for stamps in groups:
-        if not stamps:
-            continue
-        any_linked = False
-        for _source, target_raw, _line in stamps:
-            for row in store.edges_by_target_raw(target_raw, kinds=_KEYED_KINDS):
-                if row.get("file_path") != INDIRECTION_FILE:
-                    continue
-                if row.get("target_qname"):
-                    any_linked = True
-                    break
-            if any_linked:
-                break
-        if not any_linked:
-            unresolved += 1
-    return unresolved
+    linked = _linked_stamps(store, {stamp for stamps in groups for stamp in stamps})
+    return sum(1 for stamps in groups if stamps and not any(s in linked for s in stamps))
 
 
-def count_unresolved_keyed_sites(
-    store: GraphStore, sites: tuple[tuple[tuple[str, str, int], ...], ...]
-) -> int:
+def count_unresolved_keyed_sites(store: GraphStore, sites: tuple[tuple[Stamp, ...], ...]) -> int:
     """Call sites whose string key linked under no keyed_calls rule (352).
 
     A literal naming nothing is counted once, however many rules tried it; one target query each.
     """
-    linked: set[tuple[str, str, int]] = set()
-    for target_raw in sorted({stamp[1] for stamps in sites for stamp in stamps}):
-        for row in store.edges_by_target_raw(target_raw, kinds=_KEYED_KINDS):
-            if row.get("file_path") == INDIRECTION_FILE and row.get("target_qname"):
-                linked.add((str(row.get("source_qname")), target_raw, int(str(row.get("line")))))
+    linked = _linked_stamps(store, {stamp for stamps in sites for stamp in stamps})
     return sum(1 for stamps in sites if not any(stamp in linked for stamp in stamps))
+
+
+def _linked_stamps(store: GraphStore, stamps: set[Stamp]) -> set[Stamp]:
+    """The stamps whose own rule row — same source, target, line and kind — the resolver linked."""
+    linked: set[Stamp] = set()
+    for target_raw, kind in sorted({(stamp[1], stamp[3]) for stamp in stamps}):
+        for row in store.edges_by_target_raw(target_raw, kinds=(kind,)):
+            if row.get("file_path") == INDIRECTION_FILE and row.get("target_qname"):
+                line = int(str(row.get("line")))
+                linked.add((str(row.get("source_qname")), target_raw, line, kind))
+    return linked & stamps
 
 
 def _calls_for_setter(store: GraphStore, setter: str) -> list[dict[str, object]]:

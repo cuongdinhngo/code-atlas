@@ -155,3 +155,80 @@ def test_a_malformed_write_rule_fails_loud(
     config = load_config(tmp_path, {"CA_INDIRECTION_RULES": "rules.json"})
     with pytest.raises(ConfigError, match=message):
         load_indirection_rules(config)
+
+
+def _build_with(root: Path, page: str, rules: dict) -> tuple[Config, BuildReport]:
+    (root / "db").mkdir()
+    (root / "db" / "001_items.sql").write_text(SCHEMA, encoding="utf-8")
+    (root / "src").mkdir()
+    (root / "src" / "page.php").write_text(page, encoding="utf-8")
+    (root / "rules.json").write_text(json.dumps(rules), encoding="utf-8")
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True, capture_output=True)
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True, capture_output=True)
+    config = load_config(
+        root,
+        {
+            "CA_WORKERS": "1",
+            "CA_PHP_CMD": shlex.join([str(PHP), str(PHP_ENTRY), "--server"]),
+            "CA_SQL_CMD": shlex.join([str(NODE), str(SQL_ENTRY), "--server"]),
+            "CA_INDIRECTION_RULES": "rules.json",
+        },
+    )
+    with GraphStore(config.db_path) as store:
+        report = full_build(config, store)
+    return config, report
+
+
+@needs_php
+@needs_node
+def test_a_linked_rule_of_one_kind_does_not_hide_an_unlinked_one_of_another(
+    tmp_path: Path,
+) -> None:
+    """Challenger F2 — `dbo.items`: WRITES links case-insensitively (215), CALLS does not."""
+    rules = {
+        "keyed_calls": [
+            {"setter": "\\queryInsert", "key_arg": 1, "kind": "WRITES", "target_template": TABLE},
+            {"setter": "\\queryInsert", "key_arg": 1, "target_template": TABLE},
+        ]
+    }
+    page = "<?php\nfunction addItem($row) { queryInsert('items', $row); }\n"
+    _, report = _build_with(tmp_path, page, rules)
+    assert report.rules_unresolved == 1  # the CALLS rule's own row never linked
+    assert report.rule_keys_unresolved == 0  # the site linked under the WRITES rule
+
+
+@needs_php
+@needs_node
+def test_a_key_that_names_a_member_writes_nothing(tmp_path: Path) -> None:
+    """Challenger F6 — a pattern capturing `Items::Name` would name a column: no edge at all."""
+    rules = {
+        "keyed_calls": [
+            {
+                "setter": "\\queryInsert",
+                "key_arg": 1,
+                "kind": "WRITES",
+                "key_pattern": "(.+)",
+                "target_template": TABLE,
+            }
+        ]
+    }
+    page = "<?php\nfunction addName($row) { queryInsert('Items::Name', $row); }\n"
+    config, _ = _build_with(tmp_path, page, rules)
+    payload = find_references.create(config)("dbo.Items")
+    assert "\\addName" not in {str(hit["qname"]) for hit in payload["results"]}
+
+
+@needs_php
+@needs_node
+def test_a_write_key_in_another_case_links_like_any_writer(tmp_path: Path) -> None:
+    """215's case-insensitive arm applies to a rule WRITES too, as TOOLS.md says."""
+    rules = {
+        "keyed_calls": [
+            {"setter": "\\queryInsert", "key_arg": 1, "kind": "WRITES", "target_template": TABLE}
+        ]
+    }
+    page = "<?php\nfunction addItem($row) { queryInsert('items', $row); }\n"
+    config, report = _build_with(tmp_path, page, rules)
+    payload = find_references.create(config)("dbo.Items")
+    assert "\\addItem" in {str(hit["qname"]) for hit in payload["results"]}
+    assert report.rule_keys_unresolved == 0
