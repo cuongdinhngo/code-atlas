@@ -260,4 +260,6 @@ Deferred to the maintainer: the merge (after #36); `/mango:promote` on `362-C1`;
 
 `LEDGER TOTAL: 131,986 · top cost driver: review/challenger`
 
+**Gate.** `scripts/gate.sh` on `fc7a8b4d`: `GATE GREEN — all 21 checks passed` (Linux, bare pytest).
+
 **Revert path.** `git revert` the branch commits; a rule file using `kind` then fails loud at load.
