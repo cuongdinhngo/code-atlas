@@ -19,15 +19,21 @@ This comes from field feedback on evaran-care/rac-anz, written after 353 landed 
   `relationship_not_modelled`. Proving "this `vendor/` tree is unreachable" fell back to Grep over
   four roots.
 
+`relationship_not_modelled` fires only when at least one *unlinked* `INCLUDES` row contains the
+basename as a substring (`include_graph.py`, `store.count_unlinked_includes_mentioning`). With no
+such row the answer is already `no_matches`. So in each case above, some unlinked row matched.
+
 ## Scope
 
-1. A positive zero applies when two things hold:
-   - every include in the index whose basename matches the subject resolves to a *different* file;
-   - no include of that basename is unresolved.
-
-   In that case `imported_by` is a positive zero (`no_matches`, `authoritative: true`), and the
-   answer names the resolved alternatives.
-2. When any same-basename include is unresolved or dynamic, the answer stays non-`ok` and lists
+1. Reproduce first: on #3079/#3077/#3103, list the unlinked rows that matched and classify them
+   (substring false positive such as `old_financial_screen.php`, a concatenation whose literal tail
+   rules this path out, or a truly dynamic include). For #3103, first confirm that the subject was
+   indexed at all, since `vendor/` is excluded by default.
+2. Count only the unlinked rows that *could* name the subject: the basename matches at a path
+   boundary, and any literal path tail is compatible with the subject's path. If none remain,
+   `imported_by` is a positive zero (`no_matches`, `authoritative: true`), and the answer names the
+   resolved same-basename alternatives.
+3. When a compatible unlinked or dynamic include remains, the answer stays non-`ok` and lists
    those sites as candidates.
 
 ## Acceptance criteria
@@ -35,4 +41,5 @@ This comes from field feedback on evaran-care/rac-anz, written after 353 landed 
 - **AC1:** Two files share a basename, and one is included by a path that resolves to it. The other
   answers a confident zero that names the included file.
 - **AC2:** Add one dynamic include of that basename: the answer reverts to non-`ok` and lists it.
+  An unlinked include of `old_<basename>` does not revert it.
 - **AC3:** Answers for files with at least one includer are unchanged.

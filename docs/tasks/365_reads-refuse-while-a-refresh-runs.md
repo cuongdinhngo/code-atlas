@@ -12,7 +12,7 @@ depends_on: [356, 357, 274]
 
 356 keeps a full rebuild behind a shadow index. Field feedback from evaran-care/rac-anz shows that
 the incremental path still refuses. This is the most frequent reason the agent fell back to Grep
-(~13 of 49 scored PRs), and it still happens after 356 landed.
+(the 7 PRs below), and it still happens after 356 landed.
 
 - #3136, #3135 (2026-10-07): `find_references` on a table → `index_stale` "during the background
   build".
@@ -25,9 +25,13 @@ the incremental path still refuses. This is the most frequent reason the agent f
 1. Reproduce first. A commit triggers the post-commit refresh (355), and a read arrives while that
    refresh holds the lock. Record which tool answers what, with the built revision.
 2. A read whose subject has not changed since the built revision answers from the built graph,
-   labelled the way 257/267 label it (`index_behind`), without needing `serve_behind`. A drifted
-   subject keeps its current repair-or-refuse behaviour.
-3. `get_index_status` says that the served graph is usable while the refresh runs (#2927).
+   labelled the way 257/267 label it (`index_behind`). A drifted subject keeps its current
+   repair-or-refuse behaviour. `read_symbol` has no `serve_behind` today, so it gains this path.
+3. **Open want-decision, for the maintainer:** PLAN §19 records `serve_behind` as opt-in, "off ⇒
+   byte-identical" (257 · 267 · 274). Either (a) answer labelled *only while the refresh lock is
+   held*, which keeps that default for every other case, or (b) flip the default, which needs a
+   §19 entry that reverses 257. This ticket assumes (a) until the maintainer decides.
+4. `get_index_status` says that the served graph is usable while the refresh runs (#2927).
 
 ## Acceptance criteria
 

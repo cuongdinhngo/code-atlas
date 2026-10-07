@@ -28,12 +28,15 @@ needs is never built.
 
 ## Scope
 
-1. Add a rule kind (PLAN §11, extending 352's string-argument rule). It maps a URL or route string
-   literal in JS or PHP to the PHP `<Action>` method it dispatches to, and emits a `HEURISTIC`
-   `CALLS` edge with `rule: true`. The rule file declares the project's route grammar
-   (`action=X` → `XAction`, a `{module, action}` pair → a service method); nothing is hard-coded.
+1. 352 shipped as the existing `keyed_calls` rule (222), which links only when the argument *is*
+   the whole key (TOOLS.md *Configuration reference*). A route string is not: the key sits inside
+   a URL. Extend `keyed_calls` with an optional key pattern whose capture fills `{key}` in
+   `target_template`, so the rule file declares the project's route grammar (`action=X` →
+   `XAction`, a `{module, action}` pair → a service method). Edges stay `HEURISTIC`,
+   `rule: true`; nothing is hard-coded. No new rule kind (R1.2).
 2. An inline `on*="fn(…)"` attribute string in a PHP view links to the JS function it names. When
-   no definition matches, it stays unlinked and is counted.
+   no definition matches, it stays unlinked and is counted. The anchor project excludes
+   `public/js` (`path_excluded`), so prove this on a fixture, not on rac-anz.
 3. With no rule, the graph is unchanged.
 
 ## Acceptance criteria
@@ -41,5 +44,6 @@ needs is never built.
 - **AC1:** On a fixture with `$.post('main.php?action=deleteAssessment')`, `find_callers` on
   `…::deleteAssessmentAction` returns the JS caller at `HEURISTIC`, with `rule: true`.
 - **AC2:** A `{module, action}` object literal passed to a declared callee resolves the same way.
-- **AC3:** A route string that names no action stays unlinked and is counted. No edge is invented.
+- **AC3:** A route string that names no action stays unlinked and is counted in
+  `rule_keys_unresolved`. No edge is invented.
 - **AC4:** An index with no rule of this kind is byte-identical.

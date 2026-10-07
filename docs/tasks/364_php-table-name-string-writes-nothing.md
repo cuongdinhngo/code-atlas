@@ -19,13 +19,14 @@ This comes from field feedback on evaran-care/rac-anz.
 
 278/281 read a PHP string that *begins* a T-SQL write. A wrapper call whose only argument naming
 the table is the bare table name does not have that shape: `queryInsert('Beds', $row)`,
-`queryUpdate`, `queryDelete`. And 352's string-argument rule emits only `NEW` or `CALLS`, never
-`WRITES` or `DELETES`.
+`queryUpdate`, `queryDelete`. And 352 shipped as `keyed_calls` (222), which emits only `CALLS`,
+never `WRITES` or `DELETES`.
 
 ## Scope
 
-1. A 352 string-argument rule can declare `WRITES` or `DELETES` as its edge kind. The target is a
-   `Table` resolved by name, with the default schema applied the way the SQL adapter applies it.
+1. A `keyed_calls` rule gains an optional `kind` (`CALLS` by default; `WRITES` or `DELETES`). The
+   target is the `Table` that `target_template` spells (e.g. `dbo.{key}`), so the schema stays in
+   the rule file and no schema logic enters the core.
 2. Rule edges carry `rule: true` at `HEURISTIC`. A name that matches no table stays unlinked and is
    counted in `unlinked_writes_count`.
 
