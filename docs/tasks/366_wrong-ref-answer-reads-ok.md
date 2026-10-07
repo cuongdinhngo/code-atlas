@@ -268,6 +268,13 @@ $ .venv/bin/python -m pytest -q tests/test_ref_mismatch.py
 ```
 Related suites plus doc tests on the same tree: `243 passed in 18.71s`.
 
+**Gate red once — a P5 miss.** `scripts/gate.sh` on the first bookkeeping tip failed four count-pins
+the blast radius did not list: `len(core_modules()) == 96` (`tests/test_core_is_language_agnostic.py`,
+`tests/test_sql_confinement.py` — `ref_check.py` is a new core module) and `NAV_REASONS[-1] ==
+REASON_PATH_OUTSIDE_ROOT` (`tests/test_empty_answer_cannot_explain_itself.py`,
+`tests/test_relation_unmodelled_for_language.py`). Each moved to the new value; recorded as a
+change-list deviation. AGENT_BRIEF P5 already names this class, so no new claim.
+
 `Ph3/4 proven by`: G1, C1, R1–R3, AC1–AC3 — 8/8.
 
 Verdict: **clean (challenger only — REVIEWER: OFF)**.
