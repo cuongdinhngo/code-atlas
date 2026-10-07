@@ -2569,21 +2569,6 @@ class GraphStore:
         suffix = f"/{basename}"
         return [str(row[0]) for row in self._conn.execute(sql, (basename, len(suffix), suffix))]
 
-    def count_unlinked_includes_mentioning(self, needle: str) -> int:
-        """Unlinked ``INCLUDES`` whose ``target_raw`` contains ``needle`` (task 065).
-
-        Cheap inbound approximation: dynamic/computed paths never get ``target_qname``, so
-        per-path inbound unresolved cannot be exact — basename/path fragment is the proxy.
-        """
-        if not needle:
-            return 0
-        sql = (
-            "SELECT COUNT(*) FROM edges WHERE kind = 'INCLUDES' "
-            "AND (target_qname IS NULL OR target_qname = '') "
-            "AND instr(target_raw, ?) > 0"
-        )
-        return int(self._conn.execute(sql, (needle,)).fetchone()[0])
-
     def count_nodes_by_name(
         self, name: str, *, kind: str | None = None, language: str | None = None
     ) -> int:
