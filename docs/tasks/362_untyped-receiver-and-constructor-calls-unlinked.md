@@ -301,4 +301,7 @@ Deferred to the maintainer: the merge; ratifying X1, X3, X5, X7, X8, X12.
 
 `LEDGER TOTAL: 121,655 · top cost driver: review/challenger`
 
+**Gate.** `scripts/gate.sh` on `05040fff`: `GATE GREEN — all 21 checks passed` (Linux, bare pytest). P8: the
+adapter adds an `extra` key only; no file, node or edge count moves, so no floor moves.
+
 **Revert path.** `git revert` the branch commits.
