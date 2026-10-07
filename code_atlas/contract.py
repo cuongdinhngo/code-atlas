@@ -267,6 +267,9 @@ KNOWN_CAPABILITIES: tuple[str, ...] = (
 STUB_FLAG = "stub"
 # Tool-payload key for edges emitted from CA_INDIRECTION_RULES (task 040). Not a contract bump.
 RULE_FLAG = "rule"
+# Method.extra key: the language spec makes this method its class's constructor, so a `new` of
+# the class calls it (362). Advertised, never required — no flag, no constructor. Not a bump.
+CONSTRUCTOR_FLAG = "constructor"
 # File.extra key: resolution strategies the graph does not model (279). Not a contract bump.
 UNMODELLED_RESOLUTION = "unmodelled_resolution"
 # Strategy token under UNMODELLED_RESOLUTION — registered class autoload (language-standard API).

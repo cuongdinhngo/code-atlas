@@ -74,6 +74,8 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **Two symlink residuals 342 left out of scope** — a stub root's files (`collect_stubs`, `os.walk`)
   and the index directory (`.code-atlas/` committed as a link aims SQLite writes) are not yet contained
   — 342.
+- **PHP members are case-insensitive, the resolver is not** (`validate()` onto `Validate()` stays
+  unlinked); and only PHP flags its constructor (`extra.constructor`) — 362.
 
 ## Conventions
 - Keep an **open** task's `status` in this table **and** in its frontmatter in sync.

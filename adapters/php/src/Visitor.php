@@ -149,10 +149,15 @@ final class Visitor extends NodeVisitorAbstract
             if ($node->name->toString() === '__construct') {
                 $this->declarePromotedProperties($node);
             }
+            $extra = $this->callableExtra($node->attrGroups, $node->returnType);
+            // PHP names are case-insensitive: `__CONSTRUCT` is the constructor too (362).
+            if (strtolower($node->name->toString()) === '__construct') {
+                $extra['constructor'] = true;
+            }
             $this->open($node, 'Method', $node->name->toString(), $this->member($node->name->toString()), [
                 'modifiers' => $this->methodModifiers($node),
                 'params' => $this->params($node->params),
-            ] + $this->extraFields($this->callableExtra($node->attrGroups, $node->returnType)));
+            ] + $this->extraFields($extra));
             $this->emitCallableReferences(
                 $this->container(),
                 $node->params,
