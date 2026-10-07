@@ -1933,6 +1933,15 @@ class GraphStore:
         )
         return self._rows(EDGE_ROW_KEYS, sql, (target_raw,))
 
+    def edges_by_target_raw(self, target_raw: str, *, kinds: Sequence[str]) -> list[Row]:
+        """Every edge of ``kinds`` with exact ``target_raw`` — a rule's emitted rows (364)."""
+        marks = ", ".join("?" for _ in kinds)
+        sql = (
+            f"SELECT id, {_EDGE_COLUMNS} FROM edges "
+            f"WHERE kind IN ({marks}) AND target_raw = ? ORDER BY {_EDGE_ORDER}"
+        )
+        return self._rows(EDGE_ROW_KEYS, sql, (*kinds, target_raw))
+
     def calls_ending_with_target_raw(self, suffix: str) -> list[Row]:
         """CALLS whose ``target_raw`` ends with ``suffix`` (bare-setter ``::method`` arm)."""
         if not suffix:
