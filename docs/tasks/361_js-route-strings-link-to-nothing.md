@@ -278,4 +278,7 @@ Deferred to the maintainer: the merge; ratifying X1–X3, X5 (Scope 2 deferred),
 
 `LEDGER TOTAL: 108,275 · top cost driver: review/challenger`
 
+**Gate.** `scripts/gate.sh` on `73ccdc5c`: `GATE GREEN — all 21 checks passed` (Linux, bare pytest). P8 does not
+apply: no public sample uses the new rule keys, so no graph count moves.
+
 **Revert path.** `git revert` the branch commits; a rule file using the new keys then fails loud at load.
