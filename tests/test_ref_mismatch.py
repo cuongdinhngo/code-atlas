@@ -11,6 +11,7 @@ import ast
 import asyncio
 import shlex
 import shutil
+import sqlite3
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -25,6 +26,7 @@ from code_atlas.ref_check import (
     REASON_AT_INDEX_FIELD,
     REF_CHECK_FIELD,
     REF_CHECK_NO_ROOTS,
+    _path,
 )
 from code_atlas.store import GraphStore
 from code_atlas.tools import build_or_update_index
@@ -181,3 +183,54 @@ def test_every_tool_but_the_build_is_served_through_the_guard() -> None:
     assert served, "no serve(...) calls found — the sweep went empty"
     assert served.pop(build_or_update_index.__name__.rsplit(".", 1)[-1]) is False
     assert all(served.values()), [name for name, ok in served.items() if not ok]
+
+
+def test_a_caller_that_moves_into_a_worktree_mid_session_is_seen(
+    repo: tuple[Config, Path, Path, str],
+) -> None:
+    """Challenger F1 — roots are read per call, so a changed root list counts at once."""
+    config, side, _, _ = repo
+    server = build_server(config)
+    # A handler, not a list: the in-process client answers roots/list from it on every request.
+    current = [config.root.as_uri()]
+
+    async def session() -> tuple[Any, Any]:
+        async with Client(server, roots=lambda _context: list(current)) as client:
+            first = (await client.call_tool("find_callers", {"qname": SUBJECT})).structured_content
+            current[:] = [side.as_uri()]
+            await client.send_roots_list_changed()
+            then = (await client.call_tool("find_callers", {"qname": SUBJECT})).structured_content
+            return first, then
+
+    first, then = asyncio.run(session())
+    assert first["reason"] == REASON_OK
+    assert then["reason"] == REASON_REF_MISMATCH
+
+
+def test_a_foreign_schema_index_still_answers_its_own_refusal(
+    repo: tuple[Config, Path, Path, str],
+) -> None:
+    """Challenger F2 — the built commit is read without a schema check, so nothing raises."""
+    config, side, _, _ = repo
+    conn = sqlite3.connect(config.db_path)
+    conn.execute("UPDATE meta SET value = '0' WHERE key = 'schema_version'")
+    conn.commit()
+    conn.close()
+    answer = _calls(config, [side], {"find_callers": {"qname": SUBJECT}})["find_callers"]
+    assert answer["error"] == "schema_version_mismatch"
+
+
+def test_a_later_root_is_still_checked_when_an_earlier_one_matches(
+    repo: tuple[Config, Path, Path, str],
+) -> None:
+    """Challenger F7 — a worktree at the built commit does not hide a second one that moved."""
+    config, side, same, _ = repo
+    answer = _calls(config, [same, side], {"find_callers": {"qname": SUBJECT}})["find_callers"]
+    assert answer["reason"] == REASON_REF_MISMATCH
+
+
+def test_file_uris_become_local_paths() -> None:
+    """Challenger F3 — percent-escapes decode; another URI scheme is no root."""
+    assert _path("file:///tmp/a%20b") == Path("/tmp/a b")
+    assert _path("file://server/share/x") == Path("//server/share/x")
+    assert _path("https://example.com/x") is None

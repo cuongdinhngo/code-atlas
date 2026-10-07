@@ -119,6 +119,24 @@ def shadow_db_path(db_path: Path) -> Path:
     return db_path.with_name(db_path.name + SHADOW_SUFFIX)
 
 
+def read_meta_readonly(db_path: Path, key: str) -> str | None:
+    """One ``meta`` value from a read-only open, or None — never DDL, never a schema check (366).
+
+    For a caller that must not fail: a missing file, a foreign schema or a locked DB all read None.
+    """
+    if not db_path.is_file():
+        return None
+    try:
+        conn = sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
+        try:
+            row = conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        return None
+    return str(row[0]) if row and row[0] is not None else None
+
+
 def _remove_db_files(path: Path) -> None:
     """Delete a SQLite file and its WAL siblings."""
     for sibling in (path, Path(f"{path}-wal"), Path(f"{path}-shm")):
