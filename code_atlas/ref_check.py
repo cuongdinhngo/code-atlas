@@ -136,7 +136,7 @@ def attach_ref_check(
     at the index moves to ``reason_at_index``. No MCP context or a matching HEAD: unchanged (AC2).
     """
     roots = CALLER_ROOTS.get()
-    if roots is None or not isinstance(answer, dict):
+    if roots is None or not isinstance(answer, dict) or "error" in answer:
         return answer
     if not roots:
         if status:

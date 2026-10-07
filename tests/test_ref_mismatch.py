@@ -218,6 +218,7 @@ def test_a_foreign_schema_index_still_answers_its_own_refusal(
     conn.close()
     answer = _calls(config, [side], {"find_callers": {"qname": SUBJECT}})["find_callers"]
     assert answer["error"] == "schema_version_mismatch"
+    assert "reason" not in answer  # an error is its own answer, not one about a commit
 
 
 def test_a_later_root_is_still_checked_when_an_earlier_one_matches(
