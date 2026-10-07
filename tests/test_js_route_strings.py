@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 
 from code_atlas.config import ConfigError, load_config
-from code_atlas.enrichment import INDIRECTION_FILE, load_indirection_rules
+from code_atlas.enrichment import INDIRECTION_FILE, _literal_fields, load_indirection_rules
 from code_atlas.indexer import full_build
 from code_atlas.store import GraphStore
 from code_atlas.tools import find_callers
@@ -169,3 +169,22 @@ def test_one_literal_two_rules_read_differently_is_one_unresolved_site(tmp_path:
     _, report = _build(tmp_path, rules=True, rules_text=json.dumps(rules))
     # Two literals match either pattern (deleteItem's and nope's routes); each counts once.
     assert report.rule_keys_unresolved == 2
+
+
+@pytest.mark.parametrize(
+    ("argument", "fields"),
+    [
+        ("{module: 'Items', action: 'x'}", {"module": "Items", "action": "x"}),
+        ("['module' => 'M', \"action\" => \"y\"]", {"module": "M", "action": "y"}),
+        ("{data: {action: 'inner'}, action: 'outer'}", {"action": "outer"}),
+        ("{data: {action: 'inner'}}", {}),
+        ("{action: 'a' + b}", {}),
+        ("{action: c ? 'a' : 'b'}", {}),
+        ("{'ac tion': 'x'}", {}),
+        ("{module, action: 'x'}", {"action": "x"}),
+        ("{a: 'x, y', b: 'z'}", {"a": "x, y", "b": "z"}),
+    ],
+)
+def test_only_a_whole_top_level_string_field_names_a_value(argument: str, fields: dict) -> None:
+    """Challenger F1–F3 — a nested, concatenated or conditional value is never read as the field."""
+    assert _literal_fields(argument) == fields

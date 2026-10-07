@@ -28,9 +28,9 @@ _HEURISTIC = contract.CONFIDENCE_TIERS[1]
 _STRING_LIT = re.compile(r"""'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*\"""")
 # keyed_calls placeholders: `{key}`, or a key_pattern's named groups / an object's fields (361).
 _TEMPLATE_PLACEHOLDER = re.compile(r"\{([^{}]+)\}")
-# One `name: 'value'` / `'name' => "value"` pair of an object or array literal argument (361).
+# One whole top-level entry `name: 'value'` / `'name' => "value"` of an object/array literal (361).
 _LITERAL_FIELD = re.compile(
-    r"""(?:^|[\s,{\[(])['"]?([A-Za-z_$][\w$]*)['"]?\s*(?::|=>)\s*('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")"""
+    r"""\s*(['"]?)([A-Za-z_$][\w$]*)\1\s*(?::|=>)\s*('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")\s*"""
 )
 # The callee's own name, the last identifier of its qname: where its argument list starts (352).
 _IDENTIFIER = re.compile(r"[A-Za-z_$][\w$]*")
@@ -361,13 +361,48 @@ def _fill(template: str, values: dict[str, str]) -> str:
 
 
 def _literal_fields(argument: str) -> dict[str, str]:
-    """The ``name: 'value'`` string fields of one object/array literal, first occurrence kept."""
+    """The top-level ``name: 'value'`` string fields of one object/array literal argument.
+
+    An entry is read only when it is exactly a name and one string literal, so a nested object,
+    a concatenation or a ternary names nothing — never a guess (R5.2). First occurrence kept.
+    """
+    text = argument.strip()
+    if len(text) < 2 or (text[0], text[-1]) not in (("{", "}"), ("[", "]")):
+        return {}
     fields: dict[str, str] = {}
-    for name, raw in _LITERAL_FIELD.findall(argument):
-        value = _nth_string_literal(raw, 1)
+    for entry in _top_level_entries(text[1:-1]):
+        match = _LITERAL_FIELD.fullmatch(entry)
+        if match is None:
+            continue
+        value = _nth_string_literal(match.group(3), 1)
         if value is not None:
-            fields.setdefault(name, value)
+            fields.setdefault(match.group(2), value)
     return fields
+
+
+def _top_level_entries(body: str) -> list[str]:
+    """``body`` split at commas outside brackets and strings; ``[]`` when a string never closes."""
+    entries: list[str] = []
+    closers: list[str] = []
+    start = index = 0
+    while index < len(body):
+        char = body[index]
+        if char in "'\"":
+            quoted = _STRING_LIT.match(body, index)
+            if quoted is None:
+                return []
+            index = quoted.end()
+            continue
+        if char in _OPENERS:
+            closers.append(_OPENERS[char])
+        elif closers and char == closers[-1]:
+            closers.pop()
+        elif not closers and char == ",":
+            entries.append(body[start:index])
+            start = index + 1
+        index += 1
+    entries.append(body[start:])
+    return entries
 
 
 def count_unresolved_keyed_calls(
