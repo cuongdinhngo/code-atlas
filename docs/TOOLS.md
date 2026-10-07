@@ -357,6 +357,11 @@ carry `rule: true`.
 ```
 
 - **`setter`** is an exact callee qname, or a bare method name matching any `::<name>`.
+- **A key inside a literal (361).** `key_pattern` is a Python regex searched in the string key: its
+  named groups fill same-named placeholders (`"module=(?P<module>\\w+)&action=(?P<action>\\w+)"` →
+  `"\\App\\{module}Controller::{action}Action"`), else group 1 fills `{key}`. A literal it does not
+  match is no route — no edge, not counted. `key_from: "object"` reads an object/array literal
+  argument's string fields (`{module: 'Items', action: 'x'}`) into the placeholders they name.
 - **`target_template`** must spell the **stored** qname — a PHP class carries its leading `\`, a SQL
   proc its schema — and may name a File (256). Several rules may share a setter; a literal links
   under whichever one names a real symbol.

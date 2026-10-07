@@ -74,6 +74,9 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **Two symlink residuals 342 left out of scope** — a stub root's files (`collect_stubs`, `os.walk`)
   and the index directory (`.code-atlas/` committed as a link aims SQLite writes) are not yet contained
   — 342.
+- **Two route shapes 361 left out** — an inline `on*="fn(…)"` attribute in a PHP view (needs an
+  attribute reader in the PHP adapter and a cross-language bare-name link the resolver does not
+  make), and `$.ajax({url: '…'})`, whose URL is an object field a `key_pattern` cannot reach — 361.
 
 ## Conventions
 - Keep an **open** task's `status` in this table **and** in its frontmatter in sync.
