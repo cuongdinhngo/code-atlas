@@ -28,7 +28,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 362 | [Untyped-receiver and constructor calls unlinked](tasks/362_untyped-receiver-and-constructor-calls-unlinked.md) | Coverage | todo | 258, 336 |
 | 363 | [An unincluded file is not a confident zero](tasks/363_unincluded-file-is-not-a-confident-zero.md) | Coverage | todo | 353 |
 | 364 | [A PHP table-name string writes nothing](tasks/364_php-table-name-string-writes-nothing.md) | Coverage | todo | 352, 278, 328 |
-| 365 | [Reads refuse while a refresh runs](tasks/365_reads-refuse-while-a-refresh-runs.md) | Adoption | todo | 356, 357, 274 |
 | 366 | [A wrong-ref answer reads ok](tasks/366_wrong-ref-answer-reads-ok.md) | Adoption | todo | 354, 360 |
 
 ## Open work — Pillar 2 · Onboarding

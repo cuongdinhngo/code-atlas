@@ -41,6 +41,16 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
 
 ## Live claims
 
+### 365-C1 — asking SQLite "are you locked?" misses a writer between its transactions
+
+- type: 2 (code) · handle: `a-transaction-probe-misses-the-writer-between-transactions`
+- status: proposed · seen: 365
+- evidence: read-through repair probed the live DB with a zero-wait `BEGIN IMMEDIATE`. An in-place
+  incremental holds `write.lock` for its whole run but its SQLite write lock only per transaction, so
+  between two the probe read "free" and a repair could still wait 5 s behind the next one. The
+  challenger found it; the guard now also counts `write.lock` held with no shadow file.
+- destination: first sighting.
+
 ### 357-C1 — a loop driven by "while the flag file exists" spins if the flag cannot be removed
 
 - type: 2 (code) · handle: `a-flag-loop-needs-a-clearable-flag`
@@ -54,7 +64,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
 ### 360-C1 — a ticket that names why a repair path fails assumes the path runs
 
 - type: 2 (process) · handle: `confirm-the-blocked-path-runs`
-- status: proposed · seen: 360
+- status: proposed · seen: 360, 365
 - evidence: the ticket said read-through "cannot repair" a file added mid-build because its diff
   was empty, and the design fixed the diff. `file_outline` returned `found: false` for a path
   missing from `files` before read-through ran at all, so AC4 stayed red until it routed the
@@ -135,7 +145,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
 ### 343-C2 — `ruff format` on a file you edit rewrites lines you did not
 
 - type: 2 (code) · handle: `formatter-rewrites-untouched-lines`
-- status: proposed · seen: 343, 360, 359, 357
+- status: proposed · seen: 343, 360, 359, 357, 365
 - evidence: formatting four edited files reflowed four untouched spots (two `main.py` calls, the
   `which_tool` string, a test lambda); the challenger caught one I had missed. The gate runs
   `ruff check` only, so the drift is silent. Format, then revert every hunk the change does not own.
