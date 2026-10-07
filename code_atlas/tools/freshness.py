@@ -9,8 +9,14 @@ from typing import Literal
 from code_atlas import gitutil
 from code_atlas.config import Config
 from code_atlas.contract import MEMBER_SEPARATOR
+from code_atlas.index_lock import build_in_progress
 from code_atlas.indexer import file_is_current, indexable, reparse_file
-from code_atlas.store import INDEXED_SUFFIXES_KEY, LAST_COMMIT_KEY, GraphStore
+from code_atlas.store import (
+    INDEXED_SUFFIXES_KEY,
+    LAST_COMMIT_KEY,
+    GraphStore,
+    shadow_db_path,
+)
 from code_atlas.tools.claim import REV_CHARS
 from code_atlas.tools.nav_result import (
     REASON_INDEX_BEHIND,
@@ -103,13 +109,24 @@ class FreshnessGuard:
             return "ok"
         if self._used >= self.cap:
             return "stale"
-        if self.store.write_locked():
+        if self._index_held():
             self.build_held = True
             return "stale"
         if not reparse_file(self.config, self.store, path):
             return "stale"
         self._used += 1
         return "repaired"
+
+    def _index_held(self) -> bool:
+        """Is an in-place writer on the live DB, so a repair would wait behind it? (365)
+
+        Mid-transaction, or between its transactions while it holds ``write.lock``. A 356 full
+        rebuild writes the shadow and leaves the live DB free, so it never counts.
+        """
+        if self.store.write_locked():
+            return True
+        db_path = self.config.db_path
+        return build_in_progress(db_path) and not shadow_db_path(db_path).exists()
 
     def ensure_qname(self, qname: str) -> EnsureResult:
         """Ensure the indexed file for ``qname``, or miss-repair when no node row exists (073)."""

@@ -788,8 +788,9 @@ class GraphStore:
         self._conn.execute("PRAGMA busy_timeout=0")
         try:
             self._conn.execute("BEGIN IMMEDIATE")
-        except sqlite3.OperationalError:
-            return True
+        except sqlite3.OperationalError as error:
+            # Only contention means a writer; a read-only or broken file is not "held".
+            return "locked" in str(error) or "busy" in str(error)
         else:
             self._conn.execute("ROLLBACK")
             return False

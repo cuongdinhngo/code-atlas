@@ -74,8 +74,9 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **Two symlink residuals 342 left out of scope** — a stub root's files (`collect_stubs`, `os.walk`)
   and the index directory (`.code-atlas/` committed as a link aims SQLite writes) are not yet contained
   — 342.
-- **`read_symbol` on a table answered `subject_ambiguous` during a rebuild** — one field report,
-  not reproduced; 365 fixed only the in-place write lock — 365.
+- **Two field reports 365 did not reproduce** — `read_symbol` on a table answered `subject_ambiguous`
+  mid-rebuild, and `find_references` answered `index_stale` during a full rebuild, whose shadowed
+  live DB still repairs in 365's tests — 365.
 
 ## Conventions
 - Keep an **open** task's `status` in this table **and** in its frontmatter in sync.

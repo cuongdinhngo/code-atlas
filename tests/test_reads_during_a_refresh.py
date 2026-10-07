@@ -23,8 +23,15 @@ import pytest
 from code_atlas.config import Config, load_config
 from code_atlas.index_lock import lock_path_for
 from code_atlas.indexer import full_build
-from code_atlas.store import BUSY_TIMEOUT_MS, GraphStore
-from code_atlas.tools import find_callers, find_references, get_index_status, read_symbol
+from code_atlas.store import BUSY_TIMEOUT_MS, GraphStore, shadow_db_path
+from code_atlas.tools import (
+    find_callers,
+    find_implementations,
+    find_references,
+    get_index_status,
+    impact,
+    read_symbol,
+)
 from code_atlas.tools.nav_result import (
     REASON_INDEX_BEHIND_SUBJECT_CHANGED,
     REASON_INDEX_STALE,
@@ -41,8 +48,9 @@ pytestmark = pytest.mark.skipif(
     reason="needs the PHP CLI and `composer install` in adapters/php",
 )
 
-# Half the busy timeout: an answer under it did not wait behind the writer (X10).
-NO_BUSY_WAIT_S = BUSY_TIMEOUT_MS / 1000 / 2
+# The ticket's bar, a fifth of the busy timeout: an answer under it did not wait behind the writer.
+NO_BUSY_WAIT_S = 1.0
+assert NO_BUSY_WAIT_S < BUSY_TIMEOUT_MS / 1000
 CHANGED = "\\App\\Account::close"
 UNCHANGED = "\\App\\Ledger::post"
 NEW_BODY = "return 'closed';"
@@ -162,11 +170,13 @@ def test_read_symbol_returns_the_current_source_without_storing_it(
     """AC2 — the file's current bytes, parsed this call; the index is not written."""
     config, _ = built
     before = _dump(config)
+    tool = guard(read_symbol.create(config), config)
     with refresh_holding(config):
-        answer, elapsed = _timed(lambda: read_symbol.create(config)(CHANGED))
+        answer, elapsed = _timed(lambda: tool(CHANGED))
     assert answer["reason"] == REASON_OK, answer
     assert NEW_BODY in str(answer["source"])
     assert answer["parsed_unstored"] is True
+    assert answer[BUILD_IN_PROGRESS] is True
     assert elapsed < NO_BUSY_WAIT_S, elapsed
     assert _dump(config) == before
 
@@ -200,17 +210,38 @@ def test_with_nothing_held_a_changed_subject_is_repaired_as_before(
 def test_a_full_rebuild_holding_only_the_lock_still_repairs(built: tuple[Config, str]) -> None:
     """X5 — a 356 rebuild writes the shadow, so the live DB is free and repair is unchanged."""
     config, _ = built
+    shadow_db_path(config.db_path).write_bytes(b"")
     with refresh_holding(config, sqlite_writer=False):
         answer = find_callers.create(config)(CHANGED)
     assert answer["reason"] == REASON_OK
     assert answer["total_count"] == 1
 
 
+def test_an_in_place_refresh_between_its_transactions_still_counts_as_held(
+    built: tuple[Config, str],
+) -> None:
+    """Challenger F1 — `write.lock` held, no shadow: its next transaction would block a repair."""
+    config, built_rev = built
+    with refresh_holding(config, sqlite_writer=False):
+        answer, elapsed = _timed(lambda: find_callers.create(config)(CHANGED))
+    assert answer["reason"] == REASON_INDEX_BEHIND_SUBJECT_CHANGED
+    assert answer["last_commit"] == built_rev
+    assert elapsed < NO_BUSY_WAIT_S, elapsed
+
+
+def test_impact_never_refused_and_still_answers_while_held(built: tuple[Config, str]) -> None:
+    """X1 — `impact` reports staleness instead of repairing, so it was never in the refusal."""
+    config, _ = built
+    with refresh_holding(config):
+        answer, elapsed = _timed(lambda: impact.create(config)(CHANGED))
+    assert answer["reason"] != REASON_INDEX_STALE
+    assert answer["staleness"] == "behind"
+    assert elapsed < NO_BUSY_WAIT_S, elapsed
+
+
 def test_other_guard_consumers_refuse_at_once_while_held(built: tuple[Config, str]) -> None:
     """X2 — a tool without a labelled path keeps ``index_stale`` but no longer waits for it."""
     config, _ = built
-    from code_atlas.tools import find_implementations
-
     with refresh_holding(config):
         answer, elapsed = _timed(lambda: find_implementations.create(config)("\\App\\Account"))
     assert answer["reason"] == REASON_INDEX_STALE
