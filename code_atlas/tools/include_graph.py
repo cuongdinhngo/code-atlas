@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections import deque
 from collections.abc import Callable
 from pathlib import Path, PurePosixPath
@@ -11,6 +12,7 @@ from code_atlas.config import Config
 from code_atlas.store import GraphStore
 from code_atlas.tools.coverage import relation_carried_by, relation_unmodelled_for_language
 from code_atlas.tools.nav_result import (
+    AUTHORITATIVE,
     REASON_NO_MATCHES,
     REASON_RELATION_UNMODELLED_FOR_LANGUAGE,
     REASON_RELATIONSHIP_NOT_MODELLED,
@@ -31,6 +33,12 @@ NAME = "include_graph"
 
 DetailLevel = Literal["minimal", "standard"]
 Direction = Literal["imports", "imported_by", "both"]
+
+# Unlinked includes that could still be this file's includer, listed on a not-modelled zero (363).
+UNLINKED_INCLUDES = "unlinked_includes"
+# Same-named files that are included, named beside a positive inbound zero (363).
+SAME_BASENAME_INCLUDED = "same_basename_included"
+_QUOTED = re.compile(r"'([^']*)'|\"([^\"]*)\"")
 
 _INCLUDE = ("INCLUDES",)
 # The kind a module language carries the same relation under, linked since 188 — the route's premise
@@ -58,9 +66,12 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         or ``both``. ``depth`` defaults to 1 (direct); deeper values BFS over linked ``INCLUDES``
         only, capped by ``CA_MAX_RESULTS``. ``unresolved_includes`` counts bare/dynamic includes on
         the seed's ``imports`` side and is omitted for ``imported_by`` (inbound unresolved is not a
-        confident zero — 065). An empty inbound answer with unlinked includes mentioning the
-        basename returns ``reason=relationship_not_modelled`` plus a ``try_instead_hint`` and
-        deliberately NO ``try_instead`` — no registered tool reads unlinked include text (093).
+        confident zero — 065). An empty inbound answer with unlinked includes whose path tail
+        could be this file returns ``reason=relationship_not_modelled``, lists them in
+        ``unlinked_includes``, and adds a ``try_instead_hint`` but deliberately NO ``try_instead`` —
+        no registered tool reads unlinked include text (093). When none could, and another file of
+        the same name is included, the zero is positive: ``no_matches``, ``authoritative: true``,
+        ``same_basename_included`` (363).
         An empty inbound answer on a file whose **language** emits no ``INCLUDES`` at all returns
         ``reason=relation_unmodelled_for_language`` instead of a confident zero: the relation is
         carried under another edge kind here (186). Where that kind is ``IMPORTS``, which 188 links,
@@ -81,6 +92,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         reason = None
         try_instead: str | None = None
         try_instead_hint: str | None = None
+        could_name: list[dict[str, object]] = []
+        alternatives: list[str] = []
         with GraphStore(config.db_path) as store:
             about_ref = answered_about_ref_for(store)
             outcome = _graph(store, rel, direction=direction, hops=depth, limit=limit)
@@ -88,7 +101,14 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 # Never a bare inbound zero (9-B, 160). Unlinked text that mentions this file ⇒ the
                 # relationship exists but is not modelled, with a hint; otherwise it is a genuine
                 # zero named no_matches — not "not modelled" (065 keeps that distinction).
-                if store.count_unlinked_includes_mentioning(PurePosixPath(rel).name) > 0:
+                # Only an unlinked include whose path tail fits this file could include it (363).
+                basename = PurePosixPath(rel).name
+                could_name = [
+                    {"file": row["file_path"], "line": row["line"], "target_raw": row["target_raw"]}
+                    for row in store.unlinked_includes_mentioning(basename, limit=limit)
+                    if _tail_fits(str(row["target_raw"]), rel)
+                ]
+                if could_name:
                     reason = REASON_RELATIONSHIP_NOT_MODELLED
                     try_instead_hint = TRY_INSTEAD_HINT_PATH_BASENAME
                 elif relation_unmodelled_for_language(store, file_path=rel, kinds=_INCLUDE):
@@ -112,6 +132,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         subject_kind="File",
                         raws=(rel,),
                     )
+                    if reason == REASON_NO_MATCHES:
+                        # A positive zero: every include of this name reached another copy (363).
+                        alternatives = [
+                            path for path in store.included_files_named(basename) if path != rel
+                        ]
         payload = nav_result(
             rel,
             outcome.results,
@@ -126,9 +151,27 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             answered_about_ref=about_ref)
         if outcome.unresolved_includes is not None:
             payload["unresolved_includes"] = outcome.unresolved_includes
+        if could_name:
+            payload[UNLINKED_INCLUDES] = could_name
+        if alternatives:
+            payload[AUTHORITATIVE] = True
+            payload[SAME_BASENAME_INCLUDED] = alternatives
         return attach_try_instead(payload, try_instead, try_instead_hint)
 
     return include_graph
+
+
+def _tail_fits(target_raw: str, rel: str) -> bool:
+    """Could an include written as ``target_raw`` reach ``rel``? Its path tail must be rel's (363).
+
+    `target_raw` is the literal as written, so its last quoted string is the path when there is one.
+    `..`/`.` drop out; a tail naming another directory, or a longer name, cannot be this file.
+    """
+    quoted = _QUOTED.findall(target_raw)
+    path = next((a or b for a, b in reversed(quoted)), target_raw) if quoted else target_raw
+    parts = [part for part in path.replace("\\", "/").split("/") if part not in ("", ".", "..")]
+    subject = rel.split("/")
+    return bool(parts) and len(parts) <= len(subject) and subject[-len(parts) :] == parts
 
 
 def _graph(

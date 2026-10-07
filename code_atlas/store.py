@@ -2549,6 +2549,26 @@ class GraphStore:
                     grouped[key].append(row)
         return grouped
 
+    def unlinked_includes_mentioning(self, needle: str, *, limit: int) -> list[Row]:
+        """The unlinked ``INCLUDES`` rows whose ``target_raw`` contains ``needle`` (363)."""
+        if not needle:
+            return []
+        sql = (
+            f"SELECT id, {_EDGE_COLUMNS} FROM edges WHERE kind = 'INCLUDES' "
+            "AND (target_qname IS NULL OR target_qname = '') AND instr(target_raw, ?) > 0 "
+            f"ORDER BY {_EDGE_ORDER} LIMIT ?"
+        )
+        return self._rows(EDGE_ROW_KEYS, sql, (needle, limit))
+
+    def included_files_named(self, basename: str) -> list[str]:
+        """Indexed files called ``basename`` that some linked ``INCLUDES`` reaches (363)."""
+        sql = (
+            "SELECT DISTINCT target_qname FROM edges WHERE kind = 'INCLUDES' "
+            "AND (target_qname = ? OR substr(target_qname, -?) = ?) ORDER BY target_qname"
+        )
+        suffix = f"/{basename}"
+        return [str(row[0]) for row in self._conn.execute(sql, (basename, len(suffix), suffix))]
+
     def count_unlinked_includes_mentioning(self, needle: str) -> int:
         """Unlinked ``INCLUDES`` whose ``target_raw`` contains ``needle`` (task 065).
 
