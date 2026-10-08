@@ -86,7 +86,7 @@ run's own. Want-decisions were handed back by the handover → **ASSUMED (awaiti
 | X7 | a URL the pattern does not match | how | not a route: no edge, not counted — TOOLS.md "Nothing is invented" (a variable argument is treated the same) |
 | X8 | AC4 | how | the no-rule path returns before any rule code (`apply_indirection_rules`, `NOTHING`); a rule file without the new keys loads to the same edges (222/352 tests unchanged) |
 | X9 | one literal read by two rules | want | **ASSUMED:** one site per `(source, line, literal)` — counted once when no rule links it (today's key-based identity would count it per rule) |
-| H1 | `key_pattern` with `key_from: "object"` | how | refused at load: a pattern reads a string key |
+| H1 | `key_pattern` with `key_from: "object"` or `"array_keys"` | how | refused at load: a pattern reads a string key |
 
 ## Phase 1 — analysis
 
