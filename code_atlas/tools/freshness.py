@@ -9,8 +9,14 @@ from typing import Literal
 from code_atlas import gitutil
 from code_atlas.config import Config
 from code_atlas.contract import MEMBER_SEPARATOR
+from code_atlas.index_lock import build_in_progress
 from code_atlas.indexer import file_is_current, indexable, reparse_file
-from code_atlas.store import INDEXED_SUFFIXES_KEY, LAST_COMMIT_KEY, GraphStore
+from code_atlas.store import (
+    INDEXED_SUFFIXES_KEY,
+    LAST_COMMIT_KEY,
+    GraphStore,
+    shadow_db_path,
+)
 from code_atlas.tools.claim import REV_CHARS
 from code_atlas.tools.nav_result import (
     REASON_INDEX_BEHIND,
@@ -69,6 +75,21 @@ def miss_subject_path(store: GraphStore, qname: str, *, limit: int) -> str | Non
     return str(rows[0]["file_path"]) if rows else None
 
 
+def live_index_held(config: Config, store: GraphStore) -> bool:
+    """Is a build writing the live DB in place, so a repair would wait behind it? (365)
+
+    The one predicate the guard and ``get_index_status`` share (R1.8). It needs ``write.lock``:
+    a writer without it (another server's short repair) is waited out by the busy timeout. Under
+    the lock, an in-place build holds the DB mid- or between transactions; a 356 full rebuild
+    writes the shadow and counts only while its publish holds the live DB. A build that takes the
+    lock drops a killed build's leftover shadow, so a present shadow is the running build's.
+    """
+    db_path = config.db_path
+    if not build_in_progress(db_path):
+        return False
+    return store.write_locked() or not shadow_db_path(db_path).exists()
+
+
 @dataclass
 class FreshnessGuard:
     """Per-call budget for inline reparses against one open store.
@@ -84,6 +105,8 @@ class FreshnessGuard:
     cap: int = READ_THROUGH_CAP
     _used: int = field(default=0, init=False)
     other_indexed_files_drifted: int = field(default=0, init=False)
+    # A writer held the DB when a repair was due: the refresh is the repair (365).
+    build_held: bool = field(default=False, init=False)
 
     @property
     def used(self) -> int:
@@ -100,6 +123,9 @@ class FreshnessGuard:
         if file_is_current(self.store, self.config.root, path):
             return "ok"
         if self._used >= self.cap:
+            return "stale"
+        if live_index_held(self.config, self.store):
+            self.build_held = True
             return "stale"
         if not reparse_file(self.config, self.store, path):
             return "stale"

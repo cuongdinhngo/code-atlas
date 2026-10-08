@@ -457,8 +457,9 @@ counts them so a zero is visible.
 
 **Indirection rules (040 / 062 / 063 / 222).** `CA_INDIRECTION_RULES` names repo-relative JSON files
 **outside** `adapters/` (R2.2), each listing `aliases`, `calls`, `view_data` and/or `keyed_calls`
-entries that become HEURISTIC `ALIASES` / `CALLS` / `PROVIDES_VIEW_DATA` edges. `keyed_calls` is the
-string-argument case — a class or proc named by a literal (352); the file format is in
+entries that become HEURISTIC `ALIASES` / `CALLS` / `PROVIDES_VIEW_DATA` edges — or, for a
+`keyed_calls` rule of that `kind`, `WRITES` / `DELETES` (364). `keyed_calls` is the string-argument
+case — a class, proc or table named by a literal (352); the file format is in
 [`TOOLS.md`](TOOLS.md#indirection-rule-files). Applied after parse, before
 `resolve_edges`; off by default, so no rules ⇒ graph unchanged, and a missing or invalid rule file
 fails loud **before** parse (R5.3). Rule edges live on a synthetic bookmark path with **no** `files`
@@ -839,7 +840,8 @@ Nav answer: `PROVIDES_VIEW_DATA` / `find_view_data`.
   with one SQLite backup; a killed build leaves the live index untouched. This reverses 219's
   reader-visible truncate; 202's incomplete stamp stays for in-place incrementals.
 - **Opt-in six-tool `CA_TOOLS` preset; default surface stays 24 (268).** A worktree whose `CA_DB_PATH`
-  resolves outside it refuses with `index_root_mismatch`.
+  resolves outside it refuses with `index_root_mismatch`; a server rooted at main, asked from a
+  worktree (MCP `roots`) at another commit, answers `ref_mismatch`, rows kept (366).
 - **Consumer-repo brief (266 · 270)** — written into the indexed repo's `AGENTS.md` (marked,
   regenerable); a missing `@AGENTS.md` import in `CLAUDE.md` is printed, never written.
 - **Every adapter stamps its runtime-load idiom (279, 294–296)** into
@@ -847,9 +849,10 @@ Nav answer: `PROVIDES_VIEW_DATA` / `find_view_data`.
 - **Annotations and decorators emit `REFERENCES` (232)**; `Foo::class` stays `DYNAMIC`. Class constants
   by spec markers and PEP 8 upper-case (234) — no new kind.
 - **`serve_behind` labelled reads (257 · 267 · 274)** — opt-in; behind + unchanged → `index_behind`,
-  never `ok`; off ⇒ byte-identical. **Narrowed by 365 (2026-10-07):** while a refresh holds
-  `write.lock`, a changed subject is served as `index_behind_subject_changed` without the opt-in —
-  the cure a refusal points to is already running, so refusing only sends the agent to Grep.
+  never `ok`; off ⇒ byte-identical. **Narrowed by 365 (2026-10-07):** while a build holding
+  `write.lock` writes the live DB in place (`live_index_held`: a shadowed rebuild still repairs, a
+  lone short writer is waited out), a
+  changed subject is served as `index_behind_subject_changed` without the opt-in — the cure is running.
 - **Table/Column writers via `find_references` (278 · 281 · 335)**; a PHP literal beginning a T-SQL
   write → `HEURISTIC` edge. **`keyed_calls` may target File qnames (256).** **`parse_failures` is a
   floor, not a fatal surface (280).** **Unmodelled `*->L` hits are `authoritative: false` (238 · 276).**

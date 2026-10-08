@@ -38,10 +38,57 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
-| `formatter-rewrites-untouched-lines` | 4 | 343, 357, 359, 360 | ENGINEERING_RULES R7.7 |
+| `formatter-rewrites-untouched-lines` | 10 | 343, 357, 359, 360, 361, 362, 363, 364, 365, 366 | ENGINEERING_RULES R7.7 |
 | `child-build-inherits-adapter-env` | 2 | 356, 357 | ENGINEERING_RULES R6.10 |
 
 ## Live claims
+
+### 365-C1 — asking SQLite "are you locked?" misses a writer between its transactions
+
+- type: 2 (code) · handle: `a-transaction-probe-misses-the-writer-between-transactions`
+- status: proposed · seen: 365
+- evidence: read-through repair probed the live DB with a zero-wait `BEGIN IMMEDIATE`. An in-place
+  incremental holds `write.lock` for its whole run but its SQLite write lock only per transaction, so
+  between two the probe read "free" and a repair could still wait 5 s behind the next one. The
+  challenger found it; the guard now also counts `write.lock` held with no shadow file.
+- destination: first sighting.
+
+### 366-C1 — FastMCP middleware never sees a client's `roots/list_changed`
+
+- type: 5 (environment) · area: `fastmcp / middleware notifications` · verified-at: 2026-10-07, FastMCP 3.4.5
+- status: proposed · seen: 366
+- evidence: a session-keyed roots cache cleared in `Middleware.on_notification` stayed stale after
+  the client sent `roots/list_changed`; the challenger found it. Also, the in-process
+  `Client.set_roots` leaves a live session's answer unchanged — a roots *handler* is what moves it.
+- destination: first sighting.
+
+### 363-C1 — a zero from a text search must count the rows the search cannot match
+
+- type: 2 (code) · handle: `a-zero-must-count-what-the-search-cannot-see`
+- status: proposed · seen: 363
+- evidence: `include_graph` attested an unused copy by searching unlinked include text for its
+  basename; an interpolated include is stored as `(dynamic)` and names nothing, so it could be the
+  includer yet never matches. The challenger found it; the zero now counts them and is not
+  authoritative while any exist.
+- destination: first sighting.
+
+### 362-C1 — a widened target must widen every query behind the same answer
+
+- type: 2 (code) · handle: `widen-every-query-that-shares-the-page`
+- status: proposed · seen: 362, 364
+- evidence: 362 — a constructor's answer widened its page, count and censuses but not its subtree
+  spread; 364 — a new rule edge kind reached the edges but not the rule census, which read CALLS
+  rows only. The challenger found both; enumerate every read the payload is built from.
+- destination: `cannot promote: unattended run` — `/mango:promote` is the maintainer's pass.
+
+### 361-C1 — a regex over a literal's text reads nested and partial values as the literal's own
+
+- type: 2 (code) · handle: `read-a-literal-by-its-structure-not-a-regex`
+- status: proposed · seen: 361
+- evidence: `{data: {action: 'inner'}}` gave `action='inner'`, `{action: 'a' + b}` gave `'a'`, and a
+  ternary gave a bogus field — each a guessed rule link. The challenger found it; a depth-aware split
+  at top-level commas, keeping only an entry that is exactly a name and one string, reads none of them.
+- destination: first sighting.
 
 ### 357-C1 — a loop driven by "while the flag file exists" spins if the flag cannot be removed
 
@@ -56,7 +103,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 360-C1 — a ticket that names why a repair path fails assumes the path runs
 
 - type: 2 (process) · handle: `confirm-the-blocked-path-runs`
-- status: proposed · seen: 360
+- status: proposed · seen: 360, 365
 - evidence: the ticket said read-through "cannot repair" a file added mid-build because its diff
   was empty, and the design fixed the diff. `file_outline` returned `found: false` for a path
   missing from `files` before read-through ran at all, so AC4 stayed red until it routed the

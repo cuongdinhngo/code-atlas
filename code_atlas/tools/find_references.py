@@ -352,6 +352,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 behind_dirty = dirty_indexed_paths(store, config)
             guard = FreshnessGuard(config, store)
             freshness = guard.ensure_qname(qname)
+            if freshness == "stale" and guard.build_held and not serve_behind:
+                # 365: the writer holding the DB is the repair, so label the built graph.
+                serve_behind = True
+                staleness = compute_staleness(store, config, include_dirty_count=True)
+                behind_dirty = dirty_indexed_paths(store, config)
             if freshness == "stale":
                 if not unrepaired_subject_served(
                     store, qname, serve_behind=serve_behind, dirty_paths=behind_dirty

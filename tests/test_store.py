@@ -15,6 +15,7 @@ import pytest
 
 from code_atlas import contract
 from code_atlas.store import (
+    BUSY_TIMEOUT_MS,
     META_KEYS,
     SCHEMA_VERSION,
     SCHEMA_VERSION_KEY,
@@ -940,3 +941,36 @@ def test_indexed_dotted_module_keys_are_derived_from_paths_not_a_language(
     assert {"pkg.mod", "src.pkg.mod", "mod", "pkg", "src.pkg"} <= keys
     assert {"Http.Kernel", "app.Http.Kernel", "app.Http"} <= keys
     assert "src/pkg/mod.py" not in keys and "" not in keys
+
+
+def test_write_locked_is_true_while_another_connection_holds_the_writer(tmp_path: Path) -> None:
+    """365 — the probe sees a held SQLite writer, waits for nothing, and restores its timeout."""
+    db = tmp_path / "graph.db"
+    with GraphStore(db) as store:
+        writer = sqlite3.connect(db, isolation_level=None)
+        try:
+            writer.execute("BEGIN IMMEDIATE")
+            started = time.monotonic()
+            assert store.write_locked() is True
+            assert time.monotonic() - started < 1.0
+            writer.execute("ROLLBACK")
+        finally:
+            writer.close()
+        assert store._conn.execute("PRAGMA busy_timeout").fetchone()[0] == BUSY_TIMEOUT_MS
+
+
+def test_write_locked_is_false_when_the_writer_is_free(tmp_path: Path) -> None:
+    """365 — a free DB probes False and the probe leaves no transaction open."""
+    with GraphStore(tmp_path / "graph.db") as store:
+        assert store.write_locked() is False
+        assert store._conn.in_transaction is False
+
+
+def test_write_locked_is_false_on_a_read_only_connection(tmp_path: Path) -> None:
+    """365 — a file this process cannot write is not a writer holding it."""
+    db = tmp_path / "graph.db"
+    GraphStore(db).close()
+    with GraphStore(db) as store:
+        store._conn.close()
+        store._conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+        assert store.write_locked() is False
