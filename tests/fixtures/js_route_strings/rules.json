@@ -1,0 +1,7 @@
+{"keyed_calls": [
+  {"setter": "post", "key_arg": 1,
+   "key_pattern": "module=(?P<module>\\w+)&action=(?P<action>\\w+)",
+   "target_template": "\\App\\{module}Controller::{action}Action"},
+  {"setter": "post", "key_arg": 2, "key_from": "object",
+   "target_template": "\\App\\{module}Controller::{action}Action"}
+]}

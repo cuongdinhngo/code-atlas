@@ -26,11 +26,26 @@ _HEURISTIC = contract.CONFIDENCE_TIERS[1]
 
 # One-line call sites only (v1): Nth quoted string literal on the CALLS line.
 _STRING_LIT = re.compile(r"""'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*\"""")
-# keyed_calls `{key}` only (222); value may be a symbol or File qname (256).
+# keyed_calls placeholders: `{key}`, or a key_pattern's named groups / an object's fields (361).
 _TEMPLATE_PLACEHOLDER = re.compile(r"\{([^{}]+)\}")
+# One whole top-level entry `name: 'value'` / `'name' => "value"` of an object/array literal (361).
+_LITERAL_FIELD = re.compile(
+    r"""\s*(['"]?)([A-Za-z_$][\w$]*)\1\s*(?::|=>)\s*('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")\s*"""
+)
 # The callee's own name, the last identifier of its qname: where its argument list starts (352).
 _IDENTIFIER = re.compile(r"[A-Za-z_$][\w$]*")
 _OPENERS = {"(": ")", "[": "]", "{": "}"}
+
+
+class KeyedCall(NamedTuple):
+    """One ``keyed_calls`` rule: where the key comes from and the template it fills (222/361)."""
+
+    setter: str
+    key_arg: int
+    key_from: str
+    template: str
+    # Searched in the string key: its named groups, else group 1 as `{key}`, fill the template.
+    pattern: re.Pattern[str] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,7 +55,7 @@ class RulesPayload:
     aliases: tuple[tuple[str, str], ...]
     calls: tuple[tuple[str, str, int], ...]
     view_data: tuple[tuple[str, int, str], ...]
-    keyed_calls: tuple[tuple[str, int, str, str], ...]
+    keyed_calls: tuple[KeyedCall, ...]
     digest: str
 
 
@@ -57,7 +72,7 @@ def load_indirection_rules(config: Config) -> RulesPayload | None:
     aliases: list[tuple[str, str]] = []
     calls: list[tuple[str, str, int]] = []
     view_data: list[tuple[str, int, str]] = []
-    keyed_calls: list[tuple[str, int, str, str]] = []
+    keyed_calls: list[KeyedCall] = []
     digester = hashlib.sha256()
     for relative in sorted(paths):
         full = config.root / relative
@@ -227,15 +242,16 @@ def _view_data_edges(
 def _keyed_calls_edges(
     config: Config,
     store: GraphStore,
-    rules: tuple[tuple[str, int, str, str], ...],
+    rules: tuple[KeyedCall, ...],
 ) -> tuple[
     list[dict[str, object]],
     tuple[tuple[tuple[str, str, int], ...], ...],
     tuple[tuple[tuple[str, str, int], ...], ...],
 ]:
-    """CALLS edges whose target is a string key substituted into ``target_template`` (task 222).
+    """CALLS edges whose target is a call's string key filled into ``target_template`` (222/361).
 
-    Also returns, per (source, line, key) site, the stamps every rule emitted for it (352).
+    Also returns, per (source, line, literal) site, the stamps every rule emitted for it (352): a
+    literal two rules read differently is still one site, so it is counted once when neither links.
     """
     if not rules:
         return [], (), ()
@@ -244,26 +260,20 @@ def _keyed_calls_edges(
     sites: dict[tuple[str, int, str], list[tuple[str, str, int]]] = {}
     seen: set[tuple[str, str, int]] = set()
     line_cache: dict[tuple[str, int], str | None] = {}
-    for setter, key_arg, key_from, template in rules:
+    for rule in rules:
         group: list[tuple[str, str, int]] = []
-        for edge in _calls_for_setter(store, setter):
+        for edge in _calls_for_setter(store, rule.setter):
             if edge.get("file_path") == INDIRECTION_FILE:
                 continue
-            args = edge.get("args")
             source = str(edge.get("source_qname") or "")
             line = edge.get("line")
-            if not source or type(line) is not int:
-                continue
             rel = edge.get("file_path")
-            if not isinstance(rel, str) or not rel:
+            if not source or type(line) is not int or not isinstance(rel, str) or not rel:
                 continue
-            keys = _keys_for_rule(
-                config, edge, args, key_arg, key_from, rel, line, line_cache
-            )
-            for key in keys:
-                target = template.replace("{key}", key)
+            for literal, values in _keyed_values(config, edge, rule, rel, line, line_cache):
+                target = _fill(rule.template, values)
                 stamp = (source, target, line)
-                site = sites.setdefault((source, line, key), [])
+                site = sites.setdefault((source, line, literal), [])
                 if stamp not in site:
                     site.append(stamp)
                 if stamp in seen:
@@ -290,6 +300,119 @@ def _keyed_calls_edges(
         )
     )
     return out, tuple(groups), tuple(tuple(sites[site]) for site in sorted(sites))
+
+
+def _keyed_values(
+    config: Config,
+    edge: dict[str, object],
+    rule: KeyedCall,
+    rel: str,
+    line: int,
+    line_cache: dict[tuple[str, int], str | None],
+) -> list[tuple[str, dict[str, str]]]:
+    """``(literal, placeholder values)`` this rule reads at one call site — none is invented (361).
+
+    A string key is the whole literal, or what ``key_pattern`` finds in it (named groups, else
+    group 1 as ``key``); an ``object`` key is the literal's string fields the template names.
+    """
+    args = edge.get("args")
+    if rule.key_from == "object":
+        parsed = _parse_args(args)
+        if parsed is None or not 1 <= rule.key_arg <= len(parsed):
+            return []
+        if parsed[rule.key_arg - 1] != "array":
+            return []
+        text = _line_text(config.root, rel, line, line_cache)
+        argument = (
+            _call_argument(text, edge.get("target_raw"), rule.key_arg) if text is not None else None
+        )
+        if argument is None:
+            return []
+        fields = _literal_fields(argument)
+        names = set(_TEMPLATE_PLACEHOLDER.findall(rule.template))
+        if not names <= fields.keys():
+            return []
+        return [(argument, {name: fields[name] for name in names})]
+    found = []
+    for key in _keys_for_rule(
+        config, edge, args, rule.key_arg, rule.key_from, rel, line, line_cache
+    ):
+        if rule.pattern is None:
+            found.append((key, {"key": key}))
+            continue
+        match = rule.pattern.search(key)
+        if match is None:
+            continue
+        if rule.pattern.groupindex:
+            named = match.groupdict()
+            if any(not value for value in named.values()):
+                continue
+            found.append((key, {name: str(value) for name, value in named.items()}))
+        else:
+            value = match.group(1) if rule.pattern.groups else match.group(0)
+            if value:
+                found.append((key, {"key": value}))
+    return found
+
+
+def _fill(template: str, values: dict[str, str]) -> str:
+    """``template`` with each ``{name}`` replaced; the loader made every placeholder fillable."""
+    return _TEMPLATE_PLACEHOLDER.sub(lambda match: values[match.group(1)], template)
+
+
+def _literal_fields(argument: str) -> dict[str, str]:
+    """The top-level ``name: 'value'`` string fields of one object/array literal argument.
+
+    An entry is read only when it is exactly a name and one string literal, so a nested object,
+    a concatenation, a ternary or a ``"…$x…"`` value names nothing — never a guess (R5.2). A
+    name given twice names nothing, and a spread (``...x``) may override any field, so it voids all.
+    """
+    text = argument.strip()
+    if len(text) < 2 or (text[0], text[-1]) not in (("{", "}"), ("[", "]")):
+        return {}
+    fields: dict[str, str] = {}
+    seen: set[str] = set()
+    for entry in _top_level_entries(text[1:-1]):
+        if entry.strip().startswith("..."):
+            return {}
+        match = _LITERAL_FIELD.fullmatch(entry)
+        if match is None:
+            continue
+        name, literal = match.group(2), match.group(3)
+        if name in seen:
+            fields.pop(name, None)
+            continue
+        seen.add(name)
+        # A double-quoted `$` may interpolate, so the literal is not its value.
+        value = _nth_string_literal(literal, 1)
+        if value is not None and not (literal.startswith('"') and "$" in literal):
+            fields[name] = value
+    return fields
+
+
+def _top_level_entries(body: str) -> list[str]:
+    """``body`` split at commas outside brackets and strings; ``[]`` when a string never closes."""
+    entries: list[str] = []
+    closers: list[str] = []
+    start = index = 0
+    while index < len(body):
+        char = body[index]
+        if char in "'\"":
+            quoted = _STRING_LIT.match(body, index)
+            if quoted is None:
+                return []
+            index = quoted.end()
+            continue
+        if char in _OPENERS:
+            closers.append(_OPENERS[char])
+        elif closers and char == closers[-1]:
+            closers.pop()
+        elif not closers and char == ",":
+            entries.append(body[start:index])
+            start = index + 1
+        index += 1
+    entries.append(body[start:])
+    return entries
 
 
 def count_unresolved_keyed_calls(
@@ -512,7 +635,7 @@ def _load_rules(
     list[tuple[str, str]],
     list[tuple[str, str, int]],
     list[tuple[str, int, str]],
-    list[tuple[str, int, str, str]],
+    list[KeyedCall],
 ]:
     try:
         raw = json.loads(raw_bytes.decode("utf-8"))
@@ -556,38 +679,56 @@ def _load_rules(
             )
         view_data.append((setter, key_arg, key_from))
 
-    keyed_calls: list[tuple[str, int, str, str]] = []
+    keyed_calls: list[KeyedCall] = []
     for item in _as_list(raw.get("keyed_calls"), label, "keyed_calls"):
         if not isinstance(item, dict):
             raise ConfigError(f"indirection_rules: {label!r} keyed_calls entries must be objects")
-        setter = _as_qname(item.get("setter"), label, "keyed_calls.setter")
-        key_arg = item.get("key_arg")
-        if type(key_arg) is not int or key_arg < 1:
-            raise ConfigError(
-                f"indirection_rules: {label!r} keyed_calls.key_arg must be an int >= 1"
-            )
-        key_from = item.get("key_from", "string")
-        if key_from not in ("string", "array_keys"):
-            raise ConfigError(
-                f"indirection_rules: {label!r} keyed_calls.key_from must be "
-                f"'string' or 'array_keys'"
-            )
-        template = item.get("target_template")
-        if not isinstance(template, str) or not template.strip():
-            raise ConfigError(
-                f"indirection_rules: {label!r} keyed_calls.target_template must be "
-                f"a non-empty string"
-            )
-        template = template.strip()
-        names = _TEMPLATE_PLACEHOLDER.findall(template)
-        if names != ["key"]:
-            raise ConfigError(
-                f"indirection_rules: {label!r} keyed_calls.target_template must contain "
-                f"exactly the placeholder '{{key}}' (found {names!r})"
-            )
-        keyed_calls.append((setter, key_arg, key_from, template))
+        keyed_calls.append(_keyed_call(item, label))
 
     return aliases, calls, view_data, keyed_calls
+
+
+def _keyed_call(item: dict[str, Any], label: str) -> KeyedCall:
+    """Validate one ``keyed_calls`` entry: every template placeholder must be fillable (R5.3)."""
+    where = f"indirection_rules: {label!r} keyed_calls"
+    setter = _as_qname(item.get("setter"), label, "keyed_calls.setter")
+    key_arg = item.get("key_arg")
+    if type(key_arg) is not int or key_arg < 1:
+        raise ConfigError(f"{where}.key_arg must be an int >= 1")
+    key_from = item.get("key_from", "string")
+    if key_from not in ("string", "array_keys", "object"):
+        raise ConfigError(f"{where}.key_from must be 'string', 'array_keys' or 'object'")
+    template = item.get("target_template")
+    if not isinstance(template, str) or not template.strip():
+        raise ConfigError(f"{where}.target_template must be a non-empty string")
+    template = template.strip()
+    names = _TEMPLATE_PLACEHOLDER.findall(template)
+    raw_pattern = item.get("key_pattern")
+    pattern = None
+    if raw_pattern is not None:
+        if key_from != "string" or not isinstance(raw_pattern, str) or not raw_pattern:
+            raise ConfigError(f"{where}.key_pattern must be a non-empty regex on a string key")
+        try:
+            pattern = re.compile(raw_pattern)
+        except re.error as error:
+            raise ConfigError(f"{where}.key_pattern does not compile ({error})") from error
+    if key_from == "object":
+        wanted = sorted(set(names))
+        if not names:
+            raise ConfigError(f"{where}.target_template needs placeholder(s) naming object fields")
+    elif pattern is not None and pattern.groupindex:
+        wanted = sorted(pattern.groupindex)
+        if sorted(set(names)) != wanted:
+            raise ConfigError(
+                f"{where}.target_template placeholders {names!r} must be the key_pattern's "
+                f"named groups {wanted!r}"
+            )
+    elif names != ["key"]:
+        raise ConfigError(
+            f"{where}.target_template must contain exactly the placeholder '{{key}}' "
+            f"(found {names!r})"
+        )
+    return KeyedCall(setter, key_arg, key_from, template, pattern)
 
 
 def _as_list(raw: object, label: str, field: str) -> list[Any]:
