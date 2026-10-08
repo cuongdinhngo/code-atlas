@@ -92,7 +92,7 @@ def _onto_a_field(nodes: Nodes, edges: Edges) -> tuple[int, int]:
 # Probes with no denominator: the construct is the adapter's choice, not the fixture's supply.
 COUNT_PROBES: dict[str, Probe] = {
     "`REFERENCES` edges from the annotations": lambda nodes, edges: (
-        _onto_a_field(nodes, edges)[1] - _onto_a_field(nodes, edges)[0],
+        (lambda onto, every: every - onto)(*_onto_a_field(nodes, edges)),
         0,
     ),
     "`REFERENCES` onto a static / class property": _onto_a_field,

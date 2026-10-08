@@ -445,6 +445,8 @@ def parse_file(
     class_kind: dict[str, str] = {}
     # Class qname → names its own body assigns: the Property/ClassConst nodes a `Foo.x` can reach.
     class_attrs: dict[str, set[str]] = {}
+    # Callable qname → (its parameters, the names its body binds), an enclosing def's included.
+    scope_names: dict[str, tuple[frozenset[str], frozenset[str]]] = {}
     interface_qnames: set[str] = set()
 
     def remember(name: str, qname: str) -> None:
@@ -948,6 +950,10 @@ def parse_file(
             emit_decorator_refs(qn, stmt)
             emit_function_annotation_refs(qn, stmt)
             if not declarations_only:
+                outer_params, outer_stored = scope_names.get(container, (frozenset(), frozenset()))
+                own = {a.arg for a in ast.walk(stmt.args) if isinstance(a, ast.arg)}
+                body = {name for child in stmt.body for name in _stored_names(child)}
+                scope_names[qn] = (outer_params | own, outer_stored | body)
                 # Fresh locals at a module/class-level def; nested defs inherit (153).
                 nested = kind == "Function" and container not in (qpath, mod)
                 child_locals = (
@@ -1029,6 +1035,9 @@ def parse_file(
         recv = node.value
         if not isinstance(recv, ast.Name):
             return
+        params, stored = scope_names.get(scope, (frozenset(), frozenset()))
+        if recv.id in stored or (recv.id not in ("self", "cls") and recv.id in params):
+            return  # a local of that name shadows the receiver
         if recv.id in ("self", "cls") and enclosing_class is not None:
             owner = enclosing_class
         else:

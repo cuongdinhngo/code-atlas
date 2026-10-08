@@ -501,13 +501,37 @@ function parseFile(path, declarationsOnly) {
     return null;
   };
 
+  // Whether a function-like or block between `node` and the file binds `name` — a parameter or a
+  // local `const`/`let`/`var`/`function`/`class`/`catch` — shadowing the file's class of that name.
+  const boundLocally = (node, name) => {
+    for (let n = node.parent; n && !ts.isSourceFile(n); n = n.parent) {
+      if (ts.isFunctionLike(n) && n.parameters.some((p) => bindsName(p.name, name))) return true;
+      if (ts.isCatchClause(n) && n.variableDeclaration && bindsName(n.variableDeclaration.name, name)) return true;
+      if ((ts.isBlock(n) || ts.isModuleBlock(n)) && declaresName(n, name)) return true;
+      if ((ts.isForStatement(n) || ts.isForOfStatement(n) || ts.isForInStatement(n)) && n.initializer &&
+          ts.isVariableDeclarationList(n.initializer) &&
+          n.initializer.declarations.some((d) => bindsName(d.name, name))) return true;
+    }
+    return false;
+  };
+  const bindsName = (binding, name) => {
+    if (ts.isIdentifier(binding)) return binding.text === name;
+    return binding.elements.some((el) => !ts.isOmittedExpression(el) && bindsName(el.name, name));
+  };
+  const declaresName = (block, name) =>
+    block.statements.some((st) =>
+      (ts.isVariableStatement(st) && st.declarationList.declarations.some((d) => bindsName(d.name, name))) ||
+      (ts.isFunctionDeclaration(st) && st.name && st.name.text === name) ||
+      // the block declaring the class itself (a namespace) does not shadow it
+      (ts.isClassDeclaration(st) && st.name && st.name.text === name && classQnames.get(st) !== declared.get(name)));
+
   // A static field read or written by its class's name, or by `this` in a static member (369, as 336).
   const emitStaticFieldRef = (node, scope) => {
     const parent = node.parent;
     if ((ts.isCallExpression(parent) || ts.isNewExpression(parent)) && parent.expression === node) return;
     const recv = node.expression;
     let owner = null;
-    if (ts.isIdentifier(recv)) owner = declared.get(recv.text) || null;
+    if (ts.isIdentifier(recv) && !boundLocally(node, recv.text)) owner = declared.get(recv.text) || null;
     else if (recv.kind === ts.SyntaxKind.ThisKeyword) owner = thisClass(node);
     const fields = owner ? staticFields.get(owner) : undefined;
     if (fields && fields.has(node.name.text)) {

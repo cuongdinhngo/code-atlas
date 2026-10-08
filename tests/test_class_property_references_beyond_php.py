@@ -43,6 +43,9 @@ FILES = {
         "  }\n"  # 14
         "}\n"  # 15
         "export const seen = Counter.count;\n"  # 16
+        "export function shadow(Counter: { count: number }) {\n"  # 17
+        "  return Counter.count;\n"  # 18
+        "}\n"  # 19
     ),
     "pkg/__init__.py": "",
     "pkg/counter.py": (
@@ -60,6 +63,11 @@ FILES = {
         "Counter.count = 2\n"  # 12
         "seen = Counter.count\n"  # 13
         "other = Counter.missing\n"  # 14
+        "def shadow(Counter):\n"  # 15
+        "    return Counter.count\n"  # 16
+        "def rebound():\n"  # 17
+        "    Counter = make()\n"  # 18
+        "    return Counter.count\n"  # 19
     ),
 }
 
@@ -96,7 +104,8 @@ def _sites(config: Config, qname: str) -> set[tuple[str, int]]:
 
 def test_a_ts_static_field_is_referenced_by_its_class_and_by_static_this(config: Config) -> None:
     """AC1 — `Counter.count` read and write, `this.count` in a static member and its arrow;
-    `this.count` in an instance method and in a `function` (which rebinds `this`) add nothing."""
+    `this.count` in an instance method, in a `function` (which rebinds `this`) and through a
+    parameter shadowing the class name add nothing."""
     assert _sites(config, "src/counter.ts::Counter::count") == {
         ("src/counter.ts::Counter::inc", 5),
         ("src/counter.ts::Counter::inc", 6),
@@ -106,7 +115,8 @@ def test_a_ts_static_field_is_referenced_by_its_class_and_by_static_this(config:
 
 
 def test_a_python_class_attribute_is_referenced_by_class_self_and_cls(config: Config) -> None:
-    """AC2 — `Counter.count`, `self.count` (read and write) and `cls.count`."""
+    """AC2 — `Counter.count`, `self.count` (read and write) and `cls.count`; a local or a
+    parameter named like the class shadows it (challenger F1)."""
     assert _sites(config, "pkg.counter.Counter::count") == {
         ("pkg.counter.Counter::bump", 5),
         ("pkg.counter.Counter::reset", 10),
