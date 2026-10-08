@@ -19,18 +19,26 @@ from typing import Any
 import pytest
 from fastmcp import Client
 
+from code_atlas import ref_check
 from code_atlas.config import Config, load_config
 from code_atlas.indexer import full_build
 from code_atlas.main import build_server
 from code_atlas.ref_check import (
     REASON_AT_INDEX_FIELD,
+    REF_CHECK_FAILED,
     REF_CHECK_FIELD,
     REF_CHECK_NO_ROOTS,
+    REF_CHECK_TIMED_OUT,
+    REF_CHECK_UNDECLARED,
     _path,
 )
 from code_atlas.store import GraphStore
 from code_atlas.tools import build_or_update_index
-from code_atlas.tools.nav_result import REASON_OK, REASON_REF_MISMATCH
+from code_atlas.tools.nav_result import (
+    REASON_OK,
+    REASON_PATH_OUTSIDE_ROOT,
+    REASON_REF_MISMATCH,
+)
 
 REPO = Path(__file__).resolve().parent.parent
 PHP_ENTRY = REPO / "adapters" / "php" / "index.php"
@@ -165,9 +173,74 @@ def test_a_client_without_roots_is_told_the_check_could_not_run(
 ) -> None:
     """Scope 1 — only the status tool says so; a navigation answer stays byte-identical."""
     config, *_ = repo
-    answers = _calls(config, None, {"get_index_status": {}, "find_callers": {"qname": SUBJECT}})
-    assert answers["get_index_status"][REF_CHECK_FIELD] == REF_CHECK_NO_ROOTS
-    assert REF_CHECK_FIELD not in answers["find_callers"]
+    names: dict[str, dict[str, object]] = {
+        "get_index_status": {},
+        "find_callers": {"qname": SUBJECT},
+    }
+    for roots, expected in ((None, REF_CHECK_UNDECLARED), ([], REF_CHECK_NO_ROOTS)):
+        answers = _calls(config, roots, names)
+        assert answers["get_index_status"][REF_CHECK_FIELD] == expected, roots
+        assert REF_CHECK_FIELD not in answers["find_callers"]
+
+
+def _asked(config: Config, handler: Any) -> tuple[int, Any]:
+    """Two status calls in one session: how often the client was asked for roots, the last one."""
+    server = build_server(config)
+    asked = [0]
+
+    async def counted(context: Any) -> Any:
+        asked[0] += 1
+        return await handler(context)
+
+    async def session() -> Any:
+        async with Client(server, roots=counted) as client:
+            await client.call_tool("get_index_status", {})
+            return (await client.call_tool("get_index_status", {})).structured_content
+
+    status = asyncio.run(session())
+    return asked[0], status
+
+
+def test_a_client_whose_roots_list_fails_is_asked_once(
+    repo: tuple[Config, Path, Path, str],
+) -> None:
+    """Review — a declared capability whose request errors reads as failed, not as no roots."""
+    config, *_ = repo
+
+    async def broken(_context: Any) -> Any:
+        raise RuntimeError("method not found")
+
+    asked, status = _asked(config, broken)
+    assert asked == 1
+    assert status[REF_CHECK_FIELD] == REF_CHECK_FAILED
+
+
+def test_a_client_that_never_answers_roots_is_reported_as_timed_out(
+    repo: tuple[Config, Path, Path, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review — the hang guard: a timeout has its own value and the session is not asked again."""
+    config, *_ = repo
+    monkeypatch.setattr(ref_check, "ROOTS_TIMEOUT_S", 0.2)
+
+    async def hangs(_context: Any) -> Any:
+        await asyncio.sleep(1.0)
+        return []
+
+    asked, status = _asked(config, hangs)
+    assert asked == 1
+    assert status[REF_CHECK_FIELD] == REF_CHECK_TIMED_OUT
+
+
+def test_an_input_refusal_keeps_its_reason_under_a_mismatch(
+    repo: tuple[Config, Path, Path, str],
+) -> None:
+    """Review — a refused argument is the headline; the commit fields still ride along."""
+    config, side, _, built = repo
+    arguments: dict[str, object] = {"before": "../outside.json", "after": "../outside.json"}
+    answer = _calls(config, [side], {"diff_architecture": arguments})["diff_architecture"]
+    assert answer["reason"] == REASON_PATH_OUTSIDE_ROOT
+    assert REASON_AT_INDEX_FIELD not in answer
+    assert answer["index_commit"] == built
 
 
 def test_every_tool_but_the_build_is_served_through_the_guard() -> None:

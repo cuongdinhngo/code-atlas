@@ -150,8 +150,8 @@ want-decisions were handed back by the run's handover and are **ASSUMED (awaitin
 ### Approach
 
 1. **`gitutil.checkout_identity`** — `(top level, shared git dir)` from one `rev-parse`.
-2. **`ref_check.CallerRoots`** — FastMCP middleware: roots once per session (5 s bound, a client
-   without the capability reads as no roots), into the `CALLER_ROOTS` ContextVar per call.
+2. **`ref_check.CallerRoots`** — FastMCP middleware: roots per call (2 s bound; a client without
+   the `roots` capability is never asked), into the `CALLER_ROOTS` ContextVar per call.
 3. **`ref_check.find_mismatch` / `attach_ref_check`** — X2's root rule; built commit vs the
    caller checkout's HEAD; label per X3/X4; status gets the summary route or `ref_check`.
 4. **`schema_guard.guard(..., status=)`** calls it after `attach_build_state`; `main.build_server`
@@ -288,6 +288,15 @@ $ .venv/bin/python -m pytest -q tests/test_ref_mismatch.py
 Verdict: **clean (challenger only — REVIEWER: OFF)**.
 
 Reviewed at 1a963e84 — the diff `main..1a963e84`. Working doc: `docs/tasks/366_wrong-ref-answer-reads-ok.md` (embedded).
+
+**PR review (#35).** Fixed: `roots/list` is sent only to a client that declared `roots`
+(`client_declared_no_roots`); a raising request marks the session silent like a timeout, each with its
+own `ref_check` value (`client_roots_failed`, `client_roots_timed_out` — X9 now has four values); an
+input refusal (`path_outside_root`, `snapshot_not_found`, …) keeps its `reason` and only gains the
+commit fields; a checkout whose HEAD no longer reads leaves the cache; "same-checkout pays nothing"
+is reworded — no git, but one `roots/list` round trip per call. **Accepted:** the built commit is
+read after the rows, in a separate read-only connection, so a build publishing in between can pair
+old rows with the new commit — a narrow window, not closed. Four tests added (12 in the file).
 
 ## Phase 5 — finalise
 
