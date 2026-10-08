@@ -2575,20 +2575,39 @@ class GraphStore:
                     grouped[key].append(row)
         return grouped
 
-    def count_unlinked_includes_mentioning(self, needle: str) -> int:
-        """Unlinked ``INCLUDES`` whose ``target_raw`` contains ``needle`` (task 065).
+    def unlinked_includes_mentioning(
+        self, needle: str, *, limit: int, offset: int = 0
+    ) -> list[Row]:
+        """One page of unlinked ``INCLUDES`` whose ``target_raw`` contains ``needle`` (363).
 
-        Cheap inbound approximation: dynamic/computed paths never get ``target_qname``, so
-        per-path inbound unresolved cannot be exact — basename/path fragment is the proxy.
+        Case-folded: on a case-insensitive filesystem `Lib/A` reaches `lib/a`.
         """
         if not needle:
-            return 0
+            return []
         sql = (
-            "SELECT COUNT(*) FROM edges WHERE kind = 'INCLUDES' "
+            f"SELECT id, {_EDGE_COLUMNS} FROM edges WHERE kind = 'INCLUDES' "
             "AND (target_qname IS NULL OR target_qname = '') "
-            "AND instr(target_raw, ?) > 0"
+            "AND instr(lower(target_raw), lower(?)) > 0 "
+            f"ORDER BY {_EDGE_ORDER} LIMIT ? OFFSET ?"
         )
-        return int(self._conn.execute(sql, (needle,)).fetchone()[0])
+        return self._rows(EDGE_ROW_KEYS, sql, (needle, limit, offset))
+
+    def count_dynamic_includes(self) -> int:
+        """Unlinked ``INCLUDES`` at ``DYNAMIC`` — a path the index cannot name at all (363)."""
+        sql = (
+            "SELECT COUNT(*) FROM edges WHERE kind = 'INCLUDES' AND confidence_tier = ? "
+            "AND (target_qname IS NULL OR target_qname = '')"
+        )
+        return int(self._conn.execute(sql, (CONFIDENCE_TIERS[2],)).fetchone()[0])
+
+    def included_files_named(self, basename: str) -> list[str]:
+        """Indexed files called ``basename`` that some linked ``INCLUDES`` reaches (363)."""
+        sql = (
+            "SELECT DISTINCT target_qname FROM edges WHERE kind = 'INCLUDES' "
+            "AND (target_qname = ? OR substr(target_qname, -?) = ?) ORDER BY target_qname"
+        )
+        suffix = f"/{basename}"
+        return [str(row[0]) for row in self._conn.execute(sql, (basename, len(suffix), suffix))]
 
     def count_nodes_by_name(
         self, name: str, *, kind: str | None = None, language: str | None = None

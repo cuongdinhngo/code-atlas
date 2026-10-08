@@ -41,6 +41,16 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
 
 ## Live claims
 
+### 363-C1 — a zero from a text search must count the rows the search cannot match
+
+- type: 2 (code) · handle: `a-zero-must-count-what-the-search-cannot-see`
+- status: proposed · seen: 363
+- evidence: `include_graph` attested an unused copy by searching unlinked include text for its
+  basename; an interpolated include is stored as `(dynamic)` and names nothing, so it could be the
+  includer yet never matches. The challenger found it; the zero now counts them and is not
+  authoritative while any exist.
+- destination: first sighting.
+
 ### 362-C1 — a widened target must widen every query behind the same answer
 
 - type: 2 (code) · handle: `widen-every-query-that-shares-the-page`
@@ -153,7 +163,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
 ### 343-C2 — `ruff format` on a file you edit rewrites lines you did not
 
 - type: 2 (code) · handle: `formatter-rewrites-untouched-lines`
-- status: proposed · seen: 343, 360, 359, 357, 361, 362, 364
+- status: proposed · seen: 343, 360, 359, 357, 361, 362, 363, 364
 - evidence: formatting four edited files reflowed four untouched spots (two `main.py` calls, the
   `which_tool` string, a test lambda); the challenger caught one I had missed. The gate runs
   `ruff check` only, so the drift is silent. Format, then revert every hunk the change does not own.
