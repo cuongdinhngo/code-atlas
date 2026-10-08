@@ -364,19 +364,29 @@ def _literal_fields(argument: str) -> dict[str, str]:
     """The top-level ``name: 'value'`` string fields of one object/array literal argument.
 
     An entry is read only when it is exactly a name and one string literal, so a nested object,
-    a concatenation or a ternary names nothing — never a guess (R5.2). First occurrence kept.
+    a concatenation, a ternary or a ``"…$x…"`` value names nothing — never a guess (R5.2). A
+    name given twice names nothing, and a spread (``...x``) may override any field, so it voids all.
     """
     text = argument.strip()
     if len(text) < 2 or (text[0], text[-1]) not in (("{", "}"), ("[", "]")):
         return {}
     fields: dict[str, str] = {}
+    seen: set[str] = set()
     for entry in _top_level_entries(text[1:-1]):
+        if entry.strip().startswith("..."):
+            return {}
         match = _LITERAL_FIELD.fullmatch(entry)
         if match is None:
             continue
-        value = _nth_string_literal(match.group(3), 1)
-        if value is not None:
-            fields.setdefault(match.group(2), value)
+        name, literal = match.group(2), match.group(3)
+        if name in seen:
+            fields.pop(name, None)
+            continue
+        seen.add(name)
+        # A double-quoted `$` may interpolate, so the literal is not its value.
+        value = _nth_string_literal(literal, 1)
+        if value is not None and not (literal.startswith('"') and "$" in literal):
+            fields[name] = value
     return fields
 
 
@@ -696,7 +706,7 @@ def _keyed_call(item: dict[str, Any], label: str) -> KeyedCall:
     raw_pattern = item.get("key_pattern")
     pattern = None
     if raw_pattern is not None:
-        if key_from == "object" or not isinstance(raw_pattern, str) or not raw_pattern:
+        if key_from != "string" or not isinstance(raw_pattern, str) or not raw_pattern:
             raise ConfigError(f"{where}.key_pattern must be a non-empty regex on a string key")
         try:
             pattern = re.compile(raw_pattern)
@@ -704,7 +714,7 @@ def _keyed_call(item: dict[str, Any], label: str) -> KeyedCall:
             raise ConfigError(f"{where}.key_pattern does not compile ({error})") from error
     if key_from == "object":
         wanted = sorted(set(names))
-        if not names or "key" in names:
+        if not names:
             raise ConfigError(f"{where}.target_template needs placeholder(s) naming object fields")
     elif pattern is not None and pattern.groupindex:
         wanted = sorted(pattern.groupindex)

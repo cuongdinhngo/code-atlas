@@ -105,7 +105,6 @@ def test_a_route_naming_no_action_is_counted_and_links_nothing(built: tuple) -> 
         "SELECT target_raw, target_qname FROM edges WHERE file_path = ?", (INDIRECTION_FILE,)
     ).fetchall()
     conn.close()
-    assert ("\\App\\ItemsControllerController::nopeAction", None) not in rows
     unlinked = [raw for raw, linked in rows if linked is None]
     assert unlinked == ["\\App\\ItemsController::nopeAction"]
     assert all("health" not in raw for raw, _ in rows)
@@ -133,6 +132,10 @@ def test_without_a_rule_the_graph_has_no_rule_rows(tmp_path: Path) -> None:
         ({"key_from": "object", "target_template": "X::y"}, "placeholder"),
         (
             {"key_from": "object", "key_pattern": "a", "target_template": "X::{a}"},
+            "key_pattern",
+        ),
+        (
+            {"key_from": "array_keys", "key_pattern": "a", "target_template": "X::{key}"},
             "key_pattern",
         ),
     ],
@@ -183,8 +186,26 @@ def test_one_literal_two_rules_read_differently_is_one_unresolved_site(tmp_path:
         ("{'ac tion': 'x'}", {}),
         ("{module, action: 'x'}", {"action": "x"}),
         ("{a: 'x, y', b: 'z'}", {"a": "x, y", "b": "z"}),
+        ("{action: 'a', module: 'M', action: 'b'}", {"module": "M"}),
+        ("['action' => 'a', 'action' => 'b']", {}),
+        ("{...base, action: 'x'}", {}),
+        ("{action: 'x', ...override}", {}),
+        ("['module' => \"Items$x\", 'action' => 'y']", {"action": "y"}),
+        ("['module' => \"{$m}\", 'action' => 'y']", {"action": "y"}),
+        ("{module: 'It$ems', action: 'y'}", {"module": "It$ems", "action": "y"}),
     ],
 )
 def test_only_a_whole_top_level_string_field_names_a_value(argument: str, fields: dict) -> None:
-    """Challenger F1–F3 — a nested, concatenated or conditional value is never read as the field."""
+    """Challenger F1–F3 — a nested, concatenated or conditional value is never read as the field.
+
+    A repeated name or a spread may override a field; a double-quoted ``$`` may interpolate.
+    """
     assert _literal_fields(argument) == fields
+
+
+def test_an_object_rule_may_name_a_key_field(tmp_path: Path) -> None:
+    """In object mode ``{key}`` is an ordinary field name, not a reserved placeholder."""
+    rule = {"setter": "post", "key_arg": 1, "key_from": "object", "target_template": "X::{key}"}
+    (tmp_path / "rules.json").write_text(json.dumps({"keyed_calls": [rule]}), encoding="utf-8")
+    config = load_config(tmp_path, {"CA_INDIRECTION_RULES": "rules.json"})
+    assert load_indirection_rules(config)
