@@ -45,7 +45,7 @@ row it closed. `n/a` is a measurement: the language has no such construct.
 | runtime-load stamp (`unmodelled_resolution`) | 279 | 294 | 295 | 296 |
 | top-level `new X` binds the receiver (included view, module script) | 362 | 153 | 368 | n/a |
 | constructor flag — `find_callers` reads construction sites | 362 | 367 | 367 | n/a |
-| static / class property read or write → `REFERENCES` | 336 | **369** | **369** | n/a |
+| static / class property read or write → `REFERENCES` | 336 | 369 | 369 | n/a |
 | include path built from the file's dir or a root + literal tail | 353 | **370** | **373** | n/a |
 | a string literal that begins a SQL write or `EXEC` | 278 · 335 | **371** | **371** | n/a |
 
@@ -177,11 +177,12 @@ measurement, not a judgement — while **`0/1` means it was there and the adapte
 | probe | php | python | sql | typescript |
 |---|---|---|---|---|
 | `params` on a callable | 2/3 | 2/3 | 1/2 | 2/3 |
-| `extra.type` on a member | 4/4 | 4/4 | 1/1 | 4/4 |
-| `modifiers` on a member | 4/4 | 1/4 | 0/1 | 2/4 |
+| `extra.type` on a member | 5/5 | 5/5 | 1/1 | 5/5 |
+| `modifiers` on a member | 5/5 | 1/5 | 0/1 | 3/5 |
 | `args` on a call site | 1/1 | 1/1 | 1/1 | 1/1 |
 | `arg_keys` on a call site | 1/1 | 1/1 | 1/1 | 1/1 |
 | `REFERENCES` edges from the annotations | 3 | 3 | 0 | 3 |
+| `REFERENCES` onto a static / class property | 2 | 2 | 0 | 2 |
 | `ClassConst` for the class constant | 1 | 1 | 0 | 1 |
 <!-- parity-table:end -->
 

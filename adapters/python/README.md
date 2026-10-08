@@ -43,6 +43,7 @@ CA_PYTHON_CMD="python /abs/path/adapters/python/index.py --server"
 | module-level `x = Foo()` then `x.m()` | the module's top-level statements share one table (368): a binding inside an `if`/`for`/`try`/`with` does not outlive it, any other write (unpack, loop target, `import`, `except … as`, walrus, augmented) re-opens the name, a loop's writes are open from its first pass, a star import or an `exec`/`globals()`/`vars()`/`locals()` call clears the table, a name a function declares `global` is never typed, and a function body never reads the table |
 | `self.x.m()` | `self.<attr>` types are read once per class, from the class body **and** every method in it, so method order never changes the answer; an annotation outranks an inferred `self.x = Foo()`, and disagreement drops the attribute |
 | module `UPPER = …` / class-body assign | Const / Property |
+| `Foo.x` / `self.x` / `cls.x`, read or written, onto an `x` the same-file class body assigns | REFERENCES onto `Foo::x` (369); a method call stays CALLS, an untyped receiver, a base class's attribute and a class from another file are not followed |
 | syntax error | `ok: false` |
 
 Qualified names follow CONVENTION §3: File = repo-relative path; members use
