@@ -34,10 +34,12 @@ A record, for shape:
 
 ## Class index — read this before proposing a new rule
 
-Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase 2.*
+Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 | handle | rec | tickets | where it landed |
 |---|---|---|---|
+| `formatter-rewrites-untouched-lines` | 4 | 343, 357, 359, 360 | ENGINEERING_RULES R7.7 |
+| `child-build-inherits-adapter-env` | 2 | 356, 357 | ENGINEERING_RULES R6.10 |
 
 ## Live claims
 
@@ -59,17 +61,6 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
   was empty, and the design fixed the diff. `file_outline` returned `found: false` for a path
   missing from `files` before read-through ran at all, so AC4 stayed red until it routed the
   miss through `ensure_miss`. Run the named path once before designing around its blocker.
-- destination: first sighting.
-
-### 356-C1 — a test's child build inherits the host's `CA_<LANG>_CMD`, so its scope is not the parent's
-
-- type: 2 (code) · handle: `child-build-inherits-adapter-env`
-- status: proposed · seen: 356, 357
-- evidence: `tests/test_killed_build_is_honest.py` spawned its "incremental" with `os.environ`. On a
-  host exporting `CA_PHP_CMD`/`CA_SQL_CMD`/`CA_TYPESCRIPT_CMD` the child announced more suffixes
-  than the parent's index, escalated to a full build (`scope_change`), and the test passed by
-  killing that in-place full build instead. 356 made full builds shadowed, which exposed it;
-  `child_env()` now strips `CA_*`. Any test that spawns a build inherits the same trap.
 - destination: first sighting.
 
 ### 348-C1 — an installed plugin moves only when its `version` does, and only on `claude plugin update`
@@ -132,15 +123,6 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
   `instructions.CLIENT_CAP` carries the figure; re-measure on a new Claude Code major.
 - destination: first sighting.
 
-### 343-C2 — `ruff format` on a file you edit rewrites lines you did not
-
-- type: 2 (code) · handle: `formatter-rewrites-untouched-lines`
-- status: proposed · seen: 343, 360, 359, 357
-- evidence: formatting four edited files reflowed four untouched spots (two `main.py` calls, the
-  `which_tool` string, a test lambda); the challenger caught one I had missed. The gate runs
-  `ruff check` only, so the drift is silent. Format, then revert every hunk the change does not own.
-- destination: first sighting.
-
 ## Retired — the rule carries the class now
 
 `RECALL:` skips these. The rule named is the one that cites the id.
@@ -148,3 +130,5 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
 | claim | handle | rule |
 |---|---|---|
 | 349-C1 | `ungated-floor-drifts-silently` | AGENT_BRIEF P8 |
+| 343-C2 | `formatter-rewrites-untouched-lines` | ENGINEERING_RULES R7.7 |
+| 356-C1 | `child-build-inherits-adapter-env` | ENGINEERING_RULES R6.10 |

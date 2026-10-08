@@ -278,7 +278,10 @@ BUDGETS = {
     # test's docstring where a reader of the guard will meet it. The preamble's "every rule below
     # was ratified 2026-08-30" was corrected in the same commit — R2.4 is Provisional, and leaving
     # that sentence would have made the doc lie. 11 of margin; the next addition prunes or argues.
-    "ENGINEERING_RULES.md": 5_880,
+    # 5,880 -> 5,960 on 2026-10-08 (promotion: R6.10, R7.7), argued. main sat at 5,880 exactly. The
+    # two rules were cut to 145 tokens, then the preamble's stale "every rule ratified 2026-08-30"
+    # and R5.6's cross-reference to R5.5 paid 76 of them; the remaining 69 are bought here.
+    "ENGINEERING_RULES.md": 5_960,
     # 2,250 -> 1,900 on 2026-09-27, LOWERED: phase-1 incident retellings cut to one line (1,683).
     "AGENT_BRIEF.md": 1_900,
     # 6,700 -> 6,800 on 2026-09-09 (236): the `ForeignKey` node kind joins the vocabulary of record
