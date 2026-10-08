@@ -10,6 +10,7 @@ from typing import Literal, NamedTuple
 from code_atlas import contract
 from code_atlas.build_info import maybe_server_provenance
 from code_atlas.config import Config, clamp_limit
+from code_atlas.indexer import parse_file
 from code_atlas.onboarding.class_diagram import parse_json_field
 from code_atlas.source_slice import (
     BODY_LINE_THRESHOLD,
@@ -17,7 +18,7 @@ from code_atlas.source_slice import (
     declaration_line_count,
     declaration_slice,
 )
-from code_atlas.store import GraphStore
+from code_atlas.store import GraphStore, stored
 from code_atlas.tools.freshness import (
     FreshnessGuard,
     attach_other_indexed_files_drifted,
@@ -39,6 +40,7 @@ from code_atlas.tools.nav_result import (
     TRY_INSTEAD_READ_SYMBOL,
     answered_about_ref_for,
     attach_ambiguous_definitions,
+    attach_answered_about_ref,
     attach_authoritative_caveats,
     attach_limit_capped,
     attach_name_not_qualified,
@@ -228,7 +230,13 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             node = rows[0]
             rel = str(node["file_path"])
             status = guard.ensure(rel)
-            if status == "stale":
+            parsed = None
+            if status == "stale" and guard.build_held:
+                # 365: a writer holds the index, so read the file through its adapter instead.
+                parsed = _parsed_node(config, rel, str(node["qualified_name"]))
+            if parsed is not None:
+                node = parsed
+            elif status == "stale":
                 stale = stamped_result(
                     qname,
                     "",
@@ -303,6 +311,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 _attach_columns(payload, store, node, config=config, limit=limit, offset=offset)
                 _attach_supertypes(payload, store, node, rel)
             _attach_stored_fields(payload, store, node, stored_fields=stored_fields)
+            if parsed is not None:
+                # The body is the working tree's, not the built ref's: claim no ref for it.
+                payload["parsed_unstored"] = True
+                attach_answered_about_ref(payload, None)
             _attach_mirror_twin(
                 payload,
                 store,
@@ -314,6 +326,23 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             return attach_next_tools(payload, str(node["kind"]))
 
     return read_symbol
+
+
+def _parsed_node(config: Config, rel: str, qname: str) -> dict[str, object] | None:
+    """The one node ``qname`` names in ``rel``'s current bytes, parsed and never stored (365)."""
+    try:
+        parsed = parse_file(config, rel)
+    except (OSError, TimeoutError):
+        return None
+    if parsed is None or not parsed[1].ok:
+        return None
+    hits = [n for n in parsed[1].nodes if n.get("qualified_name") == qname]
+    if len(hits) != 1:
+        return None
+    # Shaped as a stored row (JSON text for `extra` and friends), so row readers agree.
+    node = {key: stored(value) for key, value in hits[0].items()}
+    node.setdefault("file_path", rel)
+    return node
 
 
 def _effective_body_cap(opts: _BodyOpts) -> int | None:

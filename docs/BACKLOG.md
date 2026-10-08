@@ -24,7 +24,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
-| 365 | [Reads refuse while a refresh runs](tasks/365_reads-refuse-while-a-refresh-runs.md) | Adoption | todo | 356, 357, 274 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -69,6 +68,9 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **Two symlink residuals 342 left out of scope** — a stub root's files (`collect_stubs`, `os.walk`)
   and the index directory (`.code-atlas/` committed as a link aims SQLite writes) are not yet contained
   — 342.
+- **Two field reports 365 did not reproduce** — `read_symbol` on a table answered `subject_ambiguous`
+  mid-rebuild, and `find_references` answered `index_stale` during a full rebuild, whose shadowed
+  live DB still repairs in 365's tests — 365.
 - **PHP members are case-insensitive, the resolver is not** (`validate()` onto `Validate()` stays
   unlinked — a fixture cause, not matched to the field); only PHP flags a constructor, and an
   inherited one misses its subclass's `new` sites — 362.

@@ -106,8 +106,14 @@ MEMORY_DB = ":memory:"
 # sqlite3, so SQLite stays confined to this module (R1.4 / tests/test_sql_confinement.py).
 WRITE_ERRORS: tuple[type[Exception], ...] = (sqlite3.Error,)
 
+# How long a write waits behind another writer; write_locked() restores it after probing (365).
+BUSY_TIMEOUT_MS = 5000
 # Set outside any transaction: foreign_keys is silently ignored inside one.
-PRAGMAS: tuple[str, ...] = ("journal_mode=WAL", "foreign_keys=ON", "busy_timeout=5000")
+PRAGMAS: tuple[str, ...] = (
+    "journal_mode=WAL",
+    "foreign_keys=ON",
+    f"busy_timeout={BUSY_TIMEOUT_MS}",
+)
 
 # A full rebuild fills this file, then publishes it over the live index in one transaction (356).
 SHADOW_SUFFIX = ".shadow"
@@ -117,6 +123,16 @@ PUBLISH_BUSY_TIMEOUT_MS = 60_000
 def shadow_db_path(db_path: Path) -> Path:
     """Where a full rebuild writes before it publishes — the one definition site (356, R6.7)."""
     return db_path.with_name(db_path.name + SHADOW_SUFFIX)
+
+
+def discard_stale_shadow(db_path: Path) -> None:
+    """Drop a killed rebuild's shadow; called only by the ``write.lock`` holder (365).
+
+    No other build can be writing it then, and a leftover would read as a running full rebuild.
+    Best-effort: a file that cannot be removed never stops the build.
+    """
+    with contextlib.suppress(OSError):
+        _remove_db_files(shadow_db_path(db_path))
 
 
 def read_meta_readonly(db_path: Path, key: str) -> str | None:
@@ -795,6 +811,27 @@ class GraphStore:
 
     def close(self) -> None:
         self._conn.close()
+
+    def write_locked(self) -> bool:
+        """Does another connection hold this database's write lock right now? (365)
+
+        A zero-wait ``BEGIN IMMEDIATE`` that is rolled back at once, so read-through repair can
+        decline before it spends ``BUSY_TIMEOUT_MS`` behind an in-place build. Writes nothing and
+        never touches ``write.lock``; inside an open transaction it cannot probe and answers False.
+        """
+        if self._conn.in_transaction:
+            return False
+        self._conn.execute("PRAGMA busy_timeout=0")
+        try:
+            self._conn.execute("BEGIN IMMEDIATE")
+        except sqlite3.OperationalError as error:
+            # Only contention means a writer; a read-only or broken file is not "held".
+            return "locked" in str(error) or "busy" in str(error)
+        else:
+            self._conn.execute("ROLLBACK")
+            return False
+        finally:
+            self._conn.execute(f"PRAGMA busy_timeout={BUSY_TIMEOUT_MS}")
 
     @classmethod
     def open_shadow(cls, db_path: Path) -> "GraphStore":
