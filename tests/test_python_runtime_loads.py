@@ -44,8 +44,22 @@ FILES = {
         "exec(open(path).read())\n"  # 4
         "import_module(sys.argv[2])\n"  # 5
         "exec('VALUE = 1')\n"  # 6
+        "source = open(path).read()\n"  # 7
+        "exec(source)\n"  # 8 — file text through a variable: stamps (F4)
+    ),
+    "tools/edges.py": (
+        "import os\n"  # 1
+        "import runpy as rp\n"  # 2
+        "import importlib as il\n"  # 3
+        "from pathlib import Path\n"  # 4
+        "rp.run_path(os.path.dirname(__file__))\n"  # 5 — a directory: stamps
+        "rp.run_path(os.path.join(os.path.dirname(__file__), '/abs/y.py'))\n"  # 6 — absolute
+        "rp.run_path(os.path.join(os.path.dirname(__file__), '../../../out.py'))\n"  # 7 — leaves
+        "rp.run_path(str(Path(__file__).parent / 'extra.py'))\n"  # 8 — exact, via str()
+        "il.import_module('pkg.mod')\n"  # 9 — exact, via an alias
     ),
     "tools/plugin.py": "PLUGIN = 1\n",
+    "tools/extra.py": "EXTRA = 1\n",
     "tools/script.py": "SCRIPT = 1\n",
     "shared.py": "SHARED = 1\n",
     "pkg/__init__.py": "",
@@ -120,3 +134,17 @@ def test_an_exact_load_does_not_stamp_but_a_computed_one_does(config: Config) ->
     assert sorted(imports) == [(1,), (2,)]
     rooted = dataclasses.replace(config, entry_points=(LOADER,))
     assert find_orphans.create(rooted)()["status"] == "resolution_unmodelled"
+
+
+def test_only_a_file_inside_the_repo_is_read_exactly(config: Config) -> None:
+    """Challenger F1/F2/F5 — a directory, an absolute part and a path leaving the repo stamp; a
+    `str(…)` wrapper and an aliased module still read exactly."""
+    rows = _rows(
+        config,
+        "SELECT line, target_qname FROM edges WHERE kind = 'IMPORTS' AND source_qname = ?"
+        " AND line > 4 ORDER BY line",
+        "tools/edges.py",
+    )
+    assert rows == [(8, "tools/extra.py"), (9, "pkg/mod.py")]
+    (extra,) = _rows(config, "SELECT extra FROM nodes WHERE qualified_name = ?", "tools/edges.py")
+    assert "dynamic_import" in str(extra[0])

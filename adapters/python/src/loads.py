@@ -16,7 +16,9 @@ Canon = Callable[[ast.expr], str | None]
 
 PATH_LOADERS = {"runpy.run_path": 0, "importlib.util.spec_from_file_location": 1}
 NAME_LOADERS = frozenset({"importlib.import_module", "__import__"})
-_IDENTITY = frozenset({"os.path.abspath", "os.path.realpath", "os.path.normpath", "pathlib.Path"})
+_IDENTITY = frozenset(
+    {"os.path.abspath", "os.path.realpath", "os.path.normpath", "pathlib.Path", "str", "os.fspath"}
+)
 
 
 def callee_names(tree: ast.Module) -> dict[str, str]:
@@ -95,6 +97,9 @@ def _relative(expr: ast.expr, canon: Canon) -> str | None:
     up = _levels_up(expr, canon)
     if up is not None:
         return "/".join([".."] * up) or "."
+    wrapped = _unwrap(expr, canon)
+    if wrapped is not None:
+        return _relative(wrapped, canon)
     if isinstance(expr, ast.Call) and canon(expr.func) == "os.path.join" and expr.args:
         head = _relative(expr.args[0], canon)
         tail = [
@@ -128,8 +133,8 @@ def _relative(expr: ast.expr, canon: Canon) -> str | None:
 def file_relative_target(expr: ast.expr, canon: Canon, from_qpath: str) -> str | None:
     """The repo-relative file a ``__file__``-relative path names, or None (computed, or outside)."""
     rel = _relative(expr, canon)
-    if rel is None:
-        return None
+    if rel is None or rel.rsplit("/", 1)[-1] in (".", ".."):
+        return None  # a directory, never a module file
     target = posixpath.normpath(posixpath.join(posixpath.dirname(from_qpath), rel))
     if target in (".", "..") or target.startswith(("../", "/")) or target.endswith("/"):
         return None
@@ -142,6 +147,8 @@ def exec_file_path(call: ast.Call, canon: Canon) -> tuple[bool, ast.expr | None]
     if canon(call.func) != "exec" or not call.args:
         return False, None
     source = call.args[0]
+    if isinstance(source, (ast.Name, ast.Attribute, ast.Subscript)):
+        return True, None  # text held in a variable may be a file's: unmodelled, never a zero
     if isinstance(source, ast.Call) and canon(source.func) == "compile" and source.args:
         source = source.args[0]
     if not isinstance(source, ast.Call) or not isinstance(source.func, ast.Attribute):
