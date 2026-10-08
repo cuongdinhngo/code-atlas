@@ -15,6 +15,9 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 ## Unreleased
 
+- The TypeScript and Python adapters flag their constructors too, so `find_callers` on a TS
+  `constructor` or a Python `__init__`/`__new__` lists its class's construction sites; a TS
+  `super(…)` now calls the base class's constructor (367). **Full rebuild required** once.
 - A client whose first MCP root is another checkout of the repo at another commit than the built
   one gets `reason: ref_mismatch`, rows kept, with both commits named (366).
 - While a build holds the live index, callers and references answer labelled and `read_symbol`

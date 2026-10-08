@@ -44,7 +44,7 @@ row it closed. `n/a` is a measurement: the language has no such construct.
 | inherited method via hierarchy walk | 137 | free | free | n/a |
 | runtime-load stamp (`unmodelled_resolution`) | 279 | 294 | 295 | 296 |
 | top-level `new X` binds the receiver (included view, module script) | 362 | 153 | **368** | n/a |
-| constructor flag — `find_callers` reads construction sites | 362 | **367** | **367** | n/a |
+| constructor flag — `find_callers` reads construction sites | 362 | 367 | 367 | n/a |
 | static / class property read or write → `REFERENCES` | 336 | **369** | **369** | n/a |
 | include path built from the file's dir or a root + literal tail | 353 | **370** | **373** | n/a |
 | a string literal that begins a SQL write or `EXEC` | 278 · 335 | **371** | **371** | n/a |
@@ -84,7 +84,7 @@ the consumer cannot tell "the code has no annotation" from "this adapter never l
 |---|---|---|
 | `params` | fill for every callable, with each parameter's declared type | `class_diagram.py`, `onboarding/module_facts.py` — a bare `find()` instead of `find(User $u): User` |
 | `extra.type` | fill for a callable's return and a typed property | signature display; your own pass 2 |
-| `Method.extra.constructor` | `true` on the method your language makes the constructor (PHP `__construct`, any case — 362) | `find_callers` on it lists the class's construction sites; only PHP sets it so far (TS · Python: 367) |
+| `Method.extra.constructor` | `true` on the method your language makes the constructor: PHP `__construct` in any case (362), TS `constructor`, Python `__init__`/`__new__` (367) | `find_callers` on it lists the class's construction sites |
 | `modifiers` | fill for every member the language gives a visibility or a `static`/`readonly`/`final` keyword | `class_diagram.py` — the UML `+`/`-`/`#` marker; §7 has each adapter's measured cell |
 | `args` · `arg_keys` | fill at every `CALLS`/`NEW` site — the literal **category**, never the value | `find_callers`'s argument filter (049/063) **and every `CA_INDIRECTION_RULES` edge** (`enrichment.py`), so a repo in your language gets no cross-language link |
 | `confidence_tier` | leave **NULL** on a structural edge | nothing — NULL folds into `RESOLVED` (the `confidence_tier` column's DDL default). SQL stamping it explicitly is equivalent, not better; do not file it as a defect |
