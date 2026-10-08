@@ -247,3 +247,5 @@ Deferred to the maintainer: `/mango:promote` on `362-C1`.
 `LEDGER TOTAL: 108,892 · top cost driver: review/challenger`
 
 **Revert path.** `git revert` the branch commits; an index keeps the flags until the next full rebuild.
+
+**Gate.** `scripts/gate.sh` on `3366adee`: `GATE GREEN — all 21 checks passed` (Linux, bare pytest).
