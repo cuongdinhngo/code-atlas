@@ -10,10 +10,8 @@ When a rule and a deadline conflict, raise it — don't quietly break the rule.
 A rule's closing italic line names its **handle** and the `LESSONS.md` claims it was promoted from —
 the two things `/mango:promote` greps to know the class is already carried — plus its status:
 `Ratified <date>` once a human has confirmed the wording, or `Provisional` while it binds and awaits
-that. Every rule below was ratified 2026-08-30 at recurrence ≥ 2 in the class index, the condition
-the brief states — except **R2.4**, which is `Provisional`: one incident, no second sighting, and it
-binds meanwhile because the cost of its second sighting is a disclosure. **Sightings stay in
-`LESSONS.md`'s class index only** (132).
+that. A rule is ratified at recurrence ≥ 2 — except **R2.4**, `Provisional` on one incident because
+its second sighting would cost a disclosure.
 
 ---
 
@@ -158,8 +156,7 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
 - **R5.6 — Never attest past what the payload can distinguish.** When a field cannot separate two
   states a reader acts on differently — absent subject vs modelled zero, budget-cut walk vs complete —
   carry a field that separates them or emit no signed line/label for that answer; never sign a value
-  the payload cannot tell apart. Prove it with a test driving both states. Adjacent to R5.5 (where a
-  value is sourced) — this gates whether you may attest at all. *Falsifier:* a count/flag identical
+  the payload cannot tell apart. Prove it with a test driving both states. *Falsifier:* a count/flag identical
   across the two states with no separating field, or a test asserting only one.
   *Ratified 2026-08-30 · `do-not-attest-past-the-payloads-resolution` (`100-C4`, `087-C2`, `088-C2`).*
 - **R5.7 — A repo-writing tool removes only what its own manifest recorded.** Before deleting or
@@ -246,6 +243,9 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   assertions are on its own value with no consumer named.
   *Ratified 2026-08-30 · `guard-asserts-rendered-not-shipped-bytes` (`127-C1`) · widened 2026-08-31 ·
   `assert-the-consumer-not-the-field` (`198-C1`, `196-C4`, `196-C8`).*
+- **R6.10 — A test's child build gets an env with `CA_*` stripped, never `os.environ`.** A host's
+  `CA_<LANG>_CMD` widens its scope past the parent's. *Falsifier:* a build spawned from `tests/`
+  with `env=os.environ` or no `env=`. *Ratified 2026-10-08 · `child-build-inherits-adapter-env` (`356-C1`).*
 
 ## 7. Change discipline
 
@@ -276,6 +276,9 @@ the adapter contract. Everywhere else, prefer the simplest thing that works.
   keeps them *readable*. *Falsifier:* a standing doc over its ceiling in
   `tests/test_doc_size_budget.py`, or a diff that appends narrative to `PLAN.md` §19 or `BACKLOG.md`
   while removing nothing it supersedes.
+- **R7.7 — Revert every hunk `ruff format` rewrites outside the lines you edited;** the gate runs
+  `ruff check` only. *Falsifier:* a layout-only hunk outside the change list.
+  *Ratified 2026-10-08 · `formatter-rewrites-untouched-lines` (`343-C2`).*
 
 ## 8. Dependencies
 
