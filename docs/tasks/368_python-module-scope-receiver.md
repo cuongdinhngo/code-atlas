@@ -174,7 +174,7 @@ Ran at e0d84cf1.
 
 ## Phase 3 — execute
 
-Commits `1cfa0c3b` (code, test) and `842aa1fa` (docs) before the rebase onto 367's last commit. **Red first** — the test on 367's tip:
+Commits `73ad78b8` (code, test) and `cf92b1b8` (docs). **Red first** — the test on 367's tip:
 `1 failed, 3 passed` (AC1: `assert 'bar' == 'm.Foo::bar'`; AC2–AC4 already held, since nothing bound).
 
 **Sweep.** Axis 1: `git diff --name-only feat/367-constructor-flag-beyond-php..HEAD` = items 1–3;
@@ -187,7 +187,7 @@ node and edge count equals `main`'s (a bound call changes its target, not the co
 
 `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`
 
-**Challenger (ticket-blind, round 1, on `842aa1fa`, 49,934 tokens): 8 met · 0 not met · 0 can't tell.**
+**Challenger (ticket-blind, round 1, on `842aa1fa` — `cf92b1b8` after the rebase — 49,934 tokens): 8 met · 0 not met · 0 can't tell.**
 
 1. **F1: `from m import *` re-opened nothing.** **Fixed** — a star import clears the table.
 2. **F2: a loop's back edge kept a binding its own body overwrites.** **Fixed** — what any loop in the
@@ -197,11 +197,11 @@ node and edge count equals `main`'s (a bound call changes its target, not the co
 4. **F4: a bare `p: Foo` binds.** **Left:** an annotation types its name, as pass 2 does in a function.
 5. **Noise in the test source.** **Fixed.**
 
-Fixes in `b8871047` (code, test: red `1 failed, 4 passed` on the prior parser) and `84048b73` (README).
+Fixes in `f83b8bc5` (code, test: red `1 failed, 4 passed` on the prior parser) and `6311eefe` (README).
 
 Verify-only (main loop):
 
-Ran at 84048b73:
+Ran at 910482bd:
 ```
 $ .venv/bin/python -m pytest -q tests/test_python_module_scope_receiver.py
 5 passed in 0.16s
@@ -211,12 +211,12 @@ $ .venv/bin/python -m pytest -q tests/test_python_module_scope_receiver.py
 
 Verdict: **clean (challenger only — REVIEWER: OFF)**.
 
-Reviewed at 84048b73 — the diff `feat/367-constructor-flag-beyond-php..84048b73`. Working doc:
+Reviewed at 6311eefe — the diff `feat/367-constructor-flag-beyond-php..6311eefe`. Working doc:
 `docs/tasks/368_python-module-scope-receiver.md` (embedded).
 
 ## Phase 5 — finalise
 
-Stale-review guard: after `84048b73` only the rebase onto 367's gate-record commit and bookkeeping —
+Stale-review guard: after `6311eefe` only the rebase onto 367's gate-record commit and bookkeeping —
 this doc, `docs/BACKLOG.md` and `docs/TOKEN_LEDGER.md`, all exempt.
 
 `CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
