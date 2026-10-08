@@ -40,6 +40,7 @@ CA_PYTHON_CMD="python /abs/path/adapters/python/index.py --server"
 | nested `def` | Function CONTAINS inside parent |
 | `import` / `from` / `as` / relative | IMPORTS (+ ALIASES when names differ) |
 | `f()` / `C()` / `obj.m()` | CALLS (`C()` stays CALLS; `obj.m()` is RESOLVED to `<Class>::m` when a local type table binding names the receiver — param/`AnnAssign` annotation or `x = Foo()`; else HEURISTIC) |
+| module-level `x = Foo()` then `x.m()` | the module's top-level statements share one table (368): a binding inside an `if`/`for`/`try`/`with` does not outlive it, any other write (unpack, loop target, `import`, `except … as`, walrus, augmented) re-opens the name, a name a function declares `global` is never typed, and a function body never reads the table |
 | `self.x.m()` | `self.<attr>` types are read once per class, from the class body **and** every method in it, so method order never changes the answer; an annotation outranks an inferred `self.x = Foo()`, and disagreement drops the attribute |
 | module `UPPER = …` / class-body assign | Const / Property |
 | syntax error | `ok: false` |

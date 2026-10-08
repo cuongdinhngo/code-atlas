@@ -265,6 +265,43 @@ def _type_name_worthy(raw: str) -> bool:
     return bool(leaf) and leaf[0].isupper()
 
 
+def _name_targets(stmt: ast.Assign | ast.AnnAssign) -> set[str]:
+    """Names an assignment binds directly — the ones its own bind-or-forget step decides."""
+    targets = stmt.targets if isinstance(stmt, ast.Assign) else [stmt.target]
+    return {t.id for t in targets if isinstance(t, ast.Name)}
+
+
+def _stored_names(stmt: ast.stmt) -> set[str]:
+    """Every module-scope name a top-level statement may rebind; a nested body's locals are not."""
+    out: set[str] = set()
+    pending: list[ast.AST] = [stmt]
+    while pending:
+        node = pending.pop()
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            out.add(node.name)
+            pending.extend(node.decorator_list)
+            continue
+        if isinstance(node, ast.Lambda):
+            continue
+        if isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
+            out.add(node.id)
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            out.update((a.asname or a.name).split(".", 1)[0] for a in node.names)
+        elif isinstance(node, ast.ExceptHandler) and node.name:
+            out.add(node.name)
+        elif isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name:
+            out.add(node.name)
+        elif isinstance(node, ast.MatchMapping) and node.rest:
+            out.add(node.rest)
+        pending.extend(ast.iter_child_nodes(node))
+    return out
+
+
+def _global_names(tree: ast.Module) -> set[str]:
+    """Names a function declares ``global``: a call may rebind them at any time, so never typed."""
+    return {name for n in ast.walk(tree) if isinstance(n, ast.Global) for name in n.names}
+
+
 def parse_file(
     path: str,
     declarations_only: bool = False,
@@ -922,6 +959,9 @@ def parse_file(
                         )
                         add_edge("CONTAINS", container, qn, stmt)
                         owner_for_ann = qn
+                        if not declarations_only:
+                            # A settings module's `DEFAULT = Foo()` types it as any name (368).
+                            _bind_or_forget(locals_, target.id, ann, value)
                     elif not declarations_only:
                         _bind_or_forget(locals_, target.id, ann, value)
             if isinstance(stmt, ast.AnnAssign):
@@ -953,7 +993,18 @@ def parse_file(
         for child in ast.iter_child_nodes(expr):
             _walk_expr(child, scope, enclosing_class, locals_, self_props)
 
+    # The module's top-level statements share one forgetful table (368); see walk_module_stmt.
+    module_locals: dict[str, str] = {}
+    never_bound = _global_names(tree)
     for stmt in tree.body:
-        walk_stmt(stmt, root_container, root_container, None, {}, {})
+        if isinstance(stmt, (ast.Assign, ast.AnnAssign)):
+            walk_stmt(stmt, root_container, root_container, None, module_locals, {})
+            forget = _stored_names(stmt) - _name_targets(stmt)
+        else:
+            # A compound statement's bindings do not outlive it: no join across branches.
+            walk_stmt(stmt, root_container, root_container, None, dict(module_locals), {})
+            forget = _stored_names(stmt)
+        for name in forget | never_bound:
+            module_locals.pop(name, None)
 
     return {"path": qpath, "ok": True, "nodes": nodes, "edges": edges}
