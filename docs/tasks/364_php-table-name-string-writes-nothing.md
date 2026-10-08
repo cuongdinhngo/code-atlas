@@ -69,9 +69,9 @@ never `WRITES` or `DELETES`.
 | X3 | `queryDelete` | how | `kind: DELETES`, Table-only per CONVENTION §3; its own test |
 | X4 | linking | how | `WRITES` is in the resolver's case-insensitive arm (`resolver.py:26`); `DELETES` links on the exact qname only — documented in TOOLS.md |
 | X5 | rule census reads CALLS only | how | `store.edges_by_target_raw(target_raw, kinds)`; the census reads every rule kind — a linked write was counted unresolved (`3 == 1` with the old lookup) |
-| X6 | where an unlinked name is counted | want | **ASSUMED:** `rule_keys_unresolved` in the build report; `unlinked_writes_count` counts it under its own spelling, as for any writer (`store.py:2448`). Deviation from the ticket's single-field wording (P3) |
-| X7 | a literal T-SQL write and a rule write at one site | want | **ASSUMED:** both stay — different evidence, `rule: true` tells them apart; sources are deduplicated in `writers_total` |
-| X8 | AC2's bar | want | **ASSUMED:** the rule writer is in `unmeasured` and `writers_total`, never in `omitted_by` |
+| X6 | where an unlinked name is counted | want | **Ratified 2026-10-08:** a missed key of either kind, a member key included, is counted in `rule_keys_unresolved` (no row is written for a member key). An unlinked `WRITES` row also counts in `unlinked_writes_count` under its own spelling, like any writer (`store.py:2529`); `DELETES` is no writer. Deviation from the ticket's single-field wording (P3) |
+| X7 | a literal T-SQL write and a rule write at one site | want | **Ratified 2026-10-08:** both stay — different evidence, `rule: true` tells them apart; sources are deduplicated in `writers_total` |
+| X8 | AC2's bar | want | **Ratified 2026-10-08:** the rule writer is in `unmeasured` and `writers_total`, never in `omitted_by` |
 
 ## Phase 1 — analysis
 
@@ -206,9 +206,12 @@ The partial is Scope 2's `unlinked_writes_count` (X6). Dispositions:
    the kind filter removed (`assert 0 == 1`).
 3. **F3: a rule hit carries no line.** **Left:** pre-existing for every rule edge (`nav_result.py:308`).
 4. **F4: test gaps.** **Fixed:** mixed kinds on one name, a member key, a case-differing `WRITES` key.
-5. **F5: a `WRITES` and a `DELETES` rule edge on one line group into one statement row.** **Left:** rare.
+5. **F5: a `WRITES` and a `DELETES` rule edge on one line group into one statement row.** **Fixed**
+   in PR #38: the statement page, its count and the census group by kind.
 6. **F6: a pattern key containing `::` became a column write.** **Fixed:** refused at emit time; tested.
 7. **F7: stale docstring.** **Fixed.**
+8. **PR #38:** `path_prefix` places a rule row at its source's file (`_path_prefix_predicate`).
+   **Limit, documented:** an exact key spelling a non-Table qname (a proc) still links (TOOLS.md).
 
 Verify-only (main loop — every fix is inside the approved files):
 
@@ -248,7 +251,7 @@ human-ratified cross-ticket pass (`/mango:promote`), named for the maintainer. P
 1. Push `feat/364-php-table-name-string-writes-nothing` — pre-authorised.
 2. Open the PR against `feat/361-js-route-strings-link-to-nothing` — pre-authorised.
 
-Deferred to the maintainer: the merge (after #36); `/mango:promote` on `362-C1`; ratifying X6–X8.
+Deferred to the maintainer: `/mango:promote` on `362-C1`.
 
 ### Cost ledger
 

@@ -78,22 +78,22 @@ had to come from Grep.
    links. Trait/parent/namespace variants all resolve.
 
 **Exposure-checker** (ticket-blind `challenger`, 1 dispatch, 49,108 tokens) surfaced X1–X12. Want-decisions
-handed back by the handover → **ASSUMED (awaiting ratification)**.
+handed back by the handover → **ASSUMED (awaiting ratification)**; the maintainer ratified them 2026-10-08 after the PR #34–#39 review.
 
 | # | Decision | Class | Resolution |
 |---|---|---|---|
-| X1 | how the core learns a constructor | want | **ASSUMED:** `Method.extra.constructor: true`, set by the adapter from its language spec (PHP `__construct`, any case). Read by `find_callers` only. No capability, so no handshake change |
+| X1 | how the core learns a constructor | want | **Ratified 2026-10-08:** `Method.extra.constructor: true`, set by the adapter from its language spec (PHP `__construct`, any case). Read by `find_callers` only. No capability, so no handshake change |
 | X2 | contract bump | how | none — the `STUB_FLAG`/`RULE_FLAG`/`UNMODELLED_RESOLUTION` precedent (`contract.py:266-276`): a new `extra` key is "Not a contract bump"; R3.1 binds vocabulary and qname |
-| X3 | what counts as a constructor's caller | want | **ASSUMED:** `NEW` onto its class plus direct calls (`parent::__construct`), tiers as stored; a class with no declared constructor has no such node, so nothing changes for it |
+| X3 | what counts as a constructor's caller | want | **Ratified 2026-10-08:** `NEW` onto its class (`new self`/`parent` included, `static` `HEURISTIC`) plus direct calls (`parent::__construct`), tiers as stored. Not followed: a subclass inheriting it, a trait-declared constructor, an anonymous class. A class with no declared constructor has no such node, so nothing changes for it |
 | X4 | `arg_position`/`arg_is` on `NEW` sites | how | reused: `NEW` edges carry `args`; every census query takes the same extra target |
-| X5 | include proximity: direction, depth, condition | want | **ASSUMED:** one include either way, and only toward a file whose own top level does `new` of the subject's class — a variable typed there is in scope across that include (PHP include semantics) |
+| X5 | include proximity: direction, depth, condition | want | **Ratified 2026-10-08:** one include either way, and only toward a file whose own top level does `new` of the subject's class — a variable typed there is in scope across that include (PHP include semantics) |
 | X6 | where the reachability query lives | how | `store.py` (R1.4): `files_constructing_at_top_level`, `include_neighbours` |
-| X7 | adapter cross-file typing vs query-time candidates | want | **ASSUMED:** query-time candidates only. Typing `$editor` across files would make a file's rows depend on another file, breaking R4.2's incremental equivalence |
-| X8 | fix or document F3 | want | **ASSUMED: documented** with its cause (AC3 allows it); the fix needs a per-language case rule the resolver can read — filed to Follow-ups |
+| X7 | adapter cross-file typing vs query-time candidates | want | **Ratified 2026-10-08:** query-time candidates only. Typing `$editor` across files would make a file's rows depend on another file, breaking R4.2's incremental equivalence |
+| X8 | fix or document F3 | want | **Ratified 2026-10-08: documented** with its cause (AC3 allows it); the fix needs a per-language case rule the resolver can read — filed to Follow-ups |
 | X9 | AC4 | how | the resolver is untouched (`git diff main -- code_atlas/resolver.py` is empty); new answers are query-time candidates (`proximity_candidates`, never `ok`) or already-stored `NEW` rows |
 | X10 | F4 (`ReportModel::heading`) | how | no scope item or AC names it; out of scope |
 | X11 | Scope 4 | how | the listing exists (258); the gap is the qualifier — X5 |
-| X12 | docs / release | want | **ASSUMED:** no release: no contract or schema version moves. TOOLS.md, the ADAPTER_PLAYBOOK optional-field table and BACKLOG Follow-ups carry it |
+| X12 | docs / release | want | **Ratified 2026-10-08:** no release: no contract or schema version moves. TOOLS.md, the ADAPTER_PLAYBOOK optional-field table and BACKLOG Follow-ups carry it; CHANGELOG Unreleased flags the full rebuild the constructor flag needs |
 
 ## Phase 1 — analysis
 
@@ -289,7 +289,7 @@ take the same widening, or the payload disagrees with itself. The challenger fou
 1. Push `feat/362-untyped-receiver-and-constructor-calls-unlinked` — pre-authorised.
 2. Open the PR against `main` — pre-authorised.
 
-Deferred to the maintainer: the merge; ratifying X1, X3, X5, X7, X8, X12.
+Deferred to the maintainer: none.
 
 ### Cost ledger
 

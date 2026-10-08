@@ -74,10 +74,10 @@ so `old_screen.php` and `../missing/screen.php` blocked a copy nothing could inc
 
 | # | Decision | Class | Resolution |
 |---|---|---|---|
-| X1 | what "could name the subject" means | want | **ASSUMED:** the last quoted literal (or the raw text) split on `/`, `.`/`..` dropped, must be a path suffix of the subject — `_tail_fits` |
-| X2 | a variable-head tail `/screen.php` | want | **ASSUMED:** it fits every `screen.php`, so it keeps the answer non-`ok` (AC2's own case) |
-| X3 | where `authoritative` appears | want | **ASSUMED:** on every attested zero — an indexed file with no fitting unlinked include (F1); `true` unless `(dynamic)` includes exist (F4); `same_basename_included` only when non-empty |
-| X4 | a cap on listed sites | want | **ASSUMED:** `page_limit` *fitting* rows; more say `unlinked_includes_truncated` and are never a positive zero (R5.6) |
+| X1 | what "could name the subject" means | want | **Ratified 2026-10-08:** the last quoted literal (or the raw text), case-folded, split on `/`/`\`, `.`/`..` dropped, must be a path suffix of the subject — `_tail_fits` |
+| X2 | a variable-head tail `/screen.php` | want | **Ratified 2026-10-08:** it fits every `screen.php`, so it keeps the answer non-`ok` (AC2's own case) |
+| X3 | where `authoritative` appears | want | **Ratified 2026-10-08:** on every attested zero — an indexed file, no inbound link, no fitting unlinked include, language and honesty arms silent (F1); `true` unless index-wide `dynamic_includes_unchecked` > 0 (F4); `same_basename_included` only when non-empty. A bare-literal include resolved by `include_path` at runtime can differ from the linker's choice — kept as a documented limit (TOOLS.md) rather than withholding AC1's attested zero |
+| X4 | a cap on listed sites | want | **Ratified 2026-10-08:** `page_limit` *fitting* rows; more say `unlinked_includes_truncated` and are never a positive zero (R5.6) |
 | X5 | where the predicate lives | how | the SQL in `store.py` (R1.4); the path-tail test in the tool — it is about one subject |
 | X6 | naming the alternatives | how | `same_basename_included`: paths a linked `INCLUDES` reaches; not `sibling_definitions`, which names symbol definitions |
 | X7 | reason order, AC3 | how | a file with an includer never enters the branch (`include_graph.py:87`); the language arm still runs when no row fits |
@@ -269,7 +269,7 @@ from a text search over stored rows must also count the rows the search could ne
 1. Push `fix/363-unincluded-file-is-not-a-confident-zero` — pre-authorised.
 2. Open the PR against `main` — pre-authorised.
 
-Deferred to the maintainer: the merge; ratifying X1–X4.
+Deferred to the maintainer: none.
 
 ### Cost ledger
 

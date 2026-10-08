@@ -73,19 +73,19 @@ needs is never built.
 `args: ['string','array']`, `arg_keys: [null, ['id']]`; `$.ajax({url: …})` → `ajax`, `args: ['array']`.
 
 **Exposure-checker** (ticket-blind `challenger`, 1 dispatch, 50,978 tokens) surfaced X1–X9; H1 is the
-run's own. Want-decisions were handed back by the handover → **ASSUMED (awaiting ratification)**.
+run's own. Want-decisions were handed back by the handover → **ASSUMED (awaiting ratification)**; the maintainer ratified them 2026-10-08 after the PR #34–#39 review.
 
 | # | Decision | Class | Resolution |
 |---|---|---|---|
-| X1 | read `{module, action}` values (`arg_keys` holds keys only) | want | **ASSUMED:** a core reader of the call's own source text — `_literal_fields` over `_call_argument`'s text, the mechanism 352 already uses for string keys. No adapter contract change (R3). Shape-based (`name: 'v'` / `'name' => 'v'`), no language branch (R1.1) |
-| X2 | several placeholders | want | **ASSUMED:** a `key_pattern`'s named groups, or an object's field names, fill same-named placeholders; the loader refuses a template it cannot fill (R5.3) |
-| X3 | pattern dialect | want | **ASSUMED:** Python `re`, `search`, first match; named groups else group 1 as `{key}`; no match → no key. The rule file is the repo's own trusted config, so no ReDoS guard |
+| X1 | read `{module, action}` values (`arg_keys` holds keys only) | want | **Ratified 2026-10-08:** a core reader of the call's own one-line source — `_literal_fields` over `_call_argument`'s text (352's mechanism). No contract change (R3). Whole top-level `name: 'v'` / `'name' => 'v'` entries only; a nested, concatenated, `$`-interpolated or repeated field names nothing, a spread voids all. No language branch (R1.1) |
+| X2 | several placeholders | want | **Ratified 2026-10-08:** a string `key_pattern`'s named groups fill exactly the same-named placeholders, else `{key}` — the loader refuses any other template (R5.3); `key_from: "object"` fills each placeholder, `{key}` included, from a same-named field, and a call lacking one yields no edge |
+| X3 | pattern dialect | want | **Ratified 2026-10-08:** Python `re`, `search`, first match; named groups (all non-empty), else group 1, else the whole match, as `{key}`; no match → no route, not counted. The rule file is the repo's own trusted config, so no ReDoS guard |
 | X4 | `$.ajax({url: …})` (F4) | how | out of reach: the URL is an object field, not a string argument (spike); filed to BACKLOG Follow-ups |
-| X5 | Scope 2 (`on*=` attributes) | want | **ASSUMED: deferred** — no call edge exists for an attribute (the PHP adapter would need an HTML-attribute reader) and a bare `fn` from PHP cannot link to `path::fn` without a resolver change (R5.2 forbids guessing). The anchor excludes `public/js` anyway. Filed to Follow-ups; deviation (P3) |
+| X5 | Scope 2 (`on*=` attributes) | want | **Ratified 2026-10-08: deferred** — no call edge exists for an attribute (the PHP adapter would need an HTML-attribute reader) and a bare `fn` from PHP cannot link to `path::fn` without a resolver change (R5.2 forbids guessing). Filed to Follow-ups; deviation (P3) |
 | X6 | cross-language bare-name linking | how | not made — see X5 |
 | X7 | a URL the pattern does not match | how | not a route: no edge, not counted — TOOLS.md "Nothing is invented" (a variable argument is treated the same) |
 | X8 | AC4 | how | the no-rule path returns before any rule code (`apply_indirection_rules`, `NOTHING`); a rule file without the new keys loads to the same edges (222/352 tests unchanged) |
-| X9 | one literal read by two rules | want | **ASSUMED:** one site per `(source, line, literal)` — counted once when no rule links it (today's key-based identity would count it per rule) |
+| X9 | one literal read by two rules | want | **Ratified 2026-10-08:** one site per `(source, line, literal)` — counted once when no rule links it (today's key-based identity would count it per rule) |
 | H1 | `key_pattern` with `key_from: "object"` or `"array_keys"` | how | refused at load: a pattern reads a string key |
 
 ## Phase 1 — analysis
@@ -266,7 +266,7 @@ Per P1, `343-C2` gains 361 (traced).
 1. Push `feat/361-js-route-strings-link-to-nothing` — pre-authorised.
 2. Open the PR against `main` — pre-authorised.
 
-Deferred to the maintainer: the merge; ratifying X1–X3, X5 (Scope 2 deferred), X9.
+Deferred to the maintainer: none.
 
 ### Cost ledger
 
