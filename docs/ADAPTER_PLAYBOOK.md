@@ -77,6 +77,7 @@ the consumer cannot tell "the code has no annotation" from "this adapter never l
 |---|---|---|
 | `params` | fill for every callable, with each parameter's declared type | `class_diagram.py`, `onboarding/module_facts.py` — a bare `find()` instead of `find(User $u): User` |
 | `extra.type` | fill for a callable's return and a typed property | signature display; your own pass 2 |
+| `Method.extra.constructor` | `true` on the method your language makes the constructor (PHP `__construct`, any case — 362) | `find_callers` on it lists the class's `new` sites; only PHP sets it so far |
 | `modifiers` | fill for every member the language gives a visibility or a `static`/`readonly`/`final` keyword | `class_diagram.py` — the UML `+`/`-`/`#` marker. TS spells all of them and emits none |
 | `args` · `arg_keys` | fill at every `CALLS`/`NEW` site — the literal **category**, never the value | `find_callers`'s argument filter (049/063) **and every `CA_INDIRECTION_RULES` edge** (`enrichment.py`), so a repo in your language gets no cross-language link |
 | `confidence_tier` | leave **NULL** on a structural edge | nothing — NULL folds into `RESOLVED` (the `confidence_tier` column's DDL default). SQL stamping it explicitly is equivalent, not better; do not file it as a defect |

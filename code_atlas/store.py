@@ -119,6 +119,14 @@ def shadow_db_path(db_path: Path) -> Path:
     return db_path.with_name(db_path.name + SHADOW_SUFFIX)
 
 
+def _target_where(qname: str, also_targets: Sequence[str]) -> tuple[str, tuple[str, ...]]:
+    """``target_qname`` equal to ``qname``, or in ``qname`` + ``also_targets`` (362)."""
+    if not also_targets:
+        return "edges.target_qname = ?", (qname,)
+    targets = (qname, *also_targets)
+    return f"edges.target_qname IN ({', '.join('?' for _ in targets)})", targets
+
+
 def _remove_db_files(path: Path) -> None:
     """Delete a SQLite file and its WAL siblings."""
     for sibling in (path, Path(f"{path}-wal"), Path(f"{path}-shm")):
@@ -1965,8 +1973,9 @@ class GraphStore:
         exclude_test_sources: bool = False,
         distinct_sources: bool = False,
         path_prefix: str | None = None,
+        also_targets: Sequence[str] = (),
     ) -> list[Row]:
-        """Edges whose resolved ``target_qname`` is ``qname``.
+        """Edges whose resolved ``target_qname`` is ``qname`` (or one of ``also_targets`` — 362).
 
         Optional ``kinds`` narrows the set (e.g. CALLER_KINDS); ``args_at`` narrows to call sites
         whose argument at a 1-based position has a given shape (task 049).
@@ -1975,9 +1984,10 @@ class GraphStore:
         ``distinct_sources`` keeps one edge per ``source_qname`` (273).
         ``path_prefix`` narrows to edges whose ``file_path`` is under that prefix (315).
         """
+        where, values = _target_where(qname, also_targets)
         return self._edges(
-            "edges.target_qname = ?",
-            qname,
+            where,
+            values,
             kinds,
             limit,
             offset=offset,
@@ -2176,11 +2186,13 @@ class GraphStore:
         exclude_test_sources: bool = False,
         distinct_sources: bool = False,
         path_prefix: str | None = None,
+        also_targets: Sequence[str] = (),
     ) -> int:
         """How many edges (or distinct sources) target ``qname`` (same filters as the list)."""
+        where, values = _target_where(qname, also_targets)
         return self._count_edges(
-            "edges.target_qname = ?",
-            qname,
+            where,
+            values,
             kinds,
             extra=_combine_predicates(
                 _args_predicate(args_at),
@@ -2199,6 +2211,7 @@ class GraphStore:
         args_at: tuple[int, str] | None = None,
         confidence_tier: str | None = None,
         exclude_test_sources: bool = False,
+        also_targets: Sequence[str] = (),
     ) -> dict[tuple[str, str], list[int]]:
         """Sorted distinct lines per ``(source_qname, file_path)`` into ``qname`` (338).
 
@@ -2206,8 +2219,9 @@ class GraphStore:
         """
         if not sources:
             return {}
+        where, values = _target_where(qname, also_targets)
         clause, params = self._edge_where(
-            "edges.target_qname = ?",
+            where,
             kinds,
             _combine_predicates(
                 _args_predicate(args_at),
@@ -2224,7 +2238,7 @@ class GraphStore:
             f"WHERE {clause} AND line IS NOT NULL ORDER BY source_qname, file_path, line"
         )
         found: dict[tuple[str, str], list[int]] = {}
-        for source, file_path, line in self._conn.execute(sql, (qname, *params)):
+        for source, file_path, line in self._conn.execute(sql, (*values, *params)):
             found.setdefault((str(source), str(file_path)), []).append(int(line))
         return found
 
@@ -2236,14 +2250,16 @@ class GraphStore:
         args_at: tuple[int, str] | None = None,
         confidence_tier: str | None = None,
         distinct_sources: bool = False,
+        also_targets: Sequence[str] = (),
     ) -> list[tuple[int, str, int]]:
         """``(is_test, source file_path, count)`` per inbound group (262). One grouped read.
 
         ``distinct_sources`` counts each ``source_qname`` once so callers match the BFS set (273).
         One node per qname — a second definition must not multiply the count (258).
         """
+        where, values = _target_where(qname, also_targets)
         clause, params = self._edge_where(
-            "edges.target_qname = ?",
+            where,
             kinds,
             _combine_predicates(
                 _args_predicate(args_at),
@@ -2271,7 +2287,7 @@ class GraphStore:
             )
         return [
             (int(is_test), str(file_path), int(count))
-            for is_test, file_path, count in self._conn.execute(sql, (qname, *params))
+            for is_test, file_path, count in self._conn.execute(sql, (*values, *params))
         ]
 
     def tier_census_by_target(
@@ -2280,22 +2296,22 @@ class GraphStore:
         *,
         kinds: Sequence[str] | None = None,
         args_at: tuple[int, str] | None = None,
+        also_targets: Sequence[str] = (),
     ) -> dict[str, int]:
         """``confidence_tier`` → count over every edge targeting ``qname`` (task 251).
 
         Same ``kinds`` / ``args_at`` filters as ``count_edges_by_target`` (no tier filter — the
         census *is* the tier breakdown). Ordered by tier name so the dict is deterministic (R4.2).
         """
-        clause, params = self._edge_where(
-            "target_qname = ?", kinds, _args_predicate(args_at)
-        )
+        where, values = _target_where(qname, also_targets)
+        clause, params = self._edge_where(where, kinds, _args_predicate(args_at))
         sql = (
             f"SELECT confidence_tier, COUNT(*) FROM edges WHERE {clause} "
             "GROUP BY confidence_tier ORDER BY confidence_tier"
         )
         return {
             str(tier): int(count)
-            for tier, count in self._conn.execute(sql, (qname, *params))
+            for tier, count in self._conn.execute(sql, (*values, *params))
         }
 
     def edge_subtrees_by_target(
@@ -2306,6 +2322,7 @@ class GraphStore:
         args_at: tuple[int, str] | None = None,
         confidence_tier: str | None = None,
         path_prefix: str | None = None,
+        also_targets: Sequence[str] = (),
     ) -> dict[str, int]:
         """Top-level path segment → count over the full set targeting ``qname`` (task 067).
 
@@ -2314,8 +2331,9 @@ class GraphStore:
         source subtrees. The segment is the path text before the first ``/`` — structural,
         never a repo name (R2); ``GROUP BY``/``ORDER BY`` keep the dict deterministic (R4.2).
         """
+        where, values = _target_where(qname, also_targets)
         clause, params = self._edge_where(
-            "edges.target_qname = ?",
+            where,
             kinds,
             _combine_predicates(
                 _args_predicate(args_at),
@@ -2334,20 +2352,19 @@ class GraphStore:
         )
         return {
             str(seg): int(count)
-            for seg, count in self._conn.execute(sql, (qname, *params))
+            for seg, count in self._conn.execute(sql, (*values, *params))
         }
 
     def count_edges_without_args(
-        self, qname: str, *, kinds: Sequence[str] | None = None
+        self, qname: str, *, kinds: Sequence[str] | None = None, also_targets: Sequence[str] = ()
     ) -> int:
         """Edges targeting ``qname`` whose arguments were never recorded — the filter's blind spot.
 
         Unknown is not absent: an ``args_at`` filter can say nothing about these, so a caller that
         reports a filtered count must report this one beside it (§19: no silent narrowing).
         """
-        return self._count_edges(
-            "edges.target_qname = ?", qname, kinds, extra=("edges.args IS NULL", ())
-        )
+        where, values = _target_where(qname, also_targets)
+        return self._count_edges(where, values, kinds, extra=("edges.args IS NULL", ()))
 
     def count_bare_calls_not_targeting(self, qname: str, *, bare_name: str) -> int:
         """Distinct HEURISTIC CALLS sites named ``bare_name`` that never resolve to ``qname``.
@@ -2589,6 +2606,29 @@ class GraphStore:
             params.append(language)
         sql = f"SELECT COUNT(*) FROM nodes WHERE {' AND '.join(clauses)}"
         return int(self._conn.execute(sql, params).fetchone()[0])
+
+    def files_constructing_at_top_level(self, class_qname: str) -> list[str]:
+        """Files whose own top level does ``new <class_qname>`` — a variable typed there (362)."""
+        sql = (
+            "SELECT DISTINCT file_path FROM edges WHERE kind = 'NEW' AND target_qname = ? "
+            "AND source_qname = file_path ORDER BY file_path"
+        )
+        return [str(row[0]) for row in self._conn.execute(sql, (class_qname,))]
+
+    def include_neighbours(self, paths: Sequence[str]) -> set[str]:
+        """Files one linked ``INCLUDES`` away from any of ``paths``, either direction (362)."""
+        found: set[str] = set()
+        for start in range(0, len(paths), _IN_CHUNK):
+            chunk = tuple(paths[start : start + _IN_CHUNK])
+            marks = ", ".join("?" for _ in chunk)
+            sql = (
+                "SELECT source_qname FROM edges WHERE kind = 'INCLUDES' "
+                f"AND target_qname IN ({marks}) "
+                "UNION SELECT target_qname FROM edges WHERE kind = 'INCLUDES' "
+                f"AND target_qname IS NOT NULL AND source_qname IN ({marks})"
+            )
+            found.update(str(row[0]) for row in self._conn.execute(sql, (*chunk, *chunk)))
+        return found
 
     def unresolved_caller_sites(
         self,
@@ -4272,7 +4312,7 @@ class GraphStore:
     def _edges(
         self,
         where: str,
-        value: str,
+        value: str | tuple[str, ...],
         kinds: Sequence[str] | None,
         limit: int,
         *,
@@ -4297,12 +4337,13 @@ class GraphStore:
                 f"SELECT id, {_EDGE_COLUMNS} FROM edges WHERE {clause} "
                 f"ORDER BY {order} LIMIT ? OFFSET ?"
             )
-        return self._rows(EDGE_ROW_KEYS, sql, (value, *params, limit, offset))
+        values = value if isinstance(value, tuple) else (value,)
+        return self._rows(EDGE_ROW_KEYS, sql, (*values, *params, limit, offset))
 
     def _count_edges(
         self,
         where: str,
-        value: str,
+        value: str | tuple[str, ...],
         kinds: Sequence[str] | None,
         *,
         extra: _Predicate = None,
@@ -4311,7 +4352,8 @@ class GraphStore:
         clause, params = self._edge_where(where, kinds, extra)
         expr = "COUNT(DISTINCT edges.source_qname)" if distinct_sources else "COUNT(*)"
         sql = f"SELECT {expr} FROM edges WHERE {clause}"
-        return int(self._conn.execute(sql, (value, *params)).fetchone()[0])
+        values = value if isinstance(value, tuple) else (value,)
+        return int(self._conn.execute(sql, (*values, *params)).fetchone()[0])
 
     @staticmethod
     def _edge_where(
