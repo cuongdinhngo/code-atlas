@@ -157,7 +157,7 @@ Ran at e0d84cf1.
 
 ## Phase 3 — execute
 
-Commit `4bceaf71`. **Red first** — the test on the prior parser: `5 failed`. **P8:**
+Commit `716d9e8a`. **Red first** — the test on the prior parser: `5 failed`. **P8:**
 `cross_repo_validate.py --public-only --skip-clone` 11 ok / 0 failed; every count equals 370's
 (no pinned Python sample loads a module this way), so no floor moves.
 
@@ -168,7 +168,7 @@ Commit `4bceaf71`. **Red first** — the test on the prior parser: `5 failed`. *
 
 `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`
 
-**Challenger (ticket-blind, round 1, on `9872a5e2` — `4bceaf71` after the rebase —, 57,143 tokens): 7 met · 0 not met · 0 can't tell.**
+**Challenger (ticket-blind, round 1, on `9872a5e2` — `716d9e8a` after the rebase —, 57,143 tokens): 7 met · 0 not met · 0 can't tell.**
 
 1. **F1: a directory (`run_path(dirname(__file__))`) read as an exact target.** **Fixed** — stamps.
 2. **F2: `str(Path(…) / 'x.py')` stamped.** **Fixed** — `str` and `os.fspath` keep the path.
@@ -177,9 +177,9 @@ Commit `4bceaf71`. **Red first** — the test on the prior parser: `5 failed`. *
 4. **F4: `exec(source)` of file text held in a variable went unstamped.** **Fixed** — stamps.
 5. **F5: no edge-case tests.** **Fixed** with F1/F2/F4 (red `1 failed, 5 passed` on the prior reader).
 
-All in `ae7ded88`. Verify-only (main loop):
+All in `756c6031`. Verify-only (main loop):
 
-Ran at ae7ded88:
+Ran at 756c6031:
 ```
 $ .venv/bin/python -m pytest -q tests/test_python_runtime_loads.py
 6 passed
@@ -189,12 +189,12 @@ $ .venv/bin/python -m pytest -q tests/test_python_runtime_loads.py
 
 Verdict: **clean (challenger only — REVIEWER: OFF)**.
 
-Reviewed at ae7ded88 — the diff `feat/370-path-built-imports-beyond-php..ae7ded88`. Working doc:
+Reviewed at 756c6031 — the diff `feat/370-path-built-imports-beyond-php..756c6031`. Working doc:
 `docs/tasks/373_python-path-loaded-module-imports-nothing.md` (embedded).
 
 ## Phase 5 — finalise
 
-Stale-review guard: after `ae7ded88` only bookkeeping changes — this doc, `docs/BACKLOG.md` and
+Stale-review guard: after `756c6031` only bookkeeping changes — this doc, `docs/BACKLOG.md` and
 `docs/TOKEN_LEDGER.md`, all exempt.
 
 `CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
