@@ -269,7 +269,10 @@ BUDGETS = {
     # 1,950 -> 1,800 on 2026-09-20 (308): 307 and 308 closed and their rows left the table, so the
     # old ceiling stopped biting and `test_the_budgets_are_not_slack` said so. Lowered to the
     # measured size plus headroom, which is what that guard asks for.
-    "BACKLOG.md": 1_700,
+    # 1,700 -> 1,850 on 2026-10-08 (367-371), argued. main sat at 1,687; the PHP-parity sweep adds
+    # five port rows. R7.6 ran first: 362's constructor follow-up left (now 367), and the
+    # keyword-args gap went into 367, not Follow-ups. The rows leave as each ticket lands.
+    "BACKLOG.md": 1_850,
     # 5,700 -> 5,880 on 2026-09-23 (325), argued rather than assumed. R2.4 is a new rule, and a
     # rule that is not written down is not binding on the next agent. R7.6 ran first and came back
     # empty: every rule here is one clause per falsifier, the sightings live in LESSONS.md by the

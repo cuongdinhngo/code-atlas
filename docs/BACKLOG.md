@@ -24,6 +24,13 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
+| 367 | [TS/Py constructor flag](tasks/367_constructor-flag-beyond-php.md) | Coverage | todo | 362 |
+| 368 | [Py module-scope receiver](tasks/368_python-module-scope-receiver.md) | Coverage | todo | 227, 362 |
+| 369 | [TS/Py property references](tasks/369_class-property-references-beyond-php.md) | Coverage | todo | 336, 232 |
+| 370 | [TS path-built require](tasks/370_path-built-imports-beyond-php.md) | Coverage | todo | 353, 363, 294, 295 |
+| 371 | [TS/Py SQL strings](tasks/371_sql-statement-in-a-host-string-beyond-php.md) | Coverage | todo | 278, 281, 335, 364 |
+| 372 | [Py keyword args](tasks/372_python-keyword-arguments-record-no-args.md) | Coverage | todo | 049, 352, 364 |
+| 373 | [Py path-loaded modules](tasks/373_python-path-loaded-module-imports-nothing.md) | Coverage | todo | 370 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -71,15 +78,13 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **Two field reports 365 did not reproduce** — `read_symbol` on a table answered `subject_ambiguous`
   mid-rebuild, and `find_references` answered `index_stale` during a full rebuild, whose shadowed
   live DB still repairs in 365's tests — 365.
-- **`read_symbol`'s held-index parse starts every configured adapter** — `parse_file` announces
-  them all per read; a stored suffix→adapter map would start one, and AC2's "under 1 s" is proven
-  only on a PHP-only config — 365.
+- **`read_symbol`'s held-index parse starts every configured adapter** — a stored suffix→adapter
+  map would start one; AC2's 1 s bar is proven on PHP alone — 365.
 - **PHP members are case-insensitive, the resolver is not** (`validate()` onto `Validate()` stays
-  unlinked — a fixture cause, not matched to the field); only PHP flags a constructor, and an
-  inherited one misses its subclass's `new` sites — 362.
-- **Two route shapes 361 left out** — an inline `on*="fn(…)"` attribute in a PHP view (needs an
-  attribute reader in the PHP adapter and a cross-language bare-name link the resolver does not
-  make), and `$.ajax({url: '…'})`, whose URL is an object field a `key_pattern` cannot reach — 361.
+  unlinked — a fixture cause, not matched to the field); an inherited constructor misses its
+  subclass's `new` sites — 362.
+- **Two route shapes 361 left out** — an inline `on*="fn(…)"` in a PHP view (no attribute reader,
+  no cross-language bare-name link) and `$.ajax({url: '…'})`, a field `key_pattern` cannot reach — 361.
 
 ## Conventions
 - Keep an **open** task's `status` in this table **and** in its frontmatter in sync.
