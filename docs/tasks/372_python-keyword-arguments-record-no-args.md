@@ -240,3 +240,5 @@ Deferred to the maintainer: tagging and publishing 0.3.0 after the stack merges.
 `LEDGER TOTAL: 130,374 · top cost driver: review/challenger`
 
 **Revert path.** `git revert` the branch commits; the release entry goes with them.
+
+**Gate.** `scripts/gate.sh` on `3158e44a`: `GATE GREEN — all 21 checks passed` (Linux, bare pytest).
