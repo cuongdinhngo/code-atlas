@@ -89,6 +89,7 @@ A `require` whose path is built from `__dirname` and literals (`+`, a template, 
 literal is a `HEURISTIC` tail, completed with the requirer's extension when it has none, which the
 core links to the one file ending with it (370, as PHP's 353). Either way the file keeps its
 `dynamic_import` stamp unless the path was exact, and a `require(name)` stays a stamped runtime load.
+`path` is read by its file-level binding, so a function that rebinds the name is not followed.
 
 ## Static analysis (R6.6) — `tsc --checkJs --strict`
 
