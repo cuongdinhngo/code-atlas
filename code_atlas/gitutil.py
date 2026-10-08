@@ -121,6 +121,21 @@ def is_inside_work_tree(root: Path) -> bool | None:
     return None
 
 
+def checkout_identity(root: Path) -> tuple[Path, Path] | None:
+    """``(top level, shared git dir)`` of the checkout holding ``root``, or None outside a repo.
+
+    Two linked worktrees of one repository share the git dir and differ in top level (366).
+    """
+    found = _run(root, "rev-parse", "--show-toplevel", "--git-common-dir")
+    if found is None:
+        return None
+    lines = [line.strip() for line in found.splitlines() if line.strip()]
+    if len(lines) != 2:
+        return None
+    # A relative common dir is relative to the directory git ran in, not to the top level.
+    return Path(lines[0]).resolve(), (root / lines[1]).resolve()
+
+
 def _kill_tree(proc: "subprocess.Popen[str]") -> None:
     """Kill ``proc``: the whole tree via ``taskkill /T`` on Windows (where a grandchild can hold the
     capture pipe open), just the process elsewhere. Must never itself raise or hang, or a stuck kill

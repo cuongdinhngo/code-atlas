@@ -11,6 +11,7 @@ from typing import Any
 
 from code_atlas.config import Config
 from code_atlas.index_lock import build_in_progress, build_phase
+from code_atlas.ref_check import attach_ref_check
 from code_atlas.store import SchemaVersionError
 from code_atlas.worktree_guard import worktree_db_refusal
 
@@ -39,13 +40,17 @@ def payload(mismatch: SchemaVersionError) -> dict[str, object]:
 def guard(
     tool: Callable[..., dict[str, object]],
     config: Config | None = None,
+    *,
+    status: bool = False,
 ) -> Callable[..., dict[str, object]]:
     """Wrap a tool so a mismatch becomes its answer; the signature MCP publishes is preserved.
 
     With ``config``, a linked-worktree DB outside the worktree refuses first (268). That verdict
     is read once here, not per call: deciding it asks git, and a subprocess on every answer is
     the cost 260 measured against a 0.4 ms nav read. Every answer also names a build in flight
-    and its phase — one lock probe per call, omitted when no writer holds the lock (356).
+    and its phase — one lock probe per call, omitted when no writer holds the lock (356). An
+    answer about another commit than the caller's checkout is labelled (366; ``status`` for the
+    status tool, which names the route instead of changing a reason).
     """
     refusal = None if config is None else worktree_db_refusal(config)
 
@@ -59,6 +64,7 @@ def guard(
             answer = payload(mismatch)
         if config is not None:
             attach_build_state(answer, config)
+            attach_ref_check(answer, config, status=status)
         return answer
 
     return guarded
