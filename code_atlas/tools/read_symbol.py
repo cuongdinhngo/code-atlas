@@ -18,7 +18,7 @@ from code_atlas.source_slice import (
     declaration_line_count,
     declaration_slice,
 )
-from code_atlas.store import GraphStore
+from code_atlas.store import GraphStore, stored
 from code_atlas.tools.freshness import (
     FreshnessGuard,
     attach_other_indexed_files_drifted,
@@ -40,6 +40,7 @@ from code_atlas.tools.nav_result import (
     TRY_INSTEAD_READ_SYMBOL,
     answered_about_ref_for,
     attach_ambiguous_definitions,
+    attach_answered_about_ref,
     attach_authoritative_caveats,
     attach_limit_capped,
     attach_name_not_qualified,
@@ -311,7 +312,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 _attach_supertypes(payload, store, node, rel)
             _attach_stored_fields(payload, store, node, stored_fields=stored_fields)
             if parsed is not None:
+                # The body is the working tree's, not the built ref's: claim no ref for it.
                 payload["parsed_unstored"] = True
+                attach_answered_about_ref(payload, None)
             _attach_mirror_twin(
                 payload,
                 store,
@@ -333,11 +336,13 @@ def _parsed_node(config: Config, rel: str, qname: str) -> dict[str, object] | No
         return None
     if parsed is None or not parsed[1].ok:
         return None
-    hits = [dict(n) for n in parsed[1].nodes if n.get("qualified_name") == qname]
+    hits = [n for n in parsed[1].nodes if n.get("qualified_name") == qname]
     if len(hits) != 1:
         return None
-    hits[0].setdefault("file_path", rel)
-    return hits[0]
+    # Shaped as a stored row (JSON text for `extra` and friends), so row readers agree.
+    node = {key: stored(value) for key, value in hits[0].items()}
+    node.setdefault("file_path", rel)
+    return node
 
 
 def _effective_body_cap(opts: _BodyOpts) -> int | None:

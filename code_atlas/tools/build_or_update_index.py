@@ -53,6 +53,7 @@ from code_atlas.store import (
     WRITE_ERRORS,
     GraphStore,
     SchemaVersionError,
+    discard_stale_shadow,
 )
 from code_atlas.tools import schema_guard
 from code_atlas.tools.collection import collection_field
@@ -121,6 +122,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 if held:
                     # This build reads the tree after now, so it serves every earlier request.
                     cleared = clear_pending(config.db_path)
+                    discard_stale_shadow(config.db_path)
                     answer = _locked_build(
                         config,
                         full=full and first is None,

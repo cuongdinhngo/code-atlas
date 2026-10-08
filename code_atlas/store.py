@@ -125,6 +125,16 @@ def shadow_db_path(db_path: Path) -> Path:
     return db_path.with_name(db_path.name + SHADOW_SUFFIX)
 
 
+def discard_stale_shadow(db_path: Path) -> None:
+    """Drop a killed rebuild's shadow; called only by the ``write.lock`` holder (365).
+
+    No other build can be writing it then, and a leftover would read as a running full rebuild.
+    Best-effort: a file that cannot be removed never stops the build.
+    """
+    with contextlib.suppress(OSError):
+        _remove_db_files(shadow_db_path(db_path))
+
+
 def _remove_db_files(path: Path) -> None:
     """Delete a SQLite file and its WAL siblings."""
     for sibling in (path, Path(f"{path}-wal"), Path(f"{path}-shm")):

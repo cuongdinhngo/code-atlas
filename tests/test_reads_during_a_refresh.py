@@ -2,17 +2,19 @@
 
 An in-place incremental holds a SQLite write transaction; read-through repair used to wait out the
 5 s busy timeout behind it and refuse ``index_stale``. The repair is already running, so the
-guard now sees the DB held, callers/references label the built graph and ``read_symbol`` parses
-the file without storing it. A 356 full rebuild writes a shadow, so the live DB still repairs.
+guard sees a build writing the live DB, callers/references label the built graph and
+``read_symbol`` parses the file without storing it. A 356 full rebuild writes a shadow, so the
+live DB still repairs; a writer without ``write.lock`` is waited out as before.
 """
 
 from __future__ import annotations
 
-import fcntl
+import os
 import shlex
 import shutil
 import sqlite3
 import subprocess
+import threading
 import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -20,11 +22,14 @@ from pathlib import Path
 
 import pytest
 
+from code_atlas import contract
+from code_atlas.adapter import ParseResult
 from code_atlas.config import Config, load_config
-from code_atlas.index_lock import lock_path_for
+from code_atlas.index_lock import try_index_write_lock
 from code_atlas.indexer import full_build
 from code_atlas.store import BUSY_TIMEOUT_MS, GraphStore, shadow_db_path
 from code_atlas.tools import (
+    build_or_update_index,
     find_callers,
     find_implementations,
     find_references,
@@ -36,6 +41,7 @@ from code_atlas.tools.nav_result import (
     REASON_INDEX_BEHIND_SUBJECT_CHANGED,
     REASON_INDEX_STALE,
     REASON_OK,
+    is_stub,
 )
 from code_atlas.tools.schema_guard import BUILD_IN_PROGRESS, guard
 
@@ -48,8 +54,10 @@ pytestmark = pytest.mark.skipif(
     reason="needs the PHP CLI and `composer install` in adapters/php",
 )
 
-# The ticket's bar, a fifth of the busy timeout: an answer under it did not wait behind the writer.
+# The ticket's 1 s bar, a fifth of the 5 s busy timeout: an answer under it did not wait behind it.
 NO_BUSY_WAIT_S = 1.0
+# Config splits a command the way the host's shell would (posix only off Windows).
+_JOIN = subprocess.list2cmdline if os.name == "nt" else shlex.join
 assert NO_BUSY_WAIT_S < BUSY_TIMEOUT_MS / 1000
 CHANGED = "\\App\\Account::close"
 UNCHANGED = "\\App\\Ledger::post"
@@ -98,7 +106,7 @@ def built(tmp_path: Path) -> tuple[Config, str]:
     _git(tmp_path, "commit", "-qm", "init")
     config = load_config(
         tmp_path,
-        {"CA_WORKERS": "2", "CA_PHP_CMD": shlex.join([str(PHP), str(PHP_ENTRY), "--server"])},
+        {"CA_WORKERS": "2", "CA_PHP_CMD": _JOIN([str(PHP), str(PHP_ENTRY), "--server"])},
     )
     with GraphStore(config.db_path) as store:
         assert full_build(config, store).failed == 0
@@ -116,9 +124,8 @@ def built(tmp_path: Path) -> tuple[Config, str]:
 @contextmanager
 def refresh_holding(config: Config, *, sqlite_writer: bool = True) -> Iterator[None]:
     """Hold what a running build holds: ``write.lock``, and for an in-place one the DB itself."""
-    lock_path = lock_path_for(config.db_path)
-    with lock_path.open("a+", encoding="utf-8") as lock_file:
-        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+    with try_index_write_lock(config.db_path) as held:
+        assert held
         writer = sqlite3.connect(config.db_path, isolation_level=None) if sqlite_writer else None
         try:
             if writer is not None:
@@ -129,7 +136,6 @@ def refresh_holding(config: Config, *, sqlite_writer: bool = True) -> Iterator[N
             if writer is not None:
                 writer.execute("ROLLBACK")
                 writer.close()
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
 def _timed(call: Callable[[], dict[str, object]]) -> tuple[dict[str, object], float]:
@@ -176,6 +182,7 @@ def test_read_symbol_returns_the_current_source_without_storing_it(
     assert answer["reason"] == REASON_OK, answer
     assert NEW_BODY in str(answer["source"])
     assert answer["parsed_unstored"] is True
+    assert answer["answered_about_ref"] is None
     assert answer[BUILD_IN_PROGRESS] is True
     assert elapsed < NO_BUSY_WAIT_S, elapsed
     assert _dump(config) == before
@@ -265,3 +272,77 @@ def test_status_says_the_last_graph_answers_while_the_db_is_held(
         assert "behind_refuses" not in status
         assert "find_callers" in status["behind_serves"]
         assert "the last built graph answers" in str(status["summary"])
+
+
+def test_a_writer_without_the_build_lock_is_waited_out_and_repaired(
+    built: tuple[Config, str],
+) -> None:
+    """Review F1/F2 — another server's short repair holds only the DB: wait, then answer ``ok``."""
+    config, _ = built
+    tool = guard(read_symbol.create(config), config)
+    writer = sqlite3.connect(config.db_path, isolation_level=None, check_same_thread=False)
+    writer.execute("BEGIN IMMEDIATE")
+    release = threading.Timer(0.3, lambda: writer.execute("ROLLBACK"))
+    release.start()
+    try:
+        answer, elapsed = _timed(lambda: tool(CHANGED))
+    finally:
+        release.join()
+        writer.close()
+    assert answer["reason"] == REASON_OK, answer
+    assert NEW_BODY in str(answer["source"])
+    assert "parsed_unstored" not in answer
+    assert BUILD_IN_PROGRESS not in answer
+    assert elapsed >= 0.3, elapsed
+
+
+def test_a_build_taking_the_lock_drops_a_killed_rebuilds_shadow(
+    built: tuple[Config, str],
+) -> None:
+    """Review F3 — a leftover shadow must not hide the next in-place build between transactions."""
+    config, _ = built
+    shadow = shadow_db_path(config.db_path)
+    shadow.write_bytes(b"")
+    built_now = build_or_update_index.create(config)(detail_level="minimal")
+    assert built_now.get("performed") is not False, built_now
+    assert not shadow.exists()
+    _write(
+        config.root,
+        "src/Account.php",
+        "<?php\nnamespace App;\nclass Account { public function close() { return 1; } }\n",
+    )
+    _git(config.root, "commit", "-qam", "edit Account again")
+    with refresh_holding(config, sqlite_writer=False):
+        answer = find_callers.create(config)(CHANGED)
+    assert answer["reason"] == REASON_INDEX_BEHIND_SUBJECT_CHANGED, answer
+
+
+def test_status_routes_follow_the_guard_during_a_shadowed_rebuild(
+    built: tuple[Config, str],
+) -> None:
+    """Review F4 — a full rebuild leaves the live DB free, so status keeps the opt-in routes."""
+    config, _ = built
+    shadow_db_path(config.db_path).write_bytes(b"")
+    status_tool = get_index_status.create(config, (get_index_status.NAME,))
+    with refresh_holding(config, sqlite_writer=False):
+        status = status_tool(detail_level="minimal")
+    assert status[BUILD_IN_PROGRESS] is True
+    assert status["behind_refuses"] == ["find_callers", "find_references"]
+    assert "the last built graph answers" not in str(status["summary"])
+
+
+def test_a_parsed_node_is_shaped_as_a_stored_row(
+    built: tuple[Config, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review F6 — an adapter's dict ``extra`` is JSON text, so a parsed stub still reads as one."""
+    config, _ = built
+    node = {"qualified_name": CHANGED, "extra": {contract.STUB_FLAG: True}}
+    monkeypatch.setattr(
+        read_symbol,
+        "parse_file",
+        lambda _config, rel: ("php", ParseResult(path=rel, ok=True, nodes=(node,))),
+    )
+    parsed = read_symbol._parsed_node(config, "src/Account.php", CHANGED)
+    assert parsed is not None
+    assert isinstance(parsed["extra"], str)
+    assert is_stub(parsed["extra"])

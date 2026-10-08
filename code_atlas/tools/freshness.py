@@ -75,6 +75,21 @@ def miss_subject_path(store: GraphStore, qname: str, *, limit: int) -> str | Non
     return str(rows[0]["file_path"]) if rows else None
 
 
+def live_index_held(config: Config, store: GraphStore) -> bool:
+    """Is a build writing the live DB in place, so a repair would wait behind it? (365)
+
+    The one predicate the guard and ``get_index_status`` share (R1.8). It needs ``write.lock``:
+    a writer without it (another server's short repair) is waited out by the busy timeout. Under
+    the lock, an in-place build holds the DB mid- or between transactions; a 356 full rebuild
+    writes the shadow and counts only while its publish holds the live DB. A build that takes the
+    lock drops a killed build's leftover shadow, so a present shadow is the running build's.
+    """
+    db_path = config.db_path
+    if not build_in_progress(db_path):
+        return False
+    return store.write_locked() or not shadow_db_path(db_path).exists()
+
+
 @dataclass
 class FreshnessGuard:
     """Per-call budget for inline reparses against one open store.
@@ -109,24 +124,13 @@ class FreshnessGuard:
             return "ok"
         if self._used >= self.cap:
             return "stale"
-        if self._index_held():
+        if live_index_held(self.config, self.store):
             self.build_held = True
             return "stale"
         if not reparse_file(self.config, self.store, path):
             return "stale"
         self._used += 1
         return "repaired"
-
-    def _index_held(self) -> bool:
-        """Is an in-place writer on the live DB, so a repair would wait behind it? (365)
-
-        Mid-transaction, or between its transactions while it holds ``write.lock``. A 356 full
-        rebuild writes the shadow and leaves the live DB free, so it never counts.
-        """
-        if self.store.write_locked():
-            return True
-        db_path = self.config.db_path
-        return build_in_progress(db_path) and not shadow_db_path(db_path).exists()
 
     def ensure_qname(self, qname: str) -> EnsureResult:
         """Ensure the indexed file for ``qname``, or miss-repair when no node row exists (073)."""

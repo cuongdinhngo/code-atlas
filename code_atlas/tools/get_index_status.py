@@ -50,7 +50,7 @@ from code_atlas.tools import claim, fit, schema_guard
 from code_atlas.tools.collection import collection_field
 from code_atlas.tools.config_provenance import attach_config_provenance
 from code_atlas.tools.coverage import covered_languages
-from code_atlas.tools.freshness import dirty_indexed_paths
+from code_atlas.tools.freshness import dirty_indexed_paths, live_index_held
 from code_atlas.tools.nominate_roots import (
     entry_point_nominations,
     filesystem_paths,
@@ -293,16 +293,18 @@ def _attach_behind_routes(
     detail_level: DetailLevel,
     store: GraphStore | None = None,
     config: Config | None = None,
+    index_held: bool = False,
 ) -> None:
     """On ``behind`` only: name what still serves and the caller opt-in (274).
 
     No fields on ``current`` (061). ``changed_indexed_files`` needs a commit-range git read, so it
-    stays off ``minimal`` (no new git spawn there) and off unbuilt (no store).
+    stays off ``minimal`` (no new git spawn there) and off unbuilt (no store). ``index_held`` is
+    the guard's own predicate, so these routes say what the tools will do (365, R1.8).
     """
     if staleness != BEHIND:
         return
-    if status.get(BUILD_IN_PROGRESS):
-        # 365: a writer holds the index, so callers/references label the built graph unasked.
+    if index_held:
+        # 365: a build writes the live index, so callers/references label the built graph unasked.
         status[BEHIND_SERVES_FIELD] = [SEARCH_TOOL, READ_TOOL, CALLERS_TOOL, REFERENCES_TOOL]
     else:
         status[BEHIND_SERVES_FIELD] = [SEARCH_TOOL, READ_TOOL]
@@ -360,10 +362,11 @@ def _compose_state(payload: dict[str, object]) -> str:
         )
     staleness = str(payload.get("staleness") or UNKNOWN)
     if staleness == BEHIND:
-        if payload.get(BUILD_IN_PROGRESS):
-            # The state hook adds "a build is running"; asking for another build would be busy.
+        routes = payload.get(BEHIND_SERVES_FIELD)
+        if isinstance(routes, list) and CALLERS_TOOL in routes:
+            # 365: the guard labels instead of repairing; asking for another build would be busy.
             return f"behind{at} · {scale} — the last built graph answers until the build lands"
-        serves = " (read tools still serve)" if payload.get(BEHIND_SERVES_FIELD) else ""
+        serves = " (read tools still serve)" if routes else ""
         return f"behind{at} · {scale}{serves} — run build_or_update_index"
     if staleness == CURRENT:
         health = ""
@@ -476,13 +479,19 @@ def _status(
     }
     if build_in_progress(config.db_path):
         status[BUILD_IN_PROGRESS] = True
+    held = staleness == BEHIND and live_index_held(config, store)
     _attach_suggestions(status, servable, staleness, indexed=indexed)
     if detail_level == "minimal":
-        _attach_behind_routes(status, staleness=staleness, detail_level="minimal")
+        _attach_behind_routes(status, staleness=staleness, detail_level="minimal", index_held=held)
         _attach_rebuild_pending(status, store)
         return signed(_with_summary(status))
     _attach_behind_routes(
-        status, staleness=staleness, detail_level=detail_level, store=store, config=config
+        status,
+        staleness=staleness,
+        detail_level=detail_level,
+        store=store,
+        config=config,
+        index_held=held,
     )
     _attach_root_nominations(status, config, paths=store.file_paths() if indexed else None)
     enriched = status | {

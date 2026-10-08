@@ -111,7 +111,7 @@ want-decisions were handed back by the run's handover ("make the necessary decis
 | X7 | `read_symbol`'s label | want | **ASSUMED:** `reason: ok` (the body is the file's current bytes, parsed this call) plus a sibling `parsed_unstored: true`; no new `NavReason` |
 | X8 | the route on a failed parse | how | none: no registered tool can return a body the index lacks while the writer holds it (R5.4c); the refusal is today's, plus `build_in_progress` |
 | X9 | where the parse half lives | how | `indexer.py` beside `reparse_file`, which it is split from (R1.4: the indexer drives adapters, `store.py` owns SQLite). A deleted file never reaches it — `ensure` refuses a missing path first (`freshness.py:98`) |
-| X10 | AC2's "byte-identical" and "under 1 s" | want | **ASSUMED:** byte-identical = the `iterdump()` of `graph.db` (logical content; WAL/SHM sidecars excluded); "under 1 s" asserted as under half the 5 s busy timeout, so the test proves "no busy wait" without timing flake |
+| X10 | AC2's "byte-identical" and "under 1 s" | want | **ASSUMED:** byte-identical = the `iterdump()` of `graph.db` (logical content; WAL/SHM sidecars excluded); "under 1 s" asserted as under 1.0 s — a fifth of the 5 s busy timeout — so the test proves "no busy wait" without timing flake |
 | X11 | Scope items with no AC | how | Scope 1, Scope 4 and X5 get their own matrix rows and tests (below) |
 | X12 | the probe's race and whether it holds a lock | how | a zero-wait `BEGIN IMMEDIATE` + `ROLLBACK` on the reader's own connection: never touches `write.lock` (so 357's requester protocol is undisturbed) and holds nothing. A writer that frees the DB right after the probe only costs a labelled answer where a repair would have worked |
 
@@ -183,8 +183,9 @@ want-decisions were handed back by the run's handover ("make the necessary decis
 
 1. **`GraphStore.write_locked()`** — zero-wait `BEGIN IMMEDIATE`, `ROLLBACK`, restore the busy
    timeout; `False` inside an open transaction. `BUSY_TIMEOUT_MS = 5000` feeds the pragma and the restore.
-2. **`FreshnessGuard.ensure`** — after the hash check and the cap, `store.write_locked()` → set
-   `build_held = True`, return `stale` without calling `reparse_file`.
+2. **`FreshnessGuard.ensure`** — after the hash check and the cap, `live_index_held()` (`write.lock`
+   held, and the live DB write-locked or no shadow) → set `build_held = True`, return `stale`
+   without calling `reparse_file`. A build taking the lock drops a killed rebuild's shadow.
 3. **`find_callers` / `find_references`** — in the `stale` branch, when `guard.build_held` and the
    caller did not opt in, turn `serve_behind` on for this call and read the census it needs
    (`compute_staleness`, `dirty_indexed_paths`); `unrepaired_subject_served` and `label_serve_behind`
@@ -194,7 +195,7 @@ want-decisions were handed back by the run's handover ("make the necessary decis
 5. **`read_symbol`** — on the found-node `stale` branch with `guard.build_held`: `parse_file`, pick the
    one parsed node with this qname, serve its current span from disk with `reason: ok` and
    `parsed_unstored: true`. No such node, or a failed parse → today's refusal.
-6. **`get_index_status`** — while `build_in_progress` and `behind`: `behind_serves` adds callers and
+6. **`get_index_status`** — while `live_index_held` (the guard's own predicate) and `behind`: `behind_serves` adds callers and
    references, `behind_refuses` is omitted, and the summary says a build is running and the last
    graph answers. `build_in_progress` is attached before the summary at every detail level.
 7. **Docs** — TOOLS.md freshness lines, CONVENTION §6 `behind_serves` row, PLAN §19 365 line.
@@ -356,10 +357,28 @@ Deferred to the maintainer: the merge; `/mango:promote` on `343-C2` and `360-C1`
 | 1 | refine | exposure-checker (`challenger`) | 56,527 |
 | 2 | review | `challenger`, round 1 | 73,940 |
 | — | main loop | — | unmeasured |
+| 3 | PR #34 review fixes | subagent | unmeasured |
 
 `LEDGER TOTAL: 130,467 · top cost driver: review/challenger`
 
 **Gate.** `scripts/gate.sh` on `10751dc1` (the bookkeeping tip): `GATE GREEN — all 21 checks passed`
 (Linux, bare pytest, every adapter present). Only this doc and the ledger row's gate note changed after it.
+
+### PR #34 review — round 1 fixes
+
+1. `write_locked()` unit tests (held / free / read-only) in `tests/test_store.py`. **Fixed.**
+2. A writer without `write.lock` read as a refresh. **Fixed:** `live_index_held` needs the lock; a
+   lone writer is waited out (`test_a_writer_without_the_build_lock_is_waited_out_and_repaired`).
+3. A killed rebuild's shadow hid the between-transactions arm. **Fixed:** the lock holder drops it
+   (`discard_stale_shadow`; `test_a_build_taking_the_lock_drops_a_killed_rebuilds_shadow`).
+4. Status keyed on `build_in_progress` alone. **Fixed:** it calls `live_index_held` (R1.8;
+   `test_status_routes_follow_the_guard_during_a_shadowed_rebuild`).
+5. `parsed_unstored` stamped the built ref. **Fixed:** `answered_about_ref: null`.
+6. A parsed node's dict `extra` read as not-stub. **Fixed:** shaped by `store.stored`.
+7. Docs: `parsed_unstored` in TOOLS `read_symbol` row and CONVENTION §6; X10 says 1.0 s.
+8. `parse_file` announces every adapter. **Deferred:** suffix ownership is learnt only from the
+   handshake, so announcing one adapter needs a stored suffix map — not a contained change.
+
+The 365 test file now holds `write.lock` through `try_index_write_lock`, so it runs off POSIX too.
 
 **Revert path.** `git revert` the branch commits; nothing persistent changes.
