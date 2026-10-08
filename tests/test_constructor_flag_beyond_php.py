@@ -35,6 +35,11 @@ FILES = {
         "export const literal = { constructor() {} };\n"
         "export interface Shape {\n  constructor(): void;\n}\n"
     ),
+    "lib/mixed.ts": (
+        "import * as ns from './foo';\n"
+        "export class Viaspace extends ns.Foo {\n  constructor() {\n    super(1);\n  }\n}\n"
+        "export class Mixed extends mix(Object) {\n  constructor() {\n    super();\n  }\n}\n"
+    ),
     "app/one.ts": "import { Foo } from '../lib/foo';\nexport const one = new Foo(1);\n",
     "app/two.ts": "import { Foo } from '../lib/foo';\nexport const two = new Foo('two');\n",
     "app/three.ts": (
@@ -91,9 +96,10 @@ def test_ts_constructor_callers_are_the_new_sites_of_its_class(config: Config) -
         "app/three.ts::three",
         "app/two.ts",
         "lib/foo.ts::Sub::__construct",
+        "lib/mixed.ts::Viaspace::__construct",
     ]
     numbers = tool("lib/foo.ts::Foo::__construct", arg_position=1, arg_is="number")
-    assert _sources(numbers) == ["app/one.ts"]
+    assert _sources(numbers) == ["app/one.ts", "lib/mixed.ts::Viaspace::__construct"]
     strings = tool("lib/foo.ts::Foo::__construct", arg_position=1, arg_is="string")
     assert _sources(strings) == ["app/two.ts", "lib/foo.ts::Sub::__construct"]
 
@@ -121,7 +127,23 @@ def test_only_a_named_class_constructor_carries_the_flag(config: Config) -> None
         "lib/foo.ts::Foo::__construct",
         "lib/foo.ts::Quoted::__construct",
         "lib/foo.ts::Sub::__construct",
+        "lib/mixed.ts::Mixed::__construct",
+        "lib/mixed.ts::Viaspace::__construct",
         "pkg.foo.Foo::__init__",
         "pkg.foo.Foo::__new__",
         "pkg.foo.Sub::__init__",
+    ]
+
+
+def test_a_super_call_whose_base_names_no_class_stays_dynamic(config: Config) -> None:
+    """Challenger F5 — `super(…)` links where `extends` names a class; a mixin stays DYNAMIC."""
+    conn = sqlite3.connect(config.db_path)
+    rows = conn.execute(
+        "SELECT source_qname, target_raw, confidence_tier FROM edges"
+        " WHERE kind = 'CALLS' AND file_path = 'lib/mixed.ts' AND line IN (4, 9) ORDER BY line"
+    ).fetchall()
+    conn.close()
+    assert rows == [
+        ("lib/mixed.ts::Viaspace::__construct", "lib/foo.ts::Foo::__construct", "RESOLVED"),
+        ("lib/mixed.ts::Mixed::__construct", "(dynamic)", "DYNAMIC"),
     ]
