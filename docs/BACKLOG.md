@@ -71,6 +71,9 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **Two field reports 365 did not reproduce** — `read_symbol` on a table answered `subject_ambiguous`
   mid-rebuild, and `find_references` answered `index_stale` during a full rebuild, whose shadowed
   live DB still repairs in 365's tests — 365.
+- **`read_symbol`'s held-index parse starts every configured adapter** — `parse_file` announces
+  them all per read; a stored suffix→adapter map would start one, and AC2's "under 1 s" is proven
+  only on a PHP-only config — 365.
 - **PHP members are case-insensitive, the resolver is not** (`validate()` onto `Validate()` stays
   unlinked — a fixture cause, not matched to the field); only PHP flags a constructor, and an
   inherited one misses its subclass's `new` sites — 362.

@@ -124,11 +124,10 @@ def _checkout(path: Path) -> tuple[Path, Path] | None:
 
 
 def find_mismatch(config: Config, roots: tuple[Path, ...]) -> RefMismatch | None:
-    """The first root that is another checkout of this repository, at a commit the index is not.
+    """The first root, in client order, that checks out this repository decides (366 X2).
 
-    A root that is the index root itself means the caller can see that checkout: no check. Git
-    runs only past that test, so the common case costs nothing; a worktree caller pays one
-    ``rev-parse`` per call, so a commit made there is seen at once.
+    The index root among the roots: no check, and no git. Another checkout at the built commit:
+    none; at another HEAD: a mismatch. A later root never relabels; one ``rev-parse`` per call.
     """
     index_root = config.root.resolve()
     if any(root.resolve() == index_root for root in roots):
@@ -138,14 +137,17 @@ def find_mismatch(config: Config, roots: tuple[Path, ...]) -> RefMismatch | None
         return None
     for root in roots:
         theirs = _checkout(root)
-        if theirs is None or theirs[1] != mine[1] or theirs[0] == mine[0]:
+        if theirs is None or theirs[1] != mine[1]:
             continue
-        built = read_meta_readonly(config.db_path, LAST_COMMIT_KEY)
+        if theirs[0] == mine[0]:
+            return None
         head = gitutil.head_commit(theirs[0])
         if head is None:
             _CHECKOUTS.pop(root.resolve(), None)
-        if built is None or head is None or head == built:
-            continue
+            continue  # a removed worktree checks out nothing: the next root decides
+        built = read_meta_readonly(config.db_path, LAST_COMMIT_KEY)
+        if built is None or head == built:
+            return None
         return RefMismatch(caller_root=str(theirs[0]), caller_commit=head, index_commit=built)
     return None
 

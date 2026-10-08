@@ -98,20 +98,20 @@ cure, a refresh, is already running. `read_symbol` has no `serve_behind` and no 
 
 **Exposure-checker** (ticket-blind `challenger`, 1 dispatch, 56,527 tokens) surfaced X1–X12. The four
 want-decisions were handed back by the run's handover ("make the necessary decisions") and are
-**ASSUMED (awaiting ratification)**.
+**ASSUMED (awaiting ratification)**; the maintainer ratified them 2026-10-08 after the PR #34–#39 review.
 
 | # | Decision | Class | Resolution |
 |---|---|---|---|
 | X1 | `impact` in Scope 2 | how | dropped: `impact` never refuses on a stale subject — it computes and attaches `staleness` (`impact.py:231,245`) and is no `FreshnessGuard` consumer. Recorded as a deviation (P3) |
-| X2 | the other guard consumers (`find_implementations`, `find_view_data`, `file_outline`, `search_symbol`) | want | **ASSUMED:** the probe lives in `FreshnessGuard.ensure`, so all of them stop waiting 5 s and refuse at once (R1.8, one implementation); only the two tools that already carry `serve_behind` semantics serve labelled, plus `read_symbol`'s parse path. The other four keep `index_stale`, now with `build_in_progress` beside it (`schema_guard.py:66`) |
+| X2 | the other guard consumers (`find_implementations`, `find_view_data`, `file_outline`, `search_symbol`) | want | **Ratified 2026-10-08:** `live_index_held` (`freshness.py`) sits in `FreshnessGuard.ensure`, so while a build holds the live DB every consumer refuses at once instead of waiting 5 s (R1.8). Only callers/references (labelled) and `read_symbol` (`parsed_unstored`) answer; the other four keep `index_stale` with `build_in_progress`. A writer without `write.lock` is waited out as before |
 | X3 | `refresh_in_progress` | how | reuse `build_in_progress`: the schema guard already stamps it on every answer while a writer holds the lock (`schema_guard.py:20,69`); CONVENTION §6 "one name per fact". Deviation from the ticket text (P3) |
 | X4 | Scope 4 | how | `get_index_status` already sets `build_in_progress` and `build_progress_route` (`get_index_status.py:241-245`). What is missing: the summary does not say the served graph answers, and `behind_refuses` still names callers/references (`get_index_status.py:305`), which would now be false while the DB is held (R5.5) |
-| X5 | full rebuild vs in-place incremental | how | probe the **live DB's** write lock, not `write.lock`: a 356 full rebuild writes `graph.db.shadow` and leaves the live DB writable (`store.py:774-790`), so read-through repair keeps working there exactly as today; only an in-place writer makes the probe fire |
-| X6 | the bar for Scope 5's "same cause" | want | **ASSUMED:** one reproduction attempt each in this ticket. A full rebuild holding only `write.lock` is pinned as *repair still works* (X5); `subject_ambiguous` mid-rebuild is not reproduced and goes to BACKLOG Follow-ups |
-| X7 | `read_symbol`'s label | want | **ASSUMED:** `reason: ok` (the body is the file's current bytes, parsed this call) plus a sibling `parsed_unstored: true`; no new `NavReason` |
+| X5 | full rebuild vs in-place incremental | how | probe `write.lock` **and** the live DB: held = lock held AND (DB write-locked OR no shadow). A 356 full rebuild writes `graph.db.shadow`, so repair keeps working; the lock holder drops a killed build's shadow (`discard_stale_shadow`) |
+| X6 | the bar for Scope 5's "same cause" | want | **Ratified 2026-10-08:** one reproduction attempt each in this ticket. A full rebuild holding only `write.lock` is pinned as *repair still works* (X5); `subject_ambiguous` mid-rebuild is not reproduced and goes to BACKLOG Follow-ups |
+| X7 | `read_symbol`'s label | want | **Ratified 2026-10-08:** `reason: ok` plus `parsed_unstored: true` and `answered_about_ref: null` (the file's current bytes, parsed this call); no new `NavReason` |
 | X8 | the route on a failed parse | how | none: no registered tool can return a body the index lacks while the writer holds it (R5.4c); the refusal is today's, plus `build_in_progress` |
 | X9 | where the parse half lives | how | `indexer.py` beside `reparse_file`, which it is split from (R1.4: the indexer drives adapters, `store.py` owns SQLite). A deleted file never reaches it — `ensure` refuses a missing path first (`freshness.py:98`) |
-| X10 | AC2's "byte-identical" and "under 1 s" | want | **ASSUMED:** byte-identical = the `iterdump()` of `graph.db` (logical content; WAL/SHM sidecars excluded); "under 1 s" asserted as under 1.0 s — a fifth of the 5 s busy timeout — so the test proves "no busy wait" without timing flake |
+| X10 | AC2's "byte-identical" and "under 1 s" | want | **Ratified 2026-10-08:** byte-identical = the `iterdump()` of `graph.db` (logical content; WAL/SHM sidecars excluded); "under 1 s" asserted as under 1.0 s — a fifth of the 5 s busy timeout — so the test proves "no busy wait" without timing flake |
 | X11 | Scope items with no AC | how | Scope 1, Scope 4 and X5 get their own matrix rows and tests (below) |
 | X12 | the probe's race and whether it holds a lock | how | a zero-wait `BEGIN IMMEDIATE` + `ROLLBACK` on the reader's own connection: never touches `write.lock` (so 357's requester protocol is undisturbed) and holds nothing. A writer that frees the DB right after the probe only costs a labelled answer where a repair would have worked |
 
@@ -348,7 +348,7 @@ probe the writer's claim too. First sighting. Per P1, `360-C1` and `343-C2` gain
 1. Push `fix/365-reads-refuse-while-a-refresh-runs` — pre-authorised.
 2. Open the PR against `main` — pre-authorised.
 
-Deferred to the maintainer: the merge; `/mango:promote` on `343-C2` and `360-C1`.
+Deferred to the maintainer: `/mango:promote` on `343-C2` and `360-C1`.
 
 ### Cost ledger
 

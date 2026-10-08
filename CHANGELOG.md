@@ -15,6 +15,17 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 ## Unreleased
 
+- A client whose first MCP root is another checkout of the repo at another commit than the built
+  one gets `reason: ref_mismatch`, rows kept, with both commits named (366).
+- While a build holds the live index, callers and references answer labelled and `read_symbol`
+  parses the file unstored, instead of waiting and refusing (365).
+- A `keyed_calls` rule may declare `kind: WRITES` or `DELETES` of the table its key names (364).
+- `include_graph` attests a zero for a file nothing includes, and withholds it while an unlinked
+  include could name the file (363).
+- `find_callers` on a constructor lists its class's `new` sites (362). **Full rebuild required**
+  once (`code-atlas-build --full`) for the PHP adapter's constructor flag to reach the index.
+- `keyed_calls` gains `key_pattern` (a regex over a string key) and `key_from: "object"` (fields of
+  an object literal) to fill the target template (361).
 - A build stamps the HEAD it read before parsing, so a commit landing mid-build leaves the index
   `behind` instead of falsely `current` (360). An index built across such a move cannot be told
   apart: if `get_index_status` says `current` but a file committed then is missing, run
