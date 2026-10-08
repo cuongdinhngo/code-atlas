@@ -12,10 +12,13 @@ from code_atlas.contract import (
     ARG_SELECTORS,
     CALLER_KINDS,
     CONFIDENCE_TIERS,
+    CONSTRUCTOR_FLAG,
+    MEMBER_SEPARATOR,
     ConfidenceTier,
     inbound_kinds_for,
     split_qname,
 )
+from code_atlas.onboarding.class_diagram import parse_json_field
 from code_atlas.store import GraphStore, Row
 from code_atlas.symbol_role import (
     aggregate_test_count_source,
@@ -284,9 +287,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 subject_unrepaired = True
             asked = qname
             lookup = qname
+            also = _constructed_class(store, lookup)
             outcome = _callers(
                 store,
                 lookup,
+                also_targets=also,
                 hops=depth,
                 limit=cap,
                 offset=offset,
@@ -298,10 +303,15 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             subject_nodes = store.nodes_by_qualified_name(lookup, limit=config.page_limit)
             indexed = bool(subject_nodes)
             production_count, test_count, test_role_label = _test_census(
-                store, lookup, depth=depth, args_at=args_at, confidence_tier=tier
+                store,
+                lookup,
+                depth=depth,
+                args_at=args_at,
+                confidence_tier=tier,
+                also_targets=also,
             )
             unrecorded = (
-                store.count_edges_without_args(lookup, kinds=CALLER_KINDS)
+                store.count_edges_without_args(lookup, kinds=CALLER_KINDS, also_targets=also)
                 if args_at is not None
                 else None
             )
@@ -313,6 +323,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 tier=tier,
                 indexed=indexed,
                 hit_total=outcome.total_count,
+                also_targets=also,
             )
             if outcome.total_count == 0 and not indexed:
                 resolution = classify_missing_subject(
@@ -355,9 +366,11 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                         )
                     )
                 lookup = repointed
+                also = _constructed_class(store, lookup)
                 outcome = _callers(
                     store,
                     lookup,
+                    also_targets=also,
                     hops=depth,
                     limit=cap,
                     offset=offset,
@@ -370,10 +383,15 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 )
                 indexed = bool(subject_nodes)
                 production_count, test_count, test_role_label = _test_census(
-                    store, lookup, depth=depth, args_at=args_at, confidence_tier=tier
+                    store,
+                    lookup,
+                    depth=depth,
+                    args_at=args_at,
+                    confidence_tier=tier,
+                    also_targets=also,
                 )
                 unrecorded = (
-                    store.count_edges_without_args(lookup, kinds=CALLER_KINDS)
+                    store.count_edges_without_args(lookup, kinds=CALLER_KINDS, also_targets=also)
                     if args_at is not None
                     else None
                 )
@@ -385,6 +403,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     tier=tier,
                     indexed=indexed,
                     hit_total=outcome.total_count,
+                    also_targets=also,
                 )
             container, bare_name = split_qname(lookup)
             unresolved_bare = 0
@@ -459,6 +478,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     kinds=CALLER_KINDS,
                     args_at=args_at,
                     confidence_tier=tier,
+                    also_targets=also,
                 )
                 if depth == 1 and outcome.truncated
                 else {}
@@ -653,6 +673,19 @@ def _args_at(
     return arg_position, arg_is
 
 
+def _constructed_class(store: GraphStore, qname: str) -> tuple[str, ...]:
+    """``(class,)`` for a flagged constructor: a ``new`` of its class calls it (362)."""
+    if MEMBER_SEPARATOR not in qname:
+        return ()
+    rows = store.nodes_by_qualified_name(qname, limit=1)
+    if not rows or str(rows[0]["kind"]) != "Method":
+        return ()
+    extra = parse_json_field(rows[0].get("extra"), {})
+    if not isinstance(extra, dict) or extra.get(CONSTRUCTOR_FLAG) is not True:
+        return ()
+    return (qname.rsplit(MEMBER_SEPARATOR, 1)[0],)
+
+
 def _test_census(
     store: GraphStore,
     qname: str,
@@ -660,6 +693,7 @@ def _test_census(
     depth: int,
     args_at: tuple[int, str] | None,
     confidence_tier: str | None,
+    also_targets: tuple[str, ...] = (),
 ) -> tuple[int, int, str | None]:
     """``(production, test, how the test rows were decided)`` for the depth-1 inbound set (262).
 
@@ -674,6 +708,7 @@ def _test_census(
         args_at=args_at,
         confidence_tier=confidence_tier,
         distinct_sources=True,
+        also_targets=also_targets,
     )
     production = sum(count for is_test, _path, count in rows if not is_test)
     test = sum(count for is_test, _path, count in rows if is_test)
@@ -692,6 +727,7 @@ def _tier_census(
     tier: str | None,
     indexed: bool,
     hit_total: int,
+    also_targets: tuple[str, ...] = (),
 ) -> dict[str, int] | None:
     """The full hit set's tier breakdown, or None when it would add nothing (061).
 
@@ -700,7 +736,9 @@ def _tier_census(
     """
     if depth != 1 or not indexed:
         return None
-    census = store.tier_census_by_target(qname, kinds=CALLER_KINDS, args_at=args_at)
+    census = store.tier_census_by_target(
+        qname, kinds=CALLER_KINDS, args_at=args_at, also_targets=also_targets
+    )
     if not census:
         return None
     if tier is not None:
@@ -751,6 +789,20 @@ def _proximity_qualifies(subject_file: str, site_file: str) -> bool:
     return _shared_subtree_depth(subject_file, site_file) >= 1
 
 
+def _include_qualified(store: GraphStore, subject_qname: str) -> set[str]:
+    """Files one include away from a file whose top level does ``new`` of the subject's class (362).
+
+    A variable typed there is in scope across that include, either way, so a same-named
+    unresolved call in such a file is a candidate — the language's include, not a guess by name.
+    """
+    if MEMBER_SEPARATOR not in subject_qname:
+        return set()
+    anchors = store.files_constructing_at_top_level(subject_qname.rsplit(MEMBER_SEPARATOR, 1)[0])
+    if not anchors:
+        return set()
+    return set(anchors) | store.include_neighbours(anchors)
+
+
 def _proximity_unresolved_callers(
     store: GraphStore,
     *,
@@ -771,10 +823,11 @@ def _proximity_unresolved_callers(
     sites = store.unresolved_caller_sites(
         bare_name, kinds=CALLER_KINDS, language=language
     )
+    included = _include_qualified(store, subject_qname) if sites else set()
     ranked: list[tuple[int, str, Row]] = []
     for site in sites:
         site_file = str(site["file_path"])
-        if not _proximity_qualifies(subject_file, site_file):
+        if not _proximity_qualifies(subject_file, site_file) and site_file not in included:
             continue
         depth = _shared_subtree_depth(subject_file, site_file)
         ranked.append((depth, str(site["source_qname"]), site))
@@ -801,6 +854,7 @@ def _attach_call_lines(
     args_at: tuple[int, str] | None,
     confidence_tier: str | None,
     exclude_test_sources: bool,
+    also_targets: tuple[str, ...] = (),
 ) -> None:
     """A row whose caller calls ``qname`` from two or more lines names them all (338).
 
@@ -813,6 +867,7 @@ def _attach_call_lines(
         args_at=args_at,
         confidence_tier=confidence_tier,
         exclude_test_sources=exclude_test_sources,
+        also_targets=also_targets,
     )
     for hit in hits:
         found = lines.get((str(hit["qname"]), str(hit.get("file"))), [])
@@ -830,11 +885,16 @@ def _callers(
     args_at: tuple[int, str] | None = None,
     confidence_tier: str | None = None,
     exclude_test_sources: bool = False,
+    also_targets: tuple[str, ...] = (),
 ) -> _CallersOutcome:
-    """BFS over CALLS/NEW into ``qname``; only RESOLVED edges expand the frontier (A3 / HOW-5)."""
+    """BFS over CALLS/NEW into ``qname``; only RESOLVED edges expand the frontier (A3 / HOW-5).
+
+    ``also_targets`` count as ``qname`` itself: a constructor's class, whose ``new`` sites call it.
+    """
     if hops == 1:
         total = store.count_edges_by_target(
             qname,
+            also_targets=also_targets,
             kinds=CALLER_KINDS,
             args_at=args_at,
             confidence_tier=confidence_tier,
@@ -843,6 +903,7 @@ def _callers(
         )
         edges = store.edges_by_target(
             qname,
+            also_targets=also_targets,
             kinds=CALLER_KINDS,
             limit=limit,
             offset=offset,
@@ -859,6 +920,7 @@ def _callers(
             args_at=args_at,
             confidence_tier=confidence_tier,
             exclude_test_sources=exclude_test_sources,
+            also_targets=also_targets,
         )
         return _CallersOutcome(
             results=hits,
@@ -869,8 +931,8 @@ def _callers(
 
     results: list[dict[str, object]] = []
     seen_edge_ids: set[int] = set()
-    visited_targets: set[str] = {qname}
-    queue: deque[tuple[str, int]] = deque([(qname, 0)])
+    visited_targets: set[str] = {qname, *also_targets}
+    queue: deque[tuple[str, int]] = deque([(qname, 0), *((t, 0) for t in also_targets)])
     skipped_non_resolved = 0
     total_count = 0
     skipped = 0

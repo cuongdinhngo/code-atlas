@@ -457,8 +457,9 @@ counts them so a zero is visible.
 
 **Indirection rules (040 / 062 / 063 / 222).** `CA_INDIRECTION_RULES` names repo-relative JSON files
 **outside** `adapters/` (R2.2), each listing `aliases`, `calls`, `view_data` and/or `keyed_calls`
-entries that become HEURISTIC `ALIASES` / `CALLS` / `PROVIDES_VIEW_DATA` edges. `keyed_calls` is the
-string-argument case — a class or proc named by a literal (352); the file format is in
+entries that become HEURISTIC `ALIASES` / `CALLS` / `PROVIDES_VIEW_DATA` edges — or, for a
+`keyed_calls` rule of that `kind`, `WRITES` / `DELETES` (364). `keyed_calls` is the string-argument
+case — a class, proc or table named by a literal (352); the file format is in
 [`TOOLS.md`](TOOLS.md#indirection-rule-files). Applied after parse, before
 `resolve_edges`; off by default, so no rules ⇒ graph unchanged, and a missing or invalid rule file
 fails loud **before** parse (R5.3). Rule edges live on a synthetic bookmark path with **no** `files`

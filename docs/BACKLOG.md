@@ -24,10 +24,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
-| 361 | [JS route strings link to nothing](tasks/361_js-route-strings-link-to-nothing.md) | Coverage | todo | 352, 221 |
-| 362 | [Untyped-receiver and constructor calls unlinked](tasks/362_untyped-receiver-and-constructor-calls-unlinked.md) | Coverage | todo | 258, 336 |
-| 363 | [An unincluded file is not a confident zero](tasks/363_unincluded-file-is-not-a-confident-zero.md) | Coverage | todo | 353 |
-| 364 | [A PHP table-name string writes nothing](tasks/364_php-table-name-string-writes-nothing.md) | Coverage | todo | 352, 278, 328 |
 | 365 | [Reads refuse while a refresh runs](tasks/365_reads-refuse-while-a-refresh-runs.md) | Adoption | todo | 356, 357, 274 |
 
 ## Open work — Pillar 2 · Onboarding
@@ -73,6 +69,12 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **Two symlink residuals 342 left out of scope** — a stub root's files (`collect_stubs`, `os.walk`)
   and the index directory (`.code-atlas/` committed as a link aims SQLite writes) are not yet contained
   — 342.
+- **PHP members are case-insensitive, the resolver is not** (`validate()` onto `Validate()` stays
+  unlinked — a fixture cause, not matched to the field); only PHP flags a constructor, and an
+  inherited one misses its subclass's `new` sites — 362.
+- **Two route shapes 361 left out** — an inline `on*="fn(…)"` attribute in a PHP view (needs an
+  attribute reader in the PHP adapter and a cross-language bare-name link the resolver does not
+  make), and `$.ajax({url: '…'})`, whose URL is an object field a `key_pattern` cannot reach — 361.
 
 ## Conventions
 - Keep an **open** task's `status` in this table **and** in its frontmatter in sync.

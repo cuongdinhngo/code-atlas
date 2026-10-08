@@ -72,8 +72,9 @@ _STATIC_VS_INSTANCE_EDGE_SHAPES: list[EdgeShape] = [
     ("CONTAINS", "\\App\\Calls", "\\App\\Calls\\Service", None),
     ("CONTAINS", "\\App\\Calls\\Service", "\\App\\Calls\\Service::make", None),
     ("CONTAINS", "\\App\\Calls\\Service", "\\App\\Calls\\Service::run", None),
+    # `new self()` names the enclosing class, as `self::` calls do (362)
+    ("NEW", "\\App\\Calls\\Service::make", "\\App\\Calls\\Service", None),
     ("NEW", "\\App\\Calls\\Service::run", "\\App\\Calls\\Service", None),
-    ("NEW", "\\App\\Calls\\Service::make", "\\self", None),
     ("REFERENCES", "\\App\\Calls\\Service::make", "\\App\\Calls\\Service", None),
 ]
 
