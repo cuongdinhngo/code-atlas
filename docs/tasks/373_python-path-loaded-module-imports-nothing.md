@@ -221,3 +221,5 @@ No new lesson.
 `LEDGER TOTAL: 109,964 · top cost driver: review/challenger`
 
 **Revert path.** `git revert` the branch commits.
+
+**Gate.** `scripts/gate.sh` on `966462bc`: `GATE GREEN — all 21 checks passed` (Linux, bare pytest).
