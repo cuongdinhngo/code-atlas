@@ -255,3 +255,5 @@ name, `self` — needs the scope that could rebind it; first sighting.
 `LEDGER TOTAL: 106,089 · top cost driver: review/challenger`
 
 **Revert path.** `git revert` the branch commits, floors included.
+
+**Gate.** `scripts/gate.sh` on `7d875b5b`: `GATE GREEN — all 21 checks passed` (Linux, bare pytest).
