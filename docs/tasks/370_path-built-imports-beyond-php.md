@@ -165,7 +165,7 @@ importer through `find_references`. The ticket's "no stamp" premise was wrong fo
 
 ## Phase 3 — execute
 
-Commit `3576d22d`. **Red first** — the test on the prior parser: `5 failed, 1 passed` (AC3 held).
+Commit `3de03837`. **Red first** — the test on the prior parser: `5 failed, 1 passed` (AC3 held).
 **P8:** `cross_repo_validate.py --public-only --skip-clone` 11 ok / 0 failed. Edges rose on two TS
 samples — mqttjs 6150→6151, socketio 28229→28241 — with nodes unchanged; the floors still hold, so
 none moves. A first run on this tree reported 369's counts unchanged; a re-run on the same tree, and
@@ -178,9 +178,9 @@ none moves. A first run on this tree reported 369's counts unchanged; a re-run o
 
 `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`
 
-**Challenger (ticket-blind, round 1, on `6479a1e9` — `3576d22d` after the rebase —, 63,772 tokens): 8 met · 0 not met · 0 can't tell.**
+**Challenger (ticket-blind, round 1, on `6479a1e9` — `3de03837` after the rebase —, 63,772 tokens): 8 met · 0 not met · 0 can't tell.**
 
-1. **F1: a rejected shape lost its `const` node.** **Fixed** in `f02cb057`: one accept test feeds both.
+1. **F1: a rejected shape lost its `const` node.** **Fixed** in `890f4c6c`: one accept test feeds both.
 2. **F2: `__dirname + 'lib/x'` (no separator) read as `lib/x`.** **Fixed:** a tail must open with `/`.
 3. **F3: a `path` parameter shadowing the module.** **Left:** `path` is matched by its file-level
    binding; a function rebinding that name is a documented limit.
@@ -191,7 +191,7 @@ none moves. A first run on this tree reported 369's counts unchanged; a re-run o
 
 Verify-only (main loop):
 
-Ran at f02cb057:
+Ran at 890f4c6c:
 ```
 $ .venv/bin/python -m pytest -q tests/test_path_built_require.py
 7 passed
@@ -201,12 +201,12 @@ $ .venv/bin/python -m pytest -q tests/test_path_built_require.py
 
 Verdict: **clean (challenger only — REVIEWER: OFF)**.
 
-Reviewed at f02cb057 — the diff `feat/369-class-property-references-beyond-php..f02cb057`. Working doc:
+Reviewed at 890f4c6c — the diff `feat/369-class-property-references-beyond-php..890f4c6c`. Working doc:
 `docs/tasks/370_path-built-imports-beyond-php.md` (embedded).
 
 ## Phase 5 — finalise
 
-Stale-review guard: after `f02cb057` only bookkeeping changes — this doc, `docs/BACKLOG.md` and
+Stale-review guard: after `890f4c6c` only bookkeeping changes — this doc, `docs/BACKLOG.md` and
 `docs/TOKEN_LEDGER.md`, all exempt.
 
 `CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
