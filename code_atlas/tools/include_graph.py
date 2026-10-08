@@ -42,6 +42,9 @@ SAME_BASENAME_INCLUDED = "same_basename_included"
 # Fully dynamic includes in the index: none names a file, so a zero cannot rule them out (363).
 DYNAMIC_INCLUDES_UNCHECKED = "dynamic_includes_unchecked"
 _QUOTED = re.compile(r"'([^']*)'|\"([^\"]*)\"")
+# Mentions are read a page at a time and filtered in Python; past the cap the scan is cut (363).
+_MENTION_PAGE = 500
+_MENTION_SCAN_CAP = 20_000
 
 _INCLUDE = ("INCLUDES",)
 # The kind a module language carries the same relation under, linked since 188 — the route's premise
@@ -72,8 +75,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         confident zero — 065). An empty inbound answer with unlinked includes whose path tail
         could be this file returns ``reason=relationship_not_modelled``, lists them in
         ``unlinked_includes``, and adds a ``try_instead_hint`` but deliberately NO ``try_instead`` —
-        no registered tool reads unlinked include text (093); a listing cut at the page limit says
-        ``unlinked_includes_truncated``. When none could, an indexed file's zero is attested:
+        no registered tool reads unlinked include text (093); more fitting includes than the page
+        limit says ``unlinked_includes_truncated``; path matching ignores case. When none could,
+        an indexed file's zero is attested:
         ``no_matches`` naming any included same-named file in ``same_basename_included``, and
         ``authoritative: true`` unless ``dynamic_includes_unchecked`` counts includes naming no
         file at all (363).
@@ -111,15 +115,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 # zero named no_matches — not "not modelled" (065 keeps that distinction).
                 # Only an unlinked include whose path tail fits this file could include it (363).
                 basename = PurePosixPath(rel).name
-                mentions = store.unlinked_includes_mentioning(basename, limit=limit + 1)
-                listing_cut = len(mentions) > limit
-                could_name = [
-                    edge_hit(row) | {"target_raw": row["target_raw"]}
-                    for row in mentions[:limit]
-                    if _tail_fits(str(row["target_raw"]), rel)
-                ]
+                could_name, listing_cut = _fitting_includes(store, basename, rel, limit)
                 if could_name or listing_cut:
-                    # A cut listing may hold a fitting row past the cut: never a zero (R5.6).
+                    # A scan cut before its end may hold a fitting row past it: never a zero (R5.6).
                     reason = REASON_RELATIONSHIP_NOT_MODELLED
                     try_instead_hint = TRY_INSTEAD_HINT_PATH_BASENAME
                 elif relation_unmodelled_for_language(store, file_path=rel, kinds=_INCLUDE):
@@ -180,16 +178,40 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     return include_graph
 
 
+def _fitting_includes(
+    store: GraphStore, basename: str, rel: str, limit: int
+) -> tuple[list[dict[str, object]], bool]:
+    """Unlinked includes whose tail fits ``rel``, up to ``limit``, and whether more were left (363).
+
+    Mentions are paged and filtered here, so a cut means *fitting* rows past ``limit`` — or a
+    scan stopped at ``_MENTION_SCAN_CAP`` before the mentions ran out, which is no zero either.
+    """
+    fitting: list[dict[str, object]] = []
+    offset = 0
+    while offset < _MENTION_SCAN_CAP:
+        page = store.unlinked_includes_mentioning(basename, limit=_MENTION_PAGE, offset=offset)
+        for row in page:
+            if _tail_fits(str(row["target_raw"]), rel):
+                if len(fitting) == limit:
+                    return fitting, True
+                fitting.append(edge_hit(row) | {"target_raw": row["target_raw"]})
+        if len(page) < _MENTION_PAGE:
+            return fitting, False
+        offset += _MENTION_PAGE
+    return fitting, True
+
+
 def _tail_fits(target_raw: str, rel: str) -> bool:
     """Could an include written as ``target_raw`` reach ``rel``? Its path tail must be rel's (363).
 
     `target_raw` is the literal as written, so its last quoted string is the path when there is one.
     `..`/`.` drop out; a tail naming another directory, or a longer name, cannot be this file.
+    Case-folded: a case-insensitive filesystem resolves `Lib/A` to `lib/a`.
     """
     quoted = _QUOTED.findall(target_raw)
     path = next((a or b for a, b in reversed(quoted)), target_raw) if quoted else target_raw
-    parts = [part for part in path.replace("\\", "/").split("/") if part not in ("", ".", "..")]
-    subject = rel.split("/")
+    parts = [p for p in path.casefold().replace("\\", "/").split("/") if p not in ("", ".", "..")]
+    subject = rel.casefold().split("/")
     return bool(parts) and len(parts) <= len(subject) and subject[-len(parts) :] == parts
 
 

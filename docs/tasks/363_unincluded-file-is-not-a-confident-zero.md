@@ -76,14 +76,14 @@ so `old_screen.php` and `../missing/screen.php` blocked a copy nothing could inc
 |---|---|---|---|
 | X1 | what "could name the subject" means | want | **ASSUMED:** the last quoted literal (or the raw text) split on `/`, `.`/`..` dropped, must be a path suffix of the subject — `_tail_fits` |
 | X2 | a variable-head tail `/screen.php` | want | **ASSUMED:** it fits every `screen.php`, so it keeps the answer non-`ok` (AC2's own case) |
-| X3 | where `authoritative: true` appears | want | **ASSUMED:** only on the ticket's case — a positive zero with a same-named file included; a plain `no_matches` is unchanged |
-| X4 | a cap on listed sites | want | **ASSUMED:** `page_limit`; a cut listing says `unlinked_includes_truncated` and is never a positive zero (R5.6) |
+| X3 | where `authoritative` appears | want | **ASSUMED:** on every attested zero — an indexed file with no fitting unlinked include (F1); `true` unless `(dynamic)` includes exist (F4); `same_basename_included` only when non-empty |
+| X4 | a cap on listed sites | want | **ASSUMED:** `page_limit` *fitting* rows; more say `unlinked_includes_truncated` and are never a positive zero (R5.6) |
 | X5 | where the predicate lives | how | the SQL in `store.py` (R1.4); the path-tail test in the tool — it is about one subject |
 | X6 | naming the alternatives | how | `same_basename_included`: paths a linked `INCLUDES` reaches; not `sibling_definitions`, which names symbol definitions |
 | X7 | reason order, AC3 | how | a file with an includer never enters the branch (`include_graph.py:87`); the language arm still runs when no row fits |
 | X8 | F3 (a vendored subject) | how | no positive zero for an unindexed path (`store.file_hash`); `vendor/` is excluded by default |
 | X9 | `target_raw` as written | how | CONVENTION §3: the literal as written, so quotes and expression heads are read past |
-| X10 | SQL vs Python | how | a bounded `instr` fetch, then the tail test in Python |
+| X10 | SQL vs Python | how | a case-folded `instr` fetch paged 500 at a time (cap 20,000 — past it, cut), then the tail test in Python |
 
 ## Phase 1 — analysis
 
@@ -213,15 +213,22 @@ It saw four line numbers of this doc through a grep and says it did not open it.
 
 1. **F1: no attested zero without a same-named copy.** **Fixed** in `3b82d9e7` — any indexed file's zero
    with nothing fitting is attested; `same_basename_included` only when non-empty.
-2. **F2: a fitting row past the cut was dropped.** **Fixed** — a cut listing keeps
-   `relationship_not_modelled` and says `unlinked_includes_truncated`.
+2. **F2: a fitting row past the cut was dropped.** **Fixed** — more fitting rows than the limit keep
+   `relationship_not_modelled` and say `unlinked_includes_truncated` (cut redefined in PR review).
 3. **F3: interpolated quoted paths.** **Not a defect here:** the adapter stores them as `(dynamic)`
    (measured), so they never reach `_tail_fits`; F4 carries their consequence.
 4. **F4 (the important one): `(dynamic)` names no file, so a zero could not rule it out.** **Fixed** —
    `authoritative` is `false` while the index holds any, counted in `dynamic_includes_unchecked` (R5.6);
    the test fails with the count forced to 0 (`assert True is False`).
-5. **F5: case-sensitive tail.** **Left:** the resolver links includes case-sensitively too (same rule).
+5. **F5: case-sensitive tail.** **Fixed in PR review** (below) — the runtime filesystem, not the resolver, decides.
 6. F6/F7 checked fine. **F8: docs.** **Fixed** with the docstring.
+
+**PR #39 review.** (1, high) the cut was measured on raw `instr` mentions, so >limit non-fitting
+mentions of a common basename re-created the bug: now mentions are paged and only *fitting* rows
+count toward the cut. (2) matching is case-folded in the fetch and in `_tail_fits`, so a case-only
+fit is listed, never an attested zero. (3) include_path and the index-global dynamic count are
+recorded as known limits in TOOLS.md. Tests: the F2 test that locked in (1) replaced by one with 4
+non-fitting mentions at `page_limit=1` answering an attested zero; a case-only fit; reasons asserted.
 
 Verify-only (main loop — every fix is inside the approved files):
 

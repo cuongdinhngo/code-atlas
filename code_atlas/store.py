@@ -2549,16 +2549,22 @@ class GraphStore:
                     grouped[key].append(row)
         return grouped
 
-    def unlinked_includes_mentioning(self, needle: str, *, limit: int) -> list[Row]:
-        """The unlinked ``INCLUDES`` rows whose ``target_raw`` contains ``needle`` (363)."""
+    def unlinked_includes_mentioning(
+        self, needle: str, *, limit: int, offset: int = 0
+    ) -> list[Row]:
+        """One page of unlinked ``INCLUDES`` whose ``target_raw`` contains ``needle`` (363).
+
+        Case-folded: on a case-insensitive filesystem `Lib/A` reaches `lib/a`.
+        """
         if not needle:
             return []
         sql = (
             f"SELECT id, {_EDGE_COLUMNS} FROM edges WHERE kind = 'INCLUDES' "
-            "AND (target_qname IS NULL OR target_qname = '') AND instr(target_raw, ?) > 0 "
-            f"ORDER BY {_EDGE_ORDER} LIMIT ?"
+            "AND (target_qname IS NULL OR target_qname = '') "
+            "AND instr(lower(target_raw), lower(?)) > 0 "
+            f"ORDER BY {_EDGE_ORDER} LIMIT ? OFFSET ?"
         )
-        return self._rows(EDGE_ROW_KEYS, sql, (needle, limit))
+        return self._rows(EDGE_ROW_KEYS, sql, (needle, limit, offset))
 
     def count_dynamic_includes(self) -> int:
         """Unlinked ``INCLUDES`` at ``DYNAMIC`` — a path the index cannot name at all (363)."""

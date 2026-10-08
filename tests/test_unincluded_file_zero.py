@@ -102,6 +102,7 @@ def test_a_file_with_an_includer_answers_as_before(tmp_path: Path) -> None:
         ("../views/screen.php", False),
         ("old_screen.php", False),
         ("'screen.php.bak'", False),
+        ("'../LEGACY/Screen.PHP'", True),
         ("(dynamic)", False),
     ],
 )
@@ -115,13 +116,16 @@ def test_only_a_tail_that_could_be_this_path_fits(target_raw: str, fits: bool) -
 def test_a_cut_listing_or_an_unindexed_subject_is_never_a_positive_zero(tmp_path: Path) -> None:
     """R5.6 — a zero is attested only for an indexed file over a listing that was read whole."""
     files = dict(BASE)
-    files["app/a.php"] = "<?php\ninclude '../nowhere/screen.php';\n"
-    files["app/b.php"] = "<?php\ninclude '../elsewhere/screen.php';\n"
+    files["tools/a.php"] = "<?php\ninclude '../legacy/screen.php';\n"
+    files["bin/b.php"] = "<?php\ninclude '../legacy/screen.php';\n"
     config = _build(tmp_path, files)
     narrow = dataclasses.replace(config, page_limit=1)
     answer = include_graph.create(narrow)(UNUSED, direction="imported_by")
+    assert answer["reason"] == REASON_RELATIONSHIP_NOT_MODELLED
+    assert answer["unlinked_includes_truncated"] is True
     assert "authoritative" not in answer
     ghost = include_graph.create(config)("app/ghost/screen.php", direction="imported_by")
+    assert ghost["reason"] == REASON_NO_MATCHES
     assert "authoritative" not in ghost
 
 
@@ -154,12 +158,26 @@ def test_a_zero_with_no_same_named_copy_is_still_attested(tmp_path: Path) -> Non
     assert "same_basename_included" not in answer
 
 
-def test_a_cut_listing_with_nothing_fitting_stays_unmodelled(tmp_path: Path) -> None:
-    """Challenger F2 — a fitting row may sit past the cut, so the answer says it was cut."""
+def test_more_mentions_than_the_limit_none_fitting_is_still_attested(tmp_path: Path) -> None:
+    """Review F1 — truncation counts fitting rows only: mentions past the limit that cannot be
+    this file must not turn its zero into relationship_not_modelled."""
     files = dict(BASE)
-    files["app/a.php"] = "<?php\ninclude '../nowhere/screen.php';\n"
+    for n in range(4):
+        files[f"app/m{n}.php"] = f"<?php\ninclude '../nowhere{n}/screen.php';\n"
     config = _build(tmp_path, files)
     narrow = dataclasses.replace(config, page_limit=1)
     answer = include_graph.create(narrow)(UNUSED, direction="imported_by")
-    assert answer["reason"] == REASON_RELATIONSHIP_NOT_MODELLED
-    assert answer["unlinked_includes_truncated"] is True
+    assert answer["reason"] == REASON_NO_MATCHES, answer
+    assert answer["authoritative"] is True
+    assert "unlinked_includes_truncated" not in answer
+
+
+def test_a_case_only_fit_is_never_an_attested_zero(tmp_path: Path) -> None:
+    """Review F2 — `../Legacy/Screen.php` reaches this copy on a case-insensitive filesystem."""
+    files = dict(BASE)
+    files["tools/fix.php"] = "<?php\ninclude '../Legacy/Screen.php';\n"
+    config = _build(tmp_path, files)
+    answer = include_graph.create(config)(UNUSED, direction="imported_by")
+    assert answer["reason"] == REASON_RELATIONSHIP_NOT_MODELLED, answer
+    assert [site["file"] for site in answer["unlinked_includes"]] == ["tools/fix.php"]
+    assert "authoritative" not in answer
