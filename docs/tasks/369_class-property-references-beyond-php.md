@@ -184,11 +184,11 @@ Ran at e0d84cf1.
 
 ## Phase 3 — execute
 
-Commit `f7a7a734` (code, tests, parity, docs). **Red first** — the test on the prior parsers:
+Commit `0d7a2cf8` (code, tests, parity, docs). **Red first** — the test on the prior parsers:
 `3 failed`. **P8:** `cross_repo_validate.py --public-only --skip-clone` 11 ok / 0 failed; nodes
 unchanged everywhere, edges up on the Python samples only — flask 7317→7368, pydantic
 78731→79577, requests 4417→4686 (the TS samples declare no static field read this way); floors
-re-set at ≈80% in `29ba45b3`.
+re-set at ≈80% in `d2c9e04f`.
 
 **Sweep.** Axis 1: `git diff --name-only feat/368-python-module-scope-receiver..HEAD` = items 1–6;
 `ruff check`, `mypy` (core, Python adapter), `tsc --checkJs --strict` clean. Axis 2: as approved.
@@ -197,12 +197,12 @@ re-set at ≈80% in `29ba45b3`.
 
 `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`
 
-**Challenger (ticket-blind, round 1, on `89be92bc` — `f7a7a734` after the rebase —, 57,985 tokens): 4 met · 2 not met · 1 can't tell.**
+**Challenger (ticket-blind, round 1, on `89be92bc` — `0d7a2cf8` after the rebase —, 57,985 tokens): 4 met · 2 not met · 1 can't tell.**
 
 1. **F1 (high): a parameter or local named like the class, or a rebound `self`, was read as the class.**
-   **Fixed** in `be42df2e`: both adapters check the receiver's scope; red `2 failed, 1 passed` on the prior parsers.
+   **Fixed** in `cddc1a25`: both adapters check the receiver's scope; red `2 failed, 1 passed` on the prior parsers.
 2. **F2: two dependency symlinks were committed.** **Fixed** before push (the commit was amended).
-3. **F3 / AC5: no cross-repo run.** **Fixed:** run and re-floored (`29ba45b3`).
+3. **F3 / AC5: no cross-repo run.** **Fixed:** run and re-floored (`d2c9e04f`).
 4. **F4: TS `Foo["count"]` is not read.** **Left:** a documented limit (element access).
 5. **F5: a class name declared twice in a file is ambiguous and emits nothing.** **Left:** the file's
    ambiguity rule, never a pick.
@@ -212,7 +212,7 @@ re-set at ≈80% in `29ba45b3`.
 
 Verify-only (main loop):
 
-Ran at 29ba45b3:
+Ran at d2c9e04f:
 ```
 $ .venv/bin/python -m pytest -q tests/test_class_property_references_beyond_php.py
 3 passed
@@ -222,12 +222,12 @@ $ .venv/bin/python -m pytest -q tests/test_class_property_references_beyond_php.
 
 Verdict: **clean (challenger only — REVIEWER: OFF)** — every not-met finding landed.
 
-Reviewed at 29ba45b3 — the diff `feat/368-python-module-scope-receiver..29ba45b3`. Working doc:
+Reviewed at d2c9e04f — the diff `feat/368-python-module-scope-receiver..d2c9e04f`. Working doc:
 `docs/tasks/369_class-property-references-beyond-php.md` (embedded).
 
 ## Phase 5 — finalise
 
-Stale-review guard: after `29ba45b3` only bookkeeping changes — this doc, `docs/BACKLOG.md`,
+Stale-review guard: after `d2c9e04f` only bookkeeping changes — this doc, `docs/BACKLOG.md`,
 `docs/TOKEN_LEDGER.md` and `docs/LESSONS.md`, all exempt.
 
 `CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
