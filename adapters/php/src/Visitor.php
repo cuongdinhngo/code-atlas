@@ -146,12 +146,13 @@ final class Visitor extends NodeVisitorAbstract
             $frame = $this->innermostScope(Node\Stmt\ClassLike::class);
             $this->types->beginFunction($frame === null ? null : $frame[1]);
             $this->types->bindParams($node->params);
-            if ($node->name->toString() === '__construct') {
+            // PHP names are case-insensitive: `__CONSTRUCT` is the constructor too (362).
+            $isCtor = strtolower($node->name->toString()) === '__construct';
+            if ($isCtor) {
                 $this->declarePromotedProperties($node);
             }
             $extra = $this->callableExtra($node->attrGroups, $node->returnType);
-            // PHP names are case-insensitive: `__CONSTRUCT` is the constructor too (362).
-            if (strtolower($node->name->toString()) === '__construct') {
+            if ($isCtor) {
                 $extra['constructor'] = true;
             }
             $this->open($node, 'Method', $node->name->toString(), $this->member($node->name->toString()), [
@@ -586,9 +587,13 @@ final class Visitor extends NodeVisitorAbstract
     private function enterNew(Node\Expr\New_ $node): void
     {
         if ($node->class instanceof Node\Name) {
-            $this->edge(
-                'NEW', $this->container(), self::fqn($node->class), $node->getStartLine(), null, $node,
-            );
+            // `new self/static/parent` names the enclosing class or its parent; none → no edge (362).
+            $target = $this->mentionTarget($node->class);
+            if ($target === null) {
+                return;
+            }
+            $tier = strcasecmp($node->class->toString(), 'static') === 0 ? 'HEURISTIC' : null;
+            $this->edge('NEW', $this->container(), $target, $node->getStartLine(), $tier, $node);
         } elseif ($node->class instanceof Node\Stmt\Class_) {
             // Peek only — enterAnonymousClass registers the qname when the Class_ node is visited.
             $target = $this->anonymousQname($node->class, 'class', register: false);

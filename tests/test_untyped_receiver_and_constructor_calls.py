@@ -19,7 +19,11 @@ from code_atlas.contract import CONSTRUCTOR_FLAG
 from code_atlas.indexer import full_build
 from code_atlas.store import GraphStore
 from code_atlas.tools import find_callers
-from code_atlas.tools.nav_result import REASON_OK, REASON_PROXIMITY_CANDIDATES
+from code_atlas.tools.nav_result import (
+    REASON_NO_MATCHES,
+    REASON_OK,
+    REASON_PROXIMITY_CANDIDATES,
+)
 from tests.php_adapter_cli import ENTRY, PHP, needs_php
 
 pytestmark = needs_php
@@ -28,6 +32,10 @@ FILES = {
     # Two classes declare the method, so a bare call to it cannot be linked by name alone.
     "lib/a/Editor.php": "<?php\nclass Editor { public function getStartDate() { return 1; } }\n",
     "lib/b/Planner.php": "<?php\nclass Planner { public function getStartDate() { return 2; } }\n",
+    # Declares the method too, but nothing constructs it and nothing calls it.
+    "lib/c/Scheduler.php": (
+        "<?php\nclass Scheduler { public function getStartDate() { return 3; } }\n"
+    ),
     # The variable is typed in the included file and called in the includer (and vice versa).
     "views/setup.php": "<?php\n$editor = new Editor();\n",
     "reports/daily.php": "<?php\ninclude '../views/setup.php';\necho $editor->getStartDate();\n",
@@ -40,8 +48,19 @@ FILES = {
         "class Child extends FormBuilder {\n"
         "    public function __construct() { parent::__construct('child'); }\n}\n"
     ),
-    "lib/Legacy.php": "<?php\nclass Legacy {\n    public function __CONSTRUCT() {}\n}\n",
-    "forms/make.php": "<?php\n$f = new FormBuilder('nurse');\n$g = new FormBuilder($kind);\n",
+    "lib/Legacy.php": (
+        "<?php\nclass Legacy {\n    public function __CONSTRUCT(private int $id) {}\n}\n"
+    ),
+    "forms/make.php": "<?php\n$f = new FormBuilder('nurse');\n",
+    "forms/dynamic.php": "<?php\n$g = new FormBuilder($kind);\n",
+    # `new self/static/parent` name the class they sit in, or its parent.
+    "lib/Repo.php": (
+        "<?php\nclass Repo {\n    public function __construct() {}\n"
+        "    public static function make() { return new self(); }\n"
+        "    public static function lazy() { return new static(); }\n}\n"
+        "class SubRepo extends Repo {\n"
+        "    public static function base() { return new parent(); }\n}\n"
+    ),
     # One twin names its method in another case than its own call (AC3).
     "aus/Widget.php": (
         "<?php\nclass AusWidget {\n    public function validate() {}\n"
@@ -93,10 +112,13 @@ def test_a_variable_typed_in_an_included_file_reaches_its_method(config: Config)
 
 
 def test_a_site_whose_includes_construct_another_class_is_no_candidate(config: Config) -> None:
-    """The include graph narrows: `$editor` sites are not offered as `Planner`'s callers."""
-    answer = find_callers.create(config)("\\Planner::getStartDate")
-    assert "reports/daily.php" not in _sources(answer)
-    assert "views/part.php" not in _sources(answer)
+    """The include graph narrows by class: `$editor` sites are not `Scheduler`'s candidates.
+
+    `Scheduler` has no linked caller, so proximity runs; a class-blind include would offer them.
+    """
+    answer = find_callers.create(config)("\\Scheduler::getStartDate")
+    assert answer["reason"] == REASON_NO_MATCHES, answer
+    assert _sources(answer) == []
 
 
 def test_constructor_callers_are_the_new_sites_of_its_class(config: Config) -> None:
@@ -104,7 +126,7 @@ def test_constructor_callers_are_the_new_sites_of_its_class(config: Config) -> N
     tool = find_callers.create(config)
     every = tool("\\FormBuilder::__construct")
     assert every["reason"] == REASON_OK, every
-    assert _sources(every) == ["\\Child::__construct", "forms/make.php"]
+    assert _sources(every) == ["\\Child::__construct", "forms/dynamic.php", "forms/make.php"]
     literal = tool("\\FormBuilder::__construct", arg_position=1, arg_is="string")
     assert _sources(literal) == ["\\Child::__construct", "forms/make.php"]
     assert literal["total_count"] == 2
@@ -124,7 +146,33 @@ def test_the_adapter_marks_a_constructor_case_insensitively(config: Config) -> N
         "\\Child::__construct",
         "\\FormBuilder::__construct",
         "\\Legacy::__CONSTRUCT",
+        "\\Repo::__construct",
     ]
+
+
+def test_an_upper_case_constructor_still_promotes_its_parameters(config: Config) -> None:
+    """`__CONSTRUCT(private $id)` is the constructor, so `$id` is a declared property (362)."""
+    conn = sqlite3.connect(config.db_path)
+    rows = conn.execute(
+        "SELECT qualified_name FROM nodes WHERE kind = 'Property'"
+        " AND qualified_name LIKE '\\Legacy::%'"
+    ).fetchall()
+    conn.close()
+    assert [row[0] for row in rows] == ["\\Legacy::$id"]
+
+
+def test_new_self_static_and_parent_reach_the_constructor(config: Config) -> None:
+    """`new self/static/parent` is a `new` of the enclosing class or its parent; static is late."""
+    answer = find_callers.create(config)("\\Repo::__construct")
+    assert answer["reason"] == REASON_OK, answer
+    hits = answer["results"]
+    assert isinstance(hits, list)
+    tiers = {str(hit["qname"]): hit["confidence_tier"] for hit in hits}
+    assert tiers == {
+        "\\Repo::lazy": "HEURISTIC",
+        "\\Repo::make": "RESOLVED",
+        "\\SubRepo::base": "RESOLVED",
+    }
 
 
 def test_a_twin_naming_its_method_in_another_case_stays_unlinked(config: Config) -> None:
@@ -141,12 +189,11 @@ def test_a_twin_naming_its_method_in_another_case_stays_unlinked(config: Config)
     assert unlinked == [("\\NzWidget::validate", None)]
 
 
-
 def test_a_truncated_constructor_page_spreads_over_every_caller(config: Config) -> None:
     """Challenger F2 — the subtree spread reads the same targets as the rows and the count."""
     answer = find_callers.create(config)("\\FormBuilder::__construct", limit=1)
     assert answer["truncated"] is True
-    assert answer["total_count"] == 2
+    assert answer["total_count"] == 3
     spread = answer["result_subtrees"]
-    assert sum(spread.values()) == 3  # Child's parent::__construct + the two `new` lines
+    assert sum(spread.values()) == 3  # Child's parent::__construct + the two `new` files
     assert set(spread) == {"forms", "lib"}
