@@ -26,6 +26,8 @@ _HEURISTIC = contract.CONFIDENCE_TIERS[1]
 
 # One-line call sites only (v1): Nth quoted string literal on the CALLS line.
 _STRING_LIT = re.compile(r"""'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*\"""")
+# What a keyed_calls rule may emit: a call, or a write / row removal of the table it names (364).
+_KEYED_KINDS: tuple[str, ...] = ("CALLS", contract.WRITES, contract.DELETES)
 # keyed_calls placeholders: `{key}`, or a key_pattern's named groups / an object's fields (361).
 _TEMPLATE_PLACEHOLDER = re.compile(r"\{([^{}]+)\}")
 # One whole top-level entry `name: 'value'` / `'name' => "value"` of an object/array literal (361).
@@ -37,6 +39,10 @@ _IDENTIFIER = re.compile(r"[A-Za-z_$][\w$]*")
 _OPENERS = {"(": ")", "[": "]", "{": "}"}
 
 
+# One keyed_calls edge as the census sees it: (source, target_raw, line, kind) — 222/352/364.
+Stamp = tuple[str, str, int, str]
+
+
 class KeyedCall(NamedTuple):
     """One ``keyed_calls`` rule: where the key comes from and the template it fills (222/361)."""
 
@@ -46,6 +52,8 @@ class KeyedCall(NamedTuple):
     template: str
     # Searched in the string key: its named groups, else group 1 as `{key}`, fill the template.
     pattern: re.Pattern[str] | None = None
+    # The edge the rule emits: a call, or a write / row removal onto a `Table` it names (364).
+    kind: str = "CALLS"
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,9 +119,9 @@ class Enriched(NamedTuple):
     nodes: int
     edges: int
     # Per keyed_calls rule: stamps it emitted — post-resolve census (task 222).
-    keyed_call_groups: tuple[tuple[tuple[str, str, int], ...], ...] = ()
+    keyed_call_groups: tuple[tuple[Stamp, ...], ...] = ()
     # Per call site and string key: the stamps every keyed_calls rule emitted for it (352).
-    keyed_call_sites: tuple[tuple[tuple[str, str, int], ...], ...] = ()
+    keyed_call_sites: tuple[tuple[Stamp, ...], ...] = ()
 
 
 NOTHING = Enriched(nodes=0, edges=0)
@@ -122,7 +130,7 @@ NOTHING = Enriched(nodes=0, edges=0)
 def apply_indirection_rules(
     config: Config, store: GraphStore, *, payload: RulesPayload | None = None
 ) -> Enriched:
-    """Replace synthetic ALIASES/CALLS/PROVIDES_VIEW_DATA rows, or clear when off.
+    """Replace synthetic ALIASES/CALLS/WRITES/DELETES/PROVIDES_VIEW_DATA rows, or clear when off.
 
     Edges keep ``file_path=INDIRECTION_FILE``; there is no ``files`` row and no File node
     (task 068 — counters and source-file tools must not treat the bookmark as source).
@@ -245,8 +253,8 @@ def _keyed_calls_edges(
     rules: tuple[KeyedCall, ...],
 ) -> tuple[
     list[dict[str, object]],
-    tuple[tuple[tuple[str, str, int], ...], ...],
-    tuple[tuple[tuple[str, str, int], ...], ...],
+    tuple[tuple[Stamp, ...], ...],
+    tuple[tuple[Stamp, ...], ...],
 ]:
     """CALLS edges whose target is a call's string key filled into ``target_template`` (222/361).
 
@@ -256,12 +264,12 @@ def _keyed_calls_edges(
     if not rules:
         return [], (), ()
     out: list[dict[str, object]] = []
-    groups: list[tuple[tuple[str, str, int], ...]] = []
-    sites: dict[tuple[str, int, str], list[tuple[str, str, int]]] = {}
-    seen: set[tuple[str, str, int]] = set()
+    groups: list[tuple[Stamp, ...]] = []
+    sites: dict[tuple[str, int, str], list[Stamp]] = {}
+    seen: set[Stamp] = set()
     line_cache: dict[tuple[str, int], str | None] = {}
     for rule in rules:
-        group: list[tuple[str, str, int]] = []
+        group: list[Stamp] = []
         for edge in _calls_for_setter(store, rule.setter):
             if edge.get("file_path") == INDIRECTION_FILE:
                 continue
@@ -272,7 +280,7 @@ def _keyed_calls_edges(
                 continue
             for literal, values in _keyed_values(config, edge, rule, rel, line, line_cache):
                 target = _fill(rule.template, values)
-                stamp = (source, target, line)
+                stamp = (source, target, line, rule.kind)
                 site = sites.setdefault((source, line, literal), [])
                 if stamp not in site:
                     site.append(stamp)
@@ -280,9 +288,11 @@ def _keyed_calls_edges(
                     continue
                 seen.add(stamp)
                 group.append(stamp)
+                if rule.kind != "CALLS" and contract.MEMBER_SEPARATOR in target:
+                    continue  # names a member: no row is written, so the stamp counts unresolved
                 out.append(
                     {
-                        "kind": "CALLS",
+                        "kind": rule.kind,
                         "source_qname": source,
                         "target_raw": target,
                         "file_path": INDIRECTION_FILE,
@@ -297,6 +307,7 @@ def _keyed_calls_edges(
             str(row["source_qname"]),
             str(row["target_raw"]),
             int(row["line"]) if type(row["line"]) is int else 0,
+            str(row["kind"]),
         )
     )
     return out, tuple(groups), tuple(tuple(sites[site]) for site in sorted(sites))
@@ -415,42 +426,30 @@ def _top_level_entries(body: str) -> list[str]:
     return entries
 
 
-def count_unresolved_keyed_calls(
-    store: GraphStore, groups: tuple[tuple[tuple[str, str, int], ...], ...]
-) -> int:
+def count_unresolved_keyed_calls(store: GraphStore, groups: tuple[tuple[Stamp, ...], ...]) -> int:
     """Rules whose every emitted keyed_calls edge stayed unlinked after resolve (task 222 AC4)."""
-    unresolved = 0
-    for stamps in groups:
-        if not stamps:
-            continue
-        any_linked = False
-        for _source, target_raw, _line in stamps:
-            for row in store.calls_by_target_raw(target_raw):
-                if row.get("file_path") != INDIRECTION_FILE:
-                    continue
-                if row.get("target_qname"):
-                    any_linked = True
-                    break
-            if any_linked:
-                break
-        if not any_linked:
-            unresolved += 1
-    return unresolved
+    linked = _linked_stamps(store, {stamp for stamps in groups for stamp in stamps})
+    return sum(1 for stamps in groups if stamps and not any(s in linked for s in stamps))
 
 
-def count_unresolved_keyed_sites(
-    store: GraphStore, sites: tuple[tuple[tuple[str, str, int], ...], ...]
-) -> int:
+def count_unresolved_keyed_sites(store: GraphStore, sites: tuple[tuple[Stamp, ...], ...]) -> int:
     """Call sites whose string key linked under no keyed_calls rule (352).
 
     A literal naming nothing is counted once, however many rules tried it; one target query each.
     """
-    linked: set[tuple[str, str, int]] = set()
-    for target_raw in sorted({stamp[1] for stamps in sites for stamp in stamps}):
-        for row in store.calls_by_target_raw(target_raw):
-            if row.get("file_path") == INDIRECTION_FILE and row.get("target_qname"):
-                linked.add((str(row.get("source_qname")), target_raw, int(str(row.get("line")))))
+    linked = _linked_stamps(store, {stamp for stamps in sites for stamp in stamps})
     return sum(1 for stamps in sites if not any(stamp in linked for stamp in stamps))
+
+
+def _linked_stamps(store: GraphStore, stamps: set[Stamp]) -> set[Stamp]:
+    """The stamps whose own rule row — same source, target, line and kind — the resolver linked."""
+    linked: set[Stamp] = set()
+    for target_raw, kind in sorted({(stamp[1], stamp[3]) for stamp in stamps}):
+        for row in store.edges_by_target_raw(target_raw, kinds=(kind,)):
+            if row.get("file_path") == INDIRECTION_FILE and row.get("target_qname"):
+                line = int(str(row.get("line")))
+                linked.add((str(row.get("source_qname")), target_raw, line, kind))
+    return linked & stamps
 
 
 def _calls_for_setter(store: GraphStore, setter: str) -> list[dict[str, object]]:
@@ -728,7 +727,13 @@ def _keyed_call(item: dict[str, Any], label: str) -> KeyedCall:
             f"{where}.target_template must contain exactly the placeholder '{{key}}' "
             f"(found {names!r})"
         )
-    return KeyedCall(setter, key_arg, key_from, template, pattern)
+    kind = item.get("kind", "CALLS")
+    if kind not in _KEYED_KINDS:
+        raise ConfigError(f"{where}.kind must be one of {list(_KEYED_KINDS)}")
+    if kind != "CALLS" and contract.MEMBER_SEPARATOR in template:
+        # A rule names the table, never its columns: the write stays unmeasured (CONVENTION §3).
+        raise ConfigError(f"{where}.target_template of a {kind} rule must name a Table, no member")
+    return KeyedCall(setter, key_arg, key_from, template, pattern, kind)
 
 
 def _as_list(raw: object, label: str, field: str) -> list[Any]:

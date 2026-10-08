@@ -1933,6 +1933,15 @@ class GraphStore:
         )
         return self._rows(EDGE_ROW_KEYS, sql, (target_raw,))
 
+    def edges_by_target_raw(self, target_raw: str, *, kinds: Sequence[str]) -> list[Row]:
+        """Every edge of ``kinds`` with exact ``target_raw`` — a rule's emitted rows (364)."""
+        marks = ", ".join("?" for _ in kinds)
+        sql = (
+            f"SELECT id, {_EDGE_COLUMNS} FROM edges "
+            f"WHERE kind IN ({marks}) AND target_raw = ? ORDER BY {_EDGE_ORDER}"
+        )
+        return self._rows(EDGE_ROW_KEYS, sql, (*kinds, target_raw))
+
     def calls_ending_with_target_raw(self, suffix: str) -> list[Row]:
         """CALLS whose ``target_raw`` ends with ``suffix`` (bare-setter ``::method`` arm)."""
         if not suffix:
@@ -2041,7 +2050,7 @@ class GraphStore:
         sql = (
             "SELECT COUNT(*) FROM ("
             f"SELECT 1 FROM edges WHERE {clause} "
-            "GROUP BY source_qname, file_path, line"
+            "GROUP BY source_qname, file_path, line, kind"
             ")"
         )
         return int(self._conn.execute(sql, (*qnames, *params)).fetchone()[0])
@@ -2082,8 +2091,8 @@ class GraphStore:
             "file_path, line, "
             f"MIN({_EDGE_TIER_RANK}) AS tier_rank "
             f"FROM edges WHERE {clause} "
-            "GROUP BY source_qname, file_path, line "
-            "ORDER BY tier_rank, source_qname, file_path, line "
+            "GROUP BY source_qname, file_path, line, kind "
+            "ORDER BY tier_rank, source_qname, file_path, line, kind "
             "LIMIT ? OFFSET ?"
         )
         cursor = self._conn.execute(sql, (*qnames, *params, limit, offset))
@@ -2124,7 +2133,7 @@ class GraphStore:
             "SELECT COALESCE(src.is_test, 0), COALESCE(src.file_path, ''), COUNT(*) "
             "FROM ("
             f"SELECT source_qname, file_path, line FROM edges WHERE {clause} "
-            "GROUP BY source_qname, file_path, line"
+            "GROUP BY source_qname, file_path, line, kind"
             f") edges {one_src} GROUP BY 1, 2"
         )
         return [
@@ -4470,4 +4479,10 @@ def _path_prefix_predicate(path_prefix: str | None) -> _Predicate:
     if path_prefix is None:
         return None
     clause, extras = _path_under(path_prefix, "edges.file_path")
-    return clause, extras
+    # A row with no ``files`` row (the rule bookmark, 068) sits where its source is declared (364).
+    src_clause, src_extras = _path_under(path_prefix, "src.file_path")
+    placed = (
+        "(NOT EXISTS (SELECT 1 FROM files f WHERE f.path = edges.file_path) AND EXISTS "
+        f"(SELECT 1 FROM nodes src WHERE src.qualified_name = edges.source_qname AND {src_clause}))"
+    )
+    return f"({clause} OR {placed})", (*extras, *src_extras)
