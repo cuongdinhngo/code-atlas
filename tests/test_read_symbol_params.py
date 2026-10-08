@@ -308,7 +308,7 @@ def test_payload_weight_params_bounded(tmp_path: Path) -> None:
     # 79 name+type pairs: measured ceiling leaves headroom for provenance keys.
     assert len(standard["params"]) == 79
     assert delta < 4000
-    assert CONTRACT_VERSION == 13
+    assert CONTRACT_VERSION == 14
 
 
 def test_non_callable_kinds_carry_neither_params_nor_the_disclosure(tmp_path: Path) -> None:

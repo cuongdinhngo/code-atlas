@@ -181,6 +181,13 @@ def _arg_literals(call: ast.Call) -> list[str | None] | None:
     return [_literal_kind(a) for a in call.args]
 
 
+def _kwarg_literals(call: ast.Call) -> dict[str, str | None] | None:
+    """Keyword → category (372); a `**` spread hides which keywords arrive, so none are recorded."""
+    if any(kw.arg is None for kw in call.keywords):
+        return None
+    return {kw.arg: _literal_kind(kw.value) for kw in call.keywords if kw.arg is not None}
+
+
 def _dict_string_keys(node: ast.Dict) -> list[str]:
     keys: list[str] = []
     for key in node.keys:
@@ -681,6 +688,9 @@ def parse_file(
             if args is not None:
                 row["args"] = args
                 row["arg_keys"] = _arg_keys(call)
+            kwargs = _kwarg_literals(call)
+            if kwargs is not None:
+                row["kwargs"] = kwargs
         edges.append(row)
 
     def decorator_target_raw(deco: ast.expr) -> str | None:

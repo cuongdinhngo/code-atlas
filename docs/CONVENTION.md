@@ -98,10 +98,11 @@ code-atlas/
 - **Node fields:** `kind, name, qualified_name, file_path, line_start, line_end, modifiers, params, is_test, extra`.
 - **`extra['type']` (contract v7):** declared type on `Property` / `ClassConst`, and declared **return
   type** on `Method` / `Function` (including closures), one key (task 144).
-- **Edge fields:** `kind, source_qname, target_qname?, target_raw, file_path, line, confidence_tier, args?, arg_keys?`.
-- **`arg_keys` (contract v5):** optional list parallel to `args`. For an `"array"` arg, a list of
-  top-level string keys from the array literal (empty list = captured, none found). `null` for
+- **Edge fields:** `kind, source_qname, target_qname?, target_raw, file_path, line, confidence_tier, args?, arg_keys?, kwargs?`.
+- **`arg_keys` (contract v5):** optional list parallel to `args`. For an `"array"` arg, its top-level
+  string keys (empty list = captured, none found). `null` for
   non-array args. Absent = not captured (pre-v5); read by `view_data`'s `key_from: "array_keys"` (063).
+- **`kwargs` (v14, 372):** keyword → an `args` category; `{}` none passed, absent not recorded.
 - **Argument literals (`args` entries):** `null true false number string array` — the literal's
   *category*, never its value; a JSON `null` entry means "not a literal". Omitting `args` means the
   arguments are unknown, which is never the same as "no arguments".

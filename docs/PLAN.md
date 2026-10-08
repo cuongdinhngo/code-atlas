@@ -173,7 +173,8 @@ a leak of whatever the source holds; a category is enough to answer *which call 
 here*. The whole field is **omitted when positions cannot be trusted** — a spread, a named argument —
 or when the adapter does not record arguments; omitted means *unknown*, never *no arguments*.
 `arg_keys` (contract v5, task 063) is parallel to it and follows the same discipline: keys, never
-values, and an absent field means *not captured* (a pre-v5 index), not *none found*.
+values, and an absent field means *not captured* (a pre-v5 index), not *none found*. `kwargs`
+(contract v14, task 372) maps a keyword argument's name to its category, beside `args` (R1.7).
 
 **Qualified-name convention** (identical across languages, adapter's job to honor): the **container**
 keeps its language-native separator (`\`, `.`, `/`); the **member** boundary is always
@@ -388,11 +389,11 @@ guard's two branches, an `interface X` + `class X` fixture), which **would** tri
 deterministic — R4.2) before insert, so a duplicate-declaration file soft-succeeds with one node per
 qname rather than aborting the build (R5.1, task 043). NULL/anonymous qnames are never collapsed.
 
-**`schema_version` is `"6"` and enforced loud.** On open, a database carrying a different value raises
+**`schema_version` is `"7"` and enforced loud.** On open, a database carrying a different value raises
 — the DB is a derived cache, so there is no migration runner. Each bump names the task that
 holds it: **2** `nodes_fts` trigram (camelCase substring search); **3** `edges.args` (049); **4**
 `edges.arg_keys` (063); **5** `files.fingerprint` (213); **6** one unresolved site per call in place
-of materialised Method-name siblings (258).
+of materialised Method-name siblings (258); **7** `edges.kwargs` (372).
 
 **The mismatch has a direction, and the two directions need opposite actions (task 050).** The stamp
 is read *before* the DDL runs, so a database this build cannot read is never written to, and

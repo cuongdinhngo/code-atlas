@@ -32,7 +32,9 @@ from typing import Literal, get_args
 # trap 321 met for DDL — so it is a word of its own rather than a `WRITES` enroling every deleter.
 # v13: `symbol_shapes` on the handshake (345). An adapter says what a grep for one of its symbols
 # looks like, so the grep-time nudge reads a language standard instead of a core table (R1.1).
-CONTRACT_VERSION = 13
+# v14: `kwargs` on a call site (372). A keyword argument has a name and no position, so it rides
+# its own field beside `args` (R1.7); positional `args` are unchanged.
+CONTRACT_VERSION = 14
 
 # Ordered Literal is the typing SSoT; NODE_KINDS is derived so schemas cannot drift (R3.2 / 056).
 NodeKind = Literal[
@@ -198,6 +200,7 @@ EDGE_FIELDS: tuple[str, ...] = (
     "confidence_tier",
     "args",
     "arg_keys",
+    "kwargs",
 )
 
 # One entry per argument at a CALLS/NEW site, in source order (contract v3, task 049).
@@ -207,6 +210,9 @@ ARG_LITERALS: tuple[str, ...] = ("null", "true", "false", "number", "string", "a
 # Parallel to ``args`` (contract v5, task 063): per-arg ``null`` or a list of top-level string
 # keys from an array literal. Absent field / null slot = keys not captured (pre-v5 indexes).
 ARG_KEYS_FIELD = "arg_keys"
+# Keyword arguments at a call site (contract v14, task 372): name → the same category as an `args`
+# entry. `{}` = recorded, none passed; absent = not recorded (another language, or a `**` spread).
+KWARGS_FIELD = "kwargs"
 # Reserved ``args`` selectors that are not literals: fewer arguments than asked for, and "present
 # but not a literal". Kept apart from ARG_LITERALS so neither list can shadow the other.
 ARG_ABSENT = "absent"
@@ -533,6 +539,25 @@ def _check_row(
         errors += _check_args(path, row["args"])
     if ARG_KEYS_FIELD in row:
         errors += _check_arg_keys(path, row[ARG_KEYS_FIELD], row.get("args"))
+    if KWARGS_FIELD in row:
+        errors += _check_kwargs(path, row[KWARGS_FIELD])
+    return errors
+
+
+def _check_kwargs(path: str, kwargs: object) -> list[str]:
+    """``kwargs`` maps a keyword's name to null or one of ARG_LITERALS, as an ``args`` entry."""
+    if kwargs is None:
+        return []
+    if not isinstance(kwargs, dict):
+        return [_wrong_type(f"{path}.kwargs", kwargs, "an object of keyword → argument literal")]
+    errors: list[str] = []
+    for name, entry in kwargs.items():
+        if not isinstance(name, str) or not name:
+            errors.append(_wrong_type(f"{path}.kwargs key", name, "a keyword name"))
+        elif entry is not None and entry not in ARG_LITERALS:
+            errors.append(
+                _not_allowed(f"{path}.kwargs[{name!r}]", entry, "argument literal", ARG_LITERALS)
+            )
     return errors
 
 

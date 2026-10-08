@@ -29,7 +29,7 @@ from code_atlas.contract import CONFIDENCE_TIERS
 # (task 106: 8,477 entry points against a 500 budget left zero room and zero edges).
 _TOUR_SEED_BUDGET_DIVISOR = 4
 
-SCHEMA_VERSION = "6"
+SCHEMA_VERSION = "7"
 SCHEMA_VERSION_KEY = "schema_version"
 CONTRACT_VERSION_KEY = "contract_version"
 LAST_COMMIT_KEY = "last_commit"
@@ -197,7 +197,8 @@ CREATE INDEX IF NOT EXISTS idx_nodes_file ON nodes(file_path);
 
 CREATE TABLE IF NOT EXISTS edges (
   id INTEGER PRIMARY KEY, kind TEXT, source_qname TEXT, target_qname TEXT, target_raw TEXT,
-  file_path TEXT, line INT, confidence_tier TEXT DEFAULT 'RESOLVED', args TEXT, arg_keys TEXT);
+  file_path TEXT, line INT, confidence_tier TEXT DEFAULT 'RESOLVED', args TEXT, arg_keys TEXT,
+  kwargs TEXT);
 CREATE INDEX IF NOT EXISTS idx_edges_src ON edges(source_qname, kind);
 CREATE INDEX IF NOT EXISTS idx_edges_tgt ON edges(target_qname, kind);
 CREATE INDEX IF NOT EXISTS idx_edges_tier ON edges(confidence_tier);
@@ -602,15 +603,18 @@ def _rank_window(partition: str, qname: str, distinct_qnames: bool) -> tuple[str
 _Predicate = tuple[str, tuple[object, ...]] | None
 
 
-def _args_predicate(args_at: tuple[int, str] | None) -> _Predicate:
+def _args_predicate(args_at: tuple[int | str, str] | None) -> _Predicate:
     """Turn ``(1-based position, selector)`` into SQL over the JSON ``args`` column (task 049).
 
-    An edge with no recorded ``args`` never matches: unknown is not absent, and a filter that
+    A keyword name in place of the position reads the ``kwargs`` column instead (372). An edge with
+    no recorded ``args`` / ``kwargs`` never matches: unknown is not absent, and a filter that
     quietly counted it as such would be the untrustworthy measurement this replaces.
     """
     if args_at is None:
         return None
     position, selector = args_at
+    if isinstance(position, str):
+        return _kwargs_predicate(position, selector)
     if position < 1:
         raise ValueError(f"argument position is 1-based, got {position}")
     if selector not in contract.ARG_SELECTORS:
@@ -625,6 +629,21 @@ def _args_predicate(args_at: tuple[int, str] | None) -> _Predicate:
             (position, at),
         )
     return "edges.args IS NOT NULL AND json_extract(edges.args, ?) = ?", (at, selector)
+
+
+def _kwargs_predicate(name: str, selector: str) -> _Predicate:
+    """``(keyword, selector)`` over the JSON ``kwargs`` column: ``absent`` = the call passed no such
+    keyword, ``dynamic`` = passed, not a literal (372)."""
+    if not name.isidentifier():
+        raise ValueError(f"a keyword argument is named by an identifier, got {name!r}")
+    if selector not in contract.ARG_SELECTORS:
+        raise ValueError(f"unknown argument selector {selector!r}: {contract.ARG_SELECTORS}")
+    at = f'$."{name}"'
+    if selector == contract.ARG_ABSENT:
+        return "edges.kwargs IS NOT NULL AND json_type(edges.kwargs, ?) IS NULL", (at,)
+    if selector == contract.ARG_DYNAMIC:
+        return "edges.kwargs IS NOT NULL AND json_type(edges.kwargs, ?) = 'null'", (at,)
+    return "edges.kwargs IS NOT NULL AND json_extract(edges.kwargs, ?) = ?", (at, selector)
 
 
 def _tier_predicate(confidence_tier: str | None) -> _Predicate:
@@ -2023,7 +2042,7 @@ class GraphStore:
         kinds: Sequence[str] | None = None,
         limit: int,
         offset: int = 0,
-        args_at: tuple[int, str] | None = None,
+        args_at: tuple[int | str, str] | None = None,
         confidence_tier: str | None = None,
         exclude_test_sources: bool = False,
         distinct_sources: bool = False,
@@ -2236,7 +2255,7 @@ class GraphStore:
         qname: str,
         *,
         kinds: Sequence[str] | None = None,
-        args_at: tuple[int, str] | None = None,
+        args_at: tuple[int | str, str] | None = None,
         confidence_tier: str | None = None,
         exclude_test_sources: bool = False,
         distinct_sources: bool = False,
@@ -2263,7 +2282,7 @@ class GraphStore:
         sources: Sequence[str],
         *,
         kinds: Sequence[str] | None = None,
-        args_at: tuple[int, str] | None = None,
+        args_at: tuple[int | str, str] | None = None,
         confidence_tier: str | None = None,
         exclude_test_sources: bool = False,
         also_targets: Sequence[str] = (),
@@ -2302,7 +2321,7 @@ class GraphStore:
         qname: str,
         *,
         kinds: Sequence[str] | None = None,
-        args_at: tuple[int, str] | None = None,
+        args_at: tuple[int | str, str] | None = None,
         confidence_tier: str | None = None,
         distinct_sources: bool = False,
         also_targets: Sequence[str] = (),
@@ -2350,7 +2369,7 @@ class GraphStore:
         qname: str,
         *,
         kinds: Sequence[str] | None = None,
-        args_at: tuple[int, str] | None = None,
+        args_at: tuple[int | str, str] | None = None,
         also_targets: Sequence[str] = (),
     ) -> dict[str, int]:
         """``confidence_tier`` → count over every edge targeting ``qname`` (task 251).
@@ -2374,7 +2393,7 @@ class GraphStore:
         qname: str,
         *,
         kinds: Sequence[str] | None = None,
-        args_at: tuple[int, str] | None = None,
+        args_at: tuple[int | str, str] | None = None,
         confidence_tier: str | None = None,
         path_prefix: str | None = None,
         also_targets: Sequence[str] = (),
@@ -2411,15 +2430,22 @@ class GraphStore:
         }
 
     def count_edges_without_args(
-        self, qname: str, *, kinds: Sequence[str] | None = None, also_targets: Sequence[str] = ()
+        self,
+        qname: str,
+        *,
+        kinds: Sequence[str] | None = None,
+        also_targets: Sequence[str] = (),
+        keyword: bool = False,
     ) -> int:
         """Edges targeting ``qname`` whose arguments were never recorded — the filter's blind spot.
 
         Unknown is not absent: an ``args_at`` filter can say nothing about these, so a caller that
         reports a filtered count must report this one beside it (§19: no silent narrowing).
+        ``keyword`` counts the edges with no recorded ``kwargs`` instead (372).
         """
         where, values = _target_where(qname, also_targets)
-        return self._count_edges(where, values, kinds, extra=("edges.args IS NULL", ()))
+        column = "edges.kwargs" if keyword else "edges.args"
+        return self._count_edges(where, values, kinds, extra=(f"{column} IS NULL", ()))
 
     def count_bare_calls_not_targeting(self, qname: str, *, bare_name: str) -> int:
         """Distinct HEURISTIC CALLS sites named ``bare_name`` that never resolve to ``qname``.

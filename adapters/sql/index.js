@@ -19,7 +19,7 @@ const META = {
     modifiers: false,
     declared_types: true,
   },
-  contract_version: 13,
+  contract_version: 14,
   // What a grep for a T-SQL object looks like (345). A bare name reads as a symbol only when the grep
   // is scoped to .sql — unscoped it is indistinguishable from any literal word.
   symbol_shapes: [

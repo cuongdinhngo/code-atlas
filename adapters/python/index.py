@@ -24,7 +24,7 @@ META = {
         "declared_types": True,
         "inheritance": True,
     },
-    "contract_version": 13,
+    "contract_version": 14,
     # What a grep for a Python symbol looks like (345): a def/class, a method or import, a call.
     "symbol_shapes": [
         {"kind": "declaration", "pattern": r"\b(async\s+)?def\s+\w+|\bclass\s+\w+"},
