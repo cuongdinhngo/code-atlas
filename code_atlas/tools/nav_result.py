@@ -45,6 +45,7 @@ NavReason = Literal[
     "kind_excluded",
     "path_excluded",
     "path_outside_root",
+    "ref_mismatch",
 ]
 
 REASON_OK: NavReason = "ok"
@@ -101,6 +102,8 @@ REASON_KIND_EXCLUDED: NavReason = "kind_excluded"
 REASON_PATH_EXCLUDED: NavReason = "path_excluded"
 # A path argument resolves outside the indexed tree (symlinks followed) and was not read (342).
 REASON_PATH_OUTSIDE_ROOT: NavReason = "path_outside_root"
+# The client works in another checkout of this repo, at a commit the index was not built at (366).
+REASON_REF_MISMATCH: NavReason = "ref_mismatch"
 
 NAV_REASONS: tuple[NavReason, ...] = (
     REASON_OK,
@@ -131,6 +134,7 @@ NAV_REASONS: tuple[NavReason, ...] = (
     REASON_KIND_EXCLUDED,
     REASON_PATH_EXCLUDED,
     REASON_PATH_OUTSIDE_ROOT,
+    REASON_REF_MISMATCH,
 )
 
 def require_path_prefix(path_prefix: str | None) -> str | None:

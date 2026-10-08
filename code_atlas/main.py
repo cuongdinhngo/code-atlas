@@ -15,6 +15,7 @@ from code_atlas.config import Config, ConfigError, load_config
 from code_atlas.onboarding.layers import LayerRefiner
 from code_atlas.onboarding.prose import ProseWriter
 from code_atlas.onboarding.summary import Summarizer
+from code_atlas.ref_check import CallerRoots
 from code_atlas.tools import (
     architecture_overview,
     build_or_update_index,
@@ -108,6 +109,8 @@ def build_server(
         SERVER_NAME, instructions=instructions.render(config, names, FIELD18_TOOLS)
     )
 
+    server.add_middleware(CallerRoots())
+
     def serve(name: str, tool: object) -> None:
         """Register ``tool`` under ``name``, counting every return (task 260)."""
         server.tool(fit.wrap(name, config, tool))  # type: ignore[arg-type]
@@ -115,7 +118,7 @@ def build_server(
     if get_index_status.NAME in names:
         serve(
             get_index_status.NAME,
-            guard(get_index_status.create(config, names), config),
+            guard(get_index_status.create(config, names), config, status=True),
         )
     if build_or_update_index.NAME in names:
         serve(build_or_update_index.NAME, build_or_update_index.create(config))

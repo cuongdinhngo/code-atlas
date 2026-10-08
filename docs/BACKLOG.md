@@ -25,7 +25,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
 | 365 | [Reads refuse while a refresh runs](tasks/365_reads-refuse-while-a-refresh-runs.md) | Adoption | todo | 356, 357, 274 |
-| 366 | [A wrong-ref answer reads ok](tasks/366_wrong-ref-answer-reads-ok.md) | Adoption | todo | 354, 360 |
 
 ## Open work — Pillar 2 · Onboarding
 

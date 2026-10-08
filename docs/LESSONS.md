@@ -41,6 +41,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
 
 ## Live claims
 
+### 366-C1 — FastMCP middleware never sees a client's `roots/list_changed`
+
+- type: 5 (environment) · area: `fastmcp / middleware notifications` · verified-at: 2026-10-07, FastMCP 3.4.5
+- status: proposed · seen: 366
+- evidence: a session-keyed roots cache cleared in `Middleware.on_notification` stayed stale after
+  the client sent `roots/list_changed`; the challenger found it. Also, the in-process
+  `Client.set_roots` leaves a live session's answer unchanged — a roots *handler* is what moves it.
+- destination: first sighting.
+
 ### 363-C1 — a zero from a text search must count the rows the search cannot match
 
 - type: 2 (code) · handle: `a-zero-must-count-what-the-search-cannot-see`
@@ -163,7 +172,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
 ### 343-C2 — `ruff format` on a file you edit rewrites lines you did not
 
 - type: 2 (code) · handle: `formatter-rewrites-untouched-lines`
-- status: proposed · seen: 343, 360, 359, 357, 361, 362, 363, 364
+- status: proposed · seen: 343, 360, 359, 357, 361, 362, 363, 364, 366
 - evidence: formatting four edited files reflowed four untouched spots (two `main.py` calls, the
   `which_tool` string, a test lambda); the challenger caught one I had missed. The gate runs
   `ruff check` only, so the drift is silent. Format, then revert every hunk the change does not own.

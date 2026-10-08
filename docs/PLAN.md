@@ -840,7 +840,8 @@ Nav answer: `PROVIDES_VIEW_DATA` / `find_view_data`.
   with one SQLite backup; a killed build leaves the live index untouched. This reverses 219's
   reader-visible truncate; 202's incomplete stamp stays for in-place incrementals.
 - **Opt-in six-tool `CA_TOOLS` preset; default surface stays 24 (268).** A worktree whose `CA_DB_PATH`
-  resolves outside it refuses with `index_root_mismatch`.
+  resolves outside it refuses with `index_root_mismatch`; a server rooted at main, asked from a
+  worktree (MCP `roots`) at another commit, answers `ref_mismatch`, rows kept (366).
 - **Consumer-repo brief (266 · 270)** — written into the indexed repo's `AGENTS.md` (marked,
   regenerable); a missing `@AGENTS.md` import in `CLAUDE.md` is printed, never written.
 - **Every adapter stamps its runtime-load idiom (279, 294–296)** into
