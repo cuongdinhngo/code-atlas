@@ -15,6 +15,7 @@ from src.loads import (
     exec_file_path,
     file_relative_target,
 )
+from src.sql_literal import read as read_sql_literal
 from src.types import (
     bound_class,
     class_prop_type_map,
@@ -1075,6 +1076,32 @@ def parse_file(
         if node.attr in class_attrs.get(owner, ()):
             add_edge("REFERENCES", scope, member(owner, node.attr), node)
 
+    # Literals a `+` continues, and strings no statement runs (docstrings, bare expressions).
+    continued: set[int] = set()
+    unread = {
+        id(node.value)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant)
+    }
+
+    def emit_sql_literal(node: ast.expr, text: str, closed: bool, scope: str) -> None:
+        # A literal that begins a T-SQL write or EXEC writes, deletes or calls its object (371).
+        statement = None if id(node) in unread else read_sql_literal(text, closed)
+        if statement is None:
+            return
+        kind, target, offset = statement
+        line = (getattr(node, "lineno", 1) or 1) + text.count("\n", 0, offset)
+        edges.append(
+            {
+                "kind": kind,
+                "source_qname": scope,
+                "target_raw": target,
+                "file_path": qpath,
+                "line": line,
+                "confidence_tier": "HEURISTIC",
+            }
+        )
+
     def _walk_targets(target: ast.expr, scope: str, enclosing_class: str | None) -> None:
         # An assignment target is a write, never a call site: only its attribute refs are read.
         for node in ast.walk(target):
@@ -1092,6 +1119,22 @@ def parse_file(
             emit_call(expr, scope, enclosing_class, locals_, self_props)
         elif isinstance(expr, ast.Attribute):
             emit_attribute_ref(expr, scope, enclosing_class)
+        elif isinstance(expr, ast.Constant) and isinstance(expr.value, str):
+            emit_sql_literal(expr, expr.value, id(expr) not in continued, scope)
+        elif isinstance(expr, ast.JoinedStr):
+            head = expr.values[0] if expr.values else None
+            if isinstance(head, ast.Constant) and isinstance(head.value, str):
+                emit_sql_literal(expr, head.value, len(expr.values) == 1, scope)
+            for part in expr.values:
+                if isinstance(part, ast.FormattedValue):
+                    _walk_expr(part, scope, enclosing_class, locals_, self_props)
+            return
+        elif isinstance(expr, ast.BinOp) and isinstance(expr.op, ast.Add):
+            # `"DELETE FROM dbo." + t`: the literal before `+` is cut short, as PHP's `.` (335).
+            left = expr.left
+            while isinstance(left, ast.BinOp) and isinstance(left.op, ast.Add):
+                left = left.right
+            continued.add(id(left))
         callee = expr.func if isinstance(expr, ast.Call) else None
         for child in ast.iter_child_nodes(expr):
             if child is callee and isinstance(child, ast.Attribute):

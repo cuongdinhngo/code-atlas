@@ -47,11 +47,11 @@ row it closed. `n/a` is a measurement: the language has no such construct.
 | constructor flag — `find_callers` reads construction sites | 362 | 367 | 367 | n/a |
 | static / class property read or write → `REFERENCES` | 336 | 369 | 369 | n/a |
 | include path built from the file's dir or a root + literal tail | 353 | 370 | 373 | n/a |
-| a string literal that begins a SQL write or `EXEC` | 278 · 335 | **371** | **371** | n/a |
+| a string literal that begins a SQL write or `EXEC` | 278 · 335 | 371 | 371 | n/a |
 
 **"free" is the point of the seam:** the hierarchy walk lives in `resolver.py`, so any adapter that
 emits inheritance edges gets it without a line of its own. Before filing a port, check whether the
-mechanism is adapter-side at all. A **bold** cell is an open port, measured by `--file` (2026-10-08).
+mechanism is adapter-side at all. Every port closed in 367–373; `--file` measured each cell (2026-10-08).
 Rule-file mechanisms (`keyed_calls`: 352 · 361 · 364) and `include_graph`'s zero (363) are core, so
 they have no row — but a rule reads `args`, and Python drops keyword arguments (372).
 

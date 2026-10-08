@@ -14,6 +14,7 @@ const {
   pathBuiltRequire,
   pathModuleNames,
 } = require("./imports");
+const { readSqlLiteral } = require("./sqlLiteral");
 const { boundClass, newExprClass, paramTypeMap, classPropTypeMap, typeNodeOf, typeRefTargets } = require("./types");
 
 function scriptKindFor(path) {
@@ -558,6 +559,24 @@ function parseFile(path, declarationsOnly) {
     return true;
   };
 
+  // A literal that begins a T-SQL write or EXEC writes, deletes or calls its object (371). The
+  // literal before a `+` is cut short, as PHP's `.`; a bare expression statement never runs.
+  const continuedLiterals = new Set();
+  const emitSqlLiteral = (node, text, closed, scope) => {
+    if (ts.isExpressionStatement(node.parent)) return;
+    const statement = readSqlLiteral(text, closed);
+    if (!statement) return;
+    const offset = node.getStart(sf) + 1 + statement.offset; // past the opening quote
+    edges.push({
+      kind: statement.kind,
+      source_qname: scope,
+      target_raw: statement.target,
+      file_path: qpath,
+      line: lineOf(offset),
+      confidence_tier: "HEURISTIC",
+    });
+  };
+
   const emitBodyEdges = (node, scope, enclosingClass, locals, selfProps) => {
     // Module structure (IMPORTS, re-export ALIASES) survives declarations_only; CALLS/NEW do not.
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
@@ -586,6 +605,16 @@ function parseFile(path, declarationsOnly) {
       markUnmodelledResolution("dynamic_import");
     }
     if (declarationsOnly) return;
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+      let left = node.left;
+      while (ts.isBinaryExpression(left) && left.operatorToken.kind === ts.SyntaxKind.PlusToken) left = left.right;
+      continuedLiterals.add(left);
+    }
+    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+      emitSqlLiteral(node, node.text, !continuedLiterals.has(node), scope);
+    } else if (ts.isTemplateExpression(node)) {
+      emitSqlLiteral(node, node.head.text, false, scope);
+    }
     // Flow-sensitive, forgetful (137): `x = new Foo()` binds x; `x = <anything else>` re-opens it,
     // so a stale type can never outlive the assignment that invalidated it.
     if (
