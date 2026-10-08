@@ -15,6 +15,8 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 ## Unreleased
 
+- A TS/JS `require` built from `__dirname` plus literals imports its file; a root constant plus
+  a `/…` literal links by its unique path suffix at `HEURISTIC` (370).
 - A TypeScript static field and a Python class attribute read or written through their class or
   its lexical receiver are `REFERENCES` onto the member, so `find_references` lists them (369).
 - A Python call on a module-level variable built by `Foo()` resolves to `Foo`'s method, as it

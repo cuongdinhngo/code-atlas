@@ -5,9 +5,17 @@
 // core resolver (R3.3). See README.md and PLAN §4.4 for the qname/resolution conventions.
 
 const fs = require("node:fs");
+const { posix } = require("node:path");
 const ts = require("typescript");
 const { toPosix, member } = require("./qname");
-const { resolveSpecifier, requireSpecifier, importBindings } = require("./imports");
+const {
+  resolveSpecifier,
+  requireSpecifier,
+  importBindings,
+  pathBuiltRequire,
+  pathModuleNames,
+  resolveWithExt,
+} = require("./imports");
 const { boundClass, newExprClass, paramTypeMap, classPropTypeMap, typeNodeOf, typeRefTargets } = require("./types");
 
 function scriptKindFor(path) {
@@ -151,13 +159,13 @@ function typeTextOf(node, sf) {
 
 // A `const f = () => {}` / `= function () {}` binding is a named function (TS infers the name);
 // a module/namespace-scoped `const K = <value>` is a Const. Other variables produce no node.
-function classifyVariable(stmt, decl) {
+function classifyVariable(stmt, decl, isImport) {
   if (!decl.name || !ts.isIdentifier(decl.name)) return null;
   const init = decl.initializer;
   if (init && (ts.isArrowFunction(init) || ts.isFunctionExpression(init))) {
     return { kind: "Function", name: decl.name.text };
   }
-  if (requireSpecifier(init, ts)) return null; // `const x = require(...)` is an import, not a Const
+  if (requireSpecifier(init, ts) || (isImport && isImport(init))) return null; // an import, not a Const
   const isConst = (stmt.declarationList.flags & ts.NodeFlags.Const) !== 0;
   const moduleScope = stmt.parent && (ts.isSourceFile(stmt.parent) || ts.isModuleBlock(stmt.parent));
   if (isConst && moduleScope) return { kind: "Const", name: decl.name.text };
@@ -263,6 +271,10 @@ function parseFile(path, declarationsOnly) {
     file.extra = extra;
   };
 
+  // A `require` built from a directory or a root plus a literal tail (370).
+  const pathNames = pathModuleNames(sf, ts);
+  const isBuiltRequire = (init) => pathBuiltRequire(init, ts, pathNames) !== null;
+
   // Pre-pass: name -> qname for same-file resolution. A name declared twice is ambiguous and falls
   // back to bare, so the core resolver decides rather than the adapter guessing.
   const declared = new Map();
@@ -293,7 +305,7 @@ function parseFile(path, declarationsOnly) {
       }
     } else if (ts.isVariableStatement(node)) {
       for (const decl of node.declarationList.declarations) {
-        const cls = classifyVariable(node, decl);
+        const cls = classifyVariable(node, decl, isBuiltRequire);
         if (cls) remember(cls.name, member(container, cls.name));
       }
     }
@@ -539,6 +551,25 @@ function parseFile(path, declarationsOnly) {
     }
   };
 
+  // `__dirname` + a literal names a file exactly, as a `./x` literal does; any other head + a `/…`
+  // literal is a HEURISTIC tail the core links by unique path suffix (353), and stays stamped.
+  const emitBuiltRequire = (node) => {
+    const built = pathBuiltRequire(node, ts, pathNames);
+    if (!built) return false;
+    if (built.dirname) {
+      const base = posix.normalize(posix.join(posix.dirname(qpath), built.tail));
+      addEdge("IMPORTS", qpath, resolveWithExt(base) || base, node.getStart(sf));
+      return true;
+    }
+    const segments = built.tail.split("/");
+    if (!built.tail.startsWith("/") || segments.includes("..") || segments.includes(".")) return false;
+    // Node completes an extensionless path; the requiring file's own extension is the sibling's.
+    const tail = posix.extname(built.tail) ? built.tail : built.tail + posix.extname(qpath);
+    addEdge("IMPORTS", qpath, tail, node.getStart(sf), "HEURISTIC");
+    markUnmodelledResolution("dynamic_import");
+    return true;
+  };
+
   const emitBodyEdges = (node, scope, enclosingClass, locals, selfProps) => {
     // Module structure (IMPORTS, re-export ALIASES) survives declarations_only; CALLS/NEW do not.
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
@@ -554,6 +585,8 @@ function parseFile(path, declarationsOnly) {
       const spec = requireSpecifier(node, ts);
       addEdge("IMPORTS", qpath, resolveSpec(spec) || spec, node.getStart(sf));
       return; // a require is an import, never a CALLS
+    } else if (emitBuiltRequire(node)) {
+      return; // as a literal require: an import, never a CALLS
     } else if (
       ts.isCallExpression(node) &&
       node.arguments.length >= 1 &&
@@ -634,6 +667,7 @@ function parseFile(path, declarationsOnly) {
         addEdge("IMPORTS", qpath, resolveSpec(spec) || spec, init.getStart(sf));
         continue;
       }
+      if (emitBuiltRequire(init)) continue;
       // Type binding (137): an annotation or an inferred `new Foo()` types the variable; anything
       // else re-opens it, so the local table never carries a stale class into a later member call.
       if (ts.isIdentifier(decl.name)) {
@@ -641,7 +675,7 @@ function parseFile(path, declarationsOnly) {
         if (bound) locals.set(decl.name.text, bound);
         else locals.delete(decl.name.text);
       }
-      const cls = classifyVariable(stmt, decl);
+      const cls = classifyVariable(stmt, decl, isBuiltRequire);
       if (cls && cls.kind === "Function") {
         const qname = member(container, cls.name);
         // `const f = (u: User) => …` declares its parameters on the initialiser, not on the
