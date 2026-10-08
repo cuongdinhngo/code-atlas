@@ -44,6 +44,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 369-C1 — a receiver read by its spelling needs the scope that could rebind it
+
+- type: 2 (code) · handle: `a-name-receiver-needs-its-scope`
+- status: proposed · seen: 369
+- evidence: `Foo.count` and `self.count` were read as the class whenever the spelling matched, so a
+  parameter named `Foo` or a rebound `self` gave a confident reference onto the wrong target. The
+  challenger found it; both adapters now check the enclosing scopes' parameters and bindings.
+- destination: first sighting.
+
 ### 365-C1 — asking SQLite "are you locked?" misses a writer between its transactions
 
 - type: 2 (code) · handle: `a-transaction-probe-misses-the-writer-between-transactions`

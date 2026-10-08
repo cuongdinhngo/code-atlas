@@ -24,7 +24,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
-| 369 | [TS/Py property references](tasks/369_class-property-references-beyond-php.md) | Coverage | todo | 336, 232 |
 | 370 | [TS path-built require](tasks/370_path-built-imports-beyond-php.md) | Coverage | todo | 353, 363, 294, 295 |
 | 371 | [TS/Py SQL strings](tasks/371_sql-statement-in-a-host-string-beyond-php.md) | Coverage | todo | 278, 281, 335, 364 |
 | 372 | [Py keyword args](tasks/372_python-keyword-arguments-record-no-args.md) | Coverage | todo | 049, 352, 364 |
