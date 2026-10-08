@@ -40,6 +40,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 |---|---|---|---|
 | `formatter-rewrites-untouched-lines` | 10 | 343, 357, 359, 360, 361, 362, 363, 364, 365, 366 | ENGINEERING_RULES R7.7 |
 | `child-build-inherits-adapter-env` | 2 | 356, 357 | ENGINEERING_RULES R6.10 |
+| `widen-every-query-that-shares-the-page` | 3 | 362, 364, 367 | not yet — awaiting the maintainer's `/mango:promote` |
 
 ## Live claims
 
@@ -75,7 +76,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 362-C1 — a widened target must widen every query behind the same answer
 
 - type: 2 (code) · handle: `widen-every-query-that-shares-the-page`
-- status: proposed · seen: 362, 364
+- status: proposed · seen: 362, 364, 367
 - evidence: 362 — a constructor's answer widened its page, count and censuses but not its subtree
   spread; 364 — a new rule edge kind reached the edges but not the rule census, which read CALLS
   rows only. The challenger found both; enumerate every read the payload is built from.
