@@ -43,7 +43,7 @@ row it closed. `n/a` is a measurement: the language has no such construct.
 | member return type resolves the **next** call (`()` chain) | 137 | 301 | 302 | n/a |
 | inherited method via hierarchy walk | 137 | free | free | n/a |
 | runtime-load stamp (`unmodelled_resolution`) | 279 | 294 | 295 | 296 |
-| top-level `new X` binds the receiver (included view, module script) | 362 | 153 | **368** | n/a |
+| top-level `new X` binds the receiver (included view, module script) | 362 | 153 | 368 | n/a |
 | constructor flag — `find_callers` reads construction sites | 362 | 367 | 367 | n/a |
 | static / class property read or write → `REFERENCES` | 336 | **369** | **369** | n/a |
 | include path built from the file's dir or a root + literal tail | 353 | **370** | **373** | n/a |
