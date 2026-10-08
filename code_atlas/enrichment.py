@@ -280,8 +280,6 @@ def _keyed_calls_edges(
                 continue
             for literal, values in _keyed_values(config, edge, rule, rel, line, line_cache):
                 target = _fill(rule.template, values)
-                if rule.kind != "CALLS" and contract.MEMBER_SEPARATOR in target:
-                    continue  # a key that names a member: a table rule never writes a column
                 stamp = (source, target, line, rule.kind)
                 site = sites.setdefault((source, line, literal), [])
                 if stamp not in site:
@@ -290,6 +288,8 @@ def _keyed_calls_edges(
                     continue
                 seen.add(stamp)
                 group.append(stamp)
+                if rule.kind != "CALLS" and contract.MEMBER_SEPARATOR in target:
+                    continue  # names a member: no row is written, so the stamp counts unresolved
                 out.append(
                     {
                         "kind": rule.kind,

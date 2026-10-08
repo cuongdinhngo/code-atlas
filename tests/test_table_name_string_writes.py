@@ -213,9 +213,38 @@ def test_a_key_that_names_a_member_writes_nothing(tmp_path: Path) -> None:
         ]
     }
     page = "<?php\nfunction addName($row) { queryInsert('Items::Name', $row); }\n"
-    config, _ = _build_with(tmp_path, page, rules)
+    config, report = _build_with(tmp_path, page, rules)
     payload = find_references.create(config)("dbo.Items")
     assert "\\addName" not in {str(hit["qname"]) for hit in payload["results"]}
+    assert report.rule_keys_unresolved == 1  # refused, yet counted — never an invisible zero
+    assert report.rules_unresolved == 1
+
+
+@needs_php
+@needs_node
+def test_a_delete_key_in_another_case_links_nothing_and_is_counted(tmp_path: Path) -> None:
+    """A DELETES key must spell the stored qname: `dbo.items` stays unlinked, counted once."""
+    rules = {
+        "keyed_calls": [
+            {"setter": "\\queryDelete", "key_arg": 1, "kind": "DELETES", "target_template": TABLE}
+        ]
+    }
+    page = "<?php\nfunction dropItem($id) { queryDelete('items', $id); }\n"
+    config, report = _build_with(tmp_path, page, rules)
+    payload = find_references.create(config)("dbo.Items")
+    assert "\\dropItem" not in {str(hit["qname"]) for hit in payload["results"]}
+    assert report.rule_keys_unresolved == 1
+
+
+@needs_php
+@needs_node
+def test_a_rule_writer_matches_a_path_prefix_by_its_source_file(tmp_path: Path) -> None:
+    """The rule row is stored at the bookmark path; `path_prefix` places it at its source's file."""
+    config, _ = _build(tmp_path, rules=True)
+    under_src = find_references.create(config)("dbo.Items", path_prefix="src")
+    assert {str(hit["qname"]) for hit in under_src["results"]} == {"\\addItem", "\\dropItem"}
+    under_db = find_references.create(config)("dbo.Items", path_prefix="db")
+    assert {str(hit["qname"]) for hit in under_db["results"]} == {"dbo.Insert_Item"}
 
 
 @needs_php

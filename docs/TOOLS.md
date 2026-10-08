@@ -346,7 +346,7 @@ python = "python /abs/path/to/code-atlas/adapters/python/index.py --server"
 A call whose target is a **string argument** — `Widget::make('SaveButton')`, `$db->runProc('Insert_Order')`
 — has no edge to that target, so `find_callers` on it answers zero or `relation_unmodelled_for_language`.
 A `keyed_calls` rule models it: every call to `setter` whose argument `key_arg` is a one-line string
-literal gets a HEURISTIC `CALLS` edge to `target_template` with `{key}` replaced by the literal. Hits
+literal gets a HEURISTIC `CALLS` edge (or the rule's `kind`) to `target_template` with `{key}` replaced by the literal. Hits
 carry `rule: true`.
 
 ```json
@@ -368,7 +368,9 @@ carry `rule: true`.
   `CALLS`, onto the `Table` the template spells (`"dbo.{key}"` — a `::` member is refused): a writer
   with no column list, so `check_column_defaults` reads it as unmeasured. A `WRITES` key links
   case-insensitively like any writer (215); a `DELETES` key must spell the stored qname, and a miss of
-  either kind is counted in `rule_keys_unresolved` (a key naming a member writes nothing).
+  either kind is counted in `rule_keys_unresolved` (a key naming a member writes nothing, and is
+  counted too). `path_prefix` places the rule row at its source's file. **Limit:** an exact key
+  links whatever symbol holds that qname — a key spelling a proc lists the caller as its writer.
 - **`target_template`** must spell the **stored** qname — a PHP class carries its leading `\`, a SQL
   proc its schema — and may name a File (256). Several rules may share a setter; a literal links
   under whichever one names a real symbol.
