@@ -109,8 +109,8 @@ with all of them present, bare `pytest` is the fastest route. Missing either con
 **a platform limitation, not a regression** — so don't conclude "the suite can't run"; run it in
 Docker instead: `scripts/docker-test.sh`. **Expected count — the one place these numbers are
 kept:** `scripts/docker-test.sh` **4,279 passed / 5 skipped** (2026-10-08, after 361–366).
-Bare `pytest` on Linux (`php` · `composer` · `node` · `docker` on PATH) was 4,170 / 4 after 360
-— re-measure on POSIX, never derive. Green skips: the Windows lock arm (3) and the
+Bare `pytest` on Linux (`php` · `composer` · `node` · `docker` on PATH) was 4,280 / 4 on the same
+tree (CI, 2026-10-08) — re-measure on POSIX, never derive. Green skips: the Windows lock arm (3) and the
 `gitutil` wedge; in-image also `test_runtime_image_reports_server_build`.
 
 Prove **delta-green** before a PR and name the host: a red run on a host missing an adapter is the
