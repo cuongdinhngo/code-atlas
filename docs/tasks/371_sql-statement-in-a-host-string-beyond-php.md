@@ -263,6 +263,8 @@ No new lesson. Per P1, `361-C1` gains 371 (traced in Phase 2).
 
 **Revert path.** `git revert` the branch commits.
 
+**Gate.** `scripts/gate.sh` on `44ede84b`: `GATE GREEN — all 21 checks passed` (Linux, bare pytest).
+
 ## Measurement (Scope 3 · AC4) — recorded before any adapter code
 
 `scripts/sql_literal_report.py` (committed, re-runnable, R6.3) ports `SqlLiteral.php`'s shape and
