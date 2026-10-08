@@ -358,6 +358,7 @@ def parse_file(
     except OSError as exc:
         return {"path": qpath, "ok": False, "error": f"cannot read file: {exc}"}
 
+    text_source = text
     try:
         tree = ast.parse(text, filename=qpath)
     except SyntaxError as exc:
@@ -1090,7 +1091,12 @@ def parse_file(
         if statement is None:
             return
         kind, target, offset = statement
-        line = (getattr(node, "lineno", 1) or 1) + text.count("\n", 0, offset)
+        # The source's own line breaks before the keyword, never the cooked text's: an escaped
+        # `\n` is no line break, and a triple-quoted one is.
+        source = ast.get_source_segment(text_source, node) or ""
+        keyword = text[offset:].split(None, 1)[0].lower()
+        at = source.lower().find(keyword)
+        line = (getattr(node, "lineno", 1) or 1) + source.count("\n", 0, max(at, 0))
         edges.append(
             {
                 "kind": kind,

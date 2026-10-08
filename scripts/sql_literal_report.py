@@ -10,7 +10,8 @@ name a table or procedure the repo's own T-SQL declares — the only ones an edg
 Read-only, no network, deterministic. Python literals are read with `ast`; TS/JS literals with the
 TS adapter's pinned `typescript` package. Usage::
 
-    python scripts/sql_literal_report.py <checkout> [<checkout> …]
+    python scripts/sql_literal_report.py <checkout> [<checkout> …]          # the PHP shape, before
+    python scripts/sql_literal_report.py --ports <checkout> [<checkout> …]  # what 371's ports emit
 """
 
 from __future__ import annotations
@@ -157,9 +158,88 @@ def measure(root: Path) -> dict[str, object]:
     return rows
 
 
+_STATEMENT_KINDS = ("WRITES", "DELETES", "CALLS")
+
+_TS_PORT = r"""
+const { parseFile } = require(process.argv[1]);
+for (const file of JSON.parse(require('fs').readFileSync(0, 'utf8'))) {
+  const result = parseFile(file, false);
+  for (const e of (result.edges || [])) {
+    console.log(JSON.stringify([e.kind, e.target_raw, e.confidence_tier || null, file, e.line]));
+  }
+}
+"""
+
+
+def _is_statement(edge: tuple[str, str, str | None, str, int], text: dict[str, list[str]]) -> bool:
+    kind, target, tier, file, line = edge
+    if kind not in _STATEMENT_KINDS or tier != "HEURISTIC":
+        return False
+    if kind != "CALLS":
+        return True
+    # A HEURISTIC CALLS is also an unresolved method call; the port's EXEC names a dotted object
+    # on a line that says EXEC.
+    lines = text.setdefault(file, [])
+    return "." in target and 0 < line <= len(lines) and "exec" in lines[line - 1].lower()
+
+
+def measure_ports(root: Path) -> dict[str, object]:
+    """What the TS and Python adapters themselves emit (371's ports), counted from their edges."""
+    ddl = {
+        m.group(2).replace("[", "").replace("]", "").lower()
+        for p in _files(root, (".sql",))
+        for m in _DDL.finditer(p.read_text(encoding="utf-8", errors="replace"))
+    }
+    rows: dict[str, object] = {"sample": root.name, "tsql_objects_declared": len(ddl)}
+    ts_files = [str(p.relative_to(root)) for p in _files(root, _TS_SUFFIXES)]
+    done = subprocess.run(
+        ["node", "-e", _TS_PORT, str(_REPO / "adapters" / "typescript" / "src" / "parse.js")],
+        input=json.dumps(ts_files),
+        capture_output=True,
+        text=True,
+        check=True,
+        cwd=root,
+    )
+    ts_edges = [tuple(json.loads(line)) for line in done.stdout.splitlines()]
+    py_edges: list[tuple[object, ...]] = []
+    done = subprocess.run(
+        [sys.executable, "-c", _PY_PORT, str(_REPO / "adapters" / "python")],
+        input=json.dumps([str(p.relative_to(root)) for p in _files(root, (".py",))]),
+        capture_output=True,
+        text=True,
+        check=True,
+        cwd=root,
+    )
+    py_edges = [tuple(json.loads(line)) for line in done.stdout.splitlines()]
+    for language, edges in (("python", py_edges), ("typescript", ts_edges)):
+        text: dict[str, list[str]] = {}
+        for edge in edges:
+            file = str(edge[3])
+            if file not in text:
+                text[file] = (
+                    (root / file).read_text(encoding="utf-8", errors="replace").splitlines()
+                )
+        found = [e for e in edges if _is_statement(e, text)]  # type: ignore[arg-type]
+        linkable = [e for e in found if str(e[1]).lower() in ddl or f"dbo.{e[1]}".lower() in ddl]
+        rows[language] = {"statements": len(found), "linkable": len(linkable)}
+    return rows
+
+
+_PY_PORT = r"""
+import json, sys
+sys.path.insert(0, sys.argv[1])
+from src.parse import parse_file
+for file in json.load(sys.stdin):
+    for e in parse_file(file).get("edges", []):
+        print(json.dumps([e["kind"], e["target_raw"], e.get("confidence_tier"), file, e["line"]]))
+"""
+
+
 def main(argv: list[str]) -> int:
-    for arg in argv:
-        print(json.dumps(measure(Path(arg)), sort_keys=True))
+    ports = "--ports" in argv
+    for arg in (a for a in argv if a != "--ports"):
+        row = measure_ports(Path(arg)) if ports else measure(Path(arg))
+        print(json.dumps(row, sort_keys=True))
     return 0
 
 

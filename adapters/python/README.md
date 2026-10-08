@@ -45,7 +45,7 @@ CA_PYTHON_CMD="python /abs/path/adapters/python/index.py --server"
 | `self.x.m()` | `self.<attr>` types are read once per class, from the class body **and** every method in it, so method order never changes the answer; an annotation outranks an inferred `self.x = Foo()`, and disagreement drops the attribute |
 | module `UPPER = …` / class-body assign | Const / Property |
 | `Foo.x` / `self.x` / `cls.x`, read or written, onto an `x` the same-file class body assigns | REFERENCES onto `Foo::x` (369); a method call stays CALLS, an untyped receiver, a base class's attribute and a class from another file are not followed |
-| a string that begins a T-SQL write or `EXEC` (`INSERT INTO`/`UPDATE`/`MERGE INTO` → WRITES, `DELETE FROM` → DELETES, `EXEC` → CALLS; an f-string's head; the literal before `+` is cut short) | the edge onto the named object at HEURISTIC (371); the clause T-SQL requires must follow the name, so prose emits nothing; the `EXEC` guard also reads DB-API's `%s`/`%(name)s`; a bare string statement (a docstring) is never read |
+| a string that begins a T-SQL write or `EXEC` (`INSERT INTO`/`UPDATE`/`MERGE INTO` → WRITES, `DELETE FROM` → DELETES, `EXEC` → CALLS; an f-string's head; the literal before `+` is cut short) | the edge onto the named object at HEURISTIC (371); the clause T-SQL requires must follow the name, so prose emits nothing; the `EXEC` guard also reads DB-API's `%s`/`%(name)s`; a bare string statement (a docstring) is never read; a literal later `%`-formatted or `.format()`ed reads as whole, as PHP's does |
 | syntax error | `ok: false` |
 
 Qualified names follow CONVENTION §3: File = repo-relative path; members use

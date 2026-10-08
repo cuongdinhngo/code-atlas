@@ -51,7 +51,7 @@ row it closed. `n/a` is a measurement: the language has no such construct.
 
 **"free" is the point of the seam:** the hierarchy walk lives in `resolver.py`, so any adapter that
 emits inheritance edges gets it without a line of its own. Before filing a port, check whether the
-mechanism is adapter-side at all. Every port closed in 367–373; `--file` measured each cell (2026-10-08).
+mechanism is adapter-side at all. 367–371 and 373 closed every open port; `--file` measured each cell (2026-10-08).
 Rule-file mechanisms (`keyed_calls`: 352 · 361 · 364) and `include_graph`'s zero (363) are core, so
 they have no row — but a rule reads `args`, and Python drops keyword arguments (372).
 

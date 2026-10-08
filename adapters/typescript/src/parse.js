@@ -559,11 +559,21 @@ function parseFile(path, declarationsOnly) {
     return true;
   };
 
+  // A string the program runs as a value: not a bare statement, a type, a module specifier or a
+  // member's name, which never reach a database driver.
+  const isRuntimeString = (node) => {
+    const parent = node.parent;
+    if (!parent || ts.isExpressionStatement(parent) || ts.isLiteralTypeNode(parent)) return false;
+    if (ts.isImportDeclaration(parent) || ts.isExportDeclaration(parent)) return false;
+    if (ts.isExternalModuleReference(parent) || ts.isImportTypeNode(parent)) return false;
+    return !("name" in parent && parent.name === node);
+  };
+
   // A literal that begins a T-SQL write or EXEC writes, deletes or calls its object (371). The
   // literal before a `+` is cut short, as PHP's `.`; a bare expression statement never runs.
   const continuedLiterals = new Set();
   const emitSqlLiteral = (node, text, closed, scope) => {
-    if (ts.isExpressionStatement(node.parent)) return;
+    if (!isRuntimeString(node)) return;
     const statement = readSqlLiteral(text, closed);
     if (!statement) return;
     const offset = node.getStart(sf) + 1 + statement.offset; // past the opening quote

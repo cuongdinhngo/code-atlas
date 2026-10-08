@@ -75,3 +75,7 @@ rejects (20 of 20 across ky, socketio and pydantic) — a finding, not a pass. T
 Node and Python layers talk to the database it declares — Microsoft's samples, 757 T-SQL objects —
 has 38 linkable sites the PHP-only recogniser leaves unread. **The ticket goes ahead**; it does not
 close `wontdo`.
+
+**After the ports (review F4).** `scripts/sql_literal_report.py --ports` counts what the two adapters
+themselves emit over the same checkouts: sql-server-samples Python 12 statements / 12 linkable, TS
+26 / 26; flask 5 / 5; every other sample 0. The ports read exactly what the shape measured.
