@@ -244,3 +244,5 @@ instances of it, not a new class.
 `LEDGER TOTAL: 101,636 · top cost driver: refine/exposure-checker`
 
 **Revert path.** `git revert` the branch commits; the next build emits the old edges.
+
+**Gate.** `scripts/gate.sh` on `59dcc44d`: `GATE GREEN — all 21 checks passed` (Linux, bare pytest).
