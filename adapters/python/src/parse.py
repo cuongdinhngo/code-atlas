@@ -19,6 +19,8 @@ MEMBER_SEP = "::"
 
 _MODIFIER_DECORATORS = frozenset({"staticmethod", "classmethod", "property"})
 _CONSTRUCTORS = frozenset({"__init__", "__new__"})
+# Builtins that write the module namespace by a name the statement does not spell (368).
+_NAMESPACE_WRITERS = frozenset({"exec", "globals", "locals", "vars"})
 # Matched on the leaf, so a bare `Protocol`, `typing.Protocol` and `t.ABC` all classify alike.
 _INTERFACE_LEAVES = frozenset({"Protocol", "ABC"})
 _ENUM_LEAVES = frozenset({"Enum"})
@@ -293,6 +295,39 @@ def _stored_names(stmt: ast.stmt) -> set[str]:
             out.add(node.name)
         elif isinstance(node, ast.MatchMapping) and node.rest:
             out.add(node.rest)
+        pending.extend(ast.iter_child_nodes(node))
+    return out
+
+
+def _loop_stored_names(stmt: ast.stmt) -> set[str]:
+    """Names any loop inside a top-level statement writes (its target and its body's stores)."""
+    loops = (ast.For, ast.AsyncFor, ast.While)
+    return {name for n in _scope_nodes(stmt) if isinstance(n, loops) for name in _stored_names(n)}
+
+
+def _rebinds_unseen(stmt: ast.stmt) -> bool:
+    """A star import, or a call that writes the module namespace without naming a target."""
+    for node in _scope_nodes(stmt):
+        if isinstance(node, ast.ImportFrom) and any(a.name == "*" for a in node.names):
+            return True
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id in _NAMESPACE_WRITERS
+        ):
+            return True
+    return False
+
+
+def _scope_nodes(stmt: ast.stmt) -> list[ast.AST]:
+    """A statement's nodes in its own scope: nested def/class/lambda bodies are left out."""
+    out: list[ast.AST] = []
+    pending: list[ast.AST] = [stmt]
+    while pending:
+        node = pending.pop()
+        out.append(node)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
+            continue
         pending.extend(ast.iter_child_nodes(node))
     return out
 
@@ -1001,9 +1036,13 @@ def parse_file(
             walk_stmt(stmt, root_container, root_container, None, module_locals, {})
             forget = _stored_names(stmt) - _name_targets(stmt)
         else:
-            # A compound statement's bindings do not outlive it: no join across branches.
-            walk_stmt(stmt, root_container, root_container, None, dict(module_locals), {})
+            # A compound statement's bindings do not outlive it: no join across branches. A loop's
+            # back edge reaches its body again, so what the loop writes is open from its start.
+            inner = {k: v for k, v in module_locals.items() if k not in _loop_stored_names(stmt)}
+            walk_stmt(stmt, root_container, root_container, None, inner, {})
             forget = _stored_names(stmt)
+        if _rebinds_unseen(stmt):
+            module_locals.clear()
         for name in forget | never_bound:
             module_locals.pop(name, None)
 

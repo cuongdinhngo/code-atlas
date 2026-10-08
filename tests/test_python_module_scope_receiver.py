@@ -50,8 +50,12 @@ y: Foo = make(); y.bar()
 c = Foo()
 with open('f') as c: pass
 c.bar()
-def c2(): ...
 v = Foo(); print(v := make()); v.bar()
+i = Foo()
+while make():
+    i.bar(); i = make()
+s = Foo(); from os import *; s.bar()
+q = Foo(); globals()['q'] = make(); q.bar()
 """
 
 RESOLVED = "m.Foo::bar"
@@ -81,7 +85,14 @@ def test_a_rebind_the_table_cannot_read_re_opens_the_name(tmp_path: Path) -> Non
     """AC2 — plus every other write the table cannot read: unpack, loop, except, import, augmented,
     `with … as`, a walrus, and a function's `global`."""
     targets = _bar_targets(tmp_path)
-    for line in (6, 16, 19, 23, 28, 29, 30, 34, 36):
+    for line in (6, 16, 19, 23, 28, 29, 30, 34, 35):
+        assert targets[line] == "bar", line
+
+
+def test_a_write_the_statement_does_not_spell_re_opens_the_name(tmp_path: Path) -> None:
+    """Challenger F1–F3: a loop's back edge, a star import, a `globals()` write."""
+    targets = _bar_targets(tmp_path)
+    for line in (38, 39, 40):
         assert targets[line] == "bar", line
 
 
