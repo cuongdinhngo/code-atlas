@@ -5,7 +5,6 @@
 // core resolver (R3.3). See README.md and PLAN §4.4 for the qname/resolution conventions.
 
 const fs = require("node:fs");
-const { posix } = require("node:path");
 const ts = require("typescript");
 const { toPosix, member } = require("./qname");
 const {
@@ -14,7 +13,6 @@ const {
   importBindings,
   pathBuiltRequire,
   pathModuleNames,
-  resolveWithExt,
 } = require("./imports");
 const { boundClass, newExprClass, paramTypeMap, classPropTypeMap, typeNodeOf, typeRefTargets } = require("./types");
 
@@ -273,7 +271,7 @@ function parseFile(path, declarationsOnly) {
 
   // A `require` built from a directory or a root plus a literal tail (370).
   const pathNames = pathModuleNames(sf, ts);
-  const isBuiltRequire = (init) => pathBuiltRequire(init, ts, pathNames) !== null;
+  const isBuiltRequire = (init) => pathBuiltRequire(init, ts, pathNames, qpath) !== null;
 
   // Pre-pass: name -> qname for same-file resolution. A name declared twice is ambiguous and falls
   // back to bare, so the core resolver decides rather than the adapter guessing.
@@ -551,22 +549,12 @@ function parseFile(path, declarationsOnly) {
     }
   };
 
-  // `__dirname` + a literal names a file exactly, as a `./x` literal does; any other head + a `/…`
-  // literal is a HEURISTIC tail the core links by unique path suffix (353), and stays stamped.
+  // A HEURISTIC tail the core links by unique path suffix (353) leaves the file stamped.
   const emitBuiltRequire = (node) => {
-    const built = pathBuiltRequire(node, ts, pathNames);
+    const built = pathBuiltRequire(node, ts, pathNames, qpath);
     if (!built) return false;
-    if (built.dirname) {
-      const base = posix.normalize(posix.join(posix.dirname(qpath), built.tail));
-      addEdge("IMPORTS", qpath, resolveWithExt(base) || base, node.getStart(sf));
-      return true;
-    }
-    const segments = built.tail.split("/");
-    if (!built.tail.startsWith("/") || segments.includes("..") || segments.includes(".")) return false;
-    // Node completes an extensionless path; the requiring file's own extension is the sibling's.
-    const tail = posix.extname(built.tail) ? built.tail : built.tail + posix.extname(qpath);
-    addEdge("IMPORTS", qpath, tail, node.getStart(sf), "HEURISTIC");
-    markUnmodelledResolution("dynamic_import");
+    addEdge("IMPORTS", qpath, built.target, node.getStart(sf), built.exact ? undefined : "HEURISTIC");
+    if (!built.exact) markUnmodelledResolution("dynamic_import");
     return true;
   };
 

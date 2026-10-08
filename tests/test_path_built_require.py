@@ -37,6 +37,15 @@ FILES = {
         "const runtime = require(name);\n"  # 10
         "module.exports = { plus, tmpl, joined, bare, tail, twin, runtime };\n"  # 11
     ),
+    "src/negatives.js": (
+        "const path = require('path');\n"  # 1
+        "const up = require(ROOT + '/../lib/x');\n"  # 2 — a `..` step in a tail
+        "const noslash = require(ROOT + 'lib/x');\n"  # 3 — no `/` opens the tail
+        "const glued = require(__dirname + 'lib/plus');\n"  # 4 — Node reads `srclib/plus`
+        "const computed = require(ROOT + '/lib/' + name);\n"  # 5
+        "const outside = require(__dirname + '/../../../x');\n"  # 6 — leaves the repo
+        "module.exports = { path, up, noslash, glued, computed, outside };\n"
+    ),
     "src/lib/plus.js": "module.exports = 1;\n",
     "src/lib/tmpl.js": "module.exports = 2;\n",
     "src/lib/joined.js": "module.exports = 3;\n",
@@ -118,3 +127,22 @@ def test_a_require_with_no_literal_still_stamps_the_file(config: Config) -> None
     assert "dynamic_import" in extra
     rooted = dataclasses.replace(config, entry_points=(LOADER,))
     assert find_orphans.create(rooted)()["status"] == "resolution_unmodelled"
+
+
+def test_a_shape_the_recogniser_rejects_stays_a_dynamic_require(config: Config) -> None:
+    """Challenger F1/F2/F4/F6 — each stays a `require` CALLS, and its `const` keeps its node."""
+    conn = sqlite3.connect(config.db_path)
+    imports = conn.execute(
+        "SELECT line FROM edges WHERE kind = 'IMPORTS' AND source_qname = 'src/negatives.js'"
+    ).fetchall()
+    calls = conn.execute(
+        "SELECT line FROM edges WHERE kind = 'CALLS' AND target_raw = 'require'"
+        " AND source_qname = 'src/negatives.js' ORDER BY line"
+    ).fetchall()
+    consts = conn.execute(
+        "SELECT name FROM nodes WHERE kind = 'Const' AND file_path = 'src/negatives.js'"
+    ).fetchall()
+    conn.close()
+    assert imports == [(1,)]
+    assert calls == [(2,), (3,), (4,), (5,), (6,)]
+    assert sorted(row[0] for row in consts) == ["computed", "glued", "noslash", "outside", "up"]
