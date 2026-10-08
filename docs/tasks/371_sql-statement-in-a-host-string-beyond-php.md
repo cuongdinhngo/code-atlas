@@ -79,7 +79,7 @@ main loop added X9.
 | X1 | what "no linkable hits" means | want | **ASSUMED (delegated by the handover):** one linkable site keeps the ticket; the measurement found 38 |
 | X2 | offline measurement | how | the cached pins, `--skip-clone` |
 | X3 | the libraries hold no DB code | how | both counts are recorded: the libraries' prose and the samples repo's linkable sites |
-| X4 | order | how | measure → record (`1ad0bab3`) → table → ports |
+| X4 | order | how | measure → record (`50dcac1c`) → table → ports |
 | X5 | the shared table's form | how | JSON in `tests/contract/`, written into each language's own spelling and run through `--file` |
 | X6 | the dialect the `EXEC` guard reads | how | PHP's markers plus each host's drivers': DB-API `%s`/`%(name)s` (PEP 249) for Python, `$1` for TS; declared in the table's `markers` and both READMEs |
 | X7 | concatenation and tagged templates | how | PHP's rule: the literal before `+` is cut short; a template head is never closed; a tagged template is read |
@@ -114,7 +114,7 @@ Ran at e0d84cf1.
 | AC1 | AC | `find_references dbo.Items` lists the TS `INSERT` | | ✅ |
 | AC2 | AC | `find_callers dbo.Insert_Order` lists the Python `EXEC` | | ✅ |
 | AC3 | AC | "Update settings" / "delete this?" emit nothing | | ✅ |
-| AC4 | AC | the measurement recorded before adapter code | `1ad0bab3` precedes the code | ✅ |
+| AC4 | AC | the measurement recorded before adapter code | `50dcac1c` precedes the code | ✅ |
 | AC5 | AC | all three adapters pass the shared table | | ✅ |
 | AC6 | AC | playbook row reads 371 for both | | ✅ |
 
@@ -192,7 +192,7 @@ Ran at e0d84cf1.
 
 ## Phase 3 — execute
 
-Commits `1ad0bab3` (measurement, before any code) and `816317ae` (ports, table, tests, docs).
+Commits `50dcac1c` (measurement, before any code) and `271772d7` (ports, table, tests, docs).
 **Red first:** the shared table failed for TS and Python and passed for PHP; the integration test on
 the prior parsers `2 failed, 1 passed`. **P8:** `cross_repo_validate.py --public-only --skip-clone`
 11 ok / 0 failed; flask's edges 7368→7373 (its tutorial's statements against its own `schema.sql`),
@@ -205,7 +205,7 @@ items 1–6; `ruff check`, `mypy` (core, Python adapter), `tsc --checkJs --stric
 
 `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`
 
-**Challenger (ticket-blind, round 1, on `816317ae`, 79,980 tokens): 7 met · 1 not met · 1 can't tell.**
+**Challenger (ticket-blind, round 1, on `271772d7`, 79,980 tokens): 7 met · 1 not met · 1 can't tell.**
 
 1. **F1 (medium): TS read a type literal, a module specifier, a member name.** **Fixed** — only a
    string a program runs is read.
@@ -218,9 +218,9 @@ items 1–6; `ruff check`, `mypy` (core, Python adapter), `tsc --checkJs --stric
 6. **F6 (not met, AC6): "Every port closed in 367–373" was not true.** **Fixed** — "367–371 and 373".
 7. **F7: the status was still `todo` at review.** Bookkeeping, this commit.
 
-All in `e2ea8382` (red on the prior parsers: `2 failed, 3 passed`). Verify-only (main loop):
+All in `7125ef16` (red on the prior parsers: `2 failed, 3 passed`). Verify-only (main loop):
 
-Ran at e2ea8382:
+Ran at 7125ef16:
 ```
 $ .venv/bin/python -m pytest -q tests/test_sql_in_a_host_string.py tests/contract/test_sql_literal_agreement.py
 8 passed
@@ -230,12 +230,12 @@ $ .venv/bin/python -m pytest -q tests/test_sql_in_a_host_string.py tests/contrac
 
 Verdict: **clean (challenger only — REVIEWER: OFF)** — the not-met and can't-tell items landed.
 
-Reviewed at e2ea8382 — the diff `feat/373-python-path-loaded-module-imports-nothing..e2ea8382`. Working doc:
+Reviewed at 7125ef16 — the diff `feat/373-python-path-loaded-module-imports-nothing..7125ef16`. Working doc:
 `docs/tasks/371_sql-statement-in-a-host-string-beyond-php.md` (embedded).
 
 ## Phase 5 — finalise
 
-Stale-review guard: after `e2ea8382` only bookkeeping changes — this doc, `docs/BACKLOG.md`,
+Stale-review guard: after `7125ef16` only bookkeeping changes — this doc, `docs/BACKLOG.md`,
 `docs/TOKEN_LEDGER.md` and `docs/LESSONS.md`, all exempt.
 
 `CLAIMS: 0 claim(s) from 0 lesson entr(ies) | T1=0 T2=0 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
