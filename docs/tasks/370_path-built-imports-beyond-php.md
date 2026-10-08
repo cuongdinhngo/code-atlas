@@ -234,3 +234,5 @@ in text mode rewrote its line endings, which the diff showed only as a binary ch
 `LEDGER TOTAL: 117,045 · top cost driver: review/challenger`
 
 **Revert path.** `git revert` the branch commits.
+
+**Gate.** `scripts/gate.sh` on `18cdeef6`: `GATE GREEN — all 21 checks passed` (Linux, bare pytest).
