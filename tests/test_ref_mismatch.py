@@ -294,13 +294,19 @@ def test_a_foreign_schema_index_still_answers_its_own_refusal(
     assert "reason" not in answer  # an error is its own answer, not one about a commit
 
 
-def test_a_later_root_is_still_checked_when_an_earlier_one_matches(
+def test_the_first_checkout_decides_not_an_extra_root(
     repo: tuple[Config, Path, Path, str],
 ) -> None:
-    """Challenger F7 — a worktree at the built commit does not hide a second one that moved."""
+    """Ratified X2 — Claude Code lists the working directory first; an extra dir's commit must
+    not relabel every answer. ``[same, side]`` answers as it was; ``[side, same]`` mismatches."""
     config, side, same, _ = repo
-    answer = _calls(config, [same, side], {"find_callers": {"qname": SUBJECT}})["find_callers"]
-    assert answer["reason"] == REASON_REF_MISMATCH
+    call = {"find_callers": {"qname": SUBJECT}}
+    first_matches = _calls(config, [same, side], call)["find_callers"]
+    assert first_matches["reason"] == REASON_OK
+    assert "caller_root" not in first_matches
+    first_moved = _calls(config, [side, same], call)["find_callers"]
+    assert first_moved["reason"] == REASON_REF_MISMATCH
+    assert first_moved["caller_root"] == str(side.resolve())
 
 
 def test_file_uris_become_local_paths() -> None:

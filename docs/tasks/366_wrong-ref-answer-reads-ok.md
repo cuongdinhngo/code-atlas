@@ -74,19 +74,19 @@ capability raises `ToolError: List roots not supported`. (3) A ContextVar set in
 middleware reached a sync tool running on `AnyIO worker thread`.
 
 **Exposure-checker** (ticket-blind `challenger`, 1 dispatch, 48,402 tokens) surfaced X1–X12. The six
-want-decisions were handed back by the run's handover and are **ASSUMED (awaiting ratification)**.
+want-decisions were handed back by the run's handover and are **ASSUMED (awaiting ratification)**; the maintainer ratified them 2026-10-08 after the PR #34–#39 review.
 
 | # | Decision | Class | Resolution |
 |---|---|---|---|
-| X1 | compare with the index root's live HEAD or the built commit | want | **ASSUMED:** the built commit (`meta.last_commit`) — the answer is about it, and AC1 reads "an index is built at commit A". A moved main HEAD is `behind`, which staleness already reports. Deviation from Scope 1's wording (P3) |
-| X2 | which root counts | want | **ASSUMED:** any root that *is* the index root → no check (the caller can see that checkout); else the first root, in client order, that is another checkout of the same repository (same `--git-common-dir`, different top level). Unrelated roots are ignored |
-| X3 | replace the reason or sit beside it | want | **ASSUMED:** `reason` becomes `ref_mismatch`, the rows stay, and the previous reason moves to `reason_at_index`. A refusal that returns before the tool runs (`index_root_mismatch`, schema mismatch) is untouched: the guard returns it first (`schema_guard.py:56-58`) |
-| X4 | "every navigation tool" and the field names | want | **ASSUMED:** every query tool the guard wraps — all but `build_or_update_index` (`main.py`); `index_commit` / `caller_commit` / `caller_root`. `get_index_status` keeps no reason and names the route in `summary` |
+| X1 | compare with the index root's live HEAD or the built commit | want | **Ratified 2026-10-08:** the built commit (`meta.last_commit`) — the answer is about it, and AC1 reads "an index is built at commit A". A moved main HEAD is `behind`, which staleness already reports. Deviation from Scope 1's wording (P3) |
+| X2 | which root counts | want | **Ratified 2026-10-08:** any root that *is* the index root → no check; else the first root, in client order, that is a checkout of this repository decides — at the built commit no label, at another HEAD `ref_mismatch` |
+| X3 | replace the reason or sit beside it | want | **Ratified 2026-10-08:** an `ok` / `no_matches` / `no_such_symbol` / `not_indexed` reason becomes `ref_mismatch` and moves to `reason_at_index`; rows stay. An input refusal keeps its reason and gains only the commit fields; an `error` payload is untouched. Guard-level refusals return first |
+| X4 | "every navigation tool" and the field names | want | **Ratified 2026-10-08:** every query tool the guard wraps — all but `build_or_update_index` (`main.py`); `index_commit` / `caller_commit` / `caller_root`. `get_index_status` gains no `reason`: the summary names the mismatch and the route, and the three commit fields are attached |
 | X5 | cost per call | how | the git check runs only when no root is the index root, i.e. only in the worktree case; checkout identity is cached per root path, HEAD read per call so a commit in the worktree is seen. The common case adds no subprocess (260's bar, `schema_guard.py:44-47`) |
 | X6 | when to read roots | how | once per session in middleware, cleared on `notifications/roots/list_changed`; a 5 s bound so a silent client never holds a call |
 | X7 | "or a refresh" | how | dropped: a refresh rebuilds main's index at main's HEAD and cannot fix a worktree's mismatch (`worktree_guard.py:28-49`, 268). Route: a per-worktree index. Deviation (P3) |
-| X8 | F1 (branch switch in one tree) | want | **ASSUMED:** not a defect here — an unchanged subject on a behind index answering `ok` is 257's default (PLAN §19 `serve_behind`), which 365 kept; out of scope |
-| X9 | how "the check could not run" shows | want | **ASSUMED:** `ref_check: client_reported_no_roots` on `get_index_status` only; navigation answers stay byte-identical (AC2) |
+| X8 | F1 (branch switch in one tree) | want | **Ratified 2026-10-08:** not a defect here — an unchanged subject on a behind index answering `ok` is 257's default (PLAN §19 `serve_behind`), which 365 kept; out of scope |
+| X9 | how "the check could not run" shows | want | **Ratified 2026-10-08:** `ref_check` on `get_index_status` only, one of `client_declared_no_roots` / `client_reported_no_roots` / `client_roots_timed_out` / `client_roots_failed`; navigation answers stay byte-identical (AC2) |
 | X10 | where the check lives | how | `schema_guard.guard`, beside `attach_build_state` (`schema_guard.py:66-73`), which already wraps every query answer |
 | X11 | contract bump | how | none: `NavReason` is payload vocabulary in `nav_result.py`; R3.1's bump covers node/edge vocabulary and the qname convention (`contract.py`) |
 | X12 | AC3 | how | `instructions.render` is unchanged; `tests/test_server_instructions.py` keeps the cap |
@@ -251,7 +251,9 @@ The "not met" is Scope 2's "or a refresh" (F10 below). Dispositions:
    docstring: a commit made in the worktree must be seen at once; the meta read is now read-only.
 5. **F5 a hanging client.** **Fixed:** 2 s bound, and a session that timed out is not asked again.
 6. **F6 built commit vs live HEAD** — X1, recorded. F1 of the ticket — X8, recorded.
-7. **F7 `return` ended the root scan.** **Fixed** (`continue`); test with `[same, side]`.
+7. **F7 `return` ended the root scan.** **Fixed** (`continue`), then **reverted at ratification**:
+   the first checkout decides; an extra root at another commit does not relabel the working
+   directory's answers.
 8. **F8 caches.** **Fixed:** a non-checkout is no longer cached; the session cache is gone.
 9. **F9 CONVENTION R5.4 text.** **Intended:** R7.6 pruning to hold the doc budget — the bullet now
    points at R5.4 (b) and (c) instead of restating them; the rule itself is unchanged.
@@ -274,8 +276,8 @@ change-list deviation. AGENT_BRIEF P5 already names this class, so no new claim.
 66,088 tokens): **5 met · 0 not met · 1 can't tell** (AC3 — the cap test was not in
 its run list; the gate runs it). Every round-1 fix confirmed. Its findings: the "or a refresh" route
 (F10 again — left, X7); the R5.4 text (left, R7.6); an `error` payload stamped `ref_mismatch` —
-**fixed** in `1a963e84`, an error answer is left as it is; an untested hang guard and an unbounded
-checkout cache — left (low; a timed-out session reads as no roots).
+**fixed** in `1a963e84`, an error answer is left as it is; the hang guard — now tested (PR #35); the
+unbounded checkout cache — now dropped when HEAD is unreadable.
 
 Ran at 1a963e84:
 ```
@@ -319,7 +321,7 @@ gains 366 (traced).
 1. Push `feat/366-wrong-ref-answer-reads-ok` — pre-authorised.
 2. Open the PR against `main` — pre-authorised.
 
-Deferred to the maintainer: the merge; ratifying X1–X4, X8, X9.
+Deferred to the maintainer: none.
 
 ### Cost ledger
 
