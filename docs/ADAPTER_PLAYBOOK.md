@@ -181,12 +181,13 @@ measurement, not a judgement — while **`0/1` means it was there and the adapte
 | `modifiers` on a member | 5/5 | 1/5 | 0/1 | 3/5 |
 | `args` on a call site | 1/1 | 1/1 | 1/1 | 1/1 |
 | `arg_keys` on a call site | 1/1 | 1/1 | 1/1 | 1/1 |
+| `kwargs` recorded at a call site | 0/1 | 1/1 | 0/1 | 0/1 |
 | `REFERENCES` edges from the annotations | 3 | 3 | 0 | 3 |
 | `REFERENCES` onto a static / class property | 2 | 2 | 0 | 2 |
 | `ClassConst` for the class constant | 1 | 1 | 0 | 1 |
 <!-- parity-table:end -->
 
-**The field rows are at each language's ceiling** — a cell below its denominator means the construct
+**The field rows are at each language's ceiling** (but `kwargs`: PHP 8's named arguments are unread — a follow-up) — a cell below its denominator means the construct
 is unspellable there (Python has no visibility keyword; T-SQL has no modifier, class constant or
 annotation), so read a *fallen* cell as a regression and never a cell below 1/1 as a gap. An adapter
 declares which fields it fills at handshake (`KNOWN_CAPABILITIES`); a new adapter's flags must match

@@ -150,7 +150,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         a literal). ``total_count`` then counts matches, and ``args_unrecorded`` says how many
         call sites the filter could not judge — sites whose arguments were never recorded, which
         are never counted as matches. Depth 1 only. ``arg_name`` in place of ``arg_position``
-        judges a keyword argument the same way (``absent``: not passed) — only an adapter that
+        judges a keyword argument the same way (``absent``: not passed *by that keyword*, so a
+        positional value counts as absent) — only an adapter that
         records keywords can match, Python today (372); the rest count as ``args_unrecorded``.
 
         ``confidence_tier`` (default off) keeps only callers at that tier — the predicate runs in
@@ -402,8 +403,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 )
                 unrecorded = (
                     store.count_edges_without_args(
-                    lookup, kinds=CALLER_KINDS, also_targets=also, keyword=_by_name(args_at)
-                )
+                        lookup, kinds=CALLER_KINDS, also_targets=also, keyword=_by_name(args_at)
+                    )
                     if args_at is not None
                     else None
                 )

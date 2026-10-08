@@ -120,7 +120,7 @@ The single seam between core and every language. Two parts:
 ### 4.1 Subprocess protocol (streaming, language-neutral)
 Adapter runs as a long-lived process; core feeds newline-delimited requests, reads JSONL results. One process boot amortized across all files.
 ```
-← {"name":"php","extensions":[".php",".phtml"],"capabilities":{},"symbol_shapes":[…],"contract_version":13}   # handshake
+← {"name":"php","extensions":[".php",".phtml"],"capabilities":{},"symbol_shapes":[…],"contract_version":14}   # handshake
 → {"path":"src/Models/User.php"}                              # stdin, one JSON/line
 ← {"path":"src/Models/User.php","ok":true,"nodes":[…],"edges":[…]}   # stdout JSONL
 ← {"path":"legacy/foo.php","ok":false,"error":"syntax error @12"}

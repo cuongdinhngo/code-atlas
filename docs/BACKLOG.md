@@ -78,6 +78,8 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
   unlinked — a fixture cause, not matched to the field); an inherited constructor misses its
   subclass's `new` sites — 362.
 - **A Python `def` nested in a method is emitted as a class Method**, sharing a member's qname — 367.
+- **Keywords stop at `find_callers`** — a `keyed_calls` rule's `key_arg` cannot name one, and PHP 8's
+  named arguments are not read into `kwargs` — 372.
 - **Two route shapes 361 left out** — an inline `on*="fn(…)"` in a PHP view (no attribute reader,
   no cross-language bare-name link) and `$.ajax({url: '…'})`, a field `key_pattern` cannot reach — 361.
 

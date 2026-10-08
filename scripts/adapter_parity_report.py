@@ -80,6 +80,11 @@ RATIO_PROBES: dict[str, Probe] = {
     "`modifiers` on a member": lambda nodes, edges: _filled(_members(nodes), "modifiers"),
     "`args` on a call site": lambda nodes, edges: _filled(_call_sites(edges), "args"),
     "`arg_keys` on a call site": lambda nodes, edges: _filled(_call_sites(edges), "arg_keys"),
+    # Recorded even when empty: `{}` says "no keyword passed", absence says "not looked" (372).
+    "`kwargs` recorded at a call site": lambda nodes, edges: (
+        sum(1 for e in _call_sites(edges) if "kwargs" in e),
+        len(_call_sites(edges)),
+    ),
 }
 
 def _onto_a_field(nodes: Nodes, edges: Edges) -> tuple[int, int]:

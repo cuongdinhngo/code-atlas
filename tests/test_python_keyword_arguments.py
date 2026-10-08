@@ -92,7 +92,7 @@ def test_arg_is_narrows_callers_by_a_keyword(config: Config) -> None:
     tool = find_callers.create(config)
     literal = tool("m.Foo::__init__", arg_name="a", arg_is="number")
     assert _sources(literal) == ["m.by_keyword"]
-    assert literal["args_unrecorded"] == 1
+    assert (literal["total_count"], literal["args_unrecorded"]) == (1, 1)
     assert _sources(tool("m.Foo::__init__", arg_name="a", arg_is="dynamic")) == ["m.by_variable"]
     assert _sources(tool("m.Foo::__init__", arg_name="a", arg_is="absent")) == ["m.by_position"]
 
