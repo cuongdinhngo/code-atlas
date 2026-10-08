@@ -44,10 +44,19 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
 ### 362-C1 — a widened target must widen every query behind the same answer
 
 - type: 2 (code) · handle: `widen-every-query-that-shares-the-page`
-- status: proposed · seen: 362
-- evidence: a constructor's answer took its class's `NEW` rows through `also_targets` on the page,
-  count, census and call lines, but not the subtree spread, so a truncated page's spread counted 1
-  of 3 callers. The challenger found it; enumerate every store read the tool's payload is built from.
+- status: proposed · seen: 362, 364
+- evidence: 362 — a constructor's answer widened its page, count and censuses but not its subtree
+  spread; 364 — a new rule edge kind reached the edges but not the rule census, which read CALLS
+  rows only. The challenger found both; enumerate every read the payload is built from.
+- destination: `cannot promote: unattended run` — `/mango:promote` is the maintainer's pass.
+
+### 361-C1 — a regex over a literal's text reads nested and partial values as the literal's own
+
+- type: 2 (code) · handle: `read-a-literal-by-its-structure-not-a-regex`
+- status: proposed · seen: 361
+- evidence: `{data: {action: 'inner'}}` gave `action='inner'`, `{action: 'a' + b}` gave `'a'`, and a
+  ternary gave a bogus field — each a guessed rule link. The challenger found it; a depth-aware split
+  at top-level commas, keeping only an entry that is exactly a name and one string, reads none of them.
 - destination: first sighting.
 
 ### 357-C1 — a loop driven by "while the flag file exists" spins if the flag cannot be removed
@@ -144,7 +153,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed. *None yet in phase
 ### 343-C2 — `ruff format` on a file you edit rewrites lines you did not
 
 - type: 2 (code) · handle: `formatter-rewrites-untouched-lines`
-- status: proposed · seen: 343, 360, 359, 357, 362
+- status: proposed · seen: 343, 360, 359, 357, 361, 362, 364
 - evidence: formatting four edited files reflowed four untouched spots (two `main.py` calls, the
   `which_tool` string, a test lambda); the challenger caught one I had missed. The gate runs
   `ruff check` only, so the drift is silent. Format, then revert every hunk the change does not own.
