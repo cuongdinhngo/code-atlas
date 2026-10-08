@@ -3,7 +3,7 @@
 **Reader:** whoever adds adapter #5, or deepens one of the four that landed.
 **This file is the standard**, derived from the four that shipped in phase 1 — PHP, TS/JS, T-SQL,
 Python — and from the findings each field build produced. Numbers in it are phase-1 tickets (the
-phase-1 archive holds them). It holds the **sequence, the decisions and the gates**. It is not a rule
+phase-1 archive holds them); from 352 on they are phase 2's, in `tasks/`. It holds the **sequence, the decisions and the gates**. It is not a rule
 (→ [`ENGINEERING_RULES.md`](ENGINEERING_RULES.md)), not the contract vocabulary
 (→ `contract.py`, [`CONVENTION.md`](CONVENTION.md) §3) and not a design record (→ [`PLAN.md`](PLAN.md)).
 
@@ -43,10 +43,17 @@ row it closed. `n/a` is a measurement: the language has no such construct.
 | member return type resolves the **next** call (`()` chain) | 137 | 301 | 302 | n/a |
 | inherited method via hierarchy walk | 137 | free | free | n/a |
 | runtime-load stamp (`unmodelled_resolution`) | 279 | 294 | 295 | 296 |
+| top-level `new X` binds the receiver (included view, module script) | 362 | 153 | **368** | n/a |
+| constructor flag — `find_callers` reads construction sites | 362 | **367** | **367** | n/a |
+| static / class property read or write → `REFERENCES` | 336 | **369** | **369** | n/a |
+| include path built from the file's dir or a root + literal tail | 353 | **370** | **370** | n/a |
+| a string literal that begins a SQL write or `EXEC` | 278 · 335 | **371** | **371** | n/a |
 
 **"free" is the point of the seam:** the hierarchy walk lives in `resolver.py`, so any adapter that
 emits inheritance edges gets it without a line of its own. Before filing a port, check whether the
-mechanism is adapter-side at all — three of the five rows above are, and two are not.
+mechanism is adapter-side at all. A **bold** cell is an open port, measured by `--file` (2026-10-08).
+Rule-file mechanisms (`keyed_calls`: 352 · 361 · 364) and `include_graph`'s zero (363) are core, so
+they have no row — but a rule reads `args`, and Python drops keyword arguments (367).
 
 ## 2. The three passes every source adapter converged on
 
@@ -77,8 +84,8 @@ the consumer cannot tell "the code has no annotation" from "this adapter never l
 |---|---|---|
 | `params` | fill for every callable, with each parameter's declared type | `class_diagram.py`, `onboarding/module_facts.py` — a bare `find()` instead of `find(User $u): User` |
 | `extra.type` | fill for a callable's return and a typed property | signature display; your own pass 2 |
-| `Method.extra.constructor` | `true` on the method your language makes the constructor (PHP `__construct`, any case — 362) | `find_callers` on it lists the class's `new` sites; only PHP sets it so far |
-| `modifiers` | fill for every member the language gives a visibility or a `static`/`readonly`/`final` keyword | `class_diagram.py` — the UML `+`/`-`/`#` marker. TS spells all of them and emits none |
+| `Method.extra.constructor` | `true` on the method your language makes the constructor (PHP `__construct`, any case — 362) | `find_callers` on it lists the class's construction sites; only PHP sets it so far (TS · Python: 367) |
+| `modifiers` | fill for every member the language gives a visibility or a `static`/`readonly`/`final` keyword | `class_diagram.py` — the UML `+`/`-`/`#` marker; §7 has each adapter's measured cell |
 | `args` · `arg_keys` | fill at every `CALLS`/`NEW` site — the literal **category**, never the value | `find_callers`'s argument filter (049/063) **and every `CA_INDIRECTION_RULES` edge** (`enrichment.py`), so a repo in your language gets no cross-language link |
 | `confidence_tier` | leave **NULL** on a structural edge | nothing — NULL folds into `RESOLVED` (the `confidence_tier` column's DDL default). SQL stamping it explicitly is equivalent, not better; do not file it as a defect |
 | `capabilities` | declare what you capture | honesty channel (R1.6). `semantic_types` means *a file-at-a-time local type table backs member-call receivers* (`contract.py` / task 311) — PHP · TS · Python declare it; SQL does not. The other known flags (`params`, `args`, `modifiers`, `declared_types`, `inheritance`) name optional field capture |

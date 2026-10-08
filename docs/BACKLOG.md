@@ -24,6 +24,11 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
+| 367 | [Constructor flag beyond PHP](tasks/367_constructor-flag-beyond-php.md) | Coverage | todo | 362 |
+| 368 | [Python module-scope receiver](tasks/368_python-module-scope-receiver.md) | Coverage | todo | 227, 362 |
+| 369 | [Class property references beyond PHP](tasks/369_class-property-references-beyond-php.md) | Coverage | todo | 336, 232 |
+| 370 | [Path-built imports beyond PHP](tasks/370_path-built-imports-beyond-php.md) | Coverage | todo | 353, 363, 294, 295 |
+| 371 | [A SQL statement in a host string beyond PHP](tasks/371_sql-statement-in-a-host-string-beyond-php.md) | Coverage | todo | 278, 281, 335, 364 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -75,8 +80,8 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
   them all per read; a stored suffix→adapter map would start one, and AC2's "under 1 s" is proven
   only on a PHP-only config — 365.
 - **PHP members are case-insensitive, the resolver is not** (`validate()` onto `Validate()` stays
-  unlinked — a fixture cause, not matched to the field); only PHP flags a constructor, and an
-  inherited one misses its subclass's `new` sites — 362.
+  unlinked — a fixture cause, not matched to the field); an inherited constructor misses its
+  subclass's `new` sites — 362.
 - **Two route shapes 361 left out** — an inline `on*="fn(…)"` attribute in a PHP view (needs an
   attribute reader in the PHP adapter and a cross-language bare-name link the resolver does not
   make), and `$.ajax({url: '…'})`, whose URL is an object field a `key_pattern` cannot reach — 361.
