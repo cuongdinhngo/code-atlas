@@ -29,16 +29,15 @@ explicit `__init__`), not the sites that build the object — the exact gap 362'
 2. Confirm the core reads Python's `CALLS`-onto-class sites through `also_targets`, which matches
    on target only. If it filters on `NEW`, widen it in the core, not by changing Python's edge kind.
 3. Decide `__new__` explicitly and record the decision in the Python README.
-4. Declare it: a new capability flag or the existing one, settled in design (R3 if the contract moves).
-5. Python records no `args` for a keyword argument: `Foo(a=1, b='b')` emits `args: []`, so neither
-   `arg_is` on a construction site nor a `keyed_calls` rule (352/364) reads it. Fill keyword
-   arguments, in a shape design settles against `contract.py`'s positional `args` (R3).
+4. No capability and no `contract_version` move: 362 X1 (ratified) settled it — `extra.constructor`
+   is an optional key the core reads; the flag needs one `code-atlas-build --full`, said in CHANGELOG.
+5. Python keyword arguments (`Foo(a=1)` emits `args: []`) are 372, not this ticket.
 
 ## Acceptance criteria
 
 - **AC1:** `find_callers Foo::__construct` on a TS fixture lists every `new Foo(...)` site, and
   `arg_is` narrows them by a literal argument.
-- **AC2:** The same for `find_callers Foo::__init__` on a Python fixture's `Foo(...)` sites.
+- **AC2:** The same for `find_callers Foo::__init__` on a Python fixture's `Foo(...)` sites, read
+  through `also_targets` with no core change (it matches on target, not on `NEW`).
 - **AC3:** A method merely named `constructor`/`__init__` outside a class carries no flag.
-- **AC4:** `Foo(a=1)` in Python records the keyword argument, and `arg_is` reads it.
-- **AC5:** ADAPTER_PLAYBOOK §1.1's constructor row names this ticket for both adapters.
+- **AC4:** ADAPTER_PLAYBOOK §1.1's constructor row names this ticket for both adapters.

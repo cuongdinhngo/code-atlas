@@ -32,7 +32,9 @@ The unqualified edge falls to `_link_by_bare_name`, which links only a unique sa
 
 1. The module-level walk keeps one local type table across the module's top-level statements,
    with pass 2's forgetful rules unchanged (playbook §2): a rebind the table cannot read re-opens it.
-2. A function body does not see a module binding made after it, or rebound before it is called —
+2. A binding made inside a module-level `if`/`for`/`while`/`try`/`with` branch re-opens the name
+   after it (forgetful: no join across branches); `if __name__ == '__main__'` keeps today's handling.
+3. A function body does not see a module binding made after it, or rebound before it is called —
    only the module's own top-level statements read the table.
 
 ## Acceptance criteria
@@ -40,4 +42,5 @@ The unqualified edge falls to `_link_by_bare_name`, which links only a unique sa
 - **AC1:** On the fixture above, `x.bar()` is `CALLS m.Foo::bar`.
 - **AC2:** `x = Foo(); x = make(); x.bar()` leaves `x.bar()` unqualified (forgetful).
 - **AC3:** A function reading a module-level `x` stays unqualified (no flow across scopes).
-- **AC4:** ADAPTER_PLAYBOOK §1.1's module-scope row reads `368` for Python.
+- **AC4:** `if c: x = Foo()` then `x.bar()` at module level stays unqualified.
+- **AC5:** ADAPTER_PLAYBOOK §1.1's module-scope row reads `368` for Python.

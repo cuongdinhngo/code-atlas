@@ -33,11 +33,17 @@ repo whose Node or Python layer talks to the same database.
 2. Python's parameter markers (`?`, `%s`, `:name`) and TS's (`?`, `$1`, `@p`) satisfy the `exec`
    guard. Which dialects the guard reads is declared, never assumed (playbook §6, 228).
 3. Measure first, as 281 did: a pinned TS and Python sample, the count of literals that match,
-   and how many of them are prose. A sample with no hits is a finding, not a pass.
+   and how many of them are prose. A sample with no hits is a finding, not a pass — and an edge
+   links only where the repo indexes the DDL the SQL adapter reads (T-SQL). If the measurement finds
+   no linkable hits, the ticket closes `wontdo` with the numbers, and no code lands.
+4. One recogniser, three copies: a shared fixture table in `tests/contract/` (literal → expected
+   kind and target) that the PHP, TS and Python adapters all pass, so the copies cannot drift.
 
 ## Acceptance criteria
 
 - **AC1:** On a TS fixture, `find_references dbo.Items` lists the `INSERT` literal's site.
 - **AC2:** On a Python fixture, `find_callers dbo.Insert_Order` lists the `EXEC` literal's site.
 - **AC3:** `"Update settings"` / `"delete this?"` emit nothing in either adapter.
-- **AC4:** ADAPTER_PLAYBOOK §1.1's host-string row reads `371` for both adapters.
+- **AC4:** The Scope 3 measurement is recorded in this file before any adapter code is written.
+- **AC5:** All three adapters pass the shared literal table (Scope 4).
+- **AC6:** ADAPTER_PLAYBOOK §1.1's host-string row reads `371` for both adapters.

@@ -28,13 +28,18 @@ Neither other source adapter emits one. Measured with each adapter's `--file` mo
    Reads and writes alike, as 336 did.
 2. Only what the type table can name. An untyped receiver emits nothing (never a bare-name guess),
    and a property the class does not declare is not invented (229).
-3. PHP's own residual stays where it is: `$this->x` / `$obj->x` (BACKLOG Follow-ups, 336). Whether
+3. TS: `this.count` reaches a **static** field only inside a static method (there `this` is the
+   class); in an instance method it does not. Python: `self.count = …` creates an instance attribute
+   that shadows the class one — whether it counts as a write of `Foo::count` is decided in design.
+   A property declared on a base class (`Sub.count`) is not followed; that is a documented limit.
+4. PHP's own residual stays where it is: `$this->x` / `$obj->x` (BACKLOG Follow-ups, 336). Whether
    this ticket's lexical-receiver rule should land in PHP too is decided in design, not assumed.
 
 ## Acceptance criteria
 
 - **AC1:** On a TS fixture, `find_references Foo::count` lists the `Foo.count` read, the write and
-  the `this.count` read.
+  a `this.count` read inside a **static** method; `this.count` in an instance method adds nothing.
 - **AC2:** The same on a Python fixture for `Foo.count`, `self.count` and `cls.count`.
 - **AC3:** A method call `this.bar()` / `self.bar()` adds no `REFERENCES` (it is already `CALLS`).
 - **AC4:** The parity fixture gains the probe, and §7 regenerates with the new row.
+- **AC5:** The new edges move graph counts: `cross_repo_validate.py` runs and the floors are re-set (P8).
