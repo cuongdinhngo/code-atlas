@@ -15,6 +15,8 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 ## Unreleased
 
+- A Python module loaded by `run_path`, `spec_from_file_location` or `exec` of a `__file__`-relative
+  path, or by a literal `import_module`, is imported; a computed load stamps its file (373).
 - A TS/JS `require` built from `__dirname` plus literals imports its file; a root constant plus
   a `/…` literal links by its unique path suffix at `HEURISTIC` (370).
 - A TypeScript static field and a Python class attribute read or written through their class or

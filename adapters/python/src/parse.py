@@ -7,6 +7,14 @@ from pathlib import Path
 from typing import Any
 
 from src.imports import import_target_raw, resolve_import
+from src.loads import (
+    NAME_LOADERS,
+    PATH_LOADERS,
+    callee_names,
+    canonical,
+    exec_file_path,
+    file_relative_target,
+)
 from src.types import (
     bound_class,
     class_prop_type_map,
@@ -385,26 +393,46 @@ def parse_file(
         extra["unmodelled_resolution"] = lst
         file_node["extra"] = extra
 
-    def _call_attr_path(func: ast.AST) -> str | None:
-        parts: list[str] = []
-        cur: ast.AST | None = func
-        while isinstance(cur, ast.Attribute):
-            parts.append(cur.attr)
-            cur = cur.value
-        if isinstance(cur, ast.Name):
-            parts.append(cur.id)
-            parts.reverse()
-            return ".".join(parts)
-        return None
 
-    def maybe_stamp_dynamic_import(node: ast.Call) -> None:
-        path = _call_attr_path(node.func)
-        if path in (
-            "importlib.import_module",
-            "__import__",
-            "importlib.util.spec_from_file_location",
-        ):
-            mark_unmodelled_resolution("dynamic_import")
+    loader_names = callee_names(tree)
+
+    def canon(func: ast.expr) -> str | None:
+        return canonical(func, loader_names)
+
+    def emit_runtime_load(node: ast.Call) -> None:
+        # A module the standard library loads at runtime (373): a literal or `__file__`-relative
+        # path is an IMPORTS, as an import statement is; anything computed stamps the file (295).
+        name = canon(node.func)
+        path_at = PATH_LOADERS.get(name or "")
+        if path_at is not None:
+            arg = node.args[path_at] if len(node.args) > path_at else None
+            if arg is None and name == "importlib.util.spec_from_file_location":
+                arg = next((k.value for k in node.keywords if k.arg == "location"), None)
+            target = file_relative_target(arg, canon, qpath) if arg is not None else None
+            if target is None:
+                mark_unmodelled_resolution("dynamic_import")
+            else:
+                add_edge("IMPORTS", qpath, target, node)
+            return
+        if name in NAME_LOADERS:
+            literal = node.args[0] if node.args else None
+            dotted_name = literal.value if isinstance(literal, ast.Constant) else None
+            relative = isinstance(dotted_name, str) and dotted_name.startswith(".")
+            if not isinstance(dotted_name, str) or relative or not dotted_name:
+                mark_unmodelled_resolution("dynamic_import")
+                return
+            target = import_target_raw(
+                module=dotted_name, level=0, from_qpath=qpath, source_roots=roots
+            )
+            add_edge("IMPORTS", qpath, target, node)
+            return
+        reads_file, path = exec_file_path(node, canon)
+        if reads_file:
+            target = file_relative_target(path, canon, qpath) if path is not None else None
+            if target is None:
+                mark_unmodelled_resolution("dynamic_import")
+            else:
+                add_edge("IMPORTS", qpath, target, node)
 
     # Graph container for module-level symbols: Namespace for a package __init__, else the File.
     root_container = qpath
@@ -805,7 +833,7 @@ def parse_file(
         locals_: dict[str, str],
         self_props: dict[str, str],
     ) -> None:
-        maybe_stamp_dynamic_import(node)
+        emit_runtime_load(node)
         func = node.func
         if isinstance(func, ast.Name):
             # ``super()`` alone is not a call edge; ``super().m()`` is handled via Attribute.
