@@ -5,7 +5,10 @@ The field's one channel that fired at the decision was a project-local PostToolU
 stamped into the index at build time, so the core names no language (R1.1) and no grep spawns an
 adapter. The parse surface is closed — a missed nudge costs nothing, a wrong one costs trust.
 
-Rate-limited to once per shape kind per session; never blocks, always exits 0, silent with no index.
+Rate-limited to once per shape kind per session — per agent inside it, since a subagent carries its
+parent's ``session_id`` (377 spike). Silent unless the index is settled, the state hook's own
+judgement: "ask the index first" is wrong advice while it is behind or building. Never blocks,
+always exits 0.
 """
 
 from __future__ import annotations
@@ -196,7 +199,14 @@ def _load_state(path: Path) -> dict[str, list[str]]:
     return {str(k): [str(x) for x in v] for k, v in raw.items() if isinstance(v, list)}
 
 
-def nudge(root: Path, tool: str, tool_input: dict[str, object], session: str) -> str | None:
+def dedupe_key(session: str, agent: str = "") -> str:
+    """The session alone on the main thread; ``session/agent`` inside a subagent (377)."""
+    return f"{session}/{agent}" if agent else session
+
+
+def nudge(
+    root: Path, tool: str, tool_input: dict[str, object], session: str, agent: str = ""
+) -> str | None:
     """The one line to inject, or ``None``. Records each new kind in the state file and the log."""
     index = root / INDEX_DIR
     if not (index / "graph.db").is_file():
@@ -210,24 +220,27 @@ def nudge(root: Path, tool: str, tool_input: dict[str, object], session: str) ->
     if call is None:
         return None
     from code_atlas.config import load_config
+    from code_atlas.hooks.state import index_answers
     from code_atlas.store import GraphStore
 
     with GraphStore(load_config(root).db_path) as store:
         shapes = store.stamped_symbol_shapes()
     hits = matched_kinds(call, shapes)
+    key = dedupe_key(session, agent)
     state = _load_state(index / STATE_FILE)
-    seen = set(state.get(session, []))
+    seen = set(state.get(key, []))
     fresh = [(name, kind) for name, kind in hits if kind not in seen]
-    if not fresh:
+    # Judged last, so only a grep that would speak pays for it; silence records nothing (377).
+    if not fresh or not index_answers(root):
         return None
     kinds = sorted({kind for _, kind in fresh})
-    state[session] = sorted(seen | set(kinds))
+    state[key] = sorted(seen | set(kinds))
     kept = dict(list(state.items())[-KEPT_SESSIONS:])
     (index / STATE_FILE).write_text(json.dumps(kept, sort_keys=True), encoding="utf-8")
     stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     with (index / LOG_FILE).open("a", encoding="utf-8") as log:
         for name, kind in sorted(set(fresh)):
-            log.write(f"{stamp}\t{session}\t{name}\t{kind}\n")
+            log.write(f"{stamp}\t{key}\t{name}\t{kind}\n")
     return (
         f"code-atlas: this grep looks like a symbol search ({', '.join(kinds)}) — ask the index "
         "first (search_symbol / find_callers / find_references); keep Grep as the cross-check."
@@ -245,7 +258,14 @@ def main(argv: list[str] | None = None) -> int:
         if not isinstance(tool, str) or not isinstance(tool_input, dict):
             return 0
         session = payload.get("session_id")
-        line = nudge(_project_root(), tool, tool_input, session if isinstance(session, str) else "")
+        agent = payload.get("agent_id")  # present only inside a subagent (377)
+        line = nudge(
+            _project_root(),
+            tool,
+            tool_input,
+            session if isinstance(session, str) else "",
+            agent if isinstance(agent, str) else "",
+        )
     except Exception as error:
         # A broken nudge must never break the search it rides on.
         print(f"code-atlas nudge skipped: {type(error).__name__}: {error}", file=sys.stderr)

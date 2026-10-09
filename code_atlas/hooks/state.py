@@ -222,17 +222,42 @@ def _indexed(root: Path) -> bool:
     return db.is_file() and db.stat().st_size > 0
 
 
-def state_line(root: Path, *, verbose: bool = False) -> str | None:
-    """The state line for this project, or ``None`` when silence is right."""
-    from code_atlas.config import load_config
-    from code_atlas.index_lock import build_in_progress, read_build_progress
-    from code_atlas.tools import get_index_status
+def index_settled(payload: Mapping[str, object], db: Path) -> bool:
+    """``current``, no build running, no rebuild pending — the one notion both hooks read (377)."""
+    from code_atlas.index_lock import build_in_progress
     from code_atlas.tools.get_index_status import (
         BUILD_IN_PROGRESS,
         COVERAGE_LOSS_PENDING,
         CURRENT,
         FULL_REBUILD_REQUIRED,
     )
+
+    if bool(payload.get(BUILD_IN_PROGRESS)) or build_in_progress(db):
+        return False
+    # An older-era index at an unmoved HEAD still reads `current` — that one must speak (347),
+    # and so must one whose every refresh refuses for a missing adapter (355).
+    pending = FULL_REBUILD_REQUIRED in payload or COVERAGE_LOSS_PENDING in payload
+    return payload.get("staleness") == CURRENT and not pending
+
+
+def index_answers(root: Path) -> bool:
+    """Whether "ask the index first" is good advice right now: an index exists and is settled."""
+    from code_atlas.config import load_config
+    from code_atlas.tools import get_index_status
+
+    config = load_config(root)
+    db = config.db_path
+    if not db.is_file() or db.stat().st_size == 0:
+        return False
+    return index_settled(get_index_status.create(config, ())(), db)
+
+
+def state_line(root: Path, *, verbose: bool = False) -> str | None:
+    """The state line for this project, or ``None`` when silence is right."""
+    from code_atlas.config import load_config
+    from code_atlas.index_lock import build_in_progress, read_build_progress
+    from code_atlas.tools import get_index_status
+    from code_atlas.tools.get_index_status import BUILD_IN_PROGRESS
 
     config = load_config(root)
     db = config.db_path
@@ -241,15 +266,11 @@ def state_line(root: Path, *, verbose: bool = False) -> str | None:
         _note("silent: no index", verbose=verbose)
         return None
     payload = get_index_status.create(config, ())()
+    if index_settled(payload, db):
+        _note("silent: index current, no build running", verbose=verbose)
+        return None
     summary = str(payload["summary"])
-    building = bool(payload.get(BUILD_IN_PROGRESS)) or build_in_progress(db)
-    if not building:
-        # An older-era index at an unmoved HEAD still reads `current` — that one must speak (347),
-        # and so must one whose every refresh refuses for a missing adapter (355).
-        pending = FULL_REBUILD_REQUIRED in payload or COVERAGE_LOSS_PENDING in payload
-        if payload.get("staleness") == CURRENT and not pending:
-            _note("silent: index current, no build running", verbose=verbose)
-            return None
+    if not (bool(payload.get(BUILD_IN_PROGRESS)) or build_in_progress(db)):
         return PREFIX + summary
     return _fit(summary, read_build_progress(db))
 
