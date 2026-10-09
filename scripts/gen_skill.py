@@ -40,7 +40,13 @@ MARKETPLACE_PATH = REPO / ".claude-plugin" / "marketplace.json"
 REPOSITORY_URL = "https://github.com/cuongdinhngo/code-atlas"
 # A user-scope plugin fires in every project: the shell test spares a repo with no index the
 # Python spawn, so each hook is silent there (344 Scope 3).
-PLUGIN_GATE = '[ -d "${CLAUDE_PROJECT_DIR:-.}/.code-atlas" ] || exit 0; exec '
+PLUGIN_GATE = '[ -d "${CLAUDE_PROJECT_DIR:-.}/.code-atlas" ] || exit 0; '
+# 376: a plugin can be installed before its console scripts; README step 1 is the fix.
+INSTALL_SCRIPTS = "uv tool install git+https://github.com/cuongdinhngo/code-atlas.git"
+MISSING_SCRIPTS_LINE = (
+    "code-atlas: the plugin hooks need the code-atlas console scripts on PATH - run: "
+    + INSTALL_SCRIPTS
+)
 
 # An adapter announces its suffixes in its entry file; the handshake sends this same literal.
 # Reading it statically is what lets a guard check coverage without starting a subprocess.
@@ -167,20 +173,37 @@ def render_claude_code_snippet() -> str:
     `Read` belongs at PostToolUse (the line rides the result); `Write` at PreToolUse, because the
     create-vs-edit test is whether the path exists yet — see `docs/TOOLS.md`.
     """
-    return json.dumps({"hooks": _claude_code_hooks(lambda name: name)}, indent=2) + "\n"
+    return json.dumps({"hooks": _claude_code_hooks(lambda line, _speak: line)}, indent=2) + "\n"
 
 
-def _claude_code_hooks(command: Callable[[str], str]) -> dict[str, Any]:
+def plugin_command(command: str, speak: bool = False) -> str:
+    """``command`` behind the index gate, then a probe for its script: absent, exit 0 (344, 376).
+
+    Only the SessionStart state hook ``speak``s, so the install line is said once a session.
+    """
+    missing = f"{{ echo '{MISSING_SCRIPTS_LINE}'; exit 0; }}" if speak else "exit 0"
+    probe = f"command -v {command.split()[0]} >/dev/null 2>&1 || {missing}"
+    return f"{PLUGIN_GATE}{probe}; exec {command}"
+
+
+def ungate(command: str) -> str:
+    """The console-script command line a plugin hook runs — ``plugin_command``'s inverse."""
+    return command.rpartition("; exec ")[2]
+
+
+def _claude_code_hooks(command: Callable[[str, bool], str]) -> dict[str, Any]:
     """The one hook table: the snippet names each console script, the plugin gates it (344)."""
-    poke = {"type": "command", "command": command("code-atlas-poke"), "async": True, "timeout": 60}
-    signal = {"type": "command", "command": command("code-atlas-signal"), "timeout": 10}
-    nudge = {"type": "command", "command": command("code-atlas-nudge"), "timeout": 10}
+    poke = {"type": "command", "command": command("code-atlas-poke", False), "async": True,
+            "timeout": 60}
+    signal = {"type": "command", "command": command("code-atlas-signal", False), "timeout": 10}
+    nudge = {"type": "command", "command": command("code-atlas-nudge", False), "timeout": 10}
     # 348/374: the release and contract this table came from, so the hook can order every half.
     expect = (
-        f"{command('code-atlas-state')} --expect-contract {CONTRACT_VERSION}"
+        f"code-atlas-state --expect-contract {CONTRACT_VERSION}"
         f" --expect-version {_package()['version']}"
     )
-    state = {"type": "command", "command": expect, "timeout": 10}
+    state = {"type": "command", "command": command(expect, False), "timeout": 10}
+    start = {**state, "command": command(expect, True)}
     # 345: the grep-time nudge — the Grep tool, and a Bash call that starts with a search command.
     searches = [{"matcher": "Grep", "hooks": [nudge]}] + [
         {"matcher": "Bash", "hooks": [{**nudge, "if": f"Bash({cmd} *)"}]}
@@ -191,15 +214,15 @@ def _claude_code_hooks(command: Callable[[str], str]) -> dict[str, Any]:
         + _per_suffix(("Read",), signal)
         + searches,
         "PreToolUse": _per_suffix(("Write",), signal),
-        "SessionStart": [{"hooks": [state]}],
+        "SessionStart": [{"hooks": [start]}],
         "PreCompact": [{"hooks": [state]}],
     }
 
 
 def render_plugin_hooks() -> str:
     """The snippet's hooks, each gated on the index, plus a background refresh at start (344)."""
-    hooks = _claude_code_hooks(lambda name: PLUGIN_GATE + name)
-    refresh = {"type": "command", "command": PLUGIN_GATE + "code-atlas-refresh"}
+    hooks = _claude_code_hooks(plugin_command)
+    refresh = {"type": "command", "command": plugin_command("code-atlas-refresh")}
     hooks["SessionStart"].append({"hooks": [{**refresh, "async": True, "timeout": 600}]})
     return json.dumps({"hooks": hooks}, indent=2) + "\n"
 
