@@ -200,6 +200,19 @@ Commits `d4eac023` (code, tests), `9a9606ee` (docs). **Red first** (R6.5): a new
 lacks it — the same script before and after: `est field present: False | fit rows: 1` →
 `est field present: True | fit rows: 1`; the test module itself fails to import on the prior store.
 
+```
+$ .venv/bin/python -m pytest -q tests/test_est_tokens.py tests/test_fit_counts.py tests/test_rebuild_behind_a_shadow_index.py
+25 passed in 26.49s
+Ran at 286f859c
+```
+
+```
+$ scripts/gate.sh
+21 passed · 0 failed · 0 skipped
+GATE GREEN — all 21 checks passed
+Ran at 286f859c
+```
+
 **Verification sweep.** File axis: the diff is the change list; `ruff check`, `mypy code_atlas` clean.
 Behaviour axis: Approach 1–4 implemented as approved.
 
