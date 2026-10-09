@@ -4,7 +4,7 @@ slug: whole-install-skew-at-session-start
 title: 'An install whose halves all lag a release hears nothing, and a stale adapter checkout surfaces only when a build fails'
 phase: 2
 milestone: Adoption
-status: todo
+status: done
 depends_on: [348]
 ---
 
@@ -126,7 +126,7 @@ re-decided release check (Scope 5) reaches that case; AC5 decides which.
 
 ## Session status
 
-- **KEY:** 374 · **work_doc_mode:** embed · **Current phase:** 2 design · **Next action:** execute the approved change list. **Revert path:** `git revert` the branch's commits.
+- **KEY:** 374 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer reviews and merges PR #53. **Revert path:** `git revert` the branch's commits.
 - `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · Run mode: `autorun 374`, no flags —
   `REVIEWER: ON` · `CHALLENGER: ON`. The maintainer answered refine's five want-decisions live.
 - Branch `feat/374-whole-install-skew-at-session-start` off `main` (`e1e82688`). Contract `.mango/run-contract-374.txt`.
@@ -301,3 +301,50 @@ Ran at fa8d6d33
 **Design conformance.** Approach 1, 2, 4–7 implemented as approved; 3 deviated (D1).
 Run-time detail: a lone adapter skew keeps AC1's one-line form; when the plugin's contract also lags
 (the anchor), the whole-install line names the leading adapter, both contracts and each fix.
+
+## Phase 4 — review
+
+`REVIEWER: ON` · `CHALLENGER: ON`. Reviewed at b42e6c9b — files: `code_atlas/adapter.py`,
+`code_atlas/adapter_skew.py`, `code_atlas/build_info.py`, `code_atlas/hooks/state.py`,
+`code_atlas/indexer.py`, `scripts/gen_skill.py`, `contrib/claude-code/README.md`,
+`contrib/claude-code/plugin/hooks/hooks.json`, `contrib/claude-code/settings.snippet.json`,
+`tests/test_install_skew.py`, `tests/test_server_identity_is_live.py`,
+`tests/test_release_discipline.py`, `README.md`, `CHANGELOG.md`, `docs/PLAN.md`, `docs/TOOLS.md`,
+`docs/LESSONS.md`.
+
+- **`reviewer` round 1 — LGTM** (62,326 tokens): R1.1, R1.4, R4.1/4.2, R5.3, R6.5, R6.10, R7.5,
+  R7.6, R7.7 checked; D1 and D2 judged justified. Two optional minors, not taken (a change would
+  stale the review): a partial announce leaves proven adapters' old `contract.refused` entries
+  until the next full announce; a deadline that fires before `Popen` leaves one child unkilled.
+- **`challenger` round 1** (ticket-blind, 56,650 tokens): 10 met · 0 not met · 0 can't tell.
+  Qualifications: the uv-restore half of AC4 is unverified; red-first order is not visible in a diff.
+
+Verdict: clean. Matrix `Ph3/4 proven by`: G1, R1, R2, C1–C4, AC1, AC2 → `tests/test_install_skew.py`
+(15); R4, AC4 → `test_server_identity_is_live.py`; R3, R5, AC3, AC5 → the README / PLAN hunks.
+
+## Phase 5 — finalise
+
+**Durable lesson.** 374-C1 in `docs/LESSONS.md`: a memo guarded by a change probe must seed the probe
+when it first computes; every test stubbed the probe, so none saw it.
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+### Outward actions
+
+Under the handover (AGENTS.md standing finish approval): push `feat/374-whole-install-skew-at-session-start`;
+open the PR. Deferred to the maintainer: merge; a version bump so installed 0.3.0 plugins receive
+`--expect-contract` (348-C1: content under an unchanged version does not update).
+
+### Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 0 refine | exposure-checker (`challenger`) | 1 | 44,622 |
+| 4 review | `reviewer` | 1 | 62,326 |
+| 4 review | `challenger` (ticket-blind) | 1 | 56,650 |
+
+`LEDGER TOTAL: 163,598 · top cost driver: 4 review/reviewer`
