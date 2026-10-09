@@ -20,6 +20,8 @@ How to upgrade each install route is in the README, under *Upgrading*.
 - The `SessionStart` hook names every half of the install that lags the newest — tool, plugin, and
   the adapter checkout, whose contract it reads by launching each configured adapter — with each
   fix in upgrade order; `server_stale_process` now sees a package replaced after the first answer (374).
+- `read_symbol` and the onboarding docblock read refuse a file that now resolves outside the repo — an
+  indexed file swapped for a symlink since the build — with `path_outside_root` and no text (375).
 - A Python keyword argument is recorded in `kwargs` beside the positional `args`, and
   `find_callers` filters by one with `arg_name` + `arg_is` (372).
 - A TypeScript or Python string that begins a T-SQL write or `EXEC` writes, deletes or calls
