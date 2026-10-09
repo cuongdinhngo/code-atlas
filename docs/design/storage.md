@@ -12,7 +12,7 @@ opening `store.py`, and the **gaps** — what the schema cannot currently expres
 Rendered companion: [`../assets/storage-schema.html`](../assets/storage-schema.html) — the same
 snapshot as a standalone page, restating enough of PLAN §10 to be readable on its own.
 
-> **Snapshot 2026-09-06 · schema 5 · contract 9.** Task 132 removed PLAN §10's `CREATE TABLE` block
+> **Snapshot 2026-10-09 · schema 7 · contract 14.** Task 132 removed PLAN §10's `CREATE TABLE` block
 > because it was byte-equivalent to `store.py`'s DDL and its `meta` comment had drifted to five keys
 > of nine. The listing below is the same class of object and carries the same risk: where it
 > disagrees with `store.py`, `store.py` is right and this file is stale.

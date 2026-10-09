@@ -300,7 +300,7 @@ owns and its capabilities on one handshake line, and the core routes files from 
 `name_not_qualified`, `not_indexed`, `relationship_not_modelled`, `capability_not_configured`. **An
 empty result is never an unexplained zero**, and where a better route exists the payload names a
 real, callable tool in `try_instead`. Where a language loads code by a name the file never spells —
-PHP autoload, a non-literal `import()`/`require()`, Python's `importlib`, T-SQL dynamic `EXEC` —
+PHP autoload, a computed `import()`/`require()` or Python `importlib` load, T-SQL dynamic `EXEC` —
 the adapter stamps the file, and `find_orphans` answers `resolution_unmodelled` instead of calling
 unmeasured silence dead code. This is what makes an agent's answer auditable instead of merely
 confident.
