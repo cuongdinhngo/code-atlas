@@ -57,7 +57,7 @@ the index-time walks; its two listed residuals (stub roots, the index directory)
 
 `PREMISE: 6 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)`
 `RECALL: 1 claim(s) surfaced | 0 by symbol | 1 by handle | 0 by area | 0 by finding | 3 retired skipped — advisory (blocks nothing)`
-`REFINE: 6 unresolved surfaced | 0 want-decision asked | 5 how-decision resolved+cited | 1 ASSUMED | skip: no`
+`REFINE: 7 unresolved surfaced | 1 want-decision asked | 6 how-decision resolved+cited | 1 ASSUMED | skip: no`
 
 **Premise.** `containment.resolves_inside` (`containment.py:11`), `source_slice.declaration_slice` / `comment_block`
 (`source_slice.py:38-59`), `read_symbol.py`, `indexer.py`'s containment (`indexer.py:1121`) and `NavReason` all resolve.
@@ -186,23 +186,22 @@ TIER full: more than one file, and the ticket is a Trust (security) fix.
 
 ## Phase 3 — execute
 
-Commits `4bc4ffda` (code, tests), `e42e5a2b` (docs). **Red first** (R6.5), the code stashed:
+Commits `4bc4ffda` (code, tests), `e42e5a2b` (docs), `cde19da9` (bookkeeping). **Red first** (R6.5): with
+the code stashed on `9226aca7`, `pytest -k "swapped or docblock"` gave `3 failed, 1 passed` — AC1
+(standard, minimal) and AC3 red; AC2 passed before too, so it guards against a false refusal, not a
+missing one.
 
 ```
-$ .venv/bin/python -m pytest -q tests/test_symlink_containment.py -k "swapped or docblock"
-FAILED tests/test_symlink_containment.py::test_an_indexed_file_swapped_for_a_link_out_reads_no_outside_text[standard]
-FAILED tests/test_symlink_containment.py::test_an_indexed_file_swapped_for_a_link_out_reads_no_outside_text[minimal]
-FAILED tests/test_symlink_containment.py::test_a_docblock_is_not_read_through_a_link_out
-3 failed, 1 passed, 10 deselected in 2.14s
-Ran at 9226aca7 (+ the new tests)
+$ .venv/bin/python -m pytest -q tests/test_symlink_containment.py tests/test_read_symbol_minimal_drops_docblock.py
+18 passed in 1.16s
+Ran at cde19da9
 ```
 
-AC2 passed before too: it guards against a false refusal, not a missing one.
-
 ```
-$ .venv/bin/python -m pytest -q tests -k "read_symbol or module_facts or source_slice or onboarding or symlink"
-478 passed, 3897 deselected in 14.06s
-Ran at 4bc4ffda
+$ scripts/gate.sh
+21 passed · 0 failed · 0 skipped
+GATE GREEN — all 21 checks passed
+Ran at cde19da9
 ```
 
 **Verification sweep.** File axis: the diff is the change list; `ruff check .` and `mypy code_atlas` clean.
