@@ -166,10 +166,10 @@ importer through `find_references`. The ticket's "no stamp" premise was wrong fo
 ## Phase 3 — execute
 
 Commit `3de03837`. **Red first** — the test on the prior parser: `5 failed, 1 passed` (AC3 held).
-**P8:** `cross_repo_validate.py --public-only --skip-clone` 11 ok / 0 failed. Edges rose on two TS
-samples — mqttjs 6150→6151, socketio 28229→28241 — with nodes unchanged; the floors still hold, so
-none moves. A first run on this tree reported 369's counts unchanged; a re-run on the same tree, and
-373's run on top of it, both reported the rise — the first run is not trusted.
+**P8 (corrected):** `cross_repo_validate.py --public-only --skip-clone` 11 ok / 0 failed, every count
+equal to 369's — no pinned sample builds a require this way, so no floor moves. The earlier runs from
+this worktree measured the main checkout's TS adapter: the shell exported `CA_TYPESCRIPT_CMD` there and
+the harness prefers it. The rise they showed (mqttjs +1, socketio +12) is 369's static fields.
 
 **Sweep.** Axis 1: `git diff --name-only feat/369-class-property-references-beyond-php..HEAD` = items
 1–4; `ruff check`, `tsc --checkJs --strict` clean. Axis 2: as approved.
