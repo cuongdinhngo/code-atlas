@@ -53,7 +53,7 @@ row it closed. `n/a` is a measurement: the language has no such construct.
 emits inheritance edges gets it without a line of its own. Before filing a port, check whether the
 mechanism is adapter-side at all. 367–371 and 373 closed every open port; `--file` measured each cell (2026-10-08).
 Rule-file mechanisms (`keyed_calls`: 352 · 361 · 364) and `include_graph`'s zero (363) are core, so
-they have no row — but a rule reads `args`, and Python drops keyword arguments (372).
+they have no row — a rule reads `args`, and Python's keyword arguments ride `kwargs` (372).
 
 ## 2. The three passes every source adapter converged on
 
@@ -86,7 +86,7 @@ the consumer cannot tell "the code has no annotation" from "this adapter never l
 | `extra.type` | fill for a callable's return and a typed property | signature display; your own pass 2 |
 | `Method.extra.constructor` | `true` on the method your language makes the constructor: PHP `__construct` in any case (362), TS `constructor`, Python `__init__`/`__new__` (367) | `find_callers` on it lists the class's construction sites |
 | `modifiers` | fill for every member the language gives a visibility or a `static`/`readonly`/`final` keyword | `class_diagram.py` — the UML `+`/`-`/`#` marker; §7 has each adapter's measured cell |
-| `args` · `arg_keys` | fill at every `CALLS`/`NEW` site — the literal **category**, never the value | `find_callers`'s argument filter (049/063) **and every `CA_INDIRECTION_RULES` edge** (`enrichment.py`), so a repo in your language gets no cross-language link |
+| `args` · `arg_keys` · `kwargs` | fill at every `CALLS`/`NEW` site — the literal **category**, never the value; `kwargs` where the language has keyword arguments (372) | `find_callers`'s argument filter (049/063) **and every `CA_INDIRECTION_RULES` edge** (`enrichment.py`), so a repo in your language gets no cross-language link |
 | `confidence_tier` | leave **NULL** on a structural edge | nothing — NULL folds into `RESOLVED` (the `confidence_tier` column's DDL default). SQL stamping it explicitly is equivalent, not better; do not file it as a defect |
 | `capabilities` | declare what you capture | honesty channel (R1.6). `semantic_types` means *a file-at-a-time local type table backs member-call receivers* (`contract.py` / task 311) — PHP · TS · Python declare it; SQL does not. The other known flags (`params`, `args`, `modifiers`, `declared_types`, `inheritance`) name optional field capture |
 | `symbol_shapes` (handshake) | declare the grep shapes of your symbols — `declaration` · `reference` · `call` · `name`, optionally `scoped` (v13, 345) | the grep-time nudge stays silent for your language |
@@ -181,12 +181,13 @@ measurement, not a judgement — while **`0/1` means it was there and the adapte
 | `modifiers` on a member | 5/5 | 1/5 | 0/1 | 3/5 |
 | `args` on a call site | 1/1 | 1/1 | 1/1 | 1/1 |
 | `arg_keys` on a call site | 1/1 | 1/1 | 1/1 | 1/1 |
+| `kwargs` recorded at a call site | 0/1 | 1/1 | 0/1 | 0/1 |
 | `REFERENCES` edges from the annotations | 3 | 3 | 0 | 3 |
 | `REFERENCES` onto a static / class property | 2 | 2 | 0 | 2 |
 | `ClassConst` for the class constant | 1 | 1 | 0 | 1 |
 <!-- parity-table:end -->
 
-**The field rows are at each language's ceiling** — a cell below its denominator means the construct
+**The field rows are at each language's ceiling** (but `kwargs`: PHP 8's named arguments are unread — a follow-up) — a cell below its denominator means the construct
 is unspellable there (Python has no visibility keyword; T-SQL has no modifier, class constant or
 annotation), so read a *fallen* cell as a regression and never a cell below 1/1 as a gap. An adapter
 declares which fields it fills at handshake (`KNOWN_CAPABILITIES`); a new adapter's flags must match

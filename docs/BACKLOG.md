@@ -24,7 +24,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
-| 372 | [Py keyword args](tasks/372_python-keyword-arguments-record-no-args.md) | Coverage | todo | 049, 352, 364 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -78,6 +77,8 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
   unlinked — a fixture cause, not matched to the field); an inherited constructor misses its
   subclass's `new` sites — 362.
 - **A Python `def` nested in a method is emitted as a class Method**, sharing a member's qname — 367.
+- **Keywords stop at `find_callers`** — a `keyed_calls` rule's `key_arg` cannot name one, and PHP 8's
+  named arguments are not read into `kwargs` — 372.
 - **Two route shapes 361 left out** — an inline `on*="fn(…)"` in a PHP view (no attribute reader,
   no cross-language bare-name link) and `$.ajax({url: '…'})`, a field `key_pattern` cannot reach — 361.
 

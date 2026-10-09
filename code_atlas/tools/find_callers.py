@@ -125,6 +125,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         sign: bool = False,
         serve_behind: bool = False,
         exclude_tests: bool = False,
+        arg_name: str | None = None,
     ) -> dict[str, object]:
         """Who calls this function or method? Every call site, with confidence and optional depth.
 
@@ -148,7 +149,10 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``array``), ``absent`` (the call passes fewer arguments), or ``dynamic`` (present, but not
         a literal). ``total_count`` then counts matches, and ``args_unrecorded`` says how many
         call sites the filter could not judge — sites whose arguments were never recorded, which
-        are never counted as matches. Depth 1 only.
+        are never counted as matches. Depth 1 only. ``arg_name`` in place of ``arg_position``
+        judges a keyword argument the same way (``absent``: not passed *by that keyword*, so a
+        positional value counts as absent) — only an adapter that
+        records keywords can match, Python today (372); the rest count as ``args_unrecorded``.
 
         ``confidence_tier`` (default off) keeps only callers at that tier — the predicate runs in
         the store query next to ``kinds`` / ``args_at``, so a RESOLVED-only page is not a
@@ -211,7 +215,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         if cap < 1:
             raise ValueError(f"limit must be >= 1, got {cap}")
         # exclude_tests at any depth: prune test-role sources inside the walk (313 shape; 332).
-        args_at = _args_at(arg_position, arg_is, depth=depth)
+        args_at = _args_at(arg_position, arg_is, depth=depth, arg_name=arg_name)
         tier = _confidence_tier(confidence_tier, depth=depth)
         if not config.db_path.is_file():
             return empty_nav(
@@ -316,7 +320,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 also_targets=also,
             )
             unrecorded = (
-                store.count_edges_without_args(lookup, kinds=CALLER_KINDS, also_targets=also)
+                store.count_edges_without_args(
+                    lookup, kinds=CALLER_KINDS, also_targets=also, keyword=_by_name(args_at)
+                )
                 if args_at is not None
                 else None
             )
@@ -396,7 +402,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     also_targets=also,
                 )
                 unrecorded = (
-                    store.count_edges_without_args(lookup, kinds=CALLER_KINDS, also_targets=also)
+                    store.count_edges_without_args(
+                        lookup, kinds=CALLER_KINDS, also_targets=also, keyword=_by_name(args_at)
+                    )
                     if args_at is not None
                     else None
                 )
@@ -661,21 +669,31 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
     return find_callers
 
 
+def _by_name(args_at: tuple[int | str, str] | None) -> bool:
+    """The filter names a keyword argument, so its blind spot is the unrecorded ``kwargs``."""
+    return args_at is not None and isinstance(args_at[0], str)
+
+
 def _args_at(
-    arg_position: int | None, arg_is: str | None, *, depth: int
-) -> tuple[int, str] | None:
+    arg_position: int | None, arg_is: str | None, *, depth: int, arg_name: str | None = None
+) -> tuple[int | str, str] | None:
     """Validate the argument filter loud and early — a typo must not read as "no matches" (R5.3)."""
-    if arg_position is None and arg_is is None:
+    if arg_position is not None and arg_name is not None:
+        raise ValueError("arg_position and arg_name name different arguments: pass one")
+    where: int | str | None = arg_name if arg_name is not None else arg_position
+    if where is None and arg_is is None:
         return None
-    if arg_position is None or arg_is is None:
-        raise ValueError("arg_position and arg_is are set together or not at all")
-    if arg_position < 1:
-        raise ValueError(f"arg_position is 1-based, got {arg_position}")
+    if where is None or arg_is is None:
+        raise ValueError("arg_position (or arg_name) and arg_is are set together or not at all")
+    if isinstance(where, int) and where < 1:
+        raise ValueError(f"arg_position is 1-based, got {where}")
+    if isinstance(where, str) and not where.isidentifier():
+        raise ValueError(f"arg_name is a keyword's name, got {where!r}")
     if arg_is not in ARG_SELECTORS:
         raise ValueError(f"unknown arg_is {arg_is!r}: one of {', '.join(ARG_SELECTORS)}")
     if depth != 1:
         raise ValueError("an argument filter describes a direct call, so it needs depth=1")
-    return arg_position, arg_is
+    return where, arg_is
 
 
 def _constructed_class(store: GraphStore, qname: str) -> tuple[str, ...]:
@@ -696,7 +714,7 @@ def _test_census(
     qname: str,
     *,
     depth: int,
-    args_at: tuple[int, str] | None,
+    args_at: tuple[int | str, str] | None,
     confidence_tier: str | None,
     also_targets: tuple[str, ...] = (),
 ) -> tuple[int, int, str | None]:
@@ -727,7 +745,7 @@ def _tier_census(
     store: GraphStore,
     qname: str,
     *,
-    args_at: tuple[int, str] | None,
+    args_at: tuple[int | str, str] | None,
     depth: int,
     tier: str | None,
     indexed: bool,
@@ -856,7 +874,7 @@ def _attach_call_lines(
     qname: str,
     hits: list[dict[str, object]],
     *,
-    args_at: tuple[int, str] | None,
+    args_at: tuple[int | str, str] | None,
     confidence_tier: str | None,
     exclude_test_sources: bool,
     also_targets: tuple[str, ...] = (),
@@ -887,7 +905,7 @@ def _callers(
     hops: int,
     limit: int,
     offset: int = 0,
-    args_at: tuple[int, str] | None = None,
+    args_at: tuple[int | str, str] | None = None,
     confidence_tier: str | None = None,
     exclude_test_sources: bool = False,
     also_targets: tuple[str, ...] = (),

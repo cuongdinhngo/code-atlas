@@ -13,8 +13,12 @@ Each entry flags the two costs an upgrade can carry:
 
 How to upgrade each install route is in the README, under *Upgrading*.
 
-## Unreleased
+## 0.3.0 — 2026-10-08 · contract 14 · schema 7
 
+- **Full rebuild required.** Run `code-atlas-build --full`: the edge table gains `kwargs`.
+- **Adapter checkout must be updated.** Every adapter speaks contract 14.
+- A Python keyword argument is recorded in `kwargs` beside the positional `args`, and
+  `find_callers` filters by one with `arg_name` + `arg_is` (372).
 - A TypeScript or Python string that begins a T-SQL write or `EXEC` writes, deletes or calls
   its object, as a PHP one does; one shared table keeps the three readers in step (371).
 - A Python module loaded by `run_path`, `spec_from_file_location` or `exec` of a `__file__`-relative

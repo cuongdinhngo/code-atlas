@@ -29,6 +29,7 @@ PARAM_WAIVERS: dict[str, str] = {
     "exclude_tests": "taught under production_count / test_count prose",
     "arg_position": "find_callers filter; rare; not a field-retro miss",
     "arg_is": "find_callers filter; rare; not a field-retro miss",
+    "arg_name": "find_callers filter, arg_position's keyword twin (372); rare",
     "confidence_tier": "taught under confidence_tier prose",
     "reset_fit_counts": "ops knob on get_index_status; not a how-to-ask rule",
 }

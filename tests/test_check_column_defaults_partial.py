@@ -215,4 +215,4 @@ CREATE TABLE dbo.Untouched (
 
 def test_contract_version_unchanged() -> None:
     """AC6 — no contract bump beyond 022's v9."""
-    assert CONTRACT_VERSION == 13
+    assert CONTRACT_VERSION == 14

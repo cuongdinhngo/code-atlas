@@ -41,7 +41,7 @@ one: `journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`.
 |---|---|---|
 | `files` | one indexed path | `path` PK · `hash` · `language` · `parsed_ok` · `updated_at` · `fingerprint` |
 | `nodes` | one symbol | `id` PK · `kind` · `name` · `qualified_name` · `file_path` → `files(path)` · `line_start` · `line_end` · `modifiers` · `params` · `is_test` · `extra` · UNIQUE(`qualified_name`, `file_path`) |
-| `edges` | one relationship | `id` PK · `kind` · `source_qname` · `target_qname` · `target_raw` · `file_path` · `line` · `confidence_tier` · `args` · `arg_keys` |
+| `edges` | one relationship | `id` PK · `kind` · `source_qname` · `target_qname` · `target_raw` · `file_path` · `line` · `confidence_tier` · `args` · `arg_keys` · `kwargs` |
 | `nodes_fts` | the search index | fts5 over `name`, `qualified_name`, `file_path`, `params`; `content='nodes'`, `content_rowid='id'`, `tokenize='trigram'`, three sync triggers |
 | `meta` | one build-time stamp | `key` PK · `value`; the keys are the `*_KEY` constants in `store.py` and are deliberately not listed (task 132) |
 
