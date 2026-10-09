@@ -315,15 +315,27 @@ Run-time detail: a lone adapter skew keeps AC1's one-line form; when the plugin'
 `docs/LESSONS.md`.
 
 - **`reviewer` round 1 — LGTM** (62,326 tokens): R1.1, R1.4, R4.1/4.2, R5.3, R6.5, R6.10, R7.5,
-  R7.6, R7.7 checked; D1 and D2 judged justified. Two optional minors, not taken (a change would
-  stale the review): a partial announce leaves proven adapters' old `contract.refused` entries
+  R7.6, R7.7 checked; D1 and D2 judged justified. Two optional minors, taken after the PR at the
+  maintainer's request (below): a partial announce leaves proven adapters' old `contract.refused` entries
   until the next full announce; a deadline that fires before `Popen` leaves one child unkilled.
 - **`challenger` round 1** (ticket-blind, 56,650 tokens): 10 met · 0 not met · 0 can't tell.
   Qualifications: the uv-restore half of AC4 is unverified; red-first order is not visible in a diff.
 
 - **`reviewer` round 2 — verify-only, LGTM** (43,938 tokens): the full gate at `2f2c7c80` was red on two
   core-module count pins (97 → 98 for `adapter_skew.py`, a blast radius design missed), fixed in
-  `ac716bf4`. Minor not taken: the pins' `+1 each` comment does not list 374.
+  `ac716bf4`. Minor, taken after the PR (below): the pins' `+1 each` comment does not list 374.
+
+- **After the PR — the three minors, at the maintainer's request.** `record_refusal(..., proven=)`
+  drops the adapters a partial announce proved; `SubprocessAdapter.kill` before `start` is kept and
+  `start` kills the child it makes. Both new tests red first on the old code (one failed, one hung).
+  Not re-reviewed: the fixes are the reviewer's own suggestions; the gate below re-ran.
+
+  ```
+  $ scripts/gate.sh
+  21 passed · 0 failed · 0 skipped
+  GATE GREEN — all 21 checks passed
+  Ran at 225d574e
+  ```
 
 Reviewed at ac716bf4.
 
@@ -335,7 +347,7 @@ Ran at ac716bf4
 ```
 
 Verdict: clean. Matrix `Ph3/4 proven by`: G1, R1, R2, C1–C4, AC1, AC2 → `tests/test_install_skew.py`
-(15); R4, AC4 → `test_server_identity_is_live.py`; R3, R5, AC3, AC5 → the README / PLAN hunks.
+(17); R4, AC4 → `test_server_identity_is_live.py`; R3, R5, AC3, AC5 → the README / PLAN hunks.
 
 ## Phase 5 — finalise
 
