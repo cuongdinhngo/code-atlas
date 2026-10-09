@@ -1110,7 +1110,8 @@ def parse_file(
         else:
             # A compound statement's bindings do not outlive it: no join across branches. A loop's
             # back edge reaches its body again, so what the loop writes is open from its start.
-            inner = {k: v for k, v in module_locals.items() if k not in _loop_stored_names(stmt)}
+            looped = _loop_stored_names(stmt)
+            inner = {k: v for k, v in module_locals.items() if k not in looped}
             walk_stmt(stmt, root_container, root_container, None, inner, {})
             forget = _stored_names(stmt)
         if _rebinds_unseen(stmt):

@@ -187,8 +187,9 @@ Ran at e0d84cf1.
 Commit `0d7a2cf8` (code, tests, parity, docs). **Red first** — the test on the prior parsers:
 `3 failed`. **P8:** `cross_repo_validate.py --public-only --skip-clone` 11 ok / 0 failed; nodes
 unchanged everywhere, edges up on the Python samples only — flask 7317→7368, pydantic
-78731→79577, requests 4417→4686 (the TS samples declare no static field read this way); floors
-re-set at ≈80% in `d2c9e04f`.
+78731→79577, requests 4417→4686; floors re-set at ≈80% in `d2c9e04f`. **Corrected:** rerun with
+`CA_*_CMD` unset (the shell pointed them at the main checkout and the harness prefers them), the TS
+samples move too — mqttjs 6150→6151, socketio 28229→28241 (static fields); their floors hold.
 
 **Sweep.** Axis 1: `git diff --name-only feat/368-python-module-scope-receiver..HEAD` = items 1–6;
 `ruff check`, `mypy` (core, Python adapter), `tsc --checkJs --strict` clean. Axis 2: as approved.
