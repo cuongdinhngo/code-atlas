@@ -286,9 +286,11 @@ before too: nothing spoke then, so they guard against a false line, not a missin
 
 ```
 $ .venv/bin/python -m pytest -q tests/test_install_skew.py tests/test_server_identity_is_live.py
-29 passed in 13.56s
-Ran at fa8d6d33
+29 passed in 13.53s
+Ran at ac716bf4
 ```
+
+Re-run on the final tree; at `fa8d6d33` the same command gave `29 passed in 13.56s`.
 
 **Verification sweep.** The diff is the approved list except two deviations:
 - **D1 — `indexer.py` replaces `tools/build_or_update_index.py` (item 3).** The build tool's result
@@ -319,6 +321,19 @@ Run-time detail: a lone adapter skew keeps AC1's one-line form; when the plugin'
 - **`challenger` round 1** (ticket-blind, 56,650 tokens): 10 met · 0 not met · 0 can't tell.
   Qualifications: the uv-restore half of AC4 is unverified; red-first order is not visible in a diff.
 
+- **`reviewer` round 2 — verify-only, LGTM** (43,938 tokens): the full gate at `2f2c7c80` was red on two
+  core-module count pins (97 → 98 for `adapter_skew.py`, a blast radius design missed), fixed in
+  `ac716bf4`. Minor not taken: the pins' `+1 each` comment does not list 374.
+
+Reviewed at ac716bf4.
+
+```
+$ scripts/gate.sh
+21 passed · 0 failed · 0 skipped
+GATE GREEN — all 21 checks passed
+Ran at ac716bf4
+```
+
 Verdict: clean. Matrix `Ph3/4 proven by`: G1, R1, R2, C1–C4, AC1, AC2 → `tests/test_install_skew.py`
 (15); R4, AC4 → `test_server_identity_is_live.py`; R3, R5, AC3, AC5 → the README / PLAN hunks.
 
@@ -346,5 +361,6 @@ open the PR. Deferred to the maintainer: merge; a version bump so installed 0.3.
 | 0 refine | exposure-checker (`challenger`) | 1 | 44,622 |
 | 4 review | `reviewer` | 1 | 62,326 |
 | 4 review | `challenger` (ticket-blind) | 1 | 56,650 |
+| 4 review | `reviewer` (verify-only) | 2 | 43,938 |
 
-`LEDGER TOTAL: 163,598 · top cost driver: 4 review/reviewer`
+`LEDGER TOTAL: 207,536 · top cost driver: 4 review/reviewer`
