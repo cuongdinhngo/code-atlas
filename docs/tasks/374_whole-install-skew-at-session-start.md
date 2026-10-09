@@ -30,11 +30,11 @@ An anchor project (PHP + SQL + TS, ~22.9k files, Windows) observed the following
   scripts moved to 0.3.0. Copying `code-atlas.exe` into `~/.local/bin` failed with
   `os error 32` (in use by the MCP server), so uv exited `Failed to upgrade code-atlas` even though
   the upgrade had mostly landed. Neither the README nor the skew line mentions this.
-- **`server_stale_process: false` after the upgrade.** The tool upgrade completed while the 0.2.0
-  server process kept running. `get_index_status` then reported `server_version 0.2.0`,
-  `server_stale_process: false`. A `/mcp` reconnect fixed it; restarting Claude Code alone did not
-  replace that process. The cause was not traced. It may be a detection gap, or a Windows launcher
-  effect.
+- **`server_stale_process: false` after the upgrade.** The server started on 0.2.0, then
+  `uv tool upgrade` replaced the package under it. `get_index_status` then reported
+  `server_version 0.2.0`, `server_stale_process: false`. A `/mcp` reconnect loaded 0.3.0. The cause
+  was not traced. It may be a detection gap, or an effect of the half-finished Windows upgrade
+  above.
 - **The plugin did not update itself, and the reason is documented.** The Claude Code docs
   (`code.claude.com/docs/en/plugins/loading.md` and `install.md`, read 2026-10-09) say:
   - auto-update is **off by default** for third-party marketplaces;
