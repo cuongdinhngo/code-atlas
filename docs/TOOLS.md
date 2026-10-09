@@ -274,9 +274,10 @@ compaction drops it, so agents that started a multi-minute build filed its progr
 source is the post-compaction delivery), `PreCompact`, and `PostCompact` where a host names it. While a build holds the lock it appends the
 live phase and names `code-atlas-build --status`. **Silent** when there is no index, or when the index
 is current, no build runs and no full rebuild is pending; ≤ 90 tokens. The generated hook passes
-`--expect-version <release>`; when the installed package differs, a skew line naming both versions
-and the upgrade for the side that lags prints first, even on a current index (348); always exits 0; never builds, reparses or takes the build
-lock.
+`--expect-contract` and `--expect-version`, and the hook launches each configured adapter for its
+handshake (3 s for all, else the contract a refused build recorded). Every half — tool, plugin,
+adapter checkout — older than the newest prints first, with its fix in upgrade order, even on a current
+index (348, 374); always exits 0; never builds, reparses or takes the build lock.
 
 ### The grep-time nudge — one line right after a grep for a symbol (opt-in, 345)
 

@@ -45,6 +45,17 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 374-C1 — a memo guarded by a change probe must seed the probe when it first computes
+
+- type: 2 (code) · handle: `seed-the-change-probe-with-the-first-answer`
+- status: proposed · seen: 374
+- evidence: `server_identity()` read `_identity is None or _loaded_modules_changed()`, so the first
+  call never stamped the loaded modules; the second took the swapped files as its baseline, and a
+  `uv tool upgrade` between them left `server_stale_process: false` for good — the anchor's report.
+  Every test stubbed the probe, so none could see it; the new one writes a real loaded file
+  (`test_server_identity_is_live.py`). Whether uv also restored 0.2.0 on Windows stays unverified.
+- destination: first sighting.
+
 ### 369-C1 — a receiver read by its spelling needs the scope that could rebind it
 
 - type: 2 (code) · handle: `a-name-receiver-needs-its-scope`

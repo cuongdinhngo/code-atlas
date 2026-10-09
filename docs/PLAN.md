@@ -705,15 +705,18 @@ the ship point, onboarding presentation, and schema-state awareness: **no, perma
   prose seams live outside it (R4.1). Shipped M10–M12.
 - **An indexed repo cannot choose what code-atlas runs — 2026-09-27 (341):** its `[adapter_cmd]`
   needs `CA_TRUST_PROJECT_FILE=1`, a flag outside the config identity.
-- **Releases are versioned; no network update check — 2026-09-30 (348).**
+- **Releases are versioned; no network update check — 2026-09-30 (348), re-decided 2026-10-09 (374).**
   - **How a release is defined.** A release is the package version plus the contract and schema it
     ships, named by `CHANGELOG.md`'s top heading and test-gated. From 0.2.0 on, a rebuild-forcing
     change moves the minor version.
-  - **Why there is no network check.** An "is there a newer release" check is rejected for now. The
-    core may not call the network (R4/R4.1). The plugin route updates through
-    `claude plugin update`, and the offline `--expect-version` skew line catches plugin↔package
-    drift.
-  - **Re-open condition.** A field report of an install that ran an old release without knowing.
+  - **Why there is still no check of our own (374).** The re-open condition was met: an anchor ran
+    0.2.0 for a day after 0.3.0 shipped, its tool and plugin agreeing. Claude Code's plugin
+    auto-update already fetches outside the core, and the README now recommends turning it on; once the
+    plugin moves, the offline hook names every half that lags — tool, plugin, adapter checkout (whose
+    contract it reads from the handshake). The core stays offline (R4/R4.1).
+  - **What stays silent, knowingly.** An install whose halves all agree on an old release, with
+    plugin auto-update off or with no plugin, is not told. Only a network check could tell it.
+  - **Re-open condition.** A field report of such an install running an old release without knowing.
 - **LSP-tool coexistence** (§13) — code-atlas is the indexed search/impact layer; a language server stays for LSP nav/edit.
 
 **Decision — Agent-first PHP-depth pivot (adopted 2026-08-04, from phase 1's external review rounds 1–4).**
