@@ -576,7 +576,9 @@ function parseFile(path, declarationsOnly) {
     if (!isRuntimeString(node)) return;
     const statement = readSqlLiteral(text, closed);
     if (!statement) return;
-    const offset = node.getStart(sf) + 1 + statement.offset; // past the opening quote
+    // The keyword's place in the source, not in the cooked text: a cooked `\r\n` or escape is shorter.
+    const keyword = text.slice(statement.offset).split(/\s/)[0].toLowerCase();
+    const offset = node.getStart(sf) + Math.max(node.getText(sf).toLowerCase().indexOf(keyword), 0);
     edges.push({
       kind: statement.kind,
       source_qname: scope,
