@@ -206,6 +206,19 @@ Commits `ce5abf64` (code, tests), `d48a737b` (docs). **Red first** (R6.5), the c
 The first run on the new code turned four 345 tests red: their fixture was an index `unknown` to git,
 which Scope 1 now silences (H7). The fixture became a `current` index, which is what 345 meant.
 
+```
+$ .venv/bin/python -m pytest -q tests/test_grep_nudge.py tests/test_session_state_hook.py
+34 passed in 14.82s
+Ran at 43a187f9
+```
+
+```
+$ scripts/gate.sh
+21 passed · 0 failed · 0 skipped
+GATE GREEN — all 21 checks passed
+Ran at 43a187f9
+```
+
 **Verification sweep.** File axis: the diff is the change list; `ruff check`, `mypy code_atlas` clean.
 Behaviour axis: Approach 1–4 implemented as approved.
 
