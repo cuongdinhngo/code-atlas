@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import threading
 import time
+from collections.abc import Iterable
 from pathlib import Path
 
 from code_atlas import contract
@@ -47,9 +48,13 @@ def read_refusals(db_path: Path) -> dict[str, int]:
     }
 
 
-def record_refusal(db_path: Path, refused: AdapterContractError) -> None:
-    """Keep the contract a refused handshake named, so the next session start can name it."""
-    kept = {**read_refusals(db_path), refused.key: refused.announced}
+def record_refusal(
+    db_path: Path, refused: AdapterContractError, *, proven: Iterable[str] = ()
+) -> None:
+    """Keep the contract a refused handshake named; drop the adapters this announce proved."""
+    cleared = set(proven)
+    kept = {key: value for key, value in read_refusals(db_path).items() if key not in cleared}
+    kept[refused.key] = refused.announced
     try:
         _refusal_path(db_path).write_text(json.dumps(kept, sort_keys=True), encoding="utf-8")
     except OSError:

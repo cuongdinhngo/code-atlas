@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 
 from code_atlas import adapter_skew, build_info, contract, indexer
-from code_atlas.adapter import AdapterContractError
+from code_atlas.adapter import AdapterContractError, AdapterError, SubprocessAdapter
 from code_atlas.config import load_config
 from code_atlas.hooks import state
 from code_atlas.tokens import estimate_tokens
@@ -256,3 +256,29 @@ def test_a_refused_handshake_is_recorded_and_a_clean_one_clears_it(
     monkeypatch.setenv("CA_FAKE_CMD", f"{sys.executable} {FIXTURE} ok")
     indexer.parse_file(load_config(project), "src/a.aa")
     assert adapter_skew.read_refusals(config.db_path) == {}
+
+
+def test_a_partial_announce_drops_the_refusals_of_the_adapters_it_proved(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An adapter that announced this core's contract before another refused is no longer stale."""
+    for name in [k for k in os.environ if k.startswith("CA_")]:
+        monkeypatch.delenv(name)
+    project = _project(tmp_path)
+    config_db = project / ".code-atlas" / "graph.db"
+    adapter_skew.record_refusal(config_db, AdapterContractError("alpha", 1))
+    monkeypatch.setenv("CA_ALPHA_CMD", f"{sys.executable} {FIXTURE} ok")
+    monkeypatch.setenv("CA_ZETA_CMD", f"{sys.executable} {FIXTURE} bad-version")
+    assert indexer.parse_file(load_config(project), "src/a.aa") is None
+    assert adapter_skew.read_refusals(config_db) == {"zeta": 99}
+
+
+def test_a_kill_before_the_launch_still_kills_the_child(tmp_path: Path) -> None:
+    """The probe's deadline can fire before Popen: the child it then makes must not outlive it."""
+    adapter = SubprocessAdapter("fake", (sys.executable, str(FIXTURE), "silent-boot"), tmp_path)
+    adapter.kill()
+    started = time.monotonic()
+    with pytest.raises(AdapterError):
+        adapter.start()
+    assert time.monotonic() - started < HOOK_TIMEOUT
+    adapter.stop()

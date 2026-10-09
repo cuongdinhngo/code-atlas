@@ -128,6 +128,7 @@ class SubprocessAdapter:
         self._container_root = container_root
         self._stderr_path = stderr_path
         self._process: subprocess.Popen[str] | None = None
+        self._killed = False
         self._stderr: IO[str] | None = None
         self._meta: dict[str, object] | None = None
 
@@ -174,6 +175,8 @@ class SubprocessAdapter:
             raise AdapterError(
                 f"adapter {self._key!r}: cannot run {self._command} ({error})"
             ) from error
+        if self._killed:  # kill() ran before Popen returned: honour it, the handshake read fails
+            self._process.kill()
         self._meta = self._read_handshake()
 
     def parse(
@@ -209,7 +212,9 @@ class SubprocessAdapter:
         This is how a caller bounds a silent adapter: a read parked in :meth:`_read_line` returns
         ``''`` once the child dies, so the hang collapses into the usual :class:`AdapterError`.
         Closing the pipes instead would race the parked reader into a `ValueError`.
+        A kill before :meth:`start` launches is kept, and start kills the child it makes (374).
         """
+        self._killed = True
         process = self._process
         if process is not None:
             process.kill()

@@ -1074,7 +1074,7 @@ def _announce(config: Config, watchdog: _Watchdog) -> dict[str, SubprocessAdapte
         for adapter in started.values():
             adapter.stop()
         if isinstance(error, AdapterContractError):
-            record_refusal(config.db_path, error)  # the state hook names it next session (374)
+            record_refusal(config.db_path, error, proven=started)  # named next session (374)
         raise
     clear_refusals(config.db_path)
     return started
