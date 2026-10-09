@@ -86,11 +86,14 @@ def test_an_era_move_without_the_rebuild_flag_goes_red() -> None:
 
 
 def test_every_generated_hook_table_expects_this_release() -> None:
-    """348 AC2 wiring: the snippet and the plugin both carry the package version (344 drift)."""
+    """348 AC2 wiring: both hook tables carry the package version and contract (344, 374)."""
     for path in (gen_skill.CLAUDE_CODE_SNIPPET_PATH, gen_skill.PLUGIN_HOOKS_PATH):
         hooks = json.loads(path.read_text(encoding="utf-8"))["hooks"]
         commands = [h["command"] for e in hooks["SessionStart"] for h in e["hooks"]]
-        expect = f"code-atlas-state {state.EXPECT_FLAG} {_version()}"
+        expect = (
+            f"code-atlas-state {state.EXPECT_CONTRACT_FLAG} {contract.CONTRACT_VERSION}"
+            f" {state.EXPECT_FLAG} {_version()}"
+        )
         assert any(c.endswith(expect) for c in commands), (path.name, commands)
 
 

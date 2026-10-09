@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from collections.abc import Iterator
 from pathlib import Path
 from time import perf_counter
@@ -266,3 +267,28 @@ def test_the_memo_is_one_entry_however_many_swaps(monkeypatch: pytest.MonkeyPatc
     for _ in range(50):
         build_info.server_identity()
     assert len(build_info._probe_state) == before, "one entry per module, not per swap"
+
+
+def test_a_swap_before_the_second_answer_is_reported_by_the_real_probe(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """374 AC4: the anchor's `server_stale_process: false` after `uv tool upgrade`.
+
+    The tests above stub the probe, so none saw that the first identity left it unseeded: the second
+    call seeded it with the swapped stamps and reported no change, then and forever after.
+    """
+    loaded = tmp_path / "loaded.py"
+    loaded.write_text("x = 1\n", encoding="utf-8")
+    module = type(sys)("code_atlas._swapped_by_an_upgrade")
+    module.__file__ = str(loaded)
+    monkeypatch.setitem(sys.modules, module.__name__, module)
+    monkeypatch.setattr(build_info, "_git_root", lambda: None)
+    monkeypatch.setattr(build_info, "_LOADED_BUILD_ID", "l0aded1")
+    monkeypatch.setattr(build_info, "_content_build_id", lambda: "l0aded1")
+
+    assert build_info.server_identity()["stale_process"] is False  # the first payload
+    loaded.write_text("x = 2  # the upgraded release\n", encoding="utf-8")
+    monkeypatch.setattr(build_info, "_content_build_id", lambda: "n3wc0de")
+
+    assert build_info.server_identity()["stale_process"] is True
+    assert build_info.server_identity()["stale_process"] is True

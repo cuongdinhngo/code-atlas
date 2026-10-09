@@ -28,6 +28,18 @@ class AdapterError(Exception):
     """A broken adapter process or command — a config/programmer error, so it fails loud (R5.3)."""
 
 
+class AdapterContractError(AdapterError):
+    """The adapter announced another contract than this core speaks (374)."""
+
+    def __init__(self, key: str, announced: int) -> None:
+        super().__init__(
+            f"adapter {key!r} speaks contract v{announced}, "
+            f"but this core speaks v{contract.CONTRACT_VERSION}"
+        )
+        self.key = key
+        self.announced = announced
+
+
 @dataclass(frozen=True, slots=True)
 class ParseResult:
     """One adapter result, mirroring :data:`contract.RESULT_FIELDS`.
@@ -254,10 +266,7 @@ class SubprocessAdapter:
         if meta["contract_version"] != contract.CONTRACT_VERSION:
             announced = meta["contract_version"]
             self.stop()
-            raise AdapterError(
-                f"adapter {self._key!r} speaks contract v{announced}, "
-                f"but this core speaks v{contract.CONTRACT_VERSION}"
-            )
+            raise AdapterContractError(self._key, int(announced))
         return meta
 
     def _request(
