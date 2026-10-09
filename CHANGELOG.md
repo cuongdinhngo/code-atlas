@@ -15,6 +15,8 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 ## Unreleased
 
+- A Python call on a module-level variable built by `Foo()` resolves to `Foo`'s method, as it
+  already did in a function (368).
 - The TypeScript and Python adapters flag their constructors too, so `find_callers` on a TS
   `constructor` or a Python `__init__`/`__new__` lists its class's construction sites; a TS
   `super(…)` now calls the base class's constructor (367). **Full rebuild required** once.
