@@ -10,6 +10,8 @@ import re
 from collections.abc import Sequence
 from pathlib import Path
 
+from code_atlas.containment import resolves_inside
+
 # One site for the body-size default (288 / R6.7). Above this, ``read_symbol`` elides by default.
 # 600 keeps the field's decisive 508-line read whole and degrades the wasteful 720-line case.
 BODY_LINE_THRESHOLD = 600
@@ -35,9 +37,9 @@ def clamp_line_range(
     return lo, hi
 
 
-def comment_block(path: Path, line_start: int) -> str:
+def comment_block(path: Path, line_start: int, *, root: Path) -> str:
     """Contiguous comment lines immediately above ``line_start`` (1-based), joined with newlines."""
-    if not path.is_file() or line_start < 1:
+    if not readable(root, path) or line_start < 1:
         return ""
     lines = path.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
     if line_start > len(lines):
@@ -49,14 +51,14 @@ def comment_block(path: Path, line_start: int) -> str:
 
 
 def declaration_slice(
-    path: Path, line_start: int, line_end: int, *, include_comments: bool = True
+    path: Path, line_start: int, line_end: int, *, root: Path, include_comments: bool = True
 ) -> str:
     """Lines ``line_start…line_end`` (1-based, inclusive), with the contiguous comment block above.
 
     ``include_comments=False`` returns the declaration range alone — no docblock — so the slice
     matches its own ``line_start``/``line_end`` (read_symbol's ``minimal``, task 163 / 8-H).
     """
-    if not path.is_file():
+    if not readable(root, path):
         return ""
     lines = path.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
     if line_start < 1 or line_start > len(lines):
@@ -64,6 +66,14 @@ def declaration_slice(
     end = min(max(line_end, line_start), len(lines))
     top = _comment_top(lines, line_start) if include_comments else line_start
     return "".join(lines[top - 1 : end])
+
+
+def readable(root: Path, path: Path) -> bool:
+    """A file whose text may leave: it exists and resolves inside ``root``, symlinks followed (375).
+
+    Containment is checked at index time too, but an indexed file can become a link out later.
+    """
+    return path.is_file() and resolves_inside(root, path)
 
 
 def _comment_top(lines: Sequence[str], line_start: int) -> int:
