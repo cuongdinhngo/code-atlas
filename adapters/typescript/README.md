@@ -84,6 +84,12 @@ compiled sibling, and a non-relative `@alias` through the nearest tsconfig `base
 `export { X } from "./m"` emits an `ALIASES` edge naming the defining module, so an import through a
 barrel resolves to where `X` is declared; `export default class Foo` aliases `::default` to `::Foo`
 for the same reason. Anything unresolved stays bare.
+A `require` whose path is built from `__dirname` and literals (`+`, a template, or `path.join` /
+`path.resolve` of node's `path` module) imports the file it names exactly; another head with a `/…`
+literal is a `HEURISTIC` tail, completed with the requirer's extension when it has none, which the
+core links to the one file ending with it (370, as PHP's 353). Either way the file keeps its
+`dynamic_import` stamp unless the path was exact, and a `require(name)` stays a stamped runtime load.
+`path` is read by its file-level binding, so a function that rebinds the name is not followed.
 
 ## Static analysis (R6.6) — `tsc --checkJs --strict`
 
