@@ -5,6 +5,8 @@ export class Repo {
 
   private owner: User;
 
+  private static count: number = 0;
+
   find(u: User): User {
     return u;
   }
@@ -14,6 +16,7 @@ export class Repo {
   }
 
   run(): string {
+    Repo.count = Repo.count + 1;
     return Repo.tag("name", 3);
   }
 }

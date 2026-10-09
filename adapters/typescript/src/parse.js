@@ -270,7 +270,20 @@ function parseFile(path, declarationsOnly) {
     if (declared.has(name)) declared.set(name, null);
     else declared.set(name, qname);
   };
+  // Class qname -> its static fields: what `Foo.x` (or `this.x` in a static member) can reach (369).
+  const staticFields = new Map();
+  const classQnames = new Map();
   const collect = (node, container) => {
+    if (ts.isClassDeclaration(node) && nameOf(node)) classQnames.set(node, member(container, nameOf(node)));
+    if (
+      ts.isPropertyDeclaration(node) &&
+      ts.isClassDeclaration(node.parent) &&
+      hasModifier(node, ts.SyntaxKind.StaticKeyword) &&
+      nameOf(node)
+    ) {
+      if (!staticFields.has(container)) staticFields.set(container, new Set());
+      staticFields.get(container).add(nameOf(node));
+    }
     let childContainer = container;
     if (nodeKindOf(node)) {
       const name = nameOf(node);
@@ -472,6 +485,60 @@ function parseFile(path, declarationsOnly) {
     return null;
   };
 
+  // The class qname `this` names: inside a static member of a class declaration it is the class;
+  // an arrow inherits `this`, any other function or class rebinds it.
+  const thisClass = (node) => {
+    for (let n = node.parent; n; n = n.parent) {
+      if (ts.isArrowFunction(n)) continue;
+      const member =
+        ts.isMethodDeclaration(n) || ts.isGetAccessor(n) || ts.isSetAccessor(n) || ts.isPropertyDeclaration(n);
+      const isStatic = ts.isClassStaticBlockDeclaration(n) || (member && hasModifier(n, ts.SyntaxKind.StaticKeyword));
+      if ((member || ts.isClassStaticBlockDeclaration(n)) && ts.isClassDeclaration(n.parent)) {
+        return isStatic ? classQnames.get(n.parent) || null : null;
+      }
+      if (ts.isFunctionLike(n) || ts.isClassLike(n) || ts.isSourceFile(n)) return null;
+    }
+    return null;
+  };
+
+  // Whether a function-like or block between `node` and the file binds `name` — a parameter or a
+  // local `const`/`let`/`var`/`function`/`class`/`catch` — shadowing the file's class of that name.
+  const boundLocally = (node, name) => {
+    for (let n = node.parent; n && !ts.isSourceFile(n); n = n.parent) {
+      if (ts.isFunctionLike(n) && n.parameters.some((p) => bindsName(p.name, name))) return true;
+      if (ts.isCatchClause(n) && n.variableDeclaration && bindsName(n.variableDeclaration.name, name)) return true;
+      if ((ts.isBlock(n) || ts.isModuleBlock(n)) && declaresName(n, name)) return true;
+      if ((ts.isForStatement(n) || ts.isForOfStatement(n) || ts.isForInStatement(n)) && n.initializer &&
+          ts.isVariableDeclarationList(n.initializer) &&
+          n.initializer.declarations.some((d) => bindsName(d.name, name))) return true;
+    }
+    return false;
+  };
+  const bindsName = (binding, name) => {
+    if (ts.isIdentifier(binding)) return binding.text === name;
+    return binding.elements.some((el) => !ts.isOmittedExpression(el) && bindsName(el.name, name));
+  };
+  const declaresName = (block, name) =>
+    block.statements.some((st) =>
+      (ts.isVariableStatement(st) && st.declarationList.declarations.some((d) => bindsName(d.name, name))) ||
+      (ts.isFunctionDeclaration(st) && st.name && st.name.text === name) ||
+      // the block declaring the class itself (a namespace) does not shadow it
+      (ts.isClassDeclaration(st) && st.name && st.name.text === name && classQnames.get(st) !== declared.get(name)));
+
+  // A static field read or written by its class's name, or by `this` in a static member (369, as 336).
+  const emitStaticFieldRef = (node, scope) => {
+    const parent = node.parent;
+    if ((ts.isCallExpression(parent) || ts.isNewExpression(parent)) && parent.expression === node) return;
+    const recv = node.expression;
+    let owner = null;
+    if (ts.isIdentifier(recv) && !boundLocally(node, recv.text)) owner = declared.get(recv.text) || null;
+    else if (recv.kind === ts.SyntaxKind.ThisKeyword) owner = thisClass(node);
+    const fields = owner ? staticFields.get(owner) : undefined;
+    if (fields && fields.has(node.name.text)) {
+      addEdge("REFERENCES", scope, member(owner, node.name.text), node.getStart(sf));
+    }
+  };
+
   const emitBodyEdges = (node, scope, enclosingClass, locals, selfProps) => {
     // Module structure (IMPORTS, re-export ALIASES) survives declarations_only; CALLS/NEW do not.
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
@@ -508,6 +575,9 @@ function parseFile(path, declarationsOnly) {
       const cls = newExprClass(node.right);
       if (cls) locals.set(node.left.text, cls);
       else locals.delete(node.left.text);
+    }
+    if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.name)) {
+      emitStaticFieldRef(node, scope);
     }
     if (ts.isNewExpression(node)) {
       const target = resolveExpr(node.expression);

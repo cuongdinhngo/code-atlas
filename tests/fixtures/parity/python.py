@@ -10,6 +10,8 @@ class Repo:
 
     owner: User
 
+    count: int = 0
+
     def find(self, u: User) -> User:
         return u
 
@@ -18,4 +20,5 @@ class Repo:
         return name
 
     def run(self) -> str:
+        Repo.count = Repo.count + 1
         return Repo.tag("name", 3)

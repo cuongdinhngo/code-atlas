@@ -1,5 +1,5 @@
 {
-  "contract_note": "Pinned public samples for R6.3 / tasks 018 (PHP) + 150 (TS/JS) + 233 (Python+SQL). Not under adapters/ (R2.2). Each sample names its `language`; the harness resolves that adapter's command from `_ADAPTERS` (data, not a code branch). Optional `sparse_paths` extracts a subdirectory of a large monorepo via git archive into a nested pin repo. Floors ≈80% of a known-good smoke at the pinned SHA — bump floors when bumping sha. TS floors from a 2026-08-27 Docker run (node adapter): ky 54f/543n/7781e, mqttjs 80f/725n/6208e, socketio 371f/3533n/60651e; all failed=0. Python+SQL floors from a 2026-09-08 smoke on host dev-host (Python 3.13.14): flask 83f/1758n/10794e (flask's floors DROP from 1544n/8942e: 227's note recorded 1931n/11178e, which does not reproduce — d318b68 builds 1758n/10794e identically at 227's own merge commit 2835273 and at e092835, so the old floor was slack, not a regression being pinned), pydantic 442f/17422n/90199e, requests 37f/946n/5220e, adventureworks_oltp 1f/590n/1301e, wwi_dw 73f/549n/1254e; all failed=0. Edge floors for socketio, flask, pydantic and requests re-measured 2026-09-30 (task 349, host dev-host): 258 made a multi-match bare CALL one unresolved edge instead of one per same-named candidate, so edges fell at unchanged files and nodes — socketio 53299→28050e, flask 10794→7300e, pydantic 90199→78584e, requests 5220→4417e.",
+  "contract_note": "Pinned public samples for R6.3 / tasks 018 (PHP) + 150 (TS/JS) + 233 (Python+SQL). Not under adapters/ (R2.2). Each sample names its `language`; the harness resolves that adapter's command from `_ADAPTERS` (data, not a code branch). Optional `sparse_paths` extracts a subdirectory of a large monorepo via git archive into a nested pin repo. Floors ≈80% of a known-good smoke at the pinned SHA — bump floors when bumping sha. TS floors from a 2026-08-27 Docker run (node adapter): ky 54f/543n/7781e, mqttjs 80f/725n/6208e, socketio 371f/3533n/60651e; all failed=0. Python+SQL floors from a 2026-09-08 smoke on host dev-host (Python 3.13.14): flask 83f/1758n/10794e (flask's floors DROP from 1544n/8942e: 227's note recorded 1931n/11178e, which does not reproduce — d318b68 builds 1758n/10794e identically at 227's own merge commit 2835273 and at e092835, so the old floor was slack, not a regression being pinned), pydantic 442f/17422n/90199e, requests 37f/946n/5220e, adventureworks_oltp 1f/590n/1301e, wwi_dw 73f/549n/1254e; all failed=0. Edge floors for socketio, flask, pydantic and requests re-measured 2026-09-30 (task 349, host dev-host): 258 made a multi-match bare CALL one unresolved edge instead of one per same-named candidate, so edges fell at unchanged files and nodes — socketio 53299→28050e, flask 10794→7300e, pydantic 90199→78584e, requests 5220→4417e. Edge floors for flask, pydantic and requests re-set 2026-10-08 (task 369, host dev-host): class-attribute reads and writes became REFERENCES, so edges rose at unchanged nodes — flask 7317→7368e, pydantic 78731→79577e, requests 4417→4686e.",
   "samples": [
     {
       "id": "laravel_app",
@@ -83,7 +83,7 @@
       "url": "https://github.com/pallets/flask.git",
       "min_files": 66,
       "min_nodes": 1406,
-      "min_edges": 5840
+      "min_edges": 5894
     },
     {
       "id": "pydantic",
@@ -95,7 +95,7 @@
       "url": "https://github.com/pydantic/pydantic.git",
       "min_files": 353,
       "min_nodes": 13937,
-      "min_edges": 62867
+      "min_edges": 63661
     },
     {
       "id": "requests",
@@ -107,7 +107,7 @@
       "url": "https://github.com/psf/requests.git",
       "min_files": 29,
       "min_nodes": 756,
-      "min_edges": 3534
+      "min_edges": 3748
     },
     {
       "id": "adventureworks_oltp",

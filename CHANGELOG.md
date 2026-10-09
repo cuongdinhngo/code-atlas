@@ -15,6 +15,8 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 ## Unreleased
 
+- A TypeScript static field and a Python class attribute read or written through their class or
+  its lexical receiver are `REFERENCES` onto the member, so `find_references` lists them (369).
 - A Python call on a module-level variable built by `Foo()` resolves to `Foo`'s method, as it
   already did in a function (368).
 - The TypeScript and Python adapters flag their constructors too, so `find_callers` on a TS

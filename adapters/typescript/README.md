@@ -52,6 +52,9 @@ CA_TYPESCRIPT_CMD="node /abs/path/adapters/typescript/index.js --server"
 
 Decorators and declared types ride on a node's `extra` (`decorators`, `type`); a decorator and a
 named type reference also emit a `REFERENCES` edge (232) — a decorator-factory call is not a `CALLS`.
+A static field read or written as `Foo.x`, or as `this.x` in a static member (an arrow inherits
+`this`, a `function` rebinds it), is a `REFERENCES` onto `Foo::x` when `Foo` is declared in the file
+(369); an instance field, a base class's field and a class from another file are not followed.
 
 **Edges:** `CONTAINS`, `EXTENDS`, `IMPLEMENTS`, `CALLS`, `NEW`, `IMPORTS`, `REFERENCES`, `ALIASES` (named
 re-exports, and a named default export). Qnames are module-path-anchored and join every member

@@ -443,6 +443,10 @@ def parse_file(
     # Local name → in-repo qname when ``from … import`` resolves on disk (link targets).
     import_bindings: dict[str, str] = {}
     class_kind: dict[str, str] = {}
+    # Class qname → names its own body assigns: the Property/ClassConst nodes a `Foo.x` can reach.
+    class_attrs: dict[str, set[str]] = {}
+    # Callable qname → (its parameters, the names its body binds), an enclosing def's included.
+    scope_names: dict[str, tuple[frozenset[str], frozenset[str]]] = {}
     interface_qnames: set[str] = set()
 
     def remember(name: str, qname: str) -> None:
@@ -538,6 +542,8 @@ def parse_file(
                 targets = [stmt.target]
             for target in targets:
                 if isinstance(target, ast.Name):
+                    if class_qname is not None and func_qname is None:
+                        class_attrs.setdefault(class_qname, set()).add(target.id)
                     if class_qname is not None:
                         remember(target.id, member(class_qname, target.id))
                     else:
@@ -944,6 +950,10 @@ def parse_file(
             emit_decorator_refs(qn, stmt)
             emit_function_annotation_refs(qn, stmt)
             if not declarations_only:
+                outer_params, outer_stored = scope_names.get(container, (frozenset(), frozenset()))
+                own = {a.arg for a in ast.walk(stmt.args) if isinstance(a, ast.arg)}
+                body = {name for child in stmt.body for name in _stored_names(child)}
+                scope_names[qn] = (outer_params | own, outer_stored | body)
                 # Fresh locals at a module/class-level def; nested defs inherit (153).
                 nested = kind == "Function" and container not in (qpath, mod)
                 child_locals = (
@@ -1003,6 +1013,10 @@ def parse_file(
                 # Class-body / annotated assign → REFERENCES from the Property/Const (or scope).
                 src = owner_for_ann or scope
                 emit_annotation_refs(src, stmt.annotation, stmt)
+            if not declarations_only:
+                for target in targets:
+                    if not isinstance(target, ast.Name):
+                        _walk_targets(target, scope, enclosing_class)
             if not declarations_only and isinstance(stmt, ast.Assign) and stmt.value:
                 _walk_expr(stmt.value, scope, enclosing_class, locals_, self_props)
             elif not declarations_only and isinstance(stmt, ast.AnnAssign) and stmt.value:
@@ -1016,6 +1030,29 @@ def parse_file(
                 else:
                     _walk_expr(child, scope, enclosing_class, locals_, self_props)
 
+    def emit_attribute_ref(node: ast.Attribute, scope: str, enclosing_class: str | None) -> None:
+        # `Foo.x` / `self.x` / `cls.x` onto an attribute its class body declares (369, as 336).
+        recv = node.value
+        if not isinstance(recv, ast.Name):
+            return
+        params, stored = scope_names.get(scope, (frozenset(), frozenset()))
+        if recv.id in stored or (recv.id not in ("self", "cls") and recv.id in params):
+            return  # a local of that name shadows the receiver
+        if recv.id in ("self", "cls") and enclosing_class is not None:
+            owner = enclosing_class
+        else:
+            owner = resolve_name(recv.id)
+            if class_kind.get(owner) != "Class":
+                return
+        if node.attr in class_attrs.get(owner, ()):
+            add_edge("REFERENCES", scope, member(owner, node.attr), node)
+
+    def _walk_targets(target: ast.expr, scope: str, enclosing_class: str | None) -> None:
+        # An assignment target is a write, never a call site: only its attribute refs are read.
+        for node in ast.walk(target):
+            if isinstance(node, ast.Attribute):
+                emit_attribute_ref(node, scope, enclosing_class)
+
     def _walk_expr(
         expr: ast.AST,
         scope: str,
@@ -1025,7 +1062,14 @@ def parse_file(
     ) -> None:
         if isinstance(expr, ast.Call):
             emit_call(expr, scope, enclosing_class, locals_, self_props)
+        elif isinstance(expr, ast.Attribute):
+            emit_attribute_ref(expr, scope, enclosing_class)
+        callee = expr.func if isinstance(expr, ast.Call) else None
         for child in ast.iter_child_nodes(expr):
+            if child is callee and isinstance(child, ast.Attribute):
+                # A method call is a CALLS already; only its receiver is a read.
+                _walk_expr(child.value, scope, enclosing_class, locals_, self_props)
+                continue
             _walk_expr(child, scope, enclosing_class, locals_, self_props)
 
     # The module's top-level statements share one forgetful table (368); see walk_module_stmt.

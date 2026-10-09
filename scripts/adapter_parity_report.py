@@ -82,12 +82,20 @@ RATIO_PROBES: dict[str, Probe] = {
     "`arg_keys` on a call site": lambda nodes, edges: _filled(_call_sites(edges), "arg_keys"),
 }
 
+def _onto_a_field(nodes: Nodes, edges: Edges) -> tuple[int, int]:
+    """References onto a declared property or class constant: a use, not an annotation (369)."""
+    fields = {n.get("qualified_name") for n in nodes if n.get("kind") in ("Property", "ClassConst")}
+    refs = [e for e in edges if e.get("kind") == "REFERENCES"]
+    return sum(1 for e in refs if e.get("target_raw") in fields), len(refs)
+
+
 # Probes with no denominator: the construct is the adapter's choice, not the fixture's supply.
 COUNT_PROBES: dict[str, Probe] = {
     "`REFERENCES` edges from the annotations": lambda nodes, edges: (
-        sum(1 for e in edges if e.get("kind") == "REFERENCES"),
+        (lambda onto, every: every - onto)(*_onto_a_field(nodes, edges)),
         0,
     ),
+    "`REFERENCES` onto a static / class property": _onto_a_field,
     "`ClassConst` for the class constant": lambda nodes, edges: (
         sum(1 for n in nodes if n.get("kind") == "ClassConst"),
         0,
