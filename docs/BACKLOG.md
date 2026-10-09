@@ -26,7 +26,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
 | 371 | [TS/Py SQL strings](tasks/371_sql-statement-in-a-host-string-beyond-php.md) | Coverage | todo | 278, 281, 335, 364 |
 | 372 | [Py keyword args](tasks/372_python-keyword-arguments-record-no-args.md) | Coverage | todo | 049, 352, 364 |
-| 373 | [Py path-loaded modules](tasks/373_python-path-loaded-module-imports-nothing.md) | Coverage | todo | 370 |
 
 ## Open work — Pillar 2 · Onboarding
 
