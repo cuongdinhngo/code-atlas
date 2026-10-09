@@ -188,6 +188,19 @@ restored, `-k "missing or first_test"` gave `6 failed, 5 passed` — AC1 (`sh`, 
 before too (it guards the order, not a new behaviour). A first draft's line held an apostrophe that closed the
 `echo`'s quotes; AC1 is what would have caught it, and the line now has none.
 
+```
+$ .venv/bin/python -m pytest -q tests/test_claude_code_plugin.py tests/test_contrib_snippets.py
+59 passed in 0.54s
+Ran at 61bd37ab
+```
+
+```
+$ scripts/gate.sh
+21 passed · 0 failed · 0 skipped
+GATE GREEN — all 21 checks passed
+Ran at 61bd37ab
+```
+
 **Verification sweep.** File axis: the diff is the change list; `ruff check scripts tests` clean; the snippet is
 unchanged (`gen_skill.py` reported only `hooks.json` stale). Behaviour axis: Approach 1–4 implemented as approved.
 
