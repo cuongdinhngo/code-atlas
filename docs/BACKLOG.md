@@ -24,7 +24,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
-| 375 | [Read-time containment for a symlinked file](tasks/375_read-time-containment-in-source-slice.md) | Trust | todo | 342 |
 | 376 | [Plugin hooks exit 127 without the console scripts](tasks/376_plugin-hook-without-console-scripts.md) | Adoption | todo | 344 |
 | 377 | [Nudge only when the index can answer; per-agent dedupe](tasks/377_nudge-only-when-the-index-can-answer.md) | Adoption | todo | 345 |
 | 378 | [Did-you-mean by edit distance](tasks/378_search-did-you-mean-by-edit-distance.md) | Retrieval | todo | 180, 253 |
@@ -71,9 +70,9 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **`host_root` / `container_root` from the project file are unchecked paths** — harmless today
   (`to_adapter_path` only maps repo-relative strings) but ungated, unlike 341's two knobs —
   341.
-- **Two symlink residuals 342 left out of scope** — a stub root's files (`collect_stubs`, `os.walk`)
-  and the index directory (`.code-atlas/` committed as a link aims SQLite writes) are not yet contained
-  — 342.
+- **Three symlink residuals** — a stub root's files (`collect_stubs`, `os.walk`), the index
+  directory (`.code-atlas/` committed as a link aims SQLite writes) — 342; and read-through repair
+  re-parses an indexed file swapped for a link out, storing its rows (`read_symbol` withholds the text) — 375.
 - **Two field reports 365 did not reproduce** — `read_symbol` on a table answered `subject_ambiguous`
   mid-rebuild, and `find_references` answered `index_stale` during a full rebuild, whose shadowed
   live DB still repairs in 365's tests — 365.
