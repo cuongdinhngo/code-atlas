@@ -44,7 +44,7 @@ CA_TYPESCRIPT_CMD="node /abs/path/adapters/typescript/index.js --server"
 | `interface`, `type X = …` | `Interface` | a `type` alias is marked `extra.type_alias` |
 | `enum`, `const enum` | `Enum` | `const enum` marked `extra.const`; members → `ClassConst` (`extra.enum_case`) |
 | `function`, name-bound `const f = () =>`/`function` | `Function` | anonymous inline callables get no node |
-| method / ctor / get / set | `Method` | constructor named `__construct` |
+| method / ctor / get / set | `Method` | constructor named `__construct`; a named class's carries `extra.constructor` (367) |
 | property / field | `Property` | |
 | module-scoped `const K = <value>` | `Const` | |
 | unnamed `export default …` | (its kind) | qnamed `::default` so a default-import resolves |
@@ -61,7 +61,7 @@ with `::`.
 
 | call shape | target | tier |
 |---|---|---|
-| `f()`, `this.m()`, `ns.f()` | the full qname where the adapter can name it | — (the core may reach `RESOLVED`) |
+| `f()`, `this.m()`, `ns.f()`, `super(…)` | the full qname where the adapter can name it (`super(…)`: `<Base>::__construct`) | — (the core may reach `RESOLVED`) |
 | `obj.method()`, `a.b.c()`, `super.m()` | the **bare method name** — the name is known, the receiver is not | `HEURISTIC` |
 | `obj[name]()`, an IIFE | `(dynamic)` | `DYNAMIC` |
 

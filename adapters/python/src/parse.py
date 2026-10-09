@@ -18,6 +18,7 @@ from src.types import (
 MEMBER_SEP = "::"
 
 _MODIFIER_DECORATORS = frozenset({"staticmethod", "classmethod", "property"})
+_CONSTRUCTORS = frozenset({"__init__", "__new__"})
 # Matched on the leaf, so a bare `Protocol`, `typing.Protocol` and `t.ABC` all classify alike.
 _INTERFACE_LEAVES = frozenset({"Protocol", "ABC"})
 _ENUM_LEAVES = frozenset({"Enum"})
@@ -853,7 +854,11 @@ def parse_file(
                 mods = _function_modifiers(stmt)
             params = _callable_params(stmt, skip_receiver=kind == "Method")
             ret = _annotation_text(stmt.returns)
-            extra = {"type": ret} if ret is not None else None
+            extra: dict[str, Any] = {"type": ret} if ret is not None else {}
+            # `Foo(...)` passes its arguments to both `__new__` and `__init__` (data model §3.3.1),
+            # so each is a constructor its class's calls reach (367) — in the class body only.
+            if kind == "Method" and container == enclosing_class and stmt.name in _CONSTRUCTORS:
+                extra["constructor"] = True
             add_node(
                 kind,
                 stmt.name,

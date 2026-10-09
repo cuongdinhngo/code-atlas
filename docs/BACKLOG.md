@@ -24,7 +24,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
-| 367 | [TS/Py constructor flag](tasks/367_constructor-flag-beyond-php.md) | Coverage | todo | 362 |
 | 368 | [Py module-scope receiver](tasks/368_python-module-scope-receiver.md) | Coverage | todo | 227, 362 |
 | 369 | [TS/Py property references](tasks/369_class-property-references-beyond-php.md) | Coverage | todo | 336, 232 |
 | 370 | [TS path-built require](tasks/370_path-built-imports-beyond-php.md) | Coverage | todo | 353, 363, 294, 295 |
@@ -83,6 +82,7 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
 - **PHP members are case-insensitive, the resolver is not** (`validate()` onto `Validate()` stays
   unlinked — a fixture cause, not matched to the field); an inherited constructor misses its
   subclass's `new` sites — 362.
+- **A Python `def` nested in a method is emitted as a class Method**, sharing a member's qname — 367.
 - **Two route shapes 361 left out** — an inline `on*="fn(…)"` in a PHP view (no attribute reader,
   no cross-language bare-name link) and `$.ajax({url: '…'})`, a field `key_pattern` cannot reach — 361.
 

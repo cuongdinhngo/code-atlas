@@ -356,6 +356,9 @@ function parseFile(path, declarationsOnly) {
     if (node.kind === ts.SyntaxKind.TypeAliasDeclaration) base.type_alias = true;
     if (kind === "Enum" && hasModifier(node, ts.SyntaxKind.ConstKeyword)) base.const = true;
     if (node.kind === ts.SyntaxKind.EnumMember) base.enum_case = true;
+    // The spec's `constructor` of a named class is what `new` calls (362/367); a class expression has
+    // no Class node, so `find_callers` could not name the class it builds.
+    if (node.kind === ts.SyntaxKind.Constructor && ts.isClassDeclaration(node.parent)) base.constructor = true;
     return extraOf(node, base);
   };
 
@@ -457,6 +460,18 @@ function parseFile(path, declarationsOnly) {
     return null;
   };
 
+  // The qname of the class a `super(...)` call's class extends, or null when the heritage names none.
+  const superClassOf = (node) => {
+    let cls = node.parent;
+    while (cls && !ts.isClassLike(cls)) cls = cls.parent;
+    for (const clause of (cls && cls.heritageClauses) || []) {
+      if (clause.token === ts.SyntaxKind.ExtendsKeyword && clause.types.length === 1) {
+        return resolveExpr(clause.types[0].expression);
+      }
+    }
+    return null;
+  };
+
   const emitBodyEdges = (node, scope, enclosingClass, locals, selfProps) => {
     // Module structure (IMPORTS, re-export ALIASES) survives declarations_only; CALLS/NEW do not.
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
@@ -506,6 +521,11 @@ function parseFile(path, declarationsOnly) {
         enclosingClass
       ) {
         addEdge("CALLS", scope, member(enclosingClass, callee.name.text), node.getStart(sf), undefined, node);
+      } else if (callee.kind === ts.SyntaxKind.SuperKeyword) {
+        // `super(...)` runs the base class's constructor, a static target (367) — not a dynamic call.
+        const base = superClassOf(node);
+        if (base) addEdge("CALLS", scope, member(base, "__construct"), node.getStart(sf), undefined, node);
+        else addEdge("CALLS", scope, "(dynamic)", node.getStart(sf), "DYNAMIC", node);
       } else if (ts.isIdentifier(callee)) {
         // A bare call is reported even when unresolved: the adapter emits, the core links (R3.3).
         addEdge("CALLS", scope, resolve(callee.text), node.getStart(sf), undefined, node);

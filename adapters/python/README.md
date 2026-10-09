@@ -33,6 +33,7 @@ CA_PYTHON_CMD="python /abs/path/adapters/python/index.py --server"
 | `typing.Protocol` / `abc.ABC` (and aliases) | Interface; implementors → IMPLEMENTS |
 | `enum.Enum` (and aliases) | Enum |
 | instance / `@staticmethod` / `@classmethod` / `@property` | Method + `modifiers` |
+| `__init__` / `__new__` in a class body | Method + `extra.constructor`: `Foo(…)` passes its arguments to both, so `find_callers` on either lists the class's calls (367) |
 | other decorators | REFERENCES to the decorator target |
 | param / return / AnnAssign named types | REFERENCES (builtins / `Any` / `None` skipped) |
 | `async def` | `async` modifier |
