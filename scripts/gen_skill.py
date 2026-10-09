@@ -22,6 +22,7 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from code_atlas.adapter import ADAPTERS_DIR, shipped_adapters  # noqa: E402
+from code_atlas.contract import CONTRACT_VERSION  # noqa: E402
 from code_atlas.main import TOOL_NAMES  # noqa: E402
 from code_atlas.tools import prompts  # noqa: E402
 
@@ -174,8 +175,11 @@ def _claude_code_hooks(command: Callable[[str], str]) -> dict[str, Any]:
     poke = {"type": "command", "command": command("code-atlas-poke"), "async": True, "timeout": 60}
     signal = {"type": "command", "command": command("code-atlas-signal"), "timeout": 10}
     nudge = {"type": "command", "command": command("code-atlas-nudge"), "timeout": 10}
-    # 348: the release this table came from, so the state hook can name a skewed tool install.
-    expect = f"{command('code-atlas-state')} --expect-version {_package()['version']}"
+    # 348/374: the release and contract this table came from, so the hook can order every half.
+    expect = (
+        f"{command('code-atlas-state')} --expect-contract {CONTRACT_VERSION}"
+        f" --expect-version {_package()['version']}"
+    )
     state = {"type": "command", "command": expect, "timeout": 10}
     # 345: the grep-time nudge — the Grep tool, and a Bash call that starts with a search command.
     searches = [{"matcher": "Grep", "hooks": [nudge]}] + [

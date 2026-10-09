@@ -215,9 +215,21 @@ installed with:
 - `marketplace update` alone leaves the installed version where it was.
 - `plugin update` moves it.
 
-Whether a session start auto-updates a third-party marketplace was not measured, so run the two
-commands yourself. If the plugin and the tool install disagree, the `SessionStart` hook says so,
-names both versions, and names the command for the side that lags.
+**Turn on auto-update for this marketplace.** Claude Code's docs (`plugins/loading.md`,
+`install.md`, read 2026-10-09) say auto-update is **off by default** for a third-party marketplace.
+Once on, it runs after the first message of an interactive session, after a random delay of up to
+ten minutes, and applies on `/reload-plugins` or the next launch. Turn it on per user with `/plugin`
+→ Marketplaces → *Enable auto-update*. For a team, a project's settings can set `"autoUpdate": true`
+on the marketplace's `extraKnownMarketplaces` entry — **not measured** for a teammate who installed
+the plugin at user scope. Auto-update makes the plugin the half that moves first.
+
+**The `SessionStart` hook names every half that lags** — the tool install, the plugin, and the adapter
+checkout, whose contract it reads by launching each configured adapter. It gives each fix, in this
+order:
+1. **On Windows, disconnect the server first** (`/mcp`). A running server holds `code-atlas.exe`, so
+   `uv tool upgrade` fails halfway with `os error 32`. Re-run it after disconnecting.
+2. The tool install, then the plugin, then the adapter checkout.
+3. **Reconnect** — a `/mcp` reconnect loads the new server; a plugin update applies on `/reload-plugins`.
 
 **After an upgrade**, check two things:
 - **The index.** If the changelog flags a full rebuild, run `code-atlas-build --full`. Until then

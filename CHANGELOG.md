@@ -17,6 +17,9 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 - **Full rebuild required.** Run `code-atlas-build --full`: the edge table gains `kwargs`.
 - **Adapter checkout must be updated.** Every adapter speaks contract 14.
+- The `SessionStart` hook names every half of the install that lags the newest — tool, plugin, and
+  the adapter checkout, whose contract it reads by launching each configured adapter — with each
+  fix in upgrade order; `server_stale_process` now sees a package replaced after the first answer (374).
 - A Python keyword argument is recorded in `kwargs` beside the positional `args`, and
   `find_callers` filters by one with `arg_name` + `arg_is` (372).
 - A TypeScript or Python string that begins a T-SQL write or `EXEC` writes, deletes or calls

@@ -187,7 +187,12 @@ def server_identity() -> dict[str, object]:
     reportable — the cache 164 shipped made that structurally impossible.
     """
     global _identity
-    if _identity is None or _loaded_modules_changed():
+    if _identity is None:
+        # Seed the probe with the stamps this identity describes, or a swap before the next
+        # payload is taken as the baseline and never reported (374).
+        _loaded_modules_changed()
+        _identity = _compute_identity()
+    elif _loaded_modules_changed():
         _identity = _compute_identity()
     return _identity
 

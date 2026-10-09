@@ -512,7 +512,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-state --expect-version 0.3.0",
+            "command": "code-atlas-state --expect-contract 14 --expect-version 0.3.0",
             "timeout": 10
           }
         ]
@@ -523,7 +523,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-state --expect-version 0.3.0",
+            "command": "code-atlas-state --expect-contract 14 --expect-version 0.3.0",
             "timeout": 10
           }
         ]

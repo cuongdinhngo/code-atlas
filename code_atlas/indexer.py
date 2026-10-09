@@ -26,7 +26,14 @@ from dataclasses import asdict, dataclass, replace
 from pathlib import Path, PurePosixPath
 
 from code_atlas import contract, gitutil
-from code_atlas.adapter import AdapterError, ParseResult, SubprocessAdapter, extension_index
+from code_atlas.adapter import (
+    AdapterContractError,
+    AdapterError,
+    ParseResult,
+    SubprocessAdapter,
+    extension_index,
+)
+from code_atlas.adapter_skew import clear_refusals, record_refusal
 from code_atlas.config import Config, ConfigError
 from code_atlas.containment import resolves_inside
 from code_atlas.enrichment import (
@@ -1063,10 +1070,13 @@ def _announce(config: Config, watchdog: _Watchdog) -> dict[str, SubprocessAdapte
             with watchdog.guard(adapter):
                 adapter.start()
             started[key] = adapter
-    except BaseException:
+    except BaseException as error:
         for adapter in started.values():
             adapter.stop()
+        if isinstance(error, AdapterContractError):
+            record_refusal(config.db_path, error, proven=started)  # named next session (374)
         raise
+    clear_refusals(config.db_path)
     return started
 
 
