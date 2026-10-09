@@ -525,7 +525,10 @@ def edit_distance_limit(text: str) -> int:
 
 
 def edit_distance(a: str, b: str, bound: int) -> int:
-    """Levenshtein distance of two casefolded strings, or ``bound + 1`` once it must exceed it."""
+    """Levenshtein distance of two casefolded strings, or ``bound + 1`` once it must exceed it.
+
+    Plain Levenshtein, the ticket's metric: a swapped pair costs 2, so ``usre`` misses ``user``.
+    """
     a, b = a.casefold(), b.casefold()
     if abs(len(a) - len(b)) > bound:
         return bound + 1
