@@ -193,8 +193,12 @@ def ungate(command: str) -> str:
 
 def _claude_code_hooks(command: Callable[[str, bool], str]) -> dict[str, Any]:
     """The one hook table: the snippet names each console script, the plugin gates it (344)."""
-    poke = {"type": "command", "command": command("code-atlas-poke", False), "async": True,
-            "timeout": 60}
+    poke = {
+        "type": "command",
+        "command": command("code-atlas-poke", False),
+        "async": True,
+        "timeout": 60,
+    }
     signal = {"type": "command", "command": command("code-atlas-signal", False), "timeout": 10}
     nudge = {"type": "command", "command": command("code-atlas-nudge", False), "timeout": 10}
     # 348/374: the release and contract this table came from, so the hook can order every half.
