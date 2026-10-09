@@ -20,6 +20,8 @@ How to upgrade each install route is in the README, under *Upgrading*.
 - The `SessionStart` hook names every half of the install that lags the newest — tool, plugin, and
   the adapter checkout, whose contract it reads by launching each configured adapter — with each
   fix in upgrade order; `server_stale_process` now sees a package replaced after the first answer (374).
+- The grep nudge stays silent while the index is behind, building or pending a rebuild, and a
+  subagent hears it once for itself instead of being silenced by its parent's session (377).
 - A plugin installed before its console scripts no longer fails every hook with exit 127: the
   `SessionStart` hook names the install command once, and every hook exits 0 (376).
 - `read_symbol` and the onboarding docblock read refuse a file that now resolves outside the repo — an
