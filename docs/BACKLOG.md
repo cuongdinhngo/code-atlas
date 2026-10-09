@@ -24,7 +24,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 098 | [Should the graph hold "this file is a copy/port of that one"? — evidence-gated](tasks/098_correspondence-relation-seam.md) | Coverage | deferred | 030, 011, 003 |
 | 141 | ["Can this module be split out?" — the cut edges and the cycles that block it — evidence-gated](tasks/141_extractability-cut-edges-and-the-cycles-that-block-it.md) | Coverage | deferred | 120, 087, 140 |
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
-| 377 | [Nudge only when the index can answer; per-agent dedupe](tasks/377_nudge-only-when-the-index-can-answer.md) | Adoption | todo | 345 |
 | 378 | [Did-you-mean by edit distance](tasks/378_search-did-you-mean-by-edit-distance.md) | Retrieval | todo | 180, 253 |
 | 379 | [Live est. tokens saved — measure-first](tasks/379_live-estimated-tokens-saved.md) | Adoption | todo | 260 |
 | 380 | [BM25 column weights — evidence-gated](tasks/380_search-bm25-column-weights.md) | Retrieval | deferred | 180 |
