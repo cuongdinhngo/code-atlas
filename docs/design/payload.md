@@ -143,7 +143,8 @@ autonomous caller cannot act on is noise, and the interactive `/mcp` reconnect i
 not a step an agent can take (267). `server_stale_impact` then says whether the tool-contract
 surface moved with the disk (`tool_contract_unchanged` / `tool_contract_changed`), and
 `server_repo_head` is the checkout's HEAD — context for the worktree tip, never "which code
-answered".
+answered". The asking side has its own axis: a client whose first MCP root is another checkout at
+another commit gets `reason: ref_mismatch` on every query answer, rows kept, both commits named (366).
 
 Config is stamped the same way, because config decides what the index even contains — the field
 episode edited `.code-atlas.toml` to add an adapter, built, and got a cheerful `wrote.files: 0`

@@ -188,8 +188,8 @@ table.grid td code{font-size:13px}
 </header>
 
 <dl class="facts">
-  <div class="fact"><dt>schema_version</dt><dd>5</dd></div>
-  <div class="fact"><dt>contract_version</dt><dd>10</dd></div>
+  <div class="fact"><dt>schema_version</dt><dd>7</dd></div>
+  <div class="fact"><dt>contract_version</dt><dd>14</dd></div>
   <div class="fact"><dt>relations</dt><dd>5</dd></div>
   <div class="fact"><dt>indexes</dt><dd>8</dd></div>
   <div class="fact"><dt>enforced FKs</dt><dd>1</dd></div>
@@ -271,7 +271,7 @@ table.grid td code{font-size:13px}
         <thead><tr><th>column</th><th>type</th><th>key</th><th>note</th></tr></thead>
         <tbody>
           <tr><td>id</td><td>INTEGER</td><td><span class="m m-pk">PK</span></td><td></td></tr>
-          <tr><td>kind</td><td>TEXT</td><td><span class="m m-ix">IDX</span></td><td>one of 12</td></tr>
+          <tr><td>kind</td><td>TEXT</td><td><span class="m m-ix">IDX</span></td><td>one of 14</td></tr>
           <tr><td>source_qname</td><td>TEXT</td><td><span class="m m-ix">IDX</span></td><td>the symbol the call site sits in</td></tr>
           <tr><td>target_qname</td><td>TEXT</td><td><span class="m m-ix">IDX</span></td><td><strong>NULL means unresolved</strong></td></tr>
           <tr><td>target_raw</td><td>TEXT</td><td><span class="m m-ix">IDX</span></td><td>exactly what the adapter wrote, before the resolver</td></tr>
@@ -280,6 +280,7 @@ table.grid td code{font-size:13px}
           <tr><td>confidence_tier</td><td>TEXT = 'RESOLVED'</td><td><span class="m m-ix">IDX</span></td><td>RESOLVED · HEURISTIC · DYNAMIC</td></tr>
           <tr><td>args</td><td>TEXT</td><td></td><td>records the argument <em>category</em>, never the value</td></tr>
           <tr><td>arg_keys</td><td>TEXT</td><td></td><td>top-level string keys of an array literal</td></tr>
+          <tr><td>kwargs</td><td>TEXT</td><td></td><td>keyword &rarr; argument category, beside the positional <code>args</code></td></tr>
         </tbody>
       </table>
       <footer><strong>Edges join by qname, never by node id.</strong> A qname declared in two files is
@@ -430,20 +431,20 @@ table.grid td code{font-size:13px}
         <span class="chip">Interface</span><span class="chip">Trait</span><span class="chip">Enum</span>
         <span class="chip">Function</span><span class="chip">Method</span><span class="chip">Property</span>
         <span class="chip">ClassConst</span><span class="chip">Const</span>
-        <span class="chip new">Table</span><span class="chip new">Column</span>
+        <span class="chip new">Table</span><span class="chip new">Column</span><span class="chip">ForeignKey</span>
       </div>
       <p class="note" style="margin-top:10px">The two ochre chips are contract v9. A table keeps its
       native separator (<code>dbo.Trans</code>) and a column joins on with <code>::</code> exactly as a
       property does — so the qname convention did not move, only the vocabulary.</p>
     </div>
     <div>
-      <h3>12 edge kinds</h3>
+      <h3>14 edge kinds</h3>
       <div class="chips">
         <span class="chip">CONTAINS</span><span class="chip">EXTENDS</span><span class="chip">IMPLEMENTS</span>
         <span class="chip">USES_TRAIT</span><span class="chip">CALLS</span><span class="chip">NEW</span>
         <span class="chip">IMPORTS</span><span class="chip">INCLUDES</span><span class="chip">REFERENCES</span>
         <span class="chip">ALIASES</span><span class="chip">PROVIDES_VIEW_DATA</span>
-        <span class="chip new">WRITES</span>
+        <span class="chip new">WRITES</span><span class="chip">ALTERS</span><span class="chip">DELETES</span>
       </div>
       <h3 style="margin-top:20px">3 confidence tiers</h3>
       <div class="tiers">
@@ -456,7 +457,7 @@ table.grid td code{font-size:13px}
 </section>
 
 <section>
-  <h2><span class="n">05</span> Five schema versions</h2>
+  <h2><span class="n">05</span> Seven schema versions</h2>
   <div class="ladder">
     <div class="step"><div class="v">2</div><div class="what"><b>tokenize='trigram'</b>
       <span>on <code>nodes_fts</code> — what makes <code>email</code> match inside <code>findByEmail</code>; unicode61 did not</span></div></div>
@@ -464,8 +465,12 @@ table.grid td code{font-size:13px}
       <span>per-call-site argument shapes, contract v3</span></div></div>
     <div class="step"><div class="v">4</div><div class="what"><b>edges.arg_keys</b>
       <span>array-literal string keys, contract v5</span></div></div>
-    <div class="step now"><div class="v">5</div><div class="what"><b>files.fingerprint</b>
-      <span>the line-preserving whitespace skip tier — the current version</span></div></div>
+    <div class="step"><div class="v">5</div><div class="what"><b>files.fingerprint</b>
+      <span>the line-preserving whitespace skip tier</span></div></div>
+    <div class="step"><div class="v">6</div><div class="what"><b>one unresolved call site</b>
+      <span>in place of materialised Method-name siblings (258)</span></div></div>
+    <div class="step now"><div class="v">7</div><div class="what"><b>edges.kwargs</b>
+      <span>keyword arguments, contract v14 (372) — the current version</span></div></div>
   </div>
   <div class="dec" style="margin-top:26px">
     <h3>No migration runner, and a mismatch has a direction</h3>
