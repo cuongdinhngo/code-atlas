@@ -35,6 +35,8 @@ all-calls benchmark if you need a figure comparable to 19%.
 
 - **Read:** `get_index_status(detail_level="verbose")` → `fit_counts` (omitted on minimal/standard).
 - **Reset:** `get_index_status(reset_fit_counts=true)` (works at any detail level; clears `fit:` meta rows).
+- **Not a fit count:** `est_tokens_vs_grep_read` (379) shares the store, the shadow carry and this
+  reset; what it measures is in [TOOLS.md](../TOOLS.md) (`get_index_status`).
 
 Local counts live in `graph.db` meta. They are not telemetry (no network). They must not enter
 determinism-compared nav payloads and must not feed retrieval ranking.

@@ -153,9 +153,7 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
         ``verbose`` also carries ``fit_counts`` — local per-tool ask tallies (task 260); pass
         ``reset_fit_counts=true`` to clear them first (documented reset; local counts are not
         telemetry). See ``docs/design/fit.md`` for the fit definition before reading the numbers.
-        ``verbose`` also carries ``est_tokens_vs_grep_read`` — per tool, ``calls``, ``cited_calls``,
-        est. ``response_tokens`` and an est. grep+Read ``baseline_tokens`` (the cited files read
-        whole); an estimate, never a benchmark tier — ``est_tokens_note`` says so (379).
+        ``verbose`` also carries ``est_tokens_vs_grep_read`` — read ``est_tokens_note`` first (379).
 
         ``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
         ``key=value`` line stating how many files this index covers and at which revision. An
