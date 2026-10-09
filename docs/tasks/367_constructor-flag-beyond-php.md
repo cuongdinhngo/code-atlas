@@ -181,9 +181,11 @@ site in either language).
 **Sweep.** Axis 1: `git diff --name-only main..HEAD` = change-list items 1–4; `ruff check`, `mypy`
 (core and Python adapter), `tsc --checkJs --strict` clean. Axis 2: Approach 1–4 as approved.
 
-**P8.** `scripts/cross_repo_validate.py --public-only --skip-clone`: 11 ok / 0 failed on `main` and on
-`bf75f16d`; every sample's node and edge count unchanged (a `super(…)` edge changes target, not
-count), so no floor moves.
+**P8 (corrected).** `scripts/cross_repo_validate.py --public-only --skip-clone`, 11 ok / 0 failed, rerun
+with `CA_*_CMD` unset (the shell exported them at the main checkout, and the harness prefers them —
+the first run measured the wrong adapter): TS edges rose — ky 7960→7990, mqttjs 6146→6150, socketio
+28050→28229 — as `super(…)` sites became linked calls; nodes and every other count unchanged; the
+floors hold, so none moves.
 
 ## Phase 4 — review
 
