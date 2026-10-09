@@ -15,6 +15,8 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 ## Unreleased
 
+- A TypeScript or Python string that begins a T-SQL write or `EXEC` writes, deletes or calls
+  its object, as a PHP one does; one shared table keeps the three readers in step (371).
 - A Python module loaded by `run_path`, `spec_from_file_location` or `exec` of a `__file__`-relative
   path, or by a literal `import_module`, is imported; a computed load stamps its file (373).
 - A TS/JS `require` built from `__dirname` plus literals imports its file; a root constant plus

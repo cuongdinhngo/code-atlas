@@ -1,0 +1,203 @@
+{
+  "_doc": "Task 371: one recogniser, three copies. Each literal is the whole text of a string (`open: false`) or the text before an interpolation (`open: true`); `expect` is the edge every source adapter emits from it at HEURISTIC, or null. `markers` holds the parameter markers each host language's drivers write, so the EXEC guard reads per adapter (228).",
+  "cases": [
+    {
+      "text": "INSERT INTO dbo.Items (a) VALUES (1)",
+      "open": false,
+      "expect": {
+        "kind": "WRITES",
+        "target": "dbo.Items"
+      }
+    },
+    {
+      "text": "insert into Items values (1)",
+      "open": false,
+      "expect": {
+        "kind": "WRITES",
+        "target": "Items"
+      }
+    },
+    {
+      "text": "INSERT INTO dbo.Items SELECT a FROM dbo.Old",
+      "open": false,
+      "expect": {
+        "kind": "WRITES",
+        "target": "dbo.Items"
+      }
+    },
+    {
+      "text": "UPDATE dbo.Items SET a = 1",
+      "open": false,
+      "expect": {
+        "kind": "WRITES",
+        "target": "dbo.Items"
+      }
+    },
+    {
+      "text": "UPDATE [dbo].[Line Items] SET a = 1",
+      "open": false,
+      "expect": {
+        "kind": "WRITES",
+        "target": "dbo.Line Items"
+      }
+    },
+    {
+      "text": "MERGE INTO dbo.Target AS t USING dbo.Source s ON 1 = 1",
+      "open": false,
+      "expect": {
+        "kind": "WRITES",
+        "target": "dbo.Target"
+      }
+    },
+    {
+      "text": "DELETE FROM dbo.Items WHERE id = 1",
+      "open": false,
+      "expect": {
+        "kind": "DELETES",
+        "target": "dbo.Items"
+      }
+    },
+    {
+      "text": "DELETE FROM dbo.Items",
+      "open": false,
+      "expect": {
+        "kind": "DELETES",
+        "target": "dbo.Items"
+      }
+    },
+    {
+      "text": "DELETE FROM dbo.Items",
+      "open": true,
+      "expect": null
+    },
+    {
+      "text": "DELETE FROM dbo.Items WHERE id = ",
+      "open": true,
+      "expect": {
+        "kind": "DELETES",
+        "target": "dbo.Items"
+      }
+    },
+    {
+      "text": "INSERT INTO dbo.Items",
+      "open": true,
+      "expect": null
+    },
+    {
+      "text": "EXEC dbo.Insert_Order @p = 1",
+      "open": false,
+      "expect": {
+        "kind": "CALLS",
+        "target": "dbo.Insert_Order"
+      }
+    },
+    {
+      "text": "EXEC dbo.Insert_Order ?",
+      "open": false,
+      "expect": {
+        "kind": "CALLS",
+        "target": "dbo.Insert_Order"
+      }
+    },
+    {
+      "text": "EXECUTE dbo.Insert_Order :name",
+      "open": false,
+      "expect": {
+        "kind": "CALLS",
+        "target": "dbo.Insert_Order"
+      }
+    },
+    {
+      "text": "exec dbo.Insert_Order N'abc'",
+      "open": false,
+      "expect": {
+        "kind": "CALLS",
+        "target": "dbo.Insert_Order"
+      }
+    },
+    {
+      "text": "EXEC dbo.Insert_Order",
+      "open": false,
+      "expect": {
+        "kind": "CALLS",
+        "target": "dbo.Insert_Order"
+      }
+    },
+    {
+      "text": "EXEC @rc = dbo.Insert_Order @p = 1",
+      "open": false,
+      "expect": {
+        "kind": "CALLS",
+        "target": "dbo.Insert_Order"
+      }
+    },
+    {
+      "text": "EXEC Insert_Order @p = 1",
+      "open": false,
+      "expect": null
+    },
+    {
+      "text": "Update settings",
+      "open": false,
+      "expect": null
+    },
+    {
+      "text": "delete this?",
+      "open": false,
+      "expect": null
+    },
+    {
+      "text": "Insert into cart",
+      "open": false,
+      "expect": null
+    },
+    {
+      "text": "Delete from dbo.Items after archiving",
+      "open": false,
+      "expect": null
+    },
+    {
+      "text": "Execute the plan",
+      "open": false,
+      "expect": null
+    }
+  ],
+  "markers": [
+    {
+      "text": "EXEC dbo.Insert_Order %s",
+      "open": false,
+      "expect_by_adapter": {
+        "php": null,
+        "python": {
+          "kind": "CALLS",
+          "target": "dbo.Insert_Order"
+        },
+        "typescript": null
+      }
+    },
+    {
+      "text": "EXEC dbo.Insert_Order %(order)s",
+      "open": false,
+      "expect_by_adapter": {
+        "php": null,
+        "python": {
+          "kind": "CALLS",
+          "target": "dbo.Insert_Order"
+        },
+        "typescript": null
+      }
+    },
+    {
+      "text": "EXEC dbo.Insert_Order $1",
+      "open": false,
+      "expect_by_adapter": {
+        "php": null,
+        "python": null,
+        "typescript": {
+          "kind": "CALLS",
+          "target": "dbo.Insert_Order"
+        }
+      }
+    }
+  ]
+}

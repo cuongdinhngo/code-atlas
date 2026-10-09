@@ -14,6 +14,7 @@ const {
   pathBuiltRequire,
   pathModuleNames,
 } = require("./imports");
+const { readSqlLiteral } = require("./sqlLiteral");
 const { boundClass, newExprClass, paramTypeMap, classPropTypeMap, typeNodeOf, typeRefTargets } = require("./types");
 
 function scriptKindFor(path) {
@@ -558,6 +559,36 @@ function parseFile(path, declarationsOnly) {
     return true;
   };
 
+  // A string the program runs as a value: not a bare statement, a type, a module specifier or a
+  // member's name, which never reach a database driver.
+  const isRuntimeString = (node) => {
+    const parent = node.parent;
+    if (!parent || ts.isExpressionStatement(parent) || ts.isLiteralTypeNode(parent)) return false;
+    if (ts.isImportDeclaration(parent) || ts.isExportDeclaration(parent)) return false;
+    if (ts.isExternalModuleReference(parent) || ts.isImportTypeNode(parent)) return false;
+    return !("name" in parent && parent.name === node);
+  };
+
+  // A literal that begins a T-SQL write or EXEC writes, deletes or calls its object (371). The
+  // literal before a `+` is cut short, as PHP's `.`; a bare expression statement never runs.
+  const continuedLiterals = new Set();
+  const emitSqlLiteral = (node, text, closed, scope) => {
+    if (!isRuntimeString(node)) return;
+    const statement = readSqlLiteral(text, closed);
+    if (!statement) return;
+    // The keyword's place in the source, not in the cooked text: a cooked `\r\n` or escape is shorter.
+    const keyword = text.slice(statement.offset).split(/\s/)[0].toLowerCase();
+    const offset = node.getStart(sf) + Math.max(node.getText(sf).toLowerCase().indexOf(keyword), 0);
+    edges.push({
+      kind: statement.kind,
+      source_qname: scope,
+      target_raw: statement.target,
+      file_path: qpath,
+      line: lineOf(offset),
+      confidence_tier: "HEURISTIC",
+    });
+  };
+
   const emitBodyEdges = (node, scope, enclosingClass, locals, selfProps) => {
     // Module structure (IMPORTS, re-export ALIASES) survives declarations_only; CALLS/NEW do not.
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
@@ -586,6 +617,16 @@ function parseFile(path, declarationsOnly) {
       markUnmodelledResolution("dynamic_import");
     }
     if (declarationsOnly) return;
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+      let left = node.left;
+      while (ts.isBinaryExpression(left) && left.operatorToken.kind === ts.SyntaxKind.PlusToken) left = left.right;
+      continuedLiterals.add(left);
+    }
+    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+      emitSqlLiteral(node, node.text, !continuedLiterals.has(node), scope);
+    } else if (ts.isTemplateExpression(node)) {
+      emitSqlLiteral(node, node.head.text, false, scope);
+    }
     // Flow-sensitive, forgetful (137): `x = new Foo()` binds x; `x = <anything else>` re-opens it,
     // so a stale type can never outlive the assignment that invalidated it.
     if (

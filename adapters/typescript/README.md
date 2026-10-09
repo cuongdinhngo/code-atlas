@@ -76,6 +76,12 @@ A body edge is **sourced at the scope that wrote it** — a call in a method is 
 not at its class — the same stack the PHP adapter pushes (namespaces, class-likes and callables open
 a scope; properties and consts only declare). `tests/contract/` freezes that source per case.
 
+A string or template literal that begins a T-SQL write or `EXEC` emits that edge onto the named
+object at `HEURISTIC` (371, PHP's 335 shape): `INSERT INTO`/`UPDATE`/`MERGE INTO` → `WRITES`, `DELETE
+FROM` → `DELETES`, `EXEC` → `CALLS`, only when the clause T-SQL requires follows the name. A
+template's head before `${…}` and a literal before `+` are cut short; the `EXEC` guard also reads
+`$1`. A type, a module specifier and a member's name are not read: no driver runs them. `tests/contract/sql_literal_cases.json` keeps the three copies in step.
+
 **Resolution (R3.3 — the adapter names, the core links).** A same-file target resolves to its full
 qname; an imported name resolves to `<defining-file>::<exported>` by resolving the module specifier
 (relative + `require`, extension/`index`, a NodeNext `./x.js` to the `./x.ts` **source** ahead of a

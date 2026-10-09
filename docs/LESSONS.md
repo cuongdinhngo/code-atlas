@@ -41,6 +41,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 | `formatter-rewrites-untouched-lines` | 10 | 343, 357, 359, 360, 361, 362, 363, 364, 365, 366 | ENGINEERING_RULES R7.7 |
 | `child-build-inherits-adapter-env` | 2 | 356, 357 | ENGINEERING_RULES R6.10 |
 | `widen-every-query-that-shares-the-page` | 3 | 362, 364, 367 | not yet — awaiting the maintainer's `/mango:promote` |
+| `read-a-literal-by-its-structure-not-a-regex` | 2 | 361, 371 | not yet — awaiting the maintainer's `/mango:promote` |
 
 ## Live claims
 
@@ -94,7 +95,7 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 ### 361-C1 — a regex over a literal's text reads nested and partial values as the literal's own
 
 - type: 2 (code) · handle: `read-a-literal-by-its-structure-not-a-regex`
-- status: proposed · seen: 361
+- status: proposed · seen: 361, 371
 - evidence: `{data: {action: 'inner'}}` gave `action='inner'`, `{action: 'a' + b}` gave `'a'`, and a
   ternary gave a bogus field — each a guessed rule link. The challenger found it; a depth-aware split
   at top-level commas, keeping only an entry that is exactly a name and one string, reads none of them.
