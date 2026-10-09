@@ -234,6 +234,19 @@ The store pass alone on pydantic: `__init_` 4.0 ms, `test_valdate` 11.6 ms, `tes
 (none in bound), `valdiator` 2.3 ms. This repo's "before" was not comparable: restoring the old files dirtied
 the tree, so the old code answered `index_stale`.
 
+```
+$ .venv/bin/python -m pytest -q tests/test_search_did_you_mean.py tests/test_zero_overlap_token_candidates.py
+12 passed in 1.53s
+Ran at 255b9437
+```
+
+```
+$ scripts/gate.sh
+21 passed · 0 failed · 0 skipped
+GATE GREEN — all 21 checks passed
+Ran at 255b9437
+```
+
 **Verification sweep.** File axis: the diff is the change list; `ruff check`, `mypy code_atlas` clean.
 Behaviour axis: Approach 1–3 implemented as approved, except H9 — a first draft dropped a qname already in
 `candidates`; AC1 showed it hid the answer, and the lists are independent.
