@@ -342,6 +342,11 @@ Every number here is reproducible from a runbook in this repo.
 | Incremental no-op rebuild, large index | **56.1 s → 2.113 s (26×)** | [PLAN §19](docs/PLAN.md#19-project-context--decision-log) |
 | Onboarding lookups vs hand-mapping | **cheaper, 12/12 correct, recall 1.0** | [`121_onboarding-question-class.md`](docs/benchmarks/121_onboarding-question-class.md) |
 
+**On your own repo**, `get_index_status(detail_level="verbose")` carries `est_tokens_vs_grep_read`:
+per tool, the tokens its answers cost and an *est. grep+Read baseline* — the files each answer cites,
+read whole. It is a live estimate against a modelled baseline, not the row-one benchmark and not a
+measured saving (379).
+
 **Row two is the one the design optimises for.** Every failure in that round was *silence or
 ambiguity* — never a wrong answer. A tool an agent cannot trust to be wrong-free is a tool whose
 every answer must be re-verified by hand, which costs more than not having it.
