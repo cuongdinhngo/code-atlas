@@ -201,13 +201,15 @@ decides whether the database is 1 GB or 2 GB — is covered step by step in
 
 ### Upgrading
 
-Every release is an entry in [`CHANGELOG.md`](CHANGELOG.md). An entry can flag two extra steps:
+Every release is an entry in [`CHANGELOG.md`](CHANGELOG.md) and a `vX.Y.Z` tag; commits after a tag are
+not a newer release until the next one is cut, and they gather under *Unreleased* (381). An entry can flag two extra steps:
 **full rebuild required** and **adapter checkout must be updated**. Upgrade by the route you
 installed with:
 
 | Installed with | Upgrade |
 |---|---|
 | `uv tool install git+…` / `pipx install git+…` | `uv tool upgrade code-atlas` / `pipx upgrade code-atlas` |
+| `uv tool install git+…@<rev>` (the receipt says `?rev=`) | `uv tool install --force git+…` — `upgrade` never moves a pin, and the `SessionStart` hook names one (381) |
 | a checkout and `scripts/setup.py` | `git pull`, then re-run `python3 scripts/setup.py /abs/path/to/your-project` |
 | the Claude Code plugin | `claude plugin marketplace update code-atlas`, then `claude plugin update code-atlas@code-atlas`, then restart. Also upgrade the tool install that puts the scripts on `PATH` |
 
@@ -220,13 +222,15 @@ installed with:
 `install.md`, read 2026-10-09) say auto-update is **off by default** for a third-party marketplace.
 Once on, it runs after the first message of an interactive session, after a random delay of up to
 ten minutes, and applies on `/reload-plugins` or the next launch. Turn it on per user with `/plugin`
-→ Marketplaces → *Enable auto-update*. For a team, a project's settings can set `"autoUpdate": true`
-on the marketplace's `extraKnownMarketplaces` entry — **not measured** for a teammate who installed
-the plugin at user scope. Auto-update makes the plugin the half that moves first.
+→ Marketplaces → *Enable auto-update*. **Do not put it in a project's committed settings:** Claude
+Code registers and clones every `extraKnownMarketplaces` entry in the background for anyone who trusts
+the folder (`settings-reference.md`, `plugins/loading.md`, read 2026-10-10) — a network call on every
+teammate's machine, code-atlas or not (381; documented, not yet measured live). Auto-update makes the
+plugin the half that moves first.
 
 **The `SessionStart` hook names every half that lags** — the tool install, the plugin, and the adapter
-checkout, whose contract it reads by launching each configured adapter. It gives each fix, in this
-order:
+checkout, whose contract it reads by launching each configured adapter — on screen as well as to the
+agent (381). It gives each fix, in this order:
 1. **On Windows, disconnect the server first** (`/mcp`). A running server holds `code-atlas.exe`, so
    `uv tool upgrade` fails halfway with `os error 32`. Re-run it after disconnecting.
 2. The tool install, then the plugin, then the adapter checkout.

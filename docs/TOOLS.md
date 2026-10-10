@@ -277,7 +277,10 @@ is current, no build runs and no full rebuild is pending; ≤ 90 tokens. The gen
 `--expect-contract` and `--expect-version`, and the hook launches each configured adapter for its
 handshake (3 s for all, else the contract a refused build recorded). Every half — tool, plugin,
 adapter checkout — older than the newest prints first, with its fix in upgrade order, even on a current
-index (348, 374); always exits 0; never builds, reparses or takes the build lock.
+index (348, 374), and so does a uv tool install pinned to `?rev=`, which `uv tool upgrade` never moves
+(381). At `SessionStart` a skew, a pin or a pending rebuild goes out as JSON — `systemMessage` for the
+developer, `additionalContext` for the agent — since that event's plain stdout reaches only the agent
+(381); always exits 0; never builds, reparses or takes the build lock.
 
 ### The grep-time nudge — one line right after a grep for a symbol (opt-in, 345)
 

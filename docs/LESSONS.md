@@ -45,6 +45,24 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 381-C1 — SessionStart stdout reaches only the agent; `systemMessage` is what a person sees
+
+- type: 5 (environment) · area: `claude-code hooks / output routing` · verified-at: 2026-10-10, Claude Code docs (`hooks.md`)
+- status: proposed · seen: 381
+- evidence: an anchor's skew line fired at session start and the developer never saw it. The docs:
+  SessionStart plain stdout is added to Claude's context; `systemMessage` surfaces a message to the
+  user; PreCompact discards `systemMessage` and adds no stdout to context. Seen on screen: not yet (E1).
+- destination: first sighting.
+
+### 381-C2 — uv pins a tool install only when the install names `@<ref>`
+
+- type: 5 (environment) · area: `install / uv tool receipt` · verified-at: 2026-10-10, uv 0.11.28
+- status: proposed · seen: 381
+- evidence: a local git package installed as `git+file://…` wrote no `rev` to `uv-receipt.toml`;
+  as `git+file://…@<sha>` it wrote `?rev=<sha>`, and `uv tool upgrade` then answered "Nothing to
+  upgrade" after a new commit. This machine's own code-atlas receipt carries `?rev=864ae8a`.
+- destination: first sighting.
+
 ### 386-C1 — a hook that compacts `git diff` output makes a saved patch unusable
 
 - type: 1 (tool) · handle: `symbol:rtk git diff`

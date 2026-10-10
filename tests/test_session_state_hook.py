@@ -73,8 +73,12 @@ def test_an_older_era_index_speaks_at_an_unmoved_head(
         store.set_meta(CONTRACT_VERSION_KEY, str(contract.CONTRACT_VERSION - 1))
     code, out = _run(monkeypatch, capsys, _event("SessionStart"))
     assert code == 0
-    assert out.startswith(state.PREFIX + "rebuild required")
-    assert out.strip() == state.PREFIX + _summary(project)
+    # A pending rebuild is for the developer too (381): on screen, and the agent keeps its copy.
+    sent = json.loads(out)
+    line = state.PREFIX + _summary(project)
+    assert line.startswith(state.PREFIX + "rebuild required")
+    assert sent["systemMessage"] == line
+    assert sent["hookSpecificOutput"]["additionalContext"] == line
 
 
 def test_a_running_build_is_named_with_its_live_phase_and_route(project: Path) -> None:
@@ -198,6 +202,10 @@ def test_the_command_is_shipped_and_offered_opt_in() -> None:
     assert scripts["project"]["scripts"]["code-atlas-state"] == "code_atlas.hooks.state:main"
     snippet = json.loads((REPO / "contrib" / "claude-code" / "settings.snippet.json").read_text())
     for event in ("SessionStart", "PreCompact"):
-        commands = [h["command"] for entry in snippet["hooks"][event] for h in entry["hooks"]]
+        commands = [
+            h["command"].rpartition("; exec ")[2]
+            for entry in snippet["hooks"][event]
+            for h in entry["hooks"]
+        ]
         # 348: the command carries the release it was generated from, for the skew line.
         assert [c.split()[0] for c in commands] == ["code-atlas-state"], event

@@ -32,9 +32,9 @@ PreToolUse hook's plain stdout (346).
 2. `claude plugin marketplace add cuongdinhngo/code-atlas`, then
    `claude plugin install code-atlas@code-atlas` (or `/plugin` inside a session).
 
-[`plugin/`](plugin/) is generated from the same table as the snippet below, and each command is gated
-on `${CLAUDE_PROJECT_DIR}/.code-atlas`, so a repo with no index pays one shell test (~1.5 ms) and
-spawns no Python. An indexed repo whose `PATH` lacks the console scripts gets one `SessionStart`
+[`plugin/`](plugin/) is generated from the same table as the snippet below, and each command — the
+snippet's too — is gated on `${CLAUDE_PROJECT_DIR}/.code-atlas`, then on its script being on `PATH`,
+so a repo with no index pays one shell test (~1.5 ms) and spawns no Python. An indexed repo whose `PATH` lacks the console scripts gets one `SessionStart`
 line naming step 1, and every hook exits 0 (376). A fourth hook, `code-atlas-refresh`, runs in the
 background at `SessionStart`.
 A fifth, **`code-atlas-nudge`** (345), speaks right after a `Grep` or a `grep`/`rg`/`git grep` whose
@@ -51,7 +51,9 @@ Coming from a hand install? Remove the merged snippet and any `claude mcp add` e
    console scripts on `PATH` (same interpreter as the install). The snippet wires all four;
    `code-atlas-refresh` at `SessionStart` is plugin-only.
 2. Merge [`settings.snippet.json`](settings.snippet.json) into the **project**
-   `.claude/settings.json` (shareable) **or** `~/.claude/settings.json` (user-global). Keep
+   `.claude/settings.json` (shareable — a teammate without code-atlas runs nothing past the gate:
+   no output, exit 0, no network, 381; a copy merged before 381 names each script bare — re-copy
+   it) **or** `~/.claude/settings.json` (user-global). Keep
    `"async": true` on the poke so it does not stall the Edit/Write round-trip; the signal is
    synchronous by design, because its line has to reach the result it rides on. Every `"if"`
    filter is **generated** from each shipped adapter's own declared suffixes — never widened

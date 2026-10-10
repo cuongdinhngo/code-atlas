@@ -34,7 +34,8 @@ def _offered_commands(directory: Path) -> set[str]:
     for path in sorted(directory.glob("*.json")):
         text = path.read_text(encoding="utf-8")
         json.loads(text)  # an offer a host cannot parse is not an offer
-        found |= {cmd for cmd in HOOK_COMMANDS if f'"{cmd}"' in text}
+        # A bare command, or one behind the index gate (`…; exec <cmd>`, 344 / 381).
+        found |= {cmd for cmd in HOOK_COMMANDS if f'"{cmd}"' in text or f"exec {cmd}" in text}
     return found
 
 

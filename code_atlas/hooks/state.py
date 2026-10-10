@@ -24,6 +24,10 @@ the release and contract it was generated from. The adapter checkout is the thir
 configured adapter is launched and read for its handshake (``adapter_skew``). Every half older than
 the newest is named with its fix, in the order they must run, in one line.
 
+**On screen (381).** SessionStart stdout reaches only the agent, so a line a person must act on —
+version skew, a pinned tool install, a pending rebuild — goes out as JSON: ``systemMessage`` for the
+developer, ``additionalContext`` carrying every line for the agent. PreCompact keeps plain text.
+
 **Cardinal rule:** always exits 0 and never builds, reparses or takes the build lock; any error,
 broken stdin or unreadable index is silence. The host is never blocked.
 """
@@ -33,6 +37,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import tomllib
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -59,6 +64,10 @@ PLUGIN_STEP = "`claude plugin update code-atlas@code-atlas`"
 CHECKOUT_STEP = "`git pull` the adapter checkout, reinstall its deps"
 RECONNECT_STEP = "reconnect (`/mcp`) or restart"
 UPGRADING_POINTER = "run the README's *Upgrading* steps in order"
+# uv writes `?rev=`/`?tag=` into the receipt only when the install named `@<ref>`; upgrade skips it.
+RECEIPT = "uv-receipt.toml"
+PIN_KEYS = ("rev=", "tag=")
+SCREEN_EVENT = "SessionStart"
 
 
 def _verbose(argv: list[str]) -> bool:
@@ -177,6 +186,37 @@ def install_line(
     return _whole_line(lagging, newest_label, adapters=counted, windows=windows)
 
 
+def pinned_line(prefix: Path | None = None) -> str | None:
+    """Name a uv tool install pinned to one commit, which `uv tool upgrade` never moves (381)."""
+    receipt = (Path(sys.prefix) if prefix is None else prefix) / RECEIPT
+    try:
+        tool = tomllib.loads(receipt.read_text(encoding="utf-8")).get("tool", {})
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return None  # pipx, a checkout, a venv: no receipt, nothing pinned that uv would keep
+    for requirement in tool.get("requirements", []):
+        if not isinstance(requirement, dict) or requirement.get("name") != "code-atlas":
+            continue
+        git = requirement.get("git")
+        if not isinstance(git, str):
+            continue
+        url, _, query = git.partition("?")
+        pin = next((part for part in query.split("&") if part.startswith(PIN_KEYS)), None)
+        if pin:
+            return (
+                f"{PREFIX}this tool install is pinned to `{pin}`, which `uv tool upgrade` never "
+                f"moves — reinstall unpinned: `uv tool install --force git+{url}`"
+            )
+    return None
+
+
+def screen_lines(skew: str | None, pinned: str | None, line: str | None) -> list[str]:
+    """The lines a person must act on: the install's, and a pending rebuild (381 Scope 2)."""
+    from code_atlas.tools.get_index_status import REBUILD_LEAD
+
+    rebuild = line if line and line.startswith(PREFIX + REBUILD_LEAD) else None
+    return [text for text in (skew, pinned, rebuild) if text]
+
+
 def _flag(args: list[str], flag: str) -> str | None:
     if flag in args:
         index = args.index(flag)
@@ -284,6 +324,8 @@ def main(argv: list[str] | None = None) -> int:
     verbose = _verbose(args)
     expected = _expected(args)
     skew: str | None = None
+    pinned: str | None = None
+    event: object = None
     try:
         payload = json.load(sys.stdin)
         event = payload.get("hook_event_name") if isinstance(payload, dict) else None
@@ -291,15 +333,23 @@ def main(argv: list[str] | None = None) -> int:
             _note(f"silent: {event!r} is not a state occasion", verbose=verbose)
             return 0
         root = _project_root()
-        skew = _install_skew(root, expected, _expected_contract(args)) if _indexed(root) else None
+        if _indexed(root):
+            skew = _install_skew(root, expected, _expected_contract(args))
+            pinned = pinned_line()
         line = state_line(root, verbose=verbose)
     except Exception as error:
         # A broken state line must never break the session boundary it rides on.
         print(f"code-atlas state skipped: {type(error).__name__}: {error}", file=sys.stderr)
         line = None
-    for text in (skew, line):
-        if text:
-            print(text)
+    lines = [text for text in (skew, pinned, line) if text]
+    screen = screen_lines(skew, pinned, line)
+    if event == SCREEN_EVENT and screen:
+        context = {"hookEventName": SCREEN_EVENT, "additionalContext": "\n".join(lines)}
+        sent = {"systemMessage": "\n".join(screen), "hookSpecificOutput": context}
+        print(json.dumps(sent, ensure_ascii=False))
+        return 0
+    for text in lines:
+        print(text)
     return 0
 
 

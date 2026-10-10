@@ -172,8 +172,12 @@ def render_claude_code_snippet() -> str:
     099 shipped the signal wired for Codex only; 240 is the guard-less drift that let that stand.
     `Read` belongs at PostToolUse (the line rides the result); `Write` at PreToolUse, because the
     create-vs-edit test is whether the path exists yet — see `docs/TOOLS.md`.
+
+    Gated like the plugin's but never speaking: a project's committed settings reach teammates
+    who have no index and no console scripts, and they must hear nothing (381).
     """
-    return json.dumps({"hooks": _claude_code_hooks(lambda line, _speak: line)}, indent=2) + "\n"
+    hooks = _claude_code_hooks(lambda line, _speak: plugin_command(line))
+    return json.dumps({"hooks": hooks}, indent=2) + "\n"
 
 
 def plugin_command(command: str, speak: bool = False) -> str:

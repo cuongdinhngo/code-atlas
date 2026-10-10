@@ -49,10 +49,30 @@ def release_drift(changelog: str, version: str, contract_version: int, schema: s
             f"contract {contract_version} · schema {schema} — bump the version and add an entry"
         )
     if older and (top[2], top[3]) != (older[0][2], older[0][3]):
-        body = changelog.split("\n## ", 2)[1]
+        # The top release's own body: an *Unreleased* section may sit above it (381).
+        start = HEADING.search(changelog)
+        body = changelog[start.end() :].split("\n## ", 1)[0] if start else ""
         if REBUILD_FLAG not in body:
             drift.append(f"release {top[0]} moves contract/schema but does not flag a rebuild")
     return drift
+
+
+def _git(*args: str) -> str:
+    return subprocess.run(
+        ["git", *args], cwd=REPO, capture_output=True, text=True, check=True
+    ).stdout.strip()
+
+
+# 0.3.0 shipped untagged; pushing the tag is the maintainer's (381 E3). Strict: once the tag is
+# fetched this XPASSes and fails, so the marker cannot outlive the gap it names.
+@pytest.mark.xfail(_version() == "0.3.0", strict=True, reason="v0.3.0 not yet tagged (381 E3)")
+def test_the_top_release_is_tagged() -> None:
+    """381 AC3: a release is a tagged `vX.Y.Z`; commits after it are not a newer release."""
+    top = HEADING.findall((REPO / "CHANGELOG.md").read_text(encoding="utf-8"))[0][0]
+    assert _git("rev-parse", "--is-shallow-repository") == "false", "fetch tags: fetch-depth 0"
+    assert _git("tag", "--list", f"v{top}") == f"v{top}", (
+        f"CHANGELOG's top release {top} has no tag — `git tag v{top} <commit>` and push it"
+    )
 
 
 def test_the_top_release_is_the_code_that_ships() -> None:

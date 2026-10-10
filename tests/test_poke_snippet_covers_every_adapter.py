@@ -28,7 +28,7 @@ def _filter_string() -> str:
         for entries in snippet["hooks"].values()
         for entry in entries
         for hook in entry["hooks"]
-        if hook["command"] == "code-atlas-poke"
+        if gen_skill.ungate(hook["command"]) == "code-atlas-poke"
     ]
     assert filters and all("|" not in f for f in filters), f"poke filters: {filters}"
     return "|".join(filters)
