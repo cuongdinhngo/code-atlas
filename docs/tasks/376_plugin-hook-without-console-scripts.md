@@ -242,5 +242,6 @@ Under the handover: push `fix/376-plugin-hook-without-console-scripts`; open the
 | 0 refine | exposure-checker (`challenger`) | 1 | 44,383 |
 | 4 review | `reviewer` | 1 | 59,503 |
 | 4 review | `challenger` (ticket-blind) | 1 | 57,660 |
+| PR review | general-purpose | 1 | 86,631 |
 
-`LEDGER TOTAL: 161,546 · top cost driver: 4 review/reviewer`
+`LEDGER TOTAL: 248,177 · top cost driver: PR review`
