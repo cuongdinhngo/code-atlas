@@ -343,7 +343,7 @@ Every number here is reproducible from a runbook in this repo.
 | Onboarding lookups vs hand-mapping | **cheaper, 12/12 correct, recall 1.0** | [`121_onboarding-question-class.md`](docs/benchmarks/121_onboarding-question-class.md) |
 
 **On your own repo**, `get_index_status(detail_level="verbose")` carries `est_tokens_vs_grep_read`:
-per tool, the tokens its answers cost and an *est. grep+Read baseline* — the files each answer cites,
+per tool, the tokens its answers cost and an *est. grep+Read baseline* — the files each found answer cites,
 read whole. It is a live estimate against a modelled baseline, not the row-one benchmark and not a
 measured saving (379).
 

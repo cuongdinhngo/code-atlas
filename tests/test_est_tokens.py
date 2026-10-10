@@ -15,7 +15,7 @@ import pytest
 from code_atlas.config import load_config
 from code_atlas.store import COST_KEY_PREFIX, GraphStore, close_fit_connections
 from code_atlas.tokens import estimate_tokens
-from code_atlas.tools import fit, get_index_status, read_symbol, search_symbol
+from code_atlas.tools import file_outline, fit, get_index_status, read_symbol, search_symbol
 from tests.test_nav_tools import node, seed_file
 
 PATH = "src/Billing.php"
@@ -56,7 +56,7 @@ def test_a_read_records_its_tokens_and_the_cited_file_and_doubles(tmp_path: Path
     tool = fit.wrap("read_symbol", config, read_symbol.create(config))
     result = tool(QNAME)
     assert result["reason"] == "ok"
-    response = estimate_tokens(json.dumps(result, sort_keys=True, default=str))
+    response = estimate_tokens(json.dumps(result, sort_keys=True, default=str, ensure_ascii=False))
     baseline = -(-len(BODY.encode()) // 4)
     one = {"tool": "read_symbol", "calls": 1, "cited_calls": 1,
            "response_tokens": response, "baseline_tokens": baseline}
@@ -72,6 +72,16 @@ def test_a_miss_counts_its_response_against_nothing(tmp_path: Path) -> None:
     (row,) = _costs(config)
     assert (row["calls"], row["cited_calls"], row["baseline_tokens"]) == (1, 0, 0)
     assert int(str(row["response_tokens"])) > 0
+
+
+def test_a_miss_that_echoes_its_path_cites_nothing(tmp_path: Path) -> None:
+    """379 review — red before: a `file_outline` miss on an unindexed file was credited it."""
+    config = _indexed(tmp_path)
+    (tmp_path / "big_unindexed.txt").write_text("x" * 40_000, encoding="utf-8")
+    result = fit.wrap("file_outline", config, file_outline.create(config))("big_unindexed.txt")
+    assert result["found"] is False
+    (row,) = _costs(config)
+    assert (row["cited_calls"], row["baseline_tokens"]) == (0, 0)
 
 
 def test_counting_changes_no_payload(tmp_path: Path) -> None:
@@ -113,3 +123,11 @@ def test_only_repo_files_are_cited_first_twenty_in_payload_order(tmp_path: Path)
     }
     cited = fit.cited_files(tmp_path, payload)
     assert cited == [f"f{index:02}.py" for index in reversed(range(5, 25))]
+    # A real file out of the root is refused by containment, not by a missing file (379 review).
+    root = tmp_path / "root"
+    root.mkdir()
+    (tmp_path / "outside.py").write_text("x\n", encoding="utf-8")
+    (root / "inside.py").write_text("x\n", encoding="utf-8")
+    absolute = str(tmp_path / "outside.py")
+    outside = {"file_path": "../outside.py", "path": absolute, "file": "inside.py"}
+    assert fit.cited_files(root, outside) == ["inside.py"]

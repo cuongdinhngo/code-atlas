@@ -28,10 +28,10 @@ FIT_COUNTS_FIELD = "fit_counts"
 EST_TOKENS_FIELD = "est_tokens_vs_grep_read"
 EST_TOKENS_NOTE_FIELD = "est_tokens_note"
 EST_TOKENS_NOTE = (
-    "est. grep+Read baseline: response_tokens is chars/4 of each answer's JSON; baseline_tokens "
-    "is bytes/4 of the files the answer cites (first 20, whole files, as the benchmark reads "
-    "them). cited_calls counts answers that cited a file. Not the fixture or sample tier of "
-    "scripts/tokens_to_answer.py, and not a measured saving."
+    "est. grep+Read baseline: response_tokens is chars/4 of every answer's JSON; baseline_tokens "
+    "is bytes/4 of the files a found answer cites (first 20, whole files; the benchmark counts "
+    "decoded chars, equal for ASCII), so it sums cited_calls only. Not the fixture or sample "
+    "tier of scripts/tokens_to_answer.py, and not a measured saving."
 )
 BASELINE_FILE_CAP = 20  # the benchmark's max_read_files (tokens_to_answer.run_grep_path)
 _CITE_KEYS = frozenset({"file", "file_path", "path"})
@@ -83,8 +83,11 @@ def record_cost(tool_name: str, config: Config, payload: Mapping[str, object] | 
     if not isinstance(payload, Mapping) or not config.db_path.is_file():
         return
     try:
-        response = estimate_tokens(json.dumps(payload, sort_keys=True, default=str))
-        files = cited_files(config.root, payload)
+        response = estimate_tokens(
+            json.dumps(payload, sort_keys=True, default=str, ensure_ascii=False)
+        )
+        # A miss echoes its own `path` argument: that cites nothing a grep+Read would have read.
+        files = [] if payload.get("found") is False else cited_files(config.root, payload)
         baseline = sum(-(-(config.root / rel).stat().st_size // 4) for rel in files)
     except (OSError, TypeError, ValueError, RecursionError):
         return  # an uncountable answer is not counted; it is never spoiled
