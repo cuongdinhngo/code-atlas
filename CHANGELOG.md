@@ -13,14 +13,23 @@ Each entry flags the two costs an upgrade can carry:
 
 How to upgrade each install route is in the README, under *Upgrading*.
 
-## 0.3.0 — 2026-10-08 · contract 14 · schema 7
+## Unreleased
 
-- **Full rebuild required.** Run `code-atlas-build --full`: the edge table gains `kwargs`.
-- **Adapter checkout must be updated.** Every adapter speaks contract 14.
+Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
+
 - `code-atlas query <tool> --args '<json>'` and `code-atlas query --batch <file.jsonl>` answer the
   read tools from a shell with the MCP payload, one JSON line each, from one process (382).
 - A PHP, TS or Python string that runs `EXEC Proc @p` with no schema calls `dbo.Proc`, T-SQL's
   default schema; a procedure created with no schema answers to `dbo.Proc` too (386).
+- The `SessionStart` hook puts a skew, a pinned tool install or a pending rebuild on the developer's
+  screen (`systemMessage`) as well as the agent's context, names a uv install pinned to `?rev=`, and
+  the hand hook snippet is gated like the plugin's, so committed settings leave a teammate without
+  code-atlas untouched (381).
+
+## 0.3.0 — 2026-10-08 · contract 14 · schema 7
+
+- **Full rebuild required.** Run `code-atlas-build --full`: the edge table gains `kwargs`.
+- **Adapter checkout must be updated.** Every adapter speaks contract 14.
 - The `SessionStart` hook names every half of the install that lags the newest — tool, plugin, and
   the adapter checkout, whose contract it reads by launching each configured adapter — with each
   fix in upgrade order; `server_stale_process` now sees a package replaced after the first answer (374).

@@ -705,18 +705,18 @@ the ship point, onboarding presentation, and schema-state awareness: **no, perma
   prose seams live outside it (R4.1). Shipped M10–M12.
 - **An indexed repo cannot choose what code-atlas runs — 2026-09-27 (341):** its `[adapter_cmd]`
   needs `CA_TRUST_PROJECT_FILE=1`, a flag outside the config identity.
-- **Releases are versioned; no network update check — 2026-09-30 (348), re-decided 2026-10-09 (374).**
+- **Releases are versioned; no network update check — 2026-09-30 (348), re-decided 2026-10-09 (374)
+  and 2026-10-10 (381).**
   - **How a release is defined.** A release is the package version plus the contract and schema it
-    ships, named by `CHANGELOG.md`'s top heading and test-gated. From 0.2.0 on, a rebuild-forcing
-    change moves the minor version.
-  - **Why there is still no check of our own (374).** The re-open condition was met: an anchor ran
-    0.2.0 for a day after 0.3.0 shipped, its tool and plugin agreeing. Claude Code's plugin
-    auto-update already fetches outside the core, and the README now recommends turning it on; once the
-    plugin moves, the offline hook names every half that lags — tool, plugin, adapter checkout (whose
-    contract it reads from the handshake). The core stays offline (R4/R4.1).
+    ships, named by `CHANGELOG.md`'s top heading, test-gated and tagged `vX.Y.Z`; untagged commits are
+    not a newer release (381). From 0.2.0 on, a rebuild-forcing change moves the minor version.
+  - **Why no check of our own (374, 381).** Plugin auto-update fetches outside the core; once the
+    plugin moves, the offline hook names every lagging half (R4/R4.1). 381's install *was* told, but
+    only its agent read the line, its tool was pinned (`?rev=`), and its newer commits had no tag to
+    find: the fix is the line on screen and the pin named. A hook-borne check would reach teammates.
   - **What stays silent, knowingly.** An install whose halves all agree on an old release, with
     plugin auto-update off or with no plugin, is not told. Only a network check could tell it.
-  - **Re-open condition.** A field report of such an install running an old release without knowing.
+  - **Re-open condition.** An install a *tagged* release behind, halves agreeing, told by nothing.
 - **LSP-tool coexistence** (§13) — code-atlas is the indexed search/impact layer; a language server stays for LSP nav/edit.
 
 **Decision — Agent-first PHP-depth pivot (adopted 2026-08-04, from phase 1's external review rounds 1–4).**
