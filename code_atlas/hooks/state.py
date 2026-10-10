@@ -345,7 +345,8 @@ def main(argv: list[str] | None = None) -> int:
     screen = screen_lines(skew, pinned, line)
     if event == SCREEN_EVENT and screen:
         context = {"hookEventName": SCREEN_EVENT, "additionalContext": "\n".join(lines)}
-        print(json.dumps({"systemMessage": "\n".join(screen), "hookSpecificOutput": context}))
+        sent = {"systemMessage": "\n".join(screen), "hookSpecificOutput": context}
+        print(json.dumps(sent, ensure_ascii=False))
         return 0
     for text in lines:
         print(text)

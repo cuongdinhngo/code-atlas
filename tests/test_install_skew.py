@@ -68,7 +68,10 @@ def _run_hook(
 
 
 def _skew_lines(done: subprocess.CompletedProcess[str]) -> list[str]:
-    return [line for line in done.stdout.splitlines() if "contract" in line or "(v" in line]
+    out = done.stdout
+    if out.startswith("{"):  # SessionStart puts a skew on screen as JSON (381); the agent's copy
+        out = json.loads(out)["hookSpecificOutput"]["additionalContext"]
+    return [line for line in out.splitlines() if "contract" in line or "(v" in line]
 
 
 def test_a_checkout_behind_the_core_is_named_with_its_fix(tmp_path: Path) -> None:
