@@ -8,15 +8,23 @@ over declared names suggests the spelling — in `did_you_mean`, never in `resul
 from __future__ import annotations
 
 import json
+import random
 from pathlib import Path
 
 import pytest
 
-from code_atlas.store import GraphStore, edit_distance, edit_distance_limit, name_tail
+from code_atlas.store import (
+    GraphStore,
+    edit_distance,
+    edit_distance_limit,
+    edit_pieces,
+    name_tail,
+)
 from code_atlas.tools import search_symbol
 from code_atlas.tools.nav_result import (
     REASON_OK,
     REASON_TOKEN_CANDIDATES,
+    TRY_INSTEAD_HINT_DID_YOU_MEAN,
     TRY_INSTEAD_HINT_TOKEN_CANDIDATES,
 )
 from tests.test_nav_tools import (  # noqa: F401 — store is a fixture
@@ -97,6 +105,44 @@ def test_a_sweep_suggests_per_subject(
     first, second = sweep["subjects"]
     assert first["did_you_mean"][0]["name"] == "getUserById"
     assert second["did_you_mean"][0]["name"] == "deleteUser"
+
+
+def test_a_typo_inside_a_short_name_is_suggested_under_its_own_hint(
+    tmp_path: Path,
+    store,  # noqa: F811
+) -> None:
+    """378 review — red before: `paxse` shares no trigram with `parse`, so nothing was suggested."""
+    _seed(store, tmp_path, "parse", "render")
+    tool = search_symbol.create(db_config(tmp_path))
+    for query, meant in (("paxse", "parse"), ("rendr", "render")):
+        payload = tool(query)
+        assert payload["candidates"] == [], "253 finds no shared word, so only the spelling helps"
+        assert [d["name"] for d in payload["did_you_mean"]] == [meant]
+        assert payload["try_instead_hint"] == TRY_INSTEAD_HINT_DID_YOU_MEAN
+    answer = tool(queries=["paxse", "rendr"])["subjects"][1]
+    assert answer["try_instead_hint"] == TRY_INSTEAD_HINT_DID_YOU_MEAN
+
+
+def test_every_name_within_the_bound_keeps_one_piece_whole() -> None:
+    """The prefilter's pigeonhole: a true match always contains a piece, so none is dropped."""
+    rng = random.Random(378)
+    alphabet = "abcde_"
+    for _ in range(2000):
+        query = "".join(rng.choice(alphabet) for _ in range(rng.randint(3, 16)))
+        name = list(query)
+        for _ in range(rng.randint(0, edit_distance_limit(query))):
+            at = rng.randrange(len(name) + 1)
+            op = rng.choice("isd")
+            if op == "i":
+                name.insert(at, rng.choice(alphabet))
+            elif at < len(name) and op == "d":
+                del name[at]
+            elif at < len(name):
+                name[at] = rng.choice(alphabet)
+        target = "".join(name)
+        bound = edit_distance_limit(query)
+        if edit_distance(query, target, bound) <= bound:
+            assert any(piece in target for piece in edit_pieces(query, bound)), (query, target)
 
 
 def test_no_near_name_keeps_todays_token_answer(

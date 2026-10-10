@@ -91,7 +91,7 @@ zero margin for AC4 (`full_biuld` → `full_build` is 2 edits at a 10-character 
 | H11 | an empty list | how | the field is omitted, so a no-suggestion miss stays 253's payload |
 | H12 | per-qname rows | how | the ticket's order ends in `qname` — one row per qname |
 | W1 | the bound by length | want | **ASSUMED (awaiting ratification):** ≤ 5 chars → 1, ≤ 10 → 2, else 3 — context-mode's 1/2/3 |
-| W2 | AC5's bar | want | **ASSUMED (awaiting ratification):** record the cost; no hard ceiling while it stays in tens of ms on the samples |
+| W2 | AC5's bar | want | **ASSUMED (awaiting ratification):** record the cost; no hard ceiling — the PR review's 200k-node adversarial index measured 42–302 ms |
 | W3 | same-name crowding | want | **ASSUMED (awaiting ratification):** keep per-qname rows; five `EmailAddress` copies can fill the list (seen on adventureworks) |
 
 ## Phase 1 — analysis
@@ -114,7 +114,7 @@ zero margin for AC4 (`full_biuld` → `full_build` is 2 edits at a 10-character 
 | G1 | Why | "Each miss costs a guessed retry" | a typo answers the name it meant | ✅ |
 | C1 | Scope 1 | "`store.py` stays the sole SQLite owner" | the SQL and the UDF live in `store.py` | ✅ |
 | C2 | Scope 4 | "the 24-tool surface does not grow" | a field, no tool | ✅ |
-| R1 | Scope 1 | trigram-OR prefilter, Levenshtein, total order | H2 | ✅ |
+| R1 | Scope 1 | pigeonhole piece prefilter (PR review; trigram OR missed short typos), Levenshtein, total order | H2 | ✅ |
 | R2 | Scope 2 | beside `results`, each with its distance | H1 | ✅ |
 | R3 | Scope 3 | never on a hit; per subject in a sweep | H5 | ✅ |
 | R4 | Scope 4 | the description names the field | tool docstring, TOOLS.md | ✅ |
@@ -194,7 +194,7 @@ zero margin for AC4 (`full_biuld` → `full_build` is 2 edits at a 10-character 
 
 | Item | Risk tier | Why deferred | Follow-up | Expiry | Seen |
 |---|---|---|---|---|---|
-| AC5's anchor figure | low — the pass is bounded by the trigram prefilter and the length window; 17.4k-node pydantic adds ≤ 12.5 ms | the anchor (~22.9k files, Windows) is not on this machine | measure `full_biuld`-style misses on the anchor | expiry: when the anchor index is available to a maintainer run | first |
+| AC5's anchor figure | medium until measured — a synthetic 200k-node index of 30 common words costs 42–302 ms per miss (PR review) | the anchor (~22.9k files, Windows) is not on this machine | measure `full_biuld`-style misses on the anchor | expiry: when the anchor index is available to a maintainer run | first |
 
 `EXCLUSIONS: 1 recorded | 1 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
 
@@ -265,6 +265,13 @@ working doc: this file.
 - **`challenger` round 1** (ticket-blind, 51,524 tokens): 8 met · 1 not met · 2 can't tell. Not met: AC5 — it read
   the task file before this doc was written; the cost now stands in Phase 3, and the anchor figure is the recorded
   exclusion. Can't tell: the contract question and the cost bound — both answered in Phase 2 (Assumptions).
+- **PR #58 review** (general-purpose, 81,613 tokens): (1) the trigram-OR prefilter dropped a typo inside a
+  short name (`paxse` → nothing, then a hint saying the name may be absent); (2) common trigrams made it near-linear;
+  (3) the hint named `candidates` when only `did_you_mean` had entries. Fixed: the prefilter splits the segment
+  into bound + 1 pieces — a name within the bound keeps one whole (pigeonhole, property-tested) — matched through
+  the trigram index when every piece has 3+ characters, else a `name` scan; the UDF is memoised per name; a new
+  `TRY_INSTEAD_HINT_DID_YOU_MEAN`. 200k-node synthetic, old → new: `get_settinsg` 616 → 186 ms, `proces_order`
+  452 → 78 ms, `update_user_itme` 1,258 → 302 ms, `paxse`/`rendr` 0/25 → 43/42 ms (no 5-letter names there; the new test seeds them).
 
 Verdict: clean — AC5's "not met" corresponds to the recorded coverage-gap exclusion. Matrix `Ph3/4 proven by`:
 R1–R3, AC1–AC3 → `tests/test_search_did_you_mean.py`; AC4 → the Phase 3 table; R4, C2 → the docstring, no new tool.
@@ -291,5 +298,6 @@ Under the handover: push `feat/378-search-did-you-mean-by-edit-distance`; open t
 | 0 refine | exposure-checker (`challenger`) | 1 | 40,564 |
 | 4 review | `reviewer` | 1 | 49,615 |
 | 4 review | `challenger` (ticket-blind) | 1 | 51,524 |
+| PR review | general-purpose | 1 | 81,613 |
 
-`LEDGER TOTAL: 141,703 · top cost driver: 4 review/challenger`
+`LEDGER TOTAL: 223,316 · top cost driver: PR review`
