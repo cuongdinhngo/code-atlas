@@ -93,7 +93,7 @@ Same `session_id`, plus `agent_id`: Scope 2 is live (LESSONS 377-C1). The Claude
 | H8 | an empty or non-string `agent_id` | how | absent, as `main` already coerces `session_id` (`nudge.py:247`) |
 | H9 | both tool paths | how | the gate follows the parse, so Grep and a Bash grep share it |
 | H10 | the judgement prints nothing | how | `index_settled` has no `_note`; `state_line` keeps its own |
-| W1 | subagent keys share `KEPT_SESSIONS` | want | **ASSUMED (awaiting ratification):** keep 32; many subagents can evict the parent's entry, which costs one repeated nudge |
+| W1 | subagent keys share `KEPT_SESSIONS` | want | **ASSUMED (awaiting ratification):** keep 32, least-recently-written dropped first (PR review); a fan-out past 32 can evict the parent's entry, which costs one repeated nudge, as can a lost update between two parallel writers |
 
 ## Phase 1 — analysis
 
@@ -228,11 +228,15 @@ Behaviour axis: Approach 1–4 implemented as approved.
 `code_atlas/hooks/nudge.py`, `tests/test_grep_nudge.py`, `docs/TOOLS.md`, `CHANGELOG.md`; working doc: this file.
 
 - **`reviewer` round 1 — LGTM** (50,017 tokens): `state_line` traced old vs new, behaviour-identical; R1.1,
-  R1.4, R4, R7.5. Observations, no change: eviction follows first insertion (W1); the ~20 ms on the speaking
+  R1.4, R4, R7.5. Observations, no change: eviction order (W1 — wrong, see the PR review below); the ~20 ms on the speaking
   path; only the nudge reads `nudge.log`; a non-git project now hears no nudge (H7 — named in the PR);
   `build_in_progress` read twice on `state_line`'s unsettled path.
 - **`challenger` round 1** (ticket-blind, 47,796 tokens): 7 met · 0 not met · 2 can't tell — the cost and the
   payload capture are not in the diff; both are recorded here (H2, the spike).
+- **PR #57 review** (general-purpose, 81,464 tokens): keys were re-read sorted, so the slice dropped
+  by name and a fan-out churned it; the write was not atomic, so a torn read reset every session.
+  Fixed: least-recently-written order, `os.replace` from a temp file; a new test is red without it.
+  Also: the real-build test now gives the hook the adapter it built with (red in the test image).
 
 Verdict: clean. Matrix `Ph3/4 proven by`: R1–R3, AC1–AC4 → `tests/test_grep_nudge.py`; C1 → `additionalContext` unchanged.
 
@@ -259,5 +263,6 @@ Under the handover: push `fix/377-nudge-only-when-the-index-can-answer`; open th
 | 0 refine | exposure-checker (`challenger`) | 1 | 45,623 |
 | 4 review | `reviewer` | 1 | 50,017 |
 | 4 review | `challenger` (ticket-blind) | 1 | 47,796 |
+| PR review | general-purpose | 1 | 81,464 |
 
-`LEDGER TOTAL: 143,436 · top cost driver: 4 review/reviewer`
+`LEDGER TOTAL: 224,900 · top cost driver: PR review`

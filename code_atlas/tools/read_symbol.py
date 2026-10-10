@@ -233,6 +233,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 )
             node = rows[0]
             rel = str(node["file_path"])
+            if not resolves_inside(config.root, config.root / rel):
+                # 375: refuse before the repair, which would re-parse and store the outside file.
+                return _stamp(_outside_root_refusal(qname, rel, node, config, detail_level))
             status = guard.ensure(rel)
             parsed = None
             if status == "stale" and guard.build_held:
@@ -311,6 +314,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     body_opts=body_opts,
                 )
             )
+            if payload.get("reason") == REASON_PATH_OUTSIDE_ROOT:
+                return payload
             if detail_level == "standard":
                 _attach_params(payload, store, node, rel)
                 _attach_columns(payload, store, node, config=config, limit=limit, offset=offset)
@@ -348,6 +353,24 @@ def _parsed_node(config: Config, rel: str, qname: str) -> dict[str, object] | No
     node = {key: stored(value) for key, value in hits[0].items()}
     node.setdefault("file_path", rel)
     return node
+
+
+def _outside_root_refusal(
+    qname: str, rel: str, node: dict[str, object], config: Config, detail_level: str
+) -> dict[str, object]:
+    """375: the row's file now resolves out of the repo — no text and no graph field leaves."""
+    return _result(
+        qname,
+        "",
+        detail_level=detail_level,
+        db_path=str(config.db_path),
+        index_root=config.index_root,
+        found=True,
+        stale=False,
+        reason=REASON_PATH_OUTSIDE_ROOT,
+        file=rel,
+        stub=is_stub(node.get("extra")),
+    )
 
 
 def _effective_body_cap(opts: _BodyOpts) -> int | None:
@@ -753,6 +776,8 @@ def _separator_normalised_hit(
         return None
     node = rows[0]
     rel = str(node["file_path"])
+    if not resolves_inside(config.root, config.root / rel):
+        return _outside_root_refusal(qname, rel, node, config, detail_level)
     status = guard.ensure(rel)
     if status == "stale":
         return attach_try_instead(
@@ -795,6 +820,8 @@ def _separator_normalised_hit(
         stub=is_stub(node.get("extra")),
         body_opts=opts,
     )
+    if payload.get("reason") == REASON_PATH_OUTSIDE_ROOT:
+        return payload
     if detail_level == "standard":
         _attach_params(payload, store, node, rel)
     _attach_stored_fields(payload, store, node, stored_fields=stored_fields)
