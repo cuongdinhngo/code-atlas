@@ -19,6 +19,8 @@ How to upgrade each install route is in the README, under *Upgrading*.
 - **Adapter checkout must be updated.** Every adapter speaks contract 14.
 - `code-atlas query <tool> --args '<json>'` and `code-atlas query --batch <file.jsonl>` answer the
   read tools from a shell with the MCP payload, one JSON line each, from one process (382).
+- A PHP, TS or Python string that runs `EXEC Proc @p` with no schema calls `dbo.Proc`, T-SQL's
+  default schema; a procedure created with no schema answers to `dbo.Proc` too (386).
 - The `SessionStart` hook names every half of the install that lags the newest — tool, plugin, and
   the adapter checkout, whose contract it reads by launching each configured adapter — with each
   fix in upgrade order; `server_stale_process` now sees a package replaced after the first answer (374).

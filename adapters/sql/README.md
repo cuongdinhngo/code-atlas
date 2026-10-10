@@ -26,6 +26,7 @@ and building a whole-file tree over it is the failure mode the PHP adapter alrea
 | `CREATE`/`ALTER`/`CREATE OR ALTER` `PROC`/`PROCEDURE`, `FUNCTION` | `Function` node | 1a |
 | `EXEC` / `EXECUTE <name>` | bare `CALLS` edge at `RESOLVED` | 1a |
 | `EXEC (@sql)`, `EXEC @var`, `sp_executesql` | `CALLS` edge at **`DYNAMIC`**, target `(dynamic)` | 1a |
+| a `PROC`/`PROCEDURE` created with no schema, `P` | `ALIASES` edge `dbo.P` → `P` at **`HEURISTIC`** | 1a |
 | `CREATE TABLE`, `ALTER TABLE … ADD <col>` | `Table` + `Column` nodes on `CONTAINS` | 2 |
 | a column's `DEFAULT`, either spelling | `Column.extra.default` | 2 |
 | `INSERT` / `UPDATE` naming columns | `WRITES` edge per column | 2 |
@@ -68,7 +69,9 @@ A SQL object's qname is **schema-qualified and file-independent** — `dbo.Inser
 the database, not the file, is its container (CONVENTION §3). That is what lets an `EXEC` in one file
 link to a procedure declared in another. Delimiters are dropped, so `[dbo].[My Proc]`, `"dbo"."My Proc"`
 and `dbo.[My Proc]` are one name. An unqualified `EXEC Foo` stays `Foo`: the default schema is a server
-setting, not a fact in the file, and inventing `dbo.` would be a guess.
+setting, not a fact in the file. A procedure created with no schema keeps the qname `Foo` too, plus a
+`HEURISTIC` alias `dbo.Foo`, T-SQL's default when the server leaves it unchanged, so a host string's
+unqualified `EXEC Foo`, read as `dbo.Foo`, reaches it (386).
 
 ## Static analysis (R6.6)
 

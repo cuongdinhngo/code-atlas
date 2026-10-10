@@ -102,7 +102,8 @@ records, under every runtime-invocation mode.
 Nodes `File · Namespace · Class · Interface · Trait · Enum · Method · Property · ClassConst ·
 Const · Function`, and **bare** edges `CONTAINS · EXTENDS · IMPLEMENTS · USES_TRAIT · IMPORTS ·
 CALLS · NEW · INCLUDES · REFERENCES · ALIASES`, plus `WRITES`/`DELETES` from a string literal that
-begins a T-SQL write (335) —
+begins a T-SQL write, and `CALLS` from one that begins an `EXEC` (335; an unqualified name is
+`dbo.<name>`, T-SQL's default schema, 386) —
 `target_raw` only, because a single file cannot know all targets. Cross-file linking is the core
 resolver's job (R3.3).
 
