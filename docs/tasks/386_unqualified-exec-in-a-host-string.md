@@ -226,6 +226,22 @@ this branch: 11/11 ok both, every sample's node and edge count identical (advent
 the samples hold no host-string EXEC, and their only schema-less `CREATE PROCEDURE` lines are template
 placeholders the adapter does not name. Floors unmoved, nothing to re-floor.
 
+```
+$ .venv/bin/python -m pytest -q tests/test_unqualified_exec.py tests/contract/test_sql_literal_agreement.py
+15 passed
+Ran at dfdb7048
+```
+
+```
+$ scripts/gate.sh
+21 passed · 0 failed · 0 skipped
+GATE GREEN — all 21 checks passed
+Ran at dfdb7048
+```
+
+(A first run reported green on the wrong tree — the branch was checked out in a worktree, so `git checkout`
+failed and the gate ran 382's head; it is not counted.)
+
 **Verification sweep.** File axis: the diff is the change list; `ruff`, `npm run check` (SQL adapter) clean;
 `git diff --stat -- code_atlas` empty. Behaviour axis: Approach 1–4 implemented as approved.
 
