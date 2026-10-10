@@ -6,6 +6,8 @@ registered; a name that is not one of them is a configuration error and fails lo
 """
 
 import os
+import sys
+from collections.abc import Callable
 from pathlib import Path
 
 from fastmcp import FastMCP
@@ -92,6 +94,8 @@ def build_server(
     summarizer: Summarizer | None = None,
     layer_refiner: LayerRefiner | None = None,
     prose_writer: ProseWriter | None = None,
+    *,
+    count: bool = True,
 ) -> FastMCP:
     """One repo's server: the allowed tools, each bound to ``config``, on a fresh app.
 
@@ -102,6 +106,9 @@ def build_server(
     seam) are the enrichment injection points: ``None`` keeps the deterministic defaults, so the
     core never depends on an LLM (R4.1). The opt-in LLM impls are injected from **outside**
     ``code_atlas/`` (``onboarding_llm``).
+
+    ``count=False`` serves the same tools without the fit/cost counters — the shell route (382),
+    whose batch calls are not an agent's asks.
     """
     names = allowed_tools(config.tools)
     # `instructions` reaches the model's system prompt; tool descriptions alone did not (300).
@@ -111,9 +118,9 @@ def build_server(
 
     server.add_middleware(CallerRoots())
 
-    def serve(name: str, tool: object) -> None:
+    def serve(name: str, tool: Callable[..., dict[str, object]]) -> None:
         """Register ``tool`` under ``name``, counting every return (task 260)."""
-        server.tool(fit.wrap(name, config, tool))  # type: ignore[arg-type]
+        server.tool(fit.wrap(name, config, tool) if count else tool)
 
     if get_index_status.NAME in names:
         serve(
@@ -216,7 +223,11 @@ def allowed_tools(tools: tuple[str, ...] | None) -> tuple[str, ...]:
 
 
 def main() -> None:
-    """Entry point: resolve this working directory's configuration and serve it over stdio."""
+    """Entry point: serve this working directory over stdio, or ``code-atlas query …`` (382)."""
+    if sys.argv[1:2] == ["query"]:
+        from code_atlas import query
+
+        raise SystemExit(query.main(sys.argv[2:]))
     build_server(load_config(Path.cwd(), os.environ)).run()
 
 
