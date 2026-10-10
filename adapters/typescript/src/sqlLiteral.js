@@ -42,7 +42,8 @@ function readSqlLiteral(text, closed) {
   if (!name) return null;
   const parts = (name[0].match(PART) || []).map(unquote);
   if (!follows(verb, text.slice(start + name[0].length), parts.length > 1, closed)) return null;
-  // A dotted name never matches a same-language function by name, so 204 cannot bind it.
+  // A dotted target reaches no method through the bare-name fallback (204); a module
+  // whose own qname is `dbo.<name>` still matches exactly, as the qualified form always has.
   if (verb === "exec" && parts.length === 1) parts.unshift(DEFAULT_SCHEMA);
   return { kind: KINDS[verb], target: parts.join("."), offset: head[1].length };
 }

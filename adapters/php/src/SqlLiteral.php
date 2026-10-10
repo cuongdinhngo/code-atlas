@@ -67,7 +67,8 @@ final class SqlLiteral
             return null;
         }
         if ($verb === 'exec' && !$qualified) {
-            // A dotted name never matches a same-language method by name, so 204 cannot bind it.
+            // A dotted target reaches no method through the bare-name fallback (204); a module
+            // whose own qname is `dbo.<name>` still matches exactly, as the qualified form always has.
             array_unshift($parts, self::DEFAULT_SCHEMA);
         }
 

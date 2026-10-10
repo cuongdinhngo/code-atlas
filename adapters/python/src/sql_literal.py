@@ -64,7 +64,8 @@ def read(text: str, closed: bool) -> tuple[str, str, int] | None:
     if not _follows(verb, text[name.end() :], len(parts) > 1, closed):
         return None
     if verb == "exec" and len(parts) == 1:
-        # A dotted name never matches a same-language function by name, so 204 cannot bind it.
+        # A dotted target reaches no method through the bare-name fallback (204); a module
+        # whose own qname is `dbo.<name>` still matches exactly, as the qualified form always has.
         parts.insert(0, DEFAULT_SCHEMA)
     return KINDS[verb], ".".join(parts), len(head.group(1))
 

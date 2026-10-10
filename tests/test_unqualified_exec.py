@@ -70,17 +70,29 @@ CALLERS = {
     ("jobs.orders.place", 2),
     ("jobs.orders.place", 3),
 }
-SAME_NAMED = ("\\App\\Orders::Insert_Order", "web/orders.ts::Insert_Order", "jobs.orders.Insert_Order")
+SAME_NAMED = (
+    "\\App\\Orders::Insert_Order",
+    "web/orders.ts::Insert_Order",
+    "jobs.orders.Insert_Order",
+)
 
 
-@pytest.fixture(scope="module", params=["dbo.Insert_Order", "Insert_Order"])
-def built(request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory) -> tuple[
-    Config, str
-]:
-    """One repo per way the procedure is created: schema-qualified, and with no schema."""
-    procedure = str(request.param)
+# How the procedure is created → the qname the SQL adapter keeps for it.
+DECLARED = {
+    "dbo.Insert_Order": "dbo.Insert_Order",
+    "Insert_Order": "Insert_Order",
+    "[Insert_Order]": "Insert_Order",
+}
+
+
+@pytest.fixture(scope="module", params=sorted(DECLARED))
+def built(
+    request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory
+) -> tuple[Config, str]:
+    """One repo per way the procedure is created: schema-qualified, bare, bracketed."""
+    declared = str(request.param)
     root = tmp_path_factory.mktemp("repo")
-    files = {"db/procs.sql": PROCEDURE.format(name=procedure), **HOSTS}
+    files = {"db/procs.sql": PROCEDURE.format(name=declared), **HOSTS}
     for rel, body in files.items():
         path = root / rel
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -99,7 +111,7 @@ def built(request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFacto
     )
     with GraphStore(config.db_path) as store:
         assert full_build(config, store).failed == 0
-    return config, procedure
+    return config, DECLARED[declared]
 
 
 def _callers(config: Config, qname: str) -> list[dict[str, object]]:
