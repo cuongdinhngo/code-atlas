@@ -234,9 +234,14 @@ def nudge(
     if not fresh or not index_answers(root):
         return None
     kinds = sorted({kind for _, kind in fresh})
+    # Least-recently-written last, so the slice drops the oldest key, never by name (377 review).
+    state.pop(key, None)
     state[key] = sorted(seen | set(kinds))
     kept = dict(list(state.items())[-KEPT_SESSIONS:])
-    (index / STATE_FILE).write_text(json.dumps(kept, sort_keys=True), encoding="utf-8")
+    # Parallel subagents write here: replace atomically so no reader sees a torn file.
+    tmp = index / f"{STATE_FILE}.{os.getpid()}.tmp"
+    tmp.write_text(json.dumps(kept), encoding="utf-8")
+    os.replace(tmp, index / STATE_FILE)
     stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     with (index / LOG_FILE).open("a", encoding="utf-8") as log:
         for name, kind in sorted(set(fresh)):

@@ -143,7 +143,9 @@ def test_the_hook_emits_additional_context_and_always_exits_zero(
     assert nudge.main([]) == 0
 
 
-def test_a_real_build_stamps_the_shapes_the_nudge_reads(tmp_path: Path) -> None:
+def test_a_real_build_stamps_the_shapes_the_nudge_reads(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The build path end to end: handshake → `_record_meta` → graph.db → the hook's read."""
     import shlex
     import subprocess
@@ -160,6 +162,8 @@ def test_a_real_build_stamps_the_shapes_the_nudge_reads(tmp_path: Path) -> None:
             capture_output=True,
         )
     adapter = shlex.join([sys.executable, str(repo / "adapters/python/index.py"), "--server"])
+    # The hook reads the process env: without the adapter there it sees coverage_loss (377).
+    monkeypatch.setenv("CA_PYTHON_CMD", adapter)
     config = load_config(tmp_path, {"CA_PYTHON_CMD": adapter, "CA_WORKERS": "1"})
     build_tool(config)(full=True)
     with GraphStore(config.db_path) as store:
@@ -199,6 +203,20 @@ def test_each_subagent_hears_the_nudge_once(tmp_path: Path) -> None:
     assert nudge.nudge(root, *grep, "s1") is None
     lines = (root / ".code-atlas" / nudge.LOG_FILE).read_text(encoding="utf-8").splitlines()
     assert [line.split("\t")[1] for line in lines] == ["s1", "s1/agent-a", "s1/agent-b"]
+
+
+def test_the_state_file_drops_the_least_recent_key_not_the_first_by_name(tmp_path: Path) -> None:
+    """377 review — red before: keys came back sorted, so a key naming first was the one dropped."""
+    root = _indexed(tmp_path)
+    grep = _grep("->findUser(")
+    assert nudge.nudge(root, *grep, "s0")
+    for n in range(nudge.KEPT_SESSIONS):
+        assert nudge.nudge(root, *grep, "z", f"agent-{n:02d}")
+    assert nudge.nudge(root, *grep, "a-last")
+    assert nudge.nudge(root, *grep, "z", "agent-new")
+    assert nudge.nudge(root, *grep, "a-last") is None, "the newest key survives whatever its name"
+    assert nudge.nudge(root, *grep, "s0"), "the oldest key aged out"
+    assert not list((root / ".code-atlas").glob("*.tmp")), "the atomic write leaves no temp file"
 
 
 def test_a_payload_without_an_agent_keeps_todays_key(

@@ -33,6 +33,7 @@ from code_atlas.tools.nav_result import (
     RETRY_AS_FIELD,
     RETRY_AS_QUERY,
     TRY_INSTEAD_FILE_OUTLINE,
+    TRY_INSTEAD_HINT_DID_YOU_MEAN,
     TRY_INSTEAD_HINT_MEMBER_SEPARATOR,
     TRY_INSTEAD_HINT_NARROW_BY_FILTER,
     TRY_INSTEAD_HINT_NARROW_BY_QNAME,
@@ -553,14 +554,7 @@ def _single_payload(
         payload["candidates"] = list(hits.candidates)
         if hits.did_you_mean:
             payload["did_you_mean"] = list(hits.did_you_mean)
-        if hits.candidates or hits.did_you_mean:
-            attach_try_instead(
-                payload, TRY_INSTEAD_SEARCH_SYMBOL, TRY_INSTEAD_HINT_TOKEN_CANDIDATES
-            )
-        else:
-            attach_try_instead(
-                payload, TRY_INSTEAD_SEARCH_SYMBOL, TRY_INSTEAD_HINT_TOKEN_CANDIDATES_NONE
-            )
+        attach_try_instead(payload, TRY_INSTEAD_SEARCH_SYMBOL, _miss_hint(hits))
     attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
     if hits.other_indexed_files_drifted > 0:
         payload["other_indexed_files_drifted"] = hits.other_indexed_files_drifted
@@ -605,14 +599,7 @@ def _batch_answer(query: str, hits: _Hits) -> dict[str, object]:
         answer["candidates"] = list(hits.candidates)
         if hits.did_you_mean:
             answer["did_you_mean"] = list(hits.did_you_mean)
-        if hits.candidates or hits.did_you_mean:
-            attach_try_instead(
-                answer, TRY_INSTEAD_SEARCH_SYMBOL, TRY_INSTEAD_HINT_TOKEN_CANDIDATES
-            )
-        else:
-            attach_try_instead(
-                answer, TRY_INSTEAD_SEARCH_SYMBOL, TRY_INSTEAD_HINT_TOKEN_CANDIDATES_NONE
-            )
+        attach_try_instead(answer, TRY_INSTEAD_SEARCH_SYMBOL, _miss_hint(hits))
     if hits.other_indexed_files_drifted > 0:
         answer["other_indexed_files_drifted"] = hits.other_indexed_files_drifted
     if hits.search_order is not None:
@@ -752,6 +739,15 @@ def _token_candidates(
         cand["kind"] = kind_s
         out.append(cand)
     return out
+
+
+def _miss_hint(hits: _Hits) -> str:
+    """The zero-overlap miss's hint names only a list the answer actually carries (378)."""
+    if hits.candidates:
+        return TRY_INSTEAD_HINT_TOKEN_CANDIDATES
+    if hits.did_you_mean:
+        return TRY_INSTEAD_HINT_DID_YOU_MEAN
+    return TRY_INSTEAD_HINT_TOKEN_CANDIDATES_NONE
 
 
 def _did_you_mean(

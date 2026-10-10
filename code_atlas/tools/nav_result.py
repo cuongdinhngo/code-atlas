@@ -194,6 +194,10 @@ TRY_INSTEAD_HINT_TOKEN_CANDIDATES = (
     "guessed name shared no substring with a declared symbol; candidates list name tokens that did "
     "match — retry search_symbol with one of those qnames"
 )
+TRY_INSTEAD_HINT_DID_YOU_MEAN = (
+    "guessed name shared no substring with a declared symbol; did_you_mean lists declared names "
+    "a typo away — retry search_symbol with one of those qnames"
+)
 TRY_INSTEAD_HINT_TOKEN_CANDIDATES_NONE = (
     "guessed name shared no substring with a declared symbol; token search over declared names "
     "also found none — the concept may be absent under any declared name"
