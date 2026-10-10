@@ -79,7 +79,7 @@ The read-through repair also re-parsed the outside file and stored its rows firs
 | H1 | the reason | how | reuse `path_outside_root` (`nav_result.py:104`, 342) — Scope 2 allows reuse; its comment widens to a swapped file |
 | H2 | where the check lives | how | `source_slice.readable(root, path)` guards both readers (Scope 1); `read_symbol._found_body_payload`, the one body site for the main and separator-normalised paths, refuses with the reason |
 | H3 | the refusal's shape | how | `found: true`, empty `source`, `file`, `reason: path_outside_root` — the `index_stale` payload's shape (`read_symbol.py:240`) |
-| H4 | repair re-parses the swapped file | how | out of scope by Scope 3 ("No change to index-time containment") — a BACKLOG follow-up |
+| H4 | repair re-parses the swapped file | how | `read_symbol` refuses before it repairs (PR review); the shared `reparse_file` stays a BACKLOG follow-up |
 | H5 | the signature-only read (`read_symbol.py:398`) | how | inside `_found_body_payload`, so behind the check; `source_slice` guards it too |
 | H6 | an in-root chain of links | how | `resolves_inside` follows the chain; tested |
 | W1 | onboarding's docblock refused (`module_facts.py:58`) | want | **ASSUMED (awaiting ratification):** the map omits it, as for a file with no docblock — no new field in the onboarding dataset. Reverses no prior decision. |
@@ -224,6 +224,11 @@ Behaviour axis: Approach 1–4 implemented as approved; no deviation.
   compares with the fixture's text, not a pre-change answer; Scope 2's reason reaches `read_symbol` only
   (W1); the realpath cost is argued, not measured.
 
+- **PR #55 review** (general-purpose, 85,294 tokens): the refusal still carried params and supertypes
+  parsed from the outside file, and the repair had stored its rows. Fixed: the containment check now
+  precedes `guard.ensure` and returns before any graph field; AC1's fixture names outside params and a
+  supertype and asserts graph.db holds none — red without the fix (4 failed), green with it.
+
 Verdict: clean. Matrix `Ph3/4 proven by`: G1, R1, R2, AC1–AC3 → `tests/test_symlink_containment.py`; C1 → the diff (no indexer/store hunk).
 
 ## Phase 5 — finalise
@@ -248,5 +253,6 @@ Under the handover: push `fix/375-read-time-containment-in-source-slice`; open t
 | 0 refine | exposure-checker (`challenger`) | 1 | 43,164 |
 | 4 review | `reviewer` | 1 | 50,509 |
 | 4 review | `challenger` (ticket-blind) | 1 | 48,908 |
+| PR review | general-purpose | 1 | 85,294 |
 
-`LEDGER TOTAL: 142,581 · top cost driver: 4 review/reviewer`
+`LEDGER TOTAL: 227,875 · top cost driver: PR review`

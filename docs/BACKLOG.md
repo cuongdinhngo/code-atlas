@@ -72,7 +72,8 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
   341.
 - **Three symlink residuals** — a stub root's files (`collect_stubs`, `os.walk`), the index
   directory (`.code-atlas/` committed as a link aims SQLite writes) — 342; and read-through repair
-  re-parses an indexed file swapped for a link out, storing its rows (`read_symbol` withholds the text) — 375.
+  (`poke`, other tools) re-parses an indexed file swapped for a link out, storing its rows
+  (`read_symbol` refuses before repairing) — 375.
 - **Two field reports 365 did not reproduce** — `read_symbol` on a table answered `subject_ambiguous`
   mid-rebuild, and `find_references` answered `index_stale` during a full rebuild, whose shadowed
   live DB still repairs in 365's tests — 365.
