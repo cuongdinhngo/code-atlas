@@ -10,6 +10,7 @@ import copy
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tomllib
@@ -40,7 +41,7 @@ def _ungated(plugin: dict[str, Any]) -> dict[str, Any]:
     for event, entries in table.items():
         for entry in entries:
             for hook in entry["hooks"]:
-                hook["command"] = hook["command"].removeprefix(gen_skill.PLUGIN_GATE)
+                hook["command"] = gen_skill.ungate(hook["command"])
         table[event] = [e for e in entries if e["hooks"][0]["command"] != REFRESH]
     return {"hooks": table}
 
@@ -75,7 +76,7 @@ def _gated_commands() -> list[str]:
 def test_every_plugin_hook_is_gated_and_names_a_declared_script() -> None:
     """R6: every command passes the index gate first; each calls a script the package ships."""
     scripts = set(tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["scripts"])
-    called = {c.removeprefix(gen_skill.PLUGIN_GATE).split()[0] for c in _gated_commands()}
+    called = {gen_skill.ungate(c).split()[0] for c in _gated_commands()}
     assert all(c.startswith(gen_skill.PLUGIN_GATE) for c in _gated_commands())
     assert called <= scripts and {"code-atlas-state", "code-atlas-refresh"} <= called, called
 
@@ -85,9 +86,9 @@ def _fake_scripts(tmp_path: Path) -> dict[str, str]:
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     for command in _gated_commands():
-        name = command.removeprefix(gen_skill.PLUGIN_GATE).split()[0]
+        name = gen_skill.ungate(command).split()[0]
         stub = bin_dir / name
-        stub.write_text(f"#!/bin/sh\necho SPAWNED {name}\n", encoding="utf-8")
+        stub.write_text(f'#!/bin/sh\necho SPAWNED {name} "$@"\n', encoding="utf-8")
         stub.chmod(0o755)
     return {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}
 
@@ -109,7 +110,60 @@ def test_each_hook_runs_its_script_in_an_indexed_repo(tmp_path: Path, command: s
     (project / ".code-atlas").mkdir(parents=True)
     env = {**_fake_scripts(tmp_path), "CLAUDE_PROJECT_DIR": str(project)}
     done = subprocess.run(["bash", "-c", command], env=env, capture_output=True, text=True)
-    assert done.stdout.startswith("SPAWNED code-atlas-")
+    # 376 AC3: the probe passes, and the script gets the same arguments as before.
+    assert (done.returncode, done.stdout) == (0, f"SPAWNED {gen_skill.ungate(command)}\n")
+
+
+def _speaker() -> str:
+    """The SessionStart state hook — the one command allowed to name the install (376 Scope 2)."""
+    start = _load(gen_skill.PLUGIN_HOOKS_PATH)["hooks"]["SessionStart"]
+    (speaker,) = [
+        h["command"] for e in start for h in e["hooks"]
+        if gen_skill.ungate(h["command"]).startswith("code-atlas-state")
+    ]
+    return str(speaker)
+
+
+def _without_scripts(tmp_path: Path, shell: str, command: str) -> subprocess.CompletedProcess[str]:
+    """Run ``command`` in an indexed repo whose PATH holds no console script at all."""
+    project = tmp_path / "project"
+    (project / ".code-atlas").mkdir(parents=True, exist_ok=True)
+    empty = tmp_path / "empty-path"
+    empty.mkdir(exist_ok=True)
+    env = {"PATH": str(empty), "CLAUDE_PROJECT_DIR": str(project)}
+    binary = shutil.which(shell)
+    assert binary, shell
+    return subprocess.run([binary, "-c", command], env=env, capture_output=True, text=True)
+
+
+@pytest.mark.parametrize("shell", ["sh", "bash"])
+def test_session_start_names_the_install_once_when_the_scripts_are_missing(
+    tmp_path: Path, shell: str
+) -> None:
+    """376 AC1 — red before 376: `exec` failed with 127 and printed nothing useful."""
+    done = _without_scripts(tmp_path, shell, _speaker())
+    assert (done.returncode, done.stderr) == (0, "")
+    assert done.stdout == gen_skill.MISSING_SCRIPTS_LINE + "\n"
+    assert gen_skill.INSTALL_SCRIPTS in done.stdout
+
+
+@pytest.mark.parametrize("command", [c for c in _gated_commands() if c != _speaker()])
+def test_every_other_hook_is_silent_when_the_scripts_are_missing(
+    tmp_path: Path, command: str
+) -> None:
+    """376 AC2 — PostToolUse, PreToolUse, PreCompact and the refresh exit 0 and say nothing."""
+    done = _without_scripts(tmp_path, "sh", command)
+    assert (done.returncode, done.stdout, done.stderr) == (0, "", "")
+
+
+@pytest.mark.parametrize("command", _gated_commands())
+def test_a_repo_with_no_index_stops_at_the_first_test(tmp_path: Path, command: str) -> None:
+    """376 AC4 — the probe sits after the index test, so a repo with no index never reaches it."""
+    project = tmp_path / "project"
+    project.mkdir()
+    env = {**os.environ, "CLAUDE_PROJECT_DIR": str(project)}
+    done = subprocess.run(["bash", "-xc", command], env=env, capture_output=True, text=True)
+    assert done.returncode == 0 and "command -v" not in done.stderr, done.stderr
 
 
 def test_the_manifest_and_marketplace_carry_the_package_version() -> None:
