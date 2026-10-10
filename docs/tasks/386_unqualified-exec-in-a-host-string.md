@@ -28,28 +28,39 @@ Every PHP → procedure → table path in such a repo is cut at the first hop.
 1. An `EXEC` / `EXECUTE` literal whose name is unqualified (bare or `[bracketed]`) and that still
    meets the existing clause rule (a parameter follows: `@`, `?`, `:name`, a literal) emits a
    `CALLS` edge, tier `HEURISTIC`.
-2. The edge must never bind to a same-language symbol (204). Decide at design how: the adapter emits
-   the T-SQL default-resolution target (`dbo.<name>`), or emits the bare name with a target-kind
-   restriction that the core resolves only against SQL procedure nodes. The contract is frozen (R3):
-   if the second needs a contract field, that is a design decision with its own reason.
+2. The edge must never bind to a same-language symbol (204). Decide at design how. Two known
+   constraints: the contract has no procedure kind (a T-SQL procedure is a `Function`, the same kind
+   as a PHP function, `code_atlas/contract.py` `NodeKind`), so a target-kind restriction needs a new
+   kind and a `contract_version` bump (R3) — filtering by language in the core breaks R1.1. And the
+   T-SQL adapter keeps a routine's qname as written (`adapters/sql/src/scan.js` `CREATE_RE`), so
+   `CREATE PROCEDURE Insert_Order` is `Insert_Order`, not `dbo.Insert_Order`: an adapter that emits
+   `dbo.<name>` alone misses every procedure created without a schema.
 3. Unqualified `EXEC` with no clause after the name (prose like `"exec summary"`) still emits
-   nothing, as today.
+   nothing, as today. That also leaves a parameterless `"EXEC Proc"` unlinked; whether a whole,
+   closed literal `"EXEC Proc"` may link (as the qualified form does) is decided at design from the
+   split measured in the first assumption.
 4. `EXEC @rc = Proc @p` (return-code form) and `EXECUTE AS …` (not a call) keep their current
    handling.
+5. The same guard lives in all three host adapters: `adapters/php/src/SqlLiteral.php:74-76`,
+   `adapters/typescript/src/sqlLiteral.js:50` and `adapters/python/src/sql_literal.py` (371). All
+   three change together, so one host never links what another drops.
 
 ## Assumptions to prove at design
 
+- Before design, split the anchor index's 88 unqualified literals into those followed by a clause
+  and those not (parameterless calls): the first number is what this ticket can link.
 - `dbo` as the default schema is the T-SQL standard fallback, not a sample convention (R2.3). A repo
   whose procedures live in another schema gets `rule_keys_unresolved`-style counting of misses, not
   a wrong edge.
-- The fix lives in `SqlLiteral.php` (and its TS/Python twins from 371, if they share the guard);
-  no language branch enters the core (R1.1).
+- No language branch enters the core (R1.1).
 
 ## Acceptance criteria
 
 - **AC1:** `"EXEC Insert_Order @id"` and `"EXEC [Insert_Order] ?"` in a PHP fixture emit `CALLS` to
-  the fixture's `dbo.Insert_Order` procedure, tier `HEURISTIC`.
+  the fixture's procedure, tier `HEURISTIC` — once created as `dbo.Insert_Order` and once as bare
+  `Insert_Order`; both link.
 - **AC2:** with a PHP method also named `Insert_Order` in the fixture, no edge lands on the method.
 - **AC3:** `"exec summary"` (no clause) and `"EXECUTE AS USER = 'x'"` emit nothing.
 - **AC4:** `find_callers` on the procedure lists the PHP caller; the count of linked call sites on
   the anchor index before and after is recorded in the task.
+- **AC5:** AC1-AC3 pass on a TypeScript and a Python fixture too.
