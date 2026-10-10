@@ -1,5 +1,5 @@
 {
-  "_doc": "Task 371: one recogniser, three copies. Each literal is the whole text of a string (`open: false`) or the text before an interpolation (`open: true`); `expect` is the edge every source adapter emits from it at HEURISTIC, or null. `markers` holds the parameter markers each host language's drivers write, so the EXEC guard reads per adapter (228).",
+  "_doc": "Task 371: one recogniser, three copies. Each literal is the whole text of a string (`open: false`) or the text before an interpolation (`open: true`); `expect` is the edge every source adapter emits from it at HEURISTIC, or null. `markers` holds the parameter markers each host language's drivers write, so the EXEC guard reads per adapter (228). An unqualified EXEC names the default schema, `dbo` (386).",
   "cases": [
     {
       "text": "INSERT INTO dbo.Items (a) VALUES (1)",
@@ -134,6 +134,48 @@
     {
       "text": "EXEC Insert_Order @p = 1",
       "open": false,
+      "expect": {
+        "kind": "CALLS",
+        "target": "dbo.Insert_Order"
+      }
+    },
+    {
+      "text": "EXEC [Insert_Order] ?",
+      "open": false,
+      "expect": {
+        "kind": "CALLS",
+        "target": "dbo.Insert_Order"
+      }
+    },
+    {
+      "text": "EXECUTE Insert_Order N'x'",
+      "open": true,
+      "expect": {
+        "kind": "CALLS",
+        "target": "dbo.Insert_Order"
+      }
+    },
+    {
+      "text": "EXEC @rc = Insert_Order @p = 1",
+      "open": false,
+      "expect": {
+        "kind": "CALLS",
+        "target": "dbo.Insert_Order"
+      }
+    },
+    {
+      "text": "EXEC Insert_Order",
+      "open": false,
+      "expect": null
+    },
+    {
+      "text": "exec summary",
+      "open": false,
+      "expect": null
+    },
+    {
+      "text": "EXECUTE AS USER = 'x'",
+      "open": false,
       "expect": null
     },
     {
@@ -197,6 +239,18 @@
           "kind": "CALLS",
           "target": "dbo.Insert_Order"
         }
+      }
+    },
+    {
+      "text": "EXEC Insert_Order %s",
+      "open": false,
+      "expect_by_adapter": {
+        "php": null,
+        "python": {
+          "kind": "CALLS",
+          "target": "dbo.Insert_Order"
+        },
+        "typescript": null
       }
     }
   ]

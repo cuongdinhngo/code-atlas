@@ -13,6 +13,8 @@ const NAME = new RegExp(String.raw`${NAME_PART}(?:\s*\.\s*${NAME_PART})*`, "y");
 const PART = new RegExp(NAME_PART, "g");
 const RETURN_CODE = /@[A-Za-z_]\w*\s*=\s*/y;
 const END = /^\s*(?:;|$)/;
+// T-SQL resolves an unqualified procedure in the caller's default schema, `dbo` unless set (386).
+const DEFAULT_SCHEMA = "dbo";
 // The EXEC guard also reads `$1`, the positional marker node's SQL drivers write.
 const CLAUSES = {
   insert: /^\s*(?:\(|values\b|select\b|default\s+values\b|output\b|with\s*\()/i,
@@ -40,15 +42,15 @@ function readSqlLiteral(text, closed) {
   if (!name) return null;
   const parts = (name[0].match(PART) || []).map(unquote);
   if (!follows(verb, text.slice(start + name[0].length), parts.length > 1, closed)) return null;
+  // A dotted target reaches no method through the bare-name fallback (204); a module
+  // whose own qname is `dbo.<name>` still matches exactly, as the qualified form always has.
+  if (verb === "exec" && parts.length === 1) parts.unshift(DEFAULT_SCHEMA);
   return { kind: KINDS[verb], target: parts.join("."), offset: head[1].length };
 }
 
 // The clause T-SQL requires after the name; for DELETE / EXEC on a qualified name, its end.
 function follows(verb, rest, qualified, closed) {
-  if (CLAUSES[verb].test(rest)) {
-    // A bare EXEC name would bind to a same-language function by name (204): qualified only.
-    return verb !== "exec" || qualified;
-  }
+  if (CLAUSES[verb].test(rest)) return true;
   if (!qualified || (verb !== "delete" && verb !== "exec")) return false;
   return rest === "" ? closed : END.test(rest);
 }

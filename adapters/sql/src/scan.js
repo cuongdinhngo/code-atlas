@@ -175,6 +175,9 @@ const CREATE_RE =
   /\b(?:create|alter)\s+(?:or\s+(?:alter|replace)\s+)?(proc(?:edure)?|function)\s+((?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*)(?:\s*\.\s*(?:\[[^\]]*\]|"[^"]*"|[A-Za-z_@#][\w@#$]*))*)/i;
 
 
+// T-SQL's default schema when a CREATE names none and the creator's was never changed (386).
+const DEFAULT_SCHEMA = "dbo";
+
 // A routine header ends at AS or BEGIN; everything before it is the parameter list.
 const HEADER_END_RE = /\b(?:as|begin)\b/i;
 
@@ -814,6 +817,17 @@ function parseFile(qpath) {
           line: lineNo,
           confidence_tier: "RESOLVED",
         });
+        if (node.extra.object_type === "procedure" && !qname.includes(".")) {
+          // Created with no schema it lives in the default one, so `dbo.P` names it too (386).
+          edges.push({
+            kind: "ALIASES",
+            source_qname: `${DEFAULT_SCHEMA}.${qname}`,
+            target_raw: qname,
+            file_path: qpath,
+            line: lineNo,
+            confidence_tier: "HEURISTIC",
+          });
+        }
         current = { qname, node };
         paramScan = HEADER_END_RE.test(code) ? null : node;
       }

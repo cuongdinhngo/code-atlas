@@ -31,6 +31,9 @@ final class SqlLiteral
         'exec' => '/\A\s+(?:@|\?|:[A-Za-z_]|N?\'|-?\d)/',
     ];
 
+    /** An unqualified procedure resolves in the caller's default schema: `dbo` in T-SQL (386). */
+    private const DEFAULT_SCHEMA = 'dbo';
+
     private const NAME_PART = '(?:\[(?:[^\]]|\]\])+\]|"(?:[^"]|"")+"|[A-Za-z_][\w@#$]*)';
 
     /**
@@ -63,6 +66,11 @@ final class SqlLiteral
         if (!self::follows($verb, $rest, $qualified, $closed)) {
             return null;
         }
+        if ($verb === 'exec' && !$qualified) {
+            // A dotted target reaches no method through the bare-name fallback (204); a module
+            // whose own qname is `dbo.<name>` still matches exactly, as the qualified form always has.
+            array_unshift($parts, self::DEFAULT_SCHEMA);
+        }
 
         return ['kind' => self::KINDS[$verb], 'target' => implode('.', $parts), 'offset' => strlen($m[1])];
     }
@@ -71,9 +79,7 @@ final class SqlLiteral
     private static function follows(string $verb, string $rest, bool $qualified, bool $closed): bool
     {
         if (preg_match(self::CLAUSES[$verb], $rest) === 1) {
-            // A bare EXEC name would bind to a same-language method by name (204), so EXEC is
-            // schema-qualified or nothing.
-            return $verb !== 'exec' || $qualified;
+            return true;
         }
         if (!$qualified || ($verb !== 'delete' && $verb !== 'exec')) {
             return false;

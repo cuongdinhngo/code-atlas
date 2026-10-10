@@ -29,7 +29,6 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 383 | [Re-run a signed claim](tasks/383_re-run-a-signed-claim.md) | Trust | deferred | 382 |
 | 384 | [Symbol changed since rev X](tasks/384_symbol-changed-since-revision.md) | Trust | deferred | — |
 | 385 | [Route table as data](tasks/385_route-table-as-data.md) | Coverage | deferred | — |
-| 386 | [Unqualified EXEC](tasks/386_unqualified-exec-in-a-host-string.md) | Coverage | todo | 335, 371 |
 
 ## Open work — Pillar 2 · Onboarding
 
@@ -88,6 +87,9 @@ One line each, with the pointer that holds the detail. Nothing here is scheduled
   named arguments are not read into `kwargs` — 372.
 - **Two route shapes 361 left out** — an inline `on*="fn(…)"` in a PHP view (no attribute reader,
   no cross-language bare-name link) and `$.ajax({url: '…'})`, a field `key_pattern` cannot reach — 361.
+- **A host-string `EXEC` matches case-sensitively and never counts its misses** — `exec insert_order`
+  misses `Insert_Order` (215's casefold covers writes only), a `dbo.py` module's function is an exact
+  match, and a procedure in another schema leaves an uncounted unresolved edge — 386.
 
 ## Conventions
 - Keep an **open** task's `status` in this table **and** in its frontmatter in sync.

@@ -26,6 +26,8 @@ _NAME = re.compile(_NAME_PART + r"(?:\s*\.\s*" + _NAME_PART + r")*")
 _PART = re.compile(_NAME_PART)
 _RETURN_CODE = re.compile(r"@[A-Za-z_]\w*\s*=\s*")
 _END = re.compile(r"\A\s*(?:;|\Z)")
+# T-SQL resolves an unqualified procedure in the caller's default schema, `dbo` unless set (386).
+DEFAULT_SCHEMA = "dbo"
 # The EXEC guard also reads the markers DB-API drivers write: `%s` and `%(name)s` (PEP 249).
 _CLAUSES = {
     "insert": re.compile(
@@ -61,14 +63,17 @@ def read(text: str, closed: bool) -> tuple[str, str, int] | None:
     parts = [_unquote(part) for part in _PART.findall(name.group(0))]
     if not _follows(verb, text[name.end() :], len(parts) > 1, closed):
         return None
+    if verb == "exec" and len(parts) == 1:
+        # A dotted target reaches no method through the bare-name fallback (204); a module
+        # whose own qname is `dbo.<name>` still matches exactly, as the qualified form always has.
+        parts.insert(0, DEFAULT_SCHEMA)
     return KINDS[verb], ".".join(parts), len(head.group(1))
 
 
 def _follows(verb: str, rest: str, qualified: bool, closed: bool) -> bool:
     """The clause T-SQL requires after the name; for DELETE / EXEC on a qualified name, its end."""
     if _CLAUSES[verb].match(rest):
-        # A bare EXEC name would bind to a same-language function by name (204): qualified only.
-        return verb != "exec" or qualified
+        return True
     if not qualified or verb not in ("delete", "exec"):
         return False
     return closed if rest == "" else _END.match(rest) is not None
