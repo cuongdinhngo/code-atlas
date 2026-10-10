@@ -107,6 +107,8 @@ CHANGED_INDEXED_BETWEEN = ("last_commit", "head_commit")
 # running" and "did the last build finish linking" get their own names rather than overloading it.
 INDEX_COMPLETE = "index_complete"
 FULL_REBUILD_REQUIRED = "full_rebuild_required"
+# The summary's lead when a rebuild is pending; the state hook puts that line on screen (381).
+REBUILD_LEAD = "rebuild required"
 COVERAGE_LOSS_PENDING = "coverage_loss_pending"
 # The one state the MCP route cannot report on at all: a build already running. `--status` reads
 # the live lock, which is why it is named here rather than left to be discovered (177, 203).
@@ -358,7 +360,7 @@ def _compose_state(payload: dict[str, object]) -> str:
         stored, server = pending.get("stored_contract"), pending.get("server_contract")
         era = f"index contract v{stored}, server v{server}"
         return (
-            f"rebuild required{at} · {scale} — {era} — run `{pending.get('route')}` "
+            f"{REBUILD_LEAD}{at} · {scale} — {era} — run `{pending.get('route')}` "
             f"(or build_or_update_index {pending.get('in_band_option')})"
         )
     staleness = str(payload.get("staleness") or UNKNOWN)
