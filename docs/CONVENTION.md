@@ -24,7 +24,7 @@ code-atlas/
 │   ├── indexer.py                    # full_build / incremental_update
 │   ├── enrichment.py                 # optional CA_INDIRECTION_RULES → HEURISTIC edges (task 040)
 │   ├── resolver.py                   # phase-2 edge linking (generic, no language branches)
-│   ├── cli.py  instructions.py  build_info.py  …   # code-atlas-build; MCP instructions; version
+│   ├── cli.py  query.py  instructions.py  build_info.py  …   # shell build, query; instructions; version
 │   ├── onboarding/                   # Phase-3 enrichment, deterministic — one module per concern
 │   ├── hooks/                        # opt-in: poke refresh signal state nudge
 │   └── tools/                        # one module per MCP tool

@@ -306,6 +306,14 @@ owns and its capabilities on one handshake line, and the core routes files from 
 
 **All 24 tools, what each returns, and which take a list of subjects: [`docs/TOOLS.md`](docs/TOOLS.md).**
 
+**From a script, with no agent:** `code-atlas query <tool> --args '<json>'` prints the payload the
+MCP tool returns, as one JSON line; `code-atlas query --batch <file.jsonl>` (`-` for stdin) takes one
+`{"tool": …, "args": {…}}` per line (blank lines skipped) and answers in order from one process.
+Exit `0` for any answer, an empty one included; `2` for a usage error; `1` with no readable index.
+Every line is checked before any is asked, but a call a tool rejects stops the batch there, after
+the answers before it. The two index writers are refused, and shell calls are not counted in
+`fit_counts` or `est_tokens_vs_grep_read`.
+
 ### Three properties worth knowing before you install
 
 **Every answer says what it is not telling you.** `total_count` (the true size, not the page),
