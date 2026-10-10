@@ -45,6 +45,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 377-C1 — a subagent's hook payload carries its parent's `session_id`, plus `agent_id`
+
+- type: 5 (environment) · area: `claude-code hooks / payload identity` · verified-at: 2026-10-09, Claude Code 2.1.295
+- status: proposed · seen: 377
+- evidence: `claude -p` with a hook dumping each Grep `PostToolUse` payload: the main thread's had
+  `session_id` and no `agent_id`; the general-purpose subagent's had the same `session_id` plus
+  `agent_id` and `agent_type`. Anything keyed on `session_id` alone treats a subagent as its parent.
+- destination: first sighting.
+
 ### 374-C1 — a memo guarded by a change probe must seed the probe when it first computes
 
 - type: 2 (code) · handle: `seed-the-change-probe-with-the-first-answer`

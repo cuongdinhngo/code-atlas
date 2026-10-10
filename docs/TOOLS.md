@@ -286,8 +286,9 @@ or `git grep`. When the pattern matches a shape an adapter declared in its v13 h
 (`symbol_shapes`, stamped into the index at build time), it injects one line through
 `additionalContext` — *ask the index first, keep Grep as the cross-check*. A shape fires when the grep
 is unscoped or scoped to that adapter's suffixes, and a `scoped` shape only in the latter. Once per
-kind per session; firings append to `.code-atlas/nudge.log`. Silent with no index; never blocks;
-always exits 0.
+kind per session, and per subagent inside it (keyed `session/agent_id`, 377); firings append to
+`.code-atlas/nudge.log`. Silent unless the index is settled — `current`, no build running, nothing
+pending, the state hook's own judgement (377); never blocks; always exits 0.
 
 ## Configuration reference
 
