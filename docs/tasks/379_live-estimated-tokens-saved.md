@@ -234,6 +234,11 @@ Behaviour axis: Approach 1–4 implemented as approved.
 - **`challenger` round 1** (ticket-blind, 54,700 tokens): 11 met · 0 not met · 0 can't tell. Residuals: a
   working-tree baseline is not content-deterministic (H1, by design); a file cited in another shape (`file:line`
   text) is not counted.
+- **PR #59 review** (general-purpose, 83,229 tokens): a miss that echoes its `path` argument (`file_outline` on
+  an unindexed file) was credited that file's bytes; the containment test never reached the guard; the response
+  side escaped non-ASCII where the benchmark does not; the note implied one call set for both sums. Fixed: a
+  `found: false` answer cites nothing, `ensure_ascii=False`, a real outside file in the test (both new tests red
+  without the fix), the note and TOOLS.md say bytes/4 and cited calls only; fit.md's reset bullet names `cost:`.
 
 Verdict: clean. Matrix `Ph3/4 proven by`: R1–R3, AC1–AC3 → `tests/test_est_tokens.py` + the rebuild test; R4,
 AC4 → README, TOOLS.md, the note; C1–C2 → the diff.
@@ -260,5 +265,6 @@ Deferred to the maintainer: ratify W1–W3; merge.
 | 0 refine | exposure-checker (`challenger`) | 1 | 39,123 |
 | 4 review | `reviewer` | 1 | 52,306 |
 | 4 review | `challenger` (ticket-blind) | 1 | 54,700 |
+| PR review | general-purpose | 1 | 83,229 |
 
-`LEDGER TOTAL: 146,129 · top cost driver: 4 review/challenger`
+`LEDGER TOTAL: 229,358 · top cost driver: PR review`
