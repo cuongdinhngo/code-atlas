@@ -284,7 +284,25 @@ Commits `a2bc96ea` (the gated snippet), `c29911f8` (on screen, the pin), `5daf90
 and `1eff00cf` (docs). **Red first** (R6.5): with the pre-381 snippet the teammate test fails 9 cases (every
 bare command, exit 127); a local, unpushed `v0.3.0` tag flips the strict xfail to a failure (tag removed after).
 
-**Verification sweep.** File axis: the diff is the change list; `ruff check .`, `mypy code_atlas onboarding_llm`
+The first gate run (`b91f9cd0`) went red on one item the targeted runs missed:
+`tests/test_install_skew.py` reads the hook's stdout in a subprocess, and a skew now arrives as JSON. Fixed in
+`db099c1f` (the helper reads `additionalContext`; the hook keeps UTF-8 with `ensure_ascii=False`).
+
+```
+$ .venv/bin/python -m pytest -q tests/test_teammate_without_code_atlas.py tests/test_state_line_on_screen.py tests/test_release_discipline.py
+1 xfailed, the rest passed
+Ran at db099c1f
+```
+
+```
+$ scripts/gate.sh
+21 passed · 0 failed · 0 skipped
+GATE GREEN — all 21 checks passed
+Ran at db099c1f
+```
+
+**Verification sweep.** File axis: the diff is the change list plus `tests/test_install_skew.py`'s helper;
+`ruff check .`, `mypy code_atlas onboarding_llm`
 clean; 358 hook, doc and release tests green with one expected xfail. Behaviour axis: Approach 1–5 implemented
 as approved.
 
@@ -298,6 +316,9 @@ working doc: this file.
   (E2, and the stub stand-in above) and the live display (E1). Residuals answered: the test image keeps
   `.git` (`.dockerignore`: "`.git` is kept"), so the tag test runs there; `scripts/gate.sh` runs in a full
   local clone; the reinstall URL is the receipt's own, query stripped. No code change was needed.
+
+After the review, `db099c1f` touched `code_atlas/hooks/state.py` (`ensure_ascii=False`, one line) and a test
+helper; the gate above ran on it.
 
 Verdict: clean (challenger only — REVIEWER: OFF), with E1–E4 open for the maintainer. Matrix `Ph3/4 proven by`:
 R1, AC1 → the teammate test; R2, R5, AC2, AC4 → `tests/test_state_line_on_screen.py`; R3, AC3 → the tag
