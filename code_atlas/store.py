@@ -14,6 +14,7 @@ determinism (R4.2) is asserted over row content ordered by a stable key, with th
 import atexit
 import contextlib
 import json
+import re
 import sqlite3
 import threading
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
@@ -264,6 +265,9 @@ DIRECT_MATCH_SQL_FN = "ca_direct_match"
 _SEARCH_BAND = f"{DIRECT_MATCH_SQL_FN}(?, nodes.name, nodes.qualified_name) DESC"
 # Within a band: outside mirrors, then higher external-inbound side (277). No-op when stamp absent.
 MIRROR_PREFER_SQL_FN = "ca_mirror_prefer"
+# 378: bounded Levenshtein over casefolded names, for did-you-mean on a zero-overlap miss.
+EDIT_DISTANCE_SQL_FN = "ca_edit_distance"
+_NAME_TAIL = re.compile(r"::|->|[.\\/#]")
 _SEARCH_MIRROR = f"{MIRROR_PREFER_SQL_FN}(nodes.file_path) ASC"
 
 Row = dict[str, object]
@@ -509,6 +513,74 @@ def _member_boundary_candidates(query: str) -> tuple[tuple[str, bool], ...]:
     if variant is None:
         return ()
     return ((variant.casefold(), True),)
+
+def name_tail(query: str) -> str:
+    """The last name segment of a guessed qname — what a did-you-mean compares with ``name``."""
+    return _NAME_TAIL.split(query.strip())[-1].strip()
+
+
+def edit_distance_limit(text: str) -> int:
+    """Edits a did-you-mean may span: 1 up to 5 characters, 2 up to 10, else 3 (378)."""
+    return 1 if len(text) <= 5 else 2 if len(text) <= 10 else 3
+
+
+def edit_distance(a: str, b: str, bound: int) -> int:
+    """Levenshtein distance of two casefolded strings, or ``bound + 1`` once it must exceed it.
+
+    Plain Levenshtein, the ticket's metric: a swapped pair costs 2, so ``usre`` misses ``user``.
+    """
+    a, b = a.casefold(), b.casefold()
+    if abs(len(a) - len(b)) > bound:
+        return bound + 1
+    previous = list(range(len(b) + 1))
+    for i, char in enumerate(a, 1):
+        current = [i]
+        for j, other in enumerate(b, 1):
+            current.append(
+                min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (char != other))
+            )
+        if min(current) > bound:
+            return bound + 1
+        previous = current
+    return min(previous[-1], bound + 1)
+
+
+def edit_pieces(text: str, bound: int) -> list[str]:
+    """``bound + 1`` contiguous pieces of ``text``: a name within ``bound`` edits keeps one whole.
+
+    Each edit touches at most one piece (pigeonhole), so the filter never drops a true match (378).
+    """
+    size, extra = divmod(len(text), bound + 1)
+    pieces, start = [], 0
+    for index in range(bound + 1):
+        end = start + size + (index < extra)
+        pieces.append(text[start:end])
+        start = end
+    return sorted(set(pieces))
+
+
+@lru_cache(maxsize=1 << 16)
+def _edit_distance_udf(name: object, tail: object, bound: object) -> int:
+    # Memoised: a name repeats across many nodes (`get`, `__init__`), and the result is pure.
+    return edit_distance(str(name or ""), str(tail), int(str(bound)))
+
+
+def _piece_filter(
+    pieces: list[str], *, ascii_only: bool
+) -> tuple[str, tuple[object, ...], str]:
+    """``(where, params, join)`` keeping names that contain a piece (378).
+
+    Pieces of three or more characters go through the trigram index; a shorter piece has no
+    trigram, so a short segment scans ``name`` (``lower()`` folds ASCII only, else no filter).
+    """
+    if min(len(piece) for piece in pieces) >= 3:
+        match = "name : (" + " OR ".join('"' + p.replace('"', '""') + '"' for p in pieces) + ")"
+        return "nodes_fts MATCH ?", (match,), "JOIN nodes_fts ON nodes_fts.rowid = nodes.id "
+    if not ascii_only:
+        return "1", (), ""
+    scan = " OR ".join("instr(lower(nodes.name), ?) > 0" for _ in pieces)
+    return f"({scan})", (*pieces,), ""
+
 
 def _direct_match_udf(query: object, name: object, qualified_name: object) -> int:
     """``is_direct_match`` as a SQLite scalar, so ORDER BY bands on the predicate, not a copy."""
@@ -810,6 +882,9 @@ class GraphStore:
         )
         self._conn.create_function(
             MIRROR_PREFER_SQL_FN, 1, self._mirror_prefer_udf, deterministic=True
+        )
+        self._conn.create_function(
+            EDIT_DISTANCE_SQL_FN, 3, _edit_distance_udf, deterministic=True
         )
         for pragma in PRAGMAS:
             self._conn.execute(f"PRAGMA {pragma}")
@@ -3066,6 +3141,58 @@ class GraphStore:
         return self._rows(
             NODE_ROW_KEYS, sql, (*params, query, *contains_params, limit, offset)
         )
+
+    def edit_distance_names(
+        self,
+        query: str,
+        *,
+        kind: str | None = None,
+        namespace: str | None = None,
+        path_prefix: str | None = None,
+        limit: int,
+    ) -> list[Row]:
+        """Declared names within ``edit_distance_limit`` of the query's last segment (378).
+
+        Prefiltered by the length window and ``edit_pieces``, then a bounded Levenshtein on
+        casefolded names; ordered by ``(distance, casefolded name, qname, id)`` — a total order
+        (R4.2) — and cut after that order (R5.8). Each row carries ``edit_distance``. A segment
+        under three characters, or one holding whitespace, is no name to correct: ``[]``.
+        """
+        tail = name_tail(query)
+        if len(tail) < 3 or any(char.isspace() for char in tail):
+            return []
+        bound = edit_distance_limit(tail)
+        pieces = edit_pieces(tail.casefold(), bound)
+        where, params, join = _piece_filter(pieces, ascii_only=tail.isascii())
+        if kind is not None:
+            where, params = f"{where} AND nodes.kind = ?", (*params, kind)
+        where, params = _with_namespace(
+            where, params, namespace, qname_column="nodes.qualified_name"
+        )
+        where, params = _with_path_prefix(where, params, path_prefix, column="nodes.file_path")
+        distance = f"{EDIT_DISTANCE_SQL_FN}(nodes.name, ?, ?)"
+        sql = (
+            f"SELECT nodes.id, {_NODE_COLUMNS_JOINED}, {distance} FROM nodes {join}"
+            f"WHERE nodes.kind != ? AND length(nodes.name) BETWEEN ? AND ? AND ({where}) "
+            f"AND {distance} <= ?"
+        )
+        rows = self._rows(
+            (*NODE_ROW_KEYS, "edit_distance"),
+            sql,
+            (
+                tail, bound, "File", len(tail) - bound, len(tail) + bound,
+                *params, tail, bound, bound,
+            ),
+        )
+        rows.sort(
+            key=lambda row: (
+                int(str(row["edit_distance"])),
+                str(row["name"]).casefold(),
+                str(row["qualified_name"]),
+                int(str(row["id"])),
+            )
+        )
+        return rows[:limit]
 
     def count_search_nodes(
         self,

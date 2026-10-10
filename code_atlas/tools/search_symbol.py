@@ -33,6 +33,7 @@ from code_atlas.tools.nav_result import (
     RETRY_AS_FIELD,
     RETRY_AS_QUERY,
     TRY_INSTEAD_FILE_OUTLINE,
+    TRY_INSTEAD_HINT_DID_YOU_MEAN,
     TRY_INSTEAD_HINT_MEMBER_SEPARATOR,
     TRY_INSTEAD_HINT_NARROW_BY_FILTER,
     TRY_INSTEAD_HINT_NARROW_BY_QNAME,
@@ -77,6 +78,7 @@ class _Hits(NamedTuple):
     search_order: str | None = None
     kind_excluded: tuple[str, ...] = ()
     path_excluded: tuple[str, ...] = ()
+    did_you_mean: tuple[dict[str, object], ...] = ()
 
 
 def _require_kind(kind: contract.NodeKind | None) -> contract.NodeKind | None:
@@ -152,6 +154,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         unnameable subject amid several dirty files yields empty ``index_stale`` (073/246). Stub-
         indexed nodes carry ``stub: true`` (039); a ``File`` hit that only restates a ``Class``
         hit's declaring file in the same page is suppressed — request File rows via ``kind`` (061).
+        A zero-overlap miss answers ``reason=token_candidates`` with ``candidates`` (names sharing a
+        word, 253) and, when a declared name is a typo away, ``did_you_mean`` — ``{qname, name,
+        kind, edit_distance}``, nearest first, never in ``results`` (378).
         ``exclude_tests`` (default off) drops test-role nodes in SQL before paging (332);
         ``total_count`` then counts the filtered set. Off is byte-identical (061).
         """
@@ -475,6 +480,13 @@ def _search_one(
                 0,
                 residue,
                 tuple(candidates),
+                did_you_mean=_did_you_mean(
+                    store,
+                    query,
+                    kind=kind,
+                    namespace=namespace,
+                    path_prefix=path_prefix,
+                ),
             )
     from code_atlas.mirror_search import attach_mirror_search_fields
 
@@ -540,14 +552,9 @@ def _single_payload(
         )
     elif hits.reason == REASON_TOKEN_CANDIDATES:
         payload["candidates"] = list(hits.candidates)
-        if hits.candidates:
-            attach_try_instead(
-                payload, TRY_INSTEAD_SEARCH_SYMBOL, TRY_INSTEAD_HINT_TOKEN_CANDIDATES
-            )
-        else:
-            attach_try_instead(
-                payload, TRY_INSTEAD_SEARCH_SYMBOL, TRY_INSTEAD_HINT_TOKEN_CANDIDATES_NONE
-            )
+        if hits.did_you_mean:
+            payload["did_you_mean"] = list(hits.did_you_mean)
+        attach_try_instead(payload, TRY_INSTEAD_SEARCH_SYMBOL, _miss_hint(hits))
     attach_limit_capped(payload, cap=cap, clamped=limit_clamped)
     if hits.other_indexed_files_drifted > 0:
         payload["other_indexed_files_drifted"] = hits.other_indexed_files_drifted
@@ -590,14 +597,9 @@ def _batch_answer(query: str, hits: _Hits) -> dict[str, object]:
         )
     elif hits.reason == REASON_TOKEN_CANDIDATES:
         answer["candidates"] = list(hits.candidates)
-        if hits.candidates:
-            attach_try_instead(
-                answer, TRY_INSTEAD_SEARCH_SYMBOL, TRY_INSTEAD_HINT_TOKEN_CANDIDATES
-            )
-        else:
-            attach_try_instead(
-                answer, TRY_INSTEAD_SEARCH_SYMBOL, TRY_INSTEAD_HINT_TOKEN_CANDIDATES_NONE
-            )
+        if hits.did_you_mean:
+            answer["did_you_mean"] = list(hits.did_you_mean)
+        attach_try_instead(answer, TRY_INSTEAD_SEARCH_SYMBOL, _miss_hint(hits))
     if hits.other_indexed_files_drifted > 0:
         answer["other_indexed_files_drifted"] = hits.other_indexed_files_drifted
     if hits.search_order is not None:
@@ -737,6 +739,46 @@ def _token_candidates(
         cand["kind"] = kind_s
         out.append(cand)
     return out
+
+
+def _miss_hint(hits: _Hits) -> str:
+    """The zero-overlap miss's hint names only a list the answer actually carries (378)."""
+    if hits.candidates:
+        return TRY_INSTEAD_HINT_TOKEN_CANDIDATES
+    if hits.did_you_mean:
+        return TRY_INSTEAD_HINT_DID_YOU_MEAN
+    return TRY_INSTEAD_HINT_TOKEN_CANDIDATES_NONE
+
+
+def _did_you_mean(
+    store: GraphStore,
+    query: str,
+    *,
+    kind: contract.NodeKind | None,
+    namespace: str | None,
+    path_prefix: str | None,
+) -> tuple[dict[str, object], ...]:
+    """Names a typo away from the query (378) — beside ``results``, never in them (R5.6).
+
+    Independent of ``candidates``: a name may sit in both, since a shared word and a near
+    spelling are different evidence.
+    """
+    rows = store.edit_distance_names(
+        query,
+        kind=kind,
+        namespace=namespace,
+        path_prefix=path_prefix,
+        limit=contract.TOKEN_CANDIDATE_K,
+    )
+    out: list[dict[str, object]] = []
+    for row in rows:
+        # Keys assigned via subscript so the dict literal does not re-list NODE_FIELDS (R3.2).
+        suggestion: dict[str, object] = {"qname": row["qualified_name"]}
+        suggestion["name"] = row["name"]
+        suggestion["kind"] = row["kind"]
+        suggestion["edit_distance"] = row["edit_distance"]
+        out.append(suggestion)
+    return tuple(out)
 
 
 def _suppress_redundant_file_hits(
