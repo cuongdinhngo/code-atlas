@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import shlex
+import sqlite3
 import subprocess
 import sys
 from pathlib import Path
@@ -166,8 +167,13 @@ def test_an_ignore_file_or_untracked_path_linked_out_is_not_read(tmp_path: Path)
     assert "src/late.py" not in untracked
 
 
-DOCUMENTED = "# The real doc.\ndef real():\n    return 1\n"
-LEAKY = "# SECRET doc outside the repo.\ndef real():\n    return 'SECRET body outside the repo'\n"
+DOCUMENTED_REAL = "# The real doc.\ndef real():\n    return 1\n"
+DOCUMENTED = DOCUMENTED_REAL + "\n\nclass Box:\n    pass\n"
+# Outside names too: a refusal must carry no param, supertype or row parsed from here.
+LEAKY = (
+    "# SECRET doc outside the repo.\ndef real(SECRET_arg: SecretType = 1):\n"
+    "    return 'SECRET body outside the repo'\n\n\nclass Box(SecretBase):\n    pass\n"
+)
 
 
 def _built_then_swapped(tmp_path: Path, target: str) -> tuple[Path, object]:
@@ -194,15 +200,19 @@ def _built_then_swapped(tmp_path: Path, target: str) -> tuple[Path, object]:
 
 @needs_python
 @pytest.mark.parametrize("detail_level", ["standard", "minimal"])
+@pytest.mark.parametrize("qname", ["src.real.real", "src.real.Box"])
 def test_an_indexed_file_swapped_for_a_link_out_reads_no_outside_text(
-    tmp_path: Path, detail_level: str
+    tmp_path: Path, detail_level: str, qname: str
 ) -> None:
-    """375 AC1 — red before 375: the body and docblock came back from `outside/` with reason ok."""
-    _, tool = _built_then_swapped(tmp_path, "outside")
-    result = tool("src.real.real", detail_level=detail_level)  # type: ignore[operator]
+    """375 AC1 — red before 375: body, docblock, params and supertypes came from `outside/`."""
+    root, tool = _built_then_swapped(tmp_path, "outside")
+    result = tool(qname, detail_level=detail_level, stored_fields=True)  # type: ignore[operator]
     assert "SECRET" not in json.dumps(result)
     assert result["reason"] == REASON_PATH_OUTSIDE_ROOT
     assert result["source"] == "" and result["file"] == "src/real.py"
+    # The refusal comes before the read-through repair, so no outside row was stored either.
+    with sqlite3.connect(root / ".code-atlas" / "graph.db") as db:
+        assert "SECRET" not in "\n".join(db.iterdump())
 
 
 @needs_python
@@ -211,7 +221,7 @@ def test_an_indexed_file_swapped_for_a_link_inside_reads_as_before(tmp_path: Pat
     _, tool = _built_then_swapped(tmp_path, "inside")
     result = tool("src.real.real")  # type: ignore[operator]
     assert result["reason"] == "ok"
-    assert result["source"] == DOCUMENTED
+    assert result["source"] == DOCUMENTED_REAL
 
 
 def test_a_docblock_is_not_read_through_a_link_out(tmp_path: Path) -> None:
