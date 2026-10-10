@@ -43,7 +43,7 @@ one: `journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`.
 | `nodes` | one symbol | `id` PK · `kind` · `name` · `qualified_name` · `file_path` → `files(path)` · `line_start` · `line_end` · `modifiers` · `params` · `is_test` · `extra` · UNIQUE(`qualified_name`, `file_path`) |
 | `edges` | one relationship | `id` PK · `kind` · `source_qname` · `target_qname` · `target_raw` · `file_path` · `line` · `confidence_tier` · `args` · `arg_keys` · `kwargs` |
 | `nodes_fts` | the search index | fts5 over `name`, `qualified_name`, `file_path`, `params`; `content='nodes'`, `content_rowid='id'`, `tokenize='trigram'`, three sync triggers |
-| `meta` | one build-time stamp | `key` PK · `value`; the keys are the `*_KEY` constants in `store.py` and are deliberately not listed (task 132) |
+| `meta` | one build-time stamp, or a local per-tool counter | `key` PK · `value`; stamps are the `*_KEY` constants in `store.py`, deliberately not listed (task 132); counters use the `fit:` / `cost:` prefixes ([fit.md](fit.md), 260/379) |
 
 Two properties of that table are worth stating because they are easy to miss and both are load-bearing:
 
@@ -51,7 +51,8 @@ Two properties of that table are worth stating because they are easy to miss and
   join is by string, and only the resolver upholds it. An edge stores `target_qname`, never a node id
   — so *which declaring file* is not representable (PLAN §8.2 / task 046).
 - **`meta` exists so an answer never scans the graph.** Stamps are written once per build and read
-  per answer. That direction is the constraint on every new predicate: a full-graph scan costs
+  per answer (the `fit:` / `cost:` counters are the exception: one upsert per answer, never read by a
+  nav answer). That direction is the constraint on every new predicate: a full-graph scan costs
   ~3.2 s on the 2.19 M-edge anchor (task 204) — fine once per build, disqualifying once per answer.
   `covered_suffixes` / `covered_languages` (159/160/173) are the shape to copy.
 

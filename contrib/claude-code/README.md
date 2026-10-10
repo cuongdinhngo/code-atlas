@@ -39,7 +39,7 @@ line naming step 1, and every hook exits 0 (376). A fourth hook, `code-atlas-ref
 background at `SessionStart`.
 A fifth, **`code-atlas-nudge`** (345), speaks right after a `Grep` or a `grep`/`rg`/`git grep` whose
 pattern matches a shape an adapter declared — one "ask the index first" line, once per kind per
-session. **Already running a project-local grep-nudge hook?** Remove it when you install this, or
+session and per subagent, and only while the index is settled: current, no build running (377). **Already running a project-local grep-nudge hook?** Remove it when you install this, or
 each grep is nudged twice.
 Coming from a hand install? Remove the merged snippet and any `claude mcp add` entry first.
 
