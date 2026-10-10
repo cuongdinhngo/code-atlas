@@ -49,14 +49,14 @@ def _ungated(plugin: dict[str, Any]) -> dict[str, Any]:
 def test_the_plugin_hook_list_matches_the_snippet() -> None:
     """AC3: the plugin and the hand-install snippet carry the same hooks, event for event."""
     snippet = _load(gen_skill.CLAUDE_CODE_SNIPPET_PATH)
-    assert _ungated(_load(gen_skill.PLUGIN_HOOKS_PATH)) == snippet
+    assert _ungated(_load(gen_skill.PLUGIN_HOOKS_PATH)) == _ungated(snippet)
 
 
 def test_a_drifted_hook_list_is_caught() -> None:
     """R6.5: the comparison above must go red when one side loses an entry."""
     plugin = _load(gen_skill.PLUGIN_HOOKS_PATH)
     plugin["hooks"]["PostToolUse"].pop()
-    assert _ungated(plugin) != _load(gen_skill.CLAUDE_CODE_SNIPPET_PATH)
+    assert _ungated(plugin) != _ungated(_load(gen_skill.CLAUDE_CODE_SNIPPET_PATH))
 
 
 def test_the_plugin_adds_only_the_background_refresh() -> None:

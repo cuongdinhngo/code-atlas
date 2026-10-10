@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-poke",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-poke >/dev/null 2>&1 || exit 0; exec code-atlas-poke",
             "async": true,
             "timeout": 60,
             "if": "Edit(*.php)"
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-poke",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-poke >/dev/null 2>&1 || exit 0; exec code-atlas-poke",
             "async": true,
             "timeout": 60,
             "if": "Write(*.php)"
@@ -30,7 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-poke",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-poke >/dev/null 2>&1 || exit 0; exec code-atlas-poke",
             "async": true,
             "timeout": 60,
             "if": "Edit(*.phtml)"
@@ -42,7 +42,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-poke",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-poke >/dev/null 2>&1 || exit 0; exec code-atlas-poke",
             "async": true,
             "timeout": 60,
             "if": "Write(*.phtml)"
@@ -54,7 +54,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-poke",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-poke >/dev/null 2>&1 || exit 0; exec code-atlas-poke",
             "async": true,
             "timeout": 60,
             "if": "Edit(*.py)"
@@ -66,7 +66,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-poke",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-poke >/dev/null 2>&1 || exit 0; exec code-atlas-poke",
             "async": true,
             "timeout": 60,
             "if": "Write(*.py)"
@@ -78,7 +78,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-poke",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-poke >/dev/null 2>&1 || exit 0; exec code-atlas-poke",
             "async": true,
             "timeout": 60,
             "if": "Edit(*.sql)"
@@ -90,7 +90,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-poke",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-poke >/dev/null 2>&1 || exit 0; exec code-atlas-poke",
             "async": true,
             "timeout": 60,
             "if": "Write(*.sql)"
@@ -102,7 +102,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-poke",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-poke >/dev/null 2>&1 || exit 0; exec code-atlas-poke",
             "async": true,
             "timeout": 60,
             "if": "Edit(*.ts)"
@@ -114,7 +114,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-poke",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-poke >/dev/null 2>&1 || exit 0; exec code-atlas-poke",
             "async": true,
             "timeout": 60,
             "if": "Write(*.ts)"
@@ -126,7 +126,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-poke",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-poke >/dev/null 2>&1 || exit 0; exec code-atlas-poke",
             "async": true,
             "timeout": 60,
             "if": "Edit(*.tsx)"
@@ -138,7 +138,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-poke",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-poke >/dev/null 2>&1 || exit 0; exec code-atlas-poke",
             "async": true,
             "timeout": 60,
             "if": "Write(*.tsx)"
@@ -150,7 +150,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-poke",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-poke >/dev/null 2>&1 || exit 0; exec code-atlas-poke",
             "async": true,
             "timeout": 60,
             "if": "Edit(*.js)"
@@ -162,7 +162,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-poke",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-poke >/dev/null 2>&1 || exit 0; exec code-atlas-poke",
             "async": true,
             "timeout": 60,
             "if": "Write(*.js)"
@@ -174,7 +174,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-poke",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-poke >/dev/null 2>&1 || exit 0; exec code-atlas-poke",
             "async": true,
             "timeout": 60,
             "if": "Edit(*.jsx)"
@@ -186,7 +186,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-poke",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-poke >/dev/null 2>&1 || exit 0; exec code-atlas-poke",
             "async": true,
             "timeout": 60,
             "if": "Write(*.jsx)"
@@ -198,7 +198,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-poke",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-poke >/dev/null 2>&1 || exit 0; exec code-atlas-poke",
             "async": true,
             "timeout": 60,
             "if": "Edit(*.mjs)"
@@ -210,7 +210,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-poke",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-poke >/dev/null 2>&1 || exit 0; exec code-atlas-poke",
             "async": true,
             "timeout": 60,
             "if": "Write(*.mjs)"
@@ -222,7 +222,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-poke",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-poke >/dev/null 2>&1 || exit 0; exec code-atlas-poke",
             "async": true,
             "timeout": 60,
             "if": "Edit(*.cjs)"
@@ -234,7 +234,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-poke",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-poke >/dev/null 2>&1 || exit 0; exec code-atlas-poke",
             "async": true,
             "timeout": 60,
             "if": "Write(*.cjs)"
@@ -246,7 +246,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-signal",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-signal >/dev/null 2>&1 || exit 0; exec code-atlas-signal",
             "timeout": 10,
             "if": "Read(*.php)"
           }
@@ -257,7 +257,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-signal",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-signal >/dev/null 2>&1 || exit 0; exec code-atlas-signal",
             "timeout": 10,
             "if": "Read(*.phtml)"
           }
@@ -268,7 +268,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-signal",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-signal >/dev/null 2>&1 || exit 0; exec code-atlas-signal",
             "timeout": 10,
             "if": "Read(*.py)"
           }
@@ -279,7 +279,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-signal",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-signal >/dev/null 2>&1 || exit 0; exec code-atlas-signal",
             "timeout": 10,
             "if": "Read(*.sql)"
           }
@@ -290,7 +290,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-signal",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-signal >/dev/null 2>&1 || exit 0; exec code-atlas-signal",
             "timeout": 10,
             "if": "Read(*.ts)"
           }
@@ -301,7 +301,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-signal",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-signal >/dev/null 2>&1 || exit 0; exec code-atlas-signal",
             "timeout": 10,
             "if": "Read(*.tsx)"
           }
@@ -312,7 +312,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-signal",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-signal >/dev/null 2>&1 || exit 0; exec code-atlas-signal",
             "timeout": 10,
             "if": "Read(*.js)"
           }
@@ -323,7 +323,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-signal",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-signal >/dev/null 2>&1 || exit 0; exec code-atlas-signal",
             "timeout": 10,
             "if": "Read(*.jsx)"
           }
@@ -334,7 +334,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-signal",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-signal >/dev/null 2>&1 || exit 0; exec code-atlas-signal",
             "timeout": 10,
             "if": "Read(*.mjs)"
           }
@@ -345,7 +345,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-signal",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-signal >/dev/null 2>&1 || exit 0; exec code-atlas-signal",
             "timeout": 10,
             "if": "Read(*.cjs)"
           }
@@ -356,7 +356,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-nudge",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-nudge >/dev/null 2>&1 || exit 0; exec code-atlas-nudge",
             "timeout": 10
           }
         ]
@@ -366,7 +366,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-nudge",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-nudge >/dev/null 2>&1 || exit 0; exec code-atlas-nudge",
             "timeout": 10,
             "if": "Bash(grep *)"
           }
@@ -377,7 +377,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-nudge",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-nudge >/dev/null 2>&1 || exit 0; exec code-atlas-nudge",
             "timeout": 10,
             "if": "Bash(rg *)"
           }
@@ -388,7 +388,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-nudge",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-nudge >/dev/null 2>&1 || exit 0; exec code-atlas-nudge",
             "timeout": 10,
             "if": "Bash(git grep *)"
           }
@@ -401,7 +401,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-signal",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-signal >/dev/null 2>&1 || exit 0; exec code-atlas-signal",
             "timeout": 10,
             "if": "Write(*.php)"
           }
@@ -412,7 +412,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-signal",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-signal >/dev/null 2>&1 || exit 0; exec code-atlas-signal",
             "timeout": 10,
             "if": "Write(*.phtml)"
           }
@@ -423,7 +423,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-signal",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-signal >/dev/null 2>&1 || exit 0; exec code-atlas-signal",
             "timeout": 10,
             "if": "Write(*.py)"
           }
@@ -434,7 +434,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-signal",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-signal >/dev/null 2>&1 || exit 0; exec code-atlas-signal",
             "timeout": 10,
             "if": "Write(*.sql)"
           }
@@ -445,7 +445,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-signal",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-signal >/dev/null 2>&1 || exit 0; exec code-atlas-signal",
             "timeout": 10,
             "if": "Write(*.ts)"
           }
@@ -456,7 +456,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-signal",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-signal >/dev/null 2>&1 || exit 0; exec code-atlas-signal",
             "timeout": 10,
             "if": "Write(*.tsx)"
           }
@@ -467,7 +467,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-signal",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-signal >/dev/null 2>&1 || exit 0; exec code-atlas-signal",
             "timeout": 10,
             "if": "Write(*.js)"
           }
@@ -478,7 +478,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-signal",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-signal >/dev/null 2>&1 || exit 0; exec code-atlas-signal",
             "timeout": 10,
             "if": "Write(*.jsx)"
           }
@@ -489,7 +489,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-signal",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-signal >/dev/null 2>&1 || exit 0; exec code-atlas-signal",
             "timeout": 10,
             "if": "Write(*.mjs)"
           }
@@ -500,7 +500,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-signal",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-signal >/dev/null 2>&1 || exit 0; exec code-atlas-signal",
             "timeout": 10,
             "if": "Write(*.cjs)"
           }
@@ -512,7 +512,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-state --expect-contract 14 --expect-version 0.3.0",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-state >/dev/null 2>&1 || exit 0; exec code-atlas-state --expect-contract 14 --expect-version 0.3.0",
             "timeout": 10
           }
         ]
@@ -523,7 +523,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "code-atlas-state --expect-contract 14 --expect-version 0.3.0",
+            "command": "[ -d \"${CLAUDE_PROJECT_DIR:-.}/.code-atlas\" ] || exit 0; command -v code-atlas-state >/dev/null 2>&1 || exit 0; exec code-atlas-state --expect-contract 14 --expect-version 0.3.0",
             "timeout": 10
           }
         ]
