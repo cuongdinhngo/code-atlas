@@ -8,6 +8,7 @@ arguments on the same index — equality, not "similar".
 from __future__ import annotations
 
 import asyncio
+import io
 import json
 import os
 import subprocess
@@ -88,6 +89,12 @@ def shell(capsys: pytest.CaptureFixture[str], *argv: str) -> tuple[int, list[Any
     return code, [json.loads(line) for line in out.splitlines() if line.strip()], err
 
 
+def _has_rows(payload: dict[str, Any]) -> bool:
+    return payload.get("reason", "ok") == "ok" and bool(
+        payload.get("results") or payload.get("symbols") or payload.get("source")
+    )
+
+
 def fit_rows(config: Config) -> list[dict[str, object]]:
     with GraphStore(config.db_path) as store:
         return store.list_fit_counts() + store.list_cost_counts()
@@ -117,6 +124,10 @@ def test_shell_payload_equals_the_mcp_payload_for_every_read_tool(
     assert len(answers) == len(requests)
     for (tool, _), got, want in zip(requests, answers, expected, strict=True):
         assert got == want, tool
+    # Not empty-equals-empty: the nav tools aimed at fixture rows answer ok with rows.
+    answered = {tool for (tool, _), got in zip(requests, answers, strict=True) if _has_rows(got)}
+    assert {"search_symbol", "file_outline", "read_symbol", "find_callers"} <= answered, answered
+    print(f"tools answering ok with rows: {len(answered)}/{len(requests)} {sorted(answered)}")
     # Not vacuous: the fixture's caller edge is in the answer both routes gave.
     callers = answers[READ_TOOLS.index("find_callers")]
     assert [row["qname"] for row in callers["results"]] == [CALLER]
@@ -229,6 +240,30 @@ def test_no_index_exits_one(
     code, answers, err = shell(capsys, "search_symbol")
     assert code == query.FAILED and answers == []
     assert "no index" in err
+
+
+def test_a_file_that_is_not_a_database_exits_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    db_path = tmp_path / "graph.db"
+    db_path.write_text("not sqlite", encoding="utf-8")
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path))
+    monkeypatch.setenv("CA_DB_PATH", str(db_path))
+    code, answers, err = shell(capsys, "search_symbol")
+    assert code == query.FAILED and answers == []
+    assert "unreadable index" in err
+
+
+def test_a_batch_reads_stdin_with_a_dash(
+    repo: tuple[Path, Config], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    lines = '{"tool": "search_symbol", "args": {"query": "save"}}\n\n{"tool": "file_outline", ' \
+        f'"args": {{"path": "{SOURCE}"}}}}\n'
+    monkeypatch.setattr(sys, "stdin", io.StringIO(lines))
+    code, answers, _ = shell(capsys, "--batch", "-")
+    assert code == query.OK
+    assert len(answers) == 2  # the blank line is skipped, not answered
+    assert answers[0]["results"][0]["qname"] == SUBJECT
 
 
 def test_a_batch_answers_while_a_writer_holds_the_lock(

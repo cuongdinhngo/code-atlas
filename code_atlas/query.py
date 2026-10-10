@@ -74,16 +74,21 @@ def parse_batch(lines: Iterable[str], served: tuple[str, ...]) -> list[Request]:
 
 
 async def _ask(server: FastMCP, root: Path, requests: list[Request]) -> int:
-    """One client, one opened index, one payload per line in order; stops at a rejected call."""
+    """One client, one opened index, one payload per request in order; stops at a failed call."""
     status = OK
     # The caller's checkout is this root, as a client's declared roots would say (366).
     async with Client(server, roots=[root.as_uri()]) as client:
         for number, (tool, args) in enumerate(requests, start=1):
             result = await client.call_tool(tool, args, raise_on_error=False)
             if result.is_error:
-                text = " ".join(getattr(block, "text", "") for block in result.content)
-                _say(f"request {number}: {tool} rejected its arguments: {text.strip()}")
-                return USAGE
+                text = " ".join(getattr(block, "text", "") for block in result.content).strip()
+                # FastMCP reports a bad argument as a pydantic validation error; anything else
+                # failed while reading the index.
+                if "validation error" in text:
+                    _say(f"request {number}: {tool} rejected its arguments: {text}")
+                    return USAGE
+                _say(f"request {number}: {tool} could not read the index: {text}")
+                return FAILED
             payload = result.structured_content
             print(json.dumps(payload, ensure_ascii=False), flush=True)
             if isinstance(payload, dict) and payload.get("error") == SCHEMA_MISMATCH:
@@ -144,7 +149,11 @@ def main(argv: list[str] | None = None) -> int:
     if not config.db_path.is_file():
         _say(f"no index at {config.db_path} — build one with code-atlas-build")
         return FAILED
-    return asyncio.run(_ask(build_server(config, count=False), config.root, requests))
+    try:
+        return asyncio.run(_ask(build_server(config, count=False), config.root, requests))
+    except Exception as error:  # noqa: BLE001 — e.g. a file that is not a database
+        _say(f"unreadable index at {config.db_path}: {type(error).__name__}: {error}")
+        return FAILED
 
 
 if __name__ == "__main__":
