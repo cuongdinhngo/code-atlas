@@ -23,10 +23,11 @@ design ("always exits 0", `hooks/state.py`). context-mode handles the same class
 ## Scope
 
 1. The generated gate checks the command exists (`command -v`) before `exec`.
-2. When it is missing: the **SessionStart** hook prints one line naming the install command
-   (README step 1) and exits 0; every other hook exits 0 silently, so the line is said once.
-3. Generated from the same table as today: `plugin/hooks/hooks.json` and
-   `contrib/claude-code/settings.snippet.json` stay in step (240's guard).
+2. When it is missing: only the SessionStart `code-atlas-state` command prints one line naming
+   the install command (README step 1) and exits 0; every other command — SessionStart's
+   `code-atlas-refresh` included — exits 0 silently, so the gate is per-command.
+3. Only `render_plugin_hooks` changes: `settings.snippet.json` stays byte-identical (a hand install
+   already has the scripts), and 240's guard keeps holding.
 4. Never installs or edits anything (`tests/test_contrib_snippets.py` keeps holding).
 
 ## Assumptions to prove at design
@@ -37,8 +38,8 @@ design ("always exits 0", `hooks/state.py`). context-mode handles the same class
 
 ## Acceptance criteria
 
-- **AC1:** with `PATH` stripped of the scripts, the generated SessionStart command exits 0 and
-  prints exactly one line naming the install command.
+- **AC1:** with `PATH` stripped of the scripts, the generated SessionStart commands exit 0 and
+  print exactly one line, across both, naming the install command.
 - **AC2:** in the same state, a PostToolUse hook command exits 0 with no output.
 - **AC3:** with the scripts present, every generated command is unchanged in behaviour.
 - **AC4:** a repo with no `.code-atlas/` still exits at the first test.

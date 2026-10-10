@@ -45,7 +45,8 @@ can be stated without being mistaken for the benchmark tiers.
 ## Acceptance criteria
 
 - **AC1:** on a fixture, one `read_symbol` records baseline = `ceil(file bytes / 4)` and response
-  = `estimate_tokens` of the result; a second identical call exactly doubles both.
+  = `estimate_tokens` of the result; a second identical call exactly doubles both. Bytes, not the
+  benchmark's decoded chars, is a stated approximation: equal for ASCII, higher otherwise.
 - **AC2:** every nav payload is byte-identical with counting on and off; two
   `get_index_status(standard)` calls are byte-identical while the counters move.
 - **AC3:** no `meta` key contains a fixture qname or path; the rows survive a shadow rebuild.
