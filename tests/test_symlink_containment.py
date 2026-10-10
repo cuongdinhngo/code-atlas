@@ -6,7 +6,9 @@ a sibling `outside/` directory and checks the read or write stays home. In-root 
 
 from __future__ import annotations
 
+import json
 import shlex
+import sqlite3
 import subprocess
 import sys
 from pathlib import Path
@@ -20,12 +22,15 @@ from code_atlas.enrichment import load_indirection_rules
 from code_atlas.ignore import ATLAS_IGNORE_FILE, load_ignore
 from code_atlas.indexer import _collect_with_census, _walk, collect, full_build, indexable
 from code_atlas.onboarding.artifact import MANIFEST_NAME, OUTPUT_DIR, OVERVIEW_NAME
+from code_atlas.onboarding.metrics import NodeMetric
+from code_atlas.onboarding.module_facts import module_facts
+from code_atlas.source_slice import comment_block, declaration_slice
 from code_atlas.store import GraphStore
-from code_atlas.tools import diff_architecture, generate_onboarding
+from code_atlas.tools import diff_architecture, generate_onboarding, read_symbol
 from code_atlas.tools.nav_result import REASON_PATH_OUTSIDE_ROOT, REASON_SNAPSHOT_NOT_FOUND
 from tests.python_adapter_cli import ENTRY, needs_python
 from tests.test_guided_tour import _cycle_repo
-from tests.test_nav_tools import db_config
+from tests.test_nav_tools import db_config, node
 
 SECRET = "def secret():\n    return 'outside the repo'\n"
 REAL = "def real():\n    return 1\n"
@@ -160,3 +165,80 @@ def test_an_ignore_file_or_untracked_path_linked_out_is_not_read(tmp_path: Path)
     kept, _, untracked, *_ = _collect_with_census(root, [".py"])
     assert "src/real.py" in kept, "an ignore file outside the repo must not shape the index"
     assert "src/late.py" not in untracked
+
+
+DOCUMENTED_REAL = "# The real doc.\ndef real():\n    return 1\n"
+DOCUMENTED = DOCUMENTED_REAL + "\n\nclass Box:\n    pass\n"
+# Outside names too: a refusal must carry no param, supertype or row parsed from here.
+LEAKY = (
+    "# SECRET doc outside the repo.\ndef real(SECRET_arg: SecretType = 1):\n"
+    "    return 'SECRET body outside the repo'\n\n\nclass Box(SecretBase):\n    pass\n"
+)
+
+
+def _built_then_swapped(tmp_path: Path, target: str) -> tuple[Path, object]:
+    """Index ``src/real.py`` as a file, then swap it for a link to ``target`` (375)."""
+    root, outside = tmp_path / "root", tmp_path / "outside"
+    (root / "src").mkdir(parents=True)
+    outside.mkdir()
+    (root / "src" / "real.py").write_text(DOCUMENTED, encoding="utf-8")
+    (root / "src" / "copy.py").write_text(DOCUMENTED, encoding="utf-8")
+    (outside / "secret.py").write_text(LEAKY, encoding="utf-8")
+    for git in (["git", "init", "-q"], ["git", "add", "-A"]):
+        subprocess.run(git, cwd=root, check=True, capture_output=True)
+    db_path = root / ".code-atlas" / "graph.db"
+    cmd = shlex.join([sys.executable, str(ENTRY), "--server"])
+    env = {"CA_WORKERS": "1", "CA_DB_PATH": str(db_path), "CA_PYTHON_CMD": cmd}
+    config = load_config(root, env)
+    with GraphStore(db_path) as store:
+        assert full_build(config, store).failed == 0
+    (root / "src" / "real.py").unlink()
+    (root / "src" / "real.py").symlink_to({"outside": outside / "secret.py",
+                                           "inside": root / "src" / "copy.py"}[target])
+    return root, read_symbol.create(config)
+
+
+@needs_python
+@pytest.mark.parametrize("detail_level", ["standard", "minimal"])
+@pytest.mark.parametrize("qname", ["src.real.real", "src.real.Box"])
+def test_an_indexed_file_swapped_for_a_link_out_reads_no_outside_text(
+    tmp_path: Path, detail_level: str, qname: str
+) -> None:
+    """375 AC1 — red before 375: body, docblock, params and supertypes came from `outside/`."""
+    root, tool = _built_then_swapped(tmp_path, "outside")
+    result = tool(qname, detail_level=detail_level, stored_fields=True)  # type: ignore[operator]
+    assert "SECRET" not in json.dumps(result)
+    assert result["reason"] == REASON_PATH_OUTSIDE_ROOT
+    assert result["source"] == "" and result["file"] == "src/real.py"
+    # The refusal comes before the read-through repair, so no outside row was stored either.
+    with sqlite3.connect(root / ".code-atlas" / "graph.db") as db:
+        assert "SECRET" not in "\n".join(db.iterdump())
+
+
+@needs_python
+def test_an_indexed_file_swapped_for_a_link_inside_reads_as_before(tmp_path: Path) -> None:
+    """375 AC2 — a link that stays in the repo reads its target exactly as a plain file would."""
+    _, tool = _built_then_swapped(tmp_path, "inside")
+    result = tool("src.real.real")  # type: ignore[operator]
+    assert result["reason"] == "ok"
+    assert result["source"] == DOCUMENTED_REAL
+
+
+def test_a_docblock_is_not_read_through_a_link_out(tmp_path: Path) -> None:
+    """375 AC3 — red before 375: the onboarding docblock came from the link's outside target."""
+    root, outside = tmp_path / "root", tmp_path / "outside"
+    (root / "src").mkdir(parents=True)
+    outside.mkdir()
+    (outside / "secret.py").write_text(LEAKY, encoding="utf-8")
+    (root / "src" / "leak.py").symlink_to(outside / "secret.py")
+    (root / "src" / "real.py").write_text(DOCUMENTED, encoding="utf-8")
+    (root / "src" / "hop.py").symlink_to(root / "src" / "real.py")
+    (root / "src" / "chain.py").symlink_to(root / "src" / "hop.py")
+    metric = NodeMetric("src/leak.py", 0, 0, "isolated")
+    row = node("Function", "real", "src.leak.real", "src/leak.py")
+    row["line_start"] = 2
+    assert module_facts(root, "src/leak.py", metric, [row]).doc == ""
+    assert comment_block(root / "src" / "leak.py", 2, root=root) == ""
+    assert declaration_slice(root / "src" / "leak.py", 2, 3, root=root) == ""
+    # An in-root chain of links still reads (the exposure check's two-hop case).
+    assert comment_block(root / "src" / "chain.py", 2, root=root) == "# The real doc.\n"

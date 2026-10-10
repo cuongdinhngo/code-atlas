@@ -100,7 +100,8 @@ REASON_PROXIMITY_CANDIDATES: NavReason = "proximity_candidates"
 REASON_KIND_EXCLUDED: NavReason = "kind_excluded"
 # search_symbol path_prefix= filter excluded an exact-name hit outside the subtree (315).
 REASON_PATH_EXCLUDED: NavReason = "path_excluded"
-# A path argument resolves outside the indexed tree (symlinks followed) and was not read (342).
+# A path argument, or an indexed file since swapped for a link (375), resolves outside the
+# indexed tree (symlinks followed) and was not read (342).
 REASON_PATH_OUTSIDE_ROOT: NavReason = "path_outside_root"
 # The client works in another checkout of this repo, at a commit the index was not built at (366).
 REASON_REF_MISMATCH: NavReason = "ref_mismatch"

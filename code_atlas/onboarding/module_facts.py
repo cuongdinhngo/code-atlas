@@ -55,5 +55,5 @@ def module_facts(
     start = node.get("line_start")
     if not isinstance(start, int) or start < 1:
         return NodeFacts("", "", metric)
-    doc = comment_block(root / path, start)
+    doc = comment_block(root / path, start, root=root)
     return NodeFacts(signature_for(node), doc, metric)

@@ -10,6 +10,7 @@ from typing import Literal, NamedTuple
 from code_atlas import contract
 from code_atlas.build_info import maybe_server_provenance
 from code_atlas.config import Config, clamp_limit
+from code_atlas.containment import resolves_inside
 from code_atlas.indexer import parse_file
 from code_atlas.onboarding.class_diagram import parse_json_field
 from code_atlas.source_slice import (
@@ -32,6 +33,7 @@ from code_atlas.tools.nav_result import (
     REASON_NO_SUCH_SYMBOL,
     REASON_OK,
     REASON_PATH_EXCLUDED,
+    REASON_PATH_OUTSIDE_ROOT,
     REASON_SEPARATOR_NORMALISED,
     REASON_SUBJECT_AMBIGUOUS,
     TRY_INSTEAD_FILE_OUTLINE,
@@ -132,6 +134,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``path_prefix`` (327); ``path_prefix`` filters definition rows first (315's validator),
         and one that drops every definition answers ``path_excluded`` with their files (339).
         An untracked indexable file matching the subject is ``reason=not_indexed`` (092).
+        An indexed file that now resolves outside the repo (swapped for a symlink since the build)
+        answers ``reason=path_outside_root`` with ``file`` and an empty ``source`` (375).
 
         Bodies above BODY_LINE_THRESHOLD (600 lines — one site in ``source_slice``) elide by
         default: ``source`` is the signature line only, with ``body_elided: true``, ``line_count``,
@@ -229,6 +233,9 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 )
             node = rows[0]
             rel = str(node["file_path"])
+            if not resolves_inside(config.root, config.root / rel):
+                # 375: refuse before the repair, which would re-parse and store the outside file.
+                return _stamp(_outside_root_refusal(qname, rel, node, config, detail_level))
             status = guard.ensure(rel)
             parsed = None
             if status == "stale" and guard.build_held:
@@ -298,6 +305,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     rel,
                     start,
                     end,
+                    root=config.root,
                     detail_level=detail_level,
                     db_path=str(config.db_path),
                     index_root=config.index_root,
@@ -306,6 +314,8 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                     body_opts=body_opts,
                 )
             )
+            if payload.get("reason") == REASON_PATH_OUTSIDE_ROOT:
+                return payload
             if detail_level == "standard":
                 _attach_params(payload, store, node, rel)
                 _attach_columns(payload, store, node, config=config, limit=limit, offset=offset)
@@ -345,6 +355,24 @@ def _parsed_node(config: Config, rel: str, qname: str) -> dict[str, object] | No
     return node
 
 
+def _outside_root_refusal(
+    qname: str, rel: str, node: dict[str, object], config: Config, detail_level: str
+) -> dict[str, object]:
+    """375: the row's file now resolves out of the repo — no text and no graph field leaves."""
+    return _result(
+        qname,
+        "",
+        detail_level=detail_level,
+        db_path=str(config.db_path),
+        index_root=config.index_root,
+        found=True,
+        stale=False,
+        reason=REASON_PATH_OUTSIDE_ROOT,
+        file=rel,
+        stub=is_stub(node.get("extra")),
+    )
+
+
 def _effective_body_cap(opts: _BodyOpts) -> int | None:
     """None = unlimited; otherwise the inclusive line ceiling before elision."""
     if opts.full_body:
@@ -361,6 +389,7 @@ def _found_body_payload(
     decl_start: int,
     decl_end: int,
     *,
+    root: Path,
     detail_level: str,
     db_path: str,
     index_root: str,
@@ -369,6 +398,20 @@ def _found_body_payload(
     body_opts: _BodyOpts,
 ) -> dict[str, object]:
     """Build a found-hit payload, applying range / elision / full-body policy (288)."""
+    if not resolves_inside(root, path):
+        # 375: indexed as a file, since swapped for a link out of the repo — no text leaves.
+        return _result(
+            qname,
+            "",
+            detail_level=detail_level,
+            db_path=db_path,
+            index_root=index_root,
+            found=True,
+            stale=False,
+            reason=REASON_PATH_OUTSIDE_ROOT,
+            file=rel,
+            stub=stub,
+        )
     span = declaration_line_count(decl_start, decl_end)
     if body_opts.range_start is not None and body_opts.range_end is not None:
         start, end = clamp_line_range(
@@ -377,7 +420,7 @@ def _found_body_payload(
             from_line=body_opts.range_start,
             to_line=body_opts.range_end,
         )
-        source = declaration_slice(path, start, end, include_comments=False)
+        source = declaration_slice(path, start, end, root=root, include_comments=False)
         return _result(
             qname,
             source,
@@ -395,7 +438,9 @@ def _found_body_payload(
     cap = _effective_body_cap(body_opts)
     if cap is not None and span > cap:
         # Signature only — line_start/line_end match source (163); full span is line_count + hint.
-        signature = declaration_slice(path, decl_start, decl_start, include_comments=False)
+        signature = declaration_slice(
+            path, decl_start, decl_start, root=root, include_comments=False
+        )
         payload = _result(
             qname,
             signature,
@@ -417,7 +462,7 @@ def _found_body_payload(
             TRY_INSTEAD_FILE_OUTLINE,
             _body_elided_hint(decl_start, decl_end, max_lines=body_opts.max_lines),
         )
-    source = _slice(path, decl_start, decl_end, detail_level)
+    source = _slice(path, decl_start, decl_end, detail_level, root=root)
     return _result(
         qname,
         source,
@@ -731,6 +776,8 @@ def _separator_normalised_hit(
         return None
     node = rows[0]
     rel = str(node["file_path"])
+    if not resolves_inside(config.root, config.root / rel):
+        return _outside_root_refusal(qname, rel, node, config, detail_level)
     status = guard.ensure(rel)
     if status == "stale":
         return attach_try_instead(
@@ -765,6 +812,7 @@ def _separator_normalised_hit(
         rel,
         start,
         end,
+        root=config.root,
         detail_level=detail_level,
         db_path=str(config.db_path),
         index_root=config.index_root,
@@ -772,6 +820,8 @@ def _separator_normalised_hit(
         stub=is_stub(node.get("extra")),
         body_opts=opts,
     )
+    if payload.get("reason") == REASON_PATH_OUTSIDE_ROOT:
+        return payload
     if detail_level == "standard":
         _attach_params(payload, store, node, rel)
     _attach_stored_fields(payload, store, node, stored_fields=stored_fields)
@@ -855,13 +905,15 @@ def _miss_result(
     )
 
 
-def _slice(path: Path, line_start: int, line_end: int, detail_level: str) -> str:
+def _slice(path: Path, line_start: int, line_end: int, detail_level: str, *, root: Path) -> str:
     """``standard`` = declaration + docblock above; ``minimal`` = the declaration range alone (163).
 
     ``minimal``'s slice matches its own ``line_start``/``line_end``, closing the 8-H mismatch where
     ``source`` silently carried the comment block the range did not name.
     """
-    return declaration_slice(path, line_start, line_end, include_comments=detail_level != "minimal")
+    return declaration_slice(
+        path, line_start, line_end, root=root, include_comments=detail_level != "minimal"
+    )
 
 
 def _empty(
