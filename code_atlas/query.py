@@ -142,7 +142,7 @@ def main(argv: list[str] | None = None) -> int:
     except UsageError as error:
         _say(str(error))
         return USAGE
-    except OSError as error:
+    except (OSError, UnicodeDecodeError) as error:
         _say(f"--batch: {error}")
         return USAGE
 

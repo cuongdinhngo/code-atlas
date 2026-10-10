@@ -232,6 +232,16 @@ def test_a_bad_batch_line_is_refused_before_any_line_is_asked(
     assert "line 2" in err
 
 
+def test_a_batch_that_is_not_utf8_is_a_usage_error(
+    repo: tuple[Path, Config], tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    batch = tmp_path / "latin1.jsonl"
+    batch.write_bytes(b'{"tool": "search_symbol", "args": {"query": "caf\xe9"}}\n')
+    code, answers, err = shell(capsys, "--batch", str(batch))
+    assert code == query.USAGE and answers == []
+    assert "--batch" in err
+
+
 def test_no_index_exits_one(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
