@@ -143,7 +143,9 @@ def test_the_hook_emits_additional_context_and_always_exits_zero(
     assert nudge.main([]) == 0
 
 
-def test_a_real_build_stamps_the_shapes_the_nudge_reads(tmp_path: Path) -> None:
+def test_a_real_build_stamps_the_shapes_the_nudge_reads(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The build path end to end: handshake → `_record_meta` → graph.db → the hook's read."""
     import shlex
     import subprocess
@@ -160,6 +162,8 @@ def test_a_real_build_stamps_the_shapes_the_nudge_reads(tmp_path: Path) -> None:
             capture_output=True,
         )
     adapter = shlex.join([sys.executable, str(repo / "adapters/python/index.py"), "--server"])
+    # The hook reads the process env: without the adapter there it sees coverage_loss (377).
+    monkeypatch.setenv("CA_PYTHON_CMD", adapter)
     config = load_config(tmp_path, {"CA_PYTHON_CMD": adapter, "CA_WORKERS": "1"})
     build_tool(config)(full=True)
     with GraphStore(config.db_path) as store:
