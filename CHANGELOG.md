@@ -24,7 +24,8 @@ Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag a
 - The `SessionStart` hook puts a skew, a pinned tool install or a pending rebuild on the developer's
   screen (`systemMessage`) as well as the agent's context, names a uv install pinned to `?rev=`, and
   the hand hook snippet is gated like the plugin's, so committed settings leave a teammate without
-  code-atlas untouched (381).
+  code-atlas untouched (381). **A project that merged the snippet before this must re-copy it**: the
+  old one names each script bare, and a teammate without code-atlas gets exit 127 on every hook.
 
 ## 0.3.0 — 2026-10-08 · contract 14 · schema 7
 

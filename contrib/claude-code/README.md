@@ -52,7 +52,8 @@ Coming from a hand install? Remove the merged snippet and any `claude mcp add` e
    `code-atlas-refresh` at `SessionStart` is plugin-only.
 2. Merge [`settings.snippet.json`](settings.snippet.json) into the **project**
    `.claude/settings.json` (shareable — a teammate without code-atlas runs nothing past the gate:
-   no output, exit 0, no network, 381) **or** `~/.claude/settings.json` (user-global). Keep
+   no output, exit 0, no network, 381; a copy merged before 381 names each script bare — re-copy
+   it) **or** `~/.claude/settings.json` (user-global). Keep
    `"async": true` on the poke so it does not stall the Edit/Write round-trip; the signal is
    synchronous by design, because its line has to reach the result it rides on. Every `"if"`
    filter is **generated** from each shipped adapter's own declared suffixes — never widened
