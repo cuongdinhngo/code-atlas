@@ -272,7 +272,9 @@ BUDGETS = {
     # 1,700 -> 1,850 on 2026-10-08 (367-371), argued. main sat at 1,687; the PHP-parity sweep adds
     # five port rows. R7.6 ran first: 362's constructor follow-up left (now 367), and the
     # keyword-args gap went into 367, not Follow-ups. The rows leave as each ticket lands.
-    "BACKLOG.md": 1_850,
+    # 1,850 -> 1,900 on 2026-10-09 (375-380): six open rows from the context-mode review. R7.6 ran
+    # first: no Follow-ups line is superseded (342's residuals and 300 stay).
+    "BACKLOG.md": 1_900,
     # 5,700 -> 5,880 on 2026-09-23 (325), argued rather than assumed. R2.4 is a new rule, and a
     # rule that is not written down is not binding on the next agent. R7.6 ran first and came back
     # empty: every rule here is one clause per falsifier, the sightings live in LESSONS.md by the
