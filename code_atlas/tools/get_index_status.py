@@ -153,6 +153,7 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
         ``verbose`` also carries ``fit_counts`` — local per-tool ask tallies (task 260); pass
         ``reset_fit_counts=true`` to clear them first (documented reset; local counts are not
         telemetry). See ``docs/design/fit.md`` for the fit definition before reading the numbers.
+        ``verbose`` also carries ``est_tokens_vs_grep_read`` — read ``est_tokens_note`` first (379).
 
         ``sign`` (default off, so the default payload is unchanged) adds ``claim``: one quotable
         ``key=value`` line stating how many files this index covers and at which revision. An
@@ -530,6 +531,8 @@ def _status(
         verbose["collection"] = collection
     _attach_edge_health_by_language(verbose, store)
     verbose[fit.FIT_COUNTS_FIELD] = store.list_fit_counts()
+    verbose[fit.EST_TOKENS_FIELD] = store.list_cost_counts()
+    verbose[fit.EST_TOKENS_NOTE_FIELD] = fit.EST_TOKENS_NOTE
     return signed(_with_summary(verbose))
 
 

@@ -79,6 +79,9 @@ CAPABILITIES_BY_LANGUAGE_KEY = "capabilities_by_language"
 SYMBOL_SHAPES_BY_LANGUAGE_KEY = "symbol_shapes_by_language"
 # Local fit counters (task 260): one meta row per (tool, reason, authoritative, truncated).
 FIT_KEY_PREFIX = "fit:"
+# 379: per-tool token sums beside the fit counts — est. response vs est. grep+Read baseline.
+COST_KEY_PREFIX = "cost:"
+COST_FIELDS: tuple[str, ...] = ("calls", "cited_calls", "response_tokens", "baseline_tokens")
 META_KEYS: tuple[str, ...] = (
     SCHEMA_VERSION_KEY,
     CONTRACT_VERSION_KEY,
@@ -796,6 +799,10 @@ _FIT_BUMP_SQL = (
     "INSERT INTO meta (key, value) VALUES (?, '1') "
     "ON CONFLICT(key) DO UPDATE SET value = CAST(CAST(meta.value AS INTEGER) + 1 AS TEXT)"
 )
+_COUNT_ADD_SQL = (
+    "INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET "
+    "value = CAST(CAST(meta.value AS INTEGER) + CAST(excluded.value AS INTEGER) AS TEXT)"
+)
 
 # The fit counter rides **every** served call, so it reuses one handle per index. Measured: the
 # first write on a *fresh* connection costs 6.3 ms (WAL shared-memory setup), against 0.024 ms on
@@ -854,11 +861,28 @@ def bump_fit_count(
     Counting must never raise into a caller's answer.
     """
     key = fit_meta_key(tool, reason, authoritative=authoritative, truncated=truncated)
+    _write_counts(db_path, _FIT_BUMP_SQL, [(key,)])
+
+
+def bump_cost_counts(
+    db_path: Path, tool: str, *, cited: bool, response_tokens: int, baseline_tokens: int
+) -> None:
+    """Add one served call's token estimates to ``tool``'s ``cost:`` rows (379) — counts only."""
+    values = (1, int(cited), response_tokens, baseline_tokens)
+    rows = [
+        (f"{COST_KEY_PREFIX}{tool}|{field}", str(value))
+        for field, value in zip(COST_FIELDS, values, strict=True)
+    ]
+    _write_counts(db_path, _COUNT_ADD_SQL, rows)
+
+
+def _write_counts(db_path: Path, sql: str, rows: Sequence[tuple[str, ...]]) -> None:
+    """One counter write on the kept handle; a failure drops the handle and never raises."""
     with _FIT_LOCK:
         try:
             conn = _fit_conn(db_path)
             with conn:
-                conn.execute(_FIT_BUMP_SQL, (key,))
+                conn.executemany(sql, rows)
         except (sqlite3.Error, OSError):
             cached = _FIT_CONNS.pop(db_path, None)
             if cached is not None:
@@ -992,10 +1016,11 @@ class GraphStore:
         _remove_db_files(self._db_path)
 
     def _carry_fit_counts(self, live: sqlite3.Connection) -> None:
-        """Copy the live index's ``fit:`` rows into this shadow before it replaces them (260)."""
+        """Copy the live index's ``fit:`` and ``cost:`` rows into this shadow (260, 379)."""
         try:
             rows = live.execute(
-                "SELECT key, value FROM meta WHERE key LIKE ?", (f"{FIT_KEY_PREFIX}%",)
+                "SELECT key, value FROM meta WHERE key LIKE ? OR key LIKE ?",
+                (f"{FIT_KEY_PREFIX}%", f"{COST_KEY_PREFIX}%"),
             ).fetchall()
         except sqlite3.Error:
             return  # no meta table: a first build writes over an empty file
@@ -1301,12 +1326,30 @@ class GraphStore:
             )
         return out
 
+    def list_cost_counts(self) -> list[dict[str, object]]:
+        """Per-tool ``cost:`` sums, sorted by tool — one row per tool, every field present (379)."""
+        rows = self._conn.execute(
+            "SELECT key, value FROM meta WHERE key LIKE ? ESCAPE '!' ORDER BY key",
+            (COST_KEY_PREFIX.replace("!", "!!") + "%",),
+        ).fetchall()
+        tools: dict[str, dict[str, object]] = {}
+        for key, value in rows:
+            tool, _, field = str(key)[len(COST_KEY_PREFIX) :].rpartition("|")
+            if not tool or field not in COST_FIELDS:
+                continue
+            row = tools.setdefault(tool, {"tool": tool, **dict.fromkeys(COST_FIELDS, 0)})
+            row[field] = int(value) if str(value).isdigit() else 0
+        return [tools[tool] for tool in sorted(tools)]
+
     def clear_fit_counts(self) -> int:
-        """Delete every ``fit:`` meta row; return how many were removed (task 260)."""
+        """Delete every ``fit:`` and ``cost:`` meta row; return how many went (260, 379)."""
         with self._conn:
             cursor = self._conn.execute(
-                "DELETE FROM meta WHERE key LIKE ? ESCAPE '!'",
-                (FIT_KEY_PREFIX.replace("!", "!!") + "%",),
+                "DELETE FROM meta WHERE key LIKE ? ESCAPE '!' OR key LIKE ? ESCAPE '!'",
+                (
+                    FIT_KEY_PREFIX.replace("!", "!!") + "%",
+                    COST_KEY_PREFIX.replace("!", "!!") + "%",
+                ),
             )
             return int(cursor.rowcount)
 

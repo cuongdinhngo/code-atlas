@@ -20,6 +20,9 @@ How to upgrade each install route is in the README, under *Upgrading*.
 - The `SessionStart` hook names every half of the install that lags the newest — tool, plugin, and
   the adapter checkout, whose contract it reads by launching each configured adapter — with each
   fix in upgrade order; `server_stale_process` now sees a package replaced after the first answer (374).
+- `get_index_status(detail_level="verbose")` counts, per tool, each answer's est. tokens against an
+  est. grep+Read baseline of the files it cites, in `est_tokens_vs_grep_read` — an estimate, not a
+  benchmark tier (379).
 - `search_symbol` answers a one-letter typo with `did_you_mean`: declared names within a small
   edit distance, nearest first, beside the token candidates and never in `results` (378).
 - The grep nudge stays silent while the index is behind, building or pending a rebuild, and a

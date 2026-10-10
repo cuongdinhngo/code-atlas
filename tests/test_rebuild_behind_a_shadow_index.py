@@ -31,6 +31,7 @@ from code_atlas.store import (
     BUILD_COMPLETE_KEY,
     MEMORY_DB,
     GraphStore,
+    bump_cost_counts,
     bump_fit_count,
     close_fit_connections,
     shadow_db_path,
@@ -402,3 +403,31 @@ def test_the_publish_carries_the_fit_counts_readers_wrote(tmp_path: Path) -> Non
     close_fit_connections()
     with GraphStore(config.db_path) as store:
         assert store.get_meta("fit:read_symbol|ok|1|0") == "2"
+
+
+def test_the_publish_carries_the_cost_counts_readers_wrote(tmp_path: Path) -> None:
+    """379 AC3: the est. token rows survive a shadow rebuild, as the fit rows do."""
+    config = repo(tmp_path)
+    build_tool(config)(full=True)
+    bump_cost_counts(
+        config.db_path, "read_symbol", cited=True, response_tokens=10, baseline_tokens=40
+    )
+
+    def bump(phase: str) -> None:
+        if phase == "meta":
+            bump_cost_counts(
+                config.db_path, "read_symbol", cited=False, response_tokens=5, baseline_tokens=0
+            )
+
+    rebuild(config, bump)
+    close_fit_connections()
+    with GraphStore(config.db_path) as store:
+        assert store.list_cost_counts() == [
+            {
+                "tool": "read_symbol",
+                "calls": 2,
+                "cited_calls": 1,
+                "response_tokens": 15,
+                "baseline_tokens": 40,
+            }
+        ]
