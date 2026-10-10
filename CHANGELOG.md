@@ -29,8 +29,9 @@ How to upgrade each install route is in the README, under *Upgrading*.
   subagent hears it once for itself instead of being silenced by its parent's session (377).
 - A plugin installed before its console scripts no longer fails every hook with exit 127: the
   `SessionStart` hook names the install command once, and every hook exits 0 (376).
-- `read_symbol` and the onboarding docblock read refuse a file that now resolves outside the repo — an
-  indexed file swapped for a symlink since the build — with `path_outside_root` and no text (375).
+- `read_symbol` refuses a file that now resolves outside the repo — an indexed file swapped for a
+  symlink since the build — with `path_outside_root`, no text and no graph fields; the onboarding
+  docblock reads empty (375).
 - A Python keyword argument is recorded in `kwargs` beside the positional `args`, and
   `find_callers` filters by one with `arg_name` + `arg_is` (372).
 - A TypeScript or Python string that begins a T-SQL write or `EXEC` writes, deletes or calls

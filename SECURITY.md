@@ -39,9 +39,10 @@ untrusted input**. It aims to hold these guarantees:
 
 ### Known limitations
 
-- **Two symlink paths are not yet contained:** files under a configured stub root (`CA_STUB_ROOTS`),
-  and a `.code-atlas/` directory that is itself committed as a symlink. Both are tracked in
-  [`docs/BACKLOG.md`](docs/BACKLOG.md).
+- **Three symlink paths are not yet contained:** files under a configured stub root (`CA_STUB_ROOTS`),
+  a `.code-atlas/` directory that is itself committed as a symlink, and an indexed file swapped for a
+  link out of the repo since the build — `read_symbol` refuses it, but another tool's read-through
+  repair still re-parses it (375). All three are tracked in [`docs/BACKLOG.md`](docs/BACKLOG.md).
 - **The indexed repo's own git config applies.** code-atlas runs read-only `git` commands
   (`rev-parse`, `ls-files`, `diff --name-only`, `config --get`) inside the indexed repo, so that repo's
   `.git/config` applies, exactly as it would if you ran `git` there yourself. Do not index a working

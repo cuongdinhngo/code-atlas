@@ -312,7 +312,7 @@ table.grid td code{font-size:13px}
 
     <article class="rel">
       <header><span class="name">meta</span><span class="role">build-time stamps</span>
-        <span class="tag">16 keys</span></header>
+        <span class="tag">19 keys</span></header>
       <table class="cols">
         <thead><tr><th>column</th><th>type</th><th>key</th><th>note</th></tr></thead>
         <tbody>
@@ -485,7 +485,7 @@ table.grid td code{font-size:13px}
 </section>
 
 <section>
-  <h2><span class="n">06</span> Sixteen stamps in <code>meta</code></h2>
+  <h2><span class="n">06</span> Nineteen stamps in <code>meta</code></h2>
   <div class="chips">
     <span class="chip">schema_version</span><span class="chip">contract_version</span>
     <span class="chip">last_commit</span><span class="chip">last_ref</span>
@@ -495,7 +495,11 @@ table.grid td code{font-size:13px}
     <span class="chip">untracked_indexable</span><span class="chip">ignore_sources</span>
     <span class="chip">skipped_suffix_counts</span><span class="chip">config_identity</span>
     <span class="chip">edge_health_by_language</span><span class="chip">emitted_kinds_by_language</span>
+    <span class="chip">unmodelled_resolution_by_language</span><span class="chip">capabilities_by_language</span>
+    <span class="chip">symbol_shapes_by_language</span>
   </div>
+  <p class="note" style="margin-top:14px">Beside the stamps, local per-tool counters: <code>fit:</code> (260)
+  and <code>cost:</code> (379) rows, one upsert per answer, carried into a rebuild's shadow.</p>
   <p class="note" style="margin-top:14px">This list once lived in the design document and drifted four
   keys behind the code. That is why the copy in <code>PLAN.md</code> was removed, and why this page
   states its own date.</p>
