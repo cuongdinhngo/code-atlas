@@ -141,8 +141,8 @@ def test_every_name_within_the_bound_keeps_one_piece_whole() -> None:
                 name[at] = rng.choice(alphabet)
         target = "".join(name)
         bound = edit_distance_limit(query)
-        if edit_distance(query, target, bound) <= bound:
-            assert any(piece in target for piece in edit_pieces(query, bound)), (query, target)
+        assert edit_distance(query, target, bound) <= bound  # at most `bound` edits were applied
+        assert any(piece in target for piece in edit_pieces(query, bound)), (query, target)
 
 
 def test_no_near_name_keeps_todays_token_answer(
