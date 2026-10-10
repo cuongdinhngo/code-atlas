@@ -274,7 +274,10 @@ BUDGETS = {
     # keyword-args gap went into 367, not Follow-ups. The rows leave as each ticket lands.
     # 1,850 -> 1,900 on 2026-10-09 (375-380): six open rows from the context-mode review. R7.6 ran
     # first: no Follow-ups line is superseded (342's residuals and 300 stay).
-    "BACKLOG.md": 1_900,
+    # 1,900 -> 2,000 on 2026-10-10 (381-386): six open rows; three of them (383-385) deferred
+    # behind evidence gates. R7.6 ran first: titles cut to their shortest form, no Follow-ups line
+    # is superseded. The deferred rows leave if their gates close the tickets.
+    "BACKLOG.md": 2_000,
     # 5,700 -> 5,880 on 2026-09-23 (325), argued rather than assumed. R2.4 is a new rule, and a
     # rule that is not written down is not binding on the next agent. R7.6 ran first and came back
     # empty: every rule here is one clause per falsifier, the sightings live in LESSONS.md by the

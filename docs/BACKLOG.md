@@ -26,6 +26,11 @@ Resolved relationships for the agent, and the honesty of the payload that carrie
 | 200 | [The remaining recognition measurement is AC5 on today's channels](tasks/200_the-recognition-map-is-a-prompt-no-agent-can-read.md) | Adoption | blocked | 081, 097, 036, 099, 260, 266, 268 |
 | 380 | [BM25 column weights — evidence-gated](tasks/380_search-bm25-column-weights.md) | Retrieval | deferred | 180 |
 | 381 | [A behind install still hears nothing a person reads; a teammate without code-atlas stays untouched](tasks/381_release-check-safe-for-teammates-without-code-atlas.md) | Adoption | todo | 348, 374 |
+| 382 | [Batch query from a shell](tasks/382_batch-query-from-a-shell.md) | Adoption | todo | — |
+| 383 | [Re-run a signed claim](tasks/383_re-run-a-signed-claim.md) | Trust | deferred | 382 |
+| 384 | [Symbol changed since rev X](tasks/384_symbol-changed-since-revision.md) | Trust | deferred | — |
+| 385 | [Route table as data](tasks/385_route-table-as-data.md) | Coverage | deferred | — |
+| 386 | [Unqualified EXEC](tasks/386_unqualified-exec-in-a-host-string.md) | Coverage | todo | 335, 371 |
 
 ## Open work — Pillar 2 · Onboarding
 
