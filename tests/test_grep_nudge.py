@@ -201,6 +201,20 @@ def test_each_subagent_hears_the_nudge_once(tmp_path: Path) -> None:
     assert [line.split("\t")[1] for line in lines] == ["s1", "s1/agent-a", "s1/agent-b"]
 
 
+def test_the_state_file_drops_the_least_recent_key_not_the_first_by_name(tmp_path: Path) -> None:
+    """377 review — red before: keys came back sorted, so a key naming first was the one dropped."""
+    root = _indexed(tmp_path)
+    grep = _grep("->findUser(")
+    assert nudge.nudge(root, *grep, "s0")
+    for n in range(nudge.KEPT_SESSIONS):
+        assert nudge.nudge(root, *grep, "z", f"agent-{n:02d}")
+    assert nudge.nudge(root, *grep, "a-last")
+    assert nudge.nudge(root, *grep, "z", "agent-new")
+    assert nudge.nudge(root, *grep, "a-last") is None, "the newest key survives whatever its name"
+    assert nudge.nudge(root, *grep, "s0"), "the oldest key aged out"
+    assert not list((root / ".code-atlas").glob("*.tmp")), "the atomic write leaves no temp file"
+
+
 def test_a_payload_without_an_agent_keeps_todays_key(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
