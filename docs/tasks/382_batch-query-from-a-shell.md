@@ -198,8 +198,24 @@ labelled `build_in_progress`. Fit / est.-token counters: W1.
 Commits `ec2cafc8` (code, tests), `3e11f3cd` (docs), `5a389a6c` (challenger fixes). **Red first** (R6.5): on `main`
 `code_atlas.query` does not exist, so `tests/test_query_cli.py` fails to import, and `code-atlas query` serves stdio.
 
-**Verification sweep.** File axis: the diff is the change list; `ruff check`, `mypy code_atlas` clean. Behaviour
-axis: Approach 1–4 implemented as approved.
+The first gate run (`d39ec325`) went red on two pytest items: 382's ledger row had no PR link yet, and
+`tests/test_sql_confinement.py` pins the core-module count too (98 → 99, `2efad93c`). After both:
+
+```
+$ .venv/bin/python -m pytest -q tests/test_query_cli.py
+20 passed
+Ran at 7e89fa81
+```
+
+```
+$ scripts/gate.sh
+21 passed · 0 failed · 0 skipped
+GATE GREEN — all 21 checks passed
+Ran at 7e89fa81
+```
+
+**Verification sweep.** File axis: the diff is the change list plus the second module pin; `ruff check`,
+`mypy code_atlas` clean. Behaviour axis: Approach 1–4 implemented as approved.
 
 ## Phase 4 — review
 
@@ -212,6 +228,9 @@ axis: Approach 1–4 implemented as approved.
   stdin untested; most AC1 rows possibly empty-vs-empty; the README named only `fit_counts`; AC2's time not yet
   recorded. Fixed in `5a389a6c`: both exit 1 with a line, tests for the corrupt file, stdin with a blank line, and
   10/22 tools asserted non-empty; README names both counters and the mid-batch stop. AC2 recorded above.
+
+After the review, `2efad93c` changed one line of `tests/test_sql_confinement.py` (the module pin), a count
+the gate checks — no source file moved past the reviewed set.
 
 Verdict: clean (challenger only — REVIEWER: OFF). Matrix `Ph3/4 proven by`: R1–R4, AC1–AC3 →
 `tests/test_query_cli.py`; AC4 → the count pins; G1, C1 → the diff and README.
