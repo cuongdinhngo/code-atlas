@@ -76,10 +76,26 @@ def symbol_of(row: Mapping[str, object]) -> Symbol | None:
     )
 
 
-def snapshot(rows: Iterable[Mapping[str, object]], *, rev: str | None, ref: str | None) -> dict:
-    """Every symbol in the index at one revision, in a stable order (R4.2)."""
+def snapshot(
+    rows: Iterable[Mapping[str, object]],
+    *,
+    rev: str | None,
+    ref: str | None,
+    drifted: Collection[str] = (),
+) -> dict:
+    """Every symbol in the index at one revision, in a stable order (R4.2).
+
+    ``drifted`` names files edited since the build: their rows are not ``rev``'s, so a later
+    compare answers ``unknown`` for them rather than judge against the wrong base.
+    """
     symbols = [asdict(symbol) for symbol in map(symbol_of, rows) if symbol is not None]
-    return {"format": SNAPSHOT_FORMAT, "rev": rev, "ref": ref, "symbols": symbols}
+    return {
+        "format": SNAPSHOT_FORMAT,
+        "rev": rev,
+        "ref": ref,
+        "drifted": sorted(drifted),
+        "symbols": symbols,
+    }
 
 
 def read_snapshot(data: object) -> tuple[dict[str, object], list[Symbol]]:
@@ -90,7 +106,8 @@ def read_snapshot(data: object) -> tuple[dict[str, object], list[Symbol]]:
         symbols = [Symbol(**entry) for entry in data["symbols"]]
     except (KeyError, TypeError) as error:
         raise ValueError(f"malformed {SNAPSHOT_FORMAT} snapshot: {error}") from None
-    return {"rev": data.get("rev"), "ref": data.get("ref")}, symbols
+    drifted = data.get("drifted") or []
+    return {"rev": data.get("rev"), "ref": data.get("ref"), "drifted": list(drifted)}, symbols
 
 
 def compare(
@@ -100,11 +117,13 @@ def compare(
     qnames: Sequence[str] = (),
     paths: Sequence[str] = (),
     drifted: Collection[str] = (),
+    base_drifted: Collection[str] = (),
 ) -> list[dict[str, object]]:
     """One verdict per base symbol a subject names, in subject order.
 
     ``drifted`` lists files changed since the index was built: a symbol in one is ``unknown``,
-    since the index cannot see the edit and would otherwise answer ``unchanged``.
+    since the index cannot see the edit and would otherwise answer ``unchanged``. Git decides it, so
+    outside a git checkout nothing is drifted. ``base_drifted`` is the snapshot's own list.
     """
     by_qname: dict[str, list[Symbol]] = defaultdict(list)
     by_file: dict[str, list[Symbol]] = defaultdict(list)
@@ -117,10 +136,15 @@ def compare(
             now = _current(store, qname)
             verdicts.append(_verdict(qname, qname, UNKNOWN_AT_BASE, None, now[0] if now else None))
             continue
-        verdicts.extend(_judge(store, qname, symbol, drifted) for symbol in by_qname[qname])
+        verdicts.extend(
+            _judge(store, qname, symbol, drifted, base_drifted) for symbol in by_qname[qname]
+        )
     for path in paths:
         held = {symbol.qname for symbol in by_file.get(path, [])}
-        verdicts.extend(_judge(store, path, symbol, drifted) for symbol in by_file.get(path, []))
+        verdicts.extend(
+            _judge(store, path, symbol, drifted, base_drifted)
+            for symbol in by_file.get(path, [])
+        )
         for row in store.nodes_by_file_all(path):
             fresh = symbol_of(row)
             if fresh is not None and fresh.qname not in held:
@@ -134,8 +158,16 @@ def _current(store: GraphStore, qname: str) -> list[Symbol]:
 
 
 def _judge(
-    store: GraphStore, subject: str, base: Symbol, drifted: Collection[str]
+    store: GraphStore,
+    subject: str,
+    base: Symbol,
+    drifted: Collection[str],
+    base_drifted: Collection[str],
 ) -> dict[str, object]:
+    if base.file in base_drifted:
+        verdict = _verdict(subject, base.qname, UNKNOWN, base, None)
+        verdict["reason"] = "snapshot_file_drifted"
+        return verdict
     now = _current(store, base.qname)
     here = next((symbol for symbol in now if symbol.file == base.file), None)
     if here is None and base.body_hash is not None:

@@ -17,6 +17,25 @@ const CLOSERS = /** @type {Record<string, string>} */ ({ "'": "'", '"': '"', "["
 const digest = (text) =>
   crypto.createHash("sha256").update(text, "utf8").digest("hex").slice(0, HASH_CHARS);
 
+/**
+ * One span per qname: a name declared twice in a file (an overload, a redefinition) is stored once,
+ * keep-first, so its fingerprint covers every declaration — an edit to a later one is still seen.
+ * @param {Array<Record<string, any>>} nodes
+ * @returns {Map<string, [number, number]>}
+ */
+function qnameSpans(nodes) {
+  /** @type {Map<string, [number, number]>} */
+  const spans = new Map();
+  for (const node of nodes) {
+    const start = node.line_start;
+    if (typeof start !== "number") continue;
+    const end = typeof node.line_end === "number" ? node.line_end : start;
+    const [low, high] = spans.get(node.qualified_name) ?? [start, end];
+    spans.set(node.qualified_name, [Math.min(low, start), Math.max(high, end)]);
+  }
+  return spans;
+}
+
 function lineFingerprints() {
   /** @type {number[]} */
   const lines = [];
@@ -67,10 +86,10 @@ function lineFingerprints() {
    * @param {Array<Record<string, any>>} nodes
    */
   const stamp = (nodes) => {
+    const spans = qnameSpans(nodes);
     for (const node of nodes) {
-      const start = node.line_start;
-      const end = typeof node.line_end === "number" ? node.line_end : start;
-      if (UNHASHED.has(node.kind) || typeof start !== "number") continue;
+      if (UNHASHED.has(node.kind) || typeof node.line_start !== "number") continue;
+      const [start, end] = /** @type {[number, number]} */ (spans.get(node.qualified_name));
       const span = [];
       for (let at = lowerBound(lines, start); at < lines.length && lines[at] <= end; at += 1) {
         span.push(digests[at]);

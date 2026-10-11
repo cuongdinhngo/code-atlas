@@ -179,22 +179,21 @@ def test_every_registered_adapter_has_edits() -> None:
     assert set(EDITS) == set(REGISTRY)
 
 
-@pytest.mark.parametrize("adapter", [pytest.param("php", marks=REGISTRY["php"].cli.availability),
-                                     pytest.param("python")])
+@pytest.mark.parametrize("adapter", _cases())
 def test_a_body_moved_to_another_file_is_moved_not_removed(
     adapter: str,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """AC2: PHP keeps the class qname across files; Python's qname follows the module, so the
-    move is found by name, kind and body."""
+    """AC2: PHP and T-SQL keep the qname across files; TS and Python qnames follow the file, so
+    the move is found by name, kind and body."""
     edits = EDITS[adapter]
     repo = Repo(tmp_path / adapter, REGISTRY[adapter].cli, monkeypatch)
     repo.write({edits.path: edits.base})
     snapshot = repo.snapshot(capsys)
     qname = qname_named(snapshot, edits.name)
-    moved_to = edits.path.replace("src/", "lib/")
+    moved_to = "lib/" + edits.path.split("/", 1)[1]
     repo.write({edits.path: None, moved_to: edits.base})
     code, [verdict] = repo.changed(capsys, snapshot, "--qname", qname)
 
@@ -205,6 +204,59 @@ def test_a_body_moved_to_another_file_is_moved_not_removed(
     _, [gone] = repo.changed(capsys, snapshot, "--qname", qname)
     if "qname_now" in verdict:  # a new qname with a new body is not the same symbol
         assert gone["status"] == symbol_changes.REMOVED
+
+
+def test_a_decorator_edit_is_a_body_change(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Challenger finding 1: a decorator sits above the ``def`` line and is part of the symbol."""
+    repo = Repo(tmp_path / "py", REGISTRY["python"].cli, monkeypatch)
+    repo.write({"src/views.py": "@route('/a')\ndef page(a):\n    return a\n"})
+    snapshot = repo.snapshot(capsys)
+    qname = qname_named(snapshot, "page")
+    repo.write({"src/views.py": "@route('/b')\ndef page(a):\n    return a\n"})
+    _, [verdict] = repo.changed(capsys, snapshot, "--qname", qname)
+
+    assert verdict["status"] == symbol_changes.BODY_CHANGED
+
+
+@pytest.mark.parametrize(
+    "adapter", [pytest.param("typescript", marks=REGISTRY["typescript"].cli.availability)]
+)
+def test_an_edit_to_an_overload_implementation_is_seen(
+    adapter: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The store keeps the first declaration of a qname per file; the fingerprint spans them all."""
+    head = "export class Repo {\n  save(a: number): number;\n  save(a: string): number;\n"
+    repo = Repo(tmp_path / "ts", REGISTRY[adapter].cli, monkeypatch)
+    repo.write({"src/repo.ts": head + "  save(a: any) { return 1; }\n}\n"})
+    snapshot = repo.snapshot(capsys)
+    qname = qname_named(snapshot, "save")
+    repo.write({"src/repo.ts": head + "  save(a: any) { return 2; }\n}\n"})
+    _, [verdict] = repo.changed(capsys, snapshot, "--qname", qname)
+
+    assert verdict["status"] == symbol_changes.BODY_CHANGED
+
+
+def test_a_snapshot_of_a_drifted_index_answers_unknown_for_the_drifted_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Challenger finding 5: rows the build never saw are not the snapshot's ``rev``."""
+    edits = EDITS["python"]
+    repo = Repo(tmp_path / "py", REGISTRY["python"].cli, monkeypatch)
+    repo.write({edits.path: edits.base})
+    qname = qname_named(repo.snapshot(capsys), edits.name)
+    repo.write({edits.path: edits.body}, build=False)
+    snapshot = repo.snapshot(capsys)
+    repo.write({edits.path: edits.body})
+    _, [verdict] = repo.changed(capsys, snapshot, "--qname", qname)
+
+    assert json.loads(snapshot.read_text(encoding="utf-8"))["drifted"] == [edits.path]
+    assert (verdict["status"], verdict["reason"]) == (
+        symbol_changes.UNKNOWN, "snapshot_file_drifted")
 
 
 def test_a_body_copied_to_two_files_is_an_ambiguous_move(

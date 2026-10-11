@@ -118,8 +118,10 @@ worse than none. Each of these would have lost a caveat that no one-line form ca
 A record anchored to a method — a test doc, a verified behaviour, a signed claim — goes stale
 when the method changes, and a file diff flags every record in a long file. So each adapter stamps
 every symbol with `extra.body_hash`: a digest of the tokens on its lines from the language's own
-tokenizer, comments and layout dropped (a Python docstring is code and counts; SQL hashes per
-line). The core never reads source for it, and an unstamped symbol answers `unknown`.
+tokenizer, comments and layout dropped (a Python docstring and a decorator count; SQL hashes per
+line). A symbol covers its lines, so a class's fingerprint moves with any member's; a qname declared
+twice in a file (an overload) covers every declaration. The core never reads source for it, and an
+unstamped symbol answers `unknown`.
 
 `code-atlas query --snapshot-symbols <out>` writes every symbol's qname, file, kind, signature
 (params, modifiers, declared type) and fingerprint at the index's revision; the consumer keeps the
@@ -133,7 +135,7 @@ file. `--changed-since <out>` with `--qname` / `--path` (repeatable) answers one
 | `moved` | the same fingerprint in another file — the same qname, or the same name and kind (`qname_now`) |
 | `removed` | none of the above |
 | `unknown_at_base` | the snapshot never held it — never `unchanged` |
-| `unknown` | no fingerprint (`no_body_hash`), its file changed since the build (`file_changed_since_index`), or the body sits in two places (`ambiguous_move`) |
+| `unknown` | no fingerprint (`no_body_hash`), its file changed since the build (`file_changed_since_index` — git decides, so outside a checkout nothing is), the snapshot's own index had drifted there (`snapshot_file_drifted`), or the body sits in two places (`ambiguous_move`) |
 
 A `--path` names every symbol the snapshot held in that file, plus any it gained (`unknown_at_base`).
 A rename changes the tokens, so it reads `removed`; a body changed while moving keeps its qname or

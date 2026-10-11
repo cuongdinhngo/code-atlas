@@ -39,16 +39,35 @@ function tokensOf(sf) {
 }
 
 /**
+ * One span per qname: a name declared twice in a file (an overload, a redefinition) is stored once,
+ * keep-first, so its fingerprint covers every declaration — an edit to a later one is still seen.
+ * @param {Array<Record<string, any>>} nodes
+ * @returns {Map<string, [number, number]>}
+ */
+function qnameSpans(nodes) {
+  /** @type {Map<string, [number, number]>} */
+  const spans = new Map();
+  for (const node of nodes) {
+    const start = node.line_start;
+    if (typeof start !== "number") continue;
+    const end = typeof node.line_end === "number" ? node.line_end : start;
+    const [low, high] = spans.get(node.qualified_name) ?? [start, end];
+    spans.set(node.qualified_name, [Math.min(low, start), Math.max(high, end)]);
+  }
+  return spans;
+}
+
+/**
  * Add `extra.body_hash` to every symbol node, over the tokens on its lines.
  * @param {ts.SourceFile} sf
  * @param {Array<Record<string, any>>} nodes
  */
 function stamp(sf, nodes) {
   const { lines, pieces } = tokensOf(sf);
+  const spans = qnameSpans(nodes);
   for (const node of nodes) {
-    const start = node.line_start;
-    const end = typeof node.line_end === "number" ? node.line_end : start;
-    if (UNHASHED.has(node.kind) || typeof start !== "number") continue;
+    if (UNHASHED.has(node.kind) || typeof node.line_start !== "number") continue;
+    const [start, end] = /** @type {[number, number]} */ (spans.get(node.qualified_name));
     let at = lowerBound(lines, start);
     /** @type {string[]} */
     const span = [];

@@ -214,12 +214,14 @@ async def _verify(
 def _snapshot_symbols(config: Config, out: str) -> int:
     """Write the index's per-symbol fingerprints where the consumer says ("-" is stdout)."""
     from code_atlas.store import LAST_COMMIT_KEY, LAST_REF_KEY, GraphStore
+    from code_atlas.tools.freshness import dirty_indexed_paths
 
     with GraphStore(config.db_path) as store:
         data = symbol_changes.snapshot(
             store.iter_nodes(),
             rev=store.get_meta(LAST_COMMIT_KEY),
             ref=store.get_meta(LAST_REF_KEY),
+            drifted=dirty_indexed_paths(store, config),
         )
     text = json.dumps(data, ensure_ascii=False, separators=(",", ":")) + "\n"
     if out == "-":
@@ -238,10 +240,17 @@ def _changed_since(
     from code_atlas.tools.freshness import dirty_indexed_paths
 
     revision, symbols = base
+    listed = revision.get("drifted")
+    base_drifted = [str(path) for path in listed] if isinstance(listed, list) else []
     with GraphStore(config.db_path) as store:
         drifted = dirty_indexed_paths(store, config)
         verdicts = symbol_changes.compare(
-            store, symbols, qnames=qnames, paths=paths, drifted=drifted
+            store,
+            symbols,
+            qnames=qnames,
+            paths=paths,
+            drifted=drifted,
+            base_drifted=base_drifted,
         )
         rev_now = store.get_meta(LAST_COMMIT_KEY)
     status = OK

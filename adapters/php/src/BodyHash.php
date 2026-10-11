@@ -31,12 +31,13 @@ final class BodyHash
             // An open or close tag carries the whitespace after it; only the tag is code.
             $pieces[] = $token->is([T_OPEN_TAG, T_CLOSE_TAG]) ? trim($token->text) : $token->text;
         }
+        $spans = self::qnameSpans($nodes);
         foreach ($nodes as $index => $node) {
-            $start = $node['line_start'] ?? null;
-            $end = $node['line_end'] ?? $start;
-            if (in_array($node['kind'] ?? null, self::UNHASHED, true) || !is_int($start) || !is_int($end)) {
+            $qname = $node['qualified_name'] ?? null;
+            if (in_array($node['kind'] ?? null, self::UNHASHED, true) || !is_string($qname) || !isset($spans[$qname])) {
                 continue;
             }
+            [$start, $end] = $spans[$qname];
             $first = self::firstAtOrAfter($lines, $start);
             $span = [];
             for ($at = $first, $count = count($lines); $at < $count && $lines[$at] <= $end; $at++) {
@@ -48,6 +49,30 @@ final class BodyHash
         }
 
         return $nodes;
+    }
+
+    /**
+     * One span per qname: a name declared twice in a file is stored once, keep-first, so its
+     * fingerprint covers every declaration — an edit to a later one is still seen.
+     *
+     * @param array<int, array<string, mixed>> $nodes
+     * @return array<string, array{int, int}>
+     */
+    private static function qnameSpans(array $nodes): array
+    {
+        $spans = [];
+        foreach ($nodes as $node) {
+            $qname = $node['qualified_name'] ?? null;
+            $start = $node['line_start'] ?? null;
+            $end = $node['line_end'] ?? $start;
+            if (!is_string($qname) || !is_int($start) || !is_int($end)) {
+                continue;
+            }
+            [$low, $high] = $spans[$qname] ?? [$start, $end];
+            $spans[$qname] = [min($low, $start), max($high, $end)];
+        }
+
+        return $spans;
     }
 
     /** @param list<int> $lines ascending */

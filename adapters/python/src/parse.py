@@ -1179,5 +1179,5 @@ def parse_file(
         for name in forget | never_bound:
             module_locals.pop(name, None)
 
-    stamp_body_hashes(text_source, nodes)
+    stamp_body_hashes(text_source, nodes, tree)
     return {"path": qpath, "ok": True, "nodes": nodes, "edges": edges}
