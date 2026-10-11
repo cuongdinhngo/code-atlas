@@ -138,6 +138,10 @@ def render_skill() -> str:
     lines.extend(
         [
             "",
+            "## From a shell",
+            "",
+            *SHELL_ROUTE,
+            "",
             "## What this skill is not",
             "",
             "It carries the map, never a second set of tool descriptions — the descriptions the",
@@ -299,6 +303,7 @@ OCCASIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
         "Explaining how a request moves through the system",
         ("get_index_status", "trace_capability", "architecture_overview"),
     ),
+    ("A bug report or test doc names a URL", ("search_symbol", "trace_capability", "impact")),
 )
 
 BRIEF_BEGIN = "<!-- code-atlas:agent-brief -->"
@@ -324,6 +329,21 @@ def recognition_lines_by_tool() -> dict[str, str]:
         lines_by_tool.setdefault(rhs.split()[0].rstrip("."), line)
     return lines_by_tool
 
+
+# The shell route (382-384) is no MCP tool, so no tool description carries it; brief and skill
+# both splice this one copy (R1.8).
+SHELL_ROUTE: tuple[str, ...] = (
+    "- **Many answers, no agent turn each:** `code-atlas query <tool> --args '<json>'` prints the"
+    " payload the MCP tool returns; `--batch <file.jsonl>` answers one"
+    " `{\"tool\": …, \"args\": {…}}` per line over one opened index."
+    " Use it for a script, a CI check or a lint; `code-atlas query --help` lists the exit codes.",
+    "- **A pasted signed claim (`code-atlas/2 … call=…`) is a check, not prose:**"
+    " `--verify-claim '<line>'` / `--verify-claims <file>` re-run it at the current index and"
+    " answer `holds`, `changed` or `unverifiable`.",
+    "- **\"Has this method changed since revision X?\"** `--snapshot-symbols <out>` at X, then"
+    " `--changed-since <snapshot> --qname Q --path P` answers per symbol (`unchanged`,"
+    " `body_changed`, `signature_changed`, `moved`, `removed`, …) — finer than a file diff.",
+)
 
 # Usage rules, not a second copy of the recognition map (R6.7): the map says WHICH tool, these say
 # how to spend the calls. Each line is charged to every session in the consuming repo — 300's H4
@@ -393,6 +413,14 @@ USAGE_RULES: tuple[str, ...] = (
     " `status=resolution_unmodelled` for either (279/294/295).",
     "- **`find_orphans` has no path scope** — it walks the whole index from"
     " `CA_ENTRY_POINTS`. Do not expect a directory filter.",
+    "- **A URL or route someone reports** is a subject once a `routes` block is"
+    " declared in a `CA_INDIRECTION_RULES` file: `trace_capability(route=…)` traces from its"
+    " handler, `impact(routes=[…])` lists the routes a change reaches, `search_symbol` finds a"
+    " route by key. An unmatched URL answers `no_such_symbol` with `nearest_routes` (385).",
+    "",
+    "### From a shell — no agent turn per answer",
+    "",
+    *SHELL_ROUTE,
     "",
     "Hooks (edit poke, read/write signal, session state, grep nudge) are opt-in: the Claude Code",
     "plugin or the snippet under `contrib/claude-code/` — the server never writes editor settings.",

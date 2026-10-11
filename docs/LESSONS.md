@@ -45,6 +45,16 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 387-C1 — a surface reached only from a shell is invisible to an agent until its brief names it
+
+- type: 2 (process) · handle: `a-shell-surface-needs-an-agent-channel`
+- status: proposed · seen: 387
+- evidence: 382–384 shipped `code-atlas query` and its modes with README, design and CHANGELOG text, and 385
+  `route=` with a waiver saying TOOLS.md teaches it; no surface an agent loads named any of them, so 387 was opened
+  to add them. Tool params were gated (`test_agent_brief_usage_completeness`), CLI flags were not; 387's test now
+  derives `query.py`'s flags. Any non-tool entry point (a CLI, a rule-file kind) has the same gap.
+- destination: first sighting.
+
 ### 384-C1 — a store that de-dupes keep-first hides later declarations from a per-row fingerprint
 
 - type: 2 (code) · handle: `keep-first-hides-the-later-declaration`

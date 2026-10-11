@@ -17,6 +17,10 @@ How to upgrade each install route is in the README, under *Upgrading*.
 
 Commits after the newest tag; not a release until a version and a `vX.Y.Z` tag are cut (381).
 
+- An agent in a consuming repo can now find 382–385: `which_tool` and the skill route a reported
+  URL to `trace_capability(route=…)`, and the agent brief and both skills name `code-atlas query`,
+  `--verify-claims` and `--changed-since`. Re-run `gen_skill.py --write-agent-brief <repo>` to refresh
+  a repo's `AGENTS.md` (387).
 - A `routes` block in a `CA_INDIRECTION_RULES` file declares URL → handler (inline or a TSV census,
   `significant` query keys); `trace_capability(route=…)` traces from the handler, `impact` takes
   `routes` and lists the routes into its radius, `search_symbol` finds them by key, and the build

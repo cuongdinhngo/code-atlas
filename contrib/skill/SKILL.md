@@ -36,6 +36,7 @@ disagreement.
 - What should I read first, in dependency order -> guided_tour.
 - How does this codebase route an incoming request to the code that produces the response -> trace_capability.
 - What happens when a user does X — one request from entry to the data -> trace_capability.
+- A URL or route a user or test reports — which handler serves it -> trace_capability (route=…).
 - Write committable onboarding docs (overview, tour, per-module, manifest) -> generate_onboarding.
 - Do the declared architecture rules hold — no forbidden edge, every required call made -> check_architecture_rules.
 - What did the agent change about the architecture between two revisions -> diff_architecture.
@@ -70,6 +71,12 @@ Call `get_index_status` first whenever you are unsure the index is current.
 22. `check_column_defaults`
 23. `diff_architecture`
 24. `class_diagram`
+
+## From a shell
+
+- **Many answers, no agent turn each:** `code-atlas query <tool> --args '<json>'` prints the payload the MCP tool returns; `--batch <file.jsonl>` answers one `{"tool": …, "args": {…}}` per line over one opened index. Use it for a script, a CI check or a lint; `code-atlas query --help` lists the exit codes.
+- **A pasted signed claim (`code-atlas/2 … call=…`) is a check, not prose:** `--verify-claim '<line>'` / `--verify-claims <file>` re-run it at the current index and answer `holds`, `changed` or `unverifiable`.
+- **"Has this method changed since revision X?"** `--snapshot-symbols <out>` at X, then `--changed-since <snapshot> --qname Q --path P` answers per symbol (`unchanged`, `body_changed`, `signature_changed`, `moved`, `removed`, …) — finer than a file diff.
 
 ## What this skill is not
 
