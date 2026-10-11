@@ -39,10 +39,12 @@ the agent, so it generalises (PLAN §19, 2026-08-14).
   and has a URL occasion selecting `trace_capability`.
 - **AC3:** the drift guards, doc budgets and the 2,048-char instructions cap stay green.
 
+<!-- ===== MANGO WORKING DOC (below this line is NOT part of the raw ticket) ===== -->
+
 ## Session status
 
-- **KEY:** 387 · **work_doc_mode:** embed · **Current phase:** 0 refine · **Next action:** analysis. **Revert path:** `git revert` the branch's commits.
-- `TRACK: backend` · Run mode: `autorun 387 with skipped reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
+- **KEY:** 387 · **work_doc_mode:** embed · **Current phase:** 3 execute · **Next action:** review (challenger only). **Revert path:** `git revert` the branch's commits.
+- `TRACK: backend` · `TIER: full` · `SCOPE: S` · `STRUCTURE: native` · Run mode: `autorun 387 with skipped reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/387-agent-surface-names-382-385` off `main`. Contract `.mango/run-contract-387.txt`.
   RECONCILE t0: 5 declared | 3 re-run | 0 holding | 3 BROKEN | 2 UNBOUND | 0 could-not-run.
@@ -78,3 +80,163 @@ the agent, so it generalises (PLAN §19, 2026-08-14).
 | W1 | write the brief into the anchor repo too? | want | **asked, settled by the maintainer:** no — code-atlas only |
 | W2 | the acceptance bar | want | **ASSUMED (awaiting ratification):** presence in the generated surfaces, not a field measurement of agent behaviour (that is 200's) |
 | W3 | drop the `route` / `routes` waivers once the brief teaches them | want | **ASSUMED (awaiting ratification):** yes. **Tripwire:** reverses 385's waiver (`tests/test_agent_brief_usage_completeness.py:22-23`); a waiver for a taught param is untrue |
+
+## Phase 1 — analysis
+
+`PREMISE: 15 reference(s) checked | 0 missing | 0 ambiguous (surfaced, not blocking)`
+`RECALL: 2 claim(s) surfaced | 0 by symbol | 1 by handle | 1 by area | 0 by finding | 3 retired skipped — advisory (blocks nothing)`
+`SECTIONS: 3 found (Why this exists · Scope · Acceptance criteria) | 3 decomposed | ROWS: C=2 R=3 G=1 AC=3`
+`CLARIFICATION: 13 raised | 13 self-resolved (cited) | 0 for human decision`
+`TRACK: backend — 0/6 touched files under UI paths`
+`BASELINE: green`
+`SCOPE: S`
+`TIER: full`
+
+The 13 are Phase 0's H1–H10 and W1–W3: W1 answered by the maintainer, W2–W3 handed back by the handover and
+carried as `ASSUMED`. `TIER: full` because the change spans two source files plus generated outputs (quick refused it).
+
+### BASELINE
+
+`.venv/bin/pytest -q` over the ten guards this change can move (`test_skill_drift`, the three `test_agent_brief_*`,
+`test_server_instructions`, `test_contrib_snippets`, `test_claude_code_plugin`, `test_doc_size_budget`,
+`test_backlog_bookkeeping`, `test_release_discipline`): `222 passed, 1 xfailed in 2.76s`. Ran at 56ec66b2.
+
+### Gap analysis (enhancement)
+
+| Goal | Current | Target |
+|---|---|---|
+| route recognisable | `RECOGNITION_MAP` has no URL row (`code_atlas/tools/prompts.py:24-87`); the brief waives `route`/`routes` (`tests/test_agent_brief_usage_completeness.py:22-23`) | a row, an occasion, brief prose |
+| shell route recognisable | `USAGE_RULES` (`scripts/gen_skill.py:331`) and `render_skill` (`:105`) never name `code-atlas query` | one constant, rendered into both |
+
+Blast radius: `recognition_lines` feeds `which_tool`, `instructions.render` (core rows only) and `gen_skill`; one repo.
+
+### Requirements matrix
+
+| ID | Source | Verbatim | Interpretation | Status |
+|---|---|---|---|---|
+| G1 | Why | "an agent in the anchor repo keeps re-implementing them by hand" | the agent surfaces name 382–385 | ⏳ |
+| C1 | Scope 3 | "tool count stays 24" | `main.TOOL_NAMES` unchanged | ⏳ |
+| C2 | Scope 3 | "server-instructions cap (343) holds" | the row is non-core | ⏳ |
+| R1 | Scope 1 | "A recognition-map row routing a reported URL / route to `trace_capability`" | H1, H2 | ⏳ |
+| R2 | Scope 2 | "an occasion … and usage lines naming the shell route" | H3, H4, H10 | ⏳ |
+| R3 | Scope 3 | "Regenerate every `gen_skill.py` output" | H7 | ⏳ |
+| AC1 | AC | route row in `which_tool` and the skill | | ⏳ |
+| AC2 | AC | brief names the three commands and a URL occasion | | ⏳ |
+| AC3 | AC | drift guards, budgets, cap green | | ⏳ |
+
+### AC validation
+
+| AC | Falsifiable? | Note |
+|---|---|---|
+| AC1 | yes — a `which_tool` line contains `route` and `-> trace_capability`; the same line is in both SKILL.md files | |
+| AC2 | yes — grep of `contrib/agent-brief.md` for `code-atlas query`, `--verify-claims`, `--changed-since`, and an occasion whose lines include the route row | |
+| AC3 | yes — the named tests pass; `len(instructions)` ≤ `CLIENT_CAP` is already a test | |
+
+### Rule sections
+
+`RULE SECTIONS: 9 applicable — 9 by change-type | 0 by recalled handle — §R1.1 (change-type) ✅ prompts.py gains a data row, no language branch · §R1.8 (change-type) ✅ the shell-route lines are one constant rendered into brief and skill · §R2.4 (change-type) ✅ no anchor-repo identifier in any added line · §R3 (change-type) N/A because no node/edge vocabulary, qname or contract version moves · §R6.5 (change-type) ✅ the proving test is seen red before the row exists · §R6.7 (change-type) ✅ the occasion selects map lines; nothing re-typed · §R6.9 (change-type) ✅ the test reads the rendered brief and skill, the consumer side · §R7.2 (change-type) ✅ ledger row in the task and TOKEN_LEDGER · §R7.6 (change-type) ✅ the stale route waivers go in the same commit (W3)`
+
+## Phase 2 — design
+
+### Approach
+
+1. `prompts.RECOGNITION_MAP`: one non-core row, after the two `trace_capability` rows — "A URL, route or command a
+   user or test reports — which handler serves it -> trace_capability (route=…)". Placed last so
+   `recognition_lines_by_tool` (first line per tool) still selects today's line for today's occasion (H3).
+2. `gen_skill.SHELL_ROUTE`: one tuple of lines naming `code-atlas query` (`--args`, `--batch`), `--verify-claim(s)`
+   and `--snapshot-symbols` / `--changed-since`; `USAGE_RULES` and `render_skill` both splice it (R1.8).
+3. `gen_skill.OCCASIONS`: "A bug report or test doc names a URL" → `search_symbol`, `trace_capability`, `impact`,
+   and one `USAGE_RULES` line teaching `route=` / `routes=` / the `routes` rule block; the `route` / `routes` waivers go (W3).
+4. Regenerate (`gen_skill.py --write`); CHANGELOG `Unreleased` line.
+
+### Rejected alternatives
+
+- **A per-line selector in `OCCASIONS`** (pick the route row, not the first `trace_capability` row) — a second
+  selection grammar for one call site (R7.4); the occasion's prose line carries the route.
+- **The route row as `core`** — it would cost instructions characters under the 2,048 cap (343-C1) for a question
+  that only arises once a `routes` block is declared.
+- **Writing the brief into the anchor repo** — W1, the maintainer's answer.
+
+### Assumptions
+
+| Assumption | verified / novel-untested | Evidence |
+|---|---|---|
+| a non-core row leaves the server instructions byte-identical | verified | `instructions.render` passes `core_only=True` (`code_atlas/instructions.py:76`) |
+| the plugin picks up a new skill body without a version bump | verified | the plugin skill is a committed file read at load; `test_skill_drift` compares bytes only |
+
+### Smallest change list
+
+| # | Change | File | Blast radius | Ph2 covered by | k/N |
+|---|---|---|---|---|---|
+| 1 | route row | `code_atlas/tools/prompts.py` | `which_tool` text, `test_server_instructions` (non-core: unchanged), `test_routing_surface` | R1, C1, C2 | 1/1 |
+| 2 | shell route, occasion, route usage line | `scripts/gen_skill.py` | every `GENERATED` output; the three brief/skill tests | R2 | 1/1 |
+| 3 | regenerated outputs | `contrib/agent-brief.md`, `contrib/skill/SKILL.md`, `contrib/claude-code/plugin/skills/code-atlas/SKILL.md` | drift guards | R3 | 3/3 |
+| 4 | drop the two route waivers (proof collateral) | `tests/test_agent_brief_usage_completeness.py` | that gate now requires the brief to name both | R2, W3 | 1/1 |
+| 5 | proving test | `tests/test_agent_surface_names_shell_route.py` (new) | — | AC1, AC2 | 1/1 |
+| 6 | docs | `CHANGELOG.md` | `test_release_discipline` reads the top heading (unchanged) | G1 | 1/1 |
+| 7 | bookkeeping | this file, `docs/BACKLOG.md`, `docs/TOKEN_LEDGER.md` | bookkeeping tests | — | 3/3 |
+
+Trace: `grep -rn "RECOGNITION_MAP|recognition_lines|which_tool|OCCASIONS|USAGE_RULES|render_skill" tests scripts code_atlas`
+→ `test_agent_brief_announce_and_claude_load.py:37`, `test_agent_brief_in_indexed_repo.py:61`,
+`test_agent_brief_usage_completeness.py:55`, `test_routing_surface.py:63`, `test_server_instructions.py:24,81,197,206`,
+`test_skill_drift.py:34-43` — all read the map or the render, none pins a row count; each is in the AC3 run.
+
+| Handle | Answer |
+|---|---|
+| `verify-the-shipped-artifact-not-the-working-tree` | traced: `git check-ignore -v contrib/agent-brief.md contrib/skill/SKILL.md contrib/claude-code/plugin/skills/code-atlas/SKILL.md` → `exit=1 (1 = none ignored)`; `git ls-files` lists all three — the regenerated files ship as committed |
+
+`HANDLES: 1 recalled | 1 traced (command + result) | 0 does not apply (reason) | 0 unanswered`
+
+### Verification plan
+
+| AC | risk layer | proof artifact | fixture provenance | layer-match? |
+|---|---|---|---|---|
+| AC1 | logic (rendered text) | unit over `recognition_map()` and both committed SKILL.md files | n/a | ✅ |
+| AC2 | logic (rendered text) | unit over the committed `contrib/agent-brief.md`, flags derived from `query.main`'s parser (R6.7) | n/a | ✅ |
+| AC3 | logic | the ten-guard run plus `scripts/gate.sh` | n/a | ✅ |
+
+`EXCLUSIONS: 0 recorded | 0 with a checkable expiry | 0 recurring (class seen ≥ 3 → discharged/escalated) | 0 with an overdue predecessor | 0 input-shape-dependent AC(s) | 0 proven on a real corpus`
+
+### Proving test
+
+`.venv/bin/python -m pytest -q tests/test_agent_surface_names_shell_route.py` — red before the change (no route row,
+no `code-atlas query` in any surface), green after.
+
+### Rollback
+
+`git revert` the branch's commits; one repo, nothing to port. `SCOPE: S` holds (two source files, generated outputs).
+
+## Phase 3 — execute
+
+Commits `e7a167fa` (the change) and `ebc0c3af` (CHANGELOG).
+
+**Red first.** `.venv/bin/python -m pytest -q tests/test_agent_surface_names_shell_route.py` before the change:
+
+```
+FAILED tests/test_agent_surface_names_shell_route.py::test_which_tool_routes_a_reported_url_to_trace_capability
+FAILED tests/test_agent_surface_names_shell_route.py::test_the_brief_and_both_skills_teach_every_query_flag
+FAILED tests/test_agent_surface_names_shell_route.py::test_the_brief_has_a_url_occasion_that_selects_trace_capability
+3 failed in 0.50s
+```
+Ran at 56ec66b2.
+
+**Green after.** The same command: `3 passed in 0.42s`. The twelve guards (the ten baseline files plus the proving
+test and `test_routing_surface`): `228 passed, 1 xfailed in 2.86s`. `ruff check` and `mypy` on the touched sources:
+`All checks passed!` · `Success: no issues found in 1 source file`. Map rows: 26 total, 8 core (core unchanged, so the
+server instructions are byte-identical). Ran at ebc0c3af.
+
+**Axis 1 — file set.** `git diff --name-only main..HEAD` lists exactly change-list rows 1–7 (10 files); nothing else.
+`gen_skill.py --write` rewrote the four other `GENERATED` files byte-identically. `ruff format --check
+code_atlas/tools/prompts.py` reports a pre-existing hunk at line 143 (red on `main` too, checked by stashing) —
+left untouched (R7.7).
+
+**Axis 2 — design conformance.**
+
+| Approach bullet | Result |
+|---|---|
+| 1 route row, non-core, last of the three | implemented-as-approved |
+| 2 `SHELL_ROUTE`, spliced into brief and skill | implemented-as-approved |
+| 3 URL occasion, route usage line, waivers dropped | implemented-as-approved |
+| 4 regenerate, CHANGELOG `Unreleased` | implemented-as-approved |
+
+No deviation, no design invalidation.
