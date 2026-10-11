@@ -217,6 +217,10 @@ GATE GREEN — all 21 checks passed
 Ran at 0dd10f52
 ```
 
+**The maintainer pushed `28f2cf7c`** during the run: `fnmatch` read a key's `?` and any `[...]` as patterns too, so
+`i.php?page=*` matched `i.phpXpage=x`; a key is now escaped except for `*`, with a test. Inside the reviewed files; the
+gate above re-ran on top of it.
+
 **Verification sweep.** File axis: the diff is the change list plus D1; `ruff`, `mypy` (101 files) clean; 583 neighbouring
 tests pass (trace_capability, impact, search_symbol, indirection, build report, query, claims, MCP server). Behaviour
 axis: Approach 1–4 implemented as approved; Scope 2 deviates as W1 records.
