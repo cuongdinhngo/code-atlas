@@ -156,6 +156,19 @@ def test_a_route_adds_no_vocabulary() -> None:
     assert "ROUTES_TO" not in contract.EDGE_KINDS
 
 
+def test_a_route_to_a_file_traces_from_the_file(tmp_path: Path) -> None:
+    """Scope 1: a target may be a File; its flow starts at the file's own node."""
+    config, report = build(tmp_path / "repo", census="url\thandler\nreport.php\tapp.py\n")
+    answer = trace_capability.create(config)(route="/report.php?x=1")
+
+    assert report.routes_unresolved == 0
+    assert answer["reason"] == "ok", answer
+    assert answer["results"][0]["steps"][0]["qname"] == "app.py"
+    assert {row["target"] for row in impact.create(config)(paths=["app.py"])["routes"]} == {
+        "app.py"
+    }
+
+
 def test_a_wildcard_value_matches_any_action() -> None:
     table, unresolved = routes.resolve(
         [routes.RouteBlock(("module", "action"), (("i.php?module=a&action=*", "T"),))],

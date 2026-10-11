@@ -392,8 +392,13 @@ carry `rule: true`.
   the rest, and their order, are noise, and a `*` value matches any. A target is a stored qname or a
   File. The build stores the table in the index (no node, no edge — the contract does not move) and
   counts rows naming nothing indexed in `routes_unresolved`. `trace_capability(route=…)`,
-  `impact(routes=[…])` and `search_symbol` read it; with no `routes` block they answer
-  `capability_not_configured`.
+  `impact(routes=[…])` and `search_symbol` read it; with no `routes` block — or an index built before
+  the block — they answer `capability_not_configured`. A key is case-sensitive and percent-decoded,
+  its fragment dropped; any string (a CLI command, a message type) works as a path-only key. The
+  first row of a canonical key, and the first matching pattern, wins; a dead-target row is counted,
+  not stored, so its URL answers `no_such_symbol`. Only those three tools read routes — the map,
+  `find_callers`, `explain_path` and `reachable_from` do not — and only the hop into the target is
+  `HEURISTIC` + `rule: true`; later hops carry their own tiers.
 
   ```json
   {"routes": {"significant": ["module", "action"], "tsv": "docs/routes.tsv",
