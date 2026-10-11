@@ -6,6 +6,7 @@ import ast
 from pathlib import Path
 from typing import Any
 
+from src.body_hash import stamp as stamp_body_hashes
 from src.imports import import_target_raw, resolve_import
 from src.loads import (
     NAME_LOADERS,
@@ -1178,4 +1179,5 @@ def parse_file(
         for name in forget | never_bound:
             module_locals.pop(name, None)
 
+    stamp_body_hashes(text_source, nodes)
     return {"path": qpath, "ok": True, "nodes": nodes, "edges": edges}

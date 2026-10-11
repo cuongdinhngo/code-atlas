@@ -4467,6 +4467,12 @@ class GraphStore:
         )
         return self._rows(NODE_ROW_KEYS, sql, (path,))
 
+    def iter_nodes(self) -> Iterator[Row]:
+        """Every node in ``_NODE_ORDER``, streamed — a whole-index export never holds them (384)."""
+        cursor = self._conn.execute(f"SELECT id, {_NODE_COLUMNS} FROM nodes ORDER BY {_NODE_ORDER}")
+        for row in cursor:
+            yield dict(zip(NODE_ROW_KEYS, row, strict=True))
+
     def names_defined_in_files(
         self, file_paths: Sequence[str], names: Sequence[str]
     ) -> frozenset[tuple[str, str]]:

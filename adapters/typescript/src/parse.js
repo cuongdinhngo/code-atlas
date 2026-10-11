@@ -15,6 +15,7 @@ const {
   pathModuleNames,
 } = require("./imports");
 const { readSqlLiteral } = require("./sqlLiteral");
+const { stamp: stampBodyHashes } = require("./bodyHash");
 const { boundClass, newExprClass, paramTypeMap, classPropTypeMap, typeNodeOf, typeRefTargets } = require("./types");
 
 function scriptKindFor(path) {
@@ -787,6 +788,7 @@ function parseFile(path, declarationsOnly) {
     });
   };
   walk(sf, qpath, qpath, null, new Map(), new Map(), new Set());
+  stampBodyHashes(sf, nodes);
 
   return { path: qpath, ok: true, nodes, edges };
 }

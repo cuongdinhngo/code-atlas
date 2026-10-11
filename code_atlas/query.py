@@ -6,6 +6,8 @@ an agent asked (260, 379), and one batch would drown them.
 
 ``--verify-claim`` / ``--verify-claims`` re-ask a signed claim's ``call`` at the current index and
 answer ``holds``, ``changed`` (naming each key that moved) or ``unverifiable`` (task 383).
+``--snapshot-symbols`` writes the per-symbol fingerprints a consumer keeps; ``--changed-since``
+judges named qnames or paths against one (task 384). Both read the index directly, not a tool.
 """
 
 from __future__ import annotations
@@ -20,6 +22,8 @@ from pathlib import Path
 
 from fastmcp import Client, FastMCP
 
+from code_atlas import symbol_changes
+from code_atlas.config import Config
 from code_atlas.tools import build_or_update_index, claim, generate_onboarding
 from code_atlas.tools.schema_guard import SCHEMA_MISMATCH
 
@@ -207,6 +211,48 @@ async def _verify(
     return status
 
 
+def _snapshot_symbols(config: Config, out: str) -> int:
+    """Write the index's per-symbol fingerprints where the consumer says ("-" is stdout)."""
+    from code_atlas.store import LAST_COMMIT_KEY, LAST_REF_KEY, GraphStore
+
+    with GraphStore(config.db_path) as store:
+        data = symbol_changes.snapshot(
+            store.iter_nodes(),
+            rev=store.get_meta(LAST_COMMIT_KEY),
+            ref=store.get_meta(LAST_REF_KEY),
+        )
+    text = json.dumps(data, ensure_ascii=False, separators=(",", ":")) + "\n"
+    if out == "-":
+        sys.stdout.write(text)
+    else:
+        Path(out).write_text(text, encoding="utf-8")
+    return OK
+
+
+def _changed_since(
+    config: Config, base: tuple[dict[str, object], list[symbol_changes.Symbol]],
+    qnames: list[str], paths: list[str],
+) -> int:
+    """One verdict line per symbol a subject names; ``NOT_HELD`` when any is not unchanged."""
+    from code_atlas.store import LAST_COMMIT_KEY, GraphStore
+    from code_atlas.tools.freshness import dirty_indexed_paths
+
+    revision, symbols = base
+    with GraphStore(config.db_path) as store:
+        drifted = dirty_indexed_paths(store, config)
+        verdicts = symbol_changes.compare(
+            store, symbols, qnames=qnames, paths=paths, drifted=drifted
+        )
+        rev_now = store.get_meta(LAST_COMMIT_KEY)
+    status = OK
+    for verdict in verdicts:
+        line = {**verdict, "rev_base": revision["rev"], "rev_now": rev_now}
+        print(json.dumps(line, ensure_ascii=False), flush=True)
+        if verdict["status"] != symbol_changes.UNCHANGED:
+            status = NOT_HELD
+    return status
+
+
 def _claims_in(text: str, source: str | None) -> list[tuple[str | None, claim.FoundClaim]]:
     return [(source, found) for found in claim.find_claims(text)]
 
@@ -239,10 +285,32 @@ def main(argv: list[str] | None = None) -> int:
         metavar="FILE",
         help='verify every claim line in a text file ("-" reads stdin); prose is skipped',
     )
+    parser.add_argument(
+        "--snapshot-symbols",
+        metavar="OUT",
+        help='write every symbol\'s fingerprint to OUT ("-" is stdout), for --changed-since later',
+    )
+    parser.add_argument(
+        "--changed-since",
+        metavar="SNAPSHOT",
+        help="judge each --qname / --path against a --snapshot-symbols file",
+    )
+    parser.add_argument("--qname", action="append", default=[], help="a symbol to judge")
+    parser.add_argument("--path", action="append", default=[], help="a file whose symbols to judge")
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
-    modes = (args.tool, args.batch, args.verify_claim, args.verify_claims)
+    modes = (
+        args.tool, args.batch, args.verify_claim, args.verify_claims,
+        args.snapshot_symbols, args.changed_since,
+    )
     if sum(mode is not None for mode in modes) != 1:
-        parser.error("name exactly one of a tool, --batch, --verify-claim or --verify-claims")
+        parser.error(
+            "name exactly one of a tool, --batch, --verify-claim, --verify-claims, "
+            "--snapshot-symbols or --changed-since"
+        )
+    if (args.qname or args.path) and args.changed_since is None:
+        parser.error("--qname and --path belong to --changed-since")
+    if args.changed_since is not None and not (args.qname or args.path):
+        parser.error("--changed-since needs at least one --qname or --path")
 
     try:
         from code_atlas.config import load_config
@@ -255,19 +323,26 @@ def main(argv: list[str] | None = None) -> int:
         return FAILED
 
     claims: list[tuple[str | None, claim.FoundClaim]] | None = None
+    base: tuple[dict[str, object], list[symbol_changes.Symbol]] | None = None
+    requests: list[Request] = []
     try:
-        if args.verify_claim is not None:
+        if args.changed_since is not None:
+            try:
+                with open(args.changed_since, encoding="utf-8") as handle:
+                    base = symbol_changes.read_snapshot(json.load(handle))
+            except (json.JSONDecodeError, ValueError) as error:
+                raise UsageError(f"--changed-since: {error}") from None
+        elif args.snapshot_symbols is not None:
+            pass
+        elif args.verify_claim is not None:
             claims = _claims_in(args.verify_claim, None)
             if not claims:
                 raise UsageError("--verify-claim: no claim line found")
-            requests: list[Request] = []
         elif args.verify_claims == "-":
             claims = _claims_in(sys.stdin.read(), "-")
-            requests = []
         elif args.verify_claims is not None:
             with open(args.verify_claims, encoding="utf-8") as handle:
                 claims = _claims_in(handle.read(), args.verify_claims)
-            requests = []
         elif args.batch is None:
             try:
                 tool_args = json.loads(args.args)
@@ -283,13 +358,18 @@ def main(argv: list[str] | None = None) -> int:
         _say(str(error))
         return USAGE
     except (OSError, UnicodeDecodeError) as error:
-        _say(f"{'--batch' if args.verify_claims is None else '--verify-claims'}: {error}")
+        flag = "--changed-since" if args.changed_since else "--verify-claims"
+        _say(f"{flag if args.changed_since or args.verify_claims else '--batch'}: {error}")
         return USAGE
 
     if not config.db_path.is_file():
         _say(f"no index at {config.db_path} — build one with code-atlas-build")
         return FAILED
     try:
+        if args.snapshot_symbols is not None:
+            return _snapshot_symbols(config, args.snapshot_symbols)
+        if base is not None:
+            return _changed_since(config, base, args.qname, args.path)
         server = build_server(config, count=False)
         if claims is not None:
             return asyncio.run(_verify(server, config.root, claims, served))
