@@ -225,6 +225,10 @@ Ran at 3a3167b2
 The first gate run (`05aa87ce`) went red on one pytest item: the test repo's git identity `t@example.invalid` tripped
 `test_no_email_outside_the_allowed_domains`; `3a3167b2` uses `t@t`, as the other tests do.
 
+**The maintainer pushed `92d5be9b`** during the run: a deleted method whose name and body match a symbol the
+snapshot already held (two identical getters) read `moved`; a name-search candidate must now be a qname the base
+never held, so it reads `removed`, with a test. Inside the reviewed files; the gate below re-ran on top of it.
+
 **Verification sweep.** File axis: the diff is the change list; `ruff`, `mypy` (100 files), PHPStan max, `tsc` (TS,
 SQL) clean. Behaviour axis: Approach 1–5 implemented as approved; H11 landed after the exposure-checker.
 
