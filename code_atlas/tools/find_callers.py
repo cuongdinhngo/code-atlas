@@ -207,6 +207,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         A leading-anchor difference from the stored qname is re-pointed and answered;
         ``resolved_qname`` names the stored form (075/122). An exact stored qname is unchanged.
         """
+        call = claim.call_args(find_callers, locals())
         if depth < 1:
             raise ValueError(f"depth must be >= 1, got {depth}")
         if offset < 0:
@@ -237,6 +238,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 question=QUESTION,
                 subject_parts=[qname],
                 staleness=staleness,
+                call=call,
                 carry=CLAIM_CARRY,
             )
 

@@ -46,7 +46,7 @@ A real example. This prose shipped in a PR:
 A reader cannot check it. The payload that could have signed it was already on screen:
 
 ```
-code-atlas/1 tool=impact subject="app/Http/A.php,app/B.php,+2" question=blast-radius answer=25 tier=RESOLVED seeds=4 seeds_dropped=0 frontier_skipped_non_resolved=0 rev=a1b2c3d ref=main index=current server=0.2.0 build=<sha>
+code-atlas/2 tool=impact subject="app/Http/A.php,app/B.php,+2" question=blast-radius answer=25 tier=RESOLVED seeds=4 seeds_dropped=0 frontier_skipped_non_resolved=0 rev=a1b2c3d ref=main index=current server=0.2.0 build=<sha> call="{""paths"":[""app/Http/A.php"",""app/B.php"",""app/C.php"",""app/D.php""]}"
 ```
 
 `answer=25 seeds=4` says twenty-one things depend on the four changed paths; `answer=4 seeds=4`
@@ -67,9 +67,24 @@ resolved, carry **no** `claim` — a question nothing answered would be signed `
 the index never held, and a claim that cannot be re-run is decoration. The payload still says so in
 its own fields: `seeds_dropped` names the loss and `reason` names its kind.
 
+**Re-running a claim (383).** The line ends with `call=`: the tool's arguments as JSON, defaults
+left out, so the `+2` in `subject` costs nothing. `code-atlas query --verify-claim '<line>'` asks
+that call again at the current index and prints `status`: `holds`, `changed` with `changed` naming
+each asserted key that moved (`answer`, `tier`, `reason`, …), or `unverifiable` with a `reason` —
+another format version (`claim_format`, which a `code-atlas/1` line always gets), an unreadable or
+rejected call, a tool not served, or a refusal. `then` / `now` hold the asserted keys; provenance
+(`rev`, `index`, `server`, …) is not compared; `rev_then` / `rev_now` name both trees and
+`index_now: behind` says the answering tree is older than HEAD. A lost subject signs nothing, so its
+`now` is the tool's `reason`. `holds` is about the counts the line asserts, not the set behind them:
+one caller swapped for another still holds. A line in any other format version — older or newer —
+is never replayed, and a call carrying an argument a re-run never replays (`reset_fit_counts`) is
+`call_rejected`. The index is the project's, found as `code-atlas query` finds it. `--verify-claims <file>` finds every line
+in a text file, prose and Markdown around them skipped, and adds `source` (`file:line`). Exit `3`
+when any claim did not hold, so a consuming repo's lint fails on it.
+
 **Cost.** Off by default and byte-identical to today when off. When on, the line costs one extra
-git HEAD read and, measured on a one-symbol answer, **+51 tokens** on `impact` and **+46** on
-`find_callers` (`code_atlas/tokens.py` proxy). The signed payload is pinned under a 60-token delta.
+git HEAD read and, measured on a one-symbol answer, **+75 tokens** on `impact` and **+70** on
+`find_callers` (`code_atlas/tokens.py` proxy; `call` is 16 of them). Pinned under an 80-token delta.
 
 #### Answers deliberately left unsigned
 

@@ -116,6 +116,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
 
         ``sign`` adds the quotable ``claim`` line, as on ``impact``.
         """
+        call = claim.call_args(impact_modules, locals())
         hops = config.impact_depth if depth is None else depth
         if hops < 0:
             raise ValueError(f"depth must be >= 0, got {hops}")
@@ -173,6 +174,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             question=QUESTION,
             subject_parts=parts,
             staleness=staleness,
+            call=call,
             carry=CLAIM_CARRY,
             extra=(("seeds", len(plan.walk_seeds)), ("modules", len(rollups))),
         )

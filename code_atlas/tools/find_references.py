@@ -295,6 +295,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         ``\\Ns\\Sub\\Enum``) is re-pointed and answered; ``resolved_qname`` names the
         stored form (075/122). An exact stored qname is unchanged.
         """
+        call = claim.call_args(find_references, locals())
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
         path_prefix = require_path_prefix(path_prefix)
@@ -321,6 +322,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
                 question=QUESTION,
                 subject_parts=[qname],
                 staleness=staleness,
+                call=call,
                 carry=CLAIM_CARRY,
             )
 

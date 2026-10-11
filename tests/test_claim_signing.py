@@ -64,8 +64,8 @@ SIGNERS = frozenset(
     }
 )
 
-# The opt-in is one line, not a second payload (061). Measured delta is recorded in the work doc.
-CLAIM_TOKEN_CAP = 60
+# The opt-in is one line, not a second payload (061). 383's ``call`` took it from +59 to +75.
+CLAIM_TOKEN_CAP = 80
 
 # One key=value token: a quoted value (inner quotes doubled), or a run of non-space chars.
 _TOKEN = re.compile(r'[^\s=]+=(?:"(?:[^"]|"")*"|\S*)')
@@ -315,6 +315,7 @@ def test_a_quoted_value_round_trips_and_does_not_corrupt_the_rest_of_the_line() 
         question=impact.QUESTION,
         subject_parts=['src/od"d.php', "\\App\\UserRepo"],
         staleness={"last_commit": "abc1234def", "last_ref": "main", "staleness": "current"},
+        call={},
     )
     found = fields(payload)
 

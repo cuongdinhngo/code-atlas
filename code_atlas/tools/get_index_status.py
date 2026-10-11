@@ -19,7 +19,7 @@ Staleness counts only files the index covers (047): editing a README leaves the 
 a signal that says otherwise costs its reader a rebuild that reindexes nothing.
 """
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from typing import Literal
 
 from code_atlas.adapter import unconfigured_adapters
@@ -161,6 +161,7 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
         ``key=value`` line stating how many files this index covers and at which revision. An
         unbuilt or unreadable index carries no line — it cannot name a revision (task 100).
         """
+        call = claim.call_args(get_index_status, locals())
         if offset < 0:
             raise ValueError(f"offset must be >= 0, got {offset}")
         if offset > 0 and detail_level != "verbose":
@@ -174,7 +175,9 @@ def create(config: Config, registered: Sequence[str]) -> Callable[..., dict[str,
             return status
         try:
             with GraphStore(config.db_path) as store:
-                return _status(store, config, servable, detail_level, offset=offset, sign=sign)
+                return _status(
+                    store, config, servable, detail_level, offset=offset, sign=sign, call=call
+                )
         except SchemaVersionError as mismatch:
             return _mismatched(mismatch, servable, detail_level, config)
 
@@ -447,6 +450,7 @@ def _status(
     *,
     offset: int = 0,
     sign: bool = False,
+    call: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     counts = store.counts()
     revision = compute_staleness(store, config, include_dirty_count=True)
@@ -469,6 +473,7 @@ def _status(
             question=QUESTION,
             subject_parts=[config.index_root],
             staleness={**revision, "dirty_indexed_files": dirty_count},
+            call=call or {},
             answer=counts["files"],
             extra=(("parse_failures", counts["failed"]),) if counts["failed"] else (),
         )
