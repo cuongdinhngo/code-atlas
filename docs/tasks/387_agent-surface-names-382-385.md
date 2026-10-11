@@ -4,7 +4,7 @@ slug: agent-surface-names-382-385
 title: 'An agent in a consuming repo cannot recognise 382–385: no map row, brief line or skill entry names a route, a claim re-run or a symbol-change check'
 phase: 2
 milestone: Adoption
-status: todo
+status: done
 depends_on: [382, 383, 384, 385]
 ---
 
@@ -43,7 +43,7 @@ the agent, so it generalises (PLAN §19, 2026-08-14).
 
 ## Session status
 
-- **KEY:** 387 · **work_doc_mode:** embed · **Current phase:** 3 execute · **Next action:** review (challenger only). **Revert path:** `git revert` the branch's commits.
+- **KEY:** 387 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer ratifies W2–W3 and 387-C1, then merges the PR. **Revert path:** `git revert` the branch's commits.
 - `TRACK: backend` · `TIER: full` · `SCOPE: S` · `STRUCTURE: native` · Run mode: `autorun 387 with skipped reviewer` — `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`.
   The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
 - Branch `feat/387-agent-surface-names-382-385` off `main`. Contract `.mango/run-contract-387.txt`.
@@ -240,3 +240,68 @@ left untouched (R7.7).
 | 4 regenerate, CHANGELOG `Unreleased` | implemented-as-approved |
 
 No deviation, no design invalidation.
+
+## Phase 4 — review
+
+`REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON` — verdict **clean (challenger only — REVIEWER: OFF)**.
+
+**Challenger** (ticket-blind: the raw ticket above the separator plus `git diff main..branch` without this file;
+1 dispatch, 56,371 tokens): 3/3 requirements met, every new claim checked against `query.py`, `symbol_changes.py`,
+`trace_capability.py`, `impact.py`, `search_symbol.py`, `claim.py`. Two Minor findings, both landed in `89f83865`:
+
+| # | Finding | Resolution |
+|---|---|---|
+| F1 | "URL, route or command" over-promises: a route key goes through `urlsplit` (`code_atlas/routes.py:66`) | "or command" dropped from the row and the usage line |
+| F2 | the exit codes of `code-atlas query` are unstated, which a CI caller needs | the batch line points at `code-atlas query --help` |
+
+Verify-only round, main loop: the fixes stay inside F1–F2 and the approved files. Affected proof re-run:
+`97 passed in 1.25s` (proving test, drift, completeness, brief, instructions, routing, plugin, snippets). Ran at 89f83865.
+
+**Gate.** `scripts/gate.sh` on this host (`php`, `composer`, `node`, Python 3.13 present):
+`21 passed · 0 failed · 0 skipped` · `GATE GREEN — all 21 checks passed` (`pytest -q` among them). Ran at 89f83865.
+
+**Scope.** File axis: the ten change-list files, nothing else. Behaviour axis: the four Approach bullets as approved;
+F1 narrows wording only. Regression scan: the Phase-2 consumers all sit in the gate's `pytest -q`.
+
+| Row | Ph3/4 proven by | k/N |
+|---|---|---|
+| G1 | brief + both skills + `which_tool` render the route and the shell route | 1/1 |
+| C1 | `test_skill_drift::test_the_recognition_map_covers_every_served_tool`; roster still 24 | 1/1 |
+| C2 | `test_server_instructions` (core rows 8, unchanged) | 1/1 |
+| R1 / AC1 | `test_which_tool_routes_a_reported_url_to_trace_capability` | 1/1 |
+| R2 / AC2 | `test_the_brief_and_both_skills_teach_every_query_flag`, `test_the_brief_has_a_url_occasion_that_selects_trace_capability` | 2/2 |
+| R3 / AC3 | `test_skill_drift` parametrised over every `GENERATED` path; gate green | 1/1 |
+
+Reviewed at 89f83865 — files: `CHANGELOG.md`, `code_atlas/tools/prompts.py`, `scripts/gen_skill.py`,
+`contrib/agent-brief.md`, `contrib/skill/SKILL.md`, `contrib/claude-code/plugin/skills/code-atlas/SKILL.md`,
+`tests/test_agent_brief_usage_completeness.py`, `tests/test_agent_surface_names_shell_route.py`, `docs/BACKLOG.md`.
+Working doc: `docs/tasks/387_agent-surface-names-382-385.md`.
+
+## Phase 5 — finalise
+
+**Durable lesson.** 382–385 each shipped an entry point an agent could not find: a CLI and a rule-file kind have no
+tool description, so only the brief and the skill can carry them, and no guard asked. Recorded as 387-C1.
+
+`CLAIMS: 1 claim(s) from 1 lesson entr(ies) | T1=0 T2=1 T3=0 T4=0 T5=0 T6=0 | 0 unclassified`
+`RECURRENCE: 0 recurring | 0 superseded (0 retired) | 0 promotion candidate(s)`
+`FALSIFY: 0 candidate(s) checked | 0 still-true (proceed) | 0 falsified (BLOCKED) | 0 not cheaply checkable (BLOCKED)`
+`RECURRING-T2: 0 type-2 claim(s) with seen ≥ 2 | 0 routed to a destination | 0 cannot promote (reason) | 0 left in lessons_path`
+`PROMOTION: 0 proposed | 0 human-ratified | destinations: none | mango files written: 0`
+
+Stale-review guard: `git diff --name-only 89f83865..HEAD` plus the working tree touch only this file,
+`docs/LESSONS.md`, `docs/BACKLOG.md` and `docs/TOKEN_LEDGER.md` — bookkeeping, or in the reviewed set. Not stale.
+
+### Outward actions
+
+Under the handover: push `feat/387-agent-surface-names-382-385`; open the PR against `main`.
+Deferred to the maintainer: ratify W2–W3 and 387-C1's classification; merge; refresh a consuming repo's `AGENTS.md`
+with `gen_skill.py --write-agent-brief <repo>` (W1: not done here).
+
+### Cost ledger
+
+| Phase | Dispatch | Round | Tokens |
+|---|---|---|---|
+| 0 refine | exposure-checker (`challenger`) | 1 | 48,146 |
+| 4 review | `challenger` (ticket-blind) | 1 | 56,371 |
+
+`LEDGER TOTAL: 104,517 · top cost driver: challenger`
