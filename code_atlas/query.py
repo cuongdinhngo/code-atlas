@@ -136,6 +136,8 @@ async def _verify_one(
         "then": then,
         "rev_then": fields.get("rev"),
     }
+    if not then:
+        return _unverifiable(verdict, "nothing_asserted")
     if found.schema != claim.CLAIM_SCHEMA:
         return _unverifiable(
             verdict, "claim_format", format=found.schema, verifies=claim.CLAIM_SCHEMA

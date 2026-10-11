@@ -45,8 +45,9 @@ QUESTION_KEYS = frozenset({"tool", "subject", "question", CALL_KEY})
 SUBJECT_ITEMS = 3
 REV_CHARS = 7
 
-# A value needs quoting when it would otherwise break the key=value split.
-_QUOTE_TRIGGERS = ' ,="'
+# A value needs quoting when it would otherwise break the key=value split — a backtick too, since
+# the reader ends a bare value there (383).
+_QUOTE_TRIGGERS = ' ,="`'
 
 _SCHEMA_NAME = CLAIM_SCHEMA.partition("/")[0]
 # A line opens with the schema; prose or Markdown may surround it, so it is found, not anchored.

@@ -205,6 +205,33 @@ def test_a_claim_with_no_readable_call_is_unverifiable(
     assert (verdict["status"], verdict["reason"]) == (query.UNVERIFIABLE, "call_unreadable")
 
 
+def test_a_line_that_asserts_nothing_is_never_a_holds(
+    repo: tuple[Path, Config], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Challenger finding 3: a hand-trimmed line compares nothing, so it cannot hold."""
+    current = signed(capsys, find_callers.NAME, {"qname": SUBJECT})
+    call = current[current.index(" call="):]
+    _, verdict = verify(capsys, f"code-atlas/2 tool={find_callers.NAME}{call}")
+
+    assert (verdict["status"], verdict["reason"]) == (query.UNVERIFIABLE, "nothing_asserted")
+
+
+def test_a_value_with_a_backtick_round_trips() -> None:
+    """Challenger finding 1: a bare value stopped at a backtick, so one is quoted now."""
+    payload = claim.sign(
+        {"results": [], "total_count": 0},
+        tool=find_callers.NAME,
+        question=find_callers.QUESTION,
+        subject_parts=["`users`"],
+        staleness={},
+        call={"qname": "`users`"},
+    )
+    [found] = claim.find_claims(str(payload[claim.CLAIM_KEY]))
+
+    assert found.fields["subject"] == "`users`"
+    assert json.loads(found.fields[claim.CALL_KEY]) == {"qname": "`users`"}
+
+
 def test_a_re_run_never_replays_a_counter_reset(
     repo: tuple[Path, Config], capsys: pytest.CaptureFixture[str]
 ) -> None:
