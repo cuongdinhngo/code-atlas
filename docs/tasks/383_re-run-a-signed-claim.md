@@ -207,10 +207,15 @@ Commits `a7a89485` (code, tests), `8329d851` (docs). **Red first** (R6.5): the n
 `main` (`f1112a6c`) fails 14 of 14 — `query` has no verify mode and `claim` no `find_claims`.
 
 ```
-$ .venv/bin/python -m pytest -q tests/test_verify_claim.py
-16 passed in 5.59s
-Ran at 8329d851
+$ scripts/gate.sh
+  PASS pytest -q
+21 passed · 0 failed · 0 skipped
+GATE GREEN — all 21 checks passed
+Ran at ce5e4f73
 ```
+
+The first gate run on `ce5e4f73` went red on `phpstan` alone — an internal error from a stale `/tmp/phpstan`
+cache naming another session's deleted worktree; this branch touches no PHP. Cleared, re-run green above.
 
 **Verification sweep.** File axis: the diff is the change list; `ruff check`, `mypy code_atlas` clean (99 files).
 Behaviour axis: Approach 1–4 implemented as approved; H13 and H15 landed with the exposure-checker's items.
