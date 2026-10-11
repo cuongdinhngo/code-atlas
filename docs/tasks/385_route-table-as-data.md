@@ -60,10 +60,10 @@ stays in the consuming repo; code-atlas only reads it through the rule file the 
 
 ## Session status
 
-- **KEY:** 385 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer ratifies W1 (no `Entry` node / `ROUTES_TO` edge) and merges after #68. **Revert path:** `git revert` the branch's commits.
+- **KEY:** 385 · **work_doc_mode:** embed · **Current phase:** 5 finalise · **Next action:** the maintainer ratifies W1 (no `Entry` node / `ROUTES_TO` edge) and merges. **Revert path:** `git revert` the branch's commits.
 - `TRACK: backend` · `TIER: full` · `SCOPE: M` · `STRUCTURE: native` · Run mode: `autorun 383 - 384 - 385 with skipped reviewer` —
   `REVIEWER: OFF (--no-reviewer)` · `CHALLENGER: ON`. The handover delegates decisions, so a want-decision is `ASSUMED`, never silent.
-- Branch `feat/385-route-table-as-data`, stacked on 384 (`3a3167b2`). Contract `.mango/run-contract-385.txt`.
+- Branch `feat/385-route-table-as-data`, on `main` after #68 merged (`92d5be9b`), carrying 384's four post-merge bookkeeping commits. Contract `.mango/run-contract-385.txt`.
   RECONCILE t0: 5 declared | 3 re-run | 0 holding | 3 BROKEN | 2 UNBOUND | 0 could-not-run.
 
 ## Phase 0 — refine
@@ -237,8 +237,8 @@ R4, AC1–AC4 → `tests/test_route_table.py`; R2 → W1 + `test_a_route_adds_no
 
 ### Outward actions
 
-Under the handover: push `feat/385-route-table-as-data`; open the PR against `main` (stacked on #68).
-Deferred to the maintainer: ratify W1; merge after #68.
+Under the handover: push `feat/385-route-table-as-data`; open the PR against `main`.
+Deferred to the maintainer: ratify W1; merge.
 
 ### Cost ledger
 
