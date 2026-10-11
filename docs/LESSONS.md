@@ -45,6 +45,15 @@ Every type-2 handle at recurrence ≥ 2, and where it landed.
 
 ## Live claims
 
+### 384-C1 — a store that de-dupes keep-first hides later declarations from a per-row fingerprint
+
+- type: 2 (code) · handle: `keep-first-hides-the-later-declaration`
+- status: proposed · seen: 384
+- evidence: `UNIQUE(qualified_name, file_path)` keeps a TS overload's first signature, so a body hash over that
+  row's lines never saw the implementation: an edit to it read `unchanged`. The challenger's twins finding led there;
+  each adapter now hashes the union span of a qname's declarations. Any per-row derived value has the same gap.
+- destination: first sighting.
+
 ### 381-C1 — SessionStart stdout reaches only the agent; `systemMessage` is what a person sees
 
 - type: 5 (environment) · area: `claude-code hooks / output routing` · verified-at: 2026-10-10, Claude Code docs (`hooks.md`)
