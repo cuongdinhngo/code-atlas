@@ -98,7 +98,7 @@ class Repo:
             f"[adapter_cmd]\n{cli.name} = [{argv}]\n", encoding="utf-8"
         )
         self.git("init", "-q")
-        self.git("config", "user.email", "t@example.invalid")
+        self.git("config", "user.email", "t@t")
         self.git("config", "user.name", "t")
         db_path = root / ".code-atlas" / "graph.db"
         env = {"CA_TRUST_PROJECT_FILE": "1", "CA_WORKERS": "1", "CA_DB_PATH": str(db_path)}
