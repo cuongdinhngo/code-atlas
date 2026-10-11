@@ -389,7 +389,8 @@ carry `rule: true`.
 - **A route a front controller dispatches at run time (385).** `routes` declares URL → handler as
   data — inline `table` rows `{key, target}`, or a `tsv` census used as is through `columns`
   (`{"key": "url", "target": "handler"}`). `significant` names the query keys that decide a route;
-  the rest, and their order, are noise, and a `*` value matches any. A target is a stored qname or a
+  the rest, and their order, are noise, and `*` is a glob over the sorted `path?k=v&…` key, so it
+  can span a `&` when the significant keys are not the last. A target is a stored qname or a
   File. The build stores the table in the index (no node, no edge — the contract does not move) and
   counts rows naming nothing indexed in `routes_unresolved`. `trace_capability(route=…)`,
   `impact(routes=[…])` and `search_symbol` read it; with no `routes` block — or an index built before

@@ -134,7 +134,14 @@ def _tsv(
         )
     data = full.read_bytes()
     digest(data)
-    reader = csv.DictReader(io.StringIO(data.decode("utf-8")), delimiter="\t")
+    try:
+        # utf-8-sig: a spreadsheet export's byte-order mark is not part of the first column's name.
+        text = data.decode("utf-8-sig")
+    except UnicodeDecodeError as error:
+        raise ConfigError(
+            f"indirection_rules: {label!r} routes.tsv {relative!r} is not UTF-8 ({error})"
+        ) from None
+    reader = csv.DictReader(io.StringIO(text), delimiter="\t")
     header = reader.fieldnames or []
     if key_column not in header or target_column not in header:
         raise ConfigError(

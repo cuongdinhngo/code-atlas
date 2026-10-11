@@ -15,7 +15,7 @@ from typing import Any
 import pytest
 
 from code_atlas import contract, routes
-from code_atlas.config import Config, load_config
+from code_atlas.config import Config, ConfigError, load_config
 from code_atlas.indexer import BuildReport, full_build
 from code_atlas.store import GraphStore
 from code_atlas.tools import impact, search_symbol, trace_capability
@@ -167,6 +167,23 @@ def test_a_route_to_a_file_traces_from_the_file(tmp_path: Path) -> None:
     assert {row["target"] for row in impact.create(config)(paths=["app.py"])["routes"]} == {
         "app.py"
     }
+
+
+def test_a_census_exported_with_a_byte_order_mark_is_used_as_is(tmp_path: Path) -> None:
+    """Challenger finding 1: a spreadsheet's BOM would hide the first column's name."""
+    config, report = build(tmp_path / "repo", census="\ufeff" + CENSUS)
+
+    assert report.routes_unresolved == 0
+    assert trace_capability.create(config)(route=EDIT_URL)["reason"] == "ok"
+
+
+def test_a_census_that_is_not_utf8_fails_the_build_with_a_config_error(tmp_path: Path) -> None:
+    """Challenger finding 2: a bad rule input is a ConfigError, never a traceback (R5.3)."""
+    root = tmp_path / "repo"
+    root.mkdir()
+    (root / "routes.tsv").write_bytes("url\thandler\ncaf\xe9\tapp.py\n".encode("latin-1"))
+    with pytest.raises(ConfigError, match="not UTF-8"):
+        routes.read_blocks(RULES["routes"], "rules.json", root, lambda _data: None)
 
 
 def test_a_wildcard_value_matches_any_action() -> None:
