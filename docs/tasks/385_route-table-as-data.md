@@ -214,7 +214,7 @@ $ scripts/gate.sh
   PASS pytest -q
 21 passed · 0 failed · 0 skipped
 GATE GREEN — all 21 checks passed
-Ran at 0dd10f52
+Ran at abd312a9
 ```
 
 **The maintainer pushed `28f2cf7c`** during the run: `fnmatch` read a key's `?` and any `[...]` as patterns too, so
