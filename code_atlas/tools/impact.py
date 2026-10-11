@@ -203,6 +203,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
         No line is emitted when there is no index, or when no seed resolved — a question nothing
         answered would be signed ``answer=0``, and a claim that cannot be re-run is decoration.
         """
+        call = claim.call_args(impact, locals())
         hops = config.impact_depth if depth is None else depth
         if hops < 0:
             raise ValueError(f"depth must be >= 0, got {hops}")
@@ -262,6 +263,7 @@ def create(config: Config) -> Callable[..., dict[str, object]]:
             question=QUESTION,
             subject_parts=parts,
             staleness=staleness,
+            call=call,
             carry=CLAIM_CARRY,
             extra=(("seeds", len(plan.walk_seeds)),),
         )
