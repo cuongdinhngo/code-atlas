@@ -222,7 +222,7 @@ GATE GREEN — all 21 checks passed
 Ran at 3a3167b2
 ```
 
-The first gate run (`05aa87ce`) went red on one pytest item: the test repo's git identity `t@example.invalid` tripped
+The first gate run (`05aa87ce`) went red on one pytest item: the test repo's git identity (an `example.invalid` address) tripped
 `test_no_email_outside_the_allowed_domains`; `3a3167b2` uses `t@t`, as the other tests do.
 
 **The maintainer pushed `92d5be9b`** during the run: a deleted method whose name and body match a symbol the
