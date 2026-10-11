@@ -209,6 +209,14 @@ whose target only shared a file with a reached symbol; `routes.reaching` now mat
 lists every shipped tool parameter as taught or waived, and `routes` was neither. A listed-subset pin of the surface
 this change extends, missed at Gate 2 — P5's own class. Both new parameters are waived as subject selectors.
 
+```
+$ scripts/gate.sh
+  PASS pytest -q
+21 passed · 0 failed · 0 skipped
+GATE GREEN — all 21 checks passed
+Ran at 0dd10f52
+```
+
 **Verification sweep.** File axis: the diff is the change list plus D1; `ruff`, `mypy` (101 files) clean; 583 neighbouring
 tests pass (trace_capability, impact, search_symbol, indirection, build report, query, claims, MCP server). Behaviour
 axis: Approach 1–4 implemented as approved; Scope 2 deviates as W1 records.
@@ -225,6 +233,10 @@ axis: Approach 1–4 implemented as approved; Scope 2 deviates as W1 records.
   non-UTF-8 TSV raised a raw `UnicodeDecodeError`; `*` spans `&`; batch `search_symbol` reads no routes (documented
   single-query); `/` and `?a=1` share the empty key (first wins, documented); duplicates silent (noise). Fixed in the
   commit after `18b8521d`: `utf-8-sig` and a `ConfigError`, both tested; the glob documented.
+
+- **`challenger` round 2** (44,702 tokens) — D1 touched a file outside the reviewed set, so a full re-dispatch: 4 met ·
+  0 not met; the waivers add `route`/`routes` and weaken nothing; 384's four commits touch only its working doc.
+  Reviewed at 0dd10f52 — round 1's files plus `tests/test_agent_brief_usage_completeness.py`.
 
 Verdict: clean (challenger only — REVIEWER: OFF), with W1 standing for ratification. Matrix `Ph3/4 proven by`: R1, R3,
 R4, AC1–AC4 → `tests/test_route_table.py`; R2 → W1 + `test_a_route_adds_no_vocabulary`; G1, C1 → the diff and TOOLS.md.
@@ -250,5 +262,6 @@ Deferred to the maintainer: ratify W1; merge.
 |---|---|---|---|
 | 0 refine | exposure-checker (`challenger`) | 1 | 47,195 |
 | 4 review | `challenger` (ticket-blind) | 1 | 68,059 |
+| 4 review | `challenger` (D1 re-review) | 2 | 44,702 |
 
-`LEDGER TOTAL: 115,254 · top cost driver: challenger`
+`LEDGER TOTAL: 159,956 · top cost driver: challenger`
